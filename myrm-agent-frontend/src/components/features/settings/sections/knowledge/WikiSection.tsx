@@ -21,6 +21,8 @@ interface WikiStats {
   total_articles: number;
   total_raw_files: number;
   wiki_path: string;
+  vault_ready: boolean;
+  legacy_migrated: boolean;
 }
 
 interface WikiQueryResponse {
@@ -333,7 +335,24 @@ export function WikiSection() {
               {isLoadingStats && <div className="text-center py-4 text-muted-foreground">{t('loading')}</div>}
 
               {stats && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span
+                      className={
+                        stats.vault_ready
+                          ? 'inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-600 dark:text-emerald-400'
+                          : 'inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-400'
+                      }
+                    >
+                      {stats.vault_ready ? t('stats.vaultReady') : t('stats.vaultNotReady')}
+                    </span>
+                    {!stats.legacy_migrated && (
+                      <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                        {t('stats.legacyPending')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-muted rounded-lg">
                     <div className="text-3xl font-bold">{stats.total_concepts}</div>
                     <div className="text-sm text-muted-foreground">{t('stats.concepts')}</div>
@@ -350,6 +369,7 @@ export function WikiSection() {
                     <Button onClick={loadStats} variant="ghost" size="sm">
                       {t('actions.refresh')}
                     </Button>
+                  </div>
                   </div>
                 </div>
               )}

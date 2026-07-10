@@ -138,6 +138,40 @@ class TestArchiveMemory:
 
 
 class TestFormatMemory:
+    def test_format_harness_session_notes(self, archiver: MemoryToWikiArchiver) -> None:
+        notes = {
+            "_meta": {"last_updated_message_idx": 12, "incremental_count": 1},
+            "session_title": "Pricing research",
+            "task_spec": "Compare competitor pricing models " * 40,
+            "key_findings": "Enterprise tier starts at $99 " * 40,
+        }
+        doc = archiver._format_memory_as_document(notes)
+        assert "# Session Notes" in doc
+        assert "## Task Specification" in doc
+        assert len(doc) >= 500
+
+    @pytest.mark.asyncio
+    async def test_archives_harness_session_notes_json(self, archiver: MemoryToWikiArchiver) -> None:
+        notes = {
+            "_meta": {"last_updated_message_idx": 15, "incremental_count": 2},
+            "task_spec": "Detailed specification " * 50,
+            "key_findings": "Important finding " * 50,
+        }
+        import json
+
+        result = await archiver.archive_memory(
+            json.dumps(notes),
+            conversation_turns=15,
+            chat_id="chat-abc",
+        )
+        assert result is True
+
+    def test_estimate_turn_count_from_meta(self) -> None:
+        import json
+
+        payload = json.dumps({"_meta": {"last_updated_message_idx": 11}})
+        assert MemoryToWikiArchiver.estimate_turn_count_from_notes(payload) == 11
+
     def test_format_all_fields(self, archiver: MemoryToWikiArchiver) -> None:
         notes = {
             "session_id": "s1",

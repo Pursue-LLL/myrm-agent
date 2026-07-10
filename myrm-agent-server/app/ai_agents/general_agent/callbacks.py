@@ -13,6 +13,8 @@ import logging
 from collections.abc import Awaitable, Callable, Sequence
 from typing import cast
 
+from langchain_core.language_models import BaseChatModel
+
 logger = logging.getLogger(__name__)
 
 _CORRECTION_SOURCE_ID_HASH_LENGTH = 16
@@ -48,6 +50,44 @@ def make_notes_persist(chat_id: str) -> Callable[[str], Awaitable[None]]:
             logger.info("💾 [SessionNotes] Persisted to DB: chat_id=%s", chat_id)
 
     return _persist
+
+
+def make_summary_persist_with_wiki_archive(
+    *,
+    enable_wiki: bool,
+    wiki_archive_llm: BaseChatModel | None,
+) -> Callable[[str, object, str, int], Awaitable[None]]:
+    """Wrap compaction persist to archive SessionNotes into wiki after context compression."""
+    base_persist = get_persist_compaction()
+
+    async def _persist_with_wiki(
+        chat_id: str,
+        summary: object,
+        before_message_id: str,
+        tokens_saved: int,
+    ) -> None:
+        await base_persist(chat_id, summary, before_message_id, tokens_saved)
+        if not enable_wiki or wiki_archive_llm is None:
+            return
+
+        import asyncio
+
+        from myrm_agent_harness.agent._skill_agent_context import track_background_task
+
+        from app.services.wiki.wiki_archive_hook import archive_session_notes_to_wiki
+
+        notes_loader = make_notes_load(chat_id)
+
+        async def _archive_after_compact() -> None:
+            notes_json = await notes_loader()
+            if not notes_json:
+                return
+            await archive_session_notes_to_wiki(chat_id, notes_json, llm=wiki_archive_llm)
+
+        task = asyncio.create_task(_archive_after_compact())
+        track_background_task(task)
+
+    return _persist_with_wiki
 
 
 def make_notes_load(chat_id: str) -> Callable[[], Awaitable[str | None]]:

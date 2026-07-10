@@ -26,11 +26,10 @@ MemoryToWikiArchiver: Memory→Wiki 自动归档服务
    - Builds long-term knowledge (beyond single conversation)
    - Automatic organization (LLM structures the knowledge)
 
-## Multi-Tenant Design
+## Vault Location
 
-- Each user gets isolated wiki directory: `~/.myrm/users/{user_id}/wiki/`
-- Memory archival runs per-user (no cross-tenant leakage)
-- Control plane can aggregate wikis for organization-level knowledge
+- Canonical SSOT: `{harness_dir}/wiki` via `vault_resolver.resolve_wiki_vault_path()`
+- Control plane sandbox: optional read-only mounts via `MYRM_PUBLIC_WIKI_VOLUMES`
 """
 
 from __future__ import annotations
@@ -76,19 +75,19 @@ class MemoryToWikiArchiver:
 
         Args:
             llm: LLM for wiki compilation
-            wiki_dir: Directory for the wiki (defaults to {MYRM_DATA_DIR}/wiki)
+            wiki_dir: Directory for the wiki (defaults to {harness_dir}/wiki)
             config: Optional WikiConfig (uses defaults if not provided)
             search_fn: Optional semantic search function injected from retriever
         """
         self._llm = llm
         self._config = config or WikiConfig()
 
-        from app.config.settings import settings
+        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
 
         if wiki_dir:
-            resolved_wiki_dir = Path(wiki_dir).expanduser()
+            resolved_wiki_dir = Path(wiki_dir).expanduser().resolve()
         else:
-            resolved_wiki_dir = Path(settings.database.state_dir) / "wiki"
+            resolved_wiki_dir = resolve_wiki_vault_path()
 
         public_dirs: list[Path] = []
         from app.platform_utils.deployment_capabilities import get_deployment_capabilities
@@ -132,6 +131,8 @@ class MemoryToWikiArchiver:
         self,
         session_notes_json: str,
         conversation_turns: int,
+        *,
+        chat_id: str | None = None,
     ) -> bool:
         """
         Archive memory to wiki if valuable.
@@ -139,6 +140,7 @@ class MemoryToWikiArchiver:
         Args:
             session_notes_json: SessionNotes JSON from memory system
             conversation_turns: Number of conversation turns
+            chat_id: Optional chat id used for filenames when notes omit session_id
 
         Returns:
             True if archived, False if skipped
@@ -168,7 +170,7 @@ class MemoryToWikiArchiver:
 
             import uuid
 
-            session_id = notes.get("session_id", "unknown")
+            session_id = notes.get("session_id") or chat_id or "unknown"
             file_name = f"conversation_{session_id}_{uuid.uuid4().hex[:8]}.md"
             raw_path = self._structure.get_raw_file_path(file_name)
             raw_path.write_text(content, encoding="utf-8")
@@ -184,7 +186,11 @@ class MemoryToWikiArchiver:
             return False
 
     def _format_memory_as_document(self, notes: dict[str, object]) -> str:
-        """Format SessionNotes as a markdown document for wiki ingestion."""
+        """Format session notes JSON as a markdown document for wiki ingestion."""
+        meta = notes.get("_meta")
+        if isinstance(meta, dict):
+            return self._format_harness_session_notes(notes)
+
         lines = [
             f"# Conversation: {notes.get('session_id', 'unknown')}",
             "",
@@ -237,6 +243,45 @@ class MemoryToWikiArchiver:
             lines.append("")
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _format_harness_session_notes(notes: dict[str, object]) -> str:
+        """Format harness SessionNotes section JSON into markdown."""
+        section_titles: dict[str, str] = {
+            "session_title": "Session Title",
+            "current_state": "Current State",
+            "task_spec": "Task Specification",
+            "files_and_functions": "Files and Functions",
+            "workflow": "Workflow",
+            "errors_and_corrections": "Errors and Corrections",
+            "key_findings": "Key Findings",
+            "worklog": "Worklog",
+        }
+        lines = ["# Session Notes", ""]
+        for key, title in section_titles.items():
+            raw = notes.get(key)
+            if not isinstance(raw, str) or not raw.strip():
+                continue
+            lines.extend([f"## {title}", "", raw.strip(), ""])
+        return "\n".join(lines)
+
+    @staticmethod
+    def estimate_turn_count_from_notes(session_notes_json: str) -> int:
+        """Estimate conversation turns from harness SessionNotes metadata."""
+        import json
+
+        try:
+            parsed = json.loads(session_notes_json)
+        except json.JSONDecodeError:
+            return 0
+        if not isinstance(parsed, dict):
+            return 0
+        meta = parsed.get("_meta")
+        if isinstance(meta, dict):
+            idx = meta.get("last_updated_message_idx")
+            if isinstance(idx, int) and idx > 0:
+                return idx
+        return 0
 
     async def query_wiki(self, question: str) -> str:
         """

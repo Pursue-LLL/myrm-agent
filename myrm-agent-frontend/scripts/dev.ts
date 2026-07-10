@@ -82,9 +82,7 @@ function setupSignalHandlers(child: ChildProcess) {
   });
 }
 
-const devForce =
-  process.env.MYRM_DEV_FORCE === '1' || process.env.MYRM_DEV_FORCE === 'true';
-if (!devForce && isDevServerHealthy(APP_DEV_PORT) && isFrontendHttpOk()) {
+if (isDevServerHealthy(APP_DEV_PORT) && isFrontendHttpOk()) {
   const lock = readDevLock();
   console.log(
     `✅ Dev server already healthy → http://127.0.0.1:${APP_DEV_PORT} (PID ${lock?.pid ?? 'unknown'})`,
@@ -93,13 +91,8 @@ if (!devForce && isDevServerHealthy(APP_DEV_PORT) && isFrontendHttpOk()) {
 }
 
 assertDevLockAvailable(APP_DEV_PORT);
-if (!devForce) {
-  console.log(`🧹 Freeing port ${APP_DEV_PORT} (myrm-agent-frontend only)...`);
-  killListenersOnPort(APP_DEV_PORT);
-} else {
-  console.log(`🧹 MYRM_DEV_FORCE=1 — reclaiming port ${APP_DEV_PORT}...`);
-  killListenersOnPort(APP_DEV_PORT);
-}
+console.log(`🧹 Freeing port ${APP_DEV_PORT} (myrm-agent-frontend only)...`);
+killListenersOnPort(APP_DEV_PORT);
 acquireDevLock(APP_DEV_PORT);
 
 const bindLan =

@@ -4,25 +4,19 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.services.agent.streaming import ClarificationWaiter, _clarification_waiters
+from app.services.agent.streaming import PhaseWaiter, _phase_waiters
 
 
 @pytest.fixture(autouse=True)
 def _cleanup_waiters():
-    _clarification_waiters.clear()
+    _phase_waiters.clear()
     yield
-    _clarification_waiters.clear()
+    _phase_waiters.clear()
 
 
 @pytest.fixture
 def app() -> FastAPI:
     app = FastAPI()
-
-    async def mock_get_deploy_identity() -> str:
-        return "test-user"
-
-    pass
-
     from app.api.agents.general_agent import router
 
     app.include_router(router, prefix="/api/v1/agents")
@@ -45,7 +39,7 @@ class TestClarifyResponseEndpoint:
         assert body.get("code") == 404 or "No pending" in str(body)
 
     def test_resolve_pending_waiter(self, client: TestClient):
-        waiter = ClarificationWaiter.register("msg-test-1")
+        waiter = PhaseWaiter.register("msg-test-1")
         assert not waiter.is_resolved
 
         resp = client.post(
@@ -56,7 +50,7 @@ class TestClarifyResponseEndpoint:
         assert waiter.is_resolved
 
     def test_resolve_with_empty_answer_for_skip(self, client: TestClient):
-        waiter = ClarificationWaiter.register("msg-test-2")
+        waiter = PhaseWaiter.register("msg-test-2")
 
         resp = client.post(
             "/api/v1/agents/clarify-response",
@@ -66,7 +60,7 @@ class TestClarifyResponseEndpoint:
         assert waiter.is_resolved
 
     def test_resolve_with_structured_answer(self, client: TestClient):
-        waiter = ClarificationWaiter.register("msg-test-3")
+        waiter = PhaseWaiter.register("msg-test-3")
 
         resp = client.post(
             "/api/v1/agents/clarify-response",
@@ -80,7 +74,7 @@ class TestClarifyResponseEndpoint:
 
     def test_camel_case_field_mapping(self, client: TestClient):
         """Verify camelCase request body is correctly mapped via alias_generator."""
-        waiter = ClarificationWaiter.register("msg-camel")
+        waiter = PhaseWaiter.register("msg-camel")
         resp = client.post(
             "/api/v1/agents/clarify-response",
             json={"messageId": "msg-camel", "answer": "test"},

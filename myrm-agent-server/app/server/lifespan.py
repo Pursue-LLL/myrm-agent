@@ -477,6 +477,11 @@ async def _phase_1b_parallel() -> None:
         except Exception as e:
             logger.error("[Startup] Failed to sync Vault Credentials: %s", e)
 
+    async def _init_wiki_vault_task() -> None:
+        from app.services.wiki.vault_service import init_wiki_vault_at_startup
+
+        await init_wiki_vault_at_startup()
+
     results = await asyncio.gather(
         _init_subagent_configs(),
         _init_code_execution_config(),
@@ -493,6 +498,7 @@ async def _phase_1b_parallel() -> None:
         _init_harness_bridge_task(),
         _init_security_reviewer_task(),
         _init_vault_credentials_task(),
+        _init_wiki_vault_task(),
         return_exceptions=True,
     )
 
@@ -512,6 +518,7 @@ async def _phase_1b_parallel() -> None:
         "Harness event bridge",
         "Security reviewer",
         "Vault credentials",
+        "Wiki vault",
     ]
     for label, result in zip(_labels, results, strict=True):
         if isinstance(result, Exception):

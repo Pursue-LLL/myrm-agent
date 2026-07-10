@@ -1934,7 +1934,10 @@
         "description": "知识库概览",
         "concepts": "概念数",
         "articles": "文章数",
-        "rawFiles": "原始文件"
+        "rawFiles": "原始文件",
+        "vaultReady": "知识库已就绪",
+        "vaultNotReady": "知识库初始化中",
+        "legacyPending": "旧数据迁移待完成"
       },
       "query": {
         "title": "查询 Wiki",
@@ -5855,7 +5858,8 @@
       "editPlaceholder": "修改研究计划...",
       "confirmed": "计划已批准",
       "edited": "计划已修改并批准",
-      "skipped": "已跳过审阅"
+      "skipped": "已跳过审阅",
+      "submitFailed": "提交计划响应失败，请重试"
     },
     "toolsPanel": {
       "title": "可用工具",

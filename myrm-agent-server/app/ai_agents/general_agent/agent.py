@@ -258,10 +258,10 @@ class GeneralAgent(ToolSetupMixin):
         self.notify_targets = notify_targets
 
     def _resolve_wiki_base_dir(self) -> str | None:
-        """Resolve wiki base directory for the current user."""
-        from pathlib import Path
+        """Resolve wiki base directory (canonical harness vault)."""
+        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
 
-        return str(Path("~/.myrm/users").expanduser() / "sandbox" / "wiki")
+        return str(resolve_wiki_vault_path())
 
     def _build_wiki_search_fn(
         self,

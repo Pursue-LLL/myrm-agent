@@ -1934,7 +1934,10 @@
         "description": "Overview of your knowledge base",
         "concepts": "Concepts",
         "articles": "Articles",
-        "rawFiles": "Raw Files"
+        "rawFiles": "Raw Files",
+        "vaultReady": "Vault ready",
+        "vaultNotReady": "Vault initializing",
+        "legacyPending": "Legacy data migration pending"
       },
       "query": {
         "title": "Query Wiki",
@@ -5856,7 +5859,8 @@
       "editPlaceholder": "Modify the research plan...",
       "confirmed": "Plan approved",
       "edited": "Plan updated & approved",
-      "skipped": "Review skipped"
+      "skipped": "Review skipped",
+      "submitFailed": "Failed to submit plan response. Please try again."
     },
     "toolsPanel": {
       "title": "Available Tools",

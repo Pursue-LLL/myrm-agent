@@ -18,6 +18,7 @@
 | `MarkdownContent.tsx` | 组件/模块 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型 | ✅ |
 | `MemoryCitationsButton.tsx` | 组件/模块 | — | — |
 | `MemoryInsightPanel.tsx` | 组件/模块 | — | — |
+| `PlanConfirmationCard.tsx` | 组件 | Deep Research 研究计划确认 HITL 卡片：展示 AI 生成的研究计划，提供批准/编辑/跳过三种操作，通过 `submitPlanConfirmResponse` API 与后端 PhaseWaiter 通信 | ✅ |
 | `MessageActionBar.tsx` | 组件 | 消息操作栏：复制/朗读/Fork/记忆保存/技能提炼/Wiki保存等按钮 | ✅ |
 | `MessageBox.tsx` | 组件/模块 | — | — |
 | `MessageBoxLoading.tsx` | 组件/模块 | — | — |

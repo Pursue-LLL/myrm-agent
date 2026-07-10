@@ -103,7 +103,7 @@ const PlanConfirmationCard = ({ messageId, plan, status }: PlanConfirmationCardP
       markResolved('confirmed');
     } catch (err) {
       console.error('Failed to confirm plan:', err);
-      toast.error(t('confirmed'));
+      toast.error(t('submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -124,7 +124,7 @@ const PlanConfirmationCard = ({ messageId, plan, status }: PlanConfirmationCardP
       markResolved(isChanged ? 'edited' : 'confirmed');
     } catch (err) {
       console.error('Failed to submit edited plan:', err);
-      toast.error(t('edited'));
+      toast.error(t('submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -138,7 +138,7 @@ const PlanConfirmationCard = ({ messageId, plan, status }: PlanConfirmationCardP
       markResolved('skipped');
     } catch (err) {
       console.error('Failed to skip plan confirmation:', err);
-      toast.error(t('skipped'));
+      toast.error(t('submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -207,7 +207,7 @@ const PlanConfirmationCard = ({ messageId, plan, status }: PlanConfirmationCardP
               )}
             >
               <PencilIcon className="h-3.5 w-3.5" />
-              {editing ? t('edit') : t('edit')}
+              {t('edit')}
             </button>
             {!editing && (
               <button

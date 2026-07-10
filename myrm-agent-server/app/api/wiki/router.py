@@ -73,6 +73,8 @@ class WikiStatsResponse(BaseModel):
     total_articles: int
     total_raw_files: int
     wiki_path: str
+    vault_ready: bool
+    legacy_migrated: bool
 
 
 class GraphNodeItem(BaseModel):
@@ -147,8 +149,10 @@ async def _get_wiki_archiver(
     llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
     manager: Annotated[MemoryManager | None, Depends(get_optional_memory_manager)],
 ) -> MemoryToWikiArchiver:
-    """Get wiki archiver for current user."""
-    return MemoryToWikiArchiver(llm, None, manager=manager)
+    """Get wiki archiver bound to the canonical vault path."""
+    from app.services.wiki.vault_service import get_wiki_archiver
+
+    return get_wiki_archiver(llm, manager)
 
 
 # --- Core RAG & Compilation Endpoints ---
@@ -206,6 +210,8 @@ async def get_wiki_stats(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
 ) -> WikiStatsResponse:
     try:
+        from app.services.wiki.vault_resolver import is_legacy_migration_complete, is_vault_ready
+
         concepts = archiver._structure.list_concepts()
         raw_files = archiver._structure.list_raw_files()
         return WikiStatsResponse(
@@ -213,6 +219,8 @@ async def get_wiki_stats(
             total_articles=len(concepts),
             total_raw_files=len(raw_files),
             wiki_path=str(archiver.get_wiki_path()),
+            vault_ready=is_vault_ready(),
+            legacy_migrated=is_legacy_migration_complete(),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

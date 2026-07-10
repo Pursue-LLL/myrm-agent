@@ -200,13 +200,12 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
 
         from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
         from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
-        from myrm_agent_harness.toolkits.wiki.pipeline.compiler import WikiCompiler
         from myrm_agent_harness.toolkits.llms import llm_manager
 
-        wiki_base_dir = Path("~/.myrm/users").expanduser() / "sandbox" / "wiki"
-        if not wiki_base_dir.exists():
-            logger.debug("Wiki base dir not found, skipping research vault")
-            return
+        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+
+        wiki_base_dir = resolve_wiki_vault_path()
+        wiki_base_dir.mkdir(parents=True, exist_ok=True)
 
         agent_results = getattr(result, "agent_results", [])
         if not agent_results:
@@ -250,12 +249,14 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
             return
 
         try:
+            from app.services.wiki.vault_service import get_wiki_archiver
+
             wiki_llm = await llm_manager.get_llm_from_config(
                 params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None)
             )
-            compiler = WikiCompiler(llm=wiki_llm, structure=structure, config=config)
+            archiver = get_wiki_archiver(wiki_llm)
             for fp in written_files:
-                compiler.enqueue_file(fp)
+                archiver._compiler.enqueue_file(fp)
             logger.info(
                 "[deep-research-vault] Enqueued %d research files for wiki compilation",
                 len(written_files),

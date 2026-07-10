@@ -126,7 +126,7 @@ function reclaimStaleDevLock(existing: DevLockRecord, port: number, reason: stri
   fs.unlinkSync(LOCK_FILE);
 }
 
-/** Refuse when another dev-server.lock owner is alive; MYRM_DEV_FORCE=1 takes over. */
+/** Refuse when another dev-server.lock owner is alive and healthy. */
 export function assertDevLockAvailable(port: number): void {
   const existing = readDevLock();
   if (!existing || existing.pid === process.pid) return;
@@ -138,22 +138,12 @@ export function assertDevLockAvailable(port: number): void {
 
   const listeners = listPidsOnPort(existing.port);
   if (evaluateDevServerHealth(existing, port, listeners, isProcessAlive)) {
-    const force = process.env.MYRM_DEV_FORCE === '1' || process.env.MYRM_DEV_FORCE === 'true';
-    if (!force) {
-      console.error(`❌ Dev server already running (PID ${existing.pid}, port ${existing.port})`);
-      console.error(`   Started: ${existing.startedAt}`);
-      console.error(`   CWD: ${existing.cwd}`);
-      console.error('   Stop it first, or run: MYRM_DEV_FORCE=1 bun run dev');
-      process.exit(1);
-    }
-    console.warn(`⚠️  MYRM_DEV_FORCE=1 — stopping previous dev server PID ${existing.pid}`);
-    try {
-      process.kill(existing.pid, 'SIGTERM');
-    } catch {
-      // already gone
-    }
-    killListenersOnPort(port, true);
-    return;
+    console.error(`❌ Dev server already running (PID ${existing.pid}, port ${existing.port})`);
+    console.error(`   Started: ${existing.startedAt}`);
+    console.error(`   CWD: ${existing.cwd}`);
+    console.error('   Parallel attach: ./myrm ready --attach');
+    console.error('   Reset stack: ./myrm stop && ./myrm ready');
+    process.exit(1);
   }
 
   const reason =

@@ -66,6 +66,7 @@ async def build_general_agent(
         make_loaded_skills_persist_callback,
         make_notes_load,
         make_notes_persist,
+        make_summary_persist_with_wiki_archive,
         make_skill_review_callback,
     )
     from .config_builders import (
@@ -402,7 +403,10 @@ async def build_general_agent(
             llm=agent_wrapper._lite_llm,
             summarizer_llm=agent_wrapper._lite_llm,
             tail_budget_ratio=agent_wrapper.tail_budget_ratio,
-            on_summary_persist=get_persist_compaction(),
+            on_summary_persist=make_summary_persist_with_wiki_archive(
+                enable_wiki=agent_wrapper.enable_wiki,
+                wiki_archive_llm=agent_wrapper._lite_llm if agent_wrapper.enable_wiki else None,
+            ),
             on_compress_offload=compress_offload_cb,
             on_compress_eviction=compress_eviction_cb,
             on_context_snapshot=context_snapshot_cb,

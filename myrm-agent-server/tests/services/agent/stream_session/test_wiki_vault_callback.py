@@ -29,6 +29,15 @@ class _FakeResult:
     error: str | None = None
 
 
+def _mock_wiki_archiver(mock_compiler: MagicMock | None = None) -> MagicMock:
+    compiler = mock_compiler or MagicMock()
+    if mock_compiler is None:
+        compiler.enqueue_file = MagicMock()
+    archiver = MagicMock()
+    archiver._compiler = compiler
+    return archiver
+
+
 class TestBuildWikiVaultCallback:
     """Unit tests for _build_wiki_vault_callback logic."""
 
@@ -43,15 +52,39 @@ class TestBuildWikiVaultCallback:
         assert callable(callback)
 
     @pytest.mark.asyncio
-    async def test_skips_when_wiki_dir_not_exists(self, tmp_path: Path):
+    async def test_creates_vault_when_missing(self, tmp_path: Path):
         factory = self._get_callback_factory()
         params = _FakeParams()
         callback = factory(params)
 
         result = _FakeResult(agent_results=[{"task": "Test", "result": "x" * 300}])
+        harness = tmp_path / "harness"
 
-        with patch("pathlib.Path.expanduser", return_value=tmp_path / "nonexistent"):
+        mock_structure = MagicMock()
+        mock_structure.raw_dir = harness / "wiki" / "raw"
+        mock_structure.raw_dir.mkdir(parents=True, exist_ok=True)
+
+        with (
+            patch("app.config.settings.settings") as mock_settings,
+            patch(
+                "myrm_agent_harness.toolkits.wiki.core.structure.WikiStructure",
+                return_value=mock_structure,
+            ) as mock_ws,
+            patch(
+                "app.services.wiki.vault_service.get_wiki_archiver",
+                return_value=_mock_wiki_archiver(),
+            ),
+            patch(
+                "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
+                new_callable=AsyncMock,
+                return_value=MagicMock(),
+            ),
+        ):
+            mock_settings.database.harness_dir = str(harness)
+            mock_settings.database.state_dir = str(tmp_path)
             await callback(result)
+
+        mock_ws.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_skips_when_no_agent_results(self, tmp_path: Path):
@@ -106,8 +139,10 @@ class TestBuildWikiVaultCallback:
         mock_structure.raw_dir = raw_dir
 
         with (
-            patch("pathlib.Path.expanduser", return_value=wiki_dir),
-            patch.object(Path, "exists", return_value=True),
+            patch(
+                "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+                return_value=wiki_dir,
+            ),
             patch(
                 "myrm_agent_harness.toolkits.wiki.core.structure.WikiStructure",
                 return_value=mock_structure,
@@ -144,8 +179,10 @@ class TestBuildWikiVaultCallback:
         mock_llm = MagicMock()
 
         with (
-            patch("pathlib.Path.expanduser", return_value=wiki_dir),
-            patch.object(Path, "exists", return_value=True),
+            patch(
+                "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+                return_value=wiki_dir,
+            ),
             patch(
                 "myrm_agent_harness.toolkits.wiki.core.structure.WikiStructure",
                 return_value=mock_structure,
@@ -155,8 +192,8 @@ class TestBuildWikiVaultCallback:
                 return_value=MagicMock(),
             ),
             patch(
-                "myrm_agent_harness.toolkits.wiki.pipeline.compiler.WikiCompiler",
-                return_value=mock_compiler,
+                "app.services.wiki.vault_service.get_wiki_archiver",
+                return_value=_mock_wiki_archiver(mock_compiler),
             ),
             patch(
                 "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
@@ -200,8 +237,10 @@ class TestBuildWikiVaultCallback:
         mock_compiler.enqueue_file = MagicMock()
 
         with (
-            patch("pathlib.Path.expanduser", return_value=wiki_dir),
-            patch.object(Path, "exists", return_value=True),
+            patch(
+                "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+                return_value=wiki_dir,
+            ),
             patch(
                 "myrm_agent_harness.toolkits.wiki.core.structure.WikiStructure",
                 return_value=mock_structure,
@@ -211,8 +250,8 @@ class TestBuildWikiVaultCallback:
                 return_value=MagicMock(),
             ),
             patch(
-                "myrm_agent_harness.toolkits.wiki.pipeline.compiler.WikiCompiler",
-                return_value=mock_compiler,
+                "app.services.wiki.vault_service.get_wiki_archiver",
+                return_value=_mock_wiki_archiver(mock_compiler),
             ),
             patch(
                 "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
@@ -250,8 +289,10 @@ class TestBuildWikiVaultCallback:
         mock_compiler.enqueue_file = MagicMock()
 
         with (
-            patch("pathlib.Path.expanduser", return_value=wiki_dir),
-            patch.object(Path, "exists", return_value=True),
+            patch(
+                "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+                return_value=wiki_dir,
+            ),
             patch(
                 "myrm_agent_harness.toolkits.wiki.core.structure.WikiStructure",
                 return_value=mock_structure,
@@ -261,8 +302,8 @@ class TestBuildWikiVaultCallback:
                 return_value=MagicMock(),
             ),
             patch(
-                "myrm_agent_harness.toolkits.wiki.pipeline.compiler.WikiCompiler",
-                return_value=mock_compiler,
+                "app.services.wiki.vault_service.get_wiki_archiver",
+                return_value=_mock_wiki_archiver(mock_compiler),
             ),
             patch(
                 "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
@@ -307,8 +348,10 @@ class TestBuildWikiVaultCallback:
         mock_compiler.enqueue_file = MagicMock()
 
         with (
-            patch("pathlib.Path.expanduser", return_value=wiki_dir),
-            patch.object(Path, "exists", return_value=True),
+            patch(
+                "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+                return_value=wiki_dir,
+            ),
             patch(
                 "myrm_agent_harness.toolkits.wiki.core.structure.WikiStructure",
                 return_value=mock_structure,
@@ -318,8 +361,8 @@ class TestBuildWikiVaultCallback:
                 return_value=MagicMock(),
             ),
             patch(
-                "myrm_agent_harness.toolkits.wiki.pipeline.compiler.WikiCompiler",
-                return_value=mock_compiler,
+                "app.services.wiki.vault_service.get_wiki_archiver",
+                return_value=_mock_wiki_archiver(mock_compiler),
             ),
             patch(
                 "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
@@ -375,8 +418,10 @@ class TestBuildWikiVaultCallback:
         mock_compiler.enqueue_file = MagicMock()
 
         with (
-            patch("pathlib.Path.expanduser", return_value=wiki_dir),
-            patch.object(Path, "exists", return_value=True),
+            patch(
+                "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+                return_value=wiki_dir,
+            ),
             patch(
                 "myrm_agent_harness.toolkits.wiki.core.structure.WikiStructure",
                 return_value=mock_structure,
@@ -386,8 +431,8 @@ class TestBuildWikiVaultCallback:
                 return_value=MagicMock(),
             ),
             patch(
-                "myrm_agent_harness.toolkits.wiki.pipeline.compiler.WikiCompiler",
-                return_value=mock_compiler,
+                "app.services.wiki.vault_service.get_wiki_archiver",
+                return_value=_mock_wiki_archiver(mock_compiler),
             ),
             patch(
                 "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
@@ -425,8 +470,10 @@ class TestBuildWikiVaultCallback:
         mock_structure.raw_dir = raw_dir
 
         with (
-            patch("pathlib.Path.expanduser", return_value=wiki_dir),
-            patch.object(Path, "exists", return_value=True),
+            patch(
+                "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+                return_value=wiki_dir,
+            ),
             patch(
                 "myrm_agent_harness.toolkits.wiki.core.structure.WikiStructure",
                 return_value=mock_structure,

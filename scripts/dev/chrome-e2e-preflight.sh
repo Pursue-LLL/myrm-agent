@@ -30,8 +30,20 @@ ok() {
 }
 
 # 1. Dev servers (Next.js cold compile can exceed 3s)
-curl -sf --max-time 30 "$UI_BASE" >/dev/null || fail "Frontend not reachable at $UI_BASE — run: cd open-perplexity && ./myrm ready"
-curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null || fail "Backend not reachable at $API_BASE — run: cd open-perplexity && ./myrm ready"
+if ! curl -sf --max-time 30 "$UI_BASE" >/dev/null; then
+  if [[ -f "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ]]; then
+    echo "CHROME_E2E_WARN: frontend down — running dev-stack ensure" >&2
+    bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ensure || true
+  fi
+  curl -sf --max-time 30 "$UI_BASE" >/dev/null || fail "Frontend not reachable at $UI_BASE — run: cd open-perplexity && ./myrm ready"
+fi
+if ! curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null; then
+  if [[ -f "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ]]; then
+    echo "CHROME_E2E_WARN: backend down — running dev-stack ensure" >&2
+    bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ensure || true
+  fi
+  curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null || fail "Backend not reachable at $API_BASE — run: cd open-perplexity && ./myrm ready"
+fi
 ok "dev servers :3000/:8080"
 
 # 2. Main Chrome process (not helper-only)

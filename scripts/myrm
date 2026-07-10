@@ -71,6 +71,11 @@ case "$COMMAND" in
         ;;
 
     stop)
+        DEV_STACK="${SCRIPT_DIR}/dev/dev-stack.sh"
+        if [[ -f "${DEV_STACK}" ]]; then
+            bash "${DEV_STACK}" reset
+            exit 0
+        fi
         if [[ -f "${FRONTEND_DIR}/.myrm-dev-frontend.pid" ]]; then
             fe_pid="$(cat "${FRONTEND_DIR}/.myrm-dev-frontend.pid")"
             kill "${fe_pid}" 2>/dev/null || true

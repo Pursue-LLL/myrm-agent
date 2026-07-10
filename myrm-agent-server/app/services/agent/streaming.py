@@ -12,7 +12,6 @@ Bridges Agent/Orchestrator → AgentGateway → SSE output.
 - ai_agent_service_stream: General Agent SSE stream (budget_blocked semantic code; progress.started without UI copy)
 - ai_deep_research_service_stream: Deep Research SSE stream
 - PhaseWaiter: Generic in-process suspend/resume for Deep Research phases (clarification, plan confirmation)
-- ClarificationWaiter: Alias for PhaseWaiter (backward compatibility)
 - swarm_fission_resume::stream_with_swarm_fission_resume (POS: Swarm Fission Yield-Resume server orchestration)
 
 [POS]
@@ -98,11 +97,6 @@ class PhaseWaiter:
         return _phase_waiters.get(key)
 
 
-# Backward-compatible aliases
-ClarificationWaiter = PhaseWaiter
-ClarificationAnswer = PhaseAnswer
-CLARIFICATION_TIMEOUT_SECONDS = PHASE_TIMEOUT_SECONDS
-_clarification_waiters = _phase_waiters
 
 
 async def ai_agent_service_stream(
@@ -355,18 +349,8 @@ async def ai_deep_research_service_stream(
 
     event_queue: asyncio.Queue[dict[str, object] | object] = asyncio.Queue()
 
-    async def _on_clarify(_form: AskQuestionInput) -> ClarificationAnswer | None:
-        """Suspend the orchestrator while the user answers a clarification question.
-
-        The SSE MESSAGE event (with metadata.phase='clarify') has already been
-        yielded by the orchestrator before this callback is invoked (including
-        structured ``form`` in metadata when applicable). We register a waiter and
-        block until the user POSTs to /agents/clarify-response.
-        During the wait, a heartbeat task keeps the SSE connection alive.
-        """
-        waiter = ClarificationWaiter.register(message_id)
-        logger.info("[deep-research] Clarification waiting: message_id=%s", message_id)
-
+    async def _wait_with_heartbeat(waiter: PhaseWaiter, phase: str) -> PhaseAnswer:
+        """Wait for a PhaseWaiter while emitting SSE heartbeats."""
         async def _heartbeat() -> None:
             while not waiter.is_resolved:
                 await asyncio.sleep(_HEARTBEAT_INTERVAL)
@@ -375,19 +359,26 @@ async def ai_deep_research_service_stream(
                         {
                             "type": AgentEventType.STATUS.value,
                             "messageId": message_id,
-                            "data": {"phase": "clarify", "status": "waiting"},
+                            "data": {"phase": phase, "status": "waiting"},
                         }
                     )
 
         heartbeat_task = asyncio.create_task(_heartbeat())
         try:
-            answer = await waiter.wait_for_answer()
+            return await waiter.wait_for_answer()
         finally:
             heartbeat_task.cancel()
             try:
                 await heartbeat_task
             except asyncio.CancelledError:
                 pass
+
+    async def _on_clarify(_form: AskQuestionInput) -> PhaseAnswer:
+        """Suspend the orchestrator while the user answers a clarification question."""
+        waiter = PhaseWaiter.register(message_id)
+        logger.info("[deep-research] Clarification waiting: message_id=%s", message_id)
+
+        answer = await _wait_with_heartbeat(waiter, "clarify")
 
         await event_queue.put(
             {
@@ -403,12 +394,7 @@ async def ai_deep_research_service_stream(
         return answer
 
     async def _on_plan_ready(plan: str) -> str | None:
-        """Suspend the orchestrator so the user can review/edit the research plan.
-
-        Emits a STATUS event with phase='plan_confirm' and the plan text,
-        then blocks until the user confirms, edits, or skips via POST.
-        Returns the (possibly modified) plan, or None to use the original.
-        """
+        """Suspend the orchestrator so the user can review/edit the research plan."""
         plan_key = f"plan:{message_id}"
         waiter = PhaseWaiter.register(plan_key)
         logger.info("[deep-research] Plan confirmation waiting: message_id=%s", message_id)
@@ -425,27 +411,7 @@ async def ai_deep_research_service_stream(
             }
         )
 
-        async def _heartbeat() -> None:
-            while not waiter.is_resolved:
-                await asyncio.sleep(_HEARTBEAT_INTERVAL)
-                if not waiter.is_resolved:
-                    await event_queue.put(
-                        {
-                            "type": AgentEventType.STATUS.value,
-                            "messageId": message_id,
-                            "data": {"phase": "plan_confirm", "status": "waiting"},
-                        }
-                    )
-
-        heartbeat_task = asyncio.create_task(_heartbeat())
-        try:
-            answer = await waiter.wait_for_answer()
-        finally:
-            heartbeat_task.cancel()
-            try:
-                await heartbeat_task
-            except asyncio.CancelledError:
-                pass
+        answer = await _wait_with_heartbeat(waiter, "plan_confirm")
 
         modified_plan: str | None = None
         if isinstance(answer, str) and answer.strip():
@@ -532,7 +498,8 @@ async def ai_deep_research_service_stream(
             await producer_task
         except asyncio.CancelledError:
             pass
-        _clarification_waiters.pop(message_id, None)
+        _phase_waiters.pop(message_id, None)
+        _phase_waiters.pop(f"plan:{message_id}", None)
 
     if producer_error is not None:
         raise producer_error

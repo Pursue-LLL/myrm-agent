@@ -73,6 +73,65 @@ describe('parseUnifiedDiff', () => {
     expect(parsed.newFilePath).toBe('/dev/null');
     expect(parsed.filePath).toBe('removed.ts');
   });
+
+  it('detects new files with addition counts', () => {
+    const diff = [
+      'diff --git a/new.ts b/new.ts',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/new.ts',
+      '@@ -0,0 +1,2 @@',
+      '+line1',
+      '+line2',
+    ].join('\n');
+
+    const parsed = parseUnifiedDiff(diff);
+
+    expect(parsed.isNewFile).toBe(true);
+    expect(parsed.filePath).toBe('new.ts');
+    expect(parsed.additions).toBe(2);
+    expect(parsed.deletions).toBe(0);
+  });
+
+  it('parses multiple hunks in one diff', () => {
+    const diff = [
+      'diff --git a/f.ts b/f.ts',
+      '--- a/f.ts',
+      '+++ b/f.ts',
+      '@@ -1,3 +1,3 @@',
+      ' a',
+      '-b',
+      '+B',
+      ' c',
+      '@@ -10,3 +10,3 @@',
+      ' x',
+      '-y',
+      '+Y',
+      ' z',
+    ].join('\n');
+
+    const parsed = parseUnifiedDiff(diff);
+
+    expect(parsed.hunks).toHaveLength(2);
+    expect(parsed.additions).toBe(2);
+    expect(parsed.deletions).toBe(2);
+  });
+
+  it('extracts file paths from ---/+++ when diff --git is absent', () => {
+    const diff = [
+      '--- a/old.py',
+      '+++ b/new.py',
+      '@@ -1,1 +1,1 @@',
+      '-old',
+      '+new',
+    ].join('\n');
+
+    const parsed = parseUnifiedDiff(diff);
+
+    expect(parsed.oldFilePath).toBe('old.py');
+    expect(parsed.newFilePath).toBe('new.py');
+    expect(parsed.filePath).toBe('new.py');
+  });
 });
 
 describe('buildSplitPairs', () => {

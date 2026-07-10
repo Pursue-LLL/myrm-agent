@@ -5,6 +5,7 @@ Handles user responses to orchestrator phase gates during Deep Research.
 """
 
 import logging
+from typing import Literal
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -29,7 +30,7 @@ class ClarifyResponseRequest(BaseModel):
 
 class PlanConfirmRequest(BaseModel):
     message_id: str
-    action: str  # "confirm" | "edit" | "skip"
+    action: Literal["confirm", "edit", "skip"]
     modified_plan: str | None = None
 
     class Config:
