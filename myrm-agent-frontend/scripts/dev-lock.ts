@@ -47,7 +47,23 @@ function readParentPid(pid: number): number | null {
   }
 }
 
-/** Lock supervisor owns LISTEN when it is the listener or the listener's parent (spawned Next). */
+function isLockAncestorOfPid(
+  lockPid: number,
+  pid: number,
+  getParentPid: (pid: number) => number | null,
+  maxDepth = 8,
+): boolean {
+  let current = pid;
+  for (let depth = 0; depth < maxDepth; depth += 1) {
+    if (current === lockPid) return true;
+    const ppid = getParentPid(current);
+    if (ppid === null || ppid <= 1) return false;
+    current = ppid;
+  }
+  return false;
+}
+
+/** Lock supervisor owns LISTEN when it is the listener or an ancestor of the listener (spawn chain). */
 export function lockOwnsPortListeners(
   lockPid: number,
   listenerPids: readonly string[],
@@ -58,7 +74,7 @@ export function lockOwnsPortListeners(
   if (listenerPids.includes(lockStr)) return true;
   return listenerPids.some((listenerPid) => {
     const n = Number.parseInt(listenerPid, 10);
-    return Number.isFinite(n) && getParentPid(n) === lockPid;
+    return Number.isFinite(n) && isLockAncestorOfPid(lockPid, n, getParentPid);
   });
 }
 

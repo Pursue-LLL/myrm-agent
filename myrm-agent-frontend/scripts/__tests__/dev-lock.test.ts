@@ -19,10 +19,15 @@ describe('lockOwnsPortListeners', () => {
     expect(lockOwnsPortListeners(4242, ['4242'], () => null)).toBe(true);
   });
 
-  it('returns true when listener parent is lock supervisor', () => {
-    expect(lockOwnsPortListeners(4242, ['9001'], (pid) => (pid === 9001 ? 4242 : null))).toBe(
-      true,
-    );
+  it('returns true when listener is grandchild of lock supervisor (bun→node→next)', () => {
+    const parentChain: Record<number, number> = {
+      10355: 10354,
+      10354: 10344,
+      10344: 10341,
+    };
+    expect(
+      lockOwnsPortListeners(10341, ['10355'], (pid) => parentChain[pid] ?? null),
+    ).toBe(true);
   });
 
   it('returns false when foreign process listens', () => {
@@ -35,14 +40,19 @@ describe('lockOwnsPortListeners', () => {
 });
 
 describe('evaluateDevServerHealth', () => {
-  it('returns true when lock supervisor owns child listener', () => {
+  it('returns true when lock supervisor owns grandchild listener', () => {
+    const parentChain: Record<number, number> = {
+      10355: 10354,
+      10354: 10344,
+      10344: 10341,
+    };
     expect(
       evaluateDevServerHealth(
-        lock,
+        { ...lock, pid: 10341 },
         3000,
-        ['9001'],
-        (pid) => pid === 4242,
-        (pid) => (pid === 9001 ? 4242 : null),
+        ['10355'],
+        (pid) => pid === 10341,
+        (pid) => parentChain[pid] ?? null,
       ),
     ).toBe(true);
   });

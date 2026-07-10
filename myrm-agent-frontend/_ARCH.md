@@ -23,7 +23,7 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 | `scripts/verify-i18n.mjs` | 五语系 i18n 完整性校验（`bun run verify:i18n`；CI 与 `pretest` 共用） |
 | `scripts/sync_i18n.py` | 从 en 递归补全 ja/ko/de/zh 缺失 key（本地维护用） |
 | `scripts/dev.ts` | Next.js dev 入口；健康时跳过 port kill（`dev-server.lock` + HTTP 200） |
-| `scripts/dev-lock.ts` | `dev-server.lock` 读写；健康检查要求 lock 监督进程拥有 LISTEN（含 spawn 子进程） |
+| `scripts/dev-lock.ts` | `dev-server.lock` 读写；健康检查沿进程祖先链判定监督进程拥有 LISTEN |
 | `scripts/port-cleanup.ts` | `:3000` LISTEN-only 清理（不杀 Chrome ESTABLISHED 客户端） |
 
 ## 子模块
