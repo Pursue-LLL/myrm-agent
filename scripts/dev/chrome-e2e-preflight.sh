@@ -19,9 +19,9 @@ ok() {
   echo "CHROME_E2E_OK: $*"
 }
 
-# 1. Dev servers
-curl -sf --max-time 3 "$UI_BASE" >/dev/null || fail "Frontend not reachable at $UI_BASE — run: ./myrm start"
-curl -sf --max-time 3 "$API_BASE/api/v1/health" >/dev/null || fail "Backend not reachable at $API_BASE — run: ./myrm start"
+# 1. Dev servers (Next.js cold compile can exceed 3s)
+curl -sf --max-time 30 "$UI_BASE" >/dev/null || fail "Frontend not reachable at $UI_BASE — run: ./myrm start"
+curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null || fail "Backend not reachable at $API_BASE — run: ./myrm start"
 ok "dev servers :3000/:8080"
 
 # 2. Main Chrome process (not helper-only)
