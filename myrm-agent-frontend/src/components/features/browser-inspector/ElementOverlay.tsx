@@ -89,9 +89,24 @@ const ElementOverlay: React.FC<ElementOverlayProps> = ({
               height: `${height}px`,
             }}
             onClick={(e) => handleClick(e, refId, info)}
-            title={`[${refId}] ${info.role}: ${info.name}`}
+            title={
+              info.nth != null
+                ? `[${info.nth}] [${refId}] ${info.role}: ${info.name}`
+                : `[${refId}] ${info.role}: ${info.name}`
+            }
             aria-label={`Select element ${refId} (${info.role}: ${info.name})`}
           >
+            {info.nth != null && (
+              <span
+                className={cn(
+                  'absolute top-0 left-0 px-1 py-0.5 text-[10px] font-mono font-semibold leading-none',
+                  'bg-primary text-primary-foreground rounded-br-sm',
+                  'shadow-sm pointer-events-none z-30',
+                )}
+              >
+                {info.nth}
+              </span>
+            )}
             {isSelected && (
               <span
                 className={cn(
