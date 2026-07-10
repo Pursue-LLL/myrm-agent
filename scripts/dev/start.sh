@@ -42,8 +42,10 @@ wait_frontend_http() {
 }
 
 warn_if_multiple_mcp() {
-  local mcp_n
-  mcp_n="$(pgrep -f 'npm exec chrome-devtools-mcp' 2>/dev/null | wc -l | tr -d ' ')"
+  local mcp_n=0
+  if pgrep -f 'npm exec chrome-devtools-mcp' >/dev/null 2>&1; then
+    mcp_n="$(pgrep -f 'npm exec chrome-devtools-mcp' | wc -l | tr -d ' ')"
+  fi
   if [[ "${mcp_n}" -gt 1 ]]; then
     echo "⚠️  CHROME_E2E_WARN: Too many chrome-devtools-mcp processes (${mcp_n}) — close extra Agent tabs, then Cmd+Q Cursor" >&2
   fi
