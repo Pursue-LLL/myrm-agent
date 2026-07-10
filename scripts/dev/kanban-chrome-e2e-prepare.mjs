@@ -161,9 +161,35 @@ const chatRes = await apiFetch('/api/v1/chats/', {
 if (!chatRes.ok) throw new Error(`chat create: ${await chatRes.text()}`);
 
 const stream = await streamChat(chatId, providerId, modelId);
-const tasksRes = await apiFetch('/api/v1/kanban/tasks');
-const tasks = tasksRes.ok ? normalizeTasks(await tasksRes.json()) : [];
-const e2eTask = tasks.find((t) => String(t.title ?? '').includes('E2E-KANBAN-TEST')) ?? null;
+let e2eTask: { id?: string; title?: string; task_id?: string } | null = null;
+const taskIdMatch = stream.assistantTail.match(/[a-f0-9]{12}/i);
+if (taskIdMatch) {
+  const taskRes = await apiFetch(`/api/v1/kanban/tasks/${taskIdMatch[0]}`);
+  if (taskRes.ok) {
+    const body = await taskRes.json();
+    e2eTask = { id: body.task_id ?? body.id, title: body.title, task_id: body.task_id };
+  }
+}
+if (!e2eTask && stream.kanbanTools.length > 0) {
+  const boardsRes = await apiFetch('/api/v1/kanban/boards');
+  if (boardsRes.ok) {
+    const boardsBody = await boardsRes.json();
+    const boards = Array.isArray(boardsBody) ? boardsBody : boardsBody.items ?? boardsBody.data?.items ?? [];
+    for (const board of boards) {
+      const bid = board.board_id ?? board.id;
+      if (!bid) continue;
+      const tasksRes = await apiFetch(`/api/v1/kanban/boards/${bid}/tasks`);
+      if (!tasksRes.ok) continue;
+      const tasksBody = await tasksRes.json();
+      const tasks = normalizeTasks(tasksBody);
+      const hit = tasks.find((t) => String(t.title ?? '').includes('E2E-KANBAN-TEST'));
+      if (hit) {
+        e2eTask = { id: hit.id ?? hit.task_id, title: hit.title, task_id: hit.task_id ?? hit.id };
+        break;
+      }
+    }
+  }
+}
 
 console.log(
   JSON.stringify(

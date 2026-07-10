@@ -124,3 +124,74 @@ def test_doctor_response_layers_independent(client: TestClient):
     server_components = {r["component_name"] for r in data["server"]}
     harness_components = {r["component_name"] for r in data["harness"]}
     assert not server_components.intersection(harness_components), "Server and Harness should not share components"
+
+
+@pytest.mark.e2e
+def test_hook_system_probe_in_doctor(client: TestClient):
+    """HookSystem diagnostic probe should appear in harness reports via doctor API."""
+    response = client.get("/api/v1/health/doctor")
+    assert response.status_code == 200
+
+    data = response.json()
+    harness_reports = data["harness"]
+    component_names = [r["component_name"] for r in harness_reports]
+
+    assert "HookSystem" in component_names, (
+        f"HookSystem probe missing from doctor response. Found: {component_names}"
+    )
+
+    hook_report = next(r for r in harness_reports if r["component_name"] == "HookSystem")
+    assert hook_report["status"] in ("pass", "warn", "fail")
+    assert "message" in hook_report
+    assert hook_report["message"] != ""
+
+
+@pytest.mark.e2e
+def test_hook_system_probe_idle_without_executor(client: TestClient):
+    """When no HookExecutor is set, HookSystem probe should report 'idle'."""
+    from myrm_agent_harness.agent.hooks.executor import get_hook_executor, set_hook_executor
+
+    prev = get_hook_executor()
+    set_hook_executor(None)
+    try:
+        response = client.get("/api/v1/health/doctor")
+        assert response.status_code == 200
+        hook_report = next(
+            r for r in response.json()["harness"] if r["component_name"] == "HookSystem"
+        )
+        assert hook_report["status"] == "pass"
+        assert "idle" in hook_report["message"].lower()
+    finally:
+        set_hook_executor(prev)
+
+
+@pytest.mark.e2e
+def test_hook_system_probe_with_hooks_registered(client: TestClient):
+    """When hooks are registered, HookSystem probe should report healthy with count."""
+    from myrm_agent_harness.agent.hooks import (
+        CommandHookDefinition,
+        HookEvent,
+        HookExecutor,
+        HookRegistry,
+        set_hook_executor,
+    )
+    from myrm_agent_harness.agent.hooks.executor import get_hook_executor
+
+    prev = get_hook_executor()
+    registry = HookRegistry()
+    registry.register(HookEvent.PRE_TOOL_USE, CommandHookDefinition(command="echo test"))
+    executor = HookExecutor(registry)
+    set_hook_executor(executor)
+    try:
+        response = client.get("/api/v1/health/doctor")
+        assert response.status_code == 200
+        hook_report = next(
+            r for r in response.json()["harness"] if r["component_name"] == "HookSystem"
+        )
+        assert hook_report["status"] == "pass"
+        assert "healthy" in hook_report["message"].lower()
+        assert "1 hook(s) active" in hook_report["message"]
+        assert hook_report["detail"] is not None
+        assert "500ms" in hook_report["detail"]
+    finally:
+        set_hook_executor(prev)
