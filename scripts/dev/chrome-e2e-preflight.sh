@@ -42,7 +42,10 @@ ok "main Chrome process"
 if pgrep -lf 'MyrmChromeMcp' >/dev/null 2>&1; then
   fail "MyrmChromeMcp Chrome detected — quit it; use MCP --autoConnect on main Chrome only"
 fi
-MCP_NPM_COUNT="$(pgrep -f 'npm exec chrome-devtools-mcp' 2>/dev/null | wc -l | tr -d ' ')"
+MCP_NPM_COUNT=0
+if pgrep -f 'npm exec chrome-devtools-mcp' >/dev/null 2>&1; then
+  MCP_NPM_COUNT="$(pgrep -f 'npm exec chrome-devtools-mcp' | wc -l | tr -d ' ')"
+fi
 if [[ "${MCP_NPM_COUNT}" -gt 1 ]]; then
   fail "Too many chrome-devtools-mcp processes (${MCP_NPM_COUNT}) — close extra Agent tabs, then Cmd+Q Cursor"
 fi
