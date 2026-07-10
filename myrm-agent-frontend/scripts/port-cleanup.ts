@@ -5,11 +5,12 @@ import { execSync } from 'child_process';
 
 export const APP_DEV_PORT = 3000;
 
+/** PIDs with a TCP LISTEN socket on `port` (excludes Chrome clients on ESTABLISHED). */
 export function listPidsOnPort(port: number): string[] {
   try {
-    const pids = execSync(`lsof -ti :${port}`, { encoding: 'utf-8' }).trim();
+    const pids = execSync(`lsof -iTCP:${port} -sTCP:LISTEN -t`, { encoding: 'utf-8' }).trim();
     if (!pids) return [];
-    return pids.split('\n').filter(Boolean);
+    return [...new Set(pids.split('\n').filter(Boolean))];
   } catch {
     return [];
   }

@@ -43,7 +43,8 @@
 3. **浏览器任务只开 1 个 Agent 对话**；多条对话 = 多条 `chrome-devtools-mcp` 进程，易死锁。卡死时 Cmd+Q Cursor
 4. **禁止 `list_pages` 探活**（无 timeout，曾挂起 30min+）；用 `new_page`（`timeout`≤5000，`isolatedContext` 为字符串名）起手
 5. MCP 握手期间**勿点击 Chrome 窗口**（Chrome 150 远程调试下有 SIGSEGV 报告）；盯 Allow 弹窗即可
-6. MCP 技巧：先 `new_page` → `about:blank`（timeout≤5000），再 `navigate_page` → `http://127.0.0.1:3000/...`（避免 Next.js 冷启动 navigation timeout）；`navigate` 超时时用 `take_snapshot` 验证，勿盲重试；MCP 配置见 `open-perplexity/scripts/dev/mcp-chrome-devtools.server.json`（含 `--no-usage-statistics`）
+6. MCP 技巧：先 `new_page` → `about:blank`（timeout≤5000），再 `navigate_page` → `http://127.0.0.1:3000/...`（避免 Next.js 冷启动 navigation timeout）；`navigate` 超时时用 `take_snapshot` 验证，勿盲重试
+7. **集成测试进程纪律**：整场 E2E `./myrm start` **一次**；仅 server/harness Python 变更后 `myrm stop && myrm start`；**禁止**多 Agent 并行 `start`/`bun run dev`（`port-cleanup` 只杀 LISTEN 方，但并行 start 仍会互抢 dev lock）
 
 **已废弃（exit 1）**：`browser-delegate-chrome-e2e.mjs`（本目录）、`/tmp/clarify-chrome-e2e.mjs`（若存在）— 曾拉起第二 Chrome，与 `--autoConnect` 冲突。
 
