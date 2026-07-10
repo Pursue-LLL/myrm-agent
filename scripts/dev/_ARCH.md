@@ -10,7 +10,7 @@
 |------|------|------|
 | `setup.sh` / `setup.ps1` | 双平台 | clone 后首次依赖安装：monorepo 自动 editable harness；OSS-only 走 PyPI `uv sync`；`patchright install chromium` + `bun install` + `ensure-next-native-swc.sh` |
 | `dev.sh` / `dev.ps1` | 双平台 | 仅后端 :8080 |
-| `start.sh` | Unix | 委托 `dev-stack ensure`（:8080 + :3000 idempotent）；`chrome-devtools-mcp` 进程 >1 时 stderr WARN |
+| `start.sh` | Unix | 委托 `dev-stack ensure`（:8080 + :3000 idempotent；frontend 冷编译最长 120s）；`chrome-devtools-mcp` 进程 >1 时 stderr WARN |
 | `start.ps1` | Windows | 后端 :8080 + 前端 `bun run dev` :3000（无 LISTEN 编译等待 / MCP WARN；见 `start.sh` Unix 行为） |
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `test-instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |

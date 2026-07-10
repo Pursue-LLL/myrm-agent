@@ -4,7 +4,7 @@ Contains persistence and notification callbacks separated from the main agent lo
 
 @input: 依赖 app.services.memory.shared_context (POS: 共享上下文业务服务)
 @input: 依赖 app.services.memory.shared_context_materializer (POS: 共享上下文写入物化服务)
-@output: make_commitment_extraction_callback / make_correction_propagation_callback / make_loaded_skills_persist_callback / build_correction_proposal_source_id
+@output: make_commitment_extraction_callback / make_correction_propagation_callback / make_loaded_skills_persist_callback / make_summary_persist_with_wiki_archive / build_correction_proposal_source_id
 @pos: Agent 会话清理回调工厂
 """
 

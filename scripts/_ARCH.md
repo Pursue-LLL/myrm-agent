@@ -8,7 +8,7 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 
 | 文件 | 平台 | 职责 |
 |------|------|------|
-| `install.sh` | Unix / Git Bash | 安装 uv、bun；`uv sync`；musl 下重装 platform core wheel；前端 build；注册 `myrm` |
+| `install.sh` | Unix / Git Bash | 安装 uv、bun；`uv sync`；musl 下重装 platform core wheel；前端 `bun install` + ensure native SWC + build；注册 `myrm` |
 | `install-remote.sh` | Unix | `curl \| bash` 入口：clone → `install.sh` |
 | `install.ps1` | Windows | 同上（PowerShell 原生） |
 | `install-remote.ps1` | Windows | `irm \| iex` 入口：clone → `install.ps1` |

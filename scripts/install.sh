@@ -159,6 +159,9 @@ setup_frontend() {
     log_info "Frontend (${FRONTEND_DIR}) ..."
     cd "${FRONTEND_DIR}"
     bun install
+    if [[ -f "${SCRIPT_DIR}/dev/ensure-next-native-swc.sh" ]]; then
+        bash "${SCRIPT_DIR}/dev/ensure-next-native-swc.sh"
+    fi
     bun run build
     cd "${PROJECT_ROOT}"
     log_success "Frontend ready."
