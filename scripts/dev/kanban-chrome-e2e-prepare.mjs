@@ -161,7 +161,7 @@ const chatRes = await apiFetch('/api/v1/chats/', {
 if (!chatRes.ok) throw new Error(`chat create: ${await chatRes.text()}`);
 
 const stream = await streamChat(chatId, providerId, modelId);
-let e2eTask: { id?: string; title?: string; task_id?: string } | null = null;
+let e2eTask = null;
 const taskIdMatch = stream.assistantTail.match(/[a-f0-9]{12}/i);
 if (taskIdMatch) {
   const taskRes = await apiFetch(`/api/v1/kanban/tasks/${taskIdMatch[0]}`);
