@@ -5233,7 +5233,10 @@
       "quickCommandPlaceholder": "发送新指令...",
       "steerPlaceholder": "发送纠偏指令...",
       "send": "发送",
-      "verifications": "验收条件"
+      "verifications": "验收条件",
+      "livePreview": "实时预览",
+      "browser": "浏览器",
+      "desktop": "桌面"
     }
   },
   "common": {

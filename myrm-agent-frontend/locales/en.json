@@ -5233,7 +5233,10 @@
       "quickCommandPlaceholder": "Send a new instruction...",
       "steerPlaceholder": "Redirect the agent...",
       "send": "Send",
-      "verifications": "Acceptance Criteria"
+      "verifications": "Acceptance Criteria",
+      "livePreview": "Live Preview",
+      "browser": "Browser",
+      "desktop": "Desktop"
     }
   },
   "common": {
