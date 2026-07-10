@@ -63,12 +63,21 @@ PY
   ok "CDP WebSocket ws://127.0.0.1:${raw_port}${ws_path}"
 fi
 
-# 5. Warn on second Chrome debug profiles (MyrmChromeE2E etc.)
+# 5. Warn on second Chrome debug profiles (MyrmChromeE2E / MyrmChromeMcp)
+if pgrep -lf 'MyrmChromeMcp' >/dev/null 2>&1; then
+  fail "MyrmChromeMcp Chrome detected — quit it; use MCP --autoConnect on main Chrome only"
+fi
 if lsof -iTCP:9333 -sTCP:LISTEN >/dev/null 2>&1; then
   echo "CHROME_E2E_WARN: port 9333 listening (MyrmChromeE2E?) — quit non-main Chrome to avoid conflicts" >&2
 fi
 
-# 6. Stale chrome-devtools-mcp from old Cursor sessions
+# 6. chrome-devtools-mcp process count (one Agent tab = one MCP)
+MCP_NPM_COUNT="$(pgrep -f 'npm exec chrome-devtools-mcp' 2>/dev/null | wc -l | tr -d ' ')"
+if [[ "${MCP_NPM_COUNT}" -gt 1 ]]; then
+  fail "Too many chrome-devtools-mcp processes (${MCP_NPM_COUNT}) — close extra Agent tabs, then Cmd+Q Cursor"
+fi
+
+# 7. Stale chrome-devtools-mcp from old Cursor sessions
 if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then
   while read -r line; do
     pid=$(echo "$line" | awk '{print $1}')
