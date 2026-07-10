@@ -17,7 +17,7 @@ from tests.api.agent.test_capability_gap_integration import (
     _collect_agent_stream,
     _invoked_tool_names,
 )
-from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
+from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
 _E2E_TASK_TITLE = "E2E-KANBAN-AGENT-STREAM-TEST"
 
@@ -115,7 +115,7 @@ def test_agent_stream_kanban_orchestrator_creates_task(
             "messageId": message_id,
             "chatId": chat_id,
             "query": query,
-            "modelSelection": get_lite_model_selection(),
+            "modelSelection": get_model_selection(),
             "actionMode": "agent",
             "enableMemory": False,
             "agentConfig": {
