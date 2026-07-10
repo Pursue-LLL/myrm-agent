@@ -13,6 +13,7 @@ import { isLocalMode } from '@/lib/deploy-mode';
 import useSettingsDirtyStore from '@/store/useSettingsDirtyStore';
 import SettingsMenu, { SettingsTab } from './SettingsMenu';
 import { SettingsSkeleton } from './common/SettingsSkeleton';
+import { trySettingsSubviewBack } from './settingsSubviewBack';
 
 // 设置区块组件 (动态加载)
 const AccountSection = dynamic(() => import('./sections/personal/AccountSection'), { loading: () => <SettingsSkeleton /> });
@@ -327,6 +328,7 @@ function SettingsLayout() {
   const handleBack = useCallback(() => {
     void flushDirty().then((ok) => {
       if (!ok) return;
+      if (trySettingsSubviewBack()) return;
       router.push('/');
     });
   }, [flushDirty, router]);

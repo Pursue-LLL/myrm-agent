@@ -7,6 +7,7 @@ import type { KanbanBoard, BoardSummary } from '@/services/kanban';
 import { listBoards, createBoard, deleteBoard, updateBoard, getBoardSummary } from '@/services/kanban';
 import KanbanBoardView from '@/components/features/kanban/KanbanBoardView';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
+import { registerSettingsSubviewBack } from '@/components/features/settings/settingsSubviewBack';
 
 export default function KanbanSection() {
   const t = useTranslations('kanban');
@@ -57,6 +58,18 @@ export default function KanbanSection() {
       else localStorage.removeItem('kanban_last_board_id');
     } catch { /* ignore */ }
   }, [loading, boards, selectedBoard]);
+
+  useEffect(() => {
+    if (!selectedBoard) {
+      registerSettingsSubviewBack(null);
+      return;
+    }
+    registerSettingsSubviewBack(() => {
+      selectBoard(null);
+      return true;
+    });
+    return () => registerSettingsSubviewBack(null);
+  }, [selectedBoard, selectBoard]);
 
   const handleCreate = useCallback(async () => {
     if (!newBoardName.trim()) return;
@@ -225,9 +238,17 @@ export default function KanbanSection() {
                 key={board.board_id}
                 role="button"
                 tabIndex={0}
-                onClick={() => selectBoard(board)}
+                data-testid={`kanban-board-row-${board.board_id}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  selectBoard(board);
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') selectBoard(board);
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectBoard(board);
+                  }
                 }}
                 className="group flex items-center justify-between p-3 rounded-lg border hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-colors"
               >

@@ -409,7 +409,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   } = useKanbanDnD({ tasks, selectedTaskIds, onMoveTask: handleMoveTask, onBulkMove: handleBulkMove });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="kanban-board-view">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
