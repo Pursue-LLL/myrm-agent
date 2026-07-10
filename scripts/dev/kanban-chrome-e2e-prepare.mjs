@@ -198,7 +198,7 @@ console.log(
       model: `${providerId}/${modelId}`,
       boardId: board.board_id ?? board.id,
       chatId,
-      uiUrl: `http://127.0.0.1:3000/?chatId=${chatId}`,
+      uiUrl: `http://127.0.0.1:3000/${chatId}`,
       kanbanUrl: 'http://127.0.0.1:3000/settings/kanban',
       kanbanToolsInvoked: stream.kanbanTools,
       e2eTask: e2eTask ? { id: e2eTask.id ?? e2eTask.task_id, title: e2eTask.title } : null,
