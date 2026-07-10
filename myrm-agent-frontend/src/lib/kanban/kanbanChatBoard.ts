@@ -68,6 +68,12 @@ export function resolveKanbanSendBlockReasonFromBoards(
   boards: KanbanBoard[],
 ): KanbanSendBlockReason | null {
   if (boards.length === 0) return 'no_boards';
+
+  const saved = readKanbanLastBoardId();
+  if (saved && !boards.some((b) => b.board_id === saved)) {
+    writeKanbanLastBoardId(null);
+  }
+
   if (shouldShowKanbanBoardPicker(boards)) return 'need_board';
   return null;
 }
@@ -77,7 +83,6 @@ export async function resolveKanbanSendBlockReason(
   enabledBuiltinTools: readonly string[],
 ): Promise<KanbanSendBlockReason | null> {
   if (!enabledBuiltinTools.includes('kanban')) return null;
-  if (readKanbanLastBoardId()) return null;
 
   try {
     const { listBoards } = await import('@/services/kanban');

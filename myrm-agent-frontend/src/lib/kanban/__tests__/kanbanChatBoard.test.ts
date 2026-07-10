@@ -71,6 +71,16 @@ describe('kanbanChatBoard', () => {
     expect(resolveKanbanSendBlockReasonFromBoards(boards)).toBe('need_board');
   });
 
+  it('clears stale saved id and blocks when board was deleted', () => {
+    writeKanbanLastBoardId('deleted-board');
+    const boards = [
+      { board_id: 'b1', name: 'One' },
+      { board_id: 'b2', name: 'Two' },
+    ];
+    expect(resolveKanbanSendBlockReasonFromBoards(boards)).toBe('need_board');
+    expect(readKanbanLastBoardId()).toBeNull();
+  });
+
   it('allows send when sole board without saved id', () => {
     expect(resolveKanbanSendBlockReasonFromBoards([{ board_id: 'only', name: 'Only' }])).toBeNull();
   });

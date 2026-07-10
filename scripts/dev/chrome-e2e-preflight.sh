@@ -69,6 +69,17 @@ if [[ "${ensure_out}" == *"MYRM_CHROME_E2E_START:"* ]]; then
 fi
 ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"
 
+PRUNE_SCRIPT="${SCRIPT_DIR}/prune-myrm-chrome-e2e-blank-tabs.sh"
+if [[ -f "${PRUNE_SCRIPT}" ]]; then
+  export MYRM_CHROME_E2E_PORT
+  if prune_out="$(bash "${PRUNE_SCRIPT}" 2>&1)"; then
+    echo "${prune_out}"
+    ok "orphan blank tabs pruned"
+  else
+    echo "CHROME_E2E_WARN: prune failed — ${prune_out}" >&2
+  fi
+fi
+
 ACTIVE_PORT_FILE="${MYRM_CHROME_E2E_ACTIVE_PORT_FILE}"
 
 # 4. mux daemon (parallel Agent tabs)

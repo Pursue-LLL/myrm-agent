@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { KanbanBoard, BoardSummary } from '@/services/kanban';
 import { listBoards, createBoard, deleteBoard, updateBoard, getBoardSummary } from '@/services/kanban';
-import { writeKanbanLastBoardId, KANBAN_LAST_BOARD_ID_KEY } from '@/lib/kanban/kanbanChatBoard';
+import { writeKanbanLastBoardId, readKanbanLastBoardId } from '@/lib/kanban/kanbanChatBoard';
 import KanbanBoardView from '@/components/features/kanban/KanbanBoardView';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { registerSettingsSubviewBack } from '@/components/features/settings/settingsSubviewBack';
@@ -17,10 +17,7 @@ export default function KanbanSection() {
   const [selectedBoard, setSelectedBoard] = useState<KanbanBoard | null>(null);
   const selectBoard = useCallback((board: KanbanBoard | null) => {
     setSelectedBoard(board);
-    try {
-      if (board) localStorage.setItem(KANBAN_LAST_BOARD_ID_KEY, board.board_id);
-      else localStorage.removeItem(KANBAN_LAST_BOARD_ID_KEY);
-    } catch { /* ignore */ }
+    writeKanbanLastBoardId(board?.board_id ?? null);
   }, []);
   const [showCreate, setShowCreate] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
@@ -51,13 +48,11 @@ export default function KanbanSection() {
 
   useEffect(() => {
     if (loading || selectedBoard || boards.length === 0) return;
-    try {
-      const lastId = localStorage.getItem(KANBAN_LAST_BOARD_ID_KEY);
-      if (!lastId) return;
-      const match = boards.find((b) => b.board_id === lastId);
-      if (match) setSelectedBoard(match);
-      else localStorage.removeItem(KANBAN_LAST_BOARD_ID_KEY);
-    } catch { /* ignore */ }
+    const lastId = readKanbanLastBoardId();
+    if (!lastId) return;
+    const match = boards.find((b) => b.board_id === lastId);
+    if (match) setSelectedBoard(match);
+    else writeKanbanLastBoardId(null);
   }, [loading, boards, selectedBoard]);
 
   useEffect(() => {
@@ -101,6 +96,9 @@ export default function KanbanSection() {
     if (!deletingBoard) return;
     try {
       await deleteBoard(deletingBoard.board_id);
+      if (readKanbanLastBoardId() === deletingBoard.board_id) {
+        writeKanbanLastBoardId(null);
+      }
       await fetchBoards();
       if (selectedBoard?.board_id === deletingBoard.board_id) {
         selectBoard(null);

@@ -883,7 +883,7 @@ async def _resolve_kanban_default_board_id(
     *,
     preferred_board_id: str | None,
 ) -> str | None:
-    """Pick default board for kanban tools: preferred id when valid, else newest board."""
+    """Pick default board for kanban tools: preferred id when valid, else newest when unset."""
     boards = await store.list_boards()  # type: ignore[attr-defined]
     if not boards:
         return None
@@ -891,6 +891,8 @@ async def _resolve_kanban_default_board_id(
     board_ids = {b.board_id for b in boards}
     if preferred_board_id and preferred_board_id in board_ids:
         return preferred_board_id
+    if preferred_board_id:
+        return None
     return boards[0].board_id
 
 

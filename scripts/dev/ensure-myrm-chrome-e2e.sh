@@ -33,13 +33,17 @@ if lsof -iTCP:"${MYRM_CHROME_E2E_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
 fi
 
 echo "MYRM_CHROME_E2E_START: launching Chrome port=${MYRM_CHROME_E2E_PORT}" >&2
+START_URL="about:blank"
+if curl -sf --max-time 3 "http://127.0.0.1:3000/" >/dev/null 2>&1; then
+  START_URL="http://127.0.0.1:3000/"
+fi
 nohup "${MYRM_CHROME_BIN}" \
   --user-data-dir="${MYRM_CHROME_E2E_DATA_DIR}" \
   --remote-debugging-port="${MYRM_CHROME_E2E_PORT}" \
   --remote-debugging-address=127.0.0.1 \
   --no-first-run \
   --no-default-browser-check \
-  about:blank \
+  "${START_URL}" \
   >/dev/null 2>&1 &
 
 ready=0

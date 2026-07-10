@@ -93,10 +93,22 @@ async def test_resolve_kanban_default_board_id_prefers_valid_preferred() -> None
     await store.save_board(KanbanBoard(board_id="board-b", name="B"))
 
     assert await _resolve_kanban_default_board_id(store, preferred_board_id="board-a") == "board-a"
-    assert await _resolve_kanban_default_board_id(store, preferred_board_id="stale") in {
-        "board-a",
-        "board-b",
-    }
+    assert await _resolve_kanban_default_board_id(store, preferred_board_id="stale") is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_kanban_default_board_id_invalid_preferred_does_not_fallback_newest() -> None:
+    from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
+    from myrm_agent_harness.toolkits.kanban.types import KanbanBoard
+
+    from app.ai_agents.general_agent.factory import _resolve_kanban_default_board_id
+
+    store = InMemoryKanbanStore()
+    await store.save_board(KanbanBoard(board_id="board-newest", name="New"))
+    await store.save_board(KanbanBoard(board_id="board-other", name="Other"))
+
+    assert await _resolve_kanban_default_board_id(store, preferred_board_id="gone") is None
+    assert await _resolve_kanban_default_board_id(store, preferred_board_id=None) == "board-newest"
 
 
 @pytest.mark.asyncio
