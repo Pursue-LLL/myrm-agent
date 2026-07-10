@@ -12,6 +12,8 @@ STALE_MCP_AGE_SEC="${CHROME_E2E_STALE_MCP_AGE_SEC:-3600}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+MONOREPO_ROOT="$(cd "${AGENT_ROOT}/.." && pwd)"
+MUX_BIN="${MONOREPO_ROOT}/scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs"
 SERVER_DIR="${AGENT_ROOT}/myrm-agent-server"
 PREFLIGHT_PY="${SERVER_DIR}/.venv/bin/python"
 if [[ ! -x "${PREFLIGHT_PY}" ]]; then
@@ -40,14 +42,63 @@ ok "main Chrome process"
 
 # 3. Structural blockers before CDP freshness (surface all actionable errors early)
 if pgrep -lf 'MyrmChromeMcp' >/dev/null 2>&1; then
-  fail "MyrmChromeMcp Chrome detected — quit it; use MCP --autoConnect on main Chrome only"
+  fail "MyrmChromeMcp Chrome detected — quit it; use mux shim on main Chrome only"
 fi
-MCP_NPM_COUNT=0
+MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}"
+MUX_PID_FILE="${MUX_STATE_DIR}/daemon.pid"
+MUX_USING=0
+if grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor/mcp.json" 2>/dev/null \
+  || grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor-3.1.15/mcp.json" 2>/dev/null \
+  || pgrep -f 'cdmcp-mux-autoconnect' >/dev/null 2>&1 \
+  || [[ -f "${MUX_PID_FILE}" ]]; then
+  MUX_USING=1
+fi
+_ensure_mux_daemon() {
+  [[ "${MUX_USING}" -eq 1 ]] || return 0
+  [[ -f "${MUX_BIN}" ]] || fail "Missing mux bin ${MUX_BIN} — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
+  if [[ -f "${MUX_PID_FILE}" ]]; then
+    local pid
+    pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
+    if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
+      return 0
+    fi
+  fi
+  echo "CHROME_E2E_WARN: starting cdmcp-mux daemon for preflight" >&2
+  node "${MUX_BIN}" daemon >/dev/null 2>&1 &
+  local i
+  for i in $(seq 1 15); do
+    if [[ -f "${MUX_PID_FILE}" ]] && kill -0 "$(tr -d '[:space:]' < "${MUX_PID_FILE}")" 2>/dev/null; then
+      ok "cdmcp-mux daemon auto-started"
+      return 0
+    fi
+    sleep 1
+  done
+  fail "cdmcp-mux daemon failed to start — run: node scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs daemon"
+}
+_ensure_mux_daemon
+VANILLA_MCP_COUNT=0
 if pgrep -f 'npm exec chrome-devtools-mcp' >/dev/null 2>&1; then
-  MCP_NPM_COUNT="$(pgrep -f 'npm exec chrome-devtools-mcp' | wc -l | tr -d ' ')"
+  VANILLA_MCP_COUNT="$(pgrep -f 'npm exec chrome-devtools-mcp' | wc -l | tr -d ' ')"
 fi
-if [[ "${MCP_NPM_COUNT}" -gt 1 ]]; then
-  fail "Too many chrome-devtools-mcp processes (${MCP_NPM_COUNT}) — close extra Agent tabs, then Cmd+Q Cursor"
+if [[ "${MUX_USING}" -eq 1 ]]; then
+  if [[ "${VANILLA_MCP_COUNT}" -gt 0 ]]; then
+    fail "Legacy vanilla chrome-devtools-mcp still running (${VANILLA_MCP_COUNT}) — Cmd+Q Cursor, run scripts/dev/enable-chrome-devtools-mcp.sh, reopen"
+  fi
+  if [[ ! -f "${MUX_PID_FILE}" ]]; then
+    fail "cdmcp-mux daemon not running — open any Agent with chrome-devtools MCP once, or run: node scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs daemon"
+  fi
+  mux_pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
+  if ! kill -0 "${mux_pid}" 2>/dev/null; then
+    fail "cdmcp-mux daemon pid ${mux_pid} not alive — Cmd+Q Cursor and reopen"
+  fi
+  ok "cdmcp-mux daemon pid=${mux_pid} (parallel Agent tabs OK)"
+else
+  if [[ "${VANILLA_MCP_COUNT}" -gt 1 ]]; then
+    fail "Too many vanilla chrome-devtools-mcp processes (${VANILLA_MCP_COUNT}) — enable mux: scripts/dev/enable-chrome-devtools-mcp.sh"
+  fi
+  if [[ "${VANILLA_MCP_COUNT}" -eq 1 ]]; then
+    echo "CHROME_E2E_WARN: vanilla chrome-devtools-mcp detected — parallel Agent tabs will collide; run scripts/dev/enable-chrome-devtools-mcp.sh" >&2
+  fi
 fi
 if lsof -iTCP:9333 -sTCP:LISTEN >/dev/null 2>&1; then
   echo "CHROME_E2E_WARN: port 9333 listening (MyrmChromeE2E?) — quit non-main Chrome to avoid conflicts" >&2

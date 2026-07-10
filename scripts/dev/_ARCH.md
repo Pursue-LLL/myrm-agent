@@ -42,7 +42,7 @@
 
 1. 仅使用**主 Chrome 登录态**；禁止 `MyrmChromeMcp` / 第二 `--user-data-dir` / 曾用的 `start-chrome-mcp-debug.sh`（**已删除**）
 2. `chrome://inspect/#remote-debugging` → Allow；`DevToolsActivePort` mtime 须为本次会话（跑 `chrome-e2e-preflight.sh` 或 monorepo 根 `scripts/dev/chrome-mcp-preflight.sh`）
-3. **浏览器任务只开 1 个 Agent 对话**；多条对话 = 多条 `chrome-devtools-mcp` 进程，易死锁。卡死时 Cmd+Q Cursor
+3. **mux 模式**：多 Agent / 多 Cursor 客户端可并行 UI E2E（`cdmcp-mux-autoconnect`）；vanilla 多进程仍会死锁 → `scripts/dev/enable-chrome-devtools-mcp.sh`
 4. **禁止 `list_pages` 探活**（无 timeout，曾挂起 30min+）；用 `new_page`（`timeout`≤5000，`isolatedContext` 为字符串名）起手
 5. MCP 握手期间**勿点击 Chrome 窗口**（Chrome 150 远程调试下有 SIGSEGV 报告）；盯 Allow 弹窗即可
 6. MCP 技巧：先 `new_page` → `about:blank`（timeout≤5000），再 `navigate_page` → `http://127.0.0.1:3000/...`（避免 Next.js 冷启动 navigation timeout）；`navigate` 超时时用 `take_snapshot` 验证，勿盲重试
