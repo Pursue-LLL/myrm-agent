@@ -41,7 +41,7 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 
 | 层级 | 入口 | 说明 |
 |------|------|------|
-| 单元 | `bun run test` | Vitest + jsdom（`src/**/__tests__`） |
+| 单元 | `bun run test` | Vitest + jsdom（**仅** `src/**/__tests__`；无仓根 `tests/` 目录） |
 | i18n | `bun run verify:i18n` | `pretest` 自动执行 |
 | WebUI 集成 | MCP **chrome-devtools** | 真实 Chrome `:3000` 全链路；API prepare 见 `scripts/dev/*-e2e-*.mjs` |
 

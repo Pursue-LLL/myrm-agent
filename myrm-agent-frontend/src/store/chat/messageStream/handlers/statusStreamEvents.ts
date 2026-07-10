@@ -285,6 +285,23 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
         });
       }
 
+      if (sd.phase === 'plan_confirm') {
+        actions.setMessages((state) => {
+          const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+          if (idx === -1) return;
+          if (sd.status === 'waiting' && typeof sd.plan === 'string') {
+            state.messages[idx].planConfirmation = {
+              plan: sd.plan as string,
+              status: 'waiting',
+            };
+          } else if (sd.status === 'resolved') {
+            if (state.messages[idx].planConfirmation) {
+              state.messages[idx].planConfirmation!.status = sd.modified ? 'edited' : 'confirmed';
+            }
+          }
+        });
+      }
+
       if (sd.phase === 'plan' && typeof sd.plan === 'string') {
         const planText = (sd.plan as string).trim();
         if (planText) {

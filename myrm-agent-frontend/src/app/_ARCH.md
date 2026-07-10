@@ -12,8 +12,10 @@
 | `/settings`, `/settings/[tab]` | 设置页（`DEPRECATED_TAB_MAP` 别名永久重定向，如 `persona→personalization`） | 全模式 |
 | `/auth/login`, `/auth/setup` | WebUI 本地管理员 | local / desktop |
 | `/auth/oauth/callback` | CP OAuth | SaaS 构建 |
-| `/workspace`, `/library`, `/brain` | 工作区 / 资料库 | 全模式 |
-| `/kanban`, `/artifacts`, `/cron` 等 | 功能页 | 全模式 |
+| `/work` | 多窗格并行工作区（原 `/workspace`，301 重定向） | 全模式 |
+| `/projects` | Projects Dashboard 聚合入口（Kanban / Cron / Artifacts） | 全模式 |
+| `/library`, `/brain` | 资料库 | 全模式 |
+| `/kanban`, `/artifacts`, `/cron` 等 | 功能页（通过 Projects Dashboard 聚合访问） | 全模式 |
 | `/skill-optimization` | 技能优化 A/B 对比页（`skill-optimization/page.tsx`，e2e 覆盖） | 全模式 |
 | `/batch-optimization`, `/batch-optimization/[batchId]` | 批量技能优化列表与详情 — 见 [batch-optimization/_ARCH.md](batch-optimization/_ARCH.md) | 全模式 |
 | `/pricing`, `/subscription`, `/payment/*` | 计费与订阅 | SaaS 为主 |

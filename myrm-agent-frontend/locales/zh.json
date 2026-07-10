@@ -4380,6 +4380,8 @@
   },
   "nav": {
     "chat": "聊天",
+    "work": "工作",
+    "projects": "项目",
     "agent": "智能体",
     "history": "历史",
     "evalLab": "评测实验室",
@@ -5842,6 +5844,18 @@
       "skip": "跳过",
       "submitFailed": "提交澄清失败，请重试",
       "answered": "已回答澄清问题"
+    },
+    "planConfirmation": {
+      "title": "研究计划",
+      "badge": "执行前请审阅",
+      "description": "AI 已拟定研究计划，请审阅后决定是否执行。",
+      "confirm": "批准计划",
+      "edit": "保存修改",
+      "skip": "跳过审阅",
+      "editPlaceholder": "修改研究计划...",
+      "confirmed": "计划已批准",
+      "edited": "计划已修改并批准",
+      "skipped": "已跳过审阅"
     },
     "toolsPanel": {
       "title": "可用工具",
@@ -7881,6 +7895,24 @@
     "editTooltip": "打开图片编辑器进行标注",
     "applyFailedTitle": "标注失败",
     "applyFailedDesc": "无法应用您的编辑，原图未改动，请重试。"
+  },
+  "projects": {
+    "title": "项目",
+    "subtitle": "在一处管理你的任务、计划和工件",
+    "kanban": {
+      "title": "看板",
+      "desc": "可视化任务管理，支持拖拽排列",
+      "statLabel": "个看板"
+    },
+    "cron": {
+      "title": "定时任务",
+      "desc": "通过 Cron 调度自动化周期性任务",
+      "statLabel": "个任务"
+    },
+    "artifacts": {
+      "title": "工件库",
+      "desc": "浏览和管理版本化工件与交付物"
+    }
   },
   "artifacts": {
     "title": "工件",

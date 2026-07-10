@@ -29,13 +29,11 @@ import { FolderOpen, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { SearchDialog, SearchTrigger } from '@/components/features/app-shell/search-dialog';
 import ChatHistoryList from '@/components/features/sidebar/ChatHistoryList';
-import {
-  CLIWorkspaceTree,
-  CLIFilePreview,
-  CLIContextMenu,
-  useFileWatcher,
-  useFilePreview,
-} from '@/components/features/cli-visualization';
+import { CLIWorkspaceTree } from '@/components/features/cli-visualization/CLIWorkspaceTree';
+import { CLIFilePreview } from '@/components/features/cli-visualization/CLIFilePreview';
+import { CLIContextMenu } from '@/components/features/cli-visualization/CLIContextMenu';
+import { useFileWatcher } from '@/components/features/cli-visualization/hooks/useFileWatcher';
+import { useFilePreview } from '@/components/features/cli-visualization/hooks/useFilePreview';
 import type { FileNode } from '@/components/features/cli-visualization/CLIWorkspaceTree';
 import { WorkspaceFileBrowser, WorkspaceFilePreview, useWorkspaceFiles } from '@/components/features/workspace-browser';
 import { useWorkingDirectory } from '@/store/useCLIAgentStore';

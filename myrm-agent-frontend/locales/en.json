@@ -4380,6 +4380,8 @@
   },
   "nav": {
     "chat": "Chat",
+    "work": "Work",
+    "projects": "Projects",
     "agent": "Agents",
     "history": "History",
     "evalLab": "Eval Lab",
@@ -5843,6 +5845,18 @@
       "skip": "Skip",
       "submitFailed": "Failed to submit clarification. Please try again.",
       "answered": "Clarification answered"
+    },
+    "planConfirmation": {
+      "title": "Research Plan",
+      "badge": "Review before executing",
+      "description": "The AI has drafted a research plan. Review it and decide how to proceed.",
+      "confirm": "Approve Plan",
+      "edit": "Save Changes",
+      "skip": "Skip Review",
+      "editPlaceholder": "Modify the research plan...",
+      "confirmed": "Plan approved",
+      "edited": "Plan updated & approved",
+      "skipped": "Review skipped"
     },
     "toolsPanel": {
       "title": "Available Tools",
@@ -7881,6 +7895,24 @@
     "editTooltip": "Open image editor to annotate",
     "applyFailedTitle": "Annotation failed",
     "applyFailedDesc": "Could not apply your edits. The original image is unchanged — please try again."
+  },
+  "projects": {
+    "title": "Projects",
+    "subtitle": "Manage your tasks, schedules, and artifacts in one place",
+    "kanban": {
+      "title": "Kanban Board",
+      "desc": "Visual task management with drag-and-drop boards",
+      "statLabel": "boards"
+    },
+    "cron": {
+      "title": "Scheduled Tasks",
+      "desc": "Automate recurring tasks with cron schedules",
+      "statLabel": "jobs"
+    },
+    "artifacts": {
+      "title": "Artifacts",
+      "desc": "Browse and manage versioned artifacts and deliverables"
+    }
   },
   "artifacts": {
     "title": "Artifacts",

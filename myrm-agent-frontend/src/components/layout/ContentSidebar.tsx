@@ -18,7 +18,7 @@
  * [POS]
  * 根据 activeTab 显示不同的侧边栏内容：
  * - chat: 聊天历史 + CLI 工作区（ChatSidebarContent）
- * - agent: 智能体列表（AgentSidebarContent）
+ * - work: 智能体列表（AgentSidebarContent）
  */
 
 import { memo, useCallback } from 'react';
@@ -115,7 +115,7 @@ const ContentSidebar = memo<ContentSidebarProps>(
       >
         {activeTab === 'chat' ? (
           <ChatSidebarContent onNewChat={handleNewChat} onToggleCollapse={onToggleCollapse} isMobile={isMobile} />
-        ) : activeTab === 'agent' ? (
+        ) : activeTab === 'work' ? (
           <AgentSidebarContent
             selectedId={selectedAgentId}
             onSelect={onSelectAgent}

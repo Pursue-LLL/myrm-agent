@@ -16,11 +16,12 @@ import {
   Zap,
   FlaskConical,
   CreditCard,
-  LayoutDashboard,
+  Briefcase,
+  FolderKanban,
   TrendingUp,
   Shield,
 } from 'lucide-react';
-import { AiGenerativeIcon, AiNetworkIcon, InvestigationIcon } from 'hugeicons-react';
+import { AiGenerativeIcon, InvestigationIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
@@ -34,12 +35,12 @@ import { useNavBadges } from '@/hooks/useNavBadges';
 
 import NotificationBell from '@/components/features/notifications/NotificationBell';
 import BackgroundTasksPanel from '@/components/features/background-tasks/BackgroundTasksPanel';
-import { IconTerminal, IconFileText } from '@/components/features/icons/PremiumIcons';
+import { IconTerminal } from '@/components/features/icons/PremiumIcons';
 
 const isDev = process.env.NODE_ENV === 'development';
 type NavIconComponent = ComponentType<{ size?: number; className?: string }>;
 
-export type NavTab = 'chat' | 'agent' | 'workspace';
+export type NavTab = 'chat' | 'work' | 'projects';
 
 const NAVBAR_WIDTH = '60px';
 
@@ -53,8 +54,9 @@ interface NavBarProps {
   hideSidebarToggle?: boolean;
   isMobile?: boolean;
   onCloseMobileSidebar?: () => void;
-  /** 最后访问的聊天 URL，用于从其他 tab 返回时恢复 */
   lastChatUrl?: string | null;
+  lastWorkUrl?: string | null;
+  lastProjectsUrl?: string | null;
 }
 
 function NavBarInner({
@@ -68,6 +70,8 @@ function NavBarInner({
   isMobile = false,
   onCloseMobileSidebar,
   lastChatUrl,
+  lastWorkUrl,
+  lastProjectsUrl,
 }: NavBarProps) {
   const router = useRouter();
   const t = useTranslations();
@@ -80,7 +84,7 @@ function NavBarInner({
   const [avatarError, setAvatarError] = useState(false);
   const isLocal = isLocalMode();
   const badges = useNavBadges();
-  const workspaceBadgeCount = badges.cronFailures + badges.pendingApprovals;
+  const projectsBadgeCount = badges.cronFailures + badges.pendingApprovals;
 
   const closeMobileSidebar = useCallback(() => {
     if (isMobile && onCloseMobileSidebar) {
@@ -101,19 +105,13 @@ function NavBarInner({
     { id: 'growth', icon: TrendingUp, label: t('growthDashboard.title'), href: '/growth' },
     { id: 'skills', icon: Wand2, label: t('settings.menu.skills'), settingsTab: 'skills' },
     { id: 'mcp', icon: Plug, label: t('settings.menu.mcp'), settingsTab: 'mcp' },
-    {
-      id: 'artifacts',
-      icon: IconFileText,
-      label: t('artifacts.title', { defaultMessage: '企业工件库' }),
-      href: '/artifacts',
-    },
     ...(enableEvalLab ? [{ id: 'eval-lab', icon: FlaskConical, label: t('nav.evalLab'), href: '/eval-lab' }] : []),
   ];
 
   const navItems: { id: NavTab; icon: NavIconComponent; label: string }[] = [
     { id: 'chat', icon: AiGenerativeIcon, label: t('nav.chat') },
-    { id: 'agent', icon: AiNetworkIcon, label: t('nav.agent') },
-    { id: 'workspace', icon: LayoutDashboard, label: t('multiPane.title') },
+    { id: 'work', icon: Briefcase, label: t('nav.work') },
+    { id: 'projects', icon: FolderKanban, label: t('nav.projects') },
   ];
 
   // 用户头像
@@ -315,21 +313,23 @@ function NavBarInner({
       <div className="flex-1 py-3 flex flex-col gap-1 items-center">
         {navItems.map((item) => {
           const Icon = item.icon;
-          // 聊天图标：只有在非设置页时才高亮
-          // 智能体图标：根据 activeTab prop 判断
           const isInSettingsPage = currentPathname.startsWith('/settings');
           let isActive = false;
 
           if (item.id === 'chat') {
             isActive = !isInSettingsPage && activeTab === 'chat';
-          } else if (item.id === 'agent') {
-            isActive = activeTab === 'agent';
-          } else if (item.id === 'workspace') {
-            isActive = currentPathname === '/workspace';
+          } else if (item.id === 'work') {
+            isActive = activeTab === 'work';
+          } else if (item.id === 'projects') {
+            isActive = activeTab === 'projects';
           }
 
           const href =
-            item.id === 'chat' ? lastChatUrl || '/' : item.id === 'workspace' ? '/workspace' : '/settings/agents';
+            item.id === 'chat'
+              ? lastChatUrl || '/'
+              : item.id === 'work'
+                ? lastWorkUrl || '/work'
+                : lastProjectsUrl || '/projects';
 
           return (
             <Tooltip key={item.id}>
@@ -350,9 +350,9 @@ function NavBarInner({
                   aria-current={isActive ? 'page' : undefined}
                 >
                   <Icon size={18} />
-                  {item.id === 'workspace' && workspaceBadgeCount > 0 && (
+                  {item.id === 'projects' && projectsBadgeCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium leading-none text-white ring-2 ring-background">
-                      {workspaceBadgeCount > 99 ? '99+' : workspaceBadgeCount}
+                      {projectsBadgeCount > 99 ? '99+' : projectsBadgeCount}
                     </span>
                   )}
                 </Link>

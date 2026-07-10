@@ -5,7 +5,7 @@ import { isTauriRuntime } from '@/lib/deploy-mode';
 const TRAY_ROUTES: Record<string, string> = {
   'tray:new_chat': '/',
   'tray:settings': '/settings',
-  'tray:workspace': '/workspace',
+  'tray:workspace': '/work',
 };
 
 export function useTrayEvents() {

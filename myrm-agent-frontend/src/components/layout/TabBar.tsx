@@ -13,7 +13,7 @@ export default function TabBar() {
 
   // Sync URL with active pane
   useEffect(() => {
-    if (pathname === '/workspace') return; // Dashboard view
+    if (pathname === '/work') return; // Dashboard view
     
     const chatId = pathname === '/' ? null : pathname.replace('/', '');
     let pane = panes.find(p => p.chatId === chatId);
@@ -56,10 +56,10 @@ export default function TabBar() {
   return (
     <div className="flex items-center h-10 bg-muted/30 border-b border-border px-2 overflow-x-auto no-scrollbar">
       <button
-        onClick={() => router.push('/workspace')}
+        onClick={() => router.push('/work')}
         className={cn(
           "flex items-center justify-center w-10 h-8 rounded-md mr-2 flex-shrink-0 transition-colors",
-          pathname === '/workspace' ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:bg-muted/50"
+          pathname === '/work' ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:bg-muted/50"
         )}
         title="Dashboard"
       >

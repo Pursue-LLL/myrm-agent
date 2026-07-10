@@ -3793,6 +3793,8 @@
   },
   "nav": {
     "chat": "Chat",
+    "work": "Work",
+    "projects": "Projekte",
     "agent": "Agents",
     "history": "History",
     "evalLab": "Eval-Labor",
@@ -7005,6 +7007,24 @@
     "editTooltip": "Bildeditor zum Annotieren öffnen",
     "applyFailedTitle": "Annotation failed",
     "applyFailedDesc": "Could not apply your edits. The original image is unchanged — please try again."
+  },
+  "projects": {
+    "title": "Projekte",
+    "subtitle": "Aufgaben, Zeitpläne und Artefakte an einem Ort verwalten",
+    "kanban": {
+      "title": "Kanban-Board",
+      "desc": "Visuelle Aufgabenverwaltung mit Drag-and-Drop",
+      "statLabel": "Boards"
+    },
+    "cron": {
+      "title": "Geplante Aufgaben",
+      "desc": "Wiederkehrende Aufgaben mit Cron-Zeitplänen automatisieren",
+      "statLabel": "Aufgaben"
+    },
+    "artifacts": {
+      "title": "Artefakte",
+      "desc": "Versionierte Artefakte und Ergebnisse durchsuchen und verwalten"
+    }
   },
   "artifacts": {
     "title": "Artifacts",

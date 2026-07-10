@@ -8,7 +8,6 @@ src/components/features/chat-window/approval
 src/components/features/chat-window/catchup
 src/components/features/chat-window/goals
 src/components/features/chat-window/virtual-message-list
-src/components/features/cli-visualization/hooks
 src/components/features/companion/sprite
 src/components/features/interactive-ui/components
 src/components/features/message-box/progress-steps

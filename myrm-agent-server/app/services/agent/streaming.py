@@ -11,7 +11,8 @@ Bridges Agent/Orchestrator → AgentGateway → SSE output.
 [OUTPUT]
 - ai_agent_service_stream: General Agent SSE stream (budget_blocked semantic code; progress.started without UI copy)
 - ai_deep_research_service_stream: Deep Research SSE stream
-- ClarificationWaiter: In-process suspend/resume for Deep Research clarification
+- PhaseWaiter: Generic in-process suspend/resume for Deep Research phases (clarification, plan confirmation)
+- ClarificationWaiter: Alias for PhaseWaiter (backward compatibility)
 - swarm_fission_resume::stream_with_swarm_fission_resume (POS: Swarm Fission Yield-Resume server orchestration)
 
 [POS]
@@ -42,57 +43,66 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Clarification waiter — in-process suspend/resume for Deep Research
+# PhaseWaiter — generic in-process suspend/resume for Deep Research phases
 # ---------------------------------------------------------------------------
 
-_clarification_waiters: dict[str, "ClarificationWaiter"] = {}
+PhaseAnswer = str | list[str] | dict[str, str | list[str]] | None
 
-CLARIFICATION_TIMEOUT_SECONDS = 300
-ClarificationAnswer = str | list[str] | dict[str, str | list[str]]
+PHASE_TIMEOUT_SECONDS = 300
+
+_phase_waiters: dict[str, "PhaseWaiter"] = {}
 
 
-class ClarificationWaiter:
-    """Holds an asyncio.Event so the orchestrator can await user clarification.
+class PhaseWaiter:
+    """Generic suspend/resume gate for Deep Research orchestrator phases.
 
-    Lifecycle: created when orchestrator enters CLARIFY phase,
-    resolved when user POSTs a response, auto-expired after timeout.
+    Used by both Clarification and Plan Confirmation to pause the
+    orchestrator while the user provides input via a POST endpoint.
+    Auto-expires after PHASE_TIMEOUT_SECONDS.
     """
 
-    __slots__ = ("_event", "_answer", "message_id")
+    __slots__ = ("_event", "_answer", "key")
 
-    def __init__(self, message_id: str) -> None:
-        self.message_id = message_id
+    def __init__(self, key: str) -> None:
+        self.key = key
         self._event = asyncio.Event()
-        self._answer: ClarificationAnswer | None = None
+        self._answer: PhaseAnswer = None
 
-    async def wait_for_answer(self) -> ClarificationAnswer | None:
+    async def wait_for_answer(self) -> PhaseAnswer:
         """Block until the user responds or timeout."""
         try:
-            await asyncio.wait_for(self._event.wait(), timeout=CLARIFICATION_TIMEOUT_SECONDS)
+            await asyncio.wait_for(self._event.wait(), timeout=PHASE_TIMEOUT_SECONDS)
         except asyncio.TimeoutError:
-            logger.info("Clarification timed out for message_id=%s", self.message_id)
+            logger.info("PhaseWaiter timed out: key=%s", self.key)
             return None
         finally:
-            _clarification_waiters.pop(self.message_id, None)
+            _phase_waiters.pop(self.key, None)
         return self._answer
 
     @property
     def is_resolved(self) -> bool:
         return self._event.is_set()
 
-    def resolve(self, answer: ClarificationAnswer) -> None:
+    def resolve(self, answer: PhaseAnswer) -> None:
         self._answer = answer
         self._event.set()
 
     @staticmethod
-    def register(message_id: str) -> "ClarificationWaiter":
-        waiter = ClarificationWaiter(message_id)
-        _clarification_waiters[message_id] = waiter
+    def register(key: str) -> "PhaseWaiter":
+        waiter = PhaseWaiter(key)
+        _phase_waiters[key] = waiter
         return waiter
 
     @staticmethod
-    def get(message_id: str) -> "ClarificationWaiter | None":
-        return _clarification_waiters.get(message_id)
+    def get(key: str) -> "PhaseWaiter | None":
+        return _phase_waiters.get(key)
+
+
+# Backward-compatible aliases
+ClarificationWaiter = PhaseWaiter
+ClarificationAnswer = PhaseAnswer
+CLARIFICATION_TIMEOUT_SECONDS = PHASE_TIMEOUT_SECONDS
+_clarification_waiters = _phase_waiters
 
 
 async def ai_agent_service_stream(
@@ -392,6 +402,68 @@ async def ai_deep_research_service_stream(
         )
         return answer
 
+    async def _on_plan_ready(plan: str) -> str | None:
+        """Suspend the orchestrator so the user can review/edit the research plan.
+
+        Emits a STATUS event with phase='plan_confirm' and the plan text,
+        then blocks until the user confirms, edits, or skips via POST.
+        Returns the (possibly modified) plan, or None to use the original.
+        """
+        plan_key = f"plan:{message_id}"
+        waiter = PhaseWaiter.register(plan_key)
+        logger.info("[deep-research] Plan confirmation waiting: message_id=%s", message_id)
+
+        await event_queue.put(
+            {
+                "type": AgentEventType.STATUS.value,
+                "messageId": message_id,
+                "data": {
+                    "phase": "plan_confirm",
+                    "status": "waiting",
+                    "plan": plan,
+                },
+            }
+        )
+
+        async def _heartbeat() -> None:
+            while not waiter.is_resolved:
+                await asyncio.sleep(_HEARTBEAT_INTERVAL)
+                if not waiter.is_resolved:
+                    await event_queue.put(
+                        {
+                            "type": AgentEventType.STATUS.value,
+                            "messageId": message_id,
+                            "data": {"phase": "plan_confirm", "status": "waiting"},
+                        }
+                    )
+
+        heartbeat_task = asyncio.create_task(_heartbeat())
+        try:
+            answer = await waiter.wait_for_answer()
+        finally:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
+
+        modified_plan: str | None = None
+        if isinstance(answer, str) and answer.strip():
+            modified_plan = answer.strip()
+
+        await event_queue.put(
+            {
+                "type": AgentEventType.STATUS.value,
+                "messageId": message_id,
+                "data": {
+                    "phase": "plan_confirm",
+                    "status": "resolved",
+                    "modified": modified_plan is not None,
+                },
+            }
+        )
+        return modified_plan
+
     orch = DeepResearchOrchestrator(
         llm=llm,
         parent_tools=parent_tools or [],
@@ -399,6 +471,7 @@ async def ai_deep_research_service_stream(
         context=context or {},
         research_agent_llm=research_agent_llm,
         on_clarify=_on_clarify,
+        on_plan_ready=_on_plan_ready,
         on_report_ready=on_report_ready,
     )
 

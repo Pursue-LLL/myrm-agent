@@ -15,7 +15,7 @@ FRONTEND_PID="${FRONTEND_DIR}/.myrm-dev-frontend.pid"
 FRONTEND_LOG="${FRONTEND_DIR}/.myrm-dev-frontend.log"
 APP_URL="http://127.0.0.1:3000"
 FRONTEND_PORT=3000
-FRONTEND_COMPILE_WAIT_SEC=30
+FRONTEND_COMPILE_WAIT_SEC=120
 
 frontend_http_probe() {
   local max_time="${1:-8}"
@@ -72,7 +72,19 @@ if frontend_http_ok; then
 fi
 
 if frontend_port_listening; then
-  echo "⏳ Frontend listening on :${FRONTEND_PORT} but HTTP not ready (cold compile?) — waiting up to ${FRONTEND_COMPILE_WAIT_SEC}s..."
+  if [[ -f "${FRONTEND_PID}" ]]; then
+    old_fp="$(cat "${FRONTEND_PID}")"
+    if kill -0 "${old_fp}" 2>/dev/null; then
+      echo "⏳ Frontend compiling (PID ${old_fp} alive) — waiting up to ${FRONTEND_COMPILE_WAIT_SEC}s..."
+      if wait_frontend_http "${FRONTEND_COMPILE_WAIT_SEC}"; then
+        frontend_ready
+      fi
+      echo "⚠️  Frontend PID ${old_fp} still compiling after ${FRONTEND_COMPILE_WAIT_SEC}s — not killing; check ${FRONTEND_LOG}" >&2
+      warn_if_multiple_mcp
+      exit 0
+    fi
+  fi
+  echo "⏳ Frontend listening on :${FRONTEND_PORT} but HTTP not ready (stale listener?) — waiting up to ${FRONTEND_COMPILE_WAIT_SEC}s..."
   if wait_frontend_http "${FRONTEND_COMPILE_WAIT_SEC}"; then
     frontend_ready
   fi

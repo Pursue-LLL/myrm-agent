@@ -16,6 +16,7 @@
 | `memory/` | 记忆中心 | [_ARCH.md](memory/_ARCH.md) |
 | `skills/` | 技能管理、进化审核 Dashboard | [_ARCH.md](skills/_ARCH.md) |
 | `kanban/` | 看板 | [_ARCH.md](kanban/_ARCH.md) |
+| `projects/` | 项目域仪表盘（Kanban/Cron/Artifacts 入口聚合） | [_ARCH.md](projects/_ARCH.md) |
 | `health/` | System Doctor | [_ARCH.md](health/_ARCH.md) |
 | `onboarding/` | 首次启动向导（迁移 + 本地能力 + Cookbook） | [_ARCH.md](onboarding/_ARCH.md) |
 | `workspace/` | 工作区与文件树 | [_ARCH.md](workspace/_ARCH.md) |

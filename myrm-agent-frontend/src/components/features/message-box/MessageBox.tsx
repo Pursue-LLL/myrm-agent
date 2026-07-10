@@ -37,9 +37,10 @@ import { UIActionEvent } from '@/store/chat/types';
 import { formatUIActionAsMessage, type UIActionMessageLabels } from '@/components/features/interactive-ui/utils';
 import ToolCallApproval from './ToolCallApproval';
 import ClarificationInput from './ClarificationInput';
+import PlanConfirmationCard from './PlanConfirmationCard';
 import MessageActionBar from './MessageActionBar';
 import { useCLIAgentStore } from '@/store/useCLIAgentStore';
-import { CLIDiffViewer } from '@/components/features/cli-visualization';
+import { CLIDiffViewer } from '@/components/features/cli-visualization/CLIDiffViewer';
 import { isTauriEnvironment } from '@/lib/tauri';
 import { ImageTaskCard } from '@/components/features/task-card';
 import { CronJobSystemCard } from './CronJobSystemCard';
@@ -616,6 +617,14 @@ const MessageBox = ({
                 isResumeMode={message.clarification.isResumeMode}
                 title={message.clarification.title}
                 form={message.clarification.form}
+              />
+            )}
+
+            {message.planConfirmation && (
+              <PlanConfirmationCard
+                messageId={message.messageId}
+                plan={message.planConfirmation.plan}
+                status={message.planConfirmation.status}
               />
             )}
 

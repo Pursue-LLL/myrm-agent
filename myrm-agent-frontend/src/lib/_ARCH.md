@@ -20,6 +20,7 @@
 | `utils/diagnostic-export.ts` | DoctorDashboard 诊断数据格式化（Markdown/JSON）与导出 | — |
 | `fonts.ts` | 全局字体系统配置（Inter/JetBrains Mono next/font 实例、字体目录 FONT_CHOICES、动态加载 ensureFontLoaded） | — |
 | `utils/`（其他） | 消息、文件、URL 等工具函数 | — |
+| `i18n/` | 非 React 运行时 i18n（SSE/通知；与 `src/i18n/` next-intl 路由层分离） | [_ARCH.md](i18n/_ARCH.md) |
 | `diff/` | unified diff 纯函数解析 | [_ARCH.md](diff/_ARCH.md) |
 | `config/` | 设置表单 schema 工具 | — |
 | `search/` | SearXNG 预设 + Embedding/Reranker provider 目录 | [_ARCH.md](search/_ARCH.md) |

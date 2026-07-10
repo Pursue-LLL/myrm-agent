@@ -45,11 +45,17 @@ export function middleware(request: NextRequest) {
     return localeRelay;
   }
 
+  const { pathname } = request.nextUrl;
+
+  if (pathname === '/workspace') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/work';
+    return NextResponse.redirect(url, 301);
+  }
+
   if (!isSandboxDeployMode()) {
     return NextResponse.next();
   }
-
-  const { pathname } = request.nextUrl;
 
   if (
     pathname.startsWith('/api/') ||

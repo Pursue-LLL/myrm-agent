@@ -60,9 +60,11 @@ function AppLayout({ children }: AppLayoutProps) {
 
   // 根据路径确定当前 Tab
   const getTabFromPath = useCallback((): NavTab => {
-    // 智能体页面：检查 URL 路径
-    if (pathname.includes('/agents') || pathname.includes('/agent')) {
-      return 'agent';
+    if (pathname === '/work' || pathname.startsWith('/work/') || pathname.startsWith('/agents') || pathname.startsWith('/agent')) {
+      return 'work';
+    }
+    if (pathname === '/projects' || pathname.startsWith('/projects/') || pathname.startsWith('/kanban') || pathname.startsWith('/cron') || pathname.startsWith('/artifacts')) {
+      return 'projects';
     }
     return 'chat';
   }, [pathname]);
@@ -72,8 +74,9 @@ function AppLayout({ children }: AppLayoutProps) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>();
   const [isNavButtonHidden, setIsNavButtonHidden] = useState(false);
-  // 保存最后访问的聊天 URL，用于从其他 tab 返回时恢复
   const [lastChatUrl, setLastChatUrl] = useState<string | null>(null);
+  const [lastWorkUrl, setLastWorkUrl] = useState<string | null>(null);
+  const [lastProjectsUrl, setLastProjectsUrl] = useState<string | null>(null);
   const lastScrollPositionRef = useRef(0);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -110,10 +113,13 @@ function AppLayout({ children }: AppLayoutProps) {
     }
   }, [pathname, getTabFromPath, activeTab]);
 
-  // 保存最后访问的聊天 URL
   useEffect(() => {
     if (pathname === '/' || pathname.match(/^\/c-/)) {
       setLastChatUrl(pathname);
+    } else if (pathname === '/work' || pathname.startsWith('/work/') || pathname.startsWith('/agents') || pathname.startsWith('/agent')) {
+      setLastWorkUrl(pathname);
+    } else if (pathname === '/projects' || pathname.startsWith('/projects/') || pathname.startsWith('/kanban') || pathname.startsWith('/cron') || pathname.startsWith('/artifacts')) {
+      setLastProjectsUrl(pathname);
     }
   }, [pathname]);
 
@@ -225,7 +231,6 @@ function AppLayout({ children }: AppLayoutProps) {
   // 设置页面特殊处理
   const isSettingsPage = pathname.startsWith('/settings');
 
-  // 是否显示内容侧边栏（只在聊天 tab 显示）
   const shouldShowContentSidebar = !isSettingsPage && activeTab === 'chat';
 
   // 移动端布局标识
@@ -255,6 +260,8 @@ function AppLayout({ children }: AppLayoutProps) {
           isSettingsPage={isSettingsPage}
           hideSidebarToggle={!shouldShowContentSidebar || isSidebarCollapsed}
           lastChatUrl={lastChatUrl}
+          lastWorkUrl={lastWorkUrl}
+          lastProjectsUrl={lastProjectsUrl}
           currentPathname={pathname}
         />
       )}
@@ -317,7 +324,6 @@ function AppLayout({ children }: AppLayoutProps) {
               activeTab={activeTab}
               onTabChange={(tab) => {
                 handleTabChange(tab);
-                // 如果切换到非聊天 tab，关闭侧边栏
                 if (tab !== 'chat') {
                   setIsMobileSidebarOpen(false);
                 }
@@ -329,6 +335,8 @@ function AppLayout({ children }: AppLayoutProps) {
               isMobile
               onCloseMobileSidebar={() => setIsMobileSidebarOpen(false)}
               lastChatUrl={lastChatUrl}
+              lastWorkUrl={lastWorkUrl}
+              lastProjectsUrl={lastProjectsUrl}
               currentPathname={pathname}
             />
             {/* ContentSidebar - 仅在侧边栏打开且是聊天页面时挂载 */}

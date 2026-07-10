@@ -773,6 +773,21 @@ export const submitClarifyResponse = async (
 };
 
 /**
+ * Submit user's response to a Deep Research plan confirmation gate.
+ * @param action - "confirm" (use as-is), "edit" (use modified plan), "skip" (skip gate)
+ */
+export const submitPlanConfirmResponse = async (
+  messageId: string,
+  action: 'confirm' | 'edit' | 'skip',
+  modifiedPlan?: string,
+): Promise<void> => {
+  await apiRequest('/agents/plan-confirm-response', {
+    method: 'POST',
+    body: JSON.stringify({ messageId, action, modifiedPlan }),
+  });
+};
+
+/**
  * Retrieve all archived messages from the workspace backup files.
  */
 export const getChatArchive = async (chatId: string): Promise<{ messages: Message[] }> => {
