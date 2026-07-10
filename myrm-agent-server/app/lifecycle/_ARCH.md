@@ -6,7 +6,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `system.py` | 核心 | Channel Gateway 启动/关闭编排 | — |
+| `system.py` | 核心 | Channel Gateway 启动/关闭编排、OfflineDurableTask 断点续跑（成功/失败均创建 SystemNotification）、孤儿 Goal 自动暂停 | ✅ |
 | `schedulers.py` | 核心 | 定时任务调度：Cron 启动、Kanban Dispatcher 启动/关闭（含 Boot Recovery）、上下文清理(每日3:00)、DB维护(每6h: WAL checkpoint+备份+Qdrant优化+线程清理+Memory import cleanup+**async task queue cleanup**+Kanban GC)、审批TTL(5min)、登录会话清理(5min)、审计日志归档(每日4:00)、**Kanban TaskSpecifier/TaskDecomposer 注入** | ✅ |
 | `memory_guardian.py` | 核心 | 记忆守护者调度器。独立于用户会话的周期性记忆维护（自适应频率 2-6h）+ 过期归档记忆自动清理（TTL 7天）+ 超时冲突自动解决（72h 后 keep_old）+ 每次维护后自动 SQLite 热备份 + 维护结果审计事件写入 operation_ledger（SSE 推送到 Command Center）+ 每 168h 委托 pattern_discovery_trigger 执行行为模式发现，手动触发支持维护和模式发现两个独立入口，调度器路径保留活跃会话/预算/容量三重安全守卫 | ✅ |
 | `pattern_discovery_trigger.py` | 辅助 | 行为模式发现触发器。管理 Pattern Discovery 的定时/手动执行，将结果写入 operation_ledger 以供 Command Center 时间线和 Evolution Digest 展示 | ✅ |

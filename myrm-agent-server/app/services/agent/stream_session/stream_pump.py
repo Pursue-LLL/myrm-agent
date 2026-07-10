@@ -41,9 +41,12 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
         ).to_sse_chunk()
         await buffer.append(cleared_msg)
 
+    stream_had_error = False
     try:
         async for chunk in generate_cancellable_stream(session):
             if chunk.strip():
+                if not stream_had_error and '"type": "error"' in chunk:
+                    stream_had_error = True
                 await buffer.append(chunk)
                 from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
 
@@ -53,6 +56,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
     except asyncio.CancelledError:
         pass
     except Exception as e:
+        stream_had_error = True
         logger.error("Error pumping stream to buffer: %s", e, exc_info=True)
         await buffer.append(error_sse(f"Stream interrupted: {e}", session.params.message_id))
     finally:
@@ -91,18 +95,32 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                 if await session.http_request.is_disconnected():
                     from app.services.infra.system_notification import SystemNotificationService
 
-                    await SystemNotificationService.create_notification(
-                        title="Task Completed (Offline Guardian)",
-                        message=("Your background task has successfully completed. You can view the results in the chat."),
-                        type="success",
-                        source="offline_guardian",
-                        meta_data={
-                            "chat_id": session.request.chat_id,
-                            "message_id": session.params.message_id,
-                            "action_url": f"/{session.request.chat_id}",
-                        },
-                    )
-                    logger.info("Offline Guardian notification sent for: %s", session.params.message_id)
+                    if stream_had_error or session.had_fatal_error:
+                        await SystemNotificationService.create_notification(
+                            title="Task Failed",
+                            message="Your background task encountered an error and could not complete. Please check the chat for details.",
+                            type="error",
+                            source="offline_guardian",
+                            meta_data={
+                                "chat_id": session.request.chat_id,
+                                "message_id": session.params.message_id,
+                                "action_url": f"/{session.request.chat_id}",
+                            },
+                        )
+                        logger.info("Offline Guardian error notification sent for: %s", session.params.message_id)
+                    else:
+                        await SystemNotificationService.create_notification(
+                            title="Task Completed",
+                            message="Your background task has successfully completed. You can view the results in the chat.",
+                            type="success",
+                            source="offline_guardian",
+                            meta_data={
+                                "chat_id": session.request.chat_id,
+                                "message_id": session.params.message_id,
+                                "action_url": f"/{session.request.chat_id}",
+                            },
+                        )
+                        logger.info("Offline Guardian notification sent for: %s", session.params.message_id)
         except Exception as e:
             logger.error("Offline Guardian notification error: %s", e)
 

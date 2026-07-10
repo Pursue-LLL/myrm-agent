@@ -32,6 +32,7 @@ async def yield_stream_exception_chunks(
     if isinstance(exc, ValueError):
         error_msg = str(exc)
         if "Resume failed" in error_msg or "context overflow" in error_msg:
+            session.had_fatal_error = True
             logger.error("Resume validation failed: %s", error_msg)
             if session.request.chat_id:
                 try:
@@ -56,6 +57,7 @@ async def yield_stream_exception_chunks(
     elif isinstance(exc, AgentQueueTimeout):
         yield error_sse(str(exc) or "Server is busy, please try again later.", session.params.message_id)
     elif isinstance(exc, AgentExecutionTimeout):
+        session.had_fatal_error = True
         yield error_sse("Request timed out.", session.params.message_id)
     elif isinstance(exc, asyncio.CancelledError):
         logger.warning("Agent cancelled: message_id=%s", session.params.message_id)
@@ -90,6 +92,7 @@ async def yield_stream_exception_chunks(
         }
         yield SSEEnvelope.from_any(busy_event).to_sse_chunk()
     elif isinstance(exc, MyrmLLMError):
+        session.had_fatal_error = True
         logger.error("Agent LLM error: %s", exc)
         lang = session.params.locale or "en"
         from app.core.errors.llm_errors import generate_recovery_actions
@@ -112,6 +115,7 @@ async def yield_stream_exception_chunks(
             error_data["retry_after_ms"] = exc.context["cooldown_remaining_ms"]
         yield SSEEnvelope.from_any(error_data).to_sse_chunk()
     else:
+        session.had_fatal_error = True
         logger.error("Agent stream error: %s", exc, exc_info=True)
         yield error_sse(f"Agent execution error: {exc}", session.params.message_id)
 

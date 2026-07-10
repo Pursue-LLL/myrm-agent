@@ -165,6 +165,21 @@ async def resume_durable_offline_tasks() -> None:
 
                     except Exception as e:
                         logger.error(f"❌ Failed to resume task {task_record.chat_id}: {e}", exc_info=True)
+                        try:
+                            from app.services.infra.system_notification import SystemNotificationService
+
+                            await SystemNotificationService.create_notification(
+                                title="Task Resume Failed",
+                                message="A background task could not be resumed after a server restart. Please retry from the chat.",
+                                type="error",
+                                source="offline_guardian",
+                                meta_data={
+                                    "chat_id": task_record.chat_id,
+                                    "action_url": f"/{task_record.chat_id}",
+                                },
+                            )
+                        except Exception as notif_err:
+                            logger.error("Failed to create resume failure notification: %s", notif_err)
                     finally:
                         # Cleanup the registration
                         try:

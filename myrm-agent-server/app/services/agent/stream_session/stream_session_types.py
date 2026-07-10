@@ -37,5 +37,6 @@ class AgentStreamSession:
     consensus_ref_model_cfgs: list[object] | None = field(default=None)
     consensus_agg_model_cfg: object | None = field(default=None)
     durable_registered: bool = field(default=False)
+    had_fatal_error: bool = field(default=False)
     disconnect_time: float | None = field(default=None)
     entitlement_preflight_text: str | None = field(default=None)
