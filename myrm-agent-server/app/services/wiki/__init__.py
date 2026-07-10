@@ -1,4 +1,13 @@
-"""Wiki services for myrm-agent-server business layer."""
+"""Wiki services for myrm-agent-server business layer.
+
+[INPUT]
+- .memory_to_wiki::MemoryToWikiArchiver (POS: Memory→Wiki automatic archiving)
+- .vault_resolver (POS: Wiki vault path resolution and legacy migration)
+- .vault_service (POS: Wiki archiver singleton lifecycle management)
+
+[OUTPUT]
+- Public re-exports for all wiki service symbols
+"""
 
 from .memory_to_wiki import MemoryToWikiArchiver
 from .vault_resolver import (
