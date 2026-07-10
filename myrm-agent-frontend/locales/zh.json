@@ -1937,6 +1937,7 @@
         "rawFiles": "原始文件",
         "vaultReady": "知识库已就绪",
         "vaultNotReady": "知识库初始化中",
+        "legacyMigrated": "旧库已迁移",
         "legacyPending": "旧数据迁移待完成"
       },
       "query": {

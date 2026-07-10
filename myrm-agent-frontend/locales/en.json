@@ -1937,6 +1937,7 @@
         "rawFiles": "Raw Files",
         "vaultReady": "Vault ready",
         "vaultNotReady": "Vault initializing",
+        "legacyMigrated": "Legacy vault merged",
         "legacyPending": "Legacy data migration pending"
       },
       "query": {

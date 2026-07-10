@@ -347,8 +347,12 @@ export function WikiSection() {
                     >
                       {stats.vault_ready ? t('stats.vaultReady') : t('stats.vaultNotReady')}
                     </span>
-                    {!stats.legacy_migrated && (
-                      <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                    {stats.legacy_migrated ? (
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-600 dark:text-emerald-400">
+                        {t('stats.legacyMigrated')}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-amber-700 dark:text-amber-400">
                         {t('stats.legacyPending')}
                       </span>
                     )}
