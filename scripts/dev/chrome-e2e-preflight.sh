@@ -10,6 +10,14 @@ ACTIVE_PORT_FILE="$CHROME_DATA_DIR/DevToolsActivePort"
 MAX_PORT_AGE_SEC="${CHROME_E2E_MAX_PORT_AGE_SEC:-300}"
 STALE_MCP_AGE_SEC="${CHROME_E2E_STALE_MCP_AGE_SEC:-3600}"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AGENT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+SERVER_DIR="${AGENT_ROOT}/myrm-agent-server"
+PREFLIGHT_PY="${SERVER_DIR}/.venv/bin/python"
+if [[ ! -x "${PREFLIGHT_PY}" ]]; then
+  PREFLIGHT_PY="python3"
+fi
+
 fail() {
   echo "CHROME_E2E_FAIL: $*" >&2
   exit 1
@@ -48,20 +56,21 @@ if [[ ! -f "$ACTIVE_PORT_FILE" ]]; then
 fi
 port_age=$(( $(date +%s) - $(stat -f %m "$ACTIVE_PORT_FILE" 2>/dev/null || stat -c %Y "$ACTIVE_PORT_FILE") ))
 if (( port_age > MAX_PORT_AGE_SEC )); then
-  fail "DevToolsActivePort is stale (${port_age}s old) — quit Chrome, reopen, re-enable remote debugging"
+  echo "CHROME_E2E_WARN: DevToolsActivePort mtime is ${port_age}s old — verifying CDP WebSocket" >&2
+else
+  ok "DevToolsActivePort fresh (${port_age}s)"
 fi
 raw_port=$(sed -n '1p' "$ACTIVE_PORT_FILE" | tr -d '[:space:]')
 ws_path=$(sed -n '2p' "$ACTIVE_PORT_FILE" | tr -d '[:space:]')
 if [[ -z "$raw_port" || -z "$ws_path" ]]; then
   fail "Invalid DevToolsActivePort content"
 fi
-ok "DevToolsActivePort fresh (${port_age}s)"
 
 # 5. WebSocket endpoint (M144+ permission-proxy: HTTP /json/version may 404; WS is the truth)
-if ! command -v python3 >/dev/null 2>&1; then
-  fail "python3 required for CDP WebSocket check — install Python 3"
+if ! command -v "${PREFLIGHT_PY}" >/dev/null 2>&1; then
+  fail "python3 required for CDP WebSocket check — install Python 3 or run: cd myrm-agent-server && uv sync"
 fi
-python3 - <<PY || fail "CDP WebSocket unreachable on port $raw_port — re-toggle remote debugging Allow"
+"${PREFLIGHT_PY}" - <<PY || fail "CDP WebSocket unreachable on port $raw_port — re-toggle remote debugging Allow"
 import asyncio
 import sys
 try:
@@ -71,7 +80,7 @@ except ImportError:
     sys.exit(1)
 async def main() -> None:
     uri = f"ws://127.0.0.1:${raw_port}${ws_path}"
-    async with websockets.connect(uri, open_timeout=3):
+    async with websockets.connect(uri, open_timeout=10):
         pass
 asyncio.run(main())
 PY
