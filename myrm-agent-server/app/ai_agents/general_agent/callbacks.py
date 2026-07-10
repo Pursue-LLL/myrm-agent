@@ -72,7 +72,7 @@ def make_summary_persist_with_wiki_archive(
 
         import asyncio
 
-        from myrm_agent_harness.agent._skill_agent_context import track_background_task
+        from myrm_agent_harness.api import track_background_task
 
         from app.services.wiki.wiki_archive_hook import archive_session_notes_to_wiki
 

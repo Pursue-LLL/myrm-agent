@@ -387,7 +387,6 @@ myrm_agent_harness.toolkits.wiki
 myrm_agent_harness.toolkits.wiki.core.config
 myrm_agent_harness.toolkits.wiki.core.refactor
 myrm_agent_harness.toolkits.wiki.core.structure
-myrm_agent_harness.toolkits.wiki.pipeline.compiler
 myrm_agent_harness.toolkits.wiki.retrieval.indexer
 myrm_agent_harness.utils
 myrm_agent_harness.utils.chat_utils

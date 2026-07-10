@@ -37,7 +37,7 @@ async def test_wiki_archive_runs_after_compaction_persist() -> None:
             new_callable=AsyncMock,
         ) as mock_archive,
         patch("asyncio.create_task", side_effect=_capture_background_task),
-        patch("myrm_agent_harness.agent._skill_agent_context.track_background_task"),
+        patch("myrm_agent_harness.api.track_background_task"),
     ):
         base = AsyncMock()
         mock_get_persist.return_value = base
