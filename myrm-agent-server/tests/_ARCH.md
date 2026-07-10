@@ -40,9 +40,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 ## 测试分层（默认 `pytest`）
 
 - 默认 `addopts`：`-m 'not e2e and not performance'`（跳过 e2e 与 benchmark/performance）
-- **低内存推荐（本地 / CI 同款）**：`scripts/dev/run_tests_low_memory.sh` 或 `uv run pytest -n0`
-- 单元 + API 集成：`uv run pytest -n0`（单 worker；实测 `build_minimal_app(chats)` ~118MB，`app.main` ~439MB）
-- E2E（真实 LLM API）：`uv run pytest -m e2e`（含 `tests/api/agent/test_render_ui_agent_stream_e2e.py`、`test_auto_capture_hooks_e2e.py`、`test_bash_terminal_streaming_e2e.py`）
+- **低内存推荐（本地 / CI 同款）**：`scripts/dev/run_tests_low_memory.sh` 或 monorepo **`./myrm test -n0`**
+- 单元 + API 集成：monorepo **`./myrm test -n0`**（单 worker；实测 `build_minimal_app(chats)` ~118MB，`app.main` ~439MB）
+- E2E（真实 LLM API）：monorepo **`./myrm test -m e2e`**（含 `tests/api/agent/test_render_ui_agent_stream_e2e.py`、`test_auto_capture_hooks_e2e.py`、`test_bash_terminal_streaming_e2e.py`）
 - `tests/integration/test_render_ui_sse_wiring.py`：render_ui 确定性集成（20 场景：run_bind、fail-closed、data_update、collector 链、幂等）
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`

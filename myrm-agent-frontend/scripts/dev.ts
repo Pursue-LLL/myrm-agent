@@ -1,7 +1,14 @@
 import { type ChildProcess, spawn } from 'child_process';
+import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { acquireDevLock, assertDevLockAvailable, releaseDevLock } from './dev-lock';
+import {
+  acquireDevLock,
+  assertDevLockAvailable,
+  isDevServerHealthy,
+  readDevLock,
+  releaseDevLock,
+} from './dev-lock';
 import { APP_DEV_PORT, killListenersOnPort } from './port-cleanup';
 
 const ENV_LOCAL = path.join(process.cwd(), '.env.local');
@@ -35,6 +42,15 @@ if (clean) {
   fs.rmSync('.next', { recursive: true, force: true });
 }
 
+function isFrontendHttpOk(): boolean {
+  try {
+    execSync(`curl -sf --max-time 3 http://127.0.0.1:${APP_DEV_PORT}/`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function setupSignalHandlers(child: ChildProcess) {
   const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP'];
 
@@ -55,9 +71,24 @@ function setupSignalHandlers(child: ChildProcess) {
   });
 }
 
+const devForce =
+  process.env.MYRM_DEV_FORCE === '1' || process.env.MYRM_DEV_FORCE === 'true';
+if (!devForce && isDevServerHealthy(APP_DEV_PORT) && isFrontendHttpOk()) {
+  const lock = readDevLock();
+  console.log(
+    `✅ Dev server already healthy → http://127.0.0.1:${APP_DEV_PORT} (PID ${lock?.pid ?? 'unknown'})`,
+  );
+  process.exit(0);
+}
+
 assertDevLockAvailable(APP_DEV_PORT);
-console.log(`🧹 Freeing port ${APP_DEV_PORT} (myrm-agent-frontend only)...`);
-killListenersOnPort(APP_DEV_PORT);
+if (!devForce) {
+  console.log(`🧹 Freeing port ${APP_DEV_PORT} (myrm-agent-frontend only)...`);
+  killListenersOnPort(APP_DEV_PORT);
+} else {
+  console.log(`🧹 MYRM_DEV_FORCE=1 — reclaiming port ${APP_DEV_PORT}...`);
+  killListenersOnPort(APP_DEV_PORT);
+}
 acquireDevLock(APP_DEV_PORT);
 
 const bindLan =

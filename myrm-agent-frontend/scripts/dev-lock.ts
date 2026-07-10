@@ -45,6 +45,13 @@ function isPortListening(port: number): boolean {
   return listPidsOnPort(port).length > 0;
 }
 
+export function isDevServerHealthy(port: number): boolean {
+  const lock = readDevLock();
+  if (!lock || lock.port !== port) return false;
+  if (!isProcessAlive(lock.pid)) return false;
+  return isPortListening(port);
+}
+
 /** Refuse when another dev-server.lock owner is alive; MYRM_DEV_FORCE=1 takes over. */
 export function assertDevLockAvailable(port: number): void {
   const existing = readDevLock();

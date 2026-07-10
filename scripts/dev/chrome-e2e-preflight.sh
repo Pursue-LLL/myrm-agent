@@ -20,8 +20,8 @@ ok() {
 }
 
 # 1. Dev servers (Next.js cold compile can exceed 3s)
-curl -sf --max-time 30 "$UI_BASE" >/dev/null || fail "Frontend not reachable at $UI_BASE — run: ./myrm start"
-curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null || fail "Backend not reachable at $API_BASE — run: ./myrm start"
+curl -sf --max-time 30 "$UI_BASE" >/dev/null || fail "Frontend not reachable at $UI_BASE — run: cd open-perplexity && ./myrm ready"
+curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null || fail "Backend not reachable at $API_BASE — run: cd open-perplexity && ./myrm ready"
 ok "dev servers :3000/:8080"
 
 # 2. Main Chrome process (not helper-only)
@@ -65,7 +65,8 @@ import sys
 try:
     import websockets
 except ImportError:
-    sys.exit(0)
+    print("websockets package required in server venv — run: cd myrm-agent-server && uv sync", file=sys.stderr)
+    sys.exit(1)
 async def main() -> None:
     uri = f"ws://127.0.0.1:${raw_port}${ws_path}"
     async with websockets.connect(uri, open_timeout=3):
