@@ -14,7 +14,7 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `install-remote.ps1` | Windows | `irm \| iex` 入口：clone → `install.ps1` |
 | `myrm` | Unix | `setup` / `dev` / `start` / `stop` / `status`（curl `/api/v1/health` JSON）/ `update` / `doctor` / `searxng`；monorepo 下 `setup` 自动 editable harness，否则 PyPI |
 | `dev/dev.sh` | Unix | `myrm dev`：仅后端 :8080 |
-| `dev/start.sh` | Unix | `myrm start`：后端 :8080 + 前端 `bun run dev` :3000 |
+| `dev/start.sh` | Unix | `myrm start`：后端 :8080 + 前端 `bun run dev` :3000；LISTEN+冷编译 poll 30s；MCP>1 WARN |
 | `myrm.ps1` | Windows | 同上；`start` 优先 `.venv\Scripts\python.exe` |
 | `dev/setup.sh` / `setup.ps1` | 双平台 | clone 后首次：monorepo 自动 editable harness，否则 PyPI `uv sync`；`patchright install chromium` + `bun install` |
 | `dev/run_server.sh` / `run_server.ps1` | 双平台 | 开发启动后端（与 `myrm start` 同策略） |

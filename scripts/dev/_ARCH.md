@@ -10,7 +10,8 @@
 |------|------|------|
 | `setup.sh` / `setup.ps1` | 双平台 | clone 后首次依赖安装：monorepo 自动 editable harness；OSS-only 走 PyPI `uv sync`；`patchright install chromium` + `bun install` |
 | `dev.sh` / `dev.ps1` | 双平台 | 仅后端 :8080 |
-| `start.sh` / `start.ps1` | 双平台 | 后端 :8080 + 前端 `bun run dev` :3000；**以 HTTP 127.0.0.1:3000 可达为准**判断前端是否运行，不可达则 `MYRM_DEV_FORCE=1` 清锁重启；前端 `dev.ts` 端口清理仅杀 **TCP LISTEN**（不误杀 Chrome ESTABLISHED） |
+| `start.sh` | Unix | 后端 :8080 + 前端 `bun run dev` :3000；HTTP `127.0.0.1:3000` 健康检查；`:3000` LISTEN 但 HTTP 未就绪时 poll **墙钟 30s**（2s curl + 1s sleep）；`chrome-devtools-mcp` 进程 >1 时 stderr WARN |
+| `start.ps1` | Windows | 后端 :8080 + 前端 `bun run dev` :3000（无 LISTEN 编译等待 / MCP WARN；见 `start.sh` Unix 行为） |
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `test-instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
 | `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API E2E（pytest）；UI 用 MCP chrome-devtools |
