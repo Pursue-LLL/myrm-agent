@@ -1,9 +1,8 @@
 """Conversation Fork Manager
 
 [INPUT]
-- database.models::Chat, ConversationFork (POS: ORM models)
+- database.models::Chat, ConversationFork, Message (POS: ORM models)
 - platform::get_checkpointer (POS: LangGraph checkpointer instance)
-- runtime::ForkInfo (POS: Fork metadata dataclass from harness layer)
 - app.services.chat.conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
 
 [OUTPUT]
@@ -66,7 +65,9 @@ class ConversationForkManager:
     """Conversation forking service.
 
     Provides checkpoint-based conversation forking capabilities:
-    - Clone complete agent state (messages + agent_state) to new thread
+    - Clone messages + full Chat metadata to new thread
+    - Remap compacted_before_id for self-contained fork (no parent dependency)
+    - Clone LangGraph checkpoint at last-message fork point
     - Track fork relationships in database
     - Query fork lineage (parent and children)
 
@@ -110,9 +111,7 @@ class ConversationForkManager:
             )
 
         # Validate message_index boundary.
-        from sqlalchemy import func as sql_func
-
-        count_stmt = select(sql_func.count(Message.id)).where(Message.chat_id == parent_chat_id)
+        count_stmt = select(func.count(Message.id)).where(Message.chat_id == parent_chat_id)
         count_result = await db.execute(count_stmt)
         total_messages = count_result.scalar_one()
 
@@ -125,7 +124,7 @@ class ConversationForkManager:
                 error=f"Invalid message_index: {message_index} (total messages: {total_messages})",
             )
 
-        # 3. Attempt to get checkpoint (optional — fork works with or without it)
+        # 2. Attempt to get checkpoint (optional — fork works with or without it)
         checkpointer = get_checkpointer()
         checkpoint_tuple: CheckpointTuple | None = None
 
@@ -139,7 +138,7 @@ class ConversationForkManager:
                 logger.warning("Checkpoint retrieval failed (non-fatal): %s", e)
                 checkpoint_tuple = None
 
-        # 3. Generate fork title
+        # 3. Generate fork title and create new chat
         new_chat_id = str(uuid4())
         if not new_title:
             msg_stmt = (
@@ -168,6 +167,17 @@ class ConversationForkManager:
             source=parent_chat.source,
             channel_session_key=None,  # Fork creates independent conversation
             session_loaded_skill_names=parent_chat.session_loaded_skill_names,
+            action_mode=parent_chat.action_mode,
+            workspace_dir=parent_chat.workspace_dir,
+            sandbox_base_dir=parent_chat.sandbox_base_dir,
+            project_id=parent_chat.project_id,
+            is_incognito=parent_chat.is_incognito,
+            compacted_summary=parent_chat.compacted_summary,
+            compacted_before_id=parent_chat.compacted_before_id,
+            compacted_at=parent_chat.compacted_at,
+            compacted_tokens_saved=parent_chat.compacted_tokens_saved,
+            task_adaptive_digest=parent_chat.task_adaptive_digest,
+            session_notes_json=parent_chat.session_notes_json,
         )
         db.add(new_chat)
 
@@ -176,9 +186,12 @@ class ConversationForkManager:
         msgs_result = await db.execute(msgs_stmt)
         parent_messages = msgs_result.scalars().all()
 
+        id_mapping: dict[str, str] = {}
         for msg in parent_messages:
+            new_msg_id = str(uuid4())
+            id_mapping[msg.id] = new_msg_id
             cloned_msg = Message(
-                id=str(uuid4()),
+                id=new_msg_id,
                 chat_id=new_chat_id,
                 role=msg.role,
                 content=msg.content,
@@ -188,6 +201,16 @@ class ConversationForkManager:
                 created_at=msg.created_at,
             )
             db.add(cloned_msg)
+
+        # Remap compacted_before_id or clear compaction if fork point is before compaction boundary
+        if new_chat.compacted_before_id:
+            if new_chat.compacted_before_id in id_mapping:
+                new_chat.compacted_before_id = id_mapping[new_chat.compacted_before_id]
+            else:
+                new_chat.compacted_summary = None
+                new_chat.compacted_before_id = None
+                new_chat.compacted_at = None
+                new_chat.compacted_tokens_saved = None
 
         # 5. Clone checkpoint if available (best-effort)
         fork_checkpoint_id: str | None = None

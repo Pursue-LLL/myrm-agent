@@ -254,6 +254,206 @@ async def test_get_fork_info_child(db_session, test_user):
     assert len(fork_info.children) == 0  # Child has no children
 
 
+@pytest.mark.asyncio
+async def test_fork_inherits_full_metadata(db_session, test_user, monkeypatch) -> None:
+    """Forked chat inherits all critical metadata fields from parent."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(
+        id=chat_id,
+        title="Parent",
+        action_mode="deep_research",
+        workspace_dir="/projects/myapp",
+        sandbox_base_dir="/repos/myapp",
+        project_id="proj-123",
+        is_incognito=True,
+        task_adaptive_digest={"key": "value"},
+        session_notes_json='{"notes": "test"}',
+    )
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    for i in range(3):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_id,
+                role="user",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=2,
+    )
+
+    assert result.success
+    child_stmt = select(Chat).where(Chat.id == result.new_chat_id)
+    child_result = await db_session.execute(child_stmt)
+    child_chat = child_result.scalar_one()
+
+    assert child_chat.action_mode == "deep_research"
+    assert child_chat.workspace_dir == "/projects/myapp"
+    assert child_chat.sandbox_base_dir == "/repos/myapp"
+    assert child_chat.project_id == "proj-123"
+    assert child_chat.is_incognito is True
+    assert child_chat.task_adaptive_digest == {"key": "value"}
+    assert child_chat.session_notes_json == '{"notes": "test"}'
+
+
+@pytest.mark.asyncio
+async def test_fork_remaps_compacted_before_id(db_session, test_user, monkeypatch) -> None:
+    """Forked chat remaps compacted_before_id to cloned message ID."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    now = datetime.now(timezone.utc)
+
+    msg_ids = [str(uuid4()) for _ in range(5)]
+    compacted_msg_id = msg_ids[2]
+
+    parent = Chat(
+        id=chat_id,
+        title="Long Chat",
+        compacted_summary="Summary of first 3 messages",
+        compacted_before_id=compacted_msg_id,
+        compacted_at=now,
+        compacted_tokens_saved=1500,
+    )
+    db_session.add(parent)
+
+    for i, msg_id in enumerate(msg_ids):
+        db_session.add(
+            Message(
+                id=msg_id,
+                chat_id=chat_id,
+                role="user" if i % 2 == 0 else "assistant",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=4,
+    )
+
+    assert result.success
+    child_stmt = select(Chat).where(Chat.id == result.new_chat_id)
+    child_result = await db_session.execute(child_stmt)
+    child_chat = child_result.scalar_one()
+
+    assert child_chat.compacted_summary == "Summary of first 3 messages"
+    assert child_chat.compacted_tokens_saved == 1500
+    # compacted_before_id should be remapped to new cloned message ID
+    assert child_chat.compacted_before_id != compacted_msg_id
+    assert child_chat.compacted_before_id is not None
+
+    # Verify the remapped ID exists in forked messages
+    msg_stmt = select(Message).where(
+        Message.chat_id == result.new_chat_id,
+        Message.id == child_chat.compacted_before_id,
+    )
+    msg_result = await db_session.execute(msg_stmt)
+    remapped_msg = msg_result.scalar_one_or_none()
+    assert remapped_msg is not None
+    assert remapped_msg.content == "Message 2"
+
+
+@pytest.mark.asyncio
+async def test_fork_clears_compaction_when_fork_before_compacted_point(
+    db_session, test_user, monkeypatch
+) -> None:
+    """Fork before compaction boundary clears compaction fields to prevent stale reference."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    now = datetime.now(timezone.utc)
+
+    msg_ids = [str(uuid4()) for _ in range(10)]
+    compacted_msg_id = msg_ids[6]
+
+    parent = Chat(
+        id=chat_id,
+        title="Very Long Chat",
+        compacted_summary="Summary of first 7 messages",
+        compacted_before_id=compacted_msg_id,
+        compacted_at=now,
+        compacted_tokens_saved=3000,
+    )
+    db_session.add(parent)
+
+    for i, msg_id in enumerate(msg_ids):
+        db_session.add(
+            Message(
+                id=msg_id,
+                chat_id=chat_id,
+                role="user" if i % 2 == 0 else "assistant",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    # Fork at message_index=3 (before compaction point at index 6)
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=3,
+    )
+
+    assert result.success
+    child_stmt = select(Chat).where(Chat.id == result.new_chat_id)
+    child_result = await db_session.execute(child_stmt)
+    child_chat = child_result.scalar_one()
+
+    # Compaction fields should be cleared since fork point is before compacted boundary
+    assert child_chat.compacted_summary is None
+    assert child_chat.compacted_before_id is None
+    assert child_chat.compacted_at is None
+    assert child_chat.compacted_tokens_saved is None
+
+
 @pytest.fixture
 def test_user():
     """Provide a test user ID (single-user architecture, no User model)."""
