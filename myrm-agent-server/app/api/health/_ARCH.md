@@ -12,4 +12,5 @@
 | `benchmark.py` | 模块 | Provides asynchronous performance benchmark execution and SSE streaming | ✅ |
 | `diagnostic.py` | 模块 | Returns the current hardened diagnostic state of the agent engine. | ✅ |
 | `memory.py` | 模块 | Memory diagnostics API. | ✅ |
-| `router.py` | 路由 | HTTP 路由处理器（含 liveness/readiness；`GET /api/v1/health` 暴露 `backend_port`/`webui_dev_port`/`dev_mode`；browser/proxy/doctor/repair 端点） | ✅ |
+| `liveness.py` | 模块 | Agent 全局存活状态 SSOT 端点（`GET /api/v1/health/liveness`），聚合 Agent 活跃会话、渠道健康、内存压力 | ✅ |
+| `router.py` | 路由 | HTTP 路由处理器（含 health/readiness；`GET /api/v1/health` 暴露 `backend_port`/`webui_dev_port`/`dev_mode`；browser/proxy/doctor/repair 端点） | ✅ |

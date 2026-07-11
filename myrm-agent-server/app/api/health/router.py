@@ -6,7 +6,8 @@
 - 系统诊断和调试
 
 端点：
-- GET /api/v1/health - 基础健康检查（liveness）
+- GET /api/v1/health - 基础健康检查
+- GET /api/v1/health/liveness - Agent 全局存活状态 SSOT（聚合 Agent/渠道/内存）
 - GET /api/v1/health/ready - 就绪检查（readiness），检查所有依赖服务
 - GET /api/v1/health/info - 系统配置信息（部署模式、数据库类型等）
 - GET /api/v1/health/browser - 浏览器运行时健康状态
@@ -26,6 +27,7 @@ from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
 
 from app.api.health.benchmark import router as benchmark_router
 from app.api.health.diagnostic import router as diagnostic_router
+from app.api.health.liveness import router as liveness_router
 from app.api.health.memory import router as memory_router
 from app.database.connection import get_session
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
@@ -41,6 +43,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health"])
 router.include_router(benchmark_router)
 router.include_router(diagnostic_router)
+router.include_router(liveness_router)
 router.include_router(memory_router)
 
 
