@@ -51,13 +51,49 @@ logger = logging.getLogger("app.channels.routing.router")
 class RouterCommandsMixin:
     """Mixin: task cancellation and slash-command handlers from the consume loop."""
 
+    async def _abort_session_task(
+        self: RouterCommandsHost,
+        state_key: str,
+        reason: str,
+        placeholder_text: str | None = None,
+    ) -> bool:
+        """Cancel the active agent task and clean up session state.
+
+        Shared by ``/stop`` and ``/new`` to avoid duplicated cancel logic.
+        Returns True when a task was actually cancelled.
+        """
+        active = self._active_tasks.pop(state_key, None)
+        if active is None:
+            return False
+
+        self._approval_msg_ids.pop(state_key, None)
+
+        active.cancel_token.cancel(reason)
+        if not active.task.done():
+            active.task.cancel()
+
+        if active.placeholder_id and placeholder_text:
+            await self._fx.cleanup_placeholder(
+                active.channel,
+                active.chat_id,
+                active.placeholder_id,
+                placeholder_text,
+            )
+
+        return True
+
     async def _cancel_active_task(self: RouterCommandsHost, msg: InboundMessage) -> None:
         """Cancel the active agent task for the sender's chat session."""
         chat_id = msg.chat_id or msg.sender_id
-        key = f"{msg.channel}:{chat_id}"
-        active = self._active_tasks.pop(key, None)
+        state_key = routing_session_key(msg.channel, chat_id)
 
-        if not active:
+        cancelled = await self._abort_session_task(
+            state_key,
+            reason="User /stop command",
+            placeholder_text=get_text(msg, "placeholder_stopped"),
+        )
+
+        if not cancelled:
             reply = OutboundMessage(
                 channel=msg.channel,
                 recipient_id=chat_id,
@@ -68,18 +104,6 @@ class RouterCommandsMixin:
             )
             await self._bus.publish_outbound(reply)
             return
-
-        active.cancel_token.cancel("User /stop command")
-        if not active.task.done():
-            active.task.cancel()
-
-        if active.placeholder_id:
-            await self._fx.cleanup_placeholder(
-                active.channel,
-                active.chat_id,
-                active.placeholder_id,
-                get_text(msg, "placeholder_stopped"),
-            )
 
         reply = OutboundMessage(
             channel=msg.channel,
@@ -371,7 +395,26 @@ class RouterCommandsMixin:
         )
 
     async def _handle_new_session(self: RouterCommandsHost, msg: InboundMessage) -> None:
-        """Handle /new command: mark peer so next message creates a fresh Chat."""
+        """Handle /new command: cancel running task, flush pending queue, start fresh."""
+        chat_id = msg.chat_id or msg.sender_id
+        state_key = routing_session_key(msg.channel, chat_id)
+
+        await self._abort_session_task(
+            state_key,
+            reason="User /new command",
+            placeholder_text=get_text(msg, "placeholder_stopped"),
+        )
+        dropped = self._gate.clear_pending_for_key(state_key)
+        if dropped:
+            logger.info(
+                "AgentRouter: /new dropped %d pending message(s) for %s",
+                dropped,
+                state_key,
+            )
+
+        self._session_yolo.pop(state_key, None)
+        self._session_personality.pop(state_key, None)
+
         await handle_new_session(msg, self._bus, self._new_session_peers)
 
     async def _handle_compact(self: RouterCommandsHost, msg: InboundMessage, raw_args: str = "") -> None:

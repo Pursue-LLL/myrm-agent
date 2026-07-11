@@ -281,6 +281,55 @@ class TestSessionGate:
         assert gate.pending_count("telegram:user1") == 0
 
     @pytest.mark.asyncio
+    async def test_clear_pending_for_key_drops_queued_messages(self) -> None:
+        received: list[InboundMessage] = []
+        proceed = asyncio.Event()
+
+        async def on_ready(msg: InboundMessage) -> None:
+            received.append(msg)
+            if len(received) == 1:
+                await proceed.wait()
+
+        gate = SessionGate(SessionGateConfig(debounce_window_ms=30), on_ready=on_ready)
+        gate.submit(_msg("first"))
+        await asyncio.sleep(0.1)
+        assert len(received) == 1
+
+        gate.submit(_msg("queued1"))
+        gate.submit(_msg("queued2"))
+        await asyncio.sleep(0.05)
+        assert gate.pending_count("telegram:user1") == 2
+
+        dropped = gate.clear_pending_for_key("telegram:user1")
+        assert dropped == 2
+        assert gate.pending_count("telegram:user1") == 0
+
+        proceed.set()
+        await asyncio.sleep(0.15)
+        assert len(received) == 1
+
+    @pytest.mark.asyncio
+    async def test_clear_pending_for_key_unknown_key(self) -> None:
+        async def on_ready(msg: InboundMessage) -> None:
+            pass
+
+        gate = SessionGate(SessionGateConfig(debounce_window_ms=50), on_ready=on_ready)
+        assert gate.clear_pending_for_key("telegram:unknown") == 0
+
+    @pytest.mark.asyncio
+    async def test_clear_pending_for_key_no_pending(self) -> None:
+        received: list[InboundMessage] = []
+
+        async def on_ready(msg: InboundMessage) -> None:
+            received.append(msg)
+
+        gate = SessionGate(SessionGateConfig(debounce_window_ms=30), on_ready=on_ready)
+        gate.submit(_msg("hello"))
+        await asyncio.sleep(0.1)
+        assert len(received) == 1
+        assert gate.clear_pending_for_key("telegram:user1") == 0
+
+    @pytest.mark.asyncio
     async def test_clear_cancels_timers(self) -> None:
         received: list[InboundMessage] = []
 

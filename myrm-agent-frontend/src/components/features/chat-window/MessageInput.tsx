@@ -32,6 +32,7 @@ import GoalModeToggle from '../message-input-actions/GoalModeToggle';
 import IncognitoModeToggle from '../message-input-actions/IncognitoModeToggle';
 import SandboxModeToggle from '../message-input-actions/SandboxModeToggle';
 import FocusFlushButton from '../message-input-actions/FocusFlushButton';
+import { ForkButton } from './ForkButton';
 import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemoryPanel';
 import { useTranslations } from 'next-intl';
 import { useMessageInput } from '@/hooks/useMessageInput';
@@ -98,6 +99,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
   const commonT = useTranslations('common');
   const chatT = useTranslations('chat');
   const messages = useChatStore((s) => s.messages);
+  const chatId = useChatStore((s) => s.chatId);
   const agentConfig = useChatStore((s) => s.agentConfig);
   const mentionReferences = useChatStore((s) => s.mentionReferences);
   const removeMentionReference = useChatStore((s) => s.removeMentionReference);
@@ -507,6 +509,9 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                   <IncognitoModeToggle />
                   <SandboxModeToggle />
                   <FocusFlushButton />
+                  {chatId && messages.length > 0 && !loading && (
+                    <ForkButton chatId={chatId} messageIndex={messages.length - 1} />
+                  )}
                   <AgentIndicator />
                   <ToolsPanel />
                   <WorkspaceDirPicker />

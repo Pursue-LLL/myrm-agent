@@ -15,7 +15,7 @@
 'use client';
 
 import { useMemo, useCallback } from 'react';
-import { Brain, Sparkles, Target } from 'lucide-react';
+import { Brain, GitFork, Sparkles, Target } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
 import useProviderStore from '@/store/useProviderStore';
@@ -39,13 +39,16 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
   const t = useTranslations('common');
   const thinkT = useTranslations('thinkingIntensity');
 
-  const { agentConfig, actionMode, updateAgentConfig, isGoalMode, setIsGoalMode } = useChatStore(
+  const { agentConfig, actionMode, updateAgentConfig, isGoalMode, setIsGoalMode, chatId, messages, loading } = useChatStore(
     useShallow((s) => ({
       agentConfig: s.agentConfig,
       actionMode: s.actionMode,
       updateAgentConfig: s.updateAgentConfig,
       isGoalMode: s.isGoalMode,
       setIsGoalMode: s.setIsGoalMode,
+      chatId: s.chatId,
+      messages: s.messages,
+      loading: s.loading,
     })),
   );
 
@@ -79,6 +82,23 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
     setIsGoalMode(!isGoalMode);
     onClose();
   }, [isGoalMode, setIsGoalMode, onClose]);
+
+  const handleFork = useCallback(async () => {
+    if (!chatId || messages.length === 0 || loading) return;
+    onClose();
+    const { forkConversation } = await import('@/services/fork-api');
+    const { default: useWorkspaceStore } = await import('@/store/useWorkspaceStore');
+    const { showI18nToast } = await import('@/services/i18nToastService');
+    try {
+      const response = await forkConversation(chatId, messages.length - 1);
+      if (response.success && response.data.new_chat_id) {
+        showI18nToast('commands.builtin.forkSuccess', undefined, { type: 'success' });
+        useWorkspaceStore.getState().addPane(response.data.new_chat_id);
+      }
+    } catch {
+      showI18nToast('commands.builtin.forkFailed', undefined, { type: 'error' });
+    }
+  }, [chatId, messages.length, loading, onClose]);
 
   const currentModelLabel = currentSelection?.model ?? t('selectModel');
 
@@ -146,6 +166,15 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
       });
     }
 
+    if (chatId && messages.length > 0 && !loading) {
+      entries.push({
+        key: 'fork',
+        icon: <GitFork size={16} />,
+        label: t('forkBranch', { defaultMessage: '分支对话' }),
+        onClick: handleFork,
+      });
+    }
+
     return entries;
   }, [
     t,
@@ -159,5 +188,9 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
     isGoalsEnabled,
     isGoalMode,
     handleGoalToggle,
+    chatId,
+    messages.length,
+    loading,
+    handleFork,
   ]);
 }

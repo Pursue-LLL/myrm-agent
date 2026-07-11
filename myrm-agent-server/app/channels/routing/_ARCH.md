@@ -76,6 +76,24 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
    with a `resume_value` payload, or publishes `APPROVAL_RESOLVED` event
    if no active task exists in the router (e.g. WebUI concurrent resolve).
 
+## `/new` Session Boundary Cleanup
+
+`_handle_new_session` in `router_commands.py` performs a three-phase cleanup
+before marking the peer for a fresh Chat:
+
+1. **Abort running task** — `_abort_session_task(state_key, …)` cancels
+   `cancel_token`, the `asyncio.Task`, cleans up the placeholder, and clears
+   `_approval_msg_ids`. This is the same helper used by `/stop`.
+2. **Flush pending queue** — `SessionGate.clear_pending_for_key(state_key)`
+   drops all queued inbound messages to prevent them from bleeding into the
+   new session.
+3. **Reset per-session flags** — YOLO mode (`_session_yolo`) and personality
+   overrides (`_session_personality`) are cleared so the new session starts
+   with default behaviour.
+
+Only after cleanup does `handle_new_session` (commands.py) flag the peer and
+send the confirmation reply.
+
 ## Stuck Task Watchdog
 
 `_janitor_loop` (60s interval) calls `_reap_stuck_tasks` to detect IM agent
@@ -107,7 +125,7 @@ deadlocks when an agent execution hangs without crashing.
 | policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker helpers for PolicyResolver. | ✅ |
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
 | router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | ✅ |
-| router_commands.py | Core | RouterCommandsMixin composed into AgentRouter (router.py) via multiple inheritance; | — |
+| router_commands.py | Core | RouterCommandsMixin composed into AgentRouter (router.py) via multiple inheritance; `_abort_session_task` shared by `/stop` and `/new`. | — |
 | router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
 | router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; | — |
 | router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | ✅ |

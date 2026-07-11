@@ -1,5 +1,6 @@
 import type { SlashAction } from '@/types/command';
 import { compactChat, focusFlushChat } from '@/services/chat';
+import { forkConversation } from '@/services/fork-api';
 import { showI18nToast } from '@/services/i18nToastService';
 import { toast } from 'sonner';
 
@@ -234,6 +235,55 @@ export function buildBuiltinActions(): SlashAction[] {
       type: 'action',
       execute: async (inputValue: string) => {
         return { success: true, newInputValue: inputValue || '/learn' };
+      },
+    },
+    {
+      id: 'builtin:fork',
+      name: 'fork',
+      description: 'commands.builtin.fork',
+      argsHint: '[title]',
+      aliases: ['branch'],
+      type: 'action',
+      execute: async (inputValue: string) => {
+        const { default: useChatStore } = await import('@/store/useChatStore');
+        const { chatId, messages, loading } = useChatStore.getState();
+
+        if (!chatId) {
+          return { success: false, error: 'No active chat' };
+        }
+
+        if (loading) {
+          showI18nToast('commands.builtin.forkStreamingBlocked', undefined, { type: 'warning' });
+          return { success: false, error: 'Cannot fork while streaming' };
+        }
+
+        if (messages.length === 0) {
+          showI18nToast('commands.builtin.forkEmpty', undefined, { type: 'info' });
+          return { success: false, error: 'No messages to fork from' };
+        }
+
+        const title = inputValue.replace(/^\/fork\s*/i, '').trim() || undefined;
+        const lastIndex = messages.length - 1;
+
+        const toastId = toast.loading('…');
+        try {
+          const response = await forkConversation(chatId, lastIndex, title);
+
+          if (response.success && response.data.new_chat_id) {
+            toast.dismiss(toastId);
+            showI18nToast('commands.builtin.forkSuccess', undefined, { type: 'success' });
+
+            const { default: useWorkspaceStore } = await import('@/store/useWorkspaceStore');
+            useWorkspaceStore.getState().addPane(response.data.new_chat_id);
+          } else {
+            throw new Error('Fork failed');
+          }
+          return { success: true, newInputValue: '' };
+        } catch {
+          toast.dismiss(toastId);
+          showI18nToast('commands.builtin.forkFailed', undefined, { type: 'error' });
+          return { success: false, error: 'Fork failed' };
+        }
       },
     },
   ];

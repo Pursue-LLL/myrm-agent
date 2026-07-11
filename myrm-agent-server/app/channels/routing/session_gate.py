@@ -247,6 +247,19 @@ class SessionGate:
         state = self._sessions.get(key)
         return len(state.pending) if state else 0
 
+    def clear_pending_for_key(self, key: str) -> int:
+        """Drop all pending messages for a session (e.g. on ``/new``).
+
+        Returns the number of messages discarded.  Safe to call when no
+        session state exists for *key*.
+        """
+        state = self._sessions.get(key)
+        if not state or not state.pending:
+            return 0
+        count = len(state.pending)
+        state.pending.clear()
+        return count
+
     def clear(self) -> None:
         """Cancel all timers and clear state (called on Router.stop)."""
         for state in self._sessions.values():

@@ -120,7 +120,12 @@
       "stopped": "Agent response stopped",
       "model": "Switch the AI model",
       "modelHint": "Use the model selector above the input box to switch models",
-      "learn": "Teach the agent a new skill from a URL, file, or conversation"
+      "learn": "Teach the agent a new skill from a URL, file, or conversation",
+      "fork": "Fork conversation from the latest message into a new branch",
+      "forkSuccess": "Conversation forked successfully",
+      "forkFailed": "Failed to fork conversation",
+      "forkStreamingBlocked": "Cannot fork while the agent is responding",
+      "forkEmpty": "No messages to fork from"
     }
   },
   "settings": {
@@ -5332,6 +5337,7 @@
     "model": "Model",
     "selectModel": "Select Model",
     "goalMode": "Goal Mode",
+    "forkBranch": "Fork Branch",
     "enabled": "Enabled",
     "configLoadError": {
       "title": "Failed to load configuration",

@@ -120,7 +120,12 @@
       "stopped": "Agent 回复已停止",
       "model": "切换 AI 模型",
       "modelHint": "请使用输入框上方的模型选择器切换模型",
-      "learn": "从 URL、文件或对话中教 Agent 学习新技能"
+      "learn": "从 URL、文件或对话中教 Agent 学习新技能",
+      "fork": "从最新消息创建对话分支",
+      "forkSuccess": "对话分支创建成功",
+      "forkFailed": "分支创建失败",
+      "forkStreamingBlocked": "Agent 回复中，无法创建分支",
+      "forkEmpty": "当前对话无消息，无法分支"
     }
   },
   "settings": {
@@ -5332,6 +5337,7 @@
     "model": "模型",
     "selectModel": "选择模型",
     "goalMode": "目标模式",
+    "forkBranch": "分支对话",
     "enabled": "已开启",
     "configLoadError": {
       "title": "配置加载失败",

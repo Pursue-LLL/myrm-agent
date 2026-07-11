@@ -24,6 +24,7 @@ import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { forkConversation } from '@/services/fork-api';
 import { useToast } from '@/hooks/useToast';
+import useChatStore from '@/store/useChatStore';
 
 interface ForkDialogProps {
   open: boolean;
@@ -40,6 +41,15 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
   const [isForking, setIsForking] = useState(false);
 
   const handleFork = async () => {
+    if (useChatStore.getState().loading) {
+      toast({
+        title: t('failed'),
+        description: t('streamingBlocked'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsForking(true);
 
     try {
