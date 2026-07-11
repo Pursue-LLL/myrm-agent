@@ -5,7 +5,7 @@
  *
  * [OUTPUT]
  * - DevLockRecord persistence in `.next/dev-server.lock`
- * - evaluateDevServerHealth / isDevServerHealthy: dev-server ownership checks
+ * - evaluateDevServerHealth / isDevServerHealthy / tryAttachToHealthyDevServer
  * - assertDevLockAvailable / acquireDevLock / releaseDevLock
  *
  * [POS]
@@ -115,6 +115,56 @@ export function isDevServerHealthy(port: number): boolean {
   return evaluateDevServerHealth(lock, port, listPidsOnPort(port), isProcessAlive);
 }
 
+function isDevHttpResponsive(port: number): boolean {
+  try {
+    execSync(`curl -sf --max-time 3 http://127.0.0.1:${port}/`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeDevLockRecord(port: number, pid: number, prior?: DevLockRecord | null): void {
+  fs.mkdirSync(LOCK_DIR, { recursive: true });
+  const record: DevLockRecord = {
+    pid,
+    port,
+    cwd: prior?.cwd ?? process.cwd(),
+    startedAt: prior?.startedAt ?? new Date().toISOString(),
+  };
+  fs.writeFileSync(LOCK_FILE, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+}
+
+/** Attach to an already-serving :port dev server instead of killing listeners (parallel ensure safe). */
+export function tryAttachToHealthyDevServer(port: number): boolean {
+  if (!isDevHttpResponsive(port)) {
+    return false;
+  }
+
+  const listeners = listPidsOnPort(port);
+  if (listeners.length === 0) {
+    return false;
+  }
+
+  const lock = readDevLock();
+  if (
+    lock &&
+    isProcessAlive(lock.pid) &&
+    evaluateDevServerHealth(lock, port, listeners, isProcessAlive)
+  ) {
+    return true;
+  }
+
+  const adopted = Number.parseInt(listeners[0], 10);
+  if (!Number.isFinite(adopted)) {
+    return false;
+  }
+
+  writeDevLockRecord(port, adopted, lock);
+  console.log(`✅ Adopted healthy dev listener PID ${adopted} on :${port}`);
+  return true;
+}
+
 function reclaimStaleDevLock(existing: DevLockRecord, port: number, reason: string): void {
   console.warn(`⚠️  Stale dev lock: ${reason} — reclaiming`);
   try {
@@ -132,6 +182,9 @@ export function assertDevLockAvailable(port: number): void {
   if (!existing || existing.pid === process.pid) return;
 
   if (!isProcessAlive(existing.pid)) {
+    if (tryAttachToHealthyDevServer(port)) {
+      return;
+    }
     fs.unlinkSync(LOCK_FILE);
     return;
   }
@@ -150,6 +203,9 @@ export function assertDevLockAvailable(port: number): void {
     listeners.length === 0
       ? `PID ${existing.pid} alive but :${existing.port} not listening`
       : `PID ${existing.pid} alive but does not own LISTEN on :${existing.port}`;
+  if (tryAttachToHealthyDevServer(port)) {
+    return;
+  }
   reclaimStaleDevLock(existing, port, reason);
 }
 

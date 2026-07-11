@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - dev-lock::acquireDevLock / assertDevLockAvailable / isDevServerHealthy (POS: dev-server lock gate)
+ * - dev-lock::tryAttachToHealthyDevServer / acquireDevLock (POS: dev-server lock gate)
  * - port-cleanup::APP_DEV_PORT / killListenersOnPort (POS: LISTEN-only port cleanup)
  *
  * [OUTPUT]
@@ -10,15 +10,15 @@
  * [POS]
  * Frontend dev entry (`bun run dev`). Supervises Next.js child; writes dev-server.lock before spawn.
  */
-import { type ChildProcess, execSync, spawn } from 'child_process';
+import { type ChildProcess, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import {
   acquireDevLock,
   assertDevLockAvailable,
-  isDevServerHealthy,
   readDevLock,
   releaseDevLock,
+  tryAttachToHealthyDevServer,
 } from './dev-lock';
 import { APP_DEV_PORT, killListenersOnPort } from './port-cleanup';
 
@@ -53,15 +53,6 @@ if (clean) {
   fs.rmSync('.next', { recursive: true, force: true });
 }
 
-function isFrontendHttpOk(): boolean {
-  try {
-    execSync(`curl -sf --max-time 3 http://127.0.0.1:${APP_DEV_PORT}/`, { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function setupSignalHandlers(child: ChildProcess) {
   const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP'];
 
@@ -82,7 +73,7 @@ function setupSignalHandlers(child: ChildProcess) {
   });
 }
 
-if (isDevServerHealthy(APP_DEV_PORT) && isFrontendHttpOk()) {
+if (tryAttachToHealthyDevServer(APP_DEV_PORT)) {
   const lock = readDevLock();
   console.log(
     `✅ Dev server already healthy → http://127.0.0.1:${APP_DEV_PORT} (PID ${lock?.pid ?? 'unknown'})`,
@@ -91,6 +82,15 @@ if (isDevServerHealthy(APP_DEV_PORT) && isFrontendHttpOk()) {
 }
 
 assertDevLockAvailable(APP_DEV_PORT);
+
+if (tryAttachToHealthyDevServer(APP_DEV_PORT)) {
+  const lock = readDevLock();
+  console.log(
+    `✅ Dev server attached after lock reconcile → http://127.0.0.1:${APP_DEV_PORT} (PID ${lock?.pid ?? 'unknown'})`,
+  );
+  process.exit(0);
+}
+
 console.log(`🧹 Freeing port ${APP_DEV_PORT} (myrm-agent-frontend only)...`);
 killListenersOnPort(APP_DEV_PORT);
 acquireDevLock(APP_DEV_PORT);

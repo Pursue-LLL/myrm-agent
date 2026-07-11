@@ -29,7 +29,7 @@ API_HEALTH="http://127.0.0.1:8080/api/v1/health"
 FRONTEND_PORT=3000
 
 ATTACH_WAIT_SEC="${MYRM_STACK_ATTACH_WAIT_SEC:-120}"
-ENSURE_FRONTEND_WAIT_SEC="${MYRM_STACK_FRONTEND_WAIT_SEC:-120}"
+ENSURE_FRONTEND_WAIT_SEC="${MYRM_STACK_FRONTEND_WAIT_SEC:-180}"
 API_E2E_LOCK_WAIT_SEC="${MYRM_API_E2E_LOCK_WAIT_SEC:-600}"
 
 mkdir -p "${STATE_DIR}"
@@ -47,7 +47,18 @@ _acquire_dir_lock() {
     if [[ -f "${lockdir}/pid" ]]; then
       owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
     fi
-    if [[ -z "${owner}" ]] || ! kill -0 "${owner}" 2>/dev/null; then
+    if [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null; then
+      local lock_mtime now age
+      lock_mtime="$(stat -f %m "${lockdir}/pid" 2>/dev/null || stat -c %Y "${lockdir}/pid" 2>/dev/null || echo 0)"
+      now="$(date +%s)"
+      age=$((now - lock_mtime))
+      if [[ "${age}" -gt "${wait_sec}" ]]; then
+        echo "STACK_WARN: reclaiming hung lock ${lockdir} owner=${owner} age=${age}s" >&2
+        kill -TERM "${owner}" 2>/dev/null || true
+        sleep 1
+        _release_dir_lock "${lockdir}"
+      fi
+    elif [[ -z "${owner}" ]] || ! kill -0 "${owner}" 2>/dev/null; then
       echo "STACK_WARN: reclaiming stale lock ${lockdir}" >&2
       _release_dir_lock "${lockdir}"
     fi
@@ -75,6 +86,44 @@ _http_ok() {
   curl -sf --max-time "${max_time}" "${url}" >/dev/null 2>&1
 }
 
+_frontend_http_status() {
+  curl -s -o /dev/null -w "%{http_code}" --max-time 8 "${APP_URL}/" 2>/dev/null || echo "000"
+}
+
+_wait_frontend_http_200() {
+  local max="${1:-${ENSURE_FRONTEND_WAIT_SEC}}"
+  local i code port_seen=0
+  for i in $(seq 1 "${max}"); do
+    if _frontend_port_listening; then
+      port_seen=1
+    fi
+    code="$(_frontend_http_status)"
+    if [[ "${code}" == "200" ]]; then
+      return 0
+    fi
+    if [[ "${port_seen}" -eq 1 ]] && [[ "${i}" == "1" || $((i % 15)) -eq 0 ]]; then
+      echo "STACK_WAIT: frontend GET / → HTTP ${code} (${i}/${max}s, cold compile tolerated)..." >&2
+    fi
+    sleep 1
+  done
+  if [[ "${port_seen}" -eq 1 ]]; then
+    echo "STACK_WARN: :${FRONTEND_PORT} listening but GET / never returned 200 (last=${code})" >&2
+  else
+    echo "STACK_WARN: :${FRONTEND_PORT} never listened within ${max}s" >&2
+  fi
+  return 1
+}
+
+_spawn_detached() {
+  local log_file="$1"
+  shift
+  if command -v setsid >/dev/null 2>&1; then
+    setsid nohup "$@" >>"${log_file}" 2>&1 &
+  else
+    nohup "$@" >>"${log_file}" 2>&1 &
+  fi
+}
+
 _api_healthy() {
   _http_ok "${API_HEALTH}" "${1:-5}"
 }
@@ -88,7 +137,11 @@ _stack_healthy() {
 }
 
 _stack_warm() {
-  _api_healthy 5 && [[ "$(_frontend_compile_hot_status)" == "yes" ]]
+  _backend_supervisor_alive || return 1
+  _lock_supervisor_alive || return 1
+  _api_healthy 5 || return 1
+  _frontend_healthy 8 || return 1
+  [[ "$(_frontend_compile_hot_status)" == "yes" ]]
 }
 
 _wait_stack_health() {
@@ -130,6 +183,14 @@ if not isinstance(pid, int):
     sys.exit(1)
 print(pid)
 " 2>/dev/null)" || return 1
+  [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
+}
+
+_backend_supervisor_alive() {
+  local pid_file="${SERVER_DIR}/.myrm-dev-backend.pid"
+  [[ -f "${pid_file}" ]] || return 1
+  local pid
+  pid="$(tr -d '[:space:]' <"${pid_file}")"
   [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
 }
 
@@ -176,6 +237,72 @@ _repair_orphan_frontend() {
   rm -f "${FRONTEND_PID}" "${FRONTEND_LOCK}"
 }
 
+_kill_frontend_supervisor() {
+  if [[ -f "${FRONTEND_PID}" ]]; then
+    local fe_pid
+    fe_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
+    if [[ -n "${fe_pid}" ]]; then
+      kill -TERM "${fe_pid}" 2>/dev/null || true
+      sleep 1
+      kill -9 "${fe_pid}" 2>/dev/null || true
+    fi
+    rm -f "${FRONTEND_PID}"
+  fi
+  if _frontend_port_listening; then
+    local pids
+    pids="$(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
+    if [[ -n "${pids}" ]]; then
+      # shellcheck disable=SC2086
+      kill -TERM ${pids} 2>/dev/null || true
+      sleep 1
+      # shellcheck disable=SC2086
+      kill -9 ${pids} 2>/dev/null || true
+    fi
+  fi
+  rm -f "${FRONTEND_LOCK}"
+}
+
+_launch_frontend_supervisor() {
+  local use_clean="${1:-0}"
+  cd "${FRONTEND_DIR}"
+  bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
+  _frontend_clear_warmth
+  if [[ "${use_clean}" == "1" ]]; then
+    echo "STACK_START: frontend with --clean (.next purge)" >&2
+    _spawn_detached "${FRONTEND_LOG}" bun run dev -- --clean
+  else
+    _spawn_detached "${FRONTEND_LOG}" bun run dev
+  fi
+  echo $! >"${FRONTEND_PID}"
+  echo "STACK_START: frontend supervisor pid $(cat "${FRONTEND_PID}") (setsid detached)"
+}
+
+_try_frontend_start_with_clean_fallback() {
+  _launch_frontend_supervisor 0
+  if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
+    _sync_frontend_pid_from_lock
+    echo "STACK_OK: frontend → ${APP_URL}"
+    return 0
+  fi
+  local last_code
+  last_code="$(_frontend_http_status)"
+  if [[ "${last_code}" != "404" && "${last_code}" != "000" ]]; then
+    echo "STACK_WARN: frontend slow to start (last HTTP ${last_code}) — check ${FRONTEND_LOG}" >&2
+    return 1
+  fi
+  echo "STACK_WARN: frontend HTTP ${last_code} — retry with bun run dev --clean" >&2
+  _kill_frontend_supervisor
+  _repair_orphan_frontend
+  _launch_frontend_supervisor 1
+  if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
+    _sync_frontend_pid_from_lock
+    echo "STACK_OK: frontend → ${APP_URL} (after --clean)"
+    return 0
+  fi
+  echo "STACK_WARN: frontend still not HTTP 200 after --clean — check ${FRONTEND_LOG}" >&2
+  return 1
+}
+
 _start_frontend_supervisor() {
   if _frontend_healthy; then
     _sync_frontend_pid_from_lock
@@ -185,12 +312,20 @@ _start_frontend_supervisor() {
 
   if _frontend_port_listening && _lock_supervisor_alive; then
     echo "STACK_WAIT: frontend compiling — up to ${ENSURE_FRONTEND_WAIT_SEC}s..."
-    if _wait_stack_health "${ENSURE_FRONTEND_WAIT_SEC}"; then
+    if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
       _sync_frontend_pid_from_lock
       echo "STACK_OK: frontend ready after compile wait"
       return 0
     fi
     echo "STACK_WARN: frontend still not HTTP-ready after compile wait — check ${FRONTEND_LOG}" >&2
+    local last_code
+    last_code="$(_frontend_http_status)"
+    if [[ "${last_code}" == "404" ]]; then
+      echo "STACK_WARN: compile wait got HTTP 404 — retry with --clean" >&2
+      _kill_frontend_supervisor
+      _repair_orphan_frontend
+      _try_frontend_start_with_clean_fallback && return 0
+    fi
     return 1
   fi
 
@@ -201,24 +336,7 @@ _start_frontend_supervisor() {
     return 1
   fi
 
-  cd "${FRONTEND_DIR}"
-  bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
-  _frontend_clear_warmth
-  nohup bun run dev >>"${FRONTEND_LOG}" 2>&1 &
-  echo $! >"${FRONTEND_PID}"
-  echo "STACK_START: frontend supervisor pid $(cat "${FRONTEND_PID}")"
-
-  local i
-  for i in $(seq 1 "${ENSURE_FRONTEND_WAIT_SEC}"); do
-    if _frontend_healthy; then
-      _sync_frontend_pid_from_lock
-      echo "STACK_OK: frontend → ${APP_URL}"
-      return 0
-    fi
-    sleep 1
-  done
-  echo "STACK_WARN: frontend slow to start — check ${FRONTEND_LOG}" >&2
-  return 1
+  _try_frontend_start_with_clean_fallback
 }
 
 _ensure_backend() {
@@ -243,6 +361,26 @@ cmd_attach() {
   exit 1
 }
 
+_try_optional_client_hot() {
+  local cdp_port="${MYRM_CHROME_E2E_PORT:-9333}"
+  local py="${SERVER_DIR}/.venv/bin/python"
+  if ! curl -sf --max-time 2 "http://127.0.0.1:${cdp_port}/json/version" >/dev/null 2>&1; then
+    return 0
+  fi
+  if [[ ! -x "${py}" ]]; then
+    py="python3"
+  fi
+  export MYRM_CHROME_E2E_PORT="${cdp_port}"
+  export PREFLIGHT_PY="${py}"
+  unset MYRM_CHROME_E2E_ATTACH
+  if _warmup_frontend_client; then
+    echo "STACK_OK: client_hot during ensure"
+    return 0
+  fi
+  echo "STACK_WARN: client_hot failed during ensure — run: ./myrm ready --chrome" >&2
+  return 0
+}
+
 cmd_ensure() {
   if ! _acquire_dir_lock "${_lock_dir}" "${ATTACH_WAIT_SEC}"; then
     echo "STACK_FAIL: could not acquire stack ensure lock within ${ATTACH_WAIT_SEC}s" >&2
@@ -251,6 +389,7 @@ cmd_ensure() {
   trap '_release_dir_lock "${_lock_dir}"' EXIT
 
   if _stack_warm; then
+    _try_optional_client_hot
     echo "STACK_ENSURE_OK: already shell_hot api=:8080 ui=:3000"
     exit 0
   fi
@@ -259,11 +398,14 @@ cmd_ensure() {
   _start_frontend_supervisor || exit 1
 
   if ! _wait_stack_health "${ENSURE_FRONTEND_WAIT_SEC}"; then
-    echo "STACK_FAIL: stack not HTTP healthy after ensure" >&2
-    exit 1
+    if ! _api_healthy 5 || ! _wait_frontend_http_200 30; then
+      echo "STACK_FAIL: stack not HTTP healthy after ensure" >&2
+      exit 1
+    fi
   fi
 
   if _warmup_frontend_compile; then
+    _try_optional_client_hot
     echo "STACK_ENSURE_OK: api=:8080 ui=:3000 shell_hot=yes"
     exit 0
   fi
@@ -287,13 +429,15 @@ cmd_reset() {
     local dev_pid
     dev_pid="$(cat "${SERVER_DIR}/.myrm-dev-backend.pid")"
     if kill -0 "${dev_pid}" 2>/dev/null; then
-      curl -sf -X POST "http://127.0.0.1:${port}/api/v1/system/shutdown" -o /dev/null 2>/dev/null || true
+      kill -TERM "${dev_pid}" 2>/dev/null || true
       local _
-      for _ in $(seq 1 10); do
+      for _ in $(seq 1 15); do
         kill -0 "${dev_pid}" 2>/dev/null || break
         sleep 1
       done
-      kill "${dev_pid}" 2>/dev/null || true
+      if kill -0 "${dev_pid}" 2>/dev/null; then
+        kill -9 "${dev_pid}" 2>/dev/null || true
+      fi
     fi
     rm -f "${SERVER_DIR}/.myrm-dev-backend.pid"
   fi

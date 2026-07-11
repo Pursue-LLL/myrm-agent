@@ -120,4 +120,7 @@ export const GoalControlPlane = dynamic(
   { ssr: false },
 );
 
-export const LifeStatusCapsule = dynamic(() => import('./LifeStatusCapsule'), { ssr: false });
+export const LifeStatusCapsule = dynamic(
+  () => import('./LifeStatusCapsule').then((module) => ({ default: module.LifeStatusCapsule })),
+  { ssr: false },
+);

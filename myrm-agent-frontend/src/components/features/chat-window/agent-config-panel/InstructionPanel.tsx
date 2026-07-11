@@ -5,7 +5,9 @@ import { Button } from '@/components/primitives/button';
 import { Switch } from '@/components/primitives/switch';
 import dynamic from 'next/dynamic';
 
-const SmartPromptEditor = dynamic(() => import('./SmartPromptEditor').then((mod) => mod.SmartPromptEditor), {
+const SmartPromptEditor = dynamic(
+  () => import('./SmartPromptEditor').then((module) => ({ default: module.SmartPromptEditor })),
+  {
   ssr: false,
   loading: () => (
     <div className="w-full h-[300px] flex items-center justify-center bg-secondary border rounded-lg text-sm text-muted-foreground">

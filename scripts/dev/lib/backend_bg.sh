@@ -104,7 +104,11 @@ _start_backend_bg() {
   _require_harness_editable_for_monorepo "${server_dir}"
 
   cd "${server_dir}"
-  nohup "${py}" run.py >>"${log_file}" 2>&1 &
+  if command -v setsid >/dev/null 2>&1; then
+    setsid nohup "${py}" run.py >>"${log_file}" 2>&1 &
+  else
+    nohup "${py}" run.py >>"${log_file}" 2>&1 &
+  fi
   local new_pid
   new_pid=$!
   echo "${new_pid}" >"${pid_file}"

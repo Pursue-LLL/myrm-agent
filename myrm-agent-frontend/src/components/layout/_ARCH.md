@@ -21,7 +21,7 @@
 | `ContentSidebar.tsx` | 内容区侧栏（chat → 聊天历史，work → 智能体列表） |
 | `PageLayout.tsx` | 根 layout：hydration 后直进 `AppLayout`；readiness 后台；Onboarding/Boot 全屏 overlay |
 | `TabBar.tsx` | Work 模式多标签页栏 |
-| `index.ts` | 导出 AppLayout、NavBar、ContentSidebar、PageLayout |
+| `index.ts` | 导出 AppLayout、NavBar、ContentSidebar、PageLayout；**`app/layout.tsx` 须直接 `from './PageLayout'`**（勿经桶重导出，见 error-boundary/_ARCH.md） |
 
 ## 依赖
 

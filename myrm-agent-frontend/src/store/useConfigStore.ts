@@ -18,6 +18,13 @@ import {
   DEFAULT_SEARCH_SERVICES,
 } from '@/services/config';
 import { normalizePersonalSettings } from '@/services/config/configNormalizer';
+import { invalidateLocalCapabilitiesProbeCache } from '@/services/localCapabilitiesProbe';
+import * as mcpManager from './config/mcp';
+import * as searchServiceManager from './config/searchService';
+import * as importExportManager from './config/importExport';
+import * as validation from './config/validation';
+import type { ConfigState, MCPServiceConfig, SearchServiceConfigItem, SearchServiceConfig } from './config/types';
+import { normalizePublicIngressBaseUrl, isValidPublicIngressBaseUrl } from '@/lib/utils/urlUtils';
 
 // 同步管理器
 const syncManager = getConfigSyncManager();

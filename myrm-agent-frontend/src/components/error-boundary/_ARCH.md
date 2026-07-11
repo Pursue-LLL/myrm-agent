@@ -10,7 +10,7 @@
 |------|------|------|
 | `GlobalErrorBoundary.tsx` | 核心 | React Error Boundary 包裹应用树 |
 | `ProviderConfigErrorDialog.tsx` | 辅助 | 模型/Provider 配置缺失时的引导弹窗 |
-| `index.ts` | 入口 | 导出边界组件（应用壳唯一允许的组件桶入口之一） |
+| `index.ts` | 入口 | 桶导出；**`app/layout.tsx` 等 Server Component 须直接 `from './GlobalErrorBoundary'`**（Turbopack 经桶重导出 client 组件会触发 lazy Module 错误） |
 | `__tests__/` | 测试 | 边界行为测试 |
 
 ## 依赖

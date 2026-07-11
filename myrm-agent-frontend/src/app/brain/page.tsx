@@ -9,7 +9,7 @@ import { showApiError } from '@/lib/api';
 import { toast } from '@/hooks/useToast';
 import { Textarea } from '@/components/primitives/textarea';
 import { Loader2, Check, X, RefreshCw, XCircle, BrainCircuit, FileText, Inbox, Activity, Search } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import MarkdownContent from '@/components/features/message-box/MarkdownContent';
 import { Input } from '@/components/primitives/input';
 
 export default function BrainConsolePage() {
@@ -243,9 +243,13 @@ export default function BrainConsolePage() {
                   className="min-h-[500px] font-mono text-sm resize-none"
                 />
               ) : (
-                <article className="prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown>{selectedConcept.content}</ReactMarkdown>
-                </article>
+                <div className="prose dark:prose-invert max-w-none">
+                  <MarkdownContent
+                    content={selectedConcept.content}
+                    sources={[]}
+                    messageId={`wiki-${selectedConcept.name}`}
+                  />
+                </div>
               )}
             </div>
           </>

@@ -233,11 +233,11 @@ _warmup_frontend_client() {
   fi
 
   local py="${PREFLIGHT_PY:-python3}"
-  echo "STACK_WAIT: frontend client hydration via CDP (up to ${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-90}s)..." >&2
+  echo "STACK_WAIT: frontend client hydration via CDP (up to ${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-120}s)..." >&2
   if ! "${py}" "${warmup_py}" \
     --cdp-port "${cdp_port}" \
     --url "${APP_URL}/" \
-    --timeout-sec "${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-90}"; then
+    --timeout-sec "${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-120}"; then
     echo "STACK_FAIL: frontend client_hot warmup failed — check E2E Chrome :${cdp_port}" >&2
     return 1
   fi

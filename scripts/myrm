@@ -86,14 +86,14 @@ case "$COMMAND" in
         if [[ -f "${SERVER_DIR}/.myrm-dev-backend.pid" ]]; then
             dev_pid="$(cat "${SERVER_DIR}/.myrm-dev-backend.pid")"
             if kill -0 "${dev_pid}" 2>/dev/null; then
-                # Graceful shutdown only for the known dev pid — never POST to :8080 after kill
-                # (a blind POST can terminate a freshly started backend during stop→start cycles).
-                curl -sf -X POST "http://127.0.0.1:${port}/api/v1/system/shutdown" -o /dev/null 2>/dev/null || true
-                for _ in $(seq 1 10); do
+                kill -TERM "${dev_pid}" 2>/dev/null || true
+                for _ in $(seq 1 15); do
                     kill -0 "${dev_pid}" 2>/dev/null || break
                     sleep 1
                 done
-                kill "${dev_pid}" 2>/dev/null || true
+                if kill -0 "${dev_pid}" 2>/dev/null; then
+                    kill -9 "${dev_pid}" 2>/dev/null || true
+                fi
             fi
             rm -f "${SERVER_DIR}/.myrm-dev-backend.pid"
         fi
