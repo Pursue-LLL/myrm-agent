@@ -197,12 +197,12 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
               </div>
             )}
             {run.output && (
-              <pre className="text-xs text-muted-foreground bg-muted/50 rounded-full p-2 overflow-x-auto whitespace-pre-wrap break-words font-mono max-h-60 overflow-y-auto">
+              <pre className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words font-mono max-h-60 overflow-y-auto">
                 {run.output}
               </pre>
             )}
             {run.error && (
-              <pre className="text-xs text-destructive bg-destructive/5 rounded-full p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+              <pre className="text-xs text-destructive bg-destructive/5 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
                 {run.error}
               </pre>
             )}
@@ -212,7 +212,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
               </p>
             )}
             {securityDenied && (
-              <div className="flex items-start gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5">
+              <div className="flex items-start gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5">
                 <ShieldAlert className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-[11px] text-amber-700 dark:text-amber-300">{t('securityDeniedHint')}</p>
               </div>
