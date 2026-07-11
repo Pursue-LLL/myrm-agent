@@ -7,14 +7,18 @@ import { isStandalonePath } from '@/lib/marketing-paths';
 import { waitForBackendReady } from '@/lib/backend-health';
 import { isTauriEnvironment } from '@/lib/tauri';
 import { getReadinessStatus, type ReadinessResponse } from '@/services/onboarding';
-import { shouldShowBootScreen } from '../features/app-shell/boot-screen';
+import { shouldShowBootScreen } from '@/components/features/app-shell/boot-screen-gate';
 import { useFocusedMode } from '@/hooks/useFocusedMode';
 import AppShellSkeleton from '../features/app-shell/AppShellSkeleton';
 
 const READINESS_GATE_TIMEOUT_MS = 3_000;
 
-const BootScreen = lazy(() => import('../features/app-shell/boot-screen'));
-const OnboardingWizard = lazy(() => import('../features/onboarding/OnboardingWizard'));
+const BootScreen = lazy(() =>
+  import('../features/app-shell/boot-screen').then((mod) => ({ default: mod.default })),
+);
+const OnboardingWizard = lazy(() =>
+  import('../features/onboarding/OnboardingWizard').then((mod) => ({ default: mod.default })),
+);
 
 async function resolveReadinessGate(): Promise<ReadinessResponse | null> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;

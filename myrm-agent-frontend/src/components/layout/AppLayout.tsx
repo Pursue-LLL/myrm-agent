@@ -25,7 +25,9 @@ import LocalBackendUnavailableBanner, {
   ConfigReadinessDegradedBanner,
 } from '@/components/features/app-shell/local-backend-unavailable-banner';
 
-const CronPushPoller = lazy(() => import('@/components/features/cron/CronPushPoller'));
+const CronPushPoller = lazy(() =>
+  import('@/components/features/cron/CronPushPoller').then((mod) => ({ default: mod.default })),
+);
 
 /**
  * AppLayout - 应用主布局组件

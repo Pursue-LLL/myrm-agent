@@ -103,6 +103,82 @@ _stop_mux_daemon() {
   fi
 }
 
+MUX_WS_STAMP="${MUX_STATE_DIR}/upstream-ws-url"
+
+_current_cdp_ws_url() {
+  MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" "${PREFLIGHT_PY}" - <<'PY'
+import json
+import os
+import urllib.request
+
+port = os.environ.get("MYRM_CHROME_E2E_PORT", "9333")
+with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=5) as resp:
+    data = json.load(resp)
+ws = data.get("webSocketDebuggerUrl")
+if not isinstance(ws, str) or not ws.startswith("ws://"):
+    raise SystemExit("missing webSocketDebuggerUrl")
+print(ws)
+PY
+}
+
+_mux_ws_stamp_matches() {
+  [[ -f "${MUX_WS_STAMP}" ]] || return 1
+  local current stored
+  current="$(_current_cdp_ws_url 2>/dev/null)" || return 1
+  stored="$(tr -d '[:space:]' < "${MUX_WS_STAMP}")"
+  [[ -n "${stored}" && "${current}" == "${stored}" ]]
+}
+
+_stamp_mux_ws_url() {
+  local current
+  current="$(_current_cdp_ws_url)" || return 1
+  mkdir -p "${MUX_STATE_DIR}"
+  printf '%s\n' "${current}" >"${MUX_WS_STAMP}"
+}
+
+_mux_upstream_ready() {
+  [[ "${MUX_USING}" -eq 1 ]] || return 0
+  [[ -f "${MUX_BIN}" ]] || return 1
+  local status_json ready
+  status_json="$(node "${MUX_BIN}" status 2>/dev/null)" || return 1
+  ready="$("${PREFLIGHT_PY}" -c "
+import json, sys
+try:
+    d = json.loads(sys.argv[1])
+    print('1' if d.get('upstreamReady') else '0')
+except Exception:
+    print('0')
+" "${status_json}" 2>/dev/null)" || ready=0
+  [[ "${ready}" == "1" ]]
+}
+
+_ensure_mux_upstream() {
+  [[ "${MUX_USING}" -eq 1 ]] || return 0
+  if _mux_ws_stamp_matches && _mux_upstream_ready; then
+    return 0
+  fi
+  if ! _mux_ws_stamp_matches; then
+    echo "CHROME_E2E_WARN: Chrome CDP WebSocket drifted — mux must reconnect (common after Chrome/Cursor restart)" >&2
+  else
+    echo "CHROME_E2E_WARN: mux upstreamReady=false — MCP list_pages/new_page will hang; restarting daemon" >&2
+  fi
+  _stop_mux_daemon
+  CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
+  MYRM_CHROME_E2E_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
+  MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" \
+    node "${MUX_BIN}" daemon >/dev/null 2>&1 &
+  local i
+  for i in $(seq 1 15); do
+    sleep 1
+    if _mux_upstream_ready; then
+      _stamp_mux_ws_url || true
+      ok "cdmcp-mux upstream reconnected"
+      return 0
+    fi
+  done
+  fail "cdmcp-mux upstreamReady still false — Cmd+Q Cursor, then: ./myrm ready --chrome"
+}
+
 _ensure_mux_daemon() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
   [[ -f "${MUX_BIN}" ]] || fail "Missing mux bin ${MUX_BIN} — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
@@ -150,6 +226,7 @@ if [[ "${MUX_USING}" -eq 1 ]]; then
   if ! kill -0 "${mux_pid}" 2>/dev/null; then
     fail "cdmcp-mux daemon pid ${mux_pid} not alive — Cmd+Q Cursor and reopen"
   fi
+  _ensure_mux_upstream
   ok "cdmcp-mux daemon pid=${mux_pid} (parallel Agent tabs OK)"
 else
   if [[ "${VANILLA_MCP_COUNT}" -gt 1 ]]; then

@@ -41,6 +41,10 @@ vi.mock('@/lib/tauri', () => ({
   isTauriEnvironment: vi.fn(() => false),
 }));
 
+vi.mock('../../features/app-shell/boot-screen-gate', () => ({
+  shouldShowBootScreen: vi.fn(),
+}));
+
 vi.mock('../../features/app-shell/boot-screen', () => ({
   __esModule: true,
   default: ({ onComplete }: { onComplete: () => void }) => (
@@ -50,11 +54,10 @@ vi.mock('../../features/app-shell/boot-screen', () => ({
       </button>
     </div>
   ),
-  shouldShowBootScreen: vi.fn(),
 }));
 
 import PageLayout from '../PageLayout';
-import { shouldShowBootScreen } from '../../features/app-shell/boot-screen';
+import { shouldShowBootScreen } from '../../features/app-shell/boot-screen-gate';
 
 const mockShouldShowBootScreen = vi.mocked(shouldShowBootScreen);
 

@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import { waitForBackendReady } from '@/lib/backend-health';
-import { BOOT_SCREEN_STORAGE_KEY, resolveLocalBackendSetupHint } from '@/lib/local-backend-dev';
+import { resolveLocalBackendSetupHint } from '@/lib/local-backend-dev';
+import { markBootScreenShown } from '@/components/features/app-shell/boot-screen-gate';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -14,19 +15,6 @@ const FADE_DURATION_MS = 400;
 
 interface BootScreenProps {
   onComplete: () => void;
-}
-
-export function shouldShowBootScreen(): boolean {
-  if (typeof window === 'undefined') return false;
-  return !sessionStorage.getItem(BOOT_SCREEN_STORAGE_KEY);
-}
-
-export function markBootScreenShown(): void {
-  try {
-    sessionStorage.setItem(BOOT_SCREEN_STORAGE_KEY, '1');
-  } catch {
-    // sessionStorage 不可用时静默失败
-  }
 }
 
 export default function BootScreen({ onComplete }: BootScreenProps) {
