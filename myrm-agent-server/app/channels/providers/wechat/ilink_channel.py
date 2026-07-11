@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -70,6 +71,8 @@ _MAX_TEXT_LENGTH = 4096
 _MAX_CONSECUTIVE_FAILURES = 5
 _INITIAL_BACKOFF = 2.0
 _MAX_BACKOFF = 30.0
+
+_TYPING_TICKET_TTL = 540.0  # iLink platform TTL is 600s; 60s buffer for proactive refresh
 
 
 class WeChatILinkChannel(BaseChannel):
@@ -131,7 +134,7 @@ class WeChatILinkChannel(BaseChannel):
         self._poll_task: asyncio.Task[None] | None = None
         self._get_updates_buf = ""
         self._context_tokens: dict[str, str] = {}
-        self._typing_tickets: dict[str, str] = {}
+        self._typing_tickets: dict[str, tuple[str, float]] = {}
         self._temp_files: set[Path] = set()
         self._login_helper: QRCodeLoginHelper | None = None
 
@@ -405,20 +408,33 @@ class WeChatILinkChannel(BaseChannel):
 
         return None
 
-    async def start_typing(self, chat_id: str) -> None:
-        ticket: str | None = self._typing_tickets.get(chat_id)
-        if not ticket:
-            try:
-                context_token = self._context_tokens.get(chat_id)
-                config = await self._client.get_config(chat_id, context_token)
-                raw_ticket = config.get("typing_ticket")
-                if isinstance(raw_ticket, str):
-                    ticket = raw_ticket
-                    self._typing_tickets[chat_id] = ticket
-            except Exception as exc:
-                logger.warning("WeChatILinkChannel: failed to get typing ticket: %s", exc)
-                return
+    async def _ensure_typing_ticket(self, chat_id: str) -> str | None:
+        """Return a valid typing ticket, refreshing from getConfig if expired.
 
+        iLink typing tickets have a 600s TTL.  We use a 540s buffer
+        (_TYPING_TICKET_TTL) to refresh proactively before expiry.
+        Timestamps use ``time.monotonic()`` for clock-drift safety.
+        """
+        entry = self._typing_tickets.get(chat_id)
+        if entry:
+            ticket, stored_at = entry
+            if time.monotonic() - stored_at < _TYPING_TICKET_TTL:
+                return ticket
+            del self._typing_tickets[chat_id]
+
+        try:
+            context_token = self._context_tokens.get(chat_id)
+            config = await self._client.get_config(chat_id, context_token)
+            raw_ticket = config.get("typing_ticket")
+            if isinstance(raw_ticket, str) and raw_ticket:
+                self._typing_tickets[chat_id] = (raw_ticket, time.monotonic())
+                return raw_ticket
+        except Exception as exc:
+            logger.warning("WeChatILinkChannel: failed to get typing ticket: %s", exc)
+        return None
+
+    async def start_typing(self, chat_id: str) -> None:
+        ticket = await self._ensure_typing_ticket(chat_id)
         if ticket:
             try:
                 await self._client.send_typing(chat_id, ticket, TypingStatus.TYPING)
@@ -426,7 +442,7 @@ class WeChatILinkChannel(BaseChannel):
                 logger.warning("WeChatILinkChannel: send_typing failed: %s", exc)
 
     async def stop_typing(self, chat_id: str) -> None:
-        ticket = self._typing_tickets.get(chat_id)
+        ticket = await self._ensure_typing_ticket(chat_id)
         if ticket:
             try:
                 await self._client.send_typing(chat_id, ticket, TypingStatus.CANCEL)

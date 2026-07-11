@@ -135,7 +135,7 @@ class AgentGateway:
         return self._config
 
     def _get_user_sem(self, user_id: str) -> asyncio.Semaphore:
-        sem = self._user_sems.get("sandbox")
+        sem = self._user_sems.get(user_id)
         if sem is None:
             sem = asyncio.Semaphore(self._config.max_per_user)
             self._user_sems[user_id] = sem
