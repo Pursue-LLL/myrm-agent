@@ -11033,7 +11033,15 @@
     },
     "builtin": "内置",
     "noDescription": "暂无描述。",
-    "settings": "设置"
+    "settings": "设置",
+    "fleet": {
+      "kpi": {
+        "online": "在线",
+        "monthTokens": "本月 Token",
+        "monthCost": "本月费用",
+        "pending": "待审批"
+      }
+    }
   },
   "settingsTabs": {
     "evolutionRejection": {

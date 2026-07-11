@@ -14,6 +14,7 @@ from app.api.agents import (
     suggestions,
     templates,
 )
+from app.api.agents.fleet_overview import router as fleet_overview_router
 from app.api.agents.openapi_services import router as openapi_services_router
 from app.api.api_keys import router as api_keys_router
 from app.api.approvals import router as approvals_router
@@ -109,6 +110,7 @@ api_router.include_router(ai_build.router, prefix="/user-agents", tags=["user-ag
 api_router.include_router(agent_history.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(providers.router, prefix="/user-agents/providers", tags=["user-agents"])
 
+api_router.include_router(fleet_overview_router, prefix="/agents", tags=["agents"])
 api_router.include_router(openapi_services_router, prefix="/agents", tags=["agents"])
 api_router.include_router(goals_router)
 api_router.include_router(external_agents_router, prefix="/external-agents", tags=["external-agents"])

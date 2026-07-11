@@ -77,13 +77,17 @@ class ActiveSessionInfo:
     started_at: float = field(default_factory=time.monotonic)
     agent: "weakref.ReferenceType[BaseAgent] | None" = None
     current_message_id: str | None = None
+    agent_id: str | None = None
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        result: dict[str, object] = {
             "chatId": self.chat_id,
             "agentType": self.agent_type,
             "elapsedSeconds": round(time.monotonic() - self.started_at, 1),
         }
+        if self.agent_id is not None:
+            result["agentId"] = self.agent_id
+        return result
 
 
 class AgentGateway:
@@ -308,6 +312,7 @@ class AgentGateway:
         active_message_id: str | None = None,
         goal_active: bool = False,
         fission_active: bool = False,
+        agent_id: str | None = None,
     ) -> AsyncGenerator[dict[str, object], None]:
         """Execute an agent stream with full lifecycle management.
 
@@ -321,6 +326,7 @@ class AgentGateway:
                 to complete without interruption.
             fission_active: When True, extends execution timeout for Swarm
                 Fission parallel subagent batches.
+            agent_id: Optional agent profile ID for Fleet Overview status.
 
         Yields:
             Agent events (dict), transparently forwarded.
@@ -339,6 +345,7 @@ class AgentGateway:
                 agent_type=agent_type,
                 agent=weakref.ref(agent_instance) if agent_instance else None,
                 current_message_id=active_message_id,
+                agent_id=agent_id,
             )
 
         user_sem = self._get_user_sem("sandbox")

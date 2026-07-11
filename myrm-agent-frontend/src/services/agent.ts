@@ -626,6 +626,27 @@ export async function testOpenAPIRequest(params: {
   return result.data ?? result;
 }
 
+export interface AgentFleetStats {
+  sessionCount: number;
+  monthTokens: number;
+  monthCost: number;
+  cronCount: number;
+  pendingApprovals: number;
+  status: 'busy' | 'idle';
+}
+
+export interface FleetKPI {
+  onlineAgents: number;
+  monthTokens: number;
+  monthCost: number;
+  pendingApprovals: number;
+}
+
+export interface FleetOverviewResponse {
+  kpi: FleetKPI;
+  agents: Record<string, AgentFleetStats>;
+}
+
 export interface ActiveSession {
   chatId: string;
   agentType: string;
@@ -636,6 +657,22 @@ export interface ActiveSessionsResponse {
   activeSessions: ActiveSession[];
   maxConcurrent: number;
   availableSlots: number;
+}
+
+export async function getFleetOverview(): Promise<FleetOverviewResponse> {
+  const response = await fetch(`${getBackendUrl()}/api/v1/agents/fleet-overview`, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch fleet overview: ${response.statusText}`);
+  }
+
+  const json = await response.json();
+  return json.data;
 }
 
 export async function getActiveSessions(): Promise<ActiveSessionsResponse> {

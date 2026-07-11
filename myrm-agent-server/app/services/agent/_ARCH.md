@@ -69,7 +69,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 - **排队超时**：等待超过 `AGENT_QUEUE_TIMEOUT` 秒抛 `AgentQueueTimeout`
 - **执行超时**：执行超过 `AGENT_EXECUTION_TIMEOUT` 秒抛 `AgentExecutionTimeout`
 - **中断支持**：`interrupt()` 信号全部运行中 Agent 停止；`interrupt_session(chat_id)` 单会话停止；`get_active_message_id(chat_id)` 供 chat cancel 同步 harness `CancellationRegistry`
-- **活跃会话追踪**：`ActiveSessionInfo` 元数据（chatId、agentType、elapsedSeconds、current_message_id），`get_active_sessions()` 和 `get_available_slots()` 供 Multi-Pane 工作台使用
+- **活跃会话追踪**：`ActiveSessionInfo` 元数据（chatId、agentType、agentId、elapsedSeconds、current_message_id），`get_active_sessions()` 和 `get_available_slots()` 供 Multi-Pane 工作台和 Fleet Overview 使用
 - **API 端点**：`GET /agents/active-sessions`（Multi-Pane 状态）、`POST /api/agent/interrupt`（远程中断）、`POST /agents/chats/{chat_id}/cancel`（scoped pair 单 chat 取消：interrupt + registry）
 
 环境变量配置：`AGENT_MAX_CONCURRENT`(20), `AGENT_MAX_PER_USER`(3), `AGENT_QUEUE_TIMEOUT`(10s), `AGENT_EXECUTION_TIMEOUT`(300s)

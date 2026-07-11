@@ -11062,7 +11062,15 @@
     },
     "builtin": "Built-in",
     "noDescription": "No description provided.",
-    "settings": "Settings"
+    "settings": "Settings",
+    "fleet": {
+      "kpi": {
+        "online": "Online",
+        "monthTokens": "Month Tokens",
+        "monthCost": "Month Cost",
+        "pending": "Pending"
+      }
+    }
   },
   "settingsTabs": {
     "evolutionRejection": {

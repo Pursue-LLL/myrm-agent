@@ -183,3 +183,59 @@ async def test_fork_with_custom_title(async_client: httpx.AsyncClient) -> None:
     async with factory() as db:
         child = (await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))).scalar_one()
         assert child.title == "My Custom Branch"
+
+
+@pytest.mark.asyncio
+async def test_fork_resets_sandbox_via_api(async_client: httpx.AsyncClient) -> None:
+    """Fork from parent with active sandbox resets child workspace to original repo root."""
+    from app.database.models.chat import Chat
+    from app.platform_utils import get_session_factory
+    from sqlalchemy import select
+
+    chat_id = str(uuid.uuid4())
+    factory = get_session_factory()
+    async with factory() as db:
+        chat = Chat(
+            id=chat_id,
+            title="Sandbox Parent",
+            source="web",
+            workspace_dir="/project/.sandboxes/sandbox-abc123",
+            sandbox_base_dir="/project",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        db.add(chat)
+        from app.database.models import Message
+
+        now = datetime.now(UTC)
+        for i in range(3):
+            db.add(
+                Message(
+                    id=str(uuid.uuid4()),
+                    chat_id=chat_id,
+                    role="user" if i % 2 == 0 else "assistant",
+                    content=f"Sandbox msg {i}",
+                    sent_at=now,
+                    sent_timezone="UTC",
+                )
+            )
+        await db.commit()
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{chat_id}/fork",
+            json={"message_index": 1},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["new_chat_id"] is not None
+
+    async with factory() as db:
+        child = (await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))).scalar_one()
+        assert child.workspace_dir == "/project", (
+            "Child should use original repo root, not parent's sandbox worktree"
+        )
+        assert child.sandbox_base_dir is None, (
+            "Child should have no active sandbox"
+        )

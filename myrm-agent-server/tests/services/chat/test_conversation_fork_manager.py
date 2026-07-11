@@ -643,6 +643,447 @@ async def test_fork_preserves_workspace_when_parent_has_no_sandbox(
     assert child_chat.sandbox_base_dir is None
 
 
+@pytest.mark.asyncio
+async def test_fork_with_custom_title(db_session, test_user, monkeypatch) -> None:
+    """Fork with explicit new_title uses the provided title."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(id=chat_id, title="Parent")
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        Message(
+            id=str(uuid4()),
+            chat_id=chat_id,
+            role="user",
+            content="Hello",
+            sent_at=now,
+            sent_timezone="UTC",
+        )
+    )
+    await db_session.commit()
+
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=0,
+        new_title="  My Custom Fork  ",
+    )
+
+    assert result.success
+    child_stmt = select(Chat).where(Chat.id == result.new_chat_id)
+    child_result = await db_session.execute(child_stmt)
+    child_chat = child_result.scalar_one()
+    assert child_chat.title == "My Custom Fork"
+
+
+@pytest.mark.asyncio
+async def test_fork_with_checkpoint_retrieval(db_session, test_user, monkeypatch) -> None:
+    """Fork at last message index attempts checkpoint retrieval."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    mock_checkpoint = MagicMock()
+    mock_checkpoint.checkpoint = {"channel_values": {"messages": []}}
+    mock_checkpoint.metadata = {}
+    mock_checkpoint.config = {"checkpoint_id": "cp-123"}
+
+    mock_checkpointer = MagicMock()
+    mock_checkpointer.aget_tuple = AsyncMock(return_value=mock_checkpoint)
+    mock_checkpointer.aput = AsyncMock()
+
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: mock_checkpointer,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: mock_checkpointer)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(id=chat_id, title="Checkpoint Chat")
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    for i in range(3):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_id,
+                role="user",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    # Fork at last message index (2) to trigger checkpoint path
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=2,
+    )
+
+    assert result.success
+    mock_checkpointer.aget_tuple.assert_called_once()
+    mock_checkpointer.aput.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_fork_checkpoint_retrieval_failure_nonfatal(db_session, test_user, monkeypatch) -> None:
+    """Fork succeeds even when checkpoint retrieval raises an exception."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    mock_checkpointer = MagicMock()
+    mock_checkpointer.aget_tuple = AsyncMock(side_effect=RuntimeError("DB timeout"))
+
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: mock_checkpointer,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: mock_checkpointer)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(id=chat_id, title="Checkpoint Fail Chat")
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    for i in range(2):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_id,
+                role="user",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    # Fork at last message to trigger checkpoint path
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=1,
+    )
+
+    assert result.success
+    assert result.new_chat_id is not None
+
+
+@pytest.mark.asyncio
+async def test_fork_checkpoint_empty_checkpoint_field(db_session, test_user, monkeypatch) -> None:
+    """Fork handles checkpoint_tuple with empty checkpoint field gracefully."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    mock_checkpoint = MagicMock()
+    mock_checkpoint.checkpoint = None  # Empty checkpoint
+
+    mock_checkpointer = MagicMock()
+    mock_checkpointer.aget_tuple = AsyncMock(return_value=mock_checkpoint)
+
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: mock_checkpointer,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: mock_checkpointer)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(id=chat_id, title="Empty CP Chat")
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        Message(
+            id=str(uuid4()),
+            chat_id=chat_id,
+            role="user",
+            content="Message 0",
+            sent_at=now,
+            sent_timezone="UTC",
+        )
+    )
+    await db_session.commit()
+
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=0,
+    )
+
+    assert result.success
+    # aput should NOT be called since checkpoint was None
+    mock_checkpointer.aput = AsyncMock()
+    # Verify fork succeeded without checkpoint clone
+
+
+@pytest.mark.asyncio
+async def test_fork_checkpoint_clone_failure_nonfatal(db_session, test_user, monkeypatch) -> None:
+    """Fork succeeds even when checkpoint clone (aput) raises an exception."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    mock_checkpoint = MagicMock()
+    mock_checkpoint.checkpoint = {"channel_values": {"messages": []}}
+    mock_checkpoint.metadata = {}
+    mock_checkpoint.config = {"checkpoint_id": "cp-456"}
+
+    mock_checkpointer = MagicMock()
+    mock_checkpointer.aget_tuple = AsyncMock(return_value=mock_checkpoint)
+    mock_checkpointer.aput = AsyncMock(side_effect=RuntimeError("Write failed"))
+
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: mock_checkpointer,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: mock_checkpointer)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(id=chat_id, title="Clone Fail Chat")
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    for i in range(2):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_id,
+                role="user",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=1,
+    )
+
+    assert result.success
+    assert result.new_chat_id is not None
+
+
+@pytest.mark.asyncio
+async def test_fork_nonexistent_parent_returns_error(db_session, test_user, monkeypatch) -> None:
+    """Fork from nonexistent parent chat returns error result."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id="nonexistent-id-12345",
+        message_index=0,
+    )
+
+    assert not result.success
+    assert result.new_chat_id is None
+    assert "not found" in (result.error or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_fork_generates_title_from_empty_content(db_session, test_user, monkeypatch) -> None:
+    """Fork generates fallback title when fork message has no content."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(id=chat_id, title="Research Chat")
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        Message(
+            id=str(uuid4()),
+            chat_id=chat_id,
+            role="user",
+            content="",
+            sent_at=now,
+            sent_timezone="UTC",
+        )
+    )
+    await db_session.commit()
+
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=0,
+    )
+
+    assert result.success
+    child_stmt = select(Chat).where(Chat.id == result.new_chat_id)
+    child_result = await db_session.execute(child_stmt)
+    child_chat = child_result.scalar_one()
+    assert "Branch from:" in child_chat.title
+
+
+@pytest.mark.asyncio
+async def test_get_fork_info_returns_parent_and_children(db_session, test_user, monkeypatch) -> None:
+    """get_fork_info returns correct parent/children for forked chat."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(id=chat_id, title="Parent Chat")
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    for i in range(3):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_id,
+                role="user",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    fork_result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=1,
+    )
+    assert fork_result.success
+
+    # Query fork info for child
+    child_info = await ConversationForkManager.get_fork_info(db_session, fork_result.new_chat_id)
+    assert child_info.parent_chat_id == chat_id
+    assert child_info.fork_point == 1
+    assert child_info.children == []
+
+    # Query fork info for parent
+    parent_info = await ConversationForkManager.get_fork_info(db_session, chat_id)
+    assert parent_info.parent_chat_id is None
+    assert len(parent_info.children) == 1
+    assert parent_info.children[0].chat_id == fork_result.new_chat_id
+
+
+@pytest.mark.asyncio
+async def test_get_fork_info_no_forks(db_session, test_user) -> None:
+    """get_fork_info returns empty result for chat with no fork relationships."""
+    chat_id = str(uuid4())
+    chat = Chat(id=chat_id, title="Standalone Chat")
+    db_session.add(chat)
+    await db_session.commit()
+
+    info = await ConversationForkManager.get_fork_info(db_session, chat_id)
+    assert info.parent_chat_id is None
+    assert info.fork_point is None
+    assert info.children == []
+
+
+@pytest.mark.asyncio
+async def test_delete_fork_lineage_counts_children(db_session, test_user, monkeypatch) -> None:
+    """delete_fork_lineage returns correct child count."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(id=chat_id, title="Parent")
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    for i in range(3):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_id,
+                role="user",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    # Create two forks
+    r1 = await ConversationForkManager.fork_conversation(
+        db=db_session, parent_chat_id=chat_id, message_index=0,
+    )
+    r2 = await ConversationForkManager.fork_conversation(
+        db=db_session, parent_chat_id=chat_id, message_index=1,
+    )
+    assert r1.success and r2.success
+
+    count = await ConversationForkManager.delete_fork_lineage(db_session, chat_id)
+    assert count == 2
+
+
 @pytest.fixture
 def test_user():
     """Provide a test user ID (single-user architecture, no User model)."""

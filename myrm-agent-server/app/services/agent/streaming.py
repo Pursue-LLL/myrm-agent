@@ -188,6 +188,7 @@ async def ai_agent_service_stream(
             active_message_id=params.message_id,
             goal_active=goal_active,
             fission_active=fission_concurrency > 1,
+            agent_id=params.agent_id,
         ):
             if cancel_token and cancel_token.is_cancelled:
                 logger.warning("Agent stream cancelled: message_id=%s", params.message_id)
@@ -483,12 +484,16 @@ async def ai_deep_research_service_stream(
         # For now we pass None or orch if it inherits from BaseAgent.
         agent_instance = orch if hasattr(orch, "subagent_manager") else getattr(orch, "_research_agent", None)
 
+        raw_agent_id: object | None = context.get("agent_id") if context else None
+        dr_agent_id: str | None = raw_agent_id if isinstance(raw_agent_id, str) else None
+
         async for event in gateway.execute_stream(
             _raw_stream(),
             agent_type="deep_research",
             session_id=session_id_val,
             agent_instance=agent_instance,
             active_message_id=message_id,
+            agent_id=dr_agent_id,
         ):
             if cancel_token and cancel_token.is_cancelled:
                 logger.warning("Deep research stream cancelled: message_id=%s", message_id)

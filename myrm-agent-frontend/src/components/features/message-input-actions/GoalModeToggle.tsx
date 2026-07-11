@@ -63,7 +63,6 @@ export default function GoalModeToggle() {
   const t = useTranslations('Goal');
   const isGoalsEnabled = useFeatureGateStore((s) => s.isEnabled('goals_system'));
   const [showAdvanced, setShowAdvanced] = useState(false);
-  if (!isGoalsEnabled) return null;
 
   const {
     actionMode,
@@ -112,6 +111,8 @@ export default function GoalModeToggle() {
       setGoalConstraints: state.setGoalConstraints,
     })),
   );
+
+  if (!isGoalsEnabled) return null;
 
   const criteriaList = goalAcceptanceCriteria || [];
   const constraintsList = goalConstraints || [];
