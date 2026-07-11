@@ -5403,7 +5403,8 @@
       "buttonTitle": "Fork conversation",
       "parentLink": "Forked from parent conversation",
       "parentLinkWithIndex": "Forked from parent conversation (from message #{index})",
-      "unknownError": "Unknown error occurred"
+      "unknownError": "Unknown error occurred",
+      "streamingBlocked": "Cannot fork while the agent is responding"
     },
     "deleteChat": {
       "title": "Delete Conversation",
@@ -5903,6 +5904,14 @@
           "summary": "Search prior conversations for exact snippets and precomputed summaries."
         }
       }
+    },
+    "sessionSkills": {
+      "tooltip": "Session Skills",
+      "popoverTitle": "Skills for This Chat",
+      "usingAll": "Using all skills",
+      "activeCount": "{count} active",
+      "clearOverride": "Use All Skills",
+      "noSkills": "No skills configured for this agent"
     },
     "samplePrompts": {
       "fast_0": "What are the latest AI regulation policies?",

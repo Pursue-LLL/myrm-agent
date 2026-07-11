@@ -135,12 +135,27 @@ export const getChatDetail = async (
     compacted_summary: string | null;
     compacted_before_id: string | null;
     workspace_dir: string | null;
+    session_loaded_skill_names: string[] | null;
     created_at: string;
     updated_at: string;
   };
   message_count: number;
 }> => {
   return apiRequest(`/chats/${chatId}`, { silent });
+};
+
+/**
+ * Set or clear session-level skill override for a chat.
+ * Pass null to clear the override (revert to agent defaults).
+ */
+export const updateSessionSkills = async (
+  chatId: string,
+  skillNames: string[] | null,
+): Promise<{ session_loaded_skill_names: string[] | null }> => {
+  return apiRequest(`/chats/${chatId}/session-skills`, {
+    method: 'PATCH',
+    body: JSON.stringify({ skill_names: skillNames }),
+  });
 };
 
 /**

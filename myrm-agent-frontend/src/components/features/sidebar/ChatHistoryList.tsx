@@ -77,6 +77,25 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     }
   }, []);
 
+  const handleFork = useCallback(async (chatId: string) => {
+    try {
+      const [{ forkConversation }, { default: useWorkspaceStore }, { showI18nToast }] = await Promise.all([
+        import('@/services/fork-api'),
+        import('@/store/useWorkspaceStore'),
+        import('@/services/i18nToastService'),
+      ]);
+      const response = await forkConversation(chatId, -1);
+      if (response.success && response.data.new_chat_id) {
+        showI18nToast('chat.fork.success', undefined, { type: 'success' });
+        useWorkspaceStore.getState().addPane(response.data.new_chat_id);
+      } else {
+        showI18nToast('chat.fork.failed', undefined, { type: 'error' });
+      }
+    } catch (e) {
+      console.error('[SidebarFork]', e);
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -230,6 +249,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     onUnpin: actions.handleUnpin,
     onCreateAutomation: actions.handleCreateAutomation,
     onHandoff: actions.handleHandoff,
+    onFork: handleFork,
     onOpenInNewWindow: isTauriRuntime() ? handleOpenInNewWindow : undefined,
     t,
   });

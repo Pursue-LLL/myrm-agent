@@ -127,6 +127,8 @@ class _ChatCrudMixin(_ChatServiceBase):
                     "agent_id": chat_data.agent_id,
                     "last_message": chat_data.last_message or existing_chat.last_message,
                 }
+                if chat_data.agent_id and chat_data.agent_id != existing_chat.agent_id:
+                    updates["session_loaded_skill_names"] = None
                 if chat_data.ephemeral_subagents is not None:
                     updates["ephemeral_subagents"] = chat_data.ephemeral_subagents
                 if chat_data.task_adaptive_digest is not None:

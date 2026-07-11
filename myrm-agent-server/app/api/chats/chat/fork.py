@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 class ForkConversationBody(BaseModel):
-    message_index: int = Field(..., alias="message_index")
+    message_index: int = Field(..., alias="message_index", description="0-based index, or -1 for last message")
     new_title: str | None = Field(None, alias="new_title")
 
     class Config:
@@ -35,7 +35,7 @@ async def fork_conversation(
     at the fork point. Preserves messages + agent_state + tool outputs.
 
     Request Body:
-        - message_index (int): Message index to fork from (0-based)
+        - message_index (int): Message index to fork from (0-based, or -1 for last)
         - new_title (str, optional): Custom title for forked conversation
 
     Returns:
@@ -48,8 +48,13 @@ async def fork_conversation(
         message_index = request.message_index
         new_title = request.new_title
 
-        if message_index < 0:
-            raise validation_error("message_index must be non-negative")
+        if message_index < -1:
+            raise validation_error("message_index must be >= -1")
+
+        if message_index == -1:
+            message_index = await ConversationForkManager.get_last_message_index(db, chat_id)
+            if message_index is None:
+                raise validation_error("Chat has no messages to fork from")
 
         result = await ConversationForkManager.fork_conversation(
             db=db,

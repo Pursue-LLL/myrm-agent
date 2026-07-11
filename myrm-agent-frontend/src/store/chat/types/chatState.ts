@@ -30,6 +30,7 @@ export interface ChatState {
   compactedSummary: string | null;
   compactedBeforeId: string | null;
   workspaceDir: string | null;
+  sessionSkillOverrides: string[] | null;
 
   // 聊天历史列表（分页）
   chatHistoryItems: ChatHistoryItem[];
@@ -153,6 +154,7 @@ export interface ChatState {
   setIsGoalMode: (isGoalMode: boolean) => void;
   setIsWorkflowMode: (isWorkflowMode: boolean) => void;
   setIncognitoMode: (incognitoMode: boolean) => void;
+  setSessionSkillOverrides: (overrides: string[] | null) => void;
   setSandboxMode: (sandboxMode: boolean) => void;
   setGoalBudgetTokens: (tokens: number | null) => void;
   setGoalBudgetUsd: (usd: number | null) => void;

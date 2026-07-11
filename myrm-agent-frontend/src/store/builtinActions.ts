@@ -1,6 +1,5 @@
 import type { SlashAction } from '@/types/command';
 import { compactChat, focusFlushChat } from '@/services/chat';
-import { forkConversation } from '@/services/fork-api';
 import { showI18nToast } from '@/services/i18nToastService';
 import { toast } from 'sonner';
 
@@ -267,6 +266,7 @@ export function buildBuiltinActions(): SlashAction[] {
 
         const toastId = toast.loading('…');
         try {
+          const { forkConversation } = await import('@/services/fork-api');
           const response = await forkConversation(chatId, lastIndex, title);
 
           if (response.success && response.data.new_chat_id) {

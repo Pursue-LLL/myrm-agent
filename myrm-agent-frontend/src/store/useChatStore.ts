@@ -55,6 +55,7 @@ const useChatStore = create<ChatState>()(
       compactedSummary: null,
       compactedBeforeId: null,
       workspaceDir: null,
+      sessionSkillOverrides: null,
 
       // 分页聊天历史状态
       chatHistoryItems: [],
@@ -209,6 +210,7 @@ const useChatStore = create<ChatState>()(
       setIsGoalMode: (isGoalMode) => set({ isGoalMode }),
       setIsWorkflowMode: (isWorkflowMode) => set({ isWorkflowMode }),
       setIncognitoMode: (incognitoMode) => set({ incognitoMode }),
+      setSessionSkillOverrides: (overrides) => set({ sessionSkillOverrides: overrides }),
       setSandboxMode: (sandboxMode) => set({ sandboxMode }),
       setGoalBudgetTokens: (tokens) => set({ goalBudgetTokens: tokens }),
       setGoalBudgetUsd: (usd) => set({ goalBudgetUsd: usd }),
@@ -432,6 +434,7 @@ const useChatStore = create<ChatState>()(
           mentionReferences: [],
           compactedSummary: null,
           compactedBeforeId: null,
+          sessionSkillOverrides: null,
           regenerateSiblingGroupId: undefined,
           regenerateInstruction: undefined,
           pendingArchiveRestoreAction: null,

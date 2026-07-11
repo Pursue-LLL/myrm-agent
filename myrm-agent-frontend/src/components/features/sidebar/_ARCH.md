@@ -9,8 +9,8 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `BatchOperationBar.tsx` | 组件 | 批量操作栏：会话批量选择、移动（含 loading/toast/错误处理）、删除入口 | — |
-| `ChatHistoryList.tsx` | 组件/模块 | — | — |
-| `ChatHistoryRow.tsx` | 组件/模块 | — | — |
+| `ChatHistoryList.tsx` | 组件/模块 | 会话历史列表：搜索过滤、日期分组、无限滚动、DnD pin 排序、Fork/Handoff/自动化等操作编排 | — |
+| `ChatHistoryRow.tsx` | 组件/模块 | 单行会话条目：右键菜单（Pin/Fork/Handoff/Automation/MoveToProject/Rename/Export/Delete）| — |
 | `HandoffDialog.tsx` | 组件/模块 | — | — |
 | `MobileDragButton.tsx` | 组件/模块 | — | — |
 | `ProjectBar.tsx` | 组件/模块 | — | — |

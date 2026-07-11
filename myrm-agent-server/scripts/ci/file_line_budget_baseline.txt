@@ -8,6 +8,7 @@ app/ai_agents/general_agent/tool_setup.py
 app/api/agents/agent.py
 app/api/batch_optimization/router.py
 app/api/channels/router.py
+app/api/chats/chat/core.py
 app/api/channels/test_connections.py
 app/api/config/router.py
 app/api/cron/schemas.py

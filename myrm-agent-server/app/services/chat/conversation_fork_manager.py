@@ -74,6 +74,14 @@ class ConversationForkManager:
     """
 
     @staticmethod
+    async def get_last_message_index(db: AsyncSession, chat_id: str) -> int | None:
+        """Return the 0-based index of the last message, or None if empty."""
+        count_stmt = select(func.count(Message.id)).where(Message.chat_id == chat_id)
+        result = await db.execute(count_stmt)
+        total = result.scalar_one()
+        return total - 1 if total > 0 else None
+
+    @staticmethod
     async def fork_conversation(
         db: AsyncSession,
         parent_chat_id: str,

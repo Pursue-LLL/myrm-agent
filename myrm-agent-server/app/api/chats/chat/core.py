@@ -151,6 +151,7 @@ async def get_chat(
             compacted_summary=chat.compacted_summary,
             compacted_before_id=chat.compacted_before_id,
             workspace_dir=workspace_dir,
+            session_loaded_skill_names=chat.session_loaded_skill_names,
             created_at=chat.created_at,
             updated_at=chat.updated_at,
         )
@@ -398,3 +399,34 @@ async def get_fission_topology(
         return success_response(data=data)
     except Exception as e:
         raise internal_error(operation="Get Fission Topology", exception=e) from e
+
+
+class UpdateSessionSkillsRequest(BaseModel):
+    """Set or clear session-level skill override."""
+
+    skill_names: list[str] | None = Field(None, description="Skill name subset (null to clear override)")
+
+
+@router.patch("/{chat_id}/session-skills", response_model=StandardSuccessResponse)
+async def update_session_skills(
+    chat_id: str,
+    body: UpdateSessionSkillsRequest,
+) -> JSONResponse:
+    """Set or clear the session-level skill override for a chat."""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        skill_names = body.skill_names
+        if skill_names is not None:
+            skill_names = [name.strip() for name in skill_names if name and name.strip()]
+            if not skill_names:
+                skill_names = None
+
+        await ChatService.update_chat_fields(chat_id, {"session_loaded_skill_names": skill_names})
+        return success_response(data={"session_loaded_skill_names": skill_names})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Update session skills", exception=e) from e

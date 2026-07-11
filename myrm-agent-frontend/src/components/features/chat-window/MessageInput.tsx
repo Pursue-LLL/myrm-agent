@@ -24,6 +24,7 @@ import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
 import EnvironmentShield from '../message-input-actions/EnvironmentShield';
 import AgentIndicator from '../message-input-actions/AgentIndicator';
 import ToolsPanel from '../message-input-actions/ToolsPanel';
+import SessionSkillsToggle from '../message-input-actions/SessionSkillsToggle';
 import WorkspaceDirPicker from './WorkspaceDirPicker';
 import SpeechInputButton from '../message-input-actions/SpeechInputButton';
 import VoiceSessionButton from '../message-input-actions/VoiceSessionButton';
@@ -513,6 +514,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                     <ForkButton chatId={chatId} messageIndex={messages.length - 1} />
                   )}
                   <AgentIndicator />
+                  <SessionSkillsToggle />
                   <ToolsPanel />
                   <WorkspaceDirPicker />
                   <button

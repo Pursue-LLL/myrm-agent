@@ -248,6 +248,7 @@ class ChatDetail(BaseModel):
     compacted_summary: str | None = Field(None, description="上下文压缩结构化摘要")
     compacted_before_id: str | None = Field(None, description="被压缩的最后一条消息ID")
     workspace_dir: str | None = Field(None, description="Per-chat working directory")
+    session_loaded_skill_names: list[str] | None = Field(None, description="会话级 Skill override 列表")
     total_calls: int = Field(0, description="Session total model calls")
     total_tokens: int = Field(0, description="Session total tokens")
     total_usd: float = Field(0.0, description="Session total USD cost")

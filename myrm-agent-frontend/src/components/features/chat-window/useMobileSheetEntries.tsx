@@ -86,17 +86,21 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
   const handleFork = useCallback(async () => {
     if (!chatId || messages.length === 0 || loading) return;
     onClose();
-    const { forkConversation } = await import('@/services/fork-api');
-    const { default: useWorkspaceStore } = await import('@/store/useWorkspaceStore');
-    const { showI18nToast } = await import('@/services/i18nToastService');
     try {
+      const [{ forkConversation }, { default: workspaceStore }, { showI18nToast }] = await Promise.all([
+        import('@/services/fork-api'),
+        import('@/store/useWorkspaceStore'),
+        import('@/services/i18nToastService'),
+      ]);
       const response = await forkConversation(chatId, messages.length - 1);
       if (response.success && response.data.new_chat_id) {
         showI18nToast('commands.builtin.forkSuccess', undefined, { type: 'success' });
-        useWorkspaceStore.getState().addPane(response.data.new_chat_id);
+        workspaceStore.getState().addPane(response.data.new_chat_id);
+      } else {
+        showI18nToast('commands.builtin.forkFailed', undefined, { type: 'error' });
       }
-    } catch {
-      showI18nToast('commands.builtin.forkFailed', undefined, { type: 'error' });
+    } catch (e) {
+      console.error('[MobileFork]', e);
     }
   }, [chatId, messages.length, loading, onClose]);
 

@@ -86,6 +86,7 @@ export const loadMessages = async (chatId: string, actions: ChatActionsMethods):
         state.compactedSummary = chatData.chat.compacted_summary;
         state.compactedBeforeId = chatData.chat.compacted_before_id;
         state.workspaceDir = chatData.chat.workspace_dir;
+        state.sessionSkillOverrides = chatData.chat.session_loaded_skill_names;
         state.incognitoMode = chatData.chat.is_incognito || false;
         state.hasMoreMessages = page.has_more;
         state.nextCursor = page.next_cursor;

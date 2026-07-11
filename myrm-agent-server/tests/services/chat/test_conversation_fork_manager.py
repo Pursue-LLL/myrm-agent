@@ -454,6 +454,67 @@ async def test_fork_clears_compaction_when_fork_before_compacted_point(
     assert child_chat.compacted_tokens_saved is None
 
 
+@pytest.mark.asyncio
+async def test_get_last_message_index_empty_chat(db_session, test_user):
+    """get_last_message_index returns None for chat with zero messages."""
+    chat_id = str(uuid4())
+    chat = Chat(id=chat_id, title="Empty Chat")
+    db_session.add(chat)
+    await db_session.commit()
+
+    result = await ConversationForkManager.get_last_message_index(db_session, chat_id)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_last_message_index_single_message(db_session, test_user):
+    """get_last_message_index returns 0 for chat with one message."""
+    chat_id = str(uuid4())
+    chat = Chat(id=chat_id, title="Single Msg Chat")
+    db_session.add(chat)
+
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        Message(
+            id=str(uuid4()),
+            chat_id=chat_id,
+            role="user",
+            content="Hello",
+            sent_at=now,
+            sent_timezone="UTC",
+        )
+    )
+    await db_session.commit()
+
+    result = await ConversationForkManager.get_last_message_index(db_session, chat_id)
+    assert result == 0
+
+
+@pytest.mark.asyncio
+async def test_get_last_message_index_multiple_messages(db_session, test_user):
+    """get_last_message_index returns total-1 for chat with N messages."""
+    chat_id = str(uuid4())
+    chat = Chat(id=chat_id, title="Multi Msg Chat")
+    db_session.add(chat)
+
+    now = datetime.now(timezone.utc)
+    for i in range(7):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_id,
+                role="user" if i % 2 == 0 else "assistant",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    result = await ConversationForkManager.get_last_message_index(db_session, chat_id)
+    assert result == 6
+
+
 @pytest.fixture
 def test_user():
     """Provide a test user ID (single-user architecture, no User model)."""

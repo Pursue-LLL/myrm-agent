@@ -22,6 +22,7 @@ import {
   FolderInput,
   FolderX,
   ExternalLink,
+  GitFork,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -84,6 +85,7 @@ export interface ChatHistoryRowProps {
   onUnpin: (id: string) => void;
   onCreateAutomation?: (chatId: string, chatTitle: string) => void;
   onHandoff?: (chatId: string, chatTitle: string, source?: string) => void;
+  onFork?: (chatId: string) => void;
   onOpenInNewWindow?: (chatId: string) => void;
   t: ReturnType<typeof useTranslations>;
 }
@@ -114,6 +116,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
     onUnpin,
     onCreateAutomation,
     onHandoff,
+    onFork,
     onOpenInNewWindow,
     t,
   }) => (
@@ -319,6 +322,15 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                   >
                     <ArrowRightLeft size={isMobile ? 16 : 14} className="mr-2" />
                     {t('chat.handoff.menuAction')}
+                  </DropdownMenuItem>
+                )}
+                {onFork && (
+                  <DropdownMenuItem
+                    onClick={() => onFork(chat.id)}
+                    className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
+                  >
+                    <GitFork size={isMobile ? 16 : 14} className="mr-2" />
+                    {t('chat.fork.buttonTitle')}
                   </DropdownMenuItem>
                 )}
                 <MoveToProjectMenu chatId={chat.id} currentProjectId={chat.projectId} isMobile={isMobile} t={t} />

@@ -5403,7 +5403,8 @@
       "buttonTitle": "分支对话",
       "parentLink": "来自父对话的分支",
       "parentLinkWithIndex": "来自父对话的分支（从消息 #{index}）",
-      "unknownError": "发生未知错误"
+      "unknownError": "发生未知错误",
+      "streamingBlocked": "Agent 回复中，无法创建分支"
     },
     "deleteChat": {
       "title": "删除会话",
@@ -5902,6 +5903,14 @@
           "summary": "搜索过往对话，返回证据片段和预计算摘要。"
         }
       }
+    },
+    "sessionSkills": {
+      "tooltip": "会话技能",
+      "popoverTitle": "本次对话使用的技能",
+      "usingAll": "使用全部技能",
+      "activeCount": "已启用 {count} 项",
+      "clearOverride": "使用全部技能",
+      "noSkills": "该智能体未配置任何技能"
     },
     "samplePrompts": {
       "fast_0": "最新的 AI 监管政策有哪些？",

@@ -18,8 +18,8 @@
 | `ConversationJumpBar.tsx` | 组件 | 消息跳转条；Goal 侧栏 xl+ 时 `xl:right-[340px]` 避让 | ✅ |
 | `DeleteChat.tsx` | 组件/模块 | — | — |
 | `EmptyChat.tsx` | 组件/模块 | — | — |
-| `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar） | ✅ |
-| `ForkDialog.tsx` | 组件 | Fork 确认弹窗：标题输入 + 调 POST /fork + 自动导航 | ✅ |
+| `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar + MessageInput 桌面工具栏） | ✅ |
+| `ForkDialog.tsx` | 组件 | Fork 确认弹窗：标题输入 + 调 POST /fork + 自动导航 + streaming 防护 | ✅ |
 | `LifeStatusCapsule.tsx` | 组件/模块 | — | — |
 | `LinkDetectionDialog.tsx` | 组件/模块 | — | — |
 | `LocalCapabilitiesBanner.tsx` | 组件/模块 | — | — |
