@@ -16,7 +16,6 @@ import {
   Activity,
   Coins,
   Zap,
-  Users,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
@@ -284,7 +283,7 @@ function AgentCard({
             )}
             {stats.sessionCount > 0 && (
               <span className="flex items-center gap-1">
-                <Users className="h-3 w-3" />
+                <MessageSquare className="h-3 w-3" />
                 {stats.sessionCount}
               </span>
             )}
