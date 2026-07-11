@@ -25,7 +25,7 @@
 | `IncognitoModeToggle.tsx` | 组件/模块 | — | — |
 | `SandboxModeToggle.tsx` | 组件/模块 | 沙箱模式切换：Agent 模式下可见，一键隔离 workspace 到 git worktree | — |
 | `SearchModeSelector.tsx` | 组件/模块 | 分段式模式选择器：Fast / Agent / Deep Research / Consensus，含 feature gate 门控和搜索服务校验 | ✅ |
-| `SessionSkillsToggle.tsx` | 组件 | 会话级 Skill 作用域切换：Agent 模式下 Popover 列出已启用 Skill，用户 toggle 子集覆盖默认全量加载，PATCH `/session-skills` 持久化 | ✅ |
+| `SessionSkillsToggle.tsx` | 组件 | 会话级 Skill 作用域切换：Agent 模式下 Popover 列出当前 Agent 绑定的 Skill（`agentConfig.selectedSkillIds`），用户 toggle 子集覆盖默认全量加载，PATCH `/session-skills` 持久化 | ✅ |
 | `SpeechInputButton.tsx` | 组件/模块 | — | — |
 | `ThinkingIntensityButton.tsx` | 组件/模块 | — | — |
 | `ToolsPanel.tsx` | 组件/模块 | — | — |

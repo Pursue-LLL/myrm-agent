@@ -17,27 +17,28 @@ export default function SessionSkillsToggle() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { chatId, sessionSkillOverrides, setSessionSkillOverrides, actionMode } = useChatStore(
+  const { chatId, sessionSkillOverrides, setSessionSkillOverrides, actionMode, selectedSkillIds } = useChatStore(
     useShallow((s) => ({
       chatId: s.chatId,
       sessionSkillOverrides: s.sessionSkillOverrides,
       setSessionSkillOverrides: s.setSessionSkillOverrides,
       actionMode: s.actionMode,
+      selectedSkillIds: s.agentConfig?.selectedSkillIds,
     })),
   );
 
-  const { marketSkills, localSkills, isSkillEnabled } = useSkillStore(
+  const { marketSkills, localSkills } = useSkillStore(
     useShallow((s) => ({
       marketSkills: s.marketSkills,
       localSkills: s.localSkills,
-      isSkillEnabled: s.isSkillEnabled,
     })),
   );
 
   const enabledSkills = useMemo(() => {
+    if (!selectedSkillIds?.length) return [];
     const all = [...marketSkills, ...localSkills].filter((s) => s.user_invocable !== false);
-    return all.filter((skill) => isSkillEnabled(skill.id));
-  }, [marketSkills, localSkills, isSkillEnabled]);
+    return all.filter((skill) => selectedSkillIds.includes(skill.id));
+  }, [marketSkills, localSkills, selectedSkillIds]);
 
   const hasOverride = sessionSkillOverrides !== null && sessionSkillOverrides !== undefined;
   const overrideCount = sessionSkillOverrides?.length ?? 0;

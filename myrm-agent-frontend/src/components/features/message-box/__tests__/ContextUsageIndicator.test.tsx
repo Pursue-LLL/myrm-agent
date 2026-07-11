@@ -536,6 +536,76 @@ describe('ContextUsageIndicator', () => {
     });
   });
 
+  describe('fork CTA', () => {
+    it('does not show fork button when usage < 75%', async () => {
+      mockChatState.messages = [
+        {
+          role: 'assistant' as const,
+          contextBudget: {
+            current_tokens: 50000,
+            max_context_tokens: 128000,
+            usage_percent: 39,
+            health_status: 'healthy' as const,
+          },
+        },
+      ];
+      const user = userEvent.setup();
+      render(<ContextUsageIndicator />);
+
+      await user.click(screen.getByRole('status'));
+      await waitFor(() => {
+        expect(screen.getByText('compressContext')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('forkNewTopic')).not.toBeInTheDocument();
+    });
+
+    it('shows fork button when usage >= 75%', async () => {
+      mockChatState.messages = [
+        {
+          role: 'assistant' as const,
+          contextBudget: {
+            current_tokens: 96000,
+            max_context_tokens: 128000,
+            usage_percent: 75,
+            health_status: 'warning' as const,
+          },
+        },
+      ];
+      const user = userEvent.setup();
+      render(<ContextUsageIndicator />);
+
+      await user.click(screen.getByRole('status'));
+      await waitFor(() => {
+        expect(screen.getByText('forkNewTopic')).toBeInTheDocument();
+      });
+
+      const btn = screen.getByText('forkNewTopic').closest('button');
+      expect(btn).not.toBeDisabled();
+    });
+
+    it('shows fork button when usage >= 90% (critical)', async () => {
+      mockChatState.messages = [
+        {
+          role: 'assistant' as const,
+          contextBudget: {
+            current_tokens: 120000,
+            max_context_tokens: 128000,
+            usage_percent: 93.75,
+            health_status: 'critical' as const,
+          },
+        },
+      ];
+      const user = userEvent.setup();
+      render(<ContextUsageIndicator />);
+
+      await user.click(screen.getByRole('status'));
+      await waitFor(() => {
+        expect(screen.getByText('forkNewTopic')).toBeInTheDocument();
+      });
+    });
+  });
+
   describe('usage levels', () => {
     it('uses amber stroke color at 75%+ usage', () => {
       mockChatState.messages = [

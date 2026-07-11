@@ -12,7 +12,7 @@
 | `ClarificationInput.tsx` | 组件 | 结构化澄清表单（多题/多选/开放题）；选项提交 `option.id`，展示 `label`；resume 与 legacy clarify API 双路径 | ✅ |
 | `ConsensusMetaDisplay.tsx` | 组件/模块 | MoA 元数据摘要 tooltip（模型数/聚合器/耗时） | ✅ |
 | `ConsensusThinkingPanel.tsx` | 组件 | MoA 多模型思考面板：渐进式展示每个参考模型的状态、耗时、输出摘要（可折叠/展开） | ✅ |
-| `ContextUsageIndicator.tsx` | 组件/模块 | — | — |
+| `ContextUsageIndicator.tsx` | 组件/模块 | Token 用量环 + 策略状态点 + MiniPanel（压缩/Fork 新话题一键操作）| ✅ |
 | `CronJobSystemCard.tsx` | 组件/模块 | — | — |
 | `FileMutationWarning.tsx` | 组件/模块 | — | — |
 | `MarkdownContent.tsx` | 组件/模块 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型 | ✅ |

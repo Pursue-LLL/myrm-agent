@@ -42,6 +42,7 @@ src/components/features/memory/SessionReplayPlayer.tsx
 src/components/features/memory/SharedContextPanel.tsx
 src/components/features/memory/useSharedContextPanel.ts
 src/components/features/message-box/ClarificationInput.tsx
+src/components/features/message-box/ContextUsageIndicator.tsx
 src/components/features/message-box/MessageBox.tsx
 src/components/features/message-box/TokenUsageDisplay.tsx
 src/components/features/message-box/progress-steps/ProgressSteps.tsx

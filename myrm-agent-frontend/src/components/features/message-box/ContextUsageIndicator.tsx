@@ -7,14 +7,15 @@
  * - services/statistics::getSessionAnalytics (POS: Statistics API client DTO layer.)
  * - services/chat::compactChat (POS: Chat service — manual context compaction.)
  * - services/contextHealth::ContextHealth, HealthStatus (POS: Statistics context-health DTO layer.)
+ * - services/fork-api::forkConversation (POS: Fork API client — dynamic import in MiniPanel.)
  *
  * [OUTPUT]
- * - ContextUsageIndicator: token usage ring with strategy health dot and expandable mini panel with manual compress.
+ * - ContextUsageIndicator: token usage ring with strategy health dot and expandable mini panel with compress + fork actions.
  *
  * [POS]
  * Context usage and memory strategy indicator for the chat window.
- * Displays token usage ring, strategy health status dot, and on-click mini panel with compaction/pruning/cache details
- * and a manual "Compress context" button that calls the existing compact API.
+ * Displays token usage ring, strategy health status dot, and on-click mini panel with compaction/pruning/cache details,
+ * a manual "Compress context" button, and a conditional "Fork new topic" CTA (shown at ≥75% usage).
  */
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
@@ -80,6 +81,7 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
   const [compacting, setCompacting] = useState(false);
   const [compactResult, setCompactResult] = useState<string | null>(null);
   const [compactError, setCompactError] = useState<string | null>(null);
+  const [forking, setForking] = useState(false);
 
   const canCompress = !!chatId && usagePercent >= 30 && !compacting;
 
@@ -102,6 +104,35 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
       setCompacting(false);
     }
   }, [chatId, compacting, t, onRefreshHealth]);
+
+  const canFork = !!chatId && usagePercent >= 75 && !forking;
+
+  const handleFork = useCallback(async () => {
+    if (!chatId || forking) return;
+    setForking(true);
+    try {
+      const [{ forkConversation }, { default: workspaceStore }, { showI18nToast }] = await Promise.all([
+        import('@/services/fork-api'),
+        import('@/store/useWorkspaceStore'),
+        import('@/services/i18nToastService'),
+      ]);
+      const response = await forkConversation(chatId, -1);
+      if (response.success && response.data.new_chat_id) {
+        showI18nToast('chat.fork.success', undefined, { type: 'success' });
+        workspaceStore.getState().addPane(response.data.new_chat_id);
+      } else {
+        showI18nToast('chat.fork.failed', undefined, { type: 'error' });
+      }
+    } catch (e) {
+      console.error('[ContextUsageFork]', e);
+      try {
+        const { showI18nToast } = await import('@/services/i18nToastService');
+        showI18nToast('chat.fork.failed', undefined, { type: 'error' });
+      } catch { /* toast import failed — already logged above */ }
+    } finally {
+      setForking(false);
+    }
+  }, [chatId, forking]);
 
   if (loading) {
     return (
@@ -199,6 +230,17 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
         )}
         {compactError && (
           <span className="text-[10px] text-rose-600 dark:text-rose-400">{compactError}</span>
+        )}
+
+        {canFork && (
+          <button
+            type="button"
+            onClick={handleFork}
+            disabled={forking}
+            className="w-full text-[11px] font-medium py-1.5 px-2 rounded-md transition-colors bg-accent/60 text-accent-foreground hover:bg-accent dark:bg-accent/40 dark:hover:bg-accent/60"
+          >
+            {forking ? t('forking') : t('forkNewTopic')}
+          </button>
         )}
       </div>
 

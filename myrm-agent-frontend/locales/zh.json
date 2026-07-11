@@ -5715,7 +5715,9 @@
         "compressing": "压缩中…",
         "compressSuccess": "已节省 {tokens} tokens",
         "compressNotNeeded": "无需压缩",
-        "compressError": "压缩失败"
+        "compressError": "压缩失败",
+        "forkNewTopic": "分支新话题",
+        "forking": "创建分支中…"
       }
     },
     "dragDrop": {

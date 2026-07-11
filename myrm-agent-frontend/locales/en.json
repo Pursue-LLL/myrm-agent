@@ -5716,7 +5716,9 @@
         "compressing": "Compressing…",
         "compressSuccess": "Saved {tokens} tokens",
         "compressNotNeeded": "No compression needed",
-        "compressError": "Compression failed"
+        "compressError": "Compression failed",
+        "forkNewTopic": "Fork new topic",
+        "forking": "Forking…"
       }
     },
     "dragDrop": {
