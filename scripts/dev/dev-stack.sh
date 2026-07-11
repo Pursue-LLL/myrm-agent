@@ -13,6 +13,8 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "${REPO_ROOT}/scripts/lib/resolve_agent_root.sh"
 # shellcheck source=lib/backend_bg.sh
 source "${SCRIPT_DIR}/lib/backend_bg.sh"
+# shellcheck source=lib/frontend-warmup.sh
+source "${SCRIPT_DIR}/lib/frontend-warmup.sh"
 resolve_agent_paths "${REPO_ROOT}"
 
 STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
@@ -83,11 +85,27 @@ _stack_healthy() {
   _api_healthy 5 && _frontend_healthy 8
 }
 
+_stack_warm() {
+  _api_healthy 5 && [[ "$(_frontend_compile_hot_status)" == "yes" ]]
+}
+
 _wait_stack_health() {
   local max="${1:-${ATTACH_WAIT_SEC}}"
   local i
   for i in $(seq 1 "${max}"); do
     if _stack_healthy; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+_wait_stack_warm() {
+  local max="${1:-${ATTACH_WAIT_SEC}}"
+  local i
+  for i in $(seq 1 "${max}"); do
+    if _stack_warm; then
       return 0
     fi
     sleep 1
@@ -183,6 +201,7 @@ _start_frontend_supervisor() {
 
   cd "${FRONTEND_DIR}"
   bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
+  _frontend_clear_warmth
   nohup bun run dev >>"${FRONTEND_LOG}" 2>&1 &
   echo $! >"${FRONTEND_PID}"
   echo "STACK_START: frontend supervisor pid $(cat "${FRONTEND_PID}")"
@@ -214,11 +233,11 @@ _ensure_backend() {
 }
 
 cmd_attach() {
-  if _wait_stack_health "${ATTACH_WAIT_SEC}"; then
-    echo "STACK_ATTACH_OK api=:8080 ui=:3000"
+  if _wait_stack_warm "${ATTACH_WAIT_SEC}"; then
+    echo "STACK_ATTACH_OK api=:8080 ui=:3000 compile_hot=yes"
     exit 0
   fi
-  echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+  echo "STACK_ATTACH_TIMEOUT: stack not compile_hot within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
   exit 1
 }
 
@@ -229,19 +248,24 @@ cmd_ensure() {
   fi
   trap '_release_dir_lock "${_lock_dir}"' EXIT
 
-  if _stack_healthy; then
-    echo "STACK_ENSURE_OK: already healthy"
+  if _stack_warm; then
+    echo "STACK_ENSURE_OK: already compile_hot api=:8080 ui=:3000"
     exit 0
   fi
 
   _ensure_backend || exit 1
   _start_frontend_supervisor || exit 1
 
-  if _wait_stack_health "${ENSURE_FRONTEND_WAIT_SEC}"; then
-    echo "STACK_ENSURE_OK: api=:8080 ui=:3000"
+  if ! _wait_stack_health "${ENSURE_FRONTEND_WAIT_SEC}"; then
+    echo "STACK_FAIL: stack not HTTP healthy after ensure" >&2
+    exit 1
+  fi
+
+  if _warmup_frontend_compile; then
+    echo "STACK_ENSURE_OK: api=:8080 ui=:3000 compile_hot=yes"
     exit 0
   fi
-  echo "STACK_FAIL: stack not healthy after ensure" >&2
+  echo "STACK_FAIL: stack not compile_hot after ensure" >&2
   exit 1
 }
 
@@ -253,6 +277,7 @@ cmd_reset() {
     rm -f "${FRONTEND_PID}"
   fi
   rm -f "${FRONTEND_LOCK}"
+  _frontend_clear_warmth
 
   local port="${PORT:-8080}"
   if [[ -f "${SERVER_DIR}/.myrm-dev-backend.pid" ]]; then
@@ -296,12 +321,13 @@ cmd_reset() {
 }
 
 cmd_status() {
-  local api="down" fe="down" lock="missing"
+  local api="down" fe="down" lock="missing" compile_hot="down"
   _api_healthy 3 && api="up"
   _frontend_healthy 5 && fe="up"
+  compile_hot="$(_frontend_compile_hot_status)"
   _lock_supervisor_alive && lock="alive"
   [[ -f "${FRONTEND_LOCK}" ]] && [[ "${lock}" == "missing" ]] && lock="stale"
-  echo "stack_status api=${api} frontend=${fe} dev_lock=${lock}"
+  echo "stack_status api=${api} frontend=${fe} compile_hot=${compile_hot} dev_lock=${lock}"
 }
 
 acquire_api_e2e_lock() {

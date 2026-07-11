@@ -4,7 +4,7 @@
  * - port-cleanup::APP_DEV_PORT / killListenersOnPort (POS: LISTEN-only port cleanup)
  *
  * [OUTPUT]
- * - Next.js dev server on :3000 via `bunx next dev` (webpack default)
+ * - Next.js dev server on :3000 via `bunx next dev` (Turbopack default when native SWC present)
  * - Early exit when lock+HTTP prove an existing healthy dev server
  *
  * [POS]
@@ -98,10 +98,54 @@ acquireDevLock(APP_DEV_PORT);
 const bindLan =
   process.env.WEBUI_DEV_BIND_ALL === '1' || process.env.WEBUI_DEV_BIND_ALL === 'true' || args.includes('--lan');
 const nextArgs = ['next', 'dev', '-p', String(APP_DEV_PORT)];
-// Turbopack needs native @next/swc-darwin-arm64; WASM-only installs fail on darwin/arm64.
-if (!args.includes('--turbo')) {
-  nextArgs.push('--webpack');
+
+function nativeSwcPackage(): string | null {
+  const platform = `${process.platform}-${process.arch}`;
+  const map: Record<string, string> = {
+    'darwin-arm64': '@next/swc-darwin-arm64',
+    'darwin-x64': '@next/swc-darwin-x64',
+    'linux-arm64': '@next/swc-linux-arm64-gnu',
+    'linux-x64': '@next/swc-linux-x64-gnu',
+  };
+  const pkg = map[platform];
+  if (!pkg) return null;
+  const pkgDir = path.join(process.cwd(), 'node_modules', pkg);
+  return fs.existsSync(pkgDir) ? pkg : null;
 }
+
+const forceWebpack = args.includes('--webpack');
+const bundlerMode = forceWebpack ? 'webpack' : 'turbopack';
+const BUNDLER_STAMP = path.join('.next', 'dev-bundler-mode');
+
+function ensureBundlerCacheCoherent(mode: string): void {
+  if (clean) {
+    return;
+  }
+  try {
+    if (fs.existsSync(BUNDLER_STAMP)) {
+      const previous = fs.readFileSync(BUNDLER_STAMP, 'utf8').trim();
+      if (previous && previous !== mode) {
+        console.log(`🧹 Dev bundler changed (${previous} → ${mode}) — clearing .next cache...`);
+        fs.rmSync('.next', { recursive: true, force: true });
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️  Could not validate dev bundler cache:', error);
+  }
+}
+
+if (forceWebpack) {
+  nextArgs.push('--webpack');
+} else if (!nativeSwcPackage()) {
+  console.error('❌ Native @next/swc is missing — dev compile will be extremely slow.');
+  console.error('   Run: cd open-perplexity && ./myrm setup');
+  console.error('   Or pass --webpack explicitly to opt into WASM fallback (not recommended).');
+  process.exit(1);
+}
+
+ensureBundlerCacheCoherent(bundlerMode);
+fs.mkdirSync('.next', { recursive: true });
+fs.writeFileSync(BUNDLER_STAMP, `${bundlerMode}\n`, 'utf8');
 if (bindLan) {
   nextArgs.push('-H', '0.0.0.0');
   console.log(`🌐 LAN bind enabled (0.0.0.0:${APP_DEV_PORT}) — use intranet IP from Settings → System`);

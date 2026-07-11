@@ -9,6 +9,7 @@ import { isTauriEnvironment } from '@/lib/tauri';
 import { getReadinessStatus } from '@/services/onboarding';
 import { shouldShowBootScreen } from '../features/app-shell/boot-screen';
 import { useFocusedMode } from '@/hooks/useFocusedMode';
+import AppShellSkeleton from '../features/app-shell/AppShellSkeleton';
 
 const BootScreen = lazy(() => import('../features/app-shell/boot-screen'));
 const OnboardingWizard = lazy(() => import('../features/onboarding/OnboardingWizard'));
@@ -21,7 +22,7 @@ interface PageLayoutProps {
  * PageLayout - Client Component entry point
  *
  * Hydration 策略：
- * - SSR 阶段返回 null
+ * - SSR 阶段渲染 AppShellSkeleton
  * - 客户端挂载后：检查 onboarding_completed 状态
  * - 若未完成，展示 OnboardingWizard
  * - 若已完成，且为冷启动，展示 BootScreen
@@ -79,12 +80,12 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
   }
 
   if (!mounted || checkingReadiness) {
-    return null;
+    return <AppShellSkeleton />;
   }
 
   if (needsOnboarding) {
     return (
-      <Suspense fallback={null}>
+      <Suspense fallback={<AppShellSkeleton />}>
         <OnboardingWizard onComplete={handleOnboardingComplete} />
       </Suspense>
     );
@@ -92,7 +93,7 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
 
   if (showNormalBoot) {
     return (
-      <Suspense fallback={null}>
+      <Suspense fallback={<AppShellSkeleton />}>
         <BootScreen onComplete={handleBootComplete} />
       </Suspense>
     );

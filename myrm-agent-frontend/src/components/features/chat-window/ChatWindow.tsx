@@ -27,16 +27,11 @@ import EStopBanner from './EStopBanner';
 import ExtensionDisconnectedBanner from './ExtensionDisconnectedBanner';
 import SubagentPromptButton from './SubagentPromptButton';
 import SubagentDashboard from './SubagentDashboard';
-import dynamic from 'next/dynamic';
-import { BrowserLiveView, BrowserInspectorToggle } from '@/components/features/browser-inspector';
-import { BrowserRecordingToggle, BrowserRecordingPanel } from '@/components/features/browser-recording';
-import { DesktopLiveView, DesktopInspectorToggle } from '@/components/features/desktop-inspector';
-import { FileSnapshotPanel } from '@/components/features/checkpoint';
-import SessionRevertButton from '@/components/features/message-actions/SessionRevertButton';
-import { LifeStatusCapsule } from './LifeStatusCapsule';
-import PetOverlay from '../companion/sprite/PetOverlay';
-import { GoalStatusCard } from './goals/GoalStatusCard';
-import { GoalControlPlane } from './goals/GoalControlPlane';
+import ChatWindowSatellites, {
+  GoalControlPlane,
+  GoalStatusCard,
+  LifeStatusCapsule,
+} from './ChatWindowSatellites';
 import { ParentChatLink } from './ParentChatLink';
 import WorkingStateBadge from './WorkingStateBadge';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
@@ -45,14 +40,6 @@ import { PendingMemoryBadge, PendingMemoryDialog } from '@/components/features/m
 import { useMemoryStore } from '@/store/memory';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
-
-const VisualDesktopToggle = dynamic(
-  () =>
-    import('@/components/features/app-shell/VisualDesktopToggle').then((module) => ({
-      default: module.VisualDesktopToggle,
-    })),
-  { ssr: false },
-);
 
 interface ErrorViewProps {
   message: string;
@@ -440,42 +427,13 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
           <ArtifactPortal />
         </div>
 
-        {/* Visual Desktop 直播按钮 */}
-        <VisualDesktopToggle />
-
-        {/* Browser Inspector */}
-        <BrowserInspectorToggle />
-        <BrowserLiveView onSendInstruction={handleInspectorInstruction} />
-
-        {/* Browser Recording */}
-        <BrowserRecordingToggle />
-        <BrowserRecordingPanel />
-
-        {/* Desktop Inspector */}
-        <DesktopInspectorToggle />
-        <DesktopLiveView onSendInstruction={handleDesktopInspectorInstruction} />
-
-        {/* File Snapshot Panel + Session Revert */}
-        <FileSnapshotPanel />
-        {id && (
-          <div className="fixed bottom-24 right-[4.5rem] z-50 max-sm:bottom-20 max-sm:right-16 bg-secondary rounded-full shadow-lg">
-            <SessionRevertButton sessionId={id} />
-          </div>
-        )}
-
-        {/* Subagent 智能提示按钮 */}
-        <SubagentPromptButton />
-
-        <SubagentDashboard chatId={id} />
-
-        {/* Goal Status Card */}
-        {isGoalsEnabled && <GoalStatusCard />}
-
-        {/* Idle Task Status Breathing Light */}
+        <ChatWindowSatellites
+          chatId={id}
+          onInspectorInstruction={handleInspectorInstruction}
+          onDesktopInspectorInstruction={handleDesktopInspectorInstruction}
+        />
+        {isGoalsEnabled ? <GoalStatusCard /> : null}
         <LifeStatusCapsule currentSessionId={id || null} />
-
-        {/* Pet Sprite Overlay */}
-        <PetOverlay />
       </>
     );
   }
@@ -493,16 +451,19 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         <div className="flex-1 min-w-0 min-h-0">
           <EmptyChat />
         </div>
-        {isGoalsEnabled && (
+        {isGoalsEnabled ? (
           <div className="hidden lg:flex h-full shrink-0">
             <GoalControlPlane />
           </div>
-        )}
+        ) : null}
       </div>
-      <SubagentDashboard chatId={id} />
-      {isGoalsEnabled && <GoalStatusCard />}
+      <ChatWindowSatellites
+        chatId={id}
+        onInspectorInstruction={handleInspectorInstruction}
+        onDesktopInspectorInstruction={handleDesktopInspectorInstruction}
+      />
+      {isGoalsEnabled ? <GoalStatusCard /> : null}
       <LifeStatusCapsule currentSessionId={id || null} />
-      <PetOverlay />
     </>
   );
 };

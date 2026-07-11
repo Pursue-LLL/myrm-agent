@@ -55,14 +55,14 @@ describe('PageLayout', () => {
     vi.clearAllMocks();
   });
 
-  it('renders null before client mount', () => {
+  it('renders AppShellSkeleton before client mount', () => {
     mockShouldShowBootScreen.mockReturnValue(true);
-    const { container } = render(
+    render(
       <PageLayout>
         <span>child</span>
       </PageLayout>,
     );
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByTestId('app-shell-skeleton')).toBeInTheDocument();
   });
 
   it('shows BootScreen on cold start and transitions to AppLayout', async () => {
