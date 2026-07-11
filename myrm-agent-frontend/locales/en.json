@@ -5347,6 +5347,11 @@
       "hintSplitDev": "Backend OK at http://{host}:{port}. Run myrm start, or bun run dev then open http://localhost:3000 (API_PORT={proxyPort}).",
       "hintStandalone": "Backend OK at http://{host}:{port}. Run myrm start, or set API_PORT={proxyPort} in .env.local."
     },
+    "readinessDegraded": {
+      "title": "Setup check is still catching up",
+      "description": "You can keep using the app while configuration status refreshes.",
+      "retry": "Retry check"
+    },
     "operationFailed": "Operation failed"
   },
   "chat": {

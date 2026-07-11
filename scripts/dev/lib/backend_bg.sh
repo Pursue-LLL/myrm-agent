@@ -89,6 +89,7 @@ _start_backend_bg() {
   export DEPLOY_MODE="${DEPLOY_MODE:-local}"
   export HOST="${HOST:-127.0.0.1}"
   export PORT="${PORT:-8080}"
+  export SQLITE_POOL_SIZE="${SQLITE_POOL_SIZE:-15}"
 
   _require_harness_editable_for_monorepo "${server_dir}"
 

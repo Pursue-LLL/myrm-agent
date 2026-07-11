@@ -4578,6 +4578,11 @@
       "hintSplitDev": "Backend OK: http://{host}:{port} (split_dev). API_PORT={proxyPort} in .env.local, dann http://localhost:3000",
       "hintStandalone": "Backend OK: http://{host}:{port} (standalone). API_PORT={proxyPort} in .env.local oder eingebettetes Frontend."
     },
+    "readinessDegraded": {
+      "title": "Einrichtungsprüfung läuft noch",
+      "description": "Sie können die App weiter nutzen, während der Konfigurationsstatus aktualisiert wird.",
+      "retry": "Erneut prüfen"
+    },
     "keyValueEditor": {
       "keyPlaceholder": "Key",
       "valuePlaceholder": "Value"

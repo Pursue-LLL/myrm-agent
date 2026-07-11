@@ -2,7 +2,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.core.infra.ingress import get_public_ingress_base_url
+from app.core.infra.ingress import get_public_ingress_base_url, invalidate_public_ingress_cache
+
+
+@pytest.fixture(autouse=True)
+def _clear_ingress_cache():
+    invalidate_public_ingress_cache()
+    yield
+    invalidate_public_ingress_cache()
 
 
 @pytest.fixture
@@ -51,3 +58,17 @@ async def test_get_public_ingress_base_url_empty(mock_settings, mock_load_person
     url = await get_public_ingress_base_url()
 
     assert url == ""
+
+
+@pytest.mark.asyncio
+async def test_get_public_ingress_base_url_uses_short_lived_cache(mock_settings, mock_load_personal_settings):
+    invalidate_public_ingress_cache()
+    mock_settings.cp_public_ingress_url = ""
+    mock_load_personal_settings.return_value = {"publicIngressBaseUrl": "https://cached.example.com"}
+
+    first = await get_public_ingress_base_url()
+    second = await get_public_ingress_base_url()
+
+    assert first == "https://cached.example.com"
+    assert second == "https://cached.example.com"
+    mock_load_personal_settings.assert_awaited_once_with("personalSettings")

@@ -12,6 +12,7 @@ export interface ReadinessResponse {
     suggestions?: string[];
   };
   onboarding_completed: boolean;
+  degraded?: boolean;
 }
 
 export async function getReadinessStatus(): Promise<ReadinessResponse> {

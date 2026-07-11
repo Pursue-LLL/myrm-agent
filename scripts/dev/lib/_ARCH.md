@@ -9,7 +9,7 @@
 | 文件 | 职责 |
 |------|------|
 | `frontend-warmup.sh` | Unix | Frontend `compile_hot` gate（连续快速 `GET /` + `dev-server.lock` 代数绑定） |
-| `backend_bg.sh` | Unix | 后台启动 `myrm-agent-server`（:8080）；写 `.myrm-dev-backend.pid` / `.myrm-dev-backend.log`；健康检查轮询；monorepo 下非 editable harness 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
+| `backend_bg.sh` | Unix | 后台启动 `myrm-agent-server`（:8080）；默认 `SQLITE_POOL_SIZE=15`；写 `.myrm-dev-backend.pid` / `.myrm-dev-backend.log`；健康检查轮询；monorepo 下非 editable harness 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
 
 ## 依赖
 

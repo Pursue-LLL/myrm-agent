@@ -168,6 +168,12 @@ class ConversationForkManager:
         else:
             new_title = new_title.strip()[:255]
 
+        # Resolve workspace for fork: if parent has active sandbox, reset to original repo root
+        # to prevent child from sharing parent's sandbox worktree (file conflict risk).
+        fork_workspace_dir = (
+            parent_chat.sandbox_base_dir if parent_chat.sandbox_base_dir else parent_chat.workspace_dir
+        )
+
         new_chat = Chat(
             id=new_chat_id,
             agent_id=parent_chat.agent_id,
@@ -176,8 +182,8 @@ class ConversationForkManager:
             channel_session_key=None,  # Fork creates independent conversation
             session_loaded_skill_names=parent_chat.session_loaded_skill_names,
             action_mode=parent_chat.action_mode,
-            workspace_dir=parent_chat.workspace_dir,
-            sandbox_base_dir=parent_chat.sandbox_base_dir,
+            workspace_dir=fork_workspace_dir,
+            sandbox_base_dir=None,
             project_id=parent_chat.project_id,
             is_incognito=parent_chat.is_incognito,
             compacted_summary=parent_chat.compacted_summary,

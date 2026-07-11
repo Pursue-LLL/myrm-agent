@@ -56,7 +56,10 @@ def invalidate_user_configs_cache() -> None:
     Call this when config_service.set() or config_service.delete() succeeds
     to ensure load_user_configs() returns fresh data.
     """
+    from app.core.infra.ingress import invalidate_public_ingress_cache
+
     _config_cache.pop("sandbox", None)
+    invalidate_public_ingress_cache()
 
 
 __all__ = [

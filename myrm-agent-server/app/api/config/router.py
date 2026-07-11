@@ -16,6 +16,7 @@
 - Sandbox 模式：由 `SANDBOX_API_KEY` 中间件注入的单租户身份
 """
 
+import asyncio
 import logging
 import time
 from typing import get_args
@@ -40,6 +41,8 @@ from app.schemas.config import (
 from app.services.config.service import VersionConflictError, config_service
 
 logger = logging.getLogger(__name__)
+
+_READINESS_DB_TIMEOUT_SEC = 2.5
 
 router = APIRouter()
 
@@ -141,7 +144,29 @@ async def get_config_readiness() -> dict[str, object]:
     from app.services.config.onboarding import check_onboarding_status
 
     try:
-        user_configs = await load_user_configs()
+        user_configs = await asyncio.wait_for(
+            load_user_configs(),
+            timeout=_READINESS_DB_TIMEOUT_SEC,
+        )
+    except TimeoutError:
+        logger.warning(
+            "Readiness config load timed out after %.1fs; returning degraded snapshot",
+            _READINESS_DB_TIMEOUT_SEC,
+        )
+        return {
+            "provider": {
+                "is_ready": False,
+                "missing_items": ["config_load_timeout"],
+                "suggestions": ["Backend is busy; retry shortly"],
+            },
+            "search": {
+                "is_ready": False,
+                "missing_items": ["config_load_timeout"],
+                "suggestions": ["Backend is busy; retry shortly"],
+            },
+            "onboarding_completed": True,
+            "degraded": True,
+        }
     except Exception as exc:
         logger.warning("Failed to load user configs for readiness check: %s", exc)
         return {
@@ -155,7 +180,8 @@ async def get_config_readiness() -> dict[str, object]:
                 "missing_items": ["config_load_failed"],
                 "suggestions": ["Please try again or contact support"],
             },
-            "onboarding_completed": False,
+            "onboarding_completed": True,
+            "degraded": True,
         }
 
     provider_checker = ProviderConfigChecker()
@@ -167,13 +193,34 @@ async def get_config_readiness() -> dict[str, object]:
     else:
         search_result = search_checker.check(None)
 
-    async with get_session() as db:
-        onboarding_completed = await check_onboarding_status(db, "sandbox")
+    onboarding_completed = True
+    degraded = False
+    try:
+
+        async def _load_onboarding_completed() -> bool:
+            async with get_session() as db:
+                return await check_onboarding_status(db, "sandbox")
+
+        onboarding_completed = await asyncio.wait_for(
+            _load_onboarding_completed(),
+            timeout=_READINESS_DB_TIMEOUT_SEC,
+        )
+    except TimeoutError:
+        logger.warning(
+            "Readiness onboarding check timed out after %.1fs; assuming completed to avoid shell stall",
+            _READINESS_DB_TIMEOUT_SEC,
+        )
+        onboarding_completed = True
+        degraded = True
+    except Exception as exc:
+        logger.warning("Readiness onboarding check failed: %s", exc)
+        degraded = True
 
     return {
         "provider": provider_result.to_dict(),
         "search": search_result.to_dict(),
         "onboarding_completed": onboarding_completed,
+        "degraded": degraded,
     }
 
 

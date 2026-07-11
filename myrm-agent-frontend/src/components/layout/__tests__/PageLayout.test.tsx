@@ -9,8 +9,16 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('../AppLayout', () => ({
   __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="app-layout">{children}</div>
+  default: ({
+    children,
+    configReadinessDegraded,
+  }: {
+    children: React.ReactNode;
+    configReadinessDegraded?: boolean;
+  }) => (
+    <div data-testid="app-layout" data-readiness-degraded={configReadinessDegraded ? '1' : '0'}>
+      {children}
+    </div>
   ),
 }));
 
@@ -18,6 +26,7 @@ vi.mock('@/services/onboarding', () => ({
   getReadinessStatus: vi.fn(() =>
     Promise.resolve({
       onboarding_completed: true,
+      degraded: false,
       provider: { is_ready: true, missing_items: [], suggestions: [] },
       search: { is_ready: true },
     }),
@@ -55,14 +64,17 @@ describe('PageLayout', () => {
     vi.clearAllMocks();
   });
 
-  it('renders AppShellSkeleton before client mount', () => {
-    mockShouldShowBootScreen.mockReturnValue(true);
+  it('enters AppLayout after hydration without waiting for readiness', async () => {
+    mockShouldShowBootScreen.mockReturnValue(false);
     render(
       <PageLayout>
         <span>child</span>
       </PageLayout>,
     );
-    expect(screen.getByTestId('app-shell-skeleton')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('app-layout')).toBeInTheDocument();
+    });
   });
 
   it('shows BootScreen on cold start and transitions to AppLayout', async () => {
@@ -100,6 +112,51 @@ describe('PageLayout', () => {
       expect(screen.getByTestId('app-layout')).toBeInTheDocument();
     });
     expect(screen.queryByTestId('boot-screen-mock')).not.toBeInTheDocument();
+  });
+
+  it('renders AppLayout immediately while readiness is still pending', async () => {
+    const { getReadinessStatus } = await import('@/services/onboarding');
+    vi.mocked(getReadinessStatus).mockImplementation(
+      () => new Promise(() => {
+        /* never resolves */
+      }),
+    );
+    mockShouldShowBootScreen.mockReturnValue(true);
+
+    render(
+      <PageLayout>
+        <span>child</span>
+      </PageLayout>,
+    );
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('app-layout')).toBeInTheDocument();
+      },
+      { timeout: 1_000 },
+    );
+    expect(screen.queryByTestId('boot-screen-mock')).not.toBeInTheDocument();
+  });
+
+  it('passes degraded readiness to AppLayout', async () => {
+    const { getReadinessStatus } = await import('@/services/onboarding');
+    vi.mocked(getReadinessStatus).mockResolvedValue({
+      onboarding_completed: true,
+      degraded: true,
+      provider: { is_ready: false, missing_items: ['config_load_timeout'], suggestions: [] },
+      search: { is_ready: false, missing_items: ['config_load_timeout'], suggestions: [] },
+    });
+    mockShouldShowBootScreen.mockReturnValue(false);
+
+    render(
+      <PageLayout>
+        <span>child</span>
+      </PageLayout>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('app-layout')).toHaveAttribute('data-readiness-degraded', '1');
+    });
   });
 
   it('renders standalone routes without AppLayout or boot screen', () => {

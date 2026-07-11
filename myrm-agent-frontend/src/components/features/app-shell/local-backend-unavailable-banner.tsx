@@ -6,6 +6,7 @@
  *
  * [OUTPUT]
  * - `LocalBackendUnavailableBanner`: local 模式主内容区顶部告警条
+ * - `ConfigReadinessDegradedBanner`: 配置 readiness 降级时的非阻塞告警条
  * - `isLocalBackendBannerDismissed` / `dismissLocalBackendBanner`: session dismiss SSOT
  *
  * [POS]
@@ -15,7 +16,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { checkBackendReadyOnce } from '@/lib/backend-health';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { resolveLocalBackendSetupHint } from '@/lib/local-backend-dev';
@@ -140,6 +141,65 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
       >
         <X className="h-4 w-4" />
       </button>
+    </div>
+  );
+}
+
+interface ConfigReadinessDegradedBannerProps {
+  visible: boolean;
+  onRetry?: () => void;
+  onDismiss?: () => void;
+  className?: string;
+}
+
+export function ConfigReadinessDegradedBanner({
+  visible,
+  onRetry,
+  onDismiss,
+  className,
+}: ConfigReadinessDegradedBannerProps) {
+  const t = useTranslations('common.readinessDegraded');
+  const tCommon = useTranslations('common');
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <div
+      data-testid="config-readiness-degraded-banner"
+      role="alert"
+      className={cn(
+        'mb-4 flex w-full items-start gap-3 rounded-lg border border-amber-500/30',
+        'bg-amber-500/10 px-4 py-3 text-[13px] leading-relaxed text-amber-800',
+        'dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-200',
+        className,
+      )}
+    >
+      <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden />
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="font-medium">{t('title')}</p>
+        <p className="text-amber-700/90 dark:text-amber-200/80">{t('description')}</p>
+        {onRetry ? (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-1 text-xs font-medium underline underline-offset-2 hover:no-underline"
+          >
+            {t('retry')}
+          </button>
+        ) : null}
+      </div>
+      {onDismiss ? (
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="flex-shrink-0 rounded p-1 text-amber-700/70 transition-colors hover:bg-amber-500/10 hover:text-amber-800 dark:text-amber-200/70"
+          aria-label={tCommon('close')}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      ) : null}
     </div>
   );
 }

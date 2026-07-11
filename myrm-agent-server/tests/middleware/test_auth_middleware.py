@@ -31,6 +31,18 @@ def auth_app(monkeypatch: pytest.MonkeyPatch) -> FastAPI:
 
 
 @pytest.mark.asyncio
+async def test_loopback_local_skips_ingress_db_lookup(auth_app: FastAPI) -> None:
+    from unittest.mock import AsyncMock, patch
+
+    with patch("app.middleware.auth.get_public_ingress_base_url", new_callable=AsyncMock) as mock_ingress:
+        transport = ASGITransport(app=auth_app)
+        async with AsyncClient(transport=transport, base_url="http://127.0.0.1") as client:
+            response = await client.get("/api/v1/protected")
+        assert response.status_code == 200
+        mock_ingress.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_loopback_allowed_local(auth_app: FastAPI) -> None:
     transport = ASGITransport(app=auth_app)
     async with AsyncClient(transport=transport, base_url="http://127.0.0.1") as client:

@@ -6,13 +6,31 @@ import AppLayout from './AppLayout';
 import { isStandalonePath } from '@/lib/marketing-paths';
 import { waitForBackendReady } from '@/lib/backend-health';
 import { isTauriEnvironment } from '@/lib/tauri';
-import { getReadinessStatus } from '@/services/onboarding';
+import { getReadinessStatus, type ReadinessResponse } from '@/services/onboarding';
 import { shouldShowBootScreen } from '../features/app-shell/boot-screen';
 import { useFocusedMode } from '@/hooks/useFocusedMode';
 import AppShellSkeleton from '../features/app-shell/AppShellSkeleton';
 
+const READINESS_GATE_TIMEOUT_MS = 3_000;
+
 const BootScreen = lazy(() => import('../features/app-shell/boot-screen'));
 const OnboardingWizard = lazy(() => import('../features/onboarding/OnboardingWizard'));
+
+async function resolveReadinessGate(): Promise<ReadinessResponse | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      getReadinessStatus(),
+      new Promise<null>((resolve) => {
+        timeoutId = setTimeout(() => resolve(null), READINESS_GATE_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -21,51 +39,55 @@ interface PageLayoutProps {
 /**
  * PageLayout - Client Component entry point
  *
- * Hydration 策略：
- * - SSR 阶段渲染 AppShellSkeleton
- * - 客户端挂载后：检查 onboarding_completed 状态
- * - 若未完成，展示 OnboardingWizard
- * - 若已完成，且为冷启动，展示 BootScreen
- * - 否则直接渲染 AppLayout
+ * Shell-first: AppLayout mounts immediately after hydration; readiness runs in the
+ * background. Onboarding and boot screens render as full-screen overlays.
  */
 const PageLayout = memo<PageLayoutProps>(({ children }) => {
   const pathname = usePathname();
   const isStandaloneRoute = isStandalonePath(pathname);
   const isFocusedMode = useFocusedMode();
   const [mounted, setMounted] = useState(false);
-  const [checkingReadiness, setCheckingReadiness] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showNormalBoot, setShowNormalBoot] = useState(false);
+  const [readinessDegraded, setReadinessDegraded] = useState(false);
+
+  const runReadinessGate = useCallback(async () => {
+    try {
+      if (isTauriEnvironment()) {
+        await waitForBackendReady();
+      }
+
+      const status = await resolveReadinessGate();
+      if (status?.degraded) {
+        setReadinessDegraded(true);
+      } else {
+        setReadinessDegraded(false);
+      }
+
+      if (status && !status.onboarding_completed) {
+        setNeedsOnboarding(true);
+        setShowNormalBoot(false);
+      } else if (status?.onboarding_completed && shouldShowBootScreen()) {
+        setShowNormalBoot(true);
+        setNeedsOnboarding(false);
+      }
+    } catch {
+      setReadinessDegraded(true);
+      if (shouldShowBootScreen()) {
+        setShowNormalBoot(true);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     setMounted(true);
 
     if (isStandaloneRoute || isFocusedMode) {
-      setCheckingReadiness(false);
       return;
     }
 
-    void (async () => {
-      try {
-        if (isTauriEnvironment()) {
-          await waitForBackendReady();
-        }
-
-        const status = await getReadinessStatus();
-        if (!status.onboarding_completed) {
-          setNeedsOnboarding(true);
-        } else if (shouldShowBootScreen()) {
-          setShowNormalBoot(true);
-        }
-      } catch {
-        if (shouldShowBootScreen()) {
-          setShowNormalBoot(true);
-        }
-      } finally {
-        setCheckingReadiness(false);
-      }
-    })();
-  }, [isStandaloneRoute, isFocusedMode]);
+    void runReadinessGate();
+  }, [isStandaloneRoute, isFocusedMode, runReadinessGate]);
 
   const handleOnboardingComplete = useCallback(() => {
     setNeedsOnboarding(false);
@@ -75,31 +97,40 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
     setShowNormalBoot(false);
   }, []);
 
+  const handleRetryReadiness = useCallback(() => {
+    void runReadinessGate();
+  }, [runReadinessGate]);
+
   if (isStandaloneRoute || isFocusedMode) {
     return <>{children}</>;
   }
 
-  if (!mounted || checkingReadiness) {
+  if (!mounted) {
     return <AppShellSkeleton />;
   }
 
-  if (needsOnboarding) {
-    return (
-      <Suspense fallback={<AppShellSkeleton />}>
-        <OnboardingWizard onComplete={handleOnboardingComplete} />
-      </Suspense>
-    );
-  }
+  return (
+    <>
+      <AppLayout
+        configReadinessDegraded={readinessDegraded}
+        onRetryConfigReadiness={handleRetryReadiness}
+      >
+        {children}
+      </AppLayout>
 
-  if (showNormalBoot) {
-    return (
-      <Suspense fallback={<AppShellSkeleton />}>
-        <BootScreen onComplete={handleBootComplete} />
-      </Suspense>
-    );
-  }
+      {needsOnboarding && (
+        <Suspense fallback={<AppShellSkeleton />}>
+          <OnboardingWizard onComplete={handleOnboardingComplete} />
+        </Suspense>
+      )}
 
-  return <AppLayout>{children}</AppLayout>;
+      {showNormalBoot && !needsOnboarding && (
+        <Suspense fallback={<AppShellSkeleton />}>
+          <BootScreen onComplete={handleBootComplete} />
+        </Suspense>
+      )}
+    </>
+  );
 });
 
 PageLayout.displayName = 'PageLayout';

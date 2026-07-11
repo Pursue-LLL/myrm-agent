@@ -25,7 +25,7 @@ FastAPI 全局 HTTP 中间件。提供文本清洗、认证和缓存控制。
 | `host_allowlist.py` | ✅ 核心 | WebUI 远程暴露时 Host 头 allowlist（DNS rebinding 防护） | ✅ |
 | `session_idle.py` | ✅ 核心 | 远程暴露路径滑动刷新 WebUI session cookie（30min idle） | ✅ |
 | `e2ee.py` | ✅ 核心 | mobile remote E2EE 请求解密（pair token / JSON body）；活跃请求 sliding refresh session TTL | ✅ |
-| `auth.py` | ✅ 核心 | HTTP 单租户认证；注入 admission_path/trust_zone/pair token/`pair_bound_chat_id` | ✅ |
+| `auth.py` | ✅ 核心 | HTTP 单租户认证；local loopback 跳过 ingress DB；注入 admission_path/trust_zone/pair token/`pair_bound_chat_id` | ✅ |
 | `ws_auth.py` | ✅ 核心 | WebSocket ASGI 握手鉴权，注入 `scope.state.user_id` 与 pair 绑定 | ✅ |
 | `auth_audit.py` | ✅ 核心 | Auth 审计 JSONL（`auth.py` 在非回环认证时写入） | ✅ |
 | `auth_alert.py` | ✅ 核心 | Auth 告警引擎（WebUI Remote / Sandbox） | ✅ |

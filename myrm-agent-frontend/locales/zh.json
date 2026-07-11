@@ -5347,6 +5347,11 @@
       "hintSplitDev": "后端已就绪 http://{host}:{port}。请运行 myrm start，或 bun run dev 后打开 http://localhost:3000（API_PORT={proxyPort}）",
       "hintStandalone": "后端已就绪 http://{host}:{port}。请运行 myrm start，或设置 .env.local 的 API_PORT={proxyPort}"
     },
+    "readinessDegraded": {
+      "title": "配置检查仍在同步",
+      "description": "你可以继续使用应用，配置状态会在后台刷新。",
+      "retry": "重新检查"
+    },
     "operationFailed": "操作失败"
   },
   "chat": {

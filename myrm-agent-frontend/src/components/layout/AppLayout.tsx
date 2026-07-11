@@ -21,7 +21,9 @@ import { useVisibilityThrottling } from '@/hooks/useVisibilityThrottling';
 import { useTrayEvents } from '@/hooks/useTrayEvents';
 
 import BudgetExceededDialog from '@/components/billing/BudgetExceededDialog';
-import LocalBackendUnavailableBanner from '@/components/features/app-shell/local-backend-unavailable-banner';
+import LocalBackendUnavailableBanner, {
+  ConfigReadinessDegradedBanner,
+} from '@/components/features/app-shell/local-backend-unavailable-banner';
 
 const CronPushPoller = lazy(() => import('@/components/features/cron/CronPushPoller'));
 
@@ -43,9 +45,15 @@ const NAVBAR_WIDTH = 60;
 
 interface AppLayoutProps {
   children: React.ReactNode;
+  configReadinessDegraded?: boolean;
+  onRetryConfigReadiness?: () => void;
 }
 
-function AppLayout({ children }: AppLayoutProps) {
+function AppLayout({
+  children,
+  configReadinessDegraded = false,
+  onRetryConfigReadiness,
+}: AppLayoutProps) {
   const { initAuth } = useAuthStore();
   const t = useTranslations();
   const pathname = usePathname();
@@ -75,6 +83,13 @@ function AppLayout({ children }: AppLayoutProps) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>();
   const [isNavButtonHidden, setIsNavButtonHidden] = useState(false);
+  const [dismissedReadinessDegraded, setDismissedReadinessDegraded] = useState(false);
+
+  useEffect(() => {
+    if (!configReadinessDegraded) {
+      setDismissedReadinessDegraded(false);
+    }
+  }, [configReadinessDegraded]);
   const [lastChatUrl, setLastChatUrl] = useState<string | null>(null);
   const [lastWorkUrl, setLastWorkUrl] = useState<string | null>(null);
   const [lastProjectsUrl, setLastProjectsUrl] = useState<string | null>(null);
@@ -371,6 +386,11 @@ function AppLayout({ children }: AppLayoutProps) {
       >
         <div className={cn(isSettingsPage ? 'h-full overflow-y-auto' : 'max-w-screen-lg mx-auto px-4 pt-4')}>
           <LocalBackendUnavailableBanner />
+          <ConfigReadinessDegradedBanner
+            visible={configReadinessDegraded && !dismissedReadinessDegraded}
+            onRetry={onRetryConfigReadiness}
+            onDismiss={() => setDismissedReadinessDegraded(true)}
+          />
           {children}
         </div>
       </main>

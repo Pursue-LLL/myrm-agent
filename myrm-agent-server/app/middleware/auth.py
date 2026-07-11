@@ -72,8 +72,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         client_ip = request.client.host if request.client else ""
         host_header = request.headers.get("host", "")
-        public_ingress_base_url = await get_public_ingress_base_url()
-        from app.config.deploy_mode import is_sandbox, is_webui_remote_mode
+        from app.config.deploy_mode import is_local_mode, is_sandbox, is_webui_remote_mode
+
+        if is_local_mode() and is_loopback_client(request):
+            public_ingress_base_url = ""
+        else:
+            public_ingress_base_url = await get_public_ingress_base_url()
 
         resolved_admission = resolve_admission_path(
             path=path,

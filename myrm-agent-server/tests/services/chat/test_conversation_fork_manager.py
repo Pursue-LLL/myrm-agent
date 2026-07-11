@@ -309,8 +309,9 @@ async def test_fork_inherits_full_metadata(db_session, test_user, monkeypatch) -
     child_chat = child_result.scalar_one()
 
     assert child_chat.action_mode == "deep_research"
-    assert child_chat.workspace_dir == "/projects/myapp"
-    assert child_chat.sandbox_base_dir == "/repos/myapp"
+    # When parent has sandbox_base_dir, child resets to original repo root
+    assert child_chat.workspace_dir == "/repos/myapp"
+    assert child_chat.sandbox_base_dir is None
     assert child_chat.project_id == "proj-123"
     assert child_chat.is_incognito is True
     assert child_chat.task_adaptive_digest == {"key": "value"}
@@ -513,6 +514,133 @@ async def test_get_last_message_index_multiple_messages(db_session, test_user):
 
     result = await ConversationForkManager.get_last_message_index(db_session, chat_id)
     assert result == 6
+
+
+@pytest.mark.asyncio
+async def test_fork_resets_sandbox_state_when_parent_has_active_sandbox(
+    db_session,
+    test_user,
+    monkeypatch,
+) -> None:
+    """Fork from parent with active sandbox resets child to original repo root.
+
+    Prevents child from sharing parent's sandbox worktree (file conflict risk).
+    """
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(
+        id=chat_id,
+        title="Coding Chat",
+        workspace_dir="/project/.sandboxes/sandbox-parentabcde",
+        sandbox_base_dir="/project",
+    )
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    for i in range(3):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_id,
+                role="user",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=2,
+    )
+
+    assert result.success
+    assert result.new_chat_id is not None
+
+    child_stmt = select(Chat).where(Chat.id == result.new_chat_id)
+    child_result = await db_session.execute(child_stmt)
+    child_chat = child_result.scalar_one()
+
+    assert child_chat.workspace_dir == "/project", (
+        "Child should use original repo root, not parent's sandbox worktree"
+    )
+    assert child_chat.sandbox_base_dir is None, (
+        "Child should have no active sandbox"
+    )
+
+
+@pytest.mark.asyncio
+async def test_fork_preserves_workspace_when_parent_has_no_sandbox(
+    db_session,
+    test_user,
+    monkeypatch,
+) -> None:
+    """Fork from parent without sandbox preserves workspace_dir normally."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(
+        id=chat_id,
+        title="Normal Coding Chat",
+        workspace_dir="/project/my-app",
+        sandbox_base_dir=None,
+    )
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    for i in range(3):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_id,
+                role="user",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=1,
+    )
+
+    assert result.success
+    assert result.new_chat_id is not None
+
+    child_stmt = select(Chat).where(Chat.id == result.new_chat_id)
+    child_result = await db_session.execute(child_stmt)
+    child_chat = child_result.scalar_one()
+
+    assert child_chat.workspace_dir == "/project/my-app", (
+        "Child should inherit workspace_dir when parent has no sandbox"
+    )
+    assert child_chat.sandbox_base_dir is None
 
 
 @pytest.fixture

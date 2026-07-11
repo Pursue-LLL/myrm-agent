@@ -4578,6 +4578,11 @@
       "hintSplitDev": "バックエンド OK: http://{host}:{port} (split_dev)。.env.local で API_PORT={proxyPort} → http://localhost:3000",
       "hintStandalone": "バックエンド OK: http://{host}:{port} (standalone)。API_PORT={proxyPort} または組み込みフロントエンド。"
     },
+    "readinessDegraded": {
+      "title": "設定チェックを同期中",
+      "description": "設定状態が更新される間もアプリを利用できます。",
+      "retry": "再チェック"
+    },
     "keyValueEditor": {
       "keyPlaceholder": "Key",
       "valuePlaceholder": "Value"
