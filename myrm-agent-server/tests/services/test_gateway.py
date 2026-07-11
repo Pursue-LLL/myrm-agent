@@ -75,6 +75,53 @@ class TestGatewayBasic:
         assert len(gw.get_active_sessions()) == 0
         assert gw.get_available_slots() == 3
 
+    @pytest.mark.asyncio
+    async def test_agent_id_propagated_in_active_sessions(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def long_stream():
+            await asyncio.sleep(0.5)
+            yield {"done": True}
+
+        async def run():
+            async for _ in gw.execute_stream(
+                long_stream(), agent_type="general", session_id="s-fleet", agent_id="agent-xyz"
+            ):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+
+        sessions = gw.get_active_sessions()
+        assert len(sessions) == 1
+        assert sessions[0]["agentId"] == "agent-xyz"
+        assert sessions[0]["chatId"] == "s-fleet"
+
+        await task
+
+    @pytest.mark.asyncio
+    async def test_agent_id_none_omitted_from_session_dict(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def long_stream():
+            await asyncio.sleep(0.3)
+            yield {"done": True}
+
+        async def run():
+            async for _ in gw.execute_stream(
+                long_stream(), agent_type="general", session_id="s-no-agent"
+            ):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+
+        sessions = gw.get_active_sessions()
+        assert len(sessions) == 1
+        assert "agentId" not in sessions[0]
+
+        await task
+
 
 class TestGatewayBusy:
     @pytest.mark.asyncio

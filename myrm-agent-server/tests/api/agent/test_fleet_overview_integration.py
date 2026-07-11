@@ -208,3 +208,71 @@ class TestFleetOverviewAPI:
         body = resp.json()["data"]
         assert "default" in body["agents"]
         assert body["agents"]["default"]["sessionCount"] == 2
+
+    @pytest.mark.asyncio
+    async def test_last_month_chats_excluded(self, client: TestClient, db_session: AsyncSession) -> None:
+        """Chats created before the current month must not appear in monthly aggregation."""
+        now = datetime.now(UTC)
+        last_month = now.replace(day=1) - timedelta(days=1)
+
+        db_session.add(Chat(
+            id=str(uuid.uuid4()),
+            agent_id=AGENT_A,
+            total_tokens=9999,
+            total_usd=0.1,
+            total_calls=1,
+            created_at=last_month,
+        ))
+        await _seed_chats(db_session, AGENT_A, count=1, tokens=100)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        stats = resp.json()["data"]["agents"][AGENT_A]
+        assert stats["sessionCount"] == 1
+        assert stats["monthTokens"] == 100
+
+    @pytest.mark.asyncio
+    async def test_soft_deleted_chats_excluded(self, client: TestClient, db_session: AsyncSession) -> None:
+        """Chats with deleted_at set must not appear in fleet stats."""
+        now = datetime.now(UTC)
+        db_session.add(Chat(
+            id=str(uuid.uuid4()),
+            agent_id=AGENT_A,
+            total_tokens=5000,
+            total_usd=0.05,
+            total_calls=1,
+            created_at=now - timedelta(hours=2),
+            deleted_at=now - timedelta(hours=1),
+        ))
+        await db_session.commit()
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        body = resp.json()["data"]
+        if AGENT_A in body["agents"]:
+            assert body["agents"][AGENT_A]["sessionCount"] == 0
+        assert body["kpi"]["monthTokens"] == 0
+
+    @pytest.mark.asyncio
+    async def test_cost_precision(self, client: TestClient, db_session: AsyncSession) -> None:
+        """monthCost should be rounded to 4 decimal places."""
+        await _seed_chats(db_session, AGENT_A, count=3, tokens=333)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        cost = resp.json()["data"]["agents"][AGENT_A]["monthCost"]
+        cost_str = str(cost)
+        if "." in cost_str:
+            decimals = len(cost_str.split(".")[1])
+            assert decimals <= 4
+
+    @pytest.mark.asyncio
+    async def test_response_structure_completeness(self, client: TestClient, db_session: AsyncSession) -> None:
+        """Every agent entry must have all 6 required fields."""
+        await _seed_chats(db_session, AGENT_A, count=1, tokens=50)
+        await _seed_cron_jobs(db_session, AGENT_B, active=1)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        agents = resp.json()["data"]["agents"]
+
+        required_keys = {"sessionCount", "monthTokens", "monthCost", "cronCount", "pendingApprovals", "status"}
+        for aid, stats in agents.items():
+            assert required_keys <= set(stats.keys()), f"Agent {aid} missing keys: {required_keys - set(stats.keys())}"
+            assert stats["status"] in ("idle", "busy")

@@ -5,6 +5,7 @@ set -euo pipefail
 
 UI_BASE="${E2E_UI_BASE:-http://127.0.0.1:3000}"
 API_BASE="${E2E_API_BASE:-http://127.0.0.1:8080}"
+MYRM_CHROME_E2E_ATTACH="${MYRM_CHROME_E2E_ATTACH:-0}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=myrm-chrome-e2e-lib.sh
@@ -93,14 +94,19 @@ if grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor/mcp.json" 2>/dev/null \
   MUX_USING=1
 fi
 
-_stop_mux_daemon() {
-  [[ -f "${MUX_PID_FILE}" ]] || return 0
-  local pid
-  pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
-  if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
-    kill "${pid}" 2>/dev/null || true
+_kill_all_mux_daemons() {
+  local pids
+  pids="$(pgrep -f 'cdmcp-mux-autoconnect\.mjs daemon' 2>/dev/null | tr '\n' ' ' || true)"
+  if [[ -n "${pids// }" ]]; then
+    # shellcheck disable=SC2086
+    kill ${pids} 2>/dev/null || true
     sleep 0.5
   fi
+  rm -f "${MUX_PID_FILE}"
+}
+
+_stop_mux_daemon() {
+  _kill_all_mux_daemons
 }
 
 MUX_WS_STAMP="${MUX_STATE_DIR}/upstream-ws-url"
@@ -157,6 +163,9 @@ _ensure_mux_upstream() {
   if _mux_ws_stamp_matches && _mux_upstream_ready; then
     return 0
   fi
+  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+    fail "mux not ready for parallel attach (upstreamReady or CDP ws drift) — first Agent must run: ./myrm ready --chrome"
+  fi
   if ! _mux_ws_stamp_matches; then
     echo "CHROME_E2E_WARN: Chrome CDP WebSocket drifted — mux must reconnect (common after Chrome/Cursor restart)" >&2
   else
@@ -205,7 +214,7 @@ _ensure_mux_daemon() {
   fail "cdmcp-mux daemon failed to start — run: node scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs daemon"
 }
 
-if [[ "${MUX_USING}" -eq 1 && "${chrome_just_started}" -eq 1 ]]; then
+if [[ "${MUX_USING}" -eq 1 && "${chrome_just_started}" -eq 1 && "${MYRM_CHROME_E2E_ATTACH}" != "1" ]]; then
   echo "CHROME_E2E_WARN: E2E Chrome freshly started — restarting mux daemon for new CDP endpoint" >&2
   _stop_mux_daemon
 fi
@@ -227,6 +236,22 @@ if [[ "${MUX_USING}" -eq 1 ]]; then
     fail "cdmcp-mux daemon pid ${mux_pid} not alive — Cmd+Q Cursor and reopen"
   fi
   _ensure_mux_upstream
+  mux_count="$(pgrep -f 'cdmcp-mux-autoconnect\.mjs daemon' 2>/dev/null | wc -l | tr -d ' ')"
+  if [[ "${mux_count}" != "1" ]]; then
+    if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+      fail "mux daemon count=${mux_count} during attach — first Agent: ./myrm ready --chrome (attach must not kill mux)"
+    fi
+    echo "CHROME_E2E_WARN: expected 1 mux daemon, found ${mux_count} — reconciling" >&2
+    _kill_all_mux_daemons
+    CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
+    MYRM_CHROME_E2E_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
+    MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" \
+      node "${MUX_BIN}" daemon >/dev/null 2>&1 &
+    sleep 1
+    _ensure_mux_upstream
+    mux_count="$(pgrep -f 'cdmcp-mux-autoconnect\.mjs daemon' 2>/dev/null | wc -l | tr -d ' ')"
+    [[ "${mux_count}" == "1" ]] || fail "mux daemon count=${mux_count} after reconcile — Cmd+Q Cursor, then: ./myrm ready --chrome"
+  fi
   ok "cdmcp-mux daemon pid=${mux_pid} (parallel Agent tabs OK)"
 else
   if [[ "${VANILLA_MCP_COUNT}" -gt 1 ]]; then
@@ -299,5 +324,23 @@ if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then
   done < <(pgrep -lf "chrome-devtools-mcp" 2>/dev/null || true)
 fi
 
+_print_e2e_health_json() {
+  local mux_count=0 upstream="false" ws_match="false" ui_hot="false"
+  mux_count="$(pgrep -f 'cdmcp-mux-autoconnect\.mjs daemon' 2>/dev/null | wc -l | tr -d ' ')"
+  if _mux_upstream_ready; then
+    upstream="true"
+  fi
+  if _mux_ws_stamp_matches; then
+    ws_match="true"
+  fi
+  if curl -sf --max-time 3 "${UI_BASE}/" >/dev/null 2>&1; then
+    ui_hot="true"
+  fi
+  printf 'CHROME_E2E_HEALTH_JSON={"ui":"%s","api":"%s","muxDaemons":%s,"upstreamReady":%s,"wsStampMatch":%s,"uiHot":%s,"attachMode":%s}\n' \
+    "${UI_BASE}" "${API_BASE}" "${mux_count}" "${upstream}" "${ws_match}" "${ui_hot}" \
+    "$([[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && echo true || echo false)"
+}
+
 echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=$raw_port profile=${MYRM_CHROME_E2E_DATA_DIR}"
+_print_e2e_health_json
 exit 0
