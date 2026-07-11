@@ -78,6 +78,7 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "tasks",
         "tts",
         "voice",
+        "web_push",
         "widget_storage",
         "workspace",
     }

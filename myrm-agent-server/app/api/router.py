@@ -51,6 +51,7 @@ from app.api.memory.router import router as memory_router
 from app.api.message_filter import router as message_filter_router
 from app.api.migration.discovery import router as migration_discovery_router
 from app.api.notifications.router import router as notifications_router
+from app.api.web_push.router import router as web_push_router
 from app.api.projects import router as project_router
 from app.api.risk.router import router as risk_router
 from app.api.security.allowlist import router as allowlist_router
@@ -94,6 +95,7 @@ api_router.include_router(workspace_router, prefix="/workspace", tags=["workspac
 # AI Agents
 
 api_router.include_router(notifications_router)
+api_router.include_router(web_push_router)
 api_router.include_router(general_agent.router, prefix="/agents", tags=["agents"])
 api_router.include_router(templates.router, prefix="/agents", tags=["agents"])
 api_router.include_router(suggestions.router, prefix="/agents", tags=["agents"])

@@ -11,6 +11,7 @@ import NavBar, { type NavTab } from './NavBar';
 import ContentSidebar from './ContentSidebar';
 import { PanelLeftOpen } from 'lucide-react';
 import { useTrayStatus } from '@/hooks/useTrayStatus';
+import { useTabBadge } from '@/hooks/useTabBadge';
 import { usePowerLock } from '@/hooks/usePowerLock';
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
 import { useResizableSidebar } from '@/hooks/useResizableSidebar';
@@ -81,6 +82,7 @@ function AppLayout({ children }: AppLayoutProps) {
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useTrayStatus();
+  useTabBadge();
   usePowerLock();
   useVisibilityThrottling();
   useTrayEvents();

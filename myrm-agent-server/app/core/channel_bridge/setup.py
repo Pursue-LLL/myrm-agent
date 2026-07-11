@@ -30,6 +30,7 @@ from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 from app.core.channel_bridge.kanban_command_handler import ChannelKanbanCommandHandler
 from app.core.channel_bridge.channel_factory import create_all_channels
 from app.core.notifications.dispatcher import NotificationDispatcher
+from app.core.web_push.dispatcher import WebPushDispatcher
 
 if TYPE_CHECKING:
     from app.channels.routing.command_defs import CommandDef
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 
 _notification_dispatcher: NotificationDispatcher | None = None
 _btw_notifier: BtwTaskNotifier | None = None
+_web_push_dispatcher: WebPushDispatcher | None = None
 _background_task_handler: ChannelBackgroundTaskHandler | None = None
 _kanban_command_handler: ChannelKanbanCommandHandler | None = None
 
@@ -80,9 +82,22 @@ async def start_channel_gateway() -> None:
     _btw_notifier = BtwTaskNotifier(bus)
     await _btw_notifier.start()
 
+    global _web_push_dispatcher  # noqa: PLW0603
+    _web_push_dispatcher = WebPushDispatcher(bus)
+    await _web_push_dispatcher.start()
+
 
 async def stop_channel_gateway() -> None:
     """Stop the Channel Gateway."""
+    global _web_push_dispatcher  # noqa: PLW0603
+    if _web_push_dispatcher:
+        try:
+            await _web_push_dispatcher.stop()
+        except Exception as exc:
+            logger.warning("Failed to stop web push dispatcher: %s", exc)
+        finally:
+            _web_push_dispatcher = None
+
     global _btw_notifier  # noqa: PLW0603
     if _btw_notifier:
         try:

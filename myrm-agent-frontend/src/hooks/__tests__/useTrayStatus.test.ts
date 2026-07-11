@@ -4,6 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 
 let mockIsTauri = false;
 let mockLoading = false;
+let mockLivenessState = 'idle';
 let mockBgTasks: { status: string }[] = [];
 
 vi.mock('@/lib/deploy-mode', () => ({
@@ -17,6 +18,14 @@ vi.mock('next-intl', () => ({
     }
     return key;
   },
+}));
+
+vi.mock('@/hooks/useLivenessState', () => ({
+  useLivenessState: () => ({
+    state: mockLivenessState,
+    activeCount: mockLivenessState === 'busy' ? 1 : 0,
+    tooltip: '',
+  }),
 }));
 
 const mockListBackgroundTasks = vi.fn(async () => mockBgTasks);
@@ -65,6 +74,7 @@ describe('useTrayStatus', () => {
   beforeEach(() => {
     mockIsTauri = false;
     mockLoading = false;
+    mockLivenessState = 'idle';
     mockBgTasks = [];
     mockInvoke.mockReset();
     mockSetProgressBar.mockReset().mockResolvedValue(undefined);
@@ -87,9 +97,9 @@ describe('useTrayStatus', () => {
     expect(mockListBackgroundTasks).not.toHaveBeenCalled();
   });
 
-  it('sets idle tray + None progress when not generating and no background jobs', async () => {
+  it('sets idle tray + None progress when liveness is idle and no background jobs', async () => {
     mockIsTauri = true;
-    mockLoading = false;
+    mockLivenessState = 'idle';
     mockBgTasks = [];
     const { useTrayStatus } = await import('../useTrayStatus');
     renderHook(() => useTrayStatus());
@@ -102,9 +112,9 @@ describe('useTrayStatus', () => {
     expect(mockSetProgressBar).toHaveBeenCalledWith({ status: 0 });
   });
 
-  it('sets busy tray + Indeterminate progress when generating', async () => {
+  it('sets busy tray + Indeterminate progress when liveness is busy', async () => {
     mockIsTauri = true;
-    mockLoading = true;
+    mockLivenessState = 'busy';
     const { useTrayStatus } = await import('../useTrayStatus');
     renderHook(() => useTrayStatus());
     await waitFor(() => {
@@ -116,9 +126,22 @@ describe('useTrayStatus', () => {
     expect(mockSetProgressBar).toHaveBeenCalledWith({ status: 2 });
   });
 
-  it('shows background running count in tray when chat is idle', async () => {
+  it('sets degraded tray when liveness is degraded', async () => {
     mockIsTauri = true;
-    mockLoading = false;
+    mockLivenessState = 'degraded';
+    const { useTrayStatus } = await import('../useTrayStatus');
+    renderHook(() => useTrayStatus());
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('set_tray_status', {
+        status: 'degraded',
+        tooltip: 'trayTooltipDegraded',
+      });
+    });
+  });
+
+  it('shows background running count in tray when liveness is idle', async () => {
+    mockIsTauri = true;
+    mockLivenessState = 'idle';
     mockBgTasks = [{ status: 'running' }, { status: 'running' }, { status: 'completed' }];
     const { useTrayStatus } = await import('../useTrayStatus');
     renderHook(() => useTrayStatus());

@@ -55,6 +55,7 @@ dependencies = [
   "websockets>=16.0",                   # WebSocket 通信 (11+ channels/voice)
   "aioboto3>=15.5.0",                   # AWS S3 异步客户端 (备份 + sandbox/storage)
   "tenacity>=9.1.4", # Vercel deploy retries (vercel_client.py)
+  "pywebpush>=2.0.1", # Web Push (VAPID) notifications (core/web_push/)
 ]
 
 [project.optional-dependencies]

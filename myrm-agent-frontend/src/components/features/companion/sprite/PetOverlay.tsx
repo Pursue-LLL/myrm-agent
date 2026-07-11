@@ -4,7 +4,7 @@
  * - SpriteRenderer (POS: React canvas wrapper for spritesheet rendering)
  * - tauriPetBridge (POS: Tauri IPC bridge for native pet overlay window)
  * - useCompanionStore (POS: Companion state with sprite config)
- * - useChatStore (POS: Chat state for loading detection)
+ * - useLivenessState (POS: Global agent liveness SSOT for loading detection)
  *
  * [OUTPUT]
  * - PetOverlay: Draggable floating sprite overlay with context menu
@@ -21,8 +21,8 @@ import { useCallback, useEffect, useRef, useState, memo } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils/classnameUtils';
-import useChatStore from '@/store/useChatStore';
 import useCompanionStore from '@/store/useCompanionStore';
+import { useLivenessState } from '@/hooks/useLivenessState';
 
 import { AnimRow, PetStateMachine, stepKeyToPetEvent } from './PetStateMachine';
 import { resolveAnimRow } from './petStateMapping';
@@ -102,7 +102,8 @@ const PetOverlay = memo(function PetOverlay() {
   const spriteConfig = useCompanionStore((s) => s.spriteConfig);
   const spriteEnabled = useCompanionStore((s) => s.spriteEnabled);
   const setSpriteEnabled = useCompanionStore((s) => s.setSpriteEnabled);
-  const loading = useChatStore((s) => s.loading);
+  const liveness = useLivenessState();
+  const loading = liveness.state === 'busy';
 
   const [petSize, setPetSize] = useState<PetSize>(getStoredSize);
   const [position, setPosition] = useState<PetPosition>(() => {

@@ -43,6 +43,7 @@ from .message_filter import (
     MessageFilterRule,
 )
 from .notification import SystemNotification
+from .web_push_subscription import WebPushSubscription
 from .project import Project
 from .security import (
     RiskHit,
@@ -138,6 +139,8 @@ __all__ = [
     "Milestone",
     # Notification
     "SystemNotification",
+    # Web Push
+    "WebPushSubscription",
     # Message Filter
     "MessageFilterConfig",
     "MessageFilterRule",

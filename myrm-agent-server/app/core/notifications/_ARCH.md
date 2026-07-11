@@ -17,12 +17,12 @@ and pushes human-readable notifications to user-configured IM channels
  pairing_store / approvals / health / budget / skills / channels / ...
        ↓ publish(AppEvent)
     ServerEventBus (fan-out)
-     ↓               ↓
-  SSE (Web)    NotificationDispatcher (IM)
-                      ↓ _format_message()
-               ChannelGateway.publish()
-                      ↓
-               WhatsApp / Telegram / Slack / Feishu / ...
+     ↓               ↓                       ↓
+  SSE (Web)    NotificationDispatcher (IM)    WebPushDispatcher (Web Push)
+                      ↓ _format_message()          ↓ pywebpush + VAPID
+               ChannelGateway.publish()       Push Service (FCM/APNS/Mozilla)
+                      ↓                            ↓
+               WhatsApp / Telegram / ...     Browser Service Worker → OS notification
 ```
 
 ### Supported Event Templates
@@ -75,3 +75,4 @@ Notification targets are stored in `personalSettings.notificationDeliveries` (ar
 New event types only need:
 1. Add to `AppEventType` enum in `event_bus.py`
 2. Add template to `_EVENT_TEMPLATES` in `dispatcher.py`
+3. (Optional) Add to `_PUSH_TEMPLATES` in `core/web_push/dispatcher.py` for offline push

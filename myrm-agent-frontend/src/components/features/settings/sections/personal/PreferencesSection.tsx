@@ -27,6 +27,7 @@ import LanguageSwitcher from '../../LanguageSwitcher';
 import ConfigToggleItem from '../../ConfigToggleItem';
 import SettingsSection from '../SettingsSection';
 import NotificationChannelEditor from '../integration/channels/NotificationChannelEditor';
+import WebPushCard from './WebPushCard';
 import { SchemaForm } from '../../SchemaForm';
 import { ConfigTimeMachine } from '../../ConfigTimeMachine';
 import { usePersonalSettings } from '@/hooks/usePersonalSettings';
@@ -281,6 +282,7 @@ const PreferencesSection = memo(() => {
             />
           </div>
           <NotificationChannelEditor />
+          <WebPushCard />
         </div>
       </SettingsSection>
 

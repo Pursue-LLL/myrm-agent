@@ -191,6 +191,11 @@ export function closeNotification(requestId: string): void {
   }
 }
 
+/** Whether the approval title flash is currently active. Used by tab badge to yield priority. */
+export function isTitleFlashing(): boolean {
+  return titleFlashTimer !== null;
+}
+
 /**
  * Clear all approval notifications (e.g. when all approvals are resolved or user focuses window).
  */

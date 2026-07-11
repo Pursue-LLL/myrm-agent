@@ -190,4 +190,8 @@ fn update_tray_status(app: &AppHandle, status: &str) {
         _ => "MyrmAgent",
     };
     let _ = tray.set_tooltip(Some(tooltip));
+
+    if let Ok(icon) = crate::tray::load_tray_icon_for_status(status) {
+        let _ = tray.set_icon(Some(icon));
+    }
 }

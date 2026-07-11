@@ -1,19 +1,20 @@
 /**
  * [INPUT]
+ * @/hooks/useLivenessState::useLivenessState (POS: Global agent liveness SSOT)
  * @/store/useChatStore::useChatStore (POS: Chat conversation state store)
  * @/lib/deploy-mode::isTauriRuntime (POS: Deployment mode detector)
  * @/services/background-tasks::listBackgroundTasks (POS: merged shell + agent tasks)
  * @/services/backgroundTasksRefresh::subscribeBackgroundTasksChanged
  *
  * [OUTPUT]
- * useTrayStatus: Synchronizes Tauri tray tooltip, taskbar progress bar,
- * and completion bounce notification with chat streaming and background jobs.
+ * useTrayStatus: Synchronizes Tauri tray icon, tooltip, taskbar progress bar,
+ * and completion bounce notification with global agent liveness state.
  *
  * [POS]
- * Desktop tray bridge hook. Mirrors chat generation state and in-process shell /
- * Kanban background running counts to the system tray and taskbar progress bar.
- * Fires user-attention when chat generation or a background job finishes while
- * the window is not focused. Inert in non-Tauri environments.
+ * Desktop tray bridge hook. Consumes the global liveness SSOT (busy/idle/degraded)
+ * from `/health/liveness` to drive tray icon switching and tooltip. Retains
+ * per-tab `isGenerating` for completion-bounce `requestUserAttention` only.
+ * Inert in non-Tauri environments.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -21,6 +22,9 @@ import { isTauriRuntime } from '@/lib/deploy-mode';
 import useChatStore from '@/store/useChatStore';
 import { listBackgroundTasks } from '@/services/background-tasks';
 import { subscribeBackgroundTasksChanged } from '@/services/backgroundTasksRefresh';
+import { useLivenessState } from '@/hooks/useLivenessState';
+
+import type { LivenessState } from '@/hooks/useLivenessState';
 
 type SystemNotificationDetail = {
   data?: {
@@ -32,8 +36,10 @@ type SystemNotificationDetail = {
 
 export function useTrayStatus() {
   const t = useTranslations('backgroundTasks');
+  const liveness = useLivenessState();
   const isGenerating = useChatStore((state) => state.loading);
   const prevGenerating = useRef(false);
+  const prevLivenessState = useRef<LivenessState>('idle');
   const [bgRunningCount, setBgRunningCount] = useState(0);
 
   const refreshBgRunningCount = useCallback(async () => {
@@ -90,24 +96,26 @@ export function useTrayStatus() {
           import('@tauri-apps/api/window'),
         ]);
 
-        const status = isGenerating ? 'busy' : 'idle';
-        const tooltip = isGenerating
+        const tooltip = liveness.state === 'busy'
           ? t('trayTooltipBusy')
-          : bgRunningCount > 0
-            ? t('trayTooltipBackground', { count: bgRunningCount })
-            : t('trayTooltipIdle');
+          : liveness.state === 'degraded'
+            ? t('trayTooltipDegraded')
+            : bgRunningCount > 0
+              ? t('trayTooltipBackground', { count: bgRunningCount })
+              : t('trayTooltipIdle');
 
-        await invoke('set_tray_status', { status, tooltip });
+        await invoke('set_tray_status', { status: liveness.state, tooltip });
 
         const win = getCurrentWindow();
-        const showProgress = isGenerating || bgRunningCount > 0;
+        const showProgress = liveness.state === 'busy' || bgRunningCount > 0;
 
         if (showProgress) {
           await win.setProgressBar({ status: ProgressBarStatus.Indeterminate });
         } else {
           await win.setProgressBar({ status: ProgressBarStatus.None });
 
-          if (prevGenerating.current && document.visibilityState === 'hidden') {
+          const wasBusy = prevLivenessState.current === 'busy' || prevGenerating.current;
+          if (wasBusy && document.visibilityState === 'hidden') {
             await win.requestUserAttention(2);
           }
         }
@@ -116,8 +124,9 @@ export function useTrayStatus() {
       }
 
       prevGenerating.current = isGenerating;
+      prevLivenessState.current = liveness.state;
     };
 
     void sync();
-  }, [isGenerating, bgRunningCount, t]);
+  }, [liveness.state, isGenerating, bgRunningCount, t]);
 }
