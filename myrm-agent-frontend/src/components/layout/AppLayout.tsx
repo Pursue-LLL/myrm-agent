@@ -379,6 +379,7 @@ function AppLayout({
 
       {/* 主内容区 */}
       <main
+        data-testid="app-layout"
         className={cn(
           'main-content-area bg-background',
           !isSidebarDragging && 'transition-all duration-300 ease-in-out',

@@ -7,6 +7,11 @@ FRONTEND_WARM_STREAK="${MYRM_FRONTEND_WARM_STREAK:-2}"
 FRONTEND_WARM_MAX_SEC="${MYRM_FRONTEND_WARM_MAX_SEC:-180}"
 FRONTEND_WARM_FAST_SEC="${MYRM_FRONTEND_WARM_FAST_SEC:-2}"
 
+_frontend_port_listening() {
+  local port="${FRONTEND_PORT:-3000}"
+  lsof -iTCP:"${port}" -sTCP:LISTEN -t >/dev/null 2>&1
+}
+
 _frontend_warmup_state_file() {
   echo "${STATE_DIR}/frontend-warmth.json"
 }
@@ -53,10 +58,14 @@ sys.exit(0)
 }
 
 _frontend_save_warmth() {
-  local state_file gen
+  local state_file gen client_hot_py
   state_file="$(_frontend_warmup_state_file)"
   gen="$(_frontend_lock_generation)"
   [[ -n "${gen}" ]] || return 0
+  client_hot_py="False"
+  if [[ "${1:-}" == "true" ]]; then
+    client_hot_py="True"
+  fi
   mkdir -p "${STATE_DIR}"
   python3 -c "
 import json, datetime
@@ -65,15 +74,184 @@ payload = {
     'generation': '${gen}',
     'warmed_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
     'url': '${APP_URL}/',
+    'client_hot': ${client_hot_py},
 }
+if ${client_hot_py}:
+    payload['client_warmed_at'] = payload['warmed_at']
 Path('${state_file}').write_text(json.dumps(payload, indent=2) + '\n')
 "
+}
+
+_frontend_save_client_warmth() {
+  local state_file gen
+  state_file="$(_frontend_warmup_state_file)"
+  gen="$(_frontend_lock_generation)"
+  [[ -n "${gen}" ]] || return 0
+  mkdir -p "${STATE_DIR}"
+  python3 -c "
+import json, datetime
+from pathlib import Path
+path = Path('${state_file}')
+data = {}
+if path.is_file():
+    data = json.loads(path.read_text())
+data['generation'] = '${gen}'
+data['client_hot'] = True
+data['client_warmed_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+if 'warmed_at' not in data:
+    data['warmed_at'] = data['client_warmed_at']
+    data['url'] = '${APP_URL}/'
+path.write_text(json.dumps(data, indent=2) + '\n')
+"
+}
+
+_frontend_client_warmth_recorded() {
+  local state_file gen
+  state_file="$(_frontend_warmup_state_file)"
+  gen="$(_frontend_lock_generation)"
+  [[ -n "${gen}" ]] || return 1
+  [[ -f "${state_file}" ]] || return 1
+  python3 -c "
+import json, sys
+from pathlib import Path
+state = Path('${state_file}')
+if not state.is_file():
+    sys.exit(1)
+data = json.loads(state.read_text())
+if data.get('generation') != '${gen}':
+    sys.exit(1)
+if data.get('client_hot') is not True:
+    sys.exit(1)
+sys.exit(0)
+" 2>/dev/null
+}
+
+_frontend_client_hot_status() {
+  if ! _frontend_port_listening; then
+    echo "down"
+    return 0
+  fi
+  if _frontend_client_warmth_recorded; then
+    echo "yes"
+    return 0
+  fi
+  echo "no"
+}
+
+_frontend_shell_hot_status() {
+  _frontend_compile_hot_status
+}
+
+_client_warmup_acquire_lock() {
+  local lockdir="${STATE_DIR}/client-warmup.lock.d"
+  local wait_sec="${MYRM_CLIENT_WARMUP_LOCK_SEC:-120}"
+  local i
+
+  if [[ -d "${lockdir}" ]]; then
+    local owner=""
+    if [[ -f "${lockdir}/pid" ]]; then
+      owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
+    fi
+    if [[ -z "${owner}" ]] || ! kill -0 "${owner}" 2>/dev/null; then
+      rm -f "${lockdir}/pid" 2>/dev/null || true
+      rmdir "${lockdir}" 2>/dev/null || true
+    fi
+  fi
+
+  for i in $(seq 1 "${wait_sec}"); do
+    if mkdir "${lockdir}" 2>/dev/null; then
+      echo "$$" >"${lockdir}/pid"
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+_client_warmup_release_lock() {
+  local lockdir="${STATE_DIR}/client-warmup.lock.d"
+  rm -f "${lockdir}/pid" 2>/dev/null || true
+  rmdir "${lockdir}" 2>/dev/null || true
+}
+
+_acquire_client_warmup_lock() {
+  _client_warmup_acquire_lock
+}
+
+_release_client_warmup_lock() {
+  _client_warmup_release_lock
+}
+
+_warmup_frontend_client() {
+  local lib_dir warmup_py cdp_port
+  lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  warmup_py="${lib_dir}/frontend-client-warmup.py"
+  cdp_port="${MYRM_CHROME_E2E_PORT:-9333}"
+  [[ -f "${warmup_py}" ]] || {
+    echo "STACK_FAIL: missing frontend-client-warmup.py at ${warmup_py}" >&2
+    return 1
+  }
+
+  if _frontend_client_warmth_recorded; then
+    echo "STACK_OK: frontend client_hot (cached warmth)"
+    return 0
+  fi
+
+  if ! _acquire_client_warmup_lock; then
+    echo "STACK_WAIT: client warmup lock busy — waiting for peer Agent..." >&2
+    local i
+    for i in $(seq 1 "${MYRM_CLIENT_WARMUP_LOCK_SEC:-120}"); do
+      if _frontend_client_warmth_recorded; then
+        echo "STACK_OK: frontend client_hot (peer warmed)"
+        return 0
+      fi
+      sleep 1
+    done
+    echo "STACK_FAIL: client_hot not reached while waiting for peer warmup" >&2
+    return 1
+  fi
+
+  trap '_release_client_warmup_lock' RETURN
+
+  if _frontend_client_warmth_recorded; then
+    echo "STACK_OK: frontend client_hot (cached after lock)"
+    return 0
+  fi
+
+  if [[ "${MYRM_CHROME_E2E_ATTACH:-0}" == "1" ]]; then
+    echo "STACK_WAIT: attach mode — waiting for client_hot from ready --chrome peer..." >&2
+    local i
+    for i in $(seq 1 "${MYRM_CLIENT_WARMUP_LOCK_SEC:-120}"); do
+      if _frontend_client_warmth_recorded; then
+        echo "STACK_OK: frontend client_hot (peer warmed via attach)"
+        return 0
+      fi
+      sleep 1
+    done
+    echo "STACK_FAIL: attach mode client_hot timeout — first Agent must run: ./myrm ready --chrome" >&2
+    return 1
+  fi
+
+  local py="${PREFLIGHT_PY:-python3}"
+  echo "STACK_WAIT: frontend client hydration via CDP (up to ${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-90}s)..." >&2
+  if ! "${py}" "${warmup_py}" \
+    --cdp-port "${cdp_port}" \
+    --url "${APP_URL}/" \
+    --timeout-sec "${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-90}"; then
+    echo "STACK_FAIL: frontend client_hot warmup failed — check E2E Chrome :${cdp_port}" >&2
+    return 1
+  fi
+
+  _frontend_save_client_warmth
+  echo "STACK_OK: frontend client_hot (CDP hydration)"
+  return 0
 }
 
 _frontend_clear_warmth() {
   local state_file
   state_file="$(_frontend_warmup_state_file)"
   rm -f "${state_file}" 2>/dev/null || true
+  _client_warmup_release_lock
 }
 
 _frontend_curl_seconds() {
@@ -103,7 +281,7 @@ _frontend_compile_hot_status() {
 
 _warmup_frontend_compile() {
   if _frontend_warmth_recorded; then
-    echo "STACK_OK: frontend compile_hot (cached warmth)"
+    echo "STACK_OK: frontend shell_hot (cached warmth)"
     return 0
   fi
 
@@ -122,7 +300,7 @@ _warmup_frontend_compile() {
         streak=$((streak + 1))
         if [[ "${streak}" -ge "${FRONTEND_WARM_STREAK}" ]]; then
           _frontend_save_warmth
-          echo "STACK_OK: frontend compile_hot (${timing}s x${FRONTEND_WARM_STREAK})"
+          echo "STACK_OK: frontend shell_hot (${timing}s x${FRONTEND_WARM_STREAK})"
           return 0
         fi
         echo "STACK_WAIT: frontend warm streak ${streak}/${FRONTEND_WARM_STREAK} (${timing}s)..." >&2
@@ -137,6 +315,6 @@ _warmup_frontend_compile() {
     sleep 1
   done
 
-  echo "STACK_FAIL: frontend compile_hot not reached within ${FRONTEND_WARM_MAX_SEC}s — check ${FRONTEND_LOG}" >&2
+  echo "STACK_FAIL: frontend shell_hot not reached within ${FRONTEND_WARM_MAX_SEC}s — check ${FRONTEND_LOG}" >&2
   return 1
 }

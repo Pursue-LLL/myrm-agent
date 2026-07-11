@@ -57,10 +57,11 @@ async def health_check() -> dict[str, object]:
         dict: 包含状态信息和功能特性的字典
     """
     from app.server.runtime_dev_info import get_runtime_dev_info
+    from app.server.stack_epoch import read_stack_epoch
     from app.server.status import system_status
 
     dev = get_runtime_dev_info()
-    return {
+    payload: dict[str, object] = {
         "status": "healthy",
         "message": "MyrmAgent backend is running",
         "dev_mode": dev["dev_mode"],
@@ -76,6 +77,10 @@ async def health_check() -> dict[str, object]:
             "database_degraded": system_status.database_degraded,
         },
     }
+    stack_epoch = read_stack_epoch()
+    if stack_epoch is not None:
+        payload["stack_epoch"] = stack_epoch
+    return payload
 
 
 @router.get("/ready")

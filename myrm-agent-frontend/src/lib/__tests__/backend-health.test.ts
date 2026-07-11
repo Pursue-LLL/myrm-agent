@@ -9,7 +9,7 @@ vi.mock('@/lib/deploy-mode', () => ({
 }));
 
 vi.mock('@/lib/local-backend-dev', () => ({
-  isBootSessionCompleted: vi.fn(() => false),
+  isBootProfileCompleted: vi.fn(() => false),
 }));
 
 vi.mock('@/lib/tauri', () => ({
@@ -161,9 +161,9 @@ describe('ensureLocalBackendReady', () => {
     });
   });
 
-  it('uses single probe when boot session is completed', async () => {
-    const { isBootSessionCompleted } = await import('@/lib/local-backend-dev');
-    vi.mocked(isBootSessionCompleted).mockReturnValue(true);
+  it('uses single probe when boot profile is completed', async () => {
+    const { isBootProfileCompleted } = await import('@/lib/local-backend-dev');
+    vi.mocked(isBootProfileCompleted).mockReturnValue(true);
     vi.mocked(isTauriEnvironment).mockReturnValue(true);
     vi.mocked(tauriBackend.checkHealth).mockResolvedValue(false);
 
@@ -175,8 +175,8 @@ describe('ensureLocalBackendReady', () => {
   });
 
   it('re-probes when previous gate result was false and backend recovers', async () => {
-    const { isBootSessionCompleted } = await import('@/lib/local-backend-dev');
-    vi.mocked(isBootSessionCompleted).mockReturnValue(true);
+    const { isBootProfileCompleted } = await import('@/lib/local-backend-dev');
+    vi.mocked(isBootProfileCompleted).mockReturnValue(true);
     vi.mocked(isTauriEnvironment).mockReturnValue(true);
     vi.mocked(tauriBackend.checkHealth)
       .mockResolvedValueOnce(false)
@@ -191,8 +191,8 @@ describe('ensureLocalBackendReady', () => {
   });
 
   it('re-probes after markLocalBackendUnreachable when gate had been healthy', async () => {
-    const { isBootSessionCompleted } = await import('@/lib/local-backend-dev');
-    vi.mocked(isBootSessionCompleted).mockReturnValue(true);
+    const { isBootProfileCompleted } = await import('@/lib/local-backend-dev');
+    vi.mocked(isBootProfileCompleted).mockReturnValue(true);
     vi.mocked(isTauriEnvironment).mockReturnValue(true);
     vi.mocked(tauriBackend.checkHealth)
       .mockResolvedValueOnce(true)

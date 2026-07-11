@@ -44,30 +44,30 @@ async function skipBootSequence(onComplete: ReturnType<typeof vi.fn>) {
 
 describe('shouldShowBootScreen', () => {
   beforeEach(() => {
-    sessionStorage.clear();
+    localStorage.clear();
   });
 
-  it('returns true when sessionStorage has no key', () => {
+  it('returns true when localStorage has no key', () => {
     expect(shouldShowBootScreen()).toBe(true);
   });
 
-  it('returns false when sessionStorage has the key', () => {
-    sessionStorage.setItem('myrm_boot_shown', '1');
+  it('returns false when localStorage has the key', () => {
+    localStorage.setItem('myrm_boot_shown', '1');
     expect(shouldShowBootScreen()).toBe(false);
   });
 });
 
 describe('markBootScreenShown', () => {
   beforeEach(() => {
-    sessionStorage.clear();
+    localStorage.clear();
   });
 
-  it('sets sessionStorage key', () => {
+  it('sets localStorage key', () => {
     markBootScreenShown();
-    expect(sessionStorage.getItem('myrm_boot_shown')).toBe('1');
+    expect(localStorage.getItem('myrm_boot_shown')).toBe('1');
   });
 
-  it('silently handles sessionStorage write failures', () => {
+  it('silently handles localStorage write failures', () => {
     const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('QuotaExceededError');
     });
@@ -80,7 +80,7 @@ describe('markBootScreenShown', () => {
 describe('BootScreen component', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    sessionStorage.clear();
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -192,11 +192,11 @@ describe('BootScreen component', () => {
     await skipBootSequence(onComplete);
   });
 
-  it('marks sessionStorage on complete', async () => {
+  it('marks localStorage on complete', async () => {
     const onComplete = vi.fn();
     render(<BootScreen onComplete={onComplete} />);
     await finishBootSequence(onComplete);
-    expect(sessionStorage.getItem('myrm_boot_shown')).toBe('1');
+    expect(localStorage.getItem('myrm_boot_shown')).toBe('1');
   });
 
   it('does not call onComplete twice on click then auto-finish', async () => {
@@ -231,7 +231,7 @@ describe('BootScreen component', () => {
       await vi.advanceTimersByTimeAsync(FADE_DURATION_MS);
     });
     expect(onComplete).toHaveBeenCalledTimes(1);
-    expect(sessionStorage.getItem('myrm_boot_shown')).toBe('1');
+    expect(localStorage.getItem('myrm_boot_shown')).toBe('1');
   });
 
   it('ignores non-Escape key presses', () => {

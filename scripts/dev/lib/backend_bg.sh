@@ -70,6 +70,15 @@ _start_backend_bg() {
     if kill -0 "${old_pid}" 2>/dev/null; then
       echo "Backend already running (pid ${old_pid})"
       _require_harness_editable_for_monorepo "${server_dir}"
+      local stack_epoch_lib
+      stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
+      if [[ -f "${stack_epoch_lib}" ]]; then
+        # shellcheck source=stack-epoch.sh
+        source "${stack_epoch_lib}"
+        if [[ ! -f "$(_stack_epoch_file)" ]]; then
+          _bump_stack_epoch "${old_pid}" "${server_dir}" >/dev/null || true
+        fi
+      fi
       return 0
     fi
     rm -f "${pid_file}"
@@ -90,15 +99,25 @@ _start_backend_bg() {
   export HOST="${HOST:-127.0.0.1}"
   export PORT="${PORT:-8080}"
   export SQLITE_POOL_SIZE="${SQLITE_POOL_SIZE:-15}"
+  export MYRM_STACK_EPOCH_FILE="${MYRM_STACK_EPOCH_FILE:-${HOME}/.local/state/myrm-dev/stack-epoch.json}"
 
   _require_harness_editable_for_monorepo "${server_dir}"
 
   cd "${server_dir}"
   nohup "${py}" run.py >>"${log_file}" 2>&1 &
-  echo $! >"${pid_file}"
+  local new_pid
+  new_pid=$!
+  echo "${new_pid}" >"${pid_file}"
 
   for _ in $(seq 1 45); do
     if curl -sf "${health_url}" >/dev/null 2>&1; then
+      local stack_epoch_lib
+      stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
+      if [[ -f "${stack_epoch_lib}" ]]; then
+        # shellcheck source=stack-epoch.sh
+        source "${stack_epoch_lib}"
+        _bump_stack_epoch "${new_pid}" "${server_dir}" >/dev/null || true
+      fi
       return 0
     fi
     sleep 1

@@ -1,5 +1,5 @@
 import { getDeployMode, isLocalMode } from '@/lib/deploy-mode';
-import { isBootSessionCompleted } from '@/lib/local-backend-dev';
+import { isBootProfileCompleted } from '@/lib/local-backend-dev';
 import { isTauriEnvironment, tauriBackend } from '@/lib/tauri';
 
 export type BackendDevMode = 'split_dev' | 'standalone_webui';
@@ -151,7 +151,7 @@ let localBackendReadyGate: Promise<boolean> | null = null;
 let cachedLocalBackendReady = true;
 
 function startLocalBackendReadyGate(): Promise<boolean> {
-  const gate = isBootSessionCompleted() ? checkBackendReadyOnce() : waitForBackendReady();
+  const gate = isBootProfileCompleted() ? checkBackendReadyOnce() : waitForBackendReady();
   return gate.then((ready) => {
     cachedLocalBackendReady = ready;
     return ready;

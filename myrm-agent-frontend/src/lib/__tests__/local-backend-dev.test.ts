@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   formatLocalBackendSetupHint,
-  isBootSessionCompleted,
+  isBootProfileCompleted,
   resolveBackendUnreachableMessage,
 } from '@/lib/local-backend-dev';
 
@@ -42,14 +42,14 @@ describe('resolveBackendUnreachableMessage', () => {
   });
 });
 
-describe('isBootSessionCompleted', () => {
-  it('returns false when boot session key is absent', () => {
-    sessionStorage.clear();
-    expect(isBootSessionCompleted()).toBe(false);
+describe('isBootProfileCompleted', () => {
+  it('returns false when boot profile key is absent', () => {
+    localStorage.clear();
+    expect(isBootProfileCompleted()).toBe(false);
   });
 
-  it('returns true when boot session key is set', () => {
-    sessionStorage.setItem('myrm_boot_shown', '1');
-    expect(isBootSessionCompleted()).toBe(true);
+  it('returns true when boot profile key is set', () => {
+    localStorage.setItem('myrm_boot_shown', '1');
+    expect(isBootProfileCompleted()).toBe(true);
   });
 });

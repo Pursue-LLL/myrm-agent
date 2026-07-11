@@ -15,6 +15,8 @@ source "${REPO_ROOT}/scripts/lib/resolve_agent_root.sh"
 source "${SCRIPT_DIR}/lib/backend_bg.sh"
 # shellcheck source=lib/frontend-warmup.sh
 source "${SCRIPT_DIR}/lib/frontend-warmup.sh"
+# shellcheck source=lib/stack-epoch.sh
+source "${SCRIPT_DIR}/lib/stack-epoch.sh"
 resolve_agent_paths "${REPO_ROOT}"
 
 STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
@@ -234,10 +236,10 @@ _ensure_backend() {
 
 cmd_attach() {
   if _wait_stack_warm "${ATTACH_WAIT_SEC}"; then
-    echo "STACK_ATTACH_OK api=:8080 ui=:3000 compile_hot=yes"
+    echo "STACK_ATTACH_OK api=:8080 ui=:3000 shell_hot=yes"
     exit 0
   fi
-  echo "STACK_ATTACH_TIMEOUT: stack not compile_hot within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+  echo "STACK_ATTACH_TIMEOUT: stack not shell_hot within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
   exit 1
 }
 
@@ -249,7 +251,7 @@ cmd_ensure() {
   trap '_release_dir_lock "${_lock_dir}"' EXIT
 
   if _stack_warm; then
-    echo "STACK_ENSURE_OK: already compile_hot api=:8080 ui=:3000"
+    echo "STACK_ENSURE_OK: already shell_hot api=:8080 ui=:3000"
     exit 0
   fi
 
@@ -262,10 +264,10 @@ cmd_ensure() {
   fi
 
   if _warmup_frontend_compile; then
-    echo "STACK_ENSURE_OK: api=:8080 ui=:3000 compile_hot=yes"
+    echo "STACK_ENSURE_OK: api=:8080 ui=:3000 shell_hot=yes"
     exit 0
   fi
-  echo "STACK_FAIL: stack not compile_hot after ensure" >&2
+  echo "STACK_FAIL: stack not shell_hot after ensure" >&2
   exit 1
 }
 
@@ -278,6 +280,7 @@ cmd_reset() {
   fi
   rm -f "${FRONTEND_LOCK}"
   _frontend_clear_warmth
+  _clear_stack_epoch
 
   local port="${PORT:-8080}"
   if [[ -f "${SERVER_DIR}/.myrm-dev-backend.pid" ]]; then
@@ -317,17 +320,20 @@ cmd_reset() {
     fi
   fi
 
+  _clear_stack_epoch
+
   echo "STACK_RESET_OK"
 }
 
 cmd_status() {
-  local api="down" fe="down" lock="missing" compile_hot="down"
+  local api="down" fe="down" lock="missing" shell_hot="down" stack_epoch=""
   _api_healthy 3 && api="up"
   _frontend_healthy 5 && fe="up"
-  compile_hot="$(_frontend_compile_hot_status)"
+  shell_hot="$(_frontend_compile_hot_status)"
+  stack_epoch="$(_read_stack_epoch 2>/dev/null || true)"
   _lock_supervisor_alive && lock="alive"
   [[ -f "${FRONTEND_LOCK}" ]] && [[ "${lock}" == "missing" ]] && lock="stale"
-  echo "stack_status api=${api} frontend=${fe} compile_hot=${compile_hot} dev_lock=${lock}"
+  echo "stack_status api=${api} frontend=${fe} shell_hot=${shell_hot} client_hot=$(_frontend_client_hot_status) stack_epoch=${stack_epoch:-none} dev_lock=${lock}"
 }
 
 acquire_api_e2e_lock() {

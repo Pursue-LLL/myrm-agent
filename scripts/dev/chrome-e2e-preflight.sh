@@ -6,6 +6,7 @@ set -euo pipefail
 UI_BASE="${E2E_UI_BASE:-http://127.0.0.1:3000}"
 API_BASE="${E2E_API_BASE:-http://127.0.0.1:8080}"
 MYRM_CHROME_E2E_ATTACH="${MYRM_CHROME_E2E_ATTACH:-0}"
+export MYRM_CHROME_E2E_ATTACH
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=myrm-chrome-e2e-lib.sh
@@ -13,6 +14,16 @@ source "${SCRIPT_DIR}/myrm-chrome-e2e-lib.sh"
 
 AGENT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 MONOREPO_ROOT="$(cd "${AGENT_ROOT}/.." && pwd)"
+STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+FRONTEND_DIR="${AGENT_ROOT}/myrm-agent-frontend"
+FRONTEND_LOCK="${FRONTEND_DIR}/.next/dev-server.lock"
+FRONTEND_LOG="${FRONTEND_DIR}/.myrm-dev-frontend.log"
+APP_URL="${UI_BASE}"
+FRONTEND_PORT=3000
+# shellcheck source=lib/frontend-warmup.sh
+source "${SCRIPT_DIR}/lib/frontend-warmup.sh"
+# shellcheck source=lib/stack-epoch.sh
+source "${SCRIPT_DIR}/lib/stack-epoch.sh"
 MUX_BIN="${MONOREPO_ROOT}/scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs"
 ENSURE_CHROME="${SCRIPT_DIR}/ensure-myrm-chrome-e2e.sh"
 SERVER_DIR="${AGENT_ROOT}/myrm-agent-server"
@@ -32,6 +43,22 @@ fail() {
 
 ok() {
   echo "CHROME_E2E_OK: $*"
+}
+
+_ensure_stack_epoch_file() {
+  local epoch_file backend_pid
+  epoch_file="$(_stack_epoch_file)"
+  if [[ -f "${epoch_file}" ]]; then
+    return 0
+  fi
+  if ! curl -sf --max-time 5 "${API_BASE}/api/v1/health" >/dev/null 2>&1; then
+    return 0
+  fi
+  backend_pid=""
+  if [[ -f "${SERVER_DIR}/.myrm-dev-backend.pid" ]]; then
+    backend_pid="$(tr -d '[:space:]' <"${SERVER_DIR}/.myrm-dev-backend.pid")"
+  fi
+  _bump_stack_epoch "${backend_pid}" "${SERVER_DIR}" >/dev/null || true
 }
 
 # 1. Dev servers (Next.js cold compile can exceed 3s)
@@ -311,7 +338,13 @@ asyncio.run(main())
 PY
 ok "CDP WebSocket ${ws_uri}"
 
-# 6. Stale chrome-devtools-mcp from old Cursor sessions
+# 7. Client hydration warmup (Turbopack chunk graph — not covered by curl shell_hot)
+if ! _warmup_frontend_client; then
+  fail "frontend client_hot warmup failed — see STACK_FAIL above"
+fi
+ok "frontend client_hot"
+
+# 8. Stale chrome-devtools-mcp from old Cursor sessions
 if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then
   while read -r line; do
     pid=$(echo "$line" | awk '{print $1}')
@@ -325,7 +358,7 @@ if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then
 fi
 
 _print_e2e_health_json() {
-  local mux_count=0 upstream="false" ws_match="false" ui_hot="false"
+  local mux_count=0 upstream="false" ws_match="false" shell_hot="false" client_hot="false" stack_epoch=""
   mux_count="$(pgrep -f 'cdmcp-mux-autoconnect\.mjs daemon' 2>/dev/null | wc -l | tr -d ' ')"
   if _mux_upstream_ready; then
     upstream="true"
@@ -333,14 +366,35 @@ _print_e2e_health_json() {
   if _mux_ws_stamp_matches; then
     ws_match="true"
   fi
-  if curl -sf --max-time 3 "${UI_BASE}/" >/dev/null 2>&1; then
-    ui_hot="true"
+  if [[ "$(_frontend_shell_hot_status)" == "yes" ]]; then
+    shell_hot="true"
   fi
-  printf 'CHROME_E2E_HEALTH_JSON={"ui":"%s","api":"%s","muxDaemons":%s,"upstreamReady":%s,"wsStampMatch":%s,"uiHot":%s,"attachMode":%s}\n' \
-    "${UI_BASE}" "${API_BASE}" "${mux_count}" "${upstream}" "${ws_match}" "${ui_hot}" \
+  if [[ "$(_frontend_client_hot_status)" == "yes" ]]; then
+    client_hot="true"
+  fi
+  stack_epoch="$(_read_stack_epoch 2>/dev/null || true)"
+  if [[ -z "${stack_epoch}" ]]; then
+    stack_epoch="$("${PREFLIGHT_PY}" -c "
+import json, urllib.request
+try:
+    data = json.load(urllib.request.urlopen('${API_BASE}/api/v1/health', timeout=5))
+    epoch = data.get('stack_epoch', {})
+    print(epoch.get('epoch', ''))
+except Exception:
+    print('')
+" 2>/dev/null || true)"
+  fi
+  local stack_epoch_json="null"
+  if [[ -n "${stack_epoch}" ]]; then
+    stack_epoch_json="${stack_epoch}"
+  fi
+  printf 'CHROME_E2E_HEALTH_JSON={"ui":"%s","api":"%s","muxDaemons":%s,"upstreamReady":%s,"wsStampMatch":%s,"shellHot":%s,"clientHot":%s,"stackEpoch":%s,"attachMode":%s}\n' \
+    "${UI_BASE}" "${API_BASE}" "${mux_count}" "${upstream}" "${ws_match}" "${shell_hot}" "${client_hot}" \
+    "${stack_epoch_json}" \
     "$([[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && echo true || echo false)"
 }
 
 echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=$raw_port profile=${MYRM_CHROME_E2E_DATA_DIR}"
+_ensure_stack_epoch_file
 _print_e2e_health_json
 exit 0

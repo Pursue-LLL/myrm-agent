@@ -4,7 +4,7 @@
  * - `#locales/en.json` / `zh.json` (`common.configLoadError` — api 层 SSOT；de/ja/ko 回退 en，Banner 仍走 next-intl 全语言）
  *
  * [OUTPUT]
- * - `BOOT_SCREEN_STORAGE_KEY` / `isBootSessionCompleted`: Boot session SSOT
+ * - `BOOT_SCREEN_STORAGE_KEY` / `isBootProfileCompleted`: Boot profile SSOT (localStorage)
  * - `formatLocalBackendSetupHint` / `resolveLocalBackendSetupHint`: health-aware local setup hints
  * - `BACKEND_UNREACHABLE_CODE` / `resolveBackendUnreachableMessage`: api 层不可达错误指引（无 next-intl hook）
  *
@@ -31,13 +31,13 @@ const LOCALE_HINTS: Record<string, ConfigLoadErrorMessages> = {
   zh: zhMessages.common.configLoadError,
 };
 
-export function isBootSessionCompleted(): boolean {
+export function isBootProfileCompleted(): boolean {
   if (typeof window === 'undefined') {
     return false;
   }
 
   try {
-    return sessionStorage.getItem(BOOT_SCREEN_STORAGE_KEY) === '1';
+    return localStorage.getItem(BOOT_SCREEN_STORAGE_KEY) === '1';
   } catch {
     return false;
   }

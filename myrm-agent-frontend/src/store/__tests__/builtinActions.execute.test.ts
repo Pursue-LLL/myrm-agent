@@ -13,6 +13,9 @@ vi.mock('@/store/useChatStore', () => ({
     getState: () => ({
       chatId: 'test-chat-123',
       stopMessage: stopMessageMock,
+      messages: [],
+      loading: false,
+      loadMessages: vi.fn(),
     }),
   },
 }));
