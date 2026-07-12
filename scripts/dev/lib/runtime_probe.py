@@ -35,7 +35,7 @@ def _default_frontend_dir() -> Path | None:
     if override:
         return Path(override)
     lib_dir = Path(__file__).resolve().parent
-    candidate = lib_dir.parent.parent / "myrm-agent-frontend"
+    candidate = lib_dir.parent.parent.parent / "myrm-agent-frontend"
     if candidate.is_dir():
         return candidate
     return None
