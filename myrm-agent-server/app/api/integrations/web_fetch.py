@@ -40,15 +40,16 @@ class WebFetchEscalationVerifyRequest(BaseModel):
         default=False,
         description="When true for Firecrawl, resolve API key from enabled searchServices entry",
     )
+    api_base: str | None = Field(None, description="Custom Firecrawl API base URL for self-hosted instances")
     test_url: str | None = Field(None, description="URL to fetch for verification")
 
 
-async def _resolve_firecrawl_verify_key(api_key: str | None, inherit_from_search: bool) -> str:
+async def _resolve_firecrawl_verify_key(api_key: str | None, inherit_from_search: bool) -> str | None:
     explicit = (api_key or "").strip()
     if explicit:
         return explicit
     if not inherit_from_search:
-        raise validation_error("API key is required for Firecrawl verification")
+        return None
     from app.schemas.config import SearchServicesConfigValue, WebFetchEscalationConfigValue
     from app.services.config.service import config_service
     from app.services.web_fetch.escalation.registry import resolve_firecrawl_api_key
@@ -63,12 +64,7 @@ async def _resolve_firecrawl_verify_key(api_key: str | None, inherit_from_search
     search_record = await config_service.get("searchServices")
     if search_record:
         search_services = SearchServicesConfigValue.model_validate(search_record.value)
-    resolved = resolve_firecrawl_api_key(escalation_cfg, search_services)
-    if not resolved:
-        raise validation_error(
-            "No Firecrawl API key found. Enable a Firecrawl search service or enter a dedicated key."
-        )
-    return resolved
+    return resolve_firecrawl_api_key(escalation_cfg, search_services)
 
 
 class WebFetchEscalationVerifyData(BaseModel):
@@ -94,7 +90,8 @@ async def verify_web_fetch_escalation(request: WebFetchEscalationVerifyRequest) 
                 request.api_key,
                 request.inherit_from_search,
             )
-            provider = FirecrawlEscalationProvider(firecrawl_key)
+            firecrawl_base = (request.api_base or "").strip() or None
+            provider = FirecrawlEscalationProvider(api_key=firecrawl_key, api_base=firecrawl_base)
 
         result = await provider.fetch_url(test_url, max_chars=4000)
         if result is None or not result.content.strip():

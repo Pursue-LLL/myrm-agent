@@ -3338,6 +3338,22 @@
         }
       }
     },
+    "push": {
+      "title": "通知",
+      "label": "推送通知",
+      "description": "关闭浏览器后仍可收到通知（审批请求、任务完成、系统告警）",
+      "test": "测试",
+      "deniedHint": "通知权限被拒绝。请在浏览器设置中开启通知权限。"
+    },
+    "pushStatus": {
+      "enabled": "已开启",
+      "disabled": "已关闭",
+      "denied": "被浏览器阻止",
+      "unsupported": "不支持"
+    },
+    "pushEnabled": "推送通知已开启",
+    "pushDisabled": "推送通知已关闭",
+    "pushTestSent": "测试通知已发送",
     "browserPool": {
       "title": "浏览器连接",
       "description": "AI 助手连接浏览器进行网页自动化的方式",
@@ -3393,9 +3409,12 @@
       "jinaApiKey": "Jina Reader API Key（可选）",
       "jinaApiKeyPlaceholder": "留空使用免费档（约 20 RPM）",
       "jinaApiKeyHint": "可选付费 Key（jina.ai）。无 Key 时仍可使用免费档。",
+      "firecrawlKeylessHint": "无需 API Key 即可使用（免费额度）。添加 Key 可获得更高配额。",
       "firecrawlInherit": "复用搜索服务中的 Firecrawl Key",
       "firecrawlApiKey": "独立 Firecrawl API Key",
       "firecrawlApiKeyPlaceholder": "fc-XXXXXXXX",
+      "firecrawlApiBase": "自定义 API 地址",
+      "firecrawlApiBaseHint": "用于自部署 Firecrawl 实例。留空则使用默认云服务。",
       "sessionCap": "会话次数上限",
       "sessionCapHint": "每个 Agent 会话最多 L4 远程抓取次数（1–50）。",
       "verifyJina": "测试 Jina",

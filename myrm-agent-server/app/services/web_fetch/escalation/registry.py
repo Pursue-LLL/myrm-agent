@@ -115,10 +115,10 @@ async def build_escalation_providers(session_id: str) -> list[FetchEscalationPro
     )
 
     firecrawl_key = resolve_firecrawl_api_key(cfg, search_services)
-    if firecrawl_key:
-        firecrawl = FirecrawlEscalationProvider(firecrawl_key)
-        providers.append(
-            SessionCappedEscalationProvider(firecrawl, session_id=session_id, session_cap=cfg.session_cap)
-        )
+    firecrawl_api_base = (cfg.firecrawl.api_base or "").strip() or None
+    firecrawl = FirecrawlEscalationProvider(api_key=firecrawl_key, api_base=firecrawl_api_base)
+    providers.append(
+        SessionCappedEscalationProvider(firecrawl, session_id=session_id, session_cap=cfg.session_cap)
+    )
 
     return providers

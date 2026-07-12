@@ -113,15 +113,17 @@ class TestWebFetchEscalationVerifyIntegration:
         )
         assert response.status_code in (400, 502), response.text
 
-    def test_firecrawl_verify_without_key_returns_validation_error(self, client: TestClient) -> None:
+    def test_firecrawl_verify_without_key_uses_keyless(self, client: TestClient) -> None:
+        """Firecrawl v2 keyless: no API key → free tier attempt (200 or 502 on rate limit)."""
         response = client.post(
             "/api/v1/integrations/web-fetch/verify",
             json={"provider": "firecrawl", "inherit_from_search": False},
         )
-        assert response.status_code == 400, response.text
-        detail = response.json().get("detail", {})
-        message = detail.get("message", "") if isinstance(detail, dict) else str(detail)
-        assert "API key" in message or "key" in message.lower()
+        assert response.status_code in (200, 502), response.text
+        if response.status_code == 200:
+            data = response.json().get("data") or {}
+            assert data.get("provider") == "firecrawl"
+            assert int(data.get("content_length", 0)) > 0
 
 
 @pytest.mark.integration
@@ -231,7 +233,7 @@ class TestWebFetchEscalationLiveServerIntegration:
         except httpx.HTTPError as exc:
             pytest.skip(f":8080 not reachable: {exc}")
 
-        assert response.status_code == 400, response.text
+        assert response.status_code in (200, 400, 502), response.text
 
 
 @pytest.mark.integration

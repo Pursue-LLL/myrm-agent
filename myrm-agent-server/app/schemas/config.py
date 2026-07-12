@@ -271,6 +271,11 @@ class WebFetchFirecrawlConfig(BaseModel):
         description="Dedicated Firecrawl API key override",
         json_schema_extra={"ui:widget": "password"},
     )
+    api_base: str | None = Field(
+        None,
+        alias="apiBase",
+        description="Custom Firecrawl API base URL for self-hosted instances",
+    )
 
     class Config:
         populate_by_name = True

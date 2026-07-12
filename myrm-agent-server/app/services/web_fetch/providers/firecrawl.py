@@ -1,14 +1,14 @@
-"""Firecrawl scrape remote fetch provider.
+"""Firecrawl v2 scrape remote fetch provider.
 
 [INPUT]
 - myrm_agent_harness.toolkits.web_fetch.escalation.protocols::EscalationFetchResult (POS: Fetch result type)
 - myrm_agent_harness.core.security.guards.ssrf::async_validate_url_for_ssrf (POS: SSRF guard)
 
 [OUTPUT]
-- FirecrawlEscalationProvider: Fetch via Firecrawl scrape API (requires API key).
+- FirecrawlEscalationProvider: Fetch via Firecrawl v2 scrape API (keyless free tier or API key).
 
 [POS]
-Firecrawl scrape remote fetch provider implementing FetchEscalationProvider protocol.
+Firecrawl v2 scrape remote fetch provider implementing FetchEscalationProvider protocol.
 """
 
 from __future__ import annotations
@@ -21,20 +21,19 @@ from myrm_agent_harness.toolkits.web_fetch.escalation.protocols import Escalatio
 
 logger = logging.getLogger(__name__)
 
-_FIRECRAWL_SCRAPE_URL = "https://api.firecrawl.dev/v1/scrape"
+_DEFAULT_API_BASE = "https://api.firecrawl.dev"
 _DEFAULT_TIMEOUT = httpx.Timeout(90.0, connect=15.0)
 
 
 class FirecrawlEscalationProvider:
-    """Fetch via Firecrawl scrape API (requires API key)."""
+    """Fetch via Firecrawl v2 scrape API (keyless free tier or API key)."""
 
     provider_id = "firecrawl"
 
-    def __init__(self, api_key: str) -> None:
-        key = api_key.strip()
-        if not key:
-            raise ValueError("Firecrawl API key is required")
-        self._api_key = key
+    def __init__(self, api_key: str | None = None, *, api_base: str | None = None) -> None:
+        self._api_key = (api_key or "").strip() or None
+        base = (api_base or "").strip().rstrip("/") or _DEFAULT_API_BASE
+        self._scrape_url = f"{base}/v2/scrape"
 
     async def fetch_url(self, url: str, *, max_chars: int = 0) -> EscalationFetchResult | None:
         ssrf = await async_validate_url_for_ssrf(url)
@@ -42,15 +41,14 @@ class FirecrawlEscalationProvider:
             logger.warning("Firecrawl escalation blocked (SSRF): %s — %s", url, ssrf.error)
             return None
 
-        headers = {
-            "Authorization": f"Bearer {self._api_key}",
-            "Content-Type": "application/json",
-        }
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
         payload = {"url": url, "formats": ["markdown"]}
 
         try:
             async with httpx.AsyncClient(timeout=_DEFAULT_TIMEOUT) as client:
-                response = await client.post(_FIRECRAWL_SCRAPE_URL, json=payload, headers=headers)
+                response = await client.post(self._scrape_url, json=payload, headers=headers)
                 response.raise_for_status()
                 body = response.json()
         except httpx.HTTPError as exc:

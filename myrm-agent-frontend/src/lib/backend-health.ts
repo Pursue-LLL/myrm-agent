@@ -1,5 +1,4 @@
 import { getDeployMode, isLocalMode } from '@/lib/deploy-mode';
-import { isBootProfileCompleted } from '@/lib/local-backend-dev';
 import { isTauriEnvironment, tauriBackend } from '@/lib/tauri';
 
 export type BackendDevMode = 'split_dev' | 'standalone_webui';
@@ -151,7 +150,9 @@ let localBackendReadyGate: Promise<boolean> | null = null;
 let cachedLocalBackendReady = true;
 
 function startLocalBackendReadyGate(): Promise<boolean> {
-  const gate = isBootProfileCompleted() ? checkBackendReadyOnce() : waitForBackendReady();
+  // Only a real desktop runtime owns a sidecar whose startup warrants polling.
+  // Browser WebUI must fail fast so the shell and recovery banner stay responsive.
+  const gate = isTauriEnvironment() ? waitForBackendReady() : checkBackendReadyOnce();
   return gate.then((ready) => {
     cachedLocalBackendReady = ready;
     return ready;
@@ -159,8 +160,7 @@ function startLocalBackendReadyGate(): Promise<boolean> {
 }
 
 /**
- * Single-flight gate: local/Tauri clients await backend health once per page load.
- * After Boot was shown this session, fail fast with a single probe (align with Banner).
+ * Single-flight gate: Tauri waits for sidecar startup; browser WebUI probes once.
  * Re-probes when the last result was false so a mid-session backend start can recover.
  * Call `markLocalBackendUnreachable()` after transport failures so a prior healthy gate re-probes.
  */

@@ -32,7 +32,7 @@ export function useTabBadge(): void {
     if (typeof document === 'undefined') return;
 
     if (baseTitleRef.current === null) {
-      baseTitleRef.current = document.title.replace(/^\[[\*!]\]\s*/, '');
+      baseTitleRef.current = document.title.replace(/^\[[*!]\]\s*/, '');
     }
 
     if (isTitleFlashing()) return;

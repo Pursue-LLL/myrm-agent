@@ -4,6 +4,11 @@ import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
+export async function unregisterServiceWorkers(container: ServiceWorkerContainer): Promise<void> {
+  const registrations = await container.getRegistrations();
+  await Promise.all(registrations.map((registration) => registration.unregister()));
+}
+
 /**
  * [POS] PWA Version Updater Component
  * Listens for Service Worker updates. If a new version is downloaded and waiting,
@@ -18,6 +23,13 @@ export function PWAUpdater() {
     }
 
     if (window.__TAURI_INTERNALS__) {
+      return;
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      void unregisterServiceWorkers(navigator.serviceWorker).catch((error: unknown) => {
+        console.warn('[PWA] Failed to unregister development ServiceWorker:', error);
+      });
       return;
     }
 

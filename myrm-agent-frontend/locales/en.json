@@ -3338,6 +3338,22 @@
         }
       }
     },
+    "push": {
+      "title": "Notifications",
+      "label": "Push Notifications",
+      "description": "Receive notifications even when the browser is closed (approvals, task completions, alerts)",
+      "test": "Test",
+      "deniedHint": "Notification permission was denied. Please enable it in your browser settings."
+    },
+    "pushStatus": {
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "denied": "Blocked by browser",
+      "unsupported": "Not supported"
+    },
+    "pushEnabled": "Push notifications enabled",
+    "pushDisabled": "Push notifications disabled",
+    "pushTestSent": "Test notification sent",
     "browserPool": {
       "title": "Browser Connection",
       "description": "How the AI agent connects to a browser for web automation",
@@ -3393,9 +3409,12 @@
       "jinaApiKey": "Jina Reader API Key (optional)",
       "jinaApiKeyPlaceholder": "Leave empty for free tier (~20 RPM)",
       "jinaApiKeyHint": "Optional paid tier key from jina.ai. Free tier works without a key.",
+      "firecrawlKeylessHint": "Works without an API key (free tier). Add a key for higher limits.",
       "firecrawlInherit": "Reuse Firecrawl key from search services",
       "firecrawlApiKey": "Dedicated Firecrawl API Key",
       "firecrawlApiKeyPlaceholder": "fc-XXXXXXXX",
+      "firecrawlApiBase": "Custom API URL",
+      "firecrawlApiBaseHint": "For self-hosted Firecrawl. Leave empty to use the default cloud service.",
       "sessionCap": "Session attempt cap",
       "sessionCapHint": "Maximum L4 remote fetches per agent session (1–50).",
       "verifyJina": "Test Jina",

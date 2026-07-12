@@ -12,7 +12,7 @@ Omni-Config `webFetchEscalation.enabled`. Vendor httpx calls live here; harness 
 |------------|------|-------------|-------|
 | binding.py | Core | Per agent-run ContextVar bind via `open_web_fetch_escalation_context` | ✅ |
 | providers/jina.py | Core | Jina Reader httpx provider | ✅ |
-| providers/firecrawl.py | Core | Firecrawl scrape httpx provider | ✅ |
+| providers/firecrawl.py | Core | Firecrawl v2 scrape httpx provider (keyless free tier or API key, custom api_base) | ✅ |
 | escalation/registry.py | Core | Build provider chain from config + searchServices inherit | ✅ |
 | escalation/session_counter.py | Core | Per chat session L4 attempt cap | ✅ |
 | escalation/_ARCH.md | Doc | Submodule index | ✅ |

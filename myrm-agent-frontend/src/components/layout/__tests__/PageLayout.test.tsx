@@ -34,7 +34,7 @@ vi.mock('@/services/onboarding', () => ({
 }));
 
 vi.mock('@/lib/backend-health', () => ({
-  waitForBackendReady: vi.fn(() => Promise.resolve(true)),
+  ensureLocalBackendReady: vi.fn(() => Promise.resolve(true)),
 }));
 
 vi.mock('@/lib/tauri', () => ({

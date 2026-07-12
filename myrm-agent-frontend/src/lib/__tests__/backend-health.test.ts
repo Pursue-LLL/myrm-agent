@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { waitForBackendReady, waitForTauriRuntime } from '@/lib/backend-health';
 import { tauriBackend } from '@/lib/tauri';
@@ -6,10 +6,6 @@ import { tauriBackend } from '@/lib/tauri';
 vi.mock('@/lib/deploy-mode', () => ({
   getDeployMode: vi.fn(() => 'tauri'),
   isLocalMode: vi.fn(() => true),
-}));
-
-vi.mock('@/lib/local-backend-dev', () => ({
-  isBootProfileCompleted: vi.fn(() => false),
 }));
 
 vi.mock('@/lib/tauri', () => ({
@@ -154,29 +150,34 @@ describe('checkBackendReadyOnce', () => {
 });
 
 describe('ensureLocalBackendReady', () => {
+  beforeEach(() => {
+    vi.mocked(getDeployMode).mockReturnValue('tauri');
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+  });
+
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.clearAllMocks();
     void import('@/lib/backend-health').then(({ resetLocalBackendReadyGate }) => {
       resetLocalBackendReadyGate();
     });
   });
 
-  it('uses single probe when boot profile is completed', async () => {
-    const { isBootProfileCompleted } = await import('@/lib/local-backend-dev');
-    vi.mocked(isBootProfileCompleted).mockReturnValue(true);
-    vi.mocked(isTauriEnvironment).mockReturnValue(true);
-    vi.mocked(tauriBackend.checkHealth).mockResolvedValue(false);
+  it('uses a single fast probe in browser WebUI', async () => {
+    vi.mocked(getDeployMode).mockReturnValue('local');
+    vi.mocked(isTauriEnvironment).mockReturnValue(false);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
 
     const { ensureLocalBackendReady, resetLocalBackendReadyGate } = await import('@/lib/backend-health');
     resetLocalBackendReadyGate();
 
     await expect(ensureLocalBackendReady()).resolves.toBe(false);
-    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(tauriBackend.checkHealth).not.toHaveBeenCalled();
   });
 
-  it('re-probes when previous gate result was false and backend recovers', async () => {
-    const { isBootProfileCompleted } = await import('@/lib/local-backend-dev');
-    vi.mocked(isBootProfileCompleted).mockReturnValue(true);
+  it('polls the sidecar in a real Tauri runtime', async () => {
+    vi.mocked(getDeployMode).mockReturnValue('tauri');
     vi.mocked(isTauriEnvironment).mockReturnValue(true);
     vi.mocked(tauriBackend.checkHealth)
       .mockResolvedValueOnce(false)
@@ -185,14 +186,32 @@ describe('ensureLocalBackendReady', () => {
     const { ensureLocalBackendReady, resetLocalBackendReadyGate } = await import('@/lib/backend-health');
     resetLocalBackendReadyGate();
 
-    await expect(ensureLocalBackendReady()).resolves.toBe(false);
     await expect(ensureLocalBackendReady()).resolves.toBe(true);
     expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(2);
   });
 
+  it('re-probes when previous gate result was false and backend recovers', async () => {
+    vi.mocked(getDeployMode).mockReturnValue('local');
+    vi.mocked(isTauriEnvironment).mockReturnValue(false);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn()
+        .mockResolvedValueOnce({ ok: false })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ status: 'healthy' }),
+        }),
+    );
+
+    const { ensureLocalBackendReady, resetLocalBackendReadyGate } = await import('@/lib/backend-health');
+    resetLocalBackendReadyGate();
+
+    await expect(ensureLocalBackendReady()).resolves.toBe(false);
+    await expect(ensureLocalBackendReady()).resolves.toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it('re-probes after markLocalBackendUnreachable when gate had been healthy', async () => {
-    const { isBootProfileCompleted } = await import('@/lib/local-backend-dev');
-    vi.mocked(isBootProfileCompleted).mockReturnValue(true);
     vi.mocked(isTauriEnvironment).mockReturnValue(true);
     vi.mocked(tauriBackend.checkHealth)
       .mockResolvedValueOnce(true)

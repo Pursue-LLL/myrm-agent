@@ -143,7 +143,7 @@ function MarkdownBody({ body }: { body: string }) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    if (/^!\[/.test(line)) {
+    if (line.startsWith('![')) {
       flushList();
       const imgMatch = /^!\[([^\]]*)\]\(([^)]+)\)/.exec(line);
       if (imgMatch) {

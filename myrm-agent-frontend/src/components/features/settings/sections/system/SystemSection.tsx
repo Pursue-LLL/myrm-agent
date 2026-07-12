@@ -29,6 +29,7 @@ import StorageCard from './StorageCard';
 import { useIngressRequirement } from '@/hooks/useIngressRequirement';
 import SandboxResetCard from './SandboxResetCard';
 import SavedSessionsCard from './SavedSessionsCard';
+import PushNotificationCard from './PushNotificationCard';
 
 /**
  * 系统设置 Section
@@ -650,6 +651,9 @@ const SystemSection = memo(() => {
 
         <AccessCard config={config} localIP={localIP} ingressSnapshot={ingressSnapshot} />
       </section>
+
+      {/* Push Notifications */}
+      <PushNotificationCard />
 
       {/* 存储位置 */}
       <StorageCard

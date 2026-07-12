@@ -456,7 +456,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
             ...s,
             enabled: true,
             description: s.description || '',
-            extra_params: { ...(s.extra_params ?? {}), scope: 'org' },
+            extra_params: { ...s.extra_params, scope: 'org' },
           })) as MCPServiceConfig[];
 
           set({
@@ -485,7 +485,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
               ...s,
               enabled: true,
               description: s.description || '',
-              extra_params: { ...(s.extra_params ?? {}), scope: 'org' },
+              extra_params: { ...s.extra_params, scope: 'org' },
             })) as MCPServiceConfig[];
             set({ orgMcpConfigs: configs });
           });

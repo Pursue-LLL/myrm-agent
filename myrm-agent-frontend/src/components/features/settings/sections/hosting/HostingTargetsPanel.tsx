@@ -114,8 +114,8 @@ export default function HostingTargetsPanel() {
       [targetId]: {
         ...(prev[targetId] ?? { name: '', config: {}, credentials: {} }),
         ...patch,
-        config: { ...(prev[targetId]?.config ?? {}), ...(patch.config ?? {}) },
-        credentials: { ...(prev[targetId]?.credentials ?? {}), ...(patch.credentials ?? {}) },
+        config: { ...prev[targetId]?.config, ...patch.config },
+        credentials: { ...prev[targetId]?.credentials, ...patch.credentials },
       },
     }));
   };

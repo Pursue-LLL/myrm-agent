@@ -71,7 +71,8 @@ async def test_load_web_fetch_escalation_config_load_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_build_escalation_providers_jina_only_without_firecrawl_key() -> None:
+async def test_build_escalation_providers_includes_keyless_firecrawl() -> None:
+    """Without a Firecrawl key, provider is still created in keyless mode."""
     cfg = WebFetchEscalationConfigValue(enabled=True, session_cap=2)
 
     with patch(
@@ -82,5 +83,48 @@ async def test_build_escalation_providers_jina_only_without_firecrawl_key() -> N
             providers = await build_escalation_providers("chat-1")
 
     assert providers is not None
-    assert len(providers) == 1
+    assert len(providers) == 2
     assert providers[0].provider_id == "jina"
+    assert providers[1].provider_id == "firecrawl"
+
+
+def test_firecrawl_provider_default_api_base() -> None:
+    from app.services.web_fetch.providers.firecrawl import FirecrawlEscalationProvider
+
+    provider = FirecrawlEscalationProvider()
+    assert provider._scrape_url == "https://api.firecrawl.dev/v2/scrape"
+
+
+def test_firecrawl_provider_custom_api_base() -> None:
+    from app.services.web_fetch.providers.firecrawl import FirecrawlEscalationProvider
+
+    provider = FirecrawlEscalationProvider(api_base="https://firecrawl.internal.corp/")
+    assert provider._scrape_url == "https://firecrawl.internal.corp/v2/scrape"
+
+
+def test_firecrawl_provider_custom_api_base_strips_trailing_slash() -> None:
+    from app.services.web_fetch.providers.firecrawl import FirecrawlEscalationProvider
+
+    provider = FirecrawlEscalationProvider(api_base="https://fc.example.com///")
+    assert provider._scrape_url == "https://fc.example.com/v2/scrape"
+
+
+def test_firecrawl_provider_empty_api_base_uses_default() -> None:
+    from app.services.web_fetch.providers.firecrawl import FirecrawlEscalationProvider
+
+    provider = FirecrawlEscalationProvider(api_base="  ")
+    assert provider._scrape_url == "https://api.firecrawl.dev/v2/scrape"
+
+
+def test_firecrawl_provider_keyless_no_auth_header() -> None:
+    from app.services.web_fetch.providers.firecrawl import FirecrawlEscalationProvider
+
+    provider = FirecrawlEscalationProvider()
+    assert provider._api_key is None
+
+
+def test_firecrawl_provider_with_key_stores_key() -> None:
+    from app.services.web_fetch.providers.firecrawl import FirecrawlEscalationProvider
+
+    provider = FirecrawlEscalationProvider(api_key="fc-test123")
+    assert provider._api_key == "fc-test123"

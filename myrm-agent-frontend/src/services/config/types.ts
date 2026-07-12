@@ -457,6 +457,7 @@ export interface CaptchaSolverConfigValue {
 export interface WebFetchFirecrawlConfigValue {
   inheritFromSearch: boolean;
   api_key: string | null;
+  apiBase: string | null;
 }
 
 export interface WebFetchEscalationConfigValue {

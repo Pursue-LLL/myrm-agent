@@ -757,6 +757,15 @@ INDEX_STATEMENTS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_artifact_publications_artifact_id ON artifact_publications(artifact_id)",
     "CREATE INDEX IF NOT EXISTS idx_artifact_publications_target_id ON artifact_publications(hosting_target_id)",
+    """CREATE TABLE IF NOT EXISTS web_push_subscriptions (
+        endpoint_hash VARCHAR(32) PRIMARY KEY,
+        endpoint TEXT NOT NULL,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        user_agent VARCHAR(512) NOT NULL DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""",
 ]
 
 

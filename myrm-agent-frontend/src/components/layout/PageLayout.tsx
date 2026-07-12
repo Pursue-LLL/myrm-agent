@@ -4,7 +4,7 @@ import React, { memo, useState, useEffect, useCallback, lazy, Suspense } from 'r
 import { usePathname } from 'next/navigation';
 import AppLayout from './AppLayout';
 import { isStandalonePath } from '@/lib/marketing-paths';
-import { waitForBackendReady } from '@/lib/backend-health';
+import { ensureLocalBackendReady } from '@/lib/backend-health';
 import { isTauriEnvironment } from '@/lib/tauri';
 import { getReadinessStatus, type ReadinessResponse } from '@/services/onboarding';
 import { shouldShowBootScreen } from '@/components/features/app-shell/boot-screen-gate';
@@ -58,7 +58,7 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
   const runReadinessGate = useCallback(async () => {
     try {
       if (isTauriEnvironment()) {
-        await waitForBackendReady();
+        await ensureLocalBackendReady();
       }
 
       const status = await resolveReadinessGate();
