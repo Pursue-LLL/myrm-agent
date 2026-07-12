@@ -78,15 +78,13 @@ const MemoryGuardianCard = memo(() => {
   useEffect(() => {
     fetchHealth();
     let timeoutId: NodeJS.Timeout;
-    const handleSseEvent = () => {
+    const handleResync = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => fetchHealth(), 1000);
     };
-    window.addEventListener('health_status_updated', handleSseEvent);
-    window.addEventListener('app_resync_required', handleSseEvent);
+    window.addEventListener('app_resync_required', handleResync);
     return () => {
-      window.removeEventListener('health_status_updated', handleSseEvent);
-      window.removeEventListener('app_resync_required', handleSseEvent);
+      window.removeEventListener('app_resync_required', handleResync);
       clearTimeout(timeoutId);
     };
   }, [fetchHealth]);

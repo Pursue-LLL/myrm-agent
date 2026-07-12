@@ -10562,7 +10562,6 @@
     "multipleApprovalsDescription": "Multiple approvals are waiting for your review.",
     "reviewApproval": "Review Now",
     "healthAlertFail": "{component} health check failed ({layer} layer)",
-    "healthAlertWarn": "{component} health check warning ({layer} layer)",
     "viewHealthDashboard": "View Dashboard",
     "undoConsolidation": "Undo",
     "undoConsolidationSuccess": "Memory consolidation undone successfully",

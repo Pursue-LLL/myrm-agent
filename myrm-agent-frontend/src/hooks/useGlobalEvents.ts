@@ -37,7 +37,6 @@ const PASSTHROUGH_EVENTS: ReadonlySet<string> = new Set([
   'teammate_message',
   'cron_updated',
   'skill_ab_test_updated',
-  'health_status_updated',
   'budget_updated',
   'channel_status_updated',
   'skill_quality_updated',
@@ -366,7 +365,6 @@ export function useGlobalEvents(): void {
         const component = String(payload.data.component ?? 'Unknown');
         const status = String(payload.data.status ?? 'fail');
         const message = String(payload.data.message ?? 'Health check failed');
-        const technicalDetail = payload.data.detail ? String(payload.data.detail) : undefined;
         const fixSuggestion = payload.data.fix_suggestion ? String(payload.data.fix_suggestion) : undefined;
         const layer = String(payload.data.layer ?? 'system');
 
@@ -386,12 +384,6 @@ export function useGlobalEvents(): void {
             router.push('/settings/system'),
           );
         }
-
-        window.dispatchEvent(
-          new CustomEvent('health-alert', {
-            detail: { component, status, message, technicalDetail, fixSuggestion, layer },
-          }),
-        );
       } else if (payload.type === 'budget_alert') {
         const budgetStatus = String(payload.data.status ?? 'warning');
         const pct = typeof payload.data.pct === 'number' ? payload.data.pct : 0;

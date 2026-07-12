@@ -10,10 +10,10 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `CheckpointCard.tsx` | 组件 | 单个 Agent 任务检查点卡片 | — |
+| `CheckpointCard.tsx` | 组件 | 单个 Agent 任务检查点卡片（时间/状态/恢复入口） | ✅ |
 | `CheckpointList.tsx` | 组件 | Agent 任务检查点列表（恢复/删除/清理） | ✅ |
 | `FileDiffViewer.tsx` | 核心 | 文件级 diff 视图，支持 checkbox 选择性恢复、行数统计显示 | ✅ |
-| `FileSnapshotCard.tsx` | 组件 | 单个文件快照卡片（触发类型/文件数/时间） | — |
+| `FileSnapshotCard.tsx` | 组件 | 单个文件快照卡片（触发类型/文件数/时间戳） | ✅ |
 | `FileSnapshotList.tsx` | 组件 | 文件快照列表（恢复/删除/清理/查看 diff） | ✅ |
 | `FileSnapshotPanel.tsx` | 入口 | 浮动按钮 + 侧滑面板，集成到 ChatWindow | ✅ |
 

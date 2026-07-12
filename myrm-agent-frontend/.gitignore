@@ -58,3 +58,7 @@ WARP.md
 
 # Lock files (project uses bun)
 package-lock.json
+
+# Python script caches (scripts/check_*.py)
+__pycache__/
+*.py[cod]

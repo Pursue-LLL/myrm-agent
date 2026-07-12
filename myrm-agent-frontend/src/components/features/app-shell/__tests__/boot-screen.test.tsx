@@ -1,7 +1,7 @@
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import BootScreen from '../app-shell/boot-screen';
-import { shouldShowBootScreen, markBootScreenShown } from '../app-shell/boot-screen-gate';
+import BootScreen from '../boot-screen';
+import { shouldShowBootScreen, markBootScreenShown } from '../boot-screen-gate';
 
 vi.mock('next/image', () => ({
   default: (props: Record<string, unknown>) => <img {...props} />,

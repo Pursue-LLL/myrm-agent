@@ -9529,7 +9529,6 @@
     "jumpToChatAria": "이 승인을 발생시킨 채팅으로 이동",
     "markAllRead": "모두 읽음으로 표시",
     "healthAlertFail": "{component} 상태 확인 실패 ({layer} 레이어)",
-    "healthAlertWarn": "{component} 상태 확인 경고 ({layer} 레이어)",
     "viewHealthDashboard": "대시보드 보기",
     "taskCompleted": "{taskType} 완료",
     "taskFailed": "{taskType} 실패",

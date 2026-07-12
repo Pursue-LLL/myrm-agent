@@ -116,10 +116,8 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
 
   useEffect(() => {
     const refresh = () => void loadSnapshot();
-    window.addEventListener('health_status_updated', refresh);
     window.addEventListener('app_resync_required', refresh);
     return () => {
-      window.removeEventListener('health_status_updated', refresh);
       window.removeEventListener('app_resync_required', refresh);
     };
   }, [loadSnapshot]);

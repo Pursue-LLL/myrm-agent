@@ -8,35 +8,35 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `CuratorSettingsPanel.tsx` | 组件/模块 | — | — |
-| `EvolutionStrategyConfig.tsx` | 组件/模块 | — | — |
-| `LocalPathsConfig.tsx` | 组件/模块 | — | — |
-| `ScanConfirmDialog.tsx` | 组件/模块 | — | — |
-| `SkillBatchImportDialog.tsx` | 组件/模块 | — | — |
-| `SkillCard.tsx` | 组件/模块 | — | — |
-| `SkillDetailDialog.tsx` | 组件/模块 | — | — |
+| `CuratorSettingsPanel.tsx` | 组件 | Skill Curator 自动提炼策略设置 | ✅ |
+| `EvolutionStrategyConfig.tsx` | 组件 | 技能进化策略（Shadow A/B、阈值）配置 | ✅ |
+| `LocalPathsConfig.tsx` | 组件 | 本地技能扫描路径配置 | ✅ |
+| `ScanConfirmDialog.tsx` | 组件 | 目录扫描发现新技能确认对话框 | ✅ |
+| `SkillBatchImportDialog.tsx` | 组件 | 批量导入技能包（zip/url） | ✅ |
+| `SkillCard.tsx` | 核心 | 技能列表卡片（信任态/版本/快捷操作） | ✅ |
+| `SkillDetailDialog.tsx` | 辅助 | 技能详情 Modal 变体（小屏） | ✅ |
 | `SkillDetailSheet.tsx` | 核心 | 技能详情侧边栏入口（编排 hook 与内容组件、信任/删除确认对话框） | ✅ |
 | `useSkillDetailSheet.ts` | 辅助 | 技能详情状态管理 hook（内容加载/信任/env/进化锁/优化） | ✅ |
 | `SkillDetailSheetContent.tsx` | 辅助 | 技能详情滚动内容区（元信息/安全扫描/存储路径/生命周期/SKILL.md 渲染） | ✅ |
 | `SkillDetailHelpers.tsx` | 辅助 | 技能详情辅助组件（RequirementRow/SecurityScan/KnownPitfalls） | ✅ |
-| `SkillDiscoverTab.tsx` | 组件/模块 | — | — |
-| `SkillDraftReviewPanel.tsx` | 组件/模块 | — | — |
-| `SkillEmptyState.tsx` | 组件/模块 | — | — |
-| `SkillExportDialog.tsx` | 组件/模块 | — | — |
-| `SkillFilters.tsx` | 组件/模块 | — | — |
+| `SkillDiscoverTab.tsx` | 组件 | 技能发现/市场浏览 Tab | ✅ |
+| `SkillDraftReviewPanel.tsx` | 组件 | AI 生成技能草稿审阅面板 | ✅ |
+| `SkillEmptyState.tsx` | 辅助 | 无技能空状态引导 | ✅ |
+| `SkillExportDialog.tsx` | 组件 | 导出技能为 zip/marketplace 包 | ✅ |
+| `SkillFilters.tsx` | 辅助 | 技能列表过滤（类别/信任/来源） | ✅ |
 | `SkillGrowthCaseCard.tsx` | 核心 | 技能进化提案卡片：Simple/Detailed 双视图模式、Monaco DiffEditor 就地修订、审批/拒绝（接 evolution API） | ✅ |
 | `SkillHistoryPanel.tsx` | 核心 | 技能进化历史面板：已处理记录列表、一键回滚（接 evolution API） | ✅ |
-| `SkillInstanceManager.tsx` | 组件/模块 | — | — |
-| `SkillList.tsx` | 组件/模块 | — | — |
-| `SkillPermissionApprovalDialog.tsx` | 组件/模块 | — | — |
-| `SkillPermissionUsageDashboard.tsx` | 组件/模块 | — | — |
-| `SkillPermissionsManager.tsx` | 组件/模块 | — | — |
+| `SkillInstanceManager.tsx` | 组件 | 多实例技能版本并存管理 | ✅ |
+| `SkillList.tsx` | 核心 | 技能网格/列表主视图 | ✅ |
+| `SkillPermissionApprovalDialog.tsx` | 组件 | 技能运行时权限请求审批 | ✅ |
+| `SkillPermissionUsageDashboard.tsx` | 组件 | 技能权限使用统计仪表盘 | ✅ |
+| `SkillPermissionsManager.tsx` | 组件 | 技能权限 allowlist 编辑 | ✅ |
 | `SkillQualityGuardian.tsx` | 核心 | Shadow A/B：idle 启动、running promote/stop（i18n） | ✅ |
 | `SkillVersionsPanel.tsx` | 核心 | 技能版本列表、diff 对比、版本回滚（接 skill-optimization API） | ✅ |
-| `SkillSyncIndicator.tsx` | 组件/模块 | — | — |
-| `SkillUploadDialog.tsx` | 组件/模块 | — | — |
-| `SkillUrlImportDialog.tsx` | 组件/模块 | — | — |
-| `skillCategories.ts` | 组件/模块 | — | — |
+| `SkillSyncIndicator.tsx` | 辅助 | 技能与远端同步状态指示 | ✅ |
+| `SkillUploadDialog.tsx` | 组件 | 上传本地技能包对话框 | ✅ |
+| `SkillUrlImportDialog.tsx` | 组件 | 从 URL 导入技能对话框 | ✅ |
+| `skillCategories.ts` | 辅助 | 技能分类常量与 i18n 键映射 | ✅ |
 | `PendingEvolutionsDashboard.tsx` | 核心 | 待审核技能进化列表，支持 Simple/Detailed 视图切换（localStorage 持久化） | ✅ |
 | `EvolutionRejectionDashboard.tsx` | 核心 | 技能进化拒绝/失败审计面板 | ✅ |
 

@@ -10,11 +10,11 @@ Tauri 桌面端 CLI/ACP 工作区可视化：Diff 预览、文件树、文件预
 |------|------|------|-------|
 | `CLIDiffViewer.tsx` | 核心 | DiffViewer 薄包装（Tauri 阴影样式） | ✅ |
 | `CLIWorkspaceTree.tsx` | 核心 | 工作区文件树（侧栏 ACP 模式） | ✅ |
-| `CLIFilePreview.tsx` | 核心 | 选中文件内容预览面板 | — |
-| `CLIFileIcon.tsx` | 辅助 | 扩展名 → 图标映射 | — |
-| `CLIContextMenu.tsx` | 辅助 | 文件树右键菜单 | — |
-| `hooks/useFilePreview.ts` | Hook | 预览状态（路径/类型/加载） | — |
-| `hooks/useFileWatcher.ts` | Hook | 工作区变更监听 | — |
+| `CLIFilePreview.tsx` | 核心 | 选中文件内容预览面板（文本/图片/二进制降级） | ✅ |
+| `CLIFileIcon.tsx` | 辅助 | 扩展名 → 文件类型图标映射 | ✅ |
+| `CLIContextMenu.tsx` | 辅助 | 文件树右键菜单（打开/复制路径/在 Finder 显示） | ✅ |
+| `hooks/useFilePreview.ts` | Hook | 预览路径、MIME 类型与加载/error 状态 | ✅ |
+| `hooks/useFileWatcher.ts` | Hook | 工作区文件变更轮询/事件监听 | ✅ |
 
 ## 约束
 

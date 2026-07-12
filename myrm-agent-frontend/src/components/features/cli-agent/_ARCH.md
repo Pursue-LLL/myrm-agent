@@ -8,8 +8,8 @@ CLI Agent 配置与状态展示（外部 Agent 桥接）。
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `AgentSelector.tsx` | 组件/模块 | — | — |
-| `PermissionDialog.tsx` | 组件/模块 | — | — |
+| `AgentSelector.tsx` | 核心 | 外部 CLI Agent 选择与切换下拉 | ✅ |
+| `PermissionDialog.tsx` | 核心 | CLI Agent 权限请求确认对话框 | ✅ |
 
 ## 依赖
 

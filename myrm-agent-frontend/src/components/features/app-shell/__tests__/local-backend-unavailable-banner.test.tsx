@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import LocalBackendUnavailableBanner, {
   dismissLocalBackendBanner,
   isLocalBackendBannerDismissed,
-} from '../app-shell/local-backend-unavailable-banner';
+} from '../local-backend-unavailable-banner';
 
 vi.mock('@/lib/backend-health', () => ({
   checkBackendReadyOnce: vi.fn(() => Promise.resolve(true)),

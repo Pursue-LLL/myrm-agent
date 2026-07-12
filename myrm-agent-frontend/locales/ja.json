@@ -9529,7 +9529,6 @@
     "jumpToChatAria": "この承認の元になったチャットへ移動",
     "markAllRead": "すべて既読にする",
     "healthAlertFail": "{component} ヘルスチェック失敗 ({layer}レイヤー)",
-    "healthAlertWarn": "{component} ヘルスチェック警告 ({layer}レイヤー)",
     "viewHealthDashboard": "ダッシュボードを見る",
     "taskCompleted": "{taskType} 完了",
     "taskFailed": "{taskType} 失敗",

@@ -8,9 +8,9 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `ImageTaskCard.tsx` | 组件/模块 | — | — |
-| `TaskCardError.tsx` | 组件/模块 | — | — |
-| `TaskCardPlaceholder.tsx` | 组件/模块 | — | — |
+| `ImageTaskCard.tsx` | 核心 | 图像类后台任务进度与结果摘要卡片 | ✅ |
+| `TaskCardError.tsx` | 辅助 | 任务失败/error 态统一展示 | ✅ |
+| `TaskCardPlaceholder.tsx` | 辅助 | 任务加载中 skeleton 占位 | ✅ |
 
 ## 依赖
 

@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `NotificationBell.tsx` | 组件/模块 | — | — |
+| `NotificationBell.tsx` | 核心 | NavBar 通知铃铛：未读计数、Popover 列表与已读标记 | ✅ |
 
 ## 依赖
 

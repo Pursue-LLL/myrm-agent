@@ -10,11 +10,9 @@ from .browser import (
 from .memory_guardian import start_memory_guardian_scheduler, stop_memory_guardian_scheduler
 from .monitors import (
     start_auth_alert_monitor,
-    start_health_history_recorder,
     start_maintenance_scheduler,
     start_memory_pressure_monitor,
     stop_auth_alert_monitor,
-    stop_health_history_recorder,
     stop_memory_pressure_monitor,
 )
 from .schedulers import (
@@ -55,11 +53,9 @@ __all__ = [
     "warmup_browser_sessions",
     "warmup_global_browser_pool",
     "start_auth_alert_monitor",
-    "start_health_history_recorder",
     "start_maintenance_scheduler",
     "start_memory_pressure_monitor",
     "stop_auth_alert_monitor",
-    "stop_health_history_recorder",
     "stop_memory_pressure_monitor",
     "start_approval_ttl_scheduler",
     "start_auth_log_cleanup_scheduler",

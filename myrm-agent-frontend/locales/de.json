@@ -9529,7 +9529,6 @@
     "jumpToChatAria": "Zum Chat springen, der diese Freigabe ausgelöst hat",
     "markAllRead": "Alle als gelesen markieren",
     "healthAlertFail": "{component} Gesundheitsprüfung fehlgeschlagen ({layer}-Schicht)",
-    "healthAlertWarn": "{component} Gesundheitsprüfung Warnung ({layer}-Schicht)",
     "viewHealthDashboard": "Dashboard anzeigen",
     "taskCompleted": "{taskType} abgeschlossen",
     "taskFailed": "{taskType} fehlgeschlagen",

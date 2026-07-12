@@ -586,56 +586,6 @@ async def reset_database() -> dict[str, str]:
         raise HTTPException(status_code=500, detail=f"Failed to reset database: {e}") from e
 
 
-@router.get("/history")
-async def health_history(hours: int = 24) -> dict[str, object]:
-    """获取系统健康历史数据 (用于趋势图)
-
-    Args:
-        hours: 查询最近N小时的数据 (默认24小时)
-
-    Returns:
-        List of health history records with timestamp, status, score
-    """
-    from datetime import datetime, timedelta
-    from datetime import timezone as tz
-
-    if hours < 1 or hours > 168:
-        raise HTTPException(status_code=400, detail="Hours parameter must be between 1 and 168 (7 days)")
-
-    cutoff_time = (datetime.now(tz.utc) - timedelta(hours=hours)).isoformat()
-
-    try:
-        async with get_session() as session:
-            result = await session.execute(
-                text(
-                    """SELECT timestamp, overall_status, overall_score, component_reports
-                       FROM system_health_history
-                       WHERE timestamp >= :cutoff
-                       ORDER BY timestamp ASC"""
-                ),
-                {"cutoff": cutoff_time},
-            )
-            rows = result.fetchall()
-    except SQLAlchemyOperationalError as exc:
-        err = str(exc).lower()
-        if "no such table" in err or "does not exist" in err:
-            logger.warning("system_health_history not available yet: %s", exc)
-            rows = []
-        else:
-            raise
-
-    return {
-        "data": [
-            {
-                "timestamp": (row[0] if isinstance(row[0], str) else (row[0].isoformat() if row[0] else None)),
-                "status": row[1],
-                "score": row[2],
-                "components": row[3] if len(row) > 3 else None,
-            }
-            for row in rows
-        ]
-    }
-
 
 @router.get("/resources")
 async def resource_health_check(

@@ -10562,7 +10562,6 @@
     "multipleApprovalsDescription": "有多条审批正在等待你处理。",
     "reviewApproval": "立即审批",
     "healthAlertFail": "{component} 健康检查失败 ({layer}层)",
-    "healthAlertWarn": "{component} 健康检查警告 ({layer}层)",
     "viewHealthDashboard": "查看仪表盘",
     "undoConsolidation": "撤销 (Undo)",
     "undoConsolidationSuccess": "已恢复被降维擦除的记忆",

@@ -28,8 +28,26 @@
 | `browser-inspector/` | 浏览器检查器 | [_ARCH.md](browser-inspector/_ARCH.md) |
 | `desktop-inspector/` | 桌面检查器 | [_ARCH.md](desktop-inspector/_ARCH.md) |
 | `image-editor/` | 图片标注编辑器（Canvas API） | [_ARCH.md](image-editor/_ARCH.md) |
+| `workspace-browser/` | 工作区内嵌文件浏览器与预览 | [_ARCH.md](workspace-browser/_ARCH.md) |
+| `background-tasks/` | 后台任务面板 | [_ARCH.md](background-tasks/_ARCH.md) |
+| `browser-recording/` | 浏览器录制回放 | [_ARCH.md](browser-recording/_ARCH.md) |
+| `cli-agent/` / `cli-visualization/` | CLI Agent 与终端可视化 | [_ARCH.md](cli-agent/_ARCH.md) · [_ARCH.md](cli-visualization/_ARCH.md) |
+| `checkpoint/` | 会话检查点 UI | [_ARCH.md](checkpoint/_ARCH.md) |
+| `eval-lab/` | 评测实验室 | [_ARCH.md](eval-lab/_ARCH.md) |
+| `growth/` | Growth 草稿与推广 | [_ARCH.md](growth/_ARCH.md) |
+| `icons/` | 功能域专用图标（非 Lucide 通用集） | [_ARCH.md](icons/_ARCH.md) |
+| `image-gen/` | 图片生成 UI | [_ARCH.md](image-gen/_ARCH.md) |
+| `interactive-ui/` | Agent 渲染 UI（A2UI） | [_ARCH.md](interactive-ui/_ARCH.md) |
+| `markdown-render-tools/` | Markdown 渲染扩展（Mermaid、代码块等） | [_ARCH.md](markdown-render-tools/_ARCH.md) |
+| `message-actions/` / `message-input-actions/` | 消息操作与输入区动作 | [_ARCH.md](message-actions/_ARCH.md) · [_ARCH.md](message-input-actions/_ARCH.md) |
+| `notifications/` | 通知中心 | [_ARCH.md](notifications/_ARCH.md) |
+| `task-card/` | 任务卡片组件 | [_ARCH.md](task-card/_ARCH.md) |
+| `theme/` | 主题切换 | [_ARCH.md](theme/_ARCH.md) |
+| `voice/` | 语音输入/会话 UI | [_ARCH.md](voice/_ARCH.md) |
+| `agent-events/` | Agent 事件时间线 | [_ARCH.md](agent-events/_ARCH.md) |
+| `file-preview/` | 通用文件预览 | [_ARCH.md](file-preview/_ARCH.md) |
 
-其余子目录（`agent-events/`、`eval-lab/`、`voice/` 等）均有目录级 `_ARCH.md`，见各文件夹。
+其余子目录若新增，须同步本表并添加目录级 `_ARCH.md`。
 
 ## 依赖
 

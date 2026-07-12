@@ -1,7 +1,7 @@
 """Application lifecycle management.
 
-Manages background monitors: MemoryPressureMonitor, AuthAlert, MaintenanceScheduler,
-HealthHistory. All monitors follow start/stop pattern for clean lifecycle.
+Manages background monitors: MemoryPressureMonitor, AuthAlert, MaintenanceScheduler.
+All monitors follow start/stop pattern for clean lifecycle.
 """
 
 from __future__ import annotations
@@ -17,20 +17,7 @@ logger = logging.getLogger(__name__)
 
 _memory_pressure_monitor: MemoryPressureMonitor | None = None
 
-
-def _health_report_status(report: object) -> str | None:
-    if isinstance(report, dict):
-        v = report.get("status")
-        return str(v) if v is not None else None
-    status = getattr(report, "status", None)
-    return str(status) if status is not None else None
-
-
 _auth_alert_monitor_task: asyncio.Task[None] | None = None
-
-_health_history_recorder_task: asyncio.Task[None] | None = None
-
-_HEALTH_HISTORY_INTERVAL_SECONDS = 1800
 
 
 async def start_auth_alert_monitor() -> None:
@@ -164,136 +151,3 @@ async def start_maintenance_scheduler() -> None:
         logger.info("Maintenance scheduler initialized (sensor=%s)", mode)
     except Exception as e:
         logger.error("Maintenance scheduler initialization failed: %s", e)
-
-
-async def _health_history_recorder_job() -> None:
-    """Record current health status to database for historical trend analysis."""
-    try:
-        import json
-        from datetime import datetime, timedelta
-
-        from sqlalchemy import text
-
-        from app.core.infra.health.health_presenter import present_health_report
-        from app.core.infra.health.health_snapshot import collect_health_snapshot
-        from app.database.connection import get_session
-
-        snapshot = await collect_health_snapshot()
-        harness_list = [
-            present_health_report(r).model_dump() for r in snapshot.harness_reports
-        ]
-        server_list = [present_health_report(r).model_dump() for r in snapshot.server_reports]
-        all_reports: list[object] = harness_list + server_list
-        total_count = len(all_reports)
-
-        if total_count == 0:
-            logger.warning("Health history recorder: no health reports available")
-            return
-
-        pass_count = sum(1 for r in all_reports if _health_report_status(r) == "pass")
-        overall_score = round((pass_count / total_count) * 100)
-
-        fail_count = sum(1 for r in all_reports if _health_report_status(r) == "fail")
-        if fail_count > 0:
-            overall_status = "fail"
-        elif overall_score < 80:
-            overall_status = "warn"
-        else:
-            overall_status = "pass"
-
-        component_reports_json = json.dumps(
-            {
-                "harness": harness_list,
-                "server": server_list,
-            }
-        )
-
-        async with get_session() as session:
-            await session.execute(
-                text(
-                    """INSERT INTO system_health_history 
-                       (timestamp, overall_status, overall_score, component_reports) 
-                       VALUES (:timestamp, :status, :score, :reports)"""
-                ),
-                {
-                    "timestamp": datetime.utcnow(),
-                    "status": overall_status,
-                    "score": overall_score,
-                    "reports": component_reports_json,
-                },
-            )
-            await session.commit()
-
-        cutoff_time = datetime.utcnow() - timedelta(days=7)
-        async with get_session() as session:
-            await session.execute(
-                text("DELETE FROM system_health_history WHERE timestamp < :cutoff"),
-                {"cutoff": cutoff_time},
-            )
-            await session.commit()
-
-        logger.debug(
-            "Health history recorded: score=%d, status=%s",
-            overall_score,
-            overall_status,
-        )
-
-        try:
-            from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-
-            get_event_bus().publish(
-                AppEvent(
-                    event_type=AppEventType.HEALTH_STATUS_UPDATED,
-                    data={
-                        "overall_score": overall_score,
-                        "overall_status": overall_status,
-                    },
-                )
-            )
-        except Exception as e:
-            logger.debug(f"Failed to publish health status event: {e}")
-
-    except Exception as e:
-        logger.error("Health history recorder failed: %s", e, exc_info=True)
-
-
-async def start_health_history_recorder() -> None:
-    """Start health history recorder (every 30 minutes)."""
-    global _health_history_recorder_task
-
-    if _health_history_recorder_task is not None:
-        logger.debug("Health history recorder already running")
-        return
-
-    async def recorder_loop() -> None:
-        """Background loop that records health data every 30 minutes."""
-        try:
-            while True:
-                try:
-                    await _health_history_recorder_job()
-                except Exception as e:
-                    logger.error("Health history recorder job failed: %s", e, exc_info=True)
-
-                await asyncio.sleep(_HEALTH_HISTORY_INTERVAL_SECONDS)
-        except asyncio.CancelledError:
-            logger.info("Health history recorder loop cancelled")
-            raise
-
-    _health_history_recorder_task = asyncio.create_task(recorder_loop())
-    logger.info("Health history recorder started (every %d minutes)", _HEALTH_HISTORY_INTERVAL_SECONDS // 60)
-
-
-async def stop_health_history_recorder() -> None:
-    """Stop health history recorder."""
-    global _health_history_recorder_task
-
-    if _health_history_recorder_task is None:
-        return
-
-    _health_history_recorder_task.cancel()
-    try:
-        await _health_history_recorder_task
-    except asyncio.CancelledError:
-        pass
-    _health_history_recorder_task = None
-    logger.info("Health history recorder stopped")

@@ -27,10 +27,10 @@
 | `sections/integration/channels/` | 渠道、路由、语音配置卡片 | [sections/integration/channels/_ARCH.md](sections/integration/channels/_ARCH.md) |
 | `sections/knowledge/wiki/` | Wiki 设置 | [sections/knowledge/wiki/_ARCH.md](sections/knowledge/wiki/_ARCH.md) |
 | `mcp/` | MCP 列表/编辑/安全扫描 Ack | [mcp/_ARCH.md](mcp/_ARCH.md) |
-| `common/` | 骨架屏、共享 UI | 模块内文件 |
-| `default-model/` | 默认模型子表单 | 模块内文件 |
-| `model-service/` | 模型服务配置 | 模块内文件 |
-| `retrieval/` | 检索服务配置 | 模块内文件 |
+| `common/` | 骨架屏、共享 UI | [common/_ARCH.md](common/_ARCH.md) |
+| `default-model/` | 默认模型子表单 | [default-model/_ARCH.md](default-model/_ARCH.md) |
+| `model-service/` | 模型服务配置 | [model-service/_ARCH.md](model-service/_ARCH.md) |
+| `retrieval/` | 检索服务配置 | [retrieval/_ARCH.md](retrieval/_ARCH.md) |
 
 ## 依赖
 

@@ -2,7 +2,6 @@
 /**
  * [INPUT]
  * - src/services/runtime-health.ts::getRuntimeDoctor (POS: 运行时健康API客户端)
- * - components/features/health/HealthTrendChart.tsx::HealthTrendChart (POS: 健康趋势图表组件)
  * - components/features/health/GuidedRepairCard.tsx::GuidedRepairCard (POS: 引导式修复卡片组件)
  * - components/features/health/doctor-icons.tsx::* (POS: 诊断面板SVG图标)
  * - lib/utils/diagnostic-export.ts::copyDiagnosticMarkdown, downloadDiagnosticJson (POS: 诊断导出工具)
@@ -25,7 +24,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils/classnameUtils';
 import { getRuntimeDoctor, type DoctorResponse, type HealthReport, type HealthStatus } from '@/services/runtime-health';
 import { copyDiagnosticMarkdown, downloadDiagnosticJson } from '@/lib/utils/diagnostic-export';
-import { HealthTrendChart } from './HealthTrendChart';
 import { GuidedRepairCard } from './GuidedRepairCard';
 import {
   ActivityIcon, AlertCircleIcon, CheckCircleIcon, XCircleIcon, RefreshIcon,
@@ -74,15 +72,13 @@ export function DoctorDashboard() {
   useEffect(() => {
     fetchHealth();
     let timeoutId: NodeJS.Timeout;
-    const handleSseEvent = () => {
+    const handleResync = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => fetchHealth(), 1000);
     };
-    window.addEventListener('health_status_updated', handleSseEvent);
-    window.addEventListener('app_resync_required', handleSseEvent);
+    window.addEventListener('app_resync_required', handleResync);
     return () => {
-      window.removeEventListener('health_status_updated', handleSseEvent);
-      window.removeEventListener('app_resync_required', handleSseEvent);
+      window.removeEventListener('app_resync_required', handleResync);
       clearTimeout(timeoutId);
     };
   }, [fetchHealth]);
@@ -283,8 +279,6 @@ export function DoctorDashboard() {
                 <Badge className={cn('text-sm', healthStatus.bg, healthStatus.color)}>{healthStatus.label}</Badge>
               </div>
             </div>
-
-            <HealthTrendChart />
 
             {data?.repair_actions && data.repair_actions.length > 0 && (
               <div className="space-y-3">

@@ -11,7 +11,7 @@
 | `BackgroundTasksPanel.tsx` | ✅ 核心 | NavBar Popover 壳层：轮询、SSE refresh、分区编排 | ✅ |
 | `BackgroundTaskRow.tsx` | ✅ 核心 | 单条 Shell/Agent 任务行（progress、Cancel、Steer） | ✅ |
 | `ActiveGoalsSection.tsx` | ✅ 核心 | Active Goals 列表与 pause/resume/cancel | ✅ |
-| `backgroundTasksPanel.constants.ts` | 辅助 | 轮询常量、状态样式、Goal 类型 | — |
+| `backgroundTasksPanel.constants.ts` | 辅助 | 轮询间隔、状态样式映射与 Goal 类型常量 | ✅ |
 
 ## 依赖
 

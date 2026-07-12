@@ -26,7 +26,6 @@ src/components/features/cron/CronAdvancedEditors.tsx
 src/components/features/cron/CronJobCard.tsx
 src/components/features/cron/CronJobCreateDialog.tsx
 src/components/features/eval-lab/EvalLabDashboard.tsx
-src/components/features/health/HealthTrendChart.tsx
 src/components/features/icons/PremiumIcons.tsx
 src/components/features/kanban/KanbanBoardView.tsx
 src/components/features/kanban/KanbanTaskCard.tsx
