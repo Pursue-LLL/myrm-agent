@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Acquire/release RESOURCE_WRITE lease for E2E scripts that create namespaced resources.
+# Acquire/release a resource-owning lease for E2E scripts that create namespaced resources.
+# Default lane is RESOURCE_WRITE; global-config scenarios pass GLOBAL_WRITE explicitly.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WAVE="${SCRIPT_DIR}/wave.sh"
 AGENT_ID="${MYRM_WAVE_AGENT_ID:-myrm-e2e-resource:$$}"
+LEASE_LANE="${MYRM_WAVE_RESOURCE_LANE:-RESOURCE_WRITE}"
 
 _acquire() {
-  local namespace="$1"
+  local namespace="$1" lane="${2:-${LEASE_LANE}}"
   [[ -n "${namespace}" ]] || {
     echo "Usage: wave-resource-lease.sh acquire <namespace>" >&2
     exit 1
@@ -21,7 +23,7 @@ _acquire() {
   if [[ "${wave_open}" -eq 0 ]]; then
     bash "${WAVE}" --agent "${AGENT_ID}" open >/dev/null
   fi
-  bash "${WAVE}" --agent "${AGENT_ID}" lease acquire RESOURCE_WRITE --namespace "${namespace}" | python3 -c "
+  bash "${WAVE}" --agent "${AGENT_ID}" lease acquire "${lane}" --namespace "${namespace}" | python3 -c "
 import json, sys
 payload = json.load(sys.stdin)
 print(payload['lease']['leaseId'])
@@ -36,10 +38,10 @@ _release() {
 
 cmd="${1:-}"
 case "${cmd}" in
-  acquire) _acquire "${2:-}" ;;
+  acquire) _acquire "${2:-}" "${3:-${LEASE_LANE}}" ;;
   release) _release "${2:-}" ;;
   *)
-    echo "Usage: wave-resource-lease.sh acquire <namespace>|release <leaseId>" >&2
+    echo "Usage: wave-resource-lease.sh acquire <namespace> [lane]|release <leaseId>" >&2
     exit 1
     ;;
 esac

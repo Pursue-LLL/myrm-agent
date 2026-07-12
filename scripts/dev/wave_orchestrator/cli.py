@@ -238,11 +238,11 @@ def build_parser() -> argparse.ArgumentParser:
     unbind_p.add_argument("lease_id", help="Active leaseId")
     unbind_p.set_defaults(handler=cmd_lease_unbind_browser)
 
-    ledger_p = sub.add_parser("ledger", help="Resource ledger for RESOURCE_WRITE leases")
+    ledger_p = sub.add_parser("ledger", help="Resource ledger for resource-owning leases")
     ledger_sub = ledger_p.add_subparsers(dest="ledger_cmd", required=True)
 
     register_p = ledger_sub.add_parser("register", help="Register a test resource ref")
-    register_p.add_argument("lease_id", help="Active RESOURCE_WRITE leaseId")
+    register_p.add_argument("lease_id", help="Active RESOURCE_WRITE or GLOBAL_WRITE leaseId")
     register_p.add_argument("kind", help="Resource kind: chat | project | agent | cron | file")
     register_p.add_argument("ref", help="Business resource id (e.g. chatId)")
     register_p.add_argument("--namespace", default="", help="Owner namespace override")

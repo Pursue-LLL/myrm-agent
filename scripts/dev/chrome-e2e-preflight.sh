@@ -355,6 +355,13 @@ if ! _warmup_frontend_client; then
 fi
 ok "frontend client_hot"
 
+# Client warmup can take long enough for a damaged upstream MCP process to
+# disappear. Re-check immediately before declaring the stack ready so callers
+# never receive a stale READY signal.
+if [[ "${MUX_USING}" -eq 1 ]]; then
+  _ensure_mux_upstream
+fi
+
 # 8. Stale chrome-devtools-mcp from old Cursor sessions
 if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then
   while read -r line; do

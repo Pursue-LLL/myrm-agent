@@ -9,7 +9,8 @@
 - cleanup_namespace_resources() — purge by namespace
 
 [POS]
-Dev test resource ownership ledger. Ties business refs to RESOURCE_WRITE leases.
+Dev test resource ownership ledger. Ties business refs to RESOURCE_WRITE or
+GLOBAL_WRITE leases while preserving namespace ownership and cleanup.
 """
 
 from __future__ import annotations
@@ -79,8 +80,10 @@ def register_resource(
         ns = (namespace or str(lease.get("namespace", ""))).strip()
         if not ns:
             raise RuntimeError("LEDGER_DENIED: namespace required for resource registration")
-        if lease["lane"] != "RESOURCE_WRITE":
-            raise RuntimeError(f"LEDGER_DENIED: lease {lease_id} is not RESOURCE_WRITE")
+        if lease["lane"] not in {"RESOURCE_WRITE", "GLOBAL_WRITE"}:
+            raise RuntimeError(
+                f"LEDGER_DENIED: lease {lease_id} cannot own resources from lane {lease['lane']}"
+            )
         for item in _active_resources(state):
             if item["kind"] == kind and item["ref"] == resource_ref:
                 raise RuntimeError(f"LEDGER_DENIED: {kind}/{resource_ref} already registered")

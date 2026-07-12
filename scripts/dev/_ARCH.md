@@ -25,11 +25,11 @@
 | `myrm-chrome-e2e-lib.sh` | Unix | E2E Chrome 路径/port 常量与 CDP 健康探测 |
 | `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
 | `wave-e2e-lease.sh` | Unix | `./myrm test -m e2e` LIVE_AGENT 租约 |
-| `wave-resource-lease.sh` | Unix | E2E prepare RESOURCE_WRITE 租约 + ledger 自动清理 |
+| `wave-resource-lease.sh` | Unix | E2E prepare RESOURCE_WRITE/GLOBAL_WRITE 租约 + ledger 自动清理 |
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
 | `chrome-e2e-preflight.sh` | Unix | MCP E2E 前置：client_hot CDP 预热 + `CHROME_E2E_HEALTH_JSON`（`runtimeId` + 四元 epoch + `shellHot`/`clientHot`） |
-| `wave-resource-lease.sh` | `./myrm` E2E 脚本 RESOURCE_WRITE 租约 + release 自动 ledger 清理 |
-| `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — RESOURCE_WRITE lease + ledger register chat；API prepare + UI MCP |
+| `wave-resource-lease.sh` | `./myrm` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |
+| `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — GLOBAL_WRITE lease + ledger register chat；API prepare + UI MCP |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed、创建 chat、`registerWaveLedger`、SSE delegate → JSON |
 | `subagent-dashboard-e2e-verify.mjs` | 双平台 | P2c verify：authenticated REST cancel 探测 subagent 已停止 |
