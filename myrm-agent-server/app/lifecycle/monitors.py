@@ -26,20 +26,11 @@ def _health_report_status(report: object) -> str | None:
     return str(status) if status is not None else None
 
 
-def _health_report_to_mapping(report: object) -> dict[str, object]:
-    if isinstance(report, dict):
-        return report
-    return {
-        "component_name": str(getattr(report, "component_name", "")),
-        "status": str(getattr(report, "status", "")),
-        "message": str(getattr(report, "message", "")),
-        "fix_suggestion": str(getattr(report, "fix_suggestion", "")),
-    }
-
-
 _auth_alert_monitor_task: asyncio.Task[None] | None = None
 
 _health_history_recorder_task: asyncio.Task[None] | None = None
+
+_HEALTH_HISTORY_INTERVAL_SECONDS = 1800
 
 
 async def start_auth_alert_monitor() -> None:
@@ -183,15 +174,15 @@ async def _health_history_recorder_job() -> None:
 
         from sqlalchemy import text
 
-        from app.api.health.router import system_doctor
+        from app.core.infra.health.health_presenter import present_health_report
+        from app.core.infra.health.health_snapshot import collect_health_snapshot
         from app.database.connection import get_session
 
-        health_data = await system_doctor()
-
-        harness_raw = health_data.get("harness", [])
-        server_raw = health_data.get("server", [])
-        harness_list: list[object] = harness_raw if isinstance(harness_raw, list) else []
-        server_list: list[object] = server_raw if isinstance(server_raw, list) else []
+        snapshot = await collect_health_snapshot()
+        harness_list = [
+            present_health_report(r).model_dump() for r in snapshot.harness_reports
+        ]
+        server_list = [present_health_report(r).model_dump() for r in snapshot.server_reports]
         all_reports: list[object] = harness_list + server_list
         total_count = len(all_reports)
 
@@ -212,7 +203,7 @@ async def _health_history_recorder_job() -> None:
 
         component_reports_json = json.dumps(
             {
-                "harness": [_health_report_to_mapping(r) for r in harness_list],
+                "harness": harness_list,
                 "server": server_list,
             }
         )
@@ -267,7 +258,7 @@ async def _health_history_recorder_job() -> None:
 
 
 async def start_health_history_recorder() -> None:
-    """Start health history recorder (every 3 minutes)."""
+    """Start health history recorder (every 30 minutes)."""
     global _health_history_recorder_task
 
     if _health_history_recorder_task is not None:
@@ -275,7 +266,7 @@ async def start_health_history_recorder() -> None:
         return
 
     async def recorder_loop() -> None:
-        """Background loop that records health data every 3 minutes."""
+        """Background loop that records health data every 30 minutes."""
         try:
             while True:
                 try:
@@ -283,13 +274,13 @@ async def start_health_history_recorder() -> None:
                 except Exception as e:
                     logger.error("Health history recorder job failed: %s", e, exc_info=True)
 
-                await asyncio.sleep(180)
+                await asyncio.sleep(_HEALTH_HISTORY_INTERVAL_SECONDS)
         except asyncio.CancelledError:
             logger.info("Health history recorder loop cancelled")
             raise
 
     _health_history_recorder_task = asyncio.create_task(recorder_loop())
-    logger.info("Health history recorder started (every 3 minutes)")
+    logger.info("Health history recorder started (every %d minutes)", _HEALTH_HISTORY_INTERVAL_SECONDS // 60)
 
 
 async def stop_health_history_recorder() -> None:

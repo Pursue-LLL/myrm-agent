@@ -1519,6 +1519,10 @@
       "retrieval": {
         "embeddingModel": "Embedding Model",
         "embeddingModelDescription": "Text vectorization model for semantic search across knowledge base, memory, web search, and other capabilities",
+        "dismiss": "Dismiss",
+        "orphanWarning": "{{count}} memories from a previous model need migration",
+        "reindex": "Migrate",
+        "reindexing": "Migrating...",
         "rerankerModel": "Reranker Model",
         "rerankerModelDescription": "Search result reranking model for semantic ranking across knowledge base, memory, web search, and other capabilities",
         "provider": "Provider",

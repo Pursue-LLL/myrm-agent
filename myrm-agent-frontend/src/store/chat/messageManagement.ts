@@ -6,7 +6,8 @@
  *
  * [OUTPUT]
  * initializeChat: Initialize or switch chat sessions with instant snapshot rendering.
- * loadMessages: Fetch chat history from DB + restore bound agentConfig.
+ * resolveInstantChatSnapshot: Resolve workspace pane or LRU snapshot for a chat id.
+ * loadMessages: Fetch chat history from DB + restore bound agentConfig (optional instant-session preserve).
  * autoSaveChat: Auto-generate and save chat titles.
  *
  * [POS]
@@ -14,7 +15,7 @@
  */
 
 import crypto from 'crypto';
-import { Message, ChatHistoryItem, type ActionMode } from '@/store/chat/types';
+import { Message, ChatHistoryItem, type ActionMode, type ChatState } from '@/store/chat/types';
 import { ChatActionsMethods } from './messageRequest';
 import { getChatDetail, getMessages, generateChatTitle, updateChatTitle } from '@/services/chat';
 import { ApiError, apiRequest } from '@/lib/api';
@@ -24,6 +25,11 @@ import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
+import {
+  extractNavigationSnapshot,
+  getChatNavigationSnapshot,
+  saveChatNavigationSnapshot,
+} from '@/store/chat/chatNavigationSnapshotCache';
 import { useProjectStore } from '@/store/useProjectStore';
 import { moveChatToProject } from '@/services/projects';
 import { abortCurrentUpload } from '@/services/uploadController';
@@ -31,6 +37,10 @@ import { abortCurrentUpload } from '@/services/uploadController';
 const CHAT_TITLE_MAX_LENGTH = 50;
 const CHAT_SUMMARY_MAX_LENGTH = 100;
 const VALID_ACTION_MODES: readonly ActionMode[] = ['fast', 'agent', 'deep_research', 'consensus', 'claude_code'];
+
+export interface LoadMessagesOptions {
+  preserveInstantSessionConfig?: boolean;
+}
 
 function normalizeActionMode(actionMode: string | null | undefined): ActionMode {
   if (typeof actionMode === 'string' && VALID_ACTION_MODES.includes(actionMode as ActionMode)) {
@@ -58,12 +68,20 @@ function restoreAgentConfigFromChat(chatId: string, agentId: string | null | und
 /**
  * 加载历史消息（初始加载最新一页）
  */
-export const loadMessages = async (chatId: string, actions: ChatActionsMethods): Promise<void> => {
+export const loadMessages = async (
+  chatId: string,
+  actions: ChatActionsMethods,
+  options?: LoadMessagesOptions,
+): Promise<void> => {
+  const preserveInstantSessionConfig = options?.preserveInstantSessionConfig ?? false;
+
   try {
     actions.setMessages((state) => {
       state.loading = true;
       state.chatId = chatId;
-      state.isMessagesLoaded = false;
+      if (!preserveInstantSessionConfig) {
+        state.isMessagesLoaded = false;
+      }
       state.notFound = false;
       state.loadError = false;
     });
@@ -82,7 +100,9 @@ export const loadMessages = async (chatId: string, actions: ChatActionsMethods):
     actions.setMessages((state) => {
       if (state.chatId === chatId) {
         state.messages = messages;
-        state.actionMode = normalizeActionMode(chatData.chat.actionMode);
+        if (!preserveInstantSessionConfig) {
+          state.actionMode = normalizeActionMode(chatData.chat.actionMode);
+        }
         state.compactedSummary = chatData.chat.compacted_summary;
         state.compactedBeforeId = chatData.chat.compacted_before_id;
         state.workspaceDir = chatData.chat.workspace_dir;
@@ -95,7 +115,9 @@ export const loadMessages = async (chatId: string, actions: ChatActionsMethods):
       }
     });
 
-    restoreAgentConfigFromChat(chatId, chatData.chat.agent_id);
+    if (!preserveInstantSessionConfig) {
+      restoreAgentConfigFromChat(chatId, chatData.chat.agent_id);
+    }
 
     apiRequest<{ active: boolean }>(`/chats/${chatId}/sandbox/status`).then((res) => {
       if (res?.active && useChatStore.getState().chatId === chatId) {
@@ -198,63 +220,103 @@ export const initializeChat = (
   // 如果有ID且与当前chatId不同，加载聊天
   else if (state.chatId !== id) {
     abortCurrentUpload();
-    
-    // Check if we have a snapshot in WorkspaceStore
-    const pane = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === id);
-    
-    if (pane && pane.snapshot) {
-      // Instant rendering from snapshot
-      actions.setMessages((state) => {
-        Object.assign(state, pane.snapshot);
-        state.chatId = id;
-        state.isMessagesLoaded = true;
+
+    const snapshot = resolveInstantChatSnapshot(id);
+
+    if (snapshot) {
+      actions.setMessages((draft) => {
+        Object.assign(draft, snapshot);
+        draft.chatId = id;
+        draft.isMessagesLoaded = true;
       });
       actions.clearCurrentSessionMessageId();
-      // Still call loadMessages in background to ensure we're fully up-to-date
-      // but without showing loading state
+
+      if (snapshot.loading) {
+        return;
+      }
+
       const silentActions = {
         ...actions,
-        setMessages: (updater: (state: any) => void) => {
-          actions.setMessages((state) => {
-            // Only apply updates if we're still on the same chat
-            if (state.chatId === id) {
-              const draft = { ...state };
+        setMessages: (updater: (state: ChatState) => void) => {
+          actions.setMessages((draft) => {
+            if (draft.chatId === id) {
+              const preservedLoading = draft.loading;
+              const preservedIsMessagesLoaded = draft.isMessagesLoaded;
               updater(draft);
-              // Don't override loading state since we already rendered snapshot
-              draft.loading = state.loading;
-              Object.assign(state, draft);
+              draft.loading = preservedLoading;
+              draft.isMessagesLoaded = preservedIsMessagesLoaded;
             }
           });
-        }
+        },
       };
-      const snapshot = useWorkspaceStore.getState().panes[id]?.snapshot;
-    if (snapshot?.loading) {
-      console.log(`[messageManagement] Skip loadMessages for ${id} because snapshot is loading`);
-      return;
-    }
-
-    loadMessages(id, silentActions).catch(console.error);
+      loadMessages(id, silentActions, { preserveInstantSessionConfig: true }).catch(console.error);
     } else {
-      // 立即重置状态，确保不显示之前的聊天内容
-      actions.setMessages((state) => {
-        state.messages = [];
-        state.isMessagesLoaded = false;
-        state.notFound = false;
-        state.loadError = false;
-        state.loading = true;
-        state.messageAppeared = false;
-        state.compactedSummary = null;
-        state.compactedBeforeId = null;
-        state.workspaceDir = null;
-        state.incognitoMode = false;
-        state.sandboxMode = false;
-        state.chatId = id;
+      actions.setMessages((draft) => {
+        draft.messages = [];
+        draft.isMessagesLoaded = false;
+        draft.notFound = false;
+        draft.loadError = false;
+        draft.loading = true;
+        draft.messageAppeared = false;
+        draft.compactedSummary = null;
+        draft.compactedBeforeId = null;
+        draft.workspaceDir = null;
+        draft.incognitoMode = false;
+        draft.sandboxMode = false;
+        draft.chatId = id;
       });
       actions.clearCurrentSessionMessageId();
       loadMessages(id, actions);
     }
   }
 };
+
+function shouldApplyPaneMessages(
+  lruSnapshot: Partial<ChatState>,
+  paneSnapshot: Partial<ChatState>,
+): boolean {
+  if (paneSnapshot.loading === true) {
+    return true;
+  }
+
+  const lruMessageCount = lruSnapshot.messages?.length ?? 0;
+  const paneMessageCount = paneSnapshot.messages?.length ?? 0;
+  return paneMessageCount > lruMessageCount;
+}
+
+export function resolveInstantChatSnapshot(chatId: string): Partial<ChatState> | null {
+  const lruSnapshot = getChatNavigationSnapshot(chatId);
+  const pane = useWorkspaceStore.getState().panes.find((entry) => entry.chatId === chatId);
+  const paneSnapshot = pane?.snapshot ?? null;
+
+  if (lruSnapshot && paneSnapshot) {
+    const merged = { ...lruSnapshot };
+
+    if (shouldApplyPaneMessages(lruSnapshot, paneSnapshot) && paneSnapshot.messages !== undefined) {
+      merged.messages = paneSnapshot.messages;
+    }
+
+    if (paneSnapshot.loading !== undefined) {
+      merged.loading = paneSnapshot.loading;
+    }
+
+    if (paneSnapshot.messageAppeared !== undefined) {
+      merged.messageAppeared = paneSnapshot.messageAppeared;
+    }
+
+    return merged;
+  }
+
+  return lruSnapshot ?? paneSnapshot;
+}
+
+export function persistActiveChatNavigationSnapshot(state: ChatState): void {
+  if (!state.chatId || !state.isMessagesLoaded || state.incognitoMode) {
+    return;
+  }
+
+  saveChatNavigationSnapshot(state.chatId, extractNavigationSnapshot(state));
+}
 
 /**
  * 自动保存聊天元数据（标题 + 侧边栏）。

@@ -370,7 +370,7 @@ export function useGlobalEvents(): void {
         const fixSuggestion = payload.data.fix_suggestion ? String(payload.data.fix_suggestion) : undefined;
         const layer = String(payload.data.layer ?? 'system');
 
-        const title = `${component} ${status === 'fail' ? 'Failed' : 'Warning'}`;
+        const title = `${component} Failed`;
 
         if (status === 'fail') {
           toast.error(t('healthAlertFail', { component, layer }) || title, {
@@ -385,16 +385,6 @@ export function useGlobalEvents(): void {
           notifyIfLeader(t('healthAlertFail', { component, layer }) || title, message, () =>
             router.push('/settings/system'),
           );
-        } else if (status === 'warn') {
-          toast.warning(t('healthAlertWarn', { component, layer }) || title, {
-            description: `${message}${fixSuggestion ? `\nTip: ${fixSuggestion}` : ''}`,
-            duration: 12_000,
-            dismissible: true,
-            action: {
-              label: t('viewHealthDashboard') || 'View Dashboard',
-              onClick: () => router.push('/settings/system'),
-            },
-          });
         }
 
         window.dispatchEvent(

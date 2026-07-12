@@ -18,6 +18,7 @@
 | `adapters/TauriAdapter.ts` | 适配 | 本地 HTTP → SQLite | ✅ |
 | `adapters/SandboxAdapter.ts` | 适配 | 云端 API → PostgreSQL | ✅ |
 | `adapters/BaseAdapter.ts` | 适配 | deviceId、版本号基类 | ✅ |
+| `index.ts` | 核心 | ConfigSync 公共 API barrel（`@/services/config`） | ✅ |
 
 ## 冲突消解分级
 

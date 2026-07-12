@@ -21,8 +21,10 @@
 /build
 
 # myrm start (local dev)
+.myrm/
 .myrm-dev-frontend.pid
 .myrm-dev-frontend.log
+.myrm-dev-frontend-fg.log
 
 # misc
 .DS_Store
@@ -43,6 +45,7 @@ frontend*.log
 
 # typescript
 *.tsbuildinfo
+tsconfig.tsbuildinfo
 next-env.d.ts
 
 .cursor

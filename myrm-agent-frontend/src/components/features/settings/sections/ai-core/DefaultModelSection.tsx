@@ -88,10 +88,13 @@ const DefaultModelSection = memo(() => {
     rerankerApplied,
     rerankerApplyStatus,
     rerankerApplyMessage,
+    orphanCount,
     setEmbeddingConfig,
     setRerankerConfig,
     applyEmbedding,
     applyReranker,
+    executeReindex,
+    dismissOrphanWarning,
   } = useRetrievalStore(
     useShallow((state) => ({
       embeddingConfig: state.embeddingConfig,
@@ -102,12 +105,25 @@ const DefaultModelSection = memo(() => {
       rerankerApplied: state.rerankerApplied,
       rerankerApplyStatus: state.rerankerApplyStatus,
       rerankerApplyMessage: state.rerankerApplyMessage,
+      orphanCount: state.orphanCount,
       setEmbeddingConfig: state.setEmbeddingConfig,
       setRerankerConfig: state.setRerankerConfig,
       applyEmbedding: state.applyEmbedding,
       applyReranker: state.applyReranker,
+      executeReindex: state.executeReindex,
+      dismissOrphanWarning: state.dismissOrphanWarning,
     })),
   );
+
+  const [reindexing, setReindexing] = useState(false);
+  const handleReindex = async () => {
+    setReindexing(true);
+    try {
+      await executeReindex();
+    } finally {
+      setReindexing(false);
+    }
+  };
 
   useEffect(() => {
     if (!isInitialized) {
@@ -705,6 +721,30 @@ const DefaultModelSection = memo(() => {
               onApply={applyEmbedding}
             />
           </div>
+
+          {orphanCount > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border border-amber-500/30 bg-amber-500/5">
+              <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
+                <IconAlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{t('retrieval.orphanWarning', { count: orphanCount })}</span>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={dismissOrphanWarning}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t('retrieval.dismiss')}
+                </button>
+                <button
+                  onClick={handleReindex}
+                  disabled={reindexing}
+                  className="text-xs font-medium px-3 py-1.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                >
+                  {reindexing ? t('retrieval.reindexing') : t('retrieval.reindex')}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </SettingsSection>
 

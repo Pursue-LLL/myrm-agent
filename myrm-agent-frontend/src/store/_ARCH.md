@@ -15,11 +15,11 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 
 | 路径 | 职责 | 备注 |
 |------|------|------|
-| `chat/` | 消息列表、流式事件、发送队列、类型定义 | 流式 reducer 在 `chat/messageStream/`（见 `messageStream/_ARCH.md`） |
+| `chat/` | 消息列表、流式事件、发送队列、类型定义 | 流式 reducer 在 `chat/messageStream/`；goal/plan 见 [chat/goals/_ARCH.md](chat/goals/_ARCH.md) |
 | `config/` | 设置草稿、LiteLLM 路由生成产物、provider identity 迁移 | `litellmRouting.generated.ts` 由 harness 生成；legacy remap 见 [shared/config/_ARCH.md](../../../shared/config/_ARCH.md) · 模块文档 [config/_ARCH.md](config/_ARCH.md) |
-| `memory/` | 记忆中心 UI 状态 | |
-| `skill/` | 技能选择与详情状态 | |
-| `tasks/` | 后台任务/命令中心 | |
+| `memory/` | 记忆中心 UI 状态 | [_ARCH.md](memory/_ARCH.md) |
+| `skill/` | 技能选择与进化草稿状态 | [_ARCH.md](skill/_ARCH.md) |
+| `tasks/` | 通用后台任务 Map（`useTaskStore`） | [_ARCH.md](tasks/_ARCH.md) |
 | `useAuthStore.ts` | WebUI 会话 / SaaS OAuth 门控 | 本地模式不连 CP |
 | `useConfigStore.ts` | 用户设置镜像 | 与 Settings sections 同步 |
 | `useArtifactPortalStore.ts` | 工件门户 | 大文件，拆分候选 |
@@ -38,4 +38,5 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 ## 约束
 
 - 新域优先新增 `useFooStore.ts` 或 `foo/` 子目录；聊天类型见 `chat/types/`（`types.ts` 仅 barrel）。
+- 桶导出政策见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」表。
 - SaaS 专用状态须与 `resolveCpBaseUrl()` / sandbox 构建标志显式分支，避免污染本地单机路径。

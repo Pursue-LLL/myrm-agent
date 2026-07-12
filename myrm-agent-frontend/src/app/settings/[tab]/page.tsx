@@ -1,15 +1,10 @@
 import { Suspense } from 'react';
 import { notFound, redirect } from 'next/navigation';
 import SettingsLayout from '@/components/features/settings/SettingsLayout';
+import RouteSegmentLoading from '@/components/layout/RouteSegmentLoading';
 import { getTranslations } from 'next-intl/server';
+import { defaultLocale } from '@/i18n/config';
 
-const SettingsLoading = () => (
-  <div className="flex items-center justify-center min-h-[50vh]">
-    <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
-  </div>
-);
-
-// 有效的 tab 列表
 const VALID_TABS = [
   'account',
   'preferences',
@@ -80,26 +75,11 @@ interface PageProps {
   }>;
 }
 
-/**
- * 生成静态参数（预渲染所有有效的 tab 路由）
- * 提升性能和 SEO
- */
-export function generateStaticParams() {
-  return VALID_TABS.map((tab) => ({
-    tab,
-  }));
-}
-
-/**
- * 生成动态 metadata
- */
 export async function generateMetadata({ params }: PageProps) {
   const { tab } = await params;
   const validTab = tab as ValidTab;
+  const t = await getTranslations({ locale: defaultLocale, namespace: 'metadata' });
 
-  const t = await getTranslations('metadata');
-
-  // 验证 tab 是否有效
   if (!VALID_TABS.includes(validTab)) {
     return {
       title: t('notFoundTitle'),
@@ -112,34 +92,27 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-/**
- * 动态路由页面：/settings/[tab]
- * 支持的路由：
- * - /settings/account
- * - /settings/agents
- * - /settings/skills
- * - /settings/mcp
- * 等等
- */
-async function Page({ params }: PageProps) {
+export const prefetch = 'allow-runtime';
+
+async function SettingsTabPage({ params }: PageProps) {
   const { tab } = await params;
 
-  // DEPRECATED_TAB_MAP 别名路由：服务端永久重定向到新 tab，避免客户端二次装载闪烁
   if (tab && DEPRECATED_TAB_MAP[tab]) {
     const mapping = DEPRECATED_TAB_MAP[tab];
     redirect(`/settings/${mapping.parent}${mapping.sub ? `?sub=${mapping.sub}` : ''}`);
   }
 
-  // 验证 tab 是否有效，无效则返回 404
   if (!VALID_TABS.includes(tab as ValidTab)) {
     notFound();
   }
 
+  return <SettingsLayout />;
+}
+
+export default function Page(props: PageProps) {
   return (
-    <Suspense fallback={<SettingsLoading />}>
-      <SettingsLayout />
+    <Suspense fallback={<RouteSegmentLoading variant="settings" />}>
+      <SettingsTabPage params={props.params} />
     </Suspense>
   );
 }
-
-export default Page;

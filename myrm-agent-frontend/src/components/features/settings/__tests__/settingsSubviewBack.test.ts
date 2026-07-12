@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { registerSettingsSubviewBack, trySettingsSubviewBack } from './settingsSubviewBack';
+import { registerSettingsSubviewBack, trySettingsSubviewBack } from '../settingsSubviewBack';
 
 describe('settingsSubviewBack', () => {
   beforeEach(() => {

@@ -12,8 +12,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { postJsonHttp } from '@/lib/server/postJsonHttp';
 
-export const runtime = 'nodejs';
-
 export async function POST(request: NextRequest) {
   try {
     const body: unknown = await request.json();

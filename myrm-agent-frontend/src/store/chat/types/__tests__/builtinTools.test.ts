@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getBuiltinToolDisplayLabel,
   resolveToolSnapshotDisplayName,
-} from '@/store/chat/types/builtinTools';
+} from '../builtinTools';
 
 describe('builtinTools display helpers', () => {
   it('returns localized cron label from builtin_tool_id', () => {

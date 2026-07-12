@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-对 `myrm-agent-server` REST/SSE 的类型化客户端（约 55 个模块）。按业务域单文件或小子目录组织；**禁止**桶导出（barrel index）。
+对 `myrm-agent-server` REST/SSE 的类型化客户端（约 55 个模块）。按业务域单文件或小子目录组织；**顶层单文件禁止** `index.ts` barrel，跨域门面见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」与 `scripts/ci/barrel_whitelist.txt`。
 
 ## 域划分（文件 → API）
 
@@ -28,6 +28,8 @@
 | `marketplace.ts` | **仅 SaaS/sandbox** Org Marketplace CRUD：browse/install/publish/force-push |
 | `enterprise-org.ts` | **仅 SaaS/sandbox** Enterprise Org 管理：create/members/offboard/transfer |
 | `*-api.ts` | 零散 REST 封装 |
+| `file.ts` | HTTP 上传、`UploadProgress`、PDF/文档内容提取（**非**本地选文件） |
+| `file-service/` | 平台 `FileService` 策略（Tauri FS vs Sandbox）；见 [_ARCH.md](file-service/_ARCH.md) |
 | `config/` | `ConfigSyncManager` + 适配器（local `TauriConfigAdapter` 处理 Next 代理 5xx 与离线队列；sandbox `SandboxConfigAdapter`） |
 
 ## 依赖

@@ -19,18 +19,19 @@
 | `utils/agentConfigMapper.ts` | Agent → AgentConfig 标准映射（消除多处重复映射） | — |
 | `utils/diagnostic-export.ts` | DoctorDashboard 诊断数据格式化（Markdown/JSON）与导出 | — |
 | `fonts.ts` | 全局字体系统配置（Inter/JetBrains Mono next/font 实例、字体目录 FONT_CHOICES、动态加载 ensureFontLoaded） | — |
-| `utils/`（其他） | 消息、文件、URL 等工具函数 | — |
 | `i18n/` | 非 React 运行时 i18n（SSE/通知；与 `src/i18n/` next-intl 路由层分离） | [_ARCH.md](i18n/_ARCH.md) |
 | `diff/` | unified diff 纯函数解析 | [_ARCH.md](diff/_ARCH.md) |
-| `config/` | 设置表单 schema 工具 | — |
+| `config/` | 设置表单 schema 工具 | [_ARCH.md](config/_ARCH.md) |
 | `search/` | SearXNG 预设 + Embedding/Reranker provider 目录 | [_ARCH.md](search/_ARCH.md) |
 | `approval/` | 工具审批决策与 visual 上下文 | [_ARCH.md](approval/_ARCH.md) |
 | `channels/` | 渠道 Ingress 静态分类与凭证判定 | [_ARCH.md](channels/_ARCH.md) |
-| `intent-dispatcher/` | 意图分发 schema | — |
-| `vision/` | 语音视觉会话 | — |
+| `intent-dispatcher/` | 意图分发 schema | [_ARCH.md](intent-dispatcher/_ARCH.md) |
+| `vision/` | 语音视觉会话纯函数 | [_ARCH.md](vision/_ARCH.md) |
 | `widget-theme-bridge.ts` | Artifact iframe 运行时脚本注入：主题同步、高度 sync、链接拦截、DOM 元素拾取 | — |
-| `constants/` | 路径、artifact、主题常量 | — |
-| `server/` | Next Route Handler 用 HTTP 辅助 | — |
+| `constants/` | 路径、artifact、主题常量 | [_ARCH.md](constants/_ARCH.md) |
+| `server/` | Next Route Handler 用 HTTP 辅助 | [_ARCH.md](server/_ARCH.md) |
+| `skills/` | 技能 OAuth 展示名等纯函数 | [_ARCH.md](skills/_ARCH.md) |
+| `utils/` | 跨 feature 通用工具函数 | [_ARCH.md](utils/_ARCH.md) |
 | `__tests__/` | lib 层单元测试 | — |
 
 ## 依赖
@@ -42,4 +43,4 @@
 ## 约束
 
 - 新域优先建子目录 + `_ARCH.md`（参考 `approval/`）。
-- 禁止 `lib/index.ts` 桶导出。
+- 禁止 `lib/index.ts` 桶导出；`intent-dispatcher/index.ts` 为跨域门面，见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」。

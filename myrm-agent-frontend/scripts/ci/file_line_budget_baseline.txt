@@ -19,7 +19,6 @@ src/components/features/chat-window/SingleApprovalCard.tsx
 src/components/features/chat-window/SubagentDashboard.tsx
 src/components/features/chat-window/agent-config-panel/AgentConfigEditDialog.tsx
 src/components/features/chat-window/agent-config-panel/AgentConfigPanel.tsx
-src/components/features/chat-window/goals/GoalControlPlane.tsx
 src/components/features/chat-window/goals/GoalStatusCard.tsx
 src/components/features/companion/CompanionWidget.tsx
 src/components/features/companion/companionGenerator.ts
@@ -125,6 +124,7 @@ src/services/memoryCommandCenter.ts
 src/services/models-dev.ts
 src/services/skill.ts
 src/services/statistics.ts
+src/store/chat/messageManagement.ts
 src/store/chat/messageRequest.ts
 src/store/config/providerTypes.ts
 src/store/memory/useMemoryStore.ts

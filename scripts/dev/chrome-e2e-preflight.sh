@@ -364,40 +364,24 @@ if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then
 fi
 
 _print_e2e_health_json() {
-  local mux_count=0 upstream="false" ws_match="false" shell_hot="false" client_hot="false" stack_epoch=""
-  mux_count="$(pgrep -f 'cdmcp-mux-autoconnect\.mjs daemon' 2>/dev/null | wc -l | tr -d ' ')"
-  if _mux_upstream_ready; then
-    upstream="true"
-  fi
-  if _mux_ws_stamp_matches; then
-    ws_match="true"
-  fi
+  local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
+  local shell_hot="false" client_hot="false"
+  [[ -f "${runtime_py}" ]] || fail "Missing runtime_identity.py at ${runtime_py}"
   if [[ "$(_frontend_shell_hot_status)" == "yes" ]]; then
     shell_hot="true"
   fi
   if [[ "$(_frontend_client_hot_status)" == "yes" ]]; then
     client_hot="true"
   fi
-  stack_epoch="$(_read_stack_epoch 2>/dev/null || true)"
-  if [[ -z "${stack_epoch}" ]]; then
-    stack_epoch="$("${PREFLIGHT_PY}" -c "
-import json, urllib.request
-try:
-    data = json.load(urllib.request.urlopen('${API_BASE}/api/v1/health', timeout=5))
-    epoch = data.get('stack_epoch', {})
-    print(epoch.get('epoch', ''))
-except Exception:
-    print('')
-" 2>/dev/null || true)"
-  fi
-  local stack_epoch_json="null"
-  if [[ -n "${stack_epoch}" ]]; then
-    stack_epoch_json="${stack_epoch}"
-  fi
-  printf 'CHROME_E2E_HEALTH_JSON={"ui":"%s","api":"%s","muxDaemons":%s,"upstreamReady":%s,"wsStampMatch":%s,"shellHot":%s,"clientHot":%s,"stackEpoch":%s,"attachMode":%s}\n' \
-    "${UI_BASE}" "${API_BASE}" "${mux_count}" "${upstream}" "${ws_match}" "${shell_hot}" "${client_hot}" \
-    "${stack_epoch_json}" \
-    "$([[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && echo true || echo false)"
+  local health_args=(
+    --auto-probe
+    --ui "${UI_BASE}"
+    --api "${API_BASE}"
+  )
+  [[ "${shell_hot}" == "true" ]] && health_args+=(--shell-hot)
+  [[ "${client_hot}" == "true" ]] && health_args+=(--client-hot)
+  [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && health_args+=(--attach-mode)
+  "${PREFLIGHT_PY}" "${runtime_py}" "${health_args[@]}"
 }
 
 echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=$raw_port profile=${MYRM_CHROME_E2E_DATA_DIR}"

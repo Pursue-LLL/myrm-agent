@@ -6,6 +6,9 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { apiBase, apiFetch, authCookieHeader, ensureLoggedIn } from './subagent-dashboard-e2e-auth.mjs';
 
 const uiBase = process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000';
@@ -28,6 +31,35 @@ function requireEnv(name) {
     throw new Error(`Missing ${name} (source myrm-agent-server/.env.test)`);
   }
   return value;
+}
+
+function registerWaveLedger(chatId) {
+  const leaseId = process.env.WAVE_LEDGER_LEASE_ID?.trim();
+  if (!leaseId || !chatId) {
+    return;
+  }
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const waveSh = path.join(scriptDir, 'wave.sh');
+  const agentId = process.env.MYRM_WAVE_AGENT_ID?.trim() || `subagent-e2e:${process.pid}`;
+  const namespace = process.env.WAVE_LEDGER_NAMESPACE?.trim() ?? '';
+  const args = [
+    waveSh,
+    '--agent',
+    agentId,
+    'ledger',
+    'register',
+    leaseId,
+    'chat',
+    chatId,
+  ];
+  if (namespace) {
+    args.push('--namespace', namespace);
+  }
+  const result = spawnSync('bash', args, { encoding: 'utf-8' });
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || '').trim();
+    throw new Error(`wave ledger register failed: ${detail || `exit ${result.status}`}`);
+  }
 }
 
 function inferProviderId(model) {
@@ -325,6 +357,7 @@ async function main() {
   await seedProviders();
   await seedYoloSecurity();
   const chatId = await seedSubagentChat();
+  registerWaveLedger(chatId);
   const { taskId, treeRow, keepStreamAlive } = await delegateSubagentViaAgentStream(chatId);
   await assertListSubagents(chatId, taskId);
   await assertListSubagentsStillRunning(chatId, taskId);

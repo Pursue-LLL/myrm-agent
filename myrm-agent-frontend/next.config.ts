@@ -68,6 +68,10 @@ const monorepoRoot = path.join(frontendRoot, '..');
 const sharedRoot = path.join(monorepoRoot, 'shared');
 
 const nextConfig: NextConfig = {
+  // Next.js 16.3: explicit cache model + per-route shell prefetch (sidebar chat links, settings tabs).
+  cacheComponents: true,
+  partialPrefetching: true,
+
   outputFileTracingRoot: monorepoRoot,
 
   turbopack: {

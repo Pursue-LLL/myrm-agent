@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-设置页壳层：`SettingsLayout`（URL 为唯一数据源 + Section 缓存）、`SettingsMenu`（分组导航）、共享表单 primitive。各业务 Section 在 `sections/` 按 `SettingsMenu` 六组组织。
+设置页壳层：`SettingsLayout`（URL 为唯一数据源 + Section 缓存）、`SettingsMenu`（分组导航）、共享表单 primitive。Tab 预加载由 Next.js partial prefetch 与 `next/dynamic` 承担。
 
 ## 核心文件
 

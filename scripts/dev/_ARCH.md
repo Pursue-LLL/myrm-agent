@@ -23,10 +23,15 @@
 | `ensure-myrm-chrome-e2e.sh` | Unix | 拉起/验证 Myrm 专用 E2E Chrome（`:9333`，零 Allow）；栈热时首开 `:3000` 而非 blank |
 | `prune-myrm-chrome-e2e-blank-tabs.sh` | Unix | preflight 自动 prune：junk tab + 重复 `:3000` URL（每 URL 留 1，mux 占用跳过） |
 | `myrm-chrome-e2e-lib.sh` | Unix | E2E Chrome 路径/port 常量与 CDP 健康探测 |
-| `chrome-e2e-preflight.sh` | Unix | MCP E2E 前置：client_hot CDP 预热 + `CHROME_E2E_HEALTH_JSON`（`stackEpoch`/`shellHot`/`clientHot`） |
-| `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — API prepare（delegate via agent-stream）；**本地 monorepo** 须 editable harness（`./myrm ready` 自愈），禁止 cp site-packages；**非 CI 发布链路** |
+| `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
+| `wave-e2e-lease.sh` | Unix | `./myrm test -m e2e` LIVE_AGENT 租约 |
+| `wave-resource-lease.sh` | Unix | E2E prepare RESOURCE_WRITE 租约 + ledger 自动清理 |
+| `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
+| `chrome-e2e-preflight.sh` | Unix | MCP E2E 前置：client_hot CDP 预热 + `CHROME_E2E_HEALTH_JSON`（`runtimeId` + 四元 epoch + `shellHot`/`clientHot`） |
+| `wave-resource-lease.sh` | `./myrm` E2E 脚本 RESOURCE_WRITE 租约 + release 自动 ledger 清理 |
+| `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — RESOURCE_WRITE lease + ledger register chat；API prepare + UI MCP |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
-| `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed provider/YOLO、创建 chat、SSE delegate、GET `/subagents` 断言、`E2E_HOLD_MS` 保活 → JSON |
+| `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed、创建 chat、`registerWaveLedger`、SSE delegate → JSON |
 | `subagent-dashboard-e2e-verify.mjs` | 双平台 | P2c verify：authenticated REST cancel 探测 subagent 已停止 |
 | `kanban-chrome-e2e-prepare.mjs` | 双平台 | Kanban LLM API prepare（provider seed + stream add_task + GET task 断言） |
 | `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
@@ -54,8 +59,8 @@
 4. MCP：**单步** `new_page(url=http://127.0.0.1:3000/…, timeout=15000)` → 取 **pageId**；`navigate_page` 默认 **15s**（ready 后）；测完 **`close_page`**；禁止 `list_pages`/`select_page`
 5. **tab 卫生**：`ready --chrome` 自动 **prune**（blank/junk + 重复 URL）；Agent 仍应 `close_page`，避免堆积
 6. **集成测试进程纪律**：并行 Agent **`./myrm ready --attach --chrome`**；栈 **`dev-stack ensure`**；**禁止** Agent shell `bun run dev &`
-7. **stack_epoch**：`CHROME_E2E_HEALTH_JSON.stackEpoch` — 断言前复验，漂移则重 prepare
-8. **client_hot**：`ready --chrome` CDP 预热 client chunk；`shell_hot`（curl `/`）≠ UI hydrate 完成；改码后 UI 测 **`./myrm restart --chrome`**
+7. **runtimeId + Wave**：`CHROME_E2E_HEALTH_JSON.runtimeId` — `wave open` 冻结 → `lease acquire READ` → 断言前 `./myrm runtime-drift --expect <id>`；持 lease 时 `reset/restart` 机械拒绝
+8. **client_hot**：`ready --chrome` CDP 预热 client chunk；`shell_hot`（curl `/`）≠ UI hydrate 完成；改码后 UI 测 **`./myrm restart --chrome`** 开新 wave
 
 **勿引用（已移除）**：`browser-delegate-chrome-e2e.mjs`、`clarify-chrome-e2e.mjs`、`start-chrome-mcp-debug.sh`（第二 Chrome / Allow 冲突）；`browser-delegate-e2e-once.mjs`、`render-ui-gap-e2e-prepare.mjs`、`notify-channel-e2e-prepare.mjs`、`cron-gap-e2e-prepare.mjs`、`test-cron-gap-e2e.sh`（API 重复 → `myrm-agent-server/tests/api/agent/`）；`ui_pong_chrome_verify.py`、`render_ui_chrome_verify.py`、`wfel-settings-ui-check.py`（主 Chrome CDP → 用 `:9333` + `tests/` 或 MCP）；`subagent-dashboard-e2e-poll.mjs`（debug 轮询，正式链用 prepare + verify）；`test-instinct-inbox-seed.py`（已改名 `instinct-inbox-seed.py`）。品牌图标生成见 `myrm-agent-desktop/scripts/inset-app-icon.py`。
 

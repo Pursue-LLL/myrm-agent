@@ -3,7 +3,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('./handlerDeps', () => {
+vi.mock('../handlerDeps', () => {
   const AgentEventType = {
     STATUS: 'status',
   } as const;

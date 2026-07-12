@@ -428,24 +428,6 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
                       key={item.id}
                       data-menu-item
                       onClick={() => onTabChange(item.id, fItem.subTabId)}
-                      onMouseEnter={() => {
-                        // 预加载逻辑：当鼠标悬停时，提前通知父组件进行预加载
-                        // 加入防抖逻辑，避免鼠标快速划过时触发大量预加载
-                        if (typeof window !== 'undefined') {
-                          if ((window as any)._prefetchTimeout) {
-                            clearTimeout((window as any)._prefetchTimeout);
-                          }
-                          (window as any)._prefetchTimeout = setTimeout(() => {
-                            const event = new CustomEvent('prefetch-settings-tab', { detail: { tabId: item.id } });
-                            window.dispatchEvent(event);
-                          }, 1000); // 1000ms 防抖
-                        }
-                      }}
-                      onMouseLeave={() => {
-                        if (typeof window !== 'undefined' && (window as any)._prefetchTimeout) {
-                          clearTimeout((window as any)._prefetchTimeout);
-                        }
-                      }}
                       className={cn(
                         'group relative flex flex-col items-start gap-1 pl-4 pr-3 py-2 rounded-xl text-sm transition-all duration-200 w-full',
                         isActive

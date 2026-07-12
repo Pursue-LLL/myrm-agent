@@ -27,7 +27,10 @@
 | `MessageInput.tsx` | 组件/模块 | — | — |
 | `MessageListSkeleton.tsx` | 组件/模块 | — | — |
 | `MobileActionSheet.tsx` | 组件/模块 | — | — |
-| `MobileStatusBoard.tsx` | 组件/模块 | — | — |
+| `MobileStatusBoard.tsx` | 组件 | 移动端 Command Center 壳层（审批/预览/进度/快捷输入） | ✅ |
+| `MobileStatusApprovalsSection.tsx` | 组件 | 移动端待审批队列区块 | — |
+| `MobileStatusLivePreview.tsx` | 组件 | 浏览器/桌面 Live Preview 与 Lightbox | — |
+| `MobileStatusMessageBody.tsx` | 组件 | 进度/验证/思考/结果与 Plan 步骤 | — |
 | `Navbar.tsx` | 组件/模块 | — | — |
 | `ParentChatLink.tsx` | 组件 | 子会话返回父对话导航链接（集成在 ChatWindow） | ✅ |
 | `WorkingStateBadge.tsx` | 组件 | 对话头部工作记忆状态标识。有活跃 working state 时显示简洁的单行 badge | ✅ |

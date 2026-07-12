@@ -35,5 +35,13 @@ echo "    3) bun scripts/dev/subagent-dashboard-e2e-verify.mjs <chatId> <taskId>
 echo ""
 echo "    Tip: E2E_HOLD_MS=90000 keeps prepare alive after JSON so list/cancel stay reachable."
 
+WAVE_RESOURCE_LEASE="${ROOT}/scripts/dev/wave-resource-lease.sh"
+WAVE_LEDGER_NAMESPACE="subagent-dashboard-e2e-$$"
+export MYRM_WAVE_AGENT_ID="${MYRM_WAVE_AGENT_ID:-subagent-dashboard-e2e:$$}"
+WAVE_LEDGER_LEASE_ID="$(bash "${WAVE_RESOURCE_LEASE}" acquire "${WAVE_LEDGER_NAMESPACE}")"
+export WAVE_LEDGER_LEASE_ID
+export WAVE_LEDGER_NAMESPACE
+trap 'bash "${WAVE_RESOURCE_LEASE}" release "${WAVE_LEDGER_LEASE_ID}"' EXIT
+
 export E2E_HOLD_MS="${E2E_HOLD_MS:-90000}"
 bun "$ROOT/scripts/dev/subagent-dashboard-e2e-prepare.mjs"

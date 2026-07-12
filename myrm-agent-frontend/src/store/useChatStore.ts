@@ -16,16 +16,13 @@ import crypto from 'crypto';
 import {
   ChatState,
   Message,
-  ChatHistoryItem,
-  PaginationInfo,
-  AgentConfig,
   DEFAULT_ENABLED_BUILTIN_TOOLS,
   type BuiltinToolId,
 } from '@/store/chat/types';
 export type { Message, File, ProgressItem, ChatHistoryItem, PaginationInfo, AgentConfig } from '@/store/chat/types';
 import { normalizeArchiveRestoreActions } from './chat/archiveRestoreActions';
 import { sendMessage, attachToChat } from './chat/messageRequest';
-import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat } from './chat/messageManagement';
+import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat, persistActiveChatNavigationSnapshot, resolveInstantChatSnapshot } from './chat/messageManagement';
 import { processSuggestions, findAssistantMessageIndex } from './chat/messageUtils';
 import useQuoteStore from './useQuoteStore';
 import useWorkspaceStore from './useWorkspaceStore';
@@ -590,22 +587,35 @@ const useChatStore = create<ChatState>()(
       initializeChat: (id) => {
         const state = get();
 
-        // 重置相关状态
-        // 新对话（无id）展开配置面板，有对话时收起
-        set({
-          hasUsedImagesInCurrentChat: false,
-          hideAttachList: false,
-          hasUserSelectedModel: false,
-          files: [],
-          mentionReferences: [],
-          isConfigPanelExpanded: !id, // 新对话展开，历史对话收起
-          environmentAlerts: new Set<string>(),
-          selectedModels: {
-            base: null,
-            vision: null,
-            reasoning: null,
-          },
-        });
+        if (state.chatId && state.chatId !== id) {
+          persistActiveChatNavigationSnapshot(state);
+        }
+
+        const hasInstantSnapshot = Boolean(id && resolveInstantChatSnapshot(id));
+
+        if (!hasInstantSnapshot) {
+          set({
+            hasUsedImagesInCurrentChat: false,
+            hideAttachList: false,
+            hasUserSelectedModel: false,
+            files: [],
+            mentionReferences: [],
+            isConfigPanelExpanded: !id,
+            environmentAlerts: new Set<string>(),
+            selectedModels: {
+              base: null,
+              vision: null,
+              reasoning: null,
+            },
+          });
+        } else {
+          set({
+            files: [],
+            mentionReferences: [],
+            isConfigPanelExpanded: false,
+            environmentAlerts: new Set<string>(),
+          });
+        }
         const actions = {
           setMessages: (updater: (state: ChatState) => void) => set(updater),
           setLoading: (loading: boolean) => set({ loading }),

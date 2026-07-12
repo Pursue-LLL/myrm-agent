@@ -10,6 +10,7 @@
 - GET /api/v1/health/liveness - Agent 全局存活状态 SSOT（聚合 Agent/渠道/内存）
 - GET /api/v1/health/ready - 就绪检查（readiness），检查所有依赖服务
 - GET /api/v1/health/info - 系统配置信息（部署模式、数据库类型等）
+- GET /api/v1/health/doctor - 聚合 Harness + Server 诊断（fail-only SSE 告警策略）
 - GET /api/v1/health/browser - 浏览器运行时健康状态
 - GET /api/v1/health/browser/doctor - 完整浏览器诊断
 - GET /api/v1/health/browser/orphans - 列出孤儿自动化进程
@@ -21,7 +22,6 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
-from myrm_agent_harness.observability.diagnostics.manager import run_all_diagnostics
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
 
@@ -30,7 +30,6 @@ from app.api.health.diagnostic import router as diagnostic_router
 from app.api.health.liveness import router as liveness_router
 from app.api.health.memory import router as memory_router
 from app.database.connection import get_session
-from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 from app.services.repair import (
     RepairActionExecuteRequest,
     RepairActionExecuteResult,
@@ -504,88 +503,28 @@ async def system_doctor() -> dict[str, object]:
     聚合底层 Harness 框架与 Server 业务层的健康检查报告，
     返回给前端的“系统状态大屏”呈现。
     """
-    from myrm_agent_harness.api.hooks import (
-        get_terminal_errors,
-    )
-    from myrm_agent_harness.observability.diagnostics.protocols import HealthReport, redact_health_report
+    from myrm_agent_harness.observability.diagnostics.protocols import redact_health_report
 
-    # 1. 获取底座 Harness 框架的健康度 (解耦调用)
-    harness_reports = await run_all_diagnostics()
+    from app.core.infra.health.health_alert_policy import publish_health_alerts
+    from app.core.infra.health.health_presenter import present_health_report
+    from app.core.infra.health.health_snapshot import collect_health_snapshot
 
-    # 1.5 捕获底层安全/终端错误 (Terminal Errors)
-    registry = get_terminal_errors()
-    registry._load()
-    errors = list(registry.get_all())
-    if errors:
-        harness_reports.append(
-            HealthReport(
-                component_name="AgentEngine",
-                status="fail",
-                message="Agent engine has encountered a critical error.",
-                detail=f"Terminal error detected: {'; '.join(errors)}",
-                fix_suggestion="Try restarting the application.",
-            )
-        )
-    elif not any(r.component_name == "AgentEngine" for r in harness_reports):
-        harness_reports.append(
-            HealthReport(
-                component_name="AgentEngine",
-                status="pass",
-                message="Agent engine is running normally.",
-            )
-        )
+    snapshot = await collect_health_snapshot()
+    harness_reports = list(snapshot.harness_reports)
+    server_reports = list(snapshot.server_reports)
 
-    # 2. 获取 Server 自身的健康度 (全链路依赖探测)
-    from app.core.infra.health.server_diagnostics import run_server_diagnostics
+    publish_health_alerts(snapshot.server_reports, layer="server")
+    publish_health_alerts(snapshot.harness_reports, layer="harness")
 
-    server_reports = list(await run_server_diagnostics())
-
-    # 将状态通过 SSE 广播（脱敏后）
-    for report in server_reports:
-        if report.status in ("fail", "warn"):
-            redacted = redact_health_report(report)
-            get_event_bus().publish(
-                AppEvent(
-                    event_type=AppEventType.HEALTH_ALERT,
-                    data={
-                        "component": redacted.component_name,
-                        "status": redacted.status,
-                        "code": redacted.code,
-                        "message": redacted.message,
-                        "detail": redacted.detail,
-                        "fix_suggestion": redacted.fix_suggestion,
-                        "layer": "server",
-                    },
-                )
-            )
-
-    # 3. 生成结构化修复建议。执行仍由白名单 repair endpoint 控制。
     repair_actions = await build_repair_actions(harness_reports, server_reports)
 
-    # 4. 发布fail/warn事件用于SSE告警（脱敏后）
-    for report in harness_reports:
-        if report.status in ("fail", "warn"):
-            redacted = redact_health_report(report)
-            get_event_bus().publish(
-                AppEvent(
-                    event_type=AppEventType.HEALTH_ALERT,
-                    data={
-                        "component": redacted.component_name,
-                        "status": redacted.status,
-                        "code": redacted.code,
-                        "message": redacted.message,
-                        "detail": redacted.detail,
-                        "fix_suggestion": redacted.fix_suggestion,
-                        "layer": "harness",
-                    },
-                )
-            )
-
     harness_payload: list[object] = [
-        redact_health_report(report).model_dump() if hasattr(report, "model_dump") else report for report in harness_reports
+        redact_health_report(present_health_report(report)).model_dump()
+        for report in harness_reports
     ]
     server_payload: list[object] = [
-        redact_health_report(report).model_dump() if hasattr(report, "model_dump") else report for report in server_reports
+        redact_health_report(present_health_report(report)).model_dump()
+        for report in server_reports
     ]
     return {
         "server": server_payload,

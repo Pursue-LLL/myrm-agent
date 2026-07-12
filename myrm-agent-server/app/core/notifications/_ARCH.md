@@ -31,7 +31,7 @@ and pushes human-readable notifications to user-configured IM channels
 |---|---|---|
 | `PAIRING_PENDING` | ✅ | `pairing_store` |
 | `APPROVAL_REQUIRED` | ✅ | `approvals/registry` |
-| `HEALTH_ALERT` | ✅ | `health/router` |
+| `HEALTH_ALERT` | ✅ | `health/router` + `health_alert_policy` (fail-only: AgentEngine/Database/Network/VectorDB/DLQ; never SystemResources) |
 | `BUDGET_ALERT` | ✅ | `budget/enforcer` |
 | `NEW_SKILL_DRAFT` | ✅ | `skills/draft_notification` |
 | `MESSAGE_DEAD_LETTERED` | ✅ | `channels/__init__` |

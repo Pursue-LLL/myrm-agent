@@ -267,21 +267,6 @@ function SettingsLayout() {
     setVisitedTabs((prev) => new Set([...prev, activeTab]));
   }, [activeTab]);
 
-  // 监听预加载事件
-  useEffect(() => {
-    const handlePrefetch = (e: Event) => {
-      const customEvent = e as CustomEvent<{ tabId: string }>;
-      const tabId = customEvent.detail?.tabId as SettingsTab;
-      if (tabId && !visitedTabs.has(tabId)) {
-        // 将其加入 visitedTabs，触发 React 渲染该组件（但可能通过 CSS 隐藏），从而实现预加载
-        // 由于我们使用了 next/dynamic，渲染组件就会触发网络请求拉取代码
-        setVisitedTabs((prev) => new Set([...prev, tabId]));
-      }
-    };
-    window.addEventListener('prefetch-settings-tab', handlePrefetch);
-    return () => window.removeEventListener('prefetch-settings-tab', handlePrefetch);
-  }, [visitedTabs]);
-
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(() => {
     const initialTab = (params?.tab as string) || null;
     return !(initialTab && validTabs.includes(initialTab as SettingsTab));

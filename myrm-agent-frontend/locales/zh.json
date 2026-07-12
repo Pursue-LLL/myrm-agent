@@ -1519,6 +1519,10 @@
       "retrieval": {
         "embeddingModel": "嵌入模型",
         "embeddingModelDescription": "文本向量化模型，用于支持知识库、记忆、网络搜索等能力的语义搜索",
+        "dismiss": "忽略",
+        "orphanWarning": "检测到 {{count}} 条旧记忆需要迁移到新模型",
+        "reindex": "迁移",
+        "reindexing": "迁移中...",
         "rerankerModel": "重排序模型",
         "rerankerModelDescription": "检索结果重排序模型，用于支持知识库、记忆、网络搜索等能力的语义排序",
         "provider": "提供商",

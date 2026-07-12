@@ -142,6 +142,29 @@ def probe_deployment_boundary(runtime: MemoryCommandRuntimeStatus) -> MemoryComm
     )
 
 
+def probe_orphan_collections(orphan_count: int, old_models: list[str]) -> MemoryCommandDoctorCheck:
+    has_orphans = orphan_count > 0
+    model_list = ", ".join(old_models[:3]) if old_models else ""
+    return MemoryCommandDoctorCheck(
+        id="orphan_collections",
+        category="embedding",
+        label="Orphan collections",
+        status="warning" if has_orphans else "ready",
+        evidence=(
+            f"Found {orphan_count} memories in collections from previous models ({model_list})."
+            if has_orphans
+            else "No orphan collections detected."
+        ),
+        impact="Memories in orphan collections are invisible to recall until re-embedded with the current model.",
+        next_action=(
+            "Reindex orphan memories to restore recall coverage."
+            if has_orphans
+            else "No action required."
+        ),
+        repair_actions=["reindex_memories"] if has_orphans else [],
+    )
+
+
 def probe_context_bundle_manifest(runtime: MemoryCommandRuntimeStatus) -> MemoryCommandDoctorCheck:
     from myrm_agent_harness.toolkits.context_bundle import run_migration_dry_run
 

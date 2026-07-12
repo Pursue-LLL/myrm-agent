@@ -75,6 +75,14 @@ _REPAIR_PLAN_CATALOG: dict[str, _RepairPlanSpec] = {
         dry_run_result="Uses existing trace metadata without exposing retrieved memory content.",
         expected_effect="Identifies which retrieval stage stopped producing trace or recall evidence.",
     ),
+    "reindex_memories": _RepairPlanSpec(
+        label="Reindex orphan memories",
+        risk_level="confirmation_required",
+        dry_run_result="Memories from previous embedding models exist in orphan collections.",
+        expected_effect="Re-embeds orphan memories with the current model, restoring full recall coverage.",
+        requires_confirmation=True,
+        executable=True,
+    ),
 }
 
 

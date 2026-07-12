@@ -1,6 +1,6 @@
 """System API Integration Tests
 
-测试 /api/v1/system/doctor 端点，验证数据库和Harness探针能否真实返回正确健康报告。
+测试 /api/v1/health/doctor 端点，验证数据库和 Harness 探针能否真实返回正确健康报告。
 """
 
 import pytest

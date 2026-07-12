@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AgentEventType } from '@/store/chat/types';
-import { AdaptiveScheduler } from '../../adaptiveScheduler';
-import type { StreamHandlerActions, StreamHandlerState } from '../types';
-import type { StreamCtx } from '../streamContext';
-import { gapEvents } from './gapEvents';
+import { AdaptiveScheduler } from '../../../adaptiveScheduler';
+import type { StreamHandlerActions, StreamHandlerState } from '../../types';
+import type { StreamCtx } from '../../streamContext';
+import { gapEvents } from '../gapEvents';
 
 const setCurrentBuiltinTools = vi.fn();
 const setPendingGapRetry = vi.fn((pending) => {

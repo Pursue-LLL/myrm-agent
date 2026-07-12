@@ -16,6 +16,7 @@ from app.api.memory.operations import (
     crud,
     guardian,
     pending,
+    reindex,
     shared_context_health,
     shared_context_history,
     shared_context_migration,
@@ -39,4 +40,5 @@ router.include_router(crud.router, tags=["memory-crud"])
 router.include_router(backup.router, tags=["memory-backup"])
 router.include_router(backup_remote.router, tags=["memory-backup-remote"])
 router.include_router(archival.router, tags=["memory-archival"])
+router.include_router(reindex.router, tags=["memory-reindex"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])

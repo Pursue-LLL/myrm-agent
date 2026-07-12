@@ -24,7 +24,7 @@ import {
   flushPendingGapRetry,
   resolveLastPlainUserMessage,
   scheduleFlushPendingGapRetry,
-} from './pendingGapRetry';
+} from '../pendingGapRetry';
 import type { Message } from '@/store/chat/types';
 
 describe('pendingGapRetry', () => {

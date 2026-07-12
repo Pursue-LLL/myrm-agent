@@ -42,6 +42,10 @@ export interface RetrievalConfig {
 
   // 高级检索开关（控制网络搜索重排序 + 网页抓取嵌入+重排序）
   enableAdvancedRetrieval: boolean;
+
+  // Orphan collection 状态（模型切换后的旧记忆检测）
+  orphanCount: number;
+  orphanOldModels: string[];
 }
 
 interface RetrievalActions {
@@ -60,6 +64,11 @@ interface RetrievalActions {
 
   // 高级检索开关
   setEnableAdvancedRetrieval: (enable: boolean) => void;
+
+  // Orphan 重建
+  checkOrphanCollections: () => Promise<void>;
+  executeReindex: () => Promise<{ migrated: number; failed: number }>;
+  dismissOrphanWarning: () => void;
 
   // 重置所有配置
   reset: () => void;
@@ -89,6 +98,8 @@ const DEFAULT_CONFIG: RetrievalConfig = {
   rerankerApplyStatus: 'idle',
   rerankerApplyMessage: undefined,
   enableAdvancedRetrieval: false,
+  orphanCount: 0,
+  orphanOldModels: [],
 };
 
 // 初始化标志
@@ -213,8 +224,9 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
               embeddingApplyMessage: result.message,
             });
 
-            // 同步到后端
             syncToManager(get());
+
+            get().checkOrphanCollections().catch(() => {});
 
             return { success: true, message: result.message };
           } else {
@@ -317,6 +329,39 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
       setEnableAdvancedRetrieval: (enable: boolean) => {
         set({ enableAdvancedRetrieval: enable });
         syncToManager(get());
+      },
+
+      // ============ Orphan 重建 ============
+
+      checkOrphanCollections: async () => {
+        try {
+          const response = await fetch('/api/memory/reindex/estimate');
+          if (!response.ok) return;
+          const data = await response.json();
+          const models = (data.orphan_collections ?? []).map(
+            (c: { old_model_suffix: string }) => c.old_model_suffix,
+          );
+          const uniqueModels = [...new Set<string>(models)];
+          set({ orphanCount: data.total_memories ?? 0, orphanOldModels: uniqueModels });
+        } catch {
+          // Non-critical; silently ignore
+        }
+      },
+
+      executeReindex: async () => {
+        try {
+          const response = await fetch('/api/memory/reindex', { method: 'POST' });
+          if (!response.ok) throw new Error('Reindex request failed');
+          const data = await response.json();
+          set({ orphanCount: 0, orphanOldModels: [] });
+          return { migrated: data.migrated ?? 0, failed: data.failed ?? 0 };
+        } catch {
+          return { migrated: 0, failed: -1 };
+        }
+      },
+
+      dismissOrphanWarning: () => {
+        set({ orphanCount: 0, orphanOldModels: [] });
       },
 
       // ============ 重置 ============

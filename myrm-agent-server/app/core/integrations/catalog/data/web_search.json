@@ -3,26 +3,30 @@
     "id": "firecrawl",
     "name": "Firecrawl",
     "name_zh": "Firecrawl",
-    "description": "Scrape, crawl, search, and extract structured data from web pages",
-    "description_zh": "爬取、搜索网页并提取结构化数据",
+    "description": "Scrape, crawl, search, and extract structured data from web pages (free tier: no API key needed)",
+    "description_zh": "爬取、搜索网页并提取结构化数据（免费层：无需 API Key）",
     "icon": "firecrawl",
     "category": "web_search",
     "connector_type": "mcp",
     "mcp_config": {
       "name": "firecrawl",
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "firecrawl-mcp"],
+      "type": "streamable_http",
+      "url": "https://mcp.firecrawl.dev/v2/mcp",
       "description": "Firecrawl - web scraping, crawling, search, structured extraction"
     },
     "auth": {
-      "type": "api_key",
-      "env_key": "FIRECRAWL_API_KEY",
+      "type": "none",
       "help_url": "https://firecrawl.dev",
-      "help_text": "Get your API key from firecrawl.dev dashboard",
-      "help_text_zh": "从 firecrawl.dev 控制台获取 API Key"
+      "help_text": "Free tier works without API key (scrape, search, interact). Get an API key from firecrawl.dev for full tool access and higher limits.",
+      "help_text_zh": "免费层无需 API Key（支持 scrape、search、interact）。如需完整工具和更高配额，可从 firecrawl.dev 获取 API Key。"
     },
-    "tags": ["web", "scraping", "crawl", "search", "extraction"],
+    "tags": [
+      "web",
+      "scraping",
+      "crawl",
+      "search",
+      "extraction"
+    ],
     "website": "https://firecrawl.dev"
   },
   {
@@ -45,7 +49,11 @@
       "help_text": "No API key required for the hosted MCP endpoint",
       "help_text_zh": "托管 MCP 端点无需 API Key"
     },
-    "tags": ["web", "search", "content"],
+    "tags": [
+      "web",
+      "search",
+      "content"
+    ],
     "website": "https://exa.ai"
   },
   {
@@ -61,7 +69,10 @@
       "name": "brave-search",
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@anthropic/brave-search-mcp"],
+      "args": [
+        "-y",
+        "@anthropic/brave-search-mcp"
+      ],
       "description": "Brave Search - web, news, image, video, local search"
     },
     "auth": {
@@ -71,7 +82,13 @@
       "help_text": "Get a free API key from brave.com/search/api",
       "help_text_zh": "从 brave.com/search/api 获取免费 API Key"
     },
-    "tags": ["web", "search", "news", "image", "video"],
+    "tags": [
+      "web",
+      "search",
+      "news",
+      "image",
+      "video"
+    ],
     "website": "https://brave.com"
   }
 ]

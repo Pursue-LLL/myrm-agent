@@ -38,6 +38,7 @@
 ## 集成
 
 - `dev-stack.sh` **必须**委托 supervisor（无直跑 fallback）；RPC 失败 **exit 1**（`STACK_FAIL`）
+- `dev-stack.sh` `reset` 在活跃 wave READ lease 时 **exit 1**（`WAVE_STACK_WRITE_DENIED`）；见 [../wave_orchestrator/_ARCH.md](../wave_orchestrator/_ARCH.md)
 - supervisor 子调用设 `MYRM_SUPERVISOR_BYPASS=1` 防递归
 - `./myrm stop` → `reset` 后 `stack-supervisor.sh stop`
 - `frontend-warmup.sh`：warmth 命中前要求 `_lock_supervisor_alive`（frontend lock pid 存活；定义于 warmup.sh，preflight 直 source）

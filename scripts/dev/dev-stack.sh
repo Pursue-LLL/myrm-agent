@@ -31,12 +31,10 @@ FRONTEND_PORT=3000
 
 ATTACH_WAIT_SEC="${MYRM_STACK_ATTACH_WAIT_SEC:-120}"
 ENSURE_FRONTEND_WAIT_SEC="${MYRM_STACK_FRONTEND_WAIT_SEC:-180}"
-API_E2E_LOCK_WAIT_SEC="${MYRM_API_E2E_LOCK_WAIT_SEC:-600}"
 
 mkdir -p "${STATE_DIR}"
 
 _lock_dir="${STATE_DIR}/ensure.lock.d"
-_api_lock_dir="${STATE_DIR}/api-e2e.lock.d"
 
 _acquire_dir_lock() {
   local lockdir="$1"
@@ -396,7 +394,20 @@ cmd_ensure() {
   exit 1
 }
 
+_wave_assert_stack_write_allowed() {
+  if [[ "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
+    return 0
+  fi
+  local wave_sh="${SCRIPT_DIR}/wave.sh"
+  if [[ ! -f "${wave_sh}" ]]; then
+    return 0
+  fi
+  bash "${wave_sh}" check-stack-write
+}
+
 cmd_reset() {
+  _wave_assert_stack_write_allowed || exit 1
+
   if [[ -f "${FRONTEND_PID}" ]]; then
     local fe_pid
     fe_pid="$(cat "${FRONTEND_PID}")"
@@ -461,15 +472,6 @@ cmd_status() {
   _lock_supervisor_alive && lock="alive"
   [[ -f "${FRONTEND_LOCK}" ]] && [[ "${lock}" == "missing" ]] && lock="stale"
   echo "stack_status api=${api} frontend=${fe} shell_hot=${shell_hot} client_hot=$(_frontend_client_hot_status) stack_epoch=${stack_epoch:-none} dev_lock=${lock}"
-}
-
-acquire_api_e2e_lock() {
-  if _acquire_dir_lock "${_api_lock_dir}" "${API_E2E_LOCK_WAIT_SEC}"; then
-    trap '_release_dir_lock "${_api_lock_dir}"' EXIT
-    return 0
-  fi
-  echo "MYRM_API_E2E_FAIL: could not acquire api-e2e lock within ${API_E2E_LOCK_WAIT_SEC}s" >&2
-  exit 1
 }
 
 usage() {
