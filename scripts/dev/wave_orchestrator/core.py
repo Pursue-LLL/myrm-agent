@@ -21,6 +21,12 @@ from datetime import datetime, timedelta, timezone
 from typing import TypedDict
 
 from wave_orchestrator.lanes import lane_conflict_reason
+from wave_orchestrator.browser_lifecycle import (
+    bind_browser,
+    cleanup_expired_browser,
+    cleanup_lease_browser,
+    unbind_browser,
+)
 from wave_orchestrator.paths import WavePaths, resolve_wave_paths
 from wave_orchestrator.resource_ledger import cleanup_lease_resources, cleanup_expired_lease_resources
 from wave_orchestrator.store import run_locked
@@ -89,13 +95,58 @@ def reaper(state: OrchestratorState, now: datetime | None = None) -> bool:
         if _parse_iso(lease["expiresAt"]) <= moment:
             lease["status"] = "expired"
             changed = True
+    if cleanup_expired_browser(state):
+        changed = True
     if cleanup_expired_lease_resources(state):
         changed = True
     return changed
 
 
+def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> bool:
+    """Invalidate an open wave before stale test leases can report success."""
+    wave = state["wave"]
+    if wave is None or wave["status"] != "open":
+        return False
+    if not current_runtime_id or current_runtime_id == wave["runtimeId"]:
+        return False
+
+    now = _utc_now()
+    wave["status"] = "drifted"
+    wave["closedAt"] = _iso(now)
+    for lease in active_leases(state):
+        lease["status"] = "expired"
+    cleanup_expired_browser(state)
+    cleanup_expired_lease_resources(state)
+    return True
+
+
+def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
+    """Run TTL and runtime drift reaping for the supervisor watchdog."""
+    resolved = paths or resolve_wave_paths()
+    current_runtime = probe_runtime_id()
+
+    def _edit(state: OrchestratorState) -> tuple[dict[str, object], bool]:
+        changed = reaper(state)
+        if reap_runtime_drift(state, current_runtime):
+            changed = True
+        return {
+            "wave": state["wave"],
+            "runtimeId": current_runtime,
+            "activeLeaseCount": len(active_leases(state)),
+        }, changed
+
+    return run_locked(resolved.state_file, _edit)
+
+
 def active_leases(state: OrchestratorState) -> list[LeaseRecord]:
     return [lease for lease in state["leases"] if lease["status"] == "active"]
+
+
+def _find_active_lease(state: OrchestratorState, lease_id: str) -> LeaseRecord:
+    for lease in state["leases"]:
+        if lease["leaseId"] == lease_id and lease["status"] == "active":
+            return lease
+    raise RuntimeError(f"LEASE_NOT_ACTIVE: {lease_id}")
 
 
 def open_wave(
@@ -150,6 +201,7 @@ def close_wave(*, paths: WavePaths | None = None, force: bool = False) -> WaveRe
         for lease in blockers:
             released_ids.append(lease["leaseId"])
             lease["status"] = "released"
+            cleanup_lease_browser(lease)
         closed: WaveRecord = {**wave, "status": "closed", "closedAt": _iso(now)}
         state["wave"] = closed
         return closed, True
@@ -249,6 +301,7 @@ def release_lease(
             if lease["agentId"] != holder:
                 raise RuntimeError(f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}")
             lease["status"] = "released"
+            cleanup_lease_browser(lease)
             return lease, True
         raise RuntimeError(f"LEASE_NOT_FOUND: {lease_id}")
 
@@ -256,6 +309,44 @@ def release_lease(
     if not skip_cleanup:
         cleanup_lease_resources(lease_id, paths=resolved)
     return lease
+
+
+def bind_browser_lease(
+    lease_id: str,
+    *,
+    page_id: str,
+    context_id: str = "",
+    paths: WavePaths | None = None,
+    agent_id: str | None = None,
+) -> LeaseRecord:
+    resolved = paths or resolve_wave_paths()
+    holder = agent_id or default_agent_id()
+
+    def _edit(state: OrchestratorState) -> tuple[LeaseRecord, bool]:
+        lease = _find_active_lease(state, lease_id)
+        if lease["agentId"] != holder:
+            raise RuntimeError(f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}")
+        return bind_browser(lease, page_id=page_id, context_id=context_id), True
+
+    return run_locked(resolved.state_file, _edit)
+
+
+def unbind_browser_lease(
+    lease_id: str,
+    *,
+    paths: WavePaths | None = None,
+    agent_id: str | None = None,
+) -> LeaseRecord:
+    resolved = paths or resolve_wave_paths()
+    holder = agent_id or default_agent_id()
+
+    def _edit(state: OrchestratorState) -> tuple[LeaseRecord, bool]:
+        lease = _find_active_lease(state, lease_id)
+        if lease["agentId"] != holder:
+            raise RuntimeError(f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}")
+        return unbind_browser(lease), True
+
+    return run_locked(resolved.state_file, _edit)
 
 
 def heartbeat_lease(

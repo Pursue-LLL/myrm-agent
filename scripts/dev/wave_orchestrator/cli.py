@@ -18,12 +18,15 @@ import sys
 
 from wave_orchestrator.core import (
     acquire_lease,
+    bind_browser_lease,
     check_stack_write_gate,
     close_wave,
     default_agent_id,
     heartbeat_lease,
     open_wave,
+    reap,
     release_lease,
+    unbind_browser_lease,
     wave_status,
 )
 from wave_orchestrator.resource_ledger import (
@@ -67,6 +70,12 @@ def cmd_status(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_reap(_args: argparse.Namespace) -> int:
+    summary = reap()
+    _emit({"ok": True, "reaped": True, **summary})
+    return 0
+
+
 def cmd_lease_acquire(args: argparse.Namespace) -> int:
     lane = args.lane.upper()
     if lane not in VALID_LANES:
@@ -96,6 +105,29 @@ def cmd_lease_release(args: argparse.Namespace) -> int:
 def cmd_lease_heartbeat(args: argparse.Namespace) -> int:
     try:
         lease = heartbeat_lease(args.lease_id, agent_id=args.agent, extend_sec=args.extend)
+    except RuntimeError as exc:
+        _fail(str(exc), 2)
+    _emit({"ok": True, "lease": lease})
+    return 0
+
+
+def cmd_lease_bind_browser(args: argparse.Namespace) -> int:
+    try:
+        lease = bind_browser_lease(
+            args.lease_id,
+            page_id=args.page_id,
+            context_id=args.context_id,
+            agent_id=args.agent,
+        )
+    except RuntimeError as exc:
+        _fail(str(exc), 2)
+    _emit({"ok": True, "lease": lease})
+    return 0
+
+
+def cmd_lease_unbind_browser(args: argparse.Namespace) -> int:
+    try:
+        lease = unbind_browser_lease(args.lease_id, agent_id=args.agent)
     except RuntimeError as exc:
         _fail(str(exc), 2)
     _emit({"ok": True, "lease": lease})
@@ -172,6 +204,9 @@ def build_parser() -> argparse.ArgumentParser:
     status_p = sub.add_parser("status", help="Show wave and lease status")
     status_p.set_defaults(handler=cmd_status)
 
+    reap_p = sub.add_parser("reap", help="Expire stale leases and clean their registered resources")
+    reap_p.set_defaults(handler=cmd_reap)
+
     gate_p = sub.add_parser("check-stack-write", help="Exit 0 when reset/restart is allowed")
     gate_p.set_defaults(handler=cmd_check_stack_write)
 
@@ -193,12 +228,22 @@ def build_parser() -> argparse.ArgumentParser:
     heartbeat_p.add_argument("--extend", type=int, default=3600, help="Extend TTL seconds")
     heartbeat_p.set_defaults(handler=cmd_lease_heartbeat)
 
+    bind_p = lease_sub.add_parser("bind-browser", help="Bind an MCP page to a lease")
+    bind_p.add_argument("lease_id", help="Active leaseId")
+    bind_p.add_argument("page_id", help="pageId returned by Chrome DevTools MCP")
+    bind_p.add_argument("--context-id", default="", help="Optional isolated browser context id")
+    bind_p.set_defaults(handler=cmd_lease_bind_browser)
+
+    unbind_p = lease_sub.add_parser("unbind-browser", help="Release page ownership without closing it")
+    unbind_p.add_argument("lease_id", help="Active leaseId")
+    unbind_p.set_defaults(handler=cmd_lease_unbind_browser)
+
     ledger_p = sub.add_parser("ledger", help="Resource ledger for RESOURCE_WRITE leases")
     ledger_sub = ledger_p.add_subparsers(dest="ledger_cmd", required=True)
 
     register_p = ledger_sub.add_parser("register", help="Register a test resource ref")
     register_p.add_argument("lease_id", help="Active RESOURCE_WRITE leaseId")
-    register_p.add_argument("kind", help="Resource kind: chat | project | agent | cron | file | task")
+    register_p.add_argument("kind", help="Resource kind: chat | project | agent | cron | file")
     register_p.add_argument("ref", help="Business resource id (e.g. chatId)")
     register_p.add_argument("--namespace", default="", help="Owner namespace override")
     register_p.set_defaults(handler=cmd_ledger_register)

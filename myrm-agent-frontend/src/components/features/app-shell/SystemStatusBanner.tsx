@@ -1,13 +1,36 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - `@/lib/backend-health` (`fetchBackendHealth`)
+ * - `next-intl` (`notifications.*`, `common.close`)
+ *
+ * [OUTPUT]
+ * - `SystemStatusBanner`: mount-time DB degrade/recover global banner + reset action
+ *
+ * [POS]
+ * Root-level banner in `LocalizedProviders`. Checks `/api/v1/health` once on mount;
+ * shows i18n copy when `system_status.database_degraded`; toast on `database_recovered`.
+ */
+
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { AlertTriangle, Database, X } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { apiRequest } from '@/lib/api';
 import { fetchBackendHealth } from '@/lib/backend-health';
 
+function resolveErrorMessage(error: unknown): string | undefined {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return undefined;
+}
+
 export default function SystemStatusBanner() {
+  const t = useTranslations('notifications');
+  const tCommon = useTranslations('common');
   const [degraded, setDegraded] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -19,8 +42,8 @@ export default function SystemStatusBanner() {
       if (!status) return;
 
       if (status.database_recovered) {
-        toast.success('数据库已自动修复', {
-          description: '检测到本地数据库异常，已自动为您恢复数据。',
+        toast.success(t('databaseRecoveredTitle'), {
+          description: t('databaseRecoveredDesc'),
           icon: <Database className="w-4 h-4" />,
           duration: 5000,
         });
@@ -30,10 +53,10 @@ export default function SystemStatusBanner() {
       }
     };
     checkStatus();
-  }, []);
+  }, [t]);
 
   const handleReset = async () => {
-    if (!confirm('确定要重置数据库吗？这将清空所有本地数据并重新初始化系统。')) {
+    if (!confirm(t('databaseResetConfirm'))) {
       return;
     }
 
@@ -44,16 +67,17 @@ export default function SystemStatusBanner() {
         silent: true,
       });
 
-      toast.success('数据库重置成功', {
-        description: '系统已恢复正常，即将刷新页面。',
+      toast.success(t('databaseResetSuccessTitle'), {
+        description: t('databaseResetSuccessDesc'),
       });
       setTimeout(() => {
         window.location.reload();
       }, 1500);
-    } catch (e: any) {
-      console.error(e);
-      toast.error('重置失败', {
-        description: e.message || '网络请求异常',
+    } catch (error: unknown) {
+      console.error(error);
+      const message = resolveErrorMessage(error) ?? t('databaseResetFailedNetwork');
+      toast.error(t('databaseResetFailedTitle'), {
+        description: t('databaseResetFailedDesc', { message }),
       });
       setIsResetting(false);
     }
@@ -66,18 +90,18 @@ export default function SystemStatusBanner() {
       <div className="flex items-center gap-3">
         <AlertTriangle className="w-5 h-5 flex-shrink-0" />
         <div className="text-sm">
-          <span className="font-bold mr-2">本地数据库严重损坏且无法恢复。</span>
-          当前运行在临时安全模式，您的新对话将不会被保存。
+          <span className="font-bold mr-2">{t('databaseDegradedTitle')}</span>
+          {t('databaseDegradedBody')}
         </div>
       </div>
       <div className="flex items-center gap-3">
         <Button variant="secondary" size="sm" className="h-8 text-xs" onClick={handleReset} disabled={isResetting}>
-          {isResetting ? '重置中...' : '立即重置数据库'}
+          {isResetting ? t('databaseResetting') : t('databaseResetNow')}
         </Button>
         <button
           onClick={() => setDismissed(true)}
           className="p-1 hover:bg-black/10 rounded-full transition-colors"
-          aria-label="Dismiss"
+          aria-label={tCommon('close')}
         >
           <X className="w-4 h-4" />
         </button>

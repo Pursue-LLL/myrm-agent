@@ -14,17 +14,17 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
-WaveStatus = Literal["open", "closed"]
+WaveStatus = Literal["open", "closed", "drifted"]
 LeaseStatus = Literal["active", "released", "expired"]
 Lane = Literal["READ", "RESOURCE_WRITE", "GLOBAL_WRITE", "LIVE_AGENT", "STACK_WRITE"]
-ResourceKind = Literal["chat", "project", "agent", "cron", "file", "task"]
+ResourceKind = Literal["chat", "project", "agent", "cron", "file"]
 ResourceStatus = Literal["active", "cleaned", "failed"]
 
 VALID_LANES: frozenset[Lane] = frozenset(
     {"READ", "RESOURCE_WRITE", "GLOBAL_WRITE", "LIVE_AGENT", "STACK_WRITE"}
 )
 VALID_RESOURCE_KINDS: frozenset[ResourceKind] = frozenset(
-    {"chat", "project", "agent", "cron", "file", "task"}
+    {"chat", "project", "agent", "cron", "file"}
 )
 
 
@@ -48,6 +48,8 @@ class LeaseRecord(TypedDict):
     expiresAt: str
     lastHeartbeatAt: str
     status: LeaseStatus
+    pageId: NotRequired[str]
+    contextId: NotRequired[str]
 
 
 class ResourceRecord(TypedDict):

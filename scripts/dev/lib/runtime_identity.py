@@ -38,6 +38,7 @@ class BackendEpoch(TypedDict):
 
 class FrontendEpoch(TypedDict):
     generation: str
+    source_fingerprint: str
     pid: int | None
     started_at: str
     port: int | None
@@ -206,13 +207,46 @@ def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | Non
     )
     if generation == ":::":
         return None
+    source_fingerprint = _frontend_source_fingerprint(root)
     return {
         "generation": generation,
+        "source_fingerprint": source_fingerprint,
         "pid": pid,
         "started_at": started_at,
         "port": port,
         "bundler_mode": bundler_mode,
     }
+
+
+def _frontend_source_fingerprint(frontend_dir: Path) -> str:
+    """Hash tracked changes and untracked frontend sources for HMR drift detection."""
+    tracked_paths = ("src", "locales", "next.config.ts", "package.json", "tsconfig.json")
+    try:
+        diff = subprocess.run(
+            ["git", "-C", str(frontend_dir), "diff", "--no-ext-diff", "--binary", "HEAD", "--", *tracked_paths],
+            check=False,
+            capture_output=True,
+            timeout=10,
+        ).stdout
+        untracked = subprocess.run(
+            ["git", "-C", str(frontend_dir), "ls-files", "--others", "--exclude-standard", "--", *tracked_paths],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout.splitlines()
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+    digest = hashlib.sha256(diff)
+    for relative_path in sorted(item for item in untracked if item):
+        path = frontend_dir / relative_path
+        try:
+            digest.update(relative_path.encode("utf-8"))
+            digest.update(path.read_bytes())
+        except OSError:
+            return ""
+    return digest.hexdigest()[:16]
 
 
 def _fetch_cdp_version(port: int) -> dict[str, object]:

@@ -106,13 +106,25 @@ def _cleanup_chat(ref: str, cookie: str) -> CleanupAttempt:
     }
 
 
+def _cleanup_resource(kind: ResourceKind, ref: str, cookie: str) -> CleanupAttempt:
+    resource_id = ref.strip()
+    if not resource_id:
+        return {"kind": kind, "ref": ref, "ok": False, "detail": "empty resource id"}
+    paths: dict[ResourceKind, str] = {
+        "project": f"/api/v1/projects/{resource_id}",
+        "agent": f"/api/v1/agents/{resource_id}",
+        "cron": f"/api/v1/cron/{resource_id}",
+        "file": f"/api/v1/files/storage/files/{resource_id}",
+        "chat": "",
+    }
+    status, detail = _request("DELETE", paths[kind], cookie=cookie)
+    if status in {200, 204, 404}:
+        return {"kind": kind, "ref": resource_id, "ok": True, "detail": f"deleted HTTP {status}"}
+    return {"kind": kind, "ref": resource_id, "ok": False, "detail": f"delete HTTP {status}: {detail}"}
+
+
 def cleanup_resource_ref(kind: ResourceKind, ref: str, *, cookie: str = "") -> CleanupAttempt:
     session_cookie = cookie or _login_cookie()
     if kind == "chat":
         return _cleanup_chat(ref, session_cookie)
-    return {
-        "kind": kind,
-        "ref": ref,
-        "ok": False,
-        "detail": f"unsupported cleanup kind {kind}",
-    }
+    return _cleanup_resource(kind, ref, session_cookie)

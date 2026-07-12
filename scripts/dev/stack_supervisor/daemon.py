@@ -107,6 +107,7 @@ class SupervisorDaemon:
     def _watchdog_once(self) -> None:
         probe, gc_action = collect_stale_state(self.paths)
         write_supervisor_state(self.paths, probe, gc_action)
+        self._reap_wave_leases()
         if any(
             (
                 gc_action.cleared_warmth,
@@ -117,6 +118,25 @@ class SupervisorDaemon:
         ):
             logger.info("GC actions: %s", gc_action)
         self._maybe_auto_heal(probe)
+
+    def _reap_wave_leases(self) -> None:
+        wave_script = self.paths.agent_root / "scripts" / "dev" / "wave.sh"
+        if not wave_script.is_file():
+            return
+        try:
+            result = subprocess.run(
+                ["bash", str(wave_script), "reap"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+                env=self._dev_stack_env(),
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            logger.warning("Wave lease reaper failed to execute")
+            return
+        if result.returncode != 0:
+            logger.warning("Wave lease reaper failed: %s", result.stderr.strip())
 
     def _maybe_auto_heal(self, probe: StackProbe) -> None:
         now = time.monotonic()

@@ -12,7 +12,7 @@
 | `ConfigConflictDialog.tsx` | 组件 | 跨设备配置冲突解决 UI（T3）；同设备冲突由 ConfigSyncManager 静默处理 | ✅ |
 | `PremiumTooltip.tsx` | 辅助 | 付费功能锁定 Tooltip 包装器 | ✅ |
 | `QuarantineDialog.tsx` | 组件 | 隔离/安全扫描 quarantine 文件确认对话框 | ✅ |
-| `SystemStatusBanner.tsx` | 组件 | 数据库降级/恢复全局 Banner；健康检查走 `fetchBackendHealth`（后端不可达静默跳过） | ✅ |
+| `SystemStatusBanner.tsx` | 组件 | 数据库降级/恢复全局 Banner；健康检查走 `fetchBackendHealth`（后端不可达静默跳过）；文案走 `notifications.*` 五语言 i18n | ✅ |
 | `VaultUnlockModal.tsx` | 组件 | E2EE Vault 解锁密码模态框 | ✅ |
 | `VisualDesktop.tsx` | 组件 | VNC/noVNC 实时桌面嵌入视图 | ✅ |
 | `VisualDesktopToggle.tsx` | 组件 | VNC 实时桌面面板 + 浏览器 HITL takeover UI（Agent 请求人工介入时自动弹出，显示原因并提供「完成」/「无法完成」操作按钮） | ✅ |
@@ -44,7 +44,9 @@
 
 | 路径 | 职责 |
 |------|------|
-| `__tests__/` | colocated 单测：BootScreen、LocalBackendUnavailableBanner、FlowPad、PWA 等壳层组件 |
+| `__tests__/SystemStatusBanner.test.tsx` | Banner 展示/隐藏、recovered toast、dismiss、i18n key 绑定 |
+| `__tests__/SystemStatusBanner.locales.test.ts` | 五语言 `notifications.database*` keys 完整性 |
+| `__tests__/` | 其他 colocated 单测：BootScreen、LocalBackendUnavailableBanner、FlowPad、PWA 等壳层组件 |
 
 ## 依赖
 

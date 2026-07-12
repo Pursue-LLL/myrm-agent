@@ -37,7 +37,7 @@ const IntegrationCatalogSection = memo(() => {
 
   const fetchCatalog = useCallback(async () => {
     try {
-      const data = await apiRequest<CatalogResponse>('/catalog', { silent: true });
+      const data = await apiRequest<CatalogResponse>('/integrations/catalog', { silent: true });
       setAllEntries(data.entries);
       setCategories(data.categories);
     } catch {
