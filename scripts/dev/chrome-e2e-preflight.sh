@@ -63,6 +63,9 @@ _ensure_stack_epoch_file() {
 
 # 1. Dev servers (Next.js cold compile can exceed 3s)
 if ! curl -sf --max-time 30 "$UI_BASE" >/dev/null; then
+  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+    fail "Frontend not reachable at $UI_BASE — first Agent must run: ./myrm ready --chrome"
+  fi
   if [[ -f "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ]]; then
     echo "CHROME_E2E_WARN: frontend down — running dev-stack ensure" >&2
     bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ensure || true
@@ -70,6 +73,9 @@ if ! curl -sf --max-time 30 "$UI_BASE" >/dev/null; then
   curl -sf --max-time 30 "$UI_BASE" >/dev/null || fail "Frontend not reachable at $UI_BASE — run: cd open-perplexity && ./myrm ready"
 fi
 if ! curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null; then
+  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+    fail "Backend not reachable at $API_BASE — first Agent must run: ./myrm ready --chrome"
+  fi
   if [[ -f "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ]]; then
     echo "CHROME_E2E_WARN: backend down — running dev-stack ensure" >&2
     bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ensure || true

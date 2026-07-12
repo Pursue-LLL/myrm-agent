@@ -7,6 +7,26 @@ FRONTEND_WARM_STREAK="${MYRM_FRONTEND_WARM_STREAK:-2}"
 FRONTEND_WARM_MAX_SEC="${MYRM_FRONTEND_WARM_MAX_SEC:-180}"
 FRONTEND_WARM_FAST_SEC="${MYRM_FRONTEND_WARM_FAST_SEC:-2}"
 
+# Frontend dev-server lock holder must be alive (warmth invalid if Turbopack process died).
+# Also sourced by chrome-e2e-preflight.sh without dev-stack.sh — must live here.
+_lock_supervisor_alive() {
+  [[ -f "${FRONTEND_LOCK}" ]] || return 1
+  local pid
+  pid="$(python3 -c "
+import json, sys
+from pathlib import Path
+p = Path('${FRONTEND_LOCK}')
+if not p.is_file():
+    sys.exit(1)
+data = json.loads(p.read_text())
+pid = data.get('pid')
+if not isinstance(pid, int):
+    sys.exit(1)
+print(pid)
+" 2>/dev/null)" || return 1
+  [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
+}
+
 _frontend_port_listening() {
   local port="${FRONTEND_PORT:-3000}"
   lsof -iTCP:"${port}" -sTCP:LISTEN -t >/dev/null 2>&1
@@ -44,6 +64,7 @@ _frontend_warmth_recorded() {
   gen="$(_frontend_lock_generation)"
   [[ -n "${gen}" ]] || return 1
   [[ -f "${state_file}" ]] || return 1
+  _lock_supervisor_alive || return 1
   python3 -c "
 import json, sys
 from pathlib import Path
@@ -111,6 +132,7 @@ _frontend_client_warmth_recorded() {
   gen="$(_frontend_lock_generation)"
   [[ -n "${gen}" ]] || return 1
   [[ -f "${state_file}" ]] || return 1
+  _lock_supervisor_alive || return 1
   python3 -c "
 import json, sys
 from pathlib import Path

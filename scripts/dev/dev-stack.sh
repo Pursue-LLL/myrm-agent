@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Dev stack supervisor — single lifecycle SSOT for local :8080/:3000.
+# Dev stack lifecycle — ensure/attach/reset/status for local :8080/:3000.
+# Mutations delegate to stack_supervisor daemon (required unless MYRM_SUPERVISOR_BYPASS=1).
 # Usage: dev-stack.sh ensure|attach|reset|status
 #   ensure  — mkdir atomic lock + start stack if unhealthy (idempotent)
 #   attach  — wait for healthy stack, zero start/kill side effects
@@ -166,24 +167,6 @@ _wait_stack_warm() {
     sleep 1
   done
   return 1
-}
-
-_lock_supervisor_alive() {
-  [[ -f "${FRONTEND_LOCK}" ]] || return 1
-  local pid
-  pid="$(python3 -c "
-import json, sys
-from pathlib import Path
-p = Path('${FRONTEND_LOCK}')
-if not p.is_file():
-    sys.exit(1)
-data = json.loads(p.read_text())
-pid = data.get('pid')
-if not isinstance(pid, int):
-    sys.exit(1)
-print(pid)
-" 2>/dev/null)" || return 1
-  [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
 }
 
 _backend_supervisor_alive() {
@@ -493,13 +476,34 @@ usage() {
   echo "Usage: dev-stack.sh ensure|attach|reset|status" >&2
 }
 
+_supervisor_delegate_or_fail() {
+  local cmd="$1"
+  if bash "${SCRIPT_DIR}/stack-supervisor.sh" rpc "${cmd}"; then
+    return 0
+  fi
+  echo "STACK_FAIL: supervisor rpc ${cmd} failed — run: bash ${SCRIPT_DIR}/stack-supervisor.sh start && cd open-perplexity && ./myrm ready" >&2
+  exit 1
+}
+
 main() {
   local cmd="${1:-}"
   case "${cmd}" in
-    ensure) cmd_ensure ;;
-    attach) cmd_attach ;;
-    reset) cmd_reset ;;
-    status) cmd_status ;;
+    ensure)
+      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_ensure; exit $?; fi
+      _supervisor_delegate_or_fail ensure
+      ;;
+    attach)
+      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_attach; exit $?; fi
+      _supervisor_delegate_or_fail attach
+      ;;
+    reset)
+      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_reset; exit $?; fi
+      _supervisor_delegate_or_fail reset
+      ;;
+    status)
+      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_status; exit $?; fi
+      _supervisor_delegate_or_fail status
+      ;;
     ""|-h|--help) usage; exit 1 ;;
     *)
       echo "Unknown command: ${cmd}" >&2

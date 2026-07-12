@@ -72,8 +72,12 @@ case "$COMMAND" in
 
     stop)
         DEV_STACK="${SCRIPT_DIR}/dev/dev-stack.sh"
+        SUPERVISOR="${SCRIPT_DIR}/dev/stack-supervisor.sh"
         if [[ -f "${DEV_STACK}" ]]; then
             bash "${DEV_STACK}" reset
+            if [[ -f "${SUPERVISOR}" ]]; then
+                bash "${SUPERVISOR}" stop >/dev/null 2>&1 || true
+            fi
             exit 0
         fi
         if [[ -f "${FRONTEND_DIR}/.myrm-dev-frontend.pid" ]]; then
