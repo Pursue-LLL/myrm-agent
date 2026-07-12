@@ -119,6 +119,7 @@ ACTIVE_PORT_FILE="${MYRM_CHROME_E2E_ACTIVE_PORT_FILE}"
 # 4. mux daemon (parallel Agent tabs)
 MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}"
 MUX_PID_FILE="${MUX_STATE_DIR}/daemon.pid"
+MUX_LOG_FILE="${MUX_STATE_DIR}/mux.log"
 MUX_USING=0
 if grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor/mcp.json" 2>/dev/null \
   || grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor-3.1.15/mcp.json" 2>/dev/null \
@@ -140,6 +141,19 @@ _kill_all_mux_daemons() {
 
 _stop_mux_daemon() {
   _kill_all_mux_daemons
+}
+
+_start_mux_daemon() {
+  mkdir -p "${MUX_STATE_DIR}"
+  # The preflight shell exits immediately after readiness. Detached stdio is
+  # required so the shared mux survives that shell and remains available to
+  # every later Chrome DevTools MCP client.
+  nohup env \
+    CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
+    MYRM_CHROME_E2E_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
+    MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" \
+    node "${MUX_BIN}" daemon \
+    >>"${MUX_LOG_FILE}" 2>&1 < /dev/null &
 }
 
 MUX_WS_STAMP="${MUX_STATE_DIR}/upstream-ws-url"
@@ -205,10 +219,7 @@ _ensure_mux_upstream() {
     echo "CHROME_E2E_WARN: mux upstreamReady=false — MCP list_pages/new_page will hang; restarting daemon" >&2
   fi
   _stop_mux_daemon
-  CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
-  MYRM_CHROME_E2E_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
-  MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" \
-    node "${MUX_BIN}" daemon >/dev/null 2>&1 &
+  _start_mux_daemon
   local i
   for i in $(seq 1 15); do
     sleep 1
@@ -232,10 +243,7 @@ _ensure_mux_daemon() {
     fi
   fi
   echo "CHROME_E2E_WARN: starting cdmcp-mux daemon for preflight" >&2
-  CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
-  MYRM_CHROME_E2E_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
-  MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" \
-    node "${MUX_BIN}" daemon >/dev/null 2>&1 &
+  _start_mux_daemon
   local i
   for i in $(seq 1 15); do
     if [[ -f "${MUX_PID_FILE}" ]] && kill -0 "$(tr -d '[:space:]' < "${MUX_PID_FILE}")" 2>/dev/null; then
@@ -276,10 +284,7 @@ if [[ "${MUX_USING}" -eq 1 ]]; then
     fi
     echo "CHROME_E2E_WARN: expected 1 mux daemon, found ${mux_count} — reconciling" >&2
     _kill_all_mux_daemons
-    CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
-    MYRM_CHROME_E2E_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
-    MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" \
-      node "${MUX_BIN}" daemon >/dev/null 2>&1 &
+    _start_mux_daemon
     sleep 1
     _ensure_mux_upstream
     mux_count="$(pgrep -f 'cdmcp-mux-autoconnect\.mjs daemon' 2>/dev/null | wc -l | tr -d ' ')"
