@@ -47,7 +47,7 @@
 | `agent-events/` | Agent 事件时间线 | [_ARCH.md](agent-events/_ARCH.md) |
 | `file-preview/` | 通用文件预览 | [_ARCH.md](file-preview/_ARCH.md) |
 
-其余子目录若新增，须同步本表并添加目录级 `_ARCH.md`。
+上表覆盖当前全部 feature 子目录。新增目录须同步本表并添加目录级 `_ARCH.md`。
 
 ## 依赖
 

@@ -8,7 +8,7 @@
 - collect_health_snapshot: side-effect-free diagnostic collection
 
 [POS]
-Pure health data collection for /health/doctor and the background history recorder.
+Pure health data collection for /health/doctor on-demand diagnostics.
 """
 
 from __future__ import annotations

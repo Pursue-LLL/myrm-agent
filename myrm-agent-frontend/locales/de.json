@@ -2856,33 +2856,6 @@
     "mcpSecretRefSaveHint": "Konfiguration gespeichert",
     "mcpSecretRefSaveHintDesc": "Secret-Referenzen in Headers werden zur Laufzeit aufgelöst.",
     "systemHealth": {
-      "trend": {
-        "title": "Systemgesundheitstrend",
-        "description": "Historische Gesundheitsleistung und Komponentenstatus",
-        "fetchError": "Fehler beim Abrufen der Gesundheitshistorie",
-        "unknownError": "Unbekannter Fehler",
-        "errorPrefix": "Fehler",
-        "timeRange": {
-          "label": "Zeitraum",
-          "last24h": "Letzte 24 Stunden",
-          "last7d": "Letzte 7 Tage",
-          "last30d": "Letzte 30 Tage"
-        },
-        "loading": "Verlaufsdaten werden geladen...",
-        "noData": "Keine Verlaufsdaten für diesen Zeitraum verfügbar.",
-        "tooltip": {
-          "time": "Zeit",
-          "score": "Gesundheitsbewertung",
-          "clickHint": "Punkt anklicken für detaillierten Komponentenbericht"
-        },
-        "modal": {
-          "title": "Gesundheitsbericht-Details",
-          "score": "Bewertung",
-          "totalComponents": "Bewertete Komponenten gesamt",
-          "components": "Komponenten",
-          "noDetails": "Keine Komponentendetails für diesen Eintrag verfügbar."
-        }
-      },
       "doctor": {
         "title": "Systemgesundheitsdiagnose",
         "description": "Echtzeit-Gesundheitstelemetrie von Serverkomponenten und Framework-Schicht",
@@ -2941,13 +2914,6 @@
           "medium": "Mittleres Risiko",
           "high": "Hohes Risiko"
         }
-      },
-      "benchmark": {
-        "title": "Performance Benchmark",
-        "description": "Test LLM TTFT, Embedding speed, and external API latency.",
-        "start": "Run Benchmark",
-        "running": "Running...",
-        "starting": "Preparing benchmark suite..."
       }
     },
     "lockedUse": {
@@ -11483,97 +11449,6 @@
         "message": "Message",
         "memory": "Memory",
         "error": "Error"
-      }
-    }
-  },
-  "systemHealth": {
-    "benchmark": {
-      "title": "Performance Benchmark",
-      "description": "Test LLM first-token latency, embedding speed, and external API network latency.",
-      "start": "Start Deep Test",
-      "running": "Testing...",
-      "starting": "Preparing test suite..."
-    },
-    "trend": {
-      "title": "System Health Trends",
-      "description": "Historical health status and component performance",
-      "fetchError": "Failed to fetch historical health data",
-      "unknownError": "Unknown error",
-      "errorPrefix": "Error",
-      "timeRange": {
-        "label": "Time Range",
-        "last24h": "Last 24 hours",
-        "last7d": "Last 7 days",
-        "last30d": "Last 30 days"
-      },
-      "loading": "Loading historical data...",
-      "noData": "No health data for the selected time range.",
-      "tooltip": {
-        "time": "Time",
-        "score": "Health Score",
-        "clickHint": "Click a data point to view detailed component report"
-      },
-      "modal": {
-        "title": "Health Report Details",
-        "score": "Score",
-        "totalComponents": "Components Evaluated",
-        "components": "components",
-        "noDetails": "No component details for this record."
-      }
-    },
-    "doctor": {
-      "title": "System Health Diagnostics",
-      "description": "Real-time health telemetry for service components and framework layer",
-      "loading": "Running diagnostics...",
-      "unknownError": "Unknown error",
-      "unreachable": "System diagnostics unreachable: {error}",
-      "retry": "Retry",
-      "searchPlaceholder": "Search components...",
-      "filterPlaceholder": "Filter by status",
-      "filterAll": "All Statuses",
-      "filterPass": "Pass Only",
-      "filterFail": "Fail Only",
-      "filterWarn": "Warn Only",
-      "healthScore": "System Health: {score}%",
-      "healthSummary": "{pass} pass / {fail} fail / {warn} warn",
-      "statusHealthy": "Healthy",
-      "statusDegraded": "Degraded",
-      "statusCritical": "Critical",
-      "healthy": "Healthy",
-      "repairTitle": "Guided Repair",
-      "layerHarness": "Harness Framework Layer",
-      "layerServer": "Server Business Layer",
-      "noProbes": "No registered diagnostic probes.",
-      "errors": {
-        "ERR_DLQ_CRITICAL": {
-          "message": "Message delivery queue has critical failures ({failed_count} failed)."
-        },
-        "OK_DLQ_HEALTHY": {
-          "message": "Message delivery queue is operating normally ({failed_count} failed)."
-        },
-        "WARN_DLQ_UNAVAILABLE": {
-          "message": "Dead letter queue (DLQ) is not configured or initialized."
-        },
-        "ERR_DLQ_CHECK_FAILED": {
-          "message": "Error encountered while running message delivery health check."
-        },
-        "ERR_PROBE_CRASH": {
-          "message": "Probe execution crashed unexpectedly."
-        }
-      }
-    },
-    "repair": {
-      "whyAppears": "Why this appears",
-      "expectedEffect": "Expected Effect",
-      "safetyBoundary": "Safety Boundary",
-      "preview": "Preview",
-      "confirmRepair": "Confirm Repair",
-      "advisoryOnly": "Advisory Only",
-      "executeFailed": "Failed to execute repair action",
-      "risk": {
-        "low": "Low Risk",
-        "medium": "Medium Risk",
-        "high": "High Risk"
       }
     }
   },

@@ -4265,40 +4265,6 @@
       }
     },
     "systemHealth": {
-      "benchmark": {
-        "title": "性能基准测试",
-        "description": "测试大模型首字延迟、向量化速度及外部API网络延迟。",
-        "start": "开始深度测试",
-        "running": "测试中...",
-        "starting": "正在准备测试套件..."
-      },
-      "trend": {
-        "title": "系统健康趋势",
-        "description": "历史健康状态与组件表现",
-        "fetchError": "获取历史健康数据失败",
-        "unknownError": "未知错误",
-        "errorPrefix": "错误",
-        "timeRange": {
-          "label": "时间范围",
-          "last24h": "最近 24 小时",
-          "last7d": "最近 7 天",
-          "last30d": "最近 30 天"
-        },
-        "loading": "加载历史数据中...",
-        "noData": "当前时间范围暂无健康数据。",
-        "tooltip": {
-          "time": "时间",
-          "score": "健康评分",
-          "clickHint": "点击数据点查看详细组件报告"
-        },
-        "modal": {
-          "title": "健康报告详情",
-          "score": "评分",
-          "totalComponents": "评估组件数",
-          "components": "个组件",
-          "noDetails": "此记录暂无组件详情。"
-        }
-      },
       "doctor": {
         "title": "系统健康诊断",
         "description": "服务组件与框架层的实时健康遥测",
@@ -12461,97 +12427,6 @@
         "message": "Message",
         "memory": "Memory",
         "error": "Error"
-      }
-    }
-  },
-  "systemHealth": {
-    "benchmark": {
-      "title": "Performance Benchmark",
-      "description": "Test LLM first-token latency, embedding speed, and external API network latency.",
-      "start": "Start Deep Test",
-      "running": "Testing...",
-      "starting": "Preparing test suite..."
-    },
-    "trend": {
-      "title": "System Health Trends",
-      "description": "Historical health status and component performance",
-      "fetchError": "Failed to fetch historical health data",
-      "unknownError": "Unknown error",
-      "errorPrefix": "Error",
-      "timeRange": {
-        "label": "Time Range",
-        "last24h": "Last 24 hours",
-        "last7d": "Last 7 days",
-        "last30d": "Last 30 days"
-      },
-      "loading": "Loading historical data...",
-      "noData": "No health data for the selected time range.",
-      "tooltip": {
-        "time": "Time",
-        "score": "Health Score",
-        "clickHint": "Click a data point to view detailed component report"
-      },
-      "modal": {
-        "title": "Health Report Details",
-        "score": "Score",
-        "totalComponents": "Components Evaluated",
-        "components": "components",
-        "noDetails": "No component details for this record."
-      }
-    },
-    "doctor": {
-      "title": "System Health Diagnostics",
-      "description": "Real-time health telemetry for service components and framework layer",
-      "loading": "Running diagnostics...",
-      "unknownError": "Unknown error",
-      "unreachable": "System diagnostics unreachable: {error}",
-      "retry": "Retry",
-      "searchPlaceholder": "Search components...",
-      "filterPlaceholder": "Filter by status",
-      "filterAll": "All Statuses",
-      "filterPass": "Pass Only",
-      "filterFail": "Fail Only",
-      "filterWarn": "Warn Only",
-      "healthScore": "System Health: {score}%",
-      "healthSummary": "{pass} pass / {fail} fail / {warn} warn",
-      "statusHealthy": "Healthy",
-      "statusDegraded": "Degraded",
-      "statusCritical": "Critical",
-      "healthy": "Healthy",
-      "repairTitle": "Guided Repair",
-      "layerHarness": "Harness Framework Layer",
-      "layerServer": "Server Business Layer",
-      "noProbes": "No registered diagnostic probes.",
-      "errors": {
-        "ERR_DLQ_CRITICAL": {
-          "message": "Message delivery queue has critical failures ({failed_count} failed)."
-        },
-        "OK_DLQ_HEALTHY": {
-          "message": "Message delivery queue is operating normally ({failed_count} failed)."
-        },
-        "WARN_DLQ_UNAVAILABLE": {
-          "message": "Dead letter queue (DLQ) is not configured or initialized."
-        },
-        "ERR_DLQ_CHECK_FAILED": {
-          "message": "Error encountered while running message delivery health check."
-        },
-        "ERR_PROBE_CRASH": {
-          "message": "Probe execution crashed unexpectedly."
-        }
-      }
-    },
-    "repair": {
-      "whyAppears": "Why this appears",
-      "expectedEffect": "Expected Effect",
-      "safetyBoundary": "Safety Boundary",
-      "preview": "Preview",
-      "confirmRepair": "Confirm Repair",
-      "advisoryOnly": "Advisory Only",
-      "executeFailed": "Failed to execute repair action",
-      "risk": {
-        "low": "Low Risk",
-        "medium": "Medium Risk",
-        "high": "High Risk"
       }
     }
   },

@@ -51,7 +51,6 @@ class AppEventType(StrEnum):
     APPROVAL_RESOLVED = "approval_resolved"
     CRON_UPDATED = "cron_updated"
     SKILL_AB_TEST_UPDATED = "skill_ab_test_updated"
-    HEALTH_STATUS_UPDATED = "health_status_updated"
     BUDGET_UPDATED = "budget_updated"
     CHANNEL_STATUS_UPDATED = "channel_status_updated"
     SKILL_QUALITY_UPDATED = "skill_quality_updated"

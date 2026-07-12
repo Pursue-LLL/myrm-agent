@@ -14,7 +14,7 @@ Diagnostic aggregation for `/health/doctor` lives here:
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Health checking business layer exports. | ✅ |
-| health_snapshot.py | Core | `collect_health_snapshot()` for doctor API and history recorder. | ✅ |
+| health_snapshot.py | Core | `collect_health_snapshot()` for on-demand `/health/doctor` API. | ✅ |
 | health_alert_policy.py | Core | `publish_health_alerts()` with 300s dedup; fail-only critical components. | ✅ |
 | health_presenter.py | Core | Sandbox-aware `present_health_report()` for WebUI payloads. | ✅ |
 | server_diagnostics.py | Core | Server business diagnostic probes (DLQ). | ✅ |
