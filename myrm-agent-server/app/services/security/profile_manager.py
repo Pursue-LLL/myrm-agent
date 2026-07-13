@@ -47,6 +47,8 @@ _BUILTIN_PROFILES: list[dict[str, object]] = [
                 "browser_fill": "deny",
                 "browser_upload": "deny",
                 "browser_download": "deny",
+                "skill_manage": "deny",
+                "cron_manage": "deny",
                 "mcp_invoke": "ask",
                 "delegate_agent": "allow",
             },
