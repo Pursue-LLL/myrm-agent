@@ -36,6 +36,8 @@ def schedule_channel_approval_timeout(
     chat_id: str,
     timeout_info: dict[str, object],
     params: object,
+    *,
+    user_id: str,
 ) -> None:
     """Register a backend timeout guard for a channel approval request."""
     timeout_seconds = parse_float(timeout_info.get("seconds", 300), 300.0)
@@ -105,6 +107,7 @@ def schedule_channel_approval_timeout(
                 peer,
                 decision,
                 content.strip() or None,
+                user_id=user_id,
             )
 
             if next_timeout:
@@ -114,6 +117,7 @@ def schedule_channel_approval_timeout(
                     chat_id=chat_id,
                     timeout_info=next_timeout,
                     params=resume_params,
+                    user_id=user_id,
                 )
             else:
                 logger.info(
@@ -135,6 +139,8 @@ async def notify_channel_timeout_result(
     peer: str,
     decision: str,
     agent_response: str | None,
+    *,
+    user_id: str,
 ) -> None:
     """Send a notification to the channel after an approval timeout auto-resume."""
     from app.core.channel_bridge import channel_gateway
@@ -151,6 +157,7 @@ async def notify_channel_timeout_result(
                 channel=channel,
                 recipient_id=peer,
                 content=content,
+                user_id=user_id,
             )
         )
     except Exception:

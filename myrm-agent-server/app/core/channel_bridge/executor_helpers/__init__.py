@@ -7,7 +7,7 @@
 - executor_helpers.quick_replies (POS: Quick-reply suggestions)
 
 [OUTPUT]
-Re-exports all symbols previously available from executor_helpers.py.
+Public channel executor helper API: history, approval, stream, and quick-reply symbols.
 
 [POS]
 ChannelAgentExecutor 辅助包入口。按关注点拆分为 history / approval / stream / quick_replies。

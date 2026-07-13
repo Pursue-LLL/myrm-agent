@@ -192,6 +192,7 @@ class ChannelAgentExecutor:
                     chat_id=chat_id,
                     timeout_info=stream_state.approval_timeout_info,
                     params=params,
+                    user_id=msg.user_id or msg.sender_id or "",
                 )
             if agent and params is not None:
                 await finalize_agent_session(
