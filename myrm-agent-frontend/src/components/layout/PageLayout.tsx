@@ -50,7 +50,6 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
   const pathname = usePathname();
   const isStandaloneRoute = isStandalonePath(pathname);
   const isFocusedMode = useFocusedMode();
-  const [mounted, setMounted] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showNormalBoot, setShowNormalBoot] = useState(false);
   const [readinessDegraded, setReadinessDegraded] = useState(false);
@@ -84,8 +83,6 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
   }, []);
 
   useEffect(() => {
-    setMounted(true);
-
     if (isStandaloneRoute || isFocusedMode) {
       return;
     }
@@ -107,10 +104,6 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
 
   if (isStandaloneRoute || isFocusedMode) {
     return <>{children}</>;
-  }
-
-  if (!mounted) {
-    return <AppShellSkeleton />;
   }
 
   return (

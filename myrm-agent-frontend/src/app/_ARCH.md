@@ -34,3 +34,4 @@
 
 - 新页面优先复用 `features/` 组件，不在 `app/` 堆业务逻辑。
 - 单文件 page >600 行应下沉到 `features/`（如 `batch-optimization/page.tsx`）。
+- `layout.tsx`：构建期静态 `metadata`（`lib/metadata/static-metadata.ts`）；`<body suppressHydrationWarning>` 压制浏览器扩展注入属性导致的 hydration warning；`LocalizedProviders` 仍在 Suspense 内（cookie locale）。

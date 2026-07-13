@@ -1,6 +1,7 @@
 """Channel preamble agent assembly: params, factory, resume gate, credentials.
 
 [INPUT]
+execute_preamble_types (POS: preamble 数据结构)
 app.ai_agents.agents::AgentFactory (POS: GeneralAgent 工厂)
 app.services.agent.session_credential_assembler (POS: 会话凭证装配)
 
@@ -14,15 +15,13 @@ execute_preamble 子模块：从已解析配置到可运行 Agent 实例的最�
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 
 from langgraph.types import Command
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
-from app.ai_agents.general_agent.agent import GeneralAgent
 from app.channels.i18n import get_text
-from app.channels.types import InboundMessage, OutboundMessage
+from app.channels.types import InboundMessage
 from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.channel_bridge.config_parsers import verify_search_service_available
 from app.core.types.business import ModelConfig
@@ -31,24 +30,14 @@ from app.services.agent.profile_resolver import ResolvedAgentProfile
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
 
-from .execute_preamble_types import build_security_config
+from .execute_preamble_types import (
+    ChannelAgentBuildOutcome,
+    ChannelAgentBuildResult,
+    build_security_config,
+)
 from .helpers import _extract_code_exec_network, _resolve_inbound_memory_identity
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ChannelAgentBuildResult:
-    agent: GeneralAgent
-    token_ctx: object
-    query_input: str | Command[object]
-    params: GeneralAgentParams
-
-
-@dataclass
-class ChannelAgentBuildOutcome:
-    result: ChannelAgentBuildResult | None = None
-    early_reply: OutboundMessage | None = None
 
 
 async def build_channel_execution_agent(

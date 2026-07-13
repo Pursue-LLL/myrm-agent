@@ -67,7 +67,7 @@ describe('PageLayout', () => {
     vi.clearAllMocks();
   });
 
-  it('enters AppLayout after hydration without waiting for readiness', async () => {
+  it('enters AppLayout on first render without waiting for readiness', () => {
     mockShouldShowBootScreen.mockReturnValue(false);
     render(
       <PageLayout>
@@ -75,9 +75,7 @@ describe('PageLayout', () => {
       </PageLayout>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('app-layout')).toBeInTheDocument();
-    });
+    expect(screen.getByTestId('app-layout')).toBeInTheDocument();
   });
 
   it('shows BootScreen on cold start and transitions to AppLayout', async () => {

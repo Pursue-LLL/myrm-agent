@@ -4,7 +4,8 @@
 app.channels.types::InboundMessage (POS: Channel inbound message envelope)
 
 [OUTPUT]
-ChannelExecutionPrep, PrepareChannelExecutionResult, build_security_config()
+ChannelExecutionPrep, PrepareChannelExecutionResult, ChannelAgentBuildResult,
+ChannelAgentBuildOutcome, build_security_config()
 
 [POS]
 execute_preamble 子模块：preamble 阶段数据结构与安全配置组装。
@@ -58,3 +59,17 @@ class ChannelExecutionPrep:
 class PrepareChannelExecutionResult:
     prep: ChannelExecutionPrep | None = None
     pre_events: tuple[ProgressUpdate | OutboundMessage, ...] = ()
+
+
+@dataclass
+class ChannelAgentBuildResult:
+    agent: GeneralAgent
+    token_ctx: object
+    query_input: str | Command[object]
+    params: GeneralAgentParams
+
+
+@dataclass
+class ChannelAgentBuildOutcome:
+    result: ChannelAgentBuildResult | None = None
+    early_reply: OutboundMessage | None = None

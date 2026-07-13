@@ -41,7 +41,10 @@ export default function LocaleLayout({ children }: { children: React.ReactNode }
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <link rel="preload" as="image" href="/brand/brand-mark-128.webp" type="image/webp" />
       </head>
-      <body className={cn('min-h-full', fontSans.variable, fontMono.variable)}>
+      <body
+        className={cn('min-h-full', fontSans.variable, fontMono.variable)}
+        suppressHydrationWarning
+      >
         <Script id="theme-pre-init" src="/theme-init.js" strategy="beforeInteractive" />
         <WebVitals />
         <Suspense fallback={<AppShellSkeleton />}>
