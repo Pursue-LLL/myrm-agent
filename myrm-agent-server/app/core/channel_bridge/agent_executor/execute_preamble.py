@@ -5,7 +5,7 @@ execute_preamble_{types,session,agent,instructions} (POS: preamble 子模块)
 app.core.channel_bridge.config_loader (POS: UserConfig 加载)
 
 [OUTPUT]
-prepare_channel_execution(): 预算/会话/Agent 创建前置；返回 ChannelExecutionPrep。
+prepare_channel_execution(): 预算/会话/Agent 创建前置；返回 PrepareChannelExecutionResult（prep 或 pre_events 早退）。
 
 [POS]
 渠道 Agent 执行 preamble 编排门面：串联子模块完成 InboundMessage → GeneralAgent。

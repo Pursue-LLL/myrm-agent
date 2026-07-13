@@ -1,11 +1,15 @@
 """Channel execution preamble types and security config builder.
 
 [INPUT]
-app.channels.types::InboundMessage (POS: Channel inbound message envelope)
+- app.ai_agents.agents::GeneralAgentParams (POS: General agent runtime parameter bundle)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: Business-layer general agent wrapper)
+- app.channels.types::OutboundMessage, ProgressUpdate (POS: Channel outbound message envelope)
+- app.core.channel_bridge.config_parsers::SessionPolicy (POS: Session policy parsing)
+- app.core.types.business::ModelConfig (POS: Model configuration types)
 
 [OUTPUT]
 ChannelExecutionPrep, PrepareChannelExecutionResult, ChannelAgentBuildResult,
-ChannelAgentBuildOutcome, build_security_config()
+ChannelAgentBuildOutcome (XOR: result | early_reply), build_security_config()
 
 [POS]
 execute_preamble 子模块：preamble 阶段数据结构与安全配置组装。

@@ -20,11 +20,11 @@
 | `execute_errors.py` | 模块 | ConfigIncomplete / MyrmLLM / 通用异常 → OutboundMessage 回复。 | ✅ |
 | `artifact_deep_links.py` | 模块 | 可分享 artifact 的 IM 附件收集 + HMAC 深链 ActionButton 生成 + DB version 批量查询。 | ✅ |
 | `stream_events.py` | 模块 | harness `process_stream` 事件 → ProgressUpdate/StreamingText 映射；审批超时 side-effect 状态。 | ✅ |
-| `helpers.py` | 模块 | Business-layer assembly for IM/channel turns headed to the SkillAgent runtime. StreamAccumulator tracks cost_usd, model_name, total_tokens for channel budget attribution and cost metadata display, and shareable_artifacts for deep link injection. | ✅ |
+| `helpers.py` | 模块 | 入站 query 组装：`build_channel_inbound_query`、memory identity 解析、delivery provenance banner。 | ✅ |
 | `session.py` | 模块 | Build a structured session key (base, without epoch). Exports `build_channel_budget_key(msg)` for channel budget guard key construction (single source of truth for peer resolution). | ✅ |
 
 ## 测试
 
 - `tests/core/channel_bridge/test_artifact_deep_links.py` — artifact 收集与深链
 - `tests/core/channel_bridge/test_stream_events.py` — harness 流事件映射
-- `tests/core/channel_bridge/test_execute_preamble_early_exit.py` — preamble 早退（resume timeout、search unavailable）
+- `tests/core/channel_bridge/test_execute_preamble_early_exit.py` — preamble 早退（resume timeout、search unavailable、Outcome XOR）
