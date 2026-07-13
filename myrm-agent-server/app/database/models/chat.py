@@ -37,9 +37,6 @@ class Chat(Base):
     # Store JIT ephemeral subagents for session resume and crash recovery
     ephemeral_subagents: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    # Store Task-Adaptive context digest for JIT context hydration
-    task_adaptive_digest: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-
     # Persisted loaded skill names for session skill contract (survives compaction / history trim)
     session_loaded_skill_names: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 

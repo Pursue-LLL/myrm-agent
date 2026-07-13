@@ -27,6 +27,14 @@ const getTauriInvoke = async (): Promise<typeof import('@tauri-apps/api/core').i
   }
 };
 
+function persistTauriSystemConfigCache(config: SystemConfig): void {
+  try {
+    localStorage.setItem('myrm-tauri-system-config', JSON.stringify(config));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
 export function useSystemConfig() {
   const [config, setConfig] = useState<SystemConfig>(DEFAULT_SYSTEM_CONFIG);
   const [currentMode, setCurrentMode] = useState<RunMode>('desktop');
@@ -70,11 +78,7 @@ export function useSystemConfig() {
       setCurrentMode(mode as RunMode);
       setLocalIP(ip);
 
-      try {
-        localStorage.setItem('myrm-tauri-system-config', JSON.stringify(loadedConfig));
-      } catch {
-        // ignore quota / private mode
-      }
+      persistTauriSystemConfigCache(loadedConfig);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(`Failed to load config: ${message}`);
@@ -109,11 +113,7 @@ export function useSystemConfig() {
       await invoke('save_system_config', { config: newConfig });
       setConfig(newConfig);
 
-      try {
-        localStorage.setItem('myrm-tauri-system-config', JSON.stringify(newConfig));
-      } catch {
-        // ignore quota / private mode
-      }
+      persistTauriSystemConfigCache(newConfig);
 
       return true;
     } catch (err) {
@@ -144,6 +144,7 @@ export function useSystemConfig() {
 
       const defaultConfig = await invoke<SystemConfig>('reset_system_config');
       setConfig(defaultConfig);
+      persistTauriSystemConfigCache(defaultConfig);
 
       return true;
     } catch (err) {
@@ -172,10 +173,10 @@ export function useSystemConfig() {
         throw new Error('Tauri invoke not available');
       }
 
-      // 保存配置
       await invoke('save_system_config', { config: newConfig });
+      setConfig(newConfig);
+      persistTauriSystemConfigCache(newConfig);
 
-      // 重启应用
       await invoke('restart_app');
 
       return true;

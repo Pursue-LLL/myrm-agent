@@ -10,7 +10,11 @@ Telegram 渠道 Provider 实现（入站/出站、凭证、路由）。上级文
 |------|------|------|-------|
 | `__init__.py` | 入口 | Telegram channel provider — Bot API bidirectional messaging. | ✅ |
 | `api.py` | 模块 | Telegram Bot API async HTTP client. Encapsulates all Bot API HTTP calls (messaging, media, commands, reactions, Forum Topic CRUD, voice/video download) with automatic endpoint fallback. | ✅ |
-| `channel.py` | 模块 | Telegram Bot channel implementation. DM/group chat, media group debounce, webhook/polling dual mode, inline keyboard, Markdown→HTML, message splitting, /agent inline picker, Forum Topic management, voice/video file download. | ✅ |
+| `channel.py` | 模块 | Telegram Bot channel core: credentials, lifecycle, diagnostics, mixin composition. | ✅ |
+| `outbound.py` | 模块 | Outbound messaging mixin: send, edit, draft preview, react, pin; Rich Message with HTML fallback. | ✅ |
+| `topics.py` | 模块 | Forum Topic mixin: create/rename/close/reopen, auto-topic per user, name sync. | ✅ |
+| `hooks.py` | 模块 | Pre-emit hook mixin: /agent command, inline agent picker, auto-topic routing. | ✅ |
+| `webhook.py` | 模块 | Webhook mixin: signature verify, setWebhook lifecycle, FastAPI POST /webhook route. | ✅ |
 | `constants.py` | 模块 | Telegram Bot API constants and limits. | ✅ |
 | `exceptions.py` | 模块 | Telegram-specific exceptions for file size validation and API errors. | ✅ |
 | `helpers.py` | 模块 | Telegram module-level utility functions, constants, and data structures. | ✅ |

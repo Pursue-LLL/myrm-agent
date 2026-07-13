@@ -89,7 +89,6 @@ class ChatDTO(BaseModel):
     compacted_tokens_saved: int | None = None
     session_notes_json: str | None = None
     ephemeral_subagents: dict[str, Any] | None = None
-    task_adaptive_digest: dict[str, Any] | None = None
     session_loaded_skill_names: list[str] | None = None
     workspace_dir: str | None = None
     sandbox_base_dir: str | None = None
@@ -178,7 +177,6 @@ class ChatBase(BaseModel):
     action_mode: str = Field("fast", description="聊天模式")
     agent_id: str | None = Field(None, description="绑定的智能体 ID")
     ephemeral_subagents: dict[str, Any] | None = Field(None, description="JIT 虚拟团队名册")
-    task_adaptive_digest: dict[str, Any] | None = Field(None, description="Task-Adaptive JIT Context")
     workspace_dir: str | None = Field(None, description="Per-chat working directory", max_length=1024)
     is_incognito: bool = Field(False, description="是否为无痕模式")
 

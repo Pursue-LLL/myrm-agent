@@ -309,7 +309,6 @@ async def build_general_agent(
         PreCompactMemoryExtension,
         SecurityPolicyExtension,
         SubagentManagementExtension,
-        TaskAdaptiveExtension,
         ZeroCostMemoryExtension,
     )
 
@@ -349,6 +348,7 @@ async def build_general_agent(
     )
     from myrm_agent_harness.agent.middlewares import (
         FilesystemFileSearchMiddleware,
+        PlanConfirmMiddleware,
         RateLimitMiddleware,
     )
     from myrm_agent_harness.agent.middlewares.guardrails import (
@@ -392,6 +392,7 @@ async def build_general_agent(
 
     middlewares_list = [
         RateLimitMiddleware(warning_threshold_pct=0.8, debounce_seconds=300.0),
+        PlanConfirmMiddleware(),
         user_instructions_middleware,
         workspace_rules_middleware,
         project_roadmap_middleware,
@@ -421,8 +422,6 @@ async def build_general_agent(
             cache_ttl_prune_config=resolve_cache_ttl_prune_policy(agent_wrapper.model_cfg.model).config,
         ),
     ]
-
-    task_adaptive_ext = TaskAdaptiveExtension(task_adaptive_digest=agent_wrapper.task_adaptive_digest)
 
     if guardrail_middleware:
         middlewares_list.insert(0, guardrail_middleware)
@@ -738,7 +737,7 @@ async def build_general_agent(
         library_skill_names=library_skill_names,
     )
 
-    # 9.5 Register extensions (subagent tools, security, task-adaptive, memory)
+    # 9.5 Register extensions (subagent tools, security, memory)
     security_ext = SecurityPolicyExtension(
         privacy_enabled=agent_wrapper.privacy_enabled,
         privacy_s2_action=agent_wrapper.privacy_s2_action,
@@ -750,6 +749,7 @@ async def build_general_agent(
         privacy_sensitive_tools_s2=agent_wrapper.privacy_sensitive_tools_s2,
         privacy_sensitive_tools_s3=agent_wrapper.privacy_sensitive_tools_s3,
         privacy_deep_scan=agent_wrapper.privacy_deep_scan,
+        plan_confirm_enabled=getattr(agent_wrapper, "enable_plan_confirm", False),
         channel_name=agent_wrapper.channel_name,
         security_config_raw=agent_wrapper.security_config_raw,
         agent_security_raw=agent_wrapper.agent_security_raw,
@@ -760,7 +760,6 @@ async def build_general_agent(
         memory_ext,
         pre_compact_ext,
         archive_checkpoint_ext,
-        task_adaptive_ext,
         security_ext,
     ]
 

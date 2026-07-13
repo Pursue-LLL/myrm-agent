@@ -278,7 +278,6 @@ async def test_fork_inherits_full_metadata(db_session, test_user, monkeypatch) -
         sandbox_base_dir="/repos/myapp",
         project_id="proj-123",
         is_incognito=True,
-        task_adaptive_digest={"key": "value"},
         session_notes_json='{"notes": "test"}',
     )
     db_session.add(parent)
@@ -314,7 +313,6 @@ async def test_fork_inherits_full_metadata(db_session, test_user, monkeypatch) -
     assert child_chat.sandbox_base_dir is None
     assert child_chat.project_id == "proj-123"
     assert child_chat.is_incognito is True
-    assert child_chat.task_adaptive_digest == {"key": "value"}
     assert child_chat.session_notes_json == '{"notes": "test"}'
 
 

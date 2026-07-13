@@ -31,6 +31,9 @@ grep -q 'load_system_config' "$SHELL_HTML" \
 grep -q 'frontend-start-failed' "$SHELL_HTML" \
   || fail "frontend-shell must handle frontend-start-failed"
 
+grep -q 'backend-start-failed' "$SHELL_HTML" \
+  || fail "frontend-shell must handle backend-start-failed"
+
 grep -q '"withGlobalTauri": true' "$TAURI_CONF" \
   || fail "tauri.conf.json must enable withGlobalTauri for frontend-shell IPC"
 

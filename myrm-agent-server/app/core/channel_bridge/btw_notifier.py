@@ -101,13 +101,20 @@ class BtwTaskNotifier:
 
         components: tuple[tuple[object, ...], ...] = ()
         if task_id:
-            from app.remote_access.mobile_deep_link import resolve_mobile_status_action_components
+            try:
+                from app.channels.routing.router_keys import routing_session_key
+                from app.remote_access.mobile_deep_link import resolve_web_handoff_components
+                from app.services.chat.chat_service import ChatService
 
-            components = await resolve_mobile_status_action_components(
-                chat_id,
-                label_key="mobile_btw_open",
-                locale=locale,
-            )
+                session_key = routing_session_key(channel_name, chat_id)
+                chat = await ChatService.get_channel_chat_by_key(session_key)
+                if chat:
+                    components = await resolve_web_handoff_components(
+                        chat.id,
+                        locale=locale,
+                    )
+            except Exception:
+                logger.debug("Failed to resolve web handoff for btw notification, skipping")
 
         msg = OutboundMessage(
             channel=channel_name,

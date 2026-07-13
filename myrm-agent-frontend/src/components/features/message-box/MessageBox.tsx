@@ -625,6 +625,9 @@ const MessageBox = ({
                 messageId={message.messageId}
                 plan={message.planConfirmation.plan}
                 status={message.planConfirmation.status}
+                planItems={message.planConfirmation.planItems}
+                goal={message.planConfirmation.goal}
+                source={message.planConfirmation.source}
               />
             )}
 

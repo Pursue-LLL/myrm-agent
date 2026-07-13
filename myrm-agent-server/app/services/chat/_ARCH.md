@@ -124,7 +124,6 @@ Chat 表新增多个字段用于支撑高级功能：
 | `compacted_tokens_saved` | Integer | 累计节省的 token 数 |
 | `ephemeral_subagents` | JSON | JIT 虚拟团队名册（用于会话恢复与子 Agent 隔离） |
 | `session_loaded_skill_names` | JSON | 会话级已加载技能名 SSOT（压缩/历史裁剪后仍可用于 rehydrate） |
-| `task_adaptive_digest`| JSON | 任务自适应上下文证据（Hotspots 和 Anti-patterns 缓存） |
 | `total_calls`, `total_tokens`, `total_usd` | Int/Float | O(1) 性能的 BYOK 大盘资源用量缓存，在持久化时旁路聚合更新 |
 | `deleted_at` | DateTime(nullable) | 软删除时间戳。NULL=活跃，非NULL=已移入回收站。30天后由 `_db_maintenance_job` 自动永久删除 |
 

@@ -3,6 +3,9 @@
 Provides synthesis endpoints for the web frontend:
 - /synthesize: Full synthesis (returns complete audio file)
 - /synthesize-stream: Streaming synthesis (chunked MP3 for low-latency playback)
+
+Edge TTS requests return 503 when the optional voice-tts extra is not installed.
+Empty synthesis results return 422 on both endpoints.
 """
 
 from __future__ import annotations
@@ -17,11 +20,10 @@ from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
 from app.api.dependencies import get_deploy_identity, verify_voice_enabled
+from app.channels.types import VoiceConfig
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
-
-    from app.channels.types import VoiceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,19 @@ class TTSRequest(BaseModel):
     pitch: float | None = Field(None, ge=-10.0, le=10.0, description="Override pitch in Hz")
 
 
+def _ensure_edge_tts_if_needed(voice_config: VoiceConfig) -> None:
+    """Reject Edge TTS requests when the optional voice-tts extra is not installed."""
+    if voice_config.tts_provider.lower() != "edge":
+        return
+    from app.channels.voice.tts import EDGE_TTS_INSTALL_HINT, is_edge_tts_available
+
+    if not is_edge_tts_available():
+        raise HTTPException(
+            status_code=503,
+            detail=f"Edge TTS is not installed. Install with: {EDGE_TTS_INSTALL_HINT}",
+        )
+
+
 @router.post("/synthesize")
 async def synthesize_text(
     req: TTSRequest,
@@ -46,6 +61,7 @@ async def synthesize_text(
 ) -> FileResponse:
     """Synthesize text to speech (full file download)."""
     voice_config = await _resolve_voice_config("sandbox", req)
+    _ensure_edge_tts_if_needed(voice_config)
 
     from app.channels.voice.tts import synthesize
 
@@ -73,20 +89,34 @@ async def synthesize_text_stream(
 ) -> StreamingResponse:
     """Stream-synthesize text to speech (chunked MP3 for low-latency playback)."""
     voice_config = await _resolve_voice_config("sandbox", req)
+    _ensure_edge_tts_if_needed(voice_config)
 
     from app.channels.voice.tts import synthesize_stream
 
-    async def _generate() -> AsyncGenerator[bytes, None]:
-        has_data = False
-        try:
-            async for chunk in synthesize_stream(req.text, voice_config):
-                has_data = True
-                yield chunk
-        except Exception:
-            logger.exception("TTS stream failed for sandbox user")
+    stream = synthesize_stream(req.text, voice_config)
+    first_chunk: bytes | None = None
 
-        if not has_data:
-            logger.warning("TTS stream: no audio data produced for sandbox user")
+    try:
+        async for chunk in stream:
+            if not chunk:
+                continue
+            first_chunk = chunk
+            break
+    except Exception as exc:
+        logger.exception("TTS stream failed for sandbox user")
+        raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {exc}") from exc
+
+    if first_chunk is None:
+        raise HTTPException(status_code=422, detail="TTS synthesis returned no audio")
+
+    async def _generate() -> AsyncGenerator[bytes, None]:
+        yield first_chunk
+        try:
+            async for chunk in stream:
+                if chunk:
+                    yield chunk
+        except Exception:
+            logger.exception("TTS stream failed mid-stream for sandbox user")
 
     return StreamingResponse(
         _generate(),

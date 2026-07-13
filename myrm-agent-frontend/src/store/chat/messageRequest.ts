@@ -567,7 +567,6 @@ export const createMessageRequest = async (
           privacy_deep_scan: true,
         }),
       }),
-    ...(agentConfig?.taskAdaptiveDigest && { task_adaptive_digest: agentConfig.taskAdaptiveDigest }),
     ...(state.regenerateSiblingGroupId ? { sibling_group_id: state.regenerateSiblingGroupId } : {}),
     ...(state.regenerateInstruction ? { regenerate_instruction: state.regenerateInstruction } : {}),
     ...(state.isGoalMode && {

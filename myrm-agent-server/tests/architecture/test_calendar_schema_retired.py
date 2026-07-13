@@ -24,10 +24,11 @@ def test_index_tail_drops_calendar_events_indexes() -> None:
     assert "DROP INDEX IF EXISTS idx_calendar_events_start_at" in stmts
     assert "DROP INDEX IF EXISTS idx_calendar_events_agent_id" in stmts
     assert "DROP INDEX IF EXISTS idx_calendar_events_status" in stmts
-    assert stmts[-2:] == [
-        "CREATE INDEX IF NOT EXISTS idx_artifact_publications_artifact_id ON artifact_publications(artifact_id)",
-        "CREATE INDEX IF NOT EXISTS idx_artifact_publications_target_id ON artifact_publications(hosting_target_id)",
-    ]
+    pub_idx_artifact = "CREATE INDEX IF NOT EXISTS idx_artifact_publications_artifact_id ON artifact_publications(artifact_id)"
+    pub_idx_target = "CREATE INDEX IF NOT EXISTS idx_artifact_publications_target_id ON artifact_publications(hosting_target_id)"
+    assert pub_idx_artifact in stmts
+    assert pub_idx_target in stmts
+    assert stmts.index(pub_idx_artifact) < stmts.index(pub_idx_target)
 
 
 @pytest.mark.architecture

@@ -20,7 +20,7 @@ Video attachments (.mp4/.webm) are transcribed via the same STT pipeline.
 
 - **STT Fallback**: mirrors TTS pattern. Primary fails → local if available (free fallback); local fails → cloud API.
 - **Local STT**: uses faster-whisper (core dependency). Singleton model loaded once, reused across calls.
-- **Edge TTS**: optional `voice-tts` extra (GPL-3.0, `edge-tts`); free fallback when paid providers fail. Lazy-install via harness `platform.voice-tts`.
+- **Edge TTS**: optional `voice-tts` extra (GPL-3.0, `edge-tts`); free fallback when paid providers fail. Install via `uv sync --extra voice-tts` or production `--all-extras`.
 - **Zero-Disk Streaming**: `stt.py` accepts `audio_bytes` in memory to eliminate physical file I/O latency, fully utilized by the Discord provider.
 - **Streaming STT**: Deepgram WebSocket (server layer), local uses batch mode only.
 - **xAI Grok STT**: dedicated `_transcribe_xai()` for the non-OpenAI-compatible `/v1/stt` endpoint with ITN support.

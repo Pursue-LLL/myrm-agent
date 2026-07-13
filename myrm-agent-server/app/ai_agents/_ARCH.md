@@ -33,7 +33,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 | `general_agent/` | ✅ 核心 | 通用对话 Agent（配置、中间件、工具） |
 | `media_tools/` | ✅ 核心 | 产品层媒体 LangChain 适配器（image/video/tts）；引擎在 harness `toolkits/llms/` |
 | `prompts/fast_search_agent_prompt.py` | ✅ 核心 | 搜索模式提示词（供 general_agent_prompt.py search 模式 + builtin_initializer 动态解析） |
-| `extensions/` | ✅ 核心 | AgentExtension 具体实现（ZeroCostMemory、Security、Subagent、TaskAdaptive），由 factory.py 注册到 BaseAgent |
+| `extensions/` | ✅ 核心 | AgentExtension 具体实现（ZeroCostMemory、Security、Subagent），由 factory.py 注册到 BaseAgent |
 | `prompts/` | ✅ 辅助 | 共享提示词（通用 Agent 多模式提示词、搜索建议、共享规则） |
 | `agent_middlewares/` | ✅ 辅助 | 共享中间件（用户指令注入） |
 

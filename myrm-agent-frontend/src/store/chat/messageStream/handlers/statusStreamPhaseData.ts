@@ -32,10 +32,18 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
     actions.setMessages((state) => {
       const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
       if (idx === -1) return;
-      if (sd.status === 'waiting' && typeof sd.plan === 'string') {
+      if (sd.status === 'waiting') {
+        const planItems = Array.isArray(sd.plan_items) ? sd.plan_items as Array<{ id: string; content: string; status?: string }> : undefined;
+        const isGeneralAgent = !!planItems;
+        const planText = typeof sd.plan === 'string' ? sd.plan as string
+          : planItems ? planItems.map((item, i) => `${i + 1}. ${item.content}`).join('\n') : '';
         state.messages[idx].planConfirmation = {
-          plan: sd.plan as string,
+          plan: planText,
           status: 'waiting',
+          planItems,
+          totalItems: typeof sd.total_items === 'number' ? sd.total_items as number : undefined,
+          goal: typeof sd.goal === 'string' ? sd.goal as string : undefined,
+          source: isGeneralAgent ? 'general_agent' : 'deep_research',
         };
       } else if (sd.status === 'resolved') {
         if (state.messages[idx].planConfirmation) {

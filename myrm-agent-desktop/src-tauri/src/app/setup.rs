@@ -136,7 +136,12 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
                 let handle = runtime::watchdog::spawn_watchdog(&app_handle, backend_port);
                 app_handle.manage(handle);
             }
-            Err(e) => eprintln!("❌ Failed to auto-start backend: {}", e),
+            Err(e) => {
+                eprintln!("❌ Failed to auto-start backend: {}", e);
+                let tooltip = "MyrmAgent - Backend failed to start. Restart the app or check Settings.";
+                tray::update_native_tray_status(&app_handle, "error", tooltip);
+                let _ = app_handle.emit("backend-start-failed", e.clone());
+            }
         }
 
         // Release WebView loads frontend-shell → polls Next standalone; always start Next.

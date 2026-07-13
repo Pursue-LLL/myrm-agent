@@ -683,7 +683,6 @@ async def convert_to_general_agent_params(
         vision_fallback_model_cfg = enrich_model_context_window(vision_fallback_model_cfg, providers_dict)
 
     jit_subagents = request.ephemeral_subagents
-    task_adaptive_digest = None
     session_loaded_skill_names: list[str] | None = None
     chat_workspace_dir: str | None = None
     chat_loaded = False
@@ -697,8 +696,6 @@ async def convert_to_general_agent_params(
                 chat_loaded = True
                 if jit_subagents is None and chat.ephemeral_subagents:
                     jit_subagents = chat.ephemeral_subagents
-                if chat.task_adaptive_digest:
-                    task_adaptive_digest = chat.task_adaptive_digest
                 if chat.session_loaded_skill_names:
                     session_loaded_skill_names = [
                         str(name) for name in chat.session_loaded_skill_names if name
@@ -935,7 +932,6 @@ async def convert_to_general_agent_params(
         memory_shared_context_ids=memory_shared_context_ids,
         quote=request.quote,
         jit_subagents=jit_subagents if not is_fast_search else None,
-        task_adaptive_digest=task_adaptive_digest if not is_fast_search else None,
         session_loaded_skill_names=(
             session_loaded_skill_names if not is_fast_search and not request.incognito_mode else None
         ),

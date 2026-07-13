@@ -132,8 +132,6 @@ class _ChatCrudMixin(_ChatServiceBase):
                     updates["session_loaded_skill_names"] = None
                 if chat_data.ephemeral_subagents is not None:
                     updates["ephemeral_subagents"] = chat_data.ephemeral_subagents
-                if chat_data.task_adaptive_digest is not None:
-                    updates["task_adaptive_digest"] = chat_data.task_adaptive_digest
                 if chat_data.is_incognito is not None:
                     updates["is_incognito"] = chat_data.is_incognito
                 if first_message or not existing_chat.first_message:
@@ -152,7 +150,6 @@ class _ChatCrudMixin(_ChatServiceBase):
                     last_message=chat_data.last_message,
                     first_message=first_message,
                     ephemeral_subagents=chat_data.ephemeral_subagents,
-                    task_adaptive_digest=chat_data.task_adaptive_digest,
                     is_incognito=chat_data.is_incognito,
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow(),

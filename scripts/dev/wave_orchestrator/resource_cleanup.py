@@ -22,7 +22,6 @@ from typing import TypedDict
 from wave_orchestrator.types import ResourceKind
 
 DEFAULT_API_BASE = "http://127.0.0.1:8080"
-DEFAULT_ADMIN_PASSWORD = "Playwright1234!"
 
 
 class CleanupAttempt(TypedDict):
@@ -45,7 +44,10 @@ def _cleanup_timeout() -> float:
 
 
 def _admin_password() -> str:
-    return os.environ.get("MYRM_E2E_ADMIN_PASSWORD", os.environ.get("E2E_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD))
+    password = os.environ.get("MYRM_E2E_ADMIN_PASSWORD", os.environ.get("E2E_ADMIN_PASSWORD", "")).strip()
+    if not password:
+        raise RuntimeError("LEDGER_CLEANUP_AUTH_PASSWORD_MISSING: set MYRM_E2E_ADMIN_PASSWORD or E2E_ADMIN_PASSWORD")
+    return password
 
 
 def _request(

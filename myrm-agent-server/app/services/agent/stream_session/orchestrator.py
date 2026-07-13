@@ -141,7 +141,6 @@ async def run_agent_stream(
                     action_mode=request.action_mode,
                     agent_id=request.agent_id or "default",
                     ephemeral_subagents=request.ephemeral_subagents,
-                    task_adaptive_digest=(request.task_adaptive_digest if hasattr(request, "task_adaptive_digest") else None),
                     extra_data=extra_data_val,
                     is_incognito=request.incognito_mode,
                 )

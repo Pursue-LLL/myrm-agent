@@ -2,15 +2,16 @@
 
 /**
  * [INPUT]
- * @/services/chat::submitPlanConfirmResponse (POS: plan confirm API)
+ * @/services/chat::submitPlanConfirmResponse (POS: Deep Research plan confirm REST API)
+ * @/services/chat::resumePlanConfirmStream (POS: General Agent plan confirm SSE resume)
  * @/store/chat/types::Message.planConfirmation (POS: plan confirmation state)
  *
  * [OUTPUT]
- * PlanConfirmationCard: Renders research plan review card with confirm/edit/skip actions.
+ * PlanConfirmationCard: Renders plan review card with confirm/edit/skip actions.
  *
  * [POS]
- * Deep Research plan confirmation HITL gate. Shows the AI-generated research plan
- * and lets the user approve, edit, or skip before execution begins.
+ * Plan-phase HITL gate. Supports both Deep Research (PhaseWaiter REST)
+ * and General Agent (LangGraph interrupt SSE resume) confirmation paths.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -24,6 +25,9 @@ interface PlanConfirmationCardProps {
   messageId: string;
   plan: string;
   status: 'waiting' | 'confirmed' | 'edited' | 'skipped';
+  planItems?: Array<{ id: string; content: string; status?: string }>;
+  goal?: string;
+  source?: 'deep_research' | 'general_agent';
 }
 
 const CheckCircleIcon = ({ className }: { className?: string }) => (
@@ -77,7 +81,7 @@ const resolvedStatusMap: Record<string, string> = {
   skipped: 'skipped',
 };
 
-const PlanConfirmationCard = ({ messageId, plan, status }: PlanConfirmationCardProps) => {
+const PlanConfirmationCard = ({ messageId, plan, status, planItems, goal, source }: PlanConfirmationCardProps) => {
   const t = useTranslations('chat.planConfirmation');
   const [editing, setEditing] = useState(false);
   const [editedPlan, setEditedPlan] = useState(plan);
@@ -95,11 +99,28 @@ const PlanConfirmationCard = ({ messageId, plan, status }: PlanConfirmationCardP
     [messageId],
   );
 
+  const submitAction = useCallback(
+    async (action: 'confirm' | 'edit' | 'skip', editedTodos?: unknown) => {
+      if (source === 'general_agent') {
+        const resumeValue: Record<string, unknown> = { action };
+        if (action === 'edit' && editedTodos) {
+          resumeValue.edited_todos = editedTodos;
+        }
+        const { resumePlanConfirmStream } = await import('@/services/chat');
+        await resumePlanConfirmStream(messageId, resumeValue);
+      } else {
+        const modifiedPlan = action === 'edit' ? editedPlan.trim() : undefined;
+        await submitPlanConfirmResponse(messageId, action, modifiedPlan || undefined);
+      }
+    },
+    [source, messageId, editedPlan],
+  );
+
   const handleConfirm = async () => {
     if (submitting) return;
     setSubmitting(true);
     try {
-      await submitPlanConfirmResponse(messageId, 'confirm');
+      await submitAction('confirm');
       markResolved('confirmed');
     } catch (err) {
       console.error('Failed to confirm plan:', err);
@@ -120,7 +141,17 @@ const PlanConfirmationCard = ({ messageId, plan, status }: PlanConfirmationCardP
     setSubmitting(true);
     try {
       const isChanged = trimmed !== plan.trim();
-      await submitPlanConfirmResponse(messageId, isChanged ? 'edit' : 'confirm', isChanged ? trimmed : undefined);
+      if (source === 'general_agent' && planItems) {
+        const editedLines = trimmed.split('\n').filter((l) => l.trim());
+        const editedTodos = editedLines.map((line, i) => ({
+          id: planItems[i]?.id ?? `task-${i}`,
+          content: line.replace(/^\d+\.\s*/, '').trim(),
+          status: planItems[i]?.status ?? 'pending',
+        }));
+        await submitAction(isChanged ? 'edit' : 'confirm', editedTodos);
+      } else {
+        await submitAction(isChanged ? 'edit' : 'confirm');
+      }
       markResolved(isChanged ? 'edited' : 'confirmed');
     } catch (err) {
       console.error('Failed to submit edited plan:', err);
@@ -134,7 +165,7 @@ const PlanConfirmationCard = ({ messageId, plan, status }: PlanConfirmationCardP
     if (submitting) return;
     setSubmitting(true);
     try {
-      await submitPlanConfirmResponse(messageId, 'skip');
+      await submitAction('skip');
       markResolved('skipped');
     } catch (err) {
       console.error('Failed to skip plan confirmation:', err);

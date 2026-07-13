@@ -54,7 +54,6 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "notifications": _RouterMount("app.api.notifications.router"),
     "agents_general": _RouterMount("app.api.agents.general_agent", prefix="/agents", tags=("agents",)),
     "agents_templates": _RouterMount("app.api.agents.templates", prefix="/agents", tags=("agents",)),
-    "agents_harness": _RouterMount("app.api.agents.harness_router", prefix="/agents", tags=("agents",)),
     "agents_subagents": _RouterMount("app.api.agents.subagents", prefix="/chats", tags=("subagents",)),
     "user_agents": _RouterMount("app.api.agents.agent", prefix="/user-agents", tags=("user-agents",)),
     "generate_prompt": _RouterMount("app.api.agents.generate_prompt", prefix="/user-agents", tags=("user-agents",)),
@@ -172,7 +171,6 @@ PRESETS: dict[str, tuple[str, ...]] = {
     "openai_compat_only": ("api_keys",),
     "agents_api": (
         "agents_general",
-        "agents_harness",
         "agents_subagents",
         "agents_templates",
         "user_agents",
@@ -189,7 +187,6 @@ PRESETS: dict[str, tuple[str, ...]] = {
     "skills_api": ("skills", "skill_growth", "skill_quality", "evolution", "experience_ledger", "migrations", "migration_discovery", "reviews"),
     "agent_with_skills": (
         "agents_general",
-        "agents_harness",
         "agents_subagents",
         "agents_templates",
         "user_agents",

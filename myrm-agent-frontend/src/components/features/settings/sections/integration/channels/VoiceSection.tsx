@@ -123,6 +123,7 @@ const VoiceSection = memo(() => {
   const t = useTranslations('voice');
   const [form, setForm] = useState<VoiceFormState>(DEFAULT_STATE);
   const [loading, setLoading] = useState(true);
+  const [edgeTtsAvailable, setEdgeTtsAvailable] = useState<boolean | null>(null);
   const [voiceMode, setVoiceMode] = useState('audio_only');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -130,6 +131,9 @@ const VoiceSection = memo(() => {
     loadVoiceConfig()
       .then(setForm)
       .finally(() => setLoading(false));
+    apiRequest<{ edge_tts_available?: boolean }>('/health/info')
+      .then((info) => setEdgeTtsAvailable(info.edge_tts_available === true))
+      .catch(() => setEdgeTtsAvailable(null));
     setVoiceMode(localStorage.getItem('voiceSessionMode') || 'audio_only');
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -179,6 +183,7 @@ const VoiceSection = memo(() => {
   const isLocalStt = form.sttProvider === 'local';
   const needsSttApiKey = !isLocalStt;
   const needsTtsApiKey = form.ttsProvider !== 'edge';
+  const showEdgeTtsWarning = form.ttsProvider === 'edge' && edgeTtsAvailable === false;
 
   return (
     <div className="space-y-6">
@@ -187,6 +192,13 @@ const VoiceSection = memo(() => {
         <h2 className="text-base font-semibold">{t('sectionTitle')}</h2>
       </div>
       <p className="text-sm text-muted-foreground">{t('sectionDesc')}</p>
+
+      {showEdgeTtsWarning && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+          <p className="font-medium">{t('edgeTtsUnavailableTitle')}</p>
+          <p className="mt-1 text-xs opacity-90">{t('edgeTtsUnavailableDesc')}</p>
+        </div>
+      )}
 
       {/* STT */}
       <SettingsSection title={t('sttTitle')} description={t('sttDesc')}>

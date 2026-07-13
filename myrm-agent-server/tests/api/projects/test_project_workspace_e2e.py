@@ -8,7 +8,7 @@ from httpx import ASGITransport
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(
-    "projects", "chats", "agents_general", "agents_harness",
+    "projects", "chats", "agents_general",
     "memory", "files", "wiki",
 )
 from tests.api.agent.utils import (

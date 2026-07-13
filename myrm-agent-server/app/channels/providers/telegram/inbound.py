@@ -95,6 +95,7 @@ class TelegramInboundMixin:
     - self._emit_inbound(msg): coroutine
     - self._build_inbound(**kwargs): InboundMessage
     - self._redact(text): str
+    - self._pre_emit_hook(msg): coroutine returning InboundMessage | None
     """
 
     _client: TelegramClient
@@ -520,13 +521,6 @@ class TelegramInboundMixin:
                 "origin_message_id": cbq.message.message_id if cbq.message else None,
             },
         )
-
-    async def _pre_emit_hook(self, msg: InboundMessage) -> InboundMessage | None:
-        """Hook for subclasses to transform/intercept messages before emit.
-
-        Return None to suppress the message (e.g. handled as a bot command).
-        """
-        return msg
 
     def _message_mentions_bot(self, msg: TgMessage) -> bool:
         """Return True when Telegram entity metadata explicitly addresses this bot.

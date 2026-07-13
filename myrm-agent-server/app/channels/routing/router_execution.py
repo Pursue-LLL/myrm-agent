@@ -233,6 +233,8 @@ class RouterExecutionMixin:
             return
 
         if result:
+            if msg.channel != "web":
+                result = await self._attach_web_handoff(result, chat_id, msg)
             result = await maybe_tts(result, inbound_had_voice, self._voice)
             result = with_final_notify(result)
             if placeholder_id:
@@ -398,3 +400,36 @@ class RouterExecutionMixin:
             cleanup=_do_cleanup,
             created_at=time.monotonic(),
         )
+
+    @staticmethod
+    async def _attach_web_handoff(
+        result: OutboundMessage,
+        chat_id: str,
+        msg: InboundMessage,
+    ) -> OutboundMessage:
+        """Append a SECONDARY "Continue in browser" button for IM channel replies.
+
+        ``chat_id`` here is the IM peer_id, not the database Chat UUID.
+        We resolve the DB UUID via ``channel_session_key`` so the deep link
+        points to a valid ``/{chatUUID}`` frontend route.
+        Failures are swallowed so the main reply is never blocked.
+        """
+        try:
+            from app.remote_access.mobile_deep_link import resolve_web_handoff_components
+            from app.services.chat.chat_service import ChatService
+
+            session_key = routing_session_key(msg.channel, chat_id)
+            chat = await ChatService.get_channel_chat_by_key(session_key)
+            if not chat:
+                return result
+            locale = resolve_message_locale(msg)
+            handoff_rows = await resolve_web_handoff_components(chat.id, locale=locale)
+            if not handoff_rows:
+                return result
+            return dataclasses.replace(
+                result,
+                components=result.components + handoff_rows,
+            )
+        except Exception:
+            logger.debug("Failed to attach web handoff button, skipping", exc_info=True)
+            return result

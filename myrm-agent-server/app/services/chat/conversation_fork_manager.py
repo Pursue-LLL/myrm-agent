@@ -190,7 +190,6 @@ class ConversationForkManager:
             compacted_before_id=parent_chat.compacted_before_id,
             compacted_at=parent_chat.compacted_at,
             compacted_tokens_saved=parent_chat.compacted_tokens_saved,
-            task_adaptive_digest=parent_chat.task_adaptive_digest,
             session_notes_json=parent_chat.session_notes_json,
         )
         db.add(new_chat)

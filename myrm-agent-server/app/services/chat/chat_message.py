@@ -99,7 +99,6 @@ class _ChatMessageMixin(_ChatServiceBase):
         action_mode: str = "fast",
         agent_id: str | None = None,
         ephemeral_subagents: dict[str, object] | None = None,
-        task_adaptive_digest: dict[str, object] | None = None,
         extra_data: dict[str, object] | None = None,
         is_incognito: bool = False,
     ) -> MessageDTO:
@@ -118,7 +117,6 @@ class _ChatMessageMixin(_ChatServiceBase):
                     agent_id=agent_id,
                     action_mode=action_mode,
                     ephemeral_subagents=ephemeral_subagents,
-                    task_adaptive_digest=task_adaptive_digest,
                     is_incognito=is_incognito,
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow(),
@@ -131,8 +129,6 @@ class _ChatMessageMixin(_ChatServiceBase):
                 field_updates: dict[str, object] = {}
                 if ephemeral_subagents is not None and chat.ephemeral_subagents != ephemeral_subagents:
                     field_updates["ephemeral_subagents"] = ephemeral_subagents
-                if task_adaptive_digest is not None and chat.task_adaptive_digest != task_adaptive_digest:
-                    field_updates["task_adaptive_digest"] = task_adaptive_digest
                 if agent_id and chat.agent_id != agent_id:
                     field_updates["agent_id"] = agent_id
                 if field_updates:

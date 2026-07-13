@@ -86,7 +86,12 @@ def probe_runtime_id() -> str:
     return runtime_probe.read_current_runtime_id()
 
 
-def reaper(state: OrchestratorState, now: datetime | None = None) -> bool:
+def reaper(
+    state: OrchestratorState,
+    now: datetime | None = None,
+    *,
+    cleanup: bool = True,
+) -> bool:
     moment = now or _utc_now()
     changed = False
     for lease in state["leases"]:
@@ -95,10 +100,11 @@ def reaper(state: OrchestratorState, now: datetime | None = None) -> bool:
         if _parse_iso(lease["expiresAt"]) <= moment:
             lease["status"] = "expired"
             changed = True
-    if cleanup_expired_browser(state):
-        changed = True
-    if cleanup_expired_lease_resources(state):
-        changed = True
+    if cleanup:
+        if cleanup_expired_browser(state):
+            changed = True
+        if cleanup_expired_lease_resources(state):
+            changed = True
     return changed
 
 
@@ -115,9 +121,24 @@ def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> boo
     wave["closedAt"] = _iso(now)
     for lease in active_leases(state):
         lease["status"] = "expired"
-    cleanup_expired_browser(state)
-    cleanup_expired_lease_resources(state)
     return True
+
+
+def _cleanup_expired_leases(*, paths: WavePaths) -> None:
+    def _snapshot(state: OrchestratorState) -> tuple[list[LeaseRecord], bool]:
+        return [
+            dict(lease)
+            for lease in state["leases"]
+            if lease["status"] in {"expired", "released"}
+            and (lease.get("pageId") or any(
+                item.get("leaseId") == lease["leaseId"]
+                and item.get("status") in {"active", "failed"}
+                for item in state.get("resources", [])
+            ))
+        ], False
+
+    for lease in run_locked(paths.state_file, _snapshot):
+        _cleanup_released_lease(lease, paths=paths)
 
 
 def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
@@ -126,7 +147,7 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
     current_runtime = probe_runtime_id()
 
     def _edit(state: OrchestratorState) -> tuple[dict[str, object], bool]:
-        changed = reaper(state)
+        changed = reaper(state, cleanup=False)
         if reap_runtime_drift(state, current_runtime):
             changed = True
         return {
@@ -135,11 +156,48 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
             "activeLeaseCount": len(active_leases(state)),
         }, changed
 
-    return run_locked(resolved.state_file, _edit)
+    result = run_locked(resolved.state_file, _edit)
+    _cleanup_expired_leases(paths=resolved)
+    return result
 
 
 def active_leases(state: OrchestratorState) -> list[LeaseRecord]:
     return [lease for lease in state["leases"] if lease["status"] == "active"]
+
+
+def _clear_browser_binding(
+    lease_id: str,
+    page_id: str,
+    *,
+    paths: WavePaths,
+) -> None:
+    def _edit(state: OrchestratorState) -> tuple[None, bool]:
+        for lease in state["leases"]:
+            if (
+                lease["leaseId"] == lease_id
+                and lease["status"] in {"released", "expired"}
+                and lease.get("pageId") == page_id
+            ):
+                unbind_browser(lease)
+                return None, True
+        return None, False
+
+    run_locked(paths.state_file, _edit)
+
+
+def _cleanup_released_lease(
+    lease: LeaseRecord,
+    *,
+    paths: WavePaths,
+    skip_resource_cleanup: bool = False,
+) -> None:
+    page_id = str(lease.get("pageId", "")).strip()
+    if page_id:
+        attempts = cleanup_lease_browser(lease)
+        if attempts and attempts[0]["ok"]:
+            _clear_browser_binding(lease["leaseId"], page_id, paths=paths)
+    if not skip_resource_cleanup:
+        cleanup_lease_resources(lease["leaseId"], paths=paths)
 
 
 def _find_active_lease(state: OrchestratorState, lease_id: str) -> LeaseRecord:
@@ -161,7 +219,7 @@ def open_wave(
         raise RuntimeError("WAVE_OPEN_FAIL: runtimeId probe returned empty")
 
     def _edit(state: OrchestratorState) -> tuple[WaveRecord, bool]:
-        reaper(state)
+        reaper(state, cleanup=False)
         if state["wave"] is not None and state["wave"]["status"] == "open":
             raise RuntimeError(
                 f"WAVE_ALREADY_OPEN: waveId={state['wave']['waveId']} "
@@ -184,10 +242,10 @@ def open_wave(
 
 def close_wave(*, paths: WavePaths | None = None, force: bool = False) -> WaveRecord | None:
     resolved = paths or resolve_wave_paths()
-    released_ids: list[str] = []
+    released_leases: list[LeaseRecord] = []
 
     def _edit(state: OrchestratorState) -> tuple[WaveRecord | None, bool]:
-        reaper(state)
+        reaper(state, cleanup=False)
         wave = state["wave"]
         if wave is None or wave["status"] != "open":
             raise RuntimeError("WAVE_NOT_OPEN")
@@ -199,17 +257,16 @@ def close_wave(*, paths: WavePaths | None = None, force: bool = False) -> WaveRe
             raise RuntimeError(f"WAVE_CLOSE_BLOCKED: active leases: {owners}")
         now = _utc_now()
         for lease in blockers:
-            released_ids.append(lease["leaseId"])
             lease["status"] = "released"
-            cleanup_lease_browser(lease)
+            released_leases.append(dict(lease))
         closed: WaveRecord = {**wave, "status": "closed", "closedAt": _iso(now)}
         state["wave"] = closed
         return closed, True
 
     closed = run_locked(resolved.state_file, _edit)
     if force:
-        for lease_id in released_ids:
-            cleanup_lease_resources(lease_id, paths=resolved)
+        for lease in released_leases:
+            _cleanup_released_lease(lease, paths=resolved)
     return closed
 
 
@@ -217,7 +274,7 @@ def wave_status(*, paths: WavePaths | None = None) -> dict[str, object]:
     resolved = paths or resolve_wave_paths()
 
     def _view(state: OrchestratorState) -> tuple[dict[str, object], bool]:
-        changed = reaper(state)
+        changed = reaper(state, cleanup=False)
         active = active_leases(state)
         payload = {
             "wave": state["wave"],
@@ -231,7 +288,9 @@ def wave_status(*, paths: WavePaths | None = None) -> dict[str, object]:
         }
         return payload, changed
 
-    return run_locked(resolved.state_file, _view)
+    result = run_locked(resolved.state_file, _view)
+    _cleanup_expired_leases(paths=resolved)
+    return result
 
 
 def acquire_lease(
@@ -249,7 +308,7 @@ def acquire_lease(
     ns = namespace.strip()
 
     def _edit(state: OrchestratorState) -> tuple[LeaseRecord, bool]:
-        reaper(state)
+        reaper(state, cleanup=False)
         wave = state["wave"]
         if wave is None or wave["status"] != "open":
             raise RuntimeError("LEASE_DENIED: no open wave")
@@ -292,7 +351,7 @@ def release_lease(
     holder = agent_id or default_agent_id()
 
     def _edit(state: OrchestratorState) -> tuple[LeaseRecord, bool]:
-        reaper(state)
+        reaper(state, cleanup=False)
         for lease in state["leases"]:
             if lease["leaseId"] != lease_id:
                 continue
@@ -301,13 +360,11 @@ def release_lease(
             if lease["agentId"] != holder:
                 raise RuntimeError(f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}")
             lease["status"] = "released"
-            cleanup_lease_browser(lease)
-            return lease, True
+            return dict(lease), True
         raise RuntimeError(f"LEASE_NOT_FOUND: {lease_id}")
 
     lease = run_locked(resolved.state_file, _edit)
-    if not skip_cleanup:
-        cleanup_lease_resources(lease_id, paths=resolved)
+    _cleanup_released_lease(lease, paths=resolved, skip_resource_cleanup=skip_cleanup)
     return lease
 
 
@@ -327,6 +384,13 @@ def bind_browser_lease(
         lease = _find_active_lease(state, lease_id)
         if lease["agentId"] != holder:
             raise RuntimeError(f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}")
+        requested_context = context_id.strip()
+        if requested_context:
+            for other in active_leases(state):
+                if other["leaseId"] != lease_id and other.get("contextId") == requested_context:
+                    raise RuntimeError(
+                        f"BROWSER_CONTEXT_CONFLICT: contextId {requested_context} is already bound"
+                    )
         return bind_browser(lease, page_id=page_id, page_url=page_url, context_id=context_id), True
 
     return run_locked(resolved.state_file, _edit)
@@ -361,7 +425,7 @@ def heartbeat_lease(
     holder = agent_id or default_agent_id()
 
     def _edit(state: OrchestratorState) -> tuple[LeaseRecord, bool]:
-        reaper(state)
+        reaper(state, cleanup=False)
         for lease in state["leases"]:
             if lease["leaseId"] != lease_id:
                 continue
@@ -375,14 +439,16 @@ def heartbeat_lease(
             return lease, True
         raise RuntimeError(f"LEASE_NOT_FOUND: {lease_id}")
 
-    return run_locked(resolved.state_file, _edit)
+    result = run_locked(resolved.state_file, _edit)
+    _cleanup_expired_leases(paths=resolved)
+    return result
 
 
 def check_stack_write_gate(*, paths: WavePaths | None = None) -> GateResult:
     resolved = paths or resolve_wave_paths()
 
     def _view(state: OrchestratorState) -> tuple[GateResult, bool]:
-        changed = reaper(state)
+        changed = reaper(state, cleanup=False)
         blockers: list[GateBlocker] = []
         for lease in active_leases(state):
             blockers.append(
@@ -394,4 +460,6 @@ def check_stack_write_gate(*, paths: WavePaths | None = None) -> GateResult:
             )
         return {"allowed": len(blockers) == 0, "blockers": blockers}, changed
 
-    return run_locked(resolved.state_file, _view)
+    result = run_locked(resolved.state_file, _view)
+    _cleanup_expired_leases(paths=resolved)
+    return result

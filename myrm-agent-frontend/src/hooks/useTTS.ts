@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { getApiUrl } from '@/lib/api';
+import { toast } from '@/lib/utils/toast';
 import { stripMarkdown } from '@/lib/utils/messageUtils';
 
 export type TTSState = 'idle' | 'playing' | 'paused' | 'loading';
@@ -120,8 +122,19 @@ function useBrowserTTS(options: UseTTSOptions): UseTTSReturn {
 // API TTS (backend /api/tts with streaming + MSE fallback)
 // ---------------------------------------------------------------------------
 
+class TtsRequestError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`TTS request failed with status ${status}`);
+    this.name = 'TtsRequestError';
+    this.status = status;
+  }
+}
+
 function useApiTTS(options: UseTTSOptions): UseTTSReturn {
   const { provider } = options;
+  const tVoice = useTranslations('voice');
   const [state, setState] = useState<TTSState>('idle');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef<string | null>(null);
@@ -158,8 +171,40 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
 
   useEffect(() => stop, [stop]);
 
+  const notifyTtsFailure = useCallback(
+    (status: number) => {
+      if (status === 503) {
+        toast.error(tVoice('edgeTtsUnavailableTitle'), {
+          description: tVoice('edgeTtsUnavailableDesc'),
+        });
+        return;
+      }
+      toast.error(tVoice('ttsPlaybackFailedTitle'), {
+        description: tVoice('ttsPlaybackFailedDesc'),
+      });
+    },
+    [tVoice],
+  );
+
+  const assertTtsResponseOk = useCallback(async (resp: Response): Promise<void> => {
+    if (resp.ok) return;
+    throw new TtsRequestError(resp.status);
+  }, []);
+
   const speakStream = useCallback(
     async (cleaned: string, controller: AbortController) => {
+      const resp = await fetch(getApiUrl('/tts/synthesize-stream'), {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: buildRequestBody(cleaned, provider),
+        signal: controller.signal,
+      });
+
+      await assertTtsResponseOk(resp);
+      if (!resp.body) {
+        throw new TtsRequestError(resp.status);
+      }
+
       const mediaSource = new MediaSource();
       mediaSourceRef.current = mediaSource;
       const audio = new Audio();
@@ -191,17 +236,6 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
         feeding = false;
         if (queue.length) feedBuffer();
       });
-
-      const resp = await fetch(getApiUrl('/tts/synthesize-stream'), {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: buildRequestBody(cleaned, provider),
-        signal: controller.signal,
-      });
-
-      if (!resp.ok || !resp.body) {
-        throw new Error(`TTS stream error ${resp.status}`);
-      }
 
       audio.onplay = () => setState('playing');
       audio.onended = () => {
@@ -250,7 +284,7 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
         mediaSource.endOfStream();
       }
     },
-    [provider, stop],
+    [provider, stop, assertTtsResponseOk],
   );
 
   const speakFull = useCallback(
@@ -262,9 +296,7 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
         signal: controller.signal,
       });
 
-      if (!resp.ok) {
-        throw new Error(`TTS API error ${resp.status}`);
-      }
+      await assertTtsResponseOk(resp);
 
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
@@ -286,7 +318,7 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
 
       await audio.play();
     },
-    [provider],
+    [provider, assertTtsResponseOk],
   );
 
   const speak = useCallback(
@@ -307,11 +339,15 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
         }
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') return;
-        console.error('TTS API speak failed:', err);
+        if (err instanceof TtsRequestError) {
+          notifyTtsFailure(err.status);
+        } else {
+          notifyTtsFailure(0);
+        }
         setState('idle');
       }
     },
-    [stop, speakStream, speakFull],
+    [stop, speakStream, speakFull, notifyTtsFailure],
   );
 
   const pause = useCallback(() => {

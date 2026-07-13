@@ -94,6 +94,7 @@ class GeneralAgent(ToolSetupMixin):
         enable_cron_eager: bool = False,
         enable_answer_tool: bool = False,
         enable_planning: bool = False,
+        enable_plan_confirm: bool = False,
         enable_external_cli: bool = False,
         kanban_tool_mode: str = "orchestrator",
         kanban_default_board_id: str | None = None,
@@ -140,7 +141,6 @@ class GeneralAgent(ToolSetupMixin):
         agent_id: str | None = None,
         subagent_ids: list[str] | None = None,
         jit_subagents: dict[str, object] | None = None,
-        task_adaptive_digest: dict[str, object] | None = None,
         session_loaded_skill_names: list[str] | None = None,
         max_iterations: int | None = None,
         memory_policy: AgentMemoryPolicy | None = None,
@@ -168,7 +168,6 @@ class GeneralAgent(ToolSetupMixin):
         self.agent_id = agent_id
         self.subagent_ids = subagent_ids
         self.jit_subagents = jit_subagents
-        self.task_adaptive_digest = task_adaptive_digest
         self.session_loaded_skill_names = session_loaded_skill_names
         self.skill_ids = skill_ids or []
         self.skill_configs = skill_configs
@@ -191,6 +190,7 @@ class GeneralAgent(ToolSetupMixin):
         self.enable_cron_eager = enable_cron_eager
         self.enable_answer_tool = enable_answer_tool
         self.enable_planning = enable_planning
+        self.enable_plan_confirm = enable_plan_confirm
         self.enable_external_cli = enable_external_cli
         self.kanban_tool_mode = kanban_tool_mode
         self.kanban_default_board_id = kanban_default_board_id

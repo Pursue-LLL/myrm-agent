@@ -163,15 +163,29 @@ def cleanup_lease_resources(
 ) -> CleanupSummary:
     resolved = paths or resolve_wave_paths()
 
-    def _edit(state: OrchestratorState) -> tuple[CleanupSummary, bool]:
-        targets = _active_resources(state, lease_id=lease_id)
-        if not targets:
-            return {"leaseId": lease_id, "cleaned": 0, "failed": 0, "attempts": []}, False
-        attempts = [cleanup_resource_ref(item["kind"], item["ref"]) for item in targets]
-        summary = _apply_cleanup_results(state, targets, attempts)
-        return summary, True
+    def _snapshot(state: OrchestratorState) -> tuple[list[ResourceRecord], bool]:
+        return [dict(item) for item in _active_resources(state, lease_id=lease_id)], False
 
-    return run_locked(resolved.state_file, _edit)
+    targets = run_locked(resolved.state_file, _snapshot)
+    if not targets:
+        return {"leaseId": lease_id, "cleaned": 0, "failed": 0, "attempts": []}
+
+    attempts = [cleanup_resource_ref(item["kind"], item["ref"]) for item in targets]
+
+    def _commit(state: OrchestratorState) -> tuple[CleanupSummary, bool]:
+        keys = {(item["kind"], item["ref"]) for item in targets}
+        current = [
+            item
+            for item in state.get("resources", [])
+            if item.get("leaseId") == lease_id
+            and item.get("status") in {"active", "failed"}
+            and (item.get("kind"), item.get("ref")) in keys
+        ]
+        if not current:
+            return {"leaseId": lease_id, "cleaned": 0, "failed": 0, "attempts": attempts}, False
+        return _apply_cleanup_results(state, current, attempts), True
+
+    return run_locked(resolved.state_file, _commit)
 
 
 def cleanup_namespace_resources(
@@ -184,15 +198,29 @@ def cleanup_namespace_resources(
     if not ns:
         raise RuntimeError("LEDGER_DENIED: empty namespace")
 
-    def _edit(state: OrchestratorState) -> tuple[CleanupSummary, bool]:
-        targets = _active_resources(state, namespace=ns)
-        if not targets:
-            return {"leaseId": "", "cleaned": 0, "failed": 0, "attempts": []}, False
-        attempts = [cleanup_resource_ref(item["kind"], item["ref"]) for item in targets]
-        summary = _apply_cleanup_results(state, targets, attempts)
-        return summary, True
+    def _snapshot(state: OrchestratorState) -> tuple[list[ResourceRecord], bool]:
+        return [dict(item) for item in _active_resources(state, namespace=ns)], False
 
-    return run_locked(resolved.state_file, _edit)
+    targets = run_locked(resolved.state_file, _snapshot)
+    if not targets:
+        return {"leaseId": "", "cleaned": 0, "failed": 0, "attempts": []}
+
+    attempts = [cleanup_resource_ref(item["kind"], item["ref"]) for item in targets]
+    keys = {(item["kind"], item["ref"]) for item in targets}
+
+    def _commit(state: OrchestratorState) -> tuple[CleanupSummary, bool]:
+        current = [
+            item
+            for item in state.get("resources", [])
+            if item.get("namespace") == ns
+            and item.get("status") in {"active", "failed"}
+            and (item.get("kind"), item.get("ref")) in keys
+        ]
+        if not current:
+            return {"leaseId": "", "cleaned": 0, "failed": 0, "attempts": attempts}, False
+        return _apply_cleanup_results(state, current, attempts), True
+
+    return run_locked(resolved.state_file, _commit)
 
 
 def cleanup_expired_lease_resources(state: OrchestratorState) -> bool:

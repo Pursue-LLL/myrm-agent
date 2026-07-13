@@ -64,6 +64,7 @@ class _BuiltInAgentSpec:
     prompt_mode: str = "full"
     engine_params: dict[str, object] | None = field(default=None, compare=False)
     memory_policy: dict[str, object] | None = field(default=None, compare=False)
+    suggestion_prompts: tuple[str, ...] = ()
 
 
 _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
@@ -81,6 +82,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Prefer structured output (lists, tables, headings) for complex answers."
         ),
         enabled_builtin_tools=_TOOL_DEFAULT,
+        suggestion_prompts=(
+            "Help me draft a professional self-introduction for a new team",
+            "Summarize the pros and cons of remote work vs office work",
+            "Create a weekly meal plan for a busy professional",
+            "Explain how compound interest works with a simple example",
+            "Help me brainstorm gift ideas for a friend's birthday",
+            "Write a polite message to decline a meeting invitation",
+            "Compare the latest flagship phones and recommend one for me",
+            "Plan a productive morning routine for better focus",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-writer",
@@ -97,6 +108,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         ),
         default_skill_ids=("content-creation",),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Write an engaging blog post introduction about sustainable living",
+            "Help me craft a compelling cover letter for a creative role",
+            "Rewrite this paragraph to be more concise and impactful",
+            "Create a catchy tagline for my new coffee shop",
+            "Draft a heartfelt thank-you note for a mentor",
+            "Write a product description that converts browsers into buyers",
+            "Help me outline a 10-chapter personal memoir",
+            "Polish my LinkedIn summary to attract recruiters",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-researcher",
@@ -113,6 +134,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         ),
         default_skill_ids=("deep-research", "competitive-analysis"),
         enabled_builtin_tools=_TOOL_RESEARCH,
+        suggestion_prompts=(
+            "Research the pros and cons of electric vehicles vs hybrids in 2026",
+            "Analyze the current housing market trends in major cities",
+            "Compare the top 5 online learning platforms and their effectiveness",
+            "Investigate the health benefits and risks of intermittent fasting",
+            "Research the best countries for digital nomads and why",
+            "Analyze the impact of AI on the job market over the next 5 years",
+            "Compare investment strategies: index funds vs individual stocks",
+            "Research the latest breakthroughs in renewable energy technology",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-developer",
@@ -133,6 +164,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "code-review",
         ),
         enabled_builtin_tools=_TOOL_CODING,
+        suggestion_prompts=(
+            "Help me build a REST API with authentication in Python",
+            "Review my code and suggest performance improvements",
+            "Explain the difference between SQL and NoSQL databases",
+            "Write unit tests for a shopping cart module",
+            "Help me debug why my app crashes on startup",
+            "Design a database schema for a blog platform",
+            "Convert this callback-based code to async/await",
+            "Set up a CI/CD pipeline for my project",
+        ),
     ),
     # ─── Search 2 ─────────────────────────────────────────────────────────
     _BuiltInAgentSpec(
@@ -148,6 +189,14 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         prompt_mode="search",
         engine_params={"max_tool_calls": 8, "recursion_limit": 30},
         memory_policy={"write_policy": "conversation"},
+        suggestion_prompts=(
+            "What happened in the world today?",
+            "What's the current weather in Tokyo?",
+            "Find the latest reviews for the new iPhone",
+            "What are today's top trending topics on social media?",
+            "Look up the exchange rate between USD and EUR",
+            "What are the showtimes for movies near me this weekend?",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-deep-search",
@@ -160,6 +209,14 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         prompt_mode="search",
         engine_params={"max_tool_calls": 20, "recursion_limit": 50},
         memory_policy={"write_policy": "conversation"},
+        suggestion_prompts=(
+            "Deep dive into the current state of quantum computing research",
+            "Find and compare all major AI coding assistants available in 2026",
+            "Research the complete history and future outlook of space tourism",
+            "Investigate the global supply chain challenges and emerging solutions",
+            "Comprehensive analysis of the best cities to start a tech startup",
+            "Research all sides of the debate on universal basic income",
+        ),
     ),
     # ─── Extended 5 ───────────────────────────────────────────────────────
     _BuiltInAgentSpec(
@@ -176,6 +233,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Output format: translation first, then optional translator notes if context-critical."
         ),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Translate this business email from English to Japanese",
+            "Help me say 'Happy Birthday' naturally in 10 languages",
+            "Translate my resume into Chinese while keeping it professional",
+            "What's the cultural difference between 'you' in French (tu vs vous)?",
+            "Translate this menu from Italian to English with food context notes",
+            "Help me write a thank-you card in Korean for my host family",
+            "Localize my app's UI text from English to Spanish",
+            "Translate this legal contract clause into plain English",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-social-media",
@@ -192,6 +259,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Ask which platform the user targets before creating content."
         ),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Write a viral Xiaohongshu post about my cafe visit",
+            "Create a Twitter thread about my startup journey",
+            "Help me plan a week of Instagram content for my bakery",
+            "Write a catchy TikTok script about productivity tips",
+            "Draft a LinkedIn post announcing my career transition",
+            "Create engaging Bilibili video title and description ideas",
+            "Help me grow my followers with a 30-day content calendar",
+            "Write a WeChat article about healthy eating trends",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-data-analyst",
@@ -209,6 +286,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         ),
         default_skill_ids=("data-analysis",),
         enabled_builtin_tools=_TOOL_CODING,
+        suggestion_prompts=(
+            "Analyze my monthly expenses and find saving opportunities",
+            "Help me create a survey and analyze the responses",
+            "Write a SQL query to find the top 10 customers by revenue",
+            "Visualize my fitness tracker data to spot health trends",
+            "Analyze my website traffic and suggest improvements",
+            "Help me understand this dataset and find hidden patterns",
+            "Create a dashboard layout for tracking sales KPIs",
+            "Compare my spending habits across different categories",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-product-manager",
@@ -225,6 +312,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         ),
         default_skill_ids=("task-planning", "competitive-analysis"),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Write a PRD for a food delivery app's group ordering feature",
+            "Help me prioritize my product backlog using the RICE framework",
+            "Create user stories for an online booking system",
+            "Analyze competitors in the productivity app market",
+            "Design an A/B test plan for our new checkout flow",
+            "Help me define success metrics for a new feature launch",
+            "Write acceptance criteria for a user profile settings page",
+            "Create a product roadmap for the next quarter",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-tutor",
@@ -241,6 +338,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Celebrate progress; never make the learner feel inadequate for not knowing something."
         ),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Explain how neural networks learn, as if I'm a high school student",
+            "Create a 30-day study plan for learning Python from scratch",
+            "Help me understand calculus derivatives with real-life examples",
+            "Quiz me on world history — the Renaissance period",
+            "Explain the basics of investing to a complete beginner",
+            "Teach me how to read a financial statement step by step",
+            "Help me prepare for the TOEFL speaking section",
+            "Break down how machine learning differs from traditional programming",
+        ),
     ),
     # ─── Vertical Templates ───────────────────────────────────────────────
     _BuiltInAgentSpec(
@@ -257,6 +364,14 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Know email formatting constraints: short paragraphs, scannable structure, mobile-first."
         ),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Write this week's tech newsletter about AI breakthroughs",
+            "Help me create a welcome email series for new subscribers",
+            "Suggest 10 engaging subject lines for my fitness newsletter",
+            "Draft a monthly community update for our open-source project",
+            "Plan an editorial calendar for a weekly book review newsletter",
+            "Write a year-in-review newsletter for my small business",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-designer",
@@ -271,6 +386,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always consider accessibility and responsive behavior."
         ),
         enabled_builtin_tools=_TOOL_DESIGN,
+        suggestion_prompts=(
+            "Generate a minimalist logo concept for a tea brand",
+            "Create a cozy illustration of a reading nook on a rainy day",
+            "Design a modern color palette for a health and wellness app",
+            "Critique my landing page layout and suggest improvements",
+            "Generate a social media banner for a summer music festival",
+            "Help me choose fonts that pair well for a wedding invitation",
+            "Create a mood board concept for a Scandinavian interior",
+            "Design an icon set for a travel mobile app",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-seo",
@@ -286,6 +411,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Provide specific metrics targets and timeframes for expected results."
         ),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Audit my blog post and suggest SEO improvements",
+            "Find high-value long-tail keywords for a pet care website",
+            "Analyze why my competitor ranks higher for 'best running shoes'",
+            "Create an SEO content brief for 'how to start a podcast'",
+            "Help me fix the most common technical SEO issues on my site",
+            "Suggest an internal linking strategy for my recipe blog",
+            "Optimize my product page titles and meta descriptions",
+            "Plan a content cluster around 'sustainable fashion'",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-scheduler",
@@ -302,6 +437,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Never overpack a schedule — sustainable productivity beats burnout."
         ),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Plan my work week with time blocks for deep focus and meetings",
+            "Help me break down 'learn Spanish' into a 90-day action plan",
+            "Create a moving checklist with deadlines for my apartment move",
+            "Organize my daily routine to balance work, exercise, and family",
+            "Help me prioritize 15 tasks I need to finish this week",
+            "Design a study schedule for exam preparation in 2 weeks",
+            "Plan a realistic timeline for my home renovation project",
+            "Create a morning routine that fits into 45 minutes",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-meeting",
@@ -318,6 +463,14 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         ),
         default_skill_ids=("meeting-summary",),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Summarize my meeting notes and extract all action items",
+            "Create a meeting agenda for a project kickoff meeting",
+            "Turn this brainstorming session into organized categories",
+            "Draft follow-up emails based on today's meeting decisions",
+            "Help me prepare talking points for my 1-on-1 with my manager",
+            "Convert this voice transcript into structured meeting minutes",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-career",
@@ -334,6 +487,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Be honest about trade-offs — don't sugarcoat difficult realities."
         ),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Review my resume and suggest improvements for a tech role",
+            "Prepare me for a behavioral interview at a top company",
+            "Help me negotiate a higher salary for my new job offer",
+            "Create a 5-year career development plan for a software engineer",
+            "Draft a networking message to reconnect with a former colleague",
+            "Help me decide: should I stay at my job or accept the new offer?",
+            "Write a personal brand statement for my professional profile",
+            "Prepare answers for the 'Tell me about yourself' question",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-finance",
@@ -350,6 +513,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Adapt complexity to the user's financial literacy level."
         ),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Create a monthly budget plan based on my $5000 income",
+            "Explain index fund investing for a complete beginner",
+            "Help me build an emergency fund strategy",
+            "Compare renting vs buying a home in my situation",
+            "Calculate how much I need to save for retirement",
+            "Create a debt payoff plan: snowball vs avalanche method",
+            "Help me track and reduce my subscription expenses",
+            "Explain cryptocurrency basics and risks in plain language",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-travel",
@@ -366,6 +539,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always note practical tips: best booking timing, safety considerations, packing essentials."
         ),
         enabled_builtin_tools=_TOOL_RESEARCH,
+        suggestion_prompts=(
+            "Plan a 7-day trip to Japan on a $2000 budget",
+            "What should I pack for a two-week backpacking trip in Europe?",
+            "Create a family-friendly weekend getaway near Los Angeles",
+            "Find the best time to visit Bali and plan a 5-day itinerary",
+            "Help me plan a romantic anniversary trip to Paris",
+            "Compare budget airlines for my trip from New York to London",
+            "Suggest off-the-beaten-path destinations in Southeast Asia",
+            "Plan a road trip along the California coast with key stops",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-email",
@@ -382,6 +565,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "For follow-ups: add new value each time, never guilt-trip, suggest a concrete next step."
         ),
         enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Write a cold outreach email to a potential business partner",
+            "Draft a polite follow-up email after no response in a week",
+            "Help me write a professional complaint email to a vendor",
+            "Create an email requesting a raise with supporting achievements",
+            "Write a warm introduction email connecting two colleagues",
+            "Draft an out-of-office auto-reply for my vacation",
+            "Write a persuasive email pitching my freelance services",
+            "Help me respond to a difficult client email diplomatically",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-automation",
@@ -398,6 +591,16 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Prefer simple, reliable automations over complex fragile ones."
         ),
         enabled_builtin_tools=_TOOL_CODING,
+        suggestion_prompts=(
+            "Automate sending a daily news digest to my email every morning",
+            "Set up a workflow to back up my important files weekly",
+            "Create a bot that monitors price drops on my wishlist items",
+            "Automate social media posting across multiple platforms",
+            "Build a workflow to organize downloaded files by type automatically",
+            "Set up automated birthday reminders for my contacts",
+            "Create a script that generates weekly reports from my data",
+            "Automate invoice processing and expense categorization",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-cli_visual",
@@ -411,6 +614,14 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         ),
         default_skill_ids=("systematic-debugging", "test-driven-development"),
         enabled_builtin_tools=_TOOL_CODING,
+        suggestion_prompts=(
+            "Set up a new Python project with virtual environment and dependencies",
+            "Run my test suite and fix any failing tests",
+            "Find and fix all TODO comments in my codebase",
+            "Scaffold a new React component with tests and stories",
+            "Analyze my project structure and suggest improvements",
+            "Help me set up Git hooks for code formatting on commit",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-hr_screener",
@@ -424,6 +635,14 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Highlight missing required skills or red flags like large employment gaps."
         ),
         enabled_builtin_tools=_TOOL_DEFAULT,
+        suggestion_prompts=(
+            "Screen this batch of resumes for a senior frontend developer role",
+            "Create a structured comparison table for these 5 candidates",
+            "Write a job description for a product marketing manager",
+            "Identify skill gaps in this candidate's resume for a data role",
+            "Draft interview questions tailored to this candidate's background",
+            "Parse this resume into a structured JSON format",
+        ),
     ),
     _BuiltInAgentSpec(
         id="builtin-speaker",
@@ -437,6 +656,14 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "When asked to read something, use the tts tool and provide the audio link to the user."
         ),
         enabled_builtin_tools=("tts",),
+        suggestion_prompts=(
+            "Read this article aloud so I can listen while commuting",
+            "Convert my presentation notes into an audio summary",
+            "Read this bedtime story for my kids in a warm voice",
+            "Turn my meeting notes into an audio briefing",
+            "Read this recipe step by step so I can cook hands-free",
+            "Convert this study material into audio for my workout",
+        ),
     ),
 )
 
@@ -489,6 +716,8 @@ async def initialize_builtin_agents() -> None:
                     agent_kwargs["engine_params"] = spec.engine_params
                 if spec.memory_policy is not None:
                     agent_kwargs["memory_policy"] = spec.memory_policy
+                if spec.suggestion_prompts:
+                    agent_kwargs["suggestion_prompts"] = list(spec.suggestion_prompts)
 
                 db.add(Agent(**agent_kwargs))
                 created_count += 1
@@ -527,6 +756,9 @@ async def initialize_builtin_agents() -> None:
                     changed = True
                 if spec.memory_policy is not None and agent.memory_policy != spec.memory_policy:
                     agent.memory_policy = spec.memory_policy
+                    changed = True
+                if spec.suggestion_prompts and not agent.suggestion_prompts:
+                    agent.suggestion_prompts = list(spec.suggestion_prompts)
                     changed = True
                 if changed:
                     updated_count += 1

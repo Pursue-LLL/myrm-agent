@@ -20,7 +20,7 @@ Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两
 | 目录 | 职责 |
 |------|------|
 | `src-tauri/` | Rust 主程序、IPC、托盘、更新校验 → [ARCHITECTURE.md](ARCHITECTURE.md) |
-| `src-tauri/frontend-shell/` | Release 模式 WebView 占位页：`withGlobalTauri` 启用后 IPC 读取 `webui_port`，轮询 Next standalone 就绪并跳转 |
+| `src-tauri/frontend-shell/` | Release 模式 WebView 占位页：IPC 读 `webui_port` 轮询 Next；`frontend-start-failed` 阻断，`backend-start-failed` 警告后继续跳转 |
 | `sidecar/` | PyInstaller + agent-runner 编译入口 |
 | `scripts/` | 桌面构建/签名辅助 → [scripts/_ARCH.md](scripts/_ARCH.md) |
 

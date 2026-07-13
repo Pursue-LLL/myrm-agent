@@ -174,7 +174,6 @@ class AgentRequest(BaseModel):
     multiplexed: bool = False
     blueprint_id: str | None = None
     ephemeral_subagents: dict[str, object] | None = None
-    task_adaptive_digest: dict[str, object] | None = None
     query: MultimodalQuery = ""
     use_workflow: bool = False
     goal: GoalBudgetRequest | None = None

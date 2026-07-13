@@ -1,5 +1,6 @@
 mobile_hitl_open = Open mobile approval
 mobile_btw_open = View on mobile
+web_continue_chat = Continue in browser
 
 no_active_task_to_stop = ℹ No active task to stop.
 execution_stopped =  Execution stopped.

@@ -40,7 +40,7 @@ flowchart TD
 | `src-tauri/src/sessions/` | CLI 会话存储 | [src-tauri/src/sessions/_ARCH.md](src-tauri/src/sessions/_ARCH.md) |
 | `src-tauri/src/permissions/` | Explore/Ask/Auto 权限 | [src-tauri/src/permissions/_ARCH.md](src-tauri/src/permissions/_ARCH.md) |
 | `src-tauri/src/utils/` | 平台工具（电源、锁屏、OTA 校验） | [src-tauri/src/utils/_ARCH.md](src-tauri/src/utils/_ARCH.md) |
-| `src-tauri/frontend-shell/` | Release WebView 启动轮询页（`withGlobalTauri` + IPC `webui_port`） | 见 [_ARCH.md](_ARCH.md) § frontend-shell |
+| `src-tauri/frontend-shell/` | Release WebView 启动轮询页（`withGlobalTauri` + IPC `webui_port`；`frontend-start-failed` 阻断轮询，`backend-start-failed` 仅警告并继续跳转） | 见 [_ARCH.md](_ARCH.md) § frontend-shell |
 | `sidecar/` | PyInstaller + Bun compile 构建入口 | [sidecar/_ARCH.md](sidecar/_ARCH.md) |
 | `sidecar/agent-runner/` | Agent Runner TypeScript 源码 | [sidecar/agent-runner/_ARCH.md](sidecar/agent-runner/_ARCH.md) |
 | `scripts/` | 构建、验签、分形门禁 | [scripts/_ARCH.md](scripts/_ARCH.md) |

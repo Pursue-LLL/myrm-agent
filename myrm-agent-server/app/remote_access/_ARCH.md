@@ -16,7 +16,7 @@
 | --- | --- | --- | --- |
 | `trust_zone.py` | 核心 | AdmissionPath / TrustZone 解析 | ✅ |
 | `mobile_gate.py` | 核心 | scoped pair token 校验；`resolve_request_pair_token`（E2EE/query/header）；HTTP + `/ws/stt/*` mobile 控制面路径 | ✅ |
-| `mobile_deep_link.py` | 核心 | Channel/BTW → `/mobile/status` deep link + ActionButton | ✅ |
+| `mobile_deep_link.py` | 核心 | Channel → 前端 deep link 构建：`/mobile/status` (HITL) + `/{chatId}` (WebUI 续聊) | ✅ |
 | `tool_policy.py` | 核心 | 远程暴露时 harness `SecurityConfig.remote_exposed()` deny overlay | ✅ |
 | `pairing.py` | 核心 | HMAC 签名 token；`mobile_hub_list`（Hub 列表）与 `mobile_hub`（scoped 控制）；改密时 `rotate_pairing_key` | ✅ |
 | `e2ee_crypto.py` | 核心 | Curve25519 NaCl box 加解密（对标 Paseo relay crypto） | ✅ |
@@ -58,7 +58,8 @@
 
 - `app/services/agent/params/converter.py` — 消费 trust_zone 叠加 remote tool deny
 - `app/channels/routing/router_stream.py` — HITL 审批 outbound mobile deep link 按钮
-- `app/core/channel_bridge/btw_notifier.py` — BTW 完成 mobile ActionButton
+- `app/channels/routing/router_execution.py` — IM 回复附加 WebUI 续聊 deep link 按钮
+- `app/core/channel_bridge/btw_notifier.py` — BTW 完成通知附加 WebUI 续聊 deep link 按钮
 - `myrm_agent_harness.agent.security.config.remote_exposed_permissions` — deny key SSOT
 
 ---

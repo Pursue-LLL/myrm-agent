@@ -766,6 +766,7 @@ INDEX_STATEMENTS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_artifact_publications_artifact_id ON artifact_publications(artifact_id)",
     "CREATE INDEX IF NOT EXISTS idx_artifact_publications_target_id ON artifact_publications(hosting_target_id)",
+    "ALTER TABLE chats DROP COLUMN task_adaptive_digest",
 ]
 
 

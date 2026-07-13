@@ -3,7 +3,11 @@
  */
 
 export const apiBase = process.env.E2E_API_BASE ?? 'http://127.0.0.1:8080';
-export const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? 'Playwright1234!';
+export const adminPassword = process.env.E2E_ADMIN_PASSWORD;
+
+if (!adminPassword) {
+  throw new Error('E2E_ADMIN_PASSWORD is required for WebUI E2E authentication');
+}
 
 /** @type {import('node:http').Cookie[]} */
 let cookies = [];

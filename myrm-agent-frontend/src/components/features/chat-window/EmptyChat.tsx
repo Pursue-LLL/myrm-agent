@@ -5,16 +5,11 @@ import React from 'react';
 import AgentConfigPanel from './agent-config-panel/AgentConfigPanel';
 import SamplePrompts from './SamplePrompts';
 import MigrationDiscoveryBanner from './MigrationDiscoveryBanner';
-import { TaskAdaptivePreview } from './TaskAdaptivePreview';
-import useChatStore from '@/store/useChatStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
-import { toast } from 'sonner';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
 
 const EmptyChat = React.memo(() => {
   const t = useTranslations('chat');
-  const updateAgentConfig = useChatStore((state) => state.updateAgentConfig);
-  const actionMode = useChatStore((state) => state.actionMode);
   const isCompanionEnabled = useFeatureGateStore((s) => s.isEnabled('companion_mode'));
 
   const title = t('researchBegins');
@@ -36,19 +31,6 @@ const EmptyChat = React.memo(() => {
         <MigrationDiscoveryBanner />
 
         <SamplePrompts />
-
-        {actionMode === 'agent' && (
-          <TaskAdaptivePreview
-            className="mt-2 w-full"
-            onApplyContext={(digest) => {
-              updateAgentConfig({ taskAdaptiveDigest: digest as unknown as Record<string, unknown> });
-              toast.success('Kanban JIT Context Applied', {
-                description: 'Historical evidence has been injected into the next execution.',
-                duration: 3000,
-              });
-            }}
-          />
-        )}
 
         <AgentConfigPanel className="mt-4" />
       </div>

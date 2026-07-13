@@ -70,6 +70,7 @@ _MIN_TEXT_LENGTH = 10
 _TTS_TIMEOUT = 30.0
 _STREAM_CHUNK_SIZE = 4096
 _EDGE_TTS_INSTALL_HINT = "uv sync --extra voice-tts"
+EDGE_TTS_INSTALL_HINT = _EDGE_TTS_INSTALL_HINT
 
 
 def is_edge_tts_available() -> bool:

@@ -177,10 +177,6 @@ def app() -> FastAPI:
     wiki_module = import_module("app.api.wiki.router")
     app.include_router(wiki_module.router, prefix="/api/v1/wiki", tags=["wiki"])
 
-    # Add harness router for Task-Adaptive API
-    harness_module = import_module("app.api.agents.harness_router")
-    app.include_router(harness_module.router, prefix="/api/v1/agents", tags=["agents"])
-
     # Add chat router for persistence tests
     chat_module = import_module("app.api.chats.chat")
     app.include_router(chat_module.router, prefix="/api/v1/chats", tags=["chats"])

@@ -127,7 +127,7 @@ deadlocks when an agent execution hangs without crashing.
 | router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | ✅ |
 | router_commands.py | Core | RouterCommandsMixin composed into AgentRouter (router.py) via multiple inheritance; `_abort_session_task` shared by `/stop` and `/new`. | — |
 | router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
-| router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; | — |
+| router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; `_deliver_agent_result` auto-attaches WebUI handoff deep link button for IM channel replies (resolves DB Chat UUID via `ChatService.get_channel_chat_by_key`). | — |
 | router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | ✅ |
 | router_keys.py | Core | ``routing_session_key`` builds ``f"{channel}:{peer_id}"`` for DM/group peer maps | — |
 | router_models.py | Core | Data models referenced by AgentRouter in router.py and router_commands (_ActiveTask with steering_token, `requester_id` for reaction approval auth, `locale` for stuck watchdog i18n, ReactionPolicy, etc.) | — |

@@ -54,7 +54,6 @@ export interface AgentConfig {
   sessionRecording?: 'off' | 'on_failure' | 'always';
   suggestionPrompts?: string[];
   ephemeralSubagents?: Record<string, unknown>;
-  taskAdaptiveDigest?: Record<string, unknown>;
   memoryDecayProfile?: 'permanent' | 'normal' | 'fast';
   mcpToolSelections?: Record<string, string[]>;
   commandBindings?: { command_name: string; skill_ids: string[]; description?: string; instruction?: string }[];

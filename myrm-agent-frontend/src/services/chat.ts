@@ -465,7 +465,6 @@ export interface StreamRequestBody {
   privacy_sensitive_tools_s3?: string[];
   privacy_deep_scan?: boolean;
   user_id?: string;
-  task_adaptive_digest?: Record<string, unknown>;
   sibling_group_id?: string;
   regenerate_instruction?: string;
   goal?: {
@@ -801,6 +800,100 @@ export const submitPlanConfirmResponse = async (
     method: 'POST',
     body: JSON.stringify({ messageId, action, modifiedPlan }),
   });
+};
+
+/**
+ * Resume a General Agent plan confirmation interrupt via the main SSE stream.
+ * Uses the same resume_value mechanism as tool approval.
+ */
+export const resumePlanConfirmStream = async (
+  messageId: string,
+  resumeValue: Record<string, unknown>,
+): Promise<void> => {
+  const { default: useChatStore } = await import('@/store/useChatStore');
+  const chatState = useChatStore.getState();
+  if (!chatState.chatId) return;
+
+  const { getModelSelection, getLiteModelSelection } = await import('@/store/chat/messageRequest');
+  const { getBrowserTimezone } = await import('@/lib/utils/messageUtils');
+
+  const modelSelection = getModelSelection(chatState.actionMode, chatState.agentConfig);
+  if (!modelSelection) return;
+
+  const liteModelSelection = getLiteModelSelection();
+
+  const requestBody = {
+    query: '',
+    message_id: messageId,
+    chat_id: chatState.chatId,
+    action_mode: chatState.actionMode,
+    resume_value: resumeValue,
+    model_selection: modelSelection,
+    timezone: getBrowserTimezone(),
+    ...(liteModelSelection && { lite_model_selection: liteModelSelection }),
+    ...(chatState.agentConfig && {
+      agent_config: {
+        skill_ids: chatState.agentConfig.selectedSkillIds,
+        enabled_builtin_tools: chatState.agentConfig.enabledBuiltinTools ?? [],
+      },
+    }),
+  };
+
+  const response = await createAISearchStream(requestBody, chatState.abortController || undefined);
+  if (!response.ok) {
+    if (response.status === 409) {
+      throw new Error('Plan confirmation has already been resolved by timeout');
+    }
+    throw new Error(`Plan confirm resume failed: HTTP ${response.status}`);
+  }
+
+  const { handleMessageStream } = await import('@/store/chat/messageStreamHandler');
+  const { AdaptiveScheduler } = await import('@/store/chat/adaptiveScheduler');
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+  if (!reader) throw new Error('Plan confirm resume stream has no body');
+
+  const sources: import('@/store/chat/types').Source[] = [];
+  const scheduler = new AdaptiveScheduler();
+  let added = false;
+  let recievedMessage = '';
+
+  const streamState = {
+    messages: chatState.messages,
+    messageAppeared: chatState.messageAppeared,
+    loading: chatState.loading,
+    scheduler,
+  };
+
+  const setMessagesAdapter = (updater: (state: import('@/store/chat/messageStreamHandler').StreamMutableState) => void) => {
+    useChatStore.setState((draft) => { updater(draft); });
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    const lines = chunk.split('\n').filter((line) => line.trim().startsWith('data:'));
+    for (const line of lines) {
+      try {
+        const json = JSON.parse(line.replace(/^data:\s*/, ''));
+        const result = await handleMessageStream(json, '', sources, added, recievedMessage, streamState, {
+          setMessages: setMessagesAdapter,
+          setMessageAppeared: chatState.setMessageAppeared || (() => {}),
+          setLoading: chatState.setLoading || (() => {}),
+          _processSuggestions: chatState._processSuggestions || (async () => {}),
+          scheduleAutoSave: chatState.scheduleAutoSave || (() => {}),
+        });
+        added = result.added;
+        recievedMessage = result.recievedMessage;
+      } catch (error) {
+        console.error('[PLAN_CONFIRM] Stream parse error:', error);
+      }
+    }
+  }
+
+  scheduler.flush();
+  scheduler.cancel();
 };
 
 /**

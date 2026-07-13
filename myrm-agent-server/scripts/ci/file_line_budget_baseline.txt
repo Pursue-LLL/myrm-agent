@@ -63,10 +63,12 @@ app/channels/providers/wechat/ilink_channel.py
 app/channels/providers/wecom/aibot_channel.py
 app/channels/providers/wecom/channel.py
 app/channels/providers/whatsapp/channel.py
+app/channels/providers/telegram/outbound.py
 app/channels/routing/commands.py
 app/channels/routing/message_effects.py
 app/channels/routing/router.py
 app/channels/routing/router_commands.py
+app/channels/routing/router_execution.py
 app/channels/routing/router_stream.py
 app/channels/routing/stream_manager.py
 app/channels/security/protocols.py

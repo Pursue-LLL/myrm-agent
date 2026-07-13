@@ -10,7 +10,7 @@
 //!
 //! [POS]
 //! Desktop 模式 Python 后端生命周期。dev 走 venv `run.py`；release 走 bundled sidecar 二进制，
-//! 启动后最多 30s 轮询 `/health`，并在 release 侧校验 sidecar 非空。
+//! 启动后最多 30s 轮询 `/health`；超时则终止子进程并返回 `Err`。
 
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
@@ -204,7 +204,18 @@ pub async fn start_backend_with_config(
         }
     }
 
-    Ok("Backend started but health check timeout".to_string())
+    {
+        let mut process_guard = backend.process.lock().unwrap();
+        if let Some(mut child) = process_guard.take() {
+            let _ = child.kill();
+        }
+    }
+
+    Err(format!(
+        "Backend health check timed out after {}s. Restart MyrmAgent or check whether port {} is available.",
+        BACKEND_HEALTH_MAX_ATTEMPTS as u64 * BACKEND_HEALTH_POLL_INTERVAL.as_millis() as u64 / 1000,
+        config.port
+    ))
 }
 
 async fn check_health_with_port(port: u16) -> Result<bool, String> {

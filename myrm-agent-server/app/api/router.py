@@ -6,7 +6,6 @@ from app.api.agents import (
     ai_build,
     general_agent,
     generate_prompt,
-    harness_router,
     media,
     providers,
     session,
@@ -103,7 +102,6 @@ api_router.include_router(suggestions.router, prefix="/agents", tags=["agents"])
 api_router.include_router(media.router, prefix="/agents", tags=["agents"])
 api_router.include_router(session.router, prefix="/agents", tags=["agents"])
 api_router.include_router(subagents.router, prefix="/chats", tags=["subagents"])
-api_router.include_router(harness_router.router, prefix="/agents", tags=["agents"])
 api_router.include_router(user_agent.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(generate_prompt.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(ai_build.router, prefix="/user-agents", tags=["user-agents"])

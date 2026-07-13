@@ -34,6 +34,7 @@ class SecurityPolicyExtension(AgentExtension):
         privacy_sensitive_tools_s2: list[str] | None = None,
         privacy_sensitive_tools_s3: list[str] | None = None,
         privacy_deep_scan: bool = False,
+        plan_confirm_enabled: bool = False,
     ) -> None:
         self.privacy_enabled = privacy_enabled
         self.privacy_s2_action = privacy_s2_action
@@ -45,6 +46,7 @@ class SecurityPolicyExtension(AgentExtension):
         self.privacy_custom_patterns_s3 = tuple(privacy_custom_patterns_s3 or ())
         self.privacy_sensitive_tools_s2 = tuple(privacy_sensitive_tools_s2 or ())
         self.privacy_sensitive_tools_s3 = tuple(privacy_sensitive_tools_s3 or ())
+        self.plan_confirm_enabled = plan_confirm_enabled
         self.channel_name = channel_name
         self.security_config_raw = security_config_raw
         self.agent_security_raw = agent_security_raw
@@ -80,18 +82,20 @@ class SecurityPolicyExtension(AgentExtension):
             else None
         )
 
-        agent.config = replace(
-            agent.config,
-            security_config=build_channel_security_config(
-                self.channel_name,
-                self.security_config_raw,
-                agent_security_raw=self.agent_security_raw,
-                declared_capabilities=self.declared_capabilities,
-                declared_allowed_roots=self.declared_allowed_roots,
-                local_mode=is_local_mode(),
-                privacy_policy=privacy_policy,
-            ),
+        security_config = build_channel_security_config(
+            self.channel_name,
+            self.security_config_raw,
+            agent_security_raw=self.agent_security_raw,
+            declared_capabilities=self.declared_capabilities,
+            declared_allowed_roots=self.declared_allowed_roots,
+            local_mode=is_local_mode(),
+            privacy_policy=privacy_policy,
         )
+
+        if self.plan_confirm_enabled and not security_config.plan_confirm_enabled:
+            object.__setattr__(security_config, "plan_confirm_enabled", True)
+
+        agent.config = replace(agent.config, security_config=security_config)
 
     async def on_agent_shutdown(self, agent: BaseAgent) -> None:
         pass

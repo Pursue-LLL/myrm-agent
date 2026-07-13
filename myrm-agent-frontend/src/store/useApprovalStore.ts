@@ -5,6 +5,12 @@ export interface ApprovalToolCall {
   args: Record<string, unknown>;
 }
 
+export interface PlanItem {
+  id: string;
+  content: string;
+  status?: string;
+}
+
 export interface ApprovalPayloadData {
   content?: string;
   patch_content?: string;
@@ -19,6 +25,9 @@ export interface ApprovalPayloadData {
   page_url?: string;
   reason?: string;
   action_type?: string;
+  plan_items?: PlanItem[];
+  total_items?: number;
+  goal?: string;
 }
 
 export interface ApprovalPayload {
