@@ -105,7 +105,7 @@ function AppLayout({
             'hover:bg-muted transition-all duration-300',
             layout.isNavButtonHidden && 'opacity-0 -translate-y-full pointer-events-none',
           )}
-          aria-label={t('layout.showSidebar')}
+          aria-label={t('showSidebar')}
         >
           <PanelLeftOpen size={18} />
         </button>
