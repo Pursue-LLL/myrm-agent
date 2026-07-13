@@ -191,7 +191,8 @@ async def prepare_channel_execution(
         return PrepareChannelExecutionResult(pre_events=(*pre_events, agent_outcome.early_reply))
 
     agent_result = agent_outcome.result
-    assert agent_result is not None
+    if agent_result is None:
+        raise RuntimeError("ChannelAgentBuildOutcome must set result or early_reply")
 
     return PrepareChannelExecutionResult(
         prep=ChannelExecutionPrep(
