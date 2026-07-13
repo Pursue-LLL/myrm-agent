@@ -138,6 +138,14 @@ _wait_frontend_http_200() {
     if [[ "${code}" == "200" ]]; then
       return 0
     fi
+    if [[ -f "${FRONTEND_PID}" ]]; then
+      local supervisor_pid
+      supervisor_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
+      if [[ -n "${supervisor_pid}" ]] && ! kill -0 "${supervisor_pid}" 2>/dev/null; then
+        echo "STACK_WARN: frontend supervisor exited before HTTP readiness — check ${FRONTEND_LOG}" >&2
+        return 1
+      fi
+    fi
     if [[ "${port_seen}" -eq 1 ]] && [[ "${i}" == "1" || $((i % 15)) -eq 0 ]]; then
       echo "STACK_WAIT: frontend GET / → HTTP ${code} (${i}/${max}s, cold compile tolerated)..." >&2
     fi
@@ -391,11 +399,19 @@ _ensure_backend() {
 }
 
 cmd_attach() {
+  if _stack_healthy; then
+    echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=http"
+    exit 0
+  fi
   if _wait_stack_warm "${ATTACH_WAIT_SEC}"; then
     echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
     exit 0
   fi
-  echo "STACK_ATTACH_TIMEOUT: stack not shell_hot within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+  if _wait_stack_health 15; then
+    echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=http"
+    exit 0
+  fi
+  echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
   exit 1
 }
 
@@ -424,6 +440,21 @@ cmd_ensure() {
     _try_optional_client_hot
     echo "STACK_ENSURE_OK: already shell_hot api=:${BACKEND_PORT} ui=:${FRONTEND_PORT}"
     exit 0
+  fi
+
+  if ! _wave_assert_stack_write_allowed; then
+    if _frontend_port_listening || _api_healthy 5; then
+      echo "STACK_JOIN: ensure deferred — wave/lease active; attach-wait for shell_hot" >&2
+      if _wait_stack_warm "${ATTACH_WAIT_SEC}"; then
+        _try_optional_client_hot
+        echo "STACK_ENSURE_OK: attach-wait during wave pin api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
+        exit 0
+      fi
+      echo "STACK_ATTACH_TIMEOUT: stack not shell_hot within ${ATTACH_WAIT_SEC}s during wave pin" >&2
+      exit 1
+    fi
+    echo "STACK_FAIL: ensure denied while wave pins stack — use: ./myrm ready --attach --chrome" >&2
+    exit 1
   fi
 
   if _join_ensure_in_progress "${_lock_dir}" "${ATTACH_WAIT_SEC}"; then

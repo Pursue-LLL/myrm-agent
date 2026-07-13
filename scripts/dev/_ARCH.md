@@ -17,11 +17,11 @@
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
 | `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API E2E + GLOBAL_WRITE mock-draft seed；UI 用 MCP chrome-devtools |
-| `dev-stack.sh` | Unix | 本地 dev 栈 SSOT：`ensure` / `attach` / `reset` / `status`；**必须**委托 **stack_supervisor** 单写者（RPC 失败 `STACK_FAIL`）；state `~/.local/state/myrm-dev/`；spawn 前 `ensure-next-native-swc.sh` |
+| `dev-stack.sh` | Unix | 本地 dev 栈 SSOT：`ensure` / `attach` / `reset` / `status`；冷栈 `ensure` 在 open wave stack pin 时 `STACK_FAIL`（已热栈 idempotent ensure 允许）；**必须**委托 **stack_supervisor** 单写者（RPC 失败 `STACK_FAIL`）；state `~/.local/state/myrm-dev/`；spawn 前 `ensure-next-native-swc.sh` |
 | `stack-supervisor.sh` | Unix | Dev 栈守护进程启动器 + RPC 客户端入口；见 [stack_supervisor/_ARCH.md](stack_supervisor/_ARCH.md) |
 | `ensure-next-native-swc.sh` | Unix | 缺平台 `@next/swc-*` 时 `bun install --no-save`（防 WASM 慢编译）；setup 与 dev-stack 双路径 |
 | `ensure-myrm-chrome-e2e.sh` | Unix | 拉起/验证 Myrm 专用 E2E Chrome（`:9333`，零 Allow）；栈热时首开 `:3000` 而非 blank |
-| `prune-myrm-chrome-e2e-blank-tabs.sh` | Unix | 仅 mux 无 client context 时 prune junk tab + 重复 `:3000` URL；并行时 fail-closed 不关页 |
+| `prune-myrm-chrome-e2e-blank-tabs.sh` | Unix | 仅按 transient ledger 回收死亡 owner 的精确 targetId；从不按 URL/blank/重复页推断 |
 | `myrm-chrome-e2e-lib.sh` | Unix | E2E Chrome 路径/port 常量与 CDP 健康探测 |
 | `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
 | `wave-e2e-lease.sh` | Unix | `./myrm test -m e2e` LIVE_AGENT 租约 |
@@ -59,12 +59,12 @@
 
 1. **`./myrm ready --chrome`** 为 SSOT；禁止手连主 Chrome autoConnect（会弹 Allow）
 2. **mux 模式**：多 Agent / 多 Cursor 客户端可并行 UI E2E（`cdmcp-mux-autoconnect`）；vanilla 多进程仍会死锁 → `scripts/dev/enable-chrome-devtools-mcp.sh`
-3. **禁止 `list_pages` / `select_page` 探活**（无 timeout，曾挂起 30min+）；探活只读 `CHROME_E2E_HEALTH_JSON`（`clientHot` / `warmTabPool` 仅证明 client 已热，**Agent 不得 select**）
-4. MCP：**单步** `new_page(url=http://127.0.0.1:3000/…, timeout=15000)` 开自有 tab → 取 **pageId**；`navigate_page` 默认 **15s**；测完 **`close_page`**
-5. **tab 卫生**：无 mux client context 时 `ready --chrome` 才 prune；并行 context 或 mux 状态未知时完全跳过自动关 tab，Agent 负责 `close_page`
+3. **禁止 `list_pages` / `select_page` 探活**（无 timeout，曾挂起 30min+）；探活只读 `CHROME_E2E_HEALTH_JSON.clientHot`
+4. MCP：**单步** `new_page(url=$E2E_UI_BASE/…, timeout=15000)` 开自有 tab → 同次取 **pageId + exact targetId**；`navigate_page` 默认 **15s**；测完 **`close_page`**
+5. **tab 卫生**：只关闭自有 pageId；崩溃 GC 只关闭 transient ledger 中死亡 owner 的 exact targetId，禁止 URL 去重
 6. **集成测试进程纪律**：并行 Agent **`./myrm ready --attach --chrome`**；栈 **`dev-stack ensure`**；**禁止** Agent shell `bun run dev &`
 7. **runtimeId + Wave + Stack Pin**：`CHROME_E2E_HEALTH_JSON.runtimeId` — `wave open` 冻结并钉死栈 → `lease acquire READ` → 断言前 `./myrm runtime-drift --expect <id>`；open wave 或持 lease 时 `ensure/reset/restart` 机械拒绝；并行 Agent 仅 `--attach --chrome`
-8. **client_hot + warmTabPool**：`ready --chrome` CDP 预热 client chunk 并登记内部 `warmTabPool`；mux 按 client 隔离 page ownership，Agent 必须 `new_page` 自己的 tab，只复用 Next 编译缓存和 Chrome profile 缓存，禁止 `select_page` 接管 raw warm target；`shell_hot`（curl `/`）≠ UI hydrate 完成；改码后 UI 测 **`./myrm restart --chrome`** 开新 wave
+8. **client_hot + transient target**：`ready --chrome` 用短生命周期 exact target 预热 client chunk，hydrate 后立即关闭并注销；mux 按 client 隔离 page ownership，Agent 必须 `new_page` 自己的 tab；`shell_hot`（curl `/`）≠ UI hydrate 完成；改码后 UI 测 **`./myrm restart --chrome`** 开新 wave
 9. **CDP 单写者**：活跃 Wave READ lease 期间项目内 pytest/bun 入口禁止直连 `/json/new`（`CDP_WRITE_DENIED`）；仅 supervisor warmup（`MYRM_CDP_WARMUP`）与 mux daemon 可写；外部 Playwright/raw CDP 无法由进程内 guard 拦截，属于运行纪律禁止项
 
 **勿引用（已移除）**：`browser-delegate-chrome-e2e.mjs`、`clarify-chrome-e2e.mjs`、`start-chrome-mcp-debug.sh`（第二 Chrome / Allow 冲突）；`browser-delegate-e2e-once.mjs`、`render-ui-gap-e2e-prepare.mjs`、`notify-channel-e2e-prepare.mjs`、`cron-gap-e2e-prepare.mjs`、`test-cron-gap-e2e.sh`（API 重复 → `myrm-agent-server/tests/api/agent/`）；`ui_pong_chrome_verify.py`、`render_ui_chrome_verify.py`、`wfel-settings-ui-check.py`（主 Chrome CDP → 用 `:9333` + `tests/` 或 MCP）；`subagent-dashboard-e2e-poll.mjs`（debug 轮询，正式链用 prepare + verify）；`test-instinct-inbox-seed.py`（已改名 `instinct-inbox-seed.py`）。品牌图标生成见 `myrm-agent-desktop/scripts/inset-app-icon.py`。

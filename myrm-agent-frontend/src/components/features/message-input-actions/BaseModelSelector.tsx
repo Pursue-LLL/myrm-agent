@@ -225,7 +225,11 @@ const BaseModelSelector = () => {
         onSelectSafetyFallback={actionMode === 'agent' ? handleSafetyFallbackSelect : undefined}
         onClearSafetyFallback={actionMode === 'agent' ? handleClearSafetyFallback : undefined}
         trigger={
-          <button type="button" className="group relative isolate flex h-fit focus:outline-none">
+          <button
+            type="button"
+            data-testid="model-picker-trigger"
+            className="group relative isolate flex h-fit focus:outline-none"
+          >
             <div className="absolute inset-0 bg-black/[0.04] dark:bg-white/[0.06] rounded-[10px] transition-colors duration-300" />
             <div className="relative z-10 flex h-8 min-h-8 items-center gap-1.5 px-2.5 py-0.5">
               {currentSelection ? (
