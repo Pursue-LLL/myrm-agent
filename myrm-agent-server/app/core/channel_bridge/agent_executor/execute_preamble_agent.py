@@ -5,7 +5,7 @@ app.ai_agents.agents::AgentFactory (POS: GeneralAgent 工厂)
 app.services.agent.session_credential_assembler (POS: 会话凭证装配)
 
 [OUTPUT]
-build_channel_execution_agent(): 创建 GeneralAgent 与 query_input / token_ctx。
+build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）。
 
 [POS]
 execute_preamble 子模块：从已解析配置到可运行 Agent 实例的最后一步。
@@ -22,7 +22,7 @@ from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTime
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
 from app.ai_agents.general_agent.agent import GeneralAgent
 from app.channels.i18n import get_text
-from app.channels.types import InboundMessage, OutboundMessage, ProgressUpdate
+from app.channels.types import InboundMessage, OutboundMessage
 from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.channel_bridge.config_parsers import verify_search_service_available
 from app.core.types.business import ModelConfig
@@ -43,7 +43,12 @@ class ChannelAgentBuildResult:
     token_ctx: object
     query_input: str | Command[object]
     params: GeneralAgentParams
-    pre_events: tuple[ProgressUpdate | OutboundMessage, ...]
+
+
+@dataclass
+class ChannelAgentBuildOutcome:
+    result: ChannelAgentBuildResult | None = None
+    early_reply: OutboundMessage | None = None
 
 
 async def build_channel_execution_agent(
@@ -71,7 +76,7 @@ async def build_channel_execution_agent(
     enabled_builtin_tools: list[str],
     auto_restore_domains: list[str],
     memory_decay_profile: str | None,
-) -> ChannelAgentBuildResult | tuple[ProgressUpdate | OutboundMessage, ...]:
+) -> ChannelAgentBuildOutcome:
     from app.core.memory.proactive.settings import (
         resolve_conversation_search_enabled,
         resolve_memory_enabled,
@@ -80,8 +85,6 @@ async def build_channel_execution_agent(
         apply_agent_baseline_tool_flags,
         resolve_builtin_tool_flags,
     )
-
-    pre_events: list[ProgressUpdate | OutboundMessage] = []
 
     user_timezone = str(memory_settings.get("timezone", "")) or None
     memory_identity = _resolve_inbound_memory_identity(
@@ -140,8 +143,8 @@ async def build_channel_execution_agent(
             err_msg = get_text(msg, "search_not_configured")
         else:
             err_msg = get_text(msg, "search_unreachable")
-        return (
-            msg.get_or_create_correlation_context().create_reply(content=err_msg),
+        return ChannelAgentBuildOutcome(
+            early_reply=msg.get_or_create_correlation_context().create_reply(content=err_msg),
         )
 
     from app.ai_agents.general_agent.context import set_current_agent_id, set_current_chat_id, set_current_turn_id
@@ -200,20 +203,22 @@ async def build_channel_execution_agent(
         notify_targets=(resolved_profile.notify_targets if resolved_profile else ()),
     )
 
-    agent = AgentFactory.create_general_agent(params)
     approval_peer = msg.chat_id or msg.sender_id
-    agent.approval_session_key = f"{msg.channel}:{approval_peer}"
-
-    query_input: str | Command[object]
     if is_resume:
         approval_key = f"{msg.channel}:{approval_peer}"
         if not ApprovalTimeoutScheduler.get().resolve_if_first(approval_key):
             logger.warning("Channel resume rejected (timeout already resolved): key=%s", approval_key)
-            return (
-                msg.get_or_create_correlation_context().create_reply(
+            return ChannelAgentBuildOutcome(
+                early_reply=msg.get_or_create_correlation_context().create_reply(
                     content=get_text(msg, "approval_timeout_resolved"),
                 ),
             )
+
+    agent = AgentFactory.create_general_agent(params)
+    agent.approval_session_key = f"{msg.channel}:{approval_peer}"
+
+    query_input: str | Command[object]
+    if is_resume:
         query_input = Command(resume=msg.resume_value)
     else:
         query_input = query
@@ -227,10 +232,11 @@ async def build_channel_execution_agent(
         channel=msg.channel,
     )
     token_ctx = user_credentials_ctx.set(credentials_list)
-    return ChannelAgentBuildResult(
-        agent=agent,
-        token_ctx=token_ctx,
-        query_input=query_input,
-        params=params,
-        pre_events=tuple(pre_events),
+    return ChannelAgentBuildOutcome(
+        result=ChannelAgentBuildResult(
+            agent=agent,
+            token_ctx=token_ctx,
+            query_input=query_input,
+            params=params,
+        ),
     )

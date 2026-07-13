@@ -25,18 +25,32 @@ _supervisor_alive() {
 }
 
 _supervisor_daemon_pids() {
-  "${PY}" - "${PY}" <<'PY'
+  "${PY}" - "${PY}" "${STATE_DIR}" <<'PY'
 import os
+import shlex
 import subprocess
 import sys
 
 target = os.path.abspath(sys.argv[1])
+state_dir = os.path.abspath(sys.argv[2])
+default_state_dir = os.path.abspath(os.path.expanduser("~/.local/state/myrm-dev"))
 for raw in subprocess.check_output(["ps", "-axo", "pid=,command="], text=True).splitlines():
     fields = raw.strip().split(None, 1)
     if len(fields) != 2 or not fields[0].isdigit():
         continue
-    command = fields[1]
-    if command.startswith(f"{target} -m stack_supervisor.daemon"):
+    try:
+        args = shlex.split(fields[1])
+    except ValueError:
+        continue
+    if len(args) < 3 or args[:3] != [target, "-m", "stack_supervisor.daemon"]:
+        continue
+    if "--state-dir" in args:
+        index = args.index("--state-dir")
+        if index + 1 >= len(args) or os.path.abspath(args[index + 1]) != state_dir:
+            continue
+    elif state_dir != default_state_dir:
+        continue
+    if args:
         print(fields[0])
 PY
 }
@@ -95,9 +109,9 @@ cmd_start() {
   fi
 
   if [[ "${result}" == "0" ]] && ! _supervisor_alive && command -v setsid >/dev/null 2>&1; then
-    setsid nohup "${PY}" -m stack_supervisor.daemon >>"${STATE_DIR}/supervisor.log" 2>&1 &
+    setsid nohup "${PY}" -m stack_supervisor.daemon --state-dir "${STATE_DIR}" >>"${STATE_DIR}/supervisor.log" 2>&1 &
   elif [[ "${result}" == "0" ]] && ! _supervisor_alive; then
-    nohup "${PY}" -m stack_supervisor.daemon >>"${STATE_DIR}/supervisor.log" 2>&1 &
+    nohup "${PY}" -m stack_supervisor.daemon --state-dir "${STATE_DIR}" >>"${STATE_DIR}/supervisor.log" 2>&1 &
   fi
 
   if [[ "${result}" == "0" ]] && _wait_for_supervisor; then

@@ -94,11 +94,13 @@ class SupervisorDaemon:
                 env=self._dev_stack_env(env_overrides),
             )
         except subprocess.TimeoutExpired as exc:
+            stdout = exc.stdout if isinstance(exc.stdout, str) else (exc.stdout or b"").decode("utf-8", errors="replace")
+            stderr = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", errors="replace")
             return RpcResponse(
                 ok=False,
                 exit_code=1,
-                stdout=exc.stdout or "",
-                stderr=(exc.stderr or "") + f"\nTimeout running dev-stack {command}",
+                stdout=stdout,
+                stderr=f"{stderr}\nTimeout running dev-stack {command}",
             )
         return RpcResponse(
             ok=result.returncode == 0,
@@ -411,8 +413,21 @@ def _daemonize() -> None:
     sys.stderr.flush()
 
 
+def _apply_state_dir_argument() -> int:
+    if "--state-dir" not in sys.argv:
+        return 0
+    index = sys.argv.index("--state-dir")
+    if index + 1 >= len(sys.argv) or not sys.argv[index + 1].strip():
+        logger.error("--state-dir requires a path")
+        return 2
+    os.environ["MYRM_DEV_STATE_DIR"] = sys.argv[index + 1]
+    return 0
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    if _apply_state_dir_argument() != 0:
+        return 2
     paths = resolve_paths()
     daemonize_flag = "--daemonize" in sys.argv
 

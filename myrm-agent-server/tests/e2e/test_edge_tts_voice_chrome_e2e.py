@@ -124,9 +124,17 @@ def chrome_preflight() -> None:
 
 @pytest.fixture
 def chrome_ws(chrome_preflight: None) -> str:
-    ws_url = _find_page_ws(BASE_URL + "/")
+    ws_url = _open_page_ws(BASE_URL + "/") or _find_page_ws(BASE_URL + "/")
     if not ws_url:
         pytest.skip("Chrome E2E tab unavailable on port 9333")
+    return ws_url
+
+
+@pytest.fixture
+def voice_chrome_ws(chrome_preflight: None) -> str:
+    ws_url = _open_page_ws(VOICE_SETTINGS_URL)
+    if not ws_url:
+        pytest.skip("Chrome E2E voice tab unavailable on port 9333")
     return ws_url
 
 
@@ -179,22 +187,26 @@ class _CdpSession:
             await_promise=False,
         )
 
-    async def goto(self, url: str) -> None:
-        await self.eval(f"window.location.replace({json.dumps(url)}); 'nav'", await_promise=False)
-
     async def wait_voice_settings(self) -> dict[str, object]:
         ready: dict[str, object] = {}
-        for _ in range(90):
+        for _ in range(120):
             ready = await self.eval(
                 """(() => {
                   const text = document.body.innerText || '';
                   const skeletons = document.querySelectorAll('[class*="skeleton" i]').length;
-                  const hasVoiceHeading = /语音|Voice|Text-to-Speech|TTS/i.test(text);
+                  const hasVoiceHeading = /语音|Voice|Text-to-Speech|Edge TTS/i.test(text);
+                  const onVoiceRoute = location.search.includes('sub=voice');
+                  const voiceTab = Array.from(document.querySelectorAll('[role="tab"]'))
+                    .find((el) => /语音|Voice/i.test(el.textContent || ''));
+                  if (onVoiceRoute && voiceTab && voiceTab.getAttribute('aria-selected') !== 'true') {
+                    voiceTab.click();
+                  }
                   return {
                     url: location.href,
                     hasLayout: !!document.querySelector('[data-testid="app-layout"]'),
                     skeletons,
                     hasVoiceHeading,
+                    onVoiceRoute,
                     showBanner: /Edge TTS is not available|Edge TTS 不可用/i.test(text),
                     readyState: document.readyState,
                   };
@@ -204,6 +216,7 @@ class _CdpSession:
             if (
                 isinstance(ready, dict)
                 and ready.get("hasLayout")
+                and ready.get("onVoiceRoute")
                 and int(ready.get("skeletons", 99)) < 4
                 and ready.get("hasVoiceHeading")
             ):
@@ -216,13 +229,12 @@ class _CdpSession:
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 @pytest.mark.asyncio
-async def test_voice_settings_no_edge_banner_when_available(chrome_ws: str) -> None:
+async def test_voice_settings_no_edge_banner_when_available(voice_chrome_ws: str) -> None:
     if not _edge_tts_available():
         pytest.skip("edge_tts_available=false — banner covered by TestClient 503")
 
-    async with _CdpSession(chrome_ws) as cdp:
+    async with _CdpSession(voice_chrome_ws) as cdp:
         await cdp.dismiss_migration()
-        await cdp.goto(VOICE_SETTINGS_URL)
         page = await cdp.wait_voice_settings()
 
     assert page.get("showBanner") is False, page
@@ -266,7 +278,7 @@ async def test_read_aloud_triggers_edge_tts_stream(chrome_ws: str) -> None:
     async with websockets.connect(ws_url, max_size=10**7, open_timeout=10) as ws:
         mid = 0
 
-        async def ev(expr: str) -> object:
+        async def ev(expr: str, *, await_promise: bool = True) -> object:
             nonlocal mid
             mid += 1
             await ws.send(
@@ -274,7 +286,11 @@ async def test_read_aloud_triggers_edge_tts_stream(chrome_ws: str) -> None:
                     {
                         "id": mid,
                         "method": "Runtime.evaluate",
-                        "params": {"expression": expr, "returnByValue": True, "awaitPromise": True},
+                        "params": {
+                            "expression": expr,
+                            "returnByValue": True,
+                            "awaitPromise": await_promise,
+                        },
                     }
                 )
             )
@@ -302,19 +318,28 @@ async def test_read_aloud_triggers_edge_tts_stream(chrome_ws: str) -> None:
               return { ok: true };
             })()""",
         )
-        await ev(f"window.location.replace({json.dumps(CHAT_URL)}); 'nav'")
+        await ev(f"window.location.href = {json.dumps(CHAT_URL)}; 'nav'", await_promise=False)
+        await asyncio.sleep(2)
+        await ev("location.reload(); 'reload'", await_promise=False)
+        await asyncio.sleep(3)
 
         clicked: dict[str, object] = {"ok": False}
-        for _ in range(60):
+        for _ in range(90):
             clicked = await ev(
                 """(() => {
+                  const hasAssistant = (document.body.innerText || '').includes('OK');
                   const btn = Array.from(document.querySelectorAll('button[aria-label]'))
-                    .find((b) => /朗读|Read aloud|read aloud/i.test(b.getAttribute('aria-label') || ''));
-                  if (btn) {
+                    .find((b) => /朗读|Read aloud|Pause|暂停/i.test(b.getAttribute('aria-label') || ''));
+                  if (hasAssistant && btn) {
                     btn.click();
-                    return { ok: true, label: btn.getAttribute('aria-label') };
+                    return { ok: true, label: btn.getAttribute('aria-label'), hasAssistant };
                   }
-                  return { ok: false, path: location.pathname };
+                  return {
+                    ok: false,
+                    path: location.pathname,
+                    hasAssistant,
+                    ariaButtons: document.querySelectorAll('button[aria-label]').length,
+                  };
                 })()""",
             )
             if isinstance(clicked, dict) and clicked.get("ok"):

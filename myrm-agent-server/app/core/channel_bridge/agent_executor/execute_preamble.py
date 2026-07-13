@@ -161,7 +161,7 @@ async def prepare_channel_execution(
     )
     pre_events.extend(session_ctx.pre_events)
 
-    agent_result = await build_channel_execution_agent(
+    agent_outcome = await build_channel_execution_agent(
         msg,
         query=session_ctx.query,
         is_resume=is_resume,
@@ -187,10 +187,12 @@ async def prepare_channel_execution(
         memory_decay_profile=memory_decay_profile,
     )
 
-    if isinstance(agent_result, tuple):
-        return PrepareChannelExecutionResult(pre_events=(*pre_events, *agent_result))
+    if agent_outcome.early_reply is not None:
+        return PrepareChannelExecutionResult(pre_events=(*pre_events, agent_outcome.early_reply))
 
-    pre_events.extend(agent_result.pre_events)
+    agent_result = agent_outcome.result
+    assert agent_result is not None
+
     return PrepareChannelExecutionResult(
         prep=ChannelExecutionPrep(
             agent=agent_result.agent,

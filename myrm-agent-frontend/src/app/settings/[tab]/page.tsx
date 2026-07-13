@@ -93,6 +93,7 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 export const prefetch = 'allow-runtime';
+export const instant = false;
 
 async function SettingsTabPage({ params }: PageProps) {
   const { tab } = await params;

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -79,19 +79,17 @@ def _agent_build_kwargs(
 @pytest.mark.asyncio
 async def test_build_agent_rejects_resume_when_approval_timeout_already_resolved() -> None:
     msg = _inbound_message(resume_value={"type": "approve"})
-    mock_agent = MagicMock()
 
     with (
         patch(
             "app.core.channel_bridge.agent_executor.execute_preamble_agent.AgentFactory.create_general_agent",
-            return_value=mock_agent,
-        ),
+        ) as mock_create_agent,
         patch(
             "myrm_agent_harness.agent.middlewares.approval.scheduler.ApprovalTimeoutScheduler.get",
         ) as mock_scheduler_get,
     ):
         mock_scheduler_get.return_value.resolve_if_first.return_value = False
-        result = await build_channel_execution_agent(
+        outcome = await build_channel_execution_agent(
             **_agent_build_kwargs(
                 msg,
                 is_resume=True,
@@ -100,11 +98,11 @@ async def test_build_agent_rejects_resume_when_approval_timeout_already_resolved
             ),
         )
 
-    assert isinstance(result, tuple)
-    assert len(result) == 1
-    reply = result[0]
-    assert isinstance(reply, OutboundMessage)
-    assert "approval" in reply.content.lower() or "审批" in reply.content
+    mock_create_agent.assert_not_called()
+    assert outcome.result is None
+    assert outcome.early_reply is not None
+    assert isinstance(outcome.early_reply, OutboundMessage)
+    assert "approval" in outcome.early_reply.content.lower() or "审批" in outcome.early_reply.content
 
 
 @pytest.mark.asyncio
@@ -116,7 +114,7 @@ async def test_build_agent_returns_search_unreachable_when_service_down() -> Non
         new_callable=AsyncMock,
         return_value=False,
     ):
-        result = await build_channel_execution_agent(
+        outcome = await build_channel_execution_agent(
             **_agent_build_kwargs(
                 msg,
                 is_resume=False,
@@ -125,18 +123,17 @@ async def test_build_agent_returns_search_unreachable_when_service_down() -> Non
             ),
         )
 
-    assert isinstance(result, tuple)
-    assert len(result) == 1
-    reply = result[0]
-    assert isinstance(reply, OutboundMessage)
-    assert "search" in reply.content.lower() or "搜索" in reply.content
+    assert outcome.result is None
+    assert outcome.early_reply is not None
+    assert isinstance(outcome.early_reply, OutboundMessage)
+    assert "search" in outcome.early_reply.content.lower() or "搜索" in outcome.early_reply.content
 
 
 @pytest.mark.asyncio
 async def test_build_agent_returns_search_not_configured_when_missing_service() -> None:
     msg = _inbound_message(locale="zh-CN")
 
-    result = await build_channel_execution_agent(
+    outcome = await build_channel_execution_agent(
         **_agent_build_kwargs(
             msg,
             is_resume=False,
@@ -145,7 +142,7 @@ async def test_build_agent_returns_search_not_configured_when_missing_service() 
         ),
     )
 
-    assert isinstance(result, tuple)
-    reply = result[0]
-    assert isinstance(reply, OutboundMessage)
-    assert "搜索" in reply.content
+    assert outcome.result is None
+    assert outcome.early_reply is not None
+    assert isinstance(outcome.early_reply, OutboundMessage)
+    assert "搜索" in outcome.early_reply.content

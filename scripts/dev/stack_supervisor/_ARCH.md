@@ -13,7 +13,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `stack-supervisor.sh` | Bash 启动器：`start` / `stop` / `rpc <cmd>` |
+| `stack-supervisor.sh` | Bash 启动器：`start` / `stop` / `rpc <cmd>`；daemon argv 携带 `--state-dir`，清理严格按 state 隔离 |
 | `__main__.py` | `python -m stack_supervisor` CLI 入口 |
 | `daemon.py` | Unix socket RPC 服务 + 看门狗线程 + 失温冷却自愈 |
 | `client.py` | RPC 客户端；`dev-stack.sh` 委托入口 |

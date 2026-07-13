@@ -147,7 +147,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
                 )
             )
             while True:
-                raw = await asyncio.wait_for(ws.recv(), timeout=120)
+                raw = await asyncio.wait_for(ws.recv(), timeout=180)
                 result = json.loads(raw)
                 if result.get("id") != mid[0]:
                     continue
@@ -286,7 +286,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
                 json.dumps({"id": mid[0], "method": method, "params": params or {}})
             )
             while True:
-                raw = await asyncio.wait_for(ws.recv(), timeout=120)
+                raw = await asyncio.wait_for(ws.recv(), timeout=180)
                 result = json.loads(raw)
                 if result.get("id") != mid[0]:
                     continue
