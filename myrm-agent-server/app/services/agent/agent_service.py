@@ -155,13 +155,16 @@ class AgentService:
     @staticmethod
     async def get_agent_list(page: int = 1, page_size: int = 20) -> tuple[list[AgentProfile], int]:
         """获取智能体列表（支持分页）"""
+        from app.services.features.product_surface import is_hidden_builtin_agent
+
         async with UnitOfWork() as uow:
             profiles = await AgentService._ar(uow).list_profiles()
-            total = len(profiles)
+            visible_profiles = [profile for profile in profiles if not is_hidden_builtin_agent(profile.id)]
+            total = len(visible_profiles)
 
             # 内存分页
             offset = (page - 1) * page_size
-            paginated = profiles[offset : offset + page_size]
+            paginated = visible_profiles[offset : offset + page_size]
 
             return paginated, total
 

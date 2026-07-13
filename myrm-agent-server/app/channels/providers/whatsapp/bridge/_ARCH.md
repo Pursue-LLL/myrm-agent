@@ -11,3 +11,4 @@ WhatsApp Baileys Node.js bridge 子进程。通过 stdin/stdout JSON Lines 与 P
 | `whatsapp-bridge.js` | 核心 | Baileys 7.x bridge 主进程：QR 登录、消息收发、媒体下载、群组列表 | stdin(Python 指令) → stdout(JSON 事件) |
 | `package.json` | 数据 | npm 依赖声明（Baileys + pino） | — |
 | `package-lock.json` | 数据 | npm 依赖锁定文件 | — |
+| `node_modules/` | 运行时 | 本地 `npm ci` 产物（gitignore）；勿提交、勿手改；分形门禁不遍历此目录 |

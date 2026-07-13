@@ -10,7 +10,7 @@ import { LocalizedProviders } from '@/i18n/LocalizedProviders';
 import { cn } from '@/lib/utils/classnameUtils';
 import AppShellSkeleton from '@/components/features/app-shell/AppShellSkeleton';
 import { WebVitals } from './web-vitals';
-import { getTranslations } from 'next-intl/server';
+import { getBuildTimeMetadataMessages } from '@/lib/metadata/static-metadata';
 import { fontSans, fontMono } from '@/lib/fonts';
 
 export const viewport: Viewport = {
@@ -19,17 +19,12 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
-  const params = await props.params;
-  const { locale } = params;
+const metadataMessages = getBuildTimeMetadataMessages();
 
-  const t = await getTranslations({ locale, namespace: 'metadata' });
-
-  return {
-    title: t('appTitle'),
-    description: t('appDescription'),
-  };
-}
+export const metadata: Metadata = {
+  title: metadataMessages.appTitle,
+  description: metadataMessages.appDescription,
+};
 
 export default function LocaleLayout({ children }: { children: React.ReactNode }) {
   return (

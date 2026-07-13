@@ -11,6 +11,7 @@ import {
   IconShield,
   IconZap,
   IconAlertTriangle,
+  IconEye,
 } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -283,6 +284,36 @@ const SecurityPolicySection = memo(() => {
               </p>
             )}
           </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title={t('planReview.title', { default: 'Plan Review' })}
+        description={t('planReview.description', {
+          default:
+            'Review and approve the AI\'s task plan before execution begins. Helps catch mistakes early — before any files are modified.',
+        })}
+      >
+        <div className="flex items-center justify-between gap-4 p-4 rounded-lg border border-border bg-background">
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <IconEye className="h-4 w-4 text-blue-500" />
+              <span className="font-medium">
+                {t('planReview.enableLabel', { default: 'Enable Plan Review' })}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t('planReview.enableDesc', {
+                default:
+                  'When enabled, the AI will pause and show you the plan for review before starting complex tasks (3 or more steps).',
+              })}
+            </p>
+          </div>
+          <Switch
+            checked={policy.planConfirmEnabled}
+            onCheckedChange={policy.handlePlanConfirmToggle}
+            disabled={policy.yoloModeEnabled}
+          />
         </div>
       </SettingsSection>
 

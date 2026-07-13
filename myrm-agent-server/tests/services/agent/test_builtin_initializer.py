@@ -443,4 +443,5 @@ async def test_initialize_syncs_hr_screener_tools_without_baseline(test_db: sess
         result = await session.execute(select(Agent).where(Agent.id == "builtin-hr_screener"))
         agent = result.scalar_one()
 
-    assert agent.enabled_builtin_tools == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+    hr_spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-hr_screener")
+    assert agent.enabled_builtin_tools == list(hr_spec.enabled_builtin_tools)

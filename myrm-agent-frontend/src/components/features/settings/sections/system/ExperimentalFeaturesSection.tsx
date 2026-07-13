@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { Switch } from '@/components/primitives/switch';
 import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils/classnameUtils';
-import SettingsSection from '../SettingsSection';
+import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 
 interface FeatureItem {
   id: string;
@@ -71,6 +71,8 @@ const ExperimentalFeaturesSection = memo(() => {
         }
 
         setFeatures((prev) => prev.map((f) => (f.id === featureId ? { ...f, enabled, is_overridden: true } : f)));
+
+        await useFeatureGateStore.getState().loadFeatures();
 
         toast.success(enabled ? t('enabledSuccess', { name: featureId }) : t('disabledSuccess', { name: featureId }));
       } catch {

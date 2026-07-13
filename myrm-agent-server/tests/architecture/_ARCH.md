@@ -26,6 +26,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_cookbook_specs_asset.py` | `assets/cookbook_specs.json` bundled 结构校验 |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |
 | `test_no_core_services_api_imports.py` | `app/{core,services,lifecycle}/` 禁止 import `app.api` |
+| `test_telegram_channel_mixin_mro.py` | `TelegramChannel._pre_emit_hook` 必须来自 hooks mixin；inbound 不得定义同名方法 |
 | `data/server_api_import_baseline.txt` | 上述门禁 baseline（须保持为空） |
 | `../../scripts/ci/file_line_budget_baseline.txt` | `check_file_line_budget.py` grandfather 超标模块列表 |
 

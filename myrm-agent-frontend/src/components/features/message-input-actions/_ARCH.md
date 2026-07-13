@@ -24,7 +24,7 @@
 | `ImageLightbox.tsx` | 组件 | 附件图片 Lightbox 全屏预览 | ✅ |
 | `IncognitoModeToggle.tsx` | 组件 | 无痕/不写入记忆模式切换 | ✅ |
 | `SandboxModeToggle.tsx` | 组件 | 沙箱模式切换：Agent 模式下可见，一键隔离 workspace 到 git worktree | ✅ |
-| `SearchModeSelector.tsx` | 组件 | 分段式模式选择器：Fast / Agent / Deep Research / Consensus，含 feature gate 门控和搜索服务校验 | ✅ |
+| `SearchModeSelector.tsx` | 组件 | 分段式模式选择器：Fast / Agent / Consensus（深度研究已移除，未来上线见 server `features/_ARCH.md`） | ✅ |
 | `SessionSkillsToggle.tsx` | 组件 | 会话级 Skill 作用域切换：Agent 模式下 Popover 列出当前 Agent 绑定的 Skill（`agentConfig.selectedSkillIds`），用户 toggle 子集覆盖默认全量加载，PATCH `/session-skills` 持久化 | ✅ |
 | `SpeechInputButton.tsx` | 组件 | 语音转文字输入按钮（STT） | ✅ |
 | `ThinkingIntensityButton.tsx` | 组件 | 思考强度/推理预算调节 | ✅ |

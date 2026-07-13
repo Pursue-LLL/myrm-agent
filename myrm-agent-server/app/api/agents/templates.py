@@ -36,6 +36,8 @@ from app.database.dto import AgentCreate
 from app.database.standard_responses import StandardSuccessResponse
 from app.services.agent.agent_service import AgentService
 
+from app.services.features.product_surface import is_hidden_prebuilt_template
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -108,6 +110,8 @@ async def list_templates(request: Request) -> JSONResponse:
                     if not data:
                         continue
                     template_id = os.path.basename(file_path).replace(".yaml", "")
+                    if is_hidden_prebuilt_template(template_id):
+                        continue
 
                     name = resolve_i18n(data.get("name"), accept_lang) or template_id
                     description = resolve_i18n(data.get("description"), accept_lang) if data.get("description") else None

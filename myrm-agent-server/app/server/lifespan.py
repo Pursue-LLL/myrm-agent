@@ -282,11 +282,15 @@ async def _phase_1a_sequential() -> None:
     try:
         from myrm_agent_harness.core.features import init_features
 
-        from app.services.features.feature_config_service import load_user_overrides
+        from app.services.features.feature_config_service import (
+            load_user_overrides,
+            sanitize_user_overrides,
+        )
         from app.services.features.registration import register_all_features
 
         register_all_features()
         user_overrides = load_user_overrides()
+        user_overrides = sanitize_user_overrides(user_overrides)
         feature_set = init_features(overrides=user_overrides)
         logger.info(
             "[Startup] Feature flags initialized (%d enabled)",

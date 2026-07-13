@@ -137,7 +137,7 @@ async def toggle_feature(feature_id: str, body: ToggleRequest) -> ToggleResponse
     if spec.stage == FeatureStage.REMOVED:
         raise HTTPException(
             status_code=400,
-            detail=f"Feature '{feature_id}' has been removed",
+            detail=f"Feature '{feature_id}' has been removed from the product surface",
         )
 
     if spec.stage == FeatureStage.UNDER_DEVELOPMENT:

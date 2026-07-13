@@ -25,6 +25,9 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TextIO
+
+import fcntl
 
 from stack_supervisor.state_gc import collect_stale_state, write_supervisor_state
 from stack_supervisor.paths import StackPaths, resolve_paths
@@ -149,6 +152,9 @@ class SupervisorDaemon:
             return
         if probe.api_http_ok and probe.frontend_http_ok:
             return
+        if not self._wave_stack_write_allowed():
+            logger.info("Watchdog auto-heal skipped: active wave lease blocks stack writes")
+            return
         if not self._op_lock.acquire(blocking=False):
             return
         try:
@@ -167,6 +173,27 @@ class SupervisorDaemon:
                 logger.warning("Watchdog auto-heal: ensure failed (rc=%s)", result.exit_code)
         finally:
             self._op_lock.release()
+
+    def _wave_stack_write_allowed(self) -> bool:
+        wave_script = self.paths.agent_root / "scripts" / "dev" / "wave.sh"
+        if not wave_script.is_file():
+            return True
+        try:
+            result = subprocess.run(
+                ["bash", str(wave_script), "check-stack-write"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+                env=self._dev_stack_env(),
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            logger.warning("Wave stack-write gate unavailable; refusing stack mutation")
+            return False
+        if result.returncode == 0:
+            return True
+        logger.info("Wave stack-write gate denied mutation: %s", result.stderr.strip())
+        return False
 
     def _watchdog_loop(self) -> None:
         while not self._stop_event.wait(WATCHDOG_INTERVAL_SEC):
@@ -243,6 +270,13 @@ class SupervisorDaemon:
 
         with self._op_lock:
             self._watchdog_once()
+            if command in {"ensure", "reset"} and not self._wave_stack_write_allowed():
+                return RpcResponse(
+                    ok=False,
+                    exit_code=3,
+                    stdout="",
+                    stderr="WAVE_STACK_WRITE_DENIED: active lease blocks stack mutation",
+                )
             if command == "reset":
                 dev = self._run_dev_stack("reset", timeout_sec=120.0, env_overrides=env_overrides)
                 self._watchdog_once()
@@ -273,10 +307,11 @@ class SupervisorDaemon:
         if self.paths.supervisor_sock.exists():
             self.paths.supervisor_sock.unlink()
 
-        self.start_watchdog()
         server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         server.bind(str(self.paths.supervisor_sock))
-        server.listen(8)
+        server.listen(16)
+        _write_pid_file(self.paths)
+        self.start_watchdog()
         logger.info("Supervisor listening on %s", self.paths.supervisor_sock)
 
         try:
@@ -286,49 +321,83 @@ class SupervisorDaemon:
                     conn, _ = server.accept()
                 except socket.timeout:
                     continue
-                with conn:
-                    self._handle_connection(conn)
+                threading.Thread(
+                    target=self._handle_connection,
+                    args=(conn,),
+                    name="stack-supervisor-rpc",
+                    daemon=True,
+                ).start()
         finally:
             server.close()
             if self.paths.supervisor_sock.exists():
                 self.paths.supervisor_sock.unlink()
 
     def _handle_connection(self, conn: socket.socket) -> None:
-        conn.settimeout(600.0)
-        raw = b""
-        while not raw.endswith(b"\n"):
-            block = conn.recv(4096)
-            if not block:
-                break
-            raw += block
-        if not raw.strip():
-            return
-        request = json.loads(raw.decode("utf-8"))
-        command = request.get("cmd")
-        env_overrides = request.get("env")
-        if not isinstance(env_overrides, dict):
-            env_overrides = None
-        else:
-            env_overrides = {str(k): str(v) for k, v in env_overrides.items()}
-        if command not in ("ensure", "attach", "reset", "status", "ping", "shutdown"):
-            response = RpcResponse(ok=False, exit_code=1, stdout="", stderr=f"Invalid cmd: {command}")
-        else:
-            response = self.handle(command, env_overrides=env_overrides)  # type: ignore[arg-type]
+        with conn:
+            conn.settimeout(15.0)
+            raw = b""
+            try:
+                while not raw.endswith(b"\n"):
+                    block = conn.recv(4096)
+                    if not block:
+                        break
+                    raw += block
+                if not raw.strip():
+                    return
+                request = json.loads(raw.decode("utf-8"))
+            except (OSError, ValueError, socket.timeout):
+                return
+            command = request.get("cmd")
+            env_overrides = request.get("env")
+            if not isinstance(env_overrides, dict):
+                env_overrides = None
+            else:
+                env_overrides = {str(k): str(v) for k, v in env_overrides.items()}
+            if command not in ("ensure", "attach", "reset", "status", "ping", "shutdown"):
+                response = RpcResponse(ok=False, exit_code=1, stdout="", stderr=f"Invalid cmd: {command}")
+            else:
+                response = self.handle(command, env_overrides=env_overrides)  # type: ignore[arg-type]
 
-        payload: dict[str, object] = {
-            "ok": response.ok,
-            "exit_code": response.exit_code,
-            "stdout": response.stdout,
-            "stderr": response.stderr,
-        }
-        if response.state is not None:
-            payload["state"] = response.state
-        conn.sendall((json.dumps(payload) + "\n").encode("utf-8"))
+            payload: dict[str, object] = {
+                "ok": response.ok,
+                "exit_code": response.exit_code,
+                "stdout": response.stdout,
+                "stderr": response.stderr,
+            }
+            if response.state is not None:
+                payload["state"] = response.state
+            try:
+                conn.sendall((json.dumps(payload) + "\n").encode("utf-8"))
+            except (BrokenPipeError, ConnectionResetError, OSError, socket.timeout):
+                logger.debug("RPC client disconnected before response")
 
 
 def _write_pid_file(paths: StackPaths) -> None:
     paths.state_dir.mkdir(parents=True, exist_ok=True)
     paths.supervisor_pid_file.write_text(f"{os.getpid()}\n", encoding="utf-8")
+
+
+def _remove_owned_pid_file(paths: StackPaths) -> None:
+    if not paths.supervisor_pid_file.is_file():
+        return
+    try:
+        recorded_pid = paths.supervisor_pid_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return
+    if recorded_pid == str(os.getpid()):
+        paths.supervisor_pid_file.unlink(missing_ok=True)
+
+
+def _acquire_daemon_lock(paths: StackPaths) -> TextIO | None:
+    paths.state_dir.mkdir(parents=True, exist_ok=True)
+    lock_file = paths.state_dir / "supervisor.lock"
+    handle = lock_file.open("a+", encoding="utf-8")
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.close()
+        return None
+    return handle
 
 
 def _daemonize() -> None:
@@ -350,12 +419,14 @@ def main() -> int:
     if daemonize_flag:
         _daemonize()
 
-    _write_pid_file(paths)
+    lock_handle = _acquire_daemon_lock(paths)
+    if lock_handle is None:
+        logger.info("Supervisor daemon already owns %s", paths.state_dir / "supervisor.lock")
+        return 0
 
     def _on_signal(_signum: int, _frame: object) -> None:
         daemon.stop_watchdog()
-        if paths.supervisor_pid_file.is_file():
-            paths.supervisor_pid_file.unlink()
+        _remove_owned_pid_file(paths)
         raise SystemExit(0)
 
     daemon = SupervisorDaemon.create(paths)
@@ -365,8 +436,9 @@ def main() -> int:
     try:
         daemon.serve_forever()
     finally:
-        if paths.supervisor_pid_file.is_file():
-            paths.supervisor_pid_file.unlink()
+        _remove_owned_pid_file(paths)
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+        lock_handle.close()
     return 0
 
 

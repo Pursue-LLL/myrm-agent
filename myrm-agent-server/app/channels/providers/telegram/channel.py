@@ -11,7 +11,11 @@ Forum Topics: create/rename/close/reopen + auto-topic creation with per-user ded
 [INPUT]
 - channels.core.base::BaseChannel (POS: Abstract base for channel providers.)
 - channels.types::OutboundMessage, InboundMessage
-- services.agent.agent_service::AgentService (POS: 业务层Agent服务。)
+- telegram.inbound::TelegramInboundMixin (POS: Telegram inbound message parsing and media-group aggregation mixin.)
+- telegram.outbound::TelegramOutboundMixin (POS: Telegram outbound messaging mixin.)
+- telegram.topics::TelegramTopicsMixin (POS: Telegram Forum Topic lifecycle helpers.)
+- telegram.hooks::TelegramHooksMixin (POS: Telegram pre-emit hook mixin.)
+- telegram.webhook::TelegramWebhookMixin (POS: Telegram webhook verification and route registration.)
 
 [OUTPUT]
 - TelegramChannel: Telegram Bot bidirectional Channel (polling + webhook)

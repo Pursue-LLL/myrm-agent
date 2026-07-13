@@ -61,16 +61,17 @@ class TestFeatureRegistration:
         assert spec.stage == FeatureStage.EXPERIMENTAL
         assert spec.default_enabled is False
 
-    def test_deep_research_registered(self):
+    def test_deep_research_registered_as_removed(self):
         _init_with_overrides({})
         spec = registry.get("deep_research")
         assert spec is not None
-        assert spec.stage == FeatureStage.EXPERIMENTAL
+        assert spec.stage == FeatureStage.REMOVED
         assert spec.default_enabled is False
 
-    def test_deep_research_override_can_enable(self):
+    def test_deep_research_override_is_ignored(self):
         fs = _init_with_overrides({"deep_research": True})
-        assert fs.enabled("deep_research")
+        assert not fs.enabled("deep_research")
+        assert any("removed" in w.lower() for w in fs.warnings())
 
     def test_voice_interaction_registered(self):
         _init_with_overrides({})
@@ -87,7 +88,7 @@ class TestFeatureRegistration:
         assert spec.experimental_info.name == "Consensus Mode"
 
     def test_all_gated_features_default_disabled(self):
-        """deep_research, consensus, voice_interaction should all be off by default."""
+        """consensus, voice_interaction should be off by default; deep_research is removed."""
         fs = _init_with_overrides({})
         assert not fs.enabled("deep_research")
         assert not fs.enabled("consensus")
@@ -96,14 +97,26 @@ class TestFeatureRegistration:
     def test_override_enables_features(self):
         fs = _init_with_overrides(
             {
-                "deep_research": True,
                 "consensus": True,
                 "voice_interaction": True,
             }
         )
-        assert fs.enabled("deep_research")
+        assert not fs.enabled("deep_research")
         assert fs.enabled("consensus")
         assert fs.enabled("voice_interaction")
+
+    def test_sanitize_user_overrides_strips_removed_features(self):
+        from app.services.features.feature_config_service import sanitize_user_overrides
+
+        _init_with_overrides({})
+        cleaned = sanitize_user_overrides(
+            {
+                "deep_research": True,
+                "consensus": True,
+            }
+        )
+        assert "deep_research" not in cleaned
+        assert cleaned["consensus"] is True
 
 
 # ---------------------------------------------------------------------------

@@ -53,11 +53,11 @@ ui_origin = "http://127.0.0.1:3000"
 list_url = f"http://127.0.0.1:{port}/json/list"
 
 
-def load_mux_protected_urls() -> set[str]:
+def mux_context_count() -> int | None:
     mux_bin = os.environ.get("CDMCP_MUX_STATUS_BIN", "")
     node_bin = os.environ.get("CDMCP_MUX_NODE", "node")
     if not mux_bin or not os.path.isfile(mux_bin):
-        return set()
+        return None
     try:
         proc = subprocess.run(
             [node_bin, mux_bin, "status"],
@@ -67,21 +67,14 @@ def load_mux_protected_urls() -> set[str]:
             check=False,
         )
         if proc.returncode != 0:
-            return set()
+            return None
         data = json.loads(proc.stdout)
-        protected: set[str] = set()
-        for ctx in data.get("contexts") or []:
-            if not isinstance(ctx, dict):
-                continue
-            for page in ctx.get("ownedPages") or []:
-                if not isinstance(page, dict):
-                    continue
-                url = page.get("url")
-                if isinstance(url, str) and url:
-                    protected.add(url)
-        return protected
+        contexts = data.get("contexts")
+        if not isinstance(contexts, list):
+            return None
+        return sum(1 for ctx in contexts if isinstance(ctx, dict))
     except (OSError, json.JSONDecodeError, subprocess.SubprocessError):
-        return set()
+        return None
 
 
 try:
@@ -93,6 +86,14 @@ except OSError as exc:
 
 if not isinstance(pages, list):
     print("MYRM_CHROME_PRUNE_SKIP: invalid /json/list payload", file=sys.stderr)
+    sys.exit(0)
+
+active_mux_contexts = mux_context_count()
+if active_mux_contexts is None:
+    print("MYRM_CHROME_PRUNE_SKIP: mux ownership unavailable")
+    sys.exit(0)
+if active_mux_contexts:
+    print(f"MYRM_CHROME_PRUNE_SKIP: active_mux_contexts={active_mux_contexts}")
     sys.exit(0)
 
 orphan_prefixes = ("about:blank", "chrome-error://", "chrome://newtab/")
@@ -127,7 +128,6 @@ for page in pages:
     if url.startswith("chrome://"):
         mark_close(page_id)
 
-protected_urls = load_mux_protected_urls()
 by_url: dict[str, list[str]] = {}
 for page in pages:
     if not isinstance(page, dict):
@@ -145,8 +145,6 @@ for page in pages:
 dup_closed = 0
 for url, ids in by_url.items():
     if len(ids) <= 1:
-        continue
-    if url in protected_urls:
         continue
     for page_id in ids[:-1]:
         mark_close(page_id)
@@ -167,7 +165,6 @@ for page_id in to_close:
 action = "closed" if prune else "would_close"
 print(
     f"MYRM_CHROME_PRUNE_OK: {action}={closed} "
-    f"total_targets={len(to_close)} dup_candidates={dup_closed} "
-    f"mux_protected={len(protected_urls)}"
+    f"total_targets={len(to_close)} dup_candidates={dup_closed}"
 )
 PY

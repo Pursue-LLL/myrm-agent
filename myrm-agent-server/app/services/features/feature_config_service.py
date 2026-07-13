@@ -13,6 +13,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from app.services.features.product_surface import REMOVED_FEATURE_OVERRIDE_KEYS
+
 logger = logging.getLogger(__name__)
 
 _CONFIG_DIR = Path(".myrm/features")
@@ -29,10 +31,40 @@ def load_user_overrides() -> dict[str, bool]:
         if not isinstance(data, dict):
             logger.warning("Invalid feature overrides format, resetting")
             return {}
-        return {k: bool(v) for k, v in data.items() if isinstance(k, str)}
+        overrides = {k: bool(v) for k, v in data.items() if isinstance(k, str)}
+        return sanitize_user_overrides(overrides)
     except (json.JSONDecodeError, OSError) as e:
         logger.warning("Failed to load feature overrides: %s", e)
         return {}
+
+
+def sanitize_user_overrides(overrides: dict[str, bool]) -> dict[str, bool]:
+    """Drop overrides for removed/hidden product features and persist when cleaned."""
+    from myrm_agent_harness.core.features import registry
+    from myrm_agent_harness.core.features.types import FeatureStage
+
+    cleaned = dict(overrides)
+    removed_keys: list[str] = []
+
+    for key in list(cleaned.keys()):
+        if key in REMOVED_FEATURE_OVERRIDE_KEYS:
+            removed_keys.append(key)
+            cleaned.pop(key, None)
+            continue
+
+        spec = registry.get(key) or registry.get_by_key(key)
+        if spec is not None and spec.stage == FeatureStage.REMOVED:
+            removed_keys.append(key)
+            cleaned.pop(key, None)
+
+    if removed_keys:
+        logger.info(
+            "Removed stale feature overrides for hidden product surfaces: %s",
+            ", ".join(sorted(removed_keys)),
+        )
+        save_user_overrides(cleaned)
+
+    return cleaned
 
 
 def save_user_overrides(overrides: dict[str, bool]) -> None:

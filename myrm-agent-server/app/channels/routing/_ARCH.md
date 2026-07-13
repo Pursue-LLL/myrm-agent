@@ -26,7 +26,7 @@ normalised away by `normalize_approval_emoji`):
 | `allow_always`  | ♾️, ⭐                                         | `/approve-always`, `/always`, `aa`, `!y`, 永远允许 |
 | `deny`          | 👎, ❌, 🚫                                      | `/deny`, `2`, `n`/`no`, 拒绝, 不行         |
 
-`_is_reaction_approval_valid` in `router_commands.py` enforces a layered gate:
+`_is_reaction_approval_valid` in `router_commands_approval.py` enforces a layered gate:
 1. **Pending-approval check** — the chat must have an active interrupted task.
 2. **Target match** — when the reaction carries `target_message_id`, it must
    equal the cached approval message id (`_approval_msg_ids`).
@@ -62,7 +62,7 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
     asyncio.create_task(self._handle_action_button_approval(msg))
 ```
 
-`_handle_action_button_approval` in `router_commands.py` then:
+`_handle_action_button_approval` in `router_commands_approval.py` then:
 
 1. **Parses** action (`approve`/`deny`) and `approval_id` from content.
 2. **Authorises** — in group chats, only the original requester or a
@@ -78,7 +78,7 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
 
 ## `/new` Session Boundary Cleanup
 
-`_handle_new_session` in `router_commands.py` performs a three-phase cleanup
+`_handle_new_session` in `router_commands_session.py` performs a three-phase cleanup
 before marking the peer for a fresh Chat:
 
 1. **Abort running task** — `_abort_session_task(state_key, …)` cancels
@@ -125,7 +125,12 @@ deadlocks when an agent execution hangs without crashing.
 | policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker helpers for PolicyResolver. | ✅ |
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
 | router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | ✅ |
-| router_commands.py | Core | RouterCommandsMixin composed into AgentRouter (router.py) via multiple inheritance; `_abort_session_task` shared by `/stop` and `/new`. | — |
+| router_commands.py | Core | Composed `RouterCommandsMixin` — aggregates approval/session/modes/goals/memory mixins. | ✅ |
+| router_commands_approval.py | Core | `/stop`, reaction/button approval, decision resume payloads. | ✅ |
+| router_commands_session.py | Core | `/new`, `/compact`, `/retry`, `/undo`, topic commands. | ✅ |
+| router_commands_modes.py | Core | `/yolo`, `/personality`, `/steer`, `/queue` commands. | ✅ |
+| router_commands_goals.py | Core | `/goal`, `/subgoal`, `/background`, `/handoff` commands. | ✅ |
+| router_commands_memory.py | Core | `/status`, `/kanban`, `/learn`, `/memory` commands. | ✅ |
 | router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
 | router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; `_deliver_agent_result` auto-attaches WebUI handoff deep link button for IM channel replies (resolves DB Chat UUID via `ChatService.get_channel_chat_by_key`). | — |
 | router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | ✅ |

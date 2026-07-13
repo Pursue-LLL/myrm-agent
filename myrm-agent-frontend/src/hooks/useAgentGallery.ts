@@ -21,6 +21,7 @@
  * ```
  */
 
+import { isHiddenBuiltinAgent } from '@/lib/product-surface';
 import { useMemo, useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
@@ -101,7 +102,7 @@ export function useAgentGallery({
 
     // 动态将后端 Built-in agents 映射为前端所需的 PresetAgent 格式
     const mappedPresets: PresetAgent[] = customAgentsRaw
-      .filter((a) => a.is_built_in)
+      .filter((a) => a.is_built_in && !isHiddenBuiltinAgent(a.id))
       .map((bp) => {
         const isCli = bp.id === 'cli_visual' || bp.id === 'builtin-cli_visual';
         const category = isCli ? 'cli_visual' : 'general';

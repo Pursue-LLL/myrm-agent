@@ -26,6 +26,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
   const [allowedRoots, setAllowedRoots] = useState<string[]>([]);
   const [networkAllowlist, setNetworkAllowlist] = useState<string[]>([]);
   const [domainHitlEnabled, setDomainHitlEnabled] = useState(true);
+  const [planConfirmEnabled, setPlanConfirmEnabled] = useState(false);
   const [yoloModeEnabled, setYoloModeEnabled] = useState(false);
   const [autoReviewEnabled, setAutoReviewEnabled] = useState(false);
   const [autoReviewModel, setAutoReviewModel] = useState<SingleModelSelection | null>(null);
@@ -43,6 +44,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       setAllowedRoots(cached.pathPolicy?.allowedRoots ?? []);
       setNetworkAllowlist(cached.networkAllowlist ?? []);
       setDomainHitlEnabled(cached.domainHitlEnabled ?? false);
+      setPlanConfirmEnabled(cached.planConfirmEnabled ?? false);
       setYoloModeEnabled(cached.yoloModeEnabled ?? false);
       setAutoReviewEnabled(cached.autoReviewEnabled ?? false);
       if (cached.autoReviewModel) {
@@ -71,6 +73,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         behavior?: 'deny' | 'allow';
         domains?: string[];
         hitl?: boolean;
+        planConfirm?: boolean;
         yoloMode?: boolean;
         autoReview?: boolean;
         autoReviewModelStr?: string | null;
@@ -84,6 +87,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
           'pathPolicy' in overrides ? overrides.pathPolicy : allowedRoots.length > 0 ? { allowedRoots } : undefined,
         networkAllowlist: overrides.domains ?? networkAllowlist,
         domainHitlEnabled: overrides.hitl ?? domainHitlEnabled,
+        planConfirmEnabled: overrides.planConfirm ?? planConfirmEnabled,
         yoloModeEnabled: overrides.yoloMode ?? yoloModeEnabled,
         autoReviewEnabled: overrides.autoReview ?? autoReviewEnabled,
         autoReviewModel:
@@ -95,7 +99,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       };
       syncManager.set('securityConfig', value);
     },
-    [rules, timeout, timeoutBehavior, allowedRoots, networkAllowlist, domainHitlEnabled, yoloModeEnabled, autoReviewEnabled, autoReviewModel],
+    [rules, timeout, timeoutBehavior, allowedRoots, networkAllowlist, domainHitlEnabled, planConfirmEnabled, yoloModeEnabled, autoReviewEnabled, autoReviewModel],
   );
 
   const savePathPolicy = useCallback(
@@ -213,13 +217,27 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     [save, t],
   );
 
+  const handlePlanConfirmToggle = useCallback(
+    (checked: boolean) => {
+      setPlanConfirmEnabled(checked);
+      save({ planConfirm: checked });
+      toast.success(t('planReview.saved', { default: 'Plan review setting saved' }));
+    },
+    [save, t],
+  );
+
   const handleYoloModeToggle = useCallback(
     (checked: boolean) => {
       setYoloModeEnabled(checked);
-      save({ yoloMode: checked });
+      if (checked && planConfirmEnabled) {
+        setPlanConfirmEnabled(false);
+        save({ yoloMode: checked, planConfirm: false });
+      } else {
+        save({ yoloMode: checked });
+      }
       toast.success(t('yoloMode.saved', { default: 'YOLO mode setting saved' }));
     },
-    [save, t],
+    [save, t, planConfirmEnabled],
   );
 
   const handleAutoReviewToggle = useCallback(
@@ -279,6 +297,9 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       const dh = cfg.domainHitlEnabled as boolean | undefined;
       if (dh !== undefined) setDomainHitlEnabled(dh);
 
+      const pc = cfg.planConfirmEnabled as boolean | undefined;
+      if (pc !== undefined) setPlanConfirmEnabled(pc);
+
       const ym = cfg.yoloModeEnabled as boolean | undefined;
       if (ym !== undefined) setYoloModeEnabled(ym);
 
@@ -292,6 +313,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         behavior: b,
         domains: na,
         hitl: dh,
+        planConfirm: pc,
         yoloMode: ym,
         autoReview: ar,
       });
@@ -313,17 +335,20 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
 
       const na = generated.networkAllowlist as string[] | undefined;
       const hitl = generated.domainHitlEnabled;
+      const planConfirm = generated.planConfirmEnabled;
 
       if (newRules) setRules(newRules);
       if (newRoots) setAllowedRoots(newRoots);
       if (na) setNetworkAllowlist(na);
       if (hitl !== undefined) setDomainHitlEnabled(Boolean(hitl));
+      if (planConfirm !== undefined) setPlanConfirmEnabled(Boolean(planConfirm));
 
       save({
         rules: newRules,
         pathPolicy: newRoots ? { allowedRoots: newRoots } : undefined,
         domains: na,
         hitl: hitl !== undefined ? Boolean(hitl) : undefined,
+        planConfirm: planConfirm !== undefined ? Boolean(planConfirm) : undefined,
       });
     },
     [save],
@@ -336,6 +361,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     allowedRoots,
     networkAllowlist,
     domainHitlEnabled,
+    planConfirmEnabled,
     yoloModeEnabled,
     autoReviewEnabled,
     autoReviewModel,
@@ -352,6 +378,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     handleAddDomain,
     handleRemoveDomain,
     handleDomainHitlToggle,
+    handlePlanConfirmToggle,
     handleYoloModeToggle,
     handleAutoReviewToggle,
     handleAutoReviewModelChange,

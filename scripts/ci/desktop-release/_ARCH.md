@@ -17,6 +17,7 @@
 | `rename-updater-bundles.sh` | Intel：`MyrmAgent_x64.app.tar.gz`（macOS bash） |
 | `rename-windows-updater-bundle.ps1` | Win：`MyrmAgent_x64-setup.exe`（GHA pwsh；Tauri v2 OTA 用 setup.exe，nsis.zip 为临时文件） |
 | `verify-release.sh` | finalize 后 smoke：`latest.json` 版本/OTA signature + OTA 资产交叉校验 + 安装包 glob + 安装包 `.sha256`；`REQUIRE_MIN_OTA_PLATFORMS` + `REQUIRED_OTA_PLATFORM_KEYS` + `REQUIRED_INSTALLER_GLOBS` + `REQUIRE_BARE_LINUX_APPIMAGE` 分阶段门禁 |
+| `smoke-launch-runtime.sh` | `build-macos-arm` 后运行时烟测：解压 `.app` resources，拉起 Python sidecar + Next standalone，探测 `:8080/health` 与 `:webui_port`；`--dev` 供维护者本地；`tests/architecture/test_desktop_launch_smoke_script.py` 语法门禁 |
 | `check-updater-pubkey.sh` | 构建前校验 pubkey 与 `TAURI_SIGNING_PRIVATE_KEY` 一致性；占位符仅 warning |
 | `sign-updater-bundles.sh` | 构建后补签 updater 包；Mac ARM 设 `REQUIRE_UPDATER_BUNDLES=1`；用 `bundle-paths` 过滤 |
 | `finalize-fixture-test.sh` | 无网络 fixture：四平台匹配 + `.sig`；`tests/architecture/test_desktop_finalize_fixture.py` 门禁 |
@@ -31,7 +32,7 @@
 | Job | 职责 |
 |-----|------|
 | `prepare-frontend` | `bun run build:tauri` 一次，artifact 供 mac/win/linux 复用 |
-| `build-macos-arm` | 主路径发 Release |
+| `build-macos-arm` | 主路径发 Release；构建后 `smoke-launch-runtime.sh` 运行时烟测 |
 | `build-macos-x64` | macOS Intel (x86_64) 追加 dmg/tar.gz/.sig |
 | `build-windows` | Windows 追加资产（finalize 门禁平台） |
 | `build-linux` | Linux 仅 `--bundles appimage`（官网分发所需；不阻塞 finalize） |

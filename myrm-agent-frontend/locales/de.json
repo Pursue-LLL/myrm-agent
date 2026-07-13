@@ -391,6 +391,13 @@
         "domainRemoved": "Domain removed",
         "saved": "Domain policy saved"
       },
+      "planReview": {
+        "title": "Plan-Überprüfung",
+        "description": "Überprüfen und genehmigen Sie den Aufgabenplan der KI, bevor die Ausführung beginnt. Hilft, Fehler frühzeitig zu erkennen — bevor Dateien geändert werden.",
+        "enableLabel": "Plan-Überprüfung aktivieren",
+        "enableDesc": "Wenn aktiviert, pausiert die KI und zeigt Ihnen den Plan zur Überprüfung, bevor komplexe Aufgaben (3 oder mehr Schritte) gestartet werden.",
+        "saved": "Plan-Überprüfungseinstellung gespeichert"
+      },
       "yoloMode": {
         "title": "YOLO-Modus (Alle automatisch genehmigen)",
         "description": "Wenn aktiviert, werden alle Tool-Aufrufe automatisch ohne manuelle Bestätigung genehmigt. Geeignet für Entwicklung, Batch-Aufgaben und vertrauenswürdige Umgebungen.",

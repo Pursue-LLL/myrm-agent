@@ -7,7 +7,8 @@ Mixin providing all outbound-related methods used by TelegramChannel.
 - channels.types::OutboundMessage, RenderStyle
 - telegram.api::TelegramClient, TelegramApiError
 - telegram.helpers::build_inline_keyboard, send_media_attachment
-- telegram.html_converter::md_to_telegram_html, split_message
+- telegram.html_converter::md_to_telegram_html, split_message (POS: Markdown to Telegram HTML conversion and splitting.)
+- telegram.outbound_rich::TelegramRichOutboundMixin (POS: Rich Message send with HTML fallback.)
 
 [OUTPUT]
 - TelegramOutboundMixin: send, edit, delete, react, pin, draft preview helpers
@@ -28,6 +29,7 @@ from app.channels.types import OutboundMessage, RenderStyle
 from .api import TelegramApiError
 from .helpers import build_inline_keyboard, send_media_attachment
 from .html_converter import md_to_telegram_html, split_message
+from .outbound_rich import TelegramRichOutboundMixin
 
 if TYPE_CHECKING:
     from .api import TelegramClient
@@ -37,7 +39,7 @@ logger = logging.getLogger(__name__)
 _MIN_DRAFT_CHARS = 20
 
 
-class TelegramOutboundMixin:
+class TelegramOutboundMixin(TelegramRichOutboundMixin):
     """Mixin providing Telegram outbound message delivery and editing.
 
     Requires the host class to have:
@@ -131,69 +133,6 @@ class TelegramOutboundMixin:
                             raise
 
         return last_message_id
-
-    async def _try_send_rich(
-        self,
-        msg: OutboundMessage,
-        chat_id: str,
-        reply_to: int | None,
-        thread_id: int | None,
-        reply_markup: dict[str, object] | None,
-        notify_kwargs: dict[str, bool],
-    ) -> str | None:
-        """Attempt to send via ``sendRichMessage``. Returns message_id or None to fall back."""
-        from .html_converter import split_markdown_rich
-
-        chunks = render(msg, self._rich_render_style)
-        parts = split_markdown_rich(chunks[0]) if chunks else []
-        if not parts:
-            return None
-
-        last_mid: str | None = None
-        for i, part in enumerate(parts):
-            markup = reply_markup if (i == len(parts) - 1 and reply_markup) else None
-            try:
-                result = await self._client.send_rich_message(
-                    chat_id,
-                    part,
-                    reply_to_message_id=reply_to,
-                    message_thread_id=thread_id,
-                    reply_markup=markup,
-                    **notify_kwargs,
-                )
-                self._rich_send_available = True
-                mid = result.get("message_id")
-                if mid is not None:
-                    last_mid = str(mid)
-                reply_to = None
-            except TelegramApiError as exc:
-                if exc.is_method_not_found:
-                    self._rich_send_available = False
-                    if last_mid is not None:
-                        return last_mid
-                    logger.info("TelegramChannel: sendRichMessage unavailable, using HTML mode")
-                    return None
-                if exc.error_code == 400:
-                    if last_mid is not None:
-                        logger.warning("TelegramChannel: Rich partial send stopped (%s)", exc.description)
-                        return last_mid
-                    logger.warning("TelegramChannel: sendRichMessage rejected (%s), falling back to HTML", exc.description)
-                    return None
-                raise
-
-        for remaining_chunk in chunks[1:]:
-            for part in split_markdown_rich(remaining_chunk):
-                try:
-                    result = await self._client.send_rich_message(
-                        chat_id, part, message_thread_id=thread_id, **notify_kwargs,
-                    )
-                    mid = result.get("message_id")
-                    if mid is not None:
-                        last_mid = str(mid)
-                except TelegramApiError:
-                    break
-
-        return last_mid
 
     def _allocate_draft_id(self) -> int:
         self._draft_counter = (self._draft_counter % 2_147_483_647) + 1

@@ -17,6 +17,7 @@
  * Chat message request assembly layer. It prepares payloads and acts as the MMU (Memory Management Unit) routing stream updates to the correct store.
  */
 
+import { resolveVisibleBuiltinAgentId } from '@/lib/product-surface';
 import crypto from 'crypto';
 import {
   Message,
@@ -369,17 +370,17 @@ export const resolveEffectiveAgentId = (
   searchDepth?: 'normal' | 'deep',
 ): string | undefined => {
   if (actionMode === 'fast') {
-    return searchDepth === 'deep' ? 'builtin-deep-search' : 'builtin-fast-search';
+    return 'builtin-fast-search';
   }
   if (actionMode === 'deep_research') {
-    return agentConfig?.agentId?.trim() || 'builtin-researcher';
+    return resolveVisibleBuiltinAgentId(agentConfig?.agentId?.trim());
   }
   if (actionMode !== 'agent') {
     return undefined;
   }
 
   const explicitAgentId = agentConfig?.agentId?.trim();
-  return explicitAgentId || 'builtin-general';
+  return resolveVisibleBuiltinAgentId(explicitAgentId);
 };
 
 /**

@@ -749,7 +749,7 @@ async def build_general_agent(
         privacy_sensitive_tools_s2=agent_wrapper.privacy_sensitive_tools_s2,
         privacy_sensitive_tools_s3=agent_wrapper.privacy_sensitive_tools_s3,
         privacy_deep_scan=agent_wrapper.privacy_deep_scan,
-        plan_confirm_enabled=getattr(agent_wrapper, "enable_plan_confirm", False),
+        plan_confirm_enabled=agent_wrapper.enable_plan_confirm,
         channel_name=agent_wrapper.channel_name,
         security_config_raw=agent_wrapper.security_config_raw,
         agent_security_raw=agent_wrapper.agent_security_raw,

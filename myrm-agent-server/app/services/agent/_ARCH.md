@@ -23,7 +23,13 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析 — `resolve_builtin_tool_flags()`（含 deploy 不兼容工具 strip，如 sandbox 无 VNC 时移除 `computer_use`）+ `apply_agent_baseline_tool_flags()`（六入口非 fast 强制 file/bash）；TTL 缓存；`cron_post_run_verify` 从 DB 列经 repository 镜像到 profile metadata |
 | `builtin_tool_ids.py` | ✅ 核心 | `enabled_builtin_tools` SSOT：17 canonical IDs（15 UI 可切换 + 2 Agent 基线无开关）；`strip_deploy_incompatible_builtin_tools()` 按 deploy/VNC 能力剔除不可用项；`external_cli` ON + UserConfig 有 CLI backend → Turn1 挂载 `delegate_to_agent_tool`；`cron` 开启 → Turn1 eager，关闭 → DISCOVERABLE；`structured_clarify` 开启 → 挂载 `ask_question_tool`（默认 ON）；`DEFAULT_ENABLED_BUILTIN_TOOLS=(web_search, memory, structured_clarify)`；`normalize` 静默剥离 baseline ID；`persist_enabled_builtin_tools` DB 写校验 |
 | `builtin_tool_validation.py` | ✅ 辅助 | Pydantic `RequiredBuiltinTools` / `OptionalBuiltinTools` validators for DTO/API models |
-| `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — lifespan Phase 1b 幂等创建 24 个预置智能体；`enabled_builtin_tools` 仅存可切换项（file/bash 由 `apply_agent_baseline_tool_flags` 运行时强制） |
+| `builtin_agent_spec_types.py` | ✅ 核心 | `_BuiltInAgentSpec` dataclass + `_TOOL_*` 工具集常量（builtin specs 子模块 SSOT） |
+| `builtin_agent_specs_core.py` | ✅ 核心 | 4 个核心预置智能体规格（`_CORE_BUILTIN_AGENTS`） |
+| `builtin_agent_specs_search.py` | ✅ 核心 | 2 个搜索预置智能体规格（`_SEARCH_BUILTIN_AGENTS`） |
+| `builtin_agent_specs_extended.py` | ✅ 核心 | 5 个扩展预置智能体规格（`_EXTENDED_BUILTIN_AGENTS`） |
+| `builtin_agent_specs_vertical.py` | ✅ 核心 | 13 个垂直领域预置智能体规格（`_VERTICAL_BUILTIN_AGENTS`） |
+| `builtin_agent_specs.py` | ✅ 门面 | 聚合 `_BUILTIN_AGENTS`（24 段规格 tuple）+ re-export 类型/工具常量；与初始化逻辑分离 |
+| `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — lifespan Phase 1b 幂等创建 24 个预置智能体（从 `builtin_agent_specs` 导入规格）；`suggestion_prompts` 仅在 DB 值为空时填充（保护用户自定义）；re-export `_BUILTIN_AGENTS`/`_TOOL_*` 保持外部导入兼容 |
 | `approval_payload.py` | ✅ 辅助 | LangGraph interrupt → ApprovalRegistry payload SSOT（nested payload 优先，flat semantic DOM HITL 字段回退） |
 | `streaming.py` | ✅ 核心 | General Agent / Deep Research Harness 流式桥接（Gateway + SSE 事件转换）；`PhaseWaiter` 通用阶段暂停/恢复门控（Clarification + Plan Confirmation HITL）；POOLED 路径经 `finalize_agent_session` 释放 execution cache |
 | `execution_cache/` | ✅ 核心 | Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）；`compute_execution_fingerprint` 含 MCP/skill version；WebUI/Channel/Wakeup=POOLED，Cron/Eval/Kanban=EPHEMERAL |

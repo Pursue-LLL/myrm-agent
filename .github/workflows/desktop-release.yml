@@ -116,6 +116,15 @@ jobs:
           projectPath: myrm-agent-desktop
           args: --target aarch64-apple-darwin
 
+      - name: Launch runtime smoke
+        run: |
+          APP="$(find myrm-agent-desktop/src-tauri/target -path '*/release/bundle/macos/*.app' -type d 2>/dev/null | head -1)"
+          if [[ -z "$APP" ]]; then
+            echo "[launch-smoke] no .app bundle found under target/release/bundle/macos" >&2
+            exit 1
+          fi
+          bash scripts/ci/desktop-release/smoke-launch-runtime.sh --bundle-app "$APP"
+
       - name: Ensure updater bundle signatures
         env:
           REQUIRE_UPDATER_BUNDLES: '1'

@@ -42,7 +42,7 @@
 - `app.api.budget.router`：REST API 端点（全局 + 频道 CRUD + 审计查询）
 - `app.ai_agents.general_agent.factory`：Agent 构建时注入 budget_guard
 - `app.services.agent.streaming`：Web 会话 + Deep Research 执行前 block 检查 + session 重置
-- `app.core.channel_bridge.agent_executor.executor`：渠道入站消息执行前双层 block 检查（全局 + 频道） + 频道花费记录 + sender_id 审计归因
+- `app.core.channel_bridge.agent_executor.execute_preamble`：渠道入站消息执行前双层 block 检查（全局 + 频道）；频道花费记录与 sender_id 审计在 `execute_finalize` / stream 路径
 - `app.services.agent.wakeup_handler`：Headless 唤醒执行前 block 检查
 - `app.core.cron.adapters.agent_runner`：Cron 执行前 block 检查
 - `app.server.lifespan`：启动时初始化频道预算注册表

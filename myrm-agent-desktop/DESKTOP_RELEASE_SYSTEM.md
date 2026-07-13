@@ -126,6 +126,8 @@ codesign -d --entitlements - /Applications/MyrmAgent.app
 
 ### Automated CI verification
 
+`build-macos-arm` in `.github/workflows/desktop-release.yml` runs `scripts/ci/desktop-release/smoke-launch-runtime.sh` after `tauri build`: starts the bundled Python sidecar and Next standalone from `.app` resources and probes `http://127.0.0.1:8080/health` plus the WebUI port (default `3000`). Stub or missing sidecars fail the job before publish.
+
 `scripts/verify-signing.sh` runs inside `.github/workflows/tauri-release.yml` immediately after `tauri-action` produces `.app` / `.dmg` artifacts. Each artifact is subjected to four hard checks:
 
 1. `codesign --verify --deep --strict --verbose=4` — signature integrity

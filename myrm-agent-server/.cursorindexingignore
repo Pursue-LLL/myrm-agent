@@ -5,5 +5,12 @@ data
 12306-mcp
 external_reference_project
 myrm-agent-harness
-**/
-*/
+.venv/
+.agent/
+.myrm/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/node_modules/
+uv.lock

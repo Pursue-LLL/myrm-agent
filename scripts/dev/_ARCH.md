@@ -21,7 +21,7 @@
 | `stack-supervisor.sh` | Unix | Dev 栈守护进程启动器 + RPC 客户端入口；见 [stack_supervisor/_ARCH.md](stack_supervisor/_ARCH.md) |
 | `ensure-next-native-swc.sh` | Unix | 缺平台 `@next/swc-*` 时 `bun install --no-save`（防 WASM 慢编译）；setup 与 dev-stack 双路径 |
 | `ensure-myrm-chrome-e2e.sh` | Unix | 拉起/验证 Myrm 专用 E2E Chrome（`:9333`，零 Allow）；栈热时首开 `:3000` 而非 blank |
-| `prune-myrm-chrome-e2e-blank-tabs.sh` | Unix | preflight 自动 prune：junk tab + 重复 `:3000` URL（每 URL 留 1，mux 占用跳过） |
+| `prune-myrm-chrome-e2e-blank-tabs.sh` | Unix | 仅 mux 无 client context 时 prune junk tab + 重复 `:3000` URL；并行时 fail-closed 不关页 |
 | `myrm-chrome-e2e-lib.sh` | Unix | E2E Chrome 路径/port 常量与 CDP 健康探测 |
 | `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
 | `wave-e2e-lease.sh` | Unix | `./myrm test -m e2e` LIVE_AGENT 租约 |
@@ -59,7 +59,7 @@
 2. **mux 模式**：多 Agent / 多 Cursor 客户端可并行 UI E2E（`cdmcp-mux-autoconnect`）；vanilla 多进程仍会死锁 → `scripts/dev/enable-chrome-devtools-mcp.sh`
 3. **禁止 `list_pages` 探活**（无 timeout，曾挂起 30min+）；用 `new_page`（`timeout`≤5000）起手 + **pageId**
 4. MCP：**单步** `new_page(url=http://127.0.0.1:3000/…, timeout=15000)` → 取 **pageId**；`navigate_page` 默认 **15s**（ready 后）；测完 **`close_page`**；禁止 `list_pages`/`select_page`
-5. **tab 卫生**：`ready --chrome` 自动 **prune**（blank/junk + 重复 URL）；Agent 仍应 `close_page`，避免堆积
+5. **tab 卫生**：无 mux client context 时 `ready --chrome` 才 prune；并行 context 或 mux 状态未知时完全跳过自动关 tab，Agent 负责 `close_page`
 6. **集成测试进程纪律**：并行 Agent **`./myrm ready --attach --chrome`**；栈 **`dev-stack ensure`**；**禁止** Agent shell `bun run dev &`
 7. **runtimeId + Wave**：`CHROME_E2E_HEALTH_JSON.runtimeId` — `wave open` 冻结 → `lease acquire READ` → 断言前 `./myrm runtime-drift --expect <id>`；持 lease 时 `reset/restart` 机械拒绝
 8. **client_hot**：`ready --chrome` CDP 预热 client chunk；`shell_hot`（curl `/`）≠ UI hydrate 完成；改码后 UI 测 **`./myrm restart --chrome`** 开新 wave

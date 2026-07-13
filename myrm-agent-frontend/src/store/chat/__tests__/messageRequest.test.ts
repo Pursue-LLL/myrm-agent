@@ -134,25 +134,43 @@ describe('messageRequest - agent id fallback', () => {
     expect(resolveEffectiveAgentId('fast', baseAgentConfig, 'normal')).toBe('builtin-fast-search');
   });
 
-  it('should return builtin-deep-search in fast mode with deep depth', () => {
-    expect(resolveEffectiveAgentId('fast', baseAgentConfig, 'deep')).toBe('builtin-deep-search');
+  it('should return builtin-fast-search in fast mode with deep depth', () => {
+    expect(resolveEffectiveAgentId('fast', baseAgentConfig, 'deep')).toBe('builtin-fast-search');
+  });
+
+  it('should default to builtin-general in deep_research mode', () => {
+    expect(resolveEffectiveAgentId('deep_research', baseAgentConfig)).toBe('builtin-general');
+  });
+
+  it('should remap hidden researcher agent to builtin-general in deep_research mode', () => {
+    expect(
+      resolveEffectiveAgentId('deep_research', {
+        ...baseAgentConfig,
+        agentId: 'builtin-researcher',
+      }),
+    ).toBe('builtin-general');
   });
 
   it('should return builtin-fast-search in fast mode when depth is undefined', () => {
     expect(resolveEffectiveAgentId('fast', baseAgentConfig)).toBe('builtin-fast-search');
   });
 
-  it('should default to builtin-researcher in deep_research mode', () => {
-    expect(resolveEffectiveAgentId('deep_research', baseAgentConfig)).toBe('builtin-researcher');
-  });
-
-  it('should preserve explicit agent id in deep_research mode', () => {
+  it('should preserve explicit custom agent id in deep_research mode', () => {
     expect(
       resolveEffectiveAgentId('deep_research', {
         ...baseAgentConfig,
         agentId: 'custom-agent',
       }),
     ).toBe('custom-agent');
+  });
+
+  it('should remap hidden builtin-researcher to builtin-general in agent mode', () => {
+    expect(
+      resolveEffectiveAgentId('agent', {
+        ...baseAgentConfig,
+        agentId: 'builtin-researcher',
+      }),
+    ).toBe('builtin-general');
   });
 
   it('should return undefined for consensus mode', () => {

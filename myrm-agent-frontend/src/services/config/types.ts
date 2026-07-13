@@ -378,6 +378,7 @@ export interface SecurityConfigValue {
   pathPolicy?: PathPolicyConfig;
   networkAllowlist?: string[];
   domainHitlEnabled?: boolean;
+  planConfirmEnabled?: boolean;
   yoloModeEnabled?: boolean;
   yoloModeEnabledAt?: number;
   yoloModeTimeout?: number;

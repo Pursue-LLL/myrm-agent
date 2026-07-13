@@ -1,18 +1,13 @@
 import ChatWindowNew from '@/components/features/chat-window/ChatWindow';
 import { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getBuildTimeMetadataMessages } from '@/lib/metadata/static-metadata';
 
-export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
-  const params = await props.params;
-  const { locale } = params;
+const metadataMessages = getBuildTimeMetadataMessages();
 
-  const t = await getTranslations({ locale, namespace: 'metadata' });
-
-  return {
-    title: t('chatPageTitle'),
-    description: t('chatPageDescription'),
-  };
-}
+export const metadata: Metadata = {
+  title: metadataMessages.chatPageTitle,
+  description: metadataMessages.chatPageDescription,
+};
 
 const Home = () => {
   return <ChatWindowNew />;

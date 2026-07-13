@@ -15,8 +15,8 @@ Handles message, edited_message, callback_query, sticker, location, venue, and m
 [POS]
 Telegram inbound message parsing, polling loop, and media group aggregation mixin.
 Supports message/edited_message/callback_query (qr/act/sel/ag)/sticker/location/venue.
-_pre_emit_hook returns None to suppress handled commands. Sets `explicit_mention`
-metadata for guest-mode gating. Webhook payloads validated via Pydantic models.
+_pre_emit_hook is implemented by TelegramHooksMixin on the host channel.
+Sets `explicit_mention` metadata for guest-mode gating. Webhook payloads validated via Pydantic models.
 """
 
 from __future__ import annotations

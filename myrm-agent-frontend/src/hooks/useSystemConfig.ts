@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { SystemConfig, DEFAULT_SYSTEM_CONFIG, RunMode } from '@/types/system';
 import { isTauriRuntime } from '@/lib/deploy-mode';
+import { persistTauriSystemConfigCache } from '@/lib/tauri-system-config-cache';
 import { loadWebuiAccessPrefs, saveWebuiAccessPrefs } from '@/lib/webui-access-prefs';
 
 // 动态导入 Tauri API，避免在 Web 环境下报错
@@ -26,14 +27,6 @@ const getTauriInvoke = async (): Promise<typeof import('@tauri-apps/api/core').i
     return null;
   }
 };
-
-function persistTauriSystemConfigCache(config: SystemConfig): void {
-  try {
-    localStorage.setItem('myrm-tauri-system-config', JSON.stringify(config));
-  } catch {
-    // ignore quota / private mode
-  }
-}
 
 export function useSystemConfig() {
   const [config, setConfig] = useState<SystemConfig>(DEFAULT_SYSTEM_CONFIG);

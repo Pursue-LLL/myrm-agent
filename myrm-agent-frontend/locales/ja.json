@@ -391,6 +391,13 @@
         "domainRemoved": "Domain removed",
         "saved": "Domain policy saved"
       },
+      "planReview": {
+        "title": "プラン確認",
+        "description": "実行開始前にAIのタスクプランを確認・承認します。ファイルが変更される前に、ミスを早期に発見できます。",
+        "enableLabel": "プラン確認を有効にする",
+        "enableDesc": "有効にすると、AIは複雑なタスク（3ステップ以上）を開始する前に一時停止し、プランを確認できます。",
+        "saved": "プラン確認設定を保存しました"
+      },
       "yoloMode": {
         "title": "YOLO モード（全自動承認）",
         "description": "有効にすると、すべてのツール呼び出しが手動確認なしで自動承認されます。開発、バッチタスク、信頼できる環境に適しています。",

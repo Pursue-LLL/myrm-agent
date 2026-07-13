@@ -6,7 +6,7 @@
  * @/store/chat/types::ActionMode (POS: Chat action mode type definitions)
  *
  * [OUTPUT]
- * SearchModeSelector: Segmented mode selector for Fast / Agent / Deep Research / Consensus.
+ * SearchModeSelector: Segmented mode selector for Fast / Agent / Consensus.
  *
  * [POS]
  * Action mode picker. Renders a segmented control with feature-gated modes and search-service guards.
@@ -55,28 +55,6 @@ type ModeEntry = {
   features?: string[];
 };
 
-const DeepResearchIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={cn('shrink-0 transition-colors duration-300', className)}
-  >
-    <path d="M9 2h6l3 7H6L9 2Z" />
-    <path d="M12 9v4" />
-    <path d="M8 17h8" />
-    <path d="M10 17v5" />
-    <path d="M14 17v5" />
-    <circle cx="12" cy="14" r="1" />
-  </svg>
-);
-
 const ConsensusIcon = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -112,12 +90,6 @@ const MODES: ModeEntry[] = [
     features: ['agentFeature1', 'agentFeature2'],
   },
   {
-    key: 'deep_research',
-    icon: DeepResearchIcon,
-    featureGate: 'deep_research',
-    features: ['deep_researchFeature1', 'deep_researchFeature2'],
-  },
-  {
     key: 'consensus',
     icon: ConsensusIcon,
     featureGate: 'consensus',
@@ -125,7 +97,7 @@ const MODES: ModeEntry[] = [
   },
 ];
 
-const SEARCH_REQUIRED_MODES: ReadonlySet<ActionMode> = new Set(['fast', 'deep_research']);
+const SEARCH_REQUIRED_MODES: ReadonlySet<ActionMode> = new Set(['fast']);
 
 const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorProps) => {
   const t = useTranslations('mode');
@@ -137,10 +109,7 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
     if (!initialized) {
       return;
     }
-    if (actionMode === 'deep_research' && !isEnabled('deep_research')) {
-      setActionMode('agent');
-    }
-    if (actionMode === 'consensus' && !isEnabled('consensus')) {
+    if (actionMode === 'deep_research' || (actionMode === 'consensus' && !isEnabled('consensus'))) {
       setActionMode('agent');
     }
   }, [initialized, actionMode, isEnabled, setActionMode]);

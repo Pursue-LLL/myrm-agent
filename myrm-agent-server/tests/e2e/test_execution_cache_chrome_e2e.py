@@ -25,6 +25,17 @@ CHAT_ID_RE = re.compile(
     r"^/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|c-[a-z0-9\-]+)$",
     re.IGNORECASE,
 )
+API_URL = "http://127.0.0.1:8080"
+
+
+def _provider_ready() -> bool:
+    try:
+        resp = urllib.request.urlopen(f"{API_URL}/api/v1/config/readiness", timeout=5)
+        payload = json.loads(resp.read())
+    except Exception:
+        return False
+    provider = payload.get("provider")
+    return isinstance(provider, dict) and bool(provider.get("is_ready"))
 
 
 def _create_fresh_page_ws() -> str | None:
@@ -65,22 +76,18 @@ def _chrome_page_ws() -> str | None:
     return _create_fresh_page_ws()
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def _chrome_client_hot() -> None:
-    """Ensure Next client chunk is warm before CDP UI interaction."""
-    from pathlib import Path
-    import subprocess
+    """Ensure Next client chunk is warm before CDP UI interaction.
 
-    monorepo = Path(__file__).resolve().parents[4]
-    myrm = monorepo / "scripts" / "dev" / "myrm"
-    if not myrm.is_file():
-        pytest.skip("myrm helper missing — run from open-perplexity monorepo")
-    subprocess.run(
-        ["bash", str(myrm), "ready", "--chrome"],
-        cwd=str(monorepo),
-        timeout=180,
-        check=False,
-    )
+    Run `./myrm ready --chrome` once before pytest — not inside the test module,
+    so tab prune does not kill an active CDP WebSocket mid-test.
+    """
+    try:
+        resp = urllib.request.urlopen("http://127.0.0.1:9333/json/version", timeout=3)
+        json.loads(resp.read())
+    except Exception as exc:
+        pytest.skip(f"Chrome E2E not ready — run ./myrm ready --chrome first: {exc}")
 
 
 def _extract_chat_id(url: str) -> str | None:
@@ -93,11 +100,9 @@ def _extract_chat_id(url: str) -> str | None:
 
 @pytest.fixture
 def chrome_ws(_chrome_client_hot: None) -> str:
-    ws_url = _chrome_page_ws()
+    ws_url = _create_fresh_page_ws()
     if not ws_url:
-        ws_url = _create_fresh_page_ws()
-    if not ws_url:
-        pytest.skip("Chrome E2E not available (port 9333 or :3000 page missing)")
+        pytest.skip("Chrome E2E not available (port 9333 — run ./myrm ready --chrome first)")
     return ws_url
 
 
@@ -192,6 +197,29 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
                 "configure provider + default model at /settings/models"
             )
 
+        for _ in range(60):
+            if _provider_ready():
+                break
+            await asyncio.sleep(1)
+        else:
+            pytest.skip("Provider config not ready — configure model at /settings/models in E2E Chrome")
+
+        for _ in range(60):
+            fe_ready = await ev(
+                """(async () => {
+                  try {
+                    const res = await fetch('/api/v1/config/readiness');
+                    const data = await res.json();
+                    return data?.provider?.is_ready === true;
+                  } catch {
+                    return false;
+                  }
+                })()""",
+            )
+            if fe_ready is True:
+                break
+            await asyncio.sleep(1)
+
         await ev(
             """(() => {
               const dismiss = Array.from(document.querySelectorAll('button')).find((b) => {
@@ -211,6 +239,23 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
         )
         await asyncio.sleep(2)
 
+        async def ensure_chat_input_ready() -> None:
+            last: dict[str, object] = {}
+            for _ in range(45):
+                last = await ev(
+                    """(() => {
+                      const input = document.querySelector('[data-chat-input]');
+                      return { hasInput: !!input, path: location.pathname };
+                    })()""",
+                    await_promise=False,
+                )
+                if isinstance(last, dict) and last.get("hasInput"):
+                    return
+                await asyncio.sleep(1)
+            pytest.fail(f"Chat input not available after new chat: {last}")
+
+        await ensure_chat_input_ready()
+
         async def cdp(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
             mid[0] += 1
             await ws.send(
@@ -227,15 +272,20 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
                 return payload if isinstance(payload, dict) else {}
 
         async def fill_chat_input(text: str) -> dict[str, object]:
-            focus = await ev(
-                """(() => {
-                  const input = document.querySelector('[data-chat-input]');
-                  if (!input) return { ok: false, err: 'no input' };
-                  input.focus();
-                  return { ok: true };
-                })()""",
-                await_promise=False,
-            )
+            focus: dict[str, object] = {"ok": False}
+            for _ in range(45):
+                focus = await ev(
+                    """(() => {
+                      const input = document.querySelector('[data-chat-input]');
+                      if (!input) return { ok: false, err: 'no input' };
+                      input.focus();
+                      return { ok: true, path: location.pathname };
+                    })()""",
+                    await_promise=False,
+                )
+                if isinstance(focus, dict) and focus.get("ok"):
+                    break
+                await asyncio.sleep(1)
             assert isinstance(focus, dict) and focus.get("ok"), f"Focus input failed: {focus}"
             for event in (
                 {"type": "keyDown", "key": "a", "code": "KeyA", "modifiers": 4},
@@ -279,7 +329,14 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
             sample = await ev(
                 """(() => {
                   const sampleBtn = Array.from(document.querySelectorAll('main button'))
-                    .find((b) => (b.textContent || '').trim().length > 8);
+                    .find((b) => {
+                      if (b.closest('form')) return false;
+                      const text = (b.textContent || '').trim();
+                      if (/mimo|MiniMax|openai|gpt-|技能|MCP|内置工具|子智能体|指令|管理|实时可视化|确认/i.test(text)) {
+                        return false;
+                      }
+                      return text.length >= 8;
+                    });
                   if (sampleBtn) {
                     sampleBtn.click();
                     return { ok: true, mode: 'sample', label: (sampleBtn.textContent || '').trim().slice(0, 40) };
@@ -290,21 +347,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
             )
             if isinstance(sample, dict) and sample.get("ok"):
                 await asyncio.sleep(0.3)
-                if text != E2E_PROMPT:
-                    fill = await fill_chat_input(text)
-                else:
-                    fill = await ev(
-                        """(() => {
-                          const btn = document.querySelector('.message-send-btn');
-                          return {
-                            ok: !!btn && !btn.disabled,
-                            mode: 'sample-only',
-                            inputLen: (document.querySelector('[data-chat-input]')?.value || '').length,
-                            sendDisabled: !!btn?.disabled,
-                          };
-                        })()""",
-                        await_promise=False,
-                    )
+                fill = await fill_chat_input(text)
             else:
                 fill = await fill_chat_input(text)
             assert isinstance(fill, dict) and fill.get("ok"), f"UI fill failed: {fill} sample={sample}"

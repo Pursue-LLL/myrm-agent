@@ -1,41 +1,33 @@
-"""Unit tests for token_usage event handling in ChannelAgentExecutor.
-
-Tests the executor's token_usage event processing, message_end fallback,
-and cost_metadata injection into OutboundMessage metadata.
-"""
+"""Unit tests for token_usage event handling via stream_events."""
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
+from app.core.channel_bridge.agent_executor.stream_events import (
+    ChannelStreamEventState,
+    iter_channel_stream_progress,
+)
 from app.core.channel_bridge.executor_helpers import StreamAccumulator
 
 
+async def _apply_stream_events(acc: StreamAccumulator, *events: dict[str, object]) -> None:
+    async def _gen():
+        for event in events:
+            yield event
+
+    async for _ in iter_channel_stream_progress(_gen(), acc, ChannelStreamEventState()):
+        pass
+
+
 def _apply_token_usage_event(acc: StreamAccumulator, event: dict[str, object]) -> None:
-    """Simulate the token_usage branch of the executor stream loop."""
-    data = event.get("data")
-    if isinstance(data, dict):
-        cost = data.get("cost_usd")
-        if isinstance(cost, (int, float)):
-            acc.cost_usd += float(cost)
-        model = data.get("model_name")
-        if isinstance(model, str) and model:
-            acc.model_name = model
-        usage = data.get("usage")
-        if isinstance(usage, dict):
-            total = usage.get("total_tokens")
-            if isinstance(total, int) and total > 0:
-                acc.total_tokens += total
+    asyncio.run(_apply_stream_events(acc, event))
 
 
 def _apply_message_end_event(acc: StreamAccumulator, event: dict[str, object]) -> None:
-    """Simulate the message_end fallback branch of the executor stream loop."""
-    end_cost = event.get("cost_usd")
-    if isinstance(end_cost, (int, float)) and end_cost > 0 and acc.cost_usd == 0:
-        acc.cost_usd = float(end_cost)
-    end_model = event.get("model")
-    if isinstance(end_model, str) and end_model and not acc.model_name:
-        acc.model_name = end_model
+    asyncio.run(_apply_stream_events(acc, event))
 
 
 def _build_cost_metadata(

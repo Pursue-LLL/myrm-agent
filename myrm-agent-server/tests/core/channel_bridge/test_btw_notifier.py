@@ -306,13 +306,21 @@ class TestBtwTaskNotifier:
             ),
         )
 
+        mock_chat = MagicMock()
+        mock_chat.id = "chat-uuid-1"
+
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="Test notification"),
             patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
             patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
             patch(
-                "app.remote_access.mobile_deep_link.resolve_mobile_status_action_components",
+                "app.services.chat.chat_service.ChatService.get_channel_chat_by_key",
+                new_callable=AsyncMock,
+                return_value=mock_chat,
+            ),
+            patch(
+                "app.remote_access.mobile_deep_link.resolve_web_handoff_components",
                 AsyncMock(return_value=mobile_components),
             ),
         ):

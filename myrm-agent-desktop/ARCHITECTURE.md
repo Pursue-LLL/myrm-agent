@@ -65,7 +65,7 @@ flowchart TD
 
 - `scripts/check-fractal-docs.ts` — `_ARCH.md` 清单 + 核心 `[INPUT]` + Rust 行数预算
 - CI: `.github/workflows/desktop-fractal-docs.yml`（分形文档 + launch contract smoke + `cargo check`）
-- 发版: `scripts/ci/desktop-release/`（monorepo 根）
+- 发版: `scripts/ci/desktop-release/`（monorepo 根）；`build-macos-arm` 含 `smoke-launch-runtime.sh` 运行时烟测
 
 ## 架构约束
 

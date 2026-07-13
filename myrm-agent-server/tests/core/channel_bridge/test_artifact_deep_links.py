@@ -19,11 +19,11 @@ class TestCollectChannelArtifacts:
     """Tests for _collect_channel_artifacts shareable artifact tracking."""
 
     def _call(self, event: dict, acc: StreamAccumulator) -> None:
-        from app.core.channel_bridge.agent_executor.executor import (
-            _collect_channel_artifacts,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            collect_channel_artifacts,
         )
 
-        _collect_channel_artifacts(event, acc)
+        collect_channel_artifacts(event, acc)
 
     @patch("app.services.artifacts.share_token.is_shareable_artifact", return_value=True)
     def test_shareable_artifact_tracked(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
@@ -90,13 +90,13 @@ class TestCollectChannelArtifacts:
 
     def test_empty_event_ignored(self):
         acc = StreamAccumulator()
-        from app.core.channel_bridge.agent_executor.executor import (
-            _collect_channel_artifacts,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            collect_channel_artifacts,
         )
 
-        _collect_channel_artifacts({"data": []}, acc)
+        collect_channel_artifacts({"data": []}, acc)
         assert len(acc.file_attachments) == 0
-        _collect_channel_artifacts({}, acc)
+        collect_channel_artifacts({}, acc)
         assert len(acc.file_attachments) == 0
 
 
@@ -105,17 +105,17 @@ class TestBuildArtifactDeepLinks:
 
     @pytest.mark.asyncio
     async def test_empty_shareable_returns_empty(self):
-        from app.core.channel_bridge.agent_executor.executor import (
-            _build_artifact_deep_links,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            build_artifact_deep_links,
         )
 
         acc = StreamAccumulator()
-        result = await _build_artifact_deep_links(acc, [], "en")
+        result = await build_artifact_deep_links(acc, [], "en")
         assert result == ()
 
     @pytest.mark.asyncio
     @patch(
-        "app.core.channel_bridge.agent_executor.executor._fetch_artifact_versions",
+        "app.core.channel_bridge.agent_executor.artifact_deep_links.fetch_artifact_versions",
         new_callable=AsyncMock,
         return_value={"art-001": "ver-001"},
     )
@@ -144,8 +144,8 @@ class TestBuildArtifactDeepLinks:
         mock_base: MagicMock,
         mock_versions: AsyncMock,
     ):
-        from app.core.channel_bridge.agent_executor.executor import (
-            _build_artifact_deep_links,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            build_artifact_deep_links,
         )
 
         acc = StreamAccumulator()
@@ -160,7 +160,7 @@ class TestBuildArtifactDeepLinks:
                 mime_type="text/html",
             ),
         ]
-        result = await _build_artifact_deep_links(acc, media_list, "en")
+        result = await build_artifact_deep_links(acc, media_list, "en")
         assert len(result) == 1
         buttons = result[0]
         assert len(buttons) == 1
@@ -171,7 +171,7 @@ class TestBuildArtifactDeepLinks:
 
     @pytest.mark.asyncio
     @patch(
-        "app.core.channel_bridge.agent_executor.executor._fetch_artifact_versions",
+        "app.core.channel_bridge.agent_executor.artifact_deep_links.fetch_artifact_versions",
         new_callable=AsyncMock,
         return_value={},
     )
@@ -190,15 +190,15 @@ class TestBuildArtifactDeepLinks:
         mock_base: MagicMock,
         mock_versions: AsyncMock,
     ):
-        from app.core.channel_bridge.agent_executor.executor import (
-            _build_artifact_deep_links,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            build_artifact_deep_links,
         )
 
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        result = await _build_artifact_deep_links(acc, [], "en")
+        result = await build_artifact_deep_links(acc, [], "en")
         assert result == ()
 
     @pytest.mark.asyncio
@@ -216,8 +216,8 @@ class TestBuildArtifactDeepLinks:
         mock_base: MagicMock,
         mock_ingress: AsyncMock,
     ):
-        from app.core.channel_bridge.agent_executor.executor import (
-            _build_artifact_deep_links,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            build_artifact_deep_links,
         )
 
         acc = StreamAccumulator()
@@ -232,14 +232,14 @@ class TestBuildArtifactDeepLinks:
                 mime_type="text/html",
             ),
         ]
-        result = await _build_artifact_deep_links(acc, media_list, "en")
+        result = await build_artifact_deep_links(acc, media_list, "en")
         assert result == ()
         assert len(media_list) == 1
 
 
     @pytest.mark.asyncio
     @patch(
-        "app.core.channel_bridge.agent_executor.executor._fetch_artifact_versions",
+        "app.core.channel_bridge.agent_executor.artifact_deep_links.fetch_artifact_versions",
         new_callable=AsyncMock,
         return_value={"art-001": "ver-001", "art-002": "ver-002"},
     )
@@ -265,8 +265,8 @@ class TestBuildArtifactDeepLinks:
         mock_base: MagicMock,
         mock_versions: AsyncMock,
     ):
-        from app.core.channel_bridge.agent_executor.executor import (
-            _build_artifact_deep_links,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            build_artifact_deep_links,
         )
 
         acc = StreamAccumulator()
@@ -277,7 +277,7 @@ class TestBuildArtifactDeepLinks:
             MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/b.pdf", filename="b.pdf", mime_type="application/pdf"),
             MediaAttachment(media_type=MediaType.IMAGE, path="/tmp/photo.jpg", filename="photo.jpg", mime_type="image/jpeg"),
         ]
-        result = await _build_artifact_deep_links(acc, media_list, "zh")
+        result = await build_artifact_deep_links(acc, media_list, "zh")
         assert len(result) == 1
         buttons = result[0]
         assert len(buttons) == 2
@@ -289,7 +289,7 @@ class TestBuildArtifactDeepLinks:
 
     @pytest.mark.asyncio
     @patch(
-        "app.core.channel_bridge.agent_executor.executor._fetch_artifact_versions",
+        "app.core.channel_bridge.agent_executor.artifact_deep_links.fetch_artifact_versions",
         new_callable=AsyncMock,
         return_value={"art-001": "ver-001"},
     )
@@ -315,8 +315,8 @@ class TestBuildArtifactDeepLinks:
         mock_base: MagicMock,
         mock_versions: AsyncMock,
     ):
-        from app.core.channel_bridge.agent_executor.executor import (
-            _build_artifact_deep_links,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            build_artifact_deep_links,
         )
 
         acc = StreamAccumulator()
@@ -324,7 +324,7 @@ class TestBuildArtifactDeepLinks:
         media_list = [
             MediaAttachment(media_type=MediaType.DOCUMENT, path="/tmp/chart.html", filename="chart.html", mime_type="text/html"),
         ]
-        result = await _build_artifact_deep_links(acc, media_list, "en")
+        result = await build_artifact_deep_links(acc, media_list, "en")
         # Token failed, no buttons generated, but media_list untouched
         assert result == ()
         assert len(media_list) == 1
@@ -338,11 +338,11 @@ class TestCollectMultipleArtifacts:
         f = tmp_path / "huge.html"
         f.write_bytes(b"x" * (6 * 1024 * 1024))  # 6MB > 5MB limit
         acc = StreamAccumulator()
-        from app.core.channel_bridge.agent_executor.executor import (
-            _collect_channel_artifacts,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            collect_channel_artifacts,
         )
 
-        _collect_channel_artifacts(
+        collect_channel_artifacts(
             {"data": [{"id": "art-big", "type": "text/html", "file_path": str(f), "filename": "huge.html", "content_type": "text/html"}]},
             acc,
         )
@@ -352,11 +352,11 @@ class TestCollectMultipleArtifacts:
     @patch("app.services.artifacts.share_token.is_shareable_artifact", return_value=True)
     def test_nonexistent_file_skipped(self, mock_shareable: MagicMock):  # noqa: ANN001
         acc = StreamAccumulator()
-        from app.core.channel_bridge.agent_executor.executor import (
-            _collect_channel_artifacts,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            collect_channel_artifacts,
         )
 
-        _collect_channel_artifacts(
+        collect_channel_artifacts(
             {"data": [{"id": "art-ghost", "type": "text/html", "file_path": "/nonexistent/chart.html", "filename": "chart.html"}]},
             acc,
         )
@@ -365,11 +365,11 @@ class TestCollectMultipleArtifacts:
 
     def test_invalid_data_types_skipped(self):
         acc = StreamAccumulator()
-        from app.core.channel_bridge.agent_executor.executor import (
-            _collect_channel_artifacts,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            collect_channel_artifacts,
         )
 
-        _collect_channel_artifacts({"data": ["not_a_dict", 42, None]}, acc)
+        collect_channel_artifacts({"data": ["not_a_dict", 42, None]}, acc)
         assert len(acc.file_attachments) == 0
 
 
@@ -378,11 +378,11 @@ class TestFetchArtifactVersions:
 
     @pytest.mark.asyncio
     async def test_empty_ids_returns_empty(self):
-        from app.core.channel_bridge.agent_executor.executor import (
-            _fetch_artifact_versions,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            fetch_artifact_versions,
         )
 
-        result = await _fetch_artifact_versions([])
+        result = await fetch_artifact_versions([])
         assert result == {}
 
     @pytest.mark.asyncio
@@ -391,11 +391,11 @@ class TestFetchArtifactVersions:
         side_effect=RuntimeError("DB unavailable"),
     )
     async def test_db_exception_returns_empty(self, mock_session: MagicMock):
-        from app.core.channel_bridge.agent_executor.executor import (
-            _fetch_artifact_versions,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            fetch_artifact_versions,
         )
 
-        result = await _fetch_artifact_versions(["art-001"])
+        result = await fetch_artifact_versions(["art-001"])
         assert result == {}
 
 
@@ -407,11 +407,11 @@ class TestCollectEmptyFileSkipped:
         f = tmp_path / "empty.html"
         f.write_bytes(b"")
         acc = StreamAccumulator()
-        from app.core.channel_bridge.agent_executor.executor import (
-            _collect_channel_artifacts,
+        from app.core.channel_bridge.agent_executor.artifact_deep_links import (
+            collect_channel_artifacts,
         )
 
-        _collect_channel_artifacts(
+        collect_channel_artifacts(
             {"data": [{"id": "art-empty", "type": "text/html", "file_path": str(f), "filename": "empty.html", "content_type": "text/html"}]},
             acc,
         )

@@ -758,6 +758,13 @@
         "domainRemoved": "Domain removed",
         "saved": "Domain policy saved"
       },
+      "planReview": {
+        "title": "Plan Review",
+        "description": "Review and approve the AI's task plan before execution begins. Helps catch mistakes early — before any files are modified.",
+        "enableLabel": "Enable Plan Review",
+        "enableDesc": "When enabled, the AI will pause and show you the plan for review before starting complex tasks (3 or more steps).",
+        "saved": "Plan review setting saved"
+      },
       "yoloMode": {
         "title": "YOLO Mode (Auto-Approve All)",
         "description": "When enabled, all tool calls are automatically approved without manual confirmation. Suitable for development, batch tasks, and trusted environments.",
