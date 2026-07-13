@@ -28,10 +28,14 @@ from typing import TextIO
 
 import fcntl
 
-from stack_supervisor.state_gc import collect_stale_state, write_supervisor_state
 from stack_supervisor.paths import StackPaths, resolve_paths
 from stack_supervisor.probe import StackProbe, probe_stack, stack_warm
 from stack_supervisor.rpc_types import RpcCommand, RpcResponse
+from stack_supervisor.state_gc import (
+    collect_stale_state,
+    ensure_lock_active,
+    write_supervisor_state,
+)
 
 logger = logging.getLogger("stack_supervisor")
 WATCHDOG_INTERVAL_SEC = float(os.environ.get("MYRM_SUPERVISOR_WATCHDOG_SEC", "30"))
@@ -153,6 +157,9 @@ class SupervisorDaemon:
             return
         if probe.api_http_ok and probe.frontend_http_ok:
             return
+        if ensure_lock_active(self.paths):
+            logger.info("Watchdog auto-heal: deferred — ensure in progress")
+            return
         if not self._wave_stack_write_allowed():
             logger.info(
                 "Watchdog auto-heal: deferred — wave pin or active lease blocks stack mutation"
@@ -221,21 +228,21 @@ class SupervisorDaemon:
 
     def handle(self, command: RpcCommand, env_overrides: dict[str, str] | None = None) -> RpcResponse:
         if command == "ping":
-            probe = probe_stack(self.paths)
             return RpcResponse(
                 ok=True,
                 exit_code=0,
                 stdout="SUPERVISOR_PONG\n",
                 stderr="",
-                state={"stack_warm": stack_warm(probe), "epoch": probe.epoch},
             )
 
         if command == "shutdown":
-            self.stop_watchdog()
             return RpcResponse(ok=True, exit_code=0, stdout="SUPERVISOR_SHUTDOWN_OK\n", stderr="")
 
         if command == "status":
-            probe, _ = collect_stale_state(self.paths)
+            probe, _ = collect_stale_state(
+                self.paths,
+                advance_failure_streak=False,
+            )
             write_supervisor_state(self.paths, probe)
             dev = self._run_dev_stack("status", timeout_sec=15.0, env_overrides=env_overrides)
             return RpcResponse(
@@ -373,10 +380,14 @@ class SupervisorDaemon:
             }
             if response.state is not None:
                 payload["state"] = response.state
+            shutdown_requested = command == "shutdown"
             try:
                 conn.sendall((json.dumps(payload) + "\n").encode("utf-8"))
             except (BrokenPipeError, ConnectionResetError, OSError, socket.timeout):
                 logger.debug("RPC client disconnected before response")
+            finally:
+                if shutdown_requested:
+                    self.stop_watchdog()
 
 
 def _write_pid_file(paths: StackPaths) -> None:

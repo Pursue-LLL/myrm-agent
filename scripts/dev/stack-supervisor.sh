@@ -13,6 +13,14 @@ PY="${SERVER_DIR}/.venv/bin/python"
 PID_FILE="${STATE_DIR}/supervisor.pid"
 SOCK_FILE="${MYRM_SUPERVISOR_SOCKET:-${STATE_DIR}/supervisor.sock}"
 START_LOCK_DIR="${STATE_DIR}/supervisor.start.lock"
+START_LOCK_OWNER="${START_LOCK_DIR}/owner.pid"
+START_LOCK_OWNED=0
+START_WAIT_SEC="${MYRM_SUPERVISOR_START_WAIT_SEC:-90}"
+
+if [[ ! "${START_WAIT_SEC}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "SUPERVISOR_FAIL: MYRM_SUPERVISOR_START_WAIT_SEC must be a positive integer" >&2
+  exit 2
+fi
 
 export AGENT_ROOT SERVER_DIR FRONTEND_DIR MYRM_DEV_STATE_DIR="${STATE_DIR}"
 export PYTHONPATH="${SCRIPT_DIR}${PYTHONPATH:+:${PYTHONPATH}}"
@@ -22,6 +30,33 @@ _supervisor_alive() {
   local pid
   pid="$(tr -d '[:space:]' <"${PID_FILE}")"
   [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null && [[ -S "${SOCK_FILE}" ]]
+}
+
+_supervisor_responsive() {
+  _supervisor_alive || return 1
+  "${PY}" - "${SOCK_FILE}" <<'PY'
+import json
+import socket
+import sys
+
+client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+client.settimeout(1.0)
+try:
+    client.connect(sys.argv[1])
+    client.sendall(b'{"cmd":"ping","env":{}}\n')
+    raw = b""
+    while not raw.endswith(b"\n"):
+        block = client.recv(65536)
+        if not block:
+            break
+        raw += block
+    payload = json.loads(raw)
+    raise SystemExit(0 if payload.get("ok") else 1)
+except (OSError, ValueError, socket.timeout):
+    raise SystemExit(1)
+finally:
+    client.close()
+PY
 }
 
 _supervisor_daemon_pids() {
@@ -66,8 +101,8 @@ _stack_write_allowed() {
 
 _wait_for_supervisor() {
   local i
-  for i in $(seq 1 30); do
-    if _supervisor_alive; then
+  for ((i = 0; i < START_WAIT_SEC * 5; i++)); do
+    if _supervisor_responsive; then
       return 0
     fi
     sleep 0.2
@@ -79,20 +114,53 @@ _daemon_count() {
   _supervisor_daemon_pids | wc -l | tr -d '[:space:]'
 }
 
+_release_start_lock() {
+  if [[ "${START_LOCK_OWNED}" == "1" ]]; then
+    rm -f "${START_LOCK_OWNER}" 2>/dev/null || true
+    rmdir "${START_LOCK_DIR}" 2>/dev/null || true
+    START_LOCK_OWNED=0
+  fi
+}
+
+_acquire_start_lock() {
+  if mkdir "${START_LOCK_DIR}" 2>/dev/null; then
+    echo "$$" >"${START_LOCK_OWNER}"
+    START_LOCK_OWNED=1
+    return 0
+  fi
+  local owner=""
+  if [[ -f "${START_LOCK_OWNER}" ]]; then
+    owner="$(tr -d '[:space:]' <"${START_LOCK_OWNER}")"
+  fi
+  if [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null; then
+    return 1
+  fi
+  rm -f "${START_LOCK_OWNER}" 2>/dev/null || true
+  rmdir "${START_LOCK_DIR}" 2>/dev/null || return 1
+  if mkdir "${START_LOCK_DIR}" 2>/dev/null; then
+    echo "$$" >"${START_LOCK_OWNER}"
+    START_LOCK_OWNED=1
+    return 0
+  fi
+  return 1
+}
+
 cmd_start() {
   mkdir -p "${STATE_DIR}" "$(dirname "${SOCK_FILE}")"
-  if ! mkdir "${START_LOCK_DIR}" 2>/dev/null; then
+  if ! _acquire_start_lock; then
     if _wait_for_supervisor; then
       echo "SUPERVISOR_OK: started by concurrent launcher pid=$(tr -d '[:space:]' <"${PID_FILE}")"
       return 0
     fi
-    echo "SUPERVISOR_FAIL: concurrent launcher did not produce a healthy daemon within 6s" >&2
+    echo "SUPERVISOR_FAIL: concurrent launcher did not produce a healthy daemon within ${START_WAIT_SEC}s" >&2
     return 1
   fi
 
   local result=0
-  if _supervisor_alive && [[ "$(_daemon_count)" == "1" ]]; then
+  if _supervisor_responsive && [[ "$(_daemon_count)" == "1" ]]; then
     echo "SUPERVISOR_OK: already running pid=$(tr -d '[:space:]' <"${PID_FILE}")"
+    _release_start_lock
+    return 0
   elif [[ "$(_daemon_count)" != "0" ]]; then
     echo "SUPERVISOR_WARN: recovering unhealthy supervisor daemon" >&2
     if ! _stack_write_allowed; then
@@ -108,7 +176,7 @@ cmd_start() {
     result=1
   fi
 
-  if [[ "${result}" == "0" ]] && ! _supervisor_alive; then
+  if [[ "${result}" == "0" ]] && ! _supervisor_responsive; then
     nohup "${PY}" -m stack_supervisor.daemon --daemonize --state-dir "${STATE_DIR}" \
       >>"${STATE_DIR}/supervisor.log" 2>&1 &
   fi
@@ -121,34 +189,52 @@ cmd_start() {
       result=1
     fi
   elif [[ "${result}" == "0" ]]; then
-    echo "SUPERVISOR_FAIL: daemon did not start within 6s — see ${STATE_DIR}/supervisor.log" >&2
+    echo "SUPERVISOR_FAIL: daemon did not start within ${START_WAIT_SEC}s — see ${STATE_DIR}/supervisor.log" >&2
     result=1
   fi
 
-  rmdir "${START_LOCK_DIR}" 2>/dev/null || true
+  _release_start_lock
   return "${result}"
 }
 
 cmd_stop() {
-  if _supervisor_alive; then
+  if _supervisor_responsive; then
     "${PY}" -m stack_supervisor shutdown >/dev/null 2>&1 || true
   fi
   local pid=""
   if [[ -f "${PID_FILE}" ]]; then
     pid="$(tr -d '[:space:]' <"${PID_FILE}")"
   fi
+  local daemon_pid daemon_pids remaining=0
+  daemon_pids="$(_supervisor_daemon_pids)"
   if [[ -n "${pid}" ]]; then
     kill -TERM "${pid}" 2>/dev/null || true
   fi
-  local daemon_pid
   while IFS= read -r daemon_pid; do
     [[ -n "${daemon_pid}" ]] && kill -TERM "${daemon_pid}" 2>/dev/null || true
-  done < <(_supervisor_daemon_pids)
-  sleep 0.5
+  done <<<"${daemon_pids}"
+  local attempt
+  for attempt in $(seq 1 20); do
+    remaining=0
+    while IFS= read -r daemon_pid; do
+      if [[ -n "${daemon_pid}" ]] && kill -0 "${daemon_pid}" 2>/dev/null; then
+        remaining=1
+      fi
+    done <<<"${daemon_pids}"
+    [[ "${remaining}" == "0" ]] && break
+    sleep 0.1
+  done
   while IFS= read -r daemon_pid; do
     [[ -n "${daemon_pid}" ]] && kill -0 "${daemon_pid}" 2>/dev/null && kill -9 "${daemon_pid}" 2>/dev/null || true
-  done < <(_supervisor_daemon_pids)
-  if [[ "$(_daemon_count)" == "0" ]]; then
+  done <<<"${daemon_pids}"
+  sleep 0.1
+  remaining=0
+  while IFS= read -r daemon_pid; do
+    if [[ -n "${daemon_pid}" ]] && kill -0 "${daemon_pid}" 2>/dev/null; then
+      remaining=1
+    fi
+  done <<<"${daemon_pids}"
+  if [[ "${remaining}" == "0" ]]; then
     rm -f "${PID_FILE}" "${SOCK_FILE}" 2>/dev/null || true
   else
     echo "SUPERVISOR_WARN: daemon still alive; retaining pid/socket for diagnosis" >&2
@@ -181,6 +267,7 @@ usage() {
 }
 
 main() {
+  trap _release_start_lock EXIT INT TERM
   local cmd="${1:-}"
   case "${cmd}" in
     start) cmd_start ;;

@@ -7,6 +7,15 @@ interface Window {
   webkitSpeechRecognition?: typeof SpeechRecognition;
   __MYRM_TRACE_ID__?: string;
   __TAURI_INTERNALS__?: unknown;
+  /** Dev-only bridge for CDP Chrome E2E (AppLayout E2EChatBridge). */
+  __MYRM_E2E_CHAT__?: {
+    setInputMessage: (message: string) => void;
+    handleSubmit: () => void | Promise<void>;
+    getInputMessage: () => string;
+    setGoalMode: (enabled: boolean) => void;
+    setGoalBudgetTokens: (tokens: number | null) => void;
+    getGoalMode: () => boolean;
+  };
 }
 
 declare class SpeechRecognition extends EventTarget {

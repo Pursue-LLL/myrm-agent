@@ -7,7 +7,6 @@ import os
 import socket
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 from stack_supervisor.paths import StackPaths, resolve_paths
@@ -68,6 +67,7 @@ _FORWARD_ENV_KEYS = (
     "E2E_API_BASE",
     "API_PORT",
     "PORT",
+    "ONEBOT_PORT",
 )
 
 
@@ -118,11 +118,18 @@ def ensure_supervisor(paths: StackPaths) -> None:
     script = _supervisor_script(paths)
     if not script.is_file():
         raise RuntimeError(f"Missing supervisor launcher: {script}")
+    raw_wait = os.environ.get("MYRM_SUPERVISOR_START_WAIT_SEC", "90")
+    try:
+        start_wait_sec = int(raw_wait)
+    except ValueError as exc:
+        raise RuntimeError("MYRM_SUPERVISOR_START_WAIT_SEC must be a positive integer") from exc
+    if start_wait_sec <= 0:
+        raise RuntimeError("MYRM_SUPERVISOR_START_WAIT_SEC must be a positive integer")
     result = subprocess.run(
         ["bash", str(script), "start"],
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=start_wait_sec + 5,
         check=False,
         env=os.environ.copy(),
     )
@@ -130,11 +137,8 @@ def ensure_supervisor(paths: StackPaths) -> None:
         raise RuntimeError(
             f"Failed to start stack supervisor: {result.stderr or result.stdout}"
         )
-    for _ in range(30):
-        if supervisor_running(paths):
-            return
-        time.sleep(0.2)
-    raise RuntimeError("Stack supervisor did not become ready within 6s")
+    if not supervisor_running(paths):
+        raise RuntimeError("Stack supervisor launcher succeeded but ping readiness failed")
 
 
 def delegate_dev_stack(command: RpcCommand) -> int:
