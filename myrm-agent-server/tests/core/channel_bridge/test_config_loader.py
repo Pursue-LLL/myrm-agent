@@ -5,6 +5,7 @@ from app.core.channel_bridge.config_parsers import (
 )
 from app.core.channel_bridge.config_parsers import (
     extract_voice_config,
+    extract_web_tts_config,
 )
 
 
@@ -244,3 +245,23 @@ class TestExtractVoiceConfig:
     def test_none_for_empty_dict(self) -> None:
         result = extract_voice_config(None)
         assert result is None
+
+
+class TestExtractWebTtsConfig:
+    """Web /tts uses extract_web_tts_config — ignores channel ttsMode gate."""
+
+    def test_returns_config_when_tts_mode_off(self) -> None:
+        voice_dict: dict[str, object] = {
+            "sttEnabled": False,
+            "ttsMode": "off",
+            "ttsProvider": "edge",
+        }
+        channel = extract_voice_config(voice_dict)
+        web = extract_web_tts_config(voice_dict)
+        assert channel is None
+        assert web is not None
+        assert web.tts_provider == "edge"
+        assert web.tts_mode.value == "off"
+
+    def test_none_for_empty_dict(self) -> None:
+        assert extract_web_tts_config(None) is None

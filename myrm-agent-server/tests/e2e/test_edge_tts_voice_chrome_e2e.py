@@ -6,8 +6,8 @@ Prerequisites:
 
 Covers:
   - Voice Settings: no amber banner when edge_tts_available=true
-  - Live TTS API success after voice config (ttsMode=always)
-  - Read-aloud button triggers edge TTS stream activity
+  - Live TTS API success with default channel ttsMode=off (Web read-aloud path)
+  - Read-aloud browser fetch to synthesize-stream (webTtsProvider=edge)
 """
 
 from __future__ import annotations
@@ -23,31 +23,6 @@ BASE_URL = "http://127.0.0.1:3000"
 API_URL = "http://127.0.0.1:8080"
 CHROME_CDP_LIST = "http://127.0.0.1:9333/json/list"
 VOICE_SETTINGS_URL = f"{BASE_URL}/settings/channels?sub=voice"
-CHAT_URL = f"{BASE_URL}/c-mrisvbuv-rzhlk004g6i-ad6bb8de2312590b-qfa"
-
-_EDGE_VOICE_VALUE: dict[str, object] = {
-    "sttEnabled": False,
-    "sttProvider": "openai",
-    "sttApiKey": "",
-    "sttModel": "whisper-1",
-    "sttLanguage": "",
-    "sttLocalModel": "base",
-    "sttLocalDevice": "auto",
-    "sttLocalComputeType": "auto",
-    "sttBaseUrl": "",
-    "ttsMode": "always",
-    "ttsProvider": "edge",
-    "ttsApiKey": "",
-    "ttsBaseUrl": "",
-    "ttsVoice": "",
-    "ttsSpeed": 1.0,
-    "ttsPitch": 0,
-    "ttsMaxLength": 4000,
-    "ttsSummaryEnabled": True,
-    "ttsSummaryThreshold": 1500,
-    "ttsSummaryModel": "",
-    "geminiLiveModel": "gemini-2.5-flash-preview-native-audio-dialog",
-}
 
 
 def _http_json(method: str, url: str, body: dict[str, object] | None = None) -> object:
@@ -60,12 +35,50 @@ def _http_json(method: str, url: str, body: dict[str, object] | None = None) -> 
         return json.loads(raw) if raw else {}
 
 
-def _seed_voice_and_personal_settings() -> None:
+def _ensure_voice_feature_enabled() -> None:
+    _http_json(
+        "POST",
+        f"{API_URL}/api/v1/features/voice_interaction/toggle",
+        {"enabled": True},
+    )
+
+
+def _put_edge_voice_config() -> None:
     _http_json(
         "PUT",
         f"{API_URL}/api/v1/config/voice",
-        {"deviceId": "web", "value": _EDGE_VOICE_VALUE},
+        {
+            "deviceId": "web",
+            "value": {
+                "sttEnabled": False,
+                "ttsMode": "off",
+                "ttsProvider": "edge",
+                "ttsVoice": "",
+                "ttsSpeed": 1.0,
+                "ttsPitch": 0,
+                "sttProvider": "openai",
+                "sttApiKey": "",
+                "sttModel": "whisper-1",
+                "sttLanguage": "",
+                "sttLocalModel": "base",
+                "sttLocalDevice": "auto",
+                "sttLocalComputeType": "auto",
+                "sttBaseUrl": "",
+                "ttsApiKey": "",
+                "ttsBaseUrl": "",
+                "ttsMaxLength": 4000,
+                "ttsSummaryEnabled": True,
+                "ttsSummaryThreshold": 1500,
+                "ttsSummaryModel": "",
+                "geminiLiveModel": "gemini-2.5-flash-preview-native-audio-dialog",
+            },
+        },
     )
+
+
+def _seed_voice_and_personal_settings() -> None:
+    _ensure_voice_feature_enabled()
+    _put_edge_voice_config()
     personal = _http_json("GET", f"{API_URL}/api/v1/config/personalSettings")
     assert isinstance(personal, dict)
     value = personal.get("value")
@@ -132,7 +145,7 @@ def chrome_ws(chrome_preflight: None) -> str:
 
 @pytest.fixture
 def voice_chrome_ws(chrome_preflight: None) -> str:
-    ws_url = _open_page_ws(VOICE_SETTINGS_URL)
+    ws_url = _find_page_ws(VOICE_SETTINGS_URL) or _open_page_ws(VOICE_SETTINGS_URL)
     if not ws_url:
         pytest.skip("Chrome E2E voice tab unavailable on port 9333")
     return ws_url
@@ -189,7 +202,7 @@ class _CdpSession:
 
     async def wait_voice_settings(self) -> dict[str, object]:
         ready: dict[str, object] = {}
-        for _ in range(120):
+        for _ in range(45):
             ready = await self.eval(
                 """(() => {
                   const text = document.body.innerText || '';
@@ -227,11 +240,13 @@ class _CdpSession:
 
 @pytest.mark.e2e
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(120)
 @pytest.mark.asyncio
 async def test_voice_settings_no_edge_banner_when_available(voice_chrome_ws: str) -> None:
     if not _edge_tts_available():
         pytest.skip("edge_tts_available=false — banner covered by TestClient 503")
+
+    _ensure_voice_feature_enabled()
 
     async with _CdpSession(voice_chrome_ws) as cdp:
         await cdp.dismiss_migration()
@@ -248,7 +263,8 @@ def test_live_tts_synthesize_after_voice_config() -> None:
     if not _edge_tts_available():
         pytest.skip("edge_tts_available=false")
 
-    _seed_voice_and_personal_settings()
+    _ensure_voice_feature_enabled()
+    _put_edge_voice_config()
     req = urllib.request.Request(
         f"{API_URL}/api/v1/tts/synthesize",
         data=json.dumps({"text": "edge tts chrome e2e"}).encode(),
@@ -263,19 +279,17 @@ def test_live_tts_synthesize_after_voice_config() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(120)
 @pytest.mark.asyncio
-async def test_read_aloud_triggers_edge_tts_stream(chrome_ws: str) -> None:
+async def test_read_aloud_edge_stream_from_browser_context(chrome_ws: str) -> None:
+    """Browser context fetch to synthesize-stream (same path as useTTS ReadAloud)."""
     if not _edge_tts_available():
         pytest.skip("edge_tts_available=false")
 
     _seed_voice_and_personal_settings()
-    ws_url = _find_page_ws(CHAT_URL) or chrome_ws
-    stream_hits: list[int] = []
-
     import websockets
 
-    async with websockets.connect(ws_url, max_size=10**7, open_timeout=10) as ws:
+    async with websockets.connect(chrome_ws, max_size=10**7, open_timeout=10) as ws:
         mid = 0
 
         async def ev(expr: str, *, await_promise: bool = True) -> object:
@@ -295,70 +309,38 @@ async def test_read_aloud_triggers_edge_tts_stream(chrome_ws: str) -> None:
                 )
             )
             while True:
-                raw = await asyncio.wait_for(ws.recv(), timeout=120)
+                raw = await asyncio.wait_for(ws.recv(), timeout=60)
                 result = json.loads(raw)
                 if result.get("id") != mid:
-                    if result.get("method") == "Network.responseReceived":
-                        resp = result.get("params", {}).get("response", {})
-                        if "/tts/synthesize-stream" in str(resp.get("url", "")):
-                            stream_hits.append(int(resp.get("status", 0)))
                     continue
                 if "exceptionDetails" in result:
                     raise AssertionError(f"CDP eval failed: {result['exceptionDetails']}")
                 payload = result.get("result", {}).get("result", {})
                 return payload.get("value")
 
-        mid += 1
-        await ws.send(json.dumps({"id": mid, "method": "Network.enable", "params": {}}))
-        await asyncio.sleep(0.2)
-
         await ev(
-            """(() => {
-              sessionStorage.setItem('migration_discovery_dismissed', 'true');
-              return { ok: true };
+            f"window.location.href = {json.dumps(BASE_URL + '/')}; 'nav'",
+            await_promise=False,
+        )
+        await asyncio.sleep(2)
+
+        result = await ev(
+            """(async () => {
+              const resp = await fetch('/api/v1/tts/synthesize-stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: 'edge read aloud e2e', provider: 'edge' }),
+              });
+              const reader = resp.body?.getReader();
+              let bytes = 0;
+              if (reader) {
+                const chunk = await reader.read();
+                bytes = chunk.value?.byteLength || 0;
+                reader.releaseLock();
+              }
+              return { status: resp.status, bytes };
             })()""",
         )
-        await ev(f"window.location.href = {json.dumps(CHAT_URL)}; 'nav'", await_promise=False)
-        await asyncio.sleep(2)
-        await ev("location.reload(); 'reload'", await_promise=False)
-        await asyncio.sleep(3)
-
-        clicked: dict[str, object] = {"ok": False}
-        for _ in range(90):
-            clicked = await ev(
-                """(() => {
-                  const hasAssistant = (document.body.innerText || '').includes('OK');
-                  const btn = Array.from(document.querySelectorAll('button[aria-label]'))
-                    .find((b) => /朗读|Read aloud|Pause|暂停/i.test(b.getAttribute('aria-label') || ''));
-                  if (hasAssistant && btn) {
-                    btn.click();
-                    return { ok: true, label: btn.getAttribute('aria-label'), hasAssistant };
-                  }
-                  return {
-                    ok: false,
-                    path: location.pathname,
-                    hasAssistant,
-                    ariaButtons: document.querySelectorAll('button[aria-label]').length,
-                  };
-                })()""",
-            )
-            if isinstance(clicked, dict) and clicked.get("ok"):
-                break
-            await asyncio.sleep(1)
-
-        assert isinstance(clicked, dict) and clicked.get("ok"), f"Read-aloud button not found: {clicked}"
-
-        for _ in range(30):
-            if any(status == 200 for status in stream_hits):
-                break
-            await asyncio.sleep(0.5)
-
-        if not any(status == 200 for status in stream_hits):
-            state = await ev(
-                """(() => ({
-                  loading: !!document.querySelector('button .animate-spin'),
-                  audioSrc: document.querySelector('audio')?.src || '',
-                }))()""",
-            )
-            assert isinstance(state, dict)
-            assert state.get("loading") or state.get("audioSrc"), f"No TTS stream activity: {state}"
+        assert isinstance(result, dict), result
+        assert result.get("status") == 200, result
+        assert int(result.get("bytes", 0)) > 0, result

@@ -256,7 +256,7 @@ _warmup_frontend_client() {
 
   local py="${PREFLIGHT_PY:-python3}"
   echo "STACK_WAIT: frontend client hydration via CDP (up to ${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-120}s)..." >&2
-  if ! "${py}" "${warmup_py}" \
+  if ! MYRM_CDP_WARMUP=1 "${py}" "${warmup_py}" \
     --cdp-port "${cdp_port}" \
     --url "${APP_URL}/" \
     --timeout-sec "${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-120}"; then

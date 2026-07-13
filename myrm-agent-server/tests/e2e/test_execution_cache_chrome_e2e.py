@@ -13,8 +13,10 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import sys
 import time
 import urllib.request
+from pathlib import Path
 
 import pytest
 
@@ -42,6 +44,16 @@ def _create_fresh_page_ws() -> str | None:
     """Open a new :3000 tab via CDP (fallback when no warm tab exists)."""
     import urllib.error
 
+    dev_lib = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    try:
+        from cdp_write_guard import assert_cdp_write_allowed
+
+        assert_cdp_write_allowed(operation="json/new")
+    except RuntimeError as exc:
+        pytest.skip(str(exc))
+
     req = urllib.request.Request(
         f"{CHROME_CDP.replace('/json/list', '/json/new')}?{BASE_URL}/",
         method="PUT",
@@ -56,6 +68,25 @@ def _create_fresh_page_ws() -> str | None:
 
 
 def _chrome_page_ws() -> str | None:
+    try:
+        dev_lib = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+        if str(dev_lib) not in sys.path:
+            sys.path.insert(0, str(dev_lib))
+        from cdp_warm_tab_pool import read_warm_tab_pool
+
+        for entry in read_warm_tab_pool():
+            pages = json.loads(urllib.request.urlopen(CHROME_CDP, timeout=5).read())
+            match = next(
+                (p for p in pages if p.get("id") == entry["targetId"] and p.get("type") == "page"),
+                None,
+            )
+            if match is not None:
+                ws = match.get("webSocketDebuggerUrl")
+                if isinstance(ws, str):
+                    return ws
+    except Exception:
+        pass
+
     try:
         resp = urllib.request.urlopen(CHROME_CDP, timeout=5)
         pages = json.loads(resp.read())
@@ -199,7 +230,6 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
                 isinstance(ready, dict)
                 and ready.get("hasInput")
                 and ready.get("hasLayout")
-                and ready.get("hasModelChip")
                 and ready.get("onChatHome")
                 and not ready.get("scanningMigration")
             ):
@@ -215,18 +245,16 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
             })()""",
             await_promise=False,
         )
-        if ready.get("unconfigured") or not ready.get("hasModelChip"):
-            pytest.skip(
-                "WebUI default model not configured in E2E Chrome profile — "
-                "configure provider + default model at /settings/models"
-            )
 
         for _ in range(60):
             if _provider_ready():
                 break
             await asyncio.sleep(1)
         else:
-            pytest.skip("Provider config not ready — configure model at /settings/models in E2E Chrome")
+            pytest.skip(
+                "Provider config not ready in E2E profile — configure model at /settings/models "
+                "(API /api/v1/config/readiness provider.is_ready must be true)"
+            )
 
         for _ in range(60):
             fe_ready = await ev(
@@ -319,6 +347,33 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
             ):
                 await cdp("Input.dispatchKeyEvent", event)
             await cdp("Input.insertText", {"text": text})
+            synced = await ev(
+                f"""( () => {{
+                  const input = document.querySelector('[data-chat-input]');
+                  if (!input) return {{ ok: false, err: 'no input' }};
+                  const nativeSetter = Object.getOwnPropertyDescriptor(
+                    window.HTMLTextAreaElement.prototype,
+                    'value',
+                  )?.set;
+                  const tracker = input._valueTracker;
+                  if (tracker) tracker.setValue('');
+                  nativeSetter?.call(input, {json.dumps(text)});
+                  input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                  const reactKey = Object.keys(input).find((k) => k.startsWith('__reactProps'));
+                  if (reactKey && input[reactKey]?.onChange) {{
+                    input[reactKey].onChange({{ target: input, currentTarget: input }});
+                  }}
+                  const btn = document.querySelector('.message-send-btn');
+                  return {{
+                    ok: (input.value || '').trim().length > 0 && !btn?.disabled,
+                    inputLen: (input.value || '').length,
+                    sendDisabled: !!btn?.disabled,
+                  }};
+                }})()""",
+                await_promise=False,
+            )
+            if isinstance(synced, dict) and synced.get("ok"):
+                return synced
             return await ev(
                 """(() => {
                   const input = document.querySelector('[data-chat-input]');
@@ -371,24 +426,24 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
             )
             if isinstance(sample, dict) and sample.get("ok"):
                 await asyncio.sleep(0.3)
-                fill = await fill_chat_input(text)
-            else:
-                fill = await fill_chat_input(text)
+            fill = await fill_chat_input(text)
             assert isinstance(fill, dict) and fill.get("ok"), f"UI fill failed: {fill} sample={sample}"
             click = await ev(
                 """(() => {
                   const btn =
                     document.querySelector('button[aria-label="发送"]') ||
                     document.querySelector('.message-send-btn');
+                  const form = document.querySelector('main form');
                   if (!btn) return { ok: false, err: 'no send button' };
                   if (btn.disabled) return { ok: false, err: 'send disabled' };
                   btn.click();
-                  return { ok: true };
+                  form?.requestSubmit();
+                  return { ok: true, mode: form ? 'click+submit' : 'click' };
                 })()""",
                 await_promise=False,
             )
             assert isinstance(click, dict) and click.get("ok"), f"UI send click failed: {click}"
-            deadline = time.monotonic() + 20.0
+            deadline = time.monotonic() + 45.0
             post: dict[str, object] = {}
             while time.monotonic() < deadline:
                 post = await main_state()

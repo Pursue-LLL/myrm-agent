@@ -9,7 +9,9 @@
 | 文件 | 职责 |
 |------|------|
 | `frontend-warmup.sh` | Unix | Frontend `shell_hot` gate（curl `/`）+ `client_hot`（CDP hydration）+ warmth JSON；定义 `_lock_supervisor_alive`（frontend lock pid 存活） |
-| `frontend-client-warmup.py` | Unix | CDP navigate `:3000/` until `app-layout` — client chunk compile SSOT |
+| `frontend-client-warmup.py` | Unix | CDP navigate `:3000/` until `app-layout` — client chunk compile SSOT; registers `warm_tab_pool` |
+| `cdp_warm_tab_pool.py` | Unix | Persist/refresh hydrated E2E tabs for parallel MCP reuse (`warmTabPool` in HEALTH_JSON) |
+| `cdp_write_guard.py` | Unix | Block direct `/json/new` while active Wave READ leases (mux-only CDP writer) |
 | `runtime_identity.py` | Unix | Runtime Identity SSOT：`backendEpoch`/`frontendEpoch`/`chromeEpoch`/`muxEpoch` → `runtimeId`；`build_health_json` CLI |
 | `runtime_probe.py` | Unix | Live mux/CDP probe + `run_drift_check()` for `--drift` / `runtime-drift` |
 | `runtime-drift.sh` | Unix | `./myrm runtime-drift --expect <id>` 入口；exit 2 = `RUNTIME_DRIFT` |

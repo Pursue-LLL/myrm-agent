@@ -62,7 +62,8 @@
 5. **tab 卫生**：无 mux client context 时 `ready --chrome` 才 prune；并行 context 或 mux 状态未知时完全跳过自动关 tab，Agent 负责 `close_page`
 6. **集成测试进程纪律**：并行 Agent **`./myrm ready --attach --chrome`**；栈 **`dev-stack ensure`**；**禁止** Agent shell `bun run dev &`
 7. **runtimeId + Wave**：`CHROME_E2E_HEALTH_JSON.runtimeId` — `wave open` 冻结 → `lease acquire READ` → 断言前 `./myrm runtime-drift --expect <id>`；持 lease 时 `reset/restart` 机械拒绝
-8. **client_hot**：`ready --chrome` CDP 预热 client chunk；`shell_hot`（curl `/`）≠ UI hydrate 完成；改码后 UI 测 **`./myrm restart --chrome`** 开新 wave
+8. **client_hot + warmTabPool**：`ready --chrome` CDP 预热 client chunk 并登记 `warmTabPool`；并行 Agent **优先复用 warm tab**（`select_page` / 同 URL tab），避免每用例冷 `new_page` 30s+；`shell_hot`（curl `/`）≠ UI hydrate 完成；改码后 UI 测 **`./myrm restart --chrome`** 开新 wave
+9. **CDP 单写者**：活跃 Wave READ lease 期间禁止 pytest/bun 直连接 `/json/new`（`CDP_WRITE_DENIED`）；仅 supervisor warmup（`MYRM_CDP_WARMUP`）与 mux daemon 可写
 
 **勿引用（已移除）**：`browser-delegate-chrome-e2e.mjs`、`clarify-chrome-e2e.mjs`、`start-chrome-mcp-debug.sh`（第二 Chrome / Allow 冲突）；`browser-delegate-e2e-once.mjs`、`render-ui-gap-e2e-prepare.mjs`、`notify-channel-e2e-prepare.mjs`、`cron-gap-e2e-prepare.mjs`、`test-cron-gap-e2e.sh`（API 重复 → `myrm-agent-server/tests/api/agent/`）；`ui_pong_chrome_verify.py`、`render_ui_chrome_verify.py`、`wfel-settings-ui-check.py`（主 Chrome CDP → 用 `:9333` + `tests/` 或 MCP）；`subagent-dashboard-e2e-poll.mjs`（debug 轮询，正式链用 prepare + verify）；`test-instinct-inbox-seed.py`（已改名 `instinct-inbox-seed.py`）。品牌图标生成见 `myrm-agent-desktop/scripts/inset-app-icon.py`。
 

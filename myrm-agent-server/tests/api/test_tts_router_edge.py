@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -12,6 +13,7 @@ from myrm_agent_harness.core.features import _reset_for_testing
 
 from app.api.tts.router import _ensure_edge_tts_if_needed
 from app.channels.types import TTSMode, VoiceConfig
+from app.core.channel_bridge.config_loader import UserConfigs
 from tests.support.feature_flags import seed_voice_interaction_flags
 from tests.support.minimal_app import API_PREFIX, build_minimal_app
 
@@ -105,3 +107,34 @@ def test_synthesize_stream_returns_422_when_no_audio(client: TestClient) -> None
 
     assert response.status_code == 422
     assert "no audio" in response.json()["detail"].lower()
+
+
+def test_synthesize_accepts_tts_mode_off_voice_dict(client: TestClient, tmp_path: Path) -> None:
+    """Web /tts must not reject voice settings when channel ttsMode is off."""
+    voice_dict: dict[str, object] = {
+        "sttEnabled": False,
+        "ttsMode": "off",
+        "ttsProvider": "edge",
+    }
+    mp3_path = tmp_path / "tts_output.mp3"
+    mp3_path.write_bytes(b"ID3fake")
+
+    with (
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            new_callable=AsyncMock,
+            return_value=UserConfigs(voice_dict=voice_dict),
+        ),
+        patch("app.channels.voice.tts.is_edge_tts_available", return_value=True),
+        patch(
+            "app.channels.voice.tts.synthesize",
+            new_callable=AsyncMock,
+            return_value=mp3_path,
+        ),
+    ):
+        response = client.post(
+            f"{API_PREFIX}/tts/synthesize",
+            json={"text": "Hello from the test suite."},
+        )
+
+    assert response.status_code == 200

@@ -4,9 +4,11 @@ import { Volume2, Pause, Square, Loader2 } from 'lucide-react';
 import { useTTS, type TTSMode } from '@/hooks/useTTS';
 import { useTranslations } from 'next-intl';
 import useConfigStore from '@/store/useConfigStore';
+import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 
 const ReadAloud = ({ content }: { content: string }) => {
   const webTtsProvider = useConfigStore((s) => s.webTtsProvider);
+  const isVoiceInteractionEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
   const mode: TTSMode = webTtsProvider === 'browser' ? 'browser' : 'api';
   const provider = mode === 'api' ? webTtsProvider : undefined;
 
@@ -14,6 +16,7 @@ const ReadAloud = ({ content }: { content: string }) => {
   const t = useTranslations('chat');
 
   if (!supported) return null;
+  if (mode === 'api' && !isVoiceInteractionEnabled) return null;
 
   const isActive = state !== 'idle';
 

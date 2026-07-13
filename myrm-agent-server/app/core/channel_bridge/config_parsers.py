@@ -16,6 +16,7 @@ Extract typed configs from frontend dict structures.
 
 [OUTPUT]
 - extract_* functions: parse frontend config to typed objects
+- extract_web_tts_config: Web read-aloud TTS config (ignores channel ttsMode gate)
 - session_policy_from_agent_dict: build SessionPolicy from per-agent metadata dict
 - is_search_user_configured: check if user explicitly configured a search service (vs default fallback)
 - verify_search_service_available: async connectivity check for configured search service (30s TTL cache)
@@ -95,22 +96,13 @@ def extract_mcp_configs(mcp_dict: dict[str, object] | None) -> list["MCPServerCo
     return result
 
 
-def extract_voice_config(voice_dict: dict[str, object] | None) -> "VoiceConfig | None":
-    """Extract VoiceConfig from the frontend's voice settings.
-
-    Returns None if voice is not configured (STT/TTS both disabled).
-    """
+def _build_voice_config_from_dict(voice_dict: dict[str, object]) -> "VoiceConfig":
+    """Build VoiceConfig from the frontend voice settings dict."""
     from app.channels.types import VoiceConfig
-
-    if not voice_dict:
-        return None
 
     stt_enabled = bool(voice_dict.get("sttEnabled", False))
     tts_mode_raw = str(voice_dict.get("ttsMode", "off")).lower()
     tts_mode = TTSMode(tts_mode_raw) if tts_mode_raw in ("off", "always", "inbound") else TTSMode.OFF
-
-    if not stt_enabled and tts_mode == TTSMode.OFF:
-        return None
 
     return VoiceConfig(
         stt_enabled=stt_enabled,
@@ -134,6 +126,35 @@ def extract_voice_config(voice_dict: dict[str, object] | None) -> "VoiceConfig |
         tts_summary_threshold=_int_setting(voice_dict.get("ttsSummaryThreshold", 1500), 1500),
         tts_summary_model=str(voice_dict.get("ttsSummaryModel", "")),
     )
+
+
+def extract_voice_config(voice_dict: dict[str, object] | None) -> "VoiceConfig | None":
+    """Extract VoiceConfig from the frontend's voice settings.
+
+    Returns None if voice is not configured (STT/TTS both disabled).
+    """
+    if not voice_dict:
+        return None
+
+    stt_enabled = bool(voice_dict.get("sttEnabled", False))
+    tts_mode_raw = str(voice_dict.get("ttsMode", "off")).lower()
+    tts_mode = TTSMode(tts_mode_raw) if tts_mode_raw in ("off", "always", "inbound") else TTSMode.OFF
+
+    if not stt_enabled and tts_mode == TTSMode.OFF:
+        return None
+
+    return _build_voice_config_from_dict(voice_dict)
+
+
+def extract_web_tts_config(voice_dict: dict[str, object] | None) -> "VoiceConfig | None":
+    """Extract VoiceConfig for Web UI read-aloud (/tts API).
+
+    Unlike extract_voice_config, does not require ttsMode != off or sttEnabled.
+    Channel outbound TTS still uses extract_voice_config.
+    """
+    if not voice_dict:
+        return None
+    return _build_voice_config_from_dict(voice_dict)
 
 
 def extract_lite_model_config(providers_dict: dict[str, object] | None) -> "ModelConfig | None":

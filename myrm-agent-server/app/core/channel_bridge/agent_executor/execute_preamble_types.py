@@ -74,3 +74,11 @@ class ChannelAgentBuildResult:
 class ChannelAgentBuildOutcome:
     result: ChannelAgentBuildResult | None = None
     early_reply: OutboundMessage | None = None
+
+    def __post_init__(self) -> None:
+        has_result = self.result is not None
+        has_early = self.early_reply is not None
+        if has_result == has_early:
+            raise ValueError(
+                "ChannelAgentBuildOutcome requires exactly one of result or early_reply",
+            )

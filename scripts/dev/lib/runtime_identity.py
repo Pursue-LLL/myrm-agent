@@ -59,6 +59,12 @@ class MuxEpoch(TypedDict):
     upstream_ready: bool
 
 
+class WarmTabHealthEntry(TypedDict):
+    targetId: str
+    url: str
+    title: str
+
+
 class RuntimeIdentityParts(TypedDict):
     backend_epoch: BackendEpoch | None
     frontend_epoch: FrontendEpoch | None
@@ -90,6 +96,7 @@ class HealthJsonPayload(TypedDict):
     frontendEpoch: FrontendEpoch | None
     chromeEpoch: ChromeEpoch | None
     muxEpoch: MuxEpoch | None
+    warmTabPool: list[WarmTabHealthEntry]
 
 
 _BROWSER_ID_RE = re.compile(r"/devtools/browser/([0-9a-f-]{36})")
@@ -442,6 +449,25 @@ def build_health_json(
     runtime_id = compute_runtime_id(parts)
     backend = parts["backend_epoch"]
     stack_epoch: int | None = backend["epoch"] if backend is not None else None
+
+    warm_tab_pool: list[WarmTabHealthEntry] = []
+    if client_hot:
+        try:
+            from cdp_warm_tab_pool import pool_for_health_json, refresh_warm_tab_pool
+
+            port = cdp_port if cdp_port is not None else int(os.getenv("MYRM_CHROME_E2E_PORT", "9333"))
+            refresh_warm_tab_pool(cdp_port=port)
+            for item in pool_for_health_json():
+                warm_tab_pool.append(
+                    {
+                        "targetId": item["targetId"],
+                        "url": item["url"],
+                        "title": item.get("title", ""),
+                    }
+                )
+        except Exception:
+            warm_tab_pool = []
+
     return {
         "ui": ui_base,
         "api": api_base,
@@ -457,6 +483,7 @@ def build_health_json(
         "frontendEpoch": parts["frontend_epoch"],
         "chromeEpoch": parts["chrome_epoch"],
         "muxEpoch": parts["mux_epoch"],
+        "warmTabPool": warm_tab_pool,
     }
 
 

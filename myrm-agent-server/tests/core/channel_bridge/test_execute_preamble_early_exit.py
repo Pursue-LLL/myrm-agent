@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.channels.types import InboundMessage, OutboundMessage
 from app.core.channel_bridge.agent_executor.execute_preamble_agent import (
     build_channel_execution_agent,
+)
+from app.core.channel_bridge.agent_executor.execute_preamble_types import (
+    ChannelAgentBuildOutcome,
+    ChannelAgentBuildResult,
 )
 from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.types.business import ModelConfig
@@ -146,3 +150,23 @@ async def test_build_agent_returns_search_not_configured_when_missing_service() 
     assert outcome.early_reply is not None
     assert isinstance(outcome.early_reply, OutboundMessage)
     assert "搜索" in outcome.early_reply.content
+
+
+def test_channel_agent_build_outcome_rejects_invalid_xor_states() -> None:
+    with pytest.raises(ValueError, match="exactly one of result or early_reply"):
+        ChannelAgentBuildOutcome()
+
+    mock_reply = OutboundMessage(
+        channel="telegram",
+        recipient_id="chat-1",
+        content="blocked",
+        user_id="user-1",
+    )
+    mock_result = ChannelAgentBuildResult(
+        agent=MagicMock(),
+        token_ctx=MagicMock(),
+        query_input="query",
+        params=MagicMock(),
+    )
+    with pytest.raises(ValueError, match="exactly one of result or early_reply"):
+        ChannelAgentBuildOutcome(result=mock_result, early_reply=mock_reply)

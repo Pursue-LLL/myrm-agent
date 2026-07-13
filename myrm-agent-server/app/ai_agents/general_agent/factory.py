@@ -255,7 +255,7 @@ async def build_general_agent(
 
             goal_tools = create_goal_tools(goal_provider, effective_chat_id)
             tools.extend(goal_tools)
-            logger.info("🎯 已加载目标导向工具: get_goal_status_tool, update_goal_status_tool")
+            logger.info("🎯 已加载目标导向工具: update_goal_status_tool")
 
     # 4.5 Channel notification tool (Turn1 when notify_targets configured)
     channel_notify_tool_loaded = False

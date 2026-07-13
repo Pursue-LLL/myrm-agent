@@ -6,11 +6,16 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any
+
+from cdp_warm_tab_pool import MAX_WARM_TAB_POOL, merge_warm_tab, warmth_state_file
+from cdp_write_guard import assert_cdp_write_allowed
 
 _HYDRATED_EXPRESSION = """
 (() => {
@@ -32,6 +37,7 @@ def _fetch_json(url: str, *, timeout: float = 10.0, method: str = "GET") -> Any:
 
 
 def _create_target(cdp_port: int, page_url: str) -> dict[str, Any]:
+    assert_cdp_write_allowed(operation="json/new")
     encoded = urllib.request.quote(page_url, safe="")
     data = _fetch_json(
         f"http://127.0.0.1:{cdp_port}/json/new?{encoded}",
@@ -143,23 +149,57 @@ async def _close_target(cdp_port: int, target_id: str) -> None:
             pass
 
 
-async def _run_warmup(*, cdp_port: int, page_url: str, timeout_sec: float, poll_ms: int) -> None:
+def _persist_warm_tab(
+    *,
+    target_id: str,
+    url: str,
+    title: str,
+    state_file: Path | None,
+) -> None:
+    path = state_file or warmth_state_file()
+    pool = merge_warm_tab(target_id=target_id, url=url, title=title, state_file=path)
+    print(
+        f"WARM_TAB_POOL_SIZE={len(pool)} MAX={MAX_WARM_TAB_POOL} TARGET={target_id}",
+        file=sys.stderr,
+    )
+
+
+async def _run_warmup(
+    *,
+    cdp_port: int,
+    page_url: str,
+    timeout_sec: float,
+    poll_ms: int,
+    keep_tab: bool,
+    state_file: Path | None,
+) -> None:
     last_error = "unknown"
     for attempt in range(1, 3):
         target = _create_target(cdp_port, page_url)
         ws_url = str(target["webSocketDebuggerUrl"])
         target_id = target.get("id")
+        title = target.get("title")
+        tab_title = str(title) if isinstance(title, str) else ""
+        ready = False
         try:
             ready = await _wait_for_hydration(
                 ws_url, page_url, timeout_sec=timeout_sec, poll_ms=poll_ms
             )
             if ready:
+                if isinstance(target_id, str) and target_id and keep_tab:
+                    _persist_warm_tab(
+                        target_id=target_id,
+                        url=page_url,
+                        title=tab_title,
+                        state_file=state_file,
+                    )
                 return
             last_error = f"hydration timeout after {timeout_sec:.0f}s (attempt {attempt})"
         except Exception as exc:
             last_error = f"{exc} (attempt {attempt})"
         finally:
-            if isinstance(target_id, str) and target_id:
+            should_close = isinstance(target_id, str) and target_id and (not ready or not keep_tab)
+            if should_close:
                 try:
                     await _close_target(cdp_port, target_id)
                 except Exception:
@@ -176,7 +216,17 @@ def main() -> int:
     parser.add_argument("--url", default="http://127.0.0.1:3000/")
     parser.add_argument("--timeout-sec", type=float, default=120.0)
     parser.add_argument("--poll-ms", type=int, default=500)
+    parser.add_argument(
+        "--keep-tab",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Keep hydrated tab open and register in warm_tab_pool (default: true)",
+    )
+    parser.add_argument("--state-file", default="", help="frontend-warmth.json path override")
     args = parser.parse_args()
+
+    os.environ.setdefault("MYRM_CDP_WARMUP", "1")
+    state_path = Path(args.state_file) if args.state_file else None
 
     try:
         asyncio.run(
@@ -185,6 +235,8 @@ def main() -> int:
                 page_url=args.url,
                 timeout_sec=args.timeout_sec,
                 poll_ms=args.poll_ms,
+                keep_tab=args.keep_tab,
+                state_file=state_path,
             )
         )
     except urllib.error.URLError as exc:
