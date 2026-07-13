@@ -15,8 +15,8 @@ const EmptyChat = React.memo(() => {
   const title = t('researchBegins');
 
   return (
-    <div className="relative min-h-screen">
-      <div className="flex flex-col items-center max-w-screen-md lg:max-w-[820px] mx-auto px-4 pt-[20vh] pb-8 space-y-6">
+    <div className="relative min-h-screen overflow-visible">
+      <div className="flex flex-col items-center max-w-screen-md lg:max-w-[820px] mx-auto px-4 pt-[20vh] pb-4 space-y-6">
         <h2 className="text-black/70 dark:text-white/70 text-3xl font-medium">{title}</h2>
         <div className="flex justify-center w-full">
           <WorkUnitBalanceBar />
@@ -31,9 +31,14 @@ const EmptyChat = React.memo(() => {
         <MigrationDiscoveryBanner />
 
         <SamplePrompts />
-
-        <AgentConfigPanel className="mt-4" />
       </div>
+
+      {/* Full-width bleed section — avoids narrow-column + overflow-x-hidden clipping the ink background */}
+      <section className="relative w-full overflow-visible pb-8">
+        <div className="max-w-screen-md lg:max-w-[820px] mx-auto px-4">
+          <AgentConfigPanel className="mt-4" />
+        </div>
+      </section>
     </div>
   );
 });

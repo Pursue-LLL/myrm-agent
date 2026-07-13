@@ -105,6 +105,22 @@ class CostSummary(BaseModel):
     total_savings_usd: float = 0.0
 
 
+class SkillTrendPoint(BaseModel):
+    """Single data point in a skill usage trend."""
+
+    date: str
+    success_rate: float
+    avg_duration_ms: float
+    call_count: int
+
+
+class SkillTrendSeries(BaseModel):
+    """Weekly aggregated usage trend for a single skill."""
+
+    skill_name: str
+    data_points: list[SkillTrendPoint]
+
+
 class GrowthDashboardResponse(BaseModel):
     """Full dashboard payload — single GET returns everything."""
 
@@ -113,6 +129,7 @@ class GrowthDashboardResponse(BaseModel):
     weekly_summary: WeeklySummary
     skill_events: list[SkillEvolutionEvent]
     cost_summary: CostSummary | None = None
+    skill_trends: list[SkillTrendSeries] = Field(default_factory=list)
 
 
 # ── Data fetchers (all read-only, no framework mutation) ─────────────
@@ -283,6 +300,68 @@ async def _fetch_skill_evolution_data() -> _SkillEvolutionSnapshot:
         return _SkillEvolutionSnapshot()
 
 
+class _DayBucket:
+    __slots__ = ("total", "successes", "durations")
+
+    def __init__(self) -> None:
+        self.total = 0
+        self.successes = 0
+        self.durations: list[float] = []
+
+
+async def _fetch_skill_trends() -> list[SkillTrendSeries]:
+    """Aggregate per-skill usage_history into daily trend series."""
+    try:
+        from collections import defaultdict
+
+        from app.core.skills.curator_service import get_stats_collector
+        from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
+
+        collector = get_stats_collector()
+        result: list[SkillTrendSeries] = []
+
+        for skill_root in DEFAULT_LOCAL_SKILL_PATHS:
+            expanded = Path(skill_root).expanduser()
+            if not expanded.exists():
+                continue
+            for skill_dir in expanded.iterdir():
+                if not skill_dir.is_dir() or skill_dir.name.startswith("."):
+                    continue
+                stats = collector.get_stats(skill_dir)
+                if not stats.usage_history:
+                    continue
+
+                daily: dict[str, _DayBucket] = defaultdict(_DayBucket)
+                for record in stats.usage_history:
+                    day_key = record.timestamp[:10]
+                    bucket = daily[day_key]
+                    bucket.total += 1
+                    if record.success:
+                        bucket.successes += 1
+                    bucket.durations.append(record.duration_ms)
+
+                data_points = []
+                for date_key in sorted(daily.keys()):
+                    bucket = daily[date_key]
+                    avg_dur = sum(bucket.durations) / len(bucket.durations) if bucket.durations else 0.0
+                    data_points.append(
+                        SkillTrendPoint(
+                            date=date_key,
+                            success_rate=bucket.successes / bucket.total if bucket.total > 0 else 0.0,
+                            avg_duration_ms=round(avg_dur, 1),
+                            call_count=bucket.total,
+                        )
+                    )
+
+                if data_points:
+                    result.append(SkillTrendSeries(skill_name=skill_dir.name, data_points=data_points))
+
+        return result
+    except Exception as e:
+        logger.warning("Failed to fetch skill trends: %s", e)
+        return []
+
+
 async def _fetch_cost_summary(db: AsyncSession, time_range_days: int) -> CostSummary | None:
     """Aggregate cost savings from message extra_data within the time range."""
     try:
@@ -426,12 +505,14 @@ async def get_growth_dashboard(
             weekly,
             skill_snapshot,
             cost_summary,
+            skill_trends,
         ) = await asyncio.gather(
             _fetch_memory_snapshot(),
             _fetch_activity_data(days),
             _fetch_weekly_summary(db),
             _fetch_skill_evolution_data(),
             _fetch_cost_summary(db, days),
+            _fetch_skill_trends(),
         )
 
         total_memories = sum(memory_by_type.values())
@@ -459,6 +540,7 @@ async def get_growth_dashboard(
             weekly_summary=weekly,
             skill_events=skill_snapshot.events,
             cost_summary=cost_summary,
+            skill_trends=skill_trends,
         )
 
         return success_response(data=dashboard.model_dump())

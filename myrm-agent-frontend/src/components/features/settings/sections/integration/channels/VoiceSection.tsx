@@ -186,7 +186,7 @@ const VoiceSection = memo(() => {
   const showEdgeTtsWarning = form.ttsProvider === 'edge' && edgeTtsAvailable === false;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="voice-settings-panel">
       <div className="flex items-center gap-2">
         <IconMic className="h-5 w-5 text-muted-foreground" />
         <h2 className="text-base font-semibold">{t('sectionTitle')}</h2>

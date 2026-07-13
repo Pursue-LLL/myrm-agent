@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, memo, useRef, useCallback } from 'react';
+import { useEffect, useLayoutEffect, memo, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Chat from './Chat';
 import EmptyChat from './EmptyChat';
@@ -266,7 +266,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     initConfig();
   }, [initConfig]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     initializeChat(id);
   }, [id, initializeChat]);
 
@@ -374,10 +374,10 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     }
   }, [pendingMemories, openConfirmDialog]);
 
-  if (!isMessagesLoaded) {
+  if (!isMessagesLoaded && id) {
     return (
       <>
-        {id ? <SubagentDashboard chatId={id} /> : null}
+        <SubagentDashboard chatId={id} />
         <MessageListSkeleton />
       </>
     );

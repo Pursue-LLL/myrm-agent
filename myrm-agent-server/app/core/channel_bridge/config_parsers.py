@@ -136,14 +136,11 @@ def extract_voice_config(voice_dict: dict[str, object] | None) -> "VoiceConfig |
     if not voice_dict:
         return None
 
-    stt_enabled = bool(voice_dict.get("sttEnabled", False))
-    tts_mode_raw = str(voice_dict.get("ttsMode", "off")).lower()
-    tts_mode = TTSMode(tts_mode_raw) if tts_mode_raw in ("off", "always", "inbound") else TTSMode.OFF
-
-    if not stt_enabled and tts_mode == TTSMode.OFF:
+    built = _build_voice_config_from_dict(voice_dict)
+    if not built.stt_enabled and built.tts_mode == TTSMode.OFF:
         return None
 
-    return _build_voice_config_from_dict(voice_dict)
+    return built
 
 
 def extract_web_tts_config(voice_dict: dict[str, object] | None) -> "VoiceConfig | None":

@@ -135,7 +135,7 @@ function AppLayout({
       >
         <div
           className={cn(
-            layout.isSettingsPage ? 'h-full overflow-y-auto' : 'max-w-screen-lg mx-auto px-4 pt-4',
+            layout.isSettingsPage ? 'h-full overflow-y-auto' : 'max-w-screen-lg mx-auto px-4 pt-4 overflow-visible',
           )}
         >
           <LocalBackendUnavailableBanner />

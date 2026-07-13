@@ -33,7 +33,7 @@ PersonalityStyleLiteral = Literal[
     "wenyan",
 ]
 MemoryDecayProfileLiteral = Literal["permanent", "normal", "fast"]
-PromptModeLiteral = Literal["full", "lean", "naked"]
+PromptModeLiteral = Literal["full", "lean", "naked", "search"]
 WorkspacePolicyLiteral = Literal["INHERIT_REQUESTER", "ISOLATED_COPY", "READ_ONLY_SANDBOX"]
 AgentTypeLiteral = Literal["individual", "team"]
 

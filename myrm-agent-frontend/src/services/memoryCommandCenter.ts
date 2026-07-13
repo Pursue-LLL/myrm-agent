@@ -458,8 +458,14 @@ export const runMemoryDiagnosticAction = async (
   });
 };
 
-export const getMemoryGraph = async (limit = 50, offset = 0): Promise<MemoryCommandGraphResponse> => {
-  return apiRequest<MemoryCommandGraphResponse>(`/memory/command-center/graph?limit=${limit}&offset=${offset}`);
+export const getMemoryGraph = async (
+  limit = 50,
+  offset = 0,
+  namespace?: string,
+): Promise<MemoryCommandGraphResponse> => {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (namespace) params.set('namespace', namespace);
+  return apiRequest<MemoryCommandGraphResponse>(`/memory/command-center/graph?${params.toString()}`);
 };
 
 export const runMemoryDiagnosticRepair = async (

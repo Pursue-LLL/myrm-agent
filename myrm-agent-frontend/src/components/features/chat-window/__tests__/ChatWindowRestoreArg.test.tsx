@@ -29,6 +29,9 @@ vi.mock('next-intl', () => ({
 
 vi.mock('../Chat', () => ({ default: () => <div data-testid="chat" /> }));
 vi.mock('../EmptyChat', () => ({ default: () => <textarea aria-label="message input" /> }));
+vi.mock('../MessageListSkeleton', () => ({
+  default: () => <div aria-label="Loading messages">skeleton</div>,
+}));
 vi.mock('../ToolApprovalDialog', () => ({ default: () => null }));
 vi.mock('../AgentInfoBanner', () => ({ default: () => null }));
 vi.mock('../SubagentPromptButton', () => ({ default: () => null }));
@@ -64,6 +67,19 @@ describe('ChatWindow restore_arg prefill', () => {
 
   afterEach(() => {
     useChatStore.setState({ sendMessage: originalSendMessage });
+  });
+
+  it('shows message skeleton only while loading an existing chat id', () => {
+    useChatStore.setState({ isMessagesLoaded: false, messages: [] });
+    const { getByLabelText } = render(<ChatWindow id="session-1" />);
+    expect(getByLabelText('Loading messages')).toBeInTheDocument();
+  });
+
+  it('renders empty chat on home without waiting for isMessagesLoaded', () => {
+    useChatStore.setState({ isMessagesLoaded: false, messages: [] });
+    const { getByLabelText, queryByLabelText } = render(<ChatWindow />);
+    expect(queryByLabelText('Loading messages')).not.toBeInTheDocument();
+    expect(getByLabelText('message input')).toBeInTheDocument();
   });
 
   it('waits for chat initialization before applying restore_arg', async () => {

@@ -12,7 +12,7 @@
  * 个人大脑指挥中心容器。按观察、理解、治理、验证分区展示记忆快照，编排治理动作、Memory Doctor 动作和导入回滚预演强确认。
  */
 
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/hooks/useToast';
@@ -52,9 +52,7 @@ import { useMemoryDemoSeed } from './useMemoryDemoSeed';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import MemoryHealthDashboard from './MemoryHealthDashboard';
 
-const MemoryKnowledgeGraph = lazy(() => import('./MemoryKnowledgeGraph'));
-
-const SECTIONS = ['observe', 'understand', 'act', 'verify', 'graph'] as const;
+const SECTIONS = ['observe', 'understand', 'act', 'verify'] as const;
 const HEALTH_STATUSES = ['healthy', 'degraded', 'critical', 'unknown'] as const;
 
 type Section = (typeof SECTIONS)[number];
@@ -493,17 +491,6 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
           onDoctorAction={runDoctorAction}
           onConnectClick={() => setConnectWizardOpen(true)}
         />
-      )}
-      {activeSection === 'graph' && (
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center rounded-lg border border-dashed border-border/70 p-12">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            </div>
-          }
-        >
-          <MemoryKnowledgeGraph />
-        </Suspense>
       )}
       <RollbackPreviewDialog
         open={rollbackDialogOpen}

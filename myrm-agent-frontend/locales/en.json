@@ -11318,7 +11318,23 @@
     "tabs": {
       "overview": "Overview",
       "evolution": "Evolution Digest",
+      "graph": "Knowledge Graph",
+      "trends": "Skill Trends",
       "daily": "Daily Review"
+    },
+    "knowledgeGraph": {
+      "title": "Knowledge Graph",
+      "description": "Visualize the semantic relationships between your agent's memories and knowledge."
+    },
+    "skillTrends": {
+      "title": "Skill Usage Trends",
+      "description": "Track how your skills' performance evolves over time.",
+      "empty": "No skill usage data yet. Skills will show trends after they are used.",
+      "metric": {
+        "success_rate": "Success Rate",
+        "avg_duration_ms": "Avg Duration",
+        "call_count": "Usage Count"
+      }
     },
     "patternDigest": {
       "title": "Behavioral Pattern Discovery",

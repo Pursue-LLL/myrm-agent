@@ -10787,7 +10787,23 @@
     "tabs": {
       "overview": "Overview",
       "evolution": "Evolution Digest",
+      "graph": "Wissensgraph",
+      "trends": "Skill-Trends",
       "daily": "Daily Review"
+    },
+    "knowledgeGraph": {
+      "title": "Wissensgraph",
+      "description": "Visualisieren Sie die semantischen Beziehungen zwischen den Erinnerungen und dem Wissen Ihres Agenten."
+    },
+    "skillTrends": {
+      "title": "Skill-Nutzungstrends",
+      "description": "Verfolgen Sie, wie sich die Leistung Ihrer Skills im Laufe der Zeit entwickelt.",
+      "empty": "Noch keine Skill-Nutzungsdaten. Trends werden angezeigt, sobald Skills verwendet werden.",
+      "metric": {
+        "success_rate": "Erfolgsrate",
+        "avg_duration_ms": "Durchschn. Dauer",
+        "call_count": "Nutzungsanzahl"
+      }
     },
     "patternDigest": {
       "title": "Behavioral Pattern Discovery",

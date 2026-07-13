@@ -10787,7 +10787,23 @@
     "tabs": {
       "overview": "Overview",
       "evolution": "Evolution Digest",
+      "graph": "지식 그래프",
+      "trends": "스킬 트렌드",
       "daily": "Daily Review"
+    },
+    "knowledgeGraph": {
+      "title": "지식 그래프",
+      "description": "에이전트의 기억과 지식 간의 의미적 관계를 시각화합니다."
+    },
+    "skillTrends": {
+      "title": "스킬 사용 트렌드",
+      "description": "스킬 성능이 시간에 따라 어떻게 발전하는지 추적합니다.",
+      "empty": "아직 스킬 사용 데이터가 없습니다. 스킬이 사용되면 트렌드가 표시됩니다.",
+      "metric": {
+        "success_rate": "성공률",
+        "avg_duration_ms": "평균 소요 시간",
+        "call_count": "사용 횟수"
+      }
     },
     "patternDigest": {
       "title": "Behavioral Pattern Discovery",

@@ -6,6 +6,7 @@ import { Save, Zap } from 'lucide-react';
 import AgentConfigCards from './AgentConfigCards';
 import TypewriterWelcome from './TypewriterWelcome';
 import { useAgentConfigPanel } from '@/hooks/useAgentConfigPanel';
+import { GalleryBackground } from './GalleryBackground';
 import { useTranslations } from 'next-intl';
 import { AiNetworkIcon } from 'hugeicons-react';
 import { getConfigSyncManager, type ExternalAgentConfig } from '@/services/config';
@@ -24,6 +25,8 @@ interface AgentConfigPanelProps {
   className?: string;
   /** 隐藏已保存智能体画廊（在有消息的聊天页面中使用） */
   hideGallery?: boolean;
+  /** 是否渲染泼墨背景（EmptyChat 页面启用） */
+  showInkBackground?: boolean;
 }
 
 /**
@@ -31,7 +34,7 @@ interface AgentConfigPanelProps {
  * 仅在智能代理模式下显示
  * 包含：编辑面板（四个配置卡片）+ 橱窗面板（已保存智能体画廊）
  */
-const AgentConfigPanel = ({ className, hideGallery = false }: AgentConfigPanelProps) => {
+const AgentConfigPanel = ({ className, hideGallery = false, showInkBackground = true }: AgentConfigPanelProps) => {
   // 使用自定义 Hook 获取所有状态和处理器
   const {
     // State
@@ -80,74 +83,22 @@ const AgentConfigPanel = ({ className, hideGallery = false }: AgentConfigPanelPr
   }
 
   return (
-    <div className={cn('w-full space-y-6', className)}>
+    <div className={cn('relative w-full overflow-visible', className)}>
+      {showInkBackground && (
+        <div
+          className="pointer-events-none absolute left-1/2 z-0 w-[100vw] max-w-none -translate-x-1/2"
+          style={{ top: '-1.25rem', bottom: '-1.75rem' }}
+        >
+          <GalleryBackground variant="panel" />
+        </div>
+      )}
+
+      <div className="relative z-10 space-y-6">
       {/* 编辑面板区域 - 根据展开状态显示/隐藏 */}
       {isConfigPanelExpanded && (
         <div
-          className={cn('relative py-4 px-2 overflow-hidden', 'animate-in fade-in-50 slide-in-from-top-2 duration-300')}
+          className={cn('relative py-4 px-2', 'animate-in fade-in-50 slide-in-from-top-2 duration-300')}
         >
-          {/* 不规则气泡背景 - 泼墨效果，#fefef8 暖色系 */}
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              inset: '-40px -60px -30px -60px',
-              zIndex: 0,
-            }}
-          >
-            {/* 主背景气泡 - SVG 实现不规则形状 */}
-            <svg
-              className="w-full h-full"
-              viewBox="0 0 500 300"
-              preserveAspectRatio="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <defs>
-                {/* #fefef8 暖色系渐变 - 米黄/奶油色调 */}
-                <linearGradient id="inkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#fefef8" stopOpacity="0.6" />
-                  <stop offset="30%" stopColor="#fdf9e6" stopOpacity="0.7" />
-                  <stop offset="60%" stopColor="#fefcf3" stopOpacity="0.65" />
-                  <stop offset="100%" stopColor="#fefef8" stopOpacity="0.5" />
-                </linearGradient>
-                {/* 更柔和的模糊效果 */}
-                <filter id="inkBlur" x="-30%" y="-30%" width="160%" height="160%">
-                  <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-
-              {/* 主泼墨形状 - 更不规则，更大 */}
-              <path
-                d="M40,50 
-                   C90,15 150,25 200,20
-                   C280,12 350,30 420,25
-                   C470,22 495,55 485,100
-                   C490,140 480,190 460,230
-                   C430,265 360,280 280,275
-                   C200,278 120,270 60,255
-                   C20,240 5,200 10,150
-                   C8,100 15,70 40,50 Z"
-                fill="url(#inkGradient)"
-                filter="url(#inkBlur)"
-              />
-
-              {/* 溢出的小墨滴 - #fefef8 暖色系 */}
-              <ellipse cx="470" cy="60" rx="25" ry="18" fill="#fdf9e6" fillOpacity="0.5" />
-              <ellipse cx="30" cy="220" rx="22" ry="15" fill="#fefcf3" fillOpacity="0.5" />
-              <circle cx="485" cy="180" r="18" fill="#fefef8" fillOpacity="0.45" />
-              <circle cx="15" cy="80" r="20" fill="#fdf9e6" fillOpacity="0.48" />
-
-              {/* 飞溅的小点 */}
-              <circle cx="495" cy="120" r="8" fill="#fefcf3" fillOpacity="0.5" />
-              <circle cx="5" cy="150" r="6" fill="#fefef8" fillOpacity="0.5" />
-              <circle cx="460" cy="260" r="10" fill="#fdf9e6" fillOpacity="0.45" />
-              <circle cx="40" cy="35" r="7" fill="#fefcf3" fillOpacity="0.48" />
-            </svg>
-          </div>
-
           {/* 指向智能体按钮的箭头 - 在气泡外面 */}
           <div
             className="absolute -top-8 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none"
@@ -279,6 +230,8 @@ const AgentConfigPanel = ({ className, hideGallery = false }: AgentConfigPanelPr
           </Suspense>
         </div>
       )}
+
+      </div>
 
       {/* 编辑弹窗 - 懒加载 */}
       <Suspense fallback={null}>

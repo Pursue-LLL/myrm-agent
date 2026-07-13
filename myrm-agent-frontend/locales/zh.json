@@ -11289,7 +11289,23 @@
     "tabs": {
       "overview": "总览",
       "evolution": "进化复盘",
+      "graph": "知识图谱",
+      "trends": "技能趋势",
       "daily": "每日回顾"
+    },
+    "knowledgeGraph": {
+      "title": "知识图谱",
+      "description": "可视化 Agent 记忆与知识之间的语义关联。"
+    },
+    "skillTrends": {
+      "title": "技能使用趋势",
+      "description": "追踪技能的使用效率如何随时间演进。",
+      "empty": "暂无技能使用数据，技能被使用后会自动展示趋势。",
+      "metric": {
+        "success_rate": "成功率",
+        "avg_duration_ms": "平均耗时",
+        "call_count": "使用次数"
+      }
     },
     "patternDigest": {
       "title": "行为模式发现",

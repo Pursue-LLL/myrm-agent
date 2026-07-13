@@ -12,7 +12,7 @@
 | `ExtractToSkillButton.tsx` | 组件 | 一键提炼 assistant 消息为可复用技能（通过 /learn 命令触发技能进化管线） | ✅ |
 | `ExportMenu.tsx` | 组件 | 导出单条/会话为 Markdown/PDF 等 | ✅ |
 | `MemoryFeedback.tsx` | 组件 | 记忆召回质量 thumbs up/down 反馈 | ✅ |
-| `ReadAloud.tsx` | 组件 | TTS 朗读 assistant 消息 | ✅ |
+| `ReadAloud.tsx` | 组件 | TTS 朗读 assistant 消息（browser 默认本地 SpeechSynthesis；API 模式走 `/tts`，受 `voice_interaction` feature gate 隐藏） | ✅ |
 | `RegenerateMenu.tsx` | 组件 | 重新生成/换模型/regenerate 分支菜单 | ✅ |
 | `RevertFiles.tsx` | 组件 | 消息级文件变更撤销（每条 AI 回复旁） | ✅ |
 | `SessionRevertButton.tsx` | 组件 | 会话级一键撤销所有 AI 文件变更（调用 POST /files/revert/session） | ✅ |

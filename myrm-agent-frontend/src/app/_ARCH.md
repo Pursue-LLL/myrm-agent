@@ -16,6 +16,8 @@
 | `/projects` | Projects Dashboard 聚合入口（Kanban / Cron / Artifacts） | 全模式 |
 | `/library`, `/brain` | 资料库 | 全模式 |
 | `/kanban`, `/artifacts`, `/cron` 等 | 功能页（通过 Projects Dashboard 聚合访问） | 全模式 |
+| `/journey` | 学习旅程统一页（成长仪表盘 + 知识图谱 + 技能趋势） | 全模式 |
+| `/growth` | 301 重定向 → `/journey` | 全模式 |
 | `/skill-optimization` | 技能优化 A/B 对比页（`skill-optimization/page.tsx`，e2e 覆盖） | 全模式 |
 | `/batch-optimization`, `/batch-optimization/[batchId]` | 批量技能优化列表与详情 — 见 [batch-optimization/_ARCH.md](batch-optimization/_ARCH.md) | 全模式 |
 | `/pricing`, `/subscription`, `/payment/*` | 计费与订阅 | SaaS 为主 |

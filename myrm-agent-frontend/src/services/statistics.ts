@@ -441,12 +441,25 @@ export interface CostSummary {
   total_savings_usd: number;
 }
 
+export interface SkillTrendPoint {
+  date: string;
+  success_rate: number;
+  avg_duration_ms: number;
+  call_count: number;
+}
+
+export interface SkillTrendSeries {
+  skill_name: string;
+  data_points: SkillTrendPoint[];
+}
+
 export interface GrowthDashboardData {
   snapshot: GrowthSnapshot;
   activity_heatmap: ActivityDay[];
   weekly_summary: WeeklySummary;
   skill_events: SkillEvolutionEvent[];
   cost_summary: CostSummary | null;
+  skill_trends: SkillTrendSeries[];
 }
 
 export async function getGrowthDashboard(days = 84): Promise<GrowthDashboardData> {

@@ -9,7 +9,6 @@ import { Button } from '@/components/primitives/button';
 import type { PresetAgent } from '@/types/presetAgent';
 import type { AgentListItem } from '@/services/agent';
 import { useAgentGallery } from '@/hooks/useAgentGallery';
-import { GalleryBackground } from './GalleryBackground';
 import PresetAgentCard from './PresetAgentCard';
 import CustomAgentCard from './CustomAgentCard';
 import TemplateMarket from './TemplateMarket';
@@ -61,10 +60,7 @@ const PresetAgentGallery = ({
   });
 
   return (
-    <div className={cn('relative overflow-hidden', className)}>
-      {/* 泼墨背景效果 - 紫色系 */}
-      <GalleryBackground />
-
+    <div className={cn('relative', className)}>
       <div className="relative z-10 space-y-4 py-4 px-2">
         {/* 标题行 */}
         <div className="flex items-center justify-between px-1">

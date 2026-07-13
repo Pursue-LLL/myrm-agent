@@ -10787,7 +10787,23 @@
     "tabs": {
       "overview": "Overview",
       "evolution": "Evolution Digest",
+      "graph": "ナレッジグラフ",
+      "trends": "スキルトレンド",
       "daily": "Daily Review"
+    },
+    "knowledgeGraph": {
+      "title": "ナレッジグラフ",
+      "description": "エージェントの記憶と知識の意味的関係を可視化します。"
+    },
+    "skillTrends": {
+      "title": "スキル使用トレンド",
+      "description": "スキルのパフォーマンスが時間とともにどう進化するかを追跡します。",
+      "empty": "スキル使用データがまだありません。スキルが使用されるとトレンドが表示されます。",
+      "metric": {
+        "success_rate": "成功率",
+        "avg_duration_ms": "平均所要時間",
+        "call_count": "使用回数"
+      }
     },
     "patternDigest": {
       "title": "Behavioral Pattern Discovery",

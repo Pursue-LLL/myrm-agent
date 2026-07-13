@@ -84,26 +84,41 @@ async def get_memory_plane_summary(
 async def get_memory_graph(
     limit: int = 50,
     offset: int = 0,
+    namespace: str | None = None,
     memory_manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> MemoryCommandGraphResponse:
-    """Return claim graph nodes and edges for visualization."""
+    """Return claim graph nodes and edges for visualization.
+
+    Args:
+        namespace: Filter nodes by primary_namespace property. None = show all.
+    """
 
     if not memory_manager.has_graph:
         return MemoryCommandGraphResponse(has_graph=False)
 
     graph = memory_manager._graph
-    nodes_raw = await graph.list_nodes(limit=min(max(limit, 1), 200), offset=max(offset, 0))
-    rels_raw = await graph.list_relationships(limit=min(max(limit, 1), 200), offset=max(offset, 0))
+    safe_limit = min(max(limit, 1), 200)
+    safe_offset = max(offset, 0)
+    nodes_raw = await graph.list_nodes(limit=safe_limit, offset=safe_offset)
+    rels_raw = await graph.list_relationships(limit=safe_limit, offset=safe_offset)
     stats_raw = await graph.get_stats()
 
-    nodes = [MemoryCommandGraphNode(id=n.id, labels=n.labels, properties=n.properties) for n in nodes_raw]
+    namespaces = [namespace] if namespace else None
+
+    filtered_nodes = [
+        n for n in nodes_raw if not namespaces or str(n.properties.get("primary_namespace", "")).strip() in namespaces
+    ]
+    filtered_node_ids = {n.id for n in filtered_nodes}
+
+    nodes = [MemoryCommandGraphNode(id=n.id, labels=n.labels, properties=n.properties) for n in filtered_nodes]
     edges = [
         MemoryCommandGraphEdge(id=r.id, source=r.start_id, target=r.end_id, rel_type=r.rel_type, properties=r.properties)
         for r in rels_raw
+        if r.start_id in filtered_node_ids and r.end_id in filtered_node_ids
     ]
     stats = MemoryCommandGraphStats(
-        node_count=stats_raw.node_count,
-        relationship_count=stats_raw.relationship_count,
+        node_count=len(nodes),
+        relationship_count=len(edges),
         node_label_counts=stats_raw.node_label_counts,
         relationship_type_counts=stats_raw.relationship_type_counts,
     )

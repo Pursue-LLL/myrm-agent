@@ -34,6 +34,9 @@ class ConnectionManager {
       method: 'GET',
       headers,
       signal: this.abortController.signal,
+      // Keep multiplex SSE alive in background tabs; default library behavior
+      // aborts on visibilitychange and surfaces AbortError in the console.
+      openWhenHidden: true,
       async onopen(response) {
         if (response.ok && response.headers.get('content-type')?.includes('text/event-stream')) {
           ConnectionManager.getInstance().fetchActiveSessionsSnapshot();
@@ -64,6 +67,7 @@ class ConnectionManager {
         }
       },
       onerror(err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
         console.error('Workspace stream error:', err);
       },
       onclose() {
@@ -74,7 +78,7 @@ class ConnectionManager {
 
   public disconnect() {
     if (this.abortController) {
-      this.abortController.abort();
+      this.abortController.abort('Workspace stream disconnected');
       this.abortController = null;
     }
     this.isConnected = false;

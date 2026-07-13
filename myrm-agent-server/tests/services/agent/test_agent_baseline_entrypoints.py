@@ -10,7 +10,7 @@ _SERVER_ROOT = Path(__file__).resolve().parents[3]
 
 _ENTRYPOINTS: tuple[tuple[str, str], ...] = (
     ("app/services/agent/params/converter.py", "apply_agent_baseline_tool_flags"),
-    ("app/core/channel_bridge/agent_executor/executor.py", "apply_agent_baseline_tool_flags"),
+    ("app/core/channel_bridge/agent_executor/execute_preamble_agent.py", "apply_agent_baseline_tool_flags"),
     ("app/core/cron/adapters/agent_runner.py", "apply_agent_baseline_tool_flags"),
     ("app/services/kanban/task_runner.py", "apply_agent_baseline_tool_flags"),
     ("app/api/voice/agent_bridge.py", "apply_agent_baseline_tool_flags"),

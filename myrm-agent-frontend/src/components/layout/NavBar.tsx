@@ -102,7 +102,7 @@ function NavBarInner({
   }[] = [
     { id: 'health', icon: InvestigationIcon, label: t('nav.health'), href: '/health' },
     { id: 'security-center', icon: Shield, label: t('nav.securityCenter'), href: '/security' },
-    { id: 'growth', icon: TrendingUp, label: t('growthDashboard.title'), href: '/growth' },
+    { id: 'journey', icon: TrendingUp, label: t('growthDashboard.title'), href: '/journey' },
     { id: 'skills', icon: Wand2, label: t('settings.menu.skills'), settingsTab: 'skills' },
     { id: 'mcp', icon: Plug, label: t('settings.menu.mcp'), settingsTab: 'mcp' },
     ...(enableEvalLab ? [{ id: 'eval-lab', icon: FlaskConical, label: t('nav.evalLab'), href: '/eval-lab' }] : []),

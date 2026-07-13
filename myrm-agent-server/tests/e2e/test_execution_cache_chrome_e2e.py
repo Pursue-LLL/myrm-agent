@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import sys
 import time
@@ -28,6 +29,31 @@ CHAT_ID_RE = re.compile(
     re.IGNORECASE,
 )
 API_URL = "http://127.0.0.1:8080"
+_PAGE_PROBE_JS = """(() => {
+  const input = document.querySelector('[data-chat-input]');
+  const skeleton = !!document.querySelector('[aria-label="Loading messages"]');
+  return {
+    hasInput: !!input,
+    skeleton,
+    hasLayout: !!document.querySelector('[data-testid="app-layout"]'),
+    path: location.pathname,
+  };
+})()"""
+
+_RESET_CHAT_JS = """(() => {
+  if (document.querySelector('[data-chat-input]')) {
+    return { ok: true, mode: 'already' };
+  }
+  const newBtn = Array.from(document.querySelectorAll('aside button')).find((b) => {
+    const text = (b.textContent || '').trim();
+    return text.includes('新对话') || text.includes('New chat');
+  });
+  if (newBtn) {
+    newBtn.click();
+    return { ok: true, mode: 'new-chat' };
+  }
+  return { ok: false, mode: 'no-button' };
+})()"""
 
 
 def _provider_ready() -> bool:
@@ -121,6 +147,151 @@ def _chrome_page_ws() -> str | None:
     return _create_fresh_page_ws()
 
 
+async def _probe_page_state(ws_url: str) -> dict[str, object]:
+    import websockets
+
+    try:
+        async with websockets.connect(ws_url, max_size=10**7, open_timeout=8) as ws:
+            await ws.send(
+                json.dumps(
+                    {
+                        "id": 1,
+                        "method": "Runtime.evaluate",
+                        "params": {"expression": _PAGE_PROBE_JS, "returnByValue": True},
+                    }
+                )
+            )
+            raw = await asyncio.wait_for(ws.recv(), timeout=15)
+            result = json.loads(raw)
+            payload = result.get("result", {}).get("result", {})
+            value = payload.get("value")
+            return value if isinstance(value, dict) else {}
+    except Exception:
+        return {}
+
+
+async def _ensure_chat_input_on_ws(ws_url: str, *, timeout_sec: float = 120.0) -> dict[str, object]:
+    import websockets
+
+    deadline = time.monotonic() + timeout_sec
+    msg_id = 0
+    last: dict[str, object] = {}
+
+    async with websockets.connect(ws_url, max_size=10**7, open_timeout=10) as ws:
+        async def cdp_call(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+            nonlocal msg_id
+            msg_id += 1
+            await ws.send(json.dumps({"id": msg_id, "method": method, "params": params or {}}))
+            while True:
+                raw = await asyncio.wait_for(ws.recv(), timeout=30)
+                result = json.loads(raw)
+                if result.get("id") != msg_id:
+                    continue
+                payload = result.get("result")
+                return payload if isinstance(payload, dict) else {}
+
+        async def ev(expr: str) -> object:
+            nonlocal msg_id
+            msg_id += 1
+            await ws.send(
+                json.dumps(
+                    {
+                        "id": msg_id,
+                        "method": "Runtime.evaluate",
+                        "params": {"expression": expr, "returnByValue": True},
+                    }
+                )
+            )
+            raw = await asyncio.wait_for(ws.recv(), timeout=30)
+            result = json.loads(raw)
+            payload = result.get("result", {}).get("result", {})
+            return payload.get("value")
+
+        await cdp_call("Runtime.enable")
+        await cdp_call("Page.enable")
+        await cdp_call("Page.navigate", {"url": BASE_URL + "/"})
+        await asyncio.sleep(2)
+
+        polls = 0
+        while time.monotonic() < deadline:
+            polls += 1
+            state = await ev(_PAGE_PROBE_JS)
+            last = state if isinstance(state, dict) else {"probeError": state}
+            if last.get("hasInput") and not last.get("skeleton"):
+                return last
+            if polls % 10 == 0:
+                await ev(_RESET_CHAT_JS)
+            await asyncio.sleep(1)
+
+    raise AssertionError(f"Chat input not ready within {timeout_sec:.0f}s: {last}")
+
+
+def _run_client_warmup() -> None:
+    warmup_py = (
+        Path(__file__).resolve().parents[3]
+        / "scripts"
+        / "dev"
+        / "lib"
+        / "frontend-client-warmup.py"
+    )
+    if not warmup_py.is_file():
+        pytest.skip(f"Missing client warmup script: {warmup_py}")
+    import subprocess
+
+    env = os.environ.copy()
+    env.setdefault("MYRM_CDP_WARMUP", "1")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(warmup_py),
+            "--cdp-port",
+            "9333",
+            "--url",
+            BASE_URL + "/",
+            "--timeout-sec",
+            "120",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=150,
+        check=False,
+    )
+    if result.returncode != 0:
+        pytest.fail(
+            "frontend client warmup failed — run ./myrm restart --chrome\n"
+            f"{result.stderr.strip() or result.stdout.strip()}"
+        )
+
+
+def _warm_tab_ws() -> str | None:
+    dev_lib = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    try:
+        from cdp_warm_tab_pool import reusable_warm_target
+
+        warm = reusable_warm_target()
+        if warm is None:
+            return None
+        ws = warm.get("webSocketDebuggerUrl")
+        return str(ws) if isinstance(ws, str) else None
+    except Exception:
+        return None
+
+
+def _resolve_healthy_chrome_ws() -> str:
+    """Attach to warm-tab pool entry with verified chat input."""
+    ws_url = _warm_tab_ws()
+    if ws_url is None:
+        _run_client_warmup()
+        ws_url = _warm_tab_ws()
+    if ws_url is None:
+        pytest.skip("No warm :3000 tab after client warmup — run ./myrm ready --chrome")
+    asyncio.run(_ensure_chat_input_on_ws(ws_url))
+    return ws_url
+
+
 @pytest.fixture(scope="module")
 def _chrome_client_hot() -> None:
     """Ensure Next client chunk is warm before CDP UI interaction.
@@ -145,10 +316,8 @@ def _extract_chat_id(url: str) -> str | None:
 
 @pytest.fixture
 def chrome_ws(_chrome_client_hot: None) -> str:
-    ws_url = _chrome_page_ws()
-    if not ws_url:
-        pytest.skip("Chrome E2E not available (port 9333 — run ./myrm ready --chrome first)")
-    return ws_url
+    """Attach to a hydrated warm tab when possible."""
+    return _resolve_healthy_chrome_ws()
 
 
 @pytest.mark.e2e
@@ -178,7 +347,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
                 )
             )
             while True:
-                raw = await asyncio.wait_for(ws.recv(), timeout=180)
+                raw = await asyncio.wait_for(ws.recv(), timeout=30)
                 result = json.loads(raw)
                 if result.get("id") != mid[0]:
                     continue
@@ -189,124 +358,58 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
                     return payload["value"]
                 return payload.get("description")
 
-        ready: dict[str, object] = {"hasInput": False}
-        nav = await ev(
-            f"""( () => {{
-              const input = document.querySelector('[data-chat-input]');
-              const onHome = location.pathname === '/' || /^\\/c-/.test(location.pathname);
-              if (input && onHome) return {{ skipped: true, path: location.pathname }};
-              window.location.replace({json.dumps(BASE_URL + '/')});
-              return {{ navigated: true }};
-            }})()""",
-            await_promise=False,
-        )
-        if isinstance(nav, dict) and nav.get("navigated"):
-            await asyncio.sleep(2)
-        for _ in range(120):
-            ready = await ev(
+        async def page_state() -> dict[str, object]:
+            result = await ev(
                 """(() => {
                   const input = document.querySelector('[data-chat-input]');
                   const bodyText = document.body.innerText || '';
-                  const unconfigured = bodyText.includes('未配置');
+                  const skeleton = !!document.querySelector('[aria-label="Loading messages"]');
                   const hasLayout = !!document.querySelector('[data-testid="app-layout"]');
                   const hasModelChip = /mimo|MiniMax|openai-like|gpt-/i.test(bodyText);
                   const path = location.pathname;
                   const onChatHome = path === '/' || /^\\/c-/.test(path);
                   const scanningMigration = bodyText.includes('正在扫描本地 AI 助手数据');
+                  const btn = document.querySelector('.message-send-btn');
                   return {
                     hasInput: !!input,
-                    unconfigured,
+                    skeleton,
                     hasLayout,
                     hasModelChip,
                     path,
                     onChatHome,
                     scanningMigration,
+                    sendDisabled: !!btn?.disabled,
+                    inputLen: (input?.value || '').length,
                     readyState: document.readyState,
                   };
                 })()""",
                 await_promise=False,
             )
-            if (
-                isinstance(ready, dict)
-                and ready.get("hasInput")
-                and ready.get("hasLayout")
-                and ready.get("onChatHome")
-                and not ready.get("scanningMigration")
-            ):
-                break
-            await asyncio.sleep(1)
-        await asyncio.sleep(3)
-        assert isinstance(ready, dict) and ready.get("hasInput"), f"Chat input missing: {ready}"
-        await ev(
-            """(() => {
-              sessionStorage.setItem('migration_discovery_dismissed', 'true');
-              sessionStorage.setItem('competitor_migration_dismissed', 'true');
-              return { ok: true };
-            })()""",
-            await_promise=False,
-        )
+            if not isinstance(result, dict):
+                return {"hasInput": False, "probeError": result}
+            return result
 
-        for _ in range(60):
-            if _provider_ready():
-                break
-            await asyncio.sleep(1)
-        else:
+        if not _provider_ready():
             pytest.skip(
                 "Provider config not ready in E2E profile — configure model at /settings/models "
                 "(API /api/v1/config/readiness provider.is_ready must be true)"
             )
 
-        for _ in range(60):
-            fe_ready = await ev(
-                """(async () => {
-                  try {
-                    const res = await fetch('/api/v1/config/readiness');
-                    const data = await res.json();
-                    return data?.provider?.is_ready === true;
-                  } catch {
-                    return false;
-                  }
-                })()""",
-            )
-            if fe_ready is True:
-                break
-            await asyncio.sleep(1)
-
         await ev(
             """(() => {
-              const dismiss = Array.from(document.querySelectorAll('button')).find((b) => {
+              sessionStorage.setItem('migration_discovery_dismissed', 'true');
+              sessionStorage.setItem('competitor_migration_dismissed', 'true');
+              Array.from(document.querySelectorAll('button')).forEach((b) => {
                 const text = (b.textContent || '').trim();
-                return text.includes('稍后再说') || text.includes('Later') || text.includes('Skip for now');
+                if (/稍后再说|Later|Skip for now|关闭|Dismiss|Not now/i.test(text)) {
+                  b.click();
+                }
               });
-              dismiss?.click();
-              const newBtn = Array.from(document.querySelectorAll('aside button'))
-                .find((b) => {
-                  const text = (b.textContent || '').trim();
-                  return text.includes('新对话') || text.includes('New chat');
-                });
-              newBtn?.click();
-              return { mode: 'new', clicked: !!newBtn, dismissed: !!dismiss, path: location.pathname };
+              return { ok: true };
             })()""",
             await_promise=False,
         )
-        await asyncio.sleep(2)
-
-        async def ensure_chat_input_ready() -> None:
-            last: dict[str, object] = {}
-            for _ in range(45):
-                last = await ev(
-                    """(() => {
-                      const input = document.querySelector('[data-chat-input]');
-                      return { hasInput: !!input, path: location.pathname };
-                    })()""",
-                    await_promise=False,
-                )
-                if isinstance(last, dict) and last.get("hasInput"):
-                    return
-                await asyncio.sleep(1)
-            pytest.fail(f"Chat input not available after new chat: {last}")
-
-        await ensure_chat_input_ready()
+        await asyncio.sleep(0.5)
 
         async def cdp(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
             mid[0] += 1
@@ -314,7 +417,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
                 json.dumps({"id": mid[0], "method": method, "params": params or {}})
             )
             while True:
-                raw = await asyncio.wait_for(ws.recv(), timeout=180)
+                raw = await asyncio.wait_for(ws.recv(), timeout=30)
                 result = json.loads(raw)
                 if result.get("id") != mid[0]:
                     continue
@@ -347,45 +450,37 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
             ):
                 await cdp("Input.dispatchKeyEvent", event)
             await cdp("Input.insertText", {"text": text})
-            synced = await ev(
-                f"""( () => {{
-                  const input = document.querySelector('[data-chat-input]');
-                  if (!input) return {{ ok: false, err: 'no input' }};
-                  const nativeSetter = Object.getOwnPropertyDescriptor(
-                    window.HTMLTextAreaElement.prototype,
-                    'value',
-                  )?.set;
-                  const tracker = input._valueTracker;
-                  if (tracker) tracker.setValue('');
-                  nativeSetter?.call(input, {json.dumps(text)});
-                  input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                  const reactKey = Object.keys(input).find((k) => k.startsWith('__reactProps'));
-                  if (reactKey && input[reactKey]?.onChange) {{
-                    input[reactKey].onChange({{ target: input, currentTarget: input }});
-                  }}
-                  const btn = document.querySelector('.message-send-btn');
-                  return {{
-                    ok: (input.value || '').trim().length > 0 && !btn?.disabled,
-                    inputLen: (input.value || '').length,
-                    sendDisabled: !!btn?.disabled,
-                  }};
-                }})()""",
-                await_promise=False,
-            )
-            if isinstance(synced, dict) and synced.get("ok"):
-                return synced
-            return await ev(
-                """(() => {
-                  const input = document.querySelector('[data-chat-input]');
-                  const btn = document.querySelector('.message-send-btn');
-                  return {
-                    ok: !!input && (input.value || '').trim().length > 0 && !btn?.disabled,
-                    inputLen: (input?.value || '').length,
-                    sendDisabled: !!btn?.disabled,
-                  };
-                })()""",
-                await_promise=False,
-            )
+            last: dict[str, object] = {"ok": False}
+            for _ in range(40):
+                last = await ev(
+                    f"""( () => {{
+                      const input = document.querySelector('[data-chat-input]');
+                      if (!input) return {{ ok: false, err: 'no input' }};
+                      const nativeSetter = Object.getOwnPropertyDescriptor(
+                        window.HTMLTextAreaElement.prototype,
+                        'value',
+                      )?.set;
+                      const tracker = input._valueTracker;
+                      if (tracker) tracker.setValue('');
+                      nativeSetter?.call(input, {json.dumps(text)});
+                      input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                      const reactKey = Object.keys(input).find((k) => k.startsWith('__reactProps'));
+                      if (reactKey && input[reactKey]?.onChange) {{
+                        input[reactKey].onChange({{ target: input, currentTarget: input }});
+                      }}
+                      const btn = document.querySelector('.message-send-btn');
+                      return {{
+                        ok: (input.value || '').trim().length > 0 && !btn?.disabled,
+                        inputLen: (input.value || '').length,
+                        sendDisabled: !!btn?.disabled,
+                      }};
+                    }})()""",
+                    await_promise=False,
+                )
+                if isinstance(last, dict) and last.get("ok"):
+                    return last
+                await asyncio.sleep(0.15)
+            return last if isinstance(last, dict) else {"ok": False}
 
         async def dismiss_modals() -> None:
             await ev(
@@ -405,44 +500,38 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
 
         async def send_via_ui(text: str = E2E_PROMPT) -> dict[str, object]:
             await dismiss_modals()
-            sample = await ev(
-                """(() => {
-                  const sampleBtn = Array.from(document.querySelectorAll('main button'))
-                    .find((b) => {
-                      if (b.closest('form')) return false;
-                      const text = (b.textContent || '').trim();
-                      if (/mimo|MiniMax|openai|gpt-|技能|MCP|内置工具|子智能体|指令|管理|实时可视化|确认/i.test(text)) {
-                        return false;
-                      }
-                      return text.length >= 8;
-                    });
-                  if (sampleBtn) {
-                    sampleBtn.click();
-                    return { ok: true, mode: 'sample', label: (sampleBtn.textContent || '').trim().slice(0, 40) };
-                  }
-                  return { ok: false, mode: 'none' };
-                })()""",
-                await_promise=False,
-            )
-            if isinstance(sample, dict) and sample.get("ok"):
-                await asyncio.sleep(0.3)
             fill = await fill_chat_input(text)
-            assert isinstance(fill, dict) and fill.get("ok"), f"UI fill failed: {fill} sample={sample}"
+            assert isinstance(fill, dict) and fill.get("ok"), f"UI fill failed: {fill}"
+            await cdp(
+                "Input.dispatchKeyEvent",
+                {"type": "keyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13},
+            )
+            await cdp(
+                "Input.dispatchKeyEvent",
+                {"type": "keyUp", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13},
+            )
             click = await ev(
                 """(() => {
                   const btn =
                     document.querySelector('button[aria-label="发送"]') ||
                     document.querySelector('.message-send-btn');
-                  const form = document.querySelector('main form');
-                  if (!btn) return { ok: false, err: 'no send button' };
-                  if (btn.disabled) return { ok: false, err: 'send disabled' };
+                  if (!btn || btn.disabled) return { ok: false, err: 'send disabled after enter' };
                   btn.click();
-                  form?.requestSubmit();
-                  return { ok: true, mode: form ? 'click+submit' : 'click' };
+                  return { ok: true, mode: 'enter+click' };
                 })()""",
                 await_promise=False,
             )
-            assert isinstance(click, dict) and click.get("ok"), f"UI send click failed: {click}"
+            if not (isinstance(click, dict) and click.get("ok")):
+                click = await ev(
+                    """(() => {
+                      const btn = document.querySelector('.message-send-btn');
+                      if (!btn || btn.disabled) return { ok: false, err: 'send disabled' };
+                      btn.click();
+                      return { ok: true, mode: 'click-only' };
+                    })()""",
+                    await_promise=False,
+                )
+            assert isinstance(click, dict) and click.get("ok"), f"UI send failed: {click} fill={fill}"
             deadline = time.monotonic() + 45.0
             post: dict[str, object] = {}
             while time.monotonic() < deadline:

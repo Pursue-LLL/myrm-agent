@@ -303,6 +303,12 @@
     color-mix(in srgb, var(--primary) 8%, transparent) 72%,
     color-mix(in srgb, var(--accent-warm) 8%, transparent) 100%
   );
+  --gallery-ink-0: color-mix(in srgb, var(--primary) 14%, transparent);
+  --gallery-ink-1: color-mix(in srgb, var(--primary) 18%, transparent);
+  --gallery-ink-2: color-mix(in srgb, var(--accent-warm) 10%, transparent);
+  --gallery-ink-3: color-mix(in srgb, var(--primary) 12%, transparent);
+  --gallery-ink-spot: color-mix(in srgb, var(--primary) 14%, transparent);
+  --gallery-ink-spot-warm: color-mix(in srgb, var(--accent-warm) 10%, transparent);
   --brand-gradient-border: linear-gradient(
     135deg,
     color-mix(in srgb, var(--primary) 40%, transparent) 0%,
@@ -392,6 +398,12 @@
     color-mix(in srgb, var(--primary) 10%, transparent) 72%,
     color-mix(in srgb, var(--accent-warm) 10%, transparent) 100%
   );
+  --gallery-ink-0: color-mix(in srgb, var(--primary) 11%, transparent);
+  --gallery-ink-1: color-mix(in srgb, var(--primary) 14%, transparent);
+  --gallery-ink-2: color-mix(in srgb, var(--accent-warm) 9%, transparent);
+  --gallery-ink-3: color-mix(in srgb, var(--primary) 10%, transparent);
+  --gallery-ink-spot: color-mix(in srgb, var(--primary) 10%, transparent);
+  --gallery-ink-spot-warm: color-mix(in srgb, var(--accent-warm) 8%, transparent);
   --brand-gradient-border: linear-gradient(
     135deg,
     color-mix(in srgb, var(--primary) 42%, transparent) 0%,

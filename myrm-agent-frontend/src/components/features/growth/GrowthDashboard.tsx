@@ -1,8 +1,20 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { lazy, Suspense, useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Brain, Zap, CalendarDays, HeartPulse, Loader2, Sprout, RefreshCw, TrendingDown, Sparkles } from 'lucide-react';
+import {
+  Brain,
+  Zap,
+  CalendarDays,
+  HeartPulse,
+  Loader2,
+  Sprout,
+  RefreshCw,
+  TrendingDown,
+  Sparkles,
+  Network,
+  BarChart3,
+} from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
@@ -15,6 +27,9 @@ import DailyJournal from './DailyJournal';
 import HealthRadar from './HealthRadar';
 import PatternDigestPanel from './PatternDigestPanel';
 import SkillEventList from './SkillEventList';
+import SkillTrendChart from './SkillTrendChart';
+
+const MemoryKnowledgeGraph = lazy(() => import('@/components/features/memory/MemoryKnowledgeGraph'));
 
 const TIME_RANGE_OPTIONS = [7, 30, 90] as const;
 type TimeRange = (typeof TIME_RANGE_OPTIONS)[number];
@@ -68,7 +83,7 @@ export default function GrowthDashboard() {
     );
   }
 
-  const { snapshot, activity_heatmap, weekly_summary, skill_events, cost_summary } = data;
+  const { snapshot, activity_heatmap, weekly_summary, skill_events, cost_summary, skill_trends } = data;
 
   const kpiCards = [
     {
@@ -154,11 +169,51 @@ export default function GrowthDashboard() {
             <Sparkles className="h-3.5 w-3.5" />
             {t('tabs.evolution')}
           </TabsTrigger>
+          <TabsTrigger value="graph" className="gap-1.5">
+            <Network className="h-3.5 w-3.5" />
+            {t('tabs.graph')}
+          </TabsTrigger>
+          <TabsTrigger value="trends" className="gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" />
+            {t('tabs.trends')}
+          </TabsTrigger>
           <TabsTrigger value="daily">{t('tabs.daily')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="evolution" className="mt-4">
           <PatternDigestPanel />
+        </TabsContent>
+
+        <TabsContent value="graph" className="mt-4">
+          <Card>
+            <CardHeader className="pb-2 px-4 pt-4 md:px-6 md:pt-5">
+              <CardTitle className="text-base font-semibold">{t('knowledgeGraph.title')}</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('knowledgeGraph.description')}</p>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 md:px-6 md:pb-5">
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center rounded-lg border border-dashed border-border/70 p-12">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  </div>
+                }
+              >
+                <MemoryKnowledgeGraph className="min-h-[450px]" />
+              </Suspense>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="trends" className="mt-4">
+          <Card>
+            <CardHeader className="pb-2 px-4 pt-4 md:px-6 md:pt-5">
+              <CardTitle className="text-base font-semibold">{t('skillTrends.title')}</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('skillTrends.description')}</p>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 md:px-6 md:pb-5">
+              <SkillTrendChart trends={skill_trends ?? []} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="daily" className="mt-4">
