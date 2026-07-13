@@ -13,9 +13,11 @@ execute_preamble 子模块：preamble 阶段数据结构与安全配置组装。
 
 from __future__ import annotations
 
+from contextvars import Token
 from dataclasses import dataclass
 
 from langgraph.types import Command
+from myrm_agent_harness.core.security.types import EphemeralUserCredential
 
 from app.ai_agents.agents import GeneralAgentParams
 from app.ai_agents.general_agent.agent import GeneralAgent
@@ -41,7 +43,7 @@ def build_security_config(
 @dataclass
 class ChannelExecutionPrep:
     agent: GeneralAgent
-    token_ctx: object
+    token_ctx: Token[tuple[EphemeralUserCredential, ...]]
     chat_id: str
     chat_history: list[object]
     query_input: str | Command[object]
@@ -64,7 +66,7 @@ class PrepareChannelExecutionResult:
 @dataclass
 class ChannelAgentBuildResult:
     agent: GeneralAgent
-    token_ctx: object
+    token_ctx: Token[tuple[EphemeralUserCredential, ...]]
     query_input: str | Command[object]
     params: GeneralAgentParams
 
