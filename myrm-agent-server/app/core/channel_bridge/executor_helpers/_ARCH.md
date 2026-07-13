@@ -22,3 +22,5 @@ ChannelAgentExecutor 执行前后辅助能力。上级文档：[../_ARCH.md](../
 - `tests/core/channel_bridge/test_artifact_deep_links.py`
 - `tests/core/channel_bridge/test_channel_image_accumulator.py`
 - `tests/core/channel_bridge/test_executor_helpers_approval.py` — approval 超时 IM 通知 user_id
+- `tests/core/channel_bridge/test_executor_helpers_history.py` — history 持久化 helper
+- `tests/core/channel_bridge/test_executor_helpers_stream.py` — stream accumulator / step_to_label

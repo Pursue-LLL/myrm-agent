@@ -103,6 +103,10 @@ def test_extract_external_agents_returns_none_for_empty() -> None:
     assert extract_external_agents({}) is None
 
 
+def test_extract_external_agents_returns_none_for_invalid_agents() -> None:
+    assert extract_external_agents({"agents": "not-a-list"}) is None
+
+
 def test_extract_external_agents_returns_agents_list() -> None:
     agents = [{"id": "a1"}]
     assert extract_external_agents({"agents": agents}) == agents
