@@ -5,7 +5,7 @@
 - CDP GET /json/list (POS: tab existence refresh)
 
 [OUTPUT]
-- merge_warm_tab() / read_warm_tab_pool() / refresh_warm_tab_pool() / pool_for_health_json()
+- merge_warm_tab() / reusable_warm_target() / refresh_warm_tab_pool() / pool_for_health_json()
 
 [POS]
 Dev infrastructure. Eliminates per-test 30s cold Turbopack compile by reusing warm :3000 tabs.
@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypedDict
 
-MAX_WARM_TAB_POOL = 3
+MAX_WARM_TAB_POOL = 1
 _HOME_URL_SUFFIX = "127.0.0.1:3000/"
 
 
@@ -132,6 +132,24 @@ def _fetch_cdp_pages(cdp_port: int) -> list[dict[str, object]]:
     return [item for item in payload if isinstance(item, dict)]
 
 
+def reusable_warm_target(
+    *, cdp_port: int = 9333, state_file: Path | None = None
+) -> dict[str, object] | None:
+    entries = read_warm_tab_pool(state_file)
+    if not entries:
+        return None
+    live_pages = {
+        str(item.get("id")): item
+        for item in _fetch_cdp_pages(cdp_port)
+        if item.get("type") == "page" and isinstance(item.get("id"), str)
+    }
+    for entry in entries:
+        page = live_pages.get(entry["targetId"])
+        if page is not None and page.get("url") == entry["url"]:
+            return page
+    return None
+
+
 def refresh_warm_tab_pool(*, cdp_port: int = 9333, state_file: Path | None = None) -> list[WarmTabEntry]:
     path = state_file or warmth_state_file()
     payload = _load_warmth(path)
@@ -146,29 +164,6 @@ def refresh_warm_tab_pool(*, cdp_port: int = 9333, state_file: Path | None = Non
     for entry in read_warm_tab_pool(path):
         if entry["targetId"] in live_ids:
             kept.append(entry)
-
-    for item in pages:
-        if len(kept) >= MAX_WARM_TAB_POOL:
-            break
-        if item.get("type") != "page":
-            continue
-        target_id = item.get("id")
-        url = item.get("url")
-        if not isinstance(target_id, str) or not isinstance(url, str):
-            continue
-        if not _is_home_tab(url):
-            continue
-        if any(existing["targetId"] == target_id for existing in kept):
-            continue
-        title = item.get("title")
-        kept.append(
-            {
-                "targetId": target_id,
-                "url": url,
-                "title": str(title) if isinstance(title, str) else "",
-                "warmedAt": _utc_now_iso(),
-            }
-        )
 
     payload["warm_tab_pool"] = kept[:MAX_WARM_TAB_POOL]
     _save_warmth(path, payload)

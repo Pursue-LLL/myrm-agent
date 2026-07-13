@@ -12,31 +12,62 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Protocol
 
-from cdp_warm_tab_pool import MAX_WARM_TAB_POOL, merge_warm_tab, warmth_state_file
+from cdp_warm_tab_pool import (
+    MAX_WARM_TAB_POOL,
+    merge_warm_tab,
+    reusable_warm_target,
+    warmth_state_file,
+)
 from cdp_write_guard import assert_cdp_write_allowed
 
 _HYDRATED_EXPRESSION = """
 (() => {
   const layout = document.querySelector('[data-testid="app-layout"]');
-  if (layout) return true;
-  const skeleton = document.querySelector('[data-testid="app-shell-skeleton"]');
-  if (skeleton) return false;
-  if (document.readyState !== 'complete') return false;
-  const text = (document.body && document.body.innerText) ? document.body.innerText.trim() : '';
-  return text.length > 20;
+  if (!layout) {
+    const shellSkeleton = document.querySelector('[data-testid="app-shell-skeleton"]');
+    if (shellSkeleton) return false;
+    if (document.readyState !== 'complete') return false;
+    return false;
+  }
+  const listSkeleton = document.querySelector('[aria-label="Loading messages"]');
+  if (listSkeleton) return false;
+  return !!document.querySelector('[data-chat-input]');
+})()
+""".strip()
+
+_RESET_CHAT_EXPRESSION = """
+(() => {
+  if (document.querySelector('[data-chat-input]')) {
+    return { ok: true, mode: 'already' };
+  }
+  const newBtn = Array.from(document.querySelectorAll('aside button')).find((b) => {
+    const text = (b.textContent || '').trim();
+    return text.includes('新对话') || text.includes('New chat');
+  });
+  if (newBtn) {
+    newBtn.click();
+    return { ok: true, mode: 'new-chat' };
+  }
+  return { ok: false, mode: 'no-button' };
 })()
 """.strip()
 
 
-def _fetch_json(url: str, *, timeout: float = 10.0, method: str = "GET") -> Any:
+class CdpSocket(Protocol):
+    async def send(self, message: str) -> None: ...
+
+    async def recv(self) -> str | bytes: ...
+
+
+def _fetch_json(url: str, *, timeout: float = 10.0, method: str = "GET") -> object:
     req = urllib.request.Request(url, method=method)
     with urllib.request.urlopen(req, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
-def _create_target(cdp_port: int, page_url: str) -> dict[str, Any]:
+def _create_target(cdp_port: int, page_url: str) -> dict[str, object]:
     assert_cdp_write_allowed(operation="json/new")
     encoded = urllib.request.quote(page_url, safe="")
     data = _fetch_json(
@@ -53,14 +84,14 @@ def _create_target(cdp_port: int, page_url: str) -> dict[str, Any]:
 
 
 async def _cdp_request(
-    ws: Any,
+    ws: CdpSocket,
     msg_id: int,
     method: str,
-    params: dict[str, Any] | None = None,
+    params: dict[str, object] | None = None,
     *,
     deadline: float,
-) -> dict[str, Any]:
-    payload: dict[str, Any] = {"id": msg_id, "method": method}
+) -> dict[str, object]:
+    payload: dict[str, object] = {"id": msg_id, "method": method}
     if params is not None:
         payload["params"] = params
     await ws.send(json.dumps(payload))
@@ -71,11 +102,14 @@ async def _cdp_request(
             raise TimeoutError(f"CDP request timed out: {method}")
         raw = await asyncio.wait_for(ws.recv(), timeout=min(3.0, remaining))
         message = json.loads(raw)
+        if not isinstance(message, dict):
+            continue
         if message.get("id") != msg_id:
             continue
         if "error" in message:
             err = message["error"]
-            raise RuntimeError(f"CDP {method} failed: {err.get('message', err)}")
+            detail = err.get("message", err) if isinstance(err, dict) else err
+            raise RuntimeError(f"CDP {method} failed: {detail}")
         return message
 
 
@@ -107,7 +141,9 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
             deadline=deadline,
         )
 
+        poll_count = 0
         while time.monotonic() < deadline:
+            poll_count += 1
             try:
                 result = await _cdp_request(
                     ws,
@@ -120,9 +156,22 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
                 await asyncio.sleep(poll_ms / 1000.0)
                 continue
 
-            value = result.get("result", {}).get("result", {}).get("value")
+            outer_result = result.get("result")
+            inner_result = outer_result.get("result") if isinstance(outer_result, dict) else None
+            value = inner_result.get("value") if isinstance(inner_result, dict) else None
             if value is True:
                 return True
+            if poll_count % 10 == 0:
+                try:
+                    await _cdp_request(
+                        ws,
+                        await next_id(),
+                        "Runtime.evaluate",
+                        {"expression": _RESET_CHAT_EXPRESSION, "returnByValue": True},
+                        deadline=deadline,
+                    )
+                except (TimeoutError, RuntimeError):
+                    pass
             await asyncio.sleep(poll_ms / 1000.0)
 
     return False
@@ -135,6 +184,8 @@ async def _close_target(cdp_port: int, target_id: str) -> None:
         return
 
     version = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/version", timeout=5.0)
+    if not isinstance(version, dict):
+        return
     browser_ws = version.get("webSocketDebuggerUrl")
     if not isinstance(browser_ws, str):
         return
@@ -175,7 +226,13 @@ async def _run_warmup(
 ) -> None:
     last_error = "unknown"
     for attempt in range(1, 3):
-        target = _create_target(cdp_port, page_url)
+        target = (
+            reusable_warm_target(cdp_port=cdp_port, state_file=state_file)
+            if attempt == 1 and keep_tab
+            else None
+        )
+        if target is None:
+            target = _create_target(cdp_port, page_url)
         ws_url = str(target["webSocketDebuggerUrl"])
         target_id = target.get("id")
         title = target.get("title")

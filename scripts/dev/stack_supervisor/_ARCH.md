@@ -15,7 +15,7 @@
 |------|------|
 | `stack-supervisor.sh` | Bash 启动器：`start` / `stop` / `rpc <cmd>`；daemon argv 携带 `--state-dir`，清理严格按 state 隔离 |
 | `__main__.py` | `python -m stack_supervisor` CLI 入口 |
-| `daemon.py` | Unix socket RPC 服务 + 看门狗线程 + 失温冷却自愈 |
+| `daemon.py` | Unix socket RPC 服务 + 看门狗线程 + 失温冷却自愈；`TimeoutExpired` stderr 安全解码（str/bytes） |
 | `client.py` | RPC 客户端；`dev-stack.sh` 委托入口 |
 | `probe.py` | live 探活（pid / lsof / HTTP） |
 | `state_gc.py` | 进程死亡时清理 warmth、epoch、stale pid |
