@@ -9,11 +9,12 @@
     "src/app/globals.css"
   ],
   "scripts": {
-    "dev": "bun run scripts/dev.ts",
+    "dev": "bun run i18n:split && bun run scripts/dev.ts",
     "dev:lan": "WEBUI_DEV_BIND_ALL=1 bun run scripts/dev.ts",
     "dev:clean": "bun run scripts/dev.ts --clean",
     "cleanup": "bun run scripts/cleanup.ts",
-    "build": "next build",
+    "i18n:split": "node scripts/split-locale-namespaces.mjs",
+    "build": "bun run i18n:split && next build",
     "build:tauri": "BUILD_MODE=tauri next build",
     "start": "next start",
     "lint": "bun node_modules/oxlint/bin/oxlint --ignore-path .oxlintignore",
@@ -29,7 +30,7 @@
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
     "verify:i18n": "bun scripts/verify-i18n.mjs",
-    "pretest": "bun run verify:i18n"
+    "pretest": "bun run i18n:split && bun run verify:i18n"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",

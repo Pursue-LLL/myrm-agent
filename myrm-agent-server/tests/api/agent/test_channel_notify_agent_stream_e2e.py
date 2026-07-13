@@ -33,7 +33,9 @@ def _collect_agent_stream(payload: dict[str, object]) -> list[dict[str, object]]
             json=payload,
             headers={"Accept": "text/event-stream"},
         ) as response:
-            assert response.status_code == 200, response.text
+            if response.status_code != 200:
+                body = response.read().decode("utf-8", errors="replace")
+                raise AssertionError(f"agent-stream failed: {response.status_code} {body}")
             for line in response.iter_lines():
                 if not line or not line.startswith("data: "):
                     continue
@@ -41,15 +43,19 @@ def _collect_agent_stream(payload: dict[str, object]) -> list[dict[str, object]]
                 if raw == "[DONE]":
                     break
                 try:
-                    events.append(json.loads(raw))
+                    parsed = json.loads(raw)
                 except json.JSONDecodeError:
                     continue
+                if isinstance(parsed, dict):
+                    events.append(parsed)
     return events
 
 
 def _invoked_tool_names(events: list[dict[str, object]]) -> set[str]:
     names: set[str] = set()
     for event in events:
+        if not isinstance(event, dict):
+            continue
         if event.get("type") not in {"tasks_steps", "tool_start", "tool_end"}:
             continue
         tool_name = event.get("tool_name")

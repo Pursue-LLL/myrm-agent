@@ -41,7 +41,7 @@ _frontend_lock_generation() {
     echo ""
     return 0
   fi
-  local bundler_stamp="${FRONTEND_DIR}/.next/dev-bundler-mode"
+  local bundler_stamp="$(dirname "${FRONTEND_LOCK}")/dev-bundler-mode"
   local bundler_mode=""
   if [[ -f "${bundler_stamp}" ]]; then
     bundler_mode="$(tr -d '[:space:]' < "${bundler_stamp}")"
@@ -58,11 +58,28 @@ print(':'.join(parts))
 " 2>/dev/null || true
 }
 
+_frontend_source_fingerprint() {
+  local lib_dir py
+  lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  py="${PREFLIGHT_PY:-python3}"
+  "${py}" - "${lib_dir}" "${FRONTEND_DIR}" <<'PY' 2>/dev/null || true
+import sys
+from pathlib import Path
+
+sys.path.insert(0, sys.argv[1])
+from runtime_identity import frontend_source_fingerprint
+
+print(frontend_source_fingerprint(Path(sys.argv[2])))
+PY
+}
+
 _frontend_warmth_recorded() {
-  local state_file gen
+  local state_file gen source_fingerprint
   state_file="$(_frontend_warmup_state_file)"
   gen="$(_frontend_lock_generation)"
+  source_fingerprint="$(_frontend_source_fingerprint)"
   [[ -n "${gen}" ]] || return 1
+  [[ -n "${source_fingerprint}" ]] || return 1
   [[ -f "${state_file}" ]] || return 1
   _lock_supervisor_alive || return 1
   python3 -c "
@@ -74,15 +91,19 @@ if not state.is_file():
 data = json.loads(state.read_text())
 if data.get('generation') != '${gen}':
     sys.exit(1)
+if data.get('source_fingerprint') != '${source_fingerprint}':
+    sys.exit(1)
 sys.exit(0)
 " 2>/dev/null
 }
 
 _frontend_save_warmth() {
-  local state_file gen client_hot_py
+  local state_file gen source_fingerprint client_hot_py
   state_file="$(_frontend_warmup_state_file)"
   gen="$(_frontend_lock_generation)"
+  source_fingerprint="$(_frontend_source_fingerprint)"
   [[ -n "${gen}" ]] || return 0
+  [[ -n "${source_fingerprint}" ]] || return 1
   client_hot_py="False"
   if [[ "${1:-}" == "true" ]]; then
     client_hot_py="True"
@@ -93,6 +114,7 @@ import json, datetime
 from pathlib import Path
 payload = {
     'generation': '${gen}',
+    'source_fingerprint': '${source_fingerprint}',
     'warmed_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
     'url': '${APP_URL}/',
     'client_hot': ${client_hot_py},
@@ -104,10 +126,12 @@ Path('${state_file}').write_text(json.dumps(payload, indent=2) + '\n')
 }
 
 _frontend_save_client_warmth() {
-  local state_file gen
+  local state_file gen source_fingerprint
   state_file="$(_frontend_warmup_state_file)"
   gen="$(_frontend_lock_generation)"
+  source_fingerprint="$(_frontend_source_fingerprint)"
   [[ -n "${gen}" ]] || return 0
+  [[ -n "${source_fingerprint}" ]] || return 1
   mkdir -p "${STATE_DIR}"
   python3 -c "
 import json, datetime
@@ -117,6 +141,7 @@ data = {}
 if path.is_file():
     data = json.loads(path.read_text())
 data['generation'] = '${gen}'
+data['source_fingerprint'] = '${source_fingerprint}'
 data['client_hot'] = True
 data['client_warmed_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 if 'warmed_at' not in data:
@@ -127,10 +152,12 @@ path.write_text(json.dumps(data, indent=2) + '\n')
 }
 
 _frontend_client_warmth_recorded() {
-  local state_file gen
+  local state_file gen source_fingerprint
   state_file="$(_frontend_warmup_state_file)"
   gen="$(_frontend_lock_generation)"
+  source_fingerprint="$(_frontend_source_fingerprint)"
   [[ -n "${gen}" ]] || return 1
+  [[ -n "${source_fingerprint}" ]] || return 1
   [[ -f "${state_file}" ]] || return 1
   _lock_supervisor_alive || return 1
   python3 -c "
@@ -141,6 +168,8 @@ if not state.is_file():
     sys.exit(1)
 data = json.loads(state.read_text())
 if data.get('generation') != '${gen}':
+    sys.exit(1)
+if data.get('source_fingerprint') != '${source_fingerprint}':
     sys.exit(1)
 if data.get('client_hot') is not True:
     sys.exit(1)
@@ -164,23 +193,26 @@ _frontend_shell_hot_status() {
   _frontend_compile_hot_status
 }
 
+_client_warmup_reclaim_stale_lock() {
+  local lockdir="${STATE_DIR}/client-warmup.lock.d"
+  [[ -d "${lockdir}" ]] || return 0
+  local owner=""
+  if [[ -f "${lockdir}/pid" ]]; then
+    owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
+  fi
+  if [[ -z "${owner}" ]] || ! kill -0 "${owner}" 2>/dev/null; then
+    rm -f "${lockdir}/pid" 2>/dev/null || true
+    rmdir "${lockdir}" 2>/dev/null || true
+  fi
+}
+
 _client_warmup_acquire_lock() {
   local lockdir="${STATE_DIR}/client-warmup.lock.d"
   local wait_sec="${MYRM_CLIENT_WARMUP_LOCK_SEC:-120}"
   local i
 
-  if [[ -d "${lockdir}" ]]; then
-    local owner=""
-    if [[ -f "${lockdir}/pid" ]]; then
-      owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
-    fi
-    if [[ -z "${owner}" ]] || ! kill -0 "${owner}" 2>/dev/null; then
-      rm -f "${lockdir}/pid" 2>/dev/null || true
-      rmdir "${lockdir}" 2>/dev/null || true
-    fi
-  fi
-
   for i in $(seq 1 "${wait_sec}"); do
+    _client_warmup_reclaim_stale_lock
     if mkdir "${lockdir}" 2>/dev/null; then
       echo "$$" >"${lockdir}/pid"
       return 0
@@ -219,6 +251,21 @@ _warmup_frontend_client() {
     return 0
   fi
 
+  if [[ "${MYRM_CHROME_E2E_ATTACH:-0}" == "1" ]]; then
+    echo "STACK_WAIT: attach mode — waiting for client_hot from ready --chrome peer..." >&2
+    local i
+    for i in $(seq 1 "${MYRM_CLIENT_WARMUP_LOCK_SEC:-120}"); do
+      if _frontend_client_warmth_recorded; then
+        echo "STACK_OK: frontend client_hot (peer warmed via attach)"
+        return 0
+      fi
+      _client_warmup_reclaim_stale_lock
+      sleep 1
+    done
+    echo "STACK_FAIL: attach mode client_hot timeout — first Agent must run: ./myrm ready --chrome" >&2
+    return 1
+  fi
+
   if ! _acquire_client_warmup_lock; then
     echo "STACK_WAIT: client warmup lock busy — waiting for peer Agent..." >&2
     local i
@@ -238,20 +285,6 @@ _warmup_frontend_client() {
   if _frontend_client_warmth_recorded; then
     echo "STACK_OK: frontend client_hot (cached after lock)"
     return 0
-  fi
-
-  if [[ "${MYRM_CHROME_E2E_ATTACH:-0}" == "1" ]]; then
-    echo "STACK_WAIT: attach mode — waiting for client_hot from ready --chrome peer..." >&2
-    local i
-    for i in $(seq 1 "${MYRM_CLIENT_WARMUP_LOCK_SEC:-120}"); do
-      if _frontend_client_warmth_recorded; then
-        echo "STACK_OK: frontend client_hot (peer warmed via attach)"
-        return 0
-      fi
-      sleep 1
-    done
-    echo "STACK_FAIL: attach mode client_hot timeout — first Agent must run: ./myrm ready --chrome" >&2
-    return 1
   fi
 
   local py="${PREFLIGHT_PY:-python3}"

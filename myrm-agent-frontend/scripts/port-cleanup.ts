@@ -12,7 +12,12 @@
  */
 import { execSync } from 'child_process';
 
-export const APP_DEV_PORT = 3000;
+function resolveDevPort(): number {
+  const parsed = Number.parseInt(process.env.MYRM_FRONTEND_PORT ?? '3000', 10);
+  return Number.isInteger(parsed) && parsed > 0 && parsed <= 65535 ? parsed : 3000;
+}
+
+export const APP_DEV_PORT = resolveDevPort();
 
 /** PIDs with a TCP LISTEN socket on `port` (excludes Chrome clients on ESTABLISHED). */
 export function listPidsOnPort(port: number): string[] {
@@ -31,9 +36,7 @@ export function killListenersOnPort(port: number, force = false): number {
   if (pidList.length === 0) return 0;
 
   const cmd = force ? `kill -9 ${pidList.join(' ')}` : `kill ${pidList.join(' ')}`;
-  console.log(
-    `🔪 Killing process(es) on port ${port}${force ? ' (force)' : ''}: ${pidList.join(', ')}`,
-  );
+  console.log(`🔪 Killing process(es) on port ${port}${force ? ' (force)' : ''}: ${pidList.join(', ')}`);
   try {
     execSync(cmd);
   } catch {

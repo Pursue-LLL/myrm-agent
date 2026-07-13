@@ -261,3 +261,21 @@ class TestVoiceAPIGate:
             json={"chat_id": "test", "entries": []},
         )
         assert response.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# 5. Experimental features API (product surface)
+# ---------------------------------------------------------------------------
+
+
+class TestExperimentalFeaturesAPI:
+    """Experimental settings API must not expose removed features."""
+
+    @pytest.mark.asyncio
+    async def test_experimental_list_excludes_deep_research(self, async_client: AsyncClient):
+        _init_with_overrides({"deep_research": True, "consensus": True})
+        response = await async_client.get("/api/v1/features/experimental")
+        assert response.status_code == 200
+        payload = response.json()
+        keys = [item["key"] for item in payload.get("features", []) if isinstance(item, dict)]
+        assert "deep_research" not in keys

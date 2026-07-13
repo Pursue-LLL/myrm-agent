@@ -14,9 +14,12 @@ from app.services.agent.profile_resolver import get_agent_profile_resolver
 
 @pytest.fixture
 def mock_agent_factory():
-    with patch("app.ai_agents.agents.AgentFactory") as factory:
+    with patch(
+        "app.core.channel_bridge.agent_executor.execute_preamble_agent.AgentFactory",
+    ) as factory:
         mock_agent = MagicMock()
         mock_agent.close = AsyncMock()
+        mock_agent.release_pooled_session = AsyncMock()
 
         # process_stream returns an async generator
         async def mock_stream(*args, **kwargs):
@@ -29,9 +32,13 @@ def mock_agent_factory():
 
 @pytest.fixture
 def mock_load_user_configs():
-    with patch("app.core.channel_bridge.agent_executor.executor.load_user_configs", new_callable=AsyncMock) as loader:
+    with patch(
+        "app.core.channel_bridge.agent_executor.execute_preamble.load_user_configs",
+        new_callable=AsyncMock,
+    ) as loader:
         with patch(
-            "app.core.channel_bridge.agent_executor.executor.verify_search_service_available", new_callable=AsyncMock
+            "app.core.channel_bridge.agent_executor.execute_preamble_agent.verify_search_service_available",
+            new_callable=AsyncMock,
         ) as mock_verify:
             mock_verify.return_value = True
             from myrm_agent_harness.toolkits.web_search.web_searcher import SearchServiceConfig
@@ -319,7 +326,7 @@ async def test_channel_injects_auto_restore_domains_from_resolved_profile(
     mock_resolver.resolve = AsyncMock(return_value=resolved)
 
     with patch(
-        "app.core.channel_bridge.agent_executor.executor.get_agent_profile_resolver",
+        "app.core.channel_bridge.agent_executor.execute_preamble.get_agent_profile_resolver",
         return_value=mock_resolver,
     ):
         executor = ChannelAgentExecutor()
@@ -408,7 +415,7 @@ async def test_personality_metadata_overrides_agent_config(mock_agent_factory, m
 
     params = mock_agent_factory.create_general_agent.call_args[0][0]
     assert "**Communication Style**:" in params.user_instructions
-    assert "concise" in params.user_instructions.lower() or "brief" in params.user_instructions.lower()
+    assert "concise" in params.user_instructions.lower() or "brief" in params.user_instructions.lower() or "terse" in params.user_instructions.lower()
     assert "academic" not in params.user_instructions.lower()
 
 

@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useLayoutEffect, memo, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Chat from './Chat';
 import EmptyChat from './EmptyChat';
 import MessageListSkeleton from './MessageListSkeleton';
 import { Settings, ShieldCheck } from 'lucide-react';
@@ -11,7 +11,6 @@ import NextError from 'next/error';
 import useChatStore from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
 import { useShallow } from 'zustand/react/shallow';
-import ArtifactPortal from '../artifacts/ArtifactPortal';
 import { getAgent } from '@/services/agent';
 import { AgentConfig } from '@/store/chat/types';
 import { useSkillStore } from '@/store/skill';
@@ -25,8 +24,6 @@ import AgentInfoBanner from './AgentInfoBanner';
 import YoloModeBanner from './YoloModeBanner';
 import EStopBanner from './EStopBanner';
 import ExtensionDisconnectedBanner from './ExtensionDisconnectedBanner';
-import SubagentPromptButton from './SubagentPromptButton';
-import SubagentDashboard from './SubagentDashboard';
 import ChatWindowSatellites, {
   GoalControlPlane,
   GoalStatusCard,
@@ -40,6 +37,15 @@ import { PendingMemoryBadge, PendingMemoryDialog } from '@/components/features/m
 import { useMemoryStore } from '@/store/memory';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
+
+const Chat = dynamic(() => import('./Chat'), {
+  ssr: false,
+  loading: () => <MessageListSkeleton />,
+});
+
+const ArtifactPortal = dynamic(() => import('../artifacts/ArtifactPortal'), {
+  ssr: false,
+});
 
 interface ErrorViewProps {
   message: string;
@@ -377,7 +383,11 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   if (!isMessagesLoaded && id) {
     return (
       <>
-        <SubagentDashboard chatId={id} />
+        <ChatWindowSatellites
+          chatId={id}
+          onInspectorInstruction={handleInspectorInstruction}
+          onDesktopInspectorInstruction={handleDesktopInspectorInstruction}
+        />
         <MessageListSkeleton />
       </>
     );

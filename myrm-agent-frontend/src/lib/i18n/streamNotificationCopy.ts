@@ -3,27 +3,66 @@
  * #locales/*.json::notifications.clarificationNeeded (POS: OS notification copy SSOT)
  *
  * [OUTPUT]
- * resolveStreamLocale, getClarificationNotificationTitle: non-React SSE handler i18n helpers
+ * resolveStreamLocale, getClarificationNotificationTitle, preloadNotificationCopy
  *
  * [POS]
  * Locale strings for stream handlers that cannot use next-intl hooks.
+ * Loads notification slices on idle to avoid bundling all locale JSON upfront.
  */
-
-import deMessages from '#locales/de.json';
-import enMessages from '#locales/en.json';
-import jaMessages from '#locales/ja.json';
-import koMessages from '#locales/ko.json';
-import zhMessages from '#locales/zh.json';
 
 export type StreamLocale = 'en' | 'zh' | 'ja' | 'ko' | 'de';
 
-const NOTIFICATION_COPY: Record<StreamLocale, { clarificationNeeded: string }> = {
-  en: enMessages.notifications,
-  zh: zhMessages.notifications,
-  ja: jaMessages.notifications,
-  ko: koMessages.notifications,
-  de: deMessages.notifications,
+type NotificationCopy = {
+  clarificationNeeded: string;
 };
+
+const localeLoaders: Record<StreamLocale, () => Promise<NotificationCopy>> = {
+  en: () => import('../../../locales/namespaces/en/notifications.json').then((module) => module.default),
+  zh: () => import('../../../locales/namespaces/zh/notifications.json').then((module) => module.default),
+  ja: () => import('../../../locales/namespaces/ja/notifications.json').then((module) => module.default),
+  ko: () => import('../../../locales/namespaces/ko/notifications.json').then((module) => module.default),
+  de: () => import('../../../locales/namespaces/de/notifications.json').then((module) => module.default),
+};
+
+const notificationCache: Partial<Record<StreamLocale, NotificationCopy>> = {};
+
+const FALLBACK_COPY: NotificationCopy = {
+  clarificationNeeded: 'Agent needs your input',
+};
+
+export async function preloadNotificationCopy(): Promise<void> {
+  await Promise.all(
+    (Object.keys(localeLoaders) as StreamLocale[]).map(async (locale) => {
+      notificationCache[locale] = await localeLoaders[locale]();
+    }),
+  );
+}
+
+function scheduleNotificationCopyWarmup(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const schedule =
+    window.requestIdleCallback ??
+    ((callback: () => void) => {
+      window.setTimeout(callback, 1);
+    });
+
+  schedule(() => {
+    void preloadNotificationCopy();
+  });
+}
+
+scheduleNotificationCopyWarmup();
+
+void localeLoaders.en().then((copy) => {
+  notificationCache.en = copy;
+});
+
+void localeLoaders.zh().then((copy) => {
+  notificationCache.zh = copy;
+});
 
 export function resolveStreamLocale(lang: string): StreamLocale {
   if (lang.startsWith('zh')) return 'zh';
@@ -34,5 +73,10 @@ export function resolveStreamLocale(lang: string): StreamLocale {
 }
 
 export function getClarificationNotificationTitle(lang: string): string {
-  return NOTIFICATION_COPY[resolveStreamLocale(lang)].clarificationNeeded;
+  const locale = resolveStreamLocale(lang);
+  return (
+    notificationCache[locale]?.clarificationNeeded ??
+    notificationCache.en?.clarificationNeeded ??
+    FALLBACK_COPY.clarificationNeeded
+  );
 }

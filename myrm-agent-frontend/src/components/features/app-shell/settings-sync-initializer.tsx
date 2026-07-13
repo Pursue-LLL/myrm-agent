@@ -78,12 +78,33 @@ export default function SettingsSyncInitializer() {
         await manager.initialize();
         await manager.runStartupNormalization();
 
-        // 并行初始化各个 Store（它们会从 ConfigSyncManager 读取数据）
-        console.log('[SettingsSync] Initializing stores...');
-        await Promise.all([initProviders(), initConfig(), initCommands(), initRetrieval()]);
-
+        console.log('[SettingsSync] Initializing critical stores...');
+        await initConfig();
         setStatus('success');
-        console.log('[SettingsSync] All stores initialized successfully');
+
+        const scheduleDeferred =
+          typeof window !== 'undefined'
+            ? window.requestIdleCallback ??
+              ((callback: () => void) => {
+                window.setTimeout(callback, 1);
+              })
+            : null;
+
+        const runDeferredStores = () => {
+          void Promise.all([initProviders(), initCommands(), initRetrieval()])
+            .then(() => {
+              console.log('[SettingsSync] Deferred stores initialized successfully');
+            })
+            .catch((deferredError) => {
+              console.warn('[SettingsSync] Deferred store initialization failed:', deferredError);
+            });
+        };
+
+        if (scheduleDeferred) {
+          scheduleDeferred(runDeferredStores);
+        } else {
+          await Promise.all([initProviders(), initCommands(), initRetrieval()]);
+        }
       } catch (err) {
         console.warn('[SettingsSync] Initialization failed:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
@@ -91,7 +112,8 @@ export default function SettingsSyncInitializer() {
 
         // 即使失败，也尝试初始化各个 Store（使用默认值）
         try {
-          await Promise.all([initProviders(), initConfig(), initCommands(), initRetrieval()]);
+          await initConfig();
+          await Promise.all([initProviders(), initCommands(), initRetrieval()]);
         } catch {
           /* ignore secondary errors */
         }

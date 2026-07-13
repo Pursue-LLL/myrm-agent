@@ -14,6 +14,10 @@
 
 # Workflow runtime data
 .myrm/
+.myrm-dev-backend.*
+.myrm-dev-frontend.*
+scripts/dev/.myrm/
+scripts/dev/.benchmarks/
 .agent/  # harness workspace runtime ({workspace}/.agent/docs|vault); see myrm-agent-server/.gitignore
 
 # Debug screenshots at repo root

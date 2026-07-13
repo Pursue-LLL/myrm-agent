@@ -12,18 +12,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=myrm-chrome-e2e-lib.sh
 source "${SCRIPT_DIR}/myrm-chrome-e2e-lib.sh"
 
-AGENT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-MONOREPO_ROOT="$(cd "${AGENT_ROOT}/.." && pwd)"
+AGENT_ROOT="${MYRM_AGENT_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+MONOREPO_ROOT="${MYRM_MONOREPO_ROOT:-$(cd "${AGENT_ROOT}/.." && pwd)}"
 STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
 FRONTEND_DIR="${AGENT_ROOT}/myrm-agent-frontend"
 FRONTEND_LOCK="${FRONTEND_DIR}/.next/dev-server.lock"
-FRONTEND_LOG="${FRONTEND_DIR}/.myrm-dev-frontend.log"
+FRONTEND_LOG="${STATE_DIR}/frontend.log"
 APP_URL="${UI_BASE}"
-FRONTEND_PORT=3000
+FRONTEND_PORT="${MYRM_FRONTEND_PORT:-3000}"
 # shellcheck source=lib/frontend-warmup.sh
 source "${SCRIPT_DIR}/lib/frontend-warmup.sh"
 # shellcheck source=lib/stack-epoch.sh
 source "${SCRIPT_DIR}/lib/stack-epoch.sh"
+# shellcheck source=lib/dev_state_paths.sh
+source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
 MUX_BIN="${MONOREPO_ROOT}/scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs"
 ENSURE_CHROME="${SCRIPT_DIR}/ensure-myrm-chrome-e2e.sh"
 SERVER_DIR="${AGENT_ROOT}/myrm-agent-server"
@@ -55,9 +57,7 @@ _ensure_stack_epoch_file() {
     return 0
   fi
   backend_pid=""
-  if [[ -f "${SERVER_DIR}/.myrm-dev-backend.pid" ]]; then
-    backend_pid="$(tr -d '[:space:]' <"${SERVER_DIR}/.myrm-dev-backend.pid")"
-  fi
+  backend_pid="$(read_backend_dev_pid 2>/dev/null || true)"
   _bump_stack_epoch "${backend_pid}" "${SERVER_DIR}" >/dev/null || true
 }
 
@@ -67,22 +67,44 @@ if ! curl -sf --max-time 30 "$UI_BASE" >/dev/null; then
     fail "Frontend not reachable at $UI_BASE — first Agent must run: ./myrm ready --chrome"
   fi
   if [[ -f "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ]]; then
-    echo "CHROME_E2E_WARN: frontend down — running dev-stack ensure" >&2
-    bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ensure || true
+    echo "CHROME_E2E_WARN: frontend down — attach or ensure via supervisor" >&2
+    bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" attach \
+      || bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ensure \
+      || true
   fi
-  curl -sf --max-time 30 "$UI_BASE" >/dev/null || fail "Frontend not reachable at $UI_BASE — run: cd open-perplexity && ./myrm ready"
+  curl -sf --max-time 30 "$UI_BASE" >/dev/null || fail "Frontend not reachable at $UI_BASE — run: myrm start"
 fi
 if ! curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null; then
   if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
     fail "Backend not reachable at $API_BASE — first Agent must run: ./myrm ready --chrome"
   fi
   if [[ -f "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ]]; then
-    echo "CHROME_E2E_WARN: backend down — running dev-stack ensure" >&2
-    bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ensure || true
+    echo "CHROME_E2E_WARN: backend down — attach or ensure via supervisor" >&2
+    bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" attach \
+      || bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ensure \
+      || true
   fi
   curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null || fail "Backend not reachable at $API_BASE — run: cd open-perplexity && ./myrm ready"
 fi
-ok "dev servers :3000/:8080"
+ok "dev servers :${FRONTEND_PORT}/${MYRM_BACKEND_PORT:-8080}"
+
+# 1b. Default model seed for new-chat UI E2E (idempotent; requires .env.test)
+if [[ -f "${SERVER_DIR}/.env.test" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "${SERVER_DIR}/.env.test"
+  set +a
+fi
+if [[ -n "${BASIC_MODEL:-}" && -n "${BASIC_API_KEY:-}" ]]; then
+  if seed_out="$(bun "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" 2>&1)"; then
+    echo "${seed_out}"
+    ok "model seed"
+  else
+    echo "CHROME_E2E_WARN: model seed failed — ${seed_out}" >&2
+  fi
+else
+  echo "CHROME_E2E_WARN: skip model seed (set BASIC_MODEL and BASIC_API_KEY in .env.test)" >&2
+fi
 
 # 2. Legacy second Chrome / debug launchers
 if pgrep -lf 'MyrmChromeMcp' >/dev/null 2>&1; then
@@ -100,10 +122,6 @@ elif ! ensure_out="$(bash "${ENSURE_CHROME}" 2>&1)"; then
   fail "Myrm E2E Chrome failed to start — see MYRM_CHROME_E2E_FAIL above"
 fi
 echo "${ensure_out}"
-chrome_just_started=0
-if [[ "${ensure_out}" == *"MYRM_CHROME_E2E_START:"* ]]; then
-  chrome_just_started=1
-fi
 ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"
 
 PRUNE_SCRIPT="${SCRIPT_DIR}/prune-myrm-chrome-e2e-blank-tabs.sh"
@@ -111,7 +129,7 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" && -f "${PRUNE_SCRIPT}" ]]; then
   export MYRM_CHROME_E2E_PORT
   if prune_out="$(bash "${PRUNE_SCRIPT}" 2>&1)"; then
     echo "${prune_out}"
-    ok "orphan blank tabs pruned"
+    ok "stale preflight-owned tabs pruned"
   else
     echo "CHROME_E2E_WARN: prune failed — ${prune_out}" >&2
   fi
@@ -124,33 +142,58 @@ MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}"
 MUX_PID_FILE="${MUX_STATE_DIR}/daemon.pid"
 MUX_LOG_FILE="${MUX_STATE_DIR}/mux.log"
 MUX_START_LOCK_DIR="${MUX_STATE_DIR}/daemon.start.lock"
+MUX_SOCKET="${CDMCP_MUX_SOCKET:-${TMPDIR:-/tmp}/mux-$(id -u)/cdmcp-mux.sock}"
 MUX_USING=0
 if grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor/mcp.json" 2>/dev/null \
   || grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor-3.1.15/mcp.json" 2>/dev/null \
-  || pgrep -f 'cdmcp-mux-autoconnect' >/dev/null 2>&1 \
   || [[ -f "${MUX_PID_FILE}" ]]; then
   MUX_USING=1
 fi
 
-_kill_all_mux_daemons() {
-  local pids
-  pids="$(pgrep -f 'cdmcp-mux-autoconnect\.mjs daemon' 2>/dev/null | tr '\n' ' ' || true)"
+_mux_owned_pids() {
+  if [[ -f "${MUX_PID_FILE}" ]]; then
+    local pid
+    pid="$(tr -d '[:space:]' <"${MUX_PID_FILE}")"
+    [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null && echo "${pid}"
+  fi
+  if command -v lsof >/dev/null 2>&1 && [[ -S "${MUX_SOCKET}" ]]; then
+    lsof -t -- "${MUX_SOCKET}" 2>/dev/null || true
+  fi
+}
+
+_mux_daemon_count() {
+  _mux_owned_pids | sort -u | sed '/^$/d' | wc -l | tr -d '[:space:]'
+}
+
+_kill_owned_mux_daemon() {
+  local pids pid
+  pids="$(_mux_owned_pids | sort -u | tr '\n' ' ')"
   if [[ -n "${pids// }" ]]; then
     # shellcheck disable=SC2086
     kill ${pids} 2>/dev/null || true
-    sleep 0.5
+    for _ in $(seq 1 20); do
+      [[ "$(_mux_daemon_count)" == "0" ]] && break
+      sleep 0.1
+    done
+    while IFS= read -r pid; do
+      [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null && kill -9 "${pid}" 2>/dev/null || true
+    done < <(_mux_owned_pids | sort -u)
   fi
-  rm -f "${MUX_PID_FILE}"
+  [[ "$(_mux_daemon_count)" == "0" ]] && rm -f "${MUX_PID_FILE}"
 }
 
 _stop_mux_daemon() {
-  _kill_all_mux_daemons
+  _kill_owned_mux_daemon
 }
 
 _start_mux_daemon() {
   mkdir -p "${MUX_STATE_DIR}"
   if ! mkdir "${MUX_START_LOCK_DIR}" 2>/dev/null; then
-    return 0
+    if [[ "$(_mux_daemon_count)" != "0" ]]; then
+      return 0
+    fi
+    rmdir "${MUX_START_LOCK_DIR}" 2>/dev/null || true
+    mkdir "${MUX_START_LOCK_DIR}" 2>/dev/null || return 0
   fi
   # The preflight shell exits immediately after readiness. Detached stdio is
   # required so the shared mux survives that shell and remains available to
@@ -159,6 +202,8 @@ _start_mux_daemon() {
     CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
     MYRM_CHROME_E2E_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
     MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" \
+    CDMCP_MUX_STATE_DIR="${MUX_STATE_DIR}" \
+    CDMCP_MUX_SOCKET="${MUX_SOCKET}" \
     MCP_MUX_UPSTREAM_STDERR="${MCP_MUX_UPSTREAM_STDERR:-1}" \
     node "${MUX_BIN}" daemon \
     >>"${MUX_LOG_FILE}" 2>&1 < /dev/null &
@@ -222,6 +267,48 @@ except Exception:
   [[ "${ready}" == "1" ]]
 }
 
+_mux_context_count() {
+  local status_json
+  status_json="$(node "${MUX_BIN}" status 2>/dev/null)" || return 1
+  "${PREFLIGHT_PY}" -c "
+import json, sys
+data = json.loads(sys.argv[1])
+contexts = data.get('contexts')
+print(len(contexts) if isinstance(contexts, list) else 0)
+" "${status_json}"
+}
+
+_mux_restart_allowed() {
+  [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] || return 1
+  local contexts
+  contexts="$(_mux_context_count 2>/dev/null)" || return 1
+  [[ "${contexts}" == "0" ]] || return 1
+  bash "${SCRIPT_DIR}/wave.sh" check-stack-write >/dev/null 2>&1
+}
+
+_wait_mux_upstream_self_heal() {
+  local i
+  for i in $(seq 1 "${MYRM_MUX_SELF_HEAL_WAIT_SEC:-15}"); do
+    if _mux_upstream_ready; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+_restart_mux_safely() {
+  local reason="$1"
+  if ! _mux_restart_allowed; then
+    local contexts="unknown"
+    contexts="$(_mux_context_count 2>/dev/null || echo unknown)"
+    fail "mux restart blocked (${reason}); contexts=${contexts}, attach=${MYRM_CHROME_E2E_ATTACH}, or Wave pins runtime"
+  fi
+  echo "CHROME_E2E_WARN: restarting owned mux namespace (${reason})" >&2
+  _stop_mux_daemon
+  _start_mux_daemon
+}
+
 _ensure_mux_upstream() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
   if _mux_ws_stamp_matches && _mux_upstream_ready; then
@@ -230,13 +317,17 @@ _ensure_mux_upstream() {
   if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
     fail "mux not ready for parallel attach (upstreamReady or CDP ws drift) — first Agent must run: ./myrm ready --chrome"
   fi
-  if ! _mux_ws_stamp_matches; then
-    echo "CHROME_E2E_WARN: Chrome CDP WebSocket drifted — mux must reconnect (common after Chrome/Cursor restart)" >&2
+  if _mux_ws_stamp_matches; then
+    echo "CHROME_E2E_WAIT: mux upstreamReady=false — waiting for daemon self-heal" >&2
+    if _wait_mux_upstream_self_heal; then
+      ok "cdmcp-mux upstream self-healed without daemon restart"
+      return 0
+    fi
+    _restart_mux_safely "upstream self-heal timeout"
   else
-    echo "CHROME_E2E_WARN: mux upstreamReady=false — MCP list_pages/new_page will hang; restarting daemon" >&2
+    echo "CHROME_E2E_WARN: Chrome CDP WebSocket drifted — daemon options require a new endpoint" >&2
+    _restart_mux_safely "CDP WebSocket drift"
   fi
-  _stop_mux_daemon
-  _start_mux_daemon
   local i
   for i in $(seq 1 15); do
     sleep 1
@@ -275,10 +366,6 @@ _ensure_mux_daemon() {
   fail "cdmcp-mux daemon failed to start — run: node scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs daemon"
 }
 
-if [[ "${MUX_USING}" -eq 1 && "${chrome_just_started}" -eq 1 && "${MYRM_CHROME_E2E_ATTACH}" != "1" ]]; then
-  echo "CHROME_E2E_WARN: E2E Chrome freshly started — restarting mux daemon for new CDP endpoint" >&2
-  _stop_mux_daemon
-fi
 _ensure_mux_daemon
 
 VANILLA_MCP_COUNT=0
@@ -297,17 +384,15 @@ if [[ "${MUX_USING}" -eq 1 ]]; then
     fail "cdmcp-mux daemon pid ${mux_pid} not alive — Cmd+Q Cursor and reopen"
   fi
   _ensure_mux_upstream
-  mux_count="$(pgrep -f 'cdmcp-mux-autoconnect\.mjs daemon' 2>/dev/null | wc -l | tr -d ' ')"
+  mux_count="$(_mux_daemon_count)"
   if [[ "${mux_count}" != "1" ]]; then
     if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
       fail "mux daemon count=${mux_count} during attach — first Agent: ./myrm ready --chrome (attach must not kill mux)"
     fi
-    echo "CHROME_E2E_WARN: expected 1 mux daemon, found ${mux_count} — reconciling" >&2
-    _kill_all_mux_daemons
-    _start_mux_daemon
+    _restart_mux_safely "expected one owned daemon, found ${mux_count}"
     sleep 1
     _ensure_mux_upstream
-    mux_count="$(pgrep -f 'cdmcp-mux-autoconnect\.mjs daemon' 2>/dev/null | wc -l | tr -d ' ')"
+    mux_count="$(_mux_daemon_count)"
     [[ "${mux_count}" == "1" ]] || fail "mux daemon count=${mux_count} after reconcile — Cmd+Q Cursor, then: ./myrm ready --chrome"
   fi
   ok "cdmcp-mux daemon pid=${mux_pid} (parallel Agent tabs OK)"

@@ -45,21 +45,29 @@ def resolve_paths(agent_root: str | None = None) -> StackPaths:
     state_dir = Path(
         os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev")
     ).resolve()
+    socket_override = os.environ.get("MYRM_SUPERVISOR_SOCKET", "").strip()
+    supervisor_sock = Path(socket_override) if socket_override else state_dir / "supervisor.sock"
+    backend_port = int(os.environ.get("MYRM_BACKEND_PORT", os.environ.get("PORT", "8080")))
+    frontend_port = int(os.environ.get("MYRM_FRONTEND_PORT", "3000"))
+    api_base = os.environ.get("E2E_API_BASE", f"http://127.0.0.1:{backend_port}").rstrip("/")
+    app_url = os.environ.get("E2E_UI_BASE", f"http://127.0.0.1:{frontend_port}").rstrip("/")
+    dev_scripts_override = os.environ.get("MYRM_DEV_SCRIPTS_DIR", "").strip()
+    dev_scripts = Path(dev_scripts_override) if dev_scripts_override else root / "scripts/dev"
     return StackPaths(
         agent_root=root,
         server_dir=root / "myrm-agent-server",
         frontend_dir=root / "myrm-agent-frontend",
-        dev_stack_sh=root / "scripts/dev/dev-stack.sh",
+        dev_stack_sh=dev_scripts / "dev-stack.sh",
         state_dir=state_dir,
         supervisor_pid_file=state_dir / "supervisor.pid",
-        supervisor_sock=state_dir / "supervisor.sock",
+        supervisor_sock=supervisor_sock,
         supervisor_state_file=state_dir / "supervisor-state.json",
-        backend_pid_file=root / "myrm-agent-server/.myrm-dev-backend.pid",
-        frontend_pid_file=root / "myrm-agent-frontend/.myrm-dev-frontend.pid",
+        backend_pid_file=state_dir / "backend.pid",
+        frontend_pid_file=state_dir / "frontend.pid",
         frontend_lock_file=root / "myrm-agent-frontend/.next/dev-server.lock",
         warmth_file=state_dir / "frontend-warmth.json",
         epoch_file=state_dir / "stack-epoch.json",
-        api_health_url="http://127.0.0.1:8080/api/v1/health",
-        app_url="http://127.0.0.1:3000/",
-        frontend_port=3000,
+        api_health_url=f"{api_base}/api/v1/health",
+        app_url=f"{app_url}/",
+        frontend_port=frontend_port,
     )

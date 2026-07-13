@@ -60,9 +60,12 @@ print(pkg)
 
 _start_backend_bg() {
   local server_dir="$1"
-  local pid_file="${server_dir}/.myrm-dev-backend.pid"
-  local log_file="${server_dir}/.myrm-dev-backend.log"
-  local health_url="http://127.0.0.1:8080/api/v1/health"
+  local state_dir="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+  local backend_port="${MYRM_BACKEND_PORT:-${PORT:-8080}}"
+  local pid_file="${MYRM_BACKEND_PID_FILE:-${state_dir}/backend.pid}"
+  local log_file="${MYRM_BACKEND_LOG_FILE:-${state_dir}/backend.log}"
+  local health_url="${E2E_API_BASE:-http://127.0.0.1:${backend_port}}/api/v1/health"
+  mkdir -p "${state_dir}"
 
   if [[ -f "${pid_file}" ]]; then
     local old_pid
@@ -97,9 +100,9 @@ _start_backend_bg() {
 
   export DEPLOY_MODE="${DEPLOY_MODE:-local}"
   export HOST="${HOST:-127.0.0.1}"
-  export PORT="${PORT:-8080}"
+  export PORT="${backend_port}"
   export SQLITE_POOL_SIZE="${SQLITE_POOL_SIZE:-15}"
-  export MYRM_STACK_EPOCH_FILE="${MYRM_STACK_EPOCH_FILE:-${HOME}/.local/state/myrm-dev/stack-epoch.json}"
+  export MYRM_STACK_EPOCH_FILE="${MYRM_STACK_EPOCH_FILE:-${state_dir}/stack-epoch.json}"
 
   _require_harness_editable_for_monorepo "${server_dir}"
 
@@ -129,6 +132,6 @@ _start_backend_bg() {
     sleep 1
   done
 
-  echo "ERROR: backend not ready on :8080. See ${log_file}" >&2
+  echo "ERROR: backend not ready on :${backend_port}. See ${log_file}" >&2
   return 1
 }

@@ -11,10 +11,12 @@
 | `check_fractal_docs.py` | 分形 `_ARCH.md` 门禁（strict roots + recursive baseline） |
 | `check_file_line_budget.py` | TS/TSX 400 行预算门禁 |
 | `check_barrel_exports.py` | 跨域 `index.ts` 桶导出白名单门禁 |
+| CI lockfile policy | `frontend-build.yml` 断言无 `package-lock.json`（bun.lock 为 SSOT） |
 | `ci/fractal_docs_baseline.txt` | 递归扫描豁免目录（当前无条目） |
 | `ci/file_line_budget_baseline.txt` | 存量超大文件豁免列表 |
 | `ci/barrel_whitelist.txt` | 跨域 barrel 白名单（feature 内 barrel 由路径规则允许） |
 | `verify-i18n.mjs` | 五语系 i18n 完整性（`pretest` + CI） |
+| `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev`/`build`/`pretest` 前置） |
 | `sync_i18n.py` | 从 en 补全 ja/ko/de/zh（本地维护） |
 | `dev.ts` | Next dev 入口（`dev-server.lock` 健康跳过） |
 | `dev-lock.ts` | dev lock 读写与 LISTEN 健康判定 |

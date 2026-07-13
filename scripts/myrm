@@ -80,27 +80,20 @@ case "$COMMAND" in
             fi
             exit 0
         fi
-        if [[ -f "${FRONTEND_DIR}/.myrm-dev-frontend.pid" ]]; then
-            fe_pid="$(cat "${FRONTEND_DIR}/.myrm-dev-frontend.pid")"
+        # shellcheck source=dev/lib/dev_state_paths.sh
+        source "${SCRIPT_DIR}/dev/lib/dev_state_paths.sh"
+        fe_pid="$(read_frontend_dev_pid 2>/dev/null || true)"
+        if [[ -n "${fe_pid}" ]]; then
             kill "${fe_pid}" 2>/dev/null || true
-            rm -f "${FRONTEND_DIR}/.myrm-dev-frontend.pid"
         fi
+        rm -f "$(dev_frontend_pid_file)"
         rm -f "${FRONTEND_DIR}/.next/dev-server.lock"
-        port="${PORT:-8080}"
-        if [[ -f "${SERVER_DIR}/.myrm-dev-backend.pid" ]]; then
-            dev_pid="$(cat "${SERVER_DIR}/.myrm-dev-backend.pid")"
-            if kill -0 "${dev_pid}" 2>/dev/null; then
-                kill -TERM "${dev_pid}" 2>/dev/null || true
-                for _ in $(seq 1 15); do
-                    kill -0 "${dev_pid}" 2>/dev/null || break
-                    sleep 1
-                done
-                if kill -0 "${dev_pid}" 2>/dev/null; then
-                    kill -9 "${dev_pid}" 2>/dev/null || true
-                fi
-            fi
-            rm -f "${SERVER_DIR}/.myrm-dev-backend.pid"
+        be_pid="$(read_backend_dev_pid 2>/dev/null || true)"
+        if [[ -n "${be_pid}" ]]; then
+            _kill_pid_gracefully "${be_pid}"
         fi
+        rm -f "$(dev_backend_pid_file)"
+        cleanup_legacy_dev_artifacts "${SERVER_DIR}" "${FRONTEND_DIR}"
         pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN" | awk '{print $2}')
         if [[ -n "$pids" ]]; then
             kill $pids 2>/dev/null || true

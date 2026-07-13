@@ -6071,15 +6071,15 @@
     "pwaInstallTitle": "安装为桌面应用"
   },
   "metadata": {
-    "appTitle": "Perplexica",
+    "appTitle": "MyrmAgent",
     "appDescription": "AI 聊天助手",
-    "chatPageTitle": "聊天 - Perplexica",
-    "chatPageDescription": "与互联网聊天，与 Perplexica 聊天。",
-    "settingsPageTitle": "设置 - Perplexica",
-    "settingsPageDescription": "配置你的 Perplexica 体验",
-    "libraryPageTitle": "库 - Perplexica",
+    "chatPageTitle": "聊天 - MyrmAgent",
+    "chatPageDescription": "与你的 AI 工作伙伴对话。",
+    "settingsPageTitle": "设置 - MyrmAgent",
+    "settingsPageDescription": "配置你的 MyrmAgent 体验",
+    "libraryPageTitle": "库 - MyrmAgent",
     "libraryPageDescription": "浏览你的对话历史",
-    "subscriptionPageTitle": "订阅 - Perplexica",
+    "subscriptionPageTitle": "订阅 - MyrmAgent",
     "subscriptionPageDescription": "查看订阅状态与续费时间表。",
     "landingPageTitle": "Myrm - 你的 AI 工作伙伴",
     "landingPageDescription": "持久沙箱、记忆系统与 GUI 优先的 AI Agent 平台。",
@@ -11724,7 +11724,7 @@
     "trayTooltipBackground": "{count} 个后台任务运行中"
   },
   "boot": {
-    "title": "Perplexica",
+    "title": "MyrmAgent",
     "step": {
       "loadingTheme": "加载主题配置...",
       "syncingSettings": "同步用户设置...",

@@ -19,7 +19,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | `unit_ops.py` | 核心 | capture/apply/detach wrapper ↔ unit |
 | `session_lifecycle.py` | 核心 | `resolve_execution_mode`、`finalize_agent_session`（release 前 refresh_unit） |
 
-测试：`tests/services/agent/execution_cache/`（registry 单测 + stream_pipeline 集成测 2msg1build）。Chrome WebUI E2E：`tests/e2e/test_execution_cache_chrome_e2e.py`（CDP；前置 `./myrm ready --chrome`，勿在 pytest 内重复 ready 以免 prune 杀 tab）。
+测试：`tests/services/agent/execution_cache/`（registry 单测 + stream_pipeline 集成测 2msg1build）。Chrome WebUI E2E：`tests/e2e/test_execution_cache_chrome_e2e.py`（`scripts/dev/lib/cdp_chat_ui.py` + CDP `json/new` 新 tab；前置 `./myrm ready --chrome` + backend log 断言 cache）。
 
 ---
 

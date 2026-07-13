@@ -1,8 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeAll } from 'vitest';
 
-import { getClarificationNotificationTitle, resolveStreamLocale } from '../streamNotificationCopy';
+import {
+  getClarificationNotificationTitle,
+  preloadNotificationCopy,
+  resolveStreamLocale,
+} from '../streamNotificationCopy';
 
 describe('streamNotificationCopy', () => {
+  beforeAll(async () => {
+    await preloadNotificationCopy();
+  });
+
   it('resolves supported stream locales', () => {
     expect(resolveStreamLocale('zh-CN')).toBe('zh');
     expect(resolveStreamLocale('ja')).toBe('ja');

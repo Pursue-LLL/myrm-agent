@@ -61,7 +61,8 @@ const parseFloatOrNull = (v: string): number | null => (v ? parseFloat(v) || nul
 
 export default function GoalModeToggle() {
   const t = useTranslations('Goal');
-  const isGoalsEnabled = useFeatureGateStore((s) => s.isEnabled('goals_system'));
+  const initialized = useFeatureGateStore((s) => s.initialized);
+  const isGoalsEnabled = useFeatureGateStore((s) => s.enabledFeatures.has('goals_system'));
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const {
@@ -112,7 +113,7 @@ export default function GoalModeToggle() {
     })),
   );
 
-  if (!isGoalsEnabled) return null;
+  if (initialized && !isGoalsEnabled) return null;
 
   const criteriaList = goalAcceptanceCriteria || [];
   const constraintsList = goalConstraints || [];

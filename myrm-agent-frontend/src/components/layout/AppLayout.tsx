@@ -19,6 +19,7 @@ import BudgetExceededDialog from '@/components/billing/BudgetExceededDialog';
 import LocalBackendUnavailableBanner, {
   ConfigReadinessDegradedBanner,
 } from '@/components/features/app-shell/local-backend-unavailable-banner';
+import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 
 const CronPushPoller = lazy(() =>
   import('@/components/features/cron/CronPushPoller').then((mod) => ({ default: mod.default })),
@@ -36,7 +37,7 @@ function AppLayout({
   onRetryConfigReadiness,
 }: AppLayoutProps) {
   const { initAuth } = useAuthStore();
-  const t = useTranslations();
+  const t = useTranslations('layout');
   const [dismissedReadinessDegraded, setDismissedReadinessDegraded] = useState(false);
 
   const layout = useAppLayoutState();
@@ -44,6 +45,24 @@ function AppLayout({
   useEffect(() => {
     initAuth();
   }, [initAuth]);
+
+  useEffect(() => {
+    const schedule =
+      window.requestIdleCallback ??
+      ((callback: () => void) => {
+        window.setTimeout(callback, 1);
+      });
+
+    const handle = schedule(() => {
+      void useFeatureGateStore.getState().loadFeatures();
+    });
+
+    return () => {
+      if (typeof handle === 'number' && window.cancelIdleCallback) {
+        window.cancelIdleCallback(handle);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!configReadinessDegraded) {

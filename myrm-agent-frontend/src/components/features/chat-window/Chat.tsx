@@ -74,6 +74,7 @@ const VIRTUAL_SCROLL_THRESHOLD = 20;
 
 const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared: boolean }) => {
   const t = useTranslations('chat.jumpBar');
+  const tMeta = useTranslations('metadata');
   const messageEnd = useRef<HTMLDivElement | null>(null);
   const lastScrollPositionRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -390,9 +391,9 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
 
     if (messages.length === 1) {
       const cleanContent = stripDatetimeTag(messages[0].content);
-      document.title = `${cleanContent.substring(0, 30)} - Perplexica`;
+      document.title = `${cleanContent.substring(0, 30)} - ${tMeta('appTitle')}`;
     }
-  }, [messages, loading, scrollToBottom, userScrolledRef]);
+  }, [messages, loading, scrollToBottom, userScrolledRef, tMeta]);
 
   // 更新输入框宽度
   useEffect(() => {

@@ -116,7 +116,7 @@ data/
 !tests/architecture/data/fractal_header_baseline.txt
 !app/core/integrations/catalog/data/
 ppt_workspace/
-workspace/
+/workspace/
 lobe-chat/
 tmp_home/
 data.db

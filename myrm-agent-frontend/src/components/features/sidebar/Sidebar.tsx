@@ -20,7 +20,8 @@ interface SidebarProps {
 }
 
 const Sidebar = memo<SidebarProps>(({ currentChatId }) => {
-  const t = useTranslations();
+  const commonT = useTranslations('common');
+  const chatT = useTranslations('chat');
   const router = useRouter();
   const pathname = usePathname();
   const { initializeChat } = useChatStore(useShallow((state) => ({ initializeChat: state.initializeChat })));
@@ -51,8 +52,8 @@ const Sidebar = memo<SidebarProps>(({ currentChatId }) => {
   }, [isMobile, setIsMobileOpen, setIsPinned, isPinned]);
 
   const getToggleTooltip = () => {
-    if (isMobile) return t('common.close');
-    return isExpanded ? (isPinned ? t('common.unpinSidebar') : t('common.pinSidebar')) : t('common.expandMenu');
+    if (isMobile) return commonT('close');
+    return isExpanded ? (isPinned ? commonT('unpinSidebar') : commonT('pinSidebar')) : commonT('expandMenu');
   };
 
   // 通用按钮样式
@@ -81,11 +82,11 @@ const Sidebar = memo<SidebarProps>(({ currentChatId }) => {
       <button
         onClick={handleNewChat}
         className={buttonClasses}
-        title={isCollapsed ? t('chat.newChat') : undefined}
-        aria-label={t('chat.newChat')}
+        title={isCollapsed ? chatT('newChat') : undefined}
+        aria-label={chatT('newChat')}
       >
         {iconElement}
-        {!isCollapsed && <span className="text-sm lg:text-base font-semibold text-primary">{t('chat.newChat')}</span>}
+        {!isCollapsed && <span className="text-sm lg:text-base font-semibold text-primary">{chatT('newChat')}</span>}
       </button>
     );
   };
@@ -130,7 +131,7 @@ const Sidebar = memo<SidebarProps>(({ currentChatId }) => {
                   </button>
                   <div className="flex items-center gap-1">
                     <CatchupInbox />
-                    <button className={getButtonClasses()} aria-label={t('common.search')}>
+                    <button className={getButtonClasses()} aria-label={commonT('search')}>
                       <Search size={20} className={STYLES.text.secondary} />
                     </button>
                   </div>

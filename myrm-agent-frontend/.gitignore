@@ -26,8 +26,9 @@
 .myrm-dev-frontend.log
 .myrm-dev-frontend-fg.log
 
-# misc
-.DS_Store
+# generated locale namespace shards (SSOT: locales/*.json; run bun run i18n:split)
+/locales/namespaces/
+
 *.pem
 
 # debug

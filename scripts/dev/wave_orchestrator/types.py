@@ -49,7 +49,7 @@ class LeaseRecord(TypedDict):
     lastHeartbeatAt: str
     status: LeaseStatus
     pageId: NotRequired[str]
-    pageUrl: NotRequired[str]
+    targetId: NotRequired[str]
     contextId: NotRequired[str]
 
 

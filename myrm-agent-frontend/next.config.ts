@@ -73,6 +73,10 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
 
   outputFileTracingRoot: monorepoRoot,
+  outputFileTracingIncludes: {
+    '/api/i18n/deferred': ['./locales/namespaces/**/*'],
+    '/*': ['./locales/namespaces/**/*'],
+  },
 
   turbopack: {
     root: monorepoRoot,

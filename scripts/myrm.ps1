@@ -112,18 +112,21 @@ switch ($Command) {
         exit $LASTEXITCODE
     }
     "stop" {
-        $fpid = Join-Path $FrontendDir ".myrm-dev-frontend.pid"
+        $StateDir = if ($env:MYRM_DEV_STATE_DIR) { $env:MYRM_DEV_STATE_DIR } else { Join-Path $env:USERPROFILE ".local\state\myrm-dev" }
+        $fpid = Join-Path $StateDir "frontend.pid"
+        $bpid = Join-Path $StateDir "backend.pid"
         if (Test-Path $fpid) {
             $fp = Get-Content $fpid -ErrorAction SilentlyContinue
             if ($fp) { Stop-Process -Id $fp -Force -ErrorAction SilentlyContinue }
             Remove-Item $fpid -Force -ErrorAction SilentlyContinue
         }
-        $bpid = Join-Path $ServerDir ".myrm-dev-backend.pid"
         if (Test-Path $bpid) {
             $bp = Get-Content $bpid -ErrorAction SilentlyContinue
             if ($bp) { Stop-Process -Id $bp -Force -ErrorAction SilentlyContinue }
             Remove-Item $bpid -Force -ErrorAction SilentlyContinue
         }
+        Remove-Item (Join-Path $FrontendDir ".myrm-dev-frontend.pid") -Force -ErrorAction SilentlyContinue
+        Remove-Item (Join-Path $ServerDir ".myrm-dev-backend.pid") -Force -ErrorAction SilentlyContinue
         $port = if ($env:PORT) { $env:PORT } else { "8080" }
         try { Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/v1/system/shutdown" -Method Post -TimeoutSec 3 -UseBasicParsing 2>$null; Start-Sleep -Seconds 3 } catch {}
         $procs = Get-MyrmProcesses

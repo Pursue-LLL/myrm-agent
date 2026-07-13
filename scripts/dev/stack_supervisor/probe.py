@@ -92,7 +92,7 @@ def _lock_generation(lock_path: Path, frontend_dir: Path) -> str | None:
         data = json.loads(lock_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return None
-    bundler_stamp = frontend_dir / ".next/dev-bundler-mode"
+    bundler_stamp = lock_path.parent / "dev-bundler-mode"
     bundler_mode = ""
     if bundler_stamp.is_file():
         bundler_mode = bundler_stamp.read_text(encoding="utf-8").strip()

@@ -48,8 +48,10 @@ def _resolve_mux_bin() -> Path | None:
         return path if path.is_file() else None
     lib_dir = Path(__file__).resolve().parent
     agent_root = lib_dir.parent.parent.parent
+    monorepo_override = os.getenv("MYRM_MONOREPO_ROOT", "").strip()
+    monorepo_root = Path(monorepo_override) if monorepo_override else agent_root.parent
     candidate = (
-        agent_root.parent
+        monorepo_root
         / "scripts"
         / "dev"
         / "cdmcp-mux-autoconnect"
@@ -74,12 +76,12 @@ def _mux_daemon_count() -> int:
     return len([line for line in proc.stdout.splitlines() if line.strip()])
 
 
-def _mux_upstream_ready() -> bool:
+def _mux_status_snapshot() -> tuple[bool, int]:
     if _mux_daemon_count() < 1:
-        return False
+        return False, 0
     mux_bin = _resolve_mux_bin()
     if mux_bin is None:
-        return False
+        return False, 0
     try:
         proc = subprocess.run(
             ["node", str(mux_bin), "status"],
@@ -89,14 +91,19 @@ def _mux_upstream_ready() -> bool:
             timeout=10,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return False
+        return False, 0
     try:
         payload = json.loads(proc.stdout)
     except json.JSONDecodeError:
-        return False
+        return False, 0
     if not isinstance(payload, dict):
-        return False
-    return bool(payload.get("upstreamReady"))
+        return False, 0
+    generation = payload.get("upstreamGeneration")
+    return bool(payload.get("upstreamReady")), generation if isinstance(generation, int) else 0
+
+
+def _mux_upstream_ready() -> bool:
+    return _mux_status_snapshot()[0]
 
 
 def _mux_ws_stamp_matches(cdp_port: int) -> bool:
@@ -116,9 +123,11 @@ def probe_runtime_context() -> RuntimeProbeContext:
     port = _resolve_e2e_port()
     frontend = _default_frontend_dir()
     profile = _default_chrome_data_dir()
+    upstream_ready, upstream_generation = _mux_status_snapshot()
     return {
         "mux_daemon_count": _mux_daemon_count(),
-        "upstream_ready": _mux_upstream_ready(),
+        "upstream_ready": upstream_ready,
+        "upstream_generation": upstream_generation,
         "ws_stamp_matches": _mux_ws_stamp_matches(port),
         "frontend_dir": str(frontend) if frontend is not None else "",
         "cdp_port": port,
@@ -133,6 +142,7 @@ def read_current_runtime_id() -> str:
         cdp_port=ctx["cdp_port"],
         profile_dir=Path(ctx["profile_dir"]),
         upstream_ready=ctx["upstream_ready"],
+        upstream_generation=ctx["upstream_generation"],
         ws_stamp_matches=ctx["ws_stamp_matches"],
         mux_daemon_count=ctx["mux_daemon_count"],
     )

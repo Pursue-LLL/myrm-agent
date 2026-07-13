@@ -21,16 +21,25 @@ source "${SCRIPT_DIR}/lib/stack-epoch.sh"
 resolve_agent_paths "${REPO_ROOT}"
 
 STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+BACKEND_PORT="${MYRM_BACKEND_PORT:-${PORT:-8080}}"
+FRONTEND_PORT="${MYRM_FRONTEND_PORT:-3000}"
+APP_URL="${E2E_UI_BASE:-http://127.0.0.1:${FRONTEND_PORT}}"
+API_BASE="${E2E_API_BASE:-http://127.0.0.1:${BACKEND_PORT}}"
+API_HEALTH="${API_BASE}/api/v1/health"
 
-FRONTEND_PID="${FRONTEND_DIR}/.myrm-dev-frontend.pid"
-FRONTEND_LOG="${FRONTEND_DIR}/.myrm-dev-frontend.log"
+BACKEND_PID="${MYRM_BACKEND_PID_FILE:-${STATE_DIR}/backend.pid}"
+BACKEND_LOG="${MYRM_BACKEND_LOG_FILE:-${STATE_DIR}/backend.log}"
+FRONTEND_PID="${MYRM_FRONTEND_PID_FILE:-${STATE_DIR}/frontend.pid}"
+FRONTEND_LOG="${MYRM_FRONTEND_LOG_FILE:-${STATE_DIR}/frontend.log}"
 FRONTEND_LOCK="${FRONTEND_DIR}/.next/dev-server.lock"
-APP_URL="http://127.0.0.1:3000"
-API_HEALTH="http://127.0.0.1:8080/api/v1/health"
-FRONTEND_PORT=3000
+export STATE_DIR PORT="${BACKEND_PORT}" MYRM_BACKEND_PORT="${BACKEND_PORT}"
+export MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}"
+export E2E_UI_BASE="${APP_URL}" E2E_API_BASE="${API_BASE}"
+export MYRM_BACKEND_PID_FILE="${BACKEND_PID}" MYRM_BACKEND_LOG_FILE="${BACKEND_LOG}"
 
-ATTACH_WAIT_SEC="${MYRM_STACK_ATTACH_WAIT_SEC:-120}"
 ENSURE_FRONTEND_WAIT_SEC="${MYRM_STACK_FRONTEND_WAIT_SEC:-180}"
+# Wait budget must cover a full ensure (frontend cold compile) plus lock handoff.
+ATTACH_WAIT_SEC="${MYRM_STACK_ATTACH_WAIT_SEC:-$((ENSURE_FRONTEND_WAIT_SEC + 60))}"
 
 mkdir -p "${STATE_DIR}"
 
@@ -77,6 +86,35 @@ _release_dir_lock() {
   local lockdir="$1"
   rm -f "${lockdir}/pid" 2>/dev/null || true
   rmdir "${lockdir}" 2>/dev/null || true
+}
+
+_ensure_lock_owner_alive() {
+  local lockdir="$1"
+  local owner=""
+
+  [[ -d "${lockdir}" ]] || return 1
+  if [[ -f "${lockdir}/pid" ]]; then
+    owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
+  fi
+  [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null
+}
+
+_join_ensure_in_progress() {
+  local lockdir="$1"
+  local wait_sec="$2"
+  local owner=""
+
+  if ! _ensure_lock_owner_alive "${lockdir}"; then
+    return 1
+  fi
+  owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
+  echo "STACK_JOIN: ensure in progress (pid=${owner}) — waiting for shell_hot" >&2
+  if _wait_stack_warm "${wait_sec}"; then
+    _try_optional_client_hot
+    echo "STACK_ENSURE_OK: joined in-progress ensure api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
+    return 0
+  fi
+  return 1
 }
 
 _http_ok() {
@@ -168,10 +206,9 @@ _wait_stack_warm() {
 }
 
 _backend_supervisor_alive() {
-  local pid_file="${SERVER_DIR}/.myrm-dev-backend.pid"
-  [[ -f "${pid_file}" ]] || return 1
+  [[ -f "${BACKEND_PID}" ]] || return 1
   local pid
-  pid="$(tr -d '[:space:]' <"${pid_file}")"
+  pid="$(tr -d '[:space:]' <"${BACKEND_PID}")"
   [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
 }
 
@@ -208,6 +245,10 @@ _repair_orphan_frontend() {
     return 0
   fi
   echo "STACK_WARN: orphan :${FRONTEND_PORT} listener without dev-server.lock — clearing" >&2
+  if ! _wave_assert_stack_write_allowed; then
+    echo "STACK_FAIL: orphan frontend cleanup denied while wave pins stack" >&2
+    return 1
+  fi
   local pids
   pids="$(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
   if [[ -n "${pids}" ]]; then
@@ -218,7 +259,22 @@ _repair_orphan_frontend() {
   rm -f "${FRONTEND_PID}" "${FRONTEND_LOCK}"
 }
 
+_wave_assert_stack_write_allowed() {
+  if [[ "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
+    return 0
+  fi
+  local wave_sh="${SCRIPT_DIR}/wave.sh"
+  if [[ ! -f "${wave_sh}" ]]; then
+    return 0
+  fi
+  bash "${wave_sh}" check-stack-write
+}
+
 _kill_frontend_supervisor() {
+  if ! _wave_assert_stack_write_allowed; then
+    echo "STACK_FAIL: frontend kill denied while wave pins stack" >&2
+    return 1
+  fi
   if [[ -f "${FRONTEND_PID}" ]]; then
     local fe_pid
     fe_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
@@ -245,14 +301,15 @@ _kill_frontend_supervisor() {
 
 _launch_frontend_supervisor() {
   local use_clean="${1:-0}"
+  local dev_script="${MYRM_FRONTEND_DEV_SCRIPT:-${FRONTEND_DIR}/scripts/dev.ts}"
   cd "${FRONTEND_DIR}"
   bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
   _frontend_clear_warmth
   if [[ "${use_clean}" == "1" ]]; then
     echo "STACK_START: frontend with --clean (.next purge)" >&2
-    _spawn_detached "${FRONTEND_LOG}" bun run dev -- --clean
+    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" bun run "${dev_script}" --clean
   else
-    _spawn_detached "${FRONTEND_LOG}" bun run dev
+    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" bun run "${dev_script}"
   fi
   echo $! >"${FRONTEND_PID}"
   echo "STACK_START: frontend supervisor pid $(cat "${FRONTEND_PID}") (setsid detached)"
@@ -326,7 +383,7 @@ _ensure_backend() {
     return 1
   fi
   if _api_healthy 10; then
-    echo "STACK_OK: backend → http://127.0.0.1:8080"
+    echo "STACK_OK: backend → ${API_BASE}"
     return 0
   fi
   echo "STACK_FAIL: backend not healthy after start" >&2
@@ -335,7 +392,7 @@ _ensure_backend() {
 
 cmd_attach() {
   if _wait_stack_warm "${ATTACH_WAIT_SEC}"; then
-    echo "STACK_ATTACH_OK api=:8080 ui=:3000 shell_hot=yes"
+    echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
     exit 0
   fi
   echo "STACK_ATTACH_TIMEOUT: stack not shell_hot within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
@@ -363,7 +420,22 @@ _try_optional_client_hot() {
 }
 
 cmd_ensure() {
+  if _stack_warm; then
+    _try_optional_client_hot
+    echo "STACK_ENSURE_OK: already shell_hot api=:${BACKEND_PORT} ui=:${FRONTEND_PORT}"
+    exit 0
+  fi
+
+  if _join_ensure_in_progress "${_lock_dir}" "${ATTACH_WAIT_SEC}"; then
+    exit 0
+  fi
+
   if ! _acquire_dir_lock "${_lock_dir}" "${ATTACH_WAIT_SEC}"; then
+    if _wait_stack_warm "${ATTACH_WAIT_SEC}"; then
+      _try_optional_client_hot
+      echo "STACK_ENSURE_OK: joined late ensure api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
+      exit 0
+    fi
     echo "STACK_FAIL: could not acquire stack ensure lock within ${ATTACH_WAIT_SEC}s" >&2
     exit 1
   fi
@@ -371,7 +443,7 @@ cmd_ensure() {
 
   if _stack_warm; then
     _try_optional_client_hot
-    echo "STACK_ENSURE_OK: already shell_hot api=:8080 ui=:3000"
+    echo "STACK_ENSURE_OK: already shell_hot api=:${BACKEND_PORT} ui=:${FRONTEND_PORT}"
     exit 0
   fi
 
@@ -387,26 +459,15 @@ cmd_ensure() {
 
   if _warmup_frontend_compile; then
     _try_optional_client_hot
-    echo "STACK_ENSURE_OK: api=:8080 ui=:3000 shell_hot=yes"
+    echo "STACK_ENSURE_OK: api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
     exit 0
   fi
   echo "STACK_FAIL: stack not shell_hot after ensure" >&2
   exit 1
 }
 
-_wave_assert_stack_write_allowed() {
-  if [[ "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
-    return 0
-  fi
-  local wave_sh="${SCRIPT_DIR}/wave.sh"
-  if [[ ! -f "${wave_sh}" ]]; then
-    return 0
-  fi
-  bash "${wave_sh}" check-stack-write
-}
-
 cmd_reset() {
-  _wave_assert_stack_write_allowed || exit 1
+  _wave_assert_stack_write_allowed || exit 3
 
   if [[ -f "${FRONTEND_PID}" ]]; then
     local fe_pid
@@ -418,10 +479,9 @@ cmd_reset() {
   _frontend_clear_warmth
   _clear_stack_epoch
 
-  local port="${PORT:-8080}"
-  if [[ -f "${SERVER_DIR}/.myrm-dev-backend.pid" ]]; then
+  if [[ -f "${BACKEND_PID}" ]]; then
     local dev_pid
-    dev_pid="$(cat "${SERVER_DIR}/.myrm-dev-backend.pid")"
+    dev_pid="$(cat "${BACKEND_PID}")"
     if kill -0 "${dev_pid}" 2>/dev/null; then
       kill -TERM "${dev_pid}" 2>/dev/null || true
       local _
@@ -433,7 +493,7 @@ cmd_reset() {
         kill -9 "${dev_pid}" 2>/dev/null || true
       fi
     fi
-    rm -f "${SERVER_DIR}/.myrm-dev-backend.pid"
+    rm -f "${BACKEND_PID}"
   fi
 
   if _frontend_port_listening; then
@@ -445,17 +505,11 @@ cmd_reset() {
     fi
   fi
 
-  local stale_pids
-  stale_pids="$(ps aux | grep -E '[m]yrm-agent-server/run.py|[m]yrm-agent-server/.venv.*run.py' | awk '{print $2}' || true)"
-  if [[ -n "${stale_pids}" ]]; then
+  local backend_listener_pids
+  backend_listener_pids="$(lsof -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
+  if [[ -n "${backend_listener_pids}" ]]; then
     # shellcheck disable=SC2086
-    kill ${stale_pids} 2>/dev/null || true
-    sleep 2
-    stale_pids="$(ps aux | grep -E '[m]yrm-agent-server/run.py|[m]yrm-agent-server/.venv.*run.py' | awk '{print $2}' || true)"
-    if [[ -n "${stale_pids}" ]]; then
-      # shellcheck disable=SC2086
-      kill -9 ${stale_pids} 2>/dev/null || true
-    fi
+    kill ${backend_listener_pids} 2>/dev/null || true
   fi
 
   _clear_stack_epoch

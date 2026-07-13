@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeAll } from 'vitest';
 
 import {
   getClarificationNotificationTitle,
@@ -6,6 +6,7 @@ import {
   resolveClarificationFormFromEventData,
   resolveStreamLocale,
 } from '../streamHelpers';
+import { preloadNotificationCopy } from '@/lib/i18n/streamNotificationCopy';
 
 describe('mapTaskStepStatus', () => {
   it('maps harness checklist and planner terminal statuses', () => {
@@ -91,6 +92,10 @@ describe('resolveClarificationFormFromEventData', () => {
 });
 
 describe('clarification notification i18n', () => {
+  beforeAll(async () => {
+    await preloadNotificationCopy();
+  });
+
   it('resolves stream locales for five supported languages', () => {
     expect(resolveStreamLocale('zh-CN')).toBe('zh');
     expect(resolveStreamLocale('ja')).toBe('ja');

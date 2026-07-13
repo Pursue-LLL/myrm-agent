@@ -8,14 +8,30 @@ import { ArtifactDisplayMode } from '@/store/useArtifactPortalStore';
 import { isSvgType, isMermaidType } from './artifactUtils';
 import ArtifactErrorBoundary from './ArtifactErrorBoundary';
 import { getStorageUrl } from '@/lib/api';
-
-// 渲染器组件
-import CodePreview from './renderers/CodePreview';
-import DocumentPreview from './renderers/DocumentPreview';
-import MermaidPreview from './renderers/MermaidPreview';
 import SkeletonLoader from './renderers/SkeletonLoader';
 import NoPreview from './renderers/NoPreview';
 import { HtmlPreview, ImagePreview, VideoPreview, SvgPreview, AudioPreview, type PickedElement } from './renderers/MediaPreview';
+
+const rendererLoading = (
+  <div className="h-full w-full flex items-center justify-center">
+    <div className="animate-spin w-8 h-8 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+  </div>
+);
+
+const CodePreview = dynamic(() => import('./renderers/CodePreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const DocumentPreview = dynamic(() => import('./renderers/DocumentPreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const MermaidPreview = dynamic(() => import('./renderers/MermaidPreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
 
 // 动态导入 PDF 预览组件
 const PdfPreviewDynamic = dynamic(() => import('./PdfPreview'), {

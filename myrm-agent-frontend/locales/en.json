@@ -6071,15 +6071,15 @@
     "pwaInstallTitle": "Install as desktop app"
   },
   "metadata": {
-    "appTitle": "Perplexica",
+    "appTitle": "MyrmAgent",
     "appDescription": "AI Chat Assistant",
-    "chatPageTitle": "Chat - Perplexica",
-    "chatPageDescription": "Chat with the internet, chat with Perplexica.",
-    "settingsPageTitle": "Settings - Perplexica",
-    "settingsPageDescription": "Configure your Perplexica experience",
-    "libraryPageTitle": "Library - Perplexica",
+    "chatPageTitle": "Chat - MyrmAgent",
+    "chatPageDescription": "Chat with your AI work partner.",
+    "settingsPageTitle": "Settings - MyrmAgent",
+    "settingsPageDescription": "Configure your MyrmAgent experience",
+    "libraryPageTitle": "Library - MyrmAgent",
     "libraryPageDescription": "Browse your conversation history",
-    "subscriptionPageTitle": "Subscription - Perplexica",
+    "subscriptionPageTitle": "Subscription - MyrmAgent",
     "subscriptionPageDescription": "Review your billing status and subscription schedule.",
     "landingPageTitle": "Myrm - Your AI Work Partner",
     "landingPageDescription": "Persistent sandbox, memory, and GUI-first AI agent platform.",
@@ -11753,7 +11753,7 @@
     "trayTooltipBackground": "{count} background task(s) running"
   },
   "boot": {
-    "title": "Perplexica",
+    "title": "MyrmAgent",
     "step": {
       "loadingTheme": "Loading theme...",
       "syncingSettings": "Syncing settings...",

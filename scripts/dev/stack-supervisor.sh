@@ -11,7 +11,7 @@ resolve_agent_paths "${REPO_ROOT}"
 STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
 PY="${SERVER_DIR}/.venv/bin/python"
 PID_FILE="${STATE_DIR}/supervisor.pid"
-SOCK_FILE="${STATE_DIR}/supervisor.sock"
+SOCK_FILE="${MYRM_SUPERVISOR_SOCKET:-${STATE_DIR}/supervisor.sock}"
 START_LOCK_DIR="${STATE_DIR}/supervisor.start.lock"
 
 export AGENT_ROOT SERVER_DIR FRONTEND_DIR MYRM_DEV_STATE_DIR="${STATE_DIR}"
@@ -80,7 +80,7 @@ _daemon_count() {
 }
 
 cmd_start() {
-  mkdir -p "${STATE_DIR}"
+  mkdir -p "${STATE_DIR}" "$(dirname "${SOCK_FILE}")"
   if ! mkdir "${START_LOCK_DIR}" 2>/dev/null; then
     if _wait_for_supervisor; then
       echo "SUPERVISOR_OK: started by concurrent launcher pid=$(tr -d '[:space:]' <"${PID_FILE}")"
@@ -108,10 +108,9 @@ cmd_start() {
     result=1
   fi
 
-  if [[ "${result}" == "0" ]] && ! _supervisor_alive && command -v setsid >/dev/null 2>&1; then
-    setsid nohup "${PY}" -m stack_supervisor.daemon --state-dir "${STATE_DIR}" >>"${STATE_DIR}/supervisor.log" 2>&1 &
-  elif [[ "${result}" == "0" ]] && ! _supervisor_alive; then
-    nohup "${PY}" -m stack_supervisor.daemon --state-dir "${STATE_DIR}" >>"${STATE_DIR}/supervisor.log" 2>&1 &
+  if [[ "${result}" == "0" ]] && ! _supervisor_alive; then
+    nohup "${PY}" -m stack_supervisor.daemon --daemonize --state-dir "${STATE_DIR}" \
+      >>"${STATE_DIR}/supervisor.log" 2>&1 &
   fi
 
   if [[ "${result}" == "0" ]] && _wait_for_supervisor; then

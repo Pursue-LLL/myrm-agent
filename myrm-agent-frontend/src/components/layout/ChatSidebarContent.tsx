@@ -21,7 +21,8 @@
  * 模式下使用 WorkspaceFileBrowser 显示 Chat/Files Tab 切换。
  */
 
-import { memo, useState, useCallback, useEffect } from 'react';
+import { memo, useState, useCallback, useEffect, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
@@ -29,13 +30,10 @@ import { FolderOpen, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { SearchDialog, SearchTrigger } from '@/components/features/app-shell/search-dialog';
 import ChatHistoryList from '@/components/features/sidebar/ChatHistoryList';
-import { CLIWorkspaceTree } from '@/components/features/cli-visualization/CLIWorkspaceTree';
-import { CLIFilePreview } from '@/components/features/cli-visualization/CLIFilePreview';
-import { CLIContextMenu } from '@/components/features/cli-visualization/CLIContextMenu';
 import { useFileWatcher } from '@/components/features/cli-visualization/hooks/useFileWatcher';
 import { useFilePreview } from '@/components/features/cli-visualization/hooks/useFilePreview';
 import type { FileNode } from '@/components/features/cli-visualization/CLIWorkspaceTree';
-import { WorkspaceFileBrowser, WorkspaceFilePreview, useWorkspaceFiles } from '@/components/features/workspace-browser';
+import { useWorkspaceFiles } from '@/components/features/workspace-browser/useWorkspaceFiles';
 import { useWorkingDirectory } from '@/store/useCLIAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { type FileEntry } from '@/services/chat';
@@ -45,6 +43,52 @@ import SessionTrashPanel from '@/components/features/chat-window/SessionTrashPan
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
 import { getTrashCount } from '@/services/chatTrash';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+
+const sidebarPanelLoading = (
+  <div className="flex h-full items-center justify-center p-6">
+    <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
+  </div>
+);
+
+const CLIWorkspaceTree = dynamic(
+  () =>
+    import('@/components/features/cli-visualization/CLIWorkspaceTree').then((module) => ({
+      default: module.CLIWorkspaceTree,
+    })),
+  { ssr: false, loading: () => sidebarPanelLoading },
+);
+
+const CLIFilePreview = dynamic(
+  () =>
+    import('@/components/features/cli-visualization/CLIFilePreview').then((module) => ({
+      default: module.CLIFilePreview,
+    })),
+  { ssr: false },
+);
+
+const CLIContextMenu = dynamic(
+  () =>
+    import('@/components/features/cli-visualization/CLIContextMenu').then((module) => ({
+      default: module.CLIContextMenu,
+    })),
+  { ssr: false },
+);
+
+const WorkspaceFileBrowser = dynamic(
+  () =>
+    import('@/components/features/workspace-browser/WorkspaceFileBrowser').then((module) => ({
+      default: module.WorkspaceFileBrowser,
+    })),
+  { ssr: false, loading: () => sidebarPanelLoading },
+);
+
+const WorkspaceFilePreview = dynamic(
+  () =>
+    import('@/components/features/workspace-browser/WorkspaceFilePreview').then((module) => ({
+      default: module.WorkspaceFilePreview,
+    })),
+  { ssr: false },
+);
 
 export interface ChatSidebarContentProps {
   onNewChat: () => void;
@@ -346,24 +390,28 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
               <TrashButton />
             </>
           ) : showCliWorkspace ? (
-            <CLIWorkspaceTree
-              workspacePath={cliWorkingDirectory!}
-              files={cliFiles}
-              loading={cliFilesLoading}
-              onRefresh={cliRefresh}
-              onFileClick={handleCliFileClick}
-              onFileRightClick={handleCliFileRightClick}
-            />
+            <Suspense fallback={sidebarPanelLoading}>
+              <CLIWorkspaceTree
+                workspacePath={cliWorkingDirectory!}
+                files={cliFiles}
+                loading={cliFilesLoading}
+                onRefresh={cliRefresh}
+                onFileClick={handleCliFileClick}
+                onFileRightClick={handleCliFileRightClick}
+              />
+            </Suspense>
           ) : showWebWorkspace && webWorkspaceDir ? (
-            <WorkspaceFileBrowser
-              workspacePath={webWorkspaceDir}
-              files={webFiles}
-              loading={webFilesLoading}
-              error={webFilesError}
-              truncated={webFilesTruncated}
-              onRefresh={webRefresh}
-              onFileClick={handleWebFileClick}
-            />
+            <Suspense fallback={sidebarPanelLoading}>
+              <WorkspaceFileBrowser
+                workspacePath={webWorkspaceDir}
+                files={webFiles}
+                loading={webFilesLoading}
+                error={webFilesError}
+                truncated={webFilesTruncated}
+                onRefresh={webRefresh}
+                onFileClick={handleWebFileClick}
+              />
+            </Suspense>
           ) : actionMode === 'agent' && !webWorkspaceDir ? (
             <div className="flex flex-col items-center justify-center py-8 px-4 text-muted-foreground">
               <FolderOpen className="h-8 w-8 mb-2" />

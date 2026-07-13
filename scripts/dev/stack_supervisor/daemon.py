@@ -24,7 +24,6 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TextIO
 
 import fcntl
@@ -125,7 +124,7 @@ class SupervisorDaemon:
         self._maybe_auto_heal(probe)
 
     def _reap_wave_leases(self) -> None:
-        wave_script = self.paths.agent_root / "scripts" / "dev" / "wave.sh"
+        wave_script = self.paths.dev_stack_sh.parent / "wave.sh"
         if not wave_script.is_file():
             return
         try:
@@ -155,7 +154,9 @@ class SupervisorDaemon:
         if probe.api_http_ok and probe.frontend_http_ok:
             return
         if not self._wave_stack_write_allowed():
-            logger.info("Watchdog auto-heal skipped: active wave lease blocks stack writes")
+            logger.info(
+                "Watchdog auto-heal: deferred — wave pin or active lease blocks stack mutation"
+            )
             return
         if not self._op_lock.acquire(blocking=False):
             return
@@ -177,7 +178,7 @@ class SupervisorDaemon:
             self._op_lock.release()
 
     def _wave_stack_write_allowed(self) -> bool:
-        wave_script = self.paths.agent_root / "scripts" / "dev" / "wave.sh"
+        wave_script = self.paths.dev_stack_sh.parent / "wave.sh"
         if not wave_script.is_file():
             return True
         try:
@@ -198,16 +199,17 @@ class SupervisorDaemon:
         return False
 
     def _watchdog_loop(self) -> None:
-        while not self._stop_event.wait(WATCHDOG_INTERVAL_SEC):
+        while not self._stop_event.is_set():
             try:
                 self._watchdog_once()
             except Exception:
                 logger.exception("Watchdog iteration failed")
+            if self._stop_event.wait(WATCHDOG_INTERVAL_SEC):
+                break
 
     def start_watchdog(self) -> None:
         if self._watchdog_thread is not None:
             return
-        self._watchdog_once()
         thread = threading.Thread(target=self._watchdog_loop, name="stack-watchdog", daemon=True)
         thread.start()
         self._watchdog_thread = thread
@@ -272,12 +274,12 @@ class SupervisorDaemon:
 
         with self._op_lock:
             self._watchdog_once()
-            if command in {"ensure", "reset"} and not self._wave_stack_write_allowed():
+            if command == "reset" and not self._wave_stack_write_allowed():
                 return RpcResponse(
                     ok=False,
                     exit_code=3,
                     stdout="",
-                    stderr="WAVE_STACK_WRITE_DENIED: active lease blocks stack mutation",
+                    stderr="WAVE_STACK_MUTATION_DENIED: open wave pin or active lease blocks stack reset",
                 )
             if command == "reset":
                 dev = self._run_dev_stack("reset", timeout_sec=120.0, env_overrides=env_overrides)
@@ -306,6 +308,7 @@ class SupervisorDaemon:
 
     def serve_forever(self) -> None:
         self.paths.state_dir.mkdir(parents=True, exist_ok=True)
+        self.paths.supervisor_sock.parent.mkdir(parents=True, exist_ok=True)
         if self.paths.supervisor_sock.exists():
             self.paths.supervisor_sock.unlink()
 
@@ -358,6 +361,8 @@ class SupervisorDaemon:
             if command not in ("ensure", "attach", "reset", "status", "ping", "shutdown"):
                 response = RpcResponse(ok=False, exit_code=1, stdout="", stderr=f"Invalid cmd: {command}")
             else:
+                if command in ("ensure", "reset", "attach"):
+                    conn.settimeout(630.0)
                 response = self.handle(command, env_overrides=env_overrides)  # type: ignore[arg-type]
 
             payload: dict[str, object] = {

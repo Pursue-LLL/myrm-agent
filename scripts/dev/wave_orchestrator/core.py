@@ -29,6 +29,7 @@ from wave_orchestrator.browser_lifecycle import (
 )
 from wave_orchestrator.paths import WavePaths, resolve_wave_paths
 from wave_orchestrator.resource_ledger import cleanup_lease_resources, cleanup_expired_lease_resources
+from wave_orchestrator.stack_pin import clear_stack_pin, read_stack_pin, write_stack_pin
 from wave_orchestrator.store import run_locked
 from wave_orchestrator.types import Lane, LeaseRecord, OrchestratorState, WaveRecord
 
@@ -39,9 +40,16 @@ class GateBlocker(TypedDict):
     lane: Lane
 
 
+class StackPinBlocker(TypedDict):
+    waveId: str
+    runtimeId: str
+    openedBy: str
+
+
 class GateResult(TypedDict):
     allowed: bool
     blockers: list[GateBlocker]
+    stackPin: StackPinBlocker | None
 
 
 DEFAULT_LEASE_TTL_SEC = 3600
@@ -124,6 +132,19 @@ def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> boo
     return True
 
 
+def _stack_pin_blocker(state: OrchestratorState) -> StackPinBlocker | None:
+    wave = state["wave"]
+    if wave is None or wave["status"] != "open":
+        return None
+    if any(lease["lane"] == "STACK_WRITE" for lease in active_leases(state)):
+        return None
+    return {
+        "waveId": wave["waveId"],
+        "runtimeId": wave["runtimeId"],
+        "openedBy": wave["openedBy"],
+    }
+
+
 def _cleanup_expired_leases(*, paths: WavePaths) -> None:
     def _snapshot(state: OrchestratorState) -> tuple[list[LeaseRecord], bool]:
         return [
@@ -157,6 +178,9 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
         }, changed
 
     result = run_locked(resolved.state_file, _edit)
+    wave = result.get("wave")
+    if isinstance(wave, dict) and wave.get("status") == "drifted":
+        clear_stack_pin(paths=resolved)
     _cleanup_expired_leases(paths=resolved)
     return result
 
@@ -237,7 +261,9 @@ def open_wave(
         state["wave"] = wave
         return wave, True
 
-    return run_locked(resolved.state_file, _edit)
+    wave = run_locked(resolved.state_file, _edit)
+    write_stack_pin(wave, paths=resolved, pinned_at=_iso(_utc_now()))
+    return wave
 
 
 def close_wave(*, paths: WavePaths | None = None, force: bool = False) -> WaveRecord | None:
@@ -264,6 +290,7 @@ def close_wave(*, paths: WavePaths | None = None, force: bool = False) -> WaveRe
         return closed, True
 
     closed = run_locked(resolved.state_file, _edit)
+    clear_stack_pin(paths=resolved)
     if force:
         for lease in released_leases:
             _cleanup_released_lease(lease, paths=resolved)
@@ -285,6 +312,7 @@ def wave_status(*, paths: WavePaths | None = None) -> dict[str, object]:
                 [item for item in state.get("resources", []) if item.get("status") == "active"]
             ),
             "resourceHistoryCount": len(state.get("resources", [])),
+            "stackPin": read_stack_pin(paths=resolved),
         }
         return payload, changed
 
@@ -372,7 +400,7 @@ def bind_browser_lease(
     lease_id: str,
     *,
     page_id: str,
-    page_url: str = "",
+    target_id: str,
     context_id: str = "",
     paths: WavePaths | None = None,
     agent_id: str | None = None,
@@ -391,7 +419,12 @@ def bind_browser_lease(
                     raise RuntimeError(
                         f"BROWSER_CONTEXT_CONFLICT: contextId {requested_context} is already bound"
                     )
-        return bind_browser(lease, page_id=page_id, page_url=page_url, context_id=context_id), True
+        return bind_browser(
+            lease,
+            page_id=page_id,
+            target_id=target_id,
+            context_id=context_id,
+        ), True
 
     return run_locked(resolved.state_file, _edit)
 
@@ -449,16 +482,21 @@ def check_stack_write_gate(*, paths: WavePaths | None = None) -> GateResult:
 
     def _view(state: OrchestratorState) -> tuple[GateResult, bool]:
         changed = reaper(state, cleanup=False)
+        active = active_leases(state)
+        stack_write_only = bool(active) and all(lease["lane"] == "STACK_WRITE" for lease in active)
         blockers: list[GateBlocker] = []
-        for lease in active_leases(state):
-            blockers.append(
-                {
-                    "leaseId": lease["leaseId"],
-                    "agentId": lease["agentId"],
-                    "lane": lease["lane"],
-                }
-            )
-        return {"allowed": len(blockers) == 0, "blockers": blockers}, changed
+        if active and not stack_write_only:
+            for lease in active:
+                blockers.append(
+                    {
+                        "leaseId": lease["leaseId"],
+                        "agentId": lease["agentId"],
+                        "lane": lease["lane"],
+                    }
+                )
+        stack_pin = None if stack_write_only else _stack_pin_blocker(state)
+        allowed = len(blockers) == 0 and stack_pin is None
+        return {"allowed": allowed, "blockers": blockers, "stackPin": stack_pin}, changed
 
     result = run_locked(resolved.state_file, _view)
     _cleanup_expired_leases(paths=resolved)

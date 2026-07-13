@@ -22,7 +22,6 @@ import os
 import platform
 import re
 import subprocess
-import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -57,12 +56,7 @@ class MuxEpoch(TypedDict):
     daemon_pid: int | None
     ws_url: str
     upstream_ready: bool
-
-
-class WarmTabHealthEntry(TypedDict):
-    targetId: str
-    url: str
-    title: str
+    upstream_generation: int
 
 
 class RuntimeIdentityParts(TypedDict):
@@ -75,6 +69,7 @@ class RuntimeIdentityParts(TypedDict):
 class RuntimeProbeContext(TypedDict):
     mux_daemon_count: int
     upstream_ready: bool
+    upstream_generation: int
     ws_stamp_matches: bool
     frontend_dir: str
     cdp_port: int
@@ -96,7 +91,6 @@ class HealthJsonPayload(TypedDict):
     frontendEpoch: FrontendEpoch | None
     chromeEpoch: ChromeEpoch | None
     muxEpoch: MuxEpoch | None
-    warmTabPool: list[WarmTabHealthEntry]
 
 
 _BROWSER_ID_RE = re.compile(r"/devtools/browser/([0-9a-f-]{36})")
@@ -186,7 +180,10 @@ def _backend_source_fingerprint() -> str:
     root = Path(__file__).resolve().parents[3]
     server_dir = Path(os.environ.get("MYRM_SERVER_DIR", root / "myrm-agent-server"))
     harness_dir = Path(os.environ.get("MYRM_HARNESS_DIR", root.parent / "myrm-agent-harness"))
-    tracked_groups = ((server_dir, ("app", "pyproject.toml", "uv.lock")), (harness_dir, ("src", "pyproject.toml")))
+    tracked_groups = (
+        (server_dir, ("app", "pyproject.toml", "uv.lock")),
+        (harness_dir, ("src", "pyproject.toml")),
+    )
     digest = hashlib.sha256()
     found = False
     for repo, paths in tracked_groups:
@@ -206,9 +203,16 @@ def _backend_source_fingerprint() -> str:
                 text=True,
                 timeout=10,
             ).stdout.splitlines()
+            tree = subprocess.run(
+                ["git", "-C", str(repo), "rev-parse", "HEAD^{tree}"],
+                check=False,
+                capture_output=True,
+                timeout=10,
+            ).stdout
         except (OSError, subprocess.TimeoutExpired):
             continue
         digest.update(str(repo).encode("utf-8"))
+        digest.update(tree)
         digest.update(diff)
         found = True
         for relative in sorted(item for item in untracked if item):
@@ -256,7 +260,7 @@ def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | Non
     )
     if generation == ":::":
         return None
-    source_fingerprint = _frontend_source_fingerprint(root)
+    source_fingerprint = frontend_source_fingerprint(root)
     return {
         "generation": generation,
         "source_fingerprint": source_fingerprint,
@@ -267,7 +271,7 @@ def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | Non
     }
 
 
-def _frontend_source_fingerprint(frontend_dir: Path) -> str:
+def frontend_source_fingerprint(frontend_dir: Path) -> str:
     """Hash tracked changes and untracked frontend sources for HMR drift detection."""
     tracked_paths = (
         "src",
@@ -285,22 +289,47 @@ def _frontend_source_fingerprint(frontend_dir: Path) -> str:
     )
     try:
         diff = subprocess.run(
-            ["git", "-C", str(frontend_dir), "diff", "--no-ext-diff", "--binary", "HEAD", "--", *tracked_paths],
+            [
+                "git",
+                "-C",
+                str(frontend_dir),
+                "diff",
+                "--no-ext-diff",
+                "--binary",
+                "HEAD",
+                "--",
+                *tracked_paths,
+            ],
             check=False,
             capture_output=True,
             timeout=10,
         ).stdout
         untracked = subprocess.run(
-            ["git", "-C", str(frontend_dir), "ls-files", "--others", "--exclude-standard", "--", *tracked_paths],
+            [
+                "git",
+                "-C",
+                str(frontend_dir),
+                "ls-files",
+                "--others",
+                "--exclude-standard",
+                "--",
+                *tracked_paths,
+            ],
             check=False,
             capture_output=True,
             text=True,
             timeout=10,
         ).stdout.splitlines()
+        tree = subprocess.run(
+            ["git", "-C", str(frontend_dir), "rev-parse", "HEAD^{tree}"],
+            check=False,
+            capture_output=True,
+            timeout=10,
+        ).stdout
     except (OSError, subprocess.TimeoutExpired):
         return ""
 
-    digest = hashlib.sha256(diff)
+    digest = hashlib.sha256(tree + diff)
     for relative_path in sorted(item for item in untracked if item):
         path = frontend_dir / relative_path
         try:
@@ -327,7 +356,10 @@ def _browser_id_from_ws_url(ws_url: str) -> str:
     return ws_url
 
 
-def read_chrome_epoch(port: int | None = None, profile_dir: Path | None = None) -> ChromeEpoch | None:
+def read_chrome_epoch(
+    port: int | None = None,
+    profile_dir: Path | None = None,
+) -> ChromeEpoch | None:
     cdp_port = port if port is not None else _resolve_e2e_port()
     profile = profile_dir if profile_dir is not None else _default_chrome_data_dir()
     try:
@@ -350,6 +382,7 @@ def read_mux_epoch(
     upstream_ready: bool,
     ws_stamp_matches: bool,
     mux_daemon_count: int,
+    upstream_generation: int = 0,
 ) -> MuxEpoch | None:
     if mux_daemon_count < 1:
         return None
@@ -374,6 +407,7 @@ def read_mux_epoch(
         "daemon_pid": daemon_pid,
         "ws_url": ws_url,
         "upstream_ready": upstream_ready,
+        "upstream_generation": max(upstream_generation, 0),
     }
 
 
@@ -385,6 +419,7 @@ def collect_runtime_parts(
     upstream_ready: bool = False,
     ws_stamp_matches: bool = False,
     mux_daemon_count: int = 0,
+    upstream_generation: int = 0,
 ) -> RuntimeIdentityParts:
     return {
         "backend_epoch": read_backend_epoch(),
@@ -394,6 +429,7 @@ def collect_runtime_parts(
             upstream_ready=upstream_ready,
             ws_stamp_matches=ws_stamp_matches,
             mux_daemon_count=mux_daemon_count,
+            upstream_generation=upstream_generation,
         ),
     }
 
@@ -402,7 +438,11 @@ def _canonical_parts_for_hash(parts: RuntimeIdentityParts) -> dict[str, object]:
     mux = parts["mux_epoch"]
     mux_identity: dict[str, object] | None = None
     if mux is not None:
-        mux_identity = {"daemon_pid": mux["daemon_pid"], "ws_url": mux["ws_url"]}
+        mux_identity = {
+            "daemon_pid": mux["daemon_pid"],
+            "ws_url": mux["ws_url"],
+            "upstream_generation": mux.get("upstream_generation", 0),
+        }
     chrome = parts["chrome_epoch"]
     chrome_identity: dict[str, object] | None = None
     if chrome is not None:
@@ -434,6 +474,7 @@ def build_health_json(
     shell_hot: bool,
     client_hot: bool,
     attach_mode: bool,
+    upstream_generation: int = 0,
     frontend_dir: Path | None = None,
     cdp_port: int | None = None,
     profile_dir: Path | None = None,
@@ -445,28 +486,11 @@ def build_health_json(
         upstream_ready=upstream_ready,
         ws_stamp_matches=ws_stamp_matches,
         mux_daemon_count=mux_daemon_count,
+        upstream_generation=upstream_generation,
     )
     runtime_id = compute_runtime_id(parts)
     backend = parts["backend_epoch"]
     stack_epoch: int | None = backend["epoch"] if backend is not None else None
-
-    warm_tab_pool: list[WarmTabHealthEntry] = []
-    if client_hot:
-        try:
-            from cdp_warm_tab_pool import pool_for_health_json, refresh_warm_tab_pool
-
-            port = cdp_port if cdp_port is not None else int(os.getenv("MYRM_CHROME_E2E_PORT", "9333"))
-            refresh_warm_tab_pool(cdp_port=port)
-            for item in pool_for_health_json():
-                warm_tab_pool.append(
-                    {
-                        "targetId": item["targetId"],
-                        "url": item["url"],
-                        "title": item.get("title", ""),
-                    }
-                )
-        except Exception:
-            warm_tab_pool = []
 
     return {
         "ui": ui_base,
@@ -483,7 +507,6 @@ def build_health_json(
         "frontendEpoch": parts["frontend_epoch"],
         "chromeEpoch": parts["chrome_epoch"],
         "muxEpoch": parts["mux_epoch"],
-        "warmTabPool": warm_tab_pool,
     }
 
 
@@ -531,6 +554,7 @@ def main() -> None:
         ctx = probe_runtime_context()
         mux_daemon_count = ctx["mux_daemon_count"]
         upstream_ready = ctx["upstream_ready"]
+        upstream_generation = ctx["upstream_generation"]
         ws_stamp_match = ctx["ws_stamp_matches"]
         if not args.frontend_dir and ctx["frontend_dir"]:
             frontend_dir = Path(ctx["frontend_dir"])
@@ -548,6 +572,7 @@ def main() -> None:
         shell_hot=args.shell_hot,
         client_hot=args.client_hot,
         attach_mode=args.attach_mode,
+        upstream_generation=upstream_generation if args.auto_probe else 0,
         frontend_dir=frontend_dir,
         cdp_port=cdp_port,
         profile_dir=profile_dir,

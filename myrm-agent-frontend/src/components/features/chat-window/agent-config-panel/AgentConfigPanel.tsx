@@ -85,11 +85,10 @@ const AgentConfigPanel = ({ className, hideGallery = false, showInkBackground = 
   return (
     <div className={cn('relative w-full overflow-visible', className)}>
       {showInkBackground && (
-        <div
-          className="pointer-events-none absolute left-1/2 z-0 w-[100vw] max-w-none -translate-x-1/2"
-          style={{ top: '-1.25rem', bottom: '-1.75rem' }}
-        >
-          <GalleryBackground variant="panel" />
+        <div className="pointer-events-none absolute left-1/2 top-[-0.75rem] z-0 w-screen -translate-x-1/2 overflow-visible">
+          <div className="mx-auto h-[min(32rem,48vh)] w-[120vw] max-w-none">
+            <GalleryBackground variant="panel" />
+          </div>
         </div>
       )}
 
@@ -216,7 +215,7 @@ const AgentConfigPanel = ({ className, hideGallery = false, showInkBackground = 
 
       {/* 智能体画廊（预置 + 自定义） - 懒加载 */}
       {!hideGallery && (
-        <div className={cn(isConfigPanelExpanded && 'pt-2 border-t border-border/50')}>
+        <div className={cn(isConfigPanelExpanded && 'pt-2')}>
           <Suspense fallback={<div className="h-32 animate-pulse bg-muted/50 rounded-lg" />}>
             <PresetAgentGallery
               onSelectPreset={handleSelectPreset}

@@ -116,7 +116,7 @@ def cmd_lease_bind_browser(args: argparse.Namespace) -> int:
         lease = bind_browser_lease(
             args.lease_id,
             page_id=args.page_id,
-            page_url=args.page_url,
+            target_id=args.target_id,
             context_id=args.context_id,
             agent_id=args.agent,
         )
@@ -179,13 +179,31 @@ def cmd_check_stack_write(_args: argparse.Namespace) -> int:
         print("WAVE_STACK_WRITE_OK")
         return 0
     blockers = result["blockers"]
-    print("WAVE_STACK_WRITE_DENIED: active leases block reset/restart", file=sys.stderr)
-    for item in blockers:
+    stack_pin = result.get("stackPin")
+    if stack_pin is not None:
         print(
-            f"  lease={item['leaseId']} agent={item['agentId']} lane={item['lane']}",
+            "WAVE_STACK_PINNED: open wave pins dev stack — mutation denied",
             file=sys.stderr,
         )
-    print("WAVE_STACK_WRITE_HINT: ./myrm wave close --force or wait for lease TTL", file=sys.stderr)
+        print(
+            f"  wave={stack_pin['waveId']} runtime={stack_pin['runtimeId']} "
+            f"openedBy={stack_pin['openedBy']}",
+            file=sys.stderr,
+        )
+    if blockers:
+        print("WAVE_STACK_WRITE_DENIED: active leases block reset/restart", file=sys.stderr)
+        for item in blockers:
+            print(
+                f"  lease={item['leaseId']} agent={item['agentId']} lane={item['lane']}",
+                file=sys.stderr,
+            )
+    if stack_pin is not None:
+        print(
+            "WAVE_STACK_PIN_HINT: ./myrm wave close --force or acquire STACK_WRITE lease",
+            file=sys.stderr,
+        )
+    elif blockers:
+        print("WAVE_STACK_WRITE_HINT: ./myrm wave close --force or wait for lease TTL", file=sys.stderr)
     return 3
 
 
@@ -232,7 +250,7 @@ def build_parser() -> argparse.ArgumentParser:
     bind_p = lease_sub.add_parser("bind-browser", help="Bind an MCP page to a lease")
     bind_p.add_argument("lease_id", help="Active leaseId")
     bind_p.add_argument("page_id", help="pageId returned by Chrome DevTools MCP")
-    bind_p.add_argument("--url", dest="page_url", default="", help="Page URL for CDP target cleanup fallback")
+    bind_p.add_argument("--target-id", required=True, help="Exact CDP targetId for deterministic cleanup")
     bind_p.add_argument("--context-id", default="", help="Optional isolated browser context id")
     bind_p.set_defaults(handler=cmd_lease_bind_browser)
 

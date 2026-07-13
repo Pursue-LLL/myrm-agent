@@ -5,7 +5,9 @@
 resolve_agent_paths() {
   local project_root="$1"
 
-  if [[ -f "${project_root}/myrm-agent/myrm-agent-server/run.py" ]]; then
+  if [[ -n "${MYRM_AGENT_ROOT:-}" ]] && [[ -f "${MYRM_AGENT_ROOT}/myrm-agent-server/run.py" ]]; then
+    AGENT_ROOT="$(cd "${MYRM_AGENT_ROOT}" && pwd)"
+  elif [[ -f "${project_root}/myrm-agent/myrm-agent-server/run.py" ]]; then
     AGENT_ROOT="${project_root}/myrm-agent"
   elif [[ -f "${project_root}/myrm-agent-server/run.py" ]]; then
     AGENT_ROOT="${project_root}"

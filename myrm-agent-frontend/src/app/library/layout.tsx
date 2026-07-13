@@ -1,12 +1,21 @@
-import { Metadata } from 'next';
-import React from 'react';
+import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = {
-  title: 'Library - Perplexica',
-};
+interface LibraryLayoutProps {
+  children: ReactNode;
+}
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
-  return <div>{children}</div>;
-};
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await props.params;
+  const t = await getTranslations({ locale, namespace: 'metadata' });
 
-export default Layout;
+  return {
+    title: t('libraryPageTitle'),
+    description: t('libraryPageDescription'),
+  };
+}
+
+export default function LibraryLayout({ children }: LibraryLayoutProps) {
+  return children;
+}

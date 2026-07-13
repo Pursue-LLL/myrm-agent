@@ -263,6 +263,12 @@ function SettingsLayout() {
     return new Set([DEFAULT_TAB, ...LIGHTWEIGHT_SECTIONS]);
   });
 
+  const renderedTabs = useMemo(() => {
+    const tabs = new Set(visitedTabs);
+    tabs.add(activeTab);
+    return tabs;
+  }, [visitedTabs, activeTab]);
+
   useEffect(() => {
     setVisitedTabs((prev) => new Set([...prev, activeTab]));
   }, [activeTab]);
@@ -370,7 +376,7 @@ function SettingsLayout() {
       >
         <div className="relative w-full">
           {/* 非活动 Section 用 hidden 移出布局，避免 invisible 叠层子元素拦截点击 */}
-          {Array.from(visitedTabs).map((tab) => {
+          {Array.from(renderedTabs).map((tab) => {
             const SectionComponent = SECTION_COMPONENTS[tab];
             const isActive = tab === activeTab;
 

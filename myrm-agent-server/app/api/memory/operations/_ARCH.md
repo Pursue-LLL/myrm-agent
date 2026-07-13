@@ -13,7 +13,7 @@
 | `archive_restore.py` | 模块 | 记忆归档恢复 API 操作层。只编排请求/响应和错误映射，恢复语义由服务层负责。 | ✅ |
 | `backup.py` | 模块 | Memory backup and restore endpoints. | ✅ |
 | `backup_remote.py` | 模块 | Remote backup API endpoints. | ✅ |
-| `command_center.py` | 模块 | 记忆指挥中心 API 操作层。将单用户/单沙箱记忆运行快照暴露给设置页 UI。 | ✅ |
+| `command_center.py` | 模块 | 记忆指挥中心 API 操作层。将单用户/单沙箱记忆运行快照暴露给设置页 UI，含 Claim/Evidence 知识图谱（支持 namespace 过滤）。 | ✅ |
 | `crud.py` | 模块 | Memory CRUD HTTP routes — thin transport layer. | ✅ |
 | `guardian.py` | 模块 | 记忆守护者 API。暴露记忆系统健康分数和定时维护调度器状态，提供手动触发维护入口，以及行为模式发现历史查询和手动触发。 | ✅ |
 | `pending.py` | 模块 | 待处理记忆 API 操作层。提供待处理记忆的审批流管理。 | ✅ |

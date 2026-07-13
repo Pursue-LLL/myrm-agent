@@ -13,11 +13,11 @@
 
 | 文件 | 职责 |
 |------|------|
-| `streamNotificationCopy.ts` | `resolveStreamLocale`、`getClarificationNotificationTitle`（`notifications.clarificationNeeded` SSOT） |
+| `streamNotificationCopy.ts` | `resolveStreamLocale`、`getClarificationNotificationTitle`、`preloadNotificationCopy`（idle 动态加载 notifications 切片） |
 
 ## 依赖
 
-- `#locales/*.json` — 五语系文案 SSOT
+- `locales/namespaces/{locale}/notifications.json` — notifications 切片（由 `i18n:split` 生成）
 - 消费者：`src/store/chat/messageStream/handlers/*`（非组件层）
 
 ## 约束

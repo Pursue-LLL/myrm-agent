@@ -9,9 +9,11 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "${REPO_ROOT}/scripts/lib/resolve_agent_root.sh"
 # shellcheck source=lib/backend_bg.sh
 source "${SCRIPT_DIR}/lib/backend_bg.sh"
+# shellcheck source=lib/dev_state_paths.sh
+source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
 resolve_agent_paths "${REPO_ROOT}"
 
-LOG_FILE="${SERVER_DIR}/.myrm-dev-backend.log"
+LOG_FILE="$(dev_backend_log_file)"
 
 if _start_backend_bg "${SERVER_DIR}"; then
   echo "✅ Backend http://127.0.0.1:8080 (log: ${LOG_FILE})"

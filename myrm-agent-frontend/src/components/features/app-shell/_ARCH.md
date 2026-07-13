@@ -19,7 +19,9 @@
 | `app-update-prompt.tsx` | 组件 | Tauri 桌面端更新提示浮层（静默下载，ready/error 时展示；dismissed 持久化到 localStorage） | ✅ |
 | `whats-new-modal.tsx` | 组件 | 版本更新后 What's New 弹窗（从 GitHub Release API 拉取完整 Release Notes，Markdown 渲染） | ✅ |
 | `appshot-initializer.tsx` | 组件 | Appshot 截图能力初始化（Tauri 权限与事件桥） | ✅ |
-| `settings-sync-initializer.tsx` | 组件 | 应用顶层 ConfigSyncManager 初始化、启动归一化、冲突对话框挂载 | ✅ |
+| `settings-sync-initializer.tsx` | 组件 | ConfigSyncManager 初始化；`initConfig` 优先，providers/commands/retrieval idle 延迟 | ✅ |
+| `deferred-mount.tsx` | 辅助 | `requestIdleCallback` 延迟挂载非首屏 subtree | ✅ |
+| `deferred-app-initializers.tsx` | 辅助 | FlowPad/PWA/WhatsNew 等 6 个 initializer 的 dynamic + idle 挂载 | ✅ |
 | `voice-ptt-initializer.tsx` | 组件 | 全局语音 PTT 快捷键 IPC → DOM CustomEvent 桥接 | ✅ |
 | `auth-callback.tsx` | 组件 | OAuth 回调页 loading/错误态与 token 交换 | ✅ |
 | `auth-initializer.tsx` | 组件 | 启动时 auth store  hydration 与路由守卫 | ✅ |

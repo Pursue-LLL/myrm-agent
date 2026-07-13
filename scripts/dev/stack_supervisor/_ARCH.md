@@ -6,7 +6,7 @@
 
 - **唯一 kill/start 入口**：daemon 持有跨进程 `flock`，`ensure` / `reset` 再经进程内 `threading.Lock` 串行化
 - **attach 只读**：并行 Agent 等待栈热，无副作用
-- **看门狗**：每 30s live probe + GC 失效 warmth/epoch/stale pid；若栈曾热后失温且 HTTP 不通，且没有活跃 Wave lease，**5min 冷却内单次 auto-ensure 自愈**
+- **看门狗**：每 30s live probe + GC 失效 warmth/epoch/stale pid；若栈曾热后失温且 HTTP 不通，且 **open wave 未 pin / 无活跃 lease**，5min 冷却内单次 auto-ensure 自愈；wave pin 期间仅记录 probe，不 ensure
 - **真值**：`supervisor-state.json` 来自 pid+port+HTTP，不单独信缓存
 
 ## 文件清单
@@ -38,7 +38,7 @@
 ## 集成
 
 - `dev-stack.sh` **必须**委托 supervisor（无直跑 fallback）；RPC 失败 **exit 1**（`STACK_FAIL`）
-- supervisor 对 `ensure`、`reset` 和 watchdog auto-heal 都检查 Wave 写门禁；活跃 lease 时 **exit 3**（`WAVE_STACK_WRITE_DENIED`）；见 [../wave_orchestrator/_ARCH.md](../wave_orchestrator/_ARCH.md)
+- supervisor 对 `reset` 和 watchdog auto-heal 的 `ensure` 检查 Wave 写门禁（**ensure RPC 冷启动恢复不受 pin 阻挡**）；`reset` 在活跃 lease 或 open wave pin 时 **exit 3**
 - supervisor 子调用设 `MYRM_SUPERVISOR_BYPASS=1` 防递归
 - `./myrm stop` → `reset` 后 `stack-supervisor.sh stop`
 - `frontend-warmup.sh`：warmth 命中前要求 `_lock_supervisor_alive`（frontend lock pid 存活；定义于 warmup.sh，preflight 直 source）
@@ -50,6 +50,7 @@
 
 - `supervisor.lock` / `supervisor.pid` / `supervisor.sock`
 - `supervisor-state.json` — live 探活快照
+- `stack-pin.json` — open wave 钉死的 backend/frontend pid（见 wave_orchestrator）
 - `supervisor.log` — daemon 日志
 
 ## 依赖

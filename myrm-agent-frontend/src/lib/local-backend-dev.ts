@@ -11,8 +11,8 @@
  * [POS]
  * Local/Tauri WebUI 开发连接体验 SSOT：Boot 复访判定与后端 setup 指引（与 Settings ConfigLoadError 一致）。
  */
-import enMessages from '#locales/en.json';
-import zhMessages from '#locales/zh.json';
+import enConfigLoadError from '../../locales/namespaces/en/common.json';
+import zhConfigLoadError from '../../locales/namespaces/zh/common.json';
 import { fetchBackendHealth, type BackendHealthPayload } from '@/lib/backend-health';
 
 export const BOOT_SCREEN_STORAGE_KEY = 'myrm_boot_shown';
@@ -27,8 +27,8 @@ type ConfigLoadErrorHintKey = 'hintUnreachable' | 'hintSplitDev' | 'hintStandalo
 type ConfigLoadErrorMessages = Record<ConfigLoadErrorHintKey, string>;
 
 const LOCALE_HINTS: Record<string, ConfigLoadErrorMessages> = {
-  en: enMessages.common.configLoadError,
-  zh: zhMessages.common.configLoadError,
+  en: enConfigLoadError.configLoadError,
+  zh: zhConfigLoadError.configLoadError,
 };
 
 export function isBootProfileCompleted(): boolean {

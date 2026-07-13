@@ -13,7 +13,9 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
+import type { Locale } from '@/i18n/config';
 import DocumentLang from '@/i18n/DocumentLang';
+import LazyLocaleHydrator from '@/i18n/LazyLocaleHydrator';
 import PageLayout from '@/components/layout/PageLayout';
 import { TooltipProvider } from '@/components/primitives/tooltip';
 import ThemeProvider from '@/components/features/theme/ThemeProvider';
@@ -28,12 +30,7 @@ import { QuarantineDialog } from '@/components/features/app-shell/QuarantineDial
 import { VaultUnlockModal } from '@/components/features/app-shell/VaultUnlockModal';
 import { ApprovalDrawer } from '@/components/approval/ApprovalDrawer';
 import DeepLinkListener from '@/components/features/app-shell/deep-link-listener';
-import { FlowPadModal } from '@/components/features/app-shell/flow-pad-modal';
-import { PWAUpdater } from '@/components/features/app-shell/pwa-updater';
-import { AppUpdatePrompt } from '@/components/features/app-shell/app-update-prompt';
-import { WhatsNewModal } from '@/components/features/app-shell/whats-new-modal';
-import AppshotInitializer from '@/components/features/app-shell/appshot-initializer';
-import VoicePttInitializer from '@/components/features/app-shell/voice-ptt-initializer';
+import DeferredAppInitializers from '@/components/features/app-shell/deferred-app-initializers';
 
 interface LocalizedProvidersProps {
   children: ReactNode;
@@ -50,6 +47,7 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
         <ThemeProvider>
           <TooltipProvider delayDuration={300} skipDelayDuration={100}>
             <NextIntlClientProvider messages={messages} locale={locale}>
+              <LazyLocaleHydrator locale={locale as Locale} />
               <ToastServiceInitializer />
               <AuthInitializer />
               <SettingsSyncInitializer />
@@ -59,12 +57,7 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
               <QuarantineDialog />
               <VaultUnlockModal />
               <ApprovalDrawer />
-              <FlowPadModal />
-              <PWAUpdater />
-              <AppUpdatePrompt />
-              <WhatsNewModal />
-              <AppshotInitializer />
-              <VoicePttInitializer />
+              <DeferredAppInitializers />
               <PageLayout>{children}</PageLayout>
               <Toaster position="top-right" expand={true} richColors />
             </NextIntlClientProvider>
