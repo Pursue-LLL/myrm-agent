@@ -11,7 +11,7 @@
 | `__init__.py` | 入口 | Business-layer AgentExecutor for channel inbound messages. | ✅ |
 | `executor.py` | 核心 | ChannelAgentExecutor orchestration：preamble 调度 + stream + finally。 | ✅ |
 | `execute_preamble.py` | 模块 | Preamble 编排门面：预算门控 + 子模块串联。 | ✅ |
-| `execute_preamble_types.py` | 模块 | `ChannelExecutionPrep` / `PrepareChannelExecutionResult` / `ChannelAgentBuildOutcome` / `build_security_config`。 | ✅ |
+| `execute_preamble_types.py` | 模块 | preamble 数据结构；`ChannelAgentBuildOutcome` XOR（result | early_reply） | ✅ |
 | `execute_preamble_session.py` | 模块 | 会话键、冷启动检测、历史加载、auto-reset 预事件。 | ✅ |
 | `execute_preamble_agent.py` | 模块 | `build_channel_execution_agent()`：Params 装配、resume 门控、凭证注入。 | ✅ |
 | `execute_preamble_instructions.py` | 模块 | 团队协议、渠道能力约束、人格模板注入 `user_instructions`。 | ✅ |

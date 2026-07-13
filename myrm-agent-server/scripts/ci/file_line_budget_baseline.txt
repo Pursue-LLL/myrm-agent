@@ -78,7 +78,6 @@ app/channels/voice/stt.py
 app/channels/voice/tts.py
 app/config/settings.py
 app/core/channel_bridge/config_parsers.py
-app/core/channel_bridge/executor_helpers.py
 app/core/channel_bridge/model_resolver.py
 app/core/channel_bridge/setup.py
 app/core/channel_bridge/topic_config.py
