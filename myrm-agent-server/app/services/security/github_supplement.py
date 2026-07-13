@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-from app.api.security.dashboard_models import DependabotPR, SecurityMetrics
+from app.schemas.security.dashboard import DependabotPR, SecurityMetrics
 
 logger = logging.getLogger(__name__)
 

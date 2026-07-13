@@ -2,9 +2,28 @@
 /** Kanban LLM live E2E — API prepare (auth + per-chat kanban + agent-stream). Pair with Chrome MCP on /settings/kanban for UI verification. */
 
 import { randomUUID } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ensureLoggedIn, apiFetch, apiBase } from './subagent-dashboard-e2e-auth.mjs';
 
 const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'tauri-local';
+
+function registerWaveLedger(kind, ref) {
+  const leaseId = process.env.WAVE_LEDGER_LEASE_ID?.trim();
+  if (!leaseId || !ref) return;
+  const waveSh = path.join(path.dirname(fileURLToPath(import.meta.url)), 'wave.sh');
+  const agentId = process.env.MYRM_WAVE_AGENT_ID?.trim() || `kanban-e2e:${process.pid}`;
+  const namespace = process.env.WAVE_LEDGER_NAMESPACE?.trim() ?? '';
+  const result = spawnSync(
+    'bash',
+    [waveSh, '--agent', agentId, 'ledger', 'register', leaseId, kind, String(ref), '--namespace', namespace],
+    { encoding: 'utf-8' },
+  );
+  if (result.status !== 0) {
+    throw new Error(`wave ledger register failed: ${(result.stderr || result.stdout || '').trim()}`);
+  }
+}
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -26,6 +45,25 @@ async function putConfig(configKey, value) {
     body: JSON.stringify({ value, deviceId }),
   });
   if (!res.ok) throw new Error(`PUT /config/${configKey}: ${await res.text()}`);
+}
+
+async function readConfig(configKey) {
+  const res = await apiFetch(`/api/v1/config/${configKey}`);
+  if (res.status === 404) return { exists: false, value: null };
+  if (!res.ok) throw new Error(`GET /config/${configKey}: ${await res.text()}`);
+  const body = await res.json();
+  return { exists: true, value: body.value };
+}
+
+async function restoreConfig(configKey, snapshot) {
+  if (snapshot.exists) {
+    await putConfig(configKey, snapshot.value);
+    return;
+  }
+  const res = await apiFetch(`/api/v1/config/${configKey}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`DELETE /config/${configKey}: ${await res.text()}`);
+  }
 }
 
 async function seedProviders() {
@@ -149,16 +187,25 @@ function normalizeTasks(body) {
   return [];
 }
 
-await ensureLoggedIn();
-const { providerId, modelId } = await seedProviders();
-await seedYoloSecurity();
-const board = await createBoard();
-const chatId = randomUUID();
-const chatRes = await apiFetch('/api/v1/chats/', {
-  method: 'POST',
-  body: JSON.stringify({ chat_id: chatId, title: `Kanban E2E ${Date.now()}`, action_mode: 'agent' }),
-});
-if (!chatRes.ok) throw new Error(`chat create: ${await chatRes.text()}`);
+async function main() {
+  await ensureLoggedIn();
+  const snapshots = {
+    providers: await readConfig('providers'),
+    securityConfig: await readConfig('securityConfig'),
+  };
+  try {
+    const { providerId, modelId } = await seedProviders();
+    await seedYoloSecurity();
+    const board = await createBoard();
+    const boardId = board.board_id ?? board.id;
+    registerWaveLedger('kanban_board', boardId);
+    const chatId = randomUUID();
+    const chatRes = await apiFetch('/api/v1/chats/', {
+      method: 'POST',
+      body: JSON.stringify({ chat_id: chatId, title: `Kanban E2E ${Date.now()}`, action_mode: 'agent' }),
+    });
+    if (!chatRes.ok) throw new Error(`chat create: ${await chatRes.text()}`);
+    registerWaveLedger('chat', chatId);
 
 const stream = await streamChat(chatId, providerId, modelId);
 let e2eTask = null;
@@ -191,7 +238,10 @@ if (!e2eTask && stream.kanbanTools.length > 0) {
   }
 }
 
-console.log(
+    if (!e2eTask) throw new Error('Kanban E2E task was not created');
+    registerWaveLedger('kanban_task', e2eTask.id ?? e2eTask.task_id);
+
+    console.log(
   JSON.stringify(
     {
       ok: Boolean(e2eTask),
@@ -207,6 +257,17 @@ console.log(
     null,
     2,
   ),
-);
+    );
 
-if (!e2eTask) process.exit(1);
+    const holdMs = Number(process.env.E2E_HOLD_MS ?? 0);
+    if (holdMs > 0) await new Promise((resolve) => setTimeout(resolve, holdMs));
+  } finally {
+    await restoreConfig('providers', snapshots.providers);
+    await restoreConfig('securityConfig', snapshots.securityConfig);
+  }
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});

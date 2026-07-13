@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from app.api.security.dashboard_models import (
+from app.schemas.security.dashboard import (
     SecurityAlert,
     SecurityDashboard,
     SecurityMetrics,
@@ -142,7 +142,7 @@ async def fetch_cp_webhook_tenant_id() -> str | None:
 
 
 async def fetch_cp_security_dashboard() -> SecurityDashboard | None:
-    """Mapped dashboard for backward-compatible imports."""
+    """Fetch and map control-plane security dashboard payload for sandbox mode."""
     payload = await fetch_cp_security_payload()
     if payload is None:
         return None

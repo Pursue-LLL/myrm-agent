@@ -168,9 +168,9 @@ class SkillsService:
             # Merge runtime is_active status from SQLite
             store = None
             try:
-                from app.api.skills.evolution.helpers import _get_skill_store
+                from app.core.skills.store.evolution_store import get_evolution_skill_store
 
-                store = _get_skill_store()
+                store = get_evolution_skill_store()
                 db_record = store.get_skill(skill.id)
                 if db_record is not None:
                     skill.is_active = db_record.is_active
@@ -217,9 +217,9 @@ class SkillsService:
         # Merge runtime is_active status from SQLite
         store = None
         try:
-            from app.api.skills.evolution.helpers import _get_skill_store
+            from app.core.skills.store.evolution_store import get_evolution_skill_store
 
-            store = _get_skill_store()
+            store = get_evolution_skill_store()
             for skill in skills:
                 # Use skill.id for lookup as it matches storage_skill_id
                 db_record = store.get_skill(skill.id)

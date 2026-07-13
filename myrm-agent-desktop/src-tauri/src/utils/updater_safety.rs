@@ -96,7 +96,7 @@ fn emit_dev_warning(pubkey: &str) {
     eprintln!("⚠️         TAURI_SIGNING_PRIVATE_KEY");
     eprintln!("⚠️         TAURI_SIGNING_PRIVATE_KEY_PASSWORD");
     eprintln!("⚠️  ");
-    eprintln!("⚠️  详细流程见 myrm-agent-desktop/SIGNING.md");
+    eprintln!("⚠️  详细流程见 myrm-agent-desktop/DESKTOP_RELEASE_SYSTEM.md");
     eprintln!("⚠️  ════════════════════════════════════════════════════════════════════");
 }
 
@@ -105,7 +105,7 @@ fn emit_prod_error(pubkey: &str) {
     eprintln!("❌  CRITICAL: Production build with placeholder Updater pubkey: {pubkey}");
     eprintln!("❌  This is a supply-chain security risk. Refusing to enable OTA updates.");
     eprintln!("❌  ");
-    eprintln!("❌  See myrm-agent-desktop/SIGNING.md for the key generation procedure.");
+    eprintln!("❌  See myrm-agent-desktop/DESKTOP_RELEASE_SYSTEM.md for the key generation procedure.");
     eprintln!("❌  ════════════════════════════════════════════════════════════════════");
 }
 

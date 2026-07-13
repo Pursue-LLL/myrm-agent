@@ -3,9 +3,9 @@
 //! 提供前端与 CLI Agent 交互的 API。
 //! 唯一执行路径：Agent Runner Sidecar（`sidecar/agent-runner`）JSON-RPC。
 
-mod message;
-mod permission;
-mod session;
+pub mod message;
+pub mod permission;
+pub mod session;
 
 pub use message::*;
 pub use permission::*;

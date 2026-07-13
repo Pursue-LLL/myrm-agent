@@ -288,7 +288,14 @@ async def ai_agent_service_stream(
             agent._browser_session.mark_task_failure()
         raise
     finally:
-        await agent.close()
+        from app.services.agent.execution_cache import finalize_agent_session
+
+        await finalize_agent_session(
+            agent,
+            chat_id=params.chat_id,
+            agent_id=params.agent_id,
+            extra_context=extra_context,
+        )
         recording_info = getattr(agent, "_session_recording_info", None)
         if recording_info:
             yield {

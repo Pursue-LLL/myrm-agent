@@ -18,12 +18,12 @@ fi
 
 if [[ "$is_placeholder" == true && -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then
   echo "[check-updater-pubkey] ERROR: TAURI_SIGNING_PRIVATE_KEY is set but pubkey is still a placeholder." >&2
-  echo "[check-updater-pubkey] Paste the .key.pub into tauri.conf.json#plugins.updater.pubkey (see SIGNING.md)." >&2
+  echo "[check-updater-pubkey] Paste the .key.pub into tauri.conf.json#plugins.updater.pubkey (see DESKTOP_RELEASE_SYSTEM.md)." >&2
   exit 1
 fi
 
 if [[ "$is_placeholder" == true ]]; then
-  echo "::warning title=Updater pubkey placeholder::OTA is disabled until SIGNING.md steps complete. Installers still publish."
+  echo "::warning title=Updater pubkey placeholder::OTA is disabled until DESKTOP_RELEASE_SYSTEM.md steps complete. Installers still publish."
   exit 0
 fi
 

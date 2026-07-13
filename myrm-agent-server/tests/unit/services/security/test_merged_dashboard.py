@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.api.security.dashboard_models import (
+from app.schemas.security.dashboard import (
     DependabotPR,
     SecurityAlert,
     SecurityDashboard,

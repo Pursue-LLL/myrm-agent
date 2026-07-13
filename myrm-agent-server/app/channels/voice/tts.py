@@ -1,6 +1,7 @@
 """Text-to-Speech synthesis for outbound Agent replies.
 
-Supports multiple providers with automatic fallback to Edge TTS (free):
+Supports multiple providers with automatic fallback to Edge TTS when the
+optional ``voice-tts`` extra is installed:
   1. OpenAI (gpt-4o-mini-tts)
   2. ElevenLabs (eleven_multilingual_v2)
   3. Fish Audio (s1 model, 2M+ community voices)
@@ -13,6 +14,7 @@ Supports multiple providers with automatic fallback to Edge TTS (free):
 [OUTPUT]
 - synthesize(): Text -> audio file path (Path)
 - synthesize_stream(): Text -> AsyncGenerator[bytes] (streaming audio)
+- is_edge_tts_available(): Whether optional Edge TTS (voice-tts extra) is installed
 
 [POS]
 Outbound text-to-speech. Called by Router based on TTSMode when sending Agent replies.
@@ -28,6 +30,7 @@ import logging
 import tempfile
 from collections.abc import AsyncGenerator
 from pathlib import Path
+from types import ModuleType
 
 import httpx
 
@@ -66,6 +69,27 @@ def _resolve_base_url(config: VoiceConfig, provider: str) -> str:
 _MIN_TEXT_LENGTH = 10
 _TTS_TIMEOUT = 30.0
 _STREAM_CHUNK_SIZE = 4096
+_EDGE_TTS_INSTALL_HINT = "uv sync --extra voice-tts"
+
+
+def is_edge_tts_available() -> bool:
+    """Return whether the optional Edge TTS (GPL-3.0) package is installed."""
+    try:
+        import edge_tts  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def _import_edge_tts() -> ModuleType:
+    """Import edge_tts or raise with an install hint."""
+    try:
+        import edge_tts
+    except ImportError as exc:
+        raise ImportError(
+            f"edge-tts is not installed. Install with: {_EDGE_TTS_INSTALL_HINT}"
+        ) from exc
+    return edge_tts
 
 
 # ---------------------------------------------------------------------------
@@ -98,15 +122,24 @@ async def synthesize(
         if provider == "edge":
             return await _synthesize_edge(text, config)
         return await _synthesize_api(text, config, provider, output_format)
+    except ImportError:
+        logger.warning("TTS: edge-tts not installed (%s)", _EDGE_TTS_INSTALL_HINT)
+        return None
     except Exception:
         logger.exception("TTS: primary provider '%s' failed", provider)
 
     if provider != "edge":
-        try:
-            logger.warning("TTS: falling back to Edge TTS (free)")
-            return await _synthesize_edge(text, config)
-        except Exception:
-            logger.exception("TTS: Edge TTS fallback also failed")
+        if not is_edge_tts_available():
+            logger.warning(
+                "TTS: Edge TTS fallback unavailable (install voice-tts extra: %s)",
+                _EDGE_TTS_INSTALL_HINT,
+            )
+        else:
+            try:
+                logger.warning("TTS: falling back to Edge TTS (free)")
+                return await _synthesize_edge(text, config)
+            except Exception:
+                logger.exception("TTS: Edge TTS fallback also failed")
     return None
 
 
@@ -127,16 +160,25 @@ async def synthesize_stream(
             async for chunk in stream_fn(text, config):
                 yield chunk
             return
+        except ImportError:
+            logger.warning("TTS stream: edge-tts not installed (%s)", _EDGE_TTS_INSTALL_HINT)
+            return
         except Exception:
             logger.exception("TTS stream: provider '%s' failed, falling back", provider)
 
     if provider != "edge":
-        try:
-            async for chunk in _stream_edge(text, config):
-                yield chunk
-            return
-        except Exception:
-            logger.exception("TTS stream: edge fallback also failed")
+        if is_edge_tts_available():
+            try:
+                async for chunk in _stream_edge(text, config):
+                    yield chunk
+                return
+            except Exception:
+                logger.exception("TTS stream: edge fallback also failed")
+        else:
+            logger.warning(
+                "TTS stream: Edge TTS fallback unavailable (install voice-tts extra: %s)",
+                _EDGE_TTS_INSTALL_HINT,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +287,7 @@ async def _synthesize_api(text: str, config: VoiceConfig, provider: str, output_
 
 
 async def _synthesize_edge(text: str, config: VoiceConfig) -> Path:
-    import edge_tts
+    edge_tts = _import_edge_tts()
 
     voice = config.tts_voice or _DEFAULT_VOICES["edge"]
     tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
@@ -325,7 +367,7 @@ async def _stream_minimax(text: str, config: VoiceConfig) -> AsyncGenerator[byte
 
 
 async def _stream_edge(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
-    import edge_tts
+    edge_tts = _import_edge_tts()
 
     voice = config.tts_voice or _DEFAULT_VOICES["edge"]
     rate = f"{(config.tts_speed - 1.0) * 100:+.0f}%" if config.tts_speed != 1.0 else "+0%"

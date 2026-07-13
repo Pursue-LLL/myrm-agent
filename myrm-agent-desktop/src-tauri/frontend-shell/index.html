@@ -13,25 +13,93 @@
         font-family: system-ui, sans-serif;
         background: #0a0a0a;
         color: #e5e5e5;
+        padding: 2rem;
+        text-align: center;
+      }
+      #status {
+        max-width: 28rem;
+        line-height: 1.5;
+      }
+      #status.error {
+        color: #f87171;
       }
     </style>
   </head>
   <body>
-    <p>Starting MyrmAgent…</p>
+    <p id="status">Starting MyrmAgent…</p>
     <script>
       const host = "127.0.0.1";
-      const port = 3000;
-      const target = `http://${host}:${port}`;
-      const poll = () => {
-        fetch(target, { mode: "no-cors" })
-          .then(() => {
-            window.location.replace(target);
-          })
-          .catch(() => {
-            setTimeout(poll, 500);
-          });
-      };
-      poll();
+      const defaultPort = 3000;
+      const pollIntervalMs = 500;
+      const maxAttempts = 240;
+
+      let stopped = false;
+
+      function showError(message) {
+        stopped = true;
+        const el = document.getElementById("status");
+        el.textContent = message;
+        el.classList.add("error");
+      }
+
+      async function resolveWebuiPort() {
+        try {
+          const invoke = window.__TAURI__?.core?.invoke;
+          if (invoke) {
+            const config = await invoke("load_system_config");
+            if (config && typeof config.webuiPort === "number" && config.webuiPort > 0) {
+              return config.webuiPort;
+            }
+          }
+        } catch (err) {
+          console.warn("load_system_config failed, using default webui port", err);
+        }
+        return defaultPort;
+      }
+
+      function bindFailureListener() {
+        const listen = window.__TAURI__?.event?.listen;
+        if (!listen) {
+          return;
+        }
+        listen("frontend-start-failed", (event) => {
+          const message =
+            typeof event.payload === "string" && event.payload
+              ? event.payload
+              : "UI failed to start. Restart MyrmAgent or change the WebUI port in Settings.";
+          showError(message);
+        });
+      }
+
+      async function start() {
+        bindFailureListener();
+        const port = await resolveWebuiPort();
+        const target = `http://${host}:${port}`;
+        let attempts = 0;
+
+        const poll = () => {
+          if (stopped) {
+            return;
+          }
+          attempts += 1;
+          if (attempts > maxAttempts) {
+            showError(
+              "UI is taking too long to start. Restart MyrmAgent or check whether the WebUI port is already in use.",
+            );
+            return;
+          }
+          fetch(target, { mode: "no-cors" })
+            .then(() => {
+              window.location.replace(target);
+            })
+            .catch(() => {
+              setTimeout(poll, pollIntervalMs);
+            });
+        };
+        poll();
+      }
+
+      start();
     </script>
   </body>
 </html>

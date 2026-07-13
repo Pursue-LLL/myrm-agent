@@ -4,7 +4,7 @@ Provides runtime visibility into dynamically registered channel routes.
 
 [INPUT]
 - app.core.channel_bridge::channel_gateway
-- app.infra.channel_routes.registry::ChannelRouteRegistry
+- app.core.channel_bridge.route_registry::get_route_registry
 
 [OUTPUT]
 - router: FastAPI APIRouter for /channels/routes/*
@@ -20,6 +20,8 @@ import logging
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
+
+from app.core.channel_bridge.route_registry import get_route_registry, set_route_registry
 
 logger = logging.getLogger(__name__)
 
@@ -37,21 +39,6 @@ class RouteHealthResponse(BaseModel):
     security_policy: dict[str, object]
 
 
-_registry_instance: object | None = None
-
-
-def set_route_registry(registry: object) -> None:
-    """Set global route registry instance.
-
-    Called by main.py during startup after routes are registered.
-
-    Args:
-        registry: ChannelRouteRegistry instance
-    """
-    global _registry_instance
-    _registry_instance = registry
-
-
 @router.get("/health", response_model=RouteHealthResponse)
 async def get_routes_health(request: Request) -> RouteHealthResponse:
     """Get health report of all dynamically registered channel routes.
@@ -61,6 +48,7 @@ async def get_routes_health(request: Request) -> RouteHealthResponse:
 
     Requires authentication.
     """
+    _registry_instance = get_route_registry()
     if _registry_instance is None:
         from fastapi import HTTPException
 
@@ -77,3 +65,6 @@ async def get_routes_health(request: Request) -> RouteHealthResponse:
 
     report = _registry_instance.get_health_report()
     return RouteHealthResponse(**report)
+
+
+__all__ = ["router", "set_route_registry"]

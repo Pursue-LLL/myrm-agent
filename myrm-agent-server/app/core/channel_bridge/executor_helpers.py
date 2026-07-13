@@ -236,6 +236,8 @@ def schedule_channel_approval_timeout(
         resume_params = params.model_copy()
         resume_params.query = Command(resume=resume_value)
 
+        from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+
         agent = AgentFactory.create_general_agent(resume_params)
 
         from app.services.agent.session_credential_assembler import user_config_session_credentials_scope
@@ -249,6 +251,7 @@ def schedule_channel_approval_timeout(
                     query=resume_params.query,
                     chat_history=chat_history or None,
                     chat_id=chat_id,
+                    context={"execution_mode": ExecutionMode.POOLED},
                 ):
                     event_type = event.get("type", "")
                     if event_type == "message" and isinstance(event.get("data"), str):
@@ -264,7 +267,12 @@ def schedule_channel_approval_timeout(
                                     "behavior": timeout_ext.get("behavior", "deny"),
                                 }
             finally:
-                await agent.close()
+                await finalize_agent_session(
+                    agent,
+                    chat_id=chat_id,
+                    agent_id=resume_params.agent_id,
+                    extra_context={"execution_mode": ExecutionMode.POOLED},
+                )
 
             content = strip_internal_markers("".join(chunks))
             if content.strip():

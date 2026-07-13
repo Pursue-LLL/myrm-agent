@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.background_worker.idle_tasks::register_idle_task_handler (POS: Default callbacks and tasks for the idle worker.)
-- app.api.dependencies::get_llm_for_user (POS: FastAPI dependency injection.)
+- app.services.agent.llm_access::get_llm_for_user (POS: WebUI 配置驱动的 LLM 解析)
 - app.config.settings::settings (POS: Application settings.)
 - app.database.connection::get_session (POS: Database session factory.)
 - app.services.chat.compact_service::compact_chat (POS: Lossless context compaction service.)
@@ -22,7 +22,7 @@ from pathlib import Path
 
 from myrm_agent_harness.agent.background_worker.idle_tasks import register_idle_task_handler
 
-from app.api.dependencies import get_llm_for_user
+from app.services.agent.llm_access import get_llm_for_user
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)

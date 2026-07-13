@@ -147,7 +147,7 @@ class SqlChannelPolicyProvider:
         return {str(g) for g in raw}
 
     async def get_default_user_id(self) -> str | None:
-        from app.api.dependencies import get_deploy_identity
+        from app.config.deploy_identity import get_deploy_identity
 
         return await get_deploy_identity()
 

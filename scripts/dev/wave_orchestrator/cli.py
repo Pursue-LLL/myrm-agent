@@ -116,6 +116,7 @@ def cmd_lease_bind_browser(args: argparse.Namespace) -> int:
         lease = bind_browser_lease(
             args.lease_id,
             page_id=args.page_id,
+            page_url=args.page_url,
             context_id=args.context_id,
             agent_id=args.agent,
         )
@@ -231,6 +232,7 @@ def build_parser() -> argparse.ArgumentParser:
     bind_p = lease_sub.add_parser("bind-browser", help="Bind an MCP page to a lease")
     bind_p.add_argument("lease_id", help="Active leaseId")
     bind_p.add_argument("page_id", help="pageId returned by Chrome DevTools MCP")
+    bind_p.add_argument("--url", dest="page_url", default="", help="Page URL for CDP target cleanup fallback")
     bind_p.add_argument("--context-id", default="", help="Optional isolated browser context id")
     bind_p.set_defaults(handler=cmd_lease_bind_browser)
 
@@ -243,7 +245,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     register_p = ledger_sub.add_parser("register", help="Register a test resource ref")
     register_p.add_argument("lease_id", help="Active RESOURCE_WRITE or GLOBAL_WRITE leaseId")
-    register_p.add_argument("kind", help="Resource kind: chat | project | agent | cron | file")
+    register_p.add_argument(
+        "kind",
+        help="Resource kind: chat | project | agent | cron | file | kanban_board | kanban_task",
+    )
     register_p.add_argument("ref", help="Business resource id (e.g. chatId)")
     register_p.add_argument("--namespace", default="", help="Owner namespace override")
     register_p.set_defaults(handler=cmd_ledger_register)

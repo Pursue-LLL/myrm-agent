@@ -262,6 +262,7 @@ async def run_agent_stream(
     if extra_context is None:
         extra_context = {}
     extra_context["goal_provider"] = goal_provider
+    extra_context.setdefault("execution_mode", "pooled")
 
     try:
         from app.core.channel_bridge.config_loader import load_user_configs

@@ -120,6 +120,7 @@ ACTIVE_PORT_FILE="${MYRM_CHROME_E2E_ACTIVE_PORT_FILE}"
 MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}"
 MUX_PID_FILE="${MUX_STATE_DIR}/daemon.pid"
 MUX_LOG_FILE="${MUX_STATE_DIR}/mux.log"
+MUX_START_LOCK_DIR="${MUX_STATE_DIR}/daemon.start.lock"
 MUX_USING=0
 if grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor/mcp.json" 2>/dev/null \
   || grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor-3.1.15/mcp.json" 2>/dev/null \
@@ -145,6 +146,9 @@ _stop_mux_daemon() {
 
 _start_mux_daemon() {
   mkdir -p "${MUX_STATE_DIR}"
+  if ! mkdir "${MUX_START_LOCK_DIR}" 2>/dev/null; then
+    return 0
+  fi
   # The preflight shell exits immediately after readiness. Detached stdio is
   # required so the shared mux survives that shell and remains available to
   # every later Chrome DevTools MCP client.
@@ -152,8 +156,18 @@ _start_mux_daemon() {
     CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
     MYRM_CHROME_E2E_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
     MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" \
+    MCP_MUX_UPSTREAM_STDERR="${MCP_MUX_UPSTREAM_STDERR:-1}" \
     node "${MUX_BIN}" daemon \
     >>"${MUX_LOG_FILE}" 2>&1 < /dev/null &
+  local i
+  for i in $(seq 1 15); do
+    if [[ -f "${MUX_PID_FILE}" ]] && kill -0 "$(tr -d '[:space:]' < "${MUX_PID_FILE}")" 2>/dev/null; then
+      rmdir "${MUX_START_LOCK_DIR}" 2>/dev/null || true
+      return 0
+    fi
+    sleep 1
+  done
+  rmdir "${MUX_START_LOCK_DIR}" 2>/dev/null || true
 }
 
 MUX_WS_STAMP="${MUX_STATE_DIR}/upstream-ws-url"

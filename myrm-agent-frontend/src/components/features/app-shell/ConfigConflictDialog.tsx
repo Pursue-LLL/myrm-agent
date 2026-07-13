@@ -2,8 +2,7 @@
 
 import { GitCompareArrows } from 'lucide-react';
 import { sortKeys } from '@/services/config/configFingerprint';
-import ReactDiffViewer from 'react-diff-viewer';
-import { useTheme } from 'next-themes';
+import { TextDiffViewer } from '@/lib/diff/TextDiffViewer';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,8 +65,6 @@ export const ConfigConflictDialog = ({
     return Object.entries(params).reduce((s, [k, v]) => s.replace(`{${k}}`, v), raw);
   },
 }: ConfigConflictDialogProps) => {
-  const { resolvedTheme } = useTheme();
-
   const oldCode = conflict?.serverValue ? JSON.stringify(sortKeys(conflict.serverValue), null, 2) : '';
   const newCode = conflict?.localValue ? JSON.stringify(sortKeys(conflict.localValue), null, 2) : '';
   const showDiff = !!(conflict?.serverValue && conflict?.localValue);
@@ -115,15 +112,7 @@ export const ConfigConflictDialog = ({
                     <span className="text-red-500">{t('serverVersion')}</span>
                     <span className="text-green-500">{t('localVersion')}</span>
                   </div>
-                  <div className="max-h-[300px] overflow-y-auto">
-                    <ReactDiffViewer
-                      oldValue={oldCode}
-                      newValue={newCode}
-                      splitView={false}
-                      useDarkTheme={resolvedTheme === 'dark'}
-                      hideLineNumbers={true}
-                    />
-                  </div>
+                  <TextDiffViewer oldValue={oldCode} newValue={newCode} filePath="config.json" maxHeight={300} />
                 </div>
               )}
 

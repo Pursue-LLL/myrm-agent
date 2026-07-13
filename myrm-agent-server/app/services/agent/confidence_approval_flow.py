@@ -59,9 +59,9 @@ class ConfidenceApprovalFlow:
         2. diff change ratio <= 50% (prevents silent large-scale rewrites)
         3. historical effective_rate >= 50% or insufficient data (prevents risky fixes on low-quality skills)
         """
+        from app.core.skills.store.evolution_store import get_evolution_skill_store
         from app.services.skills.evolution_reviews import (
             EvolutionApplyError,
-            _get_skill_store,
             approve_evolution_review_record,
             create_evolution_review_record,
         )
@@ -72,7 +72,7 @@ class ConfidenceApprovalFlow:
             proposal.score,
         )
 
-        store = _get_skill_store()
+        store = get_evolution_skill_store()
         try:
             skill_record = store.get_skill(proposal.skill_id)
         finally:

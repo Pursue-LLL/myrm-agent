@@ -7,6 +7,7 @@
 //! [OUTPUT]
 //! - setup_tray: 初始化 Tray 菜单（Show / New Chat / Settings / Workspace / Quit）
 //! - set_tray_status: IPC 命令，前端同步 Agent 运行状态与 i18n tooltip 到托盘
+//! - update_native_tray_status: Rust 侧托盘 error/idle 状态（watchdog、启动失败）
 //!
 //! [POS]
 //! 系统托盘模块。提供 Tray 菜单快捷操作和动态状态 tooltip。
@@ -133,5 +134,17 @@ fn default_tray_tooltip(status: &str) -> String {
         "error" => "MyrmAgent - Error".into(),
         "idle" => "MyrmAgent - Idle".into(),
         _ => "MyrmAgent".into(),
+    }
+}
+
+/// Update tray icon and tooltip from Rust (watchdog, sidecar startup failures).
+pub fn update_native_tray_status(app: &AppHandle, status: &str, tooltip: &str) {
+    let Some(tray) = app.tray_by_id("main") else {
+        return;
+    };
+    let _ = tray.set_tooltip(Some(tooltip));
+
+    if let Ok(icon) = load_tray_icon_for_status(status) {
+        let _ = tray.set_icon(Some(icon));
     }
 }

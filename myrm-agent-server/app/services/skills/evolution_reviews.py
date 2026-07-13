@@ -135,14 +135,10 @@ def evolution_lineage_id(evolution_id: str) -> str:
     return f"evolution:{evolution_id}"
 
 
-def _skill_store_db_path() -> Path:
-    from app.config.settings import settings
-
-    return Path(settings.database.state_dir) / "skills.db"
-
-
 def _get_skill_store() -> SkillStore:
-    return SkillStore(db_path=_skill_store_db_path())
+    from app.core.skills.store.evolution_store import get_evolution_skill_store
+
+    return get_evolution_skill_store()
 
 
 def _apply_failure_remediation(skill_name: str) -> str:
@@ -603,7 +599,7 @@ async def _apply_content_update(
     await store.save_skill(skill_record)
 
     try:
-        from app.api.skill_optimization.dependencies import get_storage
+        from app.services.skill_optimization.bootstrap import get_skill_optimization_storage as get_storage
         from app.services.skill_optimization.skill_version_sync import persist_skill_version
 
         opt_storage = get_storage()
@@ -702,7 +698,7 @@ async def _mark_apply_failure(
 
 async def _apply_content_shadow(payload: EvolutionApprovalPayload) -> None:
     """Seed an inactive candidate version and start a shadow A/B test without changing production disk."""
-    from app.api.skill_optimization.dependencies import get_storage
+    from app.services.skill_optimization.bootstrap import get_skill_optimization_storage as get_storage
     from app.services.skill_optimization.skill_version_sync import start_shadow_ab_test
 
     storage = get_storage()

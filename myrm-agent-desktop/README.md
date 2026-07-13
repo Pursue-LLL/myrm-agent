@@ -17,7 +17,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-工作流构建 macOS（Apple Silicon 优先发布）/ Windows / Linux 安装包；`finalize-release` 生成 `latest.json` 与各资产 `.sha256`，并发布**非 draft** GitHub Release（`releases/latest` API 与官网 `bake:release` 可拾取）。版本号从 git tag 注入 `tauri.conf.json`。签名密钥见 [SIGNING.md](SIGNING.md)。
+工作流构建 macOS（Apple Silicon 优先发布）/ Windows / Linux 安装包；`finalize-release` 生成 `latest.json` 与各资产 `.sha256`，并发布**非 draft** GitHub Release（`releases/latest` API 与官网 `bake:release` 可拾取）。版本号从 git tag 注入 `tauri.conf.json`。签名密钥见 [DESKTOP_RELEASE_SYSTEM.md](DESKTOP_RELEASE_SYSTEM.md)。
 
 ## 本地构建
 

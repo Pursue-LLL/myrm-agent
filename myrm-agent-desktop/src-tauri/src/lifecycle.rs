@@ -16,7 +16,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tokio::time::timeout;
 
-use crate::{PythonBackend, NextJSFrontend, stop_backend, stop_frontend};
+use crate::runtime::{stop_backend, stop_frontend, NextJSFrontend, PythonBackend};
 use crate::runtime::watchdog::WatchdogHandle;
 
 static SHUTDOWN_INITIATED: AtomicBool = AtomicBool::new(false);

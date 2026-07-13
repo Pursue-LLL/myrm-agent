@@ -1,4 +1,11 @@
-# Desktop Code Signing & Notarization
+# Desktop 发版与签名系统
+
+> 跨模块技术方案：Tauri 桌面客户端代码签名、公证、OTA 与 CI 验签。  
+> 模块入口：[_ARCH.md](_ARCH.md) · [ARCHITECTURE.md](ARCHITECTURE.md)
+
+---
+
+## 发版流程说明
 
 Walkthrough for shipping a signed and notarized MyrmAgent desktop bundle across macOS, Windows, and Linux.
 

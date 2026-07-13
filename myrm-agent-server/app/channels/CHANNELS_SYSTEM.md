@@ -445,10 +445,10 @@ StreamCoordinator
 - Gateway 60s 周期调用 `channel.health_check()`
 - `ChannelHealth` 追踪连续成功/失败次数
 - `collect_issues()` 结构化诊断（kind/severity/message/fix）；缺 SDK 依赖为 ERROR + `uv sync --extra …`；WeChat 语音 SILK 解码缺 pilk 为 WARNING + `uv sync --extra wechat-silk`（不阻塞启用，Settings 可一键安装）
-- `POST /channels/manage/{name}/install-dependencies` 在 server venv 内 lazy-install（harness `runtime.lazy_deps`：`platform.discord` / `platform.feishu` / `platform.matrix` / `platform.wechat-silk`），成功后 **hot-register** 到 Gateway（无需重启进程）；响应 `registered: false` 表示 pip 成功但频道未上 bus（需配凭证或重启）
+- `POST /channels/manage/{name}/install-dependencies` 在 server venv 内 lazy-install（harness `runtime.lazy_deps`：`platform.discord` / `platform.feishu` / `platform.matrix` / `platform.wechat-silk` / `platform.voice-tts`），成功后 **hot-register** 到 Gateway（无需重启进程）；响应 `registered: false` 表示 pip 成功但频道未上 bus（需配凭证或重启）
 - `GET /channels/manage/status` 对未进 bus 的 SDK 频道返回 `status: unavailable` + `DEPENDENCY` issue（`registry.probe_sdk_channel_issues`），Settings 可一键安装
 - `PATCH …/toggle` 启用前 **先** `ensure_channel_dependencies_ready`（仅 ERROR 级 SDK 依赖会阻塞/自动安装；WARNING 级可选能力依赖需用户在 Settings 手动安装）
-- 可选 extra：`channels-sdk`（discord-py + lark-oapi）、`matrix`、`matrix-e2ee`、`wechat-silk`（pilk，WeChat iLink SILK→WAV）；`myrm setup` / 官方镜像 `--all-extras` 已包含
+- 可选 extra：`channels-sdk`（discord-py + lark-oapi）、`matrix`、`matrix-e2ee`、`wechat-silk`（pilk，WeChat iLink SILK→WAV）、`voice-tts`（edge-tts，GPL-3.0 Edge TTS 免费回退）；`myrm setup` / 官方镜像 `--all-extras` 已包含
 
 ---
 

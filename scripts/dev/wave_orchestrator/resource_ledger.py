@@ -200,12 +200,17 @@ def cleanup_expired_lease_resources(state: OrchestratorState) -> bool:
     expired_ids = {
         lease["leaseId"]
         for lease in state["leases"]
-        if lease["status"] == "expired"
+        if lease["status"] in {"expired", "released"}
     }
     if not expired_ids:
         return False
     for lease_id in expired_ids:
-        targets = _active_resources(state, lease_id=lease_id)
+        targets = [
+            resource
+            for resource in state.get("resources", [])
+            if resource.get("leaseId") == lease_id
+            and resource.get("status") in {"active", "failed"}
+        ]
         if not targets:
             continue
         attempts = [cleanup_resource_ref(item["kind"], item["ref"]) for item in targets]

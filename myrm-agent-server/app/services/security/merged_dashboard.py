@@ -17,7 +17,7 @@ import logging
 import httpx
 from fastapi import HTTPException
 
-from app.api.security.dashboard_models import (
+from app.schemas.security.dashboard import (
     DependabotPR,
     SecurityDashboard,
     SecurityMetrics,

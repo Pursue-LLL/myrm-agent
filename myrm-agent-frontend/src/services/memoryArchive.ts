@@ -254,6 +254,13 @@ export interface MigrationLanePreviewItem {
   detail: string;
 }
 
+export interface TokenEconomicsComparison {
+  skill_count: number;
+  source_tokens_per_turn: number;
+  myrm_tokens_per_turn: number;
+  savings_percent: number;
+}
+
 export interface MCPServerPreviewItem {
   name: string;
   type: string;
@@ -271,6 +278,7 @@ export interface MemoryImportDryRunResponse {
   pending_skills: MemoryImportPendingSkill[];
   coverage_items: MemoryImportCoverageItem[];
   migration_lanes: MigrationLanePreviewItem[];
+  token_economics?: TokenEconomicsComparison | null;
   instruction_preview_persona?: string | null;
   instruction_preview_rule_names?: string[];
   instruction_total_chars?: number;

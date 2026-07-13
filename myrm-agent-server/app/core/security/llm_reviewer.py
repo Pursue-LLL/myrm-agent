@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.security.types::ReviewResult, SecurityReviewerProtocol, RecentToolCall
-- app.api.dependencies::get_llm_for_user
+- app.services.agent.llm_access::get_llm_for_user
 
 [OUTPUT]
 - DynamicLLMSecurityReviewer: Server-layer implementation of SecurityReviewerProtocol
@@ -25,7 +25,7 @@ from myrm_agent_harness.agent.security.types import (
     SecurityReviewerProtocol,
 )
 
-from app.api.dependencies import get_llm_for_user
+from app.services.agent.llm_access import get_llm_for_user
 
 logger = logging.getLogger(__name__)
 

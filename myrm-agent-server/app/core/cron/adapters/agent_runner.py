@@ -453,6 +453,7 @@ class AgentJobRunner:
             timeout = job.timeout_seconds or 300
             run_started_at = time.monotonic()
 
+            from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
             from myrm_agent_harness.agent.security import user_credentials_ctx
 
             from app.services.agent.session_credential_assembler import assemble_session_credentials
@@ -483,7 +484,12 @@ class AgentJobRunner:
                             timeout_seconds=remaining,
                         )
                 finally:
-                    await agent.close()
+                    await finalize_agent_session(
+                        agent,
+                        chat_id=job.chat_id,
+                        agent_id=params.agent_id,
+                        extra_context={"execution_mode": ExecutionMode.EPHEMERAL},
+                    )
 
                 await _finalize_heartbeat_follow_up_delivery(job, result)
 
@@ -576,6 +582,7 @@ async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:
 
 async def _consume_stream(agent: object, job: CronJob, effective_prompt: str) -> JobResult:
     from app.ai_agents.general_agent import GeneralAgent
+    from app.services.agent.execution_cache import ExecutionMode
 
     assert isinstance(agent, GeneralAgent)
 
@@ -587,6 +594,7 @@ async def _consume_stream(agent: object, job: CronJob, effective_prompt: str) ->
         query=effective_prompt,
         chat_history=chat_history,
         chat_id=job.chat_id,
+        context={"execution_mode": ExecutionMode.EPHEMERAL},
     ):
         event_type = event.get("type", "")
 

@@ -215,6 +215,8 @@ class LocalEvalExecutor:
             declared_allowed_roots=(str(workspace_dir),),
         )
 
+        from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+
         agent = AgentFactory.create_general_agent(params)
 
         start_time = time.perf_counter()
@@ -224,7 +226,11 @@ class LocalEvalExecutor:
         total_output_tokens = 0
 
         try:
-            async for event in agent.process_stream(query=message, chat_id=chat_id):
+            async for event in agent.process_stream(
+                query=message,
+                chat_id=chat_id,
+                context={"execution_mode": ExecutionMode.EPHEMERAL},
+            ):
                 event_type = event.get("type", "")
 
                 if event_type == "message" and isinstance(event.get("data"), str):
@@ -239,7 +245,12 @@ class LocalEvalExecutor:
                         total_input_tokens += int(data.get("input_tokens") or 0)
                         total_output_tokens += int(data.get("output_tokens") or 0)
         finally:
-            await agent.close()
+            await finalize_agent_session(
+                agent,
+                chat_id=chat_id,
+                agent_id=params.agent_id,
+                extra_context={"execution_mode": ExecutionMode.EPHEMERAL},
+            )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         total_tokens = total_input_tokens + total_output_tokens

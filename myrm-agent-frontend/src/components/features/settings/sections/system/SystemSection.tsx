@@ -353,6 +353,8 @@ const SystemSection = memo(() => {
     return <div className="h-40 w-full animate-pulse bg-white/5 rounded-3xl" />;
   }
 
+  const showApiPortInSettings = !isTauriRuntime() || localConfig.enableWebUIMode;
+
   if (!isLocal) {
     return (
       <div className="space-y-12 max-w-4xl mx-auto py-4">
@@ -537,7 +539,7 @@ const SystemSection = memo(() => {
 
               {/* 端口配置 */}
               <div className="h-px bg-white/5" />
-              <div className="grid grid-cols-2 gap-4">
+              <div className={cn('grid gap-4', showApiPortInSettings ? 'grid-cols-2' : 'grid-cols-1')}>
                 {/* 前端端口 */}
                 <div className="space-y-3">
                   <label className="text-sm font-bold text-foreground">{t('config.webuiPort')}</label>
@@ -552,18 +554,20 @@ const SystemSection = memo(() => {
                   <p className="text-xs text-muted-foreground">{t('config.webuiPortDesc')}</p>
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-foreground">{t('config.apiPort')}</label>
-                  <input
-                    type="number"
-                    value={localConfig.apiPort}
-                    onChange={(e) => handleChange('apiPort', Number.parseInt(e.target.value) || 25808)}
-                    min={1024}
-                    max={65535}
-                    className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                  />
-                  <p className="text-xs text-muted-foreground">{t('config.apiPortDesc')}</p>
-                </div>
+                {showApiPortInSettings && (
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-foreground">{t('config.apiPort')}</label>
+                    <input
+                      type="number"
+                      value={localConfig.apiPort}
+                      onChange={(e) => handleChange('apiPort', Number.parseInt(e.target.value) || 25808)}
+                      min={1024}
+                      max={65535}
+                      className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                    />
+                    <p className="text-xs text-muted-foreground">{t('config.apiPortDesc')}</p>
+                  </div>
+                )}
               </div>
 
               {/* 需要密码 */}

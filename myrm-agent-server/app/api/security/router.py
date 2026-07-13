@@ -13,7 +13,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 
-from app.api.security.dashboard_models import (
+from app.schemas.security.dashboard import (
     DependabotPR,
     PlatformAuditLogsResponse,
     PlatformAuditStatsResponse,

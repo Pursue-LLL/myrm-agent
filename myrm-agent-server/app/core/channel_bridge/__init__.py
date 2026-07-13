@@ -158,6 +158,6 @@ def init_channel_routes(app: FastAPI) -> None:
     registry = ChannelRouteRegistry(channel_gateway, auth_dependency=None)
     registry.register_all(app)
 
-    from app.api.channels.routes_management import set_route_registry
+    from app.core.channel_bridge.route_registry import set_route_registry
 
     set_route_registry(registry)

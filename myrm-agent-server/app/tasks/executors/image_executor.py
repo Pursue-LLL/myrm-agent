@@ -31,6 +31,8 @@ class ImageTaskExecutor:
         config = self._config_resolver(task)
         generator = ImageGenerator(config)
 
+        allow_private = payload.get("allow_private_networks") is True
+
         result = await generator.generate(
             prompt=str(payload["prompt"]),
             size=payload.get("size") if isinstance(payload.get("size"), str) else None,
@@ -41,6 +43,7 @@ class ImageTaskExecutor:
             if isinstance(payload.get("reference_image_urls"), list)
             else None,
             cancellation_event=task.cancellation_event,
+            allow_private_networks=allow_private,
         )
 
         return {

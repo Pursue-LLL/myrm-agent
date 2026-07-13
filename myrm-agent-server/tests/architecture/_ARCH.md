@@ -25,7 +25,8 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_migration_source_closure.py` | Wizard 封闭 4 源：probe 导出 ≡ `supported_source_ids()` ≡ loader 注册 |
 | `test_cookbook_specs_asset.py` | `assets/cookbook_specs.json` bundled 结构校验 |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |
-| `data/fractal_header_baseline.txt` | `check_fractal_docs --strict-headers` 已知缺 header 的 app 相对路径 |
+| `test_no_core_services_api_imports.py` | `app/{core,services,lifecycle}/` 禁止 import `app.api` |
+| `data/server_api_import_baseline.txt` | 上述门禁 baseline（须保持为空） |
 | `../../scripts/ci/file_line_budget_baseline.txt` | `check_file_line_budget.py` grandfather 超标模块列表 |
 
 ## 依赖

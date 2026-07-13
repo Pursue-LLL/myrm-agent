@@ -315,6 +315,7 @@ def bind_browser_lease(
     lease_id: str,
     *,
     page_id: str,
+    page_url: str = "",
     context_id: str = "",
     paths: WavePaths | None = None,
     agent_id: str | None = None,
@@ -326,7 +327,7 @@ def bind_browser_lease(
         lease = _find_active_lease(state, lease_id)
         if lease["agentId"] != holder:
             raise RuntimeError(f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}")
-        return bind_browser(lease, page_id=page_id, context_id=context_id), True
+        return bind_browser(lease, page_id=page_id, page_url=page_url, context_id=context_id), True
 
     return run_locked(resolved.state_file, _edit)
 

@@ -86,6 +86,25 @@ async function putConfig(configKey, value) {
   }
 }
 
+async function readConfig(configKey) {
+  const res = await apiFetch(`/api/v1/config/${configKey}`);
+  if (res.status === 404) return { exists: false, value: null };
+  if (!res.ok) throw new Error(`GET /config/${configKey} failed: ${await res.text()}`);
+  const body = await res.json();
+  return { exists: true, value: body.value };
+}
+
+async function restoreConfig(configKey, snapshot) {
+  if (snapshot.exists) {
+    await putConfig(configKey, snapshot.value);
+    return;
+  }
+  const res = await apiFetch(`/api/v1/config/${configKey}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`DELETE /config/${configKey} failed: ${await res.text()}`);
+  }
+}
+
 async function seedProviders() {
   const basicModel = requireEnv('BASIC_MODEL');
   const basicKey = requireEnv('BASIC_API_KEY');
@@ -354,27 +373,36 @@ async function main() {
   requireEnv('BASIC_API_KEY');
   requireEnv('BASIC_MODEL');
   await ensureLoggedIn();
-  await seedProviders();
-  await seedYoloSecurity();
-  const chatId = await seedSubagentChat();
-  registerWaveLedger(chatId);
-  const { taskId, treeRow, keepStreamAlive } = await delegateSubagentViaAgentStream(chatId);
-  await assertListSubagents(chatId, taskId);
-  await assertListSubagentsStillRunning(chatId, taskId);
-
-  const result = {
-    chatId,
-    taskId,
-    treeRow,
-    uiUrl: `${uiBase}/${chatId}`,
-    apiBase,
+  const snapshots = {
+    providers: await readConfig('providers'),
+    securityConfig: await readConfig('securityConfig'),
   };
-  console.log(JSON.stringify(result, null, 2));
+  try {
+    await seedProviders();
+    await seedYoloSecurity();
+    const chatId = await seedSubagentChat();
+    registerWaveLedger(chatId);
+    const { taskId, treeRow, keepStreamAlive } = await delegateSubagentViaAgentStream(chatId);
+    await assertListSubagents(chatId, taskId);
+    await assertListSubagentsStillRunning(chatId, taskId);
 
-  if (keepStreamAlive && streamHoldMs > 0) {
-    await keepStreamAlive();
-    // Parent stream may finish before streamHoldMs; keep prepare alive so UI/MCP can reach list/cancel.
-    await new Promise((resolve) => setTimeout(resolve, streamHoldMs));
+    const result = {
+      chatId,
+      taskId,
+      treeRow,
+      uiUrl: `${uiBase}/${chatId}`,
+      apiBase,
+    };
+    console.log(JSON.stringify(result, null, 2));
+
+    if (keepStreamAlive && streamHoldMs > 0) {
+      await keepStreamAlive();
+      // Parent stream may finish before streamHoldMs; keep prepare alive so UI/MCP can reach list/cancel.
+      await new Promise((resolve) => setTimeout(resolve, streamHoldMs));
+    }
+  } finally {
+    await restoreConfig('providers', snapshots.providers);
+    await restoreConfig('securityConfig', snapshots.securityConfig);
   }
 }
 

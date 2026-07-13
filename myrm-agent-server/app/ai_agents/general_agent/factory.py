@@ -787,10 +787,6 @@ async def build_general_agent(
     except Exception as e:
         logger.warning("Failed to load budget guard (non-blocking): %s", e)
 
-    from app.core.skills.config_version import get_skill_config_version
-
-    agent_wrapper._skill_config_version = get_skill_config_version()
-
     logger.info("GeneralAgent 初始化完成")
     return agent
 

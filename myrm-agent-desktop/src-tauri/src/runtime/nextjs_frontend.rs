@@ -1,4 +1,4 @@
-//! Next.js Standalone 前端进程管理（WebUI 模式）
+//! Next.js Standalone 前端进程管理（Tauri 桌面始终自启）
 
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};

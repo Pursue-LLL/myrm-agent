@@ -180,18 +180,11 @@ async fn restart_backend(app: &AppHandle) -> Result<(), String> {
 }
 
 fn update_tray_status(app: &AppHandle, status: &str) {
-    let Some(tray) = app.tray_by_id("main") else {
-        return;
-    };
     let tooltip = match status {
         "restarting" => "MyrmAgent - 服务重启中...",
         "error" => "MyrmAgent - 服务异常，请重启应用",
         "idle" => "MyrmAgent - 空闲",
         _ => "MyrmAgent",
     };
-    let _ = tray.set_tooltip(Some(tooltip));
-
-    if let Ok(icon) = crate::tray::load_tray_icon_for_status(status) {
-        let _ = tray.set_icon(Some(icon));
-    }
+    crate::tray::update_native_tray_status(app, status, tooltip);
 }

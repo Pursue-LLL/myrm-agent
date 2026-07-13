@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from app.api.security.dashboard_models import RateLimitStatusItem, SecurityRateLimitsResponse
+from app.schemas.security.dashboard import RateLimitStatusItem, SecurityRateLimitsResponse
 from app.config.deploy_mode import is_sandbox
 from app.services.security.cp_security_dashboard import get_cp_api_base, get_cp_request_headers
 

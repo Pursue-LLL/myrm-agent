@@ -24,7 +24,7 @@ import httpx
 from fastapi import HTTPException
 from fastapi.responses import Response
 
-from app.api.security.dashboard_models import (
+from app.schemas.security.dashboard import (
     PlatformAuditEvent,
     PlatformAuditEventCount,
     PlatformAuditLogsResponse,

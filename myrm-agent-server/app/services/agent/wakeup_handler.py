@@ -142,6 +142,8 @@ class ServerWakeupHandler:
                 wakeup_payload["memory_channel_id"] = "web_chat"
             params = params.model_copy(update=wakeup_payload)
 
+            from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+
             agent = AgentFactory.create_general_agent(params)
 
             async def consume_stream() -> None:
@@ -181,6 +183,7 @@ class ServerWakeupHandler:
                                     cancel_token=None,
                                     timezone=params.timezone,
                                     force_delegate_agent=params.force_delegate_agent,
+                                    context={"execution_mode": ExecutionMode.POOLED},
                                 )
 
                                 headless_stream = gateway.execute_stream(
@@ -246,7 +249,12 @@ class ServerWakeupHandler:
                                 extra_data=collector.extra_data,
                                 timezone=params.timezone,
                             )
-                        await agent.close()
+                        await finalize_agent_session(
+                            agent,
+                            chat_id=params.chat_id,
+                            agent_id=params.agent_id,
+                            extra_context={"execution_mode": ExecutionMode.POOLED},
+                        )
 
             asyncio.create_task(consume_stream())
 

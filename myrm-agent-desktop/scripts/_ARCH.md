@@ -8,12 +8,15 @@
 
 | 文件 | 平台 | 职责 | I/O/P |
 |------|------|------|-------|
-| `check-fractal-docs.ts` | CI | 分形文档门禁：必检 `_ARCH.md` 清单 + 核心 `[INPUT]` 头；`bun run scripts/check-fractal-docs.ts` | ✅ |
+| `check-fractal-docs.ts` | CI | 分形文档门禁：14 项 `_ARCH` + 14 核心 `[INPUT]` + Rust ≤400 行 | ✅ |
 | `check-fractal-docs.test.ts` | CI | 门禁单元测试 | — |
+| `ci/cargo-check.sh` | CI | stub sidecars + frontend standalone → `cargo check` + `config::tests` | — |
+| `ci/verify-launch-contract.sh` | CI | 静态校验 Desktop Launch Contract 不变量 | — |
 | `build-frontend.sh` | Unix | 从 desktop 根解析 monorepo 路径，在 `myrm-agent-frontend/` 执行 `build:tauri`（或 `dev` 模式 `bun run dev`）；standalone 已存在则跳过构建 | ✅ |
 | `verify-signing.sh` | Unix (macOS CI) | 发版后 codesign / Gatekeeper / notary staple 四重验签；失败计数作为 exit code | ✅ |
 | `verify-signing.ps1` | Windows | Windows 安装包签名验证（与 `verify-signing.sh` 对称） | ✅ |
-| `inset-app-icon.py` | 双平台 | 从 `myrm-agent-frontend/public/brand` 源图生成 PWA/Tauri/tray 图标（`cargo tauri icon`）；维护者手动运行 | ✅ |
+| `inset-app-icon.py` | 双平台 | 从 `myrm-agent-frontend/public/brand` 源图生成 PWA/Tauri/tray 图标；维护者手动运行 | ✅ |
+| `ci/rust_line_budget_baseline.txt` | CI | Rust 行数预算 grandfather 清单 | — |
 
 ## 约束
 

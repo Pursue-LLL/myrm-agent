@@ -71,9 +71,9 @@ async def load_skill_content_for_batch(skill_id: str) -> str | None:
 
     store = None
     try:
-        from app.api.skills.evolution.helpers import _get_skill_store
+        from app.core.skills.store.evolution_store import get_evolution_skill_store
 
-        store = _get_skill_store()
+        store = get_evolution_skill_store()
         record = store.get_skill(skill_id)
         if record and record.path:
             skill_path = Path(record.path)

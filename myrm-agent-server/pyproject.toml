@@ -28,7 +28,7 @@ dependencies = [
   "myrm-agent-harness[acp,browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,compiled-core]==0.1.0rc5",
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
   "aiohttp>=3.14.1",           # Matrix channel + alert notifier HTTP client
-  # --- 语音处理 ---
+  # --- 语音处理（本地 STT）---
   "faster-whisper>=1.2.1",     # CTranslate2 Whisper 推理引擎（本地 STT）
   # --- 图片处理 ---
   "pillow>=12.3.0",    # 图片处理/压缩 (qrcode + media/service)
@@ -45,7 +45,6 @@ dependencies = [
   "defusedxml>=0.7.1",                  # 安全 XML 解析，防止 XXE/billion-laughs (wecom/wechat channels)
   "cryptography>=49.0.0",               # AES-256-GCM 加密 (credentials_store + wecom/crypto)
   "PyNaCl>=1.6.2",                # Curve25519 + NaCl box (remote_access E2EE)
-  "edge-tts>=7.2.8",                    # TTS 文本转语音 (voice/tts.py)
   # --- 事件循环 ---
   "uvloop>=0.22.1; sys_platform != 'win32'", # 高性能事件循环 (uvicorn_runner.py)
   "orjson>=3.11.9",                     # 高性能 JSON (sse_helpers + streaming + login)
@@ -76,11 +75,15 @@ matrix-e2ee = [
 wechat-silk = [
   "pilk>=0.2.4",
 ]
+# Edge TTS free fallback (GPL-3.0 — optional; app/channels/voice/tts.py)
+voice-tts = [
+  "edge-tts>=7.2.8",
+]
 # 沙箱执行运行时绘图栈：代码执行工具生成图表/数据分析所需，仅随镜像 (--all-extras) 安装；
 # 本地精简模式 (uv sync 不带 --all-extras) 不引入，保持零开销启动。配合 matplotlibrc 的 CJK 默认字体。
 data-viz = [
   "matplotlib>=3.11.0", # 数据图表渲染（只读 rootfs 下经 MATPLOTLIBRC 加载 CJK 默认字体）
-  "pandas>=3.0.4",     # 表格/时间序列数据处理（numpy 为 matplotlib/pandas 的硬依赖，自动引入）
+  "pandas>=2.2.3,<3.0",     # 表格/时间序列（2.x 稳定线，避开 yanked 的 3.0.4）
 ]
 
 [tool.uv]

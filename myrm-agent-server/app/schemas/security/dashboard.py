@@ -1,4 +1,14 @@
-"""Pydantic models for the security dashboard API."""
+"""Security dashboard shared Pydantic DTOs (API + services).
+
+[INPUT]
+- pydantic::BaseModel (POS: schema 校验)
+
+[OUTPUT]
+- SecurityDashboard, PlatformAuditLogsResponse, SecurityRateLimitsResponse, etc.
+
+[POS]
+schemas 层安全仪表盘契约。禁止 services 依赖 app.api 获取 DTO。
+"""
 
 from __future__ import annotations
 

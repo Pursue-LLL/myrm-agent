@@ -1,4 +1,4 @@
-"""Tests for image_agent_tool BaseTool wrapper and URL validation."""
+"""Tests for image_agent_tool BaseTool wrapper."""
 
 from __future__ import annotations
 
@@ -10,25 +10,7 @@ from langchain_core.tools import BaseTool
 
 from app.tasks.task_payload_crypto import seal_task_payload_secrets
 
-from app.ai_agents.media_tools.image_agent_tool import (
-    _validate_image_fetch_url,
-    create_image_generation_tool,
-)
-
-
-def test_validate_image_fetch_url_allows_public_https() -> None:
-    assert _validate_image_fetch_url("https://example.com/image.png") is None
-
-
-def test_validate_image_fetch_url_blocks_private_ip() -> None:
-    error = _validate_image_fetch_url("http://192.168.0.1/image.png")
-    assert error is not None
-    payload = json.loads(error)
-    assert "error" in payload
-
-
-def test_validate_image_fetch_url_allows_localhost_in_local_mode() -> None:
-    assert _validate_image_fetch_url("http://localhost:8080/image.png", allow_private_networks=True) is None
+from app.ai_agents.media_tools.image_agent_tool import create_image_generation_tool
 
 
 @pytest.mark.asyncio
@@ -123,7 +105,7 @@ async def test_image_tool_generate_enqueues_when_async_config() -> None:
     async_cls.assert_called_once_with(
         async_config,
         mock_store,
-        ssrf_protection=True,
+        allow_private_networks=False,
         payload_postprocessor=seal_task_payload_secrets,
     )
 
@@ -314,12 +296,19 @@ async def test_image_tool_edit_fetches_and_delegates_in_local_mode() -> None:
 
 @pytest.mark.asyncio
 async def test_image_tool_edit_mask_url_ssrf_blocked() -> None:
+    from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
+
     engine = MagicMock()
     tool = create_image_generation_tool(engine, allow_private_networks=False)
 
     with patch(
         "app.ai_agents.media_tools.image_agent_tool._fetch_image_bytes",
-        new=AsyncMock(return_value=(b"img", "image/png", 3)),
+        new=AsyncMock(
+            side_effect=[
+                (b"img", "image/png", 3),
+                SSRFSecurityError("private IP"),
+            ]
+        ),
     ):
         result = await tool.ainvoke(
             {
@@ -331,7 +320,7 @@ async def test_image_tool_edit_mask_url_ssrf_blocked() -> None:
         )
 
     payload = json.loads(result)
-    assert "error" in payload
+    assert "Failed to fetch mask_url" in payload["error"]
     engine.edit_image.assert_not_called()
 
 

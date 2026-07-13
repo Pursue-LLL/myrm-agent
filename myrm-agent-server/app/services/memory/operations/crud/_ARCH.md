@@ -9,5 +9,5 @@
 | `_common.py` | 辅助 | `_record_memory_event`、`_SORT_KEYS` | ✅ |
 | `list_write.py` | 核心 | 列表、创建、更新、删除、搜索、统计、评分 | ✅ |
 | `trash.py` | 核心 | 回收站列表、恢复、永久删除 | ✅ |
-| `import_archive.py` | 核心 | 导出（JSON + Markdown ZIP）、归档、导入、回滚；竞品 dry-run 四车道；`resolve_migration_source` 强制 adapter；`instruction_total_chars` / `providers_configured` | ✅ |
+| `import_archive.py` | 核心 | 导出（JSON + Markdown ZIP）、归档、导入、回滚；竞品 dry-run 四车道；`resolve_migration_source` 强制 adapter；`instruction_total_chars` / `providers_configured` / `token_economics` 对照 | ✅ |
 | `preferences.py` | 核心 | 偏好摘要与 pin/forget 管理 | ✅ |

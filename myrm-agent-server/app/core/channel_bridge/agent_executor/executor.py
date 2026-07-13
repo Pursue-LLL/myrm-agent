@@ -713,6 +713,8 @@ class ChannelAgentExecutor:
                 notify_targets=(resolved_profile.notify_targets if resolved_profile else ()),
             )
 
+            from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+
             agent = AgentFactory.create_general_agent(params)
             approval_peer = msg.chat_id or msg.sender_id
             agent.approval_session_key = f"{msg.channel}:{approval_peer}"
@@ -757,6 +759,7 @@ class ChannelAgentExecutor:
                     cancel_token=cancel_token,
                     steering_token=steering_token,
                     timezone=user_timezone,
+                    context={"execution_mode": ExecutionMode.POOLED},
                 ):
                     if isinstance(event, dict):
                         yield event
@@ -1133,4 +1136,9 @@ class ChannelAgentExecutor:
                     params=params,
                 )
             if agent:
-                await agent.close()
+                await finalize_agent_session(
+                    agent,
+                    chat_id=chat_id,
+                    agent_id=params.agent_id,
+                    extra_context={"execution_mode": ExecutionMode.POOLED},
+                )

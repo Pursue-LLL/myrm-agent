@@ -7522,7 +7522,12 @@
         "confirmImport": "确认导入",
         "importing": "正在导入...",
         "cancel": "取消",
-        "back": "返回"
+        "back": "返回",
+        "tokenEconomics": {
+          "title": "每轮 Token 用量对比",
+          "description": "检测到 {count} 个技能 — 以下是每轮对话 Token 开销对比",
+          "savings": "节省 {percent}%"
+        }
       },
       "result": {
         "title": "导入完成",

@@ -321,6 +321,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
             img_engine = ImageGenerationTools(
                 config,
+                allow_private_networks=is_local_mode(),
                 on_artifact_created=_get_artifact_push_fn(),
             )
             tools.append(

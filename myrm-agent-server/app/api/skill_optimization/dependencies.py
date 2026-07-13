@@ -41,18 +41,9 @@ def get_scheduler() -> OptimizationScheduler:
 
 def get_storage() -> SQLAlchemyStorage:
     """Return SkillOptimizationStorage instance."""
-    from app.services.skill_optimization.bootstrap import get_registered_storage
+    from app.services.skill_optimization.bootstrap import get_skill_optimization_storage
 
-    storage = get_registered_storage()
-    if storage is not None:
-        return storage
-
-    from app.platform_utils import get_session_factory
-
-    factory = get_session_factory()
-    return SQLAlchemyStorage(
-        session_factory=cast(Callable[..., AsyncSession], factory),
-    )
+    return get_skill_optimization_storage()
 
 
 def get_event_emitter() -> EventEmitter:

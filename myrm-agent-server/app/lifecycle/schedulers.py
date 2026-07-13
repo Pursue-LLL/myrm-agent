@@ -278,7 +278,7 @@ async def stop_cancellation_cleanup_scheduler() -> None:
 
 async def _login_session_cleanup_job() -> None:
     """Periodic login session cleanup (removes expired sessions)."""
-    from app.api.channels.login import session_store
+    from app.channels.storage.login_session_registry import session_store
 
     try:
         deleted = await session_store.cleanup_expired(ttl_seconds=300.0)

@@ -6747,7 +6747,12 @@
         "confirmImport": "Confirm Import",
         "importing": "Importing...",
         "cancel": "Cancel",
-        "back": "Back"
+        "back": "Back",
+        "tokenEconomics": {
+          "title": "ターンあたりのトークン使用量比較",
+          "description": "{count} 個のスキルが検出されました — ターンあたりのトークンコストの比較",
+          "savings": "{percent}% 節約"
+        }
       },
       "result": {
         "title": "Import Complete",

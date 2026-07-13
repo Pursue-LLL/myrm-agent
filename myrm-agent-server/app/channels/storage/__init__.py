@@ -5,6 +5,7 @@
 [OUTPUT]
 - LoginSessionStore: Temporary session storage (Protocol + InMemory)
 - CredentialsStore: Encrypted persistent storage (file-based)
+- session_store / get_login_session_store: Process-wide login session singleton
 
 [POS]
 Framework layer storage module. Provides out-of-the-box storage implementations
@@ -15,6 +16,7 @@ provide custom backends (e.g., Redis for SaaS).
 from __future__ import annotations
 
 from .credentials_store import CredentialsStore
+from .login_session_registry import get_login_session_store, session_store
 from .login_session_store import InMemorySessionStore, LoginSessionData, LoginSessionStoreProtocol
 
 __all__ = [
@@ -22,4 +24,6 @@ __all__ = [
     "InMemorySessionStore",
     "LoginSessionData",
     "LoginSessionStoreProtocol",
+    "get_login_session_store",
+    "session_store",
 ]

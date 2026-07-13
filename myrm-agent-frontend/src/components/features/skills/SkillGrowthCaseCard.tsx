@@ -10,7 +10,7 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { CalendarClock, Check, ChevronDown, ChevronUp, Clock3, Edit3, ExternalLink, ShieldAlert, X } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
-import ReactDiffViewer from 'react-diff-viewer';
+import { TextDiffViewer } from '@/lib/diff/TextDiffViewer';
 import { useTheme } from 'next-themes';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
@@ -393,13 +393,15 @@ export default function SkillGrowthCaseCard({
 
       {(!isSimple || expandedInSimple) && !isEditing && showDiff && (
         <div className="mt-4 overflow-hidden rounded-xl border">
-          <ReactDiffViewer
+          <div className="bg-muted px-3 py-2 border-b flex justify-between text-xs font-medium">
+            <span className="text-red-500">{t('original')}</span>
+            <span className="text-green-500">{t('proposed')}</span>
+          </div>
+          <TextDiffViewer
             oldValue={item.originalContent ?? ''}
             newValue={item.proposedContent ?? ''}
-            splitView
-            useDarkTheme={isDark}
-            leftTitle={t('original')}
-            rightTitle={t('proposed')}
+            filePath="skill.md"
+            defaultViewMode={isMobile ? 'unified' : 'split'}
           />
         </div>
       )}

@@ -121,7 +121,6 @@ myrm_agent_harness.agent.skills.optimization.security
 myrm_agent_harness.agent.skills.optimization.types
 myrm_agent_harness.agent.skills.packaging
 myrm_agent_harness.agent.skills.packaging.validator
-myrm_agent_harness.agent.skills.runtime.loader
 myrm_agent_harness.agent.skills.runtime.session_skills_rehydrate
 myrm_agent_harness.agent.skills.security.content_sanitizer
 myrm_agent_harness.agent.skills.sync.idle_integration
@@ -300,7 +299,6 @@ myrm_agent_harness.toolkits.llms.image.async_image_engine
 myrm_agent_harness.toolkits.llms.image.image_engine
 myrm_agent_harness.toolkits.llms.image.models
 myrm_agent_harness.toolkits.llms.image.types
-myrm_agent_harness.toolkits.llms.image.validator
 myrm_agent_harness.toolkits.llms.media_task_types
 myrm_agent_harness.toolkits.llms.rate_limit
 myrm_agent_harness.toolkits.llms.routing

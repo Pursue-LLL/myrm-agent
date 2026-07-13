@@ -44,6 +44,7 @@ from app.schemas.memory.archive import (
     MemoryImportRollbackRequest,
     MemoryImportRollbackResponse,
     MigrationLanePreviewItem,
+    TokenEconomicsComparison,
 )
 from app.schemas.memory.crud import (
     MEMORY_EXPORT_VERSION,
@@ -57,6 +58,9 @@ from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _record_memory_event
 
 logger = logging.getLogger(__name__)
+
+_COMPETITOR_AVG_SKILL_TOKENS = 500
+_MYRM_AVG_INDEX_TOKENS = 30
 
 
 async def export_memories(
@@ -333,6 +337,19 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
                     if name:
                         instruction_preview_rule_names.append(name)
 
+    token_economics: TokenEconomicsComparison | None = None
+    if is_competitor and pending_skills:
+        skill_count = len(pending_skills)
+        source_tokens = skill_count * _COMPETITOR_AVG_SKILL_TOKENS
+        myrm_tokens = skill_count * _MYRM_AVG_INDEX_TOKENS
+        savings = round((1 - myrm_tokens / source_tokens) * 100, 1) if source_tokens > 0 else 0.0
+        token_economics = TokenEconomicsComparison(
+            skill_count=skill_count,
+            source_tokens_per_turn=source_tokens,
+            myrm_tokens_per_turn=myrm_tokens,
+            savings_percent=savings,
+        )
+
     return MemoryImportDryRunResponse(
         dry_run_id=dry_run_id,
         payload_hash=payload_hash,
@@ -341,6 +358,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         pending_skills=pending_skills,
         coverage_items=coverage_items,
         migration_lanes=migration_lanes,
+        token_economics=token_economics,
         instruction_preview_persona=instruction_preview_persona,
         instruction_preview_rule_names=instruction_preview_rule_names,
         instruction_total_chars=instruction_total_chars if is_competitor else 0,

@@ -34,6 +34,7 @@ class BackendEpoch(TypedDict):
     backend_pid: int | None
     started_at: str
     harness_fingerprint: str
+    source_fingerprint: str
 
 
 class FrontendEpoch(TypedDict):
@@ -163,12 +164,53 @@ def read_backend_epoch() -> BackendEpoch | None:
     harness_fingerprint = raw.get("harness_fingerprint")
     if not isinstance(harness_fingerprint, str):
         harness_fingerprint = ""
+    source_fingerprint = _backend_source_fingerprint()
     return {
         "epoch": epoch,
         "backend_pid": backend_pid,
         "started_at": started_at,
         "harness_fingerprint": harness_fingerprint,
+        "source_fingerprint": source_fingerprint,
     }
+
+
+def _backend_source_fingerprint() -> str:
+    """Hash backend and harness source changes that do not restart the server."""
+    root = Path(__file__).resolve().parents[3]
+    server_dir = Path(os.environ.get("MYRM_SERVER_DIR", root / "myrm-agent-server"))
+    harness_dir = Path(os.environ.get("MYRM_HARNESS_DIR", root.parent / "myrm-agent-harness"))
+    tracked_groups = ((server_dir, ("app", "pyproject.toml", "uv.lock")), (harness_dir, ("src", "pyproject.toml")))
+    digest = hashlib.sha256()
+    found = False
+    for repo, paths in tracked_groups:
+        if not repo.is_dir():
+            continue
+        try:
+            diff = subprocess.run(
+                ["git", "-C", str(repo), "diff", "--no-ext-diff", "--binary", "HEAD", "--", *paths],
+                check=False,
+                capture_output=True,
+                timeout=10,
+            ).stdout
+            untracked = subprocess.run(
+                ["git", "-C", str(repo), "ls-files", "--others", "--exclude-standard", "--", *paths],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            ).stdout.splitlines()
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        digest.update(str(repo).encode("utf-8"))
+        digest.update(diff)
+        found = True
+        for relative in sorted(item for item in untracked if item):
+            try:
+                digest.update(relative.encode("utf-8"))
+                digest.update((repo / relative).read_bytes())
+            except OSError:
+                continue
+    return digest.hexdigest()[:16] if found else ""
 
 
 def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | None:
@@ -220,7 +262,20 @@ def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | Non
 
 def _frontend_source_fingerprint(frontend_dir: Path) -> str:
     """Hash tracked changes and untracked frontend sources for HMR drift detection."""
-    tracked_paths = ("src", "locales", "next.config.ts", "package.json", "tsconfig.json")
+    tracked_paths = (
+        "src",
+        "locales",
+        "public",
+        "next.config.ts",
+        "next.config.js",
+        "next.config.mjs",
+        "package.json",
+        "bun.lock",
+        "tsconfig.json",
+        "postcss.config.mjs",
+        "tailwind.config.ts",
+        ".env.local",
+    )
     try:
         diff = subprocess.run(
             ["git", "-C", str(frontend_dir), "diff", "--no-ext-diff", "--binary", "HEAD", "--", *tracked_paths],

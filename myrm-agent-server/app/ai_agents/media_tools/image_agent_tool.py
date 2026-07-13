@@ -2,7 +2,7 @@
 - myrm_agent_harness.toolkits.llms.image.image_engine::ImageGenerationTools (POS: sync generate/edit/list)
 - myrm_agent_harness.toolkits.llms.image.async_image_engine::AsyncImageGenerationTools (POS: async generate enqueue)
 - myrm_agent_harness.toolkits.llms.image.models::ImageGenerationConfig (POS: shared engine config)
-- myrm_agent_harness.toolkits.llms.image.validator::ImageValidator (POS: prompt safety validation)
+- myrm_agent_harness.core.security.http.secure_fetch::secure_get (POS: SSRF-protected edit/mask URL fetch)
 
 [OUTPUT]
 - create_image_generation_tool(): LangChain BaseTool adapter for image generation
@@ -24,19 +24,8 @@ from pydantic import BaseModel, Field
 
 from myrm_agent_harness.toolkits.llms.image.image_engine import ImageGenerationTools
 from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
-from myrm_agent_harness.toolkits.llms.image.validator import ImageValidator, ValidationError
 
 logger = logging.getLogger(__name__)
-
-
-def _validate_image_fetch_url(url: str, *, allow_private_networks: bool = False) -> str | None:
-    """Return JSON error string when URL fails SSRF validation, else None."""
-    validator = ImageValidator(ssrf_protection=True, allow_private_networks=allow_private_networks)
-    try:
-        validator.validate_reference_url(url.strip())
-    except ValidationError as exc:
-        return json.dumps({"error": str(exc)}, ensure_ascii=False)
-    return None
 
 
 class ImageToolInput(BaseModel):
@@ -126,7 +115,7 @@ def create_image_generation_tool(
             async_engine = AsyncImageGenerationTools(
                 async_config,
                 get_task_store(),
-                ssrf_protection=not allow_private_networks,
+                allow_private_networks=allow_private_networks,
                 payload_postprocessor=seal_task_payload_secrets,
             )
             return await async_engine.generate_image(
@@ -171,9 +160,6 @@ def create_image_generation_tool(
                 return json.dumps({"error": "image_url is required when action=edit"}, ensure_ascii=False)
             if not prompt.strip():
                 return json.dumps({"error": "prompt is required when action=edit"}, ensure_ascii=False)
-            url_error = _validate_image_fetch_url(image_url, allow_private_networks=allow_private_networks)
-            if url_error is not None:
-                return url_error
             try:
                 image_bytes, image_mime, image_size = await _fetch_image_bytes(
                     image_url.strip(),
@@ -186,9 +172,6 @@ def create_image_generation_tool(
                 )
             mask_bytes = None
             if mask_url and mask_url.strip():
-                mask_error = _validate_image_fetch_url(mask_url, allow_private_networks=allow_private_networks)
-                if mask_error is not None:
-                    return mask_error
                 try:
                     mask_bytes, _, _ = await _fetch_image_bytes(
                         mask_url.strip(),

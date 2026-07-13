@@ -132,6 +132,7 @@ class TestSourceImportDryRunApi:
         assert "mcp_manual" in coverage_labels
         assert "channels_manual" in coverage_labels
         assert "unsupported_source" not in body["result"]["warnings"]
+        assert body.get("token_economics") is None, "no skills → no token_economics"
 
     def test_claude_dry_run_stages_skills(
         self,
@@ -155,6 +156,13 @@ class TestSourceImportDryRunApi:
         assert len(body["pending_skills"]) == 1
         assert body["pending_skills"][0]["name"] == "review"
         assert "unsupported_source" not in body["result"]["warnings"]
+
+        te = body.get("token_economics")
+        assert te is not None, "token_economics must be present when competitor has skills"
+        assert te["skill_count"] == 1
+        assert te["source_tokens_per_turn"] == 500
+        assert te["myrm_tokens_per_turn"] == 30
+        assert te["savings_percent"] == 94.0
 
     def test_cursor_discovery_payload_not_in_wizard(self, client: TestClient, tmp_path: Path) -> None:
         """Cursor is Memory Center manual import (cursor_rules), not wizard discovery."""

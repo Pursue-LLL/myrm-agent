@@ -186,6 +186,18 @@ class TestSynthesizeEdge:
 
         assert result is None
 
+    @pytest.mark.asyncio
+    async def test_edge_not_installed_returns_none(self) -> None:
+        with patch(
+            "app.channels.voice.tts._import_edge_tts",
+            side_effect=ImportError("edge-tts is not installed"),
+        ):
+            result = await synthesize(
+                "Hello, this is a test message.",
+                _voice("edge"),
+            )
+        assert result is None
+
 
 # ---------------------------------------------------------------------------
 # synthesize() — Fallback behavior
@@ -222,6 +234,25 @@ class TestSynthesizeFallback:
         assert result is not None
         assert result.exists()
         result.unlink(missing_ok=True)
+
+    @pytest.mark.asyncio
+    async def test_openai_failure_without_edge_returns_none(self) -> None:
+        with (
+            patch("app.channels.voice.tts.httpx.AsyncClient") as mock_cls,
+            patch("app.channels.voice.tts.is_edge_tts_available", return_value=False),
+        ):
+            mock_client = AsyncMock()
+            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_cls.return_value = mock_client
+
+            result = await synthesize(
+                "Hello, this is a test message.",
+                _voice("openai"),
+            )
+
+        assert result is None
 
 
 # ---------------------------------------------------------------------------

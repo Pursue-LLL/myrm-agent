@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-from app.api.security.dashboard_models import SecurityAlert, SecurityDashboard, SecurityMetrics
+from app.schemas.security.dashboard import SecurityAlert, SecurityDashboard, SecurityMetrics
 from app.services.security.github_supplement import (
     fetch_github_supplement,
 )

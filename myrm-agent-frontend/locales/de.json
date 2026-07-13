@@ -6747,7 +6747,12 @@
         "confirmImport": "Confirm Import",
         "importing": "Importing...",
         "cancel": "Cancel",
-        "back": "Back"
+        "back": "Back",
+        "tokenEconomics": {
+          "title": "Token-Verbrauch pro Runde",
+          "description": "{count} Skill(s) erkannt — Token-Kosten pro Runde im Vergleich",
+          "savings": "{percent}% gespart"
+        }
       },
       "result": {
         "title": "Import Complete",

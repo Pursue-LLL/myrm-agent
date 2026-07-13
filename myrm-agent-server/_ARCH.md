@@ -31,3 +31,4 @@ FastAPI 单机业务后端：HTTP API、渠道桥接、生命周期编排；Agen
 
 - 禁止 vendoring harness；版本以 `uv.lock` 为准
 - 通用 Agent 框架能力不得在本包重复实现
+- `app/core|services|lifecycle` 禁止 import `app.api`（见 [ARCHITECTURE.md §0.10](ARCHITECTURE.md)）

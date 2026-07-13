@@ -5,6 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MONOREPO_ROOT="$(cd "${ROOT}/.." && pwd)"
 TEST_SH="${MONOREPO_ROOT}/scripts/dev/test.sh"
+WAVE_RESOURCE_LEASE="${ROOT}/scripts/dev/wave-resource-lease.sh"
 
 if [[ ! -x "${TEST_SH}" ]]; then
   echo "ERROR: monorepo test gate missing at ${TEST_SH} — run from open-perplexity root" >&2
@@ -15,6 +16,10 @@ echo "==> API integration (no headless browser)"
 bash "${TEST_SH}" -n0 -q -m e2e tests/api/skills/test_drafts_e2e.py
 
 echo "==> Seeding mock drafts via HTTP"
+export MYRM_WAVE_AGENT_ID="${MYRM_WAVE_AGENT_ID:-instinct-inbox-e2e:$$}"
+WAVE_LEDGER_NAMESPACE="instinct-inbox-e2e-$$"
+WAVE_LEDGER_LEASE_ID="$(bash "${WAVE_RESOURCE_LEASE}" acquire "${WAVE_LEDGER_NAMESPACE}" GLOBAL_WRITE)"
+trap 'bash "${WAVE_RESOURCE_LEASE}" release "${WAVE_LEDGER_LEASE_ID}"' EXIT
 curl -sf --max-time 10 -X POST "http://127.0.0.1:8080/api/v1/skills/drafts/test/seed-mock" \
   | python3 -c "import sys,json; d=json.load(sys.stdin); print('Seeded:', d.get('skill_names', d))"
 

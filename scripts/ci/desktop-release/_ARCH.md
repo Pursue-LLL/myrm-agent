@@ -8,6 +8,7 @@
 
 | 文件 | 职责 |
 |------|------|
+| `prepare-check-stub-sidecars.sh` | PR/CI：`cargo check` 前写入 host-triple sidecar stub 二进制 |
 | `inject-version.sh` | tag → `myrm-agent-desktop/src-tauri/tauri.conf.json` 版本 |
 | `sync-server-venv.sh` | 生产 sidecar venv（`--no-group dev`）；GHA+`MYRM_HARNESS_INSTALL_MODE=pypi` 时走 PyPI.org（规避 lock 内清华镜像 403） |
 | `finalize-release.sh` | 下载 Release 资产（与 API 计数对齐重试）→ 匹配 updater 包 + `.sig` → `latest.json` + `.sha256` → upload；`REQUIRED_OTA_PLATFORM_KEYS` 存在时缺 platform/.sig 硬失败 |

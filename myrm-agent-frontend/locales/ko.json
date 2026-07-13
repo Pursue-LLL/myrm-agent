@@ -6747,7 +6747,12 @@
         "confirmImport": "Confirm Import",
         "importing": "Importing...",
         "cancel": "Cancel",
-        "back": "Back"
+        "back": "Back",
+        "tokenEconomics": {
+          "title": "턴당 토큰 사용량 비교",
+          "description": "{count}개의 스킬이 감지됨 — 턴당 토큰 비용 비교",
+          "savings": "{percent}% 절약"
+        }
       },
       "result": {
         "title": "Import Complete",

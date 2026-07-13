@@ -20,9 +20,6 @@ export interface SystemConfig {
   /** 是否需要密码（远程访问时强制开启） */
   requirePassword: boolean;
 
-  /** 启动时自动开启 WebUI 服务 */
-  autoStartWebUI: boolean;
-
   /** 关闭窗口时隐藏到托盘（而不是直接退出） */
   closeToTray: boolean;
 
@@ -58,7 +55,6 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   webuiPort: 3000,
   apiPort: 25808,
   requirePassword: true,
-  autoStartWebUI: true,
   closeToTray: true,
   autoLaunchAtLogin: true,
   configVersion: 1,

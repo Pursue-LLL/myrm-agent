@@ -178,12 +178,25 @@ Server 与闭源 `myrm-agent-harness` 的分层边界：
 - **SaaS 收益**：滚动新 runtime 镜像（内含新 harness）时，`api.hooks` / `api.skills` 稳定面保证 Server 胶水层不因 harness 内部重构而断裂。
 - **Harness 文档**：`myrm-agent-harness/src/myrm_agent_harness/api/_ARCH.md`。
 
+### 0.10 Server Import Layer Matrix（业务层 ↔ HTTP 层）
+
+`myrm-agent-server` 的 **import 方向** 与 Harness §0.09 并列 enforce：
+
+| 规则 | 说明 | 门禁 |
+| --- | --- | --- |
+| **禁止 inversion** | `app/core/`、`app/services/`、`app/lifecycle/` **不得** import `app.api.*`（DTO、Depends、router 模块状态） | `tests/architecture/test_no_core_services_api_imports.py` |
+| **共享 DTO** | HTTP 与 services 共用的 Pydantic 模型放在 `app/schemas/` | 例：`schemas/security/dashboard.py` |
+| **跨层单例** | 进程级 registry / store 放在 `core/*`、`channels/storage/*` 或 `services/*/bootstrap.py`，**不得**挂在 router 模块上 | 例：`login_session_registry.py`、`route_registry.py` |
+| **API 层职责** | `app/api/` 仅做路由、Depends 装配、请求/响应映射；业务编排调用 `services/` | `tests/architecture/test_api_services_vocabulary.py` |
+
+违反上述规则会导致：lifecycle 清理 job 依赖 router 懒加载、services 单测被迫 import FastAPI 包、OpenAPI DTO 与业务层双路径漂移。
+
 ### 0. 零开销本地模式 (Zero-Overhead Local Mode)
 
 在 Agent-in-Sandbox 架构下，为了保证本地桌面（Tauri/Sidecar）环境的极致轻量化：
 
-- **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、`tenacity>=9.1.4`（`vercel_client`）、`myrm-agent-harness[acp,observability,…,retrieval,…,compiled-core]`（Matrix SOCKS 走 `aiohttp` + extra `aiohttp-socks`；浏览器 stealth 回退 camoufox 由 harness `[browser]` extra 传递，server 不重复 pin）。可选 extra：`channels-sdk`（Discord/飞书 SDK）、`matrix` / `matrix-e2ee` / `wechat-silk`（GPLv3 SILK 语音编解码，`_ilink/silk.py`）/ `data-viz`；Settings 可对缺 SDK 频道（ERROR）与 WeChat 语音 SILK 可选能力（WARNING，`platform.wechat-silk`）lazy-install（`services/channels/` + harness `lazy_deps`）。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian`。本地 Matrix：`uv sync --extra matrix`（E2EE 再加 `--extra matrix-e2ee`）；WeChat iLink 语音：`uv sync --extra wechat-silk`。`myrm setup` 默认 `--all-extras`。
-- **执行运行时绘图栈隔离**：`matplotlib`/`pandas` 收敛到 `[project.optional-dependencies] data-viz`，仅随镜像 `--all-extras` 安装，本地精简安装不引入；CJK/Emoji 字体与默认字体配置（`matplotlibrc`，经 `MATPLOTLIBRC` 加载）则烤入 `Dockerfile`（只读 rootfs + 非 root 无法运行时安装）；字体缓存经 `MPLCONFIGDIR=/tmp/matplotlib` 重定向到可写 tmpfs，避免只读 rootfs 下每个无状态执行子进程重建字体缓存。共同保障浏览器截图 / PDF / 数据图表的中日韩渲染保真。
+- **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、`tenacity>=9.1.4`（`vercel_client`）、`myrm-agent-harness[acp,observability,…,retrieval,…,compiled-core]`（Matrix SOCKS 走 `aiohttp` + extra `aiohttp-socks`；浏览器 stealth 回退 camoufox 由 harness `[browser]` extra 传递，server 不重复 pin）。可选 extra：`channels-sdk`（Discord/飞书 SDK）、`matrix` / `matrix-e2ee` / `wechat-silk`（GPLv3 SILK 语音编解码，`_ilink/silk.py`）/ `voice-tts`（GPL-3.0 Edge TTS 免费回退，`voice/tts.py`）/ `data-viz`；Settings 可对缺 SDK 频道（ERROR）与 WeChat 语音 SILK 可选能力（WARNING，`platform.wechat-silk`）lazy-install（`services/channels/` + harness `lazy_deps`）。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian`。本地 Matrix：`uv sync --extra matrix`（E2EE 再加 `--extra matrix-e2ee`）；WeChat iLink 语音：`uv sync --extra wechat-silk`；Edge TTS：`uv sync --extra voice-tts`。`myrm setup` 默认 `--all-extras`。
+- **执行运行时绘图栈隔离**：`matplotlib`/`pandas`（`data-viz` extra 锁定 pandas 2.3.x，避开 yanked 的 3.0.4）收敛到 `[project.optional-dependencies] data-viz`，仅随镜像 `--all-extras` 安装，本地精简安装不引入；CJK/Emoji 字体与默认字体配置（`matplotlibrc`，经 `MATPLOTLIBRC` 加载）则烤入 `Dockerfile`（只读 rootfs + 非 root 无法运行时安装）；字体缓存经 `MPLCONFIGDIR=/tmp/matplotlib` 重定向到可写 tmpfs，避免只读 rootfs 下每个无状态执行子进程重建字体缓存。共同保障浏览器截图 / PDF / 数据图表的中日韩渲染保真。
 - **动态监控隔离 (Metrics)**：`/metrics` 路由、内存直方图、数据库连接池采集器在 **local 与 sandbox 默认均关闭**；仅当 `METRICS_ENABLED=true` 时启用（见 `app/core/monitoring/__init__.py` + `DeploymentCapabilities.default_metrics_enabled`）。
 - **全链路追踪纯净化 (Tracing)**：依赖 Harness 层的 No-Op 降级机制，Server 层在本地模式下绝不初始化 OpenTelemetry SDK，彻底消除不必要的后台序列化与网络发送开销。
 

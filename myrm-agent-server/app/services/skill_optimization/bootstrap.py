@@ -1,11 +1,25 @@
-"""Skill optimization service bootstrap and shared instances."""
+"""Skill optimization service bootstrap and shared instances.
+
+[INPUT]
+- app.adapters.skill_optimization.sqlalchemy_storage::SQLAlchemyStorage (POS: SkillOptimization 存储适配器)
+- app.platform_utils::get_session_factory (POS: 数据库会话工厂)
+
+[OUTPUT]
+- init_skill_optimization_services: 注册 scheduler/storage/emitter 单例
+- get_skill_optimization_storage: 返回 SQLAlchemyStorage（bootstrap 或 lazy fallback）
+
+[POS]
+skill_optimization 进程级单例与存储访问入口。供 API Depends 与 services 共用。
+"""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import cast
 
 from myrm_agent_harness.agent.skills.optimization import EventEmitter, InMemoryAggregator
 from myrm_agent_harness.agent.skills.optimization.scheduler import OptimizationScheduler
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 
@@ -43,3 +57,17 @@ def get_registered_event_emitter() -> EventEmitter | None:
 
 def get_registered_aggregator() -> InMemoryAggregator | None:
     return _aggregator_instance
+
+
+def get_skill_optimization_storage() -> SQLAlchemyStorage:
+    """Return SkillOptimizationStorage, using bootstrap or a lazy SQLAlchemy fallback."""
+    storage = get_registered_storage()
+    if storage is not None:
+        return storage
+
+    from app.platform_utils import get_session_factory
+
+    factory = get_session_factory()
+    return SQLAlchemyStorage(
+        session_factory=cast(Callable[..., AsyncSession], factory),
+    )

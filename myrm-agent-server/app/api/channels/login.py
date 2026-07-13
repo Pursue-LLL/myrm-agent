@@ -35,7 +35,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.channels.protocols import LoginMethod, LoginStatus
-from app.channels.storage import CredentialsStore, InMemorySessionStore
+from app.channels.storage import CredentialsStore
+from app.channels.storage.login_session_registry import session_store
 from app.channels.types import ChannelStatus, StartMode
 from app.core.channel_bridge import channel_gateway
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
@@ -44,7 +45,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-session_store = InMemorySessionStore()
 credentials_store = CredentialsStore()
 
 _active_login_tasks: dict[str, asyncio.Task[None]] = {}

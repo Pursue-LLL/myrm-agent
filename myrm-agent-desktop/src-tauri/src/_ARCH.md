@@ -21,12 +21,13 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `main.rs` | ✅ 核心 | Tauri 应用入口：插件注册、setup、invoke_handler、Agent Sidecar 事件转发 | ✅ |
+| `main.rs` | ✅ 核心 | 二进制入口，委托 `app/` | ✅ |
+| `app/` | ✅ 核心 | Tauri Builder、插件、setup、快捷键分发 | — |
 | `runtime/` | ✅ 核心 | Sidecar 运行时（见下表） | ✅ |
 | `runtime/python_backend.rs` | ✅ 核心 | Python 后端 Sidecar 启动/停止/健康检查 IPC；dev 用 venv，release 校验 sidecar 非空；冷启动最多 30s `/health` 轮询 | ✅ |
 | `runtime/watchdog.rs` | ✅ 核心 | 后端 Sidecar 健康监控与崩溃自动恢复（30s 周期检查、指数退避重启、循环崩溃保护） | ✅ |
-| `runtime/nextjs_frontend.rs` | ✅ 核心 | Next.js Standalone 前端进程（WebUI 模式） | ✅ |
-| `runtime/appshot.rs` | ✅ 核心 | 全局快捷键处理中心：Appshot 截屏（macOS screencapture + AX 文本提取、Windows PrintWindow + UI Automation 文本提取、跨平台截图大小控制 1.5MB 阈值自动缩放）、隐私黑名单拦截与强制绕过（macOS + Windows）、Voice PTT（Pressed/Released 事件 emit）、窗口 toggle（含 minimized 状态恢复） | ✅ |
+| `runtime/nextjs_frontend.rs` | ✅ 核心 | Next.js Standalone 前端进程（Tauri 启动时始终自启） | ✅ |
+| `runtime/appshot/` | ✅ 核心 | 全局快捷键：Appshot 截屏、Voice PTT、窗口 toggle（见 `runtime/appshot/_ARCH.md`） | ✅ |
 | `runtime/setup_token.rs` | ✅ 核心 | WebUI Remote Setup Token 状态与 IPC | ✅ |
 | `runtime/agent_runner.rs` | ✅ 核心 | Agent Runner 路径解析、启动与事件转发 | ✅ |
 | `runtime/port.rs` | ✅ 工具 | 端口占用检测 | ✅ |
@@ -46,13 +47,14 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 
 | 模块 | 路径 | 职责 | 文档 |
 |------|------|------|------|
-| **cli_agent_types** | `./cli_agent_types.rs` | CLI 可视化共享类型 | ✅ |
-| **runtime** | `./runtime/` | Python/Next.js Sidecar、Appshot、Setup Token、Agent Runner 编排 | ✅ |
-| **sidecar** | `./sidecar/` | Agent Runner Sidecar 进程管理（Bun compile 二进制） | ✅ |
-| **sessions** | `./sessions/` | CLI 会话生命周期管理 | ✅ |
-| **permissions** | `./permissions/` | 权限管理（Explore/Ask/Auto） | ✅ |
-| **commands** | `./commands/` | Tauri IPC 命令实现（Agent + Config） | ✅ |
-| **utils** | `./utils/` | 系统工具（macOS 隔离修复、原生提权、智能电源锁防休眠、屏幕锁定管理、Updater pubkey 安全校验） | ✅ |
+| **app** | `./app/` | Tauri Builder、setup、快捷键分发 | [app/_ARCH.md](app/_ARCH.md) |
+| **cli_agent_types** | `./cli_agent_types.rs` | CLI 可视化共享类型 | — |
+| **runtime** | `./runtime/` | Sidecar 编排、Appshot、Setup Token | [runtime/_ARCH.md](runtime/_ARCH.md) |
+| **sidecar** | `./sidecar/` | Agent Runner JSON-RPC 进程管理 | [sidecar/_ARCH.md](sidecar/_ARCH.md) |
+| **sessions** | `./sessions/` | CLI 会话生命周期 | [sessions/_ARCH.md](sessions/_ARCH.md) |
+| **permissions** | `./permissions/` | Explore/Ask/Auto 权限 | [permissions/_ARCH.md](permissions/_ARCH.md) |
+| **commands** | `./commands/` | Tauri IPC 命令 | [commands/_ARCH.md](commands/_ARCH.md) |
+| **utils** | `./utils/` | 平台系统工具 | [utils/_ARCH.md](utils/_ARCH.md) |
 
 ---
 
@@ -73,31 +75,33 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 
 ---
 
-## 三进程架构（WebUI 模式）
+## 三进程架构
 
 ```
 Tauri 主进程 (Rust)
-    ├─→ Python Backend Sidecar (FastAPI, :api_port)
+    ├─→ Python Backend Sidecar (FastAPI, Desktop :8080 / WebUI :api_port)
     │   └── API 端点：/api/v1/*
     │
-    ├─→ Next.js Frontend Sidecar (Standalone Server, :webui_port)
+    ├─→ Next.js Frontend Sidecar (Standalone Server, :webui_port，始终自启)
     │   ├── 提供静态前端资源
-    │   └── 反向代理：/api/v1/* → http://localhost:api_port/api/v1/*
+    │   └── 反向代理：/api/v1/* → http://localhost:{backend.port}/api/v1/*
     │
     └─→ Agent Runner Sidecar (standalone binary, JSON-RPC)
         └── CLI 工具集成（Claude Code, Codex, Gemini）
 ```
 
+Release 模式 WebView 先加载 `frontend-shell/`（`withGlobalTauri: true`），IPC 读取 `webui_port` 后轮询 Next 就绪并跳转。
+
 ---
 
-## WebUI 模式配置
+## 系统配置
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `enable_webui_mode` | `bool` | `false` | 启用 WebUI 服务器模式 |
+| `enable_webui_mode` | `bool` | `false` | WebUI 服务器模式：切换 Python 后端端口/绑定（Desktop 8080 vs WebUI 25808）；**不**控制 Next 自启 |
 | `enable_remote_access` | `bool` | `false` | 允许远程访问（`0.0.0.0` vs `127.0.0.1`），同时生成 Setup Token |
 | `webui_port` | `u16` | `3000` | Next.js 前端服务器监听端口 |
-| `api_port` | `u16` | `25808` | Python FastAPI 监听端口 |
+| `api_port` | `u16` | `25808` | WebUI 模式下 Python FastAPI 端口（Desktop 模式 Backend 固定 8080，忽略此字段） |
 
 当 `enable_remote_access=true` 时，Rust 端生成 UUID setup token：
 - 通过 `WEBUI_SETUP_TOKEN` 环境变量传给 Python 后端

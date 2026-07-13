@@ -7519,7 +7519,12 @@
         "confirmImport": "Confirm Import",
         "importing": "Importing...",
         "cancel": "Cancel",
-        "back": "Back"
+        "back": "Back",
+        "tokenEconomics": {
+          "title": "Token usage comparison",
+          "description": "{count} skill(s) detected — here is how per-turn token cost compares",
+          "savings": "{percent}% saved"
+        }
       },
       "result": {
         "title": "Import Complete",

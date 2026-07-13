@@ -17,10 +17,10 @@
 mod agent_runner;
 mod appshot;
 mod inline_input;
-mod nextjs_frontend;
+pub mod nextjs_frontend;
 mod port;
-mod python_backend;
-mod setup_token;
+pub mod python_backend;
+pub mod setup_token;
 pub mod watchdog;
 
 pub use agent_runner::{bootstrap_agent_runner, resolve_agent_runner_path};
@@ -31,10 +31,9 @@ pub use appshot::{
 pub use inline_input::{handle_inline_input_shortcut, paste_back, INLINE_INPUT_SHORTCUT_STR};
 pub use nextjs_frontend::{start_frontend, NextJSFrontend, stop_frontend};
 pub use python_backend::{
-    check_backend_health, get_backend_status, start_backend, start_backend_with_config,
-    stop_backend, PythonBackend,
+    start_backend_with_config, stop_backend, PythonBackend,
 };
-pub use setup_token::{get_setup_token, SetupTokenState};
+pub use setup_token::SetupTokenState;
 
 /// Windows: 设置 CREATE_NO_WINDOW 标志防止子进程弹出控制台窗口
 #[allow(unused_variables)]

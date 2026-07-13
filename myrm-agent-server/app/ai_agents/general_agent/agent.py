@@ -253,7 +253,6 @@ class GeneralAgent(ToolSetupMixin):
         self._runtime_pool_scope_id: str | None = None
         self._runtime_pool_from_registry = False
         self._runtime_pool_ephemeral = False
-        self._skill_config_version: float = 0.0
         self.quote = quote
         self.goal = goal
         self.openapi_services = openapi_services or []
@@ -426,34 +425,35 @@ class GeneralAgent(ToolSetupMixin):
         ):
             yield chunk
 
-    async def _check_skill_config_staleness(self, effective_chat_id: str) -> None:
-        """Check if skill config has changed and reinitialize agent if stale."""
-        from app.core.skills.config_version import get_skill_config_version
+    async def release_pooled_session(self) -> None:
+        """Release per-turn server resources without closing pooled SkillAgent/Browser."""
+        if self._runtime_pool is not None:
+            scope_id = getattr(self, "_runtime_pool_scope_id", None)
+            from_registry = getattr(self, "_runtime_pool_from_registry", False)
+            ephemeral = getattr(self, "_runtime_pool_ephemeral", False)
+            try:
+                if from_registry and isinstance(scope_id, str) and scope_id.strip():
+                    from app.services.external_agents.runtime_pool_registry import (
+                        get_chat_runtime_pool_registry,
+                    )
 
-        current_version = get_skill_config_version()
-        if current_version > self._skill_config_version:
-            logger.warning(
-                "Skill config changed (%.2f -> %.2f), reinitializing agent",
-                self._skill_config_version,
-                current_version,
-            )
-            from myrm_agent_harness.agent.skills.runtime.loader import skill_md_loader
+                    await get_chat_runtime_pool_registry().release(scope_id.strip())
+                elif ephemeral:
+                    await self._runtime_pool.close_all()
+            except Exception as e:
+                logger.warning("RuntimePool release failed: %s", e)
+            finally:
+                self._runtime_pool = None
 
-            skill_md_loader.clear_cache()
+        if self._executor is not None and self._current_chat_id is not None:
+            try:
+                from myrm_agent_harness.runtime.context.offload import (
+                    cleanup_session_context_files,
+                )
 
-            if self.agent is not None:
-                try:
-                    await self.agent.close()
-                except Exception as e:
-                    logger.warning("Agent close during hot-reload failed: %s", e)
-                self.agent = None
-            await self._init_agent(effective_chat_id=effective_chat_id)
-
-    async def _init_agent(self, *, effective_chat_id: str) -> None:
-        """Build and attach the harness SkillAgent (used after hot-reload)."""
-        from .factory import build_general_agent
-
-        self.agent = await build_general_agent(self, effective_chat_id)
+                await cleanup_session_context_files(self._current_chat_id, self._executor)
+            except Exception as e:
+                logger.warning(f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}")
 
     async def close(self) -> None:
         """Close Agent and release resources."""

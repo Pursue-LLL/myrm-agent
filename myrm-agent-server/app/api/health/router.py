@@ -148,6 +148,13 @@ def _check_local_stt_installed() -> bool:
         return False
 
 
+def _check_edge_tts_installed() -> bool:
+    """Check if optional Edge TTS (voice-tts extra) is importable."""
+    from app.channels.voice.tts import is_edge_tts_available
+
+    return is_edge_tts_available()
+
+
 def _get_tokenizer_backend() -> str:
     """Return the active tokenizer backend name (jieba or bigram_fallback)."""
     try:
@@ -177,6 +184,7 @@ async def system_info() -> dict[str, object]:
             - embedding: 嵌入模型服务（builtin/custom/cloud）
             - reranker: 重排序模型服务（builtin/custom/cloud）
             - local_stt_available: 本地语音识别组件是否就绪
+            - edge_tts_available: Edge TTS 可选组件是否就绪（voice-tts extra）
     """
     from app.config.deploy_mode import (
         get_database_mode,
@@ -193,6 +201,7 @@ async def system_info() -> dict[str, object]:
         "embedding": get_embedding_mode().value,
         "reranker": get_reranker_mode().value,
         "local_stt_available": _check_local_stt_installed(),
+        "edge_tts_available": _check_edge_tts_installed(),
         "tokenizer_backend": _get_tokenizer_backend(),
     }
 

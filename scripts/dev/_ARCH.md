@@ -16,7 +16,7 @@
 | `start.ps1` | Windows | 后端 :8080 + 前端 `bun run dev` :3000（无 LISTEN 编译等待 / MCP WARN；见 `start.sh` Unix 行为） |
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
-| `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API E2E（`open-perplexity/scripts/dev/test.sh`）；UI 用 MCP chrome-devtools |
+| `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API E2E + GLOBAL_WRITE mock-draft seed（`open-perplexity/scripts/dev/test.sh`）；UI 用 MCP chrome-devtools |
 | `dev-stack.sh` | Unix | 本地 dev 栈 SSOT：`ensure` / `attach` / `reset` / `status`；**必须**委托 **stack_supervisor** 单写者（RPC 失败 `STACK_FAIL`）；state `~/.local/state/myrm-dev/`；spawn 前 `ensure-next-native-swc.sh` |
 | `stack-supervisor.sh` | Unix | Dev 栈守护进程启动器 + RPC 客户端入口；见 [stack_supervisor/_ARCH.md](stack_supervisor/_ARCH.md) |
 | `ensure-next-native-swc.sh` | Unix | 缺平台 `@next/swc-*` 时 `bun install --no-save`（防 WASM 慢编译）；setup 与 dev-stack 双路径 |
@@ -29,11 +29,12 @@
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
 | `chrome-e2e-preflight.sh` | Unix | MCP E2E 前置：client_hot CDP 预热 + `CHROME_E2E_HEALTH_JSON`（`runtimeId` + 四元 epoch + `shellHot`/`clientHot`） |
 | `wave-resource-lease.sh` | `./myrm` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |
-| `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — GLOBAL_WRITE lease + ledger register chat；API prepare + UI MCP |
+| `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — GLOBAL_WRITE lease + config snapshot restore + ledger register chat；API prepare + UI MCP |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed、创建 chat、`registerWaveLedger`、SSE delegate → JSON |
 | `subagent-dashboard-e2e-verify.mjs` | 双平台 | P2c verify：authenticated REST cancel 探测 subagent 已停止 |
 | `kanban-chrome-e2e-prepare.mjs` | 双平台 | Kanban LLM API prepare（provider seed + stream add_task + GET task 断言） |
+| `test-kanban-chrome-e2e.sh` | Unix | Kanban Chrome E2E — GLOBAL_WRITE lease + config snapshot restore + board/chat/task ledger + UI hold window |
 | `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
 | `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |
 
@@ -49,6 +50,7 @@
 | `test-subagent-dashboard-e2e.sh` | 确保 backend :8080 + 运行 prepare |
 | `test-instinct-inbox-e2e.sh` | Instinct Inbox API pytest + seed-mock；UI 走 chrome-devtools |
 | `kanban-chrome-e2e-prepare.mjs` | Kanban API prepare（LLM add_task + REST 断言）；UI 走 chrome-devtools |
+| `test-kanban-chrome-e2e.sh` | Kanban UI 场景正式入口；负责 GLOBAL_WRITE、资源登记和结束清理 |
 | `chrome-e2e-preflight.sh` | 服务健康 + E2E Chrome + mux daemon + CDP WS → `CHROME_E2E_READY` |
 
 **Chrome E2E 稳定性清单**

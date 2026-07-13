@@ -1,22 +1,21 @@
-//! WebUI 系统配置管理模块
+//! 系统配置管理模块
 //!
-//! 负责读取、保存和管理 WebUI 服务模式的配置。
-//! 配置文件存储在系统的应用配置目录中。
+//! 负责读取、保存和管理 Tauri 桌面端 SystemConfig（端口、托盘、快捷键等）。
+//! 配置文件存储在 `system_config.json`。
 //!
 //! ⚠️ 自更新提示：一旦本模块有任何变化，请更新 I/O/P 注释。
 //!
 //! [INPUT]
 //! - Tauri AppHandle（应用配置目录路径）
-//! - 磁盘上的 config.json 文件（持久化配置）
+//! - 磁盘上的 system_config.json（持久化配置）
 //!
 //! [OUTPUT]
-//! - SystemConfig（WebUI 模式、端口、托盘行为、开机自启、快捷键等）
-//! - BackendConfig（Python FastAPI 启动参数）
-//! - FrontendConfig（Next.js Server 启动参数）
+//! - SystemConfig（端口、托盘、快捷键、WebUI 远程接入等）
+//! - BackendConfig（Python FastAPI 启动参数；Desktop 固定 :8080）
+//! - FrontendConfig（Next.js Server 启动参数；api_port 与 BackendConfig.port 对齐）
 //!
 //! [POS]
-//! 配置管理的唯一入口。负责 Sidecar 进程配置的加载、保存、默认值生成
-//! 和 Tauri 桌面端的 WebUI 模式配置。
+//! 配置管理的唯一入口。负责 Sidecar 进程配置的加载、保存与默认值生成。
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -42,11 +41,7 @@ pub struct SystemConfig {
     
     /// 是否需要密码（远程访问时强制开启）
     pub require_password: bool,
-    
-    /// 启动时自动开启 WebUI 服务
-    #[serde(rename = "autoStartWebUI")]
-    pub auto_start_webui: bool,
-    
+
     /// 关闭窗口时隐藏到托盘（而不是直接退出）
     #[serde(default = "default_close_to_tray")]
     pub close_to_tray: bool,
@@ -130,7 +125,6 @@ impl Default for SystemConfig {
             webui_port: 3000,
             api_port: 25808,
             require_password: true,
-            auto_start_webui: true,
             close_to_tray: true,
             auto_launch_at_login: true,
             config_version: 1,
@@ -194,6 +188,7 @@ pub struct FrontendConfig {
 impl FrontendConfig {
     /// 从系统配置创建前端配置
     pub fn from_system_config(config: &SystemConfig) -> Self {
+        let backend = BackendConfig::from_system_config(config);
         Self {
             port: config.webui_port,
             host: if config.enable_remote_access {
@@ -201,7 +196,7 @@ impl FrontendConfig {
             } else {
                 "127.0.0.1".to_string()
             },
-            api_port: config.api_port,
+            api_port: backend.port,
         }
     }
 }
@@ -303,7 +298,6 @@ mod tests {
         assert!(json.contains("autoLaunchAtLogin"));
         assert!(json.contains("closeToTray"));
         assert!(json.contains("enableWebUIMode"));
-        assert!(json.contains("autoStartWebUI"));
         assert!(!json.contains("auto_launch_at_login"));
     }
 
@@ -315,7 +309,6 @@ mod tests {
             "webuiPort": 3000,
             "apiPort": 25808,
             "requirePassword": true,
-            "autoStartWebUI": true,
             "closeToTray": true,
             "configVersion": 1,
             "globalShortcut": "Option+Space",
@@ -343,7 +336,7 @@ mod tests {
     }
 
     #[test]
-    fn frontend_config_from_system_config() {
+    fn frontend_config_from_system_config_desktop_mode() {
         let mut sys = SystemConfig::default();
         sys.webui_port = 4000;
         sys.api_port = 8888;
@@ -352,6 +345,18 @@ mod tests {
         let frontend = FrontendConfig::from_system_config(&sys);
         assert_eq!(frontend.port, 4000);
         assert_eq!(frontend.host, "127.0.0.1");
+        assert_eq!(frontend.api_port, 8080);
+    }
+
+    #[test]
+    fn frontend_config_from_system_config_webui_mode() {
+        let mut sys = SystemConfig::default();
+        sys.enable_webui_mode = true;
+        sys.webui_port = 4000;
+        sys.api_port = 8888;
+
+        let frontend = FrontendConfig::from_system_config(&sys);
+        assert_eq!(frontend.port, 4000);
         assert_eq!(frontend.api_port, 8888);
     }
 }

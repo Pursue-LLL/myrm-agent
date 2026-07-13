@@ -25,7 +25,8 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `builtin_tool_validation.py` | ✅ 辅助 | Pydantic `RequiredBuiltinTools` / `OptionalBuiltinTools` validators for DTO/API models |
 | `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — lifespan Phase 1b 幂等创建 24 个预置智能体；`enabled_builtin_tools` 仅存可切换项（file/bash 由 `apply_agent_baseline_tool_flags` 运行时强制） |
 | `approval_payload.py` | ✅ 辅助 | LangGraph interrupt → ApprovalRegistry payload SSOT（nested payload 优先，flat semantic DOM HITL 字段回退） |
-| `streaming.py` | ✅ 核心 | General Agent / Deep Research Harness 流式桥接（Gateway + SSE 事件转换）；`PhaseWaiter` 通用阶段暂停/恢复门控（Clarification + Plan Confirmation HITL） |
+| `streaming.py` | ✅ 核心 | General Agent / Deep Research Harness 流式桥接（Gateway + SSE 事件转换）；`PhaseWaiter` 通用阶段暂停/恢复门控（Clarification + Plan Confirmation HITL）；POOLED 路径经 `finalize_agent_session` 释放 execution cache |
+| `execution_cache/` | ✅ 核心 | Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）；`compute_execution_fingerprint` 含 MCP/skill version；WebUI/Channel/Wakeup=POOLED，Cron/Eval/Kanban=EPHEMERAL |
 | `stream_session/orchestrator.py` | ✅ 核心 | General Agent 流式会话主编排（setup + session 装配） |
 | `stream_session/stream_session_types.py` | ✅ 核心 | `AgentStreamSession` 会话上下文数据类 |
 | `stream_session/stream_disconnect.py` | ✅ 核心 | PWA 断连宽限与 Offline Durable Guardian |

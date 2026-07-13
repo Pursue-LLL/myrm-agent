@@ -17,14 +17,14 @@ from typing import Literal, NotRequired, TypedDict
 WaveStatus = Literal["open", "closed", "drifted"]
 LeaseStatus = Literal["active", "released", "expired"]
 Lane = Literal["READ", "RESOURCE_WRITE", "GLOBAL_WRITE", "LIVE_AGENT", "STACK_WRITE"]
-ResourceKind = Literal["chat", "project", "agent", "cron", "file"]
+ResourceKind = Literal["chat", "project", "agent", "cron", "file", "kanban_board", "kanban_task"]
 ResourceStatus = Literal["active", "cleaned", "failed"]
 
 VALID_LANES: frozenset[Lane] = frozenset(
     {"READ", "RESOURCE_WRITE", "GLOBAL_WRITE", "LIVE_AGENT", "STACK_WRITE"}
 )
 VALID_RESOURCE_KINDS: frozenset[ResourceKind] = frozenset(
-    {"chat", "project", "agent", "cron", "file"}
+    {"chat", "project", "agent", "cron", "file", "kanban_board", "kanban_task"}
 )
 
 
@@ -49,6 +49,7 @@ class LeaseRecord(TypedDict):
     lastHeartbeatAt: str
     status: LeaseStatus
     pageId: NotRequired[str]
+    pageUrl: NotRequired[str]
     contextId: NotRequired[str]
 
 
