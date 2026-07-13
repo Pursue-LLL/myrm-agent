@@ -92,7 +92,10 @@ fi
 # 3. Ensure dedicated E2E Chrome (no Allow — launched with --remote-debugging-port)
 [[ -f "${ENSURE_CHROME}" ]] || fail "Missing ${ENSURE_CHROME}"
 ensure_out=""
-if ! ensure_out="$(bash "${ENSURE_CHROME}" 2>&1)"; then
+if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+  myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable — first Agent must run: ./myrm ready --chrome"
+  ensure_out="MYRM_CHROME_E2E_ATTACH: existing CDP port=${MYRM_CHROME_E2E_PORT}"
+elif ! ensure_out="$(bash "${ENSURE_CHROME}" 2>&1)"; then
   echo "${ensure_out}" >&2
   fail "Myrm E2E Chrome failed to start — see MYRM_CHROME_E2E_FAIL above"
 fi
@@ -104,7 +107,7 @@ fi
 ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"
 
 PRUNE_SCRIPT="${SCRIPT_DIR}/prune-myrm-chrome-e2e-blank-tabs.sh"
-if [[ -f "${PRUNE_SCRIPT}" ]]; then
+if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" && -f "${PRUNE_SCRIPT}" ]]; then
   export MYRM_CHROME_E2E_PORT
   if prune_out="$(bash "${PRUNE_SCRIPT}" 2>&1)"; then
     echo "${prune_out}"
@@ -255,6 +258,9 @@ _ensure_mux_daemon() {
     if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
       return 0
     fi
+  fi
+  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+    fail "cdmcp-mux daemon not running during attach — first Agent must run: ./myrm ready --chrome"
   fi
   echo "CHROME_E2E_WARN: starting cdmcp-mux daemon for preflight" >&2
   _start_mux_daemon
@@ -411,6 +417,8 @@ _print_e2e_health_json() {
 }
 
 echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=$raw_port profile=${MYRM_CHROME_E2E_DATA_DIR}"
-_ensure_stack_epoch_file
+if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]]; then
+  _ensure_stack_epoch_file
+fi
 _print_e2e_health_json
 exit 0

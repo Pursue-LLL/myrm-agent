@@ -61,6 +61,19 @@ def _chrome_page_ws() -> str | None:
         pages = json.loads(resp.read())
     except Exception:
         return None
+    home = BASE_URL.rstrip("/") + "/"
+    exact = next(
+        (
+            p
+            for p in pages
+            if p.get("url", "").rstrip("/") + "/" == home
+            and p.get("type") == "page"
+        ),
+        None,
+    )
+    if exact is not None:
+        ws = exact.get("webSocketDebuggerUrl")
+        return str(ws) if isinstance(ws, str) else None
     target = next(
         (
             p
@@ -72,7 +85,8 @@ def _chrome_page_ws() -> str | None:
         None,
     )
     if target is not None:
-        return target.get("webSocketDebuggerUrl")
+        ws = target.get("webSocketDebuggerUrl")
+        return str(ws) if isinstance(ws, str) else None
     return _create_fresh_page_ws()
 
 
@@ -100,7 +114,7 @@ def _extract_chat_id(url: str) -> str | None:
 
 @pytest.fixture
 def chrome_ws(_chrome_client_hot: None) -> str:
-    ws_url = _create_fresh_page_ws()
+    ws_url = _chrome_page_ws()
     if not ws_url:
         pytest.skip("Chrome E2E not available (port 9333 — run ./myrm ready --chrome first)")
     return ws_url
@@ -145,19 +159,19 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
                 return payload.get("description")
 
         ready: dict[str, object] = {"hasInput": False}
-        await ev(
-            """(() => {
-              sessionStorage.setItem('migration_discovery_dismissed', 'true');
-              sessionStorage.setItem('competitor_migration_dismissed', 'true');
-              return { ok: true };
-            })()""",
+        nav = await ev(
+            f"""( () => {{
+              const input = document.querySelector('[data-chat-input]');
+              const onHome = location.pathname === '/' || /^\\/c-/.test(location.pathname);
+              if (input && onHome) return {{ skipped: true, path: location.pathname }};
+              window.location.replace({json.dumps(BASE_URL + '/')});
+              return {{ navigated: true }};
+            }})()""",
             await_promise=False,
         )
-        await ev(
-            f"window.location.replace({json.dumps(BASE_URL + '/')}); 'nav'",
-            await_promise=False,
-        )
-        for _ in range(90):
+        if isinstance(nav, dict) and nav.get("navigated"):
+            await asyncio.sleep(2)
+        for _ in range(120):
             ready = await ev(
                 """(() => {
                   const input = document.querySelector('[data-chat-input]');
@@ -176,6 +190,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
                     path,
                     onChatHome,
                     scanningMigration,
+                    readyState: document.readyState,
                   };
                 })()""",
                 await_promise=False,
@@ -183,6 +198,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
             if (
                 isinstance(ready, dict)
                 and ready.get("hasInput")
+                and ready.get("hasLayout")
                 and ready.get("hasModelChip")
                 and ready.get("onChatHome")
                 and not ready.get("scanningMigration")
@@ -191,6 +207,14 @@ async def test_chrome_ui_same_chat_two_ok_messages(chrome_ws: str) -> None:
             await asyncio.sleep(1)
         await asyncio.sleep(3)
         assert isinstance(ready, dict) and ready.get("hasInput"), f"Chat input missing: {ready}"
+        await ev(
+            """(() => {
+              sessionStorage.setItem('migration_discovery_dismissed', 'true');
+              sessionStorage.setItem('competitor_migration_dismissed', 'true');
+              return { ok: true };
+            })()""",
+            await_promise=False,
+        )
         if ready.get("unconfigured") or not ready.get("hasModelChip"):
             pytest.skip(
                 "WebUI default model not configured in E2E Chrome profile — "

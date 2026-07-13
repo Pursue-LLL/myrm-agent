@@ -154,6 +154,10 @@ cmd_rpc() {
     return 1
   fi
   if ! _supervisor_alive; then
+    if [[ "${subcmd}" == "attach" ]]; then
+      echo "SUPERVISOR_FAIL: attach requires a healthy supervisor — first Agent must run: ./myrm ready --chrome" >&2
+      return 1
+    fi
     cmd_start || return 1
   fi
   "${PY}" -m stack_supervisor "${subcmd}"

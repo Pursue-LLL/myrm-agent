@@ -27,3 +27,4 @@
 
 - `tests/core/channel_bridge/test_artifact_deep_links.py` — artifact 收集与深链
 - `tests/core/channel_bridge/test_stream_events.py` — harness 流事件映射
+- `tests/core/channel_bridge/test_execute_preamble_early_exit.py` — preamble 早退（resume timeout、search unavailable）
