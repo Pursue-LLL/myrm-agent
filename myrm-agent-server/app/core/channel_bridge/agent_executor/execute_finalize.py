@@ -45,6 +45,7 @@ async def finalize_channel_stream_reply(
     *,
     acc: StreamAccumulator,
     chat_id: str,
+    message_id: str | None = None,
     channel_budget_key: str | None,
     memory_settings: dict[str, object],
     lite_model_cfg: ModelConfig | None,
@@ -70,6 +71,7 @@ async def finalize_channel_stream_reply(
     await persist_assistant_message(
         chat_id,
         content,
+        message_id=message_id,
         timezone=msg.sent_timezone,
         extra_data={
             "costUsd": acc.cost_usd,

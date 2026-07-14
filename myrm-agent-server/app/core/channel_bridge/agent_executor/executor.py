@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import AsyncGenerator
+from uuid import uuid4
 
 from myrm_agent_harness.api import ConfigIncompleteError
 from myrm_agent_harness.api.hooks import set_approval_user_id
@@ -115,6 +116,7 @@ class ChannelAgentExecutor:
             user_timezone = prep.user_timezone
 
             acc = StreamAccumulator()
+            assistant_message_id = str(uuid4())
 
             async def _open_channel_stream(
                 q: object,
@@ -122,6 +124,7 @@ class ChannelAgentExecutor:
                 async for event in agent.process_stream(
                     query=q,
                     chat_history=chat_history or None,
+                    message_id=assistant_message_id,
                     chat_id=chat_id,
                     cancel_token=cancel_token,
                     steering_token=steering_token,
@@ -147,6 +150,7 @@ class ChannelAgentExecutor:
                 msg,
                 acc=acc,
                 chat_id=chat_id,
+                message_id=assistant_message_id,
                 channel_budget_key=channel_budget_key,
                 memory_settings=memory_settings,
                 lite_model_cfg=lite_model_cfg,

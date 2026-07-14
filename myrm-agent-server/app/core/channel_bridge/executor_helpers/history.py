@@ -94,6 +94,8 @@ async def load_history_without_persist(
 async def persist_assistant_message(
     chat_id: str,
     content: str,
+    *,
+    message_id: str | None = None,
     timezone: str | None = None,
     extra_data: dict[str, object] | None = None,
 ) -> None:
@@ -105,7 +107,8 @@ async def persist_assistant_message(
         sent_at = datetime.now(tz=tz_module.utc)
         sent_timezone = timezone or "UTC"
         await ChatService.append_message(
-            chat_id, "assistant", content, sent_at, sent_timezone, extra_data=extra_data,
+            chat_id, "assistant", content, sent_at, sent_timezone,
+            message_id=message_id, extra_data=extra_data,
         )
         await session.commit()
 
