@@ -4537,6 +4537,8 @@
     "openMenu": "Open Menu",
     "more": "More",
     "clickToVisitLink": "Click to visit",
+    "agentBrowse": "Agentで閲覧",
+    "agentBrowsePrompt": "ブラウザでこのリンクを開いて分析してください: {url}",
     "previous": "Previous",
     "next": "Next",
     "loading": "Loading...",
@@ -4719,6 +4721,8 @@
     "visionModel": "Vision Model",
     "reasoningModel": "Reasoning Model",
     "researchBegins": "What do you want to know?",
+    "noProviderBanner": "AIモデルが未設定です。会話を開始するにはモデルプロバイダーを設定してください",
+    "noProviderAction": "設定する",
     "related": "Related",
     "clear": "Clear chat",
     "clearHistory": "Delete all conversations",
@@ -10947,7 +10951,15 @@
       "noLocalModel": "No local models detected. You can configure an API Key manually in Settings later.",
       "configureLater": "Configure Later",
       "searchReady": "Ready",
-      "enterWorkspace": "Enter Workspace"
+      "enterWorkspace": "Enter Workspace",
+      "cloudQuickStart": "クラウドモデルクイックスタート",
+      "cloudQuickStartHint": "ローカルGPUがない場合、クラウドAIサービスをご利用ください",
+      "cloudProviderGemini": "Google Gemini",
+      "cloudProviderGeminiHint": "無料プランあり",
+      "cloudProviderSiliconFlow": "SiliconFlow",
+      "cloudProviderSiliconFlowHint": "中国対応、登録で無料クレジット",
+      "cloudProviderOpenRouter": "OpenRouter",
+      "cloudProviderOpenRouterHint": "無料オープンソースモデル"
     }
   },
   "appshot": {

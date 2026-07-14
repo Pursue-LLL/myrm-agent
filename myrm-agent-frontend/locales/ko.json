@@ -4537,6 +4537,8 @@
     "openMenu": "Open Menu",
     "more": "More",
     "clickToVisitLink": "Click to visit",
+    "agentBrowse": "Agent 브라우징",
+    "agentBrowsePrompt": "브라우저에서 이 링크를 열고 분석해 주세요: {url}",
     "previous": "Previous",
     "next": "Next",
     "loading": "Loading...",
@@ -4719,6 +4721,8 @@
     "visionModel": "Vision Model",
     "reasoningModel": "Reasoning Model",
     "researchBegins": "What do you want to know?",
+    "noProviderBanner": "AI 모델이 설정되지 않았습니다. 대화를 시작하려면 모델 제공자를 설정하세요.",
+    "noProviderAction": "설정하기",
     "related": "Related",
     "clear": "Clear chat",
     "clearHistory": "Delete all conversations",
@@ -10947,7 +10951,15 @@
       "noLocalModel": "No local models detected. You can configure an API Key manually in Settings later.",
       "configureLater": "Configure Later",
       "searchReady": "Ready",
-      "enterWorkspace": "Enter Workspace"
+      "enterWorkspace": "Enter Workspace",
+      "cloudQuickStart": "클라우드 모델 빠른 시작",
+      "cloudQuickStartHint": "로컬 GPU가 없나요? 클라우드 AI 서비스를 이용하세요",
+      "cloudProviderGemini": "Google Gemini",
+      "cloudProviderGeminiHint": "무료 플랜 제공",
+      "cloudProviderSiliconFlow": "SiliconFlow",
+      "cloudProviderSiliconFlowHint": "중국 친화적, 가입 시 무료 크레딧",
+      "cloudProviderOpenRouter": "OpenRouter",
+      "cloudProviderOpenRouterHint": "무료 오픈소스 모델"
     }
   },
   "appshot": {

@@ -11,7 +11,7 @@ Markdown 渲染扩展与工具块展示。
 | `CodeBlock.tsx` | 核心 |  fenced code block：语法高亮、复制按钮、语言标签 | ✅ |
 | `InlineDiffViewer.tsx` | 核心 | 行内 unified diff 预览（薄包装 `lib/diff/DiffViewer`） | ✅ |
 | `InlineHtmlWidget.tsx` | 核心 | 沙箱化 inline HTML widget iframe 渲染 | ✅ |
-| `LinkPopover.tsx` | 辅助 | 链接 hover 预览卡片（标题/摘要/favicon） | ✅ |
+| `LinkPopover.tsx` | 辅助 | 链接 hover 预览卡片（标题/摘要/favicon/Agent浏览入口） | ✅ |
 | `MarkdownImage.tsx` | 核心 | Markdown 图片：lazy load、Lightbox、尺寸约束 | ✅ |
 | `MathRenderer.tsx` | 核心 | KaTeX 行内/块级公式渲染 | ✅ |
 | `MermaidChart.tsx` | 核心 | Mermaid 图表 lazy 渲染与错误降级 | ✅ |

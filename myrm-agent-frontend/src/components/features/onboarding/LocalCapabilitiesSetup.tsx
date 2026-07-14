@@ -2,11 +2,13 @@
 
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/primitives/button';
 import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
+import { completeOnboarding } from '@/services/onboarding';
 import {
   invalidateLocalCapabilitiesProbeCache,
   type ProbeLocalResponse,
@@ -15,7 +17,7 @@ import { startLocalSearxngAndRefreshProbe } from '@/services/searxngSetup';
 import { buildQuickSearchConfig } from '@/store/config/quickSearchSetup';
 import { getActiveSearchServiceConfig } from '@/store/config/searchService';
 import type { SearchServiceType } from '@/store/config/types';
-import { IconCheck, IconCpu, IconGlobe, IconLoader } from '@/components/features/icons/PremiumIcons';
+import { IconArrowRight, IconCheck, IconCpu, IconGlobe, IconLoader, IconZap } from '@/components/features/icons/PremiumIcons';
 import SearxngInstallConsentDialog from '@/components/features/settings/SearxngInstallConsentDialog';
 import HardwareCookbook from '@/components/features/settings/model-service/HardwareCookbook';
 
@@ -24,10 +26,17 @@ interface LocalCapabilitiesSetupProps {
   onComplete: () => void;
 }
 
+const CLOUD_PROVIDERS = [
+  { id: 'gemini', nameKey: 'cloudProviderGemini', hintKey: 'cloudProviderGeminiHint' },
+  { id: 'siliconflow', nameKey: 'cloudProviderSiliconFlow', hintKey: 'cloudProviderSiliconFlowHint' },
+  { id: 'openrouter', nameKey: 'cloudProviderOpenRouter', hintKey: 'cloudProviderOpenRouterHint' },
+] as const;
+
 export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onComplete }: LocalCapabilitiesSetupProps) {
   const t = useTranslations('chat.localCapabilities');
   const tModel = useTranslations('chat.localModelDetected');
   const tBoot = useTranslations('boot');
+  const router = useRouter();
   
   const [probeResult, setProbeResult] = useState<ProbeLocalResponse | null>(initialProbe);
   const [activatingModel, setActivatingModel] = useState(false);
@@ -134,6 +143,11 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
     [handleActivateModel],
   );
 
+  const handleGoToCloudProvider = useCallback(() => {
+    void completeOnboarding().catch(() => {});
+    router.push('/settings/models');
+  }, [router]);
+
   const availableModel = probeResult?.results?.find((r) => r.available && r.models.length > 0);
   const recommendedModel = probeResult?.recommended_model;
 
@@ -181,6 +195,36 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
 
       {!hasEnabledProvider && (
         <HardwareCookbook onApplyModel={handleApplyCookbookModel} />
+      )}
+
+      {!hasEnabledProvider && !availableModel && (
+        <div className="p-4 rounded-xl border bg-card space-y-4">
+          <div className="flex items-start gap-4">
+            <div className="rounded-xl bg-accent-warm/10 p-3">
+              <IconZap className="h-6 w-6 text-accent-warm" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-base font-semibold">{tBoot('onboarding.cloudQuickStart')}</span>
+              <span className="text-sm text-muted-foreground">{tBoot('onboarding.cloudQuickStartHint')}</span>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {CLOUD_PROVIDERS.map(({ id, nameKey, hintKey }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={handleGoToCloudProvider}
+                className="flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent/50"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{tBoot(`onboarding.${nameKey}`)}</div>
+                  <div className="text-xs text-muted-foreground truncate">{tBoot(`onboarding.${hintKey}`)}</div>
+                </div>
+                <IconArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {!searchConfigured && (

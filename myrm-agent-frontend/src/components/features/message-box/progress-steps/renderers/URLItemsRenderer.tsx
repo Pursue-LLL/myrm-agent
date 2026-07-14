@@ -1,9 +1,12 @@
 /* eslint-disable @next/next/no-img-element */
-import React, { useState, useEffect } from 'react';
-import { Globe } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Globe, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { isWebpageUrl } from '@/lib/utils/urlUtils';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/primitives/carousel';
+import useChatStore from '@/store/useChatStore';
+import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
+import { useTranslations } from 'next-intl';
 
 interface URLItemsRendererProps {
   items: { url: string }[];
@@ -20,7 +23,17 @@ const URLItemsRenderer: React.FC<URLItemsRendererProps> = ({
   isCurrentStep,
   handleLinkClick,
 }) => {
+  const t = useTranslations('common');
   const [animationTick, setAnimationTick] = useState(0);
+
+  const handleAgentBrowse = useCallback(
+    (e: React.MouseEvent, url: string) => {
+      e.stopPropagation();
+      useChatStore.getState().sendMessage(t('agentBrowsePrompt', { url }));
+      useBrowserInspectorStore.getState().openPanel();
+    },
+    [t],
+  );
 
   useEffect(() => {
     if (items.length > 1 || (isCurrentStep && items.length > 0)) {
@@ -151,6 +164,15 @@ const URLItemsRenderer: React.FC<URLItemsRendererProps> = ({
                         {urlPath && <span className="font-normal group-hover:text-primary">{urlPath}</span>}
                       </p>
                     </div>
+
+                    <button
+                      type="button"
+                      className="flex-shrink-0 p-1.5 rounded-md opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-chart-2/10"
+                      onClick={(e) => handleAgentBrowse(e, item.url)}
+                      title={t('agentBrowse')}
+                    >
+                      <Bot className="w-4 h-4 text-chart-2" />
+                    </button>
                   </div>
                 </CarouselItem>
               );

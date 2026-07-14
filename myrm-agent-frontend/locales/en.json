@@ -5373,6 +5373,8 @@
     "openMenu": "Open Menu",
     "more": "More",
     "clickToVisitLink": "Click to visit",
+    "agentBrowse": "Agent browse",
+    "agentBrowsePrompt": "Please open and analyze this link in the browser: {url}",
     "previous": "Previous",
     "next": "Next",
     "loading": "Loading...",
@@ -5606,6 +5608,8 @@
     "visionModel": "Vision Model",
     "reasoningModel": "Reasoning Model",
     "researchBegins": "What do you want to know?",
+    "noProviderBanner": "No AI model configured. Please set up a model provider to start chatting.",
+    "noProviderAction": "Configure",
     "agentReady": "{agentName} is ready",
     "related": "Related",
     "clear": "Clear chat",
@@ -11847,7 +11851,15 @@
       "noLocalModel": "No local models detected. You can configure an API Key manually in Settings later.",
       "configureLater": "Configure Later",
       "searchReady": "Ready",
-      "enterWorkspace": "Enter Workspace"
+      "enterWorkspace": "Enter Workspace",
+      "cloudQuickStart": "Cloud Models Quick Start",
+      "cloudQuickStartHint": "No local GPU? Use cloud AI services instead",
+      "cloudProviderGemini": "Google Gemini",
+      "cloudProviderGeminiHint": "Free tier available",
+      "cloudProviderSiliconFlow": "SiliconFlow",
+      "cloudProviderSiliconFlowHint": "China-friendly, free credits on signup",
+      "cloudProviderOpenRouter": "OpenRouter",
+      "cloudProviderOpenRouterHint": "Free open-source models"
     }
   },
   "appshot": {

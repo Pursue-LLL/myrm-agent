@@ -12,6 +12,13 @@ vi.mock('@/store/useChatStore', () => ({
   default: { getState: () => mockGetState() },
 }));
 
+const mockTogglePanel = vi.fn();
+const mockFetchSnapshot = vi.fn();
+const mockInspectorGetState = vi.fn();
+vi.mock('@/store/useBrowserInspectorStore', () => ({
+  default: { getState: () => mockInspectorGetState() },
+}));
+
 let mockIsTauri = false;
 vi.mock('@/lib/utils/clipboardUtils', () => ({
   isTauri: () => mockIsTauri,
@@ -33,6 +40,12 @@ describe('useGlobalShortcuts', () => {
         { id: 'chat-b', isPinned: true, pinOrder: 1 },
         { id: 'chat-c', isPinned: false },
       ],
+    });
+
+    mockInspectorGetState.mockReturnValue({
+      isOpen: false,
+      togglePanel: mockTogglePanel,
+      fetchSnapshot: mockFetchSnapshot,
     });
 
     vi.spyOn(window, 'addEventListener').mockImplementation(
@@ -94,6 +107,37 @@ describe('useGlobalShortcuts', () => {
       await mountHook();
       fireKey({ key: 'N', metaKey: true, shiftKey: true, code: 'KeyN' });
       expect(mockInitializeChat).not.toHaveBeenCalled();
+    });
+
+    it('toggles browser panel on Cmd+B', async () => {
+      await mountHook();
+      const event = fireKey({ key: 'b', metaKey: true, code: 'KeyB' });
+      expect(mockTogglePanel).toHaveBeenCalled();
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(event.stopPropagation).toHaveBeenCalled();
+    });
+
+    it('fetches snapshot when panel opens on Cmd+B', async () => {
+      mockInspectorGetState.mockReturnValue({
+        isOpen: false,
+        togglePanel: mockTogglePanel,
+        fetchSnapshot: mockFetchSnapshot,
+      });
+      await mountHook();
+      fireKey({ key: 'b', metaKey: true, code: 'KeyB' });
+      expect(mockFetchSnapshot).toHaveBeenCalled();
+    });
+
+    it('does not fetch snapshot when panel closes on Cmd+B', async () => {
+      mockInspectorGetState.mockReturnValue({
+        isOpen: true,
+        togglePanel: mockTogglePanel,
+        fetchSnapshot: mockFetchSnapshot,
+      });
+      await mountHook();
+      fireKey({ key: 'B', metaKey: true, code: 'KeyB' });
+      expect(mockTogglePanel).toHaveBeenCalled();
+      expect(mockFetchSnapshot).not.toHaveBeenCalled();
     });
 
     it('jumps to pinned chat on Cmd+1', async () => {
@@ -236,6 +280,19 @@ describe('useGlobalShortcuts', () => {
       await mountHook();
       fireKey({ key: ')', metaKey: true, shiftKey: true, code: 'Digit0' });
       expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it('toggles browser panel on Cmd+Shift+B in web', async () => {
+      await mountHook();
+      const event = fireKey({ key: 'B', metaKey: true, shiftKey: true, code: 'KeyB' });
+      expect(mockTogglePanel).toHaveBeenCalled();
+      expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it('ignores Cmd+B without Shift in web', async () => {
+      await mountHook();
+      fireKey({ key: 'b', metaKey: true, code: 'KeyB' });
+      expect(mockTogglePanel).not.toHaveBeenCalled();
     });
   });
 });

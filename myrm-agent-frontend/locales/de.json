@@ -4537,6 +4537,8 @@
     "openMenu": "Open Menu",
     "more": "More",
     "clickToVisitLink": "Click to visit",
+    "agentBrowse": "Agent-Browsing",
+    "agentBrowsePrompt": "Bitte öffne und analysiere diesen Link im Browser: {url}",
     "previous": "Previous",
     "next": "Next",
     "loading": "Loading...",
@@ -4719,6 +4721,8 @@
     "visionModel": "Vision Model",
     "reasoningModel": "Reasoning Model",
     "researchBegins": "What do you want to know?",
+    "noProviderBanner": "Kein KI-Modell konfiguriert. Bitte richten Sie einen Modellanbieter ein, um zu chatten.",
+    "noProviderAction": "Konfigurieren",
     "related": "Related",
     "clear": "Clear chat",
     "clearHistory": "Delete all conversations",
@@ -10947,7 +10951,15 @@
       "noLocalModel": "No local models detected. You can configure an API Key manually in Settings later.",
       "configureLater": "Configure Later",
       "searchReady": "Ready",
-      "enterWorkspace": "Enter Workspace"
+      "enterWorkspace": "Enter Workspace",
+      "cloudQuickStart": "Cloud-Modelle Schnellstart",
+      "cloudQuickStartHint": "Keine lokale GPU? Nutzen Sie stattdessen Cloud-KI-Dienste",
+      "cloudProviderGemini": "Google Gemini",
+      "cloudProviderGeminiHint": "Kostenloser Plan verfügbar",
+      "cloudProviderSiliconFlow": "SiliconFlow",
+      "cloudProviderSiliconFlowHint": "China-freundlich, kostenloses Guthaben bei Registrierung",
+      "cloudProviderOpenRouter": "OpenRouter",
+      "cloudProviderOpenRouterHint": "Kostenlose Open-Source-Modelle"
     }
   },
   "appshot": {

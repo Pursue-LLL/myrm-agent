@@ -5,6 +5,8 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/primitives/hover-card';
 import { isTouchDevice as checkTouchDevice } from '@/lib/utils/deviceUtils';
 import { useTranslations } from 'next-intl';
+import useChatStore from '@/store/useChatStore';
+import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 
 interface LinkPopoverProps {
   url: string;
@@ -47,6 +49,17 @@ const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
       }
     }, [isValidUrl, url]);
 
+    const handleAgentBrowse = useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!isValidUrl) return;
+        useChatStore.getState().sendMessage(t('agentBrowsePrompt', { url }));
+        useBrowserInspectorStore.getState().openPanel();
+        setIsOpen(false);
+      },
+      [isValidUrl, url, t],
+    );
+
     const handleTriggerClick = useCallback(
       (e: React.MouseEvent) => {
         if (isTouch) {
@@ -88,18 +101,32 @@ const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
         )}
 
         {isValidUrl && (
-          <div className="flex items-center justify-center gap-1 pt-1.5 border-t border-border/50">
-            <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-              />
-            </svg>
-            <span className="text-xs text-primary font-medium hover:text-primary/70 transition-colors">
-              {t('clickToVisitLink')}
-            </span>
+          <div className="flex items-center justify-between pt-1.5 border-t border-border/50">
+            <div className="flex items-center gap-1 cursor-pointer hover:opacity-70 transition-opacity">
+              <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+              <span className="text-xs text-primary font-medium">{t('clickToVisitLink')}</span>
+            </div>
+            <div
+              className="flex items-center gap-1 cursor-pointer hover:opacity-70 transition-opacity"
+              onClick={handleAgentBrowse}
+            >
+              <svg className="w-3 h-3 text-chart-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-2.47 2.47a2.25 2.25 0 01-1.59.659H9.06a2.25 2.25 0 01-1.591-.659L5 14.5m14 0V17a2.25 2.25 0 01-2.25 2.25H7.25A2.25 2.25 0 015 17v-2.5"
+                />
+              </svg>
+              <span className="text-xs text-chart-2 font-medium">{t('agentBrowse')}</span>
+            </div>
           </div>
         )}
       </div>

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useChatStore from '@/store/useChatStore';
+import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import { isTauri } from '@/lib/utils/clipboardUtils';
 
 /**
@@ -14,6 +15,7 @@ import { isTauri } from '@/lib/utils/clipboardUtils';
  *
  * Shortcuts:
  * - Cmd/Ctrl + N:   Create new chat
+ * - Cmd/Ctrl + B:   Toggle Browser LiveView panel
  * - Cmd/Ctrl + 1~9: Jump to pinned chat by position
  */
 export function useGlobalShortcuts() {
@@ -35,6 +37,15 @@ export function useGlobalShortcuts() {
         e.stopPropagation();
         useChatStore.getState().initializeChat(undefined);
         router.push('/');
+        return;
+      }
+
+      if (e.key === 'b' || e.key === 'B') {
+        e.preventDefault();
+        e.stopPropagation();
+        const inspector = useBrowserInspectorStore.getState();
+        inspector.togglePanel();
+        if (!inspector.isOpen) void inspector.fetchSnapshot();
         return;
       }
 

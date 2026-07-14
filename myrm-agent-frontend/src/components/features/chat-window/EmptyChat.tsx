@@ -1,5 +1,6 @@
 import MessageInput from './MessageInput';
 import CompanionWidget from '../companion/CompanionWidget';
+import NoProviderBanner from './NoProviderBanner';
 import { useTranslations } from 'next-intl';
 import React from 'react';
 import AgentConfigPanel from './agent-config-panel/AgentConfigPanel';
@@ -18,6 +19,7 @@ const EmptyChat = React.memo(() => {
     <div className="relative min-h-screen overflow-visible">
       <div className="flex flex-col items-center max-w-screen-md lg:max-w-[820px] mx-auto px-4 pt-[20vh] pb-4 space-y-6">
         <h2 className="text-black/70 dark:text-white/70 text-3xl font-medium">{title}</h2>
+        <NoProviderBanner />
         <div className="flex justify-center w-full">
           <WorkUnitBalanceBar />
         </div>
