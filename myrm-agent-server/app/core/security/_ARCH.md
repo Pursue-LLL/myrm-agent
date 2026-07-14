@@ -25,7 +25,7 @@ security/
 ├── _ARCH.md             # 本文档
 ├── master_key.py        # MasterKeyProvider（零落盘密钥管理）
 ├── config_crypto.py     # 敏感配置key检测（字段级）
-├── browser_vault.py     # 浏览器 SessionVault 全局单例
+├── browser_vault.py     # SessionVault 实例管理（全局 + agent 级隔离）
 └── llm_reviewer.py      # 动态 LLM 适配器（Transcript Classifier）
 ```
 
@@ -44,7 +44,7 @@ security/
 |------|------|
 | `master_key.py` | MasterKeyProvider，3 级获取 Master Key：环境变量 (SaaS) → OS Keyring (Local/Tauri) → VaultLockedError (需用户解锁)。零落盘 (Zero-Disk) 架构，绝不向硬盘写明文密钥。 |
 | `config_crypto.py` | 敏感配置字段检测（关键词匹配 + 精确 key 匹配，如 browserCloudProvider） |
-| `browser_vault.py` | 全局 SessionVault 单例管理（浏览器会话加密持久化） |
+| `browser_vault.py` | SessionVault 实例管理：全局单例（非 agent 场景）+ 按 agent_id 物理隔离的 agent vault |
 | `llm_reviewer.py` | 动态 Transcript Classifier 适配器，运行时获取用户 LLM 实例 |
 
 ---

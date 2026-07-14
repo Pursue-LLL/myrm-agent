@@ -19,7 +19,7 @@ for sandboxed widget iframes to persist state via the host postMessage bridge.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -99,7 +99,7 @@ async def batch_write(namespace: str, body: BatchWriteRequest, session: AsyncSes
             detail=f"Namespace quota exceeded: max {MAX_KEYS_PER_NAMESPACE} keys",
         )
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     for entry in body.entries:
         stmt = sqlite_upsert(WidgetKVEntry).values(
             namespace=namespace,

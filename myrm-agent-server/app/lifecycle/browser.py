@@ -200,14 +200,23 @@ async def warmup_browser_sessions() -> None:
 
 
 async def cleanup_expired_browser_sessions() -> None:
-    """Clean up expired saved browser sessions from SessionVault on startup."""
+    """Clean up expired saved browser sessions from all vaults (global + per-agent)."""
     try:
-        from app.core.security.browser_vault import get_global_session_vault
+        from app.core.security.browser_vault import cleanup_all_agent_vaults, get_global_session_vault
 
         vault = get_global_session_vault()
         removed = await vault.cleanup_expired()
-        if removed > 0:
-            logger.info("Cleaned up %d expired browser sessions from vault", removed)
+
+        agent_removed = await cleanup_all_agent_vaults()
+        total_removed = removed + agent_removed
+
+        if total_removed > 0:
+            logger.info(
+                "Cleaned up %d expired browser sessions (global=%d, agents=%d)",
+                total_removed,
+                removed,
+                agent_removed,
+            )
     except Exception as exc:
         logger.error("Expired session cleanup failed: %s", exc, exc_info=True)
 

@@ -597,10 +597,13 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
             from app.config.deploy_mode import is_local_mode
-            from app.core.security.browser_vault import get_global_session_vault
+            from app.core.security.browser_vault import get_agent_session_vault, get_global_session_vault
 
             pool = get_global_browser_pool()
-            self._session_vault = get_global_session_vault()
+            if self.agent_id and self.agent_id != "default":
+                self._session_vault = get_agent_session_vault(self.agent_id)
+            else:
+                self._session_vault = get_global_session_vault()
 
             domain_allowlist = None
             agent_inst = self.agent
