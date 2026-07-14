@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - ApprovalRegistry: 统一的拦截审批注册与唤醒中枢
+- send_outbound_draft_payload: Outbound draft 消息重建与发送（WebUI/Channel/TTL 共享）
 
 [POS]
 统一审批流调度器。负责将各种拦截节点落库并推送 SSE 事件，接收 resolve 指令。
@@ -49,9 +50,23 @@ class ApprovalRegistry:
             if not expired_records:
                 return 0
 
+            outbound_auto_send_records: list[ApprovalRecord] = []
+
             for record in expired_records:
-                record.status = "TIMEOUT"
                 record.resolved_at = datetime.now(timezone.utc)
+
+                if record.action_type == "outbound_draft":
+                    timeout_action = (record.payload or {}).get("draft_timeout_action", "auto_reject")
+                    if timeout_action == "auto_send":
+                        record.status = "APPROVED"
+                        record.reason = (record.reason or "") + "\n\n[Auto-Sent: TTL Expired]"
+                        outbound_auto_send_records.append(record)
+                        continue
+                    record.status = "TIMEOUT"
+                    record.reason = (record.reason or "") + "\n\n[Auto-Rejected: TTL Expired]"
+                    continue
+
+                record.status = "TIMEOUT"
                 record.reason = (record.reason or "") + "\n\n[Auto-Rejected: TTL Expired]"
 
                 # Emit event to awaken the suspended state machine with "deny" decision
@@ -76,7 +91,19 @@ class ApprovalRegistry:
                         logger.error("Failed to publish resume event for expired approval %s: %s", record.id, e)
 
             await db.commit()
-            return len(expired_records)
+
+        for record in outbound_auto_send_records:
+            try:
+                await cls._send_outbound_draft(record)
+            except Exception as e:
+                logger.error("Failed to auto-send expired outbound draft %s: %s", record.id, e)
+
+        return len(expired_records)
+
+    @classmethod
+    async def _send_outbound_draft(cls, record: ApprovalRecord) -> None:
+        """Send the held outbound draft message to the channel."""
+        await send_outbound_draft_payload(record.payload or {}, record.agent_id, record.id)
 
     @classmethod
     async def create_approval(
@@ -251,3 +278,50 @@ class ApprovalRegistry:
             )
             result = await db.execute(stmt)
             return list(result.scalars().all())
+
+
+async def send_outbound_draft_payload(
+    payload: dict[str, object],
+    agent_id: str | None,
+    record_id: str,
+) -> bool:
+    """Reconstruct and publish an outbound message from a draft approval payload.
+
+    Shared by WebUI resolve, Channel ActionButton, and TTL auto-send.
+    Returns True if the message was sent, False if skipped (empty content).
+    """
+    from app.channels.types.messages import (
+        MediaAttachment,
+        MediaType,
+        MessagePriority,
+        OutboundMessage,
+    )
+    from app.core.channel_bridge import get_channel_gateway
+
+    content = str(payload.get("draft_content", ""))
+    if not content.strip():
+        logger.warning("Outbound draft %s send skipped: empty content", record_id[:12])
+        return False
+
+    media: list[MediaAttachment] = []
+    for item in payload.get("draft_media", ()) or ():
+        if isinstance(item, dict) and item.get("url"):
+            raw_type = str(item.get("type", "document"))
+            try:
+                mt = MediaType(raw_type)
+            except ValueError:
+                mt = MediaType.DOCUMENT
+            media.append(MediaAttachment(url=str(item["url"]), type=mt))
+
+    outbound = OutboundMessage(
+        channel=str(payload.get("channel", "")),
+        recipient_id=str(payload.get("recipient_id", "")),
+        user_id=agent_id or "system",
+        content=content,
+        media=media or None,
+        priority=MessagePriority.NORMAL,
+    )
+    gw = get_channel_gateway()
+    await gw.publish(outbound)
+    logger.info("Outbound draft %s sent", record_id[:12])
+    return True

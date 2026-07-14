@@ -31,7 +31,7 @@ import logging
 import time
 from datetime import datetime, timezone
 
-from app.channels.types import TopicContext
+from app.channels.types import DraftTimeoutAction, ReplyMode, TopicContext
 from app.channels.types.thread_sharing import ThreadSharingMode
 
 logger = logging.getLogger(__name__)
@@ -104,12 +104,24 @@ class SqlTopicManager:
 
         await self._touch_active(channel, chat_id, storage_key, config)
 
+        raw_reply_mode = str(topic_cfg.get("replyMode", "auto"))
+        reply_mode = ReplyMode(raw_reply_mode) if raw_reply_mode in ReplyMode.__members__.values() else ReplyMode.AUTO
+        raw_timeout_action = str(topic_cfg.get("draftTimeoutAction", "auto_reject"))
+        timeout_action = (
+            DraftTimeoutAction(raw_timeout_action)
+            if raw_timeout_action in DraftTimeoutAction.__members__.values()
+            else DraftTimeoutAction.AUTO_REJECT
+        )
+
         return TopicContext(
             topic_id=thread_id or chat_id,
             agent_id=str(topic_cfg["agentId"]) if topic_cfg.get("agentId") else None,
             enabled=bool(topic_cfg.get("enabled", True)),
             bound_at=str(topic_cfg["boundAt"]) if topic_cfg.get("boundAt") else None,
             thread_sharing_mode=str(topic_cfg.get("threadSharingMode", "isolated")),
+            reply_mode=reply_mode,
+            draft_timeout_minutes=int(topic_cfg.get("draftTimeoutMinutes", 5)),
+            draft_timeout_action=timeout_action,
         )
 
     async def bind_topic(
@@ -122,6 +134,9 @@ class SqlTopicManager:
         display_name: str | None = None,
         avatar_url: str | None = None,
         thread_sharing_mode: ThreadSharingMode = ThreadSharingMode.ISOLATED,
+        reply_mode: ReplyMode = ReplyMode.AUTO,
+        draft_timeout_minutes: int = 5,
+        draft_timeout_action: DraftTimeoutAction = DraftTimeoutAction.AUTO_REJECT,
     ) -> TopicContext:
         resolved_agent_id = agent_id
         if agent_id:
@@ -134,6 +149,9 @@ class SqlTopicManager:
             "lastActiveAt": now_iso,
             "idleTimeoutH": self._default_idle_timeout_h,
             "threadSharingMode": thread_sharing_mode,
+            "replyMode": reply_mode.value,
+            "draftTimeoutMinutes": draft_timeout_minutes,
+            "draftTimeoutAction": draft_timeout_action.value,
         }
         if self._default_max_age_h is not None:
             topic_entry["maxAgeH"] = self._default_max_age_h
@@ -153,6 +171,9 @@ class SqlTopicManager:
             enabled=True,
             bound_at=now_iso,
             thread_sharing_mode=thread_sharing_mode,
+            reply_mode=reply_mode,
+            draft_timeout_minutes=draft_timeout_minutes,
+            draft_timeout_action=draft_timeout_action,
         )
 
     def _is_expired(self, topic_cfg: dict[str, object]) -> bool:

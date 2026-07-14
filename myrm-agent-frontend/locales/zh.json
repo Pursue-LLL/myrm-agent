@@ -4252,14 +4252,18 @@
         "toasts": {
           "agentBound": "Agent 绑定成功",
           "threadSharingUpdated": "会话共享模式已更新",
-          "globalAgentSet": "全局 Agent 设置成功"
+          "globalAgentSet": "全局 Agent 设置成功",
+          "replyModeUpdated": "回复模式已更新",
+          "draftTimeoutUpdated": "草稿超时设置已更新"
         },
         "errors": {
           "initialLoad": "加载渠道或 Agent 失败",
           "topicsLoad": "加载该渠道的话题失败",
           "agentBind": "绑定 Agent 失败",
           "threadSharing": "设置共享模式失败",
-          "globalAgent": "设置全局 Agent 失败"
+          "globalAgent": "设置全局 Agent 失败",
+          "replyMode": "设置回复模式失败",
+          "draftTimeout": "更新草稿超时设置失败"
         },
         "threadSharing": {
           "label": "会话共享模式",
@@ -6203,6 +6207,16 @@
           "shared": "共享",
           "sharedDesc": "话题内所有用户共享同一对话历史",
           "tooltip": "适用于协作场景，如 Discord 论坛或 Telegram 话题"
+        },
+        "replyMode": {
+          "label": "回复模式",
+          "auto": "自动发送",
+          "draftReview": "草稿审核",
+          "tooltip": "草稿审核模式下，AI 生成的回复需人工确认后才会发送，适用于销售/客服等合规场景",
+          "timeout": "超时时间",
+          "onExpiry": "超时策略",
+          "autoReject": "自动丢弃",
+          "autoSend": "自动发送"
         }
       },
       "voice": {
@@ -8266,7 +8280,11 @@
     "mcp_skill": "MCP 技能",
     "mcp_calls_count": "共 {count} 次调用",
     "view_more": "查看更多 {count} 个来源",
-    "sources_title": "来源"
+    "sources_title": "来源",
+    "knowledge_base": "知识库",
+    "conversation_history": "会话历史",
+    "source_excerpt": "原文摘录",
+    "no_snippet": "该来源暂无摘要内容。"
   },
   "sources": {
     "title": "来源",
@@ -10473,6 +10491,10 @@
     "visualApprovalAttentionTitle": "待视觉审批",
     "visualApprovalAttentionView": "查看审批",
     "visualApprovalAttentionMultiple": "{count} 项可视化操作待审批",
+    "outboundDraftTitle": "渠道消息草稿审核",
+    "outboundDraftDescription": "AI 生成了以下回复，请审核后决定发送或丢弃。",
+    "outboundDraftOriginal": "用户原始消息",
+    "outboundDraftReply": "AI 生成的回复草稿",
     "handoverTitle": "等待您操作",
     "handoverDone": "已完成",
     "handoverDialogTitle": "等待您操作",
@@ -12268,14 +12290,18 @@
       "toasts": {
         "agentBound": "Agent bound successfully",
         "threadSharingUpdated": "Thread sharing mode updated",
-        "globalAgentSet": "Global agent set successfully"
+        "globalAgentSet": "Global agent set successfully",
+        "replyModeUpdated": "Reply mode updated",
+        "draftTimeoutUpdated": "Draft timeout settings updated"
       },
       "errors": {
         "initialLoad": "Failed to load channels or agents",
         "topicsLoad": "Failed to load topics for this channel",
         "agentBind": "Failed to bind agent",
         "threadSharing": "Failed to set sharing mode",
-        "globalAgent": "Failed to set global agent"
+        "globalAgent": "Failed to set global agent",
+        "replyMode": "Failed to set reply mode",
+        "draftTimeout": "Failed to update draft timeout"
       },
       "threadSharing": {
         "label": "Thread Sharing Mode",
@@ -12284,6 +12310,16 @@
         "shared": "Shared",
         "sharedDesc": "All users in a topic share the same conversation history",
         "tooltip": "Suitable for collaborative scenarios like Discord forums or Telegram topics"
+      },
+      "replyMode": {
+        "label": "Reply Mode",
+        "auto": "Auto Send",
+        "draftReview": "Draft Review",
+        "tooltip": "In draft review mode, AI-generated replies require human confirmation before being sent. Ideal for sales and customer service compliance.",
+        "timeout": "Timeout",
+        "onExpiry": "On Expiry",
+        "autoReject": "Auto Reject",
+        "autoSend": "Auto Send"
       }
     }
   },

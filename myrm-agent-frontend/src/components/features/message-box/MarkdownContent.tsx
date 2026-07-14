@@ -11,7 +11,7 @@
  * - 平滑流式渲染：通过 useSmoothStream + Intl.Segmenter 实现逐字符打字机效果
  * - citation 渲染：支持 web/mcp/kb/conversation 四种来源类型的 LinkPopover 预览
  */
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useSmoothStream } from '@/hooks/useSmoothStream';
 import useConfigStore from '@/store/useConfigStore';
@@ -33,6 +33,7 @@ import MarkdownImage from '../markdown-render-tools/MarkdownImage';
 import { getChildrenAsText } from '@/lib/utils/reactUtils';
 import VaultArtifactCard from '../artifacts/VaultArtifactCard';
 import InlineDiffViewer from '../markdown-render-tools/InlineDiffViewer';
+import SourceChunkDrawer from './SourceChunkDrawer';
 
 const INLINE_RENDER_LANGUAGES = new Set(['html', 'svg']);
 
@@ -61,6 +62,17 @@ const MarkdownContent = React.memo(
     const smoothStreamEnabled = useConfigStore((state) => state.smoothStreamEnabled);
     const { addChunk, displayedContent, flush, reset } = useSmoothStream();
     const prevContentRef = React.useRef('');
+
+    const [drawerState, setDrawerState] = useState<{
+      open: boolean;
+      title: string;
+      section?: string;
+      snippet: string;
+    }>({ open: false, title: '', snippet: '' });
+
+    const openKbDrawer = useCallback((title: string, section: string | undefined, snippet: string) => {
+      setDrawerState({ open: true, title, section, snippet });
+    }, []);
 
     // Strip citations so they don't render during streaming or static view
     const sanitizedContent = useMemo(() => content.replace(/<cite:[^>]+>/gi, ''), [content]);
@@ -198,7 +210,18 @@ const MarkdownContent = React.memo(
             const kbTitle = source.filename
               ? `${source.filename}${source.section ? ` § ${source.section}` : ''}`
               : source.kb_name;
-            return <LinkPopover url="#" title={kbTitle} description={source.snippet || source.summary || ''} label={num} />;
+            const kbSnippet = source.snippet || source.summary || '';
+            if (kbSnippet) {
+              return (
+                <span
+                  className="bg-secondary px-1 rounded ml-1 no-underline text-xs text-black/70 dark:text-white/70 relative hover:bg-amber-500/30 hover:text-amber-800 dark:hover:text-amber-300 transition-colors duration-200 cursor-pointer"
+                  onClick={() => openKbDrawer(kbTitle, source.section, kbSnippet)}
+                >
+                  {num}
+                </span>
+              );
+            }
+            return <LinkPopover url="#" title={kbTitle} description="" label={num} />;
           }
 
           if (source?.type === 'conversation_history') {
@@ -220,7 +243,7 @@ const MarkdownContent = React.memo(
           return <LinkPopover url={linkUrl} title={title} description={description} label={num} />;
         },
       }),
-      [sources, isStreaming],
+      [sources, isStreaming, openKbDrawer],
     );
 
     return (
@@ -240,6 +263,13 @@ const MarkdownContent = React.memo(
           '[&_li.task-list-item]:flex [&_li.task-list-item]:items-start [&_li.task-list-item]:gap-2 [&_li.task-list-item_>_p]:m-0',
         )}
       >
+        <SourceChunkDrawer
+          open={drawerState.open}
+          onOpenChange={(open) => setDrawerState((prev) => ({ ...prev, open }))}
+          title={drawerState.title}
+          section={drawerState.section}
+          snippet={drawerState.snippet}
+        />
         <ReactMarkdown
           remarkPlugins={[[remarkMath, remarkMathOptions], remarkGfm, [remarkGitHubAlerts, { mode: 'component' }]]}
           rehypePlugins={[[rehypeKatex, katexConfig], rehypeRaw, [rehypeHeadingIds, { prefix: `toc-${_messageId}` }]]} // 将 AST 转换为最终的 HTML 结构

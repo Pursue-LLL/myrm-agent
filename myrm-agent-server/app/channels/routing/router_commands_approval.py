@@ -292,6 +292,11 @@ class RouterCommandsApprovalMixin:
                 msg.channel, chat_id, str(origin_message_id), status_text,
             )
 
+        # --- Outbound draft: send or discard the held message ---
+        if record.action_type == "outbound_draft":
+            await self._resolve_outbound_draft(record, action_raw)
+            return
+
         # --- Resume the interrupted Agent ---
         if active is not None:
             decision: ApprovalDecision = "allow_once" if action_raw == "approve" else "deny"
@@ -327,6 +332,23 @@ class RouterCommandsApprovalMixin:
                         },
                     )
                 )
+
+    async def _resolve_outbound_draft(
+        self: RouterCommandsHost,
+        record: object,
+        decision: str,
+    ) -> None:
+        """Send or discard a held outbound channel draft message."""
+        from app.database.models.approval import ApprovalRecord as ApprovalRecordModel
+
+        if not isinstance(record, ApprovalRecordModel):
+            return
+        if decision == "approve":
+            from app.services.approvals.registry import send_outbound_draft_payload
+
+            await send_outbound_draft_payload(record.payload or {}, record.agent_id, record.id)
+        else:
+            logger.info("Outbound draft %s rejected via channel button, discarded", record.id[:12])
 
     @staticmethod
     def _build_decision_entry(decision: ApprovalDecision, channel: str, *, batch: bool = False) -> dict[str, object]:

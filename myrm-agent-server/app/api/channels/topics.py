@@ -81,6 +81,9 @@ async def list_channel_topics(
                     displayName=str(topic_cfg.get("displayName", "")) or None,
                     avatarUrl=str(topic_cfg.get("avatarUrl", "")) or None,
                     threadSharingMode=str(topic_cfg.get("threadSharingMode", "isolated")),
+                    replyMode=str(topic_cfg.get("replyMode", "auto")),
+                    draftTimeoutMinutes=int(topic_cfg.get("draftTimeoutMinutes", 5)),
+                    draftTimeoutAction=str(topic_cfg.get("draftTimeoutAction", "auto_reject")),
                 )
             )
 
@@ -131,6 +134,11 @@ async def bind_channel_topic(
             if agent_tools.intersection(high_risk_tools):
                 logger.warning(f"Security Warning: Binding high-risk agent {agent.id} to channel {channel} topic {topic_id}")
 
+    from app.channels.types import DraftTimeoutAction, ReplyMode
+
+    reply_mode = ReplyMode(body.reply_mode) if body.reply_mode else ReplyMode.AUTO
+    draft_timeout_action = DraftTimeoutAction(body.draft_timeout_action) if body.draft_timeout_action else DraftTimeoutAction.AUTO_REJECT
+
     manager = SqlTopicManager()
     try:
         ctx = await manager.bind_topic(
@@ -141,6 +149,9 @@ async def bind_channel_topic(
             display_name=body.display_name,
             avatar_url=body.avatar_url,
             thread_sharing_mode=body.thread_sharing_mode or "isolated",
+            reply_mode=reply_mode,
+            draft_timeout_minutes=body.draft_timeout_minutes or 5,
+            draft_timeout_action=draft_timeout_action,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -153,6 +164,9 @@ async def bind_channel_topic(
         displayName=body.display_name,
         avatarUrl=body.avatar_url,
         threadSharingMode=ctx.thread_sharing_mode,
+        replyMode=ctx.reply_mode.value,
+        draftTimeoutMinutes=ctx.draft_timeout_minutes,
+        draftTimeoutAction=ctx.draft_timeout_action.value,
     )
 
 

@@ -4213,14 +4213,18 @@
         "toasts": {
           "agentBound": "Agent bound successfully",
           "threadSharingUpdated": "Thread sharing mode updated",
-          "globalAgentSet": "Global agent set successfully"
+          "globalAgentSet": "Global agent set successfully",
+          "replyModeUpdated": "Reply mode updated",
+          "draftTimeoutUpdated": "Draft timeout settings updated"
         },
         "errors": {
           "initialLoad": "Failed to load channels or agents",
           "topicsLoad": "Failed to load topics for channel",
           "agentBind": "Failed to bind agent",
           "threadSharing": "Failed to set sharing mode",
-          "globalAgent": "Failed to set global agent"
+          "globalAgent": "Failed to set global agent",
+          "replyMode": "Failed to set reply mode",
+          "draftTimeout": "Failed to update draft timeout"
         },
         "threadSharing": {
           "label": "Thread Sharing Mode",
@@ -4229,6 +4233,16 @@
           "shared": "Shared",
           "sharedDesc": "All users in thread share the same conversation history",
           "tooltip": "Enable for collaborative scenarios like Discord Forums or Telegram Forum Topics"
+        },
+        "replyMode": {
+          "label": "Reply Mode",
+          "auto": "Auto Send",
+          "draftReview": "Draft Review",
+          "tooltip": "When set to Draft Review, AI replies are held for your approval before being sent to the channel. Recommended for customer-facing scenarios.",
+          "timeout": "Timeout",
+          "onExpiry": "On expiry",
+          "autoReject": "Discard draft",
+          "autoSend": "Send automatically"
         }
       }
     },
@@ -8266,7 +8280,11 @@
     "mcp_skill": "MCP Skill",
     "mcp_calls_count": "{count} calls",
     "view_more": "View {count} more sources",
-    "sources_title": "Sources"
+    "sources_title": "Sources",
+    "knowledge_base": "Knowledge Base",
+    "conversation_history": "Conversation History",
+    "source_excerpt": "Source Excerpt",
+    "no_snippet": "No excerpt available for this source."
   },
   "sources": {
     "title": "Sources",
@@ -10426,6 +10444,10 @@
     "deployApprovalTitle": "Confirm Artifact Deployment",
     "deployApprovalArtifact": "Artifact",
     "deployApprovalHint": "Approving will publish this artifact to Vercel and create a public URL.",
+    "outboundDraftTitle": "Channel Reply Draft",
+    "outboundDraftDescription": "AI generated a reply that needs your review before sending.",
+    "outboundDraftOriginal": "Customer Message",
+    "outboundDraftReply": "AI Draft Reply",
     "skillGrowthPending": "Skill Growth Review",
     "viewChanges": "View changes",
     "hideChanges": "Hide changes",
@@ -12157,14 +12179,18 @@
       "toasts": {
         "agentBound": "Agent bound successfully",
         "threadSharingUpdated": "Thread sharing mode updated",
-        "globalAgentSet": "Global agent set successfully"
+        "globalAgentSet": "Global agent set successfully",
+        "replyModeUpdated": "Reply mode updated",
+        "draftTimeoutUpdated": "Draft timeout settings updated"
       },
       "errors": {
         "initialLoad": "Failed to load channels or agents",
         "topicsLoad": "Failed to load topics for this channel",
         "agentBind": "Failed to bind agent",
         "threadSharing": "Failed to set sharing mode",
-        "globalAgent": "Failed to set global agent"
+        "globalAgent": "Failed to set global agent",
+        "replyMode": "Failed to set reply mode",
+        "draftTimeout": "Failed to update draft timeout"
       },
       "threadSharing": {
         "label": "Thread Sharing Mode",
@@ -12173,6 +12199,16 @@
         "shared": "Shared",
         "sharedDesc": "All users in a topic share the same conversation history",
         "tooltip": "Suitable for collaborative scenarios like Discord forums or Telegram topics"
+      },
+      "replyMode": {
+        "label": "Reply Mode",
+        "auto": "Auto Send",
+        "draftReview": "Draft Review",
+        "tooltip": "When set to Draft Review, AI replies are held for your approval before being sent to the channel. Recommended for customer-facing scenarios.",
+        "timeout": "Timeout",
+        "onExpiry": "On expiry",
+        "autoReject": "Discard draft",
+        "autoSend": "Send automatically"
       }
     }
   },

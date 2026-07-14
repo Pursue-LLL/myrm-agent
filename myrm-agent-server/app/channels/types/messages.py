@@ -472,6 +472,20 @@ class InboundMessage:
         )
 
 
+class ReplyMode(StrEnum):
+    """Controls whether outbound channel replies require human review."""
+
+    AUTO = "auto"
+    DRAFT_REVIEW = "draft_review"
+
+
+class DraftTimeoutAction(StrEnum):
+    """What happens when a draft review approval expires."""
+
+    AUTO_SEND = "auto_send"
+    AUTO_REJECT = "auto_reject"
+
+
 @dataclass(frozen=True, slots=True)
 class TopicContext:
     """Per-topic configuration for forum-style thread routing.
@@ -484,6 +498,12 @@ class TopicContext:
     - ``isolated`` (default): Each user has their own conversation history.
     - ``shared``: All users in the thread share the same conversation history,
       enabling collaborative scenarios (Discord Forum, Telegram Forum Topics).
+
+    ``reply_mode``: Controls outbound message delivery.
+    - ``auto`` (default): Agent replies are sent immediately (existing behavior).
+    - ``draft_review``: Agent replies are held as drafts for human approval
+      before being sent to the channel. Essential for enterprise customer
+      service and sales scenarios where AI responses need quality control.
     """
 
     topic_id: str
@@ -492,6 +512,9 @@ class TopicContext:
     bound_at: str | None = None
     matched_by: str | None = None
     thread_sharing_mode: ThreadSharingMode = ThreadSharingMode.ISOLATED
+    reply_mode: ReplyMode = ReplyMode.AUTO
+    draft_timeout_minutes: int = 5
+    draft_timeout_action: DraftTimeoutAction = DraftTimeoutAction.AUTO_REJECT
 
 
 @dataclass(frozen=True, slots=True)

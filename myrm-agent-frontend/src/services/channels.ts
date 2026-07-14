@@ -921,12 +921,18 @@ export async function cancelLogin(sessionId: string): Promise<void> {
 
 export type ThreadSharingMode = 'isolated' | 'shared';
 
+export type ReplyMode = 'auto' | 'draft_review';
+export type DraftTimeoutAction = 'auto_send' | 'auto_reject';
+
 export interface TopicBinding {
   topicId: string;
   agentId: string | null;
   displayName: string | null;
   avatarUrl: string | null;
   threadSharingMode: ThreadSharingMode;
+  replyMode: ReplyMode;
+  draftTimeoutMinutes: number;
+  draftTimeoutAction: DraftTimeoutAction;
 }
 
 export interface ChannelTopicsResponse {
@@ -944,10 +950,13 @@ export async function bindTopicAgent(
   topicId: string,
   agentId: string | null,
   threadSharingMode?: ThreadSharingMode,
+  replyMode?: ReplyMode,
+  draftTimeoutMinutes?: number,
+  draftTimeoutAction?: DraftTimeoutAction,
 ): Promise<void> {
   return apiRequest(`/channels/manage/${channel}/topics/${encodeURIComponent(topicId)}/bind`, {
     method: 'POST',
-    body: JSON.stringify({ agentId, threadSharingMode }),
+    body: JSON.stringify({ agentId, threadSharingMode, replyMode, draftTimeoutMinutes, draftTimeoutAction }),
   });
 }
 

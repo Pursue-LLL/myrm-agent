@@ -312,6 +312,9 @@ class TopicBindingResponse(BaseModel):
     display_name: str | None = Field(None, alias="displayName")
     avatar_url: str | None = Field(None, alias="avatarUrl")
     thread_sharing_mode: str = Field(default="isolated", alias="threadSharingMode")
+    reply_mode: str = Field(default="auto", alias="replyMode")
+    draft_timeout_minutes: int = Field(default=5, alias="draftTimeoutMinutes")
+    draft_timeout_action: str = Field(default="auto_reject", alias="draftTimeoutAction")
 
     class Config:
         populate_by_name = True
@@ -338,6 +341,9 @@ class BindTopicRequest(BaseModel):
     display_name: str | None = Field(None, alias="displayName")
     avatar_url: str | None = Field(None, alias="avatarUrl")
     thread_sharing_mode: str | None = Field(None, alias="threadSharingMode")
+    reply_mode: Literal["auto", "draft_review"] | None = Field(None, alias="replyMode")
+    draft_timeout_minutes: int | None = Field(None, alias="draftTimeoutMinutes")
+    draft_timeout_action: Literal["auto_send", "auto_reject"] | None = Field(None, alias="draftTimeoutAction")
 
     class Config:
         populate_by_name = True

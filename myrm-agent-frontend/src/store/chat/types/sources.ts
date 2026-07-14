@@ -7,7 +7,7 @@
  */
 
 // 外部引用来源类型
-export type SourceType = 'web_search' | 'web_fetch' | 'mcp' | 'conversation_history';
+export type SourceType = 'web_search' | 'web_fetch' | 'mcp' | 'conversation_history' | 'knowledge';
 
 // MCP 调用记录
 export interface MCPCallRecord {

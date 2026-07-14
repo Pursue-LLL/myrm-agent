@@ -647,6 +647,55 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
           </div>
         );
       }
+      case 'outbound_draft': {
+        const draftContent = (approval.payload?.draft_content as string) || '';
+        const originalContent = (approval.payload?.original_content as string) || '';
+        const channelName = (approval.payload?.channel as string) || '';
+        const recipientId = (approval.payload?.recipient_id as string) || '';
+        const topicId = (approval.payload?.topic_id as string) || '';
+
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+              <MessageSquare className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+              <div>
+                <h4 className="font-semibold text-sm text-amber-700 dark:text-amber-300">
+                  {t('outboundDraftTitle')}
+                </h4>
+                <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+                  {t('outboundDraftDescription')}
+                </p>
+              </div>
+            </div>
+
+            {originalContent && (
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="text-xs font-medium text-muted-foreground mb-1.5">{t('outboundDraftOriginal')}</div>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{originalContent}</p>
+              </div>
+            )}
+
+            <div className="rounded-lg border bg-background p-3">
+              <div className="text-xs font-medium text-muted-foreground mb-1.5">{t('outboundDraftReply')}</div>
+              <p className="text-sm text-foreground whitespace-pre-wrap">{draftContent}</p>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs text-muted-foreground px-1 flex-wrap">
+              {channelName && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
+                  {channelName}
+                </span>
+              )}
+              {recipientId && (
+                <span className="truncate" title={recipientId}>{recipientId}</span>
+              )}
+              {topicId && (
+                <span className="truncate opacity-60" title={topicId}>{topicId}</span>
+              )}
+            </div>
+          </div>
+        );
+      }
       case 'deploy_approval': {
         const artifactName = approval.payload?.artifact_name ?? approval.payload?.artifact_id ?? '';
         const deployMessage = approval.payload?.message ?? approval.reason ?? '';

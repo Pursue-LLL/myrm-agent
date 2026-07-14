@@ -57,26 +57,9 @@ class McpChatSession(CdpChatSession):
             except RuntimeError as exc:
                 if not healed and is_recoverable_evaluate_error(exc):
                     healed = True
-                    message = str(exc)
-                    if "No page found" in message or "Target closed" in message:
-                        await self.recreate_page()
-                    else:
-                        await self._heal_detached_page()
+                    await self._heal_detached_page()
                     continue
                 raise
-
-    async def recreate_page(self) -> None:
-        await asyncio.to_thread(
-            self._client.close_page,
-            self._page,
-            ignore_errors=True,
-        )
-        self._page = await asyncio.to_thread(
-            self._client.new_page,
-            self._base_url,
-            timeout_ms=120_000,
-        )
-        await self.wait_shell_ready(timeout_sec=120.0, require_bridge=True)
 
     async def _heal_detached_page(self) -> None:
         await asyncio.to_thread(

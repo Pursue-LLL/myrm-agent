@@ -15,14 +15,15 @@
 | `ContextUsageIndicator.tsx` | 组件 | Token 用量环 + 策略状态点 + MiniPanel（压缩/Fork 新话题一键操作） | ✅ |
 | `CronJobSystemCard.tsx` | 组件 | Cron 系统消息卡片（定时任务触发/结果摘要） | ✅ |
 | `FileMutationWarning.tsx` | 组件 | 文件变更风险警告条（mutation 失败/冲突提示） | ✅ |
-| `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型 | ✅ |
+| `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型；KB citation 可点击打开 SourceChunkDrawer | ✅ |
 | `MemoryCitationsButton.tsx` | 组件 | 记忆引用来源按钮与 Popover | ✅ |
 | `MemoryInsightPanel.tsx` | 组件 | 消息关联记忆洞察侧栏 | ✅ |
 | `PlanConfirmationCard.tsx` | 组件 | Plan-phase HITL 卡片：展示 AI 计划，提供批准/编辑/跳过三种操作。支持 Deep Research（PhaseWaiter REST）和 General Agent（LangGraph interrupt SSE resume）双路径 | ✅ |
 | `MessageActionBar.tsx` | 组件 | 消息操作栏：复制/朗读/Fork/记忆保存/技能提炼/Wiki保存等按钮 | ✅ |
 | `MessageBox.tsx` | 核心 | 单条消息气泡根组件：路由 user/assistant/tool 分支 | ✅ |
 | `MessageBoxLoading.tsx` | 辅助 | 流式生成中 assistant 气泡 loading 态 | ✅ |
-| `MessageSources.tsx` | 组件 | 消息引用来源卡片网格（web/mcp/kb/conversation 四种类型差异化图标和 hover 预览） | ✅ |
+| `MessageSources.tsx` | 组件 | 消息引用来源卡片网格（web/mcp/kb/conversation 四种类型差异化图标和 hover 预览）；KB 卡片点击打开 SourceChunkDrawer | ✅ |
+| `SourceChunkDrawer.tsx` | 组件 | KB 引用原文片段 Drawer：点击 KB citation 后以右侧 Sheet 展示原文 snippet，支持 section 标签和分段渲染 | ✅ |
 | `MessageToc.tsx` | 组件 | 长 assistant 消息目录导航（heading anchor） | ✅ |
 | `QuoteToolbar.tsx` | 组件 | 文本选中引用工具条（Quote 回复） | ✅ |
 | `Suggestions.tsx` | 组件 | 回合结束 follow-up 建议 chips | ✅ |

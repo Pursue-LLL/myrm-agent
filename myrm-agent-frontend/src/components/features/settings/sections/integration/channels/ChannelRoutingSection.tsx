@@ -16,7 +16,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { IconPlug, IconAlertCircle, IconLoader, IconUser } from '@/components/features/icons/PremiumIcons';
-import { Users } from 'lucide-react';
+import { Users, ShieldCheck, Zap } from 'lucide-react';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import SettingsSection from '../../SettingsSection';
 import {
@@ -25,6 +25,8 @@ import {
   listChannelStatuses,
   setChannelDefaultAgent,
   type ChannelStatus,
+  type DraftTimeoutAction,
+  type ReplyMode,
   type TopicBinding,
   type ThreadSharingMode,
 } from '@/services/channels';
@@ -123,6 +125,48 @@ export default function ChannelRoutingSection() {
     } catch (error) {
       console.error('Failed to set sharing mode:', error);
       toast.error(t('errors.threadSharing'));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleSetReplyMode = async (topicId: string, mode: ReplyMode) => {
+    if (!selectedChannel) return;
+    setSaving(topicId);
+    try {
+      const topic = topics.find((t) => t.topicId === topicId);
+      await bindTopicAgent(
+        selectedChannel, topicId, topic?.agentId ?? null,
+        topic?.threadSharingMode, mode,
+        topic?.draftTimeoutMinutes, topic?.draftTimeoutAction,
+      );
+      setTopics((prev) => prev.map((t) => (t.topicId === topicId ? { ...t, replyMode: mode } : t)));
+      toast.success(t('toasts.replyModeUpdated'));
+    } catch (error) {
+      console.error('Failed to set reply mode:', error);
+      toast.error(t('errors.replyMode'));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleSetDraftTimeout = async (topicId: string, minutes: number, action: DraftTimeoutAction) => {
+    if (!selectedChannel) return;
+    setSaving(topicId);
+    try {
+      const topic = topics.find((t) => t.topicId === topicId);
+      await bindTopicAgent(
+        selectedChannel, topicId, topic?.agentId ?? null,
+        topic?.threadSharingMode, topic?.replyMode,
+        minutes, action,
+      );
+      setTopics((prev) => prev.map((t) => (
+        t.topicId === topicId ? { ...t, draftTimeoutMinutes: minutes, draftTimeoutAction: action } : t
+      )));
+      toast.success(t('toasts.draftTimeoutUpdated'));
+    } catch (error) {
+      console.error('Failed to set draft timeout:', error);
+      toast.error(t('errors.draftTimeout'));
     } finally {
       setSaving(null);
     }
@@ -330,6 +374,78 @@ export default function ChannelRoutingSection() {
                                   </button>
                                 </div>
                               </div>
+
+                              {/* Reply Mode (Outbound HITL) */}
+                              <div className="flex items-center gap-2 pl-11">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <IconAlertCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs">
+                                      <p className="text-xs">{t('replyMode.tooltip')}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <span className="text-xs text-muted-foreground">{t('replyMode.label')}:</span>
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => handleSetReplyMode(topic.topicId, 'auto')}
+                                    disabled={saving === topic.topicId}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                                      topic.replyMode === 'auto'
+                                        ? 'bg-primary/10 text-primary font-medium'
+                                        : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                                    }`}
+                                  >
+                                    <Zap className="w-3 h-3" />
+                                    {t('replyMode.auto')}
+                                  </button>
+                                  <button
+                                    onClick={() => handleSetReplyMode(topic.topicId, 'draft_review')}
+                                    disabled={saving === topic.topicId}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                                      topic.replyMode === 'draft_review'
+                                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium'
+                                        : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                                    }`}
+                                  >
+                                    <ShieldCheck className="w-3 h-3" />
+                                    {t('replyMode.draftReview')}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Draft timeout settings — only visible in draft_review mode */}
+                              {topic.replyMode === 'draft_review' && (
+                                <div className="flex items-center gap-3 pl-11 flex-wrap">
+                                  <span className="text-xs text-muted-foreground">{t('replyMode.timeout')}:</span>
+                                  <select
+                                    value={topic.draftTimeoutMinutes}
+                                    onChange={(e) => handleSetDraftTimeout(topic.topicId, Number(e.target.value), topic.draftTimeoutAction)}
+                                    disabled={saving === topic.topicId}
+                                    className="bg-background border border-input rounded text-xs px-2 py-1 focus:ring-2 focus:ring-primary/20 outline-none"
+                                  >
+                                    <option value={1}>1 min</option>
+                                    <option value={3}>3 min</option>
+                                    <option value={5}>5 min</option>
+                                    <option value={10}>10 min</option>
+                                    <option value={15}>15 min</option>
+                                    <option value={30}>30 min</option>
+                                    <option value={60}>1 hour</option>
+                                  </select>
+                                  <span className="text-xs text-muted-foreground">{t('replyMode.onExpiry')}:</span>
+                                  <select
+                                    value={topic.draftTimeoutAction}
+                                    onChange={(e) => handleSetDraftTimeout(topic.topicId, topic.draftTimeoutMinutes, e.target.value as DraftTimeoutAction)}
+                                    disabled={saving === topic.topicId}
+                                    className="bg-background border border-input rounded text-xs px-2 py-1 focus:ring-2 focus:ring-primary/20 outline-none"
+                                  >
+                                    <option value="auto_reject">{t('replyMode.autoReject')}</option>
+                                    <option value="auto_send">{t('replyMode.autoSend')}</option>
+                                  </select>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

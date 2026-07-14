@@ -72,9 +72,12 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
    handler exits (prevents status flip on duplicate button clicks).
 4. **Edits** the original IM message to show `✅ Approved by @user` and
    prevent further confusion from stale buttons.
-5. **Resumes** the interrupted LangGraph agent via `SessionGate.submit()`
-   with a `resume_value` payload, or publishes `APPROVAL_RESOLVED` event
-   if no active task exists in the router (e.g. WebUI concurrent resolve).
+5. **Routes by type** — if `record.action_type == "outbound_draft"`, calls
+   `_resolve_outbound_draft` to send or discard the held channel message
+   (no LangGraph resume needed). Otherwise, **resumes** the interrupted
+   LangGraph agent via `SessionGate.submit()` with a `resume_value`
+   payload, or publishes `APPROVAL_RESOLVED` event if no active task
+   exists in the router (e.g. WebUI concurrent resolve).
 
 ## `/new` Session Boundary Cleanup
 
@@ -132,7 +135,7 @@ deadlocks when an agent execution hangs without crashing.
 | router_commands_goals.py | Core | `/goal`, `/subgoal`, `/background`, `/handoff` commands. | ✅ |
 | router_commands_memory.py | Core | `/status`, `/kanban`, `/learn`, `/memory` commands. | ✅ |
 | router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
-| router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; `_deliver_agent_result` auto-attaches WebUI handoff deep link button for IM channel replies (resolves DB Chat UUID via `ChatService.get_channel_chat_by_key`). | — |
+| router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; `_deliver_agent_result` auto-attaches WebUI handoff deep link button for IM channel replies and intercepts outbound messages as draft ApprovalRecord when `topic_ctx.reply_mode == "draft_review"` (Channel Outbound HITL). | — |
 | router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | ✅ |
 | router_keys.py | Core | ``routing_session_key`` builds ``f"{channel}:{peer_id}"`` for DM/group peer maps | — |
 | router_models.py | Core | Data models referenced by AgentRouter in router.py and router_commands (_ActiveTask with steering_token, `requester_id` for reaction approval auth, `locale` for stuck watchdog i18n, ReactionPolicy, etc.) | — |

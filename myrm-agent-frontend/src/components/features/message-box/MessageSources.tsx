@@ -13,10 +13,11 @@
  * 支持 web、MCP 技能、知识库、会话历史四种来源类型的差异化图标和 hover 预览。
  */
 /* eslint-disable @next/next/no-img-element */
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { File, Puzzle, BookOpen, MessageSquareText } from 'lucide-react';
 import { Source, MCPCallRecord } from '@/store/chat/types';
 import LinkPopover from '@/components/features/markdown-render-tools/LinkPopover';
+import SourceChunkDrawer from './SourceChunkDrawer';
 import { useTranslations } from 'next-intl';
 
 type SourceKind = 'web' | 'mcp' | 'kb' | 'conversation' | 'generic';
@@ -29,6 +30,7 @@ interface SourceCardData {
   kind: SourceKind;
   skillName?: string;
   calls?: MCPCallRecord[];
+  section?: string;
 }
 
 const CARD_BASE_CLASS =
@@ -56,6 +58,7 @@ function getSourceCardData(source: Source, fallbackTitle: string): SourceCardDat
       title,
       description: source.snippet || source.summary,
       kind: 'kb',
+      section: source.section,
     };
   }
 
@@ -186,10 +189,12 @@ const SourceCard = ({
   data,
   showDescription,
   t,
+  onKbClick,
 }: {
   data: SourceCardData;
   showDescription: boolean;
   t: ReturnType<typeof useTranslations>;
+  onKbClick?: (title: string, section: string | undefined, snippet: string) => void;
 }) => {
   const content = <SourceCardContent data={data} showDescription={showDescription} t={t} />;
   const className = showDescription ? CARD_BASE_CLASS : `${CARD_BASE_CLASS} block w-full text-left`;
@@ -217,6 +222,17 @@ const SourceCard = ({
     );
   }
 
+  if (data.kind === 'kb' && data.description && onKbClick) {
+    return (
+      <button
+        className={`${className} cursor-pointer text-left`}
+        onClick={() => onKbClick(data.title, data.section, data.description!)}
+      >
+        {content}
+      </button>
+    );
+  }
+
   if ((data.kind === 'kb' || data.kind === 'conversation') && data.description) {
     return (
       <LinkPopover url="#" title={data.title} description={data.description} label="">
@@ -230,13 +246,23 @@ const SourceCard = ({
 
 const MessageSources = ({ sources }: { sources: Source[] }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [drawerState, setDrawerState] = useState<{
+    open: boolean;
+    title: string;
+    section?: string;
+    snippet: string;
+  }>({ open: false, title: '', snippet: '' });
   const t = useTranslations('MessageSources');
+
+  const handleKbClick = useCallback((title: string, section: string | undefined, snippet: string) => {
+    setDrawerState({ open: true, title, section, snippet });
+  }, []);
 
   return (
     <div className="flex flex-col space-y-2">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         {sources.slice(0, 3).map((source, i) => (
-          <SourceCard key={i} data={getSourceCardData(source, t('untitled'))} showDescription={false} t={t} />
+          <SourceCard key={i} data={getSourceCardData(source, t('untitled'))} showDescription={false} t={t} onKbClick={handleKbClick} />
         ))}
         {sources.length > 3 && (
           <button
@@ -255,12 +281,20 @@ const MessageSources = ({ sources }: { sources: Source[] }) => {
             <h2 className="text-lg font-medium leading-6 dark:text-white">{t('sources_title')}</h2>
             <div className="grid grid-cols-2 gap-2 overflow-auto max-h-[300px] mt-2 pr-2">
               {sources.map((source, i) => (
-                <SourceCard key={i} data={getSourceCardData(source, t('untitled'))} showDescription={true} t={t} />
+                <SourceCard key={i} data={getSourceCardData(source, t('untitled'))} showDescription={true} t={t} onKbClick={handleKbClick} />
               ))}
             </div>
           </div>
         </div>
       )}
+
+      <SourceChunkDrawer
+        open={drawerState.open}
+        onOpenChange={(open) => setDrawerState((prev) => ({ ...prev, open }))}
+        title={drawerState.title}
+        section={drawerState.section}
+        snippet={drawerState.snippet}
+      />
     </div>
   );
 };

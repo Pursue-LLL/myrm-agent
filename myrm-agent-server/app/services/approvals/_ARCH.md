@@ -7,13 +7,15 @@
 IM/渠道 ActionButton 回调由 `channels/routing/router_commands.py::_handle_action_button_approval` 处理：解析 `approval:{action}:{id}` → 权限校验 → `resolve_approval` 落库 → 编辑原 IM 消息 → `SessionGate.submit(resume_msg)` 恢复 Agent。`resolve_approval` 仅处理 `status == "PENDING"` 的记录，已解决的审批返回 `None`（幂等保护，防止重复点击导致状态翻转）。Web Drawer 对 `subagent_approval` 由前端 `resumeApprovalStream` 先 resume，再由本模块 `resolve_approval` 落库；growth/无 thread_id 项仅落库不 resume。
 支持通过 `expires_at` 和 Cron 定时任务进行超时审批 (TTL) 的自动降级与自动清理。
 
+**Outbound Draft Review（Channel HITL）**：`action_type == "outbound_draft"` 的审批项用于 Channel 消息草稿审核。当 Topic 配置 `replyMode: "draft_review"` 时，Agent 的 Channel 回复被拦截为 ApprovalRecord 而非直接发送。审批通过后消息被发送，拒绝则丢弃。超时行为由 `draft_timeout_action` 控制（`auto_send` 或 `auto_reject`）。此类审批无 `thread_id`（不涉及 LangGraph 恢复），resolution 直接触发消息发送/丢弃。
+
 Growth drafts（`skill_draft` / `skill_patch` / `semantic_memory`）统一存储于 `ApprovalRecord`，但 **无 `thread_id` 的后台 growth 项不进 `GET /approvals` 全局 recovery 列表**（走 `/skills/drafts` + Agent 洞察 tab）；**有 `thread_id` 的 inline HITL** 仍走本模块与全局 Drawer。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `registry.py` | 核心 | 拦截审批流注册、多端推送 (SSE + Channels)、`list_pending` 过滤后台 growth draft | ✅ |
+| `registry.py` | 核心 | 拦截审批流注册、多端推送 (SSE + Channels)、`list_pending` 过滤后台 growth draft、`send_outbound_draft_payload()` 共享的草稿发送逻辑 | ✅ |
 
 ## `list_pending` 契约
 

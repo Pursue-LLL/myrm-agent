@@ -34,6 +34,7 @@ from app.channels.types import (
     InboundMessage,
     OutboundMessage,
     ReactionLevel,
+    ReplyMode,
     TopicContext,
 )
 from app.channels.types.notification import with_final_notify
@@ -223,8 +224,13 @@ class RouterExecutionMixin:
         chat_id: str,
         last_progress_at: float,
         inbound_had_voice: bool,
+        topic_ctx: TopicContext | None = None,
     ) -> None:
-        """Deliver agent result: TTS processing, edit placeholder or send new message."""
+        """Deliver agent result: TTS processing, edit placeholder or send new message.
+
+        When ``topic_ctx.reply_mode`` is ``draft_review``, the outbound message
+        is held as an ApprovalRecord instead of being sent immediately.
+        """
         placeholder_id = await deferred.resolve_for_delivery(result) if deferred else None
 
         if result and _is_silent_content(result.content):
@@ -237,6 +243,25 @@ class RouterExecutionMixin:
                 result = await self._attach_web_handoff(result, chat_id, msg)
             result = await maybe_tts(result, inbound_had_voice, self._voice)
             result = with_final_notify(result)
+
+            if topic_ctx and topic_ctx.reply_mode == ReplyMode.DRAFT_REVIEW:
+                try:
+                    await self._create_outbound_draft(result, msg, chat_id, topic_ctx)
+                except Exception:
+                    logger.exception("Failed to create outbound draft, falling back to direct send")
+                    if placeholder_id:
+                        await self._fx.wait_for_edit_gap(last_progress_at, _MIN_PROGRESS_INTERVAL)
+                        await self._fx.edit_placeholder(msg.channel, chat_id, placeholder_id, result)
+                    else:
+                        await self._bus.publish_outbound(result)
+                    return
+                if placeholder_id:
+                    await self._fx.cleanup_placeholder(
+                        msg.channel, chat_id, placeholder_id,
+                        get_text(msg, "draft_review_pending"),
+                    )
+                return
+
             if placeholder_id:
                 await self._fx.wait_for_edit_gap(last_progress_at, _MIN_PROGRESS_INTERVAL)
                 await self._fx.edit_placeholder(msg.channel, chat_id, placeholder_id, result)
@@ -249,6 +274,52 @@ class RouterExecutionMixin:
                 placeholder_id,
                 get_text(msg, "placeholder_no_response"),
             )
+
+    async def _create_outbound_draft(
+        self: RouterExecutionHost,
+        result: OutboundMessage,
+        original_msg: InboundMessage,
+        chat_id: str,
+        topic_ctx: TopicContext,
+    ) -> None:
+        """Hold an outbound message as a draft approval for human review."""
+        from datetime import datetime, timedelta, timezone
+
+        from app.services.approvals.registry import ApprovalRegistry
+
+        timeout_min = max(1, topic_ctx.draft_timeout_minutes)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=timeout_min)
+
+        payload: dict[str, object] = {
+            "draft_content": result.content,
+            "draft_media": [
+                {"url": m.url, "type": m.type.value if hasattr(m.type, "value") else str(m.type)}
+                for m in (result.media or ())
+            ],
+            "channel": result.channel,
+            "recipient_id": result.recipient_id,
+            "original_sender_id": original_msg.sender_id,
+            "original_content": (original_msg.content or "")[:500],
+            "topic_id": topic_ctx.topic_id,
+            "draft_timeout_action": topic_ctx.draft_timeout_action.value,
+        }
+
+        agent_id = topic_ctx.agent_id or "default"
+
+        await ApprovalRegistry.create_approval(
+            agent_id=agent_id,
+            action_type="outbound_draft",
+            payload=payload,
+            reason=get_text(original_msg, "draft_review_reason"),
+            severity="info",
+            chat_id=chat_id,
+            expires_at=expires_at,
+        )
+        logger.info(
+            "Outbound draft created for %s/%s (timeout=%dm, action=%s)",
+            original_msg.channel, chat_id,
+            topic_ctx.draft_timeout_minutes, topic_ctx.draft_timeout_action.value,
+        )
 
     async def _cleanup_effects(
         self: RouterExecutionHost,
@@ -327,6 +398,7 @@ class RouterExecutionMixin:
                 ctx.chat_id,
                 last_progress_at,
                 inbound_had_voice,
+                topic_ctx=ctx.topic_ctx,
             )
             scratch.completed = True
         except asyncio.CancelledError:
