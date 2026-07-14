@@ -2,12 +2,15 @@
  * [INPUT]
  * - process.env.NEXT_PUBLIC_DEPLOY_MODE / NEXT_PUBLIC_API_BASE_URL / NEXT_PUBLIC_BACKEND_BASE_URL (POS: 前端运行时配置)
  *
+ * - resolveE2eApiBase: E2E 私池 backend 注入的 API 基址（`window.__MYRM_E2E_API_BASE__`）。
+ * - resolveApiV1Url: 将 /api/v1 路径解析为 E2E override 或本地 rewrite。
+ *
  * [OUTPUT]
  * - isTauriRuntime: Tauri 运行时判定。
  * - getDeployMode: 解析当前前端部署模式。
  * - isLocalMode: 判断是否处于本地模式。
- * - getApiBaseUrl: 返回安全的 API 基础地址。
- * - getBackendBaseUrl: 返回安全的后端基础地址。
+ * - getApiBaseUrl: 返回安全的 API 基础地址（E2E override 优先）。
+ * - getBackendBaseUrl: 返回安全的后端基础地址（E2E override 优先）。
  * - getDocsUrl: 返回文档站外链。
  * - normalizeConfiguredBaseUrl: 规范化并校验配置的 URL。
  *
@@ -51,6 +54,35 @@ const TAURI_DESKTOP_API_PORT = 8080;
 /** WebUI sidecar default; mirrors SystemConfig.api_port when enable_webui_mode=true. */
 const TAURI_WEBUI_API_PORT = 25808;
 const INVALID_BASE_URL_VALUES = new Set(['undefined', 'null']);
+
+type WindowWithE2eApiBase = Window & { __MYRM_E2E_API_BASE__?: string };
+
+/** E2E private-backend override injected by CDP before navigation. */
+export function resolveE2eApiBase(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const raw = (window as WindowWithE2eApiBase).__MYRM_E2E_API_BASE__;
+  if (!raw || typeof raw !== 'string') {
+    return null;
+  }
+  const trimmed = raw.trim();
+  if (!trimmed || INVALID_BASE_URL_VALUES.has(trimmed.toLowerCase())) {
+    return null;
+  }
+  return trimmed.replace(/\/+$/, '');
+}
+
+/** Resolve /api/v1 paths against E2E override or local rewrite proxy. */
+export function resolveApiV1Url(pathSuffix: string): string {
+  const normalized = pathSuffix.startsWith('/') ? pathSuffix : `/${pathSuffix}`;
+  const e2eBase = resolveE2eApiBase();
+  if (!e2eBase) {
+    return `/api/v1${normalized}`;
+  }
+  const backendRoot = e2eBase.replace(/\/api\/v1\/?$/, '');
+  return `${backendRoot}/api/v1${normalized}`;
+}
 
 export function normalizeConfiguredBaseUrl(value: string | null | undefined, fallback: string): string {
   const candidate = value?.trim();
@@ -184,6 +216,10 @@ function getTauriBackendPort(): number {
  * Sandbox 模式: 使用环境变量配置的远程服务
  */
 export function getApiBaseUrl(): string {
+  const e2eBase = resolveE2eApiBase();
+  if (e2eBase) {
+    return e2eBase.endsWith('/api/v1') ? e2eBase : `${e2eBase}/api/v1`;
+  }
   if (isTauriRuntime()) {
     return `http://127.0.0.1:${getTauriBackendPort()}/api/v1`;
   }
@@ -197,6 +233,10 @@ export function getApiBaseUrl(): string {
  * 获取后端基础 URL（不含 API 路径前缀）
  */
 export function getBackendBaseUrl(): string {
+  const e2eBase = resolveE2eApiBase();
+  if (e2eBase) {
+    return e2eBase.replace(/\/api\/v1\/?$/, '');
+  }
   if (isTauriRuntime()) {
     return `http://127.0.0.1:${getTauriBackendPort()}`;
   }

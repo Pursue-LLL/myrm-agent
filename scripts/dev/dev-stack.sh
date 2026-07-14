@@ -508,6 +508,63 @@ cmd_ensure() {
   exit 1
 }
 
+cmd_backend_only_ensure() {
+  local shared_ui="${MYRM_SHARED_UI_BASE:-http://127.0.0.1:3000}"
+  _ensure_backend || exit 1
+  if ! _http_ok "${shared_ui}/" 8; then
+    echo "STACK_FAIL: shared UI not healthy at ${shared_ui} — run: ./myrm ready --chrome" >&2
+    exit 1
+  fi
+  echo "STACK_BACKEND_ONLY_OK api=:${BACKEND_PORT} ui=shared:3000"
+}
+
+_stop_backend_only() {
+  if [[ "${MYRM_PRIVATE_BACKEND:-}" != "1" && "${MYRM_E2E_PRIVATE_BACKEND:-}" != "1" ]]; then
+    _wave_assert_stack_write_allowed || return 3
+  fi
+  _clear_stack_epoch
+  if [[ -f "${BACKEND_PID}" ]]; then
+    local dev_pid
+    dev_pid="$(tr -d '[:space:]' <"${BACKEND_PID}")"
+    if [[ -n "${dev_pid}" ]] && kill -0 "${dev_pid}" 2>/dev/null; then
+      kill -TERM "${dev_pid}" 2>/dev/null || true
+      local _
+      for _ in $(seq 1 15); do
+        kill -0 "${dev_pid}" 2>/dev/null || break
+        sleep 1
+      done
+      if kill -0 "${dev_pid}" 2>/dev/null; then
+        kill -9 "${dev_pid}" 2>/dev/null || true
+      fi
+    fi
+    rm -f "${BACKEND_PID}"
+  fi
+  local backend_listener_pids
+  backend_listener_pids="$(lsof -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
+  if [[ -n "${backend_listener_pids}" ]]; then
+    # shellcheck disable=SC2086
+    kill ${backend_listener_pids} 2>/dev/null || true
+  fi
+  return 0
+}
+
+cmd_backend_only_stop() {
+  _stop_backend_only || exit $?
+  echo "STACK_BACKEND_ONLY_STOP_OK api=:${BACKEND_PORT}"
+}
+
+cmd_backend_only() {
+  local sub="${1:-}"
+  case "${sub}" in
+    ensure | start) cmd_backend_only_ensure ;;
+    stop) cmd_backend_only_stop ;;
+    *)
+      echo "Usage: dev-stack.sh backend-only ensure|start|stop" >&2
+      exit 1
+      ;;
+  esac
+}
+
 cmd_reset() {
   _wave_assert_stack_write_allowed || exit 3
 
@@ -571,7 +628,7 @@ cmd_status() {
 }
 
 usage() {
-  echo "Usage: dev-stack.sh ensure|attach|reset|status" >&2
+  echo "Usage: dev-stack.sh ensure|attach|reset|status|backend-only" >&2
 }
 
 _supervisor_delegate_or_fail() {
@@ -615,6 +672,12 @@ main() {
       if _supervisor_internal_call; then cmd_status; exit $?; fi
       if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_status; exit $?; fi
       _supervisor_delegate_or_fail status
+      ;;
+    backend-only)
+      if _supervisor_internal_call; then cmd_backend_only "${2:-}"; exit $?; fi
+      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_backend_only "${2:-}"; exit $?; fi
+      echo "STACK_FAIL: backend-only requires MYRM_SUPERVISOR_BYPASS=1 for isolated private pools" >&2
+      exit 1
       ;;
     ""|-h|--help) usage; exit 1 ;;
     *)

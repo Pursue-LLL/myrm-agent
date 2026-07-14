@@ -10,7 +10,7 @@
  * Frontend-only coordinator. Subscribers await `whenDatabaseReady()` before
  * ConfigSync, approvals recovery, and TauriAdapter config fetches.
  */
-import { isLocalMode } from '@/lib/deploy-mode';
+import { isLocalMode, resolveApiV1Url } from '@/lib/deploy-mode';
 import {
   BACKEND_HEALTH_MAX_ATTEMPTS,
   BACKEND_HEALTH_POLL_INTERVAL_MS,
@@ -66,7 +66,7 @@ async function probeDatabaseReady(): Promise<PlatformReadinessSnapshot> {
   }
 
   try {
-    const response = await fetch('/api/v1/health/ready', { cache: 'no-store' });
+    const response = await fetch(resolveApiV1Url('/health/ready'), { cache: 'no-store' });
     if (!response.ok) {
       return { state: 'unreachable', database: false };
     }

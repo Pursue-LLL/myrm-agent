@@ -1,5 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { getApiBaseUrl, getBackendBaseUrl, getDocsUrl } from '@/lib/deploy-mode';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  getApiBaseUrl,
+  getBackendBaseUrl,
+  getDocsUrl,
+  resolveApiV1Url,
+  resolveE2eApiBase,
+} from '@/lib/deploy-mode';
+import { fetchBackendHealth } from '@/lib/backend-health';
 import { getWsUrl } from '@/lib/api';
 
 const ENV_KEYS = ['NEXT_PUBLIC_DEPLOY_MODE', 'NEXT_PUBLIC_API_BASE_URL', 'NEXT_PUBLIC_BACKEND_BASE_URL'] as const;
@@ -30,6 +37,55 @@ describe('deploy-mode base url resolution', () => {
 
   afterEach(() => {
     restoreEnv(originalEnv);
+  });
+
+  it('uses E2E private-backend override when injected on window', () => {
+    const originalWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        __MYRM_E2E_API_BASE__: 'http://127.0.0.1:18081',
+      },
+    });
+
+    expect(resolveE2eApiBase()).toBe('http://127.0.0.1:18081');
+    expect(getApiBaseUrl()).toBe('http://127.0.0.1:18081/api/v1');
+    expect(getBackendBaseUrl()).toBe('http://127.0.0.1:18081');
+    expect(resolveApiV1Url('/health')).toBe('http://127.0.0.1:18081/api/v1/health');
+    expect(resolveApiV1Url('/health/ready')).toBe('http://127.0.0.1:18081/api/v1/health/ready');
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+  });
+
+  it('routes backend health probes through E2E override base', async () => {
+    const originalWindow = globalThis.window;
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ status: 'healthy' }),
+    }));
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        __MYRM_E2E_API_BASE__: 'http://127.0.0.1:18082',
+      },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchBackendHealth();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:18082/api/v1/health',
+      expect.objectContaining({ cache: 'no-store' }),
+    );
+
+    vi.unstubAllGlobals();
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
   });
 
   it('uses local-mode relative api base when no sandbox override is active', () => {

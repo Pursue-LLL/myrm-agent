@@ -1,4 +1,4 @@
-import { getDeployMode, isLocalMode } from '@/lib/deploy-mode';
+import { getDeployMode, isLocalMode, resolveApiV1Url } from '@/lib/deploy-mode';
 import {
   markPlatformUnreachable,
   whenDatabaseReady,
@@ -34,7 +34,7 @@ export interface WaitForBackendReadyOptions {
 
 export async function fetchBackendHealth(): Promise<BackendHealthPayload | null> {
   try {
-    const response = await fetch('/api/v1/health', { cache: 'no-store' });
+    const response = await fetch(resolveApiV1Url('/health'), { cache: 'no-store' });
     if (!response.ok) {
       return null;
     }

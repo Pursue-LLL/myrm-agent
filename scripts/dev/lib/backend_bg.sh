@@ -71,18 +71,24 @@ _start_backend_bg() {
     local old_pid
     old_pid="$(cat "${pid_file}")"
     if kill -0 "${old_pid}" 2>/dev/null; then
-      echo "Backend already running (pid ${old_pid})"
-      _require_harness_editable_for_monorepo "${server_dir}"
-      local stack_epoch_lib
-      stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
-      if [[ -f "${stack_epoch_lib}" ]]; then
-        # shellcheck source=stack-epoch.sh
-        source "${stack_epoch_lib}"
-        if [[ ! -f "$(_stack_epoch_file)" ]]; then
-          _bump_stack_epoch "${old_pid}" "${server_dir}" >/dev/null || true
+      if curl -sf "${health_url}" >/dev/null 2>&1; then
+        echo "Backend already running (pid ${old_pid})"
+        _require_harness_editable_for_monorepo "${server_dir}"
+        local stack_epoch_lib
+        stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
+        if [[ -f "${stack_epoch_lib}" ]]; then
+          # shellcheck source=stack-epoch.sh
+          source "${stack_epoch_lib}"
+          if [[ ! -f "$(_stack_epoch_file)" ]]; then
+            _bump_stack_epoch "${old_pid}" "${server_dir}" >/dev/null || true
+          fi
         fi
+        return 0
       fi
-      return 0
+      echo "STACK_WARN: backend pid ${old_pid} not healthy — restarting" >&2
+      kill -TERM "${old_pid}" 2>/dev/null || true
+      sleep 1
+      kill -9 "${old_pid}" 2>/dev/null || true
     fi
     rm -f "${pid_file}"
   fi
@@ -119,7 +125,7 @@ _start_backend_bg() {
   echo "${new_pid}" >"${pid_file}"
 
   local health_wait_sec=45
-  if [[ "${MYRM_E2E_ISOLATED:-}" == "1" || "${MYRM_DEV_STATE_DIR:-}" != "${HOME}/.local/state/myrm-dev" ]]; then
+  if [[ "${MYRM_E2E_ISOLATED:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" || "${MYRM_DEV_STATE_DIR:-}" != "${HOME}/.local/state/myrm-dev" ]]; then
     health_wait_sec="${MYRM_BACKEND_HEALTH_WAIT_SEC:-60}"
   fi
 

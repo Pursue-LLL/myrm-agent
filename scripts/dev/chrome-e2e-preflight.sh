@@ -48,6 +48,28 @@ ok() {
   echo "CHROME_E2E_OK: $*"
 }
 
+_maybe_seed_providers() {
+  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PRIVATE_BACKEND:-}" != "1" ]]; then
+    return 0
+  fi
+  if [[ -f "${SERVER_DIR}/.env.test" ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "${SERVER_DIR}/.env.test"
+    set +a
+  fi
+  if [[ -n "${BASIC_MODEL:-}" && -n "${BASIC_API_KEY:-}" ]]; then
+    if seed_out="$(bun "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" 2>&1)"; then
+      echo "${seed_out}"
+      ok "model seed"
+    else
+      echo "CHROME_E2E_WARN: model seed failed — ${seed_out}" >&2
+    fi
+  else
+    echo "CHROME_E2E_WARN: skip model seed (set BASIC_MODEL and BASIC_API_KEY in .env.test)" >&2
+  fi
+}
+
 _attach_fast_path() {
   local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
   local health
@@ -65,6 +87,11 @@ _attach_fast_path() {
 }
 
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+  if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
+    curl -sf --max-time 10 "${API_BASE}/api/v1/health" >/dev/null \
+      || fail "Private backend not reachable at ${API_BASE} — run: ./myrm ready --chrome"
+    _maybe_seed_providers
+  fi
   _attach_fast_path
   exit 0
 fi
@@ -110,25 +137,8 @@ if ! curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null; then
 fi
 ok "dev servers :${FRONTEND_PORT}/${MYRM_BACKEND_PORT:-8080}"
 
-# 1b. Only the first Agent mutates provider seed state. Attach is strictly read-only.
-if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]]; then
-  if [[ -f "${SERVER_DIR}/.env.test" ]]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "${SERVER_DIR}/.env.test"
-    set +a
-  fi
-  if [[ -n "${BASIC_MODEL:-}" && -n "${BASIC_API_KEY:-}" ]]; then
-    if seed_out="$(bun "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" 2>&1)"; then
-      echo "${seed_out}"
-      ok "model seed"
-    else
-      echo "CHROME_E2E_WARN: model seed failed — ${seed_out}" >&2
-    fi
-  else
-    echo "CHROME_E2E_WARN: skip model seed (set BASIC_MODEL and BASIC_API_KEY in .env.test)" >&2
-  fi
-fi
+# 1b. First Agent or private-backend pool mutates provider seed state.
+_maybe_seed_providers
 
 # 2. Legacy second Chrome / debug launchers
 if pgrep -lf 'MyrmChromeMcp' >/dev/null 2>&1; then
