@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import urllib.request
 from pathlib import Path
@@ -25,8 +26,8 @@ from mcp_chat_ui import McpChatSession, is_detached_frame_error  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger, require_e2e_runtime_lease
 
-BASE_URL = "http://127.0.0.1:3000"
-API_URL = "http://127.0.0.1:8080"
+BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+API_URL = os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
 E2E_PROMPT = "只回复 GOAL_OK"
 
 
