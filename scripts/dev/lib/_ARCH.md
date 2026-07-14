@@ -10,10 +10,12 @@
 |------|------|
 | `frontend-warmup.sh` | Unix | Frontend `shell_hot` gate（curl `/`）+ `client_hot`（CDP hydration）+ warmth JSON；定义 `_lock_supervisor_alive`（frontend lock pid 存活） |
 | `frontend-client-warmup.py` | Unix | CDP navigate `:3000/` until `[data-testid="app-layout"]` + `[data-chat-input]`（无 MessageListSkeleton）；注册 `cdp-transient-targets.json` |
-| `cdp_chat_ui.py` | Unix | WebUI chat CDP helpers（bootstrap/fill/submit/wait）；ExecutionCache Chrome E2E 复用 |
-| `cdp_transient_targets.py` | Unix | Preflight/raw-pytest 创建的短生命周期 CDP target 归属 ledger；stale owner 自动 prune |
-| `cdp_write_guard.py` | Unix | Block direct `/json/new` while active Wave READ leases (mux-only CDP writer) |
-| `runtime_identity.py` | Unix | Runtime Identity SSOT：`backendEpoch`/`frontendEpoch`/`chromeEpoch`/`muxEpoch` → `runtimeId`；`build_health_json` CLI |
+| `cdp_chat_ui.py` | Unix | WebUI chat 自动化稳定导出层；实现按 transport/bootstrap/input/submit/turn/support 拆分 |
+| `chrome_mcp_client.py` / `mcp_chat_ui.py` | Unix | 正式 pytest UI E2E 的 MCP JSON-RPC client；`mcp_chat_ui` 导出 `is_detached_frame_error` / `is_recoverable_evaluate_error` / `recreate_page`（detached/upstream 错误 evaluate 重试）；每页绑定 exact targetId + Wave READ lease |
+| `cdp_chat_{transport,bootstrap,input,submit,turn,support}.py` | Unix | transport-independent chat UI 工作流；MCP 与 client warmup 复用 |
+| `cdp_transient_targets.py` | Unix | Preflight client warmup 短生命周期 target 归属 ledger；只按死亡 owner 的 exact targetId 回收 |
+| `cdp_write_guard.py` | Unix | raw `/json/new` 永久拒绝；仅 supervisor `MYRM_CDP_WARMUP=1` 预热例外 |
+| `runtime_identity.py` | Unix | Runtime Identity SSOT + attach health gate：四元 epoch → `runtimeId`；`build_health_json` CLI |
 | `runtime_probe.py` | Unix | Live mux/CDP probe + `run_drift_check()` for `--drift` / `runtime-drift` |
 | `runtime-drift.sh` | Unix | `./myrm runtime-drift --expect <id>` 入口；exit 2 = `RUNTIME_DRIFT` |
 | `stack-epoch.sh` | Unix | Backend `stack_epoch` bump/read for parallel Agent drift detection |

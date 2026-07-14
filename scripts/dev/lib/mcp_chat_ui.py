@@ -15,6 +15,7 @@ _DETACHED_FRAME_TOKENS = (
     "No page found",
     "page has been closed",
     "selected page has been closed",
+    "Execution context was destroyed",
 )
 _UPSTREAM_TIMEOUT_TOKENS = ("upstream request timed out",)
 _EVALUATE_RETRY_ATTEMPTS = 5

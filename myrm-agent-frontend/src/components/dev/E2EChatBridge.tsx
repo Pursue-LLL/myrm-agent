@@ -2,7 +2,9 @@
 
 import { useLayoutEffect } from 'react';
 import { flushSync } from 'react-dom';
+import { getModelSelection } from '@/store/chat/messageRequest';
 import useChatStore from '@/store/useChatStore';
+import useProviderStore from '@/store/useProviderStore';
 
 function isLocalDevHost(): boolean {
   if (typeof window === 'undefined') return false;
@@ -19,21 +21,108 @@ export default function E2EChatBridge() {
 
     window.__MYRM_E2E_CHAT__ = {
       __e2eFallback: false,
+      ensureProviders: async () => {
+        const providerState = useProviderStore.getState();
+        if (!providerState.isInitialized) {
+          await providerState.initProviders();
+        }
+      },
+      isProvidersInitialized: () => useProviderStore.getState().isInitialized,
+      isSendReady: () => {
+        if (!useProviderStore.getState().isInitialized) {
+          return false;
+        }
+        const { actionMode, agentConfig } = useChatStore.getState();
+        return getModelSelection(actionMode, agentConfig) !== null;
+      },
+      debugProviderState: () => {
+        const { isInitialized, providers, defaultModelConfig } = useProviderStore.getState();
+        const { actionMode, agentConfig, chatId } = useChatStore.getState();
+        const selection = getModelSelection(actionMode, agentConfig);
+        return {
+          isInitialized,
+          actionMode,
+          chatId,
+          providerIds: providers.map((p) => p.id),
+          enabledProviderIds: providers.filter((p) => p.isEnabled).map((p) => p.id),
+          primary: defaultModelConfig?.baseModel?.primary ?? null,
+          agentModelSelection: agentConfig?.modelSelection ?? null,
+          selection: selection
+            ? { providerId: selection.providerId, model: selection.model }
+            : null,
+        };
+      },
+      ensureChatSession: async () => {
+        const providerState = useProviderStore.getState();
+        if (!providerState.isInitialized) {
+          await providerState.initProviders();
+        }
+        if (!useChatStore.getState().chatId?.trim()) {
+          flushSync(() => {
+            useChatStore.getState().initializeChat(undefined);
+          });
+        }
+      },
+      resetChat: () => {
+        flushSync(() => {
+          useChatStore.getState().initializeChat(undefined);
+        });
+      },
       setInputMessage: (message: string) => {
         flushSync(() => {
           useChatStore.getState().setInputMessage(message);
         });
       },
-      handleSubmit: async () => {
-        const state = useChatStore.getState();
-        const message = state.inputMessage.trim();
-        if (!message) return;
-        flushSync(() => {
-          state.setInputMessage('');
-        });
-        await state.sendMessage(message, undefined);
+      handleSubmit: () => {
+        const message = useChatStore.getState().inputMessage.trim();
+        if (!message) {
+          window.__MYRM_E2E_CHAT__!.lastSubmitResult = { ok: false, err: 'empty-message' };
+          return;
+        }
+        void (async () => {
+          try {
+            await window.__MYRM_E2E_CHAT__?.ensureChatSession?.();
+            if (!useChatStore.getState().chatId?.trim()) {
+              window.__MYRM_E2E_CHAT__!.lastSubmitResult = { ok: false, err: 'no-chat-id' };
+              return;
+            }
+            if (!window.__MYRM_E2E_CHAT__?.isSendReady?.()) {
+              window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+                ok: false,
+                err: 'send-not-ready',
+                debug: window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+              };
+              return;
+            }
+            void useChatStore.getState().sendMessage(message, undefined);
+            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+              ok: true,
+              chatId: useChatStore.getState().chatId,
+            };
+          } catch (error) {
+            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+              ok: false,
+              err: error instanceof Error ? error.message : String(error),
+            };
+          }
+        })();
       },
       getInputMessage: () => useChatStore.getState().inputMessage,
+      turnSnapshot: () => {
+        const state = useChatStore.getState();
+        const users = state.messages.filter((message) => message.role === 'user');
+        const assistants = state.messages.filter((message) => message.role === 'assistant');
+        const lastAssistant = assistants[assistants.length - 1];
+        const assistantText =
+          typeof lastAssistant?.content === 'string' ? lastAssistant.content : '';
+        return {
+          chatId: state.chatId?.trim() || null,
+          userCount: users.length,
+          isStreaming: Boolean(state.loading || state.abortController),
+          hasOk: /\bOK\b/i.test(assistantText),
+          lastAssistantSample: assistantText.slice(0, 200),
+        };
+      },
       setGoalMode: (enabled: boolean) => {
         flushSync(() => {
           useChatStore.getState().setIsGoalMode(enabled);
