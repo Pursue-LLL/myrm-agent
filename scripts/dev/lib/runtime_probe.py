@@ -157,6 +157,10 @@ def probe_runtime_context() -> RuntimeProbeContext:
 
 
 def read_current_runtime_id() -> str:
+    if os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1":
+        from runtime_identity import read_stack_scoped_runtime_id
+
+        return read_stack_scoped_runtime_id()
     ctx = probe_runtime_context()
     parts = collect_runtime_parts(
         frontend_dir=Path(ctx["frontend_dir"]) if ctx["frontend_dir"] else None,

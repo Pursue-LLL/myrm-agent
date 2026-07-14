@@ -14,6 +14,7 @@ interface Window {
     getInputMessage: () => string;
     ensureProviders?: () => Promise<void>;
     ensureChatSession?: () => Promise<void>;
+    attachToChat?: (chatId: string) => Promise<void>;
     resetChat?: () => void;
     isSendReady?: () => boolean;
     isProvidersInitialized?: () => boolean;

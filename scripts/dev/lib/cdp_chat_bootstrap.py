@@ -120,7 +120,11 @@ class CdpChatBootstrap(CdpChatTransport):
                     stable = 0
                     while time.monotonic() < settle_deadline and stable < 3:
                         try:
-                            probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
+                            probe = await self.evaluate(
+                                PAGE_PROBE_JS,
+                                await_promise=False,
+                                recv_timeout=min(15.0, max(5.0, settle_deadline - time.monotonic())),
+                            )
                         except RuntimeError as exc:
                             message = str(exc)
                             if any(token in message for token in ("Target closed", "No page found", "detached Frame")):
@@ -128,6 +132,10 @@ class CdpChatBootstrap(CdpChatTransport):
                                 await asyncio.sleep(0.5)
                                 continue
                             raise
+                        except TimeoutError:
+                            stable = 0
+                            await asyncio.sleep(0.5)
+                            continue
                         if isinstance(probe, dict) and probe.get("hasInput") and probe.get("hasBridge"):
                             stable += 1
                         else:
@@ -215,6 +223,32 @@ class CdpChatBootstrap(CdpChatTransport):
     async def dismiss_modals(self) -> None:
         await self.evaluate(DISMISS_MODALS_JS, await_promise=False)
         await asyncio.sleep(0.5)
+
+    async def navigate_to_chat(
+        self,
+        chat_id: str,
+        base_url: str,
+        *,
+        timeout_sec: float = 60.0,
+    ) -> None:
+        expected_path = f"/{chat_id.strip()}"
+        try:
+            probe = await self.evaluate(
+                "(() => ({ path: location.pathname }))()",
+                await_promise=False,
+            )
+        except RuntimeError:
+            probe = None
+        if isinstance(probe, dict) and str(probe.get("path") or "") == expected_path:
+            await self.wait_shell_ready(timeout_sec=min(timeout_sec, 30.0))
+            return
+        await self.cdp(
+            "Page.navigate",
+            {"url": base_url.rstrip("/") + expected_path},
+            recv_timeout=120.0,
+        )
+        await asyncio.sleep(2)
+        await self.wait_shell_ready(timeout_sec=timeout_sec)
 
     async def click_new_chat(self) -> dict[str, object]:
         reset_js = """

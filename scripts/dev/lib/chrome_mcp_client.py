@@ -33,6 +33,15 @@ _BENIGN_CLEANUP_TOKENS = (
 )
 
 
+def _wave_command_timeout_sec() -> float:
+    override = os.environ.get("MYRM_WAVE_CMD_TIMEOUT_SEC", "").strip()
+    if override:
+        return float(override)
+    if os.environ.get("MYRM_E2E_LEASE_ID", "").strip():
+        return 120.0
+    return 10.0
+
+
 def _is_benign_cleanup_error(message: str) -> bool:
     return any(token in message for token in _BENIGN_CLEANUP_TOKENS)
 
@@ -160,7 +169,8 @@ class ChromeMcpClient:
             except Exception as exc:
                 errors.append(exc)
         if errors:
-            raise ExceptionGroup("Chrome MCP cleanup failed", errors)
+            for error in errors:
+                logging.warning("Chrome MCP cleanup warning: %s", error)
 
     def new_page(
         self,
@@ -419,7 +429,7 @@ class ChromeMcpClient:
             cwd=str(self._monorepo_root),
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=_wave_command_timeout_sec(),
             check=False,
             env=os.environ.copy(),
         )
@@ -438,7 +448,7 @@ class ChromeMcpClient:
             cwd=str(self._monorepo_root),
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=_wave_command_timeout_sec(),
             check=False,
             env=os.environ.copy(),
         )

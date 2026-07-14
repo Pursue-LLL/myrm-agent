@@ -99,7 +99,7 @@ async def _cdp_request(
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError(f"CDP request timed out: {method}")
-        raw = await asyncio.wait_for(ws.recv(), timeout=min(3.0, remaining))
+        raw = await asyncio.wait_for(ws.recv(), timeout=min(15.0, remaining))
         message = json.loads(raw)
         if not isinstance(message, dict):
             continue
@@ -122,64 +122,67 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
 
     deadline = time.monotonic() + timeout_sec
 
-    async with websockets.connect(ws_url, open_timeout=10, max_size=8 * 1024 * 1024) as ws:
-        msg_id = 0
+    try:
+        async with websockets.connect(ws_url, open_timeout=15, max_size=8 * 1024 * 1024) as ws:
+            msg_id = 0
 
-        async def next_id() -> int:
-            nonlocal msg_id
-            msg_id += 1
-            return msg_id
+            async def next_id() -> int:
+                nonlocal msg_id
+                msg_id += 1
+                return msg_id
 
-        await _cdp_request(ws, await next_id(), "Runtime.enable", deadline=deadline)
-        await _cdp_request(ws, await next_id(), "Page.enable", deadline=deadline)
-        await _cdp_request(
-            ws,
-            await next_id(),
-            "Page.navigate",
-            {"url": page_url},
-            deadline=deadline,
-        )
+            await _cdp_request(ws, await next_id(), "Runtime.enable", deadline=deadline)
+            await _cdp_request(ws, await next_id(), "Page.enable", deadline=deadline)
+            await _cdp_request(
+                ws,
+                await next_id(),
+                "Page.navigate",
+                {"url": page_url},
+                deadline=deadline,
+            )
 
-        poll_count = 0
-        while time.monotonic() < deadline:
-            poll_count += 1
-            try:
-                if E2E_BRIDGE_INSTALL_JS:
-                    await _cdp_request(
-                        ws,
-                        await next_id(),
-                        "Runtime.evaluate",
-                        {"expression": E2E_BRIDGE_INSTALL_JS, "returnByValue": True},
-                        deadline=deadline,
-                    )
-                result = await _cdp_request(
-                    ws,
-                    await next_id(),
-                    "Runtime.evaluate",
-                    {"expression": _HYDRATED_EXPRESSION, "returnByValue": True},
-                    deadline=deadline,
-                )
-            except (TimeoutError, RuntimeError):
-                await asyncio.sleep(poll_ms / 1000.0)
-                continue
-
-            outer_result = result.get("result")
-            inner_result = outer_result.get("result") if isinstance(outer_result, dict) else None
-            value = inner_result.get("value") if isinstance(inner_result, dict) else None
-            if value is True:
-                return True
-            if poll_count % 10 == 0:
+            poll_count = 0
+            while time.monotonic() < deadline:
+                poll_count += 1
                 try:
-                    await _cdp_request(
+                    if E2E_BRIDGE_INSTALL_JS:
+                        await _cdp_request(
+                            ws,
+                            await next_id(),
+                            "Runtime.evaluate",
+                            {"expression": E2E_BRIDGE_INSTALL_JS, "returnByValue": True},
+                            deadline=deadline,
+                        )
+                    result = await _cdp_request(
                         ws,
                         await next_id(),
                         "Runtime.evaluate",
-                        {"expression": _RESET_CHAT_EXPRESSION, "returnByValue": True},
+                        {"expression": _HYDRATED_EXPRESSION, "returnByValue": True},
                         deadline=deadline,
                     )
                 except (TimeoutError, RuntimeError):
-                    pass
-            await asyncio.sleep(poll_ms / 1000.0)
+                    await asyncio.sleep(poll_ms / 1000.0)
+                    continue
+
+                outer_result = result.get("result")
+                inner_result = outer_result.get("result") if isinstance(outer_result, dict) else None
+                value = inner_result.get("value") if isinstance(inner_result, dict) else None
+                if value is True:
+                    return True
+                if poll_count % 10 == 0:
+                    try:
+                        await _cdp_request(
+                            ws,
+                            await next_id(),
+                            "Runtime.evaluate",
+                            {"expression": _RESET_CHAT_EXPRESSION, "returnByValue": True},
+                            deadline=deadline,
+                        )
+                    except (TimeoutError, RuntimeError):
+                        pass
+                await asyncio.sleep(poll_ms / 1000.0)
+    except TimeoutError:
+        return False
 
     return False
 
@@ -234,7 +237,8 @@ async def _run_warmup(
     poll_ms: int,
 ) -> None:
     last_error = "unknown"
-    for attempt in range(1, 3):
+    max_attempts = 4
+    for attempt in range(1, max_attempts + 1):
         target = _create_target(cdp_port, page_url)
         ws_url = str(target["webSocketDebuggerUrl"])
         target_id = target.get("id")
@@ -249,8 +253,10 @@ async def _run_warmup(
             )
             if not ready:
                 last_error = f"hydration timeout after {timeout_sec:.0f}s (attempt {attempt})"
+        except TimeoutError:
+            last_error = f"CDP session timeout (attempt {attempt})"
         except Exception as exc:
-            last_error = f"{exc} (attempt {attempt})"
+            last_error = f"{type(exc).__name__}: {exc or 'no message'} (attempt {attempt})"
         finally:
             try:
                 closed = await _close_target(cdp_port, target_id)
@@ -261,8 +267,8 @@ async def _run_warmup(
             return
         if ready:
             last_error = f"hydrated target {target_id} could not be closed"
-        if attempt < 2:
-            await asyncio.sleep(1.0)
+        if attempt < max_attempts:
+            await asyncio.sleep(2.0)
 
     raise RuntimeError(last_error)
 

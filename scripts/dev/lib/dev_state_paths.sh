@@ -52,6 +52,36 @@ _kill_pid_gracefully() {
   kill -9 "${pid}" 2>/dev/null || true
 }
 
+resolve_myrm_next_dist_dir() {
+  local state_dir="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
+  local explicit="${MYRM_NEXT_DIST_DIR:-}"
+  if [[ -n "${explicit}" && "${explicit}" == "${state_dir}/next" ]]; then
+    explicit=""
+  fi
+  if [[ -n "${explicit}" && "${explicit}" != /* ]]; then
+    echo "${explicit}"
+    return 0
+  fi
+  if [[ "${state_dir}" != "${HOME}/.local/state/myrm-dev" ]]; then
+    local runtime_ns="${MYRM_RUNTIME_NAMESPACE:-$(basename "$(dirname "${state_dir}")")}"
+    runtime_ns="${runtime_ns//[^[:alnum:]_.-]/-}"
+    echo ".next-isolated-${runtime_ns}"
+    return 0
+  fi
+  echo "${explicit:-.next}"
+}
+
+export_myrm_next_dist_dir() {
+  MYRM_NEXT_DIST_DIR="$(resolve_myrm_next_dist_dir)"
+  export MYRM_NEXT_DIST_DIR
+}
+
+resolve_frontend_lock_path() {
+  local frontend_dir="$1"
+  export_myrm_next_dist_dir
+  echo "${frontend_dir}/${MYRM_NEXT_DIST_DIR}/dev-server.lock"
+}
+
 cleanup_legacy_dev_artifacts() {
   local server_dir="${1:-}"
   local frontend_dir="${2:-}"

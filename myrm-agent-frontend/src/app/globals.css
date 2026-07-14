@@ -1323,3 +1323,61 @@ html:not([data-skin]) ::selection {
 .dark:not([data-skin]) ::selection {
   background: color-mix(in srgb, var(--primary) 60%, var(--accent-warm));
 }
+
+@layer components {
+  .myrm-cmdk-dialog [cmdk-group-heading] {
+    @apply px-2 font-medium text-muted-foreground;
+  }
+
+  .myrm-cmdk-dialog [cmdk-group]:not([hidden]) ~ [cmdk-group] {
+    @apply pt-0;
+  }
+
+  .myrm-cmdk-dialog [cmdk-group] {
+    @apply px-2;
+  }
+
+  .myrm-cmdk-dialog [cmdk-input-wrapper] svg {
+    @apply h-5 w-5;
+  }
+
+  .myrm-cmdk-dialog [cmdk-input] {
+    @apply h-12;
+  }
+
+  .myrm-cmdk-dialog [cmdk-item] {
+    @apply px-2 py-3;
+  }
+
+  .myrm-cmdk-dialog [cmdk-item] svg {
+    @apply h-5 w-5;
+  }
+
+  .myrm-cmdk-group [cmdk-group-heading] {
+    @apply px-2 py-1.5 text-xs font-medium text-muted-foreground;
+  }
+
+  .myrm-safe-bottom-floating {
+    bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  .myrm-safe-top-banner {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+
+  .myrm-safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .myrm-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .myrm-safe-bottom-fallback {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .shadow-brand {
+    box-shadow: var(--shadow-brand);
+  }
+}

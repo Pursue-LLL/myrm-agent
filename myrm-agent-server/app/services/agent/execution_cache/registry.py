@@ -67,7 +67,7 @@ class ChatAgentExecutionCache:
             entry = self._entries.get(scope_key)
             if entry is not None and entry.config_fingerprint == config_fingerprint:
                 entry.last_used = time.monotonic()
-                logger.debug("execution_cache_reuse scope=%s", scope_key)
+                logger.warning("execution_cache_reuse scope=%s", scope_key)
                 return entry.unit
 
             if entry is not None:
@@ -97,7 +97,7 @@ class ChatAgentExecutionCache:
                 config_fingerprint=config_fingerprint,
                 last_used=time.monotonic(),
             )
-            logger.info("execution_cache_created scope=%s", scope_key)
+            logger.warning("execution_cache_created scope=%s", scope_key)
             return unit
 
     async def release(self, scope_key: str) -> None:

@@ -118,7 +118,12 @@ _start_backend_bg() {
   new_pid=$!
   echo "${new_pid}" >"${pid_file}"
 
-  for _ in $(seq 1 45); do
+  local health_wait_sec=45
+  if [[ "${MYRM_E2E_ISOLATED:-}" == "1" || "${MYRM_DEV_STATE_DIR:-}" != "${HOME}/.local/state/myrm-dev" ]]; then
+    health_wait_sec="${MYRM_BACKEND_HEALTH_WAIT_SEC:-60}"
+  fi
+
+  for _ in $(seq 1 "${health_wait_sec}"); do
     if curl -sf "${health_url}" >/dev/null 2>&1; then
       local stack_epoch_lib
       stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"

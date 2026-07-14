@@ -18,7 +18,15 @@ import path from 'path';
 
 import { killListenersOnPort, listPidsOnPort } from './port-cleanup';
 
-const LOCK_DIR = path.join(process.cwd(), '.next');
+function resolveNextDistDir(): string {
+  const override = process.env.MYRM_NEXT_DIST_DIR?.trim();
+  if (override) {
+    return path.isAbsolute(override) ? override : path.join(process.cwd(), override);
+  }
+  return path.join(process.cwd(), '.next');
+}
+
+const LOCK_DIR = resolveNextDistDir();
 const LOCK_FILE = path.join(LOCK_DIR, 'dev-server.lock');
 
 export interface DevLockRecord {

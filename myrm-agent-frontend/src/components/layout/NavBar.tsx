@@ -285,7 +285,7 @@ function NavBarInner({
                     <Link
                       href="/pricing"
                       onClick={closeMobileSidebar}
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-accent-warm bg-accent-warm/8 hover:bg-accent-warm/12 transition-colors shadow-[var(--shadow-brand)]"
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-accent-warm bg-accent-warm/8 hover:bg-accent-warm/12 transition-colors shadow-brand"
                     >
                       <Zap size={16} className="text-accent-warm" />
                       <span>{tPricing('upgrade')}</span>
@@ -344,7 +344,7 @@ function NavBarInner({
                     'relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
                     isActive
                       ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-primary/5 hover:text-accent-warm hover:shadow-[var(--shadow-brand)]',
+                      : 'text-muted-foreground hover:bg-primary/5 hover:text-accent-warm hover:shadow-brand',
                   )}
                   aria-label={item.label}
                   aria-current={isActive ? 'page' : undefined}
@@ -388,7 +388,7 @@ function NavBarInner({
                     'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
                     isActive
                       ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-primary/5 hover:text-accent-warm hover:shadow-[var(--shadow-brand)]',
+                      : 'text-muted-foreground hover:bg-primary/5 hover:text-accent-warm hover:shadow-brand',
                   )}
                   aria-label={item.label}
                 >

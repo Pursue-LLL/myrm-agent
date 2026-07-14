@@ -43,6 +43,15 @@ class CdpChatSubmit(CdpChatInput):
             deadline = time.monotonic() + 120.0
             while time.monotonic() < deadline:
                 await asyncio.sleep(1.5)
+                bridge_result = await self.evaluate(
+                    """(() => window.__MYRM_E2E_CHAT__?.lastSubmitResult ?? null)()""",
+                    await_promise=False,
+                )
+                if isinstance(bridge_result, dict) and bridge_result.get("ok") is False:
+                    err = str(bridge_result.get("err") or "bridge-submit-failed")
+                    if err in {"send-not-ready", "no-chat-id", "empty-message"}:
+                        await asyncio.sleep(0.5)
+                        continue
                 started = await self._submit_started()
                 if await self._stream_started(started):
                     return dev_submit

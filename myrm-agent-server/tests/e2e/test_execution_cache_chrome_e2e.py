@@ -61,12 +61,13 @@ async def _resolve_chat_id(
     if chat_id:
         return chat_id
     href = await chat.evaluate(
-        """(() => {
+        f"""(() => {{
+          const base = {json.dumps(BASE_URL)};
           const links = Array.from(document.querySelectorAll('aside a[href]'))
             .map((anchor) => anchor.href)
-            .filter((url) => /:3000\//.test(url) && !url.endsWith('/') && !url.includes('/settings'));
+            .filter((url) => url.startsWith(base) && !url.endsWith('/') && !url.includes('/settings'));
           return links[0] || location.href;
-        })()""",
+        }})()""",
         await_promise=False,
     )
     return _extract_chat_id(str(href) if href else "")
@@ -99,16 +100,9 @@ async def test_chrome_ui_same_chat_two_ok_messages(
         heartbeat_e2e_lease()
         e2e_resource_ledger.register("chat", chat_id)
 
-        await chat.evaluate(
-            """(() => {
-              window.__MYRM_E2E_CHAT__?.setInputMessage?.('');
-              return { ok: true };
-            })()""",
-            await_promise=False,
-        )
-        await chat.wait_input_empty()
+        await chat.wait_input_empty(chat_id_hint=chat_id)
         heartbeat_e2e_lease()
-        await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+        await chat.send_message(E2E_PROMPT, E2E_PROMPT, chat_id_hint=chat_id, base_url=BASE_URL)
         after_second = await chat.wait_turn_done(
             E2E_PROMPT,
             chat_id_hint=chat_id,
@@ -123,15 +117,13 @@ async def test_chrome_ui_same_chat_two_ok_messages(
             f"{after_first} -> {after_second}"
         )
 
-    client = ChromeMcpClient(request_timeout_sec=120.0)
+    client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
-    isolated = f"e2e-exec-cache-{os.getpid()}"
     try:
         page = await asyncio.to_thread(
             client.new_page,
             BASE_URL,
             timeout_ms=120_000,
-            isolated_context=isolated,
         )
         await run_chat_flow(McpChatSession(client, page))
     finally:

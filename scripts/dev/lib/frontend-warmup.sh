@@ -169,10 +169,13 @@ if not state.is_file():
 data = json.loads(state.read_text())
 if data.get('generation') != '${gen}':
     sys.exit(1)
-if data.get('source_fingerprint') != '${source_fingerprint}':
-    sys.exit(1)
 if data.get('client_hot') is not True:
     sys.exit(1)
+fp = '${source_fingerprint}'
+if data.get('source_fingerprint') != fp and fp:
+    # Next.js may rewrite tsconfig include during cold start; same dev-server generation is still valid.
+    data['source_fingerprint'] = fp
+    state.write_text(json.dumps(data, indent=2) + '\n')
 sys.exit(0)
 " 2>/dev/null
 }

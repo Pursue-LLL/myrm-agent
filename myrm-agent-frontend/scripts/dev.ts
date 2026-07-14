@@ -62,13 +62,14 @@ function ensureDevEnvLocal(): void {
 
 const args = process.argv.slice(2);
 const clean = args.includes('--clean');
+const nextDistDir = process.env.MYRM_NEXT_DIST_DIR?.trim() || '.next';
 
 ensureLocaleNamespaces();
 ensureDevEnvLocal();
 
 if (clean) {
-  console.log('🧹 Cleaning .next directory...');
-  fs.rmSync('.next', { recursive: true, force: true });
+  console.log(`🧹 Cleaning ${nextDistDir} directory...`);
+  fs.rmSync(nextDistDir, { recursive: true, force: true });
 }
 
 function setupSignalHandlers(child: ChildProcess) {
@@ -131,7 +132,7 @@ function nativeSwcPackage(): string | null {
 
 const forceWebpack = args.includes('--webpack');
 const bundlerMode = forceWebpack ? 'webpack' : 'turbopack';
-const BUNDLER_STAMP = path.join('.next', 'dev-bundler-mode');
+const BUNDLER_STAMP = path.join(nextDistDir, 'dev-bundler-mode');
 
 function ensureBundlerCacheCoherent(mode: string): void {
   if (clean) {
@@ -141,8 +142,8 @@ function ensureBundlerCacheCoherent(mode: string): void {
     if (fs.existsSync(BUNDLER_STAMP)) {
       const previous = fs.readFileSync(BUNDLER_STAMP, 'utf8').trim();
       if (previous && previous !== mode) {
-        console.log(`🧹 Dev bundler changed (${previous} → ${mode}) — clearing .next cache...`);
-        fs.rmSync('.next', { recursive: true, force: true });
+        console.log(`🧹 Dev bundler changed (${previous} → ${mode}) — clearing ${nextDistDir} cache...`);
+        fs.rmSync(nextDistDir, { recursive: true, force: true });
       }
     }
   } catch (error) {
@@ -160,7 +161,7 @@ if (forceWebpack) {
 }
 
 ensureBundlerCacheCoherent(bundlerMode);
-fs.mkdirSync('.next', { recursive: true });
+fs.mkdirSync(nextDistDir, { recursive: true });
 fs.writeFileSync(BUNDLER_STAMP, `${bundlerMode}\n`, 'utf8');
 if (bindLan) {
   nextArgs.push('-H', '0.0.0.0');

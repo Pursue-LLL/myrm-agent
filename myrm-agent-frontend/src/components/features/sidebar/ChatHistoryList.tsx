@@ -269,7 +269,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
                 className={cn(
                   'p-0.5 rounded transition-all',
                   chatHistorySourceFilter === source
-                    ? 'bg-primary/15 ring-1 ring-accent-warm/35 shadow-[var(--shadow-brand)]'
+                    ? 'bg-primary/15 ring-1 ring-accent-warm/35 shadow-brand'
                     : 'opacity-50 hover:opacity-100',
                 )}
               >

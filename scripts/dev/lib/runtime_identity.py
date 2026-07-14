@@ -119,9 +119,9 @@ def attach_health_errors(payload: HealthJsonPayload) -> list[str]:
     return errors
 
 
-def _http_url_ok(url: str) -> bool:
+def _http_url_ok(url: str, *, timeout_sec: float = 5.0) -> bool:
     try:
-        with urllib.request.urlopen(url, timeout=5) as response:
+        with urllib.request.urlopen(url, timeout=timeout_sec) as response:
             return 200 <= response.status < 300
     except (OSError, TimeoutError, urllib.error.URLError):
         return False
@@ -129,13 +129,18 @@ def _http_url_ok(url: str) -> bool:
 
 def attach_endpoint_errors(ui_base: str, api_base: str) -> list[str]:
     """Probe UI and API concurrently for the attach-only fast path."""
+    ui_timeout = 30.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
+    api_timeout = 10.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
     endpoints = (
-        ("ui", ui_base.rstrip("/") + "/"),
-        ("api", api_base.rstrip("/") + "/api/v1/health"),
+        ("ui", ui_base.rstrip("/") + "/", ui_timeout),
+        ("api", api_base.rstrip("/") + "/api/v1/health", api_timeout),
     )
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="attach-health") as pool:
-        ready = tuple(pool.map(_http_url_ok, (url for _, url in endpoints)))
-    return [f"{name}=unreachable" for (name, _), ok in zip(endpoints, ready, strict=True) if not ok]
+        ready = tuple(
+            pool.submit(_http_url_ok, url, timeout_sec=timeout).result()
+            for _, url, timeout in endpoints
+        )
+    return [f"{name}=unreachable" for (name, _, _), ok in zip(endpoints, ready, strict=True) if not ok]
 
 
 _BROWSER_ID_RE = re.compile(r"/devtools/browser/([0-9a-f-]{36})")
@@ -269,6 +274,14 @@ def _backend_source_fingerprint() -> str:
     return digest.hexdigest()[:16] if found else ""
 
 
+def _frontend_next_dir(frontend_dir: Path) -> Path:
+    override = os.getenv("MYRM_NEXT_DIST_DIR", "").strip()
+    if override:
+        path = Path(override)
+        return path if path.is_absolute() else frontend_dir / override
+    return frontend_dir / ".next"
+
+
 def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | None:
     root = frontend_dir
     if root is None:
@@ -277,7 +290,8 @@ def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | Non
             root = Path(override)
         else:
             return None
-    lock_path = root / ".next/dev-server.lock"
+    next_dir = _frontend_next_dir(root)
+    lock_path = next_dir / "dev-server.lock"
     raw = _read_json_file(lock_path)
     if raw is None:
         return None
@@ -290,7 +304,7 @@ def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | Non
     port = raw.get("port")
     if port is not None and not isinstance(port, int):
         port = None
-    bundler_stamp = root / ".next/dev-bundler-mode"
+    bundler_stamp = next_dir / "dev-bundler-mode"
     bundler_mode = ""
     if bundler_stamp.is_file():
         bundler_mode = bundler_stamp.read_text(encoding="utf-8").strip()
@@ -526,6 +540,43 @@ def compute_runtime_id(parts: RuntimeIdentityParts) -> str:
     canonical = json.dumps(_canonical_parts_for_hash(parts), sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     return digest[:32]
+
+
+def _stable_stack_epoch_parts(parts: RuntimeIdentityParts) -> RuntimeIdentityParts:
+    """Drop git-diff fingerprints so isolated E2E drift checks survive in-session edits."""
+    backend = parts["backend_epoch"]
+    frontend = parts["frontend_epoch"]
+    stable_backend: BackendEpoch | None = None
+    stable_frontend: FrontendEpoch | None = None
+    if backend is not None:
+        stable_backend = {
+            **backend,
+            "source_fingerprint": "",
+            "harness_fingerprint": backend.get("harness_fingerprint", ""),
+        }
+    if frontend is not None:
+        stable_frontend = {**frontend, "source_fingerprint": ""}
+    return {
+        "backend_epoch": stable_backend,
+        "frontend_epoch": stable_frontend,
+        "chrome_epoch": None,
+        "mux_epoch": None,
+    }
+
+
+def read_stack_scoped_runtime_id() -> str:
+    """Backend + frontend fingerprint for isolated E2E (ignores shared Chrome/mux noise)."""
+    frontend_dir: Path | None = None
+    override = os.getenv("MYRM_FRONTEND_DIR", "").strip()
+    if override:
+        frontend_dir = Path(override)
+    parts: RuntimeIdentityParts = {
+        "backend_epoch": read_backend_epoch(),
+        "frontend_epoch": read_frontend_epoch(frontend_dir),
+        "chrome_epoch": None,
+        "mux_epoch": None,
+    }
+    return compute_runtime_id(_stable_stack_epoch_parts(parts))
 
 
 def build_health_json(

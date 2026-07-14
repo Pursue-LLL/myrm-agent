@@ -16,7 +16,10 @@ AGENT_ROOT="${MYRM_AGENT_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 MONOREPO_ROOT="${MYRM_MONOREPO_ROOT:-$(cd "${AGENT_ROOT}/.." && pwd)}"
 STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
 FRONTEND_DIR="${AGENT_ROOT}/myrm-agent-frontend"
-FRONTEND_LOCK="${FRONTEND_DIR}/.next/dev-server.lock"
+# shellcheck source=lib/dev_state_paths.sh
+source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
+export_myrm_next_dist_dir
+FRONTEND_LOCK="$(resolve_frontend_lock_path "${FRONTEND_DIR}")"
 FRONTEND_LOG="${STATE_DIR}/frontend.log"
 APP_URL="${UI_BASE}"
 FRONTEND_PORT="${MYRM_FRONTEND_PORT:-3000}"
@@ -24,8 +27,6 @@ FRONTEND_PORT="${MYRM_FRONTEND_PORT:-3000}"
 source "${SCRIPT_DIR}/lib/frontend-warmup.sh"
 # shellcheck source=lib/stack-epoch.sh
 source "${SCRIPT_DIR}/lib/stack-epoch.sh"
-# shellcheck source=lib/dev_state_paths.sh
-source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
 MUX_BIN="${MONOREPO_ROOT}/scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs"
 ENSURE_CHROME="${SCRIPT_DIR}/ensure-myrm-chrome-e2e.sh"
 SERVER_DIR="${AGENT_ROOT}/myrm-agent-server"
@@ -162,6 +163,9 @@ ACTIVE_PORT_FILE="${MYRM_CHROME_E2E_ACTIVE_PORT_FILE}"
 
 # 4. mux daemon (parallel Agent tabs)
 MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}"
+MUX_REQUEST_TIMEOUT_MS="${CDMCP_MUX_REQUEST_TIMEOUT_MS:-120000}"
+export CDMCP_MUX_REQUEST_TIMEOUT_MS="${MUX_REQUEST_TIMEOUT_MS}"
+MUX_TIMEOUT_STAMP="${MUX_STATE_DIR}/request-timeout-ms"
 MUX_PID_FILE="${MUX_STATE_DIR}/daemon.pid"
 MUX_LOG_FILE="${MUX_STATE_DIR}/mux.log"
 MUX_START_LOCK_DIR="${MUX_STATE_DIR}/daemon.start.lock"
@@ -227,12 +231,15 @@ _start_mux_daemon() {
     MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" \
     CDMCP_MUX_STATE_DIR="${MUX_STATE_DIR}" \
     CDMCP_MUX_SOCKET="${MUX_SOCKET}" \
+    CDMCP_MUX_REQUEST_TIMEOUT_MS="${MUX_REQUEST_TIMEOUT_MS}" \
     MCP_MUX_UPSTREAM_STDERR="${MCP_MUX_UPSTREAM_STDERR:-1}" \
     node "${MUX_BIN}" daemon \
     >>"${MUX_LOG_FILE}" 2>&1 < /dev/null &
   local i
   for i in $(seq 1 15); do
     if [[ -f "${MUX_PID_FILE}" ]] && kill -0 "$(tr -d '[:space:]' < "${MUX_PID_FILE}")" 2>/dev/null; then
+      mkdir -p "${MUX_STATE_DIR}"
+      printf '%s\n' "${MUX_REQUEST_TIMEOUT_MS}" >"${MUX_TIMEOUT_STAMP}"
       rmdir "${MUX_START_LOCK_DIR}" 2>/dev/null || true
       return 0
     fi
@@ -305,6 +312,9 @@ _mux_restart_allowed() {
   [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] || return 1
   local contexts
   contexts="$(_mux_context_count 2>/dev/null)" || return 1
+  if [[ "${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-}" == "1" ]]; then
+    [[ "${contexts}" == "0" ]] || return 0
+  fi
   [[ "${contexts}" == "0" ]] || return 1
   bash "${SCRIPT_DIR}/wave.sh" check-stack-write >/dev/null 2>&1
 }
@@ -363,6 +373,13 @@ _ensure_mux_upstream() {
   fail "cdmcp-mux upstreamReady still false — Cmd+Q Cursor, then: ./myrm ready --chrome"
 }
 
+_mux_timeout_stamp_matches() {
+  [[ -f "${MUX_TIMEOUT_STAMP}" ]] || return 1
+  local stored
+  stored="$(tr -d '[:space:]' < "${MUX_TIMEOUT_STAMP}")"
+  [[ "${stored}" == "${MUX_REQUEST_TIMEOUT_MS}" ]]
+}
+
 _ensure_mux_daemon() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
   [[ -f "${MUX_BIN}" ]] || fail "Missing mux bin ${MUX_BIN} — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
@@ -370,6 +387,9 @@ _ensure_mux_daemon() {
     local pid
     pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
     if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
+      if ! _mux_timeout_stamp_matches; then
+        _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+      fi
       return 0
     fi
   fi
@@ -539,7 +559,17 @@ echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=$raw_port profile=${MYRM_C
 if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]]; then
   _ensure_stack_epoch_file
 fi
-if ! _print_e2e_health_json 1; then
-  fail "final runtime health snapshot rejected — retry: ./myrm ready --chrome"
-fi
-exit 0
+export_myrm_next_dist_dir
+FRONTEND_LOCK="$(resolve_frontend_lock_path "${FRONTEND_DIR}")"
+health_attempt=0
+while [[ "${health_attempt}" -lt 3 ]]; do
+  if _print_e2e_health_json 1; then
+    exit 0
+  fi
+  health_attempt=$((health_attempt + 1))
+  if [[ "${health_attempt}" -lt 3 ]]; then
+    echo "CHROME_E2E_WARN: health snapshot retry ${health_attempt}/3" >&2
+    sleep 2
+  fi
+done
+fail "final runtime health snapshot rejected — retry: ./myrm ready --chrome"

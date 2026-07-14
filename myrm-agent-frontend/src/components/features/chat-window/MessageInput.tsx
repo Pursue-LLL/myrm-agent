@@ -329,7 +329,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               {queue.map((msg, index) => (
                 <div
                   key={msg.id}
-                  className="group/queue flex items-center justify-between bg-primary/8 border border-accent-warm/25 rounded-lg px-3 py-2 text-sm shadow-[var(--shadow-brand)]"
+                  className="group/queue flex items-center justify-between bg-primary/8 border border-accent-warm/25 rounded-lg px-3 py-2 text-sm shadow-brand"
                 >
                   {editingQueueId === msg.id ? (
                     <div className="flex items-center gap-2 flex-1 min-w-0">

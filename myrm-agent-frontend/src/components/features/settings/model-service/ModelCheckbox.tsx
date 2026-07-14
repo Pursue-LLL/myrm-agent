@@ -98,7 +98,7 @@ const ModelCheckbox = memo<ModelCheckboxProps>(
                   className={cn(
                     'flex flex-col gap-2 px-4 py-3 rounded-xl border transition-all duration-200',
                     model.isEnabled
-                      ? 'border-accent-warm/30 bg-accent-warm/5 shadow-[var(--shadow-brand)]'
+                      ? 'border-accent-warm/30 bg-accent-warm/5 shadow-brand'
                       : status && !status.success
                         ? 'border-destructive/30 bg-destructive/5'
                         : 'border-border/50 bg-background/50 hover:border-border',

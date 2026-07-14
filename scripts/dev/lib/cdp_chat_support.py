@@ -10,7 +10,7 @@ import urllib.request
 from pathlib import Path
 
 API_URL = os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
-_OK_REPLY_RE = re.compile(r"\bOK\b", re.IGNORECASE)
+_OK_REPLY_RE = re.compile(r"(?:\bOK\b|GOAL_OK)", re.IGNORECASE)
 
 
 def _api_provider_ready() -> bool:

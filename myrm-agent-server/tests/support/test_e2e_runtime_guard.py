@@ -154,3 +154,23 @@ def test_rejects_runtime_drift(
     lease = require_e2e_runtime_lease(runtime_id_reader=lambda: "runtime-1")
     with pytest.raises(RuntimeError, match="RUNTIME_DRIFT"):
         assert_e2e_runtime_unchanged(lease, runtime_id_reader=lambda: "runtime-2")
+
+
+def test_isolated_mode_uses_stack_fingerprint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_state(tmp_path)
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
+    monkeypatch.setenv("MYRM_E2E_ISOLATED", "1")
+    monkeypatch.setenv("MYRM_E2E_STACK_FP", "stack-fp-abc")
+    monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard._stack_scoped_runtime_id",
+        lambda: "stack-fp-abc",
+    )
+
+    lease = require_e2e_runtime_lease()
+    assert lease.runtime_id == "stack-fp-abc"
+    assert_e2e_runtime_unchanged(lease)

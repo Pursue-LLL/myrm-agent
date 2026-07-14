@@ -34,6 +34,7 @@ class E2ERuntimeLease:
     lease_id: str
     runtime_id: str
     lane: str
+    isolated: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,13 +157,36 @@ def _state_file() -> Path:
     return root / "wave-orchestrator.json"
 
 
+def _isolated_e2e_mode() -> bool:
+    return os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1"
+
+
+def _stack_scoped_runtime_id() -> str:
+    dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    from runtime_identity import read_stack_scoped_runtime_id
+
+    return read_stack_scoped_runtime_id()
+
+
 def _runtime_id_reader() -> str:
+    if _isolated_e2e_mode():
+        return _stack_scoped_runtime_id()
     dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))
     from runtime_probe import read_current_runtime_id
 
     return read_current_runtime_id()
+
+
+def _assert_isolated_stack_unchanged(*, expected: str) -> None:
+    current = _stack_scoped_runtime_id().strip()
+    if not expected or current != expected:
+        raise RuntimeError(
+            f"RUNTIME_DRIFT: isolated stack expected={expected or '<missing>'} current={current or '<missing>'}"
+        )
 
 
 def _active_lease(payload: object, lease_id: str) -> _LeasePayload | None:
@@ -221,6 +245,15 @@ def require_e2e_runtime_lease(
     expected = lease.get("runtimeId", "").strip()
     if wave.get("runtimeId") != expected:
         raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} runtime does not match open wave")
+    if _isolated_e2e_mode():
+        stack_fp = os.environ.get("MYRM_E2E_STACK_FP", "").strip() or _stack_scoped_runtime_id()
+        _assert_isolated_stack_unchanged(expected=stack_fp)
+        return E2ERuntimeLease(
+            lease_id=lease_id,
+            runtime_id=stack_fp,
+            lane=expected_lane,
+            isolated=True,
+        )
     current = runtime_id_reader().strip()
     if not expected or current != expected:
         raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={expected or '<missing>'} current={current or '<missing>'}")
@@ -232,6 +265,10 @@ def assert_e2e_runtime_unchanged(
     *,
     runtime_id_reader: Callable[[], str] = _runtime_id_reader,
 ) -> None:
+    if lease.isolated or _isolated_e2e_mode():
+        expected = lease.runtime_id.strip() or os.environ.get("MYRM_E2E_STACK_FP", "").strip()
+        _assert_isolated_stack_unchanged(expected=expected)
+        return
     current = runtime_id_reader().strip()
     if current != lease.runtime_id:
         raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={lease.runtime_id} current={current or '<missing>'}")

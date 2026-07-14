@@ -15,6 +15,7 @@
 .benchmarks
 # next.js
 /.next/
+/.next-isolated-*/
 /out/
 
 # production

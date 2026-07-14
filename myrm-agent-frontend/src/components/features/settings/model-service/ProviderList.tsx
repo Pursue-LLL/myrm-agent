@@ -58,7 +58,7 @@ const SortableProviderItem = memo<{
       className={cn(
         'group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200',
         isSelected
-          ? 'bg-accent-warm/10 border border-accent-warm/30 shadow-[var(--shadow-brand)]'
+          ? 'bg-accent-warm/10 border border-accent-warm/30 shadow-brand'
           : 'hover:bg-accent/50 border border-transparent',
         isDragging && 'opacity-50 shadow-lg z-50',
       )}

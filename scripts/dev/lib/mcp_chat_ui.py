@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 
 from cdp_chat_ui import CdpChatSession
 from chrome_mcp_client import ChromeMcpClient, McpPage
@@ -12,28 +13,21 @@ _DETACHED_FRAME_TOKENS = (
     "Execution context was destroyed",
 )
 
-_RECOVERABLE_EVAL_TOKENS = (
-    *_DETACHED_FRAME_TOKENS,
-    "No page found",
-    "Target closed",
-)
-
 
 def is_detached_frame_error(exc: BaseException) -> bool:
     message = str(exc)
     return any(token in message for token in _DETACHED_FRAME_TOKENS)
 
 
-def is_recoverable_evaluate_error(exc: BaseException) -> bool:
-    message = str(exc)
-    return any(token in message for token in _RECOVERABLE_EVAL_TOKENS)
+def _default_e2e_ui_base() -> str:
+    return os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
 
 class McpChatSession(CdpChatSession):
     def __init__(self, client: ChromeMcpClient, page: McpPage) -> None:
         self._client = client
         self._page = page
-        self._base_url = "http://127.0.0.1:3000"
+        self._base_url = _default_e2e_ui_base()
 
     async def evaluate(
         self,
@@ -55,7 +49,7 @@ class McpChatSession(CdpChatSession):
                     timeout_sec=min(recv_timeout, 120.0),
                 )
             except RuntimeError as exc:
-                if not healed and is_recoverable_evaluate_error(exc):
+                if not healed and is_detached_frame_error(exc):
                     healed = True
                     await self._heal_detached_page()
                     continue

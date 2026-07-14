@@ -68,6 +68,7 @@ const monorepoRoot = path.join(frontendRoot, '..');
 const sharedRoot = path.join(monorepoRoot, 'shared');
 
 const nextConfig: NextConfig = {
+  distDir: process.env.MYRM_NEXT_DIST_DIR?.trim() || '.next',
   // Next.js 16.3: explicit cache model + per-route shell prefetch (sidebar chat links, settings tabs).
   cacheComponents: true,
   partialPrefetching: true,
@@ -137,6 +138,8 @@ const nextConfig: NextConfig = {
   webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
+      '@': path.join(frontendRoot, 'src'),
+      '#locales': path.join(frontendRoot, 'locales'),
       '@shared': sharedRoot,
     };
     if (!isServer) {

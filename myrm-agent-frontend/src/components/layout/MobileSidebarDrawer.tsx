@@ -43,7 +43,7 @@ export function MobileSidebarDrawer({
       )}
       <div
         className={cn(
-          'fixed top-0 left-0 bottom-0 z-50 flex w-full max-w-[420px] overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]',
+          'fixed top-0 left-0 bottom-0 z-50 flex w-full max-w-[420px] overflow-hidden myrm-safe-top myrm-safe-bottom',
           'transform transition-transform duration-300 ease-out',
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}

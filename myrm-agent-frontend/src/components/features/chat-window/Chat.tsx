@@ -253,7 +253,7 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
     return (
       <div
         ref={inputContainerRef}
-        className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-0 right-0 z-40 transition-all duration-300 ${!showInput ? 'opacity-0 translate-y-10' : 'opacity-100'}`}
+        className={`fixed myrm-safe-bottom-floating left-0 right-0 z-40 transition-all duration-300 ${!showInput ? 'opacity-0 translate-y-10' : 'opacity-100'}`}
         style={{
           paddingLeft: 'var(--main-padding-left, 0)',
         }}

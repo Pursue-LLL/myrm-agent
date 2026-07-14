@@ -27,9 +27,14 @@ fi
 
 cd "${FRONTEND_DIR}"
 
-if [[ -d "node_modules/${_swc_pkg}" ]]; then
+if [[ -d "node_modules/${_swc_pkg}" ]] && compgen -G "node_modules/${_swc_pkg}/*.node" >/dev/null; then
   echo "✓ ${_swc_pkg} present"
   exit 0
+fi
+
+if [[ -d "node_modules/${_swc_pkg}" ]]; then
+  echo "WARN: ${_swc_pkg} directory exists but native binary missing — reinstalling" >&2
+  rm -rf "node_modules/${_swc_pkg}"
 fi
 
 if ! command -v bun >/dev/null 2>&1; then

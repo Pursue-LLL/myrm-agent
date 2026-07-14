@@ -72,6 +72,28 @@ export default function E2EChatBridge() {
           });
         }
       },
+      attachToChat: async (chatId: string) => {
+        const id = chatId.trim();
+        if (!id) {
+          throw new Error('empty-chat-id');
+        }
+        const providerState = useProviderStore.getState();
+        if (!providerState.isInitialized) {
+          await providerState.initProviders();
+        }
+        flushSync(() => {
+          useChatStore.getState().initializeChat(id);
+        });
+        const deadline = Date.now() + 60_000;
+        while (Date.now() < deadline) {
+          const state = useChatStore.getState();
+          if (state.chatId === id && !state.loading) {
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+        throw new Error('attach-timeout');
+      },
       resetChat: () => {
         flushSync(() => {
           useChatStore.getState().initializeChat(undefined);

@@ -68,7 +68,7 @@ const FontPicker = ({ className }: { className?: string }) => {
           className={cn(
             'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border',
             activeFont === font.id
-              ? 'border-primary bg-primary/10 text-foreground ring-1 ring-accent-warm/35 shadow-[var(--shadow-brand)]'
+              ? 'border-primary bg-primary/10 text-foreground ring-1 ring-accent-warm/35 shadow-brand'
               : 'border-border bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground',
           )}
         >

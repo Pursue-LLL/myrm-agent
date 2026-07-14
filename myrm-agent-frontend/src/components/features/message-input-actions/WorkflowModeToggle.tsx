@@ -49,7 +49,7 @@ const WorkflowModeToggle = () => {
             className={cn(
               'relative flex shrink-0 items-center gap-1.5 h-7 px-3 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-500 cursor-pointer select-none overflow-hidden',
               isWorkflowMode
-                ? 'bg-gradient-to-r from-primary/20 to-primary/10 text-primary border border-primary/40 shadow-[0_0_15px_rgba(var(--primary),0.3)] hover:shadow-[0_0_20px_rgba(var(--primary),0.4)]'
+                ? 'bg-gradient-to-r from-primary/20 to-primary/10 text-primary border border-primary/40 shadow-md shadow-primary/30 hover:shadow-lg hover:shadow-primary/40'
                 : 'bg-black/[0.03] dark:bg-white/[0.04] text-black/50 dark:text-white/50 border border-transparent hover:text-black dark:hover:text-white hover:bg-black/[0.06] dark:hover:bg-white/[0.08]',
             )}
           >
@@ -57,7 +57,7 @@ const WorkflowModeToggle = () => {
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer" />
             )}
             <WorkflowIcon
-              className={cn('transition-all duration-500 z-10', isWorkflowMode ? 'text-primary scale-110 drop-shadow-[0_0_5px_rgba(var(--primary),0.8)]' : 'text-current scale-100')}
+              className={cn('transition-all duration-500 z-10', isWorkflowMode ? 'text-primary scale-110 drop-shadow-sm' : 'text-current scale-100')}
             />
             <span className="hidden xl:inline z-10 tracking-wide">{t('workflowModeLabel')}</span>
           </button>

@@ -62,7 +62,8 @@ async function hasDefaultModel() {
 }
 
 export async function seedChromeE2eProviders() {
-  if (await hasDefaultModel()) {
+  const forceSeed = process.env.MYRM_E2E_FORCE_MODEL_SEED === '1';
+  if (!forceSeed && (await hasDefaultModel())) {
     return { seeded: false, reason: 'default_model_already_configured' };
   }
   const basicModel = requireEnv('BASIC_MODEL');

@@ -168,7 +168,7 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
           'fixed inset-x-0 bottom-0 z-[1101] flex flex-col',
           'max-h-[72vh] rounded-t-2xl bg-background shadow-2xl',
           'transition-transform duration-[280ms] ease-[cubic-bezier(0.32,0.72,0,1)]',
-          'pb-[env(safe-area-inset-bottom,0px)]',
+          'myrm-safe-bottom-fallback',
           visible ? 'translate-y-0' : 'translate-y-full',
         )}
         role="dialog"

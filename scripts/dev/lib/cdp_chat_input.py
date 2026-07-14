@@ -21,6 +21,8 @@ from cdp_chat_support import (
 
 
 class CdpChatInput(CdpChatBootstrap):
+    _baseline_user_msgs: int = 0
+
     async def _ensure_send_ready(self, *, timeout_sec: float = 90.0) -> dict[str, object]:
         """Prefer API readiness + E2E bridge over flaky model-picker UI automation."""
         if _api_provider_ready():
@@ -62,7 +64,9 @@ class CdpChatInput(CdpChatBootstrap):
             )
             if isinstance(debug, dict):
                 last["debug"] = debug
-            raise TimeoutError(f"Send not ready within {timeout_sec:.0f}s: {last}")
+            # API readiness can be true while the browser provider store is still empty
+            # (common on isolated stacks). Fall back to UI model selection.
+            return await self.ensure_model_ready(timeout_sec=timeout_sec)
         return await self.ensure_model_ready(timeout_sec=timeout_sec)
 
     async def ensure_model_ready(self, *, timeout_sec: float = 180.0) -> dict[str, object]:
@@ -396,12 +400,17 @@ class CdpChatInput(CdpChatBootstrap):
         return result if isinstance(result, dict) else {"sending": False, "cleared": False, "userMsgs": 0}
 
     async def _stream_started(self, started: dict[str, object]) -> bool:
+        baseline_user_msgs = int(getattr(self, "_baseline_user_msgs", 0) or 0)
         path = str(started.get("path") or "")
-        if started.get("sending") or int(started.get("userMsgs") or 0) > 0:
+        if started.get("sending") or int(started.get("userMsgs") or 0) > baseline_user_msgs:
             return True
         chat_id = chat_id_from_path(path) or str(started.get("bridgeChatId") or "").strip() or None
         if not chat_id:
             chat_id = await self.bridge_chat_id()
-        if chat_id and chat_user_message_count(chat_id) > 0:
-            return True
+        if chat_id:
+            try:
+                if chat_user_message_count(chat_id) > baseline_user_msgs:
+                    return True
+            except OSError:
+                pass
         return bool(chat_id_from_path(path))

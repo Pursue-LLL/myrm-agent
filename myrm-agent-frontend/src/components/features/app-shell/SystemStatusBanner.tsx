@@ -86,7 +86,7 @@ export default function SystemStatusBanner() {
   if (!degraded || dismissed) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-destructive text-destructive-foreground px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-md flex items-center justify-between animate-in slide-in-from-top">
+    <div className="fixed top-0 left-0 right-0 z-50 bg-destructive text-destructive-foreground px-4 py-3 myrm-safe-top-banner shadow-md flex items-center justify-between animate-in slide-in-from-top">
       <div className="flex items-center gap-3">
         <AlertTriangle className="w-5 h-5 flex-shrink-0" />
         <div className="text-sm">

@@ -18,6 +18,8 @@ source "${SCRIPT_DIR}/lib/backend_bg.sh"
 source "${SCRIPT_DIR}/lib/frontend-warmup.sh"
 # shellcheck source=lib/stack-epoch.sh
 source "${SCRIPT_DIR}/lib/stack-epoch.sh"
+# shellcheck source=lib/dev_state_paths.sh
+source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
 resolve_agent_paths "${REPO_ROOT}"
 
 STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
@@ -31,7 +33,6 @@ BACKEND_PID="${MYRM_BACKEND_PID_FILE:-${STATE_DIR}/backend.pid}"
 BACKEND_LOG="${MYRM_BACKEND_LOG_FILE:-${STATE_DIR}/backend.log}"
 FRONTEND_PID="${MYRM_FRONTEND_PID_FILE:-${STATE_DIR}/frontend.pid}"
 FRONTEND_LOG="${MYRM_FRONTEND_LOG_FILE:-${STATE_DIR}/frontend.log}"
-FRONTEND_LOCK="${FRONTEND_DIR}/.next/dev-server.lock"
 export STATE_DIR PORT="${BACKEND_PORT}" MYRM_BACKEND_PORT="${BACKEND_PORT}"
 export MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}"
 export E2E_UI_BASE="${APP_URL}" E2E_API_BASE="${API_BASE}"
@@ -42,6 +43,12 @@ ENSURE_FRONTEND_WAIT_SEC="${MYRM_STACK_FRONTEND_WAIT_SEC:-180}"
 ATTACH_WAIT_SEC="${MYRM_STACK_ATTACH_WAIT_SEC:-$((ENSURE_FRONTEND_WAIT_SEC + 60))}"
 
 mkdir -p "${STATE_DIR}"
+export_myrm_next_dist_dir
+if [[ "${STATE_DIR}" != "${HOME}/.local/state/myrm-dev" ]]; then
+  export MYRM_FRONTEND_DEV_WEBPACK=1
+fi
+mkdir -p "${FRONTEND_DIR}/${MYRM_NEXT_DIST_DIR}"
+FRONTEND_LOCK="$(resolve_frontend_lock_path "${FRONTEND_DIR}")"
 
 _lock_dir="${STATE_DIR}/ensure.lock.d"
 
@@ -310,14 +317,18 @@ _kill_frontend_supervisor() {
 _launch_frontend_supervisor() {
   local use_clean="${1:-0}"
   local dev_script="${MYRM_FRONTEND_DEV_SCRIPT:-${FRONTEND_DIR}/scripts/dev.ts}"
+  local webpack_args=()
+  if [[ "${MYRM_FRONTEND_DEV_WEBPACK:-0}" == "1" ]]; then
+    webpack_args=(--webpack)
+  fi
   cd "${FRONTEND_DIR}"
   bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
   _frontend_clear_warmth
   if [[ "${use_clean}" == "1" ]]; then
     echo "STACK_START: frontend with --clean (.next purge)" >&2
-    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" bun run "${dev_script}" --clean
+    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" bun run "${dev_script}" --clean "${webpack_args[@]}"
   else
-    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" bun run "${dev_script}"
+    _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" bun run "${dev_script}" "${webpack_args[@]}"
   fi
   echo $! >"${FRONTEND_PID}"
   echo "STACK_START: frontend supervisor pid $(cat "${FRONTEND_PID}") (setsid detached)"
@@ -587,18 +598,22 @@ main() {
   case "${cmd}" in
     ensure)
       if _supervisor_internal_call; then cmd_ensure; exit $?; fi
+      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_ensure; exit $?; fi
       _supervisor_delegate_or_fail ensure
       ;;
     attach)
       if _supervisor_internal_call; then cmd_attach; exit $?; fi
+      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_attach; exit $?; fi
       _supervisor_delegate_or_fail attach
       ;;
     reset)
       if _supervisor_internal_call; then cmd_reset; exit $?; fi
+      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_reset; exit $?; fi
       _supervisor_delegate_or_fail reset
       ;;
     status)
       if _supervisor_internal_call; then cmd_status; exit $?; fi
+      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_status; exit $?; fi
       _supervisor_delegate_or_fail status
       ;;
     ""|-h|--help) usage; exit 1 ;;
