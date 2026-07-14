@@ -36,6 +36,7 @@ function selectPersonalSettings(state: ReturnType<typeof useConfigStore.getState
     codeExecutionAllowNetwork: state.codeExecutionAllowNetwork,
     enableEvalLab: state.enableEvalLab,
     smoothStreamEnabled: state.smoothStreamEnabled,
+    suggestWorkflowMode: state.suggestWorkflowMode,
     publicIngressBaseUrl: state.publicIngressBaseUrl,
   };
 }

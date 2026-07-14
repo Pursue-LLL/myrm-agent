@@ -28,6 +28,14 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
     });
   }
 
+  if (sd.phase === 'workflow_suggestion' && sd.status === 'suggested') {
+    actions.setMessages((state) => {
+      const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+      if (idx === -1) return;
+      state.messages[idx].workflowSuggestion = { status: 'suggested' };
+    });
+  }
+
   if (sd.phase === 'plan_confirm') {
     actions.setMessages((state) => {
       const idx = H.findAssistantMessageIndex(state.messages, data.messageId);

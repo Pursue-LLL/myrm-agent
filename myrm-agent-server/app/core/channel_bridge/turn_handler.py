@@ -8,6 +8,7 @@
 - app.core.channel_bridge.config_parsers::extract_session_policy, session_policy_from_agent_dict
 - app.database.connection::get_session
 - app.services.chat.chat_service::ChatService
+- myrm_agent_harness.agent.meta_tools.file_ops.revert_service::RevertService
 
 [OUTPUT]
 - ChannelRetryHandler: RetryHandler 业务实现
@@ -15,10 +16,14 @@
 
 [POS]
 将框架层的 RetryHandler / UndoHandler 协议映射到 ChatService 的
-retry_last_turn / undo_last_turn 方法。与 ChannelCompactHandler 对称设计。
+retry_last_turn / undo_last_turn 方法，并联动 RevertService 还原关联文件快照。
 """
 
 from __future__ import annotations
+
+import logging
+
+from myrm_agent_harness.agent.meta_tools.file_ops.revert_service import RevertService
 
 from app.channels.protocols.turn_management import RetryResult, UndoResult
 from app.channels.types import InboundMessage, SessionPolicy
@@ -30,6 +35,8 @@ from app.core.channel_bridge.config_parsers import (
 )
 from app.database.connection import get_session
 from app.services.chat.chat_service import ChatService
+
+logger = logging.getLogger(__name__)
 
 
 async def _resolve_session_with_agent(msg: InboundMessage) -> tuple[str, str | None]:
@@ -54,6 +61,20 @@ async def _resolve_session_with_agent(msg: InboundMessage) -> tuple[str, str | N
     return session_key, agent_id
 
 
+async def _revert_messages(session_id: str, message_ids: list[str]) -> int:
+    """Best-effort revert file snapshots for deleted messages. Returns count of reverted files."""
+    total = 0
+    for mid in message_ids:
+        try:
+            result = await RevertService.revert_message(session_id, mid)
+            total += len(result.reverted_files)
+            if result.warnings:
+                logger.debug("Revert warnings for message %s: %s", mid, result.warnings)
+        except Exception:
+            logger.warning("Failed to revert snapshots for message %s", mid, exc_info=True)
+    return total
+
+
 class ChannelRetryHandler:
     """Business-layer RetryHandler for /retry command."""
 
@@ -66,6 +87,14 @@ class ChannelRetryHandler:
                 return RetryResult(success=False)
 
             svc_result = await ChatService.retry_last_turn(chat.id, "sandbox")
+
+            if svc_result.success and svc_result.deleted_message_ids:
+                reverted = await _revert_messages(chat.id, svc_result.deleted_message_ids)
+                if reverted:
+                    logger.info(
+                        "ChannelRetryHandler: reverted %d files for chat %s", reverted, chat.id,
+                    )
+
             return RetryResult(
                 success=svc_result.success,
                 query=svc_result.query,
@@ -85,6 +114,14 @@ class ChannelUndoHandler:
                 return UndoResult(success=False)
 
             svc_result = await ChatService.undo_last_turn(chat.id, "sandbox")
+
+            if svc_result.success and svc_result.deleted_message_ids:
+                reverted = await _revert_messages(chat.id, svc_result.deleted_message_ids)
+                if reverted:
+                    logger.info(
+                        "ChannelUndoHandler: reverted %d files for chat %s", reverted, chat.id,
+                    )
+
             return UndoResult(
                 success=svc_result.success,
                 deleted_count=svc_result.deleted_count,

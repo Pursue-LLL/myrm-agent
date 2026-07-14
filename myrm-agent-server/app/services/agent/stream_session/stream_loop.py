@@ -1,4 +1,16 @@
-"""Main agent SSE stream loop."""
+"""Main agent SSE stream loop.
+
+[INPUT]
+- app.services.agent.stream_session.stream_session_types::AgentStreamSession
+- app.services.agent.stream_session.stream_lane_factory (POS: lane constructors)
+
+[OUTPUT]
+- iter_agent_stream_chunks(): async SSE chunk generator with routing, approval, and compression
+
+[POS]
+Core streaming loop: routes to fast/reasoning/deep-research lanes, handles approval
+timeouts, compression exhaustion, workflow escalation, and context overflow reset.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +27,7 @@ from app.services.agent.stream_session.stream_lane_factory import (
     create_fast_lane_stream,
 )
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
+from app.services.agent.stream_session.workflow_escalation import should_suggest_workflow_for_session
 from app.services.agent.streaming import ai_agent_service_stream
 from app.services.agent.streaming_support.sse_helpers import (
     extract_approval_intercepted,
@@ -61,6 +74,29 @@ async def iter_agent_stream_chunks(
         logger.info(f"🚀 Fast Lane activated for message_id={session.params.message_id}")
         stream = create_fast_lane_stream(session.params, session.cancel_token)
     else:
+        if (
+            session.request.resume_value is None
+            and not session.request.use_workflow
+            and should_suggest_workflow_for_session(session)
+        ):
+            logger.info(f"💡 Workflow suggestion emitted for message_id={session.params.message_id}")
+            yield SSEEnvelope.from_any({
+                "type": "status",
+                "messageId": session.params.message_id,
+                "step_key": "workflow_suggestion",
+                "data": {
+                    "phase": "workflow_suggestion",
+                    "status": "suggested",
+                    "routing_tier": session.routing_tier,
+                },
+            }).to_sse_chunk()
+
+        stream = ai_agent_service_stream(
+            params=session.params,
+            cancel_token=session.cancel_token,
+            steering_token=session.steering_token,
+            extra_context=session.extra_context,
+        )
         stream = ai_agent_service_stream(
             params=session.params,
             cancel_token=session.cancel_token,

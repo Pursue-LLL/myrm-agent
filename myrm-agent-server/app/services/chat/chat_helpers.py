@@ -73,6 +73,7 @@ class RetryResult(NamedTuple):
     success: bool
     query: str
     deleted_count: int
+    deleted_message_ids: list[str] = []
 
 
 class UndoResult(NamedTuple):
@@ -80,6 +81,7 @@ class UndoResult(NamedTuple):
 
     success: bool
     deleted_count: int
+    deleted_message_ids: list[str] = []
 
 
 class RegenerateResult(NamedTuple):

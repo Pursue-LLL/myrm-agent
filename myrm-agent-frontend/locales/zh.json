@@ -2969,6 +2969,8 @@
     "timezoneDesc": "设置您的时区，用于定时任务调度和时间相关回答",
     "smoothStreamEnabled": "平滑流式输出",
     "smoothStreamEnabledDesc": "启用更自然的流式文字显示效果",
+    "suggestWorkflowMode": "智能工作流建议",
+    "suggestWorkflowModeDesc": "检测到复杂可拆分任务时，建议启用工作流模式以获得更好效果",
     "enterpriseTlsCompat": "企业网络兼容模式",
     "enterpriseTlsCompatDesc": "放宽严格的 TLS 证书校验，适配企业代理环境（Zscaler、Netskope 等）。仍保留证书链和主机名验证。",
     "publicIngressBaseUrl": "公网访问地址",
@@ -5932,6 +5934,12 @@
       "edited": "计划已修改并批准",
       "skipped": "已跳过审阅",
       "submitFailed": "提交计划响应失败，请重试"
+    },
+    "workflowSuggestion": {
+      "hint": "检测到复杂任务 — 开启工作流模式可启用多 Agent 并行执行，获得更好效果。",
+      "activate": "开启",
+      "dismiss": "忽略",
+      "activated": "工作流模式已为下条消息启用"
     },
     "toolsPanel": {
       "title": "可用工具",

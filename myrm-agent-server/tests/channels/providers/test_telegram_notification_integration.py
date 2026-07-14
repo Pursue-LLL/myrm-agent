@@ -24,6 +24,7 @@ from tests.channels.channel_test_base import FAKE_TELEGRAM_BOT_TOKEN
 def _channel(*, mode: ChannelNotificationMode = ChannelNotificationMode.IMPORTANT) -> TelegramChannel:
     ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN)
     ch._notifications_mode = mode
+    ch._rich_send_available = False
     return ch
 
 

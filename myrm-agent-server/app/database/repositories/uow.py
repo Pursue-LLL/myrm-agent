@@ -181,7 +181,7 @@ class BoundChatRepository:
     async def get_last_user_message(self, chat_id: str) -> MessageDTO | None:
         return await ChatRepository.get_last_user_message(self.session, chat_id)
 
-    async def delete_messages_after(self, chat_id: str, anchor: MessageDTO, include_anchor: bool = False) -> int:
+    async def delete_messages_after(self, chat_id: str, anchor: MessageDTO, include_anchor: bool = False) -> list[str]:
         return await ChatRepository.delete_messages_after(self.session, chat_id, anchor, include_anchor)
 
     async def get_latest_message(self, chat_id: str) -> MessageDTO | None:

@@ -271,6 +271,9 @@ async def run_agent_stream(
             locale = configs.personal_settings_dict.get("locale")
             if locale:
                 extra_context["locale"] = locale
+            suggest_wf = configs.personal_settings_dict.get("suggestWorkflowMode")
+            if suggest_wf is not None:
+                extra_context["suggest_workflow_mode"] = bool(suggest_wf)
     except Exception as e:
         logger.warning(f"Failed to load user locale for extra_context: {e}")
 

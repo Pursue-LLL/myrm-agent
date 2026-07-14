@@ -10,7 +10,8 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | `stream_session_types.py` | 核心 | `AgentStreamSession` 数据类与断连宽限常量 | ✅ |
 | `stream_disconnect.py` | 核心 | PWA 断连宽限与 Offline Durable Guardian 注册 | ✅ |
 | `stream_chunks.py` | 核心 | SSE 预检编排（凭据、Vision fallback、entitlement gap）+ `generate_cancellable_stream` 生成器主体;`BaseException` 兜底捕获 → `yield_stream_exception_chunks`,`finally` 调 `finalize_agent_stream_session` | ✅ |
-| `stream_loop.py` | 核心 | Agent 主流 SSE 循环;cancel 分支调 `kill_session_jobs(chat_id)` 释放后台 bash 任务;检测 `tool_approval_request`/`approval_intercepted` 并通过 `WorkspaceMultiplexer` 广播 `awaiting_approval`/`generating` 会话状态 | ✅ |
+| `stream_loop.py` | 核心 | Agent 主流 SSE 循环;cancel 分支调 `kill_session_jobs(chat_id)` 释放后台 bash 任务;检测 `tool_approval_request`/`approval_intercepted` 并通过 `WorkspaceMultiplexer` 广播 `awaiting_approval`/`generating` 会话状态;routing_tier=reasoning 时通过 `workflow_escalation` 检测并发射 `workflow_suggestion` 非阻塞建议事件 | ✅ |
+| `workflow_escalation.py` | 辅助 | 纯规则 DW Engine 建议检测器：多目标/可拆分结构识别（0 LLM 调用） | ✅ |
 | `stream_finalize.py` | 核心 | 流错误处理与会话 teardown;致命异常（MyrmLLMError/AgentExecutionTimeout/Resume fail/通用 Exception）设置 `session.had_fatal_error`；`asyncio.CancelledError` 分支调 `kill_session_jobs(chat_id)` 覆盖 SSE 硬断;finalize 末尾 fire-and-forget 触发 `trigger_skill_evolution`（普通对话按 tool_steps 门控，DW 直接传 collector content） | ✅ |
 | `stream_pump.py` | 核心 | 将 chunk 泵入 `GlobalStreamRegistry` buffer 并返回 `StreamingResponse`；离线长任务完成/失败时创建 SystemNotification（`stream_had_error` chunk 检测 + `session.had_fatal_error` 语义标志双保险分流 success/error 类型） | ✅ |
 | `stream_generator.py` | 门面 | 对外 re-export：`AgentStreamSession`、`build_disconnect_checker`、`generate_cancellable_stream`、`launch_buffered_stream` | ✅ |

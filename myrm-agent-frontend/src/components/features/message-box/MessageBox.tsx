@@ -38,6 +38,7 @@ import { formatUIActionAsMessage, type UIActionMessageLabels } from '@/component
 import ToolCallApproval from './ToolCallApproval';
 import ClarificationInput from './ClarificationInput';
 import PlanConfirmationCard from './PlanConfirmationCard';
+import WorkflowSuggestionCard from './WorkflowSuggestionCard';
 import MessageActionBar from './MessageActionBar';
 import { useCLIAgentStore } from '@/store/useCLIAgentStore';
 import { CLIDiffViewer } from '@/components/features/cli-visualization/CLIDiffViewer';
@@ -584,6 +585,13 @@ const MessageBox = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-[pulse_1s_ease-in-out_0.2s_infinite]" />
                 <span className="w-1.5 h-1.5 rounded-full bg-accent-warm/70 animate-[pulse_1s_ease-in-out_0.4s_infinite]" />
               </span>
+            )}
+
+            {message.workflowSuggestion && (
+              <WorkflowSuggestionCard
+                messageId={message.messageId}
+                status={message.workflowSuggestion.status}
+              />
             )}
 
             <MessageToc 

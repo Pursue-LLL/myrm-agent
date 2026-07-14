@@ -171,6 +171,9 @@ export interface ConfigState {
   // 平滑流式渲染开关
   smoothStreamEnabled: boolean;
 
+  // 工作流模式自动建议开关
+  suggestWorkflowMode: boolean;
+
   // 公网访问地址 (Public Ingress Base URL)
   publicIngressBaseUrl?: string;
 

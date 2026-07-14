@@ -254,7 +254,10 @@ class ChatRepository:
         return MessageDTO.model_validate(msg) if msg else None
 
     @staticmethod
-    async def delete_messages_after(db: AsyncSession, chat_id: str, anchor: MessageDTO, include_anchor: bool = False) -> int:
+    async def delete_messages_after(
+        db: AsyncSession, chat_id: str, anchor: MessageDTO, include_anchor: bool = False,
+    ) -> list[str]:
+        """Delete messages after anchor and return their IDs."""
         if include_anchor:
             condition = (Message.created_at > anchor.created_at) | (
                 (Message.created_at == anchor.created_at) & (Message.id >= anchor.id)
@@ -264,9 +267,10 @@ class ChatRepository:
                 (Message.created_at == anchor.created_at) & (Message.id > anchor.id)
             )
         to_delete = (await db.execute(select(Message).where(Message.chat_id == chat_id, condition))).scalars().all()
+        deleted_ids = [msg.id for msg in to_delete]
         for msg in to_delete:
             await db.delete(msg)
-        return len(to_delete)
+        return deleted_ids
 
     @staticmethod
     async def get_latest_message(db: AsyncSession, chat_id: str) -> MessageDTO | None:

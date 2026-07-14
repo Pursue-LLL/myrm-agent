@@ -94,6 +94,9 @@ export type Message = {
     goal?: string;
     source?: 'deep_research' | 'general_agent';
   };
+  workflowSuggestion?: {
+    status: 'suggested' | 'accepted' | 'dismissed';
+  };
   metadata?: Record<string, unknown>; // 消息元数据（如错误信息、配置提示等）
   citedMemoryIds?: string[]; // 本条消息引用的记忆 ID（用于反馈评分）
   citedMemoryRefs?: CitedMemoryReference[]; // 本条消息引用的记忆详情（用于可解释 citation UI）

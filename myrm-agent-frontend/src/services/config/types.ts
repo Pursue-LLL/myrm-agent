@@ -225,6 +225,7 @@ export interface PersonalSettingsConfigValue {
   codeExecutionAllowNetwork?: boolean;
   enableEvalLab?: boolean;
   smoothStreamEnabled?: boolean;
+  suggestWorkflowMode?: boolean;
   publicIngressBaseUrl?: string;
   enterpriseTlsCompat?: boolean;
 }
@@ -769,6 +770,7 @@ export const DEFAULT_PERSONAL_SETTINGS: PersonalSettingsConfigValue = {
   codeExecutionAllowNetwork: true,
   enableEvalLab: false,
   smoothStreamEnabled: true,
+  suggestWorkflowMode: true,
   publicIngressBaseUrl: '',
 };
 

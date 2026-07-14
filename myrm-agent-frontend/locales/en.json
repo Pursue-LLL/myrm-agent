@@ -2969,6 +2969,8 @@
     "timezoneDesc": "Set your timezone for scheduled tasks and time-related responses",
     "smoothStreamEnabled": "Smooth Streaming",
     "smoothStreamEnabledDesc": "Enable smoother streaming text display",
+    "suggestWorkflowMode": "Smart Workflow Suggestions",
+    "suggestWorkflowModeDesc": "Suggest enabling Workflow Mode when complex decomposable tasks are detected",
     "enterpriseTlsCompat": "Enterprise Network Compatibility",
     "enterpriseTlsCompatDesc": "Relax strict TLS certificate validation for corporate proxy environments (Zscaler, Netskope, etc.). Maintains certificate chain and hostname verification.",
     "publicIngressBaseUrl": "Public Ingress URL",
@@ -5943,6 +5945,12 @@
       "edited": "Plan updated & approved",
       "skipped": "Review skipped",
       "submitFailed": "Failed to submit plan response. Please try again."
+    },
+    "workflowSuggestion": {
+      "hint": "Complex task detected — enable Workflow Mode for parallel multi-agent execution and better results.",
+      "activate": "Enable",
+      "dismiss": "Dismiss",
+      "activated": "Workflow Mode activated for next message"
     },
     "toolsPanel": {
       "title": "Available Tools",

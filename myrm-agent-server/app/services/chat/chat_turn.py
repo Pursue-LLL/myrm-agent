@@ -56,8 +56,13 @@ class _ChatTurnMixin(_ChatServiceBase):
             last_user = await _ChatServiceBase._cr(uow).get_last_user_message(chat_id)
             if not last_user:
                 return RetryResult(success=False, query="", deleted_count=0)
-            deleted = await _ChatServiceBase._cr(uow).delete_messages_after(chat_id, last_user, include_anchor=False)
-            return RetryResult(success=True, query=last_user.content, deleted_count=deleted)
+            deleted_ids = await _ChatServiceBase._cr(uow).delete_messages_after(
+                chat_id, last_user, include_anchor=False,
+            )
+            return RetryResult(
+                success=True, query=last_user.content,
+                deleted_count=len(deleted_ids), deleted_message_ids=deleted_ids,
+            )
 
     @staticmethod
     async def regenerate_last_turn(chat_id: str) -> RegenerateResult:
@@ -97,10 +102,15 @@ class _ChatTurnMixin(_ChatServiceBase):
             last_user = await _ChatServiceBase._cr(uow).get_last_user_message(chat_id)
             if not last_user:
                 return UndoResult(success=True, deleted_count=0)
-            deleted = await _ChatServiceBase._cr(uow).delete_messages_after(chat_id, last_user, include_anchor=True)
-            if deleted > 0:
+            deleted_ids = await _ChatServiceBase._cr(uow).delete_messages_after(
+                chat_id, last_user, include_anchor=True,
+            )
+            if deleted_ids:
                 await _ChatTurnMixin._refresh_last_message(uow, chat_id)
-            return UndoResult(success=True, deleted_count=deleted)
+            return UndoResult(
+                success=True, deleted_count=len(deleted_ids),
+                deleted_message_ids=deleted_ids,
+            )
 
     @staticmethod
     async def truncate_after_message(chat_id: str, message_id: str) -> TruncateResult:
@@ -116,10 +126,12 @@ class _ChatTurnMixin(_ChatServiceBase):
             msg = await _ChatServiceBase._cr(uow).get_message_by_id(chat_id, message_id)
             if not msg:
                 return TruncateResult(success=False, deleted_count=0)
-            deleted = await _ChatServiceBase._cr(uow).delete_messages_after(chat_id, msg, include_anchor=True)
-            if deleted > 0:
+            deleted_ids = await _ChatServiceBase._cr(uow).delete_messages_after(
+                chat_id, msg, include_anchor=True,
+            )
+            if deleted_ids:
                 await _ChatTurnMixin._refresh_last_message(uow, chat_id)
-            return TruncateResult(success=True, deleted_count=deleted)
+            return TruncateResult(success=True, deleted_count=len(deleted_ids))
 
     @staticmethod
     async def generate_chat_title(

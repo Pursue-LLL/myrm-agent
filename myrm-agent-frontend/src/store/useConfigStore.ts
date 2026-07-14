@@ -94,6 +94,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
       codeExecutionAllowNetwork: DEFAULT_PERSONAL_SETTINGS.codeExecutionAllowNetwork ?? true,
       enableEvalLab: DEFAULT_PERSONAL_SETTINGS.enableEvalLab ?? false,
       smoothStreamEnabled: DEFAULT_PERSONAL_SETTINGS.smoothStreamEnabled ?? true,
+      suggestWorkflowMode: DEFAULT_PERSONAL_SETTINGS.suggestWorkflowMode ?? true,
       publicIngressBaseUrl: DEFAULT_PERSONAL_SETTINGS.publicIngressBaseUrl ?? '',
       searchServiceConfigs: DEFAULT_SEARCH_SERVICES.searchServiceConfigs,
       mcpConfigs: DEFAULT_MCP_SERVERS.mcpConfigs,
@@ -287,6 +288,11 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
       setSmoothStreamEnabled: (enable) => {
         set({ smoothStreamEnabled: enable });
         syncPersonalSettings({ smoothStreamEnabled: enable });
+      },
+
+      setSuggestWorkflowMode: (enable) => {
+        set({ suggestWorkflowMode: enable });
+        syncPersonalSettings({ suggestWorkflowMode: enable });
       },
 
       setPublicIngressBaseUrl: (url) => {
