@@ -78,51 +78,53 @@ async def _revert_messages(session_id: str, message_ids: list[str]) -> int:
 class ChannelRetryHandler:
     """Business-layer RetryHandler for /retry command."""
 
-    async def __call__(self, msg: InboundMessage) -> RetryResult:
+    async def __call__(self, msg: InboundMessage, user_id: str) -> RetryResult:
         session_key, _ = await _resolve_session_with_agent(msg)
 
         async with get_session() as _db:
             chat = await ChatService.get_channel_chat_by_key("sandbox", session_key)
             if not chat:
                 return RetryResult(success=False)
-
             svc_result = await ChatService.retry_last_turn(chat.id, "sandbox")
 
-            if svc_result.success and svc_result.deleted_message_ids:
-                reverted = await _revert_messages(chat.id, svc_result.deleted_message_ids)
-                if reverted:
-                    logger.info(
-                        "ChannelRetryHandler: reverted %d files for chat %s", reverted, chat.id,
-                    )
+        reverted = 0
+        if svc_result.success and svc_result.deleted_message_ids:
+            reverted = await _revert_messages(chat.id, svc_result.deleted_message_ids)
+            if reverted:
+                logger.info(
+                    "ChannelRetryHandler: reverted %d files for chat %s", reverted, chat.id,
+                )
 
-            return RetryResult(
-                success=svc_result.success,
-                query=svc_result.query,
-                deleted_count=svc_result.deleted_count,
-            )
+        return RetryResult(
+            success=svc_result.success,
+            query=svc_result.query,
+            deleted_count=svc_result.deleted_count,
+            reverted_count=reverted,
+        )
 
 
 class ChannelUndoHandler:
     """Business-layer UndoHandler for /undo command."""
 
-    async def __call__(self, msg: InboundMessage) -> UndoResult:
+    async def __call__(self, msg: InboundMessage, user_id: str) -> UndoResult:
         session_key, _ = await _resolve_session_with_agent(msg)
 
         async with get_session() as _db:
             chat = await ChatService.get_channel_chat_by_key("sandbox", session_key)
             if not chat:
                 return UndoResult(success=False)
-
             svc_result = await ChatService.undo_last_turn(chat.id, "sandbox")
 
-            if svc_result.success and svc_result.deleted_message_ids:
-                reverted = await _revert_messages(chat.id, svc_result.deleted_message_ids)
-                if reverted:
-                    logger.info(
-                        "ChannelUndoHandler: reverted %d files for chat %s", reverted, chat.id,
-                    )
+        reverted = 0
+        if svc_result.success and svc_result.deleted_message_ids:
+            reverted = await _revert_messages(chat.id, svc_result.deleted_message_ids)
+            if reverted:
+                logger.info(
+                    "ChannelUndoHandler: reverted %d files for chat %s", reverted, chat.id,
+                )
 
-            return UndoResult(
-                success=svc_result.success,
-                deleted_count=svc_result.deleted_count,
-            )
+        return UndoResult(
+            success=svc_result.success,
+            deleted_count=svc_result.deleted_count,
+            reverted_count=reverted,
+        )

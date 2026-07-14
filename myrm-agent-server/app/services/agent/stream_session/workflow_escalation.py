@@ -3,18 +3,24 @@
 [INPUT]
 - query: str | list[object] (user message text or multimodal content)
 - routing_tier: str | None (from model router)
+- AgentStreamSession (for session-aware wrapper)
 
 [OUTPUT]
-- should_suggest_workflow(): bool — True when query benefits from DW Engine
+- should_suggest_workflow(): bool — pure detection on query text
+- should_suggest_workflow_for_session(): bool — session-aware guard + detection
 
 [POS]
-Rule-based escalation detector. Zero LLM calls; used by stream loop to suggest
-Dynamic Workflow mode for decomposable multi-goal queries (routing_tier=="reasoning").
+Rule-based escalation detector. Zero LLM calls; used by stream_loop to emit a
+non-blocking workflow_suggestion SSE event for decomposable multi-goal queries.
 """
 
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 
 _MULTI_GOAL_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"(\d+)\s*[.、)）]\s*.{4,}", re.MULTILINE),
@@ -65,11 +71,25 @@ def should_suggest_workflow(
         if pattern.search(text):
             score += 2
 
-    newline_count = text.count("\n")
-    if newline_count >= 3:
+    if text.count("\n") >= 3:
         score += 1
 
     return score >= 4
+
+
+def should_suggest_workflow_for_session(session: AgentStreamSession) -> bool:
+    """Session-aware guard: checks user settings and skip flag before detection."""
+    if not session.extra_context.get("suggest_workflow_mode", True):
+        return False
+
+    engine_params = session.request.engine_params or {}
+    if engine_params.get("skipWorkflowSuggestion"):
+        return False
+
+    return should_suggest_workflow(
+        query=session.request.query,
+        routing_tier=session.routing_tier,
+    )
 
 
 def _extract_text(query: str | list[object]) -> str:
@@ -82,26 +102,3 @@ def _extract_text(query: str | list[object]) -> str:
             if isinstance(text, str):
                 parts.append(text)
     return " ".join(parts)
-
-
-def should_suggest_workflow_for_session(session: object) -> bool:
-    """Session-aware wrapper: checks context flags before calling the pure detector.
-
-    Reads `suggest_workflow_mode` from extra_context (set by orchestrator).
-    Respects `skipWorkflowSuggestion` engine_param to avoid re-triggering.
-    """
-    if not getattr(session, "extra_context", {}).get("suggest_workflow_mode", True):
-        return False
-
-    request = getattr(session, "request", None)
-    if request is None:
-        return False
-
-    engine_params = getattr(request, "engine_params", None) or {}
-    if engine_params.get("skipWorkflowSuggestion"):
-        return False
-
-    return should_suggest_workflow(
-        query=getattr(request, "query", ""),
-        routing_tier=getattr(session, "routing_tier", None),
-    )

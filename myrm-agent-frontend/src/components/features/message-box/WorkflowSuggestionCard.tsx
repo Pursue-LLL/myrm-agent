@@ -81,9 +81,9 @@ const WorkflowSuggestionCard = ({ messageId, status }: WorkflowSuggestionCardPro
   }
 
   return (
-    <div className="mb-2 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 dark:border-amber-400/20 dark:bg-amber-500/10">
+    <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 dark:border-amber-400/20 dark:bg-amber-500/10">
       <WorkflowIcon className="shrink-0 text-amber-600 dark:text-amber-400" />
-      <span className="flex-1 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
+      <span className="min-w-0 flex-1 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
         {t('hint')}
       </span>
       <div className="flex shrink-0 items-center gap-1.5">

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -11,6 +12,14 @@ from fastapi.testclient import TestClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
+
+
+@dataclass
+class _FakeResolved:
+    resolved_ips: list[str]
+    hostname: str
+
+
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     with patch(
@@ -18,6 +27,17 @@ def client() -> Iterator[TestClient]:
         return_value=True,
     ):
         yield TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture(autouse=True)
+def _bypass_ssrf_check() -> Iterator[None]:
+    """Bypass SSRF URL validation so tests reach the runtime scan stage."""
+    fake = _FakeResolved(resolved_ips=["93.184.216.34"], hostname="mcp.example.com")
+    with patch(
+        "app.api.integrations.mcp.MCPURLValidator.validate_url",
+        new=AsyncMock(return_value=fake),
+    ):
+        yield
 
 
 class TestMCPVerifyRuntimePosture:

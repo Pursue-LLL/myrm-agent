@@ -21,6 +21,7 @@
 | `test_migration_e2e.py` | 核心 | discover → dry-run 端到端（hermes/openclaw） |
 | `test_loaders_openclaw_extended.py` | 辅助 | OpenClaw 多 workspace / sessions loader 分支 |
 | `test_loader_utils.py` | 辅助 | `_loader_utils` 共享函数 |
+| `test_source_model_migrator.py` | 辅助 | 竞品模型配置迁移（Hermes auxiliary + OpenClaw default model） |
 | `test_source_secrets_importer.py` | 辅助 | opt-in API key 导入 |
 | `test_import_archive_dry_run.py` | 辅助 | import archive dry-run 编排 |
 | `test_lane_previews.py` | 辅助 | 四车道 preview DTO |

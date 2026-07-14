@@ -1,22 +1,21 @@
-"""Auto-migrate Hermes auxiliary model config into Myrm model slots (Local/Tauri only).
+"""Auto-migrate competitor model config into Myrm model settings (Local/Tauri only).
 
 [INPUT]
-source_payload_loader hermes_config dict; Hermes config.yaml ``auxiliary`` section
+hermes_config dict (``auxiliary`` section); openclaw_config dict (``agents.defaults``)
 
 [OUTPUT]
-migrate_hermes_auxiliary_models(): detect and convert Hermes per-task auxiliary models
-to Myrm's categorical model slots (lite/vision/reasoning)
+migrate_hermes_auxiliary_models(): Hermes per-task auxiliary → Myrm categorical slots
+migrate_openclaw_default_model(): OpenClaw default model → Myrm defaultModelConfig
 
 [POS]
-Server business layer — zero-friction model migration from Hermes installs.
-Only active in local/Tauri deployments (SaaS sandboxes cannot access user filesystems).
+Server business layer — wizard-payload-driven model migration, called from
+confirm_import_memories. Only active in local/Tauri deployments.
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 from app.config.deploy_mode import is_local_mode
@@ -162,38 +161,64 @@ async def migrate_hermes_auxiliary_models(
     return result
 
 
-async def detect_and_migrate_hermes_models() -> AuxiliaryMigrationResult | None:
-    """Top-level entry: scan for Hermes config.yaml and migrate auxiliary models.
+async def migrate_openclaw_default_model(openclaw_config: dict[str, Any]) -> str | None:
+    """Extract OpenClaw default model and write to Myrm's defaultModelConfig.
 
-    Called during app startup in local/Tauri mode.
-    Returns None if not in local mode or no Hermes installation found.
+    OpenClaw stores the primary model in ``agents.defaults.model`` as either a
+    bare string (``"anthropic/claude-opus-4-6"``) or ``{"primary": "<value>"}``.
+    An optional alias catalog at ``agents.defaults.models`` maps display names
+    to real API IDs.
+
+    Only writes when ``defaultModelConfig.baseModel`` is currently empty.
+    Returns the resolved model string on success, None otherwise.
     """
     if not is_local_mode():
         return None
 
-    hermes_root = Path.home() / ".hermes"
-    config_path = hermes_root / "config.yaml"
-
-    if not config_path.is_file():
+    model_value = (openclaw_config.get("agents") or {}).get("defaults", {}).get("model")
+    if model_value is None:
         return None
 
-    try:
-        import yaml
+    model_str = model_value.get("primary") if isinstance(model_value, dict) else model_value
+    if not isinstance(model_str, str) or not model_str.strip():
+        return None
+    model_str = model_str.strip()
 
-        with open(config_path) as f:
-            hermes_config = yaml.safe_load(f)
+    model_catalog = (openclaw_config.get("agents") or {}).get("defaults", {}).get("models", {})
+    if isinstance(model_catalog, dict) and model_str not in model_catalog:
+        for api_id, entry in model_catalog.items():
+            if not isinstance(api_id, str):
+                continue
+            if isinstance(entry, dict) and entry.get("alias") == model_str:
+                model_str = api_id
+                break
+            if isinstance(entry, str) and entry == model_str:
+                model_str = api_id
+                break
 
-        if not isinstance(hermes_config, dict):
+    providers_record = await config_service.get("providers")
+    providers_value: dict[str, Any] = (
+        providers_record.value if providers_record and isinstance(providers_record.value, dict) else {}
+    )
+    existing_cfg = providers_value.get("defaultModelConfig")
+    if isinstance(existing_cfg, dict):
+        base_model = existing_cfg.get("baseModel")
+        if isinstance(base_model, dict) and (base_model.get("primary") or base_model.get("selection")):
+            logger.debug("OpenClaw default model migration skipped: baseModel already configured")
             return None
 
-        result = await migrate_hermes_auxiliary_models(hermes_config)
-        if result.migrated_slots:
-            logger.info(
-                "Hermes auxiliary model migration complete: %d slots migrated from %d detected tasks",
-                len(result.migrated_slots),
-                result.total_tasks_detected,
-            )
-        return result
-    except Exception as e:
-        logger.warning("Hermes auxiliary model migration failed: %s", e)
-        return None
+    if "/" not in model_str:
+        model_str = f"openrouter/{model_str}"
+
+    provider_id, model_id = model_str.split("/", 1)
+
+    default_model_cfg = providers_value.get("defaultModelConfig")
+    if not isinstance(default_model_cfg, dict):
+        default_model_cfg = {}
+    default_model_cfg["baseModel"] = {
+        "primary": {"providerId": provider_id, "model": model_id},
+    }
+    providers_value["defaultModelConfig"] = default_model_cfg
+    await config_service.set(config_key="providers", value=providers_value)
+    logger.info("OpenClaw default model migrated: %s", model_str)
+    return model_str

@@ -684,6 +684,8 @@ async def handle_undo(
         if result.success:
             if result.deleted_count > 0:
                 content = get_text(msg, "undo_success", count=result.deleted_count)
+                if result.reverted_count > 0:
+                    content = f"{content}\n{get_text(msg, 'undo_reverted', count=result.reverted_count)}"
             else:
                 content = get_text(msg, "undo_nothing")
         else:

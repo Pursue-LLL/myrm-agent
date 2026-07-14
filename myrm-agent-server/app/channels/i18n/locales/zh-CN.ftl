@@ -122,6 +122,7 @@ undo_nothing = ℹ 没有可撤销的内容。
 undo_failed = ℹ 撤销失败。
 undo_failed_error =  撤销失败：{ $error }
 undo_success = ↩ 已撤销：移除了 { $count } 条消息。
+undo_reverted = ↩ 已还原 { $count } 个文件。
 topic_not_configured = ℹ 未配置话题管理。
 topic_bound =
      { $scope } 已绑定{ $agent_label }。

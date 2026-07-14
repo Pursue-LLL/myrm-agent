@@ -97,12 +97,6 @@ async def iter_agent_stream_chunks(
             steering_token=session.steering_token,
             extra_context=session.extra_context,
         )
-        stream = ai_agent_service_stream(
-            params=session.params,
-            cancel_token=session.cancel_token,
-            steering_token=session.steering_token,
-            extra_context=session.extra_context,
-        )
 
     estimated_tokens = 0
     last_reported_tokens = 0

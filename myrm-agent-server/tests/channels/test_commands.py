@@ -18,7 +18,9 @@ from app.channels.routing.commands import (
     TopicCommand,
     handle_compact,
     handle_new_session,
+    handle_retry,
     handle_topic_command,
+    handle_undo,
     is_explicit_approval_command,
     parse_approval_command,
     parse_topic_args,
@@ -1069,3 +1071,216 @@ class TestUpdateSkillCommands:
         gw = ChannelGateway()
         cmds = (CommandDef(name="cmd", description="test", kind=CommandKind.SKILL, skill_ids=("s1",)),)
         gw.update_skill_commands(cmds)  # should not raise
+
+
+# ── handle_retry / handle_undo tests ──────────────────────────────────
+
+
+def _mock_resolver(user_id: str = "uid1") -> MagicMock:
+    resolver = MagicMock()
+    resolver.resolve_dm_user = AsyncMock(return_value=user_id)
+    resolver.resolve_group_user = AsyncMock(return_value=(user_id, _make_msg(is_group=True, user_id=user_id)))
+    return resolver
+
+
+class TestHandleRetry:
+    @pytest.mark.asyncio
+    async def test_no_handler_replies(self) -> None:
+        msg = _make_msg(content="/retry")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+
+        result = await handle_retry(msg, bus, resolver, retry_handler=None)
+
+        assert result is None
+        bus.publish_outbound.assert_called_once()
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "not configured" in reply.content.lower()
+
+    @pytest.mark.asyncio
+    async def test_retry_success_returns_msg(self) -> None:
+        from app.channels.protocols.turn_management import RetryResult
+
+        msg = _make_msg(content="/retry")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+
+        handler = AsyncMock(return_value=RetryResult(
+            success=True, query="original question", deleted_count=2,
+        ))
+
+        result = await handle_retry(msg, bus, resolver, retry_handler=handler)
+
+        assert result is not None
+        assert result.content == "original question"
+        handler.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_retry_nothing_to_delete(self) -> None:
+        from app.channels.protocols.turn_management import RetryResult
+
+        msg = _make_msg(content="/retry")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+
+        handler = AsyncMock(return_value=RetryResult(
+            success=True, query="", deleted_count=0,
+        ))
+
+        result = await handle_retry(msg, bus, resolver, retry_handler=handler)
+
+        assert result is None
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "nothing" in reply.content.lower()
+
+    @pytest.mark.asyncio
+    async def test_retry_exception(self) -> None:
+        msg = _make_msg(content="/retry")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+        handler = AsyncMock(side_effect=RuntimeError("db error"))
+
+        result = await handle_retry(msg, bus, resolver, retry_handler=handler)
+
+        assert result is None
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "failed" in reply.content.lower()
+
+
+class TestHandleUndo:
+    @pytest.mark.asyncio
+    async def test_no_handler_replies(self) -> None:
+        msg = _make_msg(content="/undo")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+
+        await handle_undo(msg, bus, resolver, undo_handler=None)
+
+        bus.publish_outbound.assert_called_once()
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "not configured" in reply.content.lower()
+
+    @pytest.mark.asyncio
+    async def test_undo_success_message(self) -> None:
+        from app.channels.protocols.turn_management import UndoResult
+
+        msg = _make_msg(content="/undo")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+
+        handler = AsyncMock(return_value=UndoResult(
+            success=True, deleted_count=3, reverted_count=0,
+        ))
+
+        await handle_undo(msg, bus, resolver, undo_handler=handler)
+
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "3" in reply.content
+
+    @pytest.mark.asyncio
+    async def test_undo_with_reverted_files(self) -> None:
+        from app.channels.protocols.turn_management import UndoResult
+
+        msg = _make_msg(content="/undo")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+
+        handler = AsyncMock(return_value=UndoResult(
+            success=True, deleted_count=2, reverted_count=4,
+        ))
+
+        await handle_undo(msg, bus, resolver, undo_handler=handler)
+
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "2" in reply.content
+        assert "4" in reply.content
+
+    @pytest.mark.asyncio
+    async def test_undo_zero_reverted_no_revert_line(self) -> None:
+        from app.channels.protocols.turn_management import UndoResult
+
+        msg = _make_msg(content="/undo")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+
+        handler = AsyncMock(return_value=UndoResult(
+            success=True, deleted_count=2, reverted_count=0,
+        ))
+
+        await handle_undo(msg, bus, resolver, undo_handler=handler)
+
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "revert" not in reply.content.lower()
+
+    @pytest.mark.asyncio
+    async def test_undo_nothing(self) -> None:
+        from app.channels.protocols.turn_management import UndoResult
+
+        msg = _make_msg(content="/undo")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+
+        handler = AsyncMock(return_value=UndoResult(
+            success=True, deleted_count=0,
+        ))
+
+        await handle_undo(msg, bus, resolver, undo_handler=handler)
+
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "nothing" in reply.content.lower()
+
+    @pytest.mark.asyncio
+    async def test_undo_failure(self) -> None:
+        from app.channels.protocols.turn_management import UndoResult
+
+        msg = _make_msg(content="/undo")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+
+        handler = AsyncMock(return_value=UndoResult(success=False))
+
+        await handle_undo(msg, bus, resolver, undo_handler=handler)
+
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "failed" in reply.content.lower()
+
+    @pytest.mark.asyncio
+    async def test_undo_exception(self) -> None:
+        msg = _make_msg(content="/undo")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+        handler = AsyncMock(side_effect=RuntimeError("db error"))
+
+        await handle_undo(msg, bus, resolver, undo_handler=handler)
+
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "failed" in reply.content.lower()
+
+    @pytest.mark.asyncio
+    async def test_undo_group_resolves_user(self) -> None:
+        from app.channels.protocols.turn_management import UndoResult
+
+        msg = _make_msg(content="/undo", is_group=True, chat_id="g1")
+        bus = _mock_bus()
+        resolver = _mock_resolver("group-user")
+
+        handler = AsyncMock(return_value=UndoResult(
+            success=True, deleted_count=1,
+        ))
+
+        await handle_undo(msg, bus, resolver, undo_handler=handler)
+
+        resolver.resolve_group_user.assert_awaited_once()
+        handler.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_undo_group_no_user_returns_early(self) -> None:
+        msg = _make_msg(content="/undo", is_group=True, chat_id="g1")
+        bus = _mock_bus()
+        resolver = MagicMock()
+        resolver.resolve_group_user = AsyncMock(return_value=None)
+        handler = AsyncMock()
+
+        await handle_undo(msg, bus, resolver, undo_handler=handler)
+
+        handler.assert_not_awaited()

@@ -269,6 +269,18 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
             mcp_servers_preview = [mcp_migration_item_to_preview(item) for item in converted]
             mcp_configs_serialized = [mcp_migration_item_to_config_dict(item) for item in converted]
 
+        model_migration_payload: dict[str, object] = {}
+        hermes_cfg = loaded_payload.get("hermes_config")
+        if isinstance(hermes_cfg, dict):
+            auxiliary = hermes_cfg.get("auxiliary")
+            if isinstance(auxiliary, dict) and auxiliary:
+                model_migration_payload["hermes_auxiliary"] = auxiliary
+        openclaw_cfg = loaded_payload.get("openclaw_config")
+        if isinstance(openclaw_cfg, dict):
+            agents_defaults = (openclaw_cfg.get("agents") or {}).get("defaults", {})
+            if agents_defaults.get("model") is not None:
+                model_migration_payload["openclaw_agents_defaults"] = agents_defaults
+
         session_metadata = {
             "migration_options": {
                 "target_agent_id": migration_opts.target_agent_id,
@@ -286,6 +298,8 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
                 "mcp_configs": mcp_configs_serialized,
             },
         }
+        if model_migration_payload:
+            session_metadata["model_migration"] = model_migration_payload
         instruction_total_chars = instruction_char_total(instruction_plan)
         providers_configured = await external_source_providers_configured()
         lane_previews = build_lane_previews(
@@ -455,6 +469,11 @@ async def confirm_import_memories(
                         await _write_migrated_mcp_configs(mcp_configs_to_write)
                     except Exception as mcp_exc:
                         logger.warning("MCP config migration write failed (non-fatal): %s", mcp_exc)
+
+                model_migration_data = metadata.get("model_migration")
+                if isinstance(model_migration_data, dict):
+                    await _apply_model_migration(model_migration_data)
+
                 rollback_record = instruction_rollback_record_from_apply(
                     instruction_result,
                     competitor=plan.competitor,
@@ -622,3 +641,31 @@ async def _write_migrated_mcp_configs(mcp_configs: list[dict[str, object]]) -> N
         existing_names.add(name)
 
     await config_service.set("mcpServers", existing)
+
+
+async def _apply_model_migration(model_data: dict[str, object]) -> None:
+    """Apply model configuration migration from competitor payload (non-fatal)."""
+    from app.services.migration.source_model_migrator import (
+        migrate_hermes_auxiliary_models,
+        migrate_openclaw_default_model,
+    )
+
+    hermes_auxiliary = model_data.get("hermes_auxiliary")
+    if isinstance(hermes_auxiliary, dict) and hermes_auxiliary:
+        try:
+            result = await migrate_hermes_auxiliary_models({"auxiliary": hermes_auxiliary})
+            if result.migrated_slots:
+                logger.info("Model migration: %d Hermes auxiliary slots applied", len(result.migrated_slots))
+        except Exception as exc:
+            logger.warning("Hermes auxiliary model migration failed (non-fatal): %s", exc)
+
+    openclaw_defaults = model_data.get("openclaw_agents_defaults")
+    if isinstance(openclaw_defaults, dict):
+        try:
+            migrated_model = await migrate_openclaw_default_model(
+                {"agents": {"defaults": openclaw_defaults}},
+            )
+            if migrated_model:
+                logger.info("Model migration: OpenClaw default model → %s", migrated_model)
+        except Exception as exc:
+            logger.warning("OpenClaw default model migration failed (non-fatal): %s", exc)

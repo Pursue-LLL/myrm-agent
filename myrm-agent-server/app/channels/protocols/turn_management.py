@@ -29,6 +29,7 @@ class RetryResult:
     success: bool
     query: str = ""
     deleted_count: int = 0
+    reverted_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +38,7 @@ class UndoResult:
 
     success: bool
     deleted_count: int = 0
+    reverted_count: int = 0
 
 
 @runtime_checkable

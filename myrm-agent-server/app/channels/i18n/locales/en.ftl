@@ -122,6 +122,7 @@ undo_nothing = ℹ Nothing to undo.
 undo_failed = ℹ Undo failed.
 undo_failed_error =  Undo failed: { $error }
 undo_success = ↩ Undone: { $count } message(s) removed.
+undo_reverted = ↩ Reverted { $count } file(s).
 topic_not_configured = ℹ Topic management is not configured.
 topic_bound =
      { $scope } bound{ $agent_label }.
