@@ -341,31 +341,24 @@ class CdpChatTurn(CdpChatSubmit):
         baseline_user_msgs = 0
         chat_id = chat_id_hint
         if chat_id_hint:
-            session_ready = False
-            probe: dict[str, object] = {}
+            on_chat_page = False
             try:
                 probe = await self.evaluate(
                     """(() => ({
                       path: location.pathname,
-                      skeleton: !!document.querySelector('[aria-label="Loading messages"]'),
-                      hasInput: !!document.querySelector('[data-chat-input]'),
                     }))()""",
                     await_promise=False,
                     recv_timeout=10.0,
                 )
                 if isinstance(probe, dict):
-                    path = str(probe.get("path") or "")
-                    on_chat_page = chat_id_from_path(path) is not None
-                    session_ready = on_chat_page and bool(probe.get("hasInput")) and not bool(
-                        probe.get("skeleton")
-                    )
+                    on_chat_page = chat_id_from_path(str(probe.get("path") or "")) is not None
             except (RuntimeError, TimeoutError):
-                session_ready = False
+                on_chat_page = False
             await self._attach_chat_session(chat_id_hint)
-            if session_ready:
+            if on_chat_page:
                 await self.wait_shell_ready(timeout_sec=90.0)
             else:
-                await self.navigate_to_chat(chat_id_hint, ui_base)
+                await self.navigate_to_chat(chat_id_hint, ui_base, timeout_sec=90.0)
         if not chat_id:
             chat_id = await self.bridge_chat_id()
         if chat_id:
