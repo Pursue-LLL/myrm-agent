@@ -20,15 +20,18 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import TypedDict
 
-from wave_orchestrator.lanes import lane_conflict_reason
 from wave_orchestrator.browser_lifecycle import (
     bind_browser,
     cleanup_expired_browser,
     cleanup_lease_browser,
     unbind_browser,
 )
+from wave_orchestrator.lanes import lane_conflict_reason
 from wave_orchestrator.paths import WavePaths, resolve_wave_paths
-from wave_orchestrator.resource_ledger import cleanup_lease_resources, cleanup_expired_lease_resources
+from wave_orchestrator.resource_ledger import (
+    cleanup_lease_resources,
+    cleanup_expired_lease_resources,
+)
 from wave_orchestrator.stack_pin import clear_stack_pin, read_stack_pin, write_stack_pin
 from wave_orchestrator.store import run_locked
 from wave_orchestrator.types import Lane, LeaseRecord, OrchestratorState, WaveRecord
@@ -50,6 +53,12 @@ class GateResult(TypedDict):
     allowed: bool
     blockers: list[GateBlocker]
     stackPin: StackPinBlocker | None
+
+
+class LeaseReleaseResult(TypedDict):
+    lease: LeaseRecord
+    wave: WaveRecord | None
+    waveClosed: bool
 
 
 DEFAULT_LEASE_TTL_SEC = 3600
@@ -132,6 +141,22 @@ def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> boo
     return True
 
 
+def _close_wave_after_last_expired_lease(state: OrchestratorState) -> bool:
+    wave = state["wave"]
+    if wave is None or wave["status"] != "open":
+        return False
+    wave_leases = [
+        lease for lease in state["leases"] if lease["waveId"] == wave["waveId"]
+    ]
+    if not wave_leases or any(lease["status"] == "active" for lease in wave_leases):
+        return False
+    if not any(lease["status"] == "expired" for lease in wave_leases):
+        return False
+    wave["status"] = "closed"
+    wave["closedAt"] = _iso(_utc_now())
+    return True
+
+
 def _stack_pin_blocker(state: OrchestratorState) -> StackPinBlocker | None:
     wave = state["wave"]
     if wave is None or wave["status"] != "open":
@@ -151,11 +176,14 @@ def _cleanup_expired_leases(*, paths: WavePaths) -> None:
             dict(lease)
             for lease in state["leases"]
             if lease["status"] in {"expired", "released"}
-            and (lease.get("pageId") or any(
-                item.get("leaseId") == lease["leaseId"]
-                and item.get("status") in {"active", "failed"}
-                for item in state.get("resources", [])
-            ))
+            and (
+                lease.get("pageId")
+                or any(
+                    item.get("leaseId") == lease["leaseId"]
+                    and item.get("status") in {"active", "failed"}
+                    for item in state.get("resources", [])
+                )
+            )
         ], False
 
     for lease in run_locked(paths.state_file, _snapshot):
@@ -171,6 +199,8 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
         changed = reaper(state, cleanup=False)
         if reap_runtime_drift(state, current_runtime):
             changed = True
+        elif _close_wave_after_last_expired_lease(state):
+            changed = True
         return {
             "wave": state["wave"],
             "runtimeId": current_runtime,
@@ -179,7 +209,7 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
 
     result = run_locked(resolved.state_file, _edit)
     wave = result.get("wave")
-    if isinstance(wave, dict) and wave.get("status") == "drifted":
+    if isinstance(wave, dict) and wave.get("status") in {"closed", "drifted"}:
         clear_stack_pin(paths=resolved)
     _cleanup_expired_leases(paths=resolved)
     return result
@@ -266,21 +296,36 @@ def open_wave(
     return wave
 
 
-def close_wave(*, paths: WavePaths | None = None, force: bool = False) -> WaveRecord | None:
+def close_wave(
+    *,
+    paths: WavePaths | None = None,
+    force: bool = False,
+    agent_id: str | None = None,
+) -> WaveRecord | None:
     resolved = paths or resolve_wave_paths()
+    holder = agent_id or default_agent_id()
     released_leases: list[LeaseRecord] = []
 
     def _edit(state: OrchestratorState) -> tuple[WaveRecord | None, bool]:
         reaper(state, cleanup=False)
         wave = state["wave"]
-        if wave is None or wave["status"] != "open":
+        if wave is None or wave["status"] not in {"open", "drifted"}:
             raise RuntimeError("WAVE_NOT_OPEN")
-        blockers = active_leases(state)
+        blockers = active_leases(state) if wave["status"] == "open" else []
         if blockers and not force:
             owners = ", ".join(
-                f"{item['leaseId']}({item['agentId']}/{item['lane']})" for item in blockers
+                f"{item['leaseId']}({item['agentId']}/{item['lane']})"
+                for item in blockers
             )
             raise RuntimeError(f"WAVE_CLOSE_BLOCKED: active leases: {owners}")
+        foreign_owners = sorted(
+            {item["agentId"] for item in blockers if item["agentId"] != holder}
+        )
+        if force and foreign_owners:
+            raise RuntimeError(
+                "WAVE_FORCE_OWNER_MISMATCH: active leases owned by "
+                + ", ".join(foreign_owners)
+            )
         now = _utc_now()
         for lease in blockers:
             lease["status"] = "released"
@@ -309,7 +354,11 @@ def wave_status(*, paths: WavePaths | None = None) -> dict[str, object]:
             "activeLeases": active,
             "leaseHistoryCount": len(state["leases"]),
             "activeResourceCount": len(
-                [item for item in state.get("resources", []) if item.get("status") == "active"]
+                [
+                    item
+                    for item in state.get("resources", [])
+                    if item.get("status") == "active"
+                ]
             ),
             "resourceHistoryCount": len(state.get("resources", [])),
             "stackPin": read_stack_pin(paths=resolved),
@@ -345,7 +394,8 @@ def acquire_lease(
                 f"LEASE_DENIED: RUNTIME_DRIFT expected={wave['runtimeId']} current={current_runtime}"
             )
         active = active_leases(state)
-        conflict = lane_conflict_reason(lane, active, namespace=ns)
+        foreign_leases = [lease for lease in active if lease["agentId"] != holder]
+        conflict = lane_conflict_reason(lane, foreign_leases, namespace=ns)
         if conflict:
             raise RuntimeError(conflict)
         now = _utc_now()
@@ -386,7 +436,9 @@ def release_lease(
             if lease["status"] != "active":
                 raise RuntimeError(f"LEASE_NOT_ACTIVE: {lease_id}")
             if lease["agentId"] != holder:
-                raise RuntimeError(f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}")
+                raise RuntimeError(
+                    f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}"
+                )
             lease["status"] = "released"
             return dict(lease), True
         raise RuntimeError(f"LEASE_NOT_FOUND: {lease_id}")
@@ -394,6 +446,57 @@ def release_lease(
     lease = run_locked(resolved.state_file, _edit)
     _cleanup_released_lease(lease, paths=resolved, skip_resource_cleanup=skip_cleanup)
     return lease
+
+
+def release_lease_and_close_wave_if_idle(
+    lease_id: str,
+    *,
+    paths: WavePaths | None = None,
+    agent_id: str | None = None,
+) -> LeaseReleaseResult:
+    """Release one lease and atomically close its wave when it is the last holder."""
+    resolved = paths or resolve_wave_paths()
+    holder = agent_id or default_agent_id()
+
+    def _edit(state: OrchestratorState) -> tuple[LeaseReleaseResult, bool]:
+        reaper(state, cleanup=False)
+        released: LeaseRecord | None = None
+        for lease in state["leases"]:
+            if lease["leaseId"] != lease_id:
+                continue
+            if lease["status"] != "active":
+                raise RuntimeError(f"LEASE_NOT_ACTIVE: {lease_id}")
+            if lease["agentId"] != holder:
+                raise RuntimeError(
+                    f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}"
+                )
+            lease["status"] = "released"
+            released = dict(lease)
+            break
+        if released is None:
+            raise RuntimeError(f"LEASE_NOT_FOUND: {lease_id}")
+
+        wave = state["wave"]
+        closed: WaveRecord | None = None
+        if (
+            wave is not None
+            and wave["status"] == "open"
+            and wave["waveId"] == released["waveId"]
+            and not active_leases(state)
+        ):
+            closed = {**wave, "status": "closed", "closedAt": _iso(_utc_now())}
+            state["wave"] = closed
+        return {
+            "lease": released,
+            "wave": closed,
+            "waveClosed": closed is not None,
+        }, True
+
+    result = run_locked(resolved.state_file, _edit)
+    _cleanup_released_lease(result["lease"], paths=resolved)
+    if result["waveClosed"]:
+        clear_stack_pin(paths=resolved)
+    return result
 
 
 def bind_browser_lease(
@@ -411,11 +514,16 @@ def bind_browser_lease(
     def _edit(state: OrchestratorState) -> tuple[LeaseRecord, bool]:
         lease = _find_active_lease(state, lease_id)
         if lease["agentId"] != holder:
-            raise RuntimeError(f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}")
+            raise RuntimeError(
+                f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}"
+            )
         requested_context = context_id.strip()
         if requested_context:
             for other in active_leases(state):
-                if other["leaseId"] != lease_id and other.get("contextId") == requested_context:
+                if (
+                    other["leaseId"] != lease_id
+                    and other.get("contextId") == requested_context
+                ):
                     raise RuntimeError(
                         f"BROWSER_CONTEXT_CONFLICT: contextId {requested_context} is already bound"
                     )
@@ -441,7 +549,9 @@ def unbind_browser_lease(
     def _edit(state: OrchestratorState) -> tuple[LeaseRecord, bool]:
         lease = _find_active_lease(state, lease_id)
         if lease["agentId"] != holder:
-            raise RuntimeError(f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}")
+            raise RuntimeError(
+                f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}"
+            )
         return unbind_browser(lease), True
 
     return run_locked(resolved.state_file, _edit)
@@ -465,7 +575,9 @@ def heartbeat_lease(
             if lease["status"] != "active":
                 raise RuntimeError(f"LEASE_NOT_ACTIVE: {lease_id}")
             if lease["agentId"] != holder:
-                raise RuntimeError(f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}")
+                raise RuntimeError(
+                    f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}"
+                )
             now = _utc_now()
             lease["lastHeartbeatAt"] = _iso(now)
             lease["expiresAt"] = _iso(now + timedelta(seconds=max(extend_sec, 60)))
@@ -483,7 +595,9 @@ def check_stack_write_gate(*, paths: WavePaths | None = None) -> GateResult:
     def _view(state: OrchestratorState) -> tuple[GateResult, bool]:
         changed = reaper(state, cleanup=False)
         active = active_leases(state)
-        stack_write_only = bool(active) and all(lease["lane"] == "STACK_WRITE" for lease in active)
+        stack_write_only = bool(active) and all(
+            lease["lane"] == "STACK_WRITE" for lease in active
+        )
         blockers: list[GateBlocker] = []
         if active and not stack_write_only:
             for lease in active:
@@ -496,7 +610,11 @@ def check_stack_write_gate(*, paths: WavePaths | None = None) -> GateResult:
                 )
         stack_pin = None if stack_write_only else _stack_pin_blocker(state)
         allowed = len(blockers) == 0 and stack_pin is None
-        return {"allowed": allowed, "blockers": blockers, "stackPin": stack_pin}, changed
+        return {
+            "allowed": allowed,
+            "blockers": blockers,
+            "stackPin": stack_pin,
+        }, changed
 
     result = run_locked(resolved.state_file, _view)
     _cleanup_expired_leases(paths=resolved)

@@ -208,18 +208,17 @@ _client_warmup_reclaim_stale_lock() {
 
 _client_warmup_acquire_lock() {
   local lockdir="${STATE_DIR}/client-warmup.lock.d"
-  local wait_sec="${MYRM_CLIENT_WARMUP_LOCK_SEC:-120}"
-  local i
+  _client_warmup_reclaim_stale_lock
+  mkdir "${lockdir}" 2>/dev/null || return 1
+  echo "$$" >"${lockdir}/pid"
+}
 
-  for i in $(seq 1 "${wait_sec}"); do
-    _client_warmup_reclaim_stale_lock
-    if mkdir "${lockdir}" 2>/dev/null; then
-      echo "$$" >"${lockdir}/pid"
-      return 0
-    fi
-    sleep 1
-  done
-  return 1
+_client_warmup_lock_owner_alive() {
+  local owner_file="${STATE_DIR}/client-warmup.lock.d/pid"
+  local owner=""
+  [[ -f "${owner_file}" ]] || return 1
+  owner="$(tr -d '[:space:]' <"${owner_file}")"
+  [[ -n "${owner}" ]] && kill -0 "${owner}" 2>/dev/null
 }
 
 _client_warmup_release_lock() {
@@ -252,21 +251,14 @@ _warmup_frontend_client() {
   fi
 
   if [[ "${MYRM_CHROME_E2E_ATTACH:-0}" == "1" ]]; then
-    echo "STACK_WAIT: attach mode — waiting for client_hot from ready --chrome peer..." >&2
-    local i
-    for i in $(seq 1 "${MYRM_CLIENT_WARMUP_LOCK_SEC:-120}"); do
-      if _frontend_client_warmth_recorded; then
-        echo "STACK_OK: frontend client_hot (peer warmed via attach)"
-        return 0
-      fi
-      _client_warmup_reclaim_stale_lock
-      sleep 1
-    done
-    echo "STACK_FAIL: attach mode client_hot timeout — first Agent must run: ./myrm ready --chrome" >&2
+    echo "STACK_FAIL: client_hot missing during attach — first Agent must finish ./myrm ready --chrome" >&2
     return 1
   fi
 
-  if ! _acquire_client_warmup_lock; then
+  local owns_warmup_lock=0
+  if _acquire_client_warmup_lock; then
+    owns_warmup_lock=1
+  else
     echo "STACK_WAIT: client warmup lock busy — waiting for peer Agent..." >&2
     local i
     for i in $(seq 1 "${MYRM_CLIENT_WARMUP_LOCK_SEC:-120}"); do
@@ -274,8 +266,17 @@ _warmup_frontend_client() {
         echo "STACK_OK: frontend client_hot (peer warmed)"
         return 0
       fi
+      if ! _client_warmup_lock_owner_alive; then
+        if _acquire_client_warmup_lock; then
+          owns_warmup_lock=1
+          echo "STACK_JOIN: peer warmup exited — current Agent acquired client warmup lock" >&2
+          break
+        fi
+      fi
       sleep 1
     done
+  fi
+  if [[ "${owns_warmup_lock}" -ne 1 ]]; then
     echo "STACK_FAIL: client_hot not reached while waiting for peer warmup" >&2
     return 1
   fi
@@ -289,7 +290,7 @@ _warmup_frontend_client() {
 
   local py="${PREFLIGHT_PY:-python3}"
   echo "STACK_WAIT: frontend client hydration via CDP (up to ${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-120}s)..." >&2
-  if ! MYRM_CDP_WARMUP=1 "${py}" "${warmup_py}" \
+  if ! "${py}" "${warmup_py}" \
     --cdp-port "${cdp_port}" \
     --url "${APP_URL}/" \
     --timeout-sec "${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-120}"; then

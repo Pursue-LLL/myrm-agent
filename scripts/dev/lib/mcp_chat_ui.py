@@ -3,22 +3,20 @@
 from __future__ import annotations
 
 import asyncio
-import time
 
-from cdp_chat_support import PAGE_PROBE_JS
 from cdp_chat_ui import CdpChatSession
 from chrome_mcp_client import ChromeMcpClient, McpPage
 
 _DETACHED_FRAME_TOKENS = (
     "detached Frame",
-    "Target closed",
-    "No page found",
-    "page has been closed",
-    "selected page has been closed",
     "Execution context was destroyed",
 )
-_UPSTREAM_TIMEOUT_TOKENS = ("upstream request timed out",)
-_EVALUATE_RETRY_ATTEMPTS = 5
+
+_RECOVERABLE_EVAL_TOKENS = (
+    *_DETACHED_FRAME_TOKENS,
+    "No page found",
+    "Target closed",
+)
 
 
 def is_detached_frame_error(exc: BaseException) -> bool:
@@ -26,13 +24,9 @@ def is_detached_frame_error(exc: BaseException) -> bool:
     return any(token in message for token in _DETACHED_FRAME_TOKENS)
 
 
-def is_upstream_timeout_error(exc: BaseException) -> bool:
-    message = str(exc)
-    return any(token in message for token in _UPSTREAM_TIMEOUT_TOKENS)
-
-
 def is_recoverable_evaluate_error(exc: BaseException) -> bool:
-    return is_detached_frame_error(exc) or is_upstream_timeout_error(exc)
+    message = str(exc)
+    return any(token in message for token in _RECOVERABLE_EVAL_TOKENS)
 
 
 class McpChatSession(CdpChatSession):
@@ -49,74 +43,59 @@ class McpChatSession(CdpChatSession):
         recv_timeout: float = 60.0,
     ) -> object:
         del await_promise
-        last_exc: RuntimeError | None = None
-        for attempt in range(_EVALUATE_RETRY_ATTEMPTS):
+        if recv_timeout <= 0:
+            raise ValueError("recv_timeout must be positive")
+        healed = False
+        while True:
             try:
                 return await asyncio.to_thread(
                     self._client.evaluate,
                     self._page,
                     expression,
-                    timeout_sec=min(recv_timeout, 45.0),
+                    timeout_sec=min(recv_timeout, 120.0),
                 )
             except RuntimeError as exc:
-                if not is_recoverable_evaluate_error(exc):
-                    raise
-                last_exc = exc
-                if attempt >= 2:
-                    await self.recreate_page()
-                elif attempt >= 1:
-                    await self._recover_page()
-                await asyncio.sleep(0.5 * (attempt + 1))
-        if last_exc is not None:
-            raise last_exc
-        raise RuntimeError("MCP evaluate failed without exception")
+                if not healed and is_recoverable_evaluate_error(exc):
+                    healed = True
+                    message = str(exc)
+                    if "No page found" in message or "Target closed" in message:
+                        await self.recreate_page()
+                    else:
+                        await self._heal_detached_page()
+                    continue
+                raise
 
-    async def _recover_page(self) -> None:
-        try:
-            await asyncio.to_thread(
-                self._client.navigate,
-                self._page,
-                self._base_url,
-                timeout_ms=30_000,
-            )
-        except RuntimeError:
-            return
-        await asyncio.sleep(1.0)
-
-    async def recreate_page(self, *, timeout_ms: int = 120_000) -> None:
-        old_page = self._page
-        try:
-            await asyncio.to_thread(self._client.close_page, old_page, ignore_errors=True)
-        except RuntimeError:
-            pass
+    async def recreate_page(self) -> None:
+        await asyncio.to_thread(
+            self._client.close_page,
+            self._page,
+            ignore_errors=True,
+        )
         self._page = await asyncio.to_thread(
             self._client.new_page,
             self._base_url,
-            timeout_ms=timeout_ms,
+            timeout_ms=120_000,
         )
-        deadline = time.monotonic() + 90.0
-        while time.monotonic() < deadline:
-            try:
-                probe = await asyncio.to_thread(
-                    self._client.evaluate,
-                    self._page,
-                    PAGE_PROBE_JS,
-                    timeout_sec=10.0,
-                )
-            except RuntimeError:
-                await asyncio.sleep(0.5)
-                continue
-            if isinstance(probe, dict) and probe.get("hasInput"):
-                await self.ensure_dev_bridge(timeout_sec=30.0, allow_reload=False)
-                return
-            await asyncio.sleep(0.5)
-        raise TimeoutError("MCP page recreation failed to hydrate chat shell")
+        await self.wait_shell_ready(timeout_sec=120.0, require_bridge=True)
+
+    async def _heal_detached_page(self) -> None:
+        await asyncio.to_thread(
+            self._client.navigate,
+            self._page,
+            self._base_url,
+            timeout_ms=60_000,
+        )
+        await asyncio.sleep(2.0)
+        try:
+            await self.wait_shell_ready(timeout_sec=60.0, require_bridge=True)
+        except TimeoutError:
+            pass
 
     async def bootstrap(
         self,
         base_url: str,
         *,
-        timeout_sec: float = 180.0,
+        timeout_sec: float = 120.0,
         navigate: bool = False,
     ) -> dict[str, object]:
         del navigate
@@ -150,7 +129,7 @@ class McpChatSession(CdpChatSession):
                 self._client.navigate,
                 self._page,
                 url,
-                timeout_ms=min(int(recv_timeout * 1000), 15_000),
+                timeout_ms=min(int(recv_timeout * 1000), 60_000),
             )
             return {}
         if method == "Input.insertText":

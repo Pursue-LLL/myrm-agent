@@ -5,6 +5,7 @@
  */
 
 const apiBase = process.env.E2E_API_BASE ?? 'http://127.0.0.1:8080';
+const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'chrome-e2e';
 
 async function apiFetch(path, options = {}) {
   const res = await fetch(`${apiBase}${path}`, {
@@ -42,7 +43,7 @@ function stripProviderPrefix(model) {
 async function putConfig(configKey, value) {
   const res = await apiFetch(`/api/v1/config/${configKey}`, {
     method: 'PUT',
-    body: JSON.stringify({ value }),
+    body: JSON.stringify({ value, deviceId }),
   });
   if (!res.ok) {
     throw new Error(`PUT /config/${configKey} failed: ${await res.text()}`);

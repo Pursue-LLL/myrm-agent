@@ -4385,7 +4385,40 @@
     "usageAnalytics": "USAGE ANALYTICS",
     "totalCalls": "Calls",
     "totalTokens": "Tokens",
-    "batchOptimization": "Batch Optimization"
+    "batchOptimization": "Batch Optimization",
+    "research": "Research"
+  },
+  "research": {
+    "resourcePool": "Resources",
+    "selectedCount": "{selected}/{total} selected",
+    "addFromWiki": "From Wiki",
+    "addFromWikiTooltip": "Add knowledge base concepts as research context",
+    "uploadFile": "Upload",
+    "uploadFileTooltip": "Upload documents as research material",
+    "uploading": "Uploading...",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "searchConcepts": "Search concepts...",
+    "searching": "Searching...",
+    "noResults": "No concepts found",
+    "added": "added",
+    "resourceAdded": "Resource added",
+    "filesUploaded": "{count} file(s) uploaded",
+    "emptyResources": "No resources added yet",
+    "emptyResourcesHint": "Add documents or wiki concepts to build your research context",
+    "resources": "Resources",
+    "chat": "Chat",
+    "output": "Output",
+    "emptyOutput": "No output yet",
+    "emptyOutputHint": "Generated artifacts will appear here during your research",
+    "saveToWiki": "Save to Wiki",
+    "savedToWiki": "Saved to knowledge base",
+    "download": "Download",
+    "errors": {
+      "searchFailed": "Failed to search concepts",
+      "uploadFailed": "File upload failed",
+      "saveToWikiFailed": "Failed to save to knowledge base"
+    }
   },
   "loginBubble": {
     "title": "Unlock More Features",

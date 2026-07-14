@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Dev stack lifecycle — ensure/attach/reset/status for local :8080/:3000.
-# Mutations delegate to stack_supervisor daemon (required unless MYRM_SUPERVISOR_BYPASS=1).
+# Mutations delegate to stack_supervisor daemon; only its direct child may enter internals.
 # Usage: dev-stack.sh ensure|attach|reset|status
 #   ensure  — mkdir atomic lock + start stack if unhealthy (idempotent)
 #   attach  — wait for healthy stack, zero start/kill side effects
@@ -572,23 +572,33 @@ _supervisor_delegate_or_fail() {
   exit 1
 }
 
+_supervisor_internal_call() {
+  local supervisor_pid_file="${STATE_DIR}/supervisor.pid" supervisor_pid=""
+  [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]] || return 1
+  [[ -f "${supervisor_pid_file}" ]] || return 1
+  supervisor_pid="$(tr -d '[:space:]' <"${supervisor_pid_file}")"
+  [[ "${supervisor_pid}" =~ ^[0-9]+$ ]] || return 1
+  [[ "${supervisor_pid}" == "${PPID}" ]] || return 1
+  kill -0 "${supervisor_pid}" 2>/dev/null
+}
+
 main() {
   local cmd="${1:-}"
   case "${cmd}" in
     ensure)
-      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_ensure; exit $?; fi
+      if _supervisor_internal_call; then cmd_ensure; exit $?; fi
       _supervisor_delegate_or_fail ensure
       ;;
     attach)
-      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_attach; exit $?; fi
+      if _supervisor_internal_call; then cmd_attach; exit $?; fi
       _supervisor_delegate_or_fail attach
       ;;
     reset)
-      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_reset; exit $?; fi
+      if _supervisor_internal_call; then cmd_reset; exit $?; fi
       _supervisor_delegate_or_fail reset
       ;;
     status)
-      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_status; exit $?; fi
+      if _supervisor_internal_call; then cmd_status; exit $?; fi
       _supervisor_delegate_or_fail status
       ;;
     ""|-h|--help) usage; exit 1 ;;

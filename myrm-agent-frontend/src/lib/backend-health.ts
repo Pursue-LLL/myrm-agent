@@ -1,4 +1,8 @@
 import { getDeployMode, isLocalMode } from '@/lib/deploy-mode';
+import {
+  markPlatformUnreachable,
+  whenDatabaseReady,
+} from '@/lib/platform-readiness';
 import { isTauriEnvironment, tauriBackend } from '@/lib/tauri';
 
 export type BackendDevMode = 'split_dev' | 'standalone_webui';
@@ -150,37 +154,35 @@ let localBackendReadyGate: Promise<boolean> | null = null;
 let cachedLocalBackendReady = true;
 
 function startLocalBackendReadyGate(): Promise<boolean> {
-  // Only a real desktop runtime owns a sidecar whose startup warrants polling.
-  // Browser WebUI must fail fast so the shell and recovery banner stay responsive.
-  const gate = isTauriEnvironment() ? waitForBackendReady() : checkBackendReadyOnce();
-  return gate.then((ready) => {
-    cachedLocalBackendReady = ready;
-    return ready;
-  });
+  return whenDatabaseReady();
 }
 
 /**
- * Single-flight gate: Tauri waits for sidecar startup; browser WebUI probes once.
- * Re-probes when the last result was false so a mid-session backend start can recover.
- * Call `markLocalBackendUnreachable()` after transport failures so a prior healthy gate re-probes.
+ * Single-flight gate: local mode waits until /health/ready reports database up.
+ * Re-probes after `markLocalBackendUnreachable()` on transport failures.
  */
 export function ensureLocalBackendReady(): Promise<boolean> {
   if (typeof window === 'undefined' || !isLocalMode()) {
     return Promise.resolve(true);
   }
 
+  if (localBackendReadyGate && cachedLocalBackendReady) {
+    return localBackendReadyGate;
+  }
+
   if (localBackendReadyGate && !cachedLocalBackendReady) {
-    return checkBackendReadyOnce().then((ready) => {
+    localBackendReadyGate = whenDatabaseReady().then((ready) => {
       cachedLocalBackendReady = ready;
-      if (ready) {
-        localBackendReadyGate = Promise.resolve(true);
-      }
       return ready;
     });
+    return localBackendReadyGate;
   }
 
   if (!localBackendReadyGate) {
-    localBackendReadyGate = startLocalBackendReadyGate();
+    localBackendReadyGate = startLocalBackendReadyGate().then((ready) => {
+      cachedLocalBackendReady = ready;
+      return ready;
+    });
   }
 
   return localBackendReadyGate;
@@ -192,10 +194,15 @@ export function markLocalBackendUnreachable(): void {
     return;
   }
   cachedLocalBackendReady = false;
+  localBackendReadyGate = null;
+  markPlatformUnreachable();
 }
 
 /** @internal test helper */
 export function resetLocalBackendReadyGate(): void {
   localBackendReadyGate = null;
   cachedLocalBackendReady = true;
+  void import('@/lib/platform-readiness').then(({ resetPlatformReadinessForTests }) => {
+    resetPlatformReadinessForTests();
+  });
 }

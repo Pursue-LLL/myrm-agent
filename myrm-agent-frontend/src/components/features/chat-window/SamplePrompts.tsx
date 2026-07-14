@@ -64,10 +64,21 @@ const PROMPT_ICONS: Record<string, LucideIcon> = {
 
 const SUPPORTED_MODES: ActionMode[] = ['fast', 'agent'];
 
-function shuffleAndPick<T>(items: T[], count: number): T[] {
+function hashSeed(seed: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function stablePick<T>(items: T[], count: number, seed: string): T[] {
   const shuffled = [...items];
+  let state = hashSeed(seed);
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    state = (Math.imul(state, 1103515245) + 12345) >>> 0;
+    const j = state % (i + 1);
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled.slice(0, count);
@@ -82,6 +93,8 @@ const SamplePrompts = React.memo(() => {
   const mode = SUPPORTED_MODES.includes(actionMode) ? actionMode : 'agent';
 
   const prompts = useMemo(() => {
+    const pickSeed = `${mode}:${agentConfig?.agentId ?? agentConfig?.presetId ?? 'default'}`;
+
     // 优先使用智能体自定义提示（如果有）
     if (agentConfig?.suggestionPrompts && agentConfig.suggestionPrompts.length > 0) {
       const agentPrompts = agentConfig.suggestionPrompts.map((text, i) => ({
@@ -89,10 +102,10 @@ const SamplePrompts = React.memo(() => {
         text,
         Icon: PROMPT_ICONS[`agent_${i % POOL_SIZE}`] ?? Brain,
       }));
-      return shuffleAndPick(agentPrompts, DISPLAY_COUNT);
+      return stablePick(agentPrompts, DISPLAY_COUNT, `${pickSeed}:custom`);
     }
 
-    // fallback: 从模式提示池中随机选取
+    // fallback: 从模式提示池中稳定选取（SSR/CSR 一致，避免 hydration mismatch）
     const pool = Array.from({ length: POOL_SIZE }, (_, i) => {
       const key = `${mode}_${i}`;
       return {
@@ -101,8 +114,8 @@ const SamplePrompts = React.memo(() => {
         Icon: PROMPT_ICONS[key] ?? Search,
       };
     });
-    return shuffleAndPick(pool, DISPLAY_COUNT);
-  }, [mode, t, agentConfig?.suggestionPrompts]);
+    return stablePick(pool, DISPLAY_COUNT, pickSeed);
+  }, [mode, t, agentConfig?.agentId, agentConfig?.presetId, agentConfig?.suggestionPrompts]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full animate-in fade-in duration-500">

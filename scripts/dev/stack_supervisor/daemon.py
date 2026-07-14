@@ -239,11 +239,11 @@ class SupervisorDaemon:
             return RpcResponse(ok=True, exit_code=0, stdout="SUPERVISOR_SHUTDOWN_OK\n", stderr="")
 
         if command == "status":
-            probe, _ = collect_stale_state(
+            probe, gc_action = collect_stale_state(
                 self.paths,
                 advance_failure_streak=False,
             )
-            write_supervisor_state(self.paths, probe)
+            write_supervisor_state(self.paths, probe, gc_action)
             dev = self._run_dev_stack("status", timeout_sec=15.0, env_overrides=env_overrides)
             return RpcResponse(
                 ok=dev.ok,

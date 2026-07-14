@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
-import { ensureLocalBackendReady } from '@/lib/backend-health';
+import { markLocalBackendUnreachable } from '@/lib/backend-health';
+import { whenDatabaseReady } from '@/lib/platform-readiness';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { API_BASE_URL } from '@/lib/api';
 import useApprovalStore, { normalizeApprovalPayload, type ApprovalPayload } from '@/store/useApprovalStore';
@@ -24,8 +25,21 @@ interface ApprovalListResponse {
 }
 
 async function fetchPendingApprovals(): Promise<ApprovalPayload[]> {
+  if (isLocalMode()) {
+    const ready = await whenDatabaseReady();
+    if (!ready) {
+      return [];
+    }
+  }
+
   const url = `${API_BASE_URL}/approvals?limit=${FETCH_LIMIT}&offset=0`;
   const response = await fetch(url, { method: 'GET', credentials: 'include' });
+
+  // Next dev proxy returns 5xx when :8080 is down (ECONNREFUSED), not an approvals API error.
+  if (response.status >= 500) {
+    markLocalBackendUnreachable();
+    return [];
+  }
 
   if (!response.ok) {
     throw new Error(`Failed to fetch pending approvals: ${response.status}`);
@@ -121,7 +135,10 @@ export function usePendingApprovalsRecovery(): void {
         if (cancelled) return;
 
         if (isLocalMode()) {
-          await ensureLocalBackendReady();
+          const ready = await whenDatabaseReady();
+          if (!ready || cancelled) {
+            return;
+          }
         }
         if (cancelled) return;
 

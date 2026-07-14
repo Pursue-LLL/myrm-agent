@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/store/useChatStore::useChatStore (POS: 聊天 Zustand store 的业务分层)
+ * - @/store/useProviderStore::useProviderStore (POS: Provider 配置 store)
+ * - @/store/chat/messageRequest::getModelSelection (POS: 发送前模型选择解析)
+ *
+ * [OUTPUT]
+ * - E2EChatBridge: localhost dev-only `window.__MYRM_E2E_CHAT__` for CDP Chrome E2E
+ *
+ * [POS]
+ * App shell dev bridge。在 MessageInput 水合前挂载，供 CDP/MCP E2E 驱动聊天与 Goal 模式（非终端用户功能）。
+ */
 import { useLayoutEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { getModelSelection } from '@/store/chat/messageRequest';
@@ -12,9 +24,6 @@ function isLocalDevHost(): boolean {
   return host === '127.0.0.1' || host === 'localhost';
 }
 
-/**
- * CDP Chrome E2E bridge mounted at app shell so it is ready before MessageInput subtree hydrates.
- */
 export default function E2EChatBridge() {
   useLayoutEffect(() => {
     if (!isLocalDevHost()) return;

@@ -46,7 +46,9 @@ def _iso(dt: datetime) -> str:
     return dt.replace(microsecond=0).isoformat()
 
 
-def _active_resources(state: OrchestratorState, *, lease_id: str = "", namespace: str = "") -> list[ResourceRecord]:
+def _active_resources(
+    state: OrchestratorState, *, lease_id: str = "", namespace: str = ""
+) -> list[ResourceRecord]:
     items: list[ResourceRecord] = []
     for resource in state.get("resources", []):
         if resource.get("status") != "active":
@@ -79,14 +81,18 @@ def register_resource(
         lease = _find_active_lease(state, lease_id)
         ns = (namespace or str(lease.get("namespace", ""))).strip()
         if not ns:
-            raise RuntimeError("LEDGER_DENIED: namespace required for resource registration")
-        if lease["lane"] not in {"RESOURCE_WRITE", "GLOBAL_WRITE"}:
+            raise RuntimeError(
+                "LEDGER_DENIED: namespace required for resource registration"
+            )
+        if lease["lane"] not in {"RESOURCE_WRITE", "GLOBAL_WRITE", "LIVE_AGENT"}:
             raise RuntimeError(
                 f"LEDGER_DENIED: lease {lease_id} cannot own resources from lane {lease['lane']}"
             )
         for item in _active_resources(state):
             if item["kind"] == kind and item["ref"] == resource_ref:
-                raise RuntimeError(f"LEDGER_DENIED: {kind}/{resource_ref} already registered")
+                raise RuntimeError(
+                    f"LEDGER_DENIED: {kind}/{resource_ref} already registered"
+                )
         now = _iso(_utc_now())
         record: ResourceRecord = {
             "resourceId": str(uuid.uuid4()),
@@ -164,7 +170,9 @@ def cleanup_lease_resources(
     resolved = paths or resolve_wave_paths()
 
     def _snapshot(state: OrchestratorState) -> tuple[list[ResourceRecord], bool]:
-        return [dict(item) for item in _active_resources(state, lease_id=lease_id)], False
+        return [
+            dict(item) for item in _active_resources(state, lease_id=lease_id)
+        ], False
 
     targets = run_locked(resolved.state_file, _snapshot)
     if not targets:
@@ -182,7 +190,12 @@ def cleanup_lease_resources(
             and (item.get("kind"), item.get("ref")) in keys
         ]
         if not current:
-            return {"leaseId": lease_id, "cleaned": 0, "failed": 0, "attempts": attempts}, False
+            return {
+                "leaseId": lease_id,
+                "cleaned": 0,
+                "failed": 0,
+                "attempts": attempts,
+            }, False
         return _apply_cleanup_results(state, current, attempts), True
 
     return run_locked(resolved.state_file, _commit)
@@ -217,7 +230,12 @@ def cleanup_namespace_resources(
             and (item.get("kind"), item.get("ref")) in keys
         ]
         if not current:
-            return {"leaseId": "", "cleaned": 0, "failed": 0, "attempts": attempts}, False
+            return {
+                "leaseId": "",
+                "cleaned": 0,
+                "failed": 0,
+                "attempts": attempts,
+            }, False
         return _apply_cleanup_results(state, current, attempts), True
 
     return run_locked(resolved.state_file, _commit)

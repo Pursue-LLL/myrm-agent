@@ -20,6 +20,7 @@ import LocalBackendUnavailableBanner, {
   ConfigReadinessDegradedBanner,
 } from '@/components/features/app-shell/local-backend-unavailable-banner';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
+import E2EChatBridge from '@/components/dev/E2EChatBridge';
 
 const CronPushPoller = lazy(() =>
   import('@/components/features/cron/CronPushPoller').then((mod) => ({ default: mod.default })),
@@ -171,6 +172,7 @@ function AppLayout({
         <CronPushPoller />
       </Suspense>
       <BudgetExceededDialog />
+      <E2EChatBridge />
     </>
   );
 }

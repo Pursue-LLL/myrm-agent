@@ -111,7 +111,7 @@ class TestCatalogRegistry:
 
     def test_loads_entries(self, registry: CatalogRegistry) -> None:
         entries = registry.list_all()
-        assert len(entries) >= 12
+        assert len(entries) >= 17
 
     def test_all_entries_valid(self, registry: CatalogRegistry) -> None:
         for entry in registry.list_all():
@@ -156,7 +156,7 @@ class TestCatalogRegistry:
 
     def test_search_empty_query(self, registry: CatalogRegistry) -> None:
         results = registry.search("")
-        assert len(results) >= 12
+        assert len(results) >= 17
 
     def test_search_no_results(self, registry: CatalogRegistry) -> None:
         results = registry.search("xyznonexistent")
@@ -204,3 +204,40 @@ class TestCatalogRegistry:
         for entry in registry.list_all():
             if entry.auth.type == AuthType.OAUTH2:
                 assert entry.auth.help_url, f"Entry {entry.id} uses OAuth2 but missing help_url"
+
+    def test_cn_entries_present(self, registry: CatalogRegistry) -> None:
+        """Chinese domestic office services must be present in the catalog."""
+        cn_ids = {"tencent-docs", "wps", "qq-mail", "qichacha"}
+        loaded_ids = {e.id for e in registry.list_all()}
+        assert cn_ids.issubset(loaded_ids), f"Missing CN entries: {cn_ids - loaded_ids}"
+
+    def test_bearer_entries_have_credential_fields(self, registry: CatalogRegistry) -> None:
+        """Bearer auth entries must use credential_fields with header inject."""
+        for entry in registry.list_all():
+            if entry.auth.type == AuthType.BEARER:
+                assert entry.auth.credential_fields, (
+                    f"Entry {entry.id} uses bearer auth but missing credential_fields"
+                )
+                header_fields = [f for f in entry.auth.credential_fields if f.inject.value == "header"]
+                assert header_fields, (
+                    f"Entry {entry.id} uses bearer auth but no credential field has inject=header"
+                )
+
+    def test_streamable_http_with_headers(self, registry: CatalogRegistry) -> None:
+        """Streamable HTTP entries with bearer auth must have headers in mcp_config."""
+        for entry in registry.list_all():
+            if (
+                entry.auth.type == AuthType.BEARER
+                and entry.mcp_config
+                and entry.mcp_config.type == "streamable_http"
+            ):
+                assert entry.mcp_config.headers, (
+                    f"Entry {entry.id} uses streamable_http+bearer but mcp_config missing headers"
+                )
+
+    def test_search_chinese_service(self, registry: CatalogRegistry) -> None:
+        """Searching by Chinese service names should find CN entries."""
+        results = registry.search("腾讯文档")
+        assert any(e.id == "tencent-docs" for e in results)
+        results = registry.search("企查查")
+        assert any(e.id == "qichacha" for e in results)

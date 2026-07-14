@@ -12,6 +12,13 @@ interface Window {
     setInputMessage: (message: string) => void;
     handleSubmit: () => void | Promise<void>;
     getInputMessage: () => string;
+    ensureProviders?: () => Promise<void>;
+    ensureChatSession?: () => Promise<void>;
+    resetChat?: () => void;
+    isSendReady?: () => boolean;
+    isProvidersInitialized?: () => boolean;
+    debugProviderState?: () => Record<string, unknown>;
+    lastSubmitResult?: { ok: boolean; err?: string; chatId?: string | null; debug?: Record<string, unknown> };
     setGoalMode: (enabled: boolean) => void;
     setGoalBudgetTokens: (tokens: number | null) => void;
     getGoalMode: () => boolean;

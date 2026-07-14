@@ -24,9 +24,9 @@
 | `prune-myrm-chrome-e2e-blank-tabs.sh` | Unix | 仅按 transient ledger 回收死亡 owner 的精确 targetId；从不按 URL/blank/重复页推断 |
 | `myrm-chrome-e2e-lib.sh` | Unix | E2E Chrome 路径/port 常量与 CDP 健康探测 |
 | `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
-| `wave-e2e-lease.sh` | Unix | `./myrm test -m e2e` LIVE_AGENT 租约 |
+| `wave-e2e-lease.sh` | Unix | `./myrm test -m e2e` LIVE_AGENT 租约；最后一个 lease 释放时原子关闭 Wave |
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
-| `chrome-e2e-preflight.sh` | Unix | MCP E2E 前置：client_hot CDP 预热 + `CHROME_E2E_HEALTH_JSON`（`runtimeId` + 四元 epoch + `shellHot`/`clientHot`）+ **idempotent model seed** |
+| `chrome-e2e-preflight.sh` | Unix | 首 Agent完整 reconcile/client_hot；attach 用一次聚合只读快照 fail-fast；输出 `CHROME_E2E_HEALTH_JSON` |
 | `chrome-e2e-model-seed.mjs` | Bun | 新对话 UI E2E 前置：无 defaultModel 时从 `.env.test` 写入 providers |
 | `chrome-e2e-seed-providers.mjs` | Bun | seed 逻辑模块（local 模式免 WebUI 登录） |
 | `wave-resource-lease.sh` | Unix | `./myrm` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |
@@ -65,7 +65,7 @@
 6. **集成测试进程纪律**：并行 Agent **`./myrm ready --attach --chrome`**；栈 **`dev-stack ensure`**；**禁止** Agent shell `bun run dev &`
 7. **runtimeId + Wave + Stack Pin**：`CHROME_E2E_HEALTH_JSON.runtimeId` — `wave open` 冻结并钉死栈 → `lease acquire READ` → 断言前 `./myrm runtime-drift --expect <id>`；open wave 或持 lease 时 `ensure/reset/restart` 机械拒绝；并行 Agent 仅 `--attach --chrome`
 8. **client_hot + transient target**：`ready --chrome` 用短生命周期 exact target 预热 client chunk，hydrate 后立即关闭并注销；mux 按 client 隔离 page ownership，Agent 必须 `new_page` 自己的 tab；`shell_hot`（curl `/`）≠ UI hydrate 完成；改码后 UI 测 **`./myrm restart --chrome`** 开新 wave
-9. **CDP 单写者**：活跃 Wave READ lease 期间项目内 pytest/bun 入口禁止直连 `/json/new`（`CDP_WRITE_DENIED`）；仅 supervisor warmup（`MYRM_CDP_WARMUP`）与 mux daemon 可写；外部 Playwright/raw CDP 无法由进程内 guard 拦截，属于运行纪律禁止项
+9. **CDP 单写者**：项目内 pytest/bun raw `/json/new` 永久拒绝（`CDP_WRITE_DENIED`）；仅 supervisor client warmup 使用 `MYRM_CDP_WARMUP=1`，正式 UI E2E 只能经 mux MCP；外部 Playwright/raw CDP 属明确禁止项
 
 **勿引用（已移除）**：`browser-delegate-chrome-e2e.mjs`、`clarify-chrome-e2e.mjs`、`start-chrome-mcp-debug.sh`（第二 Chrome / Allow 冲突）；`browser-delegate-e2e-once.mjs`、`render-ui-gap-e2e-prepare.mjs`、`notify-channel-e2e-prepare.mjs`、`cron-gap-e2e-prepare.mjs`、`test-cron-gap-e2e.sh`（API 重复 → `myrm-agent-server/tests/api/agent/`）；`ui_pong_chrome_verify.py`、`render_ui_chrome_verify.py`、`wfel-settings-ui-check.py`（主 Chrome CDP → 用 `:9333` + `tests/` 或 MCP）；`subagent-dashboard-e2e-poll.mjs`（debug 轮询，正式链用 prepare + verify）；`test-instinct-inbox-seed.py`（已改名 `instinct-inbox-seed.py`）。品牌图标生成见 `myrm-agent-desktop/scripts/inset-app-icon.py`。
 

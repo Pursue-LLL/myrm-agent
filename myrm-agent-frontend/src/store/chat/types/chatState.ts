@@ -17,6 +17,7 @@ import type {
   ChatHistoryItem,
   File,
   MentionReference,
+  MentionReferenceType,
   Message,
   PaginationInfo,
 } from './messages';
@@ -147,6 +148,7 @@ export interface ChatState {
   setHasUsedImagesInCurrentChat: (hasUsed: boolean) => void;
   addMentionReference: (reference: MentionReference) => void;
   removeMentionReference: (key: string) => void;
+  removeMentionReferencesByTypes: (types: MentionReferenceType[]) => void;
   clearMentionReferences: () => void;
   setActionMode: (mode: ActionMode) => void;
   setSearchDepth: (depth: SearchDepth) => void;

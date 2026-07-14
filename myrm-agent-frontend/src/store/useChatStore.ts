@@ -31,6 +31,47 @@ import { showI18nToast } from '@/services/i18nToastService';
 import { fetchWithTimeout } from '@/lib/api';
 import { useProjectStore } from '@/store/useProjectStore';
 
+function readStoredBuiltinTools(): BuiltinToolId[] {
+  if (typeof window === 'undefined') {
+    return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
+  }
+
+  const stored = localStorage.getItem('currentBuiltinTools');
+  if (!stored) {
+    return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
+  }
+
+  try {
+    const parsed = JSON.parse(stored) as BuiltinToolId[];
+    const legacyMinimal: BuiltinToolId[] = ['web_search', 'memory'];
+    const isLegacyMinimal =
+      parsed.length === legacyMinimal.length && legacyMinimal.every((toolId) => parsed.includes(toolId));
+    if (isLegacyMinimal) {
+      return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
+    }
+    return parsed;
+  } catch {
+    return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
+  }
+}
+
+/** Restore chat UI preferences from localStorage after hydration (SSR-safe). */
+export function hydrateChatPreferencesFromStorage(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const actionMode = localStorage.getItem('actionMode');
+  const searchDepth = localStorage.getItem('searchDepth');
+
+  useChatStore.setState({
+    actionMode: actionMode === 'fast' || actionMode === 'agent' ? actionMode : useChatStore.getState().actionMode,
+    searchDepth:
+      searchDepth === 'normal' || searchDepth === 'deep' ? searchDepth : useChatStore.getState().searchDepth,
+    currentBuiltinTools: readStoredBuiltinTools(),
+  });
+}
+
 const mentionReferenceKey = (reference: {
   type: string;
   path?: string;
@@ -67,10 +108,8 @@ const useChatStore = create<ChatState>()(
       hideAttachList: false,
       hasUsedImagesInCurrentChat: false,
       mentionReferences: [],
-      actionMode:
-        ((typeof window !== 'undefined' ? localStorage.getItem('actionMode') : null) as 'fast' | 'agent') || 'agent',
-      searchDepth:
-        ((typeof window !== 'undefined' ? localStorage.getItem('searchDepth') : null) as 'normal' | 'deep') || 'normal',
+      actionMode: 'agent',
+      searchDepth: 'normal',
       optimizationMode: 'speed',
       isGoalMode: false,
       isWorkflowMode: false,
@@ -85,27 +124,8 @@ const useChatStore = create<ChatState>()(
       goalConvergenceWindow: null,
       goalAcceptanceCriteria: null,
       goalConstraints: null,
-      // 智能代理模式工具开关（当前会话临时配置）
-      currentBuiltinTools: (() => {
-        if (typeof window === 'undefined') return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
-        const stored = localStorage.getItem('currentBuiltinTools');
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored) as BuiltinToolId[];
-            const legacyMinimal: BuiltinToolId[] = ['web_search', 'memory'];
-            const isLegacyMinimal =
-              parsed.length === legacyMinimal.length &&
-              legacyMinimal.every((toolId) => parsed.includes(toolId));
-            if (isLegacyMinimal) {
-              return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
-            }
-            return parsed;
-          } catch {
-            return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
-          }
-        }
-        return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
-      })(),
+      // Hydrated from localStorage after mount via hydrateChatPreferencesFromStorage().
+      currentBuiltinTools: [...DEFAULT_ENABLED_BUILTIN_TOOLS],
       inputMessage: '',
       pendingArchiveRestoreAction: null,
       pendingArchiveRestoreActions: [],
@@ -189,6 +209,10 @@ const useChatStore = create<ChatState>()(
       removeMentionReference: (key) =>
         set((state) => ({
           mentionReferences: state.mentionReferences.filter((item) => mentionReferenceKey(item) !== key),
+        })),
+      removeMentionReferencesByTypes: (types) =>
+        set((state) => ({
+          mentionReferences: state.mentionReferences.filter((item) => !types.includes(item.type)),
         })),
       clearMentionReferences: () => set({ mentionReferences: [] }),
       setActionMode: (mode) => {

@@ -26,6 +26,7 @@ from wave_orchestrator.core import (
     open_wave,
     reap,
     release_lease,
+    release_lease_and_close_wave_if_idle,
     unbind_browser_lease,
     wave_status,
 )
@@ -58,7 +59,7 @@ def cmd_open(args: argparse.Namespace) -> int:
 
 def cmd_close(args: argparse.Namespace) -> int:
     try:
-        wave = close_wave(force=args.force)
+        wave = close_wave(force=args.force, agent_id=args.agent)
     except RuntimeError as exc:
         _fail(str(exc), 2)
     _emit({"ok": True, "wave": wave})
@@ -95,16 +96,25 @@ def cmd_lease_acquire(args: argparse.Namespace) -> int:
 
 def cmd_lease_release(args: argparse.Namespace) -> int:
     try:
-        lease = release_lease(args.lease_id, agent_id=args.agent)
+        if args.close_wave_if_idle:
+            result = release_lease_and_close_wave_if_idle(
+                args.lease_id,
+                agent_id=args.agent,
+            )
+        else:
+            lease = release_lease(args.lease_id, agent_id=args.agent)
+            result = {"lease": lease, "wave": None, "waveClosed": False}
     except RuntimeError as exc:
         _fail(str(exc), 2)
-    _emit({"ok": True, "lease": lease})
+    _emit({"ok": True, **result})
     return 0
 
 
 def cmd_lease_heartbeat(args: argparse.Namespace) -> int:
     try:
-        lease = heartbeat_lease(args.lease_id, agent_id=args.agent, extend_sec=args.extend)
+        lease = heartbeat_lease(
+            args.lease_id, agent_id=args.agent, extend_sec=args.extend
+        )
     except RuntimeError as exc:
         _fail(str(exc), 2)
     _emit({"ok": True, "lease": lease})
@@ -191,7 +201,10 @@ def cmd_check_stack_write(_args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
     if blockers:
-        print("WAVE_STACK_WRITE_DENIED: active leases block reset/restart", file=sys.stderr)
+        print(
+            "WAVE_STACK_WRITE_DENIED: active leases block reset/restart",
+            file=sys.stderr,
+        )
         for item in blockers:
             print(
                 f"  lease={item['leaseId']} agent={item['agentId']} lane={item['lane']}",
@@ -203,66 +216,103 @@ def cmd_check_stack_write(_args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
     elif blockers:
-        print("WAVE_STACK_WRITE_HINT: ./myrm wave close --force or wait for lease TTL", file=sys.stderr)
+        print(
+            "WAVE_STACK_WRITE_HINT: ./myrm wave close --force or wait for lease TTL",
+            file=sys.stderr,
+        )
     return 3
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Dev test wave orchestrator")
-    parser.add_argument("--agent", default=default_agent_id(), help="Agent identity for leases")
+    parser.add_argument(
+        "--agent", default=default_agent_id(), help="Agent identity for leases"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     open_p = sub.add_parser("open", help="Open a frozen test wave")
-    open_p.add_argument("--runtime-id", default="", help="Freeze explicit runtimeId (default: probe)")
+    open_p.add_argument(
+        "--runtime-id", default="", help="Freeze explicit runtimeId (default: probe)"
+    )
     open_p.set_defaults(handler=cmd_open)
 
     close_p = sub.add_parser("close", help="Close the active wave")
-    close_p.add_argument("--force", action="store_true", help="Release active leases and close")
+    close_p.add_argument(
+        "--force", action="store_true", help="Release active leases and close"
+    )
     close_p.set_defaults(handler=cmd_close)
 
     status_p = sub.add_parser("status", help="Show wave and lease status")
     status_p.set_defaults(handler=cmd_status)
 
-    reap_p = sub.add_parser("reap", help="Expire stale leases and clean their registered resources")
+    reap_p = sub.add_parser(
+        "reap", help="Expire stale leases and clean their registered resources"
+    )
     reap_p.set_defaults(handler=cmd_reap)
 
-    gate_p = sub.add_parser("check-stack-write", help="Exit 0 when reset/restart is allowed")
+    gate_p = sub.add_parser(
+        "check-stack-write", help="Exit 0 when reset/restart is allowed"
+    )
     gate_p.set_defaults(handler=cmd_check_stack_write)
 
     lease_p = sub.add_parser("lease", help="Lease management")
     lease_sub = lease_p.add_subparsers(dest="lease_cmd", required=True)
 
     acquire_p = lease_sub.add_parser("acquire", help="Acquire a lane lease")
-    acquire_p.add_argument("lane", help="Lane: READ | RESOURCE_WRITE | GLOBAL_WRITE | LIVE_AGENT | STACK_WRITE")
-    acquire_p.add_argument("--namespace", default="", help="RESOURCE_WRITE owner namespace")
+    acquire_p.add_argument(
+        "lane",
+        help="Lane: READ | RESOURCE_WRITE | GLOBAL_WRITE | LIVE_AGENT | STACK_WRITE",
+    )
+    acquire_p.add_argument(
+        "--namespace", default="", help="RESOURCE_WRITE owner namespace"
+    )
     acquire_p.add_argument("--ttl", type=int, default=3600, help="Lease TTL seconds")
     acquire_p.set_defaults(handler=cmd_lease_acquire)
 
     release_p = lease_sub.add_parser("release", help="Release a lease")
     release_p.add_argument("lease_id", help="leaseId to release")
+    release_p.add_argument(
+        "--close-wave-if-idle",
+        action="store_true",
+        help="Atomically close the same wave when no active leases remain",
+    )
     release_p.set_defaults(handler=cmd_lease_release)
 
     heartbeat_p = lease_sub.add_parser("heartbeat", help="Extend an active lease TTL")
     heartbeat_p.add_argument("lease_id", help="leaseId to heartbeat")
-    heartbeat_p.add_argument("--extend", type=int, default=3600, help="Extend TTL seconds")
+    heartbeat_p.add_argument(
+        "--extend", type=int, default=3600, help="Extend TTL seconds"
+    )
     heartbeat_p.set_defaults(handler=cmd_lease_heartbeat)
 
     bind_p = lease_sub.add_parser("bind-browser", help="Bind an MCP page to a lease")
     bind_p.add_argument("lease_id", help="Active leaseId")
     bind_p.add_argument("page_id", help="pageId returned by Chrome DevTools MCP")
-    bind_p.add_argument("--target-id", required=True, help="Exact CDP targetId for deterministic cleanup")
-    bind_p.add_argument("--context-id", default="", help="Optional isolated browser context id")
+    bind_p.add_argument(
+        "--target-id",
+        required=True,
+        help="Exact CDP targetId for deterministic cleanup",
+    )
+    bind_p.add_argument(
+        "--context-id", default="", help="Optional isolated browser context id"
+    )
     bind_p.set_defaults(handler=cmd_lease_bind_browser)
 
-    unbind_p = lease_sub.add_parser("unbind-browser", help="Release page ownership without closing it")
+    unbind_p = lease_sub.add_parser(
+        "unbind-browser", help="Release page ownership without closing it"
+    )
     unbind_p.add_argument("lease_id", help="Active leaseId")
     unbind_p.set_defaults(handler=cmd_lease_unbind_browser)
 
-    ledger_p = sub.add_parser("ledger", help="Resource ledger for resource-owning leases")
+    ledger_p = sub.add_parser(
+        "ledger", help="Resource ledger for resource-owning leases"
+    )
     ledger_sub = ledger_p.add_subparsers(dest="ledger_cmd", required=True)
 
     register_p = ledger_sub.add_parser("register", help="Register a test resource ref")
-    register_p.add_argument("lease_id", help="Active RESOURCE_WRITE or GLOBAL_WRITE leaseId")
+    register_p.add_argument(
+        "lease_id", help="Active RESOURCE_WRITE or GLOBAL_WRITE leaseId"
+    )
     register_p.add_argument(
         "kind",
         help="Resource kind: chat | project | agent | cron | file | kanban_board | kanban_task",
@@ -277,8 +327,12 @@ def build_parser() -> argparse.ArgumentParser:
     list_p.set_defaults(handler=cmd_ledger_list)
 
     cleanup_p = ledger_sub.add_parser("cleanup", help="Cleanup registered resources")
-    cleanup_p.add_argument("--lease-id", default="", help="Cleanup resources for leaseId")
-    cleanup_p.add_argument("--namespace", default="", help="Cleanup resources for namespace")
+    cleanup_p.add_argument(
+        "--lease-id", default="", help="Cleanup resources for leaseId"
+    )
+    cleanup_p.add_argument(
+        "--namespace", default="", help="Cleanup resources for namespace"
+    )
     cleanup_p.set_defaults(handler=cmd_ledger_cleanup)
 
     return parser

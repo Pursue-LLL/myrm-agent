@@ -132,7 +132,7 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Capture the 'why' behind decisions, not just the 'what'. "
             "Flag unresolved conflicts or ambiguous assignments that need clarification."
         ),
-        default_skill_ids=("meeting-summary",),
+        default_skill_ids=(),
         enabled_builtin_tools=_TOOL_MINIMAL,
         suggestion_prompts=(
             "Summarize my meeting notes and extract all action items",

@@ -57,7 +57,7 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "When translating, preserve intent and cultural nuance over literal wording. "
             "Always propose a structure outline before drafting long-form content."
         ),
-        default_skill_ids=("content-creation",),
+        default_skill_ids=("creative-ideation", "content-humanizer"),
         enabled_builtin_tools=_TOOL_MINIMAL,
         suggestion_prompts=(
             "Write an engaging blog post introduction about sustainable living",
@@ -83,7 +83,7 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Cite sources when available; flag information gaps explicitly. "
             "Deliverables: executive summary → findings → analysis → recommendations."
         ),
-        default_skill_ids=("deep-research", "competitive-analysis"),
+        default_skill_ids=("deep-research", "competitive-analysis-pipeline"),
         enabled_builtin_tools=_TOOL_RESEARCH,
         suggestion_prompts=(
             "Research the pros and cons of electric vehicles vs hybrids in 2026",

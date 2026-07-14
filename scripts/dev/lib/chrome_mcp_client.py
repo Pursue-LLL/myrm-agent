@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 import select
 import shutil
 import subprocess
@@ -18,10 +17,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
-_PAGE_RE = re.compile(r"^(?:Page\s+(?:idx\s+)?)?(\d+)\s*:", re.MULTILINE)
-_TARGET_RE = re.compile(r"Myrm exact targetId:\s*([A-Za-z0-9-]+)")
-_JSON_FENCE_RE = re.compile(r"```json\s*(.*?)\s*```", re.DOTALL)
+from mcp_page_lease_heartbeat import PageLeaseHeartbeat
+from mcp_protocol import parse_evaluate_result, parse_new_page, text_content
+
 _CLEANUP_TIMEOUT_SEC = 5.0
+_PAGE_LEASE_TTL_SEC = 180
+_PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
 _BENIGN_CLEANUP_TOKENS = (
     "No target with given id",
@@ -44,46 +45,10 @@ class McpPage:
     context_id: str | None = None
 
 
-def _text_content(result: dict[str, object]) -> str:
-    content = result.get("content")
-    if not isinstance(content, list):
-        return ""
-    blocks: list[str] = []
-    for item in content:
-        if isinstance(item, dict) and item.get("type") == "text":
-            value = item.get("text")
-            if isinstance(value, str):
-                blocks.append(value)
-    return "\n".join(blocks)
-
-
-def parse_new_page(result: dict[str, object]) -> tuple[int, str]:
-    text = _text_content(result)
-    page_matches = _PAGE_RE.findall(text)
-    target_match = _TARGET_RE.search(text)
-    if not page_matches or target_match is None:
-        raise RuntimeError(
-            f"MCP new_page did not return pageId + exact targetId: {text[:500]}"
-        )
-    return int(page_matches[-1]), target_match.group(1)
-
-
-def parse_evaluate_result(result: dict[str, object]) -> object:
-    text = _text_content(result)
-    match = _JSON_FENCE_RE.search(text)
-    candidate = match.group(1).strip() if match is not None else text.strip()
-    if candidate.startswith("Script ran on page and returned:"):
-        candidate = candidate.split(":", maxsplit=1)[1].strip()
-    try:
-        return json.loads(candidate)
-    except json.JSONDecodeError:
-        return candidate
-
-
 class ChromeMcpClient:
     """One mux context. Every page is paired with an exact Wave READ lease."""
 
-    def __init__(self, *, request_timeout_sec: float = 60.0) -> None:
+    def __init__(self, *, request_timeout_sec: float = 180.0) -> None:
         self._request_timeout_sec = request_timeout_sec
         self._process: subprocess.Popen[str] | None = None
         self._request_id = 0
@@ -91,6 +56,10 @@ class ChromeMcpClient:
         self._stderr_lines: deque[str] = deque(maxlen=100)
         self._stderr_thread: threading.Thread | None = None
         self._pages: dict[int, McpPage] = {}
+        self._page_lease_heartbeat = PageLeaseHeartbeat(
+            self._heartbeat_lease,
+            interval_sec=_PAGE_LEASE_HEARTBEAT_INTERVAL_SEC,
+        )
         self._agent_id = (
             os.environ.get("MYRM_E2E_AGENT_ID", "").strip()
             or os.environ.get("MYRM_WAVE_AGENT_ID", "").strip()
@@ -134,7 +103,7 @@ class ChromeMcpClient:
             env={
                 **os.environ,
                 "CDMCP_MUX_REQUEST_TIMEOUT_MS": os.environ.get(
-                    "CDMCP_MUX_REQUEST_TIMEOUT_MS", "60000"
+                    "CDMCP_MUX_REQUEST_TIMEOUT_MS", "90000"
                 ),
             },
         )
@@ -163,9 +132,11 @@ class ChromeMcpClient:
                 f"Chrome MCP initialize returned invalid result: {response}"
             )
         self._notify("notifications/initialized", {})
+        self._page_lease_heartbeat.start()
 
     def close(self) -> None:
         errors: list[Exception] = []
+        self._page_lease_heartbeat.stop()
         for page in list(self._pages.values()):
             try:
                 self.close_page(page)
@@ -222,6 +193,7 @@ class ChromeMcpClient:
             self._heartbeat_lease(lease_id)
             self._bind_page_lease(page)
             self._pages[page_id] = page
+            self._page_lease_heartbeat.track(lease_id)
             return page
         except Exception as exc:
             cleanup_errors: list[str] = []
@@ -235,7 +207,7 @@ class ChromeMcpClient:
                 except (RuntimeError, TimeoutError) as cleanup_exc:
                     cleanup_errors.append(f"close_page: {cleanup_exc}")
             try:
-                self._release_lease(lease_id, close_wave_if_idle=True)
+                self._release_lease(lease_id, close_wave_if_idle=False)
             except (RuntimeError, TimeoutError) as cleanup_exc:
                 cleanup_errors.append(f"release lease: {cleanup_exc}")
             if cleanup_errors:
@@ -247,6 +219,7 @@ class ChromeMcpClient:
 
     def close_page(self, page: McpPage, *, ignore_errors: bool = False) -> None:
         errors: list[str] = []
+        self._page_lease_heartbeat.untrack(page.lease_id)
         try:
             self.call_tool(
                 "close_page",
@@ -271,13 +244,14 @@ class ChromeMcpClient:
         raise RuntimeError(message)
 
     def evaluate(
-        self, page: McpPage, expression: str, *, timeout_sec: float = 60.0
+        self, page: McpPage, expression: str, *, timeout_sec: float = 15.0
     ) -> object:
         function = f"async () => await (0, eval)({json.dumps(expression)})"
+        effective_timeout = min(max(timeout_sec, 5.0), self._request_timeout_sec)
         result = self.call_tool(
             "evaluate_script",
             {"pageId": page.page_id, "function": function},
-            timeout_sec=timeout_sec,
+            timeout_sec=effective_timeout,
         )
         return parse_evaluate_result(result)
 
@@ -342,6 +316,8 @@ class ChromeMcpClient:
         *,
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
+        if name != "close_page":
+            self._page_lease_heartbeat.raise_if_failed()
         response = self._request(
             "tools/call",
             {"name": name, "arguments": arguments},
@@ -351,7 +327,7 @@ class ChromeMcpClient:
         if not isinstance(result, dict):
             raise RuntimeError(f"Chrome MCP {name} returned invalid result: {response}")
         if result.get("isError") is True:
-            raise RuntimeError(f"Chrome MCP {name} failed: {_text_content(result)}")
+            raise RuntimeError(f"Chrome MCP {name} failed: {text_content(result)}")
         return result
 
     def _request(
@@ -476,7 +452,9 @@ class ChromeMcpClient:
 
     def _acquire_page_lease(self) -> str:
         self._ensure_wave_open()
-        payload = self._wave_command("lease", "acquire", "READ", "--ttl", "900")
+        payload = self._wave_command(
+            "lease", "acquire", "READ", "--ttl", str(_PAGE_LEASE_TTL_SEC)
+        )
         lease = payload.get("lease")
         lease_id = lease.get("leaseId") if isinstance(lease, dict) else None
         if not isinstance(lease_id, str) or not lease_id:
@@ -504,7 +482,7 @@ class ChromeMcpClient:
             except (RuntimeError, TimeoutError) as exc:
                 errors.append(f"unbind: {exc}")
         try:
-            self._release_lease(page.lease_id, close_wave_if_idle=True)
+            self._release_lease(page.lease_id, close_wave_if_idle=False)
         except (RuntimeError, TimeoutError) as exc:
             errors.append(f"release: {exc}")
         if errors:
@@ -516,5 +494,44 @@ class ChromeMcpClient:
         else:
             self._wave_command("lease", "release", lease_id)
 
+    def _find_page_by_lease(self, lease_id: str) -> McpPage | None:
+        for page in self._pages.values():
+            if page.lease_id == lease_id:
+                return page
+        return None
+
+    def _recover_page_lease(self, stale_lease_id: str) -> None:
+        page = self._find_page_by_lease(stale_lease_id)
+        self._page_lease_heartbeat.untrack(stale_lease_id)
+        if page is None:
+            return
+        try:
+            self._release_lease(stale_lease_id, close_wave_if_idle=False)
+        except (RuntimeError, TimeoutError) as exc:
+            if not _is_benign_cleanup_error(str(exc)):
+                _LOGGER.warning("Stale page lease release failed: %s", exc)
+        new_lease_id = self._acquire_page_lease()
+        new_page = McpPage(
+            page_id=page.page_id,
+            target_id=page.target_id,
+            lease_id=new_lease_id,
+            context_id=page.context_id,
+        )
+        self._bind_page_lease(new_page)
+        self._pages[page.page_id] = new_page
+        self._page_lease_heartbeat.track(new_lease_id)
+        self._wave_command(
+            "lease", "heartbeat", new_lease_id, "--extend", str(_PAGE_LEASE_TTL_SEC)
+        )
+
     def _heartbeat_lease(self, lease_id: str) -> None:
-        self._wave_command("lease", "heartbeat", lease_id, "--extend", "900")
+        try:
+            self._wave_command(
+                "lease", "heartbeat", lease_id, "--extend", str(_PAGE_LEASE_TTL_SEC)
+            )
+        except (RuntimeError, TimeoutError) as exc:
+            message = str(exc)
+            if _is_benign_cleanup_error(message):
+                self._recover_page_lease(lease_id)
+                return
+            raise

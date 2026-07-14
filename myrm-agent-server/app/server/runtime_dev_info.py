@@ -34,7 +34,11 @@ def get_runtime_dev_info() -> RuntimeDevInfo:
     import os
 
     host = os.getenv("HOST", "127.0.0.1")
-    webui_dev_port = WEBUI_DEV_PORT if _dev_mode == "split_dev" else None
+    try:
+        configured_webui_port = int(os.getenv("MYRM_FRONTEND_PORT", str(WEBUI_DEV_PORT)))
+    except ValueError:
+        configured_webui_port = WEBUI_DEV_PORT
+    webui_dev_port = configured_webui_port if _dev_mode == "split_dev" else None
     return {
         "dev_mode": _dev_mode,
         "listen_port": _listen_port,

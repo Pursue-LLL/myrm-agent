@@ -276,12 +276,14 @@ class TestTyping:
 
         await ch.start_typing("user1")
         ch._client.send_typing.assert_called_once()
-        assert ch._typing_tickets["user1"] == "ticket1"
+        ticket, _stored_at = ch._typing_tickets["user1"]
+        assert ticket == "ticket1"
 
     @pytest.mark.asyncio
     async def test_start_typing_cached_ticket(self) -> None:
         ch = _make_channel()
-        ch._typing_tickets["user1"] = "cached_ticket"
+        import time
+        ch._typing_tickets["user1"] = ("cached_ticket", time.monotonic())
         ch._client.send_typing = AsyncMock()
 
         await ch.start_typing("user1")
@@ -295,8 +297,9 @@ class TestTyping:
 
     @pytest.mark.asyncio
     async def test_stop_typing(self) -> None:
+        import time
         ch = _make_channel()
-        ch._typing_tickets["user1"] = "ticket1"
+        ch._typing_tickets["user1"] = ("ticket1", time.monotonic())
         ch._client.send_typing = AsyncMock()
 
         await ch.stop_typing("user1")

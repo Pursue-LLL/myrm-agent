@@ -5,10 +5,12 @@
  * - metadata.settingsTabs / settings.menu / settings.developer
  * - zh.json 与 en.json 全量 key 树一致
  * - agent.configPanel 下关键 string 键在 zh/en/ja/ko/de 均存在（防 MISSING_MESSAGE）
+ * - SSR shell 组件不得 useTranslations(deferred namespace)（与 locale-manifest.ts 对齐）
  */
 
-import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { readFileSync, readdirSync, statSync } from 'fs';
+import { execSync } from 'node:child_process';
+import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -76,6 +78,74 @@ const CRON_BLUEPRINT_SLOT_KEYS = [
   'slotSubject',
 ];
 
+/** App-shell TSX files that render on first paint and must not use deferred i18n namespaces. */
+const SSR_SHELL_I18N_SCAN_ROOTS = [
+  'src/components/layout',
+  'src/components/features/chat-window/ChatWindow.tsx',
+  'src/components/features/chat-window/EmptyChat.tsx',
+];
+
+const USE_TRANSLATIONS_NS_RE = /useTranslations\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+
+function collectTsxFiles(dirPath, out) {
+  for (const entry of readdirSync(dirPath)) {
+    const fullPath = join(dirPath, entry);
+    const stat = statSync(fullPath);
+    if (stat.isDirectory()) {
+      collectTsxFiles(fullPath, out);
+    } else if (entry.endsWith('.tsx')) {
+      out.push(fullPath);
+    }
+  }
+}
+
+function readDeferredNamespaces() {
+  const manifestPath = resolve(rootDir, 'src/i18n/locale-manifest.ts');
+  const source = readFileSync(manifestPath, 'utf-8');
+  const blockMatch = source.match(/DEFERRED_NAMESPACES\s*=\s*\[([\s\S]*?)\]\s*as\s*const/);
+  if (!blockMatch) {
+    throw new Error('Could not parse DEFERRED_NAMESPACES from locale-manifest.ts');
+  }
+  return [...blockMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
+}
+
+function verifyShellDeferredNamespaceGate() {
+  console.log('📋 验证 SSR shell 组件未引用 deferred i18n namespace...');
+  const deferredNamespaces = new Set(readDeferredNamespaces());
+  const shellFiles = [];
+
+  for (const relativePath of SSR_SHELL_I18N_SCAN_ROOTS) {
+    const absolutePath = resolve(rootDir, relativePath);
+    const stat = statSync(absolutePath);
+    if (stat.isDirectory()) {
+      collectTsxFiles(absolutePath, shellFiles);
+    } else {
+      shellFiles.push(absolutePath);
+    }
+  }
+
+  let shellErrors = 0;
+  for (const filePath of shellFiles) {
+    const source = readFileSync(filePath, 'utf-8');
+    for (const match of source.matchAll(USE_TRANSLATIONS_NS_RE)) {
+      const namespace = match[1].split('.')[0];
+      if (deferredNamespaces.has(namespace)) {
+        console.error(
+          `  ❌ ${filePath.replace(`${rootDir}/`, '')} uses useTranslations('${match[1]}') but '${namespace}' is deferred`,
+        );
+        shellErrors += 1;
+        hasErrors = true;
+      }
+    }
+  }
+
+  if (shellErrors === 0) {
+    console.log(
+      `  ✅ SSR shell 扫描通过（${shellFiles.length} 个文件，deferred: ${[...deferredNamespaces].join(', ') || '(none)'}）`,
+    );
+  }
+}
+
 let hasErrors = false;
 
 console.log('🔍 开始验证翻译完整性...\n');
@@ -92,6 +162,10 @@ for (const lang of LANGUAGES) {
     hasErrors = true;
   }
 }
+
+console.log('\n');
+
+verifyShellDeferredNamespaceGate();
 
 console.log('\n');
 
@@ -341,6 +415,15 @@ if (!enBuiltinNames || typeof enBuiltinNames !== 'object') {
       console.log(`  ✅ ${lang}.json agent.configPanel builtin 工具文案完整`);
     }
   }
+}
+
+// 验证8: home-route settings i18n shell contract（防 chat 首屏 MISSING_MESSAGE）
+console.log('\n📋 验证 home-route settings i18n shell contract...');
+try {
+  execSync('node scripts/scan-home-i18n-shell.mjs', { stdio: 'inherit', cwd: rootDir });
+  console.log('  ✅ home-route settings shell contract 通过');
+} catch {
+  hasErrors = true;
 }
 
 // 最终结果

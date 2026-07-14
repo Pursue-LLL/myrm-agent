@@ -2,7 +2,7 @@ export interface CredentialField {
   key: string;
   label: string;
   labelZh: string;
-  inject: 'arg_placeholder' | 'env';
+  inject: 'arg_placeholder' | 'env' | 'header';
 }
 
 export interface CatalogEntry {

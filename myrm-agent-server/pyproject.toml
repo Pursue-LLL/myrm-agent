@@ -94,8 +94,8 @@ prerelease = "allow"
 environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
 override-dependencies = [
   "click>=8.4.2",
-  "patchright>=1.61.1",
-  "openai>=2.44.0",
+  "patchright>=1.61.2",
+  "openai>=2.45.0",
   "aiohttp>=3.13.5",
   "opentelemetry-semantic-conventions>=0.61b0",
   "websockets>=16.0",
@@ -111,17 +111,17 @@ override-dependencies = [
 [dependency-groups]
 dev = [
   "pytest>=9.1.1",
-  "ruff>=0.15.20",
+  "ruff>=0.15.21",
   "pre-commit>=4.6.0",
   "pytest-asyncio>=1.4.0",
   "myrm-agent-harness[browser]", # 浏览器测试依赖
-  "langchain-openai>=1.3.3",     # LLM 集成测试依赖
+  "langchain-openai>=1.3.5",     # LLM 集成测试依赖
   "pytest-cov>=7.1.0",
   "pytest-benchmark>=5.2.3",
   "pytest-xdist>=3.8.0",         # 并行测试执行
   "pytest-timeout>=2.4.0",       # 测试超时保护
-  "mypy>=2.1.0",
-  "pyright>=1.1.408",
+  "mypy>=2.3.0",
+  "pyright>=1.1.411",
   "blockbuster>=1.5.26",
 ]
 

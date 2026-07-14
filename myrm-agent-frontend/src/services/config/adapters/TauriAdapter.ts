@@ -9,7 +9,9 @@
  * 本地模式配置同步适配器。WebUI 经 `/api/v1` 代理；Tauri 可直连 sidecar。与 `ConfigSyncManager` 离线队列配合。
  */
 
+import { markLocalBackendUnreachable } from '@/lib/backend-health';
 import { getApiBaseUrl } from '@/lib/deploy-mode';
+import { whenDatabaseReady } from '@/lib/platform-readiness';
 import { BaseConfigAdapter } from './BaseAdapter';
 import type { ConfigKey, ConfigRecord, ConfigChange, SyncResult, ConfigVersion, ConfigValueMap } from '../types';
 import { ConfigConflictError, ConfigSyncError } from '../types';
@@ -42,6 +44,13 @@ const BACKEND_UNAVAILABLE_HTTP_STATUSES = new Set([500, 502, 503, 504]);
 
 const BACKEND_NOT_AVAILABLE_ERROR = 'Backend not available';
 
+class BackendUnavailableError extends Error {
+  constructor() {
+    super(BACKEND_NOT_AVAILABLE_ERROR);
+    this.name = 'BackendUnavailableError';
+  }
+}
+
 /**
  * Tauri 配置适配器
  */
@@ -59,19 +68,39 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
    * 非 Remote 模式下后端跳过认证，Cookie 虽携带但无影响。
    * 内置 10s 超时防止后端卡死时前端无限等待。
    */
-  private localFetch(url: string, init?: RequestInit): Promise<Response> {
+  private async localFetch(url: string, init?: RequestInit): Promise<Response> {
+    const ready = await whenDatabaseReady();
+    if (!ready) {
+      throw new BackendUnavailableError();
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
-    return fetch(url, {
-      ...init,
-      credentials: 'include',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...init?.headers,
-      },
-    }).finally(() => clearTimeout(timeoutId));
+    try {
+      const response = await fetch(url, {
+        ...init,
+        credentials: 'include',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...init?.headers,
+        },
+      });
+
+      if (this.isBackendUnavailableStatus(response.status)) {
+        markLocalBackendUnreachable();
+      }
+
+      return response;
+    } catch (error) {
+      if (this.isBackendTransportError(error)) {
+        markLocalBackendUnreachable();
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   private isBackendUnavailableStatus(status: number): boolean {
@@ -80,6 +109,16 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
 
   private isFailedToFetchError(error: unknown): boolean {
     return error instanceof TypeError && error.message === 'Failed to fetch';
+  }
+
+  private isBackendTransportError(error: unknown): boolean {
+    if (error instanceof BackendUnavailableError) {
+      return true;
+    }
+    if (this.isFailedToFetchError(error)) {
+      return true;
+    }
+    return error instanceof DOMException && error.name === 'AbortError';
   }
 
   private emptySyncFailure(): SyncResult {
@@ -121,7 +160,7 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
 
       return result;
     } catch (error) {
-      if (this.isFailedToFetchError(error)) {
+      if (this.isBackendTransportError(error)) {
         console.warn('[TauriAdapter] Backend not available, returning empty configs');
         return new Map();
       }
@@ -151,7 +190,7 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
       const data: ApiConfigResponse<K> = await response.json();
       return this.toConfigRecord(data);
     } catch (error) {
-      if (this.isFailedToFetchError(error)) {
+      if (this.isBackendTransportError(error)) {
         console.warn(`[TauriAdapter] Backend not available, skipping get '${key}'`);
         return null;
       }
@@ -193,7 +232,7 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
       const data: ApiConfigResponse<K> = await response.json();
       return this.toConfigRecord(data);
     } catch (error) {
-      if (this.isFailedToFetchError(error)) {
+      if (this.isBackendTransportError(error)) {
         console.warn(`[TauriAdapter] Backend not available, skipping set '${key}'`);
         return this.createRecord(key, value, expectedVersion);
       }
@@ -224,7 +263,7 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
 
       return true;
     } catch (error) {
-      if (this.isFailedToFetchError(error)) {
+      if (this.isBackendTransportError(error)) {
         console.warn(`[TauriAdapter] Backend not available, skipping delete '${key}'`);
         return false;
       }
@@ -270,7 +309,7 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
         error: data.error,
       };
     } catch (error) {
-      if (this.isFailedToFetchError(error)) {
+      if (this.isBackendTransportError(error)) {
         console.warn('[TauriAdapter] Backend not available, sync failed');
         return this.emptySyncFailure();
       }

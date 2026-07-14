@@ -8,9 +8,9 @@
  * - Early exit when lock+HTTP prove an existing healthy dev server
  *
  * [POS]
- * Frontend dev entry (`bun run dev`). Supervises Next.js child; writes dev-server.lock before spawn.
+ * Frontend dev entry (`bun run dev` / `dev:lan` / `dev:clean`). Runs locale namespace split, supervises Next.js child.
  */
-import { type ChildProcess, spawn } from 'child_process';
+import { type ChildProcess, spawn, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import {
@@ -25,18 +25,35 @@ import { APP_DEV_PORT, killListenersOnPort } from './port-cleanup';
 const ENV_LOCAL = path.join(process.cwd(), '.env.local');
 const ENV_LOCAL_HEADER = '# Auto-managed by bun run dev — local split-dev defaults\n';
 
+const SPLIT_LOCALE_SCRIPT = path.join(__dirname, 'split-locale-namespaces.mjs');
+
+function ensureLocaleNamespaces(): void {
+  const result = spawnSync(process.execPath, [SPLIT_LOCALE_SCRIPT], {
+    cwd: path.join(__dirname, '..'),
+    stdio: 'inherit',
+  });
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
 function ensureDevEnvLocal(): void {
-  const apiLine = 'API_PORT=8080';
+  const apiPort = process.env.API_PORT?.trim() || '8080';
+  const apiLine = `API_PORT=${apiPort}`;
   if (!fs.existsSync(ENV_LOCAL)) {
-    fs.writeFileSync(
-      ENV_LOCAL,
-      `${ENV_LOCAL_HEADER}${apiLine}\nNEXT_PUBLIC_DEPLOY_MODE=local\n`,
-      'utf8',
-    );
+    fs.writeFileSync(ENV_LOCAL, `${ENV_LOCAL_HEADER}${apiLine}\nNEXT_PUBLIC_DEPLOY_MODE=local\n`, 'utf8');
     console.log(`📝 Created ${ENV_LOCAL} with ${apiLine}`);
     return;
   }
   const content = fs.readFileSync(ENV_LOCAL, 'utf8');
+  if (content.startsWith(ENV_LOCAL_HEADER)) {
+    const updated = content.replace(/^API_PORT\s*=.*$/m, apiLine);
+    if (updated !== content) {
+      fs.writeFileSync(ENV_LOCAL, updated, 'utf8');
+      console.log(`📝 Updated ${ENV_LOCAL} with ${apiLine}`);
+    }
+    return;
+  }
   if (!/\bAPI_PORT\s*=/.test(content)) {
     fs.appendFileSync(ENV_LOCAL, `\n${apiLine}\n`, 'utf8');
     console.log(`📝 Appended ${apiLine} to ${ENV_LOCAL}`);
@@ -46,6 +63,7 @@ function ensureDevEnvLocal(): void {
 const args = process.argv.slice(2);
 const clean = args.includes('--clean');
 
+ensureLocaleNamespaces();
 ensureDevEnvLocal();
 
 if (clean) {
@@ -75,9 +93,7 @@ function setupSignalHandlers(child: ChildProcess) {
 
 if (tryAttachToHealthyDevServer(APP_DEV_PORT)) {
   const lock = readDevLock();
-  console.log(
-    `✅ Dev server already healthy → http://127.0.0.1:${APP_DEV_PORT} (PID ${lock?.pid ?? 'unknown'})`,
-  );
+  console.log(`✅ Dev server already healthy → http://127.0.0.1:${APP_DEV_PORT} (PID ${lock?.pid ?? 'unknown'})`);
   process.exit(0);
 }
 

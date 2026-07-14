@@ -2,6 +2,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -56,7 +57,7 @@ def ephemeral_server():
     log_path = Path(ws_dir) / "server.log"
     log_file = log_path.open("w")
     proc = subprocess.Popen(
-        ["uv", "run", "run.py", "--port", str(port)],
+        [sys.executable, "run.py", "--port", str(port)],
         cwd=str(server_dir),
         env=env,
         stdout=log_file,
@@ -100,4 +101,3 @@ def ephemeral_server():
         except subprocess.TimeoutExpired:
             proc.kill()
         shutil.rmtree(ws_dir, ignore_errors=True)
-

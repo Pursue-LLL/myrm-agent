@@ -19,12 +19,22 @@ import {
   DEFERRED_NAMESPACES,
   DEFERRED_SETTINGS_SECTIONS,
   SSR_SHELL_NAMESPACES,
+  SSR_SHELL_SETTINGS_SECTIONS,
   SETTINGS_SECTIONS,
   type Messages,
   type SettingsSection,
 } from './locale-manifest';
+import { mergeMessages } from './merge-messages';
 
 const localesRoot = path.join(process.cwd(), 'locales/namespaces');
+
+/** macOS/Windows: agent.json and Agent.json collide — encode mixed-case namespaces. */
+function namespaceFilename(namespace: string): string {
+  if (namespace !== namespace.toLowerCase()) {
+    return `@${namespace}.json`;
+  }
+  return `${namespace}.json`;
+}
 
 async function readNamespaceJson<T>(segments: string[]): Promise<T> {
   const filePath = path.join(localesRoot, ...segments);
@@ -33,7 +43,7 @@ async function readNamespaceJson<T>(segments: string[]): Promise<T> {
 }
 
 async function loadNamespace(locale: Locale, namespace: string): Promise<Messages[keyof Messages]> {
-  return readNamespaceJson<Messages[keyof Messages]>([locale, `${namespace}.json`]);
+  return readNamespaceJson<Messages[keyof Messages]>([locale, namespaceFilename(namespace)]);
 }
 
 async function loadSettingsSection(
@@ -43,9 +53,8 @@ async function loadSettingsSection(
   return readNamespaceJson<Messages['settings'][SettingsSection]>([locale, 'settings', `${section}.json`]);
 }
 
-async function loadSettingsMenu(locale: Locale): Promise<Pick<Messages['settings'], 'menu'>> {
-  const menu = await loadSettingsSection(locale, 'menu');
-  return { menu };
+async function loadShellSettingsSections(locale: Locale): Promise<Partial<Messages['settings']>> {
+  return loadSettingsSections(locale, SSR_SHELL_SETTINGS_SECTIONS);
 }
 
 async function loadSettingsSections(
@@ -64,9 +73,9 @@ export async function loadShellMessages(locale: Locale): Promise<Messages> {
     SSR_SHELL_NAMESPACES.map(async (namespace) => [namespace, await loadNamespace(locale, namespace)] as const),
   );
 
-  const settingsMenu = await loadSettingsMenu(locale);
+  const settingsSections = await loadShellSettingsSections(locale);
   const messages = Object.fromEntries(entries) as Record<string, unknown>;
-  messages.settings = settingsMenu;
+  messages.settings = settingsSections;
 
   return messages as Messages;
 }
@@ -77,13 +86,9 @@ export async function loadDeferredMessages(locale: Locale): Promise<Partial<Mess
   );
 
   const settingsSections = await loadSettingsSections(locale, DEFERRED_SETTINGS_SECTIONS);
-  const settingsMenu = await loadSettingsMenu(locale);
 
   const partial: Partial<Messages> = Object.fromEntries(deferredEntries) as Partial<Messages>;
-  partial.settings = {
-    ...settingsSections,
-    ...settingsMenu,
-  } as Messages['settings'];
+  partial.settings = settingsSections as Messages['settings'];
 
   return partial;
 }
@@ -91,14 +96,7 @@ export async function loadDeferredMessages(locale: Locale): Promise<Partial<Mess
 export async function loadFullMessages(locale: Locale): Promise<Messages> {
   const [shell, deferred] = await Promise.all([loadShellMessages(locale), loadDeferredMessages(locale)]);
 
-  return {
-    ...shell,
-    ...deferred,
-    settings: {
-      ...shell.settings,
-      ...deferred.settings,
-    },
-  } as Messages;
+  return mergeMessages(shell, deferred);
 }
 
 export { SETTINGS_SECTIONS };

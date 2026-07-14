@@ -375,13 +375,14 @@ export interface ReferenceSuggestResponse {
 }
 
 export interface MentionReferencePayload {
-  type: ReferenceSuggestionType;
+  type: ReferenceSuggestionType | 'wiki_concept' | 'wiki_raw_file';
   path?: string;
   file_id?: string;
   url?: string;
   label?: string;
   start_line?: number;
   end_line?: number;
+  concept_name?: string;
 }
 
 export const suggestReferences = async (

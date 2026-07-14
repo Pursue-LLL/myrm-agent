@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
 import sys
 import time
 import urllib.error
@@ -14,7 +13,11 @@ import urllib.request
 from typing import Protocol
 
 from cdp_transient_targets import register_target, unregister_target
-from cdp_write_guard import assert_cdp_write_allowed
+
+try:
+    from cdp_chat_ui import E2E_BRIDGE_INSTALL_JS
+except ImportError:
+    E2E_BRIDGE_INSTALL_JS = ""
 
 _HYDRATED_EXPRESSION = """
 (() => {
@@ -22,12 +25,15 @@ _HYDRATED_EXPRESSION = """
   if (!layout) {
     const shellSkeleton = document.querySelector('[data-testid="app-shell-skeleton"]');
     if (shellSkeleton) return false;
-    if (document.readyState !== 'complete') return false;
+    if (document.readyState === 'loading') return false;
     return false;
   }
   const listSkeleton = document.querySelector('[aria-label="Loading messages"]');
   if (listSkeleton) return false;
-  return !!document.querySelector('[data-chat-input]');
+  const input = document.querySelector('[data-chat-input]');
+  if (!input) return false;
+  const fiberKey = Object.keys(input).find((k) => k.startsWith('__reactFiber$'));
+  return !!fiberKey || !!(window.__MYRM_E2E_CHAT__?.setInputMessage);
 })()
 """.strip()
 
@@ -62,7 +68,6 @@ def _fetch_json(url: str, *, timeout: float = 10.0, method: str = "GET") -> obje
 
 
 def _create_target(cdp_port: int, page_url: str) -> dict[str, object]:
-    assert_cdp_write_allowed(operation="json/new")
     encoded = urllib.request.quote(page_url, safe="")
     data = _fetch_json(
         f"http://127.0.0.1:{cdp_port}/json/new?{encoded}",
@@ -139,6 +144,14 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
         while time.monotonic() < deadline:
             poll_count += 1
             try:
+                if E2E_BRIDGE_INSTALL_JS:
+                    await _cdp_request(
+                        ws,
+                        await next_id(),
+                        "Runtime.evaluate",
+                        {"expression": E2E_BRIDGE_INSTALL_JS, "returnByValue": True},
+                        deadline=deadline,
+                    )
                 result = await _cdp_request(
                     ws,
                     await next_id(),
@@ -261,8 +274,6 @@ def main() -> int:
     parser.add_argument("--timeout-sec", type=float, default=120.0)
     parser.add_argument("--poll-ms", type=int, default=500)
     args = parser.parse_args()
-
-    os.environ.setdefault("MYRM_CDP_WARMUP", "1")
 
     try:
         asyncio.run(

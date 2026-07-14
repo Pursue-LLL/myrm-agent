@@ -12,6 +12,7 @@
 
 import { ensureLocalBackendReady } from '@/lib/backend-health';
 import { isLocalMode } from '@/lib/deploy-mode';
+import { ensurePlatformReadiness } from '@/lib/platform-readiness';
 import { cloneDeep } from 'lodash-es';
 import { withConfigInitLock } from './configInitLock';
 import { valuesEqual } from './configFingerprint';
@@ -122,8 +123,12 @@ class ConfigSyncManager {
         const ready = await ensureLocalBackendReady();
         if (!ready) {
           this._status = 'offline';
-          this._isInitialized = true;
           this.registerOnlineHandler();
+          void ensurePlatformReadiness().then((snapshot) => {
+            if (snapshot.database && !this._isInitialized) {
+              void this.initialize();
+            }
+          });
           return this.cache;
         }
       }

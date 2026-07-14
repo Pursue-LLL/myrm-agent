@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { CreditCard, Settings, LogOut, User, FlaskConical, Crown, Zap, Layers, BrainCircuit } from 'lucide-react';
+import { CreditCard, Settings, LogOut, User, FlaskConical, Crown, Zap, Layers, BrainCircuit, BookOpenCheck } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
@@ -86,6 +86,11 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
   const menuItems = isLocal
     ? [
         {
+          icon: BookOpenCheck,
+          label: t('research'),
+          onClick: () => handleNavigate('/research'),
+        },
+        {
           icon: BrainCircuit,
           label: 'Brain Console',
           onClick: () => handleNavigate('/brain'),
@@ -112,6 +117,11 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
           icon: CreditCard,
           label: t('subscription'),
           onClick: () => handleNavigate('/subscription'),
+        },
+        {
+          icon: BookOpenCheck,
+          label: t('research'),
+          onClick: () => handleNavigate('/research'),
         },
         {
           icon: BrainCircuit,

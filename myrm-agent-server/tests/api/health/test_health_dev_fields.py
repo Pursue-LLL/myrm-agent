@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.support.minimal_app import build_minimal_app
@@ -21,6 +22,16 @@ def test_health_includes_runtime_dev_fields() -> None:
     assert body["listen_port"] == 8080
     assert body["backend_port"] == 8080
     assert body["webui_dev_port"] == WEBUI_DEV_PORT
+
+
+def test_health_uses_isolated_frontend_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MYRM_FRONTEND_PORT", "13000")
+    set_runtime_listen(port=18080, host="127.0.0.1", dev_mode="split_dev")
+
+    body = TestClient(app).get("/api/v1/health").json()
+
+    assert body["backend_port"] == 18080
+    assert body["webui_dev_port"] == 13000
 
 
 def test_health_standalone_webui_ports() -> None:

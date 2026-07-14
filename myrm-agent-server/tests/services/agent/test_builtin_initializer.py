@@ -445,3 +445,19 @@ async def test_initialize_syncs_hr_screener_tools_without_baseline(test_db: sess
 
     hr_spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-hr_screener")
     assert agent.enabled_builtin_tools == list(hr_spec.enabled_builtin_tools)
+
+
+def test_all_default_skill_ids_exist_in_prebuilt_skills() -> None:
+    """Every default_skill_ids entry must map to a prebuilt_skills dir containing SKILL.md."""
+    from pathlib import Path
+
+    prebuilt_dir = Path(__file__).resolve().parents[3] / "assets" / "prebuilt_skills"
+    existing = {p.name for p in prebuilt_dir.iterdir() if p.is_dir() and (p / "SKILL.md").is_file()}
+
+    missing: list[str] = []
+    for spec in _BUILTIN_AGENTS:
+        for skill_id in spec.default_skill_ids:
+            if skill_id not in existing:
+                missing.append(f"{spec.id}: {skill_id}")
+
+    assert not missing, f"Deadlink default_skill_ids (no matching prebuilt_skills/*/SKILL.md): {missing}"

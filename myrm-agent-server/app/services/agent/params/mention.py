@@ -354,6 +354,27 @@ async def _build_mention_reference_context(
             total_bytes += codebase_bytes
             continue
 
+        if ref.type == "wiki_concept":
+            concept_name = ref.concept_name or ref.label or ""
+            if not concept_name:
+                parts.append(_xml_error("@wiki", "missing concept_name"))
+                continue
+            part, consumed_bytes = await _wiki_concept_part(concept_name, total_bytes)
+            parts.append(part)
+            total_bytes += consumed_bytes
+            continue
+
+        if ref.type == "wiki_raw_file":
+            file_id = ref.file_id or ref.path or ""
+            display = ref.label or file_id
+            if not file_id:
+                parts.append(_xml_error(display, "missing file_id or path"))
+                continue
+            part, consumed_bytes = await _wiki_raw_file_part(file_id, display, total_bytes)
+            parts.append(part)
+            total_bytes += consumed_bytes
+            continue
+
         parts.append(_xml_error(ref.label or ref.type, "unsupported reference"))
 
     if not parts:
@@ -586,6 +607,50 @@ def _xml_metadata(path: str, part_type: str, message: str) -> str:
 
 def _xml_error(path: str, message: str) -> str:
     return f"<mentioned_file path={quoteattr(path)} error={quoteattr(message)}/>"
+
+
+async def _wiki_concept_part(concept_name: str, current_total_bytes: int) -> tuple[str, int]:
+    """Read a wiki concept by name and build an XML context part."""
+    try:
+        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+        from myrm_agent_harness.toolkits.wiki import WikiStructure
+
+        vault_path = resolve_wiki_vault_path()
+        structure = WikiStructure(vault_path)
+        concept_path = structure.resolve_concept_file_path(concept_name)
+        if concept_path is None or not concept_path.exists():
+            return _xml_error(f"@wiki:{concept_name}", "concept not found"), 0
+
+        content = concept_path.read_text(encoding="utf-8")
+        content_bytes = len(content.encode("utf-8"))
+        if _can_inline(content_bytes, current_total_bytes):
+            return _xml_part(f"@wiki:{concept_name}", "wiki-concept", content), content_bytes
+        return _xml_metadata(f"@wiki:{concept_name}", "wiki-concept", f"Concept too large ({_format_size(content_bytes)})"), 0
+    except Exception as e:
+        logger.warning("Failed to read wiki concept %s: %s", concept_name, e)
+        return _xml_error(f"@wiki:{concept_name}", "read failed"), 0
+
+
+async def _wiki_raw_file_part(file_id: str, display: str, current_total_bytes: int) -> tuple[str, int]:
+    """Read a wiki raw file and build an XML context part."""
+    try:
+        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+        from myrm_agent_harness.toolkits.wiki import WikiStructure
+
+        vault_path = resolve_wiki_vault_path()
+        structure = WikiStructure(vault_path)
+        raw_path = structure.raw_dir / file_id
+        if not raw_path.exists():
+            return _xml_error(display, "raw file not found"), 0
+
+        content = raw_path.read_text(encoding="utf-8", errors="replace")
+        content_bytes = len(content.encode("utf-8"))
+        if _can_inline(content_bytes, current_total_bytes):
+            return _xml_part(display, "wiki-raw-file", content), content_bytes
+        return _xml_metadata(display, "wiki-raw-file", f"File too large ({_format_size(content_bytes)})"), 0
+    except Exception as e:
+        logger.warning("Failed to read wiki raw file %s: %s", file_id, e)
+        return _xml_error(display, "read failed"), 0
 
 
 def _inject_mentioned_files_into_query(

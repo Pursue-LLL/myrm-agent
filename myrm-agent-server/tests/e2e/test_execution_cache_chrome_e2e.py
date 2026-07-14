@@ -20,16 +20,11 @@ from cdp_chat_ui import (  # noqa: E402
     chat_user_message_count,
     count_execution_cache_in_log,
     snapshot_backend_log_offset,
-    warmup_frontend,
 )
 from chrome_mcp_client import ChromeMcpClient  # noqa: E402
-from mcp_chat_ui import McpChatSession, is_recoverable_evaluate_error  # noqa: E402
+from mcp_chat_ui import McpChatSession  # noqa: E402
 
-from tests.support.e2e_runtime_guard import (
-    E2EResourceLedger,
-    heartbeat_e2e_lease,
-    require_e2e_runtime_lease,
-)
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 API_URL = os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
@@ -104,6 +99,14 @@ async def test_chrome_ui_same_chat_two_ok_messages(
         heartbeat_e2e_lease()
         e2e_resource_ledger.register("chat", chat_id)
 
+        await chat.evaluate(
+            """(() => {
+              window.__MYRM_E2E_CHAT__?.setInputMessage?.('');
+              return { ok: true };
+            })()""",
+            await_promise=False,
+        )
+        await chat.wait_input_empty()
         heartbeat_e2e_lease()
         await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         after_second = await chat.wait_turn_done(
@@ -120,29 +123,17 @@ async def test_chrome_ui_same_chat_two_ok_messages(
             f"{after_first} -> {after_second}"
         )
 
-    warmup_frontend(BASE_URL, timeout_sec=60)
     client = ChromeMcpClient(request_timeout_sec=120.0)
     await asyncio.to_thread(client.start)
+    isolated = f"e2e-exec-cache-{os.getpid()}"
     try:
         page = await asyncio.to_thread(
             client.new_page,
             BASE_URL,
             timeout_ms=120_000,
+            isolated_context=isolated,
         )
-        chat = McpChatSession(client, page)
-        for attempt in range(2):
-            try:
-                await run_chat_flow(chat)
-                break
-            except RuntimeError as exc:
-                if attempt == 0 and is_recoverable_evaluate_error(exc):
-                    require_e2e_runtime_lease()
-                    heartbeat_e2e_lease()
-                    await chat.recreate_page(timeout_ms=120_000)
-                    await chat.bootstrap(BASE_URL, navigate=False, timeout_sec=120.0)
-                    await asyncio.sleep(2)
-                    continue
-                raise
+        await run_chat_flow(McpChatSession(client, page))
     finally:
         await asyncio.to_thread(client.close)
 

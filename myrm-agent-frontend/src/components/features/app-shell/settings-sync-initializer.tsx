@@ -15,13 +15,15 @@
  * - Sandbox 模式：同步到云端数据库（敏感数据服务端加密）
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
 import { useCommandStore } from '@/store/useCommandStore';
 import { useRetrievalStore } from '@/store/useRetrievalStore';
 import { getConfigSyncManager } from '@/services/config';
+import { hydrateChatPreferencesFromStorage } from '@/store/useChatStore';
+import { whenDatabaseReady } from '@/lib/platform-readiness';
 import ConfigConflictDialog, { type ConfigConflictData } from './ConfigConflictDialog';
 
 /**
@@ -44,6 +46,10 @@ export default function SettingsSyncInitializer() {
   const { initCommands } = useCommandStore();
   const { initRetrieval } = useRetrievalStore();
 
+  useLayoutEffect(() => {
+    hydrateChatPreferencesFromStorage();
+  }, []);
+
   useEffect(() => {
     const initializeAll = async () => {
       if (status !== 'idle') return;
@@ -51,6 +57,12 @@ export default function SettingsSyncInitializer() {
       setStatus('loading');
 
       try {
+        if (!(await whenDatabaseReady())) {
+          setStatus('error');
+          setError('Backend not available');
+          return;
+        }
+
         // 先初始化 ConfigSyncManager，再初始化各个 Store
         console.log('[SettingsSync] Initializing ConfigSyncManager...');
         const manager = getConfigSyncManager();

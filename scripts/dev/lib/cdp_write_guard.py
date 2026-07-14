@@ -1,8 +1,7 @@
-"""CDP write gate — single-writer discipline during active Wave READ leases.
+"""CDP write gate — raw target creation is forbidden outside the MCP mux.
 
 [INPUT]
-- wave_orchestrator store state (POS: active lease records)
-- MYRM_SUPERVISOR_BYPASS / MYRM_CDP_WARMUP / MYRM_MUX_CDP_WRITE env (POS: privileged writers)
+- wave_orchestrator store state (POS: diagnostics for active lease records)
 
 [OUTPUT]
 - cdp_write_allowed() / assert_cdp_write_allowed() — fail-fast before direct /json/new
@@ -15,7 +14,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypedDict
@@ -24,7 +22,7 @@ from typing import TypedDict
 class CdpWriteDecision(TypedDict):
     allowed: bool
     reason: str
-    active_read_leases: int
+    active_leases: int
 
 
 def _state_file() -> Path:
@@ -33,7 +31,7 @@ def _state_file() -> Path:
     return root / "wave-orchestrator.json"
 
 
-def _count_active_read_leases() -> int:
+def _count_active_leases() -> int:
     path = _state_file()
     if not path.is_file():
         return 0
@@ -53,8 +51,6 @@ def _count_active_read_leases() -> int:
             continue
         if item.get("status") != "active":
             continue
-        if item.get("lane") != "READ":
-            continue
         expires = item.get("expiresAt")
         if isinstance(expires, str):
             try:
@@ -68,24 +64,21 @@ def _count_active_read_leases() -> int:
 
 
 def cdp_write_allowed(*, operation: str = "json/new") -> CdpWriteDecision:
-    if os.getenv("MYRM_SUPERVISOR_BYPASS", "").strip() == "1":
-        return {"allowed": True, "reason": "supervisor_bypass", "active_read_leases": 0}
+    active = _count_active_leases()
     if os.getenv("MYRM_CDP_WARMUP", "").strip() == "1":
-        return {"allowed": True, "reason": "client_warmup", "active_read_leases": 0}
-    if os.getenv("MYRM_MUX_CDP_WRITE", "").strip() == "1":
-        return {"allowed": True, "reason": "mux_daemon", "active_read_leases": 0}
-
-    active = _count_active_read_leases()
-    if active > 0:
         return {
-            "allowed": False,
-            "reason": (
-                f"CDP_WRITE_DENIED: {operation} blocked while {active} active READ lease(s) — "
-                "use chrome-devtools MCP mux only"
-            ),
-            "active_read_leases": active,
+            "allowed": True,
+            "reason": "supervisor-warmup",
+            "active_leases": active,
         }
-    return {"allowed": True, "reason": "ok", "active_read_leases": 0}
+    return {
+        "allowed": False,
+        "reason": (
+            f"CDP_WRITE_DENIED: raw {operation} is disabled; use the chrome-devtools "
+            f"MCP mux owner path (active leases={active})"
+        ),
+        "active_leases": active,
+    }
 
 
 def assert_cdp_write_allowed(*, operation: str = "json/new") -> None:

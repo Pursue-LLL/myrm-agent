@@ -377,6 +377,7 @@ async function main() {
     providers: await readConfig('providers'),
     securityConfig: await readConfig('securityConfig'),
   };
+  let restored = false;
   try {
     await seedProviders();
     await seedYoloSecurity();
@@ -393,7 +394,10 @@ async function main() {
       uiUrl: `${uiBase}/${chatId}`,
       apiBase,
     };
-    console.log(JSON.stringify(result, null, 2));
+    await restoreConfig('providers', snapshots.providers);
+    await restoreConfig('securityConfig', snapshots.securityConfig);
+    restored = true;
+    console.log(`E2E_PREPARE_JSON=${JSON.stringify(result)}`);
 
     if (keepStreamAlive && streamHoldMs > 0) {
       await keepStreamAlive();
@@ -401,8 +405,10 @@ async function main() {
       await new Promise((resolve) => setTimeout(resolve, streamHoldMs));
     }
   } finally {
-    await restoreConfig('providers', snapshots.providers);
-    await restoreConfig('securityConfig', snapshots.securityConfig);
+    if (!restored) {
+      await restoreConfig('providers', snapshots.providers);
+      await restoreConfig('securityConfig', snapshots.securityConfig);
+    }
   }
 }
 

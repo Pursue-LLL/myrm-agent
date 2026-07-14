@@ -141,6 +141,8 @@ class MentionReferenceRequest(BaseModel):
         "git_staged",
         "url",
         "codebase",
+        "wiki_concept",
+        "wiki_raw_file",
     ]
     path: str | None = Field(None, max_length=4096)
     file_id: str | None = Field(None, max_length=256)
@@ -148,6 +150,7 @@ class MentionReferenceRequest(BaseModel):
     label: str | None = Field(None, max_length=512)
     start_line: int | None = Field(None, ge=1)
     end_line: int | None = Field(None, ge=1)
+    concept_name: str | None = Field(None, max_length=512)
 
     class Config:
         alias_generator = to_camel

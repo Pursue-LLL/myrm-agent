@@ -4385,7 +4385,40 @@
     "usageAnalytics": "统计分析",
     "totalCalls": "调用次数",
     "totalTokens": "Token",
-    "batchOptimization": "批量优化"
+    "batchOptimization": "批量优化",
+    "research": "研究工作台"
+  },
+  "research": {
+    "resourcePool": "资料池",
+    "selectedCount": "已选 {selected}/{total}",
+    "addFromWiki": "从知识库",
+    "addFromWikiTooltip": "添加知识库概念作为研究上下文",
+    "uploadFile": "上传",
+    "uploadFileTooltip": "上传文档作为研究资料",
+    "uploading": "上传中...",
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
+    "searchConcepts": "搜索概念...",
+    "searching": "搜索中...",
+    "noResults": "未找到相关概念",
+    "added": "已添加",
+    "resourceAdded": "已添加资料",
+    "filesUploaded": "已上传 {count} 个文件",
+    "emptyResources": "暂无研究资料",
+    "emptyResourcesHint": "添加文档或知识库概念来构建研究上下文",
+    "resources": "资料",
+    "chat": "对话",
+    "output": "产出",
+    "emptyOutput": "暂无产出",
+    "emptyOutputHint": "研究过程中生成的工件将在此处展示",
+    "saveToWiki": "存入知识库",
+    "savedToWiki": "已存入知识库",
+    "download": "下载",
+    "errors": {
+      "searchFailed": "搜索概念失败",
+      "uploadFailed": "文件上传失败",
+      "saveToWikiFailed": "存入知识库失败"
+    }
   },
   "loginBubble": {
     "title": "登录解锁更多功能",

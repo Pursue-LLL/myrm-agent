@@ -19,6 +19,14 @@ function writeJson(filePath, value) {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf-8');
 }
 
+/** macOS/Windows: agent.json and Agent.json collide — encode mixed-case namespaces. */
+function namespaceFilename(namespace) {
+  if (namespace !== namespace.toLowerCase()) {
+    return `@${namespace}.json`;
+  }
+  return `${namespace}.json`;
+}
+
 function splitLocale(lang, canonicalNamespaces, canonicalSettingsSections) {
   const sourcePath = resolve(rootDir, `locales/${lang}.json`);
   const messages = JSON.parse(readFileSync(sourcePath, 'utf-8'));
@@ -28,7 +36,7 @@ function splitLocale(lang, canonicalNamespaces, canonicalSettingsSections) {
   mkdirSync(localeDir, { recursive: true });
 
   for (const namespace of canonicalNamespaces) {
-    writeJson(resolve(localeDir, `${namespace}.json`), messages[namespace] ?? {});
+    writeJson(resolve(localeDir, namespaceFilename(namespace)), messages[namespace] ?? {});
   }
 
   const settingsDir = resolve(localeDir, 'settings');

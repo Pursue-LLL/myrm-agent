@@ -32,5 +32,49 @@
       "workspaces"
     ],
     "website": "https://postman.com"
+  },
+  {
+    "id": "qichacha",
+    "name": "QiChaCha",
+    "name_zh": "企查查",
+    "description": "Query Chinese company registrations, risk profiles, IP, operations, and executive data",
+    "description_zh": "查询中国企业工商登记、风险画像、知识产权、经营和高管信息",
+    "icon": "qichacha",
+    "category": "api",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "qcc-company",
+      "type": "streamable_http",
+      "url": "https://agent.qcc.com/mcp/company/stream",
+      "headers": {
+        "Authorization": "Bearer {{QCC_API_KEY}}"
+      },
+      "description": "QiChaCha - company registrations, risk, IP, operations, executives"
+    },
+    "auth": {
+      "type": "bearer",
+      "credential_fields": [
+        {
+          "key": "Authorization",
+          "label": "API Key",
+          "label_zh": "API 密钥",
+          "inject": "header"
+        }
+      ],
+      "help_url": "https://agent.qcc.com/guide",
+      "help_text": "Register at agent.qcc.com, get your API Key from the dashboard, and enter it as \"Bearer YOUR_API_KEY\"",
+      "help_text_zh": "在 agent.qcc.com 注册账号，从控制台获取 API Key，输入格式为 \"Bearer 你的API密钥\""
+    },
+    "tags": [
+      "business",
+      "company",
+      "risk",
+      "enterprise",
+      "企查查",
+      "企业",
+      "工商",
+      "风控"
+    ],
+    "website": "https://agent.qcc.com"
   }
 ]

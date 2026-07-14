@@ -1,23 +1,29 @@
 from __future__ import annotations
 
-# coverage/pytest-cov patches imports before mcp.types builds RootModel generics.
-import pydantic.root_model  # noqa: F401
-
 import asyncio
 import atexit
 import logging
 import os
 import shutil
 import tempfile
+import uuid
 from collections.abc import AsyncIterator, Awaitable, Iterator
-from typing import TypeVar
 from contextlib import contextmanager, suppress
 from pathlib import Path
+from typing import TypeVar
 
+# coverage/pytest-cov patches imports before mcp.types builds RootModel generics.
+import pydantic.root_model  # noqa: F401
 import pytest
 from blockbuster import BlockBuster
 from dotenv import load_dotenv
 
+from tests.support.e2e_runtime_guard import (
+    E2EResourceLedger,
+    assert_e2e_runtime_unchanged,
+    e2e_lease_heartbeat_loop,
+    require_e2e_runtime_lease,
+)
 from tests.support.test_secrets import apply_test_secrets_to_environ, load_test_secrets
 
 _SERVER_ROOT = Path(__file__).resolve().parent.parent
@@ -206,6 +212,33 @@ async def _reset_global_browser_pool_after_test(request: pytest.FixtureRequest) 
             await reset_global_browser_pool_for_tests()
     except Exception as exc:
         _logger.warning("Failed to reset GlobalBrowserPool after test: %s", exc)
+
+
+@pytest.fixture(autouse=True)
+def _require_live_e2e_lease(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Fail live E2E before side effects when Wave ownership is missing or drifts."""
+    if request.node.get_closest_marker("e2e") is None:
+        yield
+        return
+    lease = require_e2e_runtime_lease()
+    namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
+    os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
+    with e2e_lease_heartbeat_loop():
+        yield
+    assert_e2e_runtime_unchanged(lease)
+
+
+@pytest.fixture
+def e2e_resource_ledger(request: pytest.FixtureRequest) -> E2EResourceLedger:
+    """Register resources created by one live E2E for lease-owned cleanup."""
+    if request.node.get_closest_marker("e2e") is None:
+        raise RuntimeError("E2E_LEDGER_REQUIRED: fixture is only valid for e2e tests")
+    lease = require_e2e_runtime_lease()
+    namespace = os.environ.get("MYRM_E2E_LEDGER_NAMESPACE", "").strip()
+    if not namespace:
+        namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
+        os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
+    return E2EResourceLedger(lease_id=lease.lease_id, namespace=namespace)
 
 
 @pytest.hookimpl(hookwrapper=True)

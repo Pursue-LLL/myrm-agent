@@ -33,6 +33,7 @@ class CredentialFieldInject(str, Enum):
 
     ARG_PLACEHOLDER = "arg_placeholder"
     ENV = "env"
+    HEADER = "header"
 
 
 class CredentialField(BaseModel):
@@ -85,6 +86,10 @@ class MCPPreConfig(BaseModel):
     command: str | None = Field(default=None, description="Command (stdio)")
     args: list[str] | None = Field(default=None, description="Arguments (stdio)")
     env: dict[str, str] | None = Field(default=None, description="Preset environment variables (non-secret)")
+    headers: dict[str, str] | None = Field(
+        default=None,
+        description="HTTP headers for SSE/streamable_http (values may use {{CREDENTIAL}} placeholders)",
+    )
     description: str = Field(default="", description="Service description for LLM")
 
 

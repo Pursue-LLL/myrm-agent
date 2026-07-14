@@ -20,7 +20,7 @@ case "${1:-}" in
       "${3:-${MYRM_WAVE_RESOURCE_LANE:-RESOURCE_WRITE}}" \
       "${namespace}"
     ;;
-  release) _wave_release_owned_lease "${WAVE}" "${2:-}" ;;
+  release) _wave_release_owned_lease "${WAVE}" "myrm-e2e-resource" "${2:-}" ;;
   *)
     echo "Usage: wave-resource-lease.sh acquire <namespace> [lane]|release <leaseId>" >&2
     exit 1

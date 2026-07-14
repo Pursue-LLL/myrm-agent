@@ -26,9 +26,13 @@ import {
 } from './config/providerTypes';
 import { normalizeProviders } from '@/services/config/configNormalizer';
 import { getConfigSyncManager, type ProvidersConfigValue } from '@/services/config';
+import { ensureLocalBackendReady } from '@/lib/backend-health';
+import { isLocalMode } from '@/lib/deploy-mode';
+import { ensurePlatformReadiness } from '@/lib/platform-readiness';
 
 // 初始化标志
 let isStoreInitialized = false;
+let providersSubscribeRegistered = false;
 
 interface ProviderState {
   // 提供商列表
@@ -123,6 +127,10 @@ const useProviderStore = create<ProviderState>((set, get) => ({
     if (isStoreInitialized) return;
 
     try {
+      if (typeof window !== 'undefined' && isLocalMode()) {
+        await ensureLocalBackendReady();
+      }
+
       const manager = getConfigSyncManager();
       await manager.initialize();
 
@@ -133,6 +141,31 @@ const useProviderStore = create<ProviderState>((set, get) => ({
           isInitialized: true,
           initError: null,
         });
+      } else if (manager.status === 'offline') {
+        set({
+          providers: getInitialProviders(),
+          defaultModelConfig: getInitialDefaultModelConfig(),
+          customModelInfo: {},
+          isInitialized: false,
+          initError: 'Backend offline during config load',
+        });
+        if (!providersSubscribeRegistered) {
+          manager.subscribe('providers', (_key, value) => {
+            set({
+              ...hydrateFromProvidersValue(value as ProvidersConfigValue),
+              isInitialized: true,
+              initError: null,
+            });
+            isStoreInitialized = true;
+          });
+          providersSubscribeRegistered = true;
+        }
+        void ensurePlatformReadiness().then((snapshot) => {
+          if (snapshot.database) {
+            void get().initProviders();
+          }
+        });
+        return;
       } else {
         set({
           providers: getInitialProviders(),
@@ -143,9 +176,12 @@ const useProviderStore = create<ProviderState>((set, get) => ({
         });
       }
 
-      manager.subscribe('providers', (_key, value) => {
-        set(hydrateFromProvidersValue(value as ProvidersConfigValue));
-      });
+      if (!providersSubscribeRegistered) {
+        manager.subscribe('providers', (_key, value) => {
+          set(hydrateFromProvidersValue(value as ProvidersConfigValue));
+        });
+        providersSubscribeRegistered = true;
+      }
 
       isStoreInitialized = true;
       console.log('[ProviderStore] Initialized from ConfigSyncManager');
@@ -160,7 +196,6 @@ const useProviderStore = create<ProviderState>((set, get) => ({
   },
 
   retryInit: async () => {
-    if (!get().initError) return;
     isStoreInitialized = false;
     set({ isInitialized: false, initError: null });
     await get().initProviders();

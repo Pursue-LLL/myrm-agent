@@ -22,8 +22,10 @@ import os
 import platform
 import re
 import subprocess
+import sys
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TypedDict
 
@@ -91,6 +93,49 @@ class HealthJsonPayload(TypedDict):
     frontendEpoch: FrontendEpoch | None
     chromeEpoch: ChromeEpoch | None
     muxEpoch: MuxEpoch | None
+
+
+def attach_health_errors(payload: HealthJsonPayload) -> list[str]:
+    """Return every reason a read-only parallel attach is unsafe."""
+    errors: list[str] = []
+    if payload["muxDaemons"] != 1:
+        errors.append(f"muxDaemons={payload['muxDaemons']}")
+    checks = (
+        ("upstreamReady", payload["upstreamReady"]),
+        ("wsStampMatch", payload["wsStampMatch"]),
+        ("shellHot", payload["shellHot"]),
+        ("clientHot", payload["clientHot"]),
+    )
+    errors.extend(f"{name}=false" for name, ready in checks if not ready)
+    if not payload["runtimeId"]:
+        errors.append("runtimeId=empty")
+    epochs = (
+        ("backendEpoch", payload["backendEpoch"]),
+        ("frontendEpoch", payload["frontendEpoch"]),
+        ("chromeEpoch", payload["chromeEpoch"]),
+        ("muxEpoch", payload["muxEpoch"]),
+    )
+    errors.extend(f"{name}=missing" for name, epoch in epochs if epoch is None)
+    return errors
+
+
+def _http_url_ok(url: str) -> bool:
+    try:
+        with urllib.request.urlopen(url, timeout=5) as response:
+            return 200 <= response.status < 300
+    except (OSError, TimeoutError, urllib.error.URLError):
+        return False
+
+
+def attach_endpoint_errors(ui_base: str, api_base: str) -> list[str]:
+    """Probe UI and API concurrently for the attach-only fast path."""
+    endpoints = (
+        ("ui", ui_base.rstrip("/") + "/"),
+        ("api", api_base.rstrip("/") + "/api/v1/health"),
+    )
+    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="attach-health") as pool:
+        ready = tuple(pool.map(_http_url_ok, (url for _, url in endpoints)))
+    return [f"{name}=unreachable" for (name, _), ok in zip(endpoints, ready, strict=True) if not ok]
 
 
 _BROWSER_ID_RE = re.compile(r"/devtools/browser/([0-9a-f-]{36})")
@@ -269,6 +314,25 @@ def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | Non
         "port": port,
         "bundler_mode": bundler_mode,
     }
+
+
+def read_frontend_hot_state(frontend: FrontendEpoch | None) -> tuple[bool, bool]:
+    """Validate cached warmth against the already-computed frontend epoch."""
+    if frontend is None or frontend["pid"] is None:
+        return False, False
+    try:
+        os.kill(frontend["pid"], 0)
+    except (OSError, ProcessLookupError):
+        return False, False
+    warmth = _read_json_file(_state_dir() / "frontend-warmth.json")
+    if warmth is None:
+        return False, False
+    current = (
+        warmth.get("generation") == frontend["generation"]
+        and warmth.get("source_fingerprint") == frontend["source_fingerprint"]
+        and bool(frontend["source_fingerprint"])
+    )
+    return current, current and warmth.get("client_hot") is True
 
 
 def frontend_source_fingerprint(frontend_dir: Path) -> str:
@@ -474,6 +538,7 @@ def build_health_json(
     shell_hot: bool,
     client_hot: bool,
     attach_mode: bool,
+    auto_hot: bool = False,
     upstream_generation: int = 0,
     frontend_dir: Path | None = None,
     cdp_port: int | None = None,
@@ -489,6 +554,8 @@ def build_health_json(
         upstream_generation=upstream_generation,
     )
     runtime_id = compute_runtime_id(parts)
+    if auto_hot:
+        shell_hot, client_hot = read_frontend_hot_state(parts["frontend_epoch"])
     backend = parts["backend_epoch"]
     stack_epoch: int | None = backend["epoch"] if backend is not None else None
 
@@ -534,7 +601,17 @@ def main() -> None:
     parser.add_argument("--ws-stamp-match", action="store_true")
     parser.add_argument("--shell-hot", action="store_true")
     parser.add_argument("--client-hot", action="store_true")
+    parser.add_argument(
+        "--auto-hot",
+        action="store_true",
+        help="Derive shell/client warmth from frontendEpoch and the cached warmth record",
+    )
     parser.add_argument("--attach-mode", action="store_true")
+    parser.add_argument(
+        "--require-attach-ready",
+        action="store_true",
+        help="Exit 2 unless the unified snapshot is safe for read-only parallel attach",
+    )
     parser.add_argument("--frontend-dir", default="")
     parser.add_argument("--cdp-port", type=int, default=0)
     parser.add_argument("--profile-dir", default="")
@@ -572,11 +649,17 @@ def main() -> None:
         shell_hot=args.shell_hot,
         client_hot=args.client_hot,
         attach_mode=args.attach_mode,
+        auto_hot=args.auto_hot,
         upstream_generation=upstream_generation if args.auto_probe else 0,
         frontend_dir=frontend_dir,
         cdp_port=cdp_port,
         profile_dir=profile_dir,
     )
+    if args.require_attach_ready:
+        errors = attach_health_errors(payload) + attach_endpoint_errors(args.ui, args.api)
+        if errors:
+            print("CHROME_E2E_ATTACH_NOT_READY: " + ", ".join(errors), file=sys.stderr)
+            raise SystemExit(2)
     print(f"CHROME_E2E_HEALTH_JSON={json.dumps(payload, separators=(',', ':'))}")
 
 

@@ -1,0 +1,156 @@
+"""Tests for the mandatory live-E2E lease and runtime guard."""
+
+from __future__ import annotations
+
+import json
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+import pytest
+
+from tests.support.e2e_runtime_guard import (
+    E2EResourceLedger,
+    assert_e2e_runtime_unchanged,
+    heartbeat_e2e_lease,
+    require_e2e_runtime_lease,
+    register_e2e_resource,
+)
+
+
+def test_heartbeat_noop_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MYRM_E2E_LEASE_ID", raising=False)
+    monkeypatch.delenv("MYRM_E2E_AGENT_ID", raising=False)
+    heartbeat_e2e_lease()
+
+
+def test_register_e2e_resource_rejects_empty_ref() -> None:
+    with pytest.raises(ValueError, match="must not be empty"):
+        register_e2e_resource("lease-1", kind="chat", ref="  ", namespace="ns")
+
+
+def test_register_e2e_resource_noop_on_inactive_lease(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard.subprocess.run",
+        lambda *args, **kwargs: type(
+            "Result",
+            (),
+            {"returncode": 1, "stderr": "LEDGER_DENIED: active lease not found: lease-1", "stdout": ""},
+        )(),
+    )
+    register_e2e_resource("lease-1", kind="chat", ref="chat-1", namespace="ns")
+
+
+def _write_state(
+    tmp_path: Path,
+    *,
+    lease_id: str = "lease-1",
+    runtime_id: str = "runtime-1",
+    lane: str = "LIVE_AGENT",
+) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    (state_dir / "wave-orchestrator.json").write_text(
+        json.dumps(
+            {
+                "version": 2,
+                "wave": {"status": "open", "runtimeId": runtime_id},
+                "leases": [
+                    {
+                        "leaseId": lease_id,
+                        "agentId": "test-agent",
+                        "lane": lane,
+                        "runtimeId": runtime_id,
+                        "status": "active",
+                        "expiresAt": (datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
+                    }
+                ],
+                "resources": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_requires_lease_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MYRM_E2E_LEASE_ID", raising=False)
+    with pytest.raises(RuntimeError, match="E2E_LEASE_REQUIRED"):
+        require_e2e_runtime_lease(runtime_id_reader=lambda: "runtime-1")
+
+
+def test_accepts_active_live_agent_lease(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_state(tmp_path)
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
+
+    lease = require_e2e_runtime_lease(runtime_id_reader=lambda: "runtime-1")
+
+    assert lease.lease_id == "lease-1"
+    assert lease.runtime_id == "runtime-1"
+    assert lease.lane == "LIVE_AGENT"
+
+
+def test_accepts_declared_read_only_lane(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_state(tmp_path, lane="READ")
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
+    monkeypatch.setenv("MYRM_E2E_LANE", "READ")
+
+    lease = require_e2e_runtime_lease(runtime_id_reader=lambda: "runtime-1")
+
+    assert lease.lane == "READ"
+
+
+def test_accepts_declared_global_write_lane(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_state(tmp_path, lane="GLOBAL_WRITE")
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
+    monkeypatch.setenv("MYRM_E2E_LANE", "GLOBAL_WRITE")
+
+    lease = require_e2e_runtime_lease(runtime_id_reader=lambda: "runtime-1")
+
+    assert lease.lane == "GLOBAL_WRITE"
+
+
+def test_rejects_lane_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_state(tmp_path, lane="READ")
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
+    monkeypatch.setenv("MYRM_E2E_LANE", "LIVE_AGENT")
+
+    with pytest.raises(RuntimeError, match="does not match MYRM_E2E_LANE"):
+        require_e2e_runtime_lease(runtime_id_reader=lambda: "runtime-1")
+
+
+def test_rejects_runtime_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_state(tmp_path)
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
+
+    with pytest.raises(RuntimeError, match="RUNTIME_DRIFT"):
+        require_e2e_runtime_lease(runtime_id_reader=lambda: "runtime-2")
+
+    lease = require_e2e_runtime_lease(runtime_id_reader=lambda: "runtime-1")
+    with pytest.raises(RuntimeError, match="RUNTIME_DRIFT"):
+        assert_e2e_runtime_unchanged(lease, runtime_id_reader=lambda: "runtime-2")

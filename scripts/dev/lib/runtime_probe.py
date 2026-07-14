@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -61,10 +62,30 @@ def _resolve_mux_bin() -> Path | None:
     return candidate if candidate.is_file() else None
 
 
+def _count_mux_daemons_from_ps(output: str) -> int:
+    count = 0
+    for line in output.splitlines():
+        fields = line.strip().split(maxsplit=1)
+        if len(fields) != 2:
+            continue
+        try:
+            argv = shlex.split(fields[1])
+        except ValueError:
+            continue
+        if (
+            len(argv) >= 3
+            and Path(argv[-3]).name == "node"
+            and Path(argv[-2]).name == "cdmcp-mux-autoconnect.mjs"
+            and argv[-1] == "daemon"
+        ):
+            count += 1
+    return count
+
+
 def _mux_daemon_count() -> int:
     try:
         proc = subprocess.run(
-            ["pgrep", "-f", "cdmcp-mux-autoconnect.mjs daemon"],
+            ["ps", "-axo", "pid=,command="],
             capture_output=True,
             text=True,
             check=False,
@@ -73,7 +94,7 @@ def _mux_daemon_count() -> int:
         return 0
     if proc.returncode != 0:
         return 0
-    return len([line for line in proc.stdout.splitlines() if line.strip()])
+    return _count_mux_daemons_from_ps(proc.stdout)
 
 
 def _mux_status_snapshot() -> tuple[bool, int]:

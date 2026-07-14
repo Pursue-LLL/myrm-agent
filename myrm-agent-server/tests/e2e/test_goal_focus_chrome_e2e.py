@@ -20,11 +20,11 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_ui import chat_id_from_path, warmup_frontend  # noqa: E402
-from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from mcp_chat_ui import McpChatSession, is_detached_frame_error  # noqa: E402
+from cdp_chat_ui import chat_id_from_path  # noqa: E402
+from chrome_mcp_client import ChromeMcpClient  # noqa: E402
+from mcp_chat_ui import McpChatSession  # noqa: E402
 
-from tests.support.e2e_runtime_guard import E2EResourceLedger, require_e2e_runtime_lease
+from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 API_URL = os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
@@ -72,7 +72,6 @@ async def test_chrome_ui_goal_mode_stream(
         )
 
     async def _run_goal_flow(chat: McpChatSession) -> str:
-        await chat.wait_shell_ready(timeout_sec=120.0)
         await chat.dismiss_modals()
         await chat.click_new_chat()
 
@@ -94,34 +93,17 @@ async def test_chrome_ui_goal_mode_stream(
         return chat_id
 
     async def _run_goal_turn() -> str:
-        warmup_frontend(BASE_URL, timeout_sec=60)
         client = ChromeMcpClient(request_timeout_sec=120.0)
         await asyncio.to_thread(client.start)
         try:
-            page: McpPage | None = None
-            for start_attempt in range(2):
-                try:
-                    page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
-                    break
-                except RuntimeError as exc:
-                    if start_attempt == 0 and is_detached_frame_error(exc):
-                        await asyncio.sleep(2)
-                        continue
-                    raise
-            assert page is not None
+            page = await asyncio.to_thread(
+                client.new_page,
+                BASE_URL,
+                timeout_ms=120_000,
+            )
             chat = McpChatSession(client, page)
-            await chat.bootstrap(BASE_URL)
-            for attempt in range(2):
-                try:
-                    return await _run_goal_flow(chat)
-                except RuntimeError as exc:
-                    if attempt == 0 and is_detached_frame_error(exc):
-                        require_e2e_runtime_lease()
-                        await chat.recreate_page(timeout_ms=120_000)
-                        await chat.bootstrap(BASE_URL)
-                        await asyncio.sleep(2)
-                        continue
-                    raise
+            await chat.bootstrap(BASE_URL, timeout_sec=120.0)
+            return await _run_goal_flow(chat)
         finally:
             await asyncio.to_thread(client.close)
 

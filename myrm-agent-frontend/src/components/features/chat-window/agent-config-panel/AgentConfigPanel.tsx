@@ -86,7 +86,7 @@ const AgentConfigPanel = ({ className, hideGallery = false, showInkBackground = 
     <div className={cn('relative w-full overflow-visible', className)}>
       {showInkBackground && (
         <div className="pointer-events-none absolute left-1/2 top-[-0.75rem] z-0 w-screen -translate-x-1/2 overflow-visible">
-          <div className="mx-auto h-[min(32rem,48vh)] w-[120vw] max-w-none">
+          <div className="mx-auto h-[min(32rem,48vh)] w-[135vw] max-w-none">
             <GalleryBackground variant="panel" />
           </div>
         </div>

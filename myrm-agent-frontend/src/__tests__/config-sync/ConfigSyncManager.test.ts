@@ -15,6 +15,12 @@ vi.mock('@/lib/deploy-mode', () => ({
 
 vi.mock('@/lib/backend-health', () => ({
   ensureLocalBackendReady: vi.fn(() => Promise.resolve(true)),
+  markLocalBackendUnreachable: vi.fn(),
+}));
+
+vi.mock('@/lib/platform-readiness', () => ({
+  ensurePlatformReadiness: vi.fn(() => Promise.resolve({ state: 'ready', database: true })),
+  whenDatabaseReady: vi.fn(() => Promise.resolve(true)),
 }));
 
 // Mock fetch
@@ -47,11 +53,15 @@ describe('ConfigSyncManager', () => {
     systemInstructions: 'test',
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     localStorageMock.clear();
     resetConfigSyncManager();
     manager = new ConfigSyncManager();
+    const { ensureLocalBackendReady } = await import('@/lib/backend-health');
+    vi.mocked(ensureLocalBackendReady).mockResolvedValue(true);
+    const { ensurePlatformReadiness } = await import('@/lib/platform-readiness');
+    vi.mocked(ensurePlatformReadiness).mockResolvedValue({ state: 'ready', database: true });
   });
 
   afterEach(() => {
@@ -92,12 +102,14 @@ describe('ConfigSyncManager', () => {
 
     it('后端不可达时应标记 offline 且不请求配置', async () => {
       const { ensureLocalBackendReady } = await import('@/lib/backend-health');
+      const { ensurePlatformReadiness } = await import('@/lib/platform-readiness');
       vi.mocked(ensureLocalBackendReady).mockResolvedValueOnce(false);
+      vi.mocked(ensurePlatformReadiness).mockResolvedValueOnce({ state: 'unreachable', database: false });
 
       const result = await manager.initialize();
 
       expect(manager.status).toBe('offline');
-      expect(manager.isInitialized).toBe(true);
+      expect(manager.isInitialized).toBe(false);
       expect(result.size).toBe(0);
       expect(mockFetch).not.toHaveBeenCalled();
     });

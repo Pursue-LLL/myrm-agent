@@ -12,7 +12,10 @@
       "name": "notion",
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "args": [
+        "-y",
+        "@notionhq/notion-mcp-server"
+      ],
       "description": "Notion workspace integration - read, search, create pages and databases"
     },
     "auth": {
@@ -22,7 +25,12 @@
       "help_text": "Create an internal integration at notion.so/my-integrations and copy the token",
       "help_text_zh": "在 notion.so/my-integrations 创建内部集成并复制令牌"
     },
-    "tags": ["notes", "wiki", "database", "project-management"],
+    "tags": [
+      "notes",
+      "wiki",
+      "database",
+      "project-management"
+    ],
     "website": "https://notion.so"
   },
   {
@@ -38,7 +46,10 @@
       "name": "todoist",
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@abhiz123/todoist-mcp-server"],
+      "args": [
+        "-y",
+        "@abhiz123/todoist-mcp-server"
+      ],
       "description": "Todoist task management - create, update, complete tasks and projects"
     },
     "auth": {
@@ -48,7 +59,12 @@
       "help_text": "Go to Todoist Settings → Integrations → Developer and copy your API token",
       "help_text_zh": "前往 Todoist 设置 → 集成 → 开发者，复制 API 令牌"
     },
-    "tags": ["tasks", "todo", "reminders", "projects"],
+    "tags": [
+      "tasks",
+      "todo",
+      "reminders",
+      "projects"
+    ],
     "website": "https://todoist.com"
   },
   {
@@ -64,7 +80,10 @@
       "name": "google-calendar",
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@anthropic/google-calendar-mcp"],
+      "args": [
+        "-y",
+        "@anthropic/google-calendar-mcp"
+      ],
       "description": "Google Calendar - list, create, update, delete calendar events"
     },
     "auth": {
@@ -73,7 +92,12 @@
       "help_text": "Create OAuth 2.0 credentials in Google Cloud Console, then authorize access",
       "help_text_zh": "在 Google Cloud Console 创建 OAuth 2.0 凭据，然后授权访问"
     },
-    "tags": ["calendar", "schedule", "events", "google"],
+    "tags": [
+      "calendar",
+      "schedule",
+      "events",
+      "google"
+    ],
     "website": "https://calendar.google.com"
   },
   {
@@ -89,7 +113,10 @@
       "name": "linear",
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@linear/mcp-server"],
+      "args": [
+        "-y",
+        "@linear/mcp-server"
+      ],
       "description": "Linear project management - issues, projects, cycles, teams"
     },
     "auth": {
@@ -99,7 +126,104 @@
       "help_text": "Go to Linear Settings → API and create a personal API key",
       "help_text_zh": "前往 Linear 设置 → API，创建个人 API 密钥"
     },
-    "tags": ["issues", "project-management", "agile", "sprint"],
+    "tags": [
+      "issues",
+      "project-management",
+      "agile",
+      "sprint"
+    ],
     "website": "https://linear.app"
+  },
+  {
+    "id": "tencent-docs",
+    "name": "Tencent Docs",
+    "name_zh": "腾讯文档",
+    "description": "Create and manage documents, spreadsheets, slides, and mind maps in Tencent Docs",
+    "description_zh": "在腾讯文档中创建和管理文档、表格、幻灯片和思维导图",
+    "icon": "tencent-docs",
+    "category": "productivity",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "tencent-docs",
+      "type": "streamable_http",
+      "url": "https://docs.qq.com/openapi/mcp",
+      "headers": {
+        "Authorization": "{{TENCENT_DOCS_TOKEN}}"
+      },
+      "description": "Tencent Docs - smart docs, excel, slides, mind maps, flowcharts"
+    },
+    "auth": {
+      "type": "bearer",
+      "credential_fields": [
+        {
+          "key": "Authorization",
+          "label": "MCP Token",
+          "label_zh": "MCP 令牌",
+          "inject": "header"
+        }
+      ],
+      "help_url": "https://docs.qq.com/open/auth/mcp.html",
+      "help_text": "Open your Tencent Docs space, click ≡ → Use MCP → Get MCP Token, then copy the token",
+      "help_text_zh": "打开腾讯文档空间，点击右上角 ≡ → 使用 MCP → 获取 MCP Token，复制令牌"
+    },
+    "tags": [
+      "docs",
+      "spreadsheet",
+      "slides",
+      "腾讯文档",
+      "文档",
+      "表格",
+      "幻灯片"
+    ],
+    "website": "https://docs.qq.com"
+  },
+  {
+    "id": "wps",
+    "name": "WPS Docs",
+    "name_zh": "WPS / 金山文档",
+    "description": "Query and manage WPS spreadsheet data via Webhook integration",
+    "description_zh": "通过 Webhook 集成查询和管理 WPS 表格数据",
+    "icon": "wps",
+    "category": "productivity",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "wps",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "jim-wps-mcp-server@latest"
+      ],
+      "description": "WPS Docs - query spreadsheet data via AirScript Webhook"
+    },
+    "auth": {
+      "type": "api_key",
+      "credential_fields": [
+        {
+          "key": "WPS_WEBHOOK_URL",
+          "label": "Webhook URL",
+          "label_zh": "Webhook 地址",
+          "inject": "env"
+        },
+        {
+          "key": "WPS_TOKEN",
+          "label": "AirScript Token",
+          "label_zh": "AirScript 令牌",
+          "inject": "env"
+        }
+      ],
+      "help_url": "https://github.com/Jim-purch/jim-wps-mcp-server#readme",
+      "help_text": "Create an AirScript webhook in your WPS spreadsheet and copy the URL and Token",
+      "help_text_zh": "在 WPS 表格中创建 AirScript Webhook，复制 URL 和 Token"
+    },
+    "tags": [
+      "wps",
+      "kingsoft",
+      "spreadsheet",
+      "金山文档",
+      "表格",
+      "办公"
+    ],
+    "website": "https://www.wps.cn"
   }
 ]

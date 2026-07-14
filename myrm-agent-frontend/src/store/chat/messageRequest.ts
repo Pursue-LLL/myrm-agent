@@ -607,6 +607,7 @@ export const createMessageRequest = async (
           label: reference.label,
           start_line: reference.startLine,
           end_line: reference.endLine,
+          ...(reference.conceptName ? { concept_name: reference.conceptName } : {}),
         }));
       }
       if (agentReferences.length > 0) {

@@ -4,10 +4,10 @@
  * - loadDeferredMessages (POS: server-only namespace loader)
  *
  * [OUTPUT]
- * GET /api/i18n/deferred — JSON partial messages (channels, memory, settings)
+ * GET /api/i18n/deferred — JSON partial messages (deferred namespaces + remaining settings sections)
  *
  * [POS]
- * Client-side deferred locale hydration endpoint for LazyLocaleHydrator.
+ * Client-side deferred locale hydration endpoint for ClientIntlProvider.
  */
 import { NextResponse } from 'next/server';
 

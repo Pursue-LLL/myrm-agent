@@ -100,7 +100,7 @@ def _pid_alive(pid: int) -> bool:
         return False
 
 
-def _close_exact_target(cdp_port: int, target_id: str) -> bool:
+def close_exact_target(cdp_port: int, target_id: str) -> bool:
     url = f"http://127.0.0.1:{cdp_port}/json/close/{target_id}"
     try:
         with urllib.request.urlopen(url, timeout=3) as response:
@@ -119,7 +119,7 @@ def prune_stale_targets(cdp_port: int) -> tuple[int, int]:
         closed_ids = {
             item["targetId"]
             for item in stale
-            if _close_exact_target(cdp_port, item["targetId"])
+            if close_exact_target(cdp_port, item["targetId"])
         }
         _write(ledger, [item for item in records if item["targetId"] not in closed_ids])
     return len(closed_ids), len(stale) - len(closed_ids)

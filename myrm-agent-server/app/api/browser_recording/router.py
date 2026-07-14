@@ -92,11 +92,22 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
     if not session.steps:
         raise HTTPException(status_code=400, detail="No recorded steps in session")
 
-    skill_id, _content, credential_placeholders = generate_skill_from_session(
+    skill_id, content, credential_placeholders = generate_skill_from_session(
         session=session,
         skill_name=req.skill_name,
         description=req.description,
     )
+
+    from app.core.skills.creation.service import SkillCreationService
+
+    skill_svc = SkillCreationService()
+    save_result = await skill_svc.save_skill(
+        name=req.skill_name,
+        content=content,
+        description=req.description or f"Browser skill from recording {req.session_id}",
+    )
+    if not save_result.success:
+        raise HTTPException(status_code=500, detail=f"Failed to save skill: {save_result.error}")
 
     return GenerateSkillResponse(
         skill_id=skill_id,

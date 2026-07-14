@@ -61,7 +61,9 @@ const BaseModelSelector = () => {
   );
 
   useEffect(() => {
-    if (!isInitialized) initProviders();
+    if (!isInitialized) {
+      void initProviders();
+    }
   }, [isInitialized, initProviders]);
 
   const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels, providers]);

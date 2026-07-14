@@ -47,6 +47,27 @@ ok() {
   echo "CHROME_E2E_OK: $*"
 }
 
+_attach_fast_path() {
+  local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
+  local health
+  if ! health="$("${PREFLIGHT_PY}" "${runtime_py}" \
+    --auto-probe \
+    --auto-hot \
+    --require-attach-ready \
+    --ui "${UI_BASE}" \
+    --api "${API_BASE}" \
+    --attach-mode)"; then
+    fail "parallel attach health snapshot rejected — first Agent must run: ./myrm ready --chrome"
+  fi
+  echo "CHROME_E2E_READY ui=${UI_BASE} api=${API_BASE} port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
+  echo "${health}"
+}
+
+if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+  _attach_fast_path
+  exit 0
+fi
+
 _ensure_stack_epoch_file() {
   local epoch_file backend_pid
   epoch_file="$(_stack_epoch_file)"
@@ -88,22 +109,24 @@ if ! curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null; then
 fi
 ok "dev servers :${FRONTEND_PORT}/${MYRM_BACKEND_PORT:-8080}"
 
-# 1b. Default model seed for new-chat UI E2E (idempotent; requires .env.test)
-if [[ -f "${SERVER_DIR}/.env.test" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "${SERVER_DIR}/.env.test"
-  set +a
-fi
-if [[ -n "${BASIC_MODEL:-}" && -n "${BASIC_API_KEY:-}" ]]; then
-  if seed_out="$(bun "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" 2>&1)"; then
-    echo "${seed_out}"
-    ok "model seed"
-  else
-    echo "CHROME_E2E_WARN: model seed failed — ${seed_out}" >&2
+# 1b. Only the first Agent mutates provider seed state. Attach is strictly read-only.
+if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]]; then
+  if [[ -f "${SERVER_DIR}/.env.test" ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "${SERVER_DIR}/.env.test"
+    set +a
   fi
-else
-  echo "CHROME_E2E_WARN: skip model seed (set BASIC_MODEL and BASIC_API_KEY in .env.test)" >&2
+  if [[ -n "${BASIC_MODEL:-}" && -n "${BASIC_API_KEY:-}" ]]; then
+    if seed_out="$(bun "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" 2>&1)"; then
+      echo "${seed_out}"
+      ok "model seed"
+    else
+      echo "CHROME_E2E_WARN: model seed failed — ${seed_out}" >&2
+    fi
+  else
+    echo "CHROME_E2E_WARN: skip model seed (set BASIC_MODEL and BASIC_API_KEY in .env.test)" >&2
+  fi
 fi
 
 # 2. Legacy second Chrome / debug launchers
@@ -405,6 +428,38 @@ else
   fi
 fi
 
+_print_e2e_health_json() {
+  local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
+  local require_ready="${1:-0}"
+  local shell_hot="false" client_hot="false"
+  [[ -f "${runtime_py}" ]] || fail "Missing runtime_identity.py at ${runtime_py}"
+  if [[ "$(_frontend_shell_hot_status)" == "yes" ]]; then
+    shell_hot="true"
+  fi
+  if [[ "$(_frontend_client_hot_status)" == "yes" ]]; then
+    client_hot="true"
+  fi
+  local health_args=(
+    --auto-probe
+    --ui "${UI_BASE}"
+    --api "${API_BASE}"
+  )
+  [[ "${shell_hot}" == "true" ]] && health_args+=(--shell-hot)
+  [[ "${client_hot}" == "true" ]] && health_args+=(--client-hot)
+  [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && health_args+=(--attach-mode)
+  [[ "${require_ready}" == "1" ]] && health_args+=(--require-attach-ready)
+  "${PREFLIGHT_PY}" "${runtime_py}" "${health_args[@]}"
+}
+
+if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+  if [[ "$(_frontend_client_hot_status)" != "yes" ]]; then
+    fail "client_hot missing during attach — first Agent must finish ./myrm ready --chrome"
+  fi
+  echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
+  _print_e2e_health_json
+  exit 0
+fi
+
 # 5. CDP WebSocket (Chrome 150+ may omit DevToolsActivePort — use /json/version fallback)
 raw_port="${MYRM_CHROME_E2E_PORT}"
 ws_path=""
@@ -480,30 +535,11 @@ if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then
   done < <(pgrep -lf "chrome-devtools-mcp" 2>/dev/null || true)
 fi
 
-_print_e2e_health_json() {
-  local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
-  local shell_hot="false" client_hot="false"
-  [[ -f "${runtime_py}" ]] || fail "Missing runtime_identity.py at ${runtime_py}"
-  if [[ "$(_frontend_shell_hot_status)" == "yes" ]]; then
-    shell_hot="true"
-  fi
-  if [[ "$(_frontend_client_hot_status)" == "yes" ]]; then
-    client_hot="true"
-  fi
-  local health_args=(
-    --auto-probe
-    --ui "${UI_BASE}"
-    --api "${API_BASE}"
-  )
-  [[ "${shell_hot}" == "true" ]] && health_args+=(--shell-hot)
-  [[ "${client_hot}" == "true" ]] && health_args+=(--client-hot)
-  [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && health_args+=(--attach-mode)
-  "${PREFLIGHT_PY}" "${runtime_py}" "${health_args[@]}"
-}
-
 echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=$raw_port profile=${MYRM_CHROME_E2E_DATA_DIR}"
 if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]]; then
   _ensure_stack_epoch_file
 fi
-_print_e2e_health_json
+if ! _print_e2e_health_json 1; then
+  fail "final runtime health snapshot rejected — retry: ./myrm ready --chrome"
+fi
 exit 0

@@ -9,11 +9,16 @@ source "${REPO_ROOT}/scripts/lib/resolve_agent_root.sh"
 resolve_agent_paths "${REPO_ROOT}"
 
 _swc_pkg=""
-case "$(uname -s)-$(uname -m)" in
-  Darwin-arm64) _swc_pkg="@next/swc-darwin-arm64" ;;
-  Darwin-x86_64) _swc_pkg="@next/swc-darwin-x64" ;;
-  Linux-arm64 | Linux-aarch64) _swc_pkg="@next/swc-linux-arm64-gnu" ;;
-  Linux-x86_64) _swc_pkg="@next/swc-linux-x64-gnu" ;;
+if command -v bun >/dev/null 2>&1; then
+  _runtime_platform="$(bun -e 'process.stdout.write(`${process.platform}-${process.arch}`)')"
+else
+  _runtime_platform="$(uname -s)-$(uname -m)"
+fi
+case "${_runtime_platform}" in
+  darwin-arm64 | Darwin-arm64) _swc_pkg="@next/swc-darwin-arm64" ;;
+  darwin-x64 | Darwin-x86_64) _swc_pkg="@next/swc-darwin-x64" ;;
+  linux-arm64 | Linux-arm64 | Linux-aarch64) _swc_pkg="@next/swc-linux-arm64-gnu" ;;
+  linux-x64 | Linux-x86_64) _swc_pkg="@next/swc-linux-x64-gnu" ;;
 esac
 
 if [[ -z "${_swc_pkg}" ]]; then

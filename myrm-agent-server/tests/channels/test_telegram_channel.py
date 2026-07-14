@@ -1675,7 +1675,7 @@ class TestTelegramSendMedia:
         ch._client.send_message = AsyncMock(return_value={"message_id": 100})
 
         with patch(
-            "app.channels.providers.telegram.channel.send_media_attachment",
+            "app.channels.providers.telegram.outbound.send_media_attachment",
             new_callable=AsyncMock,
         ) as mock_send_media:
             msg = OutboundMessage(

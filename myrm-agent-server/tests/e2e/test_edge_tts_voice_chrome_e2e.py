@@ -1,4 +1,4 @@
-"""Chrome E2E: Edge TTS GPL isolation + Voice Settings UX (CDP, not Playwright).
+"""Chrome E2E: Edge TTS GPL isolation + Voice Settings UX through MCP mux.
 
 Prerequisites:
   ./myrm ready --chrome
@@ -17,18 +17,20 @@ import asyncio
 import json
 import sys
 import time
-import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from pathlib import Path
-from urllib.parse import quote
-
-from dataclasses import dataclass
 
 import pytest
 
+_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_LIB) not in sys.path:
+    sys.path.insert(0, str(_LIB))
+
+from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
+
 BASE_URL = "http://127.0.0.1:3000"
 API_URL = "http://127.0.0.1:8080"
-CHROME_CDP_LIST = "http://127.0.0.1:9333/json/list"
 VOICE_SETTINGS_URL = f"{BASE_URL}/settings/channels?sub=voice"
 
 _DISMISS_MIGRATION_JS = """(() => {
@@ -70,17 +72,20 @@ _LAYOUT_PROBE_JS = """(() => ({
 
 def _http_json(method: str, url: str, body: dict[str, object] | None = None) -> object:
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method)
+    req = urllib.request.Request(url, data=data, method=method)  # noqa: S310 - loopback only
     if data is not None:
         req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - loopback only
         raw = resp.read()
         return json.loads(raw) if raw else {}
 
 
 def _server_reachable() -> bool:
     try:
-        with urllib.request.urlopen(f"{API_URL}/api/v1/health/info", timeout=5):
+        with urllib.request.urlopen(  # noqa: S310 - fixed loopback URL
+            f"{API_URL}/api/v1/health/info",
+            timeout=5,
+        ):
             return True
     except Exception:
         return False
@@ -156,150 +161,106 @@ def _edge_tts_available() -> bool:
     return isinstance(info, dict) and info.get("edge_tts_available") is True
 
 
-def _assert_cdp_write_allowed(operation: str) -> None:
-    dev_lib = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
-    if str(dev_lib) not in sys.path:
-        sys.path.insert(0, str(dev_lib))
-    from cdp_write_guard import assert_cdp_write_allowed
-
-    assert_cdp_write_allowed(operation=operation)
-
-
-def _parse_eval_value(result: dict[str, object]) -> object:
-    if "exceptionDetails" in result:
-        raise AssertionError(f"CDP eval failed: {result['exceptionDetails']}")
-    payload = result.get("result", {})
-    if not isinstance(payload, dict):
-        raise AssertionError(f"CDP eval missing result payload: {result}")
-    inner = payload.get("result", {})
-    if not isinstance(inner, dict):
-        raise AssertionError(f"CDP eval missing inner result: {result}")
-    if "value" in inner:
-        return inner["value"]
-    if inner.get("type") == "undefined":
-        return None
-    description = inner.get("description")
-    if description is not None:
-        return description
-    raise AssertionError(f"CDP eval returned unparseable value: {result}")
+def _feature_override_snapshot() -> tuple[bool, bool]:
+    payload = _http_json("GET", f"{API_URL}/api/v1/features")
+    if not isinstance(payload, dict) or not isinstance(payload.get("features"), list):
+        raise AssertionError(f"Invalid feature status payload: {payload!r}")
+    for item in payload["features"]:
+        if isinstance(item, dict) and item.get("id") == "voice_interaction":
+            return bool(item.get("enabled")), bool(item.get("is_overridden"))
+    raise AssertionError("voice_interaction feature status missing")
 
 
-@dataclass(frozen=True)
-class _CdpPage:
-    ws_url: str
-    target_id: str
+def _config_value_snapshot(key: str) -> dict[str, object]:
+    payload = _http_json("GET", f"{API_URL}/api/v1/config/{key}")
+    if not isinstance(payload, dict) or not isinstance(payload.get("value"), dict):
+        raise AssertionError(f"Invalid {key} config payload: {payload!r}")
+    return payload["value"]
 
 
-def _close_page_target(target_id: str) -> None:
-    if not target_id:
+@pytest.fixture(autouse=True)
+def restore_global_voice_state() -> Iterator[None]:
+    """Keep global voice/config writes from leaking into later UI E2E tests."""
+    if not _server_reachable():
+        yield
         return
-    close_url = CHROME_CDP_LIST.replace("/json/list", f"/json/close/{target_id}")
-    req = urllib.request.Request(close_url, method="GET")
+    feature_enabled, feature_overridden = _feature_override_snapshot()
+    voice = _config_value_snapshot("voice")
+    personal = _config_value_snapshot("personalSettings")
     try:
-        with urllib.request.urlopen(req, timeout=10):
-            pass
-    except urllib.error.URLError:
-        pass
-
-
-def _open_page(target_url: str) -> _CdpPage | None:
-    """Open a fresh isolated Chrome tab (parallel-safe — one owner per test)."""
-    _assert_cdp_write_allowed(operation="json/new")
-    new_url = CHROME_CDP_LIST.replace("/json/list", "/json/new")
-    encoded = quote(target_url, safe="")
-    req = urllib.request.Request(f"{new_url}?{encoded}", method="PUT")
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            page = json.loads(resp.read())
-    except urllib.error.URLError:
-        return None
-    ws = page.get("webSocketDebuggerUrl")
-    target_id = page.get("id")
-    if not isinstance(ws, str) or not isinstance(target_id, str):
-        return None
-    return _CdpPage(ws_url=ws, target_id=target_id)
-
-
-@pytest.fixture(scope="module")
-def chrome_preflight() -> None:
-    try:
-        with urllib.request.urlopen("http://127.0.0.1:9333/json/version", timeout=3):
-            pass
-    except Exception as exc:
-        pytest.skip(f"Chrome E2E not ready — run ./myrm ready --chrome: {exc}")
+        yield
+    finally:
+        _http_json(
+            "PUT",
+            f"{API_URL}/api/v1/config/voice",
+            {"deviceId": "web", "value": voice},
+        )
+        _http_json(
+            "PUT",
+            f"{API_URL}/api/v1/config/personalSettings",
+            {"deviceId": "web", "value": personal},
+        )
+        if feature_overridden:
+            _http_json(
+                "POST",
+                f"{API_URL}/api/v1/features/voice_interaction/toggle",
+                {"enabled": feature_enabled},
+            )
+        else:
+            _http_json(
+                "POST",
+                f"{API_URL}/api/v1/features/voice_interaction/reset",
+            )
 
 
 @pytest.fixture
-def chrome_page(chrome_preflight: None):
-    page = _open_page(f"{BASE_URL}/")
-    if page is None:
-        pytest.skip("Chrome E2E tab unavailable on port 9333")
-    yield page.ws_url
-    _close_page_target(page.target_id)
+def chrome_page(
+    _require_live_e2e_lease: None,
+) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
+    client = ChromeMcpClient()
+    client.start()
+    try:
+        page = client.new_page(f"{BASE_URL}/", timeout_ms=15_000)
+        yield client, page
+    finally:
+        client.close()
 
 
 @pytest.fixture
-def voice_chrome_page(chrome_preflight: None):
-    page = _open_page(f"{BASE_URL}/")
-    if page is None:
-        pytest.skip("Chrome E2E tab unavailable on port 9333")
-    yield page.ws_url
-    _close_page_target(page.target_id)
+def voice_chrome_page(
+    _require_live_e2e_lease: None,
+) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
+    client = ChromeMcpClient()
+    client.start()
+    try:
+        page = client.new_page(f"{BASE_URL}/", timeout_ms=15_000)
+        yield client, page
+    finally:
+        client.close()
 
 
-class _CdpSession:
-    def __init__(self, ws_url: str) -> None:
-        self._ws_url = ws_url
-        self._mid = 0
+class _McpSession:
+    def __init__(self, client: ChromeMcpClient, page: McpPage) -> None:
+        self._client = client
+        self._page = page
 
-    async def __aenter__(self) -> _CdpSession:
-        import websockets
-
-        self._ws = await websockets.connect(self._ws_url, max_size=10**7, open_timeout=10).__aenter__()
-        await self._call("Runtime.enable")
-        await self._call("Page.enable")
+    async def __aenter__(self) -> _McpSession:
         return self
 
-    async def __aexit__(self, *args: object) -> None:
-        await self._ws.__aexit__(*args)
-
-    async def _call(self, method: str, params: dict[str, object] | None = None) -> dict[str, object]:
-        self._mid += 1
-        await self._ws.send(
-            json.dumps({"id": self._mid, "method": method, "params": params or {}}),
-        )
-        while True:
-            raw = await asyncio.wait_for(self._ws.recv(), timeout=30)
-            result = json.loads(raw)
-            if result.get("id") != self._mid:
-                continue
-            payload = result.get("result")
-            return payload if isinstance(payload, dict) else {}
+    async def __aexit__(self, *_args: object) -> None:
+        return None
 
     async def eval(self, expression: str, *, await_promise: bool = True) -> object:
-        self._mid += 1
-        await self._ws.send(
-            json.dumps(
-                {
-                    "id": self._mid,
-                    "method": "Runtime.evaluate",
-                    "params": {
-                        "expression": expression,
-                        "returnByValue": True,
-                        "awaitPromise": await_promise,
-                    },
-                }
-            )
+        del await_promise
+        return await asyncio.to_thread(
+            self._client.evaluate,
+            self._page,
+            expression,
+            timeout_sec=120.0,
         )
-        while True:
-            raw = await asyncio.wait_for(self._ws.recv(), timeout=120)
-            result = json.loads(raw)
-            if result.get("id") != self._mid:
-                continue
-            return _parse_eval_value(result)
 
     async def navigate(self, url: str) -> None:
-        await self._call("Page.navigate", {"url": url})
+        await asyncio.to_thread(self._client.navigate, self._page, url, timeout_ms=15_000)
         await asyncio.sleep(2)
 
     async def dismiss_migration(self) -> None:
@@ -314,11 +275,7 @@ class _CdpSession:
             last = state if isinstance(state, dict) else {"probeError": state}
             if last.get("hasLayout") and last.get("readyState") in ("complete", "interactive"):
                 return last
-            if (
-                not reloaded
-                and not last.get("hasLayout")
-                and last.get("readyState") in ("complete", "interactive")
-            ):
+            if not reloaded and not last.get("hasLayout") and last.get("readyState") in ("complete", "interactive"):
                 reloaded = True
                 await self.eval("location.reload(); 'reload'", await_promise=False)
                 await asyncio.sleep(3)
@@ -347,13 +304,16 @@ class _CdpSession:
         raise AssertionError(f"Voice settings page not ready: {ready}")
 
 
-async def _probe_voice_banner(ws_url: str) -> dict[str, object]:
-    async with _CdpSession(ws_url) as cdp:
+async def _probe_voice_banner(client: ChromeMcpClient, page: McpPage) -> dict[str, object]:
+    async with _McpSession(client, page) as cdp:
         return await cdp.wait_voice_settings()
 
 
-async def _probe_read_aloud_fetch(ws_url: str) -> dict[str, object]:
-    async with _CdpSession(ws_url) as cdp:
+async def _probe_read_aloud_fetch(
+    client: ChromeMcpClient,
+    page: McpPage,
+) -> dict[str, object]:
+    async with _McpSession(client, page) as cdp:
         await cdp.dismiss_migration()
         await cdp.navigate(f"{BASE_URL}/")
         await cdp.wait_app_layout()
@@ -386,14 +346,17 @@ async def _probe_read_aloud_fetch(ws_url: str) -> dict[str, object]:
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 @pytest.mark.asyncio
-async def test_voice_settings_no_edge_banner_when_available(voice_chrome_page: str) -> None:
+async def test_voice_settings_no_edge_banner_when_available(
+    voice_chrome_page: tuple[ChromeMcpClient, McpPage],
+) -> None:
     _require_live_stack()
     if not _edge_tts_available():
         pytest.skip("edge_tts_available=false — banner covered by TestClient 503")
 
     _ensure_voice_feature_enabled()
 
-    async with _CdpSession(voice_chrome_page) as cdp:
+    client, page = voice_chrome_page
+    async with _McpSession(client, page) as cdp:
         page = await cdp.wait_voice_settings()
 
     assert page.get("hasVoicePanel") is True, page
@@ -411,13 +374,13 @@ def test_live_tts_synthesize_after_voice_config() -> None:
 
     _ensure_voice_feature_enabled()
     _put_edge_voice_config()
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310 - fixed loopback URL
         f"{API_URL}/api/v1/tts/synthesize",
         data=json.dumps({"text": "edge tts chrome e2e"}).encode(),
         method="POST",
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310 - loopback only
         assert resp.status == 200
         body = resp.read(16)
     assert body[:3] == b"ID3" or (body[0] == 0xFF and (body[1] & 0xE0) == 0xE0)
@@ -427,7 +390,9 @@ def test_live_tts_synthesize_after_voice_config() -> None:
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 @pytest.mark.asyncio
-async def test_read_aloud_edge_api_from_browser_context(chrome_page: str) -> None:
+async def test_read_aloud_edge_api_from_browser_context(
+    chrome_page: tuple[ChromeMcpClient, McpPage],
+) -> None:
     """Browser same-origin fetch to /tts/synthesize (ReadAloud API path via Next proxy)."""
     _require_live_stack()
     if not _edge_tts_available():
@@ -435,7 +400,8 @@ async def test_read_aloud_edge_api_from_browser_context(chrome_page: str) -> Non
 
     _seed_voice_and_personal_settings()
 
-    async with _CdpSession(chrome_page) as cdp:
+    client, page = chrome_page
+    async with _McpSession(client, page) as cdp:
         await cdp.dismiss_migration()
         await cdp.navigate(f"{BASE_URL}/")
         await cdp.wait_app_layout()
@@ -471,7 +437,7 @@ async def test_read_aloud_edge_api_from_browser_context(chrome_page: str) -> Non
 @pytest.mark.integration
 @pytest.mark.timeout(420)
 @pytest.mark.asyncio
-async def test_edge_tts_parallel_tabs_isolated(chrome_preflight: None) -> None:
+async def test_edge_tts_parallel_tabs_isolated(_require_live_e2e_lease: None) -> None:
     """Parallel lanes: voice banner (tab A) + read-aloud fetch (tab B) + no shared CDP session."""
     _require_live_stack()
     if not _edge_tts_available():
@@ -480,19 +446,27 @@ async def test_edge_tts_parallel_tabs_isolated(chrome_preflight: None) -> None:
     _seed_voice_and_personal_settings()
     _ensure_voice_feature_enabled()
 
-    voice_tab = _open_page(f"{BASE_URL}/")
-    read_tab = _open_page(f"{BASE_URL}/")
-    if voice_tab is None or read_tab is None:
-        pytest.skip("Chrome E2E tabs unavailable on port 9333")
+    voice_client = ChromeMcpClient()
+    read_client = ChromeMcpClient()
+    await asyncio.gather(
+        asyncio.to_thread(voice_client.start),
+        asyncio.to_thread(read_client.start),
+    )
 
     try:
+        voice_tab, read_tab = await asyncio.gather(
+            asyncio.to_thread(voice_client.new_page, f"{BASE_URL}/", timeout_ms=15_000),
+            asyncio.to_thread(read_client.new_page, f"{BASE_URL}/", timeout_ms=15_000),
+        )
         voice_result, read_result = await asyncio.gather(
-            _probe_voice_banner(voice_tab.ws_url),
-            _probe_read_aloud_fetch(read_tab.ws_url),
+            _probe_voice_banner(voice_client, voice_tab),
+            _probe_read_aloud_fetch(read_client, read_tab),
         )
     finally:
-        _close_page_target(voice_tab.target_id)
-        _close_page_target(read_tab.target_id)
+        await asyncio.gather(
+            asyncio.to_thread(voice_client.close),
+            asyncio.to_thread(read_client.close),
+        )
 
     assert voice_result.get("hasVoicePanel") is True, voice_result
     assert voice_result.get("showBanner") is False, voice_result

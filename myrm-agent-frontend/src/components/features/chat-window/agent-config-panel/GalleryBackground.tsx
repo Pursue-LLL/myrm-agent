@@ -58,7 +58,7 @@ export const GalleryBackground = ({ variant = 'section' }: GalleryBackgroundProp
           </filter>
         </defs>
 
-        <g transform="translate(-42 0) scale(1.28 1)" filter={`url(#${blurId})`}>
+        <g transform="translate(-58 0) scale(1.4 1)" filter={`url(#${blurId})`}>
           <path d={PANEL_INK_PATH} fill={`url(#${gradientId})`} />
           {INK_SPOTS}
         </g>

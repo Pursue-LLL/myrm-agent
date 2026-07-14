@@ -200,6 +200,7 @@ describe('messageRequest - archive restore contract', () => {
       hasUsedImagesInCurrentChat: false,
       mentionReferences: [],
       clearMentionReferences: vi.fn(),
+      removeMentionReferencesByTypes: vi.fn(),
       isGoalMode: false,
       goalBudgetTokens: null,
       goalBudgetUsd: null,
@@ -272,6 +273,7 @@ describe('messageRequest - memory settings contract', () => {
       hasUsedImagesInCurrentChat: false,
       mentionReferences: [],
       clearMentionReferences: vi.fn(),
+      removeMentionReferencesByTypes: vi.fn(),
       isGoalMode: false,
       goalBudgetTokens: null,
       goalBudgetUsd: null,
@@ -328,6 +330,7 @@ describe('messageRequest - goal payload construction', () => {
     hasUsedImagesInCurrentChat: false,
     mentionReferences: [],
     clearMentionReferences: vi.fn(),
+    removeMentionReferencesByTypes: vi.fn(),
     currentSessionMessageId: null,
     messageAppeared: false,
     isMessagesLoaded: true,
@@ -514,6 +517,7 @@ describe('messageRequest - processing lock lifecycle', () => {
       hasUsedImagesInCurrentChat: false,
       mentionReferences: [],
       clearMentionReferences: vi.fn(),
+      removeMentionReferencesByTypes: vi.fn(),
       isGoalMode: false,
       goalBudgetTokens: null,
       goalBudgetUsd: null,
@@ -621,6 +625,7 @@ describe('messageRequest - send preconditions', () => {
     newChatCreated: false,
     currentBuiltinTools: ['web_search', 'memory'],
     clearMentionReferences: vi.fn(),
+    removeMentionReferencesByTypes: vi.fn(),
   } as unknown as ChatActionsState;
 
   beforeEach(() => {

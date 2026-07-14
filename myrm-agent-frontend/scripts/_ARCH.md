@@ -15,10 +15,12 @@
 | `ci/fractal_docs_baseline.txt` | 递归扫描豁免目录（当前无条目） |
 | `ci/file_line_budget_baseline.txt` | 存量超大文件豁免列表 |
 | `ci/barrel_whitelist.txt` | 跨域 barrel 白名单（feature 内 barrel 由路径规则允许） |
-| `verify-i18n.mjs` | 五语系 i18n 完整性（`pretest` + CI） |
-| `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev`/`build`/`pretest` 前置） |
+| `verify-i18n.mjs` | 五语系 i18n 完整性 + SSR shell/deferred namespace 门禁（`pretest` + CI） |
+| `scan-home-i18n-shell.mjs` | home-route `settings.*` 引用须在 SSR shell（CI via verify-i18n） |
+| `verify-shell-i18n-runtime.mjs` | 运行时 SSR HTML / deferred API 校验（dev；shell 清单从 locale-manifest 解析） |
+| `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev.ts` / `build` / `build:tauri` / `prestart` / `pretest` 前置） |
 | `sync_i18n.py` | 从 en 补全 ja/ko/de/zh（本地维护） |
-| `dev.ts` | Next dev 入口（`dev-server.lock` 健康跳过） |
+| `dev.ts` | locale split + Next dev 入口（`dev` / `dev:lan` / `dev:clean`；`dev-server.lock` 健康跳过） |
 | `dev-lock.ts` | dev lock 读写与 LISTEN 健康判定 |
 | `port-cleanup.ts` | `:3000` LISTEN-only 清理 |
 | `cleanup.ts` | 本地 dev 残留清理 |

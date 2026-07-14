@@ -433,3 +433,148 @@ class TestRichContextReferences:
         assert 'path="test.txt"' in result
         assert 'path="@folder:"' in result
         assert "hello" in result
+
+
+class TestWikiConceptPart:
+    """Tests for _wiki_concept_part (Research Studio wiki context injection)."""
+
+    def _make_wiki_vault(self, concepts: dict[str, str] | None = None) -> str:
+        vault = tempfile.mkdtemp()
+        wiki_dir = os.path.join(vault, "wiki", "concepts")
+        raw_dir = os.path.join(vault, "raw")
+        os.makedirs(wiki_dir, exist_ok=True)
+        os.makedirs(raw_dir, exist_ok=True)
+        for name, content in (concepts or {}).items():
+            Path(os.path.join(wiki_dir, f"{name}.md")).write_text(content, encoding="utf-8")
+        return vault
+
+    @pytest.mark.asyncio
+    async def test_concept_found_and_inlined(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_concept_part
+
+        vault = self._make_wiki_vault({"machine-learning": "# ML\nSupervised and unsupervised learning."})
+
+        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_concept_part("machine-learning", 0)
+
+        assert 'path="@wiki:machine-learning"' in result
+        assert 'type="wiki-concept"' in result
+        assert "Supervised and unsupervised learning" in result
+        assert consumed > 0
+
+    @pytest.mark.asyncio
+    async def test_concept_not_found(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_concept_part
+
+        vault = self._make_wiki_vault()
+
+        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_concept_part("nonexistent", 0)
+
+        assert 'error="concept not found"' in result
+        assert consumed == 0
+
+    @pytest.mark.asyncio
+    async def test_concept_too_large_not_inlined(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _MENTION_MAX_INLINE_BYTES, _wiki_concept_part
+
+        vault = self._make_wiki_vault({"big-concept": "x" * (_MENTION_MAX_INLINE_BYTES + 1)})
+
+        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_concept_part("big-concept", 0)
+
+        assert "Concept too large" in result
+        assert consumed == 0
+
+    @pytest.mark.asyncio
+    async def test_concept_exception_returns_error(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_concept_part
+
+        with patch(
+            "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+            side_effect=RuntimeError("disk failure"),
+        ):
+            result, consumed = await _wiki_concept_part("test", 0)
+
+        assert 'error="read failed"' in result
+        assert consumed == 0
+
+
+class TestWikiRawFilePart:
+    """Tests for _wiki_raw_file_part (Research Studio raw file context injection)."""
+
+    def _make_wiki_vault(self, raw_files: dict[str, str] | None = None) -> str:
+        vault = tempfile.mkdtemp()
+        wiki_dir = os.path.join(vault, "wiki", "concepts")
+        raw_dir = os.path.join(vault, "raw")
+        os.makedirs(wiki_dir, exist_ok=True)
+        os.makedirs(raw_dir, exist_ok=True)
+        for name, content in (raw_files or {}).items():
+            Path(os.path.join(raw_dir, name)).write_text(content, encoding="utf-8")
+        return vault
+
+    @pytest.mark.asyncio
+    async def test_raw_file_found_and_inlined(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_raw_file_part
+
+        vault = self._make_wiki_vault({"report.md": "# Q3 Report\nRevenue grew 30%."})
+
+        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_raw_file_part("report.md", "report.md", 0)
+
+        assert 'type="wiki-raw-file"' in result
+        assert "Revenue grew 30%" in result
+        assert consumed > 0
+
+    @pytest.mark.asyncio
+    async def test_raw_file_not_found(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_raw_file_part
+
+        vault = self._make_wiki_vault()
+
+        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_raw_file_part("missing.pdf", "missing.pdf", 0)
+
+        assert 'error="raw file not found"' in result
+        assert consumed == 0
+
+    @pytest.mark.asyncio
+    async def test_raw_file_too_large_not_inlined(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _MENTION_MAX_INLINE_BYTES, _wiki_raw_file_part
+
+        vault = self._make_wiki_vault({"huge.txt": "y" * (_MENTION_MAX_INLINE_BYTES + 1)})
+
+        with patch("app.services.wiki.vault_resolver.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_raw_file_part("huge.txt", "huge.txt", 0)
+
+        assert "File too large" in result
+        assert consumed == 0
+
+    @pytest.mark.asyncio
+    async def test_raw_file_exception_returns_error(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_raw_file_part
+
+        with patch(
+            "app.services.wiki.vault_resolver.resolve_wiki_vault_path",
+            side_effect=RuntimeError("io error"),
+        ):
+            result, consumed = await _wiki_raw_file_part("file.txt", "file.txt", 0)
+
+        assert 'error="read failed"' in result
+        assert consumed == 0

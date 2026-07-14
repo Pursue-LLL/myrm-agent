@@ -21,7 +21,7 @@
 | `/skill-optimization` | 技能优化 A/B 对比页（`skill-optimization/page.tsx`，e2e 覆盖） | 全模式 |
 | `/batch-optimization`, `/batch-optimization/[batchId]` | 批量技能优化列表与详情 — 见 [batch-optimization/_ARCH.md](batch-optimization/_ARCH.md) | 全模式 |
 | `/pricing`, `/subscription`, `/payment/*` | 计费与订阅 | SaaS 为主 |
-| `/api/*` | Next Route Handlers（代理、checkout） | 按路由 |
+| `/api/*` | Next Route Handlers（代理、checkout、`/api/i18n/deferred` 客户端 deferred locale） | 按路由 |
 
 ## 依赖
 

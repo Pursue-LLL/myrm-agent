@@ -159,7 +159,9 @@ export type MentionReferenceType =
   | 'git_diff'
   | 'git_staged'
   | 'url'
-  | 'codebase';
+  | 'codebase'
+  | 'wiki_concept'
+  | 'wiki_raw_file';
 
 export interface MentionReference {
   type: MentionReferenceType;
@@ -172,6 +174,7 @@ export interface MentionReference {
   directory?: string;
   startLine?: number;
   endLine?: number;
+  conceptName?: string;
 }
 
 export interface ArchiveRestoreAction {

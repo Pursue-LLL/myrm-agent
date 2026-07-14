@@ -115,8 +115,8 @@ async def load_from_db(config_key: str) -> dict[str, object] | None:
 
 
 async def is_channel_enabled(config_key: str) -> bool:
-    """Check if a channel is enabled. Returns ``True`` when no DB record exists."""
+    """Check whether a configured channel is enabled."""
     db_creds = await load_from_db(config_key)
     if db_creds is None:
-        return True
+        return False
     return db_creds.get("enabled", True) is not False

@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useCallback, useRef, ComponentType } from
 import dynamic from 'next/dynamic';
 import { useParams, useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useDeferredLocaleReady } from '@/i18n/deferred-locale-context';
 import useAuthStore from '@/store/useAuthStore';
 import { ArrowLeft, X } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -327,6 +328,15 @@ function SettingsLayout() {
   const handleMobileBack = () => {
     setIsMobileMenuOpen(true);
   };
+
+  const deferredLocaleReady = useDeferredLocaleReady();
+  if (!deferredLocaleReady) {
+    return (
+      <div className="h-full w-full flex items-center justify-center p-8">
+        <SettingsSkeleton />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden">

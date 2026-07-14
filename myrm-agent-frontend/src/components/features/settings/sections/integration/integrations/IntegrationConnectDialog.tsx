@@ -217,17 +217,21 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
             command?: string;
             args?: string[];
             env?: Record<string, string>;
+            headers?: Record<string, string>;
             description?: string;
           };
 
           let finalArgs = mcpCfg.args || [];
           const envMap: Record<string, string> = { ...mcpCfg.env };
+          const headerMap: Record<string, string> = { ...mcpCfg.headers };
 
           if (hasMultiFields) {
             for (const field of entry.credentialFields!) {
               const val = fieldValues[field.key]?.trim() || '';
               if (field.inject === 'arg_placeholder') {
                 finalArgs = finalArgs.map((a) => (a === field.key ? val : a));
+              } else if (field.inject === 'header') {
+                headerMap[field.key] = val;
               } else {
                 envMap[field.key] = val;
               }
@@ -244,6 +248,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
             args: finalArgs,
             description: mcpCfg.description || '',
             enabled: true,
+            headers: Object.keys(headerMap).length > 0 ? headerMap : null,
             extra_params: Object.keys(envMap).length > 0 ? { env: envMap } : null,
           };
 

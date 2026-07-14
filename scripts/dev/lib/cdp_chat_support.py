@@ -321,6 +321,13 @@ BRIDGE_CHAT_ID_JS = """
 })()
 """.strip()
 
+BRIDGE_TURN_SNAPSHOT_JS = """
+(() => {
+  const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
+  return snap && typeof snap === 'object' ? snap : null;
+})()
+""".strip()
+
 
 def backend_log_path() -> Path:
     override = os.getenv("MYRM_BACKEND_LOG", "").strip()

@@ -9,13 +9,13 @@
  * [POS]
  * Root i18n provider assembly. Reads cookie locale inside Suspense so cacheComponents builds stay instant-safe.
  */
-import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
 import type { Locale } from '@/i18n/config';
+import ClientIntlProvider from '@/i18n/ClientIntlProvider';
 import DocumentLang from '@/i18n/DocumentLang';
-import LazyLocaleHydrator from '@/i18n/LazyLocaleHydrator';
+import type { Messages } from '@/i18n/locale-manifest';
 import PageLayout from '@/components/layout/PageLayout';
 import { TooltipProvider } from '@/components/primitives/tooltip';
 import ThemeProvider from '@/components/features/theme/ThemeProvider';
@@ -46,8 +46,7 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
       <GlobalErrorBoundary>
         <ThemeProvider>
           <TooltipProvider delayDuration={300} skipDelayDuration={100}>
-            <NextIntlClientProvider messages={messages} locale={locale}>
-              <LazyLocaleHydrator locale={locale as Locale} />
+            <ClientIntlProvider locale={locale as Locale} shellMessages={messages as Messages}>
               <ToastServiceInitializer />
               <AuthInitializer />
               <SettingsSyncInitializer />
@@ -60,7 +59,7 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
               <DeferredAppInitializers />
               <PageLayout>{children}</PageLayout>
               <Toaster position="top-right" expand={true} richColors />
-            </NextIntlClientProvider>
+            </ClientIntlProvider>
           </TooltipProvider>
         </ThemeProvider>
       </GlobalErrorBoundary>

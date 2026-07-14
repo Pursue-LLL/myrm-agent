@@ -178,5 +178,58 @@
       "考勤"
     ],
     "website": "https://open.dingtalk.com"
+  },
+  {
+    "id": "qq-mail",
+    "name": "QQ Mail",
+    "name_zh": "QQ 邮箱",
+    "description": "Send and receive emails through your QQ Mail account via IMAP/SMTP",
+    "description_zh": "通过 IMAP/SMTP 协议收发 QQ 邮箱邮件",
+    "icon": "qq-mail",
+    "category": "communication",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "qq-mail",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-email"
+      ],
+      "description": "QQ Mail - send, receive, search emails via IMAP/SMTP",
+      "env": {
+        "EMAIL_TYPE": "qq"
+      }
+    },
+    "auth": {
+      "type": "api_key",
+      "credential_fields": [
+        {
+          "key": "EMAIL_USER",
+          "label": "Email Address",
+          "label_zh": "邮箱地址",
+          "inject": "env"
+        },
+        {
+          "key": "EMAIL_PASSWORD",
+          "label": "Authorization Code",
+          "label_zh": "授权码",
+          "inject": "env"
+        }
+      ],
+      "env_key": null,
+      "help_url": "https://kf.qq.com/product/tx_mail.html",
+      "help_text": "In QQ Mail Settings → Account, enable IMAP/SMTP service and generate an authorization code (not your QQ password)",
+      "help_text_zh": "在 QQ 邮箱设置 → 账户中，开启 IMAP/SMTP 服务并生成授权码（非 QQ 登录密码）"
+    },
+    "tags": [
+      "email",
+      "qq",
+      "mail",
+      "邮箱",
+      "QQ邮箱",
+      "收发邮件"
+    ],
+    "website": "https://mail.qq.com"
   }
 ]

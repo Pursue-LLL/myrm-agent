@@ -116,7 +116,7 @@ def collect_stale_state(
     cleared_frontend_pid = False
     cleared_frontend_lock = False
 
-    if live.backend_process == "dead":
+    if live.backend_process == "dead" and not protected:
         cleared_backend_pid = _remove_file(paths.backend_pid_file)
         if live.epoch_backend_pid is not None and live.epoch_backend_pid == live.backend_pid:
             cleared_epoch = _remove_file(paths.epoch_file)
@@ -137,7 +137,7 @@ def collect_stale_state(
         if not pinned and not ensure_in_progress:
             cleared_warmth = _remove_file(paths.warmth_file)
 
-    if live.backend_process != "alive" and paths.epoch_file.is_file():
+    if not protected and live.backend_process != "alive" and paths.epoch_file.is_file():
         cleared_epoch = _remove_file(paths.epoch_file) or cleared_epoch
 
     refreshed = probe_stack(paths)
