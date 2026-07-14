@@ -1,4 +1,4 @@
-"""Chrome E2E: Goal mode via real WebUI (CDP, not Playwright).
+"""Chrome E2E: Goal mode via real WebUI and MCP mux.
 
 Prerequisites:
   ./myrm ready --chrome
@@ -9,28 +9,21 @@ from __future__ import annotations
 
 import asyncio
 import json
-import subprocess
 import sys
 import urllib.request
-from contextlib import AsyncExitStack
 from pathlib import Path
-from urllib.parse import urlparse
 
 import pytest
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
-_PREFLIGHT = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "chrome-e2e-preflight.sh"
-_MYRM_AGENT_ROOT = Path(__file__).resolve().parents[3]
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_ui import (  # noqa: E402
-    CdpChatSession,
-    chat_id_from_path,
-    close_owned_page,
-    create_owned_page,
-    warmup_frontend,
-)
+from cdp_chat_ui import chat_id_from_path, warmup_frontend  # noqa: E402
+from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
+from mcp_chat_ui import McpChatSession, is_detached_frame_error  # noqa: E402
+
+from tests.support.e2e_runtime_guard import E2EResourceLedger, require_e2e_runtime_lease
 
 BASE_URL = "http://127.0.0.1:3000"
 API_URL = "http://127.0.0.1:8080"
@@ -63,99 +56,75 @@ def _fetch_goal_status(chat_id: str) -> dict[str, object] | None:
     return goal if isinstance(goal, dict) else None
 
 
-@pytest.fixture(scope="module")
-def _chrome_client_hot() -> None:
-    try:
-        resp = urllib.request.urlopen("http://127.0.0.1:9333/json/version", timeout=3)
-        json.loads(resp.read())
-    except Exception as exc:
-        pytest.skip(f"Chrome E2E not ready — run ./myrm ready --chrome first: {exc}")
-
-
-@pytest.fixture(scope="module")
-def _frontend_warm() -> None:
-    try:
-        warmup_frontend(BASE_URL, timeout_sec=45)
-    except TimeoutError:
-        if not _PREFLIGHT.is_file():
-            raise
-        subprocess.run(
-            ["bash", str(_PREFLIGHT)],
-            cwd=str(_MYRM_AGENT_ROOT),
-            check=True,
-            timeout=300,
-        )
-        warmup_frontend(BASE_URL, timeout_sec=120)
-
-
 @pytest.mark.e2e
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_chrome_ui_goal_mode_stream(
-    _chrome_client_hot: None,
-    _frontend_warm: None,
+    e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    import websockets
-
     if not _provider_ready():
-        pytest.skip(
-            "Provider config not ready — configure model at /settings/models "
-            "(API /api/v1/config/readiness provider.is_ready must be true)"
+        pytest.fail(
+            "Provider config not ready for live Goal E2E — run via ./myrm test -m e2e "
+            "after ./myrm ready --chrome (preflight seeds model; "
+            "API /api/v1/config/readiness provider.is_ready must be true)"
         )
 
+    async def _run_goal_flow(chat: McpChatSession) -> str:
+        await chat.wait_shell_ready(timeout_sec=120.0)
+        await chat.dismiss_modals()
+        await chat.click_new_chat()
+
+        goal_setup = await chat.enable_goal_mode(budget_tokens=50_000)
+        assert goal_setup.get("ok") is True, f"Goal mode bridge failed: {goal_setup}"
+
+        await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+        after_turn = await chat.wait_turn_done(E2E_PROMPT, timeout_sec=180)
+        if str(after_turn.get("path", "")).startswith("/settings"):
+            pytest.fail(f"Send redirected to settings: {after_turn}")
+
+        chat_id = chat_id_from_path(str(after_turn.get("url") or ""))
+        if not chat_id:
+            path = await chat.evaluate("(() => location.pathname)()", await_promise=False)
+            chat_id = chat_id_from_path(str(path) if path else "")
+        assert chat_id, f"Expected chat id after goal turn: {after_turn}"
+        assert int(after_turn.get("userMsgs") or 0) >= 1, f"Expected user message: {after_turn}"
+        e2e_resource_ledger.register("chat", chat_id)
+        return chat_id
+
     async def _run_goal_turn() -> str:
-        owned_page = create_owned_page(BASE_URL)
-        async with AsyncExitStack() as stack:
-            stack.callback(close_owned_page, owned_page)
-            ws = await stack.enter_async_context(
-                websockets.connect(owned_page.websocket_url, max_size=10**7, open_timeout=10)
-            )
-            chat = CdpChatSession(ws)
-            await chat.bootstrap(BASE_URL)
-            await chat.cdp("Runtime.enable")
-            await chat.cdp("Page.enable")
-            await chat.dismiss_modals()
-
-            await chat.evaluate(
-                """(() => {
-                  const newBtn = Array.from(document.querySelectorAll('aside button')).find((b) => {
-                    const text = (b.textContent || '').trim();
-                    return text.includes('新对话') || text.includes('New chat');
-                  });
-                  if (newBtn) newBtn.click();
-                  return { ok: true };
-                })()""",
-                await_promise=False,
-            )
-            await asyncio.sleep(1)
-
-            goal_setup = await chat.enable_goal_mode(budget_tokens=50_000)
-            assert goal_setup.get("ok") is True, f"Goal mode bridge failed: {goal_setup}"
-
-            await chat.send_message(E2E_PROMPT, E2E_PROMPT)
-            after_turn = await chat.wait_turn_done(E2E_PROMPT, timeout_sec=180)
-            if str(after_turn.get("path", "")).startswith("/settings"):
-                pytest.fail(f"Send redirected to settings: {after_turn}")
-
-            chat_id = chat_id_from_path(str(after_turn.get("url") or ""))
-            if not chat_id:
-                path = await chat.evaluate("(() => location.pathname)()", await_promise=False)
-                chat_id = chat_id_from_path(str(path) if path else "")
-            assert chat_id, f"Expected chat id after goal turn: {after_turn}"
-            assert int(after_turn.get("userMsgs") or 0) >= 1, f"Expected user message: {after_turn}"
-            return chat_id
-
-    chat_id = ""
-    for attempt in range(2):
+        warmup_frontend(BASE_URL, timeout_sec=60)
+        client = ChromeMcpClient(request_timeout_sec=120.0)
+        await asyncio.to_thread(client.start)
         try:
-            chat_id = await _run_goal_turn()
-            break
-        except (TimeoutError, OSError, RuntimeError, websockets.exceptions.ConnectionClosedError):
-            if attempt == 1:
-                raise
-            await asyncio.sleep(2)
-            continue
+            page: McpPage | None = None
+            for start_attempt in range(2):
+                try:
+                    page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+                    break
+                except RuntimeError as exc:
+                    if start_attempt == 0 and is_detached_frame_error(exc):
+                        await asyncio.sleep(2)
+                        continue
+                    raise
+            assert page is not None
+            chat = McpChatSession(client, page)
+            await chat.bootstrap(BASE_URL)
+            for attempt in range(2):
+                try:
+                    return await _run_goal_flow(chat)
+                except RuntimeError as exc:
+                    if attempt == 0 and is_detached_frame_error(exc):
+                        require_e2e_runtime_lease()
+                        await chat.recreate_page(timeout_ms=120_000)
+                        await chat.bootstrap(BASE_URL)
+                        await asyncio.sleep(2)
+                        continue
+                    raise
+        finally:
+            await asyncio.to_thread(client.close)
+
+    chat_id = await _run_goal_turn()
 
     goal = _fetch_goal_status(chat_id)
     assert goal is not None, f"Goal status missing for chat {chat_id}"
