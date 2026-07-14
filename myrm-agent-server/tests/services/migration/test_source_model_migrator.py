@@ -142,6 +142,25 @@ class TestMigrateOpenclawDefaultModel:
             },
         })
         assert result == "anthropic/claude-opus-4-6"
+        written = captured["value"]["defaultModelConfig"]["baseModel"]["primary"]
+        assert written == {"providerId": "anthropic", "model": "claude-opus-4-6"}
+
+    @pytest.mark.asyncio()
+    async def test_alias_resolution_string_entry(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _mock_local(monkeypatch)
+        _mock_config(monkeypatch)
+
+        result = await migrate_openclaw_default_model({
+            "agents": {
+                "defaults": {
+                    "model": "My Claude",
+                    "models": {
+                        "anthropic/claude-opus-4-6": "My Claude",
+                    },
+                },
+            },
+        })
+        assert result == "anthropic/claude-opus-4-6"
 
     @pytest.mark.asyncio()
     async def test_bare_model_gets_openrouter_prefix(self, monkeypatch: pytest.MonkeyPatch) -> None:
