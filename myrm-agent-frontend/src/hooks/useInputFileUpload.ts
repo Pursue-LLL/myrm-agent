@@ -20,7 +20,7 @@ import useProviderStore from '@/store/useProviderStore';
 import { resetUploadController, getUploadSignal } from '@/services/uploadController';
 import type { ActionMode, File as ChatFile } from '@/store/chat/types';
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 const RAG_DOC_THRESHOLD = 100 * 1024;
@@ -163,7 +163,7 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
         } else if (isAudioFile(ext)) {
           toast.error(tFiles('audioTooLarge'), { description: tFiles('audioTooLargeDesc', { size: sizeMB }) });
         } else {
-          toast.error(tFiles('uploadError'), { description: `${oversized.name} (${sizeMB}) exceeds 10MB limit` });
+          toast.error(tFiles('fileTooLarge'), { description: tFiles('fileTooLargeDesc', { name: oversized.name, size: sizeMB }) });
         }
         return;
       }

@@ -16,8 +16,10 @@ from cdp_transient_targets import register_target, unregister_target
 
 try:
     from cdp_chat_ui import E2E_BRIDGE_INSTALL_JS
+    from cdp_chat_support import e2e_api_base_inject_js
 except ImportError:
     E2E_BRIDGE_INSTALL_JS = ""
+    e2e_api_base_inject_js = None  # type: ignore[assignment]
 
 _HYDRATED_EXPRESSION = """
 (() => {
@@ -133,6 +135,14 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
 
             await _cdp_request(ws, await next_id(), "Runtime.enable", deadline=deadline)
             await _cdp_request(ws, await next_id(), "Page.enable", deadline=deadline)
+            if e2e_api_base_inject_js is not None:
+                await _cdp_request(
+                    ws,
+                    await next_id(),
+                    "Runtime.evaluate",
+                    {"expression": e2e_api_base_inject_js(), "returnByValue": True},
+                    deadline=deadline,
+                )
             await _cdp_request(
                 ws,
                 await next_id(),

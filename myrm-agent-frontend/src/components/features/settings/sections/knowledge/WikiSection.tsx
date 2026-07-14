@@ -50,18 +50,68 @@ export function WikiSection() {
   const [activeTab, setActiveTab] = useState('overview');
   const zipInputRef = useRef<HTMLInputElement>(null);
   const obsidianZipRef = useRef<HTMLInputElement>(null);
+  const webFolderInputRef = useRef<HTMLInputElement>(null);
 
   const isTauriEnv = isTauri();
 
   const handleImportFolder = async () => {
-    if (!isTauriEnv) return;
-    try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const selected = await open({ directory: true, multiple: false, title: t('import.selectFolder') });
-      if (!selected) return;
+    if (isTauriEnv) {
+      try {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const selected = await open({ directory: true, multiple: false, title: t('import.selectFolder') });
+        if (!selected) return;
 
-      setIsImporting(true);
-      const result = await wikiService.importFolder(selected as string);
+        setIsImporting(true);
+        const result = await wikiService.importFolder(selected as string);
+        if (result.success) {
+          toast.success(result.message);
+          setActiveTab('queue');
+          await loadStats();
+        } else {
+          toast.error(result.message);
+        }
+      } catch (error) {
+        console.error('Folder import failed:', error);
+        toast.error(t('errors.importFailed'));
+      } finally {
+        setIsImporting(false);
+      }
+    } else {
+      webFolderInputRef.current?.click();
+    }
+  };
+
+  const handleWebFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsImporting(true);
+    try {
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+
+      const validExtensions = new Set(['.md', '.txt', '.org']);
+      let addedCount = 0;
+
+      for (const file of Array.from(files)) {
+        const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        if (!validExtensions.has(ext)) continue;
+
+        const content = await file.arrayBuffer();
+        const relativePath = file.webkitRelativePath || file.name;
+        zip.file(relativePath, content);
+        addedCount++;
+      }
+
+      if (addedCount === 0) {
+        toast.error(t('import.noValidFiles'));
+        return;
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      const zipFile = new File([blob], 'folder-import.zip', { type: 'application/zip' });
+
+      const result = await wikiService.importZip(zipFile);
       if (result.success) {
         toast.success(result.message);
         setActiveTab('queue');
@@ -70,10 +120,11 @@ export function WikiSection() {
         toast.error(result.message);
       }
     } catch (error) {
-      console.error('Folder import failed:', error);
+      console.error('Web folder import failed:', error);
       toast.error(t('errors.importFailed'));
     } finally {
       setIsImporting(false);
+      if (webFolderInputRef.current) webFolderInputRef.current.value = '';
     }
   };
 
@@ -456,12 +507,10 @@ export function WikiSection() {
               <CardDescription>{t('import.description')}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col sm:flex-row gap-4">
-              {isTauriEnv && (
-                <Button onClick={handleImportFolder} disabled={isImporting} variant="outline" className="flex-1">
-                  <IconExplore className="w-4 h-4 mr-2" />
-                  {isImporting ? t('import.importing') : t('import.folder')}
-                </Button>
-              )}
+              <Button onClick={handleImportFolder} disabled={isImporting} variant="outline" className="flex-1">
+                <IconExplore className="w-4 h-4 mr-2" />
+                {isImporting ? t('import.importing') : t('import.folder')}
+              </Button>
               <Button
                 onClick={() => zipInputRef.current?.click()}
                 disabled={isImporting}
@@ -478,6 +527,16 @@ export function WikiSection() {
                 onChange={handleImportZip}
                 className="hidden"
               />
+              {!isTauriEnv && (
+                <input
+                  ref={webFolderInputRef}
+                  type="file"
+                  // @ts-expect-error -- webkitdirectory is non-standard but supported by all major browsers
+                  webkitdirectory=""
+                  onChange={handleWebFolderSelect}
+                  className="hidden"
+                />
+              )}
             </CardContent>
           </Card>
 

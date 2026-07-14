@@ -8,7 +8,12 @@ import time
 
 from cdp_chat_submit import CdpChatSubmit
 from cdp_chat_support import chat_id_from_path, chat_messages_have_ok, chat_user_message_count
-from cdp_chat_support import BRIDGE_TURN_SNAPSHOT_JS
+from cdp_chat_support import (
+    BRIDGE_TURN_SNAPSHOT_JS,
+    SELECT_FIRST_ENABLED_MODEL_JS,
+    SELECT_MIMO_MODEL_JS,
+    e2e_api_base_inject_js,
+)
 from e2e_wave_ledger import maybe_register_e2e_chat
 
 
@@ -298,6 +303,32 @@ class CdpChatTurn(CdpChatSubmit):
         if not isinstance(result, dict) or not result.get("ok"):
             raise RuntimeError(f"E2E bridge attachToChat failed: {result}")
 
+    async def _sync_model_selection(self, *, timeout_sec: float = 45.0) -> None:
+        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+        try:
+            await self.evaluate(
+                """(() => {
+                  const bridge = window.__MYRM_E2E_CHAT__;
+                  if (!bridge?.ensureProviders) return { ok: false };
+                  return bridge.ensureProviders().then(() => ({ ok: true }));
+                })()""",
+                await_promise=True,
+                recv_timeout=timeout_sec,
+            )
+        except (RuntimeError, TimeoutError):
+            pass
+        for picker_js in (SELECT_MIMO_MODEL_JS, SELECT_FIRST_ENABLED_MODEL_JS):
+            try:
+                picked = await self.evaluate(
+                    picker_js,
+                    await_promise=True,
+                    recv_timeout=12.0,
+                )
+            except TimeoutError:
+                continue
+            if isinstance(picked, dict) and picked.get("ok"):
+                return
+
     async def send_message(
         self,
         text: str,
@@ -310,26 +341,30 @@ class CdpChatTurn(CdpChatSubmit):
         baseline_user_msgs = 0
         chat_id = chat_id_hint
         if chat_id_hint:
-            on_chat = False
+            session_ready = False
+            probe: dict[str, object] = {}
             try:
                 probe = await self.evaluate(
-                    f"""(() => ({{
+                    """(() => ({
                       path: location.pathname,
-                      chatId: window.__MYRM_E2E_CHAT__?.debugProviderState?.()?.chatId ?? null,
-                    }}))()""",
+                      skeleton: !!document.querySelector('[aria-label="Loading messages"]'),
+                      hasInput: !!document.querySelector('[data-chat-input]'),
+                    }))()""",
                     await_promise=False,
                     recv_timeout=10.0,
                 )
-                expected_path = f"/{chat_id_hint}"
-                on_chat = (
-                    isinstance(probe, dict)
-                    and str(probe.get("path") or "") == expected_path
-                    and str(probe.get("chatId") or "") == chat_id_hint
-                )
+                if isinstance(probe, dict):
+                    path = str(probe.get("path") or "")
+                    on_chat_page = chat_id_from_path(path) is not None
+                    session_ready = on_chat_page and bool(probe.get("hasInput")) and not bool(
+                        probe.get("skeleton")
+                    )
             except (RuntimeError, TimeoutError):
-                on_chat = False
-            if not on_chat:
-                await self._attach_chat_session(chat_id_hint)
+                session_ready = False
+            await self._attach_chat_session(chat_id_hint)
+            if session_ready:
+                await self.wait_shell_ready(timeout_sec=90.0)
+            else:
                 await self.navigate_to_chat(chat_id_hint, ui_base)
         if not chat_id:
             chat_id = await self.bridge_chat_id()
@@ -342,18 +377,23 @@ class CdpChatTurn(CdpChatSubmit):
         try:
             await self.dismiss_modals()
             await self.wait_dev_bridge()
+            if baseline_user_msgs > 0:
+                await self._sync_model_selection()
             await self._ensure_send_ready()
             fill = await self.fill_input(text)
             if not fill.get("ok"):
                 raise RuntimeError(f"UI fill failed: {fill}")
-            await self.evaluate(
-                """(() => {
-                  void window.__MYRM_E2E_CHAT__?.ensureChatSession?.();
-                  return { ok: true };
-                })()""",
-                await_promise=False,
-                recv_timeout=15.0,
-            )
+            if chat_id:
+                await self._attach_chat_session(chat_id)
+            else:
+                await self.evaluate(
+                    """(() => {
+                      void window.__MYRM_E2E_CHAT__?.ensureChatSession?.();
+                      return { ok: true };
+                    })()""",
+                    await_promise=False,
+                    recv_timeout=15.0,
+                )
             submit = await self.submit()
             if not submit.get("ok"):
                 probe = await self.send_state()

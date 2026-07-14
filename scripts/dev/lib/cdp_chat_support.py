@@ -13,6 +13,17 @@ API_URL = os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
 _OK_REPLY_RE = re.compile(r"(?:\bOK\b|GOAL_OK)", re.IGNORECASE)
 
 
+def e2e_api_base_inject_js(api_base: str | None = None) -> str:
+    base = (api_base or os.getenv("E2E_API_BASE", "")).strip().rstrip("/")
+    if not base:
+        return "(() => ({ ok: false, err: 'no-api-base' }))()"
+    encoded = json.dumps(base)
+    return f"""(() => {{
+  window.__MYRM_E2E_API_BASE__ = {encoded};
+  return {{ ok: true, base: {encoded} }};
+}})()"""
+
+
 def _api_provider_ready() -> bool:
     try:
         resp = urllib.request.urlopen(  # noqa: S310 - fixed loopback E2E endpoint

@@ -4,7 +4,7 @@
 app.channels.types::InboundMessage, ResolvedAgentProfile (POS: 渠道入站与 Agent 配置)
 
 [OUTPUT]
-enrich_channel_user_instructions(): 合并团队协议、渠道能力约束、人格模板后的 instructions。
+enrich_channel_user_instructions(): 合并团队协议、渠道能力约束、IM 行为策略 Persona、人格模板后的 instructions。
 
 [POS]
 execute_preamble 子模块：将渠道/Agent/人格约束注入 user_instructions。
@@ -59,6 +59,17 @@ async def enrich_channel_user_instructions(
                 + "\nDescribe things using text instead."
             )
             instructions = f"{instructions}\n\n{warning_str}" if instructions else warning_str
+
+        if not caps.edit and not caps.markdown:
+            im_persona = (
+                "You are communicating via a mobile IM app with a small screen.\n"
+                "- Keep replies short and conversational, like chatting.\n"
+                "- When you need to output more than ~200 characters of content, "
+                "write it to a workspace file using file tools, then reply with only "
+                "a one-sentence summary and the file path.\n"
+                "- When the user's intent is unclear, ask at most 1-2 key questions before acting."
+            )
+            instructions = f"{instructions}\n\n{im_persona}" if instructions else im_persona
 
     from app.ai_agents.personality_templates import (
         DEFAULT_PERSONALITY_STYLE,

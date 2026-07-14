@@ -5,15 +5,18 @@
  * @/lib/deploy-mode::isTauriRuntime (POS: Deployment mode detector)
  * @/services/background-tasks::listBackgroundTasks (POS: merged shell + agent tasks)
  * @/services/backgroundTasksRefresh::subscribeBackgroundTasksChanged
+ * @/services/statistics::getUsageStatistics (POS: Global usage analytics API)
+ * @/services/budget::getBudgetStatus (POS: Budget status API)
  *
  * [OUTPUT]
- * useTrayStatus: Synchronizes Tauri tray icon, tooltip, taskbar progress bar,
- * and completion bounce notification with global agent liveness state.
+ * useTrayStatus: Synchronizes Tauri tray icon, tooltip (with today's usage summary),
+ * taskbar progress bar, budget-alert native notification, and completion bounce
+ * notification with global agent liveness state.
  *
  * [POS]
  * Desktop tray bridge hook. Consumes the global liveness SSOT (busy/idle/degraded)
- * from `/health/liveness` to drive tray icon switching and tooltip. Retains
- * per-tab `isGenerating` for completion-bounce `requestUserAttention` only.
+ * from `/health/liveness` to drive tray icon switching and tooltip. Enriches tooltip
+ * with today's token/cost snapshot. Fires native OS notification on budget_alert SSE.
  * Inert in non-Tauri environments.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -23,6 +26,8 @@ import useChatStore from '@/store/useChatStore';
 import { listBackgroundTasks } from '@/services/background-tasks';
 import { subscribeBackgroundTasksChanged } from '@/services/backgroundTasksRefresh';
 import { useLivenessState } from '@/hooks/useLivenessState';
+import { getUsageStatistics } from '@/services/statistics';
+import { getBudgetStatus } from '@/services/budget';
 
 import type { LivenessState } from '@/hooks/useLivenessState';
 
@@ -34,6 +39,20 @@ type SystemNotificationDetail = {
   };
 };
 
+type UsageSummary = { tokens: number; costUsd: number };
+
+function formatUsageLine(summary: UsageSummary): string {
+  const cost = summary.costUsd < 0.01
+    ? '<$0.01'
+    : `$${summary.costUsd.toFixed(2)}`;
+  const tokens = summary.tokens >= 1_000_000
+    ? `${(summary.tokens / 1_000_000).toFixed(1)}M`
+    : summary.tokens >= 1_000
+      ? `${(summary.tokens / 1_000).toFixed(1)}K`
+      : `${summary.tokens}`;
+  return `${tokens} tokens · ${cost}`;
+}
+
 export function useTrayStatus() {
   const t = useTranslations('backgroundTasks');
   const liveness = useLivenessState();
@@ -41,6 +60,7 @@ export function useTrayStatus() {
   const prevGenerating = useRef(false);
   const prevLivenessState = useRef<LivenessState>('idle');
   const [bgRunningCount, setBgRunningCount] = useState(0);
+  const [todayUsage, setTodayUsage] = useState<UsageSummary | null>(null);
 
   const refreshBgRunningCount = useCallback(async () => {
     try {
@@ -48,6 +68,17 @@ export function useTrayStatus() {
       setBgRunningCount(tasks.filter((task) => task.status === 'running').length);
     } catch {
       // Non-critical — tray falls back to idle when fetch fails
+    }
+  }, []);
+
+  // Fetch today's usage snapshot for tooltip enrichment (low-frequency, event-driven)
+  const refreshTodayUsage = useCallback(async () => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const stats = await getUsageStatistics(today, today);
+      setTodayUsage({ tokens: stats.totalTokens, costUsd: stats.costUsd });
+    } catch {
+      // Non-critical — tooltip omits usage line when fetch fails
     }
   }, []);
 
@@ -60,6 +91,43 @@ export function useTrayStatus() {
       void refreshBgRunningCount();
     });
   }, [refreshBgRunningCount]);
+
+  // Refresh usage when liveness transitions from busy→idle (task just completed)
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    void refreshTodayUsage();
+  }, [liveness.state, refreshTodayUsage]);
+
+  // Budget-alert → native OS notification (Tauri only)
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+
+    const onBudgetAlert = async () => {
+      try {
+        const status = await getBudgetStatus();
+        if (!status.enabled) return;
+        const { sendNotification, isPermissionGranted, requestPermission } = await import(
+          '@tauri-apps/plugin-notification'
+        );
+        let granted = await isPermissionGranted();
+        if (!granted) {
+          const perm = await requestPermission();
+          granted = perm === 'granted';
+        }
+        if (!granted) return;
+        const pct = Math.round(status.usage_pct * 100);
+        sendNotification({
+          title: t('budgetAlertTitle'),
+          body: t('budgetAlertBody', { pct, remaining: status.remaining_usd.toFixed(2) }),
+        });
+      } catch {
+        // Notification permission denied or API unavailable
+      }
+    };
+
+    window.addEventListener('budget_alert', onBudgetAlert);
+    return () => window.removeEventListener('budget_alert', onBudgetAlert);
+  }, [t]);
 
   useEffect(() => {
     if (!isTauriRuntime()) {
@@ -96,13 +164,17 @@ export function useTrayStatus() {
           import('@tauri-apps/api/window'),
         ]);
 
-        const tooltip = liveness.state === 'busy'
+        let tooltip = liveness.state === 'busy'
           ? t('trayTooltipBusy')
           : liveness.state === 'degraded'
             ? t('trayTooltipDegraded')
             : bgRunningCount > 0
               ? t('trayTooltipBackground', { count: bgRunningCount })
               : t('trayTooltipIdle');
+
+        if (todayUsage && todayUsage.tokens > 0) {
+          tooltip += `\n${t('trayTooltipUsage', { usage: formatUsageLine(todayUsage) })}`;
+        }
 
         await invoke('set_tray_status', { status: liveness.state, tooltip });
 
@@ -128,5 +200,5 @@ export function useTrayStatus() {
     };
 
     void sync();
-  }, [liveness.state, isGenerating, bgRunningCount, t]);
+  }, [liveness.state, isGenerating, bgRunningCount, todayUsage, t]);
 }

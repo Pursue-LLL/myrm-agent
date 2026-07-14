@@ -2008,6 +2008,7 @@
         "selectFolder": "Select folder to import",
         "folder": "Import Folder",
         "zip": "Upload ZIP",
+        "noValidFiles": "No valid text files found in the selected folder (.md, .txt, .org)",
         "importing": "Importing...",
         "obsidianTitle": "Obsidian Vault Import",
         "obsidianDescription": "Import an entire Obsidian vault with frontmatter, wikilinks, and image embeds preserved",
@@ -6427,6 +6428,8 @@
     "retryHint": "Please try again",
     "unknownError": "Unknown error",
     "uploadFailedRetry": "File upload failed, please try again",
+    "fileTooLarge": "File too large (exceeds 50MB limit)",
+    "fileTooLargeDesc": "{name} ({size}) exceeds the 50MB upload limit",
     "videoTooLarge": "Video file too large (exceeds 100MB limit)",
     "videoTooLargeDesc": "Please select a shorter or smaller video file. Current: {size}",
     "audioTooLarge": "Audio file too large (exceeds 25MB limit)",
@@ -11805,7 +11808,10 @@
     "trayTooltipIdle": "Myrm Agent - Idle",
     "trayTooltipBusy": "Myrm Agent - Running…",
     "trayTooltipDegraded": "Myrm Agent - Service Degraded",
-    "trayTooltipBackground": "{count} background task(s) running"
+    "trayTooltipBackground": "{count} background task(s) running",
+    "trayTooltipUsage": "Today: {usage}",
+    "budgetAlertTitle": "Budget Alert",
+    "budgetAlertBody": "Usage reached {pct}% — ${remaining} remaining"
   },
   "boot": {
     "title": "MyrmAgent",

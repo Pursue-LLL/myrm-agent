@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 _SYNC_THRESHOLD_BYTES = 100 * 1024  # 100 KB — matches _MENTION_MAX_INLINE_BYTES
 _UPLOADED_DIR_NAME = "_uploaded"
-_MAX_SYNC_FILES = 10
-_MAX_SYNC_TOTAL_BYTES = 50 * 1024 * 1024  # 50 MB per chat session
+_MAX_SYNC_FILES = 20
+_MAX_SYNC_TOTAL_BYTES = 200 * 1024 * 1024  # 200 MB per chat session
 
 
 async def sync_uploaded_files_to_workspace(
@@ -57,9 +57,10 @@ async def sync_uploaded_files_to_workspace(
 
             if total_bytes + file_meta.size > _MAX_SYNC_TOTAL_BYTES:
                 logger.warning(
-                    "Skipping file %s (%d bytes): would exceed 50 MB sync budget",
+                    "Skipping file %s (%d bytes): would exceed %d MB sync budget",
                     file_id,
                     file_meta.size,
+                    _MAX_SYNC_TOTAL_BYTES // (1024 * 1024),
                 )
                 continue
 

@@ -110,7 +110,15 @@
     ".next-isolated-myrm-jx-goal-run34-1784029079/types/**/*.ts",
     ".next-isolated-myrm-jx-goal-run34-1784029079/dev/types/**/*.ts",
     ".next-isolated-myrm-jx-goal-run35-1784029462/types/**/*.ts",
-    ".next-isolated-myrm-jx-goal-run35-1784029462/dev/types/**/*.ts"
+    ".next-isolated-myrm-jx-goal-run35-1784029462/dev/types/**/*.ts",
+    ".next-isolated-myrm-jx-signoff6-1784036461/types/**/*.ts",
+    ".next-isolated-myrm-jx-signoff6-1784036461/dev/types/**/*.ts",
+    ".next-isolated-myrm-jx-signoff7-1784036868/types/**/*.ts",
+    ".next-isolated-myrm-jx-signoff7-1784036868/dev/types/**/*.ts",
+    ".next-isolated-myrm-jx-signoff8-1784037452/types/**/*.ts",
+    ".next-isolated-myrm-jx-signoff8-1784037452/dev/types/**/*.ts",
+    ".next-isolated-myrm-jx-signoff9-1784037708/types/**/*.ts",
+    ".next-isolated-myrm-jx-signoff9-1784037708/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

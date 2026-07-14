@@ -239,7 +239,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
       'text/markdown',
       'application/json',
     ],
-    maxFiles: 5,
+    maxFiles: 20,
     disabled: loading || actionMode === 'fast',
   });
 

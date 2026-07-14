@@ -1447,6 +1447,7 @@
         "selectFolder": "가져올 폴더 선택",
         "folder": "폴더 가져오기",
         "zip": "ZIP 업로드",
+        "noValidFiles": "No valid text files found in the selected folder (.md, .txt, .org)",
         "importing": "가져오는 중..."
       },
       "tabs": {
@@ -5465,6 +5466,8 @@
     "retryHint": "다시 시도하세요",
     "unknownError": "알 수 없는 오류",
     "uploadFailedRetry": "파일 업로드 실패, 다시 시도하세요",
+    "fileTooLarge": "File too large (exceeds 50MB limit)",
+    "fileTooLargeDesc": "{name} ({size}) exceeds the 50MB upload limit",
     "videoTooLarge": "비디오 파일이 너무 큽니다 (100MB 제한 초과)",
     "videoTooLargeDesc": "더 짧거나 작은 비디오 파일을 선택하세요. 현재: {size}",
     "audioTooLarge": "오디오 파일이 너무 큽니다 (25MB 제한 초과)",

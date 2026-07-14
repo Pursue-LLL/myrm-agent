@@ -25,6 +25,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+_MAX_FILE_BYTES = 50 * 1024 * 1024  # 50 MB per file
+_MAX_FILES = 20
+_STREAM_CHUNK_SIZE = 64 * 1024  # 64 KB chunks for streaming reads
+
 ALLOWED_EXTENSIONS = {
     ".png",
     ".jpeg",
@@ -99,6 +103,20 @@ async def _compress_image(content: bytes, filename: str) -> bytes:
     return content
 
 
+async def _stream_to_bytes(upload: UploadFile, max_bytes: int) -> bytes:
+    """Stream-read an UploadFile with a size cap to avoid loading oversized files into memory."""
+    buf = io.BytesIO()
+    total = 0
+    while chunk := await upload.read(_STREAM_CHUNK_SIZE):
+        total += len(chunk)
+        if total > max_bytes:
+            raise validation_error(
+                f"File {upload.filename} exceeds {max_bytes // (1024 * 1024)}MB limit"
+            )
+        buf.write(chunk)
+    return buf.getvalue()
+
+
 @router.post("/upload", response_model=StandardSuccessResponse)
 @limiter.limit(settings.rate_limit.file_upload)
 async def upload_files(
@@ -108,10 +126,9 @@ async def upload_files(
     """上传文件到统一存储服务"""
     if not files:
         raise validation_error("At least one file is required")
-    if len(files) > 5:
-        raise validation_error("Maximum 5 files allowed")
+    if len(files) > _MAX_FILES:
+        raise validation_error(f"Maximum {_MAX_FILES} files allowed")
 
-    # 过滤有效文件
     valid_files: list[tuple[UploadFile, bytes]] = []
     for file in files:
         if not file.filename:
@@ -120,9 +137,7 @@ async def upload_files(
         if ext not in ALLOWED_EXTENSIONS:
             continue
 
-        content = await file.read()
-        if len(content) > 10 * 1024 * 1024:
-            raise validation_error(f"File {file.filename} exceeds 10MB limit")
+        content = await _stream_to_bytes(file, _MAX_FILE_BYTES)
         valid_files.append((file, content))
 
     if not valid_files:
@@ -135,11 +150,9 @@ async def upload_files(
             assert file.filename is not None
             ext = _get_file_extension(file.filename)
 
-            # 图片压缩
             if ext in IMAGE_EXTENSIONS:
                 content = await _compress_image(content, file.filename)
 
-            # 通过 FilesService 上传到 StorageProvider
             stored_file = await files_service.upload_file(
                 filename=file.filename,
                 content=content,

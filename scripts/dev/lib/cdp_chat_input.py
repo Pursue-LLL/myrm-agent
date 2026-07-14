@@ -17,6 +17,7 @@ from cdp_chat_support import (
     _api_provider_ready,
     chat_id_from_path,
     chat_user_message_count,
+    e2e_api_base_inject_js,
 )
 
 
@@ -57,6 +58,18 @@ class CdpChatInput(CdpChatBootstrap):
                 if last.get("sendReady"):
                     last["ok"] = True
                     return last
+                for picker_js in (SELECT_MIMO_MODEL_JS, SELECT_FIRST_ENABLED_MODEL_JS):
+                    try:
+                        picked = await self.evaluate(
+                            picker_js,
+                            await_promise=True,
+                            recv_timeout=10.0,
+                        )
+                    except TimeoutError:
+                        continue
+                    if isinstance(picked, dict) and picked.get("ok"):
+                        await asyncio.sleep(0.5)
+                        break
                 await asyncio.sleep(0.5)
             debug = await self.evaluate(
                 """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
@@ -174,6 +187,7 @@ class CdpChatInput(CdpChatBootstrap):
         while time.monotonic() < deadline:
             polls += 1
             await self.dismiss_modals()
+            await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
             await self.evaluate(E2E_BRIDGE_INSTALL_JS, await_promise=False)
             probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
             if isinstance(probe, dict) and probe.get("hasBridge") and probe.get("hasInput"):

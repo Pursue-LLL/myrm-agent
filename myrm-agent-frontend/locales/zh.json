@@ -2008,6 +2008,7 @@
         "selectFolder": "选择要导入的文件夹",
         "folder": "导入文件夹",
         "zip": "上传 ZIP",
+        "noValidFiles": "所选文件夹中未找到有效的文本文件（.md、.txt、.org）",
         "importing": "导入中...",
         "obsidianTitle": "Obsidian 知识库导入",
         "obsidianDescription": "一键导入整个 Obsidian 知识库，完整保留 Frontmatter 元数据、双链和嵌入图片",
@@ -6427,6 +6428,8 @@
     "retryHint": "请重试",
     "unknownError": "未知错误",
     "uploadFailedRetry": "文件上传失败，请重试",
+    "fileTooLarge": "文件过大（超过50MB限制）",
+    "fileTooLargeDesc": "{name}（{size}）超过50MB上传限制",
     "videoTooLarge": "视频文件过大（超过100MB限制）",
     "videoTooLargeDesc": "请选择更短或更小的视频文件，当前文件 {size}",
     "audioTooLarge": "音频文件过大（超过25MB限制）",
@@ -11776,7 +11779,10 @@
     "trayTooltipIdle": "Myrm Agent - 空闲",
     "trayTooltipBusy": "Myrm Agent - 任务执行中…",
     "trayTooltipDegraded": "Myrm Agent - 服务异常",
-    "trayTooltipBackground": "{count} 个后台任务运行中"
+    "trayTooltipBackground": "{count} 个后台任务运行中",
+    "trayTooltipUsage": "今日: {usage}",
+    "budgetAlertTitle": "预算提醒",
+    "budgetAlertBody": "已使用 {pct}%，剩余 ${remaining}"
   },
   "boot": {
     "title": "MyrmAgent",

@@ -577,6 +577,15 @@ const MessageBox = ({
               />
             )}
 
+            {/* TTFT indicator — visible only during pre-first-token blank period */}
+            {isLast && loading && !parsedMessage && !message.reasoning && (
+              <span className="inline-flex items-center gap-0.5 py-2" aria-label={t('thinking')}>
+                <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-[pulse_1s_ease-in-out_infinite]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-[pulse_1s_ease-in-out_0.2s_infinite]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-warm/70 animate-[pulse_1s_ease-in-out_0.4s_infinite]" />
+              </span>
+            )}
+
             <MessageToc 
               content={parsedMessage} 
               messageId={message.messageId}

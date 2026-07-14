@@ -11,6 +11,7 @@ from cdp_chat_support import (
     PAGE_PROBE_JS,
     RESET_CHAT_JS,
     _api_provider_ready,
+    e2e_api_base_inject_js,
 )
 from cdp_chat_transport import CdpChatTransport
 
@@ -27,6 +28,7 @@ class CdpChatBootstrap(CdpChatTransport):
         last: dict[str, object] = {}
         await self.cdp("Runtime.enable")
         await self.cdp("Page.enable")
+        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
         if navigate:
             probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
             if not (isinstance(probe, dict) and probe.get("hasInput") and not probe.get("skeleton")):
@@ -242,6 +244,7 @@ class CdpChatBootstrap(CdpChatTransport):
         if isinstance(probe, dict) and str(probe.get("path") or "") == expected_path:
             await self.wait_shell_ready(timeout_sec=min(timeout_sec, 30.0))
             return
+        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
         await self.cdp(
             "Page.navigate",
             {"url": base_url.rstrip("/") + expected_path},

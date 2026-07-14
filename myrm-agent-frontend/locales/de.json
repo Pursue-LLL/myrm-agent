@@ -1447,6 +1447,7 @@
         "selectFolder": "Ordner zum Importieren auswählen",
         "folder": "Ordner importieren",
         "zip": "ZIP hochladen",
+        "noValidFiles": "No valid text files found in the selected folder (.md, .txt, .org)",
         "importing": "Importiere..."
       },
       "tabs": {
@@ -5465,6 +5466,8 @@
     "retryHint": "Bitte erneut versuchen",
     "unknownError": "Unbekannter Fehler",
     "uploadFailedRetry": "Datei-Upload fehlgeschlagen, bitte erneut versuchen",
+    "fileTooLarge": "File too large (exceeds 50MB limit)",
+    "fileTooLargeDesc": "{name} ({size}) exceeds the 50MB upload limit",
     "videoTooLarge": "Videodatei zu groß (über 100MB Limit)",
     "videoTooLargeDesc": "Bitte wählen Sie ein kürzeres oder kleineres Video. Aktuell: {size}",
     "audioTooLarge": "Audiodatei zu groß (über 25MB Limit)",

@@ -1447,6 +1447,7 @@
         "selectFolder": "インポートするフォルダを選択",
         "folder": "フォルダをインポート",
         "zip": "ZIPをアップロード",
+        "noValidFiles": "No valid text files found in the selected folder (.md, .txt, .org)",
         "importing": "インポート中..."
       },
       "tabs": {
@@ -5465,6 +5466,8 @@
     "retryHint": "もう一度お試しください",
     "unknownError": "不明なエラー",
     "uploadFailedRetry": "ファイルのアップロードに失敗しました。もう一度お試しください",
+    "fileTooLarge": "File too large (exceeds 50MB limit)",
+    "fileTooLargeDesc": "{name} ({size}) exceeds the 50MB upload limit",
     "videoTooLarge": "動画ファイルが大きすぎます（100MB制限超過）",
     "videoTooLargeDesc": "より短い、または小さい動画ファイルを選択してください。現在: {size}",
     "audioTooLarge": "音声ファイルが大きすぎます（25MB制限超過）",

@@ -14,7 +14,7 @@
 | `execute_preamble_types.py` | 模块 | preamble 数据结构；`ChannelAgentBuildOutcome` XOR（result | early_reply） | ✅ |
 | `execute_preamble_session.py` | 模块 | 会话键、冷启动检测、历史加载、auto-reset 预事件。 | ✅ |
 | `execute_preamble_agent.py` | 模块 | `build_channel_execution_agent()`：Params 装配、resume 门控、凭证注入。 | ✅ |
-| `execute_preamble_instructions.py` | 模块 | 团队协议、渠道能力约束、人格模板注入 `user_instructions`。 | ✅ |
+| `execute_preamble_instructions.py` | 模块 | 团队协议、渠道能力约束、IM 行为策略 Persona、人格模板注入 `user_instructions`。 | ✅ |
 | `execute_preamble_backfill.py` | 模块 | 冷启动渠道历史 backfill（`maybe_backfill_channel_history`）。 | ✅ |
 | `execute_finalize.py` | 模块 | 流结束后 persist + metadata + media + artifact 深链 reply 组装。 | ✅ |
 | `execute_errors.py` | 模块 | ConfigIncomplete / MyrmLLM / 通用异常 → OutboundMessage 回复。 | ✅ |
@@ -28,3 +28,4 @@
 - `tests/core/channel_bridge/test_artifact_deep_links.py` — artifact 收集与深链
 - `tests/core/channel_bridge/test_stream_events.py` — harness 流事件映射
 - `tests/core/channel_bridge/test_execute_preamble_early_exit.py` — preamble 早退（resume timeout、search unavailable、Outcome XOR）
+- `tests/core/channel_bridge/test_enrich_preamble_instructions.py` — IM Persona 注入触发/非触发验证

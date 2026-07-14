@@ -1,4 +1,4 @@
-// @vitest-environment happy-dom
+/** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 
@@ -12,12 +12,36 @@ vi.mock('@/lib/deploy-mode', () => ({
 }));
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: { count?: number }) => {
+  useTranslations: () => (key: string, values?: { count?: number; usage?: string }) => {
     if (key === 'trayTooltipBackground' && values?.count !== undefined) {
       return `bg:${values.count}`;
     }
+    if (key === 'trayTooltipUsage' && values?.usage) {
+      return `Today: ${values.usage}`;
+    }
     return key;
   },
+}));
+
+const mockGetUsageStatistics = vi.fn().mockResolvedValue({ totalTokens: 0, costUsd: 0 });
+const mockGetBudgetStatus = vi.fn().mockResolvedValue({ enabled: false, usage_pct: 0, remaining_usd: 0 });
+
+vi.mock('@/services/statistics', () => ({
+  getUsageStatistics: (...args: unknown[]) => mockGetUsageStatistics(...args),
+}));
+
+vi.mock('@/services/budget', () => ({
+  getBudgetStatus: () => mockGetBudgetStatus(),
+}));
+
+const mockSendNotification = vi.fn();
+const mockIsPermissionGranted = vi.fn().mockResolvedValue(true);
+const mockRequestPermission = vi.fn().mockResolvedValue('granted');
+
+vi.mock('@tauri-apps/plugin-notification', () => ({
+  sendNotification: (...args: unknown[]) => mockSendNotification(...args),
+  isPermissionGranted: () => mockIsPermissionGranted(),
+  requestPermission: () => mockRequestPermission(),
 }));
 
 vi.mock('@/hooks/useLivenessState', () => ({
@@ -81,6 +105,10 @@ describe('useTrayStatus', () => {
     mockRequestUserAttention.mockReset().mockResolvedValue(undefined);
     mockListBackgroundTasks.mockClear();
     mockSubscribe.mockClear();
+    mockGetUsageStatistics.mockReset().mockResolvedValue({ totalTokens: 0, costUsd: 0 });
+    mockGetBudgetStatus.mockReset().mockResolvedValue({ enabled: false, usage_pct: 0, remaining_usd: 0 });
+    mockSendNotification.mockClear();
+    mockIsPermissionGranted.mockReset().mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -197,6 +225,49 @@ describe('useTrayStatus', () => {
 
     await vi.dynamicImportSettled();
     expect(mockRequestUserAttention).not.toHaveBeenCalled();
+  });
+
+  it('appends usage summary to tooltip when today has usage', async () => {
+    mockIsTauri = true;
+    mockLivenessState = 'idle';
+    mockGetUsageStatistics.mockResolvedValue({ totalTokens: 15200, costUsd: 0.34 });
+    const { useTrayStatus } = await import('../useTrayStatus');
+    renderHook(() => useTrayStatus());
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('set_tray_status', {
+        status: 'idle',
+        tooltip: 'trayTooltipIdle\nToday: 15.2K tokens · $0.34',
+      });
+    });
+  });
+
+  it('fires native notification on budget_alert event', async () => {
+    mockIsTauri = true;
+    mockGetBudgetStatus.mockResolvedValue({ enabled: true, usage_pct: 0.85, remaining_usd: 1.5 });
+    const { useTrayStatus } = await import('../useTrayStatus');
+    renderHook(() => useTrayStatus());
+    await vi.dynamicImportSettled();
+
+    window.dispatchEvent(new Event('budget_alert'));
+
+    await waitFor(() => {
+      expect(mockSendNotification).toHaveBeenCalledWith({
+        title: 'budgetAlertTitle',
+        body: 'budgetAlertBody',
+      });
+    });
+  });
+
+  it('does not fire notification when budget is disabled', async () => {
+    mockIsTauri = true;
+    mockGetBudgetStatus.mockResolvedValue({ enabled: false, usage_pct: 0, remaining_usd: 0 });
+    const { useTrayStatus } = await import('../useTrayStatus');
+    renderHook(() => useTrayStatus());
+    await vi.dynamicImportSettled();
+
+    window.dispatchEvent(new Event('budget_alert'));
+    await vi.dynamicImportSettled();
+    expect(mockSendNotification).not.toHaveBeenCalled();
   });
 
   it('silently catches errors when Tauri API fails', async () => {
