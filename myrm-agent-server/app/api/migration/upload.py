@@ -1,0 +1,89 @@
+"""Cloud migration ZIP upload endpoint.
+
+[INPUT]
+Multipart/form-data ZIP file containing competitor AI assistant data.
+
+[OUTPUT]
+DiscoveryResponse with detected sources from the uploaded archive.
+
+[POS]
+Cloud/SaaS migration bridge — accepts a user-uploaded ZIP of competitor data,
+safely extracts to a temporary directory, runs existing source probes, and
+returns the same DiscoveryResponse used by the local discover endpoint.
+Enables three-deployment parity for the Migration Wizard.
+"""
+
+from __future__ import annotations
+
+import io
+import logging
+import os
+import tempfile
+import zipfile
+
+from fastapi import APIRouter, HTTPException, UploadFile
+
+from app.api.migration.discovery import DiscoveryResponse, _to_response
+from app.services.migration.source_discovery import discover_external_sources
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/migration", tags=["migration"])
+
+MAX_ZIP_BYTES = 50 * 1024 * 1024  # 50 MB
+MAX_EXTRACTED_FILES = 5000
+
+
+def _is_safe_path(member_name: str) -> bool:
+    """Reject path-traversal attempts (../ or absolute paths)."""
+    normalized = os.path.normpath(member_name)
+    return not normalized.startswith(("../", "..\\", "/")) and ".." not in normalized.split(os.sep)
+
+
+@router.post("/upload", response_model=DiscoveryResponse)
+async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
+    """Accept a ZIP of competitor data and return discovered sources.
+
+    Cloud users package their local competitor directories (e.g. ~/.hermes,
+    ~/.openclaw) into a ZIP and upload here. The server extracts to a temp
+    directory, runs the same probes used by GET /migration/discover, and
+    returns matching results so the frontend can continue with the standard
+    Wizard flow.
+    """
+
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Only .zip files are accepted")
+
+    content = await file.read()
+    if len(content) > MAX_ZIP_BYTES:
+        raise HTTPException(status_code=413, detail=f"File exceeds {MAX_ZIP_BYTES // (1024 * 1024)} MB limit")
+
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(content))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid ZIP file")
+
+    members = archive.infolist()
+    if len(members) > MAX_EXTRACTED_FILES:
+        archive.close()
+        raise HTTPException(status_code=400, detail=f"ZIP contains too many files (max {MAX_EXTRACTED_FILES})")
+
+    unsafe = [m.filename for m in members if not _is_safe_path(m.filename)]
+    if unsafe:
+        archive.close()
+        raise HTTPException(status_code=400, detail="ZIP contains unsafe paths")
+
+    with tempfile.TemporaryDirectory(prefix="myrm_migration_") as tmpdir:
+        archive.extractall(tmpdir)
+        archive.close()
+
+        result = discover_external_sources(home_dir=tmpdir)
+
+    if not result.sources:
+        return DiscoveryResponse(sources=[], scan_path="upload", available=True)
+
+    return DiscoveryResponse(
+        sources=[_to_response(s) for s in result.sources],
+        scan_path="upload",
+        available=True,
+    )

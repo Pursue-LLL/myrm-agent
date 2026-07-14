@@ -2,8 +2,8 @@
  * Migration assistant discovery client.
  *
  * [INPUT] lib/api::apiRequest (POS: authenticated HTTP client)
- * [OUTPUT] discoverMigrationSources, DiscoveryResponse
- * [POS] Frontend service for local/Tauri assistant data auto-discovery.
+ * [OUTPUT] discoverMigrationSources, uploadMigrationZip, DiscoveryResponse
+ * [POS] Frontend service for assistant data auto-discovery (local scan + cloud ZIP upload).
  */
 
 import { apiRequest } from '@/lib/api';
@@ -63,6 +63,18 @@ export async function importMigrationSecrets(competitor: string, root: string): 
     method: 'POST',
     body: JSON.stringify({ competitor, root }),
   });
+}
+
+export async function uploadMigrationZip(file: File): Promise<DiscoveryResponse> {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await apiRequest<DiscoveryResponse>('/migration/upload', {
+    method: 'POST',
+    body: form,
+  });
+  discoveryCache = response;
+  discoveryCachedAt = Date.now();
+  return response;
 }
 
 export function getMigrationSourceDisplayName(competitor: string): string {

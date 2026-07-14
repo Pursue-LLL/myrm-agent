@@ -50,6 +50,7 @@ from app.api.media import media_router
 from app.api.memory.router import router as memory_router
 from app.api.message_filter import router as message_filter_router
 from app.api.migration.discovery import router as migration_discovery_router
+from app.api.migration.upload import router as migration_upload_router
 from app.api.notifications.router import router as notifications_router
 from app.api.web_push.router import router as web_push_router
 from app.api.projects import router as project_router
@@ -133,6 +134,7 @@ api_router.include_router(evolution_router, tags=["evolution"])
 api_router.include_router(evolution_ws_router, prefix="/ws", tags=["evolution"])
 api_router.include_router(experience_ledger_router, tags=["experience-ledger"])
 api_router.include_router(migration_discovery_router, tags=["migration"])
+api_router.include_router(migration_upload_router, tags=["migration"])
 api_router.include_router(migrations_router, tags=["migrations"])
 api_router.include_router(reviews_router, tags=["reviews"])
 api_router.include_router(skill_optimization_router, tags=["skill-optimization"])
