@@ -103,13 +103,24 @@ class TestLlmMapWithdrawalConverterIntegration:
         assert not hasattr(params, "enable_llm_map")
 
     @pytest.mark.asyncio
-    async def test_agent_config_legacy_llm_map_does_not_set_enable_llm_map(self, base_request: dict) -> None:
-        from app.services.agent.params.converter import convert_to_general_agent_params
+    async def test_agent_config_request_rejects_unknown_builtin_tool_id(self, base_request: dict) -> None:
         from app.services.agent.params.models import AgentRequest
 
         base_request["action_mode"] = "agent"
         base_request["agent_config"] = {
             "enabledBuiltinTools": ["web_search", "llm_map", "file_ops"],
+        }
+        with pytest.raises(Exception):
+            AgentRequest(**base_request)
+
+    @pytest.mark.asyncio
+    async def test_agent_config_valid_tools_does_not_set_enable_llm_map(self, base_request: dict) -> None:
+        from app.services.agent.params.converter import convert_to_general_agent_params
+        from app.services.agent.params.models import AgentRequest
+
+        base_request["action_mode"] = "agent"
+        base_request["agent_config"] = {
+            "enabledBuiltinTools": ["web_search", "file_ops"],
         }
         request = AgentRequest(**base_request)
 
