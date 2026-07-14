@@ -9,8 +9,9 @@
  * MigrationWizardSection: discover → preview → import; honors ?source= deep link auto-preview.
  *
  * [POS]
- * Settings sub-tab under Memory Center. Local/Tauri-only.
- * Implements a 3-step wizard: scan → dry-run preview → confirm import.
+ * Settings sub-tab under Memory Center. Three-deployment parity.
+ * Implements a 3-step wizard: scan/upload → dry-run preview → confirm import.
+ * Local/Tauri uses filesystem scan; Cloud shows ZIP upload UI.
  * When URL contains ?source=<id>, auto-starts preview after scan for that source.
  */
 
@@ -23,6 +24,7 @@ import {
   discoverMigrationSources,
   importMigrationSecrets,
   invalidateDiscoveryCache,
+  uploadMigrationZip,
   type ExternalSource,
   type DiscoveryResponse,
 } from '@/services/migrationDiscovery';
@@ -97,6 +99,26 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
         toast.error(t('scanFailed'));
       } finally {
         setScanning(false);
+      }
+    },
+    [t],
+  );
+
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = useCallback(
+    async (file: File) => {
+      setUploading(true);
+      try {
+        const result = await uploadMigrationZip(file);
+        setDiscovery(result);
+        if (result.sources.length === 0) {
+          toast.info(t('cloudUploadEmpty'));
+        }
+      } catch {
+        toast.error(t('cloudUploadFailed'));
+      } finally {
+        setUploading(false);
       }
     },
     [t],
@@ -298,6 +320,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
         <ScanStep
           discovery={discovery}
           scanning={scanning}
+          uploading={uploading}
           previewing={previewing}
           previewingSource={selectedSource}
           includeEpisodic={includeEpisodic}
@@ -306,6 +329,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
           targetAgentId={targetAgentId}
           onTargetAgentIdChange={setTargetAgentId}
           onScan={() => handleScan(true)}
+          onUpload={handleUpload}
           onPreview={handlePreview}
           t={t}
         />

@@ -81,6 +81,7 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "evolution_ws": _RouterMount("app.api.skills.ws_evolution", prefix="/ws", tags=("evolution",)),
     "experience_ledger": _RouterMount("app.api.skills.experience_ledger", tags=("experience-ledger",)),
     "migration_discovery": _RouterMount("app.api.migration.discovery", tags=("migration",)),
+    "migration_upload": _RouterMount("app.api.migration.upload", tags=("migration",)),
     "migrations": _RouterMount("app.api.skills.migrations", tags=("migrations",)),
     "reviews": _RouterMount("app.api.skills.reviews", tags=("reviews",)),
     "memory": _RouterMount("app.api.memory.router", prefix="/memory", tags=("memory",)),
@@ -202,7 +203,7 @@ PRESETS: dict[str, tuple[str, ...]] = {
         "skills",
         "skill_quality",
     ),
-    "migrations_api": ("migrations", "migration_discovery", "skills", "memory"),
+    "migrations_api": ("migrations", "migration_discovery", "migration_upload", "skills", "memory"),
     "review_inbox": ("approvals", "skills", "evolution", "reviews", "migrations"),
     "webui_only": (),
 }

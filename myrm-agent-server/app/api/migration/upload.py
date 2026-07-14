@@ -16,7 +16,6 @@ Enables three-deployment parity for the Migration Wizard.
 from __future__ import annotations
 
 import io
-import logging
 import os
 import tempfile
 import zipfile
@@ -25,8 +24,6 @@ from fastapi import APIRouter, HTTPException, UploadFile
 
 from app.api.migration.discovery import DiscoveryResponse, _to_response
 from app.services.migration.source_discovery import discover_external_sources
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/migration", tags=["migration"])
 
@@ -60,8 +57,8 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
 
     try:
         archive = zipfile.ZipFile(io.BytesIO(content))
-    except zipfile.BadZipFile:
-        raise HTTPException(status_code=400, detail="Invalid ZIP file")
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(status_code=400, detail="Invalid ZIP file") from exc
 
     members = archive.infolist()
     if len(members) > MAX_EXTRACTED_FILES:

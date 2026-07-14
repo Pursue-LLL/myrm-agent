@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRightLeft,
@@ -14,6 +14,7 @@ import {
   Search,
   ShieldAlert,
   Download,
+  Upload,
 } from 'lucide-react';
 
 import { queueMigrationChatAgent } from '@/lib/migrationChatHandoff';
@@ -50,6 +51,73 @@ const COVERAGE_LABEL_KEYS = new Set([
   'no_importable_data',
 ]);
 
+function CloudUploadZone({
+  uploading,
+  onUpload,
+  t,
+}: {
+  uploading: boolean;
+  onUpload: (file: File) => void;
+  t: TranslationFn;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleFile = useCallback(
+    (file: File) => {
+      if (file.name.toLowerCase().endsWith('.zip')) {
+        onUpload(file);
+      }
+    },
+    [onUpload],
+  );
+
+  return (
+    <div
+      className={cn(
+        'rounded-xl border-2 border-dashed p-8 text-center transition-colors',
+        dragOver ? 'border-primary bg-primary/5' : 'border-border/50 bg-secondary/20',
+      )}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+      }}
+    >
+      <Upload className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+      <p className="text-sm font-medium text-muted-foreground">{t('cloudUploadTitle')}</p>
+      <p className="mt-1 text-xs text-muted-foreground/60">{t('cloudUploadGuide')}</p>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".zip"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+        }}
+      />
+      <Button
+        size="sm"
+        variant="outline"
+        className="mt-4"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+      >
+        {uploading ? (
+          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Upload className="mr-2 h-3.5 w-3.5" />
+        )}
+        {uploading ? t('cloudUploading') : t('cloudUploadButton')}
+      </Button>
+    </div>
+  );
+}
+
 export function CoverageMatrix({ items, t }: { items: MemoryImportCoverageItem[]; t: TranslationFn }) {
   if (items.length === 0) return null;
 
@@ -83,6 +151,7 @@ export function CoverageMatrix({ items, t }: { items: MemoryImportCoverageItem[]
 export function ScanStep({
   discovery,
   scanning,
+  uploading,
   previewing,
   previewingSource,
   includeEpisodic,
@@ -91,11 +160,13 @@ export function ScanStep({
   targetAgentId,
   onTargetAgentIdChange,
   onScan,
+  onUpload,
   onPreview,
   t,
 }: {
   discovery: DiscoveryResponse | null;
   scanning: boolean;
+  uploading: boolean;
   previewing: boolean;
   previewingSource: ExternalSource | null;
   includeEpisodic: boolean;
@@ -104,11 +175,13 @@ export function ScanStep({
   targetAgentId: string | null;
   onTargetAgentIdChange: (value: string | null) => void;
   onScan: () => void;
+  onUpload: (file: File) => void;
   onPreview: (source: ExternalSource) => void;
   t: TranslationFn;
 }) {
   const sources = discovery?.sources ?? [];
   const hasOpenClawSource = sources.some((source) => source.competitor === 'openclaw');
+  const isCloudMode = discovery !== null && discovery.available === false;
 
   return (
     <div className="space-y-5">
@@ -122,17 +195,23 @@ export function ScanStep({
             <p className="text-sm text-muted-foreground">{t('description')}</p>
           </div>
         </div>
-        <Button size="sm" variant="outline" onClick={onScan} disabled={scanning} className="shrink-0">
-          {scanning ? (
-            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-3.5 w-3.5" />
-          )}
-          {scanning ? t('scanning') : discovery ? t('rescan') : t('scanButton')}
-        </Button>
+        {!isCloudMode && (
+          <Button size="sm" variant="outline" onClick={onScan} disabled={scanning} className="shrink-0">
+            {scanning ? (
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-3.5 w-3.5" />
+            )}
+            {scanning ? t('scanning') : discovery ? t('rescan') : t('scanButton')}
+          </Button>
+        )}
       </div>
 
-      {discovery && sources.length === 0 && (
+      {isCloudMode && sources.length === 0 && (
+        <CloudUploadZone uploading={uploading} onUpload={onUpload} t={t} />
+      )}
+
+      {!isCloudMode && discovery && sources.length === 0 && (
         <div className="rounded-xl border border-border/50 bg-secondary/20 p-8 text-center">
           <Search className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm font-medium text-muted-foreground">{t('noSourcesFound')}</p>

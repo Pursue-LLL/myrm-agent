@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-外部 AI 助手数据迁移服务层（**仅 Local WebUI / Tauri**；SaaS 沙箱不提供发现与导入）。五车道编排：指令（Agent system_prompt / 全局设置 / `.myrm/rules`）、全局记忆、技能审核、凭证 opt-in、**MCP 配置迁移**。Wizard dry-run 必须使用 source id 映射的 memory adapter（禁止裸 `auto` 误路由）。OpenClaw workspace Markdown 合并进 `openclaw_memory`；多 workspace 同文件名合并。MCP 配置从竞品 payload 自动提取并转换为 MCPServerConfig 格式，默认 `enabled: false`，用户在前端审核后手动启用。渠道在覆盖矩阵标 manual。
+外部 AI 助手数据迁移服务层（三部署均等：Local/Tauri 使用文件系统扫描，Cloud/SaaS 通过 ZIP 上传）。五车道编排：指令（Agent system_prompt / 全局设置 / `.myrm/rules`）、全局记忆、技能审核、凭证 opt-in、**MCP 配置迁移**。Wizard dry-run 必须使用 source id 映射的 memory adapter（禁止裸 `auto` 误路由）。OpenClaw workspace Markdown 合并进 `openclaw_memory`；多 workspace 同文件名合并。MCP 配置从竞品 payload 自动提取并转换为 MCPServerConfig 格式，默认 `enabled: false`，用户在前端审核后手动启用。渠道在覆盖矩阵标 manual。
 
 ### 支持范围策略（封闭集合）
 

@@ -1,6 +1,3 @@
-import os
-from pathlib import Path
-
 import pytest
 from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionProposal,
@@ -9,9 +6,9 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     SkillMetrics,
     SkillRecord,
 )
-from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
 from sqlalchemy import select
 
+from app.core.skills.store.evolution_store import get_evolution_skill_store
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
@@ -41,8 +38,7 @@ async def test_confidence_approval_flow_reject_creates_constraint():
         approval = result_db.scalars().first()
     assert approval is not None
 
-    data_dir = os.getenv("MYRM_DATA_DIR", str(Path.home() / ".myrm"))
-    store = SkillStore(db_path=Path(data_dir) / "skills.db")
+    store = get_evolution_skill_store()
 
     dummy = SkillRecord(
         skill_id="skill_reject_test",
@@ -67,7 +63,7 @@ async def test_confidence_approval_flow_reject_creates_constraint():
         assert record is not None
         assert record.status == "REJECTED"
 
-    store = SkillStore(db_path=Path(data_dir) / "skills.db")
+    store = get_evolution_skill_store()
     try:
         constraints = store.get_evolution_constraints("skill_reject_test")
     finally:
