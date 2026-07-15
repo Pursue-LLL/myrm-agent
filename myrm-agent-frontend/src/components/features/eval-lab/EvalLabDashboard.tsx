@@ -20,14 +20,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import {
-  LineChart,
+  CartesianGrid,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from 'recharts';
+} from '@/components/features/app-shell/lazy-recharts';
 
 const ASSERTION_KEYS = [
   'expected_tools',

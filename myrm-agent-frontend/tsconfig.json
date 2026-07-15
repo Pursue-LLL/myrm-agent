@@ -126,7 +126,9 @@
     ".next-isolated-myrm-jx-teardown2-1784084169/types/**/*.ts",
     ".next-isolated-myrm-jx-teardown2-1784084169/dev/types/**/*.ts",
     ".next-isolated-myrm-jx-teardown3-1784084431/types/**/*.ts",
-    ".next-isolated-myrm-jx-teardown3-1784084431/dev/types/**/*.ts"
+    ".next-isolated-myrm-jx-teardown3-1784084431/dev/types/**/*.ts",
+    ".next-isolated-myrm-jx-retest-1784092331/types/**/*.ts",
+    ".next-isolated-myrm-jx-retest-1784092331/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

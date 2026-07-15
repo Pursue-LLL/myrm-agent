@@ -4,7 +4,17 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { BarChart3, Settings2 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from '@/components/features/app-shell/lazy-recharts';
 import SettingsSection from '../SettingsSection';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';

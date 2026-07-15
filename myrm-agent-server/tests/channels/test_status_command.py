@@ -342,3 +342,208 @@ class TestHandleStatusCommand:
         assert "Model" not in reply.content
         assert "Created" not in reply.content
         assert "Last Activity" not in reply.content
+
+    @pytest.mark.asyncio
+    async def test_status_shows_cost_and_calls(self, inbound_msg: InboundMessage) -> None:
+        mock_provider = AsyncMock()
+        mock_provider.get_session_status.return_value = SessionStatus(
+            session_id="s1",
+            total_tokens=5000,
+            total_usd=1.2345,
+            total_calls=42,
+        )
+        host = self._make_host(status_provider=mock_provider)
+        await RouterCommandsMixin._handle_status_command(host, inbound_msg)
+
+        reply = host._bus.publish_outbound.call_args[0][0]
+        assert "1.2345" in reply.content
+        assert "42" in reply.content
+
+    @pytest.mark.asyncio
+    async def test_status_cost_zero_still_displayed(self, inbound_msg: InboundMessage) -> None:
+        mock_provider = AsyncMock()
+        mock_provider.get_session_status.return_value = SessionStatus(
+            session_id="s1",
+            total_tokens=0,
+            total_usd=0.0,
+            total_calls=0,
+        )
+        host = self._make_host(status_provider=mock_provider)
+        await RouterCommandsMixin._handle_status_command(host, inbound_msg)
+
+        reply = host._bus.publish_outbound.call_args[0][0]
+        assert "0.0000" in reply.content
+
+    @pytest.mark.asyncio
+    async def test_status_shows_budget_summary(self) -> None:
+        group_msg = InboundMessage(
+            channel="telegram",
+            sender_id="sender1",
+            chat_id="group123",
+            content="/status",
+            is_group=True,
+        )
+        mock_provider = AsyncMock()
+        mock_provider.get_session_status.return_value = SessionStatus(
+            session_id="s1",
+            total_tokens=1000,
+            total_usd=0.5,
+            total_calls=10,
+        )
+        host = self._make_host(status_provider=mock_provider)
+
+        budget_mock = {
+            "enabled": True,
+            "today_cost_usd": 0.3456,
+            "daily_limit_usd": 5.0,
+            "usage_pct": 6.9,
+        }
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "app.channels.routing.router_commands_memory._get_channel_budget_summary",
+                lambda _msg: budget_mock,
+            )
+            await RouterCommandsMixin._handle_status_command(host, group_msg)
+
+        reply = host._bus.publish_outbound.call_args[0][0]
+        assert "0.3456" in reply.content
+        assert "5.00" in reply.content
+        assert "6.9" in reply.content
+
+    @pytest.mark.asyncio
+    async def test_status_hides_budget_when_none(self, inbound_msg: InboundMessage) -> None:
+        mock_provider = AsyncMock()
+        mock_provider.get_session_status.return_value = SessionStatus(
+            session_id="s1",
+            total_tokens=100,
+            total_usd=0.01,
+            total_calls=2,
+        )
+        host = self._make_host(status_provider=mock_provider)
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "app.channels.routing.router_commands_memory._get_channel_budget_summary",
+                lambda _msg: None,
+            )
+            await RouterCommandsMixin._handle_status_command(host, inbound_msg)
+
+        reply = host._bus.publish_outbound.call_args[0][0]
+        assert "Budget" not in reply.content
+
+
+class TestSessionStatusFields:
+    """Verify SessionStatus new fields defaults and serialization."""
+
+    def test_defaults(self) -> None:
+        status = SessionStatus(session_id="test")
+        assert status.total_usd == 0.0
+        assert status.total_calls == 0
+        assert status.total_tokens == 0
+
+    def test_with_values(self) -> None:
+        status = SessionStatus(
+            session_id="test",
+            total_usd=12.3456,
+            total_calls=99,
+        )
+        assert status.total_usd == 12.3456
+        assert status.total_calls == 99
+
+
+class TestGetChannelBudgetSummary:
+    """Unit tests for _get_channel_budget_summary."""
+
+    @staticmethod
+    def _make_group_msg(chat_id: str = "g1") -> InboundMessage:
+        return InboundMessage(
+            channel="telegram",
+            sender_id="s1",
+            chat_id=chat_id,
+            content="/status",
+            is_group=True,
+        )
+
+    def test_returns_none_for_dm(self) -> None:
+        from app.channels.routing.router_commands_memory import _get_channel_budget_summary
+
+        dm_msg = InboundMessage(
+            channel="telegram",
+            sender_id="user1",
+            chat_id="user1",
+            content="/status",
+            is_group=False,
+        )
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "app.core.channel_bridge.agent_executor.session.build_channel_budget_key",
+                lambda _msg: "",
+            )
+            result = _get_channel_budget_summary(dm_msg)
+        assert result is None
+
+    def test_returns_none_when_no_policy(self) -> None:
+        from app.channels.routing.router_commands_memory import _get_channel_budget_summary
+
+        mock_registry = MagicMock()
+        mock_registry.get_status.return_value = None
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "app.core.channel_bridge.agent_executor.session.build_channel_budget_key",
+                lambda _msg: "telegram:group:g1",
+            )
+            mp.setattr(
+                "app.services.budget.channel_budget.get_channel_budget_registry",
+                lambda: mock_registry,
+            )
+            result = _get_channel_budget_summary(self._make_group_msg())
+        assert result is None
+
+    def test_returns_none_when_disabled(self) -> None:
+        from app.channels.routing.router_commands_memory import _get_channel_budget_summary
+
+        mock_registry = MagicMock()
+        mock_registry.get_status.return_value = {"enabled": False, "today_cost_usd": 0.0}
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "app.core.channel_bridge.agent_executor.session.build_channel_budget_key",
+                lambda _msg: "telegram:group:g1",
+            )
+            mp.setattr(
+                "app.services.budget.channel_budget.get_channel_budget_registry",
+                lambda: mock_registry,
+            )
+            result = _get_channel_budget_summary(self._make_group_msg())
+        assert result is None
+
+    def test_returns_info_when_enabled(self) -> None:
+        from app.channels.routing.router_commands_memory import _get_channel_budget_summary
+
+        expected = {"enabled": True, "today_cost_usd": 1.5, "daily_limit_usd": 10.0, "usage_pct": 15.0}
+        mock_registry = MagicMock()
+        mock_registry.get_status.return_value = expected
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "app.core.channel_bridge.agent_executor.session.build_channel_budget_key",
+                lambda _msg: "telegram:group:g1",
+            )
+            mp.setattr(
+                "app.services.budget.channel_budget.get_channel_budget_registry",
+                lambda: mock_registry,
+            )
+            result = _get_channel_budget_summary(self._make_group_msg())
+        assert result == expected
+
+    def test_swallows_exception(self) -> None:
+        from app.channels.routing.router_commands_memory import _get_channel_budget_summary
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "app.core.channel_bridge.agent_executor.session.build_channel_budget_key",
+                MagicMock(side_effect=RuntimeError("boom")),
+            )
+            result = _get_channel_budget_summary(self._make_group_msg())
+        assert result is None

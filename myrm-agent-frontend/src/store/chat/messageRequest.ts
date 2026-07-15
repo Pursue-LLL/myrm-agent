@@ -653,22 +653,29 @@ export const createSmartUpdater = (chatId: string | undefined, originalSetMessag
     }
 
     const workspaceState = useWorkspaceStore.getState();
+    if (workspaceState.panes.length === 0) {
+      originalSetMessages(updater);
+      return;
+    }
+
     const activePane = workspaceState.panes.find((p: any) => p.id === workspaceState.activePaneId);
 
     if (activePane && activePane.chatId === chatId) {
-      // It's the active chat, update the global store
       originalSetMessages(updater);
-    } else {
-      // It's a background chat, update the snapshot in WorkspaceStore
-      const pane = workspaceState.panes.find((p: any) => p.chatId === chatId);
-      if (pane) {
-        const currentSnapshot = pane.snapshot || { messages: [], loading: false, messageAppeared: false, hideAttachList: false, hasUsedImagesInCurrentChat: false };
-        const nextSnapshot = produce(currentSnapshot, (draft: any) => {
-          updater(draft as ChatActionsState);
-        });
-        useWorkspaceStore.getState().savePaneSnapshot(pane.id, nextSnapshot);
-      }
+      return;
     }
+
+    const pane = workspaceState.panes.find((p: any) => p.chatId === chatId);
+    if (pane) {
+      const currentSnapshot = pane.snapshot || { messages: [], loading: false, messageAppeared: false, hideAttachList: false, hasUsedImagesInCurrentChat: false };
+      const nextSnapshot = produce(currentSnapshot, (draft: any) => {
+        updater(draft as ChatActionsState);
+      });
+      useWorkspaceStore.getState().savePaneSnapshot(pane.id, nextSnapshot);
+      return;
+    }
+
+    originalSetMessages(updater);
   };
 };
 

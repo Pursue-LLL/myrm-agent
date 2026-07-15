@@ -10,8 +10,8 @@
 [POS]
 Business-layer handler protocol for the /status slash command. Framework
 provides runtime state (agent running, queue depth, yolo mode) and delegates
-session metadata retrieval (session_id, title, tokens, model, timestamps)
-to the business layer via this protocol.
+session metadata retrieval (session_id, title, tokens, cost, calls, model,
+timestamps) to the business layer via this protocol.
 """
 
 from __future__ import annotations
@@ -27,6 +27,8 @@ class SessionStatus:
     session_id: str
     title: str | None = None
     total_tokens: int = 0
+    total_usd: float = 0.0
+    total_calls: int = 0
     model_name: str | None = None
     created_at: str | None = None
     last_activity: str | None = None

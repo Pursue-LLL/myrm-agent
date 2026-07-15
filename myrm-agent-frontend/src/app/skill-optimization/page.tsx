@@ -8,7 +8,16 @@ import { Input } from '@/components/primitives/input';
 import { Badge } from '@/components/primitives/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/primitives/table';
 import { Loader2, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
-import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from '@/components/features/app-shell/lazy-recharts';
 import { localizeReactNode } from '@/lib/utils/localeText';
 
 interface ComparisonData {

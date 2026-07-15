@@ -11,8 +11,8 @@
 
 [POS]
 Maps the framework-level StatusProvider protocol to the application's Chat
-database, returning session metadata (id, title, token usage, model,
-created_at, last_activity) for the /status slash command in channels.
+database, returning session metadata (id, title, token usage, cost, calls,
+model, created_at, last_activity) for the /status slash command in channels.
 """
 
 from __future__ import annotations
@@ -75,6 +75,8 @@ class ChannelStatusProvider:
                 session_id=chat.id,
                 title=chat.title,
                 total_tokens=chat.total_tokens,
+                total_usd=chat.total_usd,
+                total_calls=chat.total_calls,
                 model_name=model_name,
                 created_at=created_str,
                 last_activity=activity_str,

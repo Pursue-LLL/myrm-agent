@@ -77,6 +77,8 @@ class TestChannelStatusProviderE2E:
         assert status.session_id == _seed_chat
         assert status.title == "Status E2E Test Chat"
         assert status.total_tokens == 42_000
+        assert status.total_usd == 0.12
+        assert status.total_calls == 5
         assert status.created_at is not None
         assert status.last_activity is not None
 
@@ -146,3 +148,5 @@ class TestChannelStatusProviderE2E:
         assert status.session_id == chat_id
         assert status.title == "Chat With Agent"
         assert status.total_tokens == 8_000
+        assert status.total_usd == 0.05
+        assert status.total_calls == 2

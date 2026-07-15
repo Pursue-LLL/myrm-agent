@@ -2,7 +2,13 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from 'recharts';
+import {
+  PolarAngleAxis,
+  PolarGrid,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+} from '@/components/features/app-shell/lazy-recharts';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface HealthRadarProps {

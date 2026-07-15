@@ -122,24 +122,23 @@ async def test_chrome_ui_goal_mode_stream(
         isolated = f"e2e-goal-focus-{os.getpid()}"
         try:
             page: McpPage | None = None
-            last_timeout: TimeoutError | None = None
-            for attempt in range(2):
-                try:
-                    page = await asyncio.to_thread(
-                        client.new_page,
-                        BASE_URL,
-                        timeout_ms=120_000,
-                        isolated_context=isolated,
-                    )
-                    break
-                except TimeoutError as exc:
-                    last_timeout = exc
-                    if attempt == 0:
-                        await asyncio.sleep(2.0)
-                        continue
-                    raise
+            try:
+                page = await asyncio.to_thread(
+                    client.new_page,
+                    BASE_URL,
+                    timeout_ms=120_000,
+                    isolated_context=isolated,
+                )
+            except TimeoutError:
+                await asyncio.sleep(2.0)
+                page = await asyncio.to_thread(
+                    client.new_page,
+                    BASE_URL,
+                    timeout_ms=120_000,
+                    isolated_context=isolated,
+                )
             if page is None:
-                raise last_timeout or RuntimeError("new_page returned no page")
+                raise RuntimeError("new_page returned no page")
             chat = McpChatSession(client, page)
             await chat.bootstrap(BASE_URL, timeout_sec=120.0)
             return await _run_goal_flow(chat)

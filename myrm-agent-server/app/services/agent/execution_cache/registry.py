@@ -82,6 +82,7 @@ class ChatAgentExecutionCache:
                         scope_key,
                     )
                     entry.last_used = time.monotonic()
+                    logger.warning("execution_cache_reuse scope=%s", scope_key)
                     return entry.unit
 
                 logger.info(

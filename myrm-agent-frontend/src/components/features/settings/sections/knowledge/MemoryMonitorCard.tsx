@@ -2,7 +2,16 @@
 
 import { memo, useState, useEffect, useCallback } from 'react';
 import { IconActivity, IconAlertTriangle, IconCpu, IconPlay, IconSquare } from '@/components/features/icons/PremiumIcons';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from '@/components/features/app-shell/lazy-recharts';
 import { toast } from '@/lib/utils/toast';
 
 interface MemoryMetric {

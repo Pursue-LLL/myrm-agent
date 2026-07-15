@@ -5,6 +5,8 @@
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
 - channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
+- core.channel_bridge.agent_executor.session::build_channel_budget_key (POS: budget key construction, runtime import in _get_channel_budget_summary.)
+- services.budget.channel_budget::get_channel_budget_registry (POS: per-channel budget isolation, runtime import in _get_channel_budget_summary.)
 
 [OUTPUT]
 - RouterCommandsMemoryMixin: session status, kanban, directed learning, pending memory approval handlers
@@ -30,6 +32,24 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory import MemoryManager
 
 logger = logging.getLogger("app.channels.routing.router")
+
+
+def _get_channel_budget_summary(msg: InboundMessage) -> dict[str, object] | None:
+    """Return channel budget status dict if an enabled budget policy exists, else None."""
+    try:
+        from app.core.channel_bridge.agent_executor.session import build_channel_budget_key
+        from app.services.budget.channel_budget import get_channel_budget_registry
+
+        budget_key = build_channel_budget_key(msg)
+        if not budget_key:
+            return None
+        info = get_channel_budget_registry().get_status(budget_key)
+        if info and info.get("enabled"):
+            return info
+        return None
+    except Exception:
+        return None
+
 
 class RouterCommandsMemoryMixin:
     """Mixin: /status, /kanban, /learn, /memory commands."""
@@ -61,6 +81,22 @@ class RouterCommandsMemoryMixin:
                 if status.model_name:
                     lines.append(get_text(msg, "status_model", model_name=status.model_name))
                 lines.append(get_text(msg, "status_tokens", total_tokens=f"{status.total_tokens:,}"))
+                lines.append(get_text(msg, "status_cost", total_usd=f"{status.total_usd:.4f}"))
+                lines.append(get_text(msg, "status_calls", total_calls=status.total_calls))
+
+                budget_info = _get_channel_budget_summary(msg)
+                if budget_info:
+                    lines.append("")
+                    lines.append(get_text(msg, "status_budget_header"))
+                    lines.append(
+                        get_text(
+                            msg,
+                            "status_budget_today",
+                            today_cost=f"{budget_info['today_cost_usd']:.4f}",
+                            daily_limit=f"{budget_info['daily_limit_usd']:.2f}",
+                            usage_pct=budget_info["usage_pct"],
+                        )
+                    )
             else:
                 lines.append(get_text(msg, "status_no_session"))
 

@@ -6,7 +6,16 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/primitive
 import { Button } from '@/components/primitives/button';
 import { apiRequest } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from '@/components/features/app-shell/lazy-recharts';
 
 interface TrendDataPoint {
   timestamp: string;
