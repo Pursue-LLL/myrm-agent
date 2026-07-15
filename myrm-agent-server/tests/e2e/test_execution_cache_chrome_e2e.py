@@ -121,11 +121,14 @@ async def test_chrome_ui_same_chat_two_ok_messages(
 
     client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
+    agent_tag = os.environ.get("MYRM_WAVE_AGENT_ID", str(os.getpid()))
+    isolated = f"e2e-execution-cache-{agent_tag}"
     try:
         page = await asyncio.to_thread(
             client.new_page,
             BASE_URL,
             timeout_ms=120_000,
+            isolated_context=isolated,
         )
         await run_chat_flow(McpChatSession(client, page))
     finally:

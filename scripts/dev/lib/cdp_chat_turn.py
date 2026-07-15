@@ -290,7 +290,7 @@ class CdpChatTurn(CdpChatSubmit):
     async def _attach_chat_session(self, chat_id: str) -> None:
         payload = json.dumps(chat_id)
         last: object = {"ok": False}
-        for attempt in range(6):
+        for attempt in range(12):
             await self.ensure_e2e_api_base_binding()
             try:
                 result = await self.evaluate(
@@ -306,8 +306,8 @@ class CdpChatTurn(CdpChatSubmit):
                 )
             except RuntimeError as exc:
                 message = str(exc)
-                if "e2e-private-backend-not-ready" in message and attempt < 5:
-                    await asyncio.sleep(1.0 + attempt)
+                if "e2e-private-backend-not-ready" in message and attempt < 11:
+                    await asyncio.sleep(2.0 + attempt)
                     continue
                 raise
             last = result
