@@ -14,6 +14,7 @@ SiblingDetail: Sibling branch query DTO.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TypedDict, cast
@@ -28,6 +29,8 @@ from sqlalchemy.sql.elements import ColumnElement
 from app.database.dto import ChatDTO, MessageDTO
 from app.database.models import Chat, Message
 from app.database.repositories.chat_message_search_repo import ChatMessageSearchRepository, MessageFtsSearchRow
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -72,12 +75,15 @@ class ChatRepository:
         if keyword:
             escaped = keyword.replace("%", r"\%").replace("_", r"\_")
             pattern = f"%{escaped}%"
-            where_clause.append(
-                or_(
-                    Chat.title.ilike(pattern, escape="\\"),
-                    Chat.first_message.ilike(pattern, escape="\\"),
-                )
+            ilike_cond = or_(
+                Chat.title.ilike(pattern, escape="\\"),
+                Chat.first_message.ilike(pattern, escape="\\"),
             )
+            fts_chat_ids = await ChatRepository._fts_matching_chat_ids(db, keyword)
+            if fts_chat_ids:
+                where_clause.append(or_(ilike_cond, Chat.id.in_(fts_chat_ids)))
+            else:
+                where_clause.append(ilike_cond)
 
         count_stmt = select(func.count(Chat.id)).where(*where_clause)
         count_result = await db.execute(count_stmt)
@@ -319,6 +325,20 @@ class ChatRepository:
                     d.sibling_count = info.total
                     d.sibling_index = info.ids.index(d.id) + 1 if d.id in info.ids else 0
         return dtos
+
+    @staticmethod
+    async def _fts_matching_chat_ids(db: AsyncSession, keyword: str) -> list[str]:
+        """Best-effort FTS5 lookup for sidebar keyword search; returns [] on failure."""
+        try:
+            from myrm_agent_harness.utils.db.fts5 import sanitize_fts5_query
+
+            safe_query = sanitize_fts5_query(keyword)
+            if not safe_query:
+                return []
+            return await ChatMessageSearchRepository.get_matching_chat_ids(db, safe_query)
+        except Exception:
+            logger.debug("FTS sidebar search fallback to ilike-only for keyword=%r", keyword, exc_info=True)
+            return []
 
     @staticmethod
     async def _batch_sibling_counts(

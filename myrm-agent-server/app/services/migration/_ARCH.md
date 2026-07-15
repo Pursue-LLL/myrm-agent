@@ -6,16 +6,22 @@
 
 ### 支持范围策略（封闭集合）
 
-**Wizard 自动发现并导入的来源固定为 4 种，且不再扩展：**
+**Wizard 自动发现的来源（本地 filesystem scan）固定为 4 种：**
 
-| id | 产品名 |
-|----|--------|
-| `hermes` | Hermes |
-| `openclaw` | OpenClaw |
-| `claude` | Claude Code |
-| `codex` | Codex |
+| id | 产品名 | 发现方式 |
+|----|--------|----------|
+| `hermes` | Hermes | 本地 scan |
+| `openclaw` | OpenClaw | 本地 scan |
+| `claude` | Claude Code | 本地 scan |
+| `codex` | Codex | 本地 scan |
 
-**政策**：不添加 Cowork、Cursor、Windsurf、Trae、QwenPaw 或其他工具的 Wizard 扫描/导入。Memory Center 手动导入（如 `cursor_rules`、`mem0`、归档 JSON）与 Wizard discover **解耦**，不受此政策限制。
+**ZIP upload 检测的来源（Cloud/SaaS 与 Local 均可）：**
+
+| id | 产品名 | 发现方式 |
+|----|--------|----------|
+| `chatgpt` | ChatGPT | ZIP upload 内检测 conversations.json |
+
+**政策**：不添加 Cowork、Cursor、Windsurf、Trae、QwenPaw 或其他工具的 Wizard 扫描/导入。Memory Center 手动导入（如 `cursor_rules`、`mem0`、归档 JSON）与 Wizard discover **解耦**，不受此政策限制。ChatGPT 属于 upload-only 类型，不扩展 filesystem probe。
 
 新增 probe/loader 须修改本 `_ARCH.md` 并获产品确认；默认拒绝。
 
@@ -28,7 +34,7 @@
 | `source_discovery.py` | 核心 | 数据类定义、工具函数、discover_external_sources 编排入口 | ✅ |
 | `source_probes.py` | 核心 | 4 源 filesystem probe（hermes/claude/openclaw/codex） | ✅ |
 | `source_payload_loader.py` | 核心 | 公共 API：load_source_payload / build_coverage_items / extract_pending_skills / supported_source_ids | ✅ |
-| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude）+ re-export openclaw；Hermes loader 含 .usage.json 导入 | ✅ |
+| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude/chatgpt）+ re-export openclaw；Hermes loader 含 .usage.json 导入 | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
 | `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（含 load_usage_sidecar 读取 Hermes .usage.json） | ✅ |
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |

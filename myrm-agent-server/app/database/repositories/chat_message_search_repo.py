@@ -5,7 +5,7 @@ app.database.models::Message (POS: 会话与消息域模型。管理聊天会话
 sqlalchemy.ext.asyncio::AsyncSession (POS: async database session)
 
 [OUTPUT]
-ChatMessageSearchRepository: FTS5 search over active chat messages.
+ChatMessageSearchRepository: FTS5 search over active chat messages, and chat-id-level FTS matching for sidebar search.
 MessageFtsSearchRow: Typed result row for message search.
 
 [POS]
@@ -33,6 +33,27 @@ class MessageFtsSearchRow(TypedDict):
 
 class ChatMessageSearchRepository:
     """Read-only FTS5 search for chat messages."""
+
+    @staticmethod
+    async def get_matching_chat_ids(db: AsyncSession, safe_query: str, *, limit: int = 200) -> list[str]:
+        """Return distinct chat IDs whose messages match *safe_query* via FTS5."""
+        if not safe_query:
+            return []
+        sql = text(
+            """
+            SELECT DISTINCT m.chat_id
+            FROM messages_fts fts
+            JOIN messages m ON m.rowid = fts.rowid
+            JOIN chats c   ON c.id = m.chat_id
+            WHERE messages_fts MATCH :query
+              AND m.is_active = 1
+              AND c.is_incognito = 0
+              AND c.deleted_at IS NULL
+            LIMIT :limit
+            """
+        )
+        result = await db.execute(sql, {"query": safe_query, "limit": limit})
+        return [row[0] for row in result.fetchall()]
 
     @staticmethod
     async def search_messages_fts(

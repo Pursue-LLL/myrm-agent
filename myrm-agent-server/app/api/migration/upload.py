@@ -11,18 +11,26 @@ Cloud/SaaS migration bridge — accepts a user-uploaded ZIP of competitor data,
 safely extracts to a temporary directory, runs existing source probes, and
 returns the same DiscoveryResponse used by the local discover endpoint.
 Enables three-deployment parity for the Migration Wizard.
+Also detects ChatGPT export ZIPs (containing conversations.json) and returns
+them as a chatgpt source for the import path.
 """
 
 from __future__ import annotations
 
 import io
+import json
 import os
 import tempfile
 import zipfile
 
 from fastapi import APIRouter, HTTPException, UploadFile
 
-from app.api.migration.discovery import DiscoveryResponse, _to_response
+from app.api.migration.discovery import (
+    DiscoveredFileResponse,
+    DiscoveryResponse,
+    ExternalSourceResponse,
+    _to_response,
+)
 from app.services.migration.source_discovery import discover_external_sources
 
 router = APIRouter(prefix="/migration", tags=["migration"])
@@ -37,6 +45,36 @@ def _is_safe_path(member_name: str) -> bool:
     return not normalized.startswith(("../", "..\\", "/")) and ".." not in normalized.split(os.sep)
 
 
+_CHATGPT_HEADER_PROBE_BYTES = 4096
+
+
+def _detect_chatgpt_zip(tmpdir: str) -> str | None:
+    """Return path to conversations.json if this looks like a ChatGPT export ZIP."""
+
+    top_level = os.path.join(tmpdir, "conversations.json")
+    if os.path.isfile(top_level) and _is_chatgpt_conversations_file(top_level):
+        return top_level
+
+    for dirpath, _dirs, files in os.walk(tmpdir):
+        for fname in files:
+            if fname == "conversations.json":
+                fpath = os.path.join(dirpath, fname)
+                if _is_chatgpt_conversations_file(fpath):
+                    return fpath
+    return None
+
+
+def _is_chatgpt_conversations_file(path: str) -> bool:
+    """Probe file header for ChatGPT conversation structure markers."""
+
+    try:
+        with open(path, "rb") as f:
+            header = f.read(_CHATGPT_HEADER_PROBE_BYTES)
+        return b'"mapping"' in header and b'"current_node"' in header
+    except OSError:
+        return False
+
+
 @router.post("/upload", response_model=DiscoveryResponse)
 async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
     """Accept a ZIP of competitor data and return discovered sources.
@@ -46,6 +84,9 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
     directory, runs the same probes used by GET /migration/discover, and
     returns matching results so the frontend can continue with the standard
     Wizard flow.
+
+    Also detects ChatGPT export ZIPs (containing conversations.json) and
+    returns a synthetic chatgpt source so the frontend can proceed with import.
     """
 
     if not file.filename or not file.filename.lower().endswith(".zip"):
@@ -74,6 +115,10 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
         archive.extractall(tmpdir)
         archive.close()
 
+        chatgpt_path = _detect_chatgpt_zip(tmpdir)
+        if chatgpt_path:
+            return _build_chatgpt_discovery(chatgpt_path)
+
         result = discover_external_sources(home_dir=tmpdir)
 
     if not result.sources:
@@ -84,3 +129,26 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
         scan_path="upload",
         available=True,
     )
+
+
+def _build_chatgpt_discovery(conversations_path: str) -> DiscoveryResponse:
+    """Build a discovery response for a ChatGPT export ZIP."""
+
+    count = 0
+    size_bytes = 0
+    try:
+        size_bytes = os.path.getsize(conversations_path)
+        with open(conversations_path, encoding="utf-8") as f:
+            data = json.load(f)
+        count = len(data) if isinstance(data, list) else 0
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    source = ExternalSourceResponse(
+        competitor="chatgpt",
+        root=conversations_path,
+        confidence="high",
+        files=[DiscoveredFileResponse(path=conversations_path, kind="conversations_json", size_bytes=size_bytes)],
+        memory_count_estimate=count,
+    )
+    return DiscoveryResponse(sources=[source], scan_path="upload", available=True)

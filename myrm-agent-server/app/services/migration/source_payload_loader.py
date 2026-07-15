@@ -4,12 +4,12 @@
 Wizard/discovery payload: ``{competitor, root, files}``.
 
 [OUTPUT]
-Adapter-ready dict (``soul_md``, ``openclaw_sessions``, ``memory_md``, etc.).
+Adapter-ready dict (``soul_md``, ``openclaw_sessions``, ``memory_md``, ``conversations``, etc.).
 
 [POS]
 Local/Tauri-only bridge between filesystem discovery and memory import adapters.
 Public API: load_source_payload, build_coverage_items, extract_pending_skills.
-Loaders: hermes/claude/codex in source_payload_loaders_impl.py; openclaw in _loaders_openclaw.py.
+Loaders: hermes/claude/codex/chatgpt in source_payload_loaders_impl.py; openclaw in _loaders_openclaw.py.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from typing import TypedDict
 from app.config.deploy_mode import is_local_mode
 
 from .source_payload_loaders_impl import (
+    load_chatgpt,
     load_claude,
     load_codex,
     load_hermes,
@@ -27,6 +28,7 @@ from .source_payload_loaders_impl import (
 )
 
 _SUPPORTED_SOURCES = frozenset({"hermes", "openclaw", "claude", "codex"})
+_UPLOAD_ONLY_SOURCES = frozenset({"chatgpt"})
 
 
 class SourceDiscoveryPayload(TypedDict, total=False):
@@ -60,6 +62,7 @@ def load_source_payload(payload: dict[str, object]) -> dict[str, object]:
         "openclaw": load_openclaw,
         "codex": load_codex,
         "claude": load_claude,
+        "chatgpt": load_chatgpt,
     }
     loader = loaders.get(competitor)
     if loader is None:

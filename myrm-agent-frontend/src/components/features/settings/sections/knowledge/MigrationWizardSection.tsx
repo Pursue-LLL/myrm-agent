@@ -50,6 +50,7 @@ const MIGRATION_SOURCE_IMPORT_BY_ID: Record<string, MemoryImportSource> = {
   openclaw: 'openclaw',
   codex: 'codex',
   claude: 'claude',
+  chatgpt: 'chatgpt',
 };
 
 function resolveMigrationImportSource(competitor: string): MemoryImportSource {

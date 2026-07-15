@@ -138,4 +138,20 @@ def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
     return result
 
 
+def load_chatgpt(root: Path, file_paths: list[str]) -> dict[str, object]:
+    """Load ChatGPT conversations.json into adapter-ready payload."""
+
+    from ._loader_utils import read_json
+
+    result: dict[str, object] = {}
+
+    conversations_path = path_by_kind(file_paths, "conversations.json") or find_file(root, "conversations.json")
+    if conversations_path:
+        data = read_json(conversations_path)
+        if isinstance(data, list):
+            result["conversations"] = data
+
+    return result
+
+
 from ._loaders_openclaw import load_openclaw  # noqa: E402, F401

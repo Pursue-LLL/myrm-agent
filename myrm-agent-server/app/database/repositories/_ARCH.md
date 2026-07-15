@@ -10,7 +10,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|---|
 | `chat_repo.py` | 核心 | 提供 Chat 和 Message 实体 CRUD、compaction CAS 与 sibling group 持久化，并委托消息级 FTS5 检索。 | ✅ |
-| `chat_message_search_repo.py` | 辅助 | 聊天消息全文检索仓储，封装消息级 FTS5 查询、active message 过滤与 Conversation Recall 排除策略。 | ✅ |
+| `chat_message_search_repo.py` | 辅助 | 聊天消息全文检索仓储，封装消息级 FTS5 查询、active message 过滤与 Conversation Recall 排除策略。提供 `get_matching_chat_ids()` 供侧边栏 keyword 搜索接入 FTS。 | ✅ |
 | `conversation_recall_repo.py` | 核心 | Conversation Recall 会话级索引仓储，编排索引写入、scope/fork/exclusion/health 查询。 | ✅ |
 | `conversation_recall_lookup_repo.py` | 辅助 | Conversation Recall 只读可见性查找仓储，按 scope/exclusion/lineage 策略为 semantic 命中补齐源消息证据。 | ✅ |
 | `conversation_recall_sql.py` | 核心 | Conversation Recall SQLite/FTS5 SQL 契约，定义 schema、bootstrap、rebuild 和参数化过滤片段。 | ✅ |

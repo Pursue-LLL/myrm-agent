@@ -30,6 +30,7 @@ from app.services.memory.import_adapter_utils import (
     unsupported_result,
 )
 from app.services.memory.import_agentmemory import dry_run_agentmemory
+from app.services.memory.import_chatgpt import dry_run_chatgpt, is_chatgpt_payload
 from app.services.memory.import_claude_code import dry_run_claude_code_jsonl, is_claude_code_jsonl
 from app.services.memory.import_codex import dry_run_codex
 from app.services.memory.import_cursor import dry_run_cursor
@@ -57,6 +58,7 @@ RequestedImportSource = Literal[
     "codex",
     "claude",
     "mem0",
+    "chatgpt",
 ]
 
 _MIGRATION_SOURCE_TO_ADAPTER: dict[str, RequestedImportSource] = {
@@ -65,6 +67,7 @@ _MIGRATION_SOURCE_TO_ADAPTER: dict[str, RequestedImportSource] = {
     "codex": "codex",
     "claude": "claude",
     "mem0": "mem0",
+    "chatgpt": "chatgpt",
 }
 
 _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
@@ -75,6 +78,7 @@ _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
     "codex": "codex",
     "claude": "claude",
     "mem0": "mem0",
+    "chatgpt": "chatgpt",
 }
 
 
@@ -125,6 +129,8 @@ def build_memory_import_dry_run(
         return dry_run_codex(resolved_payload)
     if detected == "mem0":
         return dry_run_mem0(resolved_payload)
+    if detected == "chatgpt":
+        return dry_run_chatgpt(resolved_payload)
     return unsupported_result(to_memory_import_source(detected), WARNING_UNSUPPORTED_SOURCE)
 
 
@@ -149,6 +155,8 @@ def _detect_source(payload: dict[str, object]) -> MemoryImportSource:
         return "codex"
     if is_mem0_payload(payload):
         return "mem0"
+    if is_chatgpt_payload(payload):
+        return "chatgpt"
     data = payload.get("data")
     if isinstance(data, dict):
         return "native_json"

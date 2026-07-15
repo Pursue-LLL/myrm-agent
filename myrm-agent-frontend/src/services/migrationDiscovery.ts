@@ -83,6 +83,7 @@ export function getMigrationSourceDisplayName(competitor: string): string {
     claude: 'Claude Code',
     openclaw: 'OpenClaw',
     codex: 'Codex',
+    chatgpt: 'ChatGPT',
   };
   return names[competitor] ?? competitor;
 }

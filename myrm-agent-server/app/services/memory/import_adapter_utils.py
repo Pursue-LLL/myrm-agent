@@ -167,6 +167,7 @@ def to_memory_import_source(source: str) -> MemoryImportSource:
         "codex",
         "claude",
         "mem0",
+        "chatgpt",
     }
     if source in _KNOWN:
         return source  # type: ignore[return-value]

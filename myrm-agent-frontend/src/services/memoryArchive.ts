@@ -199,7 +199,8 @@ export type MemoryImportSource =
   | 'claude'
   | 'windsurf'
   | 'trae'
-  | 'mem0';
+  | 'mem0'
+  | 'chatgpt';
 
 export interface MemoryImportMappingItem {
   source_bucket: string;
