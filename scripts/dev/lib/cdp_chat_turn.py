@@ -12,7 +12,6 @@ from cdp_chat_support import (
     BRIDGE_TURN_SNAPSHOT_JS,
     SELECT_FIRST_ENABLED_MODEL_JS,
     SELECT_MIMO_MODEL_JS,
-    e2e_api_base_inject_js,
 )
 from e2e_wave_ledger import maybe_register_e2e_chat
 
@@ -304,7 +303,7 @@ class CdpChatTurn(CdpChatSubmit):
             raise RuntimeError(f"E2E bridge attachToChat failed: {result}")
 
     async def _sync_model_selection(self, *, timeout_sec: float = 45.0) -> None:
-        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+        await self.ensure_e2e_api_base_binding()
         try:
             await self.evaluate(
                 """(() => {
@@ -371,7 +370,7 @@ class CdpChatTurn(CdpChatSubmit):
         try:
             await self.dismiss_modals()
             await self.wait_dev_bridge()
-            await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+            await self.ensure_e2e_api_base_binding()
             if baseline_user_msgs == 0:
                 await self._sync_model_selection()
             await self._ensure_send_ready()

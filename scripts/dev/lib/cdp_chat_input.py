@@ -17,7 +17,6 @@ from cdp_chat_support import (
     _api_provider_ready,
     chat_id_from_path,
     chat_user_message_count,
-    e2e_api_base_inject_js,
 )
 
 
@@ -187,7 +186,7 @@ class CdpChatInput(CdpChatBootstrap):
         while time.monotonic() < deadline:
             polls += 1
             await self.dismiss_modals()
-            await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+            await self.ensure_e2e_api_base_binding()
             await self.evaluate(E2E_BRIDGE_INSTALL_JS, await_promise=False)
             probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
             if isinstance(probe, dict) and probe.get("hasBridge") and probe.get("clientHydrated"):

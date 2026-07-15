@@ -12,6 +12,7 @@ from cdp_chat_support import (
     RESET_CHAT_JS,
     _api_provider_ready,
     e2e_api_base_inject_js,
+    e2e_api_base_persist_source,
 )
 from cdp_chat_transport import CdpChatTransport
 
@@ -29,6 +30,14 @@ def _shell_probe_ready(probe: dict[str, object]) -> bool:
 
 
 class CdpChatBootstrap(CdpChatTransport):
+    async def ensure_e2e_api_base_binding(self) -> None:
+        """Register persistent new-document hook + immediate inject for SHPOIB private pools."""
+        source = e2e_api_base_persist_source()
+        if not source:
+            return
+        await self.cdp("Page.addScriptToEvaluateOnNewDocument", {"source": source})
+        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+
     async def bootstrap(
         self,
         base_url: str,
@@ -40,7 +49,7 @@ class CdpChatBootstrap(CdpChatTransport):
         last: dict[str, object] = {}
         await self.cdp("Runtime.enable")
         await self.cdp("Page.enable")
-        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+        await self.ensure_e2e_api_base_binding()
         if navigate:
             probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
             if not (isinstance(probe, dict) and probe.get("hasInput") and not probe.get("skeleton")):
@@ -254,21 +263,22 @@ class CdpChatBootstrap(CdpChatTransport):
         except RuntimeError:
             probe = None
         if isinstance(probe, dict) and str(probe.get("path") or "") == expected_path:
+            await self.ensure_e2e_api_base_binding()
             await self.wait_shell_ready(timeout_sec=min(timeout_sec, 30.0))
             return
-        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+        await self.ensure_e2e_api_base_binding()
         await self.cdp(
             "Page.navigate",
             {"url": base_url.rstrip("/") + expected_path},
             recv_timeout=120.0,
         )
         await asyncio.sleep(2)
-        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+        await self.ensure_e2e_api_base_binding()
         await self.wait_shell_ready(timeout_sec=timeout_sec)
 
     async def _after_new_chat_reset(self) -> None:
         """SHPOIB hot UI: re-bind private backend and refresh provider store after reset."""
-        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+        await self.ensure_e2e_api_base_binding()
         try:
             await self.evaluate(
                 """(() => {

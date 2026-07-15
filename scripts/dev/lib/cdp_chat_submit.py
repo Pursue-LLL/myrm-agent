@@ -6,6 +6,7 @@ import asyncio
 import time
 
 from cdp_chat_input import CdpChatInput
+from cdp_chat_support import PREPARE_AUTOMATION_SEND_JS
 
 
 class CdpChatSubmit(CdpChatInput):
@@ -69,6 +70,7 @@ class CdpChatSubmit(CdpChatInput):
             if isinstance(bridge_submit, dict) and bridge_submit.get("ok") and await self._stream_started(started):
                 return bridge_submit
 
+        await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
         native = await self.evaluate(
             """(() => {
               const btn = document.querySelector('.message-send-btn');

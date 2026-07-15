@@ -18,8 +18,21 @@ API_URL = get_e2e_api_url()
 _OK_REPLY_RE = re.compile(r"(?:\bOK\b|GOAL_OK)", re.IGNORECASE)
 
 
+def resolve_e2e_api_base(api_base: str | None = None) -> str:
+    return (api_base or os.getenv("E2E_API_BASE", "")).strip().rstrip("/")
+
+
+def e2e_api_base_persist_source(api_base: str | None = None) -> str | None:
+    """JS source for Page.addScriptToEvaluateOnNewDocument (survives hard navigation)."""
+    base = resolve_e2e_api_base(api_base)
+    if not base:
+        return None
+    encoded = json.dumps(base)
+    return f"window.__MYRM_E2E_API_BASE__ = {encoded};"
+
+
 def e2e_api_base_inject_js(api_base: str | None = None) -> str:
-    base = (api_base or os.getenv("E2E_API_BASE", "")).strip().rstrip("/")
+    base = resolve_e2e_api_base(api_base)
     if not base:
         return "(() => ({ ok: false, err: 'no-api-base' }))()"
     encoded = json.dumps(base)
@@ -27,6 +40,14 @@ def e2e_api_base_inject_js(api_base: str | None = None) -> str:
   window.__MYRM_E2E_API_BASE__ = {encoded};
   return {{ ok: true, base: {encoded} }};
 }})()"""
+
+
+PREPARE_AUTOMATION_SEND_JS = """
+(() => {
+  window.__MYRM_E2E_CHAT__?.prepareAutomationSend?.();
+  return { ok: true };
+})()
+""".strip()
 
 
 def _api_provider_ready() -> bool:
