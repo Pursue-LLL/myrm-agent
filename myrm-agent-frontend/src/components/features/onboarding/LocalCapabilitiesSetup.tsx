@@ -185,7 +185,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
                 {tModel('useModel', { model: recommendedModel.split(':')[0] })}
               </Button>
             ) : (
-              <Button variant="outline" onClick={onComplete}>
+              <Button variant="outline" onClick={handleGoToCloudProvider}>
                 {tBoot('onboarding.configureLater')}
               </Button>
             )}
