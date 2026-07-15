@@ -509,8 +509,8 @@ class TestEmailForwardedParsing:
     def test_forwarded_gmail_html_multipart(self) -> None:
         """Gmail forwards with multipart/alternative (plain + html).
 
-        Bug scenario: html_body wraps separator in <div>, regex fails on HTML.
-        Fix: parse_forwarded_body uses text_body when available.
+        Verifies text_body is used for separator parsing (HTML wraps
+        separators in <div>, which breaks regex detection).
         """
         import email.mime.multipart
         import email.mime.text
@@ -846,7 +846,7 @@ class TestEmailForwardedParsing:
 class TestEmailCharsetAndHtmlPriority:
     """Tests for charset detection and text/html priority fixes."""
 
-    def test_html_preferred_over_plain(self) -> None:
+    def test_plain_preferred_over_html(self) -> None:
         import email.mime.multipart
         import email.mime.text
         import email.utils
@@ -863,7 +863,27 @@ class TestEmailCharsetAndHtmlPriority:
         result = ch._parse_email(msg.as_bytes(), uid=1)
 
         assert result is not None
-        assert "<b>Rich</b>" in result.content
+        assert result.content == "Plain text version"
+
+    def test_html_fallback_cleaned_when_no_plain(self) -> None:
+        import email.mime.multipart
+        import email.mime.text
+        import email.utils
+
+        msg = email.mime.multipart.MIMEMultipart("alternative")
+        msg["From"] = "user@example.com"
+        msg["To"] = "bot@example.com"
+        msg["Subject"] = "HTML only"
+        msg["Message-ID"] = email.utils.make_msgid()
+        msg.attach(email.mime.text.MIMEText("<h1>Hello</h1><p>World</p>", "html"))
+
+        ch = _make_channel()
+        result = ch._parse_email(msg.as_bytes(), uid=1)
+
+        assert result is not None
+        assert "<h1>" not in result.content
+        assert "Hello" in result.content
+        assert "World" in result.content
 
     def test_plain_used_when_no_html(self) -> None:
         import email.mime.multipart
@@ -882,6 +902,44 @@ class TestEmailCharsetAndHtmlPriority:
 
         assert result is not None
         assert result.content == "Only plain text"
+
+    def test_non_multipart_html_cleaned(self) -> None:
+        """Non-multipart email with Content-Type: text/html gets HTML cleaned."""
+        raw = (
+            b"From: billing@company.com\r\n"
+            b"To: bot@example.com\r\n"
+            b"Subject: Invoice\r\n"
+            b"Message-ID: <inv@company.com>\r\n"
+            b"Content-Type: text/html; charset=utf-8\r\n"
+            b"\r\n"
+            b"<html><head><style>.inv{border:1px solid}</style></head>"
+            b"<body><h2>Invoice #123</h2><p>Total: $49.99</p></body></html>"
+        )
+        ch = _make_channel()
+        result = ch._parse_email(raw, uid=1)
+
+        assert result is not None
+        assert "<html>" not in result.content
+        assert "<style>" not in result.content
+        assert "Invoice #123" in result.content
+        assert "$49.99" in result.content
+
+    def test_non_multipart_plain_unchanged(self) -> None:
+        """Non-multipart email with Content-Type: text/plain is unchanged."""
+        raw = (
+            b"From: user@example.com\r\n"
+            b"To: bot@example.com\r\n"
+            b"Subject: Hello\r\n"
+            b"Message-ID: <hello@example.com>\r\n"
+            b"Content-Type: text/plain; charset=utf-8\r\n"
+            b"\r\n"
+            b"Just a plain text email"
+        )
+        ch = _make_channel()
+        result = ch._parse_email(raw, uid=1)
+
+        assert result is not None
+        assert result.content == "Just a plain text email"
 
     def test_charset_gb2312_decoded(self) -> None:
         import email.mime.multipart

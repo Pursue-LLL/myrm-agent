@@ -373,6 +373,7 @@ myrm_agent_harness.toolkits.web_fetch
 myrm_agent_harness.toolkits.web_fetch.engine
 myrm_agent_harness.toolkits.web_fetch.escalation.context
 myrm_agent_harness.toolkits.web_fetch.escalation.protocols
+myrm_agent_harness.toolkits.web_fetch.html_to_markdown
 myrm_agent_harness.toolkits.web_search
 myrm_agent_harness.toolkits.web_search.common
 myrm_agent_harness.toolkits.web_search.constants

@@ -1,7 +1,7 @@
 """Email channel — bidirectional messaging via IMAP (inbound) + SMTP (outbound).
 
 Inbound: IMAP periodic poll → _parse_email → _emit_inbound
-  - Supports text, HTML, attachments
+  - Supports text, HTML (auto-cleaned to Markdown), attachments
   - Thread detection via In-Reply-To / References headers
   - Forwarded message detection and structured parsing
 Outbound: SMTP send (text/HTML)
@@ -15,7 +15,7 @@ Outbound: SMTP send (text/HTML)
 
 [POS]
 Email channel implementation. Supports IMAP polling for inbox, SMTP sending,
-attachment parsing, forwarded message parsing, and thread tracking.
+attachment parsing, forwarded message parsing, HTML-to-Markdown cleaning, and thread tracking.
 """
 
 from __future__ import annotations
@@ -104,6 +104,17 @@ def _decode_header(raw: str) -> str:
         else:
             decoded.append(part)
     return " ".join(decoded)
+
+
+def _html_to_markdown(html: str) -> str:
+    """Convert email HTML body to clean Markdown for LLM consumption."""
+    if not html:
+        return ""
+    from myrm_agent_harness.toolkits.web_fetch.html_to_markdown import HTML2Markdown
+
+    converter = HTML2Markdown()
+    converter.update_params(ignore_images=True)
+    return converter.handle(html).strip()
 
 
 def _send_imap_id(conn: imaplib.IMAP4_SSL) -> None:
@@ -467,9 +478,13 @@ class EmailChannel(BaseChannel):
             payload = msg.get_payload(decode=True)
             charset = msg.get_content_charset() or "utf-8"
             if isinstance(payload, bytes):
-                text_body = payload.decode(charset, errors="replace")
+                decoded = payload.decode(charset, errors="replace")
+                if msg.get_content_type() == "text/html":
+                    html_body = decoded
+                else:
+                    text_body = decoded
 
-        body = html_body or text_body
+        body = text_body or _html_to_markdown(html_body)
 
         if not body.strip() and not media_list:
             return None
@@ -491,19 +506,30 @@ class EmailChannel(BaseChannel):
             fwd_from = email.utils.parseaddr(forwarded_rfc822.get("From", ""))[1]
             fwd_subject = _decode_header(forwarded_rfc822.get("Subject", ""))
             fwd_date = forwarded_rfc822.get("Date", "")
-            fwd_payload = forwarded_rfc822.get_payload(decode=True)
             fwd_body = ""
-            if isinstance(fwd_payload, bytes):
-                fwd_charset = forwarded_rfc822.get_content_charset() or "utf-8"
-                fwd_body = fwd_payload.decode(fwd_charset, errors="replace")
-            elif forwarded_rfc822.is_multipart():
+            if forwarded_rfc822.is_multipart():
+                fwd_text = ""
+                fwd_html = ""
                 for sub in forwarded_rfc822.walk():
-                    if sub.get_content_type() in ("text/plain", "text/html"):
-                        sub_payload = sub.get_payload(decode=True)
-                        if isinstance(sub_payload, bytes):
-                            sub_charset = sub.get_content_charset() or "utf-8"
-                            fwd_body = sub_payload.decode(sub_charset, errors="replace")
-                            break
+                    sub_ct = sub.get_content_type()
+                    sub_payload = sub.get_payload(decode=True)
+                    if not isinstance(sub_payload, bytes):
+                        continue
+                    sub_charset = sub.get_content_charset() or "utf-8"
+                    if sub_ct == "text/plain" and not fwd_text:
+                        fwd_text = sub_payload.decode(sub_charset, errors="replace")
+                    elif sub_ct == "text/html" and not fwd_html:
+                        fwd_html = sub_payload.decode(sub_charset, errors="replace")
+                fwd_body = fwd_text or _html_to_markdown(fwd_html)
+            else:
+                fwd_payload = forwarded_rfc822.get_payload(decode=True)
+                if isinstance(fwd_payload, bytes):
+                    fwd_charset = forwarded_rfc822.get_content_charset() or "utf-8"
+                    raw_fwd = fwd_payload.decode(fwd_charset, errors="replace")
+                    if forwarded_rfc822.get_content_type() == "text/html":
+                        fwd_body = _html_to_markdown(raw_fwd)
+                    else:
+                        fwd_body = raw_fwd
 
             metadata["is_forwarded"] = True
             if fwd_from:
