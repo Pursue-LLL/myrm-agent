@@ -3,9 +3,9 @@ import type { Message, Source } from '@/store/chat/types';
 /**
  * [INPUT] 聊天详情页与聊天列表传入的导出数据；Message 用于单条消息导出。
  * [OUTPUT] ExportMessage, ExportChat, ExportData, formatChatAsMarkdown, formatChatAsJson,
- *          downloadAsMarkdown, downloadAsJson, downloadAsHtml, copyAsMarkdown,
+ *          downloadAsMarkdown, downloadAsJson, downloadAsHtml, copyAsMarkdown, printChat,
  *          downloadMessageAsMarkdown, downloadMessageAsDocx, downloadMessageAsHtml, downloadMessageAsImage.
- * [POS] 聊天导出数据与文件生成工具（聊天级 + 单条消息级）。
+ * [POS] 聊天导出数据与文件生成工具（聊天级 + 单条消息级 + 打印）。
  */
 export interface ExportMessage {
   role: string;
@@ -48,7 +48,7 @@ export interface ExportData {
 
 const VISIBLE_ROLES = new Set(['user', 'assistant']);
 
-function sanitizeFilename(name: string): string {
+export function sanitizeFilename(name: string): string {
   // eslint-disable-next-line no-control-regex
   return name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || 'Untitled';
 }
@@ -199,6 +199,37 @@ export async function copyAsMarkdown(data: ExportData): Promise<void> {
     document.execCommand('copy');
     document.body.removeChild(textarea);
   }
+}
+
+export async function printChat(
+  data: ExportData,
+  theme: 'light' | 'dark' = 'light',
+  lang: 'en' | 'zh' = 'en',
+): Promise<void> {
+  const { buildHtmlDocument } = await import('./chatExportHtml');
+  const html = await buildHtmlDocument(data, theme, lang);
+
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none';
+  document.body.appendChild(iframe);
+
+  const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
+  if (!iframeDoc) {
+    document.body.removeChild(iframe);
+    throw new Error('Failed to access iframe document');
+  }
+
+  iframeDoc.open();
+  iframeDoc.write(html);
+  iframeDoc.close();
+
+  await new Promise<void>((resolve) => {
+    iframe.onload = () => resolve();
+    setTimeout(resolve, 1500);
+  });
+
+  iframe.contentWindow?.print();
+  setTimeout(() => document.body.removeChild(iframe), 3000);
 }
 
 // ---------------------------------------------------------------------------

@@ -5532,7 +5532,16 @@
       "deleting": "Deleting...",
       "successMessage": "{count} conversations moved to trash",
       "partialFail": "{count} conversations failed to delete",
-      "error": "Batch delete failed"
+      "error": "Batch delete failed",
+      "export": "Export",
+      "exportProgress": "Exporting {current}/{total}...",
+      "exportCancel": "Cancel Export",
+      "exportComplete": "Exported {exported} conversations",
+      "exportPartial": "{skipped} skipped, {failed} failed",
+      "exportFailed": "Export failed",
+      "exportFormatMarkdown": "Markdown",
+      "exportFormatJson": "JSON",
+      "exportFormatHtml": "HTML"
     },
     "openInNewWindow": "Open in New Window",
     "createAutomation": "Create Automation",
@@ -5555,7 +5564,8 @@
       "success": "Exported successfully",
       "copySuccess": "Copied to clipboard",
       "error": "Export failed",
-      "noMessages": "No messages to export"
+      "noMessages": "No messages to export",
+      "print": "Print"
     },
     "exportMessage": {
       "markdown": "Export as Markdown",

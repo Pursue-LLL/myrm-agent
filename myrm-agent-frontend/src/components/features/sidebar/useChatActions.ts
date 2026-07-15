@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { ChatItem, updateChatTitle, deleteChat, exportChat } from '@/services/chat';
-import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown } from '@/lib/utils/chatExport';
+import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chatExport';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/useToast';
 import type { useTranslations } from 'next-intl';
@@ -96,7 +96,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   };
 
   const handleExport = useCallback(
-    async (chatId: string, mode: 'markdown' | 'json' | 'copy' | 'html') => {
+    async (chatId: string, mode: 'markdown' | 'json' | 'copy' | 'html' | 'print') => {
       setExportingId(chatId);
       try {
         const data = await exportChat(chatId);
@@ -118,6 +118,12 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
             const htmlLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
             await downloadAsHtml(data, isDark ? 'dark' : 'light', htmlLang as 'en' | 'zh');
             toast({ title: t('chat.exportChat.success'), variant: 'default' });
+            break;
+          }
+          case 'print': {
+            const printDark = document.documentElement.classList.contains('dark');
+            const printLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
+            await printChat(data, printDark ? 'dark' : 'light', printLang as 'en' | 'zh');
             break;
           }
           case 'copy':

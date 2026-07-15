@@ -5522,7 +5522,16 @@
       "deleting": "删除中...",
       "successMessage": "{count} 个对话已移入回收站",
       "partialFail": "{count} 个对话删除失败",
-      "error": "批量删除失败"
+      "error": "批量删除失败",
+      "export": "导出",
+      "exportProgress": "正在导出 {current}/{total}...",
+      "exportCancel": "取消导出",
+      "exportComplete": "已导出 {exported} 个对话",
+      "exportPartial": "{skipped} 个跳过，{failed} 个失败",
+      "exportFailed": "导出失败",
+      "exportFormatMarkdown": "Markdown",
+      "exportFormatJson": "JSON",
+      "exportFormatHtml": "HTML"
     },
     "openInNewWindow": "在新窗口中打开",
     "createAutomation": "创建自动化",
@@ -5545,7 +5554,8 @@
       "success": "导出成功",
       "copySuccess": "已复制到剪贴板",
       "error": "导出失败",
-      "noMessages": "无消息可导出"
+      "noMessages": "无消息可导出",
+      "print": "打印"
     },
     "exportMessage": {
       "markdown": "导出为 Markdown",

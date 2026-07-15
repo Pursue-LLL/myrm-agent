@@ -207,10 +207,6 @@ export function ScanStep({
         )}
       </div>
 
-      {isCloudMode && sources.length === 0 && (
-        <CloudUploadZone uploading={uploading} onUpload={onUpload} t={t} />
-      )}
-
       {!isCloudMode && discovery && sources.length === 0 && (
         <div className="rounded-xl border border-border/50 bg-secondary/20 p-8 text-center">
           <Search className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
@@ -264,6 +260,8 @@ export function ScanStep({
           );
         })}
       </div>
+
+      <CloudUploadZone uploading={uploading} onUpload={onUpload} t={t} />
     </div>
   );
 }

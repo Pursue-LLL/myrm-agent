@@ -28,7 +28,6 @@ from .source_payload_loaders_impl import (
 )
 
 _SUPPORTED_SOURCES = frozenset({"hermes", "openclaw", "claude", "codex"})
-_UPLOAD_ONLY_SOURCES = frozenset({"chatgpt"})
 
 
 class SourceDiscoveryPayload(TypedDict, total=False):

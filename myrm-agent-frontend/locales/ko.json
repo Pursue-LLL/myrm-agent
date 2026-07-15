@@ -4616,7 +4616,16 @@
       "deleting": "삭제 중...",
       "successMessage": "{count}개 대화가 휴지통으로 이동되었습니다",
       "partialFail": "{count}개 대화 삭제에 실패했습니다",
-      "error": "일괄 삭제에 실패했습니다"
+      "error": "일괄 삭제에 실패했습니다",
+      "export": "내보내기",
+      "exportProgress": "내보내는 중 {current}/{total}...",
+      "exportCancel": "내보내기 취소",
+      "exportComplete": "{exported}개 대화를 내보냈습니다",
+      "exportPartial": "{skipped}개 건너뜀, {failed}개 실패",
+      "exportFailed": "내보내기에 실패했습니다",
+      "exportFormatMarkdown": "Markdown",
+      "exportFormatJson": "JSON",
+      "exportFormatHtml": "HTML"
     },
     "deleteChat": {
       "title": "Delete Conversation",
@@ -4662,7 +4671,8 @@
       "success": "Exported successfully",
       "copySuccess": "Copied to clipboard",
       "error": "Export failed",
-      "noMessages": "No messages to export"
+      "noMessages": "No messages to export",
+      "print": "인쇄"
     },
     "exportMessage": {
       "markdown": "Markdown로 내보내기",

@@ -15,6 +15,7 @@ import {
   FileJson,
   FileCode2,
   Copy,
+  Printer,
   Pin,
   PinOff,
   Timer,
@@ -80,7 +81,7 @@ export interface ChatHistoryRowProps {
   onRenameCancel: () => void;
   onRenameValueChange: (v: string) => void;
   onDelete: (id: string) => void;
-  onExport: (id: string, mode: 'markdown' | 'json' | 'copy' | 'html') => void;
+  onExport: (id: string, mode: 'markdown' | 'json' | 'copy' | 'html' | 'print') => void;
   onPin: (id: string) => void;
   onUnpin: (id: string) => void;
   onCreateAutomation?: (chatId: string, chatTitle: string) => void;
@@ -377,6 +378,13 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                     >
                       <Copy size={isMobile ? 16 : 14} className="mr-2" />
                       {t('chat.exportChat.copyMarkdown')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onExport(chat.id, 'print')}
+                      className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
+                    >
+                      <Printer size={isMobile ? 16 : 14} className="mr-2" />
+                      {t('chat.exportChat.print')}
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>

@@ -150,6 +150,7 @@ class MemoryImportDryRunRequest(BaseModel):
         "cursor_rules",
         "codex",
         "claude",
+        "chatgpt",
     ] = "auto"
     payload: dict[str, object] = Field(..., description="Raw memory export payload")
     skip_duplicates: bool = Field(True, description="Preview duplicate-safe import behavior")

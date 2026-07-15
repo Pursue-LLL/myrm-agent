@@ -20,6 +20,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import shutil
 import tempfile
 import zipfile
 
@@ -111,17 +112,18 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
         archive.close()
         raise HTTPException(status_code=400, detail="ZIP contains unsafe paths")
 
-    with tempfile.TemporaryDirectory(prefix="myrm_migration_") as tmpdir:
-        archive.extractall(tmpdir)
-        archive.close()
+    tmpdir = tempfile.mkdtemp(prefix="myrm_migration_")
+    archive.extractall(tmpdir)
+    archive.close()
 
-        chatgpt_path = _detect_chatgpt_zip(tmpdir)
-        if chatgpt_path:
-            return _build_chatgpt_discovery(chatgpt_path)
+    chatgpt_path = _detect_chatgpt_zip(tmpdir)
+    if chatgpt_path:
+        return _build_chatgpt_discovery(chatgpt_path)
 
-        result = discover_external_sources(home_dir=tmpdir)
+    result = discover_external_sources(home_dir=tmpdir)
 
     if not result.sources:
+        shutil.rmtree(tmpdir, ignore_errors=True)
         return DiscoveryResponse(sources=[], scan_path="upload", available=True)
 
     return DiscoveryResponse(

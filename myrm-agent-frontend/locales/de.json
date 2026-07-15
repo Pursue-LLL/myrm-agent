@@ -4616,7 +4616,16 @@
       "deleting": "Wird gelöscht...",
       "successMessage": "{count} Konversationen in den Papierkorb verschoben",
       "partialFail": "{count} Konversationen konnten nicht gelöscht werden",
-      "error": "Stapellöschung fehlgeschlagen"
+      "error": "Stapellöschung fehlgeschlagen",
+      "export": "Exportieren",
+      "exportProgress": "Exportiere {current}/{total}...",
+      "exportCancel": "Export abbrechen",
+      "exportComplete": "{exported} Konversationen exportiert",
+      "exportPartial": "{skipped} übersprungen, {failed} fehlgeschlagen",
+      "exportFailed": "Export fehlgeschlagen",
+      "exportFormatMarkdown": "Markdown",
+      "exportFormatJson": "JSON",
+      "exportFormatHtml": "HTML"
     },
     "deleteChat": {
       "title": "Delete Conversation",
@@ -4662,7 +4671,8 @@
       "success": "Exported successfully",
       "copySuccess": "Copied to clipboard",
       "error": "Export failed",
-      "noMessages": "No messages to export"
+      "noMessages": "No messages to export",
+      "print": "Drucken"
     },
     "exportMessage": {
       "markdown": "Als Markdown exportieren",

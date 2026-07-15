@@ -147,7 +147,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
           {
           target_agent_id: targetAgentId,
           clone_from_agent_id: 'builtin-general',
-          include_episodic: source.competitor === 'openclaw' && includeEpisodic,
+          include_episodic: source.competitor === 'chatgpt' || (source.competitor === 'openclaw' && includeEpisodic),
           apply_global_instructions: true,
           },
         );

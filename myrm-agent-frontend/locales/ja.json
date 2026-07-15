@@ -4616,7 +4616,16 @@
       "deleting": "削除中...",
       "successMessage": "{count}件の会話をゴミ箱に移動しました",
       "partialFail": "{count}件の会話の削除に失敗しました",
-      "error": "一括削除に失敗しました"
+      "error": "一括削除に失敗しました",
+      "export": "エクスポート",
+      "exportProgress": "エクスポート中 {current}/{total}...",
+      "exportCancel": "エクスポートをキャンセル",
+      "exportComplete": "{exported}件の会話をエクスポートしました",
+      "exportPartial": "{skipped}件スキップ、{failed}件失敗",
+      "exportFailed": "エクスポートに失敗しました",
+      "exportFormatMarkdown": "Markdown",
+      "exportFormatJson": "JSON",
+      "exportFormatHtml": "HTML"
     },
     "deleteChat": {
       "title": "Delete Conversation",
@@ -4662,7 +4671,8 @@
       "success": "Exported successfully",
       "copySuccess": "Copied to clipboard",
       "error": "Export failed",
-      "noMessages": "No messages to export"
+      "noMessages": "No messages to export",
+      "print": "印刷"
     },
     "exportMessage": {
       "markdown": "Markdownとしてエクスポート",
