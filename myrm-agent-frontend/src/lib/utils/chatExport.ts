@@ -4,8 +4,9 @@ import type { Message, Source } from '@/store/chat/types';
  * [INPUT] 聊天详情页与聊天列表传入的导出数据；Message 用于单条消息导出。
  * [OUTPUT] ExportMessage, ExportChat, ExportData, formatChatAsMarkdown, formatChatAsJson,
  *          downloadAsMarkdown, downloadAsJson, downloadAsHtml, copyAsMarkdown, printChat,
- *          downloadMessageAsMarkdown, downloadMessageAsDocx, downloadMessageAsHtml, downloadMessageAsImage.
- * [POS] 聊天导出数据与文件生成工具（聊天级 + 单条消息级 + 打印）。
+ *          downloadMessageAsMarkdown, downloadMessageAsDocx, downloadMessageAsHtml, downloadMessageAsImage,
+ *          downloadBlob, sanitizeFilename, downloadFile.
+ * [POS] 聊天导出数据与文件生成工具（聊天级 + 单条消息级 + 打印 + 通用下载）。
  */
 export interface ExportMessage {
   role: string;
@@ -153,8 +154,7 @@ export function formatChatAsJson(data: ExportData): string {
   );
 }
 
-export function downloadFile(content: string, filename: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType });
+export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -163,6 +163,10 @@ export function downloadFile(content: string, filename: string, mimeType: string
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+export function downloadFile(content: string, filename: string, mimeType: string): void {
+  downloadBlob(new Blob([content], { type: mimeType }), filename);
 }
 
 export function downloadAsMarkdown(data: ExportData): void {
@@ -236,17 +240,6 @@ export async function printChat(
 // 单条消息导出
 // ---------------------------------------------------------------------------
 
-function downloadBlobFile(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
 function formatSourcesFootnotes(sources?: Source[]): string {
   if (!sources || sources.length === 0) return '';
   const lines = sources.map((s, i) => `[${i + 1}] ${s.url || s.title || 'Unknown source'}`);
@@ -298,7 +291,7 @@ export async function downloadMessageAsDocx(message: Message, includeReasoning: 
   const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown), 'light', 'en');
   const { toDocx } = await import('docshift');
   const docxBlob = await toDocx(html);
-  downloadBlobFile(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
+  downloadBlob(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
 }
 
 export async function downloadMessageAsImage(element: HTMLElement, message: Message): Promise<void> {
@@ -314,7 +307,7 @@ export async function downloadMessageAsImage(element: HTMLElement, message: Mess
         reject(new Error('Failed to create image blob'));
         return;
       }
-      downloadBlobFile(blob, buildFilename(extractMessageTitle(message.content), 'png'));
+      downloadBlob(blob, buildFilename(extractMessageTitle(message.content), 'png'));
       resolve();
     }, 'image/png');
   });

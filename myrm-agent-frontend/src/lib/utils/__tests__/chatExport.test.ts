@@ -3,12 +3,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   formatChatAsMarkdown,
   formatChatAsJson,
+  downloadBlob,
   downloadFile,
   downloadAsMarkdown,
   downloadAsJson,
   downloadMessageAsMarkdown,
   formatDuration,
   formatUsd,
+  sanitizeFilename,
   type ExportData,
 } from '../chatExport';
 import type { Message, Source } from '@/store/chat/types';
@@ -202,6 +204,78 @@ describe('chatExport', () => {
       expect(createObjectURLSpy).toHaveBeenCalled();
       expect(clickSpy).toHaveBeenCalled();
       expect(revokeObjectURLSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('downloadBlob', () => {
+    let linkMock: Record<string, unknown>;
+    let createObjectURLSpy: ReturnType<typeof vi.spyOn>;
+    let revokeObjectURLSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      linkMock = { href: '', download: '', click: vi.fn(), style: {} };
+      vi.spyOn(document, 'createElement').mockReturnValue(linkMock as unknown as HTMLAnchorElement);
+      vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+      vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
+      createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test-url');
+      revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should create object URL, trigger click, then revoke', () => {
+      const blob = new Blob(['hello'], { type: 'text/plain' });
+      downloadBlob(blob, 'test.txt');
+
+      expect(createObjectURLSpy).toHaveBeenCalledWith(blob);
+      expect(linkMock.href).toBe('blob:test-url');
+      expect(linkMock.download).toBe('test.txt');
+      expect(linkMock.click).toHaveBeenCalled();
+      expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:test-url');
+    });
+  });
+
+  describe('downloadFile delegates to downloadBlob', () => {
+    let createObjectURLSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      vi.spyOn(document, 'createElement').mockReturnValue({
+        href: '',
+        download: '',
+        click: vi.fn(),
+        style: {},
+      } as unknown as HTMLAnchorElement);
+      vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+      vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
+      createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
+      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should pass a Blob with correct type to the download pipeline', () => {
+      downloadFile('content', 'file.md', 'text/markdown');
+      const passedBlob = createObjectURLSpy.mock.calls[0][0] as Blob;
+      expect(passedBlob).toBeInstanceOf(Blob);
+      expect(passedBlob.type).toBe('text/markdown');
+    });
+  });
+
+  describe('sanitizeFilename', () => {
+    it('should replace special characters', () => {
+      expect(sanitizeFilename('file<>:"/\\|?*name')).toBe('file_________name');
+    });
+
+    it('should return Untitled for empty string', () => {
+      expect(sanitizeFilename('')).toBe('Untitled');
+    });
+
+    it('should trim whitespace', () => {
+      expect(sanitizeFilename('  hello  ')).toBe('hello');
     });
   });
 

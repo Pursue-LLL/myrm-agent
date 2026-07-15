@@ -42,6 +42,7 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
 
     const [exporting, setExporting] = useState(false);
     const [exportProgress, setExportProgress] = useState<BatchExportProgress | null>(null);
+    const [formatPickerOpen, setFormatPickerOpen] = useState(false);
     const abortRef = useRef<AbortController | null>(null);
 
     const handleBatchMove = async (projectId: string | null) => {
@@ -70,6 +71,7 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
     const handleExport = useCallback(
       async (format: BatchExportFormat) => {
         if (exporting || selectedCount === 0) return;
+        setFormatPickerOpen(false);
         setExporting(true);
         setExportProgress(null);
 
@@ -86,6 +88,11 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
             onProgress: setExportProgress,
             signal: controller.signal,
           });
+
+          if (result.exported === 0) {
+            toast({ title: t('chat.exportChat.noMessages'), variant: 'default' });
+            return;
+          }
 
           const date = new Date().toISOString().slice(0, 10);
           downloadBlob(blob, `myrm-export-${date}.zip`);
@@ -159,7 +166,7 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
             </button>
           )}
 
-          <Popover>
+          <Popover open={formatPickerOpen} onOpenChange={setFormatPickerOpen}>
             <PopoverTrigger asChild>
               <button
                 disabled={selectedCount === 0 || exporting}

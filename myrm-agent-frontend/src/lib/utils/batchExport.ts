@@ -2,9 +2,12 @@ import { exportChat } from '@/services/chat';
 import { formatChatAsMarkdown, formatChatAsJson, sanitizeFilename, type ExportData } from './chatExport';
 
 /**
- * [INPUT] chatId[] + 导出格式 + 进度/取消回调。
- * [OUTPUT] ZIP Blob（按日期分文件夹 + DEFLATE 压缩）。
- * [POS] 批量导出编排器，复用 chatExport 格式化 + exportChat API。
+ * [INPUT] services/chat::exportChat (POS: 聊天 API 请求层) — 单聊天导出接口；
+ *         chatExport (POS: 聊天导出数据与文件生成工具) — 格式化 + sanitizeFilename；
+ *         jszip (external) — ZIP 打包；调用方传入 chatId[] + 格式 + 进度/取消回调。
+ * [OUTPUT] batchExportAsZip, BatchExportFormat, BatchExportProgress, BatchExportResult;
+ *          re-exports downloadBlob from chatExport.
+ * [POS] 批量导出编排器。3 并发 + 1 次重试调用 exportChat，按日期归档为 DEFLATE ZIP。
  */
 
 export type BatchExportFormat = 'markdown' | 'json' | 'html';
@@ -23,7 +26,7 @@ export interface BatchExportResult {
   failed: number;
 }
 
-const BATCH_SIZE = 10;
+const CONCURRENCY = 3;
 
 const FORMAT_EXT: Record<BatchExportFormat, string> = {
   markdown: 'md',
@@ -74,63 +77,71 @@ export async function batchExportAsZip(
   let exported = 0;
   let skipped = 0;
   let failed = 0;
+  let completed = 0;
   const usedPaths = new Set<string>();
 
-  for (let i = 0; i < chatIds.length; i++) {
-    if (options.signal?.aborted) {
-      throw new DOMException('Export cancelled', 'AbortError');
-    }
+  const queue = chatIds.map((id, i) => ({ id, index: i }));
+  let queuePos = 0;
 
-    const chatId = chatIds[i];
-    const title = `Chat ${i + 1}`;
+  async function processOne(): Promise<void> {
+    while (queuePos < queue.length) {
+      if (options.signal?.aborted) throw new DOMException('Export cancelled', 'AbortError');
 
-    options.onProgress?.({
-      current: i + 1,
-      total: chatIds.length,
-      currentTitle: title,
-      skipped,
-      failed,
-    });
-
-    try {
-      const data = await exportChat(chatId);
-
-      if (data.messages.length === 0) {
-        skipped++;
-        continue;
-      }
-
-      const chatTitle = sanitizeFilename(data.chat.title || `Untitled-${chatId.slice(0, 8)}`);
-      const folder = dateFolderName(data.chat.createdAt);
-      const ext = FORMAT_EXT[format];
-
-      let path = `${folder}/${chatTitle}.${ext}`;
-      if (usedPaths.has(path)) {
-        path = `${folder}/${chatTitle}-${chatId.slice(0, 8)}.${ext}`;
-      }
-      usedPaths.add(path);
+      const { id: chatId, index } = queue[queuePos++];
 
       options.onProgress?.({
-        current: i + 1,
+        current: ++completed,
         total: chatIds.length,
-        currentTitle: data.chat.title || chatTitle,
+        currentTitle: `Chat ${index + 1}`,
         skipped,
         failed,
       });
 
-      const content = await formatContent(data, format, options.theme, options.lang);
-      zip.file(path, content);
-      exported++;
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') throw err;
-      console.error(`[batchExport] Failed to export chat ${chatId}:`, err);
-      failed++;
-    }
+      try {
+        let data: ExportData;
+        try {
+          data = await exportChat(chatId);
+        } catch (retryErr) {
+          if (retryErr instanceof DOMException && retryErr.name === 'AbortError') throw retryErr;
+          data = await exportChat(chatId);
+        }
 
-    if ((i + 1) % BATCH_SIZE === 0 && i + 1 < chatIds.length) {
-      await new Promise((r) => setTimeout(r, 50));
+        if (data.messages.length === 0) {
+          skipped++;
+          continue;
+        }
+
+        const chatTitle = sanitizeFilename(data.chat.title || `Untitled-${chatId.slice(0, 8)}`);
+        const folder = dateFolderName(data.chat.createdAt);
+        const ext = FORMAT_EXT[format];
+
+        let path = `${folder}/${chatTitle}.${ext}`;
+        if (usedPaths.has(path)) {
+          path = `${folder}/${chatTitle}-${chatId.slice(0, 8)}.${ext}`;
+        }
+        usedPaths.add(path);
+
+        options.onProgress?.({
+          current: completed,
+          total: chatIds.length,
+          currentTitle: data.chat.title || chatTitle,
+          skipped,
+          failed,
+        });
+
+        const content = await formatContent(data, format, options.theme, options.lang);
+        zip.file(path, content);
+        exported++;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') throw err;
+        console.error(`[batchExport] Failed to export chat ${chatId}:`, err);
+        failed++;
+      }
     }
   }
+
+  const workers = Array.from({ length: Math.min(CONCURRENCY, chatIds.length) }, () => processOne());
+  await Promise.all(workers);
 
   const blob = await zip.generateAsync({
     type: 'blob',
@@ -141,13 +152,4 @@ export async function batchExportAsZip(
   return { blob, result: { exported, skipped, failed } };
 }
 
-export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
+export { downloadBlob } from './chatExport';
