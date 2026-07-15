@@ -119,7 +119,7 @@ _start_backend_bg() {
   echo "${new_pid}" >"${pid_file}"
 
   local health_wait_sec=45
-  if [[ "${MYRM_E2E_ISOLATED:-}" == "1" || "${MYRM_DEV_STATE_DIR:-}" != "${HOME}/.local/state/myrm-dev" ]]; then
+  if [[ "${MYRM_E2E_ISOLATED:-}" == "1" || "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_DEV_STATE_DIR:-}" != "${HOME}/.local/state/myrm-dev" ]]; then
     health_wait_sec="${MYRM_BACKEND_HEALTH_WAIT_SEC:-60}"
   fi
 

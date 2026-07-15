@@ -32,10 +32,10 @@ class CdpChatInput(CdpChatBootstrap):
                     """(() => {
                       const bridge = window.__MYRM_E2E_CHAT__;
                       if (!bridge?.ensureProviders) return { ok: false, err: 'no ensureProviders' };
-                      void bridge.ensureProviders();
-                      return { ok: true };
+                      return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
                     })()""",
-                    await_promise=False,
+                    await_promise=True,
+                    recv_timeout=min(timeout_sec, 60.0),
                 )
             except (TimeoutError, RuntimeError):
                 pass

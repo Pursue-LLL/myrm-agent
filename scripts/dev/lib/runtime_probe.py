@@ -156,11 +156,42 @@ def probe_runtime_context() -> RuntimeProbeContext:
     }
 
 
+def _read_shared_hot_stack_runtime_id() -> str:
+    from runtime_identity import read_stack_scoped_runtime_id
+
+    shared_state = Path.home() / ".local/state/myrm-dev"
+    overrides = {
+        "MYRM_DEV_STATE_DIR": str(shared_state),
+        "MYRM_STACK_EPOCH_FILE": str(shared_state / "stack-epoch.json"),
+        "MYRM_BACKEND_PORT": "8080",
+        "PORT": "8080",
+        "API_PORT": "8080",
+        "E2E_API_BASE": "http://127.0.0.1:8080",
+        "MYRM_FRONTEND_PORT": "3000",
+        "E2E_UI_BASE": "http://127.0.0.1:3000",
+    }
+    saved = {key: os.environ.get(key) for key in overrides}
+    try:
+        os.environ.update(overrides)
+        return read_stack_scoped_runtime_id()
+    finally:
+        for key, value in saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
 def read_current_runtime_id() -> str:
     if os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1":
         from runtime_identity import read_stack_scoped_runtime_id
 
         return read_stack_scoped_runtime_id()
+    if (
+        os.environ.get("MYRM_PRIVATE_BACKEND", "").strip() == "1"
+        or os.environ.get("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1"
+    ):
+        return _read_shared_hot_stack_runtime_id()
     ctx = probe_runtime_context()
     parts = collect_runtime_parts(
         frontend_dir=Path(ctx["frontend_dir"]) if ctx["frontend_dir"] else None,

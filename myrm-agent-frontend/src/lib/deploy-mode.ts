@@ -175,6 +175,19 @@ function getTauriBackendPort(): number {
   return TAURI_DESKTOP_API_PORT;
 }
 
+/** Chrome E2E SHPOIB: CDP injects private backend base before chat automation. */
+export function resolveE2eApiBase(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const raw = window.__MYRM_E2E_API_BASE__;
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 /**
  * Get API base URL
  *
@@ -184,6 +197,10 @@ function getTauriBackendPort(): number {
  * Sandbox 模式: 使用环境变量配置的远程服务
  */
 export function getApiBaseUrl(): string {
+  const e2eBase = resolveE2eApiBase();
+  if (e2eBase) {
+    return `${e2eBase}/api/v1`;
+  }
   if (isTauriRuntime()) {
     return `http://127.0.0.1:${getTauriBackendPort()}/api/v1`;
   }
@@ -197,6 +214,10 @@ export function getApiBaseUrl(): string {
  * 获取后端基础 URL（不含 API 路径前缀）
  */
 export function getBackendBaseUrl(): string {
+  const e2eBase = resolveE2eApiBase();
+  if (e2eBase) {
+    return e2eBase;
+  }
   if (isTauriRuntime()) {
     return `http://127.0.0.1:${getTauriBackendPort()}`;
   }

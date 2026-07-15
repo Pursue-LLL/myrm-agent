@@ -310,6 +310,7 @@ class CdpChatTurn(CdpChatSubmit):
                 """(() => {
                   const bridge = window.__MYRM_E2E_CHAT__;
                   if (!bridge?.ensureProviders) return { ok: false };
+                  bridge.prepareAutomationSend?.();
                   return bridge.ensureProviders().then(() => ({ ok: true }));
                 })()""",
                 await_promise=True,
@@ -370,8 +371,7 @@ class CdpChatTurn(CdpChatSubmit):
         try:
             await self.dismiss_modals()
             await self.wait_dev_bridge()
-            if baseline_user_msgs > 0:
-                await self._sync_model_selection()
+            await self._sync_model_selection()
             await self._ensure_send_ready()
             fill = await self.fill_input(text)
             if not fill.get("ok"):
@@ -381,11 +381,12 @@ class CdpChatTurn(CdpChatSubmit):
             else:
                 await self.evaluate(
                     """(() => {
-                      void window.__MYRM_E2E_CHAT__?.ensureChatSession?.();
-                      return { ok: true };
+                      const bridge = window.__MYRM_E2E_CHAT__;
+                      if (!bridge?.ensureChatSession) return { ok: false, err: 'no ensureChatSession' };
+                      return Promise.resolve(bridge.ensureChatSession()).then(() => ({ ok: true }));
                     })()""",
-                    await_promise=False,
-                    recv_timeout=15.0,
+                    await_promise=True,
+                    recv_timeout=30.0,
                 )
             submit = await self.submit()
             if not submit.get("ok"):
@@ -404,7 +405,21 @@ class CdpChatTurn(CdpChatSubmit):
                 if not submit.get("ok"):
                     if int(probe.get("inputLen") or 0) > 0:
                         raise RuntimeError(f"UI submit failed: {submit} fill={fill}")
-                    submit = {**submit, "ok": True, "mode": "clearedWithoutStreamProbe"}
+                    if chat_id:
+                        try:
+                            if chat_user_message_count(chat_id) > baseline_user_msgs:
+                                submit = {
+                                    **submit,
+                                    "ok": True,
+                                    "mode": "apiConfirmedWithoutDom",
+                                    "chatId": chat_id,
+                                }
+                        except OSError:
+                            pass
+                    if not submit.get("ok"):
+                        raise RuntimeError(
+                            f"UI submit failed without stream or API confirmation: {submit} fill={fill}"
+                        )
             started: dict[str, object]
             try:
                 started = await asyncio.wait_for(

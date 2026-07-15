@@ -120,7 +120,13 @@
     ".next-isolated-myrm-jx-signoff9-1784037708/types/**/*.ts",
     ".next-isolated-myrm-jx-signoff9-1784037708/dev/types/**/*.ts",
     ".next-isolated-myrm-jx-signoff10-1784038150/types/**/*.ts",
-    ".next-isolated-myrm-jx-signoff10-1784038150/dev/types/**/*.ts"
+    ".next-isolated-myrm-jx-signoff10-1784038150/dev/types/**/*.ts",
+    ".next-isolated-myrm-jx-teardown-1784082979/types/**/*.ts",
+    ".next-isolated-myrm-jx-teardown-1784082979/dev/types/**/*.ts",
+    ".next-isolated-myrm-jx-teardown2-1784084169/types/**/*.ts",
+    ".next-isolated-myrm-jx-teardown2-1784084169/dev/types/**/*.ts",
+    ".next-isolated-myrm-jx-teardown3-1784084431/types/**/*.ts",
+    ".next-isolated-myrm-jx-teardown3-1784084431/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

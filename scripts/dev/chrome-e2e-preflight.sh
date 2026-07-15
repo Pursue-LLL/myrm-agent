@@ -48,6 +48,25 @@ ok() {
   echo "CHROME_E2E_OK: $*"
 }
 
+_maybe_seed_providers() {
+  if [[ -f "${SERVER_DIR}/.env.test" ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "${SERVER_DIR}/.env.test"
+    set +a
+  fi
+  if [[ -n "${BASIC_MODEL:-}" && -n "${BASIC_API_KEY:-}" ]]; then
+    if seed_out="$(bun "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" 2>&1)"; then
+      echo "${seed_out}"
+      ok "model seed"
+      return 0
+    fi
+    echo "CHROME_E2E_WARN: model seed failed — ${seed_out}" >&2
+    return 0
+  fi
+  echo "CHROME_E2E_WARN: skip model seed (set BASIC_MODEL and BASIC_API_KEY in .env.test)" >&2
+}
+
 _attach_fast_path() {
   local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
   local health
@@ -64,7 +83,35 @@ _attach_fast_path() {
   echo "${health}"
 }
 
+_private_backend_attach_path() {
+  local shared_ui="${E2E_UI_BASE:-http://127.0.0.1:3000}"
+  if ! curl -sf --max-time 10 "${API_BASE}/api/v1/health" >/dev/null; then
+    fail "private backend not reachable at ${API_BASE}"
+  fi
+  ok "private backend ${API_BASE}"
+  if ! curl -sf --max-time 10 "${shared_ui}/" >/dev/null; then
+    fail "shared UI not reachable at ${shared_ui} — run: ./myrm ready --chrome"
+  fi
+  ok "shared UI ${shared_ui}"
+  _maybe_seed_providers
+  myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable — run: ./myrm ready --chrome"
+  ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"
+  local mux_pid_file="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}/daemon.pid"
+  if [[ -f "${mux_pid_file}" ]]; then
+    local mux_pid
+    mux_pid="$(tr -d '[:space:]' < "${mux_pid_file}")"
+    if [[ -n "${mux_pid}" ]] && kill -0 "${mux_pid}" 2>/dev/null; then
+      ok "cdmcp-mux daemon pid=${mux_pid}"
+    fi
+  fi
+  echo "CHROME_E2E_READY ui=${shared_ui} api=${API_BASE} port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
+}
+
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+  if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
+    _private_backend_attach_path
+    exit 0
+  fi
   _attach_fast_path
   exit 0
 fi
@@ -110,24 +157,9 @@ if ! curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null; then
 fi
 ok "dev servers :${FRONTEND_PORT}/${MYRM_BACKEND_PORT:-8080}"
 
-# 1b. Only the first Agent mutates provider seed state. Attach is strictly read-only.
-if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]]; then
-  if [[ -f "${SERVER_DIR}/.env.test" ]]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "${SERVER_DIR}/.env.test"
-    set +a
-  fi
-  if [[ -n "${BASIC_MODEL:-}" && -n "${BASIC_API_KEY:-}" ]]; then
-    if seed_out="$(bun "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" 2>&1)"; then
-      echo "${seed_out}"
-      ok "model seed"
-    else
-      echo "CHROME_E2E_WARN: model seed failed — ${seed_out}" >&2
-    fi
-  else
-    echo "CHROME_E2E_WARN: skip model seed (set BASIC_MODEL and BASIC_API_KEY in .env.test)" >&2
-  fi
+# 1b. Shared-stack attach is read-only; private-backend pools seed into E2E_API_BASE.
+if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] || [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
+  _maybe_seed_providers
 fi
 
 # 2. Legacy second Chrome / debug launchers

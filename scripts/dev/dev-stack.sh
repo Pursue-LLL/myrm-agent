@@ -570,8 +570,60 @@ cmd_status() {
   echo "stack_status api=${api} frontend=${fe} shell_hot=${shell_hot} client_hot=$(_frontend_client_hot_status) stack_epoch=${stack_epoch:-none} dev_lock=${lock}"
 }
 
+_stop_private_backend() {
+  if [[ -f "${BACKEND_PID}" ]]; then
+    local dev_pid
+    dev_pid="$(tr -d '[:space:]' <"${BACKEND_PID}")"
+    if [[ -n "${dev_pid}" ]] && kill -0 "${dev_pid}" 2>/dev/null; then
+      kill -TERM "${dev_pid}" 2>/dev/null || true
+      local _
+      for _ in $(seq 1 15); do
+        kill -0 "${dev_pid}" 2>/dev/null || break
+        sleep 1
+      done
+      if kill -0 "${dev_pid}" 2>/dev/null; then
+        kill -9 "${dev_pid}" 2>/dev/null || true
+      fi
+    fi
+    rm -f "${BACKEND_PID}"
+  fi
+
+  local backend_listener_pids
+  backend_listener_pids="$(lsof -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
+  if [[ -n "${backend_listener_pids// }" ]]; then
+    # shellcheck disable=SC2086
+    kill ${backend_listener_pids} 2>/dev/null || true
+  fi
+  _clear_stack_epoch
+}
+
+cmd_backend_only_ensure() {
+  if _api_healthy 5; then
+    echo "STACK_OK: private backend already healthy → ${API_BASE}"
+    echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
+    exit 0
+  fi
+
+  if ! _ensure_backend; then
+    echo "STACK_FAIL: private backend start failed" >&2
+    exit 1
+  fi
+
+  if _api_healthy 30; then
+    echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
+    exit 0
+  fi
+  echo "STACK_FAIL: private backend not healthy after ensure" >&2
+  exit 1
+}
+
+cmd_backend_only_stop() {
+  _stop_private_backend
+  echo "STACK_BACKEND_ONLY_STOP_OK"
+}
+
 usage() {
-  echo "Usage: dev-stack.sh ensure|attach|reset|status" >&2
+  echo "Usage: dev-stack.sh ensure|attach|reset|status|backend-only ensure|backend-only stop" >&2
 }
 
 _supervisor_delegate_or_fail() {
@@ -615,6 +667,34 @@ main() {
       if _supervisor_internal_call; then cmd_status; exit $?; fi
       if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_status; exit $?; fi
       _supervisor_delegate_or_fail status
+      ;;
+    backend-only)
+      local subcmd="${2:-}"
+      case "${subcmd}" in
+        ensure)
+          if _supervisor_internal_call; then cmd_backend_only_ensure; exit $?; fi
+          if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
+            cmd_backend_only_ensure
+            exit $?
+          fi
+          echo "STACK_FAIL: backend-only ensure requires MYRM_SUPERVISOR_BYPASS=1 or MYRM_WAVE_GATE_BYPASS=1" >&2
+          exit 1
+          ;;
+        stop)
+          if _supervisor_internal_call; then cmd_backend_only_stop; exit $?; fi
+          if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
+            cmd_backend_only_stop
+            exit $?
+          fi
+          echo "STACK_FAIL: backend-only stop requires MYRM_SUPERVISOR_BYPASS=1 or MYRM_WAVE_GATE_BYPASS=1" >&2
+          exit 1
+          ;;
+        *)
+          echo "Unknown backend-only command: ${subcmd}" >&2
+          usage
+          exit 1
+          ;;
+      esac
       ;;
     ""|-h|--help) usage; exit 1 ;;
     *)

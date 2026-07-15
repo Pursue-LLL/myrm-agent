@@ -9,7 +9,66 @@ from cdp_chat_input import CdpChatInput
 
 
 class CdpChatSubmit(CdpChatInput):
+    async def _submit_via_dev_bridge(self) -> dict[str, object]:
+        dev_submit = await self.evaluate(
+            """(() => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (!bridge?.handleSubmit) {
+                return { ok: false, err: 'no dev bridge' };
+              }
+              return Promise.resolve(bridge.handleSubmit()).then(() => {
+                const result = bridge.lastSubmitResult;
+                if (result?.ok) {
+                  return { ok: true, mode: 'devBridgeSubmitAsync', result };
+                }
+                return {
+                  ok: false,
+                  err: result?.err || 'bridge-submit-failed',
+                  debug: result?.debug ?? null,
+                  mode: 'devBridgeSubmitFailed',
+                };
+              });
+            })()""",
+            await_promise=True,
+            recv_timeout=180.0,
+        )
+        if not (isinstance(dev_submit, dict) and dev_submit.get("ok")):
+            return dev_submit if isinstance(dev_submit, dict) else {"ok": False, "err": "dev-bridge-submit-failed"}
+
+        started = await self._submit_started()
+        if await self._stream_started(started):
+            return dev_submit
+
+        deadline = time.monotonic() + 120.0
+        while time.monotonic() < deadline:
+            await asyncio.sleep(1.5)
+            bridge_result = await self.evaluate(
+                """(() => window.__MYRM_E2E_CHAT__?.lastSubmitResult ?? null)()""",
+                await_promise=False,
+            )
+            if isinstance(bridge_result, dict) and bridge_result.get("ok") is False:
+                err = str(bridge_result.get("err") or "bridge-submit-failed")
+                if err in {"send-not-ready", "no-chat-id", "empty-message"}:
+                    await asyncio.sleep(0.5)
+                    continue
+            started = await self._submit_started()
+            if await self._stream_started(started):
+                return dev_submit
+        return dev_submit
+
     async def submit(self) -> dict[str, object]:
+        prefer_bridge = await self.evaluate(
+            """(() => ({
+              prefer: typeof window.__MYRM_E2E_API_BASE__ === 'string' && window.__MYRM_E2E_API_BASE__.trim().length > 0,
+            }))()""",
+            await_promise=False,
+        )
+        if isinstance(prefer_bridge, dict) and prefer_bridge.get("prefer"):
+            bridge_submit = await self._submit_via_dev_bridge()
+            started = await self._submit_started()
+            if isinstance(bridge_submit, dict) and bridge_submit.get("ok") and await self._stream_started(started):
+                return bridge_submit
+
         native = await self.evaluate(
             """(() => {
               const btn = document.querySelector('.message-send-btn');
@@ -25,36 +84,11 @@ class CdpChatSubmit(CdpChatInput):
             if await self._stream_started(started):
                 return native
 
-        dev_submit = await self.evaluate(
-            """(() => {
-              const bridge = window.__MYRM_E2E_CHAT__;
-              if (!bridge?.handleSubmit) {
-                return { ok: false, err: 'no dev bridge' };
-              }
-              void bridge.handleSubmit();
-              return { ok: true, mode: 'devBridgeSubmitAsync' };
-            })()""",
-            await_promise=False,
-        )
-        if isinstance(dev_submit, dict) and dev_submit.get("ok"):
+        bridge_submit = await self._submit_via_dev_bridge()
+        if isinstance(bridge_submit, dict) and bridge_submit.get("ok"):
             started = await self._submit_started()
             if await self._stream_started(started):
-                return dev_submit
-            deadline = time.monotonic() + 120.0
-            while time.monotonic() < deadline:
-                await asyncio.sleep(1.5)
-                bridge_result = await self.evaluate(
-                    """(() => window.__MYRM_E2E_CHAT__?.lastSubmitResult ?? null)()""",
-                    await_promise=False,
-                )
-                if isinstance(bridge_result, dict) and bridge_result.get("ok") is False:
-                    err = str(bridge_result.get("err") or "bridge-submit-failed")
-                    if err in {"send-not-ready", "no-chat-id", "empty-message"}:
-                        await asyncio.sleep(0.5)
-                        continue
-                started = await self._submit_started()
-                if await self._stream_started(started):
-                    return dev_submit
+                return bridge_submit
 
         if isinstance(native, dict) and native.get("ok"):
             await asyncio.sleep(1.5)
@@ -177,4 +211,14 @@ class CdpChatSubmit(CdpChatInput):
         started = await self._submit_started()
         if await self._stream_started(started):
             return {"ok": True, "mode": "postBridgeProbe", "started": started}
-        return {"ok": False, "mode": "submitExhausted", "started": started}
+        bridge_result = await self.evaluate(
+            """(() => ({
+              lastSubmit: window.__MYRM_E2E_CHAT__?.lastSubmitResult ?? null,
+              debug: window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null,
+            }))()""",
+            await_promise=False,
+        )
+        exhausted: dict[str, object] = {"ok": False, "mode": "submitExhausted", "started": started}
+        if isinstance(bridge_result, dict):
+            exhausted["bridge"] = bridge_result
+        return exhausted

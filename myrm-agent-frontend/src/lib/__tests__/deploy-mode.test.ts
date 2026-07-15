@@ -120,4 +120,22 @@ describe('deploy-mode base url resolution', () => {
       value: originalWindow,
     });
   });
+
+  it('uses injected E2E private backend base for SHPOIB chrome tests', () => {
+    const originalWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        __MYRM_E2E_API_BASE__: 'http://127.0.0.1:18143/',
+      },
+    });
+
+    expect(getApiBaseUrl()).toBe('http://127.0.0.1:18143/api/v1');
+    expect(getBackendBaseUrl()).toBe('http://127.0.0.1:18143');
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+  });
 });

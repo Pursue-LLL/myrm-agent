@@ -17,11 +17,41 @@ import { flushSync } from 'react-dom';
 import { getModelSelection } from '@/store/chat/messageRequest';
 import useChatStore from '@/store/useChatStore';
 import useProviderStore from '@/store/useProviderStore';
+import { markLocalBackendUnreachable } from '@/lib/backend-health';
+import { markPlatformUnreachable, whenDatabaseReady } from '@/lib/platform-readiness';
 
 function isLocalDevHost(): boolean {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname;
   return host === '127.0.0.1' || host === 'localhost';
+}
+
+function prepareAutomationSend(): void {
+  const { actionMode, setActionMode } = useChatStore.getState();
+  if (actionMode === 'fast' || actionMode === 'deep_research') {
+    setActionMode('agent');
+  }
+}
+
+async function initProvidersForE2e(): Promise<void> {
+  const e2eApiBase =
+    typeof window.__MYRM_E2E_API_BASE__ === 'string'
+      ? window.__MYRM_E2E_API_BASE__.trim()
+      : '';
+  if (e2eApiBase) {
+    markPlatformUnreachable();
+    markLocalBackendUnreachable();
+    const ready = await whenDatabaseReady();
+    if (!ready) {
+      throw new Error('e2e-private-backend-not-ready');
+    }
+    await useProviderStore.getState().retryInit();
+    return;
+  }
+  const providerState = useProviderStore.getState();
+  if (!providerState.isInitialized) {
+    await providerState.initProviders();
+  }
 }
 
 export default function E2EChatBridge() {
@@ -30,17 +60,14 @@ export default function E2EChatBridge() {
 
     window.__MYRM_E2E_CHAT__ = {
       __e2eFallback: false,
-      ensureProviders: async () => {
-        const providerState = useProviderStore.getState();
-        if (!providerState.isInitialized) {
-          await providerState.initProviders();
-        }
-      },
+      ensureProviders: initProvidersForE2e,
+      prepareAutomationSend,
       isProvidersInitialized: () => useProviderStore.getState().isInitialized,
       isSendReady: () => {
         if (!useProviderStore.getState().isInitialized) {
           return false;
         }
+        prepareAutomationSend();
         const { actionMode, agentConfig } = useChatStore.getState();
         return getModelSelection(actionMode, agentConfig) !== null;
       },
@@ -62,10 +89,8 @@ export default function E2EChatBridge() {
         };
       },
       ensureChatSession: async () => {
-        const providerState = useProviderStore.getState();
-        if (!providerState.isInitialized) {
-          await providerState.initProviders();
-        }
+        await initProvidersForE2e();
+        prepareAutomationSend();
         if (!useChatStore.getState().chatId?.trim()) {
           flushSync(() => {
             useChatStore.getState().initializeChat(undefined);
@@ -77,10 +102,8 @@ export default function E2EChatBridge() {
         if (!id) {
           throw new Error('empty-chat-id');
         }
-        const providerState = useProviderStore.getState();
-        if (!providerState.isInitialized) {
-          await providerState.initProviders();
-        }
+        await initProvidersForE2e();
+        prepareAutomationSend();
         flushSync(() => {
           useChatStore.getState().initializeChat(id);
         });
@@ -96,6 +119,7 @@ export default function E2EChatBridge() {
       },
       resetChat: () => {
         flushSync(() => {
+          prepareAutomationSend();
           useChatStore.getState().initializeChat(undefined);
         });
       },
@@ -104,39 +128,59 @@ export default function E2EChatBridge() {
           useChatStore.getState().setInputMessage(message);
         });
       },
-      handleSubmit: () => {
+      handleSubmit: async () => {
         const message = useChatStore.getState().inputMessage.trim();
         if (!message) {
           window.__MYRM_E2E_CHAT__!.lastSubmitResult = { ok: false, err: 'empty-message' };
           return;
         }
-        void (async () => {
-          try {
-            await window.__MYRM_E2E_CHAT__?.ensureChatSession?.();
-            if (!useChatStore.getState().chatId?.trim()) {
-              window.__MYRM_E2E_CHAT__!.lastSubmitResult = { ok: false, err: 'no-chat-id' };
-              return;
-            }
-            if (!window.__MYRM_E2E_CHAT__?.isSendReady?.()) {
+        try {
+          await window.__MYRM_E2E_CHAT__?.ensureChatSession?.();
+          prepareAutomationSend();
+          if (!useChatStore.getState().chatId?.trim()) {
+            window.__MYRM_E2E_CHAT__!.lastSubmitResult = { ok: false, err: 'no-chat-id' };
+            return;
+          }
+          if (!window.__MYRM_E2E_CHAT__?.isSendReady?.()) {
+            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+              ok: false,
+              err: 'send-not-ready',
+              debug: window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+            };
+            return;
+          }
+          const baselineUsers = window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0;
+          void useChatStore.getState().sendMessage(message, undefined);
+          const deadline = Date.now() + 15_000;
+          while (Date.now() < deadline) {
+            const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
+            if (snap?.isStreaming || (snap?.userCount ?? 0) > baselineUsers) {
               window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-                ok: false,
-                err: 'send-not-ready',
-                debug: window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+                ok: true,
+                chatId: useChatStore.getState().chatId,
               };
               return;
             }
-            void useChatStore.getState().sendMessage(message, undefined);
-            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-              ok: true,
-              chatId: useChatStore.getState().chatId,
-            };
-          } catch (error) {
-            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-              ok: false,
-              err: error instanceof Error ? error.message : String(error),
-            };
+            await new Promise((resolve) => setTimeout(resolve, 200));
           }
-        })();
+          window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+            ok: false,
+            err: 'send-no-stream',
+            debug: {
+              ...(window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? {}),
+              e2eApiBase:
+                typeof window.__MYRM_E2E_API_BASE__ === 'string'
+                  ? window.__MYRM_E2E_API_BASE__
+                  : null,
+              turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
+            },
+          };
+        } catch (error) {
+          window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+            ok: false,
+            err: error instanceof Error ? error.message : String(error),
+          };
+        }
       },
       getInputMessage: () => useChatStore.getState().inputMessage,
       turnSnapshot: () => {

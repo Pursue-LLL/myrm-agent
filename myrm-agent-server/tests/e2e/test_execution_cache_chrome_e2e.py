@@ -29,6 +29,7 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lea
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 API_URL = os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
 E2E_PROMPT = "只回复 OK"
+TURN_WAIT_SEC = 300.0
 
 
 def _provider_ready() -> bool:
@@ -75,7 +76,7 @@ async def _resolve_chat_id(
 
 @pytest.mark.e2e
 @pytest.mark.integration
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(900)
 @pytest.mark.asyncio
 async def test_chrome_ui_same_chat_two_ok_messages(
     e2e_resource_ledger: E2EResourceLedger,
@@ -91,7 +92,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(
         await chat.bootstrap(BASE_URL, navigate=False, timeout_sec=120.0)
         await chat.click_new_chat()
         await chat.send_message(E2E_PROMPT, E2E_PROMPT)
-        after_first = await chat.wait_turn_done(E2E_PROMPT)
+        after_first = await chat.wait_turn_done(E2E_PROMPT, timeout_sec=TURN_WAIT_SEC)
         if str(after_first.get("path", "")).startswith("/settings"):
             pytest.fail(f"Send redirected to settings: {after_first}")
 
@@ -107,6 +108,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(
             E2E_PROMPT,
             chat_id_hint=chat_id,
             min_user_msgs=2,
+            timeout_sec=TURN_WAIT_SEC,
         )
         chat_id_second = await _resolve_chat_id(chat, after_second)
         assert chat_id_second == chat_id, (

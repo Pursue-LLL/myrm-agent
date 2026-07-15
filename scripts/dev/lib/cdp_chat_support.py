@@ -9,7 +9,12 @@ import time
 import urllib.request
 from pathlib import Path
 
-API_URL = os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
+def get_e2e_api_url() -> str:
+    return os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
+
+
+# Backward-compatible alias; always resolve dynamically for SHPOIB private pools.
+API_URL = get_e2e_api_url()
 _OK_REPLY_RE = re.compile(r"(?:\bOK\b|GOAL_OK)", re.IGNORECASE)
 
 
@@ -27,7 +32,7 @@ def e2e_api_base_inject_js(api_base: str | None = None) -> str:
 def _api_provider_ready() -> bool:
     try:
         resp = urllib.request.urlopen(  # noqa: S310 - fixed loopback E2E endpoint
-            f"{API_URL}/api/v1/config/readiness",
+            f"{get_e2e_api_url()}/api/v1/config/readiness",
             timeout=5,
         )
         payload = json.loads(resp.read())
@@ -62,6 +67,11 @@ PAGE_PROBE_JS = """
 
 RESET_CHAT_JS = """
 (() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (bridge?.resetChat) {
+    bridge.resetChat();
+    return { ok: true, mode: 'bridge-reset' };
+  }
   if (document.querySelector('[data-chat-input]')) {
     return { ok: true, mode: 'already' };
   }
@@ -292,9 +302,10 @@ def warmup_frontend(base_url: str, *, timeout_sec: float = 120.0) -> None:
     raise TimeoutError(f"Frontend warmup failed within {timeout_sec:.0f}s: {last_error}")
 
 
-def fetch_chat_messages(chat_id: str, *, api_url: str = API_URL) -> list[dict[str, object]]:
+def fetch_chat_messages(chat_id: str, *, api_url: str | None = None) -> list[dict[str, object]]:
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     req = urllib.request.Request(
-        f"{api_url.rstrip('/')}/api/v1/chats/{chat_id}/messages",
+        f"{resolved_api}/api/v1/chats/{chat_id}/messages",
         headers={"Accept": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=15) as resp:
@@ -306,12 +317,12 @@ def fetch_chat_messages(chat_id: str, *, api_url: str = API_URL) -> list[dict[st
     return messages if isinstance(messages, list) else []
 
 
-def chat_user_message_count(chat_id: str, *, api_url: str = API_URL) -> int:
+def chat_user_message_count(chat_id: str, *, api_url: str | None = None) -> int:
     messages = fetch_chat_messages(chat_id, api_url=api_url)
     return sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")
 
 
-def chat_messages_have_ok(chat_id: str, *, min_user_count: int = 1, api_url: str = API_URL) -> bool:
+def chat_messages_have_ok(chat_id: str, *, min_user_count: int = 1, api_url: str | None = None) -> bool:
     messages = fetch_chat_messages(chat_id, api_url=api_url)
     user_count = sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")
     if user_count < min_user_count:

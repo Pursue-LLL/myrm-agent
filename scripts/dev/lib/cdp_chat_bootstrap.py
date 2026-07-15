@@ -253,16 +253,33 @@ class CdpChatBootstrap(CdpChatTransport):
         await asyncio.sleep(2)
         await self.wait_shell_ready(timeout_sec=timeout_sec)
 
+    async def _after_new_chat_reset(self) -> None:
+        """SHPOIB hot UI: re-bind private backend and refresh provider store after reset."""
+        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+        try:
+            await self.evaluate(
+                """(() => {
+                  const bridge = window.__MYRM_E2E_CHAT__;
+                  if (!bridge?.ensureProviders) return { ok: false, err: 'no ensureProviders' };
+                  bridge.prepareAutomationSend?.();
+                  return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
+                })()""",
+                await_promise=True,
+                recv_timeout=45.0,
+            )
+        except (RuntimeError, TimeoutError):
+            pass
+
     async def click_new_chat(self) -> dict[str, object]:
         reset_js = """
 (() => {
-  if (document.querySelector('[data-chat-input]')) {
-    return { ok: true, mode: 'already' };
-  }
   const bridge = window.__MYRM_E2E_CHAT__;
   if (bridge?.resetChat) {
     bridge.resetChat();
     return { ok: true, mode: 'bridge-reset' };
+  }
+  if (document.querySelector('[data-chat-input]')) {
+    return { ok: true, mode: 'already' };
   }
   const newBtn = Array.from(document.querySelectorAll('aside button')).find((b) => {
     const text = (b.textContent || '').trim();
@@ -281,6 +298,7 @@ class CdpChatBootstrap(CdpChatTransport):
                 result = await self.evaluate(reset_js, await_promise=False)
                 last = result if isinstance(result, dict) else {"ok": False, "probeError": result}
                 if last.get("ok"):
+                    await self._after_new_chat_reset()
                     await asyncio.sleep(0.5)
                     return last
             except RuntimeError as exc:

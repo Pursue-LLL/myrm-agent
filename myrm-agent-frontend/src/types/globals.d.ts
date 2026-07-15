@@ -6,6 +6,8 @@ interface Window {
   SpeechRecognition?: typeof SpeechRecognition;
   webkitSpeechRecognition?: typeof SpeechRecognition;
   __MYRM_TRACE_ID__?: string;
+  /** Chrome E2E SHPOIB: private backend API base injected before chat automation. */
+  __MYRM_E2E_API_BASE__?: string;
   __TAURI_INTERNALS__?: unknown;
   /** Dev-only bridge for CDP Chrome E2E (AppLayout E2EChatBridge). */
   __MYRM_E2E_CHAT__?: {
@@ -13,6 +15,7 @@ interface Window {
     handleSubmit: () => void | Promise<void>;
     getInputMessage: () => string;
     ensureProviders?: () => Promise<void>;
+    prepareAutomationSend?: () => void;
     ensureChatSession?: () => Promise<void>;
     attachToChat?: (chatId: string) => Promise<void>;
     resetChat?: () => void;
