@@ -79,11 +79,11 @@ function AppLayout({
   useVisibilityThrottling();
   useTrayEvents();
   useGlobalShortcuts();
-  const { crashLoopActive, dismiss: dismissCrashLoop } = useCrashLoopGuard();
+  const { crashLoopActive, errorMessage: crashError, dismiss: dismissCrashLoop } = useCrashLoopGuard();
 
   return (
     <>
-      <CrashRecoveryDialog visible={crashLoopActive} onDismiss={dismissCrashLoop} />
+      <CrashRecoveryDialog visible={crashLoopActive} errorMessage={crashError} onDismiss={dismissCrashLoop} />
       {!layout.showMobileLayout && (
         <NavBar
           activeTab={layout.activeTab}

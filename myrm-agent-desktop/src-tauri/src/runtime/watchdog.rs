@@ -8,7 +8,7 @@
 //! [OUTPUT]
 //! - 周期性健康检查 (30s)
 //! - 崩溃检测 + 指数退避重启 (5s/15s/60s, 5min 内最多 3 次)
-//! - Tray tooltip 状态更新 + 前端事件通知
+//! - Tray tooltip 状态更新 + 前端事件通知 (backend-crash-loop 携带错误消息 payload)
 //!
 //! [POS]
 //! 确保后端 Sidecar 在意外崩溃后自动恢复，用户无感知。
@@ -61,6 +61,7 @@ pub fn spawn_watchdog(app: &AppHandle, port: u16) -> WatchdogHandle {
 
 async fn run_watchdog(app: AppHandle, port: u16, mut cancel_rx: watch::Receiver<bool>) {
     let mut restart_timestamps: Vec<Instant> = Vec::new();
+    let mut last_error = String::new();
 
     loop {
         tokio::select! {
@@ -97,7 +98,7 @@ async fn run_watchdog(app: AppHandle, port: u16, mut cancel_rx: watch::Receiver<
                 MAX_RESTARTS_IN_WINDOW, RESTART_WINDOW
             );
             update_tray_status(&app, "error");
-            let _ = app.emit("backend-crash-loop", ());
+            let _ = app.emit("backend-crash-loop", &last_error);
             return;
         }
 
@@ -123,11 +124,13 @@ async fn run_watchdog(app: AppHandle, port: u16, mut cancel_rx: watch::Receiver<
             Ok(_) => {
                 println!("[watchdog] Backend restarted successfully");
                 restart_timestamps.push(Instant::now());
+                last_error.clear();
                 update_tray_status(&app, "idle");
                 let _ = app.emit("backend-restarted", ());
             }
             Err(e) => {
                 eprintln!("[watchdog] Failed to restart backend: {}", e);
+                last_error = e;
                 restart_timestamps.push(Instant::now());
                 update_tray_status(&app, "error");
             }

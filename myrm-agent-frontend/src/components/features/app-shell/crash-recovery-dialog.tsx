@@ -21,12 +21,13 @@ import { invokeTauriCommand, tauriBackend } from '@/lib/tauri';
 
 interface CrashRecoveryDialogProps {
   visible: boolean;
+  errorMessage?: string | null;
   onDismiss: () => void;
 }
 
 type BusyAction = 'export' | 'logs' | 'restart' | null;
 
-export default function CrashRecoveryDialog({ visible, onDismiss }: CrashRecoveryDialogProps) {
+export default function CrashRecoveryDialog({ visible, errorMessage, onDismiss }: CrashRecoveryDialogProps) {
   const t = useTranslations('common.crashRecovery');
   const [busy, setBusy] = useState<BusyAction>(null);
   const [result, setResult] = useState<string | null>(null);
@@ -92,6 +93,12 @@ export default function CrashRecoveryDialog({ visible, onDismiss }: CrashRecover
         </div>
 
         <div className="space-y-3 p-5">
+          {errorMessage ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {errorMessage}
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleExport}
