@@ -16,6 +16,18 @@ from cdp_chat_support import (
 from cdp_chat_transport import CdpChatTransport
 
 
+def _shell_probe_ready(probe: dict[str, object]) -> bool:
+    if probe.get("skeleton"):
+        return False
+    if probe.get("hasInput"):
+        return True
+    return bool(
+        probe.get("hasBridge")
+        and probe.get("clientHydrated")
+        and probe.get("hasLayout")
+    )
+
+
 class CdpChatBootstrap(CdpChatTransport):
     async def bootstrap(
         self,
@@ -49,7 +61,7 @@ class CdpChatBootstrap(CdpChatTransport):
             except TimeoutError:
                 state = {"probeError": "evaluate_timeout"}
             last = state if isinstance(state, dict) else {"probeError": state}
-            if last.get("hasInput") and not last.get("skeleton"):
+            if _shell_probe_ready(last):
                 shell_ready = True
                 break
             if (
@@ -107,7 +119,7 @@ class CdpChatBootstrap(CdpChatTransport):
             except TimeoutError:
                 state = {"probeError": "evaluate_timeout"}
             last = state if isinstance(state, dict) else {"probeError": state}
-            if last.get("hasInput") and not last.get("skeleton"):
+            if _shell_probe_ready(last):
                 if require_bridge:
                     bridge_timeout = max(0.0, deadline - time.monotonic())
                     if bridge_timeout > 0:
@@ -138,7 +150,7 @@ class CdpChatBootstrap(CdpChatTransport):
                             stable = 0
                             await asyncio.sleep(0.5)
                             continue
-                        if isinstance(probe, dict) and probe.get("hasInput") and probe.get("hasBridge"):
+                        if isinstance(probe, dict) and _shell_probe_ready(probe) and probe.get("hasBridge"):
                             stable += 1
                         else:
                             stable = 0
@@ -251,6 +263,7 @@ class CdpChatBootstrap(CdpChatTransport):
             recv_timeout=120.0,
         )
         await asyncio.sleep(2)
+        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
         await self.wait_shell_ready(timeout_sec=timeout_sec)
 
     async def _after_new_chat_reset(self) -> None:
@@ -269,6 +282,10 @@ class CdpChatBootstrap(CdpChatTransport):
             )
         except (RuntimeError, TimeoutError):
             pass
+        try:
+            await self.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
+        except TimeoutError:
+            await self.ensure_dev_bridge(timeout_sec=45.0, allow_reload=True)
 
     async def click_new_chat(self) -> dict[str, object]:
         reset_js = """

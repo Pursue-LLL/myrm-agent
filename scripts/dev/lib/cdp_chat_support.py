@@ -353,6 +353,8 @@ BRIDGE_TURN_SNAPSHOT_JS = """
 
 def backend_log_path() -> Path:
     override = os.getenv("MYRM_BACKEND_LOG", "").strip()
+    if not override:
+        override = os.getenv("MYRM_BACKEND_LOG_FILE", "").strip()
     if override:
         return Path(override)
     state_dir = os.getenv("MYRM_DEV_STATE_DIR", "").strip()

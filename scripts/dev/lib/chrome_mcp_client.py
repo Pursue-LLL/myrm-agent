@@ -20,7 +20,9 @@ from typing import TextIO
 from mcp_page_lease_heartbeat import PageLeaseHeartbeat
 from mcp_protocol import parse_evaluate_result, parse_new_page, text_content
 
-_CLEANUP_TIMEOUT_SEC = 5.0
+_CLEANUP_TIMEOUT_SEC = 15.0
+_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = 15.0
+_TOOL_RETRY_ATTEMPTS = 3
 _PAGE_LEASE_TTL_SEC = 180
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
@@ -309,14 +311,14 @@ class ChromeMcpClient:
         self.call_tool(
             "press_key",
             {"pageId": page.page_id, "key": key},
-            timeout_sec=5.0,
+            timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
         )
 
     def type_text(self, page: McpPage, text: str) -> None:
         self.call_tool(
             "type_text",
             {"pageId": page.page_id, "text": text},
-            timeout_sec=5.0,
+            timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
         )
 
     def call_tool(
@@ -328,17 +330,31 @@ class ChromeMcpClient:
     ) -> dict[str, object]:
         if name != "close_page":
             self._page_lease_heartbeat.raise_if_failed()
-        response = self._request(
-            "tools/call",
-            {"name": name, "arguments": arguments},
-            timeout_sec=timeout_sec,
-        )
-        result = response.get("result")
-        if not isinstance(result, dict):
-            raise RuntimeError(f"Chrome MCP {name} returned invalid result: {response}")
-        if result.get("isError") is True:
-            raise RuntimeError(f"Chrome MCP {name} failed: {text_content(result)}")
-        return result
+        retry_tools = {"evaluate_script", "close_page", "new_page", "navigate_page"}
+        attempts = _TOOL_RETRY_ATTEMPTS if name in retry_tools else 1
+        last_error: BaseException | None = None
+        for attempt in range(attempts):
+            try:
+                response = self._request(
+                    "tools/call",
+                    {"name": name, "arguments": arguments},
+                    timeout_sec=timeout_sec,
+                )
+            except (TimeoutError, RuntimeError) as exc:
+                last_error = exc
+                if attempt + 1 < attempts:
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
+                raise
+            result = response.get("result")
+            if not isinstance(result, dict):
+                raise RuntimeError(f"Chrome MCP {name} returned invalid result: {response}")
+            if result.get("isError") is True:
+                raise RuntimeError(f"Chrome MCP {name} failed: {text_content(result)}")
+            return result
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError(f"Chrome MCP {name} failed without response")
 
     def _request(
         self,

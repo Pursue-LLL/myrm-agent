@@ -412,6 +412,11 @@ _mux_timeout_stamp_matches() {
   [[ "${stored}" == "${MUX_REQUEST_TIMEOUT_MS}" ]]
 }
 
+_stamp_mux_request_timeout() {
+  mkdir -p "${MUX_STATE_DIR}"
+  printf '%s\n' "${MUX_REQUEST_TIMEOUT_MS}" >"${MUX_TIMEOUT_STAMP}"
+}
+
 _ensure_mux_daemon() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
   [[ -f "${MUX_BIN}" ]] || fail "Missing mux bin ${MUX_BIN} — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
@@ -420,7 +425,12 @@ _ensure_mux_daemon() {
     pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
     if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
       if ! _mux_timeout_stamp_matches; then
-        _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+        if _mux_upstream_ready && _mux_ws_stamp_matches; then
+          _stamp_mux_request_timeout
+          ok "cdmcp-mux request-timeout stamp refreshed (${MUX_REQUEST_TIMEOUT_MS}ms)"
+        else
+          _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+        fi
       fi
       return 0
     fi

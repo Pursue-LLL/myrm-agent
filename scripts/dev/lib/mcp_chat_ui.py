@@ -83,8 +83,10 @@ class McpChatSession(CdpChatSession):
     async def ensure_dev_bridge(
         self, *, timeout_sec: float = 90.0, allow_reload: bool = True
     ) -> None:
-        del allow_reload
-        await super().ensure_dev_bridge(timeout_sec=timeout_sec, allow_reload=False)
+        await super().ensure_dev_bridge(
+            timeout_sec=timeout_sec,
+            allow_reload=allow_reload,
+        )
 
     async def cdp(
         self,
@@ -97,6 +99,12 @@ class McpChatSession(CdpChatSession):
         if method in {"Runtime.enable", "Page.enable", "DOM.enable"}:
             return {}
         if method == "Page.reload":
+            await asyncio.to_thread(
+                self._client.reload,
+                self._page,
+                timeout_ms=min(int(recv_timeout * 1000), 120_000),
+            )
+            await asyncio.sleep(4.0)
             return {}
         if method == "Page.navigate":
             url = arguments.get("url")

@@ -190,6 +190,8 @@ class CdpChatInput(CdpChatBootstrap):
             await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
             await self.evaluate(E2E_BRIDGE_INSTALL_JS, await_promise=False)
             probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
+            if isinstance(probe, dict) and probe.get("hasBridge") and probe.get("clientHydrated"):
+                return
             if isinstance(probe, dict) and probe.get("hasBridge") and probe.get("hasInput"):
                 if probe.get("clientHydrated"):
                     return
@@ -203,8 +205,36 @@ class CdpChatInput(CdpChatBootstrap):
         await self.ensure_dev_bridge(timeout_sec=timeout_sec)
 
     async def fill_input(self, text: str) -> dict[str, object]:
-        await self.ensure_dev_bridge(timeout_sec=45.0)
-        for _ in range(45):
+        await self.ensure_dev_bridge(timeout_sec=90.0, allow_reload=True)
+
+        dev_bridge = await self.evaluate(
+            f"""( () => {{
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (!bridge?.setInputMessage) {{
+                return {{ ok: false, err: 'no dev bridge' }};
+              }}
+              bridge.setInputMessage({json.dumps(text)});
+              return {{ ok: true, mode: 'devBridgeSet' }};
+            }})()""",
+            await_promise=False,
+        )
+        if isinstance(dev_bridge, dict) and dev_bridge.get("ok"):
+            for _ in range(3):
+                ready = await self._await_fill_ready(text, timeout_sec=45.0)
+                if ready.get("ok"):
+                    ready["mode"] = "devBridge"
+                    return ready
+                await self.evaluate(
+                    f"""( () => {{
+                      window.__MYRM_E2E_CHAT__?.setInputMessage?.({json.dumps(text)});
+                      return {{ ok: true }};
+                    }})()""",
+                    await_promise=False,
+                )
+                await asyncio.sleep(1)
+
+        focus: dict[str, object] = {"ok": False, "err": "no input"}
+        for _ in range(12):
             focus = await self.evaluate(
                 """(() => {
                   const input = document.querySelector('[data-chat-input]');
@@ -219,9 +249,10 @@ class CdpChatInput(CdpChatBootstrap):
                 break
             await asyncio.sleep(1)
         else:
-            raise RuntimeError(f"Focus input failed: {focus}")
+            if not (isinstance(dev_bridge, dict) and dev_bridge.get("ok")):
+                raise RuntimeError(f"Focus input failed: {focus}")
 
-        dev_bridge = await self.evaluate(
+        dev_bridge_retry = await self.evaluate(
             f"""( () => {{
               const bridge = window.__MYRM_E2E_CHAT__;
               if (!bridge?.setInputMessage) {{
@@ -232,7 +263,7 @@ class CdpChatInput(CdpChatBootstrap):
             }})()""",
             await_promise=False,
         )
-        if isinstance(dev_bridge, dict) and dev_bridge.get("ok"):
+        if isinstance(dev_bridge_retry, dict) and dev_bridge_retry.get("ok"):
             for _ in range(3):
                 ready = await self._await_fill_ready(text, timeout_sec=45.0)
                 if ready.get("ok"):
@@ -427,4 +458,4 @@ class CdpChatInput(CdpChatBootstrap):
                     return True
             except OSError:
                 pass
-        return bool(chat_id_from_path(path))
+        return False

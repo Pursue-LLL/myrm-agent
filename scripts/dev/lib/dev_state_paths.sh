@@ -43,13 +43,63 @@ _kill_pid_gracefully() {
   local pid="$1"
   [[ -n "${pid}" ]] || return 0
   kill -0 "${pid}" 2>/dev/null || return 0
-  kill -TERM "${pid}" 2>/dev/null || true
+  kill -TERM "-${pid}" 2>/dev/null || kill -TERM "${pid}" 2>/dev/null || true
+  pkill -TERM -P "${pid}" 2>/dev/null || true
   local i
   for i in $(seq 1 15); do
     kill -0 "${pid}" 2>/dev/null || return 0
     sleep 1
   done
-  kill -9 "${pid}" 2>/dev/null || true
+  pkill -9 -P "${pid}" 2>/dev/null || true
+  kill -9 "-${pid}" 2>/dev/null || kill -9 "${pid}" 2>/dev/null || true
+}
+
+dev_port_in_use() {
+  local port="$1"
+  python3 -c '
+import socket
+import sys
+
+port = int(sys.argv[1])
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+    try:
+        sock.bind(("127.0.0.1", port))
+    except OSError:
+        raise SystemExit(0)
+raise SystemExit(1)
+' "${port}"
+}
+
+dev_kill_port_listeners() {
+  local port="$1"
+  local pids=""
+  pids="$(lsof -nP -iTCP:"${port}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
+  [[ -n "${pids// }" ]] || return 0
+  # shellcheck disable=SC2086
+  kill -TERM ${pids} 2>/dev/null || true
+  sleep 2
+  pids="$(lsof -nP -iTCP:"${port}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
+  [[ -z "${pids// }" ]] || kill -9 ${pids} 2>/dev/null || true
+}
+
+dev_wait_ports_released() {
+  local max_wait="${1:-30}"
+  shift
+  local waited=0 port
+  while [[ "${waited}" -lt "${max_wait}" ]]; do
+    local busy=0
+    for port in "$@"; do
+      [[ -n "${port}" ]] || continue
+      if dev_port_in_use "${port}"; then
+        busy=1
+        break
+      fi
+    done
+    [[ "${busy}" -eq 0 ]] && return 0
+    sleep 1
+    waited=$((waited + 1))
+  done
+  return 1
 }
 
 resolve_myrm_next_dist_dir() {

@@ -371,11 +371,10 @@ class CdpChatTurn(CdpChatSubmit):
         try:
             await self.dismiss_modals()
             await self.wait_dev_bridge()
-            await self._sync_model_selection()
+            await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+            if baseline_user_msgs == 0:
+                await self._sync_model_selection()
             await self._ensure_send_ready()
-            fill = await self.fill_input(text)
-            if not fill.get("ok"):
-                raise RuntimeError(f"UI fill failed: {fill}")
             if chat_id:
                 await self._attach_chat_session(chat_id)
             else:
@@ -388,6 +387,9 @@ class CdpChatTurn(CdpChatSubmit):
                     await_promise=True,
                     recv_timeout=30.0,
                 )
+            fill = await self.fill_input(text)
+            if not fill.get("ok"):
+                raise RuntimeError(f"UI fill failed: {fill}")
             submit = await self.submit()
             if not submit.get("ok"):
                 probe = await self.send_state()
@@ -437,6 +439,22 @@ class CdpChatTurn(CdpChatSubmit):
                 chat_id = await self.bridge_chat_id()
             if chat_id:
                 started["chatId"] = chat_id
+            confirmed = False
+            if int(started.get("userMsgs") or 0) > baseline_user_msgs or started.get("sending"):
+                confirmed = True
+            if not confirmed and chat_id:
+                try:
+                    confirmed = chat_user_message_count(chat_id) > baseline_user_msgs
+                except OSError:
+                    confirmed = False
+            if not confirmed:
+                bridge = await self._bridge_turn_snapshot()
+                if isinstance(bridge, dict) and int(bridge.get("userCount") or 0) > baseline_user_msgs:
+                    confirmed = True
+                elif not confirmed:
+                    raise RuntimeError(
+                        f"UI submit did not start stream: submit={submit} started={started} bridge={bridge}"
+                    )
             return {"fill": fill, "submit": submit, "started": started}
         finally:
             self._baseline_user_msgs = 0

@@ -154,10 +154,12 @@ export default function E2EChatBridge() {
           const deadline = Date.now() + 20_000;
           while (Date.now() < deadline) {
             const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
-            if ((snap?.userCount ?? 0) > baselineUsers) {
+            const chatState = useChatStore.getState();
+            const userCount = snap?.userCount ?? 0;
+            if (userCount > baselineUsers && (chatState.loading || Boolean(chatState.abortController))) {
               window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
                 ok: true,
-                chatId: useChatStore.getState().chatId,
+                chatId: chatState.chatId,
               };
               return;
             }

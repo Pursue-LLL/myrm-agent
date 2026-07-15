@@ -575,25 +575,13 @@ _stop_private_backend() {
     local dev_pid
     dev_pid="$(tr -d '[:space:]' <"${BACKEND_PID}")"
     if [[ -n "${dev_pid}" ]] && kill -0 "${dev_pid}" 2>/dev/null; then
-      kill -TERM "${dev_pid}" 2>/dev/null || true
-      local _
-      for _ in $(seq 1 15); do
-        kill -0 "${dev_pid}" 2>/dev/null || break
-        sleep 1
-      done
-      if kill -0 "${dev_pid}" 2>/dev/null; then
-        kill -9 "${dev_pid}" 2>/dev/null || true
-      fi
+      _kill_pid_gracefully "${dev_pid}"
     fi
     rm -f "${BACKEND_PID}"
   fi
 
-  local backend_listener_pids
-  backend_listener_pids="$(lsof -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
-  if [[ -n "${backend_listener_pids// }" ]]; then
-    # shellcheck disable=SC2086
-    kill ${backend_listener_pids} 2>/dev/null || true
-  fi
+  dev_kill_port_listeners "${BACKEND_PORT}"
+  dev_wait_ports_released 45 "${BACKEND_PORT}" || true
   _clear_stack_epoch
 }
 
