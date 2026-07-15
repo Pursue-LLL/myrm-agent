@@ -289,19 +289,32 @@ class CdpChatTurn(CdpChatSubmit):
 
     async def _attach_chat_session(self, chat_id: str) -> None:
         payload = json.dumps(chat_id)
-        result = await self.evaluate(
-            f"""(() => {{
-              const bridge = window.__MYRM_E2E_CHAT__;
-              if (!bridge?.attachToChat) {{
-                return {{ ok: false, err: 'no attachToChat' }};
-              }}
-              return Promise.resolve(bridge.attachToChat({payload})).then(() => ({{ ok: true }}));
-            }})()""",
-            await_promise=True,
-            recv_timeout=45.0,
-        )
-        if not isinstance(result, dict) or not result.get("ok"):
-            raise RuntimeError(f"E2E bridge attachToChat failed: {result}")
+        last: object = {"ok": False}
+        for attempt in range(6):
+            await self.ensure_e2e_api_base_binding()
+            try:
+                result = await self.evaluate(
+                    f"""(() => {{
+                      const bridge = window.__MYRM_E2E_CHAT__;
+                      if (!bridge?.attachToChat) {{
+                        return {{ ok: false, err: 'no attachToChat' }};
+                      }}
+                      return Promise.resolve(bridge.attachToChat({payload})).then(() => ({{ ok: true }}));
+                    }})()""",
+                    await_promise=True,
+                    recv_timeout=60.0,
+                )
+            except RuntimeError as exc:
+                message = str(exc)
+                if "e2e-private-backend-not-ready" in message and attempt < 5:
+                    await asyncio.sleep(1.0 + attempt)
+                    continue
+                raise
+            last = result
+            if isinstance(result, dict) and result.get("ok"):
+                return
+            await asyncio.sleep(1.0 + attempt)
+        raise RuntimeError(f"E2E bridge attachToChat failed: {last}")
 
     async def _sync_model_selection(self, *, timeout_sec: float = 45.0) -> None:
         await self.ensure_e2e_api_base_binding()
