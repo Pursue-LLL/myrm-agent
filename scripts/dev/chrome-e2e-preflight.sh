@@ -56,11 +56,19 @@ _maybe_seed_providers() {
     set +a
   fi
   if [[ -n "${BASIC_MODEL:-}" && -n "${BASIC_API_KEY:-}" ]]; then
-    if seed_out="$(bun "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" 2>&1)"; then
-      echo "${seed_out}"
-      ok "model seed"
-      return 0
-    fi
+    local attempt max_attempts=5 seed_out=""
+    max_attempts="${MYRM_E2E_MODEL_SEED_RETRIES:-5}"
+    for attempt in $(seq 1 "${max_attempts}"); do
+      if seed_out="$(bun "${SCRIPT_DIR}/chrome-e2e-model-seed.mjs" 2>&1)"; then
+        echo "${seed_out}"
+        ok "model seed"
+        return 0
+      fi
+      if [[ "${attempt}" -lt "${max_attempts}" ]]; then
+        echo "CHROME_E2E_WARN: model seed attempt ${attempt}/${max_attempts} failed — retry in 2s: ${seed_out}" >&2
+        sleep 2
+      fi
+    done
     echo "CHROME_E2E_WARN: model seed failed — ${seed_out}" >&2
     return 0
   fi
