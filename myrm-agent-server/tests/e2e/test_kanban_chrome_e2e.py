@@ -6,7 +6,13 @@ import time
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import API_URL, BASE_URL, http_json, open_mcp_page, wait_for_state
+from tests.support.chrome_mcp_e2e import (
+    get_e2e_api_url,
+    get_e2e_ui_url,
+    http_json,
+    open_mcp_page,
+    wait_for_state,
+)
 from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 
@@ -19,9 +25,11 @@ def test_kanban_board_and_task_render_in_real_ui(
     marker = str(time.time_ns())
     board_name = f"Chrome MCP Board {marker}"
     task_title = f"Chrome MCP Task {marker}"
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
     board = http_json(
         "POST",
-        f"{API_URL}/api/v1/kanban/boards",
+        f"{api_url}/api/v1/kanban/boards",
         {"name": board_name, "description": "formal Chrome MCP E2E"},
     )
     assert isinstance(board, dict)
@@ -31,7 +39,7 @@ def test_kanban_board_and_task_render_in_real_ui(
 
     task = http_json(
         "POST",
-        f"{API_URL}/api/v1/kanban/boards/{board_id}/tasks",
+        f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
         {"title": task_title, "priority": "low", "initial_status": "ready"},
     )
     assert isinstance(task, dict)
@@ -39,7 +47,16 @@ def test_kanban_board_and_task_render_in_real_ui(
     assert task_id
     e2e_resource_ledger.register("kanban_task", task_id)
 
-    with open_mcp_page(f"{BASE_URL}/settings/kanban") as (client, page):
+    with open_mcp_page(f"{ui_url}/settings/kanban") as (client, page):
+        client.evaluate(
+            page,
+            """(() => {
+              localStorage.removeItem('kanban_last_board_id');
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        client.reload(page, timeout_ms=60_000)
         row_state = wait_for_state(
             client,
             page,
@@ -47,6 +64,7 @@ def test_kanban_board_and_task_render_in_real_ui(
               const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
               return {{ ready: !!row, text: row?.textContent || '' }};
             }})()""",
+            timeout_sec=90.0,
         )
         assert board_name in str(row_state.get("text") or "")
         clicked = client.evaluate(

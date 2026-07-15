@@ -22,6 +22,7 @@ from mcp_protocol import parse_evaluate_result, parse_new_page, text_content
 
 _CLEANUP_TIMEOUT_SEC = 15.0
 _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = 15.0
+_MCP_READ_POLL_SEC = _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
 _TOOL_RETRY_ATTEMPTS = 3
 _PAGE_LEASE_TTL_SEC = int(os.environ.get("MYRM_PAGE_LEASE_TTL_SEC", "600"))
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
@@ -34,6 +35,17 @@ _BENIGN_CLEANUP_TOKENS = (
     "detached Frame",
     "No page found",
 )
+_TRANSIENT_MUX_ERROR_TOKENS = (
+    "page has been closed",
+    "Target closed",
+    "No page found",
+    "upstream terminated",
+    "MUX_NOT_READY",
+)
+
+
+def _is_transient_mux_error(message: str) -> bool:
+    return any(token in message for token in _TRANSIENT_MUX_ERROR_TOKENS)
 
 
 def _wave_command_timeout_sec() -> float:
@@ -115,7 +127,7 @@ class ChromeMcpClient:
             env={
                 **os.environ,
                 "CDMCP_MUX_REQUEST_TIMEOUT_MS": os.environ.get(
-                    "CDMCP_MUX_REQUEST_TIMEOUT_MS", "90000"
+                    "CDMCP_MUX_REQUEST_TIMEOUT_MS", "180000"
                 ),
             },
         )
@@ -188,6 +200,7 @@ class ChromeMcpClient:
         lease_id = self._acquire_page_lease()
         page: McpPage | None = None
         try:
+            self._heartbeat_lease(lease_id)
             arguments: dict[str, object] = {"url": url, "timeout": timeout_ms}
             if context_id is not None:
                 arguments["isolatedContext"] = context_id
@@ -260,7 +273,7 @@ class ChromeMcpClient:
         self, page: McpPage, expression: str, *, timeout_sec: float = 15.0
     ) -> object:
         function = f"async () => await (0, eval)({json.dumps(expression)})"
-        effective_timeout = min(max(timeout_sec, 5.0), self._request_timeout_sec)
+        effective_timeout = min(max(timeout_sec, _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC), self._request_timeout_sec)
         result = self.call_tool(
             "evaluate_script",
             {"pageId": page.page_id, "function": function},
@@ -322,6 +335,20 @@ class ChromeMcpClient:
             timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
         )
 
+    def _recover_mux_transport(self) -> None:
+        process = self._process
+        self._process = None
+        self._pages.clear()
+        if process is not None:
+            try:
+                if process.stdin is not None:
+                    process.stdin.close()
+                process.terminate()
+                process.wait(timeout=3)
+            except Exception as exc:
+                _LOGGER.warning("Chrome MCP transport recovery warning: %s", exc)
+        self.start()
+
     def call_tool(
         self,
         name: str,
@@ -351,7 +378,15 @@ class ChromeMcpClient:
             if not isinstance(result, dict):
                 raise RuntimeError(f"Chrome MCP {name} returned invalid result: {response}")
             if result.get("isError") is True:
-                raise RuntimeError(f"Chrome MCP {name} failed: {text_content(result)}")
+                message = text_content(result)
+                if name in retry_tools and _is_transient_mux_error(message):
+                    last_error = RuntimeError(f"Chrome MCP {name} failed: {message}")
+                    self._recover_mux_transport()
+                    if attempt + 1 < attempts:
+                        time.sleep(0.5 * (attempt + 1))
+                        continue
+                    raise last_error
+                raise RuntimeError(f"Chrome MCP {name} failed: {message}")
             return result
         if last_error is not None:
             raise last_error
@@ -385,7 +420,10 @@ class ChromeMcpClient:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise TimeoutError(f"Chrome MCP {method} response timed out")
-                response = self._read(process, remaining)
+                try:
+                    response = self._read(process, min(remaining, _MCP_READ_POLL_SEC))
+                except TimeoutError:
+                    continue
                 if response.get("id") != request_id:
                     continue
                 error = response.get("error")
@@ -432,8 +470,22 @@ class ChromeMcpClient:
 
     def _require_process(self) -> subprocess.Popen[str]:
         process = self._process
+        if process is not None and process.poll() is None:
+            return process
+        if process is not None and process.poll() is not None:
+            _LOGGER.warning(
+                "Chrome MCP transport exited rc=%s; stderr tail=%s",
+                process.poll(),
+                list(self._stderr_lines)[-5:],
+            )
+            self._process = None
+            self.start()
+            process = self._process
         if process is None or process.poll() is not None:
-            raise RuntimeError("Chrome MCP client is not running")
+            raise RuntimeError(
+                "Chrome MCP client is not running; "
+                f"stderr tail={list(self._stderr_lines)[-5:]}"
+            )
         return process
 
     def _drain_stderr(self, stream: TextIO) -> None:
