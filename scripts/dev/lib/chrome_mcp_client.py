@@ -41,6 +41,10 @@ _TRANSIENT_MUX_ERROR_TOKENS = (
     "No page found",
     "upstream terminated",
     "MUX_NOT_READY",
+    "main frame too early",
+    "not owned by this shim session",
+    "LEASE_NOT_ACTIVE",
+    "context reset",
 )
 
 
@@ -217,7 +221,20 @@ class ChromeMcpClient:
                 context_id=context_id,
             )
             self._heartbeat_lease(lease_id)
-            self._bind_page_lease(page)
+            try:
+                self._bind_page_lease(page)
+            except RuntimeError as exc:
+                if "LEASE_NOT_ACTIVE" not in str(exc):
+                    raise
+                lease_id = self._acquire_page_lease()
+                page = McpPage(
+                    page_id=page_id,
+                    target_id=target_id,
+                    lease_id=lease_id,
+                    context_id=context_id,
+                )
+                self._heartbeat_lease(lease_id)
+                self._bind_page_lease(page)
             self._pages[page_id] = page
             self._page_lease_heartbeat.track(lease_id)
             return page
@@ -359,9 +376,8 @@ class ChromeMcpClient:
         if name != "close_page":
             self._page_lease_heartbeat.raise_if_failed()
         retry_tools = {"evaluate_script", "close_page", "new_page", "navigate_page"}
-        attempts = _TOOL_RETRY_ATTEMPTS if name in retry_tools else 1
         last_error: BaseException | None = None
-        for attempt in range(attempts):
+        for attempt in range(_TOOL_RETRY_ATTEMPTS):
             try:
                 response = self._request(
                     "tools/call",
@@ -370,7 +386,16 @@ class ChromeMcpClient:
                 )
             except (TimeoutError, RuntimeError) as exc:
                 last_error = exc
-                if attempt + 1 < attempts:
+                transient = (
+                    isinstance(exc, RuntimeError)
+                    and _is_transient_mux_error(str(exc))
+                )
+                if transient:
+                    self._recover_mux_transport()
+                can_retry = attempt + 1 < _TOOL_RETRY_ATTEMPTS and (
+                    transient or (name in retry_tools)
+                )
+                if can_retry:
                     time.sleep(0.5 * (attempt + 1))
                     continue
                 raise
@@ -379,10 +404,10 @@ class ChromeMcpClient:
                 raise RuntimeError(f"Chrome MCP {name} returned invalid result: {response}")
             if result.get("isError") is True:
                 message = text_content(result)
-                if name in retry_tools and _is_transient_mux_error(message):
+                if _is_transient_mux_error(message):
                     last_error = RuntimeError(f"Chrome MCP {name} failed: {message}")
                     self._recover_mux_transport()
-                    if attempt + 1 < attempts:
+                    if attempt + 1 < _TOOL_RETRY_ATTEMPTS:
                         time.sleep(0.5 * (attempt + 1))
                         continue
                     raise last_error

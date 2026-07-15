@@ -48,6 +48,23 @@ ok() {
   echo "CHROME_E2E_OK: $*"
 }
 
+_wait_api_config_ready() {
+  local attempt=0   max_attempts="${MYRM_E2E_CONFIG_READY_WAIT_SEC:-120}"
+  max_attempts=$((max_attempts / 2))
+  [[ "${max_attempts}" -gt 0 ]] || max_attempts=60
+  while [[ "${attempt}" -lt "${max_attempts}" ]]; do
+    if curl -sf --max-time 5 "${API_BASE}/api/v1/config/readiness" \
+      | python3 -c 'import json,sys; d=json.load(sys.stdin); p=d.get("provider") or {}; miss=set(p.get("missing_items") or []); print(not (miss & {"config_load_failed","config_load_timeout"}))' \
+      | grep -q True; then
+      return 0
+    fi
+    attempt=$((attempt + 1))
+    sleep 2
+  done
+  echo "CHROME_E2E_WARN: config readiness timeout on ${API_BASE}" >&2
+  return 1
+}
+
 _maybe_seed_providers() {
   if [[ -f "${SERVER_DIR}/.env.test" ]]; then
     set -a
@@ -56,6 +73,9 @@ _maybe_seed_providers() {
     set +a
   fi
   if [[ -n "${BASIC_MODEL:-}" && -n "${BASIC_API_KEY:-}" ]]; then
+    if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
+      _wait_api_config_ready || true
+    fi
     local attempt max_attempts=5 seed_out=""
     max_attempts="${MYRM_E2E_MODEL_SEED_RETRIES:-5}"
     for attempt in $(seq 1 "${max_attempts}"); do
