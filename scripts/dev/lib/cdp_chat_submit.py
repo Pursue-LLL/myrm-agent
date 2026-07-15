@@ -30,7 +30,7 @@ class CdpChatSubmit(CdpChatInput):
               });
             })()""",
             await_promise=True,
-            recv_timeout=180.0,
+            recv_timeout=45.0,
         )
         if not (isinstance(dev_submit, dict) and dev_submit.get("ok")):
             return dev_submit if isinstance(dev_submit, dict) else {"ok": False, "err": "dev-bridge-submit-failed"}
