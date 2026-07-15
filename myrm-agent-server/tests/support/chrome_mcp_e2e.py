@@ -26,7 +26,7 @@ def http_json(
     url: str,
     body: dict[str, object] | None = None,
     *,
-    expected_statuses: frozenset[int] = frozenset({200}),
+    expected_statuses: frozenset[int] = frozenset({200, 201, 204}),
 ) -> object:
     if not url.startswith((BASE_URL, API_URL)):
         raise ValueError(f"Chrome E2E HTTP helper only permits loopback app URLs: {url}")
