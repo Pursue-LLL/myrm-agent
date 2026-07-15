@@ -150,11 +150,11 @@ export default function E2EChatBridge() {
             return;
           }
           const baselineUsers = window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0;
-          void useChatStore.getState().sendMessage(message, undefined);
-          const deadline = Date.now() + 15_000;
+          await useChatStore.getState().sendMessage(message, undefined);
+          const deadline = Date.now() + 30_000;
           while (Date.now() < deadline) {
             const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
-            if (snap?.isStreaming || (snap?.userCount ?? 0) > baselineUsers) {
+            if ((snap?.userCount ?? 0) > baselineUsers) {
               window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
                 ok: true,
                 chatId: useChatStore.getState().chatId,
