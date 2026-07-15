@@ -34,12 +34,12 @@ from pathlib import Path
 from typing import Self
 
 from app.channels.core.base import BaseChannel
+from app.channels.core.credentials import credential_field, credential_spec
+from app.channels.core.exceptions import ChannelSendError
 from app.channels.providers._email_forward import (
     FWD_SUBJECT_PREFIXES,
     parse_forwarded_body,
 )
-from app.channels.core.credentials import credential_field, credential_spec
-from app.channels.core.exceptions import ChannelSendError
 from app.channels.reliability.reconnect import reconnect_loop
 from app.channels.rendering.renderer import render
 from app.channels.types import (
