@@ -150,8 +150,8 @@ export default function E2EChatBridge() {
             return;
           }
           const baselineUsers = window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0;
-          await useChatStore.getState().sendMessage(message, undefined);
-          const deadline = Date.now() + 30_000;
+          void useChatStore.getState().sendMessage(message, undefined);
+          const deadline = Date.now() + 20_000;
           while (Date.now() < deadline) {
             const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
             if ((snap?.userCount ?? 0) > baselineUsers) {
