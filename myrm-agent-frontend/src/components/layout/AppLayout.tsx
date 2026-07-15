@@ -15,7 +15,9 @@ import { usePowerLock } from '@/hooks/usePowerLock';
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
 import { useVisibilityThrottling } from '@/hooks/useVisibilityThrottling';
 import { useTrayEvents } from '@/hooks/useTrayEvents';
+import { useCrashLoopGuard } from '@/hooks/useCrashLoopGuard';
 import BudgetExceededDialog from '@/components/billing/BudgetExceededDialog';
+import CrashRecoveryDialog from '@/components/features/app-shell/crash-recovery-dialog';
 import LocalBackendUnavailableBanner, {
   ConfigReadinessDegradedBanner,
 } from '@/components/features/app-shell/local-backend-unavailable-banner';
@@ -77,9 +79,11 @@ function AppLayout({
   useVisibilityThrottling();
   useTrayEvents();
   useGlobalShortcuts();
+  const { crashLoopActive, dismiss: dismissCrashLoop } = useCrashLoopGuard();
 
   return (
     <>
+      <CrashRecoveryDialog visible={crashLoopActive} onDismiss={dismissCrashLoop} />
       {!layout.showMobileLayout && (
         <NavBar
           activeTab={layout.activeTab}

@@ -35,6 +35,37 @@ pub use python_backend::{
 };
 pub use setup_token::SetupTokenState;
 
+/// Host environment variables that must be stripped before spawning child processes.
+///
+/// Prevents host-machine pollution (conda PYTHONPATH, nvm NODE_OPTIONS, corporate
+/// HTTP_PROXY, dynamic linker injection, etc.) from leaking into Myrm runtimes.
+/// Mirrors the harness-layer blacklist in `myrm_agent_harness/.../blacklist.py`.
+pub const TOXIC_ENV_VARS: &[&str] = &[
+    "PYTHONPATH",
+    "PYTHONHOME",
+    "PYTHONSTARTUP",
+    "NODE_OPTIONS",
+    "NODE_PATH",
+    "LD_PRELOAD",
+    "LD_LIBRARY_PATH",
+    "LD_AUDIT",
+    "DYLD_INSERT_LIBRARIES",
+    "DYLD_LIBRARY_PATH",
+    "DYLD_FRAMEWORK_PATH",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+    "NODE_TLS_REJECT_UNAUTHORIZED",
+    "NODE_EXTRA_CA_CERTS",
+    "BASH_ENV",
+    "ENV",
+    "SSLKEYLOGFILE",
+    "GCONV_PATH",
+];
+
 /// Windows: 设置 CREATE_NO_WINDOW 标志防止子进程弹出控制台窗口
 #[allow(unused_variables)]
 pub fn suppress_console_window(cmd: &mut std::process::Command) {

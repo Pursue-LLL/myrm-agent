@@ -28,9 +28,13 @@ class WavePaths:
 def resolve_wave_paths() -> WavePaths:
     dev_dir = Path(__file__).resolve().parent.parent
     agent_root = dev_dir.parent
-    state_dir = Path(
-        os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev")
-    ).resolve()
+    wave_override = os.environ.get("MYRM_WAVE_STATE_DIR", "").strip()
+    if wave_override:
+        state_dir = Path(wave_override).resolve()
+    else:
+        state_dir = Path(
+            os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev")
+        ).resolve()
     server_python = agent_root / "myrm-agent-server" / ".venv" / "bin" / "python"
     return WavePaths(
         state_dir=state_dir,

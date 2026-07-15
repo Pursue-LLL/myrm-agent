@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
 | `cors_validator.py` | 模块 | CORS 配置和验证 | ✅ |
-| `frontend_launcher.py` | 模块 | Next.js standalone frontend launcher for WebUI mode. | ✅ |
+| `frontend_launcher.py` | 模块 | Next.js standalone 前端启动器（环境检测、端口协调、毒性环境变量清洗、进程生命周期、崩溃重启） | ✅ |
 | `idle_handlers.py` | 模块 | Server-side idle task handlers. | ✅ |
 | `ingress.py` | 模块 | 公网 Ingress 单一解析入口；30s 内存缓存 + `invalidate_public_ingress_cache()`，避免 AuthMiddleware 每条 API 请求打 DB | ✅ |
 | `ingress_requirement.py` | 模块 | 汇总已配置渠道与 Cron Webhook，判定是否需公网 Ingress；供 `/system/ingress-requirement` 与渠道 issues 补充。 | ✅ |

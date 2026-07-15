@@ -11,7 +11,7 @@
 | `frontend-warmup.sh` | Unix | Frontend `shell_hot` gate（curl `/`）+ `client_hot`（CDP hydration）+ warmth JSON；定义 `_lock_supervisor_alive`（frontend lock pid 存活） |
 | `frontend-client-warmup.py` | Unix | CDP navigate `:3000/` until `[data-testid="app-layout"]` + `[data-chat-input]`（无 MessageListSkeleton）；注册 `cdp-transient-targets.json` |
 | `cdp_chat_ui.py` | Unix | WebUI chat 自动化稳定导出层；实现按 transport/bootstrap/input/submit/turn/support 拆分 |
-| `chrome_mcp_client.py` / `mcp_chat_ui.py` | Unix | 正式 pytest UI E2E 的 MCP JSON-RPC client；`mcp_chat_ui` 导出 `is_detached_frame_error`（单次 navigate heal，禁止 new_page 重放）；`E2E_UI_BASE` 默认 UI 基址；每页绑定 exact targetId + Wave READ lease |
+| `chrome_mcp_client.py` / `chrome_mcp_errors.py` / `mcp_chat_ui.py` | Unix | 正式 pytest UI E2E 的 MCP JSON-RPC client；`chrome_mcp_errors` 集中 mux 错误分类；`chrome_mcp_client` 负责 page reclaim（`reclaim_owned_page`）；`mcp_chat_ui` 导出 `is_mux_page_heal_error`（单次 ownership/context-reset reclaim）；`E2E_UI_BASE` 默认 UI 基址；每页绑定 exact targetId + Wave READ lease |
 | `cdp_chat_{transport,bootstrap,input,submit,turn,support}.py` | Unix | transport-independent chat UI 工作流；MCP 与 client warmup 复用 |
 | `cdp_transient_targets.py` | Unix | Preflight client warmup 短生命周期 target 归属 ledger；只按死亡 owner 的 exact targetId 回收 |
 | `cdp_write_guard.py` | Unix | raw `/json/new` 永久拒绝；仅 supervisor `MYRM_CDP_WARMUP=1` 预热例外 |

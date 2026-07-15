@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import BASE_URL, open_mcp_page, wait_for_state
+from tests.support.chrome_mcp_e2e import get_e2e_ui_url, open_mcp_page, wait_for_state
 
-RESEARCH_URL = f"{BASE_URL}/research"
+RESEARCH_URL = f"{get_e2e_ui_url()}/research"
 
 _DISMISS_MIGRATION_JS = """(() => {
   sessionStorage.setItem('migration_discovery_dismissed', 'true');

@@ -7,6 +7,8 @@ from typing import Protocol
 from mcp_protocol import text_content
 from mcp_snapshot import McpSnapshot, SnapshotNode
 
+_MCP_UI_MIN_TIMEOUT_SEC = 15.0
+
 
 class McpToolCaller(Protocol):
     def __call__(
@@ -29,7 +31,7 @@ class McpUiDriver:
         result = self._call_tool(
             "take_snapshot",
             {"pageId": self._page_id, "verbose": False},
-            timeout_sec=5.0,
+            timeout_sec=_MCP_UI_MIN_TIMEOUT_SEC,
         )
         return McpSnapshot.parse(text_content(result))
 
@@ -59,7 +61,7 @@ class McpUiDriver:
         self._call_tool(
             "click",
             {"pageId": self._page_id, "uid": node.uid},
-            timeout_sec=5.0,
+            timeout_sec=_MCP_UI_MIN_TIMEOUT_SEC,
         )
 
     def fill(
@@ -74,7 +76,7 @@ class McpUiDriver:
         self._call_tool(
             "fill",
             {"pageId": self._page_id, "uid": node.uid, "value": value},
-            timeout_sec=5.0,
+            timeout_sec=_MCP_UI_MIN_TIMEOUT_SEC,
         )
 
     def wait_for_text(self, *text: str, timeout_ms: int = 5_000) -> None:

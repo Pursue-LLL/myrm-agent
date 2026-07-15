@@ -16,10 +16,10 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
+from cdp_chat_support import get_e2e_ui_url  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 
-BASE_URL = "http://127.0.0.1:3000/"
-STATE_URL = f"{BASE_URL}theme-init.js"
+STATE_URL = f"{get_e2e_ui_url()}/theme-init.js"
 
 
 class PageProbe(TypedDict):
@@ -78,7 +78,7 @@ def _read_browser_globals(
 
 def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
     with ChromeMcpClient() as client:
-        page = client.new_page(BASE_URL, timeout_ms=15_000)
+        page = client.new_page(f"{get_e2e_ui_url()}/", timeout_ms=15_000)
         deadline = time.monotonic() + 15.0
         raw: object = None
         while time.monotonic() < deadline:
@@ -119,7 +119,7 @@ def test_three_mux_clients_own_interactive_tabs_concurrently() -> None:
     assert len({item["page_id"] for item in results}) == 3
     assert len({item["target_id"] for item in results}) == 3
     for item in results:
-        assert item["href"] == BASE_URL
+        assert item["href"] == f"{get_e2e_ui_url()}/"
         assert item["body_length"] > 0
         assert item["has_layout"] is True
         assert item["has_input"] is True

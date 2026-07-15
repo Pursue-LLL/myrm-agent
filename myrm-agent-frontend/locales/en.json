@@ -5400,7 +5400,16 @@
       "description": "You can keep using the app while configuration status refreshes.",
       "retry": "Retry check"
     },
-    "operationFailed": "Operation failed"
+    "operationFailed": "Operation failed",
+    "crashRecovery": {
+      "title": "Service Unavailable",
+      "description": "The backend service failed to start after multiple attempts. Your data is safe on disk.",
+      "exportDatabase": "Export Database",
+      "viewLogs": "View Logs",
+      "retryStart": "Retry",
+      "hint": "Your data is stored locally and will not be lost. Export a backup before reinstalling if needed.",
+      "selectExportFolder": "Select export folder"
+    }
   },
   "chat": {
     "jumpBar": {

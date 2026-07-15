@@ -6,6 +6,7 @@ pub mod agent;
 pub mod config;
 pub mod pet_overlay;
 pub mod power;
+pub mod recovery;
 pub mod screen_lock;
 pub mod session_window;
 pub mod visual_approval_overlay;

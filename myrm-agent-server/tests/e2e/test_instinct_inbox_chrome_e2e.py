@@ -6,7 +6,13 @@ import urllib.parse
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import API_URL, BASE_URL, http_json, open_mcp_page, wait_for_state
+from tests.support.chrome_mcp_e2e import (
+    get_e2e_api_url,
+    get_e2e_ui_url,
+    http_json,
+    open_mcp_page,
+    wait_for_state,
+)
 
 _INBOX_STATE = """(() => {
   const panel = document.querySelector('[data-testid="instinct-inbox-panel"]');
@@ -30,14 +36,18 @@ _INBOX_STATE = """(() => {
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_instinct_inbox_renders_and_rejects_seeded_drafts() -> None:
-    seed_url = f"{API_URL}/api/v1/skills/drafts/test/seed-mock?" + urllib.parse.urlencode({"agent_id": "builtin-general"})
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    seed_url = f"{api_url}/api/v1/skills/drafts/test/seed-mock?" + urllib.parse.urlencode(
+        {"agent_id": "builtin-general"}
+    )
     seeded = http_json("POST", seed_url)
     assert isinstance(seeded, dict)
     created_ids = seeded.get("created_ids")
     assert isinstance(created_ids, list) and all(isinstance(item, str) for item in created_ids)
 
     try:
-        with open_mcp_page(f"{BASE_URL}/settings/agents?agentId=builtin-general") as (client, page):
+        with open_mcp_page(f"{ui_url}/settings/agents?agentId=builtin-general") as (client, page):
             state = wait_for_state(client, page, _INBOX_STATE)
             names = state.get("names")
             assert isinstance(names, list)
@@ -67,6 +77,6 @@ def test_instinct_inbox_renders_and_rejects_seeded_drafts() -> None:
         for draft_id in created_ids:
             http_json(
                 "POST",
-                f"{API_URL}/api/v1/skills/drafts/{draft_id}/reject",
+                f"{api_url}/api/v1/skills/drafts/{draft_id}/reject",
                 expected_statuses=frozenset({200, 404}),
             )

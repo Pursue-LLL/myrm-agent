@@ -13,8 +13,8 @@ def get_e2e_api_url() -> str:
     return os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
 
 
-# Backward-compatible alias; always resolve dynamically for SHPOIB private pools.
-API_URL = get_e2e_api_url()
+def get_e2e_ui_url() -> str:
+    return os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 _OK_REPLY_RE = re.compile(r"(?:\bOK\b|GOAL_OK)", re.IGNORECASE)
 
 
@@ -61,6 +61,20 @@ def _api_provider_ready() -> bool:
         return False
     provider = payload.get("provider")
     return isinstance(provider, dict) and bool(provider.get("is_ready"))
+
+
+def wait_e2e_provider_ready(
+    *,
+    timeout_sec: float = 60.0,
+    poll_interval_sec: float = 1.0,
+) -> bool:
+    """Poll private-pool readiness until provider seed is ready (SHPOIB bootstrap race)."""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        if _api_provider_ready():
+            return True
+        time.sleep(poll_interval_sec)
+    return False
 
 
 _CHAT_ID_PATH_RE = re.compile(

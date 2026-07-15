@@ -142,6 +142,10 @@ impl SidecarManager {
             Command::new(sidecar_path)
         };
 
+        for var in crate::runtime::TOXIC_ENV_VARS {
+            cmd.env_remove(var);
+        }
+
         crate::runtime::suppress_console_window(&mut cmd);
         let mut child = cmd
             .stdin(Stdio::piped())

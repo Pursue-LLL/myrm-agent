@@ -27,11 +27,12 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
+from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 
-BASE_URL = "http://127.0.0.1:3000"
-API_URL = "http://127.0.0.1:8080"
-VOICE_SETTINGS_URL = f"{BASE_URL}/settings/channels?sub=voice"
+
+def _voice_settings_url() -> str:
+    return f"{get_e2e_ui_url()}/settings/channels?sub=voice"
 
 _DISMISS_MIGRATION_JS = """(() => {
   sessionStorage.setItem('migration_discovery_dismissed', 'true');
@@ -83,7 +84,7 @@ def _http_json(method: str, url: str, body: dict[str, object] | None = None) -> 
 def _server_reachable() -> bool:
     try:
         with urllib.request.urlopen(  # noqa: S310 - fixed loopback URL
-            f"{API_URL}/api/v1/health/info",
+            f"{get_e2e_api_url()}/api/v1/health/info",
             timeout=5,
         ):
             return True
@@ -93,13 +94,13 @@ def _server_reachable() -> bool:
 
 def _require_live_stack() -> None:
     if not _server_reachable():
-        pytest.skip("Live server :8080 not reachable — run ./myrm ready")
+        pytest.fail("Live E2E API not reachable — run via ./myrm test -m e2e after ./myrm ready --chrome")
 
 
 def _ensure_voice_feature_enabled() -> None:
     _http_json(
         "POST",
-        f"{API_URL}/api/v1/features/voice_interaction/toggle",
+        f"{get_e2e_api_url()}/api/v1/features/voice_interaction/toggle",
         {"enabled": True},
     )
 
@@ -107,7 +108,7 @@ def _ensure_voice_feature_enabled() -> None:
 def _put_edge_voice_config() -> None:
     _http_json(
         "PUT",
-        f"{API_URL}/api/v1/config/voice",
+        f"{get_e2e_api_url()}/api/v1/config/voice",
         {
             "deviceId": "web",
             "value": {
@@ -140,7 +141,7 @@ def _put_edge_voice_config() -> None:
 def _seed_voice_and_personal_settings() -> None:
     _ensure_voice_feature_enabled()
     _put_edge_voice_config()
-    personal = _http_json("GET", f"{API_URL}/api/v1/config/personalSettings")
+    personal = _http_json("GET", f"{get_e2e_api_url()}/api/v1/config/personalSettings")
     assert isinstance(personal, dict)
     value = personal.get("value")
     if not isinstance(value, dict):
@@ -148,21 +149,21 @@ def _seed_voice_and_personal_settings() -> None:
     value = {**value, "webTtsProvider": "edge"}
     _http_json(
         "PUT",
-        f"{API_URL}/api/v1/config/personalSettings",
+        f"{get_e2e_api_url()}/api/v1/config/personalSettings",
         {"deviceId": "web", "value": value},
     )
 
 
 def _edge_tts_available() -> bool:
     try:
-        info = _http_json("GET", f"{API_URL}/api/v1/health/info")
+        info = _http_json("GET", f"{get_e2e_api_url()}/api/v1/health/info")
     except Exception:
         return False
     return isinstance(info, dict) and info.get("edge_tts_available") is True
 
 
 def _feature_override_snapshot() -> tuple[bool, bool]:
-    payload = _http_json("GET", f"{API_URL}/api/v1/features")
+    payload = _http_json("GET", f"{get_e2e_api_url()}/api/v1/features")
     if not isinstance(payload, dict) or not isinstance(payload.get("features"), list):
         raise AssertionError(f"Invalid feature status payload: {payload!r}")
     for item in payload["features"]:
@@ -172,7 +173,7 @@ def _feature_override_snapshot() -> tuple[bool, bool]:
 
 
 def _config_value_snapshot(key: str) -> dict[str, object]:
-    payload = _http_json("GET", f"{API_URL}/api/v1/config/{key}")
+    payload = _http_json("GET", f"{get_e2e_api_url()}/api/v1/config/{key}")
     if not isinstance(payload, dict) or not isinstance(payload.get("value"), dict):
         raise AssertionError(f"Invalid {key} config payload: {payload!r}")
     return payload["value"]
@@ -192,24 +193,24 @@ def restore_global_voice_state() -> Iterator[None]:
     finally:
         _http_json(
             "PUT",
-            f"{API_URL}/api/v1/config/voice",
+            f"{get_e2e_api_url()}/api/v1/config/voice",
             {"deviceId": "web", "value": voice},
         )
         _http_json(
             "PUT",
-            f"{API_URL}/api/v1/config/personalSettings",
+            f"{get_e2e_api_url()}/api/v1/config/personalSettings",
             {"deviceId": "web", "value": personal},
         )
         if feature_overridden:
             _http_json(
                 "POST",
-                f"{API_URL}/api/v1/features/voice_interaction/toggle",
+                f"{get_e2e_api_url()}/api/v1/features/voice_interaction/toggle",
                 {"enabled": feature_enabled},
             )
         else:
             _http_json(
                 "POST",
-                f"{API_URL}/api/v1/features/voice_interaction/reset",
+                f"{get_e2e_api_url()}/api/v1/features/voice_interaction/reset",
             )
 
 
@@ -220,7 +221,7 @@ def chrome_page(
     client = ChromeMcpClient()
     client.start()
     try:
-        page = client.new_page(f"{BASE_URL}/", timeout_ms=15_000)
+        page = client.new_page(f"{get_e2e_ui_url()}/", timeout_ms=15_000)
         yield client, page
     finally:
         client.close()
@@ -233,7 +234,7 @@ def voice_chrome_page(
     client = ChromeMcpClient()
     client.start()
     try:
-        page = client.new_page(f"{BASE_URL}/", timeout_ms=15_000)
+        page = client.new_page(f"{get_e2e_ui_url()}/", timeout_ms=15_000)
         yield client, page
     finally:
         client.close()
@@ -285,9 +286,9 @@ class _McpSession:
 
     async def wait_voice_settings(self) -> dict[str, object]:
         await self.dismiss_migration()
-        await self.navigate(f"{BASE_URL}/")
+        await self.navigate(f"{get_e2e_ui_url()}/")
         await self.wait_app_layout()
-        await self.navigate(VOICE_SETTINGS_URL)
+        await self.navigate(_voice_settings_url())
         ready: dict[str, object] = {}
         for _ in range(45):
             state = await self.eval(_VOICE_PROBE_JS, await_promise=False)
@@ -315,17 +316,17 @@ async def _probe_read_aloud_fetch(
 ) -> dict[str, object]:
     async with _McpSession(client, page) as cdp:
         await cdp.dismiss_migration()
-        await cdp.navigate(f"{BASE_URL}/")
+        await cdp.navigate(f"{get_e2e_ui_url()}/")
         await cdp.wait_app_layout()
         result = await cdp.eval(
             f"""(async () => {{
               try {{
-                await fetch({json.dumps(BASE_URL + "/api/v1/features/voice_interaction/toggle")}, {{
+                await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/features/voice_interaction/toggle")}, {{
                   method: 'POST',
                   headers: {{ 'Content-Type': 'application/json' }},
                   body: JSON.stringify({{ enabled: true }}),
                 }});
-                const resp = await fetch({json.dumps(BASE_URL + "/api/v1/tts/synthesize")}, {{
+                const resp = await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/tts/synthesize")}, {{
                   method: 'POST',
                   headers: {{ 'Content-Type': 'application/json' }},
                   body: JSON.stringify({{ text: 'edge parallel read aloud', provider: 'edge' }}),
@@ -375,7 +376,7 @@ def test_live_tts_synthesize_after_voice_config() -> None:
     _ensure_voice_feature_enabled()
     _put_edge_voice_config()
     req = urllib.request.Request(  # noqa: S310 - fixed loopback URL
-        f"{API_URL}/api/v1/tts/synthesize",
+        f"{get_e2e_api_url()}/api/v1/tts/synthesize",
         data=json.dumps({"text": "edge tts chrome e2e"}).encode(),
         method="POST",
         headers={"Content-Type": "application/json"},
@@ -403,18 +404,18 @@ async def test_read_aloud_edge_api_from_browser_context(
     client, page = chrome_page
     async with _McpSession(client, page) as cdp:
         await cdp.dismiss_migration()
-        await cdp.navigate(f"{BASE_URL}/")
+        await cdp.navigate(f"{get_e2e_ui_url()}/")
         await cdp.wait_app_layout()
 
         result = await cdp.eval(
             f"""(async () => {{
               try {{
-                await fetch({json.dumps(BASE_URL + "/api/v1/features/voice_interaction/toggle")}, {{
+                await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/features/voice_interaction/toggle")}, {{
                   method: 'POST',
                   headers: {{ 'Content-Type': 'application/json' }},
                   body: JSON.stringify({{ enabled: true }}),
                 }});
-                const resp = await fetch({json.dumps(BASE_URL + "/api/v1/tts/synthesize")}, {{
+                const resp = await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/tts/synthesize")}, {{
                   method: 'POST',
                   headers: {{ 'Content-Type': 'application/json' }},
                   body: JSON.stringify({{ text: 'edge read aloud e2e', provider: 'edge' }}),
@@ -455,8 +456,8 @@ async def test_edge_tts_parallel_tabs_isolated(_require_live_e2e_lease: None) ->
 
     try:
         voice_tab, read_tab = await asyncio.gather(
-            asyncio.to_thread(voice_client.new_page, f"{BASE_URL}/", timeout_ms=15_000),
-            asyncio.to_thread(read_client.new_page, f"{BASE_URL}/", timeout_ms=15_000),
+            asyncio.to_thread(voice_client.new_page, f"{get_e2e_ui_url()}/", timeout_ms=15_000),
+            asyncio.to_thread(read_client.new_page, f"{get_e2e_ui_url()}/", timeout_ms=15_000),
         )
         voice_result, read_result = await asyncio.gather(
             _probe_voice_banner(voice_client, voice_tab),

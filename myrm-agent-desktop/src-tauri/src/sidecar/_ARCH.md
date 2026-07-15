@@ -12,7 +12,7 @@ Agent Runner **运行时**进程管理：启动 Bun compile 二进制，JSON-RPC
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `mod.rs` | 核心 | SidecarManager、JSON-RPC 请求/通知、进程生命周期 | — |
+| `mod.rs` | 核心 | SidecarManager、JSON-RPC 请求/通知、进程生命周期、spawn 前毒性环境变量清洗 | — |
 
 ## 依赖
 

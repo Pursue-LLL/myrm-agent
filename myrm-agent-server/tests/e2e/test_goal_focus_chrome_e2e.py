@@ -20,6 +20,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
+from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
@@ -27,27 +28,13 @@ from mcp_chat_ui import McpChatSession  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
-API_URL = os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
 E2E_PROMPT = "只回复 OK"
-
-
-def _provider_ready() -> bool:
-    try:
-        resp = urllib.request.urlopen(  # noqa: S310 - fixed loopback E2E endpoint
-            f"{API_URL}/api/v1/config/readiness",
-            timeout=5,
-        )
-        payload = json.loads(resp.read())
-    except Exception:
-        return False
-    provider = payload.get("provider")
-    return isinstance(provider, dict) and bool(provider.get("is_ready"))
 
 
 def _fetch_goal_status(chat_id: str) -> dict[str, object] | None:
     try:
         resp = urllib.request.urlopen(  # noqa: S310
-            f"{API_URL}/api/v1/goals/{chat_id}/status",
+            f"{get_e2e_api_url()}/api/v1/goals/{chat_id}/status",
             timeout=15,
         )
         payload = json.loads(resp.read())
@@ -64,7 +51,7 @@ def _fetch_goal_status(chat_id: str) -> dict[str, object] | None:
 async def test_chrome_ui_goal_mode_stream(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    if not _provider_ready():
+    if not wait_e2e_provider_ready():
         pytest.fail(
             "Provider config not ready for live Goal E2E — run via ./myrm test -m e2e "
             "after ./myrm ready --chrome (preflight seeds model; "
@@ -119,7 +106,7 @@ async def test_chrome_ui_goal_mode_stream(
     async def _run_goal_turn() -> str:
         client = ChromeMcpClient(request_timeout_sec=120.0)
         await asyncio.to_thread(client.start)
-        isolated = f"e2e-goal-focus-{os.getpid()}"
+        isolated = f"e2e-goal-focus-{os.environ.get('MYRM_WAVE_AGENT_ID', str(os.getpid()))}"
         try:
             page: McpPage | None = None
             try:

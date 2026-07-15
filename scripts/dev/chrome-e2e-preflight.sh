@@ -54,7 +54,11 @@ _wait_api_config_ready() {
   [[ "${max_attempts}" -gt 0 ]] || max_attempts=60
   while [[ "${attempt}" -lt "${max_attempts}" ]]; do
     if curl -sf --max-time 5 "${API_BASE}/api/v1/config/readiness" \
-      | python3 -c 'import json,sys; d=json.load(sys.stdin); p=d.get("provider") or {}; miss=set(p.get("missing_items") or []); print(not (miss & {"config_load_failed","config_load_timeout"}))' \
+      | python3 -c 'import json,sys; raw=sys.stdin.read().strip();
+if not raw:
+    print(False)
+else:
+    d=json.loads(raw); p=d.get("provider") or {}; miss=set(p.get("missing_items") or []); print(not (miss & {"config_load_failed","config_load_timeout"}))' \
       | grep -q True; then
       return 0
     fi

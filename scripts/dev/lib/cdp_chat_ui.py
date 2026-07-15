@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from cdp_chat_support import (
-    API_URL,
     DISMISS_MODALS_JS,
     E2E_BRIDGE_INSTALL_JS,
     MODEL_PROBE_JS,
@@ -17,7 +16,10 @@ from cdp_chat_support import (
     chat_user_message_count,
     count_execution_cache_in_log,
     fetch_chat_messages,
+    get_e2e_api_url,
+    get_e2e_ui_url,
     snapshot_backend_log_offset,
+    wait_e2e_provider_ready,
     warmup_frontend,
 )
 from cdp_chat_transport import CdpSocket
@@ -29,7 +31,6 @@ class CdpChatSession(CdpChatTurn):
 
 
 __all__ = [
-    "API_URL",
     "CdpChatSession",
     "CdpSocket",
     "DISMISS_MODALS_JS",
@@ -45,6 +46,9 @@ __all__ = [
     "chat_user_message_count",
     "count_execution_cache_in_log",
     "fetch_chat_messages",
+    "get_e2e_api_url",
+    "get_e2e_ui_url",
     "snapshot_backend_log_offset",
+    "wait_e2e_provider_ready",
     "warmup_frontend",
 ]

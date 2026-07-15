@@ -23,6 +23,7 @@ use uuid::Uuid;
 
 use crate::runtime::port::is_port_in_use;
 use crate::runtime::setup_token::SetupTokenState;
+use crate::runtime::TOXIC_ENV_VARS;
 
 const BACKEND_HEALTH_POLL_INTERVAL: Duration = Duration::from_millis(500);
 const BACKEND_HEALTH_MAX_ATTEMPTS: u32 = 60;
@@ -146,6 +147,10 @@ pub async fn start_backend_with_config(
 
         Command::new(sidecar_path)
     };
+
+    for var in TOXIC_ENV_VARS {
+        cmd.env_remove(var);
+    }
 
     cmd.env("DEPLOY_MODE", "local")
         .env("PORT", config.port.to_string())

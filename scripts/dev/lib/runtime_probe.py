@@ -157,8 +157,7 @@ def probe_runtime_context() -> RuntimeProbeContext:
 
 
 def _read_shared_hot_stack_runtime_id() -> str:
-    from runtime_identity import read_stack_scoped_runtime_id
-
+    """Full hot-stack runtimeId for SHPOIB private pools (matches supervisor reaper)."""
     shared_state = Path.home() / ".local/state/myrm-dev"
     overrides = {
         "MYRM_DEV_STATE_DIR": str(shared_state),
@@ -170,10 +169,31 @@ def _read_shared_hot_stack_runtime_id() -> str:
         "MYRM_FRONTEND_PORT": "3000",
         "E2E_UI_BASE": "http://127.0.0.1:3000",
     }
-    saved = {key: os.environ.get(key) for key in overrides}
+    saved = {
+        key: os.environ.get(key)
+        for key in (
+            *overrides,
+            "MYRM_PRIVATE_BACKEND",
+            "MYRM_E2E_PRIVATE_BACKEND",
+            "MYRM_E2E_ISOLATED",
+        )
+    }
     try:
         os.environ.update(overrides)
-        return read_stack_scoped_runtime_id()
+        os.environ.pop("MYRM_PRIVATE_BACKEND", None)
+        os.environ.pop("MYRM_E2E_PRIVATE_BACKEND", None)
+        os.environ.pop("MYRM_E2E_ISOLATED", None)
+        ctx = probe_runtime_context()
+        parts = collect_runtime_parts(
+            frontend_dir=Path(ctx["frontend_dir"]) if ctx["frontend_dir"] else None,
+            cdp_port=ctx["cdp_port"],
+            profile_dir=Path(ctx["profile_dir"]),
+            upstream_ready=ctx["upstream_ready"],
+            upstream_generation=ctx["upstream_generation"],
+            ws_stamp_matches=ctx["ws_stamp_matches"],
+            mux_daemon_count=ctx["mux_daemon_count"],
+        )
+        return compute_runtime_id(parts)
     finally:
         for key, value in saved.items():
             if value is None:

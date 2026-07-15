@@ -6,7 +6,6 @@ import asyncio
 import json
 import os
 import sys
-import urllib.request
 from pathlib import Path
 
 import pytest
@@ -20,29 +19,16 @@ from cdp_chat_ui import (  # noqa: E402
     chat_user_message_count,
     count_execution_cache_in_log,
     snapshot_backend_log_offset,
+    wait_e2e_provider_ready,
 )
-from chrome_mcp_client import ChromeMcpClient  # noqa: E402
+from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
-API_URL = os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
 E2E_PROMPT = "只回复 OK"
 TURN_WAIT_SEC = 300.0
-
-
-def _provider_ready() -> bool:
-    try:
-        response = urllib.request.urlopen(  # noqa: S310 - fixed loopback endpoint
-            f"{API_URL}/api/v1/config/readiness",
-            timeout=5,
-        )
-        payload = json.loads(response.read())
-    except Exception:
-        return False
-    provider = payload.get("provider")
-    return isinstance(provider, dict) and bool(provider.get("is_ready"))
 
 
 def _extract_chat_id(url: str) -> str | None:
@@ -81,16 +67,16 @@ async def _resolve_chat_id(
 async def test_chrome_ui_same_chat_two_ok_messages(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    if not _provider_ready():
-        pytest.skip(
-            "Provider config not ready - configure a model at /settings/models"
+    if not wait_e2e_provider_ready():
+        pytest.fail(
+            "Provider config not ready for live E2E — run via ./myrm test -m e2e "
+            "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)"
         )
 
-    log_offset = snapshot_backend_log_offset()
-
-    async def run_chat_flow(chat: McpChatSession) -> None:
+    async def run_chat_flow(chat: McpChatSession) -> int:
         await chat.bootstrap(BASE_URL, navigate=False, timeout_sec=120.0)
         await chat.click_new_chat()
+        log_offset = snapshot_backend_log_offset()
         await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         after_first = await chat.wait_turn_done(E2E_PROMPT, timeout_sec=TURN_WAIT_SEC)
         if str(after_first.get("path", "")).startswith("/settings"):
@@ -118,19 +104,32 @@ async def test_chrome_ui_same_chat_two_ok_messages(
             f"Expected two user messages in chat {chat_id}: "
             f"{after_first} -> {after_second}"
         )
+        return log_offset
 
     client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
     agent_tag = os.environ.get("MYRM_WAVE_AGENT_ID", str(os.getpid()))
     isolated = f"e2e-execution-cache-{agent_tag}"
     try:
-        page = await asyncio.to_thread(
-            client.new_page,
-            BASE_URL,
-            timeout_ms=120_000,
-            isolated_context=isolated,
-        )
-        await run_chat_flow(McpChatSession(client, page))
+        page: McpPage | None = None
+        try:
+            page = await asyncio.to_thread(
+                client.new_page,
+                BASE_URL,
+                timeout_ms=120_000,
+                isolated_context=isolated,
+            )
+        except TimeoutError:
+            await asyncio.sleep(2.0)
+            page = await asyncio.to_thread(
+                client.new_page,
+                BASE_URL,
+                timeout_ms=120_000,
+                isolated_context=isolated,
+            )
+        if page is None:
+            raise RuntimeError("new_page returned no page")
+        log_offset = await run_chat_flow(McpChatSession(client, page))
     finally:
         await asyncio.to_thread(client.close)
 

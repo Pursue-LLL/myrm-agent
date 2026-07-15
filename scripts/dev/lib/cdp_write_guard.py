@@ -26,8 +26,12 @@ class CdpWriteDecision(TypedDict):
 
 
 def _state_file() -> Path:
-    override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
-    root = Path(override) if override else Path.home() / ".local/state/myrm-dev"
+    wave_override = os.getenv("MYRM_WAVE_STATE_DIR", "").strip()
+    if wave_override:
+        root = Path(wave_override)
+    else:
+        override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
+        root = Path(override) if override else Path.home() / ".local/state/myrm-dev"
     return root / "wave-orchestrator.json"
 
 

@@ -7,7 +7,12 @@ import os
 
 from cdp_chat_support import e2e_api_base_inject_js
 from cdp_chat_ui import CdpChatSession
-from chrome_mcp_client import ChromeMcpClient, McpPage
+from chrome_mcp_client import (
+    ChromeMcpClient,
+    McpPage,
+    is_context_reset_error,
+    is_page_ownership_error,
+)
 
 _DETACHED_FRAME_TOKENS = (
     "detached Frame",
@@ -18,6 +23,10 @@ _DETACHED_FRAME_TOKENS = (
 def is_detached_frame_error(exc: BaseException) -> bool:
     message = str(exc)
     return any(token in message for token in _DETACHED_FRAME_TOKENS)
+
+
+def is_mux_page_heal_error(exc: BaseException) -> bool:
+    return is_page_ownership_error(exc) or is_context_reset_error(exc)
 
 
 def _default_e2e_ui_base() -> str:
@@ -54,6 +63,10 @@ class McpChatSession(CdpChatSession):
                     healed = True
                     await self._heal_detached_page()
                     continue
+                if not healed and is_mux_page_heal_error(exc):
+                    healed = True
+                    await self._heal_reclaimed_page()
+                    continue
                 raise
 
     async def _inject_e2e_api_base(self) -> None:
@@ -63,6 +76,19 @@ class McpChatSession(CdpChatSession):
         try:
             await self.evaluate(inject_js, await_promise=False, recv_timeout=15.0)
         except RuntimeError:
+            pass
+
+    async def _heal_reclaimed_page(self) -> None:
+        reopened = await asyncio.to_thread(
+            self._client.reclaim_owned_page,
+            self._page,
+        )
+        self._page = reopened
+        await asyncio.sleep(1.0)
+        await self._inject_e2e_api_base()
+        try:
+            await self.wait_shell_ready(timeout_sec=60.0, require_bridge=True)
+        except TimeoutError:
             pass
 
     async def _heal_detached_page(self) -> None:

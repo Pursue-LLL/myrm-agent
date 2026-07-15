@@ -90,6 +90,8 @@ pub fn run() {
             crate::commands::session_window::close_session_window,
             crate::commands::config::force_appshot_capture,
             crate::commands::config::migrate_data_dir,
+            crate::commands::recovery::export_local_sqlite,
+            crate::commands::recovery::reveal_app_folder,
             crate::tray::set_tray_status
         ])
         .build(tauri::generate_context!())

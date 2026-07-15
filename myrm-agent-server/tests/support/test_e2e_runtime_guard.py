@@ -156,6 +156,46 @@ def test_rejects_runtime_drift(
         assert_e2e_runtime_unchanged(lease, runtime_id_reader=lambda: "runtime-2")
 
 
+def test_private_backend_reads_shared_wave_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    private_state = tmp_path / "private-state"
+    private_state.mkdir()
+    wave_state = tmp_path / "wave-state"
+    wave_state.mkdir()
+    (wave_state / "wave-orchestrator.json").write_text(
+        json.dumps(
+            {
+                "version": 2,
+                "wave": {"status": "open", "runtimeId": "runtime-1"},
+                "leases": [
+                    {
+                        "leaseId": "lease-1",
+                        "agentId": "test-agent",
+                        "lane": "LIVE_AGENT",
+                        "runtimeId": "runtime-1",
+                        "status": "active",
+                        "expiresAt": (datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
+                    }
+                ],
+                "resources": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(private_state))
+    monkeypatch.setenv("MYRM_WAVE_STATE_DIR", str(wave_state))
+    monkeypatch.setenv("MYRM_E2E_PRIVATE_RUNTIME_ID", "myrm-test-private")
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
+
+    lease = require_e2e_runtime_lease(runtime_id_reader=lambda: "runtime-1")
+
+    assert lease.lease_id == "lease-1"
+    assert (private_state / "wave-orchestrator.json").exists() is False
+
+
 def test_isolated_mode_uses_stack_fingerprint(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

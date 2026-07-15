@@ -35,6 +35,24 @@ _MAX_RESTART_ATTEMPTS = 3
 _HEALTH_CHECK_TIMEOUT = 30
 _HEALTH_CHECK_INTERVAL = 0.5
 
+_TOXIC_NODE_ENV_VARS = (
+    "NODE_OPTIONS",
+    "NODE_PATH",
+    "NODE_TLS_REJECT_UNAUTHORIZED",
+    "NODE_EXTRA_CA_CERTS",
+    "LD_PRELOAD",
+    "LD_LIBRARY_PATH",
+    "DYLD_INSERT_LIBRARIES",
+    "DYLD_LIBRARY_PATH",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+    "SSLKEYLOGFILE",
+)
+
 
 class FrontendEnvironmentError(RuntimeError):
     """Raised when the frontend environment is not ready."""
@@ -289,6 +307,8 @@ class FrontendLauncher:
             "API_HOST": self._api_host,
             "API_PORT": str(self._api_port),
         }
+        for var in _TOXIC_NODE_ENV_VARS:
+            env.pop(var, None)
 
         # 架构升级：基于 stdin 管道的自杀机制，彻底解决僵尸进程问题
         # Python 退出（即使是被 SIGKILL 异常杀死），OS 都会自动关闭管道。

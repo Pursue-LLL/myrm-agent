@@ -17,6 +17,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
+from chrome_mcp_errors import (
+    is_benign_cleanup_error as _is_benign_cleanup_error,
+    is_context_reset_error,
+    is_page_ownership_error,
+    is_page_ownership_error_message as _is_page_ownership_error,
+    is_transient_mux_error as _is_transient_mux_error,
+)
 from mcp_page_lease_heartbeat import PageLeaseHeartbeat
 from mcp_protocol import parse_evaluate_result, parse_new_page, text_content
 
@@ -27,29 +34,6 @@ _TOOL_RETRY_ATTEMPTS = 3
 _PAGE_LEASE_TTL_SEC = int(os.environ.get("MYRM_PAGE_LEASE_TTL_SEC", "600"))
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
-_BENIGN_CLEANUP_TOKENS = (
-    "No target with given id",
-    "LEASE_NOT_ACTIVE",
-    "LEASE_NOT_FOUND",
-    "Target closed",
-    "detached Frame",
-    "No page found",
-)
-_TRANSIENT_MUX_ERROR_TOKENS = (
-    "page has been closed",
-    "Target closed",
-    "No page found",
-    "upstream terminated",
-    "MUX_NOT_READY",
-    "main frame too early",
-    "not owned by this shim session",
-    "LEASE_NOT_ACTIVE",
-    "context reset",
-)
-
-
-def _is_transient_mux_error(message: str) -> bool:
-    return any(token in message for token in _TRANSIENT_MUX_ERROR_TOKENS)
 
 
 def _wave_command_timeout_sec() -> float:
@@ -61,16 +45,13 @@ def _wave_command_timeout_sec() -> float:
     return 10.0
 
 
-def _is_benign_cleanup_error(message: str) -> bool:
-    return any(token in message for token in _BENIGN_CLEANUP_TOKENS)
-
-
 @dataclass(frozen=True, slots=True)
 class McpPage:
     page_id: int
     target_id: str
     lease_id: str
     context_id: str | None = None
+    url: str | None = None
 
 
 class ChromeMcpClient:
@@ -84,6 +65,7 @@ class ChromeMcpClient:
         self._stderr_lines: deque[str] = deque(maxlen=100)
         self._stderr_thread: threading.Thread | None = None
         self._pages: dict[int, McpPage] = {}
+        self._disconnected_pages: dict[int, McpPage] = {}
         self._page_lease_heartbeat = PageLeaseHeartbeat(
             self._heartbeat_lease,
             interval_sec=_PAGE_LEASE_HEARTBEAT_INTERVAL_SEC,
@@ -219,6 +201,7 @@ class ChromeMcpClient:
                 target_id=target_id,
                 lease_id=lease_id,
                 context_id=context_id,
+                url=url,
             )
             self._heartbeat_lease(lease_id)
             try:
@@ -232,10 +215,12 @@ class ChromeMcpClient:
                     target_id=target_id,
                     lease_id=lease_id,
                     context_id=context_id,
+                    url=url,
                 )
                 self._heartbeat_lease(lease_id)
                 self._bind_page_lease(page)
             self._pages[page_id] = page
+            self._disconnected_pages.pop(page_id, None)
             self._page_lease_heartbeat.track(lease_id)
             return page
         except Exception as exc:
@@ -272,6 +257,7 @@ class ChromeMcpClient:
         except (RuntimeError, TimeoutError) as exc:
             errors.append(f"close_page: {exc}")
         self._pages.pop(page.page_id, None)
+        self._disconnected_pages.pop(page.page_id, None)
         try:
             self._release_page_lease(page, unbind=not errors)
         except (RuntimeError, TimeoutError) as exc:
@@ -286,14 +272,49 @@ class ChromeMcpClient:
             return
         raise RuntimeError(message)
 
+    def _resolve_page(self, page: McpPage) -> McpPage:
+        tracked = self._pages.get(page.page_id)
+        if tracked is not None:
+            return tracked
+        for pages in (self._pages, self._disconnected_pages):
+            for candidate in pages.values():
+                if candidate.lease_id == page.lease_id:
+                    return candidate
+        return page
+
+    def _lookup_page_for_reclaim(self, page_id: int) -> McpPage | None:
+        page = self._pages.get(page_id)
+        if page is not None:
+            return page
+        page = self._disconnected_pages.get(page_id)
+        if page is not None:
+            return page
+        for pool in (self._pages, self._disconnected_pages):
+            for candidate in pool.values():
+                if candidate.page_id == page_id:
+                    return candidate
+        if len(self._pages) == 1:
+            return next(iter(self._pages.values()))
+        if len(self._disconnected_pages) == 1:
+            return next(iter(self._disconnected_pages.values()))
+        return None
+
+    def reclaim_owned_page(self, page: McpPage) -> McpPage:
+        """Reopen one mux-owned page after ownership loss and return the live page."""
+        resolved = self._lookup_page_for_reclaim(page.page_id) or page
+        reopened = self._reopen_owned_page(resolved)
+        self._disconnected_pages.pop(resolved.page_id, None)
+        return reopened
+
     def evaluate(
         self, page: McpPage, expression: str, *, timeout_sec: float = 15.0
     ) -> object:
+        resolved = self._resolve_page(page)
         function = f"async () => await (0, eval)({json.dumps(expression)})"
         effective_timeout = min(max(timeout_sec, _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC), self._request_timeout_sec)
         result = self.call_tool(
             "evaluate_script",
-            {"pageId": page.page_id, "function": function},
+            {"pageId": resolved.page_id, "function": function},
             timeout_sec=effective_timeout,
         )
         return parse_evaluate_result(result)
@@ -305,11 +326,12 @@ class ChromeMcpClient:
         *,
         timeout_ms: int = 15_000,
     ) -> None:
+        resolved = self._resolve_page(page)
         try:
             self.call_tool(
                 "navigate_page",
                 {
-                    "pageId": page.page_id,
+                    "pageId": resolved.page_id,
                     "type": "url",
                     "url": url,
                     "timeout": timeout_ms,
@@ -320,7 +342,7 @@ class ChromeMcpClient:
             if "timeout" not in str(exc).lower():
                 raise
             probe = self.evaluate(
-                page,
+                resolved,
                 "({href: location.href, bodyLength: document.body?.innerText?.length ?? 0})",
                 timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
             )
@@ -332,29 +354,121 @@ class ChromeMcpClient:
                 raise exc
 
     def reload(self, page: McpPage, *, timeout_ms: int = 15_000) -> None:
+        resolved = self._resolve_page(page)
         self.call_tool(
             "navigate_page",
-            {"pageId": page.page_id, "type": "reload", "timeout": timeout_ms},
+            {"pageId": resolved.page_id, "type": "reload", "timeout": timeout_ms},
             timeout_sec=min(timeout_ms / 1000 + 5, self._request_timeout_sec),
         )
 
     def press_key(self, page: McpPage, key: str) -> None:
+        resolved = self._resolve_page(page)
         self.call_tool(
             "press_key",
-            {"pageId": page.page_id, "key": key},
+            {"pageId": resolved.page_id, "key": key},
             timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
         )
 
     def type_text(self, page: McpPage, text: str) -> None:
+        resolved = self._resolve_page(page)
         self.call_tool(
             "type_text",
-            {"pageId": page.page_id, "text": text},
+            {"pageId": resolved.page_id, "text": text},
             timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
         )
+
+    def _reopen_owned_page(self, page: McpPage) -> McpPage:
+        reopen_url = (page.url or "http://127.0.0.1:3000").strip()
+        self._pages.pop(page.page_id, None)
+        try:
+            self.call_tool(
+                "close_page",
+                {"pageId": page.page_id},
+                timeout_sec=_CLEANUP_TIMEOUT_SEC,
+            )
+        except (RuntimeError, TimeoutError):
+            pass
+        arguments: dict[str, object] = {"url": reopen_url, "timeout": 120_000}
+        if page.context_id is not None:
+            arguments["isolatedContext"] = page.context_id
+        result = self.call_tool(
+            "new_page",
+            arguments,
+            timeout_sec=min(125.0, self._request_timeout_sec),
+        )
+        page_id, target_id = parse_new_page(result)
+        lease_id = page.lease_id
+        reopened = McpPage(
+            page_id=page_id,
+            target_id=target_id,
+            lease_id=lease_id,
+            context_id=page.context_id,
+            url=reopen_url,
+        )
+        self._heartbeat_lease(lease_id)
+        try:
+            self._bind_page_lease(reopened)
+        except RuntimeError as exc:
+            if "LEASE_NOT_ACTIVE" not in str(exc):
+                raise
+            lease_id = self._acquire_page_lease()
+            reopened = McpPage(
+                page_id=page_id,
+                target_id=target_id,
+                lease_id=lease_id,
+                context_id=page.context_id,
+                url=reopen_url,
+            )
+            self._heartbeat_lease(lease_id)
+            self._bind_page_lease(reopened)
+        self._pages[page_id] = reopened
+        self._page_lease_heartbeat.track(lease_id)
+        return reopened
+
+    def _call_tool_direct(
+        self,
+        name: str,
+        arguments: dict[str, object],
+        *,
+        timeout_sec: float | None = None,
+    ) -> dict[str, object]:
+        response = self._request(
+            "tools/call",
+            {"name": name, "arguments": arguments},
+            timeout_sec=timeout_sec,
+        )
+        result = response.get("result")
+        if not isinstance(result, dict):
+            raise RuntimeError(f"Chrome MCP {name} returned invalid result: {response}")
+        if result.get("isError") is True:
+            raise RuntimeError(f"Chrome MCP {name} failed: {text_content(result)}")
+        return result
+
+    def _maybe_reclaim_page_arguments(
+        self,
+        arguments: dict[str, object],
+        *,
+        error_message: str,
+    ) -> dict[str, object] | None:
+        if not _is_page_ownership_error(error_message):
+            return None
+        raw_page_id = arguments.get("pageId")
+        if not isinstance(raw_page_id, int):
+            return None
+        page = self._lookup_page_for_reclaim(raw_page_id)
+        if page is None:
+            return None
+        reopened = self._reopen_owned_page(page)
+        self._disconnected_pages.pop(page.page_id, None)
+        updated = dict(arguments)
+        updated["pageId"] = reopened.page_id
+        return updated
 
     def _recover_mux_transport(self) -> None:
         process = self._process
         self._process = None
+        if self._pages:
+            self._disconnected_pages.update(self._pages)
         self._pages.clear()
         if process is not None:
             try:
@@ -377,23 +491,35 @@ class ChromeMcpClient:
             self._page_lease_heartbeat.raise_if_failed()
         retry_tools = {"evaluate_script", "close_page", "new_page", "navigate_page"}
         last_error: BaseException | None = None
+        tool_arguments = dict(arguments)
         for attempt in range(_TOOL_RETRY_ATTEMPTS):
             try:
                 response = self._request(
                     "tools/call",
-                    {"name": name, "arguments": arguments},
+                    {"name": name, "arguments": tool_arguments},
                     timeout_sec=timeout_sec,
                 )
             except (TimeoutError, RuntimeError) as exc:
                 last_error = exc
-                transient = (
-                    isinstance(exc, RuntimeError)
-                    and _is_transient_mux_error(str(exc))
+                message = str(exc)
+                reclaimed = self._maybe_reclaim_page_arguments(
+                    tool_arguments,
+                    error_message=message,
                 )
-                if transient:
+                if reclaimed is not None:
+                    tool_arguments = reclaimed
+                    if attempt + 1 < _TOOL_RETRY_ATTEMPTS:
+                        time.sleep(0.5 * (attempt + 1))
+                        continue
+                transient = isinstance(exc, RuntimeError) and _is_transient_mux_error(
+                    message
+                )
+                if transient and not _is_page_ownership_error(message):
                     self._recover_mux_transport()
                 can_retry = attempt + 1 < _TOOL_RETRY_ATTEMPTS and (
-                    transient or (name in retry_tools)
+                    reclaimed is not None
+                    or transient
+                    or (name in retry_tools and isinstance(exc, TimeoutError))
                 )
                 if can_retry:
                     time.sleep(0.5 * (attempt + 1))
@@ -404,7 +530,18 @@ class ChromeMcpClient:
                 raise RuntimeError(f"Chrome MCP {name} returned invalid result: {response}")
             if result.get("isError") is True:
                 message = text_content(result)
-                if _is_transient_mux_error(message):
+                reclaimed = self._maybe_reclaim_page_arguments(
+                    tool_arguments,
+                    error_message=message,
+                )
+                if reclaimed is not None:
+                    tool_arguments = reclaimed
+                    if attempt + 1 < _TOOL_RETRY_ATTEMPTS:
+                        time.sleep(0.5 * (attempt + 1))
+                        continue
+                if _is_transient_mux_error(message) and not _is_page_ownership_error(
+                    message
+                ):
                     last_error = RuntimeError(f"Chrome MCP {name} failed: {message}")
                     self._recover_mux_transport()
                     if attempt + 1 < _TOOL_RETRY_ATTEMPTS:
@@ -565,6 +702,37 @@ class ChromeMcpClient:
             raise RuntimeError(f"Wave acquire did not return leaseId: {payload}")
         return lease_id
 
+    def _reclaim_stale_browser_context(
+        self, context_id: str, *, holder_lease_id: str
+    ) -> None:
+        try:
+            self._wave_command("reap")
+        except (RuntimeError, TimeoutError):
+            pass
+        status = self._wave_command("status")
+        active = status.get("activeLeases")
+        if not isinstance(active, list):
+            return
+        for lease in active:
+            if not isinstance(lease, dict):
+                continue
+            lease_id = lease.get("leaseId")
+            if (
+                lease.get("contextId") != context_id
+                or not isinstance(lease_id, str)
+                or lease_id == holder_lease_id
+            ):
+                continue
+            if lease.get("pageId"):
+                try:
+                    self._wave_command("lease", "unbind-browser", lease_id)
+                except (RuntimeError, TimeoutError):
+                    pass
+            try:
+                self._wave_command("lease", "release", lease_id)
+            except (RuntimeError, TimeoutError):
+                pass
+
     def _bind_page_lease(self, page: McpPage) -> None:
         args = [
             "lease",
@@ -576,7 +744,20 @@ class ChromeMcpClient:
         ]
         if page.context_id is not None:
             args.extend(("--context-id", page.context_id))
-        self._wave_command(*args)
+        try:
+            self._wave_command(*args)
+        except RuntimeError as exc:
+            if "BROWSER_CONTEXT_CONFLICT" not in str(exc):
+                raise
+            if page.context_id is not None:
+                self._reclaim_stale_browser_context(
+                    page.context_id, holder_lease_id=page.lease_id
+                )
+            try:
+                self._wave_command("lease", "unbind-browser", page.lease_id)
+            except (RuntimeError, TimeoutError):
+                pass
+            self._wave_command(*args)
 
     def _release_page_lease(self, page: McpPage, *, unbind: bool) -> None:
         errors: list[str] = []
@@ -599,27 +780,35 @@ class ChromeMcpClient:
             self._wave_command("lease", "release", lease_id)
 
     def _find_page_by_lease(self, lease_id: str) -> McpPage | None:
-        for page in self._pages.values():
-            if page.lease_id == lease_id:
-                return page
+        for pool in (self._pages, self._disconnected_pages):
+            for page in pool.values():
+                if page.lease_id == lease_id:
+                    return page
         return None
 
     def _recover_page_lease(self, stale_lease_id: str) -> None:
         page = self._find_page_by_lease(stale_lease_id)
         self._page_lease_heartbeat.untrack(stale_lease_id)
-        if page is None:
-            return
+        if page is not None:
+            try:
+                self._wave_command("lease", "unbind-browser", stale_lease_id)
+            except (RuntimeError, TimeoutError) as exc:
+                if not _is_benign_cleanup_error(str(exc)):
+                    _LOGGER.warning("Stale page lease unbind failed: %s", exc)
         try:
             self._release_lease(stale_lease_id, close_wave_if_idle=False)
         except (RuntimeError, TimeoutError) as exc:
             if not _is_benign_cleanup_error(str(exc)):
                 _LOGGER.warning("Stale page lease release failed: %s", exc)
+        if page is None:
+            return
         new_lease_id = self._acquire_page_lease()
         new_page = McpPage(
             page_id=page.page_id,
             target_id=page.target_id,
             lease_id=new_lease_id,
             context_id=page.context_id,
+            url=page.url,
         )
         self._bind_page_lease(new_page)
         self._pages[page.page_id] = new_page

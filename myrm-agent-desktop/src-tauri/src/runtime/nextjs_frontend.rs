@@ -7,6 +7,7 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::config::FrontendConfig;
 use crate::runtime::port::is_port_in_use;
+use crate::runtime::TOXIC_ENV_VARS;
 
 pub struct NextJSFrontend {
     pub process: Arc<Mutex<Option<Child>>>,
@@ -72,6 +73,11 @@ pub async fn start_frontend(
     };
 
     let mut cmd = Command::new(node_exe);
+
+    for var in TOXIC_ENV_VARS {
+        cmd.env_remove(var);
+    }
+
     cmd.arg("server.js")
         .current_dir(&nextjs_dir)
         .env("PORT", config.port.to_string())

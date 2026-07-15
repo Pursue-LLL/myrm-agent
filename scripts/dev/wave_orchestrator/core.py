@@ -519,14 +519,16 @@ def bind_browser_lease(
             )
         requested_context = context_id.strip()
         if requested_context:
-            for other in active_leases(state):
+            for other in list(active_leases(state)):
                 if (
                     other["leaseId"] != lease_id
                     and other.get("contextId") == requested_context
                 ):
-                    raise RuntimeError(
-                        f"BROWSER_CONTEXT_CONFLICT: contextId {requested_context} is already bound"
-                    )
+                    if other["agentId"] != holder:
+                        raise RuntimeError(
+                            f"BROWSER_CONTEXT_CONFLICT: contextId {requested_context} is already bound"
+                        )
+                    unbind_browser(other)
         return bind_browser(
             lease,
             page_id=page_id,

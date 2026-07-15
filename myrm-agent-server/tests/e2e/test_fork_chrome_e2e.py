@@ -25,12 +25,10 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
+from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 
 from tests.support.e2e_runtime_guard import E2EResourceLedger
-
-BASE_URL = "http://127.0.0.1:3000"
-API_URL = "http://127.0.0.1:8080"
 
 
 @pytest.fixture
@@ -40,7 +38,7 @@ def chrome_page(
     client = ChromeMcpClient()
     client.start()
     try:
-        page = client.new_page(f"{BASE_URL}/", timeout_ms=15_000)
+        page = client.new_page(f"{get_e2e_ui_url()}/", timeout_ms=15_000)
         yield client, page
     finally:
         client.close()
@@ -54,21 +52,22 @@ def sandbox_parent_chat_id() -> str:
     contains 'sandbox'. Requires: at least one chat with sandbox enabled
     that has >=2 messages (for fork at index 1).
     """
+    api_url = get_e2e_api_url()
     try:
         resp = urllib.request.urlopen(  # noqa: S310 - fixed loopback URL
-            f"{API_URL}/api/v1/chats/?page=1&page_size=30",
+            f"{api_url}/api/v1/chats/?page=1&page_size=30",
             timeout=5,
         )
         data = json.loads(resp.read())
     except Exception:
-        pytest.skip("Live server :8080 not reachable")
+        pytest.fail(f"Live E2E API not reachable at {api_url} — run via ./myrm test -m e2e")
 
     items = data.get("data", {}).get("items", [])
     for item in items:
         chat_id = item["id"]
         try:
             detail_resp = urllib.request.urlopen(  # noqa: S310 - fixed loopback URL
-                f"{API_URL}/api/v1/chats/{chat_id}",
+                f"{api_url}/api/v1/chats/{chat_id}",
                 timeout=3,
             )
             detail = json.loads(detail_resp.read())
@@ -101,6 +100,8 @@ async def test_fork_sandbox_isolation_chrome_e2e(
     """
     chat_id = sandbox_parent_chat_id
     client, page = chrome_page
+    ui_url = get_e2e_ui_url()
+    api_url = get_e2e_api_url()
 
     async def ev(expr: str) -> object:
         return await asyncio.to_thread(
@@ -110,10 +111,10 @@ async def test_fork_sandbox_isolation_chrome_e2e(
             timeout_sec=60.0,
         )
 
-    await asyncio.to_thread(client.navigate, page, f"{BASE_URL}/", timeout_ms=15_000)
+    await asyncio.to_thread(client.navigate, page, f"{ui_url}/", timeout_ms=15_000)
 
     fork = await ev(
-        f"(async()=>{{const r=await fetch('{BASE_URL}/api/v1/chats/{chat_id}/fork',"
+        f"(async()=>{{const r=await fetch('{ui_url}/api/v1/chats/{chat_id}/fork',"
         f"{{method:'POST',headers:{{'Content-Type':'application/json'}},"
         f"body:JSON.stringify({{message_index:1}})}});return await r.json()}})()"
     )
@@ -123,7 +124,7 @@ async def test_fork_sandbox_isolation_chrome_e2e(
     new_id = str(data["new_chat_id"])
     e2e_resource_ledger.register("chat", new_id)
 
-    info = await ev(f"(async()=>{{const r=await fetch('{BASE_URL}/api/v1/chats/{new_id}/fork-info');return await r.json()}})()")
+    info = await ev(f"(async()=>{{const r=await fetch('{ui_url}/api/v1/chats/{new_id}/fork-info');return await r.json()}})()")
     assert isinstance(info, dict) and info.get("success") is True
     info_data = info.get("data")
     assert isinstance(info_data, dict) and info_data.get("parent_chat_id") == chat_id
@@ -131,13 +132,13 @@ async def test_fork_sandbox_isolation_chrome_e2e(
     await asyncio.to_thread(
         client.navigate,
         page,
-        f"{BASE_URL}/c/{new_id}",
+        f"{ui_url}/c/{new_id}",
         timeout_ms=15_000,
     )
     url = await ev("location.href")
     assert new_id in str(url)
 
-    pinfo = await ev(f"(async()=>{{const r=await fetch('{BASE_URL}/api/v1/chats/{chat_id}/fork-info');return await r.json()}})()")
+    pinfo = await ev(f"(async()=>{{const r=await fetch('{ui_url}/api/v1/chats/{chat_id}/fork-info');return await r.json()}})()")
     assert isinstance(pinfo, dict) and pinfo.get("success") is True
     parent_info = pinfo.get("data")
     children = parent_info.get("children") if isinstance(parent_info, dict) else None
@@ -146,7 +147,7 @@ async def test_fork_sandbox_isolation_chrome_e2e(
 
     # T5: Verify sandbox isolation via live server API
     resp = urllib.request.urlopen(  # noqa: S310 - fixed loopback URL
-        f"{API_URL}/api/v1/chats/{new_id}"
+        f"{api_url}/api/v1/chats/{new_id}"
     )
     child_data = json.loads(resp.read())
     child_chat = child_data["data"]["chat"]
@@ -154,7 +155,7 @@ async def test_fork_sandbox_isolation_chrome_e2e(
     # Parent had sandbox active (workspace_dir pointed to sandbox worktree).
     # After fork, child must use repo root (sandbox_base_dir of parent), not the sandbox path.
     parent_resp = urllib.request.urlopen(  # noqa: S310 - fixed loopback URL
-        f"{API_URL}/api/v1/chats/{chat_id}"
+        f"{api_url}/api/v1/chats/{chat_id}"
     )
     parent_data = json.loads(parent_resp.read())
     parent_ws = parent_data["data"]["chat"]["workspace_dir"]

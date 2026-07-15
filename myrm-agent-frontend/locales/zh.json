@@ -5390,7 +5390,16 @@
       "description": "你可以继续使用应用，配置状态会在后台刷新。",
       "retry": "重新检查"
     },
-    "operationFailed": "操作失败"
+    "operationFailed": "操作失败",
+    "crashRecovery": {
+      "title": "服务异常",
+      "description": "后端服务多次启动失败。您的数据安全存储在本地磁盘中。",
+      "exportDatabase": "导出数据库",
+      "viewLogs": "查看日志",
+      "retryStart": "重试启动",
+      "hint": "您的数据存储在本地，不会丢失。如需重装请先导出备份。",
+      "selectExportFolder": "选择导出目录"
+    }
   },
   "chat": {
     "jumpBar": {

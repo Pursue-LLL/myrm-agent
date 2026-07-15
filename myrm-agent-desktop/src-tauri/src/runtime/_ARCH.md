@@ -10,7 +10,7 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js/Agent Runne
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `mod.rs` | 核心 | 模块聚合、`suppress_console_window` | ✅ |
+| `mod.rs` | 核心 | 模块聚合、`TOXIC_ENV_VARS` 毒性环境变量黑名单、`suppress_console_window` | ✅ |
 | `python_backend.rs` | 核心 | Python Sidecar 启停与健康检查（30s 超时 `Err` 并终止子进程） | ✅ |
 | `nextjs_frontend.rs` | 核心 | Next.js Standalone 进程（Tauri 启动时始终自启） | — |
 | `watchdog.rs` | 核心 | 后端崩溃监控与指数退避重启 | ✅ |

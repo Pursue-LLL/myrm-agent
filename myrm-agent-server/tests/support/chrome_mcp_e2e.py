@@ -15,10 +15,18 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
+from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 
-BASE_URL = "http://127.0.0.1:3000"
-API_URL = "http://127.0.0.1:8080"
+__all__ = [
+    "ChromeMcpClient",
+    "McpPage",
+    "get_e2e_api_url",
+    "get_e2e_ui_url",
+    "http_json",
+    "open_mcp_page",
+    "wait_for_state",
+]
 
 
 def http_json(
@@ -28,7 +36,8 @@ def http_json(
     *,
     expected_statuses: frozenset[int] = frozenset({200, 201, 204}),
 ) -> object:
-    if not url.startswith((BASE_URL, API_URL)):
+    allowed = (get_e2e_ui_url(), get_e2e_api_url())
+    if not url.startswith(allowed):
         raise ValueError(f"Chrome E2E HTTP helper only permits loopback app URLs: {url}")
     data = json.dumps(body).encode("utf-8") if body is not None else None
     request = urllib.request.Request(url, data=data, method=method)  # noqa: S310 - validated loopback
@@ -49,7 +58,15 @@ def http_json(
 @contextmanager
 def open_mcp_page(url: str) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
     with ChromeMcpClient() as client:
-        page = client.new_page(url, timeout_ms=15_000)
+        page = client.new_page(url, timeout_ms=60_000)
+        wait_for_state(
+            client,
+            page,
+            """(() => ({
+              ready: !!document.querySelector('[data-testid="app-layout"]'),
+            }))()""",
+            timeout_sec=90.0,
+        )
         yield client, page
 
 
@@ -63,7 +80,12 @@ def wait_for_state(
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
-        raw = client.evaluate(page, expression, timeout_sec=5.0)
+        remaining = max(0.0, deadline - time.monotonic())
+        raw = client.evaluate(
+            page,
+            expression,
+            timeout_sec=max(5.0, min(30.0, remaining)),
+        )
         last = raw if isinstance(raw, dict) else {"value": raw}
         if last.get("ready") is True:
             return last

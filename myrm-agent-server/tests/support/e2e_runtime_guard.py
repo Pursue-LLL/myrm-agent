@@ -152,8 +152,12 @@ def e2e_lease_heartbeat_loop(*, interval_sec: float = _E2E_HEARTBEAT_INTERVAL_SE
 
 
 def _state_file() -> Path:
-    override = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
-    root = Path(override) if override else Path.home() / ".local/state/myrm-dev"
+    wave_override = os.environ.get("MYRM_WAVE_STATE_DIR", "").strip()
+    if wave_override:
+        root = Path(wave_override)
+    else:
+        override = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
+        root = Path(override) if override else Path.home() / ".local/state/myrm-dev"
     return root / "wave-orchestrator.json"
 
 

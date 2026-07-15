@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import BASE_URL, open_mcp_page, wait_for_state
+from tests.support.chrome_mcp_e2e import get_e2e_ui_url, open_mcp_page, wait_for_state
 from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 _AGENT_ROOT = Path(__file__).resolve().parents[3]
@@ -94,7 +94,7 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
     chat_id = str(running_subagent.get("chatId") or "")
     task_id = str(running_subagent.get("taskId") or "")
     assert chat_id and task_id
-    ui_url = str(running_subagent.get("uiUrl") or f"{BASE_URL}/{chat_id}")
+    ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
 
     with open_mcp_page(ui_url) as (client, page):
         trigger = wait_for_state(
