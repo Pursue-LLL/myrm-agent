@@ -10,6 +10,28 @@ import type { NavTab } from './NavBar';
 
 export const NAVBAR_WIDTH = 60;
 
+const ROUTE_STORAGE_KEY = 'myrm_last_tab_routes';
+
+function readSavedRoutes(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem(ROUTE_STORAGE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function persistRoute(tab: string, url: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const saved = readSavedRoutes();
+    saved[tab] = url;
+    localStorage.setItem(ROUTE_STORAGE_KEY, JSON.stringify(saved));
+  } catch {
+    /* quota exceeded — non-critical */
+  }
+}
+
 function getTabFromPathname(pathname: string): NavTab {
   if (
     pathname === '/work' ||
@@ -40,9 +62,12 @@ export function useAppLayoutState() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>();
   const [isNavButtonHidden, setIsNavButtonHidden] = useState(false);
-  const [lastChatUrl, setLastChatUrl] = useState<string | null>(null);
-  const [lastWorkUrl, setLastWorkUrl] = useState<string | null>(null);
-  const [lastProjectsUrl, setLastProjectsUrl] = useState<string | null>(null);
+  const [savedRoutes] = useState(readSavedRoutes);
+  const [lastChatUrl, setLastChatUrl] = useState<string | null>(savedRoutes.chat ?? null);
+  const [lastWorkUrl, setLastWorkUrl] = useState<string | null>(savedRoutes.work ?? null);
+  const [lastProjectsUrl, setLastProjectsUrl] = useState<string | null>(
+    savedRoutes.projects ?? null,
+  );
   const lastScrollPositionRef = useRef(0);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -73,6 +98,7 @@ export function useAppLayoutState() {
   useEffect(() => {
     if (pathname === '/' || pathname.match(/^\/c-/)) {
       setLastChatUrl(pathname);
+      persistRoute('chat', pathname);
     } else if (
       pathname === '/work' ||
       pathname.startsWith('/work/') ||
@@ -80,6 +106,7 @@ export function useAppLayoutState() {
       pathname.startsWith('/agent')
     ) {
       setLastWorkUrl(pathname);
+      persistRoute('work', pathname);
     } else if (
       pathname === '/projects' ||
       pathname.startsWith('/projects/') ||
@@ -88,6 +115,7 @@ export function useAppLayoutState() {
       pathname.startsWith('/artifacts')
     ) {
       setLastProjectsUrl(pathname);
+      persistRoute('projects', pathname);
     }
   }, [pathname]);
 

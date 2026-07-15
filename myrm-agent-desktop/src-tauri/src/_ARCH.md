@@ -69,6 +69,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 - `tauri-plugin-shell`：进程管理
 - `tauri-plugin-dialog`：系统对话框
 - `tauri-plugin-updater`：自动更新（检查/下载/安装，前端 JS API 驱动）
+- `tauri-plugin-window-state`：窗口位置/尺寸跨重启持久化（三平台）
 - `tokio`：异步运行时
 - `serde`：序列化/反序列化
 - `base64`：Appshot 截图 Base64 编码

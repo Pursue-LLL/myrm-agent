@@ -21,6 +21,7 @@ pub fn run() {
     linux_gpu::apply_linux_gpu_workarounds();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())

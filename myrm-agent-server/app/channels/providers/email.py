@@ -3,6 +3,7 @@
 Inbound: IMAP periodic poll → _parse_email → _emit_inbound
   - Supports text, HTML, attachments
   - Thread detection via In-Reply-To / References headers
+  - Forwarded message detection and structured parsing
 Outbound: SMTP send (text/HTML)
 
 [INPUT]
@@ -14,7 +15,7 @@ Outbound: SMTP send (text/HTML)
 
 [POS]
 Email channel implementation. Supports IMAP polling for inbox, SMTP sending,
-attachment parsing, and thread tracking.
+attachment parsing, forwarded message parsing, and thread tracking.
 """
 
 from __future__ import annotations
@@ -33,6 +34,10 @@ from pathlib import Path
 from typing import Self
 
 from app.channels.core.base import BaseChannel
+from app.channels.providers._email_forward import (
+    FWD_SUBJECT_PREFIXES,
+    parse_forwarded_body,
+)
 from app.channels.core.credentials import credential_field, credential_spec
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.reliability.reconnect import reconnect_loop
@@ -409,13 +414,21 @@ class EmailChannel(BaseChannel):
         in_reply_to = msg.get("In-Reply-To", "")
         references = msg.get("References", "")
 
-        body = ""
+        text_body = ""
+        html_body = ""
         media_list: list[MediaAttachment] = []
+        forwarded_rfc822: email_lib.message.Message | None = None
 
         if msg.is_multipart():
             for part in msg.walk():
                 ct = part.get_content_type()
                 disp = str(part.get("Content-Disposition", ""))
+
+                if ct == "message/rfc822":
+                    payload = part.get_payload()
+                    if isinstance(payload, list) and payload:
+                        forwarded_rfc822 = payload[0]
+                    continue
 
                 if "attachment" in disp:
                     filename = part.get_filename() or "attachment"
@@ -440,14 +453,23 @@ class EmailChannel(BaseChannel):
                     media_list.append(MediaAttachment(
                         media_type=mt, filename=filename, mime_type=ct, path=saved_path,
                     ))
-                elif (ct == "text/plain" and not body) or (ct == "text/html" and not body):
+                elif ct == "text/html":
                     payload = part.get_payload(decode=True)
+                    charset = part.get_content_charset() or "utf-8"
                     if isinstance(payload, bytes):
-                        body = payload.decode("utf-8", errors="replace")
+                        html_body = payload.decode(charset, errors="replace")
+                elif ct == "text/plain" and not text_body:
+                    payload = part.get_payload(decode=True)
+                    charset = part.get_content_charset() or "utf-8"
+                    if isinstance(payload, bytes):
+                        text_body = payload.decode(charset, errors="replace")
         else:
             payload = msg.get_payload(decode=True)
+            charset = msg.get_content_charset() or "utf-8"
             if isinstance(payload, bytes):
-                body = payload.decode("utf-8", errors="replace")
+                text_body = payload.decode(charset, errors="replace")
+
+        body = html_body or text_body
 
         if not body.strip() and not media_list:
             return None
@@ -460,9 +482,61 @@ class EmailChannel(BaseChannel):
             "uid": uid,
         }
 
+        is_forwarded = bool(subject.lower().startswith(FWD_SUBJECT_PREFIXES))
+
+        content = body.strip()
+
+        if forwarded_rfc822 is not None:
+            is_forwarded = True
+            fwd_from = email.utils.parseaddr(forwarded_rfc822.get("From", ""))[1]
+            fwd_subject = _decode_header(forwarded_rfc822.get("Subject", ""))
+            fwd_date = forwarded_rfc822.get("Date", "")
+            fwd_payload = forwarded_rfc822.get_payload(decode=True)
+            fwd_body = ""
+            if isinstance(fwd_payload, bytes):
+                fwd_charset = forwarded_rfc822.get_content_charset() or "utf-8"
+                fwd_body = fwd_payload.decode(fwd_charset, errors="replace")
+            elif forwarded_rfc822.is_multipart():
+                for sub in forwarded_rfc822.walk():
+                    if sub.get_content_type() in ("text/plain", "text/html"):
+                        sub_payload = sub.get_payload(decode=True)
+                        if isinstance(sub_payload, bytes):
+                            sub_charset = sub.get_content_charset() or "utf-8"
+                            fwd_body = sub_payload.decode(sub_charset, errors="replace")
+                            break
+
+            metadata["is_forwarded"] = True
+            if fwd_from:
+                metadata["forwarded_from"] = fwd_from
+            if fwd_subject:
+                metadata["forwarded_subject"] = fwd_subject
+            if fwd_date:
+                metadata["forwarded_date"] = fwd_date
+            if fwd_body:
+                metadata["forwarded_body"] = fwd_body
+            content = content or fwd_body
+
+        elif is_forwarded:
+            parsed = parse_forwarded_body(text_body or content)
+            if parsed:
+                metadata["is_forwarded"] = True
+                if parsed.get("forwarded_from"):
+                    metadata["forwarded_from"] = parsed["forwarded_from"]
+                if parsed.get("forwarded_subject"):
+                    metadata["forwarded_subject"] = parsed["forwarded_subject"]
+                if parsed.get("forwarded_date"):
+                    metadata["forwarded_date"] = parsed["forwarded_date"]
+                if parsed.get("forwarded_to"):
+                    metadata["forwarded_to"] = parsed["forwarded_to"]
+                if parsed["forwarded_body"]:
+                    metadata["forwarded_body"] = parsed["forwarded_body"]
+                content = parsed["annotation"] or parsed["forwarded_body"]
+            else:
+                metadata["is_forwarded"] = True
+
         return self._build_inbound(
             sender_id=sender_email,
-            content=body.strip(),
+            content=content,
             chat_id=sender_email,
             is_group=False,
             mentioned=True,

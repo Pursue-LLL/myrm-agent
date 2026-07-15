@@ -74,7 +74,8 @@
         "fullscreen": false,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "visible": false
+        "visible": false,
+        "backgroundColor": [10, 10, 10, 255]
       }
     ],
     "security": {

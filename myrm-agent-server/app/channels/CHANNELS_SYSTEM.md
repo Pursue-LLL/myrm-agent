@@ -361,6 +361,7 @@ for binding in _channel_bindings():
 ```
 平台 Webhook/WebSocket/Polling
     ↓ [Pydantic 验证 (MSTeams/Telegram/Feishu/DingTalk)]
+    ↓ [Email: 转发邮件检测与结构化解析 → metadata.is_forwarded/forwarded_from/...]
 BaseChannel._emit_inbound(InboundMessage)
     ↓ [DISABLED 检查]
 MessageBus 入站队列
@@ -378,6 +379,17 @@ AgentRouter.consume()
     │   └── OutboundMessage → maybe_tts (语音回复) → edit_placeholder (回复)
     └── 清理 (reaction 移除, _active_tasks 清理)
 ```
+
+**Email 转发邮件解析**：
+
+`_parse_email` 在 body 提取后自动检测转发邮件并结构化解析：
+
+1. **Subject 前缀检测**：`Fwd:`、`FW:`、`转发:`、`轉發:` 触发转发标记
+2. **Body 分隔符检测**：识别 Gmail/Outlook/QQ 等邮件客户端的标准转发分隔符，提取用户批注和原始邮件内容
+3. **MIME message/rfc822 解析**：处理以 MIME 附件方式转发的邮件，递归解析内嵌邮件头部
+4. **结构化 metadata 输出**：`is_forwarded`、`forwarded_from`、`forwarded_subject`、`forwarded_date`、`forwarded_body`
+
+非转发邮件完全走原有路径，零影响。
 
 ### 6.2 出站流程
 
