@@ -646,6 +646,41 @@ class TestEmailForwardedParsing:
         assert result.metadata["forwarded_subject"] == "Original Subject"
         assert "Original message content" in str(result.metadata["forwarded_body"])
 
+    def test_forwarded_rfc822_multipart_inner(self) -> None:
+        """RFC822 attachment with multipart inner message."""
+        import email.mime.multipart
+        import email.mime.text
+        import email.utils
+        from email.message import Message
+
+        inner = email.mime.multipart.MIMEMultipart("alternative")
+        inner["From"] = "deep@sender.com"
+        inner["Subject"] = "Deep Subject"
+        inner["Date"] = "Tue, 15 Jul 2025 10:00:00 +0800"
+        inner.attach(email.mime.text.MIMEText("Plain inner", "plain"))
+        inner.attach(email.mime.text.MIMEText("<b>HTML inner</b>", "html"))
+
+        rfc822_part = Message()
+        rfc822_part["Content-Type"] = "message/rfc822"
+        rfc822_part.attach(inner)
+
+        outer = email.mime.multipart.MIMEMultipart()
+        outer["From"] = "user@gmail.com"
+        outer["To"] = "bot@example.com"
+        outer["Subject"] = "Fwd: Deep Subject"
+        outer["Message-ID"] = email.utils.make_msgid()
+        outer.attach(email.mime.text.MIMEText("See attached", "plain"))
+        outer.attach(rfc822_part)
+
+        ch = _make_channel()
+        result = ch._parse_email(outer.as_bytes(), uid=1)
+
+        assert result is not None
+        assert result.metadata["is_forwarded"] is True
+        assert result.metadata["forwarded_from"] == "deep@sender.com"
+        assert result.metadata["forwarded_subject"] == "Deep Subject"
+        assert "inner" in str(result.metadata.get("forwarded_body", "")).lower()
+
     def test_forwarded_no_annotation(self) -> None:
         """Forwarded email where user didn't add any annotation."""
         import email.mime.multipart
@@ -711,6 +746,101 @@ class TestEmailForwardedParsing:
         assert result is not None
         assert result.metadata["is_forwarded"] is True
         assert result.content == "Please handle this"
+
+
+    def test_forwarded_non_multipart_plain_text(self) -> None:
+        """Non-multipart plain text forwarded email (simple clients)."""
+        import email.message
+        import email.utils
+
+        msg = email.message.Message()
+        msg["From"] = "user@example.com"
+        msg["To"] = "bot@example.com"
+        msg["Subject"] = "Fwd: Simple fwd"
+        msg["Message-ID"] = email.utils.make_msgid()
+        msg["Content-Type"] = "text/plain; charset=utf-8"
+        body = (
+            "Please check\n\n"
+            "---------- Forwarded message ---------\n"
+            "From: sender@external.com\n"
+            "Subject: Original\n\n"
+            "Original body content here"
+        )
+        msg.set_payload(body.encode("utf-8"))
+
+        ch = _make_channel()
+        result = ch._parse_email(msg.as_bytes(), uid=1)
+
+        assert result is not None
+        assert result.metadata["is_forwarded"] is True
+        assert result.metadata["forwarded_from"] == "sender@external.com"
+        assert result.content == "Please check"
+
+    def test_forwarded_traditional_chinese_subject(self) -> None:
+        """Traditional Chinese forwarding prefix (轉發:)."""
+        import email.mime.multipart
+        import email.mime.text
+        import email.utils
+
+        msg = email.mime.multipart.MIMEMultipart("alternative")
+        msg["From"] = "user@hk.example.com"
+        msg["To"] = "bot@example.com"
+        msg["Subject"] = "轉發: 會議紀要"
+        msg["Message-ID"] = email.utils.make_msgid()
+        body = (
+            "請查閱\n\n"
+            "---------- 轉發郵件 ----------\n"
+            "From: colleague@hk.example.com\n"
+            "Subject: 會議紀要\n\n"
+            "會議內容..."
+        )
+        msg.attach(email.mime.text.MIMEText(body, "plain"))
+
+        ch = _make_channel()
+        result = ch._parse_email(msg.as_bytes(), uid=1)
+
+        assert result is not None
+        assert result.metadata["is_forwarded"] is True
+        assert result.metadata["forwarded_from"] == "colleague@hk.example.com"
+        assert result.content == "請查閱"
+
+    def test_forwarded_outlook_html_multipart(self) -> None:
+        """Outlook HTML multipart forwarding with -----Original Message-----."""
+        import email.mime.multipart
+        import email.mime.text
+        import email.utils
+
+        plain = (
+            "Review this\n\n"
+            "-----Original Message-----\n"
+            "From: partner@corp.com\n"
+            "Subject: Contract Draft\n\n"
+            "Please find the contract."
+        )
+        html = (
+            '<div>Review this</div>'
+            '<div style="border-top:1px solid #ccc">'
+            '<p><b>-----Original Message-----</b></p>'
+            '<p>From: partner@corp.com<br>'
+            'Subject: Contract Draft</p>'
+            '<p>Please find the contract.</p></div>'
+        )
+
+        msg = email.mime.multipart.MIMEMultipart("alternative")
+        msg["From"] = "user@outlook.com"
+        msg["To"] = "bot@example.com"
+        msg["Subject"] = "FW: Contract Draft"
+        msg["Message-ID"] = email.utils.make_msgid()
+        msg.attach(email.mime.text.MIMEText(plain, "plain"))
+        msg.attach(email.mime.text.MIMEText(html, "html"))
+
+        ch = _make_channel()
+        result = ch._parse_email(msg.as_bytes(), uid=1)
+
+        assert result is not None
+        assert result.metadata["is_forwarded"] is True
+        assert result.metadata["forwarded_from"] == "partner@corp.com"
+        assert result.content == "Review this"
 
 
 class TestEmailCharsetAndHtmlPriority:
