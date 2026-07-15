@@ -10,6 +10,7 @@ from cdp_chat_submit import CdpChatSubmit
 from cdp_chat_support import chat_id_from_path, chat_messages_have_ok, chat_user_message_count
 from cdp_chat_support import (
     BRIDGE_TURN_SNAPSHOT_JS,
+    PREPARE_AUTOMATION_SEND_JS,
     SELECT_FIRST_ENABLED_MODEL_JS,
     SELECT_MIMO_MODEL_JS,
 )
@@ -340,6 +341,9 @@ class CdpChatTurn(CdpChatSubmit):
         ui_base = (base_url or getattr(self, "_base_url", None) or "http://127.0.0.1:3000").rstrip("/")
         baseline_user_msgs = 0
         chat_id = chat_id_hint
+        await self.dismiss_modals()
+        await self.wait_dev_bridge()
+        await self.ensure_e2e_api_base_binding()
         if chat_id_hint:
             on_chat_page = False
             try:
@@ -354,9 +358,8 @@ class CdpChatTurn(CdpChatSubmit):
                     on_chat_page = chat_id_from_path(str(probe.get("path") or "")) is not None
             except (RuntimeError, TimeoutError):
                 on_chat_page = False
-            await self._attach_chat_session(chat_id_hint)
             if on_chat_page:
-                await self.wait_shell_ready(timeout_sec=90.0)
+                await self.wait_shell_ready(timeout_sec=90.0, require_bridge=True)
             else:
                 await self.navigate_to_chat(chat_id_hint, ui_base, timeout_sec=90.0)
         if not chat_id:
@@ -368,12 +371,10 @@ class CdpChatTurn(CdpChatSubmit):
                 baseline_user_msgs = 0
         self._baseline_user_msgs = baseline_user_msgs
         try:
-            await self.dismiss_modals()
-            await self.wait_dev_bridge()
-            await self.ensure_e2e_api_base_binding()
             if baseline_user_msgs == 0:
                 await self._sync_model_selection()
-            await self._ensure_send_ready()
+            else:
+                await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
             if chat_id:
                 await self._attach_chat_session(chat_id)
             else:
@@ -386,6 +387,7 @@ class CdpChatTurn(CdpChatSubmit):
                     await_promise=True,
                     recv_timeout=30.0,
                 )
+            await self._ensure_send_ready()
             fill = await self.fill_input(text)
             if not fill.get("ok"):
                 raise RuntimeError(f"UI fill failed: {fill}")

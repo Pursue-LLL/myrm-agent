@@ -30,12 +30,16 @@ def _shell_probe_ready(probe: dict[str, object]) -> bool:
 
 
 class CdpChatBootstrap(CdpChatTransport):
+    _e2e_api_base_bound: bool = False
+
     async def ensure_e2e_api_base_binding(self) -> None:
-        """Register persistent new-document hook + immediate inject for SHPOIB private pools."""
+        """Register persistent new-document hook once + immediate inject for SHPOIB private pools."""
         source = e2e_api_base_persist_source()
         if not source:
             return
-        await self.cdp("Page.addScriptToEvaluateOnNewDocument", {"source": source})
+        if not self._e2e_api_base_bound:
+            await self.cdp("Page.addScriptToEvaluateOnNewDocument", {"source": source})
+            self._e2e_api_base_bound = True
         await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
 
     async def bootstrap(

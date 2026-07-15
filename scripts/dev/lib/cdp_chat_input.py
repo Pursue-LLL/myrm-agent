@@ -17,6 +17,7 @@ from cdp_chat_support import (
     _api_provider_ready,
     chat_id_from_path,
     chat_user_message_count,
+    PREPARE_AUTOMATION_SEND_JS,
 )
 
 
@@ -171,6 +172,7 @@ class CdpChatInput(CdpChatBootstrap):
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {"ok": False}
         while time.monotonic() < deadline:
+            await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
             last = await self._fill_ready_state(text)
             if last.get("ok"):
                 last["mode"] = "awaitFillReady"
@@ -205,6 +207,7 @@ class CdpChatInput(CdpChatBootstrap):
 
     async def fill_input(self, text: str) -> dict[str, object]:
         await self.ensure_dev_bridge(timeout_sec=90.0, allow_reload=True)
+        await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
 
         dev_bridge = await self.evaluate(
             f"""( () => {{
