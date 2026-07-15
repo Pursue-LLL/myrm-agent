@@ -125,7 +125,7 @@ class CdpChatBootstrap(CdpChatTransport):
                     if bridge_timeout > 0:
                         await self.ensure_dev_bridge(
                             timeout_sec=min(bridge_timeout, 60.0),
-                            allow_reload=False,
+                            allow_reload=True,
                         )
                     provider_timeout = max(0.0, deadline - time.monotonic())
                     if provider_timeout > 0:
