@@ -23,12 +23,13 @@ from mcp_protocol import parse_evaluate_result, parse_new_page, text_content
 _CLEANUP_TIMEOUT_SEC = 15.0
 _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = 15.0
 _TOOL_RETRY_ATTEMPTS = 3
-_PAGE_LEASE_TTL_SEC = 180
+_PAGE_LEASE_TTL_SEC = int(os.environ.get("MYRM_PAGE_LEASE_TTL_SEC", "600"))
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
 _BENIGN_CLEANUP_TOKENS = (
     "No target with given id",
     "LEASE_NOT_ACTIVE",
+    "LEASE_NOT_FOUND",
     "Target closed",
     "detached Frame",
     "No page found",
@@ -291,7 +292,7 @@ class ChromeMcpClient:
             probe = self.evaluate(
                 page,
                 "({href: location.href, bodyLength: document.body?.innerText?.length ?? 0})",
-                timeout_sec=5.0,
+                timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
             )
             if not isinstance(probe, dict):
                 raise exc
