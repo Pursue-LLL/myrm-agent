@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 
+from cdp_chat_support import e2e_api_base_inject_js
 from cdp_chat_ui import CdpChatSession
 from chrome_mcp_client import ChromeMcpClient, McpPage
 
@@ -55,6 +56,15 @@ class McpChatSession(CdpChatSession):
                     continue
                 raise
 
+    async def _inject_e2e_api_base(self) -> None:
+        inject_js = e2e_api_base_inject_js()
+        if not inject_js:
+            return
+        try:
+            await self.evaluate(inject_js, await_promise=False, recv_timeout=15.0)
+        except RuntimeError:
+            pass
+
     async def _heal_detached_page(self) -> None:
         await asyncio.to_thread(
             self._client.navigate,
@@ -63,6 +73,7 @@ class McpChatSession(CdpChatSession):
             timeout_ms=60_000,
         )
         await asyncio.sleep(2.0)
+        await self._inject_e2e_api_base()
         try:
             await self.wait_shell_ready(timeout_sec=60.0, require_bridge=True)
         except TimeoutError:
@@ -98,6 +109,9 @@ class McpChatSession(CdpChatSession):
         arguments = params or {}
         if method in {"Runtime.enable", "Page.enable", "DOM.enable"}:
             return {}
+        if method == "Page.addScriptToEvaluateOnNewDocument":
+            # MCP mux has no raw CDP; ensure_e2e_api_base_binding injects on the live document.
+            return {}
         if method == "Page.reload":
             await asyncio.to_thread(
                 self._client.reload,
@@ -105,6 +119,7 @@ class McpChatSession(CdpChatSession):
                 timeout_ms=min(int(recv_timeout * 1000), 120_000),
             )
             await asyncio.sleep(4.0)
+            await self._inject_e2e_api_base()
             return {}
         if method == "Page.navigate":
             url = arguments.get("url")
@@ -116,6 +131,7 @@ class McpChatSession(CdpChatSession):
                 url,
                 timeout_ms=min(int(recv_timeout * 1000), 60_000),
             )
+            await self._inject_e2e_api_base()
             return {}
         if method == "Input.insertText":
             text = arguments.get("text")
