@@ -343,7 +343,7 @@ async def _probe_read_aloud_fetch(
     return result
 
 
-@pytest.mark.e2e
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 @pytest.mark.asyncio
@@ -365,7 +365,7 @@ async def test_voice_settings_no_edge_banner_when_available(
     assert "sub=voice" in str(page.get("url", ""))
 
 
-@pytest.mark.e2e
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_live_tts_synthesize_after_voice_config() -> None:
@@ -387,7 +387,7 @@ def test_live_tts_synthesize_after_voice_config() -> None:
     assert body[:3] == b"ID3" or (body[0] == 0xFF and (body[1] & 0xE0) == 0xE0)
 
 
-@pytest.mark.e2e
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 @pytest.mark.asyncio
@@ -434,7 +434,7 @@ async def test_read_aloud_edge_api_from_browser_context(
     assert int(result.get("bytes", 0)) > 0, result
 
 
-@pytest.mark.e2e
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(420)
 @pytest.mark.asyncio

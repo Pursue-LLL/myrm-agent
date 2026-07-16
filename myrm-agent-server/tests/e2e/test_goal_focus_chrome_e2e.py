@@ -44,7 +44,7 @@ def _fetch_goal_status(chat_id: str) -> dict[str, object] | None:
     return goal if isinstance(goal, dict) else None
 
 
-@pytest.mark.e2e
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio

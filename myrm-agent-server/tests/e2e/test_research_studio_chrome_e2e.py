@@ -60,7 +60,7 @@ _LAYOUT_PROBE_JS = """(() => {
 })()"""
 
 
-@pytest.mark.e2e
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(90)
 def test_research_studio_full_chrome_e2e() -> None:

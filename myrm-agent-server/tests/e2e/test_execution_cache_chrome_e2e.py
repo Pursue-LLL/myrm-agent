@@ -60,7 +60,7 @@ async def _resolve_chat_id(
     return _extract_chat_id(str(href) if href else "")
 
 
-@pytest.mark.e2e
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(900)
 @pytest.mark.asyncio

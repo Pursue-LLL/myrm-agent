@@ -85,7 +85,7 @@ def running_subagent(
                 process.wait(timeout=5)
 
 
-@pytest.mark.e2e
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_subagent_dashboard_lists_and_cancels_running_task(

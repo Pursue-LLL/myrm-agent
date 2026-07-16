@@ -164,9 +164,10 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-m 'not e2e and not performance' --timeout=300"
+addopts = "-m 'not e2e and not chrome_e2e and not performance' --timeout=300"
 markers = [
   "docker: Docker 沙箱测试（内存占用高，默认排除可加 -m 'not docker'）",
+  "chrome_e2e: Formal real-Chrome MCP UI E2E with declared runtime resources",
   "e2e: End-to-end tests against running app (may require network or API keys)",
   "performance: Performance and benchmark tests (excluded from default suite)",
   "benchmark: pytest-benchmark tests (auto-remapped to performance in conftest)",
@@ -232,4 +233,3 @@ reportTypedDictNotRequiredAccess = false
 reportRedeclaration = false
 # 保留有价值的规则（默认 error）：Optional 家族 + UndefinedVariable 已证明能发现真实 bug。
 reportUnnecessaryTypeIgnoreComment = "warning"
-

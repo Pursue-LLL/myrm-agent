@@ -16,7 +16,7 @@ from tests.support.chrome_mcp_e2e import (
 from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 
-@pytest.mark.e2e
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_kanban_board_and_task_render_in_real_ui(
