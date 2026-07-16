@@ -51,6 +51,7 @@ export interface ToolCallDetail {
   name: string;
   argsSummary: string;
   durationMs: number | null;
+  success: boolean;
 }
 
 export interface ExportData {
@@ -146,6 +147,7 @@ export function formatChatAsMarkdown(data: ExportData): string {
   lines.push('---', '');
   lines.push(...buildSummarySection(data));
 
+  let mdTurnIndex = 0;
   for (const msg of data.messages) {
     if (!VISIBLE_ROLES.has(msg.role)) continue;
     const role = msg.role === 'user' ? 'User' : 'Assistant';
@@ -157,6 +159,25 @@ export function formatChatAsMarkdown(data: ExportData): string {
     }
     lines.push(msg.content);
     lines.push('');
+    if (msg.role === 'assistant' && data.toolCallDetails) {
+      const turnCalls = data.toolCallDetails.filter((d) => d.turnIndex === mdTurnIndex);
+      if (turnCalls.length > 0) {
+        const totalMs = turnCalls.reduce((s, d) => s + (d.durationMs ?? 0), 0);
+        lines.push(
+          '<details>',
+          `<summary>${turnCalls.length} tool calls (${formatDuration(totalMs)})</summary>`,
+          '',
+        );
+        for (const tc of turnCalls) {
+          const mark = tc.success ? '+' : 'x';
+          const dur = tc.durationMs != null ? ` ${formatDuration(tc.durationMs)}` : '';
+          const args = tc.argsSummary ? `(${tc.argsSummary})` : '';
+          lines.push(`- [${mark}] ${tc.name}${args}${dur}`);
+        }
+        lines.push('', '</details>', '');
+      }
+      mdTurnIndex++;
+    }
     lines.push('---');
     lines.push('');
   }

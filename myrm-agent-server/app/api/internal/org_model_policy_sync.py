@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - POST /api/admin/org-model-policy-sync: Stores allowed patterns in UserConfig table
-- GET /api/org-policy/allowed-models: Exposes patterns to frontend for model filtering
+- GET /api/v1/org-policy/allowed-models: Exposes patterns to frontend for model filtering (via frontend_router)
 
 [POS]
 Receives org model whitelist from Control Plane and persists locally.
@@ -75,7 +75,10 @@ async def org_model_policy_sync(
     )
 
 
-@router.get("/api/org-policy/allowed-models", response_model=AllowedModelsResponse)
+frontend_router = APIRouter()
+
+
+@frontend_router.get("/org-policy/allowed-models", response_model=AllowedModelsResponse)
 async def get_allowed_models() -> AllowedModelsResponse:
     """Frontend-facing: get org model policy for UI filtering."""
     config_svc = ConfigService()

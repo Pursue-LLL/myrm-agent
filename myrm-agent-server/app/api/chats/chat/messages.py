@@ -319,7 +319,7 @@ def _sanitize_args_summary(payload: dict) -> str:
 
 
 async def _build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[str, object]] | None:
-    """Fetch per-tool-call details ordered by execution sequence."""
+    """Fetch per-tool-call details by pairing START (args) and END (duration, success) events."""
     from sqlalchemy import select
 
     from app.database.models.agent_event import AgentEvent, AgentTurn
@@ -343,6 +343,7 @@ async def _build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[
             select(
                 AgentEvent.turn_id,
                 AgentEvent.tool_name,
+                AgentEvent.event_type,
                 AgentEvent.payload,
                 AgentEvent.duration_ms,
                 AgentEvent.event_index,
@@ -350,9 +351,12 @@ async def _build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[
             .where(
                 AgentEvent.turn_id.in_(turn_ids),
                 AgentEvent.tool_name.isnot(None),
-                AgentEvent.event_type == EventType.TOOL_CALL_END.value,
+                AgentEvent.event_type.in_([
+                    EventType.TOOL_CALL_START.value,
+                    EventType.TOOL_CALL_END.value,
+                ]),
             )
-            .order_by(AgentEvent.event_index)
+            .order_by(AgentEvent.turn_id, AgentEvent.event_index)
         )
     ).all()
 
@@ -361,13 +365,26 @@ async def _build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[
 
     turn_index_map = {t[0]: t[1] for t in turn_rows}
 
+    start_events: list[tuple[str, str, dict]] = []
+    end_events: list[tuple[str, str, int | None, bool]] = []
+
+    for turn_id, tool_name, event_type, payload, duration_ms, _idx in events:
+        p = payload or {}
+        if event_type == EventType.TOOL_CALL_START.value:
+            start_events.append((turn_id, tool_name, p))
+        else:
+            success = p.get("success", True)
+            end_events.append((turn_id, tool_name, duration_ms, bool(success)))
+
     details: list[dict[str, object]] = []
-    for turn_id, tool_name, payload, duration_ms, _event_idx in events:
+    for i, (turn_id, tool_name, duration_ms, success) in enumerate(end_events):
+        args_payload = start_events[i][2] if i < len(start_events) else {}
         details.append({
             "turnIndex": turn_index_map.get(turn_id, 0),
             "name": tool_name,
-            "argsSummary": _sanitize_args_summary(payload or {}),
+            "argsSummary": _sanitize_args_summary(args_payload),
             "durationMs": duration_ms,
+            "success": success,
         })
 
     return details

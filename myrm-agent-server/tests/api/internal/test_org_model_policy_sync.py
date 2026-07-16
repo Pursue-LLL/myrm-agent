@@ -8,13 +8,17 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.internal.org_model_policy_sync import router as org_model_policy_sync_router
+from app.api.internal.org_model_policy_sync import (
+    frontend_router as org_model_policy_frontend_router,
+    router as org_model_policy_sync_router,
+)
 
 
 @pytest.fixture
 def policy_sync_app() -> FastAPI:
     app = FastAPI()
     app.include_router(org_model_policy_sync_router)
+    app.include_router(org_model_policy_frontend_router)
     return app
 
 
@@ -78,7 +82,7 @@ async def test_get_allowed_models_no_record(policy_sync_app: FastAPI) -> None:
 
         transport = ASGITransport(app=policy_sync_app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/api/org-policy/allowed-models")
+            resp = await client.get("/org-policy/allowed-models")
 
     assert resp.status_code == 200
     data = resp.json()
@@ -101,7 +105,7 @@ async def test_get_allowed_models_with_patterns(policy_sync_app: FastAPI) -> Non
 
         transport = ASGITransport(app=policy_sync_app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/api/org-policy/allowed-models")
+            resp = await client.get("/org-policy/allowed-models")
 
     assert resp.status_code == 200
     data = resp.json()

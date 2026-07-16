@@ -13,7 +13,7 @@ export interface OrgModelPolicyResponse {
 }
 
 export async function fetchOrgModelPolicy(): Promise<OrgModelPolicyResponse> {
-  const url = getApiUrl('/api/org-policy/allowed-models');
+  const url = getApiUrl('/org-policy/allowed-models');
   const res = await fetch(url);
   if (!res.ok) {
     return { allowed_patterns: [], restricted: false };

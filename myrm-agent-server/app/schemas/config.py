@@ -51,6 +51,7 @@ ConfigKey = Literal[
     "browserProxy",
     "captchaSolverConfig",
     "webFetchEscalation",
+    "orgModelPolicy",
 ]
 
 # ============================================================================

@@ -259,6 +259,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
 .tool-details ul{list-style:none;padding:6px 0 0 12px;margin:0;border-left:2px solid var(--border)}
 .tool-details li{padding:3px 0;color:var(--fg);font-family:"SF Mono",Menlo,Monaco,"Courier New",monospace;font-size:0.92em}
 .tool-details .tool-dur{color:var(--muted);font-size:0.9em}
+.tool-details .tool-fail{color:#e53e3e;font-weight:600}
 .footer{text-align:center;padding:20px;color:var(--muted);font-size:0.8em;border-top:1px solid var(--border);margin-top:24px}
 @media(max-width:640px){body{padding:8px}.export-header{padding:14px}.message{padding:12px}.stats{flex-direction:column;gap:6px}}
 @media print{.theme-toggle{display:none}.widget-source{display:none}.code-block,.message{break-inside:avoid}body{max-width:none;padding:0}}
@@ -412,7 +413,8 @@ function renderToolCallDetailsHtml(
   for (const tc of turnCalls) {
     const dur = tc.durationMs != null ? ` <span class="tool-dur">${formatDuration(tc.durationMs)}</span>` : '';
     const args = tc.argsSummary ? `(${esc(tc.argsSummary)})` : '';
-    items += `<li>${esc(tc.name)}${args}${dur}</li>`;
+    const mark = tc.success === false ? '<span class="tool-fail">&#x2717;</span> ' : '';
+    items += `<li>${mark}${esc(tc.name)}${args}${dur}</li>`;
   }
 
   return `<details class="tool-details">

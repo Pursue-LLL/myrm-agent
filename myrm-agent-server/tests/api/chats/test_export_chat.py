@@ -462,7 +462,7 @@ async def test_export_chat_agent_info_null_without_agent(
 async def test_export_chat_includes_tool_call_details(
     async_client: httpx.AsyncClient,
 ) -> None:
-    """Export includes toolCallDetails with per-call name, argsSummary, durationMs."""
+    """Export includes toolCallDetails with per-call name, argsSummary, durationMs, success."""
     from app.database.models.agent_event import AgentEvent, AgentTurn
     from app.platform_utils import get_session_factory
     from app.services.event.types import EventType
@@ -477,14 +477,26 @@ async def test_export_chat_includes_tool_call_details(
         await db.flush()
         db.add(AgentEvent(
             id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
-            event_type=EventType.TOOL_CALL_END.value, level="info", event_index=0,
-            payload={"arguments": {"path": "/src/utils.ts"}},
-            tool_name="read_file", duration_ms=120,
+            event_type=EventType.TOOL_CALL_START.value, level="info", event_index=0,
+            payload={"input": {"path": "/src/utils.ts"}},
+            tool_name="read_file",
         ))
         db.add(AgentEvent(
             id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
             event_type=EventType.TOOL_CALL_END.value, level="info", event_index=1,
-            payload={"arguments": {"pattern": "useEffect", "path": "src/"}},
+            payload={"output": {"content": "file data"}, "success": True},
+            tool_name="read_file", duration_ms=120,
+        ))
+        db.add(AgentEvent(
+            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
+            event_type=EventType.TOOL_CALL_START.value, level="info", event_index=2,
+            payload={"input": {"pattern": "useEffect", "path": "src/"}},
+            tool_name="grep_search",
+        ))
+        db.add(AgentEvent(
+            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
+            event_type=EventType.TOOL_CALL_END.value, level="info", event_index=3,
+            payload={"output": {"matches": []}, "success": True},
             tool_name="grep_search", duration_ms=350,
         ))
         await db.commit()
@@ -498,8 +510,10 @@ async def test_export_chat_includes_tool_call_details(
     assert details[0]["name"] == "read_file"
     assert details[0]["turnIndex"] == 0
     assert details[0]["durationMs"] == 120
+    assert details[0]["success"] is True
     assert "path=/src/utils.ts" in details[0]["argsSummary"]
     assert details[1]["name"] == "grep_search"
+    assert details[1]["success"] is True
 
 
 @pytest.mark.asyncio
@@ -521,8 +535,14 @@ async def test_export_tool_call_details_sanitizes_sensitive_args(
         await db.flush()
         db.add(AgentEvent(
             id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
-            event_type=EventType.TOOL_CALL_END.value, level="info", event_index=0,
-            payload={"arguments": {"api_key": "sk-1234secret", "url": "https://example.com"}},
+            event_type=EventType.TOOL_CALL_START.value, level="info", event_index=0,
+            payload={"input": {"api_key": "sk-1234secret", "url": "https://example.com"}},
+            tool_name="http_request",
+        ))
+        db.add(AgentEvent(
+            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
+            event_type=EventType.TOOL_CALL_END.value, level="info", event_index=1,
+            payload={"output": {"status": 200}, "success": True},
             tool_name="http_request", duration_ms=200,
         ))
         await db.commit()
@@ -535,3 +555,4 @@ async def test_export_tool_call_details_sanitizes_sensitive_args(
     assert "sk-1234secret" not in details[0]["argsSummary"]
     assert "***" in details[0]["argsSummary"]
     assert "https://example.com" in details[0]["argsSummary"]
+    assert details[0]["success"] is True
