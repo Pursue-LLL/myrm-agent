@@ -15,6 +15,11 @@ export interface AgentModelSelection {
   safetyFallbackProviderId?: string;
   safetyFallbackModel?: string;
   modelKwargs?: Record<string, unknown>;
+  routingEnabled?: boolean;
+  lightProviderId?: string;
+  lightModel?: string;
+  reasoningProviderId?: string;
+  reasoningModel?: string;
 }
 
 export interface CommandBindingConfig {

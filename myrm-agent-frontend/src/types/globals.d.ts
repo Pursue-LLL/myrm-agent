@@ -27,6 +27,7 @@ interface Window {
   __TAURI_INTERNALS__?: unknown;
   /** Dev-only bridge for CDP Chrome E2E (AppLayout E2EChatBridge). */
   __MYRM_E2E_CHAT__?: {
+    __e2eFallback: boolean;
     setInputMessage: (message: string) => void;
     handleSubmit: () => void | Promise<void>;
     getInputMessage: () => string;
@@ -38,6 +39,13 @@ interface Window {
     isSendReady?: () => boolean;
     isProvidersInitialized?: () => boolean;
     debugProviderState?: () => Record<string, unknown>;
+    turnSnapshot: () => {
+      chatId: string | null;
+      userCount: number;
+      isStreaming: boolean;
+      hasOk: boolean;
+      lastAssistantSample: string;
+    };
     lastSubmitResult?: { ok: boolean; err?: string; chatId?: string | null; debug?: Record<string, unknown> };
     setGoalMode: (enabled: boolean) => void;
     setGoalBudgetTokens: (tokens: number | null) => void;

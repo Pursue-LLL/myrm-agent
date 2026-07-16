@@ -12,7 +12,7 @@
 
 import type { Agent, AgentModelSelection } from '@/services/agent';
 import type { AgentConfig, BuiltinToolId } from '@/store/chat/types';
-import type { SingleModelSelection } from '@/store/config/providerTypes';
+import type { RoutingConfig, SingleModelSelection } from '@/store/config/providerTypes';
 
 function toSingleSelection(
   ms: AgentModelSelection | null | undefined,
@@ -30,6 +30,24 @@ function toSingleSelection(
   return ms.safetyFallbackProviderId && ms.safetyFallbackModel
     ? { providerId: ms.safetyFallbackProviderId, model: ms.safetyFallbackModel }
     : undefined;
+}
+
+function toRoutingConfig(ms: AgentModelSelection | null | undefined): RoutingConfig | undefined {
+  if (!ms || ms.routingEnabled === undefined) return undefined;
+  return {
+    enabled: ms.routingEnabled,
+    lightModel: {
+      primary: ms.lightProviderId && ms.lightModel ? { providerId: ms.lightProviderId, model: ms.lightModel } : null,
+      fallback: null,
+    },
+    reasoningModel: {
+      primary:
+        ms.reasoningProviderId && ms.reasoningModel
+          ? { providerId: ms.reasoningProviderId, model: ms.reasoningModel }
+          : null,
+      fallback: null,
+    },
+  };
 }
 
 export function buildAgentConfig(agent: Agent): AgentConfig {
@@ -62,5 +80,6 @@ export function buildAgentConfig(agent: Agent): AgentConfig {
       description: b.description,
       instruction: b.instruction,
     })),
+    routingConfig: toRoutingConfig(ms),
   };
 }

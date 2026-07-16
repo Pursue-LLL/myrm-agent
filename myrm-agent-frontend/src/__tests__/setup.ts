@@ -11,6 +11,13 @@ import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom';
 
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Object.defineProperty(Element.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: vi.fn(),
+  });
+}
+
 // 每个测试后自动清理
 afterEach(() => {
   cleanup();

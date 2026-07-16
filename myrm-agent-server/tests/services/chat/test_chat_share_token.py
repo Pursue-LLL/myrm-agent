@@ -4,7 +4,6 @@ import time
 from unittest.mock import patch
 
 from app.services.chat.share_token import (
-    ChatShareClaims,
     create_chat_share_token,
     parse_chat_share_token,
 )

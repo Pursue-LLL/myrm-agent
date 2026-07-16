@@ -325,6 +325,11 @@ class ModelSelection(BaseModel):
     safetyFallbackProviderId: str | None = Field(None, description="安全备选提供商 ID")
     safetyFallbackModel: str | None = Field(None, description="安全备选模型名称")
     modelKwargs: dict[str, object] | None = Field(None, description="模型调用参数 (temperature, top_p, max_tokens 等)")
+    routingEnabled: bool | None = Field(None, description="Per-agent Smart Routing 开关")
+    lightProviderId: str | None = Field(None, description="Per-agent 轻量路由提供商 ID")
+    lightModel: str | None = Field(None, description="Per-agent 轻量路由模型")
+    reasoningProviderId: str | None = Field(None, description="Per-agent 推理路由提供商 ID")
+    reasoningModel: str | None = Field(None, description="Per-agent 推理路由模型")
 
 
 class AgentMemoryPolicyConfig(BaseModel):

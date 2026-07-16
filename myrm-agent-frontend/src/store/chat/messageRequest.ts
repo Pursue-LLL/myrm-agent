@@ -330,7 +330,15 @@ const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
   return resolveSelectionToModelSelection({ providerId: pick.providerId, model: pick.model });
 };
 
-export const getLightModelSelection = (): ModelSelection | null => {
+export const getLightModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
+  const agentRouting = agentConfig?.routingConfig;
+  if (agentRouting !== undefined && agentRouting !== null) {
+    if (agentRouting.enabled === false) return null;
+    if (agentRouting.lightModel?.primary) {
+      const slotKwargs = agentRouting.lightModel.modelKwargs ?? {};
+      return resolveSelectionToModelSelection(agentRouting.lightModel.primary, slotKwargs);
+    }
+  }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
   if (routing?.enabled === false) return null;
@@ -341,7 +349,14 @@ export const getLightModelSelection = (): ModelSelection | null => {
   return autoSelectModelByCost(true);
 };
 
-export const getFallbackLightModelSelection = (): ModelSelection | null => {
+export const getFallbackLightModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
+  const agentRouting = agentConfig?.routingConfig;
+  if (agentRouting !== undefined && agentRouting !== null) {
+    if (agentRouting.enabled === false) return null;
+    if (agentRouting.lightModel?.fallback) {
+      return resolveSelectionToModelSelection(agentRouting.lightModel.fallback);
+    }
+  }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
   if (routing?.enabled === false) return null;
@@ -351,7 +366,15 @@ export const getFallbackLightModelSelection = (): ModelSelection | null => {
   return null;
 };
 
-export const getReasoningModelSelection = (): ModelSelection | null => {
+export const getReasoningModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
+  const agentRouting = agentConfig?.routingConfig;
+  if (agentRouting !== undefined && agentRouting !== null) {
+    if (agentRouting.enabled === false) return null;
+    if (agentRouting.reasoningModel?.primary) {
+      const slotKwargs = agentRouting.reasoningModel.modelKwargs ?? {};
+      return resolveSelectionToModelSelection(agentRouting.reasoningModel.primary, slotKwargs);
+    }
+  }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
   if (routing?.enabled === false) return null;
@@ -362,7 +385,14 @@ export const getReasoningModelSelection = (): ModelSelection | null => {
   return autoSelectModelByCost(false);
 };
 
-export const getFallbackReasoningModelSelection = (): ModelSelection | null => {
+export const getFallbackReasoningModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
+  const agentRouting = agentConfig?.routingConfig;
+  if (agentRouting !== undefined && agentRouting !== null) {
+    if (agentRouting.enabled === false) return null;
+    if (agentRouting.reasoningModel?.fallback) {
+      return resolveSelectionToModelSelection(agentRouting.reasoningModel.fallback);
+    }
+  }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
   if (routing?.enabled === false) return null;
@@ -494,10 +524,10 @@ export const createMessageRequest = async (
   const fallbackModelSelection = getFallbackModelSelection(actionMode, agentConfig);
   const safetyFallbackModelSelection = getSafetyFallbackModelSelection(actionMode, agentConfig);
   const fallbackLiteModelSelection = getFallbackLiteModelSelection();
-  const lightModelSelection = getLightModelSelection();
-  const fallbackLightModelSelection = getFallbackLightModelSelection();
-  const reasoningModelSelection = getReasoningModelSelection();
-  const fallbackReasoningModelSelection = getFallbackReasoningModelSelection();
+  const lightModelSelection = getLightModelSelection(agentConfig);
+  const fallbackLightModelSelection = getFallbackLightModelSelection(agentConfig);
+  const reasoningModelSelection = getReasoningModelSelection(agentConfig);
+  const fallbackReasoningModelSelection = getFallbackReasoningModelSelection(agentConfig);
   const visionFallbackModelSelection = getVisionFallbackModelSelection();
 
   const query = await buildMultimodalQuery(input, state.files, state.cameraFrames);

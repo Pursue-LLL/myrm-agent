@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, Copy, Link2, Loader2, Unlink } from 'lucide-react';
+import { Check, Copy, Info, Link2, Loader2, Unlink } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/primitives/dialog';
+import { isLocalMode } from '@/lib/deploy-mode';
 
 interface ShareConversationDialogProps {
   open: boolean;
@@ -35,6 +36,7 @@ export function ShareConversationDialog({
   const t = useTranslations();
   const [copied, setCopied] = useState(false);
   const [ttlDays] = useState(7);
+  const isLocal = isLocalMode();
 
   const handleCopy = useCallback(async () => {
     if (!shareUrl) return;
@@ -57,6 +59,12 @@ export function ShareConversationDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {isLocal && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
+              <Info size={16} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <p className="text-xs text-amber-700 dark:text-amber-300">{t('chat.share.localFallback')}</p>
+            </div>
+          )}
           {shareUrl ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2">

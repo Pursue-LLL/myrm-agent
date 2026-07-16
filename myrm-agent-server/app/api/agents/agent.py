@@ -191,6 +191,11 @@ def _build_model_selection(model: str | None, metadata: dict[str, object]) -> Mo
             safetyFallbackProviderId=full.get("safetyFallbackProviderId"),
             safetyFallbackModel=full.get("safetyFallbackModel"),
             modelKwargs=full.get("modelKwargs"),
+            routingEnabled=full.get("routingEnabled"),
+            lightProviderId=full.get("lightProviderId"),
+            lightModel=full.get("lightModel"),
+            reasoningProviderId=full.get("reasoningProviderId"),
+            reasoningModel=full.get("reasoningModel"),
         )
     if model:
         return ModelSelection(providerId="auto", model=model)

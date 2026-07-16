@@ -10,7 +10,7 @@
  * 会话级 Agent 与模式配置类型。
  */
 
-import type { SingleModelSelection } from '@/store/config/providerTypes';
+import type { RoutingConfig, SingleModelSelection } from '@/store/config/providerTypes';
 import type { BuiltinToolId } from './builtinTools';
 
 // 操作模式类型
@@ -58,6 +58,7 @@ export interface AgentConfig {
   memoryDecayProfile?: 'permanent' | 'normal' | 'fast';
   mcpToolSelections?: Record<string, string[]>;
   commandBindings?: { command_name: string; skill_ids: string[]; description?: string; instruction?: string }[];
+  routingConfig?: RoutingConfig | null;
 }
 
 // 已选模型配置

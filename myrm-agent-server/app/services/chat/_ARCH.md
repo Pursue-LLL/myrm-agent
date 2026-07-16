@@ -36,7 +36,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `conversation_fork_manager.py` | ✅ 核心 | 对话分支管理（checkpoint 克隆 + Fork 关系追踪 + 完整 Chat 元数据继承 + `compacted_before_id` ID 映射 + sandbox 隔离语义：父有活跃沙箱时子回退至原仓库根 + fork 失败时清理孤儿 checkpoint） | ✅ |
 | `handoff.py` | ✅ 辅助 | 跨平台会话交接：将 Chat 的 channel_session_key 重绑定到目标渠道，支持 UNIQUE 冲突自动解决和 pairing 验证 | ✅ |
 | `share_token.py` | ✅ 辅助 | 对话分享 HMAC+TTL 无状态签名 token 创建与验证 | ✅ |
-| `share_renderer.py` | ✅ 辅助 | 对话分享只读 HTML 页面 SSR 渲染（Agent 身份卡片 + 消息历史 + OG metadata + XSS 防护） | ✅ |
+| `share_renderer.py` | ✅ 辅助 | 对话分享只读 HTML 页面 SSR 渲染（markdown-it-py Markdown 渲染 + Agent 身份卡片 + 消息历史 + OG metadata + Dark Mode + XSS 防护） | ✅ |
 | `sandbox_worktree.py` | ✅ 辅助 | Git worktree 生命周期管理：create/cleanup/merge/status，供 converter.py 和 sandbox API 共用 | ✅ |
 
 ---
@@ -128,6 +128,7 @@ Chat 表新增多个字段用于支撑高级功能：
 | `session_loaded_skill_names` | JSON | 会话级已加载技能名 SSOT（压缩/历史裁剪后仍可用于 rehydrate） |
 | `total_calls`, `total_tokens`, `total_usd` | Int/Float | O(1) 性能的 BYOK 大盘资源用量缓存，在持久化时旁路聚合更新 |
 | `deleted_at` | DateTime(nullable) | 软删除时间戳。NULL=活跃，非NULL=已移入回收站。30天后由 `_db_maintenance_job` 自动永久删除 |
+| `share_revoked_at` | DateTime(nullable) | 对话分享撤回时间戳。非NULL时所有 HMAC token 即使未过期也拒绝访问 |
 
 ### 触发方式
 

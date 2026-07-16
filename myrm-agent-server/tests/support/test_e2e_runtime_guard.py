@@ -9,11 +9,10 @@ from pathlib import Path
 import pytest
 
 from tests.support.e2e_runtime_guard import (
-    E2EResourceLedger,
     assert_e2e_runtime_unchanged,
     heartbeat_e2e_lease,
-    require_e2e_runtime_lease,
     register_e2e_resource,
+    require_e2e_runtime_lease,
 )
 
 
