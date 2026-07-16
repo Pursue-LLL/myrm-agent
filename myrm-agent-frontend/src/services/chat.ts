@@ -341,7 +341,7 @@ export const saveWorkspaceFileContent = async (
 // Structured @ reference suggestion API
 // ---------------------------------------------------------------------------
 
-export type ReferenceSuggestionSource = 'workspace' | 'uploaded' | 'generated' | 'special' | 'agent';
+export type ReferenceSuggestionSource = 'workspace' | 'uploaded' | 'generated' | 'special' | 'agent' | 'wiki';
 export type ReferenceSuggestionType =
   | 'workspace_file'
   | 'workspace_folder'
@@ -350,7 +350,8 @@ export type ReferenceSuggestionType =
   | 'git_diff'
   | 'git_staged'
   | 'url'
-  | 'agent';
+  | 'agent'
+  | 'wiki_concept';
 
 export interface ReferenceSuggestion {
   source: ReferenceSuggestionSource;
@@ -367,6 +368,7 @@ export interface ReferenceSuggestion {
   score: number;
   match_ranges: Array<[number, number]>;
   avatar_url?: string;
+  concept_name?: string | null;
 }
 
 export interface ReferenceSuggestResponse {

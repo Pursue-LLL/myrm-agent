@@ -89,6 +89,21 @@ const STATIC_SPECIAL_RESULTS: ReferenceSuggestion[] = [
     score: 970,
     match_ranges: [],
   },
+  {
+    source: 'special',
+    reference_type: 'wiki_concept',
+    kind: 'reference',
+    label: '@wiki:',
+    basename: '@wiki:',
+    directory: '',
+    relative_path: null,
+    file_id: null,
+    description: 'Knowledge base concept',
+    size: null,
+    score_tier: 'prefix',
+    score: 960,
+    match_ranges: [],
+  },
 ];
 
 function extractMentionQuery(text: string, cursorPos: number): { query: string; start: number } | null {
@@ -117,6 +132,9 @@ function toMentionReference(item: ReferenceSuggestion): MentionReference | null 
   if (item.reference_type === 'workspace_folder' && !item.relative_path) {
     return null;
   }
+  if (item.reference_type === 'wiki_concept' && !item.concept_name) {
+    return null;
+  }
   const label = item.label.startsWith('@') ? item.label : `@${item.basename || item.label}`;
   return {
     type: item.reference_type,
@@ -124,9 +142,10 @@ function toMentionReference(item: ReferenceSuggestion): MentionReference | null 
     path: item.relative_path ?? undefined,
     fileId: item.file_id ?? undefined,
     url: item.reference_type === 'url' ? item.label.replace(/^@url:/, '') : undefined,
-    source: item.source,
+    source: item.source as MentionReference['source'],
     size: item.size,
     directory: item.directory || undefined,
+    conceptName: item.concept_name ?? undefined,
   };
 }
 
@@ -137,6 +156,10 @@ function replacementFor(item: ReferenceSuggestion, folderMode: boolean): string 
   if (item.reference_type === 'workspace_folder') {
     if (item.relative_path) return `@folder:${item.relative_path} `;
     return '@folder:';
+  }
+  if (item.reference_type === 'wiki_concept') {
+    if (item.concept_name) return `@wiki:${item.concept_name} `;
+    return '@wiki:';
   }
   if (folderMode && item.relative_path) return `@folder:${item.relative_path} `;
   return `@${item.relative_path ?? item.label} `;
@@ -166,8 +189,13 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     }
 
     const folderMode = mention.query.startsWith('folder:');
-    const query = folderMode ? mention.query.slice('folder:'.length) : mention.query;
-    const specialResults = folderMode ? [] : staticSpecialMatches(mention.query);
+    const wikiMode = !folderMode && mention.query.startsWith('wiki:');
+    const query = folderMode
+      ? mention.query.slice('folder:'.length)
+      : wikiMode
+        ? mention.query.slice('wiki:'.length)
+        : mention.query;
+    const specialResults = folderMode || wikiMode ? [] : staticSpecialMatches(mention.query);
 
     setState((prev) => ({
       ...prev,
@@ -187,10 +215,14 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
       try {
         const data = await suggestReferences(chatId, query, 30, folderMode ? 'directory' : 'any');
         if (requestSeqRef.current !== requestSeq) return;
-        const serverResults = folderMode ? data.results : data.results.filter((item) => item.source !== 'special');
+        const serverResults = folderMode
+          ? data.results
+          : wikiMode
+            ? data.results.filter((item) => item.source === 'wiki')
+            : data.results.filter((item) => item.source !== 'special');
         
         let agentResults: ReferenceSuggestion[] = [];
-        if (!folderMode) {
+        if (!folderMode && !wikiMode) {
           const agents = useAgentStore.getState().agents;
           agentResults = agents
             .filter(a => !query || a.name.toLowerCase().includes(query.toLowerCase()))
@@ -214,14 +246,14 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
 
         setState((prev) => ({
           ...prev,
-          results: folderMode ? serverResults : [...agentResults, ...specialResults, ...serverResults],
+          results: folderMode || wikiMode ? serverResults : [...agentResults, ...specialResults, ...serverResults],
           selectedIndex: 0,
         }));
       } catch {
         if (requestSeqRef.current !== requestSeq) return;
 
         let agentResults: ReferenceSuggestion[] = [];
-        if (!folderMode) {
+        if (!folderMode && !wikiMode) {
           const agents = useAgentStore.getState().agents;
           agentResults = agents
             .filter(a => !query || a.name.toLowerCase().includes(query.toLowerCase()))

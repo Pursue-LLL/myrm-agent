@@ -134,7 +134,7 @@ class TestBuildMentionedFileContext:
 
     @pytest.mark.asyncio
     async def test_docx_document_parsed(self) -> None:
-        from docx import Document
+        Document = pytest.importorskip("docx", reason="python-docx not installed").Document
 
         from app.services.agent.params.mention import _build_mentioned_file_context
 
@@ -153,7 +153,7 @@ class TestBuildMentionedFileContext:
 
     @pytest.mark.asyncio
     async def test_xlsx_document_parsed(self) -> None:
-        from openpyxl import Workbook
+        Workbook = pytest.importorskip("openpyxl", reason="openpyxl not installed").Workbook
 
         from app.services.agent.params.mention import _build_mentioned_file_context
 
@@ -173,7 +173,7 @@ class TestBuildMentionedFileContext:
 
     @pytest.mark.asyncio
     async def test_pptx_document_parsed(self) -> None:
-        from pptx import Presentation
+        Presentation = pytest.importorskip("pptx", reason="python-pptx not installed").Presentation
 
         from app.services.agent.params.mention import _build_mentioned_file_context
 
@@ -231,7 +231,7 @@ class TestParseDocument:
     """Tests for _parse_document."""
 
     def test_docx_parse(self) -> None:
-        from docx import Document
+        Document = pytest.importorskip("docx", reason="python-docx not installed").Document
 
         from app.services.agent.params.mention import _parse_document
 
@@ -246,7 +246,7 @@ class TestParseDocument:
         assert "Test paragraph" in result
 
     def test_xlsx_parse(self) -> None:
-        from openpyxl import Workbook
+        Workbook = pytest.importorskip("openpyxl", reason="openpyxl not installed").Workbook
 
         from app.services.agent.params.mention import _parse_document
 
@@ -263,7 +263,7 @@ class TestParseDocument:
         assert "Col1" in result
 
     def test_pptx_parse(self) -> None:
-        from pptx import Presentation
+        Presentation = pytest.importorskip("pptx", reason="python-pptx not installed").Presentation
 
         from app.services.agent.params.mention import _parse_document
 

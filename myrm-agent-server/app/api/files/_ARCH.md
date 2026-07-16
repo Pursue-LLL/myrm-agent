@@ -19,7 +19,7 @@
 | `revert.py` | 模块 | File revert & review API — message-level / file-level / session-level undo of AI file edits and review diffs. | ✅ |
 | `router.py` | 路由 | Files API router | ✅ |
 | `storage.py` | 模块 | 文件管理 API | ✅ |
-| `suggest.py` | 模块 | `@` reference suggestion API via harness `filesystem_suggest`. | ✅ |
+| `suggest.py` | 模块 | `@` reference suggestion API — workspace/uploaded/generated/wiki via harness `filesystem_suggest` + `WikiStructure`. | ✅ |
 | `upload.py` | 模块 | 文件上传 API | ✅ |
 | `vault_api.py` | 模块 | Retrieve the raw binary/text content of a vault object. | ✅ |
 | `vault_proxy.py` | 模块 | Vault secure artifact proxy router. | ✅ |

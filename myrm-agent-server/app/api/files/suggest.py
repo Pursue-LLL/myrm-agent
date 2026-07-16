@@ -3,16 +3,20 @@
 myrm_agent_harness.toolkits.filesystem_suggest::suggest_workspace_paths (POS: Workspace path suggestion ranker)
 app.services.chat.chat_service::ChatService (POS: Chat metadata and workspace resolver)
 app.core.storage::files_service (POS: Stored file metadata service)
+app.services.wiki.vault_resolver::resolve_wiki_vault_path (POS: Wiki vault path resolver)
+myrm_agent_harness.toolkits.wiki.core.structure::WikiStructure (POS: Wiki file system structure manager)
 
 [OUTPUT]
 GET /api/v1/files/suggest: returns structured GUI @ reference suggestions.
 
 [POS]
-File reference suggestion API. Resolves the current chat workspace and returns workspace, uploaded, generated and special references without exposing absolute paths.
+File reference suggestion API. Resolves the current chat workspace and returns workspace,
+uploaded, generated, wiki and special references without exposing absolute paths.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Literal
@@ -28,9 +32,11 @@ from app.core.utils.errors import validation_error
 from app.core.utils.response_utils import success_response
 from app.services.chat.chat_service import ChatService
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
-ReferenceSource = Literal["workspace", "uploaded", "generated", "special"]
+ReferenceSource = Literal["workspace", "uploaded", "generated", "special", "wiki"]
 ReferenceType = Literal[
     "workspace_file",
     "workspace_folder",
@@ -39,6 +45,7 @@ ReferenceType = Literal[
     "git_diff",
     "git_staged",
     "url",
+    "wiki_concept",
 ]
 SuggestionKind = Literal["file", "directory", "reference"]
 
@@ -59,6 +66,7 @@ class ReferenceSuggestion(BaseModel):
     score_tier: str
     score: int
     match_ranges: list[tuple[int, int]] = Field(default_factory=list)
+    concept_name: str | None = None
 
 
 class ReferenceSuggestResponse(BaseModel):
@@ -109,6 +117,16 @@ _SPECIAL_REFERENCES: tuple[ReferenceSuggestion, ...] = (
         score_tier="prefix",
         score=970,
     ),
+    ReferenceSuggestion(
+        source="special",
+        reference_type="wiki_concept",
+        kind="reference",
+        label="@wiki:",
+        basename="@wiki:",
+        description="Knowledge base concept",
+        score_tier="prefix",
+        score=960,
+    ),
 )
 
 
@@ -135,6 +153,9 @@ async def suggest_references(
 
     if kind != "directory" and source in ("all", "uploaded", "generated"):
         results.extend(await _suggest_stored_files(chat_id, query, source))
+
+    if kind != "directory" and source == "all":
+        results.extend(_suggest_wiki(query))
 
     results.sort(key=lambda item: (-item.score, item.source, item.label.lower()))
     bounded = results[:limit]
@@ -236,3 +257,57 @@ async def _suggest_stored_files(
                 )
             )
     return results
+
+
+def _suggest_wiki(query: str) -> list[ReferenceSuggestion]:
+    """Search wiki concepts and return matching suggestions."""
+    try:
+        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+        from myrm_agent_harness.toolkits.wiki import WikiStructure
+
+        vault_path = resolve_wiki_vault_path()
+        structure = WikiStructure(vault_path)
+        concept_paths = structure.list_concepts()
+
+        results: list[ReferenceSuggestion] = []
+        for concept_path in concept_paths:
+            try:
+                rel = concept_path.relative_to(structure.concepts_dir)
+                concept_name = str(rel.with_suffix("")).replace("\\", "/")
+            except ValueError:
+                concept_name = concept_path.stem
+
+            display_name = concept_name.rsplit("/", maxsplit=1)[-1]
+            rank = rank_basename(display_name, query)
+            if rank is None and query:
+                rank = rank_basename(concept_name, query)
+            if rank is None and query:
+                continue
+
+            tier, score, ranges = rank if rank else ("prefix", 800, [])
+            first_line = ""
+            try:
+                with open(concept_path, encoding="utf-8", errors="replace") as f:
+                    first_line = f.readline().strip().removeprefix("#").strip()[:80]
+            except OSError:
+                pass
+
+            results.append(
+                ReferenceSuggestion(
+                    source="wiki",
+                    reference_type="wiki_concept",
+                    kind="reference",
+                    label=f"@wiki:{concept_name}",
+                    basename=display_name,
+                    directory="Knowledge base",
+                    concept_name=concept_name,
+                    description=first_line or None,
+                    score_tier=tier,
+                    score=score,
+                    match_ranges=ranges,
+                )
+            )
+        return results
+    except Exception as exc:
+        logger.debug("Wiki suggest unavailable: %s", exc)
+        return []

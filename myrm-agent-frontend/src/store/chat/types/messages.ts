@@ -172,7 +172,7 @@ export interface MentionReference {
   path?: string;
   fileId?: string;
   url?: string;
-  source: 'workspace' | 'uploaded' | 'generated' | 'special';
+  source: 'workspace' | 'uploaded' | 'generated' | 'special' | 'wiki';
   size: number | null;
   directory?: string;
   startLine?: number;
