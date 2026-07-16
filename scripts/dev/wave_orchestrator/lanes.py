@@ -23,7 +23,7 @@ ALL_LANES: frozenset[Lane] = frozenset(
 
 
 def live_agent_max_concurrent() -> int:
-    raw = os.environ.get("MYRM_LIVE_AGENT_MAX_CONCURRENT", "1").strip()
+    raw = os.environ.get("MYRM_LIVE_AGENT_MAX_CONCURRENT", "2").strip()
     try:
         value = int(raw)
     except ValueError:
