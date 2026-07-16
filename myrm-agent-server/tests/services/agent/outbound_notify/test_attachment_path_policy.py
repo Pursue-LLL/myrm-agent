@@ -53,14 +53,15 @@ def test_rejects_path_traversal_escape(tmp_path: Path) -> None:
 
 
 def test_returns_false_when_path_resolve_raises(monkeypatch) -> None:
-    def _raise_resolve(self: Path, *, strict: bool = False) -> Path:
-        raise OSError("resolve failed")
+    from unittest.mock import patch
 
-    monkeypatch.setattr(Path, "resolve", _raise_resolve)
-    assert is_local_attachment_path_allowed("/any/path", ("/tmp",)) is False
+    with patch.object(Path, "resolve", side_effect=OSError("resolve failed")):
+        assert is_local_attachment_path_allowed("/any/path", ("/tmp",)) is False
 
 
-def test_returns_false_when_root_resolve_raises(monkeypatch, tmp_path: Path) -> None:
+def test_returns_false_when_root_resolve_raises(tmp_path: Path) -> None:
+    from unittest.mock import patch
+
     file_path = tmp_path / "file.txt"
     file_path.write_bytes(b"x")
     original_resolve = Path.resolve
@@ -72,5 +73,5 @@ def test_returns_false_when_root_resolve_raises(monkeypatch, tmp_path: Path) -> 
             return original_resolve(self, strict=strict)
         raise OSError("root resolve failed")
 
-    monkeypatch.setattr(Path, "resolve", _resolve)
-    assert is_local_attachment_path_allowed(str(file_path), (str(tmp_path),)) is False
+    with patch.object(Path, "resolve", _resolve):
+        assert is_local_attachment_path_allowed(str(file_path), (str(tmp_path),)) is False
