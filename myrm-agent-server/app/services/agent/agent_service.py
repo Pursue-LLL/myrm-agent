@@ -377,7 +377,7 @@ class AgentService:
 
     @staticmethod
     async def delete_agent(agent_id: str) -> bool:
-        """删除智能体 (包括级联清理渠道绑定)
+        """删除智能体 (含级联清理: 技能/渠道绑定/Kanban引用/Cron引用)
 
         Raises:
             PermissionError: If the agent is a built-in agent (cannot be deleted).
