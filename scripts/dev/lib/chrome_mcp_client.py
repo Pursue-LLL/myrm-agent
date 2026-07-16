@@ -11,7 +11,7 @@ import subprocess
 import threading
 import time
 import uuid
-from builtins import BaseExceptionGroup, ExceptionGroup
+from builtins import BaseExceptionGroup
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,8 +19,8 @@ from typing import TextIO
 
 from chrome_mcp_errors import (
     is_benign_cleanup_error as _is_benign_cleanup_error,
-    is_context_reset_error,
-    is_page_ownership_error,
+    is_context_reset_error as is_context_reset_error,
+    is_page_ownership_error as is_page_ownership_error,
     is_page_ownership_error_message as _is_page_ownership_error,
     is_transient_mux_error as _is_transient_mux_error,
 )
@@ -75,6 +75,7 @@ class ChromeMcpClient:
             or os.environ.get("MYRM_WAVE_AGENT_ID", "").strip()
             or f"pytest-mcp:{os.getpid()}:{uuid.uuid4().hex}"
         )
+        self._parent_lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
         self._monorepo_root = Path(__file__).resolve().parents[4]
         self._wave = self._monorepo_root / "myrm-agent/scripts/dev/wave.sh"
 
@@ -411,6 +412,7 @@ class ChromeMcpClient:
         except RuntimeError as exc:
             if "LEASE_NOT_ACTIVE" not in str(exc):
                 raise
+            self._page_lease_heartbeat.untrack(lease_id)
             lease_id = self._acquire_page_lease()
             reopened = McpPage(
                 page_id=page_id,
@@ -683,7 +685,31 @@ class ChromeMcpClient:
             check=False,
             env=os.environ.copy(),
         )
-        if result.returncode == 0 and '"status": "open"' in result.stdout:
+        payload: dict[str, object] = {}
+        if result.returncode == 0:
+            try:
+                parsed: object = json.loads(result.stdout)
+                if isinstance(parsed, dict):
+                    payload = parsed
+            except json.JSONDecodeError:
+                pass
+        wave = payload.get("wave")
+        wave_open = isinstance(wave, dict) and wave.get("status") == "open"
+        if self._parent_lease_id:
+            active = payload.get("activeLeases")
+            parent_active = isinstance(active, list) and any(
+                isinstance(lease, dict)
+                and lease.get("leaseId") == self._parent_lease_id
+                and lease.get("agentId") == self._agent_id
+                for lease in active
+            )
+            if wave_open and parent_active:
+                return
+            raise RuntimeError(
+                "PARENT_LEASE_NOT_ACTIVE: refusing to reopen Wave from page client; "
+                f"leaseId={self._parent_lease_id}"
+            )
+        if wave_open:
             return
         try:
             self._wave_command("open")
@@ -693,9 +719,10 @@ class ChromeMcpClient:
 
     def _acquire_page_lease(self) -> str:
         self._ensure_wave_open()
-        payload = self._wave_command(
-            "lease", "acquire", "READ", "--ttl", str(_PAGE_LEASE_TTL_SEC)
-        )
+        args = ["lease", "acquire", "READ", "--ttl", str(_PAGE_LEASE_TTL_SEC)]
+        if self._parent_lease_id:
+            args.extend(["--parent-lease-id", self._parent_lease_id])
+        payload = self._wave_command(*args)
         lease = payload.get("lease")
         lease_id = lease.get("leaseId") if isinstance(lease, dict) else None
         if not isinstance(lease_id, str) or not lease_id:

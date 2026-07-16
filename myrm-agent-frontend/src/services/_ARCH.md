@@ -10,7 +10,8 @@
 |-------------|------|
 | `chat.ts` | 会话 CRUD、流式聊天 |
 | `cron.ts` / `cron.types.ts` | `/cron/*` REST 客户端；类型在 `cron.types.ts` |
-| `channels.ts` | 渠道配置与状态 |
+| `channels.ts` | 渠道 facade → `channels/` 分片 |
+| `channels/` | 核心工厂、管理 API、Provider 凭证、登录协议 · [_ARCH.md](channels/_ARCH.md) |
 | `connect.ts` | Connect Wizard：`/connect/profiles|generate|doctor|revoke|status`；外部 Agent MCP 连接管理 |
 | `extension.ts` | 浏览器扩展桥：`/extension/status|domains|tabs|disconnect|setup-hints`；`getExtensionWebSocketUrl()` |
 | `llm-config.ts` | Provider / 模型探测 |
@@ -42,4 +43,4 @@
 ## 约束
 
 - 错误文案通过调用方 + `locales/*` 呈现；service 层抛英文 `Error` message 供日志。
-- 单文件 >800 行应拆分（当前 `chat.ts`、`channels.ts` 为 P0 候选）。
+- 单文件 >800 行应拆分（`channels.ts` 已分片；`chat.ts` 仍为 P0 候选）。

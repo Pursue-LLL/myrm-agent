@@ -8,7 +8,11 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `PremiumIcons.tsx` | 组件 | 付费/高级功能标识图标集 |
+| `PremiumIcons.tsx` | facade re-export |
+| `premium-icons/core.tsx` | 通用 UI 图标（第 1 批） |
+| `premium-icons/extended.tsx` | 通用 UI 图标（第 2 批） |
+| `premium-icons/settings.tsx` | 设置页替换 Lucide 图标（第 3 批） |
+| `premium-icons/types.ts` | `IconProps` 类型 |
 
 ## 依赖
 

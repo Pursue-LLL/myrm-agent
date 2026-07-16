@@ -189,5 +189,5 @@ fn update_tray_status(app: &AppHandle, status: &str) {
         "idle" => "MyrmAgent - 空闲",
         _ => "MyrmAgent",
     };
-    crate::tray::update_native_tray_status(app, status, tooltip);
+    crate::app::update_native_tray_status(app, status, tooltip);
 }

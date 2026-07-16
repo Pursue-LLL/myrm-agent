@@ -11857,7 +11857,20 @@
       "cloudProviderSiliconFlow": "SiliconFlow",
       "cloudProviderSiliconFlowHint": "国内友好，注册送额度",
       "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "免费开源模型"
+      "cloudProviderOpenRouterHint": "免费开源模型",
+      "routing": {
+        "pageTitle": "节省 API 费用",
+        "pageDescription": "自动将简单任务交给轻量模型处理，质量不变，账单更低。",
+        "title": "智能路由",
+        "description": "自动将简单请求发送到轻量模型，将主力模型留给复杂任务。",
+        "savingsEstimate": "可节省 40–70% API 费用",
+        "liteLabel": "快速任务",
+        "standardLabel": "常规任务",
+        "reasoningLabel": "复杂推理",
+        "currentModel": "主力模型",
+        "enableButton": "开启智能路由",
+        "skipButton": "稍后再说"
+      }
     }
   },
   "appshot": {

@@ -2,7 +2,7 @@
 //!
 //! [INPUT]
 //! - app::run (POS: Tauri Builder 组装与插件注册)
-//! - commands / config / runtime / lifecycle / tray 各模块
+//! - commands / config / runtime / app 各模块
 //!
 //! [OUTPUT]
 //! - 进程入口 `main()`
@@ -12,16 +12,14 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod agent_runner_rpc;
 mod app;
 mod cli_agent_types;
 mod commands;
 mod config;
-mod lifecycle;
 mod permissions;
 mod runtime;
 mod sessions;
-mod sidecar;
-mod tray;
 mod utils;
 
 fn main() {

@@ -30,7 +30,10 @@ __pycache__/
 **/__pycache__/
 *.pyc
 .pytest_cache/
+.ruff_cache/
 .benchmarks/
+scripts/dev/.pytest_cache/
+scripts/dev/.benchmarks/
 
 # Node leftovers at repo root
 node_modules/

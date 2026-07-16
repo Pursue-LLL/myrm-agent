@@ -18,7 +18,6 @@ import sys
 
 from wave_orchestrator.core import (
     acquire_lease,
-    bind_browser_lease,
     check_stack_write_gate,
     close_wave,
     default_agent_id,
@@ -27,9 +26,9 @@ from wave_orchestrator.core import (
     reap,
     release_lease,
     release_lease_and_close_wave_if_idle,
-    unbind_browser_lease,
     wave_status,
 )
+from wave_orchestrator.lease_cleanup import bind_browser_lease, unbind_browser_lease
 from wave_orchestrator.resource_ledger import (
     cleanup_lease_resources,
     cleanup_namespace_resources,
@@ -87,6 +86,7 @@ def cmd_lease_acquire(args: argparse.Namespace) -> int:
             agent_id=args.agent,
             ttl_sec=args.ttl,
             namespace=args.namespace,
+            parent_lease_id=args.parent_lease_id,
         )
     except RuntimeError as exc:
         _fail(str(exc), 2)
@@ -265,6 +265,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     acquire_p.add_argument(
         "--namespace", default="", help="RESOURCE_WRITE owner namespace"
+    )
+    acquire_p.add_argument(
+        "--parent-lease-id",
+        default="",
+        help="Active parent lease for exact session-owned child cleanup",
     )
     acquire_p.add_argument("--ttl", type=int, default=3600, help="Lease TTL seconds")
     acquire_p.set_defaults(handler=cmd_lease_acquire)

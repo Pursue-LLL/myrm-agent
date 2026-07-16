@@ -8,7 +8,7 @@
 
 | 文件 | 平台 | 职责 | I/O/P |
 |------|------|------|-------|
-| `check-fractal-docs.ts` | CI | 分形文档门禁：14 项 `_ARCH` + 14 核心 `[INPUT]` + Rust ≤400 行 | ✅ |
+| `check-fractal-docs.ts` | CI | 分形文档门禁：15 项 `_ARCH` + 15 核心 `[INPUT]` + Rust ≤400 行 | ✅ |
 | `check-fractal-docs.test.ts` | CI | 门禁单元测试 | — |
 | `ci/cargo-check.sh` | CI | stub sidecars + frontend standalone → `cargo check` + `config::tests` | — |
 | `ci/verify-launch-contract.sh` | CI | 静态校验 Launch Contract（含 `frontend-start-failed` / `backend-start-failed` shell 处理） | — |

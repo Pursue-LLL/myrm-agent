@@ -25,7 +25,7 @@ from runtime_identity import (
     _mux_state_dir,
     _resolve_e2e_port,
     collect_runtime_parts,
-    compute_runtime_id,
+    compute_hot_pool_runtime_id,
     read_chrome_epoch,
     runtime_ids_equal,
 )
@@ -157,7 +157,7 @@ def probe_runtime_context() -> RuntimeProbeContext:
 
 
 def _read_shared_hot_stack_runtime_id() -> str:
-    """Full hot-stack runtimeId for SHPOIB private pools (matches supervisor reaper)."""
+    """Stable shared hot-pool identity for SHPOIB and the supervisor reaper."""
     shared_state = Path.home() / ".local/state/myrm-dev"
     overrides = {
         "MYRM_DEV_STATE_DIR": str(shared_state),
@@ -193,7 +193,7 @@ def _read_shared_hot_stack_runtime_id() -> str:
             ws_stamp_matches=ctx["ws_stamp_matches"],
             mux_daemon_count=ctx["mux_daemon_count"],
         )
-        return compute_runtime_id(parts)
+        return compute_hot_pool_runtime_id(parts)
     finally:
         for key, value in saved.items():
             if value is None:
@@ -222,7 +222,7 @@ def read_current_runtime_id() -> str:
         ws_stamp_matches=ctx["ws_stamp_matches"],
         mux_daemon_count=ctx["mux_daemon_count"],
     )
-    return compute_runtime_id(parts)
+    return compute_hot_pool_runtime_id(parts)
 
 
 def run_drift_check(expected: str) -> int:

@@ -1,10 +1,13 @@
 //! Tauri 应用构建与运行入口。
 
+mod lifecycle;
 mod linux_gpu;
 mod setup;
 mod shortcut_handler;
+mod tray;
 
-use crate::lifecycle;
+pub(crate) use tray::update_native_tray_status;
+
 use crate::runtime;
 
 #[tauri::command]
@@ -93,7 +96,7 @@ pub fn run() {
             crate::commands::config::migrate_data_dir,
             crate::commands::recovery::export_local_sqlite,
             crate::commands::recovery::reveal_app_folder,
-            crate::tray::set_tray_status
+            tray::set_tray_status
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

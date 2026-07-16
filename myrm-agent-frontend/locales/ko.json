@@ -10977,7 +10977,20 @@
       "cloudProviderSiliconFlow": "SiliconFlow",
       "cloudProviderSiliconFlowHint": "중국 친화적, 가입 시 무료 크레딧",
       "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "무료 오픈소스 모델"
+      "cloudProviderOpenRouterHint": "무료 오픈소스 모델",
+      "routing": {
+        "pageTitle": "API 비용 절감",
+        "pageDescription": "간단한 작업을 가벼운 모델에 자동 라우팅 — 품질은 유지하고 비용은 절감합니다.",
+        "title": "스마트 라우팅",
+        "description": "간단한 요청을 경량 모델에 자동 전송하고 복잡한 작업은 주력 모델에 맡깁니다.",
+        "savingsEstimate": "API 비용 40–70% 절감",
+        "liteLabel": "빠른 작업",
+        "standardLabel": "일반 작업",
+        "reasoningLabel": "복잡한 추론",
+        "currentModel": "주력 모델",
+        "enableButton": "스마트 라우팅 활성화",
+        "skipButton": "나중에 설정"
+      }
     }
   },
   "appshot": {

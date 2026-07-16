@@ -8,10 +8,12 @@ Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两
 |----------|------------|------|-----------------|--------|
 | `sidecar/` | **Python 后端** Sidecar 构建脚本 | PyInstaller `build.py` | 打包到 `src-tauri/binaries/myrmagent-backend-*`；运行时 `PORT`（Desktop 常用 8080） | `sidecar/_ARCH.md` |
 | `sidecar/agent-runner/` | **Agent Runner** 源码（CLI 工具可视化） | Bun → `bun build --compile` | `src-tauri/binaries/agent-runner-*` | `sidecar/build.py` |
-| `src-tauri/src/sidecar/` | Rust **Agent Runner 进程管理** | Tauri | JSON-RPC stdio、事件转发 | `src-tauri/src/_ARCH.md` |
+| `src-tauri/src/agent_runner_rpc/` | Rust **Agent Runner JSON-RPC 进程管理** | Tauri | JSON-RPC stdio、事件转发 | `src-tauri/src/agent_runner_rpc/_ARCH.md` |
 | `src-tauri/src/runtime/` | Rust **Python/Next.js Sidecar + Agent Runner 编排** | Tauri | 进程启动、Appshot、Setup Token | `src-tauri/src/_ARCH.md` |
 
-**数据流（CLI 可视化）**: 用户输入 → Tauri IPC → Rust `sidecar/` → Agent Runner 二进制 → 外部 CLI（claude 等）→ JSON 事件 → WebView UI。
+**数据流（CLI 可视化）**: 用户输入 → Tauri IPC → Rust `agent_runner_rpc/` → Agent Runner 二进制 → 外部 CLI（claude 等）→ JSON 事件 → WebView UI。
+
+**路径对照**: 构建与源码在 `sidecar/`、`sidecar/agent-runner/`；Rust 运行时在 `src-tauri/src/agent_runner_rpc/`。`src-tauri/sidecar/` 不在仓库布局内（`.gitignore` 兜底）。
 
 **与开源 server 关系**: Python Sidecar 入口为 `myrm-agent-server/app/main.py`（与本地 `myrm start` 同一应用，不同打包形态）。
 
@@ -20,7 +22,7 @@ Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两
 | 目录 | 职责 |
 |------|------|
 | `src-tauri/` | Rust 主程序、IPC、托盘、更新校验 → [ARCHITECTURE.md](ARCHITECTURE.md) |
-| `src-tauri/frontend-shell/` | Release 模式 WebView 占位页：IPC 读 `webui_port` 轮询 Next；`frontend-start-failed` 阻断，`backend-start-failed` 警告后继续跳转 |
+| `src-tauri/frontend-shell/` | Release 模式 WebView 占位页：IPC 读 `webui_port` 轮询 Next；`frontend-start-failed` 阻断，`backend-start-failed` 警告后继续跳转 | [src-tauri/frontend-shell/_ARCH.md](src-tauri/frontend-shell/_ARCH.md) |
 | `sidecar/` | PyInstaller + agent-runner 编译入口 |
 | `scripts/` | 桌面构建/签名辅助 → [scripts/_ARCH.md](scripts/_ARCH.md) |
 

@@ -9,7 +9,9 @@
 | 文件 | 职责 |
 |------|------|
 | `ChannelsSection.tsx` | 渠道总览、安装依赖、各 Provider 配置卡片 |
-| `ChannelRoutingSection.tsx` | 渠道路由、线程共享、Shared Context 绑定 |
+| `ChannelRoutingSection.tsx` | 渠道路由页壳与布局 |
+| `useChannelRouting.ts` | 渠道路由状态与 API 绑定 handlers |
+| `ChannelRoutingTopicRow.tsx` | 单 Topic 绑定行（Agent / 线程共享 / 回复模式） |
 | `VoiceSection.tsx` | 语音输入输出设置 |
 | `ChannelList.tsx` / `ChannelIcon.tsx` | 渠道列表与图标 |
 | `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx` / `PairingManager.tsx` | 连接状态、Ingress 提示与配对管理 |

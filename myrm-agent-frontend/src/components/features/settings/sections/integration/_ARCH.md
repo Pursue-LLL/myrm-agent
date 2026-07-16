@@ -10,7 +10,8 @@
 |------|------|
 | `ConnectSection.tsx` | Connect Wizard：外部 AI Agent（Cursor/Claude Code 等）连接记忆 MCP 的配置生成、Token 签发、健康检查与撤销 |
 | `ExtensionBridgeSection.tsx` | 浏览器扩展桥：WS URL 复制、Token 配置状态、扩展路径复制、Setup Guide、连接状态、授权域名、可用标签页 |
-| `CredentialsSection.tsx` | 凭证管理 |
+| `CredentialsSection.tsx` | 凭证管理（re-export → `credentials/CredentialsSection`） |
+| `credentials/` | Vault / 文件 / OAuth 凭证子模块 · [credentials/_ARCH.md](credentials/_ARCH.md) |
 | `ExternalAgentsConfig.tsx` / `ExternalAgentAuthControls.tsx` | 外部 Agent 连接配置 |
 | `OpenAIApiSection.tsx` | OpenAI 兼容 API 设置 |
 | `CommunicationSection.tsx` | 渠道 Tab 容器（聚合 `channels/`） |

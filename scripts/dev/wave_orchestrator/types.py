@@ -48,6 +48,7 @@ class LeaseRecord(TypedDict):
     expiresAt: str
     lastHeartbeatAt: str
     status: LeaseStatus
+    parentLeaseId: NotRequired[str]
     pageId: NotRequired[str]
     targetId: NotRequired[str]
     contextId: NotRequired[str]

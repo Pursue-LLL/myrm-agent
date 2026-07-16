@@ -26,7 +26,6 @@ src/components/features/cron/CronAdvancedEditors.tsx
 src/components/features/cron/CronJobCard.tsx
 src/components/features/cron/CronJobCreateDialog.tsx
 src/components/features/eval-lab/EvalLabDashboard.tsx
-src/components/features/icons/PremiumIcons.tsx
 src/components/features/kanban/KanbanBoardView.tsx
 src/components/features/kanban/KanbanTaskCard.tsx
 src/components/features/markdown-render-tools/MermaidChart.tsx
@@ -62,7 +61,6 @@ src/components/features/settings/sections/ai-core/agent/AgentOpenAPIServicesTab.
 src/components/features/settings/sections/ai-tools/SkillsSection.tsx
 src/components/features/settings/sections/hosting/HostingTargetsPanel.tsx
 src/components/features/settings/sections/integration/ConnectSection.tsx
-src/components/features/settings/sections/integration/CredentialsSection.tsx
 src/components/features/settings/sections/integration/ExternalAgentsConfig.tsx
 src/components/features/settings/sections/integration/channels/ChannelsSection.tsx
 src/components/features/settings/sections/integration/channels/FeishuConfigCard.tsx
@@ -111,7 +109,6 @@ src/lib/api.ts
 src/lib/utils/chatExportHtml.ts
 src/lib/widget-theme-bridge.ts
 src/services/agent.ts
-src/services/channels.ts
 src/services/chat.ts
 src/services/config/ConfigSyncManager.ts
 src/services/config/types.ts

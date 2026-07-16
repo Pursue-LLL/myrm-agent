@@ -14,13 +14,14 @@ import { getActiveSearchServiceConfig } from '@/store/config/searchService';
 
 import MigrationWizardSection from '@/components/features/settings/sections/knowledge/MigrationWizardSection';
 import LocalCapabilitiesSetup from './LocalCapabilitiesSetup';
+import SmartRoutingStep from './SmartRoutingStep';
 import { Button } from '@/components/primitives/button';
 
 interface OnboardingWizardProps {
   onComplete: () => void;
 }
 
-type Step = 'welcome' | 'migration' | 'capabilities' | 'finishing';
+type Step = 'welcome' | 'migration' | 'capabilities' | 'routing' | 'finishing';
 
 const WELCOME_DURATION_MS = 2500;
 
@@ -36,10 +37,19 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const isInitialized = useProviderStore((s) => s.isInitialized);
   const searchServiceConfigs = useConfigStore((s) => s.searchServiceConfigs);
 
+  const defaultModelConfig = useProviderStore((s) => s.defaultModelConfig);
+  const getEnabledModels = useProviderStore((s) => s.getEnabledModels);
+
   const hasEnabledProvider = providers.some(
     (p) => p.isEnabled && (p.apiKeys?.some((k) => k.isActive && k.key) || ['ollama', 'lm_studio'].includes(p.id)),
   );
   const searchConfigured = !!getActiveSearchServiceConfig(searchServiceConfigs);
+  const routingAlreadyEnabled = defaultModelConfig.routingConfig?.enabled ?? false;
+
+  const shouldShowRouting = useCallback(() => {
+    if (routingAlreadyEnabled) return false;
+    return getEnabledModels().length >= 2;
+  }, [routingAlreadyEnabled, getEnabledModels]);
 
   // We only run the async probes once on mount
   useEffect(() => {
@@ -83,6 +93,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         setStep('migration');
       } else if (isLocalMode() && (!hasEnabledProvider || !searchConfigured)) {
         setStep('capabilities');
+      } else if (shouldShowRouting()) {
+        setStep('routing');
       } else {
         handleFinish();
       }
@@ -101,13 +113,27 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     setTimeout(onComplete, 400);
   }, [onComplete]);
 
-  const handleMigrationCompleteOrSkip = useCallback(() => {
-    if (isLocalMode() && (!hasEnabledProvider || !searchConfigured)) {
-      setStep('capabilities');
+  const handleRoutingCompleteOrSkip = useCallback(() => {
+    handleFinish();
+  }, [handleFinish]);
+
+  const handleCapabilitiesComplete = useCallback(() => {
+    if (shouldShowRouting()) {
+      setStep('routing');
     } else {
       handleFinish();
     }
-  }, [hasEnabledProvider, searchConfigured, handleFinish]);
+  }, [shouldShowRouting, handleFinish]);
+
+  const handleMigrationCompleteOrSkip = useCallback(() => {
+    if (isLocalMode() && (!hasEnabledProvider || !searchConfigured)) {
+      setStep('capabilities');
+    } else if (shouldShowRouting()) {
+      setStep('routing');
+    } else {
+      handleFinish();
+    }
+  }, [hasEnabledProvider, searchConfigured, shouldShowRouting, handleFinish]);
 
   if (step === 'welcome' || step === 'finishing') {
     return (
@@ -169,7 +195,19 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
               <p className="text-muted-foreground">{t('onboarding.capabilitiesDescription')}</p>
             </div>
             <div className="bg-card border rounded-xl p-6">
-              <LocalCapabilitiesSetup probeResult={probe} onComplete={handleFinish} />
+              <LocalCapabilitiesSetup probeResult={probe} onComplete={handleCapabilitiesComplete} />
+            </div>
+          </div>
+        )}
+
+        {step === 'routing' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.routing.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.routing.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <SmartRoutingStep onComplete={handleRoutingCompleteOrSkip} onSkip={handleRoutingCompleteOrSkip} />
             </div>
           </div>
         )}

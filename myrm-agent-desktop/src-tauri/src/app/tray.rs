@@ -1,7 +1,7 @@
 //! 系统托盘初始化与状态管理
 //!
 //! [INPUT]
-//! - lifecycle::graceful_shutdown (POS: 优雅停机)
+//! - super::lifecycle::graceful_shutdown (POS: 优雅停机)
 //! - 前端 useTrayEvents.ts 监听 tray:new_chat / tray:settings / tray:workspace 事件
 //!
 //! [OUTPUT]
@@ -47,13 +47,13 @@ fn show_and_navigate(app: &AppHandle, event_name: &str) {
 }
 
 fn load_tray_icon() -> Result<Image<'static>, Box<dyn std::error::Error>> {
-    Ok(Image::from_bytes(include_bytes!("../icons/tray_icon@2x.png"))?)
+    Ok(Image::from_bytes(include_bytes!("../../icons/tray_icon@2x.png"))?)
 }
 
 pub fn load_tray_icon_for_status(status: &str) -> Result<Image<'static>, Box<dyn std::error::Error>> {
     match status {
-        "busy" => Ok(Image::from_bytes(include_bytes!("../icons/tray_icon_busy@2x.png"))?),
-        "degraded" | "error" => Ok(Image::from_bytes(include_bytes!("../icons/tray_icon_degraded@2x.png"))?),
+        "busy" => Ok(Image::from_bytes(include_bytes!("../../icons/tray_icon_busy@2x.png"))?),
+        "degraded" | "error" => Ok(Image::from_bytes(include_bytes!("../../icons/tray_icon_degraded@2x.png"))?),
         _ => load_tray_icon(),
     }
 }
@@ -88,7 +88,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             "quit" => {
                 let app_handle = app.clone();
                 tauri::async_runtime::spawn(async move {
-                    crate::lifecycle::graceful_shutdown(app_handle.clone()).await;
+                    super::lifecycle::graceful_shutdown(app_handle.clone()).await;
                     app_handle.exit(0);
                 });
             }

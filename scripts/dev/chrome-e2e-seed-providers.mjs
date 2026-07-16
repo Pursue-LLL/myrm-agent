@@ -10,6 +10,7 @@ const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'chrome-e2e';
 async function apiFetch(path, options = {}) {
   const res = await fetch(`${apiBase}${path}`, {
     ...options,
+    signal: options.signal ?? AbortSignal.timeout(15_000),
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers ?? {}),

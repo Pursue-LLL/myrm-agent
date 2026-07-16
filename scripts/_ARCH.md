@@ -43,5 +43,5 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 - 默认克隆到 `~/.myrm/myrm-agent`（Windows：`%USERPROFILE%\.myrm\myrm-agent`）
 - 需预装 Git；Windows 原生扩展编译失败时以 `uv sync` 核心依赖为准（harness 已含 retrieval 等 extras）
 - Harness：OSS `install.sh` 走 PyPI（`uv sync`）；monorepo 联调时 `dev/setup.sh` 检测旁路 `myrm-agent-harness` 并调用 `install_harness.sh` editable；musl Linux 下 `install.sh` 额外安装 `myrm-agent-harness-core-*-musl`；安装后执行 `assert_distribution_ready()`（失败时输出中英双语修复指引）
-- Monorepo 下 `myrm dev` / `myrm start` 要求 venv harness 为 editable 源码（否则 exit 1）；PyPI 消费测试可设 `MYRM_SKIP_HARNESS_EDITABLE_CHECK=1`（本地/发布双链路见 `scripts/dev/MAINTAINER_QUICKSTART.md`）
+- Monorepo 下 `myrm dev` / `myrm start` 要求 venv harness 为 editable 源码（否则 exit 1）；PyPI 消费测试可设 `MYRM_SKIP_HARNESS_EDITABLE_CHECK=1`（维护者私有 monorepo 见根级 `scripts/dev/MAINTAINER_QUICKSTART.md`；OSS 独立 clone 见 [CONTRIBUTING.md](../CONTRIBUTING.md)）
 - `MYRM_INSTALL_SKIP_FRONTEND=1`：CI 跳过后端以外步骤（见 `.github/workflows/install-smoke.yml`）

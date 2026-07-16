@@ -10977,7 +10977,20 @@
       "cloudProviderSiliconFlow": "SiliconFlow",
       "cloudProviderSiliconFlowHint": "中国対応、登録で無料クレジット",
       "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "無料オープンソースモデル"
+      "cloudProviderOpenRouterHint": "無料オープンソースモデル",
+      "routing": {
+        "pageTitle": "API コストを節約",
+        "pageDescription": "簡単なタスクを軽量モデルに自動ルーティング — 品質はそのまま、コストを削減。",
+        "title": "スマートルーティング",
+        "description": "簡単なリクエストを軽量モデルに自動送信し、メインモデルは複雑なタスクに集中させます。",
+        "savingsEstimate": "API コスト 40–70% 削減",
+        "liteLabel": "クイックタスク",
+        "standardLabel": "標準タスク",
+        "reasoningLabel": "高度な推論",
+        "currentModel": "メインモデル",
+        "enableButton": "スマートルーティングを有効化",
+        "skipButton": "後で設定"
+      }
     }
   },
   "appshot": {

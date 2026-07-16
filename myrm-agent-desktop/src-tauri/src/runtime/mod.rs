@@ -2,7 +2,7 @@
 //!
 //! [INPUT]
 //! - config::BackendConfig / FrontendConfig (POS: 系统与 Sidecar 配置)
-//! - sidecar::SidecarManager (POS: Agent Runner JSON-RPC 进程管理)
+//! - agent_runner_rpc::SidecarManager (POS: Agent Runner JSON-RPC 进程管理)
 //!
 //! [OUTPUT]
 //! - PythonBackend / NextJSFrontend 进程状态与 IPC 命令

@@ -23,5 +23,5 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js/Agent Runne
 ## 依赖
 
 - `config` — BackendConfig / FrontendConfig / SystemConfig
-- `sidecar` — Agent Runner JSON-RPC
+- `agent_runner_rpc` — Agent Runner JSON-RPC
 - `commands::agent` — AgentSystemState

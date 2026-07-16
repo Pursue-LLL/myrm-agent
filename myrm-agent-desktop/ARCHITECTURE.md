@@ -36,11 +36,11 @@ flowchart TD
 | `src-tauri/` | Rust 主程序、Tauri 配置、图标 | [src-tauri/src/_ARCH.md](src-tauri/src/_ARCH.md) |
 | `src-tauri/src/runtime/` | Sidecar 编排、Appshot、Watchdog | [src-tauri/src/runtime/_ARCH.md](src-tauri/src/runtime/_ARCH.md) |
 | `src-tauri/src/commands/` | Tauri IPC 命令 | [src-tauri/src/commands/_ARCH.md](src-tauri/src/commands/_ARCH.md) |
-| `src-tauri/src/sidecar/` | Agent Runner JSON-RPC 进程管理 | [src-tauri/src/sidecar/_ARCH.md](src-tauri/src/sidecar/_ARCH.md) |
+| `src-tauri/src/agent_runner_rpc/` | Agent Runner JSON-RPC 进程管理 | [src-tauri/src/agent_runner_rpc/_ARCH.md](src-tauri/src/agent_runner_rpc/_ARCH.md) |
 | `src-tauri/src/sessions/` | CLI 会话存储 | [src-tauri/src/sessions/_ARCH.md](src-tauri/src/sessions/_ARCH.md) |
 | `src-tauri/src/permissions/` | Explore/Ask/Auto 权限 | [src-tauri/src/permissions/_ARCH.md](src-tauri/src/permissions/_ARCH.md) |
 | `src-tauri/src/utils/` | 平台工具（电源、锁屏、OTA 校验） | [src-tauri/src/utils/_ARCH.md](src-tauri/src/utils/_ARCH.md) |
-| `src-tauri/frontend-shell/` | Release WebView 启动轮询页（`withGlobalTauri` + IPC `webui_port`；`frontend-start-failed` 阻断轮询，`backend-start-failed` 仅警告并继续跳转） | 见 [_ARCH.md](_ARCH.md) § frontend-shell |
+| `src-tauri/frontend-shell/` | Release WebView 启动轮询页（`withGlobalTauri` + IPC `webui_port`；`frontend-start-failed` 阻断轮询，`backend-start-failed` 仅警告并继续跳转） | [src-tauri/frontend-shell/_ARCH.md](src-tauri/frontend-shell/_ARCH.md) |
 | `sidecar/` | PyInstaller + Bun compile 构建入口 | [sidecar/_ARCH.md](sidecar/_ARCH.md) |
 | `sidecar/agent-runner/` | Agent Runner TypeScript 源码 | [sidecar/agent-runner/_ARCH.md](sidecar/agent-runner/_ARCH.md) |
 | `scripts/` | 构建、验签、分形门禁 | [scripts/_ARCH.md](scripts/_ARCH.md) |
@@ -51,7 +51,7 @@ flowchart TD
 |----------|------------|
 | `sidecar/build.py` | **构建** Python 后端 + Agent Runner 二进制 |
 | `src-tauri/src/runtime/python_backend.rs` | **运行** Python FastAPI Sidecar |
-| `src-tauri/src/sidecar/` | **运行** Agent Runner 进程（JSON-RPC stdio） |
+| `src-tauri/src/agent_runner_rpc/` | **运行** Agent Runner 进程（JSON-RPC stdio） |
 
 详细对照表见 [_ARCH.md](_ARCH.md)。
 

@@ -1,6 +1,14 @@
-//! Agent Runner Sidecar 管理模块
+//! Agent Runner JSON-RPC 进程管理
 //!
-//! 管理 agent-runner sidecar 进程（独立二进制），通过 JSON-RPC stdio 通信。
+//! [INPUT]
+//! - runtime::TOXIC_ENV_VARS / suppress_console_window (POS: 子进程环境清洗)
+//!
+//! [OUTPUT]
+//! - SidecarManager: JSON-RPC stdio 请求/通知、事件 broadcast
+//! - SidecarEvent: Agent 消息/权限/会话状态事件
+//!
+//! [POS]
+//! 管理 agent-runner 子进程（独立二进制或 dev 下 bun/ts 入口），通过 JSON-RPC stdio 通信。
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -9,10 +17,6 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock as StdRwLock};
 use tokio::sync::{broadcast, mpsc, Mutex};
-
-// ============================================================================
-// JSON-RPC 类型
-// ============================================================================
 
 #[derive(Debug, Serialize)]
 struct RPCRequest {
@@ -47,11 +51,6 @@ struct RPCNotification {
     params: Option<serde_json::Value>,
 }
 
-// ============================================================================
-// Agent 事件（从 Sidecar 转发）
-// ============================================================================
-
-/// Agent 事件类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SidecarEvent {
@@ -80,11 +79,7 @@ pub enum SidecarEvent {
     },
 }
 
-// ============================================================================
-// Sidecar 管理器
-// ============================================================================
-
-/// Sidecar 管理器
+/// Agent Runner JSON-RPC 进程管理器
 pub struct SidecarManager {
     /// 子进程
     process: Option<Child>,

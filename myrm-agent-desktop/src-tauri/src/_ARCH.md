@@ -22,7 +22,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `main.rs` | ✅ 核心 | 二进制入口，委托 `app/` | ✅ |
-| `app/` | ✅ 核心 | Tauri Builder、插件、setup、快捷键分发 | — |
+| `app/` | ✅ 核心 | Tauri Builder、插件、setup、快捷键、托盘、优雅停机 | — |
 | `runtime/` | ✅ 核心 | Sidecar 运行时（见下表） | ✅ |
 | `runtime/python_backend.rs` | ✅ 核心 | Python 后端 Sidecar 启动/停止/健康检查 IPC；dev 用 venv，release 校验 sidecar 非空；冷启动最多 30s `/health` 轮询 | ✅ |
 | `runtime/watchdog.rs` | ✅ 核心 | 后端 Sidecar 健康监控与崩溃自动恢复（30s 周期检查、指数退避重启、循环崩溃保护） | ✅ |
@@ -32,9 +32,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `runtime/agent_runner.rs` | ✅ 核心 | Agent Runner 路径解析、启动与事件转发 | ✅ |
 | `runtime/port.rs` | ✅ 工具 | 端口占用检测 | ✅ |
 | `config.rs` | ✅ 核心 | 配置管理（`SystemConfig`, `BackendConfig`, `FrontendConfig`），端口管理，含 `appshot_shortcut`、`voice_ptt_shortcut` 和 `appshot_excluded_apps` 隐私黑名单字段 | ✅ |
-| `lifecycle.rs` | ✅ 核心 | 优雅停机与生命周期管理 | ✅ |
-| `tray.rs` | ✅ 核心 | 系统托盘初始化（Show/New Chat/Settings/Workspace/Quit 菜单 + 左键显示窗口，含 minimized 状态恢复）与 tooltip 状态管理。`set_tray_status` 接受前端传入的 i18n tooltip；前端 `useTrayStatus` 同步 chat loading、后台 running 数量、taskbar 进度条，并在后台 job finish 时 `requestUserAttention` | ✅ |
-| `commands/` | ✅ 核心 | Tauri IPC 命令模块（config, agent） | ✅ |
+| `commands/` | ✅ 核心 | Tauri IPC 命令（config、agent、overlay、recovery） | — |
 | `utils/` | ✅ 工具 | 系统工具封装（`quarantine.rs` 隔离检测, `auth.rs` 原生提权, `power.rs` 智能电源锁防休眠[跨平台RAII, macOS 使用 IOKit 原生 API], `screen_lock.rs` 屏幕锁定管理[检测/解锁/重锁/Keychain], `updater_safety.rs` 启动期 Tauri Updater pubkey 占位符强校验） | ✅ |
 | `commands/visual_approval_overlay.rs` | ✅ 核心 | Tauri OS 视觉审批红框 overlay IPC（screen/image 坐标模式 + 显示器门控） | ✅ |
 | `commands/pet_overlay.rs` | ✅ 核心 | 桌面宠物精灵 overlay（透明置顶窗口 + Canvas 2D 渲染 + emit/listen 事件桥） | ✅ |
@@ -47,10 +45,10 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 
 | 模块 | 路径 | 职责 | 文档 |
 |------|------|------|------|
-| **app** | `./app/` | Tauri Builder、setup、快捷键分发 | [app/_ARCH.md](app/_ARCH.md) |
+| **app** | `./app/` | Tauri Builder、setup、快捷键、托盘、优雅停机 | [app/_ARCH.md](app/_ARCH.md) |
 | **cli_agent_types** | `./cli_agent_types.rs` | CLI 可视化共享类型 | — |
 | **runtime** | `./runtime/` | Sidecar 编排、Appshot、Setup Token | [runtime/_ARCH.md](runtime/_ARCH.md) |
-| **sidecar** | `./sidecar/` | Agent Runner JSON-RPC 进程管理 | [sidecar/_ARCH.md](sidecar/_ARCH.md) |
+| **agent_runner_rpc** | `./agent_runner_rpc/` | Agent Runner JSON-RPC 进程管理 | [agent_runner_rpc/_ARCH.md](agent_runner_rpc/_ARCH.md) |
 | **sessions** | `./sessions/` | CLI 会话生命周期 | [sessions/_ARCH.md](sessions/_ARCH.md) |
 | **permissions** | `./permissions/` | Explore/Ask/Auto 权限 | [permissions/_ARCH.md](permissions/_ARCH.md) |
 | **commands** | `./commands/` | Tauri IPC 命令 | [commands/_ARCH.md](commands/_ARCH.md) |
@@ -61,7 +59,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 ## 依赖关系
 
 ### 内部依赖
-- `commands/agent/` → `sidecar/`：CLI IPC 仅经 Agent Runner Sidecar
+- `commands/agent/` → `agent_runner_rpc/`：CLI IPC 仅经 Agent Runner 进程
 - `commands/` → `cli_agent_types/`, `sessions/`, `config/`：IPC 命令与会话、配置
 
 ### 外部依赖

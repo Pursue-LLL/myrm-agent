@@ -297,34 +297,75 @@ export const getFallbackLiteModelSelection = (): ModelSelection | null => {
   return resolveSelectionToModelSelection(defaultModelConfig?.liteModel?.fallback);
 };
 
+/**
+ * Auto-select a model from enabled providers by input cost.
+ * `cheapest=true` picks lowest cost; `cheapest=false` picks highest cost.
+ * Returns null when fewer than 2 distinct-cost models exist (routing would be pointless).
+ */
+const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
+  const { providers, customModelInfo } = useProviderStore.getState();
+  const candidates: Array<{ providerId: string; model: string; cost: number }> = [];
+
+  for (const provider of providers) {
+    if (!provider.isEnabled) continue;
+    if (!provider.apiKeys?.some((k) => k.isActive && k.key)) {
+      if (!['ollama', 'lm_studio'].includes(provider.id)) continue;
+    }
+    for (const model of provider.enabledModels || []) {
+      const info = customModelInfo[`${provider.id}/${model}`];
+      if (info?.input_cost_per_million != null) {
+        candidates.push({ providerId: provider.id, model, cost: info.input_cost_per_million });
+      }
+    }
+  }
+
+  if (candidates.length < 2) return null;
+
+  candidates.sort((a, b) => (cheapest ? a.cost - b.cost : b.cost - a.cost));
+  const pick = candidates[0];
+  return resolveSelectionToModelSelection({ providerId: pick.providerId, model: pick.model });
+};
+
 export const getLightModelSelection = (): ModelSelection | null => {
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (!routing?.enabled) return null;
-  const slotKwargs = routing.lightModel.modelKwargs ?? {};
-  return resolveSelectionToModelSelection(routing.lightModel.primary, slotKwargs);
+  if (routing?.enabled === false) return null;
+  if (routing?.lightModel?.primary) {
+    const slotKwargs = routing.lightModel.modelKwargs ?? {};
+    return resolveSelectionToModelSelection(routing.lightModel.primary, slotKwargs);
+  }
+  return autoSelectModelByCost(true);
 };
 
 export const getFallbackLightModelSelection = (): ModelSelection | null => {
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (!routing?.enabled) return null;
-  return resolveSelectionToModelSelection(routing.lightModel.fallback);
+  if (routing?.enabled === false) return null;
+  if (routing?.lightModel?.fallback) {
+    return resolveSelectionToModelSelection(routing.lightModel.fallback);
+  }
+  return null;
 };
 
 export const getReasoningModelSelection = (): ModelSelection | null => {
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (!routing?.enabled) return null;
-  const slotKwargs = routing.reasoningModel.modelKwargs ?? {};
-  return resolveSelectionToModelSelection(routing.reasoningModel.primary, slotKwargs);
+  if (routing?.enabled === false) return null;
+  if (routing?.reasoningModel?.primary) {
+    const slotKwargs = routing.reasoningModel.modelKwargs ?? {};
+    return resolveSelectionToModelSelection(routing.reasoningModel.primary, slotKwargs);
+  }
+  return autoSelectModelByCost(false);
 };
 
 export const getFallbackReasoningModelSelection = (): ModelSelection | null => {
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (!routing?.enabled) return null;
-  return resolveSelectionToModelSelection(routing.reasoningModel.fallback);
+  if (routing?.enabled === false) return null;
+  if (routing?.reasoningModel?.fallback) {
+    return resolveSelectionToModelSelection(routing.reasoningModel.fallback);
+  }
+  return null;
 };
 
 export const getVisionFallbackModelSelection = (): ModelSelection | null => {

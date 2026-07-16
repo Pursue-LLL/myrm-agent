@@ -1,0 +1,103 @@
+"""Pure lease-state transitions shared by Wave orchestration modules.
+
+[INPUT]
+- wave_orchestrator.types state records
+- browser/resource expiry helpers
+
+[OUTPUT]
+- time/owner helpers, active lease lookup, TTL and runtime-drift transitions
+
+[POS]
+Lock-free state policy. Callers own persistence and all external cleanup I/O.
+"""
+
+from __future__ import annotations
+
+import os
+import socket
+from datetime import datetime, timezone
+
+from wave_orchestrator.browser_lifecycle import cleanup_expired_browser
+from wave_orchestrator.resource_ledger import cleanup_expired_lease_resources
+from wave_orchestrator.types import LeaseRecord, OrchestratorState
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def iso_timestamp(moment: datetime) -> str:
+    return moment.replace(microsecond=0).isoformat()
+
+
+def parse_timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def default_agent_id() -> str:
+    override = os.environ.get("MYRM_WAVE_AGENT_ID", "").strip()
+    if override:
+        return override
+    return f"{socket.gethostname()}:{os.getpid()}"
+
+
+def active_leases(state: OrchestratorState) -> list[LeaseRecord]:
+    return [lease for lease in state["leases"] if lease["status"] == "active"]
+
+
+def find_active_lease(state: OrchestratorState, lease_id: str) -> LeaseRecord:
+    for lease in state["leases"]:
+        if lease["leaseId"] == lease_id and lease["status"] == "active":
+            return lease
+    raise RuntimeError(f"LEASE_NOT_ACTIVE: {lease_id}")
+
+
+def reap_expired_leases(
+    state: OrchestratorState,
+    now: datetime | None = None,
+    *,
+    cleanup: bool = True,
+) -> bool:
+    moment = now or utc_now()
+    changed = False
+    for lease in state["leases"]:
+        if lease["status"] != "active":
+            continue
+        if parse_timestamp(lease["expiresAt"]) <= moment:
+            lease["status"] = "expired"
+            changed = True
+    if cleanup:
+        changed = cleanup_expired_browser(state) or changed
+        changed = cleanup_expired_lease_resources(state) or changed
+    return changed
+
+
+def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> bool:
+    """Invalidate an open wave before stale test leases can report success."""
+    wave = state["wave"]
+    if wave is None or wave["status"] != "open":
+        return False
+    if not current_runtime_id or current_runtime_id == wave["runtimeId"]:
+        return False
+
+    wave["status"] = "drifted"
+    wave["closedAt"] = iso_timestamp(utc_now())
+    for lease in active_leases(state):
+        lease["status"] = "expired"
+    return True
+
+
+def close_wave_after_last_expired_lease(state: OrchestratorState) -> bool:
+    wave = state["wave"]
+    if wave is None or wave["status"] != "open":
+        return False
+    wave_leases = [
+        lease for lease in state["leases"] if lease["waveId"] == wave["waveId"]
+    ]
+    if not wave_leases or any(lease["status"] == "active" for lease in wave_leases):
+        return False
+    if not any(lease["status"] == "expired" for lease in wave_leases):
+        return False
+    wave["status"] = "closed"
+    wave["closedAt"] = iso_timestamp(utc_now())
+    return True

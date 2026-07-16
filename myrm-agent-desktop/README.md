@@ -21,9 +21,19 @@ git push origin v0.1.0
 
 ## 本地构建
 
+路径相对于 **myrm-agent 仓库根**（`open-perplexity` 联调根下为 `myrm-agent/myrm-agent-desktop`）：
+
 ```bash
 cd myrm-agent-desktop
-# 详见 _ARCH.md 与 src-tauri 构建脚本
+
+# 1. Sidecar 二进制（Python 后端 + Agent Runner）
+python sidecar/build.py
+
+# 2. Next standalone（Tauri bundle 资源）
+bash scripts/build-frontend.sh
+
+# 3. Tauri 开发（自动拉起 frontend dev server）
+cd src-tauri && cargo tauri dev
 ```
 
 Sidecar 对照（Python 后端 vs Agent Runner）见 [_ARCH.md](_ARCH.md) § Sidecar 对照表。

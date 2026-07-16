@@ -10977,7 +10977,20 @@
       "cloudProviderSiliconFlow": "SiliconFlow",
       "cloudProviderSiliconFlowHint": "China-freundlich, kostenloses Guthaben bei Registrierung",
       "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "Kostenlose Open-Source-Modelle"
+      "cloudProviderOpenRouterHint": "Kostenlose Open-Source-Modelle",
+      "routing": {
+        "pageTitle": "API-Kosten sparen",
+        "pageDescription": "Einfache Aufgaben automatisch an leichtere Modelle weiterleiten — gleiche Qualität, niedrigere Kosten.",
+        "title": "Smart Routing",
+        "description": "Sendet einfache Anfragen automatisch an ein leichteres Modell und reserviert Ihr Hauptmodell für komplexe Aufgaben.",
+        "savingsEstimate": "40–70 % API-Kosten sparen",
+        "liteLabel": "Schnelle Aufgaben",
+        "standardLabel": "Standardaufgaben",
+        "reasoningLabel": "Komplexes Reasoning",
+        "currentModel": "Hauptmodell",
+        "enableButton": "Smart Routing aktivieren",
+        "skipButton": "Später einrichten"
+      }
     }
   },
   "appshot": {

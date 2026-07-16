@@ -1,15 +1,11 @@
 //! CLI Agent 相关的 Tauri 命令
 //!
 //! 提供前端与 CLI Agent 交互的 API。
-//! 唯一执行路径：Agent Runner Sidecar（`sidecar/agent-runner`）JSON-RPC。
+//! 唯一执行路径：Agent Runner（`sidecar/agent-runner` 源码 → `agent_runner_rpc` 运行时）JSON-RPC。
 
 pub mod message;
 pub mod permission;
 pub mod session;
-
-pub use message::*;
-pub use permission::*;
-pub use session::*;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -17,7 +13,7 @@ use tokio::sync::Mutex;
 use crate::cli_agent_types::{adapter_display_name, AdapterInfo};
 use crate::permissions::PermissionManager;
 use crate::sessions::SessionManager;
-use crate::sidecar::SidecarManager;
+use crate::agent_runner_rpc::SidecarManager;
 
 // ============================================================================
 // Sidecar 状态

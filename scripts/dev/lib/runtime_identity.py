@@ -331,7 +331,7 @@ def read_frontend_epoch(frontend_dir: Path | None = None) -> FrontendEpoch | Non
 
 
 def read_frontend_hot_state(frontend: FrontendEpoch | None) -> tuple[bool, bool]:
-    """Validate cached warmth against the already-computed frontend epoch."""
+    """Validate warmth by dev-server generation; HMR source edits keep it hot."""
     if frontend is None or frontend["pid"] is None:
         return False, False
     try:
@@ -341,10 +341,10 @@ def read_frontend_hot_state(frontend: FrontendEpoch | None) -> tuple[bool, bool]
     warmth = _read_json_file(_state_dir() / "frontend-warmth.json")
     if warmth is None:
         return False, False
-    current = (
-        warmth.get("generation") == frontend["generation"]
-        and warmth.get("source_fingerprint") == frontend["source_fingerprint"]
-        and bool(frontend["source_fingerprint"])
+    # Source edits are served by HMR without replacing the dev server or its
+    # hydrated client. Endpoint probes validate current reachability separately.
+    current = warmth.get("generation") == frontend["generation"] and bool(
+        frontend["source_fingerprint"]
     )
     return current, current and warmth.get("client_hot") is True
 
@@ -542,6 +542,21 @@ def compute_runtime_id(parts: RuntimeIdentityParts) -> str:
     return digest[:32]
 
 
+def _stable_hot_pool_epoch_parts(parts: RuntimeIdentityParts) -> RuntimeIdentityParts:
+    """Keep process/browser generations while excluding HMR source changes."""
+    stable = _stable_stack_epoch_parts(parts)
+    return {
+        **stable,
+        "chrome_epoch": parts["chrome_epoch"],
+        "mux_epoch": parts["mux_epoch"],
+    }
+
+
+def compute_hot_pool_runtime_id(parts: RuntimeIdentityParts) -> str:
+    """Identity for shared infrastructure ownership, independent of source warmth."""
+    return compute_runtime_id(_stable_hot_pool_epoch_parts(parts))
+
+
 def _stable_stack_epoch_parts(parts: RuntimeIdentityParts) -> RuntimeIdentityParts:
     """Drop git-diff fingerprints so isolated E2E drift checks survive in-session edits."""
     backend = parts["backend_epoch"]
@@ -604,7 +619,7 @@ def build_health_json(
         mux_daemon_count=mux_daemon_count,
         upstream_generation=upstream_generation,
     )
-    runtime_id = compute_runtime_id(parts)
+    runtime_id = compute_hot_pool_runtime_id(parts)
     if auto_hot:
         shell_hot, client_hot = read_frontend_hot_state(parts["frontend_epoch"])
     backend = parts["backend_epoch"]

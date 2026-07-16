@@ -13,7 +13,8 @@ use crate::runtime::{
     APPSHOT_SHORTCUT_STR, INLINE_INPUT_SHORTCUT_STR, NextJSFrontend, PythonBackend,
     SetupTokenState, VOICE_PTT_SHORTCUT_STR,
 };
-use crate::{commands, lifecycle, runtime, tray, utils};
+use super::{lifecycle, tray};
+use crate::{commands, runtime, utils};
 
 pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Initializing MyrmAgent...");

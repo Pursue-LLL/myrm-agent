@@ -4,8 +4,9 @@
 
 CLI Agent Runner Sidecar 源码：stdin/stdout JSON-RPC，桥接外部 CLI（Claude Code 等）与 Tauri WebView。
 
-构建：`sidecar/build.py` → `bun build --compile` → `src-tauri/binaries/agent-runner-*`  
-运行时管理：[../../src-tauri/src/sidecar/_ARCH.md](../../src-tauri/src/sidecar/_ARCH.md)
+构建：`sidecar/build.py`（`bun build --compile`）→ `src-tauri/binaries/agent-runner-*`  
+本地开发：`bun run dev`（直接执行 `src/index.ts`，不经 `dist/`）  
+运行时管理：[../../src-tauri/src/agent_runner_rpc/_ARCH.md](../../src-tauri/src/agent_runner_rpc/_ARCH.md)
 
 ## 文件清单
 

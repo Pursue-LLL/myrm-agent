@@ -1,7 +1,7 @@
 //! Agent Runner Sidecar 自动启动与事件转发
 //!
 //! [INPUT]
-//! - sidecar::SidecarManager (POS: Agent Runner JSON-RPC 进程管理)
+//! - agent_runner_rpc::SidecarManager (POS: Agent Runner JSON-RPC 进程管理)
 //! - commands::agent::AgentSystemState (POS: Agent IPC 状态容器)
 //!
 //! [OUTPUT]
@@ -17,9 +17,9 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::commands::agent::{AgentSystemState, SidecarStatus};
-use crate::sidecar;
+use crate::agent_runner_rpc;
 
-/// 解析 Agent Runner 可执行路径（开发：dist/index.js；生产：bundled 二进制）
+/// 解析 Agent Runner 可执行路径（开发：`sidecar/agent-runner/src/index.ts`；生产：bundled 二进制）
 pub fn resolve_agent_runner_path(app: &AppHandle) -> String {
     if cfg!(debug_assertions) {
         let tauri_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
@@ -84,17 +84,17 @@ pub fn bootstrap_agent_runner(agent_system: Arc<AgentSystemState>, app: &AppHand
     });
 }
 
-fn forward_sidecar_event(app: &AppHandle, event: &sidecar::SidecarEvent) {
+fn forward_sidecar_event(app: &AppHandle, event: &agent_runner_rpc::SidecarEvent) {
     match event {
-        sidecar::SidecarEvent::AgentMessage { session_id, message } => {
+        agent_runner_rpc::SidecarEvent::AgentMessage { session_id, message } => {
             let event_name = format!("agent:message:{}", session_id);
             let _ = app.emit(&event_name, message);
         }
-        sidecar::SidecarEvent::PermissionRequest { session_id, .. } => {
+        agent_runner_rpc::SidecarEvent::PermissionRequest { session_id, .. } => {
             let event_name = format!("agent:permission:{}", session_id);
             let _ = app.emit(&event_name, event);
         }
-        sidecar::SidecarEvent::SessionStatus {
+        agent_runner_rpc::SidecarEvent::SessionStatus {
             session_id,
             status,
             error,
@@ -108,7 +108,7 @@ fn forward_sidecar_event(app: &AppHandle, event: &sidecar::SidecarEvent) {
 
             update_tray_tooltip(app, status);
         }
-        sidecar::SidecarEvent::Error { message } => {
+        agent_runner_rpc::SidecarEvent::Error { message } => {
             let _ = app.emit("agent:error", message);
         }
     }

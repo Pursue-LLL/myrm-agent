@@ -226,9 +226,10 @@ const DefaultModelSection = memo(() => {
     [setVisionFallbackModel],
   );
 
+  const isRoutingEnabled = defaultModelConfig.routingConfig?.enabled ?? true;
   const handleRoutingToggle = useCallback(() => {
-    setRoutingEnabled(!defaultModelConfig.routingConfig?.enabled);
-  }, [setRoutingEnabled, defaultModelConfig.routingConfig?.enabled]);
+    setRoutingEnabled(!isRoutingEnabled);
+  }, [setRoutingEnabled, isRoutingEnabled]);
 
   const handleRoutingLightModelChange = useCallback(
     (selection: SingleModelSelection | null) => {
@@ -522,22 +523,22 @@ const DefaultModelSection = memo(() => {
             <button
               type="button"
               role="switch"
-              aria-checked={defaultModelConfig.routingConfig?.enabled ?? false}
+              aria-checked={isRoutingEnabled}
               onClick={handleRoutingToggle}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                defaultModelConfig.routingConfig?.enabled ? 'bg-emerald-500' : 'bg-muted-foreground/30'
+                isRoutingEnabled ? 'bg-emerald-500' : 'bg-muted-foreground/30'
               }`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  defaultModelConfig.routingConfig?.enabled ? 'translate-x-6' : 'translate-x-1'
+                  isRoutingEnabled ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
             </button>
             <span className="text-sm font-medium text-foreground">{t('smartRouting.enable')}</span>
           </label>
 
-          {defaultModelConfig.routingConfig?.enabled && (
+          {isRoutingEnabled && (
             <div className="space-y-6">
               {/* Light Model */}
               <div className="p-5 bg-background/50 rounded-xl border border-border/50">
@@ -551,13 +552,13 @@ const DefaultModelSection = memo(() => {
                     <div className="flex-1">
                       <EnabledModelSelect
                         label={t('smartRouting.selectLightModel')}
-                        value={defaultModelConfig.routingConfig.lightModel.primary}
+                        value={defaultModelConfig.routingConfig?.lightModel?.primary ?? null}
                         onChange={handleRoutingLightModelChange}
                         enabledModels={enabledModels}
                         providers={providers}
                       />
                     </div>
-                    {defaultModelConfig.routingConfig.lightModel.primary && (
+                    {defaultModelConfig.routingConfig?.lightModel?.primary && (
                       <button
                         onClick={() =>
                           openModelConfig(
@@ -579,7 +580,7 @@ const DefaultModelSection = memo(() => {
                     </div>
                     <EnabledModelSelect
                       label={t('selectFallbackModel')}
-                      value={defaultModelConfig.routingConfig.lightModel.fallback}
+                      value={defaultModelConfig.routingConfig?.lightModel?.fallback ?? null}
                       onChange={handleRoutingLightModelFallbackChange}
                       enabledModels={enabledModels}
                       providers={providers}
@@ -609,13 +610,13 @@ const DefaultModelSection = memo(() => {
                     <div className="flex-1">
                       <EnabledModelSelect
                         label={t('smartRouting.selectReasoningModel')}
-                        value={defaultModelConfig.routingConfig.reasoningModel.primary}
+                        value={defaultModelConfig.routingConfig?.reasoningModel?.primary ?? null}
                         onChange={handleRoutingReasoningModelChange}
                         enabledModels={enabledModels}
                         providers={providers}
                       />
                     </div>
-                    {defaultModelConfig.routingConfig.reasoningModel.primary && (
+                    {defaultModelConfig.routingConfig?.reasoningModel?.primary && (
                       <button
                         onClick={() =>
                           openModelConfig(
@@ -637,7 +638,7 @@ const DefaultModelSection = memo(() => {
                     </div>
                     <EnabledModelSelect
                       label={t('selectFallbackModel')}
-                      value={defaultModelConfig.routingConfig.reasoningModel.fallback}
+                      value={defaultModelConfig.routingConfig?.reasoningModel?.fallback ?? null}
                       onChange={handleRoutingReasoningModelFallbackChange}
                       enabledModels={enabledModels}
                       providers={providers}
