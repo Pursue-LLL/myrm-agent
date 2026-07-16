@@ -106,7 +106,6 @@ async def test_chrome_ui_goal_mode_stream(
     async def _run_goal_turn() -> str:
         client = ChromeMcpClient(request_timeout_sec=120.0)
         await asyncio.to_thread(client.start)
-        isolated = f"e2e-goal-focus-{os.environ.get('MYRM_WAVE_AGENT_ID', str(os.getpid()))}"
         try:
             page: McpPage | None = None
             try:
@@ -114,7 +113,6 @@ async def test_chrome_ui_goal_mode_stream(
                     client.new_page,
                     BASE_URL,
                     timeout_ms=120_000,
-                    isolated_context=isolated,
                 )
             except TimeoutError:
                 await asyncio.sleep(2.0)
@@ -122,7 +120,6 @@ async def test_chrome_ui_goal_mode_stream(
                     client.new_page,
                     BASE_URL,
                     timeout_ms=120_000,
-                    isolated_context=isolated,
                 )
             if page is None:
                 raise RuntimeError("new_page returned no page")

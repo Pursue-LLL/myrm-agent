@@ -246,6 +246,7 @@ def _chrome_e2e_item_runtime(
         marker is None
         or not private_backend
         or os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1"
+        or os.environ.get("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1"
     ):
         yield None
         return

@@ -69,6 +69,43 @@ def e2e_runtime_binding_source(api_base: str | None = None) -> str | None:
     )
 
 
+def e2e_runtime_bootstrap_apply_js(api_base: str | None = None) -> str | None:
+    """Apply binding + health-ready promise after navigation (MCP mux path)."""
+    binding = e2e_runtime_binding(api_base)
+    if binding is None:
+        return None
+    binding_json = json.dumps(binding)
+    prefix = json.dumps(_E2E_RUNTIME_BINDING_PREFIX)
+    return f"""(async () => {{
+  const binding = Object.freeze({binding_json});
+  const prefix = {prefix};
+  window.name = prefix + JSON.stringify(binding);
+  window.__MYRM_E2E_RUNTIME__ = binding;
+  window.__MYRM_E2E_API_BASE__ = binding.apiBase;
+  const nativeFetch = window.fetch.bind(window);
+  const healthUrl = `${{binding.apiBase}}/api/v1/health`;
+  window.__MYRM_E2E_RUNTIME_READY__ = nativeFetch(healthUrl, {{ cache: 'no-store' }})
+    .then(async (response) => {{
+      if (!response.ok) {{
+        throw new Error(`E2E_RUNTIME_HEALTH_HTTP_${{response.status}}`);
+      }}
+      const payload = await response.json();
+      if (payload.runtime_id !== binding.runtimeId) {{
+        throw new Error(
+          `E2E_RUNTIME_MISMATCH expected=${{binding.runtimeId}} actual=${{payload.runtime_id || '<missing>'}}`,
+        );
+      }}
+      return binding;
+    }});
+  try {{
+    const value = await window.__MYRM_E2E_RUNTIME_READY__;
+    return {{ ok: true, runtimeId: value.runtimeId, apiBase: value.apiBase }};
+  }} catch (error) {{
+    return {{ ok: false, error: String(error) }};
+  }}
+}})()"""
+
+
 def e2e_api_base_persist_source(api_base: str | None = None) -> str | None:
     """JS source for Page.addScriptToEvaluateOnNewDocument (survives hard navigation)."""
     runtime_source = e2e_runtime_binding_source(api_base)

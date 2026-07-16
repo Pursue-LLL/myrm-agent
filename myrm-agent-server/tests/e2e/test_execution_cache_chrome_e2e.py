@@ -108,8 +108,6 @@ async def test_chrome_ui_same_chat_two_ok_messages(
 
     client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
-    agent_tag = os.environ.get("MYRM_WAVE_AGENT_ID", str(os.getpid()))
-    isolated = f"e2e-execution-cache-{agent_tag}"
     try:
         page: McpPage | None = None
         try:
@@ -117,7 +115,6 @@ async def test_chrome_ui_same_chat_two_ok_messages(
                 client.new_page,
                 BASE_URL,
                 timeout_ms=120_000,
-                isolated_context=isolated,
             )
         except TimeoutError:
             await asyncio.sleep(2.0)
@@ -125,7 +122,6 @@ async def test_chrome_ui_same_chat_two_ok_messages(
                 client.new_page,
                 BASE_URL,
                 timeout_ms=120_000,
-                isolated_context=isolated,
             )
         if page is None:
             raise RuntimeError("new_page returned no page")

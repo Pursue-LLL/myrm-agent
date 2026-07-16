@@ -27,7 +27,7 @@ from chrome_mcp_errors import (
 )
 from mcp_page_lease_heartbeat import PageLeaseHeartbeat
 from mcp_protocol import parse_evaluate_result, parse_new_page, text_content
-from cdp_chat_support import e2e_runtime_binding, e2e_runtime_binding_source
+from cdp_chat_support import e2e_runtime_binding, e2e_runtime_binding_source, e2e_runtime_bootstrap_apply_js
 
 _CLEANUP_TIMEOUT_SEC = 15.0
 _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = 15.0
@@ -198,9 +198,13 @@ class ChromeMcpClient:
         source, expected = binding
         self.evaluate(page, f"(() => {{{source} return true; }})()")
         self.navigate(page, url, timeout_ms=timeout_ms)
-        observed = self.evaluate(
-            page,
-            """(async () => {
+        bootstrap_js = e2e_runtime_bootstrap_apply_js()
+        if bootstrap_js is not None:
+            observed = self.evaluate(page, bootstrap_js, timeout_sec=30.0)
+        else:
+            observed = self.evaluate(
+                page,
+                """(async () => {
               const ready = window.__MYRM_E2E_RUNTIME_READY__;
               if (!ready) return {ok: false, error: 'runtime-bootstrap-missing'};
               try {
@@ -210,8 +214,8 @@ class ChromeMcpClient:
                 return {ok: false, error: String(error)};
               }
             })()""",
-            timeout_sec=30.0,
-        )
+                timeout_sec=30.0,
+            )
         if not isinstance(observed, dict) or observed.get("ok") is not True:
             raise RuntimeError(f"E2E_RUNTIME_BINDING_FAILED: {observed}")
         if (
