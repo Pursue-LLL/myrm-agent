@@ -21,6 +21,12 @@ import { buildMermaidConfig } from './mermaid-theme';
 import type { MermaidChartProps, LegendItem } from './mermaid-theme';
 import MermaidLegendPanel from './MermaidLegendPanel';
 
+const getTouchDistance = (touches: React.TouchList) => {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
+};
+
 const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   const t = useTranslations('mermaidChart');
   const { mermaidLib } = useLazyMermaid();
@@ -32,6 +38,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastChartRef = useRef<string>('');
+  const pinchRef = useRef<{ dist: number; scale: number } | null>(null);
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [lastValidSvg, setLastValidSvg] = useState<string>('');
@@ -41,8 +48,10 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   const [scale, setScale] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isGesturing, setIsGesturing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const gestureTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [copied, setCopied] = useState(false);
   const copiedTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -71,7 +80,12 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   }, [lastValidSvg]);
 
   const handleZoomIn = () => setScale((prev) => Math.min(prev + 0.2, 3));
-  const handleZoomOut = () => setScale((prev) => Math.max(prev - 0.2, 0.3));
+  const handleZoomOut = () =>
+    setScale((prev) => {
+      const next = Math.max(prev - 0.2, 0.3);
+      if (prev > 1 && next <= 1) setTranslate({ x: 0, y: 0 });
+      return next;
+    });
   const handleReset = () => {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
@@ -109,6 +123,44 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   );
 
   const handlePointerEnd = useCallback(() => setIsDragging(false), []);
+
+  const zoomAtAnchor = useCallback(
+    (newScale: number, anchorX: number, anchorY: number) => {
+      const clamped = Math.min(3, Math.max(0.3, newScale));
+      const snapped = Math.abs(clamped - 1) < 0.02 ? 1 : clamped;
+      setIsGesturing(true);
+      if (gestureTimerRef.current) clearTimeout(gestureTimerRef.current);
+      gestureTimerRef.current = setTimeout(() => setIsGesturing(false), 200);
+      if (snapped === 1) {
+        setScale(1);
+        setTranslate({ x: 0, y: 0 });
+        return;
+      }
+      setScale((prev) => {
+        const ratio = snapped / prev;
+        setTranslate((t) => ({
+          x: anchorX - (anchorX - t.x) * ratio,
+          y: anchorY - (anchorY - t.y) * ratio,
+        }));
+        return snapped;
+      });
+    },
+    [],
+  );
+
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      const shouldZoom = e.ctrlKey || e.metaKey || scale !== 1;
+      if (!shouldZoom) return;
+      e.preventDefault();
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const anchorX = e.clientX - rect.left;
+      const anchorY = e.clientY - rect.top;
+      const factor = Math.exp(-e.deltaY * 0.003);
+      zoomAtAnchor(scale * factor, anchorX, anchorY);
+    },
+    [scale, zoomAtAnchor],
+  );
 
   // 双击缩放
   const handleDoubleClick = (e: React.MouseEvent) => {
@@ -313,6 +365,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      if (gestureTimerRef.current) clearTimeout(gestureTimerRef.current);
     };
   }, [chart, isDark, mermaidLib, isInitialized, debouncedRender, clearErrorTimeout]);
 
@@ -380,17 +433,38 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
     onMouseMove: (e: React.MouseEvent) => handlePointerMove(e.clientX, e.clientY),
     onMouseUp: handlePointerEnd,
     onMouseLeave: handlePointerEnd,
-    onTouchStart: (e: React.TouchEvent) =>
-      e.touches.length === 1 && handlePointerStart(e.touches[0].clientX, e.touches[0].clientY),
-    onTouchMove: (e: React.TouchEvent) =>
-      e.touches.length === 1 && (e.preventDefault(), handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)),
-    onTouchEnd: handlePointerEnd,
+    onWheel: handleWheel,
+    onTouchStart: (e: React.TouchEvent) => {
+      if (e.touches.length >= 2) {
+        pinchRef.current = { dist: getTouchDistance(e.touches), scale };
+      } else if (!pinchRef.current) {
+        handlePointerStart(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      if (e.touches.length >= 2 && pinchRef.current) {
+        e.preventDefault();
+        const newDist = getTouchDistance(e.touches);
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+        const newScale = pinchRef.current.scale * (newDist / pinchRef.current.dist);
+        zoomAtAnchor(newScale, cx, cy);
+      } else if (e.touches.length === 1 && !pinchRef.current) {
+        e.preventDefault();
+        handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      if (e.touches.length < 2) pinchRef.current = null;
+      handlePointerEnd();
+    },
     onDoubleClick: handleDoubleClick,
   };
 
   const dragCursorStyle = {
     cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-    touchAction: scale > 1 ? 'none' : 'auto',
+    touchAction: 'none',
   } as const;
 
   const renderPlaceholder = () =>
@@ -441,7 +515,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
       <div className="overflow-hidden p-4" {...dragHandlers} style={dragCursorStyle}>
         <div
           ref={elementRef}
-          className="mermaid-chart flex justify-center items-center transition-transform duration-200 ease-out min-h-[120px]"
+          className={`mermaid-chart flex justify-center items-center min-h-[120px] ${isDragging || isGesturing ? '' : 'transition-transform duration-200 ease-out'}`}
           style={{
             transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
             transformOrigin: 'center',
@@ -472,7 +546,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
         style={dragCursorStyle}
       >
         <div
-          className="mermaid-chart flex justify-center items-center transition-transform duration-200 ease-out min-h-0"
+          className={`mermaid-chart flex justify-center items-center min-h-0 ${isDragging || isGesturing ? '' : 'transition-transform duration-200 ease-out'}`}
           style={{
             transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
             transformOrigin: 'center',

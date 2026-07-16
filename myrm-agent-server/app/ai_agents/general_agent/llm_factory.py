@@ -79,11 +79,13 @@ def _build_model_config_from_provider(
         return None
 
     api_url = str(provider.get("apiUrl") or provider.get("baseURL") or "") or None
+    pool_strategy = str(provider.get("credentialPoolStrategy", "")) or None
     return ModelConfig(
         model=litellm_model,
         api_key=api_keys[0],
         base_url=api_url,
         api_keys=api_keys if len(api_keys) > 1 else None,
+        credential_pool_strategy=pool_strategy if len(api_keys) > 1 else None,
     )
 
 

@@ -14,7 +14,7 @@ Markdown 渲染扩展与工具块展示。
 | `LinkPopover.tsx` | 辅助 | 链接 hover 预览卡片（标题/摘要/favicon/Agent浏览入口） | ✅ |
 | `MarkdownImage.tsx` | 核心 | Markdown 图片：lazy load、Lightbox、尺寸约束 | ✅ |
 | `MathRenderer.tsx` | 核心 | KaTeX 行内/块级公式渲染 | ✅ |
-| `MermaidChart.tsx` | 核心 | Mermaid 图表 lazy 渲染与错误降级 | ✅ |
+| `MermaidChart.tsx` | 核心 | Mermaid 图表交互式渲染（lazy渲染、错误降级、pinch/wheel/button缩放、拖拽平移、全屏、图例过滤） | ✅ |
 | `MermaidLegendPanel.tsx` | 辅助 | Mermaid 图例/节点说明侧栏 | ✅ |
 | `ThinkBox.tsx` | 核心 | 模型思考链折叠展示容器 | ✅ |
 | `ThinkTagProcessor.tsx` | 辅助 | `` 标签预处理与分段 | ✅ |

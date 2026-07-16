@@ -4,7 +4,7 @@ import { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, Trash2, Eye, EyeOff, Check, Pencil, X, Copy, ShieldCheck, RefreshCw, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { ApiKeyConfig } from '@/store/config/providerTypes';
+import { ApiKeyConfig, CredentialPoolStrategy } from '@/store/config/providerTypes';
 import { toast } from '@/hooks/useToast';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
@@ -22,6 +22,8 @@ interface ApiKeyManagerProps {
   onChange: (apiKeys: ApiKeyConfig[]) => void;
   /** Lightweight probe to verify a single API key. Returns reachability result. */
   onProbeKey?: (apiKey: string) => Promise<{ reachable: boolean; error?: string | null; latency_ms?: number | null }>;
+  credentialPoolStrategy?: CredentialPoolStrategy;
+  onStrategyChange?: (strategy: CredentialPoolStrategy) => void;
 }
 
 const RemarkPopover = memo<{
@@ -135,7 +137,14 @@ const HealthBadge = memo<{ health: KeyHealthState; onRetry?: () => void }>(({ he
 
 HealthBadge.displayName = 'HealthBadge';
 
-const ApiKeyManager = memo<ApiKeyManagerProps>(({ apiKeys, onChange, onProbeKey }) => {
+const STRATEGY_OPTIONS: { value: CredentialPoolStrategy; labelKey: string; descKey: string }[] = [
+  { value: 'round_robin', labelKey: 'strategyRoundRobin', descKey: 'strategyRoundRobinDesc' },
+  { value: 'fill_first', labelKey: 'strategyFillFirst', descKey: 'strategyFillFirstDesc' },
+  { value: 'least_used', labelKey: 'strategyLeastUsed', descKey: 'strategyLeastUsedDesc' },
+  { value: 'random', labelKey: 'strategyRandom', descKey: 'strategyRandomDesc' },
+];
+
+const ApiKeyManager = memo<ApiKeyManagerProps>(({ apiKeys, onChange, onProbeKey, credentialPoolStrategy, onStrategyChange }) => {
   const t = useTranslations('settings.modelService');
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [newKey, setNewKey] = useState('');
@@ -257,11 +266,33 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(({ apiKeys, onChange, onProbeKey 
 
   return (
     <div className="space-y-4">
-      {/* Pool status indicator */}
+      {/* Pool status indicator + strategy selector */}
       {activeCount > 1 && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs text-primary">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-          {t('keyPoolActive', { count: activeCount })}
+        <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs">
+          <div className="flex items-center gap-2 text-primary">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            {t('keyPoolActive', { count: activeCount })}
+          </div>
+          {onStrategyChange && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <select
+                  value={credentialPoolStrategy ?? 'round_robin'}
+                  onChange={(e) => onStrategyChange(e.target.value as CredentialPoolStrategy)}
+                  className="text-xs bg-background border border-primary/30 rounded-md px-2 py-1 text-primary cursor-pointer hover:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/40 transition-colors"
+                >
+                  {STRATEGY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {t(opt.labelKey)}
+                    </option>
+                  ))}
+                </select>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[260px]">
+                {t(STRATEGY_OPTIONS.find((o) => o.value === (credentialPoolStrategy ?? 'round_robin'))?.descKey ?? 'strategyRoundRobinDesc')}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       )}
 

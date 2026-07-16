@@ -220,12 +220,15 @@ export const getModelSelection = (actionMode: ActionMode, agentConfig: AgentConf
     delete mergedKwargs.reasoning_effort;
   }
 
+  const activeKeyCount = provider.apiKeys.filter((k) => k.isActive && k.key).length;
+
   return {
     providerId: selection.providerId,
     model: selection.model,
     baseUrl: normalizeApiUrl(provider.apiUrl) || undefined,
     modelKwargs: mergedKwargs,
     supportsVision: modelInfo?.supports_vision ?? false,
+    credentialPoolStrategy: activeKeyCount > 1 ? provider.credentialPoolStrategy : undefined,
   };
 };
 

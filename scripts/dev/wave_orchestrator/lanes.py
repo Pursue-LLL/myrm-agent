@@ -72,9 +72,6 @@ def lane_conflict_reason(
         global_holders = [item for item in active if item["lane"] == "GLOBAL_WRITE"]
         if global_holders:
             return "LEASE_DENIED: GLOBAL_WRITE lease active"
-        resource_holders = [item for item in active if item["lane"] == "RESOURCE_WRITE"]
-        if resource_holders:
-            return "LEASE_DENIED: RESOURCE_WRITE lease active"
         live_count = sum(1 for item in active if item["lane"] == "LIVE_AGENT")
         cap = live_agent_max_concurrent()
         if live_count >= cap:
@@ -87,9 +84,6 @@ def lane_conflict_reason(
         global_holders = [item for item in active if item["lane"] == "GLOBAL_WRITE"]
         if global_holders:
             return "LEASE_DENIED: GLOBAL_WRITE lease active"
-        live_holders = [item for item in active if item["lane"] == "LIVE_AGENT"]
-        if live_holders:
-            return "LEASE_DENIED: LIVE_AGENT lease active"
         for item in active:
             if item["lane"] != "RESOURCE_WRITE":
                 continue

@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - build_channel_inbound_query: Multimodal or plain-text query with delivery provenance banner.
-- Consumes metadata image_data_list and document_text_blocks from channel media enrichment.
+- Consumes metadata image_data_list, document_text_blocks, and forwarded email fields from channel enrichment.
 - _resolve_inbound_memory_identity: Resolved memory identifiers for inbound messages.
 
 [POS]
@@ -25,6 +25,7 @@ from app.core.utils.delivery_provenance import (
 )
 
 _REPLY_CONTENT_MAX_LEN = 500
+_FWD_BODY_MAX_LEN = 5000
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +115,40 @@ def _format_group_context_section(context_messages: tuple[ContextEntry, ...], us
     return f"[Recent group chat messages for context]\n{context_block}\n---\n{user_trigger_line}"
 
 
+def _format_forwarded_email_context(meta: dict[str, object], user_content: str) -> str:
+    """Build an LLM-readable block from forwarded email metadata.
+
+    When the user annotates a forwarded email (e.g. "expense this"), EmailChannel
+    stores the annotation in msg.content and the original email body in
+    metadata["forwarded_body"]. Without this injection the LLM only sees the
+    annotation and cannot act on the forwarded content.
+
+    When msg.content already equals forwarded_body (pure forward, no annotation),
+    the body is omitted to avoid duplication — only headers are injected.
+    """
+    from myrm_agent_harness.agent.security.detection.content_boundary import sanitize
+
+    parts: list[str] = ["[Forwarded Email]"]
+    for key, label in (
+        ("forwarded_from", "From"),
+        ("forwarded_subject", "Subject"),
+        ("forwarded_date", "Date"),
+    ):
+        val = meta.get(key)
+        if isinstance(val, str) and val.strip():
+            parts.append(f"{label}: {val.strip()}")
+
+    fwd_body = meta.get("forwarded_body")
+    if isinstance(fwd_body, str) and fwd_body.strip():
+        if fwd_body.strip() != user_content.strip():
+            truncated = fwd_body[:_FWD_BODY_MAX_LEN]
+            if len(fwd_body) > _FWD_BODY_MAX_LEN:
+                truncated += "..."
+            parts.append(f"---\n{sanitize(truncated)}")
+
+    return "\n".join(parts) if len(parts) > 1 else ""
+
+
 def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, object]]:
     """Assemble the channel user payload as plain text or multimodal query.
 
@@ -159,6 +194,11 @@ def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, obj
             if card_lines:
                 header = "[Shared Contact]" if len(card_lines) == 1 else "[Shared Contacts]"
                 text = f"{text}\n\n{header}\n" + "\n".join(card_lines)
+
+        if meta.get("is_forwarded"):
+            fwd_ctx = _format_forwarded_email_context(meta, msg.content)
+            if fwd_ctx:
+                text = f"{text}\n\n{fwd_ctx}"
 
     image_data_list = msg.metadata.get("image_data_list") if isinstance(msg.metadata, dict) else None
     if not image_data_list or not isinstance(image_data_list, list):

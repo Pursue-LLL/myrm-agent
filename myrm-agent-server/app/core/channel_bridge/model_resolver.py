@@ -177,12 +177,14 @@ def _fallback_model_from_providers(
                     full_model = _to_litellm_model(pid, model, ptype)
                     api_url = str(provider.get("apiUrl") or provider.get("baseURL") or "")
                     api_url = api_url if api_url else None
+                    pool_strategy = str(provider.get("credentialPoolStrategy", "")) or None
                     logger.debug("model_resolver: using default model %s", full_model)
                     return ModelConfig(
                         model=full_model,
                         api_key=all_keys[0],
                         base_url=api_url,
                         api_keys=all_keys if len(all_keys) > 1 else None,
+                        credential_pool_strategy=pool_strategy if len(all_keys) > 1 else None,
                     )
 
     raise ConfigIncompleteError(
@@ -238,12 +240,14 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
             continue
         api_url = str(p.get("apiUrl") or p.get("baseURL") or "")
         api_url = api_url if api_url else None
+        pool_strategy = str(p.get("credentialPoolStrategy", "")) or None
         resolved_model = _to_litellm_model(pid, raw_model, ptype or None)
         return ModelConfig(
             model=resolved_model,
             api_key=all_keys[0],
             base_url=api_url,
             api_keys=all_keys if len(all_keys) > 1 else None,
+            credential_pool_strategy=pool_strategy if len(all_keys) > 1 else None,
         )
 
     return None

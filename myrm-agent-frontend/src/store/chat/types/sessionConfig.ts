@@ -25,6 +25,7 @@ export interface ModelSelection {
   baseUrl?: string;
   modelKwargs?: Record<string, unknown>;
   supportsVision?: boolean;
+  credentialPoolStrategy?: string;
 }
 
 // 智能体配置

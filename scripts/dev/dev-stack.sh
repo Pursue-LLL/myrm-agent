@@ -31,12 +31,14 @@ API_HEALTH="${API_BASE}/api/v1/health"
 
 BACKEND_PID="${MYRM_BACKEND_PID_FILE:-${STATE_DIR}/backend.pid}"
 BACKEND_LOG="${MYRM_BACKEND_LOG_FILE:-${STATE_DIR}/backend.log}"
+BACKEND_IDENTITY="${MYRM_BACKEND_IDENTITY_FILE:-${STATE_DIR}/backend-process.json}"
 FRONTEND_PID="${MYRM_FRONTEND_PID_FILE:-${STATE_DIR}/frontend.pid}"
 FRONTEND_LOG="${MYRM_FRONTEND_LOG_FILE:-${STATE_DIR}/frontend.log}"
 export STATE_DIR PORT="${BACKEND_PORT}" MYRM_BACKEND_PORT="${BACKEND_PORT}"
 export MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}"
 export E2E_UI_BASE="${APP_URL}" E2E_API_BASE="${API_BASE}"
 export MYRM_BACKEND_PID_FILE="${BACKEND_PID}" MYRM_BACKEND_LOG_FILE="${BACKEND_LOG}"
+export MYRM_BACKEND_IDENTITY_FILE="${BACKEND_IDENTITY}"
 
 ENSURE_FRONTEND_WAIT_SEC="${MYRM_STACK_FRONTEND_WAIT_SEC:-180}"
 # Wait budget must cover a full ensure (frontend cold compile) plus lock handoff.
@@ -571,22 +573,51 @@ cmd_status() {
 }
 
 _stop_private_backend() {
-  if [[ -f "${BACKEND_PID}" ]]; then
-    local dev_pid
-    dev_pid="$(tr -d '[:space:]' <"${BACKEND_PID}")"
-    if [[ -n "${dev_pid}" ]] && kill -0 "${dev_pid}" 2>/dev/null; then
-      _kill_pid_gracefully "${dev_pid}"
-    fi
-    rm -f "${BACKEND_PID}"
+  local py="${SERVER_DIR}/.venv/bin/python"
+  local identity_helper="${SCRIPT_DIR}/lib/process_identity.py"
+  local runtime_id="${MYRM_RUNTIME_NAMESPACE:-shared}"
+  if [[ ! -x "${py}" ]]; then
+    py="python3"
   fi
-
-  dev_kill_port_listeners "${BACKEND_PORT}"
-  dev_wait_ports_released 45 "${BACKEND_PORT}" || true
+  if [[ -f "${BACKEND_IDENTITY}" ]]; then
+    if ! "${py}" "${identity_helper}" terminate \
+      --identity-file "${BACKEND_IDENTITY}" \
+      --pid-file "${BACKEND_PID}" \
+      --expected-runtime-id "${runtime_id}"; then
+      echo "STACK_FAIL: private backend process ownership mismatch" >&2
+      return 1
+    fi
+  elif [[ -f "${BACKEND_PID}" ]] || dev_port_in_use "${BACKEND_PORT}"; then
+    echo "STACK_FAIL: private backend ownership identity missing; refusing to kill pid/port" >&2
+    return 1
+  fi
+  if ! dev_wait_ports_released 45 "${BACKEND_PORT}"; then
+    echo "STACK_FAIL: private backend port :${BACKEND_PORT} still owned by an unknown listener" >&2
+    return 1
+  fi
   _clear_stack_epoch
+}
+
+_private_backend_identity_valid() {
+  [[ -f "${BACKEND_PID}" && -f "${BACKEND_IDENTITY}" ]] || return 1
+  local dev_pid py="${SERVER_DIR}/.venv/bin/python"
+  dev_pid="$(tr -d '[:space:]' <"${BACKEND_PID}")"
+  [[ "${dev_pid}" =~ ^[0-9]+$ ]] || return 1
+  if [[ ! -x "${py}" ]]; then
+    py="python3"
+  fi
+  "${py}" "${SCRIPT_DIR}/lib/process_identity.py" verify \
+    --identity-file "${BACKEND_IDENTITY}" \
+    --expected-pid "${dev_pid}" \
+    --expected-runtime-id "${MYRM_RUNTIME_NAMESPACE:-shared}" >/dev/null
 }
 
 cmd_backend_only_ensure() {
   if _api_healthy 5; then
+    if ! _private_backend_identity_valid; then
+      echo "STACK_FAIL: healthy private port lacks matching process ownership" >&2
+      exit 1
+    fi
     echo "STACK_OK: private backend already healthy → ${API_BASE}"
     echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
     exit 0
@@ -606,7 +637,9 @@ cmd_backend_only_ensure() {
 }
 
 cmd_backend_only_stop() {
-  _stop_private_backend
+  if ! _stop_private_backend; then
+    exit 1
+  fi
   echo "STACK_BACKEND_ONLY_STOP_OK"
 }
 

@@ -200,6 +200,10 @@ async def _record_maintenance_event(report: MaintenanceReport, *, forced: bool) 
         parts.append(f"forgot {report.forgotten_count}")
     if report.archived_count:
         parts.append(f"archived {report.archived_count}")
+    if report.staleness_removed:
+        parts.append(f"stale_removed {report.staleness_removed}")
+    if report.staleness_extended:
+        parts.append(f"stale_extended {report.staleness_extended}")
     if report.consolidation_merged:
         parts.append(f"merged {report.consolidation_merged}")
     if report.consolidation_corrected:
@@ -222,6 +226,9 @@ async def _record_maintenance_event(report: MaintenanceReport, *, forced: bool) 
                 metadata={
                     "forgotten_count": report.forgotten_count,
                     "archived_count": report.archived_count,
+                    "staleness_reviewed": report.staleness_reviewed,
+                    "staleness_removed": report.staleness_removed,
+                    "staleness_extended": report.staleness_extended,
                     "merged_count": report.consolidation_merged,
                     "corrected_count": report.consolidation_corrected,
                     "health_score": report.health.total if report.health else None,

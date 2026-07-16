@@ -64,13 +64,35 @@ _start_backend_bg() {
   local backend_port="${MYRM_BACKEND_PORT:-${PORT:-8080}}"
   local pid_file="${MYRM_BACKEND_PID_FILE:-${state_dir}/backend.pid}"
   local log_file="${MYRM_BACKEND_LOG_FILE:-${state_dir}/backend.log}"
+  local identity_file="${MYRM_BACKEND_IDENTITY_FILE:-${state_dir}/backend-process.json}"
+  local identity_helper
+  identity_helper="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/process_identity.py"
+  local runtime_id="${MYRM_RUNTIME_NAMESPACE:-shared}"
   local health_url="${E2E_API_BASE:-http://127.0.0.1:${backend_port}}/api/v1/health"
   mkdir -p "${state_dir}"
+
+  local py=""
+  if [[ -x "${server_dir}/.venv/bin/python" ]]; then
+    py="${server_dir}/.venv/bin/python"
+  elif [[ -x "${server_dir}/.venv/Scripts/python.exe" ]]; then
+    py="${server_dir}/.venv/Scripts/python.exe"
+  fi
+  if [[ -z "${py}" ]]; then
+    echo "ERROR: no .venv python. Run: myrm setup" >&2
+    return 1
+  fi
 
   if [[ -f "${pid_file}" ]]; then
     local old_pid
     old_pid="$(cat "${pid_file}")"
     if kill -0 "${old_pid}" 2>/dev/null; then
+      if ! "${py}" "${identity_helper}" verify \
+        --identity-file "${identity_file}" \
+        --expected-pid "${old_pid}" \
+        --expected-runtime-id "${runtime_id}" >/dev/null; then
+        echo "ERROR: backend pid exists without matching process ownership: ${old_pid}" >&2
+        return 1
+      fi
       echo "Backend already running (pid ${old_pid})"
       _require_harness_editable_for_monorepo "${server_dir}"
       local stack_epoch_lib
@@ -85,17 +107,7 @@ _start_backend_bg() {
       return 0
     fi
     rm -f "${pid_file}"
-  fi
-
-  local py=""
-  if [[ -x "${server_dir}/.venv/bin/python" ]]; then
-    py="${server_dir}/.venv/bin/python"
-  elif [[ -x "${server_dir}/.venv/Scripts/python.exe" ]]; then
-    py="${server_dir}/.venv/Scripts/python.exe"
-  fi
-  if [[ -z "${py}" ]]; then
-    echo "ERROR: no .venv python. Run: myrm setup" >&2
-    return 1
+    rm -f "${identity_file}"
   fi
 
   export DEPLOY_MODE="${DEPLOY_MODE:-local}"
@@ -117,6 +129,17 @@ _start_backend_bg() {
   local new_pid
   new_pid=$!
   echo "${new_pid}" >"${pid_file}"
+  if ! "${py}" "${identity_helper}" record \
+    --pid "${new_pid}" \
+    --identity-file "${identity_file}" \
+    --runtime-id "${runtime_id}" \
+    --role backend \
+    --expected-command-token run.py >/dev/null; then
+    kill -TERM "${new_pid}" 2>/dev/null || true
+    rm -f "${pid_file}" "${identity_file}"
+    echo "ERROR: failed to record backend process ownership" >&2
+    return 1
+  fi
 
   local health_wait_sec=45
   if [[ "${MYRM_E2E_ISOLATED:-}" == "1" || "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_DEV_STATE_DIR:-}" != "${HOME}/.local/state/myrm-dev" ]]; then

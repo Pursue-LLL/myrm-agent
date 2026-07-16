@@ -355,6 +355,8 @@ export interface ApiKeyConfig {
   isActive: boolean;
 }
 
+export type CredentialPoolStrategy = 'round_robin' | 'fill_first' | 'least_used' | 'random';
+
 // 提供商配置
 export interface ProviderConfig {
   id: string;
@@ -368,6 +370,7 @@ export interface ProviderConfig {
   enabledModels: string[];
   availableModels: string[];
   providerType?: CustomProviderType;
+  credentialPoolStrategy?: CredentialPoolStrategy;
 }
 
 // 单模型选择配置

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import {
   ProviderConfig as ProviderConfigType,
   ApiKeyConfig,
+  CredentialPoolStrategy,
   getLiteLLMModelName,
   BUILT_IN_PROVIDER_INFO,
   normalizeApiUrl,
@@ -91,6 +92,13 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
   const handleApiKeysChange = (apiKeys: ApiKeyConfig[]) => {
     onChange({ ...provider, apiKeys });
   };
+
+  const handleStrategyChange = useCallback(
+    (strategy: CredentialPoolStrategy) => {
+      onChange({ ...provider, credentialPoolStrategy: strategy });
+    },
+    [provider, onChange],
+  );
 
   const handleProbeKey = useCallback(
     async (apiKey: string) => {
@@ -296,6 +304,8 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
             onProbeKey={
               (provider.enabledModels ?? provider.availableModels ?? []).length > 0 ? handleProbeKey : undefined
             }
+            credentialPoolStrategy={provider.credentialPoolStrategy}
+            onStrategyChange={handleStrategyChange}
           />
         </div>
       </div>
