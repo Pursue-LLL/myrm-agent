@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 
 import pytest
@@ -48,43 +49,54 @@ def test_kanban_board_and_task_render_in_real_ui(
     e2e_resource_ledger.register("kanban_task", task_id)
 
     with open_mcp_page(f"{ui_url}/settings/kanban") as (client, page):
-        client.evaluate(
+        previous_board = client.evaluate(
             page,
-            """(() => {
-              localStorage.removeItem('kanban_last_board_id');
-              return true;
-            })()""",
+            "localStorage.getItem('kanban_last_board_id')",
             timeout_sec=5.0,
         )
-        client.reload(page, timeout_ms=60_000)
-        row_state = wait_for_state(
-            client,
-            page,
-            f"""(() => {{
-              const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-              return {{ ready: !!row, text: row?.textContent || '' }};
-            }})()""",
-            timeout_sec=90.0,
-        )
-        assert board_name in str(row_state.get("text") or "")
-        clicked = client.evaluate(
-            page,
-            f"""(() => {{
-              const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
-              if (!row) return false;
-              row.click();
-              return true;
-            }})()""",
-            timeout_sec=5.0,
-        )
-        assert clicked is True
-        task_state = wait_for_state(
-            client,
-            page,
-            f"""(() => {{
-              const view = document.querySelector('[data-testid="kanban-board-view"]');
-              const text = view?.textContent || '';
-              return {{ ready: !!view && text.includes({task_title!r}), text }};
-            }})()""",
-        )
-        assert task_title in str(task_state.get("text") or "")
+        try:
+            client.evaluate(
+                page,
+                "localStorage.removeItem('kanban_last_board_id')",
+                timeout_sec=5.0,
+            )
+            client.reload(page, timeout_ms=60_000)
+            row_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+                  return {{ ready: !!row, text: row?.textContent || '' }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert board_name in str(row_state.get("text") or "")
+            clicked = client.evaluate(
+                page,
+                f"""(() => {{
+                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+                  if (!row) return false;
+                  row.click();
+                  return true;
+                }})()""",
+                timeout_sec=5.0,
+            )
+            assert clicked is True
+            task_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const view = document.querySelector('[data-testid="kanban-board-view"]');
+                  const text = view?.textContent || '';
+                  return {{ ready: !!view && text.includes({task_title!r}), text }};
+                }})()""",
+            )
+            assert task_title in str(task_state.get("text") or "")
+        finally:
+            restore = (
+                "localStorage.removeItem('kanban_last_board_id')"
+                if previous_board is None
+                else "localStorage.setItem('kanban_last_board_id', "
+                f"{json.dumps(str(previous_board))})"
+            )
+            client.evaluate(page, restore, timeout_sec=5.0)
