@@ -35,6 +35,14 @@ _E2E_TEST_ROOT = _TESTS_ROOT / "e2e"
 _LIFECYCLE_TEST_ROOT = _TESTS_ROOT / "lifecycle"
 
 
+def _is_formal_chrome_e2e(request: pytest.FixtureRequest) -> bool:
+    if request.node.get_closest_marker("chrome_e2e") is not None:
+        return True
+    if request.node.get_closest_marker("e2e") is None:
+        return False
+    return Path(request.fspath).resolve().is_relative_to(_E2E_TEST_ROOT)
+
+
 def _prepend_monorepo_pythonpath() -> None:
     """Prefer monorepo harness src over stale .venv site-packages (batch/skill tests)."""
     import sys
@@ -260,7 +268,7 @@ def _require_live_e2e_lease(
     _chrome_e2e_item_runtime: object | None,
 ) -> Iterator[None]:
     """Fail live E2E before side effects when Wave ownership is missing or drifts."""
-    if request.node.get_closest_marker("chrome_e2e") is None:
+    if not _is_formal_chrome_e2e(request):
         yield
         return
     lease = require_e2e_runtime_lease()
@@ -274,7 +282,7 @@ def _require_live_e2e_lease(
 @pytest.fixture
 def e2e_resource_ledger(request: pytest.FixtureRequest) -> E2EResourceLedger:
     """Register resources created by one live E2E for lease-owned cleanup."""
-    if request.node.get_closest_marker("chrome_e2e") is None:
+    if not _is_formal_chrome_e2e(request):
         raise RuntimeError("E2E_LEDGER_REQUIRED: fixture is only valid for e2e tests")
     lease = require_e2e_runtime_lease()
     namespace = os.environ.get("MYRM_E2E_LEDGER_NAMESPACE", "").strip()
