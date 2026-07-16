@@ -53,9 +53,13 @@ import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding'
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
 import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
-import { generateCompanion, getEnhancedPersonality, getTitle } from '@/components/features/companion/companionGenerator';
+import {
+  generateCompanion,
+  getEnhancedPersonality,
+  getTitle,
+} from '@/components/features/companion/companionGenerator';
 import useCompanionStore from '../useCompanionStore';
-import { API_BASE_URL, fetchWithTimeout } from '@/lib/api';
+import { fetchWithTimeout } from '@/lib/api';
 import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { normalizeApiUrl } from '@/store/config/providerTypes';
@@ -411,7 +415,7 @@ const validateConfig = validateChatModelConfig;
 export const resolveEffectiveAgentId = (
   actionMode: ActionMode,
   agentConfig: AgentConfig | null,
-  searchDepth?: 'normal' | 'deep',
+  _searchDepth?: 'normal' | 'deep',
 ): string | undefined => {
   if (actionMode === 'fast') {
     return 'builtin-fast-search';
@@ -637,10 +641,10 @@ export const createMessageRequest = async (
     ...(() => {
       const references = mergeMentionReferences(state.mentionReferences, extractInlineMentionReferences(input));
       if (references.length === 0) return {};
-      
-      const fileReferences = references.filter(r => r.type !== 'agent');
-      const agentReferences = references.filter(r => r.type === 'agent');
-      
+
+      const fileReferences = references.filter((r) => r.type !== 'agent');
+      const agentReferences = references.filter((r) => r.type === 'agent');
+
       const payload: Record<string, any> = {};
       if (fileReferences.length > 0) {
         payload.mention_references = fileReferences.map((reference) => ({
@@ -655,7 +659,7 @@ export const createMessageRequest = async (
         }));
       }
       if (agentReferences.length > 0) {
-        payload.mentioned_agent_ids = agentReferences.map(r => r.fileId).filter(Boolean);
+        payload.mentioned_agent_ids = agentReferences.map((r) => r.fileId).filter(Boolean);
       }
       return payload;
     })(),
@@ -689,7 +693,10 @@ import useToolApprovalStore from '../useToolApprovalStore';
 import { produce } from 'immer';
 import useWorkspaceStore from '../useWorkspaceStore';
 
-export const createSmartUpdater = (chatId: string | undefined, originalSetMessages: (updater: (state: ChatActionsState) => void) => void) => {
+export const createSmartUpdater = (
+  chatId: string | undefined,
+  originalSetMessages: (updater: (state: ChatActionsState) => void) => void,
+) => {
   return (updater: (state: ChatActionsState) => void) => {
     if (!chatId) {
       originalSetMessages(updater);
@@ -711,7 +718,13 @@ export const createSmartUpdater = (chatId: string | undefined, originalSetMessag
 
     const pane = workspaceState.panes.find((p: any) => p.chatId === chatId);
     if (pane) {
-      const currentSnapshot = pane.snapshot || { messages: [], loading: false, messageAppeared: false, hideAttachList: false, hasUsedImagesInCurrentChat: false };
+      const currentSnapshot = pane.snapshot || {
+        messages: [],
+        loading: false,
+        messageAppeared: false,
+        hideAttachList: false,
+        hasUsedImagesInCurrentChat: false,
+      };
       const nextSnapshot = produce(currentSnapshot, (draft: any) => {
         updater(draft as ChatActionsState);
       });
@@ -850,7 +863,7 @@ export const sendMessage = async (
 
     // 创建 AbortController 并设置 loading 状态
     const abortController = new AbortController();
-    
+
     // Save the abort controller to the workspace store for the current pane
     if (state.chatId) {
       const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
@@ -912,7 +925,7 @@ export const sendMessage = async (
     useCompanionStore.getState().incrementConversation();
   } catch (error) {
     const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
-    
+
     if (error instanceof AgentBusyError) {
       // Let the UI handle requeueing
       throw error;
@@ -967,7 +980,7 @@ export const sendMessage = async (
       innerState.files = [];
       innerState.cameraFrames = [];
     });
-    
+
     if (state.chatId) {
       const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
       if (paneId) {
@@ -1041,7 +1054,7 @@ export const attachToChat = async (
     if (!response.body) {
       return false;
     }
-    
+
     await consumeStream(response, '', state, smartActions, abortController, false, '');
     return true;
   } catch (error) {

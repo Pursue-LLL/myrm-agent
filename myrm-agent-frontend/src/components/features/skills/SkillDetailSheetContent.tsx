@@ -45,7 +45,6 @@ import {
 } from '@/lib/skills/integrationOAuthDisplay';
 import { SkillQualityGuardian } from './SkillQualityGuardian';
 import { SkillVersionsPanel } from './SkillVersionsPanel';
-import { getCategoryIcon, getCategoryColor } from './skillCategories';
 import { RequirementRow, SecurityScanSection, KnownPitfallsSection } from './SkillDetailHelpers';
 
 function stripYamlFrontmatter(content: string): string {
@@ -114,7 +113,6 @@ export function SkillDetailSheetContent({
   onLifecycleAction,
   t,
 }: SkillDetailSheetContentProps) {
-  const category = skill.category || 'other';
   const trustColor = trustColors[skill.trust] || trustColors.installed;
 
   return (
@@ -350,8 +348,7 @@ export function SkillDetailSheetContent({
                 {t('card.pin')}
               </Button>
             )}
-            {(skill.usage_stats.lifecycle_status === 'stale' ||
-              skill.usage_stats.lifecycle_status === 'archived') && (
+            {(skill.usage_stats.lifecycle_status === 'stale' || skill.usage_stats.lifecycle_status === 'archived') && (
               <Button
                 variant="outline"
                 size="sm"

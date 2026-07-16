@@ -208,6 +208,10 @@ elif ! ensure_out="$(bash "${ENSURE_CHROME}" 2>&1)"; then
 fi
 echo "${ensure_out}"
 ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"
+CHROME_E2E_CLI_EARLY="${SCRIPT_DIR}/chrome-e2e/cli.sh"
+if [[ -f "${CHROME_E2E_CLI_EARLY}" ]]; then
+  bash "${CHROME_E2E_CLI_EARLY}" ensure-surface >/dev/null 2>&1 || true
+fi
 
 PRUNE_SCRIPT="${SCRIPT_DIR}/prune-myrm-chrome-e2e-blank-tabs.sh"
 if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" && -f "${PRUNE_SCRIPT}" ]]; then
@@ -547,6 +551,10 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
     fail "client_hot missing during attach — first Agent must finish ./myrm ready --chrome"
   fi
   echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
+  CHROME_E2E_CLI="${SCRIPT_DIR}/chrome-e2e/cli.sh"
+  if [[ -f "${CHROME_E2E_CLI}" ]]; then
+    bash "${CHROME_E2E_CLI}" transition preflight-done "${SAVED_FRONTMOST_PID}" >/dev/null 2>&1 || true
+  fi
   _print_e2e_health_json
   exit 0
 fi
@@ -627,9 +635,9 @@ if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then
 fi
 
 echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=$raw_port profile=${MYRM_CHROME_E2E_DATA_DIR}"
-SUPPRESS_UI="${SCRIPT_DIR}/myrm-chrome-e2e-suppress-ui.sh"
-if [[ -f "${SUPPRESS_UI}" ]]; then
-  bash "${SUPPRESS_UI}" >/dev/null 2>&1 || true
+CHROME_E2E_CLI="${SCRIPT_DIR}/chrome-e2e/cli.sh"
+if [[ -f "${CHROME_E2E_CLI}" ]]; then
+  bash "${CHROME_E2E_CLI}" transition preflight-done "${SAVED_FRONTMOST_PID}" >/dev/null 2>&1 || true
 fi
 if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]]; then
   _ensure_stack_epoch_file

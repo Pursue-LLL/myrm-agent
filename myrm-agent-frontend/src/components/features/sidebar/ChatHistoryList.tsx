@@ -23,6 +23,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { ChatHistoryRow, SortablePinnedRow } from './ChatHistoryRow';
 import CronJobCreateDialog from '@/components/features/cron/CronJobCreateDialog';
 import { HandoffDialog } from './HandoffDialog';
+import { ShareConversationDialog } from './ShareConversationDialog';
 import { groupChatsByDate, useCollapsedGroups } from './dateGroupUtils';
 import BatchOperationBar from './BatchOperationBar';
 import ProjectBar from './ProjectBar';
@@ -245,6 +246,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     onRenameValueChange: actions.setRenameValue,
     onDelete: actions.handleDeleteClick,
     onExport: actions.handleExport,
+    onShare: actions.handleShare,
     onPin: actions.handlePin,
     onUnpin: actions.handleUnpin,
     onCreateAutomation: actions.handleCreateAutomation,
@@ -508,6 +510,16 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
           currentSource={actions.handoffChatSource}
         />
       )}
+
+      <ShareConversationDialog
+        open={actions.shareDialogOpen}
+        onOpenChange={actions.setShareDialogOpen}
+        shareUrl={actions.shareUrl}
+        expiresAt={actions.shareExpiresAt}
+        loading={actions.shareLoading}
+        onCreateLink={actions.handleShareCreate}
+        onRevoke={actions.handleShareRevoke}
+      />
     </div>
   );
 });

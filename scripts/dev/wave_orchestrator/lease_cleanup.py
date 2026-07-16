@@ -54,14 +54,27 @@ def cleanup_released_lease(
     *,
     paths: WavePaths,
     skip_resource_cleanup: bool = False,
+    strict: bool = True,
 ) -> None:
+    failures: list[str] = []
     page_id = str(lease.get("pageId", "")).strip()
     if page_id:
         attempts = cleanup_lease_browser(lease)
         if attempts and attempts[0]["ok"]:
             clear_browser_binding(lease["leaseId"], page_id, paths=paths)
+        elif attempts:
+            failures.append(f"browser: {attempts[0]['detail']}")
     if not skip_resource_cleanup:
-        cleanup_lease_resources(lease["leaseId"], paths=paths)
+        summary = cleanup_lease_resources(lease["leaseId"], paths=paths)
+        if summary["failed"]:
+            details = "; ".join(
+                attempt["detail"] for attempt in summary["attempts"] if not attempt["ok"]
+            )
+            failures.append(f"resources({summary['failed']}): {details}")
+    if strict and failures:
+        raise RuntimeError(
+            f"LEASE_CLEANUP_FAILED: lease={lease['leaseId']}: " + "; ".join(failures)
+        )
 
 
 def cleanup_expired_leases(*, paths: WavePaths) -> None:
@@ -81,7 +94,7 @@ def cleanup_expired_leases(*, paths: WavePaths) -> None:
         ], False
 
     for lease in run_locked(paths.state_file, _snapshot):
-        cleanup_released_lease(lease, paths=paths)
+        cleanup_released_lease(lease, paths=paths, strict=False)
 
 
 def bind_browser_lease(

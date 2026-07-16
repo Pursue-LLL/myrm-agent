@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, fetchWithTimeout } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { QualityDistributionChart } from './QualityDistributionChart';
 import { SkillQualityTrendChart } from './SkillQualityTrendChart';
@@ -89,8 +89,8 @@ export function GlobalSkillQualityDashboard() {
 
   const handleExport = async (format: 'csv' | 'json') => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1'}/skill-optimization/export?format=${format}&time_range_days=${timeRange}`,
+      const response = await fetchWithTimeout(
+        `/skill-optimization/export?format=${format}&time_range_days=${timeRange}`,
       );
 
       if (!response.ok) throw new Error('Export failed');

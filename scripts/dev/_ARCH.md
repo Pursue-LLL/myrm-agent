@@ -20,9 +20,11 @@
 | `dev-stack.sh` | Unix | 本地 dev 栈 SSOT：`ensure` / `attach` / `reset` / `status`；`cmd_ensure` 三分支：已热栈 idempotent OK；冷栈 + wave pin + 端口在听 → attach-wait；冷栈 + wave pin + 栈 down → `STACK_FAIL`；**必须**委托 **stack_supervisor** 单写者；state `~/.local/state/myrm-dev/` |
 | `stack-supervisor.sh` | Unix | Dev 栈守护进程启动器 + RPC 客户端入口；见 [stack_supervisor/_ARCH.md](stack_supervisor/_ARCH.md) |
 | `ensure-next-native-swc.sh` | Unix | 缺平台 `@next/swc-*` 时 `bun install --no-save`（防 WASM 慢编译）；setup 与 dev-stack 双路径 |
-| `ensure-myrm-chrome-e2e.sh` | Unix | 拉起/验证 Myrm 专用 E2E Chrome（`:9333`，零 Allow）；macOS 默认 `open -gj` 后台冷启（`MYRM_CHROME_E2E_FOREGROUND=1` 恢复前台）；栈热时首开 `:3000` 而非 blank |
+| `ensure-myrm-chrome-e2e.sh` | Unix | 拉起/验证 Myrm 专用 E2E Chrome（`:9333`，零 Allow）；macOS 默认 `open -gj` + `about:blank` 后台冷启；AOS 最小化；`MYRM_CHROME_E2E_FOREGROUND=1` 恢复前台 |
 | `prune-myrm-chrome-e2e-blank-tabs.sh` | Unix | 仅按 transient ledger 回收死亡 owner 的精确 targetId；从不按 URL/blank/重复页推断 |
-| `myrm-chrome-e2e-lib.sh` | Unix | E2E Chrome 路径/port 常量、CDP 健康探测、`launch_background()` / `default_app()` |
+| `myrm-chrome-e2e-lib.sh` | Unix | E2E Chrome 薄 re-export → `chrome-e2e/{runtime,focus,lifecycle}.sh` |
+| `chrome-e2e/` | Unix | **AOS SSOT**：`surface.py`（Agent Window）、`focus.sh`（macOS FALLBACK）、`cli.sh`、`hil.py` |
+| `chrome-e2e-doctor.sh` | Unix | `./myrm doctor --chrome` 一站式诊断 |
 | `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
 | `wave-e2e-lease.sh` | Unix | `./myrm test -m e2e` LIVE_AGENT 租约；最后一个 lease 释放时原子关闭 Wave |
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |

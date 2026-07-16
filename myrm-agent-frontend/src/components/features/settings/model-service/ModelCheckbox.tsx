@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect } from 'react';
+import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { CheckCircle2, AlertCircle, Trash2, Settings, Download } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -50,22 +50,22 @@ const ModelCheckbox = memo<ModelCheckboxProps>(
   ({ providerId, providerType, apiUrl, apiKey, models, onAddModel, onRemoveModel, onToggleModel }) => {
     const t = useTranslations('settings.modelService');
 
-  const {
-    loadingModels,
-    modelStatus,
-    infoDialogModel,
-    setInfoDialogModel,
-    importDialogOpen,
-    setImportDialogOpen,
-    handleGetModels,
-    handleImportModels,
-    handleToggleModel,
-  } = useModelCheckbox({
-    providerId,
-    models,
-    onAddModel,
-    onToggleModel,
-  });
+    const {
+      loadingModels,
+      modelStatus,
+      infoDialogModel,
+      setInfoDialogModel,
+      importDialogOpen,
+      setImportDialogOpen,
+      handleGetModels,
+      handleImportModels,
+      handleToggleModel,
+    } = useModelCheckbox({
+      providerId,
+      models,
+      onAddModel,
+      onToggleModel,
+    });
 
     // 检查是否支持从 API 或 models.dev 导入模型
     const canFetchFromApi = !!(apiKey && apiUrl);

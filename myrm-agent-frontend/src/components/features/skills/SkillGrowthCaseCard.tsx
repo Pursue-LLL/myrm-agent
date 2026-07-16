@@ -1,21 +1,25 @@
 /**
- * [INPUT] SkillGrowthCase via @/services/skill-growth
+ * [INPUT] SkillGrowthCaseSummary via @/services/skill-growth; detail fetched on expand
  * [OUTPUT] SkillGrowthCaseCard: 技能进化提案卡片（Simple/Detailed 双视图、Monaco DiffEditor 就地修订、审批/拒绝）; SkillGrowthViewMode type
  * [POS] features/skills 单个技能进化提案的展示与交互卡片
  */
 'use client';
 
-import { useMemo, useState, useCallback, useRef } from 'react';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { CalendarClock, Check, ChevronDown, ChevronUp, Clock3, Edit3, ExternalLink, ShieldAlert, X } from 'lucide-react';
+import { CalendarClock, Check, ChevronDown, ChevronUp, Clock3, Edit3, ExternalLink, Loader2, ShieldAlert, X } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { TextDiffViewer } from '@/lib/diff/TextDiffViewer';
 import { useTheme } from 'next-themes';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
-import type { SkillGrowthCase } from '@/services/skill-growth';
+import {
+  getSkillGrowthCaseDetail,
+  type SkillGrowthCaseDetail,
+  type SkillGrowthCaseSummary,
+} from '@/services/skill-growth';
 import { LazyMonacoDiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import type { DiffOnMount } from '@monaco-editor/react';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -23,7 +27,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 export type SkillGrowthViewMode = 'simple' | 'detailed';
 
 interface SkillGrowthCaseCardProps {
-  item: SkillGrowthCase;
+  item: SkillGrowthCaseSummary;
   isProcessing: boolean;
   viewMode?: SkillGrowthViewMode;
   onApprove: () => Promise<void>;
@@ -34,7 +38,7 @@ interface SkillGrowthCaseCardProps {
 }
 
 const STATUS_STYLES: Record<
-  SkillGrowthCase['status'],
+  SkillGrowthCaseSummary['status'],
   { badge: string; tone: 'default' | 'secondary' | 'destructive' | 'outline' }
 > = {
   PENDING_REVIEW: {
@@ -74,7 +78,10 @@ export default function SkillGrowthCaseCard({
   const [rejectionReason, setRejectionReason] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
-  const [expandedInSimple, setExpandedInSimple] = useState(false);
+  const [contentExpanded, setContentExpanded] = useState(false);
+  const [detail, setDetail] = useState<SkillGrowthCaseDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const modifiedEditorRef = useRef<{ getValue: () => string } | null>(null);
   const isSimple = viewMode === 'simple';
 
@@ -84,11 +91,56 @@ export default function SkillGrowthCaseCard({
   const statusLabel = t(`status.${item.status}` as Parameters<typeof t>[0]);
   const sourceLabel = item.source === 'draft' ? t('source.backgroundReview') : t('source.manualEvolution');
   const createdAt = useMemo(() => new Date(item.createdAt).toLocaleString(), [item.createdAt]);
-  const showDiff = Boolean(item.originalContent !== null && item.proposedContent);
   const showReviewActions = item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
   const approveLabel = item.status === 'APPLY_FAILED' ? t('actions.retryApply') : t('actions.approve');
   const runtimeFailure = item.runtimeFailure;
   const canRevise = showReviewActions && item.source === 'evolution' && onRevise;
+
+  const hasExpandableContent =
+    item.hasDiff || item.hasTrajectory || item.hasTriggerCondition || item.hasSkillSteps;
+
+  const originalContent = detail?.originalContent ?? null;
+  const proposedContent = detail?.proposedContent ?? null;
+  const showDiff = Boolean(originalContent !== null && proposedContent);
+
+  useEffect(() => {
+    setDetail(null);
+    setDetailError(null);
+    setContentExpanded(false);
+    setIsEditing(false);
+    setEditedContent('');
+  }, [item.id]);
+
+  const loadDetail = useCallback(async (): Promise<SkillGrowthCaseDetail | null> => {
+    if (detail !== null) {
+      return detail;
+    }
+    setDetailLoading(true);
+    setDetailError(null);
+    try {
+      const loaded = await getSkillGrowthCaseDetail(item.id);
+      setDetail(loaded);
+      return loaded;
+    } catch (loadError) {
+      const message = loadError instanceof Error ? loadError.message : t('detailLoadFailed');
+      setDetailError(message);
+      return null;
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [detail, item.id, t]);
+
+  const handleExpandContent = useCallback(async () => {
+    if (!contentExpanded) {
+      setContentExpanded(true);
+      if (hasExpandableContent) {
+        await loadDetail();
+      }
+      return;
+    }
+    setContentExpanded(false);
+    setIsEditing(false);
+  }, [contentExpanded, hasExpandableContent, loadDetail]);
 
   const handleReject = async () => {
     if (!showRejectInput) {
@@ -100,10 +152,15 @@ export default function SkillGrowthCaseCard({
     setRejectionReason('');
   };
 
-  const handleStartEdit = useCallback(() => {
-    setEditedContent(item.proposedContent ?? '');
+  const handleStartEdit = useCallback(async () => {
+    const loaded = await loadDetail();
+    if (loaded === null) {
+      return;
+    }
+    setEditedContent(loaded.proposedContent ?? '');
+    setContentExpanded(true);
     setIsEditing(true);
-  }, [item.proposedContent]);
+  }, [loadDetail]);
 
   const handleCancelEdit = useCallback(() => {
     setIsEditing(false);
@@ -126,7 +183,10 @@ export default function SkillGrowthCaseCard({
     setIsEditing(false);
     setEditedContent('');
     modifiedEditorRef.current = null;
+    setDetail(null);
   }, [onRevise, editedContent]);
+
+  const showContentPanel = !isSimple || contentExpanded;
 
   return (
     <div className="rounded-2xl border bg-background p-4">
@@ -189,8 +249,8 @@ export default function SkillGrowthCaseCard({
                 variant="outline"
                 size="sm"
                 className="border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30"
-                onClick={handleStartEdit}
-                disabled={isProcessing}
+                onClick={() => void handleStartEdit()}
+                disabled={isProcessing || detailLoading}
               >
                 <Edit3 className="mr-2 h-4 w-4" />
                 {t('actions.revise')}
@@ -307,21 +367,22 @@ export default function SkillGrowthCaseCard({
         </div>
       )}
 
-      {isSimple && !expandedInSimple && (showDiff || item.proposedContent) && (
+      {hasExpandableContent && !contentExpanded && (
         <button
           type="button"
           className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          onClick={() => setExpandedInSimple(true)}
+          onClick={() => void handleExpandContent()}
+          disabled={detailLoading}
         >
-          <ChevronDown className="h-3.5 w-3.5" />
+          {detailLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ChevronDown className="h-3.5 w-3.5" />}
           {t('viewChanges')}
         </button>
       )}
-      {isSimple && expandedInSimple && (
+      {hasExpandableContent && contentExpanded && (
         <button
           type="button"
           className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          onClick={() => setExpandedInSimple(false)}
+          onClick={() => void handleExpandContent()}
         >
           <ChevronUp className="h-3.5 w-3.5" />
           {t('hideChanges')}
@@ -340,21 +401,34 @@ export default function SkillGrowthCaseCard({
         </div>
       )}
 
-      {(!isSimple || expandedInSimple) && item.triggerCondition && (
+      {showContentPanel && detailLoading && (
+        <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {t('loadingDetail')}
+        </div>
+      )}
+
+      {showContentPanel && detailError && (
+        <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {detailError}
+        </div>
+      )}
+
+      {showContentPanel && detail && detail.triggerCondition && (
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('triggerCondition')}</p>
-          <p className="mt-1 text-sm whitespace-pre-wrap">{item.triggerCondition}</p>
+          <p className="mt-1 text-sm whitespace-pre-wrap">{detail.triggerCondition}</p>
         </div>
       )}
 
-      {(!isSimple || expandedInSimple) && item.skillSteps && (
+      {showContentPanel && detail && detail.skillSteps && (
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('skillSteps')}</p>
-          <pre className="mt-1 whitespace-pre-wrap text-sm text-foreground">{item.skillSteps}</pre>
+          <pre className="mt-1 whitespace-pre-wrap text-sm text-foreground">{detail.skillSteps}</pre>
         </div>
       )}
 
-      {isEditing && (
+      {isEditing && detail && (
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('actions.reviseLabel')}</p>
@@ -363,7 +437,7 @@ export default function SkillGrowthCaseCard({
                 <X className="mr-1 h-3.5 w-3.5" />
                 {t('actions.cancelRevise')}
               </Button>
-              <Button size="sm" onClick={handleSaveRevision} disabled={isProcessing || !editedContent.trim()}>
+              <Button size="sm" onClick={() => void handleSaveRevision()} disabled={isProcessing || !editedContent.trim()}>
                 <Check className="mr-1 h-3.5 w-3.5" />
                 {t('actions.saveRevision')}
               </Button>
@@ -372,7 +446,7 @@ export default function SkillGrowthCaseCard({
           <div className="rounded-xl border overflow-hidden bg-background h-[300px] md:h-[400px]">
             <LazyMonacoDiffEditor
               height="100%"
-              original={item.originalContent ?? ''}
+              original={originalContent ?? ''}
               modified={editedContent}
               theme={isDark ? 'vs-dark' : 'light'}
               onMount={handleDiffEditorMount}
@@ -391,33 +465,33 @@ export default function SkillGrowthCaseCard({
         </div>
       )}
 
-      {(!isSimple || expandedInSimple) && !isEditing && showDiff && (
+      {showContentPanel && !isEditing && detail && showDiff && (
         <div className="mt-4 overflow-hidden rounded-xl border">
           <div className="bg-muted px-3 py-2 border-b flex justify-between text-xs font-medium">
             <span className="text-red-500">{t('original')}</span>
             <span className="text-green-500">{t('proposed')}</span>
           </div>
           <TextDiffViewer
-            oldValue={item.originalContent ?? ''}
-            newValue={item.proposedContent ?? ''}
+            oldValue={originalContent ?? ''}
+            newValue={proposedContent ?? ''}
             filePath="skill.md"
             defaultViewMode={isMobile ? 'unified' : 'split'}
           />
         </div>
       )}
 
-      {(!isSimple || expandedInSimple) && !isEditing && !showDiff && item.proposedContent && (
+      {showContentPanel && !isEditing && detail && !showDiff && proposedContent && (
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('proposed')}</p>
-          <pre className="mt-1 whitespace-pre-wrap text-sm text-foreground">{item.proposedContent}</pre>
+          <pre className="mt-1 whitespace-pre-wrap text-sm text-foreground">{proposedContent}</pre>
         </div>
       )}
 
-      {(!isSimple || expandedInSimple) && item.trajectory && (
+      {showContentPanel && detail && detail.trajectory && (
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('trajectoryAnalysis')}</p>
           <pre className="mt-1 whitespace-pre-wrap text-xs text-foreground font-mono overflow-x-auto">
-            {item.trajectory}
+            {detail.trajectory}
           </pre>
         </div>
       )}

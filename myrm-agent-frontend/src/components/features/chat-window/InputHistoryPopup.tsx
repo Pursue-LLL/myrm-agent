@@ -12,7 +12,7 @@
  */
 
 import { memo, useEffect, useRef } from 'react';
-import type { InputHistoryEntry, InputHistoryPopupState } from '@/hooks/useInputHistory';
+import type { InputHistoryPopupState } from '@/hooks/useInputHistory';
 
 const rtf = typeof Intl !== 'undefined' ? new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }) : null;
 
@@ -80,9 +80,7 @@ const InputHistoryPopup = memo<InputHistoryPopupProps>(({ popup, onSelect, onHov
             onSelect(index);
           }}
           className={`cursor-pointer truncate rounded-md px-3 py-1.5 text-sm transition-colors ${
-            index === popup.activeIndex
-              ? 'bg-accent text-accent-foreground'
-              : 'text-muted-foreground hover:bg-muted'
+            index === popup.activeIndex ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-muted'
           }`}
           title={`${getPreviewText(entry.text)}\n${formatRelativeTime(entry.createdAt)}`}
         >

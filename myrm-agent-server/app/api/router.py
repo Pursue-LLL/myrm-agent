@@ -37,6 +37,7 @@ from app.api.cron.routes import router as cron_router
 from app.api.eval.router import router as eval_router
 from app.api.external_agents import router as external_agents_router
 from app.api.features.router import router as features_router
+from app.api.chats.chat.share import public_router as chat_share_public_router
 from app.api.files.artifact_share_api import public_router as artifact_share_public_router
 from app.api.files.router import router as files_router
 from app.api.files.vault_proxy import router as vault_proxy_router
@@ -122,6 +123,11 @@ api_router.include_router(
     artifact_share_public_router,
     prefix="/public/artifact-share",
     tags=["public-artifact-share"],
+)
+api_router.include_router(
+    chat_share_public_router,
+    prefix="/public/chat-share",
+    tags=["public-chat-share"],
 )
 api_router.include_router(vault_proxy_router, prefix="/files", tags=["files"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])

@@ -12,6 +12,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Protocol
 
 from cdp_transient_targets import register_target, unregister_target
@@ -184,24 +185,24 @@ async def _cdp_request(
         return message
 
 
-def _suppress_e2e_chrome_ui() -> None:
+def _chrome_e2e_lifecycle(event: str) -> None:
     if os.environ.get("MYRM_CHROME_E2E_FOREGROUND") == "1":
         return
-    script = os.environ.get("MYRM_CHROME_E2E_SUPPRESS_UI_SCRIPT")
-    if not script:
-        script = str(
-            __import__("pathlib").Path(__file__).resolve().parent.parent
-            / "myrm-chrome-e2e-suppress-ui.sh"
-        )
-    if not os.path.isfile(script):
+    dev_dir = Path(__file__).resolve().parent.parent
+    cli = dev_dir / "chrome-e2e" / "cli.sh"
+    if not cli.is_file():
         return
+    saved = os.environ.get("MYRM_CHROME_E2E_SAVED_FRONTMOST_PID", "")
+    args = ["bash", str(cli), "transition", event]
+    if saved:
+        args.append(saved)
     try:
         subprocess.run(
-            ["bash", script],
+            args,
             env=os.environ.copy(),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=5,
+            timeout=10,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -244,7 +245,7 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
                 {"url": page_url},
                 deadline=deadline,
             )
-            _suppress_e2e_chrome_ui()
+            _chrome_e2e_lifecycle("warmup-navigate")
 
             poll_count = 0
             while time.monotonic() < deadline:
@@ -275,7 +276,7 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
                 if value is True:
                     return True
                 if poll_count % 10 == 0:
-                    _suppress_e2e_chrome_ui()
+                    _chrome_e2e_lifecycle("warmup-navigate")
                     try:
                         await _cdp_request(
                             ws,

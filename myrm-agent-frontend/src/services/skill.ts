@@ -2,7 +2,7 @@
  * 技能 API 服务
  */
 
-import { apiRequest } from '@/lib/api';
+import { apiRequest, fetchWithTimeout } from '@/lib/api';
 import type {
   Skill,
   SkillListResponse,
@@ -71,9 +71,7 @@ export async function revealSkill(skillId: string): Promise<{ status: string; pa
  * @param filename 文件名
  */
 export async function getSkillFile(skillId: string, filename: string): Promise<string> {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1'}${SKILLS_API_PREFIX}/${skillId}/files/${filename}`,
-  );
+  const response = await fetchWithTimeout(`${SKILLS_API_PREFIX}/${skillId}/files/${filename}`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch skill file: ${response.statusText}`);
@@ -246,13 +244,11 @@ export async function previewSkillPackage(skillId: string): Promise<PackagePrevi
  * @param ignoredRedactions 忽略脱敏的索引字典 (filename -> indices)
  */
 export async function downloadSkill(
-  skillId: string, 
+  skillId: string,
   applyRedactions: boolean = false,
-  ignoredRedactions: Record<string, number[]> = {}
+  ignoredRedactions: Record<string, number[]> = {},
 ): Promise<Blob> {
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
-
-  const response = await fetch(`${API_BASE}${SKILLS_API_PREFIX}/${skillId}/export`, {
+  const response = await fetchWithTimeout(`${SKILLS_API_PREFIX}/${skillId}/export`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -319,9 +315,7 @@ export async function packageWorkspaceDirectory(
     formData.append('container_id', containerId);
   }
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
-
-  const response = await fetch(`${API_BASE}/storage/workspace/package`, {
+  const response = await fetchWithTimeout('/storage/workspace/package', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,

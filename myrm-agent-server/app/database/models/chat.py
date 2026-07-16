@@ -67,6 +67,9 @@ class Chat(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Share: NULL = not revoked (share link active if token valid), non-NULL = revoked at
+    share_revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Soft-delete: NULL = active, non-NULL = trashed at this timestamp
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 

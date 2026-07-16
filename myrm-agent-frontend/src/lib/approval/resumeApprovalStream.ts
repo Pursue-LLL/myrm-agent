@@ -1,7 +1,7 @@
 import { toast } from 'sonner';
 
 import type { ToolApprovalRequest } from '@/store/chat/types';
-import type { DrawerResumeValue, ResumeDecisionsPayload } from '@/lib/approval/approvalDecision';
+import type { DrawerResumeValue } from '@/lib/approval/approvalDecision';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
 import type { StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 import {
@@ -18,7 +18,11 @@ import { getBrowserTimezone } from '@/lib/utils/messageUtils';
  * [POS] Single source for approval resume used by hook bulk/single paths
  */
 
-export type { ApprovalDecision, ResumeDecisionsPayload, ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
+export type {
+  ApprovalDecision,
+  ResumeDecisionsPayload,
+  ToolApprovalResolveExtra,
+} from '@/lib/approval/approvalDecision';
 export { buildApprovalDecision } from '@/lib/approval/approvalDecision';
 
 export async function resumeApprovalStream(

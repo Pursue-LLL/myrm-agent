@@ -340,13 +340,13 @@ async def convert_to_general_agent_params(
                 except Exception as exc:
                     logger.debug("Failed to create judge LLM for smart routing: %s", exc)
 
+            from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
+                RoutingTier,
+            )
+
             recent_routing_tiers = None
             if request.chat_id:
                 try:
-                    from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
-                        RoutingTier,
-                    )
-
                     from app.database.connection import get_session
                     from app.database.repositories.chat_repo import ChatRepository
 
@@ -356,6 +356,14 @@ async def convert_to_general_agent_params(
                         recent_routing_tiers = [RoutingTier(t) for t in tier_strings]
                 except Exception as exc:
                     logger.debug("Failed to fetch recent routing tiers: %s", exc)
+
+            complaint_min_tier: RoutingTier | None = None
+            is_complaint_up = request.sibling_group_id and not request.regenerate_instruction
+            if is_complaint_up and recent_routing_tiers:
+                _tier_next = {RoutingTier.SIMPLE: RoutingTier.STANDARD, RoutingTier.STANDARD: RoutingTier.REASONING}
+                complaint_min_tier = _tier_next.get(recent_routing_tiers[-1], RoutingTier.REASONING)
+            elif is_complaint_up:
+                complaint_min_tier = RoutingTier.STANDARD
 
             routing_result = await route_task(
                 query=request.query,
@@ -367,11 +375,18 @@ async def convert_to_general_agent_params(
                 reasoning_fallback_cfg=reasoning_fallback_cfg,
                 judge_llm=judge_llm,
                 recent_tiers=recent_routing_tiers,
+                min_tier=complaint_min_tier,
             )
             model_cfg = routing_result.model_cfg
             if routing_result.fallback_model_cfg is not None:
                 fallback_model_cfg = routing_result.fallback_model_cfg
             routing_tier = routing_result.tier.value
+
+            if is_complaint_up and recent_routing_tiers:
+                from myrm_agent_harness.toolkits.llms.routing.complexity_router import record_misroute
+
+                record_misroute(recent_routing_tiers[-1])
+
             logger.warning(
                 "Smart routing: tier=%s model=%s reason=%s",
                 routing_result.tier.value,

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  */
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import nacl from 'tweetnacl';
 import {
   decodeUrlBase64,
@@ -135,10 +135,7 @@ describe('loadStoredE2EESession / storeE2EESession', () => {
   });
 
   it('returns null for incomplete session data', () => {
-    sessionStorage.setItem(
-      'mobile_e2ee_session',
-      JSON.stringify({ sessionId: 'x' }),
-    );
+    sessionStorage.setItem('mobile_e2ee_session', JSON.stringify({ sessionId: 'x' }));
     expect(loadStoredE2EESession()).toBeNull();
   });
 });
@@ -275,15 +272,11 @@ describe('decryptSseFrame', () => {
 
   it('throws on frame without c field', () => {
     const { server } = makeE2EEPair();
-    expect(() => decryptSseFrame(server, JSON.stringify({ data: 'no-c' }))).toThrow(
-      'Invalid E2EE SSE frame',
-    );
+    expect(() => decryptSseFrame(server, JSON.stringify({ data: 'no-c' }))).toThrow('Invalid E2EE SSE frame');
   });
 
   it('throws on invalid ciphertext', () => {
     const { server } = makeE2EEPair();
-    expect(() =>
-      decryptSseFrame(server, JSON.stringify({ c: 'invalid-base64-cipher' })),
-    ).toThrow();
+    expect(() => decryptSseFrame(server, JSON.stringify({ c: 'invalid-base64-cipher' }))).toThrow();
   });
 });

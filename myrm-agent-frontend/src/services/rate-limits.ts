@@ -1,4 +1,5 @@
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
+import { fetchWithTimeout } from '@/lib/api';
 
 export interface RateLimitBucket {
   limit: number;
@@ -26,7 +27,7 @@ export interface RateLimitsResponse {
 
 export async function fetchRateLimits(): Promise<RateLimitsResponse> {
   const headers = getAuthHeaders();
-  const response = await fetch('/api/statistics/rate-limits', {
+  const response = await fetchWithTimeout('/statistics/rate-limits', {
     headers,
   });
 

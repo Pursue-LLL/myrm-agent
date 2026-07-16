@@ -2492,6 +2492,8 @@
         },
         "viewChanges": "View changes",
         "hideChanges": "Hide changes",
+        "loadingDetail": "Loading change details…",
+        "detailLoadFailed": "Failed to load change details",
         "viewSourceChat": "View source chat",
         "loadFailed": "Failed to load skill growth cases",
         "authRequired": "Sign in to review skill growth cases.",
@@ -5574,6 +5576,22 @@
       "error": "Export failed",
       "noMessages": "No messages to export",
       "print": "Print"
+    },
+    "share": {
+      "share": "Share",
+      "title": "Share Conversation",
+      "description": "Anyone with the link can view this conversation (read-only).",
+      "createLink": "Create Share Link",
+      "creating": "Creating...",
+      "copyLink": "Copy Link",
+      "copied": "Link copied!",
+      "revoke": "Revoke Link",
+      "revokeConfirm": "Revoke this share link? Anyone with the link will no longer be able to view it.",
+      "revoked": "Share link revoked",
+      "expires": "Expires",
+      "ttlDays": "Valid for {days} days",
+      "localFallback": "Share links are available in Cloud mode. Use Export as HTML to share locally.",
+      "error": "Failed to create share link"
     },
     "exportMessage": {
       "markdown": "Export as Markdown",

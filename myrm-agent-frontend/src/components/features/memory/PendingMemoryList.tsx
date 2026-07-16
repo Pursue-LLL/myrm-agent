@@ -30,7 +30,6 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
     rejectMemory,
     fetchPendingMemories,
     conflicts,
-    conflictsLoading,
     fetchConflicts,
     resolveConflict,
   } = useMemoryStore();
@@ -243,11 +242,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
       {hasConflicts && (
         <div className="space-y-3">
           {conflicts.map((conflict) => (
-            <ConflictCard
-              key={conflict.id}
-              conflict={conflict}
-              onResolve={handleResolveConflict}
-            />
+            <ConflictCard key={conflict.id} conflict={conflict} onResolve={handleResolveConflict} />
           ))}
         </div>
       )}

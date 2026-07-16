@@ -1,15 +1,9 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { X, Sparkles, Loader2, Wand2 } from 'lucide-react';
+import { Sparkles, Loader2, Wand2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import {
-  IconArrowRight,
-  IconFileText,
-  IconZap,
-  IconBot,
-  IconShield,
-} from '@/components/features/icons/PremiumIcons';
+import { IconArrowRight, IconFileText, IconZap, IconBot, IconShield } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { useAgentEditor } from '@/hooks/useAgentEditor';
@@ -407,9 +401,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
             />
           )}
 
-          {activeTab === 'capabilities' && (
-            <AgentCapabilitiesTab editor={editor} agentId={agentId} isNew={isNew} />
-          )}
+          {activeTab === 'capabilities' && <AgentCapabilitiesTab editor={editor} agentId={agentId} isNew={isNew} />}
 
           {activeTab === 'security' && (
             <div className={cn(editor.isReadonly && 'pointer-events-none opacity-70')}>

@@ -69,14 +69,13 @@ async def test_trajectory_end_to_end_flow(client: TestClient):
         assert payload.get("skill_id") == skill_id
         assert payload.get("trajectory") == trajectory_markdown
 
-    # 4. Fetch via API
+    # 4. Fetch via pending list (summary) and detail API
     response = client.get("/api/v1/evolution/pending")
     assert response.status_code == 200
 
     data = response.json()
     assert "items" in data
 
-    # Find our specific item
     found_item = None
     for item in data["items"]:
         if item.get("skill_id") == skill_id:
@@ -84,9 +83,15 @@ async def test_trajectory_end_to_end_flow(client: TestClient):
             break
 
     assert found_item is not None
-    assert found_item.get("trajectory") == trajectory_markdown
+    assert found_item.get("has_trajectory") is True
+    assert "trajectory" not in found_item
 
-    # 5. Fetch via Growth API
+    detail_response = client.get(f"/api/v1/evolution/pending/{found_item['id']}")
+    assert detail_response.status_code == 200
+    detail = detail_response.json()
+    assert detail.get("trajectory") == trajectory_markdown
+
+    # 5. Fetch via Growth API (summary list + detail)
     response = client.get("/api/v1/skill-growth/cases")
     assert response.status_code == 200
 
@@ -94,7 +99,6 @@ async def test_trajectory_end_to_end_flow(client: TestClient):
     assert "data" in data
     assert "items" in data["data"]
 
-    # Find our specific item
     found_item_growth = None
     for item in data["data"]["items"]:
         if item.get("skill_id") == skill_id:
@@ -102,4 +106,9 @@ async def test_trajectory_end_to_end_flow(client: TestClient):
             break
 
     assert found_item_growth is not None
-    assert found_item_growth.get("trajectory") == trajectory_markdown
+    assert found_item_growth.get("has_trajectory") is True
+    assert "trajectory" not in found_item_growth
+
+    growth_detail = client.get(f"/api/v1/skill-growth/cases/{found_item_growth['id']}")
+    assert growth_detail.status_code == 200
+    assert growth_detail.json()["data"].get("trajectory") == trajectory_markdown

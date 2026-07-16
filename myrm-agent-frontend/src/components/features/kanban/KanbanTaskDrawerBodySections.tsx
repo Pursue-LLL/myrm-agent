@@ -3,8 +3,6 @@
 import type { RefObject } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask } from '@/services/kanban';
-import { STATUS_DOT } from './kanban-styles';
-import type { TaskDepInfo } from './kanban-styles';
 import KanbanMarkdown from './KanbanMarkdown';
 import { Paperclip, X, FileText } from 'lucide-react';
 

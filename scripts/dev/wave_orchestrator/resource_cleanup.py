@@ -139,11 +139,26 @@ def _cleanup_resource(kind: ResourceKind, ref: str, cookie: str) -> CleanupAttem
     return {"kind": kind, "ref": resource_id, "ok": False, "detail": f"delete HTTP {status}: {detail}"}
 
 
+def _attempt_cleanup(kind: ResourceKind, ref: str, cookie: str) -> CleanupAttempt:
+    if kind == "chat":
+        return _cleanup_chat(ref, cookie)
+    return _cleanup_resource(kind, ref, cookie)
+
+
+def _authentication_required(attempt: CleanupAttempt) -> bool:
+    detail = attempt["detail"]
+    return not attempt["ok"] and ("HTTP 401:" in detail or "HTTP 403:" in detail)
+
+
 def cleanup_resource_ref(kind: ResourceKind, ref: str, *, cookie: str = "") -> CleanupAttempt:
+    if cookie:
+        return _attempt_cleanup(kind, ref, cookie)
+
+    attempt = _attempt_cleanup(kind, ref, "")
+    if not _authentication_required(attempt):
+        return attempt
     try:
-        session_cookie = cookie or _login_cookie()
+        session_cookie = _login_cookie()
     except (OSError, RuntimeError, urllib.error.URLError) as exc:
         return {"kind": kind, "ref": ref, "ok": False, "detail": str(exc)}
-    if kind == "chat":
-        return _cleanup_chat(ref, session_cookie)
-    return _cleanup_resource(kind, ref, session_cookie)
+    return _attempt_cleanup(kind, ref, session_cookie)

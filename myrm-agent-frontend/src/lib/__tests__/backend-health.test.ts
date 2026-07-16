@@ -4,8 +4,15 @@ import { waitForBackendReady, waitForTauriRuntime } from '@/lib/backend-health';
 import { tauriBackend } from '@/lib/tauri';
 
 vi.mock('@/lib/deploy-mode', () => ({
+  getBackendBaseUrl: vi.fn(() => ''),
   getDeployMode: vi.fn(() => 'tauri'),
   isLocalMode: vi.fn(() => true),
+}));
+
+vi.mock('@/lib/platform-readiness', () => ({
+  markPlatformUnreachable: vi.fn(),
+  resetPlatformReadinessForTests: vi.fn(),
+  whenDatabaseReady: vi.fn(async () => true),
 }));
 
 vi.mock('@/lib/tauri', () => ({
@@ -17,6 +24,11 @@ vi.mock('@/lib/tauri', () => ({
 
 const { getDeployMode } = await import('@/lib/deploy-mode');
 const { isTauriEnvironment } = await import('@/lib/tauri');
+const {
+  markPlatformUnreachable,
+  resetPlatformReadinessForTests,
+  whenDatabaseReady,
+} = await import('@/lib/platform-readiness');
 
 describe('waitForTauriRuntime', () => {
   afterEach(() => {
@@ -151,8 +163,7 @@ describe('checkBackendReadyOnce', () => {
 
 describe('ensureLocalBackendReady', () => {
   beforeEach(() => {
-    vi.mocked(getDeployMode).mockReturnValue('tauri');
-    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(whenDatabaseReady).mockReset().mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -163,57 +174,32 @@ describe('ensureLocalBackendReady', () => {
     });
   });
 
-  it('uses a single fast probe in browser WebUI', async () => {
-    vi.mocked(getDeployMode).mockReturnValue('local');
-    vi.mocked(isTauriEnvironment).mockReturnValue(false);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
-
+  it('shares one database readiness promise across concurrent callers', async () => {
     const { ensureLocalBackendReady, resetLocalBackendReadyGate } = await import('@/lib/backend-health');
     resetLocalBackendReadyGate();
 
-    await expect(ensureLocalBackendReady()).resolves.toBe(false);
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(tauriBackend.checkHealth).not.toHaveBeenCalled();
+    const first = ensureLocalBackendReady();
+    const second = ensureLocalBackendReady();
+    expect(first).toBe(second);
+    await expect(first).resolves.toBe(true);
+    expect(whenDatabaseReady).toHaveBeenCalledTimes(1);
   });
 
-  it('polls the sidecar in a real Tauri runtime', async () => {
-    vi.mocked(getDeployMode).mockReturnValue('tauri');
-    vi.mocked(isTauriEnvironment).mockReturnValue(true);
-    vi.mocked(tauriBackend.checkHealth)
+  it('re-probes when previous gate result was false and backend recovers', async () => {
+    vi.mocked(whenDatabaseReady)
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(true);
 
     const { ensureLocalBackendReady, resetLocalBackendReadyGate } = await import('@/lib/backend-health');
     resetLocalBackendReadyGate();
 
-    await expect(ensureLocalBackendReady()).resolves.toBe(true);
-    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(2);
-  });
-
-  it('re-probes when previous gate result was false and backend recovers', async () => {
-    vi.mocked(getDeployMode).mockReturnValue('local');
-    vi.mocked(isTauriEnvironment).mockReturnValue(false);
-    vi.stubGlobal(
-      'fetch',
-      vi.fn()
-        .mockResolvedValueOnce({ ok: false })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ status: 'healthy' }),
-        }),
-    );
-
-    const { ensureLocalBackendReady, resetLocalBackendReadyGate } = await import('@/lib/backend-health');
-    resetLocalBackendReadyGate();
-
     await expect(ensureLocalBackendReady()).resolves.toBe(false);
     await expect(ensureLocalBackendReady()).resolves.toBe(true);
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(whenDatabaseReady).toHaveBeenCalledTimes(2);
   });
 
-  it('re-probes after markLocalBackendUnreachable when gate had been healthy', async () => {
-    vi.mocked(isTauriEnvironment).mockReturnValue(true);
-    vi.mocked(tauriBackend.checkHealth)
+  it('invalidates both transport and platform readiness after a failure', async () => {
+    vi.mocked(whenDatabaseReady)
       .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(false);
 
@@ -227,6 +213,8 @@ describe('ensureLocalBackendReady', () => {
     await expect(ensureLocalBackendReady()).resolves.toBe(true);
     markLocalBackendUnreachable();
     await expect(ensureLocalBackendReady()).resolves.toBe(false);
-    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(2);
+    expect(whenDatabaseReady).toHaveBeenCalledTimes(2);
+    expect(markPlatformUnreachable).toHaveBeenCalledTimes(1);
+    expect(resetPlatformReadinessForTests).toHaveBeenCalled();
   });
 });

@@ -1,0 +1,93 @@
+"""Stateless HMAC tokens for time-limited public conversation share links.
+
+[INPUT]
+- app.config.settings::settings (POS: signing key material)
+
+[OUTPUT]
+- create_chat_share_token / parse_chat_share_token
+- ChatShareClaims dataclass
+
+[POS]
+Reuses the same HMAC signing pattern as artifact share tokens but for chat-level
+read-only public links. No DB storage needed for the token itself.
+"""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+import hmac
+import json
+import time
+from dataclasses import dataclass
+from typing import Any
+
+from app.config.settings import settings
+
+_TOKEN_VERSION = 1
+_DEFAULT_TTL_SECONDS = 7 * 24 * 3600
+_MAX_TTL_SECONDS = 30 * 24 * 3600
+
+
+@dataclass(frozen=True)
+class ChatShareClaims:
+    chat_id: str
+    exp: int
+
+
+def _signing_secret() -> bytes:
+    for candidate in (
+        settings.config_encryption_key.get_secret_value(),
+        settings.internal_service_key.get_secret_value(),
+        settings.sandbox_api_key.get_secret_value(),
+    ):
+        if candidate and candidate.strip():
+            return candidate.strip().encode("utf-8")
+    seed = (settings.database.state_dir or "myrm-local").encode("utf-8")
+    return hashlib.sha256(b"chat-share:" + seed).digest()
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(encoded: str) -> bytes:
+    padding = "=" * (-len(encoded) % 4)
+    return base64.urlsafe_b64decode(encoded + padding)
+
+
+def create_chat_share_token(
+    chat_id: str,
+    *,
+    ttl_seconds: int = _DEFAULT_TTL_SECONDS,
+) -> tuple[str, int]:
+    """Return (token, expires_at_unix)."""
+    ttl_seconds = max(60, min(ttl_seconds, _MAX_TTL_SECONDS))
+    exp = int(time.time()) + ttl_seconds
+    payload: dict[str, Any] = {"v": _TOKEN_VERSION, "cid": chat_id, "exp": exp}
+    body = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    sig = hmac.new(_signing_secret(), body.encode("ascii"), hashlib.sha256).hexdigest()
+    return f"{body}.{sig}", exp
+
+
+def parse_chat_share_token(token: str) -> ChatShareClaims | None:
+    """Verify signature and expiry; return None when invalid."""
+    if not token or "." not in token:
+        return None
+    body, sig = token.rsplit(".", 1)
+    expected = hmac.new(_signing_secret(), body.encode("ascii"), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, sig):
+        return None
+    try:
+        raw: dict[str, Any] = json.loads(_b64url_decode(body))
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if raw.get("v") != _TOKEN_VERSION:
+        return None
+    chat_id = raw.get("cid")
+    exp = raw.get("exp")
+    if not isinstance(chat_id, str) or not isinstance(exp, int):
+        return None
+    if exp < int(time.time()):
+        return None
+    return ChatShareClaims(chat_id=chat_id, exp=exp)

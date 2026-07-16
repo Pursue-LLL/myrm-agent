@@ -102,6 +102,7 @@ class ChatDTO(BaseModel):
     updated_at: datetime
     last_read_at: datetime | None = None
     deleted_at: datetime | None = None
+    share_revoked_at: datetime | None = None
 
     messages: list[MessageDTO] = Field(default_factory=list)
 

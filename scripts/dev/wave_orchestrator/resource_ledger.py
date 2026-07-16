@@ -61,6 +61,18 @@ def _active_resources(
     return items
 
 
+def _cleanup_candidates(
+    state: OrchestratorState, *, lease_id: str = "", namespace: str = ""
+) -> list[ResourceRecord]:
+    return [
+        item
+        for item in state.get("resources", [])
+        if item.get("status") in {"active", "failed"}
+        and (not lease_id or item.get("leaseId") == lease_id)
+        and (not namespace or item.get("namespace") == namespace)
+    ]
+
+
 def register_resource(
     lease_id: str,
     *,
@@ -170,9 +182,7 @@ def cleanup_lease_resources(
     resolved = paths or resolve_wave_paths()
 
     def _snapshot(state: OrchestratorState) -> tuple[list[ResourceRecord], bool]:
-        return [
-            dict(item) for item in _active_resources(state, lease_id=lease_id)
-        ], False
+        return [dict(item) for item in _cleanup_candidates(state, lease_id=lease_id)], False
 
     targets = run_locked(resolved.state_file, _snapshot)
     if not targets:
@@ -212,7 +222,7 @@ def cleanup_namespace_resources(
         raise RuntimeError("LEDGER_DENIED: empty namespace")
 
     def _snapshot(state: OrchestratorState) -> tuple[list[ResourceRecord], bool]:
-        return [dict(item) for item in _active_resources(state, namespace=ns)], False
+        return [dict(item) for item in _cleanup_candidates(state, namespace=ns)], False
 
     targets = run_locked(resolved.state_file, _snapshot)
     if not targets:

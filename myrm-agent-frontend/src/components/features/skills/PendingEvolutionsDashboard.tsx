@@ -20,7 +20,7 @@ import {
   listSkillGrowthCases,
   rejectSkillGrowthCase,
   reviseSkillGrowthCase,
-  type SkillGrowthCase,
+  type SkillGrowthCaseSummary,
 } from '@/services/skill-growth';
 import { createCronJob } from '@/services/cron';
 import { useSkillStore } from '@/store/skill';
@@ -32,7 +32,7 @@ type GrowthFilter = 'all' | 'pending' | 'applied' | 'blocked' | 'reviewed';
 const FILTER_ORDER: GrowthFilter[] = ['all', 'pending', 'applied', 'blocked', 'reviewed'];
 const VIEW_MODE_KEY = 'myrm:skill-growth-view-mode';
 
-function matchesFilter(item: SkillGrowthCase, filter: GrowthFilter): boolean {
+function matchesFilter(item: SkillGrowthCaseSummary, filter: GrowthFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'pending') return item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
   if (filter === 'applied') return item.status === 'AUTO_APPLIED';
@@ -68,7 +68,7 @@ export function PendingEvolutionsDashboard() {
   const { user } = useAuthStore();
   const { fetchLocalSkills, fetchUserSkillConfig } = useSkillStore();
 
-  const [cases, setCases] = useState<SkillGrowthCase[]>([]);
+  const [cases, setCases] = useState<SkillGrowthCaseSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingCaseId, setProcessingCaseId] = useState<string | null>(null);
@@ -148,7 +148,7 @@ export function PendingEvolutionsDashboard() {
   }, [activeFilter, cases]);
 
   const handleApprove = useCallback(
-    async (item: SkillGrowthCase, applyMode: 'immediate' | 'shadow' = 'immediate') => {
+    async (item: SkillGrowthCaseSummary, applyMode: 'immediate' | 'shadow' = 'immediate') => {
       if (!user?.id || processingCaseId) return;
       setProcessingCaseId(item.id);
       try {
@@ -181,7 +181,7 @@ export function PendingEvolutionsDashboard() {
   );
 
   const handleReject = useCallback(
-    async (item: SkillGrowthCase, reason?: string) => {
+    async (item: SkillGrowthCaseSummary, reason?: string) => {
       if (!user?.id || processingCaseId) return;
       setProcessingCaseId(item.id);
       try {
@@ -203,7 +203,7 @@ export function PendingEvolutionsDashboard() {
   );
 
   const handleRevise = useCallback(
-    async (item: SkillGrowthCase, evolvedContent: string) => {
+    async (item: SkillGrowthCaseSummary, evolvedContent: string) => {
       if (!user?.id || processingCaseId) return;
       setProcessingCaseId(item.id);
       try {
@@ -224,7 +224,7 @@ export function PendingEvolutionsDashboard() {
   );
 
   const handleCreateCron = useCallback(
-    async (item: SkillGrowthCase, scheduleHint: string) => {
+    async (item: SkillGrowthCaseSummary, scheduleHint: string) => {
       if (!user?.id || processingCaseId) return;
       setProcessingCaseId(item.id);
       try {

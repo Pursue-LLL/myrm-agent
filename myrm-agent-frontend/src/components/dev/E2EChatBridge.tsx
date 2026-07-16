@@ -34,10 +34,7 @@ function prepareAutomationSend(): void {
 }
 
 async function initProvidersForE2e(): Promise<void> {
-  const e2eApiBase =
-    typeof window.__MYRM_E2E_API_BASE__ === 'string'
-      ? window.__MYRM_E2E_API_BASE__.trim()
-      : '';
+  const e2eApiBase = typeof window.__MYRM_E2E_API_BASE__ === 'string' ? window.__MYRM_E2E_API_BASE__.trim() : '';
   if (e2eApiBase) {
     markPlatformUnreachable();
     markLocalBackendUnreachable();
@@ -83,9 +80,7 @@ export default function E2EChatBridge() {
           enabledProviderIds: providers.filter((p) => p.isEnabled).map((p) => p.id),
           primary: defaultModelConfig?.baseModel?.primary ?? null,
           agentModelSelection: agentConfig?.modelSelection ?? null,
-          selection: selection
-            ? { providerId: selection.providerId, model: selection.model }
-            : null,
+          selection: selection ? { providerId: selection.providerId, model: selection.model } : null,
         };
       },
       ensureChatSession: async () => {
@@ -169,11 +164,8 @@ export default function E2EChatBridge() {
             ok: false,
             err: 'send-no-stream',
             debug: {
-              ...(window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? {}),
-              e2eApiBase:
-                typeof window.__MYRM_E2E_API_BASE__ === 'string'
-                  ? window.__MYRM_E2E_API_BASE__
-                  : null,
+              ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+              e2eApiBase: typeof window.__MYRM_E2E_API_BASE__ === 'string' ? window.__MYRM_E2E_API_BASE__ : null,
               turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
             },
           };
@@ -190,8 +182,7 @@ export default function E2EChatBridge() {
         const users = state.messages.filter((message) => message.role === 'user');
         const assistants = state.messages.filter((message) => message.role === 'assistant');
         const lastAssistant = assistants[assistants.length - 1];
-        const assistantText =
-          typeof lastAssistant?.content === 'string' ? lastAssistant.content : '';
+        const assistantText = typeof lastAssistant?.content === 'string' ? lastAssistant.content : '';
         return {
           chatId: state.chatId?.trim() || null,
           userCount: users.length,

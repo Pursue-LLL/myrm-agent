@@ -86,6 +86,15 @@ async def test_skill_growth_cases_combine_drafts_and_approval_backed_evolutions(
     evolution_item = next(item for item in items if item["id"] == f"evolution:{evolution.id}")
     assert evolution_item["status"] == "PENDING_REVIEW"
     assert evolution_item["apply_status"] == "NOT_APPLIED"
+    assert evolution_item["has_diff"] is True
+    assert "original_content" not in evolution_item
+    assert "proposed_content" not in evolution_item
+
+    detail_response = client.get(f"/api/v1/skill-growth/cases/evolution:{evolution.id}")
+    assert detail_response.status_code == 200
+    detail = detail_response.json()["data"]
+    assert detail["original_content"] == "def current():\n    pass\n"
+    assert detail["proposed_content"] == "def current():\n    return 1\n"
 
 
 @pytest.mark.asyncio

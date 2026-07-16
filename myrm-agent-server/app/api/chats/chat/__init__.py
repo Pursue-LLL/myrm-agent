@@ -9,6 +9,8 @@ from .fork import router as fork_router
 from .handoff import router as handoff_router
 from .messages import router as messages_router
 from .sandbox import router as sandbox_router
+from .share import public_router as share_public_router
+from .share import router as share_router
 from .title import router as title_router
 from .trash import router as trash_router
 from .turn import router as turn_router
@@ -25,3 +27,4 @@ router.include_router(compaction_router)
 router.include_router(fork_router)
 router.include_router(handoff_router)
 router.include_router(sandbox_router)
+router.include_router(share_router)

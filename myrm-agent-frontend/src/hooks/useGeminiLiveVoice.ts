@@ -152,7 +152,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
   }, [chatId]);
 
   const executeToolCall = useCallback(
-    async (name: string, args: Record<string, unknown>, callId: string) => {
+    async (name: string, args: Record<string, unknown>, _callId: string) => {
       onToolCall?.(name, args);
       try {
         const resp = await apiRequest<{ result: unknown; error: string | null }>('/voice/realtime-tool-exec', {
@@ -229,7 +229,8 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
 
       const serverContent = msg.serverContent as Record<string, unknown> | undefined;
       if (serverContent) {
-        const parts = (serverContent.modelTurn as Record<string, unknown>)?.parts as Array<Record<string, unknown>> | undefined;
+        const parts = (serverContent.modelTurn as Record<string, unknown>)?.parts as
+          Array<Record<string, unknown>> | undefined;
         if (parts) {
           for (const part of parts) {
             if (part.inlineData) {

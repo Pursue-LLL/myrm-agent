@@ -24,6 +24,7 @@ import {
   FolderX,
   ExternalLink,
   GitFork,
+  Share2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -82,6 +83,7 @@ export interface ChatHistoryRowProps {
   onRenameValueChange: (v: string) => void;
   onDelete: (id: string) => void;
   onExport: (id: string, mode: 'markdown' | 'json' | 'copy' | 'html' | 'print') => void;
+  onShare?: (id: string) => void;
   onPin: (id: string) => void;
   onUnpin: (id: string) => void;
   onCreateAutomation?: (chatId: string, chatTitle: string) => void;
@@ -113,6 +115,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
     onRenameValueChange,
     onDelete,
     onExport,
+    onShare,
     onPin,
     onUnpin,
     onCreateAutomation,
@@ -388,6 +391,15 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
+                {onShare && (
+                  <DropdownMenuItem
+                    onClick={() => onShare(chat.id)}
+                    className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
+                  >
+                    <Share2 size={isMobile ? 16 : 14} className="mr-2" />
+                    {t('chat.share.share')}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() => onDelete(chat.id)}
                   className={cn('text-destructive focus:text-destructive', isMobile && 'py-3 text-xs min-h-[44px]')}

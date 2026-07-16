@@ -81,7 +81,7 @@ const resolvedStatusMap: Record<string, string> = {
   skipped: 'skipped',
 };
 
-const PlanConfirmationCard = ({ messageId, plan, status, planItems, goal, source }: PlanConfirmationCardProps) => {
+const PlanConfirmationCard = ({ messageId, plan, status, planItems, source }: PlanConfirmationCardProps) => {
   const t = useTranslations('chat.planConfirmation');
   const [editing, setEditing] = useState(false);
   const [editedPlan, setEditedPlan] = useState(plan);

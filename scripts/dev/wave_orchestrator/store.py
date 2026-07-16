@@ -23,6 +23,7 @@ from typing import TypeVar
 from wave_orchestrator.types import OrchestratorState
 
 T = TypeVar("T")
+_MAX_TERMINAL_LEASE_HISTORY = 100
 
 
 def empty_state() -> OrchestratorState:
@@ -57,6 +58,27 @@ def load_state(path: Path) -> OrchestratorState:
 
 
 def save_state(path: Path, state: OrchestratorState) -> None:
+    state["resources"] = [
+        resource
+        for resource in state.get("resources", [])
+        if resource.get("status") != "cleaned"
+    ]
+    pending_lease_ids = {
+        str(resource.get("leaseId", "")) for resource in state["resources"]
+    }
+    active_or_pending = [
+        lease
+        for lease in state["leases"]
+        if lease.get("status") == "active"
+        or lease.get("pageId")
+        or lease.get("leaseId") in pending_lease_ids
+    ]
+    terminal = [
+        lease
+        for lease in state["leases"]
+        if lease not in active_or_pending
+    ][-_MAX_TERMINAL_LEASE_HISTORY:]
+    state["leases"] = [*active_or_pending, *terminal]
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".json.tmp")
     body = json.dumps(state, indent=2, sort_keys=True) + "\n"

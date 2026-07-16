@@ -1,5 +1,4 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 
 const mockSendMessage = vi.fn();
@@ -68,10 +67,7 @@ vi.mock('hugeicons-react', () => ({
 import DocumentSelectionToolbar from '../DocumentSelectionToolbar';
 import React from 'react';
 
-function createContainerWithSelection(
-  text: string,
-  opts: { nearBottom?: boolean } = {},
-) {
+function createContainerWithSelection(text: string, opts: { nearBottom?: boolean } = {}) {
   const containerRef = React.createRef<HTMLDivElement>();
 
   const selectionRect = opts.nearBottom
@@ -105,12 +101,12 @@ function createContainerWithSelection(
     el.getBoundingClientRect = () => containerRect as DOMRect;
     Object.defineProperty(el, 'scrollTop', { value: 0, writable: true });
     Object.defineProperty(el, 'clientHeight', { value: 600, writable: true });
-      const nativeContains = Node.prototype.contains.bind(el);
-      el.contains = (node: Node | null) => {
-        if (!node) return false;
-        if (node === mockSelection.anchorNode) return true;
-        return nativeContains(node);
-      };
+    const nativeContains = Node.prototype.contains.bind(el);
+    el.contains = (node: Node | null) => {
+      if (!node) return false;
+      if (node === mockSelection.anchorNode) return true;
+      return nativeContains(node);
+    };
   };
 
   return { containerRef, mockSelection, setupContainer };
@@ -223,7 +219,7 @@ describe('DocumentSelectionToolbar - useSelectionAction integration', () => {
 
     vi.spyOn(window, 'getSelection').mockReturnValue(mockSel as unknown as Selection);
 
-    const { container } = render(
+    render(
       <div>
         <div
           ref={(el) => {

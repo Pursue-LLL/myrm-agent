@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
-import { API_BASE_URL } from '@/lib/api';
+import { API_BASE_URL, fetchWithTimeout } from '@/lib/api';
 import { normalizeApprovalPayload } from '@/store/useApprovalStore';
 import useConfigStore from '@/store/useConfigStore';
 import { notificationService } from '@/services/notification';
@@ -287,7 +287,7 @@ export function useGlobalEvents(): void {
             label: t('undoConsolidation') || 'Undo (撤销)',
             onClick: async () => {
               try {
-                const res = await fetch(`/api/memory/undo-consolidation`, {
+                const res = await fetchWithTimeout('/memory/undo-consolidation', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ subsumed_ids: subsumedIds }),
@@ -491,9 +491,7 @@ export function useGlobalEvents(): void {
         }
         window.dispatchEvent(new CustomEvent('goal_dequeued', { detail: payload.data }));
       } else if (payload.type === 'extension_status_changed') {
-        window.dispatchEvent(
-          new CustomEvent('extension-status-changed', { detail: payload.data }),
-        );
+        window.dispatchEvent(new CustomEvent('extension-status-changed', { detail: payload.data }));
       } else if (payload.type === 'agent_config_updated') {
         const agentId = String(payload.data.agent_id ?? '');
         const action = String(payload.data.action ?? 'updated');
@@ -501,18 +499,15 @@ export function useGlobalEvents(): void {
           if (action === 'rollback') {
             toast.success(t('rollbackSuccess') || 'Successfully rolled back agent profile.');
           } else if (action === 'force_push') {
-            toast.info(
-              t('forcePushReceived'),
-              {
-                description: t('forcePushRollbackHint'),
-                duration: 10_000,
-                dismissible: true,
-                action: {
-                  label: t('viewAgent'),
-                  onClick: () => router.push(`/?agent_id=${agentId}`),
-                },
+            toast.info(t('forcePushReceived'), {
+              description: t('forcePushRollbackHint'),
+              duration: 10_000,
+              dismissible: true,
+              action: {
+                label: t('viewAgent'),
+                onClick: () => router.push(`/?agent_id=${agentId}`),
               },
-            );
+            });
           }
 
           if (debouncedRefetches.current[agentId]) {

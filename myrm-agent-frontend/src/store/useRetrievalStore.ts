@@ -15,6 +15,7 @@
 import { create } from 'zustand';
 import { getConfigSyncManager, type RetrievalConfigValue } from '@/services/config';
 import { toLiteLLMFormat, EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalProviders';
+import { fetchWithTimeout } from '@/lib/api';
 
 export type ApplyStatus = 'idle' | 'applying' | 'success' | 'error';
 
@@ -126,250 +127,249 @@ function syncToManager(config: RetrievalConfig): void {
 }
 
 export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
-      ...DEFAULT_CONFIG,
-      isInitialized: false,
+  ...DEFAULT_CONFIG,
+  isInitialized: false,
 
-      initRetrieval: async () => {
-        if (isStoreInitialized) return;
+  initRetrieval: async () => {
+    if (isStoreInitialized) return;
 
-        try {
-          // 从 ConfigSyncManager 加载
-          const manager = getConfigSyncManager();
-          await manager.initialize();
+    try {
+      // 从 ConfigSyncManager 加载
+      const manager = getConfigSyncManager();
+      await manager.initialize();
 
-          const configValue = manager.get('retrieval');
-          if (configValue) {
-            set({
-              embeddingConfig: configValue.embeddingConfig ?? DEFAULT_CONFIG.embeddingConfig,
-              embeddingApplied: configValue.embeddingApplied ?? false,
-              embeddingAppliedAt: configValue.embeddingAppliedAt,
-              rerankerConfig: configValue.rerankerConfig ?? DEFAULT_CONFIG.rerankerConfig,
-              rerankerApplied: configValue.rerankerApplied ?? false,
-              rerankerAppliedAt: configValue.rerankerAppliedAt,
-              enableAdvancedRetrieval: configValue.enableAdvancedRetrieval ?? false,
-              isInitialized: true,
-            });
-          } else {
-            set({ isInitialized: true });
-          }
-
-          // 订阅变更（处理其他设备的同步）
-          manager.subscribe('retrieval', (_key, value) => {
-            const v = value as RetrievalConfigValue;
-            set({
-              embeddingConfig: v.embeddingConfig ?? DEFAULT_CONFIG.embeddingConfig,
-              embeddingApplied: v.embeddingApplied ?? false,
-              embeddingAppliedAt: v.embeddingAppliedAt,
-              rerankerConfig: v.rerankerConfig ?? DEFAULT_CONFIG.rerankerConfig,
-              rerankerApplied: v.rerankerApplied ?? false,
-              rerankerAppliedAt: v.rerankerAppliedAt,
-              enableAdvancedRetrieval: v.enableAdvancedRetrieval ?? false,
-            });
-          });
-
-          isStoreInitialized = true;
-          console.log('[RetrievalStore] Initialized from ConfigSyncManager');
-        } catch (error) {
-          console.error('[RetrievalStore] Initialization failed:', error);
-          set({ isInitialized: true });
-          isStoreInitialized = true;
-        }
-      },
-
-      // ============ Embedding 配置 ============
-
-      setEmbeddingConfig: (config) => {
+      const configValue = manager.get('retrieval');
+      if (configValue) {
         set({
-          embeddingConfig: config,
-          embeddingApplyStatus: 'idle',
-          embeddingApplyMessage: undefined,
+          embeddingConfig: configValue.embeddingConfig ?? DEFAULT_CONFIG.embeddingConfig,
+          embeddingApplied: configValue.embeddingApplied ?? false,
+          embeddingAppliedAt: configValue.embeddingAppliedAt,
+          rerankerConfig: configValue.rerankerConfig ?? DEFAULT_CONFIG.rerankerConfig,
+          rerankerApplied: configValue.rerankerApplied ?? false,
+          rerankerAppliedAt: configValue.rerankerAppliedAt,
+          enableAdvancedRetrieval: configValue.enableAdvancedRetrieval ?? false,
+          isInitialized: true,
         });
-        // 注意：不同步到后端，只有应用成功后才同步
-      },
+      } else {
+        set({ isInitialized: true });
+      }
 
-      applyEmbedding: async () => {
-        const config = get().embeddingConfig;
-
-        set({ embeddingApplyStatus: 'applying', embeddingApplyMessage: undefined });
-
-        try {
-          if (!config.provider || !config.model || !config.apiKey) {
-            throw new Error('Missing required fields');
-          }
-
-          const litellmModel = toLiteLLMFormat(config.provider, config.model);
-          const providerConfig = EMBEDDING_PROVIDERS.find((p) => p.id === config.provider);
-          const apiBase = config.apiBase || providerConfig?.defaultApiBase || null;
-
-          const response = await fetch('/api/retrieval/validate/embedding', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: litellmModel,
-              api_key: config.apiKey,
-              api_base: apiBase,
-              provider: config.provider,
-            }),
-          });
-
-          const result = await response.json();
-
-          if (response.ok && result.success) {
-            const now = Date.now();
-
-            set({
-              embeddingApplied: true,
-              embeddingAppliedAt: now,
-              embeddingApplyStatus: 'success',
-              embeddingApplyMessage: result.message,
-            });
-
-            syncToManager(get());
-
-            get().checkOrphanCollections().catch(() => {});
-
-            return { success: true, message: result.message };
-          } else {
-            throw new Error(result.message || 'Validation failed');
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Network error';
-
-          set({
-            embeddingApplyStatus: 'error',
-            embeddingApplyMessage: message,
-          });
-
-          return { success: false, message };
-        }
-      },
-
-      resetEmbeddingToApplied: () => {
+      // 订阅变更（处理其他设备的同步）
+      manager.subscribe('retrieval', (_key, value) => {
+        const v = value as RetrievalConfigValue;
         set({
-          embeddingApplyStatus: 'idle',
-          embeddingApplyMessage: undefined,
+          embeddingConfig: v.embeddingConfig ?? DEFAULT_CONFIG.embeddingConfig,
+          embeddingApplied: v.embeddingApplied ?? false,
+          embeddingAppliedAt: v.embeddingAppliedAt,
+          rerankerConfig: v.rerankerConfig ?? DEFAULT_CONFIG.rerankerConfig,
+          rerankerApplied: v.rerankerApplied ?? false,
+          rerankerAppliedAt: v.rerankerAppliedAt,
+          enableAdvancedRetrieval: v.enableAdvancedRetrieval ?? false,
         });
-      },
+      });
 
-      // ============ Reranker 配置 ============
+      isStoreInitialized = true;
+      console.log('[RetrievalStore] Initialized from ConfigSyncManager');
+    } catch (error) {
+      console.error('[RetrievalStore] Initialization failed:', error);
+      set({ isInitialized: true });
+      isStoreInitialized = true;
+    }
+  },
 
-      setRerankerConfig: (config) => {
+  // ============ Embedding 配置 ============
+
+  setEmbeddingConfig: (config) => {
+    set({
+      embeddingConfig: config,
+      embeddingApplyStatus: 'idle',
+      embeddingApplyMessage: undefined,
+    });
+    // 注意：不同步到后端，只有应用成功后才同步
+  },
+
+  applyEmbedding: async () => {
+    const config = get().embeddingConfig;
+
+    set({ embeddingApplyStatus: 'applying', embeddingApplyMessage: undefined });
+
+    try {
+      if (!config.provider || !config.model || !config.apiKey) {
+        throw new Error('Missing required fields');
+      }
+
+      const litellmModel = toLiteLLMFormat(config.provider, config.model);
+      const providerConfig = EMBEDDING_PROVIDERS.find((p) => p.id === config.provider);
+      const apiBase = config.apiBase || providerConfig?.defaultApiBase || null;
+
+      const response = await fetch('/api/retrieval/validate/embedding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: litellmModel,
+          api_key: config.apiKey,
+          api_base: apiBase,
+          provider: config.provider,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        const now = Date.now();
+
         set({
-          rerankerConfig: config,
-          rerankerApplyStatus: 'idle',
-          rerankerApplyMessage: undefined,
+          embeddingApplied: true,
+          embeddingAppliedAt: now,
+          embeddingApplyStatus: 'success',
+          embeddingApplyMessage: result.message,
         });
-      },
 
-      applyReranker: async () => {
-        const config = get().rerankerConfig;
-
-        set({ rerankerApplyStatus: 'applying', rerankerApplyMessage: undefined });
-
-        try {
-          if (!config.provider || !config.model || !config.apiKey) {
-            throw new Error('Missing required fields');
-          }
-
-          const litellmModel = toLiteLLMFormat(config.provider, config.model);
-          const providerConfig = RERANKER_PROVIDERS.find((p) => p.id === config.provider);
-          const apiBase = config.apiBase || providerConfig?.defaultApiBase || null;
-
-          const response = await fetch('/api/retrieval/validate/reranker', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: litellmModel,
-              api_key: config.apiKey,
-              api_base: apiBase,
-              provider: config.provider,
-            }),
-          });
-
-          const result = await response.json();
-
-          if (response.ok && result.success) {
-            const now = Date.now();
-
-            set({
-              rerankerApplied: true,
-              rerankerAppliedAt: now,
-              rerankerApplyStatus: 'success',
-              rerankerApplyMessage: result.message,
-            });
-
-            // 同步到后端
-            syncToManager(get());
-
-            return { success: true, message: result.message };
-          } else {
-            throw new Error(result.message || 'Validation failed');
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Network error';
-
-          set({
-            rerankerApplyStatus: 'error',
-            rerankerApplyMessage: message,
-          });
-
-          return { success: false, message };
-        }
-      },
-
-      resetRerankerToApplied: () => {
-        set({
-          rerankerApplyStatus: 'idle',
-          rerankerApplyMessage: undefined,
-        });
-      },
-
-      // ============ 高级检索开关 ============
-
-      setEnableAdvancedRetrieval: (enable: boolean) => {
-        set({ enableAdvancedRetrieval: enable });
         syncToManager(get());
-      },
 
-      // ============ Orphan 重建 ============
+        get()
+          .checkOrphanCollections()
+          .catch(() => {});
 
-      checkOrphanCollections: async () => {
-        try {
-          const response = await fetch('/api/memory/reindex/estimate');
-          if (!response.ok) return;
-          const data = await response.json();
-          const models = (data.orphan_collections ?? []).map(
-            (c: { old_model_suffix: string }) => c.old_model_suffix,
-          );
-          const uniqueModels = [...new Set<string>(models)];
-          set({ orphanCount: data.total_memories ?? 0, orphanOldModels: uniqueModels });
-        } catch {
-          // Non-critical; silently ignore
-        }
-      },
+        return { success: true, message: result.message };
+      } else {
+        throw new Error(result.message || 'Validation failed');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Network error';
 
-      executeReindex: async () => {
-        try {
-          const response = await fetch('/api/memory/reindex', { method: 'POST' });
-          if (!response.ok) throw new Error('Reindex request failed');
-          const data = await response.json();
-          set({ orphanCount: 0, orphanOldModels: [] });
-          return { migrated: data.migrated ?? 0, failed: data.failed ?? 0 };
-        } catch {
-          return { migrated: 0, failed: -1 };
-        }
-      },
+      set({
+        embeddingApplyStatus: 'error',
+        embeddingApplyMessage: message,
+      });
 
-      dismissOrphanWarning: () => {
-        set({ orphanCount: 0, orphanOldModels: [] });
-      },
+      return { success: false, message };
+    }
+  },
 
-      // ============ 重置 ============
+  resetEmbeddingToApplied: () => {
+    set({
+      embeddingApplyStatus: 'idle',
+      embeddingApplyMessage: undefined,
+    });
+  },
 
-      reset: () => {
-        set(DEFAULT_CONFIG);
-      },
-    }),
-);
+  // ============ Reranker 配置 ============
+
+  setRerankerConfig: (config) => {
+    set({
+      rerankerConfig: config,
+      rerankerApplyStatus: 'idle',
+      rerankerApplyMessage: undefined,
+    });
+  },
+
+  applyReranker: async () => {
+    const config = get().rerankerConfig;
+
+    set({ rerankerApplyStatus: 'applying', rerankerApplyMessage: undefined });
+
+    try {
+      if (!config.provider || !config.model || !config.apiKey) {
+        throw new Error('Missing required fields');
+      }
+
+      const litellmModel = toLiteLLMFormat(config.provider, config.model);
+      const providerConfig = RERANKER_PROVIDERS.find((p) => p.id === config.provider);
+      const apiBase = config.apiBase || providerConfig?.defaultApiBase || null;
+
+      const response = await fetch('/api/retrieval/validate/reranker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: litellmModel,
+          api_key: config.apiKey,
+          api_base: apiBase,
+          provider: config.provider,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        const now = Date.now();
+
+        set({
+          rerankerApplied: true,
+          rerankerAppliedAt: now,
+          rerankerApplyStatus: 'success',
+          rerankerApplyMessage: result.message,
+        });
+
+        // 同步到后端
+        syncToManager(get());
+
+        return { success: true, message: result.message };
+      } else {
+        throw new Error(result.message || 'Validation failed');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Network error';
+
+      set({
+        rerankerApplyStatus: 'error',
+        rerankerApplyMessage: message,
+      });
+
+      return { success: false, message };
+    }
+  },
+
+  resetRerankerToApplied: () => {
+    set({
+      rerankerApplyStatus: 'idle',
+      rerankerApplyMessage: undefined,
+    });
+  },
+
+  // ============ 高级检索开关 ============
+
+  setEnableAdvancedRetrieval: (enable: boolean) => {
+    set({ enableAdvancedRetrieval: enable });
+    syncToManager(get());
+  },
+
+  // ============ Orphan 重建 ============
+
+  checkOrphanCollections: async () => {
+    try {
+      const response = await fetchWithTimeout('/memory/reindex/estimate');
+      if (!response.ok) return;
+      const data = await response.json();
+      const models = (data.orphan_collections ?? []).map((c: { old_model_suffix: string }) => c.old_model_suffix);
+      const uniqueModels = [...new Set<string>(models)];
+      set({ orphanCount: data.total_memories ?? 0, orphanOldModels: uniqueModels });
+    } catch {
+      // Non-critical; silently ignore
+    }
+  },
+
+  executeReindex: async () => {
+    try {
+      const response = await fetchWithTimeout('/memory/reindex', { method: 'POST' });
+      if (!response.ok) throw new Error('Reindex request failed');
+      const data = await response.json();
+      set({ orphanCount: 0, orphanOldModels: [] });
+      return { migrated: data.migrated ?? 0, failed: data.failed ?? 0 };
+    } catch {
+      return { migrated: 0, failed: -1 };
+    }
+  },
+
+  dismissOrphanWarning: () => {
+    set({ orphanCount: 0, orphanOldModels: [] });
+  },
+
+  // ============ 重置 ============
+
+  reset: () => {
+    set(DEFAULT_CONFIG);
+  },
+}));
 
 export default useRetrievalStore;

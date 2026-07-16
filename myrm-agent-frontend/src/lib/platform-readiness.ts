@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - `@/lib/backend-health` health probes
+ * - `@/lib/backend-health-probe` stateless health probes
  * - `@/lib/deploy-mode` local vs cloud
  *
  * [OUTPUT]
@@ -15,7 +15,7 @@ import {
   BACKEND_HEALTH_MAX_ATTEMPTS,
   BACKEND_HEALTH_POLL_INTERVAL_MS,
   waitForBackendReady,
-} from '@/lib/backend-health';
+} from '@/lib/backend-health-probe';
 
 export type PlatformReadinessState = 'unreachable' | 'warming' | 'ready';
 

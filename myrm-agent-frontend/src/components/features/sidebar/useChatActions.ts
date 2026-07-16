@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ChatItem, updateChatTitle, deleteChat, exportChat } from '@/services/chat';
+import { ChatItem, updateChatTitle, deleteChat, exportChat, createChatShare, revokeChatShare } from '@/services/chat';
 import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chatExport';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/useToast';
@@ -18,6 +18,11 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   const [handoffChatId, setHandoffChatId] = useState<string | null>(null);
   const [handoffChatTitle, setHandoffChatTitle] = useState('');
   const [handoffChatSource, setHandoffChatSource] = useState<string | undefined>(undefined);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareChatId, setShareChatId] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareExpiresAt, setShareExpiresAt] = useState<number | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
 
   const { pinChat, unpinChat } = useChatStore();
 
@@ -188,6 +193,51 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     setHandoffDialogOpen(true);
   }, []);
 
+  const handleShare = useCallback((chatId: string) => {
+    setShareChatId(chatId);
+    setShareUrl(null);
+    setShareExpiresAt(null);
+    setShareDialogOpen(true);
+  }, []);
+
+  const handleShareCreate = useCallback(
+    async (ttlDays: number = 7) => {
+      if (!shareChatId) return;
+      setShareLoading(true);
+      try {
+        const result = await createChatShare(shareChatId, ttlDays);
+        setShareUrl(result.share_url);
+        setShareExpiresAt(result.expires_at);
+      } catch (error) {
+        toast({
+          title: t('chat.share.error'),
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive',
+        });
+      } finally {
+        setShareLoading(false);
+      }
+    },
+    [shareChatId, t],
+  );
+
+  const handleShareRevoke = useCallback(async () => {
+    if (!shareChatId) return;
+    try {
+      await revokeChatShare(shareChatId);
+      setShareUrl(null);
+      setShareExpiresAt(null);
+      toast({ title: t('chat.share.revoked'), variant: 'default' });
+      setShareDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: t('chat.share.error'),
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  }, [shareChatId, t]);
+
   return {
     renameId,
     renameValue,
@@ -214,5 +264,14 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     handleUnpin,
     handleCreateAutomation,
     handleHandoff,
+    handleShare,
+    handleShareCreate,
+    handleShareRevoke,
+    shareDialogOpen,
+    setShareDialogOpen,
+    shareChatId,
+    shareUrl,
+    shareExpiresAt,
+    shareLoading,
   };
 }

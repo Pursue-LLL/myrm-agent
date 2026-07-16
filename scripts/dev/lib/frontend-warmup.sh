@@ -300,10 +300,10 @@ _warmup_frontend_client() {
   local py="${PREFLIGHT_PY:-python3}"
   local saved_frontmost_pid=""
   local dev_dir="${lib_dir%/lib}"
+  local chrome_e2e_cli="${dev_dir}/chrome-e2e/cli.sh"
   if myrm_chrome_e2e_launch_background 2>/dev/null; then
     saved_frontmost_pid="$(myrm_chrome_e2e_save_frontmost_pid)"
     export MYRM_CHROME_E2E_SAVED_FRONTMOST_PID="${saved_frontmost_pid}"
-    export MYRM_CHROME_E2E_SUPPRESS_UI_SCRIPT="${dev_dir}/myrm-chrome-e2e-suppress-ui.sh"
   fi
   echo "STACK_WAIT: frontend client hydration via CDP (up to ${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-120}s)..." >&2
   if ! "${py}" "${warmup_py}" \
@@ -315,9 +315,8 @@ _warmup_frontend_client() {
   fi
 
   _frontend_save_client_warmth
-  if [[ -f "${dev_dir}/myrm-chrome-e2e-suppress-ui.sh" ]]; then
-    MYRM_CHROME_E2E_SAVED_FRONTMOST_PID="${saved_frontmost_pid}" \
-      bash "${dev_dir}/myrm-chrome-e2e-suppress-ui.sh" >/dev/null 2>&1 || true
+  if [[ -f "${chrome_e2e_cli}" ]]; then
+    bash "${chrome_e2e_cli}" transition warmup-done "${saved_frontmost_pid}" >/dev/null 2>&1 || true
   fi
   echo "STACK_OK: frontend client_hot (CDP hydration)"
   return 0

@@ -201,3 +201,24 @@ def test_https_secure_cookie() -> None:
     cookie_header = resp.headers.get("set-cookie")
     assert cookie_header is not None
     assert "Secure" in cookie_header
+
+
+def test_session_cookie_name_accepts_runtime_namespace_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services.webui import session
+
+    monkeypatch.setenv("WEBUI_SESSION_COOKIE_NAME", "myrm_webui_session_0123abcdef")
+
+    assert session._session_cookie_name() == "myrm_webui_session_0123abcdef"
+
+
+def test_session_cookie_name_rejects_unsafe_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services.webui import session
+
+    monkeypatch.setenv("WEBUI_SESSION_COOKIE_NAME", "myrm session; path=/")
+
+    with pytest.raises(RuntimeError, match="URL-safe"):
+        session._session_cookie_name()

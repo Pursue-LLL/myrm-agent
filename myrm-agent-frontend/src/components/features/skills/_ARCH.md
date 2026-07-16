@@ -24,7 +24,7 @@
 | `SkillEmptyState.tsx` | 辅助 | 无技能空状态引导 | ✅ |
 | `SkillExportDialog.tsx` | 组件 | 导出技能为 zip/marketplace 包 | ✅ |
 | `SkillFilters.tsx` | 辅助 | 技能列表过滤（类别/信任/来源） | ✅ |
-| `SkillGrowthCaseCard.tsx` | 核心 | 技能进化提案卡片：Simple/Detailed 双视图模式、Monaco DiffEditor 就地修订、审批/拒绝（接 evolution API） | ✅ |
+| `SkillGrowthCaseCard.tsx` | 核心 | 技能进化提案卡片：列表 summary + 展开/修订时 lazy 拉 detail；Simple/Detailed 双视图、Monaco DiffEditor 就地修订、审批/拒绝 | ✅ |
 | `SkillHistoryPanel.tsx` | 核心 | 技能进化历史面板：已处理记录列表、一键回滚（接 evolution API） | ✅ |
 | `SkillInstanceManager.tsx` | 组件 | 多实例技能版本并存管理 | ✅ |
 | `SkillList.tsx` | 核心 | 技能网格/列表主视图 | ✅ |
@@ -37,7 +37,7 @@
 | `SkillUploadDialog.tsx` | 组件 | 上传本地技能包对话框 | ✅ |
 | `SkillUrlImportDialog.tsx` | 组件 | 从 URL 导入技能对话框 | ✅ |
 | `skillCategories.ts` | 辅助 | 技能分类常量与 i18n 键映射 | ✅ |
-| `PendingEvolutionsDashboard.tsx` | 核心 | 待审核技能进化列表，支持 Simple/Detailed 视图切换（localStorage 持久化） | ✅ |
+| `PendingEvolutionsDashboard.tsx` | 核心 | 待审核技能进化列表（summary API）；卡片展开按需 detail；Simple/Detailed 视图切换（localStorage 持久化） | ✅ |
 | `EvolutionRejectionDashboard.tsx` | 核心 | 技能进化拒绝/失败审计面板 | ✅ |
 
 ## 依赖

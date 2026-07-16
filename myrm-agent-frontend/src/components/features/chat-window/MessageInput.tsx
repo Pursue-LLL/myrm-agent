@@ -10,7 +10,19 @@
  * 聊天输入区视图层。承载消息输入、模式切换、附件、快捷操作与发送控制。
  */
 import * as React from 'react';
-import { ArrowRight, Square, Plus, Clock, X, Navigation, ListPlus, Pencil, Check, Maximize2, Minimize2 } from 'lucide-react';
+import {
+  ArrowRight,
+  Square,
+  Plus,
+  Clock,
+  X,
+  Navigation,
+  ListPlus,
+  Pencil,
+  Check,
+  Maximize2,
+  Minimize2,
+} from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import AttachList from '../message-input-actions/AttachList';
 import AttachButton from '../message-input-actions/AttachButton';
@@ -48,7 +60,7 @@ import { ReferenceMentionPopover } from './ReferenceMentionPopover';
 import useChatStore from '@/store/useChatStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { QuoteCard } from './QuoteCard';
-import { useInputHistory, addInputHistory } from '@/hooks/useInputHistory';
+import { useInputHistory } from '@/hooks/useInputHistory';
 import InputHistoryPopup from './InputHistoryPopup';
 
 const KEYTERM_PATTERN =
@@ -245,7 +257,13 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
 
   return (
     <>
-      <div className={isExpanded ? 'fixed inset-0 z-50 flex flex-col justify-end bg-background/95 backdrop-blur-sm p-4 sm:p-6' : 'relative w-full'}>
+      <div
+        className={
+          isExpanded
+            ? 'fixed inset-0 z-50 flex flex-col justify-end bg-background/95 backdrop-blur-sm p-4 sm:p-6'
+            : 'relative w-full'
+        }
+      >
         <form
           onSubmit={(e) => {
             e.preventDefault();

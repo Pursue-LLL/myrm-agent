@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/deploy-mode', () => ({
+  getBackendBaseUrl: () => '',
   isLocalMode: () => true,
 }));
 
-vi.mock('@/lib/backend-health', () => ({
+vi.mock('@/lib/backend-health-probe', () => ({
   BACKEND_HEALTH_MAX_ATTEMPTS: 2,
   BACKEND_HEALTH_POLL_INTERVAL_MS: 1,
   waitForBackendReady: vi.fn(async () => true),

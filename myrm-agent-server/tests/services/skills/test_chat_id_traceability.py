@@ -18,8 +18,8 @@ from app.services.skills.evolution_reviews import (
     EvolutionReviewRecord,
     approval_to_evolution_review_record,
 )
+from app.services.skills.growth_case_types import SkillGrowthCaseSource
 from app.services.skills.growth_queries import (
-    SkillGrowthCaseSource,
     _approval_case,
     _evolution_case,
 )
@@ -156,9 +156,9 @@ class TestApiResponseModels:
     """Tests for API response models including chat_id."""
 
     def test_growth_case_response_includes_chat_id(self) -> None:
-        from app.api.skills.growth import SkillGrowthCaseResponse
+        from app.api.skills.growth import SkillGrowthCaseSummaryResponse
 
-        resp = SkillGrowthCaseResponse(
+        resp = SkillGrowthCaseSummaryResponse(
             id="test",
             source="evolution",
             status="PENDING_REVIEW",
@@ -174,9 +174,9 @@ class TestApiResponseModels:
         assert data["chat_id"] == "resp-chat-001"
 
     def test_growth_case_response_chat_id_defaults_none(self) -> None:
-        from app.api.skills.growth import SkillGrowthCaseResponse
+        from app.api.skills.growth import SkillGrowthCaseSummaryResponse
 
-        resp = SkillGrowthCaseResponse(
+        resp = SkillGrowthCaseSummaryResponse(
             id="test",
             source="evolution",
             status="PENDING_REVIEW",
@@ -230,9 +230,9 @@ class TestApiResponseModels:
         assert resp.chat_id is None
 
     def test_growth_response_null_chat_id_serializes_to_none(self) -> None:
-        from app.api.skills.growth import SkillGrowthCaseResponse
+        from app.api.skills.growth import SkillGrowthCaseSummaryResponse
 
-        resp = SkillGrowthCaseResponse(
+        resp = SkillGrowthCaseSummaryResponse(
             id="test",
             source="draft",
             status="PENDING_REVIEW",
@@ -249,9 +249,9 @@ class TestApiResponseModels:
         assert json_data["chat_id"] is None
 
     def test_growth_response_empty_string_chat_id(self) -> None:
-        from app.api.skills.growth import SkillGrowthCaseResponse
+        from app.api.skills.growth import SkillGrowthCaseSummaryResponse
 
-        resp = SkillGrowthCaseResponse(
+        resp = SkillGrowthCaseSummaryResponse(
             id="test",
             source="draft",
             status="PENDING_REVIEW",
@@ -291,7 +291,7 @@ class TestFullPipelineRoundtrip:
     """End-to-end data flow from mock approval → growth case read → API response."""
 
     def test_approval_to_growth_case_to_api_response(self) -> None:
-        from app.api.skills.growth import SkillGrowthCaseResponse
+        from app.api.skills.growth import SkillGrowthCaseSummaryResponse
 
         record = _make_approval_record(chat_id="e2e-chat-999")
         evo_review = approval_to_evolution_review_record(record)
@@ -301,10 +301,10 @@ class TestFullPipelineRoundtrip:
         growth_case = _evolution_case(evo_review)
         assert growth_case.chat_id == "e2e-chat-999"
 
-        api_resp = SkillGrowthCaseResponse(
+        api_resp = SkillGrowthCaseSummaryResponse(
             id=growth_case.id,
             source=growth_case.source.value,
-            status=growth_case.status,
+            status=growth_case.status.value,
             skill_name=growth_case.skill_name,
             growth_type=growth_case.growth_type,
             title=growth_case.title,
@@ -316,7 +316,7 @@ class TestFullPipelineRoundtrip:
         assert api_resp.model_dump()["chat_id"] == "e2e-chat-999"
 
     def test_null_chat_id_roundtrip(self) -> None:
-        from app.api.skills.growth import SkillGrowthCaseResponse
+        from app.api.skills.growth import SkillGrowthCaseSummaryResponse
 
         record = _make_approval_record(chat_id=None)
         evo_review = approval_to_evolution_review_record(record)
@@ -326,10 +326,10 @@ class TestFullPipelineRoundtrip:
         growth_case = _evolution_case(evo_review)
         assert growth_case.chat_id is None
 
-        api_resp = SkillGrowthCaseResponse(
+        api_resp = SkillGrowthCaseSummaryResponse(
             id=growth_case.id,
             source=growth_case.source.value,
-            status=growth_case.status,
+            status=growth_case.status.value,
             skill_name=growth_case.skill_name,
             growth_type=growth_case.growth_type,
             title=growth_case.title,

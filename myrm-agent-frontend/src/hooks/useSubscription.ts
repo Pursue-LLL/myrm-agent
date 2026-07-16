@@ -23,8 +23,7 @@ import useAuthStore from '@/store/useAuthStore';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { type EntitlementSnapshot } from '@/lib/cp-billing';
 import { useEntitlements } from '@/hooks/useEntitlements';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
+import { getApiUrl } from '@/lib/api';
 
 // Error types for better error handling
 const ERROR_TYPES = {
@@ -202,7 +201,7 @@ export function useSubscription() {
     refresh: refreshEntitlements,
   } = useEntitlements();
 
-  const legacyKey = isAuthenticated && !local && !sandbox ? `${API_BASE_URL}/subscription/status` : null;
+  const legacyKey = isAuthenticated && !local && !sandbox ? getApiUrl('/subscription/status') : null;
 
   const {
     data: legacyData,

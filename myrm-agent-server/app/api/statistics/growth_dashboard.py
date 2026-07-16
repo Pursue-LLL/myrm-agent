@@ -36,7 +36,7 @@ from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.models import Chat, Message
 from app.services.skills.experience_ledger import summarize_skill_growth_events
-from app.services.skills.growth_queries import list_skill_growth_timeline
+from app.services.skills.growth_audit_queries import list_skill_growth_timeline
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

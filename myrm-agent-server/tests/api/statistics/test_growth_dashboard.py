@@ -26,9 +26,11 @@ from app.api.statistics.growth_dashboard import (
 )
 from app.core.utils.errors import StandardHTTPException
 from app.services.skills.experience_ledger import SkillGrowthLedgerSummary
-from app.services.skills.growth_queries import (
+from app.services.skills.growth_case_types import (
     SkillGrowthCaseSource,
     SkillGrowthCaseStatus,
+)
+from app.services.skills.growth_audit_queries import (
     SkillGrowthTimelineEventRead,
 )
 

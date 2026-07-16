@@ -2,11 +2,8 @@
 
 import type { RefObject } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import type { KanbanTask } from '@/services/kanban';
 import { STATUS_DOT } from './kanban-styles';
-import type { TaskDepInfo } from './kanban-styles';
 import KanbanMarkdown from './KanbanMarkdown';
-import { Paperclip, X, FileText } from 'lucide-react';
 
 // --- Attachments Section ---
 export function DependenciesSection({
@@ -59,9 +56,7 @@ export function DependenciesSection({
                   <span className="text-[10px] text-foreground/80 truncate" title={parent.title}>
                     {parent.title}
                   </span>
-                  <span className="text-[9px] text-muted-foreground shrink-0">
-                    ({t(`status.${parent.status}`)})
-                  </span>
+                  <span className="text-[9px] text-muted-foreground shrink-0">({t(`status.${parent.status}`)})</span>
                 </button>
                 <button
                   onClick={() => handleRemoveDep(parent.task_id)}
@@ -93,9 +88,7 @@ export function DependenciesSection({
                     )}
                   />
                   <span className="truncate">{t2.title}</span>
-                  <span className="text-[9px] text-muted-foreground shrink-0 ml-auto">
-                    {t(`status.${t2.status}`)}
-                  </span>
+                  <span className="text-[9px] text-muted-foreground shrink-0 ml-auto">{t(`status.${t2.status}`)}</span>
                 </button>
               ))
             )}

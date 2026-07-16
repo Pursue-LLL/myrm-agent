@@ -1,6 +1,6 @@
 'use client';
 
-import { RotateCcw, Check, AlertCircle } from 'lucide-react';
+import { RotateCcw, Check } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { apiRequest } from '@/lib/api';
@@ -34,10 +34,7 @@ export default function SessionRevertButton({ sessionId }: SessionRevertButtonPr
   const handleClick = useCallback(async () => {
     setStatus('loading');
     try {
-      const data = (await apiRequest(`/files/revert/changes/${sessionId}`)) as Record<
-        string,
-        FileChangeInfo[]
-      >;
+      const data = (await apiRequest(`/files/revert/changes/${sessionId}`)) as Record<string, FileChangeInfo[]>;
       const uniquePaths = new Set<string>();
       for (const changes of Object.values(data)) {
         for (const c of changes) {

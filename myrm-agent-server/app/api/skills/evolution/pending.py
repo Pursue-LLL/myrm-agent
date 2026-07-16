@@ -37,14 +37,12 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-class PendingEvolutionResponse(BaseModel):
+class PendingEvolutionSummaryResponse(BaseModel):
     id: str
     skill_id: str
     skill_name: str
     evolution_type: str
     reason: str
-    original_content: str
-    evolved_content: str
     confidence: float
     test_passed: bool
     status: str
@@ -53,9 +51,56 @@ class PendingEvolutionResponse(BaseModel):
     apply_error: str | None = None
     reason_code: str | None = None
     remediation: str | None = None
-    trajectory: str | None = None
+    has_diff: bool = False
+    has_trajectory: bool = False
     chat_id: str | None = None
     created_at: str
+
+
+class PendingEvolutionDetailResponse(PendingEvolutionSummaryResponse):
+    original_content: str
+    evolved_content: str
+    trajectory: str | None = None
+
+
+class PendingEvolutionResponse(PendingEvolutionDetailResponse):
+    """Backward-compatible alias for tests expecting full bodies in list responses."""
+
+
+def _summary_from_record(record: EvolutionReviewRecord) -> PendingEvolutionSummaryResponse:
+    return PendingEvolutionSummaryResponse(
+        id=record.id,
+        skill_id=record.skill_id,
+        skill_name=record.skill_name,
+        evolution_type=record.evolution_type,
+        reason=record.reason,
+        confidence=record.confidence,
+        test_passed=record.test_passed,
+        status=record.status.value,
+        approval_status=record.approval_status,
+        apply_status=record.apply_status.value,
+        apply_error=record.apply_error,
+        reason_code=record.reason_code,
+        remediation=record.remediation,
+        has_diff=bool(record.original_content or record.evolved_content),
+        has_trajectory=bool(record.trajectory),
+        chat_id=record.chat_id,
+        created_at=record.created_at.isoformat(),
+    )
+
+
+def _detail_from_record(record: EvolutionReviewRecord) -> PendingEvolutionDetailResponse:
+    summary = _summary_from_record(record)
+    return PendingEvolutionDetailResponse(
+        **summary.model_dump(),
+        original_content=record.original_content,
+        evolved_content=record.evolved_content,
+        trajectory=record.trajectory,
+    )
+
+
+def _response_from_record(record: EvolutionReviewRecord) -> PendingEvolutionResponse:
+    return PendingEvolutionResponse(**_detail_from_record(record).model_dump())
 
 
 class RejectEvolutionRequest(BaseModel):
@@ -68,29 +113,6 @@ class ApproveEvolutionRequest(BaseModel):
 
 class ReviseEvolutionRequest(BaseModel):
     evolved_content: str
-
-
-def _response_from_record(record: EvolutionReviewRecord) -> PendingEvolutionResponse:
-    return PendingEvolutionResponse(
-        id=record.id,
-        skill_id=record.skill_id,
-        skill_name=record.skill_name,
-        evolution_type=record.evolution_type,
-        reason=record.reason,
-        original_content=record.original_content,
-        evolved_content=record.evolved_content,
-        confidence=record.confidence,
-        test_passed=record.test_passed,
-        status=record.status.value,
-        approval_status=record.approval_status,
-        apply_status=record.apply_status.value,
-        apply_error=record.apply_error,
-        reason_code=record.reason_code,
-        remediation=record.remediation,
-        trajectory=record.trajectory,
-        chat_id=record.chat_id,
-        created_at=record.created_at.isoformat(),
-    )
 
 
 async def list_pending_evolution_records(limit: int) -> list[EvolutionReviewRecord]:
@@ -132,9 +154,17 @@ async def reject_pending_evolution_record(
 @router.get("/pending")
 async def get_pending_evolutions(
     limit: int = Query(50, ge=1, le=100),
-) -> dict[str, list[PendingEvolutionResponse]]:
+) -> dict[str, list[PendingEvolutionSummaryResponse]]:
     records = await list_pending_evolution_records(limit=limit)
-    return {"items": [_response_from_record(record) for record in records]}
+    return {"items": [_summary_from_record(record) for record in records]}
+
+
+@router.get("/pending/{evolution_id}")
+async def get_pending_evolution(evolution_id: str) -> PendingEvolutionDetailResponse:
+    record = await get_evolution_review_record(evolution_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"Pending evolution not found: {evolution_id}")
+    return _detail_from_record(record)
 
 
 @router.post("/pending/{evolution_id}/approve")

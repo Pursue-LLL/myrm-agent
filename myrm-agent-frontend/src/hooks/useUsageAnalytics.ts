@@ -5,8 +5,7 @@
  */
 
 import useSWR from 'swr';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
+import { getApiUrl } from '@/lib/api';
 
 export interface UsageRadarData {
   total_calls: number;
@@ -39,7 +38,7 @@ export function useUsageAnalytics() {
     // but the original code guarded backend stats behind auth/SaaS checks.
     // If the local backend also tracks SQLite chats, we can allow it.
     // Assuming local mode API also provides /api/v1/analytics/usage/radar
-    `${API_BASE_URL}/analytics/usage/radar`,
+    getApiUrl('/analytics/usage/radar'),
     fetchUsageData,
     {
       revalidateOnFocus: true,

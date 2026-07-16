@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
-from app.services.skills.growth_queries import (
+from app.services.skills.growth_audit_queries import (
     list_skill_growth_audit_entries,
     summarize_skill_growth_audit,
 )

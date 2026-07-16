@@ -11,7 +11,7 @@ import subprocess
 import threading
 import time
 import uuid
-from builtins import BaseExceptionGroup
+from builtins import BaseExceptionGroup, ExceptionGroup
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path

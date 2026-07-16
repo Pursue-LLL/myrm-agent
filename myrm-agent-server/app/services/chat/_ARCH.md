@@ -35,6 +35,8 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `conversation_recall_index_service.py` | ✅ 核心 | Conversation Recall 索引生命周期服务；统一回填、重建、增量追加、排除/恢复、删除、健康检查和管理列表。 | ✅ |
 | `conversation_fork_manager.py` | ✅ 核心 | 对话分支管理（checkpoint 克隆 + Fork 关系追踪 + 完整 Chat 元数据继承 + `compacted_before_id` ID 映射 + sandbox 隔离语义：父有活跃沙箱时子回退至原仓库根 + fork 失败时清理孤儿 checkpoint） | ✅ |
 | `handoff.py` | ✅ 辅助 | 跨平台会话交接：将 Chat 的 channel_session_key 重绑定到目标渠道，支持 UNIQUE 冲突自动解决和 pairing 验证 | ✅ |
+| `share_token.py` | ✅ 辅助 | 对话分享 HMAC+TTL 无状态签名 token 创建与验证 | ✅ |
+| `share_renderer.py` | ✅ 辅助 | 对话分享只读 HTML 页面 SSR 渲染（Agent 身份卡片 + 消息历史 + OG metadata + XSS 防护） | ✅ |
 | `sandbox_worktree.py` | ✅ 辅助 | Git worktree 生命周期管理：create/cleanup/merge/status，供 converter.py 和 sandbox API 共用 | ✅ |
 
 ---
@@ -93,7 +95,7 @@ ChatService
 - `app/services/infra/`：删除聊天时清理沙箱工作空间
 
 ### 被依赖方
-- `app/api/chats/`：聊天 API 路由（含 `/compact` 端点）
+- `app/api/chats/`：聊天 API 路由（含 `/compact`、`/share` 端点）
 - `app/api/agents/general_agent/streaming.py`：Web Agent 统一入口（user message 持久化 + 历史加载，支持 fast/agent/deep_research/consensus 模式）
 - `app/core/channel_bridge/agent_executor/`：频道 Agent 执行器（持久化 + 历史加载 + 流式出站）
 - `app/core/channel_bridge/compact_handler.py`：IM `/compact` 命令业务实现（实现 CompactHandler 协议）

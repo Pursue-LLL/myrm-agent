@@ -105,8 +105,7 @@ export const BuiltinToolsPanel = ({
         {BUILTIN_TOOL_IDS.map((id) => {
           const isCron = id === 'cron';
           const isComputerUse = id === 'computer_use';
-          const disabled =
-            (isCron && cronEntitlementBlocked) || (isComputerUse && computerUseEntitlementBlocked);
+          const disabled = (isCron && cronEntitlementBlocked) || (isComputerUse && computerUseEntitlementBlocked);
           const description = disabled
             ? isComputerUse
               ? tBilling('computerUseDescription')
@@ -164,9 +163,7 @@ export const BuiltinToolsPanel = ({
 
       {localBuiltinTools.includes('kanban') && <KanbanConfigSection tPanel={tPanel} />}
 
-      {localBuiltinTools.includes('external_cli') && (
-        <ExternalCliConfigSection tPanel={tPanel} />
-      )}
+      {localBuiltinTools.includes('external_cli') && <ExternalCliConfigSection tPanel={tPanel} />}
     </div>
   );
 };
@@ -231,7 +228,6 @@ function BrowserConfigSection({
   localSessionRecording,
   setLocalSessionRecording,
   t,
-  tAgent,
   tPanel,
 }: Omit<BuiltinToolsPanelProps, 'localBuiltinTools' | 'setLocalBuiltinTools'>) {
   return (
@@ -325,10 +321,14 @@ function BrowserConfigSection({
               <SelectItem key={opt} value={opt}>
                 <div className="flex flex-col py-1">
                   <span className="font-medium">
-                    {t(`dialogPolicy.options.${opt === 'auto_accept' ? 'autoAccept' : opt === 'auto_dismiss' ? 'autoDismiss' : opt === 'wait_for_agent' ? 'waitForAgent' : opt}`)}
+                    {t(
+                      `dialogPolicy.options.${opt === 'auto_accept' ? 'autoAccept' : opt === 'auto_dismiss' ? 'autoDismiss' : opt === 'wait_for_agent' ? 'waitForAgent' : opt}`,
+                    )}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {t(`dialogPolicy.options.${opt === 'auto_accept' ? 'autoAccept' : opt === 'auto_dismiss' ? 'autoDismiss' : opt === 'wait_for_agent' ? 'waitForAgent' : opt}Desc`)}
+                    {t(
+                      `dialogPolicy.options.${opt === 'auto_accept' ? 'autoAccept' : opt === 'auto_dismiss' ? 'autoDismiss' : opt === 'wait_for_agent' ? 'waitForAgent' : opt}Desc`,
+                    )}
                   </span>
                 </div>
               </SelectItem>

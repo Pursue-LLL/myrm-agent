@@ -998,3 +998,25 @@ export const getFissionTopology = async (chatId: string): Promise<FissionTopolog
     return null;
   }
 };
+
+// ── Conversation Share ───────────────────────────────────────────
+
+export interface ChatShareResponse {
+  token: string;
+  share_url: string;
+  expires_at: number;
+  chat_id: string;
+}
+
+export const createChatShare = async (chatId: string, ttlDays: number = 7): Promise<ChatShareResponse> => {
+  const res = await apiRequest<{ data: ChatShareResponse }>(`/chats/${chatId}/share`, {
+    method: 'POST',
+    body: JSON.stringify({ ttl_days: ttlDays }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return res.data;
+};
+
+export const revokeChatShare = async (chatId: string): Promise<void> => {
+  await apiRequest(`/chats/${chatId}/share`, { method: 'DELETE' });
+};

@@ -27,6 +27,10 @@ fi
 mkdir -p "${MYRM_CHROME_E2E_DATA_DIR}"
 
 if myrm_chrome_e2e_cdp_healthy && myrm_chrome_e2e_process_owns_port; then
+  chrome_e2e_surface_ensure
+  if myrm_chrome_e2e_launch_background; then
+    chrome_e2e_lifecycle_transition "cold-start-done" "$(myrm_chrome_e2e_save_frontmost_pid)"
+  fi
   ok "already running port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
   exit 0
 fi
@@ -82,7 +86,7 @@ if [[ "${ready}" -ne 1 ]]; then
 fi
 
 if [[ -n "${SAVED_FRONTMOST_PID}" ]]; then
-  myrm_chrome_e2e_suppress_ui "${SAVED_FRONTMOST_PID}"
+  chrome_e2e_lifecycle_transition "cold-start-done" "${SAVED_FRONTMOST_PID}"
 fi
 
 ok "started port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"

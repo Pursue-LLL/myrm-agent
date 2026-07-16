@@ -26,7 +26,7 @@ export interface RuntimeFailureEvidence {
   candidate_skill_names: string[];
 }
 
-interface SkillGrowthCaseApiItem {
+interface SkillGrowthCaseSummaryApiItem {
   id: string;
   source: SkillGrowthSource;
   status: SkillGrowthStatus;
@@ -36,10 +36,6 @@ interface SkillGrowthCaseApiItem {
   title: string;
   summary: string;
   description: string | null;
-  trigger_condition: string | null;
-  skill_steps: string | null;
-  original_content: string | null;
-  proposed_content: string | null;
   confidence: number | null;
   test_passed: boolean | null;
   apply_status: string | null;
@@ -47,15 +43,33 @@ interface SkillGrowthCaseApiItem {
   reason_code: string | null;
   remediation: string | null;
   runtime_failure: RuntimeFailureEvidence | null;
-  trajectory: string | null;
   chat_id: string | null;
   form_metadata: { schedule_hint?: string; form_reasoning?: string } | null;
+  has_diff: boolean;
+  has_trajectory: boolean;
+  has_trigger_condition: boolean;
+  has_skill_steps: boolean;
   created_at: string;
 }
 
+interface SkillGrowthCaseDetailApiItem extends SkillGrowthCaseSummaryApiItem {
+  trigger_condition: string | null;
+  skill_steps: string | null;
+  original_content: string | null;
+  proposed_content: string | null;
+  trajectory: string | null;
+}
+
 interface SkillGrowthCaseApiResponse {
-  items: SkillGrowthCaseApiItem[];
+  items: SkillGrowthCaseSummaryApiItem[];
   total: number;
+}
+
+interface SkillGrowthStatsApiResponse {
+  total: number;
+  pending_review: number;
+  auto_applied: number;
+  blocked: number;
 }
 
 interface SkillGrowthAuditApiItem {
@@ -100,7 +114,7 @@ interface SkillGrowthAuditStatsApiResponse {
   time_range_days: number;
 }
 
-export interface SkillGrowthCase {
+export interface SkillGrowthCaseSummary {
   id: string;
   source: SkillGrowthSource;
   status: SkillGrowthStatus;
@@ -110,10 +124,6 @@ export interface SkillGrowthCase {
   title: string;
   summary: string;
   description: string | null;
-  triggerCondition: string | null;
-  skillSteps: string | null;
-  originalContent: string | null;
-  proposedContent: string | null;
   confidence: number | null;
   testPassed: boolean | null;
   applyStatus: string | null;
@@ -121,11 +131,25 @@ export interface SkillGrowthCase {
   reasonCode: string | null;
   remediation: string | null;
   runtimeFailure: RuntimeFailureEvidence | null;
-  trajectory: string | null;
   chatId: string | null;
   formMetadata: { scheduleHint?: string; formReasoning?: string } | null;
+  hasDiff: boolean;
+  hasTrajectory: boolean;
+  hasTriggerCondition: boolean;
+  hasSkillSteps: boolean;
   createdAt: string;
 }
+
+export interface SkillGrowthCaseDetail extends SkillGrowthCaseSummary {
+  triggerCondition: string | null;
+  skillSteps: string | null;
+  originalContent: string | null;
+  proposedContent: string | null;
+  trajectory: string | null;
+}
+
+/** @deprecated Use SkillGrowthCaseSummary for lists; detail fields load on demand. */
+export type SkillGrowthCase = SkillGrowthCaseDetail;
 
 export interface SkillGrowthSummary {
   total: number;
@@ -179,7 +203,7 @@ export interface SkillGrowthAuditStats {
   timeRangeDays: number;
 }
 
-function mapCase(item: SkillGrowthCaseApiItem): SkillGrowthCase {
+function mapSummary(item: SkillGrowthCaseSummaryApiItem): SkillGrowthCaseSummary {
   return {
     id: item.id,
     source: item.source,
@@ -190,10 +214,6 @@ function mapCase(item: SkillGrowthCaseApiItem): SkillGrowthCase {
     title: item.title,
     summary: item.summary,
     description: item.description,
-    triggerCondition: item.trigger_condition,
-    skillSteps: item.skill_steps,
-    originalContent: item.original_content,
-    proposedContent: item.proposed_content,
     confidence: item.confidence,
     testPassed: item.test_passed,
     applyStatus: item.apply_status,
@@ -201,12 +221,26 @@ function mapCase(item: SkillGrowthCaseApiItem): SkillGrowthCase {
     reasonCode: item.reason_code,
     remediation: item.remediation,
     runtimeFailure: item.runtime_failure,
-    trajectory: item.trajectory,
     chatId: item.chat_id,
     formMetadata: item.form_metadata
       ? { scheduleHint: item.form_metadata.schedule_hint, formReasoning: item.form_metadata.form_reasoning }
       : null,
+    hasDiff: item.has_diff,
+    hasTrajectory: item.has_trajectory,
+    hasTriggerCondition: item.has_trigger_condition,
+    hasSkillSteps: item.has_skill_steps,
     createdAt: item.created_at,
+  };
+}
+
+function mapDetail(item: SkillGrowthCaseDetailApiItem): SkillGrowthCaseDetail {
+  return {
+    ...mapSummary(item),
+    triggerCondition: item.trigger_condition,
+    skillSteps: item.skill_steps,
+    originalContent: item.original_content,
+    proposedContent: item.proposed_content,
+    trajectory: item.trajectory,
   };
 }
 
@@ -234,23 +268,30 @@ function sortByCreatedAtDesc<T extends { createdAt: string }>(items: T[]): T[] {
   });
 }
 
-export async function listSkillGrowthCases(limit: number = 50): Promise<SkillGrowthCase[]> {
+export async function listSkillGrowthCases(limit: number = 50): Promise<SkillGrowthCaseSummary[]> {
   const response = await apiRequest<SkillGrowthCaseApiResponse>(`/skill-growth/cases?limit=${limit}`);
-  return sortByCreatedAtDesc(response.items.map(mapCase));
+  return sortByCreatedAtDesc(response.items.map(mapSummary));
 }
 
-export async function getSkillGrowthSummary(limit: number = 50): Promise<SkillGrowthSummary> {
-  const cases = await listSkillGrowthCases(limit);
+export async function getSkillGrowthCaseDetail(caseId: string): Promise<SkillGrowthCaseDetail> {
+  const response = await apiRequest<SkillGrowthCaseDetailApiItem>(
+    `/skill-growth/cases/${encodeURIComponent(caseId)}`,
+  );
+  return mapDetail(response);
+}
+
+export async function getSkillGrowthSummary(): Promise<SkillGrowthSummary> {
+  const response = await apiRequest<SkillGrowthStatsApiResponse>('/skill-growth/stats');
   return {
-    total: cases.length,
-    pendingReview: cases.filter((item) => item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED').length,
-    autoApplied: cases.filter((item) => item.status === 'AUTO_APPLIED').length,
-    blocked: cases.filter((item) => item.status === 'BLOCKED_LOCKED' || item.status === 'FAILED_SCAN').length,
+    total: response.total,
+    pendingReview: response.pending_review,
+    autoApplied: response.auto_applied,
+    blocked: response.blocked,
   };
 }
 
 export async function approveSkillGrowthCase(
-  item: SkillGrowthCase,
+  item: SkillGrowthCaseSummary,
   applyMode: 'immediate' | 'shadow' = 'immediate',
 ): Promise<SkillGrowthActionResult> {
   if (item.source === 'draft') {
@@ -272,7 +313,7 @@ export async function approveSkillGrowthCase(
   });
 }
 
-export async function rejectSkillGrowthCase(item: SkillGrowthCase, reason?: string): Promise<SkillGrowthActionResult> {
+export async function rejectSkillGrowthCase(item: SkillGrowthCaseSummary, reason?: string): Promise<SkillGrowthActionResult> {
   if (item.source === 'draft') {
     const draftId = item.id.replace('draft:', '');
     const response = await rejectSkillDraft(draftId);
@@ -295,7 +336,7 @@ export interface SkillGrowthReviseResult {
 }
 
 export async function reviseSkillGrowthCase(
-  item: SkillGrowthCase,
+  item: SkillGrowthCaseSummary,
   evolvedContent: string,
 ): Promise<SkillGrowthReviseResult> {
   const evolutionId = item.id.replace('evolution:', '');
