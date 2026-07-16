@@ -2,13 +2,14 @@
 
 import { lazy, memo, Suspense, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { BarChart3, Shield, ShieldAlert } from 'lucide-react';
+import { BarChart3, Cpu, Shield, ShieldAlert } from 'lucide-react';
 
 const EnterpriseMembersTab = lazy(() => import('./EnterpriseMembersTab'));
 const EnterpriseAuditTab = lazy(() => import('./EnterpriseAuditTab'));
 const EnterpriseUsageTab = lazy(() => import('./EnterpriseUsageTab'));
+const EnterpriseModelPolicyTab = lazy(() => import('./EnterpriseModelPolicyTab'));
 
-type EnterpriseTab = 'members' | 'usage' | 'audit';
+type EnterpriseTab = 'members' | 'usage' | 'audit' | 'model-policy';
 
 const TAB_FALLBACK = <div className="animate-pulse h-48 bg-muted rounded" />;
 
@@ -18,6 +19,7 @@ const EnterpriseOrgSection = memo(() => {
 
   const tabs = [
     { key: 'members' as const, icon: Shield, label: t('membersTab') },
+    { key: 'model-policy' as const, icon: Cpu, label: t('modelPolicyTab', { default: 'Model Policy' }) },
     { key: 'usage' as const, icon: BarChart3, label: t('usageTab') },
     { key: 'audit' as const, icon: ShieldAlert, label: t('auditTab') },
   ];
@@ -46,6 +48,7 @@ const EnterpriseOrgSection = memo(() => {
       {/* Tab Content */}
       <Suspense fallback={TAB_FALLBACK}>
         {activeTab === 'members' && <EnterpriseMembersTab />}
+        {activeTab === 'model-policy' && <EnterpriseModelPolicyTab />}
         {activeTab === 'usage' && <EnterpriseUsageTab />}
         {activeTab === 'audit' && <EnterpriseAuditTab />}
       </Suspense>

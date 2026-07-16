@@ -21,6 +21,7 @@ import { useShallow } from 'zustand/react/shallow';
 import useProviderStore from '@/store/useProviderStore';
 import { SingleModelSelection, getProviderCategory } from '@/store/config/providerTypes';
 import EnabledModelSelect from '../../default-model/EnabledModelSelect';
+import { useOrgModelPolicy } from '@/hooks/useOrgModelPolicy';
 import { ModelInfoDialog } from '../../model-service/ModelInfoCard';
 import SettingsSection from '../SettingsSection';
 import ProviderModelSelector from '../../retrieval/ProviderModelSelector';
@@ -133,6 +134,12 @@ const DefaultModelSection = memo(() => {
 
   // 获取已启用的模型列表
   const enabledModels = getEnabledModels();
+
+  const { restricted: orgPolicyRestricted, isModelAllowed } = useOrgModelPolicy();
+  const isModelRestricted = useCallback(
+    (modelName: string) => orgPolicyRestricted && !isModelAllowed(modelName),
+    [orgPolicyRestricted, isModelAllowed],
+  );
 
   // 检查模型选择是否有效（Provider 存在、启用、有激活的 API Key）
   const isSelectionValid = useCallback(
@@ -316,6 +323,7 @@ const DefaultModelSection = memo(() => {
                 onChange={handleBaseModelChange}
                 enabledModels={enabledModels}
                 providers={providers}
+                isModelRestricted={isModelRestricted}
               />
             </div>
             {defaultModelConfig.baseModel.primary && (
@@ -359,6 +367,7 @@ const DefaultModelSection = memo(() => {
                   onChange={handleBaseModelFallbackChange}
                   enabledModels={enabledModels}
                   providers={providers}
+                  isModelRestricted={isModelRestricted}
                 />
               </div>
               {defaultModelConfig.baseModel.fallback && (
@@ -393,6 +402,7 @@ const DefaultModelSection = memo(() => {
                   onChange={handleVisionFallbackModelChange}
                   enabledModels={enabledModels}
                   providers={providers}
+                  isModelRestricted={isModelRestricted}
                 />
               </div>
               {defaultModelConfig.visionFallbackModel && (
@@ -435,6 +445,7 @@ const DefaultModelSection = memo(() => {
                 onChange={handleLiteModelChange}
                 enabledModels={enabledModels}
                 providers={providers}
+                isModelRestricted={isModelRestricted}
               />
             </div>
             {defaultModelConfig.liteModel.primary && (
@@ -485,6 +496,7 @@ const DefaultModelSection = memo(() => {
                   onChange={handleLiteModelFallbackChange}
                   enabledModels={enabledModels}
                   providers={providers}
+                  isModelRestricted={isModelRestricted}
                 />
               </div>
               {defaultModelConfig.liteModel.fallback && (
@@ -556,6 +568,7 @@ const DefaultModelSection = memo(() => {
                         onChange={handleRoutingLightModelChange}
                         enabledModels={enabledModels}
                         providers={providers}
+                        isModelRestricted={isModelRestricted}
                       />
                     </div>
                     {defaultModelConfig.routingConfig?.lightModel?.primary && (
@@ -584,6 +597,7 @@ const DefaultModelSection = memo(() => {
                       onChange={handleRoutingLightModelFallbackChange}
                       enabledModels={enabledModels}
                       providers={providers}
+                      isModelRestricted={isModelRestricted}
                     />
                   </div>
                 </div>
@@ -614,6 +628,7 @@ const DefaultModelSection = memo(() => {
                         onChange={handleRoutingReasoningModelChange}
                         enabledModels={enabledModels}
                         providers={providers}
+                        isModelRestricted={isModelRestricted}
                       />
                     </div>
                     {defaultModelConfig.routingConfig?.reasoningModel?.primary && (
@@ -642,6 +657,7 @@ const DefaultModelSection = memo(() => {
                       onChange={handleRoutingReasoningModelFallbackChange}
                       enabledModels={enabledModels}
                       providers={providers}
+                      isModelRestricted={isModelRestricted}
                     />
                   </div>
                 </div>

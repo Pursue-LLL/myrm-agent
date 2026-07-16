@@ -220,4 +220,68 @@ describe('buildAgentConfig', () => {
       'mcp-c': [],
     });
   });
+
+  it('maps per-agent routing config when routingEnabled is true', () => {
+    const config = buildAgentConfig(
+      makeAgent({
+        model_selection: {
+          providerId: 'openai',
+          model: 'gpt-4o',
+          routingEnabled: true,
+          lightProviderId: 'openai',
+          lightModel: 'gpt-4o-mini',
+          reasoningProviderId: 'anthropic',
+          reasoningModel: 'claude-4-opus',
+        },
+      }),
+    );
+
+    expect(config.routingConfig).toEqual({
+      enabled: true,
+      lightModel: {
+        primary: { providerId: 'openai', model: 'gpt-4o-mini' },
+        fallback: null,
+      },
+      reasoningModel: {
+        primary: { providerId: 'anthropic', model: 'claude-4-opus' },
+        fallback: null,
+      },
+    });
+  });
+
+  it('maps per-agent routing config when routingEnabled is false (disabled)', () => {
+    const config = buildAgentConfig(
+      makeAgent({
+        model_selection: {
+          providerId: 'openai',
+          model: 'gpt-4o',
+          routingEnabled: false,
+        },
+      }),
+    );
+
+    expect(config.routingConfig).toEqual({
+      enabled: false,
+      lightModel: { primary: null, fallback: null },
+      reasoningModel: { primary: null, fallback: null },
+    });
+  });
+
+  it('returns undefined routingConfig when routingEnabled is not set (use global)', () => {
+    const config = buildAgentConfig(
+      makeAgent({
+        model_selection: {
+          providerId: 'openai',
+          model: 'gpt-4o',
+        },
+      }),
+    );
+
+    expect(config.routingConfig).toBeUndefined();
+  });
+
+  it('returns undefined routingConfig when model_selection is null', () => {
+    const config = buildAgentConfig(makeAgent({ model_selection: null }));
+    expect(config.routingConfig).toBeUndefined();
+  });
 });

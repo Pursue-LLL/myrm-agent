@@ -361,7 +361,7 @@ describe('chatExport', () => {
     it('should include reasoning when requested', () => {
       const message = createMockMessage({ reasoning: 'Deep thought process' });
       const blobSpy = vi.spyOn(globalThis, 'Blob').mockImplementation(function (this: Blob, parts?: BlobPart[]) {
-        (this as { _content: string })._content = parts?.[0]?.toString() ?? '';
+        (this as unknown as { _content: string })._content = parts?.[0]?.toString() ?? '';
         return this;
       } as unknown as typeof Blob);
 
@@ -377,7 +377,7 @@ describe('chatExport', () => {
     it('should not include reasoning when not requested', () => {
       const message = createMockMessage({ reasoning: 'Secret thoughts' });
       const blobSpy = vi.spyOn(globalThis, 'Blob').mockImplementation(function (this: Blob, parts?: BlobPart[]) {
-        (this as { _content: string })._content = parts?.[0]?.toString() ?? '';
+        (this as unknown as { _content: string })._content = parts?.[0]?.toString() ?? '';
         return this;
       } as unknown as typeof Blob);
 
@@ -396,7 +396,7 @@ describe('chatExport', () => {
       ];
       const message = createMockMessage({ sources });
       const blobSpy = vi.spyOn(globalThis, 'Blob').mockImplementation(function (this: Blob, parts?: BlobPart[]) {
-        (this as { _content: string })._content = parts?.[0]?.toString() ?? '';
+        (this as unknown as { _content: string })._content = parts?.[0]?.toString() ?? '';
         return this;
       } as unknown as typeof Blob);
 

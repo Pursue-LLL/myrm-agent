@@ -6,8 +6,10 @@
 import {
   formatDuration,
   formatUsd,
+  type AgentInfo,
   type ExportData,
   type ExportMessage,
+  type ToolCallDetail,
   type ToolSummary,
   type UsageSummary,
 } from './chatExport';
@@ -139,7 +141,7 @@ async function getMarkdownEngine() {
                   {
                     type: 'raw',
                     value: renderWidgetIframe(codeText),
-                  } as ElementContent,
+                  } as unknown as ElementContent,
                 ];
                 return;
               }
@@ -148,7 +150,7 @@ async function getMarkdownEngine() {
               node.tagName = 'div';
               node.properties = { className: ['code-block'] };
               node.children = [
-                { type: 'raw', value: langLabel } as ElementContent,
+                { type: 'raw', value: langLabel } as unknown as ElementContent,
                 {
                   type: 'element',
                   tagName: 'pre',
@@ -248,6 +250,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
 .tool-table td{padding:6px 10px;border-bottom:1px solid var(--border)}
 .tool-table tr:last-child td{border-bottom:none;font-weight:700}
 .tool-table .tool-name{font-family:"SF Mono",Menlo,Monaco,"Courier New",monospace;font-size:0.9em}
+.agent-card{display:flex;align-items:center;gap:12px;margin-top:12px;padding:10px 14px;background:var(--stats-bg);border-radius:8px;font-size:0.88em}
+.agent-card .agent-name{font-weight:700;color:var(--fg)}.agent-card .agent-model{background:var(--accent);color:#fff;padding:2px 8px;border-radius:4px;font-size:0.78em;font-weight:600}
+.agent-card .agent-desc{color:var(--muted);font-size:0.85em;margin-top:2px}
+.tool-details{margin-top:8px;font-size:0.82em}
+.tool-details summary{cursor:pointer;color:var(--muted);padding:4px 0;font-weight:600}
+.tool-details summary:hover{color:var(--fg)}
+.tool-details ul{list-style:none;padding:6px 0 0 12px;margin:0;border-left:2px solid var(--border)}
+.tool-details li{padding:3px 0;color:var(--fg);font-family:"SF Mono",Menlo,Monaco,"Courier New",monospace;font-size:0.92em}
+.tool-details .tool-dur{color:var(--muted);font-size:0.9em}
 .footer{text-align:center;padding:20px;color:var(--muted);font-size:0.8em;border-top:1px solid var(--border);margin-top:24px}
 @media(max-width:640px){body{padding:8px}.export-header{padding:14px}.message{padding:12px}.stats{flex-direction:column;gap:6px}}
 @media print{.theme-toggle{display:none}.widget-source{display:none}.code-block,.message{break-inside:avoid}body{max-width:none;padding:0}}
@@ -378,6 +389,38 @@ function renderToolActivityHtml(tools: ToolSummary | null | undefined, labels: H
 </div>`;
 }
 
+function renderAgentCard(agent: AgentInfo | null | undefined, labels: HtmlLabels): string {
+  if (!agent) return '';
+  const modelBadge = agent.model ? `<span class="agent-model">${esc(agent.model)}</span>` : '';
+  const desc = agent.description ? `<div class="agent-desc">${esc(agent.description)}</div>` : '';
+  return `<div class="agent-card">
+<div><span class="agent-name">${esc(agent.name)}</span> ${modelBadge}${desc}</div>
+</div>`;
+}
+
+function renderToolCallDetailsHtml(
+  details: ToolCallDetail[] | null | undefined,
+  turnIndex: number,
+  labels: HtmlLabels,
+): string {
+  if (!details || details.length === 0) return '';
+  const turnCalls = details.filter((d) => d.turnIndex === turnIndex);
+  if (turnCalls.length === 0) return '';
+
+  const totalMs = turnCalls.reduce((sum, d) => sum + (d.durationMs ?? 0), 0);
+  let items = '';
+  for (const tc of turnCalls) {
+    const dur = tc.durationMs != null ? ` <span class="tool-dur">${formatDuration(tc.durationMs)}</span>` : '';
+    const args = tc.argsSummary ? `(${esc(tc.argsSummary)})` : '';
+    items += `<li>${esc(tc.name)}${args}${dur}</li>`;
+  }
+
+  return `<details class="tool-details">
+<summary>${turnCalls.length} ${labels.toolActivity} (${formatDuration(totalMs)})</summary>
+<ul>${items}</ul>
+</details>`;
+}
+
 export async function buildHtmlDocument(
   data: ExportData,
   theme: 'light' | 'dark' = 'light',
@@ -389,15 +432,28 @@ export async function buildHtmlDocument(
   const labels = getLabels(lang);
 
   const renderedMessages: string[] = [];
+  let assistantTurnIndex = 0;
   for (const msg of data.messages) {
     if (!VISIBLE_ROLES.has(msg.role)) continue;
     const htmlContent = await renderMarkdown(msg.content);
-    renderedMessages.push(renderMessageHtml(msg, htmlContent));
+    let msgHtml = renderMessageHtml(msg, htmlContent);
+    if (msg.role === 'assistant') {
+      if (data.toolCallDetails) {
+        const toolDetailsHtml = renderToolCallDetailsHtml(data.toolCallDetails, assistantTurnIndex, labels);
+        if (toolDetailsHtml) {
+          const lastClose = msgHtml.lastIndexOf('</div>');
+          msgHtml = msgHtml.slice(0, lastClose) + toolDetailsHtml + '\n</div>';
+        }
+      }
+      assistantTurnIndex++;
+    }
+    renderedMessages.push(msgHtml);
   }
 
   const themeToggleText = theme === 'dark' ? '☀ Light' : '☾ Dark';
   const usageHtml = renderUsageStats(data.usageSummary, labels);
   const toolActivityHtml = renderToolActivityHtml(data.toolSummary, labels);
+  const agentCardHtml = renderAgentCard(data.agentInfo, labels);
 
   return `<!DOCTYPE html>
 <html lang="${lang}" data-theme="${theme}">
@@ -412,6 +468,7 @@ export async function buildHtmlDocument(
 <button class="theme-toggle" id="theme-toggle">${themeToggleText}</button>
 <div class="export-title">${esc(title)}</div>
 <div class="export-meta">${labels.exported} · ${exportDate}</div>
+${agentCardHtml}
 <div class="stats">
 <div class="stat-item"><span class="stat-label">${labels.msgs}:</span><span class="stat-value">${stats.messageCount}</span></div>
 <div class="stat-item"><span class="stat-label">${labels.user}:</span><span class="stat-value">${stats.userCount}</span></div>

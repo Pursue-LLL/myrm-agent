@@ -11,6 +11,7 @@ import { AgentBrowserConfigSection } from './AgentBrowserConfigSection';
 import {
   ModelBindingSection,
   ModelParamsSection,
+  RoutingOverrideSection,
   MaxIterationsSection,
   WorkspacePolicySection,
   ParallelFissionSection,
@@ -83,6 +84,7 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
     >
       <ModelBindingSection editor={editor} t={t} />
       {editor.modelSelection && <ModelParamsSection editor={editor} t={t} />}
+      {editor.modelSelection && <RoutingOverrideSection editor={editor} t={t} />}
       <MaxIterationsSection editor={editor} t={t} />
       <WorkspacePolicySection editor={editor} t={t} />
       <ParallelFissionSection editor={editor} t={t} />

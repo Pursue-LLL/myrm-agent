@@ -30,6 +30,7 @@ from app.api.internal.agent_interrupt import router as internal_agent_interrupt_
 from app.api.internal.import_agent_profile import router as internal_import_agent_profile_router
 from app.api.internal.import_archive import router as internal_import_archive_router
 from app.api.internal.org_mcp_sync import router as internal_org_mcp_sync_router
+from app.api.internal.org_model_policy_sync import router as internal_org_model_policy_sync_router
 from app.api.internal.skills_killswitch import router as internal_skills_killswitch_router
 from app.api.mem0_compat.router import mem0_compat_router
 from app.api.openai_compat.router import openai_compat_router
@@ -66,6 +67,7 @@ app.include_router(internal_agent_interrupt_router, prefix="/api")
 app.include_router(internal_import_agent_profile_router)
 app.include_router(internal_import_archive_router, prefix="/api")
 app.include_router(internal_org_mcp_sync_router)
+app.include_router(internal_org_model_policy_sync_router)
 app.include_router(internal_skills_killswitch_router)
 app.include_router(openai_compat_router)
 app.include_router(mem0_compat_router)

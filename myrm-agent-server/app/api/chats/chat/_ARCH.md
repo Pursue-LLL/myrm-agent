@@ -14,7 +14,7 @@
 | `core.py` | 模块 | 会话 CRUD 核心：列表（分页/来源/项目过滤）、元数据、创建/更新、Fission 拓扑、session-skills PATCH | ✅ |
 | `fork.py` | 模块 | Fork conversation from specific message index. | ✅ |
 | `handoff.py` | 模块 | Web→Channel handoff API. | ✅ |
-| `messages.py` | 模块 | Full-text search across all chat messages using FTS5. | ✅ |
+| `messages.py` | 模块 | Message search (FTS5), paginated loading, focus-flush, export (metadata + messages + agentInfo + toolCallDetails + usageSummary + toolSummary). | ✅ |
 | `sandbox.py` | 模块 | Chat sandbox session management (enable/disable/merge/status/diff). Git worktree isolation for agent experimentation. | ✅ |
 | `title.py` | 模块 | if not chat_id.strip(): | ✅ |
 | `trash.py` | 模块 | Chat trash (recycle bin) API endpoints. | ✅ |

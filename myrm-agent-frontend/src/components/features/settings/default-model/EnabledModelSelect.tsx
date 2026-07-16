@@ -25,10 +25,11 @@ interface EnabledModelSelectProps {
   enabledModels: EnabledModel[];
   providers: ProviderConfig[];
   placeholder?: string;
+  isModelRestricted?: (modelName: string) => boolean;
 }
 
 const EnabledModelSelect = memo<EnabledModelSelectProps>(
-  ({ label, value, onChange, enabledModels, providers, placeholder }) => {
+  ({ label, value, onChange, enabledModels, providers, placeholder, isModelRestricted }) => {
     const t = useTranslations('settings.defaultModel');
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
@@ -192,19 +193,25 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
                     {models.map((model) => {
                       const isSelected = value?.providerId === provider.id && value?.model === model;
                       const capabilities = modelCapabilities[model];
+                      const restricted = isModelRestricted?.(model) ?? false;
                       return (
                         <button
                           key={`${provider.id}-${model}`}
                           type="button"
-                          onClick={() => handleSelect(provider.id, model)}
+                          onClick={() => !restricted && handleSelect(provider.id, model)}
+                          disabled={restricted}
                           className={cn(
-                            'flex items-center w-full pl-9 pr-3 py-2.5 text-sm hover:bg-accent transition-colors cursor-pointer gap-2',
-                            isSelected && 'bg-primary/10 text-primary',
+                            'flex items-center w-full pl-9 pr-3 py-2.5 text-sm transition-colors gap-2',
+                            restricted
+                              ? 'opacity-40 cursor-not-allowed'
+                              : 'hover:bg-accent cursor-pointer',
+                            isSelected && !restricted && 'bg-primary/10 text-primary',
                           )}
+                          title={restricted ? t('modelRestricted', { default: 'Restricted by organization policy' }) : undefined}
                         >
                           <span className="truncate flex-1 text-left">{model}</span>
-                          {/* 能力图标 */}
                           {capabilities && <CapabilityIcons capabilities={capabilities} />}
+                          {restricted && <span className="text-xs text-destructive/70 font-medium">×</span>}
                         </button>
                       );
                     })}

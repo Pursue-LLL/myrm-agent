@@ -146,7 +146,7 @@ async def export_chat(
     chat_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
-    """Export chat metadata, messages, usage summary, and tool activity for client-side formatting."""
+    """Export chat metadata, messages, usage summary, tool activity, and agent info for client-side formatting."""
     try:
         chat = await ChatService.get_chat_metadata(chat_id)
         if not chat:
@@ -183,6 +183,8 @@ async def export_chat(
             )
 
         tool_summary = await _build_tool_summary(chat_id, db)
+        agent_info = await _build_agent_info(chat.agent_id, db)
+        tool_call_details = await _build_tool_call_details(chat_id, db)
 
         return success_response(
             data={
@@ -199,6 +201,8 @@ async def export_chat(
                     "totalUsd": chat.total_usd,
                 },
                 "toolSummary": tool_summary,
+                "agentInfo": agent_info,
+                "toolCallDetails": tool_call_details,
             }
         )
     except HTTPException:
@@ -258,3 +262,112 @@ async def _build_tool_summary(chat_id: str, db: AsyncSession) -> dict[str, objec
         "totalDurationMs": total_ms,
         "toolsUsed": tools_used,
     }
+
+
+async def _build_agent_info(agent_id: str | None, db: AsyncSession) -> dict[str, str | None] | None:
+    """Fetch Agent identity for export (name, model, description)."""
+    if not agent_id:
+        return None
+
+    from sqlalchemy import select
+
+    from app.database.models.agent import Agent
+
+    agent = (await db.execute(select(Agent).where(Agent.id == agent_id))).scalar_one_or_none()
+    if not agent:
+        return None
+
+    model_name: str | None = None
+    if agent.model_selection and isinstance(agent.model_selection, dict):
+        model_name = agent.model_selection.get("model")
+
+    return {
+        "name": agent.name,
+        "model": model_name,
+        "description": agent.description or None,
+    }
+
+
+_SENSITIVE_KEY_PATTERN_PARTS = ("key", "secret", "token", "password", "credential", "auth")
+_ARG_SUMMARY_MAX_LEN = 200
+
+
+def _sanitize_args_summary(payload: dict) -> str:
+    """Extract a truncated, sanitized summary of tool call arguments from event payload."""
+    args = payload.get("arguments") or payload.get("args") or payload.get("input")
+    if not args:
+        return ""
+    if isinstance(args, str):
+        text = args
+    else:
+        parts: list[str] = []
+        items = args.items() if isinstance(args, dict) else []
+        for k, v in items:
+            k_lower = k.lower()
+            if any(pat in k_lower for pat in _SENSITIVE_KEY_PATTERN_PARTS):
+                parts.append(f"{k}=***")
+            else:
+                val_str = str(v) if not isinstance(v, str) else v
+                if len(val_str) > 80:
+                    val_str = val_str[:77] + "..."
+                parts.append(f"{k}={val_str}")
+        text = ", ".join(parts)
+
+    if len(text) > _ARG_SUMMARY_MAX_LEN:
+        return text[: _ARG_SUMMARY_MAX_LEN - 3] + "..."
+    return text
+
+
+async def _build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[str, object]] | None:
+    """Fetch per-tool-call details ordered by execution sequence."""
+    from sqlalchemy import select
+
+    from app.database.models.agent_event import AgentEvent, AgentTurn
+    from app.services.event.types import EventType
+
+    turn_rows = (
+        await db.execute(
+            select(AgentTurn.id, AgentTurn.turn_index)
+            .where(AgentTurn.chat_id == chat_id)
+            .order_by(AgentTurn.turn_index)
+        )
+    ).all()
+
+    if not turn_rows:
+        return None
+
+    turn_ids = [t[0] for t in turn_rows]
+
+    events = (
+        await db.execute(
+            select(
+                AgentEvent.turn_id,
+                AgentEvent.tool_name,
+                AgentEvent.payload,
+                AgentEvent.duration_ms,
+                AgentEvent.event_index,
+            )
+            .where(
+                AgentEvent.turn_id.in_(turn_ids),
+                AgentEvent.tool_name.isnot(None),
+                AgentEvent.event_type == EventType.TOOL_CALL_END.value,
+            )
+            .order_by(AgentEvent.event_index)
+        )
+    ).all()
+
+    if not events:
+        return None
+
+    turn_index_map = {t[0]: t[1] for t in turn_rows}
+
+    details: list[dict[str, object]] = []
+    for turn_id, tool_name, payload, duration_ms, _event_idx in events:
+        details.append({
+            "turnIndex": turn_index_map.get(turn_id, 0),
+            "name": tool_name,
+            "argsSummary": _sanitize_args_summary(payload or {}),
+            "durationMs": duration_ms,
+        })
+
+    return details

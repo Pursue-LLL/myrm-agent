@@ -412,3 +412,126 @@ async def test_export_zero_usage_summary(
     assert usage["totalCalls"] == 0
     assert usage["totalTokens"] == 0
     assert usage["totalUsd"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_export_chat_includes_agent_info(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """Export includes agentInfo when chat is linked to an agent."""
+    from app.database.models.agent import Agent
+    from app.database.models.chat import Chat, Message
+    from app.platform_utils import get_session_factory
+
+    agent_id = f"agent-{uuid.uuid4().hex[:8]}"
+    chat_id = f"test-export-agent-{uuid.uuid4().hex[:8]}"
+
+    from datetime import datetime, timezone
+
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        db.add(Agent(id=agent_id, name="Code Reviewer", description="Reviews code quality", model_selection={"model": "gpt-4o"}))
+        db.add(Chat(id=chat_id, agent_id=agent_id, title="Agent Chat", action_mode="fast", source="web"))
+        db.add(Message(id=f"msg-{uuid.uuid4().hex[:8]}", chat_id=chat_id, role="user", content="Hello", sent_at=datetime.now(tz=timezone.utc), sent_timezone="UTC"))
+        await db.commit()
+
+    res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
+    assert res.status_code == 200, res.text
+
+    agent_info = res.json()["data"]["agentInfo"]
+    assert agent_info is not None
+    assert agent_info["name"] == "Code Reviewer"
+    assert agent_info["model"] == "gpt-4o"
+    assert agent_info["description"] == "Reviews code quality"
+
+
+@pytest.mark.asyncio
+async def test_export_chat_agent_info_null_without_agent(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """agentInfo is null when chat has no linked agent."""
+    chat_id = f"test-export-noagent-{uuid.uuid4().hex[:8]}"
+    await _create_chat_with_messages(chat_id)
+
+    res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
+    assert res.status_code == 200, res.text
+    assert res.json()["data"]["agentInfo"] is None
+
+
+@pytest.mark.asyncio
+async def test_export_chat_includes_tool_call_details(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """Export includes toolCallDetails with per-call name, argsSummary, durationMs."""
+    from app.database.models.agent_event import AgentEvent, AgentTurn
+    from app.platform_utils import get_session_factory
+    from app.services.event.types import EventType
+
+    chat_id = f"test-export-details-{uuid.uuid4().hex[:8]}"
+    await _create_chat_with_messages(chat_id)
+
+    turn_id = f"turn-{uuid.uuid4().hex[:8]}"
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        db.add(AgentTurn(id=turn_id, chat_id=chat_id, turn_index=0, status="completed"))
+        await db.flush()
+        db.add(AgentEvent(
+            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
+            event_type=EventType.TOOL_CALL_END.value, level="info", event_index=0,
+            payload={"arguments": {"path": "/src/utils.ts"}},
+            tool_name="read_file", duration_ms=120,
+        ))
+        db.add(AgentEvent(
+            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
+            event_type=EventType.TOOL_CALL_END.value, level="info", event_index=1,
+            payload={"arguments": {"pattern": "useEffect", "path": "src/"}},
+            tool_name="grep_search", duration_ms=350,
+        ))
+        await db.commit()
+
+    res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
+    assert res.status_code == 200, res.text
+
+    details = res.json()["data"]["toolCallDetails"]
+    assert details is not None
+    assert len(details) == 2
+    assert details[0]["name"] == "read_file"
+    assert details[0]["turnIndex"] == 0
+    assert details[0]["durationMs"] == 120
+    assert "path=/src/utils.ts" in details[0]["argsSummary"]
+    assert details[1]["name"] == "grep_search"
+
+
+@pytest.mark.asyncio
+async def test_export_tool_call_details_sanitizes_sensitive_args(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """Tool call argsSummary redacts fields containing 'key', 'secret', 'token'."""
+    from app.database.models.agent_event import AgentEvent, AgentTurn
+    from app.platform_utils import get_session_factory
+    from app.services.event.types import EventType
+
+    chat_id = f"test-export-sanitize-{uuid.uuid4().hex[:8]}"
+    await _create_chat_with_messages(chat_id)
+
+    turn_id = f"turn-{uuid.uuid4().hex[:8]}"
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        db.add(AgentTurn(id=turn_id, chat_id=chat_id, turn_index=0, status="completed"))
+        await db.flush()
+        db.add(AgentEvent(
+            id=f"evt-{uuid.uuid4().hex[:8]}", turn_id=turn_id,
+            event_type=EventType.TOOL_CALL_END.value, level="info", event_index=0,
+            payload={"arguments": {"api_key": "sk-1234secret", "url": "https://example.com"}},
+            tool_name="http_request", duration_ms=200,
+        ))
+        await db.commit()
+
+    res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
+    assert res.status_code == 200, res.text
+
+    details = res.json()["data"]["toolCallDetails"]
+    assert len(details) == 1
+    assert "sk-1234secret" not in details[0]["argsSummary"]
+    assert "***" in details[0]["argsSummary"]
+    assert "https://example.com" in details[0]["argsSummary"]

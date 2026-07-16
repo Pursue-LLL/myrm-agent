@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-`AgentEditPanel` 各配置 Tab 的子组件。per-agent 设置 UI，不含路由逻辑。
+`AgentEditPanel` 各配置 Tab 的子组件。per-agent 设置 UI，含 per-agent Smart Routing 覆盖配置。
 
 ## 文件清单
 
@@ -10,7 +10,7 @@
 |------|------|
 | `AgentBasicInfoTab.tsx` | 名称、描述、头像等基础信息 |
 | `AgentCapabilitiesTab.tsx` | 模型绑定、引擎参数、共识、会话策略等能力 Tab 入口 |
-| `AgentCapabilitiesTabSections.tsx` | 能力 Tab 基础区段（模型/迭代/工作区/引擎参数） |
+| `AgentCapabilitiesTabSections.tsx` | 能力 Tab 基础区段（模型/路由覆盖/迭代/工作区/引擎参数） |
 | `AgentCapabilitiesConsensusSection.tsx` | 多模型共识配置区段 |
 | `AgentCapabilitiesSessionSection.tsx` | 会话策略区段 |
 | `AgentInstinctInboxTab.tsx` | **Agent Draft Inbox（洞察 tab）**：审阅后台 growth `skill_draft`，走 `/skills/drafts` API |

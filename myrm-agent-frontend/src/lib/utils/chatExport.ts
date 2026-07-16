@@ -40,11 +40,26 @@ export interface UsageSummary {
   totalUsd: number;
 }
 
+export interface AgentInfo {
+  name: string;
+  model: string | null;
+  description: string | null;
+}
+
+export interface ToolCallDetail {
+  turnIndex: number;
+  name: string;
+  argsSummary: string;
+  durationMs: number | null;
+}
+
 export interface ExportData {
   chat: ExportChat;
   messages: ExportMessage[];
   toolSummary?: ToolSummary | null;
   usageSummary?: UsageSummary | null;
+  agentInfo?: AgentInfo | null;
+  toolCallDetails?: ToolCallDetail[] | null;
 }
 
 const VISIBLE_ROLES = new Set(['user', 'assistant']);
@@ -117,8 +132,18 @@ function buildSummarySection(data: ExportData): string[] {
 
 export function formatChatAsMarkdown(data: ExportData): string {
   const title = data.chat.title || 'Untitled';
-  const lines: string[] = [`# ${title}`, '', `> Exported from Myrm · ${new Date().toLocaleString()}`, '', '---', ''];
+  const lines: string[] = [`# ${title}`, '', `> Exported from Myrm · ${new Date().toLocaleString()}`, ''];
 
+  if (data.agentInfo) {
+    const a = data.agentInfo;
+    const parts = [`> **Agent**: ${a.name}`];
+    if (a.model) parts.push(`· Model: ${a.model}`);
+    lines.push(parts.join(' '));
+    if (a.description) lines.push(`> ${a.description}`);
+    lines.push('');
+  }
+
+  lines.push('---', '');
   lines.push(...buildSummarySection(data));
 
   for (const msg of data.messages) {
@@ -145,9 +170,11 @@ export function formatChatAsJson(data: ExportData): string {
       title: data.chat.title,
       source: data.chat.source,
       exportedAt: new Date().toISOString(),
+      ...(data.agentInfo ? { agentInfo: data.agentInfo } : {}),
       messages: data.messages,
       ...(data.usageSummary ? { usageSummary: data.usageSummary } : {}),
       ...(data.toolSummary ? { toolSummary: data.toolSummary } : {}),
+      ...(data.toolCallDetails ? { toolCallDetails: data.toolCallDetails } : {}),
     },
     null,
     2,
