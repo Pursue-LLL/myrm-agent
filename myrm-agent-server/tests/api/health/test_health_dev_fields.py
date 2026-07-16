@@ -26,12 +26,14 @@ def test_health_includes_runtime_dev_fields() -> None:
 
 def test_health_uses_isolated_frontend_port(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MYRM_FRONTEND_PORT", "13000")
+    monkeypatch.setenv("MYRM_RUNTIME_NAMESPACE", "runtime-health-test")
     set_runtime_listen(port=18080, host="127.0.0.1", dev_mode="split_dev")
 
     body = TestClient(app).get("/api/v1/health").json()
 
     assert body["backend_port"] == 18080
     assert body["webui_dev_port"] == 13000
+    assert body["runtime_id"] == "runtime-health-test"
 
 
 def test_health_standalone_webui_ports() -> None:

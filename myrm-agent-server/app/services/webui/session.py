@@ -14,6 +14,8 @@ WebUI browser session signing (HMAC cookie, local/remote single-tenant only).
 from __future__ import annotations
 
 import base64
+import os
+import re
 import binascii
 import hashlib
 import hmac
@@ -27,7 +29,20 @@ from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-SESSION_COOKIE_NAME = "myrm_webui_session"
+_DEFAULT_SESSION_COOKIE_NAME = "myrm_webui_session"
+_COOKIE_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def _session_cookie_name() -> str:
+    configured = os.environ.get("WEBUI_SESSION_COOKIE_NAME", "").strip()
+    if not configured:
+        return _DEFAULT_SESSION_COOKIE_NAME
+    if not _COOKIE_NAME_RE.fullmatch(configured):
+        raise RuntimeError("WEBUI_SESSION_COOKIE_NAME must be 1-64 URL-safe characters")
+    return configured
+
+
+SESSION_COOKIE_NAME = _session_cookie_name()
 SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
 REMOTE_IDLE_TTL_SECONDS = 60 * 30
 _KEY_FILE = Path("webui") / "session_key"

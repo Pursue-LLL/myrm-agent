@@ -83,7 +83,6 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "migration_discovery": _RouterMount("app.api.migration.discovery", tags=("migration",)),
     "migration_upload": _RouterMount("app.api.migration.upload", tags=("migration",)),
     "migrations": _RouterMount("app.api.skills.migrations", tags=("migrations",)),
-    "reviews": _RouterMount("app.api.skills.reviews", tags=("reviews",)),
     "memory": _RouterMount("app.api.memory.router", prefix="/memory", tags=("memory",)),
     "context_bundle": _RouterMount("app.api.context.router", tags=("context-bundle",)),
     "wiki": _RouterMount("app.api.wiki", prefix="/wiki", tags=("wiki",)),
@@ -185,7 +184,7 @@ PRESETS: dict[str, tuple[str, ...]] = {
         "chats",
         "files",
     ),
-    "skills_api": ("skills", "skill_growth", "skill_quality", "evolution", "experience_ledger", "migrations", "migration_discovery", "reviews"),
+    "skills_api": ("skills", "skill_growth", "skill_quality", "evolution", "experience_ledger", "migrations", "migration_discovery"),
     "agent_with_skills": (
         "agents_general",
         "agents_subagents",
@@ -204,7 +203,6 @@ PRESETS: dict[str, tuple[str, ...]] = {
         "skill_quality",
     ),
     "migrations_api": ("migrations", "migration_discovery", "migration_upload", "skills", "memory"),
-    "review_inbox": ("approvals", "skills", "evolution", "reviews", "migrations"),
     "webui_only": (),
 }
 
@@ -344,8 +342,6 @@ def preset_for_test_path(relative_path: str) -> str | None:
         return "migrations_api"
     if path == "tests/api/test_conversation_formatter_e2e.py":
         return "chats"
-    if path == "tests/api/test_review_inbox.py":
-        return "review_inbox"
     if path == "tests/api/test_health_websocket_feature.py":
         return "health"
     if path.startswith("tests/e2e/test_public_ingress"):

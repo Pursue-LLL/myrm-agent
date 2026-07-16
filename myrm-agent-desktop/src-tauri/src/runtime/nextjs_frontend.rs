@@ -1,4 +1,15 @@
 //! Next.js Standalone 前端进程管理（Tauri 桌面始终自启）
+//!
+//! [INPUT]
+//! - config::FrontendConfig (POS: webui_port 与 standalone 资源路径)
+//! - runtime::port::is_port_in_use (POS: 启动前端端口冲突检测)
+//! - runtime::TOXIC_ENV_VARS (POS: 子进程环境清洗)
+//!
+//! [OUTPUT]
+//! - NextJSFrontend: start/stop Standalone Server 子进程
+//!
+//! [POS]
+//! Tauri 启动时 Next.js Standalone 进程生命周期管理（始终自启，与 enable_webui_mode 无关）。
 
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};

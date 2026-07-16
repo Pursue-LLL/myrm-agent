@@ -14,7 +14,7 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 )
 from sqlalchemy import delete, select
 
-from app.api.memory.utils import get_crud_memory_manager, get_memory_manager
+from app.api.memory.utils import get_memory_manager, get_optional_memory_manager
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord, Base, ExperienceLedgerEvent, PendingMigration
 from tests.support.minimal_app import build_minimal_app
@@ -60,7 +60,7 @@ async def cleanup_rows() -> None:
 async def async_client():
     fake_crud = FakeCrudMemoryManager()
     app.dependency_overrides[get_memory_manager] = lambda: FakeMemoryManager()
-    app.dependency_overrides[get_crud_memory_manager] = lambda: fake_crud
+    app.dependency_overrides[get_optional_memory_manager] = lambda: fake_crud
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client, fake_crud
     app.dependency_overrides.clear()
@@ -105,7 +105,7 @@ async def test_review_approve_migration_writes_domain_and_review_events(async_cl
         db.add(pending)
         await db.commit()
 
-    response = await client.post(f"/api/v1/reviews/migration/{pending.id}/approve")
+    response = await client.post(f"/api/v1/migrations/pending/{pending.id}/approve")
     assert response.status_code == 200
     fake_crud.import_memories.assert_awaited_once()
 

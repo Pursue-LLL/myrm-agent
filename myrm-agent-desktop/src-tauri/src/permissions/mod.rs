@@ -1,9 +1,14 @@
 //! 权限管理器模块
 //!
-//! 实现三级权限控制（借鉴 craft-agents）：
-//! - Explore: 只读模式，阻止所有写操作
-//! - Ask: 询问模式，危险操作需用户确认（默认）
-//! - Auto: 自动模式，自动批准（危险命令除外）
+//! [INPUT]
+//! - cli_agent_types::PermissionMode (POS: Explore/Ask/Auto 三级模式)
+//! - Agent Runner permission.request 事件（经 commands/agent IPC）
+//!
+//! [OUTPUT]
+//! - PermissionManager: 危险命令黑名单与模式循环决策
+//!
+//! [POS]
+//! CLI 可视化权限决策层；Explore 只读 / Ask 确认 / Auto 自动（危险命令除外）。
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

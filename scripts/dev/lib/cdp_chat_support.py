@@ -8,6 +8,10 @@ import re
 import time
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
+
+_E2E_RUNTIME_BINDING_PREFIX = "myrm-e2e-v1:"
+_E2E_RUNTIME_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
 
 def get_e2e_api_url() -> str:
     return os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
@@ -22,8 +26,54 @@ def resolve_e2e_api_base(api_base: str | None = None) -> str:
     return (api_base or os.getenv("E2E_API_BASE", "")).strip().rstrip("/")
 
 
+def e2e_runtime_binding(api_base: str | None = None) -> dict[str, object] | None:
+    """Return a validated page-local private Backend binding."""
+    base = resolve_e2e_api_base(api_base)
+    runtime_id = os.getenv("MYRM_E2E_PRIVATE_RUNTIME_ID", "").strip()
+    run_id = os.getenv("MYRM_E2E_RUN_ID", "").strip()
+    ui_base = get_e2e_ui_url()
+    if not base or not runtime_id or not run_id:
+        return None
+    if not _E2E_RUNTIME_ID_RE.fullmatch(runtime_id) or not _E2E_RUNTIME_ID_RE.fullmatch(run_id):
+        raise RuntimeError("E2E runtime/run identity contains unsupported characters")
+    api = urlsplit(base)
+    ui = urlsplit(ui_base)
+    loopback_hosts = {"127.0.0.1", "localhost"}
+    if (
+        api.scheme not in {"http", "https"}
+        or ui.scheme not in {"http", "https"}
+        or api.hostname not in loopback_hosts
+        or ui.hostname not in loopback_hosts
+        or not api.port
+        or not ui.port
+    ):
+        raise RuntimeError("E2E runtime binding only permits explicit loopback HTTP origins")
+    return {
+        "version": 1,
+        "runId": run_id,
+        "runtimeId": runtime_id,
+        "apiBase": f"{api.scheme}://{api.hostname}:{api.port}",
+        "uiOrigin": f"{ui.scheme}://{ui.hostname}:{ui.port}",
+    }
+
+
+def e2e_runtime_binding_source(api_base: str | None = None) -> str | None:
+    binding = e2e_runtime_binding(api_base)
+    if binding is None:
+        return None
+    name = _E2E_RUNTIME_BINDING_PREFIX + json.dumps(binding, separators=(",", ":"))
+    return (
+        f"window.name = {json.dumps(name)};"
+        f"window.__MYRM_E2E_RUNTIME__ = Object.freeze({json.dumps(binding)});"
+        f"window.__MYRM_E2E_API_BASE__ = {json.dumps(binding['apiBase'])};"
+    )
+
+
 def e2e_api_base_persist_source(api_base: str | None = None) -> str | None:
     """JS source for Page.addScriptToEvaluateOnNewDocument (survives hard navigation)."""
+    runtime_source = e2e_runtime_binding_source(api_base)
+    if runtime_source is not None:
+        return runtime_source
     base = resolve_e2e_api_base(api_base)
     if not base:
         return None
@@ -32,6 +82,11 @@ def e2e_api_base_persist_source(api_base: str | None = None) -> str | None:
 
 
 def e2e_api_base_inject_js(api_base: str | None = None) -> str:
+    runtime_source = e2e_runtime_binding_source(api_base)
+    if runtime_source is not None:
+        binding = e2e_runtime_binding(api_base)
+        assert binding is not None
+        return f"(() => {{{runtime_source} return {{ ok: true, base: {json.dumps(binding['apiBase'])}, runtimeId: {json.dumps(binding['runtimeId'])} }}; }})()"
     base = resolve_e2e_api_base(api_base)
     if not base:
         return "(() => ({ ok: false, err: 'no-api-base' }))()"
@@ -420,4 +475,3 @@ def count_execution_cache_in_log(*, since_offset: int) -> tuple[int, int]:
     created = text.count("execution_cache_created")
     reused = text.count("execution_cache_reuse")
     return created, reused
-

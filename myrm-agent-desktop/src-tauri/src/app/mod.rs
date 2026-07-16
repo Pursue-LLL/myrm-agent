@@ -1,4 +1,14 @@
 //! Tauri 应用构建与运行入口。
+//!
+//! [INPUT]
+//! - commands / config / runtime / utils 各模块 (POS: IPC 与 Sidecar 编排)
+//! - tauri::Builder 插件链 (shell, updater, global-shortcut, window-state 等)
+//!
+//! [OUTPUT]
+//! - run(): 桌面应用主循环与 generate_handler IPC 注册表
+//!
+//! [POS]
+//! Tauri Builder 组装层唯一入口；main.rs 仅委托本模块。
 
 mod lifecycle;
 mod linux_gpu;

@@ -70,7 +70,6 @@ from app.api.skills.experience_ledger import router as experience_ledger_router
 from app.api.skills.growth import router as skill_growth_router
 from app.api.skills.migrations import router as migrations_router
 from app.api.skills.quality import router as skill_quality_router
-from app.api.skills.reviews import router as reviews_router
 from app.api.skills.ws_evolution import router as evolution_ws_router
 from app.api.statistics import build_statistics_router
 from app.api.stt.router import router as stt_router
@@ -136,7 +135,6 @@ api_router.include_router(experience_ledger_router, tags=["experience-ledger"])
 api_router.include_router(migration_discovery_router, tags=["migration"])
 api_router.include_router(migration_upload_router, tags=["migration"])
 api_router.include_router(migrations_router, tags=["migrations"])
-api_router.include_router(reviews_router, tags=["reviews"])
 api_router.include_router(skill_optimization_router, tags=["skill-optimization"])
 api_router.include_router(batch_optimization_router, tags=["batch-optimization"])
 api_router.include_router(credentials_router, prefix="/credentials", tags=["credentials"])

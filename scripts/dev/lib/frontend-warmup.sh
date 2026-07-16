@@ -3,6 +3,12 @@
 # Sourced by dev-stack.sh; do not execute directly.
 set -euo pipefail
 
+_MYRM_WARMUP_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if ! declare -f myrm_chrome_e2e_launch_background >/dev/null 2>&1; then
+  # shellcheck source=../myrm-chrome-e2e-lib.sh
+  source "${_MYRM_WARMUP_LIB_DIR}/../myrm-chrome-e2e-lib.sh"
+fi
+
 FRONTEND_WARM_STREAK="${MYRM_FRONTEND_WARM_STREAK:-2}"
 FRONTEND_WARM_MAX_SEC="${MYRM_FRONTEND_WARM_MAX_SEC:-180}"
 FRONTEND_WARM_FAST_SEC="${MYRM_FRONTEND_WARM_FAST_SEC:-2}"
@@ -292,6 +298,13 @@ _warmup_frontend_client() {
   fi
 
   local py="${PREFLIGHT_PY:-python3}"
+  local saved_frontmost_pid=""
+  local dev_dir="${lib_dir%/lib}"
+  if myrm_chrome_e2e_launch_background 2>/dev/null; then
+    saved_frontmost_pid="$(myrm_chrome_e2e_save_frontmost_pid)"
+    export MYRM_CHROME_E2E_SAVED_FRONTMOST_PID="${saved_frontmost_pid}"
+    export MYRM_CHROME_E2E_SUPPRESS_UI_SCRIPT="${dev_dir}/myrm-chrome-e2e-suppress-ui.sh"
+  fi
   echo "STACK_WAIT: frontend client hydration via CDP (up to ${MYRM_CLIENT_WARMUP_TIMEOUT_SEC:-120}s)..." >&2
   if ! "${py}" "${warmup_py}" \
     --cdp-port "${cdp_port}" \
@@ -302,6 +315,10 @@ _warmup_frontend_client() {
   fi
 
   _frontend_save_client_warmth
+  if [[ -f "${dev_dir}/myrm-chrome-e2e-suppress-ui.sh" ]]; then
+    MYRM_CHROME_E2E_SAVED_FRONTMOST_PID="${saved_frontmost_pid}" \
+      bash "${dev_dir}/myrm-chrome-e2e-suppress-ui.sh" >/dev/null 2>&1 || true
+  fi
   echo "STACK_OK: frontend client_hot (CDP hydration)"
   return 0
 }

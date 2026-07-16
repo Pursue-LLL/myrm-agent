@@ -94,6 +94,7 @@ case "$COMMAND" in
         fi
         rm -f "$(dev_backend_pid_file)"
         cleanup_legacy_dev_artifacts "${SERVER_DIR}" "${FRONTEND_DIR}"
+        prune_stale_isolated_next_dirs "${FRONTEND_DIR}"
         pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN" | awk '{print $2}')
         if [[ -n "$pids" ]]; then
             kill $pids 2>/dev/null || true

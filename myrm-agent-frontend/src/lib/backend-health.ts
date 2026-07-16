@@ -14,6 +14,7 @@ export interface BackendSystemStatusPayload {
 
 export interface BackendHealthPayload {
   status: string;
+  runtime_id?: string;
   dev_mode?: BackendDevMode;
   listen_port?: number;
   listen_host?: string;

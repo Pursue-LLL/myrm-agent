@@ -135,14 +135,36 @@ resolve_frontend_lock_path() {
 cleanup_legacy_dev_artifacts() {
   local server_dir="${1:-}"
   local frontend_dir="${2:-}"
+  local agent_root=""
   if [[ -n "${server_dir}" ]]; then
     rm -f "${server_dir}/.myrm-dev-backend.pid" "${server_dir}/.myrm-dev-backend.log"
-    local agent_root
     agent_root="$(dirname "${server_dir}")"
     rm -f "${agent_root}/.myrm-dev-backend.pid" "${agent_root}/.myrm-dev-backend.log"
   fi
   if [[ -n "${frontend_dir}" ]]; then
     rm -f "${frontend_dir}/.myrm-dev-frontend.pid" "${frontend_dir}/.myrm-dev-frontend.log" \
       "${frontend_dir}/.myrm-dev-frontend-fg.log"
+    [[ -n "${agent_root}" ]] || agent_root="$(dirname "${frontend_dir}")"
   fi
+  if [[ -n "${agent_root}" && -d "${agent_root}/scripts/dev" ]]; then
+    rm -rf "${agent_root}/scripts/dev/myrm-agent-server" "${agent_root}/scripts/dev/myrm-agent-frontend"
+  fi
+}
+
+prune_stale_isolated_next_dirs() {
+  local frontend_dir="${1:-}"
+  [[ -n "${frontend_dir}" && -d "${frontend_dir}" ]] || return 0
+  local active_dist
+  active_dist="$(resolve_myrm_next_dist_dir)"
+  local entry name
+  shopt -s nullglob
+  for entry in "${frontend_dir}"/.next-isolated-*; do
+    [[ -d "${entry}" ]] || continue
+    name="$(basename "${entry}")"
+    [[ "${name}" == "${active_dist}" ]] && continue
+    if [[ -z "$(find "${entry}" -mindepth 1 -print -quit 2>/dev/null)" ]]; then
+      rmdir "${entry}" 2>/dev/null || true
+    fi
+  done
+  shopt -u nullglob
 }

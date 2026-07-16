@@ -1,5 +1,14 @@
 # commands 模块架构
 
+[INPUT]
+- runtime / agent_runner_rpc / sessions / permissions / config / utils
+
+[OUTPUT]
+- Tauri invoke IPC 命令（前端 ↔ Rust）
+
+[POS]
+Tauri IPC 薄封装层；业务逻辑委托 runtime 与子模块。
+
 ## 架构概述
 
 Tauri `invoke` IPC 命令层：薄封装转发到 runtime、agent_runner_rpc、sessions、utils。
@@ -12,10 +21,7 @@ Tauri `invoke` IPC 命令层：薄封装转发到 runtime、agent_runner_rpc、s
 |------|------|------|-------|
 | `mod.rs` | 核心 | 子模块聚合与 re-export | — |
 | `config.rs` | 核心 | 系统配置读写、快捷键、数据目录迁移 | — |
-| `agent/mod.rs` | 核心 | CLI Agent 会话与消息 IPC | — |
-| `agent/session.rs` | 核心 | 会话 CRUD IPC | — |
-| `agent/message.rs` | 核心 | 消息发送/停止 IPC | — |
-| `agent/permission.rs` | 核心 | 权限模式 IPC | — |
+| `agent/` | 核心 | CLI Agent IPC → [agent/_ARCH.md](agent/_ARCH.md) | — |
 | `power.rs` | 核心 | 电源锁 IPC（委托 `utils/power`） | — |
 | `screen_lock.rs` | 核心 | 锁屏 IPC（委托 `utils/screen_lock`） | — |
 | `pet_overlay.rs` | 核心 | 桌面宠物 overlay 窗口 | — |

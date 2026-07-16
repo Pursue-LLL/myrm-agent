@@ -1,5 +1,15 @@
 # app 模块架构
 
+[INPUT]
+- commands / runtime / config / utils 各模块
+- Tauri Builder 插件注册表
+
+[OUTPUT]
+- run(): 应用主循环、IPC handler、托盘、优雅停机
+
+[POS]
+Tauri 应用组装层；main.rs 唯一委托目标。
+
 ## 架构概述
 
 Tauri 应用组装层：插件注册、全局快捷键分发、`setup` 钩子、窗口事件、IPC handler 清单、托盘与优雅停机。

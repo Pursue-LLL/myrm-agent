@@ -1,6 +1,13 @@
 //! Tauri 命令模块
 //!
-//! IPC 命令按子模块组织；`app/mod.rs` 的 `generate_handler` 使用叶子模块路径注册。
+//! [INPUT]
+//! - runtime / agent_runner_rpc / sessions / permissions / config / utils 各子模块
+//!
+//! [OUTPUT]
+//! - 子模块 IPC 命令聚合（由 app/mod.rs generate_handler 注册叶子路径）
+//!
+//! [POS]
+//! Tauri invoke 命令层模块根；叶子清单见 `_ARCH.md` 与各子目录 _ARCH。
 
 pub mod agent;
 pub mod config;

@@ -137,7 +137,10 @@ def _needs_browser_singleton_reset(request: pytest.FixtureRequest) -> bool:
         return True
     if request.node.get_closest_marker("integration") is not None:
         return True
-    return request.node.get_closest_marker("e2e") is not None
+    return (
+        request.node.get_closest_marker("e2e") is not None
+        or request.node.get_closest_marker("chrome_e2e") is not None
+    )
 
 
 @pytest.fixture(scope="session")
@@ -215,9 +218,49 @@ async def _reset_global_browser_pool_after_test(request: pytest.FixtureRequest) 
 
 
 @pytest.fixture(autouse=True)
-def _require_live_e2e_lease(request: pytest.FixtureRequest) -> Iterator[None]:
+def _chrome_e2e_item_runtime(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[object | None]:
+    """Give each formal Chrome item its own private Backend and data directories."""
+    marker = request.node.get_closest_marker("chrome_e2e")
+    if (
+        marker is None
+        or marker.kwargs.get("private_backend", True) is False
+        or os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1"
+    ):
+        yield None
+        return
+
+    require_e2e_runtime_lease()
+    import sys
+
+    dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
+    if str(dev_infra) not in sys.path:
+        sys.path.insert(0, str(dev_infra))
+    from chrome_e2e_runtime import start_chrome_e2e_runtime
+
+    runtime = start_chrome_e2e_runtime(request.node.nodeid)
+    for key, value in runtime.environment.items():
+        monkeypatch.setenv(key, value)
+    print(
+        "CHROME_E2E_RUNTIME: "
+        f"item={request.node.name} runtime={runtime.runtime_id} "
+        f"api={runtime.api_base} startup={runtime.startup_seconds:.2f}s"
+    )
+    try:
+        yield runtime
+    finally:
+        runtime.close()
+
+
+@pytest.fixture(autouse=True)
+def _require_live_e2e_lease(
+    request: pytest.FixtureRequest,
+    _chrome_e2e_item_runtime: object | None,
+) -> Iterator[None]:
     """Fail live E2E before side effects when Wave ownership is missing or drifts."""
-    if request.node.get_closest_marker("e2e") is None:
+    if request.node.get_closest_marker("chrome_e2e") is None:
         yield
         return
     lease = require_e2e_runtime_lease()
@@ -231,14 +274,18 @@ def _require_live_e2e_lease(request: pytest.FixtureRequest) -> Iterator[None]:
 @pytest.fixture
 def e2e_resource_ledger(request: pytest.FixtureRequest) -> E2EResourceLedger:
     """Register resources created by one live E2E for lease-owned cleanup."""
-    if request.node.get_closest_marker("e2e") is None:
+    if request.node.get_closest_marker("chrome_e2e") is None:
         raise RuntimeError("E2E_LEDGER_REQUIRED: fixture is only valid for e2e tests")
     lease = require_e2e_runtime_lease()
     namespace = os.environ.get("MYRM_E2E_LEDGER_NAMESPACE", "").strip()
     if not namespace:
         namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
         os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
-    return E2EResourceLedger(lease_id=lease.lease_id, namespace=namespace)
+    return E2EResourceLedger(
+        lease_id=lease.lease_id,
+        namespace=namespace,
+        ephemeral_runtime=os.environ.get("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1",
+    )
 
 
 @pytest.hookimpl(hookwrapper=True)

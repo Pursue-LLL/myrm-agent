@@ -29,7 +29,6 @@
 | `permissions.py` | 模块 | Skill Permission Management API | ✅ |
 | `prebuilt.py` | 模块 | Prebuilt skill admin and update management API. | ✅ |
 | `quality.py` | 模块 | Skill Quality Aggregation API | ✅ |
-| `reviews.py` | 模块 | 统一审核收件箱接口层。聚合 memory / evolution / migration 待审项，并负责审核动作的统一对外契约。 | ✅ |
 | `router.py` | 路由 | Skills API router — aggregates all skill-related endpoints. | ✅ |
 | `schemas.py` | 模块 | Skills API request/response schemas. | ✅ |
 | `sync.py` | 模块 | Skill synchronization and backup protocol. | ✅ |

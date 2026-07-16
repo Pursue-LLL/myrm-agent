@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
+import subprocess
 import sys
 import time
 import urllib.error
@@ -69,19 +71,87 @@ def _fetch_json(url: str, *, timeout: float = 10.0, method: str = "GET") -> obje
         return json.loads(response.read().decode("utf-8"))
 
 
-def _create_target(cdp_port: int, page_url: str) -> dict[str, object]:
-    encoded = urllib.request.quote(page_url, safe="")
-    data = _fetch_json(
-        f"http://127.0.0.1:{cdp_port}/json/new?{encoded}",
-        timeout=15.0,
-        method="PUT",
-    )
-    if not isinstance(data, dict):
-        raise RuntimeError("CDP /json/new returned unexpected payload")
-    ws_url = data.get("webSocketDebuggerUrl")
-    if not isinstance(ws_url, str) or not ws_url.startswith("ws://"):
-        raise RuntimeError("CDP target missing webSocketDebuggerUrl")
-    return data
+def _target_from_list(cdp_port: int, target_id: str) -> dict[str, object]:
+    targets = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/list", timeout=10.0)
+    if not isinstance(targets, list):
+        raise RuntimeError("CDP /json/list returned unexpected payload")
+    for entry in targets:
+        if isinstance(entry, dict) and entry.get("id") == target_id:
+            ws_url = entry.get("webSocketDebuggerUrl")
+            if isinstance(ws_url, str) and ws_url.startswith("ws://"):
+                return entry
+    raise RuntimeError(f"CDP target {target_id} missing from /json/list")
+
+
+async def _target_from_list_retry(
+    cdp_port: int, target_id: str, *, attempts: int = 15, delay_sec: float = 0.2
+) -> dict[str, object]:
+    last_error = "unknown"
+    for attempt in range(1, attempts + 1):
+        try:
+            return _target_from_list(cdp_port, target_id)
+        except RuntimeError as exc:
+            last_error = str(exc)
+            if attempt < attempts:
+                await asyncio.sleep(delay_sec)
+    raise RuntimeError(last_error)
+
+
+async def _create_background_target(cdp_port: int, *, initial_url: str = "about:blank") -> dict[str, object]:
+    try:
+        import websockets
+    except ImportError as exc:
+        raise RuntimeError(
+            "websockets package required — run: cd myrm-agent-server && uv sync"
+        ) from exc
+
+    version = _fetch_json(f"http://127.0.0.1:{cdp_port}/json/version", timeout=10.0)
+    if not isinstance(version, dict):
+        raise RuntimeError("CDP /json/version returned unexpected payload")
+    browser_ws = version.get("webSocketDebuggerUrl")
+    if not isinstance(browser_ws, str) or not browser_ws.startswith("ws://"):
+        raise RuntimeError("CDP browser missing webSocketDebuggerUrl")
+
+    msg_id = 1
+    target_id: str | None = None
+    deadline = time.monotonic() + 15.0
+
+    async with websockets.connect(browser_ws, open_timeout=15, max_size=8 * 1024 * 1024) as ws:
+        await ws.send(
+            json.dumps(
+                {
+                    "id": msg_id,
+                    "method": "Target.createTarget",
+                    "params": {"url": initial_url, "background": True},
+                }
+            )
+        )
+        while time.monotonic() < deadline:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            raw = await asyncio.wait_for(ws.recv(), timeout=min(5.0, remaining))
+            response = json.loads(raw)
+            if not isinstance(response, dict):
+                continue
+            if response.get("id") != msg_id:
+                continue
+            if "error" in response:
+                err = response["error"]
+                detail = err.get("message", err) if isinstance(err, dict) else err
+                raise RuntimeError(f"Target.createTarget failed: {detail}")
+            result = response.get("result")
+            if not isinstance(result, dict):
+                raise RuntimeError("Target.createTarget missing result")
+            candidate = result.get("targetId")
+            if isinstance(candidate, str) and candidate:
+                target_id = candidate
+                break
+
+    if target_id is None:
+        raise RuntimeError("Target.createTarget timed out waiting for targetId")
+
+    return await _target_from_list_retry(cdp_port, target_id)
 
 
 async def _cdp_request(
@@ -112,6 +182,30 @@ async def _cdp_request(
             detail = err.get("message", err) if isinstance(err, dict) else err
             raise RuntimeError(f"CDP {method} failed: {detail}")
         return message
+
+
+def _suppress_e2e_chrome_ui() -> None:
+    if os.environ.get("MYRM_CHROME_E2E_FOREGROUND") == "1":
+        return
+    script = os.environ.get("MYRM_CHROME_E2E_SUPPRESS_UI_SCRIPT")
+    if not script:
+        script = str(
+            __import__("pathlib").Path(__file__).resolve().parent.parent
+            / "myrm-chrome-e2e-suppress-ui.sh"
+        )
+    if not os.path.isfile(script):
+        return
+    try:
+        subprocess.run(
+            ["bash", script],
+            env=os.environ.copy(),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
 
 
 async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float, poll_ms: int) -> bool:
@@ -150,6 +244,7 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
                 {"url": page_url},
                 deadline=deadline,
             )
+            _suppress_e2e_chrome_ui()
 
             poll_count = 0
             while time.monotonic() < deadline:
@@ -180,6 +275,7 @@ async def _wait_for_hydration(ws_url: str, page_url: str, *, timeout_sec: float,
                 if value is True:
                     return True
                 if poll_count % 10 == 0:
+                    _suppress_e2e_chrome_ui()
                     try:
                         await _cdp_request(
                             ws,
@@ -249,7 +345,7 @@ async def _run_warmup(
     last_error = "unknown"
     max_attempts = 4
     for attempt in range(1, max_attempts + 1):
-        target = _create_target(cdp_port, page_url)
+        target = await _create_background_target(cdp_port)
         ws_url = str(target["webSocketDebuggerUrl"])
         target_id = target.get("id")
         if not isinstance(target_id, str) or not target_id:

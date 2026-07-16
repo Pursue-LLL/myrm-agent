@@ -1,5 +1,8 @@
 # myrm-agent-desktop 架构
 
+[POS]
+myrm-agent-desktop L1 架构文档。Tauri 桌面壳整体架构、三进程编排与模块导航。
+
 > **许可**: MIT · **父仓**: [myrm-agent/ARCHITECTURE.md](../ARCHITECTURE.md)  
 > **定位**: Tauri 桌面壳 — WebView + 系统 API + Python/Next.js/Agent Runner 三进程编排
 
@@ -36,6 +39,7 @@ flowchart TD
 | `src-tauri/` | Rust 主程序、Tauri 配置、图标 | [src-tauri/src/_ARCH.md](src-tauri/src/_ARCH.md) |
 | `src-tauri/src/runtime/` | Sidecar 编排、Appshot、Watchdog | [src-tauri/src/runtime/_ARCH.md](src-tauri/src/runtime/_ARCH.md) |
 | `src-tauri/src/commands/` | Tauri IPC 命令 | [src-tauri/src/commands/_ARCH.md](src-tauri/src/commands/_ARCH.md) |
+| `src-tauri/src/commands/agent/` | CLI Agent IPC | [src-tauri/src/commands/agent/_ARCH.md](src-tauri/src/commands/agent/_ARCH.md) |
 | `src-tauri/src/agent_runner_rpc/` | Agent Runner JSON-RPC 进程管理 | [src-tauri/src/agent_runner_rpc/_ARCH.md](src-tauri/src/agent_runner_rpc/_ARCH.md) |
 | `src-tauri/src/sessions/` | CLI 会话存储 | [src-tauri/src/sessions/_ARCH.md](src-tauri/src/sessions/_ARCH.md) |
 | `src-tauri/src/permissions/` | Explore/Ask/Auto 权限 | [src-tauri/src/permissions/_ARCH.md](src-tauri/src/permissions/_ARCH.md) |
@@ -43,17 +47,12 @@ flowchart TD
 | `src-tauri/frontend-shell/` | Release WebView 启动轮询页（`withGlobalTauri` + IPC `webui_port`；`frontend-start-failed` 阻断轮询，`backend-start-failed` 仅警告并继续跳转） | [src-tauri/frontend-shell/_ARCH.md](src-tauri/frontend-shell/_ARCH.md) |
 | `sidecar/` | PyInstaller + Bun compile 构建入口 | [sidecar/_ARCH.md](sidecar/_ARCH.md) |
 | `sidecar/agent-runner/` | Agent Runner TypeScript 源码 | [sidecar/agent-runner/_ARCH.md](sidecar/agent-runner/_ARCH.md) |
+| `sidecar/agent-runner/src/` | Agent Runner JSON-RPC 实现 | [sidecar/agent-runner/src/_ARCH.md](sidecar/agent-runner/src/_ARCH.md) |
 | `scripts/` | 构建、验签、分形门禁 | [scripts/_ARCH.md](scripts/_ARCH.md) |
 
 ## Sidecar 命名对照（避免歧义）
 
-| 仓库路径 | 运行时角色 |
-|----------|------------|
-| `sidecar/build.py` | **构建** Python 后端 + Agent Runner 二进制 |
-| `src-tauri/src/runtime/python_backend.rs` | **运行** Python FastAPI Sidecar |
-| `src-tauri/src/agent_runner_rpc/` | **运行** Agent Runner 进程（JSON-RPC stdio） |
-
-详细对照表见 [_ARCH.md](_ARCH.md)。
+完整对照表（构建路径 vs 运行时路径 vs 端口）见 [_ARCH.md § Sidecar 对照表](_ARCH.md#sidecar-对照表避免命名混淆)，避免在本文件重复维护。
 
 ## 技术方案文档
 
@@ -63,7 +62,7 @@ flowchart TD
 
 ## 质量门禁
 
-- `scripts/check-fractal-docs.ts` — `_ARCH.md` 清单 + 核心 `[INPUT]` + Rust 行数预算
+- `scripts/check-fractal-docs.ts` — 必检 `_ARCH [POS]` + 递归目录 `_ARCH` + 核心 `[INPUT]` + Rust 行数预算
 - CI: `.github/workflows/desktop-fractal-docs.yml`（分形文档 + launch contract smoke + `cargo check`）
 - 发版: `scripts/ci/desktop-release/`（monorepo 根）；`build-macos-arm` 含 `smoke-launch-runtime.sh` 运行时烟测
 

@@ -1,5 +1,16 @@
 # sidecar 模块架构
 
+[INPUT]
+- myrm-agent-server/app/main.py（POS: Python 后端入口）
+- sidecar/agent-runner/（POS: Agent Runner TS 源码）
+
+[OUTPUT]
+- src-tauri/binaries/myrmagent-backend-*
+- src-tauri/binaries/agent-runner-*
+
+[POS]
+Sidecar **构建**入口（非运行时）。运行时进程管理在 src-tauri/src/runtime/ 与 agent_runner_rpc/。
+
 ## 架构概述
 
 Tauri Desktop Sidecar 构建入口：PyInstaller 打包 Python 后端 + Bun compile Agent Runner 为独立二进制。

@@ -16,7 +16,7 @@ router.include_router(history_router)
 router.include_router(derive_router)
 router.include_router(fix_router)
 
-# Re-export for callers that import from `app.api.skills.evolution` (e.g. reviews inbox).
+# Re-export for callers that import from `app.api.skills.evolution`.
 from .pending import (  # noqa: E402
     approve_pending_evolution_record,
     count_pending_evolution_records,

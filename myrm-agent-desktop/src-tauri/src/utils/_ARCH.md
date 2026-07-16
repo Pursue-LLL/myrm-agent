@@ -1,5 +1,14 @@
 # utils 模块架构
 
+[INPUT]
+- 平台原生 API（IOKit / Win32 / systemd-inhibit / Keychain）
+
+[OUTPUT]
+- 电源锁、锁屏、隔离修复、OTA pubkey 校验等系统能力
+
+[POS]
+跨平台系统工具封装；由 commands/ IPC 或 app/ 启动期调用。
+
 ## 架构概述
 
 跨平台系统能力封装；由 `commands/` 通过 IPC 暴露给前端，或由 `main`/`runtime` 在启动期调用。

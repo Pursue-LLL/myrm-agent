@@ -45,6 +45,11 @@ export default function LocaleLayout({ children }: { children: React.ReactNode }
         className={cn('min-h-full', fontSans.variable, fontMono.variable)}
         suppressHydrationWarning
       >
+        <Script
+          id="e2e-runtime-bootstrap"
+          src="/e2e-runtime-bootstrap.js"
+          strategy="beforeInteractive"
+        />
         <Script id="theme-pre-init" src="/theme-init.js" strategy="beforeInteractive" />
         <WebVitals />
         <Suspense fallback={<AppShellSkeleton />}>

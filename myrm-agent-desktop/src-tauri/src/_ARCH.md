@@ -1,5 +1,15 @@
 # Tauri Rust 后端
 
+[INPUT]
+- sidecar 二进制（POS: Python Backend + Agent Runner，release 打包产物）
+- myrm-agent-frontend standalone（POS: Next 静态资源 bundle）
+- Tauri 插件链（shell / updater / global-shortcut 等）
+
+[OUTPUT]
+- Tauri IPC 命令面、Sidecar 生命周期、系统 API 封装
+
+[POS]
+src-tauri/src/ Rust 源码根。入口 main.rs → app::run()。
 
 ---
 
@@ -32,13 +42,8 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `runtime/agent_runner.rs` | ✅ 核心 | Agent Runner 路径解析、启动与事件转发 | ✅ |
 | `runtime/port.rs` | ✅ 工具 | 端口占用检测 | ✅ |
 | `config.rs` | ✅ 核心 | 配置管理（`SystemConfig`, `BackendConfig`, `FrontendConfig`），端口管理，含 `appshot_shortcut`、`voice_ptt_shortcut` 和 `appshot_excluded_apps` 隐私黑名单字段 | ✅ |
-| `commands/` | ✅ 核心 | Tauri IPC 命令（config、agent、overlay、recovery） | — |
-| `utils/` | ✅ 工具 | 系统工具封装（`quarantine.rs` 隔离检测, `auth.rs` 原生提权, `power.rs` 智能电源锁防休眠[跨平台RAII, macOS 使用 IOKit 原生 API], `screen_lock.rs` 屏幕锁定管理[检测/解锁/重锁/Keychain], `updater_safety.rs` 启动期 Tauri Updater pubkey 占位符强校验） | ✅ |
-| `commands/visual_approval_overlay.rs` | ✅ 核心 | Tauri OS 视觉审批红框 overlay IPC（screen/image 坐标模式 + 显示器门控） | ✅ |
-| `commands/pet_overlay.rs` | ✅ 核心 | 桌面宠物精灵 overlay（透明置顶窗口 + Canvas 2D 渲染 + emit/listen 事件桥） | ✅ |
-| `commands/power.rs` | ✅ 核心 | 电源管理 IPC 命令（`power_lock_acquire`/`release`/`status`），支持 `prevent_display_sleep` 参数控制显示器保持唤醒 | ✅ |
-| `commands/screen_lock.rs` | ✅ 核心 | 屏幕锁定管理 IPC 命令（`screen_is_locked`/`screen_unlock`/`screen_relock`/`screen_lock_store_password`/`screen_lock_has_password`/`screen_lock_delete_password`/`screen_lock_platform_support`） | ✅ |
-| `commands/session_window.rs` | ✅ 核心 | 会话独立窗口 IPC（`open_session_window`/`close_session_window`）：focused mode 精简 WebviewWindow，无侧边栏，支持重复打开聚焦 | ✅ |
+| `commands/` | ✅ 核心 | Tauri IPC 命令（config、agent、overlay、recovery）→ 叶子清单见 [commands/_ARCH.md](commands/_ARCH.md) | — |
+| `utils/` | ✅ 工具 | 系统工具封装 → 见 [utils/_ARCH.md](utils/_ARCH.md) | — |
 ---
 
 ## 子模块
@@ -51,7 +56,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | **agent_runner_rpc** | `./agent_runner_rpc/` | Agent Runner JSON-RPC 进程管理 | [agent_runner_rpc/_ARCH.md](agent_runner_rpc/_ARCH.md) |
 | **sessions** | `./sessions/` | CLI 会话生命周期 | [sessions/_ARCH.md](sessions/_ARCH.md) |
 | **permissions** | `./permissions/` | Explore/Ask/Auto 权限 | [permissions/_ARCH.md](permissions/_ARCH.md) |
-| **commands** | `./commands/` | Tauri IPC 命令 | [commands/_ARCH.md](commands/_ARCH.md) |
+| **commands** | `./commands/` | Tauri IPC 命令（含 `agent/` 子模块） | [commands/_ARCH.md](commands/_ARCH.md) · [commands/agent/_ARCH.md](commands/agent/_ARCH.md) |
 | **utils** | `./utils/` | 平台系统工具 | [utils/_ARCH.md](utils/_ARCH.md) |
 
 ---

@@ -11,6 +11,16 @@ _wave_new_agent_id() {
   echo "${prefix}:parent-${PPID}"
 }
 
+_wave_reap_stale_lease_state() {
+  local wave="$1"
+  bash "${wave}" reap >/dev/null 2>&1 || true
+  local dev_dir
+  dev_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/scripts/dev"
+  if [[ -f "${dev_dir}/isolated_runtime.py" ]]; then
+    python3 "${dev_dir}/isolated_runtime.py" prune >/dev/null 2>&1 || true
+  fi
+}
+
 _wave_open_if_needed() {
   local wave="$1" agent_id="$2" status_json open_output
   status_json="$(bash "${wave}" status 2>/dev/null || true)"
@@ -55,6 +65,7 @@ _wave_acquire_owned_lease_with_wait() {
   local poll_sec="${MYRM_E2E_LEASE_POLL_SEC:-15}"
   local started_at="$SECONDS"
   local lease_id lease_stderr lease_stderr_path
+  _wave_reap_stale_lease_state "${wave}"
   while true; do
     lease_stderr_path="$(mktemp)"
     if lease_id="$(_wave_acquire_owned_lease "${wave}" "${prefix}" "${lane}" "${namespace}" 2>"${lease_stderr_path}")"; then
@@ -74,6 +85,7 @@ _wave_acquire_owned_lease_with_wait() {
       return 3
     fi
     echo "E2E_LEASE_WAIT: lane=${lane} busy — retry in ${poll_sec}s (elapsed=$((SECONDS - started_at))s)" >&2
+    _wave_reap_stale_lease_state "${wave}"
     sleep "${poll_sec}"
   done
 }

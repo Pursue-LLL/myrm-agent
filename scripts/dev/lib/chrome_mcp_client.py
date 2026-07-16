@@ -16,6 +16,7 @@ from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
+from urllib.parse import urlsplit
 
 from chrome_mcp_errors import (
     is_benign_cleanup_error as _is_benign_cleanup_error,
@@ -26,6 +27,7 @@ from chrome_mcp_errors import (
 )
 from mcp_page_lease_heartbeat import PageLeaseHeartbeat
 from mcp_protocol import parse_evaluate_result, parse_new_page, text_content
+from cdp_chat_support import e2e_runtime_binding, e2e_runtime_binding_source
 
 _CLEANUP_TIMEOUT_SEC = 15.0
 _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = 15.0
@@ -171,8 +173,55 @@ class ChromeMcpClient:
             except Exception as exc:
                 errors.append(exc)
         if errors:
-            for error in errors:
-                logging.warning("Chrome MCP cleanup warning: %s", error)
+            raise ExceptionGroup("Chrome MCP cleanup failed", errors)
+
+    @staticmethod
+    def _runtime_binding_source_for(url: str) -> tuple[str, dict[str, object]] | None:
+        source = e2e_runtime_binding_source()
+        binding = e2e_runtime_binding()
+        if source is None or binding is None:
+            return None
+        target = urlsplit(url)
+        ui = urlsplit(str(binding["uiOrigin"]))
+        if (target.scheme, target.hostname, target.port) != (ui.scheme, ui.hostname, ui.port):
+            return None
+        return source, binding
+
+    def _bind_and_navigate_runtime_page(
+        self,
+        page: McpPage,
+        url: str,
+        binding: tuple[str, dict[str, object]],
+        *,
+        timeout_ms: int,
+    ) -> None:
+        source, expected = binding
+        self.evaluate(page, f"(() => {{{source} return true; }})()")
+        self.navigate(page, url, timeout_ms=timeout_ms)
+        observed = self.evaluate(
+            page,
+            """(async () => {
+              const ready = window.__MYRM_E2E_RUNTIME_READY__;
+              if (!ready) return {ok: false, error: 'runtime-bootstrap-missing'};
+              try {
+                const value = await ready;
+                return {ok: true, runtimeId: value.runtimeId, apiBase: value.apiBase};
+              } catch (error) {
+                return {ok: false, error: String(error)};
+              }
+            })()""",
+            timeout_sec=30.0,
+        )
+        if not isinstance(observed, dict) or observed.get("ok") is not True:
+            raise RuntimeError(f"E2E_RUNTIME_BINDING_FAILED: {observed}")
+        if (
+            observed.get("runtimeId") != expected["runtimeId"]
+            or observed.get("apiBase") != expected["apiBase"]
+        ):
+            raise RuntimeError(
+                "E2E_RUNTIME_MISMATCH: "
+                f"expected={expected['runtimeId']}@{expected['apiBase']} observed={observed}"
+            )
 
     def new_page(
         self,
@@ -186,9 +235,11 @@ class ChromeMcpClient:
             raise ValueError("isolated_context must not be empty")
         lease_id = self._acquire_page_lease()
         page: McpPage | None = None
+        runtime_binding = self._runtime_binding_source_for(url)
         try:
             self._heartbeat_lease(lease_id)
-            arguments: dict[str, object] = {"url": url, "timeout": timeout_ms}
+            initial_url = "about:blank" if runtime_binding is not None else url
+            arguments: dict[str, object] = {"url": initial_url, "timeout": timeout_ms}
             if context_id is not None:
                 arguments["isolatedContext"] = context_id
             result = self.call_tool(
@@ -223,6 +274,13 @@ class ChromeMcpClient:
             self._pages[page_id] = page
             self._disconnected_pages.pop(page_id, None)
             self._page_lease_heartbeat.track(lease_id)
+            if runtime_binding is not None:
+                self._bind_and_navigate_runtime_page(
+                    page,
+                    url,
+                    runtime_binding,
+                    timeout_ms=timeout_ms,
+                )
             return page
         except Exception as exc:
             cleanup_errors: list[str] = []
@@ -380,6 +438,7 @@ class ChromeMcpClient:
 
     def _reopen_owned_page(self, page: McpPage) -> McpPage:
         reopen_url = (page.url or "http://127.0.0.1:3000").strip()
+        runtime_binding = self._runtime_binding_source_for(reopen_url)
         self._pages.pop(page.page_id, None)
         try:
             self.call_tool(
@@ -389,7 +448,8 @@ class ChromeMcpClient:
             )
         except (RuntimeError, TimeoutError):
             pass
-        arguments: dict[str, object] = {"url": reopen_url, "timeout": 120_000}
+        initial_url = "about:blank" if runtime_binding is not None else reopen_url
+        arguments: dict[str, object] = {"url": initial_url, "timeout": 120_000}
         if page.context_id is not None:
             arguments["isolatedContext"] = page.context_id
         result = self.call_tool(
@@ -425,6 +485,13 @@ class ChromeMcpClient:
             self._bind_page_lease(reopened)
         self._pages[page_id] = reopened
         self._page_lease_heartbeat.track(lease_id)
+        if runtime_binding is not None:
+            self._bind_and_navigate_runtime_page(
+                reopened,
+                reopen_url,
+                runtime_binding,
+                timeout_ms=120_000,
+            )
         return reopened
 
     def _call_tool_direct(

@@ -1,7 +1,7 @@
 """Controlled migration review API.
 
 External migration bundles are staged for human review first and only applied
-after approval through the unified review inbox.
+after approval through `POST /migrations/pending/{id}/approve`.
 """
 
 from __future__ import annotations
@@ -14,8 +14,7 @@ from myrm_agent_harness.toolkits.memory import MemoryManager
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, func, select
 
-from app.api.dependencies import get_deploy_identity
-from app.api.memory.utils import get_crud_memory_manager
+from app.api.memory.utils import get_optional_memory_manager
 from app.database.connection import get_session
 from app.database.models import PendingMigration
 from app.schemas.memory.archive import MemoryImportRequest
@@ -506,7 +505,7 @@ async def get_pending_migrations(
 @router.post("/pending/{migration_id}/approve", response_model=PendingMigrationResponse)
 async def approve_pending_migration(
     migration_id: str,
-    user_id: str = Depends(get_deploy_identity),
+    crud_manager: MemoryManager | None = Depends(get_optional_memory_manager),
 ) -> PendingMigrationResponse:
     manager: MemoryManager | None = None
     async with get_session() as db:
@@ -517,7 +516,7 @@ async def approve_pending_migration(
         result = await db.execute(stmt)
         peek = result.scalars().first()
     if peek is not None and peek.migration_type == "memory_import":
-        manager = await get_crud_memory_manager()(user_id=user_id)
+        manager = crud_manager
 
     record = await approve_pending_migration_record(
         migration_id=migration_id,

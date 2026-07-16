@@ -41,9 +41,12 @@ class E2ERuntimeLease:
 class E2EResourceLedger:
     lease_id: str
     namespace: str
+    ephemeral_runtime: bool = False
 
     def register(self, kind: ResourceKind, ref: str) -> None:
         heartbeat_e2e_lease()
+        if self.ephemeral_runtime:
+            return
         register_e2e_resource(
             self.lease_id,
             kind=kind,
@@ -174,9 +177,16 @@ def _stack_scoped_runtime_id() -> str:
     return read_stack_scoped_runtime_id()
 
 
+def _stack_fingerprint_runtime_id() -> str:
+    return os.environ.get("MYRM_E2E_STACK_FP", "").strip()
+
+
 def _runtime_id_reader() -> str:
     if _isolated_e2e_mode():
         return _stack_scoped_runtime_id()
+    stack_fp = _stack_fingerprint_runtime_id()
+    if stack_fp:
+        return stack_fp
     dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
     if str(dev_lib) not in sys.path:
         sys.path.insert(0, str(dev_lib))

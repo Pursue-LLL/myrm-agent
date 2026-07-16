@@ -39,6 +39,12 @@ export MYRM_CHROME_E2E_DATA_DIR
 export MYRM_CHROME_E2E_PORT
 export CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}"
 
+SAVED_FRONTMOST_PID=""
+if myrm_chrome_e2e_launch_background; then
+  SAVED_FRONTMOST_PID="$(myrm_chrome_e2e_save_frontmost_pid)"
+  export MYRM_CHROME_E2E_SAVED_FRONTMOST_PID="${SAVED_FRONTMOST_PID}"
+fi
+
 fail() {
   echo "CHROME_E2E_FAIL: $*" >&2
   exit 1
@@ -621,6 +627,10 @@ if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then
 fi
 
 echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=$raw_port profile=${MYRM_CHROME_E2E_DATA_DIR}"
+SUPPRESS_UI="${SCRIPT_DIR}/myrm-chrome-e2e-suppress-ui.sh"
+if [[ -f "${SUPPRESS_UI}" ]]; then
+  bash "${SUPPRESS_UI}" >/dev/null 2>&1 || true
+fi
 if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]]; then
   _ensure_stack_epoch_file
 fi

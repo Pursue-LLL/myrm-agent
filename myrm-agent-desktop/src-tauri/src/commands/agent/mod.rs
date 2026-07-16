@@ -1,7 +1,16 @@
 //! CLI Agent 相关的 Tauri 命令
 //!
-//! 提供前端与 CLI Agent 交互的 API。
-//! 唯一执行路径：Agent Runner（`sidecar/agent-runner` 源码 → `agent_runner_rpc` 运行时）JSON-RPC。
+//! [INPUT]
+//! - agent_runner_rpc::SidecarManager (POS: Agent Runner JSON-RPC 进程)
+//! - sessions::SessionManager / permissions::PermissionManager
+//! - cli_agent_types (POS: AdapterInfo / PermissionMode)
+//!
+//! [OUTPUT]
+//! - AgentSystemState / SidecarStatus
+//! - 会话、消息、权限 Tauri IPC（经 Agent Runner JSON-RPC）
+//!
+//! [POS]
+//! CLI 可视化 IPC 模块根；唯一执行路径经 agent-runner sidecar，不经 Python 后端。
 
 pub mod message;
 pub mod permission;

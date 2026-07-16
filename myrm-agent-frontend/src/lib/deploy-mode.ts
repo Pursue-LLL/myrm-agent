@@ -180,12 +180,23 @@ export function resolveE2eApiBase(): string | null {
   if (typeof window === 'undefined') {
     return null;
   }
-  const raw = window.__MYRM_E2E_API_BASE__;
+  const raw = window.__MYRM_E2E_RUNTIME__?.apiBase ?? window.__MYRM_E2E_API_BASE__;
   if (typeof raw !== 'string') {
     return null;
   }
   const trimmed = raw.trim().replace(/\/+$/, '');
-  return trimmed.length > 0 ? trimmed : null;
+  try {
+    const parsed = new URL(trimmed);
+    if (
+      (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+      (parsed.hostname !== '127.0.0.1' && parsed.hostname !== 'localhost')
+    ) {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
 }
 
 /**

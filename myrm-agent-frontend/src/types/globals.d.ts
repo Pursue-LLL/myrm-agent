@@ -8,6 +8,22 @@ interface Window {
   __MYRM_TRACE_ID__?: string;
   /** Chrome E2E SHPOIB: private backend API base injected before chat automation. */
   __MYRM_E2E_API_BASE__?: string;
+  /** Page-local private runtime identity parsed from window.name before hydration. */
+  __MYRM_E2E_RUNTIME__?: Readonly<{
+    version: 1;
+    runId: string;
+    runtimeId: string;
+    apiBase: string;
+    uiOrigin: string;
+  }>;
+  /** Rejects before any routed API fetch when the page is bound to the wrong Backend. */
+  __MYRM_E2E_RUNTIME_READY__?: Promise<Readonly<{
+    version: 1;
+    runId: string;
+    runtimeId: string;
+    apiBase: string;
+    uiOrigin: string;
+  }>>;
   __TAURI_INTERNALS__?: unknown;
   /** Dev-only bridge for CDP Chrome E2E (AppLayout E2EChatBridge). */
   __MYRM_E2E_CHAT__?: {

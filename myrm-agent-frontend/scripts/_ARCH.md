@@ -8,7 +8,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `check_fractal_docs.py` | 分形 `_ARCH.md` 门禁（strict roots + recursive baseline） |
+| `check_fractal_docs.py` | 分形 `_ARCH.md` 门禁（strict roots + recursive baseline）；禁止 `tsconfig.json` include 写入 `.next-isolated-*` |
 | `check_file_line_budget.py` | TS/TSX 400 行预算门禁 |
 | `check_barrel_exports.py` | 跨域 `index.ts` 桶导出白名单门禁 |
 | CI lockfile policy | `frontend-build.yml` 断言无 `package-lock.json`（bun.lock 为 SSOT） |

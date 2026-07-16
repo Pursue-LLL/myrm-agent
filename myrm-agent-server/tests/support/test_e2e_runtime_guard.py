@@ -214,3 +214,19 @@ def test_isolated_mode_uses_stack_fingerprint(
     lease = require_e2e_runtime_lease()
     assert lease.runtime_id == "stack-fp-abc"
     assert_e2e_runtime_unchanged(lease)
+
+
+def test_shared_hot_stack_fp_pins_runtime_for_shpoib(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_state(tmp_path, runtime_id="shared-hot-runtime")
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
+    monkeypatch.setenv("MYRM_E2E_STACK_FP", "shared-hot-runtime")
+    monkeypatch.setenv("MYRM_E2E_PRIVATE_BACKEND", "1")
+
+    lease = require_e2e_runtime_lease()
+    assert lease.runtime_id == "shared-hot-runtime"
+    assert_e2e_runtime_unchanged(lease)

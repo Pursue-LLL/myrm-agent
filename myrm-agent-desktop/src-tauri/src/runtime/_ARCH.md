@@ -1,5 +1,16 @@
 # runtime 模块架构
 
+[INPUT]
+- config（POS: BackendConfig / FrontendConfig / SystemConfig）
+- agent_runner_rpc（POS: Agent Runner JSON-RPC 进程）
+
+[OUTPUT]
+- Python / Next.js / Agent Runner Sidecar 启停与健康检查
+- Appshot / Voice PTT / Inline Input 全局快捷键
+
+[POS]
+Tauri 主进程 Sidecar 与系统运行时层。
+
 ## 架构概述
 
 Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js/Agent Runner 进程生命周期、全局快捷键、Setup Token、端口检测。

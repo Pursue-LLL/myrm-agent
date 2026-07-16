@@ -1,5 +1,15 @@
 # permissions 模块架构
 
+[INPUT]
+- cli_agent_types::PermissionMode
+- Agent Runner 权限请求事件
+
+[OUTPUT]
+- PermissionManager: Explore / Ask / Auto 三级模式与危险命令黑名单
+
+[POS]
+CLI 可视化权限决策层。
+
 ## 架构概述
 
 CLI 可视化三级权限：Explore（只读）、Ask（默认确认）、Auto（自动批准，危险命令除外）。

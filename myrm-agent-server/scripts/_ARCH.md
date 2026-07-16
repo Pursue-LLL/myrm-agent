@@ -17,8 +17,7 @@
 | run_myrm_core_coverage_gate.sh | 门禁 | Harness 核心搜索+上下文路径覆盖率 ≥80% 门禁 | ✅ |
 | cleanup_qdrant_locks.py | 运维 | 清理 Qdrant 嵌入式模式残留锁文件（运行时自动调用） | ✅ |
 | init-age.sql | 运维 | Apache AGE 扩展初始化（PostgreSQL 图数据库） | ✅ |
-| dev/profile_test_memory.py | 工具 | 按 test 文件测量 peak RSS（macOS `time -l`） | ✅ |
-| dev/run_tests_low_memory.sh | 工具 | 本地低内存 pytest（`-n0`；`PYTEST_XDIST_WORKERS=N`）；**非** live E2E 联调脚本 | ✅ |
+| dev/ | 工具 | Server 本地 pytest / profiling 辅助 · [dev/_ARCH.md](dev/_ARCH.md) | ✅ |
 | ci/ | 门禁 | CI 脚本与 baseline（见 [ci/_ARCH.md](ci/_ARCH.md)） | ✅ |
 
 ---

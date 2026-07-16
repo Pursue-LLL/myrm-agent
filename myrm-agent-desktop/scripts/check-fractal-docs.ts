@@ -1,14 +1,14 @@
 /**
  * [INPUT]
- * - myrm-agent-desktop 仓内 _ARCH.md 清单、核心 Rust/TS 路径、行数预算 baseline
+ * - myrm-agent-desktop 仓内 _ARCH.md 清单、递归源码目录、核心 Rust/TS [INPUT] 路径、行数预算 baseline
  *
  * [OUTPUT]
- * - 分形文档门禁：必检 _ARCH、核心 [INPUT] 头、Rust 源文件行数预算
+ * - 分形文档门禁：必检 _ARCH [POS]、递归目录 _ARCH、核心 [INPUT] 头、Rust 源文件行数预算
  *
  * [POS]
  * 桌面仓分形自文档 CI 守门。对齐 server/frontend check_fractal_docs + check_file_line_budget 纪律。
  */
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const DESKTOP_ROOT = join(import.meta.dir, '..');
@@ -16,25 +16,45 @@ const RUST_SRC_ROOT = join(DESKTOP_ROOT, 'src-tauri/src');
 const MAX_LINES = 400;
 const HEADER_SCAN_LINES = 25;
 const INPUT_MARKER = '[INPUT]';
+const POS_MARKER = '[POS]';
 
-/** Module _ARCH.md paths relative to myrm-agent-desktop root. */
-const REQUIRED_ARCH_PATHS = [
+/** L1 + 非递归扫描根的 _ARCH.md（POS 必检）。递归根下的 _ARCH 由 discoverArchPathsUnderScanRoots 自动发现。 */
+const STATIC_ARCH_PATHS = [
   '_ARCH.md',
   'ARCHITECTURE.md',
   'scripts/_ARCH.md',
   'sidecar/_ARCH.md',
   'sidecar/agent-runner/_ARCH.md',
-  'src-tauri/src/_ARCH.md',
-  'src-tauri/src/runtime/_ARCH.md',
-  'src-tauri/src/commands/_ARCH.md',
-  'src-tauri/src/utils/_ARCH.md',
-  'src-tauri/src/agent_runner_rpc/_ARCH.md',
-  'src-tauri/src/sessions/_ARCH.md',
-  'src-tauri/src/permissions/_ARCH.md',
-  'src-tauri/src/app/_ARCH.md',
-  'src-tauri/src/runtime/appshot/_ARCH.md',
   'src-tauri/frontend-shell/_ARCH.md',
 ] as const;
+
+const PRUNE_DIR_NAMES = new Set(['target', 'node_modules', '__pycache__', '.git', 'binaries', 'gen']);
+const SOURCE_EXTENSIONS = new Set(['.rs', '.ts', '.tsx']);
+
+/** Directories recursively scanned for _ARCH.md (relative to desktop root). */
+const RECURSIVE_SCAN_ROOTS = ['src-tauri/src', 'sidecar'] as const;
+
+/** Discover _ARCH.md under recursive scan roots (prevents manual REQUIRED list drift). */
+export function discoverArchPathsUnderScanRoots(): string[] {
+  const paths = new Set<string>();
+  for (const relRoot of RECURSIVE_SCAN_ROOTS) {
+    const absRoot = join(DESKTOP_ROOT, relRoot);
+    if (!existsSync(absRoot)) {
+      continue;
+    }
+    for (const absDir of collectDirsUnder(absRoot)) {
+      const archAbs = join(absDir, '_ARCH.md');
+      if (existsSync(archAbs)) {
+        paths.add(relative(DESKTOP_ROOT, archAbs).replaceAll('\\', '/'));
+      }
+    }
+  }
+  return [...paths].sort();
+}
+
+export function getRequiredArchPaths(): string[] {
+  return [...new Set([...STATIC_ARCH_PATHS, ...discoverArchPathsUnderScanRoots()])].sort();
+}
 
 /** Core source files that must declare fractal [INPUT] headers. */
 const CORE_IOP_PATHS = [
@@ -48,21 +68,30 @@ const CORE_IOP_PATHS = [
   'src-tauri/src/runtime/inline_input.rs',
   'src-tauri/src/runtime/watchdog.rs',
   'src-tauri/src/sessions/mod.rs',
+  'src-tauri/src/app/mod.rs',
   'src-tauri/src/app/lifecycle.rs',
   'src-tauri/src/app/tray.rs',
+  'src-tauri/src/runtime/nextjs_frontend.rs',
   'src-tauri/src/cli_agent_types.rs',
   'src-tauri/src/utils/updater_safety.rs',
+  'src-tauri/src/commands/mod.rs',
+  'src-tauri/src/commands/agent/mod.rs',
+  'src-tauri/src/permissions/mod.rs',
+  'src-tauri/src/utils/mod.rs',
+  'src-tauri/src/agent_runner_rpc/types.rs',
+  'src-tauri/src/agent_runner_rpc/transport.rs',
   'scripts/check-fractal-docs.ts',
 ] as const;
 
 const LINE_BUDGET_BASELINE_PATH = join(import.meta.dir, 'ci', 'rust_line_budget_baseline.txt');
+const FRACTAL_DOCS_BASELINE_PATH = join(import.meta.dir, 'ci', 'fractal_docs_baseline.txt');
 
-function loadLineBudgetBaseline(): Set<string> {
-  if (!existsSync(LINE_BUDGET_BASELINE_PATH)) {
+function loadBaseline(path: string): Set<string> {
+  if (!existsSync(path)) {
     return new Set();
   }
   const entries = new Set<string>();
-  for (const line of readFileSync(LINE_BUDGET_BASELINE_PATH, 'utf8').split('\n')) {
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
     const stripped = line.trim();
     if (!stripped || stripped.startsWith('#')) {
       continue;
@@ -72,11 +101,95 @@ function loadLineBudgetBaseline(): Set<string> {
   return entries;
 }
 
+function isPrunedDir(dirName: string, relParts: string[]): boolean {
+  if (PRUNE_DIR_NAMES.has(dirName)) {
+    return true;
+  }
+  return relParts.some((part) => PRUNE_DIR_NAMES.has(part));
+}
+
+function hasSourceFile(dir: string): boolean {
+  for (const entry of readdirSync(dir)) {
+    const abs = join(dir, entry);
+    if (!statSync(abs).isFile()) {
+      continue;
+    }
+    const dot = entry.lastIndexOf('.');
+    if (dot < 0) {
+      continue;
+    }
+    const ext = entry.slice(dot);
+    if (!SOURCE_EXTENSIONS.has(ext)) {
+      continue;
+    }
+    if (entry.includes('.test.') || entry.includes('.spec.')) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+function collectDirsUnder(absRoot: string): string[] {
+  const dirs: string[] = [absRoot];
+
+  function walk(absDir: string): void {
+    for (const entry of readdirSync(absDir)) {
+      const abs = join(absDir, entry);
+      if (!statSync(abs).isDirectory()) {
+        continue;
+      }
+      const relParts = relative(DESKTOP_ROOT, abs).replaceAll('\\', '/').split('/');
+      if (isPrunedDir(entry, relParts)) {
+        continue;
+      }
+      dirs.push(abs);
+      walk(abs);
+    }
+  }
+
+  walk(absRoot);
+  return dirs;
+}
+
+export function collectRecursiveArchGaps(baseline: Set<string> = loadFractalDocsBaseline()): string[] {
+  const gaps: string[] = [];
+
+  for (const relRoot of RECURSIVE_SCAN_ROOTS) {
+    const absRoot = join(DESKTOP_ROOT, relRoot);
+    if (!existsSync(absRoot)) {
+      continue;
+    }
+    for (const absDir of collectDirsUnder(absRoot)) {
+      if (!hasSourceFile(absDir)) {
+        continue;
+      }
+      const rel = relative(DESKTOP_ROOT, absDir).replaceAll('\\', '/');
+      if (existsSync(join(absDir, '_ARCH.md'))) {
+        continue;
+      }
+      if (baseline.has(rel)) {
+        continue;
+      }
+      gaps.push(rel);
+    }
+  }
+
+  return gaps.sort();
+}
+
+export function loadFractalDocsBaseline(): Set<string> {
+  return loadBaseline(FRACTAL_DOCS_BASELINE_PATH);
+}
+
 function collectRustSourceFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     const abs = join(dir, entry);
     const st = statSync(abs);
     if (st.isDirectory()) {
+      if (isPrunedDir(entry, relative(DESKTOP_ROOT, abs).replaceAll('\\', '/').split('/'))) {
+        continue;
+      }
       collectRustSourceFiles(abs, acc);
     } else if (entry.endsWith('.rs')) {
       acc.push(abs);
@@ -89,23 +202,38 @@ function countLines(absPath: string): number {
   return readFileSync(absPath, 'utf8').split('\n').length;
 }
 
-function hasInputHeader(relPath: string): boolean {
+function readDocHead(relPath: string, scanLines = HEADER_SCAN_LINES): string {
   const abs = join(DESKTOP_ROOT, relPath);
-  const head = readFileSync(abs, 'utf8')
+  return readFileSync(abs, 'utf8')
     .split('\n')
-    .slice(0, HEADER_SCAN_LINES)
+    .slice(0, scanLines)
     .join('\n');
-  return head.includes(INPUT_MARKER);
+}
+
+function hasInputHeader(relPath: string): boolean {
+  return readDocHead(relPath).includes(INPUT_MARKER);
+}
+
+function hasPosHeader(relPath: string): boolean {
+  return readDocHead(relPath).includes(POS_MARKER);
 }
 
 export function collectFractalDocViolations(): string[] {
   const errors: string[] = [];
 
-  for (const rel of REQUIRED_ARCH_PATHS) {
+  for (const rel of getRequiredArchPaths()) {
     const abs = join(DESKTOP_ROOT, rel);
     if (!existsSync(abs)) {
       errors.push(`missing required doc: ${rel}`);
+      continue;
     }
+    if (!hasPosHeader(rel)) {
+      errors.push(`missing ${POS_MARKER} in first ${HEADER_SCAN_LINES} lines: ${rel}`);
+    }
+  }
+
+  for (const rel of collectRecursiveArchGaps()) {
+    errors.push(`recursive scan: directory with source missing _ARCH.md: ${rel}`);
   }
 
   for (const rel of CORE_IOP_PATHS) {
@@ -119,12 +247,12 @@ export function collectFractalDocViolations(): string[] {
     }
   }
 
-  const baseline = loadLineBudgetBaseline();
+  const lineBudgetBaseline = loadBaseline(LINE_BUDGET_BASELINE_PATH);
   const rustFiles = collectRustSourceFiles(RUST_SRC_ROOT);
   for (const abs of rustFiles) {
     const rel = relative(DESKTOP_ROOT, abs).replaceAll('\\', '/');
     const lines = countLines(abs);
-    if (lines > MAX_LINES && !baseline.has(rel)) {
+    if (lines > MAX_LINES && !lineBudgetBaseline.has(rel)) {
       errors.push(`line budget exceeded (${lines} > ${MAX_LINES}): ${rel}`);
     }
   }
@@ -139,13 +267,33 @@ export function assertFractalDocsCompliant(): void {
   }
 }
 
+export function writeFractalDocsBaseline(): number {
+  const gaps = collectRecursiveArchGaps(new Set());
+  mkdirSync(join(import.meta.dir, 'ci'), { recursive: true });
+  const body = [
+    '# Desktop-relative directories grandfathered without _ARCH.md (one per line)',
+    '# Regenerate gaps: bun run scripts/check-fractal-docs.ts --write-baseline',
+    ...gaps,
+    '',
+  ].join('\n');
+  writeFileSync(FRACTAL_DOCS_BASELINE_PATH, body, 'utf8');
+  return gaps.length;
+}
+
 if (import.meta.main) {
+  if (process.argv.includes('--write-baseline')) {
+    const count = writeFractalDocsBaseline();
+    console.log(`Wrote ${count} entries to ${relative(DESKTOP_ROOT, FRACTAL_DOCS_BASELINE_PATH)}`);
+    process.exit(0);
+  }
+
   const errors = collectFractalDocViolations();
   if (errors.length > 0) {
     console.error('Fractal documentation gate failed:\n' + errors.join('\n'));
     process.exit(1);
   }
+  const requiredArch = getRequiredArchPaths();
   console.log(
-    `Fractal docs OK (${REQUIRED_ARCH_PATHS.length} arch paths, ${CORE_IOP_PATHS.length} IOP files, line budget ${MAX_LINES})`,
+    `Fractal docs OK (${requiredArch.length} required arch, ${RECURSIVE_SCAN_ROOTS.length} recursive roots, ${CORE_IOP_PATHS.length} IOP files, line budget ${MAX_LINES})`,
   );
 }

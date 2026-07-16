@@ -1,5 +1,15 @@
 # sessions 模块架构
 
+[INPUT]
+- cli_agent_types（POS: PermissionMode / SessionStatus）
+- commands/agent/ IPC 会话操作
+
+[OUTPUT]
+- SessionManager: 内存 + 可选 JSONL 持久化
+
+[POS]
+CLI Agent 会话生命周期与状态机。
+
 ## 架构概述
 
 CLI Agent 会话生命周期：内存存储 + 可选 JSONL 持久化，状态机转换校验。

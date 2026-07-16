@@ -1,6 +1,16 @@
 # myrm-agent-desktop 模块架构
 
-Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两类 Sidecar 二进制（Python 后端 + Bun Agent Runner）。
+[INPUT]
+- myrm-agent-server（POS: Python FastAPI 后端源码，PyInstaller 打包入口）
+- myrm-agent-frontend（POS: Next standalone 静态资源，Tauri bundle 资源）
+- sidecar/build.py（POS: Sidecar 二进制构建）
+
+[OUTPUT]
+- Tauri 桌面安装包（macOS / Windows / Linux）
+- 三进程编排：Rust 主进程 + Python Backend + Next Standalone + Agent Runner
+
+[POS]
+myrm-agent 产品仓桌面子模块根。L0 模块地图；L1 见 ARCHITECTURE.md；发版见 DESKTOP_RELEASE_SYSTEM.md。
 
 ## Sidecar 对照表（避免命名混淆）
 
@@ -51,4 +61,4 @@ Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两
 - 发版签名：[DESKTOP_RELEASE_SYSTEM.md](DESKTOP_RELEASE_SYSTEM.md)
 - 用户向快速入门：[README.md](README.md)（安装与 Releases）
 - Rust 模块清单：[src-tauri/src/_ARCH.md](src-tauri/src/_ARCH.md)
-- 分形文档门禁：`scripts/check-fractal-docs.ts`（CI：`desktop-fractal-docs.yml`）
+- 分形文档门禁：`scripts/check-fractal-docs.ts`（递归扫描 `src-tauri/src`、`sidecar`；CI：`desktop-fractal-docs.yml`）

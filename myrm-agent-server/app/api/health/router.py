@@ -20,6 +20,7 @@
 """
 
 import logging
+import os
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
@@ -79,6 +80,9 @@ async def health_check() -> dict[str, object]:
     stack_epoch = read_stack_epoch()
     if stack_epoch is not None:
         payload["stack_epoch"] = stack_epoch
+    runtime_id = os.environ.get("MYRM_RUNTIME_NAMESPACE", "").strip()
+    if runtime_id:
+        payload["runtime_id"] = runtime_id
     return payload
 
 

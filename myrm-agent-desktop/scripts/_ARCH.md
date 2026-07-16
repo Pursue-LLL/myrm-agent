@@ -1,5 +1,15 @@
 # myrm-agent-desktop/scripts 模块架构
 
+[INPUT]
+- myrm-agent-frontend（POS: build-frontend.sh 构建 standalone）
+- src-tauri/（POS: cargo-check、launch contract 静态校验）
+
+[OUTPUT]
+- 本地构建脚本、CI 分形文档门禁、发版验签辅助
+
+[POS]
+桌面仓 scripts/ 根。发版编排主流程在 monorepo 根 scripts/ci/desktop-release/。
+
 ## 架构概述
 
 桌面仓本地构建与发版验签辅助脚本。由 `myrm-agent-desktop/_ARCH.md` 引用；CI 桌面流水线见 [../../scripts/ci/desktop-release/_ARCH.md](../../scripts/ci/desktop-release/_ARCH.md)。
@@ -8,8 +18,9 @@
 
 | 文件 | 平台 | 职责 | I/O/P |
 |------|------|------|-------|
-| `check-fractal-docs.ts` | CI | 分形文档门禁：15 项 `_ARCH` + 15 核心 `[INPUT]` + Rust ≤400 行 | ✅ |
+| `check-fractal-docs.ts` | CI | 分形文档门禁：6 静态 + 递归根自动发现 `_ARCH [POS]` + 2 递归根目录扫描 + 17 核心 `[INPUT]` + Rust ≤400 行 | ✅ |
 | `check-fractal-docs.test.ts` | CI | 门禁单元测试 | — |
+| `ci/fractal_docs_baseline.txt` | CI | 递归扫描 grandfather 清单（`--write-baseline` 维护） | — |
 | `ci/cargo-check.sh` | CI | stub sidecars + frontend standalone → `cargo check` + `config::tests` | — |
 | `ci/verify-launch-contract.sh` | CI | 静态校验 Launch Contract（含 `frontend-start-failed` / `backend-start-failed` shell 处理） | — |
 | `build-frontend.sh` | Unix | 从 desktop 根解析 monorepo 路径，在 `myrm-agent-frontend/` 执行 `build:tauri`（或 `dev` 模式 `bun run dev`）；standalone 已存在则跳过构建 | ✅ |
