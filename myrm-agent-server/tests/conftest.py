@@ -232,9 +232,19 @@ def _chrome_e2e_item_runtime(
 ) -> Iterator[object | None]:
     """Give each formal Chrome item its own private Backend and data directories."""
     marker = request.node.get_closest_marker("chrome_e2e")
+    lane = str(marker.kwargs.get("lane", "")).strip().upper() if marker else ""
+    if marker is not None and lane not in {"READ", "LIVE_AGENT"}:
+        raise RuntimeError(
+            "CHROME_E2E_MARKER_INVALID: lane must be READ or LIVE_AGENT"
+        )
+    private_backend = marker is not None and marker.kwargs.get("private_backend", True) is not False
+    if private_backend and lane != "LIVE_AGENT":
+        raise RuntimeError(
+            "CHROME_E2E_MARKER_INVALID: private Backend items require lane=LIVE_AGENT"
+        )
     if (
         marker is None
-        or marker.kwargs.get("private_backend", True) is False
+        or not private_backend
         or os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1"
     ):
         yield None
