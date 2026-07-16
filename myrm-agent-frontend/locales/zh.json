@@ -4882,7 +4882,7 @@
     "edit": "编辑",
     "use": "使用",
     "confirmDelete": "确认删除",
-    "confirmDeleteDesc": "确定要删除智能体「{name}」吗？此操作不可撤销。",
+    "confirmDeleteDesc": "确定要删除智能体「{name}」吗？相关的定时任务和渠道绑定也会自动解除。此操作不可撤销。",
     "createSuccess": "智能体创建成功",
     "updateSuccess": "智能体更新成功",
     "deleteSuccess": "智能体已删除",

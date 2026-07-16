@@ -429,6 +429,30 @@ class AgentService:
             except Exception as e:
                 logger.error("Failed to clear kanban agent refs for %s: %s", agent_id, e)
 
+            # 级联清理 Cron Job 的 agent_id 引用（防止孤悬 Cron 以空配置运行）
+            try:
+                from sqlalchemy import update as sql_update
+
+                from app.database.connection import get_session
+                from app.database.models import CronJobModel
+
+                async with get_session() as session:
+                    result = await session.execute(
+                        sql_update(CronJobModel)
+                        .where(CronJobModel.agent_id == agent_id)
+                        .values(agent_id=None)
+                    )
+                    await session.commit()
+                    cron_cleared = result.rowcount or 0
+                if cron_cleared:
+                    logger.info(
+                        "Cleared agent_id on %d cron jobs for agent %s",
+                        cron_cleared,
+                        agent_id,
+                    )
+            except Exception as e:
+                logger.error("Failed to clear cron agent refs for %s: %s", agent_id, e)
+
             _finalize_profile_mutation(agent_id, "deleted")
             logger.info("Agent deleted: %s", agent_id)
         return success

@@ -2,7 +2,6 @@
 
 [INPUT]
 - app.services.extension.bridge::get_extension_bridge (POS: singleton bridge instance)
-- app.core.infra.ws_origin_guard::verify_ws_origin (POS: WebSocket Origin guard)
 
 [OUTPUT]
 - ws_router: WebSocket endpoint for extension connection (ws://.../api/ws/extension)
