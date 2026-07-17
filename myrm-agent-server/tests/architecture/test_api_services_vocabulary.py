@@ -62,6 +62,7 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "credentials",
         "cron",
         "datasets",
+        "dev_gate",
         "eval",
         "goals",
         "health",
