@@ -18,7 +18,7 @@ import { getModelSelection } from '@/store/chat/messageRequest';
 import useChatStore from '@/store/useChatStore';
 import useProviderStore from '@/store/useProviderStore';
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
-import { markPlatformUnreachable, whenDatabaseReady } from '@/lib/platform-readiness';
+import { markPlatformUnreachable } from '@/lib/platform-readiness';
 
 function isLocalDevHost(): boolean {
   if (typeof window === 'undefined') return false;
@@ -33,12 +33,37 @@ function prepareAutomationSend(): void {
   }
 }
 
+async function probePrivateBackendReady(e2eApiBase: string): Promise<boolean> {
+  try {
+    const health = await fetch(`${e2eApiBase}/api/v1/health`, { cache: 'no-store' });
+    if (!health.ok) {
+      return false;
+    }
+    const ready = await fetch(`${e2eApiBase}/api/v1/health/ready`, { cache: 'no-store' });
+    if (!ready.ok) {
+      return false;
+    }
+    const body = (await ready.json()) as { checks?: { database?: boolean } };
+    return body.checks?.database === true;
+  } catch {
+    return false;
+  }
+}
+
 async function initProvidersForE2e(): Promise<void> {
   const e2eApiBase = typeof window.__MYRM_E2E_API_BASE__ === 'string' ? window.__MYRM_E2E_API_BASE__.trim() : '';
   if (e2eApiBase) {
     markPlatformUnreachable();
     markLocalBackendUnreachable();
-    const ready = await whenDatabaseReady();
+    const deadline = Date.now() + 60_000;
+    let ready = false;
+    while (Date.now() < deadline) {
+      if (await probePrivateBackendReady(e2eApiBase)) {
+        ready = true;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
     if (!ready) {
       throw new Error('e2e-private-backend-not-ready');
     }

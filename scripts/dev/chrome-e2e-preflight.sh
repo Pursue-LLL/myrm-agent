@@ -305,6 +305,7 @@ _start_mux_daemon() {
     if [[ -f "${MUX_PID_FILE}" ]] && kill -0 "$(tr -d '[:space:]' < "${MUX_PID_FILE}")" 2>/dev/null; then
       mkdir -p "${MUX_STATE_DIR}"
       printf '%s\n' "${MUX_REQUEST_TIMEOUT_MS}" >"${MUX_TIMEOUT_STAMP}"
+      _stamp_mux_daemon_ws_url || true
       rmdir "${MUX_START_LOCK_DIR}" 2>/dev/null || true
       return 0
     fi
@@ -314,6 +315,7 @@ _start_mux_daemon() {
 }
 
 MUX_WS_STAMP="${MUX_STATE_DIR}/upstream-ws-url"
+MUX_DAEMON_WS_STAMP="${MUX_STATE_DIR}/upstream-ws-url-at-daemon-start"
 
 _current_cdp_ws_url() {
   MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" "${PREFLIGHT_PY}" - <<'PY'
@@ -344,6 +346,21 @@ _stamp_mux_ws_url() {
   current="$(_current_cdp_ws_url)" || return 1
   mkdir -p "${MUX_STATE_DIR}"
   printf '%s\n' "${current}" >"${MUX_WS_STAMP}"
+}
+
+_stamp_mux_daemon_ws_url() {
+  local current
+  current="$(_current_cdp_ws_url 2>/dev/null)" || return 1
+  mkdir -p "${MUX_STATE_DIR}"
+  printf '%s\n' "${current}" >"${MUX_DAEMON_WS_STAMP}"
+}
+
+_mux_daemon_ws_matches() {
+  [[ -f "${MUX_DAEMON_WS_STAMP}" ]] || return 1
+  local current stored
+  current="$(_current_cdp_ws_url 2>/dev/null)" || return 1
+  stored="$(tr -d '[:space:]' < "${MUX_DAEMON_WS_STAMP}")"
+  [[ -n "${stored}" && "${current}" == "${stored}" ]]
 }
 
 _mux_upstream_ready() {
@@ -409,7 +426,7 @@ _restart_mux_safely() {
 
 _ensure_mux_upstream() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
-  if _mux_ws_stamp_matches && _mux_upstream_ready; then
+  if _mux_ws_stamp_matches && _mux_daemon_ws_matches && _mux_upstream_ready; then
     return 0
   fi
   if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
@@ -431,6 +448,7 @@ _ensure_mux_upstream() {
     sleep 1
     if _mux_upstream_ready; then
       _stamp_mux_ws_url || true
+      _stamp_mux_daemon_ws_url || true
       ok "cdmcp-mux upstream reconnected"
       return 0
     fi

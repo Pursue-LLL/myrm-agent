@@ -3,11 +3,7 @@
  */
 
 export const apiBase = process.env.E2E_API_BASE ?? 'http://127.0.0.1:8080';
-export const adminPassword = process.env.E2E_ADMIN_PASSWORD;
-
-if (!adminPassword) {
-  throw new Error('E2E_ADMIN_PASSWORD is required for WebUI E2E authentication');
-}
+export const adminPassword = process.env.E2E_ADMIN_PASSWORD?.trim() || '';
 
 /** @type {import('node:http').Cookie[]} */
 let cookies = [];
@@ -52,6 +48,12 @@ export async function ensureLoggedIn() {
   const status = await statusRes.json();
   if (!status.is_setup_done) {
     throw new Error('WebUI setup not complete; log in via Chrome first');
+  }
+  if (status.is_authenticated) {
+    return;
+  }
+  if (!adminPassword) {
+    throw new Error('E2E_ADMIN_PASSWORD is required for WebUI E2E authentication');
   }
   const loginRes = await apiFetch('/webui/auth/login', {
     method: 'POST',

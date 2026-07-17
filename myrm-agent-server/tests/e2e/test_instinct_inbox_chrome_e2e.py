@@ -54,6 +54,14 @@ def test_instinct_inbox_renders_and_rejects_seeded_drafts() -> None:
             assert {"test-frontend-approve", "test-frontend-reject"}.issubset(set(names))
 
             for remaining in (1, 0):
+                wait_for_state(
+                    client,
+                    page,
+                    """(() => {
+                      const button = document.querySelector('[data-testid="instinct-reject-btn"]');
+                      return { ready: !!button, hasButton: !!button };
+                    })()""",
+                )
                 result = client.evaluate(
                     page,
                     """(() => {

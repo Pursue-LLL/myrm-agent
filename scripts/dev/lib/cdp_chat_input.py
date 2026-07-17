@@ -155,13 +155,21 @@ class CdpChatInput(CdpChatBootstrap):
               const bridge = window.__MYRM_E2E_CHAT__;
               const bridgeMsg = (bridge?.getInputMessage?.() || '').trim();
               const domMsg = (input?.value || '').trim();
-              const synced = bridgeMsg === expected.trim() || domMsg === expected.trim();
+              const bridgeSynced = bridgeMsg === expected.trim();
+              const domSynced = domMsg === expected.trim();
+              const bridgeReady = !!bridge?.isSendReady?.();
+              const sendEnabled = !btn?.disabled;
+              const ok = expected.trim().length > 0 && (
+                (bridgeSynced && bridgeReady) ||
+                (domSynced && sendEnabled)
+              );
               return {{
-                ok: synced && expected.trim().length > 0 && !btn?.disabled,
+                ok,
                 inputLen: Math.max(bridgeMsg.length, domMsg.length),
                 sendDisabled: !!btn?.disabled,
-                bridgeSynced: bridgeMsg === expected.trim(),
-                domSynced: domMsg === expected.trim(),
+                bridgeSynced,
+                domSynced,
+                bridgeReady,
               }};
             }})()""",
             await_promise=False,
@@ -205,6 +213,51 @@ class CdpChatInput(CdpChatBootstrap):
     async def wait_dev_bridge(self, *, timeout_sec: float = 90.0) -> None:
         await self.ensure_dev_bridge(timeout_sec=timeout_sec)
 
+    async def _retry_bridge_fill(self, text: str, *, timeout_sec: float = 120.0) -> dict[str, object]:
+        """When the React E2E bridge exists, never rely on DOM-only fill fallbacks."""
+        payload = json.dumps(text)
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {"ok": False, "mode": "bridgeRetry"}
+        while time.monotonic() < deadline:
+            await self.ensure_e2e_api_base_binding()
+            await self.evaluate(E2E_BRIDGE_INSTALL_JS, await_promise=False)
+            try:
+                await self.evaluate(
+                    """(() => {
+                      const bridge = window.__MYRM_E2E_CHAT__;
+                      if (!bridge?.ensureProviders) return { ok: false, err: 'no ensureProviders' };
+                      return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
+                    })()""",
+                    await_promise=True,
+                    recv_timeout=60.0,
+                )
+            except (TimeoutError, RuntimeError):
+                pass
+            await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+            await self.evaluate(
+                f"""( () => {{
+                  const bridge = window.__MYRM_E2E_CHAT__;
+                  if (!bridge?.setInputMessage) {{
+                    return {{ ok: false, err: 'no dev bridge' }};
+                  }}
+                  bridge.setInputMessage({payload});
+                  return {{ ok: true, mode: 'devBridgeSet' }};
+                }})()""",
+                await_promise=False,
+            )
+            last = await self._await_fill_ready(text, timeout_sec=5.0)
+            if last.get("ok"):
+                last["mode"] = "devBridgeRetry"
+                return last
+            await asyncio.sleep(1.0)
+        debug = await self.evaluate(
+            """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
+            await_promise=False,
+        )
+        if isinstance(debug, dict):
+            last["debug"] = debug
+        return last
+
     async def fill_input(self, text: str) -> dict[str, object]:
         await self.ensure_dev_bridge(timeout_sec=90.0, allow_reload=True)
         await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
@@ -234,6 +287,18 @@ class CdpChatInput(CdpChatBootstrap):
                     await_promise=False,
                 )
                 await asyncio.sleep(1)
+
+        bridge_probe = await self.evaluate(
+            """(() => ({
+              hasBridge: !!window.__MYRM_E2E_CHAT__?.setInputMessage,
+            }))()""",
+            await_promise=False,
+        )
+        if isinstance(bridge_probe, dict) and bridge_probe.get("hasBridge"):
+            bridge_fill = await self._retry_bridge_fill(text, timeout_sec=120.0)
+            if bridge_fill.get("ok"):
+                return bridge_fill
+            raise RuntimeError(f"E2E bridge fill failed: {bridge_fill}")
 
         focus: dict[str, object] = {"ok": False, "err": "no input"}
         for _ in range(12):

@@ -120,4 +120,11 @@ def memory_to_item(memory: AnyMemory | ProfileEntry, memory_type: MemoryType) ->
     elif isinstance(memory, EpisodicMemory):
         base["tags"] = getattr(memory, "tags", []) or []
 
+    source_chat = getattr(memory, "source_chat_id", None)
+    if source_chat:
+        base["source_chat_id"] = source_chat
+        source_msg = getattr(memory, "source_message_id", None)
+        if source_msg:
+            base["source_message_id"] = source_msg
+
     return MemoryItem(**base)

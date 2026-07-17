@@ -49,6 +49,8 @@ class MemoryItem(BaseModel):
     tags: list[str] = Field(default_factory=list)
     access_count: int | None = None
     last_accessed_at: datetime | None = None
+    source_chat_id: str | None = None
+    source_message_id: str | None = None
 
 
 class MemorySearchResponse(BaseModel):
