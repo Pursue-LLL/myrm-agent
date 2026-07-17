@@ -28,50 +28,15 @@ import { createCronJob } from '@/services/cron';
 import { useSkillStore } from '@/store/skill';
 import useAuthStore from '@/store/useAuthStore';
 import { cn } from '@/lib/utils/classnameUtils';
-
-type GrowthFilter = 'all' | 'pending' | 'applied' | 'blocked' | 'reviewed';
-
-const FILTER_ORDER: GrowthFilter[] = ['all', 'pending', 'applied', 'blocked', 'reviewed'];
-const VIEW_MODE_KEY = 'myrm:skill-growth-view-mode';
-const LIST_CASES_LIMIT = 100;
-
-const EMPTY_SUMMARY: SkillGrowthSummary = {
-  total: 0,
-  pendingReview: 0,
-  autoApplied: 0,
-  blocked: 0,
-};
-
-function matchesFilter(item: SkillGrowthCaseSummary, filter: GrowthFilter): boolean {
-  if (filter === 'all') return true;
-  if (filter === 'pending') return item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
-  if (filter === 'applied') return item.status === 'AUTO_APPLIED';
-  if (filter === 'blocked') return item.status === 'BLOCKED_LOCKED' || item.status === 'FAILED_SCAN';
-  return item.status === 'APPROVED' || item.status === 'REJECTED';
-}
-
-interface SummaryCardProps {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-  toneClassName: string;
-}
-
-function SummaryCard({ icon: Icon, label, value, toneClassName }: SummaryCardProps) {
-  return (
-    <div className="rounded-2xl border bg-background p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-2xl font-semibold text-foreground">{value}</p>
-        </div>
-        <div className={cn('rounded-2xl border p-2.5', toneClassName)}>
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </div>
-  );
-}
+import {
+  EMPTY_SUMMARY,
+  FILTER_ORDER,
+  LIST_CASES_LIMIT,
+  matchesFilter,
+  SummaryCard,
+  VIEW_MODE_KEY,
+  type GrowthFilter,
+} from '@/components/features/skills/pendingEvolutionsDashboardShared';
 
 export function PendingEvolutionsDashboard() {
   const t = useTranslations('settings.skills.growth');

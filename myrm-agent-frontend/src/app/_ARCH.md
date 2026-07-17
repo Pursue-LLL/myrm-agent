@@ -23,6 +23,14 @@
 | `/pricing`, `/subscription`, `/payment/*` | 计费与订阅 | SaaS 为主 |
 | `/api/*` | Next Route Handlers（代理、checkout、`/api/i18n/deferred` 客户端 deferred locale） | 按路由 |
 
+## Service Worker（Web PWA）
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `sw.ts` | 核心 | Serwist SW 源：静态 precache + API runtime cache + Web Push 显示/点击 | ✅ |
+
+编译产物 `public/sw.js` 由根目录 `serwist.config.ts` + `bun run build` 生成；注册见 `@/components/features/app-shell/pwa-updater.tsx`（生产 Web only；dev 注销 SW；Tauri skip）。
+
 ## 依赖
 
 - `@/components/features/app-shell` — 全局初始化

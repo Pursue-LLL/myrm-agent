@@ -27,6 +27,8 @@ jobs:
         run: test ! -f package-lock.json
       - name: Frontend line budget (no new >400-line modules)
         run: python3 scripts/check_file_line_budget.py
+      - name: TypeScript strict (no error count regression)
+        run: python3 scripts/check_typescript_strict.py
       - name: Fractal docs (strict roots + recursive baseline)
         run: python3 scripts/check_fractal_docs.py --no-stub
       - name: Barrel export policy (cross-domain index.ts whitelist)
@@ -36,4 +38,6 @@ jobs:
       - name: Vitest (shared provider remap contract)
         run: bunx vitest run src/store/config/__tests__/providerIdentityMigration.test.ts
       - name: Next.js build (module graph)
-        run: bunx next build
+        run: bun run build
+      - name: Service worker Web Push handlers
+        run: node scripts/verify-sw-push.mjs

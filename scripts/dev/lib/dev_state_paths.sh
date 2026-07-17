@@ -162,9 +162,7 @@ prune_stale_isolated_next_dirs() {
     [[ -d "${entry}" ]] || continue
     name="$(basename "${entry}")"
     [[ "${name}" == "${active_dist}" ]] && continue
-    if [[ -z "$(find "${entry}" -mindepth 1 -print -quit 2>/dev/null)" ]]; then
-      rmdir "${entry}" 2>/dev/null || true
-    fi
+    rm -rf "${entry}" 2>/dev/null || true
   done
   shopt -u nullglob
 }

@@ -22,6 +22,7 @@
 | `settings-sync-initializer.tsx` | 组件 | ConfigSyncManager 初始化；`initConfig` 优先，providers/commands/retrieval idle 延迟 | ✅ |
 | `deferred-mount.tsx` | 辅助 | `requestIdleCallback` 延迟挂载非首屏 subtree | ✅ |
 | `deferred-app-initializers.tsx` | 辅助 | FlowPad/PWA/WhatsNew 等 6 个 initializer 的 dynamic + idle 挂载 | ✅ |
+| `pwa-updater.tsx` | 组件 | 生产 Web 注册 `/sw.js`（Serwist 编译产物）；dev/Tauri skip；新版本 toast | ✅ |
 | `voice-ptt-initializer.tsx` | 组件 | 全局语音 PTT 快捷键 IPC → DOM CustomEvent 桥接 | ✅ |
 | `auth-callback.tsx` | 组件 | OAuth 回调页 loading/错误态与 token 交换 | ✅ |
 | `auth-initializer.tsx` | 组件 | 启动时 auth store  hydration 与路由守卫 | ✅ |

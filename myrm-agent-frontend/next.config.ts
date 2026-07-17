@@ -12,22 +12,18 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 // 注意：Tauri 模式现在也使用 standalone，以支持动态路由和 API 路由
 const isTauriBuild = process.env.BUILD_MODE === 'tauri';
 
-// Serwist PWA (optional; skipped for Tauri — desktop shell does not ship a web PWA)
+// Serwist PWA (skipped for Tauri — desktop shell does not ship a web PWA)
 let withSerwist: (config: NextConfig) => NextConfig = (config) => config;
 if (!isTauriBuild) {
-  try {
-    const withSerwistInit = require('@serwist/next').default as (
-      options: Parameters<typeof import('@serwist/next').default>[0],
-    ) => (config: NextConfig) => NextConfig;
-    withSerwist = withSerwistInit({
-      swSrc: 'src/app/sw.ts',
-      swDest: 'public/sw.js',
-      disable: process.env.NODE_ENV === 'development',
-      reloadOnOnline: false,
-    });
-  } catch {
-    console.warn('[Build] @serwist/next not installed; PWA wrapper skipped.');
-  }
+  const withSerwistInit = require('@serwist/next').default as (
+    options: Parameters<typeof import('@serwist/next').default>[0],
+  ) => (config: NextConfig) => NextConfig;
+  withSerwist = withSerwistInit({
+    swSrc: 'src/app/sw.ts',
+    swDest: 'public/sw.js',
+    disable: process.env.NODE_ENV === 'development',
+    reloadOnOnline: false,
+  });
 }
 
 // Bundle Analyzer (optional, controlled by env var)
@@ -58,10 +54,6 @@ if (SENTRY_ENABLED) {
     console.warn('[Build] Sentry enabled but @sentry/nextjs not installed. Install with: bun add @sentry/nextjs');
   }
 }
-
-// 检测构建模式：tauri 或 sandbox
-// 注意：Tauri 模式现在也使用 standalone，以支持动态路由和 API 路由
-// (isTauriBuild is defined above for Serwist)
 
 const frontendRoot = path.dirname(fileURLToPath(import.meta.url));
 const monorepoRoot = path.join(frontendRoot, '..');

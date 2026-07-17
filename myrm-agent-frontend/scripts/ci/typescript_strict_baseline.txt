@@ -1,0 +1,2 @@
+# tsc --noEmit strict error count (auto-generated)
+448

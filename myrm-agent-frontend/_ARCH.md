@@ -12,11 +12,21 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 | `turbopack.root` | monorepo 根（`myrm-agent/`） | dev/build 解析跨包 JSON |
 | `outputFileTracingRoot` | monorepo 根 | standalone/Tauri 打包 trace |
 | Docker build | [Dockerfile](Dockerfile) | builder 布局 `/app/frontend` + `/app/shared`（context = `myrm-agent/` 根） |
-| CI | `frontend-build.yml` | `shared/**` 变更触发 line budget + fractal docs + barrel policy + verify:i18n + remap vitest + `next build` |
+| CI | `frontend-build.yml` | `shared/**` 变更触发 line budget + strict TS + fractal docs + barrel policy + verify:i18n + remap vitest + `bun run build` + verify-sw-push |
 
 ## 脚本
 
-详见 [scripts/_ARCH.md](scripts/_ARCH.md)。CI 核心：`check_fractal_docs.py`、`check_file_line_budget.py`、`check_barrel_exports.py`、`verify-i18n.mjs`。
+详见 [scripts/_ARCH.md](scripts/_ARCH.md)。CI 核心：`check_fractal_docs.py`、`check_file_line_budget.py`、`check_typescript_strict.py`、`check_barrel_exports.py`、`verify-i18n.mjs`、`verify-sw-push.mjs`（`bun run build` 后）。
+
+## PWA / Service Worker（Web 部署）
+
+| 文件 | 职责 |
+|------|------|
+| `src/app/sw.ts` | Serwist SW 源：precache + Web Push `push`/`notificationclick` |
+| `serwist.config.ts` | `next build` 后 `inject-manifest`（precache 清单来自 `.next`） |
+| `public/sw.js` | 编译产物；生产由 `pwa-updater.tsx` 注册 `/sw.js`；dev/Tauri 不注册 |
+
+构建：`bun run build` = i18n split → `next build`（`@serwist/next`）→ `serwist inject-manifest`。`build:tauri` 跳过 Serwist。
 
 ## 子模块
 

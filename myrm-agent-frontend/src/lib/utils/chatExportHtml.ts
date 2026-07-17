@@ -390,7 +390,7 @@ function renderToolActivityHtml(tools: ToolSummary | null | undefined, labels: H
 </div>`;
 }
 
-function renderAgentCard(agent: AgentInfo | null | undefined, labels: HtmlLabels): string {
+function renderAgentCard(agent: AgentInfo | null | undefined, _labels: HtmlLabels): string {
   if (!agent) return '';
   const modelBadge = agent.model ? `<span class="agent-model">${esc(agent.model)}</span>` : '';
   const desc = agent.description ? `<div class="agent-desc">${esc(agent.description)}</div>` : '';

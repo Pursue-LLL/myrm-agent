@@ -5,7 +5,6 @@
   "sideEffects": [
     "*.css",
     "*.scss",
-    "src/styles/**/*",
     "src/app/globals.css"
   ],
   "scripts": {
@@ -14,7 +13,7 @@
     "dev:clean": "bun run scripts/dev.ts --clean",
     "cleanup": "bun run scripts/cleanup.ts",
     "i18n:split": "node scripts/split-locale-namespaces.mjs",
-    "build": "bun run i18n:split && next build",
+    "build": "bun run i18n:split && next build && NODE_ENV=production bunx serwist inject-manifest serwist.config.ts && rm -f package-lock.json",
     "build:tauri": "bun run i18n:split && BUILD_MODE=tauri next build",
     "prestart": "bun run i18n:split",
     "start": "next start",
@@ -24,6 +23,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "check": "bun run format && bun run lint",
+    "typecheck": "tsc --noEmit",
     "generate:artifact-types": "bun scripts/generate-artifact-types.ts",
     "sync-litellm-routing": "cd ../myrm-agent-harness && uv run python scripts/generate_litellm_routing.py",
     "test": "vitest run",
@@ -65,6 +65,9 @@
     "@radix-ui/react-toggle-group": "^1.1.15",
     "@radix-ui/react-tooltip": "^1.2.12",
     "@radix-ui/react-visually-hidden": "^1.2.7",
+    "@serwist/next": "^9.5.11",
+    "@serwist/precaching": "^9.5.11",
+    "@serwist/sw": "^9.5.11",
     "@tanstack/react-virtual": "^3.14.6",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
@@ -118,6 +121,7 @@
     "remark-math": "^6.0.0",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
+    "serwist": "^9.5.11",
     "sonner": "^2.0.7",
     "swr": "^2.4.2",
     "tailwind-merge": "^3.6.0",
@@ -136,6 +140,7 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.2.10",
+    "@serwist/cli": "^9.5.11",
     "@shadcn/ui": "^0.0.4",
     "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/typography": "^0.5.20",
