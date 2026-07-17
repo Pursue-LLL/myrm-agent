@@ -159,7 +159,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.debug("x_search_tool skipped: %s", e)
 
-    def _setup_search_and_basic_tools(self, tools: list[object], discoverable_tools: list[object]) -> None:
+    def _setup_search_and_basic_tools(self, tools: list[object]) -> None:
         """Set up web fetch (baseline), web search (opt-in), and basic utility tools."""
         from myrm_agent_harness.toolkits import (
             create_web_fetch_tool,
@@ -242,7 +242,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         self._setup_video_generation_tools(tools)
         self._setup_tts_tools(tools)
 
-    def _setup_clarification_tools(self, tools: list[object], discoverable_tools: list[object]) -> None:
+    def _setup_clarification_tools(self, tools: list[object]) -> None:
         """Set up ask_question HITL clarification tool for interactive web_chat sessions."""
         if not _should_mount_ask_question_tool(
             unattended_mode=getattr(self, "unattended_mode", False),
@@ -529,7 +529,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
     async def _create_memory_tools(
         self,
         tools: list[object],
-        discoverable_tools: list[object],
         binding: ResolvedContextBinding,
     ) -> MemoryManager | None:
         """Create memory tools. Returns MemoryManager on success, None on failure."""
@@ -574,7 +573,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
     async def _setup_browser_tools(
         self,
         tools: list[object],
-        discoverable_tools: list[object],
         effective_chat_id: str,
         vision_llm: "BaseChatModel" | None = None,
         memory_manager: object | None = None,
@@ -717,18 +715,37 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
             from myrm_agent_harness.toolkits.computer_use.types import (
                 ComputerUseConfig,
+                ExecutionMode,
             )
 
+            from app.ai_agents.desktop_control.gate import DesktopControlGate
+            from app.config.computer_use_deploy import is_computer_use_deploy_supported
+            from app.config.deploy_mode import is_local_mode, is_sandbox
+
             constraints = _select_image_constraints(self.model_cfg.model)
-            config = ComputerUseConfig(image_constraints=constraints) if constraints else None
-            session = create_desktop_session(config=config)
+            workspace_root = (
+                self.declared_allowed_roots[0] if getattr(self, "declared_allowed_roots", ()) else None
+            )
+            auto_grant = is_sandbox() and is_computer_use_deploy_supported() and not is_local_mode()
+            execution_mode = (
+                ExecutionMode.background_strict
+                if is_local_mode()
+                else ExecutionMode.background_best_effort
+            )
+            gate = DesktopControlGate(workspace_root=workspace_root, auto_grant=auto_grant)
+            config_kwargs: dict[str, object] = {"execution_mode": execution_mode}
+            if constraints:
+                config_kwargs["image_constraints"] = constraints
+            config = ComputerUseConfig(**config_kwargs)
+            session = create_desktop_session(config=config, permission_callback=gate)
             computer_tools = create_desktop_tools(session)
             tools.extend(computer_tools)
             self._desktop_session = session
             logger.warning(
-                "Loaded %d desktop control tools (model=%s, max_edge=%dpx) [Turn1]",
+                "Loaded %d desktop control tools (model=%s, mode=%s, max_edge=%dpx) [Turn1]",
                 len(computer_tools),
                 self.model_cfg.model,
+                execution_mode.value,
                 session._config.image_constraints.max_edge_px,
             )
         except Exception as e:

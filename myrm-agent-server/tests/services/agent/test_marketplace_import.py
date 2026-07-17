@@ -5,8 +5,8 @@ Tests cover:
 - Skill ID remapping
 - Subagent ID remapping + skill_ids remapping within subagents
 - Idempotent subagent de-duplication by name
-- Malformed skill handling (skip)
-- save_skill failure handling
+- Contract fail-closed validation (malformed/tampered package rejected)
+- Atomic rollback on import failure
 - Empty package import
 - _remap_ids preserves unmapped IDs
 """
@@ -14,7 +14,7 @@ Tests cover:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -35,14 +35,38 @@ class FakeAgentProfile:
     display_name: str | None = None
 
 
+@dataclass
+class FakeSkillDeleteResult:
+    success: bool
+    skill_name: str = ""
+    error: str = ""
+
+
+@dataclass
+class FakeSkillResourceWriteResult:
+    success: bool
+    skill_name: str = ""
+    resource_path: str = ""
+    error: str = ""
+
+
+class FakeSkillSaveResultNoWasUpdated:
+    success = True
+    skill_id = "local::new-skill-hash"
+    error = ""
+
+
 def _make_package(
     *,
-    agent_profile: dict | None = None,
-    bundled_skills: list[dict] | None = None,
-    bundled_subagents: list[dict] | None = None,
-) -> dict:
-    return {
-        "agent_profile": agent_profile or {
+    agent_profile: dict[str, object] | None = None,
+    bundled_skills: list[dict[str, object]] | None = None,
+    bundled_subagents: list[dict[str, object]] | None = None,
+) -> dict[str, object]:
+    from app.services.agent.marketplace_package_contract import build_marketplace_package
+
+    return build_marketplace_package(
+        agent_profile=agent_profile
+        or {
             "display_name": "Test Agent",
             "description": "desc",
             "system_prompt": "sys",
@@ -51,7 +75,9 @@ def _make_package(
             "enabled_builtin_tools": [],
             "personality_style": "professional",
         },
-        "bundled_skills": bundled_skills if bundled_skills is not None else [
+        bundled_skills=bundled_skills
+        if bundled_skills is not None
+        else [
             {
                 "id": "old-skill-1",
                 "name": "sales-skill",
@@ -60,7 +86,10 @@ def _make_package(
                 "resources": {"data.json": '{"key": "val"}'},
             },
         ],
-        "bundled_subagents": bundled_subagents if bundled_subagents is not None else [
+        bundled_mcp_configs=[],
+        bundled_subagents=bundled_subagents
+        if bundled_subagents is not None
+        else [
             {
                 "original_id": "old-sub-1",
                 "profile": {
@@ -72,7 +101,7 @@ def _make_package(
                 },
             },
         ],
-    }
+    )
 
 
 @pytest.fixture
@@ -83,7 +112,9 @@ def mock_skill_svc() -> AsyncMock:
         skill_id="local::new-skill-hash",
         skill_name="sales-skill",
     ))
-    svc.write_resource = AsyncMock()
+    svc.write_resource = AsyncMock(return_value=FakeSkillResourceWriteResult(success=True))
+    svc.delete_skill = AsyncMock(return_value=FakeSkillDeleteResult(success=True))
+    svc.base_path = None
     return svc
 
 
@@ -133,8 +164,6 @@ async def test_skill_id_remapping(mock_skill_svc: AsyncMock, patch_agent_service
 
     package = _make_package(bundled_subagents=[])
     created_data: list = []
-
-    original_create = AgentService.create_agent
 
     async def capture_create(data):
         created_data.append(data)
@@ -200,24 +229,23 @@ async def test_subagent_idempotent_dedup(mock_skill_svc: AsyncMock):
 
 
 @pytest.mark.asyncio
-async def test_malformed_skill_skipped(mock_skill_svc: AsyncMock, patch_agent_service: None):
-    """Skills without name or content are skipped."""
+async def test_malformed_skill_rejected(mock_skill_svc: AsyncMock):
+    """Malformed skill contract should fail-closed before any writes."""
     from app.services.agent.marketplace_import import import_agent_package
 
-    package = _make_package(
-        bundled_skills=[
-            {"id": "bad-1", "name": "", "content": "has content"},
-            {"id": "bad-2", "name": "has-name", "content": ""},
-        ],
-        bundled_subagents=[],
-    )
-    await import_agent_package(mock_skill_svc, package)
+    package = _make_package(bundled_skills=[], bundled_subagents=[])
+    package["bundled_skills"] = [
+        {"id": "bad-1", "name": "", "content": "has content"},
+        {"id": "bad-2", "name": "has-name", "content": ""},
+    ]
+    with pytest.raises(ValueError, match="bundled_skills.name"):
+        await import_agent_package(mock_skill_svc, package)
     mock_skill_svc.save_skill.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_save_skill_failure_handled(mock_skill_svc: AsyncMock, patch_agent_service: None):
-    """If save_skill fails, the skill is skipped but import continues."""
+async def test_save_skill_failure_aborts_import(mock_skill_svc: AsyncMock):
+    """save_skill failure should abort import (fail-closed)."""
     from app.services.agent.agent_service import AgentService
     from app.services.agent.marketplace_import import import_agent_package
 
@@ -226,16 +254,23 @@ async def test_save_skill_failure_handled(mock_skill_svc: AsyncMock, patch_agent
     )
 
     package = _make_package(bundled_subagents=[])
-    created_data: list = []
+    with patch.object(AgentService, "create_agent", new_callable=AsyncMock) as create_mock:
+        with pytest.raises(ValueError, match="failed to save skill"):
+            await import_agent_package(mock_skill_svc, package)
+    create_mock.assert_not_called()
 
-    async def capture_create(data):
-        created_data.append(data)
-        return FakeAgentProfile(id="new-agent", display_name=data.name)
 
-    with patch.object(AgentService, "create_agent", side_effect=capture_create):
+@pytest.mark.asyncio
+async def test_save_skill_missing_was_updated_flag_rejected(mock_skill_svc: AsyncMock):
+    """Skill backend must return was_updated to guarantee rollback safety."""
+    from app.services.agent.marketplace_import import import_agent_package
+
+    mock_skill_svc.save_skill = AsyncMock(return_value=FakeSkillSaveResultNoWasUpdated())
+    package = _make_package(bundled_subagents=[])
+
+    with pytest.raises(RuntimeError, match="did not return 'was_updated'"):
         await import_agent_package(mock_skill_svc, package)
-
-    assert created_data[0].skill_ids == ["old-skill-1"]
+    mock_skill_svc.delete_skill.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -251,6 +286,72 @@ async def test_empty_package(mock_skill_svc: AsyncMock, patch_agent_service: Non
     result = await import_agent_package(mock_skill_svc, package)
     assert result == "new-empty-agent"
     mock_skill_svc.save_skill.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_rejects_tampered_package_digest(mock_skill_svc: AsyncMock):
+    """Tampered trust digest should be rejected by integrity gate."""
+    from app.services.agent.marketplace_import import import_agent_package
+
+    package = _make_package()
+    trust = package["trust"]
+    assert isinstance(trust, dict)
+    trust["payload_sha256"] = "0" * 64
+
+    with pytest.raises(ValueError, match="integrity check failed"):
+        await import_agent_package(mock_skill_svc, package)
+    mock_skill_svc.save_skill.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_atomic_rollback_skills_when_main_agent_creation_fails(mock_skill_svc: AsyncMock):
+    """When main Agent creation fails, imported skills must be rolled back."""
+    from app.services.agent.agent_service import AgentService
+    from app.services.agent.marketplace_import import import_agent_package
+
+    package = _make_package(bundled_subagents=[])
+
+    with patch.object(
+        AgentService,
+        "create_agent",
+        new=AsyncMock(side_effect=RuntimeError("db down")),
+    ):
+        with pytest.raises(RuntimeError, match="db down"):
+            await import_agent_package(mock_skill_svc, package)
+
+    mock_skill_svc.delete_skill.assert_awaited_once_with("sales-skill")
+
+
+@pytest.mark.asyncio
+async def test_atomic_rollback_subagent_and_skill_when_main_creation_fails(mock_skill_svc: AsyncMock):
+    """Rollback should delete newly created subagent + skill when main create fails."""
+    from app.services.agent.agent_service import AgentService
+    from app.services.agent.marketplace_import import import_agent_package
+
+    package = _make_package()
+    create_side_effect = [
+        FakeAgentProfile(id="new-subagent-id", display_name="Sub Agent"),
+        RuntimeError("main create failed"),
+    ]
+
+    with patch.object(
+        AgentService,
+        "create_agent",
+        new=AsyncMock(side_effect=create_side_effect),
+    ), patch.object(
+        AgentService,
+        "get_agent_by_name",
+        new=AsyncMock(return_value=None),
+    ), patch.object(
+        AgentService,
+        "delete_agent",
+        new=AsyncMock(return_value=True),
+    ) as delete_agent_mock:
+        with pytest.raises(RuntimeError, match="main create failed"):
+            await import_agent_package(mock_skill_svc, package)
+
+    delete_agent_mock.assert_awaited_once_with("new-subagent-id")
+    mock_skill_svc.delete_skill.assert_awaited_once_with("sales-skill")
 
 
 @pytest.mark.asyncio

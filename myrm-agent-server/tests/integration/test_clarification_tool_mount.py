@@ -79,11 +79,9 @@ def test_should_mount_predicate_matrix() -> None:
 def test_ask_question_mounted_for_interactive_web_chat() -> None:
     mixin = _make_mixin()
     tools: list[object] = []
-    discoverable_tools: list[object] = []
-    mixin._setup_clarification_tools(tools, discoverable_tools)
+    mixin._setup_clarification_tools(tools)
 
     assert "ask_question_tool" in _tool_names(tools)
-    assert "ask_question_tool" not in _tool_names(discoverable_tools)
 
 
 def test_ask_question_tool_schema_uses_requires_confirmation() -> None:
@@ -92,8 +90,7 @@ def test_ask_question_tool_schema_uses_requires_confirmation() -> None:
 
     mixin = _make_mixin()
     tools: list[object] = []
-    discoverable_tools: list[object] = []
-    mixin._setup_clarification_tools(tools, discoverable_tools)
+    mixin._setup_clarification_tools(tools)
 
     ask_tool = next(tool for tool in tools if getattr(tool, "name", None) == "ask_question_tool")
     assert ask_tool.args_schema is AskQuestionInput
@@ -106,8 +103,7 @@ def test_ask_question_tool_schema_uses_requires_confirmation() -> None:
 def test_ask_question_skipped_when_unattended() -> None:
     mixin = _make_mixin(unattended_mode=True)
     tools: list[object] = []
-    discoverable_tools: list[object] = []
-    mixin._setup_clarification_tools(tools, discoverable_tools)
+    mixin._setup_clarification_tools(tools)
 
     assert "ask_question_tool" not in _tool_names(tools)
 
@@ -115,8 +111,7 @@ def test_ask_question_skipped_when_unattended() -> None:
 def test_ask_question_skipped_for_im_channel() -> None:
     mixin = _make_mixin(channel_name="telegram_abc123")
     tools: list[object] = []
-    discoverable_tools: list[object] = []
-    mixin._setup_clarification_tools(tools, discoverable_tools)
+    mixin._setup_clarification_tools(tools)
 
     assert "ask_question_tool" not in _tool_names(tools)
 
@@ -124,8 +119,7 @@ def test_ask_question_skipped_for_im_channel() -> None:
 def test_ask_question_skipped_when_structured_clarify_disabled() -> None:
     mixin = _make_mixin(enable_structured_clarify=False)
     tools: list[object] = []
-    discoverable_tools: list[object] = []
-    mixin._setup_clarification_tools(tools, discoverable_tools)
+    mixin._setup_clarification_tools(tools)
 
     assert "ask_question_tool" not in _tool_names(tools)
 
@@ -142,7 +136,6 @@ def test_factory_unattended_agent_excludes_ask_question_tool() -> None:
     assert agent.unattended_mode is True
 
     tools: list[object] = []
-    discoverable_tools: list[object] = []
-    agent._setup_clarification_tools(tools, discoverable_tools)
+    agent._setup_clarification_tools(tools)
 
     assert "ask_question_tool" not in _tool_names(tools)

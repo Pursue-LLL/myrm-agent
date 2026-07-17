@@ -14,6 +14,7 @@ export type StreamLocale = 'en' | 'zh' | 'ja' | 'ko' | 'de';
 
 type NotificationCopy = {
   clarificationNeeded: string;
+  desktopControlApprovalNeeded: string;
 };
 
 const localeLoaders: Record<StreamLocale, () => Promise<NotificationCopy>> = {
@@ -28,6 +29,7 @@ const notificationCache: Partial<Record<StreamLocale, NotificationCopy>> = {};
 
 const FALLBACK_COPY: NotificationCopy = {
   clarificationNeeded: 'Agent needs your input',
+  desktopControlApprovalNeeded: 'Desktop control approval required',
 };
 
 export async function preloadNotificationCopy(): Promise<void> {
@@ -78,5 +80,14 @@ export function getClarificationNotificationTitle(lang: string): string {
     notificationCache[locale]?.clarificationNeeded ??
     notificationCache.en?.clarificationNeeded ??
     FALLBACK_COPY.clarificationNeeded
+  );
+}
+
+export function getDesktopControlApprovalNotificationTitle(lang: string): string {
+  const locale = resolveStreamLocale(lang);
+  return (
+    notificationCache[locale]?.desktopControlApprovalNeeded ??
+    notificationCache.en?.desktopControlApprovalNeeded ??
+    FALLBACK_COPY.desktopControlApprovalNeeded
   );
 }

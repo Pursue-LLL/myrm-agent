@@ -8,9 +8,11 @@ profiles required for cross-sandbox installation. Secrets are always stripped.
 - database.repositories.uow::UnitOfWork (POS: Unit of Work 事务层)
 - core.skills.store.service::skills_service (POS: Skill CRUD 单例服务)
 - services.agent.profile_snapshot_service::mutable_snapshot_data (POS: Agent 字段序列化)
+- services.agent.marketplace_package_contract::build_marketplace_package
+  (POS: Marketplace 包契约构建 + 完整性摘要)
 
 [OUTPUT]
-- export_agent_package(uow, agent_id): Complete marketplace package dict
+- export_agent_package(uow, agent_id): Contract-compliant marketplace package dict
 
 [POS]
 Server-side export for marketplace publish flow. Strips secrets, bundles
@@ -26,6 +28,7 @@ from myrm_agent_harness.backends.profiles.types import AgentProfile
 
 from app.core.skills.store.service import skills_service
 from app.database.repositories.uow import UnitOfWork
+from app.services.agent.marketplace_package_contract import build_marketplace_package
 from app.services.agent.profile_snapshot_service import mutable_snapshot_data
 
 logger = logging.getLogger(__name__)
@@ -73,12 +76,12 @@ async def export_agent_package(uow: UnitOfWork, agent_id: str) -> dict:
     bundled_mcp_configs = _bundle_mcp_configs(agent_profile)
     bundled_subagents = await _bundle_subagents(uow, agent_profile)
 
-    return {
-        "agent_profile": snapshot,
-        "bundled_skills": bundled_skills,
-        "bundled_mcp_configs": bundled_mcp_configs,
-        "bundled_subagents": bundled_subagents,
-    }
+    return build_marketplace_package(
+        agent_profile=snapshot,
+        bundled_skills=bundled_skills,
+        bundled_mcp_configs=bundled_mcp_configs,
+        bundled_subagents=bundled_subagents,
+    )
 
 
 async def _bundle_custom_skills(profile: AgentProfile) -> list[dict]:

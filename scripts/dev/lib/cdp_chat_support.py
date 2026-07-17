@@ -169,6 +169,36 @@ def wait_e2e_provider_ready(
     return False
 
 
+def fetch_e2e_goal_status(chat_id: str) -> dict[str, object] | None:
+    """Return the active goal dict for a chat session, or None if not yet persisted."""
+    try:
+        resp = urllib.request.urlopen(  # noqa: S310
+            f"{get_e2e_api_url()}/api/v1/goals/{chat_id}/status",
+            timeout=15,
+        )
+        payload = json.loads(resp.read())
+    except Exception:
+        return None
+    goal = payload.get("goal")
+    return goal if isinstance(goal, dict) else None
+
+
+def wait_e2e_goal_status(
+    chat_id: str,
+    *,
+    timeout_sec: float = 90.0,
+    poll_interval_sec: float = 1.0,
+) -> dict[str, object] | None:
+    """Poll private-backend goal persistence (orchestrator may lag turn completion)."""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        goal = fetch_e2e_goal_status(chat_id)
+        if goal is not None:
+            return goal
+        time.sleep(poll_interval_sec)
+    return None
+
+
 _CHAT_ID_PATH_RE = re.compile(
     r"^/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|c-[a-z0-9\-]+)$",
     re.IGNORECASE,

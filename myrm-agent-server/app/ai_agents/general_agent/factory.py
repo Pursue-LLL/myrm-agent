@@ -168,10 +168,9 @@ async def build_general_agent(
 
     # 4. Create tools (delegated to ToolSetupMixin)
     tools: list[object] = []
-    discoverable_tools: list[object] = []
     agent_wrapper._task_user_id = user_id or "default"
-    agent_wrapper._setup_search_and_basic_tools(tools, discoverable_tools)
-    agent_wrapper._setup_clarification_tools(tools, discoverable_tools)
+    agent_wrapper._setup_search_and_basic_tools(tools)
+    agent_wrapper._setup_clarification_tools(tools)
 
     from app.services.context.context_assembly import ContextAssemblyService
 
@@ -186,7 +185,7 @@ async def build_general_agent(
     memory_manager = None
     memory_binding = context_assembly.binding
     if session_memory_enabled and memory_binding is not None:
-        memory_manager = await agent_wrapper._create_memory_tools(tools, discoverable_tools, memory_binding)
+        memory_manager = await agent_wrapper._create_memory_tools(tools, memory_binding)
 
     if (
         session_memory_enabled
@@ -207,7 +206,7 @@ async def build_general_agent(
 
     if agent_wrapper.enable_browser:
         await agent_wrapper._setup_browser_tools(
-            tools, discoverable_tools, effective_chat_id, vision_llm=llm, memory_manager=memory_manager
+            tools, effective_chat_id, vision_llm=llm, memory_manager=memory_manager
         )
 
     if _should_setup_computer_use_tools(agent_wrapper.enable_computer_use):
@@ -236,7 +235,6 @@ async def build_general_agent(
     ):
         await agent_wrapper._setup_external_agents(
             tools,
-            discoverable_tools,
             mount_delegate_tool=mount_delegate_tool,
         )
 
@@ -589,6 +587,15 @@ async def build_general_agent(
 
     workspace_root = agent_wrapper.declared_allowed_roots[0] if agent_wrapper.declared_allowed_roots else None
 
+    if workspace_root and agent_wrapper.mcp_config:
+        from app.ai_agents.general_agent.mcp_vault_handler import build_mcp_vault_handler
+
+        vault_handler = build_mcp_vault_handler(workspace_root)
+        agent_wrapper.mcp_config = [
+            cfg.model_copy(update={"oversized_result_handler": vault_handler})
+            for cfg in agent_wrapper.mcp_config
+        ]
+
     workspace_mode = "chat"
     workspace_binding = (
         WorkspaceBinding(
@@ -703,7 +710,6 @@ async def build_general_agent(
         extraction_llm=agent_wrapper._lite_llm,
         middlewares=middlewares,
         tools=tools,
-        discoverable_tools=discoverable_tools,
         collect_artifacts=True,
         fallback_llm=fallback_llm,
         safety_fallback_llm=safety_fallback_llm,

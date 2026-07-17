@@ -31,7 +31,6 @@ def test_append_conversation_search_tool_registers_turn1(monkeypatch) -> None:
     )
 
     tools: list[object] = []
-    discoverable_tools: list[object] = []
     memory_manager = FakeMemoryManager()
 
     append_conversation_search_tool(
@@ -40,8 +39,6 @@ def test_append_conversation_search_tool_registers_turn1(monkeypatch) -> None:
         agent_id="agent-b",
         memory_manager=memory_manager,
     )
-
-    assert discoverable_tools == []
     assert [tool.name for tool in tools] == ["conversation_search_tool"]
     provider = created["provider"]
     assert isinstance(provider, FakeProvider)

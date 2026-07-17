@@ -357,6 +357,7 @@ class CdpChatTurn(CdpChatSubmit):
         await self.dismiss_modals()
         await self.wait_dev_bridge()
         await self.ensure_e2e_api_base_binding()
+        await self.ensure_chat_surface(ui_base)
         if chat_id_hint:
             on_chat_page = False
             try:
@@ -400,7 +401,22 @@ class CdpChatTurn(CdpChatSubmit):
                     await_promise=True,
                     recv_timeout=30.0,
                 )
-            await self._ensure_send_ready()
+            ready = await self._ensure_send_ready()
+            send_probe = await self.evaluate(
+                """(() => ({
+                  sendReady: !!window.__MYRM_E2E_CHAT__?.isSendReady?.(),
+                  path: location.pathname,
+                }))()""",
+                await_promise=False,
+            )
+            if not isinstance(send_probe, dict) or not send_probe.get("sendReady"):
+                debug = await self.evaluate(
+                    """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
+                    await_promise=False,
+                )
+                raise RuntimeError(
+                    f"E2E send not ready before submit: ready={ready} probe={send_probe} debug={debug}"
+                )
             fill = await self.fill_input(text)
             if not fill.get("ok"):
                 raise RuntimeError(f"UI fill failed: {fill}")

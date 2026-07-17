@@ -12,8 +12,8 @@ classifiers = [
 requires-python = ">=3.13,<3.14"  # Limit to 3.13 to avoid apscheduler dependency resolution issues on 3.14+
 dependencies = [
   # --- Web 框架 ---
-  "fastapi>=0.139.0",         # Web API 框架 (54 文件)
-  "uvicorn>=0.49.0",          # ASGI 服务器，本地单进程模式 (run.py)
+  "fastapi>=0.139.2",         # Web API 框架 (54 文件)
+  "uvicorn>=0.51.0",          # ASGI 服务器，本地单进程模式 (run.py)
   # --- 数据与配置 ---
   "pydantic>=2.13.4",          # 数据模型/Schema 校验 (48 文件)
   "pydantic-settings>=2.14.2", # 统一配置管理 (BaseSettings + .env)
@@ -21,9 +21,9 @@ dependencies = [
   # --- HTTP & I/O ---
   "httpx>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   # --- AI & LLM ---
-  "litellm>=1.90.2",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
-  "langchain>=1.3.11",      # Agent 工具/链定义 (70+ 文件)
-  "langchain-core>=1.4.8", # 消息类型/BaseTool (70+ 文件)
+  "litellm>=1.92.0",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
+  "langchain>=1.3.14",      # Agent 工具/链定义 (70+ 文件)
+  "langchain-core>=1.4.9", # 消息类型/BaseTool (70+ 文件)
   # --- Agent 框架 (PyPI wheel + compiled-core 平台包；见 docker/read_harness_pypi_spec.py) ---
   "myrm-agent-harness[acp,browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,compiled-core]==0.1.0rc5",
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
@@ -36,7 +36,7 @@ dependencies = [
   "sqlalchemy>=2.0.51", # ORM 框架，SQLite (170+ 文件)
   # --- 工具库 ---
   "nanoid>=2.0.0", # 唯一 ID 生成 (9 文件)
-  "filelock>=3.29.5", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
+  "filelock>=3.30.2", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
   # --- 安全与展示 ---
   "keyring>=25.7.0",    # OS 原生密钥链 (macOS Keychain / Linux secret-service / Windows Credential Manager)
   "qrcode>=8.2",        # 二维码生成 (WebUI 模式)
@@ -51,25 +51,25 @@ dependencies = [
   "wakepy>=1.0.0",                      # 阻止系统休眠 (power/manager.py)
   "psutil>=7.2.2",                      # 系统监控 (server_lock + health + power)
   "fluent-runtime>=0.4.0",             # i18n Fluent 引擎 (channels/i18n/engine.py)
-  "websockets>=16.0",                   # WebSocket 通信 (11+ channels/voice)
+  "websockets>=16.1",                   # WebSocket 通信 (11+ channels/voice)
   "aioboto3>=15.5.0",                   # AWS S3 异步客户端 (备份 + sandbox/storage)
   "tenacity>=9.1.4", # Vercel deploy retries (vercel_client.py)
-  "pywebpush>=2.0.1", # Web Push (VAPID) notifications (core/web_push/)
+  "pywebpush>=2.3.0", # Web Push (VAPID) notifications (core/web_push/)
 ]
 
 [project.optional-dependencies]
 # Discord + Feishu SDKs (app/channels/providers/discord/, feishu/); GUI lazy-install or --extra channels-sdk
 channels-sdk = [
   "discord-py[voice]>=2.7.1",
-  "lark-oapi>=1.7.0",
+  "lark-oapi>=1.7.1",
 ]
 # Matrix channel (app/channels/providers/matrix/); SOCKS via auth.py + aiohttp-socks
 matrix = [
-  "mautrix>=0.21.0",
+  "mautrix>=0.21.1",
   "aiohttp-socks>=0.11.0",
 ]
 matrix-e2ee = [
-  "mautrix[encryption]>=0.21.0",
+  "mautrix[encryption]>=0.21.1",
 ]
 # WeChat iLink SILK voice codec (GPLv3 — optional; app/channels/providers/_ilink/silk.py)
 wechat-silk = [
@@ -95,7 +95,7 @@ environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"
 override-dependencies = [
   "click>=8.4.2",
   "patchright>=1.61.2",
-  "openai>=2.45.0",
+  "openai>=2.46.0",
   "aiohttp>=3.13.5",
   "opentelemetry-semantic-conventions>=0.61b0",
   "websockets>=16.0",
@@ -111,7 +111,7 @@ override-dependencies = [
 [dependency-groups]
 dev = [
   "pytest>=9.1.1",
-  "ruff>=0.15.21",
+  "ruff>=0.15.22",
   "pre-commit>=4.6.0",
   "pytest-asyncio>=1.4.0",
   "myrm-agent-harness[browser]", # 浏览器测试依赖

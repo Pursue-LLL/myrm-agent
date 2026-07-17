@@ -64,6 +64,7 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'tool_image_output',
   'browser_view_update',
   'desktop_view_update',
+  'desktop_control_approval_request',
   'ptc_notify',
   'locator_self_healed',
   'browser_takeover_requested',

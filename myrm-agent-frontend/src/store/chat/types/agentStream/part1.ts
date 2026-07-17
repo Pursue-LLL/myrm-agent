@@ -75,6 +75,7 @@ export const AgentEventType = {
   TOOL_IMAGE_OUTPUT: 'tool_image_output',
   BROWSER_VIEW_UPDATE: 'browser_view_update',
   DESKTOP_VIEW_UPDATE: 'desktop_view_update',
+  DESKTOP_CONTROL_APPROVAL_REQUEST: 'desktop_control_approval_request',
   PTC_NOTIFY: 'ptc_notify',
   TOOL_PROGRESS: 'tool_progress',
   FISSION_TOPOLOGY: 'fission_topology',

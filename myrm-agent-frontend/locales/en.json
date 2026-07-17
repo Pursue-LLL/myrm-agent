@@ -5974,7 +5974,14 @@
       "permissionMissing": "Missing permissions",
       "instructionPlaceholder": "Describe what you want to do on the desktop...",
       "instructionWithElement": "What should the agent do with this desktop element?",
-      "send": "Send instruction"
+      "send": "Send instruction",
+      "controlApproval": {
+        "title": "Desktop control approval required",
+        "deny": "Deny",
+        "allowOnce": "Allow once",
+        "allowSession": "Allow this chat",
+        "allowAlways": "Always allow this app"
+      }
     },
     "clarification": {
       "formTitle": "Clarification form",
@@ -6284,6 +6291,16 @@
           "shared": "Shared",
           "sharedDesc": "All users in thread share the same conversation history",
           "tooltip": "Enable for collaborative scenarios like Discord Forums or Telegram Forum Topics"
+        },
+        "replyMode": {
+          "label": "Reply Mode",
+          "auto": "Auto Send",
+          "draftReview": "Draft Review",
+          "tooltip": "When set to Draft Review, AI replies are held for your approval before being sent to the channel. Recommended for customer-facing scenarios.",
+          "timeout": "Timeout",
+          "onExpiry": "On expiry",
+          "autoReject": "Discard draft",
+          "autoSend": "Send automatically"
         }
       },
       "voice": {

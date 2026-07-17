@@ -4,7 +4,7 @@
 
 本地开发启动脚本。由根 `scripts/myrm` / `myrm.ps1` 分发调用，不直接暴露给终端用户（用户使用 `myrm dev` / `myrm start`）。
 
-**职责边界**：本目录只放 **栈启动/守门** 与 **MCP Chrome UI E2E 胶水**（`_ARCH.md` 文件表内条目）。可重复的 API/契约验证一律在 `myrm-agent-server/tests/`（`./myrm test` / `./myrm test -m e2e`），禁止在此新增「半 pytest」一次性联调脚本。
+**职责边界**：本目录只放 **栈启动/守门** 与 **MCP Chrome UI E2E 胶水**（`_ARCH.md` 文件表内条目）。可重复的 API/契约验证一律在 `myrm-agent-server/tests/`（`./myrm test` / `./myrm test -m chrome_e2e`），禁止在此新增「半 pytest」一次性联调脚本。
 
 ## 文件清单
 
@@ -26,9 +26,9 @@
 | `chrome-e2e/` | Unix | **AOS SSOT**：`surface.py`（Agent Window）、`focus.sh`（macOS FALLBACK）、`cli.sh`、`hil.py` |
 | `chrome-e2e-doctor.sh` | Unix | `./myrm doctor --chrome` 一站式诊断 |
 | `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
-| `wave-e2e-lease.sh` | Unix | `./myrm test -m e2e` LIVE_AGENT 租约；最后一个 lease 释放时原子关闭 Wave |
+| `wave-e2e-lease.sh` | Unix | `./myrm test -m chrome_e2e` LIVE_AGENT/READ 租约；最后一个 lease 释放时原子关闭 Wave |
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
-| `chrome-e2e-preflight.sh` | Unix | 首 Agent完整 reconcile/client_hot；attach 用一次聚合只读快照 fail-fast；输出 `CHROME_E2E_HEALTH_JSON` |
+| `chrome-e2e-preflight.sh` | Unix | 首 Agent 完整 reconcile/client_hot；attach 用一次聚合只读快照 fail-fast；mux 超时 stamp 漂移且 contexts=0 时可安全重启 daemon；输出 `CHROME_E2E_HEALTH_JSON` |
 | `chrome-e2e-model-seed.mjs` | Bun | 新对话 UI E2E 前置：无 defaultModel 时从 `.env.test` 写入 providers |
 | `chrome-e2e-seed-providers.mjs` | Bun | seed 逻辑模块（local 模式免 WebUI 登录） |
 | `wave-resource-lease.sh` | Unix | `./myrm` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |

@@ -172,6 +172,7 @@ myrm_agent_harness.core.artifacts.paths
 myrm_agent_harness.core.config
 myrm_agent_harness.core.config.gateway
 myrm_agent_harness.core.events
+myrm_agent_harness.core.events.types
 myrm_agent_harness.core.features
 myrm_agent_harness.core.features.types
 myrm_agent_harness.core.security.credential_vault
@@ -404,6 +405,7 @@ myrm_agent_harness.utils.media
 myrm_agent_harness.utils.media.image_compressor
 myrm_agent_harness.utils.mime_types
 myrm_agent_harness.utils.runtime.cancellation
+myrm_agent_harness.utils.runtime.progress_sink
 myrm_agent_harness.utils.runtime.steering
 myrm_agent_harness.utils.runtime.wakeup_registry
 myrm_agent_harness.utils.text_sanitizer

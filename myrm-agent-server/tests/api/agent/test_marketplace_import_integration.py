@@ -14,7 +14,6 @@ Scenarios:
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -29,6 +28,23 @@ def _patch_skills_dir(tmp_path: Path):
     skills_dir.mkdir()
     with patch("app.core.skills.creation.service.LOCAL_SKILLS_DIR", skills_dir):
         yield
+
+
+def _build_package(
+    *,
+    agent_profile: dict[str, object],
+    bundled_skills: list[dict[str, object]] | None = None,
+    bundled_subagents: list[dict[str, object]] | None = None,
+    bundled_mcp_configs: list[dict[str, object]] | None = None,
+) -> dict[str, object]:
+    from app.services.agent.marketplace_package_contract import build_marketplace_package
+
+    return build_marketplace_package(
+        agent_profile=agent_profile,
+        bundled_skills=bundled_skills or [],
+        bundled_subagents=bundled_subagents or [],
+        bundled_mcp_configs=bundled_mcp_configs or [],
+    )
 
 
 def _create_test_agent(client: TestClient) -> str:
@@ -59,6 +75,9 @@ def test_export_import_full_cycle(client: TestClient):
     package = export_resp.json()["data"]
 
     assert "agent_profile" in package
+    assert package["package_type"] == "myrm.marketplace.agent_profile"
+    assert package["schema_version"] == 1
+    assert "trust" in package
     assert package["agent_profile"]["display_name"] == "Export Test Agent"
 
     import_resp = client.post("/api/agents/marketplace-import", json=package)
@@ -70,8 +89,8 @@ def test_export_import_full_cycle(client: TestClient):
 
 def test_import_empty_package(client: TestClient):
     """Import a minimal package with no skills/subagents."""
-    package = {
-        "agent_profile": {
+    package = _build_package(
+        agent_profile={
             "display_name": "Minimal Imported Agent",
             "description": "No deps",
             "system_prompt": "Hello",
@@ -79,9 +98,7 @@ def test_import_empty_package(client: TestClient):
             "subagent_ids": [],
             "enabled_builtin_tools": [],
         },
-        "bundled_skills": [],
-        "bundled_subagents": [],
-    }
+    )
     resp = client.post("/api/agents/marketplace-import", json=package)
     assert resp.status_code == 200, f"Import failed: {resp.text}"
     data = resp.json()["data"]
@@ -91,8 +108,8 @@ def test_import_empty_package(client: TestClient):
 
 def test_import_with_bundled_skill(client: TestClient, tmp_path: Path):
     """Import a package that bundles a custom skill."""
-    package = {
-        "agent_profile": {
+    package = _build_package(
+        agent_profile={
             "display_name": "Skilled Agent",
             "description": "Has a skill",
             "system_prompt": "Use your skill",
@@ -100,7 +117,7 @@ def test_import_with_bundled_skill(client: TestClient, tmp_path: Path):
             "subagent_ids": [],
             "enabled_builtin_tools": [],
         },
-        "bundled_skills": [
+        bundled_skills=[
             {
                 "id": "original-skill-uuid",
                 "name": "test-marketplace-skill",
@@ -109,8 +126,7 @@ def test_import_with_bundled_skill(client: TestClient, tmp_path: Path):
                 "resources": {},
             },
         ],
-        "bundled_subagents": [],
-    }
+    )
     resp = client.post("/api/agents/marketplace-import", json=package)
     assert resp.status_code == 200, f"Import failed: {resp.text}"
     data = resp.json()["data"]
@@ -136,8 +152,8 @@ def test_export_nonexistent_agent(client: TestClient):
 )
 def test_import_with_subagent(client: TestClient):
     """Import a package with bundled subagent — verify subagent created and linked."""
-    package = {
-        "agent_profile": {
+    package = _build_package(
+        agent_profile={
             "display_name": "Parent Agent",
             "description": "Has a subagent",
             "system_prompt": "Delegate to subagent",
@@ -145,8 +161,7 @@ def test_import_with_subagent(client: TestClient):
             "subagent_ids": ["original-sub-uuid"],
             "enabled_builtin_tools": [],
         },
-        "bundled_skills": [],
-        "bundled_subagents": [
+        bundled_subagents=[
             {
                 "original_id": "original-sub-uuid",
                 "profile": {
@@ -158,7 +173,7 @@ def test_import_with_subagent(client: TestClient):
                 },
             },
         ],
-    }
+    )
     resp = client.post("/api/agents/marketplace-import", json=package)
     assert resp.status_code == 200, f"Import failed: {resp.text}"
     data = resp.json()["data"]
@@ -176,8 +191,8 @@ def test_import_with_subagent(client: TestClient):
 )
 def test_import_subagent_idempotent(client: TestClient):
     """Importing twice with same subagent name reuses existing subagent."""
-    package = {
-        "agent_profile": {
+    package = _build_package(
+        agent_profile={
             "display_name": "Idempotent Test Agent",
             "description": "Test idempotency",
             "system_prompt": "sys",
@@ -185,8 +200,7 @@ def test_import_subagent_idempotent(client: TestClient):
             "subagent_ids": ["sub-uuid-1"],
             "enabled_builtin_tools": [],
         },
-        "bundled_skills": [],
-        "bundled_subagents": [
+        bundled_subagents=[
             {
                 "original_id": "sub-uuid-1",
                 "profile": {
@@ -198,13 +212,34 @@ def test_import_subagent_idempotent(client: TestClient):
                 },
             },
         ],
-    }
+    )
 
     resp1 = client.post("/api/agents/marketplace-import", json=package)
     assert resp1.status_code == 200
     sub_id_1 = resp1.json()["data"]["subagent_ids"][0]
 
-    package["agent_profile"]["display_name"] = "Idempotent Test Agent 2"
+    package = _build_package(
+        agent_profile={
+            "display_name": "Idempotent Test Agent 2",
+            "description": "Test idempotency",
+            "system_prompt": "sys",
+            "skill_ids": [],
+            "subagent_ids": ["sub-uuid-1"],
+            "enabled_builtin_tools": [],
+        },
+        bundled_subagents=[
+            {
+                "original_id": "sub-uuid-1",
+                "profile": {
+                    "display_name": "Shared Subagent",
+                    "description": "shared",
+                    "system_prompt": "shared sys",
+                    "skill_ids": [],
+                    "enabled_builtin_tools": [],
+                },
+            },
+        ],
+    )
     resp2 = client.post("/api/agents/marketplace-import", json=package)
     assert resp2.status_code == 200
     sub_id_2 = resp2.json()["data"]["subagent_ids"][0]
@@ -214,8 +249,8 @@ def test_import_subagent_idempotent(client: TestClient):
 
 def test_import_with_skill_resources(client: TestClient, tmp_path: Path):
     """Import skill with resources — verify resource file created on filesystem."""
-    package = {
-        "agent_profile": {
+    package = _build_package(
+        agent_profile={
             "display_name": "Resource Agent",
             "description": "Has skill with resources",
             "system_prompt": "sys",
@@ -223,7 +258,7 @@ def test_import_with_skill_resources(client: TestClient, tmp_path: Path):
             "subagent_ids": [],
             "enabled_builtin_tools": [],
         },
-        "bundled_skills": [
+        bundled_skills=[
             {
                 "id": "res-skill-uuid",
                 "name": "resource-test-skill",
@@ -235,13 +270,12 @@ def test_import_with_skill_resources(client: TestClient, tmp_path: Path):
                 },
             },
         ],
-        "bundled_subagents": [],
-    }
+    )
     resp = client.post("/api/agents/marketplace-import", json=package)
     assert resp.status_code == 200, f"Import failed: {resp.text}"
 
 
 def test_import_malformed_package(client: TestClient):
-    """Import with completely invalid structure still returns gracefully."""
+    """Import with invalid structure should fail-closed with 400."""
     resp = client.post("/api/agents/marketplace-import", json={})
-    assert resp.status_code == 200
+    assert resp.status_code == 400

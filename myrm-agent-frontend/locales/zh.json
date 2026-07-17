@@ -4286,6 +4286,16 @@
           "shared": "共享",
           "sharedDesc": "话题内所有用户共享同一对话历史",
           "tooltip": "适用于协作场景，如 Discord 论坛或 Telegram 话题"
+        },
+        "replyMode": {
+          "label": "回复模式",
+          "auto": "自动发送",
+          "draftReview": "草稿审核",
+          "tooltip": "草稿审核模式下，AI 生成的回复需人工确认后才会发送，适用于销售/客服等合规场景",
+          "timeout": "超时时间",
+          "onExpiry": "超时策略",
+          "autoReject": "自动丢弃",
+          "autoSend": "自动发送"
         }
       }
     },
@@ -5963,7 +5973,14 @@
       "permissionMissing": "缺少权限",
       "instructionPlaceholder": "描述你想在桌面上做什么...",
       "instructionWithElement": "Agent 应该对这个桌面元素做什么？",
-      "send": "发送指令"
+      "send": "发送指令",
+      "controlApproval": {
+        "title": "需要桌面控制审批",
+        "deny": "拒绝",
+        "allowOnce": "允许一次",
+        "allowSession": "本会话允许",
+        "allowAlways": "始终允许此应用"
+      }
     },
     "clarification": {
       "formTitle": "澄清表单",

@@ -7,6 +7,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from myrm_agent_harness.utils import get_local_ip
+from pydantic import BaseModel
 
 from app.api.webui.auth_routes import router as webui_auth_router
 from app.api.webui.vnc_routes import router as vnc_router
@@ -468,3 +469,27 @@ async def get_desktop_snapshot() -> JSONResponse:
             status_code=500,
             content={"error": "snapshot_failed", "message": str(e)},
         )
+
+
+class DesktopApprovalResolveBody(BaseModel):
+    request_id: str
+    granted: bool
+    scope: str = "once"
+
+
+@router.post("/desktop/approval/resolve")
+async def resolve_desktop_approval(body: DesktopApprovalResolveBody) -> JSONResponse:
+    """Resolve a pending desktop control approval request from the Web UI."""
+    from app.ai_agents.desktop_control.gate import resolve_desktop_control_approval
+
+    resolved = resolve_desktop_control_approval(
+        body.request_id,
+        granted=body.granted,
+        scope=body.scope,
+    )
+    if not resolved:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "not_found", "message": "Approval request not found or already resolved"},
+        )
+    return JSONResponse(content={"ok": True})

@@ -200,6 +200,11 @@ class MCPServerConfig(BaseModel):
         exclude=True,
         description="Authentication provider for remote connections (business layer injects)",
     )
+    oversized_result_handler: object | None = Field(
+        default=None,
+        exclude=True,
+        description="Callback to persist oversized MCP tool outputs (business layer injects)",
+    )
 
     @field_validator("url", mode="before")
     @classmethod

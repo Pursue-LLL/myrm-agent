@@ -58,7 +58,6 @@ class TestUnattendedModeGuard:
             )
         )
         tools: list[object] = []
-        discoverable_tools: list[object] = []
-        agent._setup_clarification_tools(tools, discoverable_tools)
+        agent._setup_clarification_tools(tools)
         names = {getattr(t, "name", None) for t in tools}
         assert "ask_question_tool" not in names

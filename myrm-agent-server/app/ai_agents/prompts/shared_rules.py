@@ -56,11 +56,13 @@ TASK_INTEGRITY_RULES = """
 
 DESKTOP_CONTROL_RULES = """
 <desktop_control_rules>
-- **Workflow order**: desktop_inspect_tool → desktop_snapshot_tool → desktop_interact_tool(ref=@dref).
+- **Workflow order**: desktop_snapshot_tool → desktop_interact_tool(ref=@dref).
 - Prefer semantic @dref interactions from the AX tree. Do not guess coordinates when refs exist.
 - Use desktop_vision_tool only when the AX tree is empty, canvas-only, or desktop_interact_tool failed.
+- Use set_value for atomic field replacement; use type for keystroke simulation.
 - After desktop_interact_tool, read the follow-up snapshot before the next action.
-- On macOS, if inspect reports permission required, ask the user to grant Accessibility access before retrying.
+- On macOS, if snapshot reports permission required, ask the user to grant Accessibility access before retrying.
+- First-time control of each desktop app requires user approval in the Web UI.
 </desktop_control_rules>
 """
 

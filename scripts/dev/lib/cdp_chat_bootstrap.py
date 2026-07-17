@@ -11,6 +11,7 @@ from cdp_chat_support import (
     PAGE_PROBE_JS,
     RESET_CHAT_JS,
     _api_provider_ready,
+    chat_id_from_path,
     e2e_api_base_inject_js,
     e2e_api_base_persist_source,
 )
@@ -228,7 +229,7 @@ class CdpChatBootstrap(CdpChatTransport):
                 except RuntimeError:
                     await asyncio.sleep(0.5)
                     continue
-                if isinstance(probe, dict) and (probe.get("sendReady") or probe.get("init")):
+                if isinstance(probe, dict) and probe.get("sendReady"):
                     return
                 await asyncio.sleep(0.5)
             return
@@ -279,6 +280,45 @@ class CdpChatBootstrap(CdpChatTransport):
         await asyncio.sleep(2)
         await self.ensure_e2e_api_base_binding()
         await self.wait_shell_ready(timeout_sec=timeout_sec)
+
+    async def ensure_chat_surface(self, base_url: str, *, timeout_sec: float = 90.0) -> None:
+        """Leave settings/onboarding routes before chat send automation."""
+        ui_base = base_url.rstrip("/")
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {"path": ""}
+        while time.monotonic() < deadline:
+            probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
+            last = probe if isinstance(probe, dict) else {"probeError": probe}
+            path = str(last.get("path") or "")
+            if path.startswith("/settings") or path == "/onboarding":
+                await self.cdp(
+                    "Page.navigate",
+                    {"url": f"{ui_base}/"},
+                    recv_timeout=120.0,
+                )
+                await asyncio.sleep(2)
+                await self.ensure_e2e_api_base_binding()
+                await self.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
+                await self._after_new_chat_reset()
+                continue
+            if path == "/" and not last.get("hasInput"):
+                await self.cdp(
+                    "Page.navigate",
+                    {"url": f"{ui_base}/"},
+                    recv_timeout=120.0,
+                )
+                await asyncio.sleep(2)
+                await self.ensure_e2e_api_base_binding()
+                await self.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
+                await self._after_new_chat_reset()
+                continue
+            if chat_id_from_path(path) is not None or last.get("hasInput"):
+                return
+            reset = await self.click_new_chat()
+            if reset.get("ok"):
+                return
+            await asyncio.sleep(0.5)
+        raise RuntimeError(f"Chat surface not ready (path={last.get('path')}): {last}")
 
     async def _after_new_chat_reset(self) -> None:
         """SHPOIB hot UI: re-bind private backend and refresh provider store after reset."""

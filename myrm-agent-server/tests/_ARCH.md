@@ -39,14 +39,15 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 
 ## 测试分层（默认 `pytest`）
 
-- 默认 `addopts`：`-m 'not e2e and not performance'`（跳过 e2e 与 benchmark/performance）
+- 默认 `addopts`：`-m 'not e2e and not chrome_e2e and not performance'`（跳过 e2e、Chrome MCP UI E2E 与 benchmark/performance）
 - **低内存推荐（本地 / CI 同款）**：`scripts/dev/run_tests_low_memory.sh` 或 monorepo **`./myrm test -n0`**
 - 单元 + API 集成：monorepo **`./myrm test -n0`**（单 worker；实测 `build_minimal_app(chats)` ~118MB，`app.main` ~439MB）
-- E2E（真实 LLM API）：monorepo **`./myrm test -m e2e`**（含 `tests/api/agent/test_render_ui_agent_stream_e2e.py`、`test_auto_capture_hooks_e2e.py`、`test_bash_terminal_streaming_e2e.py`）
+- E2E（真实 LLM API，无 Chrome）：monorepo **`./myrm test -m e2e`**（如 `tests/api/agent/test_render_ui_agent_stream_e2e.py`）
+- **Chrome MCP UI E2E（14 项）**：`RUN_E2E_TESTS=1 ./myrm test -m chrome_e2e -n0`（须 `./myrm ready --chrome`；SHPOIB 私 Backend；见 `scripts/dev/CHROME_MCP_E2E.md`）
 - `tests/integration/test_render_ui_sse_wiring.py`：render_ui 确定性集成（20 场景：run_bind、fail-closed、data_update、collector 链、幂等）
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`
-- WebUI E2E：MCP **chrome-devtools** + Myrm E2E Chrome `:9333`（`./myrm ready --chrome`）；禁止 `@playwright/test`。API 断言在 `tests/`（如 `test_capability_gap_integration.py`、`test_channel_notify_agent_stream_e2e.py`、`test_render_ui_agent_stream_e2e.py`）；Chrome MCP UI pytest：`tests/e2e/test_goal_focus_chrome_e2e.py`（Goal 模式 + LIVE_AGENT lane + `E2EResourceLedger` chat 登记）、`tests/e2e/test_execution_cache_chrome_e2e.py`（同 chat 双轮 OK + execution_cache 日志断言 + LIVE_AGENT lane）；CDP WebSocket UI 测：`tests/e2e/test_edge_tts_voice_chrome_e2e.py`（Voice Settings 无琥珀条、`ttsMode:off` live `/tts/synthesize`、浏览器同源 `/tts/synthesize`、`test_edge_tts_parallel_tabs_isolated` 双 tab 并行）；每用例独立 `json/new` tab + teardown `json/close`；MCP UI 胶水仅 `scripts/dev/subagent-dashboard-e2e-*.mjs`、`kanban-chrome-e2e-prepare.mjs`、`test-instinct-inbox-e2e.sh`（Instinct Inbox 依赖 `POST /api/v1/skills/drafts/test/seed-mock?agent_id=`，**不** mock `/approvals`；见 `scripts/dev/_ARCH.md`）
+- WebUI E2E：MCP **chrome-devtools** + Myrm E2E Chrome `:9333`（`./myrm ready --chrome`）；marker **`chrome_e2e`**（`lane=READ|LIVE_AGENT`）；禁止 `@playwright/test`。正式入口 **`./myrm test -m chrome_e2e`**；`tests/e2e/test_*_chrome_e2e.py`（含 Goal、execution_cache、edge_tts、parallel_tabs READ lane 等）；READ 只读测例不占 LIVE_AGENT cap（`resolve_e2e_session_lane.py`）
 - CI 默认套件：`scripts/ci/run_default_tests.sh`（`-m 'not e2e and not performance' -n0`，workflow `server-unit-tests.yml`）
 - `tests/api/skills/test_drafts_seed_mock.py`：seed-mock HTTP 单测（含 `agent_id` 查询参数，默认套件执行）
 - `tests/api/approvals/test_list_pending_growth_filter.py`：`GET /approvals` 排除后台 growth、保留 inline `thread_id` skill_draft

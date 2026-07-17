@@ -8,10 +8,8 @@ Prerequisites:
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import sys
-import urllib.request
 from pathlib import Path
 
 import pytest
@@ -20,7 +18,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
+from cdp_chat_support import wait_e2e_goal_status, wait_e2e_provider_ready  # noqa: E402
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
@@ -29,19 +27,6 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lea
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 E2E_PROMPT = "只回复 OK"
-
-
-def _fetch_goal_status(chat_id: str) -> dict[str, object] | None:
-    try:
-        resp = urllib.request.urlopen(  # noqa: S310
-            f"{get_e2e_api_url()}/api/v1/goals/{chat_id}/status",
-            timeout=15,
-        )
-        payload = json.loads(resp.read())
-    except Exception:
-        return None
-    goal = payload.get("goal")
-    return goal if isinstance(goal, dict) else None
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
@@ -74,6 +59,7 @@ async def test_chrome_ui_goal_mode_stream(
     async def _run_goal_flow(chat: McpChatSession) -> str:
         await chat.dismiss_modals()
         await chat.click_new_chat()
+        await chat.ensure_chat_surface(BASE_URL)
 
         goal_setup = await chat.enable_goal_mode(budget_tokens=50_000)
         assert goal_setup.get("ok") is True, f"Goal mode bridge failed: {goal_setup}"
@@ -131,7 +117,7 @@ async def test_chrome_ui_goal_mode_stream(
 
     chat_id = await _run_goal_turn()
 
-    goal = _fetch_goal_status(chat_id)
+    goal = wait_e2e_goal_status(chat_id, timeout_sec=90.0)
     assert goal is not None, f"Goal status missing for chat {chat_id}"
     assert goal.get("objective"), f"Goal objective empty: {goal}"
     assert goal.get("status") in {"active", "budget_limited", "complete", "paused"}, (

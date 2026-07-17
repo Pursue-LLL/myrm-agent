@@ -26,6 +26,7 @@
   "council_phase",
   "dag_state_update",
   "desktop_view_update",
+  "desktop_control_approval_request",
   "engine_limit_reached",
   "error",
   "file_diff",

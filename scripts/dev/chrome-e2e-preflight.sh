@@ -401,6 +401,14 @@ _mux_restart_allowed() {
   bash "${SCRIPT_DIR}/wave.sh" check-stack-write >/dev/null 2>&1
 }
 
+_mux_timeout_restart_allowed() {
+  [[ "${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-}" == "1" ]] || return 1
+  local contexts
+  contexts="$(_mux_context_count 2>/dev/null)" || return 1
+  [[ "${contexts}" == "0" ]] || return 1
+  bash "${SCRIPT_DIR}/wave.sh" check-stack-write >/dev/null 2>&1
+}
+
 _wait_mux_upstream_self_heal() {
   local i
   for i in $(seq 1 "${MYRM_MUX_SELF_HEAL_WAIT_SEC:-15}"); do
@@ -414,7 +422,13 @@ _wait_mux_upstream_self_heal() {
 
 _restart_mux_safely() {
   local reason="$1"
-  if ! _mux_restart_allowed; then
+  local allowed=0
+  if _mux_restart_allowed; then
+    allowed=1
+  elif [[ "${reason}" == *"timeout"* ]] && _mux_timeout_restart_allowed; then
+    allowed=1
+  fi
+  if [[ "${allowed}" -eq 0 ]]; then
     local contexts="unknown"
     contexts="$(_mux_context_count 2>/dev/null || echo unknown)"
     fail "mux restart blocked (${reason}); contexts=${contexts}, attach=${MYRM_CHROME_E2E_ATTACH}, or Wave pins runtime"
@@ -476,7 +490,10 @@ _ensure_mux_daemon() {
     pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
     if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
       if ! _mux_timeout_stamp_matches; then
-        if _mux_upstream_ready && _mux_ws_stamp_matches; then
+        if _mux_timeout_restart_allowed || _mux_restart_allowed; then
+          _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+        elif _mux_upstream_ready && _mux_ws_stamp_matches; then
+          echo "CHROME_E2E_WARN: mux timeout stamp drift — daemon keeps prior env until contexts drain" >&2
           _stamp_mux_request_timeout
           ok "cdmcp-mux request-timeout stamp refreshed (${MUX_REQUEST_TIMEOUT_MS}ms)"
         else

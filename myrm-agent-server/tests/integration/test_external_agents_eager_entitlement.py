@@ -37,7 +37,6 @@ async def test_delegate_to_agent_mounts_in_tools_not_deferred() -> None:
     mixin._runtime_pool_scope_id = "chat-1"
 
     tools: list[object] = []
-    discoverable_tools: list[object] = []
 
     mock_pool = MagicMock()
     mock_pool.available_backends = ["test-cli"]
@@ -55,11 +54,10 @@ async def test_delegate_to_agent_mounts_in_tools_not_deferred() -> None:
             return_value=mock_tool,
         ),
     ):
-        await mixin._do_setup_external_agents(tools, discoverable_tools, mount_delegate_tool=True)
+        await mixin._do_setup_external_agents(tools, mount_delegate_tool=True)
 
     assert len(tools) == 1
     assert getattr(tools[0], "name", None) == "delegate_to_agent_tool"
-    assert discoverable_tools == []
     from app.services.external_agents.runtime_pool_registry import ChatScopedRuntimePoolFacade
 
     assert isinstance(mixin._runtime_pool, ChatScopedRuntimePoolFacade)
@@ -86,7 +84,6 @@ async def test_direct_only_skips_delegate_tool_but_keeps_pool() -> None:
     mixin._runtime_pool_scope_id = "chat-1"
 
     tools: list[object] = []
-    discoverable_tools: list[object] = []
 
     mock_pool = MagicMock()
     mock_pool.available_backends = ["test-cli"]
@@ -101,7 +98,7 @@ async def test_direct_only_skips_delegate_tool_but_keeps_pool() -> None:
             "myrm_agent_harness.toolkits.create_delegate_to_agent_tool",
         ) as create_tool,
     ):
-        await mixin._do_setup_external_agents(tools, discoverable_tools, mount_delegate_tool=False)
+        await mixin._do_setup_external_agents(tools, mount_delegate_tool=False)
 
     assert tools == []
     assert mixin._runtime_pool is not None
@@ -207,7 +204,6 @@ async def test_delegate_skipped_when_external_cli_toggle_off() -> None:
     mixin._runtime_pool_scope_id = "chat-hr"
 
     tools: list[object] = []
-    discoverable_tools: list[object] = []
 
     mock_pool = MagicMock()
     mock_pool.available_backends = ["test-cli"]
@@ -222,7 +218,7 @@ async def test_delegate_skipped_when_external_cli_toggle_off() -> None:
             "myrm_agent_harness.toolkits.create_delegate_to_agent_tool",
         ) as create_tool,
     ):
-        await mixin._do_setup_external_agents(tools, discoverable_tools, mount_delegate_tool=False)
+        await mixin._do_setup_external_agents(tools, mount_delegate_tool=False)
 
     assert tools == []
     create_tool.assert_not_called()

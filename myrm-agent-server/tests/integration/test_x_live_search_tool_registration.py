@@ -35,25 +35,20 @@ def test_x_search_tool_registers_when_skill_enabled() -> None:
     """x_search_tool must land in Turn1 tools when skill is bound."""
     mixin = _make_search_mixin(skill_ids=[X_LIVE_SEARCH_SKILL_ID])
     tools: list[object] = []
-    discoverable_tools: list[object] = []
 
     with patch("app.config.deploy_mode.is_local_mode", return_value=True):
-        mixin._setup_search_and_basic_tools(tools, discoverable_tools)
+        mixin._setup_search_and_basic_tools(tools)
 
     assert any(getattr(t, "name", None) == "x_search_tool" for t in tools)
-    assert not any(getattr(t, "name", None) == "x_search_tool" for t in discoverable_tools)
 
 
 def test_x_search_tool_skipped_without_skill() -> None:
     """Without x-live-search skill, x_search_tool must not register at all."""
     mixin = _make_search_mixin(skill_ids=[])
     tools: list[object] = []
-    discoverable_tools: list[object] = []
 
     with patch("app.config.deploy_mode.is_local_mode", return_value=True):
-        mixin._setup_search_and_basic_tools(tools, discoverable_tools)
-
-    assert not any(getattr(t, "name", None) == "x_search_tool" for t in discoverable_tools)
+        mixin._setup_search_and_basic_tools(tools)
     assert not any(getattr(t, "name", None) == "x_search_tool" for t in tools)
 
 
@@ -63,10 +58,8 @@ def test_x_search_tool_registers_when_web_search_disabled() -> None:
     mixin.enable_web_search = False
     mixin.search_service_cfg = None
     tools: list[object] = []
-    discoverable_tools: list[object] = []
 
-    mixin._setup_search_and_basic_tools(tools, discoverable_tools)
+    mixin._setup_search_and_basic_tools(tools)
 
     assert any(getattr(t, "name", None) == "x_search_tool" for t in tools)
-    assert not any(getattr(t, "name", None) == "x_search_tool" for t in discoverable_tools)
     assert not any(getattr(t, "name", None) == "web_search_tool" for t in tools)

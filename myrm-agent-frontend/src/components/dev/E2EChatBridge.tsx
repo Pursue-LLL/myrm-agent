@@ -69,7 +69,19 @@ async function initProvidersForE2e(): Promise<void> {
       throw new Error('e2e-private-backend-not-ready');
     }
     await useProviderStore.getState().retryInit();
-    return;
+    const sendReadyDeadline = Date.now() + 60_000;
+    while (Date.now() < sendReadyDeadline) {
+      prepareAutomationSend();
+      const { actionMode, agentConfig } = useChatStore.getState();
+      if (
+        useProviderStore.getState().isInitialized &&
+        getModelSelection(actionMode, agentConfig) !== null
+      ) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    throw new Error('e2e-send-not-ready-after-provider-init');
   }
   const providerState = useProviderStore.getState();
   if (!providerState.isInitialized) {

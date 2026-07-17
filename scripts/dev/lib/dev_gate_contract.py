@@ -52,6 +52,7 @@ STRESS_XDIST_WORKERS: Final[int] = 4
 DEFAULT_BOOTSTRAP_SLOTS: Final[int] = 2
 MUX_COLD_ATTACH_SLOTS: Final[int] = 2
 MUX_COLD_ATTACH_TIMEOUT_MS: Final[int] = 30_000
+CHROME_E2E_MATRIX_TIMEOUT_SECONDS: Final[int] = 7200
 
 # --- Adaptive mux load defaults (env may override in mux_load) ---
 

@@ -42,12 +42,11 @@ async def test_discoverable_chain_excludes_browser_local_search() -> None:
     )
 
     tools: list[object] = []
-    discoverable_tools: list[object] = []
-    agent._setup_search_and_basic_tools(tools, discoverable_tools)
-    agent._setup_clarification_tools(tools, discoverable_tools)
+    agent._setup_search_and_basic_tools(tools)
+    agent._setup_clarification_tools(tools)
     await agent._setup_cron_tools(tools, user_id="integration-user")
 
-    all_names = _tool_names(tools) | _tool_names(discoverable_tools)
+    all_names = _tool_names(tools)
     assert "browser_local_search_tool" not in all_names
 
 
@@ -65,7 +64,7 @@ async def test_discover_capability_does_not_surface_browser_local_search() -> No
     registry.register(
         cron_tool,
         source=ToolSource.META,
-        bind_mode=ToolBindMode.DISCOVERABLE,
+        bind_mode=ToolBindMode.TURN1,
     )
 
     discover_tool = create_discover_capability_tool(registry=registry, skills=[])

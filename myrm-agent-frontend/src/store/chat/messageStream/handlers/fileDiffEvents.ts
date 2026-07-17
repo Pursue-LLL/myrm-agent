@@ -159,6 +159,47 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     return done(ctx);
   }
 
+  if (data.type === H.AgentEventType.DESKTOP_CONTROL_APPROVAL_REQUEST) {
+    const { default: useDesktopControlApprovalStore } = await import(
+      '@/store/useDesktopControlApprovalStore'
+    );
+    const approvalPayload = {
+      request_id: String(data.data.request_id ?? ''),
+      reason: String(data.data.reason ?? ''),
+      operation: String(data.data.operation ?? ''),
+      app_name: data.data.app_name ? String(data.data.app_name) : '',
+      window_title: data.data.window_title ? String(data.data.window_title) : '',
+      require_app_approval: Boolean(data.data.require_app_approval ?? true),
+      messageId: data.messageId,
+    };
+    useDesktopControlApprovalStore.getState().requestApproval(approvalPayload);
+
+    const { default: useDesktopInspectorStore } = await import('@/store/useDesktopInspectorStore');
+    useDesktopInspectorStore.getState().openPanel();
+
+    actions.setLoading(false);
+
+    if (H.useConfigStore.getState().enableWebNotifications) {
+      const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
+      const { getDesktopControlApprovalNotificationTitle } = await import('@/lib/i18n/streamNotificationCopy');
+      const title = getDesktopControlApprovalNotificationTitle(lang);
+      const body = approvalPayload.app_name
+        ? `${approvalPayload.app_name}${approvalPayload.window_title ? ` — ${approvalPayload.window_title}` : ''}`
+        : approvalPayload.reason;
+      import('@/services/notification').then(({ notificationService }) => {
+        notificationService.notify(title, { body, fallbackToToast: false });
+      });
+    }
+
+    if (typeof window !== 'undefined') {
+      setTimeout(
+        () => window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_waiting' } })),
+        0,
+      );
+    }
+    return done(ctx);
+  }
+
   if (data.type === H.AgentEventType.BROWSER_TAKEOVER_REQUESTED) {
     const { default: useBrowserTakeoverStore } = await import('@/store/useBrowserTakeoverStore');
     useBrowserTakeoverStore.getState().requestTakeover({
