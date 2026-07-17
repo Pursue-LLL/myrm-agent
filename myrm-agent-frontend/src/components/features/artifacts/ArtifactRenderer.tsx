@@ -53,7 +53,16 @@ const SpreadsheetPreviewDynamic = dynamic(() => import('./renderers/SpreadsheetP
   ),
 });
 
-// 动态导入 React 预览组件
+const DocxPreviewDynamic = dynamic(() => import('./renderers/DocxPreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const PptxPreviewDynamic = dynamic(() => import('./renderers/PptxPreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
 const ReactPreviewDynamic = dynamic(() => import('./ReactPreview'), {
   ssr: false,
   loading: () => (
@@ -132,6 +141,14 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, dis
         previewUrl={preview_url || undefined}
       />
     );
+  }
+
+  if (type === 'word_document' && preview_url) {
+    return <DocxPreviewDynamic previewUrl={preview_url} />;
+  }
+
+  if (type === 'presentation' && preview_url) {
+    return <PptxPreviewDynamic previewUrl={preview_url} />;
   }
 
   // React/JSX/TSX 组件预览

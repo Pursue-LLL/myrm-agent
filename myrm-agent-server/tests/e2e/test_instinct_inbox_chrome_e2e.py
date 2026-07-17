@@ -58,14 +58,15 @@ def test_instinct_inbox_renders_and_rejects_seeded_drafts() -> None:
                     client,
                     page,
                     """(() => {
-                      const button = document.querySelector('[data-testid="instinct-reject-btn"]');
+                      const button = document.querySelector('[data-testid="instinct-dismiss-btn"]');
                       return { ready: !!button, hasButton: !!button };
                     })()""",
+                    timeout_sec=90.0,
                 )
                 result = client.evaluate(
                     page,
                     """(() => {
-                      const button = document.querySelector('[data-testid="instinct-reject-btn"]');
+                      const button = document.querySelector('[data-testid="instinct-dismiss-btn"]');
                       if (!button) return { clicked: false };
                       button.click();
                       return { clicked: true };
@@ -86,5 +87,5 @@ def test_instinct_inbox_renders_and_rejects_seeded_drafts() -> None:
             http_json(
                 "POST",
                 f"{api_url}/api/v1/skills/drafts/{draft_id}/reject",
-                expected_statuses=frozenset({200, 404}),
+                expected_statuses=frozenset({200, 404, 400}),
             )

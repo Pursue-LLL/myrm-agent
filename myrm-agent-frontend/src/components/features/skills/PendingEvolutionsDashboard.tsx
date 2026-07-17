@@ -17,10 +17,12 @@ import SettingsSection from '@/components/features/settings/sections/SettingsSec
 import { toast } from '@/hooks/useToast';
 import {
   approveSkillGrowthCase,
+  getSkillGrowthSummary,
   listSkillGrowthCases,
   rejectSkillGrowthCase,
   reviseSkillGrowthCase,
   type SkillGrowthCaseSummary,
+  type SkillGrowthSummary,
 } from '@/services/skill-growth';
 import { createCronJob } from '@/services/cron';
 import { useSkillStore } from '@/store/skill';
@@ -31,6 +33,14 @@ type GrowthFilter = 'all' | 'pending' | 'applied' | 'blocked' | 'reviewed';
 
 const FILTER_ORDER: GrowthFilter[] = ['all', 'pending', 'applied', 'blocked', 'reviewed'];
 const VIEW_MODE_KEY = 'myrm:skill-growth-view-mode';
+const LIST_CASES_LIMIT = 100;
+
+const EMPTY_SUMMARY: SkillGrowthSummary = {
+  total: 0,
+  pendingReview: 0,
+  autoApplied: 0,
+  blocked: 0,
+};
 
 function matchesFilter(item: SkillGrowthCaseSummary, filter: GrowthFilter): boolean {
   if (filter === 'all') return true;
@@ -69,6 +79,8 @@ export function PendingEvolutionsDashboard() {
   const { fetchLocalSkills, fetchUserSkillConfig } = useSkillStore();
 
   const [cases, setCases] = useState<SkillGrowthCaseSummary[]>([]);
+  const [listTotal, setListTotal] = useState(0);
+  const [summary, setSummary] = useState<SkillGrowthSummary>(EMPTY_SUMMARY);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingCaseId, setProcessingCaseId] = useState<string | null>(null);
@@ -94,6 +106,8 @@ export function PendingEvolutionsDashboard() {
     async (silent: boolean = false) => {
       if (!user?.id) {
         setCases([]);
+        setListTotal(0);
+        setSummary(EMPTY_SUMMARY);
         setError(null);
         setIsLoading(false);
         return;
@@ -105,8 +119,33 @@ export function PendingEvolutionsDashboard() {
       setError(null);
 
       try {
-        const latestCases = await listSkillGrowthCases(100);
-        setCases(latestCases);
+        const [casesResult, summaryResult] = await Promise.allSettled([
+          listSkillGrowthCases(LIST_CASES_LIMIT),
+          getSkillGrowthSummary(),
+        ]);
+
+        if (casesResult.status === 'rejected') {
+          throw casesResult.reason;
+        }
+
+        const latestList = casesResult.value;
+        setCases(latestList.items);
+        setListTotal(latestList.total);
+
+        if (summaryResult.status === 'fulfilled') {
+          setSummary(summaryResult.value);
+        } else {
+          setSummary({
+            total: latestList.items.length,
+            pendingReview: latestList.items.filter(
+              (item) => item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED',
+            ).length,
+            autoApplied: latestList.items.filter((item) => item.status === 'AUTO_APPLIED').length,
+            blocked: latestList.items.filter(
+              (item) => item.status === 'BLOCKED_LOCKED' || item.status === 'FAILED_SCAN',
+            ).length,
+          });
+        }
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : t('loadFailed'));
       } finally {
@@ -134,14 +173,21 @@ export function PendingEvolutionsDashboard() {
     };
   }, [loadCases, refreshSkillInventory]);
 
-  const summary = useMemo(() => {
+  const showListScopeHint = listTotal > cases.length;
+
+  const filterCounts = useMemo((): Record<GrowthFilter, number> => {
+    const reviewed = Math.max(
+      0,
+      summary.total - summary.pendingReview - summary.autoApplied - summary.blocked,
+    );
     return {
-      total: cases.length,
-      pendingReview: cases.filter((item) => item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED').length,
-      autoApplied: cases.filter((item) => item.status === 'AUTO_APPLIED').length,
-      blocked: cases.filter((item) => item.status === 'BLOCKED_LOCKED' || item.status === 'FAILED_SCAN').length,
+      all: listTotal,
+      pending: summary.pendingReview,
+      applied: summary.autoApplied,
+      blocked: summary.blocked,
+      reviewed,
     };
-  }, [cases]);
+  }, [listTotal, summary]);
 
   const filteredCases = useMemo(() => {
     return cases.filter((item) => matchesFilter(item, activeFilter));
@@ -300,10 +346,16 @@ export function PendingEvolutionsDashboard() {
         />
       </div>
 
+      {showListScopeHint && (
+        <p className="text-sm text-muted-foreground">
+          {t('listScopeHint', { shown: cases.length, total: listTotal })}
+        </p>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {FILTER_ORDER.map((filter) => {
           const isActive = filter === activeFilter;
-          const count = cases.filter((item) => matchesFilter(item, filter)).length;
+          const count = filterCounts[filter];
           return (
             <Button
               key={filter}

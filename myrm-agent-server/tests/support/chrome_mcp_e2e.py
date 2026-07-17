@@ -21,12 +21,27 @@ from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 __all__ = [
     "ChromeMcpClient",
     "McpPage",
+    "ensure_desktop_viewport",
     "get_e2e_api_url",
     "get_e2e_ui_url",
     "http_json",
     "open_mcp_page",
     "wait_for_state",
 ]
+
+_ENSURE_DESKTOP_VIEWPORT_JS = """(() => {
+  try {
+    window.resizeTo(1280, 900);
+  } catch {
+    // ignore — some profiles block resizeTo
+  }
+  return { width: window.innerWidth, height: window.innerHeight };
+})()"""
+
+
+def ensure_desktop_viewport(client: ChromeMcpClient, page: McpPage) -> dict[str, object]:
+    raw = client.evaluate(page, _ENSURE_DESKTOP_VIEWPORT_JS, timeout_sec=5.0)
+    return raw if isinstance(raw, dict) else {"value": raw}
 
 
 def http_json(
@@ -59,6 +74,7 @@ def http_json(
 def open_mcp_page(url: str) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
     with ChromeMcpClient() as client:
         page = client.new_page(url, timeout_ms=60_000)
+        ensure_desktop_viewport(client, page)
         wait_for_state(
             client,
             page,

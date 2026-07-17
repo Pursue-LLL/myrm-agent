@@ -34,6 +34,7 @@
     "pretest": "bun run i18n:split && bun run verify:i18n"
   },
   "dependencies": {
+    "@aiden0z/pptx-renderer": "^1.2.4",
     "@codesandbox/sandpack-react": "^2.20.0",
     "@codesandbox/sandpack-themes": "^2.0.21",
     "@dagrejs/dagre": "^3.0.0",
@@ -81,6 +82,7 @@
     "date-fns": "^4.4.0",
     "diff": "^9.0.0",
     "docshift": "^0.0.73",
+    "docx-preview": "^0.4.0",
     "dompurify": "^3.4.12",
     "framer-motion": "^12.42.2",
     "gpt-tokenizer": "^3.4.0",

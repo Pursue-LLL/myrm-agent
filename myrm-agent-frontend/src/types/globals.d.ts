@@ -51,6 +51,11 @@ interface Window {
     setGoalBudgetTokens: (tokens: number | null) => void;
     getGoalMode: () => boolean;
   };
+  /** Dev-only bridge for subagent dashboard Chrome E2E hydration. */
+  __MYRM_E2E_SUBAGENT__?: {
+    hydrate: (rows: Array<Record<string, unknown>>) => void;
+    refresh: () => void | Promise<void>;
+  };
 }
 
 declare class SpeechRecognition extends EventTarget {

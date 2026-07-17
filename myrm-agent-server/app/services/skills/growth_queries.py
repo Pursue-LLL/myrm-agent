@@ -5,10 +5,11 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import case, desc, func, literal, select
 
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
+from app.services.skills.evolution_review_types import EVOLUTION_ACTION_TYPE
 from app.services.skills.evolution_reviews import (
     EvolutionReviewRecord,
     count_evolution_review_records,
@@ -24,13 +25,13 @@ from app.services.skills.growth_case_types import (
     SkillGrowthFormMetadataRead,
 )
 
+_GROWTH_STATUS_VALUES: tuple[str, ...] = tuple(status.value for status in SkillGrowthCaseStatus)
+
 SKILL_GROWTH_CASE_ACTION_TYPES: tuple[str, ...] = (
     "skill_draft",
     "skill_patch",
     "semantic_memory",
 )
-
-_MAX_MERGE_FETCH = 400
 
 
 @dataclass(slots=True)
@@ -218,6 +219,62 @@ async def _count_approval_cases() -> int:
         return int(result.scalar_one())
 
 
+def _approval_effective_growth_status_expr():
+    growth_status = ApprovalRecord.payload["growth_status"].as_string()
+    return case(
+        (growth_status.in_(_GROWTH_STATUS_VALUES), growth_status),
+        (ApprovalRecord.status == "APPROVED", literal(SkillGrowthCaseStatus.APPROVED.value)),
+        (ApprovalRecord.status == "REJECTED", literal(SkillGrowthCaseStatus.REJECTED.value)),
+        else_=literal(SkillGrowthCaseStatus.PENDING_REVIEW.value),
+    )
+
+
+def _evolution_effective_growth_status_expr():
+    growth_status = ApprovalRecord.payload["growth_status"].as_string()
+    return case(
+        (growth_status.in_(_GROWTH_STATUS_VALUES), growth_status),
+        else_=literal(SkillGrowthCaseStatus.PENDING_REVIEW.value),
+    )
+
+
+async def _count_approval_cases_for_statuses(statuses: set[SkillGrowthCaseStatus]) -> int:
+    if not statuses:
+        return 0
+    status_values = {status.value for status in statuses}
+    effective_status = _approval_effective_growth_status_expr()
+    async with get_session() as db:
+        result = await db.execute(
+            select(func.count())
+            .select_from(ApprovalRecord)
+            .where(ApprovalRecord.action_type.in_(SKILL_GROWTH_CASE_ACTION_TYPES))
+            .where(effective_status.in_(status_values))
+        )
+        return int(result.scalar_one())
+
+
+async def _count_evolution_cases_for_statuses(statuses: set[SkillGrowthCaseStatus]) -> int:
+    if not statuses:
+        return 0
+    status_values = {status.value for status in statuses}
+    effective_status = _evolution_effective_growth_status_expr()
+    async with get_session() as db:
+        result = await db.execute(
+            select(func.count())
+            .select_from(ApprovalRecord)
+            .where(ApprovalRecord.action_type == EVOLUTION_ACTION_TYPE)
+            .where(effective_status.in_(status_values))
+        )
+        return int(result.scalar_one())
+
+
+async def _count_cases_for_statuses(statuses: set[SkillGrowthCaseStatus]) -> int:
+    approval_count, evolution_count = await asyncio.gather(
+        _count_approval_cases_for_statuses(statuses),
+        _count_evolution_cases_for_statuses(statuses),
+    )
+    return approval_count + evolution_count
+
+
 async def _load_approval_cases(*, limit: int) -> list[SkillGrowthCaseSummaryRead]:
     async with get_session() as db:
         result = await db.execute(
@@ -236,7 +293,7 @@ async def _load_evolution_cases(*, limit: int) -> list[SkillGrowthCaseSummaryRea
 
 
 def _merge_fetch_limit(*, limit: int, offset: int) -> int:
-    return min(limit + offset, _MAX_MERGE_FETCH)
+    return limit + offset
 
 
 async def _count_skill_growth_cases(*, status: SkillGrowthCaseStatus | None) -> int:
@@ -246,14 +303,7 @@ async def _count_skill_growth_cases(*, status: SkillGrowthCaseStatus | None) -> 
             count_evolution_review_records(pending_only=False),
         )
         return approval_count + evolution_count
-
-    fetch_limit = _MAX_MERGE_FETCH
-    approval_cases, evolution_cases = await asyncio.gather(
-        _load_approval_cases(limit=fetch_limit),
-        _load_evolution_cases(limit=fetch_limit),
-    )
-    items = [*approval_cases, *evolution_cases]
-    return sum(1 for item in items if item.status == status)
+    return await _count_cases_for_statuses({status})
 
 
 async def list_skill_growth_cases(
@@ -294,20 +344,15 @@ async def get_skill_growth_case_detail(case_id: str) -> SkillGrowthCaseDetailRea
     return None
 
 
-async def summarize_skill_growth_dashboard_stats(
-    *,
-    sample_limit: int = 200,
-) -> SkillGrowthDashboardStatsRead:
-    """Return dashboard counters; status buckets are computed from the latest sample_limit cases."""
-    items, total = await list_skill_growth_cases(limit=sample_limit, offset=0)
-    pending_review = sum(
-        1 for item in items if item.status in {SkillGrowthCaseStatus.PENDING_REVIEW, SkillGrowthCaseStatus.APPLY_FAILED}
-    )
-    auto_applied = sum(1 for item in items if item.status == SkillGrowthCaseStatus.AUTO_APPLIED)
-    blocked = sum(
-        1
-        for item in items
-        if item.status in {SkillGrowthCaseStatus.BLOCKED_LOCKED, SkillGrowthCaseStatus.FAILED_SCAN}
+async def summarize_skill_growth_dashboard_stats() -> SkillGrowthDashboardStatsRead:
+    """Return dashboard counters with SQL status bucket counts."""
+    pending_statuses = {SkillGrowthCaseStatus.PENDING_REVIEW, SkillGrowthCaseStatus.APPLY_FAILED}
+    blocked_statuses = {SkillGrowthCaseStatus.BLOCKED_LOCKED, SkillGrowthCaseStatus.FAILED_SCAN}
+    total, pending_review, auto_applied, blocked = await asyncio.gather(
+        _count_skill_growth_cases(status=None),
+        _count_cases_for_statuses(pending_statuses),
+        _count_cases_for_statuses({SkillGrowthCaseStatus.AUTO_APPLIED}),
+        _count_cases_for_statuses(blocked_statuses),
     )
     return SkillGrowthDashboardStatsRead(
         total=total,

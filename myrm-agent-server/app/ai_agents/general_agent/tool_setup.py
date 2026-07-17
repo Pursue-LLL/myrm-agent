@@ -13,7 +13,7 @@
 
 [POS]
 GeneralAgent 的工具初始化混入。用户开关 ON（`enabled_builtin_tools` / skill 绑定）→ Turn1 eager；
-`cron` 未勾选 → DISCOVERABLE；`cron` 勾选 → Turn1 eager。搜索、媒体生成（AgentDeclared eager →
+所有内置工具开启即 Turn1 eager，不开即不加载。搜索、媒体生成（AgentDeclared eager →
 `media_tools/`）、定时任务、记忆、浏览器等工具的创建逻辑从核心 Agent
 类中解耦，保持 agent.py 聚焦于流式执行和生命周期管理。
 外部 Agent 委托由 ExternalAgentsMixin 提供。
@@ -294,13 +294,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
             return
 
         try:
-            from app.config.deploy_mode import is_local_mode
             from myrm_agent_harness.toolkits.llms.image import (
                 ImageGenerationConfig,
                 ImageGenerationTools,
             )
+
             from app.ai_agents.media_tools.image_agent_tool import create_image_generation_tool
             from app.ai_agents.media_tools.media_persist import create_media_persist_callback
+            from app.config.deploy_mode import is_local_mode
 
             chat_id = self.chat_id or getattr(self, "_current_chat_id", None)
             agent_id = getattr(self, "agent_id", None)
@@ -357,6 +358,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 VideoGenerationConfig,
                 VideoGenerationTools,
             )
+
             from app.ai_agents.media_tools.video_agent_tool import create_video_generation_tool
 
             fallback_configs = []
@@ -414,8 +416,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
             return
 
         try:
-            from app.ai_agents.media_tools.tts_agent_tool import create_tts_tool
             from myrm_agent_harness.toolkits.llms.tts import TTSConfig
+
+            from app.ai_agents.media_tools.tts_agent_tool import create_tts_tool
 
             config = TTSConfig(
                 provider=params.provider,
@@ -467,14 +470,11 @@ class ToolSetupMixin(ExternalAgentsMixin):
     async def _setup_cron_tools(
         self,
         tools: list[object],
-        discoverable_tools: list[object],
         user_id: str | None = None,
     ) -> None:
-        """Set up scheduled task (cron) tools.
+        """Set up scheduled task (cron) tools as Turn1 eager.
 
-        Dual bind mode (``enabled_builtin_tools``):
-        - ``cron`` ON  → Turn1 eager in ``tools`` (skip discover_capability round-trip)
-        - ``cron`` OFF → DISCOVERABLE in ``discoverable_tools`` (default, zero Turn1 token)
+        Only called when ``enable_cron_eager=True`` (user opted in).
         """
         try:
             if not user_id:
@@ -521,13 +521,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 blueprint_filler=_blueprint_filler,
                 delivery_resolver=resolve_cron_delivery,
             )
-            eager = self.enable_cron_eager
-            if eager:
-                tools.extend(cron_tools)
-                logger.info("Loaded %d cron tools [Turn1 eager]", len(cron_tools))
-            else:
-                discoverable_tools.extend(cron_tools)
-                logger.info("Loaded %d cron tools [Discoverable]", len(cron_tools))
+            tools.extend(cron_tools)
+            logger.info("Loaded %d cron tools [Turn1 eager]", len(cron_tools))
         except Exception as e:
             logger.warning(f"Cron tools load failed (degraded): {e}")
 

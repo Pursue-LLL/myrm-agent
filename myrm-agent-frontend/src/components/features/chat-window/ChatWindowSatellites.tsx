@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import SubagentDashboard from './SubagentDashboard';
 
 const VisualDesktopToggle = dynamic(
   () =>
@@ -72,8 +73,6 @@ const SessionRevertButton = dynamic(
 );
 
 const SubagentPromptButton = dynamic(() => import('./SubagentPromptButton'), { ssr: false });
-
-const SubagentDashboard = dynamic(() => import('./SubagentDashboard'), { ssr: false });
 
 const PetOverlay = dynamic(() => import('../companion/sprite/PetOverlay'), { ssr: false });
 

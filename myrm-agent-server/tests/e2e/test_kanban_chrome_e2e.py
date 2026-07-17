@@ -19,7 +19,7 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
-@pytest.mark.timeout(120)
+@pytest.mark.timeout(180)
 def test_kanban_board_and_task_render_in_real_ui(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:

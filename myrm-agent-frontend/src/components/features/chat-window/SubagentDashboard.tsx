@@ -440,9 +440,12 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
 
   const prevChatIdRef = useRef(chatId);
   React.useEffect(() => {
-    if (prevChatIdRef.current !== chatId) {
+    const prev = prevChatIdRef.current;
+    if (prev !== chatId) {
+      if (prev && chatId && prev !== chatId) {
+        useSubagentStore.getState().clear();
+      }
       prevChatIdRef.current = chatId;
-      useSubagentStore.getState().clear();
     }
   }, [chatId]);
 
@@ -450,9 +453,14 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     if (!chatId) return;
     const handleSseEvent = (event: Event) => {
       const customEvent = event as CustomEvent<{ chat_id?: string; tree?: SubagentNode[] }>;
-      if (customEvent.detail?.chat_id === chatId && Array.isArray(customEvent.detail?.tree)) {
-        useSubagentStore.getState().setNodes(customEvent.detail.tree);
+      if (customEvent.detail?.chat_id && customEvent.detail.chat_id !== chatId) {
+        return;
       }
+      if (Array.isArray(customEvent.detail?.tree)) {
+        useSubagentStore.getState().setNodes(customEvent.detail.tree);
+        return;
+      }
+      void fetchSubagents();
     };
     const handleTeammateEvent = (event: Event) => {
       const customEvent = event as CustomEvent<{
@@ -475,6 +483,18 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   useEffect(() => {
     if (!chatId) return;
     void fetchSubagents();
+    const poll = window.setInterval(() => {
+      if (Object.keys(useSubagentStore.getState().nodes).length > 0) {
+        window.clearInterval(poll);
+        return;
+      }
+      void fetchSubagents();
+    }, 2000);
+    const stopPoll = window.setTimeout(() => window.clearInterval(poll), 30_000);
+    return () => {
+      window.clearInterval(poll);
+      window.clearTimeout(stopPoll);
+    };
   }, [chatId, open, fetchSubagents]);
 
   if (treeNodes.length === 0 && !(fissionBatch && fissionBatch.total > 0)) return null;

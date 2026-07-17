@@ -14,7 +14,7 @@ from app.api.skills.evolution import router as evolution_router
 from app.api.skills.growth import router as growth_router
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord, Base, ExperienceLedgerEvent
-from app.platform_utils import get_database_engine
+from app.platform_utils import get_database_engine, reset_database_engine
 from app.services.skills.draft_notification import notify_skill_draft_created
 from app.services.skills.evolution_reviews import create_evolution_review_record
 
@@ -32,8 +32,9 @@ def client(app: FastAPI) -> TestClient:
     return TestClient(app)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 async def setup_database() -> None:
+    await reset_database_engine()
     engine = get_database_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -42,10 +43,14 @@ async def setup_database() -> None:
         await db.execute(delete(ExperienceLedgerEvent))
         await db.execute(delete(ApprovalRecord))
         await db.commit()
+    await reset_database_engine()
 
 
 @pytest.mark.asyncio
-async def test_skill_growth_cases_combine_drafts_and_approval_backed_evolutions(client: TestClient) -> None:
+async def test_skill_growth_cases_combine_drafts_and_approval_backed_evolutions(
+    client: TestClient,
+    setup_database: None,
+) -> None:
     draft = await notify_skill_draft_created(
         {
             "has_value": True,
@@ -98,7 +103,47 @@ async def test_skill_growth_cases_combine_drafts_and_approval_backed_evolutions(
 
 
 @pytest.mark.asyncio
-async def test_skill_growth_audit_reads_negative_ledger_events(client: TestClient) -> None:
+async def test_skill_growth_stats_counts_all_cases(client: TestClient, setup_database: None) -> None:
+    await notify_skill_draft_created(
+        {
+            "has_value": True,
+            "user_id": f"growth_stats_{uuid4().hex}",
+            "type": "skill_draft",
+            "skill_name": "growth-stats-draft",
+            "skill_description": "Draft for stats regression",
+            "trigger_condition": "When stats are requested",
+            "skill_steps": "1. Count\n2. Return",
+        }
+    )
+    await create_evolution_review_record(
+        agent_id="growth-stats-test",
+        chat_id=None,
+        proposal_skill_id="growth-stats-evolution-skill",
+        skill_name="growth-stats-evolution-skill",
+        skill_path="/tmp/growth-stats-evolution-skill.md",
+        evolution_type="fix",
+        reason="Evolution for stats regression",
+        original_content="def before():\n    pass\n",
+        evolved_content="def before():\n    return 1\n",
+        confidence=0.8,
+        test_passed=True,
+        task_context="growth stats regression",
+    )
+
+    response = client.get("/api/v1/skill-growth/stats")
+    assert response.status_code == 200
+    stats = response.json()["data"]
+    assert stats["total"] >= 2
+    assert stats["pending_review"] >= 2
+    assert stats["auto_applied"] >= 0
+    assert stats["blocked"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_skill_growth_audit_reads_negative_ledger_events(
+    client: TestClient,
+    setup_database: None,
+) -> None:
     async with get_session() as db:
         db.add_all(
             [

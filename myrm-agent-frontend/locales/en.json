@@ -2502,11 +2502,12 @@
         "rejectSuccess": "\"{name}\" rejected successfully",
         "rejectFailed": "Failed to reject \"{name}\"",
         "summary": {
-          "total": "Recent Cases",
+          "total": "Total Cases",
           "pendingReview": "Pending Review",
           "autoApplied": "Auto Applied",
           "blocked": "Blocked or Failed"
         },
+        "listScopeHint": "Showing the latest {shown} of {total} cases",
         "filters": {
           "all": "All",
           "pending": "Pending",
@@ -8123,7 +8124,9 @@
       "svg": "Vector",
       "mermaid": "Diagram",
       "binary": "File",
-      "spreadsheet": "Spreadsheet"
+      "spreadsheet": "Spreadsheet",
+      "presentation": "Presentation",
+      "word_document": "Word Document"
     },
     "spreadsheet": {
       "search": "Search...",
@@ -8147,6 +8150,9 @@
     "imageLoadError": "Failed to load image",
     "audioLoadError": "Failed to load audio",
     "videoLoadError": "Failed to load video",
+    "docxLoadError": "Failed to load document",
+    "pptxLoadError": "Failed to load presentation",
+    "noContent": "No content to preview",
     "sharePreview": {
       "open": "Copy read-only share link",
       "successTitle": "Share link copied",

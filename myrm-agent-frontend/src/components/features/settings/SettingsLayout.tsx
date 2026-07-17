@@ -10,7 +10,7 @@ import { ArrowLeft, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
-import { isLocalMode } from '@/lib/deploy-mode';
+import { showsLocalIntegrationTabs } from '@/lib/deploy-mode';
 import useSettingsDirtyStore from '@/store/useSettingsDirtyStore';
 import SettingsMenu, { SettingsTab } from './SettingsMenu';
 import { SettingsSkeleton } from './common/SettingsSkeleton';
@@ -225,7 +225,7 @@ function SettingsLayout() {
   const isAdmin = userRole === 'admin';
 
   const validTabs = useMemo<SettingsTab[]>(() => {
-    const extra = isLocalMode() ? TAURI_ONLY_TABS : [];
+    const extra = showsLocalIntegrationTabs() ? TAURI_ONLY_TABS : [];
     return [...BASE_TABS.slice(0, 12), ...extra, ...BASE_TABS.slice(12)];
   }, []);
 

@@ -11,7 +11,7 @@
 | `permission_service.py` | 核心 | 技能权限管理服务 | — |
 | `experience_ledger.py` | 核心 | 学习资产事件账本（append-only，统一记录 migration/evolution/review/skill_growth 事件，并提供技能成长聚合查询） | ✅ |
 | `growth_case_types.py` | 核心 | 技能成长 case DTO：Summary（列表）与 Detail（单条按需拉取） | ✅ |
-| `growth_queries.py` | 核心 | 审批主链 evolution / draft case 查询；列表返回 summary，detail 单条加载，dashboard stats | ✅ |
+| `growth_queries.py` | 核心 | 审批主链 evolution / draft case 查询；列表 summary、detail 单条加载；stats SQL 分桶计数；list merge fetch=limit+offset | ✅ |
 | `growth_audit_queries.py` | 核心 | Ledger 事件审计与 timeline 查询（audit entries / stats / timeline） | ✅ |
 | `growth_projection_queries.py` | 核心 | 技能成长账本投影查询层。负责把 `skill_growth.*` ledger 事件规范化为 projection 事件列表与摘要，补齐 `APPLY_FAILED` 等负向状态，供经验账本投影接口复用 | ✅ |
 | `growth_lifecycle.py` | 核心 | 技能成长统一编排入口。接收 Harness 复盘结果，按类型与风险决定自动落地、人工审核、锁定拦截或扫描失败降级 | ✅ |

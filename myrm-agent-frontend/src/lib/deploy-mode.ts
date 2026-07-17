@@ -103,6 +103,20 @@ export function isLocalMode(): boolean {
   return LOCAL_MODES.has(getDeployMode());
 }
 
+/** Loopback browser dev (WebUI :3000, Chrome E2E) — integration tabs must stay reachable. */
+export function isLoopbackDevHost(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  const host = window.location.hostname;
+  return host === '127.0.0.1' || host === 'localhost';
+}
+
+/** Local/Tauri deploy mode or loopback WebUI dev host. */
+export function showsLocalIntegrationTabs(): boolean {
+  return isLocalMode() || isLoopbackDevHost();
+}
+
 /**
  * 获取当前部署模式
  *

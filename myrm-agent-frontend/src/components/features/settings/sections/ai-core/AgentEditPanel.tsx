@@ -416,8 +416,8 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
           )}
 
           {activeTab === 'inbox' && (
-            <div className={cn(editor.isReadonly && 'pointer-events-none opacity-70')}>
-              <AgentInstinctInboxTab agentId={agentId} readonly={editor.isReadonly} />
+            <div>
+              <AgentInstinctInboxTab agentId={agentId} />
             </div>
           )}
         </div>

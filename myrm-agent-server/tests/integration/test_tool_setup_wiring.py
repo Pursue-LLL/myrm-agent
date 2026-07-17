@@ -17,8 +17,9 @@ def test_local_browser_setup_method_removed() -> None:
 
 
 def test_image_generation_registers_basetool() -> None:
-    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
     from myrm_agent_harness.agent.streaming.utils import normalize_tool_names
+
+    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.chat_id = None
@@ -92,8 +93,9 @@ def test_video_generation_skipped_without_api_key() -> None:
 
 
 def test_video_generation_registers_basetool() -> None:
-    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
     from myrm_agent_harness.agent.streaming.utils import normalize_tool_names
+
+    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.chat_id = None
@@ -140,15 +142,15 @@ def test_video_generation_accepts_fallback_provider_key_only() -> None:
 
 @pytest.mark.asyncio
 async def test_cron_tools_receive_delivery_resolver() -> None:
+    """Verify delivery_resolver is passed to create_cron_tools."""
     from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.model_cfg = MagicMock(model="test-model")
     mixin.chat_id = "chat-1"
     mixin.agent_id = "agent-1"
-    mixin.enable_cron_eager = False
+    mixin.enable_cron_eager = True
     tools: list[object] = []
-    discoverable_tools: list[object] = []
 
     mock_manager = MagicMock()
     captured: dict[str, object] = {}
@@ -171,17 +173,17 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
             return_value="",
         ),
     ):
-        await mixin._setup_cron_tools(tools, discoverable_tools, user_id="user-1")
+        await mixin._setup_cron_tools(tools, user_id="user-1")
 
     from app.core.cron.adapters.delivery_resolver import resolve_cron_delivery
 
     assert captured.get("delivery_resolver") is resolve_cron_delivery
-    assert len(discoverable_tools) == 1
-    assert len(tools) == 0
+    assert len(tools) == 1
 
 
 @pytest.mark.asyncio
 async def test_cron_tools_turn1_eager_when_enabled() -> None:
+    """Verify cron tools load as Turn1 eager."""
     from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
@@ -190,7 +192,6 @@ async def test_cron_tools_turn1_eager_when_enabled() -> None:
     mixin.agent_id = "agent-1"
     mixin.enable_cron_eager = True
     tools: list[object] = []
-    discoverable_tools: list[object] = []
 
     with (
         patch(
@@ -206,7 +207,6 @@ async def test_cron_tools_turn1_eager_when_enabled() -> None:
             return_value="",
         ),
     ):
-        await mixin._setup_cron_tools(tools, discoverable_tools, user_id="user-1")
+        await mixin._setup_cron_tools(tools, user_id="user-1")
 
     assert len(tools) == 1
-    assert len(discoverable_tools) == 0

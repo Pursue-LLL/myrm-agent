@@ -9,5 +9,7 @@
 | `MediaPreview.tsx` | 图片/音视频 |
 | `MermaidPreview.tsx` | Mermaid 图 |
 | `McpAppViewer.tsx` | MCP App iframe |
-| `SpreadsheetPreview/` | CSV/表格 |
+| `SpreadsheetPreview/` | CSV/XLSX 表格 |
+| `DocxPreview/` | Word 文档（docx-preview 库） |
+| `PptxPreview/` | 演示文稿（@aiden0z/pptx-renderer 库） |
 | `NoPreview.tsx` / `SkeletonLoader.tsx` | 占位与加载 |

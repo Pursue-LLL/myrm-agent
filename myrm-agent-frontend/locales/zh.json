@@ -2502,11 +2502,12 @@
         "rejectSuccess": "已成功拒绝「{name}」",
         "rejectFailed": "拒绝「{name}」失败",
         "summary": {
-          "total": "近期案例",
+          "total": "全部案例",
           "pendingReview": "待审核",
           "autoApplied": "已自动落地",
           "blocked": "被拦截或失败"
         },
+        "listScopeHint": "展示最新 {shown} / 共 {total} 条",
         "filters": {
           "all": "全部",
           "pending": "待审核",
@@ -8123,7 +8124,9 @@
       "svg": "矢量图",
       "mermaid": "流程图",
       "binary": "文件",
-      "spreadsheet": "电子表格"
+      "spreadsheet": "电子表格",
+      "presentation": "演示文稿",
+      "word_document": "Word 文档"
     },
     "spreadsheet": {
       "search": "搜索...",
@@ -8147,6 +8150,9 @@
     "imageLoadError": "图片加载失败",
     "audioLoadError": "音频加载失败",
     "videoLoadError": "视频加载失败",
+    "docxLoadError": "文档加载失败",
+    "pptxLoadError": "演示文稿加载失败",
+    "noContent": "无内容可预览",
     "sharePreview": {
       "open": "复制只读分享链接",
       "successTitle": "分享链接已复制",

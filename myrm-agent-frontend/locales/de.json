@@ -7102,7 +7102,10 @@
       "image": "Image",
       "svg": "Vector",
       "mermaid": "Diagram",
-      "binary": "File"
+      "binary": "File",
+      "spreadsheet": "Spreadsheet",
+      "presentation": "Presentation",
+      "word_document": "Word Document"
     },
     "noPreview": "Preview not available for this file type",
     "downloadHint": "Click download to save the file",
@@ -7112,6 +7115,9 @@
     "imageLoadError": "Failed to load image",
     "audioLoadError": "Failed to load audio",
     "videoLoadError": "Failed to load video",
+    "docxLoadError": "Failed to load document",
+    "pptxLoadError": "Failed to load presentation",
+    "noContent": "No content to preview",
     "errors": {
       "notFound": "File not found or has been deleted",
       "notFoundHint": "The file may have been deleted or moved",

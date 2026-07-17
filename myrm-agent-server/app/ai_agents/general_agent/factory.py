@@ -39,7 +39,6 @@ async def build_general_agent(
     from typing import cast
 
     from langchain.agents.middleware.types import AgentMiddleware
-    from myrm_agent_harness.api import create_skill_agent
     from myrm_agent_harness.agent.context_management.infra.cache_policy import (
         resolve_cache_ttl_prune_policy,
     )
@@ -49,6 +48,7 @@ async def build_general_agent(
     from myrm_agent_harness.agent.workspace_rules import (
         workspace_rules_middleware,
     )
+    from myrm_agent_harness.api import create_skill_agent
 
     from app.ai_agents.agent_middlewares import (
         memory_context_middleware,
@@ -62,12 +62,11 @@ async def build_general_agent(
     from .agent_middlewares.citation_rules_middleware import citation_rules_middleware
     from .agent_middlewares.tool_selection_middleware import tool_selection_middleware
     from .callbacks import (
-        get_persist_compaction,
         make_loaded_skills_persist_callback,
         make_notes_load,
         make_notes_persist,
-        make_summary_persist_with_wiki_archive,
         make_skill_review_callback,
+        make_summary_persist_with_wiki_archive,
     )
     from .config_builders import (
         build_execution_config,
@@ -203,8 +202,8 @@ async def build_general_agent(
             agent_id=agent_wrapper.agent_id,
             memory_manager=memory_manager,
         )
-    if _should_enable_cron_tools():
-        await agent_wrapper._setup_cron_tools(tools, discoverable_tools, user_id=user_id)
+    if agent_wrapper.enable_cron_eager and _should_enable_cron_tools():
+        await agent_wrapper._setup_cron_tools(tools, user_id=user_id)
 
     if agent_wrapper.enable_browser:
         await agent_wrapper._setup_browser_tools(
@@ -343,9 +342,6 @@ async def build_general_agent(
     archive_checkpoint_notifier = archive_checkpoint_ext.build_archive_checkpoint_notifier()
 
     # 6. Create middlewares
-    from myrm_agent_harness.api.hooks import (
-        set_permission_invalidation_callback,
-    )
     from myrm_agent_harness.agent.middlewares import (
         FilesystemFileSearchMiddleware,
         PlanConfirmMiddleware,
@@ -354,6 +350,9 @@ async def build_general_agent(
     from myrm_agent_harness.agent.middlewares.guardrails import (
         GuardrailMiddleware,
         SkillBoundaryProvider,
+    )
+    from myrm_agent_harness.api.hooks import (
+        set_permission_invalidation_callback,
     )
 
     from app.services.skills.permission_service import (
@@ -585,8 +584,8 @@ async def build_general_agent(
     except Exception as e:
         logger.warning(f"Failed to initialize SkillStateManager for agent: {e}")
 
-    from myrm_agent_harness.api import AgentRuntimeSpec
     from myrm_agent_harness.agent.types import WorkspaceBinding
+    from myrm_agent_harness.api import AgentRuntimeSpec
 
     workspace_root = agent_wrapper.declared_allowed_roots[0] if agent_wrapper.declared_allowed_roots else None
 
@@ -966,13 +965,11 @@ def _build_session_cleanup_callback(
     from myrm_agent_harness.api.hooks import (
         create_extraction_llm_func,
     )
-
     from myrm_agent_harness.toolkits.memory.session_post_process import run_session_post_process
 
     from .callbacks import (
         make_commitment_extraction_callback,
         make_correction_propagation_callback,
-        make_loaded_skills_persist_callback,
     )
     from .frustration_routing import make_frustration_skill_routing_callback
 

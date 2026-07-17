@@ -45,7 +45,7 @@ async def test_discoverable_chain_excludes_browser_local_search() -> None:
     discoverable_tools: list[object] = []
     agent._setup_search_and_basic_tools(tools, discoverable_tools)
     agent._setup_clarification_tools(tools, discoverable_tools)
-    await agent._setup_cron_tools(tools, discoverable_tools, user_id="integration-user")
+    await agent._setup_cron_tools(tools, user_id="integration-user")
 
     all_names = _tool_names(tools) | _tool_names(discoverable_tools)
     assert "browser_local_search_tool" not in all_names

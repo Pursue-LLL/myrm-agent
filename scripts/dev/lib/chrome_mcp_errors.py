@@ -13,6 +13,8 @@ _BENIGN_CLEANUP_TOKENS = (
 _TRANSIENT_MUX_ERROR_TOKENS = (
     "page has been closed",
     "Target closed",
+    "Target.attachToTarget",
+    "No target with given id",
     "No page found",
     "upstream terminated",
     "MUX_NOT_READY",

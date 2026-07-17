@@ -17,6 +17,7 @@ import { flushSync } from 'react-dom';
 import { getModelSelection } from '@/store/chat/messageRequest';
 import useChatStore from '@/store/useChatStore';
 import useProviderStore from '@/store/useProviderStore';
+import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
 import { markPlatformUnreachable } from '@/lib/platform-readiness';
 
@@ -123,19 +124,44 @@ export default function E2EChatBridge() {
           throw new Error('empty-chat-id');
         }
         await initProvidersForE2e();
+        if (typeof window.__MYRM_E2E_RUNTIME_READY__ !== 'undefined') {
+          await window.__MYRM_E2E_RUNTIME_READY__;
+        }
         prepareAutomationSend();
         flushSync(() => {
+          const state = useChatStore.getState();
+          const needsForcedReload =
+            state.chatId === id &&
+            (state.notFound || state.loadError || !state.isMessagesLoaded || state.loading);
+          if (needsForcedReload) {
+            useChatStore.setState({
+              chatId: '',
+              notFound: false,
+              loadError: false,
+              isMessagesLoaded: false,
+              loading: false,
+            });
+          }
           useChatStore.getState().initializeChat(id);
         });
         const deadline = Date.now() + 60_000;
         while (Date.now() < deadline) {
           const state = useChatStore.getState();
-          if (state.chatId === id && !state.loading) {
+          if (
+            state.chatId === id &&
+            state.isMessagesLoaded &&
+            !state.notFound &&
+            !state.loadError &&
+            !state.loading
+          ) {
             return;
           }
           await new Promise((resolve) => setTimeout(resolve, 200));
         }
-        throw new Error('attach-timeout');
+        const finalState = useChatStore.getState();
+        throw new Error(
+          `attach-timeout chatId=${finalState.chatId} notFound=${finalState.notFound} loadError=${finalState.loadError} loaded=${finalState.isMessagesLoaded}`,
+        );
       },
       resetChat: () => {
         flushSync(() => {
@@ -227,10 +253,32 @@ export default function E2EChatBridge() {
         });
       },
       getGoalMode: () => useChatStore.getState().isGoalMode,
+      getChatShellState: () => {
+        const state = useChatStore.getState();
+        return {
+          chatId: state.chatId?.trim() || null,
+          notFound: state.notFound,
+          loadError: state.loadError,
+          isMessagesLoaded: state.isMessagesLoaded,
+          loading: state.loading,
+          messageCount: state.messages.length,
+        };
+      },
+    };
+
+    window.__MYRM_E2E_SUBAGENT__ = {
+      hydrate: (rows) => {
+        flushSync(() => {
+          useSubagentStore.getState().setNodes(rows as SubagentNode[]);
+        });
+      },
+      nodeCount: () => Object.keys(useSubagentStore.getState().nodes).length,
+      refresh: () => undefined,
     };
 
     return () => {
       delete window.__MYRM_E2E_CHAT__;
+      delete window.__MYRM_E2E_SUBAGENT__;
     };
   }, []);
 

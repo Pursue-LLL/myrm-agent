@@ -3,7 +3,7 @@
 import { memo, useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
+import { isSandbox, showsLocalIntegrationTabs } from '@/lib/deploy-mode';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import {
   User,
@@ -205,7 +205,7 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 
 const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin = false, className }) => {
   const t = useTranslations('settings.menu');
-  const tauriMode = isLocalMode();
+  const tauriMode = showsLocalIntegrationTabs();
   const sandboxMode = isSandbox();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Set<SettingsGroup>>(() => {

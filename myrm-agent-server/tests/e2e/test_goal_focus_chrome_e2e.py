@@ -53,7 +53,7 @@ async def test_chrome_ui_goal_mode_stream(
 ) -> None:
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live Goal E2E — run via ./myrm test -m e2e "
+            "Provider config not ready for live Goal E2E — run via ./myrm test -m chrome_e2e "
             "after ./myrm ready --chrome (preflight seeds model; "
             "API /api/v1/config/readiness provider.is_ready must be true)"
         )

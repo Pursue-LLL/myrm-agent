@@ -41,8 +41,13 @@ _DISMISS_MIGRATION_JS = """(() => {
 })()"""
 
 _VOICE_PROBE_JS = """(() => {
+  try {
+    window.resizeTo(1280, 900);
+  } catch {
+    // ignore
+  }
   const text = document.body.innerText || '';
-  const skeletons = document.querySelectorAll('[class*="skeleton" i]').length;
+  const skeletons = document.querySelectorAll('[class*="skeleton" i], .animate-pulse').length;
   const hasVoicePanel = !!document.querySelector('[data-testid="voice-settings-panel"]');
   const onVoiceRoute = location.search.includes('sub=voice')
     && location.pathname.includes('/settings/channels');
@@ -51,6 +56,15 @@ _VOICE_PROBE_JS = """(() => {
     || (tabs.length >= 3 ? tabs[2] : null);
   if (onVoiceRoute && voiceTab && voiceTab.getAttribute('aria-selected') !== 'true') {
     voiceTab.click();
+  }
+  if (onVoiceRoute && !hasVoicePanel && tabs.length === 0) {
+    const menuButtons = Array.from(document.querySelectorAll('aside button, nav button'));
+    const channelsBtn = menuButtons.find((el) =>
+      /Channels|消息通道|渠道/i.test(el.textContent || '')
+    );
+    if (channelsBtn) {
+      channelsBtn.click();
+    }
   }
   return {
     url: location.href,
@@ -61,6 +75,7 @@ _VOICE_PROBE_JS = """(() => {
     tabCount: tabs.length,
     showBanner: /Edge TTS is not available|Edge TTS 不可用/i.test(text),
     readyState: document.readyState,
+    viewportWidth: window.innerWidth,
   };
 })()"""
 
@@ -290,14 +305,14 @@ class _McpSession:
         await self.wait_app_layout()
         await self.navigate(_voice_settings_url())
         ready: dict[str, object] = {}
-        for _ in range(45):
+        for _ in range(90):
             state = await self.eval(_VOICE_PROBE_JS, await_promise=False)
             ready = state if isinstance(state, dict) else {"probeError": state}
             if (
                 ready.get("hasLayout")
                 and ready.get("onVoiceRoute")
                 and ready.get("readyState") in ("complete", "interactive")
-                and int(ready.get("skeletons", 99)) < 4
+                and int(ready.get("skeletons", 99)) < 6
                 and ready.get("hasVoicePanel")
             ):
                 return ready

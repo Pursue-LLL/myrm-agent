@@ -158,9 +158,10 @@ class CdpChatInput(CdpChatBootstrap):
               const bridgeSynced = bridgeMsg === expected.trim();
               const domSynced = domMsg === expected.trim();
               const bridgeReady = !!bridge?.isSendReady?.();
+              const providersReady = !!bridge?.isProvidersInitialized?.();
               const sendEnabled = !btn?.disabled;
               const ok = expected.trim().length > 0 && (
-                (bridgeSynced && bridgeReady) ||
+                (bridgeSynced && (bridgeReady || providersReady)) ||
                 (domSynced && sendEnabled)
               );
               return {{
@@ -170,6 +171,7 @@ class CdpChatInput(CdpChatBootstrap):
                 bridgeSynced,
                 domSynced,
                 bridgeReady,
+                providersReady,
               }};
             }})()""",
             await_promise=False,
@@ -379,6 +381,12 @@ class CdpChatInput(CdpChatBootstrap):
         )
         if isinstance(native_fill, dict) and native_fill.get("ok"):
             return native_fill
+        if isinstance(native_fill, dict) and int(native_fill.get("inputLen") or 0) > 0:
+            await self._ensure_send_ready(timeout_sec=45.0)
+            ready = await self._await_fill_ready(text, timeout_sec=45.0)
+            if ready.get("ok"):
+                ready["mode"] = f"{native_fill.get('mode', 'nativeSetter')}+await"
+                return ready
 
         react_fill = await self.evaluate(
             f"""( () => {{
@@ -432,6 +440,12 @@ class CdpChatInput(CdpChatBootstrap):
         )
         if isinstance(react_fill, dict) and react_fill.get("ok"):
             return react_fill
+        if isinstance(react_fill, dict) and int(react_fill.get("inputLen") or 0) > 0:
+            await self._ensure_send_ready(timeout_sec=45.0)
+            ready = await self._await_fill_ready(text, timeout_sec=45.0)
+            if ready.get("ok"):
+                ready["mode"] = f"{react_fill.get('mode', 'react-onChange')}+await"
+                return ready
 
         await self.cdp("DOM.enable")
         mod_bit = 4 if sys.platform == "darwin" else 2

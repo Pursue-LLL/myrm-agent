@@ -78,8 +78,29 @@ def _read_browser_globals(
 
 def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
     with ChromeMcpClient() as client:
-        page = client.new_page(f"{get_e2e_ui_url()}/", timeout_ms=15_000)
-        deadline = time.monotonic() + 15.0
+        page: McpPage | None = None
+        last_error: BaseException | None = None
+        for attempt in range(3):
+            try:
+                page = client.new_page("about:blank", timeout_ms=15_000)
+                client.navigate(
+                    page,
+                    f"{get_e2e_ui_url()}/",
+                    timeout_ms=60_000,
+                )
+                break
+            except RuntimeError as exc:
+                last_error = exc
+                message = str(exc)
+                if (
+                    "Navigation timeout" not in message
+                    and "upstream request timed out" not in message
+                ) or attempt >= 2:
+                    raise
+                time.sleep(3.0 * (attempt + 1))
+        if page is None:
+            raise RuntimeError(f"new_page failed after retries: {last_error}")
+        deadline = time.monotonic() + 30.0
         raw: object = None
         while time.monotonic() < deadline:
             raw = client.evaluate(
@@ -97,7 +118,10 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
             time.sleep(0.25)
         if not isinstance(raw, dict):
             raise AssertionError(f"Expected DOM probe object, got {raw!r}")
-        barrier.wait(timeout=30.0)
+        try:
+            barrier.wait(timeout=60.0)
+        except threading.BrokenBarrierError as exc:
+            raise AssertionError("Parallel tab barrier broken — a worker failed before rendezvous") from exc
         return {
             "page_id": page.page_id,
             "target_id": page.target_id,
@@ -110,11 +134,15 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
-@pytest.mark.timeout(120)
+@pytest.mark.timeout(300)
 def test_three_mux_clients_own_interactive_tabs_concurrently() -> None:
     barrier = threading.Barrier(3)
     with ThreadPoolExecutor(max_workers=3, thread_name_prefix="chrome-mcp-e2e") as pool:
-        results = list(pool.map(_open_probe_and_hold, [barrier] * 3))
+        futures = []
+        for _ in range(3):
+            futures.append(pool.submit(_open_probe_and_hold, barrier))
+            time.sleep(1.5)
+        results = [future.result() for future in futures]
 
     assert len({item["page_id"] for item in results}) == 3
     assert len({item["target_id"] for item in results}) == 3

@@ -20,6 +20,8 @@ export type ArtifactType =
   | 'svg'
   | 'mermaid'
   | 'spreadsheet'
+  | 'presentation'
+  | 'word_document'
   | 'binary'
   | 'interactive_ui';
 

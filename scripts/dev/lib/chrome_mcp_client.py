@@ -28,6 +28,12 @@ from chrome_mcp_errors import (
 from mcp_page_lease_heartbeat import PageLeaseHeartbeat
 from mcp_protocol import parse_evaluate_result, parse_new_page, text_content
 from cdp_chat_support import e2e_runtime_binding, e2e_runtime_binding_source, e2e_runtime_bootstrap_apply_js
+from mux_load import (
+    MuxLoadSnapshot,
+    adaptive_page_timeout_ms,
+    adaptive_tool_timeout_sec,
+    snapshot_mux_load,
+)
 
 _CLEANUP_TIMEOUT_SEC = 15.0
 _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = 15.0
@@ -80,6 +86,65 @@ class ChromeMcpClient:
         self._parent_lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
         self._monorepo_root = Path(__file__).resolve().parents[4]
         self._wave = self._monorepo_root / "myrm-agent/scripts/dev/wave.sh"
+        self._mux_load_cache: MuxLoadSnapshot | None = None
+
+    def _read_wave_status(self) -> dict[str, object] | None:
+        try:
+            result = subprocess.run(
+                ["bash", str(self._wave), "status"],
+                cwd=str(self._monorepo_root),
+                capture_output=True,
+                text=True,
+                timeout=min(_wave_command_timeout_sec(), 15.0),
+                check=False,
+                env=os.environ.copy(),
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        if result.returncode != 0:
+            return None
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return None
+        return payload if isinstance(payload, dict) else None
+
+    def _mux_load_snapshot(self) -> MuxLoadSnapshot:
+        if self._mux_load_cache is not None:
+            age = time.monotonic() - self._mux_load_cache.captured_at
+            if age < 2.0:
+                return self._mux_load_cache
+        probe = snapshot_mux_load()
+        if probe.mux_contexts >= 2:
+            wave_status = self._read_wave_status()
+            snapshot = snapshot_mux_load(wave_status=wave_status, force=True)
+        else:
+            snapshot = probe
+        self._mux_load_cache = snapshot
+        return snapshot
+
+    def _default_page_timeout_ms(self) -> int:
+        load = self._mux_load_snapshot()
+        return adaptive_page_timeout_ms(
+            mux_contexts=load.mux_contexts,
+            wave_leases=load.wave_leases,
+        )
+
+    def _resolve_tool_timeout_sec(
+        self,
+        timeout_sec: float | None,
+        *,
+        page_timeout_ms: int | None = None,
+    ) -> float:
+        load = self._mux_load_snapshot()
+        adaptive = adaptive_tool_timeout_sec(
+            mux_contexts=load.mux_contexts,
+            wave_leases=load.wave_leases,
+            page_timeout_ms=page_timeout_ms,
+        )
+        if timeout_sec is None:
+            return adaptive
+        return max(timeout_sec, adaptive)
 
     def __enter__(self) -> ChromeMcpClient:
         self.start()
@@ -231,9 +296,12 @@ class ChromeMcpClient:
         self,
         url: str,
         *,
-        timeout_ms: int = 15_000,
+        timeout_ms: int | None = None,
         isolated_context: str | None = None,
     ) -> McpPage:
+        resolved_timeout_ms = (
+            timeout_ms if timeout_ms is not None else self._default_page_timeout_ms()
+        )
         context_id = isolated_context.strip() if isolated_context is not None else None
         if isolated_context is not None and not context_id:
             raise ValueError("isolated_context must not be empty")
@@ -243,13 +311,16 @@ class ChromeMcpClient:
         try:
             self._heartbeat_lease(lease_id)
             initial_url = "about:blank" if runtime_binding is not None else url
-            arguments: dict[str, object] = {"url": initial_url, "timeout": timeout_ms}
+            arguments: dict[str, object] = {"url": initial_url, "timeout": resolved_timeout_ms}
             if context_id is not None:
                 arguments["isolatedContext"] = context_id
             result = self.call_tool(
                 "new_page",
                 arguments,
-                timeout_sec=min(timeout_ms / 1000 + 5, self._request_timeout_sec),
+                timeout_sec=self._resolve_tool_timeout_sec(
+                    min(resolved_timeout_ms / 1000 + 5, self._request_timeout_sec),
+                    page_timeout_ms=resolved_timeout_ms,
+                ),
             )
             page_id, target_id = parse_new_page(result)
             page = McpPage(
@@ -283,7 +354,7 @@ class ChromeMcpClient:
                     page,
                     url,
                     runtime_binding,
-                    timeout_ms=timeout_ms,
+                    timeout_ms=resolved_timeout_ms,
                 )
             return page
         except Exception as exc:
@@ -387,9 +458,12 @@ class ChromeMcpClient:
         page: McpPage,
         url: str,
         *,
-        timeout_ms: int = 15_000,
+        timeout_ms: int | None = None,
     ) -> None:
         resolved = self._resolve_page(page)
+        resolved_timeout_ms = (
+            timeout_ms if timeout_ms is not None else self._default_page_timeout_ms()
+        )
         try:
             self.call_tool(
                 "navigate_page",
@@ -397,9 +471,12 @@ class ChromeMcpClient:
                     "pageId": resolved.page_id,
                     "type": "url",
                     "url": url,
-                    "timeout": timeout_ms,
+                    "timeout": resolved_timeout_ms,
                 },
-                timeout_sec=min(timeout_ms / 1000 + 5, self._request_timeout_sec),
+                timeout_sec=self._resolve_tool_timeout_sec(
+                    min(resolved_timeout_ms / 1000 + 5, self._request_timeout_sec),
+                    page_timeout_ms=resolved_timeout_ms,
+                ),
             )
         except (RuntimeError, TimeoutError) as exc:
             if "timeout" not in str(exc).lower():
@@ -562,6 +639,12 @@ class ChromeMcpClient:
     ) -> dict[str, object]:
         if name != "close_page":
             self._page_lease_heartbeat.raise_if_failed()
+        if timeout_sec is not None:
+            effective_timeout_sec = timeout_sec
+        elif name == "close_page":
+            effective_timeout_sec = _CLEANUP_TIMEOUT_SEC
+        else:
+            effective_timeout_sec = self._resolve_tool_timeout_sec(None)
         retry_tools = {"evaluate_script", "close_page", "new_page", "navigate_page"}
         last_error: BaseException | None = None
         tool_arguments = dict(arguments)
@@ -570,7 +653,7 @@ class ChromeMcpClient:
                 response = self._request(
                     "tools/call",
                     {"name": name, "arguments": tool_arguments},
-                    timeout_sec=timeout_sec,
+                    timeout_sec=effective_timeout_sec,
                 )
             except (TimeoutError, RuntimeError) as exc:
                 last_error = exc
@@ -648,7 +731,9 @@ class ChromeMcpClient:
                 },
             )
             timeout = (
-                timeout_sec if timeout_sec is not None else self._request_timeout_sec
+                timeout_sec
+                if timeout_sec is not None
+                else self._resolve_tool_timeout_sec(None)
             )
             deadline = time.monotonic() + timeout
             while True:

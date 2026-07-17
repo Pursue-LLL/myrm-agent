@@ -268,9 +268,17 @@ function sortByCreatedAtDesc<T extends { createdAt: string }>(items: T[]): T[] {
   });
 }
 
-export async function listSkillGrowthCases(limit: number = 50): Promise<SkillGrowthCaseSummary[]> {
+export interface SkillGrowthCaseListResult {
+  items: SkillGrowthCaseSummary[];
+  total: number;
+}
+
+export async function listSkillGrowthCases(limit: number = 50): Promise<SkillGrowthCaseListResult> {
   const response = await apiRequest<SkillGrowthCaseApiResponse>(`/skill-growth/cases?limit=${limit}`);
-  return sortByCreatedAtDesc(response.items.map(mapSummary));
+  return {
+    items: sortByCreatedAtDesc(response.items.map(mapSummary)),
+    total: response.total,
+  };
 }
 
 export async function getSkillGrowthCaseDetail(caseId: string): Promise<SkillGrowthCaseDetail> {

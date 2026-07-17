@@ -69,7 +69,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(
 ) -> None:
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live E2E — run via ./myrm test -m e2e "
+            "Provider config not ready for live E2E — run via ./myrm test -m chrome_e2e "
             "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)"
         )
 

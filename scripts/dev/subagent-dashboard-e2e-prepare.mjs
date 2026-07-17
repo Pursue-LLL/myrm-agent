@@ -23,7 +23,7 @@ const E2E_BASH_EPHEMERAL = {
 };
 
 const DELEGATE_SLEEP_QUERY =
-  "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'bash_worker'，wait 设为 false，让它执行 bash 命令 sleep 120。注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，绝对不要在文本中输出 XML 格式的工具调用！";
+  "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'bash_worker'，wait 设为 false，让它执行 bash 命令 sleep 300。注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，绝对不要在文本中输出 XML 格式的工具调用！";
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -394,9 +394,6 @@ async function main() {
       uiUrl: `${uiBase}/${chatId}`,
       apiBase,
     };
-    await restoreConfig('providers', snapshots.providers);
-    await restoreConfig('securityConfig', snapshots.securityConfig);
-    restored = true;
     console.log(`E2E_PREPARE_JSON=${JSON.stringify(result)}`);
 
     if (keepStreamAlive && streamHoldMs > 0) {
@@ -404,6 +401,9 @@ async function main() {
       // Parent stream may finish before streamHoldMs; keep prepare alive so UI/MCP can reach list/cancel.
       await new Promise((resolve) => setTimeout(resolve, streamHoldMs));
     }
+    await restoreConfig('providers', snapshots.providers);
+    await restoreConfig('securityConfig', snapshots.securityConfig);
+    restored = true;
   } finally {
     if (!restored) {
       await restoreConfig('providers', snapshots.providers);

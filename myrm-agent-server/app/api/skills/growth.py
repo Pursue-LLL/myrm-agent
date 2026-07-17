@@ -245,10 +245,8 @@ async def get_skill_growth_case(case_id: str) -> JSONResponse:
 
 
 @router.get("/stats")
-async def get_skill_growth_stats(
-    sample_limit: int = Query(200, ge=1, le=200),
-) -> JSONResponse:
-    stats = await summarize_skill_growth_dashboard_stats(sample_limit=sample_limit)
+async def get_skill_growth_stats() -> JSONResponse:
+    stats = await summarize_skill_growth_dashboard_stats()
     payload = SkillGrowthDashboardStatsResponse(
         total=stats.total,
         pending_review=stats.pending_review,
