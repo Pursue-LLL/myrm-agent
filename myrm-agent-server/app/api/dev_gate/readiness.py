@@ -1,4 +1,8 @@
-"""Dev Gate readiness aggregation (localhost-only)."""
+"""
+[INPUT] app.api.config.router, app.api.health.router
+[OUTPUT] Dev Gate readiness aggregation endpoint (localhost-only)
+[POS] 开发门控就绪探针。聚合 provider、edge-tts、config 状态，仅限 localhost 访问。
+"""
 
 from __future__ import annotations
 
