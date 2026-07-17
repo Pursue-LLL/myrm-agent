@@ -56,6 +56,10 @@ function getArtifactColor(type: ArtifactType): string {
       return 'text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/20';
     case 'spreadsheet':
       return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20';
+    case 'presentation':
+      return 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20';
+    case 'word_document':
+      return 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20';
     case 'binary':
     default:
       return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20';
@@ -63,7 +67,7 @@ function getArtifactColor(type: ArtifactType): string {
 }
 
 function isPreviewable(type: ArtifactType): boolean {
-  return ['code', 'document', 'html', 'image', 'svg', 'mermaid', 'pdf', 'spreadsheet'].includes(type);
+  return ['code', 'document', 'html', 'image', 'svg', 'mermaid', 'pdf', 'spreadsheet', 'presentation', 'word_document'].includes(type);
 }
 
 function isCopyable(type: ArtifactType): boolean {

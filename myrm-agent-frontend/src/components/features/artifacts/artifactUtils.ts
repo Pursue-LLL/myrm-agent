@@ -13,6 +13,8 @@ import {
   Video01Icon,
   HeadphonesIcon,
   Table02Icon,
+  Presentation01Icon,
+  Doc02Icon,
 } from 'hugeicons-react';
 import { getApiUrl } from '@/lib/api';
 import { Artifact, ArtifactPublication, ArtifactType } from '@/store/chat/types';
@@ -31,6 +33,8 @@ const ARTIFACT_ICON_MAP: Record<ArtifactType, React.ElementType> = {
   svg: Image01Icon,
   mermaid: GitBranchIcon,
   spreadsheet: Table02Icon,
+  presentation: Presentation01Icon,
+  word_document: Doc02Icon,
   binary: File02Icon,
   interactive_ui: File01Icon,
 };
@@ -99,6 +103,10 @@ const EXTENSION_ICON_MAP: Record<string, React.ElementType> = {
   flac: HeadphonesIcon,
   m4a: HeadphonesIcon,
   aac: HeadphonesIcon,
+
+  // Office 文档
+  docx: Doc02Icon,
+  pptx: Presentation01Icon,
 
   // 图表
   mermaid: GitBranchIcon,

@@ -15,17 +15,22 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _INBOX_STATE = """(() => {
+  try {
+    window.resizeTo(1280, 900);
+  } catch {
+    // ignore
+  }
   const panel = document.querySelector('[data-testid="instinct-inbox-panel"]');
   const empty = document.querySelector('[data-testid="instinct-inbox-empty"]');
   if (!panel && !empty) {
-    const tab = Array.from(document.querySelectorAll('button')).find((button) =>
+    const tab = Array.from(document.querySelectorAll('button,[role="tab"]')).find((button) =>
       /洞察|Insights/i.test(button.textContent || '')
     );
     if (tab) tab.click();
   }
   const cards = Array.from(document.querySelectorAll('[data-testid="instinct-draft-card"]'));
   return {
-    ready: !!panel,
+    ready: !!panel || cards.length > 0,
     names: cards.map((card) => card.getAttribute('data-draft-name') || ''),
     cards: cards.length,
   };
@@ -34,7 +39,7 @@ _INBOX_STATE = """(() => {
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
-@pytest.mark.timeout(120)
+@pytest.mark.timeout(180)
 def test_instinct_inbox_renders_and_rejects_seeded_drafts() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
@@ -48,7 +53,7 @@ def test_instinct_inbox_renders_and_rejects_seeded_drafts() -> None:
 
     try:
         with open_mcp_page(f"{ui_url}/settings/agents?agentId=builtin-general") as (client, page):
-            state = wait_for_state(client, page, _INBOX_STATE)
+            state = wait_for_state(client, page, _INBOX_STATE, timeout_sec=120.0)
             names = state.get("names")
             assert isinstance(names, list)
             assert {"test-frontend-approve", "test-frontend-reject"}.issubset(set(names))

@@ -230,8 +230,10 @@ api_router.include_router(client_logs_router, tags=["logs"])
 
 # Agent Events（仅本地模式）
 if is_local_mode():
+    from app.api.dev_gate.readiness import router as dev_gate_router
     from app.api.events import router as events_router
 
+    api_router.include_router(dev_gate_router, prefix="/dev-gate", tags=["dev-gate"])
     api_router.include_router(events_router, tags=["events"])
 
 # Browser Extension Bridge

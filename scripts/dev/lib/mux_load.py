@@ -9,10 +9,25 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-_BASE_PAGE_TIMEOUT_MS = int(os.environ.get("MYRM_MUX_BASE_PAGE_TIMEOUT_MS", "30000"))
-_PAGE_TIMEOUT_SLOT_MS = int(os.environ.get("MYRM_MUX_PAGE_TIMEOUT_SLOT_MS", "15000"))
-_MAX_PAGE_TIMEOUT_MS = int(os.environ.get("MYRM_MUX_MAX_PAGE_TIMEOUT_MS", "120000"))
-_BASE_TOOL_TIMEOUT_SEC = float(os.environ.get("MYRM_MUX_BASE_TOOL_TIMEOUT_SEC", "180"))
+from dev_gate_contract import (
+    BASE_PAGE_TIMEOUT_MS,
+    BASE_TOOL_TIMEOUT_SEC,
+    MAX_PAGE_TIMEOUT_MS,
+    PAGE_TIMEOUT_SLOT_MS,
+)
+
+_BASE_PAGE_TIMEOUT_MS = int(
+    os.environ.get("MYRM_MUX_BASE_PAGE_TIMEOUT_MS", str(BASE_PAGE_TIMEOUT_MS))
+)
+_PAGE_TIMEOUT_SLOT_MS = int(
+    os.environ.get("MYRM_MUX_PAGE_TIMEOUT_SLOT_MS", str(PAGE_TIMEOUT_SLOT_MS))
+)
+_MAX_PAGE_TIMEOUT_MS = int(
+    os.environ.get("MYRM_MUX_MAX_PAGE_TIMEOUT_MS", str(MAX_PAGE_TIMEOUT_MS))
+)
+_BASE_TOOL_TIMEOUT_SEC = float(
+    os.environ.get("MYRM_MUX_BASE_TOOL_TIMEOUT_SEC", str(BASE_TOOL_TIMEOUT_SEC))
+)
 _STATUS_CACHE_TTL_SEC = 2.0
 
 
@@ -120,6 +135,19 @@ def adaptive_tool_timeout_sec(
         else adaptive_page_timeout_ms(mux_contexts=mux_contexts, wave_leases=wave_leases)
     )
     return max(_BASE_TOOL_TIMEOUT_SEC, nav_ms / 1000.0 + 45.0)
+
+
+def new_page_stagger_sec(
+    *,
+    mux_contexts: int,
+    wave_leases: int = 0,
+    jitter_seed: int = 0,
+) -> float:
+    """Spread parallel new_page cold starts to avoid mux attachToTarget races."""
+    load = max(0, mux_contexts, wave_leases)
+    base = min(0.25 + load * 0.3, 2.5)
+    jitter = (max(0, jitter_seed) % 97) / 100.0
+    return base + jitter
 
 
 def snapshot_mux_load(

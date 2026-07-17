@@ -2,40 +2,19 @@
 
 from __future__ import annotations
 
-_BENIGN_CLEANUP_TOKENS = (
-    "No target with given id",
-    "LEASE_NOT_ACTIVE",
-    "LEASE_NOT_FOUND",
-    "Target closed",
-    "detached Frame",
-    "No page found",
-)
-_TRANSIENT_MUX_ERROR_TOKENS = (
-    "page has been closed",
-    "Target closed",
-    "Target.attachToTarget",
-    "No target with given id",
-    "No page found",
-    "upstream terminated",
-    "MUX_NOT_READY",
-    "main frame too early",
-    "Chrome MCP connection reset during",
-    "Chrome MCP reconnect queue is full",
-    "retry this call",
-)
-_PAGE_OWNERSHIP_ERROR_TOKENS = (
-    "not owned by this shim session",
-    "Chrome MCP context reset",
-    "call new_page before",
+from dev_gate_contract import (
+    BENIGN_CLEANUP_TOKENS,
+    PAGE_OWNERSHIP_ERROR_TOKENS,
+    TRANSIENT_MUX_ERROR_TOKENS,
 )
 
 
 def is_transient_mux_error(message: str) -> bool:
-    return any(token in message for token in _TRANSIENT_MUX_ERROR_TOKENS)
+    return any(token in message for token in TRANSIENT_MUX_ERROR_TOKENS)
 
 
 def is_page_ownership_error_message(message: str) -> bool:
-    return any(token in message for token in _PAGE_OWNERSHIP_ERROR_TOKENS)
+    return any(token in message for token in PAGE_OWNERSHIP_ERROR_TOKENS)
 
 
 def is_page_ownership_error(exc: BaseException) -> bool:
@@ -50,4 +29,4 @@ def is_context_reset_error(exc: BaseException) -> bool:
 
 
 def is_benign_cleanup_error(message: str) -> bool:
-    return any(token in message for token in _BENIGN_CLEANUP_TOKENS)
+    return any(token in message for token in BENIGN_CLEANUP_TOKENS)

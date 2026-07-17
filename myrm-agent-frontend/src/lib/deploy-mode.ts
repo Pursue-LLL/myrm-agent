@@ -117,6 +117,11 @@ export function showsLocalIntegrationTabs(): boolean {
   return isLocalMode() || isLoopbackDevHost();
 }
 
+/** Dev Gate Chrome E2E host — SSOT for integration tabs and MCP surface probes. */
+export function isDevGateHost(): boolean {
+  return showsLocalIntegrationTabs();
+}
+
 /**
  * 获取当前部署模式
  *

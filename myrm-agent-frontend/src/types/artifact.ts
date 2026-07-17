@@ -40,14 +40,14 @@ export type ArtifactStreamEvent = ArtifactsEvent | ArtifactContentEvent;
 // ==================== 渲染相关类型 ====================
 
 /** 可预览的 Artifact 类型 */
-export type PreviewableArtifactType = 'code' | 'document' | 'html' | 'image' | 'video' | 'audio' | 'svg' | 'mermaid' | 'spreadsheet';
+export type PreviewableArtifactType = 'code' | 'document' | 'html' | 'image' | 'video' | 'audio' | 'svg' | 'mermaid' | 'spreadsheet' | 'presentation' | 'word_document';
 
 /** 不可预览的 Artifact 类型 */
 export type NonPreviewableArtifactType = 'binary';
 
 /** 检查 Artifact 是否可预览 */
 export function isPreviewable(type: ArtifactType): type is PreviewableArtifactType {
-  return ['code', 'document', 'html', 'image', 'video', 'audio', 'svg', 'mermaid', 'spreadsheet'].includes(type);
+  return ['code', 'document', 'html', 'image', 'video', 'audio', 'svg', 'mermaid', 'spreadsheet', 'presentation', 'word_document'].includes(type);
 }
 
 /** 需要加载内容的 Artifact 类型 */
@@ -115,6 +115,10 @@ export const MIME_TO_ARTIFACT_TYPE: Record<string, ArtifactType> = {
   'text/tab-separated-values': 'spreadsheet',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'spreadsheet',
   'application/vnd.ms-excel': 'spreadsheet',
+
+  // Office 文档类型（仅支持 Open XML 格式的高保真预览）
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'word_document',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'presentation',
 
   // 二进制类型
   'application/octet-stream': 'binary',

@@ -28,20 +28,42 @@ from chrome_mcp_errors import (
 from mcp_page_lease_heartbeat import PageLeaseHeartbeat
 from mcp_protocol import parse_evaluate_result, parse_new_page, text_content
 from cdp_chat_support import e2e_runtime_binding, e2e_runtime_binding_source, e2e_runtime_bootstrap_apply_js
+from dev_gate_contract import (
+    LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
+    NEW_PAGE_TOOL_RETRY_ATTEMPTS,
+    TOOL_RETRY_ATTEMPTS,
+)
 from mux_load import (
     MuxLoadSnapshot,
     adaptive_page_timeout_ms,
     adaptive_tool_timeout_sec,
+    new_page_stagger_sec,
     snapshot_mux_load,
 )
 
 _CLEANUP_TIMEOUT_SEC = 15.0
-_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = 15.0
+_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
 _MCP_READ_POLL_SEC = _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
-_TOOL_RETRY_ATTEMPTS = 3
+_TOOL_RETRY_ATTEMPTS = TOOL_RETRY_ATTEMPTS
+_NEW_PAGE_TOOL_RETRY_ATTEMPTS = NEW_PAGE_TOOL_RETRY_ATTEMPTS
 _PAGE_LEASE_TTL_SEC = int(os.environ.get("MYRM_PAGE_LEASE_TTL_SEC", "600"))
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
+
+
+def _tool_retry_attempts(tool_name: str) -> int:
+    if tool_name == "new_page":
+        return _NEW_PAGE_TOOL_RETRY_ATTEMPTS
+    return _TOOL_RETRY_ATTEMPTS
+
+
+def _tool_retry_backoff_sec(tool_name: str, attempt: int, *, transient: bool) -> float:
+    base = 0.5 * (attempt + 1)
+    if tool_name == "new_page":
+        base = max(base, 1.0 * (attempt + 1))
+    if transient:
+        base += 0.75 * (attempt + 1)
+    return base
 
 
 def _wave_command_timeout_sec() -> float:
@@ -310,6 +332,14 @@ class ChromeMcpClient:
         runtime_binding = self._runtime_binding_source_for(url)
         try:
             self._heartbeat_lease(lease_id)
+            load = snapshot_mux_load()
+            stagger_sec = new_page_stagger_sec(
+                mux_contexts=load.mux_contexts,
+                wave_leases=load.wave_leases,
+                jitter_seed=os.getpid(),
+            )
+            if stagger_sec > 0:
+                time.sleep(stagger_sec)
             initial_url = "about:blank" if runtime_binding is not None else url
             arguments: dict[str, object] = {"url": initial_url, "timeout": resolved_timeout_ms}
             if context_id is not None:
@@ -648,7 +678,8 @@ class ChromeMcpClient:
         retry_tools = {"evaluate_script", "close_page", "new_page", "navigate_page"}
         last_error: BaseException | None = None
         tool_arguments = dict(arguments)
-        for attempt in range(_TOOL_RETRY_ATTEMPTS):
+        max_attempts = _tool_retry_attempts(name)
+        for attempt in range(max_attempts):
             try:
                 response = self._request(
                     "tools/call",
@@ -664,21 +695,23 @@ class ChromeMcpClient:
                 )
                 if reclaimed is not None:
                     tool_arguments = reclaimed
-                    if attempt + 1 < _TOOL_RETRY_ATTEMPTS:
-                        time.sleep(0.5 * (attempt + 1))
+                    if attempt + 1 < max_attempts:
+                        time.sleep(_tool_retry_backoff_sec(name, attempt, transient=False))
                         continue
                 transient = isinstance(exc, RuntimeError) and _is_transient_mux_error(
                     message
                 )
                 if transient and not _is_page_ownership_error(message):
                     self._recover_mux_transport()
-                can_retry = attempt + 1 < _TOOL_RETRY_ATTEMPTS and (
+                can_retry = attempt + 1 < max_attempts and (
                     reclaimed is not None
                     or transient
                     or (name in retry_tools and isinstance(exc, TimeoutError))
                 )
                 if can_retry:
-                    time.sleep(0.5 * (attempt + 1))
+                    time.sleep(
+                        _tool_retry_backoff_sec(name, attempt, transient=transient)
+                    )
                     continue
                 raise
             result = response.get("result")
@@ -692,16 +725,18 @@ class ChromeMcpClient:
                 )
                 if reclaimed is not None:
                     tool_arguments = reclaimed
-                    if attempt + 1 < _TOOL_RETRY_ATTEMPTS:
-                        time.sleep(0.5 * (attempt + 1))
+                    if attempt + 1 < max_attempts:
+                        time.sleep(_tool_retry_backoff_sec(name, attempt, transient=False))
                         continue
                 if _is_transient_mux_error(message) and not _is_page_ownership_error(
                     message
                 ):
                     last_error = RuntimeError(f"Chrome MCP {name} failed: {message}")
                     self._recover_mux_transport()
-                    if attempt + 1 < _TOOL_RETRY_ATTEMPTS:
-                        time.sleep(0.5 * (attempt + 1))
+                    if attempt + 1 < max_attempts:
+                        time.sleep(
+                            _tool_retry_backoff_sec(name, attempt, transient=True)
+                        )
                         continue
                     raise last_error
                 raise RuntimeError(f"Chrome MCP {name} failed: {message}")
