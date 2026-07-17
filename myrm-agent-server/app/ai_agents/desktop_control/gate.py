@@ -115,7 +115,7 @@ class DesktopControlGate:
     def _is_app_preapproved(self, app_name: str) -> bool:
         key = app_name.strip().lower()
         if not key:
-            return True
+            return False
         return key in self._always_approved_apps or key in self._session_approved_apps
 
     def _persist_app(self, app_name: str) -> None:

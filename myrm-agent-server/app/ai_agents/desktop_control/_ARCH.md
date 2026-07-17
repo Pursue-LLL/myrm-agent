@@ -9,7 +9,7 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `gate.py` | Core | `DesktopControlGate` callback + `DesktopApprovalRegistry` + resolve helper | ✅ |
+| `gate.py` | Core | `DesktopControlGate` callback + `DesktopApprovalRegistry` + resolve helper. Empty `app_name` is fail-closed (never preapproved). Persists always-approved apps to `{workspace}/.agent/desktop_control/approved_apps.json` | ✅ |
 
 ## Dependencies
 

@@ -77,3 +77,16 @@ async def test_emit_and_resolve_approval(tmp_path: Path) -> None:
     assert emitted["type"] == "desktop_control_approval_request"
     assert result.granted is True
     assert result.scope == ForegroundPermissionScope.session
+
+
+@pytest.mark.asyncio
+async def test_empty_app_name_not_auto_preapproved(tmp_path: Path) -> None:
+    gate = DesktopControlGate(workspace_root=str(tmp_path), auto_grant=False)
+    result = await gate(
+        reason="test",
+        operation="desktop_vision_action(left_click)",
+        estimated_duration_seconds=1.0,
+        app_name="",
+        require_app_approval=True,
+    )
+    assert result.granted is False
