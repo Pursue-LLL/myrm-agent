@@ -41,6 +41,24 @@ SSE (Web)    NotificationDispatcher (IM)    WebPushDispatcher (Web Push)
 | `vapid_keys.py` | Crypto | ECDSA P-256 key pair generation/persistence |
 | `service.py` | Core | Subscription CRUD + push sending via pywebpush |
 | `dispatcher.py` | EventBus | ServerEventBus subscriber for Web Push fan-out |
+| `push_deep_links.py` | Routing | Map AppEvent → same-origin click-through path (mirrors WebUI SSE routes) |
+
+## Push Click-Through URLs
+
+`WebPushDispatcher` passes `resolve_push_url(event)` into `WebPushService.broadcast()`.
+Paths align with in-app SSE handlers (`useGlobalEvents`):
+
+| AppEventType | Click URL |
+|---|---|
+| `APPROVAL_REQUIRED` | `/{chat_id}?approval={approval_id}` |
+| `GOAL_TERMINAL` | `/{session_id}` |
+| `BACKGROUND_TASK_DONE` | `/{chat_id}` |
+| `SYSTEM_NOTIFICATION` | `/{meta_data.chat_id}` or `/` |
+| `HEALTH_ALERT`, `BUDGET_ALERT` | `/settings/system` |
+| `CHANNEL_DISCONNECTED` | `/settings/channels` |
+| `OAUTH_REAUTH_REQUIRED` | `/settings/integrationCatalog` |
+
+The browser SW (`src/app/sw.ts`) sanitizes payload URLs (same-origin + allowlist) before `openWindow`.
 
 ## VAPID Key Storage
 

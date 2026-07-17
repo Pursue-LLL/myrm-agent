@@ -22,7 +22,7 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 
 | 文件 | 职责 |
 |------|------|
-| `src/app/sw.ts` | Serwist SW 源：precache + Web Push `push`/`notificationclick` |
+| `src/app/sw.ts` | Serwist SW 源：precache + Web Push（same-origin URL allowlist + reserved route denylist） |
 | `serwist.config.ts` | `next build` 后 `inject-manifest`（precache 清单来自 `.next`） |
 | `public/sw.js` | 编译产物；生产由 `pwa-updater.tsx` 注册 `/sw.js`；dev/Tauri 不注册 |
 

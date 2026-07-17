@@ -13,7 +13,14 @@ try {
   process.exit(1);
 }
 
-const required = ['showNotification', 'notificationclick', 'favicon-32.png'];
+const required = [
+  'showNotification',
+  'notificationclick',
+  'favicon-32.png',
+  'sanitizePushTargetUrl',
+  'RESERVED_APP_SEGMENTS',
+  'SETTINGS_PATH_PREFIX',
+];
 const missing = required.filter((token) => !contents.includes(token));
 if (missing.length > 0) {
   console.error('ERROR: public/sw.js missing Web Push SW artifacts:', missing.join(', '));

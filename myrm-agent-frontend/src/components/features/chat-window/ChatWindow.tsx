@@ -35,6 +35,8 @@ import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
 import { PendingMemoryBadge, PendingMemoryDialog } from '@/components/features/memory';
 import { useMemoryStore } from '@/store/memory';
+import { fetchPendingApprovals } from '@/hooks/usePendingApprovalsRecovery';
+import useApprovalStore from '@/store/useApprovalStore';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 
@@ -82,8 +84,10 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const sessionAnalyticsT = useTranslations('settings.sessionAnalytics');
   const agentIdFromUrl = searchParams.get('agent_id') ?? searchParams.get('agentId');
   const restoreArgFromUrl = searchParams.get('restore_arg');
+  const approvalIdFromUrl = searchParams.get('approval');
   const hasAppliedAgentRef = useRef<string | null>(null);
   const hasAppliedRestoreArgRef = useRef<string | null>(null);
+  const hasAppliedApprovalRef = useRef<string | null>(null);
   const isGoalsEnabled = useFeatureGateStore((s) => s.isEnabled('goals_system'));
   const sendMessage = useChatStore((s) => s.sendMessage);
 
@@ -156,6 +160,26 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     setInputMessage,
     setPendingArchiveRestoreActions,
   ]);
+
+  useEffect(() => {
+    if (!id || !approvalIdFromUrl || !isMessagesLoaded) {
+      return;
+    }
+    const approvalKey = `${id}:${approvalIdFromUrl}`;
+    if (hasAppliedApprovalRef.current === approvalKey) {
+      return;
+    }
+    hasAppliedApprovalRef.current = approvalKey;
+
+    void (async () => {
+      const approvals = await fetchPendingApprovals();
+      const match = approvals.find((approval) => approval.approval_id === approvalIdFromUrl);
+      if (match) {
+        useApprovalStore.getState().openApproval(match);
+      }
+      router.replace(`/${encodeURIComponent(id)}`, { scroll: false });
+    })();
+  }, [approvalIdFromUrl, id, isMessagesLoaded, router]);
 
   const asyncSchedulerRef = useRef<AdaptiveScheduler | null>(null);
   const pendingInboxRef = useRef<AgentStreamEvent[]>([]);

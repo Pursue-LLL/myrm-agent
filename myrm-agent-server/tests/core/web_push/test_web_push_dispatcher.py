@@ -94,6 +94,40 @@ class TestWebPushDispatcher:
         kwargs = mock_service.broadcast.call_args
         assert "Health Alert" in kwargs.kwargs["title"]
         assert "API key invalid" in kwargs.kwargs["body"]
+        assert kwargs.kwargs["url"] == "/settings/system"
+
+    @pytest.mark.asyncio
+    async def test_dispatches_approval_with_chat_url(self) -> None:
+        bus = ServerEventBus()
+        dispatcher = WebPushDispatcher(bus)
+
+        mock_service = AsyncMock()
+        mock_service.broadcast = AsyncMock(return_value=1)
+
+        with patch(
+            "app.core.web_push.service.get_web_push_service",
+            return_value=mock_service,
+        ):
+            await dispatcher.start()
+
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.APPROVAL_REQUIRED,
+                    data={
+                        "approval_id": "ap-1",
+                        "chat_id": "chat-deep-link",
+                        "action_type": "delete_file",
+                        "severity": "high",
+                    },
+                )
+            )
+
+            await asyncio.sleep(0.1)
+            await dispatcher.stop()
+
+        mock_service.broadcast.assert_called_once()
+        kwargs = mock_service.broadcast.call_args.kwargs
+        assert kwargs["url"] == "/chat-deep-link?approval=ap-1"
 
     @pytest.mark.asyncio
     async def test_skips_unregistered_event(self) -> None:

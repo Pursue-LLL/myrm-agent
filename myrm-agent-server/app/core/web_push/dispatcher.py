@@ -6,6 +6,7 @@ scenarios (approvals, goal completions, health alerts, etc.).
 
 [INPUT]
 - app.services.event.app_event_bus::ServerEventBus, AppEvent, AppEventType
+- app.core.web_push.push_deep_links::resolve_push_url
 - app.core.web_push.service::get_web_push_service
 
 [OUTPUT]
@@ -126,7 +127,8 @@ class WebPushDispatcher:
             )
             return
 
+        from app.core.web_push.push_deep_links import resolve_push_url
         from app.core.web_push.service import get_web_push_service
 
         service = get_web_push_service()
-        await service.broadcast(title=title, body=body, url="/")
+        await service.broadcast(title=title, body=body, url=resolve_push_url(event))

@@ -42,6 +42,78 @@ interface PushPayload {
   url?: string;
 }
 
+const SETTINGS_PATH_PREFIX = '/settings/';
+
+/** Top-level App Router segments that must not be treated as chat deep links. */
+const RESERVED_APP_SEGMENTS = new Set([
+  'agents',
+  'artifacts',
+  'audit',
+  'batch-optimization',
+  'brain',
+  'chat',
+  'eval-lab',
+  'growth',
+  'health',
+  'journey',
+  'library',
+  'mobile',
+  'payment',
+  'pricing',
+  'projects',
+  'research',
+  'security',
+  'settings',
+  'skill-optimization',
+  'subscription',
+  'work',
+  'workspace',
+]);
+
+function sanitizePushTargetUrl(rawUrl: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl, self.location.origin);
+  } catch {
+    return '/';
+  }
+
+  if (parsed.origin !== self.location.origin) {
+    return '/';
+  }
+
+  const pathname = parsed.pathname;
+  if (pathname === '/') {
+    return '/';
+  }
+
+  if (pathname.startsWith(SETTINGS_PATH_PREFIX)) {
+    return `${pathname}${parsed.search}`;
+  }
+
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length === 1 && !RESERVED_APP_SEGMENTS.has(segments[0])) {
+    const chatId = segments[0];
+    if (chatId.length >= 8 && /^[a-zA-Z0-9_-]+$/.test(chatId)) {
+      return `/${chatId}${parsed.search}`;
+    }
+  }
+
+  return '/';
+}
+
+function chatIdFromPushPath(pathname: string): string | null {
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length !== 1 || RESERVED_APP_SEGMENTS.has(segments[0])) {
+    return null;
+  }
+  const chatId = segments[0];
+  if (chatId.length < 8 || !/^[a-zA-Z0-9_-]+$/.test(chatId)) {
+    return null;
+  }
+  return chatId;
+}
+
 self.addEventListener('push', (event: PushEvent) => {
   if (!event.data) return;
 
@@ -52,13 +124,15 @@ self.addEventListener('push', (event: PushEvent) => {
     payload = { title: 'Myrm AI', body: event.data.text() };
   }
 
+  const safeUrl = sanitizePushTargetUrl(payload.url || '/');
+  const chatId = chatIdFromPushPath(new URL(safeUrl, self.location.origin).pathname);
   const title = payload.title || 'Myrm AI';
   const options: NotificationOptions = {
     body: payload.body || '',
     icon: '/favicon-32.png',
     badge: '/favicon-32.png',
-    data: { url: payload.url || '/' },
-    tag: `myrm-${Date.now()}`,
+    data: { url: safeUrl },
+    tag: chatId ? `myrm-${chatId}` : `myrm-${Date.now()}`,
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -67,7 +141,8 @@ self.addEventListener('push', (event: PushEvent) => {
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
 
-  const targetUrl = (event.notification.data as { url?: string })?.url || '/';
+  const rawTargetUrl = (event.notification.data as { url?: string })?.url || '/';
+  const targetUrl = sanitizePushTargetUrl(rawTargetUrl);
   const targetPathname = new URL(targetUrl, self.location.origin).pathname;
 
   event.waitUntil(

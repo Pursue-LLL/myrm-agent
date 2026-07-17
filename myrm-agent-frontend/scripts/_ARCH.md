@@ -17,7 +17,7 @@
 | `ci/file_line_budget_baseline.txt` | 存量超大文件豁免列表 |
 | `ci/barrel_whitelist.txt` | 跨域 barrel 白名单（feature 内 barrel 由路径规则允许） |
 | `verify-i18n.mjs` | 五语系 i18n 完整性 + SSR shell/deferred namespace 门禁（`pretest` + CI） |
-| `verify-sw-push.mjs` | `public/sw.js` 须含 Web Push handler（`build` 后 Serwist 编译 + CI） |
+| `verify-sw-push.mjs` | `public/sw.js` 须含 Web Push handler + URL allowlist（`build` 后 Serwist 编译 + CI） |
 | `scan-home-i18n-shell.mjs` | home-route `settings.*` 引用须在 SSR shell（CI via verify-i18n） |
 | `verify-shell-i18n-runtime.mjs` | 运行时 SSR HTML / deferred API 校验（dev；shell 清单从 locale-manifest 解析） |
 | `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev.ts` / `build` / `build:tauri` / `prestart` / `pretest` 前置） |

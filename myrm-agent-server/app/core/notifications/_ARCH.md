@@ -75,4 +75,4 @@ Notification targets are stored in `personalSettings.notificationDeliveries` (ar
 New event types only need:
 1. Add to `AppEventType` enum in `event_bus.py`
 2. Add template to `_EVENT_TEMPLATES` in `dispatcher.py`
-3. (Optional) Add to `_PUSH_TEMPLATES` in `core/web_push/dispatcher.py` for offline push
+3. (Optional) Add to `_PUSH_TEMPLATES` in `core/web_push/dispatcher.py` and map click URL in `core/web_push/push_deep_links.py`
