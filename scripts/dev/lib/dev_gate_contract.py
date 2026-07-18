@@ -156,6 +156,7 @@ def signoff_live_env_shell(*, stress: bool = False) -> str:
     """Emit bash export lines for signoff live Chrome E2E phases."""
     lines = [
         f"export MYRM_LIVE_AGENT_MAX_CONCURRENT={SIGNOFF_LIVE_AGENT_MAX_CONCURRENT}",
+        "export MYRM_MUX_ALLOW_TIMEOUT_RESTART=1",
     ]
     if stress:
         lines.extend(
