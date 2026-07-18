@@ -273,6 +273,37 @@ export default function E2EChatBridge() {
         });
       },
       getCurrentBuiltinTools: () => [...useChatStore.getState().currentBuiltinTools],
+      ensureComputerUseReady: () => {
+        flushSync(() => {
+          prepareAutomationSend();
+          const chat = useChatStore.getState();
+          const tools = chat.currentBuiltinTools.includes('computer_use')
+            ? chat.currentBuiltinTools
+            : [...chat.currentBuiltinTools, 'computer_use' as BuiltinToolId];
+          chat.setCurrentBuiltinTools([...tools]);
+        });
+        void import('@/store/useDesktopInspectorStore').then(({ default: useDesktopInspectorStore }) => {
+          useDesktopInspectorStore.getState().openPanel();
+        });
+      },
+      getActionMode: () => useChatStore.getState().actionMode,
+      getDesktopToolProgress: () => {
+        const approval = useDesktopControlApprovalStore.getState();
+        const messages = useChatStore.getState().messages;
+        const assistants = messages.filter((message) => message.role === 'assistant');
+        const lastAssistant = assistants[assistants.length - 1];
+        const steps = lastAssistant?.progressSteps ?? [];
+        const desktopSteps = steps.filter((step) =>
+          String(step.tool_name ?? '').startsWith('desktop_'),
+        );
+        return {
+          active: desktopSteps.length > 0,
+          pending: approval.pending,
+          requestId: approval.requestId,
+          stepCount: desktopSteps.length,
+          lastTool: desktopSteps[desktopSteps.length - 1]?.tool_name ?? '',
+        };
+      },
       getDesktopApprovalSnapshot: () => {
         const state = useDesktopControlApprovalStore.getState();
         return {

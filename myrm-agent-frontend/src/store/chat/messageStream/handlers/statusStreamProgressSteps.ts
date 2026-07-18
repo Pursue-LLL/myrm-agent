@@ -1,5 +1,14 @@
 import type { StreamCtx } from '../streamContext';
+import { AgentEventType } from '../../types/agentStream/part1';
+import type { StatusStreamEvent } from '../../types/agentStream/part2';
 import * as H from './handlerDeps';
+
+function requireStatusStreamEvent(event: StreamCtx['data']): StatusStreamEvent {
+  if (event.type !== AgentEventType.STATUS) {
+    throw new Error(`Expected status SSE event, received ${event.type}`);
+  }
+  return event;
+}
 
 const PROGRESS_STEP_KEYS = new Set([
   'model_failover',
@@ -37,7 +46,8 @@ export function isStatusProgressStep(stepKey: string | undefined): boolean {
 }
 
 export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): Promise<void> {
-  const { data, actions } = ctx;
+  const data = requireStatusStreamEvent(ctx.data);
+  const { actions } = ctx;
   const isMediaAnalysis = stepKey === 'analyzing_image' || stepKey === 'analyzing_video';
   const isArchiveRestoreStatus = stepKey === 'archive_restore_blocked' || stepKey === 'archive_restore_result';
   const archiveRestoreBlock =
@@ -200,7 +210,11 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
   }
 
   if (stepKey === 'loop_guard_break') {
-    const breakMsg = data.items?.[0]?.text ?? 'Agent loop detected and stopped.';
+    const firstItem = data.items?.[0];
+    const breakMsg =
+      firstItem && typeof firstItem === 'object' && firstItem !== null && 'text' in firstItem
+        ? String((firstItem as { text: string }).text)
+        : 'Agent loop detected and stopped.';
     const { toast } = await import('@/lib/utils/toast');
     toast.error(breakMsg, { duration: 8000 });
   }

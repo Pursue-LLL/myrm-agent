@@ -14,6 +14,9 @@ from app.schemas.streaming import SSEEnvelope
 from app.services.agent.context_compaction_telemetry import enqueue_context_compaction_telemetry
 from app.services.agent.gateway import AgentExecutionTimeout, AgentQueueTimeout
 from app.services.agent.steering_registry import SteeringRegistry
+from app.services.agent.stream_session._memory_status_helpers import (
+    build_memory_brief_status_payload,
+)
 from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.sse_helpers import (
@@ -23,19 +26,6 @@ from app.services.agent.streaming_support.sse_helpers import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _normalize_memory_budget(raw: object) -> dict[str, int] | None:
-    if not isinstance(raw, dict):
-        return None
-    used = raw.get("used")
-    total = raw.get("total")
-    if not isinstance(used, (int, float)) or not isinstance(total, (int, float)):
-        return None
-    return {
-        "used": max(0, int(used)),
-        "total": max(0, int(total)),
-    }
 
 
 async def yield_stream_exception_chunks(
@@ -145,7 +135,11 @@ async def finalize_agent_stream_session(
         import asyncio
         import re
 
-        from myrm_agent_harness.api.hooks import get_memory_manager
+        from myrm_agent_harness.api.hooks import (
+            get_memory_manager,
+            get_memory_runtime_budget,
+            get_memory_runtime_injection,
+        )
 
         from app.services.chat.chat_service import ChatService
 
@@ -161,33 +155,27 @@ async def finalize_agent_stream_session(
             if isinstance(session.extra_context, dict)
             else None
         )
-        if isinstance(brief_status, dict):
-            state = brief_status.get("state")
-            reason = brief_status.get("reason")
-            if state == "ready":
-                extra_data["memoryBriefStatus"] = {"state": "ready"}
-            elif state == "skipped":
-                status_payload: dict[str, str] = {"state": "skipped"}
-                if isinstance(reason, str) and reason in {"timeout", "error"}:
-                    status_payload["reason"] = reason
-                extra_data["memoryBriefStatus"] = status_payload
-
         # Parse and strip citations
         citations = list(set(re.findall(r"<cite:([^>]+)>", content)))
         if citations:
             content = re.sub(r"<cite:[^>]+>", "", content)
             extra_data["citations"] = citations
 
+        injection: dict[str, str] | None = None
         if citations or isinstance(preview, dict) or isinstance(brief_status, dict):
             try:
                 manager = get_memory_manager()
-                budget = _normalize_memory_budget(getattr(manager, "_last_budget", None))
+                budget = get_memory_runtime_budget()
                 if budget is not None:
                     extra_data["memoryBudget"] = budget
+                injection = get_memory_runtime_injection()
                 if citations and manager and hasattr(manager, "record_citations"):
                     asyncio.create_task(manager.record_citations(citations))
             except Exception as e:
                 logger.warning("Failed to process memory hooks in finalize: %s", e)
+        status_payload = build_memory_brief_status_payload(brief_status, injection)
+        if status_payload is not None:
+            extra_data["memoryBriefStatus"] = status_payload
 
         await ChatService.persist_assistant_message_safe(
             session.request.chat_id,

@@ -10,7 +10,8 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 | --------------------------- | ------ | ----------------------------------------------------------------- | ----- |
 | DesktopLiveView.tsx         | Core   | Resizable panel with screenshot + ElementOverlay                  | ✅    |
 | DesktopInspectorToggle.tsx  | Core   | Floating toggle when computer_use enabled or desktop tools active | ✅    |
-| DesktopInspectorToolbar.tsx | Core   | View/inspect mode toolbar                                         | ✅    |
+| DesktopControlApprovalBanner.tsx | Core   | SSE-driven desktop control approval card (Allow once / session / always) | ✅    |
+| DesktopControlApprovalOverlay.tsx | Core  | Always-mounted fixed overlay so approval controls render before panel chunk load | ✅    |
 | DesktopInstructionInput.tsx | Core   | User instruction input with @dref badge                           | ✅    |
 | index.ts                    | Export | Public component exports                                          | ✅    |
 
@@ -19,7 +20,7 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 - `@/store/useDesktopInspectorStore` (POS: Desktop Inspector state)
 - `@/store/chat/types` (POS: BrowserRefInfo shape for overlay refs)
 - `@/components/features/browser-inspector/ElementOverlay` (POS: BBox overlay rendering)
-- `ChatWindow.tsx`: mounts DesktopLiveView + DesktopInspectorToggle
+- `ChatWindowSatellites.tsx`: mounts DesktopControlApprovalOverlay + DesktopLiveView + DesktopInspectorToggle
 
 ## Events
 

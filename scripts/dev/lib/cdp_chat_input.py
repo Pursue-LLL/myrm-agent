@@ -156,6 +156,7 @@ class CdpChatInput(CdpChatBootstrap):
               if (!bridge?.setCurrentBuiltinTools) {
                 return { ok: false, err: 'no builtin-tools bridge' };
               }
+              bridge.ensureComputerUseReady?.();
               const current = bridge.getCurrentBuiltinTools?.() ?? [];
               const next = current.includes('computer_use')
                 ? current
@@ -164,6 +165,7 @@ class CdpChatInput(CdpChatBootstrap):
               return {
                 ok: true,
                 tools: bridge.getCurrentBuiltinTools?.() ?? [],
+                actionMode: bridge.getActionMode?.() ?? null,
               };
             })()""",
             await_promise=False,
@@ -236,11 +238,37 @@ class CdpChatInput(CdpChatBootstrap):
             probe = await self.probe_desktop_approval_once()
             if isinstance(probe, dict):
                 last = probe
-                if probe.get("pending") and probe.get("allowVisible"):
-                    return probe
+                if probe.get("pending"):
+                    allow_deadline = asyncio.get_event_loop().time() + 15.0
+                    while asyncio.get_event_loop().time() < allow_deadline:
+                        allow_probe = await self.probe_desktop_approval_once()
+                        if isinstance(allow_probe, dict):
+                            last = allow_probe
+                            if allow_probe.get("allowVisible"):
+                                return allow_probe
+                        await asyncio.sleep(0.25)
+                    return {**probe, "allowVisible": False, "ok": True}
                 sample = str(probe.get("lastAssistantSample") or "")
-                if not probe.get("isStreaming") and sample and "desktop" not in sample.lower():
-                    if "control denied" not in sample.lower() and "done" not in sample.lower():
+                if not probe.get("isStreaming") and sample:
+                    lowered = sample.lower()
+                    if (
+                        "desktop" not in lowered
+                        and "桌面" not in sample
+                        and "control denied" not in lowered
+                        and "done" not in lowered
+                    ):
+                        tool_probe = await self.evaluate(
+                            """(() => {
+                              const snap = window.__MYRM_E2E_CHAT__?.getDesktopToolProgress?.() ?? {};
+                              return snap;
+                            })()""",
+                            await_promise=False,
+                        )
+                        if isinstance(tool_probe, dict) and (
+                            tool_probe.get("active") or tool_probe.get("pending")
+                        ):
+                            await asyncio.sleep(0.5)
+                            continue
                         return {
                             **probe,
                             "ok": False,
@@ -248,6 +276,29 @@ class CdpChatInput(CdpChatBootstrap):
                         }
             await asyncio.sleep(0.5)
         return {**last, "ok": False, "err": "approval-timeout"}
+
+    async def wait_desktop_tool_activity(
+        self,
+        *,
+        timeout_sec: float = 180.0,
+    ) -> dict[str, object]:
+        deadline = asyncio.get_event_loop().time() + timeout_sec
+        last: dict[str, object] = {"active": False}
+        while asyncio.get_event_loop().time() < deadline:
+            probe = await self.evaluate(
+                """(() => {
+                  const bridge = window.__MYRM_E2E_CHAT__;
+                  const snap = bridge?.getDesktopToolProgress?.() ?? { active: false };
+                  return snap;
+                })()""",
+                await_promise=False,
+            )
+            if isinstance(probe, dict):
+                last = probe
+                if probe.get("active") or probe.get("pending"):
+                    return probe
+            await asyncio.sleep(1.0)
+        return {**last, "ok": False, "err": "desktop-tool-timeout"}
 
     async def send_state(self) -> dict[str, object]:
         result = await self.evaluate(

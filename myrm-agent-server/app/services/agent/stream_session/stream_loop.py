@@ -21,6 +21,9 @@ from dataclasses import dataclass
 from myrm_agent_harness.utils.runtime.cancellation import CancelReason
 
 from app.schemas.streaming import SSEEnvelope
+from app.services.agent.stream_session._memory_status_helpers import (
+    build_memory_brief_status_payload,
+)
 from app.services.agent.stream_session.stream_lane_factory import (
     create_consensus_stream,
     create_deep_research_stream,
@@ -41,19 +44,6 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ApprovalTimeoutHolder:
     value: dict[str, object] | None = None
-
-
-def _normalize_memory_budget(raw: object) -> dict[str, int] | None:
-    if not isinstance(raw, dict):
-        return None
-    used = raw.get("used")
-    total = raw.get("total")
-    if not isinstance(used, (int, float)) or not isinstance(total, (int, float)):
-        return None
-    return {
-        "used": max(0, int(used)),
-        "total": max(0, int(total)),
-    }
 
 
 async def iter_agent_stream_chunks(
@@ -284,25 +274,20 @@ async def iter_agent_stream_chunks(
                             if isinstance(session.extra_context, dict)
                             else None
                         )
+                        injection: dict[str, str] | None = None
                         if citations or isinstance(preview, dict) or isinstance(brief_status, dict):
-                            from myrm_agent_harness.api.hooks import get_memory_manager
-
-                            manager = get_memory_manager()
-                            budget = _normalize_memory_budget(
-                                getattr(manager, "_last_budget", None)
+                            from myrm_agent_harness.api.hooks import (
+                                get_memory_runtime_budget,
+                                get_memory_runtime_injection,
                             )
+
+                            budget = get_memory_runtime_budget()
                             if budget is not None:
                                 chunk["memoryBudget"] = budget
-                        if isinstance(brief_status, dict):
-                            state = brief_status.get("state")
-                            reason = brief_status.get("reason")
-                            if state == "ready":
-                                chunk["memory_brief_status"] = {"state": "ready"}
-                            elif state == "skipped":
-                                payload: dict[str, str] = {"state": "skipped"}
-                                if isinstance(reason, str) and reason in {"timeout", "error"}:
-                                    payload["reason"] = reason
-                                chunk["memory_brief_status"] = payload
+                            injection = get_memory_runtime_injection()
+                        status_payload = build_memory_brief_status_payload(brief_status, injection)
+                        if status_payload is not None:
+                            chunk["memory_brief_status"] = status_payload
                     except Exception as e:
                         logger.warning("Failed to inject memory insights into message_end: %s", e)
 

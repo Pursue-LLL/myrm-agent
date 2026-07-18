@@ -10,7 +10,6 @@ import { ElementOverlay } from '@/components/features/browser-inspector';
 import { apiRequest } from '@/lib/api';
 import DesktopInspectorToolbar from './DesktopInspectorToolbar';
 import DesktopInstructionInput from './DesktopInstructionInput';
-import DesktopControlApprovalBanner from './DesktopControlApprovalBanner';
 
 interface PermissionsResponse {
   accessibility: boolean;
@@ -228,8 +227,6 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
           title={headerTitle}
           subtitle={viewData?.appName}
         />
-
-        <DesktopControlApprovalBanner />
 
         {viewData?.needsPermission && (
           <PermissionBanner t={t} />

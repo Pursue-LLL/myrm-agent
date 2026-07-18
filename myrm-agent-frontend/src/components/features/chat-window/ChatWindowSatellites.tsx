@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import DesktopControlApprovalOverlay from '@/components/features/desktop-inspector/DesktopControlApprovalOverlay';
 import SubagentDashboard from './SubagentDashboard';
 
 const VisualDesktopToggle = dynamic(
@@ -89,6 +90,7 @@ export default function ChatWindowSatellites({
 }: ChatWindowSatellitesProps) {
   return (
     <>
+      <DesktopControlApprovalOverlay />
       <VisualDesktopToggle />
       <BrowserInspectorToggle />
       <BrowserLiveView onSendInstruction={onInspectorInstruction} />

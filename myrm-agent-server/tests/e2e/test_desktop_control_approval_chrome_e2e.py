@@ -11,10 +11,12 @@ Prerequisites:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import platform
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -34,37 +36,126 @@ APPROVAL_WAIT_SEC = 240.0
 TURN_WAIT_SEC = 300.0
 MAX_SEND_ATTEMPTS = 3
 E2E_PROMPT = (
-    "TextEdit is open in the foreground with sample document text. "
-    "Use desktop_snapshot_tool with scope=foreground and include_screenshot=false, "
-    "then desktop_interact_tool to scroll_down on the first scrollable @dref you find. "
-    "When both tool calls succeed, reply with exactly: DONE."
+    "TextEdit 已在最前台打开。请用桌面工具查看前台窗口并向下滚动一屏，"
+    "完成后只回复 DONE。"
 )
 
 
-def _activate_textedit() -> None:
+def _progress(message: str) -> None:
+    print(f"DESKTOP_E2E: {message}", file=sys.stderr, flush=True)
+
+
+def _textedit_is_frontmost() -> bool:
     if platform.system() != "Darwin":
-        return
-    subprocess.run(
+        return False
+    proc = subprocess.run(
         [
             "osascript",
             "-e",
-            'tell application "TextEdit" to activate',
-            "-e",
-            'tell application "TextEdit"',
-            "-e",
-            "if (count of documents) is 0 then make new document",
-            "-e",
-            'set text of document 1 to "E2E desktop control scroll target line 1" & return & "E2E desktop control scroll target line 2" & return & "E2E desktop control scroll target line 3"',
-            "-e",
-            "end tell",
-            "-e",
-            'tell application "System Events" to tell process "TextEdit" to set frontmost to true',
+            'tell application "System Events" to get name of first application process whose frontmost is true',
         ],
         check=False,
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=10,
     )
+    return proc.returncode == 0 and "TextEdit" in (proc.stdout or "")
+
+
+def _activate_textedit(*, attempts: int = 3) -> None:
+    if platform.system() != "Darwin":
+        return
+    script = [
+        "osascript",
+        "-e",
+        'tell application "TextEdit" to activate',
+        "-e",
+        'tell application "TextEdit"',
+        "-e",
+        "if (count of documents) is 0 then make new document",
+        "-e",
+        'set text of document 1 to "E2E desktop control scroll target line 1" & return & "E2E desktop control scroll target line 2" & return & "E2E desktop control scroll target line 3" & return & "E2E desktop control scroll target line 4" & return & "E2E desktop control scroll target line 5"',
+        "-e",
+        "end tell",
+        "-e",
+        'tell application "System Events" to tell process "TextEdit" to set frontmost to true',
+    ]
+    for _ in range(attempts):
+        subprocess.run(
+            script,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        if _textedit_is_frontmost():
+            return
+        subprocess.run(["open", "-a", "TextEdit"], check=False, capture_output=True, text=True, timeout=10)
+
+
+def _desktop_accessibility_granted() -> bool:
+    url = f"{get_e2e_api_url()}/webui/desktop/permissions"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except OSError:
+        return False
+    return bool(payload.get("accessibility"))
+
+
+async def _wait_textedit_frontmost_stable(*, checks: int = 5, interval_sec: float = 0.4) -> None:
+    streak = 0
+    while streak < checks:
+        if _textedit_is_frontmost():
+            streak += 1
+        else:
+            _activate_textedit()
+            streak = 0
+        await asyncio.sleep(interval_sec)
+    if not _textedit_is_frontmost():
+        pytest.fail("TextEdit did not stay frontmost — grant Accessibility for Terminal/Cursor and retry")
+
+
+def _set_process_visible(process_name: str, visible: bool) -> None:
+    if platform.system() != "Darwin":
+        return
+    flag = "true" if visible else "false"
+    subprocess.run(
+        [
+            "osascript",
+            "-e",
+            f'tell application "System Events" to tell process "{process_name}" to set visible to {flag}',
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+
+def _set_chrome_visible(visible: bool) -> None:
+    _set_process_visible("Google Chrome", visible)
+
+
+def _activate_chrome() -> None:
+    if platform.system() != "Darwin":
+        return
+    subprocess.run(
+        ["osascript", "-e", 'tell application "Google Chrome" to activate'],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+
+async def _keep_textedit_frontmost(stop: asyncio.Event) -> None:
+    while not stop.is_set():
+        await asyncio.to_thread(_activate_textedit, attempts=1)
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=0.35)
+        except TimeoutError:
+            continue
 
 
 async def _resolve_chat_id(chat: McpChatSession, state: dict[str, object]) -> str | None:
@@ -120,25 +211,57 @@ async def _wait_stream_done_with_marker(
 
 
 async def _run_approval_attempt(chat: McpChatSession) -> str:
+    _progress("new chat + ensure surface")
     await chat.click_new_chat()
     await chat.ensure_chat_surface(BASE_URL)
     _activate_textedit()
-    await asyncio.sleep(3.0)
+    await _wait_textedit_frontmost_stable()
 
+    _progress("enable computer_use")
     tools_setup = await chat.enable_computer_use()
     assert tools_setup.get("ok") is True, f"computer_use bridge failed: {tools_setup}"
     assert "computer_use" in (tools_setup.get("tools") or []), tools_setup
 
-    heartbeat_e2e_lease()
-    await chat.send_message(E2E_PROMPT, E2E_PROMPT)
-    heartbeat_e2e_lease()
+    _activate_textedit()
+    await _wait_textedit_frontmost_stable()
 
+    heartbeat_e2e_lease()
+    focus_stop = asyncio.Event()
+    focus_task = asyncio.create_task(_keep_textedit_frontmost(focus_stop))
+    try:
+        _progress("send agent prompt")
+        await asyncio.sleep(1.0)
+        await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+        heartbeat_e2e_lease()
+
+        _progress("wait desktop tool activity")
+        tool_activity = await chat.wait_desktop_tool_activity(timeout_sec=APPROVAL_WAIT_SEC)
+        assert tool_activity.get("active") or tool_activity.get("pending"), (
+            f"Model did not start desktop tools: {tool_activity}"
+        )
+    finally:
+        focus_stop.set()
+        await focus_task
+
+    await asyncio.to_thread(_activate_chrome)
+    await asyncio.sleep(1.0)
+
+    _progress("wait approval banner")
     approval = await chat.wait_desktop_approval_pending(timeout_sec=APPROVAL_WAIT_SEC)
     if approval.get("err") == "model-completed-without-desktop-tools":
         raise AssertionError(f"Model finished without desktop tools: {approval}")
     assert approval.get("pending") is True, f"Expected desktop approval banner: {approval}"
+    if not approval.get("allowVisible"):
+        allow_deadline = asyncio.get_event_loop().time() + 30.0
+        while asyncio.get_event_loop().time() < allow_deadline:
+            probe = await chat.probe_desktop_approval_once()
+            if isinstance(probe, dict) and probe.get("allowVisible"):
+                approval = probe
+                break
+            await asyncio.sleep(0.25)
     assert approval.get("allowVisible") is True, f"Allow-once button not visible: {approval}"
 
+    _progress("click allow once")
     click = await chat.click_desktop_allow_once()
     assert click.get("ok") is True, f"Allow-once click failed: {click}"
 
@@ -150,6 +273,7 @@ async def _run_approval_attempt(chat: McpChatSession) -> str:
         or ""
     ).strip() or None
 
+    _progress("wait assistant DONE")
     after_turn = await _wait_stream_done_with_marker(
         chat,
         chat_id_hint=chat_id_hint,
@@ -165,6 +289,7 @@ async def _run_approval_attempt(chat: McpChatSession) -> str:
     chat_id = await _resolve_chat_id(chat, after_turn)
     assert chat_id, f"Expected chat id after approval turn: {after_turn}"
     assert chat_user_message_count(chat_id) >= 1, after_turn
+    _progress(f"done chat_id={chat_id}")
     return chat_id
 
 
@@ -181,6 +306,12 @@ async def test_chrome_ui_desktop_control_approval_allow_once(
             "Provider config not ready for live E2E — run via ./myrm test -m chrome_e2e "
             "after ./myrm ready --chrome"
         )
+    if not _desktop_accessibility_granted():
+        pytest.fail(
+            "macOS Accessibility permission is not granted for the backend — "
+            "open System Settings → Privacy & Security → Accessibility and allow Cursor/Terminal, "
+            "then retry after ./myrm restart --chrome"
+        )
 
     _activate_textedit()
 
@@ -190,6 +321,7 @@ async def test_chrome_ui_desktop_control_approval_allow_once(
         last_error: dict[str, object] | None = None
         for attempt in range(1, MAX_SEND_ATTEMPTS + 1):
             heartbeat_e2e_lease()
+            _progress(f"attempt {attempt}/{MAX_SEND_ATTEMPTS}")
             try:
                 chat_id = await _run_approval_attempt(chat)
                 e2e_resource_ledger.register("chat", chat_id)

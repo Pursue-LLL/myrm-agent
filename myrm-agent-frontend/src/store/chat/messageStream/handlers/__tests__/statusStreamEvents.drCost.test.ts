@@ -77,7 +77,7 @@ describe('statusStreamEvents DR cost transparency', () => {
       current_cost_usd: 0.32,
       progress_percent: 40,
     });
-    ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
     const step = state.messages[0].progressSteps![0];
@@ -98,7 +98,7 @@ describe('statusStreamEvents DR cost transparency', () => {
       current_cost_usd: 0,
       progress_percent: 10,
     });
-    ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
     const step = state.messages[0].progressSteps![0];
@@ -116,7 +116,7 @@ describe('statusStreamEvents DR cost transparency', () => {
       cycle: 3,
       current_cost_usd: 1.5,
     });
-    ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
     const step = state.messages[0].progressSteps![0];
@@ -136,7 +136,7 @@ describe('statusStreamEvents DR cost transparency', () => {
       budget_usd: 2.0,
       percent_used: 80,
     });
-    ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
     const step = state.messages[0].progressSteps![0];
@@ -158,7 +158,7 @@ describe('statusStreamEvents DR cost transparency', () => {
       budget_usd: 2.0,
       percent_used: 115,
     });
-    ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
     const step = state.messages[0].progressSteps![0];
@@ -190,7 +190,7 @@ describe('statusStreamEvents DR cost transparency', () => {
       max_cycles: 5,
       current_cost_usd: 0.1,
     });
-    ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
     expect(state.messages[0].progressSteps).toHaveLength(0);

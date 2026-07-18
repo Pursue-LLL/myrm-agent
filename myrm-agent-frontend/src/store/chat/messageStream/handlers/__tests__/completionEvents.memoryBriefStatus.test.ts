@@ -54,7 +54,11 @@ function makeCtx(state: TestState): StreamCtx {
     data: {
       type: 'message_end',
       messageId: 'msg-1',
-      memory_brief_status: { state: 'skipped', reason: 'timeout' },
+      memory_brief_status: {
+        state: 'skipped',
+        reason: 'timeout',
+        injection: { state: 'applied', source: 'fallback' },
+      },
     } as never,
     input: '',
     sources: undefined,
@@ -90,7 +94,11 @@ describe('completionEvents memory brief status', () => {
     vi.runAllTimers();
     await vi.dynamicImportSettled();
 
-    expect(state.messages[0]?.memoryBriefStatus).toEqual({ state: 'skipped', reason: 'timeout' });
+    expect(state.messages[0]?.memoryBriefStatus).toEqual({
+      state: 'skipped',
+      reason: 'timeout',
+      injection: { state: 'applied', source: 'fallback' },
+    });
   });
 
   it('creates assistant placeholder when memory_brief_status arrives before assistant message', async () => {
@@ -107,6 +115,10 @@ describe('completionEvents memory brief status', () => {
 
     expect(state.messages).toHaveLength(2);
     expect(state.messages[1]?.role).toBe('assistant');
-    expect(state.messages[1]?.memoryBriefStatus).toEqual({ state: 'skipped', reason: 'timeout' });
+    expect(state.messages[1]?.memoryBriefStatus).toEqual({
+      state: 'skipped',
+      reason: 'timeout',
+      injection: { state: 'applied', source: 'fallback' },
+    });
   });
 });

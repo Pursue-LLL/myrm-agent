@@ -5,11 +5,13 @@ const MAX_DETAIL_ITEMS = 30;
 
 export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, unknown>): void {
   const { data, actions } = ctx;
+  const messageId = data.messageId;
+  if (!messageId) return;
   const sd = statusData;
 
   if ('progress_percent' in sd && typeof sd.progress_percent === 'number') {
     actions.setMessages((state) => {
-      const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+      const idx = H.findAssistantMessageIndex(state.messages, messageId);
       if (idx !== -1) {
         const steps = state.messages[idx].progressSteps;
         if (steps && steps.length > 0) {
@@ -21,7 +23,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
 
   if (sd.phase === 'clarify' && sd.status === 'resolved') {
     actions.setMessages((state) => {
-      const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+      const idx = H.findAssistantMessageIndex(state.messages, messageId);
       if (idx !== -1 && state.messages[idx].clarification) {
         state.messages[idx].clarification!.answered = true;
       }
@@ -30,7 +32,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
 
   if (sd.phase === 'workflow_suggestion' && sd.status === 'suggested') {
     actions.setMessages((state) => {
-      const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+      const idx = H.findAssistantMessageIndex(state.messages, messageId);
       if (idx === -1) return;
       state.messages[idx].workflowSuggestion = { status: 'suggested' };
     });
@@ -38,7 +40,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
 
   if (sd.phase === 'plan_confirm') {
     actions.setMessages((state) => {
-      const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+      const idx = H.findAssistantMessageIndex(state.messages, messageId);
       if (idx === -1) return;
       if (sd.status === 'waiting') {
         const planItems = Array.isArray(sd.plan_items) ? sd.plan_items as Array<{ id: string; content: string; status?: string }> : undefined;
@@ -63,7 +65,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
 
   if (sd.phase === 'explore' && sd.status === 'complete' && sd.has_context) {
     actions.setMessages((state) => {
-      const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+      const idx = H.findAssistantMessageIndex(state.messages, messageId);
       if (idx !== -1) {
         const steps = state.messages[idx].progressSteps;
         if (steps && steps.length > 0) {
@@ -87,7 +89,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
 
       if (planLines.length > 0) {
         actions.setMessages((state) => {
-          const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+          const idx = H.findAssistantMessageIndex(state.messages, messageId);
           if (idx !== -1) {
             const steps = state.messages[idx].progressSteps;
             if (steps && steps.length > 0) {
@@ -110,7 +112,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
 
     if (detailText) {
       actions.setMessages((state) => {
-        const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+        const idx = H.findAssistantMessageIndex(state.messages, messageId);
         if (idx !== -1) {
           const steps = state.messages[idx].progressSteps;
           if (steps && steps.length > 0) {
@@ -131,7 +133,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
 
   if (sd.phase === 'research' && typeof sd.cycle === 'number') {
     actions.setMessages((state) => {
-      const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+      const idx = H.findAssistantMessageIndex(state.messages, messageId);
       if (idx !== -1) {
         const steps = state.messages[idx].progressSteps;
         if (steps && steps.length > 0) {
@@ -152,7 +154,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
 
   if (sd.phase === 'research' && typeof sd.budget_event === 'string') {
     actions.setMessages((state) => {
-      const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+      const idx = H.findAssistantMessageIndex(state.messages, messageId);
       if (idx !== -1) {
         const steps = state.messages[idx].progressSteps;
         if (steps && steps.length > 0) {

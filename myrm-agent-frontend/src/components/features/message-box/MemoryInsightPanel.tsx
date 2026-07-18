@@ -32,6 +32,42 @@ function formatNamespaceLabel(
   return namespace;
 }
 
+export function resolveBriefUnavailableDescriptionKey(
+  memoryBriefStatus?: MemoryBriefStatus
+):
+  | 'briefUnavailableDescription'
+  | 'briefUnavailableDescriptionInjected'
+  | 'briefUnavailableDescriptionNotInjected'
+  | 'briefUnavailableDescriptionToolsMode'
+  | 'briefUnavailableDescriptionAlreadyPresent'
+  | 'briefUnavailableDescriptionSystemIssue' {
+  const injection = memoryBriefStatus?.injection;
+  if (injection?.state === 'applied') {
+    return 'briefUnavailableDescriptionInjected';
+  }
+  if (injection?.state !== 'not_applied') {
+    return 'briefUnavailableDescription';
+  }
+  if (injection.reason === 'already_present') {
+    return 'briefUnavailableDescriptionAlreadyPresent';
+  }
+  if (injection.reason === 'recall_mode_tools') {
+    return 'briefUnavailableDescriptionToolsMode';
+  }
+  if (injection.reason === 'missing_context' || injection.reason === 'not_injected') {
+    return 'briefUnavailableDescriptionNotInjected';
+  }
+  if (
+    injection.reason === 'load_error' ||
+    injection.reason === 'static_error' ||
+    injection.reason === 'invalid_static_payload' ||
+    injection.reason === 'empty_context'
+  ) {
+    return 'briefUnavailableDescriptionSystemIssue';
+  }
+  return 'briefUnavailableDescription';
+}
+
 export default function MemoryInsightPanel({
   memoryBrief,
   memoryBriefStatus,
@@ -51,6 +87,7 @@ export default function MemoryInsightPanel({
   }
 
   const memoryBriefUnavailable = !memoryBrief && memoryBriefStatus?.state === 'skipped';
+  const briefUnavailableDescriptionKey = resolveBriefUnavailableDescriptionKey(memoryBriefStatus);
   const budgetPct = memoryBudget && memoryBudget.total > 0 ? Math.round((memoryBudget.used / memoryBudget.total) * 100) : 0;
   const briefNamespaceLabels = memoryBrief ? memoryBrief.namespaces.slice(0, 4).map((namespace) => formatNamespaceLabel(namespace, t)) : [];
   
@@ -69,7 +106,7 @@ export default function MemoryInsightPanel({
             <div className="space-y-2">
               <div className="text-xs font-semibold text-foreground">{t('briefUnavailableTitle')}</div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {t('briefUnavailableDescription')}
+                {t(briefUnavailableDescriptionKey)}
               </p>
             </div>
           </HoverCardContent>

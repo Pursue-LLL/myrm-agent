@@ -316,8 +316,6 @@ async def test_finalize_persists_memory_budget_without_citations() -> None:
     """memoryBudget must persist even when no citations were emitted."""
     session = _make_session(content="Result without citation tags")
     session.extra_context = {"memory_brief_preview": {"snapshot_id": "snap-budget"}}
-    manager = MagicMock()
-    manager._last_budget = {"used": 64, "total": 512}
 
     with (
         patch(
@@ -346,7 +344,15 @@ async def test_finalize_persists_memory_budget_without_citations() -> None:
         ) as mock_persist,
         patch(
             "myrm_agent_harness.api.hooks.get_memory_manager",
-            return_value=manager,
+            return_value=None,
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
+            return_value={"used": 64, "total": 512},
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_injection",
+            return_value=None,
         ),
         patch(
             "app.services.agent.evolution.engine.trigger_skill_evolution"
@@ -368,8 +374,6 @@ async def test_finalize_persists_memory_brief_status_payload() -> None:
         "memory_brief_preview": {"snapshot_id": "snap-xyz"},
         "memory_brief_status": {"state": "skipped", "reason": "timeout"},
     }
-    manager = MagicMock()
-    manager._last_budget = {"used": 12, "total": 256}
 
     with (
         patch(
@@ -398,7 +402,15 @@ async def test_finalize_persists_memory_brief_status_payload() -> None:
         ) as mock_persist,
         patch(
             "myrm_agent_harness.api.hooks.get_memory_manager",
-            return_value=manager,
+            return_value=None,
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
+            return_value={"used": 12, "total": 256},
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_injection",
+            return_value={"state": "applied", "source": "fallback"},
         ),
         patch(
             "app.services.agent.evolution.engine.trigger_skill_evolution"
@@ -409,7 +421,11 @@ async def test_finalize_persists_memory_brief_status_payload() -> None:
 
     persisted_extra = mock_persist.await_args.kwargs["extra_data"]
     assert persisted_extra.get("memoryBriefSnapshotId") == "snap-xyz"
-    assert persisted_extra.get("memoryBriefStatus") == {"state": "skipped", "reason": "timeout"}
+    assert persisted_extra.get("memoryBriefStatus") == {
+        "state": "skipped",
+        "reason": "timeout",
+        "injection": {"state": "applied", "source": "fallback"},
+    }
 
 
 @pytest.mark.asyncio
@@ -417,8 +433,6 @@ async def test_finalize_skips_invalid_memory_budget_payload() -> None:
     """Invalid manager budget payload should not leak into persisted metadata."""
     session = _make_session(content="Result without citation tags")
     session.extra_context = {"memory_brief_status": {"state": "ready"}}
-    manager = MagicMock()
-    manager._last_budget = {"used": "bad", "total": None}
 
     with (
         patch(
@@ -447,7 +461,15 @@ async def test_finalize_skips_invalid_memory_budget_payload() -> None:
         ) as mock_persist,
         patch(
             "myrm_agent_harness.api.hooks.get_memory_manager",
-            return_value=manager,
+            return_value=None,
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
+            return_value=None,
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_injection",
+            return_value=None,
         ),
         patch(
             "app.services.agent.evolution.engine.trigger_skill_evolution"
@@ -458,3 +480,63 @@ async def test_finalize_skips_invalid_memory_budget_payload() -> None:
 
     persisted_extra = mock_persist.await_args.kwargs["extra_data"]
     assert "memoryBudget" not in persisted_extra
+    assert persisted_extra.get("memoryBriefStatus") == {"state": "ready"}
+
+
+@pytest.mark.asyncio
+async def test_finalize_persists_not_applied_injection_reason() -> None:
+    session = _make_session(content="Result without citation tags")
+    session.extra_context = {
+        "memory_brief_status": {"state": "skipped", "reason": "timeout"},
+    }
+
+    with (
+        patch(
+            "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.CancellationRegistry"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.SteeringRegistry"
+        ),
+        patch("app.services.agent.goal_registry.GoalRegistry"),
+        patch(
+            "myrm_agent_harness.agent.security.user_credentials_ctx"
+        ) as mock_ctx,
+        patch(
+            "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
+            return_value=None,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            new_callable=AsyncMock,
+        ) as mock_persist,
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_manager",
+            return_value=None,
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
+            return_value={"used": 9, "total": 64},
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_injection",
+            return_value={"state": "not_applied", "reason": "already_present"},
+        ),
+        patch(
+            "app.services.agent.evolution.engine.trigger_skill_evolution"
+        ),
+    ):
+        mock_ctx.reset = MagicMock()
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+
+    persisted_extra = mock_persist.await_args.kwargs["extra_data"]
+    assert persisted_extra.get("memoryBriefStatus") == {
+        "state": "skipped",
+        "reason": "timeout",
+        "injection": {"state": "not_applied", "reason": "already_present"},
+    }

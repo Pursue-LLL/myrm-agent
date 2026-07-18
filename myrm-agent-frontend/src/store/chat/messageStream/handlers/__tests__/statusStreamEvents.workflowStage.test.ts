@@ -83,7 +83,7 @@ describe('statusStreamEvents workflow_stage', () => {
       notify_progress: 50,
       notify_category: 'analysis',
     });
-    ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
     await statusStreamEvents(ctx);
 
     const step = state.messages[0].progressSteps![0];
@@ -101,7 +101,7 @@ describe('statusStreamEvents workflow_stage', () => {
 
     for (const message of ['Spawning sub-agent `t1`...', 'Sub-agent `t1` completed.']) {
       const ctx = makeWorkflowStageCtx(message, { notify_category: 'subagent' });
-      ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+      ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
       await statusStreamEvents(ctx);
     }
 
@@ -118,7 +118,7 @@ describe('statusStreamEvents workflow_stage', () => {
 
     for (const category of ['analysis', 'summary']) {
       const ctx = makeWorkflowStageCtx(`Phase ${category}`, { notify_category: category });
-      ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+      ctx.actions.setMessages = setMessages as unknown as StreamCtx['actions']['setMessages'];
       await statusStreamEvents(ctx);
     }
 
