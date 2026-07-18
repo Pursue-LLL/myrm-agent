@@ -3792,7 +3792,8 @@
     "history": "History",
     "evalLab": "평가 실험실",
     "health": "System Doctor",
-    "securityCenter": "Security Center"
+    "securityCenter": "Security Center",
+    "runs": "활동"
   },
   "layout": {
     "showSidebar": "Show Sidebar",
@@ -7761,6 +7762,31 @@
       }
     }
   },
+  "runs": {
+    "title": "활동",
+    "subtitle": "모든 백그라운드 활동을 한곳에서 확인",
+    "totalRuns": "건",
+    "filterAll": "전체",
+    "filterRunning": "실행 중",
+    "filterOk": "성공",
+    "filterError": "실패",
+    "sourceAll": "모든 소스",
+    "sourceCron": "예약",
+    "sourceKanban": "칸반",
+    "sourceShell": "셸",
+    "empty": "아직 활동 기록이 없습니다",
+    "emptyFiltered": "현재 필터와 일치하는 활동이 없습니다.",
+    "degradedBanner": "일부 활동 소스를 불러오지 못했습니다. 아래 목록이 불완전할 수 있습니다.",
+    "loadError": "활동 기록을 불러오지 못했습니다. 연결을 확인한 후 다시 시도하세요.",
+    "retry": "다시 시도",
+    "executionStepsBadge": "실행 단계",
+    "loadMore": "더 불러오기",
+    "timeJustNow": "방금",
+    "timeMinutesAgo": "{count}분 전",
+    "timeHoursAgo": "{count}시간 전",
+    "timeDaysAgo": "{count}일 전",
+    "executionSteps": "실행 단계"
+  },
   "cron": {
     "sectionTitle": "Scheduled Tasks",
     "sectionDesc": "Manage agent-created tasks that run automatically on a schedule.",
@@ -11675,6 +11701,7 @@
     "briefUnavailablePill": "메모리 브리프를 사용할 수 없음",
     "briefUnavailableTitle": "메모리 컨텍스트를 사용할 수 없음",
     "briefUnavailableDescription": "일시적인 준비 문제로 이번 응답은 메모리 브리프 없이 생성되었습니다.",
+    "briefUnavailableDescriptionInjected": "메모리 브리프는 생략되었지만, 메모리 컨텍스트는 응답 생성 전에 정상 주입되었습니다.",
     "namespaceGlobal": "전역",
     "namespaceAgent": "에이전트 · {value}",
     "namespaceChannel": "채널 · {value}",

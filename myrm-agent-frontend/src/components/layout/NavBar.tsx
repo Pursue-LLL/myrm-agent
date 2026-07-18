@@ -20,6 +20,7 @@ import {
   FolderKanban,
   TrendingUp,
   Shield,
+  Activity,
 } from 'lucide-react';
 import { AiGenerativeIcon, InvestigationIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -100,6 +101,7 @@ function NavBarInner({
     settingsTab?: string;
     href?: string;
   }[] = [
+    { id: 'runs', icon: Activity, label: t('nav.runs'), href: '/runs' },
     { id: 'health', icon: InvestigationIcon, label: t('nav.health'), href: '/health' },
     { id: 'security-center', icon: Shield, label: t('nav.securityCenter'), href: '/security' },
     { id: 'journey', icon: TrendingUp, label: t('growthDashboard.title'), href: '/journey' },

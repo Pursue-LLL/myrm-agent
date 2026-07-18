@@ -78,6 +78,7 @@ from app.api.stt.ws_stream import router as stt_ws_router
 from app.api.system.router import router as system_router
 from app.api.system.shutdown import router as system_shutdown_router
 from app.api.remote_access.router import router as remote_access_router
+from app.api.runs import router as runs_router
 from app.api.tasks.router import router as tasks_router
 from app.api.tts.router import router as tts_router
 from app.api.voice.gemini_live import router as voice_gemini_live_router
@@ -154,6 +155,7 @@ api_router.include_router(kanban_pipeline_router)
 api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 
 api_router.include_router(background_tasks_router, prefix="/background-tasks", tags=["background-tasks"])
+api_router.include_router(runs_router)
 api_router.include_router(eval_router, tags=["eval"])
 
 # Dataset export

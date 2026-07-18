@@ -3792,7 +3792,8 @@
     "history": "History",
     "evalLab": "Eval-Labor",
     "health": "System Doctor",
-    "securityCenter": "Security Center"
+    "securityCenter": "Security Center",
+    "runs": "Aktivität"
   },
   "layout": {
     "showSidebar": "Show Sidebar",
@@ -7761,6 +7762,31 @@
       }
     }
   },
+  "runs": {
+    "title": "Aktivität",
+    "subtitle": "Alle Hintergrundaktivitäten an einem Ort",
+    "totalRuns": "Einträge",
+    "filterAll": "Alle",
+    "filterRunning": "Laufend",
+    "filterOk": "Erfolg",
+    "filterError": "Fehlgeschlagen",
+    "sourceAll": "Alle Quellen",
+    "sourceCron": "Geplant",
+    "sourceKanban": "Kanban",
+    "sourceShell": "Shell",
+    "empty": "Noch keine Aktivität",
+    "emptyFiltered": "Keine Aktivität entspricht den aktuellen Filtern.",
+    "degradedBanner": "Einige Aktivitätsquellen konnten nicht geladen werden. Die Liste kann unvollständig sein.",
+    "loadError": "Aktivität konnte nicht geladen werden. Verbindung prüfen und erneut versuchen.",
+    "retry": "Erneut versuchen",
+    "executionStepsBadge": "Schritte",
+    "loadMore": "Mehr laden",
+    "timeJustNow": "gerade eben",
+    "timeMinutesAgo": "vor {count} Min.",
+    "timeHoursAgo": "vor {count} Std.",
+    "timeDaysAgo": "vor {count} Tg.",
+    "executionSteps": "Ausführungsschritte"
+  },
   "cron": {
     "sectionTitle": "Scheduled Tasks",
     "sectionDesc": "Manage agent-created tasks that run automatically on a schedule.",
@@ -11675,6 +11701,7 @@
     "briefUnavailablePill": "Memory Brief nicht verfügbar",
     "briefUnavailableTitle": "Erinnerungskontext nicht verfügbar",
     "briefUnavailableDescription": "Diese Antwort wurde ohne Memory Brief erzeugt, da die Vorbereitung vorübergehend nicht möglich war.",
+    "briefUnavailableDescriptionInjected": "Der Memory Brief wurde übersprungen, aber der Erinnerungskontext wurde vor der Antwortgenerierung trotzdem injiziert.",
     "namespaceGlobal": "Global",
     "namespaceAgent": "Agent · {value}",
     "namespaceChannel": "Kanal · {value}",

@@ -274,14 +274,22 @@ const useChatStore = create<ChatState>()(
       setPendingGapRetry: (pending) => set({ pendingGapRetry: pending }),
       clearPendingGapRetry: () => set({ pendingGapRetry: null }),
       setAgentConfig: (config) => {
-        const builtinTools = [...(config?.enabledBuiltinTools ?? DEFAULT_ENABLED_BUILTIN_TOOLS)];
-        const autoRestoreDomains = [...(config?.autoRestoreDomains ?? [])];
+        if (!config) {
+          set({ agentConfig: null });
+          return;
+        }
+        const builtinTools = [...(config.enabledBuiltinTools ?? DEFAULT_ENABLED_BUILTIN_TOOLS)];
+        const autoRestoreDomains = [...(config.autoRestoreDomains ?? [])];
         if (typeof window !== 'undefined') {
           localStorage.setItem('currentBuiltinTools', JSON.stringify(builtinTools));
         }
         set({
           agentConfig: {
             ...config,
+            selectedSkillIds: config.selectedSkillIds ?? [],
+            selectedMcpNames: config.selectedMcpNames ?? [],
+            systemPrompt: config.systemPrompt ?? '',
+            useGlobalInstruction: config.useGlobalInstruction ?? false,
             enabledBuiltinTools: [...builtinTools],
             autoRestoreDomains: [...autoRestoreDomains],
           },

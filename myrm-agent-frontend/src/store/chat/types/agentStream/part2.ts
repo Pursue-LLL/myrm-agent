@@ -41,6 +41,21 @@ export interface MemoryBriefData {
 export interface MemoryBriefStatus {
   state: 'ready' | 'skipped';
   reason?: 'timeout' | 'error';
+  injection?: MemoryBriefInjectionStatus;
+}
+
+export interface MemoryBriefInjectionStatus {
+  state: 'applied' | 'not_applied';
+  source?: 'snapshot' | 'fallback';
+  reason?:
+    | 'missing_context'
+    | 'not_injected'
+    | 'recall_mode_tools'
+    | 'load_error'
+    | 'static_error'
+    | 'invalid_static_payload'
+    | 'empty_context'
+    | 'already_present';
 }
 
 export interface MemoryBriefStreamEvent extends BaseAgentEvent {
@@ -380,13 +395,4 @@ export interface DagStateUpdateStreamEvent {
   data: unknown;
 }
 
-export interface CatchupSnapshotStreamEvent {
-  type: 'catchup_snapshot';
-  messageId: string;
-  data: {
-    content: string;
-    reasoning: string;
-    progress_steps: ProgressItem[];
-    sources: Source[];
-  };
-}
+export type { CatchupSnapshotStreamEvent } from './part2Catchup';

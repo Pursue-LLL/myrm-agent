@@ -2,7 +2,7 @@
 
 import { memo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, ChevronUp, Cpu, Send, CircleX, Coins, ShieldAlert, ShieldCheck, Zap } from 'lucide-react';
+import { ChevronDown, ChevronUp, Cpu, Send, CircleX, Coins, ShieldAlert, ShieldCheck, Zap, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { CronRun } from '@/services/cron';
 import { formatDuration, formatTime } from './cron-utils';
@@ -194,6 +194,34 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
               <div className="flex gap-3 text-[10px] text-muted-foreground">
                 <span>Input: {formatTokens(run.usage_input_tokens)}</span>
                 {run.usage_output_tokens != null && <span>Output: {formatTokens(run.usage_output_tokens)}</span>}
+              </div>
+            )}
+            {run.metadata?.progressSteps && Array.isArray(run.metadata.progressSteps) && run.metadata.progressSteps.length > 0 && (
+              <div className="rounded-lg border border-border/40 bg-muted/20 p-2 space-y-1">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <Wrench className="h-3 w-3" />
+                  {t('executionSteps')} ({run.metadata.progressSteps.length})
+                </p>
+                <div className="space-y-0.5">
+                  {(run.metadata.progressSteps as Array<{ tool_name?: string; step_key?: string; error?: string }>).map(
+                    (step, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 text-[10px]">
+                        <span className={cn(
+                          'h-1.5 w-1.5 rounded-full shrink-0',
+                          step.error ? 'bg-red-400' : 'bg-emerald-400',
+                        )} />
+                        <span className="font-mono text-foreground/80 truncate">
+                          {step.tool_name || step.step_key || `step ${idx + 1}`}
+                        </span>
+                        {step.error && (
+                          <span className="text-red-400 truncate ml-1" title={step.error}>
+                            {step.error}
+                          </span>
+                        )}
+                      </div>
+                    ),
+                  )}
+                </div>
               </div>
             )}
             {run.output && (

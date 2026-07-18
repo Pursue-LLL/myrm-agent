@@ -227,6 +227,7 @@ export interface ConfigState {
   setCodeExecutionAllowNetwork: (allow: boolean) => void;
   setEnableEvalLab: (enable: boolean) => void;
   setSmoothStreamEnabled: (enable: boolean) => void;
+  setSuggestWorkflowMode: (enable: boolean) => void;
   setPublicIngressBaseUrl: (url: string | undefined) => void;
 
   personalSettings?: import('@/services/config/types').PersonalSettingsConfigValue;

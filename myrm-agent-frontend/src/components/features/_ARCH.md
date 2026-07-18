@@ -47,6 +47,7 @@
 | `agent-events/` | Agent 事件时间线 | [_ARCH.md](agent-events/_ARCH.md) |
 | `file-preview/` | 通用文件预览 | [_ARCH.md](file-preview/_ARCH.md) |
 | `research/` | Research 三栏研究工作台（资料池 + Chat + 工件输出） | [_ARCH.md](research/_ARCH.md) |
+| `runs/` | Unified Runs Hub 聚合运行历史 | [_ARCH.md](runs/_ARCH.md) |
 
 上表覆盖当前全部 feature 子目录。新增目录须同步本表并添加目录级 `_ARCH.md`。
 

@@ -290,7 +290,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
         syncPersonalSettings({ smoothStreamEnabled: enable });
       },
 
-      setSuggestWorkflowMode: (enable) => {
+      setSuggestWorkflowMode: (enable: boolean) => {
         set({ suggestWorkflowMode: enable });
         syncPersonalSettings({ suggestWorkflowMode: enable });
       },

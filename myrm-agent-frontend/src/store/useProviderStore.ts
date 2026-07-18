@@ -596,7 +596,8 @@ const useProviderStore = create<ProviderState>((set, get) => ({
     delete customModelInfo[key];
 
     let defaultModelConfig = { ...get().defaultModelConfig };
-    const isMatch = (s: SingleModelSelection | null) => s?.providerId === providerId && s?.model === model;
+    const isMatch = (s: SingleModelSelection | null | undefined) =>
+      s?.providerId === providerId && s?.model === model;
 
     if (isMatch(defaultModelConfig.baseModel.primary)) {
       defaultModelConfig = {

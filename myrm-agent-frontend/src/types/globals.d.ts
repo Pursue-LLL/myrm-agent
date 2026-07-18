@@ -52,6 +52,15 @@ interface Window {
     getGoalMode: () => boolean;
     setCurrentBuiltinTools?: (tools: string[]) => void;
     getCurrentBuiltinTools?: () => string[];
+    ensureComputerUseReady?: () => void;
+    getActionMode?: () => string;
+    getDesktopToolProgress?: () => {
+      active: boolean;
+      pending: boolean;
+      requestId: string;
+      stepCount: number;
+      lastTool: string;
+    };
     getDesktopApprovalSnapshot?: () => {
       pending: boolean;
       requestId: string;

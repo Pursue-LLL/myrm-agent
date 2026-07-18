@@ -3792,7 +3792,8 @@
     "history": "History",
     "evalLab": "評価ラボ",
     "health": "System Doctor",
-    "securityCenter": "Security Center"
+    "securityCenter": "Security Center",
+    "runs": "アクティビティ"
   },
   "layout": {
     "showSidebar": "Show Sidebar",
@@ -7761,6 +7762,31 @@
       }
     }
   },
+  "runs": {
+    "title": "アクティビティ",
+    "subtitle": "すべてのバックグラウンド活動を一覧表示",
+    "totalRuns": "件",
+    "filterAll": "すべて",
+    "filterRunning": "実行中",
+    "filterOk": "成功",
+    "filterError": "失敗",
+    "sourceAll": "すべてのソース",
+    "sourceCron": "スケジュール",
+    "sourceKanban": "カンバン",
+    "sourceShell": "シェル",
+    "empty": "アクティビティはまだありません",
+    "emptyFiltered": "現在のフィルターに一致するアクティビティはありません。",
+    "degradedBanner": "一部のソースを読み込めませんでした。一覧が不完全な場合があります。",
+    "loadError": "アクティビティを読み込めませんでした。接続を確認して再試行してください。",
+    "retry": "再試行",
+    "executionStepsBadge": "実行ステップ",
+    "loadMore": "さらに読み込む",
+    "timeJustNow": "たった今",
+    "timeMinutesAgo": "{count}分前",
+    "timeHoursAgo": "{count}時間前",
+    "timeDaysAgo": "{count}日前",
+    "executionSteps": "実行ステップ"
+  },
   "cron": {
     "sectionTitle": "Scheduled Tasks",
     "sectionDesc": "Manage agent-created tasks that run automatically on a schedule.",
@@ -11675,6 +11701,7 @@
     "briefUnavailablePill": "メモリ概要は利用できません",
     "briefUnavailableTitle": "メモリコンテキストを利用できません",
     "briefUnavailableDescription": "この応答は一時的な準備失敗により、メモリ概要なしで生成されました。",
+    "briefUnavailableDescriptionInjected": "メモリ概要はスキップされましたが、メモリコンテキスト自体は生成前に注入されています。",
     "namespaceGlobal": "グローバル",
     "namespaceAgent": "エージェント · {value}",
     "namespaceChannel": "チャネル · {value}",

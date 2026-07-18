@@ -320,3 +320,31 @@ export interface UIUpdateStreamEvent extends BaseAgentEvent {
   subtype: 'ui_artifact' | 'data_update';
   data: unknown[];
 }
+
+export interface CorrectionLearnedStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.CORRECTION_LEARNED;
+  summaries?: string[];
+  data?: {
+    summaries?: string[];
+  };
+}
+
+export interface ToolEvictedRefStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.TOOL_EVICTED_REF;
+  data: unknown;
+}
+
+export interface CapabilityGapStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.CAPABILITY_GAP;
+  data?: {
+    tool_id?: string;
+    tool_group?: string;
+  };
+}
+
+export interface SkillGapStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.SKILL_GAP;
+  data?: {
+    skill_id?: string;
+  };
+}

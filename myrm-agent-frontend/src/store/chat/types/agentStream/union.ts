@@ -16,6 +16,9 @@ import type {
   ArtifactContentStreamEvent,
   ArtifactsStreamEvent,
   ClarificationRequiredStreamEvent,
+  CorrectionLearnedStreamEvent,
+  CapabilityGapStreamEvent,
+  SkillGapStreamEvent,
   ErrorStreamEvent,
   MessageStreamEvent,
   RateLimitThrottledStreamEvent,
@@ -27,6 +30,7 @@ import type {
   TokenUsageStreamEvent,
   ToolApprovalRequestStreamEvent,
   ToolCancelledStreamEvent,
+  ToolEvictedRefStreamEvent,
   ToolEndStreamEvent,
   ToolFailureStreamEvent,
   ToolHeartbeatStreamEvent,
@@ -89,12 +93,16 @@ export type AgentStreamEvent =
   | ApprovalProcessedStreamEvent
   | ApprovalRequiredStreamEvent
   | ClarificationRequiredStreamEvent
+  | CorrectionLearnedStreamEvent
+  | CapabilityGapStreamEvent
+  | SkillGapStreamEvent
   | SteeringStreamEvent
   | ToolStartStreamEvent
   | ToolEndStreamEvent
   | ToolFailureStreamEvent
   | ToolStdoutChunkStreamEvent
   | ToolCancelledStreamEvent
+  | ToolEvictedRefStreamEvent
   | TokenUsageStreamEvent
   | MessageStreamEvent
   | MemoryBriefStreamEvent
