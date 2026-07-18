@@ -23,30 +23,53 @@ _NO_APPROVAL_DIALOG_STATE = """(() => ({
   hasChatInput: !!document.querySelector('[data-chat-input]'),
 }))()"""
 
-_DISMISS_APPROVAL_DIALOG_JS = """(() => {
-  const dialog = document.querySelector('[role="dialog"]');
-  if (!dialog) return { dismissed: false };
-  const closeBtn = dialog.querySelector(
-    '[data-testid="dialog-close"], button[aria-label*="Close" i], button'
-  );
-  closeBtn?.click();
+_HIDE_APPROVAL_DRAWER_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (bridge && typeof bridge.hideApprovalDrawer === 'function') {
+    bridge.hideApprovalDrawer();
+    return { hidden: true, via: 'bridge' };
+  }
+  const overlay = document.querySelector('[data-vaul-overlay]');
+  if (overlay instanceof HTMLElement) {
+    overlay.click();
+    return { hidden: true, via: 'overlay' };
+  }
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  return { dismissed: true };
+  return { hidden: false, via: 'escape' };
 })()"""
 
 
+def _deny_stale_e2e_push_approvals(api_url: str) -> None:
+    listed = http_json("GET", f"{api_url}/api/v1/approvals?limit=100&offset=0")
+    if not isinstance(listed, dict):
+        return
+    approvals = listed.get("approvals")
+    if not isinstance(approvals, list):
+        return
+    stale_ids = [
+        str(item.get("id") or "")
+        for item in approvals
+        if isinstance(item, dict)
+        and str(item.get("chat_id") or "").startswith("e2epush")
+        and str(item.get("id") or "")
+    ]
+    if not stale_ids:
+        return
+    http_json(
+        "POST",
+        f"{api_url}/api/v1/approvals/batch-resolve",
+        {"approval_ids": stale_ids, "decision": "reject"},
+    )
+
+
 def _ensure_clean_chat_surface(client, page) -> None:
-    for _ in range(8):
-        state = wait_for_state(
-            client,
-            page,
-            _NO_APPROVAL_DIALOG_STATE,
-            timeout_sec=15.0,
-        )
+    for _ in range(12):
+        state_raw = client.evaluate(page, _NO_APPROVAL_DIALOG_STATE, timeout_sec=5.0)
+        state = state_raw if isinstance(state_raw, dict) else {"value": state_raw}
         if state.get("ready") is True:
             return
-        client.evaluate(page, _DISMISS_APPROVAL_DIALOG_JS, timeout_sec=5.0)
-    raise AssertionError("Could not clear approval dialog before deeplink baseline")
+        client.evaluate(page, _HIDE_APPROVAL_DRAWER_JS, timeout_sec=5.0)
+    raise AssertionError("Could not hide approval drawer before deeplink baseline")
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
@@ -55,6 +78,8 @@ def _ensure_clean_chat_surface(client, page) -> None:
 def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
+
+    _deny_stale_e2e_push_approvals(api_url)
 
     seeded = http_json("POST", f"{api_url}/api/v1/approvals/test/seed-mock")
     assert isinstance(seeded, dict)

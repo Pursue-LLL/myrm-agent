@@ -44,6 +44,7 @@ interface Window {
       userCount: number;
       isStreaming: boolean;
       hasOk: boolean;
+      hasDone: boolean;
       lastAssistantSample: string;
     };
     lastSubmitResult?: { ok: boolean; err?: string; chatId?: string | null; debug?: Record<string, unknown> };
@@ -69,6 +70,8 @@ interface Window {
       appName: string;
       requireAppApproval: boolean;
     };
+    hideApprovalDrawer?: () => void;
+    isApprovalDrawerOpen?: () => boolean;
   };
   /** Dev-only bridge for subagent dashboard Chrome E2E hydration. */
   __MYRM_E2E_SUBAGENT__?: {

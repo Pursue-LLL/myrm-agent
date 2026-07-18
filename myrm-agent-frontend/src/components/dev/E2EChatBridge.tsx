@@ -17,6 +17,7 @@ import { flushSync } from 'react-dom';
 import { getModelSelection } from '@/store/chat/messageRequest';
 import useChatStore from '@/store/useChatStore';
 import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
+import useApprovalStore from '@/store/useApprovalStore';
 import useProviderStore from '@/store/useProviderStore';
 import type { BuiltinToolId } from '@/store/chat/types';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
@@ -253,6 +254,7 @@ export default function E2EChatBridge() {
           userCount: users.length,
           isStreaming: Boolean(state.loading || state.abortController),
           hasOk: /\bOK\b/i.test(assistantText),
+          hasDone: /\bDONE\b/i.test(assistantText),
           lastAssistantSample: assistantText.slice(0, 200),
         };
       },
@@ -326,6 +328,12 @@ export default function E2EChatBridge() {
           messageCount: state.messages.length,
         };
       },
+      hideApprovalDrawer: () => {
+        flushSync(() => {
+          useApprovalStore.getState().hideDrawer();
+        });
+      },
+      isApprovalDrawerOpen: () => useApprovalStore.getState().isOpen,
     };
 
     window.__MYRM_E2E_SUBAGENT__ = {
