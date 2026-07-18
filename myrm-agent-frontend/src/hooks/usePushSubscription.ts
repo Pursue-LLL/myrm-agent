@@ -34,7 +34,7 @@ interface UsePushSubscriptionReturn {
   error: string | null;
   subscribe: () => Promise<void>;
   unsubscribe: () => Promise<void>;
-  sendTest: () => Promise<void>;
+  sendTest: () => Promise<number>;
 }
 
 function isPushSupported(): boolean {
@@ -135,13 +135,14 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
     }
   }, []);
 
-  const sendTest = useCallback(async () => {
+  const sendTest = useCallback(async (): Promise<number> => {
     setError(null);
     try {
-      await sendTestPush();
+      return await sendTestPush();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (mountedRef.current) setError(msg);
+      throw err;
     }
   }, []);
 

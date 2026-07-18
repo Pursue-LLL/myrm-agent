@@ -18,7 +18,11 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import wait_e2e_goal_status, wait_e2e_provider_ready  # noqa: E402
+from cdp_chat_support import (  # noqa: E402
+    get_e2e_api_url,
+    wait_e2e_goal_status,
+    wait_e2e_provider_ready,
+)
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
@@ -43,6 +47,20 @@ async def test_chrome_ui_goal_mode_stream(
             "API /api/v1/config/readiness provider.is_ready must be true)"
         )
 
+    async def _resolve_bound_api_base(chat: McpChatSession) -> str:
+        page_api = await chat.evaluate(
+            """(() => {
+              const base = typeof window.__MYRM_E2E_API_BASE__ === 'string'
+                ? window.__MYRM_E2E_API_BASE__.trim()
+                : '';
+              return base || null;
+            })()""",
+            await_promise=False,
+        )
+        if isinstance(page_api, str) and page_api.strip():
+            return page_api.strip().rstrip("/")
+        return get_e2e_api_url()
+
     async def _resolve_chat_id(
         chat: McpChatSession,
         state: dict[str, object],
@@ -56,13 +74,15 @@ async def test_chrome_ui_goal_mode_stream(
         path = await chat.evaluate("(() => location.pathname)()", await_promise=False)
         return chat_id_from_path(str(path) if path else "")
 
-    async def _run_goal_flow(chat: McpChatSession) -> str:
+    async def _run_goal_flow(chat: McpChatSession) -> tuple[str, str]:
+        api_base = await _resolve_bound_api_base(chat)
         await chat.dismiss_modals()
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
 
         goal_setup = await chat.enable_goal_mode(budget_tokens=50_000)
         assert goal_setup.get("ok") is True, f"Goal mode bridge failed: {goal_setup}"
+        assert goal_setup.get("goalMode") is True, f"Goal mode not active in UI: {goal_setup}"
 
         send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         chat_id_hint = str(
@@ -83,13 +103,13 @@ async def test_chrome_ui_goal_mode_stream(
 
         chat_id = await _resolve_chat_id(chat, after_turn)
         assert chat_id, f"Expected chat id after goal turn: {after_turn}"
-        assert chat_user_message_count(chat_id) >= 1, (
-            f"Expected API user message for chat {chat_id}: {after_turn}"
+        assert chat_user_message_count(chat_id, api_url=api_base) >= 1, (
+            f"Expected API user message for chat {chat_id} on {api_base}: {after_turn}"
         )
         e2e_resource_ledger.register("chat", chat_id)
-        return chat_id
+        return chat_id, api_base
 
-    async def _run_goal_turn() -> str:
+    async def _run_goal_turn() -> tuple[str, str]:
         client = ChromeMcpClient(request_timeout_sec=120.0)
         await asyncio.to_thread(client.start)
         try:
@@ -115,10 +135,17 @@ async def test_chrome_ui_goal_mode_stream(
         finally:
             await asyncio.to_thread(client.close)
 
-    chat_id = await _run_goal_turn()
+    chat_id, api_base = await _run_goal_turn()
 
-    goal = wait_e2e_goal_status(chat_id, timeout_sec=90.0)
-    assert goal is not None, f"Goal status missing for chat {chat_id}"
+    goal_timeout_sec = 180.0 if os.getenv("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1" else 90.0
+    goal = wait_e2e_goal_status(
+        chat_id,
+        timeout_sec=goal_timeout_sec,
+        api_url=api_base,
+    )
+    assert goal is not None, (
+        f"Goal status missing for chat {chat_id} on {api_base} after {goal_timeout_sec:.0f}s"
+    )
     assert goal.get("objective"), f"Goal objective empty: {goal}"
     assert goal.get("status") in {"active", "budget_limited", "complete", "paused"}, (
         f"Unexpected goal status: {goal.get('status')}"

@@ -190,11 +190,16 @@ def wait_e2e_provider_ready(
     return False
 
 
-def fetch_e2e_goal_status(chat_id: str) -> dict[str, object] | None:
+def fetch_e2e_goal_status(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+) -> dict[str, object] | None:
     """Return the active goal dict for a chat session, or None if not yet persisted."""
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     try:
         resp = urllib.request.urlopen(  # noqa: S310
-            f"{get_e2e_api_url()}/api/v1/goals/{chat_id}/status",
+            f"{resolved_api}/api/v1/goals/{chat_id}/status",
             timeout=15,
         )
         payload = json.loads(resp.read())
@@ -209,11 +214,12 @@ def wait_e2e_goal_status(
     *,
     timeout_sec: float = 90.0,
     poll_interval_sec: float = 1.0,
+    api_url: str | None = None,
 ) -> dict[str, object] | None:
     """Poll private-backend goal persistence (orchestrator may lag turn completion)."""
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
-        goal = fetch_e2e_goal_status(chat_id)
+        goal = fetch_e2e_goal_status(chat_id, api_url=api_url)
         if goal is not None:
             return goal
         time.sleep(poll_interval_sec)

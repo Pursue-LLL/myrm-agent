@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Bell, BellOff, BellRing, Smartphone } from 'lucide-react';
 import { Switch } from '@/components/primitives/switch';
 import { Button } from '@/components/primitives/button';
-import { useWebPush, type WebPushState } from '@/hooks/useWebPush';
+import { usePushSubscription, type PushSubscriptionState } from '@/hooks/usePushSubscription';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { toast } from '@/lib/utils/toast';
 import { isTauriRuntime } from '@/lib/deploy-mode';
@@ -21,7 +21,7 @@ function isStandalone(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches;
 }
 
-const StateIcon = memo(({ state }: { state: WebPushState }) => {
+const StateIcon = memo(({ state }: { state: PushSubscriptionState }) => {
   switch (state) {
     case 'subscribed':
       return <BellRing className="h-4 w-4 text-emerald-500" />;
@@ -35,7 +35,7 @@ StateIcon.displayName = 'StateIcon';
 
 const WebPushCard = memo(function WebPushCard() {
   const t = useTranslations('settings');
-  const { state, subscribe, unsubscribe, sendTest } = useWebPush();
+  const { state, loading, error, subscribe, unsubscribe, sendTest } = usePushSubscription();
   const { isInstalled, isInstallable, promptInstall } = usePWAInstall();
   const [testing, setTesting] = useState(false);
 
@@ -95,9 +95,13 @@ const WebPushCard = memo(function WebPushCard() {
         <Switch
           checked={state === 'subscribed'}
           onCheckedChange={(checked) => void handleToggle(checked)}
-          disabled={state === 'loading' || state === 'denied'}
+          disabled={loading || state === 'denied'}
         />
       </div>
+
+      {error && (
+        <p className="text-xs text-destructive">{error}</p>
+      )}
 
       {state === 'denied' && (
         <p className="text-xs text-destructive">{t('webPushDenied')}</p>

@@ -1,7 +1,14 @@
 /**
  * Web Push API client — manages VAPID key retrieval, subscription, and unsubscription.
  *
- * [POS] Thin API layer for Web Push REST endpoints on the backend.
+ * [INPUT]
+ * - @/lib/api::getApiUrl
+ *
+ * [OUTPUT]
+ * - fetchVapidPublicKey, registerSubscription, removeSubscription, sendTestPush, urlBase64ToUint8Array
+ *
+ * [POS]
+ * Thin REST client for backend `/web-push/*` endpoints. SW click routing lives in `lib/web-push/`.
  */
 
 import { getApiUrl } from '@/lib/api';

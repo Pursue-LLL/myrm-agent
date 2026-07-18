@@ -1,10 +1,20 @@
-/** Pure helpers for Web Push click-through URL sanitization and client focus routing.
+/**
+ * [INPUT]
+ * - W3C URL API (same-origin checks against Service Worker `location.origin`)
+ *
+ * [OUTPUT]
+ * - sanitizePushTargetUrl, chatIdFromPushPath, resolvePushClientFocusAction
+ * - SETTINGS_PATH_PREFIX, RESERVED_APP_SEGMENTS
+ *
+ * [POS]
+ * Pure helpers for Web Push click-through URL sanitization and client focus routing.
  * Imported by src/app/sw.ts; bundled via scripts/build-sw-src.mjs before inject-manifest.
  */
 
+/** Top-level App Router segments that must not be treated as chat deep links. */
+// SSOT: keep in sync with reserved first segments in src/app/_ARCH.md route table.
 export const SETTINGS_PATH_PREFIX = '/settings/';
 
-/** Top-level App Router segments that must not be treated as chat deep links. */
 export const RESERVED_APP_SEGMENTS = new Set([
   'agents',
   'artifacts',

@@ -16,6 +16,7 @@
 | `extension.ts` | 浏览器扩展桥：`/extension/status|domains|tabs|disconnect|setup-hints`；`getExtensionWebSocketUrl()` |
 | `llm-config.ts` | Provider / 模型探测 |
 | `webui-auth.ts` | 本地 WebUI 登录/setup token |
+| `web-push.ts` | Web Push VAPID REST：`/web-push/vapid-key`, subscribe/unsubscribe/test |
 | `projects.ts` | 项目 CRUD、会话归属移动 |
 | `skill*.ts` / `skills-*.ts` | 技能 CRUD、进化、打包 |
 | `skill-growth.ts` | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit |

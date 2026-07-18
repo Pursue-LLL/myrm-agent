@@ -13,9 +13,19 @@ declare const self: ServiceWorkerGlobalScope & {
   __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
 };
 
-// [POS] Service Worker Runtime Configuration
-// Handles precaching of static assets, dynamic caching of API requests,
-// and Web Push notification display + click handling.
+/**
+ * [INPUT]
+ * - @serwist/next/worker, serwist runtime caching defaults
+ * - lib/web-push/pushTargetUrl (sanitize + focus/navigate routing)
+ * - Push payload JSON from WebPushDispatcher (`title`, `body`, `url`)
+ *
+ * [OUTPUT]
+ * - Serwist precache + API NetworkFirst runtime cache
+ * - Web Push notification display + notificationclick navigation
+ *
+ * [POS]
+ * Service Worker runtime: static precache, API cache, and Web Push handlers.
+ */
 
 installSerwist({
   precacheEntries: self.__SW_MANIFEST,

@@ -1,7 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useWebPush } from '../useWebPush';
+import { usePushSubscription } from '../usePushSubscription';
 
 vi.mock('@/services/web-push', () => ({
   fetchVapidPublicKey: vi.fn().mockResolvedValue('test-vapid-key'),
@@ -87,7 +87,7 @@ function mockPushEnvironment(options: {
   }
 }
 
-describe('useWebPush', () => {
+describe('usePushSubscription', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -95,7 +95,7 @@ describe('useWebPush', () => {
   it('reports unsupported when Service Worker API is missing', async () => {
     mockPushEnvironment({ serviceWorker: false });
 
-    const { result } = renderHook(() => useWebPush());
+    const { result } = renderHook(() => usePushSubscription());
 
     await waitFor(() => {
       expect(result.current.state).toBe('unsupported');
@@ -105,7 +105,7 @@ describe('useWebPush', () => {
   it('reports denied when Notification permission is denied', async () => {
     mockPushEnvironment({ permission: 'denied' });
 
-    const { result } = renderHook(() => useWebPush());
+    const { result } = renderHook(() => usePushSubscription());
 
     await waitFor(() => {
       expect(result.current.state).toBe('denied');
@@ -117,7 +117,7 @@ describe('useWebPush', () => {
       subscription: { endpoint: 'https://push.example/existing' } as PushSubscription,
     });
 
-    const { result } = renderHook(() => useWebPush());
+    const { result } = renderHook(() => usePushSubscription());
 
     await waitFor(() => {
       expect(result.current.state).toBe('subscribed');
@@ -127,7 +127,7 @@ describe('useWebPush', () => {
   it('reports prompt when push is supported but not subscribed', async () => {
     mockPushEnvironment({ subscription: null, permission: 'default' });
 
-    const { result } = renderHook(() => useWebPush());
+    const { result } = renderHook(() => usePushSubscription());
 
     await waitFor(() => {
       expect(result.current.state).toBe('prompt');
@@ -135,9 +135,21 @@ describe('useWebPush', () => {
   });
 
   it('subscribe moves to subscribed after permission grant', async () => {
-    mockPushEnvironment({ permission: 'granted', subscription: null });
+    mockPushEnvironment({
+      permission: 'default',
+      subscription: null,
+    });
 
-    const { result } = renderHook(() => useWebPush());
+    Object.defineProperty(window, 'Notification', {
+      configurable: true,
+      writable: true,
+      value: {
+        permission: 'default',
+        requestPermission: vi.fn().mockResolvedValue('granted'),
+      },
+    });
+
+    const { result } = renderHook(() => usePushSubscription());
 
     await waitFor(() => {
       expect(result.current.state).toBe('prompt');
@@ -148,5 +160,16 @@ describe('useWebPush', () => {
     });
 
     expect(result.current.state).toBe('subscribed');
+  });
+
+  it('sendTest returns delivered count from API', async () => {
+    mockPushEnvironment({ permission: 'granted', subscription: null });
+
+    const { result } = renderHook(() => usePushSubscription());
+
+    await act(async () => {
+      const count = await result.current.sendTest();
+      expect(count).toBe(1);
+    });
   });
 });

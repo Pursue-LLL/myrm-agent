@@ -1,16 +1,28 @@
 # web-push/
 
-Pure functions for Web Push click-through routing. `pushTargetUrl.ts` is the single implementation; `src/app/sw.ts` imports it and is bundled via `scripts/build-sw-src.mjs` before `serwist inject-manifest`.
+## 架构概述
 
-| File | Role |
-|------|------|
-| `pushTargetUrl.ts` | Sanitize push payload URLs; resolve focus vs navigate when a window client is already open |
-| `__tests__/pushTargetUrl.test.ts` | Unit tests for routing helpers |
-| `__tests__/pushTargetUrl.swImport.test.ts` | Asserts `sw.ts` imports shared helpers and calls `client.navigate` on query mismatch |
+Pure functions for Web Push **click-through routing** in the Service Worker. No React, no fetch — shared SSOT for `src/app/sw.ts` (esbuild bundle via `scripts/build-sw-src.mjs`).
 
-Server-side event → URL mapping lives in `myrm-agent-server/app/core/web_push/push_deep_links.py`.
+HTTP subscription client: `services/web-push.ts`. React lifecycle: `hooks/usePushSubscription.ts`.
 
-Chrome MCP E2E (seed via `POST /api/v1/approvals/test/seed-mock`):
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `pushTargetUrl.ts` | 核心 | Sanitize push payload URLs; resolve focus vs navigate on open clients | ✅ |
+| `__tests__/pushTargetUrl.test.ts` | 测试 | Unit tests for routing helpers | — |
+| `__tests__/pushTargetUrl.swImport.test.ts` | 测试 | Asserts `sw.ts` imports shared helpers + `client.navigate` | — |
+
+## 模块依赖
+
+- **被依赖**：`src/app/sw.ts` (bundled into `public/sw.js`)
+- **对齐 server SSOT**：`myrm-agent-server/app/core/web_push/push_deep_links.py`
+- **路由段同步**：`RESERVED_APP_SEGMENTS` ↔ `src/app/_ARCH.md` 路由表
+
+## Chrome MCP E2E
+
+Seed: `POST /api/v1/approvals/test/seed-mock` · File: `myrm-agent-server/tests/e2e/test_push_approval_deeplink_chrome_e2e.py`
 
 | Test | Scenario |
 |------|----------|
