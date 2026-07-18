@@ -12751,6 +12751,8 @@
     "briefUnavailableDescriptionToolsMode": "This turn used tool-driven memory lookup, so inline memory context was intentionally not injected.",
     "briefUnavailableDescriptionAlreadyPresent": "Memory context had already been injected earlier in this turn, so no extra brief injection was needed.",
     "briefUnavailableDescriptionSystemIssue": "Memory context preparation partially failed this turn. The assistant continued with a safe fallback path.",
+    "briefStatusSourcePreflight": "Status source: preflight memory-brief check before model generation.",
+    "briefStatusSourceRuntimeFallback": "Status source: runtime fallback inferred from actual injection telemetry.",
     "namespaceGlobal": "Global",
     "namespaceAgent": "Agent · {value}",
     "namespaceChannel": "Channel · {value}",

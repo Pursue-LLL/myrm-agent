@@ -283,10 +283,18 @@ async def iter_agent_stream_chunks(
                             get_memory_runtime_injection,
                         )
 
-                        budget = get_memory_runtime_budget()
+                        try:
+                            budget = get_memory_runtime_budget()
+                        except Exception as e:
+                            logger.warning("Failed to read memory budget in stream_loop: %s", e)
+                            budget = None
                         if budget is not None:
                             chunk["memoryBudget"] = budget
-                        injection = get_memory_runtime_injection()
+                        try:
+                            injection = get_memory_runtime_injection()
+                        except Exception as e:
+                            logger.warning("Failed to read memory injection in stream_loop: %s", e)
+                            injection = None
                         status_payload = build_memory_brief_status_payload(brief_status, injection)
                         if status_payload is not None:
                             chunk["memory_brief_status"] = status_payload

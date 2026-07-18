@@ -103,6 +103,31 @@ groups:
           summary: "Memory brief not_applied rate is elevated"
           description: "reason={{ $labels.reason }}, source={{ $labels.brief_source }}, rate={{ $value | humanizePercentage }} over 10m"
 
+      - alert: MemoryBriefStreamPersistMismatchHigh
+        expr: |
+          (
+            (
+              abs(
+                sum(rate(myrm_memory_brief_status_events_total{phase="stream"}[10m])) by (brief_state, brief_source, injection_state, injection_reason)
+                -
+                sum(rate(myrm_memory_brief_status_events_total{phase="persist"}[10m])) by (brief_state, brief_source, injection_state, injection_reason)
+              )
+              /
+              clamp_min(
+                sum(rate(myrm_memory_brief_status_events_total{phase="stream"}[10m])) by (brief_state, brief_source, injection_state, injection_reason),
+                0.001
+              )
+            ) > 0.20
+          )
+          and
+          sum(rate(myrm_memory_brief_status_events_total{phase="stream"}[10m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief stream/persist mismatch is elevated"
+          description: "state={{ $labels.brief_state }}, source={{ $labels.brief_source }}, injection={{ $labels.injection_state }}/{{ $labels.injection_reason }}, drift={{ $value | humanizePercentage }} over 10m"
+
       - alert: MemoryBriefUnknownEnumDetected
         expr: increase(myrm_memory_brief_status_unknown_total[10m]) > 0
         for: 5m
@@ -111,6 +136,15 @@ groups:
         annotations:
           summary: "Unknown memory brief enum values detected"
           description: "At least one unknown brief/injection enum value appeared in the last 10 minutes"
+
+      - alert: MemoryBriefTelemetryDropDetected
+        expr: increase(myrm_memory_brief_status_telemetry_dropped_total[10m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief telemetry events are being dropped"
+          description: "Dropped telemetry events detected over 10m (dropped_phase={{ $labels.dropped_phase }}, incoming_phase={{ $labels.incoming_phase }})"
 
       # === Resource Alerts ===
 

@@ -11706,6 +11706,8 @@
     "briefUnavailableDescriptionToolsMode": "このターンはツール駆動のメモリ検索を使用したため、インラインのメモリコンテキストは意図的に注入されませんでした。",
     "briefUnavailableDescriptionAlreadyPresent": "このターンの早い段階ですでにメモリコンテキストが注入されているため、追加の概要注入は不要でした。",
     "briefUnavailableDescriptionSystemIssue": "このターンのメモリコンテキスト準備が一部失敗しました。アシスタントは安全なフォールバック経路で続行しました。",
+    "briefStatusSourcePreflight": "状態ソース: モデル生成前の preflight memory-brief チェック結果。",
+    "briefStatusSourceRuntimeFallback": "状態ソース: 実際の注入テレメトリから推論した runtime fallback 結果。",
     "namespaceGlobal": "グローバル",
     "namespaceAgent": "エージェント · {value}",
     "namespaceChannel": "チャネル · {value}",

@@ -30,6 +30,7 @@ describe('MemoryInsightPanel interaction', () => {
       <MemoryInsightPanel
         memoryBriefStatus={{
           state: 'skipped',
+          source: 'preflight',
           injection: { state: 'not_applied', reason: 'recall_mode_tools' },
         }}
       />,
@@ -40,6 +41,7 @@ describe('MemoryInsightPanel interaction', () => {
     await user.hover(screen.getByText('briefUnavailablePill'));
     expect(await screen.findByText('briefUnavailableTitle')).toBeInTheDocument();
     expect(screen.getAllByText('briefUnavailableDescriptionToolsMode').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('briefStatusSourcePreflight').length).toBeGreaterThan(0);
   });
 });
 

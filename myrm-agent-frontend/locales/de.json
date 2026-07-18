@@ -11706,6 +11706,8 @@
     "briefUnavailableDescriptionToolsMode": "In diesem Turn wurde eine toolgesteuerte Erinnerungssuche verwendet, daher wurde kein Inline-Erinnerungskontext injiziert.",
     "briefUnavailableDescriptionAlreadyPresent": "Der Erinnerungskontext wurde in diesem Turn bereits früher injiziert, daher war keine zusätzliche Brief-Injektion nötig.",
     "briefUnavailableDescriptionSystemIssue": "Die Vorbereitung des Erinnerungskontexts ist in diesem Turn teilweise fehlgeschlagen. Der Assistent setzte über einen sicheren Fallback fort.",
+    "briefStatusSourcePreflight": "Statusquelle: preflight memory-brief Prüfung vor der Modellgenerierung.",
+    "briefStatusSourceRuntimeFallback": "Statusquelle: runtime-fallback aus der tatsächlichen Injektions-Telemetrie abgeleitet.",
     "namespaceGlobal": "Global",
     "namespaceAgent": "Agent · {value}",
     "namespaceChannel": "Kanal · {value}",

@@ -38,7 +38,8 @@ MAX_SEND_ATTEMPTS = 5
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
 E2E_PROMPT = (
     f"TextEdit 已打开，文档含「{TEXTEDIT_FIXTURE_MARKER}」到 line 5。"
-    "请用 desktop_snapshot 定位 TextEdit，再用 desktop_interact 向下 scroll 一屏。"
+    "你必须调用 desktop_interact（ref 来自 snapshot 的 @dref，action=scroll，text=down）。"
+    "禁止只调用 desktop_snapshot 或 desktop_vision 就结束。"
     "完成后只回复 DONE。"
 )
 E2E_NUDGE_PROMPT = (
@@ -109,7 +110,21 @@ async def _ensure_interact_gate(
     last_tool = str(tool_activity.get("lastTool") or "")
     server_pending = await asyncio.to_thread(_server_pending_approval_count)
     ui_pending = bool(tool_activity.get("pending"))
-    if not (ui_pending or server_pending > 0 or last_tool.endswith("desktop_interact_tool")):
+    snapshot_only = last_tool.endswith("desktop_snapshot_tool") or last_tool.endswith(
+        "desktop_vision_tool"
+    )
+    if snapshot_only and not (ui_pending or server_pending > 0):
+        _progress("snapshot-only detected; nudge interact immediately")
+        try:
+            await chat.send_message(E2E_NUDGE_PROMPT, E2E_NUDGE_PROMPT)
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            raise AssertionError(f"Nudge send failed (Chrome mux): {exc}") from exc
+        heartbeat_e2e_lease()
+        tool_activity, last_tool, server_pending, ui_pending = await _wait_for_interact_or_approval(
+            chat,
+            timeout_sec=120.0,
+        )
+    elif not (ui_pending or server_pending > 0 or last_tool.endswith("desktop_interact_tool")):
         tool_activity, last_tool, server_pending, ui_pending = await _wait_for_interact_or_approval(
             chat,
             timeout_sec=45.0,
@@ -531,9 +546,14 @@ async def test_chrome_ui_desktop_control_approval_allow_once(
                 chat_id = await _run_approval_attempt(chat)
                 e2e_resource_ledger.register("chat", chat_id)
                 return chat_id
-            except (AssertionError, RuntimeError, TimeoutError, OSError) as exc:
-                last_error = {"attempt": attempt, "error": str(exc), "type": type(exc).__name__}
-                if attempt >= MAX_SEND_ATTEMPTS:
+                except (AssertionError, RuntimeError, TimeoutError, OSError) as exc:
+                    last_error = {"attempt": attempt, "error": str(exc), "type": type(exc).__name__}
+                    if "ECONNREFUSED" in str(exc) or "Could not connect to Chrome" in str(exc):
+                        pytest.fail(
+                            f"Desktop approval Chrome E2E lost Chrome MCP "
+                            f"(api={get_e2e_api_url()}): {last_error}"
+                        )
+                    if attempt >= MAX_SEND_ATTEMPTS:
                     break
                 try:
                     await chat.evaluate(

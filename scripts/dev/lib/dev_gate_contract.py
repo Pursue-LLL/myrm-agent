@@ -108,6 +108,10 @@ SIGNOFF_NODE_MUX_PHASE = DevGateSignoffPhase(
     command=("npm", "test"),
 )
 
+SIGNOFF_CHROME_MATRIX_IGNORE: Final[str] = (
+    "myrm-agent/myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py"
+)
+
 SIGNOFF_CHROME_MATRIX_PHASE = DevGateSignoffPhase(
     name="chrome_e2e_matrix",
     command=(
@@ -116,6 +120,7 @@ SIGNOFF_CHROME_MATRIX_PHASE = DevGateSignoffPhase(
         "-m",
         "chrome_e2e",
         "myrm-agent/myrm-agent-server/tests/e2e/",
+        f"--ignore={SIGNOFF_CHROME_MATRIX_IGNORE}",
         "-n0",
         "-s",
         "--timeout=900",

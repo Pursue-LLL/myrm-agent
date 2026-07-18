@@ -14,6 +14,11 @@ from datetime import datetime, timezone
 
 import httpx
 
+try:
+    from prometheus_client import Counter
+except Exception:  # pragma: no cover - optional dependency in some runtimes
+    Counter = None  # type: ignore[assignment]
+
 from app.config.settings import settings
 from app.schemas.control_plane import (
     MemoryBriefStatusBatchPayload,
@@ -30,6 +35,15 @@ _DEFAULT_FLUSH_INTERVAL_SECONDS: float = 3.0
 _DEFAULT_QUEUE_SIZE: int = 512
 _TELEMETRY_SUBJECT_HEADER: str = "X-Telemetry-Subject"
 _LABEL_NONE: str = "none"
+
+if Counter is not None:
+    _MEMORY_STATUS_DROPPED = Counter(
+        "myrm_memory_brief_status_telemetry_dropped_total",
+        "Memory brief status telemetry events dropped due to queue backpressure.",
+        labelnames=("dropped_phase", "incoming_phase"),
+    )
+else:  # pragma: no cover - optional dependency in some runtimes
+    _MEMORY_STATUS_DROPPED = None
 
 
 @dataclass(frozen=True)
@@ -145,6 +159,11 @@ class MemoryBriefStatusTelemetryDispatcher:
             except QueueEmpty:
                 dropped = None
             if dropped is not None:
+                if _MEMORY_STATUS_DROPPED is not None:
+                    _MEMORY_STATUS_DROPPED.labels(
+                        dropped_phase=dropped.phase,
+                        incoming_phase=event.phase,
+                    ).inc()
                 logger.warning(
                     "Memory brief status telemetry queue full; dropping oldest event phase=%s state=%s source=%s",
                     dropped.phase,

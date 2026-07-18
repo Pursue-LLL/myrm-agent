@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { MemoryBriefStatus } from '@/store/chat/types';
-import { resolveBriefUnavailableDescriptionKey } from '../MemoryInsightPanel';
+import {
+  resolveBriefStatusSourceKey,
+  resolveBriefUnavailableDescriptionKey,
+} from '../MemoryInsightPanel';
 
 function skippedStatus(
   injection?: MemoryBriefStatus['injection']
@@ -60,6 +63,30 @@ describe('resolveBriefUnavailableDescriptionKey', () => {
     expect(resolveBriefUnavailableDescriptionKey(undefined)).toBe(
       'briefUnavailableDescription'
     );
+  });
+});
+
+describe('resolveBriefStatusSourceKey', () => {
+  it('returns runtime fallback source key when status source is runtime_fallback', () => {
+    expect(
+      resolveBriefStatusSourceKey({
+        state: 'skipped',
+        source: 'runtime_fallback',
+      })
+    ).toBe('briefStatusSourceRuntimeFallback');
+  });
+
+  it('returns preflight source key when status source is preflight', () => {
+    expect(
+      resolveBriefStatusSourceKey({
+        state: 'skipped',
+        source: 'preflight',
+      })
+    ).toBe('briefStatusSourcePreflight');
+  });
+
+  it('returns null when source is unavailable', () => {
+    expect(resolveBriefStatusSourceKey(skippedStatus())).toBeNull();
   });
 });
 

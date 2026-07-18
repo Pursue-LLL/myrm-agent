@@ -624,3 +624,62 @@ async def test_finalize_emits_injection_status_when_brief_status_missing() -> No
         "source": "runtime_fallback",
         "injection": {"state": "not_applied", "reason": "missing_context"},
     }
+
+
+@pytest.mark.asyncio
+async def test_finalize_keeps_injection_status_when_budget_hook_fails() -> None:
+    session = _make_session(content="Result without citation tags")
+    session.extra_context = {"memory_brief_status": {"state": "skipped", "reason": "timeout"}}
+
+    with (
+        patch(
+            "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.CancellationRegistry"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.SteeringRegistry"
+        ),
+        patch("app.services.agent.goal_registry.GoalRegistry"),
+        patch(
+            "myrm_agent_harness.agent.security.user_credentials_ctx"
+        ) as mock_ctx,
+        patch(
+            "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
+            return_value=None,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            new_callable=AsyncMock,
+        ) as mock_persist,
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_manager",
+            return_value=None,
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
+            side_effect=RuntimeError("budget boom"),
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_injection",
+            return_value={"state": "not_applied", "reason": "already_present"},
+        ),
+        patch(
+            "app.services.agent.evolution.engine.trigger_skill_evolution"
+        ),
+    ):
+        mock_ctx.reset = MagicMock()
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+
+    persisted_extra = mock_persist.await_args.kwargs["extra_data"]
+    assert "memoryBudget" not in persisted_extra
+    assert persisted_extra.get("memoryBriefStatus") == {
+        "state": "skipped",
+        "source": "preflight",
+        "reason": "timeout",
+        "injection": {"state": "not_applied", "reason": "already_present"},
+    }

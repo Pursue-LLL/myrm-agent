@@ -59,7 +59,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `background_job_finish_handler.py` | ✅ 核心 | Harness 后台 bash 自然退出时的 WebUI 闭环：读 `personalSettings.locale` 格式化双语完成消息，`ChatService.append_message` + `SYSTEM_NOTIFICATION` SSE（`meta_data.kind=background_job_finish`）；不触发 headless LLM。Cancel/killed 路径由 harness listener 静默跳过。 |
 | `shell_background_tasks.py` | ✅ 核心 | Harness `BackgroundProcessRegistry` 的 REST 门面：`list_shell_background_tasks` / `cancel_shell_background_task`；供 `/background-tasks` 与 Kanban Agent 任务合并展示。 |
 | `context_compaction_telemetry.py` | ✅ 核心 | Context 压缩遥测分发器。配置来自 `settings.control_plane` + `settings.context_compaction_telemetry`（`ContextCompactionTelemetryConfig.from_settings()`）；读取 Harness `TaskMetrics` 快照，有界队列 + 批量 flush + 背压保护异步上报 Control Plane（`events` 契约，`X-Telemetry-Subject` 头）。 |
-| `memory_brief_status_telemetry.py` | ✅ 核心 | Memory Brief 状态遥测分发器。消费 `stream_finalize` 归一化后的 `memoryBriefStatus`，按标签聚合计数（brief/injection state+reason+source）后批量上报 Control Plane，使用有界队列 + flush 间隔 + 重试，避免逐条请求放大开销。 |
+| `memory_brief_status_telemetry.py` | ✅ 核心 | Memory Brief 状态遥测分发器。消费 `stream_loop`/`stream_finalize` 归一化后的 `memoryBriefStatus`，按标签聚合计数（phase + brief/injection state+reason+source）后批量上报 Control Plane，使用有界队列 + flush 间隔 + 重试，避免逐条请求放大开销。 |
 | `search.py` | ✅ 辅助 | Web 搜索服务封装 |
 | `routing_advisor.py` | ✅ 核心 | 智能路由顾问 — 根据历史事件提供高危模型的降级建议 |
 | `browser_skill_binding.py` | ✅ 辅助 | `enable_browser` 时合并 peripheral prebuilt `browser-automation` skill（`is_core:false`）；由 `AgentFactory.create_general_agent` 调用，覆盖 Web/Cron/Channel/Kanban 全入口 | ✅ |

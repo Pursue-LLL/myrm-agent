@@ -68,6 +68,21 @@ export function resolveBriefUnavailableDescriptionKey(
   return 'briefUnavailableDescription';
 }
 
+export function resolveBriefStatusSourceKey(
+  memoryBriefStatus?: MemoryBriefStatus
+): 'briefStatusSourcePreflight' | 'briefStatusSourceRuntimeFallback' | null {
+  if (memoryBriefStatus?.state !== 'skipped') {
+    return null;
+  }
+  if (memoryBriefStatus.source === 'runtime_fallback') {
+    return 'briefStatusSourceRuntimeFallback';
+  }
+  if (memoryBriefStatus.source === 'preflight') {
+    return 'briefStatusSourcePreflight';
+  }
+  return null;
+}
+
 export default function MemoryInsightPanel({
   memoryBrief,
   memoryBriefStatus,
@@ -88,6 +103,7 @@ export default function MemoryInsightPanel({
 
   const memoryBriefUnavailable = !memoryBrief && memoryBriefStatus?.state === 'skipped';
   const briefUnavailableDescriptionKey = resolveBriefUnavailableDescriptionKey(memoryBriefStatus);
+  const briefStatusSourceKey = resolveBriefStatusSourceKey(memoryBriefStatus);
   const budgetPct = memoryBudget && memoryBudget.total > 0 ? Math.round((memoryBudget.used / memoryBudget.total) * 100) : 0;
   const briefNamespaceLabels = memoryBrief ? memoryBrief.namespaces.slice(0, 4).map((namespace) => formatNamespaceLabel(namespace, t)) : [];
   
@@ -109,12 +125,24 @@ export default function MemoryInsightPanel({
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   {t(briefUnavailableDescriptionKey)}
                 </p>
+                {briefStatusSourceKey && (
+                  <p className="text-[11px] text-muted-foreground/90 leading-relaxed">
+                    {t(briefStatusSourceKey)}
+                  </p>
+                )}
               </div>
             </HoverCardContent>
           </HoverCard>
-          <p className="w-full pl-1 text-[11px] leading-relaxed text-muted-foreground md:hidden">
-            {t(briefUnavailableDescriptionKey)}
-          </p>
+          <div className="w-full pl-1 space-y-1 md:hidden">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              {t(briefUnavailableDescriptionKey)}
+            </p>
+            {briefStatusSourceKey && (
+              <p className="text-[11px] leading-relaxed text-muted-foreground/90">
+                {t(briefStatusSourceKey)}
+              </p>
+            )}
+          </div>
         </>
       )}
 

@@ -200,6 +200,50 @@ class TestMemoryBriefPrelude:
         assert message_end_event.get("memory_brief_status") == {"state": "ready"}
 
     @pytest.mark.asyncio
+    async def test_budget_hook_failure_still_keeps_injection_status(self) -> None:
+        session = _make_session(
+            include_preview=False,
+            brief_status={"state": "skipped", "reason": "timeout"},
+        )
+        approval = ApprovalTimeoutHolder()
+
+        async def _fake_stream(*_args, **_kwargs):
+            yield {"type": "message_end"}
+
+        with (
+            patch(
+                "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
+                side_effect=_fake_stream,
+            ),
+            patch(
+                "app.services.agent.stream_session.stream_loop.should_suggest_workflow_for_session",
+                return_value=False,
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
+                side_effect=RuntimeError("budget boom"),
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_memory_runtime_injection",
+                return_value={"state": "applied", "source": "fallback"},
+            ),
+        ):
+            chunks: list[str] = []
+            async for chunk in iter_agent_stream_chunks(session, approval):
+                chunks.append(chunk)
+
+        message_end_event = next(
+            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
+        )
+        assert "memoryBudget" not in message_end_event
+        assert message_end_event.get("memory_brief_status") == {
+            "state": "skipped",
+            "source": "preflight",
+            "reason": "timeout",
+            "injection": {"state": "applied", "source": "fallback"},
+        }
+
+    @pytest.mark.asyncio
     async def test_attach_not_applied_injection_reason(self) -> None:
         session = _make_session(include_preview=False, brief_status={"state": "skipped", "reason": "timeout"})
         approval = ApprovalTimeoutHolder()

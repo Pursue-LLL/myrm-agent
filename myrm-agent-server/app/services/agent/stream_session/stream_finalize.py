@@ -164,16 +164,26 @@ async def finalize_agent_stream_session(
             extra_data["citations"] = citations
 
         injection: dict[str, str] | None = None
+        manager = None
+        if citations:
+            try:
+                manager = get_memory_manager()
+            except Exception as e:
+                logger.warning("Failed to resolve memory manager in finalize: %s", e)
         try:
-            manager = get_memory_manager() if citations else None
             budget = get_memory_runtime_budget()
-            if budget is not None:
-                extra_data["memoryBudget"] = budget
-            injection = get_memory_runtime_injection()
-            if citations and manager and hasattr(manager, "record_citations"):
-                asyncio.create_task(manager.record_citations(citations))
         except Exception as e:
-            logger.warning("Failed to process memory hooks in finalize: %s", e)
+            logger.warning("Failed to read memory budget in finalize: %s", e)
+            budget = None
+        if budget is not None:
+            extra_data["memoryBudget"] = budget
+        try:
+            injection = get_memory_runtime_injection()
+        except Exception as e:
+            logger.warning("Failed to read memory injection in finalize: %s", e)
+            injection = None
+        if citations and manager and hasattr(manager, "record_citations"):
+            asyncio.create_task(manager.record_citations(citations))
         status_payload = build_memory_brief_status_payload(brief_status, injection)
         if status_payload is not None:
             extra_data["memoryBriefStatus"] = status_payload
