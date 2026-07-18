@@ -546,14 +546,14 @@ async def test_chrome_ui_desktop_control_approval_allow_once(
                 chat_id = await _run_approval_attempt(chat)
                 e2e_resource_ledger.register("chat", chat_id)
                 return chat_id
-                except (AssertionError, RuntimeError, TimeoutError, OSError) as exc:
-                    last_error = {"attempt": attempt, "error": str(exc), "type": type(exc).__name__}
-                    if "ECONNREFUSED" in str(exc) or "Could not connect to Chrome" in str(exc):
-                        pytest.fail(
-                            f"Desktop approval Chrome E2E lost Chrome MCP "
-                            f"(api={get_e2e_api_url()}): {last_error}"
-                        )
-                    if attempt >= MAX_SEND_ATTEMPTS:
+            except (AssertionError, RuntimeError, TimeoutError, OSError) as exc:
+                last_error = {"attempt": attempt, "error": str(exc), "type": type(exc).__name__}
+                if "ECONNREFUSED" in str(exc) or "Could not connect to Chrome" in str(exc):
+                    pytest.fail(
+                        f"Desktop approval Chrome E2E lost Chrome MCP "
+                        f"(api={get_e2e_api_url()}): {last_error}"
+                    )
+                if attempt >= MAX_SEND_ATTEMPTS:
                     break
                 try:
                     await chat.evaluate(
