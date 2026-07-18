@@ -30,4 +30,6 @@ Unified Runs Hub 聚合 API。只读端点，将 Cron Runs、Kanban Background T
 - 并行查询：各源独立 collect；异常或子系统不可用记入 `failed_sources`
 - 字段：`has_execution_steps` = cron metadata 含 progressSteps
 - `failed_sources`：子系统不可用或 fetch 异常；Kanban 尚无 system board 视为空列表（非 degraded）
+- Kanban `failed`/`blocked` 任务：error 含 `timed out` → `timed_out`；含 `cancelled` → `cancelled`（与 channel bridge 一致）
+- 分页：各源最多拉取 `limit + offset + 10` 条后内存合并；`total`/`has_more` 在超 cap 历史下可能偏小
 - 无新 DB 表：复用现有 `cron_runs`、Kanban task store
