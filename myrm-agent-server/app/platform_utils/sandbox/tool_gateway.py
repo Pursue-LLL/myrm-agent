@@ -1,10 +1,12 @@
 """Sandbox Unified Tool Gateway credential resolver.
 
 [INPUT]
-- Sandbox control-plane gateway URL and auth from settings
+- app.config.settings::settings (POS: runtime settings including CONTROL_PLANE_URL)
+- app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: sandbox capability bits)
 
 [OUTPUT]
-- ResolvedToolGatewayConfig for harness tool gateway routing
+- ResolvedToolGatewayConfig: sandbox tool gateway URL + auth token
+- merge_tool_gateway_config: apply platform defaults when agent has no explicit override
 
 [POS]
 Resolves whether sandbox execution should route tools through the unified gateway.
