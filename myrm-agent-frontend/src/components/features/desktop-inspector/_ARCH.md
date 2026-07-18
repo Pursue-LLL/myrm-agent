@@ -28,6 +28,12 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 - REST refresh: `GET /webui/desktop/snapshot` on `desktop_*` TOOL_END
 - REST: `GET /webui/desktop/permissions` — proactive TCC permission probe (Accessibility + Screen Recording)
 
+## E2E (Chrome MCP)
+
+- Banner testids: `desktop-control-allow-once`, `desktop-control-deny` (`DesktopControlApprovalBanner.tsx`)
+- SSE payload opens overlay via `DesktopControlApprovalOverlay` (always mounted in `ChatWindowSatellites`)
+- Bridge: `window.__MYRM_E2E_CHAT__.getDesktopApprovalSnapshot()` / `getDesktopToolProgress()` (`E2EChatBridge.tsx`)
+
 ## Permission Guidance
 
 When `viewData.needsPermission` is true, `DesktopLiveView` renders an enhanced `PermissionBanner` that:
