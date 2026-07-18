@@ -50,9 +50,14 @@ LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC: Final[float] = 15.0
 DEFAULT_XDIST_WORKERS: Final[int] = 2
 STRESS_XDIST_WORKERS: Final[int] = 4
 DEFAULT_BOOTSTRAP_SLOTS: Final[int] = 2
+SIGNOFF_LIVE_AGENT_MAX_CONCURRENT: Final[int] = 4
+SIGNOFF_E2E_PRIVATE_BOOTSTRAP_SLOTS: Final[int] = 4
+SIGNOFF_E2E_ACTIVE_RUNTIME_CAPACITY: Final[int] = 4
+SIGNOFF_E2E_CAPACITY_WAIT_SEC: Final[int] = 600
 MUX_COLD_ATTACH_SLOTS: Final[int] = 2
 MUX_COLD_ATTACH_TIMEOUT_MS: Final[int] = 30_000
 CHROME_E2E_MATRIX_TIMEOUT_SECONDS: Final[int] = 7200
+CHROME_E2E_STRESS_TIMEOUT_SECONDS: Final[int] = 7200
 
 # --- Adaptive mux load defaults (env may override in mux_load) ---
 
@@ -126,6 +131,7 @@ SIGNOFF_CHROME_STRESS_PHASE = DevGateSignoffPhase(
         "myrm-agent/myrm-agent-server/tests/e2e/test_execution_cache_chrome_e2e.py",
         "myrm-agent/myrm-agent-server/tests/e2e/test_instinct_inbox_chrome_e2e.py",
         "myrm-agent/myrm-agent-server/tests/e2e/test_research_studio_chrome_e2e.py",
+        "myrm-agent/myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py",
         "-n",
         str(STRESS_XDIST_WORKERS),
     ),
@@ -138,3 +144,19 @@ def is_allowlisted_e2e_skip(*, test_path: str, reason: str) -> bool:
         if normalized.endswith(suffix) and expected_reason in reason:
             return True
     return False
+
+
+def signoff_live_env_shell(*, stress: bool = False) -> str:
+    """Emit bash export lines for signoff live Chrome E2E phases."""
+    lines = [
+        f"export MYRM_LIVE_AGENT_MAX_CONCURRENT={SIGNOFF_LIVE_AGENT_MAX_CONCURRENT}",
+    ]
+    if stress:
+        lines.extend(
+            [
+                f"export MYRM_E2E_PRIVATE_BOOTSTRAP_SLOTS={SIGNOFF_E2E_PRIVATE_BOOTSTRAP_SLOTS}",
+                f"export MYRM_E2E_ACTIVE_RUNTIME_CAPACITY={SIGNOFF_E2E_ACTIVE_RUNTIME_CAPACITY}",
+                f"export MYRM_E2E_CAPACITY_WAIT_SEC={SIGNOFF_E2E_CAPACITY_WAIT_SEC}",
+            ]
+        )
+    return "\n".join(lines)
