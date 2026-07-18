@@ -167,6 +167,7 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `memory/follow_ups/` | `core/memory/proactive/` |
 | `notifications/` | `core/channel_bridge/` (gateway push) |
 | `statistics/` | `api/statistics/*` aggregators + `database/` |
+| `runs/` | Read-only Unified Runs Hub — aggregates `core/cron/`, `services/kanban/`, shell background tasks (see `api/runs/_ARCH.md`) |
 | `internal/` | Control Plane internal bridge (SaaS) |
 | `client_logs/` | ingest only — no business service |
 

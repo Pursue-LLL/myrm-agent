@@ -243,7 +243,7 @@ export function RunsHub() {
             <p className="text-sm">{t(hasActiveFilter ? 'emptyFiltered' : 'empty')}</p>
           </div>
         ) : (
-          <div className="space-y-1.5">
+          <div className={cn('space-y-1.5', loading && 'opacity-50 pointer-events-none')}>
             {runs.map((run) => (
               <RunRow key={run.id} run={run} t={t} />
             ))}

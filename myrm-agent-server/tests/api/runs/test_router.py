@@ -314,6 +314,32 @@ class TestFetchKanbanRunsTasks:
         assert items[0].status == "ok"
 
     @pytest.mark.asyncio
+    async def test_maps_failed_timeout_to_timed_out(self) -> None:
+        from myrm_agent_harness.toolkits.kanban.types import TaskStatus as KanbanStatus
+
+        task = SimpleNamespace(
+            task_id="k-timeout",
+            status=KanbanStatus.FAILED,
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            completed_at=datetime(2026, 1, 1, 1, tzinfo=timezone.utc),
+            title="Timed out task",
+            description=None,
+            error="execution timed out after 300s",
+            agent_id=None,
+        )
+        board = SimpleNamespace(board_id="board-1", name="__background_tasks__")
+        svc = MagicMock()
+        svc.list_boards = AsyncMock(return_value=[board])
+        svc.store.list_tasks = AsyncMock(return_value=[task])
+
+        with patch("app.services.kanban.KanbanService.get_instance", return_value=svc):
+            items, available = await _fetch_kanban_runs(None, 10)
+
+        assert available is True
+        assert len(items) == 1
+        assert items[0].status == "timed_out"
+
+    @pytest.mark.asyncio
     async def test_skips_archived_and_triage(self) -> None:
         from myrm_agent_harness.toolkits.kanban.types import TaskStatus as KanbanStatus
 
