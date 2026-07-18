@@ -16,3 +16,5 @@ Chrome MCP E2E (seed via `POST /api/v1/approvals/test/seed-mock`):
 |------|----------|
 | `test_push_approval_deeplink_navigates_on_open_chat_tab` | Chat tab open → navigate `?approval=` → drawer + query strip |
 | `test_push_approval_deeplink_cold_start_opens_drawer` | Cold load deeplink URL → drawer + query strip |
+| `test_push_approval_deeplink_from_different_open_chat_tab` | Chat A open → navigate chat B deeplink → drawer on B |
+| `test_push_approval_deeplink_unknown_id_strips_query_without_drawer` | Resolved pending + bogus `?approval=` → no drawer, query stripped |
