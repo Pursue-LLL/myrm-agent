@@ -8,7 +8,6 @@
 | 模块 | 职责 |
 |------|------|
 | `entitlements/` | Control Plane 配额客户端（cron/ingress/subagent/VNC entitlements + WU budget adapter） |
-| `tool_gateway.py` | 沙箱 Unified Tool Gateway 凭据解析与 merge（CP internal API → harness config） |
 | `storage.py` | S3StorageBackend（需 aioboto3；缺包报错提示 `uv sync`） |
 
 ---
