@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import threading
 import time
+import urllib.error
+import urllib.request
 import uuid
 from builtins import BaseExceptionGroup, ExceptionGroup
 from collections import deque
@@ -49,6 +51,29 @@ _NEW_PAGE_TOOL_RETRY_ATTEMPTS = NEW_PAGE_TOOL_RETRY_ATTEMPTS
 _PAGE_LEASE_TTL_SEC = int(os.environ.get("MYRM_PAGE_LEASE_TTL_SEC", "600"))
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
+
+
+def _chrome_e2e_port() -> int:
+    raw = os.environ.get("MYRM_CHROME_E2E_PORT", "9333").strip()
+    try:
+        return max(int(raw), 1)
+    except ValueError:
+        return 9333
+
+
+def _http_close_exact_target(target_id: str) -> bool:
+    target = target_id.strip()
+    if not target:
+        return False
+    url = f"http://127.0.0.1:{_chrome_e2e_port()}/json/close/{target}"
+    try:
+        with urllib.request.urlopen(url, timeout=3) as response:
+            response.read()
+        return True
+    except urllib.error.HTTPError as exc:
+        return exc.code == 404
+    except (OSError, urllib.error.URLError):
+        return False
 
 
 def _tool_retry_attempts(tool_name: str) -> int:
@@ -398,6 +423,16 @@ class ChromeMcpClient:
                     )
                 except (RuntimeError, TimeoutError) as cleanup_exc:
                     cleanup_errors.append(f"close_page: {cleanup_exc}")
+                    if page.target_id.strip() and not _http_close_exact_target(page.target_id):
+                        cleanup_errors.append(
+                            f"http_close: targetId={page.target_id.strip()} failed"
+                        )
+                    elif page.target_id.strip():
+                        cleanup_errors[:] = [
+                            item
+                            for item in cleanup_errors
+                            if not item.startswith("close_page:")
+                        ]
             try:
                 self._release_lease(lease_id, close_wave_if_idle=False)
             except (RuntimeError, TimeoutError) as cleanup_exc:
@@ -412,14 +447,25 @@ class ChromeMcpClient:
     def close_page(self, page: McpPage, *, ignore_errors: bool = False) -> None:
         errors: list[str] = []
         self._page_lease_heartbeat.untrack(page.lease_id)
+        mcp_closed = False
         try:
             self.call_tool(
                 "close_page",
                 {"pageId": page.page_id},
                 timeout_sec=_CLEANUP_TIMEOUT_SEC,
             )
+            mcp_closed = True
         except (RuntimeError, TimeoutError) as exc:
             errors.append(f"close_page: {exc}")
+        if not mcp_closed and page.target_id.strip():
+            if _http_close_exact_target(page.target_id):
+                errors = [
+                    item for item in errors if not item.startswith("close_page:")
+                ]
+            else:
+                errors.append(
+                    f"http_close: targetId={page.target_id.strip()} failed"
+                )
         self._pages.pop(page.page_id, None)
         self._disconnected_pages.pop(page.page_id, None)
         try:
@@ -476,12 +522,26 @@ class ChromeMcpClient:
         resolved = self._resolve_page(page)
         function = f"async () => await (0, eval)({json.dumps(expression)})"
         effective_timeout = min(max(timeout_sec, _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC), self._request_timeout_sec)
-        result = self.call_tool(
-            "evaluate_script",
-            {"pageId": resolved.page_id, "function": function},
-            timeout_sec=effective_timeout,
-        )
-        return parse_evaluate_result(result)
+        for reload_attempt in range(2):
+            try:
+                result = self.call_tool(
+                    "evaluate_script",
+                    {"pageId": resolved.page_id, "function": function},
+                    timeout_sec=effective_timeout,
+                )
+                return parse_evaluate_result(result)
+            except RuntimeError as exc:
+                message = str(exc)
+                if reload_attempt == 0 and (
+                    "Execution context was destroyed" in message
+                    or "detached Frame" in message
+                ):
+                    target_url = (resolved.url or "http://127.0.0.1:3000").strip()
+                    self.navigate(resolved, target_url, timeout_ms=60_000)
+                    resolved = self._resolve_page(page)
+                    continue
+                raise
+        raise RuntimeError("Chrome MCP evaluate exhausted reload attempts")
 
     def navigate(
         self,
@@ -547,18 +607,24 @@ class ChromeMcpClient:
             timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
         )
 
+    def _ensure_shim_transport(self) -> None:
+        process = self._process
+        if process is None:
+            return
+        if process.poll() is None:
+            return
+        self._recover_mux_transport()
+
     def _reopen_owned_page(self, page: McpPage) -> McpPage:
+        self._ensure_shim_transport()
         reopen_url = (page.url or "http://127.0.0.1:3000").strip()
         runtime_binding = self._runtime_binding_source_for(reopen_url)
-        self._pages.pop(page.page_id, None)
-        try:
-            self.call_tool(
-                "close_page",
-                {"pageId": page.page_id},
-                timeout_sec=_CLEANUP_TIMEOUT_SEC,
+        old_target_id = page.target_id.strip()
+        if old_target_id and not _http_close_exact_target(old_target_id):
+            raise RuntimeError(
+                f"Chrome MCP reopen failed: could not close previous targetId={old_target_id}"
             )
-        except (RuntimeError, TimeoutError):
-            pass
+        self._pages.pop(page.page_id, None)
         initial_url = "about:blank" if runtime_binding is not None else reopen_url
         arguments: dict[str, object] = {"url": initial_url, "timeout": 120_000}
         if page.context_id is not None:
@@ -632,6 +698,7 @@ class ChromeMcpClient:
     ) -> dict[str, object] | None:
         if not _is_page_ownership_error(error_message):
             return None
+        self._ensure_shim_transport()
         raw_page_id = arguments.get("pageId")
         if not isinstance(raw_page_id, int):
             return None
@@ -658,7 +725,17 @@ class ChromeMcpClient:
                 process.wait(timeout=3)
             except Exception as exc:
                 _LOGGER.warning("Chrome MCP transport recovery warning: %s", exc)
-        self.start()
+        last_error: RuntimeError | None = None
+        for attempt in range(3):
+            try:
+                self.start()
+                return
+            except RuntimeError as exc:
+                last_error = exc
+                if attempt + 1 < 3:
+                    time.sleep(0.75 * (attempt + 1))
+        if last_error is not None:
+            raise last_error
 
     def call_tool(
         self,
