@@ -29,6 +29,12 @@
 | `WebuiAccessSecurityPanel.tsx` | WebUI 访问安全配置 |
 | `ProxySettingsCard.tsx` | 网络代理设置 |
 
+### 通知
+
+| 文件 | 职责 |
+|------|------|
+| `PushNotificationCard.tsx` | Web Push VAPID 订阅（`usePushSubscription` SSOT；非 Tauri） |
+
 ### 浏览器管理
 
 | 文件 | 职责 |
