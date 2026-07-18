@@ -109,7 +109,7 @@ SIGNOFF_NODE_MUX_PHASE = DevGateSignoffPhase(
 )
 
 SIGNOFF_CHROME_MATRIX_IGNORE = (
-    "myrm-agent/myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py",
+    "tests/e2e/test_desktop_control_approval_chrome_e2e.py",
 )
 
 SIGNOFF_CHROME_MATRIX_PHASE = DevGateSignoffPhase(
