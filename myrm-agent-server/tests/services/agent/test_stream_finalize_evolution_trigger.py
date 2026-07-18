@@ -413,6 +413,12 @@ async def test_finalize_persists_memory_brief_status_payload() -> None:
             return_value={"state": "applied", "source": "fallback"},
         ),
         patch(
+            "app.services.agent.stream_session.stream_finalize.observe_memory_brief_status_payload"
+        ) as mock_observe_status,
+        patch(
+            "app.services.agent.stream_session.stream_finalize.enqueue_memory_brief_status_telemetry"
+        ) as mock_enqueue_status_telemetry,
+        patch(
             "app.services.agent.evolution.engine.trigger_skill_evolution"
         ),
     ):
@@ -423,9 +429,28 @@ async def test_finalize_persists_memory_brief_status_payload() -> None:
     assert persisted_extra.get("memoryBriefSnapshotId") == "snap-xyz"
     assert persisted_extra.get("memoryBriefStatus") == {
         "state": "skipped",
+        "source": "preflight",
         "reason": "timeout",
         "injection": {"state": "applied", "source": "fallback"},
     }
+    mock_observe_status.assert_called_once_with(
+        phase="persist",
+        payload={
+            "state": "skipped",
+            "source": "preflight",
+            "reason": "timeout",
+            "injection": {"state": "applied", "source": "fallback"},
+        },
+    )
+    mock_enqueue_status_telemetry.assert_called_once_with(
+        phase="persist",
+        payload={
+            "state": "skipped",
+            "source": "preflight",
+            "reason": "timeout",
+            "injection": {"state": "applied", "source": "fallback"},
+        },
+    )
 
 
 @pytest.mark.asyncio
@@ -537,6 +562,65 @@ async def test_finalize_persists_not_applied_injection_reason() -> None:
     persisted_extra = mock_persist.await_args.kwargs["extra_data"]
     assert persisted_extra.get("memoryBriefStatus") == {
         "state": "skipped",
+        "source": "preflight",
         "reason": "timeout",
         "injection": {"state": "not_applied", "reason": "already_present"},
+    }
+
+
+@pytest.mark.asyncio
+async def test_finalize_emits_injection_status_when_brief_status_missing() -> None:
+    session = _make_session(content="Result without citation tags")
+    session.extra_context = {}
+
+    with (
+        patch(
+            "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.CancellationRegistry"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.SteeringRegistry"
+        ),
+        patch("app.services.agent.goal_registry.GoalRegistry"),
+        patch(
+            "myrm_agent_harness.agent.security.user_credentials_ctx"
+        ) as mock_ctx,
+        patch(
+            "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
+            return_value=None,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            new_callable=AsyncMock,
+        ) as mock_persist,
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_manager",
+            return_value=None,
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
+            return_value={"used": 5, "total": 50},
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_runtime_injection",
+            return_value={"state": "not_applied", "reason": "missing_context"},
+        ),
+        patch(
+            "app.services.agent.evolution.engine.trigger_skill_evolution"
+        ),
+    ):
+        mock_ctx.reset = MagicMock()
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+
+    persisted_extra = mock_persist.await_args.kwargs["extra_data"]
+    assert persisted_extra.get("memoryBudget") == {"used": 5, "total": 50}
+    assert persisted_extra.get("memoryBriefStatus") == {
+        "state": "skipped",
+        "source": "runtime_fallback",
+        "injection": {"state": "not_applied", "reason": "missing_context"},
     }

@@ -30,6 +30,7 @@
 | `channels/` | 渠道 Ingress 静态分类与凭证判定 | [_ARCH.md](channels/_ARCH.md) |
 | `intent-dispatcher/` | 意图分发 schema | [_ARCH.md](intent-dispatcher/_ARCH.md) |
 | `vision/` | 语音视觉会话纯函数 | [_ARCH.md](vision/_ARCH.md) |
+| `web-push/` | Web Push SW 深链 URL 消毒与 focus/navigate 判定 | [_ARCH.md](web-push/_ARCH.md) |
 | `widget-theme-bridge.ts` | Artifact iframe 运行时脚本注入：主题同步、高度 sync、链接拦截、DOM 元素拾取 | 内联 |
 | `constants/` | 路径、artifact、主题常量 | [_ARCH.md](constants/_ARCH.md) |
 | `server/` | Next Route Handler 用 HTTP 辅助 | [_ARCH.md](server/_ARCH.md) |

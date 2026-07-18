@@ -30,3 +30,4 @@ class WebPushVapidKeyResponse(BaseModel):
 class WebPushTestRequest(BaseModel):
     title: str = "Test Notification"
     body: str = "This is a test push notification from Myrm AI."
+    url: str = "/settings/system"

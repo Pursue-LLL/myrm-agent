@@ -45,13 +45,14 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - **低内存推荐（本地 / CI 同款）**：`scripts/dev/run_tests_low_memory.sh` 或 monorepo **`./myrm test -n0`**
 - 单元 + API 集成：monorepo **`./myrm test -n0`**（单 worker；实测 `build_minimal_app(chats)` ~118MB，`app.main` ~439MB）
 - E2E（真实 LLM API，无 Chrome）：monorepo **`./myrm test -m e2e`**（如 `tests/api/agent/test_render_ui_agent_stream_e2e.py`）
-- **Chrome MCP UI E2E（15 项，`chrome_e2e` marker）**：`RUN_E2E_TESTS=1 ./myrm test -m chrome_e2e -n0`（须 `./myrm ready --chrome`；SHPOIB 私 Backend；fork 在 live DB 无 sandbox chat 时可 allowlist skip；见 `scripts/dev/CHROME_MCP_E2E.md`）
+- **Chrome MCP UI E2E（16 项，`chrome_e2e` marker）**：`RUN_E2E_TESTS=1 ./myrm test -m chrome_e2e -n0`（须 `./myrm ready --chrome`；SHPOIB 私 Backend；fork 在 live DB 无 sandbox chat 时可 allowlist skip；见 `scripts/dev/CHROME_MCP_E2E.md`）
 - `tests/integration/test_render_ui_sse_wiring.py`：render_ui 确定性集成（20 场景：run_bind、fail-closed、data_update、collector 链、幂等）
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`
-- WebUI E2E：MCP **chrome-devtools** + Myrm E2E Chrome `:9333`（`./myrm ready --chrome`）；marker **`chrome_e2e`**（`lane=READ|LIVE_AGENT`）；禁止 `@playwright/test`。正式入口 **`./myrm test -m chrome_e2e`**；`tests/e2e/test_*_chrome_e2e.py`（含 Goal、execution_cache、edge_tts、parallel_tabs READ lane 等）；READ 只读测例不占 LIVE_AGENT cap（`resolve_e2e_session_lane.py`）
+- WebUI E2E：MCP **chrome-devtools** + Myrm E2E Chrome `:9333`（`./myrm ready --chrome`）；marker **`chrome_e2e`**（`lane=READ|LIVE_AGENT`）；禁止 `@playwright/test`。正式入口 **`./myrm test -m chrome_e2e`**；`tests/e2e/test_*_chrome_e2e.py`（含 Goal、execution_cache、edge_tts、parallel_tabs READ lane、`test_push_approval_deeplink_chrome_e2e` 等）；READ 只读测例不占 LIVE_AGENT cap（`resolve_e2e_session_lane.py`）
 - CI 默认套件：`scripts/ci/run_default_tests.sh`（`-m 'not e2e and not performance' -n0`，workflow `server-unit-tests.yml`）
 - `tests/api/skills/test_drafts_seed_mock.py`：seed-mock HTTP 单测（含 `agent_id` 查询参数，默认套件执行）
+- `tests/api/approvals/test_seed_mock.py`：approvals push deeplink seed-mock HTTP 单测（local guard + pending list）
 - `tests/api/approvals/test_list_pending_growth_filter.py`：`GET /approvals` 排除后台 growth、保留 inline `thread_id` skill_draft
 - `tests/api/skills/conftest.py`：minimal app 含 drafts/curator/sync/evolution/skill-growth 路由
 - `tests/api/integrations/test_llm_speed_test.py`：`POST /api/v1/integrations/llm/speed-test`

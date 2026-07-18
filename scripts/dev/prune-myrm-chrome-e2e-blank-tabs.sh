@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Close only stale preflight-owned targets; unknown tabs are never guessed by URL.
+# Close only stale infra-owned targets; unknown tabs are never guessed by URL.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,6 +16,6 @@ if [[ ! -x "${PREFLIGHT_PY}" ]]; then
   PREFLIGHT_PY="python3"
 fi
 
-exec "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/cdp_transient_targets.py" \
+exec "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/infra_browser_registry.py" \
   --prune \
   --cdp-port "${MYRM_CHROME_E2E_PORT}"

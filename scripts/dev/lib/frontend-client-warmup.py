@@ -15,7 +15,7 @@ import urllib.request
 from pathlib import Path
 from typing import Protocol
 
-from cdp_transient_targets import register_target, unregister_target
+from infra_browser_registry import register_infra_target, unregister_infra_target
 
 try:
     from cdp_chat_ui import E2E_BRIDGE_INSTALL_JS
@@ -351,7 +351,7 @@ async def _run_warmup(
         target_id = target.get("id")
         if not isinstance(target_id, str) or not target_id:
             raise RuntimeError("CDP target missing id")
-        register_target(target_id, page_url)
+        register_infra_target(target_id, page_url)
         ready = False
         closed = False
         try:
@@ -369,7 +369,7 @@ async def _run_warmup(
                 closed = await _close_target(cdp_port, target_id)
             finally:
                 if closed:
-                    unregister_target(target_id)
+                    unregister_infra_target(target_id)
         if ready and closed:
             return
         if ready:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
@@ -15,6 +17,13 @@ from tests.support.chrome_mcp_e2e import (
 _APPROVAL_DIALOG_STATE = """(() => ({
   ready: !!document.querySelector('[role="dialog"]'),
   pathname: location.pathname,
+  search: location.search,
+}))()"""
+
+_APPROVAL_OPEN_QUERY_STRIPPED = """(() => ({
+  ready:
+    !!document.querySelector('[role="dialog"]') &&
+    !location.search.includes('approval='),
   search: location.search,
 }))()"""
 
@@ -63,12 +72,13 @@ def _deny_stale_e2e_push_approvals(api_url: str) -> None:
 
 
 def _ensure_clean_chat_surface(client, page) -> None:
-    for _ in range(12):
+    for _ in range(24):
         state_raw = client.evaluate(page, _NO_APPROVAL_DIALOG_STATE, timeout_sec=5.0)
         state = state_raw if isinstance(state_raw, dict) else {"value": state_raw}
         if state.get("ready") is True:
             return
         client.evaluate(page, _HIDE_APPROVAL_DRAWER_JS, timeout_sec=5.0)
+        time.sleep(0.25)
     raise AssertionError("Could not hide approval drawer before deeplink baseline")
 
 
@@ -95,7 +105,7 @@ def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
 
     with open_mcp_page(chat_url) as (client, page):
         _ensure_clean_chat_surface(client, page)
-        baseline = wait_for_state(client, page, _NO_APPROVAL_DIALOG_STATE, timeout_sec=30.0)
+        baseline = wait_for_state(client, page, _NO_APPROVAL_DIALOG_STATE, timeout_sec=60.0)
         assert baseline.get("ready") is True
         assert baseline.get("hasChatInput") is True
 
@@ -104,6 +114,45 @@ def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
         opened = wait_for_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
         assert opened.get("ready") is True
         assert str(opened.get("search") or "").startswith(f"?approval={approval_id}")
+
+        stripped = wait_for_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
+        assert stripped.get("ready") is True
+
+    resolved = http_json(
+        "POST",
+        f"{api_url}/api/v1/approvals/{approval_id}/resolve",
+        {"decision": "deny"},
+    )
+    assert isinstance(resolved, dict)
+    assert resolved.get("status") == "REJECTED"
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_push_approval_deeplink_cold_start_opens_drawer() -> None:
+    """Cold navigation to ?approval= URL (notification click with no prior tab)."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    _deny_stale_e2e_push_approvals(api_url)
+
+    seeded = http_json("POST", f"{api_url}/api/v1/approvals/test/seed-mock")
+    assert isinstance(seeded, dict)
+    chat_id = str(seeded.get("chat_id") or "")
+    approval_id = str(seeded.get("approval_id") or "")
+    push_url = str(seeded.get("push_url") or "")
+    assert push_url.startswith(f"/{chat_id}?approval={approval_id}")
+
+    deeplink_url = f"{ui_url}{push_url}"
+
+    with open_mcp_page(deeplink_url) as (client, page):
+        opened = wait_for_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
+        assert opened.get("ready") is True
+        assert str(opened.get("pathname") or "").endswith(f"/{chat_id}")
+
+        stripped = wait_for_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
+        assert stripped.get("ready") is True
 
     resolved = http_json(
         "POST",

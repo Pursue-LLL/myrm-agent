@@ -284,7 +284,16 @@ class CdpChatInput(CdpChatBootstrap):
     ) -> dict[str, object]:
         deadline = asyncio.get_event_loop().time() + timeout_sec
         last: dict[str, object] = {"active": False}
+        poll = 0
         while asyncio.get_event_loop().time() < deadline:
+            poll += 1
+            if poll == 1 or poll % 15 == 0:
+                print(
+                    f"DESKTOP_E2E: poll tool activity #{poll} active={last.get('active')} "
+                    f"pending={last.get('pending')}",
+                    file=sys.stderr,
+                    flush=True,
+                )
             probe = await self.evaluate(
                 """(() => {
                   const bridge = window.__MYRM_E2E_CHAT__;

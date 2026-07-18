@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
-| `router.py` | 路由 | `GET /approvals`、`POST /{id}/resolve`、`POST /batch-resolve` | ✅ |
+| `router.py` | 路由 | `GET /approvals`、`POST /{id}/resolve`、`POST /batch-resolve`、`POST /test/seed-mock`（local E2E） | ✅ |
 
 ## 路由（前缀 `/api/v1/approvals`）
 
@@ -18,6 +18,7 @@
 | GET | `` | 分页列出 pending（`limit` 1–100，`offset`）；排除无 `thread_id` 的后台 growth draft |
 | POST | `/{approval_id}/resolve` | 单条决策：`decision`（`approve`/`deny`/`reject`→`deny`）、`edited_payload`、`comment`、`allow_always`（bool 或 `{tool,args}`）；有 `thread_id` 时发布 `APPROVAL_RESOLVED` |
 | POST | `/batch-resolve` | 批量 `approval_ids` + `decision`；逐条 resolve 并对有 `thread_id` 项发事件 |
+| POST | `/test/seed-mock` | local/test only：创建 chat + inline pending approval，返回 `push_url`（Chrome push deeplink E2E） |
 
 ## 契约要点
 

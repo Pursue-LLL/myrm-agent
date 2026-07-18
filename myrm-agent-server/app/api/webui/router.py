@@ -471,6 +471,24 @@ async def get_desktop_snapshot() -> JSONResponse:
         )
 
 
+@router.post("/desktop/approval/reset-runtime")
+async def reset_desktop_approval_runtime() -> JSONResponse:
+    """Reset in-memory desktop approval caches (E2E/dev recovery)."""
+    from app.ai_agents.desktop_control.gate import DesktopControlGate
+
+    DesktopControlGate.reset_all_runtime_approval_state()
+    return JSONResponse(content={"ok": True})
+
+
+@router.get("/desktop/approval/pending")
+async def list_pending_desktop_approvals() -> JSONResponse:
+    """List pending desktop approval request ids (E2E diagnostics)."""
+    from app.ai_agents.desktop_control.gate import DesktopApprovalRegistry
+
+    pending_ids = DesktopApprovalRegistry.pending_snapshot()
+    return JSONResponse(content={"pending": pending_ids, "count": len(pending_ids)})
+
+
 class DesktopApprovalResolveBody(BaseModel):
     request_id: str
     granted: bool

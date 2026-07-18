@@ -63,18 +63,30 @@ def unbind_browser(lease: LeaseRecord) -> LeaseRecord:
     return lease
 
 
-def _close_target(target_id: str, page_id: str, detail: str = "") -> BrowserCleanupAttempt:
-    url = f"http://127.0.0.1:{_chrome_port()}/json/close/{target_id}"
+def close_exact_target(target_id: str, page_id: str = "", detail: str = "") -> BrowserCleanupAttempt:
+    """Close one CDP target by exact targetId. Never infers ownership from URL."""
+    target = target_id.strip()
+    if not target:
+        return {"pageId": page_id, "ok": False, "detail": "empty exact targetId"}
+    url = f"http://127.0.0.1:{_chrome_port()}/json/close/{target}"
     try:
         with urllib.request.urlopen(url, timeout=3) as response:
             response.read()
-            return {"pageId": page_id, "ok": response.status in {200, 404}, "detail": detail or f"HTTP {response.status}"}
+            return {
+                "pageId": page_id or target,
+                "ok": response.status in {200, 404},
+                "detail": detail or f"HTTP {response.status}",
+            }
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
-            return {"pageId": page_id, "ok": True, "detail": f"already closed (HTTP 404){detail}"}
-        return {"pageId": page_id, "ok": False, "detail": f"HTTP {exc.code}{detail}"}
+            return {
+                "pageId": page_id or target,
+                "ok": True,
+                "detail": f"already closed (HTTP 404){detail}",
+            }
+        return {"pageId": page_id or target, "ok": False, "detail": f"HTTP {exc.code}{detail}"}
     except (OSError, urllib.error.URLError) as exc:
-        return {"pageId": page_id, "ok": False, "detail": str(exc)}
+        return {"pageId": page_id or target, "ok": False, "detail": str(exc)}
 
 
 def _close_page(page_id: str, target_id: str) -> BrowserCleanupAttempt:
@@ -84,7 +96,7 @@ def _close_page(page_id: str, target_id: str) -> BrowserCleanupAttempt:
     target = target_id.strip()
     if not target:
         return {"pageId": page, "ok": False, "detail": "empty exact targetId"}
-    return _close_target(target, page)
+    return close_exact_target(target, page)
 
 
 def cleanup_lease_browser(lease: LeaseRecord) -> list[BrowserCleanupAttempt]:

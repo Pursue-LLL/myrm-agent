@@ -13,9 +13,12 @@ Lease side effects. State is committed under lock; CDP/HTTP cleanup runs afterwa
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 from wave_orchestrator.browser_lifecycle import (
     bind_browser,
     cleanup_lease_browser,
+    close_exact_target,
     unbind_browser,
 )
 from wave_orchestrator.lease_state import (
@@ -108,17 +111,24 @@ def bind_browser_lease(
 ) -> LeaseRecord:
     resolved = paths or resolve_wave_paths()
     holder = agent_id or default_agent_id()
+    new_target_id = target_id.strip()
 
-    def _edit(
-        state: OrchestratorState,
-    ) -> tuple[tuple[LeaseRecord, list[LeaseRecord]], bool]:
+    class _PrepareSnapshot(TypedDict):
+        previousTargetId: str
+        previousPageId: str
+        replaced: list[LeaseRecord]
+
+    def _prepare(state: OrchestratorState) -> tuple[_PrepareSnapshot, bool]:
         lease = find_active_lease(state, lease_id)
         if lease["agentId"] != holder:
             raise RuntimeError(
                 f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}"
             )
+        previous_target_id = str(lease.get("targetId", "")).strip()
+        previous_page_id = str(lease.get("pageId", "")).strip()
         requested_context = context_id.strip()
         replaced: list[LeaseRecord] = []
+        changed = False
         if requested_context:
             for other in list(active_leases(state)):
                 if (
@@ -131,18 +141,44 @@ def bind_browser_lease(
                         )
                     other["status"] = "released"
                     replaced.append(dict(other))
-        bound = bind_browser(
+                    changed = True
+        return {
+            "previousTargetId": previous_target_id,
+            "previousPageId": previous_page_id,
+            "replaced": replaced,
+        }, changed
+
+    prepared = run_locked(resolved.state_file, _prepare)
+    for stale in prepared["replaced"]:
+        cleanup_released_lease(stale, paths=resolved)
+
+    previous_target_id = prepared["previousTargetId"]
+    if previous_target_id and previous_target_id != new_target_id:
+        attempt = close_exact_target(
+            previous_target_id,
+            prepared["previousPageId"] or previous_target_id,
+            detail=" bind-replace",
+        )
+        if not attempt["ok"]:
+            raise RuntimeError(
+                "BROWSER_BIND_REPLACE_CLOSE_FAILED: "
+                f"lease={lease_id} target={previous_target_id}: {attempt['detail']}"
+            )
+
+    def _bind(state: OrchestratorState) -> tuple[LeaseRecord, bool]:
+        lease = find_active_lease(state, lease_id)
+        if lease["agentId"] != holder:
+            raise RuntimeError(
+                f"LEASE_OWNER_MISMATCH: {lease_id} owner={lease['agentId']}"
+            )
+        return bind_browser(
             lease,
             page_id=page_id,
             target_id=target_id,
             context_id=context_id,
-        )
-        return (bound, replaced), True
+        ), True
 
-    bound, replaced = run_locked(resolved.state_file, _edit)
-    for stale in replaced:
-        cleanup_released_lease(stale, paths=resolved)
-    return bound
+    return run_locked(resolved.state_file, _bind)
 
 
 def unbind_browser_lease(

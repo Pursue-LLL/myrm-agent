@@ -99,6 +99,19 @@ def _stack_pin_blocker(state: OrchestratorState) -> StackPinBlocker | None:
     }
 
 
+def _prune_infra_browser_registry() -> tuple[int, int]:
+    import sys
+    from pathlib import Path
+
+    lib_dir = Path(__file__).resolve().parent.parent / "lib"
+    lib_str = str(lib_dir)
+    if lib_str not in sys.path:
+        sys.path.insert(0, lib_str)
+    import infra_browser_registry
+
+    return infra_browser_registry.prune_infra_registry()
+
+
 def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
     """Run TTL and runtime drift reaping for the supervisor watchdog."""
     resolved = paths or resolve_wave_paths()
@@ -123,6 +136,9 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
     if isinstance(wave, dict) and wave.get("status") in {"closed", "drifted"}:
         clear_stack_pin(paths=resolved)
     _cleanup_expired_leases(paths=resolved)
+    closed, failed = _prune_infra_browser_registry()
+    result["infraPruneClosed"] = closed
+    result["infraPruneFailed"] = failed
     return result
 
 

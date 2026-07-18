@@ -18,8 +18,10 @@ const required = [
   'notificationclick',
   'favicon-32.png',
   'sanitizePushTargetUrl',
+  'resolvePushClientFocusAction',
   'RESERVED_APP_SEGMENTS',
   'SETTINGS_PATH_PREFIX',
+  '.navigate(',
 ];
 const missing = required.filter((token) => !contents.includes(token));
 if (missing.length > 0) {

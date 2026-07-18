@@ -57,6 +57,7 @@ function makeCtx(state: TestState): StreamCtx {
       memory_brief_status: {
         state: 'skipped',
         reason: 'timeout',
+        source: 'preflight',
         injection: { state: 'applied', source: 'fallback' },
       },
     } as never,
@@ -97,6 +98,7 @@ describe('completionEvents memory brief status', () => {
     expect(state.messages[0]?.memoryBriefStatus).toEqual({
       state: 'skipped',
       reason: 'timeout',
+      source: 'preflight',
       injection: { state: 'applied', source: 'fallback' },
     });
   });
@@ -118,6 +120,7 @@ describe('completionEvents memory brief status', () => {
     expect(state.messages[1]?.memoryBriefStatus).toEqual({
       state: 'skipped',
       reason: 'timeout',
+      source: 'preflight',
       injection: { state: 'applied', source: 'fallback' },
     });
   });

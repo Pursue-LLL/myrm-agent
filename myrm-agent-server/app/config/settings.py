@@ -465,6 +465,21 @@ class ContextCompactionTelemetrySettings(BaseSettings):
 
 
 # ---------------------------------------------------------------------------
+# [S] Memory brief status telemetry — env prefix: MEMORY_BRIEF_STATUS_TELEMETRY_
+# ---------------------------------------------------------------------------
+
+
+class MemoryBriefStatusTelemetrySettings(BaseSettings):
+    """[S] Memory brief status telemetry batching tunables."""
+
+    model_config = SettingsConfigDict(env_prefix="MEMORY_BRIEF_STATUS_TELEMETRY_")
+
+    batch_size: int = 32
+    flush_interval_seconds: float = 3.0
+    queue_size: int = 512
+
+
+# ---------------------------------------------------------------------------
 # Root AppSettings
 # ---------------------------------------------------------------------------
 
@@ -549,6 +564,7 @@ class AppSettings(BaseSettings):
     services: ServiceSettings = ServiceSettings()
     control_plane: ControlPlaneSettings = ControlPlaneSettings()
     context_compaction_telemetry: ContextCompactionTelemetrySettings = ContextCompactionTelemetrySettings()
+    memory_brief_status_telemetry: MemoryBriefStatusTelemetrySettings = MemoryBriefStatusTelemetrySettings()
 
     @field_validator("port")
     @classmethod
@@ -645,6 +661,7 @@ __all__ = [
     "DingTalkChannelSettings",
     "MonitoringSettings",
     "MessageFilterSettings",
+    "MemoryBriefStatusTelemetrySettings",
     "SecuritySettings",
     "ServiceSettings",
     "StorageSettings",

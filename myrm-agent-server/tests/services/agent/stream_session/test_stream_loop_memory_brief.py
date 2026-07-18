@@ -93,6 +93,9 @@ class TestMemoryBriefPrelude:
                 "myrm_agent_harness.api.hooks.get_memory_runtime_injection",
                 return_value={"state": "applied", "source": "snapshot"},
             ),
+            patch(
+                "app.services.agent.stream_session.stream_loop.enqueue_memory_brief_status_telemetry"
+            ) as mock_enqueue_status_telemetry,
         ):
             chunks: list[str] = []
             async for chunk in iter_agent_stream_chunks(session, approval):
@@ -111,6 +114,10 @@ class TestMemoryBriefPrelude:
             "state": "ready",
             "injection": {"state": "applied", "source": "snapshot"},
         }
+        mock_enqueue_status_telemetry.assert_called_once_with(
+            phase="stream",
+            payload={"state": "ready", "injection": {"state": "applied", "source": "snapshot"}},
+        )
 
     @pytest.mark.asyncio
     async def test_attach_skipped_status_when_brief_preview_missing(self) -> None:
@@ -151,6 +158,7 @@ class TestMemoryBriefPrelude:
         )
         assert message_end_event.get("memory_brief_status") == {
             "state": "skipped",
+            "source": "preflight",
             "reason": "timeout",
             "injection": {"state": "applied", "source": "fallback"},
         }
@@ -226,6 +234,7 @@ class TestMemoryBriefPrelude:
         )
         assert message_end_event.get("memory_brief_status") == {
             "state": "skipped",
+            "source": "preflight",
             "reason": "timeout",
             "injection": {"state": "not_applied", "reason": "already_present"},
         }
@@ -254,4 +263,45 @@ class TestMemoryBriefPrelude:
                 chunks.append(chunk)
 
         assert all('"type":"memory_brief"' not in chunk for chunk in chunks)
+
+    @pytest.mark.asyncio
+    async def test_resume_mode_still_emits_injection_status_when_brief_status_missing(self) -> None:
+        session = _make_session(include_preview=False, brief_status=None)
+        session.request.resume_value = {"decision": "approve"}
+        approval = ApprovalTimeoutHolder()
+
+        async def _fake_stream(*_args, **_kwargs):
+            yield {"type": "message_end"}
+
+        with (
+            patch(
+                "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
+                side_effect=_fake_stream,
+            ),
+            patch(
+                "app.services.agent.stream_session.stream_loop.should_suggest_workflow_for_session",
+                return_value=False,
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
+                return_value={"used": 6, "total": 60},
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_memory_runtime_injection",
+                return_value={"state": "not_applied", "reason": "missing_context"},
+            ),
+        ):
+            chunks: list[str] = []
+            async for chunk in iter_agent_stream_chunks(session, approval):
+                chunks.append(chunk)
+
+        message_end_event = next(
+            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
+        )
+        assert message_end_event.get("memoryBudget") == {"used": 6, "total": 60}
+        assert message_end_event.get("memory_brief_status") == {
+            "state": "skipped",
+            "source": "runtime_fallback",
+            "injection": {"state": "not_applied", "reason": "missing_context"},
+        }
 

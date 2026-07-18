@@ -197,3 +197,36 @@ async def batch_resolve_approvals(
             logger.error("Failed to batch resolve approval %s: %s", approval_id, e)
 
     return ApprovalListResponse(approvals=[ApprovalRecordResponse.from_orm(r) for r in resolved_records])
+
+
+@router.post("/test/seed-mock", include_in_schema=False)
+async def seed_test_mock_push_approval() -> dict[str, str]:
+    """Local dev/test only: seed a chat + inline pending approval for push deeplink E2E."""
+    from uuid import uuid4
+
+    from app.config.deploy_mode import is_local_mode
+    from app.database.dto import ChatCreate
+    from app.services.chat.chat_service import ChatService
+
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    chat_id = f"e2epush{uuid4().hex[:8]}"
+    await ChatService.create_or_update_chat(
+        ChatCreate(chat_id=chat_id, title="Push deeplink E2E", messages=[]),
+    )
+    record = await ApprovalRegistry.create_approval(
+        agent_id="e2e-push-deeplink",
+        action_type="delete_file",
+        payload={"path": "/tmp/e2e-push-deeplink"},
+        reason="Chrome E2E push approval deeplink",
+        chat_id=chat_id,
+        thread_id=f"e2e-thread-{uuid4().hex[:8]}",
+    )
+    push_url = f"/{chat_id}?approval={record.id}"
+    return {
+        "chat_id": chat_id,
+        "approval_id": record.id,
+        "push_url": push_url,
+        "ui_url": push_url,
+    }

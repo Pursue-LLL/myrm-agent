@@ -9,11 +9,12 @@
 | 文件 | 职责 |
 |------|------|
 | `frontend-warmup.sh` | Unix | Frontend `shell_hot` gate（curl `/`）+ `client_hot`（CDP hydration）+ warmth JSON；定义 `_lock_supervisor_alive`（frontend lock pid 存活） |
-| `frontend-client-warmup.py` | Unix | CDP `Target.createTarget(background=true)` 预热 `:3000/` 直至 `[data-testid="app-layout"]` + `[data-chat-input]`；注册 `cdp-transient-targets.json` |
+| `frontend-client-warmup.py` | Unix | CDP `Target.createTarget(background=true)` 预热 `:3000/` 直至 `[data-testid="app-layout"]` + `[data-chat-input]`；注册 `infra-browser-targets.json` |
 | `cdp_chat_ui.py` | Unix | WebUI chat 自动化稳定导出层；实现按 transport/bootstrap/input/submit/turn/support 拆分 |
 | `chrome_mcp_client.py` / `chrome_mcp_errors.py` / `mcp_chat_ui.py` | Unix | 正式 pytest UI E2E 的 MCP JSON-RPC client；page client 必须依附 active 父 E2E lease，并把 `parentLeaseId` 写入 READ lease 供父 Session 中断时精确级联清理；runtime drift 时禁止自行重开 Wave；`chrome_mcp_errors` 集中 mux 错误分类；`chrome_mcp_client` 负责 page reclaim（`reclaim_owned_page`）；`mcp_chat_ui` 导出 `is_mux_page_heal_error`（单次 ownership/context-reset reclaim）；`E2E_UI_BASE` 默认 UI 基址；每页绑定 exact targetId + Wave READ lease |
 | `cdp_chat_{transport,bootstrap,input,submit,turn,support}.py` | Unix | transport-independent chat UI 工作流；MCP 与 client warmup 复用 |
-| `cdp_transient_targets.py` | Unix | Preflight client warmup 短生命周期 target 归属 ledger；只按死亡 owner 的 exact targetId 回收 |
+| `infra_browser_registry.py` | Unix | client warmup 短生命周期 target 归属 ledger；`wave reap` 与 preflight prune 回收死亡 owner 的 exact targetId |
+| `browser_tab_hygiene.py` | Unix | `./myrm doctor --chrome` tab 计数报告（CDP / wave / infra registry） |
 | `cdp_write_guard.py` | Unix | raw `/json/new` 永久拒绝；仅 supervisor `MYRM_CDP_WARMUP=1` 预热例外 |
 | `runtime_identity.py` | Unix | Runtime Identity SSOT + attach health gate：基础设施四元 epoch → hot-pool `runtimeId`；源码 fingerprint 独立控制 warmth/HMR，不使 active lease drift；`read_stack_scoped_runtime_id()`（backend+frontend only）；`build_health_json` CLI |
 | `runtime_probe.py` | Unix | Live mux/CDP probe + `run_drift_check()` for `--drift` / `runtime-drift` |

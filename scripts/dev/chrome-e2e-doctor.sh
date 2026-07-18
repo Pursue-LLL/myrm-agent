@@ -74,6 +74,16 @@ else
   fail "missing chrome-e2e-preflight.sh"
 fi
 
+hygiene="${SCRIPT_DIR}/lib/browser_tab_hygiene.py"
+if [[ -f "${hygiene}" ]] && chrome_e2e_cdp_healthy; then
+  if hygiene_out="$("${PREFLIGHT_PY}" "${hygiene}" --report --cdp-port "${MYRM_CHROME_E2E_PORT}" 2>&1)"; then
+    echo "${hygiene_out}"
+    ok "tab hygiene report"
+  else
+    warn "tab hygiene report failed — ${hygiene_out}"
+  fi
+fi
+
 if [[ "${failures}" -eq 0 ]]; then
   echo "CHROME_E2E_DOCTOR_READY"
   exit 0

@@ -214,11 +214,11 @@ if [[ -f "${CHROME_E2E_CLI_EARLY}" ]]; then
 fi
 
 PRUNE_SCRIPT="${SCRIPT_DIR}/prune-myrm-chrome-e2e-blank-tabs.sh"
-if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" && -f "${PRUNE_SCRIPT}" ]]; then
+if [[ -f "${PRUNE_SCRIPT}" ]]; then
   export MYRM_CHROME_E2E_PORT
   if prune_out="$(bash "${PRUNE_SCRIPT}" 2>&1)"; then
     echo "${prune_out}"
-    ok "stale preflight-owned tabs pruned"
+    ok "stale infra-owned tabs pruned"
   else
     echo "CHROME_E2E_WARN: prune failed — ${prune_out}" >&2
   fi

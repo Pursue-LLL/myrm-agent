@@ -9,6 +9,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | 文件 | 职责 |
 |------|------|
 | `test_sse_event_type_parity.py` | harness `AgentEventType` ⊆ 前端 `knownSseEventTypes` 清单 |
+| `test_memory_injection_contract_parity.py` | 前端 `MemoryBriefStatus(source)/MemoryBriefInjectionStatus` union 与 server+harness 状态契约严格同构 |
 | `../fixtures/frontend_sse_event_types.json` | 由 frontend `scripts/export-known-sse-event-types.ts` 生成 |
 | `test_server_harness_imports.py` | 相对 baseline 禁止新增 server→harness 内部 import；并禁止 import 含 ``._`` 的 harness 私有模块路径 |
 | `test_dev_pid_path_ssot.py` | `scripts/**` 禁止读取子目录 `.myrm-dev-*` pid（cleanup rm 豁免） |

@@ -58,7 +58,7 @@ Paths align with in-app SSE handlers (`useGlobalEvents`):
 | `CHANNEL_DISCONNECTED` | `/settings/channels` |
 | `OAUTH_REAUTH_REQUIRED` | `/settings/integrationCatalog` |
 
-The browser SW (`src/app/sw.ts`) sanitizes payload URLs (same-origin + allowlist) before `openWindow`.
+The browser SW (`src/app/sw.ts`) imports `src/lib/web-push/pushTargetUrl.ts` (bundled via `scripts/build-sw-src.mjs` before inject-manifest). It sanitizes payload URLs before `openWindow`. When a window client is already on the target pathname but the query differs (e.g. approval deep link), the SW calls `client.navigate()` instead of focus-only.
 
 ## VAPID Key Storage
 

@@ -95,22 +95,27 @@ export default function MemoryInsightPanel({
     <div className={cn("flex flex-wrap items-center gap-2 mt-2", className)}>
       {/* Memory Brief Unavailable Pill */}
       {memoryBriefUnavailable && (
-        <HoverCard openDelay={200}>
-          <HoverCardTrigger asChild>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full bg-muted text-muted-foreground border border-border/70 cursor-help transition-colors hover:bg-muted/80">
-              <Brain size={12} className="shrink-0 text-amber-500" />
-              <span>{t('briefUnavailablePill')}</span>
-            </div>
-          </HoverCardTrigger>
-          <HoverCardContent align="start" className="w-72 max-w-[calc(100vw-2rem)] p-3 z-50">
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-foreground">{t('briefUnavailableTitle')}</div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {t(briefUnavailableDescriptionKey)}
-              </p>
-            </div>
-          </HoverCardContent>
-        </HoverCard>
+        <>
+          <HoverCard openDelay={200}>
+            <HoverCardTrigger asChild>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full bg-muted text-muted-foreground border border-border/70 cursor-help transition-colors hover:bg-muted/80">
+                <Brain size={12} className="shrink-0 text-amber-500" />
+                <span>{t('briefUnavailablePill')}</span>
+              </div>
+            </HoverCardTrigger>
+            <HoverCardContent align="start" className="w-72 max-w-[calc(100vw-2rem)] p-3 z-50">
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-foreground">{t('briefUnavailableTitle')}</div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {t(briefUnavailableDescriptionKey)}
+                </p>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
+          <p className="w-full pl-1 text-[11px] leading-relaxed text-muted-foreground md:hidden">
+            {t(briefUnavailableDescriptionKey)}
+          </p>
+        </>
       )}
 
       {/* Memory Brief Pill */}

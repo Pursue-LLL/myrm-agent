@@ -1,4 +1,16 @@
-"""Ownership ledger for short-lived CDP targets created by dev preflight."""
+"""Infra-only CDP target registry for dev warmup and AOS surfaces.
+
+[INPUT]
+- Owner PID from warmup/AOS creators
+- CDP HTTP close endpoint on dedicated E2E port
+
+[OUTPUT]
+- register_infra_target() / unregister_infra_target()
+- prune_infra_registry() for dead-owner exact targetId cleanup
+
+[POS]
+Infra browser target ledger. Wave orchestrator remains SSOT for test lease tabs.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +25,7 @@ from pathlib import Path
 from typing import Iterator, TypedDict
 
 
-class TransientTarget(TypedDict):
+class InfraBrowserTarget(TypedDict):
     targetId: str
     ownerPid: int
     url: str
@@ -25,7 +37,7 @@ def _state_dir() -> Path:
 
 
 def _ledger_path() -> Path:
-    return _state_dir() / "cdp-transient-targets.json"
+    return _state_dir() / "infra-browser-targets.json"
 
 
 @contextmanager
@@ -41,14 +53,14 @@ def _locked_ledger() -> Iterator[Path]:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
-def _read(path: Path) -> list[TransientTarget]:
+def _read(path: Path) -> list[InfraBrowserTarget]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return []
     if not isinstance(payload, list):
         return []
-    result: list[TransientTarget] = []
+    result: list[InfraBrowserTarget] = []
     for item in payload:
         if not isinstance(item, dict):
             continue
@@ -66,7 +78,7 @@ def _read(path: Path) -> list[TransientTarget]:
     return result
 
 
-def _write(path: Path, records: list[TransientTarget]) -> None:
+def _write(path: Path, records: list[InfraBrowserTarget]) -> None:
     if not records:
         path.unlink(missing_ok=True)
         return
@@ -75,7 +87,7 @@ def _write(path: Path, records: list[TransientTarget]) -> None:
     os.replace(temporary, path)
 
 
-def register_target(target_id: str, url: str, *, owner_pid: int | None = None) -> None:
+def register_infra_target(target_id: str, url: str, *, owner_pid: int | None = None) -> None:
     target = target_id.strip()
     if not target:
         raise ValueError("target_id is required")
@@ -86,7 +98,7 @@ def register_target(target_id: str, url: str, *, owner_pid: int | None = None) -
         _write(ledger, records)
 
 
-def unregister_target(target_id: str) -> None:
+def unregister_infra_target(target_id: str) -> None:
     target = target_id.strip()
     with _locked_ledger() as ledger:
         _write(ledger, [item for item in _read(ledger) if item["targetId"] != target])
@@ -112,27 +124,41 @@ def close_exact_target(cdp_port: int, target_id: str) -> bool:
         return False
 
 
-def prune_stale_targets(cdp_port: int) -> tuple[int, int]:
+def _chrome_port() -> int:
+    raw = os.environ.get("MYRM_CHROME_E2E_PORT", "9333").strip()
+    try:
+        return max(int(raw), 1)
+    except ValueError:
+        return 9333
+
+
+def prune_infra_registry(cdp_port: int | None = None) -> tuple[int, int]:
+    port = cdp_port if cdp_port is not None else _chrome_port()
     with _locked_ledger() as ledger:
         records = _read(ledger)
         stale = [item for item in records if not _pid_alive(item["ownerPid"])]
         closed_ids = {
             item["targetId"]
             for item in stale
-            if close_exact_target(cdp_port, item["targetId"])
+            if close_exact_target(port, item["targetId"])
         }
         _write(ledger, [item for item in records if item["targetId"] not in closed_ids])
     return len(closed_ids), len(stale) - len(closed_ids)
 
 
+def list_infra_targets() -> list[InfraBrowserTarget]:
+    with _locked_ledger() as ledger:
+        return _read(ledger)
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Prune stale preflight-owned CDP targets.")
+    parser = argparse.ArgumentParser(description="Prune stale infra-owned CDP targets.")
     parser.add_argument("--prune", action="store_true")
-    parser.add_argument("--cdp-port", type=int, default=9333)
+    parser.add_argument("--cdp-port", type=int, default=_chrome_port())
     args = parser.parse_args()
     if not args.prune:
         parser.error("--prune is required")
-    closed, failed = prune_stale_targets(args.cdp_port)
+    closed, failed = prune_infra_registry(args.cdp_port)
     print(f"MYRM_CHROME_PRUNE_OK: closed={closed} failed={failed}")
     return 0 if failed == 0 else 1
 

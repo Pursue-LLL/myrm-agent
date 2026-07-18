@@ -21,8 +21,12 @@ from dataclasses import dataclass
 from myrm_agent_harness.utils.runtime.cancellation import CancelReason
 
 from app.schemas.streaming import SSEEnvelope
+from app.services.agent.memory_brief_status_telemetry import (
+    enqueue_memory_brief_status_telemetry,
+)
 from app.services.agent.stream_session._memory_status_helpers import (
     build_memory_brief_status_payload,
+    observe_memory_brief_status_payload,
 )
 from app.services.agent.stream_session.stream_lane_factory import (
     create_consensus_stream,
@@ -274,20 +278,23 @@ async def iter_agent_stream_chunks(
                             if isinstance(session.extra_context, dict)
                             else None
                         )
-                        injection: dict[str, str] | None = None
-                        if citations or isinstance(preview, dict) or isinstance(brief_status, dict):
-                            from myrm_agent_harness.api.hooks import (
-                                get_memory_runtime_budget,
-                                get_memory_runtime_injection,
-                            )
+                        from myrm_agent_harness.api.hooks import (
+                            get_memory_runtime_budget,
+                            get_memory_runtime_injection,
+                        )
 
-                            budget = get_memory_runtime_budget()
-                            if budget is not None:
-                                chunk["memoryBudget"] = budget
-                            injection = get_memory_runtime_injection()
+                        budget = get_memory_runtime_budget()
+                        if budget is not None:
+                            chunk["memoryBudget"] = budget
+                        injection = get_memory_runtime_injection()
                         status_payload = build_memory_brief_status_payload(brief_status, injection)
                         if status_payload is not None:
                             chunk["memory_brief_status"] = status_payload
+                            observe_memory_brief_status_payload(phase="stream", payload=status_payload)
+                            enqueue_memory_brief_status_telemetry(
+                                phase="stream",
+                                payload=status_payload,
+                            )
                     except Exception as e:
                         logger.warning("Failed to inject memory insights into message_end: %s", e)
 

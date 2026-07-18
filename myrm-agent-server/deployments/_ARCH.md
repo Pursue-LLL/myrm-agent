@@ -8,7 +8,7 @@
 
 | 路径 | 职责 |
 |------|------|
-| `prometheus/rules.yml` | Prometheus 告警规则示例 |
+| `prometheus/rules.yml` | Prometheus 告警规则示例（含 `myrm_memory_brief_*` not_applied/unknown 告警） |
 
 ## 依赖
 

@@ -156,6 +156,24 @@ async def stop_context_compaction_telemetry_dispatcher() -> None:
     await _stop_dispatcher()
 
 
+async def start_memory_brief_status_telemetry_dispatcher() -> None:
+    """Start server-side batching dispatcher for memory brief status telemetry."""
+    from app.services.agent.memory_brief_status_telemetry import (
+        start_memory_brief_status_telemetry_dispatcher as _start_dispatcher,
+    )
+
+    await _start_dispatcher()
+
+
+async def stop_memory_brief_status_telemetry_dispatcher() -> None:
+    """Stop server-side batching dispatcher for memory brief status telemetry."""
+    from app.services.agent.memory_brief_status_telemetry import (
+        stop_memory_brief_status_telemetry_dispatcher as _stop_dispatcher,
+    )
+
+    await _stop_dispatcher()
+
+
 async def _approval_ttl_job() -> None:
     """Periodic approval TTL job (rejects expired approvals)."""
     try:

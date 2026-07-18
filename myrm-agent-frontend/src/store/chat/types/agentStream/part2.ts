@@ -41,6 +41,7 @@ export interface MemoryBriefData {
 export interface MemoryBriefStatus {
   state: 'ready' | 'skipped';
   reason?: 'timeout' | 'error';
+  source?: 'preflight' | 'runtime_fallback';
   injection?: MemoryBriefInjectionStatus;
 }
 

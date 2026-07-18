@@ -22,11 +22,11 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 
 | 文件 | 职责 |
 |------|------|
-| `src/app/sw.ts` | Serwist SW 源：precache + Web Push（same-origin URL allowlist + reserved route denylist） |
+| `src/app/sw.ts` | Serwist SW 源：precache + Web Push（same-origin allowlist；open-tab pathname 匹配时 query 不同则 `client.navigate`） |
 | `serwist.config.ts` | `next build` 后 `inject-manifest`（precache 清单来自 `.next`） |
 | `public/sw.js` | 编译产物；生产由 `pwa-updater.tsx` 注册 `/sw.js`；dev/Tauri 不注册 |
 
-构建：`bun run build` = i18n split → `next build`（`@serwist/next`）→ `serwist inject-manifest`。`build:tauri` 跳过 Serwist。
+构建：`bun run build` = i18n split → `next build`（`@serwist/next`）→ `build:sw-inject`（esbuild → `.serwist/sw-inject-src.js`）→ `serwist inject-manifest` → `verify-sw-push.mjs`。`build:tauri` 跳过 Serwist。
 
 ## 子模块
 

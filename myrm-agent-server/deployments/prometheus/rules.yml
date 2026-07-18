@@ -83,6 +83,35 @@ groups:
           summary: "Tool {{ $labels.tool_name }} p95 latency exceeds 30 seconds"
           description: "Tool {{ $labels.tool_name }} p95 latency is {{ $value }}s"
 
+      # === Memory Brief Telemetry Alerts ===
+
+      - alert: MemoryBriefNotAppliedRateHigh
+        expr: |
+          (
+            (
+              sum(rate(myrm_memory_brief_injection_not_applied_total{phase="stream"}[10m])) by (reason, brief_source)
+              /
+              clamp_min(sum(rate(myrm_memory_brief_status_events_total{phase="stream"}[10m])), 0.001)
+            ) > 0.15
+          )
+          and
+          sum(rate(myrm_memory_brief_status_events_total{phase="stream"}[10m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief not_applied rate is elevated"
+          description: "reason={{ $labels.reason }}, source={{ $labels.brief_source }}, rate={{ $value | humanizePercentage }} over 10m"
+
+      - alert: MemoryBriefUnknownEnumDetected
+        expr: increase(myrm_memory_brief_status_unknown_total[10m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unknown memory brief enum values detected"
+          description: "At least one unknown brief/injection enum value appeared in the last 10 minutes"
+
       # === Resource Alerts ===
 
       - alert: HighMemoryUsage

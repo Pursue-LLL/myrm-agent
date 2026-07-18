@@ -249,6 +249,24 @@ def test_persist_app_noops_without_workspace() -> None:
     assert gate._approval_path() is None
 
 
+def test_reset_runtime_approval_state_clears_session_and_reloads_disk(tmp_path: Path) -> None:
+    approval_dir = tmp_path / ".agent" / "desktop_control"
+    approval_dir.mkdir(parents=True)
+    (approval_dir / "approved_apps.json").write_text(
+        json.dumps({"apps": {"TextEdit": {"scope": "always"}}}),
+        encoding="utf-8",
+    )
+    gate = DesktopControlGate(workspace_root=str(tmp_path), auto_grant=False)
+    gate._session_approved_apps.add("notes")
+    assert gate._is_app_preapproved("TextEdit")
+    assert gate._is_app_preapproved("Notes")
+
+    (approval_dir / "approved_apps.json").unlink()
+    gate.reset_runtime_approval_state()
+    assert not gate._is_app_preapproved("TextEdit")
+    assert not gate._is_app_preapproved("Notes")
+
+
 @pytest.mark.asyncio
 async def test_always_scope_persists_after_corrupt_existing_file(tmp_path: Path) -> None:
     approval_dir = tmp_path / ".agent" / "desktop_control"

@@ -17,7 +17,7 @@
 | `FileMutationWarning.tsx` | 组件 | 文件变更风险警告条（mutation 失败/冲突提示） | ✅ |
 | `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型；KB citation 可点击打开 SourceChunkDrawer | ✅ |
 | `MemoryCitationsButton.tsx` | 组件 | 记忆引用来源按钮与 Popover | ✅ |
-| `MemoryInsightPanel.tsx` | 组件 | 消息关联记忆洞察侧栏（发送前 Memory Brief + 结束后 budget/citation + brief 降级可见提示）；`brief` 缺失时根据 `injection` 状态与 `not_applied` 原因映射可执行文案（已注入/未注入/工具模式/系统回退） | ✅ |
+| `MemoryInsightPanel.tsx` | 组件 | 消息关联记忆洞察侧栏（发送前 Memory Brief + 结束后 budget/citation + brief 降级可见提示）；`brief` 缺失时根据 `injection` 状态与 `not_applied` 原因映射可执行文案（已注入/未注入/工具模式/系统回退）；移动端额外渲染非 hover 的说明文案，避免触屏端诊断信息不可达 | ✅ |
 | `PlanConfirmationCard.tsx` | 组件 | Plan-phase HITL 卡片：展示 AI 计划，提供批准/编辑/跳过三种操作。支持 Deep Research（PhaseWaiter REST）和 General Agent（LangGraph interrupt SSE resume）双路径 | ✅ |
 | `WorkflowSuggestionCard.tsx` | 组件 | 非阻塞式 Workflow 建议内联卡片：检测到复杂可拆分任务时显示，提供 Enable（激活工作流模式）和 Dismiss（忽略）操作。不阻塞标准 Agent 流 | ✅ |
 | `MessageActionBar.tsx` | 组件 | 消息操作栏：复制/朗读/Fork/记忆保存/技能提炼/Wiki保存等按钮 | ✅ |

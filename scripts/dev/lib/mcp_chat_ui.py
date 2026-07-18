@@ -49,7 +49,8 @@ class McpChatSession(CdpChatSession):
         del await_promise
         if recv_timeout <= 0:
             raise ValueError("recv_timeout must be positive")
-        healed = False
+        heal_attempts = 0
+        max_heal_attempts = 3
         while True:
             try:
                 return await asyncio.to_thread(
@@ -59,12 +60,12 @@ class McpChatSession(CdpChatSession):
                     timeout_sec=min(recv_timeout, 120.0),
                 )
             except RuntimeError as exc:
-                if not healed and is_detached_frame_error(exc):
-                    healed = True
+                if heal_attempts < max_heal_attempts and is_detached_frame_error(exc):
+                    heal_attempts += 1
                     await self._heal_detached_page()
                     continue
-                if not healed and is_mux_page_heal_error(exc):
-                    healed = True
+                if heal_attempts < max_heal_attempts and is_mux_page_heal_error(exc):
+                    heal_attempts += 1
                     await self._heal_reclaimed_page()
                     continue
                 raise

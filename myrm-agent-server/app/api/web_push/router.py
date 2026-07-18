@@ -61,5 +61,5 @@ async def unsubscribe(req: WebPushUnsubscribeRequest) -> dict[str, str]:
 async def send_test(req: WebPushTestRequest) -> dict[str, int]:
     """Send a test push notification to all registered subscriptions."""
     service = get_web_push_service()
-    delivered = await service.broadcast(title=req.title, body=req.body, url="/")
+    delivered = await service.broadcast(title=req.title, body=req.body, url=req.url)
     return {"delivered": delivered}

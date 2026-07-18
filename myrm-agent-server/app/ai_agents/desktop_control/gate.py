@@ -21,6 +21,7 @@ import asyncio
 import json
 import logging
 import uuid
+import weakref
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -71,9 +72,15 @@ class DesktopApprovalRegistry:
         pending.event.set()
         return True
 
+    @classmethod
+    def pending_snapshot(cls) -> list[str]:
+        return list(cls._pending.keys())
+
 
 class DesktopControlGate:
     """Server-side gate implementing ForegroundPermissionCallback for desktop tools."""
+
+    _live_gates: weakref.WeakSet[DesktopControlGate] = weakref.WeakSet()
 
     def __init__(
         self,
@@ -88,6 +95,18 @@ class DesktopControlGate:
         self._session_approved_apps: set[str] = set()
         self._always_approved_apps: set[str] = set()
         self._load_persisted_apps()
+        DesktopControlGate._live_gates.add(self)
+
+    def reset_runtime_approval_state(self) -> None:
+        """Clear in-memory approval caches and reload persisted always-approved apps."""
+        self._session_approved_apps.clear()
+        self._always_approved_apps.clear()
+        self._load_persisted_apps()
+
+    @classmethod
+    def reset_all_runtime_approval_state(cls) -> None:
+        for gate in list(cls._live_gates):
+            gate.reset_runtime_approval_state()
 
     def _approval_path(self) -> Path | None:
         if self._workspace_root is None:

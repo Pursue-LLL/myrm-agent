@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - ContextCompactionSnapshot: content-blind control-plane context compaction telemetry payload schema.
+- MemoryBriefStatusTelemetryEnvelope: aggregated memory brief status telemetry payload schema.
 - TelemetryPushPayload: skill quality telemetry push payload schema.
 
 [POS]
@@ -479,6 +480,33 @@ class ContextCompactionBatchPayload(BaseModel):
     """Batch payload for context compaction telemetry."""
 
     events: list[ContextCompactionTelemetryEnvelope]
+
+
+class MemoryBriefStatusTelemetryAggregate(BaseModel):
+    """Aggregated memory brief status labels for a flush window."""
+
+    phase: str
+    brief_state: str
+    brief_reason: str
+    brief_source: str
+    injection_state: str
+    injection_source: str
+    injection_reason: str
+    count: int = 0
+
+
+class MemoryBriefStatusTelemetryEnvelope(BaseModel):
+    """Detached aggregated telemetry payload for memory brief statuses."""
+
+    telemetry_subject: str
+    timestamp: str
+    aggregates: list[MemoryBriefStatusTelemetryAggregate]
+
+
+class MemoryBriefStatusBatchPayload(BaseModel):
+    """Batch payload for memory brief status telemetry."""
+
+    events: list[MemoryBriefStatusTelemetryEnvelope]
 
 
 # -----------------------------------------------------------------------------

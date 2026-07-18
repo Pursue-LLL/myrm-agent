@@ -68,8 +68,13 @@ class TestWebPushTestRequest:
         req = WebPushTestRequest()
         assert req.title == "Test Notification"
         assert "test push" in req.body.lower()
+        assert req.url == "/settings/system"
 
     def test_custom_values(self) -> None:
         req = WebPushTestRequest(title="Custom", body="Custom body")
         assert req.title == "Custom"
         assert req.body == "Custom body"
+
+    def test_custom_click_url(self) -> None:
+        req = WebPushTestRequest(url="/session-abcdef12?approval=ap-test-1")
+        assert req.url == "/session-abcdef12?approval=ap-test-1"

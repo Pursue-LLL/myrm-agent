@@ -3,7 +3,7 @@ import type { BuildOptions } from '@serwist/cli';
 const isTauriBuild = process.env.BUILD_MODE === 'tauri';
 
 const config: BuildOptions = {
-  swSrc: 'src/app/sw.ts',
+  swSrc: '.serwist/sw-inject-src.js',
   swDest: 'public/sw.js',
   globDirectory: '.next',
   globPatterns: [

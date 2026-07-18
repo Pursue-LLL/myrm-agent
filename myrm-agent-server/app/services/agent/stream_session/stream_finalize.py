@@ -13,9 +13,11 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, 
 from app.schemas.streaming import SSEEnvelope
 from app.services.agent.context_compaction_telemetry import enqueue_context_compaction_telemetry
 from app.services.agent.gateway import AgentExecutionTimeout, AgentQueueTimeout
+from app.services.agent.memory_brief_status_telemetry import enqueue_memory_brief_status_telemetry
 from app.services.agent.steering_registry import SteeringRegistry
 from app.services.agent.stream_session._memory_status_helpers import (
     build_memory_brief_status_payload,
+    observe_memory_brief_status_payload,
 )
 from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
@@ -162,20 +164,24 @@ async def finalize_agent_stream_session(
             extra_data["citations"] = citations
 
         injection: dict[str, str] | None = None
-        if citations or isinstance(preview, dict) or isinstance(brief_status, dict):
-            try:
-                manager = get_memory_manager()
-                budget = get_memory_runtime_budget()
-                if budget is not None:
-                    extra_data["memoryBudget"] = budget
-                injection = get_memory_runtime_injection()
-                if citations and manager and hasattr(manager, "record_citations"):
-                    asyncio.create_task(manager.record_citations(citations))
-            except Exception as e:
-                logger.warning("Failed to process memory hooks in finalize: %s", e)
+        try:
+            manager = get_memory_manager() if citations else None
+            budget = get_memory_runtime_budget()
+            if budget is not None:
+                extra_data["memoryBudget"] = budget
+            injection = get_memory_runtime_injection()
+            if citations and manager and hasattr(manager, "record_citations"):
+                asyncio.create_task(manager.record_citations(citations))
+        except Exception as e:
+            logger.warning("Failed to process memory hooks in finalize: %s", e)
         status_payload = build_memory_brief_status_payload(brief_status, injection)
         if status_payload is not None:
             extra_data["memoryBriefStatus"] = status_payload
+            observe_memory_brief_status_payload(phase="persist", payload=status_payload)
+            enqueue_memory_brief_status_telemetry(
+                phase="persist",
+                payload=status_payload,
+            )
 
         await ChatService.persist_assistant_message_safe(
             session.request.chat_id,
