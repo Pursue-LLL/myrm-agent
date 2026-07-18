@@ -54,6 +54,7 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'clarification_required',
   'cognitive_consolidation',
   'goal_status',
+  'memory_brief',
   'engine_limit_reached',
   'file_diff',
   'captcha_detected',

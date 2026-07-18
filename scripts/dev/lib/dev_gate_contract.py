@@ -25,6 +25,7 @@ TRANSIENT_MUX_ERROR_TOKENS: Final[tuple[str, ...]] = (
     "No target with given id",
     "No page found",
     "upstream terminated",
+    "upstream request timed out",
     "MUX_NOT_READY",
     "main frame too early",
     "Chrome MCP connection reset during",

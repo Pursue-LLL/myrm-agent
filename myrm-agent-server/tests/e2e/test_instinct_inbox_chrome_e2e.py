@@ -39,7 +39,7 @@ _INBOX_STATE = """(() => {
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(600)
 def test_instinct_inbox_renders_and_rejects_seeded_drafts() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()

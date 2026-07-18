@@ -10175,7 +10175,9 @@
     "fetchFailed": "Failed to fetch subagents",
     "teammateMessagesTitle": "Teammate messages",
     "teammateInbound": "From {from}",
-    "teammateOutbound": "To {to}"
+    "teammateOutbound": "To {to}",
+    "streamMore": "mehr",
+    "streamCollapse": "Einklappen"
   },
   "evalLab": {
     "pageTitle": "Eval-Labor",
@@ -11662,6 +11664,22 @@
     "budgetDescription": "Zeigt an, wie viel des LLM-Kontextfensters derzeit durch eingespeiste Erinnerungen und gelernte Regeln belegt ist.",
     "citationsPill": "{count} Erinnerungen zitiert",
     "citationsTitle": "Zitierte Erinnerungen",
-    "citationsDescription": "Die KI hat sich bei der Erstellung dieser Antwort ausdrücklich auf folgende Erinnerungen gestützt:"
+    "citationsDescription": "Die KI hat sich bei der Erstellung dieser Antwort ausdrücklich auf folgende Erinnerungen gestützt:",
+    "briefPill": "Memory Brief",
+    "briefTitle": "Kontext-Snapshot",
+    "briefColdStartDescription": "Für diese Runde wurde keine vorherige Erinnerung gefunden. Der Agent startet im Discovery-Modus.",
+    "briefStableSummary": "Stabiler Kontext: {instructions} Anweisungen, {rules} Regeln, {profiles} Profilfelder.",
+    "briefLearnedSummary": "Gelernter Kontext: {preferences} Präferenzen, {rules} Regeln, {corrections} Korrekturpunkte.",
+    "briefPreferenceIdPrefix": "pref",
+    "briefRuleIdPrefix": "rule",
+    "briefUnavailablePill": "Memory Brief nicht verfügbar",
+    "briefUnavailableTitle": "Erinnerungskontext nicht verfügbar",
+    "briefUnavailableDescription": "Diese Antwort wurde ohne Memory Brief erzeugt, da die Vorbereitung vorübergehend nicht möglich war.",
+    "namespaceGlobal": "Global",
+    "namespaceAgent": "Agent · {value}",
+    "namespaceChannel": "Kanal · {value}",
+    "namespaceConversation": "Aktueller Chat",
+    "namespaceTask": "Aktuelle Aufgabe",
+    "namespaceShared": "Geteilt · {value}"
   }
 }

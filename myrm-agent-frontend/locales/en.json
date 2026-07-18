@@ -7649,6 +7649,7 @@
         "mcpServersHint": "These MCP servers were found in the competitor config. They will be imported as disabled — you can enable them after review in MCP settings.",
         "mcpEnvKeysRequired": "{count} env key(s) need manual setup",
         "instructionLargeWarning": "Instruction content is ~{count} characters — importing may raise per-turn token cost; consider trimming SOUL/rules",
+        "hermesEconomyHint": "Hermes imports use the Economy agent preset with Smart Routing defaults. Auxiliary models map into your model settings automatically.",
         "providersMissingHint": "External assistant API keys were detected but no model providers are configured. Add providers in settings, or confirm import to auto-create matching slots",
         "configureProvidersLink": "Open model provider settings",
         "backupHint": "Export a memory backup before importing (recommended)",
@@ -8769,6 +8770,7 @@
     "loginDesc": "Sign in to access billing status, renewal dates, and invoices.",
     "statusOk": "Everything looks healthy. Your subscription is active.",
     "statusAttention": "Action may be required. Review your billing status.",
+    "toolGatewayNote": "Web search, image generation, and text-to-speech are included in your Work Units — no separate API keys needed in cloud mode.",
     "loading": "Loading..."
   },
   "agentEvents": {
@@ -11593,7 +11595,9 @@
     "swarmFissionPartialProgress": "{completed}/{total} succeeded, {failed} failed",
     "teammateMessagesTitle": "Teammate messages",
     "teammateInbound": "From {from}",
-    "teammateOutbound": "To {to}"
+    "teammateOutbound": "To {to}",
+    "streamMore": "more",
+    "streamCollapse": "Collapse"
   },
   "evalLab": {
     "pageTitle": "Eval Lab",
@@ -12704,7 +12708,23 @@
     "budgetDescription": "This shows how much of the LLM's context window is currently consumed by injected memories and learned rules.",
     "citationsPill": "{count} Memories Cited",
     "citationsTitle": "Cited Memories",
-    "citationsDescription": "The AI explicitly relied on the following memories to generate this response:"
+    "citationsDescription": "The AI explicitly relied on the following memories to generate this response:",
+    "briefPill": "Memory Brief",
+    "briefTitle": "Context Snapshot",
+    "briefColdStartDescription": "No prior memory was matched for this turn. The agent starts in discovery mode.",
+    "briefStableSummary": "Stable context: {instructions} instructions, {rules} rules, {profiles} profile fields.",
+    "briefLearnedSummary": "Learned context: {preferences} preferences, {rules} rules, {corrections} correction items.",
+    "briefPreferenceIdPrefix": "pref",
+    "briefRuleIdPrefix": "rule",
+    "briefUnavailablePill": "Memory Brief Unavailable",
+    "briefUnavailableTitle": "Memory context unavailable",
+    "briefUnavailableDescription": "This response was generated without a memory brief due to a temporary preparation issue.",
+    "namespaceGlobal": "Global",
+    "namespaceAgent": "Agent · {value}",
+    "namespaceChannel": "Channel · {value}",
+    "namespaceConversation": "Current Chat",
+    "namespaceTask": "Current Task",
+    "namespaceShared": "Shared · {value}"
   },
   "e2ee": {
     "secured": "E2EE",

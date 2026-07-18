@@ -38,7 +38,7 @@
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
 | `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（含 load_usage_sidecar 读取 Hermes .usage.json） | ✅ |
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |
-| `source_model_migrator.py` | 辅助 | 竞品模型配置 → Myrm 模型设置（Hermes auxiliary slots + OpenClaw default model），由 Wizard confirm 调用 | ✅ |
+| `source_model_migrator.py` | 辅助 | 竞品模型配置 → Myrm 模型设置（Hermes auxiliary slots + Smart Routing economy 推断；仅 migrated_slots 非空时启用 routing），由 Wizard confirm 调用 | ✅ |
 | `source_migration_types.py` | 核心 | 四车道迁移 DTO | ✅ |
 | `source_payload_split.py` | 核心 | payload 拆分为 instruction 与 memory 两路 | ✅ |
 | `instruction_writer.py` | 核心 | 写入 Agent.systemPrompt、personalSettings、`.myrm/rules` | ✅ |

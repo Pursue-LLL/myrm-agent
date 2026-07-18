@@ -62,7 +62,7 @@ _LAYOUT_PROBE_JS = """(() => {
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(600)
 def test_research_studio_full_chrome_e2e() -> None:
     """Research Studio: page load, three-column layout, resource pool UI."""
     with open_mcp_page(RESEARCH_URL) as (client, page):

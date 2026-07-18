@@ -17,6 +17,7 @@ from cdp_chat_support import (
     _api_provider_ready,
     chat_id_from_path,
     chat_user_message_count,
+    fetch_provider_readiness_snapshot,
     PREPARE_AUTOMATION_SEND_JS,
 )
 
@@ -26,34 +27,52 @@ class CdpChatInput(CdpChatBootstrap):
 
     async def _ensure_send_ready(self, *, timeout_sec: float = 90.0) -> dict[str, object]:
         """Prefer API readiness + E2E bridge over flaky model-picker UI automation."""
+        _ENSURE_PROVIDERS_JS = """(() => {
+          const bridge = window.__MYRM_E2E_CHAT__;
+          if (!bridge?.ensureProviders) return { ok: false, err: 'no ensureProviders' };
+          bridge.prepareAutomationSend?.();
+          return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
+        })()"""
+        _SEND_READY_PROBE_JS = """(() => {
+          const bridge = window.__MYRM_E2E_CHAT__;
+          const btn = document.querySelector('.message-send-btn');
+          return {
+            sendReady: !!bridge?.isSendReady?.(),
+            sendDisabled: !!btn?.disabled,
+            providersInitialized: !!bridge?.isProvidersInitialized?.(),
+          };
+        })()"""
+        for attempt in range(3):
+            if _api_provider_ready():
+                try:
+                    await self.evaluate(
+                        _ENSURE_PROVIDERS_JS,
+                        await_promise=True,
+                        recv_timeout=min(timeout_sec, 60.0),
+                    )
+                except (TimeoutError, RuntimeError):
+                    pass
+                probe = await self.evaluate(_SEND_READY_PROBE_JS, await_promise=False)
+                if isinstance(probe, dict) and probe.get("sendReady"):
+                    result = dict(probe)
+                    result["ok"] = True
+                    result["mode"] = "ensureProvidersRetry"
+                    result["attempt"] = attempt + 1
+                    return result
+            await asyncio.sleep(1.0 + attempt)
         if _api_provider_ready():
-            try:
-                await self.evaluate(
-                    """(() => {
-                      const bridge = window.__MYRM_E2E_CHAT__;
-                      if (!bridge?.ensureProviders) return { ok: false, err: 'no ensureProviders' };
-                      return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
-                    })()""",
-                    await_promise=True,
-                    recv_timeout=min(timeout_sec, 60.0),
-                )
-            except (TimeoutError, RuntimeError):
-                pass
             deadline = time.monotonic() + timeout_sec
             last: dict[str, object] = {"ok": False, "mode": "api-bypass"}
             while time.monotonic() < deadline:
-                probe = await self.evaluate(
-                    """(() => {
-                      const bridge = window.__MYRM_E2E_CHAT__;
-                      const btn = document.querySelector('.message-send-btn');
-                      return {
-                        sendReady: !!bridge?.isSendReady?.(),
-                        sendDisabled: !!btn?.disabled,
-                        providersInitialized: !!bridge?.isProvidersInitialized?.(),
-                      };
-                    })()""",
-                    await_promise=False,
-                )
+                try:
+                    await self.evaluate(
+                        _ENSURE_PROVIDERS_JS,
+                        await_promise=True,
+                        recv_timeout=min(timeout_sec, 60.0),
+                    )
+                except (TimeoutError, RuntimeError):
+                    pass
+                probe = await self.evaluate(_SEND_READY_PROBE_JS, await_promise=False)
                 last = probe if isinstance(probe, dict) else {"ok": False, "probeError": probe}
                 if last.get("sendReady"):
                     last["ok"] = True
@@ -77,8 +96,7 @@ class CdpChatInput(CdpChatBootstrap):
             )
             if isinstance(debug, dict):
                 last["debug"] = debug
-            # API readiness can be true while the browser provider store is still empty
-            # (common on isolated stacks). Fall back to UI model selection.
+            last["apiReadiness"] = fetch_provider_readiness_snapshot()
             return await self.ensure_model_ready(timeout_sec=timeout_sec)
         return await self.ensure_model_ready(timeout_sec=timeout_sec)
 
@@ -129,6 +147,107 @@ class CdpChatInput(CdpChatBootstrap):
             await_promise=False,
         )
         return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+
+    async def enable_computer_use(self) -> dict[str, object]:
+        await self.dismiss_modals()
+        result = await self.evaluate(
+            """(() => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (!bridge?.setCurrentBuiltinTools) {
+                return { ok: false, err: 'no builtin-tools bridge' };
+              }
+              const current = bridge.getCurrentBuiltinTools?.() ?? [];
+              const next = current.includes('computer_use')
+                ? current
+                : [...current, 'computer_use'];
+              bridge.setCurrentBuiltinTools(next);
+              return {
+                ok: true,
+                tools: bridge.getCurrentBuiltinTools?.() ?? [],
+              };
+            })()""",
+            await_promise=False,
+        )
+        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+
+    async def click_desktop_allow_once(self) -> dict[str, object]:
+        result = await self.evaluate(
+            """(() => {
+              const btn = document.querySelector('[data-testid="desktop-control-allow-once"]');
+              if (!btn || btn.disabled) {
+                return { ok: false, err: 'allow-once-not-ready' };
+              }
+              btn.click();
+              return { ok: true };
+            })()""",
+            await_promise=False,
+        )
+        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+
+    async def click_desktop_deny(self) -> dict[str, object]:
+        result = await self.evaluate(
+            """(() => {
+              const btn = document.querySelector('[data-testid="desktop-control-deny"]');
+              if (!btn || btn.disabled) {
+                return { ok: false, err: 'deny-not-ready' };
+              }
+              btn.click();
+              return { ok: true };
+            })()""",
+            await_promise=False,
+        )
+        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+
+    async def probe_desktop_approval_once(self) -> dict[str, object]:
+        probe = await self.evaluate(
+            """(() => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              const snap = bridge?.getDesktopApprovalSnapshot?.() ?? { pending: false };
+              const allowBtn = document.querySelector('[data-testid="desktop-control-allow-once"]');
+              const titleMatch = Array.from(document.querySelectorAll('p')).some((node) => {
+                const text = node.textContent || '';
+                return text.includes('需要桌面控制审批')
+                  || text.includes('Desktop control approval required');
+              });
+              const turn = bridge?.turnSnapshot?.() ?? {};
+              return {
+                pending: Boolean(snap.pending) || titleMatch,
+                requestId: snap.requestId ?? '',
+                operation: snap.operation ?? '',
+                appName: snap.appName ?? '',
+                allowVisible: Boolean(allowBtn && !allowBtn.disabled),
+                titleMatch,
+                isStreaming: Boolean(turn.isStreaming),
+                lastAssistantSample: String(turn.lastAssistantSample ?? ''),
+              };
+            })()""",
+            await_promise=False,
+        )
+        return probe if isinstance(probe, dict) else {"pending": False}
+
+    async def wait_desktop_approval_pending(
+        self,
+        *,
+        timeout_sec: float = 120.0,
+    ) -> dict[str, object]:
+        deadline = asyncio.get_event_loop().time() + timeout_sec
+        last: dict[str, object] = {"pending": False}
+        while asyncio.get_event_loop().time() < deadline:
+            probe = await self.probe_desktop_approval_once()
+            if isinstance(probe, dict):
+                last = probe
+                if probe.get("pending") and probe.get("allowVisible"):
+                    return probe
+                sample = str(probe.get("lastAssistantSample") or "")
+                if not probe.get("isStreaming") and sample and "desktop" not in sample.lower():
+                    if "control denied" not in sample.lower() and "done" not in sample.lower():
+                        return {
+                            **probe,
+                            "ok": False,
+                            "err": "model-completed-without-desktop-tools",
+                        }
+            await asyncio.sleep(0.5)
+        return {**last, "ok": False, "err": "approval-timeout"}
 
     async def send_state(self) -> dict[str, object]:
         result = await self.evaluate(
@@ -496,10 +615,12 @@ class CdpChatInput(CdpChatBootstrap):
             if exec_fill.get("ok"):
                 return exec_fill
             if int(exec_fill.get("inputLen") or 0) > 0:
+                await self._ensure_send_ready(timeout_sec=45.0)
                 ready = await self._await_fill_ready(text, timeout_sec=45.0)
                 if ready.get("ok"):
                     ready["mode"] = f"{exec_fill.get('mode', 'execCommand')}+await"
                     return ready
+            exec_fill["apiReadiness"] = fetch_provider_readiness_snapshot()
             return exec_fill
         return {"ok": False, "probeError": exec_fill}
 

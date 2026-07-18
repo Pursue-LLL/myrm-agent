@@ -20,17 +20,19 @@
 | `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态与进度 | ✅ |
 | `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、FILE_MUTATION_FAILED | ✅ |
 | `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果 | ✅ |
+| `memoryBriefEvents.ts` | 核心 | `memory_brief` 发送前记忆简报事件：创建/更新 assistant 占位消息并挂载简报快照 | ✅ |
 | `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | ✅ |
 | `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA 文本流合并 | ✅ |
 | `artifactEvents.ts` | 核心 | ARTIFACTS、UI_UPDATE（`ui_artifact` 追加、`data_update` 合并 data） | ✅ |
 | `captchaEvents.ts` | 核心 | CAPTCHA 进度展示与状态更新 | ✅ |
 | `sessionRecordingEvents.ts` | 核心 | SESSION_RECORDING 视频回放元数据 | ✅ |
 | `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、降级/切换通知 | ✅ |
-| `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存；`flushPendingGapRetry` 于 loading 落盘后自动重发 | ✅ |
+| `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存；回填 `memory_brief_snapshot_id` + `memory_brief_status`；`flushPendingGapRetry` 于 loading 落盘后自动重发 | ✅ |
 | `gapEvents.ts` | 核心 | CAPABILITY_GAP / SKILL_GAP SSE → toast 开启并重发；`pendingGapRetry` 在 stream 进行中延迟重发 | ✅ |
 | `__tests__/gapEvents.test.ts` | 测试 | gap handler 回归（含 loading 延迟重发） | ✅ |
 | `__tests__/completionEvents.pendingGapRetry.test.ts` | 测试 | MESSAGE_END 后 flush pending gap | ✅ |
 | `__tests__/agentControlEvents.pendingGapRetry.test.ts` | 测试 | ERROR/CANCEL 后 flush pending gap | ✅ |
+| `__tests__/memoryBriefEvents.test.ts` | 测试 | `memory_brief` 事件创建/更新 assistant 记忆简报状态 | ✅ |
 
 ## 依赖
 

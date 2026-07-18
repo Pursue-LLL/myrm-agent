@@ -80,6 +80,7 @@ const DesktopControlApprovalBanner: React.FC = () => {
       <div className="flex flex-wrap gap-2 justify-end">
         <button
           type="button"
+          data-testid="desktop-control-deny"
           disabled={submitting}
           className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50"
           onClick={() => void handleDecision(false)}
@@ -88,6 +89,7 @@ const DesktopControlApprovalBanner: React.FC = () => {
         </button>
         <button
           type="button"
+          data-testid="desktop-control-allow-once"
           disabled={submitting}
           className="px-3 py-1.5 text-xs rounded-lg bg-primary/90 text-primary-foreground hover:bg-primary transition-colors disabled:opacity-50"
           onClick={() => void handleDecision(true, 'once')}

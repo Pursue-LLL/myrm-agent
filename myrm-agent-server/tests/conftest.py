@@ -132,6 +132,10 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         if item.get_closest_marker("benchmark") is not None and item.get_closest_marker("performance") is None:
             item.add_marker(pytest.mark.performance)
+        if item.get_closest_marker("chrome_e2e") is not None:
+            existing = item.get_closest_marker("timeout")
+            if existing is None or int(existing.args[0]) < 900:
+                item.add_marker(pytest.mark.timeout(900))
 
 
 def _needs_browser_singleton_reset(request: pytest.FixtureRequest) -> bool:

@@ -14,12 +14,16 @@ Lock-free state policy. Callers own persistence and all external cleanup I/O.
 from __future__ import annotations
 
 import os
+import re
 import socket
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from wave_orchestrator.browser_lifecycle import cleanup_expired_browser
 from wave_orchestrator.resource_ledger import cleanup_expired_lease_resources
 from wave_orchestrator.types import LeaseRecord, OrchestratorState
+
+_AGENT_ID_NONCE_RE = re.compile(r"-[0-9a-f]{8}$")
+_DEAD_OWNER_HEARTBEAT_GRACE_SEC = 90
 
 
 def utc_now() -> datetime:
@@ -50,6 +54,56 @@ def find_active_lease(state: OrchestratorState, lease_id: str) -> LeaseRecord:
         if lease["leaseId"] == lease_id and lease["status"] == "active":
             return lease
     raise RuntimeError(f"LEASE_NOT_ACTIVE: {lease_id}")
+
+
+def _process_is_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def owner_bashpid_from_agent_id(agent_id: str) -> int | None:
+    """Parse test.sh BASHPID suffix from MYRM_E2E_RUN_ID-style agent ids."""
+    normalized = agent_id.strip()
+    if not normalized or not _AGENT_ID_NONCE_RE.search(normalized):
+        return None
+    without_nonce = normalized[: normalized.rfind("-")]
+    owner_raw = without_nonce.rsplit("-", 1)[-1]
+    try:
+        owner_pid = int(owner_raw)
+    except ValueError:
+        return None
+    return owner_pid if owner_pid > 0 else None
+
+
+def reap_abandoned_leases(
+    state: OrchestratorState,
+    now: datetime | None = None,
+    *,
+    heartbeat_grace_sec: int = _DEAD_OWNER_HEARTBEAT_GRACE_SEC,
+) -> bool:
+    """Expire leases whose owner test.sh shell exited.
+
+    Orphan pytest children may keep heartbeating after SIGTERM/SIGHUP; once the
+    session owner BASHPID is gone the lease must not keep blocking LIVE_AGENT cap.
+    """
+    del heartbeat_grace_sec  # owner-dead is authoritative; heartbeats may linger
+    changed = False
+    for lease in state["leases"]:
+        if lease["status"] != "active":
+            continue
+        owner_pid = owner_bashpid_from_agent_id(str(lease.get("agentId", "")))
+        if owner_pid is None or _process_is_alive(owner_pid):
+            continue
+        lease["status"] = "expired"
+        changed = True
+    return changed
 
 
 def reap_expired_leases(

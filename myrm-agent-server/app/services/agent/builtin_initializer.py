@@ -9,8 +9,8 @@ app.services.agent.builtin_agent_specs::_BUILTIN_AGENTS (POS: 预置智能体规
 initialize_builtin_agents: 服务启动时自动创建预置智能体
 
 [POS]
-业务层预置智能体初始化。在服务启动时幂等创建 24 个内置智能体
-（4 核心 + 2 搜索 + 5 扩展 + 13 垂直领域），
+业务层预置智能体初始化。在服务启动时幂等创建 25 个内置智能体
+（5 核心 + 2 搜索 + 5 扩展 + 13 垂直领域），
 确保用户首次使用时有可用的默认智能体覆盖常见场景。
 搜索智能体的提示词由 prompt_mode="search" 单一提供（KV Cache 稳定），
 其 system_prompt 留空以避免在 Agent 模式下经 user_instructions 重复注入。

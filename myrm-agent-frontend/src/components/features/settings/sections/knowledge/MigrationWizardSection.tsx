@@ -141,12 +141,13 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
           root: source.root,
           files: source.files.map((f) => f.path),
         };
+        const cloneFromAgentId = source.competitor === 'hermes' ? 'builtin-economy' : 'builtin-general';
         const result = await dryRunImportMemories(
           payload,
           resolveMigrationImportSource(source.competitor),
           {
           target_agent_id: targetAgentId,
-          clone_from_agent_id: 'builtin-general',
+          clone_from_agent_id: cloneFromAgentId,
           include_episodic: source.competitor === 'chatgpt' || (source.competitor === 'openclaw' && includeEpisodic),
           apply_global_instructions: true,
           },

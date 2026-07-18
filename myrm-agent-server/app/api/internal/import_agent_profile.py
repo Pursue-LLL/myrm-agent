@@ -10,7 +10,8 @@
 
 [POS]
 CP-to-sandbox internal endpoint for marketplace Agent installation and force-push updates.
-Receives a serialized Agent package and creates/updates the Agent + dependencies locally.
+Receives a serialized Agent package, enforces contract/integrity + optional CP transport
+signature verification, then creates/updates the Agent + dependencies locally.
 When `force=True`, snapshots the existing Agent before overwriting so the user can rollback.
 """
 
@@ -23,14 +24,19 @@ import secrets
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from app.core.memory.adapters.policy import memory_policy_from_dict
 from app.database.repositories.uow import UnitOfWork
 from app.services.agent.marketplace_import import import_agent_package
+from app.services.agent.marketplace_package_contract import validate_marketplace_package
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _CP_TOKEN_ENV = "CONTROL_PLANE_TELEMETRY_TOKEN"
 _CP_TOKEN_HEADER = "X-Telemetry-Token"
+_MARKETPLACE_SIGN_SECRET_ENV = "MARKETPLACE_CP_SIGNING_SECRET"
+_MARKETPLACE_REQUIRE_SIGNATURE_ENV = "MARKETPLACE_REQUIRE_CP_SIGNATURE"
+_MARKETPLACE_ENTRY_ENGINE_PARAM_KEY = "marketplace_entry_id"
 
 
 class ImportAgentProfileRequest(BaseModel):
@@ -56,6 +62,28 @@ def _verify_cp_token(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Invalid CP token")
 
 
+def _env_flag(value: str | None, *, default: bool) -> bool:
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _marketplace_signature_policy() -> tuple[bool, str | None]:
+    secret_raw = os.environ.get(_MARKETPLACE_SIGN_SECRET_ENV)
+    secret = secret_raw.strip() if isinstance(secret_raw, str) else ""
+    normalized_secret = secret or None
+    require_signature = _env_flag(
+        os.environ.get(_MARKETPLACE_REQUIRE_SIGNATURE_ENV),
+        default=normalized_secret is not None,
+    )
+    return require_signature, normalized_secret
+
+
 @router.post(
     "/api/admin/import-agent-profile",
     response_model=ImportAgentProfileResponse,
@@ -77,18 +105,51 @@ async def import_agent_profile_endpoint(
     try:
         from app.core.skills.creation.service import skill_creation_service
 
+        require_signature, signature_secret = _marketplace_signature_policy()
+        normalized_entry_id = _normalize_marketplace_entry_id(body.marketplace_entry_id)
+        validated_package = validate_marketplace_package(
+            body.package,
+            require_transport_signature=require_signature,
+            transport_secret=signature_secret,
+        )
+        normalized_package = validated_package.model_dump()
+
         if body.force:
             target_id = body.target_agent_id
+            if isinstance(target_id, str):
+                target_id = target_id.strip() or None
             if not target_id:
-                target_id = await _resolve_force_push_agent_id(body.package)
+                if normalized_entry_id is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "Force-push import requires marketplace_entry_id binding "
+                            "or explicit target_agent_id"
+                        ),
+                    )
+                target_id = await _resolve_force_push_agent_id(normalized_entry_id)
             if not target_id:
                 raise HTTPException(
                     status_code=404,
-                    detail="Installed marketplace agent not found for force-push",
+                    detail=(
+                        "Installed marketplace agent binding not found for force-push "
+                        f"(marketplace_entry_id={normalized_entry_id}). "
+                        "Please reinstall this marketplace entry in the sandbox."
+                    ),
                 )
-            return await _force_update_agent(target_id, body.package)
+            return await _force_update_agent(
+                target_id,
+                normalized_package,
+                marketplace_entry_id=normalized_entry_id,
+            )
 
-        agent_id = await import_agent_package(skill_creation_service, body.package)
+        agent_id = await import_agent_package(
+            skill_creation_service,
+            normalized_package,
+            require_transport_signature=require_signature,
+            transport_secret=signature_secret,
+            marketplace_entry_id=normalized_entry_id,
+        )
         return ImportAgentProfileResponse(agent_id=agent_id, status="installed")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -97,23 +158,67 @@ async def import_agent_profile_endpoint(
         raise HTTPException(status_code=500, detail="Import failed")
 
 
-async def _resolve_force_push_agent_id(package: dict) -> str | None:
-    """Find the locally installed agent matching a marketplace package display name."""
-    from app.services.agent.agent_service import AgentService
+def _normalize_marketplace_entry_id(entry_id: str | None) -> str | None:
+    if entry_id is None:
+        return None
+    normalized = entry_id.strip()
+    if not normalized:
+        raise HTTPException(
+            status_code=400,
+            detail="marketplace_entry_id must be a non-empty string",
+        )
+    return normalized
 
-    profile = package.get("agent_profile")
-    if not isinstance(profile, dict):
+
+async def _resolve_force_push_agent_id(marketplace_entry_id: str) -> str | None:
+    """Resolve force-push target by stable marketplace entry binding."""
+    async with UnitOfWork() as uow:
+        profiles = await uow.agent_repo.list_profiles()
+
+    matched_ids: list[str] = []
+    for profile in profiles:
+        metadata = profile.metadata
+        if not isinstance(metadata, dict):
+            continue
+        engine_params = metadata.get("engine_params")
+        if not isinstance(engine_params, dict):
+            continue
+        bound_entry_id = engine_params.get(_MARKETPLACE_ENTRY_ENGINE_PARAM_KEY)
+        if isinstance(bound_entry_id, str) and bound_entry_id == marketplace_entry_id:
+            matched_ids.append(profile.id)
+
+    if not matched_ids:
         return None
-    name = profile.get("display_name")
-    if not isinstance(name, str) or not name.strip():
-        return None
-    existing = await AgentService.get_agent_by_name(name.strip())
-    return existing.id if existing else None
+    if len(matched_ids) > 1:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Force-push target is ambiguous: multiple local agents are bound to "
+                f"marketplace_entry_id={marketplace_entry_id}. "
+                "Please set target_agent_id explicitly."
+            ),
+        )
+    return matched_ids[0]
+
+
+def _extract_model_update(profile_data: dict[str, object]) -> tuple[str | None, dict[str, object] | None]:
+    model_selection = profile_data.get("model_selection")
+    if isinstance(model_selection, dict):
+        model = model_selection.get("model")
+        if isinstance(model, str) and model.strip():
+            return model.strip(), model_selection
+    model_value = profile_data.get("model")
+    if isinstance(model_value, str) and model_value.strip():
+        model_name = model_value.strip()
+        return model_name, {"providerId": "auto", "model": model_name}
+    return None, None
 
 
 async def _force_update_agent(
     agent_id: str,
     package: dict,
+    *,
+    marketplace_entry_id: str | None = None,
 ) -> ImportAgentProfileResponse:
     """Snapshot existing Agent then overwrite with the marketplace package."""
     from app.services.agent.agent_service import AgentService
@@ -129,17 +234,42 @@ async def _force_update_agent(
     )
     logger.info("Pre-force-push snapshot %s for agent %s", snapshot_id, agent_id)
 
-    profile_data: dict = package.get("agent_profile", {})
+    profile_data_raw = package.get("agent_profile", {})
+    profile_data = profile_data_raw if isinstance(profile_data_raw, dict) else {}
     updates: dict[str, object] = {}
-    for key in ("display_name", "description", "system_prompt", "model",
-                "max_iterations", "personality_style"):
+    for key in (
+        "display_name",
+        "description",
+        "system_prompt",
+        "max_iterations",
+        "personality_style",
+    ):
         if key in profile_data:
             updates[key] = profile_data[key]
+
+    model_name, model_selection = _extract_model_update(profile_data)
+    if model_name is not None:
+        updates["model"] = model_name
+    if model_selection is not None:
+        updates["model_selection"] = model_selection
 
     if "skill_ids" in profile_data:
         updates["skills"] = profile_data["skill_ids"]
     if "skill_configs" in profile_data:
         updates["skill_configs"] = profile_data["skill_configs"]
+    if "memory_policy" in profile_data:
+        raw_memory_policy = profile_data["memory_policy"]
+        updates["memory_policy"] = (
+            memory_policy_from_dict(raw_memory_policy)
+            if isinstance(raw_memory_policy, dict)
+            else None
+        )
+    if "command_bindings" in profile_data:
+        updates["command_bindings"] = profile_data["command_bindings"]
+    if "workspace_policy" in profile_data:
+        updates["workspace_policy"] = profile_data["workspace_policy"]
+    if "cron_post_run_verify" in profile_data:
+        updates["cron_post_run_verify"] = bool(profile_data["cron_post_run_verify"])
     if "enabled_builtin_tools" in profile_data:
         from app.services.agent.builtin_tool_ids import normalize_enabled_builtin_tools
 
@@ -148,14 +278,32 @@ async def _force_update_agent(
         )
 
     metadata_keys = (
-        "mcp_ids", "mcp_tool_selections", "subagent_ids",
-        "security_overrides", "engine_params", "auto_restore_domains",
-        "openapi_services", "workspace_policy", "model_selection",
+        "mcp_ids",
+        "mcp_tool_selections",
+        "subagent_ids",
+        "security_overrides",
+        "engine_params",
+        "auto_restore_domains",
+        "openapi_services",
+        "workspace_policy",
+        "prompt_mode",
+        "suggestion_prompts",
+        "agent_type",
+        "session_policy",
+        "notify_targets",
+        "browser_source",
+        "dialog_policy",
+        "session_recording",
     )
     meta_update: dict[str, object] = {}
     for mk in metadata_keys:
         if mk in profile_data:
             meta_update[mk] = profile_data[mk]
+    if marketplace_entry_id is not None:
+        meta_update["engine_params"] = _with_marketplace_entry_binding(
+            meta_update.get("engine_params"),
+            marketplace_entry_id,
+        )
     if meta_update:
         updates["metadata"] = meta_update
 
@@ -175,3 +323,16 @@ async def _force_update_agent(
         status="force_updated",
         snapshot_id=snapshot_id,
     )
+
+
+def _with_marketplace_entry_binding(
+    engine_params: object,
+    marketplace_entry_id: str,
+) -> dict[str, object]:
+    merged: dict[str, object] = (
+        dict(engine_params)
+        if isinstance(engine_params, dict)
+        else {}
+    )
+    merged[_MARKETPLACE_ENTRY_ENGINE_PARAM_KEY] = marketplace_entry_id
+    return merged

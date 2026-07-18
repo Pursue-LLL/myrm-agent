@@ -10175,7 +10175,9 @@
     "fetchFailed": "Failed to fetch subagents",
     "teammateMessagesTitle": "Teammate messages",
     "teammateInbound": "From {from}",
-    "teammateOutbound": "To {to}"
+    "teammateOutbound": "To {to}",
+    "streamMore": "もっと見る",
+    "streamCollapse": "折りたたむ"
   },
   "evalLab": {
     "pageTitle": "評価ラボ",
@@ -11662,6 +11664,22 @@
     "budgetDescription": "LLMのコンテキストウィンドウのうち、注入されたメモリと学習ルールが占める割合を表示します。",
     "citationsPill": "{count} 件のメモリを引用",
     "citationsTitle": "引用されたメモリ",
-    "citationsDescription": "AIはこの回答を生成する際に、以下のメモリに明示的に依存しました："
+    "citationsDescription": "AIはこの回答を生成する際に、以下のメモリに明示的に依存しました：",
+    "briefPill": "メモリ概要",
+    "briefTitle": "コンテキストスナップショット",
+    "briefColdStartDescription": "このターンでは過去メモリに一致しませんでした。エージェントは探索モードで開始します。",
+    "briefStableSummary": "安定コンテキスト: 指示 {instructions} 件、ルール {rules} 件、プロフィール項目 {profiles} 件。",
+    "briefLearnedSummary": "学習コンテキスト: 嗜好 {preferences} 件、ルール {rules} 件、補正項目 {corrections} 件。",
+    "briefPreferenceIdPrefix": "pref",
+    "briefRuleIdPrefix": "rule",
+    "briefUnavailablePill": "メモリ概要は利用できません",
+    "briefUnavailableTitle": "メモリコンテキストを利用できません",
+    "briefUnavailableDescription": "この応答は一時的な準備失敗により、メモリ概要なしで生成されました。",
+    "namespaceGlobal": "グローバル",
+    "namespaceAgent": "エージェント · {value}",
+    "namespaceChannel": "チャネル · {value}",
+    "namespaceConversation": "現在のチャット",
+    "namespaceTask": "現在のタスク",
+    "namespaceShared": "共有 · {value}"
   }
 }

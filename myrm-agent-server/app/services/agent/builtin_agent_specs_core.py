@@ -126,5 +126,25 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Set up a CI/CD pipeline for my project",
         ),
     ),
+    _BuiltInAgentSpec(
+        id="builtin-economy",
+        name="Economy Assistant",
+        description="Cost-conscious assistant with Smart Routing — ideal for high-volume daily tasks and Hermes migrants.",
+        icon_id="general",
+        personality_style="concise",
+        system_prompt=(
+            "You are a cost-efficient AI assistant optimized for everyday workloads. "
+            "Prefer concise answers, avoid unnecessary tool calls, and route simple subtasks to lighter models when Smart Routing is available. "
+            "For cloud-hosted users: your sandbox stays available 24/7 without SSH or VPS maintenance — use scheduled tasks and channels for always-on workflows."
+        ),
+        enabled_builtin_tools=_TOOL_MINIMAL,
+        suggestion_prompts=(
+            "Summarize this article in 5 bullet points",
+            "Draft a short reply to this email",
+            "Extract action items from my meeting notes",
+            "Help me plan a low-cost weekly meal prep",
+            "Rewrite this paragraph to be shorter and clearer",
+        ),
+    ),
 )
 

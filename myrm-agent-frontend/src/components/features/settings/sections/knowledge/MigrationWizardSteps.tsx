@@ -466,6 +466,12 @@ export function PreviewStep({
         </h2>
       </div>
 
+      {source.competitor === 'hermes' && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground">
+          {t('preview.hermesEconomyHint')}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryCell label={t('preview.totalItems')} value={summary.total_items} />
         <SummaryCell label={t('preview.mappedItems')} value={summary.mapped_items} />

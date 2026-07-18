@@ -158,7 +158,77 @@ async def migrate_hermes_auxiliary_models(
         providers_value["defaultModelConfig"] = updates
         await config_service.set(config_key="providers", value=providers_value)
 
+    if result.migrated_slots:
+        await _enable_economy_routing_if_unset(None)
+
     return result
+
+
+def _litellm_to_primary_selection(litellm_model: str) -> dict[str, str]:
+    """Convert a LiteLLM model string to defaultModelConfig primary selection."""
+    if "/" not in litellm_model:
+        return {"providerId": "openrouter", "model": litellm_model}
+    provider_id, model_id = litellm_model.split("/", 1)
+    return {"providerId": provider_id, "model": model_id}
+
+
+def _slot_primary_selection(model_config: dict[str, Any], slot_name: str) -> dict[str, str] | None:
+    slot = model_config.get(slot_name)
+    if not isinstance(slot, dict):
+        return None
+    model_name = slot.get("model")
+    if not isinstance(model_name, str) or not model_name.strip():
+        return None
+    return _litellm_to_primary_selection(model_name.strip())
+
+
+def _routing_slot_has_primary(routing_slot: object) -> bool:
+    if not isinstance(routing_slot, dict):
+        return False
+    primary = routing_slot.get("primary")
+    return isinstance(primary, dict) and bool(primary.get("model"))
+
+
+async def _enable_economy_routing_if_unset(providers_value: dict[str, Any] | None) -> None:
+    """Enable Smart Routing defaults for Hermes migrants when not already configured."""
+    providers_record = await config_service.get("providers")
+    providers_value = (
+        providers_value
+        if isinstance(providers_value, dict)
+        else (providers_record.value if providers_record and isinstance(providers_record.value, dict) else {})
+    )
+    model_config = providers_value.get("defaultModelConfig")
+    if not isinstance(model_config, dict):
+        model_config = {}
+    routing_config = model_config.get("routingConfig")
+    if isinstance(routing_config, dict) and routing_config.get("enabled"):
+        return
+
+    empty_slot = {"primary": None, "fallback": None}
+    existing_routing = routing_config if isinstance(routing_config, dict) else {}
+    light_slot = existing_routing.get("lightModel") if isinstance(existing_routing.get("lightModel"), dict) else empty_slot
+    reasoning_slot = (
+        existing_routing.get("reasoningModel")
+        if isinstance(existing_routing.get("reasoningModel"), dict)
+        else empty_slot
+    )
+
+    light_primary = _slot_primary_selection(model_config, "liteModel")
+    if light_primary and not _routing_slot_has_primary(light_slot):
+        light_slot = {**light_slot, "primary": light_primary}
+
+    reasoning_primary = _slot_primary_selection(model_config, "routingReasoningModel")
+    if reasoning_primary and not _routing_slot_has_primary(reasoning_slot):
+        reasoning_slot = {**reasoning_slot, "primary": reasoning_primary}
+
+    model_config["routingConfig"] = {
+        "enabled": True,
+        "lightModel": light_slot or empty_slot,
+        "reasoningModel": reasoning_slot or empty_slot,
+    }
+    providers_value["defaultModelConfig"] = model_config
+    await config_service.set(config_key="providers", value=providers_value)
+    logger.info("Hermes economy pack: enabled Smart Routing defaults")
 
 
 async def migrate_openclaw_default_model(openclaw_config: dict[str, Any]) -> str | None:

@@ -16,7 +16,9 @@ import { useLayoutEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { getModelSelection } from '@/store/chat/messageRequest';
 import useChatStore from '@/store/useChatStore';
+import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
 import useProviderStore from '@/store/useProviderStore';
+import type { BuiltinToolId } from '@/store/chat/types';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
 import { markPlatformUnreachable } from '@/lib/platform-readiness';
@@ -265,6 +267,23 @@ export default function E2EChatBridge() {
         });
       },
       getGoalMode: () => useChatStore.getState().isGoalMode,
+      setCurrentBuiltinTools: (tools: BuiltinToolId[]) => {
+        flushSync(() => {
+          useChatStore.getState().setCurrentBuiltinTools([...tools]);
+        });
+      },
+      getCurrentBuiltinTools: () => [...useChatStore.getState().currentBuiltinTools],
+      getDesktopApprovalSnapshot: () => {
+        const state = useDesktopControlApprovalStore.getState();
+        return {
+          pending: state.pending,
+          requestId: state.requestId,
+          reason: state.reason,
+          operation: state.operation,
+          appName: state.appName,
+          requireAppApproval: state.requireAppApproval,
+        };
+      },
       getChatShellState: () => {
         const state = useChatStore.getState();
         return {

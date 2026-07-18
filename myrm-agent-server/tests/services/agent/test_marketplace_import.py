@@ -4,8 +4,9 @@ Tests cover:
 - Full import flow with skill/subagent/agent creation
 - Skill ID remapping
 - Subagent ID remapping + skill_ids remapping within subagents
-- Idempotent subagent de-duplication by name
+- Idempotent subagent de-duplication by stable origin key
 - Contract fail-closed validation (malformed/tampered package rejected)
+- Transport signature trust gate
 - Atomic rollback on import failure
 - Empty package import
 - _remap_ids preserves unmapped IDs
@@ -33,6 +34,7 @@ class FakeSkillSaveResult:
 class FakeAgentProfile:
     id: str
     display_name: str | None = None
+    metadata: dict[str, object] | None = None
 
 
 @dataclass
@@ -61,10 +63,14 @@ def _make_package(
     agent_profile: dict[str, object] | None = None,
     bundled_skills: list[dict[str, object]] | None = None,
     bundled_subagents: list[dict[str, object]] | None = None,
+    transport_secret: str | None = None,
 ) -> dict[str, object]:
-    from app.services.agent.marketplace_package_contract import build_marketplace_package
+    from app.services.agent.marketplace_package_contract import (
+        apply_marketplace_transport_signature,
+        build_marketplace_package,
+    )
 
-    return build_marketplace_package(
+    package = build_marketplace_package(
         agent_profile=agent_profile
         or {
             "display_name": "Test Agent",
@@ -102,6 +108,12 @@ def _make_package(
             },
         ],
     )
+    if transport_secret is not None:
+        return apply_marketplace_transport_signature(
+            package,
+            transport_secret=transport_secret,
+        )
+    return package
 
 
 @pytest.fixture
@@ -125,16 +137,22 @@ _AGENT_SVC_PATH = "app.services.agent.agent_service.AgentService"
 def patch_agent_service():
     """Patch AgentService class methods used by marketplace_import."""
     with patch(
-        f"{_AGENT_SVC_PATH}.get_agent_by_name",
-        new_callable=AsyncMock,
-        return_value=None,
-    ), patch(
         f"{_AGENT_SVC_PATH}.create_agent",
         new_callable=AsyncMock,
         side_effect=lambda data: FakeAgentProfile(
             id=f"new-{data.name.lower().replace(' ', '-')}",
             display_name=data.name,
         ),
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def patch_marketplace_origin_helpers():
+    with patch(
+        "app.services.agent.marketplace_import._find_existing_subagent_by_origin_key",
+        new_callable=AsyncMock,
+        return_value=None,
     ):
         yield
 
@@ -202,7 +220,7 @@ async def test_subagent_skill_ids_remapped(mock_skill_svc: AsyncMock, patch_agen
 
 @pytest.mark.asyncio
 async def test_subagent_idempotent_dedup(mock_skill_svc: AsyncMock):
-    """Existing subagent with same name is reused (not created again)."""
+    """Existing subagent with same origin key is reused (not created again)."""
     from app.services.agent.agent_service import AgentService
     from app.services.agent.marketplace_import import import_agent_package
 
@@ -216,13 +234,14 @@ async def test_subagent_idempotent_dedup(mock_skill_svc: AsyncMock):
             display_name=data.name,
         )
 
-    with patch.object(
-        AgentService, "get_agent_by_name",
+    with patch(
+        "app.services.agent.marketplace_import._find_existing_subagent_by_origin_key",
         new_callable=AsyncMock,
-        return_value=FakeAgentProfile(id="existing-sub-id", display_name="Sub Agent"),
+        return_value="existing-sub-id",
     ), patch.object(AgentService, "create_agent", side_effect=capture_create):
-        result = await import_agent_package(mock_skill_svc, package)
+        await import_agent_package(mock_skill_svc, package)
 
+    assert len(created_data) == 1
     main_agent_data = created_data[0]
     assert main_agent_data.name == "Test Agent"
     assert "existing-sub-id" in main_agent_data.subagent_ids
@@ -304,6 +323,242 @@ async def test_rejects_tampered_package_digest(mock_skill_svc: AsyncMock):
 
 
 @pytest.mark.asyncio
+async def test_rejects_missing_transport_signature_when_required(mock_skill_svc: AsyncMock):
+    """Require transport signature should reject unsigned package."""
+    from app.services.agent.marketplace_import import import_agent_package
+
+    package = _make_package(bundled_subagents=[])
+    with pytest.raises(ValueError, match="missing transport signature"):
+        await import_agent_package(
+            mock_skill_svc,
+            package,
+            require_transport_signature=True,
+            transport_secret="cp-sign-secret",
+        )
+
+
+@pytest.mark.asyncio
+async def test_accepts_transport_signature_when_required(
+    mock_skill_svc: AsyncMock,
+    patch_agent_service: None,
+):
+    """Signed package should pass when transport signature is required."""
+    from app.services.agent.marketplace_import import import_agent_package
+
+    package = _make_package(
+        bundled_subagents=[],
+        transport_secret="cp-sign-secret",
+    )
+    result = await import_agent_package(
+        mock_skill_svc,
+        package,
+        require_transport_signature=True,
+        transport_secret="cp-sign-secret",
+    )
+    assert result == "new-test-agent"
+
+
+@pytest.mark.asyncio
+async def test_subagent_origin_key_persisted_on_create(
+    mock_skill_svc: AsyncMock,
+):
+    """Newly created subagent should carry stable origin key in engine_params."""
+    from app.services.agent.agent_service import AgentService
+    from app.services.agent.marketplace_import import import_agent_package
+
+    package = _make_package()
+    created_data: list = []
+
+    async def capture_create(data):
+        created_data.append(data)
+        return FakeAgentProfile(
+            id=f"new-{data.name.lower().replace(' ', '-')}",
+            display_name=data.name,
+        )
+
+    with patch.object(AgentService, "create_agent", side_effect=capture_create):
+        await import_agent_package(mock_skill_svc, package)
+
+    assert len(created_data) == 2
+    subagent_data = created_data[0]
+    assert isinstance(subagent_data.engine_params, dict)
+    origin_key = subagent_data.engine_params.get("marketplace_subagent_origin_key")
+    assert isinstance(origin_key, str)
+    assert origin_key.endswith(":old-sub-1")
+
+
+@pytest.mark.asyncio
+async def test_subagent_origin_index_loaded_once_per_import(mock_skill_svc: AsyncMock):
+    """Subagent origin lookup should build index once per import run."""
+    from app.services.agent.agent_service import AgentService
+    from app.services.agent.marketplace_import import import_agent_package
+
+    package = _make_package(
+        agent_profile={
+            "display_name": "Parent Agent",
+            "description": "parent",
+            "system_prompt": "sys",
+            "skill_ids": [],
+            "subagent_ids": ["old-sub-1", "old-sub-2"],
+            "enabled_builtin_tools": [],
+            "personality_style": "professional",
+        },
+        bundled_skills=[],
+        bundled_subagents=[
+            {
+                "original_id": "old-sub-1",
+                "profile": {
+                    "display_name": "Sub Agent 1",
+                    "description": "sub",
+                    "system_prompt": "sys",
+                    "skill_ids": [],
+                    "enabled_builtin_tools": [],
+                },
+            },
+            {
+                "original_id": "old-sub-2",
+                "profile": {
+                    "display_name": "Sub Agent 2",
+                    "description": "sub",
+                    "system_prompt": "sys",
+                    "skill_ids": [],
+                    "enabled_builtin_tools": [],
+                },
+            },
+        ],
+    )
+    created_data: list = []
+
+    async def capture_create(data):
+        created_data.append(data)
+        return FakeAgentProfile(
+            id=f"new-{data.name.lower().replace(' ', '-')}",
+            display_name=data.name,
+        )
+
+    with patch(
+        "app.services.agent.marketplace_import._load_subagent_origin_index",
+        new_callable=AsyncMock,
+        return_value={},
+    ) as load_origin_index_mock, patch(
+        "app.services.agent.marketplace_import._find_existing_subagent_by_origin_key",
+        new_callable=AsyncMock,
+        side_effect=lambda origin_key, origin_index=None: (
+            origin_index.get(origin_key)
+            if isinstance(origin_index, dict)
+            else None
+        ),
+    ), patch.object(AgentService, "create_agent", side_effect=capture_create):
+        await import_agent_package(mock_skill_svc, package)
+
+    load_origin_index_mock.assert_awaited_once()
+    assert len(created_data) == 3
+
+
+@pytest.mark.asyncio
+async def test_main_agent_binds_marketplace_entry_id(mock_skill_svc: AsyncMock):
+    """Main agent should persist marketplace entry binding in engine_params."""
+    from app.services.agent.agent_service import AgentService
+    from app.services.agent.marketplace_import import import_agent_package
+
+    package = _make_package(
+        bundled_subagents=[],
+        bundled_skills=[],
+        agent_profile={
+            "display_name": "Bound Agent",
+            "description": "bound",
+            "system_prompt": "sys",
+            "skill_ids": [],
+            "subagent_ids": [],
+            "enabled_builtin_tools": [],
+        },
+    )
+    created_data: list = []
+
+    async def capture_create(data):
+        created_data.append(data)
+        return FakeAgentProfile(id="new-bound-agent", display_name=data.name)
+
+    with patch.object(AgentService, "create_agent", side_effect=capture_create):
+        await import_agent_package(
+            mock_skill_svc,
+            package,
+            marketplace_entry_id="entry-abc123",
+        )
+
+    assert len(created_data) == 1
+    created = created_data[0]
+    assert isinstance(created.engine_params, dict)
+    assert created.engine_params.get("marketplace_entry_id") == "entry-abc123"
+
+
+@pytest.mark.asyncio
+async def test_profile_fidelity_fields_mapped(mock_skill_svc: AsyncMock):
+    """Import should preserve high-value profile fields beyond base IDs."""
+    from app.services.agent.agent_service import AgentService
+    from app.services.agent.marketplace_import import import_agent_package
+
+    package = _make_package(
+        agent_profile={
+            "display_name": "Rich Agent",
+            "description": "rich desc",
+            "system_prompt": "rich prompt",
+            "skill_ids": [],
+            "subagent_ids": [],
+            "enabled_builtin_tools": ["web_search"],
+            "personality_style": "professional",
+            "model_selection": {"providerId": "openai", "model": "gpt-4.1"},
+            "workspace_policy": "READ_ONLY_SANDBOX",
+            "engine_params": {"max_tool_calls": 7},
+            "auto_restore_domains": ["example.com"],
+            "openapi_services": [{"name": "weather", "schema": {"openapi": "3.0.0"}}],
+            "command_bindings": [{
+                "command_name": "daily-report",
+                "skill_ids": [],
+                "description": "desc",
+                "aliases": ["report"],
+                "instruction": "run",
+            }],
+            "security_overrides": {"allow_bash": False},
+            "prompt_mode": "lean",
+            "notify_targets": [{"channel": "slack", "recipient_id": "U123"}],
+            "browser_source": "auto",
+            "dialog_policy": "smart",
+            "session_recording": "off",
+            "cron_post_run_verify": True,
+        },
+        bundled_skills=[],
+        bundled_subagents=[],
+    )
+    created_data: list = []
+
+    async def capture_create(data):
+        created_data.append(data)
+        return FakeAgentProfile(id="new-rich-agent", display_name=data.name)
+
+    with patch.object(AgentService, "create_agent", side_effect=capture_create):
+        await import_agent_package(mock_skill_svc, package)
+
+    assert len(created_data) == 1
+    created = created_data[0]
+    assert created.model_selection is not None
+    assert created.model_selection.model == "gpt-4.1"
+    assert created.workspace_policy == "READ_ONLY_SANDBOX"
+    assert created.engine_params == {"max_tool_calls": 7}
+    assert created.auto_restore_domains == ["example.com"]
+    assert created.openapi_services == [{"name": "weather", "schema": {"openapi": "3.0.0"}}]
+    assert created.command_bindings is not None
+    assert created.command_bindings[0].command_name == "daily-report"
+    assert created.security_overrides == {"allow_bash": False}
+    assert created.prompt_mode == "lean"
+    assert created.notify_targets == [{"channel": "slack", "recipient_id": "U123"}]
+    assert created.browser_source == "auto"
+    assert created.dialog_policy == "smart"
+    assert created.session_recording == "off"
+    assert created.cron_post_run_verify is True
+
+
+@pytest.mark.asyncio
 async def test_atomic_rollback_skills_when_main_agent_creation_fails(mock_skill_svc: AsyncMock):
     """When main Agent creation fails, imported skills must be rolled back."""
     from app.services.agent.agent_service import AgentService
@@ -338,10 +593,6 @@ async def test_atomic_rollback_subagent_and_skill_when_main_creation_fails(mock_
         AgentService,
         "create_agent",
         new=AsyncMock(side_effect=create_side_effect),
-    ), patch.object(
-        AgentService,
-        "get_agent_by_name",
-        new=AsyncMock(return_value=None),
     ), patch.object(
         AgentService,
         "delete_agent",

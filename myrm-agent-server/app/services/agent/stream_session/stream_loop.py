@@ -43,10 +43,34 @@ class ApprovalTimeoutHolder:
     value: dict[str, object] | None = None
 
 
+def _normalize_memory_budget(raw: object) -> dict[str, int] | None:
+    if not isinstance(raw, dict):
+        return None
+    used = raw.get("used")
+    total = raw.get("total")
+    if not isinstance(used, (int, float)) or not isinstance(total, (int, float)):
+        return None
+    return {
+        "used": max(0, int(used)),
+        "total": max(0, int(total)),
+    }
+
+
 async def iter_agent_stream_chunks(
     session: AgentStreamSession,
     approval: ApprovalTimeoutHolder,
 ) -> AsyncGenerator[str, None]:
+    if session.request.resume_value is None:
+        preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
+        if isinstance(preview, dict):
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "memory_brief",
+                    "messageId": session.params.message_id,
+                    "data": preview,
+                }
+            ).to_sse_chunk()
+
     stream: AsyncIterable[str | dict[str, object]]
     if session.request.action_mode == "deep_research":
         stream = create_deep_research_stream(session.params, session.cancel_token, session.research_model_cfg)
@@ -246,11 +270,39 @@ async def iter_agent_stream_chunks(
                         if citations:
                             chunk["citations"] = citations
 
-                        from myrm_agent_harness.api.hooks import get_memory_manager
+                        preview = (
+                            session.extra_context.get("memory_brief_preview")
+                            if isinstance(session.extra_context, dict)
+                            else None
+                        )
+                        if isinstance(preview, dict):
+                            snapshot_id = preview.get("snapshot_id")
+                            if isinstance(snapshot_id, str) and snapshot_id.strip():
+                                chunk["memory_brief_snapshot_id"] = snapshot_id.strip()
+                        brief_status = (
+                            session.extra_context.get("memory_brief_status")
+                            if isinstance(session.extra_context, dict)
+                            else None
+                        )
+                        if citations or isinstance(preview, dict) or isinstance(brief_status, dict):
+                            from myrm_agent_harness.api.hooks import get_memory_manager
 
-                        manager = get_memory_manager()
-                        if manager and hasattr(manager, "_last_budget"):
-                            chunk["memoryBudget"] = manager._last_budget
+                            manager = get_memory_manager()
+                            budget = _normalize_memory_budget(
+                                getattr(manager, "_last_budget", None)
+                            )
+                            if budget is not None:
+                                chunk["memoryBudget"] = budget
+                        if isinstance(brief_status, dict):
+                            state = brief_status.get("state")
+                            reason = brief_status.get("reason")
+                            if state == "ready":
+                                chunk["memory_brief_status"] = {"state": "ready"}
+                            elif state == "skipped":
+                                payload: dict[str, str] = {"state": "skipped"}
+                                if isinstance(reason, str) and reason in {"timeout", "error"}:
+                                    payload["reason"] = reason
+                                chunk["memory_brief_status"] = payload
                     except Exception as e:
                         logger.warning("Failed to inject memory insights into message_end: %s", e)
 

@@ -142,11 +142,19 @@ export interface ImportedAgent {
  */
 export async function importMarketplaceAgent(
   profileData: Record<string, unknown>,
+  options?: { marketplaceEntryId?: string },
 ): Promise<ImportedAgent> {
+  const marketplaceEntryId = options?.marketplaceEntryId?.trim();
+  const payload = marketplaceEntryId
+    ? {
+        package: profileData,
+        marketplace_entry_id: marketplaceEntryId,
+      }
+    : profileData;
   const res = await fetch(`${getBackendUrl()}/api/v1/user-agents/marketplace-import`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify(profileData),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Marketplace import failed: ${res.status}`);
   const json = await res.json();

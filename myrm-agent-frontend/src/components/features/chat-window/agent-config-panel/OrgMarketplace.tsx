@@ -100,7 +100,10 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
     setInstallingId(entry.id);
     try {
       const result = await installFromMarketplace(entry.id);
-      const agent = await importMarketplaceAgent(result.profile_data);
+      const agent = await importMarketplaceAgent(
+        result.profile_data,
+        { marketplaceEntryId: result.entry_id },
+      );
       toast.success(t('installSuccess'));
       if (onInstalled) {
         onInstalled(agent.id);

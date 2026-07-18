@@ -258,6 +258,42 @@ class TestMigrateHermesAuxiliaryModels:
         assert "unknown_hermes_task" in result.skipped_tasks
 
     @pytest.mark.asyncio()
+    async def test_enables_routing_with_inferred_slots(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _mock_local(monkeypatch)
+        captured = _mock_config(monkeypatch, existing_providers={})
+
+        await migrate_hermes_auxiliary_models({
+            "auxiliary": {
+                "compression": {"provider": "openrouter", "model": "meta-llama/llama-3.3-8b-instruct"},
+                "kanban_decomposer": {"provider": "openrouter", "model": "deepseek/deepseek-r1"},
+            },
+        })
+
+        routing = captured["value"]["defaultModelConfig"]["routingConfig"]
+        assert routing["enabled"] is True
+        assert routing["lightModel"]["primary"] == {
+            "providerId": "meta-llama",
+            "model": "llama-3.3-8b-instruct",
+        }
+        assert routing["reasoningModel"]["primary"] == {
+            "providerId": "deepseek",
+            "model": "deepseek-r1",
+        }
+
+    @pytest.mark.asyncio()
+    async def test_skips_routing_when_no_migrated_slots(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _mock_local(monkeypatch)
+        captured = _mock_config(monkeypatch, existing_providers={})
+
+        result = await migrate_hermes_auxiliary_models({
+            "auxiliary": {
+                "unknown_hermes_task": {"provider": "openai", "model": "gpt-4o"},
+            },
+        })
+        assert result.migrated_slots == {}
+        assert captured == {}
+
+    @pytest.mark.asyncio()
     async def test_cloud_mode_returns_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(f"{MODULE}.is_local_mode", lambda: False)
 

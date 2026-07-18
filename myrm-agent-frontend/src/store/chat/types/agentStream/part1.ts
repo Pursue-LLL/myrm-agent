@@ -12,6 +12,7 @@
  */
 
 import type { Artifact } from '../artifacts';
+import type { RecoveryAction } from '../progress';
 import type { Source } from '../sources';
 import type { TokenUsage } from '../tokens';
 // ---------------------------------------------------------------------------
@@ -46,6 +47,7 @@ export const AgentEventType = {
   RATE_LIMIT_THROTTLED: 'rate_limit_throttled',
   SUBAGENT_STATUS_UPDATE: 'subagent_status_update',
   CATCHUP_SNAPSHOT: 'catchup_snapshot',
+  MEMORY_BRIEF: 'memory_brief',
   REASONING: 'reasoning',
   STATUS: 'status',
   TOOLS_SNAPSHOT: 'tools_snapshot',

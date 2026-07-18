@@ -25,6 +25,19 @@ from app.services.agent.streaming_support.sse_helpers import (
 logger = logging.getLogger(__name__)
 
 
+def _normalize_memory_budget(raw: object) -> dict[str, int] | None:
+    if not isinstance(raw, dict):
+        return None
+    used = raw.get("used")
+    total = raw.get("total")
+    if not isinstance(used, (int, float)) or not isinstance(total, (int, float)):
+        return None
+    return {
+        "used": max(0, int(used)),
+        "total": max(0, int(total)),
+    }
+
+
 async def yield_stream_exception_chunks(
     session: AgentStreamSession,
     exc: BaseException,
@@ -138,6 +151,26 @@ async def finalize_agent_stream_session(
 
         content = session.collector.content
         extra_data = session.collector.extra_data or {}
+        preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
+        if isinstance(preview, dict):
+            snapshot_id = preview.get("snapshot_id")
+            if isinstance(snapshot_id, str) and snapshot_id.strip():
+                extra_data["memoryBriefSnapshotId"] = snapshot_id.strip()
+        brief_status = (
+            session.extra_context.get("memory_brief_status")
+            if isinstance(session.extra_context, dict)
+            else None
+        )
+        if isinstance(brief_status, dict):
+            state = brief_status.get("state")
+            reason = brief_status.get("reason")
+            if state == "ready":
+                extra_data["memoryBriefStatus"] = {"state": "ready"}
+            elif state == "skipped":
+                status_payload: dict[str, str] = {"state": "skipped"}
+                if isinstance(reason, str) and reason in {"timeout", "error"}:
+                    status_payload["reason"] = reason
+                extra_data["memoryBriefStatus"] = status_payload
 
         # Parse and strip citations
         citations = list(set(re.findall(r"<cite:([^>]+)>", content)))
@@ -145,13 +178,14 @@ async def finalize_agent_stream_session(
             content = re.sub(r"<cite:[^>]+>", "", content)
             extra_data["citations"] = citations
 
+        if citations or isinstance(preview, dict) or isinstance(brief_status, dict):
             try:
                 manager = get_memory_manager()
-                if manager:
-                    if citations and hasattr(manager, "record_citations"):
-                        asyncio.create_task(manager.record_citations(citations))
-                    if hasattr(manager, "_last_budget"):
-                        extra_data["memoryBudget"] = manager._last_budget
+                budget = _normalize_memory_budget(getattr(manager, "_last_budget", None))
+                if budget is not None:
+                    extra_data["memoryBudget"] = budget
+                if citations and manager and hasattr(manager, "record_citations"):
+                    asyncio.create_task(manager.record_citations(citations))
             except Exception as e:
                 logger.warning("Failed to process memory hooks in finalize: %s", e)
 

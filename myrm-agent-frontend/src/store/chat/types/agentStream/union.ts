@@ -15,21 +15,13 @@ import type {
   ApprovalRequiredStreamEvent,
   ArtifactContentStreamEvent,
   ArtifactsStreamEvent,
-  CaptchaStreamEvent,
   ClarificationRequiredStreamEvent,
   ErrorStreamEvent,
-  MessageEndStreamEvent,
   MessageStreamEvent,
-  ModelEscalatedStreamEvent,
-  ModelFailoverStreamEvent,
-  ModelRecoveryStreamEvent,
   RateLimitThrottledStreamEvent,
   RateLimitUpdatedStreamEvent,
   RateLimitWarningStreamEvent,
-  ReasoningStreamEvent,
-  RoutingDecisionStreamEvent,
   SourcesStreamEvent,
-  StatusStreamEvent,
   SteeringStreamEvent,
   TasksStepsStreamEvent,
   TokenUsageStreamEvent,
@@ -43,21 +35,24 @@ import type {
   UIUpdateStreamEvent,
 } from './part1';
 import type {
-  BrowserViewUpdateStreamEvent,
+  CaptchaStreamEvent,
   CatchupSnapshotStreamEvent,
-  GoalStatusStreamEvent,
   ContextOverflowResetStreamEvent,
   ContextReferenceWarningStreamEvent,
   DagStateUpdateStreamEvent,
-  DesktopViewUpdateStreamEvent,
-  FileDiffStreamEvent,
-  FileMutationFailedStreamEvent,
-  FissionTopologyUpdateStreamEvent,
+  GoalStatusStreamEvent,
   IterationLimitReachedStreamEvent,
   MascotXpUpdateStreamEvent,
+  MemoryBriefStreamEvent,
+  MessageEndStreamEvent,
+  ModelEscalatedStreamEvent,
+  ModelFailoverStreamEvent,
+  ModelRecoveryStreamEvent,
   PrivacyLevelStreamEvent,
   PrivacyRouteStreamEvent,
-  PtcNotifyStreamEvent,
+  ReasoningStreamEvent,
+  RoutingDecisionStreamEvent,
+  StatusStreamEvent,
   SubagentCompletionStreamEvent,
   SubagentLogStreamEvent,
   SubagentProgressStreamEvent,
@@ -65,10 +60,18 @@ import type {
   SubagentStatusUpdateStreamEvent,
   TeammateMessageStreamEvent,
   ToolFallbackStreamEvent,
-  ToolImageOutputStreamEvent,
-  ToolProgressStreamEvent,
   ToolsSnapshotStreamEvent,
 } from './part2';
+import type {
+  BrowserViewUpdateStreamEvent,
+  DesktopViewUpdateStreamEvent,
+  FileDiffStreamEvent,
+  FileMutationFailedStreamEvent,
+  FissionTopologyUpdateStreamEvent,
+  PtcNotifyStreamEvent,
+  ToolImageOutputStreamEvent,
+  ToolProgressStreamEvent,
+} from './part3';
 
 export type AgentStreamEvent =
   | CatchupSnapshotStreamEvent
@@ -94,6 +97,7 @@ export type AgentStreamEvent =
   | ToolCancelledStreamEvent
   | TokenUsageStreamEvent
   | MessageStreamEvent
+  | MemoryBriefStreamEvent
   | ArtifactsStreamEvent
   | ArtifactContentStreamEvent
   | UIUpdateStreamEvent

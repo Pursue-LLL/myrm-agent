@@ -26,7 +26,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Mapping
 
 from app.services.agent.marketplace_package_contract import (
     MarketplaceBundledSkillContract,
@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from app.core.skills.creation.service import SkillCreationService
 
 logger = logging.getLogger(__name__)
+_SUBAGENT_ORIGIN_ENGINE_PARAM_KEY = "marketplace_subagent_origin_key"
+_MARKETPLACE_ENTRY_ENGINE_PARAM_KEY = "marketplace_entry_id"
 
 
 @dataclass(slots=True)
@@ -52,6 +54,10 @@ class _ImportMutationState:
 async def import_agent_package(
     skill_svc: "SkillCreationService",
     package: dict[str, object],
+    *,
+    require_transport_signature: bool = False,
+    transport_secret: str | None = None,
+    marketplace_entry_id: str | None = None,
 ) -> str:
     """Import a marketplace package into the local sandbox.
 
@@ -62,19 +68,33 @@ async def import_agent_package(
     Returns:
         New Agent ID.
     """
-    validated_package = validate_marketplace_package(package)
+    validated_package = validate_marketplace_package(
+        package,
+        require_transport_signature=require_transport_signature,
+        transport_secret=transport_secret,
+    )
+    normalized_entry_id = _normalize_marketplace_entry_id(marketplace_entry_id)
     agent_profile = validated_package.agent_profile.model_dump()
     bundled_skills = validated_package.bundled_skills
     bundled_subagents = validated_package.bundled_subagents
+    package_payload_sha256 = validated_package.trust.payload_sha256
 
     _preflight_skill_name_conflicts(skill_svc, bundled_skills)
 
     state = _ImportMutationState()
     try:
         skill_id_map = await _install_skills(skill_svc, bundled_skills, state)
-        subagent_id_map = await _create_subagents(bundled_subagents, skill_id_map, state)
+        subagent_id_map = await _create_subagents(
+            bundled_subagents,
+            skill_id_map,
+            package_payload_sha256,
+            state,
+        )
         remapped_profile = _remap_ids(agent_profile, skill_id_map, subagent_id_map)
-        new_agent_id = await _create_agent(remapped_profile)
+        new_agent_id = await _create_agent(
+            remapped_profile,
+            marketplace_entry_id=normalized_entry_id,
+        )
         state.created_agent_id = new_agent_id
     except Exception as exc:
         rollback_errors = await _rollback_created_entities(skill_svc, state)
@@ -156,43 +176,53 @@ async def _install_skills(
 async def _create_subagents(
     bundled_subagents: list[MarketplaceBundledSubagentContract],
     skill_id_map: dict[str, str],
+    package_payload_sha256: str,
     state: _ImportMutationState,
 ) -> dict[str, str]:
     """Create Subagents and return old_id -> new_id mapping.
 
-    Uses AgentService.get_agent_by_name for idempotent de-duplication.
-    Remaps skill_ids using the provided mapping.
+    Uses stable marketplace origin keys for de-duplication to avoid
+    name-collision misbinding across unrelated packages.
     """
     from app.database.dto import AgentCreate
     from app.services.agent.agent_service import AgentService
 
     id_map: dict[str, str] = {}
+    origin_index = await _load_subagent_origin_index()
 
     for sub_def in bundled_subagents:
         profile = sub_def.profile
         name = profile.display_name
+        remapped_skill_ids = [skill_id_map.get(sid, sid) for sid in profile.skill_ids]
+        origin_key = _build_subagent_origin_key(
+            package_payload_sha256=package_payload_sha256,
+            original_subagent_id=sub_def.original_id,
+        )
 
-        existing = await AgentService.get_agent_by_name(name)
-        if existing:
-            id_map[sub_def.original_id] = existing.id
+        existing_id = await _find_existing_subagent_by_origin_key(
+            origin_key,
+            origin_index=origin_index,
+        )
+        if existing_id is not None:
+            id_map[sub_def.original_id] = existing_id
             continue
 
-        remapped_skill_ids = [skill_id_map.get(sid, sid) for sid in profile.skill_ids]
-
-        agent_data = AgentCreate(
-            name=name,
-            description=profile.description or "",
-            system_prompt=profile.system_prompt or "",
-            skill_ids=remapped_skill_ids,
-            mcp_ids=profile.mcp_ids,
-            mcp_tool_selections=profile.mcp_tool_selections,
-            enabled_builtin_tools=profile.enabled_builtin_tools or [],
-            subagent_ids=[],
-            is_built_in=False,
+        raw_profile = profile.model_dump()
+        raw_profile["skill_ids"] = remapped_skill_ids
+        raw_profile["engine_params"] = _with_subagent_origin_key(
+            raw_profile.get("engine_params"),
+            origin_key,
         )
+        agent_payload = _agent_create_payload_from_profile(
+            raw_profile,
+            fallback_name=name,
+            is_subagent=True,
+        )
+        agent_data = AgentCreate.model_validate(agent_payload)
         new_agent = await AgentService.create_agent(agent_data)
         id_map[sub_def.original_id] = new_agent.id
         state.created_subagent_ids.append(new_agent.id)
+        origin_index[origin_key] = new_agent.id
 
     return id_map
 
@@ -220,26 +250,181 @@ def _remap_ids(
     return remapped
 
 
-async def _create_agent(profile: dict[str, object]) -> str:
+async def _create_agent(
+    profile: dict[str, object],
+    *,
+    marketplace_entry_id: str | None = None,
+) -> str:
     """Create the main Agent from imported profile data."""
     from app.database.dto import AgentCreate
     from app.services.agent.agent_service import AgentService
 
-    agent_data = AgentCreate(
-        name=profile.get("display_name") or "Imported Agent",
-        description=profile.get("description", ""),
-        system_prompt=profile.get("system_prompt", ""),
-        skill_ids=profile.get("skill_ids", []),
-        mcp_ids=profile.get("mcp_ids", []),
-        mcp_tool_selections=profile.get("mcp_tool_selections"),
-        enabled_builtin_tools=profile.get("enabled_builtin_tools", []),
-        subagent_ids=profile.get("subagent_ids", []),
-        personality_style=profile.get("personality_style", "professional"),
-        max_iterations=profile.get("max_iterations"),
-        is_built_in=False,
+    profile_payload = dict(profile)
+    profile_payload["engine_params"] = _with_marketplace_entry_id(
+        profile_payload.get("engine_params"),
+        marketplace_entry_id,
     )
+    agent_payload = _agent_create_payload_from_profile(
+        profile_payload,
+        fallback_name="Imported Agent",
+        is_subagent=False,
+    )
+    agent_data = AgentCreate.model_validate(agent_payload)
     new_agent = await AgentService.create_agent(agent_data)
     return new_agent.id
+
+
+def _agent_create_payload_from_profile(
+    profile: Mapping[str, object],
+    *,
+    fallback_name: str,
+    is_subagent: bool,
+) -> dict[str, object]:
+    display_name = profile.get("display_name")
+    resolved_name = display_name if isinstance(display_name, str) and display_name.strip() else fallback_name
+    payload: dict[str, object] = {
+        "name": resolved_name,
+        "description": profile.get("description") or "",
+        "system_prompt": profile.get("system_prompt") or "",
+        "skill_ids": profile.get("skill_ids", []),
+        "mcp_ids": profile.get("mcp_ids", []),
+        "mcp_tool_selections": profile.get("mcp_tool_selections"),
+        "enabled_builtin_tools": profile.get("enabled_builtin_tools"),
+        "subagent_ids": [] if is_subagent else profile.get("subagent_ids", []),
+        "personality_style": profile.get("personality_style", "professional"),
+        "max_iterations": profile.get("max_iterations"),
+        "is_built_in": False,
+    }
+
+    model_selection = _derive_model_selection_payload(profile)
+    if model_selection is not None:
+        payload["model_selection"] = model_selection
+
+    for optional_key in (
+        "skill_configs",
+        "security_overrides",
+        "workspace_policy",
+        "memory_policy",
+        "engine_params",
+        "auto_restore_domains",
+        "openapi_services",
+        "command_bindings",
+        "prompt_mode",
+        "agent_type",
+        "allow_discovery",
+        "notify_targets",
+        "browser_source",
+        "dialog_policy",
+        "session_recording",
+        "cron_post_run_verify",
+        "suggestion_prompts",
+        "home_directory",
+    ):
+        if optional_key in profile:
+            value = profile[optional_key]
+            if value is not None:
+                payload[optional_key] = value
+
+    if is_subagent:
+        payload["subagent_ids"] = []
+        payload["agent_type"] = "individual"
+
+    return payload
+
+
+def _derive_model_selection_payload(profile: Mapping[str, object]) -> dict[str, object] | None:
+    raw_model_selection = profile.get("model_selection")
+    if isinstance(raw_model_selection, dict):
+        model_value = raw_model_selection.get("model")
+        if isinstance(model_value, str) and model_value.strip():
+            return raw_model_selection
+
+    model_value = profile.get("model")
+    if isinstance(model_value, str) and model_value.strip():
+        return {
+            "providerId": "auto",
+            "model": model_value.strip(),
+        }
+    return None
+
+
+def _build_subagent_origin_key(
+    *,
+    package_payload_sha256: str,
+    original_subagent_id: str,
+) -> str:
+    return f"{package_payload_sha256}:{original_subagent_id}"
+
+
+def _with_subagent_origin_key(
+    engine_params: object,
+    origin_key: str,
+) -> dict[str, object]:
+    merged: dict[str, object] = (
+        dict(engine_params)
+        if isinstance(engine_params, dict)
+        else {}
+    )
+    merged[_SUBAGENT_ORIGIN_ENGINE_PARAM_KEY] = origin_key
+    return merged
+
+
+def _normalize_marketplace_entry_id(entry_id: str | None) -> str | None:
+    if entry_id is None:
+        return None
+    normalized = entry_id.strip()
+    if not normalized:
+        raise ValueError("marketplace_entry_id must be a non-empty string when provided")
+    return normalized
+
+
+def _with_marketplace_entry_id(
+    engine_params: object,
+    marketplace_entry_id: str | None,
+) -> dict[str, object] | None:
+    if marketplace_entry_id is None:
+        if isinstance(engine_params, dict):
+            return dict(engine_params)
+        return None
+    merged: dict[str, object] = (
+        dict(engine_params)
+        if isinstance(engine_params, dict)
+        else {}
+    )
+    merged[_MARKETPLACE_ENTRY_ENGINE_PARAM_KEY] = marketplace_entry_id
+    return merged
+
+
+async def _find_existing_subagent_by_origin_key(
+    origin_key: str,
+    *,
+    origin_index: Mapping[str, str] | None = None,
+) -> str | None:
+    if origin_index is not None:
+        return origin_index.get(origin_key)
+
+    loaded_origin_index = await _load_subagent_origin_index()
+    return loaded_origin_index.get(origin_key)
+
+
+async def _load_subagent_origin_index() -> dict[str, str]:
+    from app.database.repositories.uow import UnitOfWork
+
+    async with UnitOfWork() as uow:
+        profiles = await uow.agent_repo.list_profiles()
+
+    index: dict[str, str] = {}
+    for profile in profiles:
+        metadata = profile.metadata
+        if not isinstance(metadata, dict):
+            continue
+        engine_params = metadata.get("engine_params")
+        if not isinstance(engine_params, dict):
+            continue
+        candidate = engine_params.get(_SUBAGENT_ORIGIN_ENGINE_PARAM_KEY)
+        if isinstance(candidate, str) and candidate:
+            index[candidate] = profile.id
+    return index
 
 
 def _result_bool(result: object, field_name: str) -> bool | None:

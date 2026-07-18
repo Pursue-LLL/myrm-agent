@@ -46,6 +46,30 @@ const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
         'Vielseitiger KI-Assistent für alltägliche Aufgaben — Schreiben, Analyse, Q&A, Brainstorming und mehr.',
     },
   },
+  'builtin-economy': {
+    en: {
+      name: 'Economy Assistant',
+      description:
+        'Cost-conscious assistant with Smart Routing — ideal for high-volume daily tasks and Hermes migrants.',
+    },
+    zh: {
+      name: '省成本助手',
+      description: '面向高频日常任务的省成本智能体，内置 Smart Routing，适合 Hermes 迁移用户。',
+    },
+    ja: {
+      name: 'エコノミーアシスタント',
+      description: 'Smart Routing 対応の低コストアシスタント。日常タスクと Hermes 移行ユーザー向け。',
+    },
+    ko: {
+      name: '절약형 어시스턴트',
+      description: 'Smart Routing 기반 비용 절감 어시스턴트. 일상 작업 및 Hermes 이전 사용자용.',
+    },
+    de: {
+      name: 'Economy-Assistent',
+      description:
+        'Kostenbewusster Assistent mit Smart Routing — ideal für häufige Alltagsaufgaben und Hermes-Migranten.',
+    },
+  },
   'builtin-writer': {
     en: {
       name: 'Content Creator',

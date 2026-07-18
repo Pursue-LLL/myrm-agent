@@ -24,7 +24,7 @@ interface ApprovalListResponse {
   approvals?: Record<string, unknown>[];
 }
 
-async function fetchPendingApprovals(): Promise<ApprovalPayload[]> {
+export async function fetchPendingApprovals(): Promise<ApprovalPayload[]> {
   if (isLocalMode()) {
     const ready = await whenDatabaseReady();
     if (!ready) {

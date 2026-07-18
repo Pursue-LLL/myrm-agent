@@ -613,6 +613,12 @@ async def convert_to_general_agent_params(
             )
             tool_gateway_config["use_gateway"] = False
 
+    from app.platform_utils.sandbox.tool_gateway import merge_tool_gateway_config
+
+    tool_gateway_config = merge_tool_gateway_config(
+        tool_gateway_config if isinstance(tool_gateway_config, dict) else None
+    )
+
     if request.regenerate_instruction:
         regen_suffix = f"\n\n[Regeneration guidance: {request.regenerate_instruction}]"
         user_instructions = f"{user_instructions}{regen_suffix}" if user_instructions else regen_suffix.strip()

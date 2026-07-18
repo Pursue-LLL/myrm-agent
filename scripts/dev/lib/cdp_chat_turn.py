@@ -6,13 +6,16 @@ import asyncio
 import json
 import time
 
+import cdp_chat_support
 from cdp_chat_submit import CdpChatSubmit
-from cdp_chat_support import chat_id_from_path, chat_messages_have_ok, chat_user_message_count
 from cdp_chat_support import (
     BRIDGE_TURN_SNAPSHOT_JS,
     PREPARE_AUTOMATION_SEND_JS,
     SELECT_FIRST_ENABLED_MODEL_JS,
     SELECT_MIMO_MODEL_JS,
+    chat_id_from_path,
+    chat_messages_have_ok,
+    fetch_provider_readiness_snapshot,
 )
 from e2e_wave_ledger import maybe_register_e2e_chat
 
@@ -88,7 +91,7 @@ class CdpChatTurn(CdpChatSubmit):
             )
             if chat_id:
                 try:
-                    if chat_user_message_count(chat_id) >= min_user_msgs:
+                    if cdp_chat_support.chat_user_message_count(chat_id) >= min_user_msgs:
                         last["chatId"] = chat_id
                         last["okViaApi"] = True
                         return last
@@ -380,7 +383,7 @@ class CdpChatTurn(CdpChatSubmit):
             chat_id = await self.bridge_chat_id()
         if chat_id:
             try:
-                baseline_user_msgs = chat_user_message_count(chat_id)
+                baseline_user_msgs = cdp_chat_support.chat_user_message_count(chat_id)
             except OSError:
                 baseline_user_msgs = 0
         self._baseline_user_msgs = baseline_user_msgs
@@ -419,13 +422,20 @@ class CdpChatTurn(CdpChatSubmit):
                 )
             fill = await self.fill_input(text)
             if not fill.get("ok"):
-                raise RuntimeError(f"UI fill failed: {fill}")
+                debug = await self.evaluate(
+                    """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
+                    await_promise=False,
+                )
+                raise RuntimeError(
+                    "UI fill failed: "
+                    f"{fill} ready={ready} api={fetch_provider_readiness_snapshot()} debug={debug}"
+                )
             submit = await self.submit()
             if not submit.get("ok"):
                 probe = await self.send_state()
                 if chat_id:
                     try:
-                        if chat_user_message_count(chat_id) > baseline_user_msgs:
+                        if cdp_chat_support.chat_user_message_count(chat_id) > baseline_user_msgs:
                             submit = {
                                 **submit,
                                 "ok": True,
@@ -439,7 +449,7 @@ class CdpChatTurn(CdpChatSubmit):
                         raise RuntimeError(f"UI submit failed: {submit} fill={fill}")
                     if chat_id:
                         try:
-                            if chat_user_message_count(chat_id) > baseline_user_msgs:
+                            if cdp_chat_support.chat_user_message_count(chat_id) > baseline_user_msgs:
                                 submit = {
                                     **submit,
                                     "ok": True,
@@ -474,7 +484,7 @@ class CdpChatTurn(CdpChatSubmit):
                 confirmed = True
             if not confirmed and chat_id:
                 try:
-                    confirmed = chat_user_message_count(chat_id) > baseline_user_msgs
+                    confirmed = cdp_chat_support.chat_user_message_count(chat_id) > baseline_user_msgs
                 except OSError:
                     confirmed = False
             if not confirmed:

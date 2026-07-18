@@ -21,6 +21,7 @@ import { statusStreamEvents } from "./statusStreamEvents";
 import { subagentEvents } from "./subagentEvents";
 import { fileDiffEvents } from "./fileDiffEvents";
 import { toolLifecycleEvents } from "./toolLifecycleEvents";
+import { memoryBriefEvents } from "./memoryBriefEvents";
 import { routingMetaEvents } from "./routingMetaEvents";
 import { messageContentEvents } from "./messageContentEvents";
 import { artifactEvents } from "./artifactEvents";
@@ -41,6 +42,7 @@ export const STREAM_EVENT_HANDLERS: Array<(ctx: StreamCtx) => Promise<StreamTurn
   subagentEvents,
   fileDiffEvents,
   toolLifecycleEvents,
+  memoryBriefEvents,
   routingMetaEvents,
   messageContentEvents,
   artifactEvents,

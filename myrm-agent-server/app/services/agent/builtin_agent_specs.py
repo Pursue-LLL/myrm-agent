@@ -4,7 +4,7 @@
 builtin_agent_specs_{core,search,extended,vertical}::_*_BUILTIN_AGENTS (POS: 分段规格数据)
 
 [OUTPUT]
-_BUILTIN_AGENTS: Tuple of 24 built-in agent specs (4 core + 2 search + 5 extended + 13 vertical).
+_BUILTIN_AGENTS: Tuple of 25 built-in agent specs (5 core + 2 search + 5 extended + 13 vertical).
 
 [POS]
 纯数据层聚合门面：组合各分段规格，供 builtin_initializer 导入。

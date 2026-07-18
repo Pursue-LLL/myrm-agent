@@ -28,6 +28,7 @@ from wave_orchestrator.lease_state import (
     default_agent_id,
     find_active_lease as _find_active_lease,
     iso_timestamp as _iso,
+    reap_abandoned_leases,
     reap_expired_leases as reaper,
     reap_runtime_drift,
     utc_now as _utc_now,
@@ -104,7 +105,9 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
     current_runtime = probe_runtime_id()
 
     def _edit(state: OrchestratorState) -> tuple[dict[str, object], bool]:
-        changed = reaper(state, cleanup=False)
+        changed = reap_abandoned_leases(state)
+        if reaper(state, cleanup=False):
+            changed = True
         if reap_runtime_drift(state, current_runtime):
             changed = True
         elif _close_wave_after_last_expired_lease(state):

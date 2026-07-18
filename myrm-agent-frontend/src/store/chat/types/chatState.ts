@@ -40,6 +40,7 @@ export interface ChatState {
   chatHistoryError: string | null;
   chatHistorySourceFilter: string | null;
   chatHistoryAvailableSources: string[];
+  chatHistorySearchKeyword: string;
 
   // 聊天文件
   files: File[];
@@ -142,6 +143,7 @@ export interface ChatState {
   setChatHistoryPagination: (pagination: PaginationInfo | null) => void;
   setChatHistoryLoading: (loading: boolean) => void;
   setChatHistorySourceFilter: (source: string | null) => void;
+  setChatHistorySearchKeyword: (keyword: string) => void;
   setFiles: (files: File[]) => void;
   setCameraFrames: (frames: string[]) => void;
   setHideAttachList: (hide: boolean) => void;

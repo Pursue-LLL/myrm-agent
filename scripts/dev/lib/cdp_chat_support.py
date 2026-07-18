@@ -155,6 +155,27 @@ def _api_provider_ready() -> bool:
     return isinstance(provider, dict) and bool(provider.get("is_ready"))
 
 
+def fetch_provider_readiness_snapshot() -> dict[str, object]:
+    """Return private-pool provider readiness for E2E failure diagnostics."""
+    api_base = get_e2e_api_url()
+    try:
+        resp = urllib.request.urlopen(  # noqa: S310
+            f"{api_base}/api/v1/config/readiness",
+            timeout=5,
+        )
+        payload = json.loads(resp.read())
+    except Exception as exc:
+        return {"apiBase": api_base, "error": str(exc)}
+    if not isinstance(payload, dict):
+        return {"apiBase": api_base, "error": "invalid_readiness_payload"}
+    provider = payload.get("provider")
+    return {
+        "apiBase": api_base,
+        "provider": provider if isinstance(provider, dict) else None,
+        "degraded": payload.get("degraded"),
+    }
+
+
 def wait_e2e_provider_ready(
     *,
     timeout_sec: float = 60.0,

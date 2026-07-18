@@ -22,7 +22,7 @@ import { AlertTriangle, Ban, Disc3, ShieldAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useChatStore, { Message } from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
-import { Source } from '@/store/chat/types';
+import type { McpAppView, Source, ToolCallInfo, ToolImageOutput, UIArtifact } from '@/store/chat/types';
 import { stripDatetimeTag } from '@/lib/utils/messageUtils';
 import { regenerateLastTurn, undoLastTurn, cancelAgentRequest, truncateAfterMessage } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
@@ -149,7 +149,7 @@ const MessageBox = ({
   const { state: quoteState, dismiss: dismissQuote } = useQuoteSelection(markdownRef);
   const sendMessage = useChatStore((state) => state.sendMessage);
   const messages = useChatStore((state) => state.messages);
-  const chatId = useChatStore((state) => state.chatId);
+  const chatId = useChatStore((state) => (typeof state.chatId === 'string' ? state.chatId : undefined));
   const enableEvalLab = useConfigStore((state) => state.enableEvalLab);
   const previousContentRef = useRef('');
   const t = useTranslations('chat');
@@ -171,6 +171,38 @@ const MessageBox = ({
     }),
     [tUiAction],
   );
+
+  const sessionRecordingData: { filename: string; preview_url: string } | null =
+    message.sessionRecording &&
+    typeof message.sessionRecording === 'object' &&
+    typeof message.sessionRecording.filename === 'string' &&
+    typeof message.sessionRecording.preview_url === 'string'
+      ? message.sessionRecording
+      : null;
+  const toolImages: ToolImageOutput[] = Array.isArray(message.toolImages)
+    ? (message.toolImages as ToolImageOutput[])
+    : [];
+  const uiArtifacts: UIArtifact[] = Array.isArray(message.uiArtifacts)
+    ? (message.uiArtifacts as UIArtifact[])
+    : [];
+  const mcpApps: McpAppView[] = Array.isArray(message.mcpApps)
+    ? (message.mcpApps as McpAppView[])
+    : [];
+  const toolCalls: ToolCallInfo[] = Array.isArray(message.toolCalls)
+    ? (message.toolCalls as ToolCallInfo[])
+    : [];
+  const cronJobResult =
+    message.metadata &&
+    typeof message.metadata === 'object' &&
+    'cron_job_result' in message.metadata
+      ? (message.metadata.cron_job_result as import('./CronJobSystemCard').CronJobResult)
+      : null;
+  const sessionRecordingCard: React.ReactNode = sessionRecordingData ? (
+    <SessionRecordingCard
+      filename={sessionRecordingData.filename}
+      previewUrl={sessionRecordingData.preview_url}
+    />
+  ) : null;
 
   useEffect(() => {
     const stored = localStorage.getItem('developer_show_system_messages');
@@ -482,7 +514,7 @@ const MessageBox = ({
         )}
 
         {/* 可视化审批 Artifact（BBox 高亮截图卡片） */}
-        <VisualApprovalInlineSection messageId={message.messageId} chatId={chatId} />
+        <VisualApprovalInlineSection messageId={message.messageId} chatId={chatId ?? null} />
 
         {/* 工件 */}
         {message.artifacts && message.artifacts.length > 0 && (
@@ -490,34 +522,29 @@ const MessageBox = ({
         )}
 
         {/* 交互式 UI 工件 (A2UI) */}
-        {message.uiArtifacts && message.uiArtifacts.length > 0 && (
+        {uiArtifacts.length > 0 && (
           <ArtifactErrorBoundary fallbackMessage="Interactive UI failed to render">
-            <InteractiveUIDisplay uiArtifacts={message.uiArtifacts} onAction={handleUIAction} />
+            <InteractiveUIDisplay uiArtifacts={uiArtifacts} onAction={handleUIAction} />
           </ArtifactErrorBoundary>
         )}
 
         {/* 工具截屏图片（如 computer_use） */}
-        {message.toolImages && message.toolImages.length > 0 && <ToolImageGallery images={message.toolImages} />}
+        {toolImages.length > 0 && <ToolImageGallery images={toolImages} />}
 
         {/* 会话录制回放 */}
-        {message.sessionRecording && (
-          <SessionRecordingCard
-            filename={message.sessionRecording.filename}
-            previewUrl={message.sessionRecording.preview_url}
-          />
-        )}
+        {sessionRecordingCard}
 
         {/* MCP Apps (ext-apps) 嵌入式 UI */}
-        {message.mcpApps && message.mcpApps.length > 0 && (
+        {mcpApps.length > 0 && (
           <ArtifactErrorBoundary fallbackMessage="MCP App failed to render">
-            <McpAppSection views={message.mcpApps} />
+            <McpAppSection views={mcpApps} />
           </ArtifactErrorBoundary>
         )}
 
         {/* CLI Agent 工具调用审批 */}
-        {message.toolCalls && message.toolCalls.length > 0 && chatId && (
+        {toolCalls.length > 0 && chatId && (
           <ToolCallApproval
-            toolCalls={message.toolCalls}
+            toolCalls={toolCalls}
             chatId={chatId}
             onApprove={async (callId) => {
               const { respondPermission } = useCLIAgentStore.getState();
@@ -532,7 +559,7 @@ const MessageBox = ({
 
         {/* CLI Agent Diff 预览（仅 Tauri 桌面环境） */}
         {isTauriEnvironment() &&
-          message.toolCalls
+          toolCalls
             ?.filter((tc) => tc.diff)
             .map((tc) => <CLIDiffViewer key={tc.callId} diff={tc.diff!} filePath={tc.filePath} />)}
 
@@ -540,9 +567,7 @@ const MessageBox = ({
         {taskResponse && <ImageTaskCard task_id={taskResponse.task_id} />}
 
         {/* 定时任务创建/更新卡片 */}
-        {message.metadata?.cron_job_result && (
-          <CronJobSystemCard result={message.metadata.cron_job_result as import('./CronJobSystemCard').CronJobResult} />
-        )}
+        {cronJobResult ? <CronJobSystemCard result={cronJobResult} /> : null}
 
         {/* 回复 */}
         {!taskResponse && (
@@ -598,7 +623,7 @@ const MessageBox = ({
               content={parsedMessage} 
               messageId={message.messageId}
               isStreaming={isLast && loading} 
-              containerRef={markdownRef} 
+              containerRef={markdownRef as React.RefObject<HTMLElement>} 
             />
 
             <div
@@ -656,6 +681,8 @@ const MessageBox = ({
             />
 
             <MemoryInsightPanel 
+              memoryBrief={message.memoryBrief}
+              memoryBriefStatus={message.memoryBriefStatus}
               memoryBudget={message.memoryBudget} 
               citations={message.citations} 
             />

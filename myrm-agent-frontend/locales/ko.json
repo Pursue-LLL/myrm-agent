@@ -10175,7 +10175,9 @@
     "fetchFailed": "Failed to fetch subagents",
     "teammateMessagesTitle": "Teammate messages",
     "teammateInbound": "From {from}",
-    "teammateOutbound": "To {to}"
+    "teammateOutbound": "To {to}",
+    "streamMore": "더 보기",
+    "streamCollapse": "접기"
   },
   "evalLab": {
     "pageTitle": "평가 실험실",
@@ -11662,6 +11664,22 @@
     "budgetDescription": "LLM 컨텍스트 창에서 주입된 메모리와 학습된 규칙이 차지하는 비율을 보여줍니다.",
     "citationsPill": "{count}개 메모리 인용됨",
     "citationsTitle": "인용된 메모리",
-    "citationsDescription": "AI가 이 응답을 생성할 때 다음 메모리에 명시적으로 의존했습니다:"
+    "citationsDescription": "AI가 이 응답을 생성할 때 다음 메모리에 명시적으로 의존했습니다:",
+    "briefPill": "메모리 브리프",
+    "briefTitle": "컨텍스트 스냅샷",
+    "briefColdStartDescription": "이번 턴에서는 기존 메모리가 매칭되지 않았습니다. 에이전트가 탐색 모드로 시작합니다.",
+    "briefStableSummary": "안정 컨텍스트: 지시 {instructions}개, 규칙 {rules}개, 프로필 필드 {profiles}개.",
+    "briefLearnedSummary": "학습 컨텍스트: 선호 {preferences}개, 규칙 {rules}개, 교정 항목 {corrections}개.",
+    "briefPreferenceIdPrefix": "pref",
+    "briefRuleIdPrefix": "rule",
+    "briefUnavailablePill": "메모리 브리프를 사용할 수 없음",
+    "briefUnavailableTitle": "메모리 컨텍스트를 사용할 수 없음",
+    "briefUnavailableDescription": "일시적인 준비 문제로 이번 응답은 메모리 브리프 없이 생성되었습니다.",
+    "namespaceGlobal": "전역",
+    "namespaceAgent": "에이전트 · {value}",
+    "namespaceChannel": "채널 · {value}",
+    "namespaceConversation": "현재 채팅",
+    "namespaceTask": "현재 작업",
+    "namespaceShared": "공유 · {value}"
   }
 }

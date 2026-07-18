@@ -54,6 +54,13 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
         if (typeof pd.eta_seconds === 'number' && pd.eta_seconds > 0) {
           store.updateEstimate(taskId, pd.eta_seconds);
         }
+        if (pd.current_step) {
+          store.appendStream(taskId, {
+            kind: 'progress',
+            text: pd.current_step,
+            timestamp: Date.now(),
+          });
+        }
       }
     });
 
@@ -97,6 +104,27 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   }
 
   if (data.type === H.AgentEventType.SUBAGENT_LOG) {
+    import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
+      const logData = data.data;
+      const taskId = logData.task_id || logData.agent_instance || '';
+      if (taskId) {
+        const level = logData.level || 'INFO';
+        const kind = level === 'ERROR' ? 'error' as const
+          : logData.tool_name ? 'tool' as const
+          : level === 'DEBUG' ? 'thinking' as const
+          : 'progress' as const;
+        useSubagentStore.getState().appendStream(taskId, {
+          kind,
+          text: logData.tool_name
+            ? `${logData.tool_name}${logData.message ? `: ${logData.message}` : ''}`
+            : logData.message || '',
+          isError: level === 'ERROR',
+          timestamp: Date.now(),
+          durationMs: logData.duration_ms,
+        });
+      }
+    });
+
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
       if (messageIndex !== -1) {

@@ -50,6 +50,16 @@ interface Window {
     setGoalMode: (enabled: boolean) => void;
     setGoalBudgetTokens: (tokens: number | null) => void;
     getGoalMode: () => boolean;
+    setCurrentBuiltinTools?: (tools: string[]) => void;
+    getCurrentBuiltinTools?: () => string[];
+    getDesktopApprovalSnapshot?: () => {
+      pending: boolean;
+      requestId: string;
+      reason: string;
+      operation: string;
+      appName: string;
+      requireAppApproval: boolean;
+    };
   };
   /** Dev-only bridge for subagent dashboard Chrome E2E hydration. */
   __MYRM_E2E_SUBAGENT__?: {

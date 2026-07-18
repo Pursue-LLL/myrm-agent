@@ -11,11 +11,42 @@
  */
 
 import { AgentEventType } from './part1';
-import type { BaseAgentEvent } from './part1';
+import type { BaseAgentEvent, ErrorKind } from './part1';
 import type { CompletionStatus } from '../toolApproval';
 import type { ProgressItem } from '../progress';
+import type { Source } from '../sources';
 import type { TokenEconomicsSnapshot, TokenUsage } from '../tokens';
 import type { ContextBudget, CostStatus } from '../contextMetrics';
+
+export interface MemoryBriefData {
+  snapshot_id: string;
+  generated_at_ms: number;
+  namespaces: string[];
+  is_cold_start: boolean;
+  stable: {
+    working_state: boolean;
+    profile_keys: string[];
+    instruction_count: number;
+    rule_count: number;
+  };
+  learned: {
+    preference_count: number;
+    rule_count: number;
+    correction_count: number;
+    preference_ids: string[];
+    rule_ids: string[];
+  };
+}
+
+export interface MemoryBriefStatus {
+  state: 'ready' | 'skipped';
+  reason?: 'timeout' | 'error';
+}
+
+export interface MemoryBriefStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.MEMORY_BRIEF;
+  data: MemoryBriefData;
+}
 
 export interface GoalBudgetPayload {
   max_tokens?: number;
@@ -87,6 +118,8 @@ export interface MessageEndStreamEvent extends BaseAgentEvent {
   context_budget?: ContextBudget;
   citations?: string[];
   memoryBudget?: { used: number; total: number };
+  memory_brief_snapshot_id?: string;
+  memory_brief_status?: MemoryBriefStatus;
   goal_status?: GoalStatusPayload;
   consensus_meta?: {
     models_used: number;

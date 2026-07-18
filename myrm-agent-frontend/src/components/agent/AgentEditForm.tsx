@@ -22,7 +22,6 @@ import {
   type AgentType,
   type AgentSessionPolicy,
   type SessionResetMode,
-  type ToolGatewayConfigDTO,
 } from '@/services/agent';
 import { AlertCircle, Loader2, Upload, Users } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
@@ -61,9 +60,6 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
     mode: 'daily',
     daily_reset_hour: 4,
     idle_minutes: 120,
-  });
-  const [toolGatewayConfig, setToolGatewayConfig] = useState<ToolGatewayConfigDTO>({
-    use_gateway: false,
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,11 +109,6 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
           setSessionPolicyEnabled(false);
           setSessionPolicy({ mode: 'daily', daily_reset_hour: 4, idle_minutes: 120 });
         }
-        if (agent.tool_gateway_config) {
-          setToolGatewayConfig(agent.tool_gateway_config);
-        } else {
-          setToolGatewayConfig({ use_gateway: false });
-        }
         setBrowserSource(agent.browser_source || 'auto');
         setDialogPolicy(agent.dialog_policy || 'smart');
         setSessionRecording(agent.session_recording || 'off');
@@ -132,7 +123,6 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         setAgentType('individual');
         setSessionPolicyEnabled(false);
         setSessionPolicy({ mode: 'daily', daily_reset_hour: 4, idle_minutes: 120 });
-        setToolGatewayConfig({ use_gateway: false });
       }
     }
   }, [open, agent, agentId, reset]);
@@ -146,7 +136,6 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         agent_type: agentType,
         command_bindings: validBindings.length > 0 ? validBindings : null,
         session_policy: sessionPolicyEnabled ? sessionPolicy : null,
-        tool_gateway_config: toolGatewayConfig,
         browser_source: browserSource === 'auto' ? null : browserSource,
         dialog_policy: dialogPolicy === 'smart' ? null : dialogPolicy,
         session_recording: sessionRecording === 'off' ? null : sessionRecording,

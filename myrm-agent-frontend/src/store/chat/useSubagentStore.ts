@@ -31,6 +31,18 @@ export interface TeammateMessageEntry {
   created_at: number;
 }
 
+export type StreamEntryKind = 'tool' | 'progress' | 'thinking' | 'error';
+
+export interface StreamEntry {
+  kind: StreamEntryKind;
+  text: string;
+  isError?: boolean;
+  timestamp: number;
+  durationMs?: number;
+}
+
+const MAX_STREAM = 30;
+
 export interface SubagentNode {
   task_id: string;
   parent_task_id: string;
@@ -52,6 +64,7 @@ export interface SubagentNode {
   teammateMessages?: TeammateMessageEntry[];
   /** Hydrated from API `teammate_messages` */
   teammate_messages?: TeammateMessageEntry[];
+  stream?: StreamEntry[];
 }
 
 export interface FissionTopologyNode {
@@ -88,6 +101,7 @@ export interface SubagentStore {
   completeNode: (taskId: string, status: SubagentStatus, error?: string) => void;
   setNodes: (nodes: SubagentNode[]) => void;
   appendTeammateMessage: (entry: TeammateMessageEntry) => void;
+  appendStream: (taskId: string, entry: StreamEntry) => void;
   setFissionBatch: (
     batch: {
       active: boolean;
@@ -216,6 +230,19 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
       }
       if (!changed) return state;
       return { nodes };
+    }),
+
+  appendStream: (taskId, entry) =>
+    set((state) => {
+      const node = state.nodes[taskId];
+      if (!node) return state;
+      const prev = node.stream ?? [];
+      const last = prev[prev.length - 1];
+      if (last?.kind === entry.kind && last.text === entry.text) return state;
+      const next = prev.length >= MAX_STREAM ? [...prev.slice(1), entry] : [...prev, entry];
+      return {
+        nodes: { ...state.nodes, [taskId]: { ...node, stream: next } },
+      };
     }),
 
   setFissionBatch: (batch) => set({ fissionBatch: batch }),

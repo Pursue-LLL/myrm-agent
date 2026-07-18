@@ -7652,6 +7652,7 @@
         "mcpServersHint": "以下 MCP 服务从竞品配置中识别，将以禁用状态导入 — 可在 MCP 设置中审核启用。",
         "mcpEnvKeysRequired": "需手动配置 {count} 个环境变量",
         "instructionLargeWarning": "指令内容约 {count} 字符，导入后可能增加每轮 Token 消耗，请确认是否需要精简 SOUL/规则",
+        "hermesEconomyHint": "Hermes 迁移将使用 Economy 智能体预设，并自动启用 Smart Routing；辅助模型会写入模型设置。",
         "providersMissingHint": "检测到外部助手 API Key，但尚未配置模型服务商。导入密钥前请先在模型设置中创建服务商，或确认导入后将自动创建对应槽位",
         "configureProvidersLink": "打开模型服务商设置",
         "backupHint": "建议在导入前导出当前记忆备份（可回滚恢复）",
@@ -8769,6 +8770,7 @@
     "loginDesc": "登录后可查看状态、续费时间与账单信息。",
     "statusOk": "状态正常，订阅保持有效。",
     "statusAttention": "状态需要关注，请检查订阅信息。",
+    "toolGatewayNote": "网页搜索、图片生成与语音合成已包含在 Work Units 用量中，云端模式无需单独配置 API Key。",
     "loading": "加载中..."
   },
   "agentEvents": {
@@ -11564,7 +11566,9 @@
     "teammateOutbound": "发往 {to}",
     "swarmFissionGroup": "并行裂变批次",
     "swarmFissionProgress": "{completed}/{total} 路并行任务",
-    "swarmFissionPartialProgress": "{completed}/{total} 成功，{failed} 路失败"
+    "swarmFissionPartialProgress": "{completed}/{total} 成功，{failed} 路失败",
+    "streamMore": "更多",
+    "streamCollapse": "收起"
   },
   "evalLab": {
     "pageTitle": "评测实验室",
@@ -12704,7 +12708,23 @@
     "budgetDescription": "显示 LLM 上下文窗口中当前被注入的记忆和学习规则所占用的比例。",
     "citationsPill": "引用了 {count} 条记忆",
     "citationsTitle": "引用的记忆",
-    "citationsDescription": "AI 在生成此回复时明确依赖了以下记忆："
+    "citationsDescription": "AI 在生成此回复时明确依赖了以下记忆：",
+    "briefPill": "记忆简报",
+    "briefTitle": "上下文快照",
+    "briefColdStartDescription": "当前轮次未匹配到历史记忆，智能体将以探索模式启动。",
+    "briefStableSummary": "稳定上下文：{instructions} 条指令，{rules} 条规则，{profiles} 个画像字段。",
+    "briefLearnedSummary": "学习上下文：{preferences} 条偏好，{rules} 条规则，{corrections} 条纠偏项。",
+    "briefPreferenceIdPrefix": "偏好",
+    "briefRuleIdPrefix": "规则",
+    "briefUnavailablePill": "记忆简报暂不可用",
+    "briefUnavailableTitle": "本轮记忆上下文不可用",
+    "briefUnavailableDescription": "本次回复在未生成记忆简报的情况下完成，系统会在后续轮次自动重试。",
+    "namespaceGlobal": "全局",
+    "namespaceAgent": "智能体 · {value}",
+    "namespaceChannel": "渠道 · {value}",
+    "namespaceConversation": "当前会话",
+    "namespaceTask": "当前任务",
+    "namespaceShared": "共享 · {value}"
   },
   "e2ee": {
     "secured": "端到端加密",

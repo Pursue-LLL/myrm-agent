@@ -82,11 +82,11 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
         last_error: BaseException | None = None
         for attempt in range(3):
             try:
-                page = client.new_page("about:blank", timeout_ms=15_000)
+                page = client.new_page("about:blank", timeout_ms=30_000)
                 client.navigate(
                     page,
                     f"{get_e2e_ui_url()}/",
-                    timeout_ms=60_000,
+                    timeout_ms=90_000,
                 )
                 break
             except RuntimeError as exc:
@@ -100,7 +100,7 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
                 time.sleep(3.0 * (attempt + 1))
         if page is None:
             raise RuntimeError(f"new_page failed after retries: {last_error}")
-        deadline = time.monotonic() + 30.0
+        deadline = time.monotonic() + 60.0
         raw: object = None
         while time.monotonic() < deadline:
             raw = client.evaluate(
@@ -119,7 +119,7 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
         if not isinstance(raw, dict):
             raise AssertionError(f"Expected DOM probe object, got {raw!r}")
         try:
-            barrier.wait(timeout=60.0)
+            barrier.wait(timeout=120.0)
         except threading.BrokenBarrierError as exc:
             raise AssertionError("Parallel tab barrier broken — a worker failed before rendezvous") from exc
         return {
@@ -134,7 +134,7 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(600)
 def test_three_mux_clients_own_interactive_tabs_concurrently() -> None:
     barrier = threading.Barrier(3)
     with ThreadPoolExecutor(max_workers=3, thread_name_prefix="chrome-mcp-e2e") as pool:

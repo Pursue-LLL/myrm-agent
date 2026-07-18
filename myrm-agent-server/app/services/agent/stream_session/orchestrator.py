@@ -11,6 +11,7 @@
 Service-layer stream orchestration. HTTP route decorators remain in api/agents/general_agent/streaming.py.
 """
 
+import asyncio
 import logging
 
 from fastapi import Request
@@ -57,6 +58,7 @@ _SEARCH_AGENT_IDS: frozenset[str] = frozenset({"builtin-fast-search", "builtin-d
 
 # Gateway hygiene limit: ~120K tokens (rough character-to-token ratio) to prevent OOM
 _GATEWAY_MAX_INPUT_CHARS: int = 360_000
+_MEMORY_BRIEF_TIMEOUT_SECONDS: float = 0.25
 
 
 async def run_agent_stream(
@@ -276,6 +278,31 @@ async def run_agent_stream(
                 extra_context["suggest_workflow_mode"] = bool(suggest_wf)
     except Exception as e:
         logger.warning(f"Failed to load user locale for extra_context: {e}")
+
+    if request.resume_value is None:
+        try:
+            from app.services.agent.stream_session.memory_brief import (
+                build_memory_brief_snapshot,
+            )
+
+            brief_bundle = await asyncio.wait_for(
+                build_memory_brief_snapshot(params),
+                timeout=_MEMORY_BRIEF_TIMEOUT_SECONDS,
+            )
+            if brief_bundle is not None:
+                preview, snapshot = brief_bundle
+                extra_context["memory_brief_preview"] = preview
+                extra_context["memory_brief_snapshot"] = snapshot
+                extra_context["memory_brief_status"] = {"state": "ready"}
+        except asyncio.TimeoutError:
+            extra_context["memory_brief_status"] = {"state": "skipped", "reason": "timeout"}
+            logger.info(
+                "Memory brief preflight timeout (>%.0fms), skip preview.",
+                _MEMORY_BRIEF_TIMEOUT_SECONDS * 1000,
+            )
+        except Exception as exc:
+            extra_context["memory_brief_status"] = {"state": "skipped", "reason": "error"}
+            logger.warning("Memory brief preflight skipped: %s", exc)
 
     is_long_running_task = request.action_mode in ("deep_research", "agentic_search", "consensus")
     collector = StreamContentCollector(sibling_group_id=request.sibling_group_id, chat_id=request.chat_id)

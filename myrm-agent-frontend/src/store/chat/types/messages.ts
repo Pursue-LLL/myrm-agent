@@ -12,7 +12,7 @@
 import type { Artifact } from './artifacts';
 import type { UIArtifact } from './interactiveUi';
 import type { CostStatus, ContextBudget } from './contextMetrics';
-import type { SensitivityLevel } from './agentStream/part2';
+import type { MemoryBriefData, MemoryBriefStatus, SensitivityLevel } from './agentStream/part2';
 import type { CompletionStatus, ToolCallInfo } from './toolApproval';
 import type { CitedMemoryReference, FileMutationFailure, Source } from './sources';
 import type { ProgressItem } from './progress';
@@ -71,6 +71,9 @@ export type Message = {
   contextBudget?: ContextBudget;
   memoryBudget?: { used: number; total: number }; // 内存注入预算
   citations?: string[]; // 引用的记忆ID
+  memoryBrief?: MemoryBriefData; // 发送后、模型首 token 前的记忆简报
+  memoryBriefSnapshotId?: string; // 记忆简报快照ID（用于前后追踪）
+  memoryBriefStatus?: MemoryBriefStatus; // 记忆简报可用性状态（用于降级可观测）
   artifacts?: Artifact[]; // 生成的工件
   uiArtifacts?: UIArtifact[]; // 交互式 UI 工件
   isFadingOut?: boolean; // 标记内容正在淡出（工具调用时清空中间内容）

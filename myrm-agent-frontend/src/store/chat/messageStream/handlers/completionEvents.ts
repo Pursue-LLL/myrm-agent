@@ -34,14 +34,18 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
     setTimeout(() => {
       actions.setMessages((state) => {
         let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-        if (messageIndex === -1 && data.completion_status === 'budget_blocked') {
+        if (
+          messageIndex === -1 &&
+          (data.completion_status === 'budget_blocked' || Boolean(data.memory_brief_status))
+        ) {
           state.messages.push({
             content: '',
             messageId: data.messageId,
             chatId: state.messages[0]?.chatId || '',
             role: 'assistant',
             createdAt: new Date(),
-            completionStatus: 'budget_blocked',
+            completionStatus: data.completion_status === 'budget_blocked' ? 'budget_blocked' : undefined,
+            memoryBriefStatus: data.memory_brief_status,
           });
           messageIndex = state.messages.length - 1;
         }
@@ -88,6 +92,14 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
 
           if (data.memoryBudget) {
             state.messages[messageIndex].memoryBudget = data.memoryBudget;
+          }
+
+          if (data.memory_brief_snapshot_id) {
+            state.messages[messageIndex].memoryBriefSnapshotId = data.memory_brief_snapshot_id;
+          }
+
+          if (data.memory_brief_status) {
+            state.messages[messageIndex].memoryBriefStatus = data.memory_brief_status;
           }
 
           if (data.consensus_meta) {

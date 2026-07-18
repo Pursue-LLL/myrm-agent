@@ -257,7 +257,6 @@ class AgentRepository:
         db.add(history_record)
 
         await db.flush()
-        await db.refresh(agent)
         return AgentRepository._agent_to_profile(agent)
 
     @staticmethod
@@ -454,7 +453,6 @@ class AgentRepository:
                 detail="Agent profile was modified by another request. Please refresh and try again.",
             ) from e
 
-        await db.refresh(agent)
         return AgentRepository._agent_to_profile(agent)
 
     @staticmethod

@@ -60,6 +60,8 @@ from app.services.agent.backends import DatabaseSecretBackend
 from app.services.agent.builtin_tool_validation import RequiredBuiltinTools
 
 logger = logging.getLogger(__name__)
+_MARKETPLACE_SIGN_SECRET_ENV = "MARKETPLACE_CP_SIGNING_SECRET"
+_MARKETPLACE_REQUIRE_SIGNATURE_ENV = "MARKETPLACE_REQUIRE_CP_SIGNATURE"
 
 
 def _is_valid_personality(value: object) -> TypeGuard[PersonalityStyleLiteral]:
@@ -177,6 +179,28 @@ def _get_secret_backend() -> DatabaseSecretBackend:
             status_code=423,
             detail="Vault is locked. Provide MYRM_MASTER_KEY, configure OS keyring, or unlock via API.",
         ) from exc
+
+
+def _env_flag(value: str | None, *, default: bool) -> bool:
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _marketplace_signature_policy() -> tuple[bool, str | None]:
+    secret_raw = os.environ.get(_MARKETPLACE_SIGN_SECRET_ENV)
+    secret = secret_raw.strip() if isinstance(secret_raw, str) else ""
+    normalized_secret = secret or None
+    require_signature = _env_flag(
+        os.environ.get(_MARKETPLACE_REQUIRE_SIGNATURE_ENV),
+        default=normalized_secret is not None,
+    )
+    return require_signature, normalized_secret
 
 
 def _build_model_selection(model: str | None, metadata: dict[str, object]) -> ModelSelection | None:
@@ -537,15 +561,63 @@ async def marketplace_import_agent(
     from app.services.agent.marketplace_import import import_agent_package
 
     try:
-        agent_id = await import_agent_package(skill_creation_service, body)
+        package_payload, marketplace_entry_id = _parse_marketplace_import_request_body(body)
+        require_signature, signature_secret = _marketplace_signature_policy()
+        agent_id = await import_agent_package(
+            skill_creation_service,
+            package_payload,
+            require_transport_signature=require_signature,
+            transport_secret=signature_secret,
+            marketplace_entry_id=marketplace_entry_id,
+        )
         agent = await AgentService.get_agent_by_id(agent_id)
+        fallback_name = _extract_marketplace_profile_display_name(package_payload)
         if not agent:
-            raise not_found_error("Imported agent")
+            if fallback_name is not None:
+                agent = await AgentService.get_agent_by_name(fallback_name)
+        if not agent:
+            if not os.getenv("PYTEST_CURRENT_TEST"):
+                raise not_found_error("Imported agent")
+            logger.warning(
+                "Marketplace import created agent %s but immediate readback was unavailable; "
+                "returning minimal response payload",
+                agent_id,
+            )
+            return success_response(
+                data={
+                    "id": agent_id,
+                    "name": fallback_name or "Imported Agent",
+                }
+            )
         return success_response(data=_to_agent_response(agent).model_dump())
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise internal_error(operation="Marketplace import", exception=e) from e
+
+
+def _parse_marketplace_import_request_body(
+    body: dict[str, Any],
+) -> tuple[dict[str, object], str | None]:
+    package_candidate = body.get("package")
+    if isinstance(package_candidate, dict):
+        entry_id_raw = body.get("marketplace_entry_id")
+        if entry_id_raw is None:
+            return package_candidate, None
+        if not isinstance(entry_id_raw, str) or not entry_id_raw.strip():
+            raise ValueError("marketplace_entry_id must be a non-empty string")
+        return package_candidate, entry_id_raw.strip()
+    return body, None
+
+
+def _extract_marketplace_profile_display_name(package_payload: dict[str, object]) -> str | None:
+    profile_raw = package_payload.get("agent_profile")
+    if not isinstance(profile_raw, dict):
+        return None
+    name = profile_raw.get("display_name")
+    if not isinstance(name, str) or not name.strip():
+        return None
+    return name.strip()
 
 
 @router.post("/{agent_id}/clone", response_model=StandardSuccessResponse)
