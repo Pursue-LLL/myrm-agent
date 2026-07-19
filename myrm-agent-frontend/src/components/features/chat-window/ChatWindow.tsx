@@ -24,6 +24,7 @@ import AgentInfoBanner from './AgentInfoBanner';
 import YoloModeBanner from './YoloModeBanner';
 import EStopBanner from './EStopBanner';
 import ExtensionDisconnectedBanner from './ExtensionDisconnectedBanner';
+import ExtensionTakeoverBanner from './ExtensionTakeoverBanner';
 import ChatWindowSatellites, {
   GoalControlPlane,
   GoalStatusCard,
@@ -444,6 +445,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             <YoloModeBanner />
             <EStopBanner />
             <ExtensionDisconnectedBanner />
+            <ExtensionTakeoverBanner />
 
             {/* 待审批记忆徽章 */}
             <PendingMemoryBadge
@@ -481,6 +483,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <YoloModeBanner />
       <EStopBanner />
       <ExtensionDisconnectedBanner />
+      <ExtensionTakeoverBanner />
       <div className="flex h-full w-full">
         <div className="flex-1 min-w-0 min-h-0">
           <EmptyChat />

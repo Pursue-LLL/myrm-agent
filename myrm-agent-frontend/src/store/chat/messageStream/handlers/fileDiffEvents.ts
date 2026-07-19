@@ -202,18 +202,28 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
   if (data.type === H.AgentEventType.BROWSER_TAKEOVER_REQUESTED) {
     const { default: useBrowserTakeoverStore } = await import('@/store/useBrowserTakeoverStore');
+    const { default: useChatStore } = await import('@/store/useChatStore');
+    const browserSource = useChatStore.getState().agentConfig?.browserSource;
+    const uiMode = browserSource === 'extension' ? 'extension' : 'managed';
+    const autoDetectCompletion = Boolean(data.data.auto_detect_completion);
+
     useBrowserTakeoverStore.getState().requestTakeover({
       reason: data.data.reason,
       screenshot_base64: data.data.screenshot_base64,
       url: data.data.url,
       messageId: data.messageId,
+      ui_mode: uiMode,
+      auto_detect_completion: autoDetectCompletion,
     });
-    const { fetchWithTimeout } = await import('@/lib/api');
-    fetchWithTimeout('/webui/vnc/takeover', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: data.data.reason || '' }),
-    }).catch(() => {});
+
+    if (uiMode === 'managed') {
+      const { fetchWithTimeout } = await import('@/lib/api');
+      fetchWithTimeout('/webui/vnc/takeover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: data.data.reason || '' }),
+      }).catch(() => {});
+    }
     return done(ctx);
   }
 

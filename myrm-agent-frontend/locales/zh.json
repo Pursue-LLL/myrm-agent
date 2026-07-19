@@ -12074,6 +12074,10 @@
       "reconnect": "重新连接",
       "takeoverDone": "完成",
       "takeoverSkip": "无法完成",
+      "takeoverExtensionTitle": "请在 Chrome 中完成操作",
+      "takeoverExtensionHint": "请在你的 Chrome 浏览器中完成此步骤，完成后点击「完成」。",
+      "takeoverCaptchaAuto": "正在自动处理验证…",
+      "takeoverCaptchaAutoHint": "智能体正在自动处理验证，请稍候。",
       "takeoverLearned": "操作已记录 — Agent 将从你的示范中学习",
       "takeoverResumeFailed": "恢复 Agent 失败，请重试"
     },

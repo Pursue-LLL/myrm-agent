@@ -7,14 +7,29 @@
  *
  * [POS]
  * Manages the state when Agent requests human takeover of the browser session.
- * SSE handler sets pending=true with reason+messageId; VisualDesktopToggle
- * auto-opens VNC panel and provides a "done" button that triggers resume.
+ * SSE handler sets pending=true with reason+messageId; managed mode uses
+ * VisualDesktopToggle (VNC); extension mode uses ExtensionTakeoverBanner (in-chat).
  */
 
 import { create } from 'zustand';
 
+export type BrowserTakeoverUiMode = 'managed' | 'extension';
+
+const IDLE_TAKEOVER_STATE = {
+  pending: false,
+  uiMode: 'managed' as BrowserTakeoverUiMode,
+  autoDetectCompletion: false,
+  reason: '',
+  screenshotBase64: null as string | null,
+  url: '',
+  messageId: '',
+  requestedAt: 0,
+};
+
 interface BrowserTakeoverState {
   pending: boolean;
+  uiMode: BrowserTakeoverUiMode;
+  autoDetectCompletion: boolean;
   reason: string;
   screenshotBase64: string | null;
   url: string;
@@ -26,22 +41,21 @@ interface BrowserTakeoverState {
     screenshot_base64?: string | null;
     url?: string;
     messageId?: string;
+    ui_mode?: BrowserTakeoverUiMode;
+    auto_detect_completion?: boolean;
   }) => void;
   completeTakeover: () => void;
   dismiss: () => void;
 }
 
 const useBrowserTakeoverStore = create<BrowserTakeoverState>((set) => ({
-  pending: false,
-  reason: '',
-  screenshotBase64: null,
-  url: '',
-  messageId: '',
-  requestedAt: 0,
+  ...IDLE_TAKEOVER_STATE,
 
   requestTakeover: (payload) =>
     set({
       pending: true,
+      uiMode: payload.ui_mode ?? 'managed',
+      autoDetectCompletion: payload.auto_detect_completion ?? false,
       reason: payload.reason,
       screenshotBase64: payload.screenshot_base64 ?? null,
       url: payload.url ?? '',
@@ -49,23 +63,9 @@ const useBrowserTakeoverStore = create<BrowserTakeoverState>((set) => ({
       requestedAt: Date.now(),
     }),
 
-  completeTakeover: () =>
-    set({
-      pending: false,
-      reason: '',
-      screenshotBase64: null,
-      url: '',
-      messageId: '',
-    }),
+  completeTakeover: () => set({ ...IDLE_TAKEOVER_STATE }),
 
-  dismiss: () =>
-    set({
-      pending: false,
-      reason: '',
-      screenshotBase64: null,
-      url: '',
-      messageId: '',
-    }),
+  dismiss: () => set({ ...IDLE_TAKEOVER_STATE }),
 }));
 
 export default useBrowserTakeoverStore;
