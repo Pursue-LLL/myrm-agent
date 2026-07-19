@@ -1,19 +1,17 @@
 """Server hook when a harness background bash job finishes.
 
-Appends a visible assistant message to chat history and publishes a
-SYSTEM_NOTIFICATION SSE event — no headless LLM run.
-
 [INPUT]
-- myrm_agent_harness.api.hooks::BackgroundJobFinishResult
+- myrm_agent_harness.api.hooks::BackgroundJobFinishResult (POS: harness finish payload)
 - app.services.chat.chat_service::ChatService (POS: message persistence)
 - app.services.event.app_event_bus (POS: SSE bus)
+- app.services.agent.goal_wait_background_resume::maybe_resume_goal_after_background_job (POS: WAIT exit + headless resume)
 
 [OUTPUT]
-- ServerBackgroundJobFinishHandler.on_background_job_finish
-- Delegates goal WAIT resume to goal_wait_background_resume after successful chat persistence
+- ServerBackgroundJobFinishHandler.on_background_job_finish: append finish message → goal resume → SYSTEM_NOTIFICATION SSE
 
 [POS]
 Business orchestration for harness background bash job terminal events.
+Resume runs before SSE so Goal Card refresh observes final status (ACTIVE or NEEDS_HUMAN_REVIEW).
 """
 
 from __future__ import annotations
@@ -120,6 +118,12 @@ class ServerBackgroundJobFinishHandler:
                 },
             )
 
+            from app.services.agent.goal_wait_background_resume import (
+                maybe_resume_goal_after_background_job,
+            )
+
+            await maybe_resume_goal_after_background_job(result)
+
             get_event_bus().publish(
                 AppEvent(
                     event_type=AppEventType.SYSTEM_NOTIFICATION,
@@ -142,12 +146,6 @@ class ServerBackgroundJobFinishHandler:
                 result.pid,
                 result.status,
             )
-
-            from app.services.agent.goal_wait_background_resume import (
-                maybe_resume_goal_after_background_job,
-            )
-
-            await maybe_resume_goal_after_background_job(result)
         except Exception:
             logger.exception(
                 "Failed to record background job finish chat=%s pid=%s",

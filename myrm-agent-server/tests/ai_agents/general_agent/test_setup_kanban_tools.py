@@ -13,11 +13,7 @@ ORCHESTRATOR_TOOL_NAMES = frozenset(
     {
         "kanban_add_task",
         "kanban_list_tasks",
-        "kanban_update_task",
-        "kanban_move_task",
-        "kanban_delete_task",
-        "kanban_board_summary",
-        "kanban_link",
+        "kanban_unblock",
     }
 )
 
@@ -50,7 +46,7 @@ def test_worker_lifecycle_prompt_gate_skips_chat_orchestrator() -> None:
 
 
 @pytest.mark.asyncio
-async def test_setup_kanban_tools_chat_binds_seven_orchestrator_tools(
+async def test_setup_kanban_tools_chat_binds_three_orchestrator_tools(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
@@ -77,7 +73,7 @@ async def test_setup_kanban_tools_chat_binds_seven_orchestrator_tools(
     await _setup_kanban_tools(agent_wrapper, tools)
 
     bound_names = {getattr(tool, "name", None) for tool in tools}
-    assert len(tools) == 7
+    assert len(tools) == 3
     assert bound_names == set(ORCHESTRATOR_TOOL_NAMES)
 
 
@@ -112,7 +108,7 @@ async def test_resolve_kanban_default_board_id_invalid_preferred_does_not_fallba
 
 
 @pytest.mark.asyncio
-async def test_setup_kanban_tools_task_bound_binds_five_worker_tools(
+async def test_setup_kanban_tools_task_bound_binds_six_worker_tools(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
@@ -139,11 +135,12 @@ async def test_setup_kanban_tools_task_bound_binds_five_worker_tools(
     await _setup_kanban_tools(agent_wrapper, tools)
 
     bound_names = {getattr(tool, "name", None) for tool in tools}
-    assert len(tools) == 5
+    assert len(tools) == 6
     assert bound_names == {
         "kanban_show",
         "kanban_complete",
         "kanban_block",
         "kanban_heartbeat",
         "kanban_comment",
+        "kanban_attach",
     }

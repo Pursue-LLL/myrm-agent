@@ -10,7 +10,7 @@ tags:
   - project-management
   - task-decomposition
   - prioritization
-allowed-tools: file_write_tool file_read_tool kanban_add_task kanban_list_tasks kanban_board_summary kanban_link bash_code_execute_tool
+allowed-tools: file_write_tool file_read_tool kanban_add_task kanban_list_tasks bash_code_execute_tool
 contract:
   steps:
     - "Phase 1: Goal Clarification — understand the objective, constraints, and success criteria"
@@ -137,7 +137,7 @@ Produce one of:
 
 ### Option B: Kanban Board
 
-Use `kanban_add_task` and `kanban_link` to create tasks and dependencies on the board:
+Use `kanban_add_task` with `depends_on` to create tasks and dependencies on the board:
 - **Ready:** Tasks with no pending dependencies
 - **Blocked:** Tasks waiting for dependencies
 - Include priority labels and time estimates

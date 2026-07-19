@@ -2,7 +2,8 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconFolder, IconGlobe, IconPlus, IconShieldCheck, IconX } from '@/components/features/icons/PremiumIcons';
+import { IconBan, IconFolder, IconGlobe, IconPlus, IconShieldCheck, IconX } from '@/components/features/icons/PremiumIcons';
+import { DOMAIN_PATTERN } from '../../system/securityPolicyUtils';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -24,6 +25,7 @@ interface SecurityOverridesData {
   allowedRoots: string[];
   approvalTimeoutSeconds: number | null;
   networkAllowlist: string[];
+  networkBlocklist: string[];
   domainHitlEnabled: boolean;
 }
 
@@ -32,8 +34,17 @@ const EMPTY_DATA: SecurityOverridesData = {
   allowedRoots: [],
   approvalTimeoutSeconds: null,
   networkAllowlist: [],
+  networkBlocklist: [],
   domainHitlEnabled: false,
 };
+
+function normalizeDomainInput(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
+}
 
 function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesData {
   if (!raw) return EMPTY_DATA;
@@ -46,6 +57,7 @@ function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesD
   const timeout = typeof raw.approvalTimeoutSeconds === 'number' ? raw.approvalTimeoutSeconds : null;
 
   const allowlist = Array.isArray(raw.networkAllowlist) ? (raw.networkAllowlist as string[]) : [];
+  const blocklist = Array.isArray(raw.networkBlocklist) ? (raw.networkBlocklist as string[]) : [];
 
   const domainHitl = raw.domainHitlEnabled === true;
 
@@ -54,6 +66,7 @@ function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesD
     allowedRoots: roots,
     approvalTimeoutSeconds: timeout,
     networkAllowlist: allowlist,
+    networkBlocklist: blocklist,
     domainHitlEnabled: domainHitl,
   };
 }
@@ -64,6 +77,7 @@ function serializeOverrides(data: SecurityOverridesData): Record<string, unknown
     data.allowedRoots.length > 0 ||
     data.approvalTimeoutSeconds !== null ||
     data.networkAllowlist.length > 0 ||
+    data.networkBlocklist.length > 0 ||
     data.domainHitlEnabled;
 
   if (!hasContent) return null;
@@ -73,6 +87,7 @@ function serializeOverrides(data: SecurityOverridesData): Record<string, unknown
   if (data.allowedRoots.length > 0) result.pathPolicy = { allowedRoots: data.allowedRoots };
   if (data.approvalTimeoutSeconds !== null) result.approvalTimeoutSeconds = data.approvalTimeoutSeconds;
   if (data.networkAllowlist.length > 0) result.networkAllowlist = data.networkAllowlist;
+  if (data.networkBlocklist.length > 0) result.networkBlocklist = data.networkBlocklist;
   if (data.domainHitlEnabled) result.domainHitlEnabled = true;
   return result;
 }
@@ -87,6 +102,8 @@ export function AgentSecurityTab({ value, onChange }: AgentSecurityTabProps) {
   const tCap = useTranslations('cron.capability');
   const [newPath, setNewPath] = useState('');
   const [newDomain, setNewDomain] = useState('');
+  const [newBlockedDomain, setNewBlockedDomain] = useState('');
+  const [blocklistError, setBlocklistError] = useState<string | null>(null);
 
   const data = useMemo(() => parseOverrides(value), [value]);
 
@@ -133,6 +150,30 @@ export function AgentSecurityTab({ value, onChange }: AgentSecurityTabProps) {
       update({ networkAllowlist: data.networkAllowlist.filter((_, i) => i !== idx) });
     },
     [data.networkAllowlist, update],
+  );
+
+  const addBlockedDomain = useCallback(() => {
+    const normalized = normalizeDomainInput(newBlockedDomain);
+    if (!normalized) return;
+    if (!DOMAIN_PATTERN.test(normalized)) {
+      setBlocklistError(t('invalidBlockedDomain'));
+      return;
+    }
+    if (data.networkBlocklist.includes(normalized)) {
+      setBlocklistError(t('duplicateBlockedDomain'));
+      return;
+    }
+    setBlocklistError(null);
+    update({ networkBlocklist: [...data.networkBlocklist, normalized] });
+    setNewBlockedDomain('');
+  }, [newBlockedDomain, data.networkBlocklist, update, t]);
+
+  const removeBlockedDomain = useCallback(
+    (idx: number) => {
+      setBlocklistError(null);
+      update({ networkBlocklist: data.networkBlocklist.filter((_, i) => i !== idx) });
+    },
+    [data.networkBlocklist, update],
   );
 
   return (
@@ -292,6 +333,65 @@ export function AgentSecurityTab({ value, onChange }: AgentSecurityTabProps) {
             onCheckedChange={(checked) => update({ domainHitlEnabled: checked })}
           />
         </div>
+      </div>
+
+      {/* Network Domain Blocklist */}
+      <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
+            <IconBan className="h-4 w-4 text-destructive" />
+            {t('networkBlocklistTitle')}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('networkBlocklistDesc')}</p>
+        </div>
+
+        {data.networkBlocklist.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {data.networkBlocklist.map((domain, idx) => (
+              <div
+                key={`${domain}-${idx}`}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 border border-destructive/30"
+              >
+                <code className="text-xs text-destructive font-mono">{domain}</code>
+                <button
+                  type="button"
+                  onClick={() => removeBlockedDomain(idx)}
+                  className="text-destructive/60 hover:text-destructive transition-colors"
+                >
+                  <IconX className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            placeholder={t('blockedDomainPlaceholder')}
+            value={newBlockedDomain}
+            onChange={(e) => {
+              setNewBlockedDomain(e.target.value);
+              if (blocklistError) setBlocklistError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addBlockedDomain();
+              }
+            }}
+            className="flex-1 text-sm"
+          />
+          <Button variant="outline" size="sm" onClick={addBlockedDomain} disabled={!newBlockedDomain.trim()}>
+            <IconPlus className="h-4 w-4 mr-1" />
+            {t('addBlockedDomain')}
+          </Button>
+        </div>
+
+        {blocklistError && <p className="text-xs text-destructive">{blocklistError}</p>}
+
+        {data.networkBlocklist.length === 0 && !blocklistError && (
+          <p className="text-xs text-muted-foreground/70 italic">{t('noNetworkBlocklist')}</p>
+        )}
       </div>
 
       {/* Approval Timeout */}

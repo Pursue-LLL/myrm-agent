@@ -791,6 +791,18 @@
         "domainRemoved": "域名已删除",
         "saved": "域名策略已保存"
       },
+      "domainBlocklist": {
+        "title": "域名黑名单",
+        "description": "禁止智能体通过浏览器或网络工具访问指定域名。黑名单优先于白名单生效。",
+        "listLabel": "禁止访问的域名",
+        "listDesc": "智能体不得访问的域名（如 facebook.com、*.gambling.example）。",
+        "placeholder": "例如 facebook.com 或 *.bad.example",
+        "add": "添加",
+        "invalidDomain": "域名格式无效。请使用 example.com 或 *.example.com 等格式",
+        "duplicateDomain": "该域名已在黑名单中",
+        "domainAdded": "已添加禁止域名",
+        "domainRemoved": "已移除禁止域名"
+      },
       "planReview": {
         "title": "计划预审",
         "description": "在 AI 开始执行前，先审核并确认任务计划。提前发现问题，避免文件被错误修改。",
@@ -3441,6 +3453,19 @@
         "pagesInUse": "使用中页面"
       }
     },
+    "browserDoctor": {
+      "title": "浏览器诊断",
+      "description": "检查浏览器自动化依赖、启动就绪状态，并获取修复建议",
+      "runCheck": "运行诊断",
+      "running": "正在检查…",
+      "healthy": "浏览器栈正常",
+      "unhealthy": "发现问题",
+      "recommendations": "建议",
+      "checks": "检查项",
+      "fix": "修复",
+      "launchTest": "包含启动测试",
+      "loadFailed": "无法加载浏览器诊断"
+    },
     "cloudBrowser": {
       "title": "云浏览器",
       "provider": "服务商",
@@ -4411,6 +4436,7 @@
         "exportDownloadJson": "下载 JSON",
         "exportCopied": "已复制!",
         "exportCopyFailed": "复制失败，请检查剪贴板权限",
+        "desktopOpenSettings": "打开系统设置",
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "消息投递队列出现严重故障（{failed_count} 条失败）。"
@@ -4426,6 +4452,21 @@
           },
           "ERR_PROBE_CRASH": {
             "message": "探针执行意外崩溃。"
+          },
+          "OK_DESKTOP_PERMISSIONS": {
+            "message": "桌面权限已就绪。"
+          },
+          "WARN_DESKTOP_PERMISSIONS_MISSING": {
+            "message": "缺少桌面权限：{missing}。"
+          },
+          "OK_DESKTOP_SANDBOX_VNC": {
+            "message": "云沙箱视觉桌面已启用。"
+          },
+          "WARN_DESKTOP_SANDBOX_UNAVAILABLE": {
+            "message": "当前云沙箱无法使用桌面控制。"
+          },
+          "ERR_DESKTOP_PERMISSIONS_PROBE": {
+            "message": "桌面权限检查失败。"
           }
         }
       },
@@ -4906,6 +4947,7 @@
     "addSubagent": "添加子智能体",
     "noSubagents": "未绑定子智能体",
     "removeSubagent": "移除",
+    "dismissRebindHint": "知道了",
     "allowDiscovery": {
       "title": "允许被其他智能体发现并委派",
       "description": "开启后，其他智能体可以通过 @ 提及或自动组队时发现并调用此智能体。关闭可隐藏半成品。"
@@ -5338,6 +5380,13 @@
       "noNetworkAllowlist": "无限制 — 使用全局网络策略。",
       "addDomain": "添加",
       "domainPlaceholder": "例如 api.example.com 或 .github.com",
+      "networkBlocklistTitle": "网络域名黑名单",
+      "networkBlocklistDesc": "始终拒绝此智能体访问以下域名（与全局黑名单取并集）。支持精确匹配和后缀匹配（如 .example.com）。",
+      "noNetworkBlocklist": "无额外封禁 — 仅使用全局网络黑名单。",
+      "addBlockedDomain": "添加",
+      "blockedDomainPlaceholder": "例如 facebook.com 或 .social.com",
+      "invalidBlockedDomain": "域名格式无效。",
+      "duplicateBlockedDomain": "该域名已在黑名单中。",
       "domainHitlTitle": "域名审批确认",
       "domainHitlDesc": "访问未在白名单中的域名时，弹出确认框让用户审批。用户可选择「仅此次允许」或「始终允许此域名」。",
       "timeoutTitle": "审批超时覆盖",
@@ -10806,6 +10855,7 @@
     "rollbackFailed": "撤销失败，请重试",
     "forcePushReceived": "智能体配置已被组织更新",
     "forcePushRollbackHint": "快照已保存，可在智能体设置中回滚。",
+    "subagentRebindRequired": "子 Agent 绑定已变更。请开启新对话以使用更新后的委派工具。",
     "viewAgent": "查看",
     "approvalRequired": "Agent 需要审批授权：{actionType}",
     "approvalsRecovered": "已恢复 {count} 条待审批项",
@@ -11675,6 +11725,14 @@
     "stopAllSuccess": "已向全部运行中的子任务发送停止信号",
     "stopAllFailed": "停止子任务失败",
     "stopAllNetworkError": "网络错误：停止子任务失败",
+    "delegationPauseButton": "暂停委派",
+    "delegationResumeButton": "恢复委派",
+    "delegationPauseSuccess": "已暂停新的子 Agent 创建",
+    "delegationResumeSuccess": "子 Agent 委派已恢复",
+    "delegationPauseFailed": "暂停委派失败",
+    "delegationResumeFailed": "恢复委派失败",
+    "delegationPauseNetworkError": "网络错误：暂停委派失败",
+    "delegationResumeNetworkError": "网络错误：恢复委派失败",
     "fetchFailed": "获取子任务失败",
     "teammateMessagesTitle": "队友私信",
     "teammateInbound": "来自 {from}",

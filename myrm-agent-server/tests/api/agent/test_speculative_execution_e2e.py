@@ -23,17 +23,15 @@ load_dotenv(override=True)
     reason="E2E test requires BASIC_API_KEY environment variable",
 )
 async def test_speculative_execution_race_mode(app):
-    """Test that an agent can use batch_delegate_tasks with race=True."""
+    """Test that an agent can use delegate_task_tool mode=batch with race=True."""
 
     chat_id = str(uuid.uuid4())
     message_id = str(uuid.uuid4())
 
-    # Instruct the agent to use race mode. We use a simple task to ensure it completes quickly.
-    # We ask it to write a file in the workspace so we can verify the physical sync worked.
     query = (
-        "Please use the `batch_delegate_tasks` tool with `race=True` to spawn 2 subagents (agent_type: 'coder'). "
+        "Please use the `delegate_task_tool` with `mode=batch` and `race=True` to spawn 2 subagents (agent_type: 'coder'). "
         "Task for both: 'Create a file named race_winner.txt containing the word WINNER'. "
-        "After the batch_delegate_tasks tool returns, read the file race_winner.txt to verify it exists, "
+        "After the delegate_task_tool batch call returns, read the file race_winner.txt to verify it exists, "
         "and tell me 'The race is won and the file exists'."
     )
 
@@ -83,7 +81,7 @@ async def test_speculative_execution_race_mode(app):
                     pass
 
     # Verify the agent used the correct tools
-    assert "batch_delegate_tasks_tool" in tool_calls, "Agent did not use batch_delegate_tasks"
+    assert "delegate_task_tool" in tool_calls, "Agent did not use delegate_task_tool"
 
     # Verify the final message
     messages = [e.get("data", "") for e in events if e.get("type") == "message"]

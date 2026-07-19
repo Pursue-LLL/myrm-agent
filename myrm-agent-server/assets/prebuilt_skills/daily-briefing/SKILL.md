@@ -13,7 +13,7 @@ tags:
   - productivity
   - cron
   - digest
-allowed-tools: memory_recall_tool memory_save_tool kanban_board_summary kanban_list_tasks web_search_tool web_fetch_tool file_write_tool bash_code_execute_tool
+allowed-tools: memory_recall_tool memory_save_tool kanban_list_tasks web_search_tool web_fetch_tool file_write_tool bash_code_execute_tool
 contract:
   steps:
     - "Phase 1: Context Gathering — recall user preferences, habits, and timezone from memory"
@@ -93,7 +93,7 @@ If `$GOOGLE_WORKSPACE_TOKEN` is available (user connected Google Workspace OAuth
 
 ### Pending Tasks
 
-Use `kanban_board_summary` to get task overview:
+Use `kanban_list_tasks` with `include_stats=true` to get task overview:
 - **Overdue tasks** — highlight with urgency marker
 - **Due today** — list with deadlines
 - **In progress** — show current work items

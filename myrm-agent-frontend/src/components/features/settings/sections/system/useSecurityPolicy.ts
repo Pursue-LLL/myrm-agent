@@ -25,6 +25,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
   const [timeoutBehavior, setTimeoutBehavior] = useState<'deny' | 'allow'>('deny');
   const [allowedRoots, setAllowedRoots] = useState<string[]>([]);
   const [networkAllowlist, setNetworkAllowlist] = useState<string[]>([]);
+  const [networkBlocklist, setNetworkBlocklist] = useState<string[]>([]);
   const [domainHitlEnabled, setDomainHitlEnabled] = useState(true);
   const [planConfirmEnabled, setPlanConfirmEnabled] = useState(false);
   const [yoloModeEnabled, setYoloModeEnabled] = useState(false);
@@ -38,11 +39,12 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
   useEffect(() => {
     const cached = syncManager.get('securityConfig') as SecurityConfigValue | null;
     if (cached) {
-      setRules(flattenPermissions(cached.permissions));
+      setRules(flattenPermissions(cached.permissions ?? DEFAULT_CONFIG.permissions));
       setTimeout(cached.approvalTimeoutSeconds);
       setTimeoutBehavior(cached.approvalTimeoutBehavior ?? 'deny');
       setAllowedRoots(cached.pathPolicy?.allowedRoots ?? []);
       setNetworkAllowlist(cached.networkAllowlist ?? []);
+      setNetworkBlocklist(cached.networkBlocklist ?? []);
       setDomainHitlEnabled(cached.domainHitlEnabled ?? false);
       setPlanConfirmEnabled(cached.planConfirmEnabled ?? false);
       setYoloModeEnabled(cached.yoloModeEnabled ?? false);
@@ -72,6 +74,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         pathPolicy?: PathPolicyConfig;
         behavior?: 'deny' | 'allow';
         domains?: string[];
+        blockedDomains?: string[];
         hitl?: boolean;
         planConfirm?: boolean;
         yoloMode?: boolean;
@@ -86,6 +89,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         pathPolicy:
           'pathPolicy' in overrides ? overrides.pathPolicy : allowedRoots.length > 0 ? { allowedRoots } : undefined,
         networkAllowlist: overrides.domains ?? networkAllowlist,
+        networkBlocklist: overrides.blockedDomains ?? networkBlocklist,
         domainHitlEnabled: overrides.hitl ?? domainHitlEnabled,
         planConfirmEnabled: overrides.planConfirm ?? planConfirmEnabled,
         yoloModeEnabled: overrides.yoloMode ?? yoloModeEnabled,
@@ -99,7 +103,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       };
       syncManager.set('securityConfig', value);
     },
-    [rules, timeout, timeoutBehavior, allowedRoots, networkAllowlist, domainHitlEnabled, planConfirmEnabled, yoloModeEnabled, autoReviewEnabled, autoReviewModel],
+    [rules, timeout, timeoutBehavior, allowedRoots, networkAllowlist, networkBlocklist, domainHitlEnabled, planConfirmEnabled, yoloModeEnabled, autoReviewEnabled, autoReviewModel],
   );
 
   const savePathPolicy = useCallback(
@@ -208,6 +212,40 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     [networkAllowlist, save, t],
   );
 
+  const handleAddBlockedDomain = useCallback(
+    (domain: string) => {
+      const raw = domain
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/.*$/, '');
+      if (!raw) return;
+      if (!DOMAIN_PATTERN.test(raw)) {
+        toast.error(t('domainBlocklist.invalidDomain'));
+        return;
+      }
+      if (networkBlocklist.includes(raw)) {
+        toast.error(t('domainBlocklist.duplicateDomain'));
+        return;
+      }
+      const next = [...networkBlocklist, raw];
+      setNetworkBlocklist(next);
+      save({ blockedDomains: next });
+      toast.success(t('domainBlocklist.domainAdded'));
+    },
+    [networkBlocklist, save, t],
+  );
+
+  const handleRemoveBlockedDomain = useCallback(
+    (idx: number) => {
+      const next = networkBlocklist.filter((_, i) => i !== idx);
+      setNetworkBlocklist(next);
+      save({ blockedDomains: next });
+      toast.success(t('domainBlocklist.domainRemoved'));
+    },
+    [networkBlocklist, save, t],
+  );
+
   const handleDomainHitlToggle = useCallback(
     (checked: boolean) => {
       setDomainHitlEnabled(checked);
@@ -294,6 +332,9 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       const na = cfg.networkAllowlist as string[] | undefined;
       if (na) setNetworkAllowlist(na);
 
+      const nb = cfg.networkBlocklist as string[] | undefined;
+      if (nb) setNetworkBlocklist(nb);
+
       const dh = cfg.domainHitlEnabled as boolean | undefined;
       if (dh !== undefined) setDomainHitlEnabled(dh);
 
@@ -312,6 +353,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         timeout: cfgTimeout,
         behavior: b,
         domains: na,
+        blockedDomains: nb,
         hitl: dh,
         planConfirm: pc,
         yoloMode: ym,
@@ -334,12 +376,14 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       const newRoots = pp?.allowedRoots ?? undefined;
 
       const na = generated.networkAllowlist as string[] | undefined;
+      const nb = generated.networkBlocklist as string[] | undefined;
       const hitl = generated.domainHitlEnabled;
       const planConfirm = generated.planConfirmEnabled;
 
       if (newRules) setRules(newRules);
       if (newRoots) setAllowedRoots(newRoots);
       if (na) setNetworkAllowlist(na);
+      if (nb) setNetworkBlocklist(nb);
       if (hitl !== undefined) setDomainHitlEnabled(Boolean(hitl));
       if (planConfirm !== undefined) setPlanConfirmEnabled(Boolean(planConfirm));
 
@@ -347,6 +391,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         rules: newRules,
         pathPolicy: newRoots ? { allowedRoots: newRoots } : undefined,
         domains: na,
+        blockedDomains: nb,
         hitl: hitl !== undefined ? Boolean(hitl) : undefined,
         planConfirm: planConfirm !== undefined ? Boolean(planConfirm) : undefined,
       });
@@ -360,6 +405,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     timeoutBehavior,
     allowedRoots,
     networkAllowlist,
+    networkBlocklist,
     domainHitlEnabled,
     planConfirmEnabled,
     yoloModeEnabled,
@@ -377,6 +423,8 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     handleRuleChange,
     handleAddDomain,
     handleRemoveDomain,
+    handleAddBlockedDomain,
+    handleRemoveBlockedDomain,
     handleDomainHitlToggle,
     handlePlanConfirmToggle,
     handleYoloModeToggle,

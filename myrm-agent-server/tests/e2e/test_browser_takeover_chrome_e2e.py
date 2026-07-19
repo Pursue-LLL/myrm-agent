@@ -1,0 +1,330 @@
+"""Real Chrome MCP E2E for browser takeover in-chat banner (extension / CDP path)."""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import sys
+import time
+from pathlib import Path
+
+import pytest
+
+_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_LIB) not in sys.path:
+    sys.path.insert(0, str(_LIB))
+
+from cdp_chat_support import (  # noqa: E402
+    chat_messages_have_done,
+    get_e2e_api_url,
+    wait_e2e_provider_ready,
+)
+from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
+from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
+from mcp_chat_ui import McpChatSession  # noqa: E402
+
+from tests.support.chrome_mcp_e2e import get_e2e_ui_url, open_mcp_page, wait_for_state
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+
+BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+
+E2E_PROMPT = (
+    "Use browser tools only. Follow exactly in order:\n"
+    "1. Navigate to https://example.com using browser tools.\n"
+    "2. Call browser_ask_human_tool with reason "
+    "'E2E LIVE: please click Done on the chat takeover banner'.\n"
+    "3. After the user completes the takeover, reply only DONE.\n"
+    "Do not use web_search, memory, or any other tools."
+)
+
+E2E_NUDGE_PROMPT = (
+    "You must call browser_ask_human_tool now on the current browser page. "
+    "Reason: E2E LIVE banner test. Do not navigate elsewhere. After user completes, reply DONE."
+)
+
+_ENABLE_BROWSER_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.setCurrentBuiltinTools) {
+    return { ok: false, err: 'no-bridge' };
+  }
+  bridge.setCurrentBuiltinTools(['browser']);
+  const tools = bridge.getCurrentBuiltinTools?.() ?? [];
+  return { ok: tools.includes('browser'), tools };
+})()"""
+
+_BRIDGE_READY_JS = """(() => ({
+  ready:
+    typeof window.__MYRM_E2E_CHAT__?.triggerBrowserTakeover === 'function' &&
+    typeof window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot === 'function',
+}))()"""
+
+_TRIGGER_EXTENSION_TAKEOVER_JS = """(() => {
+  window.__MYRM_E2E_CHAT__?.triggerBrowserTakeover?.({
+    reason: 'E2E: complete login in your Chrome window',
+    ui_mode: 'extension',
+    auto_detect_completion: false,
+    messageId: 'e2e-takeover-extension',
+    url: 'https://example.com/login',
+  });
+  return window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot?.() ?? null;
+})()"""
+
+_TRIGGER_CAPTCHA_AUTO_JS = """(() => {
+  window.__MYRM_E2E_CHAT__?.triggerBrowserTakeover?.({
+    reason: 'E2E: captcha auto-detect running',
+    ui_mode: 'extension',
+    auto_detect_completion: true,
+    messageId: 'e2e-takeover-captcha',
+  });
+  return window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot?.() ?? null;
+})()"""
+
+_BANNER_ASSERT_JS = """(() => {
+  const alert = document.querySelector('[role="alert"]');
+  const text = alert?.innerText || '';
+  const buttons = alert ? Array.from(alert.querySelectorAll('button')) : [];
+  const labels = buttons.map((btn) => (btn.textContent || '').trim());
+  const hasAlert = !!alert;
+  const hasExtensionTitle = /Your turn in Chrome|请在 Chrome 中完成操作/i.test(text);
+  const hasReason = /E2E:/i.test(text);
+  const hasUrl = /example\\.com/i.test(text);
+  const hasDone = labels.some((label) => /Done|完成/i.test(label));
+  const hasSkip = labels.some((label) => /Can't do this|无法完成/i.test(label));
+  const snap = window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot?.();
+  const storePending = snap?.pending === true && snap?.uiMode === 'extension';
+  const ready = (hasAlert && hasExtensionTitle && hasDone && hasSkip) || storePending;
+  return {
+    ready,
+    hasAlert,
+    hasExtensionTitle,
+    hasReason,
+    hasUrl,
+    hasDone,
+    hasSkip,
+    storePending,
+    buttonCount: buttons.length,
+    sample: text.slice(0, 240),
+  };
+})()"""
+
+_CAPTCHA_AUTO_ASSERT_JS = """(() => {
+  const alert = document.querySelector('[role="alert"]');
+  const text = alert?.innerText || '';
+  const buttons = alert ? Array.from(alert.querySelectorAll('button')) : [];
+  const hasAlert = !!alert;
+  const hasCaptchaText = /auto|自动|Captcha|captcha/i.test(text);
+  const buttonCount = buttons.length;
+  return {
+    ready: hasAlert && hasCaptchaText && buttonCount === 0,
+    hasAlert,
+    hasCaptchaText,
+    buttonCount,
+  };
+})()"""
+
+_CLICK_TOOL_APPROVE_JS = """(() => {
+  const approveBtn = Array.from(document.querySelectorAll('button')).find((btn) => {
+    const label = (btn.textContent || '').trim();
+    return /^(Allow once|Approve|允许一次|批准)$/i.test(label) && !btn.disabled;
+  });
+  if (approveBtn) {
+    approveBtn.click();
+    return { clicked: true, label: (approveBtn.textContent || '').trim() };
+  }
+  return {
+    clicked: false,
+    drawerOpen: Boolean(window.__MYRM_E2E_CHAT__?.isApprovalDrawerOpen?.()),
+  };
+})()"""
+
+_CLICK_DONE_JS = """(() => {
+  const alert = document.querySelector('[role="alert"]');
+  if (!alert) {
+    return { clicked: false, reason: 'no-alert' };
+  }
+  const doneBtn = Array.from(alert.querySelectorAll('button')).find((btn) =>
+    /Done|完成/i.test(btn.textContent || ''),
+  );
+  if (!doneBtn) {
+    return { clicked: false, reason: 'no-done-button' };
+  }
+  doneBtn.click();
+  return { clicked: true };
+})()"""
+
+_SNAPSHOT_IDLE_JS = """(() => {
+  const snap = window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot?.();
+  return {
+    pending: snap?.pending ?? null,
+    uiMode: snap?.uiMode ?? null,
+  };
+})()"""
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.integration
+@pytest.mark.timeout(120)
+def test_extension_takeover_banner_shows_actions_and_dismisses_on_done() -> None:
+    ui_url = get_e2e_ui_url()
+
+    with open_mcp_page(ui_url) as (client, page):
+        wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
+
+        triggered = client.evaluate(page, _TRIGGER_EXTENSION_TAKEOVER_JS, timeout_sec=10.0)
+        assert isinstance(triggered, dict)
+        assert triggered.get("pending") is True
+        assert triggered.get("uiMode") == "extension"
+
+        banner = wait_for_state(client, page, _BANNER_ASSERT_JS, timeout_sec=15.0)
+        assert banner.get("hasAlert") is True, f"Missing takeover alert: {banner}"
+        assert banner.get("hasExtensionTitle") is True, f"Missing extension title: {banner}"
+        assert banner.get("hasReason") is True, f"Missing reason text: {banner}"
+        assert banner.get("hasUrl") is True, f"Missing URL line: {banner}"
+        assert banner.get("hasDone") is True, f"Missing Done button: {banner}"
+        assert banner.get("hasSkip") is True, f"Missing Skip button: {banner}"
+
+        clicked = client.evaluate(page, _CLICK_DONE_JS, timeout_sec=10.0)
+        assert isinstance(clicked, dict)
+        assert clicked.get("clicked") is True, f"Failed to click Done: {clicked}"
+
+        idle = wait_for_state(
+            client,
+            page,
+            """(() => ({
+              ready: window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot?.()?.pending === false,
+            }))()""",
+            timeout_sec=15.0,
+        )
+        assert idle.get("ready") is True
+
+        snapshot = client.evaluate(page, _SNAPSHOT_IDLE_JS, timeout_sec=5.0)
+        assert isinstance(snapshot, dict)
+        assert snapshot.get("pending") is False
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.integration
+@pytest.mark.timeout(120)
+def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
+    ui_url = get_e2e_ui_url()
+
+    with open_mcp_page(ui_url) as (client, page):
+        wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
+
+        triggered = client.evaluate(page, _TRIGGER_CAPTCHA_AUTO_JS, timeout_sec=10.0)
+        assert isinstance(triggered, dict)
+        assert triggered.get("pending") is True
+        assert triggered.get("autoDetectCompletion") is True
+
+        banner = wait_for_state(client, page, _CAPTCHA_AUTO_ASSERT_JS, timeout_sec=15.0)
+        assert banner.get("hasAlert") is True, f"Missing takeover alert: {banner}"
+        assert banner.get("hasCaptchaText") is True, f"Missing captcha auto copy: {banner}"
+        assert banner.get("buttonCount") == 0, f"Expected no action buttons during auto-detect: {banner}"
+
+
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+@pytest.mark.asyncio
+async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    """Real model + WebUI send → browser_ask_human SSE → in-chat banner → Done → DONE."""
+    if not wait_e2e_provider_ready():
+        pytest.fail(
+            "Provider config not ready for live browser takeover Chrome E2E — run via ./myrm test -m chrome_e2e "
+            "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",
+        )
+
+    async def _wait_takeover_banner(chat: McpChatSession, *, timeout_sec: float = 240.0) -> dict[str, object]:
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            heartbeat_e2e_lease()
+            approve = await chat.evaluate(_CLICK_TOOL_APPROVE_JS, await_promise=False, recv_timeout=15.0)
+            if isinstance(approve, dict) and approve.get("clicked"):
+                await asyncio.sleep(1.0)
+            raw = await chat.evaluate(_BANNER_ASSERT_JS, await_promise=False, recv_timeout=30.0)
+            last = raw if isinstance(raw, dict) else {"value": raw}
+            if last.get("ready") is True:
+                return last
+            await asyncio.sleep(1.0)
+        raise AssertionError(f"Browser takeover banner did not appear: {last}")
+
+    async def _run_flow(chat: McpChatSession) -> str:
+        api_base = get_e2e_api_url()
+        await chat.dismiss_modals()
+        await chat.cdp("Page.navigate", {"url": f"{BASE_URL}/"}, recv_timeout=120.0)
+        await asyncio.sleep(2.0)
+        await chat.click_new_chat()
+        await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
+
+        enabled = await chat.evaluate(_ENABLE_BROWSER_JS, await_promise=False, recv_timeout=15.0)
+        assert isinstance(enabled, dict)
+        assert enabled.get("ok") is True, f"Failed to enable browser in chat session: {enabled}"
+
+        send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+        chat_id_hint = str(
+            send_result.get("started", {}).get("chatId")
+            or send_result.get("submit", {}).get("chatId")
+            or ""
+        ).strip()
+        if not chat_id_hint:
+            chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
+
+        heartbeat_e2e_lease()
+
+        try:
+            banner = await _wait_takeover_banner(chat, timeout_sec=180.0)
+        except AssertionError:
+            heartbeat_e2e_lease()
+            await chat.send_message(E2E_NUDGE_PROMPT, E2E_NUDGE_PROMPT)
+            banner = await _wait_takeover_banner(chat, timeout_sec=180.0)
+
+        assert banner.get("hasExtensionTitle") is True, f"Expected extension banner: {banner}"
+
+        clicked = await chat.evaluate(_CLICK_DONE_JS, await_promise=False, recv_timeout=15.0)
+        assert isinstance(clicked, dict)
+        assert clicked.get("clicked") is True, f"Failed to click Done on takeover banner: {clicked}"
+
+        after_turn = await chat.wait_turn_done(
+            E2E_PROMPT,
+            timeout_sec=300.0,
+            chat_id_hint=chat_id_hint,
+        )
+        if str(after_turn.get("path", "")).startswith("/settings"):
+            pytest.fail(f"Send redirected to settings: {after_turn}")
+
+        chat_id = chat_id_hint or chat_id_from_path(str(after_turn.get("path") or ""))
+        if not chat_id:
+            chat_id = str(after_turn.get("bridgeChatId") or "").strip() or None
+        assert chat_id, f"Expected chat id after browser takeover turn: {after_turn}; banner={banner}"
+
+        if not chat_messages_have_done(chat_id, api_url=api_base):
+            turn = await chat.evaluate(
+                """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()""",
+                await_promise=False,
+            )
+            pytest.fail(f"Assistant did not reply DONE for chat {chat_id}: turn={turn}; after={after_turn}")
+
+        assert chat_user_message_count(chat_id, api_url=api_base) >= 1
+        e2e_resource_ledger.register("chat", chat_id)
+        return chat_id
+
+    client = ChromeMcpClient(request_timeout_sec=120.0)
+    await asyncio.to_thread(client.start)
+    try:
+        page: McpPage | None = None
+        try:
+            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+        except TimeoutError:
+            await asyncio.sleep(2.0)
+            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+        if page is None:
+            raise RuntimeError("new_page returned no page")
+        chat = McpChatSession(client, page)
+        await chat.bootstrap(BASE_URL, timeout_sec=120.0)
+        chat_id = await _run_flow(chat)
+        assert chat_id
+    finally:
+        await asyncio.to_thread(client.close)

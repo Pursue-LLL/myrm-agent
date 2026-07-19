@@ -40,6 +40,7 @@
 | 文件 | 职责 |
 |------|------|
 | `BrowserPoolCard.tsx` | 本地浏览器池管理 |
+| `BrowserDoctorCard.tsx` | 浏览器栈诊断（`/health/browser/doctor`；可选 launch test） |
 | `CloudBrowserCard.tsx` | 云端浏览器配置 |
 | `BrowserProxyCard.tsx` | 浏览器代理配置 |
 | `LockedUseCard.tsx` | 锁定使用模式（Computer Use 锁屏管理） |
@@ -49,14 +50,15 @@
 
 | 文件 | 职责 |
 |------|------|
-| `SecurityPolicySection.tsx` | 安全策略 UI（权限规则/超时/域名白名单/YOLO/Smart Intent Guard） |
-| `useSecurityPolicy.ts` | 安全策略状态管理 hook（配置加载/保存/Profile/NL策略生成） |
+| `SecurityPolicySection.tsx` | 安全策略 UI（权限规则/超时/域名白名单与 blocklist/YOLO/Smart Intent Guard） |
+| `useSecurityPolicy.ts` | 安全策略状态管理 hook（配置加载/保存/Profile/NL策略生成；含 networkBlocklist） |
 | `securityPolicyUtils.ts` | 安全策略工具函数（常量/权限扁平化/构建/默认配置） |
 | `SecurityPrivacyPanel.tsx` | PII 隐私保护面板 |
 | `SecurityProfileSelector.tsx` | 安全配置模板选择器 |
 | `NLPolicyGenerator.tsx` | AI 自然语言策略生成器 |
 | `AllowlistSection.tsx` | URL/域名白名单管理 |
 | `DomainAllowlistEditor.tsx` | 域名白名单编辑器 |
+| `DomainBlocklistEditor.tsx` | URL 域名 blocklist 编辑器（Settings 全局策略） |
 | `PathPolicyEditor.tsx` | 路径策略编辑器 |
 | `RiskRulesSection.tsx` | 风控规则配置 |
 | `RiskRulesHitsPanel.tsx` | 风控规则命中记录 |

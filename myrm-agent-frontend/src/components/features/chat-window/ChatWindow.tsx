@@ -283,6 +283,10 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
           notifyBackgroundTasksChanged();
         });
       }
+
+      if (meta?.kind === 'goal_needs_review' && meta?.chat_id === id) {
+        void useGoalStore.getState().refreshActiveGoal(id);
+      }
     };
 
     window.addEventListener('async-agent-stream-chunk', handleAsyncChunk);

@@ -27,7 +27,7 @@
 | `auth-callback.tsx` | 组件 | OAuth 回调页 loading/错误态与 token 交换 | ✅ |
 | `auth-initializer.tsx` | 组件 | 启动时 auth store  hydration 与路由守卫 | ✅ |
 | `boot-screen.tsx` | 组件 | 冷启动屏；local 模式下轮询后端健康，失败时展示 health-aware `common.configLoadError` hint | ✅ |
-| `local-backend-unavailable-banner.tsx` | 组件 | `LocalBackendUnavailableBanner`：后端未就绪告警；`ConfigReadinessDegradedBanner`：readiness 降级非阻塞告警（`common.readinessDegraded`） | ✅ |
+| `local-backend-unavailable-banner.tsx` | 组件 | `LocalBackendUnavailableBanner`：后端未就绪告警（E2E tab 等私 Backend 绑定后再探活）；`ConfigReadinessDegradedBanner`：readiness 降级非阻塞告警 | ✅ |
 | `capability-icons.tsx` | 辅助 | 模型能力图标行（Vision/ToolCalling/Reasoning/Audio/Video 5 种布尔能力） | ✅ |
 | `command-palette.tsx` | 组件 | Slash 命令面板 UI（Cursor 风格弹出面板，分组展示系统行为/技能/用户命令，含 argsHint 参数提示） | ✅ |
 | `flow-pad-modal.tsx` | 组件 | Omni-FlowPad 全局 Dialog：截图预览+Quick Actions+语音/文本输入+Inline Mode 流式结果桥接+Paste 回写 | ✅ |

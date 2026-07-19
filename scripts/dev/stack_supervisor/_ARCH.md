@@ -6,7 +6,7 @@
 
 - **唯一 kill/start 入口**：daemon 持有跨进程 `flock`，`ensure` / `reset` 再经进程内 `threading.Lock` 串行化
 - **attach 只读**：并行 Agent 等待栈热，无副作用
-- **看门狗**：每 30s live probe + GC 失效 warmth/epoch/stale pid；若栈曾热后失温且 HTTP 不通，且 **open wave 未 pin / 无活跃 lease**，5min 冷却内单次 auto-ensure 自愈；wave pin 期间仅记录 probe，不 ensure
+- **看门狗**：每 30s live probe + GC 失效 warmth/epoch/stale pid；若栈曾热后失温且 HTTP 不通，且 **open wave 未 pin / 无活跃 lease**，**full ensure** 在 5min 冷却内单次 auto-ensure 自愈；**wave pin 期间若 frontend 仍存活但 shared API 不通，backend-only ensure 复活 `:8080`（不碰 frontend/Chrome），独立 30s 冷却**
 - **真值**：`supervisor-state.json` 来自 pid+port+HTTP，不单独信缓存
 
 ## 文件清单
@@ -33,12 +33,12 @@
 | `ping` | 存活探测 |
 | `shutdown` | 停止 daemon |
 
-环境变量：`MYRM_SUPERVISOR_WATCHDOG_SEC`（默认 30）、`MYRM_SUPERVISOR_HEAL_COOLDOWN_SEC`（默认 300，失温后单次 auto-ensure 冷却）。
+环境变量：`MYRM_SUPERVISOR_WATCHDOG_SEC`（默认 30）、`MYRM_SUPERVISOR_HEAL_COOLDOWN_SEC`（默认 300，**full ensure** 失温后单次 auto-heal 冷却）、`MYRM_SUPERVISOR_BACKEND_ONLY_HEAL_COOLDOWN_SEC`（默认 30，**backend-only ensure** 冷却，与 full 独立计数）。
 
 ## 集成
 
 - `dev-stack.sh` **必须**委托 supervisor（无直跑 fallback）；RPC 失败 **exit 1**（`STACK_FAIL`）
-- supervisor 对 `reset` 和 watchdog auto-heal 的 `ensure` 检查 Wave 写门禁（**ensure RPC 冷启动恢复不受 pin 阻挡**）；`reset` 在活跃 lease 或 open wave pin 时 **exit 3**
+- supervisor 对 `reset` 和 watchdog auto-heal 的 **full ensure** 检查 Wave 写门禁；**wave pin 期间 shared API 宕机时 watchdog 改跑 `backend-only ensure`（不 reset frontend）**；**ensure RPC 冷启动恢复不受 pin 阻挡**
 - supervisor 子调用设 `MYRM_SUPERVISOR_BYPASS=1` 防递归
 - `./myrm stop` → `reset` 后 `stack-supervisor.sh stop`
 - `frontend-warmup.sh`：warmth 命中前要求 `_lock_supervisor_alive`（frontend lock pid 存活；定义于 warmup.sh，preflight 直 source）

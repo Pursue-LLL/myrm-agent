@@ -4,7 +4,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `GoalStatusCard.tsx` | 活跃 goal 状态卡（`GoalState` 类型 SSOT） |
+| `GoalStatusCard.tsx` | 活跃 goal 状态卡（`GoalState` 类型 SSOT）；`needs_human_review` 橙色续跑区块 |
 | `GoalControlPlane.tsx` | 控制面布局 |
 | `GoalQueueSection.tsx` / `GoalPlanStepsList.tsx` | 队列与计划步骤 |
 | `useGoalPlanSync.ts` | Plan 与 store 同步 |

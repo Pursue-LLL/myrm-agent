@@ -22,6 +22,7 @@ import type { PermissionRuleConfig } from '@/services/config/types';
 import SettingsSection from '../SettingsSection';
 import { PathPolicyEditor } from './PathPolicyEditor';
 import { DomainAllowlistEditor } from './DomainAllowlistEditor';
+import { DomainBlocklistEditor } from './DomainBlocklistEditor';
 import AllowlistSection from './AllowlistSection';
 import NLPolicyGenerator from './NLPolicyGenerator';
 import SecurityProfileSelector from './SecurityProfileSelector';
@@ -58,6 +59,7 @@ const SecurityPolicySection = memo(() => {
             approvalTimeoutSeconds: policy.timeout,
             pathPolicy: policy.allowedRoots.length > 0 ? { allowedRoots: policy.allowedRoots } : undefined,
             networkAllowlist: policy.networkAllowlist,
+            networkBlocklist: policy.networkBlocklist,
           }}
           onApply={policy.handleNLApply}
         />
@@ -213,6 +215,12 @@ const SecurityPolicySection = memo(() => {
         onAddDomain={policy.handleAddDomain}
         onRemoveDomain={policy.handleRemoveDomain}
         onHitlToggle={policy.handleDomainHitlToggle}
+      />
+
+      <DomainBlocklistEditor
+        domains={policy.networkBlocklist}
+        onAddDomain={policy.handleAddBlockedDomain}
+        onRemoveDomain={policy.handleRemoveBlockedDomain}
       />
 
       <SettingsSection

@@ -6,10 +6,10 @@
   stack_supervisor.state_gc::collect_stale_state (POS: 失效状态 GC)
 
 [OUTPUT]
-  SupervisorDaemon: Unix socket RPC 服务 + 看门狗 + 失温冷却自愈（intentional reset 清除自愈记忆）
+  SupervisorDaemon: Unix socket RPC 服务 + 看门狗 + 失温冷却自愈（intentional reset 清除自愈记忆）；wave pin 期间 shared API 宕机时 backend-only ensure；backend-only 与 full ensure 独立冷却（默认 30s / 300s）
 
 [POS]
-  本地 dev 栈单写者守护进程。串行化 ensure/reset，30s 探活 GC + 失温冷却自愈。
+  本地 dev 栈单写者守护进程。串行化 ensure/reset，30s 探活 GC + 失温冷却自愈；并行 E2E 期间仅复活 shared Backend，不 reset frontend/Chrome。
 """
 
 from __future__ import annotations
@@ -40,6 +40,9 @@ from stack_supervisor.state_gc import (
 logger = logging.getLogger("stack_supervisor")
 WATCHDOG_INTERVAL_SEC = float(os.environ.get("MYRM_SUPERVISOR_WATCHDOG_SEC", "30"))
 HEAL_COOLDOWN_SEC = float(os.environ.get("MYRM_SUPERVISOR_HEAL_COOLDOWN_SEC", "300"))
+BACKEND_ONLY_HEAL_COOLDOWN_SEC = float(
+    os.environ.get("MYRM_SUPERVISOR_BACKEND_ONLY_HEAL_COOLDOWN_SEC", "30")
+)
 
 
 @dataclass
@@ -49,7 +52,8 @@ class SupervisorDaemon:
     _stop_event: threading.Event
     _watchdog_thread: threading.Thread | None
     _last_stack_warm_at: float | None
-    _last_auto_heal_at: float
+    _last_full_auto_heal_at: float
+    _last_backend_only_auto_heal_at: float
 
     @classmethod
     def create(cls, paths: StackPaths | None = None) -> SupervisorDaemon:
@@ -60,8 +64,40 @@ class SupervisorDaemon:
             _stop_event=threading.Event(),
             _watchdog_thread=None,
             _last_stack_warm_at=None,
-            _last_auto_heal_at=0.0,
+            _last_full_auto_heal_at=0.0,
+            _last_backend_only_auto_heal_at=0.0,
         )
+
+    def _heal_cooldown_sec(self, backend_only_heal: bool) -> float:
+        if backend_only_heal:
+            return BACKEND_ONLY_HEAL_COOLDOWN_SEC
+        return HEAL_COOLDOWN_SEC
+
+    def _last_auto_heal_at(self, backend_only_heal: bool) -> float:
+        if backend_only_heal:
+            return self._last_backend_only_auto_heal_at
+        return self._last_full_auto_heal_at
+
+    def _mark_auto_heal_at(self, backend_only_heal: bool, when: float) -> None:
+        if backend_only_heal:
+            self._last_backend_only_auto_heal_at = when
+            return
+        self._last_full_auto_heal_at = when
+
+    def _auto_heal_on_cooldown(self, backend_only_heal: bool, now: float) -> bool:
+        last_heal = self._last_auto_heal_at(backend_only_heal)
+        cooldown_sec = self._heal_cooldown_sec(backend_only_heal)
+        elapsed = now - last_heal
+        if elapsed < cooldown_sec:
+            heal_kind = "backend-only ensure" if backend_only_heal else "full ensure"
+            remaining = cooldown_sec - elapsed
+            logger.info(
+                "Watchdog auto-heal: deferred — %s on cooldown (%.0fs remaining)",
+                heal_kind,
+                max(0.0, remaining),
+            )
+            return True
+        return False
 
     def _dev_stack_env(self, overrides: dict[str, str] | None = None) -> dict[str, str]:
         env = os.environ.copy()
@@ -79,6 +115,8 @@ class SupervisorDaemon:
         command: str,
         timeout_sec: float,
         env_overrides: dict[str, str] | None = None,
+        *,
+        subcommand: str | None = None,
     ) -> RpcResponse:
         if not self.paths.dev_stack_sh.is_file():
             return RpcResponse(
@@ -87,9 +125,12 @@ class SupervisorDaemon:
                 stdout="",
                 stderr=f"Missing dev-stack.sh at {self.paths.dev_stack_sh}",
             )
+        argv: list[str] = ["bash", str(self.paths.dev_stack_sh), command]
+        if subcommand is not None:
+            argv.append(subcommand)
         try:
             result = subprocess.run(
-                ["bash", str(self.paths.dev_stack_sh), command],
+                argv,
                 capture_output=True,
                 text=True,
                 timeout=timeout_sec,
@@ -153,34 +194,61 @@ class SupervisorDaemon:
             return
         if self._last_stack_warm_at is None:
             return
-        if now - self._last_auto_heal_at < HEAL_COOLDOWN_SEC:
-            return
         if probe.api_http_ok and probe.frontend_http_ok:
             return
         if ensure_lock_active(self.paths):
             logger.info("Watchdog auto-heal: deferred — ensure in progress")
             return
-        if not self._wave_stack_write_allowed():
-            logger.info(
-                "Watchdog auto-heal: deferred — wave pin or active lease blocks stack mutation"
-            )
+        wave_write_allowed = self._wave_stack_write_allowed()
+        backend_only_heal = False
+        if not wave_write_allowed:
+            if probe.api_http_ok:
+                return
+            if not probe.frontend_http_ok and not probe.frontend_port_listening:
+                logger.info(
+                    "Watchdog auto-heal: deferred — wave pin and frontend unavailable"
+                )
+                return
+            backend_only_heal = True
+        if self._auto_heal_on_cooldown(backend_only_heal, now):
             return
         if not self._op_lock.acquire(blocking=False):
             return
         try:
-            if time.monotonic() - self._last_auto_heal_at < HEAL_COOLDOWN_SEC:
+            now = time.monotonic()
+            if self._auto_heal_on_cooldown(backend_only_heal, now):
                 return
-            logger.info("Watchdog auto-heal: stack lost warmth — running ensure once")
-            ensure_wait = float(os.environ.get("MYRM_STACK_FRONTEND_WAIT_SEC", "180"))
-            result = self._run_dev_stack("ensure", timeout_sec=ensure_wait + 30.0)
-            self._last_auto_heal_at = time.monotonic()
+            if backend_only_heal:
+                logger.info(
+                    "Watchdog auto-heal: shared API down during wave pin — backend-only ensure"
+                )
+                result = self._run_dev_stack(
+                    "backend-only",
+                    timeout_sec=90.0,
+                    subcommand="ensure",
+                )
+            else:
+                logger.info("Watchdog auto-heal: stack lost warmth — running ensure once")
+                ensure_wait = float(os.environ.get("MYRM_STACK_FRONTEND_WAIT_SEC", "180"))
+                result = self._run_dev_stack("ensure", timeout_sec=ensure_wait + 30.0)
+            self._mark_auto_heal_at(backend_only_heal, time.monotonic())
             if result.ok:
-                logger.info("Watchdog auto-heal: ensure succeeded")
+                if backend_only_heal:
+                    logger.info("Watchdog auto-heal: backend-only ensure succeeded")
+                else:
+                    logger.info("Watchdog auto-heal: ensure succeeded")
                 refreshed = probe_stack(self.paths)
                 if stack_warm(refreshed):
                     self._last_stack_warm_at = time.monotonic()
+                elif refreshed.api_http_ok and refreshed.frontend_http_ok:
+                    self._last_stack_warm_at = time.monotonic()
             else:
-                logger.warning("Watchdog auto-heal: ensure failed (rc=%s)", result.exit_code)
+                heal_kind = "backend-only ensure" if backend_only_heal else "ensure"
+                logger.warning(
+                    "Watchdog auto-heal: %s failed (rc=%s)",
+                    heal_kind,
+                    result.exit_code,
+                )
         finally:
             self._op_lock.release()
 

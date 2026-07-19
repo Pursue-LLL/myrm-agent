@@ -65,6 +65,8 @@ export interface SubagentNode {
   /** Hydrated from API `teammate_messages` */
   teammate_messages?: TeammateMessageEntry[];
   stream?: StreamEntry[];
+  effective_model?: string;
+  token_usage?: Record<string, SubagentMetadataValue>;
 }
 
 export interface FissionTopologyNode {

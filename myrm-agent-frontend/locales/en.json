@@ -791,6 +791,18 @@
         "domainRemoved": "Domain removed",
         "saved": "Domain policy saved"
       },
+      "domainBlocklist": {
+        "title": "Domain Blocklist",
+        "description": "Block specific domains from browser navigation and web fetch. Blocklist is enforced before allowlist.",
+        "listLabel": "Blocked Domains",
+        "listDesc": "Domains the agent must not access (e.g. facebook.com, *.gambling.example).",
+        "placeholder": "e.g. facebook.com or *.bad.example",
+        "add": "Add",
+        "invalidDomain": "Invalid domain format. Use patterns like example.com or *.example.com",
+        "duplicateDomain": "This domain is already blocked",
+        "domainAdded": "Blocked domain added",
+        "domainRemoved": "Blocked domain removed"
+      },
       "planReview": {
         "title": "Plan Review",
         "description": "Review and approve the AI's task plan before execution begins. Helps catch mistakes early — before any files are modified.",
@@ -3441,6 +3453,19 @@
         "pagesInUse": "Pages in use"
       }
     },
+    "browserDoctor": {
+      "title": "Browser Diagnostics",
+      "description": "Check browser automation dependencies, launch readiness, and get fix suggestions",
+      "runCheck": "Run diagnostics",
+      "running": "Running checks…",
+      "healthy": "Browser stack healthy",
+      "unhealthy": "Issues detected",
+      "recommendations": "Recommendations",
+      "checks": "Checks",
+      "fix": "Fix",
+      "launchTest": "Include launch test",
+      "loadFailed": "Failed to load browser diagnostics"
+    },
     "cloudBrowser": {
       "title": "Cloud Browser",
       "provider": "Provider",
@@ -4411,6 +4436,7 @@
         "exportDownloadJson": "Download JSON",
         "exportCopied": "Copied!",
         "exportCopyFailed": "Copy failed. Check clipboard permissions.",
+        "desktopOpenSettings": "Open System Settings",
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "Message delivery queue has critical failures ({failed_count} failed)."
@@ -4426,6 +4452,21 @@
           },
           "ERR_PROBE_CRASH": {
             "message": "Probe execution crashed unexpectedly."
+          },
+          "OK_DESKTOP_PERMISSIONS": {
+            "message": "Desktop permissions are granted."
+          },
+          "WARN_DESKTOP_PERMISSIONS_MISSING": {
+            "message": "Missing desktop permissions: {missing}."
+          },
+          "OK_DESKTOP_SANDBOX_VNC": {
+            "message": "Cloud sandbox visual desktop is enabled."
+          },
+          "WARN_DESKTOP_SANDBOX_UNAVAILABLE": {
+            "message": "Desktop control is unavailable in this cloud sandbox."
+          },
+          "ERR_DESKTOP_PERMISSIONS_PROBE": {
+            "message": "Desktop permission check failed."
           }
         }
       },
@@ -4903,6 +4944,7 @@
     "addSubagent": "Add Subagent",
     "noSubagents": "No subagents bound",
     "removeSubagent": "Remove",
+    "dismissRebindHint": "Dismiss",
     "allowDiscovery": {
       "title": "Allow discovery and delegation by other agents",
       "description": "When enabled, other agents can find and delegate to this agent via @ mentions or auto team formation. Disable to hide work-in-progress agents."
@@ -5338,6 +5380,13 @@
       "noNetworkAllowlist": "No restrictions — uses global network policy.",
       "addDomain": "Add",
       "domainPlaceholder": "e.g. api.example.com or .github.com",
+      "networkBlocklistTitle": "Network Domain Blocklist",
+      "networkBlocklistDesc": "Always deny these domains for this agent (union with global blocklist). Supports exact match and suffix match (e.g. .example.com).",
+      "noNetworkBlocklist": "No extra blocks — uses global network blocklist only.",
+      "addBlockedDomain": "Add",
+      "blockedDomainPlaceholder": "e.g. facebook.com or .social.com",
+      "invalidBlockedDomain": "Invalid domain pattern.",
+      "duplicateBlockedDomain": "Domain is already blocked.",
       "domainHitlTitle": "Domain Approval Confirmation",
       "domainHitlDesc": "Prompt the user for approval when accessing domains not in the allowlist. Users can choose \"Allow Once\" or \"Always Allow This Domain\".",
       "timeoutTitle": "Approval Timeout Override",
@@ -10806,6 +10855,7 @@
     "rollbackFailed": "Rollback failed, please try again",
     "forcePushReceived": "Agent profile updated by organization",
     "forcePushRollbackHint": "A snapshot was saved. You can rollback from agent settings.",
+    "subagentRebindRequired": "Subagent bindings changed. Start a new chat to use updated delegation tools.",
     "viewAgent": "View",
     "approvalRequired": "Agent requires approval: {actionType}",
     "approvalsRecovered": "Recovered {count} pending approval(s)",
@@ -11704,6 +11754,14 @@
     "stopAllSuccess": "Stop signal sent to all running subagents",
     "stopAllFailed": "Failed to stop subagents",
     "stopAllNetworkError": "Network error: failed to stop subagents",
+    "delegationPauseButton": "Pause delegation",
+    "delegationResumeButton": "Resume delegation",
+    "delegationPauseSuccess": "New subagent spawns paused",
+    "delegationResumeSuccess": "Subagent delegation resumed",
+    "delegationPauseFailed": "Failed to pause delegation",
+    "delegationResumeFailed": "Failed to resume delegation",
+    "delegationPauseNetworkError": "Network error: failed to pause delegation",
+    "delegationResumeNetworkError": "Network error: failed to resume delegation",
     "fetchFailed": "Failed to fetch subagents",
     "swarmFissionGroup": "Swarm fission batch",
     "swarmFissionProgress": "{completed}/{total} parallel tasks",

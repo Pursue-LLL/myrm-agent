@@ -3,10 +3,10 @@
 [INPUT]
 - myrm_agent_harness.api.hooks::BackgroundJobFinishResult (POS: harness finish payload)
 - app.services.agent.goal_registry::GoalRegistry (POS: session GoalProvider lookup)
-- app.services.agent.goal_stream_trigger::trigger_goal_stream (POS: unattended headless stream)
+- app.services.agent.goal_stream_trigger::trigger_goal_stream_with_failure_policy (POS: unattended headless stream + failure SSOT)
 
 [OUTPUT]
-- maybe_resume_goal_after_background_job: exit WAIT, trigger goal stream, return success flag
+- maybe_resume_goal_after_background_job: exit WAIT, trigger goal stream (or NEEDS_HUMAN_REVIEW on failure), return success flag
 
 [POS]
 Server-side companion to harness wait_background_bash auto-enter — closes the WAIT
@@ -70,20 +70,15 @@ async def maybe_resume_goal_after_background_job(result: BackgroundJobFinishResu
         result.pid,
     )
 
-    try:
-        from app.services.agent.goal_stream_trigger import trigger_goal_stream
+    from app.services.agent.goal_stream_trigger import trigger_goal_stream_with_failure_policy
 
-        await trigger_goal_stream(result.session_id, refreshed)
-    except Exception as exc:
-        logger.error(
-            "Failed to trigger stream after background wait resume goal=%s: %s",
-            goal.goal_id,
-            exc,
-            exc_info=True,
-        )
-        return False
-
-    return True
+    return await trigger_goal_stream_with_failure_policy(
+        result.session_id,
+        refreshed,
+        provider,
+        on_failure="needs_human_review",
+        context="background wait resume",
+    )
 
 
 __all__ = ["maybe_resume_goal_after_background_job"]

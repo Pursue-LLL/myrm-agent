@@ -123,7 +123,7 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => router.push(`/settings?tab=wiki&agentId=${encodeURIComponent(agent.id)}`)}
+        onClick={() => router.push(`/settings/wiki?agentId=${encodeURIComponent(agent.id)}`)}
         className="flex items-center gap-1"
       >
         <Settings className="w-4 h-4" />

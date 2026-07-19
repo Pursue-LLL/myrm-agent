@@ -908,6 +908,7 @@ async def _setup_kanban_tools(
     from myrm_agent_harness.toolkits.kanban import create_kanban_tools
 
     from app.ai_agents.general_agent.kanban_tool_mode import resolve_kanban_tool_mode
+    from app.services.kanban.kanban_attach_handler import create_kanban_attach_handler
     from app.services.kanban.service import KanbanService
 
     kanban_svc = KanbanService.get_instance()
@@ -944,6 +945,9 @@ async def _setup_kanban_tools(
         default_board_id=default_board_id,
         agent_id=agent_wrapper.agent_id,
         current_task_id=agent_wrapper.kanban_current_task_id,
+        attach_task_file=(
+            create_kanban_attach_handler(store) if mode == "worker" else None
+        ),
     )
     tools.extend(kanban_tools)
     tool_names = ", ".join(t.name for t in kanban_tools)

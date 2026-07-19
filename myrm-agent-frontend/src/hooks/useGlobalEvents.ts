@@ -304,6 +304,12 @@ export function useGlobalEvents(): void {
         // Dispatch a custom event so specific components (like ChatWindow) can handle it
         window.dispatchEvent(new CustomEvent('system-notification', { detail: payload }));
 
+        if (meta.kind === 'background_job_finish' && typeof meta.chat_id === 'string' && meta.chat_id.trim()) {
+          void import('@/store/chat/goals/useGoalStore').then(({ useGoalStore }) => {
+            void useGoalStore.getState().refreshActiveGoal(meta.chat_id as string);
+          });
+        }
+
         // Only show global toast if it's not a snapshot_created event
         // (snapshot_created is handled specifically by ChatWindow with a custom icon)
         if (meta.type !== 'snapshot_created') {
@@ -492,6 +498,10 @@ export function useGlobalEvents(): void {
         window.dispatchEvent(new CustomEvent('goal_dequeued', { detail: payload.data }));
       } else if (payload.type === 'extension_status_changed') {
         window.dispatchEvent(new CustomEvent('extension-status-changed', { detail: payload.data }));
+      } else if (payload.type === 'subagent_rebind_required') {
+        toast.info(t('subagentRebindRequired'), {
+          duration: 10_000,
+        });
       } else if (payload.type === 'agent_config_updated') {
         const agentId = String(payload.data.agent_id ?? '');
         const action = String(payload.data.action ?? 'updated');

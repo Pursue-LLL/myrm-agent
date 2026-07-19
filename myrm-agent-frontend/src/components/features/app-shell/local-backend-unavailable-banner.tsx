@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { checkBackendReadyOnce } from '@/lib/backend-health';
+import { waitForChromeE2eBackendBinding, isChromeE2eTab } from '@/lib/local-backend-e2e-probe';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { resolveLocalBackendSetupHint } from '@/lib/local-backend-dev';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -62,7 +63,18 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
 
     let cancelled = false;
 
-    void checkBackendReadyOnce().then(async (ready) => {
+    void (async () => {
+      if (isChromeE2eTab()) {
+        const bound = await waitForChromeE2eBackendBinding();
+        if (cancelled) {
+          return;
+        }
+        if (!bound) {
+          return;
+        }
+      }
+
+      const ready = await checkBackendReadyOnce();
       if (cancelled || ready) {
         return;
       }
@@ -71,7 +83,7 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
         setHint(setupHint);
         setVisible(true);
       }
-    });
+    })();
 
     return () => {
       cancelled = true;

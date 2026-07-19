@@ -214,3 +214,41 @@ async def resume_subagent(
     except Exception:
         logger.exception("Failed to resume subagent %s", task_id)
         return error_response(message=f"Failed to resume subagent {task_id}", status_code=500)
+
+
+@router.post("/{chat_id}/subagents/delegation/pause")
+async def pause_delegation_for_session(
+    chat_id: Annotated[str, Path(..., description="The chat session ID")],
+) -> JSONResponse:
+    """Pause new subagent spawns for this session (in-flight children continue)."""
+    from myrm_agent_harness.agent.meta_tools.spawn_subagent.delegation_pause_gate import (
+        pause_delegation,
+    )
+
+    pause_delegation(chat_id)
+    return success_response(data={"paused": True, "chat_id": chat_id})
+
+
+@router.post("/{chat_id}/subagents/delegation/resume")
+async def resume_delegation_for_session(
+    chat_id: Annotated[str, Path(..., description="The chat session ID")],
+) -> JSONResponse:
+    """Resume subagent spawns for this session."""
+    from myrm_agent_harness.agent.meta_tools.spawn_subagent.delegation_pause_gate import (
+        resume_delegation,
+    )
+
+    resume_delegation(chat_id)
+    return success_response(data={"paused": False, "chat_id": chat_id})
+
+
+@router.get("/{chat_id}/subagents/delegation/status")
+async def delegation_pause_status(
+    chat_id: Annotated[str, Path(..., description="The chat session ID")],
+) -> JSONResponse:
+    """Return whether delegation is paused for this session."""
+    from myrm_agent_harness.agent.meta_tools.spawn_subagent.delegation_pause_gate import (
+        delegation_pause_status as gate_status,
+    )
+
+    return success_response(data=gate_status(chat_id))

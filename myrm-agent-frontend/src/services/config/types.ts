@@ -378,6 +378,7 @@ export interface SecurityConfigValue {
   approvalTimeoutBehavior?: 'deny' | 'allow';
   pathPolicy?: PathPolicyConfig;
   networkAllowlist?: string[];
+  networkBlocklist?: string[];
   domainHitlEnabled?: boolean;
   planConfirmEnabled?: boolean;
   yoloModeEnabled?: boolean;

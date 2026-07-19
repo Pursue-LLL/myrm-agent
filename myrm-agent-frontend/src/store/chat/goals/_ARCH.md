@@ -8,7 +8,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `useGoalStore.ts` | 活跃 goal、队列、git 分支、预算/目标更新 |
+| `useGoalStore.ts` | 活跃 goal、队列、git 分支、预算/目标更新；`refreshActiveGoal` 供 bg finish / goal_needs_review SSE 同步 Card |
 | `usePlanStore.ts` | Plan 步骤树、加载与步骤状态 PATCH |
 | `__tests__/` | goal/plan store 回归 |
 

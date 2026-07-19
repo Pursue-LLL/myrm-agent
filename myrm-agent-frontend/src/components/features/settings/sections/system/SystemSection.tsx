@@ -15,6 +15,7 @@ import { SystemConfig, DEFAULT_SYSTEM_CONFIG } from '@/types/system';
 import { useSystemConfig } from '@/hooks/useSystemConfig';
 import { useDirtyGuard } from '@/hooks/useDirtyGuard';
 import BrowserPoolCard from './BrowserPoolCard';
+import BrowserDoctorCard from './BrowserDoctorCard';
 import BrowserProxyCard from './BrowserProxyCard';
 import CaptchaSolverCard from './CaptchaSolverCard';
 import CloudBrowserCard from './CloudBrowserCard';
@@ -673,6 +674,8 @@ const SystemSection = memo(() => {
 
       {/* Browser Pool */}
       <BrowserPoolCard />
+
+      <BrowserDoctorCard />
 
       {/* Cloud Browser Provider */}
       <CloudBrowserCard />

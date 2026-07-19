@@ -60,6 +60,7 @@ myrm_agent_harness.agent.meta_tools.progress.schemas
 myrm_agent_harness.agent.meta_tools.progress.storage
 myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine
 myrm_agent_harness.agent.meta_tools.spawn_subagent
+myrm_agent_harness.agent.meta_tools.spawn_subagent.delegation_pause_gate
 myrm_agent_harness.agent.middlewares
 myrm_agent_harness.agent.middlewares.approval.batch_processor
 myrm_agent_harness.agent.middlewares.approval.scheduler
@@ -286,6 +287,7 @@ myrm_agent_harness.toolkits.kanban
 myrm_agent_harness.toolkits.kanban.context_builder
 myrm_agent_harness.toolkits.kanban.diagnostics
 myrm_agent_harness.toolkits.kanban.dispatcher
+myrm_agent_harness.toolkits.kanban.kanban_agent_tools
 myrm_agent_harness.toolkits.kanban.protocols
 myrm_agent_harness.toolkits.kanban.types
 myrm_agent_harness.toolkits.llms

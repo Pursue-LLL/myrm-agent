@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from myrm_agent_harness.toolkits.kanban import KanbanToolMode
 
-_KANBAN_TOOL_MODES: frozenset[KanbanToolMode] = frozenset({"worker", "orchestrator", "full"})
+_KANBAN_TOOL_MODES: frozenset[KanbanToolMode] = frozenset({"worker", "orchestrator"})
 
 
 def resolve_kanban_tool_mode(
@@ -24,7 +24,7 @@ def resolve_kanban_tool_mode(
     """Resolve harness KanbanToolMode for LLM tool binding.
 
     Task-bound runs (Kanban TaskRunner) always use worker tools. Chat agents with
-    kanban enabled default to orchestrator (7 tools). Full (12) = worker + orchestrator.
+    kanban enabled default to orchestrator (3 tools). Board/task CRUD uses REST/GUI.
     """
     if kanban_current_task_id:
         return "worker"

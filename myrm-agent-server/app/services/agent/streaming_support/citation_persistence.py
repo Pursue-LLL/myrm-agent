@@ -1,4 +1,14 @@
-"""Memory citation persistence helpers for agent stream finalize."""
+"""Memory citation persistence helpers for agent stream finalize.
+
+[INPUT]
+Message extra_data dict during stream finalize (POS: Agent stream persistence hook)
+
+[OUTPUT]
+merge_memory_citation_fallback: backfills citedMemoryIds from harness memory manager.
+
+[POS]
+Agent API streaming_support helper. Ensures memory citations survive when SSE collector misses synthetic tool_end events.
+"""
 
 from __future__ import annotations
 

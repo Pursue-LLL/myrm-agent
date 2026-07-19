@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { IconPlus, IconX, IconBot } from '@/components/features/icons/PremiumIcons';
+import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { getBuiltinAgentName, getBuiltinAgentDescription } from '@/components/agent/builtin-agent-i18n';
@@ -13,10 +14,19 @@ interface AgentSubagentBindingProps {
   selectedIds: string[];
   currentAgentId: string | null;
   onChange: (ids: string[]) => void;
+  showRebindHint?: boolean;
+  onDismissRebindHint?: () => void;
 }
 
-export function AgentSubagentBinding({ selectedIds, currentAgentId, onChange }: AgentSubagentBindingProps) {
+export function AgentSubagentBinding({
+  selectedIds,
+  currentAgentId,
+  onChange,
+  showRebindHint = false,
+  onDismissRebindHint,
+}: AgentSubagentBindingProps) {
   const t = useTranslations('agent');
+  const tNotifications = useTranslations('notifications');
   const locale = useLocale();
   const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -49,6 +59,30 @@ export function AgentSubagentBinding({ selectedIds, currentAgentId, onChange }: 
         </h3>
         <p className="text-xs text-muted-foreground mt-0.5">{t('subagentBindingDesc')}</p>
       </div>
+
+      {showRebindHint && (
+        <div
+          className={cn(
+            'mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2',
+            'dark:border-amber-900/50 dark:bg-amber-950/30',
+          )}
+          role="status"
+        >
+          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-900 dark:text-amber-100 flex-1">
+            {tNotifications('subagentRebindRequired')}
+          </p>
+          {onDismissRebindHint && (
+            <button
+              type="button"
+              onClick={onDismissRebindHint}
+              className="text-xs text-amber-700 dark:text-amber-300 hover:underline shrink-0"
+            >
+              {t('dismissRebindHint')}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="space-y-2">
         {selectedAgents.length === 0 && <p className="text-xs text-muted-foreground italic py-2">{t('noSubagents')}</p>}

@@ -648,11 +648,15 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 self._session_vault = get_global_session_vault()
 
             domain_allowlist = None
+            domain_blocklist = None
             agent_inst = self.agent
             if agent_inst is not None:
                 nw = agent_inst.config.security_config.network_allowlist
                 if nw:
                     domain_allowlist = DomainAllowlist.from_strings(nw)
+                nb = agent_inst.config.security_config.network_blocklist
+                if nb:
+                    domain_blocklist = DomainAllowlist.from_strings(nb)
 
             thread_id = self.approval_session_key or f"chat_{effective_chat_id}"
             self._current_thread_id = thread_id
@@ -697,6 +701,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 session_vault=self._session_vault,
                 observability=observability,
                 domain_allowlist=domain_allowlist,
+                domain_blocklist=domain_blocklist,
                 captcha_solver=await self._build_captcha_solver(),
                 content_vault=ArtifactVault(os.getcwd()),
                 vision_llm=vision_llm,

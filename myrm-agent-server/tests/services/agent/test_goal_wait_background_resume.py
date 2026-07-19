@@ -48,15 +48,22 @@ async def test_maybe_resume_goal_after_background_job_exits_wait_and_triggers_st
             return_value=provider,
         ),
         patch(
-            "app.services.agent.goal_stream_trigger.trigger_goal_stream",
+            "app.services.agent.goal_stream_trigger.trigger_goal_stream_with_failure_policy",
             new_callable=AsyncMock,
+            return_value=True,
         ) as mock_trigger,
     ):
         resumed = await maybe_resume_goal_after_background_job(result)
 
     assert resumed is True
     provider.exit_wait.assert_called_once_with("g1")
-    mock_trigger.assert_awaited_once_with("chat-1", active_goal)
+    mock_trigger.assert_awaited_once_with(
+        "chat-1",
+        active_goal,
+        provider,
+        on_failure="needs_human_review",
+        context="background wait resume",
+    )
 
 
 @pytest.mark.asyncio
@@ -148,3 +155,4 @@ async def test_maybe_resume_goal_returns_false_when_stream_trigger_fails():
 
     assert resumed is False
     provider.exit_wait.assert_called_once_with("g1")
+    provider.update_status.assert_called_once_with("g1", GoalStatus.NEEDS_HUMAN_REVIEW)

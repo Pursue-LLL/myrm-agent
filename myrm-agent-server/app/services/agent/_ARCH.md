@@ -50,15 +50,15 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `fission_config.py` | ✅ 辅助 | 从 Agent `engine_params.max_parallel_fission` 解析并发上限（默认 3，上限 5），供 Web/Channel/Kanban/FastSearch 统一传入 `execute_swarm_fission` |
 | `steering_registry.py` | ✅ 核心 | 会话级 Steering 令牌注册表 — 通过 chat_id 管理运行中的 SteeringToken，使 HTTP API 能在运行时注入引导消息。与 CancellationRegistry 对称设计。 |
 | `wakeup_handler.py` | ✅ 核心 | **Idle Wakeup & Event-Driven Continuation** 的 Server 层实现（`AsyncWakeupHandler`）。Headless 续跑在 `convert_to_general_agent_params` 之后将 `channel_name` 置为 **`headless_wakeup`**（`delivery_provenance` 映射 `async_wake_consumer`），并在 `memory_channel_id` 缺省时 **固定回写 `web_chat`**，避免记忆命名空间随投递标签漂移；`_run_headless_agent` 投递流式执行前必须通过 `app.core.utils.chat_utils.convert_chat_history` 将历史转为 LangChain 消息。 |
-| `background_job_finish_handler.py` | ✅ 核心 | Harness 后台 bash 自然退出时的 WebUI 闭环：读 `personalSettings.locale` 格式化双语完成消息，`ChatService.append_message` + `SYSTEM_NOTIFICATION` SSE（`meta_data.kind=background_job_finish`）；不触发 headless LLM。Cancel/killed 路径由 harness listener 静默跳过。finish 成功后调用 `goal_wait_background_resume`（exit_wait + trigger_goal_stream）。 |
-| `goal_wait_background_resume.py` | ✅ 核心 | background job finish 匹配 wait_on_background_pid → exit_wait → trigger_goal_stream；前端 refreshActiveGoal 同步 Card |
+| `background_job_finish_handler.py` | ✅ 核心 | Harness 后台 bash 自然退出时的 WebUI 闭环：读 locale 格式化双语完成消息 → `append_message` → `goal_wait_background_resume`（exit_wait + failure policy）→ `SYSTEM_NOTIFICATION` SSE（`meta_data.kind=background_job_finish`）；resume 先于 SSE 避免 Card 状态竞态。 |
+| `goal_wait_background_resume.py` | ✅ 核心 | background job finish 匹配 wait_on_background_pid → exit_wait → `trigger_goal_stream_with_failure_policy(needs_human_review)`；前端 refreshActiveGoal 同步 Card |
 | `shell_background_tasks.py` | ✅ 核心 | Harness `BackgroundProcessRegistry` 的 REST 门面：`list_shell_background_tasks` / `cancel_shell_background_task`；供 `/background-tasks` 与 Kanban Agent 任务合并展示。 |
 | `context_compaction_telemetry.py` | ✅ 核心 | Context 压缩遥测分发器。配置来自 `settings.control_plane` + `settings.context_compaction_telemetry`（`ContextCompactionTelemetryConfig.from_settings()`）；读取 Harness `TaskMetrics` 快照，有界队列 + 批量 flush + 背压保护异步上报 Control Plane（`events` 契约，`X-Telemetry-Subject` 头）。 |
 | `search.py` | ✅ 辅助 | Web 搜索服务封装 | ✅ |
 | `routing_advisor.py` | ✅ 核心 | 智能路由顾问 — 根据历史事件提供高危模型的降级建议 | ✅ |
 | `browser_skill_binding.py` | ✅ 辅助 | `enable_browser` 时合并 peripheral prebuilt `browser-automation` skill（`is_core:false`）；由 `AgentFactory.create_general_agent` 调用，覆盖 Web/Cron/Channel/Kanban 全入口 | ✅ |
 | `goal_registry.py` | ✅ 核心 | 会话级 Goal 句柄全局注册表。`ServerGoalManager` 扩展 harness `GoalManager`，semantic judge 通过 `platform_config.build_platform_litellm_kwargs()` 读 WebUI 默认模型（无 env fallback）。 | ✅ |
-| `goal_stream_trigger.py` | ✅ 辅助 | Goal 队列 dequeue 后触发 unattended headless stream | ✅ |
+| `goal_stream_trigger.py` | ✅ 辅助 | Goal 队列 dequeue / bg WAIT resume / loop_restart 统一 unattended headless stream；`handle_unattended_goal_stream_failure` SSOT（setup + runtime → NEEDS_HUMAN_REVIEW 或 keep ACTIVE + SSE） | ✅ |
 | `goal_draft.py` | ✅ 辅助 | Goal 创建前 draft — 从 objective 生成 constraints / acceptance_criteria（Server lite LLM） | ✅ |
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置 | ✅ |
 | `session_credential_assembler.py` | ✅ 核心 | 统一会话凭证装配 + `session_credentials_scope` / `user_config_session_credentials_scope`；Web / Channel / Cron / Kanban / Wakeup / approval-timeout resume | ✅ |

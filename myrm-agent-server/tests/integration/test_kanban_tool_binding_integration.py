@@ -15,16 +15,13 @@ import pytest
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
 from app.core.types import ModelConfig
 from app.services.kanban import KanbanService
+from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 ORCHESTRATOR_TOOL_NAMES = frozenset(
     {
         "kanban_add_task",
         "kanban_list_tasks",
-        "kanban_update_task",
-        "kanban_move_task",
-        "kanban_delete_task",
-        "kanban_board_summary",
-        "kanban_link",
+        "kanban_unblock",
     }
 )
 
@@ -35,6 +32,7 @@ WORKER_TOOL_NAMES = frozenset(
         "kanban_block",
         "kanban_heartbeat",
         "kanban_comment",
+        "kanban_attach",
     }
 )
 
@@ -62,7 +60,7 @@ def _minimal_model_cfg() -> ModelConfig:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_real_service_chat_binds_seven_orchestrator_tools() -> None:
+async def test_real_service_chat_binds_three_orchestrator_tools() -> None:
     from app.ai_agents.general_agent.factory import _setup_kanban_tools
 
     svc = KanbanService.get_instance()
@@ -77,13 +75,13 @@ async def test_real_service_chat_binds_seven_orchestrator_tools() -> None:
     await _setup_kanban_tools(agent_wrapper, tools)
 
     bound_names = {getattr(tool, "name", None) for tool in tools}
-    assert len(tools) == 7
+    assert len(tools) == 3
     assert bound_names == set(ORCHESTRATOR_TOOL_NAMES)
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_real_service_task_bound_binds_five_worker_tools() -> None:
+async def test_real_service_task_bound_binds_six_worker_tools() -> None:
     from app.ai_agents.general_agent.factory import _setup_kanban_tools
 
     svc = KanbanService.get_instance()
@@ -103,7 +101,7 @@ async def test_real_service_task_bound_binds_five_worker_tools() -> None:
     await _setup_kanban_tools(agent_wrapper, tools)
 
     bound_names = {getattr(tool, "name", None) for tool in tools}
-    assert len(tools) == 5
+    assert len(tools) == 6
     assert bound_names == set(WORKER_TOOL_NAMES)
 
 
@@ -131,11 +129,11 @@ async def test_task_id_overrides_orchestrator_mode_on_real_store() -> None:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_full_mode_opt_in_binds_twelve_tools_on_real_store() -> None:
+async def test_legacy_full_mode_falls_back_to_orchestrator_tools() -> None:
     from app.ai_agents.general_agent.factory import _setup_kanban_tools
 
     svc = KanbanService.get_instance()
-    await svc.create_board("Full Mode Board")
+    await svc.create_board("Legacy Full Board")
 
     agent_wrapper = SimpleNamespace(
         kanban_tool_mode="full",
@@ -146,9 +144,8 @@ async def test_full_mode_opt_in_binds_twelve_tools_on_real_store() -> None:
     await _setup_kanban_tools(agent_wrapper, tools)
 
     bound_names = {getattr(tool, "name", None) for tool in tools}
-    assert len(tools) == 12
-    assert ORCHESTRATOR_TOOL_NAMES.issubset(bound_names)
-    assert WORKER_TOOL_NAMES.issubset(bound_names)
+    assert len(tools) == 3
+    assert bound_names == set(ORCHESTRATOR_TOOL_NAMES)
 
 
 @pytest.mark.integration
@@ -209,7 +206,7 @@ async def test_invalid_whitespace_mode_falls_back_to_orchestrator_tools() -> Non
     await _setup_kanban_tools(agent_wrapper, tools)
 
     bound_names = {getattr(tool, "name", None) for tool in tools}
-    assert len(tools) == 7
+    assert len(tools) == 3
     assert bound_names == set(ORCHESTRATOR_TOOL_NAMES)
 
 
@@ -261,3 +258,38 @@ async def test_orchestrator_list_tasks_by_task_id_on_real_store() -> None:
     assert data["tasks"][0]["task_id"] == child.task_id
     assert data["parents"] == [parent.task_id]
     assert data["dependencies_met"] is False
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_orchestrator_list_tasks_include_stats_on_real_store() -> None:
+    """End-to-end: list_tasks(include_stats=true) returns board counts."""
+    import json
+
+    from app.ai_agents.general_agent.factory import _setup_kanban_tools
+
+    svc = KanbanService.get_instance()
+    board = await svc.create_board("Stats Board")
+    await svc.add_task(board.board_id, "Ready task")
+    blocked = await svc.add_task(board.board_id, "Blocked task")
+    blocked_task = await svc.get_task(blocked.task_id)
+    assert blocked_task is not None
+    blocked_task.status = TaskStatus.BLOCKED
+    blocked_task.blocked_reason = "hold"
+    await svc.store.save_task(blocked_task)
+
+    agent_wrapper = SimpleNamespace(
+        kanban_tool_mode="orchestrator",
+        kanban_current_task_id=None,
+        agent_id="agent-integ-stats",
+    )
+    tools: list[object] = []
+    await _setup_kanban_tools(agent_wrapper, tools)
+
+    list_tool = next(t for t in tools if getattr(t, "name", None) == "kanban_list_tasks")
+    raw = await list_tool.ainvoke({"board_id": board.board_id, "include_stats": True})
+    data = json.loads(raw)
+
+    assert data["total_tasks"] >= 2
+    assert "task_counts" in data
+    assert data["board"]["board_id"] == board.board_id

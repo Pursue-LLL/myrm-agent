@@ -312,7 +312,9 @@ class CdpChatBootstrap(CdpChatTransport):
                 await self.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
                 await self._after_new_chat_reset()
                 continue
-            if chat_id_from_path(path) is not None or last.get("hasInput"):
+            if (
+                chat_id_from_path(path) is not None or last.get("hasInput")
+            ) and not path.startswith("/settings") and path != "/onboarding":
                 return
             reset = await self.click_new_chat()
             if reset.get("ok"):

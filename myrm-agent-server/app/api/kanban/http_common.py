@@ -19,12 +19,12 @@ from fastapi import APIRouter
 from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KanbanTask
 
 from app.api.kanban.schemas import AttachmentInfo, BoardResponse, TaskResponse
-from app.core.kanban.adapters.sqlalchemy_mapping import (
-    get_attachment_ids,
-    set_attachment_ids,
-)
 from app.services.kanban import KanbanService
 from app.services.kanban.diagnostics import create_diagnostic_engine
+from app.services.kanban.task_attachment_ids import (
+    load_task_attachment_ids as _load_task_attachment_ids,
+    save_task_attachment_ids as _save_task_attachment_ids,
+)
 
 router = APIRouter(prefix="/kanban", tags=["kanban"])
 
@@ -33,16 +33,6 @@ diag_engine = create_diagnostic_engine()
 
 def get_kanban_service() -> KanbanService:
     return KanbanService.get_instance()
-
-
-async def _load_task_attachment_ids(task_id: str) -> list[str]:
-    """Load attachment IDs from the DB for a task."""
-    from app.database.connection import get_session
-    from app.database.models.kanban import KanbanTaskModel
-
-    async with get_session() as session:
-        m = await session.get(KanbanTaskModel, task_id)
-        return get_attachment_ids(m) if m else []
 
 
 async def _batch_load_attachment_ids(task_ids: list[str]) -> dict[str, list[str]]:
@@ -64,18 +54,6 @@ async def _batch_load_attachment_ids(task_ids: list[str]) -> dict[str, list[str]
         )
         rows = (await session.execute(stmt)).all()
         return {r[0]: list(r[1]) for r in rows if r[1]}
-
-
-async def _save_task_attachment_ids(task_id: str, ids: list[str]) -> None:
-    """Persist attachment IDs on a task row."""
-    from app.database.connection import get_session
-    from app.database.models.kanban import KanbanTaskModel
-
-    async with get_session() as session:
-        m = await session.get(KanbanTaskModel, task_id)
-        if m:
-            set_attachment_ids(m, ids)
-            await session.commit()
 
 
 async def _task_response_with_attachments(task: KanbanTask) -> TaskResponse:

@@ -18,11 +18,7 @@ _CATALOG = "app.ai_agents.subagent_catalog.DatabaseSubagentCatalog"
 
 _EXPECTED_TOOL_NAMES = (
     "delegate_task_tool",
-    "batch_delegate_tasks_tool",
-    "delegate_parallel_tasks_tool",
-    "list_subagents_tool",
-    "cancel_subagent_tool",
-    "steer_subagent_tool",
+    "subagent_control_tool",
 )
 
 
@@ -64,33 +60,28 @@ def _make_bare_agent() -> BaseAgent:
     return agent
 
 
-def _spawn_patches() -> tuple[dict[str, MagicMock], list[tuple[str, object]]]:
+def _spawn_patches(*, list_available: list[str] | None = None) -> tuple[dict[str, MagicMock], list[tuple[str, object]]]:
     delegate_tool = _make_tool("delegate_task_tool")
+    catalog_instance = MagicMock()
+    catalog_instance.list_available = AsyncMock(return_value=list_available or ["research-agent"])
     created: dict[str, MagicMock] = {
         "delegate": MagicMock(return_value=delegate_tool),
-        "batch": MagicMock(return_value=_make_tool("batch_delegate_tasks_tool")),
-        "parallel": MagicMock(return_value=_make_tool("delegate_parallel_tasks_tool")),
-        "list": MagicMock(return_value=_make_tool("list_subagents_tool")),
-        "cancel": MagicMock(return_value=_make_tool("cancel_subagent_tool")),
-        "steer": MagicMock(return_value=_make_tool("steer_subagent_tool")),
+        "control": MagicMock(return_value=_make_tool("subagent_control_tool")),
         "update_desc": AsyncMock(),
+        "catalog": catalog_instance,
     }
     patch_specs: list[tuple[str, object]] = [
         (_MATERIALIZE, MagicMock(return_value={})),
-        (_CATALOG, MagicMock()),
+        (_CATALOG, MagicMock(return_value=catalog_instance)),
         (f"{_SPAWN}.create_delegate_task_tool", created["delegate"]),
-        (f"{_SPAWN}.create_batch_delegate_tasks_tool", created["batch"]),
-        (f"{_SPAWN}.create_delegate_parallel_tasks_tool", created["parallel"]),
-        (f"{_SPAWN}.create_list_subagents_tool", created["list"]),
-        (f"{_SPAWN}.create_cancel_subagent_tool", created["cancel"]),
-        (f"{_SPAWN}.create_steer_subagent_tool", created["steer"]),
+        (f"{_SPAWN}.create_subagent_control_tool", created["control"]),
         (f"{_SPAWN}.update_delegate_task_description", created["update_desc"]),
     ]
     return created, patch_specs
 
 
-def _enter_spawn_patches(stack: ExitStack) -> None:
-    _, patch_specs = _spawn_patches()
+def _enter_spawn_patches(stack: ExitStack, *, list_available: list[str] | None = None) -> None:
+    _, patch_specs = _spawn_patches(list_available=list_available)
     for target, replacement in patch_specs:
         stack.enter_context(patch(target, new=replacement))
 
@@ -109,9 +100,23 @@ async def test_on_agent_init_registers_subagent_tools_on_registry() -> None:
 
 
 @pytest.mark.asyncio
+async def test_subagent_extension_skips_bind_when_catalog_empty() -> None:
+    agent = _make_bare_agent()
+    ext = SubagentManagementExtension(jit_subagents={}, subagent_ids=[])
+
+    with ExitStack() as stack:
+        _enter_spawn_patches(stack, list_available=[])
+        await ext.on_agent_init(agent)
+
+    resolved_names = {tool.name for tool in agent._tool_registry.resolve()}
+    assert "delegate_task_tool" not in resolved_names
+    assert "subagent_control_tool" not in resolved_names
+
+
+@pytest.mark.asyncio
 async def test_subagent_extension_single_create_agent_on_init() -> None:
     agent = _make_bare_agent()
-    agent.register_extension(SubagentManagementExtension(jit_subagents={}, subagent_ids=[]))
+    agent.register_extension(SubagentManagementExtension(jit_subagents={}, subagent_ids=["research-agent"]))
 
     with ExitStack() as stack:
         _enter_spawn_patches(stack)

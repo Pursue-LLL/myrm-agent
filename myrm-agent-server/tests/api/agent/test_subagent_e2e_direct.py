@@ -93,7 +93,7 @@ def test_subagent_notification_no_injection(client: TestClient):
     2. 解析SSE流
     3. 验证SUBAGENT_COMPLETION事件存在
     4. 验证无HumanMessage注入（Prompt Cache保护）
-    5. 验证LLM主动调用list_subagents_tool
+    5. 验证LLM主动调用subagent_control_tool
     """
     logger.info("=" * 80)
     logger.info("🧪 TestClient E2E Test: Subagent Notification Cache Fix")
@@ -183,7 +183,7 @@ def test_subagent_notification_no_injection(client: TestClient):
         logger.error("   ❌ CRITICAL: Found message injections - Prompt Cache will be broken!")
         return False
 
-    # Verification 3: LLM actively called list_subagents_tool
+    # Verification 3: LLM actively called subagent_control_tool
     llm_called_list_tool = False
     for event in events:
         if event.get("type") == "TOOL_CALL_START":
@@ -192,7 +192,7 @@ def test_subagent_notification_no_injection(client: TestClient):
                 llm_called_list_tool = True
                 break
 
-    logger.info(f"{'✅' if llm_called_list_tool else '⚠️'} LLM called list_subagents_tool: {llm_called_list_tool}")
+    logger.info(f"{'✅' if llm_called_list_tool else '⚠️'} LLM called subagent_control_tool: {llm_called_list_tool}")
 
     if not llm_called_list_tool:
         logger.warning("   LLM did not actively query subagent results. This is acceptable if:")

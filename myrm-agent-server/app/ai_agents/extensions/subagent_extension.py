@@ -35,12 +35,8 @@ class SubagentManagementExtension(AgentExtension):
 
     async def on_agent_init(self, agent: BaseAgent) -> None:
         from myrm_agent_harness.agent.meta_tools.spawn_subagent import (
-            create_batch_delegate_tasks_tool,
-            create_cancel_subagent_tool,
-            create_delegate_parallel_tasks_tool,
             create_delegate_task_tool,
-            create_list_subagents_tool,
-            create_steer_subagent_tool,
+            create_subagent_control_tool,
             update_delegate_task_description,
         )
 
@@ -65,6 +61,12 @@ class SubagentManagementExtension(AgentExtension):
             bound_agent_ids=combined_ids,
             jit_configs=jit_configs,
         )
+
+        available_ids = await catalog.list_available()
+        if not available_ids and not jit_configs:
+            logger.info("Empty subagent catalog — skipping delegation tool bind")
+            return
+
         delegate_tool = create_delegate_task_tool(
             agent,
             tool_registry_getter=_tool_registry_getter,
@@ -76,24 +78,11 @@ class SubagentManagementExtension(AgentExtension):
 
         subagent_tools = [
             delegate_tool,
-            create_batch_delegate_tasks_tool(
-                agent,
-                tool_registry_getter=_tool_registry_getter,
-                catalog=catalog,
-                delegate_tool=delegate_tool,
-            ),
-            create_delegate_parallel_tasks_tool(
-                agent,
-                tool_registry_getter=_tool_registry_getter,
-                catalog=catalog,
-            ),
-            create_list_subagents_tool(agent),
-            create_cancel_subagent_tool(agent),
-            create_steer_subagent_tool(agent),
+            create_subagent_control_tool(agent),
         ]
         for tool in subagent_tools:
             agent._tool_registry.register(tool, source=ToolSource.USER)
-        logger.info("Subagent tools loaded via Extension: delegate/batch/parallel/list/cancel/steer")
+        logger.info("Subagent tools loaded via Extension: delegate_task + subagent_control")
 
     async def on_agent_shutdown(self, agent: BaseAgent) -> None:
         pass

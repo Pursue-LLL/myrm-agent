@@ -257,6 +257,7 @@ export default function GoalModeToggle() {
                   size="sm"
                   variant="secondary"
                   className="h-7 text-xs w-full"
+                  data-testid="goal-draft-suggest"
                   disabled={isDrafting || !inputMessage.trim()}
                   onClick={handleSuggestCriteria}
                 >

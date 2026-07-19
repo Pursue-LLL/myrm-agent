@@ -4,6 +4,7 @@ Covers:
 - Success path: returns permission status JSON with all expected fields
 - All-granted vs partial-denied scenarios
 - Exception handling: returns 500 with error payload
+- Temporary probe session is always closed (success and check_permissions error paths)
 """
 
 from __future__ import annotations
@@ -45,6 +46,7 @@ class TestGetDesktopPermissions:
             "screen_recording": "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
         }
         mock_session.check_permissions = AsyncMock(return_value=mock_status)
+        mock_session.close = AsyncMock()
 
         with patch(
             "myrm_agent_harness.toolkits.computer_use.session.create_computer_session",
@@ -60,6 +62,7 @@ class TestGetDesktopPermissions:
         assert data["platform"] == "macos"
         assert "accessibility" in data["settings_deeplinks"]
         assert "screen_recording" in data["settings_deeplinks"]
+        mock_session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_accessibility_denied(self, client: httpx.AsyncClient) -> None:
@@ -71,6 +74,7 @@ class TestGetDesktopPermissions:
         mock_status.platform = "macos"
         mock_status.settings_deeplinks = {"accessibility": "url://a", "screen_recording": "url://b"}
         mock_session.check_permissions = AsyncMock(return_value=mock_status)
+        mock_session.close = AsyncMock()
 
         with patch(
             "myrm_agent_harness.toolkits.computer_use.session.create_computer_session",
@@ -83,6 +87,7 @@ class TestGetDesktopPermissions:
         assert data["accessibility"] is False
         assert data["screen_recording"] is True
         assert data["all_granted"] is False
+        mock_session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_screen_recording_denied(self, client: httpx.AsyncClient) -> None:
@@ -94,6 +99,7 @@ class TestGetDesktopPermissions:
         mock_status.platform = "macos"
         mock_status.settings_deeplinks = {"accessibility": "url://a", "screen_recording": "url://b"}
         mock_session.check_permissions = AsyncMock(return_value=mock_status)
+        mock_session.close = AsyncMock()
 
         with patch(
             "myrm_agent_harness.toolkits.computer_use.session.create_computer_session",
@@ -106,6 +112,7 @@ class TestGetDesktopPermissions:
         assert data["accessibility"] is True
         assert data["screen_recording"] is False
         assert data["all_granted"] is False
+        mock_session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_harness_exception_returns_500(self, client: httpx.AsyncClient) -> None:
@@ -124,6 +131,7 @@ class TestGetDesktopPermissions:
     async def test_check_permissions_raises_returns_500(self, client: httpx.AsyncClient) -> None:
         mock_session = AsyncMock()
         mock_session.check_permissions = AsyncMock(side_effect=OSError("AX probe crash"))
+        mock_session.close = AsyncMock()
 
         with patch(
             "myrm_agent_harness.toolkits.computer_use.session.create_computer_session",
@@ -135,3 +143,4 @@ class TestGetDesktopPermissions:
         data = response.json()
         assert data["error"] == "permissions_check_failed"
         assert "AX probe crash" in data["message"]
+        mock_session.close.assert_awaited_once()

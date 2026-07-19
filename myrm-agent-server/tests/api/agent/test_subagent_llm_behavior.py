@@ -1,6 +1,6 @@
 """Subagent LLM Behavior 测试
 
-测试真实LLM是否遵循System Prompt指导，在async subagent完成后主动调用list_subagents_tool
+测试真实LLM是否遵循System Prompt指导，在async subagent完成后主动调用subagent_control_tool
 """
 
 import json
@@ -60,9 +60,9 @@ def verify_subagent_query_behavior(client: TestClient, query: str) -> tuple[bool
                         spawned_subagent = True
                         print("    ✅ Detected: delegate_task called")
 
-                    if tool_name == "list_subagents_tool":
+                    if tool_name == "subagent_control_tool":
                         called_list_tool = True
-                        print("    ✅ Detected: list_subagents_tool called (LLM followed System Prompt!)")
+                        print("    ✅ Detected: subagent_control_tool called (LLM followed System Prompt!)")
 
                 elif event_type == "subagent_completion":
                     print(f"  📬 Subagent Completion: {data.get('data', '')[:50]}...")
@@ -80,13 +80,13 @@ def verify_subagent_query_behavior(client: TestClient, query: str) -> tuple[bool
 
 def test_llm_follows_system_prompt_to_query_subagent_results(client: TestClient):
     """
-    测试：真实LLM是否遵循System Prompt指导，主动调用list_subagents_tool获取async subagent结果
+    测试：真实LLM是否遵循System Prompt指导，主动调用subagent_control_tool获取async subagent结果
 
     预期行为：
     1. LLM spawn async subagent (wait=false)
     2. Subagent完成后，backend发送SUBAGENT_COMPLETION SSE事件
-    3. LLM看到System Prompt指导："You MUST call list_subagents_tool after spawning async subagents"
-    4. LLM主动调用list_subagents_tool
+    3. LLM看到System Prompt指导："You MUST call subagent_control_tool after spawning async subagents"
+    4. LLM主动调用subagent_control_tool
     5. LLM获取结果并展示给用户
     """
     # 构造一个需要subagent的查询（根据System Prompt，LLM可能会spawn search subagent）
@@ -98,11 +98,11 @@ def test_llm_follows_system_prompt_to_query_subagent_results(client: TestClient)
     if spawned:
         print("\n✅ LLM spawned async subagent")
 
-        # 关键验证：LLM是否调用了list_subagents_tool（如果spawn了subagent）
+        # 关键验证：LLM是否调用了subagent_control_tool（如果spawn了subagent）
         if called_list:
-            print("✅ LLM called list_subagents_tool (System Prompt guidance worked!)")
+            print("✅ LLM called subagent_control_tool (System Prompt guidance worked!)")
         else:
-            print("⚠️ LLM did not call list_subagents_tool (may rely on frontend prompt)")
+            print("⚠️ LLM did not call subagent_control_tool (may rely on frontend prompt)")
 
         # 验证：是否收到SUBAGENT_COMPLETION事件
         subagent_completion_events = [e for e in events if e.get("type") == "subagent_completion"]
@@ -129,9 +129,9 @@ def test_llm_behavior_with_multiple_subagents(client: TestClient):
         print("\n✅ LLM spawned subagents")
 
         if called_list:
-            print("✅ LLM called list_subagents_tool")
+            print("✅ LLM called subagent_control_tool")
         else:
-            print("⚠️ LLM did not call list_subagents_tool")
+            print("⚠️ LLM did not call subagent_control_tool")
 
         # 验证多个SUBAGENT_COMPLETION事件
         completion_events = [e for e in events if e.get("type") == "subagent_completion"]

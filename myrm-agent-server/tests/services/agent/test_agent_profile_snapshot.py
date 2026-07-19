@@ -246,6 +246,26 @@ async def test_rollback_preserves_mcp_ids(agent_db) -> None:
 
 
 @pytest.mark.asyncio
+async def test_update_security_overrides_network_blocklist_persists(agent_db) -> None:
+    """Updating security_overrides (snapshot path) must not fail on updated_at lazy load."""
+    agent_id = await _create_test_agent()
+
+    outcome = await AgentService.update_agent(
+        agent_id,
+        AgentUpdate(security_overrides={"networkBlocklist": ["e2e-agent-block.test"]}),
+    )
+    assert outcome is not None
+    assert outcome.profile is not None
+    metadata = outcome.profile.metadata or {}
+    assert metadata.get("security_overrides") == {"networkBlocklist": ["e2e-agent-block.test"]}
+
+    agent = await AgentService.get_agent_by_id(agent_id)
+    assert agent is not None
+    reloaded = agent.metadata or {}
+    assert reloaded.get("security_overrides") == {"networkBlocklist": ["e2e-agent-block.test"]}
+
+
+@pytest.mark.asyncio
 async def test_repo_update_profile_rejects_legacy_enabled_builtin_tools(agent_db) -> None:
     agent_id = await _create_test_agent()
     session_factory = agent_db

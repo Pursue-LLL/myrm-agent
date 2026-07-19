@@ -15,6 +15,7 @@
 | `tauri-system-config-cache.ts` | Tauri 桌面 `saveAndRestart`/`resetConfig` 前写入 `myrm-tauri-system-config` localStorage，供 `deploy-mode.ts` 冷启动读端口 | 内联 |
 | `backend-health.ts` | 后端健康轮询、`fetchBackendHealth`（含 `system_status`）、`ensureLocalBackendReady` 单飞 gate（Boot 复访 fail-fast、不可达后 fast re-probe、`markLocalBackendUnreachable` 运输失败后失效缓存）、`checkBackendReadyOnce` | 内联 |
 | `local-backend-dev.ts` | Boot session SSOT + health-aware local setup hint（Boot/Banner/Settings）；`resolveBackendUnreachableMessage`（api 层从 `#locales` en/zh 读取 `common.configLoadError`） | 内联 |
+| `local-backend-e2e-probe.ts` | Chrome E2E tab 判定 + 私 Backend 绑定等待（Banner 抑制 shared `:8080` 误报） | 内联 |
 | `locale-personal-sync.ts` | 登录后将 cookie locale 写入 `personalSettings`（对齐 Agent 消息 locale） | 内联 |
 | `utils/localeUtils.ts` | `NEXT_LOCALE_COOKIE_NAME`、`parseLocaleQueryParam`、`urlWithoutLocaleParam`（middleware 营销接力） | 内联 |
 | `product-surface.ts` | 隐藏 builtin agent / 未来上线前的产品面 SSOT（镜像 server `product_surface.py`） | 内联 |

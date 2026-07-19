@@ -354,8 +354,9 @@ class TestTryDequeueNext:
                 mock_registry,
             ),
             patch(
-                "app.services.agent.goal_stream_trigger.trigger_goal_stream",
+                "app.services.agent.goal_stream_trigger.trigger_goal_stream_with_failure_policy",
                 new_callable=AsyncMock,
+                return_value=True,
             ) as mock_trigger,
             patch("app.services.event.app_event_bus.get_event_bus") as mock_get_bus,
         ):
@@ -366,7 +367,13 @@ class TestTryDequeueNext:
             await _try_dequeue_next("session-dq-1")
 
             mock_provider.dequeue_next.assert_called_once_with("session-dq-1")
-            mock_trigger.assert_called_once_with("session-dq-1", mock_goal)
+            mock_trigger.assert_awaited_once_with(
+                "session-dq-1",
+                mock_goal,
+                mock_provider,
+                on_failure="needs_human_review",
+                context="dequeued goal",
+            )
 
     @pytest.mark.asyncio
     async def test_does_nothing_when_queue_empty(self):

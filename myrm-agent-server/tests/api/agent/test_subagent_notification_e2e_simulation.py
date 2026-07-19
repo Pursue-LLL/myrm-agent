@@ -3,7 +3,7 @@
 场景：
 1. 用户发送消息触发subagent (async wait=false)
 2. Subagent完成后发送SSE事件（不注入消息）
-3. LLM主动调用list_subagents_tool获取结果
+3. LLM主动调用subagent_control_tool获取结果
 4. Prompt Cache保持稳定（无动态HumanMessage注入）
 
 This test bypasses frontend UI bugs and directly tests the intelligent agent API.
@@ -68,7 +68,7 @@ def has_llm_tool_call(events: list[dict], tool_name: str) -> bool:
 
     Args:
         events: Parsed SSE events
-        tool_name: Tool name to search for (e.g., "list_subagents_tool")
+        tool_name: Tool name to search for (e.g., "subagent_control_tool")
 
     Returns:
         True if the tool was called
@@ -83,7 +83,7 @@ def has_llm_tool_call(events: list[dict], tool_name: str) -> bool:
             data = event.get("data", {})
             if isinstance(data, dict):
                 content = data.get("content", "")
-                if tool_name in content or "list_subagents_tool" in content:
+                if tool_name in content or "subagent_control_tool" in content:
                     return True
     return False
 
@@ -120,7 +120,7 @@ async def test_intelligent_agent_subagent_notification_no_injection(client: Test
     1. 发送触发subagent的消息
     2. 收到SUBAGENT_COMPLETION SSE事件
     3. 未注入HumanMessage（Prompt Cache保护）
-    4. LLM主动调用list_subagents_tool
+    4. LLM主动调用subagent_control_tool
     5. 最终返回正确结果
     """
     logger.info("=" * 60)
@@ -166,12 +166,12 @@ async def test_intelligent_agent_subagent_notification_no_injection(client: Test
     logger.info(f"{'✅' if human_message_count == 0 else '❌'} HumanMessage injections: {human_message_count} (expected: 0)")
     assert human_message_count == 0, f"Found {human_message_count} HumanMessage injections, expected 0 (breaks Prompt Cache)"
 
-    # Verification 3: LLM actively called list_subagents_tool
-    llm_called_list_tool = has_llm_tool_call(events, "list_subagents_tool")
-    logger.info(f"{'✅' if llm_called_list_tool else '⚠️'} LLM called list_subagents_tool: {llm_called_list_tool}")
+    # Verification 3: LLM actively called subagent_control_tool
+    llm_called_list_tool = has_llm_tool_call(events, "subagent_control_tool")
+    logger.info(f"{'✅' if llm_called_list_tool else '⚠️'} LLM called subagent_control_tool: {llm_called_list_tool}")
 
     if not llm_called_list_tool:
-        logger.warning("⚠️ LLM did not actively call list_subagents_tool. This is acceptable if:")
+        logger.warning("⚠️ LLM did not actively call subagent_control_tool. This is acceptable if:")
         logger.warning("   1. Subagent completed synchronously (wait=true)")
         logger.warning("   2. Frontend intelligent prompting system triggered (5s timeout)")
         logger.warning("   But for optimal UX, LLM should proactively query 95% of the time.")

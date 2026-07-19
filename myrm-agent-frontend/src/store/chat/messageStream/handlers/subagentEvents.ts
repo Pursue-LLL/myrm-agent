@@ -22,6 +22,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
         role: data.data.role,
         control_scope: data.data.control_scope,
         budget: data.data.budget,
+        effective_model: data.data.effective_model,
         startedAt: Date.now(),
       });
     });
@@ -51,6 +52,17 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       if (taskId) {
         const store = useSubagentStore.getState();
         store.updateProgress(taskId, progressPercent, pd.current_step);
+        const tokenUsage =
+          (pd.token_usage as Record<string, unknown> | undefined) ??
+          (typeof pd.current_tokens === 'number' && pd.current_tokens > 0
+            ? { total_tokens: pd.current_tokens }
+            : undefined);
+        if (tokenUsage && typeof tokenUsage.total_tokens === 'number' && tokenUsage.total_tokens > 0) {
+          store.upsertNode({
+            task_id: taskId,
+            token_usage: tokenUsage as Record<string, number | string | boolean | null>,
+          });
+        }
         if (typeof pd.eta_seconds === 'number' && pd.eta_seconds > 0) {
           store.updateEstimate(taskId, pd.eta_seconds);
         }
@@ -181,6 +193,8 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
           policy_reason: payload.policy_reason,
           policy_details: payload.policy_details,
           budget: payload.budget,
+          effective_model: payload.effective_model,
+          token_usage: payload.token_usage,
         });
         store.completeNode(taskId, H.normalizeSubagentStatus(payload.status), payload.error);
       }

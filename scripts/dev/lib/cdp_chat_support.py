@@ -227,6 +227,71 @@ def wait_e2e_goal_status(
     return None
 
 
+def ensure_e2e_goal_active(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+) -> dict[str, object]:
+    """Normalize API goal to ACTIVE for B/D UI flows; fail fast on terminal states."""
+    goal = fetch_e2e_goal_status(chat_id, api_url=api_url)
+    if goal is None:
+        return {"ok": False, "err": "no-goal"}
+
+    status = str(goal.get("status") or "")
+    if status in {"complete", "cancelled"}:
+        return {
+            "ok": False,
+            "err": f"terminal-{status}",
+            "status": status,
+        }
+
+    if status == "wait":
+        unwait = post_goal_status_action(chat_id, "unwait", api_url=api_url)
+        if unwait.get("new_status") != "active":
+            return {"ok": False, "err": "unwait-failed", "payload": unwait}
+        status = "active"
+
+    if status in {"paused", "budget_limited", "needs_human_review", "pending_approval"}:
+        resume = post_goal_status_action(chat_id, "resume", api_url=api_url)
+        if resume.get("new_status") != "active":
+            return {"ok": False, "err": "resume-failed", "payload": resume, "prior_status": status}
+        status = "active"
+
+    if status != "active":
+        return {"ok": False, "err": f"unexpected-status-{status}", "status": status}
+
+    return {"ok": True, "status": "active"}
+
+
+def post_goal_status_action(
+    chat_id: str,
+    action: str,
+    *,
+    api_url: str | None = None,
+    note: str | None = None,
+    wait_reason: str | None = None,
+) -> dict[str, object]:
+    """POST /api/v1/goals/{chat_id}/status for E2E setup/teardown."""
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
+    body: dict[str, object] = {"action": action}
+    if note is not None:
+        body["note"] = note
+    if wait_reason is not None:
+        body["wait_reason"] = wait_reason
+    payload = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(  # noqa: S310
+        f"{resolved_api}/api/v1/goals/{chat_id}/status",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
+            return json.loads(resp.read())
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
 _CHAT_ID_PATH_RE = re.compile(
     r"^/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|c-[a-z0-9\-]+)$",
     re.IGNORECASE,

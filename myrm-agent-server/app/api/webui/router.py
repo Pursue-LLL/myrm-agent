@@ -417,6 +417,7 @@ async def get_desktop_permissions() -> JSONResponse:
     to the OS settings page where the user can grant access.
     Does NOT require an active desktop session — creates a temporary backend probe.
     """
+    session = None
     try:
         from myrm_agent_harness.toolkits.computer_use.session import create_computer_session
 
@@ -437,6 +438,9 @@ async def get_desktop_permissions() -> JSONResponse:
             status_code=500,
             content={"error": "permissions_check_failed", "message": str(e)},
         )
+    finally:
+        if session is not None:
+            await session.close()
 
 
 @router.get("/desktop/snapshot")

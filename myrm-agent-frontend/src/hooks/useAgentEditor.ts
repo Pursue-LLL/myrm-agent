@@ -32,6 +32,10 @@ import { DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/
 import { type ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import { useAgentResources } from './useAgentResources';
 
+function arraysEqual(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
 /**
  * 智能体编辑器Hook
  *
@@ -94,6 +98,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
 
   // 子智能体绑定
   const [selectedSubagentIds, setSelectedSubagentIds] = useState<string[]>([]);
+  const [subagentRebindPersist, setSubagentRebindPersist] = useState(false);
 
   // 安全策略覆盖
   const [securityOverrides, setSecurityOverrides] = useState<Record<string, unknown> | null>(null);
@@ -178,8 +183,6 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
 
   // 检测变更
   useEffect(() => {
-    const arraysEqual = (a: string[], b: string[]) => a.length === b.length && a.every((v, i) => v === b[i]);
-
     const modelChanged =
       modelSelection?.providerId !== originalData.modelSelection?.providerId ||
       modelSelection?.model !== originalData.modelSelection?.model ||
@@ -442,6 +445,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         router.replace(`/settings/agents?agentId=${createdAgent.id}`);
         return;
       } else if (agent) {
+        const subagentIdsChanged = !arraysEqual(selectedSubagentIds, originalData.selectedSubagentIds);
         const updateData: AgentUpdate = {
           name: name.trim(),
           description: description.trim() || undefined,
@@ -511,6 +515,9 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           sessionPolicy,
           notifyTargets: [...notifyTargets],
         });
+        if (subagentIdsChanged) {
+          setSubagentRebindPersist(true);
+        }
         toast({ title: t('agent.updateSuccess') });
       }
 
@@ -652,6 +659,9 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     // 子智能体
     selectedSubagentIds,
     setSelectedSubagentIds,
+    subagentRebindHint:
+      !arraysEqual(selectedSubagentIds, originalData.selectedSubagentIds) || subagentRebindPersist,
+    dismissSubagentRebindHint: () => setSubagentRebindPersist(false),
     // 安全策略
     securityOverrides,
     setSecurityOverrides,

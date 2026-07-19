@@ -263,6 +263,7 @@ class AgentService:
     async def update_agent(agent_id: str, agent_data: AgentUpdate) -> AgentUpdateOutcome | None:
         """更新智能体"""
         snapshot_saved = True
+        subagent_binding_changed = False
         async with UnitOfWork() as uow:
             existing = await AgentService._ar(uow).get_profile(agent_id)
             if not existing:
@@ -315,7 +316,12 @@ class AgentService:
             if "allow_discovery" in agent_data.model_fields_set:
                 new_metadata["allow_discovery"] = agent_data.allow_discovery
             if agent_data.subagent_ids is not None:
+                existing_meta = existing.metadata or {}
+                previous_subagent_ids = list(new_metadata.get("subagent_ids") or existing_meta.get("subagent_ids") or [])
                 new_metadata["subagent_ids"] = agent_data.subagent_ids
+                subagent_binding_changed = sorted(previous_subagent_ids) != sorted(agent_data.subagent_ids)
+            else:
+                subagent_binding_changed = False
             if "workspace_policy" in agent_data.model_fields_set:
                 new_metadata["workspace_policy"] = agent_data.workspace_policy
             if "engine_params" in agent_data.model_fields_set:
@@ -371,6 +377,20 @@ class AgentService:
                 return None
 
         _finalize_profile_mutation(agent_id, "updated")
+
+        if subagent_binding_changed:
+            try:
+                get_event_bus().publish(
+                    AppEvent(
+                        event_type=AppEventType.SUBAGENT_REBIND_REQUIRED,
+                        data={
+                            "agent_id": agent_id,
+                            "subagent_ids": list(agent_data.subagent_ids or []),
+                        },
+                    )
+                )
+            except Exception as e:
+                logger.warning("Failed to publish subagent rebind event for %s: %s", agent_id, e)
 
         logger.info("Agent updated: %s", agent_id)
         return AgentUpdateOutcome(profile=updated_profile, snapshot_saved=snapshot_saved)

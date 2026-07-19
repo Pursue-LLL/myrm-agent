@@ -242,6 +242,32 @@ class CdpChatTurn(CdpChatSubmit):
             await asyncio.sleep(1.5)
         raise TimeoutError(f"Timed out waiting for assistant OK: {last}")
 
+    async def wait_turn_settled(
+        self,
+        *,
+        chat_id_hint: str | None = None,
+        min_user_msgs: int = 1,
+        timeout_sec: float = 180.0,
+    ) -> dict[str, object]:
+        """Wait until the assistant finishes without requiring an OK token."""
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            bridge = await self._bridge_turn_snapshot()
+            if isinstance(bridge, dict):
+                last = bridge
+                chat_id = str(bridge.get("chatId") or "").strip() or chat_id_hint
+                if (
+                    chat_id
+                    and int(bridge.get("userCount") or 0) >= min_user_msgs
+                    and not bridge.get("isStreaming")
+                    and str(bridge.get("lastAssistantSample") or "").strip()
+                ):
+                    maybe_register_e2e_chat(chat_id)
+                    return {**bridge, "chatId": chat_id, "okViaBridge": True}
+            await asyncio.sleep(1.5)
+        raise TimeoutError(f"Timed out waiting for assistant reply: {last}")
+
     async def _clear_input_via_bridge(self) -> None:
         await self.evaluate(
             """(() => {
@@ -447,6 +473,23 @@ class CdpChatTurn(CdpChatSubmit):
                 if not submit.get("ok"):
                     if int(probe.get("inputLen") or 0) > 0:
                         raise RuntimeError(f"UI submit failed: {submit} fill={fill}")
+                    bridge_block = submit.get("bridge")
+                    if isinstance(bridge_block, dict):
+                        last_submit = bridge_block.get("lastSubmit")
+                        if isinstance(last_submit, dict):
+                            debug = last_submit.get("debug")
+                            if isinstance(debug, dict):
+                                turn = debug.get("turn")
+                                if isinstance(turn, dict) and (
+                                    turn.get("isStreaming")
+                                    or int(turn.get("userCount") or 0) > baseline_user_msgs
+                                ):
+                                    submit = {
+                                        **submit,
+                                        "ok": True,
+                                        "mode": "bridgeTurnStreaming",
+                                        "chatId": turn.get("chatId") or chat_id,
+                                    }
                     if chat_id:
                         try:
                             if cdp_chat_support.chat_user_message_count(chat_id) > baseline_user_msgs:

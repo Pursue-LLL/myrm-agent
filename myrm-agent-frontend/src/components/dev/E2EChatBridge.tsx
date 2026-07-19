@@ -18,10 +18,13 @@ import { getModelSelection } from '@/store/chat/messageRequest';
 import useChatStore from '@/store/useChatStore';
 import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
 import useApprovalStore from '@/store/useApprovalStore';
+import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useProviderStore from '@/store/useProviderStore';
+import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import type { BuiltinToolId } from '@/store/chat/types';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
+import { fetchWithTimeout } from '@/lib/api';
 import { markPlatformUnreachable } from '@/lib/platform-readiness';
 
 function isLocalDevHost(): boolean {
@@ -268,7 +271,125 @@ export default function E2EChatBridge() {
           useChatStore.getState().setGoalBudgetTokens(tokens);
         });
       },
+      setGoalConvergenceWindow: (window: number | null) => {
+        flushSync(() => {
+          useChatStore.getState().setGoalConvergenceWindow(window);
+        });
+      },
       getGoalMode: () => useChatStore.getState().isGoalMode,
+      getActiveGoalSnapshot: () => {
+        const goal = useGoalStore.getState().activeGoal;
+        if (!goal) return null;
+        return {
+          status: goal.status,
+          reason: goal.reason ?? null,
+          objective: goal.objective,
+        };
+      },
+      loadActiveGoalFromApi: async () => {
+        const chatId = useChatStore.getState().chatId?.trim();
+        if (!chatId) {
+          return { ok: false, err: 'no-chat-id' };
+        }
+        const res = await fetchWithTimeout(`/goals/${chatId}/status`);
+        if (!res.ok) {
+          return { ok: false, err: `fetch-${res.status}` };
+        }
+        const data = (await res.json()) as { goal?: Record<string, unknown> };
+        if (!data.goal) {
+          return { ok: false, err: 'no-goal' };
+        }
+        const { normalizeGoalState } = await import('@/store/chat/messageStream/streamHelpers');
+        useGoalStore.getState().setActiveGoal(normalizeGoalState(data.goal));
+        return {
+          ok: true,
+          status: String(data.goal.status ?? ''),
+          reason: typeof data.goal.reason === 'string' ? data.goal.reason : null,
+        };
+      },
+      getGoalDraftState: () => {
+        const state = useChatStore.getState();
+        return {
+          composerObjective: state.inputMessage.trim(),
+          acceptanceCount: state.goalAcceptanceCriteria?.length ?? 0,
+          constraintsCount: state.goalConstraints?.length ?? 0,
+          draftButtonDisabled: !state.inputMessage.trim(),
+        };
+      },
+      runGoalDraftFromComposer: async () => {
+        const objective = useChatStore.getState().inputMessage.trim();
+        if (!objective) {
+          return { ok: false, err: 'empty-composer' };
+        }
+        const locale =
+          typeof document.documentElement.lang === 'string' && document.documentElement.lang
+            ? document.documentElement.lang
+            : 'en';
+        const res = await fetchWithTimeout(
+          '/goals/draft',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ objective, locale }),
+          },
+          120_000,
+        );
+        if (!res.ok) {
+          return { ok: false, err: `draft-${res.status}` };
+        }
+        const data = (await res.json()) as {
+          constraints?: string[];
+          acceptance_criteria?: Array<Record<string, unknown>>;
+        };
+        if (data.acceptance_criteria?.length) {
+          useChatStore.getState().setGoalAcceptanceCriteria(data.acceptance_criteria);
+        }
+        if (data.constraints?.length) {
+          useChatStore.getState().setGoalConstraints(data.constraints);
+        }
+        return {
+          ok: true,
+          acceptanceCount: data.acceptance_criteria?.length ?? 0,
+          constraintsCount: data.constraints?.length ?? 0,
+        };
+      },
+      dispatchSystemNotification: (detail: Record<string, unknown>) => {
+        window.dispatchEvent(new CustomEvent('system-notification', { detail }));
+        const data = detail.data;
+        const meta =
+          typeof data === 'object' && data !== null && !Array.isArray(data)
+            ? (data as Record<string, unknown>).meta_data
+            : undefined;
+        const kind = typeof meta === 'object' && meta !== null && !Array.isArray(meta)
+          ? (meta as Record<string, unknown>).kind
+          : undefined;
+        const chatId =
+          typeof meta === 'object' && meta !== null && !Array.isArray(meta)
+            ? (meta as Record<string, unknown>).chat_id
+            : undefined;
+        if (kind === 'background_job_finish' && typeof chatId === 'string' && chatId.trim()) {
+          void useGoalStore.getState().refreshActiveGoal(chatId.trim());
+        }
+      },
+      dispatchBackgroundJobFinishAndRefresh: async (chatId: string) => {
+        const trimmed = chatId.trim();
+        if (!trimmed) {
+          return { ok: false, err: 'empty-chat-id' };
+        }
+        const detail = {
+          data: {
+            meta_data: { kind: 'background_job_finish', chat_id: trimmed },
+          },
+        };
+        window.dispatchEvent(new CustomEvent('system-notification', { detail }));
+        await useGoalStore.getState().refreshActiveGoal(trimmed);
+        const snap = useGoalStore.getState().activeGoal;
+        return {
+          ok: true,
+          status: snap?.status ?? null,
+          reason: snap?.reason ?? null,
+        };
+      },
       setCurrentBuiltinTools: (tools: BuiltinToolId[]) => {
         flushSync(() => {
           useChatStore.getState().setCurrentBuiltinTools([...tools]);
@@ -334,6 +455,31 @@ export default function E2EChatBridge() {
         });
       },
       isApprovalDrawerOpen: () => useApprovalStore.getState().isOpen,
+      triggerBrowserTakeover: (payload) => {
+        flushSync(() => {
+          useBrowserTakeoverStore.getState().requestTakeover({
+            reason: payload.reason,
+            messageId: payload.messageId ?? 'e2e-takeover-msg',
+            ui_mode: payload.ui_mode ?? 'extension',
+            auto_detect_completion: payload.auto_detect_completion ?? false,
+            url: payload.url,
+          });
+        });
+      },
+      getBrowserTakeoverSnapshot: () => {
+        const state = useBrowserTakeoverStore.getState();
+        return {
+          pending: state.pending,
+          uiMode: state.uiMode,
+          autoDetectCompletion: state.autoDetectCompletion,
+          reason: state.reason,
+        };
+      },
+      dismissBrowserTakeover: () => {
+        flushSync(() => {
+          useBrowserTakeoverStore.getState().completeTakeover();
+        });
+      },
     };
 
     window.__MYRM_E2E_SUBAGENT__ = {

@@ -64,6 +64,8 @@ export interface AgentCapabilitiesTabProps {
     setOpenapiServices: (val: OpenAPIServiceConfig[]) => void;
     selectedSubagentIds: string[];
     setSelectedSubagentIds: (val: string[]) => void;
+    subagentRebindHint: boolean;
+    dismissSubagentRebindHint: () => void;
     notifyTargets: NotifyTarget[];
     setNotifyTargets: (val: NotifyTarget[]) => void;
   };
@@ -127,6 +129,8 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
         selectedIds={editor.selectedSubagentIds}
         currentAgentId={agentId}
         onChange={editor.setSelectedSubagentIds}
+        showRebindHint={editor.subagentRebindHint}
+        onDismissRebindHint={editor.dismissSubagentRebindHint}
       />
 
       <AgentSharedContextBinding agentId={agentId} isNew={isNew} />

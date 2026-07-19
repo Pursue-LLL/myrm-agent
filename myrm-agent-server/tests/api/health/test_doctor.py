@@ -1,6 +1,7 @@
 """System API Integration Tests
 
 测试 /api/v1/health/doctor 端点，验证数据库和 Harness 探针能否真实返回正确健康报告。
+Harness 探针注册回归：HookSystem、DesktopControl（见 test_*_probe_in_doctor）。
 """
 
 import pytest
@@ -144,6 +145,33 @@ def test_hook_system_probe_in_doctor(client: TestClient):
     assert hook_report["status"] in ("pass", "warn", "fail")
     assert "message" in hook_report
     assert hook_report["message"] != ""
+
+
+@pytest.mark.e2e
+def test_desktop_control_probe_in_doctor(client: TestClient):
+    """DesktopControl diagnostic probe should appear in harness reports via doctor API."""
+    response = client.get("/api/v1/health/doctor")
+    assert response.status_code == 200
+
+    data = response.json()
+    harness_reports = data["harness"]
+    component_names = [r["component_name"] for r in harness_reports]
+
+    assert "DesktopControl" in component_names, (
+        f"DesktopControl probe missing from doctor response. Found: {component_names}"
+    )
+
+    desktop_report = next(r for r in harness_reports if r["component_name"] == "DesktopControl")
+    assert desktop_report["status"] in ("pass", "warn", "fail")
+    assert "message" in desktop_report
+    assert desktop_report["message"] != ""
+    assert desktop_report.get("code") in (
+        "OK_DESKTOP_PERMISSIONS",
+        "WARN_DESKTOP_PERMISSIONS_MISSING",
+        "OK_DESKTOP_SANDBOX_VNC",
+        "WARN_DESKTOP_SANDBOX_UNAVAILABLE",
+        "ERR_DESKTOP_PERMISSIONS_PROBE",
+    )
 
 
 @pytest.mark.e2e

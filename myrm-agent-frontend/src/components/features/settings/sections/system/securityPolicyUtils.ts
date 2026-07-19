@@ -21,8 +21,9 @@ export const KNOWN_PERMISSIONS = [
 ] as const;
 
 export function flattenPermissions(
-  perms: Record<string, PermissionAction | Record<string, PermissionAction>>,
+  perms: Record<string, PermissionAction | Record<string, PermissionAction>> | null | undefined,
 ): PermissionRuleConfig[] {
+  if (!perms) return [];
   const rules: PermissionRuleConfig[] = [];
   for (const [key, value] of Object.entries(perms)) {
     if (typeof value === 'string') {

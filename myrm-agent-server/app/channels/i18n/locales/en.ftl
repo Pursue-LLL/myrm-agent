@@ -116,6 +116,9 @@ bash_bg_finish_with_error =
 bash_bg_finish_generic =
     Background task { $status } (pid={ $pid }, exit_code={ $exit_code }).
     Command: { $command }
+goal_stream_failed_title = Goal needs your review
+goal_stream_failed_message =
+    The autonomous goal run stopped unexpectedly. Open the Goal panel to review and continue.
 new_session_started =  New conversation started. Your next message begins a fresh session.
 compact_not_configured = ℹ Compaction not configured.
 compact_success =  Context compacted: { $message_count } messages summarized, ~{ $tokens_saved } tokens saved.{ $topic_hint }

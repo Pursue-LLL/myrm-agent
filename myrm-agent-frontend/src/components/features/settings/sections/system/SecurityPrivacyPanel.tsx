@@ -45,7 +45,7 @@ const SecurityPrivacyPanel = memo(() => {
 
   const updateRoutingField = useCallback(
     (field: string, value: unknown) => {
-      setPrivacyRouting({ ...privacyRouting, [field]: value });
+      setPrivacyRouting({ ...(privacyRouting ?? {}), [field]: value });
     },
     [privacyRouting, setPrivacyRouting],
   );

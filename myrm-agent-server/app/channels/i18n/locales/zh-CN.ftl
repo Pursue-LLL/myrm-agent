@@ -116,6 +116,9 @@ bash_bg_finish_with_error =
 bash_bg_finish_generic =
     后台任务 { $status } (pid={ $pid }, exit_code={ $exit_code })。
     命令：{ $command }
+goal_stream_failed_title = 目标需人工审查
+goal_stream_failed_message =
+    自主任务意外停止，请在目标面板查看并继续。
 new_session_started =  新对话已开始，下一条消息将开启新会话。
 compact_not_configured = ℹ 未配置压缩功能。
 compact_success =  上下文已压缩：{ $message_count } 条消息已摘要，约节省 { $tokens_saved } tokens。{ $topic_hint }

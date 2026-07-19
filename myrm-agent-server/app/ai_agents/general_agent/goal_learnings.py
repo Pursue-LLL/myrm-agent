@@ -170,22 +170,16 @@ async def _try_dequeue_next(session_id: str, *, _depth: int = 0) -> None:
     except Exception:
         pass
 
-    try:
-        from app.services.agent.goal_stream_trigger import trigger_goal_stream
+    from app.services.agent.goal_stream_trigger import trigger_goal_stream_with_failure_policy
 
-        await trigger_goal_stream(session_id, next_goal)
-    except Exception as e:
-        logger.error(
-            "Failed to start stream for dequeued goal %s: %s",
-            next_goal.goal_id,
-            e,
-        )
-        from myrm_agent_harness.agent.goals.types import GoalStatus
-
-        try:
-            await provider.update_status(next_goal.goal_id, GoalStatus.NEEDS_HUMAN_REVIEW)
-        except Exception:
-            logger.warning("Could not mark goal %s as NEEDS_HUMAN_REVIEW", next_goal.goal_id)
+    triggered = await trigger_goal_stream_with_failure_policy(
+        session_id,
+        next_goal,
+        provider,
+        on_failure="needs_human_review",
+        context="dequeued goal",
+    )
+    if not triggered:
         await _try_dequeue_next(session_id, _depth=_depth + 1)
 
 
@@ -205,16 +199,17 @@ def build_loop_restart_callback() -> Callable[[str, "Goal"], Awaitable[None]]:
             goal.objective[:60],
         )
 
-        try:
-            from app.services.agent.goal_stream_trigger import trigger_goal_stream
+        from app.services.agent.goal_registry import GoalRegistry
+        from app.services.agent.goal_stream_trigger import trigger_goal_stream_with_failure_policy
 
-            await trigger_goal_stream(session_id, goal)
-        except Exception as e:
-            logger.error(
-                "Loop restart failed for goal %s: %s — goal remains ACTIVE for Cron fallback",
-                goal.goal_id,
-                e,
-            )
+        restart_provider = GoalRegistry.get_provider(session_id)
+        await trigger_goal_stream_with_failure_policy(
+            session_id,
+            goal,
+            restart_provider,
+            on_failure="keep_active",
+            context="loop restart",
+        )
 
     return _on_loop_restart
 

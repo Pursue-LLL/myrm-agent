@@ -50,7 +50,38 @@ interface Window {
     lastSubmitResult?: { ok: boolean; err?: string; chatId?: string | null; debug?: Record<string, unknown> };
     setGoalMode: (enabled: boolean) => void;
     setGoalBudgetTokens: (tokens: number | null) => void;
+    setGoalConvergenceWindow?: (window: number | null) => void;
     getGoalMode: () => boolean;
+    getActiveGoalSnapshot?: () => {
+      status: string;
+      reason: string | null;
+      objective: string;
+    } | null;
+    loadActiveGoalFromApi?: () => Promise<{
+      ok: boolean;
+      err?: string;
+      status?: string;
+      reason?: string | null;
+    }>;
+    getGoalDraftState?: () => {
+      composerObjective: string;
+      acceptanceCount: number;
+      constraintsCount: number;
+      draftButtonDisabled: boolean;
+    };
+    runGoalDraftFromComposer?: () => Promise<{
+      ok: boolean;
+      err?: string;
+      acceptanceCount?: number;
+      constraintsCount?: number;
+    }>;
+    dispatchSystemNotification?: (detail: Record<string, unknown>) => void;
+    dispatchBackgroundJobFinishAndRefresh?: (chatId: string) => Promise<{
+      ok: boolean;
+      err?: string;
+      status?: string | null;
+      reason?: string | null;
+    }>;
     setCurrentBuiltinTools?: (tools: string[]) => void;
     getCurrentBuiltinTools?: () => string[];
     ensureComputerUseReady?: () => void;
@@ -72,6 +103,20 @@ interface Window {
     };
     hideApprovalDrawer?: () => void;
     isApprovalDrawerOpen?: () => boolean;
+    triggerBrowserTakeover?: (payload: {
+      reason: string;
+      ui_mode?: 'managed' | 'extension';
+      auto_detect_completion?: boolean;
+      messageId?: string;
+      url?: string;
+    }) => void;
+    getBrowserTakeoverSnapshot?: () => {
+      pending: boolean;
+      uiMode: 'managed' | 'extension';
+      autoDetectCompletion: boolean;
+      reason: string;
+    };
+    dismissBrowserTakeover?: () => void;
   };
   /** Dev-only bridge for subagent dashboard Chrome E2E hydration. */
   __MYRM_E2E_SUBAGENT__?: {

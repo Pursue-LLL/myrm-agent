@@ -15,7 +15,7 @@
 | `AgentCapabilitiesSessionSection.tsx` | 会话策略区段 |
 | `AgentInstinctInboxTab.tsx` | **Agent Draft Inbox（洞察 tab）**：审阅后台 growth `skill_draft`，走 `/skills/drafts` API |
 | `AgentSecretsTab.tsx` | Agent 级密钥 |
-| `AgentSecurityTab.tsx` | 安全策略 |
+| `AgentSecurityTab.tsx` | 安全策略（能力/路径/域名白名单与 blocklist/HITL 超时） |
 | `AgentSubagentBinding.tsx` | 子智能体绑定 |
 | `AgentSharedContextBinding.tsx` | 共享上下文绑定 |
 | `AgentOpenAPIServicesTab.tsx` | OpenAPI 服务 |

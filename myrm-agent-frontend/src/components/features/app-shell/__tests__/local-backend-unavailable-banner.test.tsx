@@ -22,6 +22,11 @@ vi.mock('@/lib/deploy-mode', () => ({
   isLocalMode: vi.fn(() => true),
 }));
 
+vi.mock('@/lib/local-backend-e2e-probe', () => ({
+  isChromeE2eTab: vi.fn(() => false),
+  waitForChromeE2eBackendBinding: vi.fn(() => Promise.resolve(false)),
+}));
+
 describe('isLocalBackendBannerDismissed', () => {
   beforeEach(() => {
     sessionStorage.clear();
@@ -114,5 +119,42 @@ describe('LocalBackendUnavailableBanner', () => {
 
     expect(screen.queryByTestId('local-backend-unavailable-banner')).not.toBeInTheDocument();
     expect(checkBackendReadyOnce).not.toHaveBeenCalled();
+  });
+
+  it('does not show banner on E2E tabs before private backend binding', async () => {
+    const { checkBackendReadyOnce } = await import('@/lib/backend-health');
+    const { isChromeE2eTab, waitForChromeE2eBackendBinding } = await import(
+      '@/lib/local-backend-e2e-probe'
+    );
+    vi.mocked(isChromeE2eTab).mockReturnValueOnce(true);
+    vi.mocked(waitForChromeE2eBackendBinding).mockResolvedValueOnce(false);
+    vi.mocked(checkBackendReadyOnce).mockResolvedValueOnce(false);
+
+    render(<LocalBackendUnavailableBanner />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId('local-backend-unavailable-banner')).not.toBeInTheDocument();
+    expect(checkBackendReadyOnce).not.toHaveBeenCalled();
+  });
+
+  it('shows banner on E2E tabs only after private backend binding fails health', async () => {
+    const { checkBackendReadyOnce } = await import('@/lib/backend-health');
+    const { isChromeE2eTab, waitForChromeE2eBackendBinding } = await import(
+      '@/lib/local-backend-e2e-probe'
+    );
+    vi.mocked(isChromeE2eTab).mockReturnValueOnce(true);
+    vi.mocked(waitForChromeE2eBackendBinding).mockResolvedValueOnce(true);
+    vi.mocked(checkBackendReadyOnce).mockResolvedValueOnce(false);
+
+    render(<LocalBackendUnavailableBanner />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId('local-backend-unavailable-banner')).toHaveTextContent('hintUnreachable');
   });
 });

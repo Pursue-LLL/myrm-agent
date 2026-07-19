@@ -533,7 +533,10 @@ export function GoalStatusCard() {
                 )}
               </span>
               <span className="text-xs text-muted-foreground flex items-center gap-2">
-                <span className={goal.status === 'budget_limited' ? 'text-red-500 font-semibold' : ''}>
+                <span
+                  data-testid="goal-status-badge"
+                  className={goal.status === 'budget_limited' ? 'text-red-500 font-semibold' : ''}
+                >
                   {getStatusText()}
                 </span>
                 {displayReason && (goal.status === 'paused' || goal.status === 'wait') && (
@@ -612,6 +615,7 @@ export function GoalStatusCard() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
+                  data-testid="goal-pause-trigger"
                   onClick={() => setPauseDialogOpen(true)}
                 >
                   <PauseIcon className="h-4 w-4" />
@@ -966,6 +970,7 @@ export function GoalStatusCard() {
             <DialogDescription>{t('pauseDialogDescription')}</DialogDescription>
           </DialogHeader>
           <Input
+            data-testid="goal-pause-note"
             value={pauseNote}
             onChange={(e) => setPauseNote(e.target.value)}
             placeholder={t('pauseNotePlaceholder')}
@@ -976,7 +981,7 @@ export function GoalStatusCard() {
             <Button variant="ghost" onClick={() => setPauseDialogOpen(false)} disabled={isPausing}>
               {t('cancel')}
             </Button>
-            <Button onClick={handleConfirmPause} disabled={isPausing}>
+            <Button data-testid="goal-pause-confirm" onClick={handleConfirmPause} disabled={isPausing}>
               {isPausing ? t('pauseSubmitting') : t('pauseConfirm')}
             </Button>
           </DialogFooter>

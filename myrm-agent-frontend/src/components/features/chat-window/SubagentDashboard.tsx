@@ -14,6 +14,7 @@ import useChatStore from '@/store/useChatStore';
 import { useTranslations } from 'next-intl';
 import {
   Network,
+  PauseCircle,
   PlayCircle,
   CheckCircle2,
   XCircle,
@@ -300,6 +301,16 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
                   ${Number(node.budget.cost_usd).toFixed(3)}
                 </span>
               )}
+              {node.effective_model && (
+                <span className="truncate max-w-[8rem]" title={node.effective_model}>
+                  {node.effective_model}
+                </span>
+              )}
+              {typeof node.token_usage?.total_tokens === 'number' && node.token_usage.total_tokens > 0 && (
+                <span className="tabular-nums shrink-0">
+                  {node.token_usage.total_tokens.toLocaleString()} tok
+                </span>
+              )}
               <span className="truncate">{node.last_tool || t('processing')}</span>
               <span>{Math.round(node.progress)}%</span>
               {isRunningNode && node.startedAt && (
@@ -472,6 +483,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   const t = useTranslations('subagentDashboard');
   const [open, setOpen] = useState(false);
   const [stopAllOpen, setStopAllOpen] = useState(false);
+  const [delegationPaused, setDelegationPaused] = useState(false);
   const nodes = useSubagentStore((s) => s.nodes);
   const fissionBatch = useSubagentStore((s) => s.fissionBatch);
   const storeChatId = useChatStore((s) => s.chatId);
@@ -492,6 +504,34 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
       console.error(t('fetchFailed'), e);
     }
   }, [chatId, t]);
+
+  const fetchDelegationPauseStatus = useCallback(async () => {
+    if (!chatId) return;
+    try {
+      const res = await fetchWithTimeout(`/chats/${chatId}/subagents/delegation/status`);
+      const json = await res.json();
+      setDelegationPaused(Boolean(json.data?.paused));
+    } catch {
+      // non-blocking
+    }
+  }, [chatId]);
+
+  const handleToggleDelegationPause = useCallback(async () => {
+    if (!chatId) return;
+    const endpoint = delegationPaused ? 'resume' : 'pause';
+    try {
+      const res = await fetchWithTimeout(`/chats/${chatId}/subagents/delegation/${endpoint}`, { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body.message || t(delegationPaused ? 'delegationResumeFailed' : 'delegationPauseFailed'));
+        return;
+      }
+      setDelegationPaused(!delegationPaused);
+      toast.success(t(delegationPaused ? 'delegationResumeSuccess' : 'delegationPauseSuccess'));
+    } catch {
+      toast.error(t(delegationPaused ? 'delegationResumeNetworkError' : 'delegationPauseNetworkError'));
+    }
+  }, [chatId, delegationPaused, t]);
 
   const handleStopAll = useCallback(async () => {
     if (!chatId) return;
@@ -558,6 +598,11 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
 
   useEffect(() => {
     if (!chatId) return;
+    void fetchDelegationPauseStatus();
+  }, [chatId, open, fetchDelegationPauseStatus]);
+
+  useEffect(() => {
+    if (!chatId) return;
     void fetchSubagents();
     const poll = window.setInterval(() => {
       if (Object.keys(useSubagentStore.getState().nodes).length > 0) {
@@ -604,12 +649,24 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
               </SheetTitle>
               <SheetDescription>{t('description')}</SheetDescription>
             </div>
-            {runningCount > 0 && (
-              <Button variant="destructive" size="sm" className="shrink-0 gap-2" onClick={() => setStopAllOpen(true)}>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                variant={delegationPaused ? 'secondary' : 'outline'}
+                size="sm"
+                className="gap-2"
+                onClick={() => void handleToggleDelegationPause()}
+                data-testid="delegation-pause-toggle"
+              >
+                {delegationPaused ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
+                {delegationPaused ? t('delegationResumeButton') : t('delegationPauseButton')}
+              </Button>
+              {runningCount > 0 && (
+              <Button variant="destructive" size="sm" className="gap-2" onClick={() => setStopAllOpen(true)}>
                 <StopCircle className="w-4 h-4" />
                 {t('stopAll')}
               </Button>
-            )}
+              )}
+            </div>
           </div>
         </SheetHeader>
         <ScrollArea className="flex-1 p-4">

@@ -132,8 +132,14 @@ class CdpChatInput(CdpChatBootstrap):
             await asyncio.sleep(1)
         raise TimeoutError(f"Model not ready for chat send: {last}")
 
-    async def enable_goal_mode(self, *, budget_tokens: int = 50_000) -> dict[str, object]:
+    async def enable_goal_mode(
+        self,
+        *,
+        budget_tokens: int = 50_000,
+        convergence_window: int | None = None,
+    ) -> dict[str, object]:
         await self.dismiss_modals()
+        conv_js = "null" if convergence_window is None else str(int(convergence_window))
         result = await self.evaluate(
             f"""(() => {{
               const bridge = window.__MYRM_E2E_CHAT__;
@@ -142,11 +148,22 @@ class CdpChatInput(CdpChatBootstrap):
               }}
               bridge.setGoalMode(true);
               bridge.setGoalBudgetTokens({int(budget_tokens)});
+              bridge.setGoalConvergenceWindow?.({conv_js});
               return {{ ok: true, goalMode: bridge.getGoalMode?.() === true }};
             }})()""",
             await_promise=False,
         )
         return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+
+    async def probe_goal_pause_trigger(self) -> dict[str, object]:
+        result = await self.evaluate(
+            """(() => {
+              const trigger = document.querySelector('[data-testid="goal-pause-trigger"]');
+              return { hasPauseTrigger: Boolean(trigger) };
+            })()""",
+            await_promise=False,
+        )
+        return result if isinstance(result, dict) else {"hasPauseTrigger": False}
 
     async def enable_computer_use(self) -> dict[str, object]:
         await self.dismiss_modals()
@@ -711,6 +728,15 @@ class CdpChatInput(CdpChatBootstrap):
         path = str(started.get("path") or "")
         if started.get("sending") or int(started.get("userMsgs") or 0) > baseline_user_msgs:
             return True
+        turn_probe = await self.evaluate(
+            """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()""",
+            await_promise=False,
+        )
+        if isinstance(turn_probe, dict):
+            if turn_probe.get("isStreaming"):
+                return True
+            if int(turn_probe.get("userCount") or 0) > baseline_user_msgs:
+                return True
         chat_id = chat_id_from_path(path) or str(started.get("bridgeChatId") or "").strip() or None
         if not chat_id:
             chat_id = await self.bridge_chat_id()
@@ -721,3 +747,102 @@ class CdpChatInput(CdpChatBootstrap):
             except OSError:
                 pass
         return False
+
+    async def get_active_goal_snapshot(self) -> dict[str, object] | None:
+        result = await self.evaluate(
+            """(() => window.__MYRM_E2E_CHAT__?.getActiveGoalSnapshot?.() ?? null)()""",
+            await_promise=False,
+        )
+        return result if isinstance(result, dict) else None
+
+    async def load_active_goal_from_api(self) -> dict[str, object]:
+        result = await self.evaluate(
+            """(() => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (!bridge?.loadActiveGoalFromApi) return { ok: false, err: 'no-bridge' };
+              return bridge.loadActiveGoalFromApi();
+            })()""",
+            await_promise=True,
+            recv_timeout=30.0,
+        )
+        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+
+    async def pause_goal_via_ui(self, note: str) -> dict[str, object]:
+        payload = json.dumps(note)
+        result = await self.evaluate(
+            f"""(() => {{
+              const trigger = document.querySelector('[data-testid="goal-pause-trigger"]');
+              if (!trigger) return {{ ok: false, err: 'no-pause-trigger' }};
+              trigger.click();
+              return {{ ok: true, step: 'opened' }};
+            }})()""",
+            await_promise=False,
+        )
+        if not isinstance(result, dict) or not result.get("ok"):
+            return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        await asyncio.sleep(0.5)
+        filled = await self.evaluate(
+            f"""(() => {{
+              const input = document.querySelector('[data-testid="goal-pause-note"]');
+              const confirm = document.querySelector('[data-testid="goal-pause-confirm"]');
+              if (!input || !confirm) return {{ ok: false, err: 'pause-dialog-missing' }};
+              const note = {payload};
+              const proto = window.HTMLInputElement.prototype;
+              const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+              if (setter) setter.call(input, note);
+              else input.value = note;
+              input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+              input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+              confirm.click();
+              return {{ ok: true, step: 'submitted' }};
+            }})()""",
+            await_promise=False,
+        )
+        if not isinstance(filled, dict) or not filled.get("ok"):
+            return filled if isinstance(filled, dict) else {"ok": False, "probeError": filled}
+        deadline = time.monotonic() + 15.0
+        while time.monotonic() < deadline:
+            snap = await self.get_active_goal_snapshot()
+            if isinstance(snap, dict) and snap.get("status") == "paused":
+                return {"ok": True, "snapshot": snap}
+            await asyncio.sleep(0.25)
+        return {"ok": False, "err": "pause-status-timeout", "snapshot": await self.get_active_goal_snapshot()}
+
+    async def run_goal_draft_from_composer(self) -> dict[str, object]:
+        result = await self.evaluate(
+            """(() => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (!bridge?.runGoalDraftFromComposer) return { ok: false, err: 'no-bridge' };
+              return bridge.runGoalDraftFromComposer();
+            })()""",
+            await_promise=True,
+            recv_timeout=150.0,
+        )
+        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+
+    async def get_goal_draft_state(self) -> dict[str, object]:
+        result = await self.evaluate(
+            """(() => window.__MYRM_E2E_CHAT__?.getGoalDraftState?.() ?? { ok: false, err: 'no-bridge' })()""",
+            await_promise=False,
+        )
+        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+
+    async def dispatch_background_job_finish(self, chat_id: str) -> dict[str, object]:
+        payload = json.dumps(chat_id)
+        result = await self.evaluate(
+            f"""(() => {{
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (bridge?.dispatchBackgroundJobFinishAndRefresh) {{
+                return bridge.dispatchBackgroundJobFinishAndRefresh({payload});
+              }}
+              if (!bridge?.dispatchSystemNotification) return {{ ok: false, err: 'no-bridge' }};
+              bridge.dispatchSystemNotification({{
+                data: {{
+                  meta_data: {{ kind: 'background_job_finish', chat_id: {payload} }},
+                }},
+              }});
+              return {{ ok: true, deferred: true }};
+            }})()""",
+            await_promise=True,
+        )
+        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
