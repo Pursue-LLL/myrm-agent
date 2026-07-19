@@ -15,7 +15,7 @@
 | `SystemStatusBanner.tsx` | 组件 | 数据库降级/恢复全局 Banner；健康检查走 `fetchBackendHealth`（后端不可达静默跳过）；文案走 `notifications.*` 五语言 i18n | ✅ |
 | `VaultUnlockModal.tsx` | 组件 | E2EE Vault 解锁密码模态框 | ✅ |
 | `VisualDesktop.tsx` | 组件 | VNC/noVNC 实时桌面嵌入视图 | ✅ |
-| `VisualDesktopToggle.tsx` | 组件 | VNC 实时桌面面板 + 浏览器 HITL takeover UI（Agent 请求人工介入时自动弹出，显示原因并提供「完成」/「无法完成」操作按钮） | ✅ |
+| `VisualDesktopToggle.tsx` | 组件 | managed 模式 VNC 桌面面板 + 浏览器 HITL takeover（自动弹出、CAPTCHA auto_detect 时隐藏 Done/Skip；extension 模式不触发 VNC） | ✅ |
 | `app-update-prompt.tsx` | 组件 | Tauri 桌面端更新提示浮层（静默下载，ready/error 时展示；dismissed 持久化到 localStorage） | ✅ |
 | `whats-new-modal.tsx` | 组件 | 版本更新后 What's New 弹窗（从 GitHub Release API 拉取完整 Release Notes，Markdown 渲染） | ✅ |
 | `appshot-initializer.tsx` | 组件 | Appshot 截图能力初始化（Tauri 权限与事件桥） | ✅ |

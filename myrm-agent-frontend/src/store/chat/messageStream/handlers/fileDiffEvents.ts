@@ -1,6 +1,14 @@
 /**
+ * [INPUT]
+ * - handlerDeps (POS: SSE handler 切片共享依赖)
+ * - useBrowserTakeoverStore (POS: 浏览器 HITL takeover 请求状态)
+ * - useChatStore (POS: agentConfig.browserSource 读取)
+ *
+ * [OUTPUT]
+ * fileDiffEvents: FILE_DIFF / TOOL_IMAGE / BROWSER_TAKEOVER SSE 切片
+ *
  * [POS]
- * Chat SSE event handler slice (fileDiffEvents).
+ * Chat SSE event handler slice (fileDiffEvents)。
  */
 
 import type { StreamCtx, StreamTurn } from "../streamContext";

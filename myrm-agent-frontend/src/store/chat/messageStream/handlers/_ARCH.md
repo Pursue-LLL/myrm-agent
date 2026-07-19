@@ -18,7 +18,7 @@
 | `statusStreamProgressSteps.ts` | 辅助 | STATUS `progress.step_key` 分支与 toast | ✅ |
 | `statusStreamPhaseData.ts` | 辅助 | STATUS `data.phase` 多阶段 payload 处理 | ✅ |
 | `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态与进度 | ✅ |
-| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、FILE_MUTATION_FAILED | ✅ |
+| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、FILE_MUTATION_FAILED、BROWSER_TAKEOVER_*（extension 跳过 VNC POST） | ✅ |
 | `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果 | ✅ |
 | `memoryBriefEvents.ts` | 核心 | `memory_brief` 发送前记忆简报事件：创建/更新 assistant 占位消息并挂载简报快照 | ✅ |
 | `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | ✅ |

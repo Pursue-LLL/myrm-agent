@@ -41,6 +41,7 @@
 | `YoloModeBanner.tsx` | 组件 | YOLO 模式全局警告横幅（读取 ConfigSyncManager 安全策略配置） | ✅ |
 | `EStopBanner.tsx` | 组件/模块 | E-Stop 全局冻结横幅（GET /security/estop，解除冻结 POST resume） | ✅ |
 | `ExtensionDisconnectedBanner.tsx` | 组件/模块 | Extension 断开警告横幅（条件性：仅 browserSource=extension 且未连接时显示，可 dismiss，SSE 驱动） | ✅ |
+| `ExtensionTakeoverBanner.tsx` | 组件/模块 | Extension 模式浏览器 HITL 横幅（`uiMode=extension` 时 in-chat 引导 Chrome 操作 + Done/Skip；CAPTCHA auto_detect 时隐藏按钮） | ✅ |
 | `SessionTrashPanel.tsx` | 组件 | 软删除会话回收站面板（恢复/永久删除） | ✅ |
 | `goals/` | 目录 | Goal 控制面与 DAG 可视化 | 见下表 |
 

@@ -11121,6 +11121,11 @@
       "disconnectedHint": "The agent sandbox may be sleeping or unavailable.",
       "reconnect": "Reconnect",
       "takeoverDone": "Fertig",
+      "takeoverSkip": "Nicht möglich",
+      "takeoverExtensionTitle": "Your turn in Chrome",
+      "takeoverExtensionHint": "Complete the step in your Chrome browser, then tap Done when finished.",
+      "takeoverCaptchaAuto": "Resolving verification…",
+      "takeoverCaptchaAutoHint": "The agent is handling verification automatically. Please wait.",
       "takeoverLearned": "Verhalten aufgezeichnet — Agent lernt aus Ihrer Demonstration",
       "takeoverResumeFailed": "Agent konnte nicht fortgesetzt werden, bitte erneut versuchen"
     },

@@ -1,3 +1,16 @@
+/**
+ * [INPUT]
+ * - useBrowserTakeoverStore (POS: 浏览器 HITL takeover 请求状态)
+ * - useBrowserTakeoverActions (POS: Complete/Skip 与 VNC resume 同步)
+ *
+ * [OUTPUT]
+ * ExtensionTakeoverBanner: Extension 模式下的 in-chat takeover 横幅
+ *
+ * [POS]
+ * browserSource=extension 时，引导用户在 Chrome 完成 HITL 步骤并提供 Done/Skip。
+ * managed 模式由 VisualDesktopToggle 处理，本组件不渲染。
+ */
+
 'use client';
 
 import { CheckCircle2, Chrome, XCircle } from 'lucide-react';
@@ -27,25 +40,35 @@ export default function ExtensionTakeoverBanner() {
       role="alert"
       aria-live="polite"
       className={cn(
-        'relative overflow-hidden border-b border-amber-500/25',
+        'relative overflow-hidden border-b border-amber-500/20',
         'bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent',
+        'backdrop-blur-md supports-[backdrop-filter]:bg-amber-500/5',
       )}
     >
-      <div className="absolute inset-y-0 left-0 w-[3px] bg-amber-500" />
-      <div className="flex flex-col gap-3 px-4 py-3 pl-5 sm:flex-row sm:items-start sm:justify-between">
+      <div className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-amber-500/80 via-amber-500 to-amber-500/40" />
+      <div className="flex flex-col gap-3 px-3 py-3 pl-4 sm:flex-row sm:items-start sm:justify-between sm:px-4 sm:pl-5">
         <div className="flex min-w-0 flex-1 gap-3">
           {screenshotBase64 ? (
             <img
               src={`data:image/jpeg;base64,${screenshotBase64}`}
               alt=""
-              className="h-16 w-24 shrink-0 rounded-md border border-border object-cover"
+              className="h-14 w-20 shrink-0 rounded-md border border-border object-cover sm:h-16 sm:w-24"
             />
-          ) : null}
+          ) : (
+            <span
+              className={cn(
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9',
+                'bg-amber-500/15 text-amber-600 ring-1 ring-amber-500/25',
+                'dark:bg-amber-500/20 dark:text-amber-400 dark:ring-amber-500/30',
+              )}
+            >
+              <Chrome className="h-4 w-4" aria-hidden />
+            </span>
+          )}
           <div className="min-w-0 space-y-1">
-            <div className="flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-200">
-              <Chrome className="h-4 w-4 shrink-0" aria-hidden />
-              <span>{awaitingUser ? t('takeoverExtensionTitle') : t('takeoverCaptchaAuto')}</span>
-            </div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              {awaitingUser ? t('takeoverExtensionTitle') : t('takeoverCaptchaAuto')}
+            </p>
             <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-300">
               {awaitingUser ? t('takeoverExtensionHint') : t('takeoverCaptchaAutoHint')}
             </p>
@@ -60,7 +83,7 @@ export default function ExtensionTakeoverBanner() {
           </div>
         </div>
         {awaitingUser ? (
-          <div className="flex shrink-0 items-center gap-2 self-end sm:self-start">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 self-end sm:self-start">
             <button
               type="button"
               onClick={() => void handleTakeoverSkip()}
@@ -80,7 +103,7 @@ export default function ExtensionTakeoverBanner() {
           </div>
         ) : (
           <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" aria-hidden />
+            <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500 motion-reduce:animate-none" aria-hidden />
             <span className="text-xs text-amber-700 dark:text-amber-300">{t('takeoverCaptchaAuto')}</span>
           </div>
         )}
