@@ -23,9 +23,9 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 | Item | Detail |
 |------|--------|
 | Test | `myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py` (`@pytest.mark.chrome_e2e(lane="LIVE_AGENT")`) |
-| Preflight | `./myrm ready --chrome`；`MYRM_LIVE_AGENT_MAX_CONCURRENT=1` 推荐 isolated 跑 |
+| Preflight | `./myrm ready --chrome`；默认 LIVE_AGENT cap=2（与其他 chrome_e2e 并行，背压等待） |
 | Gate trigger | Assert `GET /webui/desktop/approval/pending` → `server_pending>0`（禁止用 tool 名 substring 误判） |
 | UI | `DesktopControlApprovalBanner` — `data-testid="desktop-control-allow-once"` / `desktop-control-deny` |
-| Bridge | `E2EChatBridge.turnSnapshot().hasDone` 全量 DONE 匹配 + post-approval stream/API fallback |
-| Signoff | v54 `./myrm signoff chrome --stress xdist4 --fault sigterm-goal-cache` → `ok: true`（matrix 14-case `--ignore` desktop；desktop 单独 E2E 绿 `/tmp/myrm-desktop-goal-final18.log` 885s） |
+| Bridge | `E2EChatBridge.hasDone` 或 API `chat_messages_have_done()`；无 DONE 时 poll≥15 一次性 nudge |
+| Signoff | v64 `./myrm signoff chrome --stress xdist4 --fault sigterm-goal-cache` → `ok: true`（matrix `--ignore` desktop；desktop 独立 E2E 绿 v91 `/tmp/myrm-desktop-goal-v91-strict-done.log` 165s） |
 | Reset | `POST /webui/desktop/approval/reset-runtime` clears in-memory gate + reloads disk approvals |

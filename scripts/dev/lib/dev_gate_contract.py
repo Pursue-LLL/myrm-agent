@@ -58,7 +58,10 @@ SIGNOFF_E2E_CAPACITY_WAIT_SEC: Final[int] = 600
 MUX_COLD_ATTACH_SLOTS: Final[int] = 2
 MUX_COLD_ATTACH_TIMEOUT_MS: Final[int] = 30_000
 CHROME_E2E_MATRIX_TIMEOUT_SECONDS: Final[int] = 7200
+CHROME_E2E_DESKTOP_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_STRESS_TIMEOUT_SECONDS: Final[int] = 7200
+CHROME_E2E_DESKTOP_MARKER: Final[str] = "chrome_e2e_desktop"
+CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = "chrome_e2e and not chrome_e2e_desktop"
 
 # --- Adaptive mux load defaults (env may override in mux_load) ---
 
@@ -108,19 +111,28 @@ SIGNOFF_NODE_MUX_PHASE = DevGateSignoffPhase(
     command=("npm", "test"),
 )
 
-SIGNOFF_CHROME_MATRIX_IGNORE: Final[str] = (
-    "myrm-agent/myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py"
-)
-
 SIGNOFF_CHROME_MATRIX_PHASE = DevGateSignoffPhase(
     name="chrome_e2e_matrix",
     command=(
         "./myrm",
         "test",
         "-m",
-        "chrome_e2e",
+        CHROME_E2E_MATRIX_MARKER_EXPR,
         "myrm-agent/myrm-agent-server/tests/e2e/",
-        f"--ignore={SIGNOFF_CHROME_MATRIX_IGNORE}",
+        "-n0",
+        "-s",
+        "--timeout=900",
+    ),
+)
+
+SIGNOFF_CHROME_DESKTOP_PHASE = DevGateSignoffPhase(
+    name="chrome_e2e_desktop_macos",
+    command=(
+        "./myrm",
+        "test",
+        "-m",
+        CHROME_E2E_DESKTOP_MARKER,
+        "myrm-agent/myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py",
         "-n0",
         "-s",
         "--timeout=900",

@@ -25,7 +25,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import chat_id_from_path, chat_user_message_count, fetch_chat_messages, get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
+from cdp_chat_support import chat_id_from_path, chat_messages_have_done, chat_user_message_count, get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
@@ -340,6 +340,7 @@ async def _wait_stream_done_with_marker(
     deadline = asyncio.get_event_loop().time() + timeout_sec
     last: dict[str, object] = {}
     poll = 0
+    nudged_done = False
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
         heartbeat_e2e_lease()
@@ -375,6 +376,31 @@ async def _wait_stream_done_with_marker(
                 and probe.get("matched")
             ):
                 return {**probe, "chatId": chat_id}
+            if chat_id and not probe.get("isStreaming"):
+                api_has_done = await asyncio.to_thread(
+                    chat_messages_have_done,
+                    chat_id,
+                    api_url=get_e2e_api_url(),
+                )
+                if api_has_done:
+                    return {
+                        **probe,
+                        "chatId": chat_id,
+                        "matched": True,
+                        "mode": "post-approval-api-done",
+                    }
+            if (
+                not nudged_done
+                and poll >= 15
+                and not probe.get("isStreaming")
+                and not probe.get("matched")
+                and int(probe.get("userCount") or 0) >= 1
+            ):
+                nudged_done = True
+                _progress("nudge model to reply DONE only")
+                await chat.send_message("Reply with only DONE.", "Reply with only DONE.")
+                heartbeat_e2e_lease()
+                continue
         await asyncio.sleep(2.0)
     return {**last, "ok": False, "err": "turn-timeout"}
 
@@ -476,27 +502,22 @@ async def _run_approval_attempt(chat: McpChatSession) -> str:
         chat,
         chat_id_hint=chat_id_hint,
         marker="DONE",
-        timeout_sec=120.0,
+        timeout_sec=180.0,
     )
-    if not after_turn.get("matched") and not after_turn.get("isStreaming"):
-        user_count = int(after_turn.get("userCount") or 0)
-        if user_count >= 1:
-            _progress("approval turn ended without DONE marker; accepting completed stream")
-            after_turn = {**after_turn, "matched": True, "mode": "post-approval-complete"}
     if not after_turn.get("matched"):
         chat_id_probe = str(after_turn.get("chatId") or chat_id_hint or "").strip()
-        if chat_id_probe:
-            messages = fetch_chat_messages(chat_id_probe, api_url=get_e2e_api_url())
-            has_user = any(isinstance(m, dict) and m.get("role") == "user" for m in messages)
-            has_assistant = any(isinstance(m, dict) and m.get("role") == "assistant" for m in messages)
-            if has_user and has_assistant:
-                _progress("approval verified via API messages fallback")
-                after_turn = {
-                    **after_turn,
-                    "matched": True,
-                    "chatId": chat_id_probe,
-                    "mode": "post-approval-api",
-                }
+        if chat_id_probe and await asyncio.to_thread(
+            chat_messages_have_done,
+            chat_id_probe,
+            api_url=get_e2e_api_url(),
+        ):
+            _progress("approval verified via API DONE marker fallback")
+            after_turn = {
+                **after_turn,
+                "matched": True,
+                "chatId": chat_id_probe,
+                "mode": "post-approval-api-done",
+            }
 
     if str(after_turn.get("path", "")).startswith("/settings"):
         pytest.fail(f"Send redirected to settings: {after_turn}")
@@ -512,6 +533,7 @@ async def _run_approval_attempt(chat: McpChatSession) -> str:
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e_desktop
 @pytest.mark.integration
 @pytest.mark.timeout(1800)
 @pytest.mark.skipif(platform.system() != "Darwin", reason="macOS computer_use only")

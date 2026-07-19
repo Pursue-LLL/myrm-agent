@@ -20,6 +20,7 @@ def get_e2e_api_url() -> str:
 def get_e2e_ui_url() -> str:
     return os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 _OK_REPLY_RE = re.compile(r"(?:\bOK\b|GOAL_OK)", re.IGNORECASE)
+_DONE_REPLY_RE = re.compile(r"\bDONE\b", re.IGNORECASE)
 
 
 def resolve_e2e_api_base(api_base: str | None = None) -> str:
@@ -516,6 +517,20 @@ def chat_messages_have_ok(chat_id: str, *, min_user_count: int = 1, api_url: str
             continue
         content = str(msg.get("content") or "")
         if _OK_REPLY_RE.search(content):
+            return True
+    return False
+
+
+def chat_messages_have_done(chat_id: str, *, min_user_count: int = 1, api_url: str | None = None) -> bool:
+    messages = fetch_chat_messages(chat_id, api_url=api_url)
+    user_count = sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")
+    if user_count < min_user_count:
+        return False
+    for msg in reversed(messages):
+        if not isinstance(msg, dict) or msg.get("role") != "assistant":
+            continue
+        content = str(msg.get("content") or "")
+        if _DONE_REPLY_RE.search(content):
             return True
     return False
 
