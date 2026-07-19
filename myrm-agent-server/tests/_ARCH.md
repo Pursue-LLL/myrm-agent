@@ -54,7 +54,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - E2E（真实 LLM API，无 Chrome）：monorepo **`./myrm test -m e2e`**（`test.sh` 对非 chrome 路径自动设 `MYRM_E2E_LEASE_ID`；如 `tests/api/agent/test_kanban_agent_stream_e2e.py`）
 - **Chrome MCP UI E2E（`chrome_e2e` marker）**：monorepo **`./myrm test -m chrome_e2e -n0`**（须 `./myrm ready --chrome`；Wave lease；见 `scripts/dev/CHROME_MCP_E2E.md`）
 - **Kanban Chrome E2E**：`tests/e2e/test_kanban_chrome_e2e.py`（READ lane ×2：看板列渲染；REST `attachment_ids` → 点击附件 badge → Drawer 附件可见）
-- **Wiki citation Chrome E2E**：`tests/e2e/test_wiki_citation_chrome_e2e.py`（READ lane ×2：`/chats/test/seed-citation-fixture` → citation 按钮 reload 持久；`/settings/wiki?agentId=` combobox）。READ 使用共享 `:8080`（`conftest.py:244-251` `private_backend=False` 时 yield 共享 stack）；**新增 server 路由后须 `./myrm restart` 再跑 chrome e2e**。
+- **Wiki citation Chrome E2E**：`tests/e2e/test_wiki_citation_chrome_e2e.py`（READ lane ×2：`/chats/test/seed-citation-fixture` → citation 按钮 reload 持久；`/settings/wiki?agentId=` combobox）。Settings 用例先 `warm_ui_route` HTTP 编译再 Chrome 导航（webpack 冷启）。READ 使用共享 `:8080`（`conftest.py:244-251` `private_backend=False` 时 yield 共享 stack）；**新增 server 路由后须 `./myrm restart` 再跑 chrome e2e**；wave pin 阻塞 restart 时用 **`./myrm isolate <id> ready --chrome`** + `E2E_API_BASE`/`E2E_UI_BASE`。
 - **Citation seed 集成单测**：`tests/api/chats/test_citation_seed_integration.py`（seed → GET messages 断言 `citedMemoryIds`；默认 CI 套件执行，不依赖 Chrome）
 - **A2UI Surface Gate Chrome E2E**：`tests/e2e/test_render_ui_surface_gate_chrome_e2e.py`（READ：Settings hint + `client_surface=web` + `__TAURI__`→`tauri`；同文件旁路 LIVE 见 `test_render_ui_inline_card_chrome_e2e.py`）
 - `tests/integration/test_render_ui_sse_wiring.py`：render_ui 确定性集成（20 场景：run_bind、fail-closed、data_update、collector 链、幂等）

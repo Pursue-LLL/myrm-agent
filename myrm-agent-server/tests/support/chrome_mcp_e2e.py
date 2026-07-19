@@ -27,6 +27,7 @@ __all__ = [
     "http_json",
     "open_mcp_page",
     "wait_for_state",
+    "warm_ui_route",
 ]
 
 _ENSURE_DESKTOP_VIEWPORT_JS = """(() => {
@@ -70,10 +71,21 @@ def http_json(
     return json.loads(raw) if raw else {}
 
 
+def warm_ui_route(path: str, *, timeout_sec: float = 120.0) -> None:
+    """HTTP GET a UI route so webpack/turbopack compiles before Chrome navigation."""
+    if not path.startswith("/"):
+        raise ValueError(f"warm_ui_route expects an absolute path, got: {path!r}")
+    url = f"{get_e2e_ui_url()}{path}"
+    request = urllib.request.Request(url, method="GET")  # noqa: S310 - loopback only
+    with urllib.request.urlopen(request, timeout=timeout_sec) as response:  # noqa: S310
+        if response.status != 200:
+            raise RuntimeError(f"warm_ui_route GET {url} returned HTTP {response.status}")
+
+
 @contextmanager
-def open_mcp_page(url: str) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
+def open_mcp_page(url: str, *, timeout_ms: int = 60_000) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
     with ChromeMcpClient() as client:
-        page = client.new_page(url, timeout_ms=60_000)
+        page = client.new_page(url, timeout_ms=timeout_ms)
         ensure_desktop_viewport(client, page)
         wait_for_state(
             client,

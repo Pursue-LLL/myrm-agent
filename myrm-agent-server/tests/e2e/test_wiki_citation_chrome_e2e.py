@@ -12,6 +12,7 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_mcp_page,
     wait_for_state,
+    warm_ui_route,
 )
 
 _CITATION_BUTTON_STATE = """(() => {
@@ -96,7 +97,8 @@ def test_settings_wiki_agent_scope_deeplink() -> None:
     agent_id = str(seeded["agent_id"])
     wiki_settings_path = str(seeded["wiki_settings_path"])
 
-    with open_mcp_page(f"{ui_url}{wiki_settings_path}") as (client, page):
+    warm_ui_route(wiki_settings_path)
+    with open_mcp_page(f"{ui_url}{wiki_settings_path}", timeout_ms=120_000) as (client, page):
         scope_state = wait_for_state(
             client,
             page,
