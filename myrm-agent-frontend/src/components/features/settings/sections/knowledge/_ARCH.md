@@ -17,7 +17,9 @@
 | `MemoryArchivalSection.tsx` | 辅助 | 归档导入/导出 |
 | `MemoryBackupSection.tsx` | 辅助 | 本地备份 |
 | `RemoteBackupSection.tsx` | 辅助 | 远程备份 |
-| `MemoryGuardianCard.tsx` | 辅助 | Memory Doctor 入口卡片 |
+| `MemoryGuardianCard.tsx` | 辅助 | Memory Guardian 产品化卡片：健康分、`safe/force` 手动维护、策略配置、晨间摘要（夜间窗口聚合）与守卫不可用聚合告警提示（`escalated` 风险色 + `dominant_reason` 可解释文案 + dominant count/ratio/threshold 解释）；通过 `overview` 单请求收敛 health/policy/alerts+digest。Vitest：`__tests__/MemoryGuardianCard.test.tsx` 覆盖 escalated/monitoring 与阈值缺失回归场景 |
+| `MemoryGuardianPolicyPanel.tsx` | 辅助 | Memory Guardian 策略配置子面板（频率档位 + quiet window） |
+| `MemoryGuardianDigestPanel.tsx` | 辅助 | Memory Guardian 晨间摘要子面板（维护产出、运行次数与健康变化），并区分夜间静默窗口与 rolling 24h 聚合语义 |
 | `MemoryMonitorCard.tsx` | 辅助 | 记忆健康监控 |
 | `WorkingStateCard.tsx` | 辅助 | Working Memory 状态卡片。展示/编辑/清除跨会话工作记忆 |
 | `WikiSection.tsx` | 容器 | Wiki 子 Tab |

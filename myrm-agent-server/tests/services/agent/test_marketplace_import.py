@@ -65,7 +65,7 @@ def _make_package(
     bundled_subagents: list[dict[str, object]] | None = None,
     transport_secret: str | None = None,
 ) -> dict[str, object]:
-    from app.services.agent.marketplace_package_contract import (
+    from app.services.agent.marketplace import (
         apply_marketplace_transport_signature,
         build_marketplace_package,
     )
@@ -150,7 +150,7 @@ def patch_agent_service():
 @pytest.fixture(autouse=True)
 def patch_marketplace_origin_helpers():
     with patch(
-        "app.services.agent.marketplace_import._find_existing_subagent_by_origin_key",
+        "app.services.agent.marketplace.import_._find_existing_subagent_by_origin_key",
         new_callable=AsyncMock,
         return_value=None,
     ):
@@ -160,7 +160,7 @@ def patch_marketplace_origin_helpers():
 @pytest.mark.asyncio
 async def test_full_import_flow(mock_skill_svc: AsyncMock, patch_agent_service: None):
     """Full import: skills installed, IDs remapped, subagent + agent created."""
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package()
     result = await import_agent_package(mock_skill_svc, package)
@@ -178,7 +178,7 @@ async def test_full_import_flow(mock_skill_svc: AsyncMock, patch_agent_service: 
 async def test_skill_id_remapping(mock_skill_svc: AsyncMock, patch_agent_service: None):
     """Agent's skill_ids are remapped from old to new IDs."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package(bundled_subagents=[])
     created_data: list = []
@@ -198,7 +198,7 @@ async def test_skill_id_remapping(mock_skill_svc: AsyncMock, patch_agent_service
 async def test_subagent_skill_ids_remapped(mock_skill_svc: AsyncMock, patch_agent_service: None):
     """Subagent's skill_ids also get remapped."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package()
     created_data: list = []
@@ -222,7 +222,7 @@ async def test_subagent_skill_ids_remapped(mock_skill_svc: AsyncMock, patch_agen
 async def test_subagent_idempotent_dedup(mock_skill_svc: AsyncMock):
     """Existing subagent with same origin key is reused (not created again)."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package()
     created_data: list = []
@@ -235,7 +235,7 @@ async def test_subagent_idempotent_dedup(mock_skill_svc: AsyncMock):
         )
 
     with patch(
-        "app.services.agent.marketplace_import._find_existing_subagent_by_origin_key",
+        "app.services.agent.marketplace.import_._find_existing_subagent_by_origin_key",
         new_callable=AsyncMock,
         return_value="existing-sub-id",
     ), patch.object(AgentService, "create_agent", side_effect=capture_create):
@@ -250,7 +250,7 @@ async def test_subagent_idempotent_dedup(mock_skill_svc: AsyncMock):
 @pytest.mark.asyncio
 async def test_malformed_skill_rejected(mock_skill_svc: AsyncMock):
     """Malformed skill contract should fail-closed before any writes."""
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package(bundled_skills=[], bundled_subagents=[])
     package["bundled_skills"] = [
@@ -266,7 +266,7 @@ async def test_malformed_skill_rejected(mock_skill_svc: AsyncMock):
 async def test_save_skill_failure_aborts_import(mock_skill_svc: AsyncMock):
     """save_skill failure should abort import (fail-closed)."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     mock_skill_svc.save_skill = AsyncMock(
         return_value=FakeSkillSaveResult(success=False, error="disk full")
@@ -282,7 +282,7 @@ async def test_save_skill_failure_aborts_import(mock_skill_svc: AsyncMock):
 @pytest.mark.asyncio
 async def test_save_skill_missing_was_updated_flag_rejected(mock_skill_svc: AsyncMock):
     """Skill backend must return was_updated to guarantee rollback safety."""
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     mock_skill_svc.save_skill = AsyncMock(return_value=FakeSkillSaveResultNoWasUpdated())
     package = _make_package(bundled_subagents=[])
@@ -295,7 +295,7 @@ async def test_save_skill_missing_was_updated_flag_rejected(mock_skill_svc: Asyn
 @pytest.mark.asyncio
 async def test_empty_package(mock_skill_svc: AsyncMock, patch_agent_service: None):
     """Empty package creates agent with defaults."""
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package(
         agent_profile={"display_name": "Empty Agent"},
@@ -310,7 +310,7 @@ async def test_empty_package(mock_skill_svc: AsyncMock, patch_agent_service: Non
 @pytest.mark.asyncio
 async def test_rejects_tampered_package_digest(mock_skill_svc: AsyncMock):
     """Tampered trust digest should be rejected by integrity gate."""
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package()
     trust = package["trust"]
@@ -325,7 +325,7 @@ async def test_rejects_tampered_package_digest(mock_skill_svc: AsyncMock):
 @pytest.mark.asyncio
 async def test_rejects_missing_transport_signature_when_required(mock_skill_svc: AsyncMock):
     """Require transport signature should reject unsigned package."""
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package(bundled_subagents=[])
     with pytest.raises(ValueError, match="missing transport signature"):
@@ -343,7 +343,7 @@ async def test_accepts_transport_signature_when_required(
     patch_agent_service: None,
 ):
     """Signed package should pass when transport signature is required."""
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package(
         bundled_subagents=[],
@@ -364,7 +364,7 @@ async def test_subagent_origin_key_persisted_on_create(
 ):
     """Newly created subagent should carry stable origin key in engine_params."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package()
     created_data: list = []
@@ -391,7 +391,7 @@ async def test_subagent_origin_key_persisted_on_create(
 async def test_subagent_origin_index_loaded_once_per_import(mock_skill_svc: AsyncMock):
     """Subagent origin lookup should build index once per import run."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package(
         agent_profile={
@@ -437,11 +437,11 @@ async def test_subagent_origin_index_loaded_once_per_import(mock_skill_svc: Asyn
         )
 
     with patch(
-        "app.services.agent.marketplace_import._load_subagent_origin_index",
+        "app.services.agent.marketplace.import_._load_subagent_origin_index",
         new_callable=AsyncMock,
         return_value={},
     ) as load_origin_index_mock, patch(
-        "app.services.agent.marketplace_import._find_existing_subagent_by_origin_key",
+        "app.services.agent.marketplace.import_._find_existing_subagent_by_origin_key",
         new_callable=AsyncMock,
         side_effect=lambda origin_key, origin_index=None: (
             origin_index.get(origin_key)
@@ -459,7 +459,7 @@ async def test_subagent_origin_index_loaded_once_per_import(mock_skill_svc: Asyn
 async def test_main_agent_binds_marketplace_entry_id(mock_skill_svc: AsyncMock):
     """Main agent should persist marketplace entry binding in engine_params."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package(
         bundled_subagents=[],
@@ -496,7 +496,7 @@ async def test_main_agent_binds_marketplace_entry_id(mock_skill_svc: AsyncMock):
 async def test_profile_fidelity_fields_mapped(mock_skill_svc: AsyncMock):
     """Import should preserve high-value profile fields beyond base IDs."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package(
         agent_profile={
@@ -562,7 +562,7 @@ async def test_profile_fidelity_fields_mapped(mock_skill_svc: AsyncMock):
 async def test_atomic_rollback_skills_when_main_agent_creation_fails(mock_skill_svc: AsyncMock):
     """When main Agent creation fails, imported skills must be rolled back."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package(bundled_subagents=[])
 
@@ -581,7 +581,7 @@ async def test_atomic_rollback_skills_when_main_agent_creation_fails(mock_skill_
 async def test_atomic_rollback_subagent_and_skill_when_main_creation_fails(mock_skill_svc: AsyncMock):
     """Rollback should delete newly created subagent + skill when main create fails."""
     from app.services.agent.agent_service import AgentService
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace.import_ import import_agent_package
 
     package = _make_package()
     create_side_effect = [
@@ -608,7 +608,7 @@ async def test_atomic_rollback_subagent_and_skill_when_main_creation_fails(mock_
 @pytest.mark.asyncio
 async def test_remap_ids_preserves_unmapped():
     """_remap_ids preserves IDs not in the mapping."""
-    from app.services.agent.marketplace_import import _remap_ids
+    from app.services.agent.marketplace.import_ import _remap_ids
 
     profile = {
         "skill_ids": ["mapped-1", "unknown-2"],

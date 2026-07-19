@@ -44,7 +44,8 @@
 | `import_ledger.py` | 核心 | 记忆导入批次/条目事务账本服务。维护 confirmed/rollback_in_progress/rolled_back/partial/rollback_failed 批次状态和 imported/skipped/rolled_back/conflict/missing/rollback_failed 条目状态，保存内容盲回滚事实、结构化 warning code、rollback health counter 和自动诊断摘要 | ✅ |
 | `import_rollback.py` | 核心 | 记忆导入回滚辅助。封装账本条目分类、profile revision 并发冲突检测、结构化 warning 生成、普通记忆 exact mutation refs 回滚和 profile 乐观回滚 | ✅ |
 | `command_center_projection_utils.py` | 辅助 | 个人大脑指挥中心投影辅助。集中维护阶段映射、瀑布流状态、预览、数值解析和 eval metric 构建，避免洞察服务膨胀 | ✅ |
-| `operation_ledger.py` | 核心 | 单用户记忆操作账本服务。持久化记忆事件、健康快照缓存和外部记忆导入来源；`record_event` 同步发布 `memory_operation` SSE；提供 `list_events_for_session` 供 Session Replay memory_events 叠加查询 | ✅ |
+| `guardian_policy.py` | 核心 | Memory Guardian 调度策略服务。持久化 `frequency_tier`/`quiet_window` 配置，提供运行窗口判定与下次窗口开启时间计算，并记录 `timezone_source`；首访时完成浏览器时区初始化，无浏览器时区头时由 API 使用服务端本地时区兜底，后续收到真实客户端时区头时可自动纠偏 | ✅ |
+| `operation_ledger.py` | 核心 | 单用户记忆操作账本服务。持久化记忆事件、健康快照缓存和外部记忆导入来源；`record_event` 同步发布 `memory_operation` SSE；提供 `list_events_for_session` 供 Session Replay memory_events 叠加查询，并提供 Guardian 晨间摘要按维护窗口聚合读取与守卫不可用告警聚合快照（按 frequency tier 自适应最小事件阈值 + escalation 阈值元数据） | ✅ |
 | `manager_deps.py` | ✅ 辅助 | MemoryManager FastAPI 依赖工厂（`get_memory_manager` / `get_crud_memory_manager` / `get_optional_memory_manager`） | ✅ |
 | `presentation.py` | ✅ 辅助 | 记忆实体→`MemoryItem` DTO 转换与 `parse_memory_type` 校验 | ✅ |
 | `shared_context.py` | 核心 | Shared Context 共享上下文服务。管理上下文 CRUD、绑定解析、写入提案生命周期（goal_completion / correction_propagation 幂等 dedup）及治理 policy | ✅ |

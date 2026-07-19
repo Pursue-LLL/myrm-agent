@@ -129,6 +129,6 @@ app/services/memory/operations/crud/list_write.py
 app/services/memory/shared_context.py
 app/services/repair/actions.py
 app/services/skills/growth_queries.py
-app/services/agent/marketplace_import.py
-app/services/agent/marketplace_package_contract.py
+app/services/agent/marketplace/import_.py
+app/services/agent/marketplace/package_contract.py
 app/services/agent/stream_session/stream_loop.py

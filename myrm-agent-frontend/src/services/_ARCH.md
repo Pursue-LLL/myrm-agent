@@ -21,7 +21,7 @@
 | `skill*.ts` / `skills-*.ts` | 技能 CRUD、进化、打包 |
 | `skill-growth.ts` | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit |
 | `skill-optimization.ts` | `/skill-optimization/*` 质量历史、版本列表/对比/回滚、Shadow A/B 启动；另封装 `/batch-optimization/tasks/{id}/cancel` 与 `rollback` |
-| `memory*.ts` / `memoryArchive.ts` | 记忆、Shared Context、导入 dry-run |
+| `memory*.ts` / `memoryArchive.ts` | 记忆、Shared Context、导入 dry-run、Memory Guardian `safe/force` 触发 + 策略配置 + `overview` 单接口（health/policy/alerts+digest，携带客户端时区头）+ 守卫不可用告警阈值契约 |
 | `migrationDiscovery.ts` | Local/Tauri 外部助手数据自动发现（Hermes / OpenClaw / Claude Code / Codex） |
 | `google-workspace-oauth.ts` | `/integrations/google-workspace/oauth/*`：config/start/poll/status/disconnect；Tauri 用 shell.open |
 | `kanban.ts` | `/kanban/*`：Board/Task CRUD、move/promote/reclaim、bulk、依赖边、Specify/Decompose、Pipeline 实例化 |

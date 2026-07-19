@@ -7,7 +7,9 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `converter.py` | 核心 | HTTP 请求到 GeneralAgentParams：模型与密钥、JIT `workspace_dir`、`tool_gateway_config` 组装（无 auth_token 时禁用 gateway）、记忆开关、通过 `resolve_builtin_tool_flags()` 将 `enabled_builtin_tools` 统一映射为布尔 flag（含 deploy 门控后的 `enable_computer_use`）；browser+computer_use 均 ON 且 `is_computer_use_deploy_supported()` 时注入 hybrid routing 规则；`action_mode='fast'` 时覆盖 `enabled_builtin_tools` 为 `["answer_tool"]`… | — |
+| `archive_restore.py` | 核心 | Typed archive restore 校验与 prompt 物化（`prevalidate_archive_restore_actions`、XML 注入） | ✅ |
+| `workspace_resolve.py` | 辅助 | Chat 级 harness workspace JIT 解析与 DB 回写 | ✅ |
+| `converter.py` | 核心 | HTTP 请求到 GeneralAgentParams 主编排：模型与密钥、JIT workspace、tool_gateway、记忆开关、builtin 映射、fast/deep search 覆盖… | — |
 | `models.py` | 核心 | Pydantic 请求模型（AgentRequest, ModelSelection, MentionReferenceRequest, ArchiveRestoreActionRequest, AgentConfigRequest 等），声明前端记忆开关、`search_depth`、GUI @ 结构化引用、typed archive restore action 契约、`kanban_default_board_id`（chat 会话目标看板）以及 `tool_gateway_config`。 | — |
 | `resolvers.py` | 核心 | 模型配置解析（ModelSelection → ModelConfig）；base URL 来自 selection 或 providers 行配置 | — |
 | `providers.py` | 辅助 | 规范化 providerId、行匹配解析密钥；**仅** WebUI providers，无 env 回退；显式加载 `shared/config/provider_legacy_remap.json`（monorepo / Docker `/shared` / PyInstaller bundle / `MYRM_SHARED_CONFIG_ROOT`）；normalize 算法见 [shared/config/_ARCH.md](../../../../../shared/config/_ARCH.md) | ✅ |
@@ -21,6 +23,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 
 - 前端通过 `AgentRequest.uploaded_file_ids` 传递本次消息附带的文件 ID 列表。
 - `converter.py` 在 workspace 目录确定后调用 `sync_uploaded_files_to_workspace()`，将超过 100KB 的文件从 StorageProvider 复制到 `{workspace}/_uploaded/`。
+- 归档恢复：`archive_restore.py` 校验 `archive_restore_actions` 并注入 XML；`converter.py` 在参数转换期调用。
 - 文件路径以 XML 标签注入 user message 的 query context，不影响 system prompt 和 tool definitions 的 prompt cache 前缀：
   - 普通文件：`<uploaded_files_in_workspace>` 标签，Agent 可直接读取
   - 大文档（PDF/DOCX >100KB）：`<large_documents_for_knowledge_base>` 标签，引导 Agent 使用 wiki_ingest_tool 入库后用 wiki_query_tool 检索
@@ -36,7 +39,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 ## Typed Archive Restore
 
 - `AgentRequest.archive_restore_actions` 接收前端结构化恢复动作，作为归档范围恢复的控制协议。
-- `converter.py` 提供流式入口预校验和参数转换期校验：先校验 typed restore action，再持久化用户回合；单请求最多接收 3 个恢复范围，超过时返回结构化错误；校验成功才把恢复后的精确范围注入本轮 Agent 输入，并返回不含正文的 restore result 元数据供 SSE 结果卡片展示。
+- `archive_restore.py` 提供流式入口预校验；`converter.py` 参数转换期物化并注入 query。单请求最多 3 个恢复范围；校验成功才把精确范围注入本轮 Agent 输入，并返回不含正文的 restore result 元数据供 SSE 结果卡片展示。
 - 前端请求使用 snake_case `archive_restore_actions[].restore_arg`，Server Pydantic 模型接收后传入 harness 恢复上下文构建，不依赖 camelCase 边界字段。
 
 ## Fast Search（`action_mode='fast'`）

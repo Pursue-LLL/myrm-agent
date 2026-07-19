@@ -120,6 +120,42 @@ class TestMemoryBriefPrelude:
         )
 
     @pytest.mark.asyncio
+    async def test_message_end_citations_preserve_first_seen_order(self) -> None:
+        session = _make_session()
+        session.collector.content = "alpha <cite:doc-b> beta <cite:doc-a> gamma <cite:doc-b>"
+        approval = ApprovalTimeoutHolder()
+
+        async def _fake_stream(*_args, **_kwargs):
+            yield {"type": "message_end"}
+
+        with (
+            patch(
+                "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
+                side_effect=_fake_stream,
+            ),
+            patch(
+                "app.services.agent.stream_session.stream_loop.should_suggest_workflow_for_session",
+                return_value=False,
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
+                return_value={"used": 20, "total": 200},
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_memory_runtime_injection",
+                return_value={"state": "applied", "source": "snapshot"},
+            ),
+        ):
+            chunks: list[str] = []
+            async for chunk in iter_agent_stream_chunks(session, approval):
+                chunks.append(chunk)
+
+        message_end_event = next(
+            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
+        )
+        assert message_end_event.get("citations") == ["doc-b", "doc-a"]
+
+    @pytest.mark.asyncio
     async def test_attach_skipped_status_when_brief_preview_missing(self) -> None:
         session = _make_session(
             include_preview=False,
@@ -236,6 +272,53 @@ class TestMemoryBriefPrelude:
             _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
         )
         assert "memoryBudget" not in message_end_event
+        assert message_end_event.get("memory_brief_status") == {
+            "state": "skipped",
+            "source": "preflight",
+            "reason": "timeout",
+            "injection": {"state": "applied", "source": "fallback"},
+        }
+
+    @pytest.mark.asyncio
+    async def test_message_end_keeps_status_when_telemetry_enqueue_fails(self) -> None:
+        session = _make_session(
+            include_preview=False,
+            brief_status={"state": "skipped", "reason": "timeout"},
+        )
+        approval = ApprovalTimeoutHolder()
+
+        async def _fake_stream(*_args, **_kwargs):
+            yield {"type": "message_end"}
+
+        with (
+            patch(
+                "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
+                side_effect=_fake_stream,
+            ),
+            patch(
+                "app.services.agent.stream_session.stream_loop.should_suggest_workflow_for_session",
+                return_value=False,
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_memory_runtime_budget",
+                return_value={"used": 8, "total": 64},
+            ),
+            patch(
+                "myrm_agent_harness.api.hooks.get_memory_runtime_injection",
+                return_value={"state": "applied", "source": "fallback"},
+            ),
+            patch(
+                "app.services.agent.stream_session.stream_loop.enqueue_memory_brief_status_telemetry",
+                side_effect=RuntimeError("telemetry down"),
+            ),
+        ):
+            chunks: list[str] = []
+            async for chunk in iter_agent_stream_chunks(session, approval):
+                chunks.append(chunk)
+
+        message_end_event = next(
+            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
+        )
         assert message_end_event.get("memory_brief_status") == {
             "state": "skipped",
             "source": "preflight",

@@ -7,7 +7,7 @@ created via SkillCreationService; Agents are persisted via AgentService.
 [INPUT]
 - core.skills.creation.service::SkillCreationService (POS: Skill 写入服务)
 - services.agent.agent_service::AgentService (POS: Agent CRUD 服务)
-- services.agent.marketplace_package_contract::validate_marketplace_package
+- services.agent.marketplace.package_contract::validate_marketplace_package
   (POS: Marketplace 包契约与完整性校验)
 - Marketplace package dict (from marketplace_export)
 
@@ -28,7 +28,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Mapping
 
-from app.services.agent.marketplace_package_contract import (
+from app.services.agent.marketplace.package_contract import (
     MarketplaceBundledSkillContract,
     MarketplaceBundledSubagentContract,
     validate_marketplace_package,

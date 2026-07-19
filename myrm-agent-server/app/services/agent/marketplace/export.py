@@ -8,7 +8,7 @@ profiles required for cross-sandbox installation. Secrets are always stripped.
 - database.repositories.uow::UnitOfWork (POS: Unit of Work 事务层)
 - core.skills.store.service::skills_service (POS: Skill CRUD 单例服务)
 - services.agent.profile_snapshot_service::mutable_snapshot_data (POS: Agent 字段序列化)
-- services.agent.marketplace_package_contract::build_marketplace_package
+- services.agent.marketplace.package_contract::build_marketplace_package
   (POS: Marketplace 包契约构建 + 完整性摘要)
 
 [OUTPUT]
@@ -28,7 +28,7 @@ from myrm_agent_harness.backends.profiles.types import AgentProfile
 
 from app.core.skills.store.service import skills_service
 from app.database.repositories.uow import UnitOfWork
-from app.services.agent.marketplace_package_contract import build_marketplace_package
+from app.services.agent.marketplace.package_contract import build_marketplace_package
 from app.services.agent.profile_snapshot_service import mutable_snapshot_data
 
 logger = logging.getLogger(__name__)

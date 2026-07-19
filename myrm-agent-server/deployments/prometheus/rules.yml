@@ -144,7 +144,76 @@ groups:
           severity: warning
         annotations:
           summary: "Memory brief telemetry events are being dropped"
-          description: "Dropped telemetry events detected over 10m (dropped_phase={{ $labels.dropped_phase }}, incoming_phase={{ $labels.incoming_phase }})"
+          description: "Dropped telemetry events detected over 10m (subject={{ $labels.telemetry_subject }}, dropped_phase={{ $labels.dropped_phase }}, incoming_phase={{ $labels.incoming_phase }})"
+
+      - alert: MemoryBriefTelemetryFlushExceptionDetected
+        expr: increase(myrm_memory_brief_status_telemetry_flush_exceptions_total[10m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief telemetry flush loop encountered unexpected exceptions"
+          description: "Unexpected flush-loop exceptions detected over 10m (subject={{ $labels.telemetry_subject }})"
+
+      - alert: MemoryBriefTelemetryFlushHttpErrorDetected
+        expr: |
+          (
+            increase(myrm_memory_brief_status_telemetry_flush_attempts_total[10m]) >= 6
+            and
+            (
+              increase(myrm_memory_brief_status_telemetry_flush_http_errors_total[10m])
+              /
+              clamp_min(increase(myrm_memory_brief_status_telemetry_flush_attempts_total[10m]), 1)
+            ) >= 0.50
+          )
+          or
+          (
+            increase(myrm_memory_brief_status_telemetry_flush_attempts_total[10m]) >= 10
+            and
+            (
+              increase(myrm_memory_brief_status_telemetry_flush_http_errors_total[10m])
+              /
+              clamp_min(increase(myrm_memory_brief_status_telemetry_flush_attempts_total[10m]), 1)
+            ) >= 0.30
+            and
+            (
+              max_over_time(myrm_memory_brief_status_telemetry_queue_fill_ratio[10m]) >= 0.60
+              or
+              sum by (telemetry_subject) (
+                increase(myrm_memory_brief_status_telemetry_dropped_total[10m])
+              ) > 0
+            )
+          )
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief telemetry flush HTTP failures detected"
+          description: "HTTP flush failure ratio breached adaptive attempts-based threshold over 10m (subject={{ $labels.telemetry_subject }}, ratio=errors/attempts, queue_pressure_or_drop_signal=true)"
+
+      - alert: MemoryBriefTelemetryDedupRejectDetected
+        expr: |
+          (
+            increase(myrm_cp_memory_brief_status_events_ingested_total[10m]) >= 20
+            and
+            (
+              increase(myrm_cp_memory_brief_status_dedup_rejected_ingested_total[10m])
+              /
+              clamp_min(increase(myrm_cp_memory_brief_status_events_ingested_total[10m]), 1)
+            ) >= 0.05
+          )
+          or
+          (
+            increase(myrm_cp_memory_brief_status_dedup_rejected_ingested_total[10m]) >= 5
+            and
+            increase(myrm_cp_memory_brief_status_dedup_rejected_total{reason="redis_unavailable"}[10m]) > 0
+          )
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief telemetry strict dedup rejects detected"
+          description: "Strict dedup rejects breached threshold over 10m (ratio=dedup_rejects/events OR redis_unavailable burst)."
 
       # === Resource Alerts ===
 

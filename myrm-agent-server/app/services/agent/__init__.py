@@ -4,7 +4,13 @@
 - agent_service: Agent CRUD
 - streaming: General Agent 流式执行
 - search: Web 搜索
-- backends: 数据库 Agent 后端实现
+- backends: Profile/Secret/OAuth 持久化后端
+- params: HTTP → GeneralAgentParams 转换
+- stream_session: SSE 流式会话编排
+- streaming_support: SSE 辅助工具
+- execution_cache: Chat 级执行单元池
+- evolution: 技能进化调度
+- outbound_notify: Agent 主动出站通知
 """
 
 __all__ = [

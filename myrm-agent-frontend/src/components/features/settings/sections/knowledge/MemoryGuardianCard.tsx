@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import {
@@ -14,7 +14,17 @@ import {
 import { toast } from 'sonner';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
-import { getMemoryHealth, triggerMemoryMaintenance, type MemoryHealthResponse } from '@/services/memory';
+import MemoryGuardianDigestPanel from './MemoryGuardianDigestPanel';
+import MemoryGuardianPolicyPanel from './MemoryGuardianPolicyPanel';
+import {
+  getMemoryGuardianOverview,
+  triggerMemoryMaintenance,
+  updateMemoryGuardianPolicy,
+  type MemoryGuardianMorningDigest,
+  type MemoryGuardianPolicy,
+  type MemoryGuardianTriggerMode,
+  type MemoryHealthResponse,
+} from '@/services/memory';
 
 const DIMENSION_LABELS: Record<string, { en: string; zh: string; icon: typeof IconBrain }> = {
   freshness: { en: 'Freshness', zh: '新鲜度', icon: IconGlow },
@@ -56,18 +66,67 @@ function formatCountdown(seconds: number | null, t: ReturnType<typeof useTransla
   return t('inHours', { count: Math.round(seconds / 3600) });
 }
 
+const DEFAULT_POLICY: MemoryGuardianPolicy = {
+  frequency_tier: 'balanced',
+  quiet_window_enabled: false,
+  quiet_window_start_hour: 0,
+  quiet_window_end_hour: 6,
+  timezone_offset_minutes: 0,
+};
+
+function getBrowserTimezoneOffsetMinutes(): number {
+  return -new Date().getTimezoneOffset();
+}
+
+function describeSkipReason(reason: string, t: ReturnType<typeof useTranslations>): string {
+  if (reason.startsWith('maintenance_skipped')) return t('skipMaintenance');
+  switch (reason) {
+    case 'outside_quiet_window':
+      return t('skipOutsideQuietWindow');
+    case 'active_sessions':
+      return t('skipActiveSessions');
+    case 'budget_blocked':
+      return t('skipBudgetBlocked');
+    case 'capacity_denied':
+      return t('skipCapacityDenied');
+    case 'active_session_guard_unavailable':
+      return t('skipActiveSessionGuardUnavailable');
+    case 'budget_guard_unavailable':
+      return t('skipBudgetGuardUnavailable');
+    case 'capacity_guard_unavailable':
+      return t('skipCapacityGuardUnavailable');
+    default:
+      return t('skipUnknown');
+  }
+}
+
 const MemoryGuardianCard = memo(() => {
   const t = useTranslations('settings.memoryGuardian');
   const [data, setData] = useState<MemoryHealthResponse | null>(null);
+  const [digest, setDigest] = useState<MemoryGuardianMorningDigest | null>(null);
+  const [policy, setPolicy] = useState<MemoryGuardianPolicy>(DEFAULT_POLICY);
+  const [policyDirty, setPolicyDirty] = useState(false);
+  const [savingPolicy, setSavingPolicy] = useState(false);
+  const [triggerMode, setTriggerMode] = useState<MemoryGuardianTriggerMode>('safe');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [triggering, setTriggering] = useState(false);
+  const policyDirtyRef = useRef(false);
+
+  const setPolicyDirtyFlag = useCallback((value: boolean) => {
+    policyDirtyRef.current = value;
+    setPolicyDirty(value);
+  }, []);
 
   const fetchHealth = useCallback(async () => {
     try {
       setError(null);
-      const res = await getMemoryHealth();
-      setData(res);
+      const overview = await getMemoryGuardianOverview();
+      setData(overview);
+      setDigest(overview.digest ?? null);
+      if (!policyDirtyRef.current) {
+        setPolicy(overview.policy ?? DEFAULT_POLICY);
+      }
     } catch {
       setError(t('loadFailed'));
     } finally {
@@ -92,19 +151,44 @@ const MemoryGuardianCard = memo(() => {
   const handleTrigger = useCallback(async () => {
     setTriggering(true);
     try {
-      const res = await triggerMemoryMaintenance();
+      const res = await triggerMemoryMaintenance(triggerMode);
       if (res.error) {
         toast.error(res.error);
+      } else if (res.applied === false && res.skipped_reason) {
+        toast(t('triggerSkipped', { reason: describeSkipReason(res.skipped_reason, t) }));
       } else {
-        toast.success(t('triggerSuccess'));
-        await fetchHealth();
+        toast.success(triggerMode === 'force' ? t('triggerSuccessForce') : t('triggerSuccess'));
       }
+      await fetchHealth();
     } catch {
       toast.error(t('triggerFailed'));
     } finally {
       setTriggering(false);
     }
-  }, [t, fetchHealth]);
+  }, [t, fetchHealth, triggerMode]);
+
+  const handlePolicySave = useCallback(async () => {
+    setSavingPolicy(true);
+    try {
+      const saved = await updateMemoryGuardianPolicy({
+        ...policy,
+        timezone_offset_minutes: getBrowserTimezoneOffsetMinutes(),
+      });
+      setPolicy(saved);
+      setPolicyDirtyFlag(false);
+      toast.success(t('policySaved'));
+      await fetchHealth();
+    } catch {
+      toast.error(t('policySaveFailed'));
+    } finally {
+      setSavingPolicy(false);
+    }
+  }, [policy, t, fetchHealth, setPolicyDirtyFlag]);
+
+  const handlePolicyChange = useCallback((nextPolicy: MemoryGuardianPolicy) => {
+    setPolicy(nextPolicy);
+    setPolicyDirtyFlag(true);
+  }, [setPolicyDirtyFlag]);
 
   if (loading) {
     return (
@@ -142,6 +226,18 @@ const MemoryGuardianCard = memo(() => {
 
   const { health, guardian } = data;
   const totalScore = Math.round(health.total);
+  const guardUnavailableAlert = data.alerts?.guard_unavailable;
+  const guardAlertDominantReason = guardUnavailableAlert?.dominant_reason
+    ? describeSkipReason(guardUnavailableAlert.dominant_reason, t)
+    : null;
+  const guardAlertDominantRatioPercent = Math.round((guardUnavailableAlert?.dominant_reason_ratio ?? 0) * 100);
+  const guardAlertEscalationThresholdCount = guardUnavailableAlert?.thresholds?.escalation_min_reason_count ?? null;
+  const guardAlertEscalationRatioPercent = guardUnavailableAlert?.thresholds
+    ? Math.round(guardUnavailableAlert.thresholds.escalation_min_reason_ratio * 100)
+    : null;
+  const guardAlertTone = guardUnavailableAlert?.escalated
+    ? 'border-red-500/30 bg-red-500/5 text-red-700 dark:text-red-400'
+    : 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400';
 
   return (
     <SettingsSection
@@ -157,10 +253,36 @@ const MemoryGuardianCard = memo(() => {
           )}
         >
           <IconRefresh className={`w-3 h-3 ${triggering ? 'animate-spin' : ''}`} />
-          {triggering ? t('running') : t('triggerBtn')}
+          {triggering ? t('running') : triggerMode === 'force' ? t('triggerForceBtn') : t('triggerBtn')}
         </button>
       }
     >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">{t('runModeLabel')}</span>
+        <button
+          onClick={() => setTriggerMode('safe')}
+          className={cn(
+            'px-2 py-1 rounded-md text-[11px] font-medium transition-colors border',
+            triggerMode === 'safe'
+              ? 'border-primary/30 bg-primary/10 text-primary'
+              : 'border-border bg-background text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {t('runModeSafe')}
+        </button>
+        <button
+          onClick={() => setTriggerMode('force')}
+          className={cn(
+            'px-2 py-1 rounded-md text-[11px] font-medium transition-colors border',
+            triggerMode === 'force'
+              ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+              : 'border-border bg-background text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {t('runModeForce')}
+        </button>
+      </div>
+
       {/* Total Score Ring */}
       <div className="flex items-center gap-6">
         <div className="relative w-20 h-20 shrink-0">
@@ -237,6 +359,52 @@ const MemoryGuardianCard = memo(() => {
               <span>{s}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      <MemoryGuardianPolicyPanel
+        policy={policy}
+        dirty={policyDirty}
+        saving={savingPolicy}
+        onPolicyChange={handlePolicyChange}
+        onSave={handlePolicySave}
+      />
+
+      {digest && <MemoryGuardianDigestPanel digest={digest} />}
+
+      {guardUnavailableAlert?.active && (
+        <div className={cn('flex items-start gap-2 rounded-xl border px-4 py-3 text-[11px]', guardAlertTone)}>
+          <IconAlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+          <div className="min-w-0 space-y-1">
+            <span className="block">
+              {t('guardAlertNotice', {
+                count: guardUnavailableAlert.total,
+                hours: guardUnavailableAlert.window_hours,
+              })}
+            </span>
+            {guardAlertDominantReason && (
+              <span className="block opacity-90">
+                {guardAlertDominantReason}
+              </span>
+            )}
+            <span className="block opacity-90">
+              {t('guardAlertObservedDetail', {
+                count: guardUnavailableAlert.dominant_reason_count,
+                ratio: guardAlertDominantRatioPercent,
+              })}
+            </span>
+            {guardAlertEscalationThresholdCount !== null && guardAlertEscalationRatioPercent !== null && (
+              <span className="block opacity-90">
+                {t('guardAlertThresholdDetail', {
+                  count: guardAlertEscalationThresholdCount,
+                  ratio: guardAlertEscalationRatioPercent,
+                })}
+              </span>
+            )}
+            <span className="block opacity-90">
+              {guardUnavailableAlert.escalated ? t('guardAlertEscalatedHint') : t('guardAlertMonitoringHint')}
+            </span>
+          </div>
         </div>
       )}
 

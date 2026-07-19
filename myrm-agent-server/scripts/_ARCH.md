@@ -27,7 +27,7 @@
 ```
 scripts/ ──→ app/ (仅 deploy.py 和部分运维脚本导入 app 模块)
 scripts/ci/ ──→ lib_harness_deps.sh（共享 harness uv sync）
-scripts/ci/ ──→ run_architecture_gates.sh（fractal + line budget + architecture pytest）
+scripts/ci/ ──→ run_architecture_gates.sh（fractal + line budget + promtool rules check + architecture pytest）
 scripts/ci/ ──→ run_default_tests.sh（默认 pytest；-m 'not e2e and not performance'）
 ```
 

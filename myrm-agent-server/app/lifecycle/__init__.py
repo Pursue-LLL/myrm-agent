@@ -26,6 +26,7 @@ from .schedulers import (
     start_kanban_dispatchers,
     start_login_session_cleanup_scheduler,
     start_memory_brief_status_telemetry_dispatcher,
+    start_memory_guardian_guard_telemetry_dispatcher,
     start_remote_backup_scheduler,
     stop_approval_ttl_scheduler,
     stop_auth_log_cleanup_scheduler,
@@ -36,6 +37,7 @@ from .schedulers import (
     stop_kanban_dispatchers,
     stop_login_session_cleanup_scheduler,
     stop_memory_brief_status_telemetry_dispatcher,
+    stop_memory_guardian_guard_telemetry_dispatcher,
     stop_remote_backup_scheduler,
 )
 from .skills import shutdown_skill_optimization_listeners, start_skill_optimization_listeners
@@ -65,6 +67,7 @@ __all__ = [
     "start_context_cleanup_scheduler",
     "start_context_compaction_telemetry_dispatcher",
     "start_memory_brief_status_telemetry_dispatcher",
+    "start_memory_guardian_guard_telemetry_dispatcher",
     "start_cron_scheduler",
     "start_db_maintenance_scheduler",
     "start_kanban_dispatchers",
@@ -76,6 +79,7 @@ __all__ = [
     "stop_context_cleanup_scheduler",
     "stop_context_compaction_telemetry_dispatcher",
     "stop_memory_brief_status_telemetry_dispatcher",
+    "stop_memory_guardian_guard_telemetry_dispatcher",
     "stop_db_maintenance_scheduler",
     "stop_kanban_dispatchers",
     "stop_login_session_cleanup_scheduler",

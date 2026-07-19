@@ -1,19 +1,19 @@
 """Built-in agent specs — extended 5 agents.
 
 [INPUT]
-app.services.agent.builtin_agent_spec_types::_BuiltInAgentSpec, _TOOL_* (POS: 类型与工具集常量)
+app.services.agent.builtin_specs.types::_BuiltInAgentSpec, _TOOL_* (POS: 类型与工具集常量)
 
 [OUTPUT]
 _EXTENDED_BUILTIN_AGENTS: Tuple segment for _BUILTIN_AGENTS aggregation.
 
 [POS]
-builtin_agent_specs 子模块：5 个扩展预置智能体规格
+builtin_specs 子包：5 个扩展预置智能体规格
 """
 
-from app.services.agent.builtin_agent_spec_types import (
+from app.services.agent.builtin_specs.types import (
     _BuiltInAgentSpec,
-    _TOOL_MINIMAL,
     _TOOL_CODING,
+    _TOOL_MINIMAL,
 )
 
 _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
@@ -150,4 +150,3 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         ),
     ),
 )
-

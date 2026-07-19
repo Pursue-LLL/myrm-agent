@@ -512,13 +512,14 @@ def chat_messages_have_ok(chat_id: str, *, min_user_count: int = 1, api_url: str
     user_count = sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")
     if user_count < min_user_count:
         return False
-    for msg in reversed(messages):
-        if not isinstance(msg, dict) or msg.get("role") != "assistant":
-            continue
-        content = str(msg.get("content") or "")
-        if _OK_REPLY_RE.search(content):
-            return True
-    return False
+    last_assistant: dict[str, object] | None = None
+    for msg in messages:
+        if isinstance(msg, dict) and msg.get("role") == "assistant":
+            last_assistant = msg
+    if last_assistant is None:
+        return False
+    content = str(last_assistant.get("content") or "")
+    return bool(_OK_REPLY_RE.search(content))
 
 
 def chat_messages_have_done(chat_id: str, *, min_user_count: int = 1, api_url: str | None = None) -> bool:

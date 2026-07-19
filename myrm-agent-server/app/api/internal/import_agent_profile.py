@@ -1,7 +1,7 @@
 """Control Plane → sandbox Agent profile import endpoint.
 
 [INPUT]
-- services.agent.marketplace_import::import_agent_package (POS: Server-side marketplace import)
+- services.agent.marketplace.import_::import_agent_package (POS: Server-side marketplace import)
 - services.agent.profile_snapshot_service::ProfileSnapshotService (POS: 快照服务)
 - database.repositories.uow::UnitOfWork (POS: Unit of Work 事务层)
 
@@ -26,8 +26,7 @@ from pydantic import BaseModel
 
 from app.core.memory.adapters.policy import memory_policy_from_dict
 from app.database.repositories.uow import UnitOfWork
-from app.services.agent.marketplace_import import import_agent_package
-from app.services.agent.marketplace_package_contract import validate_marketplace_package
+from app.services.agent.marketplace import import_agent_package, validate_marketplace_package
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

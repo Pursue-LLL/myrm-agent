@@ -169,6 +169,7 @@ addopts = "-m 'not e2e and not chrome_e2e and not performance' --timeout=300"
 markers = [
   "docker: Docker 沙箱测试（内存占用高，默认排除可加 -m 'not docker'）",
   "chrome_e2e: Formal real-Chrome MCP UI E2E with declared runtime resources",
+  "chrome_e2e_desktop: macOS desktop-control approval Chrome E2E (signoff desktop phase only)",
   "e2e: End-to-end tests against running app (may require network or API keys)",
   "performance: Performance and benchmark tests (excluded from default suite)",
   "benchmark: pytest-benchmark tests (auto-remapped to performance in conftest)",

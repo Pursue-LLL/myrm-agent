@@ -15,13 +15,14 @@ timeouts, compression exhaustion, workflow escalation, and context overflow rese
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import AsyncGenerator, AsyncIterable
 from dataclasses import dataclass
 
 from myrm_agent_harness.utils.runtime.cancellation import CancelReason
 
 from app.schemas.streaming import SSEEnvelope
-from app.services.agent.memory_brief_status_telemetry import (
+from app.services.agent.memory_brief_telemetry import (
     enqueue_memory_brief_status_telemetry,
 )
 from app.services.agent.stream_session._memory_status_helpers import (
@@ -43,11 +44,88 @@ from app.services.agent.streaming_support.sse_helpers import (
 )
 
 logger = logging.getLogger(__name__)
+_CITATION_PATTERN = re.compile(r"<cite:([^>]+)>")
 
 
 @dataclass
 class ApprovalTimeoutHolder:
     value: dict[str, object] | None = None
+
+
+def _inject_message_end_memory_insights(
+    *,
+    chunk: dict[str, object],
+    session: AgentStreamSession,
+) -> None:
+    citations: list[str] = []
+    try:
+        content = session.collector.content
+        if isinstance(content, str):
+            matches = _CITATION_PATTERN.findall(content)
+            if matches:
+                citations = list(dict.fromkeys(matches))
+    except Exception as e:
+        logger.warning("Failed to extract citations in stream_loop: %s", e)
+    if citations:
+        chunk["citations"] = citations
+
+    preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
+    if isinstance(preview, dict):
+        snapshot_id = preview.get("snapshot_id")
+        if isinstance(snapshot_id, str) and snapshot_id.strip():
+            chunk["memory_brief_snapshot_id"] = snapshot_id.strip()
+    brief_status = (
+        session.extra_context.get("memory_brief_status")
+        if isinstance(session.extra_context, dict)
+        else None
+    )
+
+    budget = None
+    injection = None
+    try:
+        from myrm_agent_harness.api.hooks import (
+            get_memory_runtime_budget,
+            get_memory_runtime_injection,
+        )
+    except Exception as e:
+        logger.warning("Failed to import memory runtime hooks in stream_loop: %s", e)
+    else:
+        try:
+            budget = get_memory_runtime_budget()
+        except Exception as e:
+            logger.warning("Failed to read memory budget in stream_loop: %s", e)
+            budget = None
+        if budget is not None:
+            chunk["memoryBudget"] = budget
+
+        try:
+            injection = get_memory_runtime_injection()
+        except Exception as e:
+            logger.warning("Failed to read memory injection in stream_loop: %s", e)
+            injection = None
+
+    try:
+        status_payload = build_memory_brief_status_payload(brief_status, injection)
+    except Exception as e:
+        logger.warning("Failed to build memory brief status payload in stream_loop: %s", e)
+        return
+    if status_payload is None:
+        return
+
+    chunk["memory_brief_status"] = status_payload
+
+    try:
+        observe_memory_brief_status_payload(phase="stream", payload=status_payload)
+    except Exception as e:
+        logger.warning("Failed to observe stream memory brief status payload: %s", e)
+
+    try:
+        enqueue_memory_brief_status_telemetry(
+            phase="stream",
+            payload=status_payload,
+        )
+    except Exception as e:
+        logger.warning("Failed to enqueue stream memory brief status telemetry: %s", e)
 
 
 async def iter_agent_stream_chunks(
@@ -255,56 +333,7 @@ async def iter_agent_stream_chunks(
 
                 # Inject goal_status into message_end and handle budget exhausted
                 if isinstance(chunk, dict) and chunk.get("type") == "message_end":
-                    # Inject memory citations and budget
-                    try:
-                        import re
-
-                        content = session.collector.content
-                        citations = list(set(re.findall(r"<cite:([^>]+)>", content)))
-                        if citations:
-                            chunk["citations"] = citations
-
-                        preview = (
-                            session.extra_context.get("memory_brief_preview")
-                            if isinstance(session.extra_context, dict)
-                            else None
-                        )
-                        if isinstance(preview, dict):
-                            snapshot_id = preview.get("snapshot_id")
-                            if isinstance(snapshot_id, str) and snapshot_id.strip():
-                                chunk["memory_brief_snapshot_id"] = snapshot_id.strip()
-                        brief_status = (
-                            session.extra_context.get("memory_brief_status")
-                            if isinstance(session.extra_context, dict)
-                            else None
-                        )
-                        from myrm_agent_harness.api.hooks import (
-                            get_memory_runtime_budget,
-                            get_memory_runtime_injection,
-                        )
-
-                        try:
-                            budget = get_memory_runtime_budget()
-                        except Exception as e:
-                            logger.warning("Failed to read memory budget in stream_loop: %s", e)
-                            budget = None
-                        if budget is not None:
-                            chunk["memoryBudget"] = budget
-                        try:
-                            injection = get_memory_runtime_injection()
-                        except Exception as e:
-                            logger.warning("Failed to read memory injection in stream_loop: %s", e)
-                            injection = None
-                        status_payload = build_memory_brief_status_payload(brief_status, injection)
-                        if status_payload is not None:
-                            chunk["memory_brief_status"] = status_payload
-                            observe_memory_brief_status_payload(phase="stream", payload=status_payload)
-                            enqueue_memory_brief_status_telemetry(
-                                phase="stream",
-                                payload=status_payload,
-                            )
-                    except Exception as e:
-                        logger.warning("Failed to inject memory insights into message_end: %s", e)
+                    _inject_message_end_memory_insights(chunk=chunk, session=session)
 
                     if session.request.chat_id:
                         from app.services.agent.goal_registry import (

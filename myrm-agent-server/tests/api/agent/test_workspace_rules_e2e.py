@@ -65,7 +65,7 @@ class TestWorkspaceRulesE2E:
             return str(tmp_path)
             
         monkeypatch.setattr(
-            "app.services.agent.params.converter._resolve_default_chat_workspace_dir", 
+            "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir", 
             mock_resolve
         )
         yield tmp_path

@@ -14,7 +14,6 @@ import { AgentEventType } from './part1';
 import type { BaseAgentEvent, ErrorKind } from './part1';
 import type { CompletionStatus } from '../toolApproval';
 import type { ProgressItem } from '../progress';
-import type { Source } from '../sources';
 import type { TokenEconomicsSnapshot, TokenUsage } from '../tokens';
 import type { ContextBudget, CostStatus } from '../contextMetrics';
 

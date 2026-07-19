@@ -9,6 +9,7 @@
 - app.services.budget.enforcer::should_block_execution (POS: Budget enforcement)
 - app.core.memory.adapters.setup::create_memory_manager (POS: 业务层记忆管理器工厂)
 - app.services.memory.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
+- app.services.memory.guardian_policy::MemoryGuardianPolicy (POS: 受约束调度策略)
 
 [OUTPUT]
 - start_memory_guardian_scheduler: Start periodic background memory maintenance
@@ -18,7 +19,7 @@
 - run_pattern_discovery_once: Manual trigger entry point (pattern discovery)
 
 [POS]
-记忆守护者调度器。独立于用户会话的周期性记忆维护，自适应频率（健康时 6h / 不健康时 2h），
+记忆守护者调度器。独立于用户会话的周期性记忆维护，支持频率档位驱动的自适应调度与 quiet window，
 用户活跃时自动暂停，预算耗尽时跳过，通过 GlobalAdaptiveScheduler 进行容量控制。
 每次维护周期结束后自动创建 SQLite 热备份（通过 SQLiteBackupManager），并将维护结果
 （遗忘/归档/合并/纠正计数）以 MAINTENANCE 审计事件写入 operation_ledger，SSE 实时推送
@@ -33,9 +34,19 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from typing import Literal
 
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind, MemoryOperationStatus
 from myrm_agent_harness.toolkits.memory.health import MaintenanceReport
+
+from app.services.memory.guardian_policy import (
+    MemoryGuardianPolicy,
+    current_local_hour,
+    is_within_quiet_window,
+    load_memory_guardian_policy,
+    resolve_guardian_intervals,
+    seconds_until_quiet_window_open,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,29 +54,46 @@ _scheduler_task: asyncio.Task[None] | None = None
 _last_run: float | None = None
 _next_run: float | None = None
 
-_HEALTHY_INTERVAL_HOURS = 6
-_UNHEALTHY_INTERVAL_HOURS = 2
 _HEALTH_THRESHOLD = 70
 _HEALTH_CRITICAL_THRESHOLD = 35
 _INITIAL_DELAY_MINUTES = 15
 _PATTERN_DISCOVERY_INTERVAL_HOURS = 168  # weekly
+_QUIET_WINDOW_RECHECK_SECONDS = 15 * 60
+
+_DEFAULT_POLICY = MemoryGuardianPolicy()
+_DEFAULT_INTERVALS = resolve_guardian_intervals(_DEFAULT_POLICY)
 
 _consecutive_unhealthy: int = 0
 _last_pattern_discovery: float = 0.0
 
 
-def get_memory_guardian_status() -> dict[str, object]:
+def get_memory_guardian_status(*, policy: MemoryGuardianPolicy | None = None) -> dict[str, object]:
     """Return current memory guardian scheduler status for API consumption."""
+    active_policy = policy or _DEFAULT_POLICY
+    intervals = resolve_guardian_intervals(active_policy)
+    quiet_window_open = is_within_quiet_window(policy=active_policy)
     return {
         "running": _scheduler_task is not None and not _scheduler_task.done(),
         "last_run": _last_run,
         "next_run": _next_run,
-        "healthy_interval_hours": _HEALTHY_INTERVAL_HOURS,
-        "unhealthy_interval_hours": _UNHEALTHY_INTERVAL_HOURS,
+        "healthy_interval_hours": intervals.healthy_hours,
+        "unhealthy_interval_hours": intervals.unhealthy_hours,
         "health_threshold": _HEALTH_THRESHOLD,
         "seconds_until_next": max(0, _next_run - time.time()) if _next_run else None,
         "consecutive_unhealthy": _consecutive_unhealthy,
         "last_pattern_discovery": _last_pattern_discovery,
+        "frequency_tier": active_policy.frequency_tier,
+        "quiet_window_enabled": active_policy.quiet_window_enabled,
+        "quiet_window_start_hour": active_policy.quiet_window_start_hour,
+        "quiet_window_end_hour": active_policy.quiet_window_end_hour,
+        "timezone_offset_minutes": active_policy.timezone_offset_minutes,
+        "local_hour": current_local_hour(policy=active_policy),
+        "within_quiet_window": quiet_window_open,
+        "seconds_until_quiet_window": (
+            seconds_until_quiet_window_open(policy=active_policy)
+            if active_policy.quiet_window_enabled and not quiet_window_open
+            else 0
+        ),
     }
 
 
@@ -89,52 +117,95 @@ async def _create_memory_manager() -> MemoryManager:
     )
 
 
-async def _run_guardian_cycle() -> MaintenanceReport | None:
+async def _run_guardian_cycle(
+    *,
+    force: bool = False,
+    policy: MemoryGuardianPolicy | None = None,
+) -> tuple[MaintenanceReport | None, str | None]:
     """Execute a single memory maintenance cycle with all safety guards.
 
-    Returns MaintenanceReport on success, None if skipped or failed.
-    Guards: active sessions → budget → adaptive scheduler capacity.
+    Returns (MaintenanceReport | None, skipped_reason | None).
+    Non-forced mode enforces quiet-window / active-session / budget / capacity guards.
     """
     global _last_run
+    active_policy = policy or await load_memory_guardian_policy()
 
-    try:
-        from app.services.agent.gateway import get_agent_gateway
+    if not force and active_policy.quiet_window_enabled and not is_within_quiet_window(policy=active_policy):
+        logger.debug("Memory guardian: skipped (outside quiet window)")
+        return None, "outside_quiet_window"
 
-        gateway = get_agent_gateway()
-        if gateway and gateway.active_count > 0:
-            logger.debug("Memory guardian: skipped (active sessions: %d)", gateway.active_count)
-            return None
-    except Exception:
-        pass
+    if not force:
+        try:
+            from app.services.agent.gateway import get_agent_gateway
 
-    try:
-        from app.services.budget.enforcer import should_block_execution
+            gateway = get_agent_gateway()
+            if gateway and gateway.active_count > 0:
+                logger.debug("Memory guardian: skipped (active sessions: %d)", gateway.active_count)
+                return None, "active_sessions"
+        except Exception as exc:
+            logger.warning("Memory guardian: skipped (active-session guard unavailable): %s", exc)
+            await _record_guard_unavailable_event(
+                reason="active_session_guard_unavailable",
+                guard="active_session",
+                policy=active_policy,
+            )
+            return None, "active_session_guard_unavailable"
 
-        if await should_block_execution():
-            logger.info("Memory guardian: skipped (daily budget exhausted)")
-            return None
-    except Exception:
-        pass
+        try:
+            from app.services.budget.enforcer import should_block_execution
+
+            if await should_block_execution():
+                logger.info("Memory guardian: skipped (daily budget exhausted)")
+                return None, "budget_blocked"
+        except Exception as exc:
+            logger.warning("Memory guardian: skipped (budget guard unavailable): %s", exc)
+            await _record_guard_unavailable_event(
+                reason="budget_guard_unavailable",
+                guard="budget",
+                policy=active_policy,
+            )
+            return None, "budget_guard_unavailable"
 
     from myrm_agent_harness.runtime.maintenance.protocols import CapacityDenial, MaintenanceTaskType
     from myrm_agent_harness.runtime.maintenance.scheduler import get_maintenance_scheduler
 
-    adaptive_scheduler = get_maintenance_scheduler()
+    adaptive_scheduler = None
     ticket = None
+    if not force:
+        try:
+            adaptive_scheduler = get_maintenance_scheduler()
+        except Exception as exc:
+            logger.warning("Memory guardian: skipped (capacity guard unavailable): %s", exc)
+            await _record_guard_unavailable_event(
+                reason="capacity_guard_unavailable",
+                guard="capacity",
+                policy=active_policy,
+            )
+            return None, "capacity_guard_unavailable"
+
     if adaptive_scheduler:
-        ticket_or_denial = await adaptive_scheduler.request_capacity(
-            task_type=MaintenanceTaskType.MEMORY_MAINTENANCE,
-        )
+        try:
+            ticket_or_denial = await adaptive_scheduler.request_capacity(
+                task_type=MaintenanceTaskType.MEMORY_MAINTENANCE,
+            )
+        except Exception as exc:
+            logger.warning("Memory guardian: skipped (capacity guard request failed): %s", exc)
+            await _record_guard_unavailable_event(
+                reason="capacity_guard_unavailable",
+                guard="capacity",
+                policy=active_policy,
+            )
+            return None, "capacity_guard_unavailable"
         if isinstance(ticket_or_denial, CapacityDenial):
             logger.info("Memory guardian: skipped (capacity denied: %s)", ticket_or_denial.reason)
-            return None
+            return None, "capacity_denied"
         ticket = ticket_or_denial
 
     report: MaintenanceReport | None = None
-    force = _consecutive_unhealthy >= 2
+    effective_force = force or _consecutive_unhealthy >= 2
     try:
         manager = await _create_memory_manager()
-        report = await manager.run_maintenance_cycle(force=force)
+        report = await manager.run_maintenance_cycle(force=effective_force)
         _last_run = time.time()
 
         if adaptive_scheduler and ticket:
@@ -143,7 +214,7 @@ async def _run_guardian_cycle() -> MaintenanceReport | None:
         if report.skipped:
             logger.info("Memory guardian: cycle skipped (%s)", report.skip_reason)
         else:
-            force_tag = " [FORCED]" if force else ""
+            force_tag = " [FORCED]" if effective_force else ""
             logger.info(
                 "Memory guardian: cycle complete%s — merged=%d corrected=%d forgotten=%d archived=%d health=%s (%.0fms)",
                 force_tag,
@@ -154,18 +225,19 @@ async def _run_guardian_cycle() -> MaintenanceReport | None:
                 report.health.total if report.health else "N/A",
                 report.duration_ms,
             )
-            await _record_maintenance_event(report, forced=force)
+            await _record_maintenance_event(report, forced=effective_force)
 
     except Exception as exc:
         logger.error("Memory guardian: cycle failed: %s", exc, exc_info=True)
         if adaptive_scheduler and ticket:
             adaptive_scheduler.report_outcome(ticket.task_type, success=False)
+        return None, "execution_failed"
     finally:
         if adaptive_scheduler and ticket:
             await adaptive_scheduler.release_capacity(ticket)
 
     if report and not report.skipped and report.health:
-        await _persist_health_snapshot(report)
+        await _persist_health_snapshot(report, policy=active_policy)
 
     try:
         purge_mgr = await _create_memory_manager()
@@ -183,7 +255,9 @@ async def _run_guardian_cycle() -> MaintenanceReport | None:
         logger.warning("Memory guardian: conflict auto-resolve failed (non-fatal): %s", exc)
 
     _run_sqlite_backup()
-    return report
+    if report and report.skipped:
+        return report, report.skip_reason or "maintenance_skipped"
+    return report, None
 
 
 async def _record_maintenance_event(report: MaintenanceReport, *, forced: bool) -> None:
@@ -241,7 +315,51 @@ async def _record_maintenance_event(report: MaintenanceReport, *, forced: bool) 
         logger.warning("Memory guardian: failed to record maintenance audit event: %s", exc)
 
 
-async def _persist_health_snapshot(report: MaintenanceReport) -> None:
+async def _record_guard_unavailable_event(
+    *,
+    reason: str,
+    guard: str,
+    policy: MemoryGuardianPolicy,
+) -> None:
+    """Record warning-level observability event when safe guard dependencies are unavailable."""
+    from app.services.agent.memory_guardian_guard_telemetry import (
+        enqueue_memory_guardian_guard_telemetry,
+    )
+    from app.database.connection import get_session
+    from app.services.memory.operation_ledger import MemoryOperationLedgerService
+
+    enqueue_memory_guardian_guard_telemetry(
+        reason=reason,
+        guard=guard,
+        frequency_tier=policy.frequency_tier,
+        quiet_window_enabled=policy.quiet_window_enabled,
+    )
+
+    try:
+        async with get_session() as db:
+            await MemoryOperationLedgerService(db).record_event(
+                kind=MemoryOperationKind.MAINTENANCE,
+                status=MemoryOperationStatus.WARNING,
+                summary="Guardian paused for safety due to temporary dependency status.",
+                source="memory_guardian",
+                metadata={
+                    "operation": "guard_unavailable_skip",
+                    "reason": reason,
+                    "guard": guard,
+                    "frequency_tier": policy.frequency_tier,
+                    "quiet_window_enabled": policy.quiet_window_enabled,
+                },
+                commit=True,
+            )
+    except Exception as exc:
+        logger.warning("Memory guardian: failed to record guard-unavailable warning event: %s", exc)
+
+
+async def _persist_health_snapshot(
+    report: MaintenanceReport,
+    *,
+    policy: MemoryGuardianPolicy | None = None,
+) -> None:
     """Persist Guardian-computed health score so the Command Center shows fresh data."""
     from app.database.connection import get_session
     from app.services.memory.operation_ledger import MemoryOperationLedgerService
@@ -249,6 +367,8 @@ async def _persist_health_snapshot(report: MaintenanceReport) -> None:
     if not report.health:
         return
 
+    active_policy = policy or _DEFAULT_POLICY
+    intervals = resolve_guardian_intervals(active_policy)
     health = report.health
     try:
         status_label = "healthy" if health.total >= _HEALTH_THRESHOLD else "unhealthy"
@@ -262,7 +382,7 @@ async def _persist_health_snapshot(report: MaintenanceReport) -> None:
                 sample_size=health.sample_size,
                 guardian_running=_scheduler_task is not None and not _scheduler_task.done(),
                 seconds_until_next=int(max(0, _next_run - time.time())) if _next_run else None,
-                ttl_seconds=_HEALTHY_INTERVAL_HOURS * 3600,
+                ttl_seconds=intervals.healthy_hours * 3600,
                 commit=True,
             )
     except Exception as exc:
@@ -296,7 +416,7 @@ async def _auto_resolve_expired_conflicts() -> int:
     """
     from datetime import UTC, datetime as dt
 
-    from sqlalchemy import select, update
+    from sqlalchemy import update
 
     from app.database.connection import get_session
     from app.database.models import PendingMemory
@@ -386,25 +506,28 @@ def _run_sqlite_backup() -> None:
         logger.warning("Memory guardian: SQLite backup failed (non-fatal): %s", exc)
 
 
-async def run_memory_guardian_once() -> dict[str, object]:
+async def run_memory_guardian_once(*, mode: Literal["safe", "force"] = "safe") -> dict[str, object]:
     """Run a single memory guardian cycle on demand (for manual trigger API).
 
-    Manual triggers bypass the active-session / budget / capacity guards so
-    the UI can deterministically force a maintenance pass when the user asks
-    for it. The periodic scheduler still uses the guarded path.
+    - safe mode: respects quiet-window / active-session / budget / capacity guards.
+    - force mode: bypasses guards and runs one deterministic maintenance pass.
     """
     try:
-        manager = await _create_memory_manager()
-        report = await manager.run_maintenance_cycle(force=True)
-        if not report.skipped:
-            await _record_maintenance_event(report, forced=True)
-        if report.health is not None:
-            return {"triggered": True, "health": report.health.to_dict()}
-
-        health = await manager.compute_health_score()
-        return {"triggered": True, "health": health.to_dict()}
+        if mode not in {"safe", "force"}:
+            mode = "safe"
+        report, skipped_reason = await _run_guardian_cycle(force=(mode == "force"))
+        payload: dict[str, object] = {
+            "triggered": True,
+            "mode": mode,
+            "applied": bool(report is not None and not report.skipped),
+        }
+        if skipped_reason:
+            payload["skipped_reason"] = skipped_reason
+        if report and report.health is not None:
+            payload["health"] = report.health.to_dict()
+        return payload
     except Exception as exc:
-        return {"triggered": True, "error": str(exc)}
+        return {"triggered": True, "mode": mode, "applied": False, "error": str(exc)}
 
 
 async def _run_pattern_discovery_cycle() -> None:
@@ -435,7 +558,7 @@ async def start_memory_guardian_scheduler() -> None:
     async def guardian_loop() -> None:
         global _next_run, _consecutive_unhealthy, _last_pattern_discovery
 
-        interval_hours = _HEALTHY_INTERVAL_HOURS
+        interval_hours = _DEFAULT_INTERVALS.healthy_hours
 
         await asyncio.sleep(_INITIAL_DELAY_MINUTES * 60)
 
@@ -458,7 +581,22 @@ async def start_memory_guardian_scheduler() -> None:
             _next_run = time.time() + 1
 
             try:
-                report = await _run_guardian_cycle()
+                policy = await load_memory_guardian_policy()
+                intervals = resolve_guardian_intervals(policy)
+
+                if policy.quiet_window_enabled and not is_within_quiet_window(policy=policy):
+                    until_window = max(60, seconds_until_quiet_window_open(policy=policy))
+                    sleep_seconds = min(until_window, _QUIET_WINDOW_RECHECK_SECONDS)
+                    _next_run = time.time() + sleep_seconds
+                    logger.info(
+                        "Memory guardian: deferred (quiet window closed), recheck in %d min (window opens in %d min)",
+                        max(1, int(sleep_seconds // 60)),
+                        max(1, int(until_window // 60)),
+                    )
+                    await asyncio.sleep(sleep_seconds)
+                    continue
+
+                report, _skipped_reason = await _run_guardian_cycle(force=False, policy=policy)
 
                 if report and report.health:
                     if report.health.total < _HEALTH_CRITICAL_THRESHOLD:
@@ -467,10 +605,12 @@ async def start_memory_guardian_scheduler() -> None:
                         _consecutive_unhealthy = 0
 
                     interval_hours = (
-                        _HEALTHY_INTERVAL_HOURS if report.health.total >= _HEALTH_THRESHOLD else _UNHEALTHY_INTERVAL_HOURS
+                        intervals.healthy_hours
+                        if report.health.total >= _HEALTH_THRESHOLD
+                        else intervals.unhealthy_hours
                     )
                 else:
-                    interval_hours = _HEALTHY_INTERVAL_HOURS
+                    interval_hours = intervals.healthy_hours
 
                 now = time.time()
                 pattern_elapsed_h = (now - _last_pattern_discovery) / 3600
@@ -490,8 +630,8 @@ async def start_memory_guardian_scheduler() -> None:
     logger.info(
         "Memory guardian scheduler started (initial delay: %dm, adaptive interval: %d-%dh)",
         _INITIAL_DELAY_MINUTES,
-        _UNHEALTHY_INTERVAL_HOURS,
-        _HEALTHY_INTERVAL_HOURS,
+        _DEFAULT_INTERVALS.unhealthy_hours,
+        _DEFAULT_INTERVALS.healthy_hours,
     )
 
 

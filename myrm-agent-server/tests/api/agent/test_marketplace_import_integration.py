@@ -38,7 +38,7 @@ def _build_package(
     bundled_mcp_configs: list[dict[str, object]] | None = None,
     transport_secret: str | None = None,
 ) -> dict[str, object]:
-    from app.services.agent.marketplace_package_contract import (
+    from app.services.agent.marketplace import (
         apply_marketplace_transport_signature,
         build_marketplace_package,
     )

@@ -7,7 +7,7 @@ app.services.agent.builtin_tool_ids::DEFAULT_ENABLED_BUILTIN_TOOLS (POS: enabled
 _BuiltInAgentSpec, _TOOL_* presets for builtin agent data modules.
 
 [POS]
-builtin_agent_specs 子模块：类型与工具集常量 SSOT。
+builtin_specs 子包：类型与工具集常量 SSOT。
 """
 
 from dataclasses import dataclass, field
@@ -49,4 +49,3 @@ class _BuiltInAgentSpec:
     engine_params: dict[str, object] | None = field(default=None, compare=False)
     memory_policy: dict[str, object] | None = field(default=None, compare=False)
     suggestion_prompts: tuple[str, ...] = ()
-

@@ -27,5 +27,5 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 | Gate trigger | Assert `GET /webui/desktop/approval/pending` → `server_pending>0`（禁止用 tool 名 substring 误判） |
 | UI | `DesktopControlApprovalBanner` — `data-testid="desktop-control-allow-once"` / `desktop-control-deny` |
 | Bridge | `E2EChatBridge.hasDone` 或 API `chat_messages_have_done()`；无 DONE 时 poll≥15 一次性 nudge |
-| Signoff | v64 `./myrm signoff chrome --stress xdist4 --fault sigterm-goal-cache` → `ok: true`（matrix `--ignore` desktop；desktop 独立 E2E 绿 v91 `/tmp/myrm-desktop-goal-v91-strict-done.log` 165s） |
+| Signoff | `./myrm signoff chrome --stress xdist4 --fault sigterm-goal-cache` → matrix `chrome_e2e and not chrome_e2e_desktop` + darwin `chrome_e2e_desktop` phase（preflight + E2E）；desktop 独立 E2E 绿 R4 `/tmp/myrm-desktop-verify-r4.log` 187s |
 | Reset | `POST /webui/desktop/approval/reset-runtime` clears in-memory gate + reloads disk approvals |

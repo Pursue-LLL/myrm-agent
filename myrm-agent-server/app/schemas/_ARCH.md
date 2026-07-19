@@ -8,6 +8,6 @@
 |------|------|
 | `streaming.py` | SSE envelope 与标准响应头 |
 | `config.py` | 配置同步 API 模型 |
-| `control_plane.py` | Server↔CP 遥测契约 |
+| `control_plane.py` | Server↔CP 遥测契约（含 context compaction、memory brief `envelope_id` + `aggregates`/`dropped_aggregates`、memory guardian guard-unavailable `aggregates`） |
 | `memory/command_center.py` | Memory Command Center 响应模型 |
 | `security/dashboard.py` | 安全仪表盘 DTO（API + services 共用） |

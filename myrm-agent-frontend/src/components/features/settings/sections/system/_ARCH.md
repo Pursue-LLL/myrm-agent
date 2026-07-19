@@ -79,6 +79,7 @@
 | `AgentUsageCard.tsx` | Agent 用量卡片 |
 | `BudgetPolicySection.tsx` | 预算策略配置 |
 | `ChannelBudgetSection.tsx` | 渠道预算管理 |
+| `MemoryGuardianCard.tsx` | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合） |
 | `RateLimitMonitor.tsx` | 速率限制监控 |
 | `RoutingAnalyticsPanel.tsx` | 路由分析面板（模型路由/成本格式化） |
 ### Trace 可视化与调试

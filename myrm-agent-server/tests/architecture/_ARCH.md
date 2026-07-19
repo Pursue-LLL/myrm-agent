@@ -10,6 +10,12 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 |------|------|
 | `test_sse_event_type_parity.py` | harness `AgentEventType` ⊆ 前端 `knownSseEventTypes` 清单 |
 | `test_memory_injection_contract_parity.py` | 前端 `MemoryBriefStatus(source)/MemoryBriefInjectionStatus` union 与 server+harness 状态契约严格同构 |
+| `test_memory_brief_prometheus_rules_contract.py` | memory brief 告警规则契约（flush HTTP attempts-based ratio + strict dedup reject ratio/burst 关键片段；直接跑 pytest 时本地无 promtool 可 skip；`scripts/ci/run_architecture_gates.sh` 与 CI 均强制 promtool `check rules`） |
+| `test_memory_brief_telemetry_layout.py` | memory brief CP 遥测须位于 `app/services/agent/memory_brief_telemetry/` 子包，禁止根目录 legacy 平铺文件复活 |
+| `test_builtin_specs_layout.py` | 预置智能体规格须位于 `app/services/agent/builtin_specs/` 子包，禁止根目录 legacy 平铺文件复活 |
+| `test_memory_guardian_guard_telemetry_layout.py` | memory guardian guard CP 遥测须位于 `app/services/agent/memory_guardian_guard_telemetry/` 子包，禁止根目录 legacy 平铺文件复活 |
+| `test_marketplace_layout.py` | Agent Marketplace 导入/导出须位于 `app/services/agent/marketplace/` 子包，禁止根目录 legacy 平铺文件复活 |
+| `test_builtin_agent_i18n_parity.py` | 前端 `builtin-agent-i18n-data.ts` 的 key 集合须与 server `_BUILTIN_AGENTS` id 严格同构 |
 | `../fixtures/frontend_sse_event_types.json` | 由 frontend `scripts/export-known-sse-event-types.ts` 生成 |
 | `test_server_harness_imports.py` | 相对 baseline 禁止新增 server→harness 内部 import；并禁止 import 含 ``._`` 的 harness 私有模块路径 |
 | `test_dev_pid_path_ssot.py` | `scripts/**` 禁止读取子目录 `.myrm-dev-*` pid（cleanup rm 豁免） |
@@ -39,5 +45,5 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 
 ## 运行
 
-- 本地：`bash myrm-agent-server/scripts/ci/run_architecture_gates.sh`（fractal + `--no-stub` + line budget + architecture pytest）
+- 本地：`bash myrm-agent-server/scripts/ci/run_architecture_gates.sh`（fractal + `--no-stub` + line budget + `promtool check rules` + architecture pytest）
 - CI：`myrm-agent/.github/workflows/server-architecture.yml`（无 PyPI 且无 checkout harness 时失败闭合）

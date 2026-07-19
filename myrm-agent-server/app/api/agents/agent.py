@@ -540,7 +540,7 @@ async def marketplace_export_agent(
 ) -> JSONResponse:
     """Export Agent as a marketplace-ready package with bundled dependencies."""
     from app.database.repositories.uow import UnitOfWork
-    from app.services.agent.marketplace_export import export_agent_package
+    from app.services.agent.marketplace import export_agent_package
 
     try:
         async with UnitOfWork() as uow:
@@ -558,7 +558,7 @@ async def marketplace_import_agent(
 ) -> JSONResponse:
     """Import Agent from marketplace package (with bundled dependencies + ID remapping)."""
     from app.core.skills.creation.service import skill_creation_service
-    from app.services.agent.marketplace_import import import_agent_package
+    from app.services.agent.marketplace import import_agent_package
 
     try:
         package_payload, marketplace_entry_id = _parse_marketplace_import_request_body(body)

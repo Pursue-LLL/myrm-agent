@@ -13,7 +13,7 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, 
 from app.schemas.streaming import SSEEnvelope
 from app.services.agent.context_compaction_telemetry import enqueue_context_compaction_telemetry
 from app.services.agent.gateway import AgentExecutionTimeout, AgentQueueTimeout
-from app.services.agent.memory_brief_status_telemetry import enqueue_memory_brief_status_telemetry
+from app.services.agent.memory_brief_telemetry import enqueue_memory_brief_status_telemetry
 from app.services.agent.steering_registry import SteeringRegistry
 from app.services.agent.stream_session._memory_status_helpers import (
     build_memory_brief_status_payload,
@@ -158,7 +158,7 @@ async def finalize_agent_stream_session(
             else None
         )
         # Parse and strip citations
-        citations = list(set(re.findall(r"<cite:([^>]+)>", content)))
+        citations = list(dict.fromkeys(re.findall(r"<cite:([^>]+)>", content)))
         if citations:
             content = re.sub(r"<cite:[^>]+>", "", content)
             extra_data["citations"] = citations

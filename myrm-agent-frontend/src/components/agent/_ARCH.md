@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `AgentAvatar.tsx` | 核心 | 智能体头像（icon/lucide/emoji/image/首字母） | ✅ |
 | `agent-icons.tsx` | 核心 | 内置智能体 SVG 图标注册表与 `AgentIcon` | ✅ |
-| `builtin-agent-i18n-data.ts` | 核心 | 内置智能体 i18n 数据 SSOT | ✅ |
+| `builtin-agent-i18n-data.ts` | 核心 | 内置智能体 i18n 数据 SSOT（key 须与 server `_BUILTIN_AGENTS` id 一一对应，architecture test 守护） | ✅ |
 | `builtin-agent-i18n.ts` | 核心 | 内置智能体 locale 解析（getBuiltinAgentName/Description） | ✅ |
 | `AgentPicker.tsx` | 辅助 | 智能体下拉选择器（头像+名称，受控 value/onChange） | ✅ |
 | `AgentEditForm.tsx` | 辅助 | 智能体创建/编辑表单（名称、图标、指令、模型槽位） | ✅ |

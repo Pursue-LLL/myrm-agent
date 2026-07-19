@@ -117,6 +117,46 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Fokussierter Coding-Assistent — präzises Schreiben, Debuggen, Überprüfen und Optimieren von Code.',
     },
   },
+  'builtin-fast-search': {
+    en: {
+      name: 'Quick Search',
+      description: 'Fast web search — concise, real-time answers with source citations. Ideal for quick facts and news.',
+    },
+    zh: { name: '快速搜索', description: '快速网页搜索——简洁实时、带来源引用，适合查事实与新闻。' },
+    ja: {
+      name: 'クイック検索',
+      description: '高速ウェブ検索 — 簡潔でリアルタイム、出典付き回答。事実確認やニュース向け。',
+    },
+    ko: {
+      name: '빠른 검색',
+      description: '빠른 웹 검색 — 간결하고 실시간, 출처 인용 답변. 사실 확인과 뉴스에 적합.',
+    },
+    de: {
+      name: 'Schnellsuche',
+      description:
+        'Schnelle Websuche — prägnante Echtzeit-Antworten mit Quellenangaben. Ideal für Fakten und Nachrichten.',
+    },
+  },
+  'builtin-deep-search': {
+    en: {
+      name: 'Deep Search',
+      description: 'Thorough multi-source research — reads full pages, cross-references, and self-validates answers.',
+    },
+    zh: { name: '深度搜索', description: '多源深度调研——阅读全文、交叉验证并自检答案。' },
+    ja: {
+      name: 'ディープ検索',
+      description: '徹底したマルチソース調査 — 全文読解、相互参照、回答の自己検証。',
+    },
+    ko: {
+      name: '딥 서치',
+      description: '다중 소스 심층 리서치 — 전문 읽기, 교차 검증, 답변 자체 검증.',
+    },
+    de: {
+      name: 'Tiefensuche',
+      description:
+        'Gründliche Multi-Source-Recherche — liest ganze Seiten, Querverweise und validiert Antworten selbst.',
+    },
+  },
   'builtin-translator': {
     en: {
       name: 'Translator',
@@ -228,23 +268,24 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
         'Themenrecherche, ansprechende Newsletter verfassen, Redaktionskalender verwalten und Öffnungsraten optimieren.',
     },
   },
-  'builtin-design': {
+  'builtin-designer': {
     en: {
-      name: 'Design Advisor',
-      description: 'UI/UX feedback, color theory, typography guidance, layout critique, and design system advice.',
+      name: 'Designer',
+      description: 'Creative design assistant — generates images, critiques UI/UX, and provides visual inspiration.',
     },
-    zh: { name: '设计顾问', description: 'UI/UX 反馈、色彩理论、字体指导、布局评审与设计系统建议。' },
+    zh: { name: '设计师', description: '创意设计助手——生成图像、点评 UI/UX，并提供视觉灵感。' },
     ja: {
-      name: 'デザインアドバイザー',
-      description: 'UI/UXフィードバック、カラー理論、タイポグラフィガイダンス、レイアウト評価、デザインシステム助言。',
+      name: 'デザイナー',
+      description: 'クリエイティブデザインアシスタント — 画像生成、UI/UXレビュー、ビジュアルインスピレーション。',
     },
     ko: {
-      name: '디자인 어드바이저',
-      description: 'UI/UX 피드백, 색상 이론, 타이포그래피 가이드, 레이아웃 평가, 디자인 시스템 조언.',
+      name: '디자이너',
+      description: '크리에이티브 디자인 어시스턴트 — 이미지 생성, UI/UX 리뷰, 시각적 영감 제공.',
     },
     de: {
-      name: 'Design-Berater',
-      description: 'UI/UX-Feedback, Farbtheorie, Typografie-Anleitung, Layout-Kritik und Design-System-Beratung.',
+      name: 'Designer',
+      description:
+        'Kreativer Design-Assistent — erzeugt Bilder, bewertet UI/UX und liefert visuelle Inspiration.',
     },
   },
   'builtin-seo': {
@@ -386,6 +427,65 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
     de: {
       name: 'Automatisierungs-Architekt',
       description: 'Workflow-Design, Aufgabenautomatisierungsstrategien, Integrationsplanung und Effizienzoptimierung.',
+    },
+  },
+  'builtin-cli_visual': {
+    en: {
+      name: 'CLI Visual Agent',
+      description: 'Supports programming assistants like Claude Code, Codex, and Gemini CLI in local sandbox',
+    },
+    zh: { name: 'CLI 可视化助手', description: '在本地沙箱中支持 Claude Code、Codex、Gemini CLI 等编程助手。' },
+    ja: {
+      name: 'CLIビジュアルエージェント',
+      description: 'ローカルサンドボックスで Claude Code、Codex、Gemini CLI などのプログラミング助手をサポート。',
+    },
+    ko: {
+      name: 'CLI 비주얼 에이전트',
+      description: '로컬 샌드박스에서 Claude Code, Codex, Gemini CLI 등 프로그래밍 어시스턴트 지원.',
+    },
+    de: {
+      name: 'CLI-Visual-Agent',
+      description:
+        'Unterstützt Programmier-Assistenten wie Claude Code, Codex und Gemini CLI in der lokalen Sandbox.',
+    },
+  },
+  'builtin-hr_screener': {
+    en: {
+      name: 'HR Resume Screener',
+      description: 'Automatically parse and extract key information from resumes and CVs into structured formats.',
+    },
+    zh: { name: 'HR 简历筛选', description: '自动解析简历与 CV，提取关键信息并输出结构化结果。' },
+    ja: {
+      name: 'HR履歴書スクリーナー',
+      description: '履歴書・CV から重要情報を自動抽出し、構造化フォーマットに整理。',
+    },
+    ko: {
+      name: 'HR 이력서 스크리너',
+      description: '이력서와 CV에서 핵심 정보를 자동 추출해 구조화된 형식으로 정리.',
+    },
+    de: {
+      name: 'HR-Lebenslauf-Screener',
+      description:
+        'Lebensläufe und CVs automatisch parsen und Schlüsselinformationen in strukturierte Formate extrahieren.',
+    },
+  },
+  'builtin-speaker': {
+    en: {
+      name: 'Audio Assistant',
+      description: 'Text-to-speech assistant — converts text into natural-sounding audio.',
+    },
+    zh: { name: '语音助手', description: '文本转语音助手——将文字转换为自然流畅的音频。' },
+    ja: {
+      name: 'オーディオアシスタント',
+      description: 'テキスト読み上げアシスタント — 自然な音声に変換。',
+    },
+    ko: {
+      name: '오디오 어시스턴트',
+      description: '텍스트 음성 변환 어시스턴트 — 자연스러운 오디오로 변환.',
+    },
+    de: {
+      name: 'Audio-Assistent',
+      description: 'Text-zu-Sprache-Assistent — wandelt Text in natürlich klingende Audio um.',
     },
   },
 };

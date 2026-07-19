@@ -477,6 +477,17 @@ class MemoryBriefStatusTelemetrySettings(BaseSettings):
     batch_size: int = 32
     flush_interval_seconds: float = 3.0
     queue_size: int = 512
+    allowed_phases: str = "stream,persist"
+
+
+class MemoryGuardianGuardTelemetrySettings(BaseSettings):
+    """[S] Guardian guard-unavailable telemetry batching tunables."""
+
+    model_config = SettingsConfigDict(env_prefix="MEMORY_GUARDIAN_GUARD_TELEMETRY_")
+
+    batch_size: int = 24
+    flush_interval_seconds: float = 3.0
+    queue_size: int = 256
 
 
 # ---------------------------------------------------------------------------
@@ -565,6 +576,7 @@ class AppSettings(BaseSettings):
     control_plane: ControlPlaneSettings = ControlPlaneSettings()
     context_compaction_telemetry: ContextCompactionTelemetrySettings = ContextCompactionTelemetrySettings()
     memory_brief_status_telemetry: MemoryBriefStatusTelemetrySettings = MemoryBriefStatusTelemetrySettings()
+    memory_guardian_guard_telemetry: MemoryGuardianGuardTelemetrySettings = MemoryGuardianGuardTelemetrySettings()
 
     @field_validator("port")
     @classmethod

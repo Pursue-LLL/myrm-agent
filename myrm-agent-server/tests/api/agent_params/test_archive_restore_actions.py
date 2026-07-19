@@ -4,12 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from app.services.agent.params import converter as converter_module
-from app.services.agent.params.converter import (
+from app.services.agent.params.archive_restore import (
     ArchiveRestoreRequestError,
-    _build_archive_restore_action_context,
-    _build_archive_restore_action_context_with_results,
-    _inject_archive_restore_actions_into_query,
+    build_archive_restore_action_context,
+    build_archive_restore_action_context_with_results,
+    inject_archive_restore_actions_into_query,
     prevalidate_archive_restore_actions,
 )
 from app.services.agent.params.models import AgentRequest
@@ -40,8 +39,8 @@ async def test_archive_restore_action_payload_materializes_and_injects_xml(tmp_p
         }
     )
 
-    restore_context, warnings = await _build_archive_restore_action_context(request, str(tmp_path))
-    final_query = _inject_archive_restore_actions_into_query(request.query, restore_context)
+    restore_context, warnings = await build_archive_restore_action_context(request, str(tmp_path))
+    final_query = inject_archive_restore_actions_into_query(request.query, restore_context)
 
     assert warnings == []
     assert "<archive_restore_actions>" in restore_context
@@ -70,7 +69,7 @@ async def test_archive_restore_action_context_includes_ui_safe_result(tmp_path: 
         }
     )
 
-    built = await _build_archive_restore_action_context_with_results(request, str(tmp_path))
+    built = await build_archive_restore_action_context_with_results(request, str(tmp_path))
 
     assert "beta\ngamma" in built.prompt_context
     assert built.warnings == []
@@ -106,7 +105,7 @@ async def test_archive_restore_action_frontend_snake_case_contract_reaches_harne
         }
     )
 
-    restore_context, warnings = await _build_archive_restore_action_context(request, str(tmp_path))
+    restore_context, warnings = await build_archive_restore_action_context(request, str(tmp_path))
 
     assert warnings == []
     assert f'restore_arg="{restore_arg}"' in restore_context
@@ -131,7 +130,7 @@ async def test_archive_restore_action_invalid_payload_fails_fast(tmp_path: Path)
     )
 
     with pytest.raises(ArchiveRestoreRequestError, match="current session"):
-        await _build_archive_restore_action_context(request, str(tmp_path))
+        await build_archive_restore_action_context(request, str(tmp_path))
 
 
 @pytest.mark.asyncio
@@ -153,7 +152,7 @@ async def test_archive_restore_action_rejects_too_many_ranges(tmp_path: Path) ->
     )
 
     with pytest.raises(ArchiveRestoreRequestError, match="at most 3 ranges"):
-        await _build_archive_restore_action_context(request, str(tmp_path))
+        await build_archive_restore_action_context(request, str(tmp_path))
 
 
 @pytest.mark.asyncio
@@ -178,6 +177,8 @@ async def test_archive_restore_action_prevalidation_fails_before_persistence(
 
     from app.services.chat.chat_service import ChatService
 
+    import app.services.agent.params.workspace_resolve as workspace_resolve_module
+
     async def get_chat_metadata(chat_id: str) -> None:
         assert chat_id == "chat-1"
         return None
@@ -188,7 +189,11 @@ async def test_archive_restore_action_prevalidation_fails_before_persistence(
         return str(tmp_path)
 
     monkeypatch.setattr(ChatService, "get_chat_metadata", get_chat_metadata)
-    monkeypatch.setattr(converter_module, "_resolve_default_chat_workspace_dir", resolve_workspace)
+    monkeypatch.setattr(
+        workspace_resolve_module,
+        "resolve_default_chat_workspace_dir",
+        resolve_workspace,
+    )
 
     with pytest.raises(ArchiveRestoreRequestError, match="current session"):
         await prevalidate_archive_restore_actions(request)

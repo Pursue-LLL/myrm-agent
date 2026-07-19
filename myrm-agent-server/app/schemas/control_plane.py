@@ -6,6 +6,7 @@
 [OUTPUT]
 - ContextCompactionSnapshot: content-blind control-plane context compaction telemetry payload schema.
 - MemoryBriefStatusTelemetryEnvelope: aggregated memory brief status telemetry payload schema.
+- MemoryGuardianGuardTelemetryEnvelope: aggregated guardian guard-unavailable telemetry payload schema.
 - TelemetryPushPayload: skill quality telemetry push payload schema.
 
 [POS]
@@ -14,7 +15,7 @@ Server/control-plane API schema boundary. Normalizes shared Pydantic DTOs for te
 
 from collections.abc import Mapping
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class SkillQualityTelemetry(BaseModel):
@@ -495,18 +496,77 @@ class MemoryBriefStatusTelemetryAggregate(BaseModel):
     count: int = 0
 
 
+class MemoryBriefStatusDroppedAggregate(BaseModel):
+    """Aggregated drop labels for memory brief telemetry backpressure events."""
+
+    dropped_phase: str
+    incoming_phase: str
+    count: int = 0
+
+
 class MemoryBriefStatusTelemetryEnvelope(BaseModel):
     """Detached aggregated telemetry payload for memory brief statuses."""
 
     telemetry_subject: str
+    envelope_id: str = Field(min_length=1)
     timestamp: str
     aggregates: list[MemoryBriefStatusTelemetryAggregate]
+    dropped_aggregates: list[MemoryBriefStatusDroppedAggregate] = Field(default_factory=list)
+
+    @field_validator("envelope_id")
+    @classmethod
+    def _validate_envelope_id(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("envelope_id must not be blank")
+        return normalized
 
 
 class MemoryBriefStatusBatchPayload(BaseModel):
     """Batch payload for memory brief status telemetry."""
 
     events: list[MemoryBriefStatusTelemetryEnvelope]
+
+
+class MemoryGuardianGuardTelemetryAggregate(BaseModel):
+    """Aggregated guard-unavailable labels for one flush window."""
+
+    reason: str = Field(min_length=1, max_length=64)
+    guard: str = Field(min_length=1, max_length=32)
+    frequency_tier: str = Field(min_length=1, max_length=32)
+    quiet_window_enabled: bool
+    count: int = 0
+
+    @field_validator("reason", "guard", "frequency_tier")
+    @classmethod
+    def _validate_guard_labels(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("guardian guard telemetry labels must not be blank")
+        return normalized
+
+
+class MemoryGuardianGuardTelemetryEnvelope(BaseModel):
+    """Detached aggregated telemetry payload for guardian guard-unavailable events."""
+
+    telemetry_subject: str
+    envelope_id: str = Field(min_length=1, max_length=128)
+    timestamp: str
+    aggregates: list[MemoryGuardianGuardTelemetryAggregate]
+
+    @field_validator("envelope_id")
+    @classmethod
+    def _validate_guard_envelope_id(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("envelope_id must not be blank")
+        return normalized
+
+
+class MemoryGuardianGuardBatchPayload(BaseModel):
+    """Batch payload for guardian guard-unavailable telemetry."""
+
+    events: list[MemoryGuardianGuardTelemetryEnvelope]
 
 
 # -----------------------------------------------------------------------------
