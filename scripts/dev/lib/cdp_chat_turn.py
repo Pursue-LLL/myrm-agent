@@ -97,8 +97,11 @@ class CdpChatTurn(CdpChatSubmit):
                         return last
                 except OSError:
                     pass
-                if chat_messages_have_ok(chat_id, min_user_count=min_user_msgs):
-                    return last
+                try:
+                    if chat_messages_have_ok(chat_id, min_user_count=min_user_msgs):
+                        return last
+                except OSError:
+                    pass
             await asyncio.sleep(0.75)
         raise TimeoutError(f"UI send did not start stream: {last}")
 

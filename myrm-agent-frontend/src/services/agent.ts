@@ -2,6 +2,27 @@ import { apiRequest } from '@/lib/api';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 
+async function throwUserAgentFetchError(response: Response, action: string): Promise<never> {
+  const errorText = await response.text();
+  let message = `Failed to ${action}: ${response.statusText}`;
+  try {
+    if (errorText) {
+      const errorData = JSON.parse(errorText) as {
+        detail?: { message?: string } | string;
+      };
+      const detail = errorData.detail;
+      if (detail && typeof detail === 'object' && typeof detail.message === 'string') {
+        message = detail.message;
+      } else if (typeof detail === 'string') {
+        message = detail;
+      }
+    }
+  } catch {
+    // Keep default message when body is not JSON.
+  }
+  throw new Error(message);
+}
+
 export const DEFAULT_PERSONALITY_STYLE = 'professional' as const;
 
 /** 24 built-in presets exceed API default page_size=20. */
@@ -427,7 +448,7 @@ export async function createAgent(data: AgentCreate): Promise<Agent> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to create agent: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'create agent');
   }
 
   const result = await response.json();
@@ -448,7 +469,7 @@ export async function updateAgent(agentId: string, data: AgentUpdate): Promise<A
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to update agent: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'update agent');
   }
 
   const result = await response.json();

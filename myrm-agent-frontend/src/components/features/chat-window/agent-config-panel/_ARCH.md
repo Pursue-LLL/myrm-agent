@@ -19,6 +19,8 @@ Agent profile editing UI: skills, MCP, built-in tools, browser options, security
 | `BuiltinToolsPanel.tsx` | Core | Built-in tool toggles; sandbox cron/computer_use cards gated by `useFeatureEntitlements` (`canUseCron` / `canUseVnc`); `CuPermissionInline` only in local/desktop mode; browser sub-config; `KanbanConfigSection` when `kanban` enabled (0-board hint, multi-board picker, syncs `kanban_last_board_id`); `ExternalCliConfigSection` when `external_cli` enabled |
 | `KanbanConfigSection.tsx` | Helper | Kanban chat target board: listBoards on mount, 0-board Settings link, Select when multiple boards without valid saved id; pairs with `messageRequest` send guard (stale id recovery) |
 | `MediaCredentialInline.tsx` | Helper | Amber inline warning when image/video/tts enabled but provider credentials missing (links to Settings) |
+| `CuPermissionInline.tsx` | Helper | Inline desktop permission probe when `computer_use` enabled (local mode); API fail → amber error UI + recheck; deeplink via `permissionDeepLink` SSOT |
+| `__tests__/CuPermissionInline.test.tsx` | Test | vitest: granted / missing+deeplink / API fail |
 | `OrgMarketplace.tsx` | Feature | Org marketplace browse/install grid + admin force-push button (sandbox-only) |
 | `PublishToOrgButton.tsx` | Feature | One-click publish current agent to org marketplace (sandbox-only) |
 

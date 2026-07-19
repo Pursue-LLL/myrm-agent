@@ -33,7 +33,7 @@ def __getattr__(name: str) -> object:
 
         return getattr(import_module(module_path), attr)
 
-    # Allow natural subpackage access (e.g. `agent.backends.profile_backend`)
+    # Allow natural subpackage access (e.g. `agent.backends.secret_backend`)
     from importlib import import_module
 
     try:

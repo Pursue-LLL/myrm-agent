@@ -1,9 +1,39 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/lib/api::apiRequest (POS: 前端统一请求入口)
+ * - @/lib/desktop/permissionDeepLink (POS: 桌面权限引导深链 SSOT)
+ *
+ * [OUTPUT]
+ * - CuPermissionInline: Agent 配置面板内 computer_use 权限探测条（ granted / missing / error ）
+ *
+ * [POS]
+ * BuiltinToolsPanel 子组件。本地模式启用 computer_use 时展示 OS 权限状态与设置入口。
+ */
+
+'use client';
+
+/**
+ * [INPUT]
+ * - @/lib/api::apiRequest (POS: 前端统一请求入口)
+ * - @/lib/desktop/permissionDeepLink (POS: 桌面权限引导深链 SSOT)
+ *
+ * [OUTPUT]
+ * - CuPermissionInline: Agent 配置面板内 computer_use 权限探测条（granted / missing / error）
+ *
+ * [POS]
+ * BuiltinToolsPanel 子组件。本地模式启用 computer_use 时展示 OS 权限状态与设置入口。
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, CheckCircle2, AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { cn } from '@/lib/utils/classnameUtils';
+import {
+  openPermissionDeepLinkWithGuideFallback,
+  pickSettingsDeepLink,
+} from '@/lib/desktop/permissionDeepLink';
 
 interface CuPermissionsResponse {
   accessibility: boolean;
@@ -11,17 +41,6 @@ interface CuPermissionsResponse {
   all_granted: boolean;
   platform: string;
   settings_deeplinks: Record<string, string>;
-}
-
-function openPermissionDeepLink(url: string) {
-  import('@tauri-apps/plugin-shell')
-    .then((mod) => mod.open(url))
-    .catch(() => {
-      window.open(
-        'https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac',
-        '_blank',
-      );
-    });
 }
 
 export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string }) => {
@@ -37,6 +56,7 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
       setStatus(data);
     } catch {
       setError(true);
+      setStatus(null);
     } finally {
       setLoading(false);
     }
@@ -46,7 +66,25 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
     check();
   }, [check]);
 
-  if (error) return null;
+  if (error) {
+    return (
+      <div className="p-3 rounded-xl border text-xs space-y-2 bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400">
+        <div className="flex items-center gap-2 font-medium">
+          <AlertTriangle size={14} />
+          <span>{tPanel('cuPermission.checkFailed')}</span>
+        </div>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
+          onClick={check}
+          disabled={loading}
+        >
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          {tPanel('cuPermission.recheckBtn')}
+        </button>
+      </div>
+    );
+  }
 
   const allOk = status?.all_granted;
 
@@ -81,13 +119,13 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
           </ul>
           <p className="text-[10px] opacity-75">{tPanel('cuPermission.hint')}</p>
           <div className="flex items-center gap-2 pt-1">
-            {status?.settings_deeplinks && Object.keys(status.settings_deeplinks).length > 0 && (
+            {pickSettingsDeepLink(status?.settings_deeplinks) && (
               <button
                 type="button"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
                 onClick={() => {
-                  const link = status.settings_deeplinks.accessibility || status.settings_deeplinks.screen_recording;
-                  if (link) openPermissionDeepLink(link);
+                  const link = pickSettingsDeepLink(status?.settings_deeplinks);
+                  if (link) openPermissionDeepLinkWithGuideFallback(link);
                 }}
               >
                 <ExternalLink size={12} />

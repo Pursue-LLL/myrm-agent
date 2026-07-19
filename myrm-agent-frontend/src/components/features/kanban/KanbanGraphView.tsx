@@ -63,6 +63,7 @@ function TaskNode({ data }: NodeProps<Node<TaskNodeData>>) {
     <>
       <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-muted-foreground/40" />
       <div
+        data-testid={`kanban-graph-node-${task.task_id}`}
         className={cn(
           'rounded-lg border-2 px-3 py-2 min-w-[160px] max-w-[220px] cursor-pointer',
           'transition-shadow hover:shadow-md',

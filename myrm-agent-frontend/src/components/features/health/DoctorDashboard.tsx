@@ -30,25 +30,10 @@ import {
   SearchIcon, PackageIcon, ServerIcon, IdeaIcon, WrenchIcon,
   ClipboardCopyIcon, DownloadIcon, CheckIcon,
 } from './doctor-icons';
-
-function openDesktopPermissionDeepLink(url: string) {
-  import('@tauri-apps/plugin-shell')
-    .then((mod) => mod.open(url))
-    .catch(() => {
-      window.open(
-        'https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac',
-        '_blank',
-      );
-    });
-}
-
-function getDesktopSettingsDeepLink(meta: Record<string, unknown> | null | undefined): string | null {
-  if (!meta || typeof meta !== 'object') return null;
-  const deeplinks = meta.settings_deeplinks;
-  if (!deeplinks || typeof deeplinks !== 'object') return null;
-  const links = deeplinks as Record<string, string>;
-  return links.accessibility || links.screen_recording || null;
-}
+import {
+  openPermissionDeepLinkWithGuideFallback,
+  pickSettingsDeepLinkFromMeta,
+} from '@/lib/desktop/permissionDeepLink';
 
 export function DoctorDashboard() {
   const t = useTranslations('settings.systemHealth.doctor');
@@ -200,15 +185,15 @@ export function DoctorDashboard() {
                 )}
                 {report.component_name === 'DesktopControl' &&
                   report.status === 'warn' &&
-                  getDesktopSettingsDeepLink(report.meta_data ?? undefined) && (
+                  pickSettingsDeepLinkFromMeta(report.meta_data ?? undefined) && (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       className="mt-1 h-7 text-xs bg-zinc-800 border-zinc-700 hover:bg-zinc-700"
                       onClick={() => {
-                        const link = getDesktopSettingsDeepLink(report.meta_data ?? undefined);
-                        if (link) openDesktopPermissionDeepLink(link);
+                        const link = pickSettingsDeepLinkFromMeta(report.meta_data ?? undefined);
+                        if (link) openPermissionDeepLinkWithGuideFallback(link);
                       }}
                     >
                       {t('desktopOpenSettings')}

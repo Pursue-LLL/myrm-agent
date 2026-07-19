@@ -10,6 +10,10 @@ import { ElementOverlay } from '@/components/features/browser-inspector';
 import { apiRequest } from '@/lib/api';
 import DesktopInspectorToolbar from './DesktopInspectorToolbar';
 import DesktopInstructionInput from './DesktopInstructionInput';
+import {
+  openPermissionDeepLinkWithGuideFallback,
+  pickSettingsDeepLink,
+} from '@/lib/desktop/permissionDeepLink';
 
 interface PermissionsResponse {
   accessibility: boolean;
@@ -17,17 +21,6 @@ interface PermissionsResponse {
   all_granted: boolean;
   platform: string;
   settings_deeplinks: Record<string, string>;
-}
-
-function openDeepLink(url: string) {
-  import('@tauri-apps/plugin-shell')
-    .then((mod) => mod.open(url))
-    .catch(() => {
-      window.open(
-        'https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac',
-        '_blank',
-      );
-    });
 }
 
 const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({ t }) => {
@@ -60,14 +53,13 @@ const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({
   return (
     <div className="px-3 py-2 text-xs bg-destructive/10 text-destructive border-b border-destructive/20 flex items-center gap-2 flex-wrap">
       <span className="flex-1 min-w-0">{message}</span>
-      {details?.settings_deeplinks && (
+      {pickSettingsDeepLink(details?.settings_deeplinks) && (
         <button
           type="button"
           className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium transition-colors whitespace-nowrap"
           onClick={() => {
-            const link =
-              details.settings_deeplinks.accessibility || details.settings_deeplinks.screen_recording;
-            if (link) openDeepLink(link);
+            const link = pickSettingsDeepLink(details?.settings_deeplinks);
+            if (link) openPermissionDeepLinkWithGuideFallback(link);
           }}
         >
           <ExternalLink className="w-3 h-3" />

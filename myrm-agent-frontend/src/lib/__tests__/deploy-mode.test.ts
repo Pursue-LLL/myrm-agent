@@ -75,13 +75,38 @@ describe('deploy-mode base url resolution', () => {
     expect(getDocsUrl()).toBe('https://docs.myrm.ai');
   });
 
-  it('uses desktop backend port 8080 for tauri runtime without webui cache', () => {
+  it('uses Next proxy for tauri runtime on loopback dev host', () => {
     const originalWindow = globalThis.window;
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
       value: {
         ...originalWindow,
         __TAURI__: {},
+        location: { hostname: '127.0.0.1' },
+        localStorage: {
+          getItem: () => null,
+          setItem: () => undefined,
+        },
+      },
+    });
+
+    expect(getApiBaseUrl()).toBe('/api/v1');
+    expect(getBackendBaseUrl()).toBe('');
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+  });
+
+  it('uses desktop backend port 8080 for tauri runtime off loopback host', () => {
+    const originalWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        ...originalWindow,
+        __TAURI__: {},
+        location: { hostname: 'desktop.myrm.local' },
         localStorage: {
           getItem: () => null,
           setItem: () => undefined,
@@ -102,6 +127,7 @@ describe('deploy-mode base url resolution', () => {
     const originalWindow = globalThis.window;
     const mockWindow = {
       __TAURI__: {},
+      location: { hostname: 'desktop.myrm.local' },
       localStorage: {
         getItem: () => JSON.stringify({ enableWebUIMode: true, apiPort: 25808 }),
         setItem: () => undefined,

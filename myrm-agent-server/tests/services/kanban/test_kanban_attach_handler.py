@@ -191,7 +191,7 @@ async def test_attach_rejects_when_attachment_limit_reached() -> None:
     existing = [f"f{i}" for i in range(10)]
 
     with patch(
-        "app.api.kanban.http_common._load_task_attachment_ids",
+        "app.services.kanban.task_attachment_ids.load_task_attachment_ids",
         new_callable=AsyncMock,
         return_value=existing,
     ):

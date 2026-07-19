@@ -516,7 +516,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
           <TabsTrigger value="board" className="text-xs px-3 py-1">
             {t('viewBoard')}
           </TabsTrigger>
-          <TabsTrigger value="graph" className="text-xs px-3 py-1">
+          <TabsTrigger value="graph" className="text-xs px-3 py-1" data-testid="kanban-view-graph">
             {t('viewGraph')}
           </TabsTrigger>
           <TabsTrigger value="activity" className="text-xs px-3 py-1">

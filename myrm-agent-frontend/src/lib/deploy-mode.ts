@@ -232,6 +232,9 @@ export function getApiBaseUrl(): string {
     return `${e2eBase}/api/v1`;
   }
   if (isTauriRuntime()) {
+    if (isLoopbackDevHost()) {
+      return '/api/v1';
+    }
     return `http://127.0.0.1:${getTauriBackendPort()}/api/v1`;
   }
   if (isLocalMode()) {
@@ -249,6 +252,9 @@ export function getBackendBaseUrl(): string {
     return e2eBase;
   }
   if (isTauriRuntime()) {
+    if (isLoopbackDevHost()) {
+      return '';
+    }
     return `http://127.0.0.1:${getTauriBackendPort()}`;
   }
   if (isLocalMode()) {

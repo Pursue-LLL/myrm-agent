@@ -29,6 +29,10 @@ vi.mock('@/lib/utils/toast', () => ({
   toast: { success: vi.fn() },
 }));
 
+vi.mock('@tauri-apps/plugin-shell', () => ({
+  open: vi.fn(() => Promise.reject(new Error('not tauri'))),
+}));
+
 const ACCESSIBILITY_DEEPLINK =
   'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
 
@@ -75,12 +79,14 @@ describe('DesktopPermissionsCard', () => {
     expect(screen.getAllByText('accessibility').length).toBeGreaterThan(0);
     expect(screen.getByText(ACCESSIBILITY_DEEPLINK)).toBeInTheDocument();
 
-    const openButtons = screen.getAllByTitle('Open settings');
+    const openButtons = screen.getAllByTitle('openSettings');
     await act(async () => {
       fireEvent.click(openButtons[0]);
     });
 
-    expect(windowOpen).toHaveBeenCalledWith(ACCESSIBILITY_DEEPLINK, '_blank');
+    await waitFor(() => {
+      expect(windowOpen).toHaveBeenCalledWith(ACCESSIBILITY_DEEPLINK, '_blank');
+    });
     windowOpen.mockRestore();
   });
 

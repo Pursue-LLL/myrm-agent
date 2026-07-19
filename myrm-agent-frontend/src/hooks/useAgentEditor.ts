@@ -523,7 +523,11 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
 
       setHasChanges(false);
     } catch (error) {
-      toast({ title: t('agent.operationFailed'), variant: 'destructive' });
+      toast({
+        title: t('agent.operationFailed'),
+        description: error instanceof Error ? error.message : undefined,
+        variant: 'destructive',
+      });
       throw error;
     } finally {
       setSaving(false);

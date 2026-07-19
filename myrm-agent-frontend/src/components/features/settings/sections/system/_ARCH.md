@@ -45,6 +45,7 @@
 | `BrowserProxyCard.tsx` | 浏览器代理配置 |
 | `LockedUseCard.tsx` | 锁定使用模式（Computer Use 锁屏管理） |
 | `DesktopPermissionsCard.tsx` | 桌面自动化就绪检测（调用 /webui/desktop/permissions 展示 OS 权限/依赖状态） |
+| `__tests__/DesktopPermissionsCard.test.tsx` | vitest：allReady / missing+deeplink / API 失败重试 |
 
 ### 安全策略
 

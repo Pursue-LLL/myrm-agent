@@ -77,14 +77,14 @@ describe('CuPermissionInline', () => {
     windowOpen.mockRestore();
   });
 
-  it('renders nothing when the permissions API fails', async () => {
+  it('renders error state when the permissions API fails', async () => {
     mockApiRequest.mockRejectedValueOnce(new Error('network'));
 
-    const { container } = render(<CuPermissionInline tPanel={tPanel} />);
+    render(<CuPermissionInline tPanel={tPanel} />);
 
     await waitFor(() => {
-      expect(mockApiRequest).toHaveBeenCalled();
+      expect(screen.getByText('cuPermission.checkFailed')).toBeInTheDocument();
     });
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByRole('button', { name: /cuPermission.recheckBtn/ })).toBeInTheDocument();
   });
 });

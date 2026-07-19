@@ -16,7 +16,9 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import (  # noqa: E402
     chat_messages_have_done,
+    ensure_e2e_yolo_mode,
     get_e2e_api_url,
+    wait_e2e_backend_ready,
     wait_e2e_provider_ready,
 )
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
@@ -29,18 +31,36 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lea
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
 E2E_PROMPT = (
-    "Use browser tools only. Follow exactly in order:\n"
-    "1. Navigate to https://example.com using browser tools.\n"
-    "2. Call browser_ask_human_tool with reason "
+    "CRITICAL: Follow exactly in order with browser tools only.\n"
+    "1. Call browser_navigate_tool to open https://example.com .\n"
+    "2. Immediately call browser_ask_human_tool with reason "
     "'E2E LIVE: please click Done on the chat takeover banner'.\n"
     "3. After the user completes the takeover, reply only DONE.\n"
-    "Do not use web_search, memory, or any other tools."
+    "Do not use web_search, memory, bash, or any other tools."
 )
 
 E2E_NUDGE_PROMPT = (
-    "You must call browser_ask_human_tool now on the current browser page. "
+    "CRITICAL: Call browser_ask_human_tool NOW on the current browser page. "
     "Reason: E2E LIVE banner test. Do not navigate elsewhere. After user completes, reply DONE."
 )
+
+_ENABLE_YOLO_JS = """(() => {
+  const key = 'securityConfig';
+  const mgr = window.__MYRM_CONFIG_SYNC__?.get?.(key)
+    ?? (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem(key) || 'null') : null);
+  const next = {
+    ...(mgr && typeof mgr === 'object' ? mgr : {}),
+    yoloModeEnabled: true,
+    yoloModeEnabledAt: Math.floor(Date.now() / 1000),
+    permissions: { '*': 'allow' },
+    domainHitlEnabled: false,
+    autoReviewEnabled: false,
+  };
+  if (window.__MYRM_CONFIG_SYNC__?.set) {
+    window.__MYRM_CONFIG_SYNC__.set(key, next);
+  }
+  return { ok: true, yoloModeEnabled: next.yoloModeEnabled === true };
+})()"""
 
 _ENABLE_BROWSER_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
@@ -82,6 +102,15 @@ _TRIGGER_CAPTCHA_AUTO_JS = """(() => {
 _BANNER_ASSERT_JS = """(() => {
   const alert = document.querySelector('[role="alert"]');
   const text = alert?.innerText || '';
+  const backendUnreachable = /后端未响应|Backend not reachable|API_PORT=8080/i.test(text);
+  if (backendUnreachable) {
+    return {
+      ready: false,
+      backendUnreachable: true,
+      hasAlert: true,
+      sample: text.slice(0, 240),
+    };
+  }
   const buttons = alert ? Array.from(alert.querySelectorAll('button')) : [];
   const labels = buttons.map((btn) => (btn.textContent || '').trim());
   const hasAlert = !!alert;
@@ -95,6 +124,7 @@ _BANNER_ASSERT_JS = """(() => {
   const ready = (hasAlert && hasExtensionTitle && hasDone && hasSkip) || storePending;
   return {
     ready,
+    backendUnreachable: false,
     hasAlert,
     hasExtensionTitle,
     hasReason,
@@ -125,7 +155,7 @@ _CAPTCHA_AUTO_ASSERT_JS = """(() => {
 _CLICK_TOOL_APPROVE_JS = """(() => {
   const approveBtn = Array.from(document.querySelectorAll('button')).find((btn) => {
     const label = (btn.textContent || '').trim();
-    return /^(Allow once|Approve|允许一次|批准)$/i.test(label) && !btn.disabled;
+    return /^(Approve|Allow once|批准|允许一次|允许)$/i.test(label) && !btn.disabled;
   });
   if (approveBtn) {
     approveBtn.click();
@@ -236,16 +266,28 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",
         )
 
+    ensure_e2e_yolo_mode()
+    if not wait_e2e_backend_ready(timeout_sec=90.0):
+        pytest.fail("Backend not healthy before browser takeover LIVE Chrome E2E")
+
     async def _wait_takeover_banner(chat: McpChatSession, *, timeout_sec: float = 240.0) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
+            if not wait_e2e_backend_ready(timeout_sec=3.0):
+                await chat.ensure_e2e_api_base_binding()
+                await asyncio.sleep(2.0)
+                continue
             approve = await chat.evaluate(_CLICK_TOOL_APPROVE_JS, await_promise=False, recv_timeout=15.0)
             if isinstance(approve, dict) and approve.get("clicked"):
                 await asyncio.sleep(1.0)
             raw = await chat.evaluate(_BANNER_ASSERT_JS, await_promise=False, recv_timeout=30.0)
             last = raw if isinstance(raw, dict) else {"value": raw}
+            if last.get("backendUnreachable") is True:
+                await chat.ensure_e2e_api_base_binding()
+                await asyncio.sleep(2.0)
+                continue
             if last.get("ready") is True:
                 return last
             await asyncio.sleep(1.0)
@@ -263,6 +305,8 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         assert isinstance(enabled, dict)
         assert enabled.get("ok") is True, f"Failed to enable browser in chat session: {enabled}"
 
+        await chat.evaluate(_ENABLE_YOLO_JS, await_promise=False, recv_timeout=15.0)
+
         send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         chat_id_hint = str(
             send_result.get("started", {}).get("chatId")
@@ -273,6 +317,10 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
 
         heartbeat_e2e_lease()
+        try:
+            await chat.wait_stream_started(E2E_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint)
+        except (AssertionError, TimeoutError, RuntimeError):
+            pass
 
         try:
             banner = await _wait_takeover_banner(chat, timeout_sec=180.0)

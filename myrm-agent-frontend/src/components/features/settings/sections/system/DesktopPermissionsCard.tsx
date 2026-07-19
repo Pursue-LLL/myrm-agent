@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { apiRequest } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
 import { isLocalMode } from '@/lib/deploy-mode';
+import { isSystemSettingsDeepLink, openPermissionDeepLink } from '@/lib/desktop/permissionDeepLink';
 
 interface DesktopPermissionsStatus {
   accessibility: boolean;
@@ -29,13 +30,11 @@ interface DesktopPermissionsStatus {
   settings_deeplinks: Record<string, string>;
 }
 
-const DesktopPermissionsCard = memo(() => {
+const DesktopPermissionsCardLocal = memo(() => {
   const t = useTranslations('settings.desktopPermissions');
   const [status, setStatus] = useState<DesktopPermissionsStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  if (!isLocalMode()) return null;
 
   const fetchPermissions = useCallback(async () => {
     setIsLoading(true);
@@ -63,9 +62,7 @@ const DesktopPermissionsCard = memo(() => {
   }, [t]);
 
   const handleOpenDeeplink = useCallback((url: string) => {
-    if (url.startsWith('x-apple.systempreferences:') || url.startsWith('ms-settings:')) {
-      window.open(url, '_blank');
-    }
+    openPermissionDeepLink(url);
   }, []);
 
   if (error) {
@@ -142,6 +139,8 @@ const DesktopPermissionsCard = memo(() => {
           description={t('accessibilityDesc')}
           granted={status?.accessibility ?? false}
           isLoading={isLoading}
+          statusOkLabel={t('statusOk')}
+          statusMissingLabel={t('statusMissing')}
         />
 
         {/* Screen recording check */}
@@ -150,6 +149,8 @@ const DesktopPermissionsCard = memo(() => {
           description={t('screenRecordingDesc')}
           granted={status?.screen_recording ?? false}
           isLoading={isLoading}
+          statusOkLabel={t('statusOk')}
+          statusMissingLabel={t('statusMissing')}
         />
 
         {/* Deeplinks / repair hints */}
@@ -165,6 +166,8 @@ const DesktopPermissionsCard = memo(() => {
                 value={value}
                 onCopy={handleCopyCommand}
                 onOpen={handleOpenDeeplink}
+                openSettingsTitle={t('openSettings')}
+                copyCommandTitle={t('copyCommand')}
               />
             ))}
           </div>
@@ -172,6 +175,13 @@ const DesktopPermissionsCard = memo(() => {
       </div>
     </section>
   );
+});
+
+DesktopPermissionsCardLocal.displayName = 'DesktopPermissionsCardLocal';
+
+const DesktopPermissionsCard = memo(() => {
+  if (!isLocalMode()) return null;
+  return <DesktopPermissionsCardLocal />;
 });
 
 DesktopPermissionsCard.displayName = 'DesktopPermissionsCard';
@@ -187,7 +197,9 @@ const PermissionRow = memo<{
   description: string;
   granted: boolean;
   isLoading: boolean;
-}>(({ label, description, granted, isLoading }) => (
+  statusOkLabel: string;
+  statusMissingLabel: string;
+}>(({ label, description, granted, isLoading, statusOkLabel, statusMissingLabel }) => (
   <div className="px-5 py-4 flex items-center justify-between">
     <div className="flex items-center gap-3 flex-1 min-w-0">
       <div className={cn(
@@ -207,7 +219,7 @@ const PermissionRow = memo<{
           ? 'bg-emerald-500/10 text-emerald-500'
           : 'bg-rose-500/10 text-rose-500',
     )}>
-      {isLoading ? '...' : granted ? 'OK' : 'Missing'}
+      {isLoading ? '...' : granted ? statusOkLabel : statusMissingLabel}
     </span>
   </div>
 ));
@@ -219,8 +231,10 @@ const DeeplinkItem = memo<{
   value: string;
   onCopy: (value: string) => void;
   onOpen: (url: string) => void;
-}>(({ label, value, onCopy, onOpen }) => {
-  const isSystemLink = value.startsWith('x-apple.systempreferences:') || value.startsWith('ms-settings:');
+  openSettingsTitle: string;
+  copyCommandTitle: string;
+}>(({ label, value, onCopy, onOpen, openSettingsTitle, copyCommandTitle }) => {
+  const isSystemLink = isSystemSettingsDeepLink(value);
   const isCommand = !isSystemLink;
 
   return (
@@ -233,7 +247,7 @@ const DeeplinkItem = memo<{
         <button
           onClick={() => onCopy(value)}
           className="p-1.5 rounded-lg hover:bg-muted/50 transition-colors flex-shrink-0"
-          title="Copy command"
+          title={copyCommandTitle}
         >
           <Copy className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
@@ -241,7 +255,7 @@ const DeeplinkItem = memo<{
         <button
           onClick={() => onOpen(value)}
           className="p-1.5 rounded-lg hover:bg-muted/50 transition-colors flex-shrink-0"
-          title="Open settings"
+          title={openSettingsTitle}
         >
           <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
         </button>

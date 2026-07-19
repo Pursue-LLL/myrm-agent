@@ -116,6 +116,7 @@ class McpChatSession(CdpChatSession):
         del navigate
         self._base_url = base_url
         await asyncio.sleep(1.0)
+        await self.ensure_e2e_api_base_binding()
         return await self.wait_shell_ready(timeout_sec=timeout_sec, require_bridge=True)
 
     async def ensure_dev_bridge(

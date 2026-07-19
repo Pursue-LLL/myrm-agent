@@ -296,3 +296,187 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
             timeout_sec=60.0,
         )
         assert verified.get("status") == 404
+
+
+def _open_subagent_dashboard(
+    client,
+    page,
+    chat_id: str,
+    *,
+    task_id: str,
+    fallback_rows: list[dict[str, object]] | None = None,
+) -> None:
+    wait_for_state(
+        client,
+        page,
+        """(() => ({ ready: !!window.__MYRM_E2E_SUBAGENT__?.hydrate && !!window.__MYRM_E2E_CHAT__?.attachToChat }))()""",
+        timeout_sec=30.0,
+    )
+    attach_result = wait_for_state(
+        client,
+        page,
+        f"""(async () => {{
+          try {{
+            await window.__MYRM_E2E_CHAT__?.attachToChat?.({json.dumps(chat_id)});
+            return {{ ready: true }};
+          }} catch (error) {{
+            return {{ ready: false, err: String(error) }};
+          }}
+        }})()""",
+        timeout_sec=90.0,
+    )
+    assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
+    shell = wait_for_state(
+        client,
+        page,
+        """(() => {
+          const state = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {};
+          return {
+            ready: state.isMessagesLoaded === true && state.notFound !== true && state.loadError !== true,
+            state,
+          };
+        })()""",
+        timeout_sec=60.0,
+    )
+    assert shell.get("ready") is True, f"Chat shell not ready: {shell}"
+    trigger_expr = """(() => {
+          const button = document.querySelector('[data-testid="subagent-dashboard-trigger"]');
+          if (button) return { ready: true };
+          return { ready: false };
+        })()"""
+    deadline = time.monotonic() + 90.0
+    trigger: dict[str, object] = {"ready": False}
+    while time.monotonic() < deadline:
+        _hydrate_subagent_tree(
+            client,
+            page,
+            chat_id,
+            task_id=task_id,
+            fallback_rows=fallback_rows,
+        )
+        raw = client.evaluate(page, trigger_expr, timeout_sec=10.0)
+        trigger = raw if isinstance(raw, dict) else {"value": raw}
+        if trigger.get("ready") is True:
+            break
+        time.sleep(1.0)
+    assert trigger.get("ready") is True, f"Subagent dashboard trigger missing: {trigger}"
+    clicked = client.evaluate(
+        page,
+        """(() => {
+          const button = document.querySelector('[data-testid="subagent-dashboard-trigger"]');
+          if (!button) return false;
+          button.click();
+          return true;
+        })()""",
+        timeout_sec=5.0,
+    )
+    assert clicked is True
+    wait_for_state(
+        client,
+        page,
+        """(() => ({
+          ready: !!document.querySelector('[data-testid="subagent-dashboard-panel"]'),
+        }))()""",
+        timeout_sec=30.0,
+    )
+
+
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_subagent_dashboard_delegation_pause_toggle_roundtrip(
+    running_subagent: dict[str, object],
+) -> None:
+    chat_id = str(running_subagent.get("chatId") or "")
+    task_id = str(running_subagent.get("taskId") or "")
+    assert chat_id and task_id
+    tree_row = running_subagent.get("treeRow")
+    fallback_rows: list[dict[str, object]] = (
+        [row for row in [tree_row] if isinstance(row, dict)]
+    )
+    ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+    _wait_running_subagent_on_api(chat_id, task_id)
+
+    with open_mcp_page(ui_url) as (client, page):
+        _open_subagent_dashboard(
+            client,
+            page,
+            chat_id,
+            task_id=task_id,
+            fallback_rows=fallback_rows,
+        )
+        pause_cycle = wait_for_state(
+            client,
+            page,
+            f"""(async () => {{
+              const chatId = {json.dumps(chat_id)};
+              const apiBase = window.__MYRM_E2E_API_BASE__ || '';
+              const statusUrl = `${{apiBase}}/api/v1/chats/${{chatId}}/subagents/delegation/status`;
+              const toggle = document.querySelector('[data-testid="delegation-pause-toggle"]');
+              if (!toggle) return {{ ready: false, reason: 'toggle missing' }};
+              const before = await fetch(statusUrl, {{ credentials: 'include' }}).then((r) => r.json());
+              toggle.click();
+              await new Promise((resolve) => setTimeout(resolve, 1200));
+              const paused = await fetch(statusUrl, {{ credentials: 'include' }}).then((r) => r.json());
+              toggle.click();
+              await new Promise((resolve) => setTimeout(resolve, 1200));
+              const resumed = await fetch(statusUrl, {{ credentials: 'include' }}).then((r) => r.json());
+              return {{
+                ready: before?.data?.paused === false
+                  && paused?.data?.paused === true
+                  && resumed?.data?.paused === false,
+                before: before?.data?.paused,
+                paused: paused?.data?.paused,
+                resumed: resumed?.data?.paused,
+              }};
+            }})()""",
+            timeout_sec=60.0,
+        )
+        assert pause_cycle.get("ready") is True, f"Delegation pause toggle failed: {pause_cycle}"
+
+
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_subagent_dashboard_shows_running_token_and_model(
+    running_subagent: dict[str, object],
+) -> None:
+    chat_id = str(running_subagent.get("chatId") or "")
+    task_id = str(running_subagent.get("taskId") or "")
+    assert chat_id and task_id
+    tree_row = running_subagent.get("treeRow")
+    enriched_row: dict[str, object] = (
+        {**tree_row, "token_usage": {"total_tokens": 1234}, "effective_model": "mimo-v2.5-pro"}
+        if isinstance(tree_row, dict)
+        else {
+            "task_id": task_id,
+            "status": "running",
+            "agent_type": "bash_worker",
+            "token_usage": {"total_tokens": 1234},
+            "effective_model": "mimo-v2.5-pro",
+        }
+    )
+    ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+
+    with open_mcp_page(ui_url) as (client, page):
+        _open_subagent_dashboard(
+            client,
+            page,
+            chat_id,
+            task_id=task_id,
+            fallback_rows=[enriched_row],
+        )
+        display = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
+              const text = panel?.textContent || '';
+              return {
+                ready: /1,?234\\s*tok/i.test(text) && /mimo-v2\\.5-pro/i.test(text),
+                text: text.slice(0, 500),
+              };
+            })()""",
+            timeout_sec=30.0,
+        )
+        assert display.get("ready") is True, f"Token/model not rendered: {display}"

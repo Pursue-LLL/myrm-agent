@@ -186,12 +186,25 @@ async def test_agent_runtime_contract_crud(async_client: AsyncClient, test_user_
     assert updated["memory_policy"]["read_scopes"] == ["global", "agent"]
     assert updated["enabled_builtin_tools"] == ["web_search", "browser"]
 
+    blocklist_update = {
+        "security_overrides": {
+            "networkAllowlist": ["example.com"],
+            "networkBlocklist": ["blocked.example"],
+        },
+    }
+    response = await async_client.put(f"/api/agents/{agent_id}", json=blocklist_update)
+    assert response.status_code == 200
+    blocklist_updated = response.json()["data"]
+    assert blocklist_updated["security_overrides"]["networkBlocklist"] == ["blocked.example"]
+    assert blocklist_updated["security_overrides"]["networkAllowlist"] == ["example.com"]
+
     response = await async_client.get(f"/api/agents/{agent_id}")
     assert response.status_code == 200
     detail = response.json()["data"]
     assert detail["workspace_policy"] == "INHERIT_REQUESTER"
     assert detail["subagent_ids"] == ["reviewer-agent"]
     assert detail["memory_policy"]["write_policy"] == "agent"
+    assert detail["security_overrides"]["networkBlocklist"] == ["blocked.example"]
 
     await async_client.delete(f"/api/agents/{agent_id}")
 

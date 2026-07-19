@@ -1,9 +1,6 @@
-"""Tests for enabled_builtin_tools persist validation (Repo + profile_backend)."""
+"""Tests for enabled_builtin_tools persist validation (AgentRepository)."""
 
 from __future__ import annotations
-
-from contextlib import asynccontextmanager
-from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
@@ -17,7 +14,6 @@ from app.database.migrations import ensure_raw_sql_schema
 from app.database.models import Base
 from app.database.repositories.agent_repo import AgentRepository
 from app.services.agent.agent_service import AgentService
-from app.services.agent.backends.profile_backend import DatabaseProfileBackend
 from app.services.agent.builtin_tool_ids import (
     InvalidBuiltinToolIdsError,
     persist_enabled_builtin_tools,
@@ -42,16 +38,7 @@ async def agent_db():
     original_factory = uow_module.get_session_factory
     uow_module.get_session_factory = lambda: session_factory
 
-    @asynccontextmanager
-    async def mock_get_session():
-        async with session_factory() as session:
-            try:
-                yield session
-            finally:
-                await session.close()
-
-    with patch("app.services.agent.backends.profile_backend.get_session", mock_get_session):
-        yield session_factory
+    yield session_factory
 
     uow_module.get_session_factory = original_factory
     async with engine.begin() as conn:
@@ -122,29 +109,16 @@ async def test_repo_update_tools_allowed_persists_canonical(agent_db) -> None:
 
 
 @pytest.mark.asyncio
-async def test_profile_backend_update_rejects_legacy_tools(agent_db) -> None:
+async def test_repo_update_metadata_rejects_legacy_enabled_builtin_tools(agent_db) -> None:
     created = await AgentService.create_agent(
-        AgentCreate(name="Backend Legacy", description="test")
+        AgentCreate(name="Repo Metadata Legacy", description="test")
     )
     agent_id = created.id
-    backend = DatabaseProfileBackend()
-    with pytest.raises(InvalidBuiltinToolIdsError):
-        await backend.update_profile(
-            agent_id,
-            {"metadata": {"enabled_builtin_tools": ["code_interpreter"]}},
-        )
-
-
-@pytest.mark.asyncio
-async def test_profile_backend_update_persists_canonical_tools(agent_db) -> None:
-    created = await AgentService.create_agent(
-        AgentCreate(name="Backend Canonical", description="test")
-    )
-    agent_id = created.id
-    backend = DatabaseProfileBackend()
-    updated = await backend.update_profile(
-        agent_id,
-        {"tools_allowed": ["browser", "memory", "web_search"]},
-    )
-    assert updated is not None
-    assert updated.tools_allowed == ["browser", "memory", "web_search"]
+    session_factory = agent_db
+    async with session_factory() as session:
+        with pytest.raises(InvalidBuiltinToolIdsError):
+            await AgentRepository.update_profile(
+                session,
+                agent_id,
+                {"metadata": {"enabled_builtin_tools": ["code_interpreter"]}},
+            )

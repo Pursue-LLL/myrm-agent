@@ -587,6 +587,95 @@ def chat_messages_have_ok(chat_id: str, *, min_user_count: int = 1, api_url: str
     return bool(_OK_REPLY_RE.search(content))
 
 
+def _config_http_json(
+    method: str,
+    path: str,
+    body: dict[str, object] | None = None,
+    *,
+    api_url: str | None = None,
+) -> dict[str, object]:
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    req = urllib.request.Request(  # noqa: S310
+        f"{resolved_api}{path}",
+        data=data,
+        headers={"Content-Type": "application/json"} if data is not None else {},
+        method=method,
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+        raw = resp.read()
+        if not raw:
+            return {}
+        payload = json.loads(raw)
+        return payload if isinstance(payload, dict) else {"value": payload}
+
+
+def fetch_config_value(config_key: str, *, api_url: str | None = None) -> dict[str, object]:
+    payload = _config_http_json("GET", f"/api/v1/config/{config_key}", api_url=api_url)
+    value = payload.get("value")
+    return value if isinstance(value, dict) else {}
+
+
+def put_config_value(
+    config_key: str,
+    value: dict[str, object],
+    *,
+    api_url: str | None = None,
+) -> None:
+    _config_http_json(
+        "PUT",
+        f"/api/v1/config/{config_key}",
+        {"deviceId": "web", "value": value},
+        api_url=api_url,
+    )
+
+
+def wait_e2e_backend_ready(
+    *,
+    timeout_sec: float = 60.0,
+    poll_interval_sec: float = 1.0,
+    api_url: str | None = None,
+) -> bool:
+    """Poll private-backend /health until stack is accepting requests."""
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        try:
+            resp = urllib.request.urlopen(  # noqa: S310
+                f"{resolved_api}/api/v1/health",
+                timeout=5,
+            )
+            payload = json.loads(resp.read())
+            if isinstance(payload, dict) and payload.get("status") == "healthy":
+                return True
+        except Exception:
+            pass
+        time.sleep(poll_interval_sec)
+    return False
+
+
+def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
+    """Enable YOLO mode for live Chrome agent E2E (skips tool approval gate)."""
+    current = fetch_config_value("securityConfig", api_url=api_url)
+    now = int(time.time())
+    merged: dict[str, object] = {
+        **current,
+        "yoloModeEnabled": True,
+        "yoloModeEnabledAt": now,
+        "yolo_mode_enabled": True,
+        "yolo_mode_enabled_at": float(now),
+        "yolo_mode_timeout": None,
+        "permissions": {"*": "allow"},
+        "domainHitlEnabled": False,
+        "autoReviewEnabled": False,
+        "planConfirmEnabled": False,
+    }
+    put_config_value("securityConfig", merged, api_url=api_url)
+    persisted = fetch_config_value("securityConfig", api_url=api_url)
+    if not persisted.get("yoloModeEnabled") and not persisted.get("yolo_mode_enabled"):
+        raise RuntimeError(f"Failed to persist YOLO securityConfig: {persisted}")
+
+
 def chat_messages_have_done(chat_id: str, *, min_user_count: int = 1, api_url: str | None = None) -> bool:
     messages = fetch_chat_messages(chat_id, api_url=api_url)
     user_count = sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")

@@ -100,3 +100,168 @@ def test_kanban_board_and_task_render_in_real_ui(
                 f"{json.dumps(str(previous_board))})"
             )
             client.evaluate(page, restore, timeout_sec=5.0)
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_kanban_task_drawer_shows_attachment_in_graph_view(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    """REST upload + task attachment → graph node → drawer shows filename (real UI)."""
+    marker = str(time.time_ns())
+    board_name = f"Chrome Attach Board {marker}"
+    task_title = f"Chrome Attach Task {marker}"
+    file_id = f"chrome-e2e-file-{marker}"
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    board = http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards",
+        {"name": board_name, "description": "Chrome drawer attachment E2E"},
+    )
+    assert isinstance(board, dict)
+    board_id = str(board.get("board_id") or board.get("id") or "")
+    assert board_id
+    e2e_resource_ledger.register("kanban_board", board_id)
+
+    task = http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
+        {
+            "title": task_title,
+            "priority": "low",
+            "initial_status": "ready",
+            "attachment_ids": [file_id],
+        },
+    )
+    assert isinstance(task, dict)
+    task_id = str(task.get("task_id") or task.get("id") or "")
+    assert task_id
+    e2e_resource_ledger.register("kanban_task", task_id)
+
+    with open_mcp_page(f"{ui_url}/settings/kanban") as (client, page):
+        previous_board = client.evaluate(
+            page,
+            "localStorage.getItem('kanban_last_board_id')",
+            timeout_sec=5.0,
+        )
+        try:
+            client.evaluate(
+                page,
+                "localStorage.removeItem('kanban_last_board_id')",
+                timeout_sec=5.0,
+            )
+            client.reload(page, timeout_ms=60_000)
+            row_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+                  return {{ ready: !!row, text: row?.textContent || '' }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert board_name in str(row_state.get("text") or "")
+            clicked_board = client.evaluate(
+                page,
+                f"""(() => {{
+                  const row = document.querySelector('[data-testid="kanban-board-row-{board_id}"]');
+                  if (!row) return false;
+                  row.click();
+                  return true;
+                }})()""",
+                timeout_sec=5.0,
+            )
+            assert clicked_board is True
+
+            board_ready = wait_for_state(
+                client,
+                page,
+                """(() => ({
+                  ready: !!document.querySelector('[data-testid="kanban-board-view"]'),
+                }))()""",
+                timeout_sec=60.0,
+            )
+            assert board_ready.get("ready") is True
+
+            graph_tab = client.evaluate(
+                page,
+                """(() => {
+                  const tab =
+                    document.querySelector('[data-testid="kanban-view-graph"]')
+                    || Array.from(document.querySelectorAll('[role="tab"]')).find((el) =>
+                      /graph|关系图/i.test(el.textContent || ''),
+                    );
+                  if (!tab) return false;
+                  tab.click();
+                  return true;
+                })()""",
+                timeout_sec=5.0,
+            )
+            assert graph_tab is True
+
+            node_ready = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const byTestId = document.querySelector('[data-testid="kanban-graph-node-{task_id}"]');
+                  if (byTestId) return {{ ready: true }};
+                  const nodes = Array.from(document.querySelectorAll('.react-flow__node'));
+                  const match = nodes.find((node) => (node.textContent || '').includes({task_title!r}));
+                  return {{ ready: !!match, nodeCount: nodes.length }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert node_ready.get("ready") is True
+
+            node_clicked = client.evaluate(
+                page,
+                f"""(() => {{
+                  const byTestId = document.querySelector('[data-testid="kanban-graph-node-{task_id}"]');
+                  if (byTestId) {{
+                    byTestId.click();
+                    return true;
+                  }}
+                  const nodes = Array.from(document.querySelectorAll('.react-flow__node'));
+                  const match = nodes.find((node) => (node.textContent || '').includes({task_title!r}));
+                  if (!match) return false;
+                  match.click();
+                  return true;
+                }})()""",
+                timeout_sec=10.0,
+            )
+            assert node_clicked is True
+
+            drawer_state = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const drawer =
+                    document.querySelector('[data-testid="kanban-task-drawer"]')
+                    || document.querySelector('[role="dialog"]');
+                  const attachment =
+                    document.querySelector('[data-testid="kanban-attachment-{file_id}"]')
+                    || Array.from(drawer?.querySelectorAll('a') || []).find(
+                      (link) => (link.textContent || '').includes({file_id!r}),
+                    );
+                  const text = drawer?.textContent || '';
+                  return {{
+                    ready: !!drawer && !!attachment && text.includes({file_id!r}),
+                    drawer: !!drawer,
+                    attachment: !!attachment,
+                  }};
+                }})()""",
+                timeout_sec=90.0,
+            )
+            assert drawer_state.get("drawer") is True
+            assert drawer_state.get("attachment") is True
+        finally:
+            restore = (
+                "localStorage.removeItem('kanban_last_board_id')"
+                if previous_board is None
+                else "localStorage.setItem('kanban_last_board_id', "
+                f"{json.dumps(str(previous_board))})"
+            )
+            client.evaluate(page, restore, timeout_sec=5.0)

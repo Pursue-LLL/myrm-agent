@@ -287,6 +287,12 @@ def _require_live_e2e_lease(
         yield
         return
     lease = require_e2e_runtime_lease()
+    from tests.support.e2e_runtime_guard import assert_chrome_attach_health
+
+    try:
+        assert_chrome_attach_health()
+    except RuntimeError as exc:
+        pytest.fail(str(exc))
     namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
     os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
     with e2e_lease_heartbeat_loop():

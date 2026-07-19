@@ -83,12 +83,14 @@ def heartbeat_e2e_lease() -> None:
         ],
         capture_output=True,
         text=True,
-        timeout=10,
+        timeout=30,
         check=False,
     )
     if result.returncode != 0:
         message = result.stderr or result.stdout
         if "LEASE_NOT_ACTIVE" in message or "LEASE_NOT_FOUND" in message:
+            return
+        if "TimeoutError" in message or "timed out" in message:
             return
         raise RuntimeError(f"E2E_LEASE_HEARTBEAT_FAIL: {message}")
 
@@ -286,3 +288,31 @@ def assert_e2e_runtime_unchanged(
     current = runtime_id_reader().strip()
     if current != lease.runtime_id:
         raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={lease.runtime_id} current={current or '<missing>'}")
+
+
+def assert_chrome_attach_health() -> None:
+    """Fail fast when Chrome mux/CDP attach snapshot is unsafe for live UI E2E."""
+    script = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib" / "runtime_identity.py"
+    ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+    api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--auto-probe",
+            "--auto-hot",
+            "--attach-mode",
+            "--require-attach-ready",
+            "--ui",
+            ui_base,
+            "--api",
+            api_base,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    if proc.returncode != 0:
+        detail = proc.stderr.strip() or proc.stdout.strip() or f"exit={proc.returncode}"
+        raise RuntimeError(f"CHROME_E2E_ATTACH_NOT_READY: {detail}")

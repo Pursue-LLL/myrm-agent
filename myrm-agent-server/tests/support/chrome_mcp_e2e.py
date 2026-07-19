@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 import time
+import uuid
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
@@ -26,6 +27,7 @@ __all__ = [
     "get_e2e_ui_url",
     "http_json",
     "open_mcp_page",
+    "upload_loopback_file",
     "wait_for_state",
 ]
 
@@ -68,6 +70,53 @@ def http_json(
     if status not in expected_statuses:
         raise RuntimeError(f"HTTP {method} {url} returned {status}: {raw[:500]!r}")
     return json.loads(raw) if raw else {}
+
+
+def upload_loopback_file(
+    filename: str,
+    content: bytes,
+    *,
+    content_type: str = "text/plain",
+) -> str:
+    """Upload one file to the live E2E API; returns persisted file_id."""
+    api_url = get_e2e_api_url()
+    boundary = f"myrm-e2e-{uuid.uuid4().hex}"
+    payload = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="files"; filename="{filename}"\r\n'
+        f"Content-Type: {content_type}\r\n\r\n"
+    ).encode("utf-8") + content + f"\r\n--{boundary}--\r\n".encode("utf-8")
+    request = urllib.request.Request(  # noqa: S310 - loopback only
+        f"{api_url}/api/v1/files/upload",
+        data=payload,
+        method="POST",
+    )
+    request.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
+            raw = response.read()
+            status = response.status
+    except urllib.error.HTTPError as exc:
+        raw = exc.read()
+        status = exc.code
+        raise RuntimeError(f"Upload failed HTTP {status}: {raw[:500]!r}") from exc
+
+    body = json.loads(raw) if raw else {}
+    if not isinstance(body, dict):
+        raise RuntimeError(f"Upload response not JSON object: {body!r}")
+    data = body.get("data")
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Upload missing data envelope: {body!r}")
+    files = data.get("files")
+    if not isinstance(files, list) or not files:
+        raise RuntimeError(f"Upload returned no files: {body!r}")
+    first = files[0]
+    if not isinstance(first, dict):
+        raise RuntimeError(f"Upload file entry invalid: {first!r}")
+    file_id = first.get("fileId") or first.get("file_id")
+    if not isinstance(file_id, str) or not file_id:
+        raise RuntimeError(f"Upload missing file id: {first!r}")
+    return file_id
 
 
 @contextmanager

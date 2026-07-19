@@ -195,7 +195,11 @@
       "screenRecordingDesc": "截图和录屏工具可用性",
       "fixHints": "修复方法",
       "checkFailed": "无法检测桌面权限",
-      "copiedToClipboard": "命令已复制到剪贴板"
+      "copiedToClipboard": "命令已复制到剪贴板",
+      "statusOk": "正常",
+      "statusMissing": "缺失",
+      "openSettings": "打开设置",
+      "copyCommand": "复制命令"
     },
     "rate_limits": {
       "title": "速率限制监控",
@@ -5152,6 +5156,7 @@
         "screenRecordingMissing": "未授予屏幕录制权限",
         "openSettings": "打开设置",
         "recheckBtn": "重新检查",
+        "checkFailed": "无法检测桌面权限，请在后端就绪后重试。",
         "hint": "桌面控制需要 macOS 辅助功能和屏幕录制权限。"
       },
       "mediaCredential": {

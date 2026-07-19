@@ -127,6 +127,42 @@ _CAPTURE_ASSERT_JS = """(() => {
   };
 })()"""
 
+_CAPTURE_TAURI_ASSERT_JS = """(() => {
+  const capture = window.__MYRM_CLIENT_SURFACE_CAPTURE__ || [];
+  const lastSurface = capture.length ? capture[capture.length - 1] : null;
+  return {
+    ready: lastSurface === 'tauri',
+    captureLen: capture.length,
+    lastSurface,
+  };
+})()"""
+
+_SIMULATE_TAURI_RUNTIME_JS = """(() => {
+  window.__TAURI__ = window.__TAURI__ ?? { __e2e: true };
+  return {
+    isTauri: '__TAURI__' in window,
+    host: location.hostname,
+  };
+})()"""
+
+_CLEAR_SURFACE_CAPTURE_JS = """(() => {
+  window.__MYRM_CLIENT_SURFACE_CAPTURE__ = [];
+  return { cleared: true };
+})()"""
+
+_SUBMIT_TAURI_SURFACE_JS = """(() => {
+  return (async () => {
+    const bridge = window.__MYRM_E2E_CHAT__;
+    if (!bridge) {
+      return { ok: false, err: 'no-bridge' };
+    }
+    await bridge.ensureProviders?.();
+    bridge.setInputMessage?.('tauri surface gate e2e ping');
+    await bridge.handleSubmit?.();
+    return bridge.lastSubmitResult ?? { ok: false, err: 'no-result' };
+  })();
+})()"""
+
 
 def _create_editable_agent(api_url: str) -> str:
     suffix = uuid.uuid4().hex[:8]
@@ -210,3 +246,33 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
             )
     finally:
         _delete_agent(api_url, agent_id)
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_client_surface_emits_tauri_when_tauri_runtime_simulated() -> None:
+    """Chrome READ: injecting window.__TAURI__ must send client_surface=tauri on agent-stream."""
+    if not wait_e2e_provider_ready():
+        pytest.fail(
+            "Provider config not ready for tauri client_surface capture — run via ./myrm test -m chrome_e2e "
+            "after ./myrm ready --chrome",
+        )
+
+    ui_url = get_e2e_ui_url()
+    with open_mcp_page(ui_url) as (client, page):
+        wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
+        client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
+        simulated = client.evaluate(page, _SIMULATE_TAURI_RUNTIME_JS, timeout_sec=10.0)
+        assert isinstance(simulated, dict)
+        assert simulated.get("isTauri") is True, f"Tauri runtime simulation failed: {simulated}"
+
+        client.evaluate(page, _CLEAR_SURFACE_CAPTURE_JS, timeout_sec=5.0)
+        submit = client.evaluate(page, _SUBMIT_TAURI_SURFACE_JS, timeout_sec=120.0)
+        assert isinstance(submit, dict)
+        assert submit.get("ok") is True, f"Tauri surface chat submit failed: {submit}"
+
+        capture = wait_for_state(client, page, _CAPTURE_TAURI_ASSERT_JS, timeout_sec=45.0)
+        assert capture.get("lastSurface") == "tauri", (
+            f"Expected client_surface=tauri after __TAURI__ inject: {capture}"
+        )

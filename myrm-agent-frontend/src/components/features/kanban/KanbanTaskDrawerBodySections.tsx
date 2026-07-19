@@ -93,6 +93,7 @@ export function AttachmentsSection({
                     href={att.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    data-testid={`kanban-attachment-${att.file_id}`}
                     className="flex items-center gap-1.5 px-2 py-2 hover:bg-muted/50 transition-colors"
                   >
                     <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />

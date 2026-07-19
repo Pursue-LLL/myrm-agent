@@ -164,3 +164,32 @@ async def test_cancel_single_subagent_returns_404_when_not_active(client: AsyncC
         resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/{task_id}/cancel")
 
     assert resp.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_delegation_pause_resume_routes_hit_gate_not_task_resume(client: AsyncClient) -> None:
+    """delegation/resume must not match /{task_id}/resume (task_id=delegation)."""
+    from myrm_agent_harness.agent.meta_tools.spawn_subagent.delegation_pause_gate import (
+        resume_delegation,
+    )
+
+    chat_id = "delegation-route-integration"
+    resume_delegation(chat_id)
+
+    status = await client.get(f"/api/v1/chats/{chat_id}/subagents/delegation/status")
+    assert status.status_code == 200
+    assert status.json()["data"]["paused"] is False
+
+    paused = await client.post(f"/api/v1/chats/{chat_id}/subagents/delegation/pause")
+    assert paused.status_code == 200
+    assert paused.json()["data"]["paused"] is True
+
+    status = await client.get(f"/api/v1/chats/{chat_id}/subagents/delegation/status")
+    assert status.json()["data"]["paused"] is True
+
+    resumed = await client.post(f"/api/v1/chats/{chat_id}/subagents/delegation/resume")
+    assert resumed.status_code == 200
+    assert resumed.json()["data"]["paused"] is False
+
+    status = await client.get(f"/api/v1/chats/{chat_id}/subagents/delegation/status")
+    assert status.json()["data"]["paused"] is False

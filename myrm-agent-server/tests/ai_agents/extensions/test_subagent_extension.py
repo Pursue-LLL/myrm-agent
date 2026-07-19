@@ -60,10 +60,15 @@ def _make_bare_agent() -> BaseAgent:
     return agent
 
 
-def _spawn_patches(*, list_available: list[str] | None = None) -> tuple[dict[str, MagicMock], list[tuple[str, object]]]:
+def _spawn_patches(
+    *,
+    list_available: list[str] | None = None,
+    jit_configs: dict[str, object] | None = None,
+) -> tuple[dict[str, MagicMock], list[tuple[str, object]]]:
     delegate_tool = _make_tool("delegate_task_tool")
     catalog_instance = MagicMock()
-    catalog_instance.list_available = AsyncMock(return_value=list_available or ["research-agent"])
+    resolved_available = ["research-agent"] if list_available is None else list_available
+    catalog_instance.list_available = AsyncMock(return_value=resolved_available)
     created: dict[str, MagicMock] = {
         "delegate": MagicMock(return_value=delegate_tool),
         "control": MagicMock(return_value=_make_tool("subagent_control_tool")),
@@ -71,7 +76,7 @@ def _spawn_patches(*, list_available: list[str] | None = None) -> tuple[dict[str
         "catalog": catalog_instance,
     }
     patch_specs: list[tuple[str, object]] = [
-        (_MATERIALIZE, MagicMock(return_value={})),
+        (_MATERIALIZE, MagicMock(return_value=jit_configs or {})),
         (_CATALOG, MagicMock(return_value=catalog_instance)),
         (f"{_SPAWN}.create_delegate_task_tool", created["delegate"]),
         (f"{_SPAWN}.create_subagent_control_tool", created["control"]),
@@ -80,8 +85,13 @@ def _spawn_patches(*, list_available: list[str] | None = None) -> tuple[dict[str
     return created, patch_specs
 
 
-def _enter_spawn_patches(stack: ExitStack, *, list_available: list[str] | None = None) -> None:
-    _, patch_specs = _spawn_patches(list_available=list_available)
+def _enter_spawn_patches(
+    stack: ExitStack,
+    *,
+    list_available: list[str] | None = None,
+    jit_configs: dict[str, object] | None = None,
+) -> None:
+    _, patch_specs = _spawn_patches(list_available=list_available, jit_configs=jit_configs)
     for target, replacement in patch_specs:
         stack.enter_context(patch(target, new=replacement))
 
@@ -111,6 +121,19 @@ async def test_subagent_extension_skips_bind_when_catalog_empty() -> None:
     resolved_names = {tool.name for tool in agent._tool_registry.resolve()}
     assert "delegate_task_tool" not in resolved_names
     assert "subagent_control_tool" not in resolved_names
+
+
+@pytest.mark.asyncio
+async def test_subagent_extension_binds_when_jit_configs_present() -> None:
+    agent = _make_bare_agent()
+    ext = SubagentManagementExtension(jit_subagents={"jit-worker": object()}, subagent_ids=[])
+
+    with ExitStack() as stack:
+        _enter_spawn_patches(stack, list_available=[], jit_configs={"jit-worker": object()})
+        await ext.on_agent_init(agent)
+
+    resolved_names = {tool.name for tool in agent._tool_registry.resolve()}
+    assert set(_EXPECTED_TOOL_NAMES).issubset(resolved_names)
 
 
 @pytest.mark.asyncio

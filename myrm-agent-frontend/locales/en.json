@@ -195,7 +195,11 @@
       "screenRecordingDesc": "Screenshot and screen recording tools available",
       "fixHints": "How to fix",
       "checkFailed": "Unable to check desktop permissions",
-      "copiedToClipboard": "Command copied to clipboard"
+      "copiedToClipboard": "Command copied to clipboard",
+      "statusOk": "OK",
+      "statusMissing": "Missing",
+      "openSettings": "Open settings",
+      "copyCommand": "Copy command"
     },
     "rate_limits": {
       "title": "Rate Limit Monitor",
@@ -5152,6 +5156,7 @@
         "screenRecordingMissing": "Screen Recording not granted",
         "openSettings": "Open Settings",
         "recheckBtn": "Recheck",
+        "checkFailed": "Could not check desktop permissions. Retry after the backend is ready.",
         "hint": "Desktop Control requires macOS Accessibility and Screen Recording permissions."
       },
       "mediaCredential": {

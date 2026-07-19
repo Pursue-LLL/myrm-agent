@@ -33,11 +33,18 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 - Banner testids: `desktop-control-allow-once`, `desktop-control-deny` (`DesktopControlApprovalBanner.tsx`)
 - SSE payload opens overlay via `DesktopControlApprovalOverlay` (always mounted in `ChatWindowSatellites`)
 - Bridge: `window.__MYRM_E2E_CHAT__.getDesktopApprovalSnapshot()` / `getDesktopToolProgress()` (`E2EChatBridge.tsx`)
+- Regression: `test_desktop_control_approval_chrome_e2e.py` (`@pytest.mark.chrome_e2e_desktop`, allow_once flow)
+
+## Unit tests (vitest)
+
+| File | Coverage |
+|------|----------|
+| `__tests__/DesktopControlApprovalBanner.test.tsx` | deny / allow-once POST + pending hidden |
 
 ## Permission Guidance
 
 When `viewData.needsPermission` is true, `DesktopLiveView` renders an enhanced `PermissionBanner` that:
 1. Calls `/webui/desktop/permissions` to distinguish Accessibility vs Screen Recording failure
 2. Shows per-capability status messages (i18n: `desktopInspector.permissionDenied*`)
-3. Offers an "Open System Settings" button using `@tauri-apps/plugin-shell` deep links (macOS `x-apple.systempreferences:` URLs), falling back to Apple support page
+3. Offers an "Open System Settings" button via `@/lib/desktop/permissionDeepLink::openPermissionDeepLinkWithGuideFallback` (Tauri shell → Apple guide fallback)
 4. Provides a "Check again" button to re-probe without page reload
