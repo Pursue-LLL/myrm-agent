@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `AgentInfoBanner.tsx` | 组件 | 当前 Agent 信息横幅：头像+名称+描述+会话内切换下拉+设置快捷入口 | ✅ |
+| `AgentInfoBanner.tsx` | 组件 | 当前 Agent 信息横幅：头像+名称+描述+会话内切换下拉；设置快捷入口跳转 `/settings/wiki?agentId=` | ✅ |
 | `AgentWorkMap.tsx` | 组件 | ReactFlow 子代理/Goal 工作拓扑可视化 | ✅ |
 | `BudgetBadge.tsx` | 组件 | 输入区旁会话/日预算用量微型进度指示（eco 模式叶标） | ✅ |
 | `Chat.tsx` | 核心 | 消息列表容器：虚拟滚动阈值、JumpBar、审批 attention bar | ✅ |

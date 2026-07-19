@@ -22,7 +22,7 @@
 | `MemoryGuardianDigestPanel.tsx` | 辅助 | Memory Guardian 晨间摘要子面板（维护产出、运行次数与健康变化），并区分夜间静默窗口与 rolling 24h 聚合语义 |
 | `MemoryMonitorCard.tsx` | 辅助 | 记忆健康监控 |
 | `WorkingStateCard.tsx` | 辅助 | Working Memory 状态卡片。展示/编辑/清除跨会话工作记忆 |
-| `WikiSection.tsx` | 容器 | Wiki 子 Tab |
+| `WikiSection.tsx` | 容器 | Wiki 子 Tab；路由 `/settings/wiki`；可选 query `agentId` 切换 per-agent vault 统计与操作 | ✅ |
 | `wiki/` | 子模块 | Wiki 概念树与编辑（见 [wiki/_ARCH.md](wiki/_ARCH.md)） |
 
 ## 依赖

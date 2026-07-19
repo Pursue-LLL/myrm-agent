@@ -61,7 +61,7 @@ export class IntentDispatcher {
         this.router.push('/settings');
         break;
       case 'install-skill':
-        this.router.push(`/settings?tab=skills&action=install&url=${encodeURIComponent(intent.url)}`);
+        this.router.push(`/settings/skills?action=install&url=${encodeURIComponent(intent.url)}`);
         break;
     }
   }
