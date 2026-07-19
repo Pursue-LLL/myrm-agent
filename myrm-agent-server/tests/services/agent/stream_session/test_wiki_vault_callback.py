@@ -19,6 +19,7 @@ class _FakeModelCfg:
 class _FakeParams:
     enable_wiki: bool = True
     chat_id: str = "test-session-123"
+    agent_id: str = "default"
     model_cfg: _FakeModelCfg = field(default_factory=_FakeModelCfg)
 
 

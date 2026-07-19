@@ -15,9 +15,10 @@ interface GoalStore {
   gitBranch: string | null;
   queuedGoals: QueuedGoal[];
   setActiveGoal: (goal: GoalState | null) => void;
-  updateGoalStatus: (status: GoalStatus) => void;
+  updateGoalStatus: (status: GoalStatus, reason?: string) => void;
   updateGoalBudget: (chatId: string, additionalTokens: number) => Promise<void>;
   updateObjective: (chatId: string, newObjective: string) => Promise<void>;
+  refreshActiveGoal: (chatId: string) => Promise<void>;
   setGitBranch: (branch: string | null) => void;
   fetchQueue: (chatId: string) => Promise<void>;
   cancelQueuedGoal: (chatId: string, goalId: string) => Promise<void>;
@@ -30,9 +31,15 @@ export const useGoalStore = create<GoalStore>((set) => ({
   queuedGoals: [],
   setGitBranch: (branch) => set({ gitBranch: branch }),
   setActiveGoal: (goal) => set({ activeGoal: goal }),
-  updateGoalStatus: (status) =>
+  updateGoalStatus: (status, reason) =>
     set((state) => ({
-      activeGoal: state.activeGoal ? { ...state.activeGoal, status } : null,
+      activeGoal: state.activeGoal
+        ? {
+            ...state.activeGoal,
+            status,
+            ...(reason !== undefined ? { reason } : {}),
+          }
+        : null,
     })),
   fetchQueue: async (chatId) => {
     try {
@@ -82,6 +89,18 @@ export const useGoalStore = create<GoalStore>((set) => ({
       if (!state.activeGoal) return state;
       return { activeGoal: { ...state.activeGoal, objective: newObjective } };
     });
+  },
+  refreshActiveGoal: async (chatId) => {
+    try {
+      const res = await fetchWithTimeout(`/goals/${chatId}/status`);
+      if (!res.ok) return;
+      const data = (await res.json()) as { goal?: GoalState };
+      if (!data.goal) return;
+      const { normalizeGoalState } = await import('@/store/chat/messageStream/streamHelpers');
+      set({ activeGoal: normalizeGoalState(data.goal) });
+    } catch {
+      // Goal refresh is best-effort after background job finish
+    }
   },
   updateGoalBudget: async (chatId, additionalTokens) => {
     try {

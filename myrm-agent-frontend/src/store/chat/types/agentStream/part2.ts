@@ -87,6 +87,7 @@ export interface GoalStatusPayload {
   budget?: GoalBudgetPayload;
   verdict?: string;
   reason?: string;
+  wait_reason?: string;
   should_continue?: boolean;
   constraints?: string[];
   acceptance_criteria?: { type: string; command?: string; criteria?: string }[];

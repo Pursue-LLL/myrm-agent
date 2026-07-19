@@ -38,6 +38,7 @@ import { PendingMemoryBadge, PendingMemoryDialog } from '@/components/features/m
 import { useMemoryStore } from '@/store/memory';
 import { fetchPendingApprovals } from '@/hooks/usePendingApprovalsRecovery';
 import useApprovalStore from '@/store/useApprovalStore';
+import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 
@@ -277,6 +278,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
       if (meta?.kind === 'background_job_finish' && meta?.chat_id === id) {
         void initializeChat(id);
+        void useGoalStore.getState().refreshActiveGoal(id);
         import('@/services/backgroundTasksRefresh').then(({ notifyBackgroundTasksChanged }) => {
           notifyBackgroundTasksChanged();
         });

@@ -79,7 +79,7 @@ export function normalizeGoalState(payload: GoalStatusPayload): GoalState {
         }
       : undefined,
     verdict: payload.verdict,
-    reason: payload.reason,
+    reason: payload.reason ?? (payload.status === 'wait' ? payload.wait_reason : undefined),
     constraints: payload.constraints,
     acceptanceCriteria: payload.acceptance_criteria,
     acceptanceResults: payload.metadata?.acceptance_results as GoalState['acceptanceResults'],

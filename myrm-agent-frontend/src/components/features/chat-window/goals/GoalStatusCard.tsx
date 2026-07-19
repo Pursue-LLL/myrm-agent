@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/primitives/dialog';
 import { Progress } from '@/components/primitives/progress';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import useChatStore from '@/store/useChatStore';
@@ -10,11 +18,29 @@ import { toast } from 'sonner';
 import { notificationService } from '@/services/notification';
 import { PlayIcon, PauseIcon, XCircleIcon, CheckCircleIcon, AlertIcon, GoalIcon, BellIcon } from './goal-icons';
 
+const KNOWN_GOAL_REASON_KEYS: Record<string, string> = {
+  'Semantic judge determined goal is complete': 'reasonJudgeComplete',
+  'Goal completed via complete_goal_tool': 'reasonToolComplete',
+  'Budget exhausted': 'reasonBudgetExhausted',
+  'Wait timeout exceeded — goal paused': 'reasonWaitTimeout',
+};
+
+function translateGoalReason(reason: string | undefined, t: (key: string) => string): string | undefined {
+  if (!reason) return undefined;
+  const key = KNOWN_GOAL_REASON_KEYS[reason];
+  if (key) return t(key);
+  if (reason.startsWith('No new progress for ') && reason.includes('convergence reached')) {
+    return t('reasonConvergence');
+  }
+  return reason;
+}
+
 export type GoalStatus =
   | 'queued'
   | 'active'
   | 'pending_approval'
   | 'paused'
+  | 'wait'
   | 'budget_limited'
   | 'complete'
   | 'cancelled'
@@ -203,6 +229,9 @@ export function GoalStatusCard() {
   const [isEditingObjective, setIsEditingObjective] = useState(false);
   const [editedObjective, setEditedObjective] = useState('');
   const [isSavingObjective, setIsSavingObjective] = useState(false);
+  const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
+  const [pauseNote, setPauseNote] = useState('');
+  const [isPausing, setIsPausing] = useState(false);
   const goal = useGoalStore((state) => state.activeGoal);
   const gitBranch = useGoalStore((state) => state.gitBranch);
   const queueCount = useGoalStore((state) => state.queuedGoals.length);
@@ -289,29 +318,47 @@ export function GoalStatusCard() {
     }
   };
 
-  const handleAction = async (action: 'pause' | 'resume' | 'cancel' | 'approve' | 'reject') => {
+  const handleAction = async (
+    action: 'pause' | 'resume' | 'cancel' | 'approve' | 'reject' | 'unwait',
+    note?: string,
+  ) => {
     try {
+      const payload: { action: string; note?: string } = { action };
+      if (note?.trim()) {
+        payload.note = note.trim();
+      }
       const res = await fetchWithTimeout(`/goals/${chatId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        toast.error(`Failed to ${action} goal`);
+        toast.error(t(`goalActionFailed_${action}` as 'goalActionFailed_pause'));
         return;
       }
-      toast.success(`Goal ${action}d successfully`);
+      toast.success(t(`goalActionSuccess_${action}` as 'goalActionSuccess_pause'));
       // Optimistic update
       let newStatus: GoalStatus = goal.status;
       if (action === 'pause') newStatus = 'paused';
-      else if (action === 'resume' || action === 'reject') newStatus = 'active';
+      else if (action === 'resume' || action === 'reject' || action === 'unwait') newStatus = 'active';
       else if (action === 'cancel') newStatus = 'cancelled';
       else if (action === 'approve') newStatus = 'complete';
 
-      useGoalStore.getState().updateGoalStatus(newStatus);
+      useGoalStore.getState().updateGoalStatus(newStatus, note?.trim() || undefined);
     } catch (e) {
       console.error(`Network error: failed to ${action} goal`, e);
-      toast.error(`Network error: failed to ${action} goal`);
+      toast.error(t(`goalActionFailed_${action}` as 'goalActionFailed_pause'));
+    }
+  };
+
+  const handleConfirmPause = async () => {
+    setIsPausing(true);
+    try {
+      await handleAction('pause', pauseNote);
+      setPauseDialogOpen(false);
+      setPauseNote('');
+    } finally {
+      setIsPausing(false);
     }
   };
 
@@ -356,6 +403,8 @@ export function GoalStatusCard() {
         return <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />;
       case 'paused':
         return <PauseIcon className="h-4 w-4 text-yellow-500" />;
+      case 'wait':
+        return <PauseIcon className="h-4 w-4 text-blue-500 animate-pulse" />;
       case 'needs_human_review':
         return <AlertIcon className="h-4 w-4 text-red-500 animate-pulse" />;
       case 'budget_limited':
@@ -377,6 +426,8 @@ export function GoalStatusCard() {
         return t('statusActive');
       case 'paused':
         return t('statusPaused');
+      case 'wait':
+        return t('statusWait');
       case 'needs_human_review':
         return t('statusNeedsHumanReview') || 'Needs Human Review';
       case 'budget_limited':
@@ -443,8 +494,11 @@ export function GoalStatusCard() {
     return 'bg-primary';
   };
 
+  const displayReason = translateGoalReason(goal.reason, t);
+
   return (
-    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
+    <>
+      <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-[min(100%,28rem)] px-3 sm:px-4">
       <div className="bg-card border rounded-lg shadow-md overflow-hidden transition-all duration-200">
         {/* Header / Summary Row */}
         <div
@@ -482,10 +536,18 @@ export function GoalStatusCard() {
                 <span className={goal.status === 'budget_limited' ? 'text-red-500 font-semibold' : ''}>
                   {getStatusText()}
                 </span>
-                {goal.reason && goal.status === 'paused' && (
+                {displayReason && (goal.status === 'paused' || goal.status === 'wait') && (
                   <>
                     <span>•</span>
-                    <span className="text-yellow-600 dark:text-yellow-400 italic">{goal.reason}</span>
+                    <span
+                      className={
+                        goal.status === 'wait'
+                          ? 'text-blue-600 dark:text-blue-400 italic'
+                          : 'text-yellow-600 dark:text-yellow-400 italic'
+                      }
+                    >
+                      {displayReason}
+                    </span>
                   </>
                 )}
                 {queueCount > 0 && (
@@ -541,8 +603,17 @@ export function GoalStatusCard() {
           {/* Action Buttons */}
           {!isTerminal && (
             <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-              {goal.status === 'active' ? (
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleAction('pause')}>
+              {goal.status === 'wait' ? (
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleAction('unwait')}>
+                  <PlayIcon className="h-4 w-4" />
+                </Button>
+              ) : goal.status === 'active' ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setPauseDialogOpen(true)}
+                >
                   <PauseIcon className="h-4 w-4" />
                 </Button>
               ) : (
@@ -887,5 +958,30 @@ export function GoalStatusCard() {
         )}
       </div>
     </div>
+
+      <Dialog open={pauseDialogOpen} onOpenChange={setPauseDialogOpen}>
+        <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>{t('pauseDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('pauseDialogDescription')}</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={pauseNote}
+            onChange={(e) => setPauseNote(e.target.value)}
+            placeholder={t('pauseNotePlaceholder')}
+            className="text-sm"
+            maxLength={500}
+          />
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setPauseDialogOpen(false)} disabled={isPausing}>
+              {t('cancel')}
+            </Button>
+            <Button onClick={handleConfirmPause} disabled={isPausing}>
+              {isPausing ? t('pauseSubmitting') : t('pauseConfirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

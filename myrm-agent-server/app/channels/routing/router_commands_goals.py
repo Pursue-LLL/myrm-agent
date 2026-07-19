@@ -56,9 +56,9 @@ class RouterCommandsGoalsMixin:
         if not args or lower == "status":
             subcommand = GoalSubcommand.STATUS
             sub_args = ""
-        elif lower == "pause":
+        elif lower == "pause" or lower.startswith("pause "):
             subcommand = GoalSubcommand.PAUSE
-            sub_args = ""
+            sub_args = args[5:].strip() if lower.startswith("pause ") else ""
         elif lower == "resume":
             subcommand = GoalSubcommand.RESUME
             sub_args = ""

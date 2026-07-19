@@ -115,6 +115,7 @@ def ingest_env(tmp_path: Path):
         mock_archiver = MagicMock()
         mock_archiver._structure.raw_dir = raw_dir
         mock_archiver._compiler.enqueue_file = MagicMock()
+        mock_get_archiver = MagicMock(return_value=mock_archiver)
 
         mock_vault_instance = MagicMock()
         mock_vault_instance.get_object_path.return_value = obj_file
@@ -144,7 +145,7 @@ def ingest_env(tmp_path: Path):
         stack.enter_context(
             patch(
                 "app.services.wiki.vault_service.get_wiki_archiver",
-                return_value=mock_archiver,
+                mock_get_archiver,
             )
         )
         stack.enter_context(
@@ -171,6 +172,7 @@ def ingest_env(tmp_path: Path):
 
         mocks = {
             "archiver": mock_archiver,
+            "get_archiver": mock_get_archiver,
             "vault_cls": mock_vault_cls,
             "vault_instance": mock_vault_instance,
             "raw_dir": raw_dir,
@@ -199,6 +201,28 @@ class TestIngestSuccess:
         written = list(mocks["raw_dir"].glob("artifact_*"))
         assert len(written) == 1
         assert written[0].read_text(encoding="utf-8") == "# Real Content\nBody text here."
+
+    def test_resolves_agent_vault_from_chat_id(self, client: TestClient, ingest_env) -> None:
+        artifact = _FakeArtifact(name="scoped.md", chat_id="chat-legal")
+        stack, mocks = ingest_env(artifact)
+        with stack:
+            resp = client.post("/api/v1/wiki/ingest", json={"artifact_id": "art-001"})
+
+        assert resp.status_code == 200
+        mocks["get_archiver"].assert_called_once()
+        assert mocks["get_archiver"].call_args.kwargs["agent_id"] == "researcher"
+
+    def test_query_agent_id_overrides_chat_resolution(self, client: TestClient, ingest_env) -> None:
+        artifact = _FakeArtifact(name="scoped.md", chat_id="chat-legal")
+        stack, mocks = ingest_env(artifact)
+        with stack:
+            resp = client.post(
+                "/api/v1/wiki/ingest?agent_id=legal-bot",
+                json={"artifact_id": "art-001"},
+            )
+
+        assert resp.status_code == 200
+        assert mocks["get_archiver"].call_args.kwargs["agent_id"] == "legal-bot"
 
     def test_picks_latest_version_by_created_at(self, client: TestClient, ingest_env) -> None:
         v_old = _FakeVersion(vault_uri="vault://old-obj", ts=datetime(2024, 1, 1))

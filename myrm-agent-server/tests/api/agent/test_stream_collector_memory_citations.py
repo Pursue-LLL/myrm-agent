@@ -59,13 +59,40 @@ def test_stream_collector_persists_memory_citation_refs() -> None:
     ]
 
 
+def test_stream_collector_persists_knowledge_recall_citations() -> None:
+    collector = StreamContentCollector()
+
+    collector.feed_event(
+        {
+            "type": "tool_end",
+            "tool_name": "knowledge_recall_tool",
+            "cited_memory_ids": ["mem-wiki-1"],
+            "cited_memory_refs": [
+                {
+                    "id": "mem-wiki-1",
+                    "memory_type": "semantic",
+                    "content": "Budget cap is 50k.",
+                    "score": 0.88,
+                    "primary_namespace": "global",
+                    "namespaces": ["global"],
+                }
+            ],
+        }
+    )
+
+    extra_data = collector.extra_data
+
+    assert extra_data is not None
+    assert extra_data["citedMemoryIds"] == ["mem-wiki-1"]
+
+
 def test_stream_collector_persists_memory_citations_from_runtime_tool_alias() -> None:
     collector = StreamContentCollector()
 
     collector.feed_event(
         {
             "type": "tool_end",
-            "tool_name": "memory_recall_tool",
+            "tool_name": "memory_recall",
             "cited_memory_ids": ["mem-runtime"],
             "cited_memory_refs": [
                 {

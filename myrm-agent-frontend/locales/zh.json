@@ -103,7 +103,19 @@
     "pauseDialogDescription": "可填写备注，方便之后记起暂停原因。",
     "pauseNotePlaceholder": "暂停原因（可选）",
     "pauseConfirm": "暂停",
-    "pauseSubmitting": "暂停中…"
+    "pauseSubmitting": "暂停中…",
+    "goalActionFailed_pause": "暂停失败",
+    "goalActionFailed_resume": "恢复失败",
+    "goalActionFailed_cancel": "取消失败",
+    "goalActionFailed_approve": "批准失败",
+    "goalActionFailed_reject": "拒绝失败",
+    "goalActionFailed_unwait": "恢复失败",
+    "goalActionSuccess_pause": "目标已暂停",
+    "goalActionSuccess_resume": "目标已恢复",
+    "goalActionSuccess_cancel": "目标已取消",
+    "goalActionSuccess_approve": "目标已批准",
+    "goalActionSuccess_reject": "目标已拒绝",
+    "goalActionSuccess_unwait": "目标已恢复"
   },
   "commands": {
     "palette": {

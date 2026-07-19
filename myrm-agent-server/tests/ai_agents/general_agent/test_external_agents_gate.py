@@ -137,7 +137,7 @@ async def test_setup_external_agents_swallows_errors() -> None:
         raise RuntimeError("setup failed")
 
     mixin._do_setup_external_agents = _boom  # type: ignore[method-assign]
-    await mixin._setup_external_agents([], [])
+    await mixin._setup_external_agents([])
 
 
 @pytest.mark.asyncio
@@ -184,7 +184,7 @@ async def test_do_setup_returns_early_without_configs() -> None:
         new_callable=AsyncMock,
         return_value=None,
     ):
-        await mixin._do_setup_external_agents([], [], mount_delegate_tool=True)
+        await mixin._do_setup_external_agents([], mount_delegate_tool=True)
     assert getattr(mixin, "_runtime_pool", None) is None
 
 
@@ -253,7 +253,7 @@ async def test_do_setup_ephemeral_pool_without_chat_scope() -> None:
         ),
     ):
         tools: list[object] = []
-        await mixin._do_setup_external_agents(tools, [], mount_delegate_tool=True)
+        await mixin._do_setup_external_agents(tools, mount_delegate_tool=True)
 
     assert mixin._runtime_pool_ephemeral is True
     assert mixin._runtime_pool_from_registry is False

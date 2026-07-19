@@ -12,7 +12,7 @@
  * 验收条件、约束条件及高级控制参数。
  */
 import React, { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import useChatStore from '@/store/useChatStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
@@ -21,6 +21,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
+import { fetchWithTimeout } from '@/lib/api';
+import { toast } from 'sonner';
 
 // Custom SVG Icons
 const TargetIcon = ({ className = 'w-4 h-4' }) => (
@@ -61,14 +63,17 @@ const parseFloatOrNull = (v: string): number | null => (v ? parseFloat(v) || nul
 
 export default function GoalModeToggle() {
   const t = useTranslations('Goal');
+  const locale = useLocale();
   const initialized = useFeatureGateStore((s) => s.initialized);
   const isGoalsEnabled = useFeatureGateStore((s) => s.enabledFeatures.has('goals_system'));
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isDrafting, setIsDrafting] = useState(false);
 
   const {
     actionMode,
     isGoalMode,
     setIsGoalMode,
+    inputMessage,
     goalBudgetTokens,
     setGoalBudgetTokens,
     goalBudgetUsd,
@@ -92,6 +97,7 @@ export default function GoalModeToggle() {
       actionMode: state.actionMode,
       isGoalMode: state.isGoalMode,
       setIsGoalMode: state.setIsGoalMode,
+      inputMessage: state.inputMessage,
       goalBudgetTokens: state.goalBudgetTokens,
       setGoalBudgetTokens: state.setGoalBudgetTokens,
       goalBudgetUsd: state.goalBudgetUsd,
@@ -154,6 +160,41 @@ export default function GoalModeToggle() {
     setGoalProtectedPaths(next.length ? next : null);
   };
 
+  const handleSuggestCriteria = async () => {
+    const objective = inputMessage.trim();
+    if (!objective) {
+      toast.error(t('draftComposerRequired'));
+      return;
+    }
+    setIsDrafting(true);
+    try {
+      const res = await fetchWithTimeout('/goals/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ objective, locale }),
+      });
+      if (!res.ok) {
+        toast.error(t('draftFailed'));
+        return;
+      }
+      const data = (await res.json()) as {
+        constraints?: string[];
+        acceptance_criteria?: Array<Record<string, unknown>>;
+      };
+      if (data.acceptance_criteria?.length) {
+        setGoalAcceptanceCriteria(data.acceptance_criteria);
+      }
+      if (data.constraints?.length) {
+        setGoalConstraints(data.constraints);
+      }
+      toast.success(t('draftApplied'));
+    } catch {
+      toast.error(t('draftFailed'));
+    } finally {
+      setIsDrafting(false);
+    }
+  };
+
   if (actionMode !== 'agent') {
     return null;
   }
@@ -208,6 +249,22 @@ export default function GoalModeToggle() {
 
           {isGoalMode && (
             <div className="space-y-4 pt-2 border-t">
+              {/* Goal Draft Wizard */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">{t('draftSection')}</label>
+                <p className="text-[10px] text-muted-foreground/80">{t('draftComposerHint')}</p>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 text-xs w-full"
+                  disabled={isDrafting || !inputMessage.trim()}
+                  onClick={handleSuggestCriteria}
+                >
+                  {isDrafting ? t('draftGenerating') : t('suggestCriteria')}
+                </Button>
+                <p className="text-[10px] text-muted-foreground/80">{t('draftPreviewHint')}</p>
+              </div>
+
               {/* Budget Limits */}
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground">{t('budgetSection')}</label>

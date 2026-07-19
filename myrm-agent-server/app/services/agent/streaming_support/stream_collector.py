@@ -16,8 +16,8 @@ import asyncio
 import json
 
 _SSE_DATA_PREFIX = "data: "
-_MEMORY_RECALL_TOOL_NAMES = frozenset(
-    {"memory_recall", "memory_recall_tool"}
+_MEMORY_CITATION_TOOL_NAMES = frozenset(
+    {"memory_recall", "memory_recall_tool", "knowledge_recall_tool"}
 )  # TODO(2026-Q3): remove "memory_recall" legacy alias after migration settles
 _PERSISTED_STATUS_STEP_KEYS = frozenset({"archive_restore_blocked", "archive_restore_result"})
 
@@ -39,8 +39,8 @@ def _deep_merge_ui_data(
     return merged
 
 
-def _is_memory_recall_tool(tool_name: object) -> bool:
-    return isinstance(tool_name, str) and tool_name in _MEMORY_RECALL_TOOL_NAMES
+def _is_memory_citation_tool(tool_name: object) -> bool:
+    return isinstance(tool_name, str) and tool_name in _MEMORY_CITATION_TOOL_NAMES
 
 
 class StreamContentCollector:
@@ -210,7 +210,7 @@ class StreamContentCollector:
             pass
         elif event_type == "tool_end":
             cited = event.get("cited_memory_ids")
-            is_memory_recall = _is_memory_recall_tool(event.get("tool_name"))
+            is_memory_recall = _is_memory_citation_tool(event.get("tool_name"))
             if is_memory_recall and isinstance(cited, list):
                 for mid in cited:
                     if isinstance(mid, str) and mid not in self._cited_memory_ids:

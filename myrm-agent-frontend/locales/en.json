@@ -103,7 +103,19 @@
     "pauseDialogDescription": "Optionally add a note so you remember why this goal is paused.",
     "pauseNotePlaceholder": "Reason for pausing (optional)",
     "pauseConfirm": "Pause",
-    "pauseSubmitting": "Pausing…"
+    "pauseSubmitting": "Pausing…",
+    "goalActionFailed_pause": "Failed to pause goal",
+    "goalActionFailed_resume": "Failed to resume goal",
+    "goalActionFailed_cancel": "Failed to cancel goal",
+    "goalActionFailed_approve": "Failed to approve goal",
+    "goalActionFailed_reject": "Failed to reject goal",
+    "goalActionFailed_unwait": "Failed to resume goal",
+    "goalActionSuccess_pause": "Goal paused",
+    "goalActionSuccess_resume": "Goal resumed",
+    "goalActionSuccess_cancel": "Goal cancelled",
+    "goalActionSuccess_approve": "Goal approved",
+    "goalActionSuccess_reject": "Goal rejected",
+    "goalActionSuccess_unwait": "Goal resumed"
   },
   "commands": {
     "palette": {

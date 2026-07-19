@@ -115,7 +115,7 @@ class ChannelGoalCommandHandler:
             case GoalSubcommand.STATUS:
                 return await self._show_status(msg, chat_id)
             case GoalSubcommand.PAUSE:
-                return await self._pause_goal(msg, chat_id)
+                return await self._pause_goal(msg, chat_id, args)
             case GoalSubcommand.RESUME:
                 return await self._resume_goal(msg, chat_id)
             case GoalSubcommand.CLEAR:
@@ -230,7 +230,7 @@ class ChannelGoalCommandHandler:
 
         return "\n".join(lines)
 
-    async def _pause_goal(self, msg: InboundMessage, chat_id: str | None) -> str:
+    async def _pause_goal(self, msg: InboundMessage, chat_id: str | None, note: str = "") -> str:
         if not chat_id:
             return get_text(msg, "no_active_goal_to_pause")
 
@@ -245,6 +245,9 @@ class ChannelGoalCommandHandler:
             return get_text(msg, "no_active_goal_to_pause")
 
         await provider.update_status(goal.goal_id, GoalStatus.PAUSED)
+        note = args.strip()
+        if note:
+            await provider.update_metadata(goal.goal_id, {"pause_reason": note})
         return get_text(msg, "goal_paused", objective=goal.objective[:60])
 
     async def _wait_goal(self, msg: InboundMessage, chat_id: str | None, reason: str) -> str:

@@ -31,7 +31,7 @@ async def test_goal_acceptance_e2e_real_model(client: TestClient):
     request_data = {
         "messageId": f"msg_1_{uuid.uuid4().hex[:8]}",
         "chatId": chat_id,
-        "query": "Please call the `update_goal_status` tool with status 'complete'. You do not need to do any actual work, just call the tool.",
+        "query": "Please call the `complete_goal_tool`. You do not need to do any actual work, just call the tool.",
         "modelSelection": get_model_selection(),
         "goal": {
             "objective": "Just complete the goal",

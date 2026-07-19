@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - draft_goal_spec: Generate constraints, acceptance_criteria, ui_summary from objective text
+- _normalize_draft / _parse_draft_json: Pure helpers for tests
 
 [POS]
 Server-side pre-goal helper for GUI users. Output must be previewed and confirmed before

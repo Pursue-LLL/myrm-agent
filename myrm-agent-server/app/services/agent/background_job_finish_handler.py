@@ -10,6 +10,7 @@ SYSTEM_NOTIFICATION SSE event — no headless LLM run.
 
 [OUTPUT]
 - ServerBackgroundJobFinishHandler.on_background_job_finish
+- Delegates goal WAIT resume to goal_wait_background_resume after successful chat persistence
 
 [POS]
 Business orchestration for harness background bash job terminal events.
@@ -141,6 +142,12 @@ class ServerBackgroundJobFinishHandler:
                 result.pid,
                 result.status,
             )
+
+            from app.services.agent.goal_wait_background_resume import (
+                maybe_resume_goal_after_background_job,
+            )
+
+            await maybe_resume_goal_after_background_job(result)
         except Exception:
             logger.exception(
                 "Failed to record background job finish chat=%s pid=%s",

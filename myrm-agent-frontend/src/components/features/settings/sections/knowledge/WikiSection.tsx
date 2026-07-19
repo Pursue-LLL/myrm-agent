@@ -51,6 +51,7 @@ export function WikiSection() {
   const agentScopeId = searchParams.get('agentId');
   const t = useTranslations('settings.wiki');
   const [agents, setAgents] = useState<AgentListItem[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState('');
   const [relatedArticles, setRelatedArticles] = useState<string[]>([]);
@@ -228,9 +229,11 @@ export function WikiSection() {
   };
 
   useEffect(() => {
+    setAgentsLoading(true);
     listAgents(1, 100)
       .then((res) => setAgents(res.items))
-      .catch(() => setAgents([]));
+      .catch(() => setAgents([]))
+      .finally(() => setAgentsLoading(false));
   }, []);
 
   const handleAgentScopeChange = (value: string) => {
@@ -357,9 +360,13 @@ export function WikiSection() {
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
             <span className="text-sm font-medium text-foreground">{t('agentScopeLabel')}</span>
-            <Select value={agentScopeId ?? 'default'} onValueChange={handleAgentScopeChange}>
+            <Select
+              value={agentScopeId ?? 'default'}
+              onValueChange={handleAgentScopeChange}
+              disabled={agentsLoading}
+            >
               <SelectTrigger className="w-full sm:w-72">
-                <SelectValue placeholder={t('agentScopePlaceholder')} />
+                <SelectValue placeholder={agentsLoading ? t('loading') : t('agentScopePlaceholder')} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="default">{t('agentScopeDefault')}</SelectItem>

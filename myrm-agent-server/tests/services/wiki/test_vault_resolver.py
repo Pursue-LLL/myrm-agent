@@ -14,6 +14,8 @@ from app.services.wiki.vault_resolver import (
     migrate_legacy_wiki_vaults,
     resolve_agent_wiki_vault_path,
     resolve_shared_wiki_vault_path,
+    resolve_shared_wiki_vault_paths,
+    resolve_wiki_vault_layout,
     resolve_wiki_vault_path,
     sanitize_wiki_scope_id,
 )
@@ -40,6 +42,32 @@ class TestResolveWikiVaultPath:
         assert sanitize_wiki_scope_id(None) == "default"
         assert sanitize_wiki_scope_id("  legal-bot  ") == "legal-bot"
         assert sanitize_wiki_scope_id("weird/id") == "weird_id"
+        assert sanitize_wiki_scope_id("///") == "default"
+
+
+class TestSharedVaultPaths:
+    def test_resolve_shared_wiki_vault_paths_deduplicates(self, tmp_path: Path) -> None:
+        harness = tmp_path / "harness"
+        with patch("app.config.settings.settings") as mock_settings:
+            mock_settings.database.harness_dir = str(harness)
+            paths = resolve_shared_wiki_vault_paths(["team-a", "team-a", "team-b", ""])
+        assert paths == (
+            (harness / "wiki" / "shared" / "team-a").resolve(),
+            (harness / "wiki" / "shared" / "team-b").resolve(),
+            (harness / "wiki" / "shared" / "default").resolve(),
+        )
+
+    def test_resolve_shared_wiki_vault_paths_empty(self) -> None:
+        assert resolve_shared_wiki_vault_paths(None) == ()
+        assert resolve_shared_wiki_vault_paths([]) == ()
+
+    def test_resolve_wiki_vault_layout(self, tmp_path: Path) -> None:
+        harness = tmp_path / "harness"
+        with patch("app.config.settings.settings") as mock_settings:
+            mock_settings.database.harness_dir = str(harness)
+            primary, shared = resolve_wiki_vault_layout("planner", ["ctx-1", "ctx-1"])
+        assert primary == (harness / "wiki" / "agents" / "planner").resolve()
+        assert shared == ((harness / "wiki" / "shared" / "ctx-1").resolve(),)
 
 
 class TestLegacyMigration:
@@ -138,3 +166,21 @@ class TestVaultHealthHelpers:
         with patch("app.config.settings.settings") as mock_settings:
             mock_settings.database.harness_dir = str(harness)
             assert is_legacy_migration_complete() is True
+
+    def test_migrate_global_layout_merges_existing_destination_dir(self, tmp_path: Path) -> None:
+        harness = tmp_path / "harness"
+        flat_dir = harness / "wiki" / "notes"
+        flat_dir.mkdir(parents=True)
+        (flat_dir / "a.md").write_text("from flat", encoding="utf-8")
+
+        dest_dir = harness / "wiki" / "agents" / "default" / "notes"
+        dest_dir.mkdir(parents=True)
+        (dest_dir / "b.md").write_text("existing", encoding="utf-8")
+
+        with patch("app.config.settings.settings") as mock_settings:
+            mock_settings.database.harness_dir = str(harness)
+            result = migrate_global_wiki_to_agent_layout()
+
+        assert result.skipped is False
+        assert (dest_dir / "a.md").exists()
+        assert (dest_dir / "b.md").read_text(encoding="utf-8") == "existing"

@@ -9,4 +9,4 @@ Wiki 知识库 HTTP 层：Brain Console REST 入口。Vault 路径 SSOT 见 `app
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Wiki API router. | ✅ |
-| `router.py` | 路由 | REST：query/compile/maintain/ingest/import/concepts/queue/pending/graph/stats（含 `vault_ready`、`legacy_migrated`）；依赖 `vault_service.get_wiki_archiver()` | ✅ |
+| `router.py` | 路由 | REST：query/compile/maintain/ingest（artifact/chat→agent vault）/import/concepts/queue/pending/graph/stats；`?agent_id=` + ingest 从 artifact.chat_id 解析；依赖 `vault_service.get_wiki_archiver()` | ✅ |

@@ -13,24 +13,7 @@
 import type { StreamCtx, StreamTurn } from "../streamContext";
 import { done } from "../streamContext";
 import * as H from "./handlerDeps";
-import de from "../../../../../locales/de.json";
-import en from "../../../../../locales/en.json";
-import ja from "../../../../../locales/ja.json";
-import ko from "../../../../../locales/ko.json";
-import zh from "../../../../../locales/zh.json";
-
-const TAKEOVER_VNC_OPEN_FAILED: Record<string, string> = {
-  en: en.billing.vnc.takeoverVncOpenFailed,
-  zh: zh.billing.vnc.takeoverVncOpenFailed,
-  de: de.billing.vnc.takeoverVncOpenFailed,
-  ja: ja.billing.vnc.takeoverVncOpenFailed,
-  ko: ko.billing.vnc.takeoverVncOpenFailed,
-};
-
-function takeoverVncOpenFailedMessage(locale: string | null): string {
-  const key = locale?.split("-")[0] ?? "en";
-  return TAKEOVER_VNC_OPEN_FAILED[key] ?? TAKEOVER_VNC_OPEN_FAILED.en;
-}
+import { takeoverVncOpenFailedMessage } from "./takeoverVncMessages";
 
 async function notifyTakeoverVncOpenFailed(): Promise<void> {
   const { getClientLocale } = await import("@/lib/utils/localeUtils");

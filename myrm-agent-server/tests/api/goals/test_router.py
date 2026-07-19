@@ -458,3 +458,51 @@ async def test_resume_clears_pause_reason(client: TestClient):
     assert "reason" not in data["goal"]
 
     GoalRegistry.unregister(session_id)
+
+
+@pytest.mark.asyncio
+async def test_pause_with_user_note(client: TestClient):
+    """User-initiated pause should persist optional note as pause_reason."""
+    session_id = f"test_session_pause_note_{uuid.uuid4().hex}"
+
+    provider = GoalRegistry.get_or_create_provider(session_id)
+    await provider.create_goal(session_id, "Pausable Goal")
+
+    response = client.post(
+        f"/api/v1/goals/{session_id}/status",
+        json={"action": "pause", "note": "Waiting for client feedback"},
+    )
+    assert response.status_code == 200
+
+    response = client.get(f"/api/v1/goals/{session_id}/status")
+    data = response.json()
+    assert data["goal"]["status"] == "paused"
+    assert data["goal"]["reason"] == "Waiting for client feedback"
+
+    GoalRegistry.unregister(session_id)
+
+
+@pytest.mark.asyncio
+async def test_wait_and_unwait(client: TestClient):
+    """WAIT / unwait actions should transition goal status."""
+    session_id = f"test_session_wait_{uuid.uuid4().hex}"
+
+    provider = GoalRegistry.get_or_create_provider(session_id)
+    await provider.create_goal(session_id, "CI Goal")
+
+    response = client.post(
+        f"/api/v1/goals/{session_id}/status",
+        json={"action": "wait", "wait_reason": "GitHub Actions running"},
+    )
+    assert response.status_code == 200
+
+    response = client.get(f"/api/v1/goals/{session_id}/status")
+    data = response.json()
+    assert data["goal"]["status"] == "wait"
+    assert data["goal"]["wait_reason"] == "GitHub Actions running"
+
+    response = client.post(f"/api/v1/goals/{session_id}/status", json={"action": "unwait"})
+    assert response.status_code == 200
+    assert response.json()["new_status"] == "active"
+
+    GoalRegistry.unregister(session_id)
