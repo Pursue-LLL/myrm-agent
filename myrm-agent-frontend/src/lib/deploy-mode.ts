@@ -25,6 +25,9 @@
  * TAURI 和 LOCAL 统称"本地模式"，共享相同的前端行为（本地后端、本地存储）。
  * 使用 isLocalMode() 判断是否为本地模式。
  *
+ * Tauri WebView 在 loopback dev host（127.0.0.1/localhost，含 Tauri devUrl :3000 与 Chrome E2E）
+ * 使用 Next `/api/v1` 代理；非 loopback 主机直连 sidecar 后端端口。
+ *
  * ## 配置方式
  *
  * 通过环境变量 `NEXT_PUBLIC_DEPLOY_MODE` 配置（推荐）：

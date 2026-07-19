@@ -45,7 +45,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - **低内存推荐（本地 / CI 同款）**：`scripts/dev/run_tests_low_memory.sh` 或 monorepo **`./myrm test -n0`**
 - 单元 + API 集成：monorepo **`./myrm test -n0`**（单 worker；实测 `build_minimal_app(chats)` ~118MB，`app.main` ~439MB）
 - E2E（真实 LLM API，无 Chrome）：monorepo **`./myrm test -m e2e`**（如 `tests/api/agent/test_render_ui_agent_stream_e2e.py`）
-- **Chrome MCP UI E2E（16 项，`chrome_e2e` marker）**：`RUN_E2E_TESTS=1 ./myrm test -m chrome_e2e -n0`（须 `./myrm ready --chrome`；SHPOIB 私 Backend；fork 在 live DB 无 sandbox chat 时可 allowlist skip；见 `scripts/dev/CHROME_MCP_E2E.md`）
+- **Chrome MCP UI E2E（`chrome_e2e` marker）**：monorepo **`./myrm test -m chrome_e2e -n0`**（须 `./myrm ready --chrome`；Wave lease；见 `scripts/dev/CHROME_MCP_E2E.md`）
+- **A2UI Surface Gate Chrome E2E**：`tests/e2e/test_render_ui_surface_gate_chrome_e2e.py`（READ：Settings hint + `client_surface=web` + `__TAURI__`→`tauri`；同文件旁路 LIVE 见 `test_render_ui_inline_card_chrome_e2e.py`）
 - `tests/integration/test_render_ui_sse_wiring.py`：render_ui 确定性集成（20 场景：run_bind、fail-closed、data_update、collector 链、幂等）
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`
