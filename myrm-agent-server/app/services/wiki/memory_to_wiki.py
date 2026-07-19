@@ -28,8 +28,8 @@ MemoryToWikiArchiver: Memory→Wiki 自动归档服务
 
 ## Vault Location
 
-- Canonical SSOT: `{harness_dir}/wiki` via `vault_resolver.resolve_wiki_vault_path()`
-- Control plane sandbox: optional read-only mounts via `MYRM_PUBLIC_WIKI_VOLUMES`
+- Agent vault SSOT: `{harness_dir}/wiki/agents/{agent_id}/` via `vault_resolver.resolve_wiki_vault_path(agent_id)`
+- Shared read-only mounts: `{harness_dir}/wiki/shared/{context_id}/` and optional `MYRM_PUBLIC_WIKI_VOLUMES`
 """
 
 from __future__ import annotations
@@ -75,7 +75,7 @@ class MemoryToWikiArchiver:
 
         Args:
             llm: LLM for wiki compilation
-            wiki_dir: Directory for the wiki (defaults to {harness_dir}/wiki)
+            wiki_dir: Directory for the wiki (defaults to default agent vault)
             config: Optional WikiConfig (uses defaults if not provided)
             search_fn: Optional semantic search function injected from retriever
         """

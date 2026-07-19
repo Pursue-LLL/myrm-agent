@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from tests.support.minimal_app import build_minimal_app
 
-from app.remote_access.e2ee_crypto import generate_keypair, public_key_b64
+from app.remote_access.e2ee import generate_keypair, public_key_b64
 
 
 def test_e2ee_public_key_and_handshake() -> None:

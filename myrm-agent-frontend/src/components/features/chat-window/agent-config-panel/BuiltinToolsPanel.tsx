@@ -45,9 +45,10 @@ export interface BuiltinToolsPanelProps {
   setLocalDialogPolicy: React.Dispatch<React.SetStateAction<string | undefined>>;
   localSessionRecording?: string;
   setLocalSessionRecording: React.Dispatch<React.SetStateAction<string | undefined>>;
+  agentDisplayName?: string;
   t: (key: string) => string;
   tAgent: (key: string) => string;
-  tPanel: (key: string) => string;
+  tPanel: (key: string, values?: Record<string, string>) => string;
 }
 
 const BUILTIN_TOOL_ICONS: Record<BuiltinToolId, React.ReactNode> = {
@@ -79,6 +80,7 @@ export const BuiltinToolsPanel = ({
   setLocalDialogPolicy,
   localSessionRecording,
   setLocalSessionRecording,
+  agentDisplayName,
   t,
   tAgent,
   tPanel,
@@ -128,6 +130,13 @@ export const BuiltinToolsPanel = ({
                 colorClass="text-orange-500"
                 disabled={disabled && !checked}
               />
+              {id === 'wiki' && checked && (
+                <p className="text-xs text-muted-foreground px-3 leading-relaxed">
+                  {agentDisplayName
+                    ? tPanel('wikiScopeHintNamed', { name: agentDisplayName })
+                    : tPanel('wikiScopeHint')}
+                </p>
+              )}
               {disabled && (
                 <Link
                   href="/pricing"
@@ -140,6 +149,10 @@ export const BuiltinToolsPanel = ({
           );
         })}
       </div>
+
+      {localBuiltinTools.includes('render_ui') && (
+        <p className="text-xs text-muted-foreground px-3 leading-relaxed">{tPanel('renderUiWebOnlyHint')}</p>
+      )}
 
       <MediaCredentialInline enabledBuiltinTools={localBuiltinTools} tPanel={tPanel} />
 

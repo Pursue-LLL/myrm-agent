@@ -20,8 +20,8 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from app.remote_access.e2ee_crypto import E2EECryptoError
-from app.remote_access.e2ee_session import (
+from app.remote_access.e2ee import (
+    E2EECryptoError,
     E2EE_CONTENT_TYPE,
     E2EE_PAIR_CIPHERTEXT_HEADER,
     E2EE_PAIR_QUERY_PARAM,

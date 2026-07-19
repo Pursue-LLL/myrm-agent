@@ -18,7 +18,7 @@
 | `statusStreamProgressSteps.ts` | 辅助 | STATUS `progress.step_key` 分支与 toast | ✅ |
 | `statusStreamPhaseData.ts` | 辅助 | STATUS `data.phase` 多阶段 payload 处理 | ✅ |
 | `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态与进度 | ✅ |
-| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、FILE_MUTATION_FAILED、BROWSER_TAKEOVER_*（extension 跳过 VNC POST） | ✅ |
+| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、FILE_MUTATION_FAILED、BROWSER_TAKEOVER_*（`is_managed=false` 跳过 VNC POST） | ✅ |
 | `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果 | ✅ |
 | `memoryBriefEvents.ts` | 核心 | `memory_brief` 发送前记忆简报事件：创建/更新 assistant 占位消息并挂载简报快照 | ✅ |
 | `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | ✅ |
@@ -32,7 +32,7 @@
 | `__tests__/gapEvents.test.ts` | 测试 | gap handler 回归（含 loading 延迟重发） | ✅ |
 | `__tests__/completionEvents.pendingGapRetry.test.ts` | 测试 | MESSAGE_END 后 flush pending gap | ✅ |
 | `__tests__/agentControlEvents.pendingGapRetry.test.ts` | 测试 | ERROR/CANCEL 后 flush pending gap | ✅ |
-| `__tests__/memoryBriefEvents.test.ts` | 测试 | `memory_brief` 事件创建/更新 assistant 记忆简报状态 | ✅ |
+| `__tests__/fileDiffEvents.takeover.test.ts` | 测试 | BROWSER_TAKEOVER is_managed 分支（local 跳过 VNC；managed POST） | ✅ |
 
 ## 依赖
 

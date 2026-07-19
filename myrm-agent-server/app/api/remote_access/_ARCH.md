@@ -23,6 +23,6 @@
 
 - `app.remote_access.tunnel_manager` — CF quick tunnel
 - `app.remote_access.pairing` — Pairing token
-- `app.remote_access.e2ee_*` — E2EE 握手与会话
+- `app.remote_access.e2ee` — E2EE 握手与会话（子包见 `e2ee/_ARCH.md`）
 - `app.remote_access.mobile_gate` — 远程路径鉴权
 - `app.services.agent.gateway` — 活跃会话列表

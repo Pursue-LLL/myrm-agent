@@ -142,6 +142,9 @@ async def suggest_references(
 
     query = q.strip()
     results: list[ReferenceSuggestion] = []
+    chat = await ChatService.get_chat_metadata(chat_id.strip())
+    if chat is None:
+        raise validation_error("Unknown chat_id")
 
     if source in ("all", "special"):
         results.extend(_suggest_special(query))
@@ -155,7 +158,8 @@ async def suggest_references(
         results.extend(await _suggest_stored_files(chat_id, query, source))
 
     if kind != "directory" and source == "all":
-        results.extend(_suggest_wiki(query))
+        agent_id = chat.agent_id if chat is not None else None
+        results.extend(_suggest_wiki(query, agent_id))
 
     results.sort(key=lambda item: (-item.score, item.source, item.label.lower()))
     bounded = results[:limit]
@@ -259,13 +263,13 @@ async def _suggest_stored_files(
     return results
 
 
-def _suggest_wiki(query: str) -> list[ReferenceSuggestion]:
+def _suggest_wiki(query: str, agent_id: str | None = None) -> list[ReferenceSuggestion]:
     """Search wiki concepts and return matching suggestions."""
     try:
         from app.services.wiki.vault_resolver import resolve_wiki_vault_path
         from myrm_agent_harness.toolkits.wiki import WikiStructure
 
-        vault_path = resolve_wiki_vault_path()
+        vault_path = resolve_wiki_vault_path(agent_id)
         structure = WikiStructure(vault_path)
         concept_paths = structure.list_concepts()
 

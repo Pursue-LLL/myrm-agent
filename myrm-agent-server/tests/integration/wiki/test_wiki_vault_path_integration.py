@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from app.ai_agents.general_agent.agent import GeneralAgent
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
-from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+from app.services.wiki.vault_resolver import resolve_agent_wiki_vault_path
 
 
 class TestWikiVaultPathIntegration:
@@ -22,12 +22,13 @@ class TestWikiVaultPathIntegration:
                 model_cfg=MagicMock(),
                 mcp_config=None,
                 enable_wiki=True,
+                agent_id="researcher",
             )
             agent_path = Path(agent._resolve_wiki_base_dir() or "")
-            archiver = MemoryToWikiArchiver(MagicMock(), wiki_dir=resolve_wiki_vault_path())
+            archiver = MemoryToWikiArchiver(MagicMock(), wiki_dir=resolve_agent_wiki_vault_path("researcher"))
 
             assert agent_path == archiver.get_wiki_path().resolve()
-            assert agent_path == (harness / "wiki").resolve()
+            assert agent_path == (harness / "wiki" / "agents" / "researcher").resolve()
 
     def test_ingest_visible_on_same_vault(self, tmp_path: Path) -> None:
         harness = tmp_path / "harness"
@@ -36,7 +37,7 @@ class TestWikiVaultPathIntegration:
             mock_settings.database.harness_dir = str(harness)
             mock_settings.database.state_dir = str(tmp_path)
 
-            vault = resolve_wiki_vault_path()
+            vault = resolve_agent_wiki_vault_path("default")
             archiver = MemoryToWikiArchiver(MagicMock(), wiki_dir=vault)
             raw_path = archiver._structure.get_raw_file_path("integration_probe.md")
             raw_path.parent.mkdir(parents=True, exist_ok=True)

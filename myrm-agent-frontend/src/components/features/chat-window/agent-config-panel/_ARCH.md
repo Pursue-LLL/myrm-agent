@@ -24,4 +24,4 @@ Agent profile editing UI: skills, MCP, built-in tools, browser options, security
 
 ## Built-in tools
 
-Tool IDs are defined in `@/store/chat/types/builtinTools.ts` and must stay in sync with server `resolve_builtin_tool_flags()` in `profile_resolver.py` (`planning`, `answer_tool`, `render_ui`, `external_cli` → `enable_external_cli`, `cron` → `enable_cron_eager`, …).
+Tool IDs are defined in `@/store/chat/types/builtinTools.ts` and must stay in sync with server `resolve_builtin_tool_flags()` in `profile_resolver.py` (`planning`, `answer_tool`, `render_ui`, `external_cli` → `enable_external_cli`, `cron` → `enable_cron_eager`, …). `render_ui` shows `renderUiWebOnlyHint` when enabled (Web Chat / desktop only).

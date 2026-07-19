@@ -38,6 +38,13 @@ no_active_goal_subgoals = No active goal to manage subgoals for.
 goal_paused =
     Goal paused: **{ $objective }**
     Use `/goal resume` to continue.
+goal_wait =
+    Goal waiting: **{ $objective }**
+    Reason: { $reason }
+    Use `/goal unwait` to resume.
+goal_unwait = Goal resumed from wait: **{ $objective }**
+goal_not_waiting = Goal is not in wait state.
+goal_wait_not_supported = Wait is not supported in this environment.
 goal_resumed = Goal resumed: **{ $objective }**
 goal_cleared = Goal cleared: **{ $objective }**
 goal_cannot_resume = Cannot resume goal in '{ $status }' state.
@@ -47,6 +54,7 @@ goal_status_label = Active
 goal_status_paused = Paused
 goal_status_pending_approval = Pending Approval
 goal_status_budget_limited = Budget Limited
+goal_status_wait = Waiting
 goal_status_complete = Complete
 goal_status_cancelled = Cancelled
 goal_status_needs_review = Needs Review

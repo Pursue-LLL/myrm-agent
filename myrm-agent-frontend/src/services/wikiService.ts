@@ -1,5 +1,15 @@
 import { apiRequest } from '@/lib/api';
 
+let scopedAgentId: string | undefined;
+
+function wikiPath(path: string): string {
+  if (!scopedAgentId) {
+    return path;
+  }
+  const joiner = path.includes('?') ? '&' : '?';
+  return `${path}${joiner}agent_id=${encodeURIComponent(scopedAgentId)}`;
+}
+
 export interface Concept {
   name: string;
   content: string;
@@ -67,20 +77,24 @@ export interface ObsidianImportResultResponse {
 }
 
 export const wikiService = {
-  // Tree
+  setAgentScope(agentId?: string | null): void {
+    const trimmed = agentId?.trim();
+    scopedAgentId = trimmed || undefined;
+  },
+
   getTree: async (): Promise<TreeNode[]> => {
-    return apiRequest<TreeNode[]>('/wiki/tree');
+    return apiRequest<TreeNode[]>(wikiPath('/wiki/tree'));
   },
 
   createFolder: async (path: string): Promise<OperationResult> => {
-    return apiRequest<OperationResult>('/wiki/tree/folder', {
+    return apiRequest<OperationResult>(wikiPath('/wiki/tree/folder'), {
       method: 'POST',
       body: JSON.stringify({ path }),
     });
   },
 
   moveNode: async (sourcePath: string, targetPath: string): Promise<OperationResult> => {
-    return apiRequest<OperationResult>('/wiki/tree/move', {
+    return apiRequest<OperationResult>(wikiPath('/wiki/tree/move'), {
       method: 'PUT',
       body: JSON.stringify({ source_path: sourcePath, target_path: targetPath }),
     });
@@ -89,86 +103,87 @@ export const wikiService = {
   deleteFolder: async (path: string): Promise<OperationResult> => {
     const params = new URLSearchParams();
     params.append('path', path);
-    return apiRequest<OperationResult>(`/wiki/tree/folder?${params.toString()}`, {
+    return apiRequest<OperationResult>(wikiPath(`/wiki/tree/folder?${params.toString()}`), {
       method: 'DELETE',
     });
   },
 
-  // Concepts
   listConcepts: async (query?: string, limit: number = 100, offset: number = 0): Promise<ConceptListResponse> => {
     const params = new URLSearchParams();
     if (query) params.append('query', query);
     params.append('limit', limit.toString());
     params.append('offset', offset.toString());
-    return apiRequest<ConceptListResponse>(`/wiki/concepts?${params.toString()}`);
+    return apiRequest<ConceptListResponse>(wikiPath(`/wiki/concepts?${params.toString()}`));
   },
 
   getConcept: async (name: string): Promise<Concept> => {
-    return apiRequest<Concept>(`/wiki/concepts/${encodeURIComponent(name)}`);
+    return apiRequest<Concept>(wikiPath(`/wiki/concepts/${encodeURIComponent(name)}`));
   },
 
   updateConcept: async (name: string, content: string): Promise<OperationResult> => {
-    return apiRequest<OperationResult>(`/wiki/concepts/${encodeURIComponent(name)}`, {
+    return apiRequest<OperationResult>(wikiPath(`/wiki/concepts/${encodeURIComponent(name)}`), {
       method: 'PUT',
       body: JSON.stringify({ content }),
     });
   },
 
   deleteConcept: async (name: string): Promise<OperationResult> => {
-    return apiRequest<OperationResult>(`/wiki/concepts/${encodeURIComponent(name)}`, {
+    return apiRequest<OperationResult>(wikiPath(`/wiki/concepts/${encodeURIComponent(name)}`), {
       method: 'DELETE',
     });
   },
 
-  // Queue
   getQueueStatus: async (): Promise<QueueStatus> => {
-    return apiRequest<QueueStatus>('/wiki/queue');
+    return apiRequest<QueueStatus>(wikiPath('/wiki/queue'));
   },
 
   cancelQueue: async (): Promise<OperationResult> => {
-    return apiRequest<OperationResult>('/wiki/queue/cancel', {
+    return apiRequest<OperationResult>(wikiPath('/wiki/queue/cancel'), {
       method: 'POST',
     });
   },
 
   retryFailedQueue: async (): Promise<OperationResult> => {
-    return apiRequest<OperationResult>('/wiki/queue/retry', {
+    return apiRequest<OperationResult>(wikiPath('/wiki/queue/retry'), {
       method: 'POST',
     });
   },
 
-  // Pending Edits (HITL)
   getPendingEdits: async (): Promise<PendingEditsResponse> => {
-    return apiRequest<PendingEditsResponse>('/wiki/pending');
+    return apiRequest<PendingEditsResponse>(wikiPath('/wiki/pending'));
   },
 
   approveEdit: async (id: number, modifiedContent?: string): Promise<OperationResult> => {
-    return apiRequest<OperationResult>(`/wiki/pending/${id}/approve`, {
+    return apiRequest<OperationResult>(wikiPath(`/wiki/pending/${id}/approve`), {
       method: 'POST',
       body: modifiedContent !== undefined ? JSON.stringify({ modified_content: modifiedContent }) : undefined,
     });
   },
 
   rejectEdit: async (id: number): Promise<OperationResult> => {
-    return apiRequest<OperationResult>(`/wiki/pending/${id}/reject`, {
+    return apiRequest<OperationResult>(wikiPath(`/wiki/pending/${id}/reject`), {
       method: 'POST',
     });
   },
 
-  ingestArtifact: async (artifactId: string): Promise<OperationResult> => {
-    return apiRequest<OperationResult>('/wiki/ingest', {
+  ingestArtifact: async (artifactId: string, agentId?: string | null): Promise<OperationResult> => {
+    const trimmedAgentId = agentId?.trim();
+    const path =
+      trimmedAgentId != null && trimmedAgentId.length > 0
+        ? `/wiki/ingest?agent_id=${encodeURIComponent(trimmedAgentId)}`
+        : wikiPath('/wiki/ingest');
+    return apiRequest<OperationResult>(path, {
       method: 'POST',
       body: JSON.stringify({ artifact_id: artifactId }),
     });
   },
 
-  // Batch Import
   importFolder: async (
     folderPath: string,
     extensions: string[] = ['.md', '.txt', '.org'],
     autoCompile: boolean = true,
   ): Promise<ImportResultResponse> => {
-    return apiRequest<ImportResultResponse>('/wiki/import/folder', {
+    return apiRequest<ImportResultResponse>(wikiPath('/wiki/import/folder'), {
       method: 'POST',
       body: JSON.stringify({
         folder_path: folderPath,
@@ -188,7 +203,7 @@ export const wikiService = {
     const params = new URLSearchParams();
     params.append('extensions', extensions);
     params.append('auto_compile', autoCompile.toString());
-    return apiRequest<ImportResultResponse>(`/wiki/import/zip?${params.toString()}`, {
+    return apiRequest<ImportResultResponse>(wikiPath(`/wiki/import/zip?${params.toString()}`), {
       method: 'POST',
       body: formData,
     });
@@ -198,7 +213,7 @@ export const wikiService = {
     vaultPath: string,
     autoCompile: boolean = true,
   ): Promise<ObsidianImportResultResponse> => {
-    return apiRequest<ObsidianImportResultResponse>('/wiki/import/obsidian', {
+    return apiRequest<ObsidianImportResultResponse>(wikiPath('/wiki/import/obsidian'), {
       method: 'POST',
       body: JSON.stringify({ vault_path: vaultPath, auto_compile: autoCompile }),
     });
@@ -212,7 +227,7 @@ export const wikiService = {
     formData.append('file', file);
     const params = new URLSearchParams();
     params.append('auto_compile', autoCompile.toString());
-    return apiRequest<ObsidianImportResultResponse>(`/wiki/import/obsidian-zip?${params.toString()}`, {
+    return apiRequest<ObsidianImportResultResponse>(wikiPath(`/wiki/import/obsidian-zip?${params.toString()}`), {
       method: 'POST',
       body: formData,
     });

@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.remote_access.e2ee_crypto import generate_keypair, public_key_b64
-from app.remote_access.e2ee_session import E2EE_MAX_SESSIONS, E2EESessionStore
+from app.remote_access.e2ee import E2EE_MAX_SESSIONS, E2EESessionStore, generate_keypair, public_key_b64
 
 
 @pytest.mark.asyncio

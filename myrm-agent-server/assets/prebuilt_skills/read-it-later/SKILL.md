@@ -14,7 +14,7 @@ tags:
   - cron
   - automation
   - wiki
-allowed-tools: web_fetch_tool wiki_ingest_tool wiki_query_tool wiki_compile_tool memory_recall_tool memory_save_tool bash_code_execute_tool
+allowed-tools: web_fetch_tool wiki_ingest_tool wiki_query_tool memory_recall_tool memory_save_tool bash_code_execute_tool
 contract:
   steps:
     - "Phase 1: Pull — retrieve unprocessed items from the configured MCP read-it-later source"

@@ -148,11 +148,12 @@ class OperationResult(BaseModel):
 async def _get_wiki_archiver(
     llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
     manager: Annotated[MemoryManager | None, Depends(get_optional_memory_manager)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> MemoryToWikiArchiver:
-    """Get wiki archiver bound to the canonical vault path."""
+    """Get wiki archiver bound to an agent-scoped vault path."""
     from app.services.wiki.vault_service import get_wiki_archiver
 
-    return get_wiki_archiver(llm, manager)
+    return get_wiki_archiver(llm, manager, agent_id=agent_id)
 
 
 # --- Core RAG & Compilation Endpoints ---
@@ -208,6 +209,7 @@ async def maintain_wiki(
 @router.get("/stats", response_model=WikiStatsResponse)
 async def get_wiki_stats(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiStatsResponse:
     try:
         from app.services.wiki.vault_resolver import is_legacy_migration_complete, is_vault_ready
@@ -219,7 +221,7 @@ async def get_wiki_stats(
             total_articles=len(concepts),
             total_raw_files=len(raw_files),
             wiki_path=str(archiver.get_wiki_path()),
-            vault_ready=is_vault_ready(),
+            vault_ready=is_vault_ready(agent_id),
             legacy_migrated=is_legacy_migration_complete(),
         )
     except Exception as e:
@@ -598,7 +600,9 @@ class IngestArtifactRequest(BaseModel):
 @router.post("/ingest", response_model=OperationResult)
 async def ingest_artifact(
     request: IngestArtifactRequest,
-    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
+    manager: Annotated[MemoryManager | None, Depends(get_optional_memory_manager)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> OperationResult:
     """Ingest an artifact's content into the wiki knowledge base."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
@@ -608,6 +612,8 @@ async def ingest_artifact(
     from app.api.dependencies import get_workspace_root
     from app.database.connection import get_session
     from app.database.models.artifact import Artifact
+    from app.services.wiki.agent_scope import resolve_chat_agent_id
+    from app.services.wiki.vault_service import get_wiki_archiver
 
     workspace_root = get_workspace_root()
     try:
@@ -624,6 +630,9 @@ async def ingest_artifact(
             raise HTTPException(status_code=404, detail="Artifact not found")
         if not artifact.versions:
             raise HTTPException(status_code=400, detail="Artifact has no versions")
+
+        effective_agent_id = agent_id or await resolve_chat_agent_id(artifact.chat_id)
+        archiver = get_wiki_archiver(llm, manager, agent_id=effective_agent_id)
 
         latest_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
         vault = ArtifactVault(workspace_root)

@@ -208,7 +208,7 @@ def _build_explore_callback(params: GeneralAgentParams):
 
         from app.services.wiki.vault_resolver import resolve_wiki_vault_path
 
-        wiki_base_dir = resolve_wiki_vault_path()
+        wiki_base_dir = resolve_wiki_vault_path(params.agent_id)
         if not wiki_base_dir.exists():
             return None
 
@@ -264,7 +264,7 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
 
         from app.services.wiki.vault_resolver import resolve_wiki_vault_path
 
-        wiki_base_dir = resolve_wiki_vault_path()
+        wiki_base_dir = resolve_wiki_vault_path(params.agent_id)
         wiki_base_dir.mkdir(parents=True, exist_ok=True)
 
         agent_results = getattr(result, "agent_results", [])
@@ -314,7 +314,7 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
             wiki_llm = await llm_manager.get_llm_from_config(
                 params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None)
             )
-            archiver = get_wiki_archiver(wiki_llm)
+            archiver = get_wiki_archiver(wiki_llm, agent_id=params.agent_id)
             for fp in written_files:
                 archiver._compiler.enqueue_file(fp)
             logger.info(

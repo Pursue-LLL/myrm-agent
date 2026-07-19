@@ -31,6 +31,8 @@ class GoalSubcommand(StrEnum):
     CLEAR = "clear"
     BUDGET = "budget"
     CONSTRAINT = "constraint"
+    WAIT = "wait"
+    UNWAIT = "unwait"
 
 
 @unique

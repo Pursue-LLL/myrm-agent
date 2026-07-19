@@ -21,7 +21,12 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
-from app.services.wiki.vault_resolver import migrate_legacy_wiki_vaults, resolve_wiki_vault_path
+from app.services.wiki.vault_resolver import (
+    migrate_legacy_wiki_vaults,
+    resolve_agent_wiki_vault_path,
+    resolve_wiki_vault_path,
+    sanitize_wiki_scope_id,
+)
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
@@ -31,19 +36,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _archiver: MemoryToWikiArchiver | None = None
-_archiver_llm_id: int | None = None
+_archiver_cache_key: tuple[int, str, int] | None = None
 
 
 async def init_wiki_vault_at_startup() -> None:
     """Migrate legacy wiki directories and ensure Karpathy layout exists."""
     result = migrate_legacy_wiki_vaults()
-    vault_path = resolve_wiki_vault_path()
+    vault_path = resolve_agent_wiki_vault_path("default")
     WikiStructure(vault_path).ensure_structure()
     if result.skipped:
         logger.debug("Wiki vault ready at %s (migration already applied)", vault_path)
     else:
         logger.info(
-            "Wiki vault initialized at %s (copied %d legacy files)",
+            "Wiki vault initialized at %s (legacy_files=%d)",
             vault_path,
             result.files_copied,
         )
@@ -52,23 +57,25 @@ async def init_wiki_vault_at_startup() -> None:
 def get_wiki_archiver(
     llm: BaseChatModel,
     manager: MemoryManager | None = None,
+    agent_id: str | None = None,
 ) -> MemoryToWikiArchiver:
-    """Return a process-scoped archiver bound to the canonical vault path."""
-    global _archiver, _archiver_llm_id
+    """Return a process-scoped archiver bound to an agent wiki vault path."""
+    global _archiver, _archiver_cache_key
 
-    llm_id = id(llm)
-    if _archiver is None or _archiver_llm_id != llm_id:
+    manager_key = id(manager) if manager is not None else 0
+    cache_key = (id(llm), sanitize_wiki_scope_id(agent_id), manager_key)
+    if _archiver is None or _archiver_cache_key != cache_key:
         _archiver = MemoryToWikiArchiver(
             llm,
-            wiki_dir=resolve_wiki_vault_path(),
+            wiki_dir=resolve_wiki_vault_path(agent_id),
             manager=manager,
         )
-        _archiver_llm_id = llm_id
+        _archiver_cache_key = cache_key
     return _archiver
 
 
 def reset_wiki_archiver_cache_for_tests() -> None:
     """Clear cached archiver (tests only)."""
-    global _archiver, _archiver_llm_id
+    global _archiver, _archiver_cache_key
     _archiver = None
-    _archiver_llm_id = None
+    _archiver_cache_key = None

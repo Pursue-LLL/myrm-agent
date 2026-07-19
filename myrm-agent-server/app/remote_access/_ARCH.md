@@ -19,11 +19,7 @@
 | `mobile_deep_link.py` | 核心 | Channel → 前端 deep link 构建：`/mobile/status` (HITL) + `/{chatId}` (WebUI 续聊) | ✅ |
 | `tool_policy.py` | 核心 | 远程暴露时 harness `SecurityConfig.remote_exposed()` deny overlay | ✅ |
 | `pairing.py` | 核心 | HMAC 签名 token；`mobile_hub_list`（Hub 列表）与 `mobile_hub`（scoped 控制）；改密时 `rotate_pairing_key` | ✅ |
-| `e2ee_crypto.py` | 核心 | Curve25519 NaCl box 加解密（对标 Paseo relay crypto） | ✅ |
-| `e2ee_keystore.py` | 核心 | daemon 持久 X25519 密钥对（0600） | ✅ |
-| `e2ee_session.py` | 核心 | E2EE 会话注册表（TTL 1h、上限 256 LRU 驱逐）+ pair/body 解密常量 | ✅ |
-| `e2ee_response.py` | 核心 | remote API JSON 响应 E2EE 包装 | ✅ |
-| `e2ee_sse.py` | 核心 | mobile attach SSE 帧加密 | ✅ |
+| `e2ee/` | 子包 | Mobile remote E2EE：crypto / keystore / session / response / sse（见 `e2ee/_ARCH.md`） | ✅ |
 | `tunnel_manager.py` | 核心 | cloudflared quick tunnel 子进程 + 5s watchdog + shutdown hook | ✅ |
 
 ---

@@ -380,7 +380,8 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     if (ingestLoading) return;
     setIngestLoading(true);
     try {
-      const result = await wikiService.ingestArtifact(artifact.id);
+      const agentId = useChatStore.getState().agentConfig?.agentId;
+      const result = await wikiService.ingestArtifact(artifact.id, agentId);
       if (result.success) {
         toast.success(t('ingestToWiki.success'), { description: result.message });
       } else {

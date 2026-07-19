@@ -9,6 +9,7 @@
 [OUTPUT]
 - ToolSetupMixin: 提供所有工具初始化方法的 Mixin 基类
 - _should_mount_ask_question_tool: interactive web_chat clarify mount predicate
+- _should_mount_render_ui_tools: inline A2UI mount predicate (WEB_CHAT + web/tauri surface)
 - _setup_x_live_search_tool: skill 绑定后 Turn1 eager x_search_tool（独立于 enable_web_search）
 
 [POS]
@@ -70,6 +71,27 @@ def _should_mount_ask_question_tool(
     )
 
     return resolve_channel_type(channel_name) == ChannelType.WEB_CHAT
+
+
+def _should_mount_render_ui_tools(
+    *,
+    enable_render_ui: bool,
+    channel_name: str,
+    client_surface: str | None = None,
+) -> bool:
+    """Return True when inline A2UI tools are safe and renderable for this session."""
+    if not enable_render_ui:
+        return False
+    from myrm_agent_harness.agent.meta_tools.interaction.inline_ui_capability import (
+        resolve_client_surface,
+        supports_inline_interactive_ui,
+    )
+    from myrm_agent_harness.agent.security.channel_presets import resolve_channel_type
+
+    return supports_inline_interactive_ui(
+        resolve_channel_type(channel_name),
+        client_surface=resolve_client_surface(client_surface),
+    )
 
 
 def _configured_media_api_key(api_key: str | None) -> bool:
@@ -139,6 +161,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
         _current_chat_id: str | None
         skill_ids: list[str]
         enable_cron_eager: bool
+        enable_wiki: bool
+        enable_memory: bool
+        incognito_mode: bool
         unattended_mode: bool
         channel_name: str
         prompt_mode: str
@@ -158,6 +183,26 @@ class ToolSetupMixin(ExternalAgentsMixin):
             logger.info("Loaded x_search_tool (%s skill) [Turn1]", X_LIVE_SEARCH_SKILL_ID)
         except Exception as e:
             logger.debug("x_search_tool skipped: %s", e)
+
+    def _setup_knowledge_recall_tool(self, tools: list[object], memory_manager: MemoryManager) -> None:
+        """Register unified memory+wiki recall when both capabilities are enabled."""
+        if not self.enable_wiki or not self.enable_memory or self.incognito_mode:
+            return
+        if self._lite_llm is None:
+            logger.debug("knowledge_recall_tool skipped: missing lite llm")
+            return
+
+        from app.ai_agents.general_agent.tools.knowledge_recall_tool import create_knowledge_recall_tool
+        from app.services.wiki.vault_service import get_wiki_archiver
+
+        lite_llm = self._lite_llm
+
+        async def _query_wiki(question: str) -> str:
+            archiver = get_wiki_archiver(lite_llm, memory_manager, agent_id=self.agent_id)
+            return await archiver.query_wiki(question)
+
+        tools.append(create_knowledge_recall_tool(memory_manager, query_wiki=_query_wiki))
+        logger.info("Loaded knowledge_recall_tool (wiki+memory) [Turn1]")
 
     def _setup_search_and_basic_tools(self, tools: list[object]) -> None:
         """Set up web fetch (baseline), web search (opt-in), and basic utility tools."""
@@ -213,7 +258,11 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
         self._setup_x_live_search_tool(tools)
 
-        if self.enable_render_ui:
+        if _should_mount_render_ui_tools(
+            enable_render_ui=self.enable_render_ui,
+            channel_name=getattr(self, "channel_name", "web_chat"),
+            client_surface=getattr(self, "client_surface", None),
+        ):
             from myrm_agent_harness.agent.meta_tools.interaction.a2ui_spec import (
                 seed_reference_to_workspace,
             )

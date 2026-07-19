@@ -16,7 +16,7 @@ import asyncio
 import time
 from dataclasses import dataclass
 
-from app.remote_access.e2ee_crypto import (
+from app.remote_access.e2ee.crypto import (
     E2EECryptoError,
     decrypt_utf8,
     encrypt_utf8,
@@ -138,6 +138,7 @@ def parse_encrypted_body(raw: bytes) -> str:
 
 __all__ = [
     "E2EE_CONTENT_TYPE",
+    "E2EE_MAX_SESSIONS",
     "E2EE_PAIR_CIPHERTEXT_HEADER",
     "E2EE_PAIR_QUERY_PARAM",
     "E2EE_SESSION_HEADER",

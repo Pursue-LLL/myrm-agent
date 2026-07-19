@@ -26,23 +26,23 @@ export const UIProgress: React.FC<UIComponentProps> = ({ props, bindings, data }
   };
 
   const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-600',
-    green: 'bg-green-500',
-    yellow: 'bg-yellow-500',
-    red: 'bg-red-500',
+    blue: 'bg-primary',
+    green: 'bg-emerald-500',
+    yellow: 'bg-amber-500',
+    red: 'bg-destructive',
   };
 
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       {(label || showValue) && (
         <div className="flex items-center justify-between">
-          {label && <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>}
+          {label && <span className="text-sm font-medium text-foreground">{label}</span>}
           {showValue && (
-            <span className="text-sm text-gray-500 dark:text-gray-400 tabular-nums">{Math.round(percentage)}%</span>
+            <span className="text-sm text-muted-foreground tabular-nums">{Math.round(percentage)}%</span>
           )}
         </div>
       )}
-      <div className={cn('w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden', sizeClasses[size])}>
+      <div className={cn('w-full rounded-full bg-muted overflow-hidden', sizeClasses[size])}>
         <div
           className={cn('h-full rounded-full transition-all duration-300', colorClasses[color])}
           style={{ width: `${percentage}%` }}

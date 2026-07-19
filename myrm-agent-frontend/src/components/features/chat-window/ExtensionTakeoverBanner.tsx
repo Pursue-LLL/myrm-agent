@@ -4,16 +4,16 @@
  * - useBrowserTakeoverActions (POS: Complete/Skip 与 VNC resume 同步)
  *
  * [OUTPUT]
- * ExtensionTakeoverBanner: Extension 模式下的 in-chat takeover 横幅
+ * ExtensionTakeoverBanner: 外部浏览器（CDP/auto/extension）in-chat takeover 横幅
  *
  * [POS]
- * browserSource=extension 时，引导用户在 Chrome 完成 HITL 步骤并提供 Done/Skip。
+ * uiMode=extension（harness SSE is_managed=false）时，引导用户在本地 Chrome 完成 HITL 并提供 Done/Skip；managed 由 VisualDesktopToggle 处理。
  * managed 模式由 VisualDesktopToggle 处理，本组件不渲染。
  */
 
 'use client';
 
-import { CheckCircle2, Chrome, XCircle } from 'lucide-react';
+import { CheckCircle2, Globe, XCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useBrowserTakeoverActions } from '@/hooks/useBrowserTakeoverActions';
@@ -62,7 +62,7 @@ export default function ExtensionTakeoverBanner() {
                 'dark:bg-amber-500/20 dark:text-amber-400 dark:ring-amber-500/30',
               )}
             >
-              <Chrome className="h-4 w-4" aria-hidden />
+              <Globe className="h-4 w-4" aria-hidden />
             </span>
           )}
           <div className="min-w-0 space-y-1">

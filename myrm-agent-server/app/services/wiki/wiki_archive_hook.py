@@ -6,7 +6,7 @@
 - app.services.wiki.memory_to_wiki::MemoryToWikiArchiver (POS: Memory→Wiki automatic archiving service)
 
 [OUTPUT]
-- archive_session_notes_to_wiki(): persist SessionNotes into canonical wiki vault
+- archive_session_notes_to_wiki(): persist SessionNotes into the chat agent's wiki vault
 
 [POS]
 Server-side bridge from on_summary_persist (post-compaction) to wiki raw ingestion.
@@ -19,6 +19,7 @@ import logging
 from langchain_core.language_models import BaseChatModel
 
 from app.services.chat.chat_service import ChatService
+from app.services.wiki.agent_scope import resolve_chat_agent_id
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
 from app.services.wiki.vault_service import get_wiki_archiver
 
@@ -37,7 +38,7 @@ async def archive_session_notes_to_wiki(
         if turn_count <= 0:
             turn_count = await ChatService.count_messages(chat_id)
 
-        archiver = get_wiki_archiver(llm)
+        archiver = get_wiki_archiver(llm, agent_id=await resolve_chat_agent_id(chat_id))
         archived = await archiver.archive_memory(
             notes_json,
             conversation_turns=turn_count,

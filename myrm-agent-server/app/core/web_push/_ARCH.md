@@ -67,7 +67,7 @@ Keys are stored in `{state_dir}/web_push/`:
 - `vapid_public_key.txt` — URL-safe base64 public key, no padding (0644 permissions)
 
 Generated lazily on first access. Protected by `filelock` for thread safety.
-File permissions follow `e2ee_keystore.py` security conventions.
+File permissions follow `app/remote_access/e2ee/keystore.py` security conventions.
 
 ## Subscription Storage
 

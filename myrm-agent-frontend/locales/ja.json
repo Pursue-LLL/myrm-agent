@@ -4123,6 +4123,7 @@
         "structured_clarify": "意図が不明確なときに構造化フォームで確認 — 返信まで Agent を一時停止",
         "external_cli": "delegate_to_agent 経由で外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）にコーディングタスクを委任"
       },
+      "renderUiWebOnlyHint": "インライン UI は Web チャットとデスクトップアプリでのみ表示されます。Telegram、スケジュールタスク、その他のチャネルではインラインフォームやチャートを表示できません。",
       "externalCliSetupHint": "2 ステップ：（1）設定 → 開発者 → 外部 Agent で CLI バックエンドを登録；（2）実行時に delegate_to_agent を使う Agent はこのスイッチをオンに保つ。",
       "externalCliLocalOnlyHint": "外部 CLI 委任にはローカルまたはデスクトップモードが必要です。クラウド/サンドボックスではローカル CLI プロセスを起動できません。",
       "externalCliNoBackendHint": "設定に有効な CLI バックエンドがまだありません — 追加するまで delegate_to_agent はマウントされません。",

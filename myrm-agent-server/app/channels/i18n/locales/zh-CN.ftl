@@ -38,6 +38,13 @@ no_active_goal_subgoals = 没有可以管理子目标的活动目标。
 goal_paused =
     目标已暂停：**{ $objective }**
     使用 `/goal resume` 继续。
+goal_wait =
+    目标等待中：**{ $objective }**
+    原因：{ $reason }
+    使用 `/goal unwait` 恢复。
+goal_unwait = 目标已从等待恢复：**{ $objective }**
+goal_not_waiting = 目标未处于等待状态。
+goal_wait_not_supported = 当前环境不支持等待模式。
 goal_resumed = 目标已恢复：**{ $objective }**
 goal_cleared = 目标已清除：**{ $objective }**
 goal_cannot_resume = 无法恢复处于「{ $status }」状态的目标。
@@ -47,6 +54,7 @@ goal_status_label = 运行中
 goal_status_paused = 已暂停
 goal_status_pending_approval = 待审批
 goal_status_budget_limited = 预算受限
+goal_status_wait = 等待中
 goal_status_complete = 已完成
 goal_status_cancelled = 已取消
 goal_status_needs_review = 需人工审核

@@ -246,6 +246,10 @@ class AgentRequest(BaseModel):
     resume_value: dict[str, object] | None = None
     sibling_group_id: str | None = None
     regenerate_instruction: str | None = None
+    client_surface: str | None = Field(
+        default=None,
+        description="Client rendering surface for inline A2UI: web, tauri, or headless.",
+    )
 
     class Config:
         alias_generator = to_camel

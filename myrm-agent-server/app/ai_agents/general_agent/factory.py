@@ -187,6 +187,9 @@ async def build_general_agent(
     if session_memory_enabled and memory_binding is not None:
         memory_manager = await agent_wrapper._create_memory_tools(tools, memory_binding)
 
+    if memory_manager is not None and agent_wrapper.enable_wiki:
+        agent_wrapper._setup_knowledge_recall_tool(tools, memory_manager)
+
     if (
         session_memory_enabled
         and agent_wrapper.enable_conversation_search
@@ -252,7 +255,7 @@ async def build_general_agent(
 
             goal_tools = create_goal_tools(goal_provider, effective_chat_id)
             tools.extend(goal_tools)
-            logger.info("🎯 已加载目标导向工具: update_goal_status_tool")
+            logger.info("🎯 已加载目标导向工具: complete_goal_tool")
 
     # 4.5 Channel notification tool (Turn1 when notify_targets configured)
     channel_notify_tool_loaded = False
@@ -731,6 +734,7 @@ async def build_general_agent(
             else make_loaded_skills_persist_callback()
         ),
         wiki_base_dir=(agent_wrapper._resolve_wiki_base_dir() if agent_wrapper.enable_wiki else None),
+        wiki_public_dirs=(agent_wrapper._resolve_wiki_public_dirs() if agent_wrapper.enable_wiki else None),
         wiki_search_fn=(agent_wrapper._build_wiki_search_fn() if agent_wrapper.enable_wiki else None),
         similarity_checker=sim_checker,
         model_resolver=subagent_model_resolver,

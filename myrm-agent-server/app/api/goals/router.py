@@ -12,13 +12,15 @@ Provides HTTP endpoints for the frontend to pause, resume, and clear goals.
 """
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.core.features import get_features
 from pydantic import BaseModel
 
+from app.api.dependencies import get_optional_llm_for_user
 from app.services.agent.goal_registry import GoalRegistry
 
 if TYPE_CHECKING:
@@ -43,6 +45,7 @@ _NON_TERMINAL_STATUSES: frozenset[GoalStatus] = frozenset({
     GoalStatus.BUDGET_LIMITED,
     GoalStatus.NEEDS_HUMAN_REVIEW,
     GoalStatus.QUEUED,
+    GoalStatus.WAIT,
 })
 
 
@@ -80,7 +83,20 @@ async def list_active_goals() -> dict[str, object]:
 
 
 class GoalStatusUpdateRequest(BaseModel):
-    action: str  # "pause", "resume", "cancel", "approve", "reject"
+    action: str  # "pause", "resume", "cancel", "approve", "reject", "wait", "unwait"
+    note: str | None = None
+    wait_reason: str | None = None
+
+
+class GoalDraftRequest(BaseModel):
+    objective: str
+    locale: str | None = None
+
+
+class GoalDraftResponse(BaseModel):
+    constraints: list[str]
+    acceptance_criteria: list[dict[str, object]]
+    ui_summary: str
 
 
 class GoalBudgetUpdateRequest(BaseModel):
@@ -183,6 +199,9 @@ async def get_goal_status(session_id: str) -> dict[str, object]:
     pause_reason = goal.metadata.get("pause_reason")
     if pause_reason:
         result["reason"] = pause_reason
+    wait_reason = goal.metadata.get("wait_reason")
+    if wait_reason:
+        result["wait_reason"] = wait_reason
     return {"goal": result}
 
 
@@ -197,11 +216,16 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
 
         provider = GoalManager(get_storage_provider())
 
-    # When resuming, approving, or rejecting, we need to get the latest goal, not just the strictly active one
-    if request.action in ("resume", "approve", "reject"):
+    # When resuming, approving, rejecting, or unwaiting, use latest goal (may be WAIT/PAUSED)
+    if request.action in ("resume", "approve", "reject", "unwait"):
         goal = await provider.get_latest_goal(session_id)
+    elif request.action == "wait":
+        goal = await provider.get_active_goal(session_id)
     else:
         goal = await provider.get_active_goal(session_id)
+
+    if not goal and request.action == "unwait":
+        goal = await provider.get_latest_goal(session_id)
 
     if not goal:
         raise HTTPException(status_code=404, detail="No active goal found for this session")
@@ -209,6 +233,8 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
     try:
         if request.action == "pause":
             await provider.update_status(goal.goal_id, GoalStatus.PAUSED)
+            if request.note and hasattr(provider, "update_metadata"):
+                await provider.update_metadata(goal.goal_id, {"pause_reason": request.note.strip()})
         elif request.action == "resume":
             if hasattr(provider, "resume_goal"):
                 await provider.resume_goal(goal.goal_id, reset_turns=True)
@@ -221,6 +247,17 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
         elif request.action == "reject":
             await provider.reset_verification_retries(goal.goal_id)
             await provider.update_status(goal.goal_id, GoalStatus.ACTIVE)
+        elif request.action == "wait":
+            if not hasattr(provider, "enter_wait"):
+                raise HTTPException(status_code=501, detail="Wait not supported by provider")
+            reason = (request.wait_reason or request.note or "Waiting for external process").strip()
+            await provider.enter_wait(goal.goal_id, reason=reason)
+        elif request.action == "unwait":
+            if not hasattr(provider, "exit_wait"):
+                raise HTTPException(status_code=501, detail="Unwait not supported by provider")
+            if goal.status != GoalStatus.WAIT:
+                raise HTTPException(status_code=400, detail="Goal is not in WAIT state")
+            await provider.exit_wait(goal.goal_id)
         else:
             raise HTTPException(status_code=400, detail=f"Invalid action: {request.action}")
 
@@ -234,6 +271,33 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/draft", response_model=GoalDraftResponse)
+async def draft_goal(
+    request: GoalDraftRequest,
+    llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
+) -> GoalDraftResponse:
+    """Generate draft constraints and acceptance criteria for a goal objective."""
+    from app.services.agent.goal_draft import draft_goal_spec
+
+    try:
+        spec = await draft_goal_spec(
+            llm,
+            request.objective,
+            locale=request.locale,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Goal draft generation failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to generate goal draft") from e
+
+    return GoalDraftResponse(
+        constraints=list(spec.get("constraints", [])),
+        acceptance_criteria=list(spec.get("acceptance_criteria", [])),
+        ui_summary=str(spec.get("ui_summary", "")),
+    )
 
 
 @router.get("/{session_id}/plan")

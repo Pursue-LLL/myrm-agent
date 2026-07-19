@@ -9,7 +9,7 @@ Compatible with Paseo relay crypto: base64-encoded [nonce || ciphertext] bundles
 - Encryption/decryption functions for E2EE payloads
 
 [POS]
-Pure crypto utilities. No I/O, no state. Used by e2ee_session and e2ee_response.
+Pure crypto utilities. No I/O, no state. Used by session and response modules.
 """
 
 from __future__ import annotations

@@ -8,7 +8,7 @@
  * [POS]
  * Manages the state when Agent requests human takeover of the browser session.
  * SSE handler sets pending=true with reason+messageId; managed mode uses
- * VisualDesktopToggle (VNC); extension mode uses ExtensionTakeoverBanner (in-chat).
+ * VisualDesktopToggle (VNC); external browser (is_managed=false) uses ExtensionTakeoverBanner (in-chat).
  */
 
 import { create } from 'zustand';

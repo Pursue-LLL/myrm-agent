@@ -87,6 +87,9 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
             {getBuiltinAgentDescription(agent.id, agent.description, locale)}
           </p>
         )}
+        {agent.enabled_builtin_tools?.includes('wiki') && (
+          <p className="text-xs text-primary/80 truncate">{t('wikiActiveIndicator')}</p>
+        )}
       </div>
 
       <Popover open={switchOpen} onOpenChange={setSwitchOpen}>
@@ -120,7 +123,7 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => router.push(`/settings?tab=agents&agentId=${agent.id}`)}
+        onClick={() => router.push(`/settings?tab=wiki&agentId=${encodeURIComponent(agent.id)}`)}
         className="flex items-center gap-1"
       >
         <Settings className="w-4 h-4" />

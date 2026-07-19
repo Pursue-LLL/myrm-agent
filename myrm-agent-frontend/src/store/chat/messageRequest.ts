@@ -53,6 +53,7 @@ import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding'
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
 import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
+import { isTauriRuntime } from '@/lib/deploy-mode';
 import {
   generateCompanion,
   getEnhancedPersonality,
@@ -546,6 +547,7 @@ export const createMessageRequest = async (
     chat_id: chatId!,
     action_mode: actionMode,
     multiplexed: true,
+    client_surface: isTauriRuntime() ? 'tauri' : 'web',
     ...(actionMode === 'fast' && searchDepth && { search_depth: searchDepth }),
     ...(state.isWorkflowMode && { use_workflow: true }),
     ...(resumeValue !== undefined && { resume_value: resumeValue }),

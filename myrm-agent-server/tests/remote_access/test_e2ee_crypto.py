@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from app.remote_access.e2ee_crypto import (
+from app.remote_access.e2ee import (
     decrypt_utf8,
     encrypt_utf8,
     generate_keypair,
+    get_e2ee_session_store,
     public_key_b64,
 )
-from app.remote_access.e2ee_session import get_e2ee_session_store
 
 
 @pytest.mark.asyncio

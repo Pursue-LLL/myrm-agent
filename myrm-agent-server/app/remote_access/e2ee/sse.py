@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncGenerator
 
-from app.remote_access.e2ee_session import E2EESession
+from app.remote_access.e2ee.session import E2EESession
 
 
 async def encrypt_sse_stream(

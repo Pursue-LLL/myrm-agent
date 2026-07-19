@@ -445,6 +445,7 @@ const AgentConfigEditDialog = ({
             setLocalDialogPolicy={setLocalDialogPolicy}
             localSessionRecording={localSessionRecording}
             setLocalSessionRecording={setLocalSessionRecording}
+            agentDisplayName={undefined}
             t={t}
             tAgent={tAgent}
             tPanel={tPanel}

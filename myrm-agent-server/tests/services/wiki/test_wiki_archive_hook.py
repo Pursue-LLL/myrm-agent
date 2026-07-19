@@ -10,6 +10,29 @@ from app.services.wiki.wiki_archive_hook import archive_session_notes_to_wiki
 
 
 @pytest.mark.asyncio
+async def test_archive_uses_chat_agent_vault() -> None:
+    mock_llm = MagicMock()
+    mock_archiver = MagicMock()
+    mock_archiver.archive_memory = AsyncMock(return_value=True)
+    notes_json = '{"_meta":{"last_updated_message_idx":3},"task_spec":"scope test"}'
+
+    with (
+        patch(
+            "app.services.wiki.wiki_archive_hook.get_wiki_archiver",
+            return_value=mock_archiver,
+        ) as mock_get_archiver,
+        patch(
+            "app.services.wiki.wiki_archive_hook.resolve_chat_agent_id",
+            new_callable=AsyncMock,
+            return_value="legal-bot",
+        ),
+    ):
+        await archive_session_notes_to_wiki("chat-agent", notes_json, llm=mock_llm)
+
+    mock_get_archiver.assert_called_once_with(mock_llm, agent_id="legal-bot")
+
+
+@pytest.mark.asyncio
 async def test_archive_session_notes_success() -> None:
     mock_llm = MagicMock()
     mock_archiver = MagicMock()

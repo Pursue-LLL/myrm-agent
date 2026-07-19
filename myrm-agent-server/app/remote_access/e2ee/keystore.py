@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.config.settings import settings
-from app.remote_access.e2ee_crypto import generate_keypair, public_key_b64, public_key_from_b64
+from app.remote_access.e2ee.crypto import generate_keypair, public_key_b64, public_key_from_b64
 
 logger = logging.getLogger(__name__)
 

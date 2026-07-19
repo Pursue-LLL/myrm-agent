@@ -57,10 +57,17 @@ class _FakeVersion:
 
 
 class _FakeArtifact:
-    def __init__(self, *, versions: list[_FakeVersion] | None = None, name: str = "report.md"):
+    def __init__(
+        self,
+        *,
+        versions: list[_FakeVersion] | None = None,
+        name: str = "report.md",
+        chat_id: str | None = "chat-001",
+    ):
         self.id = "art-001"
         self.name = name
         self.is_deleted = False
+        self.chat_id = chat_id
         self.versions = versions if versions is not None else [_FakeVersion()]
 
 
@@ -134,13 +141,33 @@ def ingest_env(tmp_path: Path):
             )
         )
 
-        from app.api.wiki.router import _get_wiki_archiver
+        stack.enter_context(
+            patch(
+                "app.services.wiki.vault_service.get_wiki_archiver",
+                return_value=mock_archiver,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "app.services.wiki.agent_scope.resolve_chat_agent_id",
+                new_callable=AsyncMock,
+                return_value="researcher",
+            )
+        )
 
-        async def _override_archiver():
-            return mock_archiver
+        from app.api.dependencies import get_optional_llm_for_user
+        from app.api.memory.utils import get_optional_memory_manager
 
-        app.dependency_overrides[_get_wiki_archiver] = _override_archiver
-        stack.callback(app.dependency_overrides.pop, _get_wiki_archiver, None)
+        async def _override_llm() -> MagicMock:
+            return MagicMock()
+
+        async def _override_manager() -> None:
+            return None
+
+        app.dependency_overrides[get_optional_llm_for_user] = _override_llm
+        app.dependency_overrides[get_optional_memory_manager] = _override_manager
+        stack.callback(app.dependency_overrides.pop, get_optional_llm_for_user, None)
+        stack.callback(app.dependency_overrides.pop, get_optional_memory_manager, None)
 
         mocks = {
             "archiver": mock_archiver,

@@ -71,6 +71,12 @@ class RouterCommandsGoalsMixin:
         elif lower == "constraint" or lower.startswith("constraint "):
             subcommand = GoalSubcommand.CONSTRAINT
             sub_args = args[10:].strip()
+        elif lower == "unwait":
+            subcommand = GoalSubcommand.UNWAIT
+            sub_args = ""
+        elif lower == "wait" or lower.startswith("wait "):
+            subcommand = GoalSubcommand.WAIT
+            sub_args = args[4:].strip() if lower.startswith("wait ") else ""
         else:
             subcommand = GoalSubcommand.SET
             sub_args = args

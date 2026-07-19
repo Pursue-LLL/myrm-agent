@@ -636,7 +636,7 @@ async def convert_to_general_agent_params(
     if request.mention_references and chat_workspace_dir:
         max_ctx_tokens = model_cfg.max_context_tokens if model_cfg else None
         mention_ctx, mention_context_warnings, mention_tokens = await _build_mention_reference_context(
-            request.mention_references, chat_workspace_dir, max_ctx_tokens
+            request.mention_references, chat_workspace_dir, max_ctx_tokens, request.agent_id
         )
         mention_warnings.extend(mention_context_warnings)
         if mention_ctx:
@@ -805,5 +805,6 @@ async def convert_to_general_agent_params(
         search_depth=search_depth,
         notify_targets=resolved.notify_targets if resolved and not is_fast_search else (),
         tool_gateway_config=tool_gateway_config,
+        client_surface=request.client_surface,
     )
     return params, routing_tier, mention_warnings, archive_restore_results

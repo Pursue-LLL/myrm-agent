@@ -1,17 +1,21 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/primitives/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { IconBook, IconGlow, IconWrench, IconDatabase, IconExplore } from '@/components/features/icons/PremiumIcons';
 import { Textarea } from '@/components/primitives/textarea';
 import { apiRequest } from '@/lib/api';
 import { isTauri } from '@/lib/utils/clipboardUtils';
 import { wikiService, type ObsidianImportResultResponse } from '@/services/wikiService';
+import { listAgents, type AgentListItem } from '@/services/agent';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { WikiConceptsList } from './WikiConceptsList';
 import { WikiPendingEdits } from './WikiPendingEdits';
 import { WikiQueuePanel } from './WikiQueuePanel';
@@ -31,8 +35,22 @@ interface WikiQueryResponse {
   related_articles: string[];
 }
 
+function wikiScopedPath(path: string, agentId?: string | null): string {
+  if (!agentId) {
+    return path;
+  }
+  const joiner = path.includes('?') ? '&' : '?';
+  return `${path}${joiner}agent_id=${encodeURIComponent(agentId)}`;
+}
+
 export function WikiSection() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const locale = useLocale();
+  const agentScopeId = searchParams.get('agentId');
   const t = useTranslations('settings.wiki');
+  const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState('');
   const [relatedArticles, setRelatedArticles] = useState<string[]>([]);
@@ -210,14 +228,33 @@ export function WikiSection() {
   };
 
   useEffect(() => {
+    listAgents(1, 100)
+      .then((res) => setAgents(res.items))
+      .catch(() => setAgents([]));
+  }, []);
+
+  const handleAgentScopeChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === 'default') {
+      params.delete('agentId');
+    } else {
+      params.set('agentId', value);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  };
+
+  useEffect(() => {
+    wikiService.setAgentScope(agentScopeId);
     void loadPurpose();
     void loadStats();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => wikiService.setAgentScope(undefined);
+  }, [agentScopeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadPurpose = async () => {
     setIsLoadingPurpose(true);
     try {
-      const data = await apiRequest<{ purpose: string }>('/wiki/purpose');
+      const data = await apiRequest<{ purpose: string }>(wikiScopedPath('/wiki/purpose', agentScopeId));
       setPurpose(data.purpose);
       setPurposeDraft(data.purpose);
     } catch (error) {
@@ -230,7 +267,7 @@ export function WikiSection() {
   const handleSavePurpose = async () => {
     setIsSavingPurpose(true);
     try {
-      await apiRequest('/wiki/purpose', {
+      await apiRequest(wikiScopedPath('/wiki/purpose', agentScopeId), {
         method: 'PUT',
         body: JSON.stringify({ purpose: purposeDraft }),
       });
@@ -247,7 +284,7 @@ export function WikiSection() {
   const loadStats = async () => {
     setIsLoadingStats(true);
     try {
-      const data = await apiRequest<WikiStats>('/wiki/stats');
+      const data = await apiRequest<WikiStats>(wikiScopedPath('/wiki/stats', agentScopeId));
       setStats(data);
     } catch (error) {
       console.error('Failed to load Wiki stats:', error);
@@ -268,7 +305,7 @@ export function WikiSection() {
     setRelatedArticles([]);
 
     try {
-      const data = await apiRequest<WikiQueryResponse>('/wiki/query', {
+      const data = await apiRequest<WikiQueryResponse>(wikiScopedPath('/wiki/query', agentScopeId), {
         method: 'POST',
         body: JSON.stringify({ question: query }),
       });
@@ -287,7 +324,7 @@ export function WikiSection() {
   const handleCompile = async () => {
     setIsCompiling(true);
     try {
-      await apiRequest('/wiki/compile', { method: 'POST' });
+      await apiRequest(wikiScopedPath('/wiki/compile', agentScopeId), { method: 'POST' });
       toast.success(t('success.compileComplete'));
       await loadStats();
     } catch (error) {
@@ -301,7 +338,7 @@ export function WikiSection() {
   const handleMaintain = async () => {
     setIsMaintaining(true);
     try {
-      await apiRequest('/wiki/maintain', { method: 'POST' });
+      await apiRequest(wikiScopedPath('/wiki/maintain', agentScopeId), { method: 'POST' });
       toast.success(t('success.maintainComplete'));
       await loadStats();
     } catch (error) {
@@ -317,6 +354,27 @@ export function WikiSection() {
       <div>
         <h2 className="text-2xl font-semibold mb-2">{t('title')}</h2>
         <p className="text-muted-foreground">{t('description')}</p>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+            <span className="text-sm font-medium text-foreground">{t('agentScopeLabel')}</span>
+            <Select value={agentScopeId ?? 'default'} onValueChange={handleAgentScopeChange}>
+              <SelectTrigger className="w-full sm:w-72">
+                <SelectValue placeholder={t('agentScopePlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">{t('agentScopeDefault')}</SelectItem>
+                {agents.map((agent) => (
+                  <SelectItem key={agent.id} value={agent.id}>
+                    {getBuiltinAgentName(agent.id, agent.name, locale)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-sm text-primary/80">
+            {agentScopeId ? t('agentScopeNotice') : t('defaultScopeNotice')}
+          </p>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0 space-y-6">

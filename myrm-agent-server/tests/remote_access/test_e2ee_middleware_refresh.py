@@ -6,8 +6,7 @@ import time
 
 import pytest
 
-from app.remote_access.e2ee_crypto import generate_keypair, public_key_b64
-from app.remote_access.e2ee_session import get_e2ee_session_store
+from app.remote_access.e2ee import generate_keypair, get_e2ee_session_store, public_key_b64
 
 
 @pytest.mark.asyncio

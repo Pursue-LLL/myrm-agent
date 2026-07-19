@@ -34,6 +34,7 @@ _STATUS_KEYS: dict[GoalStatus, str] = {
     GoalStatus.PAUSED: "goal_status_paused",
     GoalStatus.PENDING_APPROVAL: "goal_status_pending_approval",
     GoalStatus.BUDGET_LIMITED: "goal_status_budget_limited",
+    GoalStatus.WAIT: "goal_status_wait",
     GoalStatus.COMPLETE: "goal_status_complete",
     GoalStatus.CANCELLED: "goal_status_cancelled",
     GoalStatus.NEEDS_HUMAN_REVIEW: "goal_status_needs_review",
@@ -123,6 +124,10 @@ class ChannelGoalCommandHandler:
                 return await self._set_budget(msg, chat_id, args)
             case GoalSubcommand.CONSTRAINT:
                 return await self._manage_constraint(msg, chat_id, args)
+            case GoalSubcommand.WAIT:
+                return await self._wait_goal(msg, chat_id, args)
+            case GoalSubcommand.UNWAIT:
+                return await self._unwait_goal(msg, chat_id)
 
     async def get_kickoff_message(
         self,
@@ -241,6 +246,47 @@ class ChannelGoalCommandHandler:
 
         await provider.update_status(goal.goal_id, GoalStatus.PAUSED)
         return get_text(msg, "goal_paused", objective=goal.objective[:60])
+
+    async def _wait_goal(self, msg: InboundMessage, chat_id: str | None, reason: str) -> str:
+        if not chat_id:
+            return get_text(msg, "no_active_goal_to_pause")
+
+        from app.services.agent.goal_registry import GoalRegistry
+
+        provider = GoalRegistry.get_provider(chat_id)
+        if not provider:
+            return get_text(msg, "no_active_goal_to_pause")
+
+        goal = await provider.get_active_goal(chat_id)
+        if not goal:
+            return get_text(msg, "no_active_goal_to_pause")
+
+        if not hasattr(provider, "enter_wait"):
+            return get_text(msg, "goal_wait_not_supported")
+
+        wait_reason = reason.strip() or "Waiting for external process"
+        await provider.enter_wait(goal.goal_id, reason=wait_reason)
+        return get_text(msg, "goal_wait", objective=goal.objective[:60], reason=wait_reason[:80])
+
+    async def _unwait_goal(self, msg: InboundMessage, chat_id: str | None) -> str:
+        if not chat_id:
+            return get_text(msg, "no_active_goal_to_pause")
+
+        from app.services.agent.goal_registry import GoalRegistry
+
+        provider = GoalRegistry.get_provider(chat_id)
+        if not provider:
+            return get_text(msg, "no_active_goal_to_pause")
+
+        goal = await provider.get_latest_goal(chat_id)
+        if not goal or goal.status != GoalStatus.WAIT:
+            return get_text(msg, "goal_not_waiting")
+
+        if not hasattr(provider, "exit_wait"):
+            return get_text(msg, "goal_wait_not_supported")
+
+        await provider.exit_wait(goal.goal_id)
+        return get_text(msg, "goal_unwait", objective=goal.objective[:60])
 
     async def handle_subgoal(
         self,

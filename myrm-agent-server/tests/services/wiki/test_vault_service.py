@@ -40,6 +40,26 @@ class TestGetWikiArchiver:
             second = get_wiki_archiver(MagicMock())
         assert first is not second
 
+    def test_recreates_when_agent_id_changes(self, tmp_path: Path) -> None:
+        harness = tmp_path / "harness"
+        llm = MagicMock()
+        with patch("app.config.settings.settings") as mock_settings:
+            mock_settings.database.harness_dir = str(harness)
+            mock_settings.database.state_dir = str(tmp_path)
+            legal = get_wiki_archiver(llm, agent_id="legal")
+            life = get_wiki_archiver(llm, agent_id="life")
+        assert legal is not life
+
+    def test_recreates_when_manager_changes(self, tmp_path: Path) -> None:
+        harness = tmp_path / "harness"
+        llm = MagicMock()
+        with patch("app.config.settings.settings") as mock_settings:
+            mock_settings.database.harness_dir = str(harness)
+            mock_settings.database.state_dir = str(tmp_path)
+            first = get_wiki_archiver(llm, manager=MagicMock())
+            second = get_wiki_archiver(llm, manager=MagicMock())
+        assert first is not second
+
 
 @pytest.mark.asyncio
 async def test_init_wiki_vault_at_startup_runs_migration(tmp_path: Path) -> None:

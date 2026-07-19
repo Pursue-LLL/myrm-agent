@@ -221,6 +221,7 @@ async def _build_mention_reference_context(
     mention_references: list[MentionReferenceRequest],
     workspace_dir: str,
     max_context_tokens: int | None = None,
+    agent_id: str | None = None,
 ) -> tuple[str, list[str], int]:
     """Read structured GUI @ references and build prompt context."""
 
@@ -359,7 +360,7 @@ async def _build_mention_reference_context(
             if not concept_name:
                 parts.append(_xml_error("@wiki", "missing concept_name"))
                 continue
-            part, consumed_bytes = await _wiki_concept_part(concept_name, total_bytes)
+            part, consumed_bytes = await _wiki_concept_part(concept_name, total_bytes, agent_id)
             parts.append(part)
             total_bytes += consumed_bytes
             continue
@@ -370,7 +371,7 @@ async def _build_mention_reference_context(
             if not file_id:
                 parts.append(_xml_error(display, "missing file_id or path"))
                 continue
-            part, consumed_bytes = await _wiki_raw_file_part(file_id, display, total_bytes)
+            part, consumed_bytes = await _wiki_raw_file_part(file_id, display, total_bytes, agent_id)
             parts.append(part)
             total_bytes += consumed_bytes
             continue
@@ -609,13 +610,17 @@ def _xml_error(path: str, message: str) -> str:
     return f"<mentioned_file path={quoteattr(path)} error={quoteattr(message)}/>"
 
 
-async def _wiki_concept_part(concept_name: str, current_total_bytes: int) -> tuple[str, int]:
+async def _wiki_concept_part(
+    concept_name: str,
+    current_total_bytes: int,
+    agent_id: str | None = None,
+) -> tuple[str, int]:
     """Read a wiki concept by name and build an XML context part."""
     try:
         from app.services.wiki.vault_resolver import resolve_wiki_vault_path
         from myrm_agent_harness.toolkits.wiki import WikiStructure
 
-        vault_path = resolve_wiki_vault_path()
+        vault_path = resolve_wiki_vault_path(agent_id)
         structure = WikiStructure(vault_path)
         concept_path = structure.resolve_concept_file_path(concept_name)
         if concept_path is None or not concept_path.exists():
@@ -631,13 +636,18 @@ async def _wiki_concept_part(concept_name: str, current_total_bytes: int) -> tup
         return _xml_error(f"@wiki:{concept_name}", "read failed"), 0
 
 
-async def _wiki_raw_file_part(file_id: str, display: str, current_total_bytes: int) -> tuple[str, int]:
+async def _wiki_raw_file_part(
+    file_id: str,
+    display: str,
+    current_total_bytes: int,
+    agent_id: str | None = None,
+) -> tuple[str, int]:
     """Read a wiki raw file and build an XML context part."""
     try:
         from app.services.wiki.vault_resolver import resolve_wiki_vault_path
         from myrm_agent_harness.toolkits.wiki import WikiStructure
 
-        vault_path = resolve_wiki_vault_path()
+        vault_path = resolve_wiki_vault_path(agent_id)
         structure = WikiStructure(vault_path)
         raw_path = structure.raw_dir / file_id
         if not raw_path.exists():

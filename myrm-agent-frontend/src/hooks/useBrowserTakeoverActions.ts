@@ -28,7 +28,7 @@ async function resumeVncSession(uiMode: BrowserTakeoverUiMode): Promise<{ learne
   const { fetchWithTimeout } = await import('@/lib/api');
   const resumeRes = await fetchWithTimeout('/webui/vnc/resume', { method: 'POST' });
   if (!resumeRes.ok) {
-    return null;
+    throw new Error(`VNC resume failed with status ${resumeRes.status}`);
   }
   return (await resumeRes.json()) as { learned: boolean };
 }
@@ -77,6 +77,10 @@ export function useBrowserTakeoverActions() {
     const snapshot = {
       messageId: useBrowserTakeoverStore.getState().messageId,
       uiMode: useBrowserTakeoverStore.getState().uiMode,
+      reason: useBrowserTakeoverStore.getState().reason,
+      autoDetectCompletion: useBrowserTakeoverStore.getState().autoDetectCompletion,
+      screenshotBase64: useBrowserTakeoverStore.getState().screenshotBase64,
+      url: useBrowserTakeoverStore.getState().url,
     };
     completeTakeover();
     if (!snapshot.messageId) {
@@ -89,6 +93,14 @@ export function useBrowserTakeoverActions() {
         .sendMessage('', snapshot.messageId, undefined, { action: 'skipped', message: '' });
     } catch (error) {
       console.error('[TAKEOVER] Skip failed:', error);
+      useBrowserTakeoverStore.getState().requestTakeover({
+        reason: snapshot.reason,
+        messageId: snapshot.messageId,
+        ui_mode: snapshot.uiMode,
+        auto_detect_completion: snapshot.autoDetectCompletion,
+        screenshot_base64: snapshot.screenshotBase64,
+        url: snapshot.url,
+      });
       toast.error(t('takeoverResumeFailed'));
     }
   }, [messageId, completeTakeover, t]);

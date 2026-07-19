@@ -84,6 +84,7 @@ class GeneralAgent(ToolSetupMixin):
         reranker_config: "RerankerConfig | None" = None,
         enable_render_ui: bool = False,
         enable_structured_clarify: bool = False,
+        client_surface: str | None = None,
         enable_web_search: bool = True,
         enable_browser: bool = False,
         enable_computer_use: bool = False,
@@ -180,6 +181,7 @@ class GeneralAgent(ToolSetupMixin):
         self.reranker_config = reranker_config
         self.enable_render_ui = enable_render_ui
         self.enable_structured_clarify = enable_structured_clarify
+        self.client_surface = client_surface
         self.enable_web_search = enable_web_search
         self.enable_browser = enable_browser
         self.enable_computer_use = enable_computer_use
@@ -259,10 +261,16 @@ class GeneralAgent(ToolSetupMixin):
         self.notify_targets = notify_targets
 
     def _resolve_wiki_base_dir(self) -> str | None:
-        """Resolve wiki base directory (canonical harness vault)."""
-        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+        """Resolve writable wiki base directory for this agent."""
+        from app.services.wiki.vault_resolver import resolve_agent_wiki_vault_path
 
-        return str(resolve_wiki_vault_path())
+        return str(resolve_agent_wiki_vault_path(self.agent_id))
+
+    def _resolve_wiki_public_dirs(self) -> list[str]:
+        """Resolve shared read-only wiki vaults bound to this agent."""
+        from app.services.wiki.vault_resolver import resolve_shared_wiki_vault_paths
+
+        return [str(path) for path in resolve_shared_wiki_vault_paths(self.memory_shared_context_ids)]
 
     def _build_wiki_search_fn(
         self,

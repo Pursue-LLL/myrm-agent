@@ -2,7 +2,6 @@
  * [INPUT]
  * - handlerDeps (POS: SSE handler 切片共享依赖)
  * - useBrowserTakeoverStore (POS: 浏览器 HITL takeover 请求状态)
- * - useChatStore (POS: agentConfig.browserSource 读取)
  *
  * [OUTPUT]
  * fileDiffEvents: FILE_DIFF / TOOL_IMAGE / BROWSER_TAKEOVER SSE 切片
@@ -210,9 +209,8 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
   if (data.type === H.AgentEventType.BROWSER_TAKEOVER_REQUESTED) {
     const { default: useBrowserTakeoverStore } = await import('@/store/useBrowserTakeoverStore');
-    const { default: useChatStore } = await import('@/store/useChatStore');
-    const browserSource = useChatStore.getState().agentConfig?.browserSource;
-    const uiMode = browserSource === 'extension' ? 'extension' : 'managed';
+    const isManaged = Boolean(data.data.is_managed);
+    const uiMode = isManaged ? 'managed' : 'extension';
     const autoDetectCompletion = Boolean(data.data.auto_detect_completion);
 
     useBrowserTakeoverStore.getState().requestTakeover({

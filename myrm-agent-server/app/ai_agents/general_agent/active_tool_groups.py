@@ -12,6 +12,8 @@
 [POS]
 Server SSOT mapping user entitlement → harness ``active_tool_groups`` passed to
 ``sync_discover_capability_tool`` and ``AgentRuntimeSpec.tool_groups``.
+``render_ui`` reflects profile entitlement only; Turn1 mount is gated separately in
+``tool_setup._should_mount_render_ui_tools`` (WEB_CHAT + web/tauri surface).
 """
 
 from __future__ import annotations

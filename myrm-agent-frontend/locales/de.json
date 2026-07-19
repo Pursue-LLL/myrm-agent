@@ -4123,6 +4123,7 @@
         "structured_clarify": "Bei unklarer Absicht strukturierte Klärungsformulare anzeigen — Agent pausiert bis zur Antwort",
         "external_cli": "Coding-Aufgaben an externe CLI-Agenten (Claude Code, Codex, Gemini CLI) über delegate_to_agent delegieren"
       },
+      "renderUiWebOnlyHint": "Interaktive UI wird nur im Web-Chat und in der Desktop-App gerendert. Telegram, geplante Aufgaben und andere Kanäle können keine Inline-Formulare oder Diagramme anzeigen.",
       "externalCliSetupHint": "Zwei Schritte: (1) CLI-Backends unter Einstellungen → Entwickler → Externe Agenten registrieren; (2) Schalter für Agenten aktiv lassen, die delegate_to_agent zur Laufzeit nutzen sollen.",
       "externalCliLocalOnlyHint": "Externe CLI-Delegation erfordert lokalen oder Desktop-Modus. Cloud/Sandbox-Hosts können keine lokalen CLI-Prozesse starten.",
       "externalCliNoBackendHint": "Noch kein aktiviertes CLI-Backend in den Einstellungen — delegate_to_agent wird erst nach Hinzufügen gemountet.",
@@ -11122,10 +11123,10 @@
       "reconnect": "Reconnect",
       "takeoverDone": "Fertig",
       "takeoverSkip": "Nicht möglich",
-      "takeoverExtensionTitle": "Your turn in Chrome",
-      "takeoverExtensionHint": "Complete the step in your Chrome browser, then tap Done when finished.",
-      "takeoverCaptchaAuto": "Resolving verification…",
-      "takeoverCaptchaAutoHint": "The agent is handling verification automatically. Please wait.",
+      "takeoverExtensionTitle": "Bitte in Chrome fortfahren",
+      "takeoverExtensionHint": "Schließen Sie den Schritt in Ihrem Chrome-Browser ab und tippen Sie anschließend auf „Fertig“.",
+      "takeoverCaptchaAuto": "Verifizierung wird bearbeitet…",
+      "takeoverCaptchaAutoHint": "Der Agent bearbeitet die Verifizierung automatisch. Bitte warten.",
       "takeoverLearned": "Verhalten aufgezeichnet — Agent lernt aus Ihrer Demonstration",
       "takeoverResumeFailed": "Agent konnte nicht fortgesetzt werden, bitte erneut versuchen"
     },

@@ -52,6 +52,7 @@ myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer
 myrm_agent_harness.agent.meta_tools.file_ops.revert_service
 myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools
 myrm_agent_harness.agent.meta_tools.interaction.a2ui_spec
+myrm_agent_harness.agent.meta_tools.interaction.inline_ui_capability
 myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool
 myrm_agent_harness.agent.meta_tools.interaction.update_ui_data_tool
 myrm_agent_harness.agent.meta_tools.progress.schemas
@@ -333,6 +334,7 @@ myrm_agent_harness.toolkits.memory.integration.tree_manager
 myrm_agent_harness.toolkits.memory.integration.types
 myrm_agent_harness.toolkits.memory.manager
 myrm_agent_harness.toolkits.memory.mcp_server
+myrm_agent_harness.toolkits.memory.memory_recall_budget
 myrm_agent_harness.toolkits.memory.metrics
 myrm_agent_harness.toolkits.memory.proactive
 myrm_agent_harness.toolkits.memory.proactive.types
