@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
 
-import app.services.agent.memory_guardian_guard_telemetry as telemetry
 import app.services.agent.memory_guardian_guard_telemetry.dispatcher as telemetry_dispatcher
 from app.config.settings import (
     ControlPlaneSettings,
@@ -132,6 +133,7 @@ async def test_flush_batch_aggregates_events_before_post() -> None:
     first_call = dispatcher._client.post.await_args_list[0]
     payload = MemoryGuardianGuardBatchPayload.model_validate(first_call.kwargs["json"])
     assert first_call.kwargs["headers"]["X-Telemetry-Subject"] == "sandbox-42"
+    assert payload.events[0].envelope_id.startswith("mgg-")
     aggregates = {
         (
             item.reason,
@@ -297,4 +299,98 @@ async def test_shutdown_does_not_loop_forever_when_final_flush_fails() -> None:
     await asyncio.wait_for(worker_task, timeout=1.0)
 
     assert worker_task.done()
+
+
+def test_enqueue_normalizes_unknown_labels(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = MemoryGuardianGuardTelemetryConfig(
+        control_plane_url="http://control-plane:8001",
+        telemetry_token="secret-token",
+        telemetry_subject="sandbox-42",
+        batch_size=8,
+        flush_interval_seconds=0.01,
+        queue_size=16,
+    )
+    dispatcher = MemoryGuardianGuardTelemetryDispatcher(config)
+    monkeypatch.setattr(telemetry_dispatcher, "_dispatcher", dispatcher)
+    try:
+        enqueue_memory_guardian_guard_telemetry(
+            reason="experimental_reason",
+            guard="custom_guard",
+            frequency_tier="turbo",
+            quiet_window_enabled=True,
+        )
+        event = dispatcher._pop_next_event()
+        assert event is not None
+        assert event.reason == "unknown"
+        assert event.guard == "unknown"
+        assert event.frequency_tier == "unknown"
+    finally:
+        monkeypatch.setattr(telemetry_dispatcher, "_dispatcher", None)
+
+
+@pytest.mark.asyncio
+async def test_flush_failure_persists_pending_envelopes(tmp_path: Path) -> None:
+    pending_path = tmp_path / "guardian_pending.json"
+    config = MemoryGuardianGuardTelemetryConfig(
+        control_plane_url="http://control-plane:8001",
+        telemetry_token="secret-token",
+        telemetry_subject="sandbox-42",
+        batch_size=8,
+        flush_interval_seconds=0.01,
+        queue_size=16,
+        pending_state_path=str(pending_path),
+    )
+    dispatcher = MemoryGuardianGuardTelemetryDispatcher(config)
+    dispatcher._client = MagicMock()
+    dispatcher._client.post = AsyncMock(
+        side_effect=[httpx.ConnectError("offline"), httpx.ConnectError("offline")]
+    )
+
+    event = MemoryGuardianGuardTelemetryEvent(
+        reason="budget_guard_unavailable",
+        guard="budget",
+        frequency_tier="balanced",
+        quiet_window_enabled=True,
+    )
+    await dispatcher._flush_batch([event])
+
+    persisted_raw = json.loads(pending_path.read_text(encoding="utf-8"))
+    payload = MemoryGuardianGuardBatchPayload.model_validate(persisted_raw)
+    assert len(payload.events) == 1
+    assert payload.events[0].envelope_id.startswith("mgg-")
+    assert payload.events[0].aggregates[0].count == 1
+
+
+@pytest.mark.asyncio
+async def test_recovered_pending_envelopes_are_replayed(tmp_path: Path) -> None:
+    pending_path = tmp_path / "guardian_pending.json"
+    pending_path.write_text(
+        (
+            '{"events":[{"telemetry_subject":"sandbox-42","envelope_id":"mgg-recovered-1",'
+            '"timestamp":"2026-07-19T00:00:00+00:00","aggregates":[{"reason":"budget_guard_unavailable",'
+            '"guard":"budget","frequency_tier":"balanced","quiet_window_enabled":true,"count":2}]}]}'
+        ),
+        encoding="utf-8",
+    )
+
+    config = MemoryGuardianGuardTelemetryConfig(
+        control_plane_url="http://control-plane:8001",
+        telemetry_token="secret-token",
+        telemetry_subject="sandbox-42",
+        batch_size=8,
+        flush_interval_seconds=0.01,
+        queue_size=16,
+        pending_state_path=str(pending_path),
+    )
+    dispatcher = MemoryGuardianGuardTelemetryDispatcher(config)
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    dispatcher._client = MagicMock()
+    dispatcher._client.post = AsyncMock(return_value=mock_response)
+
+    await dispatcher._flush_batch([])
+
+    payload = MemoryGuardianGuardBatchPayload.model_validate(dispatcher._client.post.await_args.kwargs["json"])
+    assert payload.events[0].envelope_id == "mgg-recovered-1"
+    assert payload.events[0].aggregates[0].count == 2
 
