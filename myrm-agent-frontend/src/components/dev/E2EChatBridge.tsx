@@ -396,6 +396,23 @@ export default function E2EChatBridge() {
         });
       },
       getCurrentBuiltinTools: () => [...useChatStore.getState().currentBuiltinTools],
+      setBrowserSource: (source: string) => {
+        flushSync(() => {
+          const chat = useChatStore.getState();
+          if (chat.agentConfig) {
+            chat.updateAgentConfig({ browserSource: source });
+            return;
+          }
+          chat.setAgentConfig({
+            browserSource: source,
+            enabledBuiltinTools: [...chat.currentBuiltinTools],
+            selectedSkillIds: [],
+            selectedMcpNames: [],
+            systemPrompt: '',
+          });
+        });
+      },
+      getBrowserSource: () => useChatStore.getState().agentConfig?.browserSource ?? null,
       ensureComputerUseReady: () => {
         flushSync(() => {
           prepareAutomationSend();

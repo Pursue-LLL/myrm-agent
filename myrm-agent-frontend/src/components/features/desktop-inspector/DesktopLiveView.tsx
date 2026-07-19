@@ -2,7 +2,7 @@
 
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Monitor, ExternalLink, RefreshCw } from 'lucide-react';
+import { Monitor, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
@@ -26,24 +26,45 @@ interface PermissionsResponse {
 const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({ t }) => {
   const [details, setDetails] = useState<PermissionsResponse | null>(null);
   const [checking, setChecking] = useState(false);
+  const [apiError, setApiError] = useState(false);
 
   const fetchPermissions = useCallback(async () => {
     setChecking(true);
+    setApiError(false);
     try {
       const data = await apiRequest<PermissionsResponse>('/webui/desktop/permissions', {
         silent: true,
       });
       setDetails(data);
     } catch {
-      // API unavailable — keep showing generic banner
+      setApiError(true);
+      setDetails(null);
     } finally {
       setChecking(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchPermissions();
+    void fetchPermissions();
   }, [fetchPermissions]);
+
+  if (apiError) {
+    return (
+      <div className="px-3 py-2 text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border-b border-amber-500/20 flex items-center gap-2 flex-wrap">
+        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+        <span className="flex-1 min-w-0">{t('permissionCheckFailed')}</span>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors whitespace-nowrap"
+          onClick={() => void fetchPermissions()}
+          disabled={checking}
+        >
+          <RefreshCw className={cn('w-3 h-3', checking && 'animate-spin')} />
+          {t('permissionCheckAgain')}
+        </button>
+      </div>
+    );
+  }
 
   const missingParts: string[] = [];
   if (details && !details.accessibility) missingParts.push(t('permissionDeniedAccessibility'));
@@ -59,7 +80,7 @@ const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({
           className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium transition-colors whitespace-nowrap"
           onClick={() => {
             const link = pickSettingsDeepLink(details?.settings_deeplinks);
-            if (link) openPermissionDeepLinkWithGuideFallback(link);
+            if (link) openPermissionDeepLinkWithGuideFallback(link, details?.platform);
           }}
         >
           <ExternalLink className="w-3 h-3" />

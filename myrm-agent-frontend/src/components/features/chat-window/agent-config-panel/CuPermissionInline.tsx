@@ -125,7 +125,7 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
                 onClick={() => {
                   const link = pickSettingsDeepLink(status?.settings_deeplinks);
-                  if (link) openPermissionDeepLinkWithGuideFallback(link);
+                  if (link) openPermissionDeepLinkWithGuideFallback(link, status?.platform);
                 }}
               >
                 <ExternalLink size={12} />

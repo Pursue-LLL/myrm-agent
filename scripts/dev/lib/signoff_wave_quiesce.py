@@ -63,7 +63,7 @@ def run_signoff_wave_quiesce(
     max_wait_sec: int | None = None,
     poll_sec: int | None = None,
 ) -> QuiesceResult:
-    """Reap abandoned leases; wait only for dead-owner ghosts (parallel-friendly)."""
+    """Reap abandoned leases; wait for dead-owner ghosts and foreign live leases to finish."""
     _ensure_wave_import_path()
     from dev_gate_contract import (  # noqa: WPS433
         SIGNOFF_WAVE_QUIESCE_POLL_SEC,
@@ -103,10 +103,10 @@ def run_signoff_wave_quiesce(
             flush=True,
         )
 
-        if not dead_owner:
+        if not dead_owner and len(alive_owner) == 0:
             return QuiesceResult(
                 ok=True,
-                activeAlive=len(alive_owner),
+                activeAlive=0,
                 activeDeadOwner=0,
                 waveStatus=wave_status_str,
                 waitedSec=waited_sec,
@@ -114,13 +114,19 @@ def run_signoff_wave_quiesce(
             )
 
         if time.monotonic() >= deadline:
+            if dead_owner:
+                message = "dead-owner leases not reaped before timeout"
+            else:
+                message = (
+                    f"{len(alive_owner)} foreign live leases still active after timeout"
+                )
             return QuiesceResult(
                 ok=False,
                 activeAlive=len(alive_owner),
                 activeDeadOwner=len(dead_owner),
                 waveStatus=wave_status_str,
                 waitedSec=waited_sec,
-                message="dead-owner leases not reaped before timeout",
+                message=message,
             )
 
         time.sleep(poll)

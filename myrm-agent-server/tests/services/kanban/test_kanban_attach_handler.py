@@ -97,7 +97,7 @@ async def test_attach_path_rejects_escape_outside_workspace(tmp_path: Path) -> N
     handler = create_kanban_attach_handler(store)
 
     with patch(
-        "app.api.kanban.http_common._load_task_attachment_ids",
+        "app.services.kanban.task_attachment_ids.load_task_attachment_ids",
         new_callable=AsyncMock,
         return_value=[],
     ):
@@ -112,7 +112,7 @@ async def test_attach_url_rejects_non_https() -> None:
     handler = create_kanban_attach_handler(store)
 
     with patch(
-        "app.api.kanban.http_common._load_task_attachment_ids",
+        "app.services.kanban.task_attachment_ids.load_task_attachment_ids",
         new_callable=AsyncMock,
         return_value=[],
     ):

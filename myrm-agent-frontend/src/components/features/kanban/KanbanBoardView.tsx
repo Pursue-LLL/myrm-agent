@@ -555,6 +555,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
                     onDeleteTask={handleDeleteTask}
                     onReclaimTask={handleReclaimTask}
                     onRefresh={fetchTasks}
+                    onOpenTaskDrawer={setDrawerTaskId}
                     laneByProfile={laneByProfile}
                     agentNameMap={agentNameMap}
                     collapsedAgents={collapsedAgents}

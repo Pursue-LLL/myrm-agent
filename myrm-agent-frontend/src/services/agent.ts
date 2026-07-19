@@ -400,7 +400,7 @@ export async function listAgents(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to list agents: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'list agents');
   }
 
   const result = await response.json();
@@ -425,9 +425,7 @@ export async function getAgent(agentId: string, showSystemPrompt: boolean = fals
   });
 
   if (!response.ok) {
-    const error: any = new Error(`Failed to get agent: ${response.statusText}`);
-    error.response = { status: response.status };
-    throw error;
+    await throwUserAgentFetchError(response, 'get agent');
   }
 
   const result = await response.json();
@@ -490,7 +488,7 @@ export async function deleteAgent(agentId: string): Promise<void> {
 
   if (response.status === 404) return;
   if (!response.ok) {
-    throw new Error(`Failed to delete agent: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'delete agent');
   }
 }
 

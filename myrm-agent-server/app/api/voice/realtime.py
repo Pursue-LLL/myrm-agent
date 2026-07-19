@@ -356,28 +356,6 @@ _REALTIME_TOOL_CATALOG: dict[str, RealtimeToolDef] = {
         description="Manage tasks on the kanban board: create, update, or query tasks.",
         parameters={"type": "object", "properties": {"action": {"type": "string", "enum": ["create", "update", "query"], "description": "Kanban action"}, "description": {"type": "string", "description": "Task description or query"}}, "required": ["action", "description"]},
     ),
-    "render_ui": RealtimeToolDef(
-        name="render_ui",
-        description="Render an interactive visual card (weather, stocks, charts, tables, forms) in the chat UI while speaking. Use when the user asks about data-rich topics that benefit from visual presentation.",
-        parameters={
-            "type": "object",
-            "properties": {
-                "title": {"type": "string", "description": "Title for the visual card"},
-                "components": {
-                    "type": "array",
-                    "description": "Flat list of UI component definitions (each with id, type, props)",
-                    "items": {"type": "object"},
-                },
-                "root_ids": {
-                    "type": "array",
-                    "description": "IDs of root-level components",
-                    "items": {"type": "string"},
-                },
-                "data": {"type": "object", "description": "Initial data model for bindings"},
-            },
-            "required": ["title", "components", "root_ids"],
-        },
-    ),
 }
 
 _ALWAYS_AVAILABLE_TOOL = RealtimeToolDef(

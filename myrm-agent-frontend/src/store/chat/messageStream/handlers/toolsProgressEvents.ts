@@ -191,7 +191,29 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
   }
 
   if (data.type === H.AgentEventType.APPROVAL_REQUIRED) {
-    const payload = data.data as { type: string; message?: string };
+    const payload = data.data as {
+      type?: string;
+      message?: string;
+      action_type?: string;
+      reason?: string;
+      url?: string;
+      screenshot_base64?: string;
+      is_managed?: boolean;
+    };
+
+    if (payload?.action_type === 'browser_takeover') {
+      const { default: useBrowserTakeoverStore } = await import('@/store/useBrowserTakeoverStore');
+      const isManaged = Boolean(payload.is_managed);
+      useBrowserTakeoverStore.getState().requestTakeover({
+        reason: String(payload.reason ?? ''),
+        url: payload.url ? String(payload.url) : undefined,
+        screenshot_base64: payload.screenshot_base64 ? String(payload.screenshot_base64) : undefined,
+        messageId: data.messageId,
+        ui_mode: isManaged ? 'managed' : 'extension',
+        auto_detect_completion: false,
+      });
+    }
+
     const cancelText = payload?.message || '任务已暂停：需要人工介入 (Task paused for human intervention)';
 
     actions.setMessages((state) => {

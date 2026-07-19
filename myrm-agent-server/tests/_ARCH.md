@@ -17,6 +17,12 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/bash_compressor_e2e.py` | 辅助 | bash compressor live/API E2E 共享 helper（模型 probe、workspace 压缩回放） |
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
+| `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ：看板渲染 + Drawer 附件） |
+| `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
+| `api/chats/test_citation_seed_fixture.py` | 模块 | citation fixture seed HTTP 单测（local-only，`/chats/test/seed-citation-fixture`） |
+| `integration/test_kanban_attach_handler_integration.py` | 模块 | SQLite attach handler + orchestrator unblock tool invoke |
+| `services/kanban/test_kanban_attach_handler.py` | 模块 | attach handler 单测（path/URL/SSRF/limits） |
+| `api/agent/test_kanban_agent_stream_e2e.py` | 模块 | Live LLM agent-stream kanban add/list（`@pytest.mark.e2e`） |
 | `benchmarks/bench_mcp_ptc_vs_direct.py` | 基准 | MCP PTC vs 直连 token/延迟对比；凭据仅来自 `.env.test` |
 | `fixtures/cp_proxy_signature_contract.json` | 辅助 | 控制服务反向代理 HMAC 契约向量（server 侧自包含） |
 | `../scripts/dev/run_tests_low_memory.sh` | 辅助 | 本地低内存 pytest 入口（`-n0`，可选 `PYTEST_XDIST_WORKERS=N`） |
@@ -44,8 +50,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - 默认 `addopts`：`-m 'not e2e and not chrome_e2e and not performance'`（跳过 e2e、Chrome MCP UI E2E 与 benchmark/performance）
 - **低内存推荐（本地 / CI 同款）**：`scripts/dev/run_tests_low_memory.sh` 或 monorepo **`./myrm test -n0`**
 - 单元 + API 集成：monorepo **`./myrm test -n0`**（单 worker；实测 `build_minimal_app(chats)` ~118MB，`app.main` ~439MB）
-- E2E（真实 LLM API，无 Chrome）：monorepo **`./myrm test -m e2e`**（如 `tests/api/agent/test_render_ui_agent_stream_e2e.py`）
+- E2E（真实 LLM API，无 Chrome）：monorepo **`./myrm test -m e2e`**（`test.sh` 对非 chrome 路径自动设 `MYRM_E2E_LEASE_ID`；如 `tests/api/agent/test_kanban_agent_stream_e2e.py`）
 - **Chrome MCP UI E2E（`chrome_e2e` marker）**：monorepo **`./myrm test -m chrome_e2e -n0`**（须 `./myrm ready --chrome`；Wave lease；见 `scripts/dev/CHROME_MCP_E2E.md`）
+- **Kanban Chrome E2E**：`tests/e2e/test_kanban_chrome_e2e.py`（READ lane ×2：看板列渲染；REST `attachment_ids` → 点击附件 badge → Drawer 附件可见）
+- **Wiki citation Chrome E2E**：`tests/e2e/test_wiki_citation_chrome_e2e.py`（READ lane ×2：`/chats/test/seed-citation-fixture` → citation 按钮 reload 持久；`/settings/wiki?agentId=` combobox）
 - **A2UI Surface Gate Chrome E2E**：`tests/e2e/test_render_ui_surface_gate_chrome_e2e.py`（READ：Settings hint + `client_surface=web` + `__TAURI__`→`tauri`；同文件旁路 LIVE 见 `test_render_ui_inline_card_chrome_e2e.py`）
 - `tests/integration/test_render_ui_sse_wiring.py`：render_ui 确定性集成（20 场景：run_bind、fail-closed、data_update、collector 链、幂等）
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）

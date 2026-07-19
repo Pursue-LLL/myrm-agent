@@ -198,11 +198,38 @@ def _prepare_textedit_fixture() -> None:
             'set text of document 1 to "E2E desktop control scroll target line 1" & return & "E2E desktop control scroll target line 2" & return & "E2E desktop control scroll target line 3" & return & "E2E desktop control scroll target line 4" & return & "E2E desktop control scroll target line 5"',
             "-e",
             "end tell",
+            "-e",
+            'tell application "System Events" to tell process "TextEdit" to repeat with w in windows',
+            "-e",
+            "set miniaturized of w to true",
+            "-e",
+            "end repeat",
         ],
         check=False,
         capture_output=True,
         text=True,
         timeout=20,
+    )
+
+
+def _hide_textedit_fixture() -> None:
+    """Keep the fixture reachable via AX without stealing user focus."""
+    if platform.system() != "Darwin":
+        return
+    subprocess.run(
+        [
+            "osascript",
+            "-e",
+            'tell application "System Events" to tell process "TextEdit" to repeat with w in windows',
+            "-e",
+            "set miniaturized of w to true",
+            "-e",
+            "end repeat",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
 
 
@@ -241,48 +268,13 @@ async def _ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
     for attempt in range(1, attempts + 1):
         await asyncio.to_thread(_prepare_textedit_fixture)
         if await asyncio.to_thread(_textedit_fixture_ready):
-            _progress("textedit fixture ready (background)")
+            await asyncio.to_thread(_hide_textedit_fixture)
+            _progress("textedit fixture ready (background, minimized)")
             return
         _progress(f"textedit fixture not ready yet ({attempt}/{attempts})")
         await asyncio.sleep(0.5)
     pytest.fail(
         "TextEdit fixture not ready — ensure TextEdit is installed and Accessibility is granted, then retry"
-    )
-
-
-def _textedit_is_frontmost() -> bool:
-    if platform.system() != "Darwin":
-        return False
-    proc = subprocess.run(
-        [
-            "osascript",
-            "-e",
-            'tell application "System Events" to get name of first application process whose frontmost is true',
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
-    return proc.returncode == 0 and "TextEdit" in (proc.stdout or "")
-
-
-def _focus_textedit_once() -> None:
-    """Bring TextEdit forward once before the agent turn — no polling loop."""
-    if platform.system() != "Darwin":
-        return
-    subprocess.run(
-        [
-            "osascript",
-            "-e",
-            'tell application "TextEdit" to activate',
-            "-e",
-            'tell application "System Events" to tell process "TextEdit" to set frontmost to true',
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=10,
     )
 
 
@@ -306,17 +298,6 @@ def _activate_chrome() -> None:
         text=True,
         timeout=10,
     )
-
-
-async def _hold_textedit_front_while_agent_acts(stop: asyncio.Event) -> None:
-    """Keep TextEdit front only while the agent turn runs; slow cadence, no activate spam."""
-    while not stop.is_set():
-        if not await asyncio.to_thread(_textedit_is_frontmost):
-            await asyncio.to_thread(_focus_textedit_once)
-        try:
-            await asyncio.wait_for(stop.wait(), timeout=1.5)
-        except TimeoutError:
-            continue
 
 
 async def _resolve_chat_id(chat: McpChatSession, state: dict[str, object]) -> str | None:
@@ -417,28 +398,20 @@ async def _run_approval_attempt(chat: McpChatSession) -> str:
     assert "computer_use" in (tools_setup.get("tools") or []), tools_setup
 
     heartbeat_e2e_lease()
-    hold_stop = asyncio.Event()
-    hold_task = asyncio.create_task(_hold_textedit_front_while_agent_acts(hold_stop))
-    try:
-        _progress("send agent prompt")
-        await asyncio.to_thread(_focus_textedit_once)
-        await asyncio.sleep(0.5)
-        await chat.send_message(E2E_PROMPT, E2E_PROMPT)
-        heartbeat_e2e_lease()
+    _progress("send agent prompt")
+    await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+    heartbeat_e2e_lease()
 
-        _progress("wait desktop tool activity")
-        tool_activity, last_tool, server_pending, ui_pending = await _ensure_interact_gate(chat)
-        _progress(
-            f"post-wait lastTool={last_tool} server_pending={server_pending} ui_pending={ui_pending}"
-        )
-        _require_approval_gate_triggered(
-            last_tool=last_tool,
-            server_pending=server_pending,
-            ui_pending=ui_pending,
-        )
-    finally:
-        hold_stop.set()
-        await hold_task
+    _progress("wait desktop tool activity")
+    tool_activity, last_tool, server_pending, ui_pending = await _ensure_interact_gate(chat)
+    _progress(
+        f"post-wait lastTool={last_tool} server_pending={server_pending} ui_pending={ui_pending}"
+    )
+    _require_approval_gate_triggered(
+        last_tool=last_tool,
+        server_pending=server_pending,
+        ui_pending=ui_pending,
+    )
 
     _progress("activate chrome for approval UI")
     await asyncio.to_thread(_activate_chrome)
@@ -604,3 +577,4 @@ async def test_chrome_ui_desktop_control_approval_allow_once(
         await run_flow(chat)
     finally:
         client.close()
+        await asyncio.to_thread(_hide_textedit_fixture)

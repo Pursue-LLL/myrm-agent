@@ -5,7 +5,8 @@
  * [OUTPUT]
  * - pickSettingsDeepLink / pickSettingsDeepLinkFromMeta: 从 probe meta 选取 OS 设置深链
  * - openPermissionDeepLink: 打开 OS 设置深链（Tauri shell；失败时 window.open 同一 URL）
- * - openPermissionDeepLinkWithGuideFallback: 同上；失败时打开 Apple Accessibility 指南（Web 浏览器场景）
+ * - openPermissionDeepLinkWithGuideFallback: 同上；失败时打开平台 Accessibility 指南（Web 浏览器场景）
+ * - getPermissionGuideFallbackUrl: 按 platform 返回指南 URL（darwin / win32 / linux）
  * - isSystemSettingsDeepLink: 判断是否为 OS 设置 URL
  *
  * [POS]
@@ -14,6 +15,23 @@
 
 const MACOS_ACCESSIBILITY_GUIDE_URL =
   'https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac';
+
+const WINDOWS_ACCESSIBILITY_GUIDE_URL =
+  'https://support.microsoft.com/windows/accessibility';
+
+const LINUX_ACCESSIBILITY_GUIDE_URL =
+  'https://wiki.gnome.org/Accessibility';
+
+export function getPermissionGuideFallbackUrl(platform?: string | null): string {
+  const normalized = (platform ?? '').toLowerCase();
+  if (normalized === 'win32' || normalized === 'windows') {
+    return WINDOWS_ACCESSIBILITY_GUIDE_URL;
+  }
+  if (normalized === 'linux') {
+    return LINUX_ACCESSIBILITY_GUIDE_URL;
+  }
+  return MACOS_ACCESSIBILITY_GUIDE_URL;
+}
 
 export function isSystemSettingsDeepLink(url: string): boolean {
   return url.startsWith('x-apple.systempreferences:') || url.startsWith('ms-settings:');
@@ -51,10 +69,13 @@ export function getMacOsAccessibilityGuideFallbackUrl(): string {
   return MACOS_ACCESSIBILITY_GUIDE_URL;
 }
 
-export function openPermissionDeepLinkWithGuideFallback(url: string): void {
+export function openPermissionDeepLinkWithGuideFallback(
+  url: string,
+  platform?: string | null,
+): void {
   import('@tauri-apps/plugin-shell')
     .then((mod) => mod.open(url))
     .catch(() => {
-      window.open(MACOS_ACCESSIBILITY_GUIDE_URL, '_blank');
+      window.open(getPermissionGuideFallbackUrl(platform), '_blank');
     });
 }

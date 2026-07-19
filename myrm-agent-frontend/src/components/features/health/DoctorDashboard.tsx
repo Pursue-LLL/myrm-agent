@@ -193,7 +193,14 @@ export function DoctorDashboard() {
                       className="mt-1 h-7 text-xs bg-zinc-800 border-zinc-700 hover:bg-zinc-700"
                       onClick={() => {
                         const link = pickSettingsDeepLinkFromMeta(report.meta_data ?? undefined);
-                        if (link) openPermissionDeepLinkWithGuideFallback(link);
+                        if (link) {
+                          const platform =
+                            report.meta_data &&
+                            typeof report.meta_data.platform === 'string'
+                              ? report.meta_data.platform
+                              : null;
+                          openPermissionDeepLinkWithGuideFallback(link, platform);
+                        }
                       }}
                     >
                       {t('desktopOpenSettings')}

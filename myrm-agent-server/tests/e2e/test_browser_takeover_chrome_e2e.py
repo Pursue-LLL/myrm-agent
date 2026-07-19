@@ -16,9 +16,11 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import (  # noqa: E402
     chat_messages_have_done,
+    ensure_e2e_memory_disabled,
     ensure_e2e_yolo_mode,
     get_e2e_api_url,
     wait_e2e_backend_ready,
+    wait_e2e_cdp_ready,
     wait_e2e_provider_ready,
 )
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
@@ -31,17 +33,14 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lea
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
 E2E_PROMPT = (
-    "CRITICAL: Follow exactly in order with browser tools only.\n"
-    "1. Call browser_navigate_tool to open https://example.com .\n"
-    "2. Immediately call browser_ask_human_tool with reason "
-    "'E2E LIVE: please click Done on the chat takeover banner'.\n"
-    "3. After the user completes the takeover, reply only DONE.\n"
-    "Do not use web_search, memory, bash, or any other tools."
+    "我在验证浏览器人工接管功能。请调用 browser_ask_human_tool 一次，"
+    "reason 为「请在 Chrome 完成操作后，在聊天横幅点击完成」。"
+    "完成后只回复 DONE。不要使用 browser_navigate_tool 或其他工具。"
 )
 
 E2E_NUDGE_PROMPT = (
-    "CRITICAL: Call browser_ask_human_tool NOW on the current browser page. "
-    "Reason: E2E LIVE banner test. Do not navigate elsewhere. After user completes, reply DONE."
+    "请现在调用 browser_ask_human_tool，reason 为「请在 Chrome 完成操作后，在聊天横幅点击完成」。"
+    "我完成后请回复 DONE。"
 )
 
 _ENABLE_YOLO_JS = """(() => {
@@ -70,6 +69,16 @@ _ENABLE_BROWSER_JS = """(() => {
   bridge.setCurrentBuiltinTools(['browser']);
   const tools = bridge.getCurrentBuiltinTools?.() ?? [];
   return { ok: tools.includes('browser'), tools };
+})()"""
+
+_SET_BROWSER_CONNECT_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.setBrowserSource) {
+    return { ok: false, err: 'no-setBrowserSource' };
+  }
+  bridge.setBrowserSource('connect');
+  const browserSource = bridge.getBrowserSource?.() ?? null;
+  return { ok: browserSource === 'connect', browserSource };
 })()"""
 
 _BRIDGE_READY_JS = """(() => ({
@@ -115,7 +124,7 @@ _BANNER_ASSERT_JS = """(() => {
   const labels = buttons.map((btn) => (btn.textContent || '').trim());
   const hasAlert = !!alert;
   const hasExtensionTitle = /Your turn in Chrome|请在 Chrome 中完成操作/i.test(text);
-  const hasReason = /E2E:/i.test(text);
+  const hasReason = /请在 Chrome 完成操作|Please click Done|E2E:/i.test(text);
   const hasUrl = /example\\.com/i.test(text);
   const hasDone = labels.some((label) => /Done|完成/i.test(label));
   const hasSkip = labels.some((label) => /Can't do this|无法完成/i.test(label));
@@ -132,6 +141,8 @@ _BANNER_ASSERT_JS = """(() => {
     hasDone,
     hasSkip,
     storePending,
+    storeUiMode: snap?.pending ? snap?.uiMode ?? null : null,
+    storeReason: snap?.reason ?? null,
     buttonCount: buttons.length,
     sample: text.slice(0, 240),
   };
@@ -266,7 +277,14 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",
         )
 
+    if not wait_e2e_cdp_ready(timeout_sec=45.0):
+        pytest.fail(
+            "E2E Chrome CDP not ready for browser takeover LIVE test — run ./myrm ready --chrome "
+            "(MYRM Chrome on :9333 must respond to /json/version)",
+        )
+
     ensure_e2e_yolo_mode()
+    ensure_e2e_memory_disabled()
     if not wait_e2e_backend_ready(timeout_sec=90.0):
         pytest.fail("Backend not healthy before browser takeover LIVE Chrome E2E")
 
@@ -293,6 +311,15 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             await asyncio.sleep(1.0)
         raise AssertionError(f"Browser takeover banner did not appear: {last}")
 
+    async def _prepare_browser_turn(chat: McpChatSession) -> None:
+        connect = await chat.evaluate(_SET_BROWSER_CONNECT_JS, await_promise=False, recv_timeout=15.0)
+        assert isinstance(connect, dict)
+        assert connect.get("ok") is True, f"Failed to set browser source connect: {connect}"
+        enabled = await chat.evaluate(_ENABLE_BROWSER_JS, await_promise=False, recv_timeout=15.0)
+        assert isinstance(enabled, dict)
+        assert enabled.get("ok") is True, f"Failed to enable browser in chat session: {enabled}"
+        await chat.evaluate(_ENABLE_YOLO_JS, await_promise=False, recv_timeout=15.0)
+
     async def _run_flow(chat: McpChatSession) -> str:
         api_base = get_e2e_api_url()
         await chat.dismiss_modals()
@@ -301,11 +328,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
 
-        enabled = await chat.evaluate(_ENABLE_BROWSER_JS, await_promise=False, recv_timeout=15.0)
-        assert isinstance(enabled, dict)
-        assert enabled.get("ok") is True, f"Failed to enable browser in chat session: {enabled}"
-
-        await chat.evaluate(_ENABLE_YOLO_JS, await_promise=False, recv_timeout=15.0)
+        await _prepare_browser_turn(chat)
 
         send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         chat_id_hint = str(
@@ -326,6 +349,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             banner = await _wait_takeover_banner(chat, timeout_sec=180.0)
         except AssertionError:
             heartbeat_e2e_lease()
+            await _prepare_browser_turn(chat)
             await chat.send_message(E2E_NUDGE_PROMPT, E2E_NUDGE_PROMPT)
             banner = await _wait_takeover_banner(chat, timeout_sec=180.0)
 

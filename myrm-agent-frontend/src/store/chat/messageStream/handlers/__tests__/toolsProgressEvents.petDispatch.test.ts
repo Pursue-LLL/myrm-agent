@@ -43,6 +43,7 @@ vi.mock('./handlerDeps', () => {
 
 import { toolsProgressEvents } from '../toolsProgressEvents';
 import type { StreamCtx } from '../../streamContext';
+import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 
 function makeCtx(eventType: string, extra: Record<string, unknown> = {}): StreamCtx {
   return {
@@ -187,5 +188,28 @@ describe('toolsProgressEvents pet-status-event dispatches', () => {
       expect(result).toHaveProperty('added');
       expect(result).toHaveProperty('recievedMessage');
     }
+  });
+});
+
+describe('toolsProgressEvents browser takeover approval fallback', () => {
+  beforeEach(() => {
+    useBrowserTakeoverStore.getState().completeTakeover();
+  });
+
+  it('APPROVAL_REQUIRED with browser_takeover opens extension takeover store', async () => {
+    const ctx = makeCtx('approval_required', {
+      data: {
+        action_type: 'browser_takeover',
+        reason: 'Please click Done',
+        url: 'https://example.com',
+        is_managed: false,
+      },
+    });
+
+    await toolsProgressEvents(ctx);
+
+    expect(useBrowserTakeoverStore.getState().pending).toBe(true);
+    expect(useBrowserTakeoverStore.getState().uiMode).toBe('extension');
+    expect(useBrowserTakeoverStore.getState().reason).toBe('Please click Done');
   });
 });

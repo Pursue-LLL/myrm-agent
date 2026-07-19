@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | from fastapi import APIRouter | ✅ |
+| `__init__.py` | 入口 | 挂载子路由；**优先**挂载 `../test_fixtures`（E2E seed 路由） | ✅ |
 | `catchup.py` | 模块 | Get catchup briefs for all chats with unread activity. | ✅ |
 | `compaction.py` | 模块 | Compact chat context by generating a persistent summary. | ✅ |
 | `core.py` | 模块 | 会话 CRUD 核心：列表（分页/来源/项目过滤）、元数据、创建/更新、Fission 拓扑、session-skills PATCH | ✅ |

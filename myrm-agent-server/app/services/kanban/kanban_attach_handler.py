@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.protocols::KanbanStore (POS: Kanban persistence.)
-- app.api.kanban.http_common::_load/_save task attachment IDs (POS: DB attachment rows.)
+- app.services.kanban.task_attachment_ids (POS: Kanban task attachment ID persistence.)
 
 [OUTPUT]
 - create_kanban_attach_handler: Factory returning harness KanbanTaskAttachFn callback.

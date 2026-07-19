@@ -84,6 +84,8 @@ interface Window {
     }>;
     setCurrentBuiltinTools?: (tools: string[]) => void;
     getCurrentBuiltinTools?: () => string[];
+    setBrowserSource?: (source: string) => void;
+    getBrowserSource?: () => string | null | undefined;
     ensureComputerUseReady?: () => void;
     getActionMode?: () => string;
     getDesktopToolProgress?: () => {

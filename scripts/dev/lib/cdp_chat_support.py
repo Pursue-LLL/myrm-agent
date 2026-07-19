@@ -654,6 +654,33 @@ def wait_e2e_backend_ready(
     return False
 
 
+def wait_e2e_cdp_ready(
+    *,
+    timeout_sec: float = 30.0,
+    poll_interval_sec: float = 1.0,
+    port: int | None = None,
+) -> bool:
+    """Poll Myrm E2E Chrome CDP (:9333) until attach endpoint responds."""
+    resolved_port = port
+    if resolved_port is None:
+        raw = os.getenv("MYRM_CHROME_E2E_PORT", "9333").strip()
+        try:
+            resolved_port = int(raw)
+        except ValueError:
+            resolved_port = 9333
+    endpoint = f"http://127.0.0.1:{resolved_port}/json/version"
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        try:
+            resp = urllib.request.urlopen(endpoint, timeout=3)  # noqa: S310
+            if resp.status == 200:
+                return True
+        except Exception:
+            pass
+        time.sleep(poll_interval_sec)
+    return False
+
+
 def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
     """Enable YOLO mode for live Chrome agent E2E (skips tool approval gate)."""
     current = fetch_config_value("securityConfig", api_url=api_url)
@@ -674,6 +701,17 @@ def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
     persisted = fetch_config_value("securityConfig", api_url=api_url)
     if not persisted.get("yoloModeEnabled") and not persisted.get("yolo_mode_enabled"):
         raise RuntimeError(f"Failed to persist YOLO securityConfig: {persisted}")
+
+
+def ensure_e2e_memory_disabled(*, api_url: str | None = None) -> None:
+    """Disable memory for live agent E2E to avoid poisoned procedural briefs."""
+    personal = fetch_config_value("personalSettings", api_url=api_url)
+    merged: dict[str, object] = {
+        **personal,
+        "enableMemory": False,
+        "enableMemoryAutoExtraction": False,
+    }
+    put_config_value("personalSettings", merged, api_url=api_url)
 
 
 def chat_messages_have_done(chat_id: str, *, min_user_count: int = 1, api_url: str | None = None) -> bool:

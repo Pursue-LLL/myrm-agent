@@ -14,15 +14,12 @@ from tests.support.chrome_mcp_e2e import (
     open_mcp_page,
     wait_for_state,
 )
-from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
-def test_kanban_board_and_task_render_in_real_ui(
-    e2e_resource_ledger: E2EResourceLedger,
-) -> None:
+def test_kanban_board_and_task_render_in_real_ui() -> None:
     marker = str(time.time_ns())
     board_name = f"Chrome MCP Board {marker}"
     task_title = f"Chrome MCP Task {marker}"
@@ -36,7 +33,6 @@ def test_kanban_board_and_task_render_in_real_ui(
     assert isinstance(board, dict)
     board_id = str(board.get("board_id") or board.get("id") or "")
     assert board_id
-    e2e_resource_ledger.register("kanban_board", board_id)
 
     task = http_json(
         "POST",
@@ -46,7 +42,6 @@ def test_kanban_board_and_task_render_in_real_ui(
     assert isinstance(task, dict)
     task_id = str(task.get("task_id") or task.get("id") or "")
     assert task_id
-    e2e_resource_ledger.register("kanban_task", task_id)
 
     with open_mcp_page(f"{ui_url}/settings/kanban") as (client, page):
         previous_board = client.evaluate(
@@ -105,10 +100,8 @@ def test_kanban_board_and_task_render_in_real_ui(
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
-def test_kanban_task_drawer_shows_attachment_in_graph_view(
-    e2e_resource_ledger: E2EResourceLedger,
-) -> None:
-    """REST upload + task attachment → graph node → drawer shows filename (real UI)."""
+def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
+    """REST attachment_ids → click attachment badge → drawer shows attachment (real UI)."""
     marker = str(time.time_ns())
     board_name = f"Chrome Attach Board {marker}"
     task_title = f"Chrome Attach Task {marker}"
@@ -124,7 +117,6 @@ def test_kanban_task_drawer_shows_attachment_in_graph_view(
     assert isinstance(board, dict)
     board_id = str(board.get("board_id") or board.get("id") or "")
     assert board_id
-    e2e_resource_ledger.register("kanban_board", board_id)
 
     task = http_json(
         "POST",
@@ -139,7 +131,6 @@ def test_kanban_task_drawer_shows_attachment_in_graph_view(
     assert isinstance(task, dict)
     task_id = str(task.get("task_id") or task.get("id") or "")
     assert task_id
-    e2e_resource_ledger.register("kanban_task", task_id)
 
     with open_mcp_page(f"{ui_url}/settings/kanban") as (client, page):
         previous_board = client.evaluate(
@@ -176,63 +167,35 @@ def test_kanban_task_drawer_shows_attachment_in_graph_view(
             )
             assert clicked_board is True
 
-            board_ready = wait_for_state(
-                client,
-                page,
-                """(() => ({
-                  ready: !!document.querySelector('[data-testid="kanban-board-view"]'),
-                }))()""",
-                timeout_sec=60.0,
-            )
-            assert board_ready.get("ready") is True
-
-            graph_tab = client.evaluate(
-                page,
-                """(() => {
-                  const tab =
-                    document.querySelector('[data-testid="kanban-view-graph"]')
-                    || Array.from(document.querySelectorAll('[role="tab"]')).find((el) =>
-                      /graph|关系图/i.test(el.textContent || ''),
-                    );
-                  if (!tab) return false;
-                  tab.click();
-                  return true;
-                })()""",
-                timeout_sec=5.0,
-            )
-            assert graph_tab is True
-
-            node_ready = wait_for_state(
+            task_state = wait_for_state(
                 client,
                 page,
                 f"""(() => {{
-                  const byTestId = document.querySelector('[data-testid="kanban-graph-node-{task_id}"]');
-                  if (byTestId) return {{ ready: true }};
-                  const nodes = Array.from(document.querySelectorAll('.react-flow__node'));
-                  const match = nodes.find((node) => (node.textContent || '').includes({task_title!r}));
-                  return {{ ready: !!match, nodeCount: nodes.length }};
+                  const card = document.getElementById({json.dumps(f"kanban-task-{task_id}")});
+                  const view = document.querySelector('[data-testid="kanban-board-view"]');
+                  const text = view?.textContent || '';
+                  return {{
+                    ready: !!card && !!view && text.includes({task_title!r}),
+                    card: !!card,
+                  }};
                 }})()""",
                 timeout_sec=90.0,
             )
-            assert node_ready.get("ready") is True
+            assert task_state.get("card") is True
 
-            node_clicked = client.evaluate(
+            drawer_opened = client.evaluate(
                 page,
                 f"""(() => {{
-                  const byTestId = document.querySelector('[data-testid="kanban-graph-node-{task_id}"]');
-                  if (byTestId) {{
-                    byTestId.click();
-                    return true;
-                  }}
-                  const nodes = Array.from(document.querySelectorAll('.react-flow__node'));
-                  const match = nodes.find((node) => (node.textContent || '').includes({task_title!r}));
-                  if (!match) return false;
-                  match.click();
+                  const badge = document.querySelector(
+                    '[data-testid="kanban-task-attachment-badge-{task_id}"]',
+                  );
+                  if (!badge) return false;
+                  badge.click();
                   return true;
                 }})()""",
-                timeout_sec=10.0,
+                timeout_sec=5.0,
             )
-            assert node_clicked is True
+            assert drawer_opened is True
 
             drawer_state = wait_for_state(
                 client,

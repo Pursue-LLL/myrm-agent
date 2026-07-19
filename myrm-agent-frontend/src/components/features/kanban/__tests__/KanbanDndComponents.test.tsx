@@ -116,6 +116,14 @@ describe('KanbanDropColumn', () => {
     expect(svg).toBeInTheDocument();
   });
 
+  it('双击卡片触发 onOpenTaskDrawer', () => {
+    const onOpenTaskDrawer = vi.fn();
+    render(<KanbanDropColumn {...defaultProps} onOpenTaskDrawer={onOpenTaskDrawer} />);
+    const card = screen.getByTestId('task-card-task-1').parentElement!;
+    fireEvent.doubleClick(card);
+    expect(onOpenTaskDrawer).toHaveBeenCalledWith('task-1');
+  });
+
   it('Ctrl+click 触发多选', () => {
     const onTaskSelect = vi.fn();
     render(<KanbanDropColumn {...defaultProps} onTaskSelect={onTaskSelect} />);

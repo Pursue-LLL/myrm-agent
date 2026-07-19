@@ -167,6 +167,14 @@ class TestBuildRealtimeTools:
         tools = _build_realtime_tools(("web_search", "memory", "file_ops", "code_execute", "browser", "kanban"))
         assert len(tools) == 7
 
+    def test_render_ui_not_exposed_even_when_profile_enabled(self) -> None:
+        """Voice Realtime has no inline A2UI surface — catalog omits render_ui (see gemini_live)."""
+        tools = _build_realtime_tools(("web_search", "render_ui", "kanban"))
+        names = [t.name for t in tools]
+        assert "render_ui" not in names
+        assert "web_search" in names
+        assert "kanban" in names
+
     def test_tool_structure_valid(self) -> None:
         tools = _build_realtime_tools(("web_search",))
         ws_tool = next(t for t in tools if t.name == "web_search")

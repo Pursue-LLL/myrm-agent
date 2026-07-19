@@ -8,8 +8,8 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `permissionDeepLink.ts` | 核心 | `pickSettingsDeepLink*`；`openPermissionDeepLink`（deeplink fallback）；`openPermissionDeepLinkWithGuideFallback`（指南 fallback）；`isSystemSettingsDeepLink` | ✅ |
-| `__tests__/permissionDeepLink.test.ts` | 测试 | pick meta / system URL / Tauri open / guide fallback | — |
+| `permissionDeepLink.ts` | 核心 | `pickSettingsDeepLink*`；`openPermissionDeepLink`；`openPermissionDeepLinkWithGuideFallback(url, platform?)`；`getPermissionGuideFallbackUrl` | ✅ |
+| `__tests__/permissionDeepLink.test.ts` | 测试 | pick meta / system URL / Tauri open / platform guide fallback（含 darwin≠win32 回归） | — |
 
 ## 依赖
 

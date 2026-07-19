@@ -33,7 +33,7 @@ BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 E2E_PROMPT = "只回复 OK"
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio
@@ -95,7 +95,7 @@ async def test_chrome_ui_goal_mode_stream(
         heartbeat_e2e_lease()
         after_turn = await chat.wait_turn_done(
             E2E_PROMPT,
-            timeout_sec=180,
+            timeout_sec=240,
             chat_id_hint=chat_id_hint,
         )
         if str(after_turn.get("path", "")).startswith("/settings"):

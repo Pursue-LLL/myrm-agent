@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from ..test_fixtures import router as test_fixtures_router
 from .catchup import router as catchup_router
 from .compaction import router as compaction_router
 from .core import router as core_router
@@ -16,6 +17,7 @@ from .turn import router as turn_router
 
 router = APIRouter()
 
+router.include_router(test_fixtures_router)
 router.include_router(trash_router)
 router.include_router(catchup_router)
 router.include_router(messages_router)

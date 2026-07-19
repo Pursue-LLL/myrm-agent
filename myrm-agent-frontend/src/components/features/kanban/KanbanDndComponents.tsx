@@ -5,7 +5,7 @@
  *
  * [OUTPUT]
  * - KanbanDropColumn: 可放置的看板列组件（集成 useDroppable + 高亮/占位符动画）
- * - DraggableTaskCard: 可拖拽的任务卡片包装器（集成 useDraggable + 多选标记）
+ * - DraggableTaskCard: 可拖拽的任务卡片包装器（集成 useDraggable + 多选标记 + 双击/附件入口开 Drawer）
  *
  * [POS]
  * 看板 DnD 渲染组件层。提供列级 drop target、卡片级 drag source 的 UI 封装，以及 Running 列按 Agent 分泳道渲染。
@@ -43,6 +43,7 @@ interface KanbanDropColumnProps {
   onDeleteTask: (taskId: string) => void;
   onReclaimTask: (taskId: string) => void;
   onRefresh: () => void;
+  onOpenTaskDrawer?: (taskId: string) => void;
   laneByProfile?: boolean;
   agentNameMap?: Map<string, string>;
   collapsedAgents?: Set<string>;
@@ -63,6 +64,7 @@ export function KanbanDropColumn({
   onDeleteTask,
   onReclaimTask,
   onRefresh,
+  onOpenTaskDrawer,
   laneByProfile,
   agentNameMap,
   collapsedAgents,
@@ -106,6 +108,7 @@ export function KanbanDropColumn({
         onDeleteTask={onDeleteTask}
         onReclaimTask={onReclaimTask}
         onRefresh={onRefresh}
+        onOpenTaskDrawer={onOpenTaskDrawer}
       />
     ));
 
@@ -179,6 +182,7 @@ interface DraggableTaskCardProps {
   onDeleteTask: (taskId: string) => void;
   onReclaimTask: (taskId: string) => void;
   onRefresh: () => void;
+  onOpenTaskDrawer?: (taskId: string) => void;
 }
 
 function DraggableTaskCard({
@@ -191,7 +195,9 @@ function DraggableTaskCard({
   onDeleteTask,
   onReclaimTask,
   onRefresh,
+  onOpenTaskDrawer,
 }: DraggableTaskCardProps) {
+  const t = useTranslations('kanban');
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.task_id });
 
   return (
@@ -206,6 +212,12 @@ function DraggableTaskCard({
           onTaskSelect(task.task_id, e);
         }
       }}
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onOpenTaskDrawer?.(task.task_id);
+      }}
+      title={onOpenTaskDrawer ? t('openDetailsHint') : undefined}
       className={cn(
         'relative rounded-md transition-all cursor-grab active:cursor-grabbing touch-none',
         selectedTaskIds.includes(task.task_id) && 'ring-2 ring-primary/60 ring-offset-1',
@@ -232,6 +244,7 @@ function DraggableTaskCard({
         onDelete={onDeleteTask}
         onRefresh={onRefresh}
         onReclaim={onReclaimTask}
+        onOpenTaskDrawer={onOpenTaskDrawer}
       />
     </div>
   );

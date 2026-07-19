@@ -9,8 +9,10 @@ from pathlib import Path
 import pytest
 
 from tests.support.e2e_runtime_guard import (
+    assert_chrome_attach_health,
     assert_e2e_runtime_unchanged,
     heartbeat_e2e_lease,
+    reap_chrome_e2e_session_hygiene,
     register_e2e_resource,
     require_e2e_runtime_lease,
 )
@@ -20,6 +22,58 @@ def test_heartbeat_noop_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("MYRM_E2E_LEASE_ID", raising=False)
     monkeypatch.delenv("MYRM_E2E_AGENT_ID", raising=False)
     heartbeat_e2e_lease()
+
+
+def test_assert_chrome_attach_health_passes_on_ready_probe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: list[list[str]] = []
+
+    def _fake_run(cmd: list[str], **kwargs: object) -> object:
+        captured.append(list(cmd))
+        return type("Result", (), {"returncode": 0, "stderr": "", "stdout": ""})()
+
+    monkeypatch.setattr("tests.support.e2e_runtime_guard.subprocess.run", _fake_run)
+    assert_chrome_attach_health()
+    assert captured
+    assert "--require-attach-ready" in captured[0]
+
+
+def test_assert_chrome_attach_health_raises_when_probe_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard.subprocess.run",
+        lambda *args, **kwargs: type(
+            "Result",
+            (),
+            {"returncode": 1, "stderr": "mux not ready", "stdout": ""},
+        )(),
+    )
+    with pytest.raises(RuntimeError, match="CHROME_E2E_ATTACH_NOT_READY: mux not ready"):
+        assert_chrome_attach_health()
+
+
+def test_reap_chrome_e2e_session_hygiene_runs_wave_and_prune(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def _fake_run(cmd: list[str], **kwargs: object) -> object:
+        calls.append(list(cmd))
+        return type("Result", (), {"returncode": 0, "stderr": "", "stdout": ""})()
+
+    monkeypatch.setattr("tests.support.e2e_runtime_guard.subprocess.run", _fake_run)
+    monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard.heartbeat_e2e_lease",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard._wave_script",
+        lambda: Path("/tmp/wave.sh"),
+    )
+    reap_chrome_e2e_session_hygiene()
+    assert ["bash", "/tmp/wave.sh", "reap"] in calls
 
 
 def test_register_e2e_resource_rejects_empty_ref() -> None:

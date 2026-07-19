@@ -4,6 +4,16 @@
 
 设置页壳层：`SettingsLayout`（URL 为唯一数据源 + Section 缓存）、`SettingsMenu`（分组导航）、共享表单 primitive。Tab 预加载由 Next.js partial prefetch 与 `next/dynamic` 承担。
 
+### Settings 路由 SSOT
+
+| 层级 | URL 形态 | 示例 | 实现 |
+|------|----------|------|------|
+| **顶层 Tab** | `/settings/[tab]` | `/settings/wiki`、`/settings/memory` | `SettingsLayout.tsx` `handleTabChange` → `` `/settings/${tab}` ``（`:311-312`）；`urlTab` 读 `params.tab`（`:235-241`） |
+| **Section 子视图** | `/settings/[tab]?sub=` | `/settings/memory?sub=migration` | `handleTabChange(tab, sub)`（`:307-314`） |
+| **Memory 内部子 Tab** | `/settings/memory?tab=` | `/settings/memory?tab=shared` | Memory Section 专用 query（如 `memoryOperationToasts.ts`） |
+
+**禁止**使用已废弃的顶层 query 形态 `/settings?tab=wiki`。Wiki agent 作用域深链为 `/settings/wiki?agentId=<id>`（见 `sections/knowledge/_ARCH.md`）。
+
 ## 核心文件
 
 | 文件 | 地位 | 职责 | I/O/P |

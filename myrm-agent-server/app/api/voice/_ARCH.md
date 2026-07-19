@@ -4,6 +4,8 @@
 
 实时语音 WebSocket 与 REST 会话控制。上级文档：[../_ARCH.md](../_ARCH.md)。
 
+**Inline A2UI**：语音会话无聊天气泡渲染面。`gemini_live._GEMINI_TOOL_CATALOG` 与 `realtime._REALTIME_TOOL_CATALOG` 均 **不** 暴露 `render_ui`；`agent_bridge` 使用 `channel_name="voice_bridge"`（IM），GeneralAgent Turn1 亦不挂载 `render_ui_tool`。内联表单/图表面板请使用 Web Chat 或 Tauri 桌面客户端。
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |

@@ -64,6 +64,7 @@ interface KanbanTaskCardProps {
   onDelete: (taskId: string) => void;
   onRefresh: () => void;
   onReclaim?: (taskId: string) => void;
+  onOpenTaskDrawer?: (taskId: string) => void;
 }
 
 export default function KanbanTaskCard({
@@ -73,6 +74,7 @@ export default function KanbanTaskCard({
   onDelete,
   onRefresh,
   onReclaim,
+  onOpenTaskDrawer,
 }: KanbanTaskCardProps) {
   const t = useTranslations('kanban');
   const agentName = useAgentName(task.agent_id);
@@ -283,10 +285,24 @@ export default function KanbanTaskCard({
               </span>
             )}
             {task.attachments && task.attachments.length > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+              <button
+                type="button"
+                data-testid={`kanban-task-attachment-badge-${task.task_id}`}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onOpenTaskDrawer?.(task.task_id);
+                }}
+                className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors cursor-pointer touch-manipulation"
+                title={t('viewAttachmentsHint')}
+                aria-label={t('viewAttachmentsHint')}
+              >
                 <Paperclip className="w-2.5 h-2.5" />
                 {task.attachments.length}
-              </span>
+              </button>
             )}
             {task.extra_skill_ids && task.extra_skill_ids.length > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-chart-3/10 text-chart-3 border border-chart-3/20 truncate max-w-[120px]">
@@ -338,6 +354,9 @@ export default function KanbanTaskCard({
             )}
             <span className="text-[9px] text-muted-foreground/60 ml-auto shrink-0">{relativeTime}</span>
           </div>
+          {task.attachments && task.attachments.length > 0 && (
+            <p className="text-[9px] text-muted-foreground/70 mt-0.5">{t('openDetailsHint')}</p>
+          )}
         </div>
 
         {showActions && (

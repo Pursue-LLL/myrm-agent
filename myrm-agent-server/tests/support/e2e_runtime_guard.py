@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -93,6 +94,29 @@ def heartbeat_e2e_lease() -> None:
         if "TimeoutError" in message or "timed out" in message:
             return
         raise RuntimeError(f"E2E_LEASE_HEARTBEAT_FAIL: {message}")
+
+
+def reap_chrome_e2e_session_hygiene() -> None:
+    """Extend parent lease and reap stale page leases between formal chrome_e2e items."""
+    heartbeat_e2e_lease()
+    wave_script = _wave_script()
+    subprocess.run(
+        ["bash", str(wave_script), "reap"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    dev_scripts = Path(__file__).resolve().parents[3] / "scripts" / "dev"
+    prune_script = dev_scripts / "prune-myrm-chrome-e2e-blank-tabs.sh"
+    if prune_script.is_file():
+        subprocess.run(
+            ["bash", str(prune_script)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
 
 
 def register_e2e_resource(
@@ -295,24 +319,40 @@ def assert_chrome_attach_health() -> None:
     script = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib" / "runtime_identity.py"
     ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
     api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
-    proc = subprocess.run(
-        [
-            sys.executable,
-            str(script),
-            "--auto-probe",
-            "--auto-hot",
-            "--attach-mode",
-            "--require-attach-ready",
-            "--ui",
-            ui_base,
-            "--api",
-            api_base,
-        ],
-        capture_output=True,
-        text=True,
-        timeout=60,
-        check=False,
-    )
-    if proc.returncode != 0:
-        detail = proc.stderr.strip() or proc.stdout.strip() or f"exit={proc.returncode}"
-        raise RuntimeError(f"CHROME_E2E_ATTACH_NOT_READY: {detail}")
+    wait_sec = int(os.environ.get("MYRM_CHROME_E2E_ATTACH_WAIT_SEC", "180"))
+    poll_sec = int(os.environ.get("MYRM_CHROME_E2E_ATTACH_POLL_SEC", "2"))
+    if wait_sec < 0:
+        wait_sec = 180
+    if poll_sec <= 0:
+        poll_sec = 2
+
+    cmd = [
+        sys.executable,
+        str(script),
+        "--auto-probe",
+        "--auto-hot",
+        "--attach-mode",
+        "--require-attach-ready",
+        "--ui",
+        ui_base,
+        "--api",
+        api_base,
+    ]
+    waited = 0
+    last_detail = "unknown attach probe failure"
+    while waited <= wait_sec:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        if proc.returncode == 0:
+            return
+        last_detail = proc.stderr.strip() or proc.stdout.strip() or f"exit={proc.returncode}"
+        if waited >= wait_sec:
+            break
+        time.sleep(poll_sec)
+        waited += poll_sec
+    raise RuntimeError(f"CHROME_E2E_ATTACH_NOT_READY: {last_detail}")
