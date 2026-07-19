@@ -229,7 +229,7 @@ async def setup_test_database(tmp_path: Path):
         # Create raw SQL tables (FTS5)
         from sqlalchemy import text
 
-        from app.database.repositories.conversation_recall_repo import CONVERSATION_RECALL_SCHEMA_SQL
+        from app.database.repositories.conversation_recall import CONVERSATION_RECALL_SCHEMA_SQL
 
         for sql in CONVERSATION_RECALL_SCHEMA_SQL:
             await conn.execute(text(sql))

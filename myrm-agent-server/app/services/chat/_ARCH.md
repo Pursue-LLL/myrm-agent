@@ -88,8 +88,8 @@ ChatService
 ### 内部依赖
 - `app/database/repositories/uow.py`：使用 UnitOfWork 管理整个跨领域实体（Chat/Message）的事务，确保失败自动回滚。
 - `app/database/repositories/chat_repo.py`：Chat/Message CRUD、compaction CAS 与 sibling group 持久化仓储；消息级全文检索由其委托给 `chat_message_search_repo.py`。
-- `app/database/repositories/conversation_recall_repo.py`：Conversation Recall 会话摘要与消息段索引仓储，编排索引写入、scope/fork/exclusion 查询和健康指标；SQL 契约与 DTO 转换分别由 `conversation_recall_sql.py`、`conversation_recall_types.py` 承担。
-- `app/database/repositories/conversation_recall_lookup_repo.py`：Conversation Recall 只读可见性查找仓储，用于 semantic-only 命中按统一 scope/exclusion/lineage 策略补齐 snippet/source_ref。
+- `app/database/repositories/conversation_recall/`：Conversation Recall 索引子包；`repo.py` 编排索引写入与 health 查询，`sql.py`/`types.py` 承担 SQL 契约与 DTO 转换。
+- `app/database/repositories/conversation_recall/lookup_repo.py`：Conversation Recall 只读可见性查找仓储，用于 semantic-only 命中按统一 scope/exclusion/lineage 策略补齐 snippet/source_ref。
 - `app/services/chat/conversation_recall_index_service.py`：Conversation Recall 生命周期边界，供 ChatService、Compaction、Fork 与管理 API 统一调用。
 - `app/database/`：Chat、Message 模型
 - `app/services/infra/`：删除聊天时清理沙箱工作空间

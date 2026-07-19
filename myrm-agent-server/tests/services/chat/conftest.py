@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database.models import Base
-from app.database.repositories.conversation_recall_repo import CONVERSATION_RECALL_SCHEMA_SQL
+from app.database.repositories.conversation_recall import CONVERSATION_RECALL_SCHEMA_SQL
 
 
 @pytest_asyncio.fixture

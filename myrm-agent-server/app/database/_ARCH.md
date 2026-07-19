@@ -44,5 +44,5 @@
 
 ## 🔍 SQLite 高级特性与调优
 - **WAL 并发调优**: `factory.py` 中通过 SQLAlchemy `begin` 事件拦截，禁用默认事务，使用 `BEGIN IMMEDIATE` 配合随机抖动重试（Jitter Retry 20-150ms），彻底解决多 Agent 并发写入导致的护航效应（Convoy Effect）卡死问题。
-- **FTS5 虚拟表**: `migrations.py` 中创建了基于 `External Content` 模式的 `messages_fts` 虚拟表（使用 SQLite 隐式整数 `rowid` 作为 `content_rowid`），并建立 `INSERT/UPDATE/DELETE` 触发器，实现底层零冗余自动同步。Conversation Recall 的 raw SQL 契约位于 `repositories/conversation_recall_sql.py`，提供 `conversation_recall_documents` 会话摘要索引与 `conversation_recall_segments` 消息段 FTS5 索引，支持 `trigram` 中文分词、scope/fork/exclusion 查询、精准 message_id 证据和不含文本的健康指标。
+- **FTS5 虚拟表**: `migrations.py` 中创建了基于 `External Content` 模式的 `messages_fts` 虚拟表（使用 SQLite 隐式整数 `rowid` 作为 `content_rowid`），并建立 `INSERT/UPDATE/DELETE` 触发器，实现底层零冗余自动同步。Conversation Recall 的 raw SQL 契约位于 `repositories/conversation_recall/sql.py`，提供 `conversation_recall_documents` 会话摘要索引与 `conversation_recall_segments` 消息段 FTS5 索引，支持 `trigram` 中文分词、scope/fork/exclusion 查询、精准 message_id 证据和不含文本的健康指标。
 - **Baseline Migration**: `StatefulMigrationEngine` 通过 `baseline_check_sql` 检测已存在数据库，自动标记所有迁移为已执行（baselined），支持旧数据库平滑升级。

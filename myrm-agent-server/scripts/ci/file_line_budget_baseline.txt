@@ -96,7 +96,7 @@ app/database/dto.py
 app/database/migrations.py
 app/database/repositories/agent_repo.py
 app/database/repositories/chat_repo.py
-app/database/repositories/conversation_recall_repo.py
+app/database/repositories/conversation_recall/repo.py
 app/lifecycle/memory_guardian.py
 app/lifecycle/schedulers.py
 app/platform_utils/sandbox/storage.py

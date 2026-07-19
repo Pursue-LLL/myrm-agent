@@ -82,6 +82,7 @@ run.py
 
 | 文件 | 职责 | I/O/P |
 |------|------|-------|
+| `__init__.py` | 应用包标识（`app` namespace 根） | — |
 | `main.py` | FastAPI 应用入口（创建实例、注册路由/中间件、lifespan 管理、OpenAPI schema + bearerAuth 注入） | ✅ |
 
 ## 架构约束与类型安全防线 (Zero-Trust Progressive Typing)

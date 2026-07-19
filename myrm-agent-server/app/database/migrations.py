@@ -862,7 +862,7 @@ async def ensure_raw_sql_schema(engine: AsyncEngine) -> None:
     """Ensure raw SQL tables and triggers (not in ORM) exist."""
     from sqlalchemy import text
 
-    from app.database.repositories.conversation_recall_sql import (
+    from app.database.repositories.conversation_recall.sql import (
         CONVERSATION_RECALL_BOOTSTRAP_SQL,
         CONVERSATION_RECALL_SCHEMA_SQL,
         CONVERSATION_RECALL_SEGMENT_BOOTSTRAP_SQL,

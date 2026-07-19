@@ -2,8 +2,8 @@
 
 [INPUT]
 - app.database.models.chat::Chat, Message, ConversationFork (POS: 会话与消息域模型。管理聊天会话、消息记录和对话分支)
-- app.database.repositories.conversation_recall_sql (POS: Conversation Recall SQL 契约层)
-- app.database.repositories.conversation_recall_types (POS: Conversation Recall 类型转换层)
+- app.database.repositories.conversation_recall.sql (POS: Conversation Recall SQL 契约层)
+- app.database.repositories.conversation_recall.types (POS: Conversation Recall 类型转换层)
 - sqlalchemy.ext.asyncio::AsyncSession (POS: async database session)
 
 [OUTPUT]
@@ -23,7 +23,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.repositories.conversation_recall_sql import (
+from app.database.repositories.conversation_recall.sql import (
     CONVERSATION_RECALL_BOOTSTRAP_SQL,
     CONVERSATION_RECALL_SCHEMA_SQL,
     CONVERSATION_RECALL_SEGMENT_BOOTSTRAP_SQL,
@@ -33,7 +33,7 @@ from app.database.repositories.conversation_recall_sql import (
     UPSERT_SEGMENTS_FOR_CHAT_SQL,
     filter_sql,
 )
-from app.database.repositories.conversation_recall_types import (
+from app.database.repositories.conversation_recall.types import (
     ConversationRecallContext,
     ConversationRecallDocumentRow,
     ConversationRecallHealth,

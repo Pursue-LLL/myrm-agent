@@ -140,7 +140,7 @@ async def setup_e2e_database(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.database.models  # noqa: F401 — register all tables on Base.metadata
     from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
     from app.database.models import Base
-    from app.database.repositories.conversation_recall_repo import (
+    from app.database.repositories.conversation_recall import (
         CONVERSATION_RECALL_SCHEMA_SQL,
     )
     from app.platform_utils import get_database_engine, reset_database_engine

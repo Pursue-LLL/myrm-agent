@@ -11,7 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Chat, ConversationFork, Message
-from app.database.repositories.conversation_recall_repo import ConversationRecallRepository
+from app.database.repositories.conversation_recall import ConversationRecallRepository
 from app.services.chat.conversation_recall_index_service import ConversationRecallIndexService
 from app.services.chat.conversation_search_service import ConversationSearchService
 

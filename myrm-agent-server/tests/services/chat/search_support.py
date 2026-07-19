@@ -6,7 +6,7 @@ from myrm_agent_harness.toolkits.memory.types import MemorySearchResult, MemoryT
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Chat, Message
-from app.database.repositories.conversation_recall_repo import ConversationRecallRepository
+from app.database.repositories.conversation_recall import ConversationRecallRepository
 
 
 async def seed_chat_and_messages(db: AsyncSession) -> str:

@@ -1,7 +1,7 @@
 """Conversation recall service for agent tools.
 
 [INPUT]
-app.database.repositories.conversation_recall_repo::ConversationRecallRepository (POS: Conversation Recall 索引仓储)
+app.database.repositories.conversation_recall::ConversationRecallRepository (POS: Conversation Recall 索引仓储)
 app.services.chat.conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
 myrm_agent_harness.toolkits.memory.protocols.conversation_search::ConversationSearchProtocol (POS: conversation search protocol boundary)
 
@@ -31,9 +31,9 @@ from myrm_agent_harness.toolkits.memory.types import ConversationMemory, MemoryT
 from myrm_agent_harness.utils.db.fts5 import sanitize_fts5_query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.repositories.conversation_recall_lookup_repo import ConversationRecallLookupRepository
-from app.database.repositories.conversation_recall_repo import (
+from app.database.repositories.conversation_recall import (
     ConversationRecallContext,
+    ConversationRecallLookupRepository,
     ConversationRecallRepository,
     ConversationRecallRow,
 )

@@ -1,7 +1,7 @@
 """Conversation Recall index lifecycle service.
 
 [INPUT]
-- app.database.repositories.conversation_recall_repo::ConversationRecallRepository (POS: Conversation Recall 索引仓储)
+- app.database.repositories.conversation_recall::ConversationRecallRepository (POS: Conversation Recall 索引仓储)
 - app.database.repositories.uow::UnitOfWork (POS: 全局工作单元模式)
 - sqlalchemy.ext.asyncio::AsyncSession (POS: async database session)
 
@@ -18,7 +18,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.repositories.conversation_recall_repo import (
+from app.database.repositories.conversation_recall import (
     ConversationRecallDocumentRow,
     ConversationRecallRepository,
 )

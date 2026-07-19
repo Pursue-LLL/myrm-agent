@@ -1,8 +1,8 @@
 """Conversation Recall visibility lookup repository.
 
 [INPUT]
-- app.database.repositories.conversation_recall_sql::filter_sql (POS: Conversation Recall SQL 契约层)
-- app.database.repositories.conversation_recall_types::ConversationRecallRow (POS: Conversation Recall 类型转换层)
+- app.database.repositories.conversation_recall.sql::filter_sql (POS: Conversation Recall SQL 契约层)
+- app.database.repositories.conversation_recall.types::ConversationRecallRow (POS: Conversation Recall 类型转换层)
 - sqlalchemy.ext.asyncio::AsyncSession (POS: async database session)
 
 [OUTPUT]
@@ -19,8 +19,8 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.repositories.conversation_recall_sql import filter_sql
-from app.database.repositories.conversation_recall_types import ConversationRecallRow, recall_row
+from app.database.repositories.conversation_recall.sql import filter_sql
+from app.database.repositories.conversation_recall.types import ConversationRecallRow, recall_row
 
 
 class ConversationRecallLookupRepository:
