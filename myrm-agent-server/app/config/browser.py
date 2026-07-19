@@ -24,6 +24,25 @@ from .deploy_mode import is_local_mode
 logger = logging.getLogger(__name__)
 
 
+def _resolve_local_cdp_endpoint() -> str:
+    """Resolve loopback CDP HTTP endpoint for local/connect browser modes."""
+    cdp_port = os.getenv("CDP_PORT") or os.getenv("MYRM_CHROME_E2E_PORT")
+    if cdp_port:
+        return f"http://127.0.0.1:{cdp_port}"
+
+    try:
+        from myrm_agent_harness.toolkits.browser.pool.chrome_discovery import discover_chrome_cdp_endpoint
+
+        discovered = discover_chrome_cdp_endpoint()
+        if discovered:
+            logger.info("Local CDP endpoint discovered: %s", discovered)
+            return discovered
+    except Exception:
+        logger.debug("Local CDP discovery failed; falling back to default endpoint", exc_info=True)
+
+    return _DEFAULT_CDP_ENDPOINT
+
+
 async def resolve_cloud_browser_endpoint() -> str | None:
     """Read cloud browser provider config from database and resolve WS endpoint.
 
@@ -63,8 +82,7 @@ def get_browser_pool_config(*, remote_ws_endpoint: str | None = None) -> Browser
         对应部署模式下的 `BrowserPoolConfig` 实例
     """
     if is_local_mode():
-        cdp_port = os.getenv("CDP_PORT")
-        cdp_endpoint = f"http://127.0.0.1:{cdp_port}" if cdp_port else _DEFAULT_CDP_ENDPOINT
+        cdp_endpoint = _resolve_local_cdp_endpoint()
 
         base = BrowserPoolConfig.minimal()
         return dataclasses.replace(

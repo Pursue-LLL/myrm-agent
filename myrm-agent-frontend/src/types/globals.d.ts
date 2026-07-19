@@ -88,6 +88,13 @@ interface Window {
     getBrowserSource?: () => string | null | undefined;
     ensureComputerUseReady?: () => void;
     getActionMode?: () => string;
+    getBrowserToolProgress?: () => {
+      active: boolean;
+      takeoverPending: boolean;
+      takeoverUiMode: 'managed' | 'extension' | null;
+      stepCount: number;
+      lastTool: string;
+    };
     getDesktopToolProgress?: () => {
       active: boolean;
       pending: boolean;

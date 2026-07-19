@@ -398,7 +398,7 @@ async def _run_approval_attempt(chat: McpChatSession) -> str:
     assert "computer_use" in (tools_setup.get("tools") or []), tools_setup
 
     heartbeat_e2e_lease()
-    _progress("send agent prompt")
+    _progress("send agent prompt (textedit stays minimized; no focus loop)")
     await chat.send_message(E2E_PROMPT, E2E_PROMPT)
     heartbeat_e2e_lease()
 

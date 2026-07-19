@@ -42,6 +42,35 @@ export interface ApprovalPayload {
   expires_at?: string;
 }
 
+function syncBrowserTakeoverFromApproval(approval: ApprovalPayload): void {
+  if (approval.action_type !== 'browser_takeover') {
+    return;
+  }
+  const nested = approval.payload ?? {};
+  const nestedRecord = nested as Record<string, unknown>;
+  const isManaged = nestedRecord.is_managed === true;
+  const reason = approval.reason ?? nested.reason ?? '';
+  const urlValue = nested.page_url ?? nestedRecord.url;
+  const screenshot = nestedRecord.screenshot_base64;
+
+  void Promise.all([
+    import('@/store/useBrowserTakeoverStore'),
+    import('@/store/useChatStore'),
+  ]).then(([takeoverMod, chatMod]) => {
+    const messages = chatMod.default.getState().messages;
+    const lastAssistant = [...messages].reverse().find((message) => message.role === 'assistant');
+    const messageId = lastAssistant?.messageId ?? '';
+    takeoverMod.default.getState().requestTakeover({
+      reason: String(reason),
+      url: typeof urlValue === 'string' ? urlValue : undefined,
+      screenshot_base64: typeof screenshot === 'string' ? screenshot : undefined,
+      messageId,
+      ui_mode: isManaged ? 'managed' : 'extension',
+      auto_detect_completion: false,
+    });
+  });
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -114,13 +143,15 @@ const useApprovalStore = create<ApprovalState>((set) => ({
   isOpen: false,
   queue: [],
 
-  openApproval: (approval) =>
+  openApproval: (approval) => {
+    syncBrowserTakeoverFromApproval(approval);
     set((state) => {
       if (state.queue.find((a) => a.approval_id === approval.approval_id)) {
         return state;
       }
       return { isOpen: true, queue: [...state.queue, approval] };
-    }),
+    });
+  },
   closeApproval: (approvalId) =>
     set((state) => {
       if (!approvalId) {

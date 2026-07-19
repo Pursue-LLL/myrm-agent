@@ -638,10 +638,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 get_global_browser_pool,
             )
 
+            from app.config.browser import get_browser_launch_options, get_browser_pool_config
             from app.config.deploy_mode import is_local_mode
             from app.core.security.browser_vault import get_agent_session_vault, get_global_session_vault
 
-            pool = get_global_browser_pool()
+            pool = get_global_browser_pool(
+                config=get_browser_pool_config(),
+                launch_options=get_browser_launch_options(),
+            )
             if self.agent_id and self.agent_id != "default":
                 self._session_vault = get_agent_session_vault(self.agent_id)
             else:

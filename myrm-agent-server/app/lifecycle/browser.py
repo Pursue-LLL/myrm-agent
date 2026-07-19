@@ -43,12 +43,17 @@ async def _resolve_browser_proxy_pool() -> RoundRobinProxyPool | None:
 async def warmup_global_browser_pool() -> None:
     """预热全局浏览器池（预创建 Browser 实例和 Page）"""
     from myrm_agent_harness.toolkits.browser.pool import get_global_browser_pool
+    from myrm_agent_harness.toolkits.browser.pool import singleton as pool_singleton
     from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
 
     from app.config.browser import get_browser_launch_options, get_browser_pool_config, resolve_cloud_browser_endpoint
     from app.config.settings import settings
     from app.core.security.browser_vault import get_global_session_vault
     from app.services.extension.bridge import get_extension_bridge
+
+    if pool_singleton._global_pool is not None:
+        await pool_singleton._global_pool.shutdown()
+        pool_singleton._global_pool = None
 
     web_fetch_tools.set_session_vault(get_global_session_vault())
 

@@ -61,7 +61,10 @@ CHROME_E2E_MATRIX_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_DESKTOP_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_STRESS_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_DESKTOP_MARKER: Final[str] = "chrome_e2e_desktop"
-CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = "chrome_e2e and not chrome_e2e_desktop"
+CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER: Final[str] = "chrome_e2e_browser_takeover_live"
+CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
+    "chrome_e2e and not chrome_e2e_desktop and not chrome_e2e_browser_takeover_live"
+)
 SIGNOFF_WAVE_QUIESCE_WAIT_SEC: Final[int] = 3600
 SIGNOFF_WAVE_QUIESCE_POLL_SEC: Final[int] = 5
 

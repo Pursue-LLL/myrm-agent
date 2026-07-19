@@ -43,6 +43,13 @@ E2E_NUDGE_PROMPT = (
     "我完成后请回复 DONE。"
 )
 
+_BROWSER_TOOL_PROGRESS_JS = (
+    "(() => window.__MYRM_E2E_CHAT__?.getBrowserToolProgress?.() ?? {})()"
+)
+
+BROWSER_GATE_WAIT_SEC = 120.0
+MAX_SEND_ATTEMPTS = 3
+
 _ENABLE_YOLO_JS = """(() => {
   const key = 'securityConfig';
   const mgr = window.__MYRM_CONFIG_SYNC__?.get?.(key)
@@ -264,6 +271,7 @@ def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
+@pytest.mark.chrome_e2e_browser_takeover_live
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio
@@ -288,7 +296,38 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
     if not wait_e2e_backend_ready(timeout_sec=90.0):
         pytest.fail("Backend not healthy before browser takeover LIVE Chrome E2E")
 
-    async def _wait_takeover_banner(chat: McpChatSession, *, timeout_sec: float = 240.0) -> dict[str, object]:
+    async def _probe_browser_tool_progress(chat: McpChatSession) -> dict[str, object]:
+        probe = await chat.evaluate(_BROWSER_TOOL_PROGRESS_JS, await_promise=False, recv_timeout=15.0)
+        return probe if isinstance(probe, dict) else {"active": False}
+
+    def _require_browser_gate_triggered(*, last_tool: str, takeover_pending: bool) -> None:
+        if takeover_pending or last_tool.endswith("browser_ask_human_tool"):
+            return
+        raise AssertionError(
+            "Model never triggered browser takeover gate "
+            f"(lastTool={last_tool!r}, takeoverPending={takeover_pending}). "
+            "Expected browser_ask_human_tool with extension in-chat banner."
+        )
+
+    async def _wait_for_browser_ask_human_gate(
+        chat: McpChatSession,
+        *,
+        timeout_sec: float = BROWSER_GATE_WAIT_SEC,
+    ) -> tuple[str, bool]:
+        deadline = time.monotonic() + timeout_sec
+        last_tool = ""
+        takeover_pending = False
+        while time.monotonic() < deadline:
+            heartbeat_e2e_lease()
+            progress = await _probe_browser_tool_progress(chat)
+            last_tool = str(progress.get("lastTool") or "")
+            takeover_pending = progress.get("takeoverPending") is True
+            if takeover_pending or last_tool.endswith("browser_ask_human_tool"):
+                return last_tool, takeover_pending
+            await asyncio.sleep(1.0)
+        return last_tool, takeover_pending
+
+    async def _wait_takeover_banner(chat: McpChatSession, *, timeout_sec: float = 90.0) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
@@ -297,9 +336,6 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 await chat.ensure_e2e_api_base_binding()
                 await asyncio.sleep(2.0)
                 continue
-            approve = await chat.evaluate(_CLICK_TOOL_APPROVE_JS, await_promise=False, recv_timeout=15.0)
-            if isinstance(approve, dict) and approve.get("clicked"):
-                await asyncio.sleep(1.0)
             raw = await chat.evaluate(_BANNER_ASSERT_JS, await_promise=False, recv_timeout=30.0)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("backendUnreachable") is True:
@@ -327,31 +363,48 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         await asyncio.sleep(2.0)
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
-
         await _prepare_browser_turn(chat)
 
-        send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
-        chat_id_hint = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or ""
-        ).strip()
-        if not chat_id_hint:
-            chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
-
-        heartbeat_e2e_lease()
-        try:
-            await chat.wait_stream_started(E2E_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint)
-        except (AssertionError, TimeoutError, RuntimeError):
-            pass
-
-        try:
-            banner = await _wait_takeover_banner(chat, timeout_sec=180.0)
-        except AssertionError:
+        chat_id_hint: str | None = None
+        banner: dict[str, object] | None = None
+        last_prompt = E2E_PROMPT
+        for attempt in range(1, MAX_SEND_ATTEMPTS + 1):
+            last_prompt = E2E_PROMPT if attempt == 1 else E2E_NUDGE_PROMPT
             heartbeat_e2e_lease()
             await _prepare_browser_turn(chat)
-            await chat.send_message(E2E_NUDGE_PROMPT, E2E_NUDGE_PROMPT)
-            banner = await _wait_takeover_banner(chat, timeout_sec=180.0)
+            send_result = await chat.send_message(last_prompt, last_prompt)
+            chat_id_hint = str(
+                send_result.get("started", {}).get("chatId")
+                or send_result.get("submit", {}).get("chatId")
+                or chat_id_hint
+                or ""
+            ).strip() or None
+            if not chat_id_hint:
+                chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
+
+            try:
+                await chat.wait_stream_started(last_prompt, timeout_sec=90.0, chat_id_hint=chat_id_hint)
+            except (AssertionError, TimeoutError, RuntimeError):
+                pass
+
+            last_tool, takeover_pending = await _wait_for_browser_ask_human_gate(chat)
+            if not takeover_pending and not last_tool.endswith("browser_ask_human_tool"):
+                if attempt >= MAX_SEND_ATTEMPTS:
+                    _require_browser_gate_triggered(
+                        last_tool=last_tool,
+                        takeover_pending=takeover_pending,
+                    )
+                continue
+
+            try:
+                banner = await _wait_takeover_banner(chat, timeout_sec=90.0)
+                break
+            except AssertionError:
+                if attempt >= MAX_SEND_ATTEMPTS:
+                    raise
+                heartbeat_e2e_lease()
+
+        assert banner is not None
 
         assert banner.get("hasExtensionTitle") is True, f"Expected extension banner: {banner}"
 
@@ -360,7 +413,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         assert clicked.get("clicked") is True, f"Failed to click Done on takeover banner: {clicked}"
 
         after_turn = await chat.wait_turn_done(
-            E2E_PROMPT,
+            last_prompt,
             timeout_sec=300.0,
             chat_id_hint=chat_id_hint,
         )

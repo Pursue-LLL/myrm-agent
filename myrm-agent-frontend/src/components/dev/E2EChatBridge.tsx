@@ -492,6 +492,23 @@ export default function E2EChatBridge() {
           reason: state.reason,
         };
       },
+      getBrowserToolProgress: () => {
+        const takeover = useBrowserTakeoverStore.getState();
+        const messages = useChatStore.getState().messages;
+        const assistants = messages.filter((message) => message.role === 'assistant');
+        const lastAssistant = assistants[assistants.length - 1];
+        const steps = lastAssistant?.progressSteps ?? [];
+        const browserSteps = steps.filter((step) =>
+          String(step.tool_name ?? '').startsWith('browser_'),
+        );
+        return {
+          active: browserSteps.length > 0,
+          takeoverPending: takeover.pending,
+          takeoverUiMode: takeover.pending ? takeover.uiMode : null,
+          stepCount: browserSteps.length,
+          lastTool: browserSteps[browserSteps.length - 1]?.tool_name ?? '',
+        };
+      },
       dismissBrowserTakeover: () => {
         flushSync(() => {
           useBrowserTakeoverStore.getState().completeTakeover();

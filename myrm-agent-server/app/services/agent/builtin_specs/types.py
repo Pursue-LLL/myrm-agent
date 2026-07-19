@@ -31,6 +31,9 @@ _TOOL_DEFAULT: tuple[str, ...] = _extend_default_tools("external_cli")
 _TOOL_CODING: tuple[str, ...] = _TOOL_DEFAULT
 _TOOL_RESEARCH: tuple[str, ...] = _extend_default_tools("answer_tool")
 _TOOL_DESIGN: tuple[str, ...] = _extend_default_tools("image_generation")
+_TOOL_VIDEO_STUDIO: tuple[str, ...] = _extend_default_tools(
+    "video_generation", "tts", "image_generation", "kanban"
+)
 
 
 @dataclass(frozen=True)

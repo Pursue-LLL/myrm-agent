@@ -1,4 +1,4 @@
-"""Built-in agent specs — vertical 13 agents.
+"""Built-in agent specs — vertical 14 agents.
 
 [INPUT]
 app.services.agent.builtin_specs.types::_BuiltInAgentSpec, _TOOL_* (POS: 类型与工具集常量)
@@ -7,7 +7,7 @@ app.services.agent.builtin_specs.types::_BuiltInAgentSpec, _TOOL_* (POS: 类型�
 _VERTICAL_BUILTIN_AGENTS: Tuple segment for _BUILTIN_AGENTS aggregation.
 
 [POS]
-builtin_specs 子包：13 个垂直领域预置智能体规格
+builtin_specs 子包：14 个垂直领域预置智能体规格
 """
 
 from app.services.agent.builtin_specs.types import (
@@ -17,6 +17,7 @@ from app.services.agent.builtin_specs.types import (
     _TOOL_DESIGN,
     _TOOL_MINIMAL,
     _TOOL_RESEARCH,
+    _TOOL_VIDEO_STUDIO,
 )
 
 _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
@@ -66,6 +67,31 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Help me choose fonts that pair well for a wedding invitation",
             "Create a mood board concept for a Scandinavian interior",
             "Design an icon set for a travel mobile app",
+        ),
+    ),
+    _BuiltInAgentSpec(
+        id="builtin-video-studio",
+        name="Video Studio",
+        description="AI video production assistant — creates scripts, storyboards, generates visuals, voiceovers, and assembles complete videos.",
+        icon_id="video",
+        personality_style="creative",
+        system_prompt=(
+            "You are a professional video production director. "
+            "Guide users through the complete video creation process: concept → script → storyboard → "
+            "visual generation → voiceover → assembly. "
+            "For short-form content (TikTok/Reels), keep it punchy and hook-first. "
+            "For long-form (YouTube/tutorials), structure with clear sections. "
+            "Always consider aspect ratio, pacing, and platform-specific requirements."
+        ),
+        enabled_builtin_tools=_TOOL_VIDEO_STUDIO,
+        default_skill_ids=("video-production-pipeline",),
+        suggestion_prompts=(
+            "Create a 30-second sci-fi concept video about space exploration",
+            "Make a product showcase video for my new app",
+            "Produce a short tutorial video explaining how AI works",
+            "Generate a motivational video with voiceover for social media",
+            "Create a brand story video for my coffee shop",
+            "Make a 15-second TikTok-style video about morning routines",
         ),
     ),
     _BuiltInAgentSpec(

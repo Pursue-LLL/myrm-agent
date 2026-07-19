@@ -170,6 +170,7 @@ markers = [
   "docker: Docker 沙箱测试（内存占用高，默认排除可加 -m 'not docker'）",
   "chrome_e2e: Formal real-Chrome MCP UI E2E with declared runtime resources",
   "chrome_e2e_desktop: macOS desktop-control approval Chrome E2E (signoff desktop phase only)",
+  "chrome_e2e_browser_takeover_live: LIVE_AGENT browser takeover banner E2E (signoff nightly; excluded from matrix)",
   "e2e: End-to-end tests against running app (may require network or API keys)",
   "performance: Performance and benchmark tests (excluded from default suite)",
   "benchmark: pytest-benchmark tests (auto-remapped to performance in conftest)",

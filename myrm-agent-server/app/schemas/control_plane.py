@@ -508,7 +508,7 @@ class MemoryBriefStatusTelemetryEnvelope(BaseModel):
     """Detached aggregated telemetry payload for memory brief statuses."""
 
     telemetry_subject: str
-    envelope_id: str = Field(min_length=1)
+    envelope_id: str = Field(min_length=1, max_length=128)
     timestamp: str
     aggregates: list[MemoryBriefStatusTelemetryAggregate]
     dropped_aggregates: list[MemoryBriefStatusDroppedAggregate] = Field(default_factory=list)

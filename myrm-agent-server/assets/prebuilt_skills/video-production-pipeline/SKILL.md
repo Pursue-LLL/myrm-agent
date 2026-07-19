@@ -12,7 +12,7 @@ tags:
   - production
   - multi-agent
   - creative
-allowed-tools: file_read_tool file_write_tool web_search_tool bash_code_execute_tool
+allowed-tools: file_read_tool file_write_tool web_search_tool bash_code_execute_tool video_tool image_tool tts_generate
 pipeline_spec:
   discovery_questions:
     - group: "basic_info"

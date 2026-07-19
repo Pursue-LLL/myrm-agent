@@ -87,6 +87,9 @@ class GeneralAgent(ToolSetupMixin):
         client_surface: str | None = None,
         enable_web_search: bool = True,
         enable_browser: bool = False,
+        browser_source: str | None = None,
+        dialog_policy: str | None = None,
+        session_recording: str | None = None,
         enable_computer_use: bool = False,
         enable_file_ops: bool = True,
         enable_code_execute: bool = True,
@@ -184,6 +187,9 @@ class GeneralAgent(ToolSetupMixin):
         self.client_surface = client_surface
         self.enable_web_search = enable_web_search
         self.enable_browser = enable_browser
+        self.browser_source = browser_source
+        self.dialog_policy = dialog_policy
+        self.session_recording = session_recording
         self.enable_computer_use = enable_computer_use
         self.enable_file_ops = enable_file_ops
         self.enable_code_execute = enable_code_execute

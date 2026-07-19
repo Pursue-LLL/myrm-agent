@@ -189,6 +189,23 @@ export const AGENT_ICON_REGISTRY: Record<string, AgentIconDef> = {
     gradient: ['#ec4899', '#db2777'],
   },
 
+  video: {
+    svg: (
+      <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="6" width="13" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
+        <path
+          d="M16 10 L21 7 L21 17 L16 14"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="9.5" cy="12" r="2" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+      </svg>
+    ),
+    gradient: ['#f97316', '#ea580c'],
+  },
+
   seo: {
     svg: (
       <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none">

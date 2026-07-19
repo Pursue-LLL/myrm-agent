@@ -9,9 +9,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
-import app.services.agent.memory_brief_telemetry.dropped_store as dropped_store_module
 import app.services.agent.memory_brief_telemetry.dispatcher as telemetry_dispatcher
+import app.services.agent.memory_brief_telemetry.dropped_store as dropped_store_module
 import app.services.agent.memory_brief_telemetry.metrics as telemetry_metrics
 from app.config.settings import (
     ControlPlaneSettings,
@@ -30,6 +31,34 @@ from app.services.agent.memory_brief_telemetry import (
 )
 
 _ALLOWED_PHASES = frozenset({"stream", "persist"})
+
+
+def test_memory_brief_batch_payload_rejects_too_long_envelope_id() -> None:
+    payload = {
+        "events": [
+            {
+                "telemetry_subject": "sandbox-42",
+                "envelope_id": "x" * 129,
+                "timestamp": "2026-05-19T00:00:00+00:00",
+                "aggregates": [
+                    {
+                        "phase": "stream",
+                        "brief_state": "ready",
+                        "brief_reason": "none",
+                        "brief_source": "preflight",
+                        "injection_state": "applied",
+                        "injection_source": "snapshot",
+                        "injection_reason": "none",
+                        "count": 1,
+                    }
+                ],
+                "dropped_aggregates": [],
+            }
+        ]
+    }
+
+    with pytest.raises(ValidationError):
+        MemoryBriefStatusBatchPayload.model_validate(payload)
 
 
 class _DummyCounter:
