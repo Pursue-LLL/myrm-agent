@@ -3,10 +3,12 @@
 @pos: Facade module for app.services.agent.memory_guardian_guard_telemetry subpackage.
 """
 
-from app.services.agent.memory_guardian_guard_telemetry.dispatcher import (
+from app.services.agent.memory_guardian_guard_telemetry.contract import (
     MemoryGuardianGuardTelemetryConfig,
-    MemoryGuardianGuardTelemetryDispatcher,
     MemoryGuardianGuardTelemetryEvent,
+)
+from app.services.agent.memory_guardian_guard_telemetry.dispatcher import (
+    MemoryGuardianGuardTelemetryDispatcher,
     enqueue_memory_guardian_guard_telemetry,
     start_memory_guardian_guard_telemetry_dispatcher,
     stop_memory_guardian_guard_telemetry_dispatcher,

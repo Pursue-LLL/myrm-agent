@@ -12,7 +12,9 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `dispatcher.py` | 核心 | 有界队列 worker + config/event + singleton start/stop/enqueue | ✅ |
+| `contract.py` | 核心 | config/event dataclasses + governed label normalization | ✅ |
+| `flush.py` | 核心 | envelope aggregation + Control Plane HTTP flush transport | ✅ |
+| `dispatcher.py` | 核心 | 有界队列 worker + singleton start/stop/enqueue | ✅ |
 | `pending_store.py` | 核心 | 未发送 envelope 落盘/重启恢复 + 文件锁 | ✅ |
 | `__init__.py` | 门面 | 对外 re-export 公共 API | ✅ |
 

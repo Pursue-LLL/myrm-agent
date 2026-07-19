@@ -284,16 +284,13 @@ async def test_shutdown_does_not_loop_forever_when_final_flush_fails() -> None:
     dispatcher._client.post = AsyncMock(
         side_effect=[httpx.ConnectError("offline"), httpx.ConnectError("offline")]
     )
-    dispatcher._merge_aggregates(
-        {
-            MemoryGuardianGuardTelemetryEvent(
-                reason="budget_guard_unavailable",
-                guard="budget",
-                frequency_tier="balanced",
-                quiet_window_enabled=True,
-            ): 1
-        }
+    event = MemoryGuardianGuardTelemetryEvent(
+        reason="budget_guard_unavailable",
+        guard="budget",
+        frequency_tier="balanced",
+        quiet_window_enabled=True,
     )
+    dispatcher._overflow_aggregates[event] = 1
     dispatcher._stop_event.set()
 
     worker_task = asyncio.create_task(dispatcher._run())

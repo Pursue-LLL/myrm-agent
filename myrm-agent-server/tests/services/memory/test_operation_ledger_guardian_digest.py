@@ -32,8 +32,8 @@ async def test_latest_guardian_morning_digest_aggregates_window_events(monkeypat
     window_start = datetime(2026, 1, 2, 22, 0, tzinfo=UTC)
     window_end = datetime(2026, 1, 3, 6, 0, tzinfo=UTC)
     monkeypatch.setattr(
-        "app.services.memory.operation_ledger._resolve_guardian_digest_window",
-        lambda *, policy: (window_start, window_end, "quiet_window"),
+        "app.services.memory.operation_ledger_guardian.resolve_guardian_digest_window",
+        lambda *, policy, now_utc=None: (window_start, window_end, "quiet_window"),
     )
 
     event_new = MemoryOperationEventModel(
@@ -140,8 +140,8 @@ async def test_latest_guardian_morning_digest_returns_unavailable_when_no_window
     window_start = datetime(2026, 1, 2, 0, 0, tzinfo=UTC)
     window_end = datetime(2026, 1, 3, 0, 0, tzinfo=UTC)
     monkeypatch.setattr(
-        "app.services.memory.operation_ledger._resolve_guardian_digest_window",
-        lambda *, policy: (window_start, window_end, "rolling_24h"),
+        "app.services.memory.operation_ledger_guardian.resolve_guardian_digest_window",
+        lambda *, policy, now_utc=None: (window_start, window_end, "rolling_24h"),
     )
 
     db = AsyncMock()
