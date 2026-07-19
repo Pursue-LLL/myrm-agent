@@ -205,6 +205,14 @@ class StreamContentCollector:
             usage_alert = _string_keyed_dict(event.get("usage_alert"))
             if usage_alert is not None:
                 self._usage_alert = usage_alert
+            cited = event.get("cited_memory_ids")
+            if isinstance(cited, list):
+                for mid in cited:
+                    if isinstance(mid, str) and mid not in self._cited_memory_ids:
+                        self._cited_memory_ids.append(mid)
+            refs = event.get("cited_memory_refs")
+            if isinstance(refs, list):
+                self._extend_cited_memory_refs(refs)
         elif event_type == "tool_stdout_chunk" and isinstance(data, str):
             # 实时终端流式输出事件，不持久化到数据库，仅透传给前端
             pass

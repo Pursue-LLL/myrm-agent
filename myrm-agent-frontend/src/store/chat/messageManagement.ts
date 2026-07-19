@@ -177,12 +177,42 @@ export const loadOlderMessages = async (actions: ChatActionsMethods): Promise<vo
 };
 
 function parseMessages(raw: Message[]): Message[] {
-  return raw.map((msg) => ({
-    ...msg,
-    ...(typeof (msg as Record<string, unknown>).metadata === 'string'
-      ? JSON.parse((msg as Record<string, unknown>).metadata as string)
-      : (msg as Record<string, unknown>).metadata),
-  }));
+  return raw.map((msg) => {
+    const rawRecord = msg as Record<string, unknown>;
+    const metadata =
+      typeof rawRecord.metadata === 'string'
+        ? (JSON.parse(rawRecord.metadata) as Record<string, unknown>)
+        : (rawRecord.metadata as Record<string, unknown> | undefined) ?? {};
+
+    const citedMemoryIds = normalizeStringArray(metadata.citedMemoryIds ?? rawRecord.citedMemoryIds);
+    const citedMemoryRefs = normalizeCitedMemoryRefs(metadata.citedMemoryRefs ?? rawRecord.citedMemoryRefs);
+
+    return {
+      ...msg,
+      ...metadata,
+      ...(citedMemoryIds ? { citedMemoryIds } : {}),
+      ...(citedMemoryRefs ? { citedMemoryRefs } : {}),
+    };
+  });
+}
+
+function normalizeStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const ids = value.filter((item): item is string => typeof item === 'string' && item.length > 0);
+  return ids.length > 0 ? ids : undefined;
+}
+
+function normalizeCitedMemoryRefs(value: unknown): Message['citedMemoryRefs'] {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const refs = value.filter(
+    (item): item is NonNullable<Message['citedMemoryRefs']>[number] =>
+      typeof item === 'object' && item !== null && typeof (item as { id?: unknown }).id === 'string',
+  );
+  return refs.length > 0 ? refs : undefined;
 }
 
 /**

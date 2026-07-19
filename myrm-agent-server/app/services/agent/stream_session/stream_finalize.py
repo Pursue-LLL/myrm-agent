@@ -30,6 +30,7 @@ from app.services.agent.streaming_support.sse_helpers import (
 logger = logging.getLogger(__name__)
 
 
+from app.services.agent.streaming_support.citation_persistence import merge_memory_citation_fallback
 async def yield_stream_exception_chunks(
     session: AgentStreamSession,
     exc: BaseException,
@@ -146,7 +147,8 @@ async def finalize_agent_stream_session(
         from app.services.chat.chat_service import ChatService
 
         content = session.collector.content
-        extra_data = session.collector.extra_data or {}
+        extra_data = dict(session.collector.extra_data or {})
+        merge_memory_citation_fallback(extra_data)
         preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
         if isinstance(preview, dict):
             snapshot_id = preview.get("snapshot_id")

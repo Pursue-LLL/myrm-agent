@@ -86,7 +86,28 @@ def test_stream_collector_persists_knowledge_recall_citations() -> None:
     assert extra_data["citedMemoryIds"] == ["mem-wiki-1"]
 
 
-def test_stream_collector_persists_memory_citations_from_runtime_tool_alias() -> None:
+def test_stream_collector_persists_memory_citations_from_message_end() -> None:
+    collector = StreamContentCollector()
+
+    collector.feed_event(
+        {
+            "type": "message_end",
+            "cited_memory_ids": ["mem-end-1", "mem-end-2"],
+            "cited_memory_refs": [
+                {
+                    "id": "mem-end-1",
+                    "memory_type": "semantic",
+                    "content": "Persist from message_end.",
+                }
+            ],
+        }
+    )
+
+    extra_data = collector.extra_data
+
+    assert extra_data is not None
+    assert extra_data["citedMemoryIds"] == ["mem-end-1", "mem-end-2"]
+    assert extra_data["citedMemoryRefs"][0]["id"] == "mem-end-1"
     collector = StreamContentCollector()
 
     collector.feed_event(
