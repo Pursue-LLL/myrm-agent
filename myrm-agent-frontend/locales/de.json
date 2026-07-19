@@ -11128,7 +11128,8 @@
       "takeoverCaptchaAuto": "Verifizierung wird bearbeitet…",
       "takeoverCaptchaAutoHint": "Der Agent bearbeitet die Verifizierung automatisch. Bitte warten.",
       "takeoverLearned": "Verhalten aufgezeichnet — Agent lernt aus Ihrer Demonstration",
-      "takeoverResumeFailed": "Agent konnte nicht fortgesetzt werden, bitte erneut versuchen"
+      "takeoverResumeFailed": "Agent konnte nicht fortgesetzt werden, bitte erneut versuchen",
+      "takeoverVncOpenFailed": "Visueller Desktop für Browser-Übernahme konnte nicht geöffnet werden. Bitte erneut verbinden oder wiederholen."
     },
     "pricing": {
       "title": "Pricing",

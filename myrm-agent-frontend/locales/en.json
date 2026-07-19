@@ -82,7 +82,28 @@
     "advancedSettings": "Advanced",
     "loopOnPauseLabel": "Auto-restart on context overflow",
     "convergenceWindowLabel": "Convergence Window (turns)",
-    "convergenceWindowPlaceholder": "e.g. 3"
+    "convergenceWindowPlaceholder": "e.g. 3",
+    "statusWait": "Waiting",
+    "reasonJudgeComplete": "Completed by quality check",
+    "reasonToolComplete": "Marked complete by agent",
+    "reasonBudgetExhausted": "Budget exhausted",
+    "reasonWaitTimeout": "Wait timed out — paused",
+    "reasonConvergence": "Completed after no new progress",
+    "draftSection": "Goal setup assistant",
+    "draftObjectivePlaceholder": "Describe what you want the agent to achieve…",
+    "suggestCriteria": "Suggest acceptance criteria",
+    "draftGenerating": "Generating…",
+    "draftPreviewHint": "Review suggested criteria below before sending your goal message.",
+    "draftObjectiveRequired": "Enter a goal description first",
+    "draftFailed": "Could not generate suggestions",
+    "draftApplied": "Suggestions applied — review before sending",
+    "draftComposerHint": "Write your goal in the message box below, then generate suggestions here.",
+    "draftComposerRequired": "Write your goal in the message box first",
+    "pauseDialogTitle": "Pause goal",
+    "pauseDialogDescription": "Optionally add a note so you remember why this goal is paused.",
+    "pauseNotePlaceholder": "Reason for pausing (optional)",
+    "pauseConfirm": "Pause",
+    "pauseSubmitting": "Pausing…"
   },
   "commands": {
     "palette": {
@@ -12117,7 +12138,8 @@
       "takeoverCaptchaAuto": "Resolving verification…",
       "takeoverCaptchaAutoHint": "The agent is handling verification automatically. Please wait.",
       "takeoverLearned": "Behavior recorded — Agent will learn from your demonstration",
-      "takeoverResumeFailed": "Failed to resume agent, please try again"
+      "takeoverResumeFailed": "Failed to resume agent, please try again",
+      "takeoverVncOpenFailed": "Unable to open the visual desktop for browser takeover. Reconnect or retry."
     },
     "pricing": {
       "title": "Pricing",
@@ -12593,8 +12615,6 @@
       "enterReplay": "Enter Replay",
       "exitReplay": "Exit Replay Mode",
       "loading": "Loading...",
-      "agentScopeNotice": "Managing the selected agent's private knowledge base.",
-      "defaultScopeNotice": "Managing the default knowledge base. Open from an agent to manage that agent's vault.",
       "input": "Task Input",
       "output": "Task Output",
       "events": "events",

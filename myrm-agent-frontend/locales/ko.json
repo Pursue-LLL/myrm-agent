@@ -11128,7 +11128,8 @@
       "takeoverCaptchaAuto": "인증 처리 중…",
       "takeoverCaptchaAutoHint": "에이전트가 자동으로 인증을 처리하고 있습니다. 잠시만 기다려주세요.",
       "takeoverLearned": "동작이 기록되었습니다 — 에이전트가 시연에서 학습합니다",
-      "takeoverResumeFailed": "에이전트 재개 실패, 다시 시도해주세요"
+      "takeoverResumeFailed": "에이전트 재개 실패, 다시 시도해주세요",
+      "takeoverVncOpenFailed": "브라우저 인수를 위한 비주얼 데스크톱을 열 수 없습니다. 다시 연결하거나 재시도해주세요."
     },
     "pricing": {
       "title": "Pricing",

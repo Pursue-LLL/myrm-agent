@@ -82,7 +82,28 @@
     "advancedSettings": "高级设置",
     "loopOnPauseLabel": "上下文溢出后自动重启",
     "convergenceWindowLabel": "收敛检测窗口 (轮次)",
-    "convergenceWindowPlaceholder": "如: 3"
+    "convergenceWindowPlaceholder": "如: 3",
+    "statusWait": "等待中",
+    "reasonJudgeComplete": "质量检查判定已完成",
+    "reasonToolComplete": "Agent 已声明完成",
+    "reasonBudgetExhausted": "预算已耗尽",
+    "reasonWaitTimeout": "等待超时 — 已暂停",
+    "reasonConvergence": "连续无新进展后完成",
+    "draftSection": "目标设定助手",
+    "draftObjectivePlaceholder": "描述你希望 Agent 完成的目标…",
+    "suggestCriteria": "智能生成验收标准",
+    "draftGenerating": "生成中…",
+    "draftPreviewHint": "发送目标消息前，请在下方的验收标准中确认或修改。",
+    "draftObjectiveRequired": "请先输入目标描述",
+    "draftFailed": "生成建议失败",
+    "draftApplied": "已填入建议 — 发送前请确认",
+    "draftComposerHint": "请先在下方输入框写好目标，再在此生成验收建议。",
+    "draftComposerRequired": "请先在输入框中写好目标",
+    "pauseDialogTitle": "暂停目标",
+    "pauseDialogDescription": "可填写备注，方便之后记起暂停原因。",
+    "pauseNotePlaceholder": "暂停原因（可选）",
+    "pauseConfirm": "暂停",
+    "pauseSubmitting": "暂停中…"
   },
   "commands": {
     "palette": {
@@ -12088,7 +12109,8 @@
       "takeoverCaptchaAuto": "正在自动处理验证…",
       "takeoverCaptchaAutoHint": "智能体正在自动处理验证，请稍候。",
       "takeoverLearned": "操作已记录 — Agent 将从你的示范中学习",
-      "takeoverResumeFailed": "恢复 Agent 失败，请重试"
+      "takeoverResumeFailed": "恢复 Agent 失败，请重试",
+      "takeoverVncOpenFailed": "无法打开可视化桌面以接管浏览器，请重连或重试。"
     },
     "pricing": {
       "title": "定价",
@@ -12704,8 +12726,6 @@
       "enterReplay": "Enter Replay",
       "exitReplay": "Exit Replay Mode",
       "loading": "加载中...",
-      "agentScopeNotice": "正在管理所选智能体的独立知识库。",
-      "defaultScopeNotice": "正在管理默认知识库。从智能体入口打开可管理该智能体专属知识库。",
       "input": "Task Input",
       "output": "Task Output",
       "events": "events",

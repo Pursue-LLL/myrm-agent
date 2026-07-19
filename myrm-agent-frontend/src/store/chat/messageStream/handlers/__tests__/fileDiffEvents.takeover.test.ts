@@ -7,9 +7,20 @@ import type { StreamCtx } from '../../streamContext';
 import { fileDiffEvents } from '../fileDiffEvents';
 
 const fetchWithTimeout = vi.fn();
+const toastError = vi.fn();
 
 vi.mock('@/lib/api', () => ({
   fetchWithTimeout: (...args: unknown[]) => fetchWithTimeout(...args),
+}));
+
+vi.mock('@/lib/utils/toast', () => ({
+  toast: {
+    error: (...args: unknown[]) => toastError(...args),
+  },
+}));
+
+vi.mock('@/lib/utils/localeUtils', () => ({
+  getClientLocale: () => 'en',
 }));
 
 function buildCtx(data: StreamCtx['data']): StreamCtx {
@@ -69,5 +80,27 @@ describe('fileDiffEvents browser takeover', () => {
 
     expect(fetchWithTimeout).toHaveBeenCalledWith('/webui/vnc/takeover', expect.objectContaining({ method: 'POST' }));
     expect(useBrowserTakeoverStore.getState().uiMode).toBe('managed');
+  });
+
+  it('shows toast when managed VNC POST returns non-ok', async () => {
+    fetchWithTimeout.mockResolvedValue({ ok: false, status: 503 });
+    const ctx = buildCtx({
+      type: AgentEventType.BROWSER_TAKEOVER_REQUESTED,
+      messageId: 'msg-44',
+      data: {
+        reason: 'Complete payment in sandbox browser',
+        is_managed: true,
+      },
+    });
+
+    await fileDiffEvents(ctx);
+
+    await vi.waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        expect.stringContaining('visual desktop'),
+        expect.objectContaining({ duration: 8000 }),
+      );
+    });
+    expect(useBrowserTakeoverStore.getState().pending).toBe(true);
   });
 });

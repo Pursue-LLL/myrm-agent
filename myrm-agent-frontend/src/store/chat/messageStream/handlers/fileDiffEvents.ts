@@ -13,6 +13,30 @@
 import type { StreamCtx, StreamTurn } from "../streamContext";
 import { done } from "../streamContext";
 import * as H from "./handlerDeps";
+import de from "../../../../../locales/de.json";
+import en from "../../../../../locales/en.json";
+import ja from "../../../../../locales/ja.json";
+import ko from "../../../../../locales/ko.json";
+import zh from "../../../../../locales/zh.json";
+
+const TAKEOVER_VNC_OPEN_FAILED: Record<string, string> = {
+  en: en.billing.vnc.takeoverVncOpenFailed,
+  zh: zh.billing.vnc.takeoverVncOpenFailed,
+  de: de.billing.vnc.takeoverVncOpenFailed,
+  ja: ja.billing.vnc.takeoverVncOpenFailed,
+  ko: ko.billing.vnc.takeoverVncOpenFailed,
+};
+
+function takeoverVncOpenFailedMessage(locale: string | null): string {
+  const key = locale?.split("-")[0] ?? "en";
+  return TAKEOVER_VNC_OPEN_FAILED[key] ?? TAKEOVER_VNC_OPEN_FAILED.en;
+}
+
+async function notifyTakeoverVncOpenFailed(): Promise<void> {
+  const { getClientLocale } = await import("@/lib/utils/localeUtils");
+  const { toast } = await import("@/lib/utils/toast");
+  toast.error(takeoverVncOpenFailedMessage(getClientLocale()), { duration: 8000 });
+}
 
 export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, added, state, actions } = ctx;
@@ -224,11 +248,17 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
     if (uiMode === 'managed') {
       const { fetchWithTimeout } = await import('@/lib/api');
-      fetchWithTimeout('/webui/vnc/takeover', {
+      void fetchWithTimeout('/webui/vnc/takeover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: data.data.reason || '' }),
-      }).catch(() => {});
+      }).then(async (res) => {
+        if (!res.ok) {
+          await notifyTakeoverVncOpenFailed();
+        }
+      }).catch(async () => {
+        await notifyTakeoverVncOpenFailed();
+      });
     }
     return done(ctx);
   }
