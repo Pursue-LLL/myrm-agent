@@ -11121,6 +11121,11 @@
       "disconnectedHint": "The agent sandbox may be sleeping or unavailable.",
       "reconnect": "Reconnect",
       "takeoverDone": "完了",
+      "takeoverSkip": "完了できない",
+      "takeoverExtensionTitle": "Chrome で操作してください",
+      "takeoverExtensionHint": "Chrome ブラウザで操作を完了し、終わったら「完了」をタップしてください。",
+      "takeoverCaptchaAuto": "認証を処理中…",
+      "takeoverCaptchaAutoHint": "エージェントが自動で認証を処理しています。しばらくお待ちください。",
       "takeoverLearned": "操作を記録しました — エージェントがあなたの操作から学習します",
       "takeoverResumeFailed": "エージェントの再開に失敗しました。もう一度お試しください"
     },

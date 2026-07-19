@@ -1,3 +1,16 @@
+/**
+ * [INPUT]
+ * - useBrowserTakeoverStore (POS: 浏览器 HITL takeover 请求状态)
+ * - useBrowserTakeoverActions (POS: Complete/Skip 与 VNC resume 同步)
+ * - VisualDesktop (POS: VNC/noVNC 实时桌面嵌入视图)
+ *
+ * [OUTPUT]
+ * VisualDesktopToggle: managed 模式 VNC 浮动面板与 HITL takeover 条
+ *
+ * [POS]
+ * 沙箱/本地 VNC 桌面入口。extension 模式 takeover 由 ExtensionTakeoverBanner 处理，本组件不脉冲/不自动打开。
+ */
+
 'use client';
 
 import dynamic from 'next/dynamic';
