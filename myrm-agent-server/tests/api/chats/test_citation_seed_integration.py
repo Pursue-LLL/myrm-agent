@@ -1,4 +1,15 @@
-"""Integration test: citation seed fixture persists citedMemoryIds through HTTP + DB."""
+"""Integration test: citation seed fixture persists citedMemoryIds through HTTP + DB.
+
+[INPUT]
+tests.support.minimal_app::build_minimal_app (POS: 按需挂载 API 路由的测试 app)
+app.api.chats.test_fixtures::seed_citation_fixture (POS: Chats API 本地测试 fixture)
+
+[OUTPUT]
+TestCitationSeedIntegration: seed → GET messages metadata 断言
+
+[POS]
+Chats API 集成测。验证 citation seed 真 DB 持久化路径（默认 CI，不依赖 Chrome）。
+"""
 
 from __future__ import annotations
 
