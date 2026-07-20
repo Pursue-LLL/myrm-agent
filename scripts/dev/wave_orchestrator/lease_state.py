@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - time/owner helpers, active lease lookup, TTL and runtime-drift transitions
-- signoff_matrix_guard_active, signoff_matrix_runtime_heal_allowed, heal_open_wave_runtime_id (signoff matrix 活跃 lease 或 `MYRM_SIGNOFF_MATRIX=1` bootstrap 时原地 heal runtimeId)
+- signoff_matrix_guard_active, signoff_chrome_lock_active, signoff_matrix_runtime_heal_allowed, heal_open_wave_runtime_id (signoff matrix 活跃 lease、`MYRM_SIGNOFF_MATRIX=1` bootstrap、或 signoff-chrome.lock 时原地 heal runtimeId)
 
 [POS]
 Lock-free state policy. Callers own persistence and all external cleanup I/O.
@@ -143,6 +143,30 @@ def is_signoff_matrix_agent_id(agent_id: str) -> bool:
     return agent_id.startswith(SIGNOFF_MATRIX_AGENT_PREFIX)
 
 
+def signoff_chrome_lock_active() -> bool:
+    """True while ./myrm signoff chrome holds signoff-chrome.lock with a live owner."""
+    state_dir = Path(
+        os.environ.get("MYRM_DEV_STATE_DIR", str(Path.home() / ".local/state/myrm-dev"))
+    )
+    lock_path = state_dir / "signoff-chrome.lock"
+    if not lock_path.is_file():
+        return False
+    try:
+        owner_raw = lock_path.read_text(encoding="utf-8").strip().split()[0]
+        owner_pid = int(owner_raw)
+    except (OSError, ValueError):
+        return True
+    if owner_pid <= 0:
+        return True
+    try:
+        os.kill(owner_pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def signoff_matrix_guard_active(state: OrchestratorState) -> bool:
     """True while Dev Gate signoff matrix holds an active LIVE_AGENT session."""
     return any(
@@ -155,7 +179,9 @@ def signoff_matrix_runtime_heal_allowed(state: OrchestratorState) -> bool:
     """Allow in-place runtime heal during signoff matrix parent bootstrap or active session."""
     if signoff_matrix_guard_active(state):
         return True
-    return os.environ.get("MYRM_SIGNOFF_MATRIX", "").strip() == "1"
+    if os.environ.get("MYRM_SIGNOFF_MATRIX", "").strip() == "1":
+        return True
+    return signoff_chrome_lock_active()
 
 
 def heal_open_wave_runtime_id(

@@ -98,6 +98,21 @@ def open_mcp_page(url: str, *, timeout_ms: int = 60_000) -> Iterator[tuple[Chrom
         yield client, page
 
 
+def _coerce_evaluate_result(raw: object) -> dict[str, object]:
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        stripped = raw.strip()
+        if stripped.startswith("{"):
+            try:
+                parsed = json.loads(stripped)
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+    return {"value": raw}
+
+
 def wait_for_state(
     client: ChromeMcpClient,
     page: McpPage,
@@ -114,7 +129,7 @@ def wait_for_state(
             expression,
             timeout_sec=max(5.0, min(30.0, remaining)),
         )
-        last = raw if isinstance(raw, dict) else {"value": raw}
+        last = _coerce_evaluate_result(raw)
         if last.get("ready") is True:
             return last
         time.sleep(0.25)
