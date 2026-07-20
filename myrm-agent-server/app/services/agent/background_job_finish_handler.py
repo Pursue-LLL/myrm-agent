@@ -87,33 +87,36 @@ class ServerBackgroundJobFinishHandler:
     """Persists background bash job completion into the chat transcript."""
 
     def __init__(self) -> None:
-        self._processed: set[tuple[str, int]] = set()
+        self._processed: set[tuple[str, str]] = set()
 
     def _claim_finish_once(self, result: BackgroundJobFinishResult) -> bool:
         from myrm_agent_harness.api.hooks import get_background_job_store
 
-        store = get_background_job_store()
-        if store is not None:
-            job_id = result.job_id
-            if not job_id:
-                record = store.get_by_pid(result.pid)
-                job_id = record.job_id if record is not None else ""
-            if job_id:
-                record = store.get_by_job_id(job_id)
-                if record is not None:
-                    if record.finish_processed:
-                        return False
-                    if store.try_claim_finish(job_id):
-                        return True
-                    if record.status == "exited":
-                        return False
-
-        dedupe_key = (result.session_id, result.pid)
-        if dedupe_key in self._processed:
-            logger.debug(
-                "Background job finish deduped for session=%s pid=%s",
+        if not result.job_id:
+            logger.warning(
+                "Background job finish missing job_id for session=%s pid=%s",
                 result.session_id,
                 result.pid,
+            )
+            return False
+
+        store = get_background_job_store()
+        if store is not None:
+            record = store.get_by_job_id(result.job_id)
+            if record is not None:
+                if record.finish_processed:
+                    return False
+                if store.try_claim_finish(result.job_id):
+                    return True
+                if record.status == "exited":
+                    return False
+
+        dedupe_key = (result.session_id, result.job_id)
+        if dedupe_key in self._processed:
+            logger.debug(
+                "Background job finish deduped for session=%s job_id=%s",
+                result.session_id,
+                result.job_id,
             )
             return False
         self._processed.add(dedupe_key)

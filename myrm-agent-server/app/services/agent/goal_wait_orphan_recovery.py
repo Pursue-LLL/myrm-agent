@@ -6,7 +6,7 @@
 - app.services.agent.goal_stream_trigger::publish_goal_needs_review_notification (POS: SSE)
 
 [OUTPUT]
-- release_orphaned_wait_goals: WAIT + orphaned background pid → NEEDS_HUMAN_REVIEW
+- release_orphaned_wait_goals: WAIT + orphaned background job_id → NEEDS_HUMAN_REVIEW
 
 [POS]
 Server startup companion to pause_orphaned_active_goals — symmetric handling for WAIT barrier.
@@ -19,35 +19,33 @@ import logging
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.goals.types import Goal, GoalStatus
-from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_PID_KEY
+from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_JOB_ID_KEY
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.api.hooks import BackgroundJobRecord
+    from myrm_agent_harness.agent.meta_tools.bash._background_job_store_core import BackgroundJobRecord
 
 logger = logging.getLogger(__name__)
 
 _REVIEW_REASON = "Background job lost after server restart — re-run the command to continue"
 
 
-def _orphaned_jobs_by_session_pid(
+def _orphaned_jobs_by_session_job_id(
     records: tuple[BackgroundJobRecord, ...],
-) -> dict[tuple[str, int], BackgroundJobRecord]:
-    indexed: dict[tuple[str, int], BackgroundJobRecord] = {}
+) -> dict[tuple[str, str], BackgroundJobRecord]:
+    indexed: dict[tuple[str, str], BackgroundJobRecord] = {}
     for record in records:
-        if record.status != "orphaned" or record.pid is None:
+        if record.status != "orphaned" or not record.job_id:
             continue
-        indexed[(record.session_id, record.pid)] = record
+        indexed[(record.session_id, record.job_id)] = record
     return indexed
 
 
-def _parse_wait_pid(goal: Goal) -> int | None:
-    wait_pid_raw = goal.metadata.get(WAIT_ON_BACKGROUND_PID_KEY)
-    if wait_pid_raw is None:
+def _parse_wait_job_id(goal: Goal) -> str | None:
+    wait_job_id_raw = goal.metadata.get(WAIT_ON_BACKGROUND_JOB_ID_KEY)
+    if wait_job_id_raw is None:
         return None
-    try:
-        return int(wait_pid_raw)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return None
+    wait_job_id = str(wait_job_id_raw).strip()
+    return wait_job_id or None
 
 
 def find_goals_to_release_from_orphaned_jobs(
@@ -57,7 +55,7 @@ def find_goals_to_release_from_orphaned_jobs(
     orphaned_jobs: tuple[BackgroundJobRecord, ...],
 ) -> tuple[str, ...]:
     """Return goal_ids that should exit WAIT because their background job was orphaned."""
-    orphaned_index = _orphaned_jobs_by_session_pid(orphaned_jobs)
+    orphaned_index = _orphaned_jobs_by_session_job_id(orphaned_jobs)
     if not orphaned_index:
         return ()
 
@@ -66,10 +64,10 @@ def find_goals_to_release_from_orphaned_jobs(
         goal = goals_by_session.get(session_id)
         if goal is None or goal.status != GoalStatus.WAIT:
             continue
-        wait_pid = _parse_wait_pid(goal)
-        if wait_pid is None:
+        wait_job_id = _parse_wait_job_id(goal)
+        if wait_job_id is None:
             continue
-        if (session_id, wait_pid) not in orphaned_index:
+        if (session_id, wait_job_id) not in orphaned_index:
             continue
         to_release.append(goal.goal_id)
     return tuple(to_release)
@@ -78,7 +76,7 @@ def find_goals_to_release_from_orphaned_jobs(
 async def release_orphaned_wait_goals() -> None:
     """Mark WAIT goals NEEDS_HUMAN_REVIEW when their tracked background job was orphaned."""
     from myrm_agent_harness.agent.goals.storage import GoalStorage
-    from myrm_agent_harness.api.hooks import get_background_job_store
+    from myrm_agent_harness.agent.meta_tools.bash._background_job_store import get_background_job_store
     from myrm_agent_harness.toolkits.storage.factory import get_storage_provider
 
     store = get_background_job_store()
@@ -117,8 +115,9 @@ async def release_orphaned_wait_goals() -> None:
         if goal is None or goal.goal_id not in goal_ids:
             continue
 
+        wait_job_id = _parse_wait_job_id(goal)
         goal.status = GoalStatus.NEEDS_HUMAN_REVIEW
-        goal.metadata.pop(WAIT_ON_BACKGROUND_PID_KEY, None)
+        goal.metadata.pop(WAIT_ON_BACKGROUND_JOB_ID_KEY, None)
         goal.metadata.pop("wait_reason", None)
         goal.metadata.pop("wait_started_at", None)
         goal.metadata.pop("wait_max_seconds", None)
@@ -127,9 +126,10 @@ async def release_orphaned_wait_goals() -> None:
         await publish_goal_needs_review_notification(session_id, goal.goal_id)
         released += 1
         logger.info(
-            "Goal %s (session %s) released from WAIT — background job orphaned after restart",
+            "Goal %s (session %s) released from WAIT — background job_id=%s orphaned after restart",
             goal.goal_id,
             session_id,
+            wait_job_id or "unknown",
         )
 
     if released:

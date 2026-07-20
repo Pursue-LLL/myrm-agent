@@ -492,3 +492,28 @@ class TestCronApiSessionTargetChatId:
         resp = client.patch(f"/cron/{job_id}", json={"name": "renamed"})
         assert resp.status_code == 200
         assert resp.json()["chat_id"] == "chat-keep"
+
+
+class TestCronChatIdFilter:
+    def test_list_jobs_filters_by_chat_id(self, client: TestClient) -> None:
+        for chat_id, name in (("chat-a", "job-a"), ("chat-b", "job-b")):
+            resp = client.post(
+                "/cron",
+                json={
+                    "name": name,
+                    "job_type": "agent",
+                    "schedule": {"kind": "interval", "interval_ms": 300_000},
+                    "prompt": "check",
+                    "session_target": "main",
+                    "chat_id": chat_id,
+                },
+            )
+            assert resp.status_code == 201
+
+        resp = client.get("/cron?chat_id=chat-a")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 1
+        assert len(data["items"]) == 1
+        assert data["items"][0]["chat_id"] == "chat-a"
+        assert data["items"][0]["name"] == "job-a"

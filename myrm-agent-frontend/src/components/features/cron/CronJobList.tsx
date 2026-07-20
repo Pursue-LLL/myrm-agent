@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Search, Timer, RefreshCw, Plus } from 'lucide-react';
+import Link from 'next/link';
+import { Search, Timer, RefreshCw, Plus, Sparkles } from 'lucide-react';
 import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { Skeleton } from '@/components/primitives/skeleton';
@@ -18,6 +19,7 @@ import BlueprintCatalog from './BlueprintCatalog';
 import BlueprintFillDialog from './BlueprintFillDialog';
 import SchedulerHealthBadge from './SchedulerHealthBadge';
 import type { CronBlueprint } from './cron-blueprints';
+import { useSearchParams } from 'next/navigation';
 
 interface CronJobListProps {
   onSelectJob: (job: CronJob) => void;
@@ -58,6 +60,8 @@ function EmptyState({ t, onSelectBlueprint }: { t: (key: string) => string; onSe
 
 export default function CronJobList({ onSelectJob }: CronJobListProps) {
   const t = useTranslations('cron');
+  const searchParams = useSearchParams();
+  const chatIdFilter = searchParams.get('chat_id')?.trim() || undefined;
   const { jobs, loading, fetchJobs, deleteJob } = useCronStore();
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [query, setQuery] = useState('');
@@ -67,8 +71,8 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
   const [selectedBlueprint, setSelectedBlueprint] = useState<CronBlueprint | null>(null);
 
   useEffect(() => {
-    fetchJobs(true);
-  }, [fetchJobs]);
+    fetchJobs(true, chatIdFilter);
+  }, [fetchJobs, chatIdFilter]);
 
   const stats = useMemo(() => computeStats(jobs), [jobs]);
   const filtered = useMemo(() => filterJobs(jobs, filter, query), [jobs, filter, query]);
@@ -76,7 +80,7 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetchJobs(true);
+      await fetchJobs(true, chatIdFilter);
     } finally {
       setRefreshing(false);
     }
@@ -99,8 +103,21 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <CronStatsBar stats={stats} activeFilter={filter} onFilterChange={setFilter} />
-        <SchedulerHealthBadge />
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/settings/evolutionPending?growthType=cron_suggestion"
+            className="inline-flex items-center gap-1 rounded-md border border-border/70 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground hover:border-primary/30"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {t('suggestionsLink')}
+          </Link>
+          <SchedulerHealthBadge />
+        </div>
       </div>
+
+      {chatIdFilter ? (
+        <p className="text-xs text-muted-foreground">{t('filteredByChat', { chatId: chatIdFilter.slice(0, 8) })}</p>
+      ) : null}
 
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
@@ -155,7 +172,7 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
         onConfirm={handleDelete}
       />
 
-      <CronJobCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <CronJobCreateDialog open={createOpen} onOpenChange={setCreateOpen} presetChatId={chatIdFilter ?? null} />
 
       <BlueprintFillDialog
         blueprint={selectedBlueprint}

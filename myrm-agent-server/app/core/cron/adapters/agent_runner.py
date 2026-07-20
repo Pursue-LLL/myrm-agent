@@ -390,6 +390,8 @@ class AgentJobRunner:
                         )
                         user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 
+            enabled_builtin_tools = [tool_id for tool_id in enabled_builtin_tools if tool_id != "cron"]
+
             # Priority: agent profile model > job.model > global default
             model_override = agent_model_override or job.model
             model_cfg = resolve_model_config(
@@ -430,6 +432,7 @@ class AgentJobRunner:
                 channel_name="cron",
                 declared_capabilities=job.required_capabilities,
                 declared_allowed_roots=job.allowed_roots,
+                enable_cron_eager=False,
                 enable_web_search="web_search" in enabled_builtin_tools
                 and user_cfgs.search_is_user_configured
                 and await verify_search_service_available(user_cfgs.search_cfg),

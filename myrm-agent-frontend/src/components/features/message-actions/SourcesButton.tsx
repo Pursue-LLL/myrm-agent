@@ -142,7 +142,7 @@ const SourcesButton: React.FC<SourcesButtonProps> = ({ sources }) => {
 /**
  * 单个来源项组件
  */
-const SourceItem: React.FC<{ source: Source }> = ({ source }) => {
+export function SourceItem({ source }: { source: Source }) {
   const t = useTranslations('sources');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -357,7 +357,7 @@ const SourceItem: React.FC<{ source: Source }> = ({ source }) => {
   }
 
   return content;
-};
+}
 
 function formatSourceDate(value: string): string {
   const date = new Date(value);

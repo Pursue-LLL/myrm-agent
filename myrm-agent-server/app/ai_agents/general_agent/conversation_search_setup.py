@@ -5,8 +5,8 @@ app.services.chat.conversation_search_service::ConversationHistorySearchProvider
 myrm_agent_harness.toolkits.memory.conversation_search::create_conversation_search_tool (POS: framework-level conversation recall tool factory)
 
 [OUTPUT]
-append_conversation_search_tool: Attach the read-only conversation_search tool when
-user setting memoryEnableConversationSearch is enabled (not default Turn1).
+append_conversation_search_tool: Legacy helper to attach standalone conversation_search_tool.
+GeneralAgent uses memory_search_tool sessions ACL via tool_setup instead.
 
 [POS]
 GeneralAgent 会话搜索装配辅助模块。仅在用户开启 memoryEnableConversationSearch 时装载。

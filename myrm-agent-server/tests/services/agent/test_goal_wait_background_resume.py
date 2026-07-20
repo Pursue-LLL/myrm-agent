@@ -5,8 +5,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
-from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_PID_KEY
+from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_JOB_ID_KEY
 from myrm_agent_harness.api.hooks import BackgroundJobFinishResult
+
+_JOB_ID = "a" * 32
 
 
 @pytest.mark.asyncio
@@ -18,7 +20,7 @@ async def test_maybe_resume_goal_after_background_job_exits_wait_and_triggers_st
         session_id="chat-1",
         objective="Build",
         status=GoalStatus.WAIT,
-        metadata={WAIT_ON_BACKGROUND_PID_KEY: 4242},
+        metadata={WAIT_ON_BACKGROUND_JOB_ID_KEY: _JOB_ID},
         budget=GoalBudget(max_turns=5),
     )
     active_goal = Goal(
@@ -35,6 +37,7 @@ async def test_maybe_resume_goal_after_background_job_exits_wait_and_triggers_st
 
     result = BackgroundJobFinishResult(
         session_id="chat-1",
+        job_id=_JOB_ID,
         pid=4242,
         command="npm run build",
         status="exited",
@@ -67,7 +70,7 @@ async def test_maybe_resume_goal_after_background_job_exits_wait_and_triggers_st
 
 
 @pytest.mark.asyncio
-async def test_maybe_resume_goal_skips_unmatched_pid():
+async def test_maybe_resume_goal_skips_unmatched_job_id():
     from app.services.agent.goal_wait_background_resume import maybe_resume_goal_after_background_job
 
     goal = Goal(
@@ -75,7 +78,7 @@ async def test_maybe_resume_goal_skips_unmatched_pid():
         session_id="chat-1",
         objective="Build",
         status=GoalStatus.WAIT,
-        metadata={WAIT_ON_BACKGROUND_PID_KEY: 1111},
+        metadata={WAIT_ON_BACKGROUND_JOB_ID_KEY: "b" * 32},
         budget=GoalBudget(max_turns=5),
     )
     provider = AsyncMock()
@@ -83,6 +86,7 @@ async def test_maybe_resume_goal_skips_unmatched_pid():
 
     result = BackgroundJobFinishResult(
         session_id="chat-1",
+        job_id=_JOB_ID,
         pid=9999,
         command="npm run build",
         status="exited",
@@ -116,7 +120,7 @@ async def test_maybe_resume_goal_returns_false_when_stream_trigger_fails():
         session_id="chat-1",
         objective="Build",
         status=GoalStatus.WAIT,
-        metadata={WAIT_ON_BACKGROUND_PID_KEY: 4242},
+        metadata={WAIT_ON_BACKGROUND_JOB_ID_KEY: _JOB_ID},
         budget=GoalBudget(max_turns=5),
     )
     active_goal = Goal(
@@ -133,6 +137,7 @@ async def test_maybe_resume_goal_returns_false_when_stream_trigger_fails():
 
     result = BackgroundJobFinishResult(
         session_id="chat-1",
+        job_id=_JOB_ID,
         pid=4242,
         command="npm run build",
         status="exited",

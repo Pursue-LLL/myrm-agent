@@ -46,12 +46,24 @@ async def list_jobs(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     search: str | None = Query(None, max_length=200),
+    chat_id: str | None = Query(None, max_length=255),
 ) -> CronJobsListResponse:
     mgr = _h._get_manager()
     name_filter = search.strip() if search else None
-    jobs = await mgr.list_jobs(USER_ID, name_filter=name_filter, limit=limit, offset=offset)
-    if name_filter:
-        all_matched = await mgr.list_jobs(USER_ID, name_filter=name_filter)
+    chat_filter = chat_id.strip() if chat_id else None
+    jobs = await mgr.list_jobs(
+        USER_ID,
+        name_filter=name_filter,
+        chat_id=chat_filter,
+        limit=limit,
+        offset=offset,
+    )
+    if name_filter or chat_filter:
+        all_matched = await mgr.list_jobs(
+            USER_ID,
+            name_filter=name_filter,
+            chat_id=chat_filter,
+        )
         total = len(all_matched)
     else:
         total = await mgr.count_jobs(USER_ID)

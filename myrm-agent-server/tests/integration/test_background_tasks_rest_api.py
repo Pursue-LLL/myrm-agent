@@ -55,7 +55,7 @@ async def _spawn_background(
     chat_id: str,
     command: str,
     reason: str,
-) -> int:
+) -> tuple[int, str]:
     executor = _make_local_executor(tmp_path)
     set_executor(executor)
     bind_workspace_storage_root(tmp_path)
@@ -90,7 +90,7 @@ async def _spawn_background(
             },
             config=config,
         )
-    return int(spawn_result["metadata"]["pid"])
+    return int(spawn_result["metadata"]["pid"]), str(spawn_result["metadata"]["job_id"])
 
 
 @pytest.mark.integration
@@ -98,7 +98,7 @@ async def _spawn_background(
 async def test_rest_list_and_get_shell_task(tmp_path: Path) -> None:
     chat_id = f"rest-list-{uuid.uuid4().hex[:12]}"
     sleep_cmd = f'{sys.executable} -c "import time; time.sleep(30)"'
-    pid = await _spawn_background(
+    pid, job_id = await _spawn_background(
         tmp_path,
         chat_id=chat_id,
         command=sleep_cmd,
@@ -119,9 +119,10 @@ async def test_rest_list_and_get_shell_task(tmp_path: Path) -> None:
         assert row["status"] == "running"
         assert row["chat_id"] == chat_id
 
-        get_resp = await client.get(f"/api/v1/background-tasks/shell:{pid}")
+        get_resp = await client.get(f"/api/v1/background-tasks/shell:{job_id}")
         assert get_resp.status_code == 200
         assert get_resp.json()["pid"] == pid
+        assert get_resp.json()["job_id"] == job_id
 
 
 @pytest.mark.integration
@@ -129,7 +130,7 @@ async def test_rest_list_and_get_shell_task(tmp_path: Path) -> None:
 async def test_rest_cancel_shell_task(tmp_path: Path) -> None:
     chat_id = f"rest-cancel-{uuid.uuid4().hex[:12]}"
     long_cmd = f'{sys.executable} -c "import time; time.sleep(60)"'
-    pid = await _spawn_background(
+    pid, job_id = await _spawn_background(
         tmp_path,
         chat_id=chat_id,
         command=long_cmd,
@@ -138,9 +139,9 @@ async def test_rest_cancel_shell_task(tmp_path: Path) -> None:
 
     transport = ASGITransport(app=_build_rest_app())
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        cancel_resp = await client.post(f"/api/v1/background-tasks/shell:{pid}/cancel")
+        cancel_resp = await client.post(f"/api/v1/background-tasks/shell:{job_id}/cancel")
         assert cancel_resp.status_code == 200
-        assert cancel_resp.json()["task_id"] == f"shell:{pid}"
+        assert cancel_resp.json()["task_id"] == f"shell:{job_id}"
 
     await asyncio.sleep(0.15)
     info = get_background_registry().get(pid)
@@ -185,7 +186,7 @@ async def test_rest_invalid_shell_id_returns_404() -> None:
 async def test_rest_shell_failed_task_exposes_exit_metadata(tmp_path: Path) -> None:
     chat_id = f"rest-fail-{uuid.uuid4().hex[:12]}"
     fail_cmd = f'{sys.executable} -c "import sys; sys.exit(42)"'
-    pid = await _spawn_background(
+    pid, job_id = await _spawn_background(
         tmp_path,
         chat_id=chat_id,
         command=fail_cmd,
@@ -200,7 +201,7 @@ async def test_rest_shell_failed_task_exposes_exit_metadata(tmp_path: Path) -> N
 
     transport = ASGITransport(app=_build_rest_app())
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        get_resp = await client.get(f"/api/v1/background-tasks/shell:{pid}")
+        get_resp = await client.get(f"/api/v1/background-tasks/shell:{job_id}")
         assert get_resp.status_code == 200
         row = get_resp.json()
         assert row["status"] == "failed"

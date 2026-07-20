@@ -5829,7 +5829,7 @@
     "autoExtraction": "Auto-Extract Memories",
     "autoExtractionDesc": "When enabled, a lightweight model automatically extracts memories from conversations. This may consume additional tokens.",
     "enableConversationSearch": "Conversation History Search",
-    "enableConversationSearchDesc": "When enabled, the agent can call conversation_search to retrieve prior chat evidence. Off by default.",
+    "enableConversationSearchDesc": "When enabled, the assistant can search your past chats when you ask about earlier decisions or want to continue a previous topic. Off by default.",
     "comingSoonTitle": "Coming Soon",
     "comingSoonDesc": "",
     "tags": "Tags",

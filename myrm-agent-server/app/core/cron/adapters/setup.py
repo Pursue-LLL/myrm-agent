@@ -119,6 +119,7 @@ def _build_runners() -> dict[JobType, JobRunner]:
     runners: dict[JobType, JobRunner] = {
         JobType.AGENT: AgentJobRunner(situation_builder=situation_builder),
         JobType.ROUTER: RouterJobRunner(),
+        JobType.REMINDER: NotificationRunner(),
     }
     if is_local_mode():
         runners[JobType.SHELL] = ShellJobRunner()

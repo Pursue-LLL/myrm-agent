@@ -99,7 +99,7 @@ ChatService
 - `app/api/agents/general_agent/streaming.py`：Web Agent 统一入口（user message 持久化 + 历史加载，支持 fast/agent/deep_research/consensus 模式）
 - `app/core/channel_bridge/agent_executor/`：频道 Agent 执行器（持久化 + 历史加载 + 流式出站）
 - `app/core/channel_bridge/compact_handler.py`：IM `/compact` 命令业务实现（实现 CompactHandler 协议）
-- `app/ai_agents/general_agent/conversation_search_setup.py`：将会话历史召回服务装配为 GeneralAgent `conversation_search_tool`（用户 opt-in `memoryEnableConversationSearch`）。
+- `app/ai_agents/general_agent/tool_setup.py`：将 `ConversationHistorySearchProvider` 绑定为 `memory_search_tool` 的 sessions corpus 后端（opt-in `memoryEnableConversationSearch`）。
 
 ---
 

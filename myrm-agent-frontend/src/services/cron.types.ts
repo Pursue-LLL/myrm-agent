@@ -81,7 +81,7 @@ export interface CronJob {
   id: string;
   user_id: string;
   name: string;
-  job_type: 'agent' | 'shell' | 'router';
+  job_type: 'agent' | 'shell' | 'router' | 'reminder';
   status: JobStatus;
   schedule: CronSchedule;
   prompt?: string;
@@ -219,7 +219,7 @@ export interface TriggerConfigRequest {
 
 export interface CreateCronJobRequest {
   name: string;
-  job_type: 'agent' | 'shell' | 'router';
+  job_type: 'agent' | 'shell' | 'router' | 'reminder';
   schedule: CronSchedule;
   prompt?: string;
   model?: string;

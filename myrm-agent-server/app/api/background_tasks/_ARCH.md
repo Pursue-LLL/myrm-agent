@@ -9,7 +9,7 @@
 - **Agent 任务** — Kanban 持久化（`/btw`、子 Agent）
 - **Shell 任务** — 内存 registry 与 Volume 上 `BackgroundJobStore` 合并列表（Web 聊天 `run_in_background`）
 
-Shell 任务：`task_id=shell:{job_id}`（UUID）；legacy `shell:{pid}` 仍可 GET/cancel。服务重启后 Store 中 running 行 reconcile 为 **orphaned**；`registry_ephemeral=false` 当 Store 已 configure。
+Shell 任务：`task_id=shell:{job_id}`（32 位 hex）；服务重启后 Store 中 running 行 reconcile 为 **orphaned**；`registry_ephemeral=false` 当 Store 已 configure。
 
 ## 文件清单
 

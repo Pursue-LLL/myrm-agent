@@ -10,7 +10,7 @@
 
 [POS]
 Server-side companion to harness wait_background_bash auto-enter — closes the WAIT
-barrier when the tracked background process exits and resumes autonomous execution.
+barrier when the tracked background job exits and resumes autonomous execution.
 """
 
 from __future__ import annotations
@@ -18,15 +18,15 @@ from __future__ import annotations
 import logging
 
 from myrm_agent_harness.agent.goals.types import GoalStatus
-from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_PID_KEY
+from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_JOB_ID_KEY
 from myrm_agent_harness.api.hooks import BackgroundJobFinishResult
 
 logger = logging.getLogger(__name__)
 
 
 async def maybe_resume_goal_after_background_job(result: BackgroundJobFinishResult) -> bool:
-    """Exit WAIT and trigger unattended stream when the finished job matches wait pid."""
-    if not result.session_id or result.status != "exited":
+    """Exit WAIT and trigger unattended stream when the finished job matches wait job_id."""
+    if not result.session_id or result.status != "exited" or not result.job_id:
         return False
 
     from app.services.agent.goal_registry import GoalRegistry
@@ -39,16 +39,12 @@ async def maybe_resume_goal_after_background_job(result: BackgroundJobFinishResu
     if goal is None or goal.status != GoalStatus.WAIT:
         return False
 
-    wait_pid_raw = goal.metadata.get(WAIT_ON_BACKGROUND_PID_KEY)
-    if wait_pid_raw is None:
+    wait_job_id_raw = goal.metadata.get(WAIT_ON_BACKGROUND_JOB_ID_KEY)
+    if wait_job_id_raw is None:
         return False
 
-    try:
-        wait_pid = int(wait_pid_raw)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return False
-
-    if wait_pid != result.pid:
+    wait_job_id = str(wait_job_id_raw).strip()
+    if not wait_job_id or wait_job_id != result.job_id:
         return False
 
     if not hasattr(provider, "exit_wait"):
@@ -58,16 +54,16 @@ async def maybe_resume_goal_after_background_job(result: BackgroundJobFinishResu
     refreshed = await provider.get_goal(goal.goal_id)
     if refreshed is None or refreshed.status != GoalStatus.ACTIVE:
         logger.warning(
-            "Goal %s exit_wait did not reach ACTIVE after background pid=%s finish",
+            "Goal %s exit_wait did not reach ACTIVE after background job_id=%s finish",
             goal.goal_id,
-            result.pid,
+            result.job_id,
         )
         return False
 
     logger.info(
-        "Goal %s exited WAIT after background job pid=%s finished — triggering stream",
+        "Goal %s exited WAIT after background job_id=%s finished — triggering stream",
         goal.goal_id,
-        result.pid,
+        result.job_id,
     )
 
     from app.services.agent.goal_stream_trigger import trigger_goal_stream_with_failure_policy

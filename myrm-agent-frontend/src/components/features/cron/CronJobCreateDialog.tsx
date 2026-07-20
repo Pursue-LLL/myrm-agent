@@ -34,8 +34,8 @@ import BlueprintCatalog from './BlueprintCatalog';
 import BlueprintInlineFill from './BlueprintInlineFill';
 import { CRON_PRESETS, type CronBlueprint } from './cron-blueprints';
 
-type JobType = 'agent' | 'shell' | 'router';
-type UIJobMode = 'agent' | 'shell' | 'script';
+type JobType = 'agent' | 'shell' | 'router' | 'reminder';
+type UIJobMode = 'agent' | 'shell' | 'script' | 'reminder';
 type ScheduleKind = 'cron' | 'interval' | 'once';
 
 const TOGGLE_CLS =
@@ -178,11 +178,16 @@ export default function CronJobCreateDialog({
     return { providerId: primary.providerId, model: primary.model };
   }, [defaultModelConfig]);
 
-  const jobType: JobType = uiMode === 'script' ? 'router' : uiMode;
+  const jobType: JobType =
+    uiMode === 'script' ? 'router' : uiMode === 'reminder' ? 'reminder' : uiMode;
 
   const effectiveChatId = presetChatId || selectedChatId || null;
   const contentValid =
-    uiMode === 'agent' ? prompt.trim().length > 0 : uiMode === 'shell' ? command.trim().length > 0 : scriptCode.trim().length > 0;
+    uiMode === 'agent' || uiMode === 'reminder'
+      ? prompt.trim().length > 0
+      : uiMode === 'shell'
+        ? command.trim().length > 0
+        : scriptCode.trim().length > 0;
   const sessionValid = sessionTarget === 'isolated' || effectiveChatId !== null;
   const canSubmit = contentValid && schedule !== null && sessionValid;
 
@@ -205,6 +210,8 @@ export default function CronJobCreateDialog({
       if (uiMode === 'agent') {
         payload.prompt = prompt.trim();
         if (agentId !== '__default__') payload.agent_id = agentId;
+      } else if (uiMode === 'reminder') {
+        payload.prompt = prompt.trim();
       } else if (uiMode === 'shell') {
         payload.command = command.trim();
       } else {
@@ -330,6 +337,10 @@ export default function CronJobCreateDialog({
                 <FileCode2 className="h-3.5 w-3.5" />
                 {t('jobTypeScript')}
               </ToggleGroupItem>
+              <ToggleGroupItem value="reminder" className={TOGGLE_CLS}>
+                <CalendarDays className="h-3.5 w-3.5" />
+                {t('jobTypeReminder')}
+              </ToggleGroupItem>
             </ToggleGroup>
           </div>
 
@@ -345,15 +356,22 @@ export default function CronJobCreateDialog({
           </div>
 
           {/* Content: Agent prompt */}
-          {uiMode === 'agent' && (
+          {(uiMode === 'agent' || uiMode === 'reminder') && (
             <div className="space-y-1.5">
-              <Label className="text-xs">{t('createPromptLabel')}</Label>
+              <Label className="text-xs">
+                {uiMode === 'reminder' ? t('createReminderLabel') : t('createPromptLabel')}
+              </Label>
               <Textarea
-                placeholder={t('createPromptPlaceholder')}
+                placeholder={
+                  uiMode === 'reminder' ? t('createReminderPlaceholder') : t('createPromptPlaceholder')
+                }
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 className="min-h-[80px] text-sm resize-none"
               />
+              {uiMode === 'reminder' ? (
+                <p className="text-[11px] text-muted-foreground">{t('createReminderHint')}</p>
+              ) : null}
             </div>
           )}
 

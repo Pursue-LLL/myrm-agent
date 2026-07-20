@@ -32,7 +32,7 @@ interface CronState {
   allRunsLoading: boolean;
   allRunsStatusFilter: string | null;
 
-  fetchJobs: (force?: boolean) => Promise<void>;
+  fetchJobs: (force?: boolean, chatId?: string) => Promise<void>;
   createJob: (data: CreateCronJobRequest) => Promise<CronJob>;
   updateJob: (id: string, data: UpdateCronJobRequest) => Promise<CronJob>;
   deleteJob: (id: string) => Promise<void>;
@@ -63,12 +63,12 @@ const useCronStore = create<CronState>()(
     allRunsLoading: false,
     allRunsStatusFilter: null,
 
-    fetchJobs: async (force = false) => {
+    fetchJobs: async (force = false, chatId?: string) => {
       const { loading, jobs } = get();
       if (!force && (loading || jobs.length > 0)) return;
       set({ loading: true, error: null });
       try {
-        const res = await listCronJobs();
+        const res = await listCronJobs(chatId ? { chat_id: chatId } : undefined);
         set({ jobs: res.items, loading: false });
       } catch (e) {
         set({ error: e instanceof Error ? e.message : 'Failed to load jobs', loading: false });

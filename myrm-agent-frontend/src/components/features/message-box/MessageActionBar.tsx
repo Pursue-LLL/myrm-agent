@@ -25,7 +25,6 @@ import RevertFiles from '../message-actions/RevertFiles';
 import RegenerateMenu from '../message-actions/RegenerateMenu';
 import SaveEvalCase from '../message-actions/SaveEvalCase';
 import SiblingNav from '../message-actions/SiblingNav';
-import SourcesButton from '../message-actions/SourcesButton';
 import Undo from '../message-actions/Undo';
 import SaveToMemoryButton from '../message-actions/SaveToMemoryButton';
 import ExtractToSkillButton from '../message-actions/ExtractToSkillButton';
@@ -70,6 +69,9 @@ export default function MessageActionBar({
     () => (message.createdAt ? formatMessageTimestamp(message.createdAt, locale, t('dateGroup.yesterday')) : null),
     [message.createdAt, locale, t],
   );
+  const hasEvidenceSources = (message.sources?.length ?? 0) > 0;
+  const hasMemoryCitations = (message.citedMemoryIds?.length ?? 0) > 0 || (message.citedMemoryRefs?.length ?? 0) > 0;
+  const showEvidenceButton = hasEvidenceSources || hasMemoryCitations;
 
   return (
     <div className="flex flex-row items-center justify-between w-full text-black dark:text-white py-4 -mx-2">
@@ -102,9 +104,12 @@ export default function MessageActionBar({
       </div>
 
       <div className="flex flex-row items-center space-x-1">
-        {!isStreaming && message.sources && message.sources.length > 0 && <SourcesButton sources={message.sources} />}
-        {!isStreaming && message.citedMemoryIds && message.citedMemoryIds.length > 0 && (
-          <MemoryCitationsButton memoryIds={message.citedMemoryIds} references={message.citedMemoryRefs} />
+        {!isStreaming && showEvidenceButton && (
+          <MemoryCitationsButton
+            memoryIds={message.citedMemoryIds}
+            references={message.citedMemoryRefs}
+            sources={message.sources}
+          />
         )}
         {!isStreaming && chatId && <RevertFiles chatId={chatId} messageId={message.messageId} />}
         {!isStreaming && message.citedMemoryIds && message.citedMemoryIds.length > 0 && (

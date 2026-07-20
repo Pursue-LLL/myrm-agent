@@ -161,13 +161,7 @@ def list_shell_background_tasks() -> list[ShellBackgroundTaskDTO]:
 
 
 def find_shell_background_task(task_suffix: str) -> ShellBackgroundTaskDTO | None:
-    """Resolve shell: task id suffix (job_id or legacy pid string)."""
-    if task_suffix.isdigit():
-        pid = int(task_suffix)
-        for row in list_shell_background_tasks():
-            if row.pid == pid:
-                return row
-        return None
+    """Resolve shell: task id suffix (job_id UUID hex)."""
     for row in list_shell_background_tasks():
         if row.job_id == task_suffix:
             return row

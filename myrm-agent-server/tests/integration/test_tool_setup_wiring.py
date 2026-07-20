@@ -157,6 +157,8 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
 
     def _capture_create_cron_tools(manager, user_id, **kwargs):
         captured["delivery_resolver"] = kwargs.get("delivery_resolver")
+        captured["blueprint_catalog_provider"] = kwargs.get("blueprint_catalog_provider")
+        captured["default_delivery"] = kwargs.get("default_delivery")
         return [MagicMock(name="cron_manage_tool", spec=BaseTool)]
 
     with (
@@ -178,6 +180,7 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
     from app.core.cron.adapters.delivery_resolver import resolve_cron_delivery
 
     assert captured.get("delivery_resolver") is resolve_cron_delivery
+    assert captured.get("blueprint_catalog_provider") is not None
     assert len(tools) == 1
 
 

@@ -13,6 +13,7 @@
 | `LocalPathsConfig.tsx` | 组件 | 本地技能扫描路径配置 | ✅ |
 | `ScanConfirmDialog.tsx` | 组件 | 目录扫描发现新技能确认对话框 | ✅ |
 | `SkillBatchImportDialog.tsx` | 组件 | 批量导入技能包（zip/url）；通过 `services/archiveSecurityErrorCore` 按后端 `error_code` 稳定映射预览/导入失败文案。 | ✅ |
+| `__tests__/SkillBatchImportDialog.test.tsx` | 测试 | 组件级回归：preview/confirm 失败时按 `error_code` 映射用户文案与 toast 分支。 | ✅ |
 | `SkillCard.tsx` | 核心 | 技能列表卡片（信任态/版本/快捷操作） | ✅ |
 | `SkillDetailDialog.tsx` | 辅助 | 技能详情 Modal 变体（小屏） | ✅ |
 | `SkillDetailSheet.tsx` | 核心 | 技能详情侧边栏入口（编排 hook 与内容组件、信任/删除确认对话框） | ✅ |

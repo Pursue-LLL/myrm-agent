@@ -497,6 +497,24 @@ class ToolSetupMixin(ExternalAgentsMixin):
             source=source,
         )
 
+    def _resolve_cron_default_delivery(self) -> "DeliveryConfig | None":
+        """Default IM delivery when creating cron jobs from a messaging channel."""
+        from myrm_agent_harness.toolkits.cron.types import DeliveryConfig
+
+        channel = getattr(self, "channel_name", "web_chat")
+        if channel in ("web_chat", "cron", "subagent"):
+            return None
+
+        from myrm_agent_harness.agent.security.channel_presets import ChannelType, resolve_channel_type
+
+        if resolve_channel_type(channel) == ChannelType.WEB_CHAT:
+            return None
+
+        recipient = getattr(self, "memory_conversation_id", None) or getattr(self, "chat_id", None)
+        if not recipient:
+            return None
+        return DeliveryConfig(channel=channel, target=str(recipient))
+
     async def _setup_cron_tools(
         self,
         tools: list[object],
@@ -547,9 +565,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 current_model=self.model_cfg.model,
                 chat_id=self.chat_id,
                 agent_id=self.agent_id,
-                blueprint_catalog=get_blueprints_for_tool_description(agent_locale),
                 blueprint_filler=_blueprint_filler,
+                blueprint_catalog_provider=lambda: get_blueprints_for_tool_description(agent_locale),
                 delivery_resolver=resolve_cron_delivery,
+                default_delivery=self._resolve_cron_default_delivery(),
             )
             tools.extend(cron_tools)
             logger.info("Loaded %d cron tools [Turn1 eager]", len(cron_tools))

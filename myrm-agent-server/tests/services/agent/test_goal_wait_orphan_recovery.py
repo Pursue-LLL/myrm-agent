@@ -8,14 +8,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from myrm_agent_harness.agent.goals.types import Goal, GoalStatus
-from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_PID_KEY
+from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_JOB_ID_KEY
 from myrm_agent_harness.agent.meta_tools.bash._background_job_store_core import BackgroundJobRecord
 
+_JOB_ID = "c" * 32
 
-def _goal(*, session_id: str, status: GoalStatus, wait_pid: int | None = None) -> Goal:
+
+def _goal(*, session_id: str, status: GoalStatus, wait_job_id: str | None = None) -> Goal:
     metadata: dict[str, object] = {}
-    if wait_pid is not None:
-        metadata[WAIT_ON_BACKGROUND_PID_KEY] = wait_pid
+    if wait_job_id is not None:
+        metadata[WAIT_ON_BACKGROUND_JOB_ID_KEY] = wait_job_id
     return Goal(
         goal_id=f"goal-{session_id}",
         session_id=session_id,
@@ -27,12 +29,12 @@ def _goal(*, session_id: str, status: GoalStatus, wait_pid: int | None = None) -
     )
 
 
-def test_find_goals_to_release_matches_session_and_pid() -> None:
+def test_find_goals_to_release_matches_session_and_job_id() -> None:
     from app.services.agent.goal_wait_orphan_recovery import find_goals_to_release_from_orphaned_jobs
 
     orphaned = (
         BackgroundJobRecord(
-            job_id="j1",
+            job_id=_JOB_ID,
             pid=4242,
             session_id="s1",
             command="pytest",
@@ -46,8 +48,8 @@ def test_find_goals_to_release_matches_session_and_pid() -> None:
         ),
     )
     goals = {
-        "s1": _goal(session_id="s1", status=GoalStatus.WAIT, wait_pid=4242),
-        "s2": _goal(session_id="s2", status=GoalStatus.WAIT, wait_pid=9999),
+        "s1": _goal(session_id="s1", status=GoalStatus.WAIT, wait_job_id=_JOB_ID),
+        "s2": _goal(session_id="s2", status=GoalStatus.WAIT, wait_job_id="d" * 32),
     }
 
     released = find_goals_to_release_from_orphaned_jobs(
@@ -60,9 +62,9 @@ def test_find_goals_to_release_matches_session_and_pid() -> None:
 
 @pytest.mark.asyncio
 async def test_release_orphaned_wait_goals_updates_status() -> None:
-    wait_goal = _goal(session_id="s1", status=GoalStatus.WAIT, wait_pid=4242)
+    wait_goal = _goal(session_id="s1", status=GoalStatus.WAIT, wait_job_id=_JOB_ID)
     orphaned = BackgroundJobRecord(
-        job_id="j1",
+        job_id=_JOB_ID,
         pid=4242,
         session_id="s1",
         command="pytest",
@@ -107,6 +109,6 @@ async def test_release_orphaned_wait_goals_updates_status() -> None:
         await release_orphaned_wait_goals()
 
     assert wait_goal.status == GoalStatus.NEEDS_HUMAN_REVIEW
-    assert WAIT_ON_BACKGROUND_PID_KEY not in wait_goal.metadata
+    assert WAIT_ON_BACKGROUND_JOB_ID_KEY not in wait_goal.metadata
     mock_storage.save_goal.assert_awaited_once()
     notify.assert_awaited_once_with("s1", "goal-s1")

@@ -39,10 +39,32 @@ describe('MemoryCitationsButton', () => {
     });
   });
 
-  it('does not render without cited memory ids or references', () => {
+  it('does not render without cited memory ids, references, or sources', () => {
     const { container } = render(<MemoryCitationsButton />);
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders unified evidence when only message sources are present', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryCitationsButton
+        sources={[
+          {
+            index: 1,
+            type: 'conversation_history',
+            conversation_id: 'chat-history',
+            message_id: 'msg-1',
+            title: 'Prior decision',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /buttonAria/ }));
+
+    expect(screen.getByText('title')).toBeInTheDocument();
+    expect(screen.getByText('Prior decision')).toBeInTheDocument();
   });
 
   it('opens citation sheet and resolves shared context namespace labels', async () => {

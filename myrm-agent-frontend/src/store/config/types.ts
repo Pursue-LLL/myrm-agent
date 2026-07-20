@@ -124,7 +124,7 @@ export interface ConfigState {
   memoryRequireConfirmation: boolean;
   // 是否使用轻量模型自动从会话中提取记忆
   enableMemoryAutoExtraction: boolean;
-  // 是否启用历史会话搜索工具（conversation_search_tool）
+  // 是否启用历史会话搜索（memory_search_tool corpus=sessions ACL）
   memoryEnableConversationSearch: boolean;
   preCompactEnabled: boolean;
   preCompactBudgetTokens: number;

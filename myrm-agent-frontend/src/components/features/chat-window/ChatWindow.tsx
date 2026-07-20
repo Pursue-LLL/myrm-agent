@@ -31,6 +31,7 @@ import ChatWindowSatellites, {
   LifeStatusCapsule,
 } from './ChatWindowSatellites';
 import { ParentChatLink } from './ParentChatLink';
+import { ChatCronLink } from './ChatCronLink';
 import WorkingStateBadge from './WorkingStateBadge';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
@@ -447,6 +448,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             {/* Agent Info Banner */}
             {agentConfig?.agentId && <AgentInfoBanner agentId={agentConfig.agentId} />}
             {id && <ParentChatLink chatId={id} />}
+            {id && <ChatCronLink chatId={id} />}
             <WorkingStateBadge />
             <YoloModeBanner />
             <EStopBanner />

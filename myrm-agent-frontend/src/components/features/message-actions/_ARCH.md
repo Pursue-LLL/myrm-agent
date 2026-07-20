@@ -20,7 +20,7 @@
 | `SaveToMemoryButton.tsx` | 组件 | 一键保存 assistant 消息到长期记忆（调用 createMemory API） | ✅ |
 | `SaveToWikiButton.tsx` | 组件 | 保存到 Wiki 知识库 | ✅ |
 | `SiblingNav.tsx` | 组件 | 同 prompt 多分支 sibling 导航（←/→） | ✅ |
-| `SourcesButton.tsx` | 组件 | 消息来源 Sheet 面板（web/mcp/conversation 三种类型差异化展示与操作） | ✅ |
+| `SourcesButton.tsx` | 组件 | 独立消息来源 Sheet（web/mcp/conversation）；导出 `SourceItem` 供 `MemoryCitationsButton` 复用 | ✅ |
 | `Undo.tsx` | 组件 | 撤销上一条 user 发送（编辑重发入口） | ✅ |
 
 ## 依赖

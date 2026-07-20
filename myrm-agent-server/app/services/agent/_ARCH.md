@@ -53,7 +53,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `background_job_finish_handler.py` | ✅ 核心 | Harness 后台 bash 自然退出时的 WebUI 闭环：Store finish 幂等 → locale 双语完成消息 → `append_message` → `goal_wait_background_resume` → `SYSTEM_NOTIFICATION` SSE。 |
 | `background_job_startup.py` | ✅ 核心 | 启动 configure `BackgroundJobStore`（harness_dir/.myrm/background_jobs.db）并 reconcile orphaned running 行。 |
 | `goal_wait_orphan_recovery.py` | ✅ 核心 | 启动时在 Store reconcile 之后：WAIT + orphaned background pid → NEEDS_HUMAN_REVIEW + goal_needs_review SSE（对称 `pause_orphaned_active_goals`）。 |
-| `goal_wait_background_resume.py` | ✅ 核心 | background job finish 匹配 wait_on_background_pid → exit_wait → `trigger_goal_stream_with_failure_policy(needs_human_review)`；前端 refreshActiveGoal 同步 Card |
+| `goal_wait_background_resume.py` | ✅ 核心 | background job finish 匹配 wait_on_background_job_id → exit_wait → `trigger_goal_stream_with_failure_policy(needs_human_review)`；前端 refreshActiveGoal 同步 Card |
 | `shell_background_tasks.py` | ✅ 核心 | registry + Store 合并 REST 门面；`task_id=shell:{job_id}`；`list_shell_background_tasks` / `cancel_shell_background_task` / `find_shell_background_task`。 |
 | `context_compaction_telemetry.py` | ✅ 核心 | Context 压缩遥测分发器。配置来自 `settings.control_plane` + `settings.context_compaction_telemetry`（`ContextCompactionTelemetryConfig.from_settings()`）；读取 Harness `TaskMetrics` 快照，有界队列 + 批量 flush + 背压保护异步上报 Control Plane（`events` 契约，`X-Telemetry-Subject` 头）。 |
 | `search.py` | ✅ 辅助 | Web 搜索服务封装 | ✅ |

@@ -81,10 +81,20 @@ class SqlAlchemyCronStore:
             rows = (await session.execute(stmt)).scalars().all()
             return [job_to_domain(r) for r in rows]
 
-    async def count_jobs(self, *, user_id: str | None = None) -> int:
+    async def count_jobs(
+        self,
+        *,
+        user_id: str | None = None,
+        name_filter: str | None = None,
+        chat_id: str | None = None,
+    ) -> int:
         stmt = select(sqlfunc.count()).select_from(CronJobModel)
         if user_id is not None:
-            stmt = stmt
+            stmt = stmt.where(CronJobModel.user_id == user_id)
+        if chat_id is not None:
+            stmt = stmt.where(CronJobModel.chat_id == chat_id)
+        if name_filter:
+            stmt = stmt.where(CronJobModel.name.ilike(f"%{name_filter}%"))
         async with get_session() as session:
             return (await session.execute(stmt)).scalar_one()
 

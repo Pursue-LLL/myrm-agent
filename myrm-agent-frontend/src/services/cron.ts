@@ -47,11 +47,13 @@ export async function listCronJobs(params?: {
   limit?: number;
   offset?: number;
   search?: string;
+  chat_id?: string;
 }): Promise<CronJobsListResponse> {
   const query = new URLSearchParams();
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.offset) query.set('offset', String(params.offset));
   if (params?.search) query.set('search', params.search);
+  if (params?.chat_id) query.set('chat_id', params.chat_id);
   const qs = query.toString();
   return apiRequest(`/cron${qs ? `?${qs}` : ''}`);
 }

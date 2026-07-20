@@ -6,10 +6,10 @@
  * @/services/memorySharedContexts::listSharedContexts (POS: Frontend Shared Context API client)
  *
  * [OUTPUT]
- * MemoryCitationsButton: Opens the memory citation sheet for one assistant message.
+ * MemoryCitationsButton: Opens the unified evidence sheet (memories + message sources).
  *
  * [POS]
- * Chat message memory citation action. It turns cited memory IDs/refs into a readable provenance sheet.
+ * Chat message provenance action. Merges cited memory refs and SSE sources (web/mcp/conversation history) in one sheet.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -21,11 +21,13 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { cn } from '@/lib/utils/classnameUtils';
 import { IconBrain, IconFolder } from '@/components/features/icons/PremiumIcons';
 import { listSharedContexts, type SharedContext } from '@/services/memorySharedContexts';
-import type { CitedMemoryReference } from '@/store/chat/types';
+import { SourceItem } from '@/components/features/message-actions/SourcesButton';
+import type { CitedMemoryReference, Source } from '@/store/chat/types';
 
 interface MemoryCitationsButtonProps {
   memoryIds?: string[];
   references?: CitedMemoryReference[];
+  sources?: Source[];
 }
 
 const shortId = (id: string): string => (id.length > 8 ? `${id.slice(0, 8)}...` : id);
@@ -70,12 +72,14 @@ const uniqueReferences = (
   return [...byId.values()];
 };
 
-export default function MemoryCitationsButton({ memoryIds, references }: MemoryCitationsButtonProps) {
+export default function MemoryCitationsButton({ memoryIds, references, sources }: MemoryCitationsButtonProps) {
   const t = useTranslations('memoryCitations');
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [contextsById, setContextsById] = useState<Map<string, SharedContext>>(new Map());
   const citationRefs = useMemo(() => uniqueReferences(memoryIds, references), [memoryIds, references]);
+  const messageSources = useMemo(() => sources ?? [], [sources]);
+  const evidenceCount = citationRefs.length + messageSources.length;
   const sharedContextIds = useMemo(
     () => citationRefs.map(sharedContextIdFromRef).filter((id): id is string => id !== null),
     [citationRefs],
@@ -99,7 +103,7 @@ export default function MemoryCitationsButton({ memoryIds, references }: MemoryC
     };
   }, [open, sharedContextIds]);
 
-  if (citationRefs.length === 0) return null;
+  if (evidenceCount === 0) return null;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -111,10 +115,10 @@ export default function MemoryCitationsButton({ memoryIds, references }: MemoryC
             'dark:bg-amber-950/25 dark:text-amber-300 dark:hover:bg-amber-900/30',
             'active:scale-95 transition-all duration-200',
           )}
-          aria-label={t('buttonAria', { count: citationRefs.length })}
+          aria-label={t('buttonAria', { count: evidenceCount })}
         >
           <IconBrain className="h-4 w-4" />
-          <span className="text-xs font-semibold whitespace-nowrap">{t('button', { count: citationRefs.length })}</span>
+          <span className="text-xs font-semibold whitespace-nowrap">{t('button', { count: evidenceCount })}</span>
         </button>
       </SheetTrigger>
 
@@ -127,20 +131,38 @@ export default function MemoryCitationsButton({ memoryIds, references }: MemoryC
           <SheetDescription>{t('description')}</SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6 space-y-3">
-          {citationRefs.map((ref, index) => (
-            <MemoryCitationItem
-              key={ref.id}
-              index={index + 1}
-              reference={ref}
-              namespace={namespaceLabel(ref, contextsById)}
-              onNavigate={(chatId, messageId) => {
-                setOpen(false);
-                const url = messageId ? `/${chatId}?highlight=${messageId}` : `/${chatId}`;
-                router.push(url);
-              }}
-            />
-          ))}
+        <div className="mt-6 space-y-6">
+          {citationRefs.length > 0 && (
+            <section className="space-y-3">
+              {messageSources.length > 0 && (
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sectionMemories')}</h3>
+              )}
+              {citationRefs.map((ref, index) => (
+                <MemoryCitationItem
+                  key={ref.id}
+                  index={index + 1}
+                  reference={ref}
+                  namespace={namespaceLabel(ref, contextsById)}
+                  onNavigate={(chatId, messageId) => {
+                    setOpen(false);
+                    const url = messageId ? `/${chatId}?highlight=${messageId}` : `/${chatId}`;
+                    router.push(url);
+                  }}
+                />
+              ))}
+            </section>
+          )}
+
+          {messageSources.length > 0 && (
+            <section className="space-y-3">
+              {citationRefs.length > 0 && (
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sectionSources')}</h3>
+              )}
+              {messageSources.map((source, index) => (
+                <SourceItem key={`${source.index}-${index}`} source={source} />
+              ))}
+            </section>
+          )}
         </div>
       </SheetContent>
     </Sheet>

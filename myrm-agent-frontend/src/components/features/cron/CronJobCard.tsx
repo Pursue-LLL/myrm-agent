@@ -152,7 +152,9 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
     completed: t('statusCompleted'),
   };
   const isScriptJob = job.job_type === 'router' && !!job.pre_condition_script && !job.prompt;
-  const TypeIcon = job.job_type === 'shell' ? Terminal : isScriptJob ? FileCode2 : Timer;
+  const isReminderJob = job.job_type === 'reminder';
+  const TypeIcon =
+    job.job_type === 'shell' ? Terminal : isScriptJob ? FileCode2 : isReminderJob ? Clock : Timer;
 
   const handleToggle = useCallback(async () => {
     try {
@@ -243,7 +245,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
         {job.prompt && <p className="text-xs text-muted-foreground mt-0.5 truncate">{job.prompt}</p>}
 
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-          {!isScriptJob && job.job_type !== 'shell' && (
+          {!isScriptJob && job.job_type !== 'shell' && job.job_type !== 'reminder' && (
             <ModelPickerPopover
               trigger={
                 <button

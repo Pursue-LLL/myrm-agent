@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, CheckCircle2, Clock3, List, RefreshCw, ShieldAlert, SquareStack } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Badge } from '@/components/primitives/badge';
@@ -50,6 +51,8 @@ export function PendingEvolutionsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [processingCaseId, setProcessingCaseId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<GrowthFilter>('all');
+  const searchParams = useSearchParams();
+  const growthTypeFilter = searchParams.get('growthType')?.trim() || null;
   const [viewMode, setViewMode] = useState<SkillGrowthViewMode>(() => {
     if (typeof window === 'undefined') return 'simple';
     return (localStorage.getItem(VIEW_MODE_KEY) as SkillGrowthViewMode) || 'simple';
@@ -155,8 +158,12 @@ export function PendingEvolutionsDashboard() {
   }, [listTotal, summary]);
 
   const filteredCases = useMemo(() => {
-    return cases.filter((item) => matchesFilter(item, activeFilter));
-  }, [activeFilter, cases]);
+    let items = cases.filter((item) => matchesFilter(item, activeFilter));
+    if (growthTypeFilter) {
+      items = items.filter((item) => item.growthType === growthTypeFilter);
+    }
+    return items;
+  }, [activeFilter, cases, growthTypeFilter]);
 
   const handleApprove = useCallback(
     async (item: SkillGrowthCaseSummary, applyMode: 'immediate' | 'shadow' = 'immediate') => {

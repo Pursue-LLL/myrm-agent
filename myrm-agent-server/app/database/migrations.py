@@ -278,6 +278,7 @@ MIGRATION_STATEMENTS: list[str] = [
     # Cron job agent binding: add agent_id, drop unused agent_config
     "ALTER TABLE cron_jobs ADD COLUMN agent_id VARCHAR(255)",
     "CREATE INDEX IF NOT EXISTS idx_cron_jobs_agent_id ON cron_jobs(agent_id)",
+    "CREATE INDEX IF NOT EXISTS idx_cron_jobs_chat_id ON cron_jobs(chat_id)",
     # Trigger system: per-job trigger configs + run trigger_source tracking
     "ALTER TABLE cron_jobs ADD COLUMN triggers JSON",
     "ALTER TABLE cron_runs ADD COLUMN trigger_source VARCHAR(20)",
