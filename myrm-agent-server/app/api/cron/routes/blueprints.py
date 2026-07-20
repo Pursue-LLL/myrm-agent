@@ -8,7 +8,7 @@ enabling both the frontend and Agent tool to consume identical definitions.
 
 [OUTPUT]
 - GET /blueprints — list all available blueprints
-- POST /blueprints/fill — fill a blueprint with slot values, return schedule + prompt
+- POST /blueprints/fill — fill a blueprint with slot values, return schedule + prompt + job defaults
 
 [POS]
 Blueprint catalog and fill API for cron automation templates.

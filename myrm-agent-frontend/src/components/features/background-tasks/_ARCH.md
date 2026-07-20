@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-后台活动命令中心：Kanban Agent 任务 + harness Shell 任务 + 跨会话 Goal，统一在 NavBar Popover 展示。
+后台活动命令中心：Kanban Agent 任务 + harness 耗时任务（Shell 执行层）+ 跨会话 Goal，统一在 NavBar Popover 展示。用户可见分区标题为「耗时任务 / Long-running tasks」（`backgroundTasks.shellSection`），行内仍显示用户原话 `task.prompt`。
 
 ## 文件清单
 

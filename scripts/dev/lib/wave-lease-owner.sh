@@ -59,12 +59,18 @@ _wave_acquire_owned_lease() {
   printf '%s\n' "${lease_id}"
 }
 
+_capacity_lease_msg() {
+  local subcommand="$1"
+  shift
+  python3 "$(dirname "${BASH_SOURCE[0]}")/e2e_capacity_messages.py" "${subcommand}" "$@"
+}
+
 _wave_acquire_owned_lease_with_wait() {
   local wave="$1" prefix="$2" lane="$3" namespace="${4:-}"
   local wait_sec="${MYRM_E2E_LEASE_WAIT_SEC:-900}"
   local poll_sec="${MYRM_E2E_LEASE_POLL_SEC:-15}"
   local started_at="$SECONDS"
-  local lease_id lease_stderr lease_stderr_path
+  local lease_id lease_stderr lease_stderr_path elapsed
   _wave_reap_stale_lease_state "${wave}"
   while true; do
     lease_stderr_path="$(mktemp)"
@@ -82,9 +88,12 @@ _wave_acquire_owned_lease_with_wait() {
     if (( SECONDS - started_at >= wait_sec )); then
       printf '%s\n' "${lease_stderr}" >&2
       echo "E2E_LEASE_WAIT_TIMEOUT: lane=${lane} waited ${wait_sec}s — see wave status above (exit 3)" >&2
+      _capacity_lease_msg lease-timeout --lane "${lane}" --wait-sec "${wait_sec}" >&2 || true
       return 3
     fi
-    echo "E2E_LEASE_WAIT: lane=${lane} busy — retry in ${poll_sec}s (elapsed=$((SECONDS - started_at))s)" >&2
+    elapsed=$((SECONDS - started_at))
+    echo "E2E_LEASE_WAIT: lane=${lane} busy — retry in ${poll_sec}s (elapsed=${elapsed}s)" >&2
+    _capacity_lease_msg lease-wait --lane "${lane}" --elapsed "${elapsed}" --wait-sec "${wait_sec}" --poll-sec "${poll_sec}" >&2 || true
     _wave_reap_stale_lease_state "${wave}"
     sleep "${poll_sec}"
   done

@@ -118,6 +118,54 @@ class TestReadItLaterBlueprint:
         assert "}" not in result.prompt
 
 
+class TestFinancialMonitorBlueprints:
+    """Specific tests for financial monitor simple/advanced blueprints."""
+
+    def test_simple_blueprint_router_defaults_and_script(self) -> None:
+        result = fill_blueprint(
+            "financial_monitor_simple",
+            {
+                "time": "08:00",
+                "weekdays": "weekdays",
+                "asset": "bitcoin",
+                "quote_currency": "usd",
+                "lower_bound": "50000",
+                "upper_bound": "70000",
+                "source": "coingecko",
+            },
+        )
+        assert result is not None
+        assert result.job_type == "router"
+        assert result.session_target == "isolated"
+        assert result.pre_condition_script is not None
+        assert 'asset_id = "bitcoin"' in result.pre_condition_script
+        assert 'lower_bound = float("50000")' in result.pre_condition_script
+        assert 'upper_bound = float("70000")' in result.pre_condition_script
+
+    def test_advanced_blueprint_monitor_and_alert_defaults(self) -> None:
+        result = fill_blueprint(
+            "financial_monitor_advanced",
+            {
+                "time": "09:00",
+                "weekdays": "weekdays",
+                "watchlist": "BTC,ETH,SOL",
+                "signal_rules": "price + funding + sentiment",
+                "portfolio_context": "",
+            },
+        )
+        assert result is not None
+        assert result.job_type == "agent"
+        assert result.session_target == "daily"
+        assert result.deduplicate is True
+        assert result.skip_if_active is True
+        assert result.timeout_seconds == 240
+        assert result.monitor_config is not None
+        assert result.monitor_config.monitor_type == "hash"
+        assert result.monitor_config.ttl_days == 14
+        assert result.failure_alert is not None
+        assert result.failure_alert.after == 2
+
+
 class TestFillBlueprint:
     """General fill_blueprint tests."""
 

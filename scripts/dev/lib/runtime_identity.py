@@ -151,6 +151,15 @@ def _http_url_ok(url: str, *, timeout_sec: float = 5.0) -> bool:
         return False
 
 
+def api_health_errors(api_base: str) -> list[str]:
+    """Probe API health only — used by signoff matrix stack-core keepalive."""
+    api_timeout = 10.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
+    url = api_base.rstrip("/") + "/api/v1/health"
+    if _http_url_ok(url, timeout_sec=api_timeout):
+        return []
+    return ["api=unreachable"]
+
+
 def attach_endpoint_errors(ui_base: str, api_base: str) -> list[str]:
     """Probe UI and API concurrently for the attach-only fast path."""
     ui_timeout = 30.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
@@ -716,7 +725,7 @@ def main() -> None:
     parser.add_argument(
         "--require-stack-core",
         action="store_true",
-        help="Exit 2 unless mux/upstream/epochs are live (ignores shellHot/clientHot compile windows)",
+        help="Exit 2 unless mux/upstream/epochs are live (ignores shellHot/clientHot compile windows; probes API /health only, not UI curl)",
     )
     parser.add_argument("--frontend-dir", default="")
     parser.add_argument("--cdp-port", type=int, default=0)
@@ -767,7 +776,7 @@ def main() -> None:
             print("CHROME_E2E_ATTACH_NOT_READY: " + ", ".join(errors), file=sys.stderr)
             raise SystemExit(2)
     if args.require_stack_core:
-        errors = stack_core_health_errors(payload) + attach_endpoint_errors(args.ui, args.api)
+        errors = stack_core_health_errors(payload) + api_health_errors(args.api)
         if errors:
             print("CHROME_E2E_STACK_CORE_NOT_READY: " + ", ".join(errors), file=sys.stderr)
             raise SystemExit(2)

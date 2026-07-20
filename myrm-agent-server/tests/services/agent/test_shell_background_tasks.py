@@ -42,6 +42,28 @@ def test_list_shell_background_tasks_maps_registry_rows() -> None:
     assert rows[0].progress_percent == 42
 
 
+def test_list_shell_background_tasks_normalizes_chat_session_prefix() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-chat-prefix",
+        pid=1001,
+        command="sleep 120",
+        session_id="chat_e2e-bgshell-abc123",
+        started_at=1_700_000_000.0,
+        status="running",
+    )
+    fake_registry = MagicMock()
+    fake_registry.list_processes.return_value = [info]
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=fake_registry,
+    ):
+        rows = list_shell_background_tasks()
+
+    assert len(rows) == 1
+    assert rows[0].chat_id == "e2e-bgshell-abc123"
+
+
 @pytest.mark.asyncio
 async def test_cancel_shell_background_task_delegates_to_registry() -> None:
     fake_registry = MagicMock()

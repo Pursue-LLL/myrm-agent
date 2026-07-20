@@ -26,4 +26,14 @@ def to_workspace_session_id(chat_or_session_id: str) -> str:
     return f"{CHAT_SESSION_PREFIX}{normalized}"
 
 
-__all__ = ["CHAT_SESSION_PREFIX", "to_workspace_session_id"]
+def to_rest_chat_id(session_or_chat_id: str | None) -> str | None:
+    """Strip repeated ``chat_`` prefixes so REST uuid aligns with harness session ids."""
+    if not session_or_chat_id:
+        return None
+    normalized = session_or_chat_id.strip()
+    while normalized.startswith(CHAT_SESSION_PREFIX):
+        normalized = normalized.removeprefix(CHAT_SESSION_PREFIX)
+    return normalized or None
+
+
+__all__ = ["CHAT_SESSION_PREFIX", "to_rest_chat_id", "to_workspace_session_id"]

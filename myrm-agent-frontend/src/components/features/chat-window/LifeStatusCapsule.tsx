@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IconCheckCircle, IconX } from '@/components/features/icons/PremiumIcons';
 
@@ -13,6 +14,7 @@ interface IdleStatusData {
 }
 
 export function LifeStatusCapsule({ currentSessionId }: { currentSessionId: string | null }) {
+  const tBackgroundTasks = useTranslations('backgroundTasks');
   const [statusData, setStatusData] = useState<IdleStatusData | null>(null);
 
   useEffect(() => {
@@ -65,7 +67,9 @@ export function LifeStatusCapsule({ currentSessionId }: { currentSessionId: stri
           </span>
         )}
 
-        <span className="font-medium text-foreground/90">{statusData.message || 'Processing background tasks...'}</span>
+        <span className="font-medium text-foreground/90">
+          {statusData.message || tBackgroundTasks('processingCapsule')}
+        </span>
 
         {typeof statusData.progress_pct === 'number' && (
           <span className="text-xs text-muted-foreground">{statusData.progress_pct}%</span>

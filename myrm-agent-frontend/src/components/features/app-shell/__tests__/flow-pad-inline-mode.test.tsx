@@ -14,6 +14,32 @@ const mockChatState = {
   messages: [] as Array<{ role: string; content: string }>,
   loading: false,
 };
+const mockAgentStoreState = {
+  agents: [
+    {
+      id: 'builtin-general',
+      name: 'General Agent',
+      avatar_url: '',
+    },
+    {
+      id: 'writer-agent',
+      name: 'Writer Agent',
+      avatar_url: '',
+    },
+  ],
+  loading: false,
+  fetchAgents: vi.fn().mockResolvedValue(undefined),
+  fetchAgent: vi.fn().mockImplementation(async (agentId: string) => ({
+    id: agentId,
+    user_id: 'user-1',
+    name: agentId === 'writer-agent' ? 'Writer Agent' : 'General Agent',
+    system_prompt: agentId === 'writer-agent' ? 'Write with concise style.' : '',
+    skill_ids: agentId === 'writer-agent' ? ['writing'] : [],
+    mcp_ids: [],
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  })),
+};
 
 vi.mock('@/store/useChatStore', () => {
   const hook = vi.fn(() => mockChatState);
@@ -26,6 +52,18 @@ vi.mock('@/store/useChatStore', () => {
       };
     },
     setState: vi.fn(),
+    destroy: vi.fn(),
+  });
+  return { default: hook };
+});
+
+vi.mock('@/store/useAgentStore', () => {
+  const hook = <T,>(selector?: (state: typeof mockAgentStoreState) => T): T =>
+    selector ? selector(mockAgentStoreState) : (mockAgentStoreState as unknown as T);
+  Object.assign(hook, {
+    getState: () => mockAgentStoreState,
+    setState: vi.fn(),
+    subscribe: vi.fn(),
     destroy: vi.fn(),
   });
   return { default: hook };
@@ -75,6 +113,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     mockChatState.messages = [];
     mockChatState.loading = false;
     subscribers = [];
+    mockAgentStoreState.loading = false;
+    mockAgentStoreState.fetchAgents.mockClear();
+    mockAgentStoreState.fetchAgent.mockClear();
     vi.clearAllMocks();
   });
 
@@ -364,5 +405,84 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     });
 
     expect(writeTextMock).toHaveBeenCalledWith('Copy this text');
+  });
+
+  it('routes inline send with selected agent profile config', async () => {
+    useFlowPadStore.getState().openInline(
+      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
+      1800,
+    );
+    render(<FlowPadModal />);
+
+    const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      switcherTrigger.click();
+    });
+
+    const writerOption = await screen.findByTestId('flowpad-inline-route-agent-writer-agent');
+    await act(async () => {
+      writerOption.click();
+    });
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Route this request' } });
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockChatState.sendMessage).toHaveBeenCalledTimes(1);
+    expect(mockAgentStoreState.fetchAgent).toHaveBeenCalledWith('writer-agent');
+    const sendArgs = mockChatState.sendMessage.mock.calls[0];
+    expect(sendArgs[0]).toContain('Route this request');
+    expect(sendArgs[5]).toMatchObject({
+      agentId: 'writer-agent',
+      selectedSkillIds: ['writing'],
+      systemPrompt: 'Write with concise style.',
+    });
+  });
+
+  it('can reset to follow current session routing', async () => {
+    useFlowPadStore.getState().openInline(
+      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
+      1900,
+    );
+    render(<FlowPadModal />);
+
+    const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      switcherTrigger.click();
+    });
+    const writerOption = await screen.findByTestId('flowpad-inline-route-agent-writer-agent');
+    await act(async () => {
+      writerOption.click();
+    });
+    await screen.findByText('inlineRouteProfile');
+
+    const selectedTrigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      selectedTrigger.click();
+    });
+    const followCurrentOption = await screen.findByTestId('flowpad-inline-route-follow-current');
+    await act(async () => {
+      followCurrentOption.click();
+    });
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Use current route' } });
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockChatState.sendMessage).toHaveBeenCalledTimes(1);
+    expect(mockChatState.sendMessage.mock.calls[0]).toEqual(['Use current route']);
   });
 });

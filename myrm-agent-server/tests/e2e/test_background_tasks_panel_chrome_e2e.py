@@ -20,7 +20,7 @@ _OPEN_PANEL_JS = """(() => {
 _PANEL_READY_JS = """(() => {
   const text = document.body?.innerText || '';
   const hasTitle = /Background Tasks|后台任务/.test(text);
-  const hasShellSection = /Shell jobs|Shell 任务/.test(text);
+  const hasShellSection = /Long-running tasks|耗时任务/.test(text);
   return { ready: hasTitle && hasShellSection, text: text.slice(0, 400) };
 })()"""
 
@@ -36,7 +36,7 @@ _DURABLE_NOTICE_JS = """(() => {
   const text = document.body?.innerText || '';
   return {
     hasNotice:
-      /Shell job history is saved|Shell 任务历史已保存|Interrupted|已中断/.test(text),
+      /Long-running task history is saved|耗时任务历史已保存|Interrupted|已中断/.test(text),
   };
 })()"""
 
@@ -56,7 +56,7 @@ _FAILED_SHELL_ROW_JS = """(() => {
 _PANEL_RUNNING_JS = """(() => {
   const text = document.body?.innerText || '';
   const hasRunning = /running|运行中/i.test(text);
-  const hasShell = /Shell jobs|Shell 任务/i.test(text);
+  const hasShell = /Long-running tasks|耗时任务/i.test(text);
   return { ready: hasRunning && hasShell, text: text.slice(0, 500) };
 })()"""
 

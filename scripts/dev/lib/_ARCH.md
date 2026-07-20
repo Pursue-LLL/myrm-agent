@@ -18,7 +18,7 @@
 | `browser_tab_hygiene.py` | Unix | `./myrm doctor --chrome` tab 计数报告（CDP / wave / infra registry） |
 | `cdp_write_guard.py` | Unix | raw `/json/new` 永久拒绝；仅 supervisor `MYRM_CDP_WARMUP=1` 预热例外；active lease 计数经 `wave_state_paths` |
 | `wave_state_paths.py` | Unix | `wave-orchestrator.json` 路径 SSOT；lazy bootstrap 委托 `wave_orchestrator.paths.resolve_wave_paths().state_file` |
-| `runtime_identity.py` | Unix | Runtime Identity SSOT + attach health gate：基础设施四元 epoch → hot-pool `runtimeId`；源码 fingerprint 独立控制 warmth/HMR，不使 active lease drift；`read_stack_scoped_runtime_id()`（backend+frontend only）；`build_health_json` CLI |
+| `runtime_identity.py` | Unix | Runtime Identity SSOT + attach/stack-core health gate：基础设施四元 epoch → hot-pool `runtimeId`；`api_health_errors()`（signoff keepalive API-only）；`require_stack_core` 忽略 UI curl；源码 fingerprint 独立控制 warmth/HMR，不使 active lease drift；`read_stack_scoped_runtime_id()`（backend+frontend only）；`build_health_json` CLI |
 | `runtime_probe.py` | Unix | Live mux/CDP probe + `run_drift_check()` for `--drift` / `runtime-drift` |
 | `runtime-drift.sh` | Unix | `./myrm runtime-drift --expect <id>` 入口；exit 2 = `RUNTIME_DRIFT` |
 | `stack-epoch.sh` | Unix | Backend `stack_epoch` bump/read for parallel Agent drift detection |
@@ -27,6 +27,8 @@
 | `backend_bg.sh` | Unix | 后台启动 `myrm-agent-server`（:8080）；pid/log 写入 `dev_state_paths`；新启动前截断 backend.log；健康轮询后 `_bump_stack_epoch`；monorepo 下非 editable harness 时 **exit 1** |
 | `process_identity.py` | Unix | 记录 `pid + OS start token + runtimeId`；停止前复验进程代次，只终止精确 owner 的进程树，PID 复用时 fail-closed |
 | `e2e_mux_admission.py` | Unix | 全局 mux session 准入（READ+LIVE 统一 cap、`E2E_MUX_ADMISSION_WAIT`、signoff 预留 slot）；`MYRM_E2E_RUN_ID` label 经 `_registry_key()` uuid5 归一化 |
+| `e2e_capacity_messages.py` | Unix | Dev Gate UX：cap 等待人话行（保留 `E2E_*_WAIT` token）；signoff phase 标签 |
+| `e2e_capacity_gate.py` | Unix | Maintainer facade：`E2ECapacitySnapshot` 汇总 lease+mux cap（行为不变） |
 | `dev_gate_contract.py` | Unix | Dev Gate v2 SSOT：mux 错误分类、并行 cap、**`CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT=180000`**（preflight / test.sh / client 静态契约）、signoff matrix env（含 **attach-heal debounce**：`SIGNOFF_MATRIX_ATTACH_HEAL_FAILURES=3`、`COOLDOWN_SEC=60`）、**lane pytest timeout**（`READ=180` / `LIVE=600` / **desktop=7200** via `chrome_e2e_pytest_timeout_floor` + `apply_chrome_e2e_pytest_timeout_args`） |
 | `e2e_lease_runtime_sync.py` | Unix | formal chrome E2E acquire 后 fail-closed gate：`lease.runtimeId == _read_shared_hot_stack_runtime_id()`；state 经 `wave_state_paths.resolve_wave_state_file()`；`test.sh` 经 `_e2e_sync_lease_runtime` 调用 |
 | `signoff_wave_quiesce.py` | Unix | signoff matrix 前 wave quiesce；dead-owner reap；foreign live lease 不阻塞 |

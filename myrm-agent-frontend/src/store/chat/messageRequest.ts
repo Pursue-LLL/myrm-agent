@@ -776,6 +776,7 @@ export const sendMessage = async (
   getCurrentSessionMessageId: () => string,
   resumeValue?: unknown,
   archiveRestoreActions?: ArchiveRestoreAction[],
+  agentConfigOverride?: AgentConfig | null,
 ): Promise<void> => {
   const isHitlResume = resumeValue !== undefined;
 
@@ -816,6 +817,8 @@ export const sendMessage = async (
   useChatStore.getState().clearPendingGapRetry();
 
   const requestMessageId = messageId ?? getCurrentSessionMessageId();
+  const requestState: ChatActionsState =
+    agentConfigOverride === undefined ? state : { ...state, agentConfig: agentConfigOverride };
 
   // 防重锁：检查该消息是否正在被处理（通过按钮审批或其他文本审批）
   if (!isHitlResume && useToolApprovalStore.getState().isProcessing(requestMessageId)) {
@@ -842,11 +845,11 @@ export const sendMessage = async (
       await sendCLIAgentMessage(
         input,
         {
-          messages: state.messages,
-          chatId: state.chatId,
-          loading: state.loading,
-          messageAppeared: state.messageAppeared,
-          agentConfig: state.agentConfig,
+          messages: requestState.messages,
+          chatId: requestState.chatId,
+          loading: requestState.loading,
+          messageAppeared: requestState.messageAppeared,
+          agentConfig: requestState.agentConfig,
         },
         {
           setMessages: actions.setMessages,
@@ -885,7 +888,7 @@ export const sendMessage = async (
     }
 
     // 验证配置
-    const { valid, modelSelection } = validateConfig(state.actionMode, state.agentConfig);
+    const { valid, modelSelection } = validateConfig(requestState.actionMode, requestState.agentConfig);
     if (!valid) {
       return;
     }
@@ -947,7 +950,7 @@ export const sendMessage = async (
     await executeStreamWithRetry(
       input,
       requestMessageId,
-      state,
+      requestState,
       smartActions,
       modelSelection,
       abortController,

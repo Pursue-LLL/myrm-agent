@@ -223,6 +223,7 @@ export interface ChatState {
     errorMessage?: string,
     resumeValue?: unknown,
     archiveRestoreActions?: ArchiveRestoreAction[],
+    agentConfigOverride?: AgentConfig | null,
   ) => Promise<void>;
   // 初始化方法
   loadMessages: (chatId: string) => Promise<void>;

@@ -162,6 +162,33 @@ class TestFillBlueprint:
         assert data["required_capabilities"] == ["web_search_tool", "net_fetch"]
         assert data["tools_allowed"] == ["web_search"]
 
+    def test_fill_financial_simple_returns_router_defaults(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "financial_monitor_simple", "values": {}, "locale": "en"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["job_type"] == "router"
+        assert data["session_target"] == "isolated"
+        assert data["deduplicate"] is True
+        assert data["skip_if_active"] is True
+        assert data["pre_condition_script"] is not None
+        assert 'asset_id = "bitcoin"' in data["pre_condition_script"]
+
+    def test_fill_financial_advanced_returns_monitor_defaults(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "financial_monitor_advanced", "values": {}, "locale": "en"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["job_type"] == "agent"
+        assert data["session_target"] == "daily"
+        assert data["deduplicate"] is True
+        assert data["monitor_config"] == {"monitor_type": "hash", "ttl_days": 14, "enabled": True}
+        assert data["failure_alert"] == {"enabled": True, "after": 2, "cooldown_seconds": 900}
+
     def test_fill_read_it_later_zh_locale(self, client: TestClient) -> None:
         resp = client.post(
             "/cron/blueprints/fill",

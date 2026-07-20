@@ -263,6 +263,14 @@ def prune_stale() -> int:
         return removed
 
 
+def _mux_registry_active_count() -> int:
+    now = time.time()
+    with _locked_registry() as registry_path:
+        registry = _load_registry(registry_path)
+        _prune_stale(registry, now=now)
+        return _active_count(registry)
+
+
 def acquire_with_wait(
     *,
     session_id: str,
@@ -271,6 +279,8 @@ def acquire_with_wait(
     owner_pid: int,
     signoff_matrix: bool,
 ) -> tuple[str, str]:
+    from e2e_capacity_messages import format_mux_wait, format_mux_wait_timeout
+
     wait_sec = int(os.environ.get("MYRM_E2E_MUX_ADMISSION_WAIT_SEC", str(DEFAULT_WAIT_SEC)))
     poll_sec = int(os.environ.get("MYRM_E2E_MUX_ADMISSION_POLL_SEC", str(DEFAULT_POLL_SEC)))
     poll_sec = max(1, poll_sec)
@@ -291,16 +301,33 @@ def acquire_with_wait(
             )
             return token, reason
         elapsed = int(time.monotonic() - started)
+        cap = effective_max_sessions(signoff_matrix=signoff_matrix)
+        active = _mux_registry_active_count()
         if elapsed >= wait_sec:
             print(
                 f"E2E_MUX_ADMISSION_WAIT_TIMEOUT: lane={lane} waited {wait_sec}s "
-                f"(cap={effective_max_sessions(signoff_matrix=signoff_matrix)})",
+                f"(cap={cap})",
+                file=sys.stderr,
+            )
+            print(
+                format_mux_wait_timeout(lane=lane, wait_sec=wait_sec, cap=cap),
                 file=sys.stderr,
             )
             raise SystemExit(3)
         print(
             f"E2E_MUX_ADMISSION_WAIT: lane={lane} mux busy — retry in {poll_sec}s "
-            f"(elapsed={elapsed}s cap={effective_max_sessions(signoff_matrix=signoff_matrix)})",
+            f"(elapsed={elapsed}s cap={cap})",
+            file=sys.stderr,
+        )
+        print(
+            format_mux_wait(
+                lane=lane,
+                elapsed_sec=elapsed,
+                wait_sec=wait_sec,
+                poll_sec=poll_sec,
+                cap=cap,
+                active=active,
+            ),
             file=sys.stderr,
         )
         prune_stale()

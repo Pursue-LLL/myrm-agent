@@ -19,6 +19,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.platform_utils.workspace_session import to_rest_chat_id
 from myrm_agent_harness.api.hooks import map_store_status_to_shell_task_status
 
 ShellTaskStatus = Literal["running", "completed", "failed", "cancelled", "orphaned"]
@@ -99,7 +100,7 @@ def _row_from_registry_info(info: object) -> ShellBackgroundTaskDTO:
         task_id=f"shell:{info.job_id}",
         job_id=info.job_id,
         pid=info.pid,
-        chat_id=info.session_id,
+        chat_id=to_rest_chat_id(info.session_id),
         prompt=_command_preview(info.command),
         status=status,
         created_at=info.started_at,
@@ -121,7 +122,7 @@ def _row_from_store_record(record: object) -> ShellBackgroundTaskDTO:
         task_id=f"shell:{record.job_id}",
         job_id=record.job_id,
         pid=record.pid,
-        chat_id=record.session_id,
+        chat_id=to_rest_chat_id(record.session_id),
         prompt=_command_preview(record.command),
         status=status,
         created_at=record.started_at,

@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `cron-blueprints.ts` | 数据/逻辑 | 蓝图 catalog 自 API `/cron/blueprints` 加载（含 slot `optional`；无离线 fallback）；`buildBlueprintCreatePayload` 仅走 `POST /blueprints/fill` SSOT；`buildScheduleFromSlots` 仅用于 preview；`blueprintSnakeToCamel`/`resolveBlueprint*Key` i18n 键映射、`loadBlueprints()` | ✅ |
+| `cron-blueprints.ts` | 数据/逻辑 | 蓝图 catalog 自 API `/cron/blueprints` 加载（含 slot `optional`；无离线 fallback）；`buildBlueprintCreatePayload` 仅走 `POST /blueprints/fill` SSOT，并透传 fill 返回的 `job_defaults`（job_type/session_target/monitor/failure_alert/pre_condition）；`buildScheduleFromSlots` 仅用于 preview；`blueprintSnakeToCamel`/`resolveBlueprint*Key` i18n 键映射、`loadBlueprints()` | ✅ |
 | `BlueprintCatalog.tsx` | 组件 | 模板卡片网格（API catalog + 加载失败重试；`useLocale()` 展示 title/description，slot 标签走 locale JSON） | ✅ |
 | `BlueprintInlineFill.tsx` | 组件 | 内联模板填写表单（`useLocale()` 解析 API 标题；CronJobCreateDialog 内使用），含 delivery channel 选择 | ✅ |
 | `BlueprintFillDialog.tsx` | 组件 | 模板参数填写弹窗（`useLocale()` + typed slots + delivery channel），用于 CronJobList 空状态 | ✅ |

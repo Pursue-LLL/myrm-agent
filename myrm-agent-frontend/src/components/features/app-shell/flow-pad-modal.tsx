@@ -23,13 +23,64 @@ import useChatStore from '@/store/useChatStore';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Send, X, Monitor, MessageSquareReply, FileText, Languages, Lightbulb, ClipboardPaste, Copy, Loader2, TextSelect } from 'lucide-react';
+import {
+  Send,
+  X,
+  Monitor,
+  MessageSquareReply,
+  FileText,
+  Languages,
+  Lightbulb,
+  ClipboardPaste,
+  Copy,
+  Loader2,
+  TextSelect,
+  ChevronDown,
+  Check,
+} from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import SpeechInputButton from '@/components/features/message-input-actions/SpeechInputButton';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
+import { AgentAvatar } from '@/components/agent/AgentAvatar';
+import useAgentStore from '@/store/useAgentStore';
+import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
+import type { AgentConfig } from '@/store/chat/types';
 
 import { formatAppshotMessage, CapturePreview, ImageLightbox } from './FlowPadModalParts';
+
+interface InlineRouteSelection {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+  config: AgentConfig;
+}
+
+function getAgentDisplayName(config: AgentConfig | null): string | null {
+  if (!config) {
+    return null;
+  }
+  if (typeof config.agentName === 'string' && config.agentName.trim()) {
+    return config.agentName.trim();
+  }
+  const legacyName = (config as AgentConfig & { name?: string }).name;
+  if (typeof legacyName === 'string' && legacyName.trim()) {
+    return legacyName.trim();
+  }
+  return null;
+}
+
+function createFallbackRouteConfig(agentId: string): AgentConfig {
+  return {
+    agentId,
+    selectedSkillIds: [],
+    skillConfigs: {},
+    selectedMcpNames: [],
+    systemPrompt: '',
+    useGlobalInstruction: true,
+    autoRestoreDomains: [],
+  };
+}
 
 export function FlowPadModal() {
   const t = useTranslations('flowPad');
@@ -44,13 +95,26 @@ export function FlowPadModal() {
     removeCapture,
   } = useFlowPadStore();
   const { agentConfig, sendMessage, setFiles } = useChatStore();
+  const availableAgents = useAgentStore((state) => state.agents);
+  const fetchAgents = useAgentStore((state) => state.fetchAgents);
+  const fetchAgent = useAgentStore((state) => state.fetchAgent);
+  const agentListLoading = useAgentStore((state) => state.loading);
 
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
 
   const [text, setText] = useState('');
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [inlineRouteSelection, setInlineRouteSelection] = useState<InlineRouteSelection | null>(null);
+  const [agentRouteMenuOpen, setAgentRouteMenuOpen] = useState(false);
+  const [inlineRouteSwitching, setInlineRouteSwitching] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const agentRouteMenuRef = useRef<HTMLDivElement>(null);
+
+  const currentAgentLabel = getAgentDisplayName(agentConfig) ?? t('defaultAgent');
+  const currentAgentAvatar = agentConfig?.avatarUrl;
+  const effectiveInlineRouteLabel = inlineRouteSelection?.name ?? currentAgentLabel;
+  const effectiveInlineRouteAvatar = inlineRouteSelection?.avatarUrl ?? currentAgentAvatar;
 
   const autoResizeTextarea = useCallback(() => {
     const el = inputRef.current;
@@ -71,6 +135,31 @@ export function FlowPadModal() {
   useEffect(() => {
     autoResizeTextarea();
   }, [text, autoResizeTextarea]);
+
+  useEffect(() => {
+    if (!isOpen || mode !== 'inline') return;
+    void fetchAgents(1, 100, true);
+  }, [isOpen, mode, fetchAgents]);
+
+  useEffect(() => {
+    if (!inlineRouteSelection) return;
+    const stillExists = availableAgents.some((agent) => agent.id === inlineRouteSelection.id);
+    if (!stillExists) {
+      setInlineRouteSelection(null);
+    }
+  }, [availableAgents, inlineRouteSelection]);
+
+  useEffect(() => {
+    if (!agentRouteMenuOpen) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof Node && !agentRouteMenuRef.current?.contains(target)) {
+        setAgentRouteMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [agentRouteMenuOpen]);
 
   // Inline Mode: bridge streaming messages to inlineResult
   useEffect(() => {
@@ -107,6 +196,52 @@ export function FlowPadModal() {
     }
   }, [captures, setFiles]);
 
+  const handleSelectInlineRouteAgent = useCallback(
+    async (agentId: string | null) => {
+      setAgentRouteMenuOpen(false);
+      if (agentId === null) {
+        setInlineRouteSelection(null);
+        return;
+      }
+      if (inlineRouteSelection?.id === agentId) {
+        return;
+      }
+
+      setInlineRouteSwitching(true);
+      try {
+        const listItem = availableAgents.find((agent) => agent.id === agentId);
+        const fullAgent = await fetchAgent(agentId);
+        const nextName = listItem?.name ?? fullAgent?.name ?? agentId;
+        const nextAvatar = listItem?.avatar_url ?? fullAgent?.avatar_url;
+        const nextConfig = fullAgent ? buildAgentConfig(fullAgent) : createFallbackRouteConfig(agentId);
+        setInlineRouteSelection({
+          id: agentId,
+          name: nextName,
+          avatarUrl: nextAvatar,
+          config: nextConfig,
+        });
+        toast.success(t('inlineRouteApplied', { agent: nextName }), { duration: 2000 });
+      } catch (err) {
+        console.error('FlowPad inline route switch failed:', err);
+        toast.error(t('inlineRouteApplyFailed'), { duration: 3000 });
+      } finally {
+        setInlineRouteSwitching(false);
+      }
+    },
+    [availableAgents, fetchAgent, inlineRouteSelection?.id, t],
+  );
+
+  const sendWithInlineRoute = useCallback(
+    async (message: string) => {
+      if (mode === 'inline' && inlineRouteSelection) {
+        await sendMessage(message, undefined, undefined, undefined, undefined, inlineRouteSelection.config);
+        return;
+      }
+      await sendMessage(message);
+    },
+    [mode, inlineRouteSelection, sendMessage],
+  );
+
   const handleSubmit = useCallback(async () => {
     const hasCaptures = captures.length > 0;
     const hasText = text.trim().length > 0;
@@ -130,13 +265,13 @@ export function FlowPadModal() {
 
       const message = parts.join('\n\n');
       if (message) {
-        await sendMessage(message);
+        await sendWithInlineRoute(message);
       }
 
       if (mode === 'inline') {
         toast.success(t('inlineSubmitted'), { duration: 2000 });
       } else {
-        const agentLabel = agentConfig?.name || t('defaultAgent');
+        const agentLabel = currentAgentLabel;
         toast.success(t('submitted', { agent: agentLabel }), { duration: 3000 });
         close();
       }
@@ -146,7 +281,7 @@ export function FlowPadModal() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [captures, text, attachScreenshots, sendMessage, close, agentConfig, t, isSubmitting, mode]);
+  }, [captures, text, attachScreenshots, sendWithInlineRoute, close, currentAgentLabel, t, isSubmitting, mode]);
 
   const handleSpeechTranscript = useCallback(
     (transcript: string) => {
@@ -166,12 +301,12 @@ export function FlowPadModal() {
 
         const prompt = t(promptKey);
         const message = `${formatAppshotMessage(captures)}\n\n${prompt}`;
-        await sendMessage(message);
+        await sendWithInlineRoute(message);
 
         if (mode === 'inline') {
           toast.success(t('inlineSubmitted'), { duration: 2000 });
         } else {
-          const agentLabel = agentConfig?.name || t('defaultAgent');
+          const agentLabel = currentAgentLabel;
           toast.success(t('submitted', { agent: agentLabel }), { duration: 3000 });
           close();
         }
@@ -182,7 +317,7 @@ export function FlowPadModal() {
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, captures, attachScreenshots, sendMessage, close, agentConfig, t, mode],
+    [isSubmitting, captures, attachScreenshots, sendWithInlineRoute, close, currentAgentLabel, t, mode],
   );
 
   const handleKeyDown = useCallback(
@@ -296,15 +431,88 @@ export function FlowPadModal() {
             </div>
           )}
 
-          {/* Agent indicator */}
-          {agentConfig?.name && (
-            <div className="px-4 py-1.5 border-b border-border/20 bg-muted/5">
+          {/* Agent route indicator / switcher */}
+          <div className="px-4 py-1.5 border-b border-border/20 bg-muted/5">
+            {mode === 'inline' ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] text-muted-foreground/60">{t('sendTo')}</span>
+                <Popover open={agentRouteMenuOpen} onOpenChange={setAgentRouteMenuOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      data-testid="flowpad-inline-route-trigger"
+                      disabled={isSubmitting || inlineRouteSwitching}
+                      className="inline-flex max-w-[320px] items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-xs text-foreground transition-colors hover:bg-accent/40 disabled:opacity-60"
+                    >
+                      <AgentAvatar
+                        url={effectiveInlineRouteAvatar}
+                        name={effectiveInlineRouteLabel}
+                        agentId={inlineRouteSelection?.id ?? agentConfig?.agentId}
+                        className="h-4 w-4"
+                        size="sm"
+                      />
+                      <span className="truncate">{effectiveInlineRouteLabel}</span>
+                      <span className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
+                        {inlineRouteSelection ? t('inlineRouteProfile') : t('inlineRouteCurrent')}
+                      </span>
+                      {inlineRouteSwitching ? (
+                        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      )}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-1" align="end">
+                    <div className="max-h-64 overflow-y-auto">
+                      <button
+                        type="button"
+                        data-testid="flowpad-inline-route-follow-current"
+                        className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent/50"
+                        onClick={() => void handleSelectInlineRouteAgent(null)}
+                      >
+                        <span className="truncate">{t('inlineRouteFollowCurrent', { agent: currentAgentLabel })}</span>
+                        {!inlineRouteSelection && <Check className="h-3.5 w-3.5 text-primary" />}
+                      </button>
+                      {agentListLoading ? (
+                        <p className="px-2 py-2 text-[11px] text-muted-foreground">{t('inlineRouteLoadingAgents')}</p>
+                      ) : availableAgents.length > 0 ? (
+                        availableAgents.map((agent) => {
+                          const selected = inlineRouteSelection?.id === agent.id;
+                          return (
+                            <button
+                              key={agent.id}
+                              type="button"
+                              data-testid={`flowpad-inline-route-agent-${agent.id}`}
+                              className="flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent/50"
+                              onClick={() => void handleSelectInlineRouteAgent(agent.id)}
+                            >
+                              <span className="flex min-w-0 items-center gap-2">
+                                <AgentAvatar
+                                  url={agent.avatar_url}
+                                  name={agent.name}
+                                  agentId={agent.id}
+                                  className="h-4 w-4"
+                                  size="sm"
+                                />
+                                <span className="truncate">{agent.name}</span>
+                              </span>
+                              {selected && <Check className="h-3.5 w-3.5 text-primary" />}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <p className="px-2 py-2 text-[11px] text-muted-foreground">{t('inlineRouteNoAgents')}</p>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            ) : (
               <span className="text-[10px] text-muted-foreground/60">
-                {t('sendTo')}{' '}
-                <span className="font-medium text-muted-foreground">{agentConfig.name}</span>
+                {t('sendTo')} <span className="font-medium text-muted-foreground">{currentAgentLabel}</span>
               </span>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Quick Actions */}
           {hasCaptures && (

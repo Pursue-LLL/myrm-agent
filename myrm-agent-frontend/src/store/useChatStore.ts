@@ -589,7 +589,14 @@ const useChatStore = create<ChatState>()(
       },
 
       // 发送消息主函数
-      sendMessage: async (input, messageId, errorMessage, resumeValue, archiveRestoreActions) => {
+      sendMessage: async (
+        input,
+        messageId,
+        errorMessage,
+        resumeValue,
+        archiveRestoreActions,
+        agentConfigOverride,
+      ) => {
         const state = get();
         set({ isConfigPanelExpanded: false, environmentAlerts: new Set<string>() });
         await sendMessage(
@@ -612,6 +619,7 @@ const useChatStore = create<ChatState>()(
           get().getCurrentSessionMessageId,
           resumeValue,
           archiveRestoreActions,
+          agentConfigOverride,
         );
       },
 

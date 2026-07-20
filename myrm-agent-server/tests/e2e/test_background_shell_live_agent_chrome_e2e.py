@@ -29,15 +29,22 @@ from tests.support.chrome_mcp_e2e import (
 
 _OPEN_PANEL_JS = """(() => {
   const btn = document.querySelector('button[aria-label="Background Tasks"], button[aria-label="后台任务"]');
-  if (!btn) return { clicked: false };
+  if (!btn) return { ready: false, clicked: false };
   btn.click();
-  return { clicked: true };
+  return { ready: true, clicked: true };
+})()"""
+
+_PANEL_READY_JS = """(() => {
+  const text = document.body?.innerText || '';
+  const hasTitle = /Background Tasks|后台任务/.test(text);
+  const hasShellSection = /Long-running tasks|耗时任务/.test(text);
+  return { ready: hasTitle && hasShellSection, text: text.slice(0, 400) };
 })()"""
 
 _PANEL_RUNNING_JS = """(() => {
   const text = document.body?.innerText || '';
   const hasRunning = /running|运行中/i.test(text);
-  const hasShell = /Shell jobs|Shell 任务/i.test(text);
+  const hasShell = /Long-running tasks|耗时任务/i.test(text);
   return { ready: hasRunning && hasShell, text: text.slice(0, 500) };
 })()"""
 
@@ -48,6 +55,38 @@ _BG_SPAWN_PROMPT = (
     "- reason: live agent background shell e2e\n"
     "Then reply with ONLY the numeric pid from tool metadata."
 )
+
+
+def _ensure_ui_healthy(client, page) -> None:
+    """Reload once if Next error boundary is showing (common under parallel E2E load)."""
+    from tests.support.chrome_mcp_e2e import _coerce_evaluate_result
+
+    deadline = time.monotonic() + 90.0
+    reloaded = False
+    probe_js = """(() => {
+      const text = document.body?.innerText || '';
+      const broken = /应用出错了|unexpected error|Application error/i.test(text);
+      if (broken) {
+        window.location.reload();
+        return { ready: false, reloaded: true };
+      }
+      return {
+        ready: !!document.querySelector('[data-testid="app-layout"]'),
+        reloaded: false,
+      };
+    })()"""
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(page, probe_js, timeout_sec=15.0)
+        last = _coerce_evaluate_result(raw)
+        if last.get("ready") is True:
+            return
+        if last.get("reloaded") and not reloaded:
+            reloaded = True
+            time.sleep(2.0)
+            continue
+        time.sleep(0.5)
+    raise AssertionError(f"UI did not recover from error boundary: {last}")
 
 
 def _create_background_agent(client: httpx.Client, api_base: str) -> str:
@@ -139,7 +178,10 @@ def test_live_agent_background_shell_visible_in_panel() -> None:
 
     warm_ui_route("/")
     with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
+        _ensure_ui_healthy(client, page)
         opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
         assert opened.get("clicked") is True, opened
-        panel = wait_for_state(client, page, _PANEL_RUNNING_JS, timeout_sec=60.0)
+        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
         assert panel.get("ready") is True, panel
+        running_row = wait_for_state(client, page, _PANEL_RUNNING_JS, timeout_sec=90.0)
+        assert running_row.get("ready") is True, running_row

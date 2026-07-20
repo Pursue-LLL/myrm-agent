@@ -133,6 +133,41 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     _shutdown_test_session_resources()
 
 
+def _chrome_e2e_timeout_failure(item: pytest.Item, rep: pytest.TestReport) -> bool:
+    if item.get_closest_marker("chrome_e2e") is None:
+        return False
+    if not rep.failed:
+        return False
+    if rep.when not in {"call", "setup", "teardown"}:
+        return False
+    longrepr = str(rep.longrepr or "").lower()
+    return "timeout" in longrepr or "timed out" in longrepr
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) -> Iterator[None]:
+    """Release DB/MCP hygiene when a formal chrome_e2e item hits pytest-timeout."""
+    outcome = yield
+    rep = outcome.get_result()
+    if not _chrome_e2e_timeout_failure(item, rep):
+        return
+    from tests.support.e2e_runtime_guard import reap_chrome_e2e_session_hygiene
+
+    _logger.warning(
+        "Chrome E2E timeout hygiene for %s (%s): reaping session resources",
+        item.nodeid,
+        rep.when,
+    )
+    try:
+        reap_chrome_e2e_session_hygiene()
+    except Exception as exc:
+        _logger.warning("Failed to reap chrome E2E session hygiene after timeout: %s", exc)
+    try:
+        _shutdown_test_session_resources()
+    except Exception as exc:
+        _logger.warning("Failed to shutdown test session resources after timeout: %s", exc)
+
+
 def _chrome_e2e_lane_timeout_sec(item: pytest.Item) -> int | None:
     marker = item.get_closest_marker("chrome_e2e")
     if marker is None:
