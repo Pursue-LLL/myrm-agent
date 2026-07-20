@@ -14,12 +14,12 @@
 | `AgentCapabilitiesConsensusSection.tsx` | 多模型共识配置区段 |
 | `AgentCapabilitiesSessionSection.tsx` | 会话策略区段 |
 | `AgentInstinctInboxTab.tsx` | **Agent Draft Inbox（洞察 tab）**：审阅后台 growth `skill_draft`，走 `/skills/drafts` API |
-| `AgentSecretsTab.tsx` | Agent 级密钥 |
+| `AgentSecretsTab.tsx` | Agent 级密钥；`listAgentSecrets` 经 service normalize 为 key 名列表；失败 toast 展示后端 detail |
 | `AgentSecurityTab.tsx` | 安全策略（能力/路径/域名白名单与 blocklist/HITL 超时） |
 | `AgentSubagentBinding.tsx` | 子智能体绑定 |
 | `AgentSharedContextBinding.tsx` | 共享上下文绑定 |
 | `AgentOpenAPIServicesTab.tsx` | OpenAPI 服务 |
-| `AgentProfileTimeMachine.tsx` | 配置时光机 |
+| `AgentProfileTimeMachine.tsx` | 配置时光机；加载/回滚失败 toast 展示后端错误 detail |
 | `AgentBrowserConfigSection.tsx` | 浏览器配置卡片（来源、弹窗策略、录制；引擎由 harness Stealth Ladder 自动路由） |
 | `AgentNotifyTargets.tsx` | 通知目标（`notify_targets` → server Turn1 加载 `channel_notify_tool`；running 渠道从 `listChannelStatuses` 动态下拉 + pairing/manual ID） |
 | `AgentPreviewCard.tsx` | 预览卡片 |

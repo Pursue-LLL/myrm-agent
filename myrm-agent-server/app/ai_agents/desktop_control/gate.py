@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.computer_use.types::ForegroundPermissionResult, ForegroundPermissionScope
+- myrm_agent_harness.toolkits.computer_use.app_identity::resolve_trust_key, trust_key_matches
 - myrm_agent_harness.core.events.types::AgentEventType
 - myrm_agent_harness.utils.runtime.progress_sink::get_tool_progress_sink
 
@@ -24,8 +25,10 @@ import uuid
 import weakref
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TypedDict
 
 from myrm_agent_harness.core.events.types import AgentEventType
+from myrm_agent_harness.toolkits.computer_use.app_identity import resolve_trust_key, trust_key_matches
 from myrm_agent_harness.toolkits.computer_use.types import (
     ForegroundPermissionResult,
     ForegroundPermissionScope,
@@ -37,6 +40,13 @@ logger = logging.getLogger(__name__)
 _DEFAULT_TIMEOUT_SEC = 30.0
 _APPROVAL_DIR = ".agent/desktop_control"
 _APPROVAL_FILE = "approved_apps.json"
+
+
+class TrustedAppRecord(TypedDict):
+    trust_key: str
+    display_name: str
+    app_id: str
+    scope: str
 
 
 @dataclass(slots=True)
@@ -92,15 +102,17 @@ class DesktopControlGate:
         self._workspace_root = Path(workspace_root) if workspace_root else None
         self._auto_grant = auto_grant
         self._default_timeout = default_timeout_seconds
-        self._session_approved_apps: set[str] = set()
-        self._always_approved_apps: set[str] = set()
+        self._session_approved_keys: set[str] = set()
+        self._always_approved_keys: set[str] = set()
+        self._trusted_app_records: dict[str, TrustedAppRecord] = {}
         self._load_persisted_apps()
         DesktopControlGate._live_gates.add(self)
 
     def reset_runtime_approval_state(self) -> None:
         """Clear in-memory approval caches and reload persisted always-approved apps."""
-        self._session_approved_apps.clear()
-        self._always_approved_apps.clear()
+        self._session_approved_keys.clear()
+        self._always_approved_keys.clear()
+        self._trusted_app_records.clear()
         self._load_persisted_apps()
 
     @classmethod
@@ -113,6 +125,25 @@ class DesktopControlGate:
             return None
         return self._workspace_root / _APPROVAL_DIR / _APPROVAL_FILE
 
+    @staticmethod
+    def _parse_trusted_entry(key: str, entry: object) -> TrustedAppRecord | None:
+        if not isinstance(entry, dict):
+            return None
+        scope = entry.get("scope")
+        if scope != ForegroundPermissionScope.always.value:
+            return None
+        display_name = str(entry.get("display_name") or key).strip()
+        app_id = str(entry.get("app_id") or "").strip()
+        trust_key = resolve_trust_key(app_name=display_name, app_id=app_id) or key.strip()
+        if not trust_key:
+            return None
+        return {
+            "trust_key": trust_key,
+            "display_name": display_name or key,
+            "app_id": app_id,
+            "scope": ForegroundPermissionScope.always.value,
+        }
+
     def _load_persisted_apps(self) -> None:
         path = self._approval_path()
         if path is None or not path.is_file():
@@ -120,28 +151,66 @@ class DesktopControlGate:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             apps = data.get("apps", {})
-            if isinstance(apps, dict):
-                self._always_approved_apps = {
-                    name.strip().lower()
-                    for name, entry in apps.items()
-                    if isinstance(name, str)
-                    and isinstance(entry, dict)
-                    and entry.get("scope") == ForegroundPermissionScope.always.value
-                }
+            if not isinstance(apps, dict):
+                return
+            for key, entry in apps.items():
+                if not isinstance(key, str):
+                    continue
+                record = self._parse_trusted_entry(key, entry)
+                if record is None:
+                    continue
+                trust_key = record["trust_key"]
+                self._always_approved_keys.add(trust_key)
+                self._trusted_app_records[trust_key] = record
         except Exception as exc:
             logger.warning("Failed to load desktop approval file: %s", exc)
 
-    def _is_app_preapproved(self, app_name: str) -> bool:
-        key = app_name.strip().lower()
-        if not key:
-            return False
-        return key in self._always_approved_apps or key in self._session_approved_apps
+    def _is_app_preapproved(self, app_name: str, app_id: str = "") -> bool:
+        for stored_key in self._always_approved_keys | self._session_approved_keys:
+            if trust_key_matches(stored_key, app_name=app_name, app_id=app_id):
+                return True
+        return False
 
-    def _persist_app(self, app_name: str) -> None:
+    def list_trusted_apps(self) -> list[TrustedAppRecord]:
+        return sorted(
+            self._trusted_app_records.values(),
+            key=lambda item: item["display_name"].lower(),
+        )
+
+    def revoke_trusted_app(self, trust_key: str) -> bool:
+        normalized = trust_key.strip()
+        if not normalized or normalized not in self._trusted_app_records:
+            return False
+
+        self._trusted_app_records.pop(normalized, None)
+        self._always_approved_keys.discard(normalized)
+        self._session_approved_keys.discard(normalized)
+
+        path = self._approval_path()
+        if path is None:
+            return True
+
+        remaining = {
+            record["trust_key"]: {
+                "scope": ForegroundPermissionScope.always.value,
+                "display_name": record["display_name"],
+                "app_id": record["app_id"],
+            }
+            for record in self._trusted_app_records.values()
+        }
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"apps": remaining}, indent=2), encoding="utf-8")
+        return True
+
+    def _persist_app(self, app_name: str, app_id: str = "") -> None:
         path = self._approval_path()
         if path is None or not app_name.strip():
             return
-        path.parent.mkdir(parents=True, exist_ok=True)
+
+        trust_key = resolve_trust_key(app_name=app_name, app_id=app_id)
+        if not trust_key:
+            return
+
         existing: dict[str, object] = {}
         if path.is_file():
             try:
@@ -150,9 +219,23 @@ class DesktopControlGate:
                     existing = dict(raw["apps"])
             except Exception:
                 existing = {}
-        existing[app_name] = {"scope": ForegroundPermissionScope.always.value}
+
+        existing[trust_key] = {
+            "scope": ForegroundPermissionScope.always.value,
+            "display_name": app_name.strip(),
+            "app_id": app_id.strip(),
+        }
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({"apps": existing}, indent=2), encoding="utf-8")
-        self._always_approved_apps.add(app_name.strip().lower())
+
+        record: TrustedAppRecord = {
+            "trust_key": trust_key,
+            "display_name": app_name.strip(),
+            "app_id": app_id.strip(),
+            "scope": ForegroundPermissionScope.always.value,
+        }
+        self._always_approved_keys.add(trust_key)
+        self._trusted_app_records[trust_key] = record
 
     async def __call__(
         self,
@@ -163,19 +246,21 @@ class DesktopControlGate:
         timeout_seconds: float = _DEFAULT_TIMEOUT_SEC,
         app_name: str = "",
         window_title: str = "",
+        app_id: str = "",
         require_app_approval: bool = True,
     ) -> ForegroundPermissionResult:
         del estimated_duration_seconds
 
         if self._auto_grant:
-            if app_name.strip():
-                self._session_approved_apps.add(app_name.strip().lower())
+            trust_key = resolve_trust_key(app_name=app_name, app_id=app_id)
+            if trust_key:
+                self._session_approved_keys.add(trust_key)
             return ForegroundPermissionResult(
                 granted=True,
                 scope=ForegroundPermissionScope.always,
             )
 
-        if require_app_approval and self._is_app_preapproved(app_name):
+        if require_app_approval and self._is_app_preapproved(app_name, app_id):
             return ForegroundPermissionResult(
                 granted=True,
                 scope=ForegroundPermissionScope.once,
@@ -195,6 +280,7 @@ class DesktopControlGate:
                     "operation": operation,
                     "app_name": app_name,
                     "window_title": window_title,
+                    "app_id": app_id,
                     "require_app_approval": require_app_approval,
                     "timeout_seconds": timeout_seconds,
                 },
@@ -213,10 +299,12 @@ class DesktopControlGate:
 
         result = pending.result or ForegroundPermissionResult(granted=False)
         if result.granted and app_name.strip() and require_app_approval:
-            if result.scope == ForegroundPermissionScope.session:
-                self._session_approved_apps.add(app_name.strip().lower())
-            elif result.scope == ForegroundPermissionScope.always:
-                self._persist_app(app_name)
+            trust_key = resolve_trust_key(app_name=app_name, app_id=app_id)
+            if trust_key:
+                if result.scope == ForegroundPermissionScope.session:
+                    self._session_approved_keys.add(trust_key)
+                elif result.scope == ForegroundPermissionScope.always:
+                    self._persist_app(app_name, app_id)
         return result
 
 
@@ -231,3 +319,19 @@ def resolve_desktop_control_approval(
     except ValueError:
         scope_enum = ForegroundPermissionScope.once
     return DesktopApprovalRegistry.resolve(request_id, granted=granted, scope=scope_enum)
+
+
+def list_trusted_desktop_apps(*, workspace_root: str | None) -> list[TrustedAppRecord]:
+    gate = DesktopControlGate(workspace_root=workspace_root, auto_grant=False)
+    return gate.list_trusted_apps()
+
+
+def revoke_trusted_desktop_app(*, workspace_root: str | None, trust_key: str) -> bool:
+    revoked = False
+    for gate in list(DesktopControlGate._live_gates):
+        if gate._workspace_root == (Path(workspace_root) if workspace_root else None):
+            revoked = gate.revoke_trusted_app(trust_key) or revoked
+    if not revoked and workspace_root:
+        gate = DesktopControlGate(workspace_root=workspace_root, auto_grant=False)
+        revoked = gate.revoke_trusted_app(trust_key)
+    return revoked

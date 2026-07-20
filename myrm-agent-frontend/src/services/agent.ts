@@ -1,26 +1,14 @@
 import { apiRequest } from '@/lib/api';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
+import {
+  normalizeAgentSecretKeyNames,
+  parseUserAgentFetchErrorMessage,
+} from './agentFetchErrorCore';
 
 async function throwUserAgentFetchError(response: Response, action: string): Promise<never> {
   const errorText = await response.text();
-  let message = `Failed to ${action}: ${response.statusText}`;
-  try {
-    if (errorText) {
-      const errorData = JSON.parse(errorText) as {
-        detail?: { message?: string } | string;
-      };
-      const detail = errorData.detail;
-      if (detail && typeof detail === 'object' && typeof detail.message === 'string') {
-        message = detail.message;
-      } else if (typeof detail === 'string') {
-        message = detail;
-      }
-    }
-  } catch {
-    // Keep default message when body is not JSON.
-  }
-  throw new Error(message);
+  throw new Error(parseUserAgentFetchErrorMessage(errorText, action, response.statusText));
 }
 
 export const DEFAULT_PERSONALITY_STYLE = 'professional' as const;
@@ -279,11 +267,11 @@ export async function listAgentSecrets(agentId: string): Promise<string[]> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to list agent secrets: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'list agent secrets');
   }
 
   const result = await response.json();
-  return result.data;
+  return normalizeAgentSecretKeyNames(result.data);
 }
 
 /**
@@ -303,7 +291,7 @@ export async function createOrUpdateAgentSecret(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to save agent secret: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'save agent secret');
   }
 
   const result = await response.json();
@@ -324,7 +312,7 @@ export async function deleteAgentSecret(agentId: string, keyName: string): Promi
 
   if (response.status === 404) return;
   if (!response.ok) {
-    throw new Error(`Failed to delete agent secret: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'delete agent secret');
   }
 }
 
@@ -341,11 +329,7 @@ export async function rollbackAgentProfile(agentId: string): Promise<void> {
   });
 
   if (!response.ok) {
-    const error: Error & { response?: { status: number } } = new Error(
-      `Failed to rollback agent profile: ${response.statusText}`,
-    );
-    error.response = { status: response.status };
-    throw error;
+    await throwUserAgentFetchError(response, 'rollback agent profile');
   }
 }
 
@@ -362,7 +346,7 @@ export async function rollbackAgentProfileToSnapshot(agentId: string, snapshotId
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to rollback agent profile: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'rollback agent profile to snapshot');
   }
 }
 
@@ -380,7 +364,7 @@ export async function listAgentSnapshots(agentId: string): Promise<AgentProfileS
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to list agent snapshots: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'list agent snapshots');
   }
 
   const result = await response.json();
@@ -505,7 +489,7 @@ export async function exportAgent(agentId: string): Promise<Record<string, unkno
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to export agent: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'export agent');
   }
 
   const result = await response.json();
@@ -526,7 +510,7 @@ export async function importAgent(agentData: AgentCreate | Record<string, unknow
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to import agent: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'import agent');
   }
 
   const result = await response.json();
@@ -544,7 +528,7 @@ export async function cloneAgent(agentId: string, name?: string): Promise<Agent>
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to clone agent: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'clone agent');
   }
 
   const result = await response.json();
@@ -692,7 +676,7 @@ export async function getFleetOverview(): Promise<FleetOverviewResponse> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch fleet overview: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'fetch fleet overview');
   }
 
   const json = await response.json();
@@ -708,7 +692,7 @@ export async function getActiveSessions(): Promise<ActiveSessionsResponse> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch active sessions: ${response.statusText}`);
+    await throwUserAgentFetchError(response, 'fetch active sessions');
   }
 
   const json = await response.json();

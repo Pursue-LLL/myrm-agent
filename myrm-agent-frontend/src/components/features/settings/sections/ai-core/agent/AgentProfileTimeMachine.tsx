@@ -99,7 +99,9 @@ export function AgentProfileTimeMachine({
       setHistory(data);
     } catch (error) {
       console.error('Agent snapshot history fetch error:', error);
-      toast.error(t('loadFailed'));
+      toast.error(t('loadFailed'), {
+        description: error instanceof Error ? error.message : undefined,
+      });
     } finally {
       setLoading(false);
     }
@@ -135,7 +137,9 @@ export function AgentProfileTimeMachine({
       await fetchHistory();
     } catch (error) {
       console.error('Agent snapshot rollback error:', error);
-      toast.error(t('restoreFailed'));
+      toast.error(t('restoreFailed'), {
+        description: error instanceof Error ? error.message : undefined,
+      });
     } finally {
       setRestoring(null);
       setPendingRestore(null);

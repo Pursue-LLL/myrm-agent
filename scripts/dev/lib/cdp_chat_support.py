@@ -714,6 +714,44 @@ def ensure_e2e_memory_disabled(*, api_url: str | None = None) -> None:
     put_config_value("personalSettings", merged, api_url=api_url)
 
 
+def deny_stale_browser_takeover_approvals(*, api_url: str | None = None) -> int:
+    """Deny orphan PENDING browser_takeover approvals before LIVE Chrome E2E."""
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
+    denied = 0
+    try:
+        with urllib.request.urlopen(  # noqa: S310
+            f"{resolved_api}/api/v1/approvals?limit=50&offset=0",
+            timeout=15,
+        ) as resp:
+            payload = json.loads(resp.read())
+    except Exception:
+        return 0
+    records = payload.get("approvals") if isinstance(payload, dict) else None
+    if not isinstance(records, list):
+        return 0
+    for raw in records:
+        if not isinstance(raw, dict):
+            continue
+        if raw.get("action_type") != "browser_takeover" or raw.get("status") != "PENDING":
+            continue
+        approval_id = str(raw.get("id") or raw.get("approval_id") or "").strip()
+        if not approval_id:
+            continue
+        body = json.dumps({"decision": "deny"}).encode("utf-8")
+        req = urllib.request.Request(  # noqa: S310
+            f"{resolved_api}/api/v1/approvals/{approval_id}/resolve",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15):  # noqa: S310
+                denied += 1
+        except Exception:
+            continue
+    return denied
+
+
 def chat_messages_have_done(chat_id: str, *, min_user_count: int = 1, api_url: str | None = None) -> bool:
     messages = fetch_chat_messages(chat_id, api_url=api_url)
     user_count = sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")

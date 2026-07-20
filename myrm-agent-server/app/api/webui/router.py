@@ -484,6 +484,38 @@ async def reset_desktop_approval_runtime() -> JSONResponse:
     return JSONResponse(content={"ok": True})
 
 
+@router.get("/desktop/trust/apps")
+async def list_desktop_trusted_apps() -> JSONResponse:
+    """List always-trusted desktop applications for the current workspace."""
+    from app.ai_agents.desktop_control.gate import list_trusted_desktop_apps
+    from app.platform_utils.workspace_root import get_workspace_root
+
+    apps = list_trusted_desktop_apps(workspace_root=get_workspace_root())
+    return JSONResponse(content={"apps": apps})
+
+
+class DesktopTrustRevokeBody(BaseModel):
+    trust_key: str
+
+
+@router.delete("/desktop/trust/apps")
+async def revoke_desktop_trusted_app(body: DesktopTrustRevokeBody) -> JSONResponse:
+    """Revoke always-trusted status for a desktop application."""
+    from app.ai_agents.desktop_control.gate import revoke_trusted_desktop_app
+    from app.platform_utils.workspace_root import get_workspace_root
+
+    revoked = revoke_trusted_desktop_app(
+        workspace_root=get_workspace_root(),
+        trust_key=body.trust_key,
+    )
+    if not revoked:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "not_found", "message": "Trusted app not found"},
+        )
+    return JSONResponse(content={"ok": True})
+
+
 @router.get("/desktop/approval/pending")
 async def list_pending_desktop_approvals() -> JSONResponse:
     """List pending desktop approval request ids (E2E diagnostics)."""

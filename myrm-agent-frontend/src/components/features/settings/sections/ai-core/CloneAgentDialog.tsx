@@ -51,8 +51,12 @@ export default function CloneAgentDialog({ open, onOpenChange, agentId, agentNam
       toast({ title: t('agent.cloneSuccess') });
       onCloned(cloned);
       resetAndClose();
-    } catch {
-      toast({ title: t('agent.operationFailed'), variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({
+        title: t('agent.operationFailed'),
+        description: err instanceof Error ? err.message : undefined,
+        variant: 'destructive',
+      });
       setLoading(false);
     }
   }, [agentId, name, t, onCloned, resetAndClose]);

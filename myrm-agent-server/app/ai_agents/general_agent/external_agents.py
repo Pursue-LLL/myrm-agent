@@ -228,6 +228,7 @@ class ExternalAgentsMixin:
         tools: list[object],
         *,
         mount_delegate_tool: bool | None = None,
+        delegate_cwd: str | None = None,
     ) -> None:
         """Set up external agent delegation via RuntimePool.
 
@@ -244,7 +245,11 @@ class ExternalAgentsMixin:
                 force_delegate_agent=getattr(self, "force_delegate_agent", None),
             )
         try:
-            await self._do_setup_external_agents(tools, mount_delegate_tool=mount_delegate_tool)
+            await self._do_setup_external_agents(
+                tools,
+                mount_delegate_tool=mount_delegate_tool,
+                delegate_cwd=delegate_cwd,
+            )
         except Exception as e:
             logger.warning("External agent setup failed (degraded): %s", e)
 
@@ -253,6 +258,7 @@ class ExternalAgentsMixin:
         tools: list[object],
         *,
         mount_delegate_tool: bool = True,
+        delegate_cwd: str | None = None,
     ) -> None:
         agent_cfgs = await _resolve_external_agent_cfgs(self.external_agents_config)
         if not agent_cfgs:
@@ -295,7 +301,12 @@ class ExternalAgentsMixin:
             if mount_delegate_tool:
                 from myrm_agent_harness.toolkits import create_delegate_to_agent_tool
 
-                delegate_tool = create_delegate_to_agent_tool(pool)
+                chat_scope = _runtime_pool_scope_id(self)
+                delegate_tool = create_delegate_to_agent_tool(
+                    pool,
+                    cwd=delegate_cwd,
+                    session_scope=chat_scope,
+                )
                 tools.append(delegate_tool)
                 logger.info(
                     "delegate_to_agent loaded (%d backends) [Turn1]",

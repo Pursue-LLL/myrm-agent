@@ -133,7 +133,9 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
 
     result = run_locked(resolved.state_file, _edit)
     wave = result.get("wave")
-    if isinstance(wave, dict) and wave.get("status") in {"closed", "drifted"}:
+    if isinstance(wave, dict) and wave.get("status") == "open":
+        write_stack_pin(wave, paths=resolved, pinned_at=_iso(_utc_now()))
+    elif isinstance(wave, dict) and wave.get("status") in {"closed", "drifted"}:
         clear_stack_pin(paths=resolved)
     _cleanup_expired_leases(paths=resolved)
     closed, failed = _prune_infra_browser_registry()

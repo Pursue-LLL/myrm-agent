@@ -82,4 +82,24 @@ describe('normalizeApprovalPayload', () => {
     expect(normalized.payload?.tool_input?.expression).toBe('document.forms[0].submit()');
     expect(normalized.payload?.page_url).toBe('https://example.com/form');
   });
+
+  it('preserves browser_takeover messageId from nested payload for recovery resume', () => {
+    const normalized = normalizeApprovalPayload({
+      approval_id: 'appr-takeover-1',
+      user_id: 'user-1',
+      action_type: 'browser_takeover',
+      status: 'PENDING',
+      severity: 'warning',
+      reason: 'Complete login in Chrome',
+      chat_id: 'chat-1',
+      payload: {
+        messageId: 'msg-stream-42',
+        url: 'about:blank',
+        is_managed: false,
+      },
+    });
+
+    expect(normalized.payload?.messageId).toBe('msg-stream-42');
+    expect(normalized.payload?.is_managed).toBe(false);
+  });
 });

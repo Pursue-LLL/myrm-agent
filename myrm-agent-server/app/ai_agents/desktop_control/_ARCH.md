@@ -9,11 +9,22 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `gate.py` | Core | `DesktopControlGate` callback + `DesktopApprovalRegistry` + resolve helper. Empty `app_name` is fail-closed (never preapproved). Persists always-approved apps to `{workspace}/.agent/desktop_control/approved_apps.json` | ✅ |
+| `gate.py` | Core | `DesktopControlGate` callback + `DesktopApprovalRegistry` + trust list/revoke helpers. Empty `app_name` is fail-closed (never preapproved). Persists always-approved apps to `{workspace}/.agent/desktop_control/approved_apps.json` keyed by stable `app_id` via harness `resolve_trust_key` | ✅ |
+
+## Trust API
+
+| Route | Role |
+|-------|------|
+| `GET /webui/desktop/trust/apps` | List always-trusted apps (`trust_key`, `display_name`, `app_id`, `scope`) |
+| `DELETE /webui/desktop/trust/apps` | Revoke one trust key (JSON body `{trust_key}`); updates disk + live gates for workspace only |
+| `POST /webui/desktop/approval/reset-runtime` | Clears in-memory session approvals and reloads persisted always-trusted apps |
+
+Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' session approvals stay intact.
 
 ## Dependencies
 
 - `myrm_agent_harness.toolkits.computer_use` (ForegroundPermissionCallback, ExecutionMode)
+- `myrm_agent_harness.toolkits.computer_use.app_identity` (resolve_trust_key, trust_key_matches)
 - `myrm_agent_harness.utils.runtime.progress_sink` (SSE emit during tool execution)
 - `app.ai_agents.general_agent.tool_setup` (session wiring)
 - `app.api.webui.router` (`POST /webui/desktop/approval/resolve`)

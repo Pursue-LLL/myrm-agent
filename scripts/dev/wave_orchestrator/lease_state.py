@@ -98,7 +98,10 @@ def reap_abandoned_leases(
     for lease in state["leases"]:
         if lease["status"] != "active":
             continue
-        owner_pid = owner_bashpid_from_agent_id(str(lease.get("agentId", "")))
+        agent_id = str(lease.get("agentId", ""))
+        if is_signoff_matrix_agent_id(agent_id):
+            continue
+        owner_pid = owner_bashpid_from_agent_id(agent_id)
         if owner_pid is None or _process_is_alive(owner_pid):
             continue
         lease["status"] = "expired"
@@ -126,13 +129,52 @@ def reap_expired_leases(
     return changed
 
 
-def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> bool:
-    """Invalidate an open wave before stale test leases can report success."""
+SIGNOFF_MATRIX_AGENT_PREFIX = "signoff-matrix-"
+
+
+def is_signoff_matrix_agent_id(agent_id: str) -> bool:
+    return agent_id.startswith(SIGNOFF_MATRIX_AGENT_PREFIX)
+
+
+def signoff_matrix_guard_active(state: OrchestratorState) -> bool:
+    """True while Dev Gate signoff matrix holds an active LIVE_AGENT session."""
+    return any(
+        is_signoff_matrix_agent_id(str(lease.get("agentId", "")))
+        for lease in active_leases(state)
+    )
+
+
+def heal_open_wave_runtime_id(
+    state: OrchestratorState,
+    current_runtime_id: str,
+) -> bool:
+    """Migrate open wave + active leases to a new runtimeId without invalidating tests."""
     wave = state["wave"]
     if wave is None or wave["status"] != "open":
         return False
     if not current_runtime_id or current_runtime_id == wave["runtimeId"]:
         return False
+    if not signoff_matrix_guard_active(state):
+        return False
+
+    wave_id = wave["waveId"]
+    wave["runtimeId"] = current_runtime_id
+    for lease in active_leases(state):
+        if lease["waveId"] == wave_id:
+            lease["runtimeId"] = current_runtime_id
+    return True
+
+
+def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> bool:
+    """Invalidate an open wave on runtime drift, or heal in-place during signoff matrix."""
+    wave = state["wave"]
+    if wave is None or wave["status"] != "open":
+        return False
+    if not current_runtime_id or current_runtime_id == wave["runtimeId"]:
+        return False
+
+    if heal_open_wave_runtime_id(state, current_runtime_id):
+        return True
 
     wave["status"] = "drifted"
     wave["closedAt"] = iso_timestamp(utc_now())

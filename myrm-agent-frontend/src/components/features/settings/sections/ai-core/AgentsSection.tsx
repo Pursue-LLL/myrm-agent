@@ -170,7 +170,7 @@ export default function AgentsSection() {
         console.error('Import failed:', e);
         toast({
           title: '导入失败',
-          description: '文件格式不正确或配置无效',
+          description: e instanceof Error ? e.message : '文件格式不正确或配置无效',
           variant: 'destructive',
         });
       } finally {

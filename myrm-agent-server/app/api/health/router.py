@@ -280,10 +280,10 @@ async def browser_health() -> dict[str, object]:
     Returns:
         Health status with "healthy" | "degraded" | "unhealthy"
     """
-    from myrm_agent_harness.toolkits.browser.pool import get_global_browser_pool
+    from app.config.browser import get_configured_browser_pool
 
     try:
-        pool = get_global_browser_pool()
+        pool = get_configured_browser_pool()
         health_status = await pool.health()
         if isinstance(health_status, dict):
             return {str(k): v for k, v in health_status.items()}

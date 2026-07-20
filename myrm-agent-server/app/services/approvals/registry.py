@@ -279,6 +279,43 @@ class ApprovalRegistry:
             result = await db.execute(stmt)
             return list(result.scalars().all())
 
+    @classmethod
+    async def resolve_pending_browser_takeover_for_chat(
+        cls,
+        chat_id: str,
+        *,
+        decision: str = "approve",
+    ) -> int:
+        """Resolve orphan browser_takeover approvals after HITL resume via chat stream."""
+        if not chat_id.strip():
+            return 0
+        normalized = "approve" if decision == "approve" else "deny"
+        resolved_count = 0
+        async with get_session() as db:
+            stmt = select(ApprovalRecord).where(
+                and_(
+                    ApprovalRecord.chat_id == chat_id,
+                    ApprovalRecord.status == "PENDING",
+                    ApprovalRecord.action_type == "browser_takeover",
+                )
+            )
+            result = await db.execute(stmt)
+            records = list(result.scalars().all())
+            for record in records:
+                record.status = "APPROVED" if normalized == "approve" else "REJECTED"
+                record.resolved_at = datetime.now(timezone.utc)
+                resolved_count += 1
+            if resolved_count:
+                await db.commit()
+        if resolved_count:
+            logger.info(
+                "Resolved %s pending browser_takeover approval(s) for chat_id=%s decision=%s",
+                resolved_count,
+                chat_id,
+                normalized,
+            )
+        return resolved_count
+
 
 async def send_outbound_draft_payload(
     payload: dict[str, object],

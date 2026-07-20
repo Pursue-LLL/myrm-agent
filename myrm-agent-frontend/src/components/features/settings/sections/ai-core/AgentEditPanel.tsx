@@ -179,7 +179,11 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
       toast({ title: t('agent.exportSuccess') });
     } catch (e) {
       console.error('Failed to export agent:', e);
-      toast({ title: t('agent.exportFailed'), variant: 'destructive' });
+      toast({
+        title: t('agent.exportFailed'),
+        description: e instanceof Error ? e.message : undefined,
+        variant: 'destructive',
+      });
     } finally {
       setExporting(false);
     }

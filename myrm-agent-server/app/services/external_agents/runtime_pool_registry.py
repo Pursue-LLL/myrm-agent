@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, TypeAlias
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
-    from myrm_agent_harness.toolkits.acp.types import RuntimeConfig, RuntimeEvent
+    from myrm_agent_harness.toolkits.acp.types import McpServerConfig, RuntimeConfig, RuntimeEvent
 
 logger = logging.getLogger(__name__)
 
@@ -174,9 +174,16 @@ class ChatScopedRuntimePoolFacade:
         session_id: str,
         *,
         mode: str = "persistent",
+        mcp_servers: list[McpServerConfig] | None = None,
     ) -> AsyncIterator[RuntimeEvent]:
         async with self._registry.guard_turn(self._chat_scope_id):
-            async for event in self._pool.run_turn(name, prompt, session_id, mode=mode):
+            async for event in self._pool.run_turn(
+                name,
+                prompt,
+                session_id,
+                mode=mode,
+                mcp_servers=mcp_servers,
+            ):
                 yield event
 
     async def cancel(self, name: str, session_id: str) -> None:

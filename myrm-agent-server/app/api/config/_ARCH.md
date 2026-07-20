@@ -10,4 +10,4 @@ Omni-Config 读写与预检 HTTP 层。上级文档：[../_ARCH.md](../_ARCH.md)
 |------|------|------|-------|
 | `__init__.py` | 入口 | 配置管理 API | ✅ |
 | `artifact_mappings.py` | 模块 | 工件类型映射 API 端点 | ✅ |
-| `router.py` | 路由 | 配置服务 API 路由层。处理 HTTP 请求，进行 Pre-flight Validation 强类型校验。 | ✅ |
+| `router.py` | 路由 | 配置服务 API 路由层。处理 HTTP 请求，进行 Pre-flight Validation 强类型校验。浏览器 hot-reload 经 `get_configured_browser_pool()` 初始化 pool。 | ✅ |

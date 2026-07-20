@@ -239,6 +239,7 @@ async def build_general_agent(
         await agent_wrapper._setup_external_agents(
             tools,
             mount_delegate_tool=mount_delegate_tool,
+            delegate_cwd=str(workspace_root) if workspace_root else None,
         )
 
     from app.services.agent.goal_registry import GoalRegistry

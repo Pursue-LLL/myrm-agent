@@ -9,7 +9,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.ai_agents.desktop_control.gate import DesktopControlGate, resolve_desktop_control_approval
+from app.ai_agents.desktop_control.gate import (
+    DesktopControlGate,
+    resolve_desktop_control_approval,
+    revoke_trusted_desktop_app,
+)
 from myrm_agent_harness.toolkits.computer_use.types import ForegroundPermissionScope
 
 
@@ -153,7 +157,9 @@ async def test_always_scope_persists_app(tmp_path: Path) -> None:
     approval_file = tmp_path / ".agent" / "desktop_control" / "approved_apps.json"
     assert approval_file.is_file()
     payload = json.loads(approval_file.read_text(encoding="utf-8"))
-    assert payload["apps"]["Notes"]["scope"] == "always"
+    notes_entry = payload["apps"].get("Notes") or payload["apps"].get("notes")
+    assert notes_entry is not None
+    assert notes_entry["scope"] == "always"
 
     # Second call should skip prompt via persisted always list.
     result2 = await gate(
@@ -235,12 +241,70 @@ def test_resolve_invalid_scope_falls_back_to_once(tmp_path: Path) -> None:
     asyncio.run(_run())
 
 
+def test_list_and_revoke_trusted_apps(tmp_path: Path) -> None:
+    approval_dir = tmp_path / ".agent" / "desktop_control"
+    approval_dir.mkdir(parents=True)
+    (approval_dir / "approved_apps.json").write_text(
+        json.dumps(
+            {
+                "apps": {
+                    "com.google.Chrome": {
+                        "scope": "always",
+                        "display_name": "Google Chrome",
+                        "app_id": "com.google.Chrome",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    gate = DesktopControlGate(workspace_root=str(tmp_path), auto_grant=False)
+    apps = gate.list_trusted_apps()
+    assert len(apps) == 1
+    assert apps[0]["trust_key"] == "com.google.Chrome"
+    assert apps[0]["display_name"] == "Google Chrome"
+
+    assert gate.revoke_trusted_app("com.google.Chrome") is True
+    assert gate.list_trusted_apps() == []
+    assert not gate._is_app_preapproved("Google Chrome", "com.google.Chrome")
+
+
+@pytest.mark.asyncio
+async def test_preapproved_app_matches_stable_app_id(tmp_path: Path) -> None:
+    approval_dir = tmp_path / ".agent" / "desktop_control"
+    approval_dir.mkdir(parents=True)
+    (approval_dir / "approved_apps.json").write_text(
+        json.dumps(
+            {
+                "apps": {
+                    "com.apple.Notes": {
+                        "scope": "always",
+                        "display_name": "Notes",
+                        "app_id": "com.apple.Notes",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    gate = DesktopControlGate(workspace_root=str(tmp_path), auto_grant=False)
+    result = await gate(
+        reason="test",
+        operation="click",
+        estimated_duration_seconds=1.0,
+        app_name="Notes",
+        app_id="com.apple.Notes",
+        require_app_approval=True,
+    )
+    assert result.granted is True
+
+
 def test_corrupt_persisted_file_is_ignored(tmp_path: Path) -> None:
     approval_dir = tmp_path / ".agent" / "desktop_control"
     approval_dir.mkdir(parents=True)
     (approval_dir / "approved_apps.json").write_text("{not json", encoding="utf-8")
     gate = DesktopControlGate(workspace_root=str(tmp_path), auto_grant=False)
-    assert "safari" not in gate._always_approved_apps
+    assert "safari" not in gate._always_approved_keys
 
 
 def test_persist_app_noops_without_workspace() -> None:
@@ -257,7 +321,7 @@ def test_reset_runtime_approval_state_clears_session_and_reloads_disk(tmp_path: 
         encoding="utf-8",
     )
     gate = DesktopControlGate(workspace_root=str(tmp_path), auto_grant=False)
-    gate._session_approved_apps.add("notes")
+    gate._session_approved_keys.add("notes")
     assert gate._is_app_preapproved("TextEdit")
     assert gate._is_app_preapproved("Notes")
 
@@ -299,4 +363,34 @@ async def test_always_scope_persists_after_corrupt_existing_file(tmp_path: Path)
     assert result.granted is True
     approval_file = tmp_path / ".agent" / "desktop_control" / "approved_apps.json"
     payload = json.loads(approval_file.read_text(encoding="utf-8"))
-    assert payload["apps"]["Pages"]["scope"] == "always"
+    pages_entry = payload["apps"].get("Pages") or payload["apps"].get("pages")
+    assert pages_entry is not None
+    assert pages_entry["scope"] == "always"
+
+
+def test_revoke_does_not_reset_other_session_approvals(tmp_path: Path) -> None:
+    approval_dir = tmp_path / ".agent" / "desktop_control"
+    approval_dir.mkdir(parents=True)
+    (approval_dir / "approved_apps.json").write_text(
+        json.dumps(
+            {
+                "apps": {
+                    "com.google.Chrome": {
+                        "scope": "always",
+                        "display_name": "Google Chrome",
+                        "app_id": "com.google.Chrome",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    gate = DesktopControlGate(workspace_root=str(tmp_path), auto_grant=False)
+    gate._session_approved_keys.add("com.apple.Notes")
+
+    assert revoke_trusted_desktop_app(
+        workspace_root=str(tmp_path),
+        trust_key="com.google.Chrome",
+    )
+    assert gate.list_trusted_apps() == []
+    assert gate._is_app_preapproved("Notes", "com.apple.Notes")

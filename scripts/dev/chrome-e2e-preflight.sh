@@ -112,16 +112,36 @@ _attach_fast_path() {
   done
 }
 
+_wait_shared_ui_reachable() {
+  local shared_ui="$1"
+  local wait_sec="${MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC:-180}"
+  local poll_sec="${MYRM_CHROME_E2E_SHARED_UI_POLL_SEC:-2}"
+  [[ "${wait_sec}" =~ ^[0-9]+$ ]] || wait_sec=180
+  [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
+  local waited=0
+  while true; do
+    if curl -sf --max-time 10 "${shared_ui}/" >/dev/null; then
+      ok "shared UI ${shared_ui}"
+      return 0
+    fi
+    if [[ "${waited}" -ge "${wait_sec}" ]]; then
+      fail "shared UI not reachable at ${shared_ui} within ${wait_sec}s — run: ./myrm ready --chrome"
+    fi
+    if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
+      echo "CHROME_E2E_WAIT: shared UI recovering ${waited}/${wait_sec}s (${shared_ui})" >&2
+    fi
+    sleep "${poll_sec}"
+    waited=$((waited + poll_sec))
+  done
+}
+
 _private_backend_attach_path() {
   local shared_ui="${E2E_UI_BASE:-http://127.0.0.1:3000}"
   if ! curl -sf --max-time 10 "${API_BASE}/api/v1/health" >/dev/null; then
     fail "private backend not reachable at ${API_BASE}"
   fi
   ok "private backend ${API_BASE}"
-  if ! curl -sf --max-time 10 "${shared_ui}/" >/dev/null; then
-    fail "shared UI not reachable at ${shared_ui} — run: ./myrm ready --chrome"
-  fi
-  ok "shared UI ${shared_ui}"
+  _wait_shared_ui_reachable "${shared_ui}"
   _maybe_seed_providers
   myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable — run: ./myrm ready --chrome"
   ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"

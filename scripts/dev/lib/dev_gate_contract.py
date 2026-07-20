@@ -67,6 +67,10 @@ CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
 )
 SIGNOFF_WAVE_QUIESCE_WAIT_SEC: Final[int] = 3600
 SIGNOFF_WAVE_QUIESCE_POLL_SEC: Final[int] = 5
+SIGNOFF_MATRIX_SHARED_UI_WAIT_SEC: Final[int] = 600
+SIGNOFF_MATRIX_KEEPALIVE_SEC: Final[int] = 30
+SIGNOFF_MATRIX_AGENT_PREFIX: Final[str] = "signoff-matrix-"
+SIGNOFF_CHROME_MATRIX_SELECTED_COUNT: Final[int] = 30
 
 # --- Adaptive mux load defaults (env may override in mux_load) ---
 
@@ -172,8 +176,11 @@ def is_allowlisted_e2e_skip(*, test_path: str, reason: str) -> bool:
 def signoff_live_env_shell(*, stress: bool = False) -> str:
     """Emit bash export lines for signoff live Chrome E2E phases."""
     lines = [
+        "export MYRM_SIGNOFF_MATRIX=1",
+        f"export MYRM_SIGNOFF_MATRIX_KEEPALIVE_SEC={SIGNOFF_MATRIX_KEEPALIVE_SEC}",
         f"export MYRM_LIVE_AGENT_MAX_CONCURRENT={SIGNOFF_LIVE_AGENT_MAX_CONCURRENT}",
         "export MYRM_MUX_ALLOW_TIMEOUT_RESTART=1",
+        f"export MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC={SIGNOFF_MATRIX_SHARED_UI_WAIT_SEC}",
     ]
     if stress:
         lines.extend(

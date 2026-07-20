@@ -11,7 +11,7 @@
 | `types/` | `AgentStreamEvent`、`Message`、`ChatState` 等 |
 | `messageStream/` | SSE dispatcher + `handlers/*` |
 | `schema.ts` / `knownSseEventTypes.ts` | SSE 入站校验与 harness 对齐 |
-| `streamConsumer.ts` | 读 SSE 行 → `parseSseEnvelope` → reducer |
+| `streamConsumer.ts` | 读 SSE 行 → `parseSseEnvelope` → reducer；流结束 `finally` 调用 `recoverPendingApprovals()` 补全 missed HITL |
 | `messageRequest.ts` | 组装请求并启动流（含 Smart Updater 路由、kanban 发送前看板 guard）；新 send 时 clear pending gap |
 | `pendingGapRetry.ts` | entitlement gap 延迟重发：pending 状态 + flush + schedule |
 | `multimodalBuilder.ts` | 附件→multimodal 消息构建（PDF/图片/视频/摄像头/文本），视觉内容始终发送由后端 VisionFallback 路由 |

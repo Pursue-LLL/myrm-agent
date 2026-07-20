@@ -6,6 +6,7 @@ import { AdaptiveScheduler } from './adaptiveScheduler';
 import { isRetryableHttpStatus, FatalNetworkError } from '@/lib/utils/networkResilience';
 import { decryptSseFrame, loadStoredE2EESession } from '@/lib/e2ee/client';
 import { createMultiplexReadableStream } from './multiplexChunkBridge';
+import { recoverPendingApprovals } from '@/hooks/usePendingApprovalsRecovery';
 
 const RETRY_INITIAL_DELAY_MS = 2000;
 const RETRY_BACKOFF_FACTOR = 1.5;
@@ -338,5 +339,6 @@ export async function consumeStream(
     // 确保在流结束或异常中断时清理定时器并立即执行最后一次渲染
     scheduler.flush();
     scheduler.cancel();
+    void recoverPendingApprovals();
   }
 }

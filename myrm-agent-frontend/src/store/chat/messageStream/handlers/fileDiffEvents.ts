@@ -215,17 +215,18 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   }
 
   if (data.type === H.AgentEventType.BROWSER_TAKEOVER_REQUESTED) {
-    const { default: useBrowserTakeoverStore } = await import('@/store/useBrowserTakeoverStore');
+    const { activateBrowserTakeover } = await import('@/store/useApprovalStore');
     const isManaged = Boolean(data.data.is_managed);
     const uiMode = isManaged ? 'managed' : 'extension';
     const autoDetectCompletion = Boolean(data.data.auto_detect_completion);
 
-    useBrowserTakeoverStore.getState().requestTakeover({
-      reason: data.data.reason,
-      screenshot_base64: data.data.screenshot_base64,
-      url: data.data.url,
-      messageId: data.messageId,
-      ui_mode: uiMode,
+    activateBrowserTakeover({
+      reason: String(data.data.reason ?? ''),
+      url: typeof data.data.url === 'string' ? data.data.url : undefined,
+      screenshot_base64:
+        typeof data.data.screenshot_base64 === 'string' ? data.data.screenshot_base64 : undefined,
+      messageId: typeof data.messageId === 'string' ? data.messageId : undefined,
+      is_managed: isManaged,
       auto_detect_completion: autoDetectCompletion,
     });
 

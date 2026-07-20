@@ -16,6 +16,7 @@
 import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import { resolveBrowserTakeoverMessageId } from '@/store/useApprovalStore';
 import useBrowserTakeoverStore, {
   type BrowserTakeoverUiMode,
 } from '@/store/useBrowserTakeoverStore';
@@ -48,14 +49,15 @@ export function useBrowserTakeoverActions() {
       url: useBrowserTakeoverStore.getState().url,
     };
     completeTakeover();
-    if (!snapshot.messageId) {
+    const resumeMessageId = resolveBrowserTakeoverMessageId(snapshot.messageId);
+    if (!resumeMessageId) {
       return;
     }
     try {
       const resumeData = await resumeVncSession(snapshot.uiMode);
       await useChatStore
         .getState()
-        .sendMessage('', snapshot.messageId, undefined, { action: 'completed', message: '' });
+        .sendMessage('', resumeMessageId, undefined, { action: 'completed', message: '' });
       if (resumeData?.learned) {
         toast.success(t('takeoverLearned'), { duration: 3000 });
       }
@@ -83,14 +85,15 @@ export function useBrowserTakeoverActions() {
       url: useBrowserTakeoverStore.getState().url,
     };
     completeTakeover();
-    if (!snapshot.messageId) {
+    const resumeMessageId = resolveBrowserTakeoverMessageId(snapshot.messageId);
+    if (!resumeMessageId) {
       return;
     }
     try {
       await resumeVncSession(snapshot.uiMode);
       await useChatStore
         .getState()
-        .sendMessage('', snapshot.messageId, undefined, { action: 'skipped', message: '' });
+        .sendMessage('', resumeMessageId, undefined, { action: 'skipped', message: '' });
     } catch (error) {
       console.error('[TAKEOVER] Skip failed:', error);
       useBrowserTakeoverStore.getState().requestTakeover({

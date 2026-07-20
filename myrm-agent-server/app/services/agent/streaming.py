@@ -209,6 +209,8 @@ async def ai_agent_service_stream(
                         from app.services.agent.approval_payload import extract_approval_registry_payload
 
                         approval_payload = extract_approval_registry_payload(approval_data)
+                        if params.message_id:
+                            approval_payload = {**approval_payload, "messageId": params.message_id}
                         timeout_seconds = approval_payload.get("approval_timeout_seconds")
                         expires_at = None
                         if timeout_seconds:
@@ -230,13 +232,19 @@ async def ai_agent_service_stream(
                         # Enrich event with approval_id so frontend knows which ID to resolve
 
                         # Fix for AgentStreamEvent object not supporting item assignment
+                        if params.message_id:
+                            approval_data["messageId"] = params.message_id
                         if hasattr(event, "to_dict"):
                             event_dict = event.to_dict()
                             event_dict["data"]["approval_id"] = record.id
+                            if params.message_id:
+                                event_dict["data"]["messageId"] = params.message_id
                             event = event_dict
                         elif hasattr(event, "model_dump"):
                             event_dict = event.model_dump()
                             event_dict["data"]["approval_id"] = record.id
+                            if params.message_id:
+                                event_dict["data"]["messageId"] = params.message_id
                             event = event_dict
                         elif isinstance(event, dict):
                             approval_data["approval_id"] = record.id

@@ -6,10 +6,10 @@
   stack_supervisor.state_gc::collect_stale_state (POS: 失效状态 GC)
 
 [OUTPUT]
-  SupervisorDaemon: Unix socket RPC 服务 + 看门狗 + 失温冷却自愈（intentional reset 清除自愈记忆）；wave pin 期间 shared API 宕机时 backend-only ensure；backend-only 与 full ensure 独立冷却（默认 30s / 300s）
+  SupervisorDaemon: Unix socket RPC 服务 + 看门狗 + 失温冷却自愈（intentional reset 清除自愈记忆）；wave pin 期间 shared API 宕机时 backend-only ensure；signoff chrome 持锁且 frontend 死亡时 full ensure；backend-only 与 full ensure 独立冷却（默认 30s / 300s）
 
 [POS]
-  本地 dev 栈单写者守护进程。串行化 ensure/reset，30s 探活 GC + 失温冷却自愈；并行 E2E 期间仅复活 shared Backend，不 reset frontend/Chrome。
+  本地 dev 栈单写者守护进程。串行化 ensure/reset，30s 探活 GC + 失温冷却自愈；并行 E2E 期间仅复活 shared Backend，不 reset frontend/Chrome；signoff chrome 持锁期间 frontend 真死时允许 full ensure。
 """
 
 from __future__ import annotations
@@ -187,6 +187,23 @@ class SupervisorDaemon:
         if result.returncode != 0:
             logger.warning("Wave lease reaper failed: %s", result.stderr.strip())
 
+    def _signoff_chrome_lock_owner_alive(self) -> bool:
+        lock_file = self.paths.state_dir / "signoff-chrome.lock"
+        if not lock_file.is_file():
+            return False
+        try:
+            raw = lock_file.read_text(encoding="utf-8").strip()
+            if not raw:
+                return False
+            pid = int(raw.split()[0])
+            if pid <= 0:
+                return False
+            os.kill(pid, 0)
+        except (OSError, ValueError, ProcessLookupError):
+            return False
+        else:
+            return True
+
     def _maybe_auto_heal(self, probe: StackProbe) -> None:
         now = time.monotonic()
         if stack_warm(probe):
@@ -200,16 +217,29 @@ class SupervisorDaemon:
             logger.info("Watchdog auto-heal: deferred — ensure in progress")
             return
         wave_write_allowed = self._wave_stack_write_allowed()
+        signoff_active = self._signoff_chrome_lock_owner_alive()
+        signoff_frontend_dead = (
+            signoff_active
+            and not probe.frontend_http_ok
+            and not probe.frontend_port_listening
+        )
         backend_only_heal = False
         if not wave_write_allowed:
-            if probe.api_http_ok:
+            if probe.api_http_ok and not signoff_frontend_dead:
                 return
             if not probe.frontend_http_ok and not probe.frontend_port_listening:
-                logger.info(
-                    "Watchdog auto-heal: deferred — wave pin and frontend unavailable"
-                )
-                return
-            backend_only_heal = True
+                if signoff_active:
+                    logger.info(
+                        "Watchdog auto-heal: signoff chrome active — full ensure for dead frontend"
+                    )
+                    backend_only_heal = False
+                else:
+                    logger.info(
+                        "Watchdog auto-heal: deferred — wave pin and frontend unavailable"
+                    )
+                    return
+            else:
+                backend_only_heal = True
         if self._auto_heal_on_cooldown(backend_only_heal, now):
             return
         if not self._op_lock.acquire(blocking=False):

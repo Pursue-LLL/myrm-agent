@@ -107,11 +107,18 @@ export const BuiltinToolsPanel = ({
         {BUILTIN_TOOL_IDS.map((id) => {
           const isCron = id === 'cron';
           const isComputerUse = id === 'computer_use';
-          const disabled = (isCron && cronEntitlementBlocked) || (isComputerUse && computerUseEntitlementBlocked);
+          const isExternalCli = id === 'external_cli';
+          const externalCliSandboxBlocked = isSandbox();
+          const disabled =
+            (isCron && cronEntitlementBlocked) ||
+            (isComputerUse && computerUseEntitlementBlocked) ||
+            (isExternalCli && externalCliSandboxBlocked);
           const description = disabled
             ? isComputerUse
               ? tBilling('computerUseDescription')
-              : tBilling('cronDescription')
+              : isExternalCli
+                ? tPanel('externalCliLocalOnlyHint')
+                : tBilling('cronDescription')
             : tPanel(`builtinToolDescs.${id}`);
           const checked = localBuiltinTools.includes(id);
 

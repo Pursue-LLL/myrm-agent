@@ -7,10 +7,10 @@
  * - @/lib/deploy-mode::isLocalMode (POS: 前端部署模式判定)
  *
  * [OUTPUT]
- * - DesktopPermissionsCard: 桌面自动化就绪检测卡片，展示 OS 权限/依赖状态及修复提示
+ * - DesktopPermissionsCard: 桌面自动化就绪检测卡片；OS 权限状态 + 始终信任应用列表（含加载失败重试）
  *
  * [POS]
- * 系统设置中的环境诊断卡片。仅本地/Tauri模式渲染，调用 GET /webui/desktop/permissions 实时检测输入控制和屏幕捕获能力就绪状态。
+ * 系统设置中的环境诊断卡片。仅本地/Tauri 模式渲染；`GET /webui/desktop/permissions` + `GET/DELETE /webui/desktop/trust/apps`。
  */
 
 import { memo, useState, useCallback, useEffect } from 'react';
@@ -30,11 +30,22 @@ interface DesktopPermissionsStatus {
   settings_deeplinks: Record<string, string>;
 }
 
+interface TrustedDesktopApp {
+  trust_key: string;
+  display_name: string;
+  app_id: string;
+  scope: string;
+}
+
 const DesktopPermissionsCardLocal = memo(() => {
   const t = useTranslations('settings.desktopPermissions');
   const [status, setStatus] = useState<DesktopPermissionsStatus | null>(null);
+  const [trustedApps, setTrustedApps] = useState<TrustedDesktopApp[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTrustLoading, setIsTrustLoading] = useState(true);
+  const [revokingKey, setRevokingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [trustError, setTrustError] = useState<string | null>(null);
 
   const fetchPermissions = useCallback(async () => {
     setIsLoading(true);
@@ -52,9 +63,44 @@ const DesktopPermissionsCardLocal = memo(() => {
     }
   }, []);
 
+  const fetchTrustedApps = useCallback(async () => {
+    setIsTrustLoading(true);
+    setTrustError(null);
+    try {
+      const data = await apiRequest<{ apps: TrustedDesktopApp[] }>(
+        '/webui/desktop/trust/apps',
+        { silent: true },
+      );
+      setTrustedApps(Array.isArray(data.apps) ? data.apps : []);
+    } catch (err) {
+      setTrustError(err instanceof Error ? err.message : t('trustedAppsLoadFailed'));
+    } finally {
+      setIsTrustLoading(false);
+    }
+    // `t` from next-intl is stable in production; omit from deps to avoid refetch loops.
+  }, []);
+
   useEffect(() => {
     void fetchPermissions();
-  }, [fetchPermissions]);
+    void fetchTrustedApps();
+  }, [fetchPermissions, fetchTrustedApps]);
+
+  const handleRevokeTrustedApp = useCallback(async (trustKey: string) => {
+    if (revokingKey) return;
+    setRevokingKey(trustKey);
+    try {
+      await apiRequest('/webui/desktop/trust/apps', {
+        method: 'DELETE',
+        body: JSON.stringify({ trust_key: trustKey }),
+      });
+      setTrustedApps((prev) => prev.filter((app) => app.trust_key !== trustKey));
+      toast.success(t('trustedAppsRevokeSuccess'));
+    } catch {
+      toast.error(t('trustedAppsRevokeFailed'));
+    } finally {
+      setRevokingKey(null);
+    }
+  }, [revokingKey, t]);
 
   const handleCopyCommand = useCallback((command: string) => {
     void navigator.clipboard.writeText(command);
@@ -172,6 +218,54 @@ const DesktopPermissionsCardLocal = memo(() => {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden">
+        <div className="p-5 space-y-1">
+          <p className="text-sm font-semibold text-foreground">{t('trustedAppsTitle')}</p>
+          <p className="text-xs text-muted-foreground">{t('trustedAppsDesc')}</p>
+        </div>
+        <div className="divide-y divide-border/20">
+          {isTrustLoading ? (
+            <div className="px-5 py-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              {t('checking')}
+            </div>
+          ) : trustError ? (
+            <div className="px-5 py-4 flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">{t('trustedAppsLoadFailed')}</p>
+              <button
+                type="button"
+                onClick={() => void fetchTrustedApps()}
+                className="p-2 rounded-lg hover:bg-muted/50 transition-colors shrink-0"
+                title={t('trustedAppsRetry')}
+              >
+                <RefreshCw className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+          ) : trustedApps.length === 0 ? (
+            <div className="px-5 py-4 text-sm text-muted-foreground">{t('trustedAppsEmpty')}</div>
+          ) : (
+            trustedApps.map((app) => (
+              <div key={app.trust_key} className="px-5 py-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{app.display_name}</p>
+                  {app.app_id ? (
+                    <p className="text-xs text-muted-foreground font-mono truncate">{app.app_id}</p>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  disabled={revokingKey === app.trust_key}
+                  onClick={() => void handleRevokeTrustedApp(app.trust_key)}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted/50 transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {t('trustedAppsRevoke')}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </section>
   );

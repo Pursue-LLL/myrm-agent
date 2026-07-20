@@ -199,7 +199,15 @@
       "statusOk": "OK",
       "statusMissing": "Missing",
       "openSettings": "Open settings",
-      "copyCommand": "Copy command"
+      "copyCommand": "Copy command",
+      "trustedAppsTitle": "Always-trusted apps",
+      "trustedAppsDesc": "Apps you allowed permanently during desktop control. Revoke access here.",
+      "trustedAppsEmpty": "No always-trusted apps yet.",
+      "trustedAppsLoadFailed": "Unable to load always-trusted apps",
+      "trustedAppsRetry": "Retry",
+      "trustedAppsRevoke": "Revoke",
+      "trustedAppsRevokeSuccess": "Removed trusted app",
+      "trustedAppsRevokeFailed": "Failed to revoke trusted app"
     },
     "rate_limits": {
       "title": "Rate Limit Monitor",

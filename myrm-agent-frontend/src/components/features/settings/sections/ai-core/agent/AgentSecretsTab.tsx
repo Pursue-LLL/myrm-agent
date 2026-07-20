@@ -75,7 +75,9 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
       await fetchSecrets();
     } catch (err: unknown) {
       console.error('Failed to save secret:', err);
-      toast.error(t('agent.secrets.saveError', { fallback: 'Failed to save secret.' }));
+      toast.error(t('agent.secrets.saveError', { fallback: 'Failed to save secret.' }), {
+        description: getErrorMessage(err),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -89,7 +91,9 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
       await fetchSecrets();
     } catch (err: unknown) {
       console.error('Failed to delete secret:', err);
-      toast.error(t('agent.secrets.deleteError', { fallback: 'Failed to delete secret.' }));
+      toast.error(t('agent.secrets.deleteError', { fallback: 'Failed to delete secret.' }), {
+        description: getErrorMessage(err),
+      });
       throw err;
     } finally {
       setDeleteTarget(null);

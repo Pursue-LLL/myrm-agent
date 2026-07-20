@@ -116,14 +116,21 @@ def strip_legacy_builtin_tool_ids(tools: Sequence[str]) -> list[str]:
 
 def strip_deploy_incompatible_builtin_tools(tools: Sequence[str]) -> list[str]:
     """Drop builtin tools that cannot run in the current deployment mode."""
-    if "computer_use" not in tools:
-        return list(tools)
+    result = list(tools)
 
-    from app.config.computer_use_deploy import is_computer_use_deploy_supported
+    if "computer_use" in result:
+        from app.config.computer_use_deploy import is_computer_use_deploy_supported
 
-    if is_computer_use_deploy_supported():
-        return list(tools)
-    return [tool_id for tool_id in tools if tool_id != "computer_use"]
+        if not is_computer_use_deploy_supported():
+            result = [tool_id for tool_id in result if tool_id != "computer_use"]
+
+    if "external_cli" in result:
+        from app.config.external_cli_deploy import is_external_cli_deploy_supported
+
+        if not is_external_cli_deploy_supported():
+            result = [tool_id for tool_id in result if tool_id != "external_cli"]
+
+    return result
 
 
 def normalize_enabled_builtin_tools(tools: Sequence[str]) -> list[str]:

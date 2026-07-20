@@ -6,6 +6,7 @@
 [OUTPUT] get_browser_pool_config: 根据部署模式生成 BrowserPoolConfig
 [OUTPUT] get_browser_launch_options: 本地/沙箱 fallback 启动参数
 [OUTPUT] resolve_cloud_browser_endpoint: 异步解析云浏览器 WS endpoint
+[OUTPUT] get_configured_browser_pool: 带部署模式配置的 GlobalBrowserPool 单例
 [POS] 浏览器池配置工厂。按部署模式（Local/Sandbox）生成 BrowserPoolConfig 预设，支持注入云浏览器 endpoint。
 """
 
@@ -112,4 +113,19 @@ def get_browser_launch_options() -> dict[str, object]:
     return options
 
 
-__all__ = ["get_browser_pool_config", "get_browser_launch_options", "resolve_cloud_browser_endpoint"]
+def get_configured_browser_pool():
+    """Return GlobalBrowserPool singleton initialized with deploy-mode config."""
+    from myrm_agent_harness.toolkits.browser.pool import get_global_browser_pool
+
+    return get_global_browser_pool(
+        config=get_browser_pool_config(),
+        launch_options=get_browser_launch_options(),
+    )
+
+
+__all__ = [
+    "get_browser_pool_config",
+    "get_browser_launch_options",
+    "resolve_cloud_browser_endpoint",
+    "get_configured_browser_pool",
+]

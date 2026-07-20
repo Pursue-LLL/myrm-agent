@@ -114,3 +114,21 @@ def test_deploy_gate_true_in_local_mode(local_deploy: None) -> None:
     assert _should_setup_computer_use_tools(True) is True
     flags = resolve_builtin_tool_flags(["computer_use", "browser"])
     assert flags["enable_computer_use"] is True
+
+
+@pytest.mark.integration
+def test_external_cli_strip_removed_in_sandbox(sandbox_no_visual_desktop: None) -> None:
+    from app.config.external_cli_deploy import is_external_cli_deploy_supported
+
+    assert is_external_cli_deploy_supported() is False
+    stripped = strip_deploy_incompatible_builtin_tools(["web_search", "external_cli"])
+    assert stripped == ["web_search"]
+
+
+@pytest.mark.integration
+def test_external_cli_kept_in_local_mode(local_deploy: None) -> None:
+    from app.config.external_cli_deploy import is_external_cli_deploy_supported
+
+    assert is_external_cli_deploy_supported() is True
+    stripped = strip_deploy_incompatible_builtin_tools(["memory", "external_cli"])
+    assert stripped == ["memory", "external_cli"]

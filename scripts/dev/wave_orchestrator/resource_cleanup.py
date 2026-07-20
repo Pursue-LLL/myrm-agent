@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - cleanup_resource_ref() — invoke server API to remove a registered test resource
+- _request_with_retry() — retry transient HTTP 500/502/503/504 on cleanup
 
 [POS]
 Dev test resource cleanup. Maps ledger kinds to myrm-agent-server REST endpoints.
@@ -15,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import http.cookiejar
+import time
 import urllib.error
 import urllib.request
 from typing import TypedDict
@@ -22,6 +24,9 @@ from typing import TypedDict
 from wave_orchestrator.types import ResourceKind
 
 DEFAULT_API_BASE = "http://127.0.0.1:8080"
+TRANSIENT_CLEANUP_HTTP_CODES: frozenset[int] = frozenset({500, 502, 503, 504})
+CLEANUP_RETRY_ATTEMPTS: int = 4
+CLEANUP_RETRY_BACKOFF_SEC: float = 0.5
 
 
 class CleanupAttempt(TypedDict):
@@ -102,14 +107,34 @@ def _login_cookie() -> str:
     return "; ".join(parts)
 
 
+def _request_with_retry(
+    method: str,
+    path: str,
+    *,
+    cookie: str = "",
+    body: dict[str, object] | None = None,
+) -> tuple[int, str]:
+    last_status = 0
+    last_detail = "unknown cleanup request failure"
+    for attempt in range(CLEANUP_RETRY_ATTEMPTS):
+        status, detail = _request(method, path, cookie=cookie, body=body)
+        if status not in TRANSIENT_CLEANUP_HTTP_CODES:
+            return status, detail
+        last_status, last_detail = status, detail
+        if attempt + 1 >= CLEANUP_RETRY_ATTEMPTS:
+            break
+        time.sleep(CLEANUP_RETRY_BACKOFF_SEC * (attempt + 1))
+    return last_status, last_detail
+
+
 def _cleanup_chat(ref: str, cookie: str) -> CleanupAttempt:
     chat_id = ref.strip()
     if not chat_id:
         return {"kind": "chat", "ref": ref, "ok": False, "detail": "empty chat id"}
-    status, detail = _request("DELETE", f"/api/v1/chats/{chat_id}", cookie=cookie)
+    status, detail = _request_with_retry("DELETE", f"/api/v1/chats/{chat_id}", cookie=cookie)
     if status not in {200, 204, 404}:
         return {"kind": "chat", "ref": chat_id, "ok": False, "detail": f"soft-delete HTTP {status}: {detail}"}
-    perm_status, perm_detail = _request("DELETE", f"/api/v1/chats/trash/{chat_id}", cookie=cookie)
+    perm_status, perm_detail = _request_with_retry("DELETE", f"/api/v1/chats/trash/{chat_id}", cookie=cookie)
     if perm_status in {200, 204, 404}:
         return {"kind": "chat", "ref": chat_id, "ok": True, "detail": "permanently deleted"}
     return {

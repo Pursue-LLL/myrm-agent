@@ -202,14 +202,13 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     };
 
     if (payload?.action_type === 'browser_takeover') {
-      const { default: useBrowserTakeoverStore } = await import('@/store/useBrowserTakeoverStore');
-      const isManaged = Boolean(payload.is_managed);
-      useBrowserTakeoverStore.getState().requestTakeover({
+      const { activateBrowserTakeover } = await import('@/store/useApprovalStore');
+      activateBrowserTakeover({
         reason: String(payload.reason ?? ''),
         url: payload.url ? String(payload.url) : undefined,
         screenshot_base64: payload.screenshot_base64 ? String(payload.screenshot_base64) : undefined,
-        messageId: data.messageId,
-        ui_mode: isManaged ? 'managed' : 'extension',
+        messageId: typeof data.messageId === 'string' ? data.messageId : undefined,
+        is_managed: payload.is_managed,
         auto_detect_completion: false,
       });
     }

@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 
+import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
+import useChatStore from '@/store/useChatStore';
+
 export interface ApprovalToolCall {
   name: string;
   args: Record<string, unknown>;
@@ -23,7 +26,11 @@ export interface ApprovalPayloadData {
   tool_input?: Record<string, unknown>;
   element?: Record<string, unknown>;
   page_url?: string;
+  url?: string;
+  screenshot_base64?: string;
+  is_managed?: boolean;
   reason?: string;
+  messageId?: string;
   action_type?: string;
   plan_items?: PlanItem[];
   total_items?: number;
@@ -42,32 +49,72 @@ export interface ApprovalPayload {
   expires_at?: string;
 }
 
+export interface BrowserTakeoverActivationInput {
+  reason: string;
+  url?: string;
+  screenshot_base64?: string;
+  messageId?: string;
+  is_managed?: boolean;
+  auto_detect_completion?: boolean;
+  chat_id?: string;
+}
+
+function isActiveChatForTakeover(approvalChatId?: string): boolean {
+  if (!approvalChatId) {
+    return true;
+  }
+  const storeChatId = useChatStore.getState().chatId?.trim();
+  if (storeChatId && storeChatId === approvalChatId) {
+    return true;
+  }
+  if (typeof window !== 'undefined') {
+    const pathChatId = window.location.pathname.split('/').filter(Boolean)[0]?.trim();
+    if (pathChatId && pathChatId === approvalChatId) {
+      return true;
+    }
+  }
+  return !storeChatId;
+}
+
+export function activateBrowserTakeover(input: BrowserTakeoverActivationInput): void {
+  if (input.chat_id && !isActiveChatForTakeover(input.chat_id)) {
+    return;
+  }
+  const messageId = resolveBrowserTakeoverMessageId(input.messageId);
+  const isManaged = input.is_managed === true;
+  useBrowserTakeoverStore.getState().requestTakeover({
+    reason: input.reason,
+    url: input.url,
+    screenshot_base64: input.screenshot_base64,
+    messageId,
+    ui_mode: isManaged ? 'managed' : 'extension',
+    auto_detect_completion: input.auto_detect_completion ?? false,
+  });
+}
+
 function syncBrowserTakeoverFromApproval(approval: ApprovalPayload): void {
   if (approval.action_type !== 'browser_takeover') {
     return;
   }
   const nested = approval.payload ?? {};
   const nestedRecord = nested as Record<string, unknown>;
-  const isManaged = nestedRecord.is_managed === true;
+  const isManaged = nested.is_managed === true || nestedRecord.is_managed === true;
   const reason = approval.reason ?? nested.reason ?? '';
-  const urlValue = nested.page_url ?? nestedRecord.url;
-  const screenshot = nestedRecord.screenshot_base64;
+  const urlValue = nested.url ?? nested.page_url ?? nestedRecord.url;
+  const screenshot = nested.screenshot_base64 ?? nestedRecord.screenshot_base64;
+  const payloadMessageId =
+    typeof nestedRecord.messageId === 'string' && nestedRecord.messageId.trim()
+      ? nestedRecord.messageId.trim()
+      : undefined;
 
-  void Promise.all([
-    import('@/store/useBrowserTakeoverStore'),
-    import('@/store/useChatStore'),
-  ]).then(([takeoverMod, chatMod]) => {
-    const messages = chatMod.default.getState().messages;
-    const lastAssistant = [...messages].reverse().find((message) => message.role === 'assistant');
-    const messageId = lastAssistant?.messageId ?? '';
-    takeoverMod.default.getState().requestTakeover({
-      reason: String(reason),
-      url: typeof urlValue === 'string' ? urlValue : undefined,
-      screenshot_base64: typeof screenshot === 'string' ? screenshot : undefined,
-      messageId,
-      ui_mode: isManaged ? 'managed' : 'extension',
-      auto_detect_completion: false,
-    });
+  activateBrowserTakeover({
+    reason: String(reason),
+    url: typeof urlValue === 'string' ? urlValue : undefined,
+    screenshot_base64: typeof screenshot === 'string' ? screenshot : undefined,
+    messageId: payloadMessageId,
+    is_managed: isManaged,
+    auto_detect_completion: false,
+    chat_id: approval.chat_id,
   });
 }
 
@@ -98,8 +145,12 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
   const toolInput = asRecord(raw.tool_input ?? nestedPayload.tool_input);
   const element = asRecord(raw.element ?? nestedPayload.element);
   const pageUrl = asString(raw.page_url ?? nestedPayload.page_url);
+  const payloadUrl = asString(nestedPayload.url) || pageUrl;
   const payloadToolName = asString(raw.tool_name ?? nestedPayload.tool_name);
   const payloadReason = asString(raw.reason ?? nestedPayload.reason);
+  const screenshotBase64 = asString(nestedPayload.screenshot_base64) || undefined;
+  const isManaged = nestedPayload.is_managed === true;
+  const payloadMessageId = asString(nestedPayload.messageId) || undefined;
 
   return {
     approval_id: asString(raw.approval_id) || asString(raw.id),
@@ -120,7 +171,11 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
       tool_input: Object.keys(toolInput).length > 0 ? toolInput : undefined,
       element: Object.keys(element).length > 0 ? element : undefined,
       page_url: pageUrl || undefined,
+      url: payloadUrl || undefined,
+      screenshot_base64: screenshotBase64,
+      is_managed: isManaged,
       reason: payloadReason || undefined,
+      messageId: payloadMessageId,
       action_type: asString(nestedPayload.action_type ?? raw.action_type) || undefined,
     },
     chat_id: asString(raw.chat_id) || undefined,
@@ -171,5 +226,29 @@ const useApprovalStore = create<ApprovalState>((set) => ({
   hideDrawer: () => set({ isOpen: false }),
   showDrawer: () => set((state) => (state.queue.length > 0 ? { isOpen: true } : state)),
 }));
+
+/** SSOT for browser takeover messageId: payload → assistant → approval queue → session. */
+export function resolveBrowserTakeoverMessageId(fallback?: string): string | undefined {
+  const trimmed = fallback?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  const chatState = useChatStore.getState();
+  const lastAssistant = [...chatState.messages]
+    .reverse()
+    .find((message) => message.role === 'assistant');
+  if (lastAssistant?.messageId?.trim()) {
+    return lastAssistant.messageId.trim();
+  }
+  const pendingApproval = useApprovalStore
+    .getState()
+    .queue.find((approval) => approval.action_type === 'browser_takeover');
+  const fromApproval = pendingApproval?.payload?.messageId?.trim();
+  if (fromApproval) {
+    return fromApproval;
+  }
+  const sessionId = chatState.currentSessionMessageId?.trim();
+  return sessionId || undefined;
+}
 
 export default useApprovalStore;

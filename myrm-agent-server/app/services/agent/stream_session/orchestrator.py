@@ -160,6 +160,16 @@ async def run_agent_stream(
         if request.resume_value is not None:
             from langgraph.types import Command
 
+            resume_action = request.resume_value.get("action")
+            if request.chat_id and resume_action in ("completed", "skipped"):
+                from app.services.approvals.registry import ApprovalRegistry
+
+                decision = "approve" if resume_action == "completed" else "deny"
+                await ApprovalRegistry.resolve_pending_browser_takeover_for_chat(
+                    request.chat_id,
+                    decision=decision,
+                )
+
             if request.chat_id:
                 if not ApprovalTimeoutScheduler.get().resolve_if_first(request.chat_id):
                     logger.warning(

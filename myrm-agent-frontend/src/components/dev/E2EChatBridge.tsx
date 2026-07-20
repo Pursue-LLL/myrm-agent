@@ -492,6 +492,26 @@ export default function E2EChatBridge() {
           reason: state.reason,
         };
       },
+      recoverPendingBrowserTakeover: async () => {
+        const chatId = useChatStore.getState().chatId;
+        const { fetchPendingApprovals } = await import('@/hooks/usePendingApprovalsRecovery');
+        const approvals = await fetchPendingApprovals();
+        const matching = approvals.filter(
+          (approval) =>
+            approval.action_type === 'browser_takeover'
+            && approval.status === 'PENDING'
+            && (!chatId || approval.chat_id === chatId),
+        );
+        for (const approval of matching) {
+          useApprovalStore.getState().openApproval(approval);
+        }
+        const snap = useBrowserTakeoverStore.getState();
+        return {
+          recovered: matching.length,
+          pending: snap.pending,
+          uiMode: snap.uiMode,
+        };
+      },
       getBrowserToolProgress: () => {
         const takeover = useBrowserTakeoverStore.getState();
         const messages = useChatStore.getState().messages;
