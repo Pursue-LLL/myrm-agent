@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - time/owner helpers, active lease lookup, TTL and runtime-drift transitions
-- signoff_matrix_guard_active, signoff_chrome_lock_active, signoff_matrix_runtime_heal_allowed, signoff_wave_close_blocked, heal_open_wave_runtime_id, restore_drifted_signoff_wave (signoff matrix 活跃 lease、`MYRM_SIGNOFF_MATRIX=1` bootstrap、或 signoff-chrome.lock 时原地 heal runtimeId；signoff 期间禁止 idle close；drifted wave 可恢复)
+- reap_runtime_drift, signoff_chrome_lock_active, signoff_matrix_runtime_heal_allowed, signoff_wave_close_blocked, heal_open_wave_runtime_id, restore_drifted_signoff_wave (signoff lock / matrix 活跃时原地 heal runtimeId 且永不 drift-invalidate；signoff 期间禁止 idle close)
 
 [POS]
 Lock-free state policy. Callers own persistence and all external cleanup I/O.
