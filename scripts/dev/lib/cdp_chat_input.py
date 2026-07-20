@@ -165,8 +165,38 @@ class CdpChatInput(CdpChatBootstrap):
         )
         return result if isinstance(result, dict) else {"hasPauseTrigger": False}
 
+    async def _ensure_react_e2e_bridge(self, *, timeout_sec: float = 90.0) -> None:
+        """Wait for the full React E2E bridge (not DOM-only fallback)."""
+        deadline = time.monotonic() + timeout_sec
+        polls = 0
+        while time.monotonic() < deadline:
+            polls += 1
+            await self.dismiss_modals()
+            await self.ensure_e2e_api_base_binding()
+            await self.evaluate(E2E_BRIDGE_INSTALL_JS, await_promise=False)
+            probe = await self.evaluate(
+                """(() => ({
+                  hasBuiltinTools: Boolean(window.__MYRM_E2E_CHAT__?.setCurrentBuiltinTools),
+                  fallback: window.__MYRM_E2E_CHAT__?.__e2eFallback === true,
+                  hasInput: Boolean(document.querySelector('[data-chat-input]')),
+                }))()""",
+                await_promise=False,
+            )
+            if isinstance(probe, dict) and probe.get("hasBuiltinTools"):
+                return
+            if polls in {15, 30, 45}:
+                await self.cdp("Page.reload", {"ignoreCache": True}, recv_timeout=120.0)
+                await asyncio.sleep(4)
+                await self.ensure_e2e_api_base_binding()
+            await asyncio.sleep(1)
+        raise TimeoutError(
+            "React E2E chat bridge missing setCurrentBuiltinTools "
+            f"(last probe={probe!r})"
+        )
+
     async def enable_computer_use(self) -> dict[str, object]:
         await self.dismiss_modals()
+        await self._ensure_react_e2e_bridge(timeout_sec=90.0)
         result = await self.evaluate(
             """(() => {
               const bridge = window.__MYRM_E2E_CHAT__;

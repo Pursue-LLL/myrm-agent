@@ -43,6 +43,7 @@ def test_assert_chrome_attach_health_passes_on_ready_probe(
 def test_assert_chrome_attach_health_raises_when_probe_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("MYRM_CHROME_E2E_ATTACH_WAIT_SEC", "0")
     monkeypatch.setattr(
         "tests.support.e2e_runtime_guard.subprocess.run",
         lambda *args, **kwargs: type(
@@ -317,6 +318,47 @@ def test_signoff_matrix_auto_heals_stale_lease_on_runtime_drift(
     monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
     monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
     monkeypatch.setenv("MYRM_SIGNOFF_MATRIX", "1")
+
+    def _heal_on_reap(cmd: list[str], **kwargs: object) -> object:
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+        wave = payload.get("wave")
+        if isinstance(wave, dict):
+            wave["runtimeId"] = "runtime-healed"
+        for item in payload.get("leases", []):
+            if isinstance(item, dict) and item.get("status") == "active":
+                item["runtimeId"] = "runtime-healed"
+        state_path.write_text(json.dumps(payload), encoding="utf-8")
+        return type("Result", (), {"returncode": 0, "stderr": "", "stdout": ""})()
+
+    monkeypatch.setattr("tests.support.e2e_runtime_guard.subprocess.run", _heal_on_reap)
+    monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard._shared_hot_stack_runtime_id",
+        lambda: "runtime-healed",
+    )
+
+    lease = require_e2e_runtime_lease()
+    assert lease.runtime_id == "runtime-healed"
+    assert os.environ.get("MYRM_E2E_STACK_FP") == "runtime-healed"
+    assert_e2e_runtime_unchanged(lease)
+
+
+def test_formal_chrome_e2e_auto_heals_stale_lease_on_runtime_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent_id = "e2e-parent-48344-49446-ea479a04"
+    _write_state(tmp_path, runtime_id="runtime-stale")
+    state_dir = tmp_path / "state"
+    state_path = state_dir / "wave-orchestrator.json"
+    payload = json.loads(state_path.read_text(encoding="utf-8"))
+    for item in payload.get("leases", []):
+        if isinstance(item, dict):
+            item["agentId"] = agent_id
+    state_path.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(state_dir))
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", agent_id)
+    monkeypatch.setenv("MYRM_E2E_STACK_FP", "runtime-stale")
 
     def _heal_on_reap(cmd: list[str], **kwargs: object) -> object:
         payload = json.loads(state_path.read_text(encoding="utf-8"))

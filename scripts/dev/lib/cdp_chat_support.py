@@ -51,6 +51,38 @@ def _e2e_api_urlopen(
     raise RuntimeError("E2E API request failed without response")
 
 
+def _e2e_api_get_json(
+    url: str,
+    *,
+    timeout_sec: float = 15.0,
+    max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
+) -> object:
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with _e2e_api_urlopen(req, timeout_sec=timeout_sec, max_attempts=max_attempts) as resp:
+        return json.loads(resp.read())
+
+
+def _e2e_api_post_json(
+    url: str,
+    body: dict[str, object],
+    *,
+    timeout_sec: float = 15.0,
+    max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
+) -> object:
+    payload = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(  # noqa: S310
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with _e2e_api_urlopen(req, timeout_sec=timeout_sec, max_attempts=max_attempts) as resp:
+        raw = resp.read()
+        if not raw:
+            return {}
+        return json.loads(raw)
+
+
 def e2e_runtime_binding(api_base: str | None = None) -> dict[str, object] | None:
     """Return a validated page-local private Backend binding."""
     base = resolve_e2e_api_base(api_base)
@@ -169,14 +201,13 @@ PREPARE_AUTOMATION_SEND_JS = """
 
 def _api_provider_ready() -> bool:
     try:
-        resp = urllib.request.urlopen(  # noqa: S310 - fixed loopback E2E endpoint
+        payload = _e2e_api_get_json(
             f"{get_e2e_api_url()}/api/v1/config/readiness",
-            timeout=5,
+            timeout_sec=5.0,
         )
-        payload = json.loads(resp.read())
     except Exception:
         return False
-    provider = payload.get("provider")
+    provider = payload.get("provider") if isinstance(payload, dict) else None
     return isinstance(provider, dict) and bool(provider.get("is_ready"))
 
 
@@ -184,11 +215,10 @@ def fetch_provider_readiness_snapshot() -> dict[str, object]:
     """Return private-pool provider readiness for E2E failure diagnostics."""
     api_base = get_e2e_api_url()
     try:
-        resp = urllib.request.urlopen(  # noqa: S310
+        payload = _e2e_api_get_json(
             f"{api_base}/api/v1/config/readiness",
-            timeout=5,
+            timeout_sec=5.0,
         )
-        payload = json.loads(resp.read())
     except Exception as exc:
         return {"apiBase": api_base, "error": str(exc)}
     if not isinstance(payload, dict):
@@ -223,11 +253,10 @@ def fetch_e2e_goal_status(
     """Return the active goal dict for a chat session, or None if not yet persisted."""
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     try:
-        resp = urllib.request.urlopen(  # noqa: S310
+        payload = _e2e_api_get_json(
             f"{resolved_api}/api/v1/goals/{chat_id}/status",
-            timeout=15,
+            timeout_sec=15.0,
         )
-        payload = json.loads(resp.read())
     except Exception:
         return None
     goal = payload.get("goal")
@@ -302,16 +331,13 @@ def post_goal_status_action(
         body["note"] = note
     if wait_reason is not None:
         body["wait_reason"] = wait_reason
-    payload = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(  # noqa: S310
-        f"{resolved_api}/api/v1/goals/{chat_id}/status",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
-            return json.loads(resp.read())
+        payload = _e2e_api_post_json(
+            f"{resolved_api}/api/v1/goals/{chat_id}/status",
+            body,
+            timeout_sec=15.0,
+        )
+        return payload if isinstance(payload, dict) else {"value": payload}
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
 
@@ -665,11 +691,10 @@ def wait_e2e_backend_ready(
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         try:
-            resp = urllib.request.urlopen(  # noqa: S310
+            payload = _e2e_api_get_json(
                 f"{resolved_api}/api/v1/health",
-                timeout=5,
+                timeout_sec=5.0,
             )
-            payload = json.loads(resp.read())
             if isinstance(payload, dict) and payload.get("status") == "healthy":
                 return True
         except Exception:
@@ -743,11 +768,10 @@ def deny_stale_browser_takeover_approvals(*, api_url: str | None = None) -> int:
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     denied = 0
     try:
-        with urllib.request.urlopen(  # noqa: S310
+        payload = _e2e_api_get_json(
             f"{resolved_api}/api/v1/approvals?limit=50&offset=0",
-            timeout=15,
-        ) as resp:
-            payload = json.loads(resp.read())
+            timeout_sec=15.0,
+        )
     except Exception:
         return 0
     records = payload.get("approvals") if isinstance(payload, dict) else None
@@ -761,16 +785,13 @@ def deny_stale_browser_takeover_approvals(*, api_url: str | None = None) -> int:
         approval_id = str(raw.get("id") or raw.get("approval_id") or "").strip()
         if not approval_id:
             continue
-        body = json.dumps({"decision": "deny"}).encode("utf-8")
-        req = urllib.request.Request(  # noqa: S310
-            f"{resolved_api}/api/v1/approvals/{approval_id}/resolve",
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
         try:
-            with urllib.request.urlopen(req, timeout=15):  # noqa: S310
-                denied += 1
+            _e2e_api_post_json(
+                f"{resolved_api}/api/v1/approvals/{approval_id}/resolve",
+                {"decision": "deny"},
+                timeout_sec=15.0,
+            )
+            denied += 1
         except Exception:
             continue
     return denied

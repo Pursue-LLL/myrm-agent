@@ -233,6 +233,24 @@ def _signoff_shared_hot_runtime_probe_active() -> bool:
     return True
 
 
+def _formal_chrome_e2e_runtime_heal_allowed() -> bool:
+    """Allow in-place wave heal for ./myrm test chrome_e2e parent sessions."""
+    dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    from dev_gate_contract import formal_chrome_e2e_runtime_heal_agent
+
+    return formal_chrome_e2e_runtime_heal_agent(os.environ.get("MYRM_E2E_AGENT_ID", ""))
+
+
+def _runtime_drift_heal_allowed() -> bool:
+    return _signoff_shared_hot_runtime_probe_active() or _formal_chrome_e2e_runtime_heal_allowed()
+
+
+def _uses_shared_hot_runtime_probe() -> bool:
+    return _runtime_drift_heal_allowed()
+
+
 def _shared_hot_stack_runtime_id() -> str:
     dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
     if str(dev_lib) not in sys.path:
@@ -242,9 +260,9 @@ def _shared_hot_stack_runtime_id() -> str:
     return _read_shared_hot_stack_runtime_id()
 
 
-def _attempt_signoff_runtime_heal(state_path: Path, lease_id: str) -> str | None:
-    """In-place heal wave + active leases when shared-hot runtime drifts during signoff."""
-    if not _signoff_shared_hot_runtime_probe_active():
+def _attempt_runtime_drift_heal(state_path: Path, lease_id: str) -> str | None:
+    """In-place heal wave + active leases when shared-hot runtime drifts during live E2E."""
+    if not _runtime_drift_heal_allowed():
         return None
     result = subprocess.run(
         ["bash", str(_wave_script()), "reap"],
@@ -272,7 +290,7 @@ def _attempt_signoff_runtime_heal(state_path: Path, lease_id: str) -> str | None
 def _runtime_id_reader() -> str:
     if _isolated_e2e_mode():
         return _stack_scoped_runtime_id()
-    if _signoff_shared_hot_runtime_probe_active():
+    if _uses_shared_hot_runtime_probe():
         return _shared_hot_stack_runtime_id()
     stack_fp = _stack_fingerprint_runtime_id()
     if stack_fp:
@@ -348,7 +366,7 @@ def require_e2e_runtime_lease(
         raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} is expired")
     expected = lease.get("runtimeId", "").strip()
     wave_runtime = str(wave.get("runtimeId", "")).strip()
-    if _signoff_shared_hot_runtime_probe_active() and wave_runtime:
+    if _uses_shared_hot_runtime_probe() and wave_runtime:
         expected = wave_runtime
     if wave.get("runtimeId") != expected:
         raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} runtime does not match open wave")
@@ -363,7 +381,7 @@ def require_e2e_runtime_lease(
         )
     current = runtime_id_reader().strip()
     if not expected or current != expected:
-        healed = _attempt_signoff_runtime_heal(state_path, lease_id)
+        healed = _attempt_runtime_drift_heal(state_path, lease_id)
         if healed:
             expected = healed
             current = runtime_id_reader().strip()
@@ -385,15 +403,10 @@ def assert_e2e_runtime_unchanged(
         return
     current = runtime_id_reader().strip()
     expected_runtime = lease.runtime_id.strip()
-    if _signoff_shared_hot_runtime_probe_active():
-        dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
-        if str(dev_lib) not in sys.path:
-            sys.path.insert(0, str(dev_lib))
-        from runtime_probe import _read_shared_hot_stack_runtime_id
-
-        expected_runtime = _read_shared_hot_stack_runtime_id().strip() or expected_runtime
+    if _uses_shared_hot_runtime_probe():
+        expected_runtime = _shared_hot_stack_runtime_id().strip() or expected_runtime
     if current != expected_runtime:
-        healed = _attempt_signoff_runtime_heal(_state_file(), lease.lease_id)
+        healed = _attempt_runtime_drift_heal(_state_file(), lease.lease_id)
         if healed and healed == runtime_id_reader().strip():
             return
         raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={expected_runtime} current={current or '<missing>'}")

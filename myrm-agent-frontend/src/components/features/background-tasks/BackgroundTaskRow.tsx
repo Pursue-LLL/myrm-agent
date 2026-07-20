@@ -1,6 +1,6 @@
 'use client';
 
-import { Navigation } from 'lucide-react';
+import { Navigation, FileText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { formatDistanceToNow } from 'date-fns';
 import { IconStop } from '@/components/features/icons/PremiumIcons';
@@ -20,6 +20,7 @@ interface BackgroundTaskRowProps {
   onSteer: (taskId: string) => void;
   onCancel: (taskId: string) => void;
   onNavigateChat: (chatId: string) => void;
+  onViewVaultLog?: (chatId: string, vaultLogRef: string) => void;
 }
 
 export function BackgroundTaskRow({
@@ -32,11 +33,23 @@ export function BackgroundTaskRow({
   onSteer,
   onCancel,
   onNavigateChat,
+  onViewVaultLog,
 }: BackgroundTaskRowProps) {
   const t = useTranslations('backgroundTasks');
   const tChat = useTranslations('chat');
   const config = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.running;
   const StatusIcon = config.icon;
+  const canViewVaultLog = Boolean(task.vault_log_ref && task.chat_id && onViewVaultLog);
+  const LogActionIcon = canViewVaultLog ? FileText : Navigation;
+
+  const handleSecondaryAction = () => {
+    if (!task.chat_id) return;
+    if (canViewVaultLog) {
+      onViewVaultLog!(task.chat_id, task.vault_log_ref!);
+      return;
+    }
+    onNavigateChat(task.chat_id);
+  };
 
   return (
     <div className="px-4 py-3 transition-colors hover:bg-muted/30">
@@ -82,25 +95,42 @@ export function BackgroundTaskRow({
             </div>
           )}
 
-          {task.result_preview &&
-            (task.status === 'completed' || task.status === 'failed' || task.status === 'timed_out') && (
-              <p className="mt-1.5 line-clamp-2 rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground/80">
-                {task.result_preview}
-              </p>
-            )}
+          {task.status === 'orphaned' && (
+            <p className="mt-1 text-xs text-amber-600/90 dark:text-amber-400/90">{t('orphanedHint')}</p>
+          )}
 
-          {task.status === 'running' && (
+          {task.result_preview && (
+            <p className="mt-1.5 line-clamp-2 rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground/80">
+              {task.result_preview}
+            </p>
+          )}
+
+          {task.status === 'running' ? (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {task.chat_id && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={() => onNavigateChat(task.chat_id!)}
-                >
-                  <Navigation className="mr-1 h-3 w-3" />
-                  {t('navigate')}
-                </Button>
+                <>
+                  {canViewVaultLog ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={handleSecondaryAction}
+                    >
+                      <LogActionIcon className="mr-1 h-3 w-3" />
+                      {t('viewFullLog')}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => onNavigateChat(task.chat_id!)}
+                    >
+                      <LogActionIcon className="mr-1 h-3 w-3" />
+                      {t('navigate')}
+                    </Button>
+                  )}
+                </>
               )}
               <Button
                 variant="ghost"
@@ -123,6 +153,20 @@ export function BackgroundTaskRow({
                 </Button>
               )}
             </div>
+          ) : (
+            task.chat_id && (
+              <div className="mt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={handleSecondaryAction}
+                >
+                  <LogActionIcon className="mr-1 h-3 w-3" />
+                  {canViewVaultLog ? t('viewFullLog') : t('navigate')}
+                </Button>
+              </div>
+            )
           )}
 
           {allowSteer && steerTaskId === task.task_id && (

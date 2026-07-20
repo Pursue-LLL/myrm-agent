@@ -2,6 +2,7 @@
 
 [INPUT]
 JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
+- stream_collector_helpers (POS: stateless SSE event parsing helpers)
 
 [OUTPUT]
 StreamContentCollector: collects assistant content and message extra_data, including memory citation refs,
@@ -16,77 +17,19 @@ from __future__ import annotations
 import asyncio
 import json
 
+from app.services.agent.streaming_support.stream_collector_helpers import (
+    collect_cron_job_result,
+    collect_kanban_task_created,
+    deep_merge_ui_data,
+    is_memory_citation_tool,
+    string_keyed_dict,
+    string_keyed_dicts,
+)
+
 _SSE_DATA_PREFIX = "data: "
-_MEMORY_CITATION_TOOL_NAMES = frozenset(
-    {"memory_recall", "memory_recall_tool", "knowledge_recall_tool"}
-)  # TODO(2026-Q3): remove "memory_recall" legacy alias after migration settles
 _PERSISTED_STATUS_STEP_KEYS = frozenset({"archive_restore_blocked", "archive_restore_result"})
 
 ACTIVE_COLLECTORS: dict[str, "StreamContentCollector"] = {}
-
-
-def _deep_merge_ui_data(
-    existing: dict[str, object],
-    updates: dict[str, object],
-) -> dict[str, object]:
-    """Recursively merge plain dict updates; arrays and scalars replace by key."""
-    merged = dict(existing)
-    for key, value in updates.items():
-        existing_value = merged.get(key)
-        if isinstance(existing_value, dict) and isinstance(value, dict):
-            merged[key] = _deep_merge_ui_data(existing_value, value)
-        else:
-            merged[key] = value
-    return merged
-
-
-def _is_memory_citation_tool(tool_name: object) -> bool:
-    return isinstance(tool_name, str) and tool_name in _MEMORY_CITATION_TOOL_NAMES
-
-
-def _parse_tool_end_result(event: dict[str, object]) -> object | None:
-    result = event.get("result")
-    if isinstance(result, str):
-        try:
-            return json.loads(result)
-        except json.JSONDecodeError:
-            return None
-    return result
-
-
-def _collect_kanban_task_created(
-    entries: list[dict[str, object]],
-    event: dict[str, object],
-) -> None:
-    if event.get("tool_name") != "kanban_add_task":
-        return
-    result_obj = _parse_tool_end_result(event)
-    if not isinstance(result_obj, dict) or result_obj.get("status") != "added":
-        return
-    task = result_obj.get("task")
-    if not isinstance(task, dict):
-        return
-    task_id = task.get("task_id")
-    board_id = task.get("board_id")
-    title = task.get("title")
-    if not all(isinstance(value, str) for value in (task_id, board_id, title)):
-        return
-    entries.append(
-        {
-            "task_id": task_id,
-            "title": title,
-            "board_id": board_id,
-        }
-    )
-
-
-def _collect_cron_job_result(event: dict[str, object]) -> dict[str, object] | None:
-    if event.get("tool_name") != "cron_manage":
-        return None
-    result_obj = _parse_tool_end_result(event)
-    if not isinstance(result_obj, dict) or result_obj.get("status") != "success":
-        return None
-    return result_obj
 
 
 class StreamContentCollector:
@@ -145,7 +88,6 @@ class StreamContentCollector:
 
     def get_snapshot(self) -> dict[str, object]:
         """Get the current snapshot without subscribing."""
-        # Merge progress steps by id to keep only the latest state
         merged_steps_dict: dict[str, dict[str, object]] = {}
         ordered_steps: list[dict[str, object]] = []
         for step in self._progress_steps:
@@ -159,7 +101,6 @@ class StreamContentCollector:
             else:
                 ordered_steps.append(step)
 
-        # Merge sources by url to keep only unique sources
         merged_sources_dict: dict[str, dict[str, object]] = {}
         ordered_sources: list[dict[str, object]] = []
         for source in self._sources:
@@ -192,7 +133,7 @@ class StreamContentCollector:
         if not chunk.startswith(_SSE_DATA_PREFIX):
             return
         try:
-            event = _string_keyed_dict(json.loads(chunk[len(_SSE_DATA_PREFIX) :].rstrip()))
+            event = string_keyed_dict(json.loads(chunk[len(_SSE_DATA_PREFIX) :].rstrip()))
             if event is None:
                 return
             self._process_event(event)
@@ -216,7 +157,7 @@ class StreamContentCollector:
         elif event_type == "reasoning" and data:
             self._reasoning_parts.append(str(data))
         elif event_type == "sources" and isinstance(data, list):
-            self._sources.extend(_string_keyed_dicts(data))
+            self._sources.extend(string_keyed_dicts(data))
         elif event_type == "tasks_steps":
             step = {
                 "step_key": event.get("step_key"),
@@ -226,16 +167,16 @@ class StreamContentCollector:
             }
             self._progress_steps.append(step)
         elif event_type == "token_usage" and isinstance(data, dict):
-            self._usage = _string_keyed_dict(data.get("usage"))
+            self._usage = string_keyed_dict(data.get("usage"))
 
         elif event_type == "message_end":
-            usage = _string_keyed_dict(event.get("usage"))
+            usage = string_keyed_dict(event.get("usage"))
             if usage is not None:
                 self._usage = usage
-            token_economics = _string_keyed_dict(event.get("token_economics"))
+            token_economics = string_keyed_dict(event.get("token_economics"))
             if token_economics is not None:
                 self._token_economics = token_economics
-            context_budget = _string_keyed_dict(event.get("context_budget"))
+            context_budget = string_keyed_dict(event.get("context_budget"))
             if context_budget is not None:
                 self._context_budget = context_budget
             cost = event.get("cost_usd")
@@ -250,7 +191,7 @@ class StreamContentCollector:
             model = event.get("model")
             if isinstance(model, str):
                 self._model_name = model
-            usage_alert = _string_keyed_dict(event.get("usage_alert"))
+            usage_alert = string_keyed_dict(event.get("usage_alert"))
             if usage_alert is not None:
                 self._usage_alert = usage_alert
             cited = event.get("cited_memory_ids")
@@ -262,11 +203,10 @@ class StreamContentCollector:
             if isinstance(refs, list):
                 self._extend_cited_memory_refs(refs)
         elif event_type == "tool_stdout_chunk" and isinstance(data, str):
-            # 实时终端流式输出事件，不持久化到数据库，仅透传给前端
             pass
         elif event_type == "tool_end":
             cited = event.get("cited_memory_ids")
-            is_memory_recall = _is_memory_citation_tool(event.get("tool_name"))
+            is_memory_recall = is_memory_citation_tool(event.get("tool_name"))
             if is_memory_recall and isinstance(cited, list):
                 for mid in cited:
                     if isinstance(mid, str) and mid not in self._cited_memory_ids:
@@ -277,8 +217,8 @@ class StreamContentCollector:
             trace = event.get("memory_retrieval_trace")
             if is_memory_recall and isinstance(trace, dict):
                 self._append_memory_retrieval_trace(trace)
-            _collect_kanban_task_created(self._kanban_tasks_created, event)
-            cron_result = _collect_cron_job_result(event)
+            collect_kanban_task_created(self._kanban_tasks_created, event)
+            cron_result = collect_cron_job_result(event)
             if cron_result is not None:
                 self._cron_job_result = cron_result
         elif event_type == "routing_decision" and isinstance(data, dict):
@@ -294,11 +234,11 @@ class StreamContentCollector:
             if isinstance(route, str):
                 self._privacy_route = route
         elif event_type == "session_recording" and isinstance(data, dict):
-            self._session_recording = _string_keyed_dict(data)
+            self._session_recording = string_keyed_dict(data)
         elif event_type == "ui_update":
             subtype = event.get("subtype")
             if subtype == "ui_artifact" and isinstance(data, list):
-                self._ui_artifacts.extend(_string_keyed_dicts(data))
+                self._ui_artifacts.extend(string_keyed_dicts(data))
             elif subtype == "data_update" and isinstance(data, dict):
                 surface_id = data.get("surface_id")
                 updates = data.get("updates")
@@ -307,7 +247,7 @@ class StreamContentCollector:
                         if artifact.get("surface_id") == surface_id:
                             existing_data = artifact.get("data")
                             if isinstance(existing_data, dict):
-                                artifact["data"] = _deep_merge_ui_data(existing_data, updates)
+                                artifact["data"] = deep_merge_ui_data(existing_data, updates)
                             break
         elif event_type == "status":
             step_key = event.get("step_key")
@@ -321,10 +261,10 @@ class StreamContentCollector:
                     "status": event.get("status"),
                 }
                 if isinstance(data, dict):
-                    archive_restore_block = _string_keyed_dict(data.get("archive_restore_block"))
+                    archive_restore_block = string_keyed_dict(data.get("archive_restore_block"))
                     if archive_restore_block is not None:
                         step["archive_restore_block"] = archive_restore_block
-                    archive_restore_result = _string_keyed_dict(data.get("archive_restore_result"))
+                    archive_restore_result = string_keyed_dict(data.get("archive_restore_result"))
                     if archive_restore_result is not None:
                         step["archive_restore_result"] = archive_restore_result
                 self._progress_steps.append(step)
@@ -364,7 +304,6 @@ class StreamContentCollector:
         if self._completion_status:
             result["completionStatus"] = self._completion_status
 
-        # Extract usage alert if present
         if hasattr(self, "_usage_alert") and self._usage_alert:
             result["usageAlert"] = self._usage_alert
 
@@ -418,18 +357,3 @@ class StreamContentCollector:
             return
         normalized = {str(key): value for key, value in trace.items() if isinstance(key, str)}
         self._memory_retrieval_traces.append(normalized)
-
-
-def _string_keyed_dict(value: object) -> dict[str, object] | None:
-    if not isinstance(value, dict):
-        return None
-    return {str(key): item for key, item in value.items() if isinstance(key, str)}
-
-
-def _string_keyed_dicts(values: list[object]) -> list[dict[str, object]]:
-    result: list[dict[str, object]] = []
-    for value in values:
-        normalized = _string_keyed_dict(value)
-        if normalized is not None:
-            result.append(normalized)
-    return result

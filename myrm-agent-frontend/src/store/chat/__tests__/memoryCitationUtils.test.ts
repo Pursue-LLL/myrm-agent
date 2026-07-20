@@ -9,7 +9,7 @@ import type { CitedMemoryReference } from '../types';
 describe('memoryCitationUtils', () => {
   it('recognizes canonical and runtime memory recall tool names', () => {
     expect(isMemoryRecallToolName('memory_recall')).toBe(true);
-    expect(isMemoryRecallToolName('memory_recall_tool')).toBe(true);
+    expect(isMemoryRecallToolName('memory_search_tool')).toBe(true);
     expect(isMemoryRecallToolName('conversation_search')).toBe(false);
     expect(isMemoryRecallToolName('web_search')).toBe(false);
     expect(isMemoryRecallToolName(undefined)).toBe(false);

@@ -188,6 +188,8 @@ async def create_memory_tools_for_user(
     recall_mode: RecallMode = RecallMode.HYBRID,
     time_decay_half_life_days: float | None = None,
     on_conflict: ConflictCallback | None = None,
+    search_policy: object | None = None,
+    search_backends: object | None = None,
 ) -> tuple[MemoryManager, list[object]]:
     """Create a MemoryManager and its agent tools in one call."""
     from myrm_agent_harness.toolkits import create_memory_tools
@@ -202,7 +204,12 @@ async def create_memory_tools_for_user(
         time_decay_half_life_days=time_decay_half_life_days,
         on_conflict=on_conflict,
     )
-    tools = create_memory_tools_fn(manager, recall_mode=recall_mode)
+    tool_kwargs: dict[str, object] = {"recall_mode": recall_mode}
+    if search_policy is not None:
+        tool_kwargs["search_policy"] = search_policy
+    if search_backends is not None:
+        tool_kwargs["search_backends"] = search_backends
+    tools = create_memory_tools_fn(manager, **tool_kwargs)
     return manager, tools
 
 

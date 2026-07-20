@@ -2,25 +2,25 @@
 
 ## 架构概述
 
-后台任务 HTTP 层：查询/取消/恢复离线 Agent 任务，以及 **Shell 进程**（harness registry）活动视图。
+后台任务 HTTP 层：查询/取消/恢复离线 Agent 任务，以及 **Shell 进程**（harness registry + BSDL Store）活动视图。
 上级文档：[../_ARCH.md](../_ARCH.md)。
 
 `BackgroundTasksPanel` 通过本路由同时展示：
 - **Agent 任务** — Kanban 持久化（`/btw`、子 Agent）
-- **Shell 任务** — `BackgroundProcessRegistry` 内存快照（Web 聊天 `run_in_background`）
+- **Shell 任务** — 内存 registry 与 Volume 上 `BackgroundJobStore` 合并列表（Web 聊天 `run_in_background`）
 
-Shell 任务 ephemeral（服务重启丢失）；自然结束或 cancel 后由 harness AutoUnmount 清理 deferred tool。
+Shell 任务：`task_id=shell:{job_id}`（UUID）；legacy `shell:{pid}` 仍可 GET/cancel。服务重启后 Store 中 running 行 reconcile 为 **orphaned**；`registry_ephemeral=false` 当 Store 已 configure。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Background tasks API — manage /background (/btw /bg) session tasks. | ✅ |
-| `router.py` | 路由 | 合并 Kanban + shell registry；`shell:{pid}` cancel 走 harness kill | ✅ |
+| `router.py` | 路由 | 合并 Kanban + shell；暴露 `job_id` / `vault_log_ref`；shell cancel 走 harness kill | ✅ |
 | `test_fixtures.py` | 测试 | local-only Chrome E2E seed（`POST /background-tasks/test/seed-shell-fixture`） | ✅ |
 
 ## 依赖
 
 - `app.core.channel_bridge.background_task_handler::ChannelBackgroundTaskHandler` — Kanban agent 任务
-- `app.services.agent.shell_background_tasks` — harness registry 门面
+- `app.services.agent.shell_background_tasks` — registry + Store 门面
 - `app.services.kanban::KanbanService` — Agent 任务持久化

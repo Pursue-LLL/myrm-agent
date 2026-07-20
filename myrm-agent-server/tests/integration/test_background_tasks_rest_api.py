@@ -115,7 +115,7 @@ async def test_rest_list_and_get_shell_task(tmp_path: Path) -> None:
         shell_rows = [t for t in tasks if t.get("kind") == "shell" and t.get("pid") == pid]
         assert len(shell_rows) == 1
         row = shell_rows[0]
-        assert row["task_id"] == f"shell:{pid}"
+        assert row["task_id"] == f"shell:{row['job_id']}"
         assert row["status"] == "running"
         assert row["chat_id"] == chat_id
 

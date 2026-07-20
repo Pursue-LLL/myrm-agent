@@ -12,7 +12,7 @@ tags:
   - report
   - investigation
   - literature-review
-allowed-tools: web_search_tool web_fetch_tool file_write_tool file_read_tool memory_recall_tool memory_save_tool bash_code_execute_tool
+allowed-tools: web_search_tool web_fetch_tool file_write_tool file_read_tool memory_search_tool memory_save_tool bash_code_execute_tool
 contract:
   steps:
     - "Phase 1: Scope Definition — clarify research question, boundaries, deliverables"

@@ -187,23 +187,6 @@ async def build_general_agent(
     if session_memory_enabled and memory_binding is not None:
         memory_manager = await agent_wrapper._create_memory_tools(tools, memory_binding)
 
-    if memory_manager is not None and agent_wrapper.enable_wiki:
-        agent_wrapper._setup_knowledge_recall_tool(tools, memory_manager)
-
-    if (
-        session_memory_enabled
-        and agent_wrapper.enable_conversation_search
-    ):
-        from app.ai_agents.general_agent.conversation_search_setup import (
-            append_conversation_search_tool,
-        )
-
-        append_conversation_search_tool(
-            tools,
-            current_chat_id=effective_chat_id,
-            agent_id=agent_wrapper.agent_id,
-            memory_manager=memory_manager,
-        )
     if agent_wrapper.enable_cron_eager and _should_enable_cron_tools():
         await agent_wrapper._setup_cron_tools(tools, user_id=user_id)
 
@@ -919,6 +902,7 @@ async def _setup_kanban_tools(
         kanban_tool_mode=agent_wrapper.kanban_tool_mode,
         kanban_current_task_id=agent_wrapper.kanban_current_task_id,
     )
+    chat_id = getattr(agent_wrapper, "chat_id", None)
 
     # Resolve default board and active dispatcher for wake signals
     default_board_id: str | None = None
@@ -950,8 +934,8 @@ async def _setup_kanban_tools(
             create_kanban_attach_handler(store) if mode == "worker" else None
         ),
         source_chat_id=(
-            agent_wrapper.chat_id
-            if mode == "orchestrator" and agent_wrapper.chat_id
+            chat_id
+            if mode == "orchestrator" and chat_id
             else None
         ),
     )

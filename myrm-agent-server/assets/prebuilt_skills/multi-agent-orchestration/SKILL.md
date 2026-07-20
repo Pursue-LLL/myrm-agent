@@ -12,7 +12,7 @@ tags:
   - delegation
   - parallel-execution
   - synthesis
-allowed-tools: delegate_task_tool file_write_tool file_read_tool memory_save_tool memory_recall_tool
+allowed-tools: delegate_task_tool file_write_tool file_read_tool memory_save_tool memory_search_tool
 contract:
   steps:
     - "Phase 1: Task Analysis — decompose the problem into expert-level subtasks"

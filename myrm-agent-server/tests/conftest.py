@@ -278,6 +278,9 @@ def _chrome_e2e_item_runtime(
         yield None
         return
 
+    from tests.support.e2e_runtime_guard import reap_chrome_e2e_session_hygiene
+
+    reap_chrome_e2e_session_hygiene()
     require_e2e_runtime_lease()
     import sys
 

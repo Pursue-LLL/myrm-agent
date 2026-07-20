@@ -43,7 +43,7 @@ config:
 
 Core presets (SSOT tool names):
 - `browser.yaml` — eight `browser_*_tool` entries; pair with prebuilt `browser-automation` skill when browser is enabled
-- `analysis.yaml` — `memory_recall_tool`, `memory_save_tool`, `memory_manage_tool`
+- `analysis.yaml` — `memory_search_tool`, `memory_save_tool`, `memory_manage_tool`
 - `search.yaml` — `web_search_tool`, `web_fetch_tool`
 
 ## Registration

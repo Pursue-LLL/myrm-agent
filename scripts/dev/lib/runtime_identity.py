@@ -351,6 +351,17 @@ def read_frontend_hot_state(frontend: FrontendEpoch | None) -> tuple[bool, bool]
 
 def frontend_source_fingerprint(frontend_dir: Path) -> str:
     """Hash tracked changes and untracked frontend sources for HMR drift detection."""
+    try:
+        probe = subprocess.run(
+            ["git", "-C", str(frontend_dir), "rev-parse", "--is-inside-work-tree"],
+            check=False,
+            capture_output=True,
+            timeout=2,
+        )
+        if probe.returncode != 0 or probe.stdout.strip() != b"true":
+            return ""
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
     tracked_paths = (
         "src",
         "locales",

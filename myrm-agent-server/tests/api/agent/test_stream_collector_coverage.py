@@ -62,7 +62,7 @@ async def test_stream_collector_full_coverage():
     collector.feed_event(
         {
             "type": "tool_end",
-            "tool_name": "memory_recall_tool",
+            "tool_name": "memory_search_tool",
             "cited_memory_ids": ["m1", "m2"],
             "cited_memory_refs": [{"id": "m1", "text": "ref1"}],
             "memory_retrieval_trace": {"id": "t1", "details": "trace1"},

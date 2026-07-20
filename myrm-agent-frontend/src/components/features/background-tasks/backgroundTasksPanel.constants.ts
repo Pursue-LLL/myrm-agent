@@ -45,6 +45,11 @@ export const STATUS_CONFIG = {
     className: 'text-muted-foreground',
     dotColor: 'bg-muted-foreground',
   },
+  orphaned: {
+    icon: IconClock,
+    className: 'text-amber-600 dark:text-amber-400',
+    dotColor: 'bg-amber-500 dark:bg-amber-400',
+  },
 } as const;
 
 export const GOAL_STATUS_STYLES: Record<string, { dotColor: string; i18nKey: string }> = {

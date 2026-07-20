@@ -100,6 +100,67 @@ def test_kanban_board_and_task_render_in_real_ui() -> None:
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
+def test_kanban_source_chat_deep_link_filters_board_view() -> None:
+    """URL ?source_chat=&board_id= shows only tasks from that chat session."""
+    marker = str(time.time_ns())
+    board_name = f"Chrome SourceChat Board {marker}"
+    chat_id = f"chrome-chat-{marker}"
+    in_chat_title = f"In Chat Task {marker}"
+    other_title = f"Other Chat Task {marker}"
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    board = http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards",
+        {"name": board_name, "description": "source_chat deep link E2E"},
+    )
+    board_id = str(board.get("board_id") or board.get("id") or "")
+    assert board_id
+
+    http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
+        {
+            "title": in_chat_title,
+            "priority": "low",
+            "initial_status": "ready",
+            "metadata": {"source_chat_id": chat_id},
+        },
+    )
+    http_json(
+        "POST",
+        f"{api_url}/api/v1/kanban/boards/{board_id}/tasks",
+        {
+            "title": other_title,
+            "priority": "low",
+            "initial_status": "ready",
+            "metadata": {"source_chat_id": "other-chat-id"},
+        },
+    )
+
+    deep_link = f"{ui_url}/settings/kanban?source_chat={chat_id}&board_id={board_id}"
+    with open_mcp_page(deep_link) as (client, page):
+        view_state = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const view = document.querySelector('[data-testid="kanban-board-view"]');
+              const text = view?.textContent || '';
+              return {{
+                ready: !!view && text.includes({in_chat_title!r}) && !text.includes({other_title!r}),
+                text,
+              }};
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert in_chat_title in str(view_state.get("text") or "")
+        assert other_title not in str(view_state.get("text") or "")
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
 def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
     """REST attachment_ids → click attachment badge → drawer shows attachment (real UI)."""
     marker = str(time.time_ns())

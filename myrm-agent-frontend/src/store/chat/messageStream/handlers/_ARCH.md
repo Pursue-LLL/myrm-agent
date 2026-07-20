@@ -20,7 +20,7 @@
 | `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态与进度 | ✅ |
 | `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、FILE_MUTATION_FAILED、BROWSER_TAKEOVER_*（`setLoading(false)` + pet `approval_waiting`；`is_managed=false` 跳过 VNC POST；managed POST 失败 toast） | ✅ |
 | `takeoverVncMessages.ts` | 辅助 | managed VNC takeover POST 失败 toast 文案（与 locales billing.vnc.takeoverVncOpenFailed 同步） | ✅ |
-| `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果；`kanban_add_task`/`cron_manage` 成功写入 message metadata | ✅ |
+| `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果；`kanban_add_task`/`cron_manage` 成功写入 message metadata；`kanban_add_task` 软错误 JSON 标记 progress error | ✅ |
 | `memoryBriefEvents.ts` | 核心 | `memory_brief` 发送前记忆简报事件：创建/更新 assistant 占位消息并挂载简报快照 | ✅ |
 | `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | ✅ |
 | `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA 文本流合并 | ✅ |

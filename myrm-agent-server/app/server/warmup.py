@@ -249,9 +249,18 @@ async def run_async_warmup() -> None:
     from app.services.agent.background_job_finish_handler import (
         ServerBackgroundJobFinishHandler,
     )
+    from app.services.agent.background_job_startup import init_background_job_store
 
+    init_background_job_store()
     set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
     logger.info("[Startup] ServerBackgroundJobFinishHandler registered for background bash jobs")
+
+    try:
+        from app.services.agent.goal_wait_orphan_recovery import release_orphaned_wait_goals
+
+        await release_orphaned_wait_goals()
+    except Exception as exc:
+        logger.error("[Startup] Orphaned WAIT goal recovery failed: %s", exc, exc_info=True)
 
     try:
         await warmup_global_browser_pool()

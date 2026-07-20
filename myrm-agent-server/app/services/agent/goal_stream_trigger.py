@@ -52,7 +52,8 @@ async def _resolve_user_locale() -> str:
         return normalize_locale(None)
 
 
-async def _publish_goal_needs_review_notification(session_id: str, goal_id: str) -> None:
+async def publish_goal_needs_review_notification(session_id: str, goal_id: str) -> None:
+    """Publish goal_needs_review SSE after an unattended failure or orphan recovery."""
     from app.channels.i18n.engine import channel_t
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
@@ -74,6 +75,10 @@ async def _publish_goal_needs_review_notification(session_id: str, goal_id: str)
             },
         )
     )
+
+
+async def _publish_goal_needs_review_notification(session_id: str, goal_id: str) -> None:
+    await publish_goal_needs_review_notification(session_id, goal_id)
 
 
 async def handle_unattended_goal_stream_failure(

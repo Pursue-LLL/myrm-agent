@@ -45,6 +45,13 @@ _FAILED_SHELL_ROW_JS = """(() => {
   };
 })()"""
 
+_RUNNING_PREVIEW_JS = """(() => {
+  const text = document.body?.innerText || '';
+  return {
+    ready: /MYRM_E2E_SHELL_RUNNING/.test(text),
+  };
+})()"""
+
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.timeout(180)
@@ -129,6 +136,9 @@ def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
         assert opened.get("clicked") is True, opened
         panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
         assert panel.get("ready") is True, panel
+
+        preview = wait_for_state(client, page, _RUNNING_PREVIEW_JS, timeout_sec=30.0)
+        assert preview.get("ready") is True, preview
 
         cancelled = client.evaluate(page, _CANCEL_RUNNING_JS, timeout_sec=10.0)
         assert cancelled.get("clicked") is True, cancelled

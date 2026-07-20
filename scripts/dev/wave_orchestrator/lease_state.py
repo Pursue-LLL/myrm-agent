@@ -27,7 +27,10 @@ _dev_lib_str = str(_dev_lib)
 if _dev_lib_str not in sys.path:
     sys.path.insert(0, _dev_lib_str)
 
-from dev_gate_contract import SIGNOFF_MATRIX_AGENT_PREFIX
+from dev_gate_contract import (
+    SIGNOFF_MATRIX_AGENT_PREFIX,
+    formal_chrome_e2e_runtime_heal_agent,
+)
 from wave_orchestrator.browser_lifecycle import cleanup_expired_browser
 from wave_orchestrator.resource_ledger import cleanup_expired_lease_resources
 from wave_orchestrator.types import LeaseRecord, OrchestratorState
@@ -145,10 +148,9 @@ def is_signoff_matrix_agent_id(agent_id: str) -> bool:
 
 def signoff_chrome_lock_active() -> bool:
     """True while ./myrm signoff chrome holds signoff-chrome.lock with a live owner."""
-    state_dir = Path(
-        os.environ.get("MYRM_DEV_STATE_DIR", str(Path.home() / ".local/state/myrm-dev"))
-    )
-    lock_path = state_dir / "signoff-chrome.lock"
+    from .paths import resolve_dev_state_dir
+
+    lock_path = resolve_dev_state_dir() / "signoff-chrome.lock"
     if not lock_path.is_file():
         return False
     try:
@@ -184,19 +186,12 @@ def signoff_matrix_runtime_heal_allowed(state: OrchestratorState) -> bool:
     return signoff_chrome_lock_active()
 
 
-_E2E_RUNTIME_HEAL_AGENT_PREFIXES: tuple[str, ...] = (
-    "e2e-parent-",
-    "myrm-test-e2e:",
-    "signoff-matrix-parent-",
-)
-
-
 def parallel_chrome_e2e_runtime_heal_allowed(state: OrchestratorState) -> bool:
     """Allow in-place runtime heal while formal chrome E2E sessions hold active leases."""
     if signoff_matrix_runtime_heal_allowed(state):
         return True
     return any(
-        str(lease.get("agentId", "")).startswith(_E2E_RUNTIME_HEAL_AGENT_PREFIXES)
+        formal_chrome_e2e_runtime_heal_agent(str(lease.get("agentId", "")))
         for lease in active_leases(state)
     )
 

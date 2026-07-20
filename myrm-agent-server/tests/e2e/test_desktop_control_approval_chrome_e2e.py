@@ -77,6 +77,32 @@ def _should_abort_desktop_e2e_retries(exc: BaseException) -> bool:
     return False
 
 
+def _is_mux_new_page_retriable(exc: BaseException) -> bool:
+    message = str(exc).lower()
+    return (
+        "upstream request timed out" in message
+        or "tools/call error" in message and "timed out" in message
+        or "transient_mux" in message
+    )
+
+
+async def _open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
+    last_exc: BaseException | None = None
+    for attempt in range(1, 4):
+        heartbeat_e2e_lease()
+        try:
+            return await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+        except (TimeoutError, RuntimeError) as exc:
+            last_exc = exc
+            if _should_abort_desktop_e2e_retries(exc) and not _is_mux_new_page_retriable(exc):
+                raise
+            if attempt >= 3 or not _is_mux_new_page_retriable(exc):
+                raise
+            _progress(f"new_page mux retry {attempt}/3 after: {exc}")
+            await asyncio.sleep(5.0 * attempt)
+    raise last_exc or RuntimeError("Chrome MCP new_page failed without exception")
+
+
 def _require_approval_gate_triggered(
     *,
     last_tool: str,
@@ -745,6 +771,8 @@ async def _run_desktop_approval_chrome_e2e(
                 if attempt >= max_attempts:
                     break
                 try:
+                    await chat.ensure_e2e_api_base_binding()
+                    await chat._ensure_react_e2e_bridge(timeout_sec=90.0)
                     await chat.click_new_chat()
                     await chat.ensure_chat_surface(BASE_URL)
                 except (RuntimeError, TimeoutError, OSError) as reset_exc:
@@ -763,12 +791,7 @@ async def _run_desktop_approval_chrome_e2e(
     client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
     try:
-        page: McpPage | None = None
-        try:
-            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
-        except TimeoutError:
-            await asyncio.sleep(2.0)
-            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+        page = await _open_mcp_chat_page(client)
         chat = McpChatSession(client, page)
         await run_flow(chat)
     finally:
@@ -781,7 +804,7 @@ async def _run_desktop_approval_chrome_e2e(
         await asyncio.to_thread(_hide_textedit_fixture)
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
 @pytest.mark.chrome_e2e_desktop
 @pytest.mark.integration
 @pytest.mark.timeout(1800)
@@ -797,7 +820,7 @@ async def test_chrome_ui_desktop_control_approval_allow_once(
     )
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
 @pytest.mark.chrome_e2e_desktop
 @pytest.mark.integration
 @pytest.mark.timeout(2400)

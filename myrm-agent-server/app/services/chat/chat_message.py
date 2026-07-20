@@ -349,7 +349,7 @@ def _memory_influence_refs(extra_data: dict[str, object]) -> list[MemoryInfluenc
                 else [],
                 source_chat_id=_optional_str(raw_ref.get("source_chat_id")),
                 source_message_id=_optional_str(raw_ref.get("source_message_id")),
-                reason="memory_recall_tool",
+                reason="memory_search_tool",
             )
         )
     return refs

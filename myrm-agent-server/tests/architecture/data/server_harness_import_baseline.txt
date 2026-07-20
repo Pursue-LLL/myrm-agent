@@ -344,9 +344,7 @@ myrm_agent_harness.toolkits.memory.integration.tree_manager
 myrm_agent_harness.toolkits.memory.integration.types
 myrm_agent_harness.toolkits.memory.manager
 myrm_agent_harness.toolkits.memory.mcp_server
-myrm_agent_harness.toolkits.memory.memory_citations
-myrm_agent_harness.toolkits.memory.memory_recall_budget
-myrm_agent_harness.toolkits.memory.memory_recall_formatting
+myrm_agent_harness.toolkits.memory.memory_search_policy
 myrm_agent_harness.toolkits.memory.metrics
 myrm_agent_harness.toolkits.memory.proactive
 myrm_agent_harness.toolkits.memory.proactive.types

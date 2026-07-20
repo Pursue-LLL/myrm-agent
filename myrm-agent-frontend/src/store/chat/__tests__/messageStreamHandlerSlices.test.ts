@@ -137,6 +137,87 @@ describe('messageStreamHandler handler slices', () => {
     expect(lastStep?.status).toBe('success');
   });
 
+  it('TOOL_END marks kanban_add_task soft error on progress step instead of success', async () => {
+    const assistant: Message = {
+      messageId: 'assistant-kanban-err',
+      chatId: 'chat-1',
+      createdAt: new Date('2026-06-04T00:00:00Z'),
+      content: '',
+      role: 'assistant',
+      progressSteps: [
+        {
+          step_key: 'kanban_add_task',
+          tool_name: 'kanban_add_task',
+          items: [{ text: 'adding task' }],
+        },
+      ],
+    };
+    const state: StreamHandlerState = {
+      messages: [assistant],
+      messageAppeared: false,
+      loading: true,
+      scheduler: new AdaptiveScheduler(),
+    };
+
+    await handleMessageStream(
+      {
+        type: AgentEventType.TOOL_END,
+        messageId: 'assistant-kanban-err',
+        tool_name: 'kanban_add_task',
+        duration_ms: 88,
+        result: JSON.stringify({ error: 'board_id is required' }),
+      },
+      '',
+      undefined,
+      false,
+      '',
+      state,
+      createStatefulActions(state),
+    );
+
+    const lastStep = state.messages[0].progressSteps?.[0];
+    expect(lastStep?.duration_ms).toBe(88);
+    expect(lastStep?.status).toBe('error');
+    expect(lastStep?.error).toBe('board_id is required');
+    expect(state.messages[0].metadata?.kanban_tasks_created).toBeUndefined();
+  });
+
+  it('TOOL_END marks kanban_add_task soft error even without duration_ms', async () => {
+    const assistant: Message = {
+      messageId: 'assistant-kanban-err-no-dur',
+      chatId: 'chat-1',
+      createdAt: new Date('2026-06-04T00:00:00Z'),
+      content: '',
+      role: 'assistant',
+      progressSteps: [{ step_key: 'kanban_add_task', tool_name: 'kanban_add_task' }],
+    };
+    const state: StreamHandlerState = {
+      messages: [assistant],
+      messageAppeared: false,
+      loading: true,
+      scheduler: new AdaptiveScheduler(),
+    };
+
+    await handleMessageStream(
+      {
+        type: AgentEventType.TOOL_END,
+        messageId: 'assistant-kanban-err-no-dur',
+        tool_name: 'kanban_add_task',
+        result: { error: 'Board board-1 not found' },
+      },
+      '',
+      undefined,
+      false,
+      '',
+      state,
+      createStatefulActions(state),
+    );
+
+    const lastStep = state.messages[0].progressSteps?.[0];
+    expect(lastStep?.status).toBe('error');
+    expect(lastStep?.error).toBe('Board board-1 not found');
+  });
+
   it('UI_UPDATE ui_artifact appends uiArtifacts on assistant message', async () => {
     const assistant: Message = {
       messageId: 'assistant-ui-1',

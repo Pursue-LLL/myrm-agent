@@ -18,6 +18,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background_types import Backgroun
 
 def test_list_shell_background_tasks_maps_registry_rows() -> None:
     info = BackgroundProcessInfo(
+        job_id="job-99",
         pid=99,
         command="npm install",
         session_id="chat-abc",
@@ -35,7 +36,7 @@ def test_list_shell_background_tasks_maps_registry_rows() -> None:
         rows = list_shell_background_tasks()
 
     assert len(rows) == 1
-    assert rows[0].task_id == "shell:99"
+    assert rows[0].task_id == "shell:job-99"
     assert rows[0].chat_id == "chat-abc"
     assert rows[0].status == "running"
     assert rows[0].progress_percent == 42
@@ -81,6 +82,7 @@ def test_progress_from_info_handles_missing_or_invalid() -> None:
 
 def test_list_shell_background_tasks_maps_completed_and_preview() -> None:
     info = BackgroundProcessInfo(
+        job_id="job-101",
         pid=101,
         command="npm run build",
         session_id="chat-done",

@@ -2,19 +2,19 @@
 
 Provides REST endpoints for frontend to query, cancel, and steer
 background tasks. Agent tasks are persisted via the Kanban system;
-shell jobs are tracked in-process by the harness BackgroundProcessRegistry.
+shell jobs merge in-process harness registry with durable BackgroundJobStore.
 
 [INPUT]
 - app.core.channel_bridge.setup::get_background_task_handler (POS: Channel gateway lifecycle)
 - app.core.channel_bridge.background_task_handler::ChannelBackgroundTaskHandler (POS: Background task handler)
-- app.services.agent.shell_background_tasks (POS: harness registry facade)
+- app.services.agent.shell_background_tasks (POS: registry + Store facade)
 
 [OUTPUT]
 - router: FastAPI APIRouter with /background-tasks endpoints (list, get, cancel, steer)
 
 [POS]
 REST API layer for background task management. Merges Kanban agent tasks and
-in-process shell jobs for the GUI Activity panel.
+shell jobs (live + durable) for the GUI Activity panel.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from app.core.channel_bridge.setup import get_background_task_handler
 from app.services.agent.shell_background_tasks import (
     ShellBackgroundTaskDTO,
     cancel_shell_background_task,
+    find_shell_background_task,
     list_shell_background_tasks,
     shell_registry_is_ephemeral,
 )
@@ -53,6 +54,8 @@ class BackgroundTaskResponse(BaseModel):
     progress_percent: int | None = None
     exit_code: int | None = None
     error_category: str | None = None
+    job_id: str | None = None
+    vault_log_ref: str | None = None
 
 
 class BackgroundTaskListResponse(BaseModel):
@@ -82,6 +85,8 @@ def _shell_row_to_response(row: ShellBackgroundTaskDTO) -> BackgroundTaskRespons
         progress_percent=row.progress_percent,
         exit_code=row.exit_code,
         error_category=row.error_category,
+        job_id=row.job_id,
+        vault_log_ref=row.vault_log_ref,
     )
 
 
@@ -131,14 +136,13 @@ async def list_background_tasks() -> BackgroundTaskListResponse:
 async def get_background_task(task_id: str) -> BackgroundTaskResponse:
     """Get a specific background task."""
     if task_id.startswith("shell:"):
-        try:
-            pid = int(task_id.split(":", maxsplit=1)[1])
-        except (IndexError, ValueError) as exc:
-            raise HTTPException(status_code=404, detail="Invalid shell task id") from exc
-        for row in list_shell_background_tasks():
-            if row.pid == pid:
-                return _shell_row_to_response(row)
-        raise HTTPException(status_code=404, detail="Shell background task not found")
+        suffix = task_id.split(":", maxsplit=1)[1] if ":" in task_id else ""
+        if not suffix:
+            raise HTTPException(status_code=404, detail="Invalid shell task id")
+        row = find_shell_background_task(suffix)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Shell background task not found")
+        return _shell_row_to_response(row)
 
     handler = get_background_task_handler()
     if not handler:
@@ -172,11 +176,13 @@ async def get_background_task(task_id: str) -> BackgroundTaskResponse:
 async def cancel_background_task(task_id: str) -> dict[str, str]:
     """Cancel a background task (running or queued)."""
     if task_id.startswith("shell:"):
-        try:
-            pid = int(task_id.split(":", maxsplit=1)[1])
-        except (IndexError, ValueError) as exc:
-            raise HTTPException(status_code=400, detail="Invalid shell task id") from exc
-        success = await cancel_shell_background_task(pid)
+        suffix = task_id.split(":", maxsplit=1)[1] if ":" in task_id else ""
+        if not suffix:
+            raise HTTPException(status_code=400, detail="Invalid shell task id")
+        row = find_shell_background_task(suffix)
+        if row is None or row.pid is None:
+            raise HTTPException(status_code=400, detail="Shell task is not cancellable or not found")
+        success = await cancel_shell_background_task(row.pid)
         if not success:
             raise HTTPException(status_code=400, detail="Shell task is not cancellable or not found")
         return {"message": "Shell background task cancelled", "task_id": task_id}

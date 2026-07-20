@@ -89,12 +89,25 @@ class ServerBackgroundJobFinishHandler:
     def __init__(self) -> None:
         self._processed: set[tuple[str, int]] = set()
 
-    async def on_background_job_finish(self, result: BackgroundJobFinishResult) -> None:
-        if not result.session_id:
-            logger.warning("Background job finish ignored: missing session_id")
-            return
-        if result.status != "exited":
-            return
+    def _claim_finish_once(self, result: BackgroundJobFinishResult) -> bool:
+        from myrm_agent_harness.api.hooks import get_background_job_store
+
+        store = get_background_job_store()
+        if store is not None:
+            job_id = result.job_id
+            if not job_id:
+                record = store.get_by_pid(result.pid)
+                job_id = record.job_id if record is not None else ""
+            if job_id:
+                record = store.get_by_job_id(job_id)
+                if record is not None:
+                    if record.finish_processed:
+                        return False
+                    if store.try_claim_finish(job_id):
+                        return True
+                    if record.status == "exited":
+                        return False
+
         dedupe_key = (result.session_id, result.pid)
         if dedupe_key in self._processed:
             logger.debug(
@@ -102,8 +115,18 @@ class ServerBackgroundJobFinishHandler:
                 result.session_id,
                 result.pid,
             )
-            return
+            return False
         self._processed.add(dedupe_key)
+        return True
+
+    async def on_background_job_finish(self, result: BackgroundJobFinishResult) -> None:
+        if not result.session_id:
+            logger.warning("Background job finish ignored: missing session_id")
+            return
+        if result.status != "exited":
+            return
+        if not self._claim_finish_once(result):
+            return
         await self._process(result)
 
     async def _process(self, result: BackgroundJobFinishResult) -> None:
@@ -111,7 +134,7 @@ class ServerBackgroundJobFinishHandler:
             locale = await _resolve_user_locale()
             content = _format_finish_message(result, locale)
             title = channel_t(locale, "bash_bg_finish_title")
-            message_id = f"bg_finish_{result.pid}"
+            message_id = f"bg_finish_{result.job_id or result.pid}"
             sent_at = datetime.now(tz=timezone.utc)
 
             await ChatService.append_message(
@@ -123,6 +146,7 @@ class ServerBackgroundJobFinishHandler:
                 message_id=message_id,
                 extra_data={
                     "background_job": True,
+                    "job_id": result.job_id,
                     "pid": result.pid,
                     "status": result.status,
                     "exit_code": result.exit_code,

@@ -7,7 +7,8 @@ export type BackgroundTaskStatus =
   | 'completed'
   | 'failed'
   | 'timed_out'
-  | 'cancelled';
+  | 'cancelled'
+  | 'orphaned';
 
 export interface BackgroundTask {
   kind: BackgroundTaskKind;
@@ -22,6 +23,8 @@ export interface BackgroundTask {
   progress_percent?: number | null;
   exit_code?: number | null;
   error_category?: string | null;
+  job_id?: string | null;
+  vault_log_ref?: string | null;
 }
 
 export interface BackgroundTaskListResponse {
@@ -31,6 +34,13 @@ export interface BackgroundTaskListResponse {
 
 export async function listBackgroundTasks(): Promise<BackgroundTaskListResponse> {
   return apiRequest<BackgroundTaskListResponse>('/background-tasks');
+}
+
+/** Normalize vault_log_ref to evicted API basename (legacy rows may store a relative path). */
+export function evictedFilenameFromVaultRef(vaultLogRef: string): string {
+  const trimmed = vaultLogRef.trim();
+  const slash = trimmed.lastIndexOf('/');
+  return slash >= 0 ? trimmed.slice(slash + 1) : trimmed;
 }
 
 export async function getBackgroundTask(taskId: string): Promise<BackgroundTask> {

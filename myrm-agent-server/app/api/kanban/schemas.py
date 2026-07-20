@@ -117,6 +117,10 @@ class TaskCreate(BaseModel):
         None,
         description="Initial status: triage / backlog / ready / blocked. Defaults to backlog if depends_on, else ready.",
     )
+    metadata: dict[str, object] | None = Field(
+        None,
+        description="Structured metadata merged into task.metadata (e.g. source_chat_id).",
+    )
 
 
 class TaskUpdate(BaseModel):

@@ -1,5 +1,9 @@
 """Local-only HTTP fixtures for Background Tasks Chrome E2E.
 
+[INPUT]
+- app.config.deploy_mode::is_local_mode (POS: local-only route guard)
+- myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool::create_bash_code_execute_tool (POS: bash spawn)
+
 [OUTPUT]
 - seed_shell_fixture: spawn a real harness background shell job on the live server registry
 
@@ -108,7 +112,9 @@ async def seed_shell_fixture(
     workspace = Path(settings.database.state_dir).expanduser() / "e2e-fixtures" / chat_id
 
     if mode == "running":
-        command = f'{sys.executable} -c "import time; time.sleep(120)"'
+        command = (
+            f'{sys.executable} -c "import time; print(\'MYRM_E2E_SHELL_RUNNING\', flush=True); time.sleep(120)"'
+        )
     else:
         command = f'{sys.executable} -c "import sys; sys.exit(42)"'
 
@@ -124,9 +130,12 @@ async def seed_shell_fixture(
                 break
             await asyncio.sleep(0.05)
 
+    info = get_background_registry().get(pid)
+    job_id = info.job_id if info is not None else str(pid)
+
     return {
         "chat_id": chat_id,
         "pid": pid,
-        "task_id": f"shell:{pid}",
+        "task_id": f"shell:{job_id}",
         "mode": mode,
     }

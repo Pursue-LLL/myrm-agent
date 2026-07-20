@@ -2681,6 +2681,16 @@
         "missingSkillMd": "Missing SKILL.md file",
         "networkWarning": "Skills run in a secure sandbox without network access. Network-dependent skills are not supported. For network operations, please use MCP services or deploy Myrm AI locally."
       },
+      "batchImport": {
+        "errors": {
+          "archiveSecurity": {
+            "entryLimitExceeded": "Upload blocked by security policy: ZIP contains too many entries.",
+            "totalSizeExceeded": "Upload blocked by security policy: ZIP exceeds the uncompressed size limit.",
+            "compressionRatioExceeded": "Upload blocked by security policy: suspicious ZIP compression ratio.",
+            "executableBinaryDetected": "Upload blocked by security policy: executable binary files are not allowed."
+          }
+        }
+      },
       "filters": {
         "search": "Search skills...",
         "category": "Category",
@@ -7028,7 +7038,7 @@
     "autoExtraction": "Auto-Extract Memories",
     "autoExtractionDesc": "When enabled, a lightweight model automatically extracts memories from conversations. This may consume additional tokens.",
     "enableConversationSearch": "Conversation History Search",
-    "enableConversationSearchDesc": "When enabled, the agent can call conversation_search to retrieve prior chat evidence. Off by default.",
+    "enableConversationSearchDesc": "When enabled, the assistant can search your past chats when you ask about earlier decisions or want to continue a previous topic. Off by default.",
     "incognitoMode": "Incognito Mode",
     "incognitoModeDesc": "When enabled, this session does not read or write memory (global memory settings are unchanged). No traces remain after the chat.",
     "preCompactEnabled": "Pre-Compaction Memory Recall",
@@ -12077,6 +12087,7 @@
     "failed": "Failed",
     "timed_out": "Timed Out",
     "cancelled": "Cancelled",
+    "orphaned": "Interrupted",
     "cancel": "Cancel",
     "steer": "Steer",
     "cancelSuccess": "Task cancelled",
@@ -12103,6 +12114,9 @@
     "shellPid": "PID {pid}",
     "exitCode": "exit {code}",
     "ephemeralRegistryNotice": "Shell jobs are in-memory only and are lost when the server restarts or the sandbox is recreated.",
+    "durableRegistryNotice": "Shell job history is saved. Tasks interrupted by a restart show as Interrupted.",
+    "viewFullLog": "Open chat",
+    "orphanedHint": "This job was interrupted when the service restarted. Run the command again if needed.",
     "trayTooltipIdle": "Myrm Agent - Idle",
     "trayTooltipBusy": "Myrm Agent - Running…",
     "trayTooltipDegraded": "Myrm Agent - Service Degraded",

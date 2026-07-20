@@ -19,6 +19,7 @@
 | `web-push.ts` | Web Push VAPID REST：`/web-push/vapid-key`, subscribe/unsubscribe/test |
 | `projects.ts` | 项目 CRUD、会话归属移动 |
 | `skill*.ts` / `skills-*.ts` | 技能 CRUD、进化、打包 |
+| `archiveSecurityErrorCore.ts` | 批量导入 `archive_security.*` 错误码解析与 i18n key 映射纯函数，供技能导入 UI 稳定消费 |
 | `skill-growth.ts` | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit |
 | `skill-optimization.ts` | `/skill-optimization/*` 质量历史、版本列表/对比/回滚、Shadow A/B 启动；另封装 `/batch-optimization/tasks/{id}/cancel` 与 `rollback` |
 | `memory*.ts` / `memoryArchive.ts` | 记忆、Shared Context、导入 dry-run、Memory Guardian `safe/force` 触发 + 策略配置 + `overview` 单接口（health/policy/alerts+digest，携带客户端时区头）+ 守卫不可用告警阈值契约 |

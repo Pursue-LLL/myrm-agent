@@ -410,6 +410,12 @@ print(len(contexts) if isinstance(contexts, list) else 0)
 " "${status_json}"
 }
 
+_mux_attach_timeout_restart_allowed() {
+  [[ "${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-}" == "1" ]] || return 1
+  [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] || return 1
+  _mux_upstream_ready && _mux_ws_stamp_matches
+}
+
 _mux_restart_allowed() {
   [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] || return 1
   local contexts
@@ -446,6 +452,8 @@ _restart_mux_safely() {
   if _mux_restart_allowed; then
     allowed=1
   elif [[ "${reason}" == *"timeout"* ]] && _mux_timeout_restart_allowed; then
+    allowed=1
+  elif [[ "${reason}" == *"timeout"* ]] && _mux_attach_timeout_restart_allowed; then
     allowed=1
   fi
   if [[ "${allowed}" -eq 0 ]]; then
@@ -512,10 +520,10 @@ _ensure_mux_daemon() {
       if ! _mux_timeout_stamp_matches; then
         if _mux_timeout_restart_allowed || _mux_restart_allowed; then
           _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+        elif _mux_attach_timeout_restart_allowed; then
+          _restart_mux_safely "attach request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
         elif _mux_upstream_ready && _mux_ws_stamp_matches; then
-          echo "CHROME_E2E_WARN: mux timeout stamp drift — daemon keeps prior env until contexts drain" >&2
-          _stamp_mux_request_timeout
-          ok "cdmcp-mux request-timeout stamp refreshed (${MUX_REQUEST_TIMEOUT_MS}ms)"
+          fail "mux request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms) — daemon still on prior timeout; parallel attach blocked restart"
         else
           _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
         fi

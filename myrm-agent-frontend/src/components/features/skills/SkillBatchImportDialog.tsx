@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/primitives/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/primitives/alert';
 import { Badge } from '@/components/primitives/badge';
 import { toast } from '@/hooks/useToast';
+import { resolveUserFacingArchiveSecurityError } from '@/services/archiveSecurityErrorCore';
 interface SkillBatchImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -28,33 +29,46 @@ interface PreviewItem {
   security_issues?: string | null;
 }
 
+type PreviewResolution = PreviewItem['resolution'];
+
+interface PreviewResponseItem {
+  virtual_id: string;
+  name: string;
+  description: string;
+  conflict_type: PreviewItem['conflict_type'];
+  existing_skill_id: string | null;
+  security_issues?: string | null;
+}
+
 interface ApiErrorPayload {
   detail?: unknown;
 }
 
-function resolveApiError(detail: unknown, fallbackMessage: string): { message: string; errorCode: string } {
-  if (typeof detail === 'string' && detail.trim().length > 0) {
-    return { message: detail, errorCode: '' };
+function parsePreviewResolution(value: string, fallback: PreviewResolution): PreviewResolution {
+  if (value === 'replace' || value === 'rename_cow' || value === 'skip' || value === 'new') {
+    return value;
   }
+  return fallback;
+}
 
-  if (detail !== null && typeof detail === 'object') {
-    const payload = detail as { message?: unknown; error_code?: unknown; detail?: unknown };
-    const message =
-      typeof payload.message === 'string' && payload.message.trim().length > 0
-        ? payload.message
-        : typeof payload.detail === 'string' && payload.detail.trim().length > 0
-          ? payload.detail
-          : fallbackMessage;
-    const errorCode = typeof payload.error_code === 'string' ? payload.error_code : '';
-    return { message, errorCode };
+function resolveErrorMessage(error: unknown, fallbackMessage: string): string {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
   }
-
-  return { message: fallbackMessage, errorCode: '' };
+  return fallbackMessage;
 }
 
 const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: SkillBatchImportDialogProps) => {
   const t = useTranslations('settings.skills');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const resolveUserFacingApiError = useCallback(
+    (detail: unknown, fallbackMessage: string): string =>
+      resolveUserFacingArchiveSecurityError(detail, fallbackMessage, (translationKey) =>
+        t(translationKey as Parameters<typeof t>[0]),
+      ),
+    [t],
+  );
   
   const [file, setFile] = useState<File | null>(null);
   const [isParsing, setIsParsing] = useState(false);
@@ -108,7 +122,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
         
         if (!res.ok) {
           const errPayload = (await res.json().catch(() => ({}))) as ApiErrorPayload;
-          const { message } = resolveApiError(errPayload.detail, 'Preview failed');
+          const message = resolveUserFacingApiError(errPayload.detail, t('discover.previewFailed'));
           throw new Error(message);
         }
         
@@ -117,20 +131,20 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
         setTotalConflicts(data.total_conflicts);
         setSessionId(data.session_id);
         
-        const items: PreviewItem[] = data.items.map((item: any) => ({
+        const items: PreviewItem[] = data.items.map((item: PreviewResponseItem) => ({
           ...item,
           resolution: item.conflict_type === 'conflict' ? 'rename_cow' : 'new'
         }));
         setPreviewItems(items);
         
-      } catch (e: any) {
-        setParseError(e.message);
+      } catch (error: unknown) {
+        setParseError(resolveErrorMessage(error, t('discover.previewFailed')));
         setFile(null);
       } finally {
         setIsParsing(false);
       }
     },
-    [t],
+    [resolveUserFacingApiError, t],
   );
 
   const { isDragging, dragHandlers } = useDragDrop({
@@ -140,16 +154,17 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
     disabled: isParsing || isImporting,
   });
 
-  const handleResolutionChange = (virtualId: string, resolution: any) => {
+  const handleResolutionChange = (virtualId: string, resolution: PreviewResolution) => {
     setPreviewItems(prev => prev.map(item => 
       item.virtual_id === virtualId ? { ...item, resolution } : item
     ));
   };
 
   const handleBulkResolutionChange = useCallback((resolution: string) => {
+    const parsedResolution = parsePreviewResolution(resolution, 'rename_cow');
     setPreviewItems(prev => prev.map(item => {
       if (item.conflict_type === 'conflict') {
-        return { ...item, resolution: resolution as any };
+        return { ...item, resolution: parsedResolution };
       }
       return item;
     }));
@@ -177,7 +192,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
       
       if (!res.ok) {
         const errPayload = (await res.json().catch(() => ({}))) as ApiErrorPayload;
-        const { message } = resolveApiError(errPayload.detail, 'Import failed');
+        const message = resolveUserFacingApiError(errPayload.detail, t('installed.importFailed'));
         throw new Error(message);
       }
       
@@ -190,10 +205,10 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
       onOpenChange(false);
       onImportComplete();
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: '导入失败 / Import Failed',
-        description: error.message,
+        description: resolveErrorMessage(error, t('installed.importFailed')),
         variant: 'destructive',
       });
     } finally {
@@ -336,7 +351,9 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                           {item.conflict_type === 'conflict' ? (
                             <Select 
                               value={item.resolution} 
-                              onValueChange={(val) => handleResolutionChange(item.virtual_id, val)}
+                              onValueChange={(value) =>
+                                handleResolutionChange(item.virtual_id, parsePreviewResolution(value, item.resolution))
+                              }
                               disabled={isImporting}
                             >
                               <SelectTrigger className="h-8 text-xs">
@@ -351,7 +368,9 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                           ) : (
                             <Select 
                               value={item.resolution} 
-                              onValueChange={(val) => handleResolutionChange(item.virtual_id, val)}
+                              onValueChange={(value) =>
+                                handleResolutionChange(item.virtual_id, parsePreviewResolution(value, item.resolution))
+                              }
                               disabled={isImporting}
                             >
                               <SelectTrigger className="h-8 text-xs">

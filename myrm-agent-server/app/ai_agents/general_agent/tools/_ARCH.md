@@ -7,12 +7,13 @@
 
 通用 Agent 业务层 LLM 工具。`x_search_provider.py` 提供 xAI API 客户端；eager 工厂在 `app/services/integrations/tools/x_live_search.py`，由 `tool_setup._setup_x_live_search_tool` 在 skill 绑定后进 Turn1 `tools`（不依赖 `enable_web_search`）。UI 渲染（`render_ui_tool`）在 harness `agent/meta_tools/interaction/`，由 `enabled_builtin_tools` 含 `render_ui` 时 Turn1 eager 加载。
 
+记忆读平面已迁入 harness `memory_search_tool(corpus=...)`；wiki 与会话 provider 在 `tool_setup._create_memory_tools` 绑定。
+
 ---
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `_tool_layer_bootstrap.py` | ✅ 核心 | Server 层 6 个 EXTENDED `@tool` → harness `_TOOL_LAYERS`；含 `knowledge_recall_tool`（wiki+memory 双开）；`channel_notify_tool` 同时注册 `register_leaf_blocked_tools`（子 Agent 不可继承） |
-| `knowledge_recall_tool.py` | ✅ 核心 | wiki+memory 统一检索（corpus=memory|wiki|all）；emit cited memory IDs；不替换 COMMON `memory_recall_tool` |
+| `_tool_layer_bootstrap.py` | ✅ 核心 | Server 层 EXTENDED `@tool` → harness `_TOOL_LAYERS`；`channel_notify_tool` 同时注册 `register_leaf_blocked_tools`（子 Agent 不可继承） |
 | `x_search_provider.py` | ✅ 核心 | xAI Live Search API 客户端与 `XSearchProvider`；供 `integrations/tools/x_live_search.py` 调用。`tool_setup._setup_x_live_search_tool` 仅 skill gate，不依赖 `enable_web_search` |

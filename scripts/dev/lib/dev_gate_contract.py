@@ -62,6 +62,10 @@ SIGNOFF_E2E_ACTIVE_RUNTIME_CAPACITY: Final[int] = 4
 SIGNOFF_E2E_CAPACITY_WAIT_SEC: Final[int] = 600
 MUX_COLD_ATTACH_SLOTS: Final[int] = 2
 MUX_COLD_ATTACH_TIMEOUT_MS: Final[int] = 30_000
+MUX_MAX_CONCURRENT_SESSIONS: Final[int] = 6
+MUX_SIGNOFF_RESERVED_SLOTS: Final[int] = 2
+E2E_MUX_ADMISSION_WAIT_SEC: Final[int] = 900
+E2E_MUX_ADMISSION_POLL_SEC: Final[int] = 15
 CHROME_E2E_MATRIX_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_DESKTOP_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_STRESS_TIMEOUT_SECONDS: Final[int] = 7200
@@ -74,8 +78,21 @@ SIGNOFF_WAVE_QUIESCE_WAIT_SEC: Final[int] = 3600
 SIGNOFF_WAVE_QUIESCE_POLL_SEC: Final[int] = 5
 SIGNOFF_MATRIX_SHARED_UI_WAIT_SEC: Final[int] = 600
 SIGNOFF_MATRIX_KEEPALIVE_SEC: Final[int] = 30
+SIGNOFF_MATRIX_ATTACH_HEAL_FAILURES: Final[int] = 3
+SIGNOFF_MATRIX_ATTACH_HEAL_COOLDOWN_SEC: Final[int] = 60
 SIGNOFF_MATRIX_AGENT_PREFIX: Final[str] = "signoff-matrix-"
-SIGNOFF_CHROME_MATRIX_SELECTED_COUNT: Final[int] = 30
+E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (
+    "e2e-parent-",
+    "myrm-test-e2e:",
+    "signoff-matrix-parent-",
+)
+SIGNOFF_CHROME_MATRIX_SELECTED_COUNT: Final[int] = 37
+
+
+def formal_chrome_e2e_runtime_heal_agent(agent_id: str) -> bool:
+    """True when agentId belongs to a formal chrome E2E parent session."""
+    normalized = agent_id.strip()
+    return any(normalized.startswith(prefix) for prefix in E2E_RUNTIME_HEAL_AGENT_PREFIXES)
 
 # --- Adaptive mux load defaults (env may override in mux_load) ---
 
@@ -229,8 +246,13 @@ def signoff_live_env_shell(*, stress: bool = False) -> str:
     lines = [
         "export MYRM_SIGNOFF_MATRIX=1",
         f"export MYRM_SIGNOFF_MATRIX_KEEPALIVE_SEC={SIGNOFF_MATRIX_KEEPALIVE_SEC}",
+        f"export MYRM_SIGNOFF_MATRIX_ATTACH_HEAL_FAILURES={SIGNOFF_MATRIX_ATTACH_HEAL_FAILURES}",
+        f"export MYRM_SIGNOFF_MATRIX_ATTACH_HEAL_COOLDOWN_SEC={SIGNOFF_MATRIX_ATTACH_HEAL_COOLDOWN_SEC}",
         f"export MYRM_LIVE_AGENT_MAX_CONCURRENT={SIGNOFF_LIVE_AGENT_MAX_CONCURRENT}",
         "export MYRM_MUX_ALLOW_TIMEOUT_RESTART=1",
+        f"export MYRM_MUX_MAX_CONCURRENT_SESSIONS={MUX_MAX_CONCURRENT_SESSIONS}",
+        f"export MYRM_MUX_SIGNOFF_RESERVED_SLOTS={MUX_SIGNOFF_RESERVED_SLOTS}",
+        f"export MYRM_E2E_MUX_ADMISSION_WAIT_SEC={E2E_MUX_ADMISSION_WAIT_SEC}",
         f"export MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC={SIGNOFF_MATRIX_SHARED_UI_WAIT_SEC}",
     ]
     if stress:

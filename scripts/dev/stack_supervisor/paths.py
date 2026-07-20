@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,9 +43,13 @@ def _resolve_agent_root(explicit: str | None) -> Path:
 
 def resolve_paths(agent_root: str | None = None) -> StackPaths:
     root = _resolve_agent_root(agent_root)
-    state_dir = Path(
-        os.environ.get("MYRM_DEV_STATE_DIR", Path.home() / ".local/state/myrm-dev")
-    ).resolve()
+    dev_dir = Path(__file__).resolve().parent.parent
+    dev_dir_str = str(dev_dir)
+    if dev_dir_str not in sys.path:
+        sys.path.insert(0, dev_dir_str)
+    from wave_orchestrator.paths import resolve_dev_state_dir
+
+    state_dir = resolve_dev_state_dir()
     socket_override = os.environ.get("MYRM_SUPERVISOR_SOCKET", "").strip()
     supervisor_sock = Path(socket_override) if socket_override else state_dir / "supervisor.sock"
     backend_port = int(os.environ.get("MYRM_BACKEND_PORT", os.environ.get("PORT", "8080")))

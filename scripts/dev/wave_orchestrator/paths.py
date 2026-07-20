@@ -1,10 +1,11 @@
 """Resolved paths for the dev test wave orchestrator.
 
 [INPUT]
-- os.environ MYRM_DEV_STATE_DIR (POS: dev stack shared state root)
+- os.environ MYRM_DEV_STATE_DIR, MYRM_WAVE_STATE_DIR (POS: dev stack shared state root; WAVE wins)
 
 [OUTPUT]
 - WavePaths dataclass — state_file and agent_dev_lib locations
+- resolve_dev_state_dir() — shared signoff lock / mux admission state root SSOT
 
 [POS]
 Path resolver for wave orchestrator. Keeps state under ~/.local/state/myrm-dev/.
@@ -42,3 +43,8 @@ def resolve_wave_paths() -> WavePaths:
         agent_dev_lib=dev_dir / "lib",
         server_python=server_python,
     )
+
+
+def resolve_dev_state_dir() -> Path:
+    """Shared dev stack state root (WAVE override wins over DEV)."""
+    return resolve_wave_paths().state_dir

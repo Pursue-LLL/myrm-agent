@@ -33,8 +33,8 @@ Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' se
 
 | Item | Detail |
 |------|--------|
-| Test | `myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py` (`@pytest.mark.chrome_e2e(lane="LIVE_AGENT")`) |
-| Preflight | `./myrm ready --chrome`；默认 LIVE_AGENT cap=2（与其他 chrome_e2e 并行，背压等待） |
+| Test | `myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py` (`@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)`) |
+| Preflight | `./myrm ready --chrome`；共享 `:8080` + 私有 chat workspace gate 文件；LIVE_AGENT cap 背压并行 |
 | Gate trigger | Assert `GET /webui/desktop/approval/pending` → `server_pending>0`（禁止用 tool 名 substring 误判） |
 | UI | `DesktopControlApprovalBanner` — `data-testid="desktop-control-allow-once"` / `desktop-control-deny` / `desktop-control-allow-always` |
 | Settings | `DesktopPermissionsCard` — `data-testid="desktop-trust-revoke-{trust_key}"` |

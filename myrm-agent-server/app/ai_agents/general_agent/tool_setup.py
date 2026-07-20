@@ -163,6 +163,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         enable_cron_eager: bool
         enable_wiki: bool
         enable_memory: bool
+        enable_conversation_search: bool
         incognito_mode: bool
         unattended_mode: bool
         channel_name: str
@@ -183,26 +184,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             logger.info("Loaded x_search_tool (%s skill) [Turn1]", X_LIVE_SEARCH_SKILL_ID)
         except Exception as e:
             logger.debug("x_search_tool skipped: %s", e)
-
-    def _setup_knowledge_recall_tool(self, tools: list[object], memory_manager: MemoryManager) -> None:
-        """Register unified memory+wiki recall when both capabilities are enabled."""
-        if not self.enable_wiki or not self.enable_memory or self.incognito_mode:
-            return
-        if self._lite_llm is None:
-            logger.debug("knowledge_recall_tool skipped: missing lite llm")
-            return
-
-        from app.ai_agents.general_agent.tools.knowledge_recall_tool import create_knowledge_recall_tool
-        from app.services.wiki.vault_service import get_wiki_archiver
-
-        lite_llm = self._lite_llm
-
-        async def _query_wiki(question: str) -> str:
-            archiver = get_wiki_archiver(lite_llm, memory_manager, agent_id=self.agent_id)
-            return await archiver.query_wiki(question)
-
-        tools.append(create_knowledge_recall_tool(memory_manager, query_wiki=_query_wiki))
-        logger.info("Loaded knowledge_recall_tool (wiki+memory) [Turn1]")
 
     def _setup_search_and_basic_tools(self, tools: list[object]) -> None:
         """Set up web fetch (baseline), web search (opt-in), and basic utility tools."""
@@ -582,7 +563,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
     ) -> MemoryManager | None:
         """Create memory tools. Returns MemoryManager on success, None on failure."""
         try:
-            from app.core.memory.adapters.setup import create_memory_tools_for_user
+            from app.core.memory.adapters.setup import create_conflict_callback, create_memory_manager
+            from myrm_agent_harness.toolkits import create_memory_tools
 
             if self.embedding_config is None:
                 logger.warning("⚠️ 记忆工具未加载（缺少 embedding_config）")
@@ -594,16 +576,53 @@ class ToolSetupMixin(ExternalAgentsMixin):
             elif self.memory_decay_profile == "fast":
                 time_decay_half_life_days = 7.0
 
-            from app.core.memory.adapters.setup import create_conflict_callback
-
             on_conflict = create_conflict_callback(agent_id=self.agent_id)
-            manager, memory_tools = await create_memory_tools_for_user(
+            manager = await create_memory_manager(
                 binding,
                 self.embedding_config,
                 approval_required=self.memory_require_confirmation,
                 dedup_llm=self._lite_llm,
                 time_decay_half_life_days=time_decay_half_life_days,
                 on_conflict=on_conflict,
+            )
+
+            from myrm_agent_harness.toolkits.memory.memory_search_policy import (
+                MemorySearchBackends,
+                MemorySearchPolicy,
+            )
+
+            search_policy = MemorySearchPolicy(
+                allow_wiki=bool(self.enable_wiki and not self.incognito_mode),
+                allow_sessions=bool(self.enable_conversation_search and not self.incognito_mode),
+            )
+            query_wiki = None
+            conversation_provider = None
+            if search_policy.allow_wiki and self._lite_llm is not None:
+                from app.services.wiki.vault_service import get_wiki_archiver
+
+                lite_llm = self._lite_llm
+
+                async def _query_wiki(question: str) -> str:
+                    archiver = get_wiki_archiver(lite_llm, manager, agent_id=self.agent_id)
+                    return await archiver.query_wiki(question)
+
+                query_wiki = _query_wiki
+            if search_policy.allow_sessions:
+                from app.services.chat.conversation_search_service import ConversationHistorySearchProvider
+
+                conversation_provider = ConversationHistorySearchProvider(
+                    current_chat_id=binding.conversation_id,
+                    agent_id=self.agent_id,
+                    memory_manager=manager,
+                )
+            search_backends = MemorySearchBackends(
+                query_wiki=query_wiki,
+                conversation_provider=conversation_provider,
+            )
+            memory_tools = create_memory_tools(
+                manager,
+                search_policy=search_policy,
+                search_backends=search_backends,
             )
             # Memory tools are high frequency for a personal assistant, keep them in tools
             tools.extend(memory_tools)

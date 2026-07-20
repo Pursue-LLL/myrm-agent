@@ -1986,6 +1986,16 @@
         "missingSkillMd": "Missing SKILL.md file",
         "networkWarning": "Skills run in a secure sandbox without network access. Network-dependent skills are not supported. For network operations, please use MCP services or deploy Myrm AI locally."
       },
+      "batchImport": {
+        "errors": {
+          "archiveSecurity": {
+            "entryLimitExceeded": "Upload blocked by security policy: ZIP contains too many entries.",
+            "totalSizeExceeded": "Upload blocked by security policy: ZIP exceeds the uncompressed size limit.",
+            "compressionRatioExceeded": "Upload blocked by security policy: suspicious ZIP compression ratio.",
+            "executableBinaryDetected": "Upload blocked by security policy: executable binary files are not allowed."
+          }
+        }
+      },
       "filters": {
         "search": "Search skills...",
         "category": "Category",

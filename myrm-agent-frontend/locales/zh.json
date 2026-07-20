@@ -2681,6 +2681,16 @@
         "missingSkillMd": "缺少 SKILL.md 文件",
         "networkWarning": "技能在安全沙箱中运行，无网络访问权限，不支持需要联网的技能，如需联网操作，请使用 MCP 服务或本地部署 Myrm AI。"
       },
+      "batchImport": {
+        "errors": {
+          "archiveSecurity": {
+            "entryLimitExceeded": "上传被系统安全策略拦截：ZIP 文件条目数过多。",
+            "totalSizeExceeded": "上传被系统安全策略拦截：ZIP 解压后体积超出限制。",
+            "compressionRatioExceeded": "上传被系统安全策略拦截：ZIP 压缩比异常。",
+            "executableBinaryDetected": "上传被系统安全策略拦截：ZIP 包含可执行二进制文件。"
+          }
+        }
+      },
       "filters": {
         "search": "搜索技能...",
         "category": "分类",
@@ -7031,7 +7041,7 @@
     "autoExtraction": "自动提取记忆",
     "autoExtractionDesc": "开启后，使用轻量模型自动从会话内容中提取用户记忆。此功能可能消耗较多 token。",
     "enableConversationSearch": "历史会话搜索",
-    "enableConversationSearchDesc": "开启后，Agent 可调用 conversation_search 工具检索过往对话证据。默认关闭。",
+    "enableConversationSearchDesc": "开启后，助手在回答「上次怎么说」「继续上次话题」等问题时，可以检索你的历史聊天记录。默认关闭。",
     "incognitoMode": "无痕模式",
     "incognitoModeDesc": "开启后，本会话不读写记忆（不影响全局记忆设置）。对话结束后不留痕迹。",
     "preCompactEnabled": "压缩前记忆召回",
@@ -12048,6 +12058,7 @@
     "failed": "失败",
     "timed_out": "已超时",
     "cancelled": "已取消",
+    "orphaned": "已中断",
     "cancel": "取消",
     "steer": "调整方向",
     "cancelSuccess": "任务已取消",
@@ -12074,6 +12085,9 @@
     "shellPid": "PID {pid}",
     "exitCode": "退出码 {code}",
     "ephemeralRegistryNotice": "Shell 任务仅保存在内存中，服务重启或沙箱重建后会丢失。",
+    "durableRegistryNotice": "Shell 任务历史已保存。因服务重启中断的任务会显示为「已中断」。",
+    "viewFullLog": "打开会话",
+    "orphanedHint": "该任务在服务重启时被中断。如需继续，请重新运行命令。",
     "trayTooltipIdle": "Myrm Agent - 空闲",
     "trayTooltipBusy": "Myrm Agent - 任务执行中…",
     "trayTooltipDegraded": "Myrm Agent - 服务异常",

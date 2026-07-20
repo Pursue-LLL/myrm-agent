@@ -13,9 +13,14 @@
 
 import type { CitedMemoryReference } from '@/store/chat/types';
 
-export type MemoryRecallToolName = 'memory_recall' | 'memory_recall_tool';
+export type MemoryRecallToolName = 'memory_recall' | 'memory_recall_tool' | 'memory_search' | 'memory_search_tool';
 
-const MEMORY_RECALL_TOOL_NAMES: readonly MemoryRecallToolName[] = ['memory_recall', 'memory_recall_tool'];
+const MEMORY_RECALL_TOOL_NAMES: readonly MemoryRecallToolName[] = [
+  'memory_recall',
+  'memory_recall_tool',
+  'memory_search',
+  'memory_search_tool',
+];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

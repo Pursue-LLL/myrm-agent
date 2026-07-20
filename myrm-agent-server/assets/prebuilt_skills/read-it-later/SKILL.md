@@ -14,7 +14,7 @@ tags:
   - cron
   - automation
   - wiki
-allowed-tools: web_fetch_tool wiki_ingest_tool wiki_query_tool memory_recall_tool memory_save_tool bash_code_execute_tool
+allowed-tools: web_fetch_tool wiki_ingest_tool wiki_query_tool memory_search_tool memory_save_tool bash_code_execute_tool
 contract:
   steps:
     - "Phase 1: Pull — retrieve unprocessed items from the configured MCP read-it-later source"
@@ -61,7 +61,7 @@ Use the configured MCP service to list items from the designated task group or t
 ### Idempotency Rules
 
 - Never process an item that already bears the processed tag
-- Additionally, use `memory_recall_tool` to check if the URL was previously ingested.
+- Additionally, use `memory_search_tool` to check if the URL was previously ingested.
   Skip any URL already recorded in memory — this local fallback prevents repeated
   processing when the MCP source does not support write-back tagging.
 - If an item has no URL, skip it with a log note

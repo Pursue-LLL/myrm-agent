@@ -31,10 +31,35 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
     const message = state.messages[messageIndex];
     const steps = message.progressSteps;
-    if (steps && steps.length > 0 && data.duration_ms != null) {
+
+    let kanbanSoftError: string | undefined;
+    if (data.tool_name === 'kanban_add_task' && data.result) {
+      try {
+        const resultObj = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+        if (
+          resultObj &&
+          typeof resultObj === 'object' &&
+          typeof (resultObj as { error?: unknown }).error === 'string'
+        ) {
+          const errText = (resultObj as { error: string }).error.trim();
+          if (errText) {
+            kanbanSoftError = errText;
+          }
+        }
+      } catch {
+        // parse failure is expected for non-kanban results
+      }
+    }
+
+    if (steps && steps.length > 0) {
       const lastStep = steps[steps.length - 1];
-      lastStep.duration_ms = data.duration_ms;
-      if (!lastStep.status) {
+      if (data.duration_ms != null) {
+        lastStep.duration_ms = data.duration_ms;
+      }
+      if (kanbanSoftError) {
+        lastStep.status = 'error';
+        lastStep.error = kanbanSoftError;
+      } else if (data.duration_ms != null && !lastStep.status) {
         lastStep.status = 'success';
       }
     }

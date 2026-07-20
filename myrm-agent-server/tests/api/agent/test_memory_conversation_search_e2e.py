@@ -63,8 +63,8 @@ def test_agent_stream_enable_memory_completes(client: TestClient) -> None:
 
 
 @pytest.mark.integration
-def test_agent_stream_incognito_excludes_memory_and_conversation_search(client: TestClient) -> None:
-    """Incognito: no memory tools or conversation_search in stream (even when globally enabled)."""
+def test_agent_stream_incognito_excludes_memory_tools(client: TestClient) -> None:
+    """Incognito: no memory tools in stream (even when globally enabled)."""
     payload = {
         "query": "What is 2+2? Answer briefly.",
         "message_id": "test-memory-e2e-incognito",
@@ -80,12 +80,12 @@ def test_agent_stream_incognito_excludes_memory_and_conversation_search(client: 
     check_e2e_errors(events)
     blob = _stream_blob(events)
     for tool_name in (
-        "memory_recall_tool",
+        "memory_search_tool",
         "memory_save_tool",
         "memory_manage_tool",
-        "conversation_search_tool",
     ):
         assert tool_name not in blob, f"{tool_name} must not appear in incognito stream"
+    assert "conversation_search_tool" not in blob
 
 
 @pytest.mark.integration
@@ -105,12 +105,12 @@ def test_agent_stream_memory_off_ignores_conversation_search_flag(client: TestCl
     check_e2e_errors(events)
     blob = _stream_blob(events)
     assert "conversation_search_tool" not in blob
-    assert "memory_recall_tool" not in blob
+    assert "memory_search_tool" not in blob
 
 
 @pytest.mark.integration
-def test_agent_stream_opt_in_binds_conversation_search_tool(client: TestClient) -> None:
-    """enable_conversation_search=true must expose conversation_search_tool in the agent stream."""
+def test_agent_stream_opt_in_enables_sessions_corpus_on_memory_search(client: TestClient) -> None:
+    """enable_conversation_search=true must expose sessions corpus via memory_search_tool."""
     payload = {
         "query": "Reply with the word OK only.",
         "message_id": "test-memory-e2e-conv-opt-in",
@@ -124,7 +124,9 @@ def test_agent_stream_opt_in_binds_conversation_search_tool(client: TestClient) 
     events = _collect_agent_stream(client, payload)
     check_e2e_errors(events)
     blob = _stream_blob(events)
-    assert "conversation_search_tool" in blob, "opt-in must bind conversation_search_tool in Turn1 tools"
+    assert "memory_search_tool" in blob, "opt-in must bind memory_search_tool in Turn1 tools"
+    assert "corpus=sessions" in blob or "sessions" in blob
+    assert "conversation_search_tool" not in blob
 
 
 @pytest.mark.integration
@@ -143,7 +145,7 @@ def test_agent_stream_enable_memory_false_skips_memory_and_conversation_search(c
     check_e2e_errors(events)
     invoked = _invoked_tool_names(events)
     assert not invoked & {
-        "memory_recall_tool",
+        "memory_search_tool",
         "memory_save_tool",
         "memory_manage_tool",
         "conversation_search_tool",
@@ -151,8 +153,8 @@ def test_agent_stream_enable_memory_false_skips_memory_and_conversation_search(c
 
 
 @pytest.mark.integration
-def test_agent_stream_simple_query_does_not_invoke_conversation_search(client: TestClient) -> None:
-    """Default opt-out: trivial query must not invoke conversation_search."""
+def test_agent_stream_simple_query_does_not_invoke_sessions_corpus(client: TestClient) -> None:
+    """Default opt-out: trivial query must not invoke sessions corpus search."""
     payload = {
         "query": "Reply with the word OK only.",
         "message_id": "test-memory-e2e-no-conv-search",
@@ -165,9 +167,8 @@ def test_agent_stream_simple_query_does_not_invoke_conversation_search(client: T
     events = _collect_agent_stream(client, payload)
     check_e2e_errors(events)
     invoked = _invoked_tool_names(events)
-    assert "conversation_search_tool" not in invoked, (
-        f"trivial turn1 should not invoke conversation_search; invoked={sorted(invoked)}"
-    )
+    assert "conversation_search_tool" not in invoked
+    # Opt-out: model may still call memory_search with default corpus=memory; sessions corpus is ACL-blocked.
 
 
 @pytest.mark.integration
@@ -254,7 +255,7 @@ def test_agent_stream_conversation_search_passphrase_recovery(client: TestClient
     if codeword in blob2 or "PELICAN" in blob2.upper():
         return
 
-    if invoked & {"conversation_search_tool", "memory_recall_tool"}:
+    if invoked & {"conversation_search_tool", "memory_search_tool"}:
         return
 
     pytest.skip(

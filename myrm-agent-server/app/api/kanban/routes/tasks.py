@@ -162,6 +162,7 @@ async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
             max_runtime_seconds=body.max_runtime_seconds,
             workspace_path=body.workspace_path,
             branch=body.branch,
+            metadata_patch=body.metadata,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc

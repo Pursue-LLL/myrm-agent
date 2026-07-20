@@ -7,7 +7,7 @@ def test_stream_collector_persists_memory_citation_refs() -> None:
     collector.feed_event(
         {
             "type": "tool_end",
-            "tool_name": "memory_recall_tool",
+            "tool_name": "memory_search_tool",
             "cited_memory_ids": ["mem-1", "mem-1", "mem-2"],
             "cited_memory_refs": [
                 {
@@ -59,13 +59,13 @@ def test_stream_collector_persists_memory_citation_refs() -> None:
     ]
 
 
-def test_stream_collector_persists_knowledge_recall_citations() -> None:
+def test_stream_collector_persists_memory_search_citations() -> None:
     collector = StreamContentCollector()
 
     collector.feed_event(
         {
             "type": "tool_end",
-            "tool_name": "knowledge_recall_tool",
+            "tool_name": "memory_search_tool",
             "cited_memory_ids": ["mem-wiki-1"],
             "cited_memory_refs": [
                 {

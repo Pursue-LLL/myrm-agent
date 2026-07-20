@@ -13,7 +13,7 @@ tags:
   - productivity
   - cron
   - digest
-allowed-tools: memory_recall_tool memory_save_tool kanban_list_tasks web_search_tool web_fetch_tool file_write_tool bash_code_execute_tool
+allowed-tools: memory_search_tool memory_save_tool kanban_list_tasks web_search_tool web_fetch_tool file_write_tool bash_code_execute_tool
 contract:
   steps:
     - "Phase 1: Context Gathering — recall user preferences, habits, and timezone from memory"
@@ -64,7 +64,7 @@ Best used with **cron scheduling** for automatic daily delivery via your preferr
 
 Before building the briefing, establish the user's context:
 
-1. **Recall user preferences** via `memory_recall_tool`:
+1. **Recall user preferences** via `memory_search_tool`:
    - Timezone and locale (for correct date/time formatting)
    - Preferred briefing style (concise vs. detailed)
    - Topics of interest (for news filtering)
@@ -131,7 +131,7 @@ This is what makes the briefing **personal** and distinguishes it from generic d
    - "This is the 3rd day the API refactor task is overdue"
 
 3. **Recall yesterday's unfinished threads**:
-   - Use `memory_recall_tool` with time-scoped queries (last 24-48 hours)
+   - Use `memory_search_tool` with time-scoped queries (last 24-48 hours)
    - Surface any "I'll do this tomorrow" or deferred items
 
 ## Phase 5: Briefing Compilation

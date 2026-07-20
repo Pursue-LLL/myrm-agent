@@ -67,7 +67,7 @@ class TestStepToLabelUnregistered:
             "tool_name": "memory_recall",
             "data": [{"query": "last meeting notes"}],
         }
-        result = step_to_label("memory_recall_tool", event)
+        result = step_to_label("memory_search_tool", event)
         assert result == "⏳ **memory_recall** — last meeting notes"
 
     def test_with_url_summary(self) -> None:

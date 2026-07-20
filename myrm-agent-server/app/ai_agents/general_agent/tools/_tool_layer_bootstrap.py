@@ -23,7 +23,6 @@ from myrm_agent_harness.agent.sub_agents.delegation_policy import register_leaf_
 _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     # EXTENDED: opt-in business tools that depend on server-specific SDKs/APIs.
     "x_search_tool": ToolLayer.EXTENDED,
-    "knowledge_recall_tool": ToolLayer.EXTENDED,
     "channel_notify_tool": ToolLayer.EXTENDED,
     "image_tool": ToolLayer.EXTENDED,
     "video_tool": ToolLayer.EXTENDED,

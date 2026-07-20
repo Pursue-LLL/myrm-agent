@@ -8,7 +8,7 @@ from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
 _MEMORY_TOOL_NAMES = frozenset(
     {
-        "memory_recall_tool",
+        "memory_search_tool",
         "memory_save_tool",
         "memory_manage_tool",
         "conversation_search_tool",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Terminal } from 'lucide-react';
@@ -12,6 +12,7 @@ import {
   listBackgroundTasks,
   cancelBackgroundTask,
   steerBackgroundTask,
+  evictedFilenameFromVaultRef,
   type BackgroundTask,
 } from '@/services/background-tasks';
 import { subscribeBackgroundTasksChanged } from '@/services/backgroundTasksRefresh';
@@ -23,6 +24,15 @@ import {
   POLL_FAST_MS,
   POLL_SLOW_MS,
 } from './backgroundTasksPanel.constants';
+
+const EvictedOutputDrawer = lazy(
+  () => import('@/components/features/message-box/progress-steps/renderers/EvictedOutputDrawer'),
+);
+
+interface VaultLogDrawerState {
+  chatId: string;
+  filename: string;
+}
 
 interface BackgroundTasksPanelProps {
   trigger: React.ReactNode;
@@ -37,6 +47,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const [isOpen, setIsOpen] = useState(false);
   const [steerTaskId, setSteerTaskId] = useState<string | null>(null);
   const [steerInput, setSteerInput] = useState('');
+  const [vaultLogDrawer, setVaultLogDrawer] = useState<VaultLogDrawerState | null>(null);
   const idleCountRef = useRef(0);
 
   const fetchTasks = useCallback(async () => {
@@ -131,6 +142,13 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
     router.push(`/chat/${chatId}`);
   };
 
+  const handleViewVaultLog = (chatId: string, vaultLogRef: string) => {
+    setVaultLogDrawer({
+      chatId,
+      filename: evictedFilenameFromVaultRef(vaultLogRef),
+    });
+  };
+
   const handleSteer = async (taskId: string) => {
     if (!steerInput.trim()) return;
     try {
@@ -152,6 +170,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const totalBadge = runningCount + activeGoals.length;
 
   return (
+    <>
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <Tooltip open={isOpen ? false : undefined}>
         <TooltipTrigger asChild>
@@ -175,8 +194,10 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
       >
         <div className="border-b border-border/50 px-4 py-3">
           <h3 className="text-sm font-medium text-foreground">{t('title')}</h3>
-          {registryEphemeral && (
+          {registryEphemeral ? (
             <p className="mt-1 text-xs text-muted-foreground/80">{t('ephemeralRegistryNotice')}</p>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground/80">{t('durableRegistryNotice')}</p>
           )}
         </div>
 
@@ -210,6 +231,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                         onSteer={handleSteer}
                         onCancel={handleCancel}
                         onNavigateChat={handleNavigateChat}
+                        onViewVaultLog={handleViewVaultLog}
                       />
                     ))}
                   </div>
@@ -234,6 +256,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                         onSteer={handleSteer}
                         onCancel={handleCancel}
                         onNavigateChat={handleNavigateChat}
+                        onViewVaultLog={handleViewVaultLog}
                       />
                     ))}
                   </div>
@@ -244,5 +267,16 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
         </div>
       </PopoverContent>
     </Popover>
+
+    {vaultLogDrawer && (
+      <Suspense fallback={null}>
+        <EvictedOutputDrawer
+          filename={vaultLogDrawer.filename}
+          chatId={vaultLogDrawer.chatId}
+          onClose={() => setVaultLogDrawer(null)}
+        />
+      </Suspense>
+    )}
+    </>
   );
 }
