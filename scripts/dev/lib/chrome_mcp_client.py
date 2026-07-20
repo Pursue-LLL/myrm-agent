@@ -42,6 +42,7 @@ from mux_load import (
     new_page_stagger_sec,
     snapshot_mux_load,
 )
+from mux_upstream_admission import upstream_cold_attach_slot
 
 _CLEANUP_TIMEOUT_SEC = 15.0
 _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
@@ -355,43 +356,30 @@ class ChromeMcpClient:
         lease_id = self._acquire_page_lease()
         page: McpPage | None = None
         runtime_binding = self._runtime_binding_source_for(url)
-        try:
-            self._heartbeat_lease(lease_id)
-            load = snapshot_mux_load()
-            stagger_sec = new_page_stagger_sec(
-                mux_contexts=load.mux_contexts,
-                wave_leases=load.wave_leases,
-                jitter_seed=os.getpid(),
-            )
-            if stagger_sec > 0:
-                time.sleep(stagger_sec)
-            initial_url = "about:blank" if runtime_binding is not None else url
-            arguments: dict[str, object] = {"url": initial_url, "timeout": resolved_timeout_ms}
-            if context_id is not None:
-                arguments["isolatedContext"] = context_id
-            result = self.call_tool(
-                "new_page",
-                arguments,
-                timeout_sec=self._resolve_tool_timeout_sec(
-                    min(resolved_timeout_ms / 1000 + 5, self._request_timeout_sec),
-                    page_timeout_ms=resolved_timeout_ms,
-                ),
-            )
-            page_id, target_id = parse_new_page(result)
-            page = McpPage(
-                page_id=page_id,
-                target_id=target_id,
-                lease_id=lease_id,
-                context_id=context_id,
-                url=url,
-            )
-            self._heartbeat_lease(lease_id)
+        with upstream_cold_attach_slot():
             try:
-                self._bind_page_lease(page)
-            except RuntimeError as exc:
-                if "LEASE_NOT_ACTIVE" not in str(exc):
-                    raise
-                lease_id = self._acquire_page_lease()
+                self._heartbeat_lease(lease_id)
+                load = snapshot_mux_load()
+                stagger_sec = new_page_stagger_sec(
+                    mux_contexts=load.mux_contexts,
+                    wave_leases=load.wave_leases,
+                    jitter_seed=os.getpid(),
+                )
+                if stagger_sec > 0:
+                    time.sleep(stagger_sec)
+                initial_url = "about:blank" if runtime_binding is not None else url
+                arguments: dict[str, object] = {"url": initial_url, "timeout": resolved_timeout_ms}
+                if context_id is not None:
+                    arguments["isolatedContext"] = context_id
+                result = self.call_tool(
+                    "new_page",
+                    arguments,
+                    timeout_sec=self._resolve_tool_timeout_sec(
+                        min(resolved_timeout_ms / 1000 + 5, self._request_timeout_sec),
+                        page_timeout_ms=resolved_timeout_ms,
+                    ),
+                )
+                page_id, target_id = parse_new_page(result)
                 page = McpPage(
                     page_id=page_id,
                     target_id=target_id,
@@ -400,49 +388,63 @@ class ChromeMcpClient:
                     url=url,
                 )
                 self._heartbeat_lease(lease_id)
-                self._bind_page_lease(page)
-            self._pages[page_id] = page
-            self._disconnected_pages.pop(page_id, None)
-            self._page_lease_heartbeat.track(lease_id)
-            if runtime_binding is not None:
-                self._bind_and_navigate_runtime_page(
-                    page,
-                    url,
-                    runtime_binding,
-                    timeout_ms=resolved_timeout_ms,
-                )
-            return page
-        except Exception as exc:
-            cleanup_errors: list[str] = []
-            if page is not None:
                 try:
-                    self.call_tool(
-                        "close_page",
-                        {"pageId": page.page_id},
-                        timeout_sec=_CLEANUP_TIMEOUT_SEC,
+                    self._bind_page_lease(page)
+                except RuntimeError as exc:
+                    if "LEASE_NOT_ACTIVE" not in str(exc):
+                        raise
+                    lease_id = self._acquire_page_lease()
+                    page = McpPage(
+                        page_id=page_id,
+                        target_id=target_id,
+                        lease_id=lease_id,
+                        context_id=context_id,
+                        url=url,
                     )
-                except (RuntimeError, TimeoutError) as cleanup_exc:
-                    cleanup_errors.append(f"close_page: {cleanup_exc}")
-                    if page.target_id.strip() and not _http_close_exact_target(page.target_id):
-                        cleanup_errors.append(
-                            f"http_close: targetId={page.target_id.strip()} failed"
+                    self._heartbeat_lease(lease_id)
+                    self._bind_page_lease(page)
+                self._pages[page_id] = page
+                self._disconnected_pages.pop(page_id, None)
+                self._page_lease_heartbeat.track(lease_id)
+                if runtime_binding is not None:
+                    self._bind_and_navigate_runtime_page(
+                        page,
+                        url,
+                        runtime_binding,
+                        timeout_ms=resolved_timeout_ms,
+                    )
+                return page
+            except Exception as exc:
+                cleanup_errors: list[str] = []
+                if page is not None:
+                    try:
+                        self.call_tool(
+                            "close_page",
+                            {"pageId": page.page_id},
+                            timeout_sec=_CLEANUP_TIMEOUT_SEC,
                         )
-                    elif page.target_id.strip():
-                        cleanup_errors[:] = [
-                            item
-                            for item in cleanup_errors
-                            if not item.startswith("close_page:")
-                        ]
-            try:
-                self._release_lease(lease_id, close_wave_if_idle=False)
-            except (RuntimeError, TimeoutError) as cleanup_exc:
-                cleanup_errors.append(f"release lease: {cleanup_exc}")
-            if cleanup_errors:
-                raise RuntimeError(
-                    f"Chrome MCP new_page failed: {exc}; cleanup failed: "
-                    + "; ".join(cleanup_errors)
-                ) from exc
-            raise
+                    except (RuntimeError, TimeoutError) as cleanup_exc:
+                        cleanup_errors.append(f"close_page: {cleanup_exc}")
+                        if page.target_id.strip() and not _http_close_exact_target(page.target_id):
+                            cleanup_errors.append(
+                                f"http_close: targetId={page.target_id.strip()} failed"
+                            )
+                        elif page.target_id.strip():
+                            cleanup_errors[:] = [
+                                item
+                                for item in cleanup_errors
+                                if not item.startswith("close_page:")
+                            ]
+                try:
+                    self._release_lease(lease_id, close_wave_if_idle=False)
+                except (RuntimeError, TimeoutError) as cleanup_exc:
+                    cleanup_errors.append(f"release lease: {cleanup_exc}")
+                if cleanup_errors:
+                    raise RuntimeError(
+                        f"Chrome MCP new_page failed: {exc}; cleanup failed: "
+                        + "; ".join(cleanup_errors)
+                    ) from exc
+                raise
 
     def close_page(self, page: McpPage, *, ignore_errors: bool = False) -> None:
         errors: list[str] = []
@@ -631,11 +633,12 @@ class ChromeMcpClient:
         arguments: dict[str, object] = {"url": initial_url, "timeout": 120_000}
         if page.context_id is not None:
             arguments["isolatedContext"] = page.context_id
-        result = self.call_tool(
-            "new_page",
-            arguments,
-            timeout_sec=min(125.0, self._request_timeout_sec),
-        )
+        with upstream_cold_attach_slot():
+            result = self.call_tool(
+                "new_page",
+                arguments,
+                timeout_sec=min(125.0, self._request_timeout_sec),
+            )
         page_id, target_id = parse_new_page(result)
         lease_id = page.lease_id
         reopened = McpPage(

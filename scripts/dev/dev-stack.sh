@@ -454,6 +454,7 @@ _try_optional_client_hot() {
 
 cmd_ensure() {
   if _stack_warm; then
+    _ensure_backend || exit 1
     _try_optional_client_hot
     echo "STACK_ENSURE_OK: already shell_hot api=:${BACKEND_PORT} ui=:${FRONTEND_PORT}"
     exit 0
@@ -490,6 +491,7 @@ cmd_ensure() {
   trap '_release_dir_lock "${_lock_dir}"' EXIT
 
   if _stack_warm; then
+    _ensure_backend || exit 1
     _try_optional_client_hot
     echo "STACK_ENSURE_OK: already shell_hot api=:${BACKEND_PORT} ui=:${FRONTEND_PORT}"
     exit 0
@@ -617,6 +619,11 @@ _private_backend_identity_valid() {
 }
 
 cmd_backend_only_ensure() {
+  if ! _ensure_backend; then
+    echo "STACK_FAIL: private backend start failed" >&2
+    exit 1
+  fi
+
   if _api_healthy 5; then
     if ! _private_backend_identity_valid; then
       echo "STACK_FAIL: healthy private port lacks matching process ownership" >&2
@@ -625,11 +632,6 @@ cmd_backend_only_ensure() {
     echo "STACK_OK: private backend already healthy → ${API_BASE}"
     echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
     exit 0
-  fi
-
-  if ! _ensure_backend; then
-    echo "STACK_FAIL: private backend start failed" >&2
-    exit 1
   fi
 
   if _api_healthy 30; then

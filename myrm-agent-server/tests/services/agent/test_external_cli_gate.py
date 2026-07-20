@@ -20,6 +20,16 @@ async def test_assert_external_cli_skips_when_tool_disabled() -> None:
 
 
 @pytest.mark.asyncio
+async def test_assert_external_cli_skips_when_tools_none() -> None:
+    await assert_external_cli_tools_allowed(None)
+
+
+@pytest.mark.asyncio
+async def test_assert_external_cli_skips_when_tools_empty() -> None:
+    await assert_external_cli_tools_allowed([])
+
+
+@pytest.mark.asyncio
 async def test_assert_external_cli_rejects_sandbox_deploy() -> None:
     with (
         patch(

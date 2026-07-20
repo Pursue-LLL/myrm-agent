@@ -111,7 +111,6 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
-@pytest.mark.timeout(180)
 def test_external_cli_builtin_card_enabled_in_local_chrome_ui() -> None:
     """Local deploy: external_cli card is togglable and shows setup hints when enabled."""
     api_url = get_e2e_api_url()

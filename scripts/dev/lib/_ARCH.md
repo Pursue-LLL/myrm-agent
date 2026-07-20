@@ -16,7 +16,8 @@
 | `cdp_chat_support.py` | Unix | E2E API/chat 消息 SSOT；`_e2e_api_urlopen` 对 loopback config/messages 短重试 |
 | `infra_browser_registry.py` | Unix | client warmup 短生命周期 target 归属 ledger；`wave reap` 与 preflight prune 回收死亡 owner 的 exact targetId |
 | `browser_tab_hygiene.py` | Unix | `./myrm doctor --chrome` tab 计数报告（CDP / wave / infra registry） |
-| `cdp_write_guard.py` | Unix | raw `/json/new` 永久拒绝；仅 supervisor `MYRM_CDP_WARMUP=1` 预热例外 |
+| `cdp_write_guard.py` | Unix | raw `/json/new` 永久拒绝；仅 supervisor `MYRM_CDP_WARMUP=1` 预热例外；active lease 计数经 `wave_state_paths` |
+| `wave_state_paths.py` | Unix | `wave-orchestrator.json` 路径 SSOT；lazy bootstrap 委托 `wave_orchestrator.paths.resolve_wave_paths().state_file` |
 | `runtime_identity.py` | Unix | Runtime Identity SSOT + attach health gate：基础设施四元 epoch → hot-pool `runtimeId`；源码 fingerprint 独立控制 warmth/HMR，不使 active lease drift；`read_stack_scoped_runtime_id()`（backend+frontend only）；`build_health_json` CLI |
 | `runtime_probe.py` | Unix | Live mux/CDP probe + `run_drift_check()` for `--drift` / `runtime-drift` |
 | `runtime-drift.sh` | Unix | `./myrm runtime-drift --expect <id>` 入口；exit 2 = `RUNTIME_DRIFT` |
@@ -27,7 +28,7 @@
 | `process_identity.py` | Unix | 记录 `pid + OS start token + runtimeId`；停止前复验进程代次，只终止精确 owner 的进程树，PID 复用时 fail-closed |
 | `e2e_mux_admission.py` | Unix | 全局 mux session 准入（READ+LIVE 统一 cap、`E2E_MUX_ADMISSION_WAIT`、signoff 预留 slot）；`MYRM_E2E_RUN_ID` label 经 `_registry_key()` uuid5 归一化 |
 | `dev_gate_contract.py` | Unix | Dev Gate v2 SSOT：mux 错误分类、并行 cap、signoff matrix env（含 **attach-heal debounce**：`SIGNOFF_MATRIX_ATTACH_HEAL_FAILURES=3`、`COOLDOWN_SEC=60`）、**lane pytest timeout**（`READ=180` / `LIVE=600` / **desktop=7200** via `chrome_e2e_pytest_timeout_floor` + `apply_chrome_e2e_pytest_timeout_args`） |
-| `e2e_lease_runtime_sync.py` | Unix | formal chrome E2E acquire 后 fail-closed gate：`lease.runtimeId == _read_shared_hot_stack_runtime_id()`；`test.sh` 经 `_e2e_sync_lease_runtime` 调用 |
+| `e2e_lease_runtime_sync.py` | Unix | formal chrome E2E acquire 后 fail-closed gate：`lease.runtimeId == _read_shared_hot_stack_runtime_id()`；state 经 `wave_state_paths.resolve_wave_state_file()`；`test.sh` 经 `_e2e_sync_lease_runtime` 调用 |
 | `signoff_wave_quiesce.py` | Unix | signoff matrix 前 wave quiesce；dead-owner reap；foreign live lease 不阻塞 |
 | `mux_load.py` | Unix | mux context / wave lease 负载探针；adaptive page/tool timeout |
 

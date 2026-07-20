@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import uuid
 import weakref
 from dataclasses import dataclass, field
@@ -38,6 +39,12 @@ from myrm_agent_harness.utils.runtime.progress_sink import get_tool_progress_sin
 logger = logging.getLogger(__name__)
 
 _DEFAULT_TIMEOUT_SEC = 30.0
+_raw_timeout = os.getenv("MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC", "30").strip()
+try:
+    _parsed_timeout = float(_raw_timeout)
+except ValueError:
+    _parsed_timeout = _DEFAULT_TIMEOUT_SEC
+_DEFAULT_TIMEOUT_SEC = max(5.0, _parsed_timeout)
 _APPROVAL_DIR = ".agent/desktop_control"
 _APPROVAL_FILE = "approved_apps.json"
 

@@ -2,6 +2,14 @@ import { apiRequest } from '@/lib/api';
 
 export type RunSource = 'cron' | 'kanban' | 'background';
 export type RunStatus = 'running' | 'ok' | 'error' | 'skipped' | 'cancelled' | 'timed_out';
+export type RunStopReasonCategory = 'limit' | 'cancelled' | 'error' | 'other';
+
+export interface RunStopReason {
+  code: string;
+  category: RunStopReasonCategory;
+  message: string;
+  detail: Record<string, unknown> | null;
+}
 
 export interface UnifiedRun {
   id: string;
@@ -19,6 +27,7 @@ export interface UnifiedRun {
   job_id: string | null;
   task_id: string | null;
   has_execution_steps: boolean;
+  stop_reason: RunStopReason | null;
 }
 
 export interface UnifiedRunsListResponse {

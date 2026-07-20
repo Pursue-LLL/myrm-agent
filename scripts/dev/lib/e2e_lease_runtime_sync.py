@@ -2,7 +2,7 @@
 
 [INPUT]
 - runtime_probe.py::_read_shared_hot_stack_runtime_id (POS: Dev infrastructure live stack probe)
-- wave-orchestrator.json active lease record (MYRM_WAVE_STATE_DIR / MYRM_DEV_STATE_DIR)
+- wave_state_paths.py::resolve_wave_state_file (POS: wave-orchestrator.json path SSOT bootstrap)
 
 [OUTPUT]
 - lease_runtime_matches_shared_hot(): bool + detail str
@@ -17,17 +17,8 @@ from __future__ import annotations
 import json
 import os
 import sys
-from pathlib import Path
 
-
-def _state_file() -> Path:
-    wave_override = os.environ.get("MYRM_WAVE_STATE_DIR", "").strip()
-    if wave_override:
-        root = Path(wave_override)
-    else:
-        override = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
-        root = Path(override) if override else Path.home() / ".local/state/myrm-dev"
-    return root / "wave-orchestrator.json"
+from wave_state_paths import resolve_wave_state_file
 
 
 def _shared_hot_runtime_id() -> str:
@@ -46,7 +37,7 @@ def lease_runtime_matches_shared_hot(*, lease_id: str) -> tuple[bool, str]:
     if not normalized_lease_id:
         return False, "lease_id missing"
 
-    state_path = _state_file()
+    state_path = resolve_wave_state_file()
     try:
         payload = json.loads(state_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:

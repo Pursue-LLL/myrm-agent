@@ -93,9 +93,8 @@ _start_backend_bg() {
         echo "ERROR: backend pid exists without matching process ownership: ${old_pid}" >&2
         return 1
       fi
-      echo "Backend already running (pid ${old_pid})"
       _require_harness_editable_for_monorepo "${server_dir}"
-      local stack_epoch_lib
+      local stack_epoch_lib stored_fp current_fp
       stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
       if [[ -f "${stack_epoch_lib}" ]]; then
         # shellcheck source=stack-epoch.sh
@@ -103,8 +102,32 @@ _start_backend_bg() {
         if [[ ! -f "$(_stack_epoch_file)" ]]; then
           _bump_stack_epoch "${old_pid}" "${server_dir}" >/dev/null || true
         fi
+        stored_fp="$(_read_stack_epoch_source_fingerprint)"
+        current_fp="$(_backend_source_fingerprint "${server_dir}")"
+        if [[ -n "${current_fp}" && ( -z "${stored_fp}" || "${stored_fp}" != "${current_fp}" ) ]]; then
+          if [[ -z "${stored_fp}" ]]; then
+            echo "STACK_WARN: shared backend missing source_fingerprint — reloading pid=${old_pid}" >&2
+          else
+            echo "STACK_WARN: shared backend source drift detected — reloading pid=${old_pid}" >&2
+          fi
+          kill -TERM "${old_pid}" 2>/dev/null || true
+          local wait_i
+          for wait_i in $(seq 1 20); do
+            kill -0 "${old_pid}" 2>/dev/null || break
+            sleep 0.25
+          done
+          if kill -0 "${old_pid}" 2>/dev/null; then
+            kill -KILL "${old_pid}" 2>/dev/null || true
+          fi
+          rm -f "${pid_file}" "${identity_file}"
+        else
+          echo "Backend already running (pid ${old_pid})"
+          return 0
+        fi
+      else
+        echo "Backend already running (pid ${old_pid})"
+        return 0
       fi
-      return 0
     fi
     rm -f "${pid_file}"
     rm -f "${identity_file}"

@@ -95,6 +95,148 @@ def _coerce_usage_int(v: object) -> int:
     return 0
 
 
+_STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
+
+
+def _stop_reason_priority(code: str) -> int:
+    if code in {"iteration_limit_reached", "engine_limit_reached"}:
+        return 40
+    if code == "agent_cancelled":
+        return 30
+    if code == "error":
+        return 20
+    return 10
+
+
+def _normalize_stop_reason_payload(payload: dict[str, object] | None) -> dict[str, object] | None:
+    if payload is None:
+        return None
+    code_obj = payload.get("code")
+    if not isinstance(code_obj, str) or not code_obj.strip():
+        return None
+    code = code_obj.strip()
+    category_obj = payload.get("category")
+    if isinstance(category_obj, str) and category_obj in _STOP_REASON_CATEGORIES:
+        category = category_obj
+    else:
+        category = "other"
+    message_obj = payload.get("message")
+    if isinstance(message_obj, str) and message_obj.strip():
+        message = message_obj.strip()
+    else:
+        message = code.replace("_", " ")
+    normalized: dict[str, object] = {
+        "code": code,
+        "category": category,
+        "message": message,
+    }
+    detail_obj = payload.get("detail")
+    if isinstance(detail_obj, dict):
+        normalized["detail"] = {str(k): v for k, v in detail_obj.items() if isinstance(k, str)}
+    return normalized
+
+
+def _extract_step_item_text(items: object) -> str | None:
+    if not isinstance(items, list):
+        return None
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        text = item.get("text")
+        if isinstance(text, str) and text.strip():
+            return text.strip()
+    return None
+
+
+def _derive_stop_reason_from_event(event: dict[str, object]) -> dict[str, object] | None:
+    event_type = event.get("type")
+    if not isinstance(event_type, str):
+        return None
+
+    if event_type == "iteration_limit_reached":
+        detail = event.get("data") if isinstance(event.get("data"), dict) else None
+        message = "Iteration limit reached"
+        if detail is not None:
+            limit = detail.get("limit")
+            nodes = detail.get("nodes_completed")
+            if limit is not None and nodes is not None:
+                message = f"Iteration limit reached ({limit} iterations / {nodes} nodes)"
+            elif limit is not None:
+                message = f"Iteration limit reached ({limit} iterations)"
+        payload: dict[str, object] = {
+            "code": "iteration_limit_reached",
+            "category": "limit",
+            "message": message,
+        }
+        if detail is not None:
+            payload["detail"] = detail
+        return payload
+
+    if event_type == "engine_limit_reached":
+        detail = event.get("data") if isinstance(event.get("data"), dict) else None
+        message = "Engine limit reached"
+        if detail is not None:
+            raw_message = detail.get("message")
+            if isinstance(raw_message, str) and raw_message.strip():
+                message = raw_message.strip()
+        payload_2: dict[str, object] = {
+            "code": "engine_limit_reached",
+            "category": "limit",
+            "message": message,
+        }
+        if detail is not None:
+            payload_2["detail"] = detail
+        return payload_2
+
+    if event_type == "agent_cancelled":
+        detail = event.get("data") if isinstance(event.get("data"), dict) else None
+        reason = detail.get("reason") if detail else None
+        payload_3: dict[str, object] = {
+            "code": "agent_cancelled",
+            "category": "cancelled",
+            "message": "Cancelled by user" if reason == "user_cancelled" else "Run cancelled",
+        }
+        if detail is not None:
+            payload_3["detail"] = detail
+        return payload_3
+
+    if event_type == "tasks_steps":
+        step_key = event.get("step_key")
+        if step_key == "iteration_limit_reached":
+            text = _extract_step_item_text(event.get("data"))
+            message = "Iteration limit reached"
+            if text:
+                message = f"Iteration limit reached ({text})"
+            return {
+                "code": "iteration_limit_reached",
+                "category": "limit",
+                "message": message,
+            }
+        if event.get("status") == "error":
+            error_text = event.get("error")
+            if isinstance(error_text, str) and "Tool call limit exceeded" in error_text:
+                return {
+                    "code": "engine_limit_reached",
+                    "category": "limit",
+                    "message": error_text.strip() or "Engine limit reached",
+                }
+
+    if event_type == "error":
+        error_text = event.get("error")
+        if isinstance(error_text, str) and error_text.strip():
+            payload_4: dict[str, object] = {
+                "code": "error",
+                "category": "error",
+                "message": error_text.strip(),
+            }
+            error_type = event.get("error_type")
+            if isinstance(error_type, str) and error_type.strip():
+                payload_4["detail"] = {"error_type": error_type.strip()}
+            return payload_4
+
+    return None
+
+
 _SILENT_SUFFIX = (
     "\n\n---\n"
     "[Scheduler] This is a recurring scheduled task. "
@@ -527,6 +669,7 @@ class _StreamAccumulator:
     sources: list[dict[str, object]] = field(default_factory=list)
     usage: dict[str, int] | None = None
     error: str | None = None
+    stop_reason: dict[str, object] | None = None
     _seen_indices: set[int] = field(default_factory=set)
 
     def add_sources(self, items: list[dict[str, object]]) -> None:
@@ -541,6 +684,8 @@ class _StreamAccumulator:
         metadata: dict[str, object] = {}
         if self.progress_steps:
             metadata["progressSteps"] = self.progress_steps
+        if self.stop_reason:
+            metadata["stopReason"] = self.stop_reason
         if self.sources:
             metadata["sources"] = sorted(self.sources, key=_source_sort_key)
         if model:
@@ -567,6 +712,20 @@ class _StreamAccumulator:
             output=output or "agent completed",
             metadata=metadata or None,
         )
+
+    def set_stop_reason(self, payload: dict[str, object]) -> None:
+        normalized = _normalize_stop_reason_payload(payload)
+        if normalized is None:
+            return
+        if self.stop_reason is None:
+            self.stop_reason = normalized
+            return
+        current_code = self.stop_reason.get("code")
+        current_priority = _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
+        next_code = normalized.get("code")
+        next_priority = _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
+        if next_priority >= current_priority:
+            self.stop_reason = normalized
 
 
 async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:
@@ -605,6 +764,9 @@ async def _consume_stream(agent: object, job: CronJob, effective_prompt: str) ->
         context={"execution_mode": ExecutionMode.EPHEMERAL},
     ):
         event_type = event.get("type", "")
+        stop_reason = _derive_stop_reason_from_event(event)
+        if stop_reason is not None:
+            acc.set_stop_reason(stop_reason)
 
         if event_type == "message" and isinstance(event.get("data"), str):
             acc.chunks.append(str(event["data"]))

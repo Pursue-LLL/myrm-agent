@@ -51,8 +51,10 @@ else:
 
   started_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   harness_fp=""
+  source_fp=""
   if [[ -n "${server_dir}" ]]; then
     harness_fp="$(_harness_fingerprint "${server_dir}")"
+    source_fp="$(_backend_source_fingerprint "${server_dir}")"
   fi
 
   python3 -c "
@@ -63,11 +65,39 @@ payload = {
     'backend_pid': int('${backend_pid}') if '${backend_pid}'.isdigit() else None,
     'started_at': '${started_at}',
     'harness_fingerprint': '${harness_fp}',
+    'source_fingerprint': '${source_fp}',
 }
 path = Path('${epoch_file}')
 path.write_text(json.dumps(payload, indent=2) + '\n')
 print(payload['epoch'])
 "
+}
+
+_backend_source_fingerprint() {
+  local server_dir="$1"
+  local py="${server_dir}/.venv/bin/python"
+  [[ -x "${py}" ]] || return 0
+  local lib_dir
+  lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib"
+  "${py}" -c "
+import sys
+from pathlib import Path
+sys.path.insert(0, '${lib_dir}')
+from runtime_identity import _backend_source_fingerprint
+print(_backend_source_fingerprint())
+" 2>/dev/null || echo ""
+}
+
+_read_stack_epoch_source_fingerprint() {
+  local epoch_file
+  epoch_file="$(_stack_epoch_file)"
+  [[ -f "${epoch_file}" ]] || return 0
+  python3 -c "
+import json
+from pathlib import Path
+data = json.loads(Path('${epoch_file}').read_text())
+print(data.get('source_fingerprint') or '')
+" 2>/dev/null || echo ""
 }
 
 _read_stack_epoch() {

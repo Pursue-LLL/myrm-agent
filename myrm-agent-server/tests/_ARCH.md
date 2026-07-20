@@ -15,10 +15,14 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
 | `support/feature_flags.py` | 辅助 | `seed_voice_interaction_flags()`，供 `tests/api/voice`、`tests/api/stt` conftest autouse |
 | `support/bash_compressor_e2e.py` | 辅助 | bash compressor live/API E2E 共享 helper（模型 probe、workspace 压缩回放） |
+| `support/chrome_mcp_e2e.py` | 核心 | Chrome MCP E2E helper（`open_mcp_page` 默认 `timeout_ms=None` → mux adaptive；LIVE 用例显式 `MAX_PAGE_TIMEOUT_MS`） |
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
 | `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ：看板渲染 + Drawer 附件） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
+| `e2e/test_memory_citations_chrome_e2e.py` | 模块 | Memory Chrome MCP E2E（READ×2：设置「历史会话搜索」开关；统一「依据/Evidence N」Sheet） |
+| `e2e/test_subagent_dashboard_chrome_e2e.py` | 模块 | Subagent Dashboard Chrome MCP E2E（LIVE×3：cancel running、delegation pause toggle、SSE token/model 展示） |
+| `services/agent/test_subagent_rebind_event.py` | 模块 | `SUBAGENT_REBIND_REQUIRED` 事件：`subagent_ids` 变更时 publish、同值/非绑定字段不 emit |
 | `api/chats/test_citation_seed_fixture.py` | 模块 | citation fixture seed HTTP 单测（local-only，`/chats/test/seed-citation-fixture`） |
 | `api/chats/test_citation_seed_integration.py` | 模块 | citation seed → GET messages 集成单测（真 DB metadata） |
 | `integration/test_kanban_attach_handler_integration.py` | 模块 | SQLite attach handler + orchestrator unblock tool invoke |
@@ -55,6 +59,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - **Chrome MCP UI E2E（`chrome_e2e` marker）**：monorepo **`./myrm test -m chrome_e2e -n0`**（须 `./myrm ready --chrome`；Wave lease；见 `scripts/dev/CHROME_MCP_E2E.md`）
 - **Kanban Chrome E2E**：`tests/e2e/test_kanban_chrome_e2e.py`（READ lane ×2：看板列渲染；REST `attachment_ids` → 点击附件 badge → Drawer 附件可见）
 - **Wiki citation Chrome E2E**：`tests/e2e/test_wiki_citation_chrome_e2e.py`（READ lane ×2：`/chats/test/seed-citation-fixture` → citation 按钮 reload 持久；`/settings/wiki?agentId=` combobox）。Settings 用例先 `warm_ui_route` HTTP 编译再 Chrome 导航（webpack 冷启）。READ 使用共享 `:8080`（`conftest.py:244-251` `private_backend=False` 时 yield 共享 stack）；**新增 server 路由后须 `./myrm restart` 再跑 chrome e2e**；wave pin 阻塞 restart 时用 **`./myrm isolate <id> ready --chrome`** + `E2E_API_BASE`/`E2E_UI_BASE`。
+- **Memory citations Chrome E2E**：`tests/e2e/test_memory_citations_chrome_e2e.py`（READ lane ×2：`/settings/memory` 开「历史会话搜索」；聊天页注入 citations → 「依据/Evidence N」Sheet）。并行 attach 若 mux timeout drift，须 `MYRM_MUX_ALLOW_TIMEOUT_RESTART=1`（见 `chrome-e2e-preflight.sh` attach heal）。
+- **Subagent Dashboard Chrome E2E**：`tests/e2e/test_subagent_dashboard_chrome_e2e.py`（LIVE lane ×3：`subagent-dashboard-e2e-prepare.mjs` delegate → Dashboard cancel / pause toggle / token+model；`open_mcp_page(..., timeout_ms=MAX_PAGE_TIMEOUT_MS)`）
+- **Subagent rebind 单测**：`tests/services/agent/test_subagent_rebind_event.py`（`AgentService.update_agent` 变更 `subagent_ids` → `SUBAGENT_REBIND_REQUIRED`）
 - **Citation seed 集成单测**：`tests/api/chats/test_citation_seed_integration.py`（seed → GET messages 断言 `citedMemoryIds`；默认 CI 套件执行，不依赖 Chrome）
 - **A2UI Surface Gate Chrome E2E**：`tests/e2e/test_render_ui_surface_gate_chrome_e2e.py`（READ：Settings hint + `client_surface=web` + `__TAURI__`→`tauri`；同文件旁路 LIVE 见 `test_render_ui_inline_card_chrome_e2e.py`）
 - `tests/integration/test_render_ui_sse_wiring.py`：render_ui 确定性集成（20 场景：run_bind、fail-closed、data_update、collector 链、幂等）

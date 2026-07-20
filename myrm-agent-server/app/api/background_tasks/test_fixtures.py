@@ -119,10 +119,9 @@ async def seed_shell_fixture(
         command = f'{sys.executable} -c "import sys; sys.exit(42)"'
 
     pid = await _spawn_shell_fixture(workspace=workspace, chat_id=chat_id, command=command)
+    from myrm_agent_harness.api.hooks import get_background_registry
 
     if mode == "failed":
-        from myrm_agent_harness.api.hooks import get_background_registry
-
         registry = get_background_registry()
         for _ in range(40):
             info = registry.get(pid)

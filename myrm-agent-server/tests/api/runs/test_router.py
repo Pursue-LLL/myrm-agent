@@ -11,10 +11,12 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.runs.router import (
+    _extract_stop_reason_from_metadata,
     _fetch_background_shell_runs,
     _fetch_cron_runs,
     _fetch_kanban_runs,
     _kanban_task_to_run_status,
+    _stop_reason_from_error,
     _truncate,
 )
 from app.api.runs.schemas import UnifiedRunResponse
@@ -60,6 +62,28 @@ class TestHelpers:
         assert _kanban_task_to_run_status("archived", None) == "cancelled"
         assert _kanban_task_to_run_status("unknown", "boom") == "error"
 
+    def test_extract_stop_reason_from_metadata(self) -> None:
+        metadata = {
+            "stopReason": {
+                "code": "iteration_limit_reached",
+                "category": "limit",
+                "message": "Iteration limit reached (50 iterations / 50 nodes)",
+                "detail": {"limit": 50, "nodes_completed": 50},
+            }
+        }
+        stop_reason = _extract_stop_reason_from_metadata(metadata)
+        assert stop_reason is not None
+        assert stop_reason["code"] == "iteration_limit_reached"
+        assert stop_reason["category"] == "limit"
+
+    def test_stop_reason_from_error(self) -> None:
+        timed_out = _stop_reason_from_error("execution timed out after 30s", "timed_out")
+        assert timed_out is not None
+        assert timed_out["code"] == "timed_out"
+        engine_limit = _stop_reason_from_error("Tool call limit exceeded (max_tool_calls=1)", "error")
+        assert engine_limit is not None
+        assert engine_limit["code"] == "engine_limit_reached"
+
 
 class TestFetchCronRuns:
     @pytest.mark.asyncio
@@ -80,7 +104,14 @@ class TestFetchCronRuns:
             duration_ms=1000,
             error=None,
             output="done",
-            metadata={"progressSteps": [{"tool_name": "search"}]},
+            metadata={
+                "progressSteps": [{"tool_name": "search"}],
+                "stopReason": {
+                    "code": "iteration_limit_reached",
+                    "category": "limit",
+                    "message": "Iteration limit reached (50 iterations / 50 nodes)",
+                },
+            },
         )
         job = SimpleNamespace(id="job-1", name="Digest", agent_id="agent-1")
         mgr = MagicMock()
@@ -94,6 +125,41 @@ class TestFetchCronRuns:
         assert len(items) == 1
         assert items[0].has_execution_steps is True
         assert items[0].job_id == "job-1"
+        assert items[0].stop_reason is not None
+        assert items[0].stop_reason.code == "iteration_limit_reached"
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_progress_steps_for_iteration_limit(self) -> None:
+        run_row = SimpleNamespace(
+            id="run-2",
+            job_id="job-2",
+            status="error",
+            started_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            finished_at=datetime(2026, 1, 1, 1, tzinfo=timezone.utc),
+            duration_ms=1500,
+            error="agent stopped",
+            output="partial",
+            metadata={
+                "progressSteps": [
+                    {
+                        "step_key": "iteration_limit_reached",
+                        "items": [{"text": "50 iterations / 50 nodes"}],
+                    }
+                ]
+            },
+        )
+        job = SimpleNamespace(id="job-2", name="Digest", agent_id="agent-2")
+        mgr = MagicMock()
+        mgr.list_runs = AsyncMock(return_value=[run_row])
+        mgr.list_jobs = AsyncMock(return_value=[job])
+
+        with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=mgr):
+            items, available = await _fetch_cron_runs(None, 10)
+
+        assert available is True
+        assert len(items) == 1
+        assert items[0].stop_reason is not None
+        assert items[0].stop_reason.code == "iteration_limit_reached"
 
     @pytest.mark.asyncio
     async def test_applies_status_filter(self) -> None:
@@ -283,6 +349,29 @@ class TestFetchBackgroundShellRuns:
         assert available is True
         assert len(items) == 1
         assert items[0].status == "ok"
+
+    @pytest.mark.asyncio
+    async def test_includes_stop_reason_for_failed_shell_task(self) -> None:
+        task = SimpleNamespace(
+            task_id="t-failed",
+            status="failed",
+            created_at=1_700_000_000.0,
+            completed_at=1_700_000_200.0,
+            prompt="bad",
+            result_preview="tool crashed",
+            error_category="nonzero_exit",
+        )
+        with patch(
+            "app.services.agent.shell_background_tasks.list_shell_background_tasks",
+            return_value=[task],
+        ):
+            items, available = await _fetch_background_shell_runs(None)
+
+        assert available is True
+        assert len(items) == 1
+        assert items[0].status == "error"
+        assert items[0].stop_reason is not None
+        assert items[0].stop_reason.code == "error"
 
 
 class TestFetchKanbanRunsTasks:

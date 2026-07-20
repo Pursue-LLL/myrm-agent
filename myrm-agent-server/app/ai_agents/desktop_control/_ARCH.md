@@ -9,7 +9,7 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `gate.py` | Core | `DesktopControlGate` callback + `DesktopApprovalRegistry` + trust list/revoke helpers. Empty `app_name` is fail-closed (never preapproved). Persists always-approved apps to `{workspace}/.agent/desktop_control/approved_apps.json` keyed by stable `app_id` via harness `resolve_trust_key` | ✅ |
+| `gate.py` | Core | `DesktopControlGate` callback + registry + trust helpers. Timeout via `MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC` (default 30s). Persists always-approved apps to `{workspace}/.agent/desktop_control/approved_apps.json` | ✅ |
 
 ## Trust API
 
@@ -36,10 +36,11 @@ Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' se
 | Test | `myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py` (`@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)`) |
 | Preflight | `./myrm ready --chrome`；共享 `:8080` + 私有 chat workspace gate 文件；LIVE_AGENT cap 背压并行 |
 | Gate trigger | Assert `GET /webui/desktop/approval/pending` → `server_pending>0`（禁止用 tool 名 substring 误判） |
-| UI | `DesktopControlApprovalBanner` — `data-testid="desktop-control-allow-once"` / `desktop-control-deny` / `desktop-control-allow-always` |
+| UI | `DesktopControlApprovalBanner` — `desktop-control-allow-once` / `allow-session` / `allow-always` / `deny` |
 | Settings | `DesktopPermissionsCard` — `data-testid="desktop-trust-revoke-{trust_key}"` |
-| E2E | `test_desktop_control_approval_chrome_e2e.py` + `tests/e2e/desktop_approval/` — allow_once + allow_always→Settings revoke |
+| E2E | `test_desktop_control_approval_chrome_e2e.py` + `tests/e2e/desktop_approval/` — allow_once + allow_session + allow_always→Settings revoke |
 | Bridge | `E2EChatBridge.hasDone` 或 API `chat_messages_have_done()`；无 DONE 时 poll≥15 一次性 nudge |
-| Signoff | `./myrm signoff chrome` → darwin `chrome_e2e_desktop` phase（allow_once + allow_always_settings_revoke） |
+| Signoff | `./myrm signoff chrome` → darwin `chrome_e2e_desktop` phase（3 cases；**E2E 未全绿前勿标 roadmap ✅**） |
+| E2E env | `MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC=120`（`test.sh` 对 `chrome_e2e_desktop` 自动 export） |
 | Reset | `POST /webui/desktop/approval/reset-runtime` clears in-memory gate + reloads disk approvals |
 | Retry | Product-only retries: `once` ≤3 / `always` ≤2; infra markers (Chrome/mux/wave) fail-fast — see Roadmap §12.1 |

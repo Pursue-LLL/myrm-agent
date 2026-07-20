@@ -29,12 +29,12 @@ def _desktop_approval_e2e_single_flight() -> Iterator[None]:
     fd = os.open(_LOCK_PATH, os.O_CREAT | os.O_RDWR, 0o600)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError as exc:
+    except BlockingIOError:
         os.close(fd)
         pytest.fail(
             "Another desktop approval Chrome E2E session is already running "
             f"(lock={_LOCK_PATH}). Wait for it to finish instead of starting a duplicate."
-        ) from exc
+        )
     try:
         yield
     finally:

@@ -290,6 +290,17 @@ class CdpChatBootstrap(CdpChatTransport):
             probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
             last = probe if isinstance(probe, dict) else {"probeError": probe}
             path = str(last.get("path") or "")
+            if path in ("blank", "", "about:blank") or not last.get("hasLayout"):
+                await self.cdp(
+                    "Page.navigate",
+                    {"url": f"{ui_base}/"},
+                    recv_timeout=120.0,
+                )
+                await asyncio.sleep(2)
+                await self.ensure_e2e_api_base_binding()
+                await self.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
+                await self._after_new_chat_reset()
+                continue
             if path.startswith("/settings") or path == "/onboarding":
                 await self.cdp(
                     "Page.navigate",

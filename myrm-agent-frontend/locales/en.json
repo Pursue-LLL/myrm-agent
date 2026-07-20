@@ -9015,7 +9015,14 @@
     "timeMinutesAgo": "{count}m ago",
     "timeHoursAgo": "{count}h ago",
     "timeDaysAgo": "{count}d ago",
-    "executionSteps": "Steps"
+    "executionSteps": "Steps",
+    "stopReasonTitle": "Stop Reason",
+    "stopReasonIterationLimit": "Reached iteration limit",
+    "stopReasonEngineLimit": "Reached engine safeguard limit",
+    "stopReasonTimedOut": "Execution timed out",
+    "stopReasonCancelled": "Run cancelled",
+    "stopReasonError": "Execution failed",
+    "stopReasonUnknown": "Stopped for an unknown reason"
   },
   "cron": {
     "sectionTitle": "Scheduled Tasks",

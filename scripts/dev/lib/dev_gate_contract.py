@@ -36,6 +36,7 @@ TRANSIENT_MUX_ERROR_TOKENS: Final[tuple[str, ...]] = (
     "Chrome MCP connection reset during",
     "Chrome MCP reconnect queue is full",
     "MUX_COLD_ATTACH_TIMEOUT",
+    "MUX_UPSTREAM_WAIT_TIMEOUT",
     "retry this call",
 )
 
@@ -62,10 +63,13 @@ SIGNOFF_E2E_ACTIVE_RUNTIME_CAPACITY: Final[int] = 4
 SIGNOFF_E2E_CAPACITY_WAIT_SEC: Final[int] = 600
 MUX_COLD_ATTACH_SLOTS: Final[int] = 2
 MUX_COLD_ATTACH_TIMEOUT_MS: Final[int] = 30_000
+CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT: Final[int] = 180_000
 MUX_MAX_CONCURRENT_SESSIONS: Final[int] = 6
 MUX_SIGNOFF_RESERVED_SLOTS: Final[int] = 2
 E2E_MUX_ADMISSION_WAIT_SEC: Final[int] = 900
 E2E_MUX_ADMISSION_POLL_SEC: Final[int] = 15
+MUX_UPSTREAM_WAIT_SEC: Final[int] = 900
+MUX_UPSTREAM_POLL_SEC: Final[int] = 15
 CHROME_E2E_MATRIX_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_DESKTOP_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_STRESS_TIMEOUT_SECONDS: Final[int] = 7200
@@ -103,7 +107,9 @@ BASE_TOOL_TIMEOUT_SEC: Final[float] = 180.0
 
 # --- Chrome E2E pytest-timeout SSOT (lane-aware; ≥ mux new_page retry window) ---
 
-READ_CHROME_E2E_PYTEST_TIMEOUT_SEC: Final[int] = 180
+READ_CHROME_E2E_PYTEST_TIMEOUT_SEC: Final[int] = (
+    MUX_UPSTREAM_WAIT_SEC + MAX_PAGE_TIMEOUT_MS // 1000 + 90
+)
 LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC: Final[int] = 600
 
 
@@ -262,6 +268,8 @@ def signoff_live_env_shell(*, stress: bool = False) -> str:
         f"export MYRM_MUX_MAX_CONCURRENT_SESSIONS={MUX_MAX_CONCURRENT_SESSIONS}",
         f"export MYRM_MUX_SIGNOFF_RESERVED_SLOTS={MUX_SIGNOFF_RESERVED_SLOTS}",
         f"export MYRM_E2E_MUX_ADMISSION_WAIT_SEC={E2E_MUX_ADMISSION_WAIT_SEC}",
+        f"export MYRM_MUX_UPSTREAM_WAIT_SEC={MUX_UPSTREAM_WAIT_SEC}",
+        f"export MYRM_MUX_UPSTREAM_POLL_SEC={MUX_UPSTREAM_POLL_SEC}",
         f"export MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC={SIGNOFF_MATRIX_SHARED_UI_WAIT_SEC}",
     ]
     if stress:

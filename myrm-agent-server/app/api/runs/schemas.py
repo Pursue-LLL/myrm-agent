@@ -20,6 +20,16 @@ from pydantic import BaseModel
 
 RunSource = Literal["cron", "kanban", "background"]
 RunStatus = Literal["running", "ok", "error", "skipped", "cancelled", "timed_out"]
+RunStopReasonCategory = Literal["limit", "cancelled", "error", "other"]
+
+
+class RunStopReason(BaseModel):
+    """Structured reason for why a run stopped."""
+
+    code: str
+    category: RunStopReasonCategory
+    message: str
+    detail: dict[str, object] | None = None
 
 
 class UnifiedRunResponse(BaseModel):
@@ -40,6 +50,7 @@ class UnifiedRunResponse(BaseModel):
     job_id: str | None = None
     task_id: str | None = None
     has_execution_steps: bool = False
+    stop_reason: RunStopReason | None = None
 
 
 class UnifiedRunsListResponse(BaseModel):

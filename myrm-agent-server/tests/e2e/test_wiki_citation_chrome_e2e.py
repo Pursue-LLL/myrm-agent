@@ -16,14 +16,16 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _CITATION_BUTTON_STATE = """(() => {
-  const buttons = Array.from(document.querySelectorAll('button[aria-label]'));
+  const buttons = Array.from(document.querySelectorAll('button'));
   const hit = buttons.find((button) => {
-    const label = button.getAttribute('aria-label') || '';
-    return /被引用的记忆|cited memories/i.test(label);
+    const label = (button.textContent || '').trim();
+    const aria = button.getAttribute('aria-label') || '';
+    return /依据\\s*\\d+|Evidence\\s*\\d+/i.test(label) ||
+      /sources and memories|条依据/i.test(aria);
   });
   return {
     ready: !!hit,
-    label: hit?.getAttribute('aria-label') || '',
+    label: hit?.textContent?.trim() || hit?.getAttribute('aria-label') || '',
   };
 })()"""
 

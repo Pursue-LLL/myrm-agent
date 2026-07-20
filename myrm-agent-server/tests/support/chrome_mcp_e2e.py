@@ -15,7 +15,7 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url  # noqa: E402
+from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url, _e2e_api_urlopen  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 
 __all__ = [
@@ -60,9 +60,10 @@ def http_json(
     if data is not None:
         request.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - loopback only
-            raw = response.read()
-            status = response.status
+        response = _e2e_api_urlopen(request, timeout_sec=30.0)  # noqa: S310 - loopback only
+        with response as http_response:
+            raw = http_response.read()
+            status = http_response.status
     except urllib.error.HTTPError as exc:
         raw = exc.read()
         status = exc.code

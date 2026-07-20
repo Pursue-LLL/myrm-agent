@@ -1,7 +1,7 @@
 """CDP write gate — raw target creation is forbidden outside the MCP mux.
 
 [INPUT]
-- wave_orchestrator store state (POS: diagnostics for active lease records)
+- wave_orchestrator store state via wave_state_paths.py::resolve_wave_state_file (POS: wave-orchestrator.json path SSOT bootstrap)
 
 [OUTPUT]
 - cdp_write_allowed() / assert_cdp_write_allowed() — fail-fast before direct /json/new
@@ -19,24 +19,17 @@ from pathlib import Path
 from typing import TypedDict
 
 
+from wave_state_paths import resolve_wave_state_file
+
+
 class CdpWriteDecision(TypedDict):
     allowed: bool
     reason: str
     active_leases: int
 
 
-def _state_file() -> Path:
-    wave_override = os.getenv("MYRM_WAVE_STATE_DIR", "").strip()
-    if wave_override:
-        root = Path(wave_override)
-    else:
-        override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
-        root = Path(override) if override else Path.home() / ".local/state/myrm-dev"
-    return root / "wave-orchestrator.json"
-
-
 def _count_active_leases() -> int:
-    path = _state_file()
+    path = resolve_wave_state_file()
     if not path.is_file():
         return 0
     try:

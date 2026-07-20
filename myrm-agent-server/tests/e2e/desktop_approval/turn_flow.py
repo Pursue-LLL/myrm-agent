@@ -11,7 +11,7 @@ from cdp_chat_support import chat_id_from_path, chat_messages_have_done, chat_us
 from mcp_chat_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import APPROVAL_WAIT_SEC, BASE_URL, E2E_PROMPT, progress
-from tests.e2e.desktop_approval.gate_probe import ensure_interact_gate, require_approval_gate_triggered
+from tests.e2e.desktop_approval.gate_probe import ensure_interact_gate
 from tests.e2e.desktop_approval.textedit_fixture import ensure_textedit_fixture_ready
 from tests.e2e.desktop_approval.trust_api import (
     desktop_trust_revoke_selector_js,
@@ -246,6 +246,72 @@ async def complete_turn_after_approval(
     return chat_id
 
 
+async def wait_for_approval_banner_clickable(
+    chat: McpChatSession,
+    *,
+    scope: str,
+    server_pending_hint: int,
+    ui_pending_hint: bool,
+) -> None:
+    """Wait for approval controls; click as soon as server gate is pending."""
+    if server_pending_hint <= 0 and not ui_pending_hint:
+        raise AssertionError(
+            "Expected pending desktop approval after interact gate "
+            f"(server_pending={server_pending_hint}, ui_pending={ui_pending_hint})"
+        )
+
+    async def _try_scope_click() -> dict[str, object]:
+        if scope == "always":
+            return await chat.click_desktop_allow_always()
+        if scope == "session":
+            return await chat.click_desktop_allow_session()
+        return await chat.click_desktop_allow_once()
+
+    deadline = asyncio.get_event_loop().time() + min(APPROVAL_WAIT_SEC, 25.0)
+    approval: dict[str, object] = {"pending": ui_pending_hint, "allowVisible": False}
+    poll = 0
+    activated = False
+    while asyncio.get_event_loop().time() < deadline:
+        poll += 1
+        heartbeat_e2e_lease()
+        server_pending = await asyncio.to_thread(server_pending_approval_count)
+        if server_pending > 0:
+            click = await _try_scope_click()
+            if click.get("ok") is True:
+                progress(f"approval click ok scope={scope} poll=#{poll}")
+                return
+        probe = await chat.probe_desktop_approval_once()
+        if isinstance(probe, dict):
+            approval = probe
+            if poll == 1 or poll % 8 == 0:
+                progress(
+                    f"approval poll #{poll} ui_pending={probe.get('pending')} "
+                    f"allowVisible={probe.get('allowVisible')} server_pending={server_pending}"
+                )
+            if probe.get("allowVisible"):
+                click = await _try_scope_click()
+                assert click.get("ok") is True, f"Approval click failed after banner visible: {click}"
+                return
+            if probe.get("err") == "model-completed-without-desktop-tools":
+                raise AssertionError(f"Model finished without desktop tools: {probe}")
+        if server_pending <= 0:
+            raise AssertionError(
+                "Desktop approval gate expired before approval click succeeded "
+                f"(scope={scope}, last_probe={approval})"
+            )
+        if not activated and poll >= 8:
+            progress("activate chrome to surface approval banner")
+            await asyncio.to_thread(activate_chrome)
+            activated = True
+        await asyncio.sleep(0.25)
+
+    raise AssertionError(
+        "Desktop approval click did not succeed before deadline "
+        f"(scope={scope}, server_pending={await asyncio.to_thread(server_pending_approval_count)}): "
+        f"{approval}"
+    )
+
+
 async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> str:
     progress("new chat + ensure surface")
     await chat.click_new_chat()
@@ -267,76 +333,14 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     progress(
         f"post-wait lastTool={last_tool} server_pending={server_pending} ui_pending={ui_pending}"
     )
-    require_approval_gate_triggered(
-        last_tool=last_tool,
-        server_pending=server_pending,
-        ui_pending=ui_pending,
+
+    progress("wait approval banner (fast path before gate timeout)")
+    await wait_for_approval_banner_clickable(
+        chat,
+        scope=scope,
+        server_pending_hint=server_pending,
+        ui_pending_hint=ui_pending,
     )
-
-    progress("activate chrome for approval UI")
-    await asyncio.to_thread(activate_chrome)
-    await asyncio.sleep(1.0)
-
-    progress("wait approval banner")
-    approval_deadline = asyncio.get_event_loop().time() + APPROVAL_WAIT_SEC
-    approval: dict[str, object] = {"pending": False}
-    poll = 0
-    while asyncio.get_event_loop().time() < approval_deadline:
-        poll += 1
-        heartbeat_e2e_lease()
-        server_pending = await asyncio.to_thread(server_pending_approval_count)
-        probe = await chat.probe_desktop_approval_once()
-        if isinstance(probe, dict):
-            approval = probe
-            if poll == 1 or poll % 10 == 0:
-                progress(
-                    f"approval poll #{poll} ui_pending={probe.get('pending')} "
-                    f"allowVisible={probe.get('allowVisible')} server_pending={server_pending}"
-                )
-            if probe.get("pending") or probe.get("allowVisible"):
-                break
-            if server_pending > 0:
-                await asyncio.sleep(0.5)
-                continue
-            if probe.get("err") == "model-completed-without-desktop-tools":
-                raise AssertionError(f"Model finished without desktop tools: {probe}")
-        await asyncio.sleep(0.5)
-
-    if approval.get("err") == "model-completed-without-desktop-tools":
-        raise AssertionError(f"Model finished without desktop tools: {approval}")
-    assert approval.get("pending") is True or approval.get("allowVisible") is True, (
-        f"Expected desktop approval banner (server_pending="
-        f"{await asyncio.to_thread(server_pending_approval_count)}): {approval}"
-    )
-    if not approval.get("allowVisible"):
-        allow_deadline = asyncio.get_event_loop().time() + 60.0
-        while asyncio.get_event_loop().time() < allow_deadline:
-            probe = await chat.probe_desktop_approval_once()
-            if isinstance(probe, dict) and probe.get("allowVisible"):
-                approval = probe
-                break
-            await asyncio.sleep(0.25)
-    assert approval.get("allowVisible") is True, f"Allow-once button not visible: {approval}"
-
-    if scope == "always":
-        if not approval.get("allowAlwaysVisible"):
-            always_deadline = asyncio.get_event_loop().time() + 30.0
-            while asyncio.get_event_loop().time() < always_deadline:
-                probe = await chat.probe_desktop_approval_once()
-                if isinstance(probe, dict) and probe.get("allowAlwaysVisible"):
-                    approval = probe
-                    break
-                await asyncio.sleep(0.25)
-        assert approval.get("allowAlwaysVisible") is True, (
-            f"Allow-always button not visible: {approval}"
-        )
-        progress("click allow always")
-        click = await chat.click_desktop_allow_always()
-        assert click.get("ok") is True, f"Allow-always click failed: {click}"
-    else:
-        progress("click allow once")
-        click = await chat.click_desktop_allow_once()
-        assert click.get("ok") is True, f"Allow-once click failed: {click}"
 
     chat_id_hint = str(
         (await chat.evaluate(
@@ -361,5 +365,8 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
             trust_key=trust_key,
             display_name="TextEdit",
         )
+    elif scope == "session":
+        apps = await asyncio.to_thread(list_trusted_apps_via_api)
+        assert not apps, f"Session scope must not persist trusted apps on disk: {apps}"
 
     return chat_id

@@ -180,14 +180,14 @@ def e2e_lease_heartbeat_loop(*, interval_sec: float = _E2E_HEARTBEAT_INTERVAL_SE
         worker.join(timeout=2.0)
 
 
-def _state_file() -> Path:
-    wave_override = os.environ.get("MYRM_WAVE_STATE_DIR", "").strip()
-    if wave_override:
-        root = Path(wave_override)
-    else:
-        override = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
-        root = Path(override) if override else Path.home() / ".local/state/myrm-dev"
-    return root / "wave-orchestrator.json"
+def _wave_state_path() -> Path:
+    dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
+    dev_lib_str = str(dev_lib)
+    if dev_lib_str not in sys.path:
+        sys.path.insert(0, dev_lib_str)
+    from wave_state_paths import resolve_wave_state_file
+
+    return resolve_wave_state_file()
 
 
 def _isolated_e2e_mode() -> bool:
@@ -330,7 +330,7 @@ def require_e2e_runtime_lease(
     lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
     if not lease_id:
         raise RuntimeError("E2E_LEASE_REQUIRED: run live tests via ./myrm test -m e2e; direct pytest/uv entry is blocked")
-    state_path = _state_file()
+    state_path = _wave_state_path()
     try:
         payload = json.loads(state_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -406,7 +406,7 @@ def assert_e2e_runtime_unchanged(
     if _uses_shared_hot_runtime_probe():
         expected_runtime = _shared_hot_stack_runtime_id().strip() or expected_runtime
     if current != expected_runtime:
-        healed = _attempt_runtime_drift_heal(_state_file(), lease.lease_id)
+        healed = _attempt_runtime_drift_heal(_wave_state_path(), lease.lease_id)
         if healed and healed == runtime_id_reader().strip():
             return
         raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={expected_runtime} current={current or '<missing>'}")

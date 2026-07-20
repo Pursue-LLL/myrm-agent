@@ -247,6 +247,20 @@ class CdpChatInput(CdpChatBootstrap):
         )
         return result if isinstance(result, dict) else {"ok": False, "probeError": result}
 
+    async def click_desktop_allow_session(self) -> dict[str, object]:
+        result = await self.evaluate(
+            """(() => {
+              const btn = document.querySelector('[data-testid="desktop-control-allow-session"]');
+              if (!btn || btn.disabled) {
+                return { ok: false, err: 'allow-session-not-ready' };
+              }
+              btn.click();
+              return { ok: true };
+            })()""",
+            await_promise=False,
+        )
+        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+
     async def click_desktop_deny(self) -> dict[str, object]:
         result = await self.evaluate(
             """(() => {
@@ -267,6 +281,7 @@ class CdpChatInput(CdpChatBootstrap):
               const bridge = window.__MYRM_E2E_CHAT__;
               const snap = bridge?.getDesktopApprovalSnapshot?.() ?? { pending: false };
               const allowBtn = document.querySelector('[data-testid="desktop-control-allow-once"]');
+              const sessionBtn = document.querySelector('[data-testid="desktop-control-allow-session"]');
               const alwaysBtn = document.querySelector('[data-testid="desktop-control-allow-always"]');
               const titleMatch = Array.from(document.querySelectorAll('p')).some((node) => {
                 const text = node.textContent || '';
@@ -280,6 +295,7 @@ class CdpChatInput(CdpChatBootstrap):
                 operation: snap.operation ?? '',
                 appName: snap.appName ?? '',
                 allowVisible: Boolean(allowBtn && !allowBtn.disabled),
+                allowSessionVisible: Boolean(sessionBtn && !sessionBtn.disabled),
                 allowAlwaysVisible: Boolean(alwaysBtn && !alwaysBtn.disabled),
                 titleMatch,
                 isStreaming: Boolean(turn.isStreaming),

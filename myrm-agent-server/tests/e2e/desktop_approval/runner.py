@@ -18,16 +18,12 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready
+from cdp_chat_support import fetch_provider_readiness_snapshot, get_e2e_api_url, wait_e2e_provider_ready
 from chrome_mcp_client import ChromeMcpClient
 from mcp_chat_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import BASE_URL, max_send_attempts, progress
-from tests.e2e.desktop_approval.infra_retry import (
-    ensure_mux_stack_ready,
-    open_mcp_chat_page,
-    should_abort_desktop_e2e_retries,
-)
+from tests.e2e.desktop_approval.infra_retry import open_mcp_chat_page, should_abort_desktop_e2e_retries
 from tests.e2e.desktop_approval.textedit_fixture import hide_textedit_fixture
 from tests.e2e.desktop_approval.trust_api import clear_persisted_desktop_approvals, desktop_accessibility_granted
 from tests.e2e.desktop_approval.turn_flow import run_approval_attempt
@@ -41,9 +37,10 @@ async def run_desktop_approval_chrome_e2e(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     if not wait_e2e_provider_ready():
+        readiness = fetch_provider_readiness_snapshot()
         pytest.fail(
             "Provider config not ready for live E2E — run via ./myrm test -m chrome_e2e "
-            "after ./myrm ready --chrome"
+            f"after ./myrm ready --chrome (readiness={readiness})"
         )
     if not desktop_accessibility_granted():
         pytest.fail(
@@ -79,9 +76,18 @@ async def run_desktop_approval_chrome_e2e(
                     )
                 if attempt >= attempts:
                     break
+                progress(f"retry after: {last_error}")
                 try:
+                    await asyncio.to_thread(
+                        chat._client.navigate,
+                        chat._page,
+                        BASE_URL,
+                        timeout_ms=120_000,
+                    )
+                    await asyncio.sleep(2.0)
                     await chat.ensure_e2e_api_base_binding()
                     await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+                    progress("new chat + ensure surface")
                     await chat.click_new_chat()
                     await chat.ensure_chat_surface(BASE_URL)
                 except (RuntimeError, TimeoutError, OSError) as reset_exc:
@@ -98,7 +104,6 @@ async def run_desktop_approval_chrome_e2e(
         )
 
     client = ChromeMcpClient(request_timeout_sec=180.0)
-    await asyncio.to_thread(ensure_mux_stack_ready)
     progress("start chrome MCP client")
     await asyncio.to_thread(client.start)
     try:

@@ -48,9 +48,9 @@ async def external_cli_backend_available() -> bool:
     return bool(resolved)
 
 
-async def assert_external_cli_tools_allowed(tools: Sequence[str]) -> None:
+async def assert_external_cli_tools_allowed(tools: Sequence[str] | None) -> None:
     """Reject persist when external_cli is enabled but no backend can be resolved."""
-    if "external_cli" not in tools:
+    if not tools or "external_cli" not in tools:
         return
 
     from app.config.external_cli_deploy import is_external_cli_deploy_supported

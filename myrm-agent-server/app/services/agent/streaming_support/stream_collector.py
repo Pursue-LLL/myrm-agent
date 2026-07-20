@@ -28,6 +28,57 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
 
 _SSE_DATA_PREFIX = "data: "
 _PERSISTED_STATUS_STEP_KEYS = frozenset({"archive_restore_blocked", "archive_restore_result"})
+_STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
+
+
+def _stop_reason_priority(code: str) -> int:
+    if code in {"iteration_limit_reached", "engine_limit_reached"}:
+        return 40
+    if code == "agent_cancelled":
+        return 30
+    if code == "error":
+        return 20
+    return 10
+
+
+def _normalize_stop_reason(raw: dict[str, object] | None) -> dict[str, object] | None:
+    if raw is None:
+        return None
+    code_obj = raw.get("code")
+    if not isinstance(code_obj, str) or not code_obj.strip():
+        return None
+    code = code_obj.strip()
+    category_obj = raw.get("category")
+    if isinstance(category_obj, str) and category_obj in _STOP_REASON_CATEGORIES:
+        category = category_obj
+    else:
+        category = "other"
+    message_obj = raw.get("message")
+    if isinstance(message_obj, str) and message_obj.strip():
+        message = message_obj.strip()
+    else:
+        message = code.replace("_", " ")
+    normalized: dict[str, object] = {
+        "code": code,
+        "category": category,
+        "message": message,
+    }
+    detail = string_keyed_dict(raw.get("detail"))
+    if detail:
+        normalized["detail"] = detail
+    return normalized
+
+
+def _iteration_limit_message(detail: dict[str, object] | None) -> str:
+    if detail is None:
+        return "Iteration limit reached"
+    limit = detail.get("limit")
+    nodes = detail.get("nodes_completed")
+    if limit is not None and nodes is not None:
+        return f"Iteration limit reached ({limit} iterations / {nodes} nodes)"
+    if limit is not None:
+        return f"Iteration limit reached ({limit} iterations)"
+    return "Iteration limit reached"
 
 ACTIVE_COLLECTORS: dict[str, "StreamContentCollector"] = {}
 
@@ -53,6 +104,7 @@ class StreamContentCollector:
         self._cost_usd: float | None = None
         self._cost_status: str | None = None
         self._completion_status: str | None = None
+        self._stop_reason: dict[str, object] | None = None
         self._model_name: str | None = None
         self._routing_tier: str | None = None
         self._privacy_level: str | None = None
@@ -154,6 +206,63 @@ class StreamContentCollector:
 
         if event_type == "message" and data:
             self._content_parts.append(str(data))
+        elif event_type == "iteration_limit_reached":
+            detail = string_keyed_dict(data) if isinstance(data, dict) else None
+            payload: dict[str, object] = {
+                "code": "iteration_limit_reached",
+                "category": "limit",
+                "message": _iteration_limit_message(detail),
+            }
+            if detail is not None:
+                payload["detail"] = detail
+            self._set_stop_reason(payload)
+        elif event_type == "engine_limit_reached":
+            detail = string_keyed_dict(data) if isinstance(data, dict) else None
+            message = "Engine limit reached"
+            if detail is not None:
+                raw_message = detail.get("message")
+                if isinstance(raw_message, str) and raw_message.strip():
+                    message = raw_message.strip()
+            payload_2: dict[str, object] = {
+                "code": "engine_limit_reached",
+                "category": "limit",
+                "message": message,
+            }
+            if detail is not None:
+                payload_2["detail"] = detail
+            self._set_stop_reason(payload_2)
+        elif event_type == "agent_cancelled":
+            detail = string_keyed_dict(data) if isinstance(data, dict) else None
+            reason = detail.get("reason") if detail else None
+            message = "Cancelled by user" if reason == "user_cancelled" else "Run cancelled"
+            payload_3: dict[str, object] = {
+                "code": "agent_cancelled",
+                "category": "cancelled",
+                "message": message,
+            }
+            if detail is not None:
+                payload_3["detail"] = detail
+            self._set_stop_reason(payload_3)
+        elif event_type == "error":
+            raw_error = event.get("error")
+            error_message = ""
+            if isinstance(raw_error, str) and raw_error.strip():
+                error_message = raw_error.strip()
+            elif isinstance(data, str) and data.strip():
+                error_message = data.strip()
+            if error_message:
+                detail_2: dict[str, object] = {}
+                error_type = event.get("error_type")
+                if isinstance(error_type, str) and error_type.strip():
+                    detail_2["error_type"] = error_type.strip()
+                payload_4: dict[str, object] = {
+                    "code": "error",
+                    "category": "error",
+                    "message": error_message,
+                }
+                if detail_2:
+                    payload_4["detail"] = detail_2
+                self._set_stop_reason(payload_4)
         elif event_type == "reasoning" and data:
             self._reasoning_parts.append(str(data))
         elif event_type == "sources" and isinstance(data, list):
@@ -291,6 +400,8 @@ class StreamContentCollector:
         result: dict[str, object] = {}
         if self._sources:
             result["sources"] = self._sources
+        if self._stop_reason:
+            result["stopReason"] = self._stop_reason
         if self._progress_steps:
             result["progressSteps"] = self._progress_steps
         if self._usage:
@@ -336,6 +447,20 @@ class StreamContentCollector:
         if self.reasoning:
             result["reasoning"] = self.reasoning
         return result or None
+
+    def _set_stop_reason(self, payload: dict[str, object]) -> None:
+        normalized = _normalize_stop_reason(payload)
+        if normalized is None:
+            return
+        if self._stop_reason is None:
+            self._stop_reason = normalized
+            return
+        current_code = self._stop_reason.get("code")
+        current_priority = _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
+        next_code = normalized.get("code")
+        next_priority = _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
+        if next_priority >= current_priority:
+            self._stop_reason = normalized
 
     def _extend_cited_memory_refs(self, refs: list[object]) -> None:
         seen = {str(ref.get("id")) for ref in self._cited_memory_refs if isinstance(ref.get("id"), str)}

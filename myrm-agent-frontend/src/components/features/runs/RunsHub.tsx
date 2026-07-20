@@ -70,6 +70,16 @@ function formatRelativeTime(isoDate: string, t: ReturnType<typeof useTranslation
   return t('timeDaysAgo', { count: days });
 }
 
+function stopReasonLabelKey(code: string | undefined): string {
+  if (!code) return 'stopReasonUnknown';
+  if (code === 'iteration_limit_reached') return 'stopReasonIterationLimit';
+  if (code === 'engine_limit_reached') return 'stopReasonEngineLimit';
+  if (code === 'timed_out') return 'stopReasonTimedOut';
+  if (code === 'agent_cancelled' || code === 'user_cancelled') return 'stopReasonCancelled';
+  if (code === 'error') return 'stopReasonError';
+  return 'stopReasonUnknown';
+}
+
 const STATUS_FILTERS = [
   { value: '', labelKey: 'filterAll' },
   { value: 'running', labelKey: 'filterRunning' },
@@ -265,7 +275,10 @@ export function RunsHub() {
 
 function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslations> }) {
   const [expanded, setExpanded] = useState(false);
-  const hasDetail = !!(run.output || run.error || run.has_execution_steps);
+  const hasDetail = !!(run.output || run.error || run.stop_reason || run.has_execution_steps);
+  const stopReasonLabel = run.stop_reason ? t(stopReasonLabelKey(run.stop_reason.code)) : null;
+  const stopReasonMessage = run.stop_reason?.message?.trim() || null;
+  const compactStopReason = !run.error ? stopReasonMessage : null;
 
   return (
     <div
@@ -297,7 +310,10 @@ function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslati
           {!expanded && run.error && (
             <p className="text-[11px] text-red-500/80 dark:text-red-400/80 font-mono truncate">{run.error}</p>
           )}
-          {!expanded && !run.error && run.summary && (
+          {!expanded && !run.error && compactStopReason && (
+            <p className="text-[11px] text-amber-600/90 dark:text-amber-300/90 truncate">{compactStopReason}</p>
+          )}
+          {!expanded && !run.error && !compactStopReason && run.summary && (
             <p className="text-[11px] text-muted-foreground truncate">{run.summary}</p>
           )}
         </div>
@@ -326,6 +342,23 @@ function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslati
             <pre className="text-xs text-red-500/80 dark:text-red-400/80 bg-red-500/5 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
               {run.error}
             </pre>
+          )}
+          {run.stop_reason && (
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-2 space-y-1">
+              <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+                {t('stopReasonTitle')}
+              </p>
+              {stopReasonLabel && (
+                <p className="text-xs text-foreground/90">
+                  {stopReasonLabel}
+                </p>
+              )}
+              {stopReasonMessage && (
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                  {stopReasonMessage}
+                </p>
+              )}
+            </div>
           )}
           {Array.isArray(run.metadata?.progressSteps) && (
             <div className="rounded-lg border border-border/30 bg-muted/20 p-2 space-y-1">

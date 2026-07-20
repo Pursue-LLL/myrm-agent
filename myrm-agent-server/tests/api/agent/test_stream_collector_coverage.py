@@ -49,6 +49,8 @@ async def test_stream_collector_full_coverage():
             "usage_alert": {"alert": "high"},
         }
     )
+    collector.feed_event({"type": "error", "error": "temporary failure", "error_type": "runtime"})
+    collector.feed_event({"type": "iteration_limit_reached", "data": {"limit": 50, "nodes_completed": 50}})
 
     # 6. Test routing, privacy
     collector.feed_event({"type": "routing_decision", "data": {"tier": "reasoning"}})
@@ -100,6 +102,8 @@ async def test_stream_collector_full_coverage():
     assert extra["citedMemoryIds"] == ["m1", "m2"]
     assert extra["citedMemoryRefs"][0]["id"] == "m1"
     assert extra["memoryRetrievalTraces"][0]["id"] == "t1"
+    assert extra["stopReason"]["code"] == "iteration_limit_reached"
+    assert extra["stopReason"]["category"] == "limit"
 
     # Cleanup
     collector.cleanup()

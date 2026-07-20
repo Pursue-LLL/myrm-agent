@@ -7,6 +7,8 @@ UI_BASE="${E2E_UI_BASE:-http://127.0.0.1:3000}"
 API_BASE="${E2E_API_BASE:-http://127.0.0.1:8080}"
 MYRM_CHROME_E2E_ATTACH="${MYRM_CHROME_E2E_ATTACH:-0}"
 export MYRM_CHROME_E2E_ATTACH
+MYRM_MUX_ALLOW_TIMEOUT_RESTART="${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-1}"
+export MYRM_MUX_ALLOW_TIMEOUT_RESTART
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=myrm-chrome-e2e-lib.sh
@@ -171,10 +173,17 @@ _ensure_stack_epoch_file() {
 }
 
 # 1. Dev servers (Next.js cold compile can exceed 3s)
-if ! curl -sf --max-time 30 "$UI_BASE" >/dev/null; then
-  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-    fail "Frontend not reachable at $UI_BASE — first Agent must run: ./myrm ready --chrome"
+if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+  attach_errors="$("${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from runtime_identity import attach_endpoint_errors
+print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
+")"
+  if [[ -n "${attach_errors}" ]]; then
+    fail "CHROME_E2E_ATTACH_NOT_READY: ${attach_errors} — first Agent must run: ./myrm ready --chrome"
   fi
+elif ! curl -sf --max-time 30 "$UI_BASE" >/dev/null; then
   if [[ -f "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ]]; then
     echo "CHROME_E2E_WARN: frontend down — attach or ensure via supervisor" >&2
     bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" attach \
@@ -183,10 +192,7 @@ if ! curl -sf --max-time 30 "$UI_BASE" >/dev/null; then
   fi
   curl -sf --max-time 30 "$UI_BASE" >/dev/null || fail "Frontend not reachable at $UI_BASE — run: myrm start"
 fi
-if ! curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null; then
-  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-    fail "Backend not reachable at $API_BASE — first Agent must run: ./myrm ready --chrome"
-  fi
+if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] && ! curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null; then
   if [[ -f "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ]]; then
     echo "CHROME_E2E_WARN: backend down — attach or ensure via supervisor" >&2
     bash "${AGENT_ROOT}/scripts/dev/dev-stack.sh" attach \
@@ -239,7 +245,7 @@ ACTIVE_PORT_FILE="${MYRM_CHROME_E2E_ACTIVE_PORT_FILE}"
 
 # 4. mux daemon (parallel Agent tabs)
 MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}"
-MUX_REQUEST_TIMEOUT_MS="${CDMCP_MUX_REQUEST_TIMEOUT_MS:-120000}"
+MUX_REQUEST_TIMEOUT_MS="${CDMCP_MUX_REQUEST_TIMEOUT_MS:-180000}"
 export CDMCP_MUX_REQUEST_TIMEOUT_MS="${MUX_REQUEST_TIMEOUT_MS}"
 MUX_TIMEOUT_STAMP="${MUX_STATE_DIR}/request-timeout-ms"
 MUX_DAEMON_TIMEOUT_STAMP="${MUX_STATE_DIR}/request-timeout-ms-at-daemon-start"
@@ -516,7 +522,11 @@ _mux_daemon_timeout_matches() {
 }
 
 _mux_request_timeout_effective() {
-  _mux_timeout_stamp_matches && _mux_daemon_timeout_matches
+  [[ "${MUX_USING}" -eq 1 ]] || return 0
+  "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux_responsive_probe.py" \
+    --expected-ms "${MUX_REQUEST_TIMEOUT_MS}" \
+    --state-dir "${MUX_STATE_DIR}" \
+    --socket "${MUX_SOCKET}"
 }
 
 _heal_mux_request_timeout_drift() {
@@ -524,20 +534,45 @@ _heal_mux_request_timeout_drift() {
   if _mux_request_timeout_effective; then
     return 0
   fi
-  if [[ ! -f "${MUX_PID_FILE}" ]]; then
+  local stamp_drift=0
+  if ! _mux_timeout_stamp_matches || ! _mux_daemon_timeout_matches; then
+    stamp_drift=1
+  fi
+  if [[ "${stamp_drift}" -eq 1 ]]; then
+    if [[ ! -f "${MUX_PID_FILE}" ]]; then
+      return 0
+    fi
+    local pid
+    pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
+    [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null || return 0
+    if _mux_timeout_restart_allowed || _mux_restart_allowed; then
+      _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+    elif _mux_attach_timeout_restart_allowed; then
+      _restart_mux_safely "attach request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+    elif _mux_upstream_ready && _mux_ws_stamp_matches; then
+      fail "mux request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms) — daemon probe failed; attach restart not allowed"
+    else
+      _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+    fi
+    if ! _mux_request_timeout_effective; then
+      fail "mux timeout probe still failing after heal (${MUX_REQUEST_TIMEOUT_MS}ms)"
+    fi
     return 0
   fi
-  local pid
-  pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
-  [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null || return 0
-  if _mux_timeout_restart_allowed || _mux_restart_allowed; then
-    _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
-  elif _mux_attach_timeout_restart_allowed; then
-    _restart_mux_safely "attach request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
-  elif _mux_upstream_ready && _mux_ws_stamp_matches; then
-    fail "mux request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms) — daemon still on prior timeout; parallel attach blocked restart"
-  else
-    _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+  local i
+  for i in $(seq 1 8); do
+    sleep 1
+    if _mux_request_timeout_effective; then
+      ok "mux responsive after SSOT stamp warmup retry"
+      return 0
+    fi
+  done
+  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+    fail "mux tools/list unresponsive with matching timeout stamps (${MUX_REQUEST_TIMEOUT_MS}ms)"
+  fi
+  _restart_mux_safely "mux unresponsive despite matching timeout stamps (${MUX_REQUEST_TIMEOUT_MS}ms)"
+  if ! _mux_request_timeout_effective; then
+    fail "mux timeout probe still failing after heal (${MUX_REQUEST_TIMEOUT_MS}ms)"
   fi
 }
 
@@ -571,7 +606,15 @@ _ensure_mux_daemon() {
 }
 
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+  if [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
+    MYRM_WAVE_GATE_BYPASS=1 bash "${SCRIPT_DIR}/dev-stack.sh" backend-only ensure >/dev/null 2>&1 \
+      || echo "CHROME_E2E_WARN: attach backend ensure for source drift failed" >&2
+  fi
   _heal_mux_request_timeout_drift
+  if [[ "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" == "1" ]]; then
+    ok "mux heal-only complete (attach mode, timeout=${MUX_REQUEST_TIMEOUT_MS}ms)"
+    exit 0
+  fi
   if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
     _private_backend_attach_path
     exit 0

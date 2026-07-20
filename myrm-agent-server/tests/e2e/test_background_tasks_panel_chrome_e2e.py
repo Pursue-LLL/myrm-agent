@@ -53,11 +53,11 @@ _FAILED_SHELL_ROW_JS = """(() => {
   };
 })()"""
 
-_RUNNING_PREVIEW_JS = """(() => {
+_PANEL_RUNNING_JS = """(() => {
   const text = document.body?.innerText || '';
-  return {
-    ready: /MYRM_E2E_SHELL_RUNNING/.test(text),
-  };
+  const hasRunning = /running|运行中/i.test(text);
+  const hasShell = /Shell jobs|Shell 任务/i.test(text);
+  return { ready: hasRunning && hasShell, text: text.slice(0, 500) };
 })()"""
 
 
@@ -129,6 +129,27 @@ _CANCEL_RUNNING_JS = """(() => {
 })()"""
 
 
+def _wait_api_task_status(
+    api_base: str,
+    task_id: str,
+    expected_status: str,
+    *,
+    timeout_sec: float = 30.0,
+) -> None:
+    deadline = time.monotonic() + timeout_sec
+    last_status = ""
+    while time.monotonic() < deadline:
+        row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
+        assert isinstance(row, dict)
+        last_status = str(row.get("status") or "")
+        if last_status == expected_status:
+            return
+        time.sleep(0.5)
+    raise AssertionError(
+        f"API status expected {expected_status!r} for {task_id}; last={last_status!r}"
+    )
+
+
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.timeout(300)
 def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
@@ -140,6 +161,8 @@ def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
     assert isinstance(seed, dict)
     task_id = str(seed["task_id"])
 
+    _wait_api_task_status(api_base, task_id, "running")
+
     warm_ui_route("/")
     with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
         opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
@@ -147,8 +170,8 @@ def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
         panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
         assert panel.get("ready") is True, panel
 
-        preview = wait_for_state(client, page, _RUNNING_PREVIEW_JS, timeout_sec=30.0)
-        assert preview.get("ready") is True, preview
+        running_row = wait_for_state(client, page, _PANEL_RUNNING_JS, timeout_sec=30.0)
+        assert running_row.get("ready") is True, running_row
 
         cancelled = client.evaluate(page, _CANCEL_RUNNING_JS, timeout_sec=10.0)
         assert cancelled.get("clicked") is True, cancelled

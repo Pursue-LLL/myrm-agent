@@ -17,8 +17,10 @@ import sys
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 APPROVAL_WAIT_SEC = 240.0
+GATE_IDLE_FAIL_FAST_SEC = 60.0
 MAX_SEND_ATTEMPTS_ONCE = 3
-MAX_SEND_ATTEMPTS_ALWAYS = 2
+MAX_SEND_ATTEMPTS_ALWAYS = 3
+MAX_SEND_ATTEMPTS_SESSION = 2
 INFRA_ABORT_MARKERS = (
     "ECONNREFUSED",
     "Could not connect to Chrome",
@@ -52,4 +54,6 @@ def progress(message: str) -> None:
 def max_send_attempts(scope: str) -> int:
     if scope == "always":
         return MAX_SEND_ATTEMPTS_ALWAYS
+    if scope == "session":
+        return MAX_SEND_ATTEMPTS_SESSION
     return MAX_SEND_ATTEMPTS_ONCE

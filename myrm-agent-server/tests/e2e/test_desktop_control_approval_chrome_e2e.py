@@ -50,3 +50,19 @@ async def test_chrome_ui_desktop_control_approval_allow_always_settings_revoke(
         label="allow-always-settings-revoke",
         e2e_resource_ledger=e2e_resource_ledger,
     )
+
+
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
+@pytest.mark.chrome_e2e_desktop
+@pytest.mark.integration
+@pytest.mark.timeout(1800)
+@pytest.mark.skipif(platform.system() != "Darwin", reason="macOS computer_use only")
+@pytest.mark.asyncio
+async def test_chrome_ui_desktop_control_approval_allow_session(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    await run_desktop_approval_chrome_e2e(
+        scope="session",
+        label="allow-session",
+        e2e_resource_ledger=e2e_resource_ledger,
+    )

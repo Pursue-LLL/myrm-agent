@@ -65,6 +65,46 @@ class BlueprintFillResult:
     name: str
     required_capabilities: tuple[str, ...] = ()
     tools_allowed: tuple[str, ...] | None = None
+    job_type: Literal["agent", "shell", "router", "reminder"] = "agent"
+    session_target: Literal["isolated", "main", "daily"] = "isolated"
+    deduplicate: bool = False
+    skip_if_active: bool = False
+    timeout_seconds: int | None = None
+    monitor_config: "BlueprintMonitorDefaults | None" = None
+    failure_alert: "BlueprintFailureAlertDefaults | None" = None
+    pre_condition_script: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BlueprintMonitorDefaults:
+    """Default monitor configuration to apply when creating a job from a blueprint."""
+
+    monitor_type: Literal["set", "hash", "timeseries"] = "set"
+    ttl_days: int = 30
+    enabled: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class BlueprintFailureAlertDefaults:
+    """Default failure-alert policy to apply when creating a job from a blueprint."""
+
+    enabled: bool = True
+    after: int = 3
+    cooldown_seconds: int = 300
+
+
+@dataclass(frozen=True, slots=True)
+class BlueprintJobDefaults:
+    """Execution defaults used to materialize a full Cron create payload."""
+
+    job_type: Literal["agent", "shell", "router", "reminder"] = "agent"
+    session_target: Literal["isolated", "main", "daily"] = "isolated"
+    deduplicate: bool = False
+    skip_if_active: bool = False
+    timeout_seconds: int | None = None
+    monitor_config: BlueprintMonitorDefaults | None = None
+    failure_alert: BlueprintFailureAlertDefaults | None = None
+    pre_condition_script_template: dict[str, str] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +122,7 @@ class CronBlueprint:
     sort_order: int = 0
     default_required_capabilities: tuple[str, ...] = ()
     default_tools_allowed: tuple[str, ...] | None = None
+    job_defaults: BlueprintJobDefaults = field(default_factory=BlueprintJobDefaults)
     _schedule_builder: str = field(default="", repr=False)
 
 
@@ -116,6 +157,7 @@ def _with_supplemental_locales(bp: CronBlueprint) -> CronBlueprint:
         sort_order=bp.sort_order,
         default_required_capabilities=bp.default_required_capabilities,
         default_tools_allowed=bp.default_tools_allowed,
+        job_defaults=bp.job_defaults,
         _schedule_builder=bp._schedule_builder,
     )
 
@@ -529,6 +571,239 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         _schedule_builder="time_weekdays",
     ),
     CronBlueprint(
+        id="financial_monitor_simple",
+        icon="Activity",
+        title={"en": "Financial Monitor (Simple)", "zh": "金融监控（简单版）"},
+        description={
+            "en": "Zero-LLM threshold alert using a Python pre-flight probe",
+            "zh": "使用 Python 预检脚本的零 LLM 阈值告警",
+        },
+        prompt_template={
+            "en": (
+                "This job runs in router mode. Use the pre-flight probe output as the final message. "
+                "If the probe prints [SKIP], stay silent."
+            ),
+            "zh": (
+                "该任务运行在 router 模式。将预检脚本输出作为最终消息。"
+                "如果预检脚本输出 [SKIP]，保持静默。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="08:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekdays",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(name="asset", type="text", label="asset", default="bitcoin"),
+            BlueprintSlot(
+                name="quote_currency",
+                type="enum",
+                label="quote_currency",
+                default="usd",
+                options=("usd", "usdt", "eur", "cny"),
+            ),
+            BlueprintSlot(name="lower_bound", type="text", label="lower_bound", default="58000"),
+            BlueprintSlot(name="upper_bound", type="text", label="upper_bound", default="68000"),
+            BlueprintSlot(
+                name="source",
+                type="enum",
+                label="source",
+                default="coingecko",
+                options=("coingecko", "binance"),
+            ),
+        ),
+        category="business",
+        tags=("finance", "monitoring", "threshold", "low-cost"),
+        sort_order=10,
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=90,
+            pre_condition_script_template={
+                "en": (
+                    "import json\n"
+                    "import urllib.request\n"
+                    "from datetime import datetime, timezone\n"
+                    "\n"
+                    'asset_id = "{asset}".strip().lower()\n'
+                    'vs_currency = "{quote_currency}".strip().lower()\n'
+                    'lower_bound = float("{lower_bound}")\n'
+                    'upper_bound = float("{upper_bound}")\n'
+                    'source = "{source}".strip().lower()\n'
+                    "\n"
+                    "def _fetch_price() -> float:\n"
+                    '    if source == "binance":\n'
+                    "        symbol = asset_id.upper() + vs_currency.upper()\n"
+                    '        url = "https://api.binance.com/api/v3/ticker/price?symbol=" + symbol\n'
+                    "        with urllib.request.urlopen(url, timeout=12) as resp:\n"
+                    '            data = json.loads(resp.read().decode("utf-8"))\n'
+                    '        return float(data["price"])\n'
+                    "\n"
+                    '    url = "https://api.coingecko.com/api/v3/simple/price?ids=" + asset_id + "&vs_currencies=" + vs_currency\n'
+                    "    with urllib.request.urlopen(url, timeout=12) as resp:\n"
+                    '        data = json.loads(resp.read().decode("utf-8"))\n'
+                    "    if asset_id not in data or vs_currency not in data[asset_id]:\n"
+                    '        raise RuntimeError("No quote returned for " + asset_id + "/" + vs_currency)\n'
+                    "    return float(data[asset_id][vs_currency])\n"
+                    "\n"
+                    "price = _fetch_price()\n"
+                    "timestamp = datetime.now(timezone.utc).isoformat()\n"
+                    "\n"
+                    "if price < lower_bound or price > upper_bound:\n"
+                    '    direction = "below" if price < lower_bound else "above"\n'
+                    "    print(\n"
+                    '        "[ALERT] "\n'
+                    "        + asset_id.upper()\n"
+                    '        + "/"\n'
+                    "        + vs_currency.upper()\n"
+                    '        + " is "\n'
+                    "        + direction\n"
+                    '        + " threshold (price="\n'
+                    '        + ("%.4f" % price)\n'
+                    '        + ", range="\n'
+                    '        + ("%.4f" % lower_bound)\n'
+                    '        + "-"\n'
+                    '        + ("%.4f" % upper_bound)\n'
+                    '        + ", source="\n'
+                    "        + source\n"
+                    '        + ", ts="\n'
+                    "        + timestamp\n"
+                    '        + ")"\n'
+                    "    )\n"
+                    "else:\n"
+                    '    print("[SKIP]")\n'
+                ),
+                "zh": (
+                    "import json\n"
+                    "import urllib.request\n"
+                    "from datetime import datetime, timezone\n"
+                    "\n"
+                    'asset_id = "{asset}".strip().lower()\n'
+                    'vs_currency = "{quote_currency}".strip().lower()\n'
+                    'lower_bound = float("{lower_bound}")\n'
+                    'upper_bound = float("{upper_bound}")\n'
+                    'source = "{source}".strip().lower()\n'
+                    "\n"
+                    "def _fetch_price() -> float:\n"
+                    '    if source == "binance":\n'
+                    "        symbol = asset_id.upper() + vs_currency.upper()\n"
+                    '        url = "https://api.binance.com/api/v3/ticker/price?symbol=" + symbol\n'
+                    "        with urllib.request.urlopen(url, timeout=12) as resp:\n"
+                    '            data = json.loads(resp.read().decode("utf-8"))\n'
+                    '        return float(data["price"])\n'
+                    "\n"
+                    '    url = "https://api.coingecko.com/api/v3/simple/price?ids=" + asset_id + "&vs_currencies=" + vs_currency\n'
+                    "    with urllib.request.urlopen(url, timeout=12) as resp:\n"
+                    '        data = json.loads(resp.read().decode("utf-8"))\n'
+                    "    if asset_id not in data or vs_currency not in data[asset_id]:\n"
+                    '        raise RuntimeError("No quote returned for " + asset_id + "/" + vs_currency)\n'
+                    "    return float(data[asset_id][vs_currency])\n"
+                    "\n"
+                    "price = _fetch_price()\n"
+                    "timestamp = datetime.now(timezone.utc).isoformat()\n"
+                    "\n"
+                    "if price < lower_bound or price > upper_bound:\n"
+                    '    direction = "below" if price < lower_bound else "above"\n'
+                    "    print(\n"
+                    '        "[ALERT] "\n'
+                    "        + asset_id.upper()\n"
+                    '        + "/"\n'
+                    "        + vs_currency.upper()\n"
+                    '        + " is "\n'
+                    "        + direction\n"
+                    '        + " threshold (price="\n'
+                    '        + ("%.4f" % price)\n'
+                    '        + ", range="\n'
+                    '        + ("%.4f" % lower_bound)\n'
+                    '        + "-"\n'
+                    '        + ("%.4f" % upper_bound)\n'
+                    '        + ", source="\n'
+                    "        + source\n"
+                    '        + ", ts="\n'
+                    "        + timestamp\n"
+                    '        + ")"\n'
+                    "    )\n"
+                    "else:\n"
+                    '    print("[SKIP]")\n'
+                ),
+            },
+        ),
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="financial_monitor_advanced",
+        icon="Eye",
+        title={"en": "Financial Monitor (Advanced)", "zh": "金融监控（高级版）"},
+        description={
+            "en": "Multi-signal financial watch with dedupe, monitor baseline, and failure alerts",
+            "zh": "带去重、增量监控与失败告警的多信号金融监控",
+        },
+        prompt_template={
+            "en": (
+                "Monitor these assets continuously: {watchlist}. "
+                "Evaluate each run with five lenses: price action, derivatives/funding, sentiment (X + news), "
+                "macro catalysts, and on-chain flow proxies. "
+                "Alert only when at least two independent risk signals align with: {signal_rules}. "
+                "Portfolio context: {portfolio_context}. "
+                "If there is no actionable change, reply with exactly [SILENT]. "
+                "If alerting, return concise markdown with: asset, trigger reason, confidence(0-100), "
+                "invalidation level, and immediate follow-up checks."
+            ),
+            "zh": (
+                "持续监控以下资产：{watchlist}。"
+                "每次运行按五个维度评估：价格行为、衍生品/资金费率、情绪（X+新闻）、宏观催化、链上资金流。"
+                "仅当至少两个独立风险信号与以下规则同时成立时告警：{signal_rules}。"
+                "组合上下文：{portfolio_context}。"
+                "若无可执行变化，必须仅回复 [SILENT]。"
+                "若触发告警，输出简洁 Markdown，包含：资产、触发原因、置信度(0-100)、失效位、下一步检查项。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekdays",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(name="watchlist", type="text", label="watchlist", default="BTC,ETH,SOL"),
+            BlueprintSlot(
+                name="signal_rules",
+                type="text",
+                label="signal_rules",
+                default="price breakdown + funding flip + sentiment deterioration",
+            ),
+            BlueprintSlot(
+                name="portfolio_context",
+                type="text",
+                label="portfolio_context",
+                default="",
+                optional=True,
+            ),
+        ),
+        category="business",
+        tags=("finance", "monitoring", "multi-signal", "advanced"),
+        sort_order=11,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        job_defaults=BlueprintJobDefaults(
+            job_type="agent",
+            session_target="daily",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=240,
+            monitor_config=BlueprintMonitorDefaults(monitor_type="hash", ttl_days=14, enabled=True),
+            failure_alert=BlueprintFailureAlertDefaults(enabled=True, after=2, cooldown_seconds=900),
+        ),
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
         id="read_it_later",
         icon="BookmarkPlus",
         title={"en": "Read-it-Later Ingestion", "zh": "稍后读知识内化"},
@@ -565,7 +840,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         ),
         category="productivity",
         tags=("read-it-later", "knowledge", "ingestion", "wiki", "automation"),
-        sort_order=10,
+        sort_order=12,
         default_required_capabilities=("net_fetch", "file_read"),
         default_tools_allowed=("web_fetch", "file_read"),
         _schedule_builder="time_weekdays",
@@ -636,7 +911,9 @@ def fill_blueprint(
 
     schedule = _build_schedule_from_blueprint(bp, effective_values, tz)
     prompt = _build_prompt_from_blueprint(bp, effective_values, locale)
+    pre_condition_script = _build_pre_condition_script(bp, effective_values, locale)
     name = _resolve_locale_title(bp, locale)[:40]
+    defaults = bp.job_defaults
 
     return BlueprintFillResult(
         schedule=schedule,
@@ -644,6 +921,14 @@ def fill_blueprint(
         name=name,
         required_capabilities=bp.default_required_capabilities,
         tools_allowed=bp.default_tools_allowed,
+        job_type=defaults.job_type,
+        session_target=defaults.session_target,
+        deduplicate=defaults.deduplicate,
+        skip_if_active=defaults.skip_if_active,
+        timeout_seconds=defaults.timeout_seconds,
+        monitor_config=defaults.monitor_config,
+        failure_alert=defaults.failure_alert,
+        pre_condition_script=pre_condition_script,
     )
 
 
@@ -682,6 +967,26 @@ def _build_prompt_from_blueprint(
         return template.format(**values)
     except KeyError as exc:
         raise BlueprintFillError(f"blueprint prompt missing value for {exc}") from exc
+
+
+def _build_pre_condition_script(
+    bp: CronBlueprint,
+    values: dict[str, str],
+    locale: str,
+) -> str | None:
+    """Build pre-condition script from locale-aware template if configured."""
+    templates = bp.job_defaults.pre_condition_script_template
+    if not templates:
+        return None
+
+    lang = locale if locale in templates else "en"
+    template = templates.get(lang, templates.get("en", ""))
+    if not template:
+        return None
+    try:
+        return template.format(**values)
+    except KeyError as exc:
+        raise BlueprintFillError(f"blueprint pre-condition script missing value for {exc}") from exc
 
 
 def _slot_name_for_tool_description(slot: BlueprintSlot) -> str:

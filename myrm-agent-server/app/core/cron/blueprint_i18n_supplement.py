@@ -283,6 +283,68 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
             ),
         },
     },
+    "financial_monitor_simple": {
+        "title": {
+            "ja": "金融モニター（シンプル）",
+            "de": "Finanz-Monitor (Einfach)",
+            "ko": "금융 모니터 (심플)",
+        },
+        "description": {
+            "ja": "Python 事前プローブで動くゼロLLMしきい値アラート",
+            "de": "Zero-LLM-Schwellwertalarm mit Python-Preflight-Probe",
+            "ko": "Python 사전 점검으로 동작하는 제로 LLM 임계치 알림",
+        },
+        "prompt_template": {
+            "ja": (
+                "このジョブは router モードです。事前プローブ出力を最終メッセージとしてそのまま配信します。"
+                "プローブが [SKIP] を出した場合は通知しません。"
+            ),
+            "de": (
+                "Dieser Job läuft im Router-Modus. Nutze die Ausgabe der Preflight-Probe "
+                "als finale Nachricht. Wenn die Probe [SKIP] ausgibt, bleibe still."
+            ),
+            "ko": (
+                "이 작업은 router 모드로 실행됩니다. 사전 점검 출력값을 최종 메시지로 그대로 전달합니다. "
+                "프로브가 [SKIP]를 출력하면 알림을 보내지 않습니다."
+            ),
+        },
+    },
+    "financial_monitor_advanced": {
+        "title": {
+            "ja": "金融モニター（アドバンスド）",
+            "de": "Finanz-Monitor (Erweitert)",
+            "ko": "금융 모니터 (고급)",
+        },
+        "description": {
+            "ja": "重複抑制・増分監視・障害アラート付きの複合シグナル監視",
+            "de": "Multi-Signal-Finanzüberwachung mit Dedupe, Baseline-Monitoring und Fehleralarm",
+            "ko": "중복 억제·증분 모니터링·실패 알림을 포함한 멀티 시그널 금융 모니터링",
+        },
+        "prompt_template": {
+            "ja": (
+                "次の資産を継続監視：{watchlist}。"
+                "価格、デリバティブ/資金調達、センチメント（X/ニュース）、マクロ、オンチェーン資金流を評価。"
+                "次の条件 {signal_rules} に対して、独立したリスク信号が2つ以上一致したときのみアラート。"
+                "ポートフォリオ文脈：{portfolio_context}。"
+                "実行可能な変化がなければ必ず [SILENT] のみを返す。"
+            ),
+            "de": (
+                "Überwache diese Assets kontinuierlich: {watchlist}. "
+                "Bewerte Preisverhalten, Derivate/Funding, Stimmung (X + News), Makro-Katalysatoren "
+                "und On-Chain-Flow-Proxys. Alarme nur, wenn mindestens zwei unabhängige "
+                "Risikosignale mit {signal_rules} übereinstimmen. "
+                "Portfolio-Kontext: {portfolio_context}. "
+                "Wenn keine umsetzbare Änderung vorliegt, antworte exakt mit [SILENT]."
+            ),
+            "ko": (
+                "다음 자산을 지속 모니터링하세요: {watchlist}. "
+                "가격 흐름, 파생/펀딩, 감성(X+뉴스), 거시 촉매, 온체인 자금 흐름을 함께 평가합니다. "
+                "{signal_rules} 기준과 독립된 리스크 신호 2개 이상이 동시에 맞을 때만 알림합니다. "
+                "포트폴리오 컨텍스트: {portfolio_context}. "
+                "실행 가능한 변화가 없으면 반드시 [SILENT]만 반환하세요."
+            ),
+        },
+    },
     "read_it_later": {
         "title": {
             "ja": "後で読む取り込み",

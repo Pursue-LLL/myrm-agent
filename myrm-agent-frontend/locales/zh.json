@@ -9015,7 +9015,14 @@
     "timeMinutesAgo": "{count} 分钟前",
     "timeHoursAgo": "{count} 小时前",
     "timeDaysAgo": "{count} 天前",
-    "executionSteps": "执行步骤"
+    "executionSteps": "执行步骤",
+    "stopReasonTitle": "停止原因",
+    "stopReasonIterationLimit": "达到迭代上限",
+    "stopReasonEngineLimit": "触发引擎保护上限",
+    "stopReasonTimedOut": "执行超时",
+    "stopReasonCancelled": "运行已取消",
+    "stopReasonError": "执行失败",
+    "stopReasonUnknown": "因未知原因停止"
   },
   "cron": {
     "sectionTitle": "定时任务",
