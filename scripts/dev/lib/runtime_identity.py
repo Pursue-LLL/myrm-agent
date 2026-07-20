@@ -119,6 +119,30 @@ def attach_health_errors(payload: HealthJsonPayload) -> list[str]:
     return errors
 
 
+def stack_core_health_errors(payload: HealthJsonPayload) -> list[str]:
+    """Stack liveness for signoff matrix keepalive — ignore compile-time shell/client warmth."""
+    errors: list[str] = []
+    if payload["muxDaemons"] != 1:
+        errors.append(f"muxDaemons={payload['muxDaemons']}")
+    for name, ready in (
+        ("upstreamReady", payload["upstreamReady"]),
+        ("wsStampMatch", payload["wsStampMatch"]),
+    ):
+        if not ready:
+            errors.append(f"{name}=false")
+    if not payload["runtimeId"]:
+        errors.append("runtimeId=empty")
+    for name, epoch in (
+        ("backendEpoch", payload["backendEpoch"]),
+        ("frontendEpoch", payload["frontendEpoch"]),
+        ("chromeEpoch", payload["chromeEpoch"]),
+        ("muxEpoch", payload["muxEpoch"]),
+    ):
+        if epoch is None:
+            errors.append(f"{name}=missing")
+    return errors
+
+
 def _http_url_ok(url: str, *, timeout_sec: float = 5.0) -> bool:
     try:
         with urllib.request.urlopen(url, timeout=timeout_sec) as response:
@@ -689,6 +713,11 @@ def main() -> None:
         action="store_true",
         help="Exit 2 unless the unified snapshot is safe for read-only parallel attach",
     )
+    parser.add_argument(
+        "--require-stack-core",
+        action="store_true",
+        help="Exit 2 unless mux/upstream/epochs are live (ignores shellHot/clientHot compile windows)",
+    )
     parser.add_argument("--frontend-dir", default="")
     parser.add_argument("--cdp-port", type=int, default=0)
     parser.add_argument("--profile-dir", default="")
@@ -736,6 +765,11 @@ def main() -> None:
         errors = attach_health_errors(payload) + attach_endpoint_errors(args.ui, args.api)
         if errors:
             print("CHROME_E2E_ATTACH_NOT_READY: " + ", ".join(errors), file=sys.stderr)
+            raise SystemExit(2)
+    if args.require_stack_core:
+        errors = stack_core_health_errors(payload) + attach_endpoint_errors(args.ui, args.api)
+        if errors:
+            print("CHROME_E2E_STACK_CORE_NOT_READY: " + ", ".join(errors), file=sys.stderr)
             raise SystemExit(2)
     print(f"CHROME_E2E_HEALTH_JSON={json.dumps(payload, separators=(',', ':'))}")
 

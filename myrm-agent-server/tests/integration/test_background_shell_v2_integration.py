@@ -135,7 +135,7 @@ async def test_rest_preview_redacts_secrets(tmp_path: Path) -> None:
     chat_id = f"v2-redact-{uuid.uuid4().hex[:12]}"
     secret = "sk-live-abcdefghijklmnopqrstuvwxyz"
     cmd = f'{sys.executable} -c "print(\'{secret}\', flush=True)"'
-    pid = await _spawn_background(tmp_path, chat_id=chat_id, command=cmd, reason="redact integration")
+    pid, job_id = await _spawn_background(tmp_path, chat_id=chat_id, command=cmd, reason="redact integration")
 
     for _ in range(30):
         preview_source = get_background_registry().get(pid)
@@ -145,7 +145,7 @@ async def test_rest_preview_redacts_secrets(tmp_path: Path) -> None:
 
     transport = ASGITransport(app=_build_rest_app())
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        row = (await client.get(f"/api/v1/background-tasks/shell:{pid}")).json()
+        row = (await client.get(f"/api/v1/background-tasks/shell:{job_id}")).json()
 
     assert secret not in str(row.get("result_preview", ""))
 
@@ -158,6 +158,7 @@ async def test_finish_handler_dedupe_integration() -> None:
     handler = ServerBackgroundJobFinishHandler()
     result = BackgroundJobFinishResult(
         session_id="chat-dedupe-int",
+        job_id="f" * 32,
         pid=12345,
         command="pytest -q",
         status="exited",
