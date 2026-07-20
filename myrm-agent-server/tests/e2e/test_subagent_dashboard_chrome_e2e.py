@@ -7,11 +7,18 @@ import os
 import selectors
 import shutil
 import subprocess
+import sys
 import time
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+
+_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_LIB) not in sys.path:
+    sys.path.insert(0, str(_LIB))
+
+from dev_gate_contract import MAX_PAGE_TIMEOUT_MS  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
@@ -168,7 +175,7 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
     _wait_running_subagent_on_api(chat_id, task_id)
 
-    with open_mcp_page(ui_url) as (client, page):
+    with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
         wait_for_state(
             client,
             page,
@@ -397,7 +404,7 @@ def test_subagent_dashboard_delegation_pause_toggle_roundtrip(
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
     _wait_running_subagent_on_api(chat_id, task_id)
 
-    with open_mcp_page(ui_url) as (client, page):
+    with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
         _open_subagent_dashboard(
             client,
             page,
@@ -458,7 +465,7 @@ def test_subagent_dashboard_shows_running_token_and_model(
     )
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
 
-    with open_mcp_page(ui_url) as (client, page):
+    with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
         _open_subagent_dashboard(
             client,
             page,

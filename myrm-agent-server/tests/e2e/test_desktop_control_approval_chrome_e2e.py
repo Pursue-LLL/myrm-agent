@@ -16,8 +16,6 @@ import platform
 
 import pytest
 
-import tests.e2e.desktop_approval  # noqa: F401 — ensure dev lib on sys.path
-
 from tests.e2e.desktop_approval.runner import run_desktop_approval_chrome_e2e
 from tests.support.e2e_runtime_guard import E2EResourceLedger
 

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.ai_agents.custom_agent_factory import (
+    _apply_subagent_memory_search_rebind,
     _parent_chat_id,
     _parent_memory_search_flags,
     _rebind_subagent_memory_search_tool,
@@ -223,3 +224,98 @@ async def test_ephemeral_agent_factory_rebinds_memory_search_tool(monkeypatch) -
     assert len(captured_tools) == 1
     assert getattr(captured_tools[0], "name") == "memory_search_tool"
     assert getattr(captured_tools[0], "marker") == "rebound"
+
+
+def test_apply_subagent_memory_search_rebind_skips_without_memory_group() -> None:
+    tools: list[object] = [SimpleNamespace(name="memory_search_tool", marker="parent")]
+    rebind_calls: list[object] = []
+
+    def _track_rebind(*args: object, **kwargs: object) -> None:
+        rebind_calls.append((args, kwargs))
+
+    import app.ai_agents.custom_agent_factory as factory_module
+
+    original = factory_module._rebind_subagent_memory_search_tool
+    factory_module._rebind_subagent_memory_search_tool = _track_rebind  # type: ignore[assignment]
+    try:
+        _apply_subagent_memory_search_rebind(
+            tools,
+            parent_agent=SimpleNamespace(),
+            agent_id="researcher",
+            memory_manager=SimpleNamespace(),
+            enabled_builtin=("web_search",),
+        )
+    finally:
+        factory_module._rebind_subagent_memory_search_tool = original  # type: ignore[assignment]
+
+    assert rebind_calls == []
+    assert getattr(tools[0], "marker") == "parent"
+
+
+def test_apply_subagent_memory_search_rebind_skips_without_manager() -> None:
+    tools: list[object] = [SimpleNamespace(name="memory_search_tool", marker="parent")]
+    rebind_calls: list[object] = []
+
+    def _track_rebind(*args: object, **kwargs: object) -> None:
+        rebind_calls.append((args, kwargs))
+
+    import app.ai_agents.custom_agent_factory as factory_module
+
+    original = factory_module._rebind_subagent_memory_search_tool
+    factory_module._rebind_subagent_memory_search_tool = _track_rebind  # type: ignore[assignment]
+    try:
+        _apply_subagent_memory_search_rebind(
+            tools,
+            parent_agent=SimpleNamespace(),
+            agent_id="researcher",
+            memory_manager=None,
+            enabled_builtin=("memory",),
+        )
+    finally:
+        factory_module._rebind_subagent_memory_search_tool = original  # type: ignore[assignment]
+
+    assert rebind_calls == []
+
+
+@pytest.mark.asyncio
+async def test_ephemeral_agent_factory_keeps_parent_tool_without_memory_group(monkeypatch) -> None:
+    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
+    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
+    captured_tools: list[object] = []
+
+    async def fake_create_skill_agent(**kwargs: object) -> SimpleNamespace:
+        tools = kwargs.get("tools")
+        if isinstance(tools, list):
+            captured_tools.extend(tools)
+        return SimpleNamespace()
+
+    import myrm_agent_harness.api as api_module
+
+    monkeypatch.setattr(api_module, "create_skill_agent", fake_create_skill_agent)
+
+    factory = EphemeralAgentFactory(
+        agent_id="researcher",
+        metadata={"enabled_builtin_tools": ["web_search"]},
+    )
+    parent = SimpleNamespace(
+        enable_conversation_search=True,
+        incognito_mode=False,
+        enable_wiki=False,
+        llm=None,
+        executor=None,
+        memory_manager=SimpleNamespace(),
+        _last_context={"chat_id": "chat-ephemeral"},
+    )
+    config = SubagentConfig(display_name="Researcher", system_prompt="You research.")
+    inherited_tools: list[object] = [SimpleNamespace(name="memory_search_tool", marker="parent")]
+
+    await factory.build(
+        config,
+        inherited_tools,
+        "Find prior pricing notes",
+        parent,
+        current_depth=1,
+    )
+
+    assert captured_tools == []

@@ -36,6 +36,10 @@ async def test_background_shell_status_returns_running_count(status_app: FastAPI
             "myrm_agent_harness.api.hooks.count_running_background_shell_jobs",
             return_value=2,
         ),
+        patch(
+            "app.services.agent.shell_background_tasks.shell_registry_is_ephemeral",
+            return_value=False,
+        ),
     ):
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.get(
@@ -45,4 +49,27 @@ async def test_background_shell_status_returns_running_count(status_app: FastAPI
     assert resp.status_code == 200
     payload = resp.json()
     assert payload["running_count"] == 2
-    assert payload["registry_ephemeral"] is True
+    assert payload["registry_ephemeral"] is False
+
+
+@pytest.mark.asyncio
+async def test_background_shell_status_ephemeral_when_store_unconfigured(status_app: FastAPI) -> None:
+    transport = ASGITransport(app=status_app)
+    with (
+        patch.dict(os.environ, {"CONTROL_PLANE_TELEMETRY_TOKEN": "test-token"}),
+        patch(
+            "myrm_agent_harness.api.hooks.count_running_background_shell_jobs",
+            return_value=0,
+        ),
+        patch(
+            "app.services.agent.shell_background_tasks.shell_registry_is_ephemeral",
+            return_value=True,
+        ),
+    ):
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get(
+                "/api/internal/background-shell/status",
+                headers={"X-Telemetry-Token": "test-token"},
+            )
+    assert resp.status_code == 200
+    assert resp.json()["registry_ephemeral"] is True

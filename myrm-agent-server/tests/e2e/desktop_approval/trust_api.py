@@ -1,4 +1,15 @@
-"""Server API helpers for desktop approval Chrome E2E."""
+"""Server API helpers for desktop approval Chrome E2E.
+
+[INPUT]
+- cdp_chat_support::get_e2e_api_url (POS: live E2E API base resolver)
+- tests.e2e.desktop_approval.constants::progress (POS: stderr progress lines)
+
+[OUTPUT]
+- HTTP trust/approval helpers; desktop_trust_revoke_selector_js for Settings revoke E2E
+
+[POS]
+Server-side REST helpers and safe DOM selector builders for desktop approval Chrome E2E.
+"""
 
 from __future__ import annotations
 
@@ -83,3 +94,12 @@ def desktop_accessibility_granted() -> bool:
     except OSError:
         return False
     return bool(payload.get("accessibility"))
+
+
+def desktop_trust_revoke_testid(trust_key: str) -> str:
+    return f"desktop-trust-revoke-{trust_key}"
+
+
+def desktop_trust_revoke_selector_js(trust_key: str) -> str:
+    """Return a JS expression safe for querySelector on the revoke button testid."""
+    return json.dumps(f'[data-testid="{desktop_trust_revoke_testid(trust_key)}"]')

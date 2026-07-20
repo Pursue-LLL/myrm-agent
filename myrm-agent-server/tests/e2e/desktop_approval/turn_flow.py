@@ -13,7 +13,11 @@ from mcp_chat_ui import McpChatSession
 from tests.e2e.desktop_approval.constants import APPROVAL_WAIT_SEC, BASE_URL, E2E_PROMPT, progress
 from tests.e2e.desktop_approval.gate_probe import ensure_interact_gate, require_approval_gate_triggered
 from tests.e2e.desktop_approval.textedit_fixture import ensure_textedit_fixture_ready
-from tests.e2e.desktop_approval.trust_api import list_trusted_apps_via_api, server_pending_approval_count
+from tests.e2e.desktop_approval.trust_api import (
+    desktop_trust_revoke_selector_js,
+    list_trusted_apps_via_api,
+    server_pending_approval_count,
+)
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
 
 
@@ -160,13 +164,14 @@ async def verify_settings_revoke_trusted_app(
     assert isinstance(nav, dict) and nav.get("ok") is True, nav
 
     deadline = asyncio.get_event_loop().time() + 120.0
+    revoke_selector = desktop_trust_revoke_selector_js(trust_key)
     probe: dict[str, object] = {}
     while asyncio.get_event_loop().time() < deadline:
         heartbeat_e2e_lease()
         probe = await chat.evaluate(
             f"""(() => {{
               const body = document.body?.innerText || '';
-              const revokeBtn = document.querySelector('[data-testid="desktop-trust-revoke-{trust_key}"]');
+              const revokeBtn = document.querySelector({revoke_selector});
               return {{
                 hasDisplayName: body.includes({display_name!r}),
                 revokeReady: Boolean(revokeBtn && !revokeBtn.disabled),
@@ -182,7 +187,7 @@ async def verify_settings_revoke_trusted_app(
 
     click = await chat.evaluate(
         f"""(() => {{
-          const btn = document.querySelector('[data-testid="desktop-trust-revoke-{trust_key}"]');
+          const btn = document.querySelector({revoke_selector});
           if (!btn || btn.disabled) return {{ ok: false, err: 'revoke-not-ready' }};
           btn.click();
           return {{ ok: true }};

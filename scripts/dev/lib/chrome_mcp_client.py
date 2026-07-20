@@ -739,6 +739,10 @@ class ChromeMcpClient:
         if last_error is not None:
             raise last_error
 
+    def recover_mux_transport(self) -> None:
+        """Restart MCP shim after mux timeout or transport drift (E2E orchestrator hook)."""
+        self._recover_mux_transport()
+
     def call_tool(
         self,
         name: str,

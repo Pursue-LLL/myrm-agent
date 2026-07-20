@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.api.hooks::count_running_background_shell_jobs
+- app.services.agent.shell_background_tasks::shell_registry_is_ephemeral (POS: REST-aligned durable flag)
 
 [OUTPUT]
 - GET /api/internal/background-shell/status: running job count + ephemeral flag
@@ -44,6 +45,11 @@ async def background_shell_status(request: Request) -> BackgroundShellStatusResp
     _verify_token(request)
     from myrm_agent_harness.api.hooks import count_running_background_shell_jobs
 
+    from app.services.agent.shell_background_tasks import shell_registry_is_ephemeral
+
     count = count_running_background_shell_jobs()
     logger.debug("Background shell status probe: running_count=%s", count)
-    return BackgroundShellStatusResponse(running_count=count, registry_ephemeral=True)
+    return BackgroundShellStatusResponse(
+        running_count=count,
+        registry_ephemeral=shell_registry_is_ephemeral(),
+    )

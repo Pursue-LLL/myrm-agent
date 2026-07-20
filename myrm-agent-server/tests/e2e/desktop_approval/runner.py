@@ -22,10 +22,12 @@ from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready
 from chrome_mcp_client import ChromeMcpClient
 from mcp_chat_ui import McpChatSession
 
-import tests.e2e.desktop_approval  # noqa: F401 — ensure dev lib on sys.path
-
 from tests.e2e.desktop_approval.constants import BASE_URL, max_send_attempts, progress
-from tests.e2e.desktop_approval.infra_retry import open_mcp_chat_page, should_abort_desktop_e2e_retries
+from tests.e2e.desktop_approval.infra_retry import (
+    ensure_mux_stack_ready,
+    open_mcp_chat_page,
+    should_abort_desktop_e2e_retries,
+)
 from tests.e2e.desktop_approval.textedit_fixture import hide_textedit_fixture
 from tests.e2e.desktop_approval.trust_api import clear_persisted_desktop_approvals, desktop_accessibility_granted
 from tests.e2e.desktop_approval.turn_flow import run_approval_attempt
@@ -96,6 +98,7 @@ async def run_desktop_approval_chrome_e2e(
         )
 
     client = ChromeMcpClient(request_timeout_sec=180.0)
+    await asyncio.to_thread(ensure_mux_stack_ready)
     progress("start chrome MCP client")
     await asyncio.to_thread(client.start)
     try:

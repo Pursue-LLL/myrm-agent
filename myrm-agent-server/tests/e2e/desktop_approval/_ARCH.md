@@ -8,14 +8,17 @@ Chrome MCP E2E helpers for Desktop Control approval (allow once / allow always �
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `__init__.py` | Bootstrap | Inserts `myrm-agent/scripts/dev/lib` on `sys.path` for MCP helpers | ✅ |
+| `__init__.py` | Package | Docstring-only package marker (`tests/conftest.py` owns dev lib path) | ✅ |
+| `conftest.py` | Guard | Session fcntl lock — one desktop approval E2E pytest at a time | ✅ |
 | `constants.py` | Core | Timeouts, prompts, infra abort markers, `progress()` | ✅ |
-| `infra_retry.py` | Core | `open_mcp_chat_page` (about:blank + navigate), mux retry classifiers | ✅ |
+| `infra_retry.py` | Core | `ensure_mux_stack_ready`, `open_mcp_chat_page` (about:blank→navigate + mux recover + attempt-3 BASE_URL fallback), retry classifiers | ✅ |
 | `textedit_fixture.py` | Fixture | macOS TextEdit scroll target (background, minimized) | ✅ |
-| `trust_api.py` | Core | HTTP helpers: pending count, trust list, clear approvals | ✅ |
+| `trust_api.py` | Core | HTTP helpers + safe revoke `data-testid` selector JS | ✅ |
 | `gate_probe.py` | Core | Desktop tool activity + interact gate nudge logic | ✅ |
 | `turn_flow.py` | Core | Approval attempt, DONE wait, Settings revoke verification | ✅ |
 | `runner.py` | Core | `run_desktop_approval_chrome_e2e` orchestration + Chrome MCP lifecycle | ✅ |
+
+Unit smoke (no Chrome): `tests/unit/desktop_approval/test_trust_api_smoke.py` — revoke selector JSON escape.
 
 ## Dependencies
 

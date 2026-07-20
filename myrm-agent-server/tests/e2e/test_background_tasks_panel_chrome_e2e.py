@@ -32,6 +32,14 @@ _EPHEMERAL_NOTICE_JS = """(() => {
   };
 })()"""
 
+_DURABLE_NOTICE_JS = """(() => {
+  const text = document.body?.innerText || '';
+  return {
+    hasNotice:
+      /Shell job history is saved|Shell 任务历史已保存|Interrupted|已中断/.test(text),
+  };
+})()"""
+
 _FAILED_SHELL_ROW_JS = """(() => {
   const text = document.body?.innerText || '';
   const hasExitCode = /exit\\s*42|退出码.*42/i.test(text);
@@ -60,8 +68,7 @@ def test_background_tasks_panel_opens_and_lists_api() -> None:
     payload = http_json("GET", f"{api_base}/api/v1/background-tasks")
     assert isinstance(payload, dict)
     assert "tasks" in payload
-    if "registry_ephemeral" in payload:
-        assert payload["registry_ephemeral"] is True
+    registry_ephemeral = payload.get("registry_ephemeral")
 
     warm_ui_route("/")
     with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
@@ -71,8 +78,11 @@ def test_background_tasks_panel_opens_and_lists_api() -> None:
         panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
         assert panel.get("ready") is True, panel
 
-        if isinstance(payload, dict) and payload.get("registry_ephemeral") is True:
+        if registry_ephemeral is True:
             notice = client.evaluate(page, _EPHEMERAL_NOTICE_JS, timeout_sec=10.0)
+            assert notice.get("hasNotice") is True, notice
+        elif registry_ephemeral is False:
+            notice = client.evaluate(page, _DURABLE_NOTICE_JS, timeout_sec=10.0)
             assert notice.get("hasNotice") is True, notice
 
 

@@ -83,7 +83,11 @@ def warm_ui_route(path: str, *, timeout_sec: float = 120.0) -> None:
 
 
 @contextmanager
-def open_mcp_page(url: str, *, timeout_ms: int = 60_000) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
+def open_mcp_page(
+    url: str,
+    *,
+    timeout_ms: int | None = None,
+) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
     with ChromeMcpClient() as client:
         page = client.new_page(url, timeout_ms=timeout_ms)
         ensure_desktop_viewport(client, page)

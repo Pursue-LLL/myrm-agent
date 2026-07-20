@@ -15,6 +15,8 @@ from app.services.agent.background_job_finish_handler import (
     _resolve_user_locale,
 )
 
+_TEST_JOB_ID = "b" * 32
+
 
 def test_format_finish_message_success_en() -> None:
     msg = _format_finish_message(
@@ -96,6 +98,7 @@ async def test_on_background_job_finish_delegates_to_process() -> None:
         status="exited",
         exit_code=0,
         error_category=None,
+        job_id=_TEST_JOB_ID,
     )
 
     with patch.object(handler, "_process", AsyncMock()) as mock_process:
@@ -261,6 +264,7 @@ async def test_finish_handler_dedupes_duplicate_pid() -> None:
         status="exited",
         exit_code=0,
         error_category=None,
+        job_id=_TEST_JOB_ID,
     )
 
     with (
