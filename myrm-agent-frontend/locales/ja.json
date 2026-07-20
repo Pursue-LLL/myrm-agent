@@ -7068,10 +7068,12 @@
     }
   },
   "memoryCitations": {
-    "button": "記憶 {count}",
-    "buttonAria": "引用された記憶 {count} 件を表示",
-    "title": "引用された記憶",
-    "description": "この回答で呼び出された記憶です。個人コンテキストまたは共有コンテキストが回答にどう影響したか確認できます。",
+    "button": "根拠 {count}",
+    "buttonAria": "{count} 件の根拠と記憶を表示",
+    "title": "根拠と記憶",
+    "description": "この回答に影響した内容を確認できます — 保存された記憶、過去のチャット、その他の参照。",
+    "sectionMemories": "記憶",
+    "sectionSources": "その他のソース",
     "score": "{score}% 一致",
     "unavailableContent": "この古いメッセージでは記憶の詳細を利用できません。監査用に記憶 ID を表示しています。",
     "viewSourceChat": "元の会話で確認",

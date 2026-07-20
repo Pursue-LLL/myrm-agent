@@ -43,4 +43,5 @@ class E2ECapacitySnapshot:
         )
 
     def dev_mux_cap_during_signoff(self) -> int:
-        return max(1, self.mux_max_sessions - self.mux_signoff_reserved_slots)
+        """Dev chrome_e2e uses full mux cap even when maintainer signoff runs."""
+        return self.mux_max_sessions

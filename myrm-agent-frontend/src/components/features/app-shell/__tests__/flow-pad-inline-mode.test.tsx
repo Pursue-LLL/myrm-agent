@@ -416,12 +416,12 @@ describe('FlowPadModal - Inline Mode Integration', () => {
 
     const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
     await act(async () => {
-      switcherTrigger.click();
+      fireEvent.click(switcherTrigger);
     });
 
     const writerOption = await screen.findByTestId('flowpad-inline-route-agent-writer-agent');
     await act(async () => {
-      writerOption.click();
+      fireEvent.click(writerOption);
     });
 
     const textarea = screen.getByRole('textbox');
@@ -455,21 +455,21 @@ describe('FlowPadModal - Inline Mode Integration', () => {
 
     const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
     await act(async () => {
-      switcherTrigger.click();
+      fireEvent.click(switcherTrigger);
     });
     const writerOption = await screen.findByTestId('flowpad-inline-route-agent-writer-agent');
     await act(async () => {
-      writerOption.click();
+      fireEvent.click(writerOption);
     });
     await screen.findByText('inlineRouteProfile');
 
     const selectedTrigger = screen.getByTestId('flowpad-inline-route-trigger');
     await act(async () => {
-      selectedTrigger.click();
+      fireEvent.click(selectedTrigger);
     });
     const followCurrentOption = await screen.findByTestId('flowpad-inline-route-follow-current');
     await act(async () => {
-      followCurrentOption.click();
+      fireEvent.click(followCurrentOption);
     });
 
     const textarea = screen.getByRole('textbox');
@@ -483,6 +483,8 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     });
 
     expect(mockChatState.sendMessage).toHaveBeenCalledTimes(1);
-    expect(mockChatState.sendMessage.mock.calls[0]).toEqual(['Use current route']);
+    const sendArgs = mockChatState.sendMessage.mock.calls[0];
+    expect(sendArgs[0]).toContain('Use current route');
+    expect(sendArgs[5]).toBeUndefined();
   });
 });

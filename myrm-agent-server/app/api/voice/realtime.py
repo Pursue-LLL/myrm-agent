@@ -195,8 +195,10 @@ async def execute_realtime_tool(req: RealtimeToolExecRequest) -> RealtimeToolExe
         configs = await load_user_configs()
         providers = configs.providers_dict or {}
 
+        tool_name = _normalize_realtime_tool_name(req.tool_name)
+
         lite_query = (
-            f"Execute tool '{req.tool_name}' with arguments: "
+            f"Execute tool '{tool_name}' with arguments: "
             f"{_safe_json_str(req.arguments)}. "
             "Return only the tool result, no additional commentary."
         )
@@ -325,6 +327,19 @@ def _safe_json_str(obj: object) -> str:
         return str(obj)
 
 
+_MEMORY_SEARCH_TOOL_PARAMETERS: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "query": {"type": "string", "description": "Search query"},
+        "corpus": {
+            "type": "string",
+            "enum": ["memory", "wiki", "sessions", "all"],
+            "description": "Corpus to search (default memory)",
+        },
+    },
+    "required": ["query"],
+}
+
 _REALTIME_TOOL_CATALOG: dict[str, RealtimeToolDef] = {
     "web_search": RealtimeToolDef(
         name="web_search",
@@ -332,9 +347,12 @@ _REALTIME_TOOL_CATALOG: dict[str, RealtimeToolDef] = {
         parameters={"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]},
     ),
     "memory": RealtimeToolDef(
-        name="memory_recall",
-        description="Recall information from long-term memory about the user or previous conversations.",
-        parameters={"type": "object", "properties": {"query": {"type": "string", "description": "What to recall"}}, "required": ["query"]},
+        name="memory_search_tool",
+        description=(
+            "Unified search across long-term memory, wiki vault, and prior conversations. "
+            "Use corpus=memory for preferences/facts, sessions for chat history, wiki for docs."
+        ),
+        parameters=_MEMORY_SEARCH_TOOL_PARAMETERS,
     ),
     "file_ops": RealtimeToolDef(
         name="file_ops",
@@ -372,6 +390,13 @@ def _build_realtime_tools(enabled_builtin_tools: tuple[str, ...] | Sequence[str]
         if tool_key in _REALTIME_TOOL_CATALOG:
             tools.append(_REALTIME_TOOL_CATALOG[tool_key])
     return tools
+
+
+def _normalize_realtime_tool_name(tool_name: str) -> str:
+    """Map legacy voice tool names to the unified read-plane tool."""
+    if tool_name in {"memory_recall", "memory_recall_tool"}:
+        return "memory_search_tool"
+    return tool_name
 
 
 _tool_exec_model_rebuilt = False

@@ -142,9 +142,23 @@ _GEMINI_TOOL_CATALOG: dict[str, GeminiFunctionDeclaration] = {
         parameters={"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]},
     ),
     "memory": GeminiFunctionDeclaration(
-        name="memory_recall",
-        description="Recall information from long-term memory about the user or previous conversations.",
-        parameters={"type": "object", "properties": {"query": {"type": "string", "description": "What to recall"}}, "required": ["query"]},
+        name="memory_search_tool",
+        description=(
+            "Unified search across long-term memory, wiki vault, and prior conversations. "
+            "Use corpus=memory for preferences/facts, sessions for chat history, wiki for docs."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"},
+                "corpus": {
+                    "type": "string",
+                    "enum": ["memory", "wiki", "sessions", "all"],
+                    "description": "Corpus to search (default memory)",
+                },
+            },
+            "required": ["query"],
+        },
     ),
     "file_ops": GeminiFunctionDeclaration(
         name="file_ops",

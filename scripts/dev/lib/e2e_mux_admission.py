@@ -154,20 +154,14 @@ def _session_priority(*, signoff_matrix: bool) -> int:
     return SIGNOFF_MATRIX_PRIORITY if signoff_matrix else NORMAL_PRIORITY
 
 
-def effective_max_sessions(*, signoff_matrix: bool) -> int:
+def effective_max_sessions(*, signoff_matrix: bool = False) -> int:
+    """Return global mux session cap (signoff_matrix ignored — product uses full cap)."""
+    _ = signoff_matrix
     base_raw = os.environ.get("MYRM_MUX_MAX_CONCURRENT_SESSIONS", str(DEFAULT_MAX_SESSIONS))
     try:
-        base = max(1, int(base_raw))
+        return max(1, int(base_raw))
     except ValueError:
-        base = DEFAULT_MAX_SESSIONS
-    if signoff_matrix or not _signoff_chrome_lock_active():
-        return base
-    reserved_raw = os.environ.get("MYRM_MUX_SIGNOFF_RESERVED_SLOTS", "2")
-    try:
-        reserved = max(0, int(reserved_raw))
-    except ValueError:
-        reserved = 2
-    return max(1, base - reserved)
+        return DEFAULT_MAX_SESSIONS
 
 
 def _active_count(registry: MuxAdmissionRegistry) -> int:

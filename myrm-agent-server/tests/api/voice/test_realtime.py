@@ -24,6 +24,7 @@ from app.api.voice.realtime import (
     _extract_openai_api_key,
     _extract_openai_base_url,
     _find_openai_provider,
+    _normalize_realtime_tool_name,
     _safe_json_str,
 )
 
@@ -156,8 +157,13 @@ class TestBuildRealtimeTools:
         names = [t.name for t in tools]
         assert "run_background_task" in names
         assert "web_search" in names
-        assert "memory_recall" in names
+        assert "memory_search_tool" in names
         assert len(tools) == 3
+
+    def test_normalize_legacy_memory_tool_names(self) -> None:
+        assert _normalize_realtime_tool_name("memory_recall") == "memory_search_tool"
+        assert _normalize_realtime_tool_name("memory_recall_tool") == "memory_search_tool"
+        assert _normalize_realtime_tool_name("web_search") == "web_search"
 
     def test_ignores_unknown_tools(self) -> None:
         tools = _build_realtime_tools(("web_search", "nonexistent_tool"))

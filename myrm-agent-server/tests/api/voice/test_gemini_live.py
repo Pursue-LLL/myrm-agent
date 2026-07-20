@@ -94,7 +94,7 @@ class TestBuildGeminiTools:
         names = [t.name for t in tools]
         assert "run_background_task" in names
         assert "web_search" in names
-        assert "memory_recall" in names
+        assert "memory_search_tool" in names
         assert len(tools) == 3
 
     def test_ignores_unknown_tools(self) -> None:

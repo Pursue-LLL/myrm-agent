@@ -25,6 +25,7 @@ Cron blueprint single-source-of-truth definitions.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 from typing import Literal
 
 from app.core.cron.blueprint_i18n_supplement import SUPPLEMENTAL_BY_ID
@@ -132,6 +133,8 @@ _CAP_RESEARCH = ("web_search_tool", "net_fetch", "file_read")
 _TOOLS_RESEARCH = ("web_search", "file_ops")
 _CAP_DEVOPS = ("shell_exec", "file_read", "file_write", "code_interpreter_tool")
 _TOOLS_DEVOPS = ("web_search", "file_ops", "code_execute")
+_ASSET_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+_QUOTE_CURRENCY_RE = re.compile(r"^[a-z0-9]{2,10}$")
 
 
 def _merge_locale_dict(base: dict[str, str], extra: dict[str, str]) -> dict[str, str]:
@@ -624,6 +627,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
             deduplicate=True,
             skip_if_active=True,
             timeout_seconds=90,
+            failure_alert=BlueprintFailureAlertDefaults(enabled=True, after=2, cooldown_seconds=900),
             pre_condition_script_template={
                 "en": (
                     "import json\n"
@@ -636,14 +640,14 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                     'upper_bound = float("{upper_bound}")\n'
                     'source = "{source}".strip().lower()\n'
                     "\n"
-                    "def _fetch_price() -> float:\n"
-                    '    if source == "binance":\n'
-                    "        symbol = asset_id.upper() + vs_currency.upper()\n"
-                    '        url = "https://api.binance.com/api/v3/ticker/price?symbol=" + symbol\n'
-                    "        with urllib.request.urlopen(url, timeout=12) as resp:\n"
-                    '            data = json.loads(resp.read().decode("utf-8"))\n'
-                    '        return float(data["price"])\n'
+                    "def _fetch_from_binance() -> float:\n"
+                    "    symbol = asset_id.upper() + vs_currency.upper()\n"
+                    '    url = "https://api.binance.com/api/v3/ticker/price?symbol=" + symbol\n'
+                    "    with urllib.request.urlopen(url, timeout=12) as resp:\n"
+                    '        data = json.loads(resp.read().decode("utf-8"))\n'
+                    '    return float(data["price"])\n'
                     "\n"
+                    "def _fetch_from_coingecko() -> float:\n"
                     '    url = "https://api.coingecko.com/api/v3/simple/price?ids=" + asset_id + "&vs_currencies=" + vs_currency\n'
                     "    with urllib.request.urlopen(url, timeout=12) as resp:\n"
                     '        data = json.loads(resp.read().decode("utf-8"))\n'
@@ -651,7 +655,23 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                     '        raise RuntimeError("No quote returned for " + asset_id + "/" + vs_currency)\n'
                     "    return float(data[asset_id][vs_currency])\n"
                     "\n"
-                    "price = _fetch_price()\n"
+                    "def _fetch_price() -> tuple[float, str]:\n"
+                    "    providers = [source]\n"
+                    '    if source == "binance":\n'
+                    '        providers.append("coingecko")\n'
+                    "    else:\n"
+                    '        providers.append("binance")\n'
+                    "    errors = []\n"
+                    "    for provider in providers:\n"
+                    "        try:\n"
+                    '            if provider == "binance":\n'
+                    "                return _fetch_from_binance(), provider\n"
+                    "            return _fetch_from_coingecko(), provider\n"
+                    "        except Exception as exc:\n"
+                    '            errors.append(provider + ":" + str(exc))\n'
+                    '    raise RuntimeError("all_sources_failed: " + " | ".join(errors))\n'
+                    "\n"
+                    "price, resolved_source = _fetch_price()\n"
                     "timestamp = datetime.now(timezone.utc).isoformat()\n"
                     "\n"
                     "if price < lower_bound or price > upper_bound:\n"
@@ -670,7 +690,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                     '        + "-"\n'
                     '        + ("%.4f" % upper_bound)\n'
                     '        + ", source="\n'
-                    "        + source\n"
+                    "        + resolved_source\n"
                     '        + ", ts="\n'
                     "        + timestamp\n"
                     '        + ")"\n'
@@ -689,14 +709,14 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                     'upper_bound = float("{upper_bound}")\n'
                     'source = "{source}".strip().lower()\n'
                     "\n"
-                    "def _fetch_price() -> float:\n"
-                    '    if source == "binance":\n'
-                    "        symbol = asset_id.upper() + vs_currency.upper()\n"
-                    '        url = "https://api.binance.com/api/v3/ticker/price?symbol=" + symbol\n'
-                    "        with urllib.request.urlopen(url, timeout=12) as resp:\n"
-                    '            data = json.loads(resp.read().decode("utf-8"))\n'
-                    '        return float(data["price"])\n'
+                    "def _fetch_from_binance() -> float:\n"
+                    "    symbol = asset_id.upper() + vs_currency.upper()\n"
+                    '    url = "https://api.binance.com/api/v3/ticker/price?symbol=" + symbol\n'
+                    "    with urllib.request.urlopen(url, timeout=12) as resp:\n"
+                    '        data = json.loads(resp.read().decode("utf-8"))\n'
+                    '    return float(data["price"])\n'
                     "\n"
+                    "def _fetch_from_coingecko() -> float:\n"
                     '    url = "https://api.coingecko.com/api/v3/simple/price?ids=" + asset_id + "&vs_currencies=" + vs_currency\n'
                     "    with urllib.request.urlopen(url, timeout=12) as resp:\n"
                     '        data = json.loads(resp.read().decode("utf-8"))\n'
@@ -704,7 +724,23 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                     '        raise RuntimeError("No quote returned for " + asset_id + "/" + vs_currency)\n'
                     "    return float(data[asset_id][vs_currency])\n"
                     "\n"
-                    "price = _fetch_price()\n"
+                    "def _fetch_price() -> tuple[float, str]:\n"
+                    "    providers = [source]\n"
+                    '    if source == "binance":\n'
+                    '        providers.append("coingecko")\n'
+                    "    else:\n"
+                    '        providers.append("binance")\n'
+                    "    errors = []\n"
+                    "    for provider in providers:\n"
+                    "        try:\n"
+                    '            if provider == "binance":\n'
+                    "                return _fetch_from_binance(), provider\n"
+                    "            return _fetch_from_coingecko(), provider\n"
+                    "        except Exception as exc:\n"
+                    '            errors.append(provider + ":" + str(exc))\n'
+                    '    raise RuntimeError("all_sources_failed: " + " | ".join(errors))\n'
+                    "\n"
+                    "price, resolved_source = _fetch_price()\n"
                     "timestamp = datetime.now(timezone.utc).isoformat()\n"
                     "\n"
                     "if price < lower_bound or price > upper_bound:\n"
@@ -723,7 +759,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                     '        + "-"\n'
                     '        + ("%.4f" % upper_bound)\n'
                     '        + ", source="\n'
-                    "        + source\n"
+                    "        + resolved_source\n"
                     '        + ", ts="\n'
                     "        + timestamp\n"
                     '        + ")"\n'
@@ -751,8 +787,9 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 "Alert only when at least two independent risk signals align with: {signal_rules}. "
                 "Portfolio context: {portfolio_context}. "
                 "If there is no actionable change, reply with exactly [SILENT]. "
-                "If alerting, return concise markdown with: asset, trigger reason, confidence(0-100), "
-                "invalidation level, and immediate follow-up checks."
+                "If alerting, return ONLY a minified JSON array sorted by asset symbol. "
+                "Each item must contain keys: asset, trigger_reason, confidence, invalidation_level, follow_up_checks. "
+                "Do not include timestamps or any prose outside JSON."
             ),
             "zh": (
                 "持续监控以下资产：{watchlist}。"
@@ -760,7 +797,9 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 "仅当至少两个独立风险信号与以下规则同时成立时告警：{signal_rules}。"
                 "组合上下文：{portfolio_context}。"
                 "若无可执行变化，必须仅回复 [SILENT]。"
-                "若触发告警，输出简洁 Markdown，包含：资产、触发原因、置信度(0-100)、失效位、下一步检查项。"
+                "若触发告警，只输出按资产符号排序的最小化 JSON 数组。"
+                "每个元素仅包含键：asset、trigger_reason、confidence、invalidation_level、follow_up_checks。"
+                "禁止输出时间戳和 JSON 之外的说明文字。"
             ),
         },
         slots=(
@@ -969,6 +1008,63 @@ def _build_prompt_from_blueprint(
         raise BlueprintFillError(f"blueprint prompt missing value for {exc}") from exc
 
 
+def _escape_for_python_double_quote(value: str) -> str:
+    """Escape a string for safe insertion into Python double-quoted literals."""
+    return (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+    )
+
+
+def _parse_positive_number(raw: str, name: str) -> float:
+    value = raw.strip()
+    try:
+        num = float(value)
+    except ValueError as exc:
+        raise BlueprintFillError(f"{name} must be a number, got {raw!r}") from exc
+    if num <= 0:
+        raise BlueprintFillError(f"{name} must be > 0, got {raw!r}")
+    return num
+
+
+def _normalize_simple_financial_script_values(values: dict[str, str]) -> dict[str, str]:
+    asset = values["asset"].strip().lower()
+    if not _ASSET_ID_RE.fullmatch(asset):
+        raise BlueprintFillError(
+            "asset must match [a-z0-9-] and start with alphanumeric "
+            f"(got {values['asset']!r})"
+        )
+
+    quote_currency = values["quote_currency"].strip().lower()
+    if not _QUOTE_CURRENCY_RE.fullmatch(quote_currency):
+        raise BlueprintFillError(
+            "quote_currency must be alphanumeric (2-10 chars), "
+            f"got {values['quote_currency']!r}"
+        )
+
+    lower = _parse_positive_number(values["lower_bound"], "lower_bound")
+    upper = _parse_positive_number(values["upper_bound"], "upper_bound")
+    if lower >= upper:
+        raise BlueprintFillError(
+            f"lower_bound must be less than upper_bound (got {lower:g} >= {upper:g})"
+        )
+
+    source = values["source"].strip().lower()
+    if source not in {"coingecko", "binance"}:
+        raise BlueprintFillError(f"source must be coingecko or binance, got {values['source']!r}")
+
+    return {
+        **values,
+        "asset": _escape_for_python_double_quote(asset),
+        "quote_currency": _escape_for_python_double_quote(quote_currency),
+        "lower_bound": f"{lower:g}",
+        "upper_bound": f"{upper:g}",
+        "source": source,
+    }
+
+
 def _build_pre_condition_script(
     bp: CronBlueprint,
     values: dict[str, str],
@@ -983,8 +1079,12 @@ def _build_pre_condition_script(
     template = templates.get(lang, templates.get("en", ""))
     if not template:
         return None
+
+    fmt_values = values
+    if bp.id == "financial_monitor_simple":
+        fmt_values = _normalize_simple_financial_script_values(values)
     try:
-        return template.format(**values)
+        return template.format(**fmt_values)
     except KeyError as exc:
         raise BlueprintFillError(f"blueprint pre-condition script missing value for {exc}") from exc
 
