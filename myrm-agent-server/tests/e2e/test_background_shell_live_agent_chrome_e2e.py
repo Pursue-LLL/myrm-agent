@@ -76,6 +76,7 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
         "modelSelection": resolve_working_base_selection(backend_url=api_base),
         "actionMode": "agent",
         "agentId": agent_id,
+        "agentConfig": {"enabledBuiltinTools": ["code_execute"]},
         "memoryRequireConfirmation": False,
         "enableMemoryAutoExtraction": False,
     }
@@ -122,6 +123,11 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
         resume_payload, resume_tools = _consume_stream(resume_request)
         tool_names.extend(resume_tools)
 
+    if "bash_code_execute_tool" not in tool_names:
+        raise AssertionError(
+            f"agent-stream did not invoke bash_code_execute_tool; tools={tool_names or ['<none>']}",
+        )
+
 
 def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 180.0) -> str:
     deadline = time.monotonic() + timeout_sec
@@ -158,11 +164,9 @@ def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 18
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
 @pytest.mark.timeout(600)
-@pytest.mark.skipif(
-    not os.environ.get("BASIC_API_KEY") or not os.environ.get("LITE_API_KEY"),
-    reason="Requires BASIC_API_KEY and LITE_API_KEY from .env.test",
-)
 def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
+    if not os.environ.get("BASIC_API_KEY") or not os.environ.get("LITE_API_KEY"):
+        pytest.skip("Requires BASIC_API_KEY and LITE_API_KEY from .env.test")
     if not wait_e2e_provider_ready():
         pytest.fail("Provider config not ready — configure default model in WebUI E2E profile")
 

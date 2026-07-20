@@ -473,17 +473,25 @@ async def test_edge_tts_parallel_tabs_isolated(_require_live_e2e_lease: None) ->
     _seed_voice_and_personal_settings()
     _ensure_voice_feature_enabled()
 
-    voice_client = ChromeMcpClient()
-    read_client = ChromeMcpClient()
+    voice_client = ChromeMcpClient(request_timeout_sec=180.0)
+    read_client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.gather(
         asyncio.to_thread(voice_client.start),
         asyncio.to_thread(read_client.start),
     )
 
+    page_timeout_ms = 60_000
     try:
-        voice_tab, read_tab = await asyncio.gather(
-            asyncio.to_thread(voice_client.new_page, f"{get_e2e_ui_url()}/", timeout_ms=15_000),
-            asyncio.to_thread(read_client.new_page, f"{get_e2e_ui_url()}/", timeout_ms=15_000),
+        # Sequential open avoids mux upstream timeout when two sessions race new_page.
+        voice_tab = await asyncio.to_thread(
+            voice_client.new_page,
+            f"{get_e2e_ui_url()}/",
+            timeout_ms=page_timeout_ms,
+        )
+        read_tab = await asyncio.to_thread(
+            read_client.new_page,
+            f"{get_e2e_ui_url()}/",
+            timeout_ms=page_timeout_ms,
         )
         voice_result, read_result = await asyncio.gather(
             _probe_voice_banner(voice_client, voice_tab),
