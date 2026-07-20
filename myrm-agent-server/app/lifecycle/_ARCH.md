@@ -7,7 +7,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `system.py` | 核心 | Channel Gateway 启动/关闭编排、OfflineDurableTask 断点续跑（成功/失败均创建 SystemNotification）、孤儿 Goal 自动暂停 | ✅ |
-| `schedulers.py` | 核心 | 定时任务调度：Cron 启动（含 legacy `monitor_config` 启动批量清洗）、Kanban Dispatcher 启动/关闭（含 Boot Recovery）、上下文清理(每日3:00)、DB维护(每6h: WAL checkpoint+备份+Qdrant优化+线程清理+Memory import cleanup+**async task queue cleanup**+Kanban GC)、审批TTL(5min)、登录会话清理(5min)、审计日志归档(每日4:00)、ContextCompaction + `app/services/agent/memory_brief_telemetry/` MemoryBriefStatus + MemoryGuardianGuard 遥测分发器生命周期、**Kanban TaskSpecifier/TaskDecomposer 注入** | ✅ |
+| `schedulers.py` | 核心 | 定时任务调度：Cron 启动（含 legacy `monitor_config` 启动批量清洗，批次数受限以保护冷启动时延，并输出续清状态日志）、Kanban Dispatcher 启动/关闭（含 Boot Recovery）、上下文清理(每日3:00)、DB维护(每6h: WAL checkpoint+备份+Qdrant优化+线程清理+Memory import cleanup+**async task queue cleanup**+Kanban GC)、审批TTL(5min)、登录会话清理(5min)、审计日志归档(每日4:00)、ContextCompaction + `app/services/agent/memory_brief_telemetry/` MemoryBriefStatus + MemoryGuardianGuard 遥测分发器生命周期、**Kanban TaskSpecifier/TaskDecomposer 注入** | ✅ |
 | `memory_guardian.py` | 核心 | 记忆守护者调度器。独立于用户会话的周期性记忆维护（频率档位驱动 1-8h 自适应）+ quiet window 运行窗口约束（窗口关闭时最多每 15 分钟复检一次，保证策略变更可生效）+ 过期归档记忆自动清理（TTL 7天）+ 超时冲突自动解决（72h 后 keep_old）+ 每次维护后自动 SQLite 热备份 + 维护结果审计事件写入 operation_ledger（SSE 推送到 Command Center）+ 每 168h 委托 pattern_discovery_trigger 执行行为模式发现；手动触发维护支持 `safe/force` 双契约，safe 路径的活跃会话/预算/容量守卫均按 fail-closed 执行（守卫不可用即跳过并写入 WARNING 观测事件） | ✅ |
 | `pattern_discovery_trigger.py` | 辅助 | 行为模式发现触发器。管理 Pattern Discovery 的定时/手动执行，将结果写入 operation_ledger 以供 Command Center 时间线和 Evolution Digest 展示 | ✅ |
 | `browser.py` | 核心 | 浏览器生命周期：池预热（config + proxy pool + launch_options）/关闭、线程清理、会话预热（可选）。代理池从 DB 配置或 `MYRM_PROXIES` 环境变量解析 | ✅ |

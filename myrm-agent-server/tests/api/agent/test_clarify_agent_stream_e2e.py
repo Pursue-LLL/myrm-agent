@@ -60,7 +60,7 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
 
     initial_events: list[dict[str, object]] = []
     clarify_events: list[dict[str, object]] = []
-    for attempt in range(2):
+    for _attempt in range(2):
         chat_id = f"test_clarify_{uuid.uuid4().hex[:8]}"
         message_id = f"msg_{uuid.uuid4().hex[:8]}"
         create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})

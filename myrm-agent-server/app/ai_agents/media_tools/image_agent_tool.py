@@ -20,10 +20,9 @@ from typing import Literal
 
 import httpx
 from langchain_core.tools import BaseTool, tool
-from pydantic import BaseModel, Field
-
 from myrm_agent_harness.toolkits.llms.image.image_engine import ImageGenerationTools
 from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -106,11 +105,12 @@ def create_image_generation_tool(
                 reference_image_urls=reference_image_urls,
             )
         try:
-            from app.lifecycle.task_worker import get_task_store
-            from app.tasks.task_payload_crypto import seal_task_payload_secrets
             from myrm_agent_harness.toolkits.llms.image.async_image_engine import (
                 AsyncImageGenerationTools,
             )
+
+            from app.lifecycle.task_worker import get_task_store
+            from app.tasks.task_payload_crypto import seal_task_payload_secrets
 
             async_engine = AsyncImageGenerationTools(
                 async_config,

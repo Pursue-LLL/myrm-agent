@@ -17,6 +17,7 @@ from app.schemas.control_plane import (
     MemoryBriefStatusTelemetryAggregate,
     MemoryBriefStatusTelemetryEnvelope,
 )
+from app.services.agent.memory_brief_telemetry import metrics as _metrics
 from app.services.agent.memory_brief_telemetry.contract import (
     MemoryBriefStatusTelemetryConfig,
     MemoryBriefStatusTelemetryEvent,
@@ -25,7 +26,6 @@ from app.services.agent.memory_brief_telemetry.dropped_store import (
     MemoryBriefStatusDroppedStore,
     serialize_dropped_aggregates,
 )
-from app.services.agent.memory_brief_telemetry import metrics as _metrics
 
 logger = logging.getLogger(__name__)
 

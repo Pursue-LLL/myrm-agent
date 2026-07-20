@@ -5,14 +5,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
-from app.api.dependencies import get_deploy_identity
-from app.api.memory.utils import get_crud_memory_manager
 from myrm_agent_harness.toolkits.memory._internal.storage import (
     WORKING_STATE_PROFILE_KEY,
     WORKING_STATE_TTL_DAYS,
     WORKING_STATE_UPDATED_AT_KEY,
 )
+
+from app.api.dependencies import get_deploy_identity
+from app.api.memory.utils import get_crud_memory_manager
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="memory")

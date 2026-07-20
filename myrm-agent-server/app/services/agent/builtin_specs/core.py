@@ -11,11 +11,11 @@ builtin_specs 子包：核心预置智能体规格
 """
 
 from app.services.agent.builtin_specs.types import (
-    _BuiltInAgentSpec,
     _TOOL_CODING,
     _TOOL_DEFAULT,
     _TOOL_MINIMAL,
     _TOOL_RESEARCH,
+    _BuiltInAgentSpec,
 )
 
 _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (

@@ -20,7 +20,6 @@ from app.services.memory.operations.crud.preferences import (
     get_taste_summary,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────
 
 

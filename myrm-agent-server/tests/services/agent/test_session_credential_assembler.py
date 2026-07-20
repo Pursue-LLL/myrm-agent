@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.agent.security import EphemeralUserCredential
 
 from app.services.agent.session_credential_assembler import (
     XAI_ISSUER,

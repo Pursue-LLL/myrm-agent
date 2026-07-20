@@ -7,11 +7,11 @@ from collections.abc import AsyncIterator
 import pytest
 
 from app.channels.types import ProgressUpdate, StreamingText
-from app.core.channel_bridge.executor_helpers import StreamAccumulator
 from app.core.channel_bridge.agent_executor.stream_events import (
     ChannelStreamEventState,
     iter_channel_stream_progress,
 )
+from app.core.channel_bridge.executor_helpers import StreamAccumulator
 
 
 async def _events(*items: dict[str, object]) -> AsyncIterator[dict[str, object]]:

@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.services.migration.mcp_config_converter import (
     MCPMigrationItem,
     convert_competitor_mcp_servers,
     mcp_migration_item_to_config_dict,
     mcp_migration_item_to_preview,
 )
-
 
 _HERMES_RAW: dict[str, object] = {
     "filesystem": {

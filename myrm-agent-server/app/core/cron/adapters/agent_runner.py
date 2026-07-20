@@ -603,9 +603,9 @@ class AgentJobRunner:
             timeout = job.timeout_seconds or 300
             run_started_at = time.monotonic()
 
-            from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
             from myrm_agent_harness.agent.security import user_credentials_ctx
 
+            from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
             from app.services.agent.session_credential_assembler import assemble_session_credentials
 
             session_credentials = await assemble_session_credentials(

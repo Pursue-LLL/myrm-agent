@@ -13,11 +13,11 @@ from pathlib import Path
 import httpx
 
 from app.services.agent.memory_guardian_guard_telemetry.contract import (
-    MemoryGuardianGuardTelemetryConfig,
-    MemoryGuardianGuardTelemetryEvent,
     _ALLOWED_FREQUENCY_TIERS,
     _ALLOWED_GUARDS,
     _ALLOWED_REASONS,
+    MemoryGuardianGuardTelemetryConfig,
+    MemoryGuardianGuardTelemetryEvent,
     normalize_governed_label,
 )
 from app.services.agent.memory_guardian_guard_telemetry.flush import (

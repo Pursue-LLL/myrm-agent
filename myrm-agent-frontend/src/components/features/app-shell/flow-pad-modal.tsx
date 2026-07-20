@@ -112,6 +112,7 @@ export function FlowPadModal() {
   const [inlineRouteSwitchError, setInlineRouteSwitchError] = useState<string | null>(null);
   const inlineActiveRequestIdRef = useRef<string | null>(null);
   const inlineRouteSwitchNonceRef = useRef(0);
+  const inlineRouteSwitchAbortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const agentRouteMenuRef = useRef<HTMLDivElement>(null);
 
@@ -130,6 +131,8 @@ export function FlowPadModal() {
 
   useEffect(() => {
     if (isOpen) {
+      inlineRouteSwitchAbortRef.current?.abort();
+      inlineRouteSwitchAbortRef.current = null;
       inlineRouteSwitchNonceRef.current += 1;
       setText(initialText);
       setLightboxSrc(null);
@@ -140,6 +143,8 @@ export function FlowPadModal() {
       inlineActiveRequestIdRef.current = null;
       setTimeout(() => inputRef.current?.focus(), 100);
     } else {
+      inlineRouteSwitchAbortRef.current?.abort();
+      inlineRouteSwitchAbortRef.current = null;
       inlineRouteSwitchNonceRef.current += 1;
       setAgentRouteMenuOpen(false);
       inlineActiveRequestIdRef.current = null;
@@ -228,6 +233,8 @@ export function FlowPadModal() {
     async (agentId: string | null) => {
       setAgentRouteMenuOpen(false);
       if (agentId === null) {
+        inlineRouteSwitchAbortRef.current?.abort();
+        inlineRouteSwitchAbortRef.current = null;
         inlineRouteSwitchNonceRef.current += 1;
         setInlineRouteSelection(null);
         setInlineRouteSwitchError(null);
@@ -240,11 +247,20 @@ export function FlowPadModal() {
 
       const switchNonce = inlineRouteSwitchNonceRef.current + 1;
       inlineRouteSwitchNonceRef.current = switchNonce;
+      inlineRouteSwitchAbortRef.current?.abort();
+      const abortController = new AbortController();
+      inlineRouteSwitchAbortRef.current = abortController;
       setInlineRouteSwitchError(null);
       setInlineRouteSwitching(true);
       try {
         const listItem = availableAgents.find((agent) => agent.id === agentId);
-        const fullAgent = await fetchAgent(agentId);
+        const fullAgent = await fetchAgent(agentId, abortController.signal);
+        if (abortController.signal.aborted) {
+          return;
+        }
+        if (!fullAgent) {
+          throw new Error('Failed to load target agent profile');
+        }
         if (inlineRouteSwitchNonceRef.current !== switchNonce) {
           return;
         }
@@ -260,6 +276,9 @@ export function FlowPadModal() {
         setInlineRouteSwitchError(null);
         toast.success(t('inlineRouteApplied', { agent: nextName }), { duration: 2000 });
       } catch (err) {
+        if (abortController.signal.aborted) {
+          return;
+        }
         if (inlineRouteSwitchNonceRef.current !== switchNonce) {
           return;
         }
@@ -270,6 +289,9 @@ export function FlowPadModal() {
         setInlineRouteSwitchError(failedName);
         toast.error(t('inlineRouteApplyFailed'), { duration: 3000 });
       } finally {
+        if (inlineRouteSwitchAbortRef.current === abortController) {
+          inlineRouteSwitchAbortRef.current = null;
+        }
         if (inlineRouteSwitchNonceRef.current === switchNonce) {
           setInlineRouteSwitching(false);
         }

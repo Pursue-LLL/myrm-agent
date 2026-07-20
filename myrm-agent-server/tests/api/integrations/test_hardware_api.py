@@ -6,7 +6,8 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 # Import the router directly instead of the whole app to avoid FastAPI app initialization issues in tests
-from app.api.integrations.hardware import _estimate_tok_per_sec, router as hardware_router
+from app.api.integrations.hardware import _estimate_tok_per_sec
+from app.api.integrations.hardware import router as hardware_router
 from app.config.deploy_mode import DeployMode
 
 app = FastAPI()

@@ -145,8 +145,9 @@ def test_open_without_encryption_key_leaves_sealed_fields_and_strips_plaintext(
 
 
 def test_open_gateway_decrypt_failure_strips_auth_token_enc(monkeypatch: pytest.MonkeyPatch) -> None:
-    import app.services.config.encryption as enc_mod
     from myrm_agent_harness.utils.crypto import DecryptionError
+
+    import app.services.config.encryption as enc_mod
 
     class _BrokenDecryptService:
         has_key = True

@@ -543,7 +543,7 @@ def _build_codebase_overview(workspace_path: Path) -> str:
     ext_counts: dict[str, int] = {}
     truncated = False
 
-    for dirpath, dirnames, filenames in os.walk(workspace_path):
+    for _dirpath, dirnames, filenames in os.walk(workspace_path):
         dirnames[:] = [
             name
             for name in dirnames
@@ -617,8 +617,9 @@ async def _wiki_concept_part(
 ) -> tuple[str, int]:
     """Read a wiki concept by name and build an XML context part."""
     try:
-        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
         from myrm_agent_harness.toolkits.wiki import WikiStructure
+
+        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
 
         vault_path = resolve_wiki_vault_path(agent_id)
         structure = WikiStructure(vault_path)
@@ -644,8 +645,9 @@ async def _wiki_raw_file_part(
 ) -> tuple[str, int]:
     """Read a wiki raw file and build an XML context part."""
     try:
-        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
         from myrm_agent_harness.toolkits.wiki import WikiStructure
+
+        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
 
         vault_path = resolve_wiki_vault_path(agent_id)
         structure = WikiStructure(vault_path)

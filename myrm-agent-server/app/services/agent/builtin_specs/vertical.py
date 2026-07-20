@@ -11,13 +11,13 @@ builtin_specs 子包：14 个垂直领域预置智能体规格
 """
 
 from app.services.agent.builtin_specs.types import (
-    _BuiltInAgentSpec,
     _TOOL_CODING,
     _TOOL_DEFAULT,
     _TOOL_DESIGN,
     _TOOL_MINIMAL,
     _TOOL_RESEARCH,
     _TOOL_VIDEO_STUDIO,
+    _BuiltInAgentSpec,
 )
 
 _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (

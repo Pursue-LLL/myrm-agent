@@ -7,17 +7,17 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.core.utils.response_utils import success_response
-from app.services.skills.growth_case_types import (
-    SkillGrowthCaseDetailRead,
-    SkillGrowthCaseStatus,
-    SkillGrowthCaseSummaryRead,
-    SkillGrowthFormMetadataRead,
-)
 from app.services.skills.growth_audit_queries import (
     SkillGrowthAuditEntryRead,
     SkillGrowthAuditStatsRead,
     list_skill_growth_audit_entries,
     summarize_skill_growth_audit,
+)
+from app.services.skills.growth_case_types import (
+    SkillGrowthCaseDetailRead,
+    SkillGrowthCaseStatus,
+    SkillGrowthCaseSummaryRead,
+    SkillGrowthFormMetadataRead,
 )
 from app.services.skills.growth_queries import (
     detail_to_summary,

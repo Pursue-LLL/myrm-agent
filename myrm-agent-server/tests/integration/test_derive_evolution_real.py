@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
-from myrm_agent_harness.api.hooks import set_task_intent
 from myrm_agent_harness.agent.config.parsers import to_litellm_model
 from myrm_agent_harness.agent.skills.evolution import (
     EvolutionIntegration,
@@ -22,6 +21,7 @@ from myrm_agent_harness.agent.skills.evolution import (
     SkillLineage,
     SkillRecord,
 )
+from myrm_agent_harness.api.hooks import set_task_intent
 
 load_dotenv(override=True)
 

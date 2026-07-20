@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.database.models.approval import ApprovalRecord
 from app.database.models.base import Base
 
-
 _engine = create_async_engine("sqlite+aiosqlite:///:memory:")
 _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 

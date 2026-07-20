@@ -6,7 +6,6 @@ import hashlib
 import hmac as hmac_mod
 
 from app.channels.providers.telegram import TelegramChannel
-
 from tests.channels.channel_test_base import FAKE_TELEGRAM_BOT_TOKEN
 
 

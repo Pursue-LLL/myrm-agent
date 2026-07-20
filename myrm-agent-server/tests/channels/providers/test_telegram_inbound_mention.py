@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from app.channels.providers.telegram import TelegramChannel
 from app.channels.providers.telegram.models import TgEntity, TgMessage, TgUser
-
 from tests.channels.channel_test_base import FAKE_TELEGRAM_BOT_TOKEN
 
 

@@ -58,9 +58,6 @@ from app.lifecycle import (
     stop_memory_pressure_monitor,
     stop_remote_backup_scheduler,
 )
-from app.services.memory.integration_sync_daemon import (
-    stop_integration_sync_daemon,
-)
 from app.server.shutdown import (
     safe_close_checkpointer,
     safe_shutdown_observability,
@@ -74,6 +71,9 @@ from app.server.shutdown import (
 from app.server.warmup import run_async_warmup
 from app.services.agent.evolution.monitor_service import (
     shutdown_evolution_monitor_service,
+)
+from app.services.memory.integration_sync_daemon import (
+    stop_integration_sync_daemon,
 )
 
 logger = logging.getLogger(__name__)
@@ -637,7 +637,6 @@ async def _shutdown(app_instance: FastAPI) -> None:
 
     # Final: WAL checkpoint + engine dispose to ensure all data is flushed to disk
     try:
-        from app.config.settings import settings
         from app.platform_utils import get_database_engine
 
         engine = get_database_engine()

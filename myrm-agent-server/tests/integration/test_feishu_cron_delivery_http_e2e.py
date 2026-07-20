@@ -12,6 +12,7 @@ from typing import ClassVar
 from unittest.mock import patch
 
 import pytest
+from myrm_agent_harness.toolkits.cron.types import CronJob, DeliveryConfig, JobResult, JobType, Schedule
 
 from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 from app.core.cron.adapters.delivery_resolver import resolve_cron_delivery
@@ -19,7 +20,6 @@ from app.core.cron.adapters.feishu_bot_webhook import (
     deliver_feishu_bot_webhook,
     is_feishu_bot_hook_url,
 )
-from myrm_agent_harness.toolkits.cron.types import CronJob, DeliveryConfig, JobResult, JobType, Schedule
 
 
 class _HookCaptureHandler(BaseHTTPRequestHandler):

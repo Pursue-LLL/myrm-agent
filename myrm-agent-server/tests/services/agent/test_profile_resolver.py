@@ -13,9 +13,9 @@ from app.services.agent.profile_resolver import (
     ResolvedAgentProfile,
     _coerce_str_tuple,
     _coerce_tool_selections,
+    apply_agent_baseline_tool_flags,
     get_agent_profile_resolver,
     resolve_builtin_tool_flags,
-    apply_agent_baseline_tool_flags,
 )
 
 

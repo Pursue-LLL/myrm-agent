@@ -14,7 +14,6 @@ from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills import prebuilt_sync
 
-
 GOOGLE_CALENDAR_CMD = (
     "python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today"
 )

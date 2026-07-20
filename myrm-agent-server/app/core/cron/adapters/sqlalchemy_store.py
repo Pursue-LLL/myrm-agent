@@ -8,6 +8,7 @@ usage aggregation lives in ``sqlalchemy_aggregation``.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from myrm_agent_harness.infra.incremental.types import MonitorState
@@ -32,6 +33,17 @@ from app.database.connection import get_session
 from app.database.models import CronJobModel, CronRunModel, MonitorStateModel
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class MonitorConfigCleanupStats:
+    """Structured result for startup monitor_config cleanup."""
+
+    normalized_count: int
+    scanned_count: int
+    processed_batches: int
+    reached_batch_limit: bool
+    continuation_required: bool
 
 
 def _exec_rowcount(result: object) -> int:
@@ -127,15 +139,33 @@ class SqlAlchemyCronStore:
                 await session.commit()
             return job_to_domain(row) if row else None
 
-    async def normalize_monitor_configs_batch(self, *, batch_size: int = 500) -> int:
-        """Normalize all persisted monitor_config payloads in bounded batches."""
+    async def normalize_monitor_configs_batch(
+        self,
+        *,
+        batch_size: int = 500,
+        max_batches: int | None = None,
+    ) -> MonitorConfigCleanupStats:
+        """Normalize persisted monitor_config payloads in bounded batches.
+
+        Args:
+            batch_size: Rows loaded per batch.
+            max_batches: Optional startup throttle. When set, stops after this many batches.
+        """
         if batch_size <= 0:
             raise ValueError("batch_size must be positive")
+        if max_batches is not None and max_batches <= 0:
+            raise ValueError("max_batches must be positive when provided")
 
         normalized_total = 0
+        scanned_total = 0
         cursor_job_id: str | None = None
+        processed_batches = 0
+        reached_batch_limit = False
 
         while True:
+            if max_batches is not None and processed_batches >= max_batches:
+                reached_batch_limit = True
+                break
             async with get_session() as session:
                 stmt = select(CronJobModel).where(CronJobModel.monitor_config.isnot(None))
                 if cursor_job_id is not None:
@@ -145,6 +175,7 @@ class SqlAlchemyCronStore:
                 rows = (await session.execute(stmt)).scalars().all()
                 if not rows:
                     break
+                scanned_total += len(rows)
 
                 normalized_in_batch = 0
                 for row in rows:
@@ -156,11 +187,43 @@ class SqlAlchemyCronStore:
                     normalized_total += normalized_in_batch
 
                 cursor_job_id = rows[-1].id
+                processed_batches += 1
+
+        continuation_required = False
+        if reached_batch_limit and cursor_job_id is not None:
+            async with get_session() as session:
+                has_more_stmt = (
+                    select(CronJobModel.id)
+                    .where(
+                        CronJobModel.monitor_config.isnot(None),
+                        CronJobModel.id > cursor_job_id,
+                    )
+                    .order_by(CronJobModel.id.asc())
+                    .limit(1)
+                )
+                continuation_required = (await session.execute(has_more_stmt)).scalar_one_or_none() is not None
 
         if normalized_total > 0:
-            logger.info("Normalized %d legacy cron monitor_config payloads", normalized_total)
+            logger.info(
+                "Normalized %d legacy cron monitor_config payloads (scanned=%d, batches=%d)",
+                normalized_total,
+                scanned_total,
+                processed_batches,
+            )
+        if reached_batch_limit:
+            logger.info(
+                "Monitor_config cleanup paused after %d batches to protect startup latency (continuation_required=%s)",
+                processed_batches,
+                continuation_required,
+            )
 
-        return normalized_total
+        return MonitorConfigCleanupStats(
+            normalized_count=normalized_total,
+            scanned_count=scanned_total,
+            processed_batches=processed_batches,
+            reached_batch_limit=reached_batch_limit,
+            continuation_required=continuation_required,
+        )
 
     async def earliest_next_run(self) -> datetime | None:
         async with get_session() as session:

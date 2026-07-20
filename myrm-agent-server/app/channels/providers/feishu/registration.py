@@ -102,13 +102,13 @@ class FeishuAppRegistration:
         """POST form-encoded data to the registration endpoint."""
         url = f"{self._accounts_url()}{_REGISTRATION_PATH}"
         data = urlencode(body).encode("utf-8")
-        req = Request(
+        req = Request(  # noqa: S310
             url,
             data=data,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         try:
-            with urlopen(req, timeout=_REQUEST_TIMEOUT_S) as resp:
+            with urlopen(req, timeout=_REQUEST_TIMEOUT_S) as resp:  # noqa: S310
                 return json.loads(resp.read().decode("utf-8"))
         except HTTPError as exc:
             body_bytes = exc.read()

@@ -20,8 +20,8 @@ import os
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
 from app.config.settings import settings
+from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
 from app.services.config.service import ConfigService
 
 logger = logging.getLogger(__name__)

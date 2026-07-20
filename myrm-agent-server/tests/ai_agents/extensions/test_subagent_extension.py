@@ -7,10 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.tools import BaseTool
+from myrm_agent_harness.agent.base_agent import BaseAgent
+from myrm_agent_harness.agent.tool_management import ToolLifecycleManager, ToolRegistry
 
 from app.ai_agents.extensions.subagent_extension import SubagentManagementExtension
-from myrm_agent_harness.agent.base_agent import BaseAgent
-from myrm_agent_harness.agent.tool_management import ToolRegistry, ToolLifecycleManager
 
 _SPAWN = "myrm_agent_harness.agent.meta_tools.spawn_subagent"
 _MATERIALIZE = "app.ai_agents.general_agent.blueprint_materializer.materialize_jit_configs"

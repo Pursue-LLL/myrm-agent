@@ -506,8 +506,8 @@ async def read_mcp_resource(
         except RuntimeError as e:
             last_error = str(e)
             continue
-        except asyncio.TimeoutError:
-            raise timeout_error(operation="MCP resource read")
+        except asyncio.TimeoutError as exc:
+            raise timeout_error(operation="MCP resource read") from exc
         except Exception as e:
             last_error = str(e)
             logger.warning("MCP resource read failed for server '%s': %s", server, e)

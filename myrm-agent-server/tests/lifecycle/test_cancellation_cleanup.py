@@ -6,11 +6,9 @@ Verifies:
 3. The scheduler job function works end-to-end
 """
 
-import asyncio
 import time
 
 import pytest
-
 from myrm_agent_harness.utils.runtime.cancellation import (
     CancellationRegistry,
     CancellationToken,

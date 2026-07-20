@@ -16,7 +16,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.api.voice.realtime import (
-    REALTIME_VOICES,
     RealtimeTokenRequest,
     RealtimeToolExecRequest,
     RealtimeTranscriptRequest,
@@ -403,7 +402,7 @@ async def test_create_realtime_token_tools_payload_format() -> None:
         patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
-        result = await create_realtime_token(RealtimeTokenRequest())
+        await create_realtime_token(RealtimeTokenRequest())
 
     posted_payload = mock_client.post.await_args.kwargs["json"]
     tools_payload = posted_payload["tools"]

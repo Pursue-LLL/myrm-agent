@@ -10,12 +10,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-
-from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
-    reset_deferred_activation_for_tests,
-)
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
     create_bash_code_execute_tool,
+)
+from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
+    reset_deferred_activation_for_tests,
 )
 from myrm_agent_harness.api.hooks import get_background_registry, set_global_background_job_finish_handler
 from myrm_agent_harness.toolkits.code_execution.executors.base import set_executor

@@ -10,23 +10,21 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
-from myrm_agent_harness.api.hooks import get_background_registry
-from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
-    reset_deferred_activation_for_tests,
-)
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
     create_bash_code_execute_tool,
 )
 from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
     BASH_PROCESS_TOOL_NAME,
 )
+from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
+    reset_deferred_activation_for_tests,
+)
+from myrm_agent_harness.api.hooks import get_background_registry, set_global_background_job_finish_handler
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import set_executor
 from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind import (
     bind_workspace_storage_root,
 )
-from myrm_agent_harness.api.hooks import set_global_background_job_finish_handler
 
 from app.database.models.chat import Chat
 from app.platform_utils import get_session_factory

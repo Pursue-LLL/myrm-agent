@@ -14,13 +14,13 @@ from app.services.agent.builtin_specs.core import _CORE_BUILTIN_AGENTS
 from app.services.agent.builtin_specs.extended import _EXTENDED_BUILTIN_AGENTS
 from app.services.agent.builtin_specs.search import _SEARCH_BUILTIN_AGENTS
 from app.services.agent.builtin_specs.types import (
-    _BuiltInAgentSpec,
     _TOOL_CODING,
     _TOOL_DEFAULT,
     _TOOL_DESIGN,
     _TOOL_MINIMAL,
     _TOOL_RESEARCH,
     _TOOL_VIDEO_STUDIO,
+    _BuiltInAgentSpec,
 )
 from app.services.agent.builtin_specs.vertical import _VERTICAL_BUILTIN_AGENTS
 

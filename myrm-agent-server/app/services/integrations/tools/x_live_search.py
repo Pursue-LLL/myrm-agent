@@ -22,10 +22,10 @@ from langchain.tools import tool
 from langchain_core.tools import BaseTool
 
 from app.ai_agents.general_agent.tools.x_search_provider import (
+    _X_SEARCH_DESCRIPTION,
     XSearchInput,
     XSearchProvider,
     XSearchProviderConfig,
-    _X_SEARCH_DESCRIPTION,
 )
 from app.services.agent.session_credential_assembler import XAI_ISSUER
 

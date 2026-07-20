@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
 from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_JOB_ID_KEY
 from myrm_agent_harness.api.hooks import BackgroundJobFinishResult

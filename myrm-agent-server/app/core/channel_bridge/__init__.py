@@ -13,10 +13,10 @@ from typing import TYPE_CHECKING
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.gateway import ChannelGateway
+from app.channels.reliability.delivery_notify_ledger import SqliteDeliveryNotifyLedger
 from app.channels.reliability.inbound_journal import (
     SqliteInboundJournal,
 )
-from app.channels.reliability.delivery_notify_ledger import SqliteDeliveryNotifyLedger
 from app.config.settings import settings
 
 if TYPE_CHECKING:

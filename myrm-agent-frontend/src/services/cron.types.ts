@@ -136,11 +136,14 @@ export interface CronProgressStep {
 }
 
 export type MonitorContractErrorCode = 'invalid_json_like_output';
+export type MonitorFailureCountSource = 'persistent_state' | 'memory_fallback';
 
 export interface CronRunMetadata {
   verification?: CronRunVerification;
   progressSteps?: CronProgressStep[];
   monitor_contract_error?: MonitorContractErrorCode | string;
+  monitor_failure_count?: number;
+  monitor_failure_count_source?: MonitorFailureCountSource | string;
 }
 
 export interface CronRun {

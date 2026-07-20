@@ -150,11 +150,11 @@ async def import_agent_profile_endpoint(
             marketplace_entry_id=normalized_entry_id,
         )
         return ImportAgentProfileResponse(agent_id=agent_id, status="installed")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
         logger.exception("Failed to import agent profile from marketplace")
-        raise HTTPException(status_code=500, detail="Import failed")
+        raise HTTPException(status_code=500, detail="Import failed") from exc
 
 
 def _normalize_marketplace_entry_id(entry_id: str | None) -> str | None:

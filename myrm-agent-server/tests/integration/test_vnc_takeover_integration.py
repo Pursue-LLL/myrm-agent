@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.webui.vnc_routes import TakeoverResponse, _get_takeover, router
+from app.api.webui.vnc_routes import router
 
 
 @pytest.fixture

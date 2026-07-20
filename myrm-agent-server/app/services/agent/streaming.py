@@ -358,8 +358,8 @@ async def ai_deep_research_service_stream(
     reset_session_budget(chat_id=session_id or None)
 
     from myrm_agent_harness.agent.deep_research import DeepResearchOrchestrator
-    from myrm_agent_harness.api import AgentEventType
     from myrm_agent_harness.agent.meta_tools.clarification import AskQuestionInput
+    from myrm_agent_harness.api import AgentEventType
 
     _SENTINEL = object()
     _HEARTBEAT_INTERVAL = 15  # seconds — well under typical proxy idle timeouts

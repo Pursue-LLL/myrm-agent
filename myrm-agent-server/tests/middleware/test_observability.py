@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from myrm_agent_harness.observability.tracing import TracingContext
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
-
-from myrm_agent_harness.observability.tracing import TracingContext
 
 from app.middleware.observability import TracingMiddleware, _extract_session_id
 

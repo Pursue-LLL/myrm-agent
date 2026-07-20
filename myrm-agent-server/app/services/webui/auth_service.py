@@ -24,6 +24,7 @@ from fastapi import Request, Response
 
 from app.config.deploy_mode import DeployMode, get_deploy_mode, is_webui_remote_mode
 from app.core.security.auth.identity import is_loopback_ip
+from app.remote_access.pairing import rotate_pairing_key
 from app.services.webui.access_policy import local_api_requires_session
 from app.services.webui.admin_store import admin_is_configured, load_admin, save_admin
 from app.services.webui.passwords import hash_password, verify_password
@@ -37,7 +38,6 @@ from app.services.webui.session import (
     parse_session_value,
     rotate_session_signing_key,
 )
-from app.remote_access.pairing import rotate_pairing_key
 from app.services.webui.temp_token import temp_token_service
 
 _LOCAL_USER_ID = "local-user"

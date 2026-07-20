@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
@@ -104,9 +104,9 @@ async def trigger_export(body: ExportRequest) -> JSONResponse:
     for fmt_str in body.formats:
         try:
             parsed_formats.append(ExportFormat(fmt_str.lower()))
-        except ValueError:
+        except ValueError as exc:
             valid = ", ".join(f.value for f in ExportFormat)
-            raise validation_error(f"Unknown format '{fmt_str}'. Valid: {valid}")
+            raise validation_error(f"Unknown format '{fmt_str}'. Valid: {valid}") from exc
 
     if not parsed_formats:
         raise validation_error("At least one export format is required.")

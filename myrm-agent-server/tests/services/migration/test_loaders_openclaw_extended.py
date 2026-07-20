@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from app.services.migration._loaders_openclaw import load_openclaw
 
 

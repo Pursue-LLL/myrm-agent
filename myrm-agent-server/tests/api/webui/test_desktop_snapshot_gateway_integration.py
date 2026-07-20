@@ -14,12 +14,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from httpx import ASGITransport
-from PIL import Image
-
 from myrm_agent_harness.toolkits.computer_use.coordinate_scaler import CoordinateScaler
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
 from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult, ComputerUseConfig, ScreenInfo
+from PIL import Image
+
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(webui=True)

@@ -214,7 +214,7 @@ class TestMigrateHermesAuxiliaryModels:
     @pytest.mark.asyncio()
     async def test_migrates_empty_slots(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _mock_local(monkeypatch)
-        captured = _mock_config(monkeypatch, existing_providers={})
+        _mock_config(monkeypatch, existing_providers={})
 
         result = await migrate_hermes_auxiliary_models({
             "auxiliary": {

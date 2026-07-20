@@ -29,7 +29,7 @@ def test_filter_tools_by_profile_respects_enabled_groups() -> None:
         SimpleNamespace(name="bash"),
     ]
     filtered = _filter_tools_by_profile(tools, ("memory",))
-    assert [getattr(tool, "name") for tool in filtered] == ["memory_search_tool", "bash"]
+    assert [tool.name for tool in filtered] == ["memory_search_tool", "bash"]
 
 
 def test_filter_tools_by_profile_enables_all_builtin_groups() -> None:
@@ -96,7 +96,7 @@ def test_rebind_subagent_memory_search_tool_skips_non_memory_manager() -> None:
         allow_wiki=False,
         query_wiki=None,
     )
-    assert getattr(tools[0], "marker") == "parent"
+    assert tools[0].marker == "parent"
 
 
 def test_rebind_subagent_memory_search_tool_noop_when_rebuild_missing(monkeypatch) -> None:
@@ -122,7 +122,7 @@ def test_rebind_subagent_memory_search_tool_noop_when_rebuild_missing(monkeypatc
         allow_wiki=False,
         query_wiki=None,
     )
-    assert getattr(tools[0], "marker") == "parent"
+    assert tools[0].marker == "parent"
 
 
 def test_rebind_subagent_memory_search_tool_noop_when_tool_absent(monkeypatch) -> None:
@@ -143,7 +143,7 @@ def test_rebind_subagent_memory_search_tool_noop_when_tool_absent(monkeypatch) -
         allow_wiki=False,
         query_wiki=None,
     )
-    assert getattr(tools[0], "name") == "bash"
+    assert tools[0].name == "bash"
 
 
 @pytest.mark.asyncio
@@ -295,14 +295,14 @@ def test_rebind_subagent_memory_search_tool_replaces_inherited_tool(monkeypatch)
     )
 
     assert len(tools) == 1
-    assert getattr(tools[0], "name") == "memory_search_tool"
-    assert getattr(tools[0], "marker") == "rebound"
+    assert tools[0].name == "memory_search_tool"
+    assert tools[0].marker == "rebound"
     assert captured["manager"] is memory_manager
     policy = captured["search_policy"]
     backends = captured["search_backends"]
-    assert getattr(policy, "allow_sessions") is True
-    assert getattr(policy, "allow_wiki") is False
-    provider = getattr(backends, "conversation_provider")
+    assert policy.allow_sessions is True
+    assert policy.allow_wiki is False
+    provider = backends.conversation_provider
     assert isinstance(provider, FakeProvider)
     assert provider.current_chat_id == "chat-123"
     assert provider.agent_id == "agent-a"
@@ -319,8 +319,8 @@ def test_rebind_subagent_memory_search_tool_skips_sessions_when_opt_in_off(monke
         search_policy: object = None,
         search_backends: object = None,
     ) -> list[object]:
-        assert getattr(search_policy, "allow_sessions") is False
-        assert getattr(search_backends, "conversation_provider") is None
+        assert search_policy.allow_sessions is False
+        assert search_backends.conversation_provider is None
         return [SimpleNamespace(name="memory_search_tool")]
 
     import myrm_agent_harness.toolkits as toolkits_module
@@ -362,7 +362,7 @@ async def test_rebound_memory_search_tool_blocks_sessions_when_opt_in_off() -> N
         manager,
         search_policy=MemorySearchPolicy(allow_sessions=False),
     )
-    search_tool = next(tool for tool in tools if getattr(tool, "name") == "memory_search_tool")
+    search_tool = next(tool for tool in tools if tool.name == "memory_search_tool")
 
     result = await search_tool.ainvoke({"query": "last quote", "corpus": "sessions"})
 
@@ -371,8 +371,9 @@ async def test_rebound_memory_search_tool_blocks_sessions_when_opt_in_off() -> N
 
 @pytest.mark.asyncio
 async def test_ephemeral_agent_factory_rebinds_memory_search_tool(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
 
     class FakeMemoryManager:
         approval_required = False
@@ -427,8 +428,8 @@ async def test_ephemeral_agent_factory_rebinds_memory_search_tool(monkeypatch) -
     )
 
     assert len(captured_tools) == 1
-    assert getattr(captured_tools[0], "name") == "memory_search_tool"
-    assert getattr(captured_tools[0], "marker") == "rebound"
+    assert captured_tools[0].name == "memory_search_tool"
+    assert captured_tools[0].marker == "rebound"
 
 
 def test_apply_subagent_memory_search_rebind_skips_without_memory_group() -> None:
@@ -454,7 +455,7 @@ def test_apply_subagent_memory_search_rebind_skips_without_memory_group() -> Non
         factory_module._rebind_subagent_memory_search_tool = original  # type: ignore[assignment]
 
     assert rebind_calls == []
-    assert getattr(tools[0], "marker") == "parent"
+    assert tools[0].marker == "parent"
 
 
 def test_apply_subagent_memory_search_rebind_skips_without_manager() -> None:
@@ -484,8 +485,9 @@ def test_apply_subagent_memory_search_rebind_skips_without_manager() -> None:
 
 @pytest.mark.asyncio
 async def test_ephemeral_agent_factory_keeps_parent_tool_without_memory_group(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
 
     captured_tools: list[object] = []
 
@@ -528,8 +530,9 @@ async def test_ephemeral_agent_factory_keeps_parent_tool_without_memory_group(mo
 
 @pytest.mark.asyncio
 async def test_custom_agent_factory_build_rebinds_memory_search_tool(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import CustomAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import CustomAgentFactory
 
     class FakeMemoryManager:
         approval_required = False
@@ -618,14 +621,15 @@ async def test_custom_agent_factory_build_rebinds_memory_search_tool(monkeypatch
 
     assert agent is not None
     assert len(captured_tools) == 2
-    rebound = next(tool for tool in captured_tools if getattr(tool, "name") == "memory_search_tool")
-    assert getattr(rebound, "marker") == "rebound"
+    rebound = next(tool for tool in captured_tools if tool.name == "memory_search_tool")
+    assert rebound.marker == "rebound"
 
 
 @pytest.mark.asyncio
 async def test_custom_agent_factory_build_fork_context_clears_system_prompt(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import CustomAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import CustomAgentFactory
 
     profile = SimpleNamespace(
         display_name="Fork Custom",
@@ -672,13 +676,14 @@ async def test_custom_agent_factory_build_fork_context_clears_system_prompt(monk
     await factory.build(config, [], "task", parent, current_depth=1)
 
     assert captured_spec
-    assert getattr(captured_spec[0], "system_prompt") == ""
+    assert captured_spec[0].system_prompt == ""
 
 
 @pytest.mark.asyncio
 async def test_ephemeral_agent_factory_fork_context_clears_system_prompt(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
 
     captured_spec: list[object] = []
 
@@ -715,7 +720,7 @@ async def test_ephemeral_agent_factory_fork_context_clears_system_prompt(monkeyp
     await factory.build(config, [], "task", parent, current_depth=1)
 
     assert captured_spec
-    assert getattr(captured_spec[0], "system_prompt") == ""
+    assert captured_spec[0].system_prompt == ""
 
 
 @pytest.mark.asyncio
@@ -776,8 +781,9 @@ async def test_custom_agent_factory_ensure_initialized_mcp_failure_is_non_fatal(
 
 @pytest.mark.asyncio
 async def test_custom_agent_factory_build_uses_config_llm(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import CustomAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import CustomAgentFactory
 
     profile = SimpleNamespace(
         display_name="Direct LLM",
@@ -829,8 +835,9 @@ async def test_custom_agent_factory_build_uses_config_llm(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_custom_agent_factory_build_resolves_model_from_config(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import CustomAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import CustomAgentFactory
 
     profile = SimpleNamespace(
         display_name="Resolved LLM",
@@ -900,8 +907,9 @@ async def test_custom_agent_factory_build_resolves_model_from_config(monkeypatch
 
 @pytest.mark.asyncio
 async def test_custom_agent_factory_build_model_resolution_failure_falls_back(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import CustomAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import CustomAgentFactory
 
     profile = SimpleNamespace(
         display_name="Fallback LLM",
@@ -960,8 +968,9 @@ async def test_custom_agent_factory_build_model_resolution_failure_falls_back(mo
 
 @pytest.mark.asyncio
 async def test_custom_agent_factory_build_memory_manager_failure_is_degraded(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import CustomAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import CustomAgentFactory
 
     profile = SimpleNamespace(
         display_name="Memory Fail",
@@ -1023,8 +1032,9 @@ async def test_custom_agent_factory_build_memory_manager_failure_is_degraded(mon
 
 @pytest.mark.asyncio
 async def test_custom_agent_factory_build_applies_personality_style(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import CustomAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import CustomAgentFactory
 
     profile = SimpleNamespace(
         display_name="Friendly",
@@ -1070,15 +1080,16 @@ async def test_custom_agent_factory_build_applies_personality_style(monkeypatch)
     await factory.build(config, [], "task", parent, current_depth=1)
 
     assert captured_spec
-    system_prompt = getattr(captured_spec[0], "system_prompt")
+    system_prompt = captured_spec[0].system_prompt
     assert isinstance(system_prompt, str)
     assert "Communication Style" in system_prompt
 
 
 @pytest.mark.asyncio
 async def test_custom_agent_factory_build_personality_template_failure_is_non_fatal(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import CustomAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import CustomAgentFactory
 
     profile = SimpleNamespace(
         display_name="Personality Fail",
@@ -1131,13 +1142,14 @@ async def test_custom_agent_factory_build_personality_template_failure_is_non_fa
     await factory.build(config, [], "task", parent, current_depth=1)
 
     assert captured_spec
-    assert getattr(captured_spec[0], "system_prompt") == "Base prompt."
+    assert captured_spec[0].system_prompt == "Base prompt."
 
 
 @pytest.mark.asyncio
 async def test_ephemeral_agent_factory_uses_config_llm(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
 
     direct_llm = SimpleNamespace(model="ephemeral-direct")
     captured_llm: list[object] = []
@@ -1179,8 +1191,9 @@ async def test_ephemeral_agent_factory_uses_config_llm(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_ephemeral_agent_factory_resolves_model_from_config(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
 
     resolved_llm = SimpleNamespace(model="ephemeral-resolved")
     captured_llm: list[object] = []
@@ -1240,8 +1253,9 @@ async def test_ephemeral_agent_factory_resolves_model_from_config(monkeypatch) -
 
 @pytest.mark.asyncio
 async def test_ephemeral_agent_factory_model_resolution_failure_falls_back(monkeypatch) -> None:
-    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
 
     parent_llm = SimpleNamespace(model="parent")
     captured_llm: list[object] = []

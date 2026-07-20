@@ -6,11 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from myrm_agent_harness.core.security.guards.ssrf import SSRFResult
 
 from app.services.web_fetch.providers.firecrawl import FirecrawlEscalationProvider
 from app.services.web_fetch.providers.jina import JinaEscalationProvider
-from myrm_agent_harness.core.security.guards.ssrf import SSRFResult
-from myrm_agent_harness.toolkits.web_fetch.escalation.protocols import EscalationFetchResult
 
 
 @pytest.mark.asyncio

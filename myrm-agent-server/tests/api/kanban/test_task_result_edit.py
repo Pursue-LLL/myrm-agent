@@ -15,7 +15,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 from app.api.kanban.router import router as kanban_router
 from app.services.kanban import KanbanService

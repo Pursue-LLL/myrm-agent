@@ -219,7 +219,7 @@ def _wait_for_health(url: str, timeout: float = _HEALTH_CHECK_TIMEOUT) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
-            with urlopen(url, timeout=2) as resp:
+            with urlopen(url, timeout=2) as resp:  # noqa: S310
                 if resp.status == 200:
                     return True
         except (URLError, OSError, TimeoutError):

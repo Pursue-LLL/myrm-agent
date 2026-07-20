@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.computer_use.types import ForegroundPermissionScope
 
 from app.ai_agents.desktop_control.gate import (
     DesktopControlGate,
@@ -15,7 +16,6 @@ from app.ai_agents.desktop_control.gate import (
     resolve_desktop_control_approval,
     revoke_trusted_desktop_app,
 )
-from myrm_agent_harness.toolkits.computer_use.types import ForegroundPermissionScope
 
 
 @pytest.mark.asyncio

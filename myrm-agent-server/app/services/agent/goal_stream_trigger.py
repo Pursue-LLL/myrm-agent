@@ -36,8 +36,9 @@ TriggerFailurePolicy = Literal["needs_human_review", "keep_active"]
 
 async def _resolve_user_locale() -> str:
     """Load locale from personal settings (WebUI / Tauri / sandbox user config)."""
-    from app.core.channel_bridge.config_loader import load_user_configs
     from myrm_agent_harness.utils.locale import normalize_locale, resolve_locale
+
+    from app.core.channel_bridge.config_loader import load_user_configs
 
     try:
         configs = await load_user_configs()

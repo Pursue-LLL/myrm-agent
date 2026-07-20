@@ -18,17 +18,17 @@ import logging
 
 from langgraph.types import Command
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
+from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
 
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
 from app.channels.i18n import get_text
 from app.channels.types import InboundMessage
 from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.channel_bridge.config_parsers import verify_search_service_available
-from app.core.types.business import ModelConfig
 from app.core.types import MCPServerConfig
+from app.core.types.business import ModelConfig
 from app.services.agent.profile_resolver import ResolvedAgentProfile
-from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
-from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
 
 from .execute_preamble_types import (
     ChannelAgentBuildOutcome,
@@ -213,6 +213,7 @@ async def build_channel_execution_agent(
         query_input = query
 
     from myrm_agent_harness.agent.security import user_credentials_ctx
+
     from app.services.agent.session_credential_assembler import assemble_session_credentials
 
     credentials_list = await assemble_session_credentials(

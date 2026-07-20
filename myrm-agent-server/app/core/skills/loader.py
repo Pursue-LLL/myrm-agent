@@ -9,6 +9,7 @@ prebuilt/user/workspace 组合）全部在此处理。
 import logging
 from pathlib import Path
 
+from myrm_agent_harness.api import SkillBackend
 from myrm_agent_harness.backends.skills import (
     CompositeSkillBackend,
     LocalSkillBackend,
@@ -16,7 +17,6 @@ from myrm_agent_harness.backends.skills import (
     StorageSkillBackend,
     VersionAwareSkillBackend,
 )
-from myrm_agent_harness.api import SkillBackend
 from myrm_agent_harness.backends.skills.types import SkillMetadata, SkillTrust
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
 

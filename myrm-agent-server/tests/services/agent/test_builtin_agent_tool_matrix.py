@@ -7,7 +7,6 @@ from app.services.agent.builtin_initializer import (
     _TOOL_CODING,
     _TOOL_DEFAULT,
     _TOOL_DESIGN,
-    _TOOL_MINIMAL,
     _TOOL_RESEARCH,
 )
 

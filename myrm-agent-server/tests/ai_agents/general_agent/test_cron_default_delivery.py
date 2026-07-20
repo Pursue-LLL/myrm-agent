@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 from myrm_agent_harness.toolkits.cron.types import DeliveryConfig
 
 from app.ai_agents.general_agent.tool_setup import ToolSetupMixin

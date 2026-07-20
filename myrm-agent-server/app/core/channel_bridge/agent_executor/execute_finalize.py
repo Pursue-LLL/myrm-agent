@@ -18,12 +18,9 @@ from __future__ import annotations
 import asyncio
 import base64 as b64
 import logging
-import os
 import tempfile
 
 from myrm_agent_harness.utils.text_utils import strip_internal_markers
-
-from app.core.types.business import ModelConfig
 
 from app.channels.i18n import resolve_message_locale
 from app.channels.types import InboundMessage, MediaAttachment, MediaType, OutboundMessage
@@ -34,6 +31,7 @@ from app.core.channel_bridge.executor_helpers import (
     persist_assistant_message,
     suggest_quick_replies,
 )
+from app.core.types.business import ModelConfig
 
 from .artifact_deep_links import build_artifact_deep_links
 

@@ -5,10 +5,10 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from app.tasks.executors.image_executor import ImageTaskExecutor
 from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
 from myrm_agent_harness.toolkits.tasks import Task, TaskStatus
+
+from app.tasks.executors.image_executor import ImageTaskExecutor
 
 
 @pytest.mark.asyncio

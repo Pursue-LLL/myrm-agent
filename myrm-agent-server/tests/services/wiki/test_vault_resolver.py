@@ -12,7 +12,6 @@ from app.services.wiki.vault_resolver import (
     list_legacy_wiki_vault_paths,
     migrate_global_wiki_to_agent_layout,
     migrate_legacy_wiki_vaults,
-    resolve_agent_wiki_vault_path,
     resolve_shared_wiki_vault_path,
     resolve_shared_wiki_vault_paths,
     resolve_wiki_vault_layout,

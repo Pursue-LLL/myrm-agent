@@ -17,14 +17,14 @@ import logging
 import httpx
 from fastapi import HTTPException
 
+from app.config.deploy_mode import get_deploy_mode, is_sandbox
+from app.config.settings import settings
 from app.schemas.security.dashboard import (
     DependabotPR,
     SecurityDashboard,
     SecurityMetrics,
     SecuritySetupHints,
 )
-from app.config.deploy_mode import get_deploy_mode, is_sandbox
-from app.config.settings import settings
 from app.services.security.cp_security_dashboard import (
     fetch_cp_security_payload,
     fetch_cp_webhook_tenant_id,

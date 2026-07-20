@@ -20,13 +20,13 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 
-from app.core.storage.models import File
 from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.core.security.guards.ssrf import async_validate_url_for_ssrf
 from myrm_agent_harness.core.security.http.secure_fetch import secure_get
-from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 from myrm_agent_harness.toolkits.kanban.kanban_agent_tools import KanbanTaskAttachFn
+from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
+from app.core.storage.models import File
 from app.services.kanban.task_runner_worktree import resolve_base_dir
 
 logger = logging.getLogger(__name__)

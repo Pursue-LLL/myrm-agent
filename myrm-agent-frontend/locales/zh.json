@@ -9202,6 +9202,7 @@
     "monitorContractError": "输出契约错误",
     "monitorContractErrorInvalidJson": "本次执行产出的结构化内容格式不合法，已跳过增量比对。",
     "monitorContractErrorGeneric": "本次执行产出未满足监控契约格式要求。",
+    "monitorContractErrorCount": "连续失败次数：{count}",
     "capability": {
       "web_search_tool": "搜索引擎",
       "net_fetch": "读取网页",

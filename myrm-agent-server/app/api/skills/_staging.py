@@ -57,7 +57,7 @@ class SkillStagingManager:
 
         try:
             with open(file_path, "rb") as f:
-                skills = pickle.load(f)
+                skills = pickle.load(f)  # noqa: S301
             return skills
         except Exception as e:
             logger.error(f"Failed to load staging session {session_id}: {e}")

@@ -6,7 +6,6 @@ Panel running-row UX is covered by ``test_background_tasks_panel_chrome_e2e.py``
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 import uuid
@@ -21,7 +20,6 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
 
-from tests.support.bash_compressor_e2e import resolve_working_base_selection
 from tests.support.chrome_mcp_e2e import http_json
 
 _BG_SPAWN_PROMPT = (
@@ -73,7 +71,6 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
         "messageId": f"bg-shell-{uuid.uuid4().hex[:10]}",
         "chatId": chat_id,
         "query": _BG_SPAWN_PROMPT,
-        "modelSelection": resolve_working_base_selection(backend_url=api_base),
         "actionMode": "agent",
         "agentId": agent_id,
         "agentConfig": {"enabledBuiltinTools": ["code_execute"]},
@@ -161,8 +158,6 @@ def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 18
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
 @pytest.mark.timeout(600)
 def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
-    if not os.environ.get("BASIC_API_KEY") and not os.environ.get("LITE_API_KEY"):
-        pytest.skip("Requires BASIC_API_KEY or LITE_API_KEY from .env.test")
     if not wait_e2e_provider_ready():
         pytest.fail("Provider config not ready — configure default model in WebUI E2E profile")
 

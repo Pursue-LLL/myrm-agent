@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.services.agent.stream_session.workflow_escalation import (
-    should_suggest_workflow,
     _extract_text,
+    should_suggest_workflow,
 )
 
 

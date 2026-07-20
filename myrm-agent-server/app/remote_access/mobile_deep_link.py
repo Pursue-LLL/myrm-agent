@@ -27,8 +27,13 @@ No I/O beyond tunnel status and ingress lookup.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from app.remote_access.pairing import MOBILE_HUB_CONTROL_PURPOSE, create_pairing_token
 from app.remote_access.tunnel_manager import TunnelState, get_tunnel_manager
+
+if TYPE_CHECKING:
+    from app.channels.types.components import ActionButton
 
 
 def resolve_mobile_remote_base_url(*, public_ingress_base_url: str = "") -> str:
@@ -62,7 +67,7 @@ async def resolve_mobile_status_action_components(
     *,
     label_key: str = "mobile_hitl_open",
     locale: str = "en",
-) -> tuple[tuple["ActionButton", ...], ...]:
+) -> tuple[tuple[ActionButton, ...], ...]:
     from app.channels.i18n import channel_t
     from app.channels.types.components import ActionButton, ButtonStyle
 
@@ -92,7 +97,7 @@ async def resolve_web_handoff_components(
     chat_id: str,
     *,
     locale: str = "en",
-) -> tuple[tuple["ActionButton", ...], ...]:
+) -> tuple[tuple[ActionButton, ...], ...]:
     """Generate a SECONDARY ActionButton linking to the WebUI chat page.
 
     Args:

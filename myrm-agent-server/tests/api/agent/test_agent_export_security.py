@@ -6,8 +6,6 @@
 
 import copy
 
-import pytest
-
 from app.api.agents.agent import _SENSITIVE_AUTH_FIELDS, _strip_sensitive_auth
 
 

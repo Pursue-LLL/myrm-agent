@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import weakref
-from unittest.mock import MagicMock, patch
 
 import pytest
 from myrm_agent_harness.runtime.memory_pressure import PressureEvent, PressureLevel

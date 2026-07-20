@@ -8,13 +8,13 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.web_fetch.escalation.context import get_bound_escalation_providers
 
 from app.database.connection import get_session
 from app.database.models import ConfigAuditLog, UserConfig
 from app.schemas.config import WebFetchEscalationConfigValue
 from app.services.web_fetch.binding import open_web_fetch_escalation_context
 from app.services.web_fetch.escalation.registry import build_escalation_providers
-from myrm_agent_harness.toolkits.web_fetch.escalation.context import get_bound_escalation_providers
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app("config", preset="integrations")

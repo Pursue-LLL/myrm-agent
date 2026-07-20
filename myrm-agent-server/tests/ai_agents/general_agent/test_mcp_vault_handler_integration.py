@@ -88,7 +88,6 @@ class TestVaultHandlerInjectionChain:
         from unittest.mock import MagicMock
 
         from langchain_core.tools import BaseTool
-
         from myrm_agent_harness.toolkits.mcp.agent import MCPAgent
 
         from app.ai_agents.general_agent.mcp_vault_handler import build_mcp_vault_handler
@@ -124,7 +123,6 @@ class TestVaultHandlerInjectionChain:
         from unittest.mock import MagicMock
 
         from langchain_core.tools import BaseTool
-
         from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
         from myrm_agent_harness.toolkits.mcp.agent import MCPAgent
 
@@ -177,7 +175,6 @@ class TestVaultHandlerNegativePaths:
         from unittest.mock import MagicMock
 
         from langchain_core.tools import BaseTool
-
         from myrm_agent_harness.toolkits.mcp.agent import MCPAgent
 
         big_output = "TRUNC_" * 30_000
@@ -211,7 +208,6 @@ class TestVaultHandlerNegativePaths:
         from unittest.mock import MagicMock
 
         from langchain_core.tools import BaseTool
-
         from myrm_agent_harness.toolkits.mcp.agent import MCPAgent
 
         from app.ai_agents.general_agent.mcp_vault_handler import build_mcp_vault_handler

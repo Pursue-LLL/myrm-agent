@@ -123,7 +123,7 @@ async def fleet_overview(db: AsyncSession = Depends(get_db)) -> dict:
             agent_stats[aid]["status"] = "busy"
 
     # Fill defaults
-    for aid, stats in agent_stats.items():
+    for _aid, stats in agent_stats.items():
         stats.setdefault("sessionCount", 0)
         stats.setdefault("monthTokens", 0)
         stats.setdefault("monthCost", 0.0)

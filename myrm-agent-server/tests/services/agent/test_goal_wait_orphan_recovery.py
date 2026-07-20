@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from myrm_agent_harness.agent.goals.types import Goal, GoalStatus
 from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_JOB_ID_KEY
 from myrm_agent_harness.agent.meta_tools.bash._background_job_store_core import BackgroundJobRecord

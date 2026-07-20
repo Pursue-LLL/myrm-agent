@@ -23,10 +23,10 @@ from app.services.agent.agent_service import AgentService
 from app.services.agent.profile_snapshot_service import ProfileSnapshotService
 from app.services.config.service import config_service
 from app.services.migration.source_migration_types import (
-    SourceInstructionPlan,
-    MigrationWizardOptions,
     InstructionApplyResult,
     InstructionRollbackRecord,
+    MigrationWizardOptions,
+    SourceInstructionPlan,
     WorkspaceRuleWrite,
 )
 

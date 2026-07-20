@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 import pytest
+from pydantic import ValidationError
 
 from app.database.dto import ChatDetail, CommandBindingConfig
 
@@ -188,5 +189,5 @@ class TestCommandBindingConfig:
     def test_command_name_max_length(self) -> None:
         cfg = CommandBindingConfig(command_name="a" * 50)
         assert len(cfg.command_name) == 50
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             CommandBindingConfig(command_name="a" * 51)

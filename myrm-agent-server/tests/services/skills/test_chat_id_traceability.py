@@ -9,11 +9,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.services.skills.evolution_reviews import (
     EvolutionApplyStatus,
-    EvolutionApprovalPayload,
     EvolutionGrowthStatus,
     EvolutionReviewRecord,
     approval_to_evolution_review_record,

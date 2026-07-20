@@ -22,7 +22,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -33,12 +34,16 @@ from app.channels.core.exceptions import (
     ChannelSendError,
     RateLimitError,
 )
-from app.channels.reliability.rate_limiter import TokenBucket, create_limiter
+from app.channels.reliability.rate_limiter import create_limiter
 from app.channels.reliability.retry import RetryConfig, send_with_retry
 from app.channels.types import OutboundMessage
 
+if TYPE_CHECKING:
+    from app.channels.providers.wechat.ilink_channel import WeChatILinkChannel
+    from app.channels.providers.wechat.official_channel import WeChatOfficialChannel
 
-def _make_ilink_channel() -> "WeChatILinkChannel":
+
+def _make_ilink_channel() -> WeChatILinkChannel:
     from app.channels.providers.wechat.ilink_channel import WeChatILinkChannel
 
     ch = WeChatILinkChannel(
@@ -49,7 +54,7 @@ def _make_ilink_channel() -> "WeChatILinkChannel":
     return ch
 
 
-def _make_official_channel() -> "WeChatOfficialChannel":
+def _make_official_channel() -> WeChatOfficialChannel:
     from app.channels.providers.wechat.official_channel import WeChatOfficialChannel
 
     ch = WeChatOfficialChannel(app_id="test-app-id", app_secret="test-secret", token="test-token")

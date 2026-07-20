@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.core.security.auth.identity import resolve_identity
 from app.remote_access.mobile_gate import PAIR_TOKEN_HEADER
-from app.remote_access.pairing import MOBILE_HUB_CONTROL_PURPOSE, MOBILE_HUB_LIST_PURPOSE, create_pairing_token
+from app.remote_access.pairing import MOBILE_HUB_CONTROL_PURPOSE, create_pairing_token
 
 
 def test_remote_attach_accepts_valid_pair_token() -> None:

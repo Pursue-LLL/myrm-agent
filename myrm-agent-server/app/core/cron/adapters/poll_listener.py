@@ -23,7 +23,6 @@ import hashlib
 import logging
 
 import aiohttp
-
 from myrm_agent_harness.core.security.guards.ssrf import async_validate_url_for_ssrf
 from myrm_agent_harness.toolkits.cron.protocols import StreamEventCallback
 from myrm_agent_harness.toolkits.cron.triggers import PollTrigger

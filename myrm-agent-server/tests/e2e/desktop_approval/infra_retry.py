@@ -22,6 +22,7 @@ from chrome_mcp_client import ChromeMcpClient, McpPage
 from tests.e2e.desktop_approval.constants import BASE_URL, INFRA_ABORT_MARKERS, progress
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
 
+
 def should_abort_desktop_e2e_retries(exc: BaseException) -> bool:
     message = str(exc)
     if any(marker in message for marker in INFRA_ABORT_MARKERS):

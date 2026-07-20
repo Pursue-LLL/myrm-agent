@@ -25,6 +25,7 @@ from app.api.browser_recording import router as browser_recording_router
 from app.api.browser_sessions import router as browser_sessions_router
 from app.api.budget import budget_router
 from app.api.chats import router as chat_router
+from app.api.chats.chat.share import public_router as chat_share_public_router
 from app.api.checkpoint import router as checkpoint_router
 from app.api.client_logs import router as client_logs_router
 from app.api.companion.router import router as companion_router
@@ -34,10 +35,12 @@ from app.api.connect.router import router as connect_router
 from app.api.context.router import router as context_bundle_router
 from app.api.credentials.router import router as credentials_router
 from app.api.cron.routes import router as cron_router
+from app.api.datasets import router as datasets_router
 from app.api.eval.router import router as eval_router
+from app.api.extension import router as extension_router
+from app.api.extension import ws_router as extension_ws_router
 from app.api.external_agents import router as external_agents_router
 from app.api.features.router import router as features_router
-from app.api.chats.chat.share import public_router as chat_share_public_router
 from app.api.files.artifact_share_api import public_router as artifact_share_public_router
 from app.api.files.router import router as files_router
 from app.api.files.vault_proxy import router as vault_proxy_router
@@ -53,9 +56,10 @@ from app.api.message_filter import router as message_filter_router
 from app.api.migration.discovery import router as migration_discovery_router
 from app.api.migration.upload import router as migration_upload_router
 from app.api.notifications.router import router as notifications_router
-from app.api.web_push.router import router as web_push_router
 from app.api.projects import router as project_router
+from app.api.remote_access.router import router as remote_access_router
 from app.api.risk.router import router as risk_router
+from app.api.runs import router as runs_router
 from app.api.security.allowlist import router as allowlist_router
 from app.api.security.estop import router as security_estop_router
 from app.api.security.generate import router as security_generate_router
@@ -77,15 +81,14 @@ from app.api.stt.router import router as stt_router
 from app.api.stt.ws_stream import router as stt_ws_router
 from app.api.system.router import router as system_router
 from app.api.system.shutdown import router as system_shutdown_router
-from app.api.remote_access.router import router as remote_access_router
-from app.api.runs import router as runs_router
 from app.api.tasks.router import router as tasks_router
 from app.api.tts.router import router as tts_router
 from app.api.voice.gemini_live import router as voice_gemini_live_router
 from app.api.voice.realtime import router as voice_realtime_router
 from app.api.voice.ws_session import router as voice_ws_router
-from app.api.wiki import router as wiki_router
+from app.api.web_push.router import router as web_push_router
 from app.api.widget_storage import router as widget_storage_router
+from app.api.wiki import router as wiki_router
 from app.api.workspace.router import router as workspace_router
 from app.config.deploy_mode import is_local_mode
 
@@ -157,9 +160,6 @@ api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(background_tasks_router, prefix="/background-tasks", tags=["background-tasks"])
 api_router.include_router(runs_router)
 api_router.include_router(eval_router, tags=["eval"])
-
-# Dataset export
-from app.api.datasets import router as datasets_router
 
 api_router.include_router(datasets_router, prefix="/datasets", tags=["datasets"])
 
@@ -237,10 +237,6 @@ if is_local_mode():
 
     api_router.include_router(dev_gate_router, prefix="/dev-gate", tags=["dev-gate"])
     api_router.include_router(events_router, tags=["events"])
-
-# Browser Extension Bridge
-from app.api.extension import router as extension_router
-from app.api.extension import ws_router as extension_ws_router
 
 api_router.include_router(extension_router, tags=["extension"])
 api_router.include_router(extension_ws_router, prefix="/ws", tags=["extension"])

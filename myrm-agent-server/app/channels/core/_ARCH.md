@@ -10,7 +10,7 @@ Core infrastructure: BaseChannel, MessageBus, ChannelGateway, EventEmitter, Cred
 | __init__.py | Package | Core infrastructure: BaseChannel, MessageBus, ChannelGateway, EventEmitter, Credentials, Mixins. | — |
 | allow_policy.py | Core | Inbound access control policy. ChatPolicy, FilterReason, ChatPolicyOverride, AllowPolicy with bot_policy and per-chat overrides. | ✅ |
 | base.py | Core | Channel abstraction layer. All providers inherit this class; Gateway manages them uniformly. | ✅ |
-| bus.py | Core | Message routing hub. Producers call publish_outbound; the bus dispatches by priority | ✅ |
+| bus.py | Core | Message routing hub. Producers call publish_outbound; the bus dispatches by priority with outbound risk gate (content safety detection before send). | ✅ |
 | credentials.py | Core | Framework-level credential type definitions and generic parser. Providers declare | ✅ |
 | events.py | Core | Channel event infrastructure. Channels emit events (status changes, group updates), | ✅ |
 | exceptions.py | Core | Channel exception hierarchy for precise retry and error handling. | ✅ |

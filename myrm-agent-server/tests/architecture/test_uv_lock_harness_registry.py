@@ -17,9 +17,9 @@ _HARNESS_VERSION = "0.1.0rc2"
 
 def _pypi_package_exists(package: str, version: str) -> bool:
     url = f"https://pypi.org/pypi/{package}/{version}/json"
-    request = urllib.request.Request(url, headers={"User-Agent": "myrm-architecture-test"})
+    request = urllib.request.Request(url, headers={"User-Agent": "myrm-architecture-test"})  # noqa: S310
     try:
-        with urllib.request.urlopen(request, timeout=15) as response:
+        with urllib.request.urlopen(request, timeout=15) as response:  # noqa: S310
             return response.status == 200
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError):
         return False

@@ -8,13 +8,13 @@ from typing import Any
 
 import httpx
 
+from app.config.deploy_mode import is_sandbox
+from app.config.settings import settings
 from app.schemas.security.dashboard import (
     SecurityAlert,
     SecurityDashboard,
     SecurityMetrics,
 )
-from app.config.deploy_mode import is_sandbox
-from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 

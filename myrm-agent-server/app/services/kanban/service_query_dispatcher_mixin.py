@@ -32,23 +32,51 @@ from myrm_agent_harness.toolkits.kanban.types import (
 from app.services.kanban.board_summary import build_board_summary
 from app.services.kanban.dispatcher_lifecycle import (
     recover_stale_tasks as run_recover_stale_tasks,
+)
+from app.services.kanban.dispatcher_lifecycle import (
     shutdown_dispatchers,
+)
+from app.services.kanban.dispatcher_lifecycle import (
     start_dispatcher as run_start_dispatcher,
+)
+from app.services.kanban.dispatcher_lifecycle import (
     stop_dispatcher as run_stop_dispatcher,
 )
 from app.services.kanban.event_publisher import publish_kanban_event as _publish_kanban_event
 from app.services.kanban.query_ops import (
     add_comment as run_add_comment,
+)
+from app.services.kanban.query_ops import (
     clear_agent_references as run_clear_agent_references,
+)
+from app.services.kanban.query_ops import (
     get_board as run_get_board,
+)
+from app.services.kanban.query_ops import (
     get_task as run_get_task,
+)
+from app.services.kanban.query_ops import (
     list_board_edges as run_list_board_edges,
+)
+from app.services.kanban.query_ops import (
     list_board_events as run_list_board_events,
+)
+from app.services.kanban.query_ops import (
     list_boards as run_list_boards,
+)
+from app.services.kanban.query_ops import (
     list_events as run_list_events,
+)
+from app.services.kanban.query_ops import (
     list_runs as run_list_runs,
+)
+from app.services.kanban.query_ops import (
     list_task_dependencies as run_list_task_dependencies,
+)
+from app.services.kanban.query_ops import (
     list_task_dependents as run_list_task_dependents,
+)
+from app.services.kanban.query_ops import (
     list_tasks as run_list_tasks,
 )
 from app.services.kanban.service_core import KanbanServiceCore

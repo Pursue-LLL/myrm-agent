@@ -25,18 +25,18 @@ logger = logging.getLogger(__name__)
 _FAILED_DELIVERY_SNOOZE_MS = 6 * 60 * 60 * 1000
 FAILED_DELIVERY_SNOOZE_MS = _FAILED_DELIVERY_SNOOZE_MS
 
-_follow_up_attempt_ids: ContextVar[list[str]] = ContextVar("_follow_up_attempt_ids", default=[])
+_follow_up_attempt_ids: ContextVar[tuple[str, ...]] = ContextVar("_follow_up_attempt_ids", default=())
 
 
 def begin_follow_up_delivery() -> None:
     """Reset the delivery tracker for a new heartbeat run."""
-    _follow_up_attempt_ids.set([])
+    _follow_up_attempt_ids.set(())
 
 
 def register_follow_up_attempts(ids: list[str]) -> None:
     """Record commitment IDs included in the current situation report."""
     if ids:
-        _follow_up_attempt_ids.set(list(ids))
+        _follow_up_attempt_ids.set(tuple(ids))
 
 
 def get_follow_up_attempt_ids() -> list[str]:
@@ -46,7 +46,7 @@ def get_follow_up_attempt_ids() -> list[str]:
 
 def reset_follow_up_delivery() -> None:
     """Clear pending delivery IDs without marking sent."""
-    _follow_up_attempt_ids.set([])
+    _follow_up_attempt_ids.set(())
 
 
 async def confirm_follow_up_delivery(*, delivered: bool) -> None:

@@ -6,8 +6,6 @@ environment dict before spawning the Next.js frontend process.
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from app.core.infra.frontend_launcher import _TOXIC_NODE_ENV_VARS

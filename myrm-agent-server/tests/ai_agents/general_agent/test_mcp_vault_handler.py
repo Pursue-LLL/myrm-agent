@@ -14,8 +14,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 
 class TestBuildMcpVaultHandler:
     """Test build_mcp_vault_handler factory and returned closure."""

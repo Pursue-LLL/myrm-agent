@@ -8,11 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from httpx import ASGITransport
-
-from tests.support.minimal_app import build_minimal_app
-
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
 from myrm_agent_harness.toolkits.computer_use.types import ComputerUseConfig, ScreenInfo
+
+from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(webui=True)
 

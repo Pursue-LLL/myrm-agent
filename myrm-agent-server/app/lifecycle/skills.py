@@ -21,8 +21,8 @@ async def start_skill_optimization_listeners() -> None:
     """
     global _ab_test_manager
     try:
-        from myrm_agent_harness.agent.streaming.broadcast.event_bus import ToolBroadcastBus
         from myrm_agent_harness.agent.skills.optimization.event_emitter import EventEmitter
+        from myrm_agent_harness.agent.streaming.broadcast.event_bus import ToolBroadcastBus
 
         from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
         from app.platform_utils import get_session_factory

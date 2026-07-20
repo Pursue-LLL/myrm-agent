@@ -63,9 +63,10 @@ async def test_build_escalation_providers_returns_none_when_disabled() -> None:
 
 @pytest.mark.asyncio
 async def test_session_cap_blocks_after_limit() -> None:
+    from myrm_agent_harness.toolkits.web_fetch.escalation.protocols import EscalationFetchResult
+
     from app.services.web_fetch.escalation.registry import SessionCappedEscalationProvider
     from app.services.web_fetch.escalation.session_counter import session_escalation_counter
-    from myrm_agent_harness.toolkits.web_fetch.escalation.protocols import EscalationFetchResult
 
     class _Inner:
         provider_id = "inner"

@@ -22,8 +22,8 @@ from uuid import uuid4
 
 from app.database.dto import ChatCreate, ChatDTO, MessageCreate, MessageDTO
 from app.database.repositories.uow import UnitOfWork
-from app.services.external_agents.runtime_pool_registry import close_external_agent_pool_for_chat
 from app.services.agent.execution_cache import close_execution_cache_for_chat_all_agents
+from app.services.external_agents.runtime_pool_registry import close_external_agent_pool_for_chat
 
 from ._base import _ChatServiceBase
 

@@ -45,7 +45,7 @@ def encrypt_media(plaintext: bytes, aes_key_b64: str) -> bytes:
         raise ValueError(f"AES key must be 16 bytes, got {len(key)}")
 
     padded = _pkcs7_pad(plaintext, 16)
-    cipher = Cipher(algorithms.AES(key), modes.ECB())
+    cipher = Cipher(algorithms.AES(key), modes.ECB())  # noqa: S305
     encryptor = cipher.encryptor()
     return encryptor.update(padded) + encryptor.finalize()
 
@@ -58,7 +58,7 @@ def decrypt_media(ciphertext: bytes, aes_key_b64: str) -> bytes:
     if len(key) != 16:
         raise ValueError(f"AES key must be 16 bytes, got {len(key)}")
 
-    cipher = Cipher(algorithms.AES(key), modes.ECB())
+    cipher = Cipher(algorithms.AES(key), modes.ECB())  # noqa: S305
     decryptor = cipher.decryptor()
     padded = decryptor.update(ciphertext) + decryptor.finalize()
     return _pkcs7_unpad(padded)

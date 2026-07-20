@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills.models import Skill

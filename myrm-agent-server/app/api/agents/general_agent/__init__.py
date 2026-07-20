@@ -3,8 +3,8 @@
 from fastapi import APIRouter
 
 from .active_sessions import router as active_sessions_router
-from .phase_response import router as phase_response_router
 from .media_config import router as media_config_router
+from .phase_response import router as phase_response_router
 from .streaming import router as streaming_router
 
 router = APIRouter()

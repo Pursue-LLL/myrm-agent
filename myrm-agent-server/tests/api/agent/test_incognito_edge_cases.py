@@ -7,7 +7,7 @@ Tests the complete behavior matrix without external LLM dependencies:
 - system prompt excludes MEMORY_RULES in incognito
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

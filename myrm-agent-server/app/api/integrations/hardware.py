@@ -110,7 +110,7 @@ async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
 
     async def _stream_pull():
         try:
-            async with httpx.AsyncClient(timeout=None) as client:
+            async with httpx.AsyncClient(timeout=300.0) as client:
                 async with client.stream(
                     "POST", "http://localhost:11434/api/pull", json={"name": request.model_name}
                 ) as response:

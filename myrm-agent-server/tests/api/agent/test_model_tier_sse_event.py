@@ -8,8 +8,6 @@ import json
 from typing import cast
 from unittest.mock import MagicMock
 
-import pytest
-
 from myrm_agent_harness.core.config import ModelTier, infer_model_tier
 
 from app.schemas.streaming import SSEEnvelope

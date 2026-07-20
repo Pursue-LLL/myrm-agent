@@ -9,7 +9,7 @@
 | 文件 / 模式 | 职责 |
 |-------------|------|
 | `chat.ts` | 会话 CRUD、流式聊天 |
-| `cron.ts` / `cron.types.ts` | `/cron/*` REST 客户端；类型在 `cron.types.ts` |
+| `cron.ts` / `cron.types.ts` | `/cron/*` REST 客户端；类型在 `cron.types.ts`（含 monitor contract error 与连续失败计数元数据） |
 | `channels.ts` | 渠道 facade → `channels/` 分片 |
 | `channels/` | 核心工厂、管理 API、Provider 凭证、登录协议 · [_ARCH.md](channels/_ARCH.md) |
 | `connect.ts` | Connect Wizard：`/connect/profiles|generate|doctor|revoke|status`；外部 Agent MCP 连接管理 |
@@ -26,7 +26,7 @@
 | `migrationDiscovery.ts` | Local/Tauri 外部助手数据自动发现（Hermes / OpenClaw / Claude Code / Codex） |
 | `google-workspace-oauth.ts` | `/integrations/google-workspace/oauth/*`：config/start/poll/status/disconnect；Tauri 用 shell.open |
 | `kanban.ts` | `/kanban/*`：Board/Task CRUD、move/promote/reclaim、bulk、依赖边、Specify/Decompose、Pipeline 实例化 |
-| `agent.ts` | `/user-agents/*` CRUD、密钥、快照回滚、导入导出；fetch 错误与 secret list normalize 见 `agentFetchErrorCore.ts` |
+| `agent.ts` | `/user-agents/*` CRUD、密钥、快照回滚、导入导出；`getAgent(..., signal)` 支持请求级 abort；fetch 错误与 secret list normalize 见 `agentFetchErrorCore.ts` |
 | `agentFetchErrorCore.ts` | 纯函数：`parseUserAgentFetchErrorMessage`（detail/顶层 message）、`normalizeAgentSecretKeyNames`（`{key_name}[]` → `string[]`） |
 | `runs.ts` | `GET /runs`：Cron / Kanban / Shell 后台任务统一运行历史（只读聚合） |
 | `hosting.ts` | `/artifacts/hosting/*`、publish、publications、WS URL |

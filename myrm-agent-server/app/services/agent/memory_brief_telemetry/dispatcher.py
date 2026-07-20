@@ -12,14 +12,14 @@ from pathlib import Path
 
 import httpx
 
+from app.services.agent.memory_brief_telemetry import metrics as _metrics
 from app.services.agent.memory_brief_telemetry.contract import (
-    MemoryBriefStatusTelemetryConfig,
-    MemoryBriefStatusTelemetryEvent,
     _PHASE_PERSIST,
     _PHASE_STREAM,
+    MemoryBriefStatusTelemetryConfig,
+    MemoryBriefStatusTelemetryEvent,
     build_memory_brief_status_event,
 )
-from app.services.agent.memory_brief_telemetry import metrics as _metrics
 from app.services.agent.memory_brief_telemetry.dropped_store import MemoryBriefStatusDroppedStore
 from app.services.agent.memory_brief_telemetry.flush import flush_memory_brief_status_batch
 

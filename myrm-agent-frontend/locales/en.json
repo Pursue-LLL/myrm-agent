@@ -9202,6 +9202,7 @@
     "monitorContractError": "Output Contract Error",
     "monitorContractErrorInvalidJson": "This run produced malformed structured output, so incremental diffing was skipped.",
     "monitorContractErrorGeneric": "This run produced output that did not match the monitor contract.",
+    "monitorContractErrorCount": "Consecutive failures: {count}",
     "capability": {
       "web_search_tool": "Search Engine",
       "net_fetch": "Read Webpage",

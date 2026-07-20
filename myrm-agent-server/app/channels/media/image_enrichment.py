@@ -36,8 +36,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import httpx
-
 from app.channels.types import InboundMessage, MediaType
 
 if TYPE_CHECKING:

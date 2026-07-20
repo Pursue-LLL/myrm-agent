@@ -9,7 +9,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.chats.chat.share import public_router, router as share_router
+from app.api.chats.chat.share import public_router
+from app.api.chats.chat.share import router as share_router
 from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.dto import ChatDTO, MessageDTO
@@ -145,6 +146,7 @@ class TestPublicSharePage:
 
     def test_expired_token_returns_404(self, share_client: TestClient) -> None:
         import time
+
         from app.services.chat.share_token import create_chat_share_token
 
         token, _ = create_chat_share_token("chat-1", ttl_seconds=60)

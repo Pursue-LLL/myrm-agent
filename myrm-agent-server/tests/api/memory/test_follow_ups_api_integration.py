@@ -7,8 +7,6 @@ from datetime import UTC, datetime
 import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
-
-from app.api.memory.follow_ups.router import router as follow_ups_router
 from myrm_agent_harness.toolkits.memory.proactive.types import (
     CommitmentDueWindow,
     CommitmentKind,
@@ -17,6 +15,7 @@ from myrm_agent_harness.toolkits.memory.proactive.types import (
     CommitmentStatus,
 )
 
+from app.api.memory.follow_ups.router import router as follow_ups_router
 from tests.support.minimal_app import API_PREFIX
 
 BASE = f"{API_PREFIX}/memory/follow-ups"

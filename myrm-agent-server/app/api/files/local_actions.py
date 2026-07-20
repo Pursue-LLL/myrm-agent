@@ -104,7 +104,7 @@ def _open_with_default_app(path: Path) -> None:
         if system == "Darwin":
             subprocess.Popen(["open", str(path)])
         elif system == "Windows":
-            os.startfile(str(path))  # type: ignore[attr-defined]
+            os.startfile(str(path))  # type: ignore[attr-defined]  # noqa: S606
         else:
             subprocess.Popen(["xdg-open", str(path)])
     except FileNotFoundError:

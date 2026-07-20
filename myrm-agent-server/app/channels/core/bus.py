@@ -10,6 +10,7 @@ priority-based dispatch with back-pressure.
 - channels.core.base::BaseChannel (POS: channel abstract base class)
 - channels.reliability.retry::send_with_retry (POS: async retry utility with exponential backoff)
 - channels.reliability.rate_limiter::ChannelRateLimiter (POS: per-channel rate limiter)
+- services.risk.detection::RiskDetectionService (POS: stateful risk detection engine with compiled regex cache)
 
 [OUTPUT]
 - MessageBus: async message bus managing outbound/inbound queues and channel registration
@@ -17,6 +18,7 @@ priority-based dispatch with back-pressure.
 - MessageBus._record_outbound_failure(): shared DLQ + permanent-failure callback for sync and async send paths
 - MessageBus.edit_channel_message(): edits a sent message (for updating approval status)
 - downgrade_components: interactive component downgrade (appends text fallback when channel lacks support)
+- _apply_outbound_risk_gate: content safety detection before send (reuses RiskDetectionService)
 
 [POS]
 Message routing hub. Producers call publish_outbound; the bus dispatches by priority
@@ -49,7 +51,7 @@ from myrm_agent_harness.infra.delivery.storage import (
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.events import EventEmitter
-from app.channels.i18n import get_locale_from_metadata
+from app.channels.i18n import channel_t, get_locale_from_metadata
 from app.channels.reliability.rate_limiter import (
     TokenBucket,
     create_limiter,
@@ -107,6 +109,62 @@ def _apply_correlation_context(msg: OutboundMessage) -> OutboundMessage:
         recipient_id=ctx.chat_id or msg.recipient_id,
         correlation_context=ctx,
     )
+
+
+def _apply_outbound_risk_gate(msg: OutboundMessage) -> OutboundMessage:
+    """Apply risk detection to outbound message content before sending to IM channels.
+
+    Uses the global RiskDetectionService (compiled regex cache, <1ms).
+    If blocked, replaces content with a safe i18n message and fires audit asynchronously.
+    Returns the original message unchanged when no rules match or service has zero rules.
+    """
+    if not msg.content:
+        return msg
+
+    from app.services.risk.detection import get_detection_service
+
+    service = get_detection_service()
+    if service.rule_count == 0:
+        return msg
+
+    result = service.detect(msg.content)
+    if not result.blocked:
+        return msg
+
+    locale = get_locale_from_metadata(msg.metadata)
+    blocked_content = channel_t(locale, "risk_outbound_blocked")
+
+    logger.info(
+        "Outbound risk gate blocked message on channel '%s': rules=%s",
+        msg.channel,
+        [m.display_name for m in result.matches],
+    )
+
+    asyncio.ensure_future(_record_outbound_risk_hits(result.matches, msg))
+
+    return dataclasses.replace(msg, content=blocked_content)
+
+
+async def _record_outbound_risk_hits(
+    matches: tuple[object, ...], msg: OutboundMessage
+) -> None:
+    """Fire-and-forget: persist risk hit records for outbound blocked messages."""
+    try:
+        from app.platform_utils import get_session_factory
+        from app.services.risk.detection import get_detection_service
+
+        service = get_detection_service()
+        session_factory = get_session_factory()
+        async with session_factory() as db:
+            await service.record_hits(
+                db,
+                matches,  # type: ignore[arg-type]
+                trace_id=str(uuid.uuid4()),
+                session_id=msg.recipient_id,
+            )
+            await db.commit()
+    except Exception:
+        logger.debug("Failed to record outbound risk hits (non-critical)", exc_info=True)
 
 
 def create_default_message_bus(
@@ -458,6 +516,7 @@ class MessageBus:
             logger.debug("Channel '%s' is disabled, cannot send_tracked", msg.channel)
             return None
         msg = downgrade_components(msg, channel)
+        msg = _apply_outbound_risk_gate(msg)
 
         rate_limit = channel.capabilities.send_rate_limit
         if rate_limit > 0:
@@ -663,6 +722,7 @@ class MessageBus:
                 continue
 
             msg = downgrade_components(msg, channel)
+            msg = _apply_outbound_risk_gate(msg)
 
             limiter = self._limiters.get(msg.channel)
             if limiter:

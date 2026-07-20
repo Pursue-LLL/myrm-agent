@@ -11,16 +11,16 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
-
 from myrm_agent_harness.agent.meta_tools.discover_capability.discover_capability_tool import (
     sync_discover_capability_tool,
 )
-from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
-from myrm_agent_harness.agent.tool_management.types import ToolBindMode, ToolSource
 from myrm_agent_harness.agent.streaming.stream_executor import StreamContext, StreamExecutor
 from myrm_agent_harness.agent.streaming.types import AgentEventType, AgentStreamEvent
+from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
+from myrm_agent_harness.agent.tool_management.types import ToolBindMode, ToolSource
 from myrm_agent_harness.agent.types import AgentRunStatistics
+from pydantic import BaseModel, Field
+
 from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
 
 

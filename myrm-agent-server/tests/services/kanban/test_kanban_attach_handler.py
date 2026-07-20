@@ -3,19 +3,18 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from pathlib import Path
-
 import pytest
-
-from app.core.storage.models import File
-from app.services.kanban.kanban_attach_handler import create_kanban_attach_handler
 from myrm_agent_harness.core.security.guards.ssrf import SSRFResult
 from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
 from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KanbanTask, TaskStatus
 from myrm_agent_harness.toolkits.storage.types import FilePurpose
+
+from app.core.storage.models import File
+from app.services.kanban.kanban_attach_handler import create_kanban_attach_handler
 
 
 def _sample_file(*, source_chat_id: str | None = None) -> File:

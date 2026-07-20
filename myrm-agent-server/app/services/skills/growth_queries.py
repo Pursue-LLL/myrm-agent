@@ -18,7 +18,6 @@ from app.services.skills.evolution_reviews import (
 )
 from app.services.skills.growth_case_types import (
     SkillGrowthCaseDetailRead,
-    SkillGrowthCaseRead,
     SkillGrowthCaseSource,
     SkillGrowthCaseStatus,
     SkillGrowthCaseSummaryRead,

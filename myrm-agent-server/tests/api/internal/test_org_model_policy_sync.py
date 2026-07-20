@@ -10,6 +10,8 @@ from httpx import ASGITransport, AsyncClient
 
 from app.api.internal.org_model_policy_sync import (
     frontend_router as org_model_policy_frontend_router,
+)
+from app.api.internal.org_model_policy_sync import (
     router as org_model_policy_sync_router,
 )
 

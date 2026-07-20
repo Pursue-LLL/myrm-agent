@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from myrm_agent_harness.toolkits.cron.situation import SituationContext
 
 

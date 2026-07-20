@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.core.web_push.dispatcher import WebPushDispatcher, _PUSH_TEMPLATES
+from app.core.web_push.dispatcher import _PUSH_TEMPLATES, WebPushDispatcher
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 

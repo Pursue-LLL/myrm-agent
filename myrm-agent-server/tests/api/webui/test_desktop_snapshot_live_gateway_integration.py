@@ -15,10 +15,10 @@ from collections.abc import AsyncGenerator
 import httpx
 import pytest
 from httpx import ASGITransport
+from myrm_agent_harness.toolkits.computer_use.backends.macos import _check_accessibility
+from myrm_agent_harness.toolkits.computer_use.desktop_session import create_desktop_session
 
 from app.services.agent.gateway import ActiveSessionInfo, AgentGateway, GatewayConfig
-from myrm_agent_harness.toolkits.computer_use.desktop_session import create_desktop_session
-from myrm_agent_harness.toolkits.computer_use.backends.macos import _check_accessibility
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(webui=True)

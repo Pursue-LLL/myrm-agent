@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 from app.core.channel_bridge.background_task_handler import _kanban_status_to_bg_status
-from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 
 class TestKanbanStatusToBgStatus:

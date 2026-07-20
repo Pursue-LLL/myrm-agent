@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.services.agent.stream_session.stream_lane_factory import _cfg_int_or_none
 
 

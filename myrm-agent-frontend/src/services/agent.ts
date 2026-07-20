@@ -394,7 +394,11 @@ export async function listAgents(
 /**
  * 获取单个智能体详情
  */
-export async function getAgent(agentId: string, showSystemPrompt: boolean = false): Promise<Agent> {
+export async function getAgent(
+  agentId: string,
+  showSystemPrompt: boolean = false,
+  signal?: AbortSignal,
+): Promise<Agent> {
   const url = showSystemPrompt
     ? `${getBackendUrl()}/api/v1/user-agents/${agentId}?show_system_prompt=true`
     : `${getBackendUrl()}/api/v1/user-agents/${agentId}`;
@@ -406,6 +410,7 @@ export async function getAgent(agentId: string, showSystemPrompt: boolean = fals
       ...getAuthHeaders(),
     },
     cache: 'no-store',
+    signal,
   });
 
   if (!response.ok) {

@@ -16,6 +16,7 @@ API layer for the browser extension bridge. Provides:
 from __future__ import annotations
 
 import logging
+
 from fastapi import APIRouter, Query, WebSocket
 from pydantic import BaseModel, Field
 

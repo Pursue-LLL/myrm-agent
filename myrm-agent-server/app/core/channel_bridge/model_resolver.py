@@ -25,11 +25,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, cast
 
-from myrm_agent_harness.api import ConfigIncompleteError
 from myrm_agent_harness.agent.config.parsers import (
     parse_litellm_model,
     to_litellm_model,
 )
+from myrm_agent_harness.api import ConfigIncompleteError
 
 if TYPE_CHECKING:
     from app.core.types import ModelConfig

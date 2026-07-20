@@ -13,6 +13,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 
+from app.config.settings import settings as _settings
 from app.schemas.security.dashboard import (
     DependabotPR,
     PlatformAuditLogsResponse,
@@ -22,7 +23,6 @@ from app.schemas.security.dashboard import (
     SecurityRateLimitsResponse,
     SecuritySetupHints,
 )
-from app.config.settings import settings as _settings
 from app.services.security.cp_rate_limit import fetch_cp_rate_limits
 from app.services.security.dashboard_settings import load_monitored_github_repos
 from app.services.security.github_supplement import fetch_dependabot_prs_for_repo

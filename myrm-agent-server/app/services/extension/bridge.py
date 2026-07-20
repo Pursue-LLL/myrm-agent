@@ -24,9 +24,8 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
-
 from myrm_agent_harness.toolkits.browser.pool.browser_launcher import BrowserInstance
+from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 try:
     from myrm_agent_harness.toolkits.browser.pool.extension_bridge import (
@@ -55,7 +54,7 @@ except ImportError:
         version: str = ""
 
 if TYPE_CHECKING:
-    from patchright.async_api import Browser, Playwright
+    from patchright.async_api import Playwright
 
 from app.services.event import AppEvent, AppEventType, get_event_bus
 
@@ -144,7 +143,7 @@ class ExtensionBridgeService:
                 "Browser extension is not connected. Please install and connect the extension."
             )
 
-        tab_id = await self._request_debugger_attach(timeout=timeout)
+        await self._request_debugger_attach(timeout=timeout)
         pw = await self._ensure_playwright()
 
         cdp_endpoint = self._resolve_cdp_endpoint()
@@ -173,7 +172,7 @@ class ExtensionBridgeService:
         if not self._connected or self._ws is None:
             raise ExtensionBridgeNotAvailable("Browser extension is not connected.")
 
-        tab_id = await self._request_debugger_attach(domain=domain, timeout=timeout)
+        await self._request_debugger_attach(domain=domain, timeout=timeout)
         pw = await self._ensure_playwright()
 
         cdp_endpoint = self._resolve_cdp_endpoint()
@@ -360,9 +359,9 @@ class ExtensionBridgeService:
         try:
             await self._ws.send_text(json.dumps(msg))
             return await asyncio.wait_for(fut, timeout=timeout)
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as exc:
             self._pending_requests.pop(req_id, None)
-            raise ExtensionBridgeNotAvailable(f"Extension request '{action}' timed out")
+            raise ExtensionBridgeNotAvailable(f"Extension request '{action}' timed out") from exc
 
     async def _request_debugger_attach(
         self,

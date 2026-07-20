@@ -124,7 +124,7 @@ class TestAuthStatus:
         assert claude["readyForDelegation"] is False
 
 
-class TestAuthFeed:
+class TestAuthFeedMissingSession:
     """POST /external-agents/auth/login/{session_id}/feed."""
 
     def test_feed_forwards_to_active_session(self, client):

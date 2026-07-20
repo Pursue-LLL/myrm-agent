@@ -7,7 +7,6 @@ Uses real FilesService + LocalStorageProvider (no mocks on the critical path).
 from __future__ import annotations
 
 import os
-import tempfile
 
 import pytest
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend

@@ -18,7 +18,7 @@ async def test_seed_shell_fixture_failed_mode_exposes_exit_metadata() -> None:
         seed_resp = await client.post("/api/v1/background-tasks/test/seed-shell-fixture?mode=failed")
         assert seed_resp.status_code == 200
         seed = seed_resp.json()
-        pid = int(seed["pid"])
+        int(seed["pid"])
         job_id = str(seed["job_id"])
 
         row_resp = await client.get(f"/api/v1/background-tasks/shell:{job_id}")

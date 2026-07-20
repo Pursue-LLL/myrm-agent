@@ -561,7 +561,10 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     });
 
     expect(mockChatState.sendMessage).toHaveBeenCalledTimes(1);
-    expect(mockAgentStoreState.fetchAgent).toHaveBeenCalledWith('writer-agent');
+    expect(mockAgentStoreState.fetchAgent).toHaveBeenCalledWith(
+      'writer-agent',
+      expect.any(AbortSignal),
+    );
     const sendArgs = mockChatState.sendMessage.mock.calls[0];
     expect(sendArgs[0]).toContain('Route this request');
     expect(sendArgs[5]).toMatchObject({
@@ -825,5 +828,51 @@ describe('FlowPadModal - Inline Mode Integration', () => {
 
     expect(screen.queryByText('inlineRouteProfile')).not.toBeInTheDocument();
     expect(screen.getByText('inlineRouteCurrent')).toBeInTheDocument();
+  });
+
+  it('aborts in-flight route-switch request when modal closes', async () => {
+    const capturedSignals: AbortSignal[] = [];
+    const resolvers: Array<() => void> = [];
+    mockAgentStoreState.fetchAgent.mockImplementation(
+      (agentId: string, signal?: AbortSignal) =>
+        new Promise<ReturnType<typeof makeMockAgentDetail>>((resolve) => {
+          if (signal) {
+            capturedSignals.push(signal);
+          }
+          resolvers.push(() => resolve(makeMockAgentDetail(agentId)));
+        }),
+    );
+
+    useFlowPadStore.getState().openInline(
+      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
+      1930,
+    );
+    render(<FlowPadModal />);
+
+    const trigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      fireEvent.click(trigger);
+    });
+    const writerOption = await screen.findByTestId('flowpad-inline-route-agent-writer-agent');
+    await act(async () => {
+      fireEvent.click(writerOption);
+    });
+
+    act(() => {
+      useFlowPadStore.getState().close();
+      useFlowPadStore.getState().openInline(
+        { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 2 },
+        1931,
+      );
+    });
+
+    expect(capturedSignals).toHaveLength(1);
+    expect(capturedSignals[0]?.aborted).toBe(true);
+
+    await act(async () => {
+      for (const resolve of resolvers) {
+        resolve();
+      }
+    });
   });
 });

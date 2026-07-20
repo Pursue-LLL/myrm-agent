@@ -11,11 +11,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
 from app.core.types import ModelConfig
 from app.services.kanban import KanbanService
-from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 ORCHESTRATOR_TOOL_NAMES = frozenset(
     {

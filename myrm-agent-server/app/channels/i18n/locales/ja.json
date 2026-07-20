@@ -109,5 +109,6 @@
   ],
   "cooldown_hint_single": " {seconds}秒後に再試行してください。",
   "cooldown_hint_plural": " {seconds}秒後に再試行してください。",
-  "stuck_task_timeout_user_message": "⏱ タスクが{elapsed}秒間無応答のため自動キャンセルされました。メッセージを再送信してください。"
+  "stuck_task_timeout_user_message": "⏱ タスクが{elapsed}秒間無応答のため自動キャンセルされました。メッセージを再送信してください。",
+  "risk_outbound_blocked": "⚠️ この返信はコンテンツ安全ポリシーによりブロックされました。管理者に連絡するか、質問を変えてお試しください。"
 }

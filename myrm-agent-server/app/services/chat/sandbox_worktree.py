@@ -123,7 +123,7 @@ def _ensure_worktrees_excluded(base_dir: str) -> None:
         except OSError:
             pass
 
-        if any(l.strip() == line for l in current.split("\n")):
+        if any(existing_line.strip() == line for existing_line in current.split("\n")):
             return
 
         prefix = "\n" if current and not current.endswith("\n") else ""

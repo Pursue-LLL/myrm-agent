@@ -175,9 +175,10 @@ async def test_fork_with_custom_title(async_client: httpx.AsyncClient) -> None:
     data = resp.json()["data"]
     assert data["new_chat_id"] is not None
 
+    from sqlalchemy import select
+
     from app.database.models.chat import Chat
     from app.platform_utils import get_session_factory
-    from sqlalchemy import select
 
     factory = get_session_factory()
     async with factory() as db:
@@ -188,9 +189,10 @@ async def test_fork_with_custom_title(async_client: httpx.AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_fork_resets_sandbox_via_api(async_client: httpx.AsyncClient) -> None:
     """Fork from parent with active sandbox resets child workspace to original repo root."""
+    from sqlalchemy import select
+
     from app.database.models.chat import Chat
     from app.platform_utils import get_session_factory
-    from sqlalchemy import select
 
     chat_id = str(uuid.uuid4())
     factory = get_session_factory()

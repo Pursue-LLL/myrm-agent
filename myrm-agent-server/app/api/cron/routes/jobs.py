@@ -32,9 +32,8 @@ from app.api.cron.schemas import (
     CronJobsListResponse,
     CronJobUpdate,
 )
-from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
-
 from app.core.cron.adapters.tools_policy import normalize_cron_tools_allowed
+from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
 
 from . import helpers as _h
 

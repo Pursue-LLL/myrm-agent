@@ -8,13 +8,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from myrm_agent_harness.toolkits.llms.image.async_image_engine import AsyncImageGenerationTools
+from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
+from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskStatus
 
 from app.tasks.executors.image_executor import ImageTaskExecutor
 from app.tasks.image_config_resolver import resolve_image_generation_config
 from app.tasks.task_payload_crypto import API_KEY_ENC_FIELD, seal_task_payload_secrets
-from myrm_agent_harness.toolkits.llms.image.async_image_engine import AsyncImageGenerationTools
-from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
-from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskStatus
 
 
 @pytest.fixture(autouse=True)
@@ -35,7 +35,8 @@ def _local_encryption() -> None:
 def _build_rest_app(store: SQLiteTaskStore):
     from fastapi import FastAPI
 
-    from app.api.tasks.router import get_task_store, router as tasks_router
+    from app.api.tasks.router import get_task_store
+    from app.api.tasks.router import router as tasks_router
 
     app = FastAPI()
     app.include_router(tasks_router, prefix="/api/v1/tasks")

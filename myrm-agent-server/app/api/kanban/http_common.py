@@ -23,7 +23,6 @@ from app.services.kanban import KanbanService
 from app.services.kanban.diagnostics import create_diagnostic_engine
 from app.services.kanban.task_attachment_ids import (
     load_task_attachment_ids as _load_task_attachment_ids,
-    save_task_attachment_ids as _save_task_attachment_ids,
 )
 
 router = APIRouter(prefix="/kanban", tags=["kanban"])

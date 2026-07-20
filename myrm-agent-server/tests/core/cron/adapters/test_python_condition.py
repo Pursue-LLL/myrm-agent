@@ -3,7 +3,6 @@
 Validates script execution, SKIP signals, timeout behavior, and context injection.
 """
 
-import asyncio
 from unittest.mock import MagicMock
 
 import pytest

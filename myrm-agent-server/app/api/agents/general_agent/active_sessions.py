@@ -28,7 +28,6 @@ async def attach_to_chat(
     instead of opening an SSE stream. This is used by the frontend ConnectionManager
     to recover lost data after a network drop without breaking the multiplexed stream.
     """
-    from app.core.utils.response_utils import success_response
     from app.remote_access.mobile_gate import require_mobile_pair_chat_access
     from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
 

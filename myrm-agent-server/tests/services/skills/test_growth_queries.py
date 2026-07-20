@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from uuid import uuid4
-
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import delete
@@ -12,6 +11,7 @@ from sqlalchemy import delete
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord, Base
 from app.platform_utils import get_database_engine, reset_database_engine
+from app.services.skills.draft_notification import notify_skill_draft_created
 from app.services.skills.evolution_reviews import create_evolution_review_record
 from app.services.skills.growth_case_types import SkillGrowthCaseStatus
 from app.services.skills.growth_queries import (
@@ -23,7 +23,6 @@ from app.services.skills.growth_queries import (
     list_skill_growth_cases,
     summarize_skill_growth_dashboard_stats,
 )
-from app.services.skills.draft_notification import notify_skill_draft_created
 
 
 @pytest.fixture

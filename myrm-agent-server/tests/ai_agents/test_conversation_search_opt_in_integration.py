@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from myrm_agent_harness.toolkits import create_memory_tools
 from myrm_agent_harness.toolkits.memory.conversation_search import (
     ConversationSearchHit,
@@ -54,7 +53,7 @@ async def test_memory_search_sessions_corpus_executes_when_opt_in_on() -> None:
         search_policy=MemorySearchPolicy(allow_sessions=True),
         search_backends=MemorySearchBackends(conversation_provider=FakeConversationSearchProvider()),
     )
-    search_tool = next(tool for tool in tools if getattr(tool, "name") == "memory_search_tool")
+    search_tool = next(tool for tool in tools if tool.name == "memory_search_tool")
 
     result = await search_tool.ainvoke({"query": "deployment", "corpus": "sessions"})
 
@@ -69,7 +68,7 @@ async def test_memory_search_sessions_corpus_rejected_when_opt_in_off() -> None:
         manager,
         search_policy=MemorySearchPolicy(allow_sessions=False),
     )
-    search_tool = next(tool for tool in tools if getattr(tool, "name") == "memory_search_tool")
+    search_tool = next(tool for tool in tools if tool.name == "memory_search_tool")
 
     result = await search_tool.ainvoke({"query": "deployment", "corpus": "sessions"})
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 
 import pytest
-
 from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
 from myrm_agent_harness.toolkits.tasks import Task, TaskStatus
 

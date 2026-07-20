@@ -255,8 +255,8 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         resolved_source = resolve_migration_source(competitor)
         from app.services.migration.mcp_config_converter import (
             convert_competitor_mcp_servers,
-            mcp_migration_item_to_preview,
             mcp_migration_item_to_config_dict,
+            mcp_migration_item_to_preview,
         )
 
         mcp_servers_preview: list[dict[str, object]] = []
@@ -387,17 +387,17 @@ async def confirm_import_memories(
     """Confirm a memory import from a server-bound dry-run session."""
 
     from app.services.memory.import_ledger import MemoryImportLedgerService
-    from app.services.migration.source_migration_types import (
-        SourceInstructionPlan,
-        MigrationWizardOptions,
-        WorkspaceRuleWrite,
-    )
     from app.services.migration.instruction_writer import (
         apply_instruction_plan,
         instruction_rollback_record_from_apply,
         instruction_rollback_record_to_metadata,
     )
     from app.services.migration.memory_import_binding import create_global_import_memory_manager
+    from app.services.migration.source_migration_types import (
+        MigrationWizardOptions,
+        SourceInstructionPlan,
+        WorkspaceRuleWrite,
+    )
 
     instruction_result = None
     async with get_session() as db:

@@ -18,6 +18,7 @@ Usage::
 from __future__ import annotations
 
 import logging
+
 from myrm_agent_harness.toolkits.cron import (
     CronConfig,
     CronManager,
@@ -32,8 +33,8 @@ from myrm_agent_harness.toolkits.cron.protocols import JobRunner
 
 from app.config.deploy_mode import is_local_mode
 from app.core.cron.adapters.agent_runner import AgentJobRunner
-from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
+from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 from app.core.cron.adapters.python_condition import SandboxedPythonCondition
 from app.core.cron.adapters.situation_sections import build_situation_report_builder
 from app.core.cron.adapters.sqlalchemy_store import SqlAlchemyCronStore

@@ -5,16 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
-from myrm_agent_harness.agent.middlewares.completion_guard import _build_checklist
-from myrm_agent_harness.agent.security.guards.loop_guard_types import CallRecord, SuccessLevel
 from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoItem, TodoStatus, TodoStore
 from myrm_agent_harness.agent.meta_tools.progress.storage import (
     read_todos_sync_from_workspace,
     workspace_todos_exist,
     write_todos_sync_to_workspace,
 )
+from myrm_agent_harness.agent.middlewares.completion_guard import _build_checklist
+from myrm_agent_harness.agent.security.guards.loop_guard_types import CallRecord, SuccessLevel
 from myrm_agent_harness.core.security.tool_registry import TOOL_GROUP_MAP
+
 from app.services.agent.profile_resolver import resolve_builtin_tool_flags
 
 

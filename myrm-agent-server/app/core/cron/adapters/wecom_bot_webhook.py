@@ -20,7 +20,6 @@ import logging
 from collections.abc import Callable, Coroutine
 
 import httpx
-
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
 
 logger = logging.getLogger(__name__)

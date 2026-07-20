@@ -9,8 +9,6 @@ from fastapi.testclient import TestClient
 
 from app.config.deploy_mode import get_deploy_mode
 from app.config.settings import settings
-from tests.support.minimal_app import build_minimal_app
-
 from app.remote_access.e2ee import (
     E2EE_PAIR_CIPHERTEXT_HEADER,
     E2EE_SESSION_HEADER,
@@ -23,6 +21,7 @@ from app.remote_access.e2ee import (
     public_key_b64,
 )
 from app.remote_access.pairing import MOBILE_HUB_LIST_PURPOSE, create_pairing_token
+from tests.support.minimal_app import build_minimal_app
 
 _REMOTE_HEADERS = {"Host": "abc.trycloudflare.com"}
 

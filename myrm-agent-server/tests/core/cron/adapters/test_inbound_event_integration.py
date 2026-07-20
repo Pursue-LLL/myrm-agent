@@ -39,7 +39,7 @@ async def test_sqlalchemy_provider_dispatches_matching_event_job(
 ) -> None:
     manager, _scheduler = cron_integration_env
 
-    job = await manager.create_job(
+    await manager.create_job(
         user_id="default",
         name="feishu-alert",
         job_type=JobType.SHELL,

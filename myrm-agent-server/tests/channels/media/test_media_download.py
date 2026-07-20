@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from myrm_agent_harness.core.security.http.secure_fetch import SecureHttpTarget
 
 from app.channels.media import (
     ContentTypeError,
@@ -14,7 +15,6 @@ from app.channels.media import (
     SizeExceededError,
     url_to_cache_key,
 )
-from myrm_agent_harness.core.security.http.secure_fetch import SecureHttpTarget
 
 
 @contextmanager

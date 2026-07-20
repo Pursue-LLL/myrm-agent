@@ -30,11 +30,11 @@
 | `local-backend-unavailable-banner.tsx` | 组件 | `LocalBackendUnavailableBanner`：后端未就绪告警（E2E tab 等私 Backend 绑定后再探活）；`ConfigReadinessDegradedBanner`：readiness 降级非阻塞告警 | ✅ |
 | `capability-icons.tsx` | 辅助 | 模型能力图标行（Vision/ToolCalling/Reasoning/Audio/Video 5 种布尔能力） | ✅ |
 | `command-palette.tsx` | 组件 | Slash 命令面板 UI（Cursor 风格弹出面板，分组展示系统行为/技能/用户命令，含 argsHint 参数提示） | ✅ |
-| `flow-pad-modal.tsx` | 组件 | Omni-FlowPad 全局 Dialog：截图预览+Quick Actions+语音/文本输入+Inline Mode 按请求 ID 归因的流式结果桥接+route-switch 晚到响应隔离+Paste 回写 | ✅ |
+| `flow-pad-modal.tsx` | 组件 | Omni-FlowPad 全局 Dialog：截图预览+Quick Actions+语音/文本输入+Inline Mode 按请求 ID 归因的流式结果桥接+route-switch 请求级 abort/晚到响应隔离+Paste 回写 | ✅ |
 | `FlowPadModalParts.tsx` | 辅助 | FlowPad 截图预览/lightbox 与 Appshot 消息格式化 | ✅ |
 | `config-load-error.tsx` | 组件 | Settings 配置加载失败 UI；复用 `lib/local-backend-dev` hint SSOT | ✅ |
 | `confirm-dialog.tsx` | 辅助 | 全局确认对话框 imperative API 包装 | ✅ |
-| `deep-link-listener.tsx` | 组件 | Tauri deep link 监听分发（Web `/intent/*` 由 `src/app/intent` 页面接管，避免重复分发） | ✅ |
+| `deep-link-listener.tsx` | 组件 | Tauri deep link 监听分发（多 URL 顺序化 + 短窗幂等去重 + 单条失败隔离可重试）；Web `/intent/*` 由 `src/app/intent` 页面接管，避免重复分发 | ✅ |
 | `global-events-initializer.tsx` | 组件 | 挂载 `useGlobalEvents` toast 订阅 | ✅ |
 | `json-editor.tsx` | 辅助 | Monaco JSON 编辑器封装（settings 表单复用） | ✅ |
 | `key-value-editor.tsx` | 辅助 | 动态 key-value 对编辑列表 | ✅ |

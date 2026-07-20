@@ -12,8 +12,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.channels.providers.telegram.html_converter import (
     _convert_tables,
     _find_utf8_cut,
@@ -23,7 +21,6 @@ from app.channels.providers.telegram.html_converter import (
     split_markdown_rich,
     split_message,
 )
-
 
 # ──────────────────────────────────────────────
 # 1. md_to_telegram_html 转换测试

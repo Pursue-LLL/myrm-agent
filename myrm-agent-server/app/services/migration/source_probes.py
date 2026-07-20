@@ -15,9 +15,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from .source_discovery import (
-    ExternalSource,
     ConfidenceLevel,
     DiscoveredFile,
+    ExternalSource,
     _count_md_bullets,
     _detect_api_keys_in_env,
     _get_search_paths,

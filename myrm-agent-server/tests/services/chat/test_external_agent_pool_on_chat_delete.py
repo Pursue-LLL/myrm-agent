@@ -76,11 +76,11 @@ async def test_delete_chat_live_tears_down_registry_pool() -> None:
     import uuid
     from datetime import datetime, timezone
 
+    from app.ai_agents.general_agent.external_agents import ExternalAgentsMixin
     from app.database.models.chat import Chat
     from app.platform_utils import get_session_factory
     from app.services.chat.chat_service import ChatService
     from app.services.external_agents.runtime_pool_registry import get_chat_runtime_pool_registry
-    from app.ai_agents.general_agent.external_agents import ExternalAgentsMixin
 
     chat_id = f"live-del-{uuid.uuid4().hex[:10]}"
     session_factory = get_session_factory()

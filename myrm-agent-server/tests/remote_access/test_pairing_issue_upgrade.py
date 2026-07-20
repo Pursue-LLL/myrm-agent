@@ -10,7 +10,12 @@ from app.api.remote_access.router import router as remote_access_router
 from app.config.deploy_mode import get_deploy_mode
 from app.config.settings import settings
 from app.middleware.auth import AuthMiddleware
-from app.remote_access.pairing import MOBILE_HUB_CONTROL_PURPOSE, MOBILE_HUB_LIST_PURPOSE, create_pairing_token, parse_pairing_token
+from app.remote_access.pairing import (
+    MOBILE_HUB_CONTROL_PURPOSE,
+    MOBILE_HUB_LIST_PURPOSE,
+    create_pairing_token,
+    parse_pairing_token,
+)
 
 
 @pytest.fixture(autouse=True)

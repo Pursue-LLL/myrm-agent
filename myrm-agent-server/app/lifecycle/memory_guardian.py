@@ -322,10 +322,10 @@ async def _record_guard_unavailable_event(
     policy: MemoryGuardianPolicy,
 ) -> None:
     """Record warning-level observability event when safe guard dependencies are unavailable."""
+    from app.database.connection import get_session
     from app.services.agent.memory_guardian_guard_telemetry import (
         enqueue_memory_guardian_guard_telemetry,
     )
-    from app.database.connection import get_session
     from app.services.memory.operation_ledger import MemoryOperationLedgerService
 
     enqueue_memory_guardian_guard_telemetry(
@@ -414,7 +414,8 @@ async def _auto_resolve_expired_conflicts() -> int:
     Applies KEEP_OLD (safe default): the old memory stays, the conflicting
     new content is discarded. Returns the number of resolved conflicts.
     """
-    from datetime import UTC, datetime as dt
+    from datetime import UTC
+    from datetime import datetime as dt
 
     from sqlalchemy import update
 

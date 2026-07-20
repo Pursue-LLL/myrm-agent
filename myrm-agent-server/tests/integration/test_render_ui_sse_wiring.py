@@ -5,11 +5,9 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
-from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from myrm_agent_harness.agent._internals.run_lifecycle import post_run_events
-from myrm_agent_harness.agent.artifacts.context import ArtifactContextManager
 from myrm_agent_harness.agent.artifacts import register_ui_artifact
+from myrm_agent_harness.agent.artifacts.context import ArtifactContextManager
 from myrm_agent_harness.agent.artifacts.ui_artifact import UIArtifact, UIDataUpdate
 from myrm_agent_harness.agent.artifacts.ui_registry import (
     bind_run_message_id,
@@ -22,6 +20,8 @@ from myrm_agent_harness.agent.meta_tools.interaction.update_ui_data_tool import 
 from myrm_agent_harness.agent.streaming.artifact_events import collect_ui_artifacts
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.types import AgentRunStatistics
+
+from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
 
 @pytest.fixture

@@ -5,10 +5,10 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from myrm_agent_harness.core.config.gateway import ToolGatewayConfig
 
 from app.platform_utils.sandbox.tool_gateway import ResolvedToolGatewayConfig
 from app.services.agent.params.models import AgentConfigRequest, AgentRequest
-from myrm_agent_harness.core.config.gateway import ToolGatewayConfig
 from tests.api.agent.utils import get_model_selection
 
 

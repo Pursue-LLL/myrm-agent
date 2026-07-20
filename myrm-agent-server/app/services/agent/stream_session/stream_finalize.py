@@ -21,6 +21,7 @@ from app.services.agent.stream_session._memory_status_helpers import (
 )
 from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
+from app.services.agent.streaming_support.citation_persistence import merge_memory_citation_fallback
 from app.services.agent.streaming_support.sse_helpers import (
     clear_context_task_metrics,
     error_sse,
@@ -29,8 +30,6 @@ from app.services.agent.streaming_support.sse_helpers import (
 
 logger = logging.getLogger(__name__)
 
-
-from app.services.agent.streaming_support.citation_persistence import merge_memory_citation_fallback
 async def yield_stream_exception_chunks(
     session: AgentStreamSession,
     exc: BaseException,

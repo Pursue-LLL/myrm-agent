@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from myrm_agent_harness.toolkits.memory.proactive import CommitmentExtractor
 from myrm_agent_harness.toolkits.memory.proactive.types import (
     CommitmentCandidate,

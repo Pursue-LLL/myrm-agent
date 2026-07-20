@@ -23,10 +23,10 @@ from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskEventKind
 
 from app.services.chat.sandbox_worktree import (
+    _GIT_ENV,
     WorktreeCreateError,
     WorktreeErrorReason,
     _classify_git_error,
-    _GIT_ENV,
 )
 
 logger = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ def _ensure_worktrees_dir_excluded(base_dir: str) -> None:
         except OSError:
             pass
 
-        if any(l.strip() == line for l in current.split("\n")):
+        if any(existing_line.strip() == line for existing_line in current.split("\n")):
             return
 
         prefix = "\n" if current and not current.endswith("\n") else ""

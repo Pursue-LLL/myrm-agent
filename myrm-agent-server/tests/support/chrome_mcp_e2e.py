@@ -15,7 +15,7 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url, _e2e_api_urlopen  # noqa: E402
+from cdp_chat_support import _e2e_api_urlopen, get_e2e_api_url, get_e2e_ui_url  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 
 __all__ = [

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import typing
-from collections.abc import Callable
 from typing import cast
 
 from fastapi import HTTPException
 from myrm_agent_harness.agent.skills.optimization import EventEmitter, InMemoryAggregator
 from myrm_agent_harness.agent.skills.optimization.protocols import SkillExecutionProvider
 from myrm_agent_harness.agent.skills.optimization.scheduler import OptimizationScheduler
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 from app.services.skill_optimization.ab_test_manager import ABTestManager

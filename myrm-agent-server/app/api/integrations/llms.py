@@ -3,8 +3,7 @@ import logging
 import time
 from typing import Literal
 
-import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 

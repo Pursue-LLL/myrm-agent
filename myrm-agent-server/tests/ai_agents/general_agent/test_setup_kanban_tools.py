@@ -153,7 +153,7 @@ async def test_setup_kanban_tools_orchestrator_injects_source_chat_id(
     import json
 
     from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
-    from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KANBAN_SOURCE_CHAT_METADATA_KEY
+    from myrm_agent_harness.toolkits.kanban.types import KANBAN_SOURCE_CHAT_METADATA_KEY, KanbanBoard
 
     from app.ai_agents.general_agent.factory import _setup_kanban_tools
 

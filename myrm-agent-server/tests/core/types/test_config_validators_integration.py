@@ -13,6 +13,7 @@ that config self-healing works end-to-end in production scenarios.
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from app.core.types import MCPServerConfig, ModelConfig
 from app.services.agent.params.models import ModelSelection
@@ -229,5 +230,5 @@ class TestRealWorldDirtyInputScenarios:
         assert cfg.model == "gpt-4"
         assert cfg.api_key == "key"
         assert cfg.base_url == "https://api.example.com"
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             cfg.model = "other"  # type: ignore[misc]

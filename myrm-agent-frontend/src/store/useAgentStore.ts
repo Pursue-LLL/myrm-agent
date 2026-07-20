@@ -29,7 +29,7 @@ interface AgentState {
 
   // Actions
   fetchAgents: (page?: number, pageSize?: number, forceRefresh?: boolean) => Promise<void>;
-  fetchAgent: (agentId: string) => Promise<Agent | null>;
+  fetchAgent: (agentId: string, signal?: AbortSignal) => Promise<Agent | null>;
   create: (data: AgentCreate) => Promise<Agent | null>;
   update: (agentId: string, data: AgentUpdate) => Promise<Agent | null>;
   remove: (agentId: string) => Promise<boolean>;
@@ -74,13 +74,17 @@ const useAgentStore = create<AgentState>()(
       }
     },
 
-    fetchAgent: async (agentId: string) => {
+    fetchAgent: async (agentId: string, signal?: AbortSignal) => {
       set({ loading: true, error: null });
       try {
-        const agent = await getAgent(agentId);
+        const agent = await getAgent(agentId, false, signal);
         set({ selectedAgent: agent, loading: false });
         return agent;
       } catch (error) {
+        if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+          set({ loading: false });
+          return null;
+        }
         set({
           error: error instanceof Error ? error.message : 'Failed to fetch agent',
           loading: false,

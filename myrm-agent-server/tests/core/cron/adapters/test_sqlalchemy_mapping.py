@@ -153,9 +153,13 @@ async def test_normalize_monitor_configs_batch_commits_only_changed_rows(monkeyp
     monkeypatch.setattr(store_mod, "get_session", lambda: _FakeSessionCtx(session))
 
     store = SqlAlchemyCronStore()
-    normalized = await store.normalize_monitor_configs_batch(batch_size=10)
+    stats = await store.normalize_monitor_configs_batch(batch_size=10)
 
-    assert normalized == 1
+    assert stats.normalized_count == 1
+    assert stats.scanned_count == 2
+    assert stats.processed_batches == 1
+    assert stats.reached_batch_limit is False
+    assert stats.continuation_required is False
     session.commit.assert_awaited_once()
     assert dirty_row.monitor_config == {"monitor_type": "set", "ttl_days": 12, "enabled": True}
     assert clean_row.monitor_config == {"monitor_type": "set", "ttl_days": 3, "enabled": True}
@@ -173,10 +177,64 @@ async def test_normalize_monitor_configs_batch_no_changes_no_commit(monkeypatch:
     monkeypatch.setattr(store_mod, "get_session", lambda: _FakeSessionCtx(session))
 
     store = SqlAlchemyCronStore()
-    normalized = await store.normalize_monitor_configs_batch(batch_size=5)
+    stats = await store.normalize_monitor_configs_batch(batch_size=5)
 
-    assert normalized == 0
+    assert stats.normalized_count == 0
+    assert stats.scanned_count == 1
+    assert stats.processed_batches == 1
+    assert stats.reached_batch_limit is False
+    assert stats.continuation_required is False
     session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_normalize_monitor_configs_batch_respects_max_batches(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.cron.adapters import sqlalchemy_store as store_mod
+
+    first_dirty = SimpleNamespace(
+        id="job-d",
+        monitor_config={"monitor_type": "timeseries", "ttl_days": "11", "enabled": 1},
+    )
+    second_dirty = SimpleNamespace(
+        id="job-e",
+        monitor_config={"monitor_type": "timeseries", "ttl_days": "15", "enabled": 1},
+    )
+    session = _FakeSession(result_batches=[[first_dirty], [second_dirty], []])
+    monkeypatch.setattr(store_mod, "get_session", lambda: _FakeSessionCtx(session))
+
+    store = SqlAlchemyCronStore()
+    stats = await store.normalize_monitor_configs_batch(batch_size=1, max_batches=1)
+
+    assert stats.normalized_count == 1
+    assert stats.scanned_count == 1
+    assert stats.processed_batches == 1
+    assert stats.reached_batch_limit is True
+    assert stats.continuation_required is True
+    session.commit.assert_awaited_once()
+    assert first_dirty.monitor_config == {"monitor_type": "set", "ttl_days": 11, "enabled": True}
+    assert second_dirty.monitor_config == {"monitor_type": "timeseries", "ttl_days": "15", "enabled": 1}
+
+
+@pytest.mark.asyncio
+async def test_normalize_monitor_configs_batch_limit_without_remaining_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.cron.adapters import sqlalchemy_store as store_mod
+
+    only_dirty = SimpleNamespace(
+        id="job-f",
+        monitor_config={"monitor_type": "timeseries", "ttl_days": "9", "enabled": 1},
+    )
+    session = _FakeSession(result_batches=[[only_dirty], []])
+    monkeypatch.setattr(store_mod, "get_session", lambda: _FakeSessionCtx(session))
+
+    store = SqlAlchemyCronStore()
+    stats = await store.normalize_monitor_configs_batch(batch_size=1, max_batches=1)
+
+    assert stats.normalized_count == 1
+    assert stats.scanned_count == 1
+    assert stats.processed_batches == 1
+    assert stats.reached_batch_limit is True
+    assert stats.continuation_required is False
+    session.commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -184,3 +242,5 @@ async def test_normalize_monitor_configs_batch_rejects_non_positive_batch_size()
     store = SqlAlchemyCronStore()
     with pytest.raises(ValueError, match="batch_size must be positive"):
         await store.normalize_monitor_configs_batch(batch_size=0)
+    with pytest.raises(ValueError, match="max_batches must be positive"):
+        await store.normalize_monitor_configs_batch(max_batches=0)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -28,8 +28,8 @@ def test_validate_webhook_url_allows_public_ip() -> None:
 
 @pytest.mark.asyncio
 async def test_webhook_client_does_not_follow_redirect_to_private_ip() -> None:
-    from app.services.hosting.providers.http_webhook import HttpWebhookProvider
     from app.services.hosting.packager import PublishFile
+    from app.services.hosting.providers.http_webhook import HttpWebhookProvider
     from app.services.hosting.types import HostingTarget
 
     provider = HttpWebhookProvider()

@@ -8,16 +8,14 @@ from __future__ import annotations
 
 import pytest
 
+from app.core.cron.blueprint_i18n_supplement import BLUEPRINT_UI_LOCALES, SUPPLEMENTAL_BY_ID
 from app.core.cron.blueprints import (
     BUILTIN_BLUEPRINTS,
     BlueprintFillError,
-    BlueprintSlot,
-    CronBlueprint,
     fill_blueprint,
     get_blueprint,
     get_blueprints_for_tool_description,
 )
-from app.core.cron.blueprint_i18n_supplement import BLUEPRINT_UI_LOCALES, SUPPLEMENTAL_BY_ID
 
 
 class TestBlueprintRegistry:

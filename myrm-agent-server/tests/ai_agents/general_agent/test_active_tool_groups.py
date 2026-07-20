@@ -143,11 +143,12 @@ def test_builtin_tool_id_to_group_values_subset_of_active_keys() -> None:
 
 
 def test_builtin_tool_id_to_group_keys_match_togglable_catalog() -> None:
-    from app.services.agent.builtin_tool_ids import TOGGLABLE_BUILTIN_TOOL_IDS
     from myrm_agent_harness.agent.meta_tools.discover_capability.capability_gap import (
         BUILTIN_TOOL_ID_TO_GROUP,
         CAPABILITY_GAP_REGISTRY,
     )
+
+    from app.services.agent.builtin_tool_ids import TOGGLABLE_BUILTIN_TOOL_IDS
 
     registry_ids = {entry.tool_id for entry in CAPABILITY_GAP_REGISTRY}
     assert registry_ids == set(BUILTIN_TOOL_ID_TO_GROUP)

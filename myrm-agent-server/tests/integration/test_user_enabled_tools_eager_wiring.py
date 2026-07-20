@@ -10,13 +10,13 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from myrm_agent_harness.agent.meta_tools.interaction.a2ui_spec import (
     A2UI_REFERENCE_FILENAME,
     get_bundled_reference_content,
 )
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
 from myrm_agent_harness.agent.tool_management.types import ToolSource
+
 from app.core.skills.oauth_availability import X_LIVE_SEARCH_SKILL_ID
 
 

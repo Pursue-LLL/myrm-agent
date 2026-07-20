@@ -101,5 +101,6 @@
   ],
   "cooldown_hint_single": " {seconds}초 후에 다시 시도하세요.",
   "cooldown_hint_plural": " {seconds}초 후에 다시 시도하세요.",
-  "stuck_task_timeout_user_message": "⏱ 작업이 {elapsed}초 동안 응답이 없어 자동 취소되었습니다. 메시지를 다시 보내주세요."
+  "stuck_task_timeout_user_message": "⏱ 작업이 {elapsed}초 동안 응답이 없어 자동 취소되었습니다. 메시지를 다시 보내주세요.",
+  "risk_outbound_blocked": "⚠️ 이 응답은 콘텐츠 보안 정책에 의해 차단되었습니다. 관리자에게 문의하거나 질문을 바꿔 시도해주세요."
 }

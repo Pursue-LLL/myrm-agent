@@ -175,9 +175,8 @@ async def test_archive_restore_action_prevalidation_fails_before_persistence(
         }
     )
 
-    from app.services.chat.chat_service import ChatService
-
     import app.services.agent.params.workspace_resolve as workspace_resolve_module
+    from app.services.chat.chat_service import ChatService
 
     async def get_chat_metadata(chat_id: str) -> None:
         assert chat_id == "chat-1"

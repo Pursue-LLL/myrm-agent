@@ -225,7 +225,8 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
     from myrm_agent_harness.toolkits.memory.types import ConflictResolution
 
     async def _on_conflict(ctx: ConflictContext) -> ConflictResolution:
-        from datetime import UTC, datetime as dt, timedelta
+        from datetime import UTC, timedelta
+        from datetime import datetime as dt
         from uuid import uuid4
 
         from app.database.connection import get_session

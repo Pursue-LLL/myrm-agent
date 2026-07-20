@@ -21,7 +21,6 @@ from app.services.agent.builtin_initializer import (
     _BUILTIN_AGENTS,
     initialize_builtin_agents,
 )
-from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
 
 
 @pytest.fixture

@@ -19,8 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from myrm_agent_harness.api import AgentConfig
 from myrm_agent_harness.agent.config import check_config_health
+from myrm_agent_harness.api import AgentConfig
 
 from .settings import settings
 

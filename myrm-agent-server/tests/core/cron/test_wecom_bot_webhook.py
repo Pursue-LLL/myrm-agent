@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.cron.types import CronJob, DeliveryConfig, JobResult, JobType, Schedule
 
 from app.core.cron.adapters.wecom_bot_webhook import (
     _build_wecom_markdown,
     deliver_wecom_bot_webhook,
     is_wecom_bot_hook_url,
 )
-from myrm_agent_harness.toolkits.cron.types import CronJob, DeliveryConfig, JobResult, JobType, Schedule
 
 
 def _make_job(

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
+from app.services.event.app_event_bus import AppEventType, ServerEventBus
 
 
 def _make_event_bus() -> ServerEventBus:

@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.agent.meta_tools.bash._background_types import BackgroundProcessInfo
 
 from app.services.agent.shell_background_tasks import (
     _command_preview,
@@ -13,7 +14,6 @@ from app.services.agent.shell_background_tasks import (
     cancel_shell_background_task,
     list_shell_background_tasks,
 )
-from myrm_agent_harness.agent.meta_tools.bash._background_types import BackgroundProcessInfo
 
 
 def test_list_shell_background_tasks_maps_registry_rows() -> None:

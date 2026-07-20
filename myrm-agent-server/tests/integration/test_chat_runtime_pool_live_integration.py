@@ -204,7 +204,7 @@ async def test_live_facade_cancel_during_active_run_turn() -> None:
 async def test_live_fingerprint_replace_deferred_while_turn_locked() -> None:
     """Config fingerprint change during active run_turn must defer pool replace."""
     chat_id = "live-int-chat-fp-defer"
-    registry = get_chat_runtime_pool_registry()
+    get_chat_runtime_pool_registry()
 
     mixin_a = _new_mixin(chat_scope_id=chat_id)
     await mixin_a._do_setup_external_agents([], [], mount_delegate_tool=False)

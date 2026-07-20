@@ -6,12 +6,10 @@ import asyncio
 import sys
 import uuid
 from pathlib import Path
-from typing import cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import create_bash_code_execute_tool
 from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import create_bash_process_tool
 from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import reset_deferred_activation_for_tests
@@ -24,8 +22,8 @@ from myrm_agent_harness.toolkits.code_execution.executors.base import set_execut
 from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind import bind_workspace_storage_root
 
 from app.services.agent.background_job_finish_handler import ServerBackgroundJobFinishHandler
-from tests.integration.test_background_tasks_rest_api import _build_rest_app, _spawn_background
 from tests.integration.test_background_job_finish_chain import _make_local_executor
+from tests.integration.test_background_tasks_rest_api import _build_rest_app, _spawn_background
 
 
 @pytest.fixture(autouse=True)

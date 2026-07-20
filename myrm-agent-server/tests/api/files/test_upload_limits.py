@@ -11,9 +11,10 @@ Covers:
 from __future__ import annotations
 
 import io
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
+from fastapi import HTTPException
 
 from app.api.files.upload import (
     _MAX_FILE_BYTES,
@@ -81,7 +82,7 @@ class TestStreamToBytes:
         limit = 1024
         content = b"x" * (limit + 1)
         upload = _make_upload(content)
-        with pytest.raises(Exception):
+        with pytest.raises(HTTPException):
             await _stream_to_bytes(upload, limit)
 
 

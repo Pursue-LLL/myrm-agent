@@ -30,7 +30,6 @@ from app.services.wiki.vault_resolver import (
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
-
     from myrm_agent_harness.toolkits.memory import MemoryManager
 
 logger = logging.getLogger(__name__)

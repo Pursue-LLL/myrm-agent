@@ -5,10 +5,10 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from app.services.security.tenant_guardrail import TenantPolicyProvider
 from myrm_agent_harness.agent.middlewares.guardrails.core import GuardrailRequest
 from myrm_agent_harness.agent.sub_agents.types import DELEGATION_CAPABILITY_MANIFEST
+
+from app.services.security.tenant_guardrail import TenantPolicyProvider
 
 _CAPS_FN = "app.platform_utils.deployment_capabilities.get_deployment_capabilities"
 _FETCH_FN = "app.platform_utils.sandbox.entitlements.entitlement_guard.fetch_sandbox_entitlements"

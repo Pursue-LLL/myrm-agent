@@ -16,7 +16,6 @@ from app.channels.media.image_enrichment import (
     _download_via_channel_api,
     _download_via_http,
     _read_local_file,
-    _save_to_cache,
     _sniff_mime,
     enrich_image_inbound,
     has_image_attachment,

@@ -95,7 +95,7 @@ def test_background_tasks_panel_shows_failed_shell_job_from_seed() -> None:
         f"{api_base}/api/v1/background-tasks/test/seed-shell-fixture?mode=failed",
     )
     assert isinstance(seed, dict)
-    pid = int(seed["pid"])
+    int(seed["pid"])
     task_id = str(seed["task_id"])
 
     row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")

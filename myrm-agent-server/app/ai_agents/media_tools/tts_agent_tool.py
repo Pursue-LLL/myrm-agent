@@ -17,11 +17,10 @@ from typing import Any
 
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field, PrivateAttr
-
 from myrm_agent_harness.core.artifacts.constants import ArtifactType
 from myrm_agent_harness.toolkits.llms.tts.generator import AsyncTTSEngine
 from myrm_agent_harness.toolkits.llms.tts.models import TTSConfig
+from pydantic import BaseModel, Field, PrivateAttr
 
 logger = logging.getLogger(__name__)
 

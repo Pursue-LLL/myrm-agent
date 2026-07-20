@@ -330,7 +330,8 @@ async def resolve_conflict(
     else:
         raise HTTPException(status_code=400, detail=f"Invalid resolution: {resolution}")
 
-    from datetime import UTC, datetime as dt
+    from datetime import UTC
+    from datetime import datetime as dt
 
     async with get_session() as db:
         record = await db.get(PendingMemory, conflict_id)

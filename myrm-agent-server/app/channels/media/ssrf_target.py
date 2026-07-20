@@ -16,7 +16,6 @@ Extracted from MediaDownloader to keep downloader.py under the line budget gate.
 from __future__ import annotations
 
 import httpx
-
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError, async_pin_url
 from myrm_agent_harness.core.security.http.secure_fetch import (
     SecureHttpTarget,

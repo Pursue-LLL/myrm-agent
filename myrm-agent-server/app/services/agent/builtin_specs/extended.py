@@ -11,9 +11,9 @@ builtin_specs 子包：5 个扩展预置智能体规格
 """
 
 from app.services.agent.builtin_specs.types import (
-    _BuiltInAgentSpec,
     _TOOL_CODING,
     _TOOL_MINIMAL,
+    _BuiltInAgentSpec,
 )
 
 _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (

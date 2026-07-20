@@ -7,13 +7,13 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.llms.image.async_image_engine import AsyncImageGenerationTools
+from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
+from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskStatus
 
 from app.tasks.executors.image_executor import ImageTaskExecutor
 from app.tasks.image_config_resolver import resolve_image_generation_config
 from app.tasks.task_payload_crypto import API_KEY_ENC_FIELD, seal_task_payload_secrets
-from myrm_agent_harness.toolkits.llms.image.async_image_engine import AsyncImageGenerationTools
-from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
-from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskStatus
 
 
 @pytest.fixture(autouse=True)

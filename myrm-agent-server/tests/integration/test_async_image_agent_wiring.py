@@ -8,10 +8,10 @@ import os
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskFilters
 
 from app.ai_agents.agents import ImageGenerationParams
 from app.ai_agents.general_agent.agent import GeneralAgent
-from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskFilters
 
 
 @pytest.fixture(autouse=True)

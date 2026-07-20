@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from pydantic import ValidationError
 from starlette.testclient import TestClient
 
 from app.services.agent.profile_resolver import ResolvedAgentProfile
@@ -110,7 +111,7 @@ class TestLlmMapWithdrawalConverterIntegration:
         base_request["agent_config"] = {
             "enabledBuiltinTools": ["web_search", "llm_map", "file_ops"],
         }
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             AgentRequest(**base_request)
 
     @pytest.mark.asyncio

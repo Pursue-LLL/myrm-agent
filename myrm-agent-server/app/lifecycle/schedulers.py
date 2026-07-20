@@ -21,6 +21,9 @@ _login_session_cleanup_scheduler: AsyncScheduler | None = None
 
 _auth_log_cleanup_scheduler: AsyncScheduler | None = None
 
+_MONITOR_CLEANUP_BATCH_SIZE = 500
+_MONITOR_STARTUP_MAX_BATCHES = 4
+
 
 async def _auth_log_cleanup_job() -> None:
     """Periodic auth audit log cleanup (removes old archived logs)."""
@@ -74,9 +77,21 @@ async def start_cron_scheduler() -> None:
     from app.core.cron.adapters.setup import get_cron_scheduler, get_cron_store
 
     try:
-        normalized = await get_cron_store().normalize_monitor_configs_batch(batch_size=500)
-        if normalized > 0:
-            logger.info("Cron startup cleanup normalized %d legacy monitor_config payloads", normalized)
+        cleanup_stats = await get_cron_store().normalize_monitor_configs_batch(
+            batch_size=_MONITOR_CLEANUP_BATCH_SIZE,
+            max_batches=_MONITOR_STARTUP_MAX_BATCHES,
+        )
+        if cleanup_stats.normalized_count > 0:
+            logger.info(
+                "Cron startup cleanup normalized %d legacy monitor_config payloads",
+                cleanup_stats.normalized_count,
+            )
+        if cleanup_stats.continuation_required:
+            logger.info(
+                "Cron startup monitor_config cleanup has remaining rows; continuation required (scanned=%d, batches=%d)",
+                cleanup_stats.scanned_count,
+                cleanup_stats.processed_batches,
+            )
     except Exception as exc:
         logger.warning("Cron startup monitor_config cleanup failed: %s", exc)
 

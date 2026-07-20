@@ -39,13 +39,12 @@ class SubagentManagementExtension(AgentExtension):
             create_subagent_control_tool,
             update_delegate_task_description,
         )
+        from myrm_agent_harness.api import build_parent_delegatable_toolkit
 
         from app.ai_agents.general_agent.blueprint_materializer import (
             materialize_jit_configs,
         )
         from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
-
-        from myrm_agent_harness.api import build_parent_delegatable_toolkit
 
         def _tool_registry_getter() -> list[object]:
             if agent is None:

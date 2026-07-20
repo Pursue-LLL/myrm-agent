@@ -5,7 +5,7 @@ from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryS
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
-from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding, _memory_manager_cache
+from app.core.memory.adapters.setup import _memory_manager_cache, create_memory_manager, resolve_context_binding
 
 
 @pytest.fixture(autouse=True)

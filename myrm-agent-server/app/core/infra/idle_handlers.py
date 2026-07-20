@@ -22,8 +22,8 @@ from pathlib import Path
 
 from myrm_agent_harness.agent.background_worker.idle_tasks import register_idle_task_handler
 
-from app.services.agent.llm_access import get_llm_for_user
 from app.config.settings import settings
+from app.services.agent.llm_access import get_llm_for_user
 
 logger = logging.getLogger(__name__)
 

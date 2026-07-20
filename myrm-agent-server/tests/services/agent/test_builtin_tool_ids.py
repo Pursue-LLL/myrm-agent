@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
-from unittest.mock import patch
 
 from app.database.dto import AgentCreate, AgentUpdate
 from app.services.agent.builtin_tool_ids import (
-    BUILTIN_TOOL_IDS,
     BUILTIN_TOOL_ID_SET,
+    BUILTIN_TOOL_IDS,
     DEFAULT_ENABLED_BUILTIN_TOOLS,
     InvalidBuiltinToolIdsError,
     normalize_enabled_builtin_tools,

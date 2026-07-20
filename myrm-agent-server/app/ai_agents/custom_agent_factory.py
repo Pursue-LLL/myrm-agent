@@ -476,8 +476,7 @@ class EphemeralAgentFactory:
         complexity_tier: str | None = None,
     ) -> BaseAgent:
 
-        from myrm_agent_harness.api import create_skill_agent
-        from myrm_agent_harness.api import AgentRuntimeSpec
+        from myrm_agent_harness.api import AgentRuntimeSpec, create_skill_agent
         from myrm_agent_harness.toolkits.llms import llm_manager
 
         from app.platform_utils import get_storage_provider

@@ -5,10 +5,9 @@ from __future__ import annotations
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import pytest
-
-from pathlib import Path
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.gateway import ChannelGateway

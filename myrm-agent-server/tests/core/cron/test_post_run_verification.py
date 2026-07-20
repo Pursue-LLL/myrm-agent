@@ -207,7 +207,6 @@ async def test_apply_error_when_verifier_preset_missing(monkeypatch) -> None:
 async def test_apply_pass_does_not_append_fail_note(monkeypatch) -> None:
     from myrm_agent_harness.agent.sub_agents._verification_parsing import VerificationVerdict
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
-    from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, Schedule, ScheduleKind
 
     async def _fake_verify(*_args, **_kwargs):
         return VerificationVerdict(

@@ -245,7 +245,7 @@ class ChannelGoalCommandHandler:
             return get_text(msg, "no_active_goal_to_pause")
 
         await provider.update_status(goal.goal_id, GoalStatus.PAUSED)
-        note = args.strip()
+        note = note.strip()
         if note:
             await provider.update_metadata(goal.goal_id, {"pause_reason": note})
         return get_text(msg, "goal_paused", objective=goal.objective[:60])

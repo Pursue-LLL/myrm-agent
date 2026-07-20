@@ -7,11 +7,6 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.integration.test_computer_use_deploy_integration import (
-    local_deploy,
-    sandbox_no_visual_desktop,
-)
-
 
 @pytest.mark.integration
 def test_create_agent_rejects_external_cli_in_sandbox(
@@ -72,8 +67,9 @@ def test_create_agent_allows_external_cli_in_local_when_backend_exists(
     local_deploy: None,
 ) -> None:
     """Local deploy + resolvable CLI backend must allow external_cli persist."""
-    from app.services.agent.external_cli_gate import external_cli_backend_available
     import asyncio
+
+    from app.services.agent.external_cli_gate import external_cli_backend_available
 
     if not asyncio.run(external_cli_backend_available()):
         pytest.skip("No CLI backend on this host — success path covered by unit tests")

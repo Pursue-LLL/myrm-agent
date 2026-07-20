@@ -9,6 +9,7 @@ import pytest
 import app.services.wiki.wiki_archive_hook as wiki_archive_hook_module
 from app.ai_agents.general_agent.callbacks import make_summary_persist_with_wiki_archive
 
+
 async def test_wiki_archive_runs_after_compaction_persist() -> None:
     mock_llm = MagicMock()
     notes_json = '{"_meta":{"last_updated_message_idx":12},"task_spec":"x"}'

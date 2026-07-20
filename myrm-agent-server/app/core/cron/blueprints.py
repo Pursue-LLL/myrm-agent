@@ -24,8 +24,8 @@ Cron blueprint single-source-of-truth definitions.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import re
+from dataclasses import dataclass, field
 from typing import Literal
 
 from app.core.cron.blueprint_i18n_supplement import SUPPLEMENTAL_BY_ID

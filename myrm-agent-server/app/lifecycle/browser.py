@@ -5,6 +5,10 @@ from __future__ import annotations
 import logging
 import os
 import time
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.browser.pool.proxy import RoundRobinProxyPool
 
 logger = logging.getLogger(__name__)
 

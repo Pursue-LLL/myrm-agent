@@ -24,7 +24,6 @@ import os
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
 
 from app.api.health.benchmark import router as benchmark_router
 from app.api.health.diagnostic import router as diagnostic_router
@@ -486,7 +485,7 @@ async def test_browser_proxy_connection() -> dict[str, object]:
     proxy_url = config.proxies[0]
     try:
         start = _time.perf_counter()
-        async with httpx.AsyncClient(proxy=proxy_url, timeout=10.0, verify=False) as client:
+        async with httpx.AsyncClient(proxy=proxy_url, timeout=10.0, verify=False) as client:  # noqa: S501
             resp = await client.get("https://httpbin.org/ip")
             latency_ms = round((_time.perf_counter() - start) * 1000)
             if resp.status_code == 200:

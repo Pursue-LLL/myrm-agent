@@ -4,15 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from app.services.wiki.obsidian_adapter import (
     ObsidianImportStats,
     adapt_obsidian_file,
     parse_frontmatter,
     rewrite_image_embeds,
 )
-
 
 # ---------------------------------------------------------------------------
 # parse_frontmatter
@@ -347,8 +344,8 @@ class TestAdaptFullPipeline:
     def test_empty_vault(self, tmp_path: Path) -> None:
         vault = tmp_path / "empty_vault"
         vault.mkdir()
-        raw = tmp_path / "raw"
-        assets = tmp_path / "assets"
+        tmp_path / "raw"
+        tmp_path / "assets"
 
         md_files = list(vault.rglob("*.md"))
         assert len(md_files) == 0

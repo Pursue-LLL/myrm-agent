@@ -23,11 +23,10 @@ from __future__ import annotations
 import logging
 import time
 
+from myrm_agent_harness.observability.tracing import TracingContext
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
-
-from myrm_agent_harness.observability.tracing import TracingContext
 
 logger = logging.getLogger(__name__)
 

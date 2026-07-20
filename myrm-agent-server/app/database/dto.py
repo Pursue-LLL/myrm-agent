@@ -9,7 +9,7 @@ from myrm_agent_harness.toolkits.memory.config import (
 )
 from pydantic import BaseModel, Field, model_validator
 
-from app.services.agent.builtin_tool_validation import OptionalBuiltinTools, RequiredBuiltinTools
+from app.services.agent.builtin_tool_validation import OptionalBuiltinTools
 
 PersonalityStyleLiteral = Literal[
     # 实用型

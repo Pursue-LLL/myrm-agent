@@ -26,9 +26,11 @@ from app.database.connection import get_db
 from app.services.config.encryption import get_encryption_service
 from app.services.integrations.oauth_store import (
     decrypt_oauth_credentials,
-    delete_oauth_credential as remove_oauth_credential,
     load_oauth_credentials_row,
     upsert_oauth_credential,
+)
+from app.services.integrations.oauth_store import (
+    delete_oauth_credential as remove_oauth_credential,
 )
 
 logger = logging.getLogger(__name__)

@@ -9,9 +9,8 @@ Tests cover:
 
 from __future__ import annotations
 
-import dataclasses
-from dataclasses import dataclass, field
-from unittest.mock import AsyncMock, MagicMock, patch
+from dataclasses import dataclass
+from unittest.mock import AsyncMock, patch
 
 import pytest
 

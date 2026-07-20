@@ -9,7 +9,6 @@ import pytest
 
 from app.services.hosting.packager import PublishFile
 from app.services.hosting.providers.http_webhook import HttpWebhookProvider
-from app.services.hosting.ssrf_guard import SSRFValidationError
 from app.services.hosting.types import HostingTarget
 
 

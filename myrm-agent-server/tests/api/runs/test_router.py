@@ -17,11 +17,11 @@ from app.api.runs.router import (
     _kanban_task_to_run_status,
     _truncate,
 )
+from app.api.runs.schemas import UnifiedRunResponse
 from app.api.runs.stop_reason import (
     extract_stop_reason_from_metadata,
     stop_reason_from_error,
 )
-from app.api.runs.schemas import UnifiedRunResponse
 
 
 def _run(**kwargs: object) -> UnifiedRunResponse:

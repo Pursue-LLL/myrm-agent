@@ -8,14 +8,11 @@ that all _TOXIC_NODE_ENV_VARS are removed while safe vars are preserved.
 from __future__ import annotations
 
 import os
-import subprocess
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.core.infra.frontend_launcher import (
-    FrontendLauncher,
     _TOXIC_NODE_ENV_VARS,
+    FrontendLauncher,
 )
 
 INJECTED_TOXIC: dict[str, str] = {

@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
-
-from app.api.integrations.web_fetch import verify_web_fetch_escalation, WebFetchEscalationVerifyRequest
 from myrm_agent_harness.toolkits.web_fetch.escalation.protocols import EscalationFetchResult
+
+from app.api.integrations.web_fetch import WebFetchEscalationVerifyRequest, verify_web_fetch_escalation
 
 
 @pytest.mark.asyncio

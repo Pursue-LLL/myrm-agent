@@ -258,9 +258,9 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
     async def _vault_research_to_wiki(result: object) -> None:
         from datetime import UTC, datetime
 
+        from myrm_agent_harness.toolkits.llms import llm_manager
         from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
         from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
-        from myrm_agent_harness.toolkits.llms import llm_manager
 
         from app.services.wiki.vault_resolver import resolve_wiki_vault_path
 
@@ -275,7 +275,7 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
         if not complete_results:
             return
 
-        config = WikiConfig()
+        WikiConfig()
         structure = WikiStructure(wiki_base_dir)
         raw_dir = structure.raw_dir
         raw_dir.mkdir(parents=True, exist_ok=True)

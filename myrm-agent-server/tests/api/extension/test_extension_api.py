@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.toolkits.browser.pool.extension_bridge import (
     ExtensionBridgeNotAvailable,
-    ExtensionStatus,
     ExtensionTab,
 )
 from starlette.websockets import WebSocketState

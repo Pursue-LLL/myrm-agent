@@ -25,6 +25,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.api.background_tasks.test_fixtures import router as background_tasks_test_fixtures_router
 from app.core.channel_bridge.setup import get_background_task_handler
 from app.services.agent.shell_background_tasks import (
     ShellBackgroundTaskDTO,
@@ -232,9 +233,6 @@ async def steer_background_task(task_id: str, body: SteerRequest) -> dict[str, s
         raise HTTPException(status_code=400, detail="Failed to steer task (not running or tokens unavailable)")
 
     return {"message": "Steering instruction sent", "task_id": task_id}
-
-
-from app.api.background_tasks.test_fixtures import router as background_tasks_test_fixtures_router
 
 router.include_router(background_tasks_test_fixtures_router)
 

@@ -10,7 +10,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 from app.channels.types import InboundMessage
 from app.core.channel_bridge.kanban_command_handler import ChannelKanbanCommandHandler

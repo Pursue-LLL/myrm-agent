@@ -110,5 +110,6 @@
   ],
   "cooldown_hint_single": " 请等待{seconds}秒后重试。",
   "cooldown_hint_plural": " 请等待{seconds}秒后重试。",
-  "stuck_task_timeout_user_message": "⏱ 任务在 {elapsed} 秒后无响应，已自动取消。请重新发送消息重试。"
+  "stuck_task_timeout_user_message": "⏱ 任务在 {elapsed} 秒后无响应，已自动取消。请重新发送消息重试。",
+  "risk_outbound_blocked": "⚠️ 该回复触发了内容安全策略，已被拦截。请联系管理员或换个方式提问。"
 }

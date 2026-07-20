@@ -10,12 +10,11 @@ import asyncio
 from unittest.mock import MagicMock
 
 import pytest
+from myrm_agent_harness.infra.pubsub.event_bus import PubSubBus
 
 from app.channels.reliability.retry import RetryConfig
 from app.channels.types.status import ChannelStatus
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
-
-from myrm_agent_harness.infra.pubsub.event_bus import PubSubBus
 
 
 def _fake_channel(captured: list[object]) -> MagicMock:

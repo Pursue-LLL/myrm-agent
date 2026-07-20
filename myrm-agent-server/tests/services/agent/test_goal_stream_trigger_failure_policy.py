@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
 
 

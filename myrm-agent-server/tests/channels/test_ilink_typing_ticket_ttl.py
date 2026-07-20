@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.channels.providers.wechat.ilink_channel import (
-    WeChatILinkChannel,
     _TYPING_TICKET_TTL,
+    WeChatILinkChannel,
 )
 
 

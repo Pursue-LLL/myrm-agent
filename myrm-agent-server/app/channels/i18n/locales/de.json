@@ -101,5 +101,6 @@
   ],
   "cooldown_hint_single": " Versuchen Sie es nach {seconds} Sekunde erneut.",
   "cooldown_hint_plural": " Versuchen Sie es nach {seconds} Sekunden erneut.",
-  "stuck_task_timeout_user_message": "⏱ Aufgabe nach {elapsed}s Inaktivität abgelaufen und automatisch abgebrochen. Bitte senden Sie Ihre Nachricht erneut."
+  "stuck_task_timeout_user_message": "⏱ Aufgabe nach {elapsed}s Inaktivität abgelaufen und automatisch abgebrochen. Bitte senden Sie Ihre Nachricht erneut.",
+  "risk_outbound_blocked": "⚠️ Diese Antwort wurde durch die Inhaltssicherheitsrichtlinie blockiert. Bitte kontaktieren Sie den Administrator oder formulieren Sie Ihre Anfrage um."
 }

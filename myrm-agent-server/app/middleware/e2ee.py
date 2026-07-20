@@ -21,11 +21,11 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from app.remote_access.e2ee import (
-    E2EECryptoError,
     E2EE_CONTENT_TYPE,
     E2EE_PAIR_CIPHERTEXT_HEADER,
     E2EE_PAIR_QUERY_PARAM,
     E2EE_SESSION_HEADER,
+    E2EECryptoError,
     E2EESession,
     get_e2ee_session_store,
     parse_encrypted_body,

@@ -212,10 +212,10 @@ async def sandbox_diff(chat_id: str):
             "diff": diff_result.stdout,
             "has_changes": bool(diff_result.stdout.strip()),
         })
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="git diff timed out")
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(status_code=504, detail="git diff timed out") from exc
     except HTTPException:
         raise
     except Exception as exc:
         logger.warning("Failed to get sandbox diff for chat %s: %s", chat_id[:8], exc)
-        raise HTTPException(status_code=500, detail=f"Failed to get diff: {exc}")
+        raise HTTPException(status_code=500, detail=f"Failed to get diff: {exc}") from exc

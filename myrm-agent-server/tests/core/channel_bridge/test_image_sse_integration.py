@@ -12,10 +12,10 @@ import json
 
 import pytest
 from langchain_core.messages import ToolMessage
-
-from app.schemas.streaming import SSEEnvelope
 from myrm_agent_harness.agent.streaming.event_handlers import process_updates_chunk
 from myrm_agent_harness.agent.types import AgentRunStatistics
+
+from app.schemas.streaming import SSEEnvelope
 
 
 def _parse_sse_chunk(chunk: str) -> dict[str, object]:

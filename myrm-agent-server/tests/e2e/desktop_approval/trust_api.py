@@ -26,7 +26,7 @@ from tests.e2e.desktop_approval.constants import progress
 def server_pending_approval_count() -> int:
     url = f"{get_e2e_api_url()}/webui/desktop/approval/pending"
     try:
-        with urllib.request.urlopen(url, timeout=5) as response:
+        with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310
             payload = json.loads(response.read().decode("utf-8"))
     except OSError:
         return -1
@@ -38,7 +38,7 @@ def server_pending_approval_count() -> int:
 def list_trusted_apps_via_api() -> list[dict[str, object]]:
     url = f"{get_e2e_api_url()}/webui/desktop/trust/apps"
     try:
-        with urllib.request.urlopen(url, timeout=5) as response:
+        with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310
             payload = json.loads(response.read().decode("utf-8"))
     except OSError as exc:
         raise AssertionError(f"Failed to list trusted apps: {exc}") from exc
@@ -58,9 +58,9 @@ def clear_persisted_desktop_approvals() -> None:
             approval_path.unlink(missing_ok=True)
     reset_url = f"{get_e2e_api_url()}/webui/desktop/approval/reset-runtime"
     try:
-        request = urllib.request.Request(reset_url, method="POST", data=b"{}")
+        request = urllib.request.Request(reset_url, method="POST", data=b"{}")  # noqa: S310
         request.add_header("Content-Type", "application/json")
-        with urllib.request.urlopen(request, timeout=10) as response:
+        with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
             payload = json.loads(response.read().decode("utf-8"))
     except OSError as exc:
         progress(f"desktop approval reset skipped: {exc}")
@@ -74,13 +74,13 @@ def clear_persisted_desktop_approvals() -> None:
             trust_key = str(app.get("trust_key") or "").strip()
             if not trust_key:
                 continue
-            revoke_request = urllib.request.Request(
+            revoke_request = urllib.request.Request(  # noqa: S310
                 f"{get_e2e_api_url()}/webui/desktop/trust/apps",
                 method="DELETE",
                 data=json.dumps({"trust_key": trust_key}).encode("utf-8"),
             )
             revoke_request.add_header("Content-Type", "application/json")
-            with urllib.request.urlopen(revoke_request, timeout=10):
+            with urllib.request.urlopen(revoke_request, timeout=10):  # noqa: S310
                 pass
     except OSError as exc:
         progress(f"trusted apps clear skipped: {exc}")
@@ -89,7 +89,7 @@ def clear_persisted_desktop_approvals() -> None:
 def desktop_accessibility_granted() -> bool:
     url = f"{get_e2e_api_url()}/webui/desktop/permissions"
     try:
-        with urllib.request.urlopen(url, timeout=10) as response:
+        with urllib.request.urlopen(url, timeout=10) as response:  # noqa: S310
             payload = json.loads(response.read().decode("utf-8"))
     except OSError:
         return False

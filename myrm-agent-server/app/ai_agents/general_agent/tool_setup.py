@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
     from myrm_agent_harness.api import SkillAgent
     from myrm_agent_harness.toolkits.browser.captcha.protocols import CaptchaSolver
+    from myrm_agent_harness.toolkits.cron.types import DeliveryConfig
     from myrm_agent_harness.toolkits.llms.image.models import MediaCallback
     from myrm_agent_harness.toolkits.memory import MemoryManager
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -497,7 +498,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             source=source,
         )
 
-    def _resolve_cron_default_delivery(self) -> "DeliveryConfig | None":
+    def _resolve_cron_default_delivery(self) -> DeliveryConfig | None:
         """Default IM delivery when creating cron jobs from a messaging channel."""
         from myrm_agent_harness.toolkits.cron.types import DeliveryConfig
 
@@ -588,8 +589,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
     ) -> MemoryManager | None:
         """Create memory tools. Returns MemoryManager on success, None on failure."""
         try:
-            from app.core.memory.adapters.setup import create_conflict_callback, create_memory_manager
             from myrm_agent_harness.toolkits import create_memory_tools
+
+            from app.core.memory.adapters.setup import create_conflict_callback, create_memory_manager
 
             if self.embedding_config is None:
                 logger.warning("⚠️ 记忆工具未加载（缺少 embedding_config）")

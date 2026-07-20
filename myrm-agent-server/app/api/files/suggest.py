@@ -23,8 +23,8 @@ from typing import Literal
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.toolkits.storage.types import FilePurpose
 from myrm_agent_harness.toolkits.filesystem_suggest import WorkspaceSuggestionOptions, rank_basename, suggest_workspace_paths
+from myrm_agent_harness.toolkits.storage.types import FilePurpose
 from pydantic import BaseModel, Field
 
 from app.core.storage import files_service
@@ -266,8 +266,9 @@ async def _suggest_stored_files(
 def _suggest_wiki(query: str, agent_id: str | None = None) -> list[ReferenceSuggestion]:
     """Search wiki concepts and return matching suggestions."""
     try:
-        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
         from myrm_agent_harness.toolkits.wiki import WikiStructure
+
+        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
 
         vault_path = resolve_wiki_vault_path(agent_id)
         structure = WikiStructure(vault_path)

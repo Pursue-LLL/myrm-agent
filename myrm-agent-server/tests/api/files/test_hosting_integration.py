@@ -16,9 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.files.hosting_api import router as hosting_router
 from app.core.artifacts.listener import upsert_processor_artifact
 from app.core.infra.limiter import limiter
-from app.database.connection import get_db, get_session
+from app.database.connection import get_db
 from app.database.models.artifact_publication import ArtifactPublication
-from app.services.hosting.credentials import save_target_credentials
 from app.services.hosting.targets import save_hosting_targets
 from app.services.hosting.types import HostingTarget
 

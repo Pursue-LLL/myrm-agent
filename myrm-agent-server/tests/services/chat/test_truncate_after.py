@@ -8,8 +8,8 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.dto import MessageDTO
-from app.database.repositories.chat_repo import ChatRepository
 from app.database.models import Chat
+from app.database.repositories.chat_repo import ChatRepository
 from app.services.chat.chat_service import ChatService
 
 

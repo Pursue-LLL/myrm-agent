@@ -10,10 +10,9 @@ Covers:
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import ConflictContext
 from myrm_agent_harness.toolkits.memory.types import ConflictResolution
 

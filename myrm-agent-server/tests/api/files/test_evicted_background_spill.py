@@ -19,8 +19,9 @@ async def test_read_evicted_background_spill_file(tmp_path: Path, monkeypatch: p
 
     monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
 
-    from app.api.files.evicted import router as evicted_router
     from fastapi import FastAPI
+
+    from app.api.files.evicted import router as evicted_router
 
     app = FastAPI()
     app.include_router(evicted_router, prefix="/api/v1/files")
@@ -46,8 +47,9 @@ async def test_reject_legacy_background_spill_filename(tmp_path: Path, monkeypat
     (evicted_dir / legacy_name).write_text("legacy\n", encoding="utf-8")
     monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
 
-    from app.api.files.evicted import router as evicted_router
     from fastapi import FastAPI
+
+    from app.api.files.evicted import router as evicted_router
 
     app = FastAPI()
     app.include_router(evicted_router, prefix="/api/v1/files")

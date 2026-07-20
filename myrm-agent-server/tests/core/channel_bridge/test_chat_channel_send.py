@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
 from app.channels.types import OutboundMessage
 from app.channels.types.messages import MessagePriority
 from app.core.channel_bridge.providers.chat import ChatChannel
 from app.database.connection import get_session
 from app.database.models import Chat, Message
-from sqlalchemy import select
 
 
 @pytest.mark.asyncio

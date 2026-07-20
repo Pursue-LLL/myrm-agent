@@ -43,6 +43,15 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
       : monitorContractError
         ? t('monitorContractErrorGeneric')
         : null;
+  const monitorFailureCount =
+    typeof run.metadata?.monitor_failure_count === 'number' &&
+    Number.isInteger(run.metadata.monitor_failure_count) &&
+    run.metadata.monitor_failure_count > 0
+      ? run.metadata.monitor_failure_count
+      : null;
+  const monitorFailureCountLabel = monitorFailureCount
+    ? t('monitorContractErrorCount', { count: monitorFailureCount })
+    : null;
   const verificationLabel =
     verification?.status === 'pass'
       ? t('verificationPass')
@@ -204,6 +213,9 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
         {!expanded && monitorContractErrorLabel && (
           <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">{monitorContractErrorLabel}</p>
         )}
+        {!expanded && monitorFailureCountLabel && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">{monitorFailureCountLabel}</p>
+        )}
         {!expanded && !run.output && run.error && (
           <p className="text-xs text-destructive mt-1 line-clamp-1">{run.error}</p>
         )}
@@ -273,6 +285,9 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                     {t('monitorContractError')}
                   </p>
                   <p className="text-[11px] text-amber-700 dark:text-amber-300">{monitorContractErrorLabel}</p>
+                  {monitorFailureCountLabel && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300">{monitorFailureCountLabel}</p>
+                  )}
                 </div>
               </div>
             )}

@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.channels.routing.command_defs import CommandAction, CommandKind
-from app.channels.routing.command_registry import CommandRegistry, ResolvedCommand
+from app.channels.routing.command_registry import CommandRegistry
 from app.channels.types.messages import InboundMessage, OutboundMessage
 from app.core.channel_bridge.learn_handler import ChannelLearnCommandHandler
 
@@ -340,7 +340,7 @@ class TestLearnCommandEdgeCases:
     @pytest.mark.asyncio
     async def test_concurrent_calls_independent(self, host: _FakeRouterHost) -> None:
         """Multiple sequential calls should each produce independent results."""
-        for i, args in enumerate(["https://a.com", "./b.py", "text c"]):
+        for _i, args in enumerate(["https://a.com", "./b.py", "text c"]):
             host._gate.submit.reset_mock()
             await _dispatch_learn(host, _make_msg(f"/learn {args}"), args)
             assert host._gate.submit.call_count == 1

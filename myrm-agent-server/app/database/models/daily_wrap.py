@@ -11,7 +11,6 @@ Stores AI-generated daily activity summaries to avoid redundant LLM calls.
 Each row represents one day's cached wrap (summary, keywords, suggestions).
 """
 
-from datetime import datetime
 
 from sqlalchemy import Column, DateTime, String, Text
 

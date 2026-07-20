@@ -5,7 +5,7 @@ protected_paths) are correctly forwarded from the request model to the
 harness GoalBudget and GoalProvider.create_goal calls.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 

@@ -10,7 +10,6 @@ import pytest
 from app.channels.routing.message_effects import MessageEffects
 from app.channels.types import ChannelCapabilities
 
-
 EXPECTED_KEEPALIVE: dict[str, float] = {
     "telegram": 4.0,
     "discord": 8.0,

@@ -19,9 +19,9 @@ import asyncio
 import logging
 from collections.abc import Callable, Coroutine
 
+from myrm_agent_harness.api import IntegrationProvider
 from myrm_agent_harness.toolkits.memory.graph.base import GraphStore
 from myrm_agent_harness.toolkits.memory.integration.fetcher import IntegrationFetcher
-from myrm_agent_harness.api import IntegrationProvider
 from myrm_agent_harness.toolkits.memory.integration.summarizer import IntegrationSummariser
 from myrm_agent_harness.toolkits.memory.integration.tree_manager import IntegrationTreeManager
 from myrm_agent_harness.toolkits.memory.integration.types import IntegrationSyncResult, IntegrationTree

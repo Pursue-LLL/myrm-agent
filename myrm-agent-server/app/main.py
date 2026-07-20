@@ -24,7 +24,6 @@ from fastapi import FastAPI
 from app.ai_agents.general_agent.tools import (
     _tool_layer_bootstrap,  # noqa: F401 — side-effect import: registers server-layer tools into harness _TOOL_LAYERS
 )
-from app.core.security.integration_write_patterns import register_server_integration_write_patterns
 from app.api.channels.channel_ingress import router as channel_ingress_router
 from app.api.internal.agent_interrupt import router as internal_agent_interrupt_router
 from app.api.internal.background_shell_status import router as internal_background_shell_status_router
@@ -33,6 +32,8 @@ from app.api.internal.import_archive import router as internal_import_archive_ro
 from app.api.internal.org_mcp_sync import router as internal_org_mcp_sync_router
 from app.api.internal.org_model_policy_sync import (
     frontend_router as org_model_policy_frontend_router,
+)
+from app.api.internal.org_model_policy_sync import (
     router as internal_org_model_policy_sync_router,
 )
 from app.api.internal.skills_killswitch import router as internal_skills_killswitch_router
@@ -42,6 +43,7 @@ from app.api.router import api_router
 from app.api.webui.router import router as webui_router
 from app.config.logging import configure_logging
 from app.config.settings import settings
+from app.core.security.integration_write_patterns import register_server_integration_write_patterns
 from app.core.utils.errors import register_exception_handlers
 from app.database.db_operational_handlers import register_database_operational_handlers
 from app.server.exceptions import general_exception_handler, not_found_handler

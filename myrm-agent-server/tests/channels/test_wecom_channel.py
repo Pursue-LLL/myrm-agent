@@ -314,7 +314,7 @@ class TestWeComInbound:
 
         with patch.object(channel, "_download_inbound_media", new_callable=AsyncMock) as mock_download:
             mock_download.return_value = MediaAttachment(media_type=MediaType.DOCUMENT, url="http://example.com/file")
-            msg = await channel._parse_xml_message(ET.fromstring(xml))
+            msg = await channel._parse_xml_message(ET.fromstring(xml))  # noqa: S314
 
         assert msg is not None
         assert "[AppMsg] Test File.pdf" in msg.content

@@ -8,9 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.tools import BaseTool
 
-from app.tasks.task_payload_crypto import seal_task_payload_secrets
-
 from app.ai_agents.media_tools.image_agent_tool import create_image_generation_tool
+from app.tasks.task_payload_crypto import seal_task_payload_secrets
 
 
 @pytest.mark.asyncio

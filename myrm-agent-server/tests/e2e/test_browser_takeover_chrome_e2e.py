@@ -16,9 +16,9 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import (  # noqa: E402
     chat_messages_have_done,
+    deny_stale_browser_takeover_approvals,
     ensure_e2e_memory_disabled,
     ensure_e2e_yolo_mode,
-    deny_stale_browser_takeover_approvals,
     get_e2e_api_url,
     wait_e2e_backend_ready,
     wait_e2e_cdp_ready,

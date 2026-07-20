@@ -19,8 +19,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from .types import NotifyResult, NotifyTarget, NotifyToolConfig
 from .constants import METADATA_KEY_NOTIFY_SOURCE, NOTIFY_SOURCE_AGENT
+from .types import NotifyResult, NotifyTarget, NotifyToolConfig
 
 if TYPE_CHECKING:
     from app.channels.types.messages import MediaAttachment
