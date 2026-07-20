@@ -38,8 +38,8 @@ from myrm_agent_harness.utils.runtime.progress_sink import get_tool_progress_sin
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_TIMEOUT_SEC = 30.0
-_raw_timeout = os.getenv("MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC", "30").strip()
+_DEFAULT_TIMEOUT_SEC = 60.0
+_raw_timeout = os.getenv("MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC", "60").strip()
 try:
     _parsed_timeout = float(_raw_timeout)
 except ValueError:

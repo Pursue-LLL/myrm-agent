@@ -246,6 +246,25 @@ async def complete_turn_after_approval(
     return chat_id
 
 
+async def ensure_desktop_inspector_panel_open(chat: McpChatSession) -> None:
+    """Mirror fileDiffEvents.ts openPanel on DESKTOP_CONTROL_APPROVAL_REQUEST."""
+    result = await chat.evaluate(
+        """(() => {
+          const bridge = window.__MYRM_E2E_CHAT__;
+          if (!bridge?.ensureComputerUseReady) {
+            return { ok: false, err: 'no-ensureComputerUseReady' };
+          }
+          bridge.ensureComputerUseReady();
+          return { ok: true };
+        })()""",
+        await_promise=False,
+    )
+    assert isinstance(result, dict) and result.get("ok") is True, (
+        f"ensureComputerUseReady failed: {result}"
+    )
+    await asyncio.sleep(0.75)
+
+
 async def wait_for_approval_banner_clickable(
     chat: McpChatSession,
     *,
@@ -267,15 +286,21 @@ async def wait_for_approval_banner_clickable(
             return await chat.click_desktop_allow_session()
         return await chat.click_desktop_allow_once()
 
-    deadline = asyncio.get_event_loop().time() + min(APPROVAL_WAIT_SEC, 25.0)
+    await ensure_desktop_inspector_panel_open(chat)
+
+    deadline = asyncio.get_event_loop().time() + min(APPROVAL_WAIT_SEC, 90.0)
     approval: dict[str, object] = {"pending": ui_pending_hint, "allowVisible": False}
     poll = 0
     activated = False
+    panel_refreshed = False
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
         heartbeat_e2e_lease()
         server_pending = await asyncio.to_thread(server_pending_approval_count)
         if server_pending > 0:
+            if not panel_refreshed and poll <= 3:
+                await ensure_desktop_inspector_panel_open(chat)
+                panel_refreshed = True
             click = await _try_scope_click()
             if click.get("ok") is True:
                 progress(f"approval click ok scope={scope} poll=#{poll}")
@@ -283,12 +308,19 @@ async def wait_for_approval_banner_clickable(
         probe = await chat.probe_desktop_approval_once()
         if isinstance(probe, dict):
             approval = probe
+            scope_visible = (
+                probe.get("allowVisible")
+                if scope == "once"
+                else probe.get("allowSessionVisible")
+                if scope == "session"
+                else probe.get("allowAlwaysVisible")
+            )
             if poll == 1 or poll % 8 == 0:
                 progress(
                     f"approval poll #{poll} ui_pending={probe.get('pending')} "
-                    f"allowVisible={probe.get('allowVisible')} server_pending={server_pending}"
+                    f"scopeVisible={scope_visible} server_pending={server_pending}"
                 )
-            if probe.get("allowVisible"):
+            if scope_visible:
                 click = await _try_scope_click()
                 assert click.get("ok") is True, f"Approval click failed after banner visible: {click}"
                 return

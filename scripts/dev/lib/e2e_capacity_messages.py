@@ -1,59 +1,13 @@
 """Human-readable E2E capacity wait messages (Dev Gate UX layer).
 
-[INPUT] dev_gate_contract.py (POS: Dev Gate v2 numeric caps SSOT)
-[OUTPUT] format_* helpers + CLI: lease/mux wait lines, signoff phase banners
-[POS] Operator-facing stderr UX for parallel backpressure waits. Preserves machine
-tokens (E2E_LEASE_WAIT, E2E_MUX_ADMISSION_WAIT) for grep/tests; does not change caps.
+[OUTPUT] format_* helpers + CLI: lease/mux wait lines for parallel backpressure.
+Preserves machine tokens (E2E_LEASE_WAIT, E2E_MUX_ADMISSION_WAIT) for grep/tests.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
-from typing import Final
-
-SIGNOFF_CORE_PHASE_ORDER: Final[tuple[str, ...]] = (
-    "ready_chrome",
-    "static_dev_tests",
-    "node_mux_tests",
-    "harness_editable_gate",
-    "wave_quiesce_live_leases",
-    "chrome_live_preflight",
-    "chrome_e2e_matrix",
-)
-
-SIGNOFF_PHASE_DESCRIPTIONS: Final[dict[str, str]] = {
-    "ready_chrome": "Warm up Chrome hot pool · 预热 Chrome 热池",
-    "static_dev_tests": "Static dev gate · 静态门禁",
-    "node_mux_tests": "Mux node tests · Mux 节点测试",
-    "harness_editable_gate": "Harness editable check · Harness 可编辑校验",
-    "wave_quiesce_live_leases": "Wait for dead leases only · 仅等待死 lease",
-    "chrome_live_preflight": "Chrome attach preflight · Chrome 附着预检",
-    "chrome_e2e_matrix": "Chrome E2E matrix (37 cases) · Chrome 矩阵",
-    "chrome_e2e_desktop_preflight": "Desktop preflight · 桌面预检",
-    "chrome_e2e_desktop_macos": "Desktop approval E2E · 桌面审批 E2E",
-    "chrome_e2e_stress_xdist4": "Stress xdist4 · 压力 xdist4",
-    "chrome_e2e_fault_sigterm_goal_cache": "Fault sigterm goal+cache · 故障注入",
-}
-
-
-def signoff_phase_label(phase_name: str) -> str:
-    normalized = phase_name.strip()
-    description = SIGNOFF_PHASE_DESCRIPTIONS.get(
-        normalized, f"Release check · {normalized}"
-    )
-    if normalized in SIGNOFF_CORE_PHASE_ORDER:
-        index = SIGNOFF_CORE_PHASE_ORDER.index(normalized) + 1
-        total = len(SIGNOFF_CORE_PHASE_ORDER)
-        return f"Step {index}/{total} · {description}"
-    return description
-
-
-def format_signoff_phase_start(phase_name: str, *, elapsed_sec: int = 0) -> str:
-    label = signoff_phase_label(phase_name)
-    if elapsed_sec > 0:
-        return f"SIGNOFF_PHASE: {label} · elapsed={elapsed_sec}s"
-    return f"SIGNOFF_PHASE: {label}"
 
 
 def format_lease_wait(
@@ -64,17 +18,16 @@ def format_lease_wait(
     poll_sec: int,
 ) -> str:
     return (
-        f"E2E capacity [E2E_LEASE_WAIT]: lane={lane} · waiting · "
-        f"{elapsed_sec}s/{wait_sec}s · retry in {poll_sec}s · "
-        "do not stop other tests · 勿停止其他测试"
+        f"E2E capacity [E2E_LEASE_WAIT]: lane={lane} "
+        f"waiting for slot ({elapsed_sec}s/{wait_sec}s, poll={poll_sec}s) — "
+        "do not stop other tests"
     )
 
 
 def format_lease_wait_timeout(*, lane: str, wait_sec: int) -> str:
     return (
-        f"E2E capacity [E2E_LEASE_WAIT_TIMEOUT]: lane={lane} · "
-        f"waited {wait_sec}s · run ./myrm wave status · "
-        "do not kill foreign pytest"
+        f"E2E capacity [E2E_LEASE_WAIT_TIMEOUT]: lane={lane} "
+        f"no slot after {wait_sec}s — do not stop other tests"
     )
 
 
@@ -88,21 +41,21 @@ def format_mux_wait(
     active: int,
 ) -> str:
     return (
-        f"E2E capacity [E2E_MUX_ADMISSION_WAIT]: lane={lane} · "
-        f"mux {active}/{cap} · {elapsed_sec}s/{wait_sec}s · retry in {poll_sec}s · "
-        "do not stop other tests · 勿停止其他测试"
+        f"E2E capacity [E2E_MUX_ADMISSION_WAIT]: lane={lane} "
+        f"mux {active}/{cap} ({elapsed_sec}s/{wait_sec}s, poll={poll_sec}s) — "
+        "do not stop other tests"
     )
 
 
 def format_mux_wait_timeout(*, lane: str, wait_sec: int, cap: int) -> str:
     return (
-        f"E2E capacity [E2E_MUX_ADMISSION_WAIT_TIMEOUT]: lane={lane} · "
-        f"waited {wait_sec}s · cap={cap} · run ./myrm doctor --chrome if stuck"
+        f"E2E capacity [E2E_MUX_ADMISSION_WAIT_TIMEOUT]: lane={lane} "
+        f"mux cap {cap} held for {wait_sec}s — do not stop other tests"
     )
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Format Dev Gate E2E capacity UX messages")
+    parser = argparse.ArgumentParser(description="E2E capacity wait message formatter")
     sub = parser.add_subparsers(dest="command", required=True)
 
     lease_wait = sub.add_parser("lease-wait")
@@ -127,10 +80,6 @@ def _build_parser() -> argparse.ArgumentParser:
     mux_timeout.add_argument("--lane", required=True)
     mux_timeout.add_argument("--wait-sec", type=int, required=True)
     mux_timeout.add_argument("--cap", type=int, required=True)
-
-    signoff_label = sub.add_parser("signoff-label")
-    signoff_label.add_argument("--phase", required=True)
-    signoff_label.add_argument("--elapsed", type=int, default=0)
 
     return parser
 
@@ -163,8 +112,6 @@ def main(argv: list[str] | None = None) -> int:
         print(
             format_mux_wait_timeout(lane=args.lane, wait_sec=args.wait_sec, cap=args.cap)
         )
-    elif args.command == "signoff-label":
-        print(format_signoff_phase_start(args.phase, elapsed_sec=args.elapsed))
     else:
         raise SystemExit(f"unknown command: {args.command}")
     return 0

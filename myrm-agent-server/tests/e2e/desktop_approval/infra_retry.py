@@ -39,6 +39,18 @@ def is_mux_new_page_retriable(exc: BaseException) -> bool:
     )
 
 
+def is_retriable_page_transport(exc: BaseException) -> bool:
+    """Mux timeout or detached CDP frame — orchestrator should recover + reopen page."""
+    message = str(exc).lower()
+    if "detached frame" in message:
+        return True
+    if is_mux_new_page_retriable(exc):
+        return True
+    if isinstance(exc, ExceptionGroup):
+        return any(is_retriable_page_transport(sub) for sub in exc.exceptions)
+    return False
+
+
 async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
     """Open chat UI; prefer about:blank (no runtime binding), then recover, then direct :3000."""
     last_exc: BaseException | None = None
@@ -77,9 +89,9 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
             return page
         except (TimeoutError, RuntimeError) as exc:
             last_exc = exc
-            if should_abort_desktop_e2e_retries(exc) and not is_mux_new_page_retriable(exc):
+            if should_abort_desktop_e2e_retries(exc) and not is_retriable_page_transport(exc):
                 raise
-            if attempt >= len(strategies) or not is_mux_new_page_retriable(exc):
+            if attempt >= len(strategies) or not is_retriable_page_transport(exc):
                 raise
             progress(f"open/nav mux retry {attempt}/3 after: {exc}")
             await asyncio.to_thread(client.recover_mux_transport)

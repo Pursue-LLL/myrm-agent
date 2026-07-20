@@ -26,11 +26,10 @@
 | `dev_state_paths.sh` | Unix | Dev 栈 pid/log SSOT + `MYRM_NEXT_DIST_DIR` / `dev-server.lock` 路径（`resolve_myrm_next_dist_dir`）；`cleanup_legacy_dev_artifacts` 清理旧 pid 路径与 `scripts/dev/myrm-agent-*` 遗留目录；`prune_stale_isolated_next_dirs` 删除非当前 active 的全部 `.next-isolated-*`（含非空残留） |
 | `backend_bg.sh` | Unix | 后台启动 `myrm-agent-server`（:8080）；pid/log 写入 `dev_state_paths`；新启动前截断 backend.log；健康轮询后 `_bump_stack_epoch`；monorepo 下非 editable harness 时 **exit 1** |
 | `process_identity.py` | Unix | 记录 `pid + OS start token + runtimeId`；停止前复验进程代次，只终止精确 owner 的进程树，PID 复用时 fail-closed |
-| `e2e_mux_admission.py` | Unix | 全局 mux session 准入（READ+LIVE 统一 cap、`E2E_MUX_ADMISSION_WAIT`、signoff 预留 slot）；`MYRM_E2E_RUN_ID` label 经 `_registry_key()` uuid5 归一化 |
-| `e2e_capacity_messages.py` | Unix | Dev Gate UX：cap 等待人话行（保留 `E2E_*_WAIT` token）；signoff phase 标签 |
-| `dev_gate_contract.py` | Unix | Dev Gate v2 SSOT：mux 错误分类、并行 cap、**`CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT=180000`**（preflight / test.sh / client 静态契约）、signoff matrix env（含 **attach-heal debounce**：`SIGNOFF_MATRIX_ATTACH_HEAL_FAILURES=3`、`COOLDOWN_SEC=60`）、**lane pytest timeout**（`READ=180` / `LIVE=600` / **desktop=7200** via `chrome_e2e_pytest_timeout_floor` + `apply_chrome_e2e_pytest_timeout_args`） |
+| `e2e_mux_admission.py` | Unix | 全局 mux session 准入（READ+LIVE 统一 cap、`E2E_MUX_ADMISSION_WAIT`）；`MYRM_E2E_RUN_ID` label 经 `_registry_key()` uuid5 归一化 |
+| `e2e_capacity_messages.py` | Unix | Dev Gate UX：cap 等待人话行（保留 `E2E_*_WAIT` token） |
+| `dev_gate_contract.py` | Unix | Dev Gate v2 SSOT（产品路径）：mux 错误分类、并行 cap、**`CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT=180000`**、**lane pytest timeout**（READ=1110 / LIVE=600 / desktop=7200） |
 | `e2e_lease_runtime_sync.py` | Unix | formal chrome E2E acquire 后 fail-closed gate：`lease.runtimeId == _read_shared_hot_stack_runtime_id()`；state 经 `wave_state_paths.resolve_wave_state_file()`；`test.sh` 经 `_e2e_sync_lease_runtime` 调用 |
-| `signoff_wave_quiesce.py` | Unix | signoff matrix 前 wave quiesce；dead-owner reap；foreign live lease 不阻塞 |
 | `mux_load.py` | Unix | mux context / wave lease 负载探针；adaptive page/tool timeout |
 
 ## 依赖

@@ -23,7 +23,11 @@ from chrome_mcp_client import ChromeMcpClient
 from mcp_chat_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import BASE_URL, max_send_attempts, progress
-from tests.e2e.desktop_approval.infra_retry import open_mcp_chat_page, should_abort_desktop_e2e_retries
+from tests.e2e.desktop_approval.infra_retry import (
+    is_retriable_page_transport,
+    open_mcp_chat_page,
+    should_abort_desktop_e2e_retries,
+)
 from tests.e2e.desktop_approval.textedit_fixture import hide_textedit_fixture
 from tests.e2e.desktop_approval.trust_api import clear_persisted_desktop_approvals, desktop_accessibility_granted
 from tests.e2e.desktop_approval.turn_flow import run_approval_attempt
@@ -67,6 +71,9 @@ async def run_desktop_approval_chrome_e2e(
                 return chat_id
             except (AssertionError, RuntimeError, TimeoutError, OSError) as exc:
                 last_error = {"attempt": attempt, "error": str(exc), "type": type(exc).__name__}
+                if is_retriable_page_transport(exc):
+                    progress(f"page transport error during attempt: {last_error}")
+                    raise
                 if should_abort_desktop_e2e_retries(exc):
                     pytest.fail(
                         "Desktop approval Chrome E2E hit non-retriable infra failure "
@@ -91,6 +98,9 @@ async def run_desktop_approval_chrome_e2e(
                     await chat.click_new_chat()
                     await chat.ensure_chat_surface(BASE_URL)
                 except (RuntimeError, TimeoutError, OSError) as reset_exc:
+                    if is_retriable_page_transport(reset_exc):
+                        progress(f"page transport error during retry reset: {reset_exc}")
+                        raise reset_exc from exc
                     if should_abort_desktop_e2e_retries(reset_exc):
                         pytest.fail(
                             "Desktop approval Chrome E2E lost UI bridge during retry "
@@ -107,11 +117,20 @@ async def run_desktop_approval_chrome_e2e(
     progress("start chrome MCP client")
     await asyncio.to_thread(client.start)
     try:
-        progress("open chat page (about:blank + navigate)")
         page = await open_mcp_chat_page(client)
         chat = McpChatSession(client, page)
         progress("run approval flow")
-        await run_flow(chat)
+        try:
+            await run_flow(chat)
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            if not is_retriable_page_transport(exc):
+                raise
+            progress(f"mux recover + reopen after page transport error: {exc}")
+            await asyncio.to_thread(client.recover_mux_transport)
+            await asyncio.sleep(2.0)
+            page = await open_mcp_chat_page(client)
+            chat = McpChatSession(client, page)
+            await run_flow(chat)
     finally:
         try:
             client.close()

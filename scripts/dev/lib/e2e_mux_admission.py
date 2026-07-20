@@ -128,20 +128,6 @@ def _prune_stale(registry: MuxAdmissionRegistry, *, now: float) -> int:
     return removed
 
 
-def _signoff_chrome_lock_active() -> bool:
-    lock_path = _dev_state_dir() / "signoff-chrome.lock"
-    if not lock_path.is_file():
-        return False
-    try:
-        owner_raw = lock_path.read_text(encoding="utf-8").strip().split()[0]
-        owner_pid = int(owner_raw)
-    except (OSError, ValueError):
-        return True
-    if owner_pid <= 0:
-        return True
-    return _pid_alive(owner_pid)
-
-
 def _registry_key(session_id: str) -> str:
     """Stable registry key; accepts MYRM_E2E_RUN_ID labels or UUID strings."""
     try:
@@ -366,7 +352,7 @@ def main() -> int:
         payload = {
             "active": _active_count(registry),
             "maxSessions": effective_max_sessions(signoff_matrix=False),
-            "signoffLock": _signoff_chrome_lock_active(),
+            "signoffLock": (_dev_state_dir() / "signoff-chrome.lock").is_file(),
             "sessions": list(registry["sessions"].keys()),
         }
         if args.json:
@@ -374,7 +360,7 @@ def main() -> int:
         else:
             print(
                 f"mux-admission active={payload['active']} "
-                f"max={payload['maxSessions']} signoffLock={payload['signoffLock']}"
+                f"max={payload['maxSessions']}"
             )
         return 0
     if args.command == "release":

@@ -120,16 +120,42 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
         "memoryRequireConfirmation": False,
         "enableMemoryAutoExtraction": False,
     }
-    with client.stream(
-        "POST",
-        f"{api_base}/api/v1/agents/agent-stream",
-        json=request_data,
-        timeout=600.0,
-    ) as response:
-        response.raise_for_status()
-        for line in response.iter_lines():
-            if line == "data: [DONE]":
-                break
+
+    def _consume_stream(payload: dict[str, object]) -> dict[str, object] | None:
+        resume_payload: dict[str, object] | None = None
+        with client.stream(
+            "POST",
+            f"{api_base}/api/v1/agents/agent-stream",
+            json=payload,
+            timeout=600.0,
+        ) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if line == "data: [DONE]":
+                    break
+                if not line or not line.startswith("data: "):
+                    continue
+                try:
+                    event = json.loads(line[6:])
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(event, dict):
+                    continue
+                event_type = event.get("type")
+                if event_type in ("interrupt", "tool_approval", "approval", "approval_required"):
+                    data = event.get("data")
+                    if isinstance(data, dict):
+                        resume_payload = data
+        return resume_payload
+
+    resume_payload = _consume_stream(request_data)
+    if resume_payload is not None:
+        resume_request = {
+            **request_data,
+            "messageId": f"bg-shell-resume-{uuid.uuid4().hex[:10]}",
+            "resumeValue": resume_payload,
+        }
+        _consume_stream(resume_request)
 
 
 def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 120.0) -> str:
