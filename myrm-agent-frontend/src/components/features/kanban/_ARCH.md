@@ -30,6 +30,7 @@
 | KanbanMarkdown.tsx           | 辅助 | 安全 Markdown 渲染（GFM + CodeBlock + XSS 白名单 + 可折叠）                      | ✅    |
 | KanbanDiagnosticsSection.tsx | 辅助 | 任务诊断信息展示                                                                 | ✅    |
 | KanbanEventTimeline.tsx      | 辅助 | 单任务事件时间线                                                                 | ✅    |
+| KanbanTaskExecutionTraceSection.tsx | 辅助 | 任务 Drawer 内嵌 ExecutionTraceTimeline（lazy 折叠，sessionId=task_id）   | ✅    |
 | BoardActivityFeed.tsx        | 核心 | Board 级活动流（filter pills + auto-follow + 实时追加）                          | ✅    |
 | kanban-styles.ts             | 辅助 | 共享样式常量                                                                     | ✅    |
 

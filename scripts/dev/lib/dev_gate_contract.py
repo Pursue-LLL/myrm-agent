@@ -84,6 +84,52 @@ PAGE_TIMEOUT_SLOT_MS: Final[int] = 15_000
 MAX_PAGE_TIMEOUT_MS: Final[int] = 120_000
 BASE_TOOL_TIMEOUT_SEC: Final[float] = 180.0
 
+# --- Chrome E2E pytest-timeout SSOT (lane-aware; ≥ mux new_page retry window) ---
+
+READ_CHROME_E2E_PYTEST_TIMEOUT_SEC: Final[int] = 180
+LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC: Final[int] = 600
+
+
+def chrome_e2e_pytest_timeout_for_lane(lane: str) -> int:
+    """Return pytest-timeout floor for a formal chrome_e2e session lane."""
+    if lane.strip().upper() == "READ":
+        return READ_CHROME_E2E_PYTEST_TIMEOUT_SEC
+    return LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC
+
+
+def apply_chrome_e2e_pytest_timeout_args(
+    floor: int,
+    args: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Ensure pytest CLI args include --timeout at least ``floor`` seconds."""
+    out: list[str] = []
+    found = False
+    next_is_timeout = False
+    for arg in args:
+        if next_is_timeout:
+            next_is_timeout = False
+            if arg.isdigit() and int(arg) < floor:
+                out.append(str(floor))
+            else:
+                out.append(arg)
+            found = True
+            continue
+        if arg.startswith("--timeout="):
+            value = arg.split("=", 1)[1]
+            if value.isdigit() and int(value) < floor:
+                out.append(f"--timeout={floor}")
+            else:
+                out.append(arg)
+            found = True
+        elif arg == "--timeout":
+            next_is_timeout = True
+            out.append(arg)
+        else:
+            out.append(arg)
+    if not found:
+        out.append(f"--timeout={floor}")
+    return tuple(out)
+
 # --- Allowlisted Chrome E2E skips (test module suffix, reason substring) ---
 
 ALLOWLISTED_E2E_SKIPS: Final[tuple[tuple[str, str], ...]] = (

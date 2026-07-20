@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
 import { Layers, Sparkles, Users } from 'lucide-react';
@@ -67,6 +68,10 @@ interface KanbanBoardViewProps {
 
 export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps) {
   const t = useTranslations('kanban');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const sourceChatFilter = searchParams.get('source_chat')?.trim() || undefined;
   const [tasks, setTasks] = useState<KanbanTask[]>([]);
   const [loading, setLoading] = useState(true);
   const agents = useAgentStore((s) => s.agents);
@@ -139,7 +144,10 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
 
   const fetchTasks = useCallback(async () => {
     try {
-      const result = await listTasks(board.board_id, { limit: 200 });
+      const result = await listTasks(board.board_id, {
+        limit: 200,
+        source_chat_id: sourceChatFilter,
+      });
       const pending = pendingUserWrites.current;
       if (pending.size === 0) {
         setTasks(result.items);
@@ -161,7 +169,14 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     } finally {
       setLoading(false);
     }
-  }, [board.board_id, t]);
+  }, [board.board_id, sourceChatFilter, t]);
+
+  const clearSourceChatFilter = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('source_chat');
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }, [pathname, router, searchParams]);
 
   const fetchEdges = useCallback(async () => {
     try {
@@ -410,6 +425,18 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
 
   return (
     <div className="space-y-4" data-testid="kanban-board-view">
+      {sourceChatFilter && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+          <span className="text-foreground/80">{t('sourceChatFilterActive', { chatId: sourceChatFilter })}</span>
+          <button
+            type="button"
+            onClick={clearSourceChatFilter}
+            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
+          >
+            {t('clearSourceChatFilter')}
+          </button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

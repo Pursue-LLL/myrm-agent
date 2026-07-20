@@ -519,6 +519,7 @@ MIGRATION_STATEMENTS: list[str] = [
         last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""",
     "ALTER TABLE chats ADD COLUMN share_revoked_at TIMESTAMP",
+    "ALTER TABLE kanban_tasks DROP COLUMN goal_id",
 ]
 
 # 创建索引的SQL语句列表

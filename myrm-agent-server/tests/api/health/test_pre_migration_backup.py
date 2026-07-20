@@ -52,7 +52,11 @@ async def test_init_database_calls_backup_before_migrations():
 
 @pytest.mark.asyncio
 async def test_init_database_aborts_when_backup_fails_with_manager():
-    """If create_backup() raises when manager exists, init_database() must abort (fail-closed)."""
+    """If create_backup() raises when manager exists, init_database() must abort (fail-closed).
+
+    Critically verifies that run_migrations is NEVER called when backup fails,
+    preventing destructive DDL without a safety net.
+    """
     mock_manager = MagicMock(spec=SQLiteBackupManager)
     mock_manager.create_backup.side_effect = OSError("disk full")
 
@@ -61,9 +65,11 @@ async def test_init_database_aborts_when_backup_fails_with_manager():
     fake_engine.begin.return_value.__aenter__ = AsyncMock(return_value=fake_conn)
     fake_engine.begin.return_value.__aexit__ = AsyncMock(return_value=False)
 
+    mock_run_migrations = AsyncMock()
+
     with (
         patch("app.database.connection.get_database_engine", return_value=fake_engine),
-        patch("app.database.migrations.run_migrations", new_callable=AsyncMock),
+        patch("app.database.migrations.run_migrations", mock_run_migrations),
         patch("app.database.migrations.create_indexes", new_callable=AsyncMock),
         patch("app.database.backup.get_sqlite_backup_manager", return_value=mock_manager),
     ):
@@ -71,6 +77,8 @@ async def test_init_database_aborts_when_backup_fails_with_manager():
 
         with pytest.raises(OSError, match="disk full"):
             await init_database()
+
+    mock_run_migrations.assert_not_called()
 
 
 @pytest.mark.asyncio

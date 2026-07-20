@@ -47,6 +47,7 @@ async def list_tasks(
     board_id: str,
     status_filter: str | None = Query(None),
     agent_id: str | None = Query(None),
+    source_chat_id: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ) -> TaskListResponse:
@@ -58,7 +59,14 @@ async def list_tasks(
         except ValueError:
             raise HTTPException(400, f"Invalid status: {status_filter}") from None
 
-    tasks = await svc.list_tasks(board_id, status=status, agent_id=agent_id, limit=limit, offset=offset)
+    tasks = await svc.list_tasks(
+        board_id,
+        status=status,
+        agent_id=agent_id,
+        source_chat_id=source_chat_id,
+        limit=limit,
+        offset=offset,
+    )
     task_ids = [t.task_id for t in tasks]
     stats, att_map = await svc.store.batch_task_stats(task_ids), await _batch_load_attachment_ids(task_ids)
 
@@ -79,7 +87,6 @@ async def list_tasks(
             status=t.status.value,
             priority=t.priority.value,
             agent_id=t.agent_id,
-            goal_id=t.goal_id,
             parent_task_id=t.parent_task_id,
             retry_count=t.retry_count,
             max_retries=t.max_retries,

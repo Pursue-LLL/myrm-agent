@@ -71,6 +71,7 @@ class KanbanReadMixin(KanbanServiceCore):
         *,
         status: TaskStatus | None = None,
         agent_id: str | None = None,
+        source_chat_id: str | None = None,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[KanbanTask]:
@@ -79,6 +80,7 @@ class KanbanReadMixin(KanbanServiceCore):
             board_id,
             status=status,
             agent_id=agent_id,
+            source_chat_id=source_chat_id,
             limit=limit,
             offset=offset,
         )

@@ -17,6 +17,7 @@ Shell 任务 ephemeral（服务重启丢失）；自然结束或 cancel 后由 h
 |------|------|------|-------|
 | `__init__.py` | 入口 | Background tasks API — manage /background (/btw /bg) session tasks. | ✅ |
 | `router.py` | 路由 | 合并 Kanban + shell registry；`shell:{pid}` cancel 走 harness kill | ✅ |
+| `test_fixtures.py` | 测试 | local-only Chrome E2E seed（`POST /background-tasks/test/seed-shell-fixture`） | ✅ |
 
 ## 依赖
 

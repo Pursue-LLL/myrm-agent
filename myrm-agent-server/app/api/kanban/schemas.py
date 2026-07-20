@@ -312,7 +312,6 @@ class TaskResponse(BaseModel):
     status: str
     priority: str
     agent_id: str | None = None
-    goal_id: str | None = None
     parent_task_id: str | None = None
     workspace_path: str | None = None
     branch: str | None = None

@@ -212,6 +212,21 @@ _CLICK_DONE_JS = """(() => {
   return { clicked: true };
 })()"""
 
+_CLICK_SKIP_JS = """(() => {
+  const alert = document.querySelector('[role="alert"]');
+  if (!alert) {
+    return { clicked: false, reason: 'no-alert' };
+  }
+  const skipBtn = Array.from(alert.querySelectorAll('button')).find((btn) =>
+    /Can't do this|无法完成/i.test(btn.textContent || ''),
+  );
+  if (!skipBtn) {
+    return { clicked: false, reason: 'no-skip-button' };
+  }
+  skipBtn.click();
+  return { clicked: true };
+})()"""
+
 _SNAPSHOT_IDLE_JS = """(() => {
   const snap = window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot?.();
   return {
@@ -223,7 +238,6 @@ _SNAPSHOT_IDLE_JS = """(() => {
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
-@pytest.mark.timeout(180)
 def test_extension_takeover_banner_shows_actions_and_dismisses_on_done() -> None:
     ui_url = get_e2e_ui_url()
 
@@ -264,7 +278,41 @@ def test_extension_takeover_banner_shows_actions_and_dismisses_on_done() -> None
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+def test_extension_takeover_skip_dismisses_banner() -> None:
+    ui_url = get_e2e_ui_url()
+
+    with open_mcp_page(ui_url) as (client, page):
+        wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
+
+        triggered = client.evaluate(page, _TRIGGER_EXTENSION_TAKEOVER_JS, timeout_sec=10.0)
+        assert isinstance(triggered, dict)
+        assert triggered.get("pending") is True
+        assert triggered.get("uiMode") == "extension"
+
+        banner = wait_for_state(client, page, _BANNER_ASSERT_JS, timeout_sec=15.0)
+        assert banner.get("hasSkip") is True, f"Missing Skip button: {banner}"
+
+        clicked = client.evaluate(page, _CLICK_SKIP_JS, timeout_sec=10.0)
+        assert isinstance(clicked, dict)
+        assert clicked.get("clicked") is True, f"Failed to click Skip: {clicked}"
+
+        idle = wait_for_state(
+            client,
+            page,
+            """(() => ({
+              ready: window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot?.()?.pending === false,
+            }))()""",
+            timeout_sec=15.0,
+        )
+        assert idle.get("ready") is True
+
+        snapshot = client.evaluate(page, _SNAPSHOT_IDLE_JS, timeout_sec=5.0)
+        assert isinstance(snapshot, dict)
+        assert snapshot.get("pending") is False
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.integration
 def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
     ui_url = get_e2e_ui_url()
 
@@ -285,7 +333,6 @@ def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
 @pytest.mark.chrome_e2e_browser_takeover_live
 @pytest.mark.integration
-@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes(
     e2e_resource_ledger: E2EResourceLedger,

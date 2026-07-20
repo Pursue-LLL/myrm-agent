@@ -17,6 +17,7 @@ import {
   LatestProgressSection,
 } from './KanbanTaskDrawerBody';
 import KanbanDiagnosticsSection from './KanbanDiagnosticsSection';
+import KanbanTaskExecutionTraceSection from './KanbanTaskExecutionTraceSection';
 import { KanbanRunHistory, KanbanEventTimeline } from './KanbanEventTimeline';
 
 interface KanbanTaskDrawerProps {
@@ -179,6 +180,8 @@ export default function KanbanTaskDrawer({
 
             <KanbanRunHistory runs={drawer.runs} />
             <KanbanEventTimeline events={drawer.events} />
+
+            <KanbanTaskExecutionTraceSection taskId={task.task_id} />
 
             <CommentInputSection
               commentText={drawer.commentText}

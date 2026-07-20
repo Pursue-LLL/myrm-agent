@@ -47,11 +47,17 @@ async def list_tasks(
     *,
     status: TaskStatus | None = None,
     agent_id: str | None = None,
+    source_chat_id: str | None = None,
     limit: int | None = None,
     offset: int = 0,
 ) -> list[KanbanTask]:
     return await store.list_tasks(
-        board_id, status=status, agent_id=agent_id, limit=limit, offset=offset
+        board_id,
+        status=status,
+        agent_id=agent_id,
+        source_chat_id=source_chat_id,
+        limit=limit,
+        offset=offset,
     )
 
 

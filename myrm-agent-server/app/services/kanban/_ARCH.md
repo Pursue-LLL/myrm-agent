@@ -15,7 +15,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。
 | `service_board_task_mixin.py` | ✅ 核心 | Board/Task 写操作薄壳 | ❌ |
 | `service_query_dispatcher_mixin.py` | ✅ 核心 | 读查询薄壳 + dispatcher 生命周期（`KanbanReadMixin` / `KanbanDispatcherMixin`） | ❌ |
 | `service_ai_mixin.py` | ✅ 核心 | specify/decompose 工作流薄壳（直连 orchestrator） | ❌ |
-| `query_ops.py` | ✅ 核心 | Store 只读查询与 user comment | ❌ |
+| `query_ops.py` | ✅ 核心 | Store 只读查询（含 `source_chat_id` 过滤）与 user comment | ❌ |
 | `service_types.py` | ✅ 核心 | DTO/异常/常量 | ❌ |
 | `event_publisher.py` | ✅ 核心 | SSE ServerEventBus 发布、`emit_btw_done` | ❌ |
 | `board_ops.py` | ✅ 核心 | Board CRUD | ❌ |

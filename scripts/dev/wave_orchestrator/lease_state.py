@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - time/owner helpers, active lease lookup, TTL and runtime-drift transitions
-- signoff_matrix_guard_active, signoff_chrome_lock_active, signoff_matrix_runtime_heal_allowed, heal_open_wave_runtime_id (signoff matrix 活跃 lease、`MYRM_SIGNOFF_MATRIX=1` bootstrap、或 signoff-chrome.lock 时原地 heal runtimeId)
+- signoff_matrix_guard_active, signoff_chrome_lock_active, signoff_matrix_runtime_heal_allowed, signoff_wave_close_blocked, heal_open_wave_runtime_id, restore_drifted_signoff_wave (signoff matrix 活跃 lease、`MYRM_SIGNOFF_MATRIX=1` bootstrap、或 signoff-chrome.lock 时原地 heal runtimeId；signoff 期间禁止 idle close；drifted wave 可恢复)
 
 [POS]
 Lock-free state policy. Callers own persistence and all external cleanup I/O.
@@ -184,6 +184,13 @@ def signoff_matrix_runtime_heal_allowed(state: OrchestratorState) -> bool:
     return signoff_chrome_lock_active()
 
 
+def signoff_wave_close_blocked(state: OrchestratorState) -> bool:
+    """Block idle-wave close while Dev Gate signoff chrome or matrix session is active."""
+    if signoff_chrome_lock_active():
+        return True
+    return signoff_matrix_guard_active(state)
+
+
 def heal_open_wave_runtime_id(
     state: OrchestratorState,
     current_runtime_id: str,
@@ -205,10 +212,41 @@ def heal_open_wave_runtime_id(
     return True
 
 
+def restore_drifted_signoff_wave(
+    state: OrchestratorState,
+    current_runtime_id: str,
+) -> bool:
+    """Re-open a drifted wave and reactivate leases during signoff heal windows."""
+    wave = state["wave"]
+    if wave is None or wave["status"] != "drifted":
+        return False
+    if not current_runtime_id:
+        return False
+    if not signoff_matrix_runtime_heal_allowed(state):
+        return False
+
+    wave_id = wave["waveId"]
+    wave["status"] = "open"
+    wave["runtimeId"] = current_runtime_id
+    wave.pop("closedAt", None)
+    changed = False
+    for lease in state["leases"]:
+        if lease["waveId"] != wave_id or lease["status"] != "expired":
+            continue
+        lease["status"] = "active"
+        lease["runtimeId"] = current_runtime_id
+        changed = True
+    return changed
+
+
 def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> bool:
     """Invalidate an open wave on runtime drift, or heal in-place during signoff matrix."""
     wave = state["wave"]
-    if wave is None or wave["status"] != "open":
+    if wave is None:
+        return False
+    if wave["status"] == "drifted":
+        return restore_drifted_signoff_wave(state, current_runtime_id)
+    if wave["status"] != "open":
         return False
     if not current_runtime_id or current_runtime_id == wave["runtimeId"]:
         return False
@@ -226,6 +264,8 @@ def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> boo
 def close_wave_after_last_expired_lease(state: OrchestratorState) -> bool:
     wave = state["wave"]
     if wave is None or wave["status"] != "open":
+        return False
+    if signoff_wave_close_blocked(state):
         return False
     wave_leases = [
         lease for lease in state["leases"] if lease["waveId"] == wave["waveId"]

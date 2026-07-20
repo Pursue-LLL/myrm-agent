@@ -102,7 +102,6 @@ class KanbanTaskModel(Base):
     )
 
     agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    goal_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     parent_task_id: Mapped[str | None] = mapped_column(
         String(32), ForeignKey("kanban_tasks.id", ondelete="SET NULL"), nullable=True
     )

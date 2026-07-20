@@ -61,7 +61,6 @@ export interface KanbanTask {
   status: TaskStatus;
   priority: TaskPriority;
   agent_id?: string | null;
-  goal_id?: string | null;
   parent_task_id?: string | null;
   workspace_path?: string | null;
   branch?: string | null;
@@ -141,13 +140,16 @@ export async function getBoardSummary(boardId: string): Promise<BoardSummary> {
 
 // ==================== Task API ====================
 
+export const KANBAN_SOURCE_CHAT_METADATA_KEY = 'source_chat_id'; // SSOT: harness types.py
+
 export async function listTasks(
   boardId: string,
-  opts?: { status?: TaskStatus; agent_id?: string; limit?: number; offset?: number },
+  opts?: { status?: TaskStatus; agent_id?: string; source_chat_id?: string; limit?: number; offset?: number },
 ): Promise<{ items: KanbanTask[]; total: number }> {
   const params = new URLSearchParams();
   if (opts?.status) params.set('status_filter', opts.status);
   if (opts?.agent_id) params.set('agent_id', opts.agent_id);
+  if (opts?.source_chat_id) params.set('source_chat_id', opts.source_chat_id);
   if (opts?.limit) params.set('limit', String(opts.limit));
   if (opts?.offset) params.set('offset', String(opts.offset));
   const qs = params.toString();

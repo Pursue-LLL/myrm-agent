@@ -13,6 +13,7 @@ from typing import NamedTuple
 from myrm_agent_harness.toolkits.kanban.types import (
     _PRIORITY_ORDER,
     _TERMINAL_STATUSES,
+    KANBAN_SOURCE_CHAT_METADATA_KEY,
     KanbanBoard,
     KanbanTask,
     TaskEdge,
@@ -157,6 +158,7 @@ class SqlAlchemyKanbanStore:
         status: TaskStatus | None = None,
         parent_task_id: str | None = None,
         agent_id: str | None = None,
+        source_chat_id: str | None = None,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[KanbanTask]:
@@ -168,6 +170,11 @@ class SqlAlchemyKanbanStore:
                 stmt = stmt.where(KanbanTaskModel.parent_task_id == parent_task_id)
             if agent_id is not None:
                 stmt = stmt.where(KanbanTaskModel.agent_id == agent_id)
+            if source_chat_id is not None:
+                stmt = stmt.where(
+                    KanbanTaskModel.metadata_json[KANBAN_SOURCE_CHAT_METADATA_KEY].as_string()
+                    == source_chat_id
+                )
             stmt = stmt.order_by(KanbanTaskModel.created_at)
             stmt = stmt.offset(offset)
             if limit is not None:

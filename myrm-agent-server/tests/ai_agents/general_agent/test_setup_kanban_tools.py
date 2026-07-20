@@ -144,3 +144,44 @@ async def test_setup_kanban_tools_task_bound_binds_six_worker_tools(
         "kanban_comment",
         "kanban_attach",
     }
+
+
+@pytest.mark.asyncio
+async def test_setup_kanban_tools_orchestrator_injects_source_chat_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json
+
+    from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
+    from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KANBAN_SOURCE_CHAT_METADATA_KEY
+
+    from app.ai_agents.general_agent.factory import _setup_kanban_tools
+
+    store = InMemoryKanbanStore()
+    await store.save_board(KanbanBoard(board_id="board-chat", name="Chat Board"))
+    kanban_svc = MagicMock()
+    kanban_svc.store = store
+    kanban_svc._dispatchers = {}
+
+    monkeypatch.setattr(
+        "app.services.kanban.service.KanbanService.get_instance",
+        lambda: kanban_svc,
+    )
+
+    agent_wrapper = SimpleNamespace(
+        kanban_tool_mode="orchestrator",
+        kanban_current_task_id=None,
+        kanban_default_board_id="board-chat",
+        agent_id="agent-test",
+        chat_id="chat-session-99",
+    )
+    tools: list[object] = []
+
+    await _setup_kanban_tools(agent_wrapper, tools)
+    add_task = next(t for t in tools if getattr(t, "name", None) == "kanban_add_task")
+    result = json.loads(await add_task.ainvoke({"title": "From orchestrator chat"}))
+    assert result["status"] == "added"
+    task = await store.get_task(result["task"]["task_id"])
+    assert task is not None
+    assert task.metadata is not None
+    assert task.metadata[KANBAN_SOURCE_CHAT_METADATA_KEY] == "chat-session-99"

@@ -126,7 +126,6 @@ async def _task_to_response(
         status=task.status.value,
         priority=task.priority.value,
         agent_id=task.agent_id,
-        goal_id=task.goal_id,
         parent_task_id=task.parent_task_id,
         workspace_path=task.workspace_path,
         branch=task.branch,

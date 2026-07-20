@@ -2,7 +2,7 @@
 
 [INPUT]
 - wave_orchestrator.store::run_locked (POS: flock-protected JSON state I/O)
-- runtime_probe.read_current_runtime_id (POS: live stack identity probe)
+- runtime_probe.read_current_runtime_id / _read_shared_hot_stack_runtime_id (POS: live stack identity probe; signoff uses shared-hot SSOT)
 
 [OUTPUT]
 - open_wave() / close_wave() / acquire_lease() / release_lease() / heartbeat_lease()
@@ -14,6 +14,7 @@ Dev test wave orchestrator core. Enforces immutable test waves for Chrome MCP E2
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import timedelta
 from typing import TypedDict
@@ -31,6 +32,8 @@ from wave_orchestrator.lease_state import (
     reap_abandoned_leases,
     reap_expired_leases as reaper,
     reap_runtime_drift,
+    signoff_chrome_lock_active,
+    signoff_wave_close_blocked,
     utc_now as _utc_now,
 )
 from wave_orchestrator.lanes import lane_conflict_reason
@@ -81,8 +84,17 @@ def _import_runtime_probe():
     return runtime_probe
 
 
+def _signoff_shared_hot_runtime_probe() -> bool:
+    """Use the same shared-hot probe as e2e_bootstrap MYRM_E2E_STACK_FP export."""
+    if os.environ.get("MYRM_SIGNOFF_MATRIX", "").strip() == "1":
+        return True
+    return signoff_chrome_lock_active()
+
+
 def probe_runtime_id() -> str:
     runtime_probe = _import_runtime_probe()
+    if _signoff_shared_hot_runtime_probe():
+        return runtime_probe._read_shared_hot_stack_runtime_id()
     return runtime_probe.read_current_runtime_id()
 
 
@@ -405,6 +417,7 @@ def release_lease_and_close_wave_if_idle(
             and wave["status"] == "open"
             and wave["waveId"] == released["waveId"]
             and not active_leases(state)
+            and not signoff_wave_close_blocked(state)
         ):
             closed = {**wave, "status": "closed", "closedAt": _iso(_utc_now())}
             state["wave"] = closed

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from tests.support.chrome_mcp_e2e import get_e2e_api_url, get_e2e_ui_url, http_json, open_mcp_page, wait_for_state, warm_ui_route
@@ -97,3 +99,45 @@ def test_background_tasks_panel_shows_failed_shell_job_from_seed() -> None:
         assert failed_row.get("hasExitCode") is True, failed_row
         assert failed_row.get("hasErrorCategory") is True, failed_row
         assert failed_row.get("hasFailedStatus") is True, failed_row
+
+
+_CANCEL_RUNNING_JS = """(() => {
+  const buttons = Array.from(document.querySelectorAll('button'));
+  const cancelBtn = buttons.find((btn) => /cancel|取消/i.test(btn.textContent || ''));
+  if (!cancelBtn) return { clicked: false };
+  cancelBtn.click();
+  return { clicked: true };
+})()"""
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.timeout(300)
+def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
+    api_base = get_e2e_api_url()
+    seed = http_json(
+        "POST",
+        f"{api_base}/api/v1/background-tasks/test/seed-shell-fixture?mode=running",
+    )
+    assert isinstance(seed, dict)
+    task_id = str(seed["task_id"])
+
+    warm_ui_route("/")
+    with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
+        opened = client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
+        assert opened.get("clicked") is True, opened
+        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
+        assert panel.get("ready") is True, panel
+
+        cancelled = client.evaluate(page, _CANCEL_RUNNING_JS, timeout_sec=10.0)
+        assert cancelled.get("clicked") is True, cancelled
+
+    deadline = time.monotonic() + 30.0
+    final_status = ""
+    while time.monotonic() < deadline:
+        row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
+        assert isinstance(row, dict)
+        final_status = str(row.get("status", ""))
+        if final_status == "cancelled":
+            break
+        time.sleep(0.5)
+    assert final_status == "cancelled"

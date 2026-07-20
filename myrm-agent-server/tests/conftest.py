@@ -5,6 +5,7 @@ import atexit
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Iterator
@@ -27,6 +28,11 @@ from tests.support.e2e_runtime_guard import (
 from tests.support.test_secrets import apply_test_secrets_to_environ, load_test_secrets
 
 _SERVER_ROOT = Path(__file__).resolve().parent.parent
+_DEV_LIB = _SERVER_ROOT.parent / "scripts" / "dev" / "lib"
+if str(_DEV_LIB) not in sys.path:
+    sys.path.insert(0, str(_DEV_LIB))
+from dev_gate_contract import chrome_e2e_pytest_timeout_for_lane  # noqa: E402
+
 _logger = logging.getLogger(__name__)
 _T = TypeVar("_T")
 _TESTS_ROOT = Path(__file__).resolve().parent
@@ -127,15 +133,32 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     _shutdown_test_session_resources()
 
 
+def _chrome_e2e_lane_timeout_sec(item: pytest.Item) -> int | None:
+    marker = item.get_closest_marker("chrome_e2e")
+    if marker is None:
+        return None
+    lane = str(marker.kwargs.get("lane", "LIVE_AGENT"))
+    return chrome_e2e_pytest_timeout_for_lane(lane)
+
+
+def _apply_chrome_e2e_lane_timeout(item: pytest.Item) -> None:
+    floor = _chrome_e2e_lane_timeout_sec(item)
+    if floor is None:
+        return
+    existing = item.get_closest_marker("timeout")
+    if existing is not None and int(existing.args[0]) >= floor:
+        return
+    item.own_markers = [marker for marker in item.own_markers if marker.name != "timeout"]
+    item.add_marker(pytest.mark.timeout(floor))
+
+
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Align benchmark markers with the default memory-safe suite filter."""
     for item in items:
         if item.get_closest_marker("benchmark") is not None and item.get_closest_marker("performance") is None:
             item.add_marker(pytest.mark.performance)
         if item.get_closest_marker("chrome_e2e") is not None:
-            existing = item.get_closest_marker("timeout")
-            if existing is None or int(existing.args[0]) < 900:
-                item.add_marker(pytest.mark.timeout(900))
+            _apply_chrome_e2e_lane_timeout(item)
 
 
 def _needs_browser_singleton_reset(request: pytest.FixtureRequest) -> bool:

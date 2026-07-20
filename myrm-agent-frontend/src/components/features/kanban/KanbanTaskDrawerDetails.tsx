@@ -5,7 +5,9 @@ import type { KanbanTask } from '@/services/kanban';
 import { PRIORITY_STYLES, TIMEOUT_PRESETS, formatDate, formatDuration } from './kanban-styles';
 import KanbanMarkdown from './KanbanMarkdown';
 import { Clock, ExternalLink, User } from 'lucide-react';
+import Link from 'next/link';
 import type { Agent } from '@/services/agent';
+import { KANBAN_SOURCE_CHAT_METADATA_KEY } from '@/services/kanban';
 
 interface TaskDetailsSectionProps {
   task: KanbanTask;
@@ -58,6 +60,11 @@ export function TaskDetailsSection({
   handleAgentChange,
   t,
 }: TaskDetailsSectionProps) {
+  const sourceChatId =
+    typeof task.metadata?.[KANBAN_SOURCE_CHAT_METADATA_KEY] === 'string'
+      ? task.metadata[KANBAN_SOURCE_CHAT_METADATA_KEY]
+      : null;
+
   return (
     <div className="space-y-1.5">
       {task.description && <KanbanMarkdown className="text-muted-foreground">{task.description}</KanbanMarkdown>}
@@ -87,13 +94,31 @@ export function TaskDetailsSection({
           </span>
         )}
       </div>
-      <div className="flex gap-3 text-[10px] text-muted-foreground/70 mt-1">
+      <div className="flex gap-3 text-[10px] text-muted-foreground/70 mt-1 flex-wrap items-center">
         <span>
           {t('createdAt')}: {formatDate(task.created_at)}
         </span>
         <span>
           {t('updatedAt')}: {formatDate(task.updated_at)}
         </span>
+        {sourceChatId && (
+          <>
+            <Link
+              href={`/${sourceChatId}`}
+              className="inline-flex items-center gap-0.5 text-primary hover:underline"
+            >
+              {t('openSourceChat')}
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+            <Link
+              href={`/settings/kanban?source_chat=${encodeURIComponent(sourceChatId)}`}
+              className="inline-flex items-center gap-0.5 text-primary hover:underline"
+            >
+              {t('viewBoardTasksFromChat')}
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+          </>
+        )}
       </div>
 
       {/* Timeout */}

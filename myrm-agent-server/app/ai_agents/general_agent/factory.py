@@ -949,6 +949,11 @@ async def _setup_kanban_tools(
         attach_task_file=(
             create_kanban_attach_handler(store) if mode == "worker" else None
         ),
+        source_chat_id=(
+            agent_wrapper.chat_id
+            if mode == "orchestrator" and agent_wrapper.chat_id
+            else None
+        ),
     )
     tools.extend(kanban_tools)
     tool_names = ", ".join(t.name for t in kanban_tools)
