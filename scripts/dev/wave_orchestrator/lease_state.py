@@ -1,11 +1,13 @@
 """Pure lease-state transitions shared by Wave orchestration modules.
 
 [INPUT]
+- dev_gate_contract::SIGNOFF_MATRIX_AGENT_PREFIX (POS: Dev Gate v2 contract SSOT)
 - wave_orchestrator.types state records
 - browser/resource expiry helpers
 
 [OUTPUT]
 - time/owner helpers, active lease lookup, TTL and runtime-drift transitions
+- signoff_matrix_guard_active, signoff_matrix_runtime_heal_allowed, heal_open_wave_runtime_id (signoff matrix 活跃 lease 或 `MYRM_SIGNOFF_MATRIX=1` bootstrap 时原地 heal runtimeId)
 
 [POS]
 Lock-free state policy. Callers own persistence and all external cleanup I/O.
@@ -16,8 +18,16 @@ from __future__ import annotations
 import os
 import re
 import socket
+import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
+_dev_lib = Path(__file__).resolve().parent.parent / "lib"
+_dev_lib_str = str(_dev_lib)
+if _dev_lib_str not in sys.path:
+    sys.path.insert(0, _dev_lib_str)
+
+from dev_gate_contract import SIGNOFF_MATRIX_AGENT_PREFIX
 from wave_orchestrator.browser_lifecycle import cleanup_expired_browser
 from wave_orchestrator.resource_ledger import cleanup_expired_lease_resources
 from wave_orchestrator.types import LeaseRecord, OrchestratorState
@@ -129,9 +139,6 @@ def reap_expired_leases(
     return changed
 
 
-SIGNOFF_MATRIX_AGENT_PREFIX = "signoff-matrix-"
-
-
 def is_signoff_matrix_agent_id(agent_id: str) -> bool:
     return agent_id.startswith(SIGNOFF_MATRIX_AGENT_PREFIX)
 
@@ -144,6 +151,13 @@ def signoff_matrix_guard_active(state: OrchestratorState) -> bool:
     )
 
 
+def signoff_matrix_runtime_heal_allowed(state: OrchestratorState) -> bool:
+    """Allow in-place runtime heal during signoff matrix parent bootstrap or active session."""
+    if signoff_matrix_guard_active(state):
+        return True
+    return os.environ.get("MYRM_SIGNOFF_MATRIX", "").strip() == "1"
+
+
 def heal_open_wave_runtime_id(
     state: OrchestratorState,
     current_runtime_id: str,
@@ -154,7 +168,7 @@ def heal_open_wave_runtime_id(
         return False
     if not current_runtime_id or current_runtime_id == wave["runtimeId"]:
         return False
-    if not signoff_matrix_guard_active(state):
+    if not signoff_matrix_runtime_heal_allowed(state):
         return False
 
     wave_id = wave["waveId"]

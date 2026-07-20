@@ -12093,6 +12093,8 @@
     "shellSection": "Shell jobs",
     "agentSection": "Agent tasks",
     "shellPid": "PID {pid}",
+    "exitCode": "exit {code}",
+    "ephemeralRegistryNotice": "Shell jobs are in-memory only and are lost when the server restarts or the sandbox is recreated.",
     "trayTooltipIdle": "Myrm Agent - Idle",
     "trayTooltipBusy": "Myrm Agent - Running…",
     "trayTooltipDegraded": "Myrm Agent - Service Degraded",

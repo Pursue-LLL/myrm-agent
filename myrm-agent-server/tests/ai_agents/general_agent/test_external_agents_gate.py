@@ -250,14 +250,71 @@ async def test_do_setup_ephemeral_pool_without_chat_scope() -> None:
         patch(
             "myrm_agent_harness.toolkits.create_delegate_to_agent_tool",
             return_value=mock_tool,
-        ),
+        ) as mock_create,
     ):
         tools: list[object] = []
-        await mixin._do_setup_external_agents(tools, mount_delegate_tool=True)
+        await mixin._do_setup_external_agents(
+            tools,
+            mount_delegate_tool=True,
+            delegate_cwd="/workspace/root",
+        )
 
     assert mixin._runtime_pool_ephemeral is True
     assert mixin._runtime_pool_from_registry is False
     assert tools == [mock_tool]
+    mock_create.assert_called_once_with(
+        mock_pool,
+        cwd="/workspace/root",
+        session_scope=None,
+    )
+
+
+@pytest.mark.asyncio
+async def test_do_setup_passes_chat_scope_to_delegate_tool() -> None:
+    mixin = ExternalAgentsMixin.__new__(ExternalAgentsMixin)
+    mixin.external_agents_config = [{"name": "test-cli", "command": "echo", "args": []}]
+    mixin.chat_id = " chat-scope-1 "
+    mixin._runtime_pool_scope_id = None
+
+    mock_pool = MagicMock()
+    mock_pool.available_backends = ["test-cli"]
+    mock_pool.start_monitoring = AsyncMock()
+    mock_tool = MagicMock()
+    mock_tool.name = "delegate_to_agent_tool"
+    mock_registry = MagicMock()
+    mock_registry.acquire = AsyncMock(return_value=mock_pool)
+
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.acp.runtime.pool.RuntimePool",
+            return_value=mock_pool,
+        ),
+        patch(
+            "app.services.external_agents.runtime_pool_registry.get_chat_runtime_pool_registry",
+            return_value=mock_registry,
+        ),
+        patch(
+            "app.services.external_agents.runtime_pool_registry.ChatScopedRuntimePoolFacade",
+            side_effect=lambda pool, *_args: pool,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.create_delegate_to_agent_tool",
+            return_value=mock_tool,
+        ) as mock_create,
+    ):
+        tools: list[object] = []
+        await mixin._do_setup_external_agents(
+            tools,
+            mount_delegate_tool=True,
+            delegate_cwd="/workspace/chat-scope-1",
+        )
+
+    assert tools == [mock_tool]
+    mock_create.assert_called_once_with(
+        mock_pool,
+        cwd="/workspace/chat-scope-1",
+        session_scope="chat-scope-1",
+    )
 
 
 @pytest.mark.asyncio

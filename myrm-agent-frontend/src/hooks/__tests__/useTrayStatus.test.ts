@@ -52,7 +52,7 @@ vi.mock('@/hooks/useLivenessState', () => ({
   }),
 }));
 
-const mockListBackgroundTasks = vi.fn(async () => mockBgTasks);
+const mockListBackgroundTasks = vi.fn(async () => ({ tasks: mockBgTasks, registry_ephemeral: true }));
 
 vi.mock('@/services/background-tasks', () => ({
   listBackgroundTasks: () => mockListBackgroundTasks(),

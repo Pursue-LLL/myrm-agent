@@ -521,7 +521,9 @@ class ChromeMcpClient:
     ) -> object:
         resolved = self._resolve_page(page)
         function = f"async () => await (0, eval)({json.dumps(expression)})"
-        effective_timeout = min(max(timeout_sec, _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC), self._request_timeout_sec)
+        effective_timeout = self._resolve_tool_timeout_sec(
+            max(timeout_sec, _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC)
+        )
         for reload_attempt in range(2):
             try:
                 result = self.call_tool(
@@ -778,11 +780,17 @@ class ChromeMcpClient:
                 transient = isinstance(exc, RuntimeError) and _is_transient_mux_error(
                     message
                 )
+                timed_out = isinstance(exc, TimeoutError) or (
+                    isinstance(exc, RuntimeError) and "timed out" in message.lower()
+                )
                 if transient and not _is_page_ownership_error(message):
+                    self._recover_mux_transport()
+                elif timed_out and name in retry_tools and attempt >= 1:
                     self._recover_mux_transport()
                 can_retry = attempt + 1 < max_attempts and (
                     reclaimed is not None
                     or transient
+                    or timed_out
                     or (name in retry_tools and isinstance(exc, TimeoutError))
                 )
                 if can_retry:
@@ -805,8 +813,12 @@ class ChromeMcpClient:
                     if attempt + 1 < max_attempts:
                         time.sleep(_tool_retry_backoff_sec(name, attempt, transient=False))
                         continue
-                if _is_transient_mux_error(message) and not _is_page_ownership_error(
-                    message
+                if (
+                    not _is_page_ownership_error(message)
+                    and (
+                        _is_transient_mux_error(message)
+                        or (name in retry_tools and "timeout" in message.lower())
+                    )
                 ):
                     last_error = RuntimeError(f"Chrome MCP {name} failed: {message}")
                     self._recover_mux_transport()

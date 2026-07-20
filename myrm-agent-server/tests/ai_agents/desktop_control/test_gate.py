@@ -11,6 +11,7 @@ import pytest
 
 from app.ai_agents.desktop_control.gate import (
     DesktopControlGate,
+    list_trusted_desktop_apps,
     resolve_desktop_control_approval,
     revoke_trusted_desktop_app,
 )
@@ -394,3 +395,94 @@ def test_revoke_does_not_reset_other_session_approvals(tmp_path: Path) -> None:
     )
     assert gate.list_trusted_apps() == []
     assert gate._is_app_preapproved("Notes", "com.apple.Notes")
+
+
+def test_list_trusted_apps_merges_live_chat_gate_not_server_cwd(tmp_path: Path) -> None:
+    chat_workspace = tmp_path / "chat_workspace"
+    server_cwd = tmp_path / "server_cwd"
+    approval_dir = chat_workspace / ".agent" / "desktop_control"
+    approval_dir.mkdir(parents=True)
+    (approval_dir / "approved_apps.json").write_text(
+        json.dumps(
+            {
+                "apps": {
+                    "com.apple.TextEdit": {
+                        "scope": "always",
+                        "display_name": "TextEdit",
+                        "app_id": "com.apple.TextEdit",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    live_gate = DesktopControlGate(workspace_root=str(chat_workspace), auto_grant=False)
+    apps = list_trusted_desktop_apps(workspace_root=str(server_cwd))
+    assert len(apps) == 1
+    assert apps[0]["trust_key"] == "com.apple.TextEdit"
+    assert live_gate.list_trusted_apps()[0]["trust_key"] == "com.apple.TextEdit"
+
+
+def test_list_trusted_apps_discovers_persisted_harness_workspace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    harness_dir = tmp_path / "harness"
+    chat_workspace = harness_dir / "workspaces" / "chat_e2e_fixture"
+    approval_dir = chat_workspace / ".agent" / "desktop_control"
+    approval_dir.mkdir(parents=True)
+    (approval_dir / "approved_apps.json").write_text(
+        json.dumps(
+            {
+                "apps": {
+                    "com.apple.TextEdit": {
+                        "scope": "always",
+                        "display_name": "TextEdit",
+                        "app_id": "com.apple.TextEdit",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    from app.config.settings import get_settings
+
+    monkeypatch.setattr(get_settings().database, "harness_dir", str(harness_dir))
+
+    apps = list_trusted_desktop_apps(workspace_root=str(tmp_path / "server_cwd"))
+    assert len(apps) == 1
+    assert apps[0]["trust_key"] == "com.apple.TextEdit"
+
+
+def test_revoke_trusted_app_hits_live_gate_when_api_workspace_differs(
+    tmp_path: Path,
+) -> None:
+    chat_workspace = tmp_path / "chat_workspace"
+    server_cwd = tmp_path / "server_cwd"
+    approval_dir = chat_workspace / ".agent" / "desktop_control"
+    approval_dir.mkdir(parents=True)
+    (approval_dir / "approved_apps.json").write_text(
+        json.dumps(
+            {
+                "apps": {
+                    "com.apple.TextEdit": {
+                        "scope": "always",
+                        "display_name": "TextEdit",
+                        "app_id": "com.apple.TextEdit",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    gate = DesktopControlGate(workspace_root=str(chat_workspace), auto_grant=False)
+    assert revoke_trusted_desktop_app(
+        workspace_root=str(server_cwd),
+        trust_key="com.apple.TextEdit",
+    )
+    assert gate.list_trusted_apps() == []
+    payload = json.loads((approval_dir / "approved_apps.json").read_text(encoding="utf-8"))
+    assert payload["apps"] == {}

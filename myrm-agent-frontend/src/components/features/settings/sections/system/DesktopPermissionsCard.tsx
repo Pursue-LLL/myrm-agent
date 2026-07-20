@@ -256,6 +256,7 @@ const DesktopPermissionsCardLocal = memo(() => {
                 </div>
                 <button
                   type="button"
+                  data-testid={`desktop-trust-revoke-${app.trust_key}`}
                   disabled={revokingKey === app.trust_key}
                   onClick={() => void handleRevokeTrustedApp(app.trust_key)}
                   className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted/50 transition-colors disabled:opacity-50 shrink-0"

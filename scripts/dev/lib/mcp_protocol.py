@@ -34,6 +34,19 @@ def parse_new_page(result: dict[str, object]) -> tuple[int, str]:
     return int(page_matches[-1]), target_match.group(1)
 
 
+def _coerce_parsed_json_value(value: object) -> object:
+    """Unwrap MCP evaluate payloads that stringify JSON objects."""
+    if not isinstance(value, str):
+        return value
+    nested = value.strip()
+    if not nested.startswith("{") and not nested.startswith("["):
+        return value
+    try:
+        return json.loads(nested)
+    except json.JSONDecodeError:
+        return value
+
+
 def parse_evaluate_result(result: dict[str, object]) -> object:
     text = text_content(result)
     match = _JSON_FENCE_RE.search(text)
@@ -41,7 +54,7 @@ def parse_evaluate_result(result: dict[str, object]) -> object:
     if candidate.startswith("Script ran on page and returned:"):
         candidate = candidate.split(":", maxsplit=1)[1].strip()
     try:
-        return json.loads(candidate)
+        return _coerce_parsed_json_value(json.loads(candidate))
     except json.JSONDecodeError:
         return candidate
 

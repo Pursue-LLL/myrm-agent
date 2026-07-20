@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from myrm_agent_harness.api.hooks import get_background_registry
-from myrm_agent_harness.agent.meta_tools.bash.background_deferred_activation import (
+from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
     reset_deferred_activation_for_tests,
 )
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
@@ -304,7 +304,7 @@ async def test_background_nonzero_exit_persists_finish_message(tmp_path: Path) -
 @pytest.mark.asyncio
 async def test_kill_session_jobs_clears_deferred_and_skips_chat(tmp_path: Path) -> None:
     """Stream-cancel path: kill_session_jobs kills all jobs and clears AutoMount."""
-    from myrm_agent_harness.agent.meta_tools.bash.background_deferred_activation import (
+    from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
         get_session_deferred_tool_names,
     )
 

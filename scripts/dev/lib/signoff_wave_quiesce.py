@@ -1,4 +1,16 @@
-"""Signoff wave quiesce: reap dead-owner leases without force-closing live sessions."""
+"""Signoff wave quiesce: reap dead-owner leases without force-closing live sessions.
+
+[INPUT]
+- dev_gate_contract::SIGNOFF_WAVE_QUIESCE_* (POS: Dev Gate v2 contract SSOT)
+- wave_orchestrator.core::reap, wave_status (POS: Wave/lease orchestration façade)
+
+[OUTPUT]
+- run_signoff_wave_quiesce: proceed when no dead-owner ghosts; never block on foreign live leases
+- classify_active_leases: split active leases by owner BASHPID liveness
+
+[POS]
+Signoff pre-matrix preflight. Reaps abandoned leases only; parallel chrome_e2e may keep LIVE_AGENT leases.
+"""
 
 from __future__ import annotations
 

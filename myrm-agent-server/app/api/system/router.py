@@ -175,6 +175,18 @@ async def recreate_sandbox_container() -> SandboxRecreateResponse:
             detail="Control plane connectivity not configured",
         )
 
+    from myrm_agent_harness.api.hooks import count_running_background_shell_jobs
+
+    running = count_running_background_shell_jobs()
+    if running > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Cannot recreate container while {running} background shell job(s) are still running. "
+                "Cancel or wait for them to finish first."
+            ),
+        )
+
     recreate_url = f"{cp_url}/api/internal/sandboxes/{sandbox_id}/recreate"
     headers = {
         "X-Telemetry-Token": token,

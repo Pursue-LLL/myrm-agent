@@ -20,15 +20,17 @@ export interface BackgroundTask {
   chat_id?: string | null;
   pid?: number | null;
   progress_percent?: number | null;
+  exit_code?: number | null;
+  error_category?: string | null;
 }
 
 export interface BackgroundTaskListResponse {
   tasks: BackgroundTask[];
+  registry_ephemeral?: boolean;
 }
 
-export async function listBackgroundTasks(): Promise<BackgroundTask[]> {
-  const res = await apiRequest<BackgroundTaskListResponse>('/background-tasks');
-  return res.tasks;
+export async function listBackgroundTasks(): Promise<BackgroundTaskListResponse> {
+  return apiRequest<BackgroundTaskListResponse>('/background-tasks');
 }
 
 export async function getBackgroundTask(taskId: string): Promise<BackgroundTask> {

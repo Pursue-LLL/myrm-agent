@@ -30,6 +30,7 @@ from app.services.agent.shell_background_tasks import (
     ShellBackgroundTaskDTO,
     cancel_shell_background_task,
     list_shell_background_tasks,
+    shell_registry_is_ephemeral,
 )
 
 router = APIRouter(tags=["background-tasks"])
@@ -50,6 +51,15 @@ class BackgroundTaskResponse(BaseModel):
     chat_id: str | None = None
     pid: int | None = None
     progress_percent: int | None = None
+    exit_code: int | None = None
+    error_category: str | None = None
+
+
+class BackgroundTaskListResponse(BaseModel):
+    """List payload including ephemeral shell registry notice."""
+
+    tasks: list[BackgroundTaskResponse]
+    registry_ephemeral: bool = True
 
 
 class SteerRequest(BaseModel):
@@ -70,6 +80,8 @@ def _shell_row_to_response(row: ShellBackgroundTaskDTO) -> BackgroundTaskRespons
         chat_id=row.chat_id,
         pid=row.pid,
         progress_percent=row.progress_percent,
+        exit_code=row.exit_code,
+        error_category=row.error_category,
     )
 
 
@@ -103,13 +115,16 @@ async def _list_agent_tasks() -> list[BackgroundTaskResponse]:
 
 
 @router.get("")
-async def list_background_tasks() -> dict[str, list[BackgroundTaskResponse]]:
+async def list_background_tasks() -> BackgroundTaskListResponse:
     """List agent (Kanban) and shell (harness registry) background tasks."""
     agent_tasks = await _list_agent_tasks()
     shell_tasks = [_shell_row_to_response(row) for row in list_shell_background_tasks()]
     merged = agent_tasks + shell_tasks
     merged.sort(key=lambda t: t.created_at, reverse=True)
-    return {"tasks": merged}
+    return BackgroundTaskListResponse(
+        tasks=merged,
+        registry_ephemeral=shell_registry_is_ephemeral(),
+    )
 
 
 @router.get("/{task_id}")
@@ -211,6 +226,11 @@ async def steer_background_task(task_id: str, body: SteerRequest) -> dict[str, s
         raise HTTPException(status_code=400, detail="Failed to steer task (not running or tokens unavailable)")
 
     return {"message": "Steering instruction sent", "task_id": task_id}
+
+
+from app.api.background_tasks.test_fixtures import router as background_tasks_test_fixtures_router
+
+router.include_router(background_tasks_test_fixtures_router)
 
 
 __all__ = ["router"]

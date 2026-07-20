@@ -34,6 +34,8 @@ class ShellBackgroundTaskDTO(BaseModel):
     completed_at: float | None = None
     result_preview: str | None = None
     progress_percent: int | None = None
+    exit_code: int | None = None
+    error_category: str | None = None
 
 
 def _map_shell_status(raw: str, exit_code: int | None) -> ShellTaskStatus:
@@ -64,6 +66,14 @@ def _progress_from_info(last_progress: dict[str, object] | None) -> int | None:
     return None
 
 
+def _redact_preview(text: str | None) -> str | None:
+    if not text:
+        return None
+    from myrm_agent_harness.agent.security.redact import redact_sensitive_text
+
+    return redact_sensitive_text(text)
+
+
 def list_shell_background_tasks() -> list[ShellBackgroundTaskDTO]:
     """Return all tracked shell jobs (running and recently exited)."""
     from myrm_agent_harness.api.hooks import get_background_registry
@@ -79,7 +89,7 @@ def list_shell_background_tasks() -> list[ShellBackgroundTaskDTO]:
                 completed_at = float(raw_ts)
 
         tail = info.last_stdout_tail or info.last_stderr_tail
-        preview = tail[-1] if tail else None
+        preview = _redact_preview(tail[-1] if tail else None)
 
         rows.append(
             ShellBackgroundTaskDTO(
@@ -92,6 +102,8 @@ def list_shell_background_tasks() -> list[ShellBackgroundTaskDTO]:
                 completed_at=completed_at,
                 result_preview=preview,
                 progress_percent=_progress_from_info(info.last_progress),
+                exit_code=info.exit_code,
+                error_category=info.error_category,
             )
         )
     rows.sort(key=lambda row: row.created_at, reverse=True)
@@ -104,3 +116,8 @@ async def cancel_shell_background_task(pid: int) -> bool:
 
     registry = get_background_registry()
     return await registry.kill(pid, force=False)
+
+
+def shell_registry_is_ephemeral() -> bool:
+    """Shell jobs live in-process only (lost on server restart / sandbox recreate)."""
+    return True

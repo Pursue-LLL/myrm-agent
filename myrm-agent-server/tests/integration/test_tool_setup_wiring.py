@@ -182,6 +182,73 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
 
 
 @pytest.mark.asyncio
+async def test_browser_setup_injects_blocklist_from_agent_security_raw() -> None:
+    """Browser tools setup runs before BaseAgent init; blocklist must not depend on self.agent."""
+    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
+
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    mixin.agent = None
+    mixin.agent_id = "be4e86d3-6b36-4b3c-bed0-a1932103a7a4"
+    mixin.approval_session_key = None
+    mixin.channel_name = "web_chat"
+    mixin.security_config_raw = {}
+    mixin.agent_security_raw = {"networkBlocklist": ["integration-closure.test"]}
+    mixin.declared_capabilities = ()
+    mixin.declared_allowed_roots = ()
+    mixin.auto_restore_domains = []
+    mixin.browser_source = None
+    mixin.dialog_policy = None
+    mixin.session_recording = None
+    tools: list[object] = []
+    captured: dict[str, object] = {}
+
+    mock_pool = MagicMock()
+    mock_session = MagicMock()
+
+    async def _fake_build_captcha_solver(_self: object) -> MagicMock:
+        return MagicMock()
+
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.browser.pool.get_global_browser_pool",
+            return_value=mock_pool,
+        ),
+        patch(
+            "app.config.browser.get_browser_pool_config",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "app.config.browser.get_browser_launch_options",
+            return_value={},
+        ),
+        patch(
+            "app.core.security.browser_vault.get_agent_session_vault",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "app.config.deploy_mode.is_local_mode",
+            return_value=True,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.browser.BrowserSession",
+            side_effect=lambda *args, **kwargs: captured.update(kwargs) or mock_session,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.create_browser_tools",
+            return_value=[MagicMock(name="browser_navigate_tool", spec=BaseTool)],
+        ),
+        patch.object(ToolSetupMixin, "_build_captcha_solver", _fake_build_captcha_solver),
+    ):
+        await mixin._setup_browser_tools(tools, "chat-blocklist-wiring")
+
+    blocklist = captured.get("domain_blocklist")
+    assert blocklist is not None
+    assert not blocklist.is_empty
+    assert blocklist.is_allowed("integration-closure.test")
+    assert len(tools) == 1
+
+
+@pytest.mark.asyncio
 async def test_cron_tools_turn1_eager_when_enabled() -> None:
     """Verify cron tools load as Turn1 eager."""
     from app.ai_agents.general_agent.tool_setup import ToolSetupMixin

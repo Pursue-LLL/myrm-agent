@@ -653,14 +653,24 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             domain_allowlist = None
             domain_blocklist = None
-            agent_inst = self.agent
-            if agent_inst is not None:
-                nw = agent_inst.config.security_config.network_allowlist
-                if nw:
-                    domain_allowlist = DomainAllowlist.from_strings(nw)
-                nb = agent_inst.config.security_config.network_blocklist
-                if nb:
-                    domain_blocklist = DomainAllowlist.from_strings(nb)
+            # BrowserSession is created before BaseAgent init (self.agent is still None).
+            # Resolve merged network policy the same way SecurityPolicyExtension does.
+            from myrm_agent_harness.agent.security.channel_presets import (
+                build_channel_security_config,
+            )
+
+            merged_security = build_channel_security_config(
+                self.channel_name,
+                self.security_config_raw,
+                agent_security_raw=self.agent_security_raw,
+                declared_capabilities=self.declared_capabilities,
+                declared_allowed_roots=self.declared_allowed_roots,
+                local_mode=is_local_mode(),
+            )
+            if merged_security.network_allowlist:
+                domain_allowlist = DomainAllowlist.from_strings(merged_security.network_allowlist)
+            if merged_security.network_blocklist:
+                domain_blocklist = DomainAllowlist.from_strings(merged_security.network_blocklist)
 
             thread_id = self.approval_session_key or f"chat_{effective_chat_id}"
             self._current_thread_id = thread_id

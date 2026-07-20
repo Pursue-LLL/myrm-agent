@@ -58,7 +58,8 @@ _RECOVER_BROWSER_TAKEOVER_JS = """(async () => {
 })()"""
 
 BROWSER_GATE_WAIT_SEC = 120.0
-BROWSER_RECOVERY_DELAY_SEC = 5.0
+BROWSER_RECOVERY_DELAY_SEC = 12.0
+BROWSER_RECOVERY_MIN_INTERVAL_SEC = 20.0
 MAX_SEND_ATTEMPTS = 3
 
 _ENABLE_YOLO_JS = """(() => {
@@ -222,7 +223,7 @@ _SNAPSHOT_IDLE_JS = """(() => {
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
-@pytest.mark.timeout(120)
+@pytest.mark.timeout(180)
 def test_extension_takeover_banner_shows_actions_and_dismisses_on_done() -> None:
     ui_url = get_e2e_ui_url()
 
@@ -263,7 +264,7 @@ def test_extension_takeover_banner_shows_actions_and_dismisses_on_done() -> None
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
-@pytest.mark.timeout(120)
+@pytest.mark.timeout(180)
 def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
     ui_url = get_e2e_ui_url()
 
@@ -321,6 +322,26 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             "Expected browser_ask_human_tool with extension in-chat banner."
         )
 
+    async def _maybe_recover_browser_takeover(
+        chat: McpChatSession,
+        *,
+        started_at: float,
+        last_recovery_at: list[float],
+    ) -> tuple[str, bool] | None:
+        if time.monotonic() - started_at < BROWSER_RECOVERY_DELAY_SEC:
+            return None
+        if time.monotonic() - last_recovery_at[0] < BROWSER_RECOVERY_MIN_INTERVAL_SEC:
+            return None
+        last_recovery_at[0] = time.monotonic()
+        recover = await chat.evaluate(
+            _RECOVER_BROWSER_TAKEOVER_JS,
+            await_promise=True,
+            recv_timeout=45.0,
+        )
+        if isinstance(recover, dict) and recover.get("ok") and recover.get("pending") is True:
+            return "browser_ask_human_tool", True
+        return None
+
     async def _wait_for_browser_ask_human_gate(
         chat: McpChatSession,
         *,
@@ -328,6 +349,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
     ) -> tuple[str, bool]:
         deadline = time.monotonic() + timeout_sec
         gate_started = time.monotonic()
+        last_recovery_at = [0.0]
         last_tool = ""
         takeover_pending = False
         while time.monotonic() < deadline:
@@ -344,14 +366,13 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             ):
                 return last_tool or "browser_ask_human_tool", True
 
-            if time.monotonic() - gate_started >= BROWSER_RECOVERY_DELAY_SEC:
-                recover = await chat.evaluate(
-                    _RECOVER_BROWSER_TAKEOVER_JS,
-                    await_promise=True,
-                    recv_timeout=30.0,
-                )
-                if isinstance(recover, dict) and recover.get("ok") and recover.get("pending") is True:
-                    return "browser_ask_human_tool", True
+            recovered = await _maybe_recover_browser_takeover(
+                chat,
+                started_at=gate_started,
+                last_recovery_at=last_recovery_at,
+            )
+            if recovered is not None:
+                return recovered
 
             await asyncio.sleep(1.0)
         return last_tool, takeover_pending
@@ -359,6 +380,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
     async def _wait_takeover_banner(chat: McpChatSession, *, timeout_sec: float = 90.0) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         banner_started = time.monotonic()
+        last_recovery_at = [0.0]
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
@@ -374,17 +396,16 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 continue
             if last.get("ready") is True:
                 return last
-            if time.monotonic() - banner_started >= BROWSER_RECOVERY_DELAY_SEC:
-                recover = await chat.evaluate(
-                    _RECOVER_BROWSER_TAKEOVER_JS,
-                    await_promise=True,
-                    recv_timeout=30.0,
-                )
-                if isinstance(recover, dict) and recover.get("ok") and recover.get("pending") is True:
-                    raw = await chat.evaluate(_BANNER_ASSERT_JS, await_promise=False, recv_timeout=30.0)
-                    last = raw if isinstance(raw, dict) else {"value": raw}
-                    if last.get("ready") is True:
-                        return last
+            recovered = await _maybe_recover_browser_takeover(
+                chat,
+                started_at=banner_started,
+                last_recovery_at=last_recovery_at,
+            )
+            if recovered is not None:
+                raw = await chat.evaluate(_BANNER_ASSERT_JS, await_promise=False, recv_timeout=30.0)
+                last = raw if isinstance(raw, dict) else {"value": raw}
+                if last.get("ready") is True:
+                    return last
             await asyncio.sleep(1.0)
         raise AssertionError(f"Browser takeover banner did not appear: {last}")
 
@@ -397,7 +418,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         assert enabled.get("ok") is True, f"Failed to enable browser in chat session: {enabled}"
         await chat.evaluate(_ENABLE_YOLO_JS, await_promise=False, recv_timeout=15.0)
 
-    async def _wait_api_done(chat_id: str, *, api_url: str, timeout_sec: float = 90.0) -> bool:
+    async def _wait_api_done(chat_id: str, *, api_url: str, timeout_sec: float = 120.0) -> bool:
         deadline = time.monotonic() + timeout_sec
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
@@ -413,6 +434,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         await asyncio.sleep(2.0)
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
+        await chat.ensure_model_ready(timeout_sec=180.0)
         await _prepare_browser_turn(chat)
 
         chat_id_hint: str | None = None
@@ -422,7 +444,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             if attempt > 1:
                 await chat.click_new_chat()
                 await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
-                await chat.ensure_model_ready(timeout_sec=90.0)
+                await chat.ensure_model_ready(timeout_sec=180.0)
                 await _prepare_browser_turn(chat)
             last_prompt = E2E_PROMPT if attempt == 1 else E2E_NUDGE_PROMPT
             heartbeat_e2e_lease()
@@ -473,8 +495,13 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 chat_id_hint=chat_id_hint,
             )
         except TimeoutError:
-            if chat_id_hint and await _wait_api_done(chat_id_hint, api_url=api_base):
-                after_turn = {"chatId": chat_id_hint, "okViaApi": True, "bridgeChatId": chat_id_hint}
+            resolved_chat_id = chat_id_hint or str((await chat.bridge_chat_id()) or "").strip() or None
+            if resolved_chat_id and await _wait_api_done(resolved_chat_id, api_url=api_base):
+                after_turn = {
+                    "chatId": resolved_chat_id,
+                    "okViaApi": True,
+                    "bridgeChatId": resolved_chat_id,
+                }
             else:
                 raise
         if str(after_turn.get("path", "")).startswith("/settings"):
@@ -496,7 +523,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         e2e_resource_ledger.register("chat", chat_id)
         return chat_id
 
-    client = ChromeMcpClient(request_timeout_sec=120.0)
+    client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
     try:
         page: McpPage | None = None

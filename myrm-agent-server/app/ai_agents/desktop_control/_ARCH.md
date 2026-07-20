@@ -15,8 +15,8 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 
 | Route | Role |
 |-------|------|
-| `GET /webui/desktop/trust/apps` | List always-trusted apps (`trust_key`, `display_name`, `app_id`, `scope`) |
-| `DELETE /webui/desktop/trust/apps` | Revoke one trust key (JSON body `{trust_key}`); updates disk + live gates for workspace only |
+| `GET /webui/desktop/trust/apps` | List always-trusted apps from live gates + harness workspace disks + fallback workspace root |
+| `DELETE /webui/desktop/trust/apps` | Revoke one trust key across live gates and persisted workspace stores |
 | `POST /webui/desktop/approval/reset-runtime` | Clears in-memory session approvals and reloads persisted always-trusted apps |
 
 Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' session approvals stay intact.
@@ -36,7 +36,9 @@ Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' se
 | Test | `myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py` (`@pytest.mark.chrome_e2e(lane="LIVE_AGENT")`) |
 | Preflight | `./myrm ready --chrome`；默认 LIVE_AGENT cap=2（与其他 chrome_e2e 并行，背压等待） |
 | Gate trigger | Assert `GET /webui/desktop/approval/pending` → `server_pending>0`（禁止用 tool 名 substring 误判） |
-| UI | `DesktopControlApprovalBanner` — `data-testid="desktop-control-allow-once"` / `desktop-control-deny` |
+| UI | `DesktopControlApprovalBanner` — `data-testid="desktop-control-allow-once"` / `desktop-control-deny` / `desktop-control-allow-always` |
+| Settings | `DesktopPermissionsCard` — `data-testid="desktop-trust-revoke-{trust_key}"` |
+| E2E | `test_desktop_control_approval_chrome_e2e.py` — allow_once + allow_always→Settings revoke |
 | Bridge | `E2EChatBridge.hasDone` 或 API `chat_messages_have_done()`；无 DONE 时 poll≥15 一次性 nudge |
-| Signoff | `./myrm signoff chrome --stress xdist4 --fault sigterm-goal-cache` → matrix `chrome_e2e and not chrome_e2e_desktop` + darwin `chrome_e2e_desktop` phase（preflight + E2E）；desktop 独立 E2E 绿 R4 `/tmp/myrm-desktop-verify-r4.log` 187s |
+| Signoff | `./myrm signoff chrome` → darwin `chrome_e2e_desktop` phase（allow_once + allow_always_settings_revoke） |
 | Reset | `POST /webui/desktop/approval/reset-runtime` clears in-memory gate + reloads disk approvals |

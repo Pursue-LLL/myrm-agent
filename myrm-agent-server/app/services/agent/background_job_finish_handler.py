@@ -86,12 +86,24 @@ def _format_finish_message(result: BackgroundJobFinishResult, locale: str) -> st
 class ServerBackgroundJobFinishHandler:
     """Persists background bash job completion into the chat transcript."""
 
+    def __init__(self) -> None:
+        self._processed: set[tuple[str, int]] = set()
+
     async def on_background_job_finish(self, result: BackgroundJobFinishResult) -> None:
         if not result.session_id:
             logger.warning("Background job finish ignored: missing session_id")
             return
         if result.status != "exited":
             return
+        dedupe_key = (result.session_id, result.pid)
+        if dedupe_key in self._processed:
+            logger.debug(
+                "Background job finish deduped for session=%s pid=%s",
+                result.session_id,
+                result.pid,
+            )
+            return
+        self._processed.add(dedupe_key)
         await self._process(result)
 
     async def _process(self, result: BackgroundJobFinishResult) -> None:
@@ -99,7 +111,7 @@ class ServerBackgroundJobFinishHandler:
             locale = await _resolve_user_locale()
             content = _format_finish_message(result, locale)
             title = channel_t(locale, "bash_bg_finish_title")
-            message_id = f"bg_finish_{result.pid}_{int(datetime.now(tz=timezone.utc).timestamp())}"
+            message_id = f"bg_finish_{result.pid}"
             sent_at = datetime.now(tz=timezone.utc)
 
             await ChatService.append_message(

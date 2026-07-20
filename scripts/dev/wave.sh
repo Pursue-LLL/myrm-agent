@@ -10,5 +10,5 @@ if [[ ! -x "${PY}" ]]; then
   PY="python3"
 fi
 
-export PYTHONPATH="${SCRIPT_DIR}:${PYTHONPATH:-}"
+export PYTHONPATH="${SCRIPT_DIR}/lib:${SCRIPT_DIR}:${PYTHONPATH:-}"
 exec "${PY}" -m wave_orchestrator.cli "$@"

@@ -6,6 +6,7 @@ import json
 import os
 import re
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -21,10 +22,33 @@ def get_e2e_ui_url() -> str:
     return os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 _OK_REPLY_RE = re.compile(r"(?:\bOK\b|GOAL_OK)", re.IGNORECASE)
 _DONE_REPLY_RE = re.compile(r"\bDONE\b", re.IGNORECASE)
+_E2E_API_REQUEST_ATTEMPTS = 3
+_E2E_API_REQUEST_BACKOFF_SEC = 2.0
 
 
 def resolve_e2e_api_base(api_base: str | None = None) -> str:
     return (api_base or os.getenv("E2E_API_BASE", "")).strip().rstrip("/")
+
+
+def _e2e_api_urlopen(
+    req: urllib.request.Request,
+    *,
+    timeout_sec: float,
+    max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
+) -> object:
+    """Retry loopback E2E API reads on transient socket/timeouts under parallel load."""
+    last_error: BaseException | None = None
+    for attempt in range(max_attempts):
+        try:
+            return urllib.request.urlopen(req, timeout=timeout_sec)  # noqa: S310
+        except (TimeoutError, OSError, urllib.error.URLError) as exc:
+            last_error = exc
+            if attempt + 1 >= max_attempts:
+                raise
+            time.sleep(_E2E_API_REQUEST_BACKOFF_SEC * (attempt + 1))
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("E2E API request failed without response")
 
 
 def e2e_runtime_binding(api_base: str | None = None) -> dict[str, object] | None:
@@ -558,7 +582,7 @@ def fetch_chat_messages(chat_id: str, *, api_url: str | None = None) -> list[dic
         f"{resolved_api}/api/v1/chats/{chat_id}/messages",
         headers={"Accept": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=15) as resp:
+    with _e2e_api_urlopen(req, timeout_sec=15) as resp:
         payload = json.loads(resp.read())
     data = payload.get("data")
     if not isinstance(data, dict):
@@ -602,7 +626,7 @@ def _config_http_json(
         headers={"Content-Type": "application/json"} if data is not None else {},
         method=method,
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+    with _e2e_api_urlopen(req, timeout_sec=30) as resp:  # noqa: S310
         raw = resp.read()
         if not raw:
             return {}

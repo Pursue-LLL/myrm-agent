@@ -34,6 +34,7 @@ export function BackgroundTaskRow({
   onNavigateChat,
 }: BackgroundTaskRowProps) {
   const t = useTranslations('backgroundTasks');
+  const tChat = useTranslations('chat');
   const config = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.running;
   const StatusIcon = config.icon;
 
@@ -58,7 +59,19 @@ export function BackgroundTaskRow({
                 <span>{t('shellPid', { pid: task.pid })}</span>
               </>
             )}
+            {task.exit_code != null && task.status !== 'running' && (
+              <>
+                <span className="text-border">·</span>
+                <span>{t('exitCode', { code: task.exit_code })}</span>
+              </>
+            )}
           </div>
+
+          {task.error_category && (
+            <p className="mt-1 text-xs text-destructive/90">
+              {tChat(`errorCategories.${task.error_category}`, { defaultValue: task.error_category })}
+            </p>
+          )}
 
           {task.progress_percent != null && task.status === 'running' && (
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">

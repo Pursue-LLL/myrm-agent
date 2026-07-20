@@ -72,14 +72,17 @@ async def init_database() -> None:
     # Pre-migration safety snapshot: protects against multi-step table rebuild
     # migrations (e.g. CREATE AS SELECT → DROP → RENAME) that leave the DB in
     # an inconsistent state if interrupted mid-sequence.
-    try:
-        from app.database.backup import get_sqlite_backup_manager
+    # Fail-closed: abort migration if backup fails when manager is available,
+    # to prevent destructive DDL without a recovery safety net.
+    from app.database.backup import get_sqlite_backup_manager
 
-        manager = get_sqlite_backup_manager()
-        if manager is not None:
+    manager = get_sqlite_backup_manager()
+    if manager is not None:
+        try:
             manager.create_backup()
-    except Exception as e:
-        logger.warning("Pre-migration backup failed (continuing): %s", e)
+        except Exception as e:
+            logger.error("Pre-migration backup failed, aborting migration: %s", e)
+            raise
 
     try:
         await run_migrations(engine)

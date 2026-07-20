@@ -230,6 +230,14 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       auto_detect_completion: autoDetectCompletion,
     });
 
+    actions.setLoading(false);
+    if (typeof window !== 'undefined') {
+      setTimeout(
+        () => window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_waiting' } })),
+        0,
+      );
+    }
+
     if (uiMode === 'managed') {
       const { fetchWithTimeout } = await import('@/lib/api');
       void fetchWithTimeout('/webui/vnc/takeover', {

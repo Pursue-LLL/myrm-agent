@@ -30,10 +30,11 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 
 ## E2E (Chrome MCP)
 
-- Banner testids: `desktop-control-allow-once`, `desktop-control-deny` (`DesktopControlApprovalBanner.tsx`)
+- Banner testids: `desktop-control-allow-once`, `desktop-control-deny`, `desktop-control-allow-always` (`DesktopControlApprovalBanner.tsx`)
+- Settings revoke testid: `desktop-trust-revoke-{trust_key}` (`DesktopPermissionsCard.tsx`)
 - SSE payload opens overlay via `DesktopControlApprovalOverlay` (always mounted in `ChatWindowSatellites`)
 - Bridge: `window.__MYRM_E2E_CHAT__.getDesktopApprovalSnapshot()` / `getDesktopToolProgress()` (`E2EChatBridge.tsx`)
-- Regression: `test_desktop_control_approval_chrome_e2e.py` (`@pytest.mark.chrome_e2e_desktop`, allow_once flow)
+- Regression: `test_desktop_control_approval_chrome_e2e.py` (`@pytest.mark.chrome_e2e_desktop`, allow_once + allow_always→Settings revoke)
 
 ## Unit tests (vitest)
 

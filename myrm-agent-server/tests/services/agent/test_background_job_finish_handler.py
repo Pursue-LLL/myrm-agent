@@ -249,3 +249,39 @@ async def test_process_logs_exception_without_raising() -> None:
         ),
     ):
         await handler._process(result)
+
+
+@pytest.mark.asyncio
+async def test_finish_handler_dedupes_duplicate_pid() -> None:
+    handler = ServerBackgroundJobFinishHandler()
+    result = BackgroundJobFinishResult(
+        session_id="chat-dedupe",
+        pid=99,
+        command="npm test",
+        status="exited",
+        exit_code=0,
+        error_category=None,
+    )
+
+    with (
+        patch(
+            "app.services.agent.background_job_finish_handler._resolve_user_locale",
+            AsyncMock(return_value="en"),
+        ),
+        patch(
+            "app.services.agent.background_job_finish_handler.ChatService.append_message",
+            AsyncMock(),
+        ) as mock_append,
+        patch(
+            "app.services.agent.background_job_finish_handler.get_event_bus",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "app.services.agent.goal_wait_background_resume.maybe_resume_goal_after_background_job",
+            AsyncMock(),
+        ),
+    ):
+        await handler.on_background_job_finish(result)
+        await handler.on_background_job_finish(result)
+
+    mock_append.assert_awaited_once()

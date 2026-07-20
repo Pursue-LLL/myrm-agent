@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from myrm_agent_harness.agent.meta_tools.bash.background_deferred_activation import (
+from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
     reset_deferred_activation_for_tests,
 )
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
@@ -109,7 +109,9 @@ async def test_rest_list_and_get_shell_task(tmp_path: Path) -> None:
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         list_resp = await client.get("/api/v1/background-tasks")
         assert list_resp.status_code == 200
-        tasks = list_resp.json()["tasks"]
+        list_payload = list_resp.json()
+        assert list_payload.get("registry_ephemeral") is True
+        tasks = list_payload["tasks"]
         shell_rows = [t for t in tasks if t.get("kind") == "shell" and t.get("pid") == pid]
         assert len(shell_rows) == 1
         row = shell_rows[0]
@@ -176,3 +178,31 @@ async def test_rest_invalid_shell_id_returns_404() -> None:
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         assert (await client.get("/api/v1/background-tasks/shell:not-a-pid")).status_code == 404
         assert (await client.get("/api/v1/background-tasks/shell:99999999")).status_code == 404
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_rest_shell_failed_task_exposes_exit_metadata(tmp_path: Path) -> None:
+    chat_id = f"rest-fail-{uuid.uuid4().hex[:12]}"
+    fail_cmd = f'{sys.executable} -c "import sys; sys.exit(42)"'
+    pid = await _spawn_background(
+        tmp_path,
+        chat_id=chat_id,
+        command=fail_cmd,
+        reason="rest fail integration",
+    )
+
+    for _ in range(30):
+        info = get_background_registry().get(pid)
+        if info is not None and info.status == "exited":
+            break
+        await asyncio.sleep(0.05)
+
+    transport = ASGITransport(app=_build_rest_app())
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        get_resp = await client.get(f"/api/v1/background-tasks/shell:{pid}")
+        assert get_resp.status_code == 200
+        row = get_resp.json()
+        assert row["status"] == "failed"
+        assert row["exit_code"] == 42
+        assert row["error_category"] == "nonzero_exit"

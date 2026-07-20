@@ -27,6 +27,7 @@ from app.ai_agents.general_agent.tools import (
 from app.core.security.integration_write_patterns import register_server_integration_write_patterns
 from app.api.channels.channel_ingress import router as channel_ingress_router
 from app.api.internal.agent_interrupt import router as internal_agent_interrupt_router
+from app.api.internal.background_shell_status import router as internal_background_shell_status_router
 from app.api.internal.import_agent_profile import router as internal_import_agent_profile_router
 from app.api.internal.import_archive import router as internal_import_archive_router
 from app.api.internal.org_mcp_sync import router as internal_org_mcp_sync_router
@@ -67,6 +68,7 @@ register_middlewares(app)
 app.include_router(api_router, prefix=settings.api_prefix)
 app.include_router(channel_ingress_router, prefix="/api")
 app.include_router(internal_agent_interrupt_router, prefix="/api")
+app.include_router(internal_background_shell_status_router)
 app.include_router(internal_import_agent_profile_router)
 app.include_router(internal_import_archive_router, prefix="/api")
 app.include_router(internal_org_mcp_sync_router)

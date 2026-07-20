@@ -777,7 +777,9 @@ export const sendMessage = async (
   resumeValue?: unknown,
   archiveRestoreActions?: ArchiveRestoreAction[],
 ): Promise<void> => {
-  if (state.loading) {
+  const isHitlResume = resumeValue !== undefined;
+
+  if (state.loading && !isHitlResume) {
     showI18nToast('chat.messageFailed.title', undefined, {
       descriptionKey: 'chat.messageFailed.description',
       descriptionValues: { error: 'Please wait for the current message to finish' },
@@ -816,7 +818,7 @@ export const sendMessage = async (
   const requestMessageId = messageId ?? getCurrentSessionMessageId();
 
   // 防重锁：检查该消息是否正在被处理（通过按钮审批或其他文本审批）
-  if (useToolApprovalStore.getState().isProcessing(requestMessageId)) {
+  if (!isHitlResume && useToolApprovalStore.getState().isProcessing(requestMessageId)) {
     showI18nToast('chat.sendBlocked.title', undefined, {
       descriptionKey: 'chat.sendBlocked.processingDescription',
       type: 'warning',

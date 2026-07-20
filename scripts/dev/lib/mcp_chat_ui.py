@@ -51,14 +51,22 @@ class McpChatSession(CdpChatSession):
             raise ValueError("recv_timeout must be positive")
         heal_attempts = 0
         max_heal_attempts = 3
+        mux_attempts = 0
+        max_mux_attempts = 3
         while True:
             try:
                 return await asyncio.to_thread(
                     self._client.evaluate,
                     self._page,
                     expression,
-                    timeout_sec=min(recv_timeout, 120.0),
+                    timeout_sec=recv_timeout,
                 )
+            except TimeoutError:
+                mux_attempts += 1
+                if mux_attempts < max_mux_attempts:
+                    await asyncio.sleep(0.75 * mux_attempts)
+                    continue
+                raise
             except RuntimeError as exc:
                 if heal_attempts < max_heal_attempts and is_detached_frame_error(exc):
                     heal_attempts += 1

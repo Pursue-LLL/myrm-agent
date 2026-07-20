@@ -98,6 +98,7 @@ class DesktopControlGate:
         workspace_root: str | None,
         auto_grant: bool = False,
         default_timeout_seconds: float = _DEFAULT_TIMEOUT_SEC,
+        register_live: bool = True,
     ) -> None:
         self._workspace_root = Path(workspace_root) if workspace_root else None
         self._auto_grant = auto_grant
@@ -106,7 +107,8 @@ class DesktopControlGate:
         self._always_approved_keys: set[str] = set()
         self._trusted_app_records: dict[str, TrustedAppRecord] = {}
         self._load_persisted_apps()
-        DesktopControlGate._live_gates.add(self)
+        if register_live:
+            DesktopControlGate._live_gates.add(self)
 
     def reset_runtime_approval_state(self) -> None:
         """Clear in-memory approval caches and reload persisted always-approved apps."""
@@ -321,17 +323,69 @@ def resolve_desktop_control_approval(
     return DesktopApprovalRegistry.resolve(request_id, granted=granted, scope=scope_enum)
 
 
-def list_trusted_desktop_apps(*, workspace_root: str | None) -> list[TrustedAppRecord]:
-    gate = DesktopControlGate(workspace_root=workspace_root, auto_grant=False)
+def _trust_store_workspace_roots(*, fallback_root: str | None) -> list[Path]:
+    """Collect chat/agent workspace roots that may hold approved_apps.json."""
+    roots: list[Path] = []
+    seen: set[str] = set()
+
+    def _add(candidate: Path | None) -> None:
+        if candidate is None:
+            return
+        resolved = str(candidate.expanduser().resolve())
+        if resolved in seen:
+            return
+        seen.add(resolved)
+        roots.append(Path(resolved))
+
+    for gate in DesktopControlGate._live_gates:
+        _add(gate._workspace_root)
+
+    try:
+        from app.config.settings import get_settings
+
+        harness_dir = Path(get_settings().database.harness_dir)
+        if harness_dir.is_dir():
+            for approval_file in harness_dir.rglob(_APPROVAL_FILE):
+                _add(approval_file.parent.parent.parent)
+    except Exception as exc:
+        logger.warning("Failed to scan harness desktop trust stores: %s", exc)
+
+    if fallback_root:
+        _add(Path(fallback_root))
+
+    return roots
+
+
+def _disk_trusted_apps_for_workspace(workspace_root: str) -> list[TrustedAppRecord]:
+    gate = DesktopControlGate(
+        workspace_root=workspace_root,
+        auto_grant=False,
+        register_live=False,
+    )
     return gate.list_trusted_apps()
 
 
-def revoke_trusted_desktop_app(*, workspace_root: str | None, trust_key: str) -> bool:
-    revoked = False
+def list_trusted_desktop_apps(*, workspace_root: str | None) -> list[TrustedAppRecord]:
+    merged: dict[str, TrustedAppRecord] = {}
     for gate in list(DesktopControlGate._live_gates):
-        if gate._workspace_root == (Path(workspace_root) if workspace_root else None):
-            revoked = gate.revoke_trusted_app(trust_key) or revoked
-    if not revoked and workspace_root:
-        gate = DesktopControlGate(workspace_root=workspace_root, auto_grant=False)
-        revoked = gate.revoke_trusted_app(trust_key)
-    return revoked
+        for record in gate.list_trusted_apps():
+            merged[record["trust_key"]] = record
+    for root in _trust_store_workspace_roots(fallback_root=workspace_root):
+        for record in _disk_trusted_apps_for_workspace(str(root)):
+            merged.setdefault(record["trust_key"], record)
+    return sorted(merged.values(), key=lambda item: item["display_name"].lower())
+
+
+def revoke_trusted_desktop_app(*, workspace_root: str | None, trust_key: str) -> bool:
+    for gate in list(DesktopControlGate._live_gates):
+        if gate.revoke_trusted_app(trust_key):
+            return True
+    for root in _trust_store_workspace_roots(fallback_root=workspace_root):
+        disk_gate = DesktopControlGate(
+            workspace_root=str(root),
+            auto_grant=False,
+            register_live=False,
+        )
+        if disk_gate.revoke_trusted_app(trust_key):
+            return True
+    return False

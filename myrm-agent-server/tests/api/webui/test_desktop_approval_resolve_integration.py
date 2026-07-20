@@ -6,6 +6,8 @@ import asyncio
 from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from pathlib import Path
+
 import httpx
 import pytest
 from httpx import ASGITransport
@@ -102,6 +104,64 @@ async def test_resolve_deny_via_router(client: httpx.AsyncClient) -> None:
         await task
 
     assert result.granted is False
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_resolve_always_persists_to_trust_list_across_workspace_roots(
+    client: httpx.AsyncClient,
+    tmp_path: Path,
+) -> None:
+    chat_workspace = tmp_path / "chat_workspace"
+    server_cwd = tmp_path / "server_cwd"
+    gate = DesktopControlGate(workspace_root=str(chat_workspace), auto_grant=False)
+    sink = MagicMock()
+    sink.emit = AsyncMock()
+
+    async def _resolve_always_after_emit() -> None:
+        for _ in range(100):
+            if sink.emit.await_args_list:
+                break
+            await asyncio.sleep(0.01)
+        request_id = sink.emit.await_args_list[0].args[0]["data"]["request_id"]
+        response = await client.post(
+            "/webui/desktop/approval/resolve",
+            json={"request_id": request_id, "granted": True, "scope": "always"},
+        )
+        assert response.status_code == 200
+        assert response.json()["ok"] is True
+
+    with patch("app.ai_agents.desktop_control.gate.get_tool_progress_sink", return_value=sink):
+        task = asyncio.create_task(_resolve_always_after_emit())
+        result = await gate(
+            reason="Control TextEdit",
+            operation="desktop_interact(scroll, @d1)",
+            estimated_duration_seconds=1.0,
+            app_name="TextEdit",
+            app_id="com.apple.TextEdit",
+            timeout_seconds=2.0,
+        )
+        await task
+
+    assert result.granted is True
+    assert result.scope.value == "always"
+
+    with patch("app.platform_utils.workspace_root.get_workspace_root", return_value=str(server_cwd)):
+        list_response = await client.get("/webui/desktop/trust/apps")
+        assert list_response.status_code == 200
+        apps = list_response.json()["apps"]
+        assert len(apps) == 1
+        assert apps[0]["trust_key"] == "com.apple.TextEdit"
+
+        revoke_response = await client.request(
+            "DELETE",
+            "/webui/desktop/trust/apps",
+            json={"trust_key": "com.apple.TextEdit"},
+        )
+        assert revoke_response.status_code == 200
+
+        empty_response = await client.get("/webui/desktop/trust/apps")
+        assert empty_response.json()["apps"] == []
 
 
 def test_direct_resolve_idempotent_after_pop() -> None:

@@ -32,6 +32,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const t = useTranslations('backgroundTasks');
   const router = useRouter();
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
+  const [registryEphemeral, setRegistryEphemeral] = useState(false);
   const [activeGoals, setActiveGoals] = useState<ActiveGoal[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [steerTaskId, setSteerTaskId] = useState<string | null>(null);
@@ -41,8 +42,9 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const fetchTasks = useCallback(async () => {
     try {
       const result = await listBackgroundTasks();
-      setTasks(result);
-      const hasRunning = result.some((task) => task.status === 'running');
+      setTasks(result.tasks);
+      setRegistryEphemeral(Boolean(result.registry_ephemeral));
+      const hasRunning = result.tasks.some((task) => task.status === 'running');
       idleCountRef.current = hasRunning ? 0 : idleCountRef.current + 1;
     } catch {
       // silent - panel is non-critical UI
@@ -173,6 +175,9 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
       >
         <div className="border-b border-border/50 px-4 py-3">
           <h3 className="text-sm font-medium text-foreground">{t('title')}</h3>
+          {registryEphemeral && (
+            <p className="mt-1 text-xs text-muted-foreground/80">{t('ephemeralRegistryNotice')}</p>
+          )}
         </div>
 
         <div className="max-h-[360px] overflow-y-auto sm:max-h-[400px]">

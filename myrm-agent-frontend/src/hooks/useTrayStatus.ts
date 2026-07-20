@@ -64,8 +64,8 @@ export function useTrayStatus() {
 
   const refreshBgRunningCount = useCallback(async () => {
     try {
-      const tasks = await listBackgroundTasks();
-      setBgRunningCount(tasks.filter((task) => task.status === 'running').length);
+      const result = await listBackgroundTasks();
+      setBgRunningCount(result.tasks.filter((task) => task.status === 'running').length);
     } catch {
       // Non-critical — tray falls back to idle when fetch fails
     }

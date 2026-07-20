@@ -51,16 +51,10 @@ async def test_init_database_calls_backup_before_migrations():
 
 
 @pytest.mark.asyncio
-async def test_init_database_continues_when_backup_fails():
-    """If get_sqlite_backup_manager() raises, init_database() must still proceed."""
-    migrations_ran = False
-
-    async def fake_run_migrations(engine: object) -> None:
-        nonlocal migrations_ran
-        migrations_ran = True
-
-    async def fake_create_indexes(engine: object) -> None:
-        pass
+async def test_init_database_aborts_when_backup_fails_with_manager():
+    """If create_backup() raises when manager exists, init_database() must abort (fail-closed)."""
+    mock_manager = MagicMock(spec=SQLiteBackupManager)
+    mock_manager.create_backup.side_effect = OSError("disk full")
 
     fake_engine = MagicMock()
     fake_conn = AsyncMock()
@@ -69,15 +63,14 @@ async def test_init_database_continues_when_backup_fails():
 
     with (
         patch("app.database.connection.get_database_engine", return_value=fake_engine),
-        patch("app.database.migrations.run_migrations", side_effect=fake_run_migrations),
-        patch("app.database.migrations.create_indexes", side_effect=fake_create_indexes),
-        patch("app.database.backup.get_sqlite_backup_manager", side_effect=OSError("disk full")),
+        patch("app.database.migrations.run_migrations", new_callable=AsyncMock),
+        patch("app.database.migrations.create_indexes", new_callable=AsyncMock),
+        patch("app.database.backup.get_sqlite_backup_manager", return_value=mock_manager),
     ):
         from app.database.connection import init_database
 
-        await init_database()
-
-    assert migrations_ran, "run_migrations must execute even when backup fails"
+        with pytest.raises(OSError, match="disk full"):
+            await init_database()
 
 
 @pytest.mark.asyncio

@@ -245,6 +245,21 @@ def _server_pending_approval_count() -> int:
     return int(payload.get("count") or 0)
 
 
+def _list_trusted_apps_via_api() -> list[dict[str, object]]:
+    url = f"{get_e2e_api_url()}/webui/desktop/trust/apps"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except OSError as exc:
+        raise AssertionError(f"Failed to list trusted apps: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise AssertionError(f"Unexpected trust list payload: {payload!r}")
+    apps = payload.get("apps")
+    if not isinstance(apps, list):
+        raise AssertionError(f"Unexpected trust list apps: {payload!r}")
+    return apps
+
+
 def _clear_persisted_desktop_approvals() -> None:
     data_dir = os.environ.get("MYRM_DATA_DIR", "").strip()
     if data_dir:
@@ -262,6 +277,23 @@ def _clear_persisted_desktop_approvals() -> None:
         return
     if not isinstance(payload, dict) or payload.get("ok") is not True:
         _progress(f"desktop approval reset unexpected response: {payload}")
+        return
+    try:
+        apps = _list_trusted_apps_via_api()
+        for app in apps:
+            trust_key = str(app.get("trust_key") or "").strip()
+            if not trust_key:
+                continue
+            revoke_request = urllib.request.Request(
+                f"{get_e2e_api_url()}/webui/desktop/trust/apps",
+                method="DELETE",
+                data=json.dumps({"trust_key": trust_key}).encode("utf-8"),
+            )
+            revoke_request.add_header("Content-Type", "application/json")
+            with urllib.request.urlopen(revoke_request, timeout=10):
+                pass
+    except OSError as exc:
+        _progress(f"trusted apps clear skipped: {exc}")
 
 
 async def _ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
@@ -386,7 +418,132 @@ async def _wait_stream_done_with_marker(
     return {**last, "ok": False, "err": "turn-timeout"}
 
 
-async def _run_approval_attempt(chat: McpChatSession) -> str:
+async def _wait_for_trusted_app_display_name(
+    display_name: str,
+    *,
+    timeout_sec: float = 60.0,
+) -> dict[str, object]:
+    deadline = asyncio.get_event_loop().time() + timeout_sec
+    target = display_name.strip().lower()
+    poll = 0
+    apps: list[dict[str, object]] = []
+    while asyncio.get_event_loop().time() < deadline:
+        poll += 1
+        heartbeat_e2e_lease()
+        apps = await asyncio.to_thread(_list_trusted_apps_via_api)
+        for app in apps:
+            if not isinstance(app, dict):
+                continue
+            name = str(app.get("display_name") or "").strip().lower()
+            if name == target or target in name:
+                return app
+        if apps and poll % 5 == 0:
+            _progress(f"trust API poll waiting for {display_name!r}: {apps}")
+        await asyncio.sleep(1.0)
+    raise AssertionError(
+        f"Trusted app {display_name!r} not found via API within {timeout_sec}s: {apps}"
+    )
+
+
+async def _verify_settings_revoke_trusted_app(
+    chat: McpChatSession,
+    *,
+    trust_key: str,
+    display_name: str,
+) -> None:
+    settings_url = f"{BASE_URL}/settings/system"
+    _progress(f"open settings for revoke trust_key={trust_key}")
+    nav = await chat.evaluate(
+        f"""(() => {{
+          window.location.assign({settings_url!r});
+          return {{ ok: true }};
+        }})()""",
+        await_promise=False,
+    )
+    assert isinstance(nav, dict) and nav.get("ok") is True, nav
+
+    deadline = asyncio.get_event_loop().time() + 120.0
+    while asyncio.get_event_loop().time() < deadline:
+        heartbeat_e2e_lease()
+        probe = await chat.evaluate(
+            f"""(() => {{
+              const body = document.body?.innerText || '';
+              const revokeBtn = document.querySelector('[data-testid="desktop-trust-revoke-{trust_key}"]');
+              return {{
+                hasDisplayName: body.includes({display_name!r}),
+                revokeReady: Boolean(revokeBtn && !revokeBtn.disabled),
+              }};
+            }})()""",
+            await_promise=False,
+        )
+        if isinstance(probe, dict) and probe.get("hasDisplayName") and probe.get("revokeReady"):
+            break
+        await asyncio.sleep(1.0)
+    else:
+        raise AssertionError(f"Settings trusted-app row not ready for revoke: {probe}")
+
+    click = await chat.evaluate(
+        f"""(() => {{
+          const btn = document.querySelector('[data-testid="desktop-trust-revoke-{trust_key}"]');
+          if (!btn || btn.disabled) return {{ ok: false, err: 'revoke-not-ready' }};
+          btn.click();
+          return {{ ok: true }};
+        }})()""",
+        await_promise=False,
+    )
+    assert isinstance(click, dict) and click.get("ok") is True, f"Settings revoke click failed: {click}"
+
+    empty_deadline = asyncio.get_event_loop().time() + 60.0
+    while asyncio.get_event_loop().time() < empty_deadline:
+        heartbeat_e2e_lease()
+        apps = await asyncio.to_thread(_list_trusted_apps_via_api)
+        if not apps:
+            return
+        await asyncio.sleep(1.0)
+    raise AssertionError(f"Trusted apps not empty after settings revoke: {apps}")
+
+
+async def _complete_turn_after_approval(
+    chat: McpChatSession,
+    *,
+    chat_id_hint: str | None,
+) -> str:
+    _progress("wait assistant DONE")
+    after_turn = await _wait_stream_done_with_marker(
+        chat,
+        chat_id_hint=chat_id_hint,
+        marker="DONE",
+        timeout_sec=180.0,
+    )
+    if not after_turn.get("matched"):
+        chat_id_probe = str(after_turn.get("chatId") or chat_id_hint or "").strip()
+        if chat_id_probe and await asyncio.to_thread(
+            chat_messages_have_done,
+            chat_id_probe,
+            api_url=get_e2e_api_url(),
+        ):
+            _progress("approval verified via API DONE marker fallback")
+            after_turn = {
+                **after_turn,
+                "matched": True,
+                "chatId": chat_id_probe,
+                "mode": "post-approval-api-done",
+            }
+
+    if str(after_turn.get("path", "")).startswith("/settings"):
+        pytest.fail(f"Send redirected to settings: {after_turn}")
+    assert after_turn.get("matched") is True, (
+        f"Turn did not complete with DONE after approval: {after_turn}"
+    )
+
+    chat_id = await _resolve_chat_id(chat, after_turn)
+    assert chat_id, f"Expected chat id after approval turn: {after_turn}"
+    assert chat_user_message_count(chat_id) >= 1, after_turn
+    _progress(f"done chat_id={chat_id}")
+    return chat_id
+
+
+async def _run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> str:
     _progress("new chat + ensure surface")
     await chat.click_new_chat()
     await chat.ensure_chat_surface(BASE_URL)
@@ -456,11 +613,35 @@ async def _run_approval_attempt(chat: McpChatSession) -> str:
                 approval = probe
                 break
             await asyncio.sleep(0.25)
+    if not approval.get("allowVisible"):
+        allow_deadline = asyncio.get_event_loop().time() + 30.0
+        while asyncio.get_event_loop().time() < allow_deadline:
+            probe = await chat.probe_desktop_approval_once()
+            if isinstance(probe, dict) and probe.get("allowVisible"):
+                approval = probe
+                break
+            await asyncio.sleep(0.25)
     assert approval.get("allowVisible") is True, f"Allow-once button not visible: {approval}"
 
-    _progress("click allow once")
-    click = await chat.click_desktop_allow_once()
-    assert click.get("ok") is True, f"Allow-once click failed: {click}"
+    if scope == "always":
+        if not approval.get("allowAlwaysVisible"):
+            always_deadline = asyncio.get_event_loop().time() + 30.0
+            while asyncio.get_event_loop().time() < always_deadline:
+                probe = await chat.probe_desktop_approval_once()
+                if isinstance(probe, dict) and probe.get("allowAlwaysVisible"):
+                    approval = probe
+                    break
+                await asyncio.sleep(0.25)
+        assert approval.get("allowAlwaysVisible") is True, (
+            f"Allow-always button not visible: {approval}"
+        )
+        _progress("click allow always")
+        click = await chat.click_desktop_allow_always()
+        assert click.get("ok") is True, f"Allow-always click failed: {click}"
+    else:
+        _progress("click allow once")
+        click = await chat.click_desktop_allow_once()
+        assert click.get("ok") is True, f"Allow-once click failed: {click}"
 
     chat_id_hint = str(
         (await chat.evaluate(
@@ -470,48 +651,29 @@ async def _run_approval_attempt(chat: McpChatSession) -> str:
         or ""
     ).strip() or None
 
-    _progress("wait assistant DONE")
-    after_turn = await _wait_stream_done_with_marker(
-        chat,
-        chat_id_hint=chat_id_hint,
-        marker="DONE",
-        timeout_sec=180.0,
-    )
-    if not after_turn.get("matched"):
-        chat_id_probe = str(after_turn.get("chatId") or chat_id_hint or "").strip()
-        if chat_id_probe and await asyncio.to_thread(
-            chat_messages_have_done,
-            chat_id_probe,
-            api_url=get_e2e_api_url(),
-        ):
-            _progress("approval verified via API DONE marker fallback")
-            after_turn = {
-                **after_turn,
-                "matched": True,
-                "chatId": chat_id_probe,
-                "mode": "post-approval-api-done",
-            }
+    trusted: dict[str, object] | None = None
+    if scope == "always":
+        trusted = await _wait_for_trusted_app_display_name("TextEdit", timeout_sec=120.0)
 
-    if str(after_turn.get("path", "")).startswith("/settings"):
-        pytest.fail(f"Send redirected to settings: {after_turn}")
-    assert after_turn.get("matched") is True, (
-        f"Turn did not complete with DONE after approval: {after_turn}"
-    )
+    chat_id = await _complete_turn_after_approval(chat, chat_id_hint=chat_id_hint)
 
-    chat_id = await _resolve_chat_id(chat, after_turn)
-    assert chat_id, f"Expected chat id after approval turn: {after_turn}"
-    assert chat_user_message_count(chat_id) >= 1, after_turn
-    _progress(f"done chat_id={chat_id}")
+    if scope == "always":
+        assert trusted is not None
+        trust_key = str(trusted.get("trust_key") or "").strip()
+        assert trust_key, f"Missing trust_key in trusted app record: {trusted}"
+        await _verify_settings_revoke_trusted_app(
+            chat,
+            trust_key=trust_key,
+            display_name="TextEdit",
+        )
+
     return chat_id
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
-@pytest.mark.chrome_e2e_desktop
-@pytest.mark.integration
-@pytest.mark.timeout(1800)
-@pytest.mark.skipif(platform.system() != "Darwin", reason="macOS computer_use only")
-@pytest.mark.asyncio
-async def test_chrome_ui_desktop_control_approval_allow_once(
+async def _run_desktop_approval_chrome_e2e(
+    *,
+    scope: str,
+    label: str,
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     if not wait_e2e_provider_ready():
@@ -535,10 +697,10 @@ async def test_chrome_ui_desktop_control_approval_allow_once(
         last_error: dict[str, object] | None = None
         for attempt in range(1, MAX_SEND_ATTEMPTS + 1):
             heartbeat_e2e_lease()
-            _progress(f"attempt {attempt}/{MAX_SEND_ATTEMPTS}")
+            _progress(f"{label} attempt {attempt}/{MAX_SEND_ATTEMPTS}")
             _clear_persisted_desktop_approvals()
             try:
-                chat_id = await _run_approval_attempt(chat)
+                chat_id = await _run_approval_attempt(chat, scope=scope)
                 e2e_resource_ledger.register("chat", chat_id)
                 return chat_id
             except (AssertionError, RuntimeError, TimeoutError, OSError) as exc:
@@ -560,7 +722,7 @@ async def test_chrome_ui_desktop_control_approval_allow_once(
                 await asyncio.sleep(2.0)
 
         pytest.fail(
-            f"Desktop approval Chrome E2E failed after {MAX_SEND_ATTEMPTS} attempts "
+            f"Desktop approval Chrome E2E ({label}) failed after {MAX_SEND_ATTEMPTS} attempts "
             f"(api={get_e2e_api_url()}): {last_error}"
         )
 
@@ -578,3 +740,35 @@ async def test_chrome_ui_desktop_control_approval_allow_once(
     finally:
         client.close()
         await asyncio.to_thread(_hide_textedit_fixture)
+
+
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e_desktop
+@pytest.mark.integration
+@pytest.mark.timeout(1800)
+@pytest.mark.skipif(platform.system() != "Darwin", reason="macOS computer_use only")
+@pytest.mark.asyncio
+async def test_chrome_ui_desktop_control_approval_allow_once(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    await _run_desktop_approval_chrome_e2e(
+        scope="once",
+        label="allow-once",
+        e2e_resource_ledger=e2e_resource_ledger,
+    )
+
+
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e_desktop
+@pytest.mark.integration
+@pytest.mark.timeout(2400)
+@pytest.mark.skipif(platform.system() != "Darwin", reason="macOS computer_use only")
+@pytest.mark.asyncio
+async def test_chrome_ui_desktop_control_approval_allow_always_settings_revoke(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    await _run_desktop_approval_chrome_e2e(
+        scope="always",
+        label="allow-always-settings-revoke",
+        e2e_resource_ledger=e2e_resource_ledger,
+    )

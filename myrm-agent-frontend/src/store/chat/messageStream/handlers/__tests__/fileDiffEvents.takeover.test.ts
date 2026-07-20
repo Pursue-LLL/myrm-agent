@@ -23,21 +23,26 @@ vi.mock('@/lib/utils/localeUtils', () => ({
   getClientLocale: () => 'en',
 }));
 
-function buildCtx(data: StreamCtx['data']): StreamCtx {
+function buildCtx(data: StreamCtx['data']): { ctx: StreamCtx; setLoading: ReturnType<typeof vi.fn> } {
+  const setLoading = vi.fn();
   const state: StreamHandlerState = {
     messages: [],
     agentConfig: { browserSource: 'auto' },
   } as StreamHandlerState;
   const actions = {
     setMessages: vi.fn(),
+    setLoading,
   } as unknown as StreamHandlerActions;
 
   return {
-    data,
-    added: {},
-    state,
-    actions,
-    recievedMessage: null,
+    ctx: {
+      data,
+      added: {},
+      state,
+      actions,
+      recievedMessage: null,
+    },
+    setLoading,
   };
 }
 
@@ -49,7 +54,7 @@ describe('fileDiffEvents browser takeover', () => {
   });
 
   it('skips VNC POST when harness reports is_managed=false', async () => {
-    const ctx = buildCtx({
+    const { ctx, setLoading } = buildCtx({
       type: AgentEventType.BROWSER_TAKEOVER_REQUESTED,
       messageId: 'msg-42',
       data: {
@@ -64,10 +69,11 @@ describe('fileDiffEvents browser takeover', () => {
     expect(fetchWithTimeout).not.toHaveBeenCalled();
     expect(useBrowserTakeoverStore.getState().pending).toBe(true);
     expect(useBrowserTakeoverStore.getState().uiMode).toBe('extension');
+    expect(setLoading).toHaveBeenCalledWith(false);
   });
 
   it('calls VNC POST when harness reports is_managed=true', async () => {
-    const ctx = buildCtx({
+    const { ctx } = buildCtx({
       type: AgentEventType.BROWSER_TAKEOVER_REQUESTED,
       messageId: 'msg-43',
       data: {
@@ -84,7 +90,7 @@ describe('fileDiffEvents browser takeover', () => {
 
   it('shows toast when managed VNC POST returns non-ok', async () => {
     fetchWithTimeout.mockResolvedValue({ ok: false, status: 503 });
-    const ctx = buildCtx({
+    const { ctx } = buildCtx({
       type: AgentEventType.BROWSER_TAKEOVER_REQUESTED,
       messageId: 'msg-44',
       data: {

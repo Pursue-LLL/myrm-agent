@@ -104,6 +104,24 @@ _BRIDGE_READY_JS = """(() => ({
   ready: typeof window.__MYRM_E2E_CHAT__?.handleSubmit === 'function',
 }))()"""
 
+_WAIT_SEND_READY_JS = """(() => {
+  return (async () => {
+    const bridge = window.__MYRM_E2E_CHAT__;
+    if (!bridge?.ensureProviders) {
+      return { ready: false, err: 'no-bridge' };
+    }
+    await bridge.ensureProviders();
+    const deadline = Date.now() + 60000;
+    while (Date.now() < deadline) {
+      if (bridge.isSendReady?.()) {
+        return { ready: true };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    return { ready: false, debug: bridge.debugProviderState?.() };
+  })();
+})()"""
+
 _SUBMIT_VIA_BRIDGE_JS = """(() => {
   return (async () => {
     const bridge = window.__MYRM_E2E_CHAT__;
@@ -236,6 +254,7 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
         with open_mcp_page(ui_url) as (client, page):
             wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
             client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
+            wait_for_state(client, page, _WAIT_SEND_READY_JS, timeout_sec=90.0)
             submit = client.evaluate(page, _SUBMIT_VIA_BRIDGE_JS, timeout_sec=120.0)
             assert isinstance(submit, dict)
             assert submit.get("ok") is True, f"E2E chat submit failed: {submit}"
@@ -268,6 +287,7 @@ def test_client_surface_emits_tauri_when_tauri_runtime_simulated() -> None:
         assert simulated.get("isTauri") is True, f"Tauri runtime simulation failed: {simulated}"
 
         client.evaluate(page, _CLEAR_SURFACE_CAPTURE_JS, timeout_sec=5.0)
+        wait_for_state(client, page, _WAIT_SEND_READY_JS, timeout_sec=90.0)
         submit = client.evaluate(page, _SUBMIT_TAURI_SURFACE_JS, timeout_sec=120.0)
         assert isinstance(submit, dict)
         assert submit.get("ok") is True, f"Tauri surface chat submit failed: {submit}"
