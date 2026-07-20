@@ -63,6 +63,14 @@ const BLUEPRINT_SLOT_LABEL_KEYS: Record<string, string> = {
   platforms: 'blueprint.slotPlatforms',
   keywords: 'blueprint.slotKeywords',
   subject: 'blueprint.slotSubject',
+  asset: 'blueprint.slotAsset',
+  quote_currency: 'blueprint.slotQuoteCurrency',
+  lower_bound: 'blueprint.slotLowerBound',
+  upper_bound: 'blueprint.slotUpperBound',
+  source: 'blueprint.slotSource',
+  watchlist: 'blueprint.slotWatchlist',
+  signal_rules: 'blueprint.slotSignalRules',
+  portfolio_context: 'blueprint.slotPortfolioContext',
 };
 
 export function resolveBlueprintSlotLabel(slotName: string): string {
@@ -175,7 +183,29 @@ export async function fillBlueprintFromServer(
   values: Record<string, string>,
   tz: string,
   locale: string,
-): Promise<{ schedule: CronSchedule; prompt: string; name: string; required_capabilities: string[]; tools_allowed: string[] }> {
+): Promise<{
+  schedule: CronSchedule;
+  prompt: string;
+  name: string;
+  required_capabilities: string[];
+  tools_allowed: string[];
+  job_type: 'agent' | 'shell' | 'router' | 'reminder';
+  session_target: 'isolated' | 'main' | 'daily';
+  deduplicate: boolean;
+  skip_if_active: boolean;
+  timeout_seconds?: number | null;
+  monitor_config?: {
+    monitor_type: 'set' | 'hash' | 'timeseries';
+    ttl_days: number;
+    enabled: boolean;
+  } | null;
+  failure_alert?: {
+    enabled: boolean;
+    after: number;
+    cooldown_seconds: number;
+  } | null;
+  pre_condition_script?: string | null;
+}> {
   return fillBlueprint(blueprintId, values, locale, tz);
 }
 
@@ -192,14 +222,20 @@ export async function buildBlueprintCreatePayload(
   const filled = await fillBlueprintFromServer(blueprint.id, values, tz, locale);
   return {
     name: filled.name,
-    job_type: 'agent',
+    job_type: filled.job_type,
     schedule: filled.schedule,
     prompt: filled.prompt,
-    session_target: 'isolated',
+    session_target: filled.session_target,
     ...(filled.required_capabilities.length > 0
       ? { required_capabilities: filled.required_capabilities }
       : {}),
     ...(filled.tools_allowed.length > 0 ? { tools_allowed: filled.tools_allowed } : {}),
+    ...(filled.deduplicate ? { deduplicate: true } : {}),
+    ...(filled.skip_if_active ? { skip_if_active: true } : {}),
+    ...(typeof filled.timeout_seconds === 'number' ? { timeout_seconds: filled.timeout_seconds } : {}),
+    ...(filled.monitor_config ? { monitor_config: filled.monitor_config } : {}),
+    ...(filled.failure_alert ? { failure_alert: filled.failure_alert } : {}),
+    ...(filled.pre_condition_script != null ? { pre_condition_script: filled.pre_condition_script } : {}),
     ...(delivery && delivery.channel !== 'chat' ? { delivery } : {}),
   };
 }

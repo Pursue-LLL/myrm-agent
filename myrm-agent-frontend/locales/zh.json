@@ -9378,6 +9378,14 @@
       "slotKeywords": "关键词",
       "slotOptional": "选填",
       "slotSubject": "学习主题",
+      "slotAsset": "资产 ID",
+      "slotQuoteCurrency": "计价货币",
+      "slotLowerBound": "下限阈值",
+      "slotUpperBound": "上限阈值",
+      "slotSource": "数据源",
+      "slotWatchlist": "监控列表",
+      "slotSignalRules": "信号规则",
+      "slotPortfolioContext": "组合上下文",
       "slotTextPlaceholder": "输入内容...",
       "enum": {
         "everyday": "每天",
@@ -9440,6 +9448,16 @@
         "title": "社媒舆情监控",
         "desc": "监控社交媒体上的品牌提及、情感变化和热门话题",
         "prompt": "监控平台 {platforms} 上关于 {brand} 的提及，关键词 {keywords}，输出结构化舆情报告。"
+      },
+      "financialMonitorSimple": {
+        "title": "金融监控（简单版）",
+        "desc": "通过 Python 预检脚本实现零 LLM 阈值告警",
+        "prompt": "阈值监控任务，未命中条件时保持静默。"
+      },
+      "financialMonitorAdvanced": {
+        "title": "金融监控（高级版）",
+        "desc": "带去重和失败告警的多信号金融监控",
+        "prompt": "多因子监控任务，仅在信号共振时告警。"
       },
       "readItLater": {
         "title": "稍后读知识内化",

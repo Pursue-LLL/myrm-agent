@@ -11,13 +11,15 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.runs.router import (
-    _extract_stop_reason_from_metadata,
     _fetch_background_shell_runs,
     _fetch_cron_runs,
     _fetch_kanban_runs,
     _kanban_task_to_run_status,
-    _stop_reason_from_error,
     _truncate,
+)
+from app.api.runs.stop_reason import (
+    extract_stop_reason_from_metadata,
+    stop_reason_from_error,
 )
 from app.api.runs.schemas import UnifiedRunResponse
 
@@ -71,16 +73,16 @@ class TestHelpers:
                 "detail": {"limit": 50, "nodes_completed": 50},
             }
         }
-        stop_reason = _extract_stop_reason_from_metadata(metadata)
+        stop_reason = extract_stop_reason_from_metadata(metadata)
         assert stop_reason is not None
         assert stop_reason["code"] == "iteration_limit_reached"
         assert stop_reason["category"] == "limit"
 
     def test_stop_reason_from_error(self) -> None:
-        timed_out = _stop_reason_from_error("execution timed out after 30s", "timed_out")
+        timed_out = stop_reason_from_error("execution timed out after 30s", "timed_out")
         assert timed_out is not None
         assert timed_out["code"] == "timed_out"
-        engine_limit = _stop_reason_from_error("Tool call limit exceeded (max_tool_calls=1)", "error")
+        engine_limit = stop_reason_from_error("Tool call limit exceeded (max_tool_calls=1)", "error")
         assert engine_limit is not None
         assert engine_limit["code"] == "engine_limit_reached"
 

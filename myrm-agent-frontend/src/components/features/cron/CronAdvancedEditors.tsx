@@ -592,7 +592,6 @@ export function PreConditionEditor({ job, onUpdated }: EditorProps) {
   const [enabled, setEnabled] = useState(job.pre_condition_script != null);
   const [value, setValue] = useState(job.pre_condition_script ?? '');
   const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     setEnabled(job.pre_condition_script != null);
@@ -630,18 +629,11 @@ export function PreConditionEditor({ job, onUpdated }: EditorProps) {
     }
   };
 
-  const handleGenerate = async () => {
-    setGenerating(true);
-    try {
-      // In a real implementation, this would call an AI endpoint.
-      // For now, we provide a template.
-      setValue(
-        `import requests\nimport json\n\n# Example: Fetch data and skip if unchanged\n# response = requests.get("https://api.example.com/data")\n# if response.json().get("status") == "unchanged":\n#     print("[SKIP]")\n# else:\n#     print(response.text)`,
-      );
-      toast.success('Template generated');
-    } finally {
-      setGenerating(false);
-    }
+  const handleInsertTemplate = () => {
+    setValue(
+      `import requests\nimport json\n\n# Example: Fetch data and skip if unchanged\n# response = requests.get("https://api.example.com/data")\n# if response.json().get("status") == "unchanged":\n#     print("[SKIP]")\n# else:\n#     print(response.text)`,
+    );
+    toast.success('Template inserted');
   };
 
   return (
@@ -672,11 +664,11 @@ export function PreConditionEditor({ job, onUpdated }: EditorProps) {
                 size="sm"
                 variant="secondary"
                 className="absolute top-2 right-2 h-6 px-2 text-[10px] gap-1 bg-background/80 backdrop-blur-sm"
-                onClick={handleGenerate}
-                disabled={generating || saving}
+                onClick={handleInsertTemplate}
+                disabled={saving}
               >
                 <IconGlow className="h-3 w-3 text-amber-500" />
-                AI Generate
+                Insert Template
               </Button>
             </div>
             <div className="flex justify-end">

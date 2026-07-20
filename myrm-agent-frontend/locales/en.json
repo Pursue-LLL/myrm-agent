@@ -9378,6 +9378,14 @@
       "slotKeywords": "Keywords",
       "slotOptional": "Optional",
       "slotSubject": "Subject",
+      "slotAsset": "Asset ID",
+      "slotQuoteCurrency": "Quote Currency",
+      "slotLowerBound": "Lower Threshold",
+      "slotUpperBound": "Upper Threshold",
+      "slotSource": "Data Source",
+      "slotWatchlist": "Watchlist",
+      "slotSignalRules": "Signal Rules",
+      "slotPortfolioContext": "Portfolio Context",
       "slotTextPlaceholder": "Enter your content...",
       "enum": {
         "everyday": "Every day",
@@ -9440,6 +9448,16 @@
         "title": "Social Media Watch",
         "desc": "Monitor social media for brand mentions, sentiment shifts, and trending topics",
         "prompt": "Monitor social platforms for mentions of: {brand}. Keywords: {keywords}. Platforms: {platforms}. Produce a structured sentiment report."
+      },
+      "financialMonitorSimple": {
+        "title": "Financial Monitor (Simple)",
+        "desc": "Zero-LLM threshold alert using a Python pre-flight probe",
+        "prompt": "Threshold monitor that stays silent when conditions are not met."
+      },
+      "financialMonitorAdvanced": {
+        "title": "Financial Monitor (Advanced)",
+        "desc": "Multi-signal financial watch with dedupe and failure alerts",
+        "prompt": "Multi-factor monitor that alerts only on actionable signal alignment."
       },
       "readItLater": {
         "title": "Read-it-Later Ingestion",
