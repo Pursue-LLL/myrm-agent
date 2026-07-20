@@ -131,7 +131,6 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
 
 def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 180.0) -> str:
     deadline = time.monotonic() + timeout_sec
-    fallback_task_id = ""
     while time.monotonic() < deadline:
         payload = http_json("GET", f"{api_base}/api/v1/background-tasks")
         assert isinstance(payload, dict)
@@ -142,22 +141,14 @@ def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 18
                 continue
             if row.get("status") != "running":
                 continue
-            task_id = row.get("task_id")
-            resolved = ""
-            if isinstance(task_id, str) and task_id.startswith("shell:"):
-                resolved = task_id
-            else:
-                job_id = row.get("job_id")
-                if isinstance(job_id, str) and job_id:
-                    resolved = f"shell:{job_id}"
-            if not resolved:
+            if row.get("chat_id") != chat_id:
                 continue
-            if row.get("chat_id") == chat_id:
-                return resolved
-            if not fallback_task_id:
-                fallback_task_id = resolved
-        if fallback_task_id:
-            return fallback_task_id
+            task_id = row.get("task_id")
+            if isinstance(task_id, str) and task_id.startswith("shell:"):
+                return task_id
+            job_id = row.get("job_id")
+            if isinstance(job_id, str) and job_id:
+                return f"shell:{job_id}"
         time.sleep(1.0)
     raise AssertionError(f"No running shell task for chat_id={chat_id} within {timeout_sec}s")
 

@@ -28,7 +28,7 @@
 | `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
 | `wave-e2e-lease.sh` | Unix | `./myrm test -m chrome_e2e` LIVE_AGENT/READ 租约；最后一个 lease 释放时原子关闭 Wave |
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
-| `chrome-e2e-preflight.sh` | Unix | 首 Agent 完整 reconcile/client_hot；attach 聚合快照；private backend 路径 `_wait_shared_ui_reachable`（默认 180s，signoff contract 600s）；**mux timeout SSOT** `CDMCP_MUX_REQUEST_TIMEOUT_MS` 默认 **180000**（与 `test.sh` / `chrome_mcp_client.py` 一致，`dev_gate_contract.CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT`）；attach `_heal_mux_request_timeout_drift`：**仅 stamp 不匹配时重启 daemon**，stamp 已对齐时 **8×1s warmup 重试** `tools/list`（R22，避免 attach 误重启风暴）；输出 `CHROME_E2E_HEALTH_JSON` |
+| `chrome-e2e-preflight.sh` | Unix | 首 Agent 完整 reconcile/client_hot；attach 聚合快照；private backend 路径 `_wait_shared_ui_reachable`（默认 180s；maintainer matrix 经 `signoff_contract.SIGNOFF_MATRIX_SHARED_UI_WAIT_SEC=600`）；**mux timeout SSOT** `CDMCP_MUX_REQUEST_TIMEOUT_MS` 默认 **180000**（与 `test.sh` / `chrome_mcp_client.py` 一致，`dev_gate_contract.CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT`）；attach `_heal_mux_request_timeout_drift`：**仅 stamp 不匹配时重启 daemon**，stamp 已对齐时 **8×1s warmup 重试** `tools/list`；输出 `CHROME_E2E_HEALTH_JSON` |
 | `chrome-e2e-model-seed.mjs` | Bun | 新对话 UI E2E 前置：无 defaultModel 时从 `.env.test` 写入 providers |
 | `chrome-e2e-seed-providers.mjs` | Bun | seed 逻辑模块（local 模式免 WebUI 登录） |
 | `wave-resource-lease.sh` | Unix | `./myrm` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |

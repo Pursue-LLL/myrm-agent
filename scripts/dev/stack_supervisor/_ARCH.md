@@ -6,7 +6,7 @@
 
 - **唯一 kill/start 入口**：daemon 持有跨进程 `flock`，`ensure` / `reset` 再经进程内 `threading.Lock` 串行化
 - **attach 只读**：并行 Agent 等待栈热，无副作用
-- **看门狗**：每 30s live probe + GC 失效 warmth/epoch/stale pid；若栈曾热后失温且 HTTP 不通，且 **open wave 未 pin / 无活跃 lease**，**full ensure** 在 5min 冷却内单次 auto-ensure 自愈；**wave pin 期间若 frontend 仍存活但 shared API 不通，backend-only ensure 复活 `:8080`（不碰 frontend/Chrome），独立 30s 冷却**；**signoff chrome 持锁且 frontend 端口不在听时 full ensure 复活 `:3000`**
+- **看门狗**：每 30s live probe + GC 失效 warmth/epoch/stale pid；若栈曾热后失温且 HTTP 不通，且 **open wave 未 pin / 无活跃 lease**，**full ensure** 在 5min 冷却内单次 auto-ensure 自愈；**wave pin 期间若 frontend 仍存活但 shared API 不通，backend-only ensure 复活 `:8080`（不碰 frontend/Chrome），独立 30s 冷却**；**maintainer signoff-chrome.lock 持锁且 frontend 端口不在听时 full ensure 复活 `:3000`**
 - **真值**：`supervisor-state.json` 来自 pid+port+HTTP，不单独信缓存
 
 ## 文件清单
