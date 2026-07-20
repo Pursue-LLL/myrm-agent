@@ -7,6 +7,7 @@
 
 [OUTPUT]
 - open_mcp_chat_page, should_abort_desktop_e2e_retries, is_mux_new_page_retriable
+- is_retriable_page_transport
 
 [POS]
 Mux/page-open retry layer for desktop approval Chrome E2E; orchestrator-owned heal, not user cleanup.

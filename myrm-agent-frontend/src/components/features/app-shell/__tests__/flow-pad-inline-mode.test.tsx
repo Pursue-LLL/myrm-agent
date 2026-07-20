@@ -536,6 +536,50 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     expect(sendArgs[5]).toBeUndefined();
   });
 
+  it('clears stale route override when a later route switch fails', async () => {
+    useFlowPadStore.getState().openInline(
+      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
+      1888,
+    );
+    render(<FlowPadModal />);
+
+    const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      fireEvent.click(switcherTrigger);
+    });
+    const writerOption = await screen.findByTestId('flowpad-inline-route-agent-writer-agent');
+    await act(async () => {
+      fireEvent.click(writerOption);
+    });
+    await screen.findByText('inlineRouteProfile');
+
+    mockAgentStoreState.fetchAgent.mockRejectedValueOnce(new Error('switch failed again'));
+    const selectedTrigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      fireEvent.click(selectedTrigger);
+    });
+    const generalOption = await screen.findByTestId('flowpad-inline-route-agent-builtin-general');
+    await act(async () => {
+      fireEvent.click(generalOption);
+    });
+    expect(await screen.findByText('inlineRouteSwitchFailedHint')).toBeInTheDocument();
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'No stale override should be used' } });
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockChatState.sendMessage).toHaveBeenCalledTimes(1);
+    const sendArgs = mockChatState.sendMessage.mock.calls[0];
+    expect(sendArgs[0]).toContain('No stale override should be used');
+    expect(sendArgs[5]).toBeUndefined();
+  });
+
   it('can reset to follow current session routing', async () => {
     useFlowPadStore.getState().openInline(
       { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
@@ -575,6 +619,47 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     expect(mockChatState.sendMessage).toHaveBeenCalledTimes(1);
     const sendArgs = mockChatState.sendMessage.mock.calls[0];
     expect(sendArgs[0]).toContain('Use current route');
+    expect(sendArgs[5]).toBeUndefined();
+  });
+
+  it('resets inline route selection when modal is reopened', async () => {
+    useFlowPadStore.getState().openInline(
+      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
+      1915,
+    );
+    render(<FlowPadModal />);
+
+    const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      fireEvent.click(switcherTrigger);
+    });
+    const writerOption = await screen.findByTestId('flowpad-inline-route-agent-writer-agent');
+    await act(async () => {
+      fireEvent.click(writerOption);
+    });
+    await screen.findByText('inlineRouteProfile');
+
+    act(() => {
+      useFlowPadStore.getState().close();
+      useFlowPadStore.getState().openInline(
+        { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 2 },
+        1916,
+      );
+    });
+
+    const textarea = await screen.findByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Reopen should follow current session route' } });
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockChatState.sendMessage).toHaveBeenCalledTimes(1);
+    const sendArgs = mockChatState.sendMessage.mock.calls[0];
+    expect(sendArgs[0]).toContain('Reopen should follow current session route');
     expect(sendArgs[5]).toBeUndefined();
   });
 });

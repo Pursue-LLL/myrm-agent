@@ -12,7 +12,7 @@
 | `/settings`, `/settings/[tab]` | 设置页（`DEPRECATED_TAB_MAP` 别名永久重定向，如 `persona→personalization`） | 全模式 |
 | `/auth/login`, `/auth/setup` | WebUI 本地管理员 | local / desktop |
 | `/auth/oauth/callback` | CP OAuth | SaaS 构建 |
-| `/intent/*` | Web/SaaS Deep Link 落地页（`ask/chat/agent/oauth/install-skill`），交由 `IntentDispatcher` 解析并跳转；避免 `/intent/...` 404 | 全模式 |
+| `/intent/*` | Web/SaaS Deep Link 落地页（`ask/chat/agent/oauth/install-skill`），交由 `IntentDispatcher` 解析并跳转；避免 `/intent/...` 404；详见 [intent/_ARCH.md](intent/_ARCH.md) | 全模式 |
 | `/work` | 多窗格并行工作区（原 `/workspace`，301 重定向） | 全模式 |
 | `/projects` | Projects Dashboard 聚合入口（Kanban / Cron / Artifacts） | 全模式 |
 | `/library`, `/brain` | 资料库 | 全模式 |

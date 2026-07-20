@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - BASE_URL, timeouts, E2E prompts, infra abort markers, progress()
+- GATE_APPROVAL_TIMEOUT_SEC, APPROVAL_CLICK_DEADLINE_SEC (SSOT with server gate env)
 
 [POS]
 Single source for desktop approval E2E tuning knobs and stderr progress lines.
@@ -18,6 +19,22 @@ import sys
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 APPROVAL_WAIT_SEC = 240.0
 GATE_IDLE_FAIL_FAST_SEC = 60.0
+
+
+def _parse_gate_timeout_sec() -> float:
+    raw = os.getenv("MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC", "60").strip()
+    try:
+        parsed = float(raw)
+    except ValueError:
+        parsed = 60.0
+    return max(5.0, parsed)
+
+
+GATE_APPROVAL_TIMEOUT_SEC = _parse_gate_timeout_sec()
+APPROVAL_CLICK_DEADLINE_SEC = min(
+    APPROVAL_WAIT_SEC,
+    max(5.0, GATE_APPROVAL_TIMEOUT_SEC - 5.0),
+)
 MAX_SEND_ATTEMPTS_ONCE = 3
 MAX_SEND_ATTEMPTS_ALWAYS = 3
 MAX_SEND_ATTEMPTS_SESSION = 2

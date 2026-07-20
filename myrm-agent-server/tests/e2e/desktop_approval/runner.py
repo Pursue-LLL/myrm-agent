@@ -8,6 +8,7 @@
 
 [OUTPUT]
 - run_desktop_approval_chrome_e2e: full allow-once / allow-always→revoke runner
+- mux recover + page reopen on retriable page transport errors
 
 [POS]
 Top-level Chrome E2E entry for desktop trust flows; owns MCP client lifecycle and retries.

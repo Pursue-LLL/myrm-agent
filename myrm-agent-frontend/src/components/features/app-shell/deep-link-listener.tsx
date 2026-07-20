@@ -7,7 +7,7 @@ import { useFlowPadStore } from '@/store/useFlowPadStore';
 
 /**
  * [POS] Global Deep Link Listener.
- * Mounts at the root layout. Listens for deep links from Tauri or Web and dispatches them.
+ * Mounts at the root layout. Handles deep links from Tauri runtime; web /intent/* dispatch is handled by app routes.
  */
 export default function DeepLinkListener() {
   const router = useRouter();

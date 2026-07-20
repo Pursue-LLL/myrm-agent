@@ -10,7 +10,7 @@ import pytest
 from cdp_chat_support import chat_id_from_path, chat_messages_have_done, chat_user_message_count, get_e2e_api_url
 from mcp_chat_ui import McpChatSession
 
-from tests.e2e.desktop_approval.constants import APPROVAL_WAIT_SEC, BASE_URL, E2E_PROMPT, progress
+from tests.e2e.desktop_approval.constants import APPROVAL_CLICK_DEADLINE_SEC, BASE_URL, E2E_PROMPT, progress
 from tests.e2e.desktop_approval.gate_probe import ensure_interact_gate
 from tests.e2e.desktop_approval.textedit_fixture import ensure_textedit_fixture_ready
 from tests.e2e.desktop_approval.trust_api import (
@@ -249,20 +249,19 @@ async def complete_turn_after_approval(
 async def ensure_desktop_inspector_panel_open(chat: McpChatSession) -> None:
     """Mirror fileDiffEvents.ts openPanel on DESKTOP_CONTROL_APPROVAL_REQUEST."""
     result = await chat.evaluate(
-        """(() => {
-          const bridge = window.__MYRM_E2E_CHAT__;
-          if (!bridge?.ensureComputerUseReady) {
-            return { ok: false, err: 'no-ensureComputerUseReady' };
-          }
-          bridge.ensureComputerUseReady();
+        """(async () => {
+          const { default: useDesktopInspectorStore } = await import(
+            '@/store/useDesktopInspectorStore'
+          );
+          useDesktopInspectorStore.getState().openPanel();
           return { ok: true };
         })()""",
         await_promise=False,
+        recv_timeout=30.0,
     )
     assert isinstance(result, dict) and result.get("ok") is True, (
-        f"ensureComputerUseReady failed: {result}"
+        f"openDesktopInspectorPanel failed: {result}"
     )
-    await asyncio.sleep(0.75)
 
 
 async def wait_for_approval_banner_clickable(
@@ -288,7 +287,7 @@ async def wait_for_approval_banner_clickable(
 
     await ensure_desktop_inspector_panel_open(chat)
 
-    deadline = asyncio.get_event_loop().time() + min(APPROVAL_WAIT_SEC, 90.0)
+    deadline = asyncio.get_event_loop().time() + APPROVAL_CLICK_DEADLINE_SEC
     approval: dict[str, object] = {"pending": ui_pending_hint, "allowVisible": False}
     poll = 0
     activated = False

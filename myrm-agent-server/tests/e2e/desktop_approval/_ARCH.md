@@ -10,12 +10,12 @@ Chrome MCP E2E helpers for Desktop Control approval (allow once / allow always �
 |------|------|-------------|-------|
 | `__init__.py` | Package | Docstring-only package marker (`tests/conftest.py` owns dev lib path) | ✅ |
 | `conftest.py` | Guard | Session fcntl lock — one desktop approval E2E pytest at a time | ✅ |
-| `constants.py` | Core | Timeouts, prompts, infra abort markers, `progress()` | ✅ |
+| `constants.py` | Core | Timeouts (incl. `APPROVAL_CLICK_DEADLINE_SEC` SSOT with gate env), prompts, infra abort markers, `progress()` | ✅ |
 | `infra_retry.py` | Core | `open_mcp_chat_page` (about:blank→navigate → recover → direct :3000); `is_retriable_page_transport` (detached Frame + mux timeout) | ✅ |
 | `textedit_fixture.py` | Fixture | macOS TextEdit scroll target (background, minimized) | ✅ |
 | `trust_api.py` | Core | HTTP helpers + safe revoke `data-testid` selector JS | ✅ |
 | `gate_probe.py` | Core | Desktop tool activity, 60s idle fail-fast, provider diagnostics | ✅ |
-| `turn_flow.py` | Core | `ensureComputerUseReady`/`openPanel` before approval click; scope-aware banner probe; DONE wait; Settings revoke | ✅ |
+| `turn_flow.py` | Core | `openPanel` via async evaluate (align `fileDiffEvents.ts`); scope-aware banner probe; DONE wait; Settings revoke | ✅ |
 | `runner.py` | Core | `run_desktop_approval_chrome_e2e` + detached Frame → mux recover + reopen page | ✅ |
 
 Unit smoke (no Chrome): `tests/unit/desktop_approval/test_trust_api_smoke.py`, `test_gate_probe_smoke.py`.

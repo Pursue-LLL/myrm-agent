@@ -34,7 +34,7 @@
 | `FlowPadModalParts.tsx` | 辅助 | FlowPad 截图预览/lightbox 与 Appshot 消息格式化 | ✅ |
 | `config-load-error.tsx` | 组件 | Settings 配置加载失败 UI；复用 `lib/local-backend-dev` hint SSOT | ✅ |
 | `confirm-dialog.tsx` | 辅助 | 全局确认对话框 imperative API 包装 | ✅ |
-| `deep-link-listener.tsx` | 组件 | Tauri/URL deep link 路由分发 | ✅ |
+| `deep-link-listener.tsx` | 组件 | Tauri deep link 监听分发（Web `/intent/*` 由 `src/app/intent` 页面接管，避免重复分发） | ✅ |
 | `global-events-initializer.tsx` | 组件 | 挂载 `useGlobalEvents` toast 订阅 | ✅ |
 | `json-editor.tsx` | 辅助 | Monaco JSON 编辑器封装（settings 表单复用） | ✅ |
 | `key-value-editor.tsx` | 辅助 | 动态 key-value 对编辑列表 | ✅ |
