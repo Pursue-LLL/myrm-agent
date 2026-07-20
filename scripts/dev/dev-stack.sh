@@ -412,6 +412,8 @@ _ensure_backend() {
 }
 
 cmd_attach() {
+  local attach_start="${SECONDS}"
+  local elapsed remaining
   if _stack_healthy; then
     echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=http"
     exit 0
@@ -420,7 +422,9 @@ cmd_attach() {
     echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
     exit 0
   fi
-  if _wait_stack_health 15; then
+  elapsed=$((SECONDS - attach_start))
+  remaining=$((ATTACH_WAIT_SEC - elapsed))
+  if (( remaining > 0 )) && _wait_stack_health "${remaining}"; then
     echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=http"
     exit 0
   fi
