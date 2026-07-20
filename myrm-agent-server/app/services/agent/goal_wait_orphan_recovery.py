@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.goals.storage::GoalStorage (POS: latest goal lookup)
-- myrm_agent_harness.agent.meta_tools.bash._background_job_store (POS: orphaned job ledger)
+- myrm_agent_harness.api.hooks (POS: orphaned job ledger via get_background_job_store)
 - app.services.agent.goal_stream_trigger::publish_goal_needs_review_notification (POS: SSE)
 
 [OUTPUT]
@@ -22,7 +22,7 @@ from myrm_agent_harness.agent.goals.types import Goal, GoalStatus
 from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_JOB_ID_KEY
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.agent.meta_tools.bash._background_job_store_core import BackgroundJobRecord
+    from myrm_agent_harness.api.hooks import BackgroundJobRecord
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ def find_goals_to_release_from_orphaned_jobs(
 async def release_orphaned_wait_goals() -> None:
     """Mark WAIT goals NEEDS_HUMAN_REVIEW when their tracked background job was orphaned."""
     from myrm_agent_harness.agent.goals.storage import GoalStorage
-    from myrm_agent_harness.agent.meta_tools.bash._background_job_store import get_background_job_store
+    from myrm_agent_harness.api.hooks import get_background_job_store
     from myrm_agent_harness.toolkits.storage.factory import get_storage_provider
 
     store = get_background_job_store()

@@ -20,10 +20,10 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 |------|------|------|-------|
 | `adapters/setup.py` | 核心 | 组装入口，创建 CronScheduler + entitlement-guarded CronManager + CronStore 单例 | — |
 | `adapters/entitlement_guarded_manager.py` | 核心 | Sandbox `require_cron_slot` on create/duplicate（REST + agent SSOT） | — |
-| `adapters/sqlalchemy_store.py` | 核心 | CronStore 协议的 SQLAlchemy 实现：Job/Run/MonitorState CRUD + 用量聚合委托 | — |
+| `adapters/sqlalchemy_store.py` | 核心 | CronStore SQLAlchemy 实现：Job/Run/MonitorState CRUD；`list_jobs`/`count_jobs` 支持 `user_id`/`chat_id`/`name_filter` | — |
 | `adapters/sqlalchemy_mapping.py` | 核心 | ORM <-> Domain 双向映射：CronJobModel/CronRunModel/MonitorStateModel 与框架领域对象的转换 | — |
 | `adapters/sqlalchemy_aggregation.py` | 核心 | Token 用量聚合查询（按天/按任务/按模型），CronStore 协议之外的业务扩展 | — |
-| `adapters/agent_runner.py` | 核心 | JobRunner 实现：从 ConfigService 实时加载配置，通过 AgentFactory 执行，周期任务注入 [SILENT] 指令，heartbeat 任务自动注入 SituationReport | — |
+| `adapters/agent_runner.py` | 核心 | JobRunner：ConfigService + AgentFactory；cron 渠道 `enable_cron_eager=False` 且剔除 `cron` builtin；[SILENT] + SituationReport | — |
 | `adapters/situation_sections.py` | 核心 | SituationSection 具体实现（PendingReminders、SystemHealth），及 builder 工厂函数 | ✅ |
 | `adapters/channel_delivery.py` | 核心 | ResultDelivery 实现：IM 渠道通过 `send_with_retry` 同步投递，Webhook 委托给框架的 `WebhookDelivery` | — |
 | `adapters/delivery_resolver.py` | 核心 | Cron 工具 webhook URL → `DeliveryConfig`（非空 → `webhook`；格式化在投递层） | — |
@@ -48,7 +48,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 
 ```
 myrm_agent_harness.toolkits.cron (框架层，零业务依赖)
-    ├── 内置实现：ShellJobRunner, InMemoryCronStore, WebhookDelivery
+    ├── 内置实现：ShellJobRunner, NotificationRunner, InMemoryCronStore, WebhookDelivery
     ├── 5 个 Protocol：CronStore, JobRunner, ResultDelivery, DistributedLock, TriggerProvider
     ↑ Protocol 注入
 app.core.cron.adapters.setup (组装入口)
@@ -59,7 +59,7 @@ app.core.cron.adapters.setup (组装入口)
     │                         → app.ai_agents (AgentFactory, GeneralAgent)
     ├── ChannelResultDelivery → app.core.channel_bridge (channel_gateway)
     │                         → WebhookDelivery (框架内置，webhook 投递委托)
-    ├── delivery_resolver     → tool_setup.create_cron_tools(delivery_resolver=...) webhook URL 映射
+    ├── delivery_resolver     → tool_setup.create_cron_tools(delivery_resolver=..., default_delivery=..., blueprint_catalog_provider=...)
     ├── feishu_bot_webhook    → channel_delivery 检测 hook URL 时 Feishu 文本格式投递
     ├── SqlAlchemyTriggerProvider → TriggerProvider (事件/Webhook/系统事件触发匹配)
     │                              → app.database.models (CronJobModel)

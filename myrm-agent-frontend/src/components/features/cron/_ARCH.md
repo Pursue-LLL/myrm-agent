@@ -18,8 +18,8 @@
 | `CronAdvancedEditors.tsx` | 组件 | 高级选项折叠区（timeout/retry/concurrency） | ✅ |
 | `CronDeliveryEditors.tsx` | 组件 | 投递渠道（email/webhook/push）配置编辑器 | ✅ |
 | `CronJobCard.tsx` | 核心 | 单条 Cron 任务卡片（状态/下次运行/快捷操作） | ✅ |
-| `CronJobCreateDialog.tsx` | 组件 | 创建弹窗（Template/Custom 双模式 + 内联模板填写 + Cron Presets + delivery channel 全模式可用） | ✅ |
-| `CronJobList.tsx` | 核心 | 任务列表（空状态含模板引导） | ✅ |
+| `CronJobCreateDialog.tsx` | 组件 | 创建弹窗（Template/Custom；含 Agent/Shell/Script/Reminder 类型 + delivery） | ✅ |
+| `CronJobList.tsx` | 核心 | 任务列表；`?chat_id=` 过滤；排程建议链到 evolutionPending | ✅ |
 | `CronMonitorEditors.tsx` | 组件 | 监控/告警阈值编辑 | ✅ |
 | `CronPushPoller.tsx` | 组件 | 客户端 push 通知轮询注册（Web Push） | ✅ |
 | `CronRunHistory.tsx` | 组件 | 单任务运行历史列表 | ✅ |

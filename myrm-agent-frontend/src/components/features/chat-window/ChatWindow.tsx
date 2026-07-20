@@ -447,8 +447,12 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
           <div className="flex-1 min-w-0 w-full flex flex-col">
             {/* Agent Info Banner */}
             {agentConfig?.agentId && <AgentInfoBanner agentId={agentConfig.agentId} />}
-            {id && <ParentChatLink chatId={id} />}
-            {id && <ChatCronLink chatId={id} />}
+            {id ? (
+              <div className="flex flex-wrap items-center gap-2 px-1 pb-1">
+                <ParentChatLink chatId={id} />
+                <ChatCronLink chatId={id} />
+              </div>
+            ) : null}
             <WorkingStateBadge />
             <YoloModeBanner />
             <EStopBanner />
