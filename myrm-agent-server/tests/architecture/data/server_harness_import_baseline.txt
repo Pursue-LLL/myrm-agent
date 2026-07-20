@@ -161,6 +161,7 @@ myrm_agent_harness.backends.skills.instance_templates
 myrm_agent_harness.backends.skills.local
 myrm_agent_harness.backends.skills.protocols
 myrm_agent_harness.backends.skills.scanning
+myrm_agent_harness.backends.skills.scanning.archive_security
 myrm_agent_harness.backends.skills.scanning.patterns
 myrm_agent_harness.backends.skills.scanning.scanner
 myrm_agent_harness.backends.skills.similarity
