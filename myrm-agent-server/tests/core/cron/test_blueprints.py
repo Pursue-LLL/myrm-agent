@@ -141,6 +141,12 @@ class TestFinancialMonitorBlueprints:
         assert 'asset_id = "bitcoin"' in result.pre_condition_script
         assert 'lower_bound = float("50000")' in result.pre_condition_script
         assert 'upper_bound = float("70000")' in result.pre_condition_script
+        assert "_fetch_from_coingecko" in result.pre_condition_script
+        assert "_fetch_from_binance" in result.pre_condition_script
+        assert "all_sources_failed" in result.pre_condition_script
+        assert result.failure_alert is not None
+        assert result.failure_alert.after == 2
+        assert result.failure_alert.cooldown_seconds == 900
 
     def test_advanced_blueprint_monitor_and_alert_defaults(self) -> None:
         result = fill_blueprint(
@@ -164,6 +170,36 @@ class TestFinancialMonitorBlueprints:
         assert result.monitor_config.ttl_days == 14
         assert result.failure_alert is not None
         assert result.failure_alert.after == 2
+
+    def test_simple_blueprint_validates_bounds(self) -> None:
+        with pytest.raises(BlueprintFillError, match="lower_bound must be less than upper_bound"):
+            fill_blueprint(
+                "financial_monitor_simple",
+                {
+                    "time": "08:00",
+                    "weekdays": "weekdays",
+                    "asset": "bitcoin",
+                    "quote_currency": "usd",
+                    "lower_bound": "70000",
+                    "upper_bound": "70000",
+                    "source": "coingecko",
+                },
+            )
+
+    def test_simple_blueprint_rejects_invalid_asset(self) -> None:
+        with pytest.raises(BlueprintFillError, match="asset must match"):
+            fill_blueprint(
+                "financial_monitor_simple",
+                {
+                    "time": "08:00",
+                    "weekdays": "weekdays",
+                    "asset": "btc\";print(1)#",
+                    "quote_currency": "usd",
+                    "lower_bound": "50000",
+                    "upper_bound": "70000",
+                    "source": "coingecko",
+                },
+            )
 
 
 class TestFillBlueprint:

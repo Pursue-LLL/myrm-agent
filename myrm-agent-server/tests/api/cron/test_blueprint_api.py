@@ -175,6 +175,7 @@ class TestFillBlueprint:
         assert data["skip_if_active"] is True
         assert data["pre_condition_script"] is not None
         assert 'asset_id = "bitcoin"' in data["pre_condition_script"]
+        assert data["failure_alert"] == {"enabled": True, "after": 2, "cooldown_seconds": 900}
 
     def test_fill_financial_advanced_returns_monitor_defaults(self, client: TestClient) -> None:
         resp = client.post(
@@ -188,6 +189,21 @@ class TestFillBlueprint:
         assert data["deduplicate"] is True
         assert data["monitor_config"] == {"monitor_type": "hash", "ttl_days": 14, "enabled": True}
         assert data["failure_alert"] == {"enabled": True, "after": 2, "cooldown_seconds": 900}
+
+    def test_fill_financial_simple_invalid_bounds_returns_422(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={
+                "blueprint_id": "financial_monitor_simple",
+                "values": {
+                    "lower_bound": "70000",
+                    "upper_bound": "60000",
+                },
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 422
+        assert "lower_bound must be less than upper_bound" in resp.json()["detail"]
 
     def test_fill_read_it_later_zh_locale(self, client: TestClient) -> None:
         resp = client.post(
