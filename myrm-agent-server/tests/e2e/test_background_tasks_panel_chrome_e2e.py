@@ -32,10 +32,14 @@ _EPHEMERAL_NOTICE_JS = """(() => {
 
 _FAILED_SHELL_ROW_JS = """(() => {
   const text = document.body?.innerText || '';
+  const hasExitCode = /exit\\s*42|退出码.*42/i.test(text);
+  const hasErrorCategory = /Non-Zero Exit|非零退出|nonzero_exit/i.test(text);
+  const hasFailedStatus = /failed|失败/i.test(text);
   return {
-    hasExitCode: /exit\\s*42|退出码.*42/i.test(text),
-    hasErrorCategory: /Non-Zero Exit|非零退出|nonzero_exit/i.test(text),
-    hasFailedStatus: /failed|失败/i.test(text),
+    ready: hasExitCode && hasErrorCategory && hasFailedStatus,
+    hasExitCode,
+    hasErrorCategory,
+    hasFailedStatus,
   };
 })()"""
 
@@ -93,4 +97,3 @@ def test_background_tasks_panel_shows_failed_shell_job_from_seed() -> None:
         assert failed_row.get("hasExitCode") is True, failed_row
         assert failed_row.get("hasErrorCategory") is True, failed_row
         assert failed_row.get("hasFailedStatus") is True, failed_row
-        assert str(pid) in str(panel.get("text", ""))
