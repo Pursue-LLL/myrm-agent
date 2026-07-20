@@ -48,14 +48,20 @@ export function useInlineInputListener() {
   useEffect(() => {
     if (!isTauriRuntime()) return;
 
+    let disposed = false;
     let unlisten: (() => void) | undefined;
 
     const setup = async () => {
       try {
         const { listen } = await import('@tauri-apps/api/event');
-        unlisten = await listen<InlineInputPayload>('inline-input-activated', (event) => {
+        const listenerDispose = await listen<InlineInputPayload>('inline-input-activated', (event) => {
           handleActivated(event.payload);
         });
+        if (disposed) {
+          listenerDispose();
+          return;
+        }
+        unlisten = listenerDispose;
       } catch (err) {
         console.error('Failed to setup inline input listener:', err);
       }
@@ -64,7 +70,9 @@ export function useInlineInputListener() {
     setup();
 
     return () => {
+      disposed = true;
       unlisten?.();
+      unlisten = undefined;
     };
   }, [handleActivated]);
 }

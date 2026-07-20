@@ -10,8 +10,9 @@ const mockChatState = {
   agentConfig: { name: 'TestAgent' },
   sendMessage: vi.fn().mockResolvedValue(undefined),
   setFiles: vi.fn(),
+  getCurrentSessionMessageId: vi.fn(() => 'inline-msg-1'),
   files: [],
-  messages: [] as Array<{ role: string; content: string }>,
+  messages: [] as Array<{ role: string; content: string; messageId?: string }>,
   loading: false,
 };
 const makeMockAgentDetail = (agentId: string) => ({
@@ -98,6 +99,11 @@ vi.mock('@/lib/deploy-mode', () => ({
   normalizeConfiguredBaseUrl: (val: string) => val || 'http://localhost:8000',
 }));
 
+const mockInvoke = vi.fn().mockResolvedValue(undefined);
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: (...args: unknown[]) => mockInvoke(...args),
+}));
+
 import { FlowPadModal } from '../flow-pad-modal';
 
 function simulateChatStoreChange(partial: Partial<typeof mockChatState>) {
@@ -108,15 +114,33 @@ function simulateChatStoreChange(partial: Partial<typeof mockChatState>) {
   }
 }
 
+async function submitInlineMessage(text: string): Promise<string> {
+  const textarea = screen.getByRole('textbox');
+  fireEvent.change(textarea, { target: { value: text } });
+  await act(async () => {
+    fireEvent.keyDown(textarea, {
+      key: 'Enter',
+      code: 'Enter',
+      nativeEvent: { isComposing: false },
+    });
+  });
+  const requestMessageId = mockChatState.sendMessage.mock.calls.at(-1)?.[1];
+  expect(typeof requestMessageId).toBe('string');
+  return requestMessageId as string;
+}
+
 describe('FlowPadModal - Inline Mode Integration', () => {
   beforeEach(() => {
     useFlowPadStore.getState().close();
     mockChatState.messages = [];
     mockChatState.loading = false;
+    let nextRequestId = 0;
+    mockChatState.getCurrentSessionMessageId.mockImplementation(() => `inline-msg-${++nextRequestId}`);
     subscribers = [];
     mockAgentStoreState.loading = false;
     mockAgentStoreState.fetchAgents.mockClear();
     mockAgentStoreState.fetchAgent.mockClear();
+    mockInvoke.mockClear();
     vi.clearAllMocks();
   });
 
@@ -141,17 +165,18 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     expect(subscribers.length).toBe(0);
   });
 
-  it('bridges streaming messages to inlineResult', () => {
+  it('bridges streaming messages to inlineResult', async () => {
     useFlowPadStore.getState().openInline(
       { screenshot: '', windowTitle: 'VS Code', extractedText: '', timestamp: 1 },
       200,
     );
     render(<FlowPadModal />);
+    const requestMessageId = await submitInlineMessage('Inline bridge test');
 
     act(() => {
       simulateChatStoreChange({
         loading: true,
-        messages: [{ role: 'assistant', content: 'Hello' }],
+        messages: [{ role: 'assistant', messageId: requestMessageId, content: 'Hello' }],
       });
     });
 
@@ -159,40 +184,42 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     expect(useFlowPadStore.getState().inlineGenerating).toBe(true);
   });
 
-  it('updates inlineResult progressively during streaming', () => {
+  it('updates inlineResult progressively during streaming', async () => {
     useFlowPadStore.getState().openInline(
       { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
       300,
     );
     render(<FlowPadModal />);
+    const requestMessageId = await submitInlineMessage('Inline progressive test');
 
     act(() => {
       simulateChatStoreChange({
         loading: true,
-        messages: [{ role: 'assistant', content: 'He' }],
+        messages: [{ role: 'assistant', messageId: requestMessageId, content: 'He' }],
       });
     });
     expect(useFlowPadStore.getState().inlineResult).toBe('He');
 
     act(() => {
       simulateChatStoreChange({
-        messages: [{ role: 'assistant', content: 'Hello world' }],
+        messages: [{ role: 'assistant', messageId: requestMessageId, content: 'Hello world' }],
       });
     });
     expect(useFlowPadStore.getState().inlineResult).toBe('Hello world');
   });
 
-  it('sets inlineGenerating=false when loading transitions to false', () => {
+  it('sets inlineGenerating=false when loading transitions to false', async () => {
     useFlowPadStore.getState().openInline(
       { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
       400,
     );
     render(<FlowPadModal />);
+    const requestMessageId = await submitInlineMessage('Inline completion test');
 
     act(() => {
       simulateChatStoreChange({
         loading: true,
-        messages: [{ role: 'assistant', content: 'Done.' }],
+        messages: [{ role: 'assistant', messageId: requestMessageId, content: 'Done.' }],
       });
     });
     expect(useFlowPadStore.getState().inlineGenerating).toBe(true);
@@ -237,7 +264,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     expect(useFlowPadStore.getState().inlineGenerating).toBe(false);
   });
 
-  it('only picks last assistant message (ignores user messages)', () => {
+  it('ignores assistant stream updates before inline submit', () => {
     useFlowPadStore.getState().openInline(
       { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
       700,
@@ -249,12 +276,12 @@ describe('FlowPadModal - Inline Mode Integration', () => {
         loading: true,
         messages: [
           { role: 'user', content: 'What is this?' },
-          { role: 'assistant', content: 'It is a test.' },
+          { role: 'assistant', messageId: 'other-request', content: 'It is a test.' },
         ],
       });
     });
 
-    expect(useFlowPadStore.getState().inlineResult).toBe('It is a test.');
+    expect(useFlowPadStore.getState().inlineResult).toBe('');
   });
 
   it('displays streaming result text in the UI', () => {
@@ -344,20 +371,22 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     expect(screen.getByText('generating')).toBeInTheDocument();
   });
 
-  it('picks the LAST assistant message when multiple exist', () => {
+  it('picks the LAST assistant message for the active request id', async () => {
     useFlowPadStore.getState().openInline(
       { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
       1400,
     );
     render(<FlowPadModal />);
+    const requestMessageId = await submitInlineMessage('Last assistant test');
 
     act(() => {
       simulateChatStoreChange({
         loading: true,
         messages: [
-          { role: 'assistant', content: 'Old response' },
+          { role: 'assistant', messageId: requestMessageId, content: 'Old response' },
           { role: 'user', content: 'Follow up' },
-          { role: 'assistant', content: 'Latest response' },
+          { role: 'assistant', messageId: 'other-request', content: 'Wrong response' },
+          { role: 'assistant', messageId: requestMessageId, content: 'Latest response' },
         ],
       });
     });
@@ -406,6 +435,101 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     });
 
     expect(writeTextMock).toHaveBeenCalledWith('Copy this text');
+  });
+
+  it('covers inline route send-to-stream-to-paste chain', async () => {
+    useFlowPadStore.getState().openInline(
+      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
+      1750,
+    );
+    render(<FlowPadModal />);
+
+    const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      fireEvent.click(switcherTrigger);
+    });
+    const writerOption = await screen.findByTestId('flowpad-inline-route-agent-writer-agent');
+    await act(async () => {
+      fireEvent.click(writerOption);
+    });
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Please rewrite quickly' } });
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockChatState.sendMessage).toHaveBeenCalledTimes(1);
+    const sendArgs = mockChatState.sendMessage.mock.calls[0];
+    const requestMessageId = sendArgs[1];
+    expect(typeof requestMessageId).toBe('string');
+    expect(sendArgs[5]).toMatchObject({
+      agentId: 'writer-agent',
+      selectedSkillIds: ['writing'],
+    });
+
+    act(() => {
+      simulateChatStoreChange({
+        loading: true,
+        messages: [{ role: 'assistant', messageId: requestMessageId, content: 'Draft...' }],
+      });
+    });
+    act(() => {
+      simulateChatStoreChange({
+        loading: false,
+        messages: [{ role: 'assistant', messageId: requestMessageId, content: 'Final reply from writer' }],
+      });
+    });
+
+    expect(await screen.findByText('Final reply from writer')).toBeInTheDocument();
+    const pasteButton = screen.getByText('pasteBack');
+    await act(async () => {
+      pasteButton.click();
+    });
+    expect(mockInvoke).toHaveBeenCalledWith('inline_paste_back', {
+      content: 'Final reply from writer',
+    });
+  });
+
+  it('ignores assistant chunks from unrelated request ids after inline submit', async () => {
+    useFlowPadStore.getState().openInline(
+      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
+      1760,
+    );
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Route by request id' } });
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockChatState.sendMessage).toHaveBeenCalledTimes(1);
+    const requestMessageId = mockChatState.sendMessage.mock.calls[0][1] as string;
+
+    act(() => {
+      simulateChatStoreChange({
+        loading: true,
+        messages: [{ role: 'assistant', messageId: 'other-request', content: 'Wrong response' }],
+      });
+    });
+    expect(useFlowPadStore.getState().inlineResult).toBe('');
+
+    act(() => {
+      simulateChatStoreChange({
+        loading: true,
+        messages: [{ role: 'assistant', messageId: requestMessageId, content: 'Correct response' }],
+      });
+    });
+    expect(useFlowPadStore.getState().inlineResult).toBe('Correct response');
   });
 
   it('routes inline send with selected agent profile config', async () => {
@@ -661,5 +785,45 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     const sendArgs = mockChatState.sendMessage.mock.calls[0];
     expect(sendArgs[0]).toContain('Reopen should follow current session route');
     expect(sendArgs[5]).toBeUndefined();
+  });
+
+  it('ignores late route-switch resolution after close and reopen', async () => {
+    let resolveFetch: ((value: ReturnType<typeof makeMockAgentDetail>) => void) | undefined;
+    mockAgentStoreState.fetchAgent.mockImplementationOnce(
+      () =>
+        new Promise<ReturnType<typeof makeMockAgentDetail>>((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+
+    useFlowPadStore.getState().openInline(
+      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
+      1920,
+    );
+    render(<FlowPadModal />);
+
+    const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      fireEvent.click(switcherTrigger);
+    });
+    const writerOption = await screen.findByTestId('flowpad-inline-route-agent-writer-agent');
+    await act(async () => {
+      fireEvent.click(writerOption);
+    });
+
+    act(() => {
+      useFlowPadStore.getState().close();
+      useFlowPadStore.getState().openInline(
+        { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 2 },
+        1921,
+      );
+    });
+
+    await act(async () => {
+      resolveFetch?.(makeMockAgentDetail('writer-agent'));
+    });
+
+    expect(screen.queryByText('inlineRouteProfile')).not.toBeInTheDocument();
+    expect(screen.getByText('inlineRouteCurrent')).toBeInTheDocument();
   });
 });

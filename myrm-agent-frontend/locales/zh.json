@@ -9199,6 +9199,9 @@
     "verificationSummary": "交付复核",
     "verificationRunOkReviewFailed": "任务已完成，交付复核未通过 — 展开查看详情。",
     "securityDeniedHint": "部分工具被安全策略拒绝，请在上方「能力围栏」中配置所需工具权限。",
+    "monitorContractError": "输出契约错误",
+    "monitorContractErrorInvalidJson": "本次执行产出的结构化内容格式不合法，已跳过增量比对。",
+    "monitorContractErrorGeneric": "本次执行产出未满足监控契约格式要求。",
     "capability": {
       "web_search_tool": "搜索引擎",
       "net_fetch": "读取网页",

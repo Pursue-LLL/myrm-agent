@@ -24,9 +24,12 @@ from app.api.voice.realtime import (
     _extract_openai_api_key,
     _extract_openai_base_url,
     _find_openai_provider,
-    _normalize_realtime_tool_name,
     _safe_json_str,
 )
+from app.api.voice.voice_memory_context import VoiceMemoryContext
+
+_ALL_MEMORY = VoiceMemoryContext(enable_memory=True, enable_conversation_search=True, enable_wiki=True)
+_MEMORY_ONLY = VoiceMemoryContext(enable_memory=True, enable_conversation_search=False, enable_wiki=False)
 
 # ── shared fixtures ───────────────────────────────────────────────────
 
@@ -148,41 +151,59 @@ class TestSafeJsonStr:
 
 class TestBuildRealtimeTools:
     def test_always_includes_background_task(self) -> None:
-        tools = _build_realtime_tools(())
+        tools = _build_realtime_tools((), _MEMORY_ONLY)
         assert len(tools) == 1
         assert tools[0].name == "run_background_task"
 
     def test_adds_known_tools(self) -> None:
-        tools = _build_realtime_tools(("web_search", "memory"))
+        tools = _build_realtime_tools(("web_search", "memory"), _ALL_MEMORY)
         names = [t.name for t in tools]
         assert "run_background_task" in names
         assert "web_search" in names
         assert "memory_search_tool" in names
         assert len(tools) == 3
 
-    def test_normalize_legacy_memory_tool_names(self) -> None:
-        assert _normalize_realtime_tool_name("memory_recall") == "memory_search_tool"
-        assert _normalize_realtime_tool_name("memory_recall_tool") == "memory_search_tool"
-        assert _normalize_realtime_tool_name("web_search") == "web_search"
+    def test_memory_tool_omits_sessions_when_opt_in_off(self) -> None:
+        tools = _build_realtime_tools(("memory",), _MEMORY_ONLY)
+        memory_tool = next(t for t in tools if t.name == "memory_search_tool")
+        corpus_prop = memory_tool.parameters.get("properties", {}).get("corpus")
+        assert corpus_prop is None
+
+    def test_memory_tool_includes_sessions_when_opt_in_on(self) -> None:
+        tools = _build_realtime_tools(("memory",), _ALL_MEMORY)
+        memory_tool = next(t for t in tools if t.name == "memory_search_tool")
+        corpus_enum = memory_tool.parameters["properties"]["corpus"]["enum"]
+        assert "sessions" in corpus_enum
+        assert "all" in corpus_enum
+
+    def test_skips_memory_tool_when_memory_disabled(self) -> None:
+        disabled = VoiceMemoryContext(enable_memory=False, enable_conversation_search=False, enable_wiki=False)
+        tools = _build_realtime_tools(("memory", "web_search"), disabled)
+        names = [t.name for t in tools]
+        assert "memory_search_tool" not in names
+        assert "web_search" in names
 
     def test_ignores_unknown_tools(self) -> None:
-        tools = _build_realtime_tools(("web_search", "nonexistent_tool"))
+        tools = _build_realtime_tools(("web_search", "nonexistent_tool"), _MEMORY_ONLY)
         assert len(tools) == 2
 
     def test_all_catalog_tools(self) -> None:
-        tools = _build_realtime_tools(("web_search", "memory", "file_ops", "code_execute", "browser", "kanban"))
+        tools = _build_realtime_tools(
+            ("web_search", "memory", "file_ops", "code_execute", "browser", "kanban"),
+            _ALL_MEMORY,
+        )
         assert len(tools) == 7
 
     def test_render_ui_not_exposed_even_when_profile_enabled(self) -> None:
         """Voice Realtime has no inline A2UI surface — catalog omits render_ui (see gemini_live)."""
-        tools = _build_realtime_tools(("web_search", "render_ui", "kanban"))
+        tools = _build_realtime_tools(("web_search", "render_ui", "kanban"), _MEMORY_ONLY)
         names = [t.name for t in tools]
         assert "render_ui" not in names
         assert "web_search" in names
         assert "kanban" in names
 
     def test_tool_structure_valid(self) -> None:
-        tools = _build_realtime_tools(("web_search",))
+        tools = _build_realtime_tools(("web_search",), _MEMORY_ONLY)
         ws_tool = next(t for t in tools if t.name == "web_search")
         assert ws_tool.type == "function"
         assert ws_tool.description
@@ -358,6 +379,7 @@ async def test_create_realtime_token_tools_payload_format() -> None:
     mock_configs.providers_dict = _providers()
     mock_configs.voice_dict = {}
     mock_configs.model_cfg = MagicMock()
+    mock_configs.personal_settings_dict = {"enableMemory": True}
 
     mock_profile = MagicMock()
     mock_profile.model = None
@@ -497,22 +519,39 @@ async def test_execute_tool_success() -> None:
     mock_configs = MagicMock()
     mock_configs.providers_dict = _providers()
     mock_configs.model_cfg = MagicMock()
+    mock_configs.personal_settings_dict = {}
+    mock_configs.retrieval_dict = {}
+
+    captured: dict[str, object] = {}
+
+    def capture_params(**kwargs: object) -> MagicMock:
+        captured.update(kwargs)
+        return MagicMock()
 
     async def mock_stream(params):
         yield {"type": "message", "data": "result: sunny"}
-        yield {"type": "message", "data": " 25°C"}
 
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
         patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=None),
+        patch("app.core.channel_bridge.config_parsers.extract_retrieval_models", return_value=(None, None)),
+        patch("app.api.voice.realtime.resolve_voice_memory_context", AsyncMock(return_value=_ALL_MEMORY)),
         patch("app.api.voice.realtime._ensure_model_rebuild_for_tool_exec", return_value=None),
-        patch("app.ai_agents.agents.GeneralAgentParams", MagicMock()),
+        patch("app.ai_agents.agents.GeneralAgentParams", side_effect=capture_params),
         patch("app.services.agent.streaming.ai_agent_service_stream", mock_stream),
     ):
-        result = await execute_realtime_tool(RealtimeToolExecRequest(tool_name="weather", arguments={"city": "Tokyo"}))
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="memory_search_tool",
+                arguments={"query": "deployment", "corpus": "sessions"},
+                agent_id="builtin-general",
+            )
+        )
 
     assert result.error is None
     assert "sunny" in str(result.result)
+    assert captured.get("enable_conversation_search") is True
+    assert captured.get("enable_memory") is True
 
 
 @pytest.mark.asyncio

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 /**
  * [POS] Universal Intent Protocol (UIP) Dispatcher.
  * Executes the validated intent by interacting with the Next.js router or global state.
+ * Supports both raw URL parsing and page-provided parsed intents.
  */
 
 export class IntentDispatcher {
@@ -16,14 +17,16 @@ export class IntentDispatcher {
     this.openFlowPad = openFlowPad;
   }
 
-  public async dispatch(rawUrl: string) {
+  public async dispatch(rawUrl: string, parsedIntent?: UIPIntent): Promise<boolean> {
     try {
       console.log(`[UIP] Received deep link: ${rawUrl}`);
-      const intent = parseIntentUrl(rawUrl);
+      const intent = parsedIntent ?? parseIntentUrl(rawUrl);
       await this.execute(intent);
+      return true;
     } catch (error) {
       console.error('[UIP] Dispatch failed:', error);
       toast.error('无效的外部链接或参数错误');
+      return false;
     }
   }
 
@@ -33,10 +36,11 @@ export class IntentDispatcher {
     // Ensure the window is visible and focused when receiving a deep link
     if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__) {
       try {
-        // [Bugfix] 动态导入 Tauri API，防止 Next.js SSR 阶段在 Node.js 环境中崩溃
+        // Dynamic import keeps browser/desktop APIs out of SSR evaluation.
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const appWindow = getCurrentWindow();
-        await appWindow.show(); // [Bugfix] 必须调用 show，否则如果在托盘中隐藏，unminimize 无效
+        // Ensure tray-hidden windows can be restored before focusing.
+        await appWindow.show();
         await appWindow.unminimize();
         await appWindow.setFocus();
       } catch (e) {

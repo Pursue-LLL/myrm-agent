@@ -89,12 +89,13 @@ export function FlowPadModal() {
     mode,
     captures,
     initialText,
+    sourcePid,
     inlineResult,
     inlineGenerating,
     close,
     removeCapture,
   } = useFlowPadStore();
-  const { agentConfig, sendMessage, setFiles } = useChatStore();
+  const { agentConfig, sendMessage, setFiles, getCurrentSessionMessageId } = useChatStore();
   const availableAgents = useAgentStore((state) => state.agents);
   const fetchAgents = useAgentStore((state) => state.fetchAgents);
   const fetchAgent = useAgentStore((state) => state.fetchAgent);
@@ -109,6 +110,8 @@ export function FlowPadModal() {
   const [agentRouteMenuOpen, setAgentRouteMenuOpen] = useState(false);
   const [inlineRouteSwitching, setInlineRouteSwitching] = useState(false);
   const [inlineRouteSwitchError, setInlineRouteSwitchError] = useState<string | null>(null);
+  const inlineActiveRequestIdRef = useRef<string | null>(null);
+  const inlineRouteSwitchNonceRef = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const agentRouteMenuRef = useRef<HTMLDivElement>(null);
 
@@ -127,17 +130,21 @@ export function FlowPadModal() {
 
   useEffect(() => {
     if (isOpen) {
+      inlineRouteSwitchNonceRef.current += 1;
       setText(initialText);
       setLightboxSrc(null);
       setInlineRouteSelection(null);
       setInlineRouteSwitchError(null);
       setInlineRouteSwitching(false);
       setAgentRouteMenuOpen(false);
+      inlineActiveRequestIdRef.current = null;
       setTimeout(() => inputRef.current?.focus(), 100);
     } else {
+      inlineRouteSwitchNonceRef.current += 1;
       setAgentRouteMenuOpen(false);
+      inlineActiveRequestIdRef.current = null;
     }
-  }, [isOpen, initialText]);
+  }, [isOpen, initialText, mode, sourcePid]);
 
   useEffect(() => {
     autoResizeTextarea();
@@ -176,11 +183,24 @@ export function FlowPadModal() {
     const unsub = useChatStore.subscribe((state, prev) => {
       if (!state.loading && !prev.loading) return;
 
-      const lastMsg = state.messages.findLast((m) => m.role === 'assistant');
+      const inlineRequestId = inlineActiveRequestIdRef.current;
+      if (!inlineRequestId) {
+        if (prev.loading && !state.loading) {
+          useFlowPadStore.setState({ inlineGenerating: false });
+        }
+        return;
+      }
+
+      const lastMsg = state.messages.findLast(
+        (m) => m.role === 'assistant' && m.messageId === inlineRequestId,
+      );
       if (lastMsg?.content) {
         useFlowPadStore.setState({ inlineResult: lastMsg.content, inlineGenerating: state.loading });
       }
       if (prev.loading && !state.loading) {
+        if (inlineRequestId) {
+          inlineActiveRequestIdRef.current = null;
+        }
         useFlowPadStore.setState({ inlineGenerating: false });
       }
     });
@@ -208,19 +228,26 @@ export function FlowPadModal() {
     async (agentId: string | null) => {
       setAgentRouteMenuOpen(false);
       if (agentId === null) {
+        inlineRouteSwitchNonceRef.current += 1;
         setInlineRouteSelection(null);
         setInlineRouteSwitchError(null);
+        setInlineRouteSwitching(false);
         return;
       }
       if (inlineRouteSelection?.id === agentId) {
         return;
       }
 
+      const switchNonce = inlineRouteSwitchNonceRef.current + 1;
+      inlineRouteSwitchNonceRef.current = switchNonce;
       setInlineRouteSwitchError(null);
       setInlineRouteSwitching(true);
       try {
         const listItem = availableAgents.find((agent) => agent.id === agentId);
         const fullAgent = await fetchAgent(agentId);
+        if (inlineRouteSwitchNonceRef.current !== switchNonce) {
+          return;
+        }
         const nextName = listItem?.name ?? fullAgent?.name ?? agentId;
         const nextAvatar = listItem?.avatar_url ?? fullAgent?.avatar_url;
         const nextConfig = fullAgent ? buildAgentConfig(fullAgent) : createFallbackRouteConfig(agentId);
@@ -233,6 +260,9 @@ export function FlowPadModal() {
         setInlineRouteSwitchError(null);
         toast.success(t('inlineRouteApplied', { agent: nextName }), { duration: 2000 });
       } catch (err) {
+        if (inlineRouteSwitchNonceRef.current !== switchNonce) {
+          return;
+        }
         console.error('FlowPad inline route switch failed:', err);
         const failedName = availableAgents.find((agent) => agent.id === agentId)?.name ?? agentId;
         // Fail-safe to current session route to avoid accidentally sending with stale override.
@@ -240,7 +270,9 @@ export function FlowPadModal() {
         setInlineRouteSwitchError(failedName);
         toast.error(t('inlineRouteApplyFailed'), { duration: 3000 });
       } finally {
-        setInlineRouteSwitching(false);
+        if (inlineRouteSwitchNonceRef.current === switchNonce) {
+          setInlineRouteSwitching(false);
+        }
       }
     },
     [availableAgents, fetchAgent, inlineRouteSelection?.id, t],
@@ -254,13 +286,37 @@ export function FlowPadModal() {
 
   const sendWithInlineRoute = useCallback(
     async (message: string) => {
-      if (mode === 'inline' && inlineRouteSelection) {
-        await sendMessage(message, undefined, undefined, undefined, undefined, inlineRouteSelection.config);
-        return;
+      try {
+        if (mode !== 'inline') {
+          await sendMessage(message);
+          return;
+        }
+
+        const inlineRequestId = getCurrentSessionMessageId();
+        inlineActiveRequestIdRef.current = inlineRequestId;
+        useFlowPadStore.setState({ inlineResult: '', inlineGenerating: true });
+
+        if (inlineRouteSelection) {
+          await sendMessage(
+            message,
+            inlineRequestId,
+            undefined,
+            undefined,
+            undefined,
+            inlineRouteSelection.config,
+          );
+          return;
+        }
+        await sendMessage(message, inlineRequestId);
+      } catch (error) {
+        if (mode === 'inline') {
+          inlineActiveRequestIdRef.current = null;
+          useFlowPadStore.setState({ inlineGenerating: false });
+        }
+        throw error;
       }
-      await sendMessage(message);
     },
-    [mode, inlineRouteSelection, sendMessage],
+    [mode, inlineRouteSelection, sendMessage, getCurrentSessionMessageId],
   );
 
   const handleSubmit = useCallback(async () => {

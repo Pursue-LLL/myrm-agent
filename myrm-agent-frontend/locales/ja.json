@@ -5738,7 +5738,7 @@
       "code_execution_tool": "Running code",
       "web_search_tool": "Web research",
       "web_fetch_tool": "Fetching webpage",
-      "memory_search_tool": "Searching memory",
+      "memory_search_tool": "記憶を検索中",
       "memory_store_tool": "Storing memory",
       "memory_save": "Saving memory",
       "memory_manage": "Managing memory",

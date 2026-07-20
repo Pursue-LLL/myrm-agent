@@ -36,6 +36,13 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const hasContent = !!(run.output || run.error);
   const securityDenied = !isOk && !isSkipped && hasSecurityDenial(run);
   const verification = run.metadata?.verification;
+  const monitorContractError = run.metadata?.monitor_contract_error;
+  const monitorContractErrorLabel =
+    monitorContractError === 'invalid_json_like_output'
+      ? t('monitorContractErrorInvalidJson')
+      : monitorContractError
+        ? t('monitorContractErrorGeneric')
+        : null;
   const verificationLabel =
     verification?.status === 'pass'
       ? t('verificationPass')
@@ -140,6 +147,16 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
             </span>
           )}
 
+          {monitorContractErrorLabel && (
+            <span
+              className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 dark:text-amber-400"
+              title={monitorContractErrorLabel}
+            >
+              <ShieldAlert className="h-3 w-3" />
+              {t('monitorContractError')}
+            </span>
+          )}
+
           {verificationLabel && (
             <span
               className={cn(
@@ -184,6 +201,9 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
         {!expanded && verification?.status === 'fail' && isOk && (
           <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">{t('verificationRunOkReviewFailed')}</p>
         )}
+        {!expanded && monitorContractErrorLabel && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">{monitorContractErrorLabel}</p>
+        )}
         {!expanded && !run.output && run.error && (
           <p className="text-xs text-destructive mt-1 line-clamp-1">{run.error}</p>
         )}
@@ -203,24 +223,24 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                   {t('executionSteps')} ({run.metadata.progressSteps.length})
                 </p>
                 <div className="space-y-0.5">
-                  {(run.metadata.progressSteps as Array<{ tool_name?: string; step_key?: string; error?: string }>).map(
-                    (step, idx) => (
-                      <div key={idx} className="flex items-center gap-1.5 text-[10px]">
-                        <span className={cn(
+                  {run.metadata.progressSteps.map((step, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5 text-[10px]">
+                      <span
+                        className={cn(
                           'h-1.5 w-1.5 rounded-full shrink-0',
                           step.error ? 'bg-red-400' : 'bg-emerald-400',
-                        )} />
-                        <span className="font-mono text-foreground/80 truncate">
-                          {step.tool_name || step.step_key || `step ${idx + 1}`}
-                        </span>
-                        {step.error && (
-                          <span className="text-red-400 truncate ml-1" title={step.error}>
-                            {step.error}
-                          </span>
                         )}
-                      </div>
-                    ),
-                  )}
+                      />
+                      <span className="font-mono text-foreground/80 truncate">
+                        {step.tool_name || step.step_key || `step ${idx + 1}`}
+                      </span>
+                      {step.error && (
+                        <span className="text-red-400 truncate ml-1" title={step.error}>
+                          {step.error}
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -243,6 +263,17 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
               <div className="flex items-start gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5">
                 <ShieldAlert className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-[11px] text-amber-700 dark:text-amber-300">{t('securityDeniedHint')}</p>
+              </div>
+            )}
+            {monitorContractErrorLabel && (
+              <div className="flex items-start gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5">
+                <ShieldAlert className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                    {t('monitorContractError')}
+                  </p>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300">{monitorContractErrorLabel}</p>
+                </div>
               </div>
             )}
             {verification && (

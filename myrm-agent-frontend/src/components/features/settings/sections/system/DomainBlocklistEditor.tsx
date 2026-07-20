@@ -6,7 +6,6 @@ import { IconBan, IconPlus, IconX } from '@/components/features/icons/PremiumIco
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import SettingsSection from '../SettingsSection';
-import { DOMAIN_PATTERN } from './securityPolicyUtils';
 
 interface DomainBlocklistEditorProps {
   domains: string[];

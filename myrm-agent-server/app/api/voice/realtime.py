@@ -31,6 +31,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.dependencies import verify_voice_enabled
+from app.api.voice.voice_memory_context import VoiceMemoryContext, resolve_voice_memory_context
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +131,10 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
     if profile and profile.system_prompt:
         instructions = profile.system_prompt
 
-    tools = _build_realtime_tools(profile.enabled_builtin_tools if profile else ())
+    tools = _build_realtime_tools(
+        profile.enabled_builtin_tools if profile else (),
+        await resolve_voice_memory_context(agent_id),
+    )
 
     openai_base = _extract_openai_base_url(providers)
     sessions_url = f"{openai_base}/realtime/sessions" if openai_base else _OPENAI_REALTIME_SESSIONS_URL
@@ -195,17 +199,23 @@ async def execute_realtime_tool(req: RealtimeToolExecRequest) -> RealtimeToolExe
         configs = await load_user_configs()
         providers = configs.providers_dict or {}
 
-        tool_name = _normalize_realtime_tool_name(req.tool_name)
+        agent_id = req.agent_id or "builtin-general"
+        memory_context = await resolve_voice_memory_context(agent_id)
+        memory_settings = configs.personal_settings_dict or {}
 
         lite_query = (
-            f"Execute tool '{tool_name}' with arguments: "
+            f"Execute tool '{req.tool_name}' with arguments: "
             f"{_safe_json_str(req.arguments)}. "
             "Return only the tool result, no additional commentary."
         )
 
-        from app.core.channel_bridge.config_parsers import extract_lite_model_config
+        from app.core.channel_bridge.config_parsers import (
+            extract_lite_model_config,
+            extract_retrieval_models,
+        )
 
         lite_model = extract_lite_model_config(providers)
+        embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
 
         from app.ai_agents.agents import GeneralAgentParams
 
@@ -216,9 +226,16 @@ async def execute_realtime_tool(req: RealtimeToolExecRequest) -> RealtimeToolExe
             model_cfg=lite_model or configs.model_cfg,
             chat_id=req.chat_id or "realtime-tool",
             message_id=f"rt-tool-{req.tool_name}",
-            agent_id=req.agent_id or "builtin-general",
+            agent_id=agent_id,
             channel_name="realtime_voice",
             providers_dict=providers,
+            embedding_config=embedding_cfg,
+            reranker_config=reranker_cfg,
+            enable_memory=memory_context.enable_memory,
+            enable_conversation_search=memory_context.enable_conversation_search,
+            enable_wiki=memory_context.enable_wiki,
+            fetch_raw_webpage=bool(memory_settings.get("fetchRawWebpage")),
+            enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction", True)),
         )
 
         result_parts: list[str] = []
@@ -327,32 +344,11 @@ def _safe_json_str(obj: object) -> str:
         return str(obj)
 
 
-_MEMORY_SEARCH_TOOL_PARAMETERS: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "query": {"type": "string", "description": "Search query"},
-        "corpus": {
-            "type": "string",
-            "enum": ["memory", "wiki", "sessions", "all"],
-            "description": "Corpus to search (default memory)",
-        },
-    },
-    "required": ["query"],
-}
-
 _REALTIME_TOOL_CATALOG: dict[str, RealtimeToolDef] = {
     "web_search": RealtimeToolDef(
         name="web_search",
         description="Search the web for current information. Use when the user asks about recent events, facts, or anything you're unsure about.",
         parameters={"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]},
-    ),
-    "memory": RealtimeToolDef(
-        name="memory_search_tool",
-        description=(
-            "Unified search across long-term memory, wiki vault, and prior conversations. "
-            "Use corpus=memory for preferences/facts, sessions for chat history, wiki for docs."
-        ),
-        parameters=_MEMORY_SEARCH_TOOL_PARAMETERS,
     ),
     "file_ops": RealtimeToolDef(
         name="file_ops",
@@ -383,20 +379,25 @@ _ALWAYS_AVAILABLE_TOOL = RealtimeToolDef(
 )
 
 
-def _build_realtime_tools(enabled_builtin_tools: tuple[str, ...] | Sequence[str]) -> list[RealtimeToolDef]:
-    """Build tool definitions for OpenAI Realtime session from agent's enabled tools."""
+def _build_realtime_tools(
+    enabled_builtin_tools: tuple[str, ...] | Sequence[str],
+    memory_context: VoiceMemoryContext,
+) -> list[RealtimeToolDef]:
+    """Build tool definitions for OpenAI Realtime session from agent tools and memory ACL."""
+    from app.api.voice.tool_catalog import (
+        build_realtime_memory_tool,
+        include_memory_search_in_voice_catalog,
+    )
+
     tools: list[RealtimeToolDef] = [_ALWAYS_AVAILABLE_TOOL]
     for tool_key in enabled_builtin_tools:
+        if tool_key == "memory":
+            if include_memory_search_in_voice_catalog(memory_context, enabled_builtin_tools):
+                tools.append(build_realtime_memory_tool(memory_context))
+            continue
         if tool_key in _REALTIME_TOOL_CATALOG:
             tools.append(_REALTIME_TOOL_CATALOG[tool_key])
     return tools
-
-
-def _normalize_realtime_tool_name(tool_name: str) -> str:
-    """Map legacy voice tool names to the unified read-plane tool."""
-    if tool_name in {"memory_recall", "memory_recall_tool"}:
-        return "memory_search_tool"
-    return tool_name
 
 
 _tool_exec_model_rebuilt = False

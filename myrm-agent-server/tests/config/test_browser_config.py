@@ -16,7 +16,12 @@ class TestGetBrowserPoolConfig:
             assert config.launch_mode == LaunchMode.AUTO
 
     def test_local_mode_default_cdp_endpoint(self) -> None:
-        with patch("app.config.browser.is_local_mode", return_value=True):
+        with (
+            patch("app.config.browser.is_local_mode", return_value=True),
+            patch.dict("os.environ", {}, clear=False),
+            patch("app.config.browser.os.getenv", side_effect=lambda k, *a: None),
+            patch("app.config.browser._resolve_local_cdp_endpoint", return_value=_DEFAULT_CDP_ENDPOINT),
+        ):
             config = get_browser_pool_config()
             assert config.cdp_endpoint == _DEFAULT_CDP_ENDPOINT
 

@@ -234,10 +234,7 @@ class VoiceAgentBridge:
 
         memory_settings = configs.personal_settings_dict or {}
 
-        from app.core.memory.proactive.settings import (
-            resolve_conversation_search_enabled,
-            resolve_memory_enabled,
-        )
+        from app.api.voice.voice_memory_context import voice_memory_context_from
         from app.services.agent.profile_resolver import (
             DEFAULT_ENABLED_BUILTIN_TOOLS,
             apply_agent_baseline_tool_flags,
@@ -247,6 +244,7 @@ class VoiceAgentBridge:
         skill_ids = list(profile.skill_ids) if profile else []
         subagent_ids = list(profile.subagent_ids) if profile and profile.subagent_ids else None
         enabled_builtin_tools = list(profile.enabled_builtin_tools) if profile else list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+        memory_context = voice_memory_context_from(memory_settings, enabled_builtin_tools)
 
         return GeneralAgentParams(
             query=query + transcript_ctx,
@@ -262,12 +260,12 @@ class VoiceAgentBridge:
             agent_id=agent_id,
             embedding_config=embedding_cfg,
             reranker_config=reranker_cfg,
-            enable_memory=resolve_memory_enabled(memory_settings),
+            enable_memory=memory_context.enable_memory,
             enable_web_search=search_available,
             **apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(enabled_builtin_tools)),
             fetch_raw_webpage=bool(memory_settings.get("fetchRawWebpage")),
             enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction", True)),
-            enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
+            enable_conversation_search=memory_context.enable_conversation_search,
             agent_skill_ids=skill_ids,
             subagent_ids=subagent_ids,
             channel_name="voice_bridge",

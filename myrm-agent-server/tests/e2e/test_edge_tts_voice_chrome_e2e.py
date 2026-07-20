@@ -344,29 +344,34 @@ async def _probe_read_aloud_fetch(
         await cdp.dismiss_migration()
         await cdp.navigate(f"{get_e2e_ui_url()}/")
         await cdp.wait_app_layout()
-        result = await cdp.eval(
-            f"""(async () => {{
-              try {{
-                await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/features/voice_interaction/toggle")}, {{
-                  method: 'POST',
-                  headers: {{ 'Content-Type': 'application/json' }},
-                  body: JSON.stringify({{ enabled: true }}),
-                }});
-                const resp = await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/tts/synthesize")}, {{
-                  method: 'POST',
-                  headers: {{ 'Content-Type': 'application/json' }},
-                  body: JSON.stringify({{ text: 'edge parallel read aloud', provider: 'edge' }}),
-                }});
-                const blob = await resp.blob();
-                return {{ status: resp.status, bytes: blob.size, tab: 'read-aloud' }};
-              }} catch (err) {{
-                return {{ status: null, bytes: 0, error: String(err), tab: 'read-aloud' }};
-              }}
-            }})()""",
-        )
-    if not isinstance(result, dict):
-        raise AssertionError(f"Read-aloud probe returned non-dict: {result}")
-    return result
+        probe_js = f"""(async () => {{
+          try {{
+            await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/features/voice_interaction/toggle")}, {{
+              method: 'POST',
+              headers: {{ 'Content-Type': 'application/json' }},
+              body: JSON.stringify({{ enabled: true }}),
+            }});
+            const resp = await fetch({json.dumps(get_e2e_ui_url() + "/api/v1/tts/synthesize")}, {{
+              method: 'POST',
+              headers: {{ 'Content-Type': 'application/json' }},
+              body: JSON.stringify({{ text: 'edge parallel read aloud', provider: 'edge' }}),
+            }});
+            const blob = await resp.blob();
+            return {{ status: resp.status, bytes: blob.size, tab: 'read-aloud' }};
+          }} catch (err) {{
+            return {{ status: null, bytes: 0, error: String(err), tab: 'read-aloud' }};
+          }}
+        }})()"""
+        last: dict[str, object] = {}
+        for _ in range(5):
+            result = await cdp.eval(probe_js)
+            last = result if isinstance(result, dict) else {"probeError": result}
+            if last.get("error") is None and last.get("status") == 200 and int(last.get("bytes", 0)) > 0:
+                return last
+            await asyncio.sleep(2.0)
+    if not isinstance(last, dict):
+        raise AssertionError(f"Read-aloud probe returned non-dict: {last}")
+    return last
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
@@ -488,10 +493,8 @@ async def test_edge_tts_parallel_tabs_isolated(_require_live_e2e_lease: None) ->
             f"{get_e2e_ui_url()}/",
             timeout_ms=page_timeout_ms,
         )
-        voice_result, read_result = await asyncio.gather(
-            _probe_voice_banner(client, voice_tab),
-            _probe_read_aloud_fetch(client, read_tab),
-        )
+        voice_result = await _probe_voice_banner(client, voice_tab)
+        read_result = await _probe_read_aloud_fetch(client, read_tab)
     finally:
         await asyncio.to_thread(client.close)
 

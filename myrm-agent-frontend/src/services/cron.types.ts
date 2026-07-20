@@ -129,6 +129,20 @@ export interface CronRunVerification {
   summary?: string;
 }
 
+export interface CronProgressStep {
+  tool_name?: string;
+  step_key?: string;
+  error?: string;
+}
+
+export type MonitorContractErrorCode = 'invalid_json_like_output';
+
+export interface CronRunMetadata {
+  verification?: CronRunVerification;
+  progressSteps?: CronProgressStep[];
+  monitor_contract_error?: MonitorContractErrorCode | string;
+}
+
 export interface CronRun {
   id: string;
   job_id: string;
@@ -146,9 +160,7 @@ export interface CronRun {
   delivery_status?: 'delivered' | 'failed' | 'skipped';
   delivery_error?: string;
   job_name?: string;
-  metadata?: {
-    verification?: CronRunVerification;
-  };
+  metadata?: CronRunMetadata;
 }
 
 export interface CronJobsListResponse {

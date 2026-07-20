@@ -23,7 +23,7 @@
 | `CronMonitorEditors.tsx` | 组件 | 监控/告警阈值编辑 | ✅ |
 | `CronPushPoller.tsx` | 组件 | 客户端 push 通知轮询注册（Web Push） | ✅ |
 | `CronRunHistory.tsx` | 组件 | 单任务运行历史列表 | ✅ |
-| `CronRunItem.tsx` | 组件 | 单次运行记录行（状态/耗时/log 链接） | ✅ |
+| `CronRunItem.tsx` | 组件 | 单次运行记录行（状态/耗时/log 链接），含 `monitor_contract_error` 显式提示（badge + 展开告警） | ✅ |
 | `CronStatsBar.tsx` | 组件 | 任务统计摘要条（成功/失败/活跃数） | ✅ |
 | `SchedulerHealthBadge.tsx` | 组件 | 调度器存活状态 Badge（绿/黄/红），30s 轮询 GET /cron/scheduler/health | ✅ |
 | `CronTriggerEditor.tsx` | 组件 | Cron 触发器编辑（Webhook/Event/System） | ✅ |

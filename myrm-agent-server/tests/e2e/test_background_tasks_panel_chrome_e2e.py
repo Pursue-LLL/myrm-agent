@@ -176,13 +176,14 @@ def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
         cancelled = client.evaluate(page, _CANCEL_RUNNING_JS, timeout_sec=10.0)
         assert cancelled.get("clicked") is True, cancelled
 
-    deadline = time.monotonic() + 30.0
-    final_status = ""
-    while time.monotonic() < deadline:
-        row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
-        assert isinstance(row, dict)
-        final_status = str(row.get("status", ""))
-        if final_status == "cancelled":
-            break
-        time.sleep(0.5)
-    assert final_status == "cancelled"
+        # Keep the tab alive until cancel POST completes; closing the page aborts fetch.
+        deadline = time.monotonic() + 30.0
+        final_status = ""
+        while time.monotonic() < deadline:
+            row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
+            assert isinstance(row, dict)
+            final_status = str(row.get("status", ""))
+            if final_status == "cancelled":
+                break
+            time.sleep(0.5)
+        assert final_status == "cancelled"

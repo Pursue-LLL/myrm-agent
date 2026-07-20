@@ -33,6 +33,9 @@ export function extractNavigationSnapshot(state: ChatState): Partial<ChatState> 
     agentConfig: state.agentConfig,
     selectedModels: state.selectedModels,
     hasUserSelectedModel: state.hasUserSelectedModel,
+    files: state.files,
+    cameraFrames: state.cameraFrames,
+    mentionReferences: state.mentionReferences,
   };
 }
 

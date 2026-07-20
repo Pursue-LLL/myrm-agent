@@ -30,6 +30,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.dependencies import verify_voice_enabled
+from app.api.voice.voice_memory_context import VoiceMemoryContext, resolve_voice_memory_context
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,10 @@ async def create_gemini_live_token(req: GeminiLiveTokenRequest) -> GeminiLiveTok
     if profile and profile.system_prompt:
         instructions = profile.system_prompt
 
-    tools = _build_gemini_tools(profile.enabled_builtin_tools if profile else ())
+    tools = _build_gemini_tools(
+        profile.enabled_builtin_tools if profile else (),
+        await resolve_voice_memory_context(agent_id),
+    )
 
     ws_url = f"{_GEMINI_LIVE_WS_BASE}?key={google_key}"
 
@@ -141,25 +145,6 @@ _GEMINI_TOOL_CATALOG: dict[str, GeminiFunctionDeclaration] = {
         description="Search the web for current information. Use when the user asks about recent events, facts, or anything you're unsure about.",
         parameters={"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]},
     ),
-    "memory": GeminiFunctionDeclaration(
-        name="memory_search_tool",
-        description=(
-            "Unified search across long-term memory, wiki vault, and prior conversations. "
-            "Use corpus=memory for preferences/facts, sessions for chat history, wiki for docs."
-        ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Search query"},
-                "corpus": {
-                    "type": "string",
-                    "enum": ["memory", "wiki", "sessions", "all"],
-                    "description": "Corpus to search (default memory)",
-                },
-            },
-            "required": ["query"],
-        },
-    ),
     "file_ops": GeminiFunctionDeclaration(
         name="file_ops",
         description="Read, write, or list files in the workspace.",
@@ -189,10 +174,22 @@ _ALWAYS_AVAILABLE_TOOL = GeminiFunctionDeclaration(
 )
 
 
-def _build_gemini_tools(enabled_builtin_tools: tuple[str, ...] | Sequence[str]) -> list[GeminiFunctionDeclaration]:
-    """Build function declarations for Gemini Live from agent's enabled tools."""
+def _build_gemini_tools(
+    enabled_builtin_tools: tuple[str, ...] | Sequence[str],
+    memory_context: VoiceMemoryContext,
+) -> list[GeminiFunctionDeclaration]:
+    """Build function declarations for Gemini Live from agent tools and memory ACL."""
+    from app.api.voice.tool_catalog import (
+        build_gemini_memory_tool,
+        include_memory_search_in_voice_catalog,
+    )
+
     tools: list[GeminiFunctionDeclaration] = [_ALWAYS_AVAILABLE_TOOL]
     for tool_key in enabled_builtin_tools:
+        if tool_key == "memory":
+            if include_memory_search_in_voice_catalog(memory_context, enabled_builtin_tools):
+                tools.append(build_gemini_memory_tool(memory_context))
+            continue
         if tool_key in _GEMINI_TOOL_CATALOG:
             tools.append(_GEMINI_TOOL_CATALOG[tool_key])
     return tools

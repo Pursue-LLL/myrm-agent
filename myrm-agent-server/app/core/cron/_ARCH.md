@@ -20,7 +20,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 |------|------|------|-------|
 | `adapters/setup.py` | 核心 | 组装入口，创建 CronScheduler + entitlement-guarded CronManager + CronStore 单例 | — |
 | `adapters/entitlement_guarded_manager.py` | 核心 | Sandbox `require_cron_slot` on create/duplicate（REST + agent SSOT） | — |
-| `adapters/sqlalchemy_store.py` | 核心 | CronStore SQLAlchemy 实现：Job/Run/MonitorState CRUD；`list_jobs`/`count_jobs` 支持 `user_id`/`chat_id`/`name_filter` | — |
+| `adapters/sqlalchemy_store.py` | 核心 | CronStore SQLAlchemy 实现：Job/Run/MonitorState CRUD；`list_jobs`/`count_jobs` 支持 `user_id`/`chat_id`/`name_filter`，`get_job` 路径对 legacy `monitor_config` 做 opportunistic 规范化回写，并提供批量清洗入口用于启动时历史数据治理 | — |
 | `adapters/sqlalchemy_mapping.py` | 核心 | ORM <-> Domain 双向映射：CronJobModel/CronRunModel/MonitorStateModel 与框架领域对象的转换 | — |
 | `adapters/sqlalchemy_aggregation.py` | 核心 | Token 用量聚合查询（按天/按任务/按模型），CronStore 协议之外的业务扩展 | — |
 | `adapters/agent_runner.py` | 核心 | JobRunner：ConfigService + AgentFactory；cron 渠道 `enable_cron_eager=False` 且剔除 `cron` builtin；[SILENT] + SituationReport | — |

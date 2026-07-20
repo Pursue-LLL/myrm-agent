@@ -25,7 +25,7 @@ export default function DeepLinkListener() {
 
       const setupDeepLink = async () => {
         try {
-          // [Bugfix] 动态导入 Tauri API，防止 SSR 崩溃
+          // Dynamic import keeps Tauri-only APIs out of SSR evaluation.
           const { onOpenUrl } = await import('@tauri-apps/plugin-deep-link');
           unlisten = await onOpenUrl((urls) => {
             console.log('[DeepLinkListener] Received URLs from Tauri:', urls);

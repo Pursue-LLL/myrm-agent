@@ -7,6 +7,7 @@ usage aggregation lives in ``sqlalchemy_aggregation``.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from myrm_agent_harness.infra.incremental.types import MonitorState
@@ -23,16 +24,37 @@ from app.core.cron.adapters.sqlalchemy_mapping import (
     apply_job_to_model,
     job_to_domain,
     job_to_model,
+    normalize_monitor_config_payload,
     row_to_monitor_state,
     run_to_domain,
 )
 from app.database.connection import get_session
 from app.database.models import CronJobModel, CronRunModel, MonitorStateModel
 
+logger = logging.getLogger(__name__)
+
 
 def _exec_rowcount(result: object) -> int:
     rc = getattr(result, "rowcount", None)
     return rc if isinstance(rc, int) else 0
+
+
+def _normalize_job_monitor_config_in_place(row: CronJobModel) -> bool:
+    job_id = getattr(row, "id", "<unknown>")
+    raw_payload = getattr(row, "monitor_config", None)
+    if raw_payload is None:
+        return False
+    if not isinstance(raw_payload, dict):
+        logger.warning("Job %s has non-dict monitor_config payload, clearing it", job_id)
+        row.monitor_config = None
+        return True
+
+    normalized, changed = normalize_monitor_config_payload(raw_payload)
+    if not changed:
+        return False
+    logger.info("Job %s monitor_config normalized and rewritten to canonical shape", job_id)
+    row.monitor_config = normalized
+    return True
 
 
 class SqlAlchemyCronStore:
@@ -101,7 +123,44 @@ class SqlAlchemyCronStore:
     async def get_job(self, job_id: str) -> CronJob | None:
         async with get_session() as session:
             row = (await session.execute(select(CronJobModel).where(CronJobModel.id == job_id))).scalar_one_or_none()
+            if row and _normalize_job_monitor_config_in_place(row):
+                await session.commit()
             return job_to_domain(row) if row else None
+
+    async def normalize_monitor_configs_batch(self, *, batch_size: int = 500) -> int:
+        """Normalize all persisted monitor_config payloads in bounded batches."""
+        if batch_size <= 0:
+            raise ValueError("batch_size must be positive")
+
+        normalized_total = 0
+        cursor_job_id: str | None = None
+
+        while True:
+            async with get_session() as session:
+                stmt = select(CronJobModel).where(CronJobModel.monitor_config.isnot(None))
+                if cursor_job_id is not None:
+                    stmt = stmt.where(CronJobModel.id > cursor_job_id)
+                stmt = stmt.order_by(CronJobModel.id.asc()).limit(batch_size)
+
+                rows = (await session.execute(stmt)).scalars().all()
+                if not rows:
+                    break
+
+                normalized_in_batch = 0
+                for row in rows:
+                    if _normalize_job_monitor_config_in_place(row):
+                        normalized_in_batch += 1
+
+                if normalized_in_batch > 0:
+                    await session.commit()
+                    normalized_total += normalized_in_batch
+
+                cursor_job_id = rows[-1].id
+
+        if normalized_total > 0:
+            logger.info("Normalized %d legacy cron monitor_config payloads", normalized_total)
+
+        return normalized_total
 
     async def earliest_next_run(self) -> datetime | None:
         async with get_session() as session:

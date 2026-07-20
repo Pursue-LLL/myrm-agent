@@ -19,6 +19,10 @@ from app.api.voice.gemini_live import (
     _extract_google_api_key,
     _find_google_provider,
 )
+from app.api.voice.voice_memory_context import VoiceMemoryContext
+
+_ALL_MEMORY = VoiceMemoryContext(enable_memory=True, enable_conversation_search=True, enable_wiki=True)
+_MEMORY_ONLY = VoiceMemoryContext(enable_memory=True, enable_conversation_search=False, enable_wiki=False)
 
 
 def _providers(
@@ -85,12 +89,12 @@ class TestExtractGoogleApiKey:
 
 class TestBuildGeminiTools:
     def test_always_includes_background_task(self) -> None:
-        tools = _build_gemini_tools(())
+        tools = _build_gemini_tools((), _MEMORY_ONLY)
         assert len(tools) == 1
         assert tools[0].name == "run_background_task"
 
     def test_adds_known_tools(self) -> None:
-        tools = _build_gemini_tools(("web_search", "memory"))
+        tools = _build_gemini_tools(("web_search", "memory"), _ALL_MEMORY)
         names = [t.name for t in tools]
         assert "run_background_task" in names
         assert "web_search" in names
@@ -98,11 +102,14 @@ class TestBuildGeminiTools:
         assert len(tools) == 3
 
     def test_ignores_unknown_tools(self) -> None:
-        tools = _build_gemini_tools(("web_search", "nonexistent_tool"))
+        tools = _build_gemini_tools(("web_search", "nonexistent_tool"), _MEMORY_ONLY)
         assert len(tools) == 2
 
     def test_all_catalog_tools(self) -> None:
-        tools = _build_gemini_tools(("web_search", "memory", "file_ops", "code_execute", "browser", "kanban"))
+        tools = _build_gemini_tools(
+            ("web_search", "memory", "file_ops", "code_execute", "browser", "kanban"),
+            _ALL_MEMORY,
+        )
         assert len(tools) == 7
 
 

@@ -13,7 +13,7 @@ import { useFlowPadStore } from '@/store/useFlowPadStore';
  * @/store/useFlowPadStore::useFlowPadStore (POS: FlowPad modal state store)
  *
  * [OUTPUT]
- * IntentPage: Dispatch /intent/* URLs exactly once and route back to home for ask intents.
+ * IntentPage: Parse + dispatch /intent/* URLs exactly once, and route back to home for ask intents.
  *
  * [POS]
  * Web/SaaS intent landing page. It consumes deep-link style routes in browser runtime and forwards them to the UIP dispatcher.
@@ -32,11 +32,12 @@ export default function IntentPage() {
     let cancelled = false;
     const currentUrl = window.location.href;
     const dispatcher = new IntentDispatcher(router, openFlowPad);
+    let parsedIntent: ReturnType<typeof parseIntentUrl> | null = null;
     let shouldReturnHome = false;
 
     try {
-      const parsed = parseIntentUrl(currentUrl);
-      shouldReturnHome = parsed.action === 'ask';
+      parsedIntent = parseIntentUrl(currentUrl);
+      shouldReturnHome = parsedIntent.action === 'ask';
     } catch {
       // Invalid intent route should not leave user on a blank /intent page.
       router.replace('/');
@@ -45,9 +46,15 @@ export default function IntentPage() {
       };
     }
 
-    void dispatcher.dispatch(currentUrl).finally(() => {
+    if (!parsedIntent) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void dispatcher.dispatch(currentUrl, parsedIntent).then((dispatchSucceeded) => {
       if (cancelled) return;
-      if (shouldReturnHome) {
+      if (shouldReturnHome || !dispatchSucceeded) {
         router.replace('/');
       }
     });

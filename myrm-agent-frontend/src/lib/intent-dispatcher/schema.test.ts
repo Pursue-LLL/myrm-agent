@@ -32,4 +32,8 @@ describe('parseIntentUrl', () => {
   it('throws when path is not an intent route', () => {
     expect(() => parseIntentUrl('https://app.myrmagent.ai/chat/chat-123')).toThrow();
   });
+
+  it('throws for unsupported web intent action names', () => {
+    expect(() => parseIntentUrl('https://app.myrmagent.ai/intent/asking?text=hello')).toThrow();
+  });
 });

@@ -9199,6 +9199,9 @@
     "verificationSummary": "Delivery review",
     "verificationRunOkReviewFailed": "Task completed; delivery review did not pass — expand for details.",
     "securityDeniedHint": "Some tools were denied by security policy. Configure required permissions in the Capability Fence above.",
+    "monitorContractError": "Output Contract Error",
+    "monitorContractErrorInvalidJson": "This run produced malformed structured output, so incremental diffing was skipped.",
+    "monitorContractErrorGeneric": "This run produced output that did not match the monitor contract.",
     "capability": {
       "web_search_tool": "Search Engine",
       "net_fetch": "Read Webpage",

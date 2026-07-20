@@ -17,8 +17,8 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 |------|------|
 | `setup.py` | 组装入口：创建 CronScheduler + entitlement-guarded CronManager，注入所有适配器 |
 | `entitlement_guarded_manager.py` | 包装 harness CronManager：`create_job` / `duplicate_job` 调用 `require_cron_slot`（REST + agent 共用 SSOT） |
-| `sqlalchemy_store.py` | CronStore 协议的 SQLAlchemy 实现：Job/Run/MonitorState CRUD |
-| `sqlalchemy_mapping.py` | ORM <-> Domain 双向映射 |
+| `sqlalchemy_store.py` | CronStore 协议的 SQLAlchemy 实现：Job/Run/MonitorState CRUD（`get_job` 路径对 legacy monitor_config 做 opportunistic 回写清洗，列表读取仅规范化映射不触发写入；进程启动时可批量清洗历史脏数据） |
+| `sqlalchemy_mapping.py` | ORM <-> Domain 双向映射（含 monitor_config 规范化） |
 | `sqlalchemy_aggregation.py` | Token 用量聚合查询 |
 | `python_condition.py` | PreFlightCondition 协议实现：SandboxedPythonCondition 在沙箱内安全执行前置探针脚本 |
 | `agent_runner.py` | JobRunner 协议实现：通过 Agent 管道执行 cron 任务。始终以 `unattended_mode=True` 运行（跳过 ask_question_tool 工具注册 + 注入无人值守系统提示词），防止定时任务被 HITL 交互阻塞。当 CronJob.agent_id 存在时，通过 AgentProfileResolver 加载完整配置（含 `enabled_builtin_tools`、`auto_restore_domains`、`memory_decay_profile`、`cron_post_run_verify`），并通过 `resolve_builtin_tool_flags()` 统一映射 builtin 工具 flag（含 `enable_render_ui` 等），解析 agent/cron/chat 绑定的 Shared Context 注入 `memory_shared_context_ids`。**Post-run delivery verification**：Agent 流结束后、可选调用 `post_run_verification.apply_cron_post_run_verification()`（verifier-only，120s 超时；FAIL 不改变 run success，写入 `metadata.verification`）。**Thread Automation**：当 `session_target=MAIN` 且 `chat_id` 存在时，通过 `_load_thread_history` 加载目标会话的 compacted_summary + 近 30 条消息作为 `chat_history` 注入 Agent，实现定时任务的上下文连续性。**Heartbeat follow-up ack**：heartbeat 运行结束后调用 `_finalize_heartbeat_follow_up_delivery()`，按 `[SILENT]` 判定 SENT 或 snooze |

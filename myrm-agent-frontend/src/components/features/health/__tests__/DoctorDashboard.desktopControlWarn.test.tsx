@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 'use client';
 
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DoctorDashboard } from '../DoctorDashboard';

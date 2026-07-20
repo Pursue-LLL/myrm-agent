@@ -71,7 +71,14 @@ async def _context_cleanup_job() -> None:
 
 async def start_cron_scheduler() -> None:
     """启动 Cron Scheduler（定时任务调度器）"""
-    from app.core.cron.adapters.setup import get_cron_scheduler
+    from app.core.cron.adapters.setup import get_cron_scheduler, get_cron_store
+
+    try:
+        normalized = await get_cron_store().normalize_monitor_configs_batch(batch_size=500)
+        if normalized > 0:
+            logger.info("Cron startup cleanup normalized %d legacy monitor_config payloads", normalized)
+    except Exception as exc:
+        logger.warning("Cron startup monitor_config cleanup failed: %s", exc)
 
     await get_cron_scheduler().start()
     logger.info("Cron scheduler started")

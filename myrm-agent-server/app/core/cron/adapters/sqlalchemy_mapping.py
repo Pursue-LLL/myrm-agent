@@ -6,6 +6,7 @@ framework domain objects (CronJob, CronRunRecord, MonitorState).
 
 from __future__ import annotations
 
+import logging
 from datetime import timezone
 from typing import cast
 
@@ -34,6 +35,9 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 from app.database.models import CronJobModel, CronRunModel, MonitorStateModel
+
+logger = logging.getLogger(__name__)
+_VALID_MONITOR_TYPES = {"set", "hash"}
 
 
 def run_to_domain(r: CronRunModel) -> CronRunRecord:
@@ -73,13 +77,44 @@ def _int_from_cfg(val: object, default: int) -> int:
     return default
 
 
-def dict_to_monitor_config(d: dict[str, object] | None) -> MonitorConfig | None:
+def _normalize_monitor_type(value: object) -> MonitorType:
+    if isinstance(value, str):
+        candidate = value.strip().lower()
+        if candidate in _VALID_MONITOR_TYPES:
+            return cast(MonitorType, candidate)
+        if candidate:
+            logger.warning("Unknown monitor_type '%s', fallback to 'set'", value)
+    return cast(MonitorType, "set")
+
+
+def normalize_monitor_config_payload(d: dict[str, object] | None) -> tuple[dict[str, object] | None, bool]:
+    """Normalize persisted monitor_config payload to canonical shape.
+
+    Returns (normalized_payload, changed) where ``changed`` indicates whether the
+    original payload should be written back to storage.
+    """
     if not d:
+        return None, False
+
+    normalized_type = _normalize_monitor_type(d.get("monitor_type", "set"))
+    normalized_ttl = _int_from_cfg(d.get("ttl_days", 30), 30)
+    normalized_enabled = bool(d.get("enabled", True))
+    normalized = {
+        "monitor_type": normalized_type,
+        "ttl_days": normalized_ttl,
+        "enabled": normalized_enabled,
+    }
+    return normalized, normalized != d
+
+
+def dict_to_monitor_config(d: dict[str, object] | None) -> MonitorConfig | None:
+    normalized, _changed = normalize_monitor_config_payload(d)
+    if not normalized:
         return None
     return MonitorConfig(
-        monitor_type=cast(MonitorType, d.get("monitor_type", "set")),
-        ttl_days=_int_from_cfg(d.get("ttl_days", 30), 30),
-        enabled=bool(d.get("enabled", True)),
+        monitor_type=cast(MonitorType, normalized["monitor_type"]),
+        ttl_days=cast(int, normalized["ttl_days"]),
+        enabled=cast(bool, normalized["enabled"]),
     )
 
 
