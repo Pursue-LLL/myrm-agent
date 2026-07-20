@@ -254,6 +254,11 @@ def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> boo
     if heal_open_wave_runtime_id(state, current_runtime_id):
         return True
 
+    if signoff_matrix_runtime_heal_allowed(state):
+        # Signoff matrix/chrome lock: never drift-invalidate a shared immutable wave.
+        # Probe can lag during attach-heal; skipping invalidate keeps parallel tests alive.
+        return restore_drifted_signoff_wave(state, current_runtime_id)
+
     wave["status"] = "drifted"
     wave["closedAt"] = iso_timestamp(utc_now())
     for lease in active_leases(state):
