@@ -6,10 +6,10 @@
   stack_supervisor.state_gc::collect_stale_state (POS: 失效状态 GC)
 
 [OUTPUT]
-  SupervisorDaemon: Unix socket RPC 服务 + 看门狗 + 失温冷却自愈（intentional reset 清除自愈记忆）；wave pin 期间 shared API 宕机时 backend-only ensure；signoff chrome 持锁且 frontend 死亡时 full ensure；backend-only 与 full ensure 独立冷却（默认 30s / 300s）
+  SupervisorDaemon: Unix socket RPC 服务 + 看门狗 + 失温冷却自愈（intentional reset 清除自愈记忆）；wave pin 期间 shared API 宕机时 backend-only ensure；maintainer signoff-chrome.lock 持锁且 frontend 死亡时 full ensure；backend-only 与 full ensure 独立冷却（默认 30s / 300s）
 
 [POS]
-  本地 dev 栈单写者守护进程。串行化 ensure/reset，30s 探活 GC + 失温冷却自愈；并行 E2E 期间仅复活 shared Backend，不 reset frontend/Chrome；signoff chrome 持锁期间 frontend 真死时允许 full ensure。
+  本地 dev 栈单写者守护进程。串行化 ensure/reset，30s 探活 GC + 失温冷却自愈；并行 E2E 期间仅复活 shared Backend，不 reset frontend/Chrome；maintainer signoff lock 持锁期间 frontend 真死时允许 full ensure。
 """
 
 from __future__ import annotations
@@ -230,7 +230,7 @@ class SupervisorDaemon:
             if not probe.frontend_http_ok and not probe.frontend_port_listening:
                 if signoff_active:
                     logger.info(
-                        "Watchdog auto-heal: signoff chrome active — full ensure for dead frontend"
+                        "Watchdog auto-heal: maintainer signoff lock active — full ensure for dead frontend"
                     )
                     backend_only_heal = False
                 else:

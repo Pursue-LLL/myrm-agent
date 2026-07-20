@@ -99,9 +99,16 @@ def reap_abandoned_leases(
         if lease["status"] != "active":
             continue
         agent_id = str(lease.get("agentId", ""))
-        if is_signoff_matrix_agent_id(agent_id):
-            continue
         owner_pid = owner_bashpid_from_agent_id(agent_id)
+        if is_signoff_matrix_agent_id(agent_id):
+            # Interrupted signoff: lock gone + owner shell dead → release ghost cap.
+            if signoff_chrome_lock_active():
+                continue
+            if owner_pid is None or _process_is_alive(owner_pid):
+                continue
+            lease["status"] = "expired"
+            changed = True
+            continue
         if owner_pid is None or _process_is_alive(owner_pid):
             continue
         lease["status"] = "expired"
@@ -134,7 +141,7 @@ def is_signoff_matrix_agent_id(agent_id: str) -> bool:
 
 
 def signoff_chrome_lock_active() -> bool:
-    """True while ./myrm signoff chrome holds signoff-chrome.lock with a live owner."""
+    """True while maintainer signoff holds signoff-chrome.lock with a live owner."""
     from .paths import resolve_dev_state_dir
 
     lock_path = resolve_dev_state_dir() / "signoff-chrome.lock"
@@ -184,7 +191,7 @@ def parallel_chrome_e2e_runtime_heal_allowed(state: OrchestratorState) -> bool:
 
 
 def signoff_wave_close_blocked(state: OrchestratorState) -> bool:
-    """Block idle-wave close while Dev Gate signoff chrome or matrix session is active."""
+    """Block idle-wave close while maintainer signoff lock or matrix session is active."""
     if signoff_chrome_lock_active():
         return True
     return signoff_matrix_guard_active(state)
