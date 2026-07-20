@@ -49,6 +49,7 @@ async def add_task(
     max_runtime_seconds: int | None = None,
     workspace_path: str | None = None,
     branch: str | None = None,
+    metadata_patch: dict[str, object] | None = None,
     *,
     validate_agent_id: ValidateAgentId,
     wake_dispatcher: WakeDispatcher,
@@ -77,6 +78,8 @@ async def add_task(
     current_branch = await get_current_git_branch()
     if current_branch:
         metadata["branch"] = current_branch
+    if metadata_patch:
+        metadata.update(metadata_patch)
 
     task = KanbanTask(
         task_id=uuid.uuid4().hex[:12],

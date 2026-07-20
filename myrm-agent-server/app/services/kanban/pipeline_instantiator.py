@@ -16,8 +16,13 @@ fan-out (one seed → N parallel tasks from multi-select answers). Zero LLM call
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import HTTPException
-from myrm_agent_harness.toolkits.kanban.types import TaskPriority
+from myrm_agent_harness.toolkits.kanban.types import TaskPriority, inherit_source_chat_metadata
+
+if TYPE_CHECKING:
+    from app.services.kanban import KanbanService
 
 from app.services.kanban.pipeline_spec_io import (
     MAX_REPEAT,
@@ -98,6 +103,21 @@ def _match_role_to_agent(
     return best_agent_id
 
 
+async def _resolve_inherited_metadata(
+    svc: KanbanService,
+    parent_task_ids: list[str],
+) -> dict[str, object] | None:
+    """Copy source_chat_id from the first parent task that has one."""
+    for parent_id in parent_task_ids:
+        parent = await svc.get_task(parent_id)
+        if parent is None:
+            continue
+        patch = inherit_source_chat_metadata(parent.metadata)
+        if patch is not None:
+            return patch
+    return None
+
+
 async def instantiate_pipeline(
     board_id: str,
     skill_id: str,
@@ -149,6 +169,7 @@ async def instantiate_pipeline(
             parent_task_ids.extend(seed_index_to_task_ids.get(parent_idx, []))
 
         agent_id = role_agent_map.get(seed.role)
+        metadata_patch = await _resolve_inherited_metadata(svc, parent_task_ids)
 
         if seed.repeat_for:
             items = _split_repeat_items(answers.get(seed.repeat_for, ""))
@@ -174,6 +195,7 @@ async def instantiate_pipeline(
                     priority=TaskPriority.NORMAL,
                     agent_id=agent_id,
                     depends_on=parent_task_ids or None,
+                    metadata_patch=metadata_patch,
                 )
                 created_task_ids.append(task.task_id)
                 ids_for_seed.append(task.task_id)
@@ -189,6 +211,7 @@ async def instantiate_pipeline(
                 priority=TaskPriority.NORMAL,
                 agent_id=agent_id,
                 depends_on=parent_task_ids or None,
+                metadata_patch=metadata_patch,
             )
             created_task_ids.append(task.task_id)
             seed_index_to_task_ids[seed_idx] = [task.task_id]

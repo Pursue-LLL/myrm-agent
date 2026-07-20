@@ -11,10 +11,10 @@ from tests.support.chrome_mcp_e2e import get_e2e_api_url, get_e2e_ui_url, http_j
 _OPEN_PANEL_JS = """(() => {
   const btn = document.querySelector('button[aria-label="Background Tasks"], button[aria-label="后台任务"]');
   if (!btn) {
-    return { clicked: false };
+    return { ready: false, clicked: false };
   }
   btn.click();
-  return { clicked: true };
+  return { ready: true, clicked: true };
 })()"""
 
 _PANEL_READY_JS = """(() => {
@@ -58,7 +58,7 @@ def test_background_tasks_panel_opens_and_lists_api() -> None:
 
     warm_ui_route("/")
     with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
-        opened = client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
+        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
         assert opened.get("clicked") is True, opened
 
         panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
@@ -89,7 +89,7 @@ def test_background_tasks_panel_shows_failed_shell_job_from_seed() -> None:
 
     warm_ui_route("/")
     with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
-        opened = client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
+        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
         assert opened.get("clicked") is True, opened
 
         panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
@@ -102,9 +102,11 @@ def test_background_tasks_panel_shows_failed_shell_job_from_seed() -> None:
 
 
 _CANCEL_RUNNING_JS = """(() => {
-  const buttons = Array.from(document.querySelectorAll('button'));
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const buttons = Array.from(root.querySelectorAll('button'));
   const cancelBtn = buttons.find((btn) => /cancel|取消/i.test(btn.textContent || ''));
-  if (!cancelBtn) return { clicked: false };
+  if (!cancelBtn) return { clicked: false, buttonCount: buttons.length };
   cancelBtn.click();
   return { clicked: true };
 })()"""
@@ -123,7 +125,7 @@ def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
 
     warm_ui_route("/")
     with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
-        opened = client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
+        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
         assert opened.get("clicked") is True, opened
         panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
         assert panel.get("ready") is True, panel

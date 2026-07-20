@@ -45,6 +45,7 @@ import { CLIDiffViewer } from '@/components/features/cli-visualization/CLIDiffVi
 import { isTauriEnvironment } from '@/lib/tauri';
 import { ImageTaskCard } from '@/components/features/task-card';
 import { CronJobSystemCard } from './CronJobSystemCard';
+import { KanbanTaskCreatedCard, type KanbanTaskCreatedResult } from './KanbanTaskCreatedCard';
 import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';
 import WaterDropCostView from './WaterDropCostView';
 import MemoryInsightPanel from './MemoryInsightPanel';
@@ -197,6 +198,21 @@ const MessageBox = ({
     'cron_job_result' in message.metadata
       ? (message.metadata.cron_job_result as import('./CronJobSystemCard').CronJobResult)
       : null;
+  const kanbanTasksCreated = (() => {
+    if (!message.metadata || typeof message.metadata !== 'object') return [];
+    const raw = message.metadata.kanban_tasks_created;
+    if (Array.isArray(raw)) {
+      return raw.filter(
+        (item): item is KanbanTaskCreatedResult =>
+          typeof item === 'object' &&
+          item !== null &&
+          typeof (item as KanbanTaskCreatedResult).task_id === 'string' &&
+          typeof (item as KanbanTaskCreatedResult).title === 'string' &&
+          typeof (item as KanbanTaskCreatedResult).board_id === 'string',
+      );
+    }
+    return [];
+  })();
   const sessionRecordingCard: React.ReactNode = sessionRecordingData ? (
     <SessionRecordingCard
       filename={sessionRecordingData.filename}
@@ -568,6 +584,13 @@ const MessageBox = ({
 
         {/* 定时任务创建/更新卡片 */}
         {cronJobResult ? <CronJobSystemCard result={cronJobResult} /> : null}
+
+        {/* Kanban 任务创建卡片 */}
+        {kanbanTasksCreated.length > 0 && chatId
+          ? kanbanTasksCreated.map((item) => (
+              <KanbanTaskCreatedCard key={item.task_id} result={item} chatId={chatId} />
+            ))
+          : null}
 
         {/* 回复 */}
         {!taskResponse && (

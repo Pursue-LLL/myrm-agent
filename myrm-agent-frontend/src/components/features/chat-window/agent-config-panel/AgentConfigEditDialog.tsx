@@ -487,7 +487,7 @@ const AgentConfigEditDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" data-testid="agent-config-edit-dialog">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {config.icon}
@@ -521,7 +521,11 @@ const AgentConfigEditDialog = ({
       </Dialog>
 
       <Sheet open={settingsSheetOpen} onOpenChange={setSettingsSheetOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-4xl p-0 overflow-y-auto">
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-2xl lg:max-w-4xl p-0 overflow-y-auto"
+          data-testid="agent-config-edit-dialog"
+        >
           <SheetHeader className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4">
             <div className="flex items-center justify-between">
               <SheetTitle>

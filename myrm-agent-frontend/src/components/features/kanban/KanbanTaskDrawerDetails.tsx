@@ -8,6 +8,7 @@ import { Clock, ExternalLink, User } from 'lucide-react';
 import Link from 'next/link';
 import type { Agent } from '@/services/agent';
 import { KANBAN_SOURCE_CHAT_METADATA_KEY } from '@/services/kanban';
+import { buildKanbanBoardDeepLink } from '@/lib/kanban/kanbanChatBoard';
 
 interface TaskDetailsSectionProps {
   task: KanbanTask;
@@ -111,7 +112,7 @@ export function TaskDetailsSection({
               <ExternalLink className="w-3 h-3" />
             </Link>
             <Link
-              href={`/settings/kanban?source_chat=${encodeURIComponent(sourceChatId)}`}
+              href={buildKanbanBoardDeepLink({ sourceChatId: sourceChatId, boardId: task.board_id })}
               className="inline-flex items-center gap-0.5 text-primary hover:underline"
             >
               {t('viewBoardTasksFromChat')}

@@ -66,6 +66,7 @@ class SkillInstallResponse(BaseModel):
     skill_id: str = ""
     installed_path: str = ""
     error: str = ""
+    error_code: str = ""
 
 
 class SkillUpdateInfoResponse(BaseModel):
@@ -213,6 +214,7 @@ async def install_skill(
         skill_id=result.skill_id,
         installed_path=result.installed_path,
         error=result.error,
+        error_code=result.error_code,
     )
 
 
@@ -298,6 +300,7 @@ async def update_skill(
         skill_id=result.skill_id,
         installed_path=result.installed_path,
         error=result.error,
+        error_code=result.error_code,
     )
 
 
@@ -315,6 +318,7 @@ async def uninstall_skill(
         skill_id=result.skill_id,
         installed_path=result.installed_path,
         error=result.error,
+        error_code=result.error_code,
     )
 
 
@@ -374,4 +378,5 @@ async def install_skill_from_url(
         skill_id=result.skill_id,
         installed_path=result.installed_path,
         error=result.error,
+        error_code=result.error_code,
     )

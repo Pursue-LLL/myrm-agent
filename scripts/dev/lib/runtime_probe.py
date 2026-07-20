@@ -4,7 +4,8 @@
 - runtime_identity.py epoch readers (POS: Runtime Identity SSOT)
 
 [OUTPUT]
-- probe_runtime_context() / read_current_runtime_id() / run_drift_check()
+- probe_runtime_context() / read_current_runtime_id() / _read_shared_hot_stack_runtime_id() / run_drift_check()
+- _read_shared_hot_stack_runtime_id() is the signoff-matrix runtimeId SSOT (also used by wave_orchestrator.core.probe_runtime_id during signoff)
 
 [POS]
 Dev infrastructure. Observes mux/CDP/frontend without mutating the stack.

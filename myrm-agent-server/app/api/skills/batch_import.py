@@ -14,6 +14,11 @@ from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from myrm_agent_harness.agent.skills.discovery.installers.batch_installer import (
     HermesBatchParser,
 )
+from myrm_agent_harness.backends.skills.scanning.archive_security import (
+    ArchiveSecurityViolation,
+    classify_archive_security_issue,
+    format_archive_security_user_message,
+)
 from myrm_agent_harness.agent.skills.evolution.core.types import (
     EvolutionType,
     SkillLineage,
@@ -26,6 +31,26 @@ from app.api.skills.evolution.helpers import _get_skill_store
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/batch-import", tags=["skills-batch-import"])
+
+
+def _resolve_batch_import_error_message(
+    error: Exception,
+    violation: ArchiveSecurityViolation | None = None,
+) -> str:
+    resolved_violation = violation if violation is not None else classify_archive_security_issue(error)
+    if resolved_violation is not None:
+        return format_archive_security_user_message(resolved_violation)
+    return f"解析压缩包失败，防爆防护触发或格式错误: {error}"
+
+
+def _build_batch_import_error_detail(
+    message: str,
+    violation: ArchiveSecurityViolation | None = None,
+) -> dict[str, str]:
+    return {
+        "message": message,
+        "error_code": violation.code.value if violation is not None else "",
+    }
 
 
 class ImportPreviewSkillItem(BaseModel):
@@ -84,8 +109,17 @@ async def preview_batch_import(
     try:
         imported_skills = parser.parse_zip(zip_bytes)
     except Exception as e:
-        logger.error(f"Failed to parse ZIP: {e}")
-        raise HTTPException(status_code=400, detail=f"解析压缩包失败，防爆防护触发或格式错误: {e}") from e
+        violation = classify_archive_security_issue(e)
+        detail = _resolve_batch_import_error_message(e, violation=violation)
+        payload = _build_batch_import_error_detail(detail, violation=violation)
+        if violation is not None:
+            logger.warning("Batch import blocked by archive security policy: %s", detail)
+        else:
+            logger.error(f"Failed to parse ZIP: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=payload,
+        ) from e
 
     if not imported_skills:
         return ImportPreviewResponse(session_id="", items=[], total_found=0, total_conflicts=0)

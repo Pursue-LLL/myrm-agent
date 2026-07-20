@@ -28,6 +28,30 @@ interface PreviewItem {
   security_issues?: string | null;
 }
 
+interface ApiErrorPayload {
+  detail?: unknown;
+}
+
+function resolveApiError(detail: unknown, fallbackMessage: string): { message: string; errorCode: string } {
+  if (typeof detail === 'string' && detail.trim().length > 0) {
+    return { message: detail, errorCode: '' };
+  }
+
+  if (detail !== null && typeof detail === 'object') {
+    const payload = detail as { message?: unknown; error_code?: unknown; detail?: unknown };
+    const message =
+      typeof payload.message === 'string' && payload.message.trim().length > 0
+        ? payload.message
+        : typeof payload.detail === 'string' && payload.detail.trim().length > 0
+          ? payload.detail
+          : fallbackMessage;
+    const errorCode = typeof payload.error_code === 'string' ? payload.error_code : '';
+    return { message, errorCode };
+  }
+
+  return { message: fallbackMessage, errorCode: '' };
+}
+
 const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: SkillBatchImportDialogProps) => {
   const t = useTranslations('settings.skills');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,8 +107,9 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
         });
         
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.detail || 'Preview failed');
+          const errPayload = (await res.json().catch(() => ({}))) as ApiErrorPayload;
+          const { message } = resolveApiError(errPayload.detail, 'Preview failed');
+          throw new Error(message);
         }
         
         const data = await res.json();
@@ -151,8 +176,9 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
       });
       
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || 'Import failed');
+        const errPayload = (await res.json().catch(() => ({}))) as ApiErrorPayload;
+        const { message } = resolveApiError(errPayload.detail, 'Import failed');
+        throw new Error(message);
       }
       
       const result = await res.json();

@@ -69,8 +69,10 @@ def resolve_builtin_tool_flags(
 
     effective_tools = strip_deploy_incompatible_builtin_tools(tools)
     from app.config.computer_use_deploy import is_computer_use_deploy_supported
+    from app.config.external_cli_deploy import is_external_cli_deploy_supported
 
     deploy_supports_computer_use = is_computer_use_deploy_supported()
+    deploy_supports_external_cli = is_external_cli_deploy_supported()
     return BuiltinToolFlags(
         enable_browser="browser" in effective_tools,
         enable_computer_use=(
@@ -85,7 +87,9 @@ def resolve_builtin_tool_flags(
         enable_render_ui="render_ui" in effective_tools,
         enable_planning="planning" in effective_tools,
         enable_structured_clarify="structured_clarify" in effective_tools,
-        enable_external_cli="external_cli" in effective_tools,
+        enable_external_cli=(
+            "external_cli" in effective_tools and deploy_supports_external_cli
+        ),
     )
 
 

@@ -113,6 +113,7 @@ app/services/agent/params/mention.py
 app/services/agent/stream_session/stream_lane_factory.py
 app/services/agent/stream_session/stream_loop.py
 app/services/agent/streaming.py
+app/services/agent/streaming_support/stream_collector.py
 app/services/chat/chat_crud.py
 app/services/chat/chat_message.py
 app/services/chat/compact_service.py

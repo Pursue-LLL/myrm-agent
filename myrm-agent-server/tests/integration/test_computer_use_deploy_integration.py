@@ -132,3 +132,12 @@ def test_external_cli_kept_in_local_mode(local_deploy: None) -> None:
     assert is_external_cli_deploy_supported() is True
     stripped = strip_deploy_incompatible_builtin_tools(["memory", "external_cli"])
     assert stripped == ["memory", "external_cli"]
+
+
+@pytest.mark.integration
+def test_resolve_flags_disable_external_cli_when_sandbox(
+    sandbox_no_visual_desktop: None,
+) -> None:
+    flags = resolve_builtin_tool_flags(["external_cli", "browser"])
+    assert flags["enable_external_cli"] is False
+    assert flags["enable_browser"] is True

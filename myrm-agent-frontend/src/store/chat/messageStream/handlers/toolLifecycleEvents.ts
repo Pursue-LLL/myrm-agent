@@ -63,6 +63,35 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       }
     }
 
+    if (data.tool_name === 'kanban_add_task' && data.result) {
+      try {
+        const resultObj = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+        const task = resultObj?.task;
+        if (resultObj?.status === 'added' && task && typeof task === 'object' && task !== null) {
+          const taskRecord = task as Record<string, unknown>;
+          const taskId = taskRecord.task_id;
+          const boardId = taskRecord.board_id;
+          const title = taskRecord.title;
+          if (typeof taskId === 'string' && typeof boardId === 'string' && typeof title === 'string') {
+            const created = {
+              task_id: taskId,
+              title,
+              board_id: boardId,
+            };
+            const prior = message.metadata?.kanban_tasks_created;
+            const list = Array.isArray(prior) ? [...prior] : prior ? [prior] : [];
+            list.push(created);
+            message.metadata = {
+              ...message.metadata,
+              kanban_tasks_created: list,
+            };
+          }
+        }
+      } catch {
+        // parse failure is expected for non-kanban results
+      }
+    }
+
     // MCP Apps (ext-apps): detect mcp_app metadata and attach view to message
     const mcpApp = (data as unknown as { mcp_app?: { resource_uri?: string; server_name?: string; structured_content?: Record<string, unknown> } }).mcp_app;
     if (mcpApp && mcpApp.resource_uri) {

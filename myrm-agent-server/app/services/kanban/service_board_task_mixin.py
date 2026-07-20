@@ -134,6 +134,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
         max_runtime_seconds: int | None = None,
         workspace_path: str | None = None,
         branch: str | None = None,
+        metadata_patch: dict[str, object] | None = None,
     ) -> KanbanTask:
         return await run_add_task(
             self._store,
@@ -152,6 +153,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
             max_runtime_seconds,
             workspace_path,
             branch,
+            metadata_patch,
             validate_agent_id=self._validate_agent_id,
             wake_dispatcher=self._wake_dispatcher,
         )

@@ -3,7 +3,8 @@
  * @/services/kanban::KanbanBoard (POS: 看板 API 类型)
  *
  * [OUTPUT]
- * KANBAN_LAST_BOARD_ID_KEY, read/write helpers, chat request board resolution, send guard.
+ * KANBAN_LAST_BOARD_ID_KEY, read/write helpers, chat request board resolution, send guard,
+ * buildKanbanBoardDeepLink.
  *
  * [POS]
  * Chat ↔ Settings 共享的看板 ID localStorage SSOT；发消息时解析 default_board_id。
@@ -59,6 +60,15 @@ export function resolveKanbanDefaultBoardIdForRequest(
   if (!enabledBuiltinTools.includes('kanban')) return undefined;
   const id = readKanbanLastBoardId();
   return id ?? undefined;
+}
+
+/** Deep link into Settings Kanban board view with optional session filter. */
+export function buildKanbanBoardDeepLink(opts: { sourceChatId: string; boardId: string }): string {
+  const params = new URLSearchParams({
+    source_chat: opts.sourceChatId.trim(),
+    board_id: opts.boardId.trim(),
+  });
+  return `/settings/kanban?${params.toString()}`;
 }
 
 export type KanbanSendBlockReason = 'no_boards' | 'need_board';

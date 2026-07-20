@@ -17,7 +17,7 @@
 | useKanbanTaskDrawerAttachments.ts | 辅助 | 抽屉附件上传/拖拽/粘贴子 hook                                              | ✅    |
 | useKanbanTaskDrawerWorkflow.ts | 辅助 | Promote / Move / Reclaim 工作流子 hook                                           | ✅    |
 | KanbanTaskDrawerHeader.tsx   | 辅助 | 抽屉面板头部（状态操作按钮 + Reclaim/Promote 确认）                              | ✅    |
-| KanbanTaskDrawerDetails.tsx  | 辅助 | 抽屉面板详情区（基本信息/超时/技能/完成标准/Agent 分配）                         | ✅    |
+| KanbanTaskDrawerDetails.tsx  | 辅助 | 抽屉详情（超时/技能/来源 Chat 与 Board 深链）                                    | ✅    |
 | KanbanTaskDrawerBodySections.tsx | 辅助 | 抽屉附件与结果区段组件                                                         | ✅    |
 | KanbanTaskDrawerBodyMetaSections.tsx | 辅助 | 抽屉依赖/评论/进度区段组件                                                   | ✅    |
 | KanbanTaskDrawerBody.tsx     | 辅助 | 抽屉主体区段 barrel 导出                                                       | ✅    |
@@ -43,6 +43,12 @@
 3. **成功确认** — `moveTask` API 成功后移除 pending 条目，下次 reload 正常同步
 4. **失败回滚** — API 失败时恢复 `previousStatus` 并 toast 提示
 5. **超时安全阀** — 5s 后自动清除 pending 条目，防止泄漏
+
+## Chat ↔ Board 会话过滤
+
+- `KanbanBoardView` 读取 URL `?source_chat=`，REST `listTasks` 带 `source_chat_id` 过滤
+- `KanbanSection` 深链 `?source_chat=&board_id=` 时自动进入 Board 视图（非 Board 列表）
+- Chat 卡片与 Drawer 链接经 `buildKanbanBoardDeepLink`（`@/lib/kanban/kanbanChatBoard.ts`）统一生成
 
 ## API 客户端映射（`@/services/kanban.ts`）
 

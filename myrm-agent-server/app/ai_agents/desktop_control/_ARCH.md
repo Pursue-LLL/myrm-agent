@@ -42,3 +42,4 @@ Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' se
 | Bridge | `E2EChatBridge.hasDone` 或 API `chat_messages_have_done()`；无 DONE 时 poll≥15 一次性 nudge |
 | Signoff | `./myrm signoff chrome` → darwin `chrome_e2e_desktop` phase（allow_once + allow_always_settings_revoke） |
 | Reset | `POST /webui/desktop/approval/reset-runtime` clears in-memory gate + reloads disk approvals |
+| Retry | Product-only retries: `once` ≤3 / `always` ≤2; infra markers (Chrome/mux/wave) fail-fast — see Roadmap §12.1 |

@@ -34,7 +34,21 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lea
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 APPROVAL_WAIT_SEC = 240.0
 TURN_WAIT_SEC = 300.0
-MAX_SEND_ATTEMPTS = 5
+MAX_SEND_ATTEMPTS_ONCE = 3
+MAX_SEND_ATTEMPTS_ALWAYS = 2
+_INFRA_ABORT_MARKERS = (
+    "ECONNREFUSED",
+    "Could not connect to Chrome",
+    "Chrome MCP cleanup failed",
+    "immutable test wave is not open",
+    "E2E_WAVE_OPEN_FAILED",
+    "E2E_RUNTIME_BINDING_FAILED",
+    "LEASE_NOT_ACTIVE",
+    "LEASE_CLEANUP_FAILED",
+    "upstream request timed out",
+    "connection reset",
+    "detached Frame",
+)
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
 E2E_PROMPT = (
     f"TextEdit 已打开，文档含「{TEXTEDIT_FIXTURE_MARKER}」到 line 5。"
@@ -46,6 +60,21 @@ E2E_NUDGE_PROMPT = (
     "请立即调用 desktop_interact（ref 来自上一个 snapshot 的 @dref，action=scroll，text=down）。"
     "不要只用 snapshot/vision。完成后只回复 DONE。"
 )
+
+
+def _max_send_attempts(scope: str) -> int:
+    if scope == "always":
+        return MAX_SEND_ATTEMPTS_ALWAYS
+    return MAX_SEND_ATTEMPTS_ONCE
+
+
+def _should_abort_desktop_e2e_retries(exc: BaseException) -> bool:
+    message = str(exc)
+    if any(marker in message for marker in _INFRA_ABORT_MARKERS):
+        return True
+    if isinstance(exc, ExceptionGroup):
+        return any(_should_abort_desktop_e2e_retries(sub) for sub in exc.exceptions)
+    return False
 
 
 def _require_approval_gate_triggered(
@@ -695,9 +724,10 @@ async def _run_desktop_approval_chrome_e2e(
         await chat.bootstrap(BASE_URL, navigate=False, timeout_sec=120.0)
 
         last_error: dict[str, object] | None = None
-        for attempt in range(1, MAX_SEND_ATTEMPTS + 1):
+        max_attempts = _max_send_attempts(scope)
+        for attempt in range(1, max_attempts + 1):
             heartbeat_e2e_lease()
-            _progress(f"{label} attempt {attempt}/{MAX_SEND_ATTEMPTS}")
+            _progress(f"{label} attempt {attempt}/{max_attempts}")
             _clear_persisted_desktop_approvals()
             try:
                 chat_id = await _run_approval_attempt(chat, scope=scope)
@@ -705,24 +735,28 @@ async def _run_desktop_approval_chrome_e2e(
                 return chat_id
             except (AssertionError, RuntimeError, TimeoutError, OSError) as exc:
                 last_error = {"attempt": attempt, "error": str(exc), "type": type(exc).__name__}
-                if "ECONNREFUSED" in str(exc) or "Could not connect to Chrome" in str(exc):
+                if _should_abort_desktop_e2e_retries(exc):
                     pytest.fail(
-                        f"Desktop approval Chrome E2E lost Chrome MCP "
-                        f"(api={get_e2e_api_url()}): {last_error}"
+                        "Desktop approval Chrome E2E hit non-retriable infra failure "
+                        f"(api={get_e2e_api_url()}): {last_error}. "
+                        "Parallel tests should queue via E2E_LEASE_WAIT; "
+                        "orchestrator heal (wave/mux) is required — not user cleanup."
                     )
-                if attempt >= MAX_SEND_ATTEMPTS:
+                if attempt >= max_attempts:
                     break
                 try:
-                    await chat.evaluate(
-                        "(() => { window.__MYRM_E2E_CHAT__?.resetChat?.(); return { ok: true }; })()",
-                        await_promise=False,
-                    )
-                except (RuntimeError, TimeoutError, OSError):
-                    pass
+                    await chat.click_new_chat()
+                    await chat.ensure_chat_surface(BASE_URL)
+                except (RuntimeError, TimeoutError, OSError) as reset_exc:
+                    if _should_abort_desktop_e2e_retries(reset_exc):
+                        pytest.fail(
+                            "Desktop approval Chrome E2E lost UI bridge during retry "
+                            f"(api={get_e2e_api_url()}): {last_error}; reset={reset_exc}"
+                        )
                 await asyncio.sleep(2.0)
 
         pytest.fail(
-            f"Desktop approval Chrome E2E ({label}) failed after {MAX_SEND_ATTEMPTS} attempts "
+            f"Desktop approval Chrome E2E ({label}) failed after {max_attempts} attempts "
             f"(api={get_e2e_api_url()}): {last_error}"
         )
 
@@ -738,7 +772,12 @@ async def _run_desktop_approval_chrome_e2e(
         chat = McpChatSession(client, page)
         await run_flow(chat)
     finally:
-        client.close()
+        try:
+            client.close()
+        except BaseException as exc:
+            if not _should_abort_desktop_e2e_retries(exc):
+                raise
+            _progress(f"Chrome MCP cleanup skipped after infra failure: {exc}")
         await asyncio.to_thread(_hide_textedit_fixture)
 
 

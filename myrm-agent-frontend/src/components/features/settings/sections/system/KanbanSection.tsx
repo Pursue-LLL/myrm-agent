@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { KanbanBoard, BoardSummary } from '@/services/kanban';
@@ -12,6 +13,9 @@ import { registerSettingsSubviewBack } from '@/components/features/settings/sett
 
 export default function KanbanSection() {
   const t = useTranslations('kanban');
+  const searchParams = useSearchParams();
+  const sourceChatParam = searchParams.get('source_chat')?.trim() || undefined;
+  const boardIdParam = searchParams.get('board_id')?.trim() || undefined;
   const [boards, setBoards] = useState<KanbanBoard[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBoard, setSelectedBoard] = useState<KanbanBoard | null>(null);
@@ -48,12 +52,36 @@ export default function KanbanSection() {
 
   useEffect(() => {
     if (loading || selectedBoard || boards.length === 0) return;
+
+    if (boardIdParam) {
+      const match = boards.find((b) => b.board_id === boardIdParam);
+      if (match) {
+        selectBoard(match);
+        return;
+      }
+    }
+
+    if (sourceChatParam) {
+      if (boards.length === 1) {
+        selectBoard(boards[0]!);
+        return;
+      }
+      const lastId = readKanbanLastBoardId();
+      if (lastId) {
+        const match = boards.find((b) => b.board_id === lastId);
+        if (match) {
+          selectBoard(match);
+          return;
+        }
+      }
+    }
+
     const lastId = readKanbanLastBoardId();
     if (!lastId) return;
     const match = boards.find((b) => b.board_id === lastId);
-    if (match) setSelectedBoard(match);
+    if (match) selectBoard(match);
     else writeKanbanLastBoardId(null);
-  }, [loading, boards, selectedBoard]);
+  }, [loading, boards, selectedBoard, boardIdParam, sourceChatParam, selectBoard]);
 
   useEffect(() => {
     if (!selectedBoard) {

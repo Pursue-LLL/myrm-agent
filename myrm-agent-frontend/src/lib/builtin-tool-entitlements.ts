@@ -3,7 +3,7 @@
  * - BuiltinToolId catalog, sandbox deploy mode, CP entitlement flags
  *
  * [OUTPUT]
- * - stripEntitlementBlockedBuiltinTools: remove cron/computer_use when sandbox plan lacks entitlement
+ * - stripEntitlementBlockedBuiltinTools: remove cron/computer_use/external_cli when sandbox blocks them
  *
  * [POS]
  * Aligns agent config editor state with server runtime gates (mirror BuiltinToolsPanel disabled rules).
@@ -25,6 +25,9 @@ export function stripEntitlementBlockedBuiltinTools(
   }
 
   return tools.filter((id) => {
+    if (id === 'external_cli') {
+      return false;
+    }
     if (id === 'cron' && !options.canUseCron) {
       return false;
     }

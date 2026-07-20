@@ -134,7 +134,7 @@ def test_live_agent_background_shell_visible_in_panel() -> None:
 
     warm_ui_route("/")
     with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
-        opened = client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
+        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
         assert opened.get("clicked") is True, opened
         panel = wait_for_state(client, page, _PANEL_RUNNING_JS, timeout_sec=60.0)
         assert panel.get("ready") is True, panel

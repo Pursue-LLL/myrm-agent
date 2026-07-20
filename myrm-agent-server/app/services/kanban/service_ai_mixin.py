@@ -123,6 +123,7 @@ class KanbanAiWorkflowMixin(KanbanServiceCore):
             parent_task_id: str | None,
             depends_on: list[str] | None,
             extra_skill_ids: list[str] | None = None,
+            metadata_patch: dict[str, object] | None = None,
         ) -> KanbanTask:
             return await self.add_task(
                 board_id=board_id,
@@ -132,6 +133,7 @@ class KanbanAiWorkflowMixin(KanbanServiceCore):
                 parent_task_id=parent_task_id,
                 depends_on=depends_on,
                 extra_skill_ids=extra_skill_ids,
+                metadata_patch=metadata_patch,
             )
 
         return await run_apply_decompose(

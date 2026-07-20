@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - open_wave() / close_wave() / acquire_lease() / release_lease() / heartbeat_lease()
+- probe_runtime_id() — ambient probe; signoff matrix / signoff-chrome.lock use shared-hot SSOT
 - check_stack_write_gate() — active lease blocks dev-stack reset
 
 [POS]
@@ -353,7 +354,7 @@ def release_lease(
         raise RuntimeError(f"LEASE_NOT_FOUND: {lease_id}")
 
     lease = run_locked(resolved.state_file, _edit)
-    _cleanup_released_lease(lease, paths=resolved, skip_resource_cleanup=skip_cleanup)
+    _cleanup_released_lease(lease, paths=resolved, skip_resource_cleanup=skip_cleanup, strict=False)
     return lease
 
 
@@ -429,9 +430,9 @@ def release_lease_and_close_wave_if_idle(
         }, changed
 
     result = run_locked(resolved.state_file, _edit)
-    _cleanup_released_lease(result["lease"], paths=resolved)
+    _cleanup_released_lease(result["lease"], paths=resolved, strict=False)
     for lease in dependent_leases:
-        _cleanup_released_lease(lease, paths=resolved)
+        _cleanup_released_lease(lease, paths=resolved, strict=False)
     if result["waveClosed"]:
         clear_stack_pin(paths=resolved)
     return result

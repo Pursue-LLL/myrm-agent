@@ -23,6 +23,16 @@ describe('stripEntitlementBlockedBuiltinTools', () => {
     ).toEqual(['web_search']);
   });
 
+  it('removes external_cli in sandbox regardless of entitlements', () => {
+    expect(
+      stripEntitlementBlockedBuiltinTools(['web_search', 'external_cli', 'memory'], {
+        sandbox: true,
+        canUseCron: true,
+        canUseVnc: true,
+      }),
+    ).toEqual(['web_search', 'memory']);
+  });
+
   it('keeps entitled sandbox tools', () => {
     expect(
       stripEntitlementBlockedBuiltinTools(['browser', 'computer_use', 'cron'], {

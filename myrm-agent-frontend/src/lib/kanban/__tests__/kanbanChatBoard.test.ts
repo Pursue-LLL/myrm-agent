@@ -7,6 +7,7 @@ import {
   resolveKanbanDefaultBoardIdForRequest,
   resolveKanbanSendBlockReasonFromBoards,
   shouldShowKanbanBoardPicker,
+  buildKanbanBoardDeepLink,
   writeKanbanLastBoardId,
 } from '@/lib/kanban/kanbanChatBoard';
 
@@ -83,5 +84,11 @@ describe('kanbanChatBoard', () => {
 
   it('allows send when sole board without saved id', () => {
     expect(resolveKanbanSendBlockReasonFromBoards([{ board_id: 'only', name: 'Only' }])).toBeNull();
+  });
+
+  it('builds board deep link with source chat and board id', () => {
+    expect(
+      buildKanbanBoardDeepLink({ sourceChatId: 'chat-1', boardId: 'board-9' }),
+    ).toBe('/settings/kanban?source_chat=chat-1&board_id=board-9');
   });
 });

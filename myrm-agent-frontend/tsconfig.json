@@ -51,7 +51,13 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-isolated-wiki-cite-e2e/types/**/*.ts",
-    ".next-isolated-wiki-cite-e2e/dev/types/**/*.ts"
+    ".next-isolated-wiki-cite-e2e/dev/types/**/*.ts",
+    ".next-isolated-e2e-parent-82523-82538-21e0f7ec/types/**/*.ts",
+    ".next-isolated-e2e-parent-82523-82538-21e0f7ec/dev/types/**/*.ts",
+    ".next-isolated-e2e-parent-50628-50646-5e2bac85/types/**/*.ts",
+    ".next-isolated-e2e-parent-50628-50646-5e2bac85/dev/types/**/*.ts",
+    ".next-isolated-e2e-parent-99261-99268-6a2f28cf/types/**/*.ts",
+    ".next-isolated-e2e-parent-99261-99268-6a2f28cf/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

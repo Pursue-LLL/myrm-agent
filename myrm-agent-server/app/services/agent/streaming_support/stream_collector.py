@@ -4,7 +4,8 @@
 JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 
 [OUTPUT]
-StreamContentCollector: collects assistant content and message extra_data, including memory citation refs and retrieval traces.
+StreamContentCollector: collects assistant content and message extra_data, including memory citation refs,
+retrieval traces, kanban_tasks_created, and cron_job_result.
 
 [POS]
 Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata.
@@ -43,6 +44,51 @@ def _is_memory_citation_tool(tool_name: object) -> bool:
     return isinstance(tool_name, str) and tool_name in _MEMORY_CITATION_TOOL_NAMES
 
 
+def _parse_tool_end_result(event: dict[str, object]) -> object | None:
+    result = event.get("result")
+    if isinstance(result, str):
+        try:
+            return json.loads(result)
+        except json.JSONDecodeError:
+            return None
+    return result
+
+
+def _collect_kanban_task_created(
+    entries: list[dict[str, object]],
+    event: dict[str, object],
+) -> None:
+    if event.get("tool_name") != "kanban_add_task":
+        return
+    result_obj = _parse_tool_end_result(event)
+    if not isinstance(result_obj, dict) or result_obj.get("status") != "added":
+        return
+    task = result_obj.get("task")
+    if not isinstance(task, dict):
+        return
+    task_id = task.get("task_id")
+    board_id = task.get("board_id")
+    title = task.get("title")
+    if not all(isinstance(value, str) for value in (task_id, board_id, title)):
+        return
+    entries.append(
+        {
+            "task_id": task_id,
+            "title": title,
+            "board_id": board_id,
+        }
+    )
+
+
+def _collect_cron_job_result(event: dict[str, object]) -> dict[str, object] | None:
+    if event.get("tool_name") != "cron_manage":
+        return None
+    result_obj = _parse_tool_end_result(event)
+    if not isinstance(result_obj, dict) or result_obj.get("status") != "success":
+        return None
+    return result_obj
+
+
 class StreamContentCollector:
     """Collects content and metadata from SSE stream events.
 
@@ -73,6 +119,8 @@ class StreamContentCollector:
         self._usage_alert: dict[str, object] | None = None
         self._session_recording: dict[str, object] | None = None
         self._ui_artifacts: list[dict[str, object]] = []
+        self._kanban_tasks_created: list[dict[str, object]] = []
+        self._cron_job_result: dict[str, object] | None = None
         self._sibling_group_id: str | None = sibling_group_id
         self._chat_id: str | None = chat_id
         self._subscribers: list[asyncio.Queue[dict[str, object]]] = []
@@ -229,6 +277,10 @@ class StreamContentCollector:
             trace = event.get("memory_retrieval_trace")
             if is_memory_recall and isinstance(trace, dict):
                 self._append_memory_retrieval_trace(trace)
+            _collect_kanban_task_created(self._kanban_tasks_created, event)
+            cron_result = _collect_cron_job_result(event)
+            if cron_result is not None:
+                self._cron_job_result = cron_result
         elif event_type == "routing_decision" and isinstance(data, dict):
             tier = data.get("tier")
             if isinstance(tier, str):
@@ -338,6 +390,10 @@ class StreamContentCollector:
             result["sessionRecording"] = self._session_recording
         if self._ui_artifacts:
             result["uiArtifacts"] = self._ui_artifacts
+        if self._kanban_tasks_created:
+            result["kanban_tasks_created"] = list(self._kanban_tasks_created)
+        if self._cron_job_result is not None:
+            result["cron_job_result"] = self._cron_job_result
         if self.reasoning:
             result["reasoning"] = self.reasoning
         return result or None

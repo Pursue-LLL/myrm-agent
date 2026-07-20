@@ -12,7 +12,7 @@
 | `_staging.py` | 模块 | 管理批量导入技能时的持久化暂存区 (Persistent Staging Area)。 | ✅ |
 | `alert_rules.py` | 模块 | Business layer API for alert rule configuration management (CRUD operations) | ✅ |
 | `audit.py` | 模块 | Structured audit log for skill lifecycle operations. | ✅ |
-| `batch_import.py` | 模块 | 批量导入 (GUI-First 技能迁移) 接口 | ✅ |
+| `batch_import.py` | 模块 | 批量导入 (GUI-First 技能迁移) 接口；归档安全错误统一映射为用户安全文案并输出 machine-readable `error_code`。 | ✅ |
 | `config.py` | 模块 | Get user skill configuration; `/available` applies integration OAuth availability | ✅ |
 | `config_version.py` | 模块 | Re-export from app.core.skills.config_version（单一来源）。 | ✅ |
 | `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |

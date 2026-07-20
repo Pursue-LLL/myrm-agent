@@ -14,6 +14,7 @@
 | `ConsensusThinkingPanel.tsx` | 组件 | MoA 多模型思考面板：渐进式展示每个参考模型的状态、耗时、输出摘要（可折叠/展开） | ✅ |
 | `ContextUsageIndicator.tsx` | 组件 | Token 用量环 + 策略状态点 + MiniPanel（压缩/Fork 新话题一键操作） | ✅ |
 | `CronJobSystemCard.tsx` | 组件 | Cron 系统消息卡片（定时任务触发/结果摘要） | ✅ |
+| `KanbanTaskCreatedCard.tsx` | 组件 | Chat 内 `kanban_add_task` 成功卡片（`metadata.kanban_tasks_created`） | ✅ |
 | `FileMutationWarning.tsx` | 组件 | 文件变更风险警告条（mutation 失败/冲突提示） | ✅ |
 | `MarkdownContent.tsx` | 核心 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型；KB citation 可点击打开 SourceChunkDrawer | ✅ |
 | `MemoryCitationsButton.tsx` | 组件 | 记忆引用来源按钮与 Popover | ✅ |

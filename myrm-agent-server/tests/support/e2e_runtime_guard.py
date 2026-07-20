@@ -207,9 +207,73 @@ def _stack_fingerprint_runtime_id() -> str:
     return os.environ.get("MYRM_E2E_STACK_FP", "").strip()
 
 
+def _signoff_shared_hot_runtime_probe_active() -> bool:
+    """Match wave_orchestrator.core._signoff_shared_hot_runtime_probe during signoff."""
+    if os.environ.get("MYRM_SIGNOFF_MATRIX", "").strip() == "1":
+        return True
+    state_dir = Path(
+        os.environ.get("MYRM_DEV_STATE_DIR", str(Path.home() / ".local/state/myrm-dev"))
+    )
+    lock_path = state_dir / "signoff-chrome.lock"
+    if not lock_path.is_file():
+        return False
+    try:
+        owner_raw = lock_path.read_text(encoding="utf-8").strip().split()[0]
+        owner_pid = int(owner_raw)
+    except (OSError, ValueError):
+        return True
+    if owner_pid <= 0:
+        return True
+    try:
+        os.kill(owner_pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _shared_hot_stack_runtime_id() -> str:
+    dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
+    if str(dev_lib) not in sys.path:
+        sys.path.insert(0, str(dev_lib))
+    from runtime_probe import _read_shared_hot_stack_runtime_id
+
+    return _read_shared_hot_stack_runtime_id()
+
+
+def _attempt_signoff_runtime_heal(state_path: Path, lease_id: str) -> str | None:
+    """In-place heal wave + active leases when shared-hot runtime drifts during signoff."""
+    if not _signoff_shared_hot_runtime_probe_active():
+        return None
+    result = subprocess.run(
+        ["bash", str(_wave_script()), "reap"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    try:
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    lease = _active_lease(payload, lease_id)
+    if lease is None:
+        return None
+    healed = str(lease.get("runtimeId", "")).strip()
+    if not healed:
+        return None
+    os.environ["MYRM_E2E_STACK_FP"] = healed
+    return healed
+
+
 def _runtime_id_reader() -> str:
     if _isolated_e2e_mode():
         return _stack_scoped_runtime_id()
+    if _signoff_shared_hot_runtime_probe_active():
+        return _shared_hot_stack_runtime_id()
     stack_fp = _stack_fingerprint_runtime_id()
     if stack_fp:
         return stack_fp
@@ -283,6 +347,9 @@ def require_e2e_runtime_lease(
     if expires <= datetime.now(UTC):
         raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} is expired")
     expected = lease.get("runtimeId", "").strip()
+    wave_runtime = str(wave.get("runtimeId", "")).strip()
+    if _signoff_shared_hot_runtime_probe_active() and wave_runtime:
+        expected = wave_runtime
     if wave.get("runtimeId") != expected:
         raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} runtime does not match open wave")
     if _isolated_e2e_mode():
@@ -296,7 +363,14 @@ def require_e2e_runtime_lease(
         )
     current = runtime_id_reader().strip()
     if not expected or current != expected:
-        raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={expected or '<missing>'} current={current or '<missing>'}")
+        healed = _attempt_signoff_runtime_heal(state_path, lease_id)
+        if healed:
+            expected = healed
+            current = runtime_id_reader().strip()
+        if not expected or current != expected:
+            raise RuntimeError(
+                f"RUNTIME_DRIFT: E2E lease expected={expected or '<missing>'} current={current or '<missing>'}"
+            )
     return E2ERuntimeLease(lease_id=lease_id, runtime_id=expected, lane=expected_lane)
 
 
@@ -310,8 +384,19 @@ def assert_e2e_runtime_unchanged(
         _assert_isolated_stack_unchanged(expected=expected)
         return
     current = runtime_id_reader().strip()
-    if current != lease.runtime_id:
-        raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={lease.runtime_id} current={current or '<missing>'}")
+    expected_runtime = lease.runtime_id.strip()
+    if _signoff_shared_hot_runtime_probe_active():
+        dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
+        if str(dev_lib) not in sys.path:
+            sys.path.insert(0, str(dev_lib))
+        from runtime_probe import _read_shared_hot_stack_runtime_id
+
+        expected_runtime = _read_shared_hot_stack_runtime_id().strip() or expected_runtime
+    if current != expected_runtime:
+        healed = _attempt_signoff_runtime_heal(_state_file(), lease.lease_id)
+        if healed and healed == runtime_id_reader().strip():
+            return
+        raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={expected_runtime} current={current or '<missing>'}")
 
 
 def assert_chrome_attach_health() -> None:

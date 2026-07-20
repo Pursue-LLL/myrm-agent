@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -282,4 +283,59 @@ def test_shared_hot_stack_fp_pins_runtime_for_shpoib(
 
     lease = require_e2e_runtime_lease()
     assert lease.runtime_id == "shared-hot-runtime"
+    assert_e2e_runtime_unchanged(lease)
+
+
+def test_signoff_matrix_prefers_shared_hot_probe_over_stale_stack_fp(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_state(tmp_path, runtime_id="healed-runtime")
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
+    monkeypatch.setenv("MYRM_SIGNOFF_MATRIX", "1")
+    monkeypatch.setenv("MYRM_E2E_STACK_FP", "stale-stack-fp")
+    monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard._shared_hot_stack_runtime_id",
+        lambda: "healed-runtime",
+    )
+
+    lease = require_e2e_runtime_lease()
+    assert lease.runtime_id == "healed-runtime"
+    assert_e2e_runtime_unchanged(lease)
+
+
+def test_signoff_matrix_auto_heals_stale_lease_on_runtime_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_state(tmp_path, runtime_id="runtime-stale")
+    state_dir = tmp_path / "state"
+    state_path = state_dir / "wave-orchestrator.json"
+    monkeypatch.setenv("MYRM_DEV_STATE_DIR", str(state_dir))
+    monkeypatch.setenv("MYRM_E2E_LEASE_ID", "lease-1")
+    monkeypatch.setenv("MYRM_E2E_AGENT_ID", "test-agent")
+    monkeypatch.setenv("MYRM_SIGNOFF_MATRIX", "1")
+
+    def _heal_on_reap(cmd: list[str], **kwargs: object) -> object:
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+        wave = payload.get("wave")
+        if isinstance(wave, dict):
+            wave["runtimeId"] = "runtime-healed"
+        for item in payload.get("leases", []):
+            if isinstance(item, dict) and item.get("status") == "active":
+                item["runtimeId"] = "runtime-healed"
+        state_path.write_text(json.dumps(payload), encoding="utf-8")
+        return type("Result", (), {"returncode": 0, "stderr": "", "stdout": ""})()
+
+    monkeypatch.setattr("tests.support.e2e_runtime_guard.subprocess.run", _heal_on_reap)
+    monkeypatch.setattr(
+        "tests.support.e2e_runtime_guard._shared_hot_stack_runtime_id",
+        lambda: "runtime-healed",
+    )
+
+    lease = require_e2e_runtime_lease()
+    assert lease.runtime_id == "runtime-healed"
+    assert os.environ.get("MYRM_E2E_STACK_FP") == "runtime-healed"
     assert_e2e_runtime_unchanged(lease)

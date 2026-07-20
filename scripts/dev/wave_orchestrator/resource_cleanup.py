@@ -77,7 +77,11 @@ def _request(
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         return exc.code, detail
+    except TimeoutError as exc:
+        return 0, f"timeout: {exc}"
     except urllib.error.URLError as exc:
+        return 0, str(exc)
+    except OSError as exc:
         return 0, str(exc)
 
 
@@ -99,7 +103,7 @@ def _login_cookie() -> str:
     except urllib.error.HTTPError as exc:
         if exc.code not in {200, 204}:
             raise RuntimeError(f"LEDGER_CLEANUP_AUTH_LOGIN_FAIL: HTTP {exc.code}") from exc
-    except urllib.error.URLError as exc:
+    except (TimeoutError, urllib.error.URLError, OSError) as exc:
         raise RuntimeError(f"LEDGER_CLEANUP_AUTH_LOGIN_FAIL: {exc}") from exc
     parts = [f"{item.name}={item.value}" for item in cookie_jar]
     if not parts:

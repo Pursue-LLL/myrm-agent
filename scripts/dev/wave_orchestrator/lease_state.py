@@ -184,6 +184,23 @@ def signoff_matrix_runtime_heal_allowed(state: OrchestratorState) -> bool:
     return signoff_chrome_lock_active()
 
 
+_E2E_RUNTIME_HEAL_AGENT_PREFIXES: tuple[str, ...] = (
+    "e2e-parent-",
+    "myrm-test-e2e:",
+    "signoff-matrix-parent-",
+)
+
+
+def parallel_chrome_e2e_runtime_heal_allowed(state: OrchestratorState) -> bool:
+    """Allow in-place runtime heal while formal chrome E2E sessions hold active leases."""
+    if signoff_matrix_runtime_heal_allowed(state):
+        return True
+    return any(
+        str(lease.get("agentId", "")).startswith(_E2E_RUNTIME_HEAL_AGENT_PREFIXES)
+        for lease in active_leases(state)
+    )
+
+
 def signoff_wave_close_blocked(state: OrchestratorState) -> bool:
     """Block idle-wave close while Dev Gate signoff chrome or matrix session is active."""
     if signoff_chrome_lock_active():
@@ -201,7 +218,7 @@ def heal_open_wave_runtime_id(
         return False
     if not current_runtime_id or current_runtime_id == wave["runtimeId"]:
         return False
-    if not signoff_matrix_runtime_heal_allowed(state):
+    if not parallel_chrome_e2e_runtime_heal_allowed(state):
         return False
 
     wave_id = wave["waveId"]
@@ -222,7 +239,7 @@ def restore_drifted_signoff_wave(
         return False
     if not current_runtime_id:
         return False
-    if not signoff_matrix_runtime_heal_allowed(state):
+    if not parallel_chrome_e2e_runtime_heal_allowed(state):
         return False
 
     wave_id = wave["waveId"]
@@ -254,9 +271,8 @@ def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> boo
     if heal_open_wave_runtime_id(state, current_runtime_id):
         return True
 
-    if signoff_matrix_runtime_heal_allowed(state):
-        # Signoff matrix/chrome lock: never drift-invalidate a shared immutable wave.
-        # Probe can lag during attach-heal; skipping invalidate keeps parallel tests alive.
+    if parallel_chrome_e2e_runtime_heal_allowed(state):
+        # Formal chrome E2E / signoff: heal in-place; never drift-invalidate active sessions.
         return restore_drifted_signoff_wave(state, current_runtime_id)
 
     wave["status"] = "drifted"

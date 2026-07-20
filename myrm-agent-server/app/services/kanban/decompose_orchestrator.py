@@ -34,6 +34,7 @@ from myrm_agent_harness.toolkits.kanban.types import (
     KanbanTask,
     TaskEventKind,
     TaskStatus,
+    inherit_source_chat_metadata,
 )
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
@@ -142,6 +143,8 @@ async def run_apply_decompose(
             completion_tokens=completion_tokens,
         )
 
+    child_metadata = inherit_source_chat_metadata(task.metadata)
+
     child_ids: list[str] = []
     for spec in children:
         depends_on: list[str] = []
@@ -157,6 +160,7 @@ async def run_apply_decompose(
             parent_task_id=task.task_id,
             depends_on=depends_on or None,
             extra_skill_ids=list(spec.extra_skill_ids) or None,
+            metadata_patch=child_metadata,
         )
         child_ids.append(child.task_id)
 
@@ -293,4 +297,5 @@ class _AddTaskFn(Protocol):
         parent_task_id: str | None,
         depends_on: list[str] | None,
         extra_skill_ids: list[str] | None = None,
+        metadata_patch: dict[str, object] | None = None,
     ) -> KanbanTask: ...
