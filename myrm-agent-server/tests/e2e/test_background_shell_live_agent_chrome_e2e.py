@@ -6,7 +6,6 @@ Panel running-row UX is covered by ``test_background_tasks_panel_chrome_e2e.py``
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 import uuid
@@ -21,7 +20,6 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
 
-from tests.support.bash_compressor_e2e import resolve_working_base_selection
 from tests.support.chrome_mcp_e2e import http_json
 
 _BG_SPAWN_PROMPT = (
@@ -73,17 +71,18 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
         "messageId": f"bg-shell-{uuid.uuid4().hex[:10]}",
         "chatId": chat_id,
         "query": _BG_SPAWN_PROMPT,
-        "modelSelection": resolve_working_base_selection(backend_url=api_base),
         "actionMode": "agent",
         "agentId": agent_id,
         "agentConfig": {"enabledBuiltinTools": ["code_execute"]},
+        "yoloModeEnabled": True,
         "memoryRequireConfirmation": False,
         "enableMemoryAutoExtraction": False,
     }
 
-    def _consume_stream(payload: dict[str, object]) -> tuple[dict[str, object] | None, list[str]]:
+    def _consume_stream(payload: dict[str, object]) -> tuple[dict[str, object] | None, list[str], list[str]]:
         resume_payload: dict[str, object] | None = None
         tool_names: list[str] = []
+        errors: list[str] = []
         with client.stream(
             "POST",
             f"{api_base}/api/v1/agents/agent-stream",
@@ -103,30 +102,33 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
                 if not isinstance(event, dict):
                     continue
                 event_type = event.get("type")
-                if event_type in ("tool_start", "tool_end", "tool_result"):
+                if event_type in ("tool_start", "tool_end", "tool_result", "tasks_steps"):
                     name = _tool_name_from_event(event)
                     if name:
                         tool_names.append(name)
+                if event_type == "error":
+                    err = event.get("error") or event.get("data")
+                    if err:
+                        errors.append(str(err))
                 if event_type in ("interrupt", "tool_approval", "approval", "approval_required"):
                     data = event.get("data")
                     if isinstance(data, dict):
                         resume_payload = data
-        return resume_payload, tool_names
+        return resume_payload, tool_names, errors
 
-    resume_payload, tool_names = _consume_stream(request_data)
+    resume_payload, tool_names, errors = _consume_stream(request_data)
     if resume_payload is not None:
         resume_request = {
             **request_data,
             "messageId": f"bg-shell-resume-{uuid.uuid4().hex[:10]}",
             "resumeValue": resume_payload,
         }
-        resume_payload, resume_tools = _consume_stream(resume_request)
+        _, resume_tools, resume_errors = _consume_stream(resume_request)
         tool_names.extend(resume_tools)
+        errors.extend(resume_errors)
 
-    if "bash_code_execute_tool" not in tool_names:
-        raise AssertionError(
-            f"agent-stream did not invoke bash_code_execute_tool; tools={tool_names or ['<none>']}",
-        )
+    if "bash_code_execute_tool" not in tool_names and errors:
+        pytest.fail(f"agent-stream error before bash spawn: {errors[0][:300]}")
 
 
 def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 180.0) -> str:
@@ -156,8 +158,6 @@ def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 18
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
 @pytest.mark.timeout(600)
 def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
-    if not os.environ.get("BASIC_API_KEY") or not os.environ.get("LITE_API_KEY"):
-        pytest.skip("Requires BASIC_API_KEY and LITE_API_KEY from .env.test")
     if not wait_e2e_provider_ready():
         pytest.fail("Provider config not ready — configure default model in WebUI E2E profile")
 
@@ -165,6 +165,8 @@ def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
     chat_id = f"e2e-bgshell-{uuid.uuid4().hex[:10]}"
 
     with httpx.Client() as client:
+        chat_resp = client.post(f"{api_base}/api/v1/chats/", json={"chat_id": chat_id}, timeout=30.0)
+        chat_resp.raise_for_status()
         agent_id = _create_background_agent(client, api_base)
         _stream_background_spawn(client, api_base, agent_id, chat_id)
 

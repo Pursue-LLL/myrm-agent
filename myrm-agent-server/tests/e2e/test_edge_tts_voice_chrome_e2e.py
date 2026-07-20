@@ -460,12 +460,12 @@ async def test_read_aloud_edge_api_from_browser_context(
     assert int(result.get("bytes", 0)) > 0, result
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
 @pytest.mark.timeout(420)
 @pytest.mark.asyncio
 async def test_edge_tts_parallel_tabs_isolated(_require_live_e2e_lease: None) -> None:
-    """Parallel lanes: voice banner (tab A) + read-aloud fetch (tab B) + no shared CDP session."""
+    """Parallel tabs: voice banner (tab A) + read-aloud fetch (tab B) on shared stack."""
     _require_live_stack()
     if not _edge_tts_available():
         pytest.skip("edge_tts_available=false")
@@ -473,35 +473,27 @@ async def test_edge_tts_parallel_tabs_isolated(_require_live_e2e_lease: None) ->
     _seed_voice_and_personal_settings()
     _ensure_voice_feature_enabled()
 
-    voice_client = ChromeMcpClient(request_timeout_sec=180.0)
-    read_client = ChromeMcpClient(request_timeout_sec=180.0)
-    await asyncio.gather(
-        asyncio.to_thread(voice_client.start),
-        asyncio.to_thread(read_client.start),
-    )
-
+    client = ChromeMcpClient(request_timeout_sec=180.0)
+    await asyncio.to_thread(client.start)
     page_timeout_ms = 60_000
+
     try:
-        # Sequential open avoids mux upstream timeout when two sessions race new_page.
         voice_tab = await asyncio.to_thread(
-            voice_client.new_page,
+            client.new_page,
             f"{get_e2e_ui_url()}/",
             timeout_ms=page_timeout_ms,
         )
         read_tab = await asyncio.to_thread(
-            read_client.new_page,
+            client.new_page,
             f"{get_e2e_ui_url()}/",
             timeout_ms=page_timeout_ms,
         )
         voice_result, read_result = await asyncio.gather(
-            _probe_voice_banner(voice_client, voice_tab),
-            _probe_read_aloud_fetch(read_client, read_tab),
+            _probe_voice_banner(client, voice_tab),
+            _probe_read_aloud_fetch(client, read_tab),
         )
     finally:
-        await asyncio.gather(
-            asyncio.to_thread(voice_client.close),
-            asyncio.to_thread(read_client.close),
-        )
+        await asyncio.to_thread(client.close)
 
     assert voice_result.get("hasVoicePanel") is True, voice_result
     assert voice_result.get("showBanner") is False, voice_result

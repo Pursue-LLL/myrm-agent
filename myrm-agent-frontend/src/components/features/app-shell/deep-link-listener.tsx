@@ -45,15 +45,8 @@ export default function DeepLinkListener() {
         }
       };
     } else {
-      // 2. Web/SaaS mode: Check if the current URL is an intent URL
-      // This is handled by Next.js routing naturally, but if we want to intercept
-      // specific patterns on mount, we can do it here.
-      // For now, Next.js pages will handle /intent/... routes directly,
-      // or we can parse window.location.href here if needed.
-      const currentUrl = window.location.href;
-      if (currentUrl.includes('/intent/')) {
-        dispatcher.dispatch(currentUrl);
-      }
+      // 2. Web/SaaS mode: /intent/* routes are handled by dedicated pages.
+      // Keep this listener as a no-op to avoid duplicate dispatches.
     }
   }, [router, openFlowPad]);
 

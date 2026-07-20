@@ -18,7 +18,7 @@
 | `browser_tab_hygiene.py` | Unix | `./myrm doctor --chrome` tab 计数报告（CDP / wave / infra registry） |
 | `cdp_write_guard.py` | Unix | raw `/json/new` 永久拒绝；仅 supervisor `MYRM_CDP_WARMUP=1` 预热例外；active lease 计数经 `wave_state_paths` |
 | `wave_state_paths.py` | Unix | `wave-orchestrator.json` 路径 SSOT；lazy bootstrap 委托 `wave_orchestrator.paths.resolve_wave_paths().state_file` |
-| `runtime_identity.py` | Unix | Runtime Identity SSOT + attach/stack-core health gate：基础设施四元 epoch → hot-pool `runtimeId`；`api_health_errors()`（signoff keepalive API-only）；`require_stack_core` 忽略 UI curl；源码 fingerprint 独立控制 warmth/HMR，不使 active lease drift；`read_stack_scoped_runtime_id()`（backend+frontend only）；`build_health_json` CLI |
+| `runtime_identity.py` | Unix | Runtime Identity SSOT + attach/stack-core health gate：基础设施四元 epoch → hot-pool `runtimeId`；`api_health_errors()`（keepalive API-only）；`require_stack_core` 忽略 UI curl；源码 fingerprint 独立控制 warmth/HMR，不使 active lease drift；`read_stack_scoped_runtime_id()`（backend+frontend only）；`build_health_json` CLI |
 | `runtime_probe.py` | Unix | Live mux/CDP probe + `run_drift_check()` for `--drift` / `runtime-drift` |
 | `runtime-drift.sh` | Unix | `./myrm runtime-drift --expect <id>` 入口；exit 2 = `RUNTIME_DRIFT` |
 | `stack-epoch.sh` | Unix | Backend `stack_epoch` bump/read for parallel Agent drift detection |

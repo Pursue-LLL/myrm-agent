@@ -207,32 +207,6 @@ def _stack_fingerprint_runtime_id() -> str:
     return os.environ.get("MYRM_E2E_STACK_FP", "").strip()
 
 
-def _signoff_shared_hot_runtime_probe_active() -> bool:
-    """Match wave_orchestrator.core._signoff_shared_hot_runtime_probe during signoff."""
-    if os.environ.get("MYRM_SIGNOFF_MATRIX", "").strip() == "1":
-        return True
-    state_dir = Path(
-        os.environ.get("MYRM_DEV_STATE_DIR", str(Path.home() / ".local/state/myrm-dev"))
-    )
-    lock_path = state_dir / "signoff-chrome.lock"
-    if not lock_path.is_file():
-        return False
-    try:
-        owner_raw = lock_path.read_text(encoding="utf-8").strip().split()[0]
-        owner_pid = int(owner_raw)
-    except (OSError, ValueError):
-        return True
-    if owner_pid <= 0:
-        return True
-    try:
-        os.kill(owner_pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
-
-
 def _formal_chrome_e2e_runtime_heal_allowed() -> bool:
     """Allow in-place wave heal for ./myrm test chrome_e2e parent sessions."""
     dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
@@ -244,7 +218,7 @@ def _formal_chrome_e2e_runtime_heal_allowed() -> bool:
 
 
 def _runtime_drift_heal_allowed() -> bool:
-    return _signoff_shared_hot_runtime_probe_active() or _formal_chrome_e2e_runtime_heal_allowed()
+    return _formal_chrome_e2e_runtime_heal_allowed()
 
 
 def _uses_shared_hot_runtime_probe() -> bool:

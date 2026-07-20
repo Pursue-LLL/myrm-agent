@@ -10,8 +10,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Final
 
-_SIGNOFF_MATRIX_AGENT_PREFIX: Final[str] = "signoff-matrix-"
-
 _dev_lib = Path(__file__).resolve().parent.parent / "lib"
 _dev_lib_str = str(_dev_lib)
 if _dev_lib_str not in sys.path:
@@ -100,15 +98,6 @@ def reap_abandoned_leases(
             continue
         agent_id = str(lease.get("agentId", ""))
         owner_pid = owner_bashpid_from_agent_id(agent_id)
-        if is_signoff_matrix_agent_id(agent_id):
-            # Interrupted signoff: lock gone + owner shell dead → release ghost cap.
-            if signoff_chrome_lock_active():
-                continue
-            if owner_pid is None or _process_is_alive(owner_pid):
-                continue
-            lease["status"] = "expired"
-            changed = True
-            continue
         if owner_pid is None or _process_is_alive(owner_pid):
             continue
         lease["status"] = "expired"
@@ -136,65 +125,25 @@ def reap_expired_leases(
     return changed
 
 
-def is_signoff_matrix_agent_id(agent_id: str) -> bool:
-    return agent_id.startswith(_SIGNOFF_MATRIX_AGENT_PREFIX)
-
-
-def signoff_chrome_lock_active() -> bool:
-    """True while maintainer signoff holds signoff-chrome.lock with a live owner."""
-    from .paths import resolve_dev_state_dir
-
-    lock_path = resolve_dev_state_dir() / "signoff-chrome.lock"
-    if not lock_path.is_file():
-        return False
-    try:
-        owner_raw = lock_path.read_text(encoding="utf-8").strip().split()[0]
-        owner_pid = int(owner_raw)
-    except (OSError, ValueError):
-        return True
-    if owner_pid <= 0:
-        return True
-    try:
-        os.kill(owner_pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
-
-
-def signoff_matrix_guard_active(state: OrchestratorState) -> bool:
-    """True while Dev Gate signoff matrix holds an active LIVE_AGENT session."""
-    return any(
-        is_signoff_matrix_agent_id(str(lease.get("agentId", "")))
-        for lease in active_leases(state)
-    )
-
-
-def signoff_matrix_runtime_heal_allowed(state: OrchestratorState) -> bool:
-    """Allow in-place runtime heal during signoff matrix parent bootstrap or active session."""
-    if signoff_matrix_guard_active(state):
-        return True
-    if os.environ.get("MYRM_SIGNOFF_MATRIX", "").strip() == "1":
-        return True
-    return signoff_chrome_lock_active()
-
-
 def parallel_chrome_e2e_runtime_heal_allowed(state: OrchestratorState) -> bool:
     """Allow in-place runtime heal while formal chrome E2E sessions hold active leases."""
-    if signoff_matrix_runtime_heal_allowed(state):
-        return True
     return any(
         formal_chrome_e2e_runtime_heal_agent(str(lease.get("agentId", "")))
         for lease in active_leases(state)
     )
 
 
-def signoff_wave_close_blocked(state: OrchestratorState) -> bool:
-    """Block idle-wave close while maintainer signoff lock or matrix session is active."""
-    if signoff_chrome_lock_active():
-        return True
-    return signoff_matrix_guard_active(state)
+def formal_chrome_e2e_wave_heal_allowed(state: OrchestratorState) -> bool:
+    """Allow drifted-wave restore when the wave owns formal chrome E2E session leases."""
+    wave = state["wave"]
+    if wave is None:
+        return False
+    wave_id = wave["waveId"]
+    return any(
+        lease["waveId"] == wave_id
+        and formal_chrome_e2e_runtime_heal_agent(str(lease.get("agentId", "")))
+        for lease in state["leases"]
+    )
 
 
 def heal_open_wave_runtime_id(
@@ -218,17 +167,17 @@ def heal_open_wave_runtime_id(
     return True
 
 
-def restore_drifted_signoff_wave(
+def restore_drifted_formal_e2e_wave(
     state: OrchestratorState,
     current_runtime_id: str,
 ) -> bool:
-    """Re-open a drifted wave and reactivate leases during signoff heal windows."""
+    """Re-open a drifted wave and reactivate leases during formal chrome E2E heal windows."""
     wave = state["wave"]
     if wave is None or wave["status"] != "drifted":
         return False
     if not current_runtime_id:
         return False
-    if not parallel_chrome_e2e_runtime_heal_allowed(state):
+    if not formal_chrome_e2e_wave_heal_allowed(state):
         return False
 
     wave_id = wave["waveId"]
@@ -246,12 +195,12 @@ def restore_drifted_signoff_wave(
 
 
 def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> bool:
-    """Invalidate an open wave on runtime drift, or heal in-place during signoff matrix."""
+    """Invalidate an open wave on runtime drift, or heal in-place during formal chrome E2E."""
     wave = state["wave"]
     if wave is None:
         return False
     if wave["status"] == "drifted":
-        return restore_drifted_signoff_wave(state, current_runtime_id)
+        return restore_drifted_formal_e2e_wave(state, current_runtime_id)
     if wave["status"] != "open":
         return False
     if not current_runtime_id or current_runtime_id == wave["runtimeId"]:
@@ -261,8 +210,7 @@ def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> boo
         return True
 
     if parallel_chrome_e2e_runtime_heal_allowed(state):
-        # Formal chrome E2E / signoff: heal in-place; never drift-invalidate active sessions.
-        return restore_drifted_signoff_wave(state, current_runtime_id)
+        return restore_drifted_formal_e2e_wave(state, current_runtime_id)
 
     wave["status"] = "drifted"
     wave["closedAt"] = iso_timestamp(utc_now())
@@ -274,8 +222,6 @@ def reap_runtime_drift(state: OrchestratorState, current_runtime_id: str) -> boo
 def close_wave_after_last_expired_lease(state: OrchestratorState) -> bool:
     wave = state["wave"]
     if wave is None or wave["status"] != "open":
-        return False
-    if signoff_wave_close_blocked(state):
         return False
     wave_leases = [
         lease for lease in state["leases"] if lease["waveId"] == wave["waveId"]

@@ -108,6 +108,7 @@ export function FlowPadModal() {
   const [inlineRouteSelection, setInlineRouteSelection] = useState<InlineRouteSelection | null>(null);
   const [agentRouteMenuOpen, setAgentRouteMenuOpen] = useState(false);
   const [inlineRouteSwitching, setInlineRouteSwitching] = useState(false);
+  const [inlineRouteSwitchError, setInlineRouteSwitchError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const agentRouteMenuRef = useRef<HTMLDivElement>(null);
 
@@ -128,7 +129,13 @@ export function FlowPadModal() {
     if (isOpen) {
       setText(initialText);
       setLightboxSrc(null);
+      setInlineRouteSelection(null);
+      setInlineRouteSwitchError(null);
+      setInlineRouteSwitching(false);
+      setAgentRouteMenuOpen(false);
       setTimeout(() => inputRef.current?.focus(), 100);
+    } else {
+      setAgentRouteMenuOpen(false);
     }
   }, [isOpen, initialText]);
 
@@ -146,6 +153,7 @@ export function FlowPadModal() {
     const stillExists = availableAgents.some((agent) => agent.id === inlineRouteSelection.id);
     if (!stillExists) {
       setInlineRouteSelection(null);
+      setInlineRouteSwitchError(null);
     }
   }, [availableAgents, inlineRouteSelection]);
 
@@ -201,12 +209,14 @@ export function FlowPadModal() {
       setAgentRouteMenuOpen(false);
       if (agentId === null) {
         setInlineRouteSelection(null);
+        setInlineRouteSwitchError(null);
         return;
       }
       if (inlineRouteSelection?.id === agentId) {
         return;
       }
 
+      setInlineRouteSwitchError(null);
       setInlineRouteSwitching(true);
       try {
         const listItem = availableAgents.find((agent) => agent.id === agentId);
@@ -220,9 +230,14 @@ export function FlowPadModal() {
           avatarUrl: nextAvatar,
           config: nextConfig,
         });
+        setInlineRouteSwitchError(null);
         toast.success(t('inlineRouteApplied', { agent: nextName }), { duration: 2000 });
       } catch (err) {
         console.error('FlowPad inline route switch failed:', err);
+        const failedName = availableAgents.find((agent) => agent.id === agentId)?.name ?? agentId;
+        // Fail-safe to current session route to avoid accidentally sending with stale override.
+        setInlineRouteSelection(null);
+        setInlineRouteSwitchError(failedName);
         toast.error(t('inlineRouteApplyFailed'), { duration: 3000 });
       } finally {
         setInlineRouteSwitching(false);
@@ -230,6 +245,12 @@ export function FlowPadModal() {
     },
     [availableAgents, fetchAgent, inlineRouteSelection?.id, t],
   );
+
+  const handleFallbackToCurrentRoute = useCallback(() => {
+    setInlineRouteSelection(null);
+    setInlineRouteSwitchError(null);
+    toast.success(t('inlineRouteFallbackApplied'), { duration: 2000 });
+  }, [t]);
 
   const sendWithInlineRoute = useCallback(
     async (message: string) => {
@@ -248,6 +269,10 @@ export function FlowPadModal() {
 
     if (!hasCaptures && !hasText) return;
     if (isSubmitting) return;
+    if (inlineRouteSwitching) {
+      toast.warning(t('inlineRouteSwitchingBlocked'), { duration: 2000 });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -281,7 +306,18 @@ export function FlowPadModal() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [captures, text, attachScreenshots, sendWithInlineRoute, close, currentAgentLabel, t, isSubmitting, mode]);
+  }, [
+    captures,
+    text,
+    attachScreenshots,
+    sendWithInlineRoute,
+    close,
+    currentAgentLabel,
+    t,
+    isSubmitting,
+    inlineRouteSwitching,
+    mode,
+  ]);
 
   const handleSpeechTranscript = useCallback(
     (transcript: string) => {
@@ -294,6 +330,10 @@ export function FlowPadModal() {
   const handleQuickAction = useCallback(
     async (promptKey: 'replyPrompt' | 'summarizePrompt' | 'translatePrompt' | 'explainPrompt') => {
       if (isSubmitting || captures.length === 0) return;
+      if (inlineRouteSwitching) {
+        toast.warning(t('inlineRouteSwitchingBlocked'), { duration: 2000 });
+        return;
+      }
 
       setIsSubmitting(true);
       try {
@@ -317,7 +357,17 @@ export function FlowPadModal() {
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, captures, attachScreenshots, sendWithInlineRoute, close, currentAgentLabel, t, mode],
+    [
+      isSubmitting,
+      captures,
+      attachScreenshots,
+      sendWithInlineRoute,
+      close,
+      currentAgentLabel,
+      t,
+      inlineRouteSwitching,
+      mode,
+    ],
   );
 
   const handleKeyDown = useCallback(
@@ -434,79 +484,96 @@ export function FlowPadModal() {
           {/* Agent route indicator / switcher */}
           <div className="px-4 py-1.5 border-b border-border/20 bg-muted/5">
             {mode === 'inline' ? (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] text-muted-foreground/60">{t('sendTo')}</span>
-                <div className="relative" ref={agentRouteMenuRef}>
-                  <button
-                    type="button"
-                    data-testid="flowpad-inline-route-trigger"
-                    disabled={isSubmitting || inlineRouteSwitching}
-                    className="inline-flex max-w-[320px] items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-xs text-foreground transition-colors hover:bg-accent/40 disabled:opacity-60"
-                    onClick={() => setAgentRouteMenuOpen((open) => !open)}
-                  >
-                    <AgentAvatar
-                      url={effectiveInlineRouteAvatar}
-                      name={effectiveInlineRouteLabel}
-                      agentId={inlineRouteSelection?.id ?? agentConfig?.agentId}
-                      className="h-4 w-4"
-                      size="sm"
-                    />
-                    <span className="truncate">{effectiveInlineRouteLabel}</span>
-                    <span className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
-                      {inlineRouteSelection ? t('inlineRouteProfile') : t('inlineRouteCurrent')}
-                    </span>
-                    {inlineRouteSwitching ? (
-                      <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    )}
-                  </button>
-                  {agentRouteMenuOpen && (
-                    <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-[300px] rounded-md border border-border/60 bg-background p-1 shadow-xl">
-                      <div className="max-h-64 overflow-y-auto">
-                        <button
-                          type="button"
-                          data-testid="flowpad-inline-route-follow-current"
-                          className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent/50"
-                          onClick={() => void handleSelectInlineRouteAgent(null)}
-                        >
-                          <span className="truncate">{t('inlineRouteFollowCurrent', { agent: currentAgentLabel })}</span>
-                          {!inlineRouteSelection && <Check className="h-3.5 w-3.5 text-primary" />}
-                        </button>
-                        {agentListLoading ? (
-                          <p className="px-2 py-2 text-[11px] text-muted-foreground">{t('inlineRouteLoadingAgents')}</p>
-                        ) : availableAgents.length > 0 ? (
-                          availableAgents.map((agent) => {
-                            const selected = inlineRouteSelection?.id === agent.id;
-                            return (
-                              <button
-                                key={agent.id}
-                                type="button"
-                                data-testid={`flowpad-inline-route-agent-${agent.id}`}
-                                className="flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent/50"
-                                onClick={() => void handleSelectInlineRouteAgent(agent.id)}
-                              >
-                                <span className="flex min-w-0 items-center gap-2">
-                                  <AgentAvatar
-                                    url={agent.avatar_url}
-                                    name={agent.name}
-                                    agentId={agent.id}
-                                    className="h-4 w-4"
-                                    size="sm"
-                                  />
-                                  <span className="truncate">{agent.name}</span>
-                                </span>
-                                {selected && <Check className="h-3.5 w-3.5 text-primary" />}
-                              </button>
-                            );
-                          })
-                        ) : (
-                          <p className="px-2 py-2 text-[11px] text-muted-foreground">{t('inlineRouteNoAgents')}</p>
-                        )}
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-muted-foreground/60">{t('sendTo')}</span>
+                  <div className="relative" ref={agentRouteMenuRef}>
+                    <button
+                      type="button"
+                      data-testid="flowpad-inline-route-trigger"
+                      disabled={isSubmitting || inlineRouteSwitching}
+                      className="inline-flex max-w-[320px] items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-xs text-foreground transition-colors hover:bg-accent/40 disabled:opacity-60"
+                      onClick={() => setAgentRouteMenuOpen((open) => !open)}
+                    >
+                      <AgentAvatar
+                        url={effectiveInlineRouteAvatar}
+                        name={effectiveInlineRouteLabel}
+                        agentId={inlineRouteSelection?.id ?? agentConfig?.agentId}
+                        className="h-4 w-4"
+                        size="sm"
+                      />
+                      <span className="truncate">{effectiveInlineRouteLabel}</span>
+                      <span className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
+                        {inlineRouteSelection ? t('inlineRouteProfile') : t('inlineRouteCurrent')}
+                      </span>
+                      {inlineRouteSwitching ? (
+                        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      )}
+                    </button>
+                    {agentRouteMenuOpen && (
+                      <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-[300px] rounded-md border border-border/60 bg-background p-1 shadow-xl">
+                        <div className="max-h-64 overflow-y-auto">
+                          <button
+                            type="button"
+                            data-testid="flowpad-inline-route-follow-current"
+                            className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent/50"
+                            onClick={() => void handleSelectInlineRouteAgent(null)}
+                          >
+                            <span className="truncate">{t('inlineRouteFollowCurrent', { agent: currentAgentLabel })}</span>
+                            {!inlineRouteSelection && <Check className="h-3.5 w-3.5 text-primary" />}
+                          </button>
+                          {agentListLoading ? (
+                            <p className="px-2 py-2 text-[11px] text-muted-foreground">{t('inlineRouteLoadingAgents')}</p>
+                          ) : availableAgents.length > 0 ? (
+                            availableAgents.map((agent) => {
+                              const selected = inlineRouteSelection?.id === agent.id;
+                              return (
+                                <button
+                                  key={agent.id}
+                                  type="button"
+                                  data-testid={`flowpad-inline-route-agent-${agent.id}`}
+                                  className="flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent/50"
+                                  onClick={() => void handleSelectInlineRouteAgent(agent.id)}
+                                >
+                                  <span className="flex min-w-0 items-center gap-2">
+                                    <AgentAvatar
+                                      url={agent.avatar_url}
+                                      name={agent.name}
+                                      agentId={agent.id}
+                                      className="h-4 w-4"
+                                      size="sm"
+                                    />
+                                    <span className="truncate">{agent.name}</span>
+                                  </span>
+                                  {selected && <Check className="h-3.5 w-3.5 text-primary" />}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <p className="px-2 py-2 text-[11px] text-muted-foreground">{t('inlineRouteNoAgents')}</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
+                {inlineRouteSwitchError && (
+                  <div className="flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1">
+                    <span className="truncate text-[10px] text-amber-700 dark:text-amber-300">
+                      {t('inlineRouteSwitchFailedHint', { agent: inlineRouteSwitchError })}
+                    </span>
+                    <button
+                      type="button"
+                      data-testid="flowpad-inline-route-fallback-current"
+                      className="shrink-0 text-[10px] font-medium text-amber-700 underline decoration-dotted underline-offset-2 dark:text-amber-300"
+                      onClick={handleFallbackToCurrentRoute}
+                    >
+                      {t('inlineRouteFallbackAction')}
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <span className="text-[10px] text-muted-foreground/60">
@@ -520,7 +587,7 @@ export function FlowPadModal() {
             <div className="px-4 py-2 border-b border-border/20 flex flex-wrap gap-1.5">
               <button
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || inlineRouteSwitching}
                 onClick={() => handleQuickAction('replyPrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
@@ -529,7 +596,7 @@ export function FlowPadModal() {
               </button>
               <button
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || inlineRouteSwitching}
                 onClick={() => handleQuickAction('summarizePrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
@@ -538,7 +605,7 @@ export function FlowPadModal() {
               </button>
               <button
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || inlineRouteSwitching}
                 onClick={() => handleQuickAction('translatePrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
@@ -547,7 +614,7 @@ export function FlowPadModal() {
               </button>
               <button
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || inlineRouteSwitching}
                 onClick={() => handleQuickAction('explainPrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
@@ -630,7 +697,7 @@ export function FlowPadModal() {
                 size="icon"
                 className="h-8 w-8 rounded-full"
                 onClick={handleSubmit}
-                disabled={isSubmitting || (!text.trim() && !hasCaptures)}
+                disabled={isSubmitting || inlineRouteSwitching || (!text.trim() && !hasCaptures)}
               >
                 {isSubmitting ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

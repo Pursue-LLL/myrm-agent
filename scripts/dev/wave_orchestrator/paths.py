@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - WavePaths dataclass — state_file and agent_dev_lib locations
-- resolve_dev_state_dir() — shared signoff lock / mux admission state root SSOT
+- resolve_dev_state_dir() — shared mux admission state root SSOT
 
 [POS]
 Path resolver for wave orchestrator. Keeps state under ~/.local/state/myrm-dev/.

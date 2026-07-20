@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - `build_health_json()` / CLI: unified `CHROME_E2E_HEALTH_JSON` with `runtimeId` and four epochs
-- `stack_core_health_errors()` / `api_health_errors()`: signoff matrix keepalive (mux epochs + API `/api/v1/health`; no UI curl)
+- `stack_core_health_errors()` / `api_health_errors()`: stack keepalive (mux epochs + API `/api/v1/health`; no UI curl)
 - CLI `--require-stack-core`: exit 2 when stack core or API health is not ready
 - `read_current_runtime_id()` / `--drift --expect`: see `runtime_probe.py` (mechanical RUNTIME_DRIFT check)
 
@@ -122,7 +122,7 @@ def attach_health_errors(payload: HealthJsonPayload) -> list[str]:
 
 
 def stack_core_health_errors(payload: HealthJsonPayload) -> list[str]:
-    """Stack liveness for signoff matrix keepalive — ignore compile-time shell/client warmth."""
+    """Stack liveness for stack-core keepalive — ignore compile-time shell/client warmth."""
     errors: list[str] = []
     if payload["muxDaemons"] != 1:
         errors.append(f"muxDaemons={payload['muxDaemons']}")
@@ -154,7 +154,7 @@ def _http_url_ok(url: str, *, timeout_sec: float = 5.0) -> bool:
 
 
 def api_health_errors(api_base: str) -> list[str]:
-    """Probe API health only — used by signoff matrix stack-core keepalive."""
+    """Probe API health only — used by stack-core keepalive."""
     api_timeout = 10.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
     url = api_base.rstrip("/") + "/api/v1/health"
     if _http_url_ok(url, timeout_sec=api_timeout):

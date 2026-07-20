@@ -14,6 +14,16 @@ const mockChatState = {
   messages: [] as Array<{ role: string; content: string }>,
   loading: false,
 };
+const makeMockAgentDetail = (agentId: string) => ({
+  id: agentId,
+  user_id: 'user-1',
+  name: agentId === 'writer-agent' ? 'Writer Agent' : 'General Agent',
+  system_prompt: agentId === 'writer-agent' ? 'Write with concise style.' : '',
+  skill_ids: agentId === 'writer-agent' ? ['writing'] : [],
+  mcp_ids: [],
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+});
 const mockAgentStoreState = {
   agents: [
     {
@@ -29,16 +39,7 @@ const mockAgentStoreState = {
   ],
   loading: false,
   fetchAgents: vi.fn().mockResolvedValue(undefined),
-  fetchAgent: vi.fn().mockImplementation(async (agentId: string) => ({
-    id: agentId,
-    user_id: 'user-1',
-    name: agentId === 'writer-agent' ? 'Writer Agent' : 'General Agent',
-    system_prompt: agentId === 'writer-agent' ? 'Write with concise style.' : '',
-    skill_ids: agentId === 'writer-agent' ? ['writing'] : [],
-    mcp_ids: [],
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-  })),
+  fetchAgent: vi.fn().mockImplementation(async (agentId: string) => makeMockAgentDetail(agentId)),
 };
 
 vi.mock('@/store/useChatStore', () => {
@@ -444,6 +445,95 @@ describe('FlowPadModal - Inline Mode Integration', () => {
       selectedSkillIds: ['writing'],
       systemPrompt: 'Write with concise style.',
     });
+  });
+
+  it('blocks submit while route switch is still in progress', async () => {
+    let resolveFetch:
+      | ((value: ReturnType<typeof makeMockAgentDetail>) => void)
+      | undefined;
+    mockAgentStoreState.fetchAgent.mockImplementationOnce(
+      () =>
+        new Promise<ReturnType<typeof makeMockAgentDetail>>((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+
+    useFlowPadStore.getState().openInline(
+      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
+      1850,
+    );
+    render(<FlowPadModal />);
+
+    const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      fireEvent.click(switcherTrigger);
+    });
+    const writerOption = await screen.findByTestId('flowpad-inline-route-agent-writer-agent');
+    await act(async () => {
+      fireEvent.click(writerOption);
+    });
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Send while switching' } });
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+    expect(mockChatState.sendMessage).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveFetch?.(makeMockAgentDetail('writer-agent'));
+    });
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+    expect(mockChatState.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows fallback action after route switch failure', async () => {
+    mockAgentStoreState.fetchAgent.mockRejectedValueOnce(new Error('switch failed'));
+
+    useFlowPadStore.getState().openInline(
+      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
+      1875,
+    );
+    render(<FlowPadModal />);
+
+    const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
+    await act(async () => {
+      fireEvent.click(switcherTrigger);
+    });
+    const writerOption = await screen.findByTestId('flowpad-inline-route-agent-writer-agent');
+    await act(async () => {
+      fireEvent.click(writerOption);
+    });
+
+    expect(await screen.findByText('inlineRouteSwitchFailedHint')).toBeInTheDocument();
+    const fallbackButton = screen.getByTestId('flowpad-inline-route-fallback-current');
+    await act(async () => {
+      fireEvent.click(fallbackButton);
+    });
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Fallback send' } });
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    const sendArgs = mockChatState.sendMessage.mock.calls[0];
+    expect(sendArgs[0]).toContain('Fallback send');
+    expect(sendArgs[5]).toBeUndefined();
   });
 
   it('can reset to follow current session routing', async () => {

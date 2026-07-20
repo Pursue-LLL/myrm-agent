@@ -12253,7 +12253,11 @@
     "inlineRouteLoadingAgents": "Loading agents...",
     "inlineRouteNoAgents": "No agents available",
     "inlineRouteApplied": "Now routing with {agent} profile",
-    "inlineRouteApplyFailed": "Failed to switch inline route profile"
+    "inlineRouteApplyFailed": "Failed to switch inline route profile",
+    "inlineRouteSwitchingBlocked": "Please wait for profile route switch to finish",
+    "inlineRouteSwitchFailedHint": "Switch to {agent} failed. You can fallback to current session route.",
+    "inlineRouteFallbackAction": "Use current session route",
+    "inlineRouteFallbackApplied": "Fallback to current session route applied"
   },
   "billing": {
     "wuBalance": "Work Units",

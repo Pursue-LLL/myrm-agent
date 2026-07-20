@@ -80,7 +80,7 @@ class BlueprintFillResult:
 class BlueprintMonitorDefaults:
     """Default monitor configuration to apply when creating a job from a blueprint."""
 
-    monitor_type: Literal["set", "hash", "timeseries"] = "set"
+    monitor_type: Literal["set", "hash"] = "set"
     ttl_days: int = 30
     enabled: bool = True
 

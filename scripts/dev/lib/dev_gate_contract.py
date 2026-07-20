@@ -75,7 +75,8 @@ CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
 E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (
     "e2e-parent-",
     "myrm-test-e2e:",
-    "signoff-matrix-parent-",
+    "goal-focus-",
+    "execution-cache-",
 )
 
 

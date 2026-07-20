@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - probe_runtime_context() / read_current_runtime_id() / _read_shared_hot_stack_runtime_id() / run_drift_check()
-- _read_shared_hot_stack_runtime_id() is the signoff-matrix runtimeId SSOT (also used by wave_orchestrator.core.probe_runtime_id during signoff)
+- _read_shared_hot_stack_runtime_id() is the shared hot-stack runtimeId SSOT (used by e2e_runtime_guard heal paths)
 
 [POS]
 Dev infrastructure. Observes mux/CDP/frontend without mutating the stack.

@@ -24,7 +24,7 @@ export interface ActiveHours {
 }
 
 export interface MonitorConfig {
-  monitor_type: 'set' | 'hash' | 'timeseries';
+  monitor_type: 'set' | 'hash';
   ttl_days: number;
   enabled: boolean;
   last_reset_at?: string | null;
@@ -325,7 +325,7 @@ export interface BlueprintFillResponse {
   skip_if_active: boolean;
   timeout_seconds?: number | null;
   monitor_config?: {
-    monitor_type: 'set' | 'hash' | 'timeseries';
+    monitor_type: 'set' | 'hash';
     ttl_days: number;
     enabled: boolean;
   } | null;

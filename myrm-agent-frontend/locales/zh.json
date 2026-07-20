@@ -12224,7 +12224,11 @@
     "inlineRouteLoadingAgents": "正在加载智能体...",
     "inlineRouteNoAgents": "暂无可用智能体",
     "inlineRouteApplied": "已切换为 {agent} 的 Profile 路由",
-    "inlineRouteApplyFailed": "切换 Inline 路由 Profile 失败"
+    "inlineRouteApplyFailed": "切换 Inline 路由 Profile 失败",
+    "inlineRouteSwitchingBlocked": "正在切换路由 Profile，请稍候再发送",
+    "inlineRouteSwitchFailedHint": "切换到 {agent} 失败，可降级为当前会话路由",
+    "inlineRouteFallbackAction": "改用当前会话路由",
+    "inlineRouteFallbackApplied": "已降级为当前会话路由"
   },
   "billing": {
     "wuBalance": "Work Units",
