@@ -69,12 +69,32 @@ class ScheduleResultResponse(BaseModel):
     interval_ms: int | None = None
 
 
+class MonitorConfigPresetResponse(BaseModel):
+    monitor_type: str
+    ttl_days: int
+    enabled: bool
+
+
+class FailureAlertPresetResponse(BaseModel):
+    enabled: bool
+    after: int
+    cooldown_seconds: int
+
+
 class BlueprintFillResponse(BaseModel):
     schedule: ScheduleResultResponse
     prompt: str
     name: str
     required_capabilities: list[str] = Field(default_factory=list)
     tools_allowed: list[str] = Field(default_factory=list)
+    job_type: str = "agent"
+    session_target: str = "isolated"
+    deduplicate: bool = False
+    skip_if_active: bool = False
+    timeout_seconds: int | None = None
+    monitor_config: MonitorConfigPresetResponse | None = None
+    failure_alert: FailureAlertPresetResponse | None = None
+    pre_condition_script: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -138,4 +158,28 @@ async def fill_blueprint_endpoint(body: BlueprintFillRequest) -> BlueprintFillRe
         name=result.name,
         required_capabilities=list(result.required_capabilities),
         tools_allowed=list(result.tools_allowed) if result.tools_allowed else [],
+        job_type=result.job_type,
+        session_target=result.session_target,
+        deduplicate=result.deduplicate,
+        skip_if_active=result.skip_if_active,
+        timeout_seconds=result.timeout_seconds,
+        monitor_config=(
+            MonitorConfigPresetResponse(
+                monitor_type=result.monitor_config.monitor_type,
+                ttl_days=result.monitor_config.ttl_days,
+                enabled=result.monitor_config.enabled,
+            )
+            if result.monitor_config
+            else None
+        ),
+        failure_alert=(
+            FailureAlertPresetResponse(
+                enabled=result.failure_alert.enabled,
+                after=result.failure_alert.after,
+                cooldown_seconds=result.failure_alert.cooldown_seconds,
+            )
+            if result.failure_alert
+            else None
+        ),
+        pre_condition_script=result.pre_condition_script,
     )

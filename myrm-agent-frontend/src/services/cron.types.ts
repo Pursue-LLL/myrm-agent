@@ -319,4 +319,20 @@ export interface BlueprintFillResponse {
   name: string;
   required_capabilities: string[];
   tools_allowed: string[];
+  job_type: 'agent' | 'shell' | 'router' | 'reminder';
+  session_target: SessionTarget;
+  deduplicate: boolean;
+  skip_if_active: boolean;
+  timeout_seconds?: number | null;
+  monitor_config?: {
+    monitor_type: 'set' | 'hash' | 'timeseries';
+    ttl_days: number;
+    enabled: boolean;
+  } | null;
+  failure_alert?: {
+    enabled: boolean;
+    after: number;
+    cooldown_seconds: number;
+  } | null;
+  pre_condition_script?: string | null;
 }
