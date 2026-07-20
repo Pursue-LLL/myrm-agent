@@ -61,6 +61,6 @@ def test_builtin_specs_public_facade_at_agent_root() -> None:
 def test_builtin_agents_tuple_integrity() -> None:
     from app.services.agent.builtin_agent_specs import _BUILTIN_AGENTS
 
-    assert len(_BUILTIN_AGENTS) == 25
+    assert len(_BUILTIN_AGENTS) == 26
     ids = [spec.id for spec in _BUILTIN_AGENTS]
     assert len(ids) == len(set(ids)), f"Duplicate builtin agent ids: {ids}"

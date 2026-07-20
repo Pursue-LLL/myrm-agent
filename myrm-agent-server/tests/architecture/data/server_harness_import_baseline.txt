@@ -258,6 +258,7 @@ myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer
 myrm_agent_harness.toolkits.code_execution.tool_discovery
 myrm_agent_harness.toolkits.code_execution.workspace.registry
 myrm_agent_harness.toolkits.computer_use
+myrm_agent_harness.toolkits.computer_use.app_identity
 myrm_agent_harness.toolkits.computer_use.desktop_session
 myrm_agent_harness.toolkits.computer_use.session
 myrm_agent_harness.toolkits.computer_use.types

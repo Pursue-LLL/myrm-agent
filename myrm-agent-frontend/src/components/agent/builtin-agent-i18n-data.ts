@@ -288,6 +288,30 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
         'Kreativer Design-Assistent — erzeugt Bilder, bewertet UI/UX und liefert visuelle Inspiration.',
     },
   },
+  'builtin-video-studio': {
+    en: {
+      name: 'Video Studio',
+      description:
+        'AI video production assistant — scripts, storyboards, visuals, voiceovers, and complete video assembly.',
+    },
+    zh: {
+      name: '视频工作室',
+      description: 'AI 视频制作助手——脚本、分镜、画面生成、配音与成片组装。',
+    },
+    ja: {
+      name: 'ビデオスタジオ',
+      description: 'AI動画制作アシスタント — 脚本、絵コンテ、ビジュアル生成、ナレーション、完成動画の組み立て。',
+    },
+    ko: {
+      name: '비디오 스튜디오',
+      description: 'AI 영상 제작 어시스턴트 — 대본, 스토리보드, 비주얼 생성, 보이스오버, 완성 영상 조립.',
+    },
+    de: {
+      name: 'Video-Studio',
+      description:
+        'KI-Video-Produktionsassistent — Skripte, Storyboards, Visuals, Voiceover und fertige Videomontage.',
+    },
+  },
   'builtin-seo': {
     en: {
       name: 'SEO Strategist',

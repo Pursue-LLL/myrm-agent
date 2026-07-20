@@ -17,7 +17,7 @@
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
 | `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API E2E + GLOBAL_WRITE mock-draft seed；UI 用 MCP chrome-devtools |
-| `dev-stack.sh` | Unix | 本地 dev 栈 SSOT：`ensure` / `attach` / `reset` / `status`；`cmd_ensure` 三分支：已热栈 idempotent OK；冷栈 + wave pin + 端口在听 → attach-wait；冷栈 + wave pin + 栈 down → `STACK_FAIL`；**必须**委托 **stack_supervisor** 单写者；state `~/.local/state/myrm-dev/` |
+| `dev-stack.sh` | Unix | 本地 dev 栈 SSOT：`ensure` / `attach` / `reset` / `status`；`attach` 只读等待 **`MYRM_STACK_ATTACH_WAIT_SEC` 总预算**（warm + 剩余 health）；`cmd_ensure` 三分支：已热栈 idempotent OK；冷栈 + wave pin + 端口在听 → attach-wait；冷栈 + wave pin + 栈 down → `STACK_FAIL`；**必须**委托 **stack_supervisor** 单写者；state `~/.local/state/myrm-dev/` |
 | `stack-supervisor.sh` | Unix | Dev 栈守护进程启动器 + RPC 客户端入口；wave pin 期间 shared API 宕机时 watchdog **backend-only ensure**（30s 冷却，与 full ensure 300s 独立）；见 [stack_supervisor/_ARCH.md](stack_supervisor/_ARCH.md) |
 | `ensure-next-native-swc.sh` | Unix | 缺平台 `@next/swc-*` 时 `bun install --no-save`（防 WASM 慢编译）；setup 与 dev-stack 双路径 |
 | `ensure-myrm-chrome-e2e.sh` | Unix | 拉起/验证 Myrm 专用 E2E Chrome（`:9333`，零 Allow）；macOS 默认 `open -gj` + `about:blank` 后台冷启；AOS 最小化；`MYRM_CHROME_E2E_FOREGROUND=1` 恢复前台 |
