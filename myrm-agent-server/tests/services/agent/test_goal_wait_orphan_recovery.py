@@ -88,7 +88,7 @@ async def test_release_orphaned_wait_goals_updates_status() -> None:
 
     with (
         patch(
-            "myrm_agent_harness.agent.meta_tools.bash._background_job_store.get_background_job_store",
+            "myrm_agent_harness.api.hooks.get_background_job_store",
             return_value=mock_store,
         ),
         patch(

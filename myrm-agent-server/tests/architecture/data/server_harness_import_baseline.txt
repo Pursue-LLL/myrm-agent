@@ -331,7 +331,6 @@ myrm_agent_harness.toolkits.mcp.security
 myrm_agent_harness.toolkits.memory
 myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.config
-myrm_agent_harness.toolkits.memory.conversation_search
 myrm_agent_harness.toolkits.memory.conversation_search.types
 myrm_agent_harness.toolkits.memory.graph
 myrm_agent_harness.toolkits.memory.graph.age_store

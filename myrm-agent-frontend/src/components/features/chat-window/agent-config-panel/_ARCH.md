@@ -8,7 +8,7 @@ Agent profile editing UI: skills, MCP, built-in tools, browser options, security
 
 | File | Role | Description |
 |------|------|-------------|
-| `AgentConfigEditDialog.tsx` | Core | Full-screen/sheet editor; persists `enabled_builtin_tools`; sandbox `@/lib/builtin-tool-entitlements` strips ghost cron/computer_use/**external_cli** after CP entitlements load |
+| `AgentConfigEditDialog.tsx` | Core | Full-screen/sheet editor; persists `enabled_builtin_tools`; blocks save when `external_cli` enabled without CLI backend (local); sandbox `@/lib/builtin-tool-entitlements` strips ghost cron/computer_use/**external_cli** after CP entitlements load |
 | `AgentConfigPanel.tsx` | Core | Panel shell and preset shortcuts |
 | `AgentConfigCards.tsx` | Core | Summary cards for active agent |
 | `AgentBrickCard.tsx` | Core | Compact agent brick with tool badges |
@@ -16,7 +16,7 @@ Agent profile editing UI: skills, MCP, built-in tools, browser options, security
 | `SkillsSectionPanelParts.tsx` | Helper | NoiseGauge + skill zone subcomponents (`actionSpaceRadar.*` i18n) |
 | `ActionSpaceAccuracyRadar.tsx` | Helper | Decision-accuracy forecast bar; Smart Prune calls `runCuratorSweep()` (real curator sweep, not is_core-only) |
 | `AgentConfigSelectableCard.tsx` | Helper | Selectable card + add-more control for config sections |
-| `BuiltinToolsPanel.tsx` | Core | Built-in tool toggles; sandbox cron/computer_use cards gated by `useFeatureEntitlements` (`canUseCron` / `canUseVnc`); `CuPermissionInline` only in local/desktop mode; browser sub-config; `KanbanConfigSection` when `kanban` enabled (0-board hint, multi-board picker, syncs `kanban_last_board_id`); `ExternalCliConfigSection` when `external_cli` enabled |
+| `BuiltinToolsPanel.tsx` | Core | Built-in tool toggles; sandbox cron/computer_use cards gated by `useFeatureEntitlements` (`canUseCron` / `canUseVnc`); `CuPermissionInline` only in local/desktop mode; browser sub-config; `KanbanConfigSection` when `kanban` enabled (0-board hint, multi-board picker, syncs `kanban_last_board_id`); `ExternalCliConfigSection` when `external_cli` enabled — probes backend readiness, consumer-facing hints (no internal tool names) |
 | `KanbanConfigSection.tsx` | Helper | Kanban chat target board: listBoards on mount, 0-board Settings link, Select when multiple boards without valid saved id; pairs with `messageRequest` send guard (stale id recovery) |
 | `MediaCredentialInline.tsx` | Helper | Amber inline warning when image/video/tts enabled but provider credentials missing (links to Settings) |
 | `CuPermissionInline.tsx` | Helper | Inline desktop permission probe when `computer_use` enabled (local mode); API fail → amber error UI + recheck; deeplink via `permissionDeepLink` SSOT |

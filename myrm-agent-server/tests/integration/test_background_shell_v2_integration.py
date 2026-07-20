@@ -188,7 +188,7 @@ async def test_finish_handler_dedupe_integration() -> None:
         await handler.on_background_job_finish(result)
 
     mock_append.assert_awaited_once()
-    assert ("chat-dedupe-int", 12345) in handler._processed
+    assert ("chat-dedupe-int", "f" * 32) in handler._processed
 
 
 @pytest.mark.integration

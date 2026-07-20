@@ -175,7 +175,7 @@ export async function fillBlueprintFromServer(
   values: Record<string, string>,
   tz: string,
   locale: string,
-): Promise<{ schedule: CronSchedule; prompt: string; name: string }> {
+): Promise<{ schedule: CronSchedule; prompt: string; name: string; required_capabilities: string[]; tools_allowed: string[] }> {
   return fillBlueprint(blueprintId, values, locale, tz);
 }
 
@@ -196,6 +196,10 @@ export async function buildBlueprintCreatePayload(
     schedule: filled.schedule,
     prompt: filled.prompt,
     session_target: 'isolated',
+    ...(filled.required_capabilities.length > 0
+      ? { required_capabilities: filled.required_capabilities }
+      : {}),
+    ...(filled.tools_allowed.length > 0 ? { tools_allowed: filled.tools_allowed } : {}),
     ...(delivery && delivery.channel !== 'chat' ? { delivery } : {}),
   };
 }

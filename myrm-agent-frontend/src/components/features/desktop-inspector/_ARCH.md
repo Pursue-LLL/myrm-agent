@@ -34,7 +34,7 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 - Settings revoke testid: `desktop-trust-revoke-{trust_key}` (`DesktopPermissionsCard.tsx`)
 - SSE payload opens overlay via `DesktopControlApprovalOverlay` (always mounted in `ChatWindowSatellites`)
 - Bridge: `window.__MYRM_E2E_CHAT__.getDesktopApprovalSnapshot()` / `getDesktopToolProgress()` (`E2EChatBridge.tsx`)
-- Regression: `test_desktop_control_approval_chrome_e2e.py` (`@pytest.mark.chrome_e2e_desktop`, allow_once + allow_always→Settings revoke)
+- Regression: `test_desktop_control_approval_chrome_e2e.py` + `myrm-agent-server/tests/e2e/desktop_approval/` (`@pytest.mark.chrome_e2e_desktop`, allow_once + allow_always→Settings revoke)
 
 ## Unit tests (vitest)
 

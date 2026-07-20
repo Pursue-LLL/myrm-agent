@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - resolve_memory_enabled: Whether proactive memory features are active for a user.
-- resolve_conversation_search_enabled: Whether conversation_search_tool is enabled globally.
+- resolve_conversation_search_enabled: Whether memory_search_tool sessions corpus is enabled for the user.
 
 [POS]
 Single source of truth for enableMemory interpretation in server cron, channels,

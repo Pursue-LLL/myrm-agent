@@ -521,6 +521,7 @@ MIGRATION_STATEMENTS: list[str] = [
     )""",
     "ALTER TABLE chats ADD COLUMN share_revoked_at TIMESTAMP",
     "ALTER TABLE kanban_tasks DROP COLUMN goal_id",
+    "ALTER TABLE cron_jobs ADD COLUMN tools_allowed JSON",
 ]
 
 # 创建索引的SQL语句列表

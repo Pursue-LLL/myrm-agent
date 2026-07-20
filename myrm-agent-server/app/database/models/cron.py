@@ -37,6 +37,7 @@ class CronJobModel(Base):
     failure_delivery: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     required_capabilities: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    tools_allowed: Mapped[list | None] = mapped_column(JSON, nullable=True)
     allowed_roots: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     max_retries: Mapped[int] = mapped_column(Integer, default=2, nullable=False)

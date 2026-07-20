@@ -21,6 +21,7 @@ from myrm_agent_harness.toolkits.cron.triggers import TriggerConfig
 from myrm_agent_harness.toolkits.cron.types import (
     ActiveHours,
     CronJob,
+    CronJobPatch,
     DeliveryConfig,
     FailureAlertConfig,
     JobType,
@@ -67,6 +68,7 @@ class EntitlementGuardedCronManager:
         failure_alert: FailureAlertConfig | bool | None = None,
         active_hours: ActiveHours | None = None,
         required_capabilities: tuple[str, ...] = (),
+        tools_allowed: tuple[str, ...] | None = None,
         allowed_roots: tuple[str, ...] = (),
         max_retries: int = 2,
         retry_backoff_ms: int = 30_000,
@@ -84,7 +86,12 @@ class EntitlementGuardedCronManager:
         context_from: tuple[str, ...] = (),
         pre_condition_script: str | None = None,
     ) -> CronJob:
+        from app.core.cron.adapters.lifecycle_guard import assert_cron_job_lifecycle_safe
+        from app.core.cron.adapters.tools_policy import normalize_cron_tools_allowed
+
+        assert_cron_job_lifecycle_safe(prompt=prompt, command=command)
         await self._enforce_slot(user_id)
+        normalized_tools = normalize_cron_tools_allowed(tools_allowed) if tools_allowed else None
         return await self._inner.create_job(
             user_id,
             name,
@@ -100,6 +107,7 @@ class EntitlementGuardedCronManager:
             failure_alert=failure_alert,
             active_hours=active_hours,
             required_capabilities=required_capabilities,
+            tools_allowed=normalized_tools,
             allowed_roots=allowed_roots,
             max_retries=max_retries,
             retry_backoff_ms=retry_backoff_ms,
@@ -117,6 +125,16 @@ class EntitlementGuardedCronManager:
             context_from=context_from,
             pre_condition_script=pre_condition_script,
         )
+
+    async def update_job(self, job_id: str, user_id: str, patch: CronJobPatch) -> CronJob | None:
+        from app.core.cron.adapters.lifecycle_guard import assert_cron_job_lifecycle_safe
+
+        existing = await self._inner.get_job(job_id, user_id)
+        if existing:
+            next_prompt = existing.prompt if patch.prompt is None else patch.prompt
+            next_command = existing.command if patch.command is None else patch.command
+            assert_cron_job_lifecycle_safe(prompt=next_prompt, command=next_command)
+        return await self._inner.update_job(job_id, user_id, patch)
 
     async def duplicate_job(self, job_id: str, user_id: str) -> CronJob | None:
         await self._enforce_slot(user_id)

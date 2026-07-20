@@ -156,15 +156,6 @@ _private_backend_attach_path() {
   echo "CHROME_E2E_READY ui=${shared_ui} api=${API_BASE} port=${MYRM_CHROME_E2E_PORT} profile=${MYRM_CHROME_E2E_DATA_DIR}"
 }
 
-if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-  if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
-    _private_backend_attach_path
-    exit 0
-  fi
-  _attach_fast_path
-  exit 0
-fi
-
 _ensure_stack_epoch_file() {
   local epoch_file backend_pid
   epoch_file="$(_stack_epoch_file)"
@@ -251,6 +242,7 @@ MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}"
 MUX_REQUEST_TIMEOUT_MS="${CDMCP_MUX_REQUEST_TIMEOUT_MS:-120000}"
 export CDMCP_MUX_REQUEST_TIMEOUT_MS="${MUX_REQUEST_TIMEOUT_MS}"
 MUX_TIMEOUT_STAMP="${MUX_STATE_DIR}/request-timeout-ms"
+MUX_DAEMON_TIMEOUT_STAMP="${MUX_STATE_DIR}/request-timeout-ms-at-daemon-start"
 MUX_PID_FILE="${MUX_STATE_DIR}/daemon.pid"
 MUX_LOG_FILE="${MUX_STATE_DIR}/mux.log"
 MUX_START_LOCK_DIR="${MUX_STATE_DIR}/daemon.start.lock"
@@ -324,7 +316,8 @@ _start_mux_daemon() {
   for i in $(seq 1 15); do
     if [[ -f "${MUX_PID_FILE}" ]] && kill -0 "$(tr -d '[:space:]' < "${MUX_PID_FILE}")" 2>/dev/null; then
       mkdir -p "${MUX_STATE_DIR}"
-      printf '%s\n' "${MUX_REQUEST_TIMEOUT_MS}" >"${MUX_TIMEOUT_STAMP}"
+      _stamp_mux_request_timeout
+      _stamp_mux_daemon_request_timeout
       _stamp_mux_daemon_ws_url || true
       rmdir "${MUX_START_LOCK_DIR}" 2>/dev/null || true
       return 0
@@ -510,6 +503,44 @@ _stamp_mux_request_timeout() {
   printf '%s\n' "${MUX_REQUEST_TIMEOUT_MS}" >"${MUX_TIMEOUT_STAMP}"
 }
 
+_stamp_mux_daemon_request_timeout() {
+  mkdir -p "${MUX_STATE_DIR}"
+  printf '%s\n' "${MUX_REQUEST_TIMEOUT_MS}" >"${MUX_DAEMON_TIMEOUT_STAMP}"
+}
+
+_mux_daemon_timeout_matches() {
+  [[ -f "${MUX_DAEMON_TIMEOUT_STAMP}" ]] || return 1
+  local stored
+  stored="$(tr -d '[:space:]' < "${MUX_DAEMON_TIMEOUT_STAMP}")"
+  [[ "${stored}" == "${MUX_REQUEST_TIMEOUT_MS}" ]]
+}
+
+_mux_request_timeout_effective() {
+  _mux_timeout_stamp_matches && _mux_daemon_timeout_matches
+}
+
+_heal_mux_request_timeout_drift() {
+  [[ "${MUX_USING}" -eq 1 ]] || return 0
+  if _mux_request_timeout_effective; then
+    return 0
+  fi
+  if [[ ! -f "${MUX_PID_FILE}" ]]; then
+    return 0
+  fi
+  local pid
+  pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
+  [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null || return 0
+  if _mux_timeout_restart_allowed || _mux_restart_allowed; then
+    _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+  elif _mux_attach_timeout_restart_allowed; then
+    _restart_mux_safely "attach request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+  elif _mux_upstream_ready && _mux_ws_stamp_matches; then
+    fail "mux request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms) — daemon still on prior timeout; parallel attach blocked restart"
+  else
+    _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+  fi
+}
+
 _ensure_mux_daemon() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
   [[ -f "${MUX_BIN}" ]] || fail "Missing mux bin ${MUX_BIN} — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
@@ -517,16 +548,8 @@ _ensure_mux_daemon() {
     local pid
     pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
     if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
-      if ! _mux_timeout_stamp_matches; then
-        if _mux_timeout_restart_allowed || _mux_restart_allowed; then
-          _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
-        elif _mux_attach_timeout_restart_allowed; then
-          _restart_mux_safely "attach request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
-        elif _mux_upstream_ready && _mux_ws_stamp_matches; then
-          fail "mux request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms) — daemon still on prior timeout; parallel attach blocked restart"
-        else
-          _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
-        fi
+      if ! _mux_request_timeout_effective; then
+        _heal_mux_request_timeout_drift
       fi
       return 0
     fi
@@ -546,6 +569,16 @@ _ensure_mux_daemon() {
   done
   fail "cdmcp-mux daemon failed to start — run: node scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs daemon"
 }
+
+if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+  _heal_mux_request_timeout_drift
+  if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
+    _private_backend_attach_path
+    exit 0
+  fi
+  _attach_fast_path
+  exit 0
+fi
 
 _ensure_mux_daemon
 

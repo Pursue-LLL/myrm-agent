@@ -183,6 +183,8 @@ describe('cron-blueprints', () => {
         schedule: { kind: 'cron', expr: '0 8 * * *', tz: 'Asia/Shanghai' },
         prompt: 'Server prompt',
         name: 'Morning Briefing',
+        required_capabilities: ['web_search_tool', 'net_fetch'],
+        tools_allowed: ['web_search'],
       });
 
       const payload = await buildBlueprintCreatePayload(
@@ -201,6 +203,8 @@ describe('cron-blueprints', () => {
       expect(payload.prompt).toBe('Server prompt');
       expect(payload.name).toBe('Morning Briefing');
       expect(payload.schedule.expr).toBe('0 8 * * *');
+      expect(payload.required_capabilities).toEqual(['web_search_tool', 'net_fetch']);
+      expect(payload.tools_allowed).toEqual(['web_search']);
     });
 
     it('propagates server errors without local fallback', async () => {

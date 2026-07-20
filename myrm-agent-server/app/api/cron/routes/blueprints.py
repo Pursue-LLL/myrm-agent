@@ -73,6 +73,8 @@ class BlueprintFillResponse(BaseModel):
     schedule: ScheduleResultResponse
     prompt: str
     name: str
+    required_capabilities: list[str] = Field(default_factory=list)
+    tools_allowed: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -134,4 +136,6 @@ async def fill_blueprint_endpoint(body: BlueprintFillRequest) -> BlueprintFillRe
         ),
         prompt=result.prompt,
         name=result.name,
+        required_capabilities=list(result.required_capabilities),
+        tools_allowed=list(result.tools_allowed) if result.tools_allowed else [],
     )

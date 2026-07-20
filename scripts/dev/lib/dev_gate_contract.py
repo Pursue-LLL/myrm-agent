@@ -114,6 +114,15 @@ def chrome_e2e_pytest_timeout_for_lane(lane: str) -> int:
     return LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC
 
 
+def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
+    """Lane floor with marker-aware overrides for long-running phases."""
+    if CHROME_E2E_DESKTOP_MARKER in joined_argv:
+        return CHROME_E2E_DESKTOP_TIMEOUT_SECONDS
+    if CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER in joined_argv:
+        return CHROME_E2E_MATRIX_TIMEOUT_SECONDS
+    return chrome_e2e_pytest_timeout_for_lane(lane)
+
+
 def apply_chrome_e2e_pytest_timeout_args(
     floor: int,
     args: tuple[str, ...],

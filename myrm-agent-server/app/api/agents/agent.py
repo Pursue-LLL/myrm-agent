@@ -408,7 +408,13 @@ async def create_agent(
     try:
         agent = await AgentService.create_agent(agent_data)
         return success_response(data=_to_agent_response(agent).model_dump())
+    except HTTPException:
+        raise
     except Exception as e:
+        from app.services.agent.external_cli_gate import ExternalCliBackendUnavailableError
+
+        if isinstance(e, ExternalCliBackendUnavailableError):
+            raise validation_error(str(e)) from e
         raise internal_error(operation="Create agent", exception=e) from e
 
 
@@ -444,6 +450,10 @@ async def update_agent(
     except HTTPException:
         raise
     except Exception as e:
+        from app.services.agent.external_cli_gate import ExternalCliBackendUnavailableError
+
+        if isinstance(e, ExternalCliBackendUnavailableError):
+            raise validation_error(str(e)) from e
         raise internal_error(operation="Update agent", exception=e) from e
 
 

@@ -106,6 +106,7 @@ export interface CronJob {
   fire_count: number;
   session_target: SessionTarget;
   required_capabilities: string[];
+  tools_allowed: string[];
   allowed_roots: string[];
   delete_after_run: boolean;
   run_retention_days: number;
@@ -250,6 +251,8 @@ export interface CreateCronJobRequest {
   monitor_config?: MonitorConfig;
   context_from?: string[];
   pre_condition_script?: string | null;
+  required_capabilities?: string[];
+  tools_allowed?: string[];
 }
 
 export interface UpdateCronJobRequest {
@@ -278,6 +281,7 @@ export interface UpdateCronJobRequest {
   session_target?: SessionTarget;
   chat_id?: string | null;
   required_capabilities?: string[];
+  tools_allowed?: string[];
   allowed_roots?: string[];
   delete_after_run?: boolean;
   run_retention_days?: number;
@@ -313,4 +317,6 @@ export interface BlueprintFillResponse {
   schedule: CronSchedule;
   prompt: string;
   name: string;
+  required_capabilities: string[];
+  tools_allowed: string[];
 }

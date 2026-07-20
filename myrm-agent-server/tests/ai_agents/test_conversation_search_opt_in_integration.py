@@ -1,18 +1,18 @@
-"""Integration: GeneralAgent conversation_search opt-in wiring and execution."""
+"""Integration: memory_search_tool sessions corpus opt-in and execution."""
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 
-from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
-from myrm_agent_harness.agent.tool_management.types import ToolSource
+from myrm_agent_harness.toolkits import create_memory_tools
 from myrm_agent_harness.toolkits.memory.conversation_search import (
     ConversationSearchHit,
     ConversationSearchRequest,
     ConversationSearchResponse,
-    create_conversation_search_tool,
+)
+from myrm_agent_harness.toolkits.memory.memory_search_policy import (
+    MemorySearchBackends,
+    MemorySearchPolicy,
 )
 
 
@@ -34,51 +34,43 @@ class FakeConversationSearchProvider:
         )
 
 
+class FakeMemoryManager:
+    approval_required = False
+    last_retrieval_trace = None
+
+    async def search(self, *args: object, **kwargs: object) -> list[object]:
+        return []
+
+    @property
+    def active_session(self) -> None:
+        return None
+
+
 @pytest.mark.asyncio
-async def test_conversation_search_opt_in_wiring_and_execute(monkeypatch) -> None:
-    """Server wiring: tools append → registry resolve → direct tool run."""
-    from app.ai_agents.general_agent.conversation_search_setup import (
-        append_conversation_search_tool,
+async def test_memory_search_sessions_corpus_executes_when_opt_in_on() -> None:
+    manager = FakeMemoryManager()
+    tools = create_memory_tools(
+        manager,
+        search_policy=MemorySearchPolicy(allow_sessions=True),
+        search_backends=MemorySearchBackends(conversation_provider=FakeConversationSearchProvider()),
     )
+    search_tool = next(tool for tool in tools if getattr(tool, "name") == "memory_search_tool")
 
-    monkeypatch.setattr(
-        "app.ai_agents.general_agent.conversation_search_setup.ConversationHistorySearchProvider",
-        lambda **_kwargs: FakeConversationSearchProvider(),
-    )
+    result = await search_tool.ainvoke({"query": "deployment", "corpus": "sessions"})
 
-    tools: list[object] = []
-    append_conversation_search_tool(
-        tools,
-        current_chat_id="chat-integration",
-        agent_id="agent-main",
-        memory_manager=SimpleNamespace(),
-    )
-
-    assert len(tools) == 1
-    assert getattr(tools[0], "name", "") == "conversation_search_tool"
-
-    registry = ToolRegistry()
-    for tool in tools:
-        registry.register(tool, source=ToolSource.USER)
-
-    resolved_names = {t.name for t in registry.resolve()}
-    assert "conversation_search_tool" in resolved_names
-    assert "conversation_search_tool" not in {t.name for t in registry.get_runtime_tools()}
-
-    result = await tools[0].ainvoke({"query": "deployment"})
     assert "Prior deployment thread" in result
     assert "Docker Compose" in result
 
 
 @pytest.mark.asyncio
-async def test_conversation_search_tool_runnable_when_registered_turn1() -> None:
-    """Turn1 registration exposes tool in resolve() and executes directly."""
-    tool = create_conversation_search_tool(FakeConversationSearchProvider())
-    registry = ToolRegistry()
-    registry.register(tool, source=ToolSource.USER)
+async def test_memory_search_sessions_corpus_rejected_when_opt_in_off() -> None:
+    manager = FakeMemoryManager()
+    tools = create_memory_tools(
+        manager,
+        search_policy=MemorySearchPolicy(allow_sessions=False),
+    )
+    search_tool = next(tool for tool in tools if getattr(tool, "name") == "memory_search_tool")
 
-    resolved_names = {t.name for t in registry.resolve()}
-    assert "conversation_search_tool" in resolved_names
+    result = await search_tool.ainvoke({"query": "deployment", "corpus": "sessions"})
 
-    output = await tool.ainvoke({"query": "deployment"})
-    assert "Prior deployment thread" in output
+    assert "disabled" in result.lower() or "not enabled" in result.lower()

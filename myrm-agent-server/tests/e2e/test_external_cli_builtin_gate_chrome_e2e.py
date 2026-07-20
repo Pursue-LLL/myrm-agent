@@ -74,8 +74,9 @@ _EXTERNAL_CLI_SETUP_HINT_JS = """(() => {
   const text = document.body?.innerText || '';
   return {
     ready:
-      /Settings.*Developer.*External Agents|设置.*开发者.*外部/i.test(text) &&
-      /delegate_to_agent|委派/i.test(text),
+      (/Settings.*Developer.*External Agents|设置.*开发者.*外部/i.test(text) ||
+        /Configure External Agents|配置外部/i.test(text)) &&
+      (/external CLI|外部 CLI|CLI backend|CLI 后端/i.test(text)),
   };
 })()"""
 

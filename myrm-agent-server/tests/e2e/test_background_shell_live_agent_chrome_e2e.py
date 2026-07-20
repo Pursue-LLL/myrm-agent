@@ -93,7 +93,7 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
                 break
 
 
-def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 120.0) -> int:
+def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 120.0) -> str:
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         payload = http_json("GET", f"{api_base}/api/v1/background-tasks")
@@ -104,7 +104,12 @@ def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 12
             if row.get("kind") != "shell":
                 continue
             if row.get("chat_id") == chat_id and row.get("status") == "running":
-                return int(row["pid"])
+                task_id = row.get("task_id")
+                if isinstance(task_id, str) and task_id.startswith("shell:"):
+                    return task_id
+                job_id = row.get("job_id")
+                if isinstance(job_id, str) and job_id:
+                    return f"shell:{job_id}"
         time.sleep(1.0)
     raise AssertionError(f"No running shell task for chat_id={chat_id} within {timeout_sec}s")
 
@@ -126,8 +131,8 @@ def test_live_agent_background_shell_visible_in_panel() -> None:
         agent_id = _create_background_agent(client, api_base)
         _stream_background_spawn(client, api_base, agent_id, chat_id)
 
-    pid = _wait_for_running_shell(api_base, chat_id)
-    row = http_json("GET", f"{api_base}/api/v1/background-tasks/shell:{pid}")
+    task_id = _wait_for_running_shell(api_base, chat_id)
+    row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
     assert isinstance(row, dict)
     assert row.get("status") == "running"
     assert row.get("chat_id") == chat_id

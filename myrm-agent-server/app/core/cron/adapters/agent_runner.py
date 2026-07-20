@@ -390,7 +390,12 @@ class AgentJobRunner:
                         )
                         user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 
-            enabled_builtin_tools = [tool_id for tool_id in enabled_builtin_tools if tool_id != "cron"]
+            from app.core.cron.adapters.tools_policy import intersect_cron_enabled_builtin_tools
+
+            enabled_builtin_tools = intersect_cron_enabled_builtin_tools(
+                enabled_builtin_tools,
+                job.tools_allowed,
+            )
 
             # Priority: agent profile model > job.model > global default
             model_override = agent_model_override or job.model

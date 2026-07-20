@@ -46,6 +46,7 @@ export interface BuiltinToolsPanelProps {
   localSessionRecording?: string;
   setLocalSessionRecording: React.Dispatch<React.SetStateAction<string | undefined>>;
   agentDisplayName?: string;
+  onExternalCliBackendReady?: (ready: boolean | null) => void;
   t: (key: string) => string;
   tAgent: (key: string) => string;
   tPanel: (key: string, values?: Record<string, string>) => string;
@@ -81,6 +82,7 @@ export const BuiltinToolsPanel = ({
   localSessionRecording,
   setLocalSessionRecording,
   agentDisplayName,
+  onExternalCliBackendReady,
   t,
   tAgent,
   tPanel,
@@ -183,34 +185,46 @@ export const BuiltinToolsPanel = ({
 
       {localBuiltinTools.includes('kanban') && <KanbanConfigSection tPanel={tPanel} />}
 
-      {localBuiltinTools.includes('external_cli') && <ExternalCliConfigSection tPanel={tPanel} />}
+      {localBuiltinTools.includes('external_cli') && (
+        <ExternalCliConfigSection tPanel={tPanel} onBackendReady={onExternalCliBackendReady} />
+      )}
     </div>
   );
 };
 
-function ExternalCliConfigSection({ tPanel }: { tPanel: (key: string) => string }) {
+function ExternalCliConfigSection({
+  tPanel,
+  onBackendReady,
+}: {
+  tPanel: (key: string) => string;
+  onBackendReady?: (ready: boolean | null) => void;
+}) {
   const localOnly = isLocalMode();
   const [hasEnabledBackend, setHasEnabledBackend] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    onBackendReady?.(null);
     (async () => {
       try {
         const agents = getConfigSyncManager().get('externalAgents')?.agents ?? [];
         const statuses = await getExternalAgentAuthStatus();
+        const ready = hasExternalCliBackendAvailable(agents, statuses, localOnly);
         if (!cancelled) {
-          setHasEnabledBackend(hasExternalCliBackendAvailable(agents, statuses, localOnly));
+          setHasEnabledBackend(ready);
+          onBackendReady?.(ready);
         }
       } catch {
         if (!cancelled) {
           setHasEnabledBackend(false);
+          onBackendReady?.(false);
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [localOnly]);
+  }, [localOnly, onBackendReady]);
 
   return (
     <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border/50">
@@ -226,6 +240,9 @@ function ExternalCliConfigSection({ tPanel }: { tPanel: (key: string) => string 
           <AlertCircle size={12} className="mt-0.5 shrink-0" />
           {tPanel('externalCliNoBackendHint')}
         </p>
+      )}
+      {hasEnabledBackend === true && localOnly && (
+        <p className="text-xs text-muted-foreground leading-relaxed">{tPanel('externalCliPermissionHint')}</p>
       )}
       <Link
         href="/settings/developer"

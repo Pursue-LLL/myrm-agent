@@ -142,7 +142,10 @@ async def preview_batch_import(
 
         validator = SkillSecurityValidator(config=SecurityConfig())
 
-    existing_skills = store.list_skills()
+    if hasattr(store, "list_skills"):
+        existing_skills = store.list_skills()
+    else:
+        existing_skills = store.get_active_skills()
     existing_map = {s.name: s.skill_id for s in existing_skills}
 
     preview_items = []
@@ -204,7 +207,16 @@ async def confirm_batch_import(
     try:
         imported_skills = staging_manager.load_session(request.session_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        violation = classify_archive_security_issue(e)
+        detail = _resolve_batch_import_error_message(e, violation=violation) if violation is not None else str(e)
+        if not detail.strip():
+            detail = "导入会话无效或已过期。"
+        payload = _build_batch_import_error_detail(detail, violation=violation)
+        if violation is not None:
+            logger.warning("Batch import confirm blocked by archive security policy: %s", detail)
+        else:
+            logger.error("Batch import confirm failed to load session: %s", e)
+        raise HTTPException(status_code=400, detail=payload) from e
 
     # 引入安全扫描器
     try:
@@ -231,7 +243,10 @@ async def confirm_batch_import(
             skill_idx = int(item.virtual_id.split("_")[1])
             skill = imported_skills[skill_idx]
         except (IndexError, ValueError, KeyError) as e:
-            raise HTTPException(status_code=400, detail="非法的 virtual_id") from e
+            raise HTTPException(
+                status_code=400,
+                detail=_build_batch_import_error_detail("非法的 virtual_id"),
+            ) from e
 
         val_result = validator.validate_skill(f"---\nname: {item.name}\ndescription: {item.description}\n---\n{skill.content}")
         if not val_result.passed:
@@ -239,7 +254,10 @@ async def confirm_batch_import(
             # 立即清理暂存区并阻断
             staging_manager.cleanup_session(request.session_id)
             raise HTTPException(
-                status_code=400, detail=f"安全拦截: {item.name} 包含恶意代码 -> {val_result.issues}。本次导入已撤销。"
+                status_code=400,
+                detail=_build_batch_import_error_detail(
+                    f"安全拦截: {item.name} 包含恶意代码 -> {val_result.issues}。本次导入已撤销。"
+                ),
             )
 
     # Phase 2: 蓝绿目录准备与收集 (全保真原子写入)

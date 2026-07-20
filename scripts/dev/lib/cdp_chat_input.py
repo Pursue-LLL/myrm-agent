@@ -165,7 +165,7 @@ class CdpChatInput(CdpChatBootstrap):
         )
         return result if isinstance(result, dict) else {"hasPauseTrigger": False}
 
-    async def _ensure_react_e2e_bridge(self, *, timeout_sec: float = 90.0) -> None:
+    async def ensure_react_e2e_bridge(self, *, timeout_sec: float = 90.0) -> None:
         """Wait for the full React E2E bridge (not DOM-only fallback)."""
         deadline = time.monotonic() + timeout_sec
         polls = 0
@@ -196,7 +196,7 @@ class CdpChatInput(CdpChatBootstrap):
 
     async def enable_computer_use(self) -> dict[str, object]:
         await self.dismiss_modals()
-        await self._ensure_react_e2e_bridge(timeout_sec=90.0)
+        await self.ensure_react_e2e_bridge(timeout_sec=90.0)
         result = await self.evaluate(
             """(() => {
               const bridge = window.__MYRM_E2E_CHAT__;

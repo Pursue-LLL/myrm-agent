@@ -149,6 +149,18 @@ class TestFillBlueprint:
         assert data["schedule"]["expr"] == "0 6 * * *"
         assert "read-it-later" in data["prompt"].lower()
         assert data["name"]
+        assert data["required_capabilities"] == ["net_fetch", "file_read"]
+        assert data["tools_allowed"] == ["web_fetch", "file_read"]
+
+    def test_fill_news_digest_includes_web_defaults(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "news_digest", "values": {"topic": "AI"}, "locale": "en"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["required_capabilities"] == ["web_search_tool", "net_fetch"]
+        assert data["tools_allowed"] == ["web_search"]
 
     def test_fill_read_it_later_zh_locale(self, client: TestClient) -> None:
         resp = client.post(

@@ -22,7 +22,7 @@ import { BuiltinToolsPanel } from './BuiltinToolsPanel';
 import { SubagentsPanel } from './SubagentsPanel';
 import { InstructionPanel } from './InstructionPanel';
 import { useFeatureEntitlements } from '@/hooks/useFeatureEntitlements';
-import { isSandbox } from '@/lib/deploy-mode';
+import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { stripEntitlementBlockedBuiltinTools } from '@/lib/builtin-tool-entitlements';
 import dynamic from 'next/dynamic';
 
@@ -142,6 +142,17 @@ const AgentConfigEditDialog = ({
   );
   const [displayNameErrors, setDisplayNameErrors] = useState<Record<string, string>>({});
   const [mcpSearchQuery, setMcpSearchQuery] = useState('');
+  const [externalCliBackendReady, setExternalCliBackendReady] = useState<boolean | null>(null);
+
+  const externalCliSaveBlocked = useMemo(() => {
+    if (type !== 'builtin_tools' || !isLocalMode()) {
+      return false;
+    }
+    if (!localBuiltinTools.includes('external_cli')) {
+      return false;
+    }
+    return externalCliBackendReady !== true;
+  }, [type, localBuiltinTools, externalCliBackendReady]);
 
   /* ─── settings sheet ─── */
   const [settingsSheetOpen, setSettingsSheetOpen] = useState(false);
@@ -167,6 +178,7 @@ const AgentConfigEditDialog = ({
       setLocalEphemeralSubagents(initialEphemeralSubagents as Record<string, EphemeralSubagentConfig>);
       setMcpSearchQuery('');
       setDisplayNameErrors({});
+      setExternalCliBackendReady(null);
     }
   }, [
     open, initialSkillIds, initialMountedSkillIds, initialSkillConfigs,
@@ -310,6 +322,10 @@ const AgentConfigEditDialog = ({
     if (type === 'subagents') {
       if (Object.values(displayNameErrors).some((e) => e !== '')) return;
     }
+    if (externalCliSaveBlocked) {
+      toast({ title: tPanel('externalCliSaveBlocked'), variant: 'destructive' });
+      return;
+    }
     switch (type) {
       case 'skills':
         onSave({ selectedSkillIds: localSkillIds, mountedSkillIds: localMountedSkillIds, skillConfigs: localSkillConfigs });
@@ -328,7 +344,7 @@ const AgentConfigEditDialog = ({
         break;
     }
     onOpenChange(false);
-  }, [type, localSkillIds, localSkillConfigs, localMcpNames, localPrompt, localUseGlobalInstruction, localBuiltinTools, localEphemeralSubagents, displayNameErrors, onSave, onOpenChange]);
+  }, [type, localSkillIds, localSkillConfigs, localMcpNames, localPrompt, localUseGlobalInstruction, localBuiltinTools, localEphemeralSubagents, displayNameErrors, externalCliSaveBlocked, tPanel, onSave, onOpenChange]);
 
   /* ─── dialog config ─── */
   const getDialogConfig = () => {
@@ -446,6 +462,7 @@ const AgentConfigEditDialog = ({
             localSessionRecording={localSessionRecording}
             setLocalSessionRecording={setLocalSessionRecording}
             agentDisplayName={undefined}
+            onExternalCliBackendReady={setExternalCliBackendReady}
             t={t}
             tAgent={tAgent}
             tPanel={tPanel}
@@ -515,7 +532,9 @@ const AgentConfigEditDialog = ({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               {tCommon('cancel')}
             </Button>
-            <Button onClick={handleSave}>{tCommon('confirm')}</Button>
+            <Button onClick={handleSave} disabled={externalCliSaveBlocked}>
+              {tCommon('confirm')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

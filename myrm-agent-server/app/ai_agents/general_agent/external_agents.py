@@ -165,6 +165,13 @@ async def _resolve_external_agent_cfgs(
         return None
 
 
+async def resolve_external_agent_backends(
+    external_agents_config: list[dict[str, object]] | None,
+) -> list[dict[str, object]] | None:
+    """Return resolved external agent configs (explicit Settings or local auto-detect)."""
+    return await _resolve_external_agent_cfgs(external_agents_config)
+
+
 def _register_backends_on_pool(pool: RuntimePool, agent_cfgs: list[dict[str, object]]) -> None:
     from myrm_agent_harness.toolkits.acp.types import RuntimeConfig
 

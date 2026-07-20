@@ -110,7 +110,7 @@ async def test_rest_list_and_get_shell_task(tmp_path: Path) -> None:
         list_resp = await client.get("/api/v1/background-tasks")
         assert list_resp.status_code == 200
         list_payload = list_resp.json()
-        assert list_payload.get("registry_ephemeral") is True
+        assert list_payload.get("registry_ephemeral") is False
         tasks = list_payload["tasks"]
         shell_rows = [t for t in tasks if t.get("kind") == "shell" and t.get("pid") == pid]
         assert len(shell_rows) == 1

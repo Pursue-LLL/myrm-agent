@@ -63,6 +63,8 @@ class BlueprintFillResult:
     schedule: BlueprintScheduleResult
     prompt: str
     name: str
+    required_capabilities: tuple[str, ...] = ()
+    tools_allowed: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +80,17 @@ class CronBlueprint:
     category: str = "general"
     tags: tuple[str, ...] = ()
     sort_order: int = 0
+    default_required_capabilities: tuple[str, ...] = ()
+    default_tools_allowed: tuple[str, ...] | None = None
     _schedule_builder: str = field(default="", repr=False)
+
+
+_CAP_WEB = ("web_search_tool", "net_fetch")
+_TOOLS_WEB = ("web_search",)
+_CAP_RESEARCH = ("web_search_tool", "net_fetch", "file_read")
+_TOOLS_RESEARCH = ("web_search", "file_ops")
+_CAP_DEVOPS = ("shell_exec", "file_read", "file_write", "code_interpreter_tool")
+_TOOLS_DEVOPS = ("web_search", "file_ops", "code_execute")
 
 
 def _merge_locale_dict(base: dict[str, str], extra: dict[str, str]) -> dict[str, str]:
@@ -102,6 +114,8 @@ def _with_supplemental_locales(bp: CronBlueprint) -> CronBlueprint:
         category=bp.category,
         tags=bp.tags,
         sort_order=bp.sort_order,
+        default_required_capabilities=bp.default_required_capabilities,
+        default_tools_allowed=bp.default_tools_allowed,
         _schedule_builder=bp._schedule_builder,
     )
 
@@ -158,6 +172,8 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="productivity",
         tags=("daily", "news", "briefing"),
         sort_order=0,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
         _schedule_builder="time_weekdays",
     ),
     CronBlueprint(
@@ -253,6 +269,8 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="information",
         tags=("news", "digest", "topics"),
         sort_order=3,
+        default_required_capabilities=_CAP_WEB,
+        default_tools_allowed=_TOOLS_WEB,
         _schedule_builder="time_weekdays",
     ),
     CronBlueprint(
@@ -322,6 +340,8 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="devops",
         tags=("health", "monitoring", "system", "local"),
         sort_order=5,
+        default_required_capabilities=_CAP_DEVOPS,
+        default_tools_allowed=_TOOLS_DEVOPS,
         _schedule_builder="time_weekdays",
     ),
     CronBlueprint(
@@ -364,6 +384,8 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="business",
         tags=("competitor", "intelligence", "weekly", "research"),
         sort_order=6,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
         _schedule_builder="time_weekday",
     ),
     CronBlueprint(
@@ -441,6 +463,8 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="education",
         tags=("learning", "education", "daily", "growth"),
         sort_order=8,
+        default_required_capabilities=_CAP_WEB,
+        default_tools_allowed=_TOOLS_WEB,
         _schedule_builder="time_weekdays",
     ),
     CronBlueprint(
@@ -500,6 +524,8 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="business",
         tags=("social-media", "monitoring", "sentiment", "brand"),
         sort_order=9,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
         _schedule_builder="time_weekdays",
     ),
     CronBlueprint(
@@ -540,6 +566,8 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="productivity",
         tags=("read-it-later", "knowledge", "ingestion", "wiki", "automation"),
         sort_order=10,
+        default_required_capabilities=("net_fetch", "file_read"),
+        default_tools_allowed=("web_fetch", "file_read"),
         _schedule_builder="time_weekdays",
     ),
 )
@@ -610,7 +638,13 @@ def fill_blueprint(
     prompt = _build_prompt_from_blueprint(bp, effective_values, locale)
     name = _resolve_locale_title(bp, locale)[:40]
 
-    return BlueprintFillResult(schedule=schedule, prompt=prompt, name=name)
+    return BlueprintFillResult(
+        schedule=schedule,
+        prompt=prompt,
+        name=name,
+        required_capabilities=bp.default_required_capabilities,
+        tools_allowed=bp.default_tools_allowed,
+    )
 
 
 def _build_schedule_from_blueprint(

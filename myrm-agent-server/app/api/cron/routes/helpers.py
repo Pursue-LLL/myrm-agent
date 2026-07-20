@@ -73,6 +73,7 @@ def _to_response(job: CronJob, monitor_state: MonitorState | None = None) -> Cro
         failure_alert=_failure_alert_to_response(job.failure_alert),
         active_hours=_active_hours_to_response(job.active_hours),
         required_capabilities=list(job.required_capabilities) if job.required_capabilities else [],
+        tools_allowed=list(job.tools_allowed) if job.tools_allowed else [],
         allowed_roots=list(job.allowed_roots) if job.allowed_roots else [],
         triggers=_trigger_config_to_response(job.triggers),
         context_from=list(job.context_from) if job.context_from else [],

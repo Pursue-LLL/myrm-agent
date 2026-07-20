@@ -197,6 +197,10 @@ class AgentService:
         """创建智能体"""
         import uuid
 
+        from app.services.agent.external_cli_gate import assert_external_cli_tools_allowed
+
+        await assert_external_cli_tools_allowed(agent_data.enabled_builtin_tools)
+
         agent_id = str(uuid.uuid4())
 
         metadata: dict[str, object] = {
@@ -262,6 +266,11 @@ class AgentService:
     @staticmethod
     async def update_agent(agent_id: str, agent_data: AgentUpdate) -> AgentUpdateOutcome | None:
         """更新智能体"""
+        if agent_data.enabled_builtin_tools is not None:
+            from app.services.agent.external_cli_gate import assert_external_cli_tools_allowed
+
+            await assert_external_cli_tools_allowed(agent_data.enabled_builtin_tools)
+
         snapshot_saved = True
         subagent_binding_changed = False
         async with UnitOfWork() as uow:

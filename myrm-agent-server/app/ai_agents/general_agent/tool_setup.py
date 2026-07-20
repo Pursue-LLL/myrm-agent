@@ -543,7 +543,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             def _blueprint_filler(
                 bp_id: str, values: dict[str, str], tz: str | None
-            ) -> tuple[dict[str, str | int | None], str, str] | None:
+            ) -> tuple[dict[str, str | int | None], str, str, tuple[str, ...], tuple[str, ...] | None] | None:
                 try:
                     result = fill_blueprint(bp_id, values, locale=agent_locale, tz=tz)
                 except BlueprintFillError as exc:
@@ -557,7 +557,13 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     "tz": sched.tz,
                     "interval_ms": sched.interval_ms,
                 }
-                return sched_dict, result.prompt, result.name
+                return (
+                    sched_dict,
+                    result.prompt,
+                    result.name,
+                    result.required_capabilities,
+                    result.tools_allowed,
+                )
 
             cron_tools = create_cron_tools(
                 get_cron_manager(),

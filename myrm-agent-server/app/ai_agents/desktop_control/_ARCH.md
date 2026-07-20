@@ -38,7 +38,7 @@ Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' se
 | Gate trigger | Assert `GET /webui/desktop/approval/pending` → `server_pending>0`（禁止用 tool 名 substring 误判） |
 | UI | `DesktopControlApprovalBanner` — `data-testid="desktop-control-allow-once"` / `desktop-control-deny` / `desktop-control-allow-always` |
 | Settings | `DesktopPermissionsCard` — `data-testid="desktop-trust-revoke-{trust_key}"` |
-| E2E | `test_desktop_control_approval_chrome_e2e.py` — allow_once + allow_always→Settings revoke |
+| E2E | `test_desktop_control_approval_chrome_e2e.py` + `tests/e2e/desktop_approval/` — allow_once + allow_always→Settings revoke |
 | Bridge | `E2EChatBridge.hasDone` 或 API `chat_messages_have_done()`；无 DONE 时 poll≥15 一次性 nudge |
 | Signoff | `./myrm signoff chrome` → darwin `chrome_e2e_desktop` phase（allow_once + allow_always_settings_revoke） |
 | Reset | `POST /webui/desktop/approval/reset-runtime` clears in-memory gate + reloads disk approvals |

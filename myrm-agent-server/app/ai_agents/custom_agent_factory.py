@@ -3,16 +3,16 @@
 [INPUT]
 myrm_agent_harness.agent.sub_agents.types::SubagentConfig (POS: subagent runtime contract)
 app.core.memory.adapters.setup::create_memory_manager (POS: Server memory manager adapter factory)
-app.services.chat.conversation_search_service::ConversationHistorySearchProvider (POS: 会话历史召回服务。将 Server 的 Chat DB、FTS5、预计算摘要与 Harness MemoryManager 语义召回组合为 agent 可用的只读工具能力)
-myrm_agent_harness.toolkits.memory.conversation_search::create_conversation_search_tool (POS: framework-level conversation recall tool factory)
+app.services.chat.conversation_search_service::ConversationHistorySearchProvider (POS: 会话历史召回服务)
+myrm_agent_harness.toolkits.memory.memory_search_policy::MemorySearchPolicy (POS: corpus ACL for memory_search_tool)
 
 [OUTPUT]
 CustomAgentFactory: DB-backed custom subagent factory.
-EphemeralAgentFactory: in-memory JIT subagent factory.
+EphemeralAgentFactory: in-memory JIT subagent factory (rebinds memory_search_tool like CustomAgentFactory).
 
 [POS]
-Custom subagent assembly layer. Builds isolated SkillAgent instances and prevents delegated agents from inheriting
-the parent agent's global conversation history search surface.
+Custom subagent assembly layer. Builds isolated SkillAgent instances and rebinds memory_search_tool with subagent-scoped
+MemorySearchPolicy/backends aligned to the parent user's conversation-search opt-in.
 
 When a custom agent (configured by the user in the frontend) is delegated
 as a subagent via delegate_task, the framework's build_child_agent() calls
@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, cast
 
 from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
@@ -86,8 +87,8 @@ def _filter_tools_by_profile(tools: list[object], enabled_builtin_tools: tuple[s
     return filtered
 
 
-def _without_inherited_conversation_search(tools: list[object]) -> list[object]:
-    """Prevent delegated agents from inheriting the parent's global chat-history tool."""
+def _without_legacy_conversation_search_tool(tools: list[object]) -> list[object]:
+    """Drop standalone conversation_search_tool inherited from older parent binds."""
 
     return [tool for tool in tools if getattr(tool, "name", "") != "conversation_search_tool"]
 
@@ -100,32 +101,117 @@ def _parent_chat_id(parent_agent: object) -> str | None:
     return chat_id if isinstance(chat_id, str) and chat_id else None
 
 
-def _append_scoped_conversation_search(
+def _parent_memory_search_flags(parent_agent: object) -> tuple[bool, bool]:
+    """Mirror GeneralAgent MemorySearchPolicy gates from the parent runtime agent."""
+    incognito = bool(getattr(parent_agent, "incognito_mode", False))
+    allow_sessions = bool(getattr(parent_agent, "enable_conversation_search", False)) and not incognito
+    allow_wiki = bool(getattr(parent_agent, "enable_wiki", False)) and not incognito
+    return allow_sessions, allow_wiki
+
+
+def _build_subagent_wiki_query(
+    parent_agent: object,
+    memory_manager: object,
+    *,
+    agent_id: str,
+) -> Callable[[str], Awaitable[str]] | None:
+    lite_llm = getattr(parent_agent, "_lite_llm", None)
+    if lite_llm is None:
+        return None
+    from app.services.wiki.vault_service import get_wiki_archiver
+
+    async def _query_wiki(question: str) -> str:
+        archiver = get_wiki_archiver(lite_llm, memory_manager, agent_id=agent_id)
+        return await archiver.query_wiki(question)
+
+    return _query_wiki
+
+
+def _rebind_subagent_memory_search_tool(
     tools: list[object],
     *,
-    current_chat_id: str | None,
+    memory_manager: object,
     agent_id: str,
-    memory_manager: object | None,
+    chat_id: str | None,
+    allow_sessions: bool,
+    allow_wiki: bool,
+    query_wiki: Callable[[str], Awaitable[str]] | None,
 ) -> None:
-    """Attach Server-governed conversation search for a custom subagent."""
-
-    if memory_manager is None:
-        return
-    from myrm_agent_harness.toolkits.memory.conversation_search import (
-        create_conversation_search_tool,
-    )
+    """Replace inherited memory_search_tool with subagent-scoped policy/backends."""
+    from myrm_agent_harness.toolkits import create_memory_tools
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-
-    from app.services.chat.conversation_search_service import ConversationHistorySearchProvider
+    from myrm_agent_harness.toolkits.memory.memory_search_policy import (
+        MemorySearchBackends,
+        MemorySearchPolicy,
+    )
 
     if not isinstance(memory_manager, MemoryManager):
         return
-    provider = ConversationHistorySearchProvider(
-        current_chat_id=current_chat_id,
-        agent_id=agent_id,
-        memory_manager=memory_manager,
+
+    conversation_provider = None
+    if allow_sessions:
+        from app.services.chat.conversation_search_service import ConversationHistorySearchProvider
+
+        conversation_provider = ConversationHistorySearchProvider(
+            current_chat_id=chat_id,
+            agent_id=agent_id,
+            memory_manager=memory_manager,
+        )
+
+    search_policy = MemorySearchPolicy(allow_wiki=allow_wiki, allow_sessions=allow_sessions)
+    wiki_query = query_wiki if allow_wiki and callable(query_wiki) else None
+    search_backends = MemorySearchBackends(
+        query_wiki=wiki_query,
+        conversation_provider=conversation_provider,
     )
-    tools.append(create_conversation_search_tool(provider))
+    rebuilt = create_memory_tools(
+        memory_manager,
+        search_policy=search_policy,
+        search_backends=search_backends,
+    )
+    rebuilt_search = next(
+        (tool for tool in rebuilt if getattr(tool, "name", "") == "memory_search_tool"),
+        None,
+    )
+    if rebuilt_search is None:
+        return
+
+    replaced = False
+    for index, tool in enumerate(tools):
+        if getattr(tool, "name", "") == "memory_search_tool":
+            tools[index] = rebuilt_search
+            replaced = True
+            break
+    if not replaced:
+        return
+
+
+def _apply_subagent_memory_search_rebind(
+    tools: list[object],
+    *,
+    parent_agent: object,
+    agent_id: str,
+    memory_manager: object | None,
+    enabled_builtin: tuple[str, ...],
+) -> None:
+    """Rebind inherited memory_search_tool when the subagent profile enables memory."""
+    if memory_manager is None or "memory" not in enabled_builtin:
+        return
+    allow_sessions, allow_wiki = _parent_memory_search_flags(parent_agent)
+    wiki_query = (
+        _build_subagent_wiki_query(parent_agent, memory_manager, agent_id=agent_id)
+        if allow_wiki
+        else None
+    )
+    _rebind_subagent_memory_search_tool(
+        tools,
+        memory_manager=memory_manager,
+        agent_id=agent_id,
+        chat_id=_parent_chat_id(parent_agent),
+        allow_sessions=allow_sessions,
+        allow_wiki=allow_wiki,
+        query_wiki=wiki_query,
+    )
 
 
 class CustomAgentFactory:
@@ -333,12 +419,13 @@ class CustomAgentFactory:
 
         enabled_builtin = getattr(profile, "enabled_builtin_tools", ())
         filtered_parent_tools = _filter_tools_by_profile(list(cast("list[BaseTool]", tools)), enabled_builtin)
-        all_tools = _without_inherited_conversation_search(filtered_parent_tools)
-        _append_scoped_conversation_search(
+        all_tools = _without_legacy_conversation_search_tool(filtered_parent_tools)
+        _apply_subagent_memory_search_rebind(
             all_tools,
-            current_chat_id=_parent_chat_id(parent_agent),
+            parent_agent=parent_agent,
             agent_id=self._agent_id,
             memory_manager=memory_manager,
+            enabled_builtin=tuple(enabled_builtin),
         )
 
         storage_backend = get_storage_provider()
@@ -438,7 +525,16 @@ class EphemeralAgentFactory:
         if not isinstance(raw_builtin, (list, tuple)):
             from app.services.agent.profile_resolver import DEFAULT_ENABLED_BUILTIN_TOOLS
             raw_builtin = DEFAULT_ENABLED_BUILTIN_TOOLS
-        filtered_tools = _filter_tools_by_profile(list(tools), tuple(str(x) for x in raw_builtin))
+        enabled_builtin = tuple(str(x) for x in raw_builtin)
+        filtered_tools = _filter_tools_by_profile(list(tools), enabled_builtin)
+        all_tools = _without_legacy_conversation_search_tool(filtered_tools)
+        _apply_subagent_memory_search_rebind(
+            all_tools,
+            parent_agent=parent_agent,
+            agent_id=self._agent_id,
+            memory_manager=getattr(parent_agent, "memory_manager", None),
+            enabled_builtin=enabled_builtin,
+        )
 
         agent = await create_skill_agent(
             spec=spec,
@@ -447,7 +543,7 @@ class EphemeralAgentFactory:
             storage_backend=get_storage_provider(),
             skill_backend=None,
             memory_manager=None,
-            tools=_without_inherited_conversation_search(filtered_tools),
+            tools=all_tools,
             collect_artifacts=False,
             checkpointer=False,
         )

@@ -136,6 +136,7 @@ async def seed_shell_fixture(
     return {
         "chat_id": chat_id,
         "pid": pid,
+        "job_id": job_id,
         "task_id": f"shell:{job_id}",
         "mode": mode,
     }
