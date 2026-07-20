@@ -8,6 +8,8 @@
 
 [OUTPUT]
 - `build_health_json()` / CLI: unified `CHROME_E2E_HEALTH_JSON` with `runtimeId` and four epochs
+- `stack_core_health_errors()` / `api_health_errors()`: signoff matrix keepalive (mux epochs + API `/api/v1/health`; no UI curl)
+- CLI `--require-stack-core`: exit 2 when stack core or API health is not ready
 - `read_current_runtime_id()` / `--drift --expect`: see `runtime_probe.py` (mechanical RUNTIME_DRIFT check)
 
 [POS]

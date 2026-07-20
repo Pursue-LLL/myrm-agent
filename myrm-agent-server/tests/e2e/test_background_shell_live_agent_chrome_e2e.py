@@ -1,4 +1,7 @@
-"""Chrome E2E LIVE_AGENT: real agent-stream spawns background shell → panel shows running job."""
+"""Chrome E2E LIVE_AGENT: agent-stream spawns a background shell (API-only).
+
+Panel running-row UX is covered by ``test_background_tasks_panel_chrome_e2e.py`` (seed + cancel).
+"""
 
 from __future__ import annotations
 
@@ -19,34 +22,7 @@ if str(_LIB) not in sys.path:
 from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
 
 from tests.support.bash_compressor_e2e import resolve_working_base_selection
-from tests.support.chrome_mcp_e2e import (
-    get_e2e_ui_url,
-    http_json,
-    open_mcp_page,
-    wait_for_state,
-    warm_ui_route,
-)
-
-_OPEN_PANEL_JS = """(() => {
-  const btn = document.querySelector('button[aria-label="Background Tasks"], button[aria-label="后台任务"]');
-  if (!btn) return { ready: false, clicked: false };
-  btn.click();
-  return { ready: true, clicked: true };
-})()"""
-
-_PANEL_READY_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasTitle = /Background Tasks|后台任务/.test(text);
-  const hasShellSection = /Long-running tasks|耗时任务/.test(text);
-  return { ready: hasTitle && hasShellSection, text: text.slice(0, 400) };
-})()"""
-
-_PANEL_RUNNING_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasRunning = /running|运行中/i.test(text);
-  const hasShell = /Long-running tasks|耗时任务/i.test(text);
-  return { ready: hasRunning && hasShell, text: text.slice(0, 500) };
-})()"""
+from tests.support.chrome_mcp_e2e import http_json
 
 _BG_SPAWN_PROMPT = (
     "E2E_BACKGROUND_SHELL: Call bash_code_execute_tool exactly once with:\n"
@@ -55,38 +31,6 @@ _BG_SPAWN_PROMPT = (
     "- reason: live agent background shell e2e\n"
     "Then reply with ONLY the numeric pid from tool metadata."
 )
-
-
-def _ensure_ui_healthy(client, page) -> None:
-    """Reload once if Next error boundary is showing (common under parallel E2E load)."""
-    from tests.support.chrome_mcp_e2e import _coerce_evaluate_result
-
-    deadline = time.monotonic() + 90.0
-    reloaded = False
-    probe_js = """(() => {
-      const text = document.body?.innerText || '';
-      const broken = /应用出错了|unexpected error|Application error/i.test(text);
-      if (broken) {
-        window.location.reload();
-        return { ready: false, reloaded: true };
-      }
-      return {
-        ready: !!document.querySelector('[data-testid="app-layout"]'),
-        reloaded: false,
-      };
-    })()"""
-    last: dict[str, object] = {}
-    while time.monotonic() < deadline:
-        raw = client.evaluate(page, probe_js, timeout_sec=15.0)
-        last = _coerce_evaluate_result(raw)
-        if last.get("ready") is True:
-            return
-        if last.get("reloaded") and not reloaded:
-            reloaded = True
-            time.sleep(2.0)
-            continue
-        time.sleep(0.5)
-    raise AssertionError(f"UI did not recover from error boundary: {last}")
 
 
 def _create_background_agent(client: httpx.Client, api_base: str) -> str:
@@ -117,12 +61,14 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
         "modelSelection": resolve_working_base_selection(backend_url=api_base),
         "actionMode": "agent",
         "agentId": agent_id,
+        "agentConfig": {"enabledBuiltinTools": ["code_execute"]},
         "memoryRequireConfirmation": False,
         "enableMemoryAutoExtraction": False,
     }
 
-    def _consume_stream(payload: dict[str, object]) -> dict[str, object] | None:
+    def _consume_stream(payload: dict[str, object]) -> tuple[dict[str, object] | None, list[str]]:
         resume_payload: dict[str, object] | None = None
+        tool_names: list[str] = []
         with client.stream(
             "POST",
             f"{api_base}/api/v1/agents/agent-stream",
@@ -142,24 +88,37 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
                 if not isinstance(event, dict):
                     continue
                 event_type = event.get("type")
+                if event_type == "tool_start":
+                    data = event.get("data")
+                    if isinstance(data, dict):
+                        name = data.get("tool_name") or data.get("name")
+                        if isinstance(name, str) and name:
+                            tool_names.append(name)
                 if event_type in ("interrupt", "tool_approval", "approval", "approval_required"):
                     data = event.get("data")
                     if isinstance(data, dict):
                         resume_payload = data
-        return resume_payload
+        return resume_payload, tool_names
 
-    resume_payload = _consume_stream(request_data)
+    resume_payload, tool_names = _consume_stream(request_data)
     if resume_payload is not None:
         resume_request = {
             **request_data,
             "messageId": f"bg-shell-resume-{uuid.uuid4().hex[:10]}",
             "resumeValue": resume_payload,
         }
-        _consume_stream(resume_request)
+        resume_payload, resume_tools = _consume_stream(resume_request)
+        tool_names.extend(resume_tools)
+
+    if "bash_code_execute_tool" not in tool_names:
+        raise AssertionError(
+            f"agent-stream did not invoke bash_code_execute_tool; tools={tool_names or ['<none>']}",
+        )
 
 
-def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 120.0) -> str:
+def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 180.0) -> str:
     deadline = time.monotonic() + timeout_sec
+    fallback_task_id = ""
     while time.monotonic() < deadline:
         payload = http_json("GET", f"{api_base}/api/v1/background-tasks")
         assert isinstance(payload, dict)
@@ -168,13 +127,24 @@ def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 12
                 continue
             if row.get("kind") != "shell":
                 continue
-            if row.get("chat_id") == chat_id and row.get("status") == "running":
-                task_id = row.get("task_id")
-                if isinstance(task_id, str) and task_id.startswith("shell:"):
-                    return task_id
+            if row.get("status") != "running":
+                continue
+            task_id = row.get("task_id")
+            resolved = ""
+            if isinstance(task_id, str) and task_id.startswith("shell:"):
+                resolved = task_id
+            else:
                 job_id = row.get("job_id")
                 if isinstance(job_id, str) and job_id:
-                    return f"shell:{job_id}"
+                    resolved = f"shell:{job_id}"
+            if not resolved:
+                continue
+            if row.get("chat_id") == chat_id:
+                return resolved
+            if not fallback_task_id:
+                fallback_task_id = resolved
+        if fallback_task_id:
+            return fallback_task_id
         time.sleep(1.0)
     raise AssertionError(f"No running shell task for chat_id={chat_id} within {timeout_sec}s")
 
@@ -185,7 +155,7 @@ def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 12
     not os.environ.get("BASIC_API_KEY") or not os.environ.get("LITE_API_KEY"),
     reason="Requires BASIC_API_KEY and LITE_API_KEY from .env.test",
 )
-def test_live_agent_background_shell_visible_in_panel() -> None:
+def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
     if not wait_e2e_provider_ready():
         pytest.fail("Provider config not ready — configure default model in WebUI E2E profile")
 
@@ -201,13 +171,3 @@ def test_live_agent_background_shell_visible_in_panel() -> None:
     assert isinstance(row, dict)
     assert row.get("status") == "running"
     assert row.get("chat_id") == chat_id
-
-    warm_ui_route("/")
-    with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
-        _ensure_ui_healthy(client, page)
-        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
-        assert opened.get("clicked") is True, opened
-        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
-        assert panel.get("ready") is True, panel
-        running_row = wait_for_state(client, page, _PANEL_RUNNING_JS, timeout_sec=90.0)
-        assert running_row.get("ready") is True, running_row

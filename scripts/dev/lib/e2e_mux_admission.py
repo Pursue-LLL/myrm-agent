@@ -352,7 +352,6 @@ def main() -> int:
         payload = {
             "active": _active_count(registry),
             "maxSessions": effective_max_sessions(signoff_matrix=False),
-            "signoffLock": (_dev_state_dir() / "signoff-chrome.lock").is_file(),
             "sessions": list(registry["sessions"].keys()),
         }
         if args.json:

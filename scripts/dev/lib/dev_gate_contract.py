@@ -1,4 +1,4 @@
-"""Dev Gate v2 contract SSOT for Chrome MCP E2E orchestration."""
+"""Dev Gate v2 contract SSOT for Chrome MCP E2E orchestration (product path)."""
 
 from __future__ import annotations
 
@@ -77,6 +77,7 @@ E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (
     "myrm-test-e2e:",
     "signoff-matrix-parent-",
 )
+
 
 def formal_chrome_e2e_runtime_heal_agent(agent_id: str) -> bool:
     """True when agentId belongs to a formal chrome E2E parent session."""

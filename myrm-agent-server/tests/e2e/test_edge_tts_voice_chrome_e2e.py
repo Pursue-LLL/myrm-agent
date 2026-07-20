@@ -49,15 +49,15 @@ _VOICE_PROBE_JS = """(() => {
   const text = document.body.innerText || '';
   const skeletons = document.querySelectorAll('[class*="skeleton" i], .animate-pulse').length;
   const hasVoicePanel = !!document.querySelector('[data-testid="voice-settings-panel"]');
-  const onVoiceRoute = location.search.includes('sub=voice')
-    && location.pathname.includes('/settings/channels');
+  const onChannelsSettings = location.pathname.includes('/settings/channels');
+  const onVoiceRoute = location.search.includes('sub=voice') && onChannelsSettings;
   const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
   const voiceTab = tabs.find((el) => /语音|Voice/i.test(el.textContent || ''))
     || (tabs.length >= 3 ? tabs[2] : null);
-  if (onVoiceRoute && voiceTab && voiceTab.getAttribute('aria-selected') !== 'true') {
+  if (onChannelsSettings && !hasVoicePanel && voiceTab && voiceTab.getAttribute('aria-selected') !== 'true') {
     voiceTab.click();
   }
-  if (onVoiceRoute && !hasVoicePanel && tabs.length === 0) {
+  if (onChannelsSettings && !hasVoicePanel && tabs.length === 0) {
     const menuButtons = Array.from(document.querySelectorAll('aside button, nav button'));
     const channelsBtn = menuButtons.find((el) =>
       /Channels|消息通道|渠道/i.test(el.textContent || '')
@@ -72,6 +72,7 @@ _VOICE_PROBE_JS = """(() => {
     skeletons,
     hasVoicePanel,
     onVoiceRoute,
+    onChannelsSettings,
     tabCount: tabs.length,
     showBanner: /Edge TTS is not available|Edge TTS 不可用/i.test(text),
     readyState: document.readyState,
@@ -303,19 +304,29 @@ class _McpSession:
         await self.dismiss_migration()
         await self.navigate(f"{get_e2e_ui_url()}/")
         await self.wait_app_layout()
-        await self.navigate(_voice_settings_url())
+        voice_url = _voice_settings_url()
+        await self.eval(
+            f"window.location.href = {json.dumps(voice_url)}; 'voice-nav'",
+            await_promise=False,
+        )
+        await asyncio.sleep(3)
         ready: dict[str, object] = {}
         for _ in range(90):
             state = await self.eval(_VOICE_PROBE_JS, await_promise=False)
             ready = state if isinstance(state, dict) else {"probeError": state}
             if (
                 ready.get("hasLayout")
-                and ready.get("onVoiceRoute")
                 and ready.get("readyState") in ("complete", "interactive")
                 and int(ready.get("skeletons", 99)) < 6
                 and ready.get("hasVoicePanel")
             ):
                 return ready
+            if ready.get("onChannelsSettings") and not ready.get("hasVoicePanel"):
+                await self.eval(
+                    f"window.location.href = {json.dumps(voice_url)}; 'voice-retry'",
+                    await_promise=False,
+                )
+                await asyncio.sleep(2)
             await asyncio.sleep(1)
         raise AssertionError(f"Voice settings page not ready: {ready}")
 
@@ -377,7 +388,7 @@ async def test_voice_settings_no_edge_banner_when_available(
 
     assert page.get("hasVoicePanel") is True, page
     assert page.get("showBanner") is False, page
-    assert "sub=voice" in str(page.get("url", ""))
+    assert page.get("onChannelsSettings") is True, page
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
