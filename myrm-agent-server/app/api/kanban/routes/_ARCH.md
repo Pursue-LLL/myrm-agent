@@ -30,7 +30,7 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 
 | 方法 | 路径 |
 |------|------|
-| GET/POST | `/boards/{board_id}/tasks` | GET 支持 `status_filter`、`agent_id`、`source_chat_id` query |
+| GET/POST | `/boards/{board_id}/tasks` | GET 支持 `status_filter`、`agent_id`、`source_chat_id` query；POST body 可选 `metadata`（如 `source_chat_id`） |
 | GET/PATCH/DELETE | `/tasks/{task_id}` |
 | POST | `/tasks/{task_id}/move` |
 | POST | `/tasks/{task_id}/promote` |

@@ -45,6 +45,18 @@ const AGENT_CONFIG_PANEL_REQUIRED_STRING_KEYS = [
   'kanbanActiveBoard',
 ];
 
+/** `useTranslations('kanban')` keys for Chat ↔ Board closure UI (card, filter chip, drawer). */
+const KANBAN_CHAT_CLOSURE_REQUIRED_STRING_KEYS = [
+  'executionTrace',
+  'openSourceChat',
+  'viewBoardTasksFromChat',
+  'sourceChatFilterActive',
+  'chatTaskCreatedTitle',
+  'chatTaskCreatedSuccess',
+  'chatTaskCreatedOpenBoard',
+  'clearSourceChatFilter',
+];
+
 /** `useTranslations('artifacts')` keys used by ArtifactsCenter — must exist in all locales. */
 const ARTIFACTS_CENTER_REQUIRED_STRING_KEYS = [
   'title',
@@ -323,6 +335,34 @@ for (const lang of LANGUAGES) {
     hasErrors = true;
   } else {
     console.log(`  ✅ ${lang}.json agent.configPanel 关键 keys 完整`);
+  }
+}
+
+// 验证5b: kanban Chat ↔ Board closure keys（全语言）
+console.log('\n📋 验证 kanban Chat↔Board closure keys（全语言）...');
+for (const lang of LANGUAGES) {
+  const data = translations[lang];
+  if (!data) continue;
+
+  const kanban = data.kanban;
+  if (!kanban || typeof kanban !== 'object') {
+    console.error(`  ❌ ${lang}.json 缺少或无效 kanban`);
+    hasErrors = true;
+    continue;
+  }
+
+  const missing = [];
+  for (const key of KANBAN_CHAT_CLOSURE_REQUIRED_STRING_KEYS) {
+    const v = kanban[key];
+    if (typeof v !== 'string' || v.length === 0) {
+      missing.push(key);
+    }
+  }
+  if (missing.length > 0) {
+    console.error(`  ❌ ${lang}.json kanban 缺少或非空字符串: ${missing.join(', ')}`);
+    hasErrors = true;
+  } else {
+    console.log(`  ✅ ${lang}.json kanban Chat↔Board closure keys 完整`);
   }
 }
 
