@@ -51,7 +51,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-isolated-kanban-closure/types/**/*.ts",
-    ".next-isolated-kanban-closure/dev/types/**/*.ts"
+    ".next-isolated-kanban-closure/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_kanban_chat_created_card_opens_filt-b55c6bdd-65054-b5e3d134/types/**/*.ts",
+    ".next-isolated-chrome-test_kanban_chat_created_card_opens_filt-b55c6bdd-65054-b5e3d134/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

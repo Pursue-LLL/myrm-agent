@@ -8,6 +8,7 @@ import subprocess
 import sys
 import threading
 import time
+import fcntl
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -428,3 +429,48 @@ def assert_chrome_attach_health() -> None:
         time.sleep(poll_sec)
         waited += poll_sec
     raise RuntimeError(f"CHROME_E2E_ATTACH_NOT_READY: {last_detail}")
+
+
+_LIVE_AGENT_STREAM_LOCK_PATH = Path(os.environ.get("TMPDIR", "/tmp")) / "myrm-live-agent-stream.lock"
+_LIVE_AGENT_STREAM_WAIT_SEC = float(os.environ.get("MYRM_LIVE_AGENT_STREAM_WAIT_SEC", "900"))
+
+
+@contextmanager
+def live_agent_stream_lock() -> Iterator[None]:
+    """Serialize shared-hot :8080 agent-stream turns across parallel LIVE chrome_e2e."""
+    lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
+    if lane != "LIVE_AGENT":
+        yield
+        return
+    _LIVE_AGENT_STREAM_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(_LIVE_AGENT_STREAM_LOCK_PATH, os.O_CREAT | os.O_RDWR, 0o600)
+    deadline = time.monotonic() + _LIVE_AGENT_STREAM_WAIT_SEC
+    acquired = False
+    last_log = 0.0
+    while time.monotonic() < deadline:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            acquired = True
+            break
+        except BlockingIOError:
+            now = time.monotonic()
+            if now - last_log >= 30.0:
+                print(
+                    "LIVE_AGENT_STREAM_WAIT: shared :8080 agent-stream busy; "
+                    f"queueing (max {_LIVE_AGENT_STREAM_WAIT_SEC:.0f}s)",
+                    flush=True,
+                )
+                last_log = now
+            time.sleep(1.0)
+    if not acquired:
+        os.close(fd)
+        raise RuntimeError(
+            "LIVE_AGENT_STREAM_WAIT_TIMEOUT: shared :8080 agent-stream lock busy "
+            f"(lock={_LIVE_AGENT_STREAM_LOCK_PATH}, wait={_LIVE_AGENT_STREAM_WAIT_SEC:.0f}s). "
+            "Do not kill other pytest — wait for FIFO queue."
+        )
+    try:
+        yield
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)

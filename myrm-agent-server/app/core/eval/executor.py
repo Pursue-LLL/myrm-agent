@@ -216,6 +216,11 @@ class LocalEvalExecutor:
         )
 
         from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+        from app.services.agent.runtime_context import build_agent_runtime_context
+
+        runtime_context = await build_agent_runtime_context(
+            execution_mode=ExecutionMode.EPHEMERAL,
+        )
 
         agent = AgentFactory.create_general_agent(params)
 
@@ -229,7 +234,7 @@ class LocalEvalExecutor:
             async for event in agent.process_stream(
                 query=message,
                 chat_id=chat_id,
-                context={"execution_mode": ExecutionMode.EPHEMERAL},
+                context=runtime_context,
             ):
                 event_type = event.get("type", "")
 
@@ -249,7 +254,7 @@ class LocalEvalExecutor:
                 agent,
                 chat_id=chat_id,
                 agent_id=params.agent_id,
-                extra_context={"execution_mode": ExecutionMode.EPHEMERAL},
+                extra_context=runtime_context,
             )
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000

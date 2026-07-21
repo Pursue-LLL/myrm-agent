@@ -9209,6 +9209,7 @@
     "toolPreset": {
       "webOnly": "仅联网",
       "research": "研究组合",
+      "devops": "运维组合",
       "full": "全部工具"
     },
     "allowedRootsLabel": "允许的路径",

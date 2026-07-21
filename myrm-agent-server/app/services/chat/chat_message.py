@@ -47,7 +47,9 @@ class _ChatMessageMixin(_ChatServiceBase):
         sibling_group_id: str | None = None,
     ) -> MessageDTO:
         if role not in ALLOWED_MESSAGE_ROLES:
-            raise ValueError(f"Invalid message role: {role!r}. Must be one of {ALLOWED_MESSAGE_ROLES}")
+            raise ValueError(
+                f"Invalid message role: {role!r}. Must be one of {ALLOWED_MESSAGE_ROLES}"
+            )
 
         try:
             from app.core.eval.service import mark_chat_activity
@@ -127,16 +129,23 @@ class _ChatMessageMixin(_ChatServiceBase):
                 await sess.flush()
             else:
                 field_updates: dict[str, object] = {}
-                if ephemeral_subagents is not None and chat.ephemeral_subagents != ephemeral_subagents:
+                if (
+                    ephemeral_subagents is not None
+                    and chat.ephemeral_subagents != ephemeral_subagents
+                ):
                     field_updates["ephemeral_subagents"] = ephemeral_subagents
                 if agent_id and chat.agent_id != agent_id:
                     field_updates["agent_id"] = agent_id
                 if field_updates:
-                    await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, field_updates)
+                    await _ChatServiceBase._cr(uow).update_chat_fields(
+                        chat_id, field_updates
+                    )
 
             resolved_message_id = message_id or str(uuid4())
             if message_id:
-                existing = await _ChatServiceBase._cr(uow).get_message_by_id(chat_id, message_id)
+                existing = await _ChatServiceBase._cr(uow).get_message_by_id(
+                    chat_id, message_id
+                )
                 if existing is not None:
                     logger.warning(
                         "Duplicate user message_id=%s for chat_id=%s; allocating fresh id",
@@ -184,7 +193,9 @@ class _ChatMessageMixin(_ChatServiceBase):
     ) -> tuple[list[MessageDTO], bool]:
         limit = min(limit, 100)
         async with UnitOfWork() as uow:
-            messages = await _ChatServiceBase._cr(uow).get_messages_paginated(chat_id, before, limit + 1)
+            messages = await _ChatServiceBase._cr(uow).get_messages_paginated(
+                chat_id, before, limit + 1
+            )
             has_more = len(messages) > limit
             result_msgs = list(reversed(messages[:limit]))
             return (result_msgs, has_more)
@@ -238,27 +249,41 @@ class _ChatMessageMixin(_ChatServiceBase):
 
                 from app.config.settings import settings
 
-                event_log_file = Path(settings.database.event_log_dir) / f"{chat_id}.jsonl"
+                event_log_file = (
+                    Path(settings.database.event_log_dir) / f"{chat_id}.jsonl"
+                )
                 if event_log_file.exists():
                     backend = FileEventLogBackend(
                         log_dir=Path(settings.database.event_log_dir),
                         session_id=chat_id,
                     )
-                    summary = await get_session_summary(backend, session_id=chat_id, events_limit=150, timeline_limit=10)
+                    summary = await get_session_summary(
+                        backend, session_id=chat_id, events_limit=150, timeline_limit=10
+                    )
                     if summary.token_economics:
                         usage_updates = {
                             "total_calls": summary.token_economics.get("call_count", 0),
-                            "total_tokens": summary.token_economics.get("total_tokens", 0),
-                            "total_usd": summary.token_economics.get("total_cost_usd", 0.0),
+                            "total_tokens": summary.token_economics.get(
+                                "total_tokens", 0
+                            ),
+                            "total_usd": summary.token_economics.get(
+                                "total_cost_usd", 0.0
+                            ),
                         }
                         # update_chat_fields is in _ChatCrudMixin; use UnitOfWork directly
                         async with UnitOfWork() as uow:
-                            await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, usage_updates)
+                            await _ChatServiceBase._cr(uow).update_chat_fields(
+                                chat_id, usage_updates
+                            )
             except Exception as err:
-                logger.error(f"Failed to sync usage ledger to DB for chat {chat_id}: {err}")
+                logger.error(
+                    f"Failed to sync usage ledger to DB for chat {chat_id}: {err}"
+                )
 
         except Exception as e:
-            logger.error("Failed to persist assistant message for chat %s: %s", chat_id, e)
+            logger.error(
+                "Failed to persist assistant message for chat %s: %s", chat_id, e
+            )
 
 
 async def _record_memory_influence_event(
@@ -275,7 +300,10 @@ async def _record_memory_influence_event(
     if not refs and not traces:
         return
     try:
-        from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperationStatus
+        from myrm_agent_harness.toolkits.memory import (
+            MemoryOperationKind,
+            MemoryOperationStatus,
+        )
 
         from app.database.connection import get_session
         from app.services.memory.operation_ledger import MemoryOperationLedgerService
@@ -300,7 +328,9 @@ async def _record_memory_influence_event(
                     await ledger.record_event(
                         kind=MemoryOperationKind.RECALL,
                         status=status,
-                        summary=str(step.get("summary") or step.get("title") or phase)[:240],
+                        summary=str(step.get("summary") or step.get("title") or phase)[
+                            :240
+                        ],
                         source="memory_retrieval_trace",
                         target_kind="chat",
                         target_id=chat_id,
@@ -328,11 +358,17 @@ async def _record_memory_influence_event(
                     target_id=chat_id,
                     correlation_id=message_id,
                     influence_refs=refs,
-                    metadata={"message_id": message_id, "chat_id": chat_id, "influence_count": len(refs)},
+                    metadata={
+                        "message_id": message_id,
+                        "chat_id": chat_id,
+                        "influence_count": len(refs),
+                    },
                 )
             await db.commit()
     except Exception as exc:
-        logger.warning("Failed to record memory influence event for chat %s: %s", chat_id, exc)
+        logger.warning(
+            "Failed to record memory influence event for chat %s: %s", chat_id, exc
+        )
 
 
 def _memory_influence_refs(extra_data: dict[str, object]) -> list[MemoryInfluenceRef]:
@@ -355,9 +391,11 @@ def _memory_influence_refs(extra_data: dict[str, object]) -> list[MemoryInfluenc
                 score=_optional_float(raw_ref.get("score")),
                 content_preview=str(raw_ref.get("content") or "")[:220],
                 primary_namespace=_optional_str(raw_ref.get("primary_namespace")),
-                namespaces=[str(item) for item in raw_namespaces if isinstance(item, str)]
-                if isinstance(raw_namespaces, list)
-                else [],
+                namespaces=(
+                    [str(item) for item in raw_namespaces if isinstance(item, str)]
+                    if isinstance(raw_namespaces, list)
+                    else []
+                ),
                 source_chat_id=_optional_str(raw_ref.get("source_chat_id")),
                 source_message_id=_optional_str(raw_ref.get("source_message_id")),
                 reason="memory_search_tool",
@@ -373,7 +411,13 @@ def _memory_retrieval_traces(extra_data: dict[str, object]) -> list[dict[str, ob
     traces: list[dict[str, object]] = []
     for raw_trace in raw_traces:
         if isinstance(raw_trace, dict):
-            traces.append({str(key): value for key, value in raw_trace.items() if isinstance(key, str)})
+            traces.append(
+                {
+                    str(key): value
+                    for key, value in raw_trace.items()
+                    if isinstance(key, str)
+                }
+            )
     return traces
 
 
@@ -384,7 +428,13 @@ def _trace_steps(trace: dict[str, object]) -> list[dict[str, object]]:
     steps: list[dict[str, object]] = []
     for raw_step in raw_steps:
         if isinstance(raw_step, dict):
-            steps.append({str(key): value for key, value in raw_step.items() if isinstance(key, str)})
+            steps.append(
+                {
+                    str(key): value
+                    for key, value in raw_step.items()
+                    if isinstance(key, str)
+                }
+            )
     return steps
 
 

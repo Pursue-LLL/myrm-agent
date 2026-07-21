@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.dto import MessageDTO
 from app.database.models import Chat
 from app.database.repositories.chat_repo import ChatRepository
-from app.services.agent.stream_session.stream_finalize import finalize_agent_stream_session
+from app.services.agent.stream_session.stream_finalize import (
+    finalize_agent_stream_session,
+)
 from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.chat.chat_service import ChatService
@@ -78,7 +80,13 @@ async def cross_turn_ui_chat(db_session: AsyncSession) -> str:
             created_at=base + timedelta(seconds=1),
             extra_data=turn1_extra,
         ),
-        _make_msg(chat_id, "user", "Update status", msg_id="u2", created_at=base + timedelta(seconds=2)),
+        _make_msg(
+            chat_id,
+            "user",
+            "Update status",
+            msg_id="u2",
+            created_at=base + timedelta(seconds=2),
+        ),
         _make_msg(
             chat_id,
             "assistant",
@@ -173,17 +181,21 @@ class TestPatchUiArtifactDataUpdates:
 
 
 class TestStreamCollectorCrossTurnDataUpdate:
-    def test_records_cross_turn_data_update_when_surface_not_in_current_turn(self) -> None:
+    def test_records_cross_turn_data_update_when_surface_not_in_current_turn(
+        self,
+    ) -> None:
         collector = StreamContentCollector(chat_id="chat_x", sibling_group_id="sib_x")
-        collector.feed_event({
-            "type": "ui_update",
-            "subtype": "data_update",
-            "data": {
-                "surface_id": "e2e_status_surface",
-                "updates": {"status": {"label": "E2E_UPDATE_FINAL"}},
-            },
-            "messageId": "msg_turn2",
-        })
+        collector.feed_event(
+            {
+                "type": "ui_update",
+                "subtype": "data_update",
+                "data": {
+                    "surface_id": "e2e_status_surface",
+                    "updates": {"status": {"label": "E2E_UPDATE_FINAL"}},
+                },
+                "messageId": "msg_turn2",
+            }
+        )
 
         assert collector.extra_data is None
         assert collector.cross_turn_data_updates == [
@@ -191,25 +203,29 @@ class TestStreamCollectorCrossTurnDataUpdate:
         ]
 
     def test_has_persistable_turn_when_only_ui_artifacts(self) -> None:
-        collector = StreamContentCollector(chat_id="chat_ui_only", sibling_group_id="sib_ui")
+        collector = StreamContentCollector(
+            chat_id="chat_ui_only", sibling_group_id="sib_ui"
+        )
         assert collector.has_content is False
         assert collector.has_persistable_turn is False
 
-        collector.feed_event({
-            "type": "ui_update",
-            "subtype": "ui_artifact",
-            "data": [
-                {
-                    "surface_id": "e2e_status_surface",
-                    "title": "Status",
-                    "components": [],
-                    "root_ids": [],
-                    "data": {"status": "E2E_UPDATE_INITIAL"},
-                    "actions": [],
-                },
-            ],
-            "messageId": "msg_turn1",
-        })
+        collector.feed_event(
+            {
+                "type": "ui_update",
+                "subtype": "ui_artifact",
+                "data": [
+                    {
+                        "surface_id": "e2e_status_surface",
+                        "title": "Status",
+                        "components": [],
+                        "root_ids": [],
+                        "data": {"status": "E2E_UPDATE_INITIAL"},
+                        "actions": [],
+                    },
+                ],
+                "messageId": "msg_turn1",
+            }
+        )
 
         assert collector.has_persistable_turn is True
         extra = collector.extra_data
@@ -252,7 +268,9 @@ class TestFinalizeCrossTurnUiPatch:
             patch(
                 "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics",
             ),
-            patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
+            patch(
+                "app.services.agent.stream_session.stream_finalize.CancellationRegistry"
+            ),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goal_registry.GoalRegistry"),
             patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
@@ -266,7 +284,9 @@ class TestFinalizeCrossTurnUiPatch:
             ) as mock_patch,
         ):
             mock_ctx.reset = MagicMock()
-            await finalize_agent_stream_session(session, MagicMock(), ApprovalTimeoutHolder())
+            await finalize_agent_stream_session(
+                session, MagicMock(), ApprovalTimeoutHolder()
+            )
 
         mock_patch.assert_awaited_once_with(
             "chat_finalize_patch",

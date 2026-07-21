@@ -26,7 +26,9 @@ async def db_session():
 
     await ensure_raw_sql_schema(engine)
 
-    TestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    TestingSessionLocal = sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async with TestingSessionLocal() as session:
 
@@ -188,12 +190,18 @@ async def test_sent_at_vs_created_at_semantic(db_session):
     await db_session.commit()
 
     # sent_at 是用户发送时间（5秒前）
-    sent_ts = msg.sent_at.replace(tzinfo=timezone.utc).timestamp() if msg.sent_at.tzinfo is None else msg.sent_at.timestamp()
+    sent_ts = (
+        msg.sent_at.replace(tzinfo=timezone.utc).timestamp()
+        if msg.sent_at.tzinfo is None
+        else msg.sent_at.timestamp()
+    )
     assert abs(sent_ts - user_send_time) < 0.5
 
     # created_at 是服务器接收时间（刚刚）
     created_ts = (
-        msg.created_at.replace(tzinfo=timezone.utc).timestamp() if msg.created_at.tzinfo is None else msg.created_at.timestamp()
+        msg.created_at.replace(tzinfo=timezone.utc).timestamp()
+        if msg.created_at.tzinfo is None
+        else msg.created_at.timestamp()
     )
     assert abs(created_ts - time.time()) < 2.0
 
@@ -227,7 +235,9 @@ async def test_duplicate_user_message_id_allocates_fresh_id(db_session):
     assert second.content == "Turn 2"
 
     result = await db_session.execute(
-        select(Message).where(Message.chat_id == "test-chat-dedup-001", Message.role == "user")
+        select(Message).where(
+            Message.chat_id == "test-chat-dedup-001", Message.role == "user"
+        )
     )
     user_messages = result.scalars().all()
     assert len(user_messages) == 2

@@ -8,12 +8,19 @@ import uuid
 from collections.abc import AsyncGenerator
 
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
-from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancelReason
+from myrm_agent_harness.utils.runtime.cancellation import (
+    CancellationRegistry,
+    CancelReason,
+)
 
 from app.schemas.streaming import SSEEnvelope
-from app.services.agent.context_compaction_telemetry import enqueue_context_compaction_telemetry
+from app.services.agent.context_compaction_telemetry import (
+    enqueue_context_compaction_telemetry,
+)
 from app.services.agent.gateway import AgentExecutionTimeout, AgentQueueTimeout
-from app.services.agent.memory_brief_telemetry import enqueue_memory_brief_status_telemetry
+from app.services.agent.memory_brief_telemetry import (
+    enqueue_memory_brief_status_telemetry,
+)
 from app.services.agent.steering_registry import SteeringRegistry
 from app.services.agent.stream_session._memory_status_helpers import (
     build_memory_brief_status_payload,
@@ -21,7 +28,9 @@ from app.services.agent.stream_session._memory_status_helpers import (
 )
 from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
-from app.services.agent.streaming_support.citation_persistence import merge_memory_citation_fallback
+from app.services.agent.streaming_support.citation_persistence import (
+    merge_memory_citation_fallback,
+)
 from app.services.agent.streaming_support.sse_helpers import (
     clear_context_task_metrics,
     error_sse,
@@ -29,6 +38,7 @@ from app.services.agent.streaming_support.sse_helpers import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 async def yield_stream_exception_chunks(
     session: AgentStreamSession,
@@ -60,7 +70,10 @@ async def yield_stream_exception_chunks(
         else:
             yield error_sse(f"Agent error: {error_msg}", session.params.message_id)
     elif isinstance(exc, AgentQueueTimeout):
-        yield error_sse(str(exc) or "Server is busy, please try again later.", session.params.message_id)
+        yield error_sse(
+            str(exc) or "Server is busy, please try again later.",
+            session.params.message_id,
+        )
     elif isinstance(exc, AgentExecutionTimeout):
         session.had_fatal_error = True
         yield error_sse("Request timed out.", session.params.message_id)
@@ -73,7 +86,9 @@ async def yield_stream_exception_chunks(
                     get_background_registry,
                 )
 
-                killed = await get_background_registry().kill_session_jobs(session.request.chat_id)
+                killed = await get_background_registry().kill_session_jobs(
+                    session.request.chat_id
+                )
                 if killed:
                     logger.info(
                         "CancelledError path killed %d background job(s) for chat_id=%s",
@@ -87,7 +102,9 @@ async def yield_stream_exception_chunks(
                     bg_exc,
                 )
     elif type(exc).__name__ == "AgentBusyError":
-        logger.warning("Agent is busy (AgentBusyError): message_id=%s", session.params.message_id)
+        logger.warning(
+            "Agent is busy (AgentBusyError): message_id=%s", session.params.message_id
+        )
         busy_event = {
             "type": "error",
             "error_type": "AgentBusyError",
@@ -104,7 +121,11 @@ async def yield_stream_exception_chunks(
 
         diagnostic_result = exc.diagnostic_result or {}
         recovery_actions = generate_recovery_actions(exc.error_code, lang)
-        error_type = exc.error_code.name if hasattr(exc.error_code, "name") else str(exc.error_code)
+        error_type = (
+            exc.error_code.name
+            if hasattr(exc.error_code, "name")
+            else str(exc.error_code)
+        )
         error_data = {
             "type": "error",
             "data": diagnostic_result.get("user_message", str(exc)),
@@ -148,7 +169,11 @@ async def finalize_agent_stream_session(
         content = session.collector.content
         extra_data = dict(session.collector.extra_data or {})
         merge_memory_citation_fallback(extra_data)
-        preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
+        preview = (
+            session.extra_context.get("memory_brief_preview")
+            if isinstance(session.extra_context, dict)
+            else None
+        )
         if isinstance(preview, dict):
             snapshot_id = preview.get("snapshot_id")
             if isinstance(snapshot_id, str) and snapshot_id.strip():
@@ -266,11 +291,15 @@ async def finalize_agent_stream_session(
             from myrm_agent_harness.agent.skills.evolution.infra.integration import (
                 get_global_evolution_integration,
             )
-            from myrm_agent_harness.agent.skills.evolution.infra.queue import QueuePriority
+            from myrm_agent_harness.agent.skills.evolution.infra.queue import (
+                QueuePriority,
+            )
 
             evo_integration = get_global_evolution_integration()
             if evo_integration and session.request.chat_id:
-                remaining = evo_integration._slice_cursors.pop(session.request.chat_id, None)
+                remaining = evo_integration._slice_cursors.pop(
+                    session.request.chat_id, None
+                )
                 if remaining:
                     _count, ids = remaining
                     if ids and evo_integration.queue:

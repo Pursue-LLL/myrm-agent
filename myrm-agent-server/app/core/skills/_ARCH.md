@@ -37,6 +37,7 @@
 | `config_version.py` | 核心 | 技能配置版本号管理（bump/get，Agent 热重载检测） | ✅ |
 | `state_manager_instance.py` | 核心 | 全局 SkillStateManager 单例（init/get） | ✅ |
 | `curator_service.py` | 核心 | Skill Curator 业务服务 — 配置持久化、sweep 执行、background task 编排、审计历史、consolidation 集成；`get_stats_collector()` 注入 harness `usage_recorder` | ✅ |
+| `disabled_skill_roots.py` | 核心 | 收集用户未启用技能的 `storage_path` 根目录，注入 agent runtime context 供 glob/grep/file_read 过滤 | ✅ |
 
 ---
 

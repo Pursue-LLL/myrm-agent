@@ -143,6 +143,11 @@ class ServerWakeupHandler:
             params = params.model_copy(update=wakeup_payload)
 
             from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+            from app.services.agent.runtime_context import build_agent_runtime_context
+
+            runtime_context = await build_agent_runtime_context(
+                execution_mode=ExecutionMode.POOLED,
+            )
 
             agent = AgentFactory.create_general_agent(params)
 
@@ -183,7 +188,7 @@ class ServerWakeupHandler:
                                     cancel_token=None,
                                     timezone=params.timezone,
                                     force_delegate_agent=params.force_delegate_agent,
-                                    context={"execution_mode": ExecutionMode.POOLED},
+                                    context=runtime_context,
                                 )
 
                                 headless_stream = gateway.execute_stream(
@@ -253,7 +258,7 @@ class ServerWakeupHandler:
                             agent,
                             chat_id=params.chat_id,
                             agent_id=params.agent_id,
-                            extra_context={"execution_mode": ExecutionMode.POOLED},
+                            extra_context=runtime_context,
                         )
 
             asyncio.create_task(consume_stream())

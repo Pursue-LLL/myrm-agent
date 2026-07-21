@@ -57,6 +57,11 @@ def schedule_channel_approval_timeout(
         resume_params.query = Command(resume=resume_value)
 
         from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+        from app.services.agent.runtime_context import build_agent_runtime_context
+
+        runtime_context = await build_agent_runtime_context(
+            execution_mode=ExecutionMode.POOLED,
+        )
 
         agent = AgentFactory.create_general_agent(resume_params)
 
@@ -73,7 +78,7 @@ def schedule_channel_approval_timeout(
                     query=resume_params.query,
                     chat_history=chat_history or None,
                     chat_id=chat_id,
-                    context={"execution_mode": ExecutionMode.POOLED},
+                    context=runtime_context,
                 ):
                     event_type = event.get("type", "")
                     if event_type == "message" and isinstance(event.get("data"), str):
@@ -93,7 +98,7 @@ def schedule_channel_approval_timeout(
                     agent,
                     chat_id=chat_id,
                     agent_id=resume_params.agent_id,
-                    extra_context={"execution_mode": ExecutionMode.POOLED},
+                    extra_context=runtime_context,
                 )
 
             content = strip_internal_markers("".join(chunks))

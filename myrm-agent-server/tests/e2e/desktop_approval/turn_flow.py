@@ -6,6 +6,7 @@ import asyncio
 import json
 import platform
 import subprocess
+import urllib.error
 
 import pytest
 from cdp_chat_support import chat_id_from_path, chat_messages_have_done, chat_user_message_count, get_e2e_api_url
@@ -37,6 +38,34 @@ def activate_chrome() -> None:
         text=True,
         timeout=10,
     )
+
+
+def _chat_url(chat_id: str) -> str:
+    normalized = chat_id.strip()
+    assert normalized, "chat_id required for chat URL"
+    return f"{BASE_URL}/chat/{normalized}"
+
+
+async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
+    target = _chat_url(chat_id)
+    probe = await chat.evaluate(
+        f"""(() => {{
+          const href = String(location.href || '');
+          return {{ href, onTarget: href.startsWith({target!r}) }};
+        }})()""",
+        await_promise=False,
+    )
+    if isinstance(probe, dict) and probe.get("onTarget"):
+        return
+    progress(f"restore chat route chat_id={chat_id}")
+    await asyncio.to_thread(
+        chat._client.navigate,
+        chat._page,
+        target,
+        timeout_ms=120_000,
+    )
+    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+    await chat.ensure_chat_surface(BASE_URL)
 
 
 async def resolve_chat_id(chat: McpChatSession, state: dict[str, object]) -> str | None:
@@ -90,11 +119,15 @@ async def wait_stream_done_with_marker(
                 )
             chat_id = str(probe.get("chatId") or chat_id_hint or "").strip()
             if chat_id:
-                api_has_done = await asyncio.to_thread(
-                    chat_messages_have_done,
-                    chat_id,
-                    api_url=get_e2e_api_url(),
-                )
+                try:
+                    api_has_done = await asyncio.to_thread(
+                        chat_messages_have_done,
+                        chat_id,
+                        api_url=get_e2e_api_url(),
+                    )
+                except urllib.error.HTTPError as exc:
+                    progress(f"API DONE probe HTTP {exc.code} chat_id={chat_id}")
+                    api_has_done = False
                 if api_has_done:
                     return {
                         **probe,
@@ -217,6 +250,8 @@ async def complete_turn_after_approval(
     *,
     chat_id_hint: str | None,
 ) -> str:
+    if chat_id_hint:
+        await _ensure_chat_route(chat, chat_id_hint)
     progress("wait assistant DONE")
     after_turn = await wait_stream_done_with_marker(
         chat,
@@ -226,11 +261,17 @@ async def complete_turn_after_approval(
     )
     if not after_turn.get("matched"):
         chat_id_probe = str(after_turn.get("chatId") or chat_id_hint or "").strip()
-        if chat_id_probe and await asyncio.to_thread(
-            chat_messages_have_done,
-            chat_id_probe,
-            api_url=get_e2e_api_url(),
-        ):
+        api_done = False
+        if chat_id_probe:
+            try:
+                api_done = await asyncio.to_thread(
+                    chat_messages_have_done,
+                    chat_id_probe,
+                    api_url=get_e2e_api_url(),
+                )
+            except urllib.error.HTTPError as exc:
+                progress(f"post-approval API DONE probe HTTP {exc.code} chat_id={chat_id_probe}")
+        if chat_id_probe and api_done:
             progress("approval verified via API DONE marker fallback")
             after_turn = {
                 **after_turn,
@@ -252,7 +293,11 @@ async def complete_turn_after_approval(
     return chat_id
 
 
-async def ensure_desktop_inspector_panel_open(chat: McpChatSession) -> None:
+async def ensure_desktop_inspector_panel_open(
+    chat: McpChatSession,
+    *,
+    chat_id: str | None = None,
+) -> None:
     """Mirror fileDiffEvents.ts openPanel on DESKTOP_CONTROL_APPROVAL_REQUEST."""
     on_chat = await chat.evaluate(
         f"""(() => {{
@@ -262,14 +307,18 @@ async def ensure_desktop_inspector_panel_open(chat: McpChatSession) -> None:
         await_promise=False,
     )
     if not isinstance(on_chat, dict) or not on_chat.get("onChatUi"):
-        progress(f"navigate before openPanel (href={on_chat.get('href') if isinstance(on_chat, dict) else on_chat})")
+        href = str(on_chat.get("href") if isinstance(on_chat, dict) else on_chat or "")
+        progress(f"navigate before openPanel (href={href})")
+        target = _chat_url(chat_id) if chat_id else BASE_URL
         await asyncio.to_thread(
             chat._client.navigate,
             chat._page,
-            BASE_URL,
+            target,
             timeout_ms=120_000,
         )
         await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+        if chat_id:
+            await chat.ensure_chat_surface(BASE_URL)
 
     # Raw `@/` dynamic import fails in CDP evaluate; use E2E bridge (same path as enable_computer_use).
     result = await chat.evaluate(
@@ -323,6 +372,7 @@ async def wait_for_approval_banner_clickable(
     scope: str,
     server_pending_hint: int,
     ui_pending_hint: bool,
+    chat_id: str | None = None,
 ) -> None:
     """Wait for approval controls; click as soon as server gate is pending."""
     if server_pending_hint <= 0 and not ui_pending_hint:
@@ -338,7 +388,7 @@ async def wait_for_approval_banner_clickable(
             return await chat.click_desktop_allow_session()
         return await chat.click_desktop_allow_once()
 
-    await ensure_desktop_inspector_panel_open(chat)
+    await ensure_desktop_inspector_panel_open(chat, chat_id=chat_id)
     if server_pending_hint > 0:
         await sync_approval_banner_from_pending_api(chat)
 
@@ -353,7 +403,7 @@ async def wait_for_approval_banner_clickable(
         server_pending = await asyncio.to_thread(server_pending_approval_count)
         if server_pending > 0:
             if not panel_refreshed and poll <= 3:
-                await ensure_desktop_inspector_panel_open(chat)
+                await ensure_desktop_inspector_panel_open(chat, chat_id=chat_id)
                 panel_refreshed = True
             click = await _try_scope_click()
             if click.get("ok") is True:
@@ -414,6 +464,19 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         await_promise=False,
     )
     progress(f"provider debug before send: {provider_debug}")
+    if isinstance(provider_debug, dict) and not provider_debug.get("enabledProviderIds"):
+        progress("provider not ready — sync model selection via E2E bridge")
+        sync_result = await chat.evaluate(
+            """(() => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              bridge?.prepareAutomationSend?.();
+              return bridge?.debugProviderState?.() ?? null;
+            })()""",
+            await_promise=False,
+        )
+        progress(f"provider debug after sync: {sync_result}")
+        if isinstance(sync_result, dict):
+            provider_debug = sync_result
     chat_id = ""
     if isinstance(provider_debug, dict):
         chat_id = str(provider_debug.get("chatId") or "").strip()
@@ -448,9 +511,10 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         scope=scope,
         server_pending_hint=server_pending,
         ui_pending_hint=ui_pending,
+        chat_id=chat_id or None,
     )
 
-    chat_id_hint = str(
+    chat_id_hint = chat_id or str(
         (await chat.evaluate(
             "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.chatId ?? null)()",
             await_promise=False,

@@ -26,6 +26,7 @@ import type { BuiltinToolId } from '@/store/chat/types';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
 import { fetchWithTimeout } from '@/lib/api';
+import { getApiBaseUrl, resolveE2eApiBase as resolveInjectedE2eApiBase } from '@/lib/deploy-mode';
 import { markPlatformUnreachable } from '@/lib/platform-readiness';
 
 function isLocalDevHost(): boolean {
@@ -39,6 +40,10 @@ function prepareAutomationSend(): void {
   if (actionMode === 'fast' || actionMode === 'deep_research') {
     setActionMode('agent');
   }
+}
+
+function resolveE2eApiBase(): string {
+  return resolveInjectedE2eApiBase() ?? '';
 }
 
 async function probePrivateBackendReady(e2eApiBase: string): Promise<boolean> {
@@ -59,7 +64,7 @@ async function probePrivateBackendReady(e2eApiBase: string): Promise<boolean> {
 }
 
 async function initProvidersForE2e(): Promise<void> {
-  const e2eApiBase = typeof window.__MYRM_E2E_API_BASE__ === 'string' ? window.__MYRM_E2E_API_BASE__.trim() : '';
+  const e2eApiBase = resolveE2eApiBase();
   if (e2eApiBase) {
     markPlatformUnreachable();
     markLocalBackendUnreachable();
@@ -219,6 +224,26 @@ export default function E2EChatBridge() {
           }
           useChatStore.getState().clearCurrentSessionMessageId();
           const baselineUsers = window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0;
+          const sendReadyDeadline = Date.now() + 30_000;
+          while (Date.now() < sendReadyDeadline) {
+            const chatState = useChatStore.getState();
+            if (!chatState.loading && !chatState.abortController) {
+              break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
+          const preSendState = useChatStore.getState();
+          if (preSendState.loading || preSendState.abortController) {
+            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+              ok: false,
+              err: 'chat-still-busy',
+              debug: {
+                turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
+                ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+              },
+            };
+            return;
+          }
           try {
             await useChatStore.getState().sendMessage(message, undefined);
           } catch (error) {
@@ -233,11 +258,80 @@ export default function E2EChatBridge() {
             return;
           }
           const chatState = useChatStore.getState();
+          const chatId = chatState.chatId?.trim() || '';
+          const lastUser = [...chatState.messages].reverse().find((msg) => msg.role === 'user');
+          if (lastUser?.sendFailed) {
+            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+              ok: false,
+              err: 'send-failed-flag',
+              chatId,
+              debug: { turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() },
+            };
+            return;
+          }
+          const snapAfterSend = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
+          if ((snapAfterSend?.userCount ?? 0) <= baselineUsers) {
+            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+              ok: false,
+              err: 'send-no-op',
+              chatId,
+              debug: {
+                turn: snapAfterSend,
+                ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+              },
+            };
+            return;
+          }
+          if (chatId) {
+            const messagesUrl = `${getApiBaseUrl().replace(/\/+$/, '')}/chats/${encodeURIComponent(chatId)}/messages`;
+            const apiDeadline = Date.now() + 60_000;
+            while (Date.now() < apiDeadline) {
+              try {
+                const resp = await fetch(messagesUrl, { cache: 'no-store' });
+                if (resp.ok) {
+                  const payload = (await resp.json()) as {
+                    data?: { messages?: Array<{ role?: string }> };
+                  };
+                  const users =
+                    payload.data?.messages?.filter((entry) => entry.role === 'user').length ?? 0;
+                  if (users > baselineUsers) {
+                    window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+                      ok: true,
+                      chatId,
+                      mode: 'apiConfirmed',
+                    };
+                    return;
+                  }
+                }
+              } catch {
+                // retry until deadline
+              }
+              if (useChatStore.getState().loading || useChatStore.getState().abortController) {
+                window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+                  ok: true,
+                  chatId,
+                  mode: 'streaming',
+                };
+                return;
+              }
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+              ok: false,
+              err: 'api-user-not-persisted',
+              chatId,
+              debug: {
+                turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
+                apiBase: getApiBaseUrl(),
+                e2eApiBase: resolveE2eApiBase() || null,
+              },
+            };
+            return;
+          }
           const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
           if (
-            (snap?.userCount ?? 0) > baselineUsers ||
-            chatState.loading ||
-            Boolean(chatState.abortController)
+            (snap?.userCount ?? 0) > baselineUsers &&
+            (chatState.loading || Boolean(chatState.abortController))
           ) {
             window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
               ok: true,
@@ -250,7 +344,8 @@ export default function E2EChatBridge() {
             err: 'send-completed-without-progress',
             debug: {
               ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
-              e2eApiBase: typeof window.__MYRM_E2E_API_BASE__ === 'string' ? window.__MYRM_E2E_API_BASE__ : null,
+              apiBase: getApiBaseUrl(),
+              e2eApiBase: resolveE2eApiBase() || null,
               turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
             },
           };

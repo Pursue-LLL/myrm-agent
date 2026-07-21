@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * [INPUT]
+ * @/services/cron::updateCronJob (POS: Frontend Cron API client)
+ * @/store/chat/types/builtinTools::BUILTIN_TOOL_IDS (POS: Builtin tool ID registry)
+ * ./CronDeliveryEditors::EditorProps (POS: Cron per-job editor shared props)
+ *
+ * [OUTPUT]
+ * CapabilityEditor: Cron agent execution policy editor (required_capabilities + tools_allowed presets).
+ *
+ * [POS]
+ * CronRunHistory per-job surface. Presets mirror server blueprints.py _CAP_* / _TOOLS_* SSOT.
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
@@ -45,6 +58,12 @@ const BLUEPRINT_EXECUTION_POLICY = {
     tools: ['web_search', 'file_ops'] as BuiltinToolId[],
     toolsSorted: ['file_ops', 'web_search'],
   },
+  devops: {
+    caps: ['shell_exec', 'file_read', 'file_write', 'code_interpreter_tool'],
+    capsSorted: ['code_interpreter_tool', 'file_read', 'file_write', 'shell_exec'],
+    tools: ['web_search', 'file_ops', 'code_execute'] as BuiltinToolId[],
+    toolsSorted: ['code_execute', 'file_ops', 'web_search'],
+  },
 } as const;
 
 const CAPABILITY_PRESETS = [
@@ -52,13 +71,17 @@ const CAPABILITY_PRESETS = [
     key: 'research',
     caps: [...BLUEPRINT_EXECUTION_POLICY.research.caps],
     sorted: [...BLUEPRINT_EXECUTION_POLICY.research.capsSorted],
+    tools: [...BLUEPRINT_EXECUTION_POLICY.research.tools],
+    toolsSorted: [...BLUEPRINT_EXECUTION_POLICY.research.toolsSorted],
   },
   {
     key: 'devops',
-    caps: ['shell_exec', 'file_read', 'file_write'],
-    sorted: ['file_read', 'file_write', 'shell_exec'],
+    caps: [...BLUEPRINT_EXECUTION_POLICY.devops.caps],
+    sorted: [...BLUEPRINT_EXECUTION_POLICY.devops.capsSorted],
+    tools: [...BLUEPRINT_EXECUTION_POLICY.devops.tools],
+    toolsSorted: [...BLUEPRINT_EXECUTION_POLICY.devops.toolsSorted],
   },
-  { key: 'full', caps: [] as string[], sorted: [] as string[] },
+  { key: 'full', caps: [] as string[], sorted: [] as string[], tools: [] as BuiltinToolId[], toolsSorted: [] as string[] },
 ] as const;
 
 const CRON_BUILTIN_TOOL_IDS = BUILTIN_TOOL_IDS.filter((id) => id !== 'cron') as BuiltinToolId[];
@@ -78,6 +101,12 @@ const TOOL_PRESETS = [
     caps: [...BLUEPRINT_EXECUTION_POLICY.research.caps],
     tools: [...BLUEPRINT_EXECUTION_POLICY.research.tools],
     sorted: [...BLUEPRINT_EXECUTION_POLICY.research.toolsSorted],
+  },
+  {
+    key: 'devops',
+    caps: [...BLUEPRINT_EXECUTION_POLICY.devops.caps],
+    tools: [...BLUEPRINT_EXECUTION_POLICY.devops.tools],
+    sorted: [...BLUEPRINT_EXECUTION_POLICY.devops.toolsSorted],
   },
   { key: 'full', caps: [] as string[], tools: [] as BuiltinToolId[], sorted: [] as string[] },
 ] as const;
@@ -132,14 +161,17 @@ export function CapabilityEditor({ job, onUpdated }: EditorProps) {
         </div>
         <p className="text-[11px] text-muted-foreground">{t('capabilitiesDesc')}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {CAPABILITY_PRESETS.map(({ key, caps, sorted }) => {
+          {CAPABILITY_PRESETS.map(({ key, caps, sorted, tools }) => {
             const isActive = sortedEqual(sorted, localCaps);
             return (
               <button
                 key={key}
                 type="button"
                 disabled={saving}
-                onClick={() => setLocalCaps([...caps])}
+                onClick={() => {
+                  setLocalCaps([...caps]);
+                  setLocalTools([...tools]);
+                }}
                 className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
                   isActive
                     ? 'bg-primary/10 text-primary border-primary/40'

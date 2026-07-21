@@ -14,7 +14,7 @@
 | `BlueprintFillDialog.tsx` | 组件 | 模板参数填写弹窗（`useLocale()` + typed slots + delivery channel），用于 CronJobList 空状态 | ✅ |
 | `ActiveHoursEditor.tsx` | 组件 | 活跃时段（active hours）可视化编辑器 | ✅ |
 | `AllowedRootsEditor.tsx` | 组件 | Cron 允许工作目录 roots 列表编辑 | ✅ |
-| `CapabilityEditor.tsx` | 组件 | Cron Agent 执行策略：能力围栏 + 内置工具范围（preset 与 server blueprints SSOT 对齐；含 file_ops/code_execute；五语 `agent.configPanel.builtinToolNames`） | ✅ |
+| `CapabilityEditor.tsx` | 组件 | Cron Agent 执行策略：能力围栏 + 内置工具范围（preset 与 server blueprints SSOT 对齐；cap/tool 预设 research/devops/webOnly/full 均双写 caps+tools；devops 含 code_interpreter_tool；五语 i18n） | ✅ |
 | `CronAdvancedEditors.tsx` | 组件 | 高级选项折叠区（timeout/retry/concurrency） | ✅ |
 | `CronDeliveryEditors.tsx` | 组件 | 投递渠道（email/webhook/push）配置编辑器 | ✅ |
 | `CronJobCard.tsx` | 核心 | 单条 Cron 任务卡片（状态/下次运行/快捷操作） | ✅ |
@@ -22,7 +22,7 @@
 | `CronJobList.tsx` | 核心 | 任务列表；`?chat_id=` 过滤；排程建议链到 evolutionPending | ✅ |
 | `CronMonitorEditors.tsx` | 组件 | 监控/告警阈值编辑 | ✅ |
 | `CronPushPoller.tsx` | 组件 | 客户端 push 通知轮询注册（Web Push） | ✅ |
-| `CronRunHistory.tsx` | 组件 | 单任务运行历史列表 | ✅ |
+| `CronRunHistory.tsx` | 组件 | 单任务详情：运行历史 + per-job 编辑器（CapabilityEditor、AllowedRoots、PreCondition 等）+ Shared Context 绑定；保存后 via onJobUpdated 同步 selectedJob | ✅ |
 | `CronRunItem.tsx` | 组件 | 单次运行记录行（状态/耗时/log 链接），含 `monitor_contract_error` 显式提示与连续失败次数展示（badge + 展开告警） | ✅ |
 | `CronStatsBar.tsx` | 组件 | 任务统计摘要条（成功/失败/活跃数） | ✅ |
 | `SchedulerHealthBadge.tsx` | 组件 | 调度器存活状态 Badge（绿/黄/红），30s 轮询 GET /cron/scheduler/health | ✅ |

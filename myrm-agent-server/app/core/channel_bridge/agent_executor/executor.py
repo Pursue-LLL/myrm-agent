@@ -78,6 +78,7 @@ class ChannelAgentExecutor:
         token_ctx = None
         chat_id = ""
         params: GeneralAgentParams | None = None
+        runtime_context: dict[str, object] | None = None
         is_resume = bool(msg.resume_value)
         stream_state = ChannelStreamEventState()
 
@@ -118,6 +119,12 @@ class ChannelAgentExecutor:
             acc = StreamAccumulator()
             assistant_message_id = str(uuid4())
 
+            from app.services.agent.runtime_context import build_agent_runtime_context
+
+            runtime_context = await build_agent_runtime_context(
+                execution_mode=ExecutionMode.POOLED,
+            )
+
             async def _open_channel_stream(
                 q: object,
             ) -> AsyncGenerator[dict[str, object], None]:
@@ -129,7 +136,7 @@ class ChannelAgentExecutor:
                     cancel_token=cancel_token,
                     steering_token=steering_token,
                     timezone=user_timezone,
-                    context={"execution_mode": ExecutionMode.POOLED},
+                    context=runtime_context,
                 ):
                     if isinstance(event, dict):
                         yield event
@@ -203,5 +210,5 @@ class ChannelAgentExecutor:
                     agent,
                     chat_id=chat_id,
                     agent_id=params.agent_id,
-                    extra_context={"execution_mode": ExecutionMode.POOLED},
+                    extra_context=runtime_context,
                 )

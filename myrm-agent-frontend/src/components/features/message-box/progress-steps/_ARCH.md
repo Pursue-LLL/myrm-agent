@@ -1,11 +1,17 @@
 # progress-steps/
 
-消息内 Agent 进度步骤树：归档恢复、工具图标与树形折叠。
+## Overview
+Renders agent tool-call progress in the chat message stream. Each tool type can register a dedicated card renderer.
 
-| 文件 | 职责 |
-|------|------|
-| `ProgressSteps.tsx` | 步骤树主组件 |
-| `treeUtils.ts` / `utils.ts` | 树构建与归一化 |
-| `toolIcons.tsx` | 工具类型图标映射 |
-| `ArchiveRestoreResultChip.tsx` / `ArchiveRestoreStepAction.tsx` | 归档恢复 UI |
-| `renderers/` | 各步骤内容渲染器 |
+## File & Submodule Index
+
+| File | Role | Description | I/O/P |
+|------|------|-------------|-------|
+| ProgressSteps.tsx | Core | Routes step events to tool-specific renderers | ✅ |
+| renderers/SearchToolCard.tsx | Core | Unified card for `glob_tool` / `grep_tool` search results | ✅ |
+| __tests__/ProgressSteps.test.tsx | Test | Unit tests for step routing | — |
+
+## Key Dependencies
+
+- `@/locales` — `progressSteps.searchTool` (en/zh)
+- Backend `step_builder.py` — emits `glob_tool` / `grep_tool` step payloads

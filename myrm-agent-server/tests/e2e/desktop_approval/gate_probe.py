@@ -9,6 +9,7 @@ from mcp_chat_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import (
     APPROVAL_WAIT_SEC,
+    BASE_URL,
     E2E_NUDGE_PROMPT,
     E2E_SNAPSHOT_NUDGE_PROMPT,
     GATE_IDLE_FAIL_FAST_SEC,
@@ -353,6 +354,9 @@ async def _wait_desktop_tool_activity_failfast(
                 f"apiLastTool={last.get('apiLastTool')} streaming={last.get('isStreaming')} "
                 f"complete={last.get('completionStatus')}"
             )
+        server_pending = await _resolve_server_pending(api_fail_streak=api_fail_streak)
+        if server_pending > 0:
+            return {**last, "pending": True, "serverPending": server_pending}
         if isinstance(probe, dict):
             probe_last_tool = str(probe.get("lastTool") or "")
             if probe.get("pending") or probe_last_tool.startswith("desktop_"):
@@ -360,9 +364,6 @@ async def _wait_desktop_tool_activity_failfast(
                     return probe
                 if probe_last_tool.endswith("desktop_snapshot_tool"):
                     return probe
-        server_pending = await _resolve_server_pending(api_fail_streak=api_fail_streak)
-        if server_pending > 0:
-            return {**last, "pending": True, "serverPending": server_pending}
         now = asyncio.get_event_loop().time()
         if await _agent_stream_active(chat, chat_id=chat_id, api_only=api_only):
             idle_started = None
@@ -439,8 +440,21 @@ async def ensure_interact_gate(
         server_pending=server_pending,
         ui_pending=ui_pending,
     ) and last_tool.endswith("desktop_snapshot_tool"):
+        progress("snapshot detected — wait for interact or pending gate")
+        tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
+            chat,
+            timeout_sec=60.0,
+            chat_id=chat_id,
+        )
+        if _desktop_gate_satisfied(
+            last_tool=last_tool,
+            server_pending=server_pending,
+            ui_pending=ui_pending,
+        ):
+            return tool_activity, last_tool, server_pending, ui_pending
         progress("snapshot detected — send dref-targeted interact nudge")
         try:
+            await chat.ensure_chat_surface(BASE_URL)
             await _send_interact_nudge(chat, last_tool=last_tool)
         except (RuntimeError, TimeoutError, OSError) as exc:
             raise AssertionError(f"Snapshot nudge send failed (Chrome mux): {exc}") from exc

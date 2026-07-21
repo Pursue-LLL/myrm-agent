@@ -9,7 +9,7 @@ app.platform_utils::get_storage_provider (POS: 存储后端)
 collect_disabled_skill_roots: 返回未启用技能的 storage_path 根目录列表
 
 [POS]
-技能禁用根路径解析。供 orchestrator 在启动时排除 disabled skill 文件树，避免 LLM 误读未授权技能。
+技能禁用根路径解析。由 `runtime_context.build_agent_runtime_context` 注入全部 agent 入口，供 harness glob/grep/file_read 过滤未启用技能目录。
 """
 
 from __future__ import annotations

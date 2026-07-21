@@ -609,7 +609,12 @@ class AgentJobRunner:
             from myrm_agent_harness.agent.security import user_credentials_ctx
 
             from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+            from app.services.agent.runtime_context import build_agent_runtime_context
             from app.services.agent.session_credential_assembler import assemble_session_credentials
+
+            runtime_context = await build_agent_runtime_context(
+                execution_mode=ExecutionMode.EPHEMERAL,
+            )
 
             session_credentials = await assemble_session_credentials(
                 oauth_credentials_dict=user_cfgs.oauth_credentials_dict,
@@ -619,7 +624,7 @@ class AgentJobRunner:
             try:
                 try:
                     result = await asyncio.wait_for(
-                        _consume_stream(agent, job, effective_prompt),
+                        _consume_stream(agent, job, effective_prompt, runtime_context),
                         timeout=timeout,
                     )
                     if cron_post_run_verify:
@@ -641,7 +646,7 @@ class AgentJobRunner:
                         agent,
                         chat_id=job.chat_id,
                         agent_id=params.agent_id,
-                        extra_context={"execution_mode": ExecutionMode.EPHEMERAL},
+                        extra_context=runtime_context,
                     )
 
                 await _finalize_heartbeat_follow_up_delivery(job, result)
@@ -750,9 +755,13 @@ async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:
         return None
 
 
-async def _consume_stream(agent: object, job: CronJob, effective_prompt: str) -> JobResult:
+async def _consume_stream(
+    agent: object,
+    job: CronJob,
+    effective_prompt: str,
+    runtime_context: dict[str, object],
+) -> JobResult:
     from app.ai_agents.general_agent import GeneralAgent
-    from app.services.agent.execution_cache import ExecutionMode
 
     assert isinstance(agent, GeneralAgent)
 
@@ -764,7 +773,7 @@ async def _consume_stream(agent: object, job: CronJob, effective_prompt: str) ->
         query=effective_prompt,
         chat_history=chat_history,
         chat_id=job.chat_id,
-        context={"execution_mode": ExecutionMode.EPHEMERAL},
+        context=runtime_context,
     ):
         event_type = event.get("type", "")
         stop_reason = _derive_stop_reason_from_event(event)

@@ -273,14 +273,14 @@ async def run_agent_stream(
     if extra_context is None:
         extra_context = {}
     extra_context["goal_provider"] = goal_provider
-    extra_context.setdefault("execution_mode", "pooled")
 
-    try:
-        from app.core.skills.disabled_skill_roots import collect_disabled_skill_roots
+    from app.services.agent.execution_cache import ExecutionMode
+    from app.services.agent.runtime_context import build_agent_runtime_context
 
-        extra_context["disabled_skill_roots"] = await collect_disabled_skill_roots()
-    except Exception as exc:
-        logger.warning("Failed to collect disabled_skill_roots: %s", exc)
+    extra_context = await build_agent_runtime_context(
+        execution_mode=ExecutionMode.POOLED,
+        base=extra_context,
+    )
 
     try:
         from app.core.channel_bridge.config_loader import load_user_configs

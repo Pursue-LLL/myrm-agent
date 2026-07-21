@@ -90,15 +90,17 @@ async def test_stream_collector_cross_turn_queue_persists_to_host_message(
         chat_id=cross_turn_chat,
         sibling_group_id="sib_integration",
     )
-    collector.feed_event({
-        "type": "ui_update",
-        "subtype": "data_update",
-        "data": {
-            "surface_id": "integration_status_surface",
-            "updates": {"status": {"label": "E2E_UPDATE_FINAL"}},
-        },
-        "messageId": "msg_turn2",
-    })
+    collector.feed_event(
+        {
+            "type": "ui_update",
+            "subtype": "data_update",
+            "data": {
+                "surface_id": "integration_status_surface",
+                "updates": {"status": {"label": "E2E_UPDATE_FINAL"}},
+            },
+            "messageId": "msg_turn2",
+        }
+    )
 
     assert collector.cross_turn_data_updates == [
         (
@@ -114,7 +116,9 @@ async def test_stream_collector_cross_turn_queue_persists_to_host_message(
     )
     assert patched is True
 
-    await patch_ui_artifact_data_updates(cross_turn_chat, collector.cross_turn_data_updates)
+    await patch_ui_artifact_data_updates(
+        cross_turn_chat, collector.cross_turn_data_updates
+    )
 
     messages = await ChatService.get_all_messages(cross_turn_chat)
     turn1 = next(msg for msg in messages if msg.id == "a1")

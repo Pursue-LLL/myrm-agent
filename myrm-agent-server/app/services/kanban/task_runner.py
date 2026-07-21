@@ -302,6 +302,11 @@ class KanbanTaskRunner:
         )
 
         from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+        from app.services.agent.runtime_context import build_agent_runtime_context
+
+        runtime_context = await build_agent_runtime_context(
+            execution_mode=ExecutionMode.EPHEMERAL,
+        )
 
         agent = AgentFactory.create_general_agent(params)
         agent.approval_session_key = f"kanban:{task.task_id}"
@@ -320,7 +325,7 @@ class KanbanTaskRunner:
                         query=query_input,
                         chat_history=None,
                         chat_id=task.task_id,
-                        context={"execution_mode": ExecutionMode.EPHEMERAL},
+                        context=runtime_context,
                     ):
                         if isinstance(event, dict):
                             yield event
@@ -342,5 +347,5 @@ class KanbanTaskRunner:
                     agent,
                     chat_id=task.task_id,
                     agent_id=params.agent_id,
-                    extra_context={"execution_mode": ExecutionMode.EPHEMERAL},
+                    extra_context=runtime_context,
                 )

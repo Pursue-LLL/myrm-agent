@@ -642,11 +642,12 @@ _ensure_mux_daemon() {
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
   if [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
     active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
-    if [[ "${active_leases}" == "0" ]] && _shared_backend_source_drift_pending "${SERVER_DIR}"; then
+    if _shared_backend_source_drift_pending "${SERVER_DIR}"; then
+      echo "CHROME_E2E_ATTACH: backend source drift — reloading backend only (${active_leases} active leases)" >&2
       MYRM_WAVE_GATE_BYPASS=1 bash "${SCRIPT_DIR}/dev-stack.sh" backend-only ensure >/dev/null 2>&1 \
         || echo "CHROME_E2E_WARN: attach backend ensure for source drift failed" >&2
     elif [[ "${active_leases}" != "0" ]]; then
-      echo "CHROME_E2E_ATTACH: skip backend-only ensure (${active_leases} active wave leases)" >&2
+      echo "CHROME_E2E_ATTACH: backend source fresh (${active_leases} active wave leases)" >&2
     fi
   fi
   _heal_mux_request_timeout_drift

@@ -8024,6 +8024,7 @@
     "toolPreset": {
       "webOnly": "Nur Web",
       "research": "Recherche-Stack",
+      "devops": "DevOps-Stack",
       "full": "Alle Tools"
     },
     "allowedRootsLabel": "Allowed Paths",

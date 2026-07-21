@@ -31,10 +31,13 @@ class CdpChatTurn(CdpChatSubmit):
             f"""( () => {{
               const main = document.querySelector('main');
               const text = main?.innerText || '';
+              const bridgeUsers = window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount;
               const assistantCount =
                 main?.querySelectorAll('[data-test-id="assistant-message"]')?.length || 0;
               const allWithId = main?.querySelectorAll('[data-message-id]')?.length || 0;
-              const userMsgs = Math.max(0, allWithId - assistantCount);
+              const domUsers = Math.max(0, allWithId - assistantCount);
+              const userMsgs =
+                typeof bridgeUsers === 'number' && bridgeUsers >= 0 ? bridgeUsers : domUsers;
               const assistantNodes = Array.from(
                 main?.querySelectorAll('[data-test-id="assistant-message"]') || [],
               );
@@ -64,7 +67,11 @@ class CdpChatTurn(CdpChatSubmit):
             await_promise=False,
             recv_timeout=recv_timeout,
         )
-        return result if isinstance(result, dict) else {"hasUserPrompt": False, "okInMain": False}
+        return (
+            result
+            if isinstance(result, dict)
+            else {"hasUserPrompt": False, "okInMain": False}
+        )
 
     async def wait_stream_started(
         self,
@@ -94,7 +101,10 @@ class CdpChatTurn(CdpChatSubmit):
             )
             if chat_id:
                 try:
-                    if cdp_chat_support.chat_user_message_count(chat_id) >= min_user_msgs:
+                    if (
+                        cdp_chat_support.chat_user_message_count(chat_id)
+                        >= min_user_msgs
+                    ):
                         last["chatId"] = chat_id
                         last["okViaApi"] = True
                         return last
@@ -110,7 +120,9 @@ class CdpChatTurn(CdpChatSubmit):
 
     async def _bridge_turn_snapshot(self) -> dict[str, object] | None:
         try:
-            result = await self.evaluate(BRIDGE_TURN_SNAPSHOT_JS, await_promise=False, recv_timeout=8.0)
+            result = await self.evaluate(
+                BRIDGE_TURN_SNAPSHOT_JS, await_promise=False, recv_timeout=8.0
+            )
         except (RuntimeError, TimeoutError):
             return None
         return result if isinstance(result, dict) else None
@@ -187,7 +199,9 @@ class CdpChatTurn(CdpChatSubmit):
                     and bridge.get("hasOk")
                     and not bridge.get("isStreaming")
                 ):
-                    return _finish(chat_id, {**bridge, "okViaBridge": True, "okViaApi": False})
+                    return _finish(
+                        chat_id, {**bridge, "okViaBridge": True, "okViaApi": False}
+                    )
 
             chat_id = chat_id_hint
             if not chat_id:
@@ -203,7 +217,11 @@ class CdpChatTurn(CdpChatSubmit):
                     message = str(exc)
                     if any(
                         token in message
-                        for token in ("Target closed", "No page found", "detached Frame")
+                        for token in (
+                            "Target closed",
+                            "No page found",
+                            "detached Frame",
+                        )
                     ):
                         await asyncio.sleep(1.5)
                         continue
@@ -386,7 +404,9 @@ class CdpChatTurn(CdpChatSubmit):
         chat_id_hint: str | None = None,
         base_url: str | None = None,
     ) -> dict[str, object]:
-        ui_base = (base_url or getattr(self, "_base_url", None) or "http://127.0.0.1:3000").rstrip("/")
+        ui_base = (
+            base_url or getattr(self, "_base_url", None) or "http://127.0.0.1:3000"
+        ).rstrip("/")
         baseline_user_msgs = 0
         chat_id = chat_id_hint
         await self.dismiss_modals()
@@ -404,7 +424,9 @@ class CdpChatTurn(CdpChatSubmit):
                     recv_timeout=10.0,
                 )
                 if isinstance(probe, dict):
-                    on_chat_page = chat_id_from_path(str(probe.get("path") or "")) is not None
+                    on_chat_page = (
+                        chat_id_from_path(str(probe.get("path") or "")) is not None
+                    )
             except (RuntimeError, TimeoutError):
                 on_chat_page = False
             if on_chat_page:
@@ -480,7 +502,10 @@ class CdpChatTurn(CdpChatSubmit):
                 probe = await self.send_state()
                 if chat_id:
                     try:
-                        if cdp_chat_support.chat_user_message_count(chat_id) > baseline_user_msgs:
+                        if (
+                            cdp_chat_support.chat_user_message_count(chat_id)
+                            > baseline_user_msgs
+                        ):
                             submit = {
                                 **submit,
                                 "ok": True,
@@ -501,7 +526,8 @@ class CdpChatTurn(CdpChatSubmit):
                                 turn = debug.get("turn")
                                 if isinstance(turn, dict) and (
                                     turn.get("isStreaming")
-                                    or int(turn.get("userCount") or 0) > baseline_user_msgs
+                                    or int(turn.get("userCount") or 0)
+                                    > baseline_user_msgs
                                 ):
                                     submit = {
                                         **submit,
@@ -511,7 +537,10 @@ class CdpChatTurn(CdpChatSubmit):
                                     }
                     if chat_id:
                         try:
-                            if cdp_chat_support.chat_user_message_count(chat_id) > baseline_user_msgs:
+                            if (
+                                cdp_chat_support.chat_user_message_count(chat_id)
+                                > baseline_user_msgs
+                            ):
                                 submit = {
                                     **submit,
                                     "ok": True,
@@ -545,7 +574,10 @@ class CdpChatTurn(CdpChatSubmit):
                 api_deadline = time.monotonic() + 60.0
                 while time.monotonic() < api_deadline:
                     try:
-                        if cdp_chat_support.chat_user_message_count(chat_id) > baseline_user_msgs:
+                        if (
+                            cdp_chat_support.chat_user_message_count(chat_id)
+                            > baseline_user_msgs
+                        ):
                             return {"fill": fill, "submit": submit, "started": started}
                     except OSError:
                         pass
@@ -556,16 +588,24 @@ class CdpChatTurn(CdpChatSubmit):
                     f"baseline={baseline_user_msgs} submit={submit} started={started} bridge={bridge}"
                 )
             confirmed = False
-            if int(started.get("userMsgs") or 0) > baseline_user_msgs or started.get("sending"):
+            if int(started.get("userMsgs") or 0) > baseline_user_msgs or started.get(
+                "sending"
+            ):
                 confirmed = True
             if not confirmed and chat_id:
                 try:
-                    confirmed = cdp_chat_support.chat_user_message_count(chat_id) > baseline_user_msgs
+                    confirmed = (
+                        cdp_chat_support.chat_user_message_count(chat_id)
+                        > baseline_user_msgs
+                    )
                 except OSError:
                     confirmed = False
             if not confirmed:
                 bridge = await self._bridge_turn_snapshot()
-                if isinstance(bridge, dict) and int(bridge.get("userCount") or 0) > baseline_user_msgs:
+                if (
+                    isinstance(bridge, dict)
+                    and int(bridge.get("userCount") or 0) > baseline_user_msgs
+                ):
                     confirmed = True
                 elif not confirmed:
                     raise RuntimeError(
@@ -574,4 +614,3 @@ class CdpChatTurn(CdpChatSubmit):
             return {"fill": fill, "submit": submit, "started": started}
         finally:
             self._baseline_user_msgs = 0
-

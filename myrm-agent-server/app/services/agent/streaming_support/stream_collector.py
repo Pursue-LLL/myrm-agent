@@ -28,7 +28,9 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
 )
 
 _SSE_DATA_PREFIX = "data: "
-_PERSISTED_STATUS_STEP_KEYS = frozenset({"archive_restore_blocked", "archive_restore_result"})
+_PERSISTED_STATUS_STEP_KEYS = frozenset(
+    {"archive_restore_blocked", "archive_restore_result"}
+)
 logger = logging.getLogger(__name__)
 _STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
 
@@ -82,6 +84,7 @@ def _iteration_limit_message(detail: dict[str, object] | None) -> str:
         return f"Iteration limit reached ({limit} iterations)"
     return "Iteration limit reached"
 
+
 ACTIVE_COLLECTORS: dict[str, "StreamContentCollector"] = {}
 
 
@@ -93,7 +96,9 @@ class StreamContentCollector:
     - Event dicts (via gateway): feed_event({...})
     """
 
-    def __init__(self, sibling_group_id: str | None = None, chat_id: str | None = None) -> None:
+    def __init__(
+        self, sibling_group_id: str | None = None, chat_id: str | None = None
+    ) -> None:
         self._content_parts: list[str] = []
         self._reasoning_parts: list[str] = []
         self._sources: list[dict[str, object]] = []
@@ -140,7 +145,9 @@ class StreamContentCollector:
             return
         import asyncio
 
-        from app.services.chat.ui_artifact_patch import patch_ui_artifact_data_by_surface_id
+        from app.services.chat.ui_artifact_patch import (
+            patch_ui_artifact_data_by_surface_id,
+        )
 
         chat_id = self._chat_id
         try:
@@ -150,7 +157,9 @@ class StreamContentCollector:
 
         async def _run_patch() -> None:
             try:
-                patched = await patch_ui_artifact_data_by_surface_id(chat_id, surface_id, updates)
+                patched = await patch_ui_artifact_data_by_surface_id(
+                    chat_id, surface_id, updates
+                )
                 if not patched:
                     logger.warning(
                         "Immediate cross-turn ui patch skipped: surface_id=%s chat_id=%s",
@@ -223,7 +232,9 @@ class StreamContentCollector:
         if not chunk.startswith(_SSE_DATA_PREFIX):
             return
         try:
-            event = string_keyed_dict(json.loads(chunk[len(_SSE_DATA_PREFIX) :].rstrip()))
+            event = string_keyed_dict(
+                json.loads(chunk[len(_SSE_DATA_PREFIX) :].rstrip())
+            )
             if event is None:
                 return
             self._process_event(event)
@@ -272,7 +283,9 @@ class StreamContentCollector:
         elif event_type == "agent_cancelled":
             detail = string_keyed_dict(data) if isinstance(data, dict) else None
             reason = detail.get("reason") if detail else None
-            message = "Cancelled by user" if reason == "user_cancelled" else "Run cancelled"
+            message = (
+                "Cancelled by user" if reason == "user_cancelled" else "Run cancelled"
+            )
             payload_3: dict[str, object] = {
                 "code": "agent_cancelled",
                 "category": "cancelled",
@@ -395,14 +408,20 @@ class StreamContentCollector:
                         if artifact.get("surface_id") == surface_id:
                             existing_data = artifact.get("data")
                             if isinstance(existing_data, dict):
-                                artifact["data"] = deep_merge_ui_data(existing_data, updates)
+                                artifact["data"] = deep_merge_ui_data(
+                                    existing_data, updates
+                                )
                             merged_locally = True
                             break
                     if not merged_locally and self._chat_id:
                         normalized_updates = string_keyed_dict(updates)
                         if normalized_updates is not None:
-                            self._cross_turn_data_updates.append((surface_id, normalized_updates))
-                            self._schedule_cross_turn_ui_patch(surface_id, normalized_updates)
+                            self._cross_turn_data_updates.append(
+                                (surface_id, normalized_updates)
+                            )
+                            self._schedule_cross_turn_ui_patch(
+                                surface_id, normalized_updates
+                            )
         elif event_type == "status":
             step_key = event.get("step_key")
             if step_key == "cache_break" and isinstance(data, dict):
@@ -415,10 +434,14 @@ class StreamContentCollector:
                     "status": event.get("status"),
                 }
                 if isinstance(data, dict):
-                    archive_restore_block = string_keyed_dict(data.get("archive_restore_block"))
+                    archive_restore_block = string_keyed_dict(
+                        data.get("archive_restore_block")
+                    )
                     if archive_restore_block is not None:
                         step["archive_restore_block"] = archive_restore_block
-                    archive_restore_result = string_keyed_dict(data.get("archive_restore_result"))
+                    archive_restore_result = string_keyed_dict(
+                        data.get("archive_restore_result")
+                    )
                     if archive_restore_result is not None:
                         step["archive_restore_result"] = archive_restore_result
                 self._progress_steps.append(step)
@@ -510,21 +533,31 @@ class StreamContentCollector:
             self._stop_reason = normalized
             return
         current_code = self._stop_reason.get("code")
-        current_priority = _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
+        current_priority = (
+            _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
+        )
         next_code = normalized.get("code")
-        next_priority = _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
+        next_priority = (
+            _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
+        )
         if next_priority >= current_priority:
             self._stop_reason = normalized
 
     def _extend_cited_memory_refs(self, refs: list[object]) -> None:
-        seen = {str(ref.get("id")) for ref in self._cited_memory_refs if isinstance(ref.get("id"), str)}
+        seen = {
+            str(ref.get("id"))
+            for ref in self._cited_memory_refs
+            if isinstance(ref.get("id"), str)
+        }
         for ref in refs:
             if not isinstance(ref, dict):
                 continue
             ref_id = ref.get("id")
             if not isinstance(ref_id, str) or not ref_id or ref_id in seen:
                 continue
-            normalized = {str(key): value for key, value in ref.items() if isinstance(key, str)}
+            normalized = {
+                str(key): value for key, value in ref.items() if isinstance(key, str)
+            }
             self._cited_memory_refs.append(normalized)
             seen.add(ref_id)
 
@@ -532,7 +565,11 @@ class StreamContentCollector:
         trace_id = trace.get("id")
         if not isinstance(trace_id, str) or not trace_id:
             return
-        if any(existing.get("id") == trace_id for existing in self._memory_retrieval_traces):
+        if any(
+            existing.get("id") == trace_id for existing in self._memory_retrieval_traces
+        ):
             return
-        normalized = {str(key): value for key, value in trace.items() if isinstance(key, str)}
+        normalized = {
+            str(key): value for key, value in trace.items() if isinstance(key, str)
+        }
         self._memory_retrieval_traces.append(normalized)

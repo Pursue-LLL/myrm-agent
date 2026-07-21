@@ -25,7 +25,9 @@ from cdp_chat_support import (
 class CdpChatInput(CdpChatBootstrap):
     _baseline_user_msgs: int = 0
 
-    async def _ensure_send_ready(self, *, timeout_sec: float = 90.0) -> dict[str, object]:
+    async def _ensure_send_ready(
+        self, *, timeout_sec: float = 90.0
+    ) -> dict[str, object]:
         """Prefer API readiness + E2E bridge over flaky model-picker UI automation."""
         _ENSURE_PROVIDERS_JS = """(() => {
           const bridge = window.__MYRM_E2E_CHAT__;
@@ -73,7 +75,11 @@ class CdpChatInput(CdpChatBootstrap):
                 except (TimeoutError, RuntimeError):
                     pass
                 probe = await self.evaluate(_SEND_READY_PROBE_JS, await_promise=False)
-                last = probe if isinstance(probe, dict) else {"ok": False, "probeError": probe}
+                last = (
+                    probe
+                    if isinstance(probe, dict)
+                    else {"ok": False, "probeError": probe}
+                )
                 if last.get("sendReady"):
                     last["ok"] = True
                     return last
@@ -100,13 +106,17 @@ class CdpChatInput(CdpChatBootstrap):
             return await self.ensure_model_ready(timeout_sec=timeout_sec)
         return await self.ensure_model_ready(timeout_sec=timeout_sec)
 
-    async def ensure_model_ready(self, *, timeout_sec: float = 180.0) -> dict[str, object]:
+    async def ensure_model_ready(
+        self, *, timeout_sec: float = 180.0
+    ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {"ok": False}
         reloads = 0
         while time.monotonic() < deadline:
             probe = await self.evaluate(MODEL_PROBE_JS, await_promise=False)
-            last = probe if isinstance(probe, dict) else {"ok": False, "probeError": probe}
+            last = (
+                probe if isinstance(probe, dict) else {"ok": False, "probeError": probe}
+            )
             if last.get("ok"):
                 return last
             if last.get("unconfigured"):
@@ -126,7 +136,9 @@ class CdpChatInput(CdpChatBootstrap):
                         break
                 if not picked_ok and reloads < 2:
                     reloads += 1
-                    await self.cdp("Page.reload", {"ignoreCache": True}, recv_timeout=120.0)
+                    await self.cdp(
+                        "Page.reload", {"ignoreCache": True}, recv_timeout=120.0
+                    )
                     await asyncio.sleep(4)
                     await self.ensure_dev_bridge(timeout_sec=45.0)
             await asyncio.sleep(1)
@@ -153,7 +165,9 @@ class CdpChatInput(CdpChatBootstrap):
             }})()""",
             await_promise=False,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )
 
     async def probe_goal_pause_trigger(self) -> dict[str, object]:
         result = await self.evaluate(
@@ -217,7 +231,9 @@ class CdpChatInput(CdpChatBootstrap):
             })()""",
             await_promise=False,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )
 
     async def click_desktop_allow_once(self) -> dict[str, object]:
         result = await self.evaluate(
@@ -231,7 +247,9 @@ class CdpChatInput(CdpChatBootstrap):
             })()""",
             await_promise=False,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )
 
     async def click_desktop_allow_always(self) -> dict[str, object]:
         result = await self.evaluate(
@@ -245,7 +263,9 @@ class CdpChatInput(CdpChatBootstrap):
             })()""",
             await_promise=False,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )
 
     async def click_desktop_allow_session(self) -> dict[str, object]:
         result = await self.evaluate(
@@ -259,7 +279,9 @@ class CdpChatInput(CdpChatBootstrap):
             })()""",
             await_promise=False,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )
 
     async def click_desktop_deny(self) -> dict[str, object]:
         result = await self.evaluate(
@@ -273,7 +295,9 @@ class CdpChatInput(CdpChatBootstrap):
             })()""",
             await_promise=False,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )
 
     async def probe_desktop_approval_once(self) -> dict[str, object]:
         probe = await self.evaluate(
@@ -401,7 +425,9 @@ class CdpChatInput(CdpChatBootstrap):
             })()""",
             await_promise=False,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )
 
     async def _fill_ready_state(self, text: str) -> dict[str, object]:
         payload = json.dumps(text)
@@ -434,9 +460,13 @@ class CdpChatInput(CdpChatBootstrap):
             }})()""",
             await_promise=False,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )
 
-    async def _await_fill_ready(self, text: str, *, timeout_sec: float = 45.0) -> dict[str, object]:
+    async def _await_fill_ready(
+        self, text: str, *, timeout_sec: float = 45.0
+    ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {"ok": False}
         while time.monotonic() < deadline:
@@ -449,7 +479,9 @@ class CdpChatInput(CdpChatBootstrap):
         last["mode"] = "awaitFillReadyTimeout"
         return last
 
-    async def ensure_dev_bridge(self, *, timeout_sec: float = 90.0, allow_reload: bool = True) -> None:
+    async def ensure_dev_bridge(
+        self, *, timeout_sec: float = 90.0, allow_reload: bool = True
+    ) -> None:
         """Wait for React E2E bridge or install localhost fallback after hydration."""
         deadline = time.monotonic() + timeout_sec
         polls = 0
@@ -459,9 +491,17 @@ class CdpChatInput(CdpChatBootstrap):
             await self.ensure_e2e_api_base_binding()
             await self.evaluate(E2E_BRIDGE_INSTALL_JS, await_promise=False)
             probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
-            if isinstance(probe, dict) and probe.get("hasBridge") and probe.get("clientHydrated"):
+            if (
+                isinstance(probe, dict)
+                and probe.get("hasBridge")
+                and probe.get("clientHydrated")
+            ):
                 return
-            if isinstance(probe, dict) and probe.get("hasBridge") and probe.get("hasInput"):
+            if (
+                isinstance(probe, dict)
+                and probe.get("hasBridge")
+                and probe.get("hasInput")
+            ):
                 if probe.get("clientHydrated"):
                     return
             if allow_reload and polls in {15, 30, 45}:
@@ -473,7 +513,9 @@ class CdpChatInput(CdpChatBootstrap):
     async def wait_dev_bridge(self, *, timeout_sec: float = 90.0) -> None:
         await self.ensure_dev_bridge(timeout_sec=timeout_sec)
 
-    async def _retry_bridge_fill(self, text: str, *, timeout_sec: float = 120.0) -> dict[str, object]:
+    async def _retry_bridge_fill(
+        self, text: str, *, timeout_sec: float = 120.0
+    ) -> dict[str, object]:
         """When the React E2E bridge exists, never rely on DOM-only fill fallbacks."""
         payload = json.dumps(text)
         deadline = time.monotonic() + timeout_sec
@@ -715,8 +757,14 @@ class CdpChatInput(CdpChatBootstrap):
             "Input.dispatchKeyEvent",
             {"type": "keyUp", "key": "a", "code": "KeyA", "modifiers": mod_bit},
         )
-        await self.cdp("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Backspace", "code": "Backspace"})
-        await self.cdp("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Backspace", "code": "Backspace"})
+        await self.cdp(
+            "Input.dispatchKeyEvent",
+            {"type": "keyDown", "key": "Backspace", "code": "Backspace"},
+        )
+        await self.cdp(
+            "Input.dispatchKeyEvent",
+            {"type": "keyUp", "key": "Backspace", "code": "Backspace"},
+        )
         for ch in text:
             await self.cdp("Input.insertText", {"text": ch})
             await asyncio.sleep(0.02)
@@ -768,10 +816,13 @@ class CdpChatInput(CdpChatBootstrap):
             """(() => {
               const main = document.querySelector('main');
               const sending = !!main?.querySelector('button[aria-label="Stop"]');
+              const bridgeUsers = window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount;
               const assistantCount =
                 main?.querySelectorAll('[data-test-id="assistant-message"]')?.length || 0;
               const allWithId = main?.querySelectorAll('[data-message-id]')?.length || 0;
-              const userMsgs = Math.max(0, allWithId - assistantCount);
+              const domUsers = Math.max(0, allWithId - assistantCount);
+              const userMsgs =
+                typeof bridgeUsers === 'number' && bridgeUsers >= 0 ? bridgeUsers : domUsers;
               const input = document.querySelector('[data-chat-input]');
               const cleared = (input?.value || '').trim().length === 0;
               const bridgeEmpty = !(window.__MYRM_E2E_CHAT__?.getInputMessage?.() || '').trim();
@@ -786,12 +837,19 @@ class CdpChatInput(CdpChatBootstrap):
             })()""",
             await_promise=False,
         )
-        return result if isinstance(result, dict) else {"sending": False, "cleared": False, "userMsgs": 0}
+        return (
+            result
+            if isinstance(result, dict)
+            else {"sending": False, "cleared": False, "userMsgs": 0}
+        )
 
     async def _stream_started(self, started: dict[str, object]) -> bool:
         baseline_user_msgs = int(getattr(self, "_baseline_user_msgs", 0) or 0)
         path = str(started.get("path") or "")
-        if started.get("sending") or int(started.get("userMsgs") or 0) > baseline_user_msgs:
+        if (
+            started.get("sending")
+            or int(started.get("userMsgs") or 0) > baseline_user_msgs
+        ):
             return True
         turn_probe = await self.evaluate(
             """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()""",
@@ -802,7 +860,11 @@ class CdpChatInput(CdpChatBootstrap):
                 return True
             if int(turn_probe.get("userCount") or 0) > baseline_user_msgs:
                 return True
-        chat_id = chat_id_from_path(path) or str(started.get("bridgeChatId") or "").strip() or None
+        chat_id = (
+            chat_id_from_path(path)
+            or str(started.get("bridgeChatId") or "").strip()
+            or None
+        )
         if not chat_id:
             chat_id = await self.bridge_chat_id()
         if chat_id:
@@ -830,7 +892,9 @@ class CdpChatInput(CdpChatBootstrap):
             await_promise=True,
             recv_timeout=30.0,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )
 
     async def pause_goal_via_ui(self, note: str) -> dict[str, object]:
         payload = json.dumps(note)
@@ -844,7 +908,11 @@ class CdpChatInput(CdpChatBootstrap):
             await_promise=False,
         )
         if not isinstance(result, dict) or not result.get("ok"):
-            return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+            return (
+                result
+                if isinstance(result, dict)
+                else {"ok": False, "probeError": result}
+            )
         await asyncio.sleep(0.5)
         filled = await self.evaluate(
             f"""(() => {{
@@ -864,14 +932,22 @@ class CdpChatInput(CdpChatBootstrap):
             await_promise=False,
         )
         if not isinstance(filled, dict) or not filled.get("ok"):
-            return filled if isinstance(filled, dict) else {"ok": False, "probeError": filled}
+            return (
+                filled
+                if isinstance(filled, dict)
+                else {"ok": False, "probeError": filled}
+            )
         deadline = time.monotonic() + 15.0
         while time.monotonic() < deadline:
             snap = await self.get_active_goal_snapshot()
             if isinstance(snap, dict) and snap.get("status") == "paused":
                 return {"ok": True, "snapshot": snap}
             await asyncio.sleep(0.25)
-        return {"ok": False, "err": "pause-status-timeout", "snapshot": await self.get_active_goal_snapshot()}
+        return {
+            "ok": False,
+            "err": "pause-status-timeout",
+            "snapshot": await self.get_active_goal_snapshot(),
+        }
 
     async def run_goal_draft_from_composer(self) -> dict[str, object]:
         result = await self.evaluate(
@@ -883,14 +959,18 @@ class CdpChatInput(CdpChatBootstrap):
             await_promise=True,
             recv_timeout=150.0,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )
 
     async def get_goal_draft_state(self) -> dict[str, object]:
         result = await self.evaluate(
             """(() => window.__MYRM_E2E_CHAT__?.getGoalDraftState?.() ?? { ok: false, err: 'no-bridge' })()""",
             await_promise=False,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )
 
     async def dispatch_background_job_finish(self, chat_id: str) -> dict[str, object]:
         payload = json.dumps(chat_id)
@@ -910,4 +990,6 @@ class CdpChatInput(CdpChatBootstrap):
             }})()""",
             await_promise=True,
         )
-        return result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        return (
+            result if isinstance(result, dict) else {"ok": False, "probeError": result}
+        )

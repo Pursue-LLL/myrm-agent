@@ -8025,6 +8025,7 @@
     "toolPreset": {
       "webOnly": "웹만",
       "research": "리서치 조합",
+      "devops": "DevOps 조합",
       "full": "모든 도구"
     },
     "allowedRootsLabel": "Allowed Paths",

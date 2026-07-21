@@ -324,7 +324,13 @@ def _chrome_e2e_item_runtime(
         sys.path.insert(0, str(dev_infra))
     from chrome_e2e_runtime import start_chrome_e2e_runtime
 
-    runtime = start_chrome_e2e_runtime(request.node.nodeid)
+    runtime_lane = lane if lane in {"READ", "LIVE_AGENT"} else "LIVE_AGENT"
+    runtime_backend_only = not (private_backend and runtime_lane == "READ")
+    runtime = start_chrome_e2e_runtime(
+        request.node.nodeid,
+        backend_only=runtime_backend_only,
+        lane=runtime_lane,
+    )
     for key, value in runtime.environment.items():
         monkeypatch.setenv(key, value)
     print(

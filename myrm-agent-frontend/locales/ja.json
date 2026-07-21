@@ -8025,6 +8025,7 @@
     "toolPreset": {
       "webOnly": "Web のみ",
       "research": "リサーチセット",
+      "devops": "DevOps セット",
       "full": "すべてのツール"
     },
     "allowedRootsLabel": "Allowed Paths",

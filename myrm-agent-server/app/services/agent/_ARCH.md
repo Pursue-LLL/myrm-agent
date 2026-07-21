@@ -65,6 +65,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `goal_draft.py` | ✅ 辅助 | Goal 创建前 draft — 从 objective 生成 constraints / acceptance_criteria（Server lite LLM） | ✅ |
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置 | ✅ |
 | `session_credential_assembler.py` | ✅ 核心 | 统一会话凭证装配 + `session_credentials_scope` / `user_config_session_credentials_scope`；Web / Channel / Cron / Kanban / Wakeup / approval-timeout resume | ✅ |
+| `runtime_context.py` | ✅ 核心 | `build_agent_runtime_context` — 统一注入 `execution_mode` + `disabled_skill_roots` 至全部 agent 入口（Web/IM/Cron/Kanban/Wakeup/Eval） | ✅ |
 | `oauth_refresher.py` | ✅ 核心 | OAuth2 token 自动刷新（DB 持久化 + AES 加密 + 并发锁防 stampede + Double-Checked Locking）；refresh 失败时发布 `OAUTH_REAUTH_REQUIRED` 事件（仅 4xx/missing_refresh_token，per-issuer 300s 去重）| ✅ |
 | `llm_access.py` | ✅ 辅助 | WebUI 配置驱动的 LLM 实例解析（`get_llm_for_user` / `get_optional_llm_for_user`）；`api.dependencies` re-export | ✅ |
 

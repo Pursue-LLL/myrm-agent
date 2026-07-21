@@ -6,11 +6,12 @@ import asyncio
 import time
 
 from cdp_chat_input import CdpChatInput
-from cdp_chat_support import PREPARE_AUTOMATION_SEND_JS
+from cdp_chat_support import PREPARE_AUTOMATION_SEND_JS, get_e2e_api_url
 
 
 class CdpChatSubmit(CdpChatInput):
     async def _submit_via_dev_bridge(self) -> dict[str, object]:
+        await self.ensure_e2e_api_base_binding()
         dev_submit = await self.evaluate(
             """(() => {
               const bridge = window.__MYRM_E2E_CHAT__;
@@ -31,10 +32,14 @@ class CdpChatSubmit(CdpChatInput):
               });
             })()""",
             await_promise=True,
-            recv_timeout=45.0,
+            recv_timeout=120.0,
         )
         if not (isinstance(dev_submit, dict) and dev_submit.get("ok")):
-            return dev_submit if isinstance(dev_submit, dict) else {"ok": False, "err": "dev-bridge-submit-failed"}
+            return (
+                dev_submit
+                if isinstance(dev_submit, dict)
+                else {"ok": False, "err": "dev-bridge-submit-failed"}
+            )
 
         started = await self._submit_started()
         if await self._stream_started(started):
@@ -58,6 +63,25 @@ class CdpChatSubmit(CdpChatInput):
         return dev_submit
 
     async def submit(self) -> dict[str, object]:
+        e2e_api = get_e2e_api_url().strip()
+        if e2e_api:
+            await self.ensure_e2e_api_base_binding()
+            bridge_submit = await self._submit_via_dev_bridge()
+            started = await self._submit_started()
+            if (
+                isinstance(bridge_submit, dict)
+                and bridge_submit.get("ok")
+                and await self._stream_started(started)
+            ):
+                return bridge_submit
+            if isinstance(bridge_submit, dict):
+                return bridge_submit
+            return {
+                "ok": False,
+                "err": "dev-bridge-submit-failed",
+                "mode": "devBridgeRequired",
+            }
+
         prefer_bridge = await self.evaluate(
             """(() => ({
               prefer: typeof window.__MYRM_E2E_API_BASE__ === 'string' && window.__MYRM_E2E_API_BASE__.trim().length > 0,
@@ -67,11 +91,19 @@ class CdpChatSubmit(CdpChatInput):
         if isinstance(prefer_bridge, dict) and prefer_bridge.get("prefer"):
             bridge_submit = await self._submit_via_dev_bridge()
             started = await self._submit_started()
-            if isinstance(bridge_submit, dict) and bridge_submit.get("ok") and await self._stream_started(started):
+            if (
+                isinstance(bridge_submit, dict)
+                and bridge_submit.get("ok")
+                and await self._stream_started(started)
+            ):
                 return bridge_submit
             if isinstance(bridge_submit, dict):
                 return bridge_submit
-            return {"ok": False, "err": "dev-bridge-submit-failed", "mode": "devBridgeRequired"}
+            return {
+                "ok": False,
+                "err": "dev-bridge-submit-failed",
+                "mode": "devBridgeRequired",
+            }
 
         await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
         native = await self.evaluate(
@@ -169,7 +201,11 @@ class CdpChatSubmit(CdpChatInput):
         if isinstance(node_id, int) and node_id > 0:
             try:
                 box = await self.cdp("DOM.getBoxModel", {"nodeId": node_id})
-                content = box.get("model", {}).get("content") if isinstance(box.get("model"), dict) else None
+                content = (
+                    box.get("model", {}).get("content")
+                    if isinstance(box.get("model"), dict)
+                    else None
+                )
                 if isinstance(content, list) and len(content) >= 6:
                     cx = (content[0] + content[2]) / 2
                     cy = (content[1] + content[5]) / 2
@@ -202,11 +238,21 @@ class CdpChatSubmit(CdpChatInput):
 
         await self.cdp(
             "Input.dispatchKeyEvent",
-            {"type": "keyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13},
+            {
+                "type": "keyDown",
+                "key": "Enter",
+                "code": "Enter",
+                "windowsVirtualKeyCode": 13,
+            },
         )
         await self.cdp(
             "Input.dispatchKeyEvent",
-            {"type": "keyUp", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13},
+            {
+                "type": "keyUp",
+                "key": "Enter",
+                "code": "Enter",
+                "windowsVirtualKeyCode": 13,
+            },
         )
         await asyncio.sleep(1.5)
         started = await self._submit_started()
@@ -223,7 +269,11 @@ class CdpChatSubmit(CdpChatInput):
             }))()""",
             await_promise=False,
         )
-        exhausted: dict[str, object] = {"ok": False, "mode": "submitExhausted", "started": started}
+        exhausted: dict[str, object] = {
+            "ok": False,
+            "mode": "submitExhausted",
+            "started": started,
+        }
         if isinstance(bridge_result, dict):
             exhausted["bridge"] = bridge_result
         return exhausted

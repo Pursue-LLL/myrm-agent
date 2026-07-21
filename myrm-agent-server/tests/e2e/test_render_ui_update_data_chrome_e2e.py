@@ -215,9 +215,13 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
 
-        enabled = await chat.evaluate(_ENABLE_RENDER_UI_JS, await_promise=False, recv_timeout=15.0)
+        enabled = await chat.evaluate(
+            _ENABLE_RENDER_UI_JS, await_promise=False, recv_timeout=15.0
+        )
         assert isinstance(enabled, dict)
-        assert enabled.get("ok") is True, f"Failed to enable render_ui in chat session: {enabled}"
+        assert (
+            enabled.get("ok") is True
+        ), f"Failed to enable render_ui in chat session: {enabled}"
 
         render_send = await chat.send_message(E2E_PROMPT_RENDER, E2E_PROMPT_RENDER)
         heartbeat_e2e_lease()
@@ -229,14 +233,20 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
 
-        started = await chat.wait_stream_started(E2E_PROMPT_RENDER, timeout_sec=120.0, chat_id_hint=chat_id_hint)
+        started = await chat.wait_stream_started(
+            E2E_PROMPT_RENDER, timeout_sec=120.0, chat_id_hint=chat_id_hint
+        )
         chat_id = chat_id_hint or str(started.get("chatId") or "").strip() or None
         if not chat_id:
             after_start = await chat.main_state(E2E_PROMPT_RENDER, recv_timeout=30.0)
-            chat_id = chat_id_from_path(str(after_start.get("path") or "")) or str(
-                after_start.get("bridgeChatId") or ""
-            ).strip() or None
-        assert chat_id, f"Expected chat id after stream start: started={started}; send={render_send}"
+            chat_id = (
+                chat_id_from_path(str(after_start.get("path") or ""))
+                or str(after_start.get("bridgeChatId") or "").strip()
+                or None
+            )
+        assert (
+            chat_id
+        ), f"Expected chat id after stream start: started={started}; send={render_send}"
         await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=90.0)
         await chat.ensure_chat_surface(BASE_URL)
 
@@ -276,7 +286,9 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         await _wait_not_streaming(timeout_sec=120.0)
         await chat.wait_input_empty(chat_id_hint=chat_id)
 
-        await chat.evaluate(_ENABLE_UPDATE_UI_JS, await_promise=False, recv_timeout=15.0)
+        await chat.evaluate(
+            _ENABLE_UPDATE_UI_JS, await_promise=False, recv_timeout=15.0
+        )
 
         await chat.send_message(
             E2E_PROMPT_UPDATE,
@@ -286,7 +298,9 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         )
         heartbeat_e2e_lease()
 
-        async def _wait_api_user_messages(min_count: int, *, timeout_sec: float) -> None:
+        async def _wait_api_user_messages(
+            min_count: int, *, timeout_sec: float
+        ) -> None:
             deadline = time.monotonic() + timeout_sec
             last = 0
             while time.monotonic() < deadline:
@@ -338,9 +352,9 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         )
 
         try:
-            assert chat_user_message_count(chat_id, api_url=api_base) >= 2, (
-                f"Expected two user messages for chat {chat_id}: ui={ui_state}"
-            )
+            assert (
+                chat_user_message_count(chat_id, api_url=api_base) >= 2
+            ), f"Expected two user messages for chat {chat_id}: ui={ui_state}"
         except (TimeoutError, OSError, AssertionError) as exc:
             if ui_state.get("ready") is not True:
                 raise AssertionError(
@@ -355,10 +369,14 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
     try:
         page: McpPage | None = None
         try:
-            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+            page = await asyncio.to_thread(
+                client.new_page, BASE_URL, timeout_ms=120_000
+            )
         except TimeoutError:
             await asyncio.sleep(2.0)
-            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+            page = await asyncio.to_thread(
+                client.new_page, BASE_URL, timeout_ms=120_000
+            )
         if page is None:
             raise RuntimeError("new_page returned no page")
         chat = McpChatSession(client, page)

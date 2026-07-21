@@ -14,12 +14,15 @@ from urllib.parse import urlsplit
 _E2E_RUNTIME_BINDING_PREFIX = "myrm-e2e-v1:"
 _E2E_RUNTIME_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
 
+
 def get_e2e_api_url() -> str:
     return os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
 
 
 def get_e2e_ui_url() -> str:
     return os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+
+
 _OK_REPLY_RE = re.compile(r"(?:\bOK\b|GOAL_OK)", re.IGNORECASE)
 _DONE_REPLY_RE = re.compile(r"\bDONE\b", re.IGNORECASE)
 _E2E_API_REQUEST_ATTEMPTS = 3
@@ -58,7 +61,9 @@ def _e2e_api_get_json(
     max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> object:
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
-    with _e2e_api_urlopen(req, timeout_sec=timeout_sec, max_attempts=max_attempts) as resp:
+    with _e2e_api_urlopen(
+        req, timeout_sec=timeout_sec, max_attempts=max_attempts
+    ) as resp:
         return json.loads(resp.read())
 
 
@@ -76,7 +81,9 @@ def _e2e_api_post_json(
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with _e2e_api_urlopen(req, timeout_sec=timeout_sec, max_attempts=max_attempts) as resp:
+    with _e2e_api_urlopen(
+        req, timeout_sec=timeout_sec, max_attempts=max_attempts
+    ) as resp:
         raw = resp.read()
         if not raw:
             return {}
@@ -91,7 +98,9 @@ def e2e_runtime_binding(api_base: str | None = None) -> dict[str, object] | None
     ui_base = get_e2e_ui_url()
     if not base or not runtime_id or not run_id:
         return None
-    if not _E2E_RUNTIME_ID_RE.fullmatch(runtime_id) or not _E2E_RUNTIME_ID_RE.fullmatch(run_id):
+    if not _E2E_RUNTIME_ID_RE.fullmatch(runtime_id) or not _E2E_RUNTIME_ID_RE.fullmatch(
+        run_id
+    ):
         raise RuntimeError("E2E runtime/run identity contains unsupported characters")
     api = urlsplit(base)
     ui = urlsplit(ui_base)
@@ -104,7 +113,9 @@ def e2e_runtime_binding(api_base: str | None = None) -> dict[str, object] | None
         or not api.port
         or not ui.port
     ):
-        raise RuntimeError("E2E runtime binding only permits explicit loopback HTTP origins")
+        raise RuntimeError(
+            "E2E runtime binding only permits explicit loopback HTTP origins"
+        )
     return {
         "version": 1,
         "runId": run_id,
@@ -317,7 +328,12 @@ def ensure_e2e_goal_active(
     if status in {"paused", "budget_limited", "needs_human_review", "pending_approval"}:
         resume = post_goal_status_action(chat_id, "resume", api_url=api_url)
         if resume.get("new_status") != "active":
-            return {"ok": False, "err": "resume-failed", "payload": resume, "prior_status": status}
+            return {
+                "ok": False,
+                "err": "resume-failed",
+                "payload": resume,
+                "prior_status": status,
+            }
         status = "active"
 
     if status != "active":
@@ -599,6 +615,8 @@ E2E_BRIDGE_INSTALL_JS = """
   return install();
 })()
 """.strip()
+
+
 def chat_id_from_path(path: str) -> str | None:
     match = _CHAT_ID_PATH_RE.match(path.strip())
     return match.group(1) if match else None
@@ -617,10 +635,14 @@ def warmup_frontend(base_url: str, *, timeout_sec: float = 120.0) -> None:
         except Exception as exc:
             last_error = str(exc)
         time.sleep(3)
-    raise TimeoutError(f"Frontend warmup failed within {timeout_sec:.0f}s: {last_error}")
+    raise TimeoutError(
+        f"Frontend warmup failed within {timeout_sec:.0f}s: {last_error}"
+    )
 
 
-def fetch_chat_messages(chat_id: str, *, api_url: str | None = None) -> list[dict[str, object]]:
+def fetch_chat_messages(
+    chat_id: str, *, api_url: str | None = None
+) -> list[dict[str, object]]:
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     req = urllib.request.Request(
         f"{resolved_api}/api/v1/chats/{chat_id}/messages",
@@ -637,12 +659,18 @@ def fetch_chat_messages(chat_id: str, *, api_url: str | None = None) -> list[dic
 
 def chat_user_message_count(chat_id: str, *, api_url: str | None = None) -> int:
     messages = fetch_chat_messages(chat_id, api_url=api_url)
-    return sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")
+    return sum(
+        1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
+    )
 
 
-def chat_messages_have_ok(chat_id: str, *, min_user_count: int = 1, api_url: str | None = None) -> bool:
+def chat_messages_have_ok(
+    chat_id: str, *, min_user_count: int = 1, api_url: str | None = None
+) -> bool:
     messages = fetch_chat_messages(chat_id, api_url=api_url)
-    user_count = sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")
+    user_count = sum(
+        1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
+    )
     if user_count < min_user_count:
         return False
     last_assistant: dict[str, object] | None = None
@@ -678,7 +706,9 @@ def _config_http_json(
         return payload if isinstance(payload, dict) else {"value": payload}
 
 
-def fetch_config_value(config_key: str, *, api_url: str | None = None) -> dict[str, object]:
+def fetch_config_value(
+    config_key: str, *, api_url: str | None = None
+) -> dict[str, object]:
     payload = _config_http_json("GET", f"/api/v1/config/{config_key}", api_url=api_url)
     value = payload.get("value")
     return value if isinstance(value, dict) else {}
@@ -798,7 +828,10 @@ def deny_stale_browser_takeover_approvals(*, api_url: str | None = None) -> int:
     for raw in records:
         if not isinstance(raw, dict):
             continue
-        if raw.get("action_type") != "browser_takeover" or raw.get("status") != "PENDING":
+        if (
+            raw.get("action_type") != "browser_takeover"
+            or raw.get("status") != "PENDING"
+        ):
             continue
         approval_id = str(raw.get("id") or raw.get("approval_id") or "").strip()
         if not approval_id:
@@ -815,9 +848,13 @@ def deny_stale_browser_takeover_approvals(*, api_url: str | None = None) -> int:
     return denied
 
 
-def chat_messages_have_done(chat_id: str, *, min_user_count: int = 1, api_url: str | None = None) -> bool:
+def chat_messages_have_done(
+    chat_id: str, *, min_user_count: int = 1, api_url: str | None = None
+) -> bool:
     messages = fetch_chat_messages(chat_id, api_url=api_url)
-    user_count = sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")
+    user_count = sum(
+        1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
+    )
     if user_count < min_user_count:
         return False
     last_assistant: dict[str, object] | None = None

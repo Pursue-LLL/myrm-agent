@@ -9209,6 +9209,7 @@
     "toolPreset": {
       "webOnly": "Web only",
       "research": "Research stack",
+      "devops": "DevOps stack",
       "full": "All tools"
     },
     "allowedRootsLabel": "Allowed Paths",

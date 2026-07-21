@@ -4,10 +4,12 @@ import { Undo2, Check, AlertCircle, ChevronDown, ChevronRight } from 'lucide-rea
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { createPatch } from 'diff';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
+import { Button } from '@/components/primitives/button';
 import { IconTrash, IconUndo } from '@/components/features/icons/PremiumIcons';
 import { DiffViewer } from '@/lib/diff/DiffViewer';
 import { cn } from '@/lib/utils/classnameUtils';
+import { getAuthHeaders } from '@/lib/utils/authHeaders';
 
 interface FileChange {
   path: string;
@@ -43,11 +45,13 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   const [changes, setChanges] = useState<FileChange[] | null>(null);
   const [diffs, setDiffs] = useState<FileDiffItem[] | null>(null);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   const fetchChanges = useCallback(async () => {
     try {
-      const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${messageId}`);
+      const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${messageId}`, {
+        headers: getAuthHeaders(),
+      });
       if (!res.ok) return null;
       const data: FileChange[] = await res.json();
       return data.length > 0 ? data : null;
@@ -58,7 +62,9 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
 
   const fetchDiffs = useCallback(async () => {
     try {
-      const res = await fetch(`/api/v1/files/revert/diff/${chatId}/${messageId}`);
+      const res = await fetch(`/api/v1/files/revert/diff/${chatId}/${messageId}`, {
+        headers: getAuthHeaders(),
+      });
       if (!res.ok) return null;
       const data: FileDiffItem[] = await res.json();
       return data.length > 0 ? data : null;
@@ -76,40 +82,44 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
     });
   }, []);
 
-  const handleClick = useCallback(async () => {
-    if (showConfirm) {
-      setStatus('loading');
-      try {
-        const res = await fetch('/api/v1/files/revert/message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: chatId, message_id: messageId }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setStatus(data.success ? 'success' : 'error');
-        } else {
-          setStatus('error');
-        }
-      } catch {
-        setStatus('error');
-      }
-      setTimeout(() => {
-        setStatus('idle');
-        setShowConfirm(false);
-        setChanges(null);
-        setDiffs(null);
-        setExpandedPaths(new Set());
-      }, 2000);
-      return;
-    }
+  const resetState = useCallback(() => {
+    setStatus('idle');
+    setChanges(null);
+    setDiffs(null);
+    setExpandedPaths(new Set());
+    setPopoverOpen(false);
+  }, []);
 
+  const handleTriggerClick = useCallback(async () => {
     const [fileChanges, fileDiffs] = await Promise.all([fetchChanges(), fetchDiffs()]);
     if (!fileChanges) return;
     setChanges(fileChanges);
     setDiffs(fileDiffs);
-    setShowConfirm(true);
-  }, [showConfirm, fetchChanges, fetchDiffs, chatId, messageId]);
+    setPopoverOpen(true);
+  }, [fetchChanges, fetchDiffs]);
+
+  const handleConfirmRevert = useCallback(async () => {
+    setStatus('loading');
+    try {
+      const res = await fetch('/api/v1/files/revert/message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ session_id: chatId, message_id: messageId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data.success ? 'success' : 'error');
+      } else {
+        setStatus('error');
+      }
+    } catch {
+      setStatus('error');
+    }
+    setTimeout(resetState, 2000);
+  }, [chatId, messageId, resetState]);
 
   if (status === 'success') {
     return (
@@ -128,75 +138,98 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            onClick={handleClick}
-            disabled={status === 'loading'}
-            className={cn(
-              'p-2 rounded-xl transition duration-200',
-              showConfirm
-                ? 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 hover:bg-orange-200 dark:hover:bg-orange-900/50'
-                : 'text-black/70 dark:text-white/70 hover:bg-secondary dark:hover:bg-secondary hover:text-black dark:hover:text-white',
-            )}
-          >
-            <Undo2 size={18} />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-md p-0 overflow-hidden">
-          {showConfirm && changes ? (
-            <div className="text-sm p-3 max-h-[min(70vh,420px)] overflow-y-auto">
-              <p className="font-medium mb-2">{t('revertConfirm')}</p>
-              <ul className="space-y-2">
-                {changes.map((c) => {
-                  const diffItem = diffs?.find((d) => d.path === c.path);
-                  const unified = diffItem ? buildUnifiedDiff(diffItem) : null;
-                  const expanded = expandedPaths.has(c.path);
-                  return (
-                    <li key={c.path} className="rounded-md border border-border/50 bg-muted/20 px-2 py-1.5">
-                      <button
-                        type="button"
-                        className={cn(
-                          'flex w-full items-center gap-1.5 text-left text-xs',
-                          unified ? 'cursor-pointer' : 'cursor-default',
-                        )}
-                        onClick={unified ? () => toggleExpanded(c.path) : undefined}
-                      >
-                        {unified ? (
-                          expanded ? (
-                            <ChevronDown className="w-3 h-3 shrink-0" />
-                          ) : (
-                            <ChevronRight className="w-3 h-3 shrink-0" />
-                          )
-                        ) : null}
-                        {c.operation === 'create' ? (
-                          <IconTrash className="w-3 h-3 shrink-0" />
-                        ) : (
-                          <IconUndo className="w-3 h-3 shrink-0" />
-                        )}
-                        <span className="truncate font-mono">{c.path.split('/').pop()}</span>
-                        {unified && !expanded && (
-                          <span className="ml-auto text-[10px] text-muted-foreground">{t('revertViewDiff')}</span>
-                        )}
-                      </button>
-                      {unified && expanded && (
-                        <div className="mt-1.5 max-w-full overflow-hidden">
-                          <DiffViewer diff={unified} filePath={c.path} className="text-[10px]" />
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="text-xs opacity-60 mt-2">{t('revertClickAgain')}</p>
-            </div>
-          ) : (
-            <p className="p-3">{t('revertFiles')}</p>
+    <Popover
+      open={popoverOpen}
+      onOpenChange={(open) => {
+        setPopoverOpen(open);
+        if (!open) {
+          setChanges(null);
+          setDiffs(null);
+          setExpandedPaths(new Set());
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={handleTriggerClick}
+          disabled={status === 'loading'}
+          title={t('revertFiles')}
+          className={cn(
+            'p-2 rounded-xl transition duration-200',
+            popoverOpen
+              ? 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 hover:bg-orange-200 dark:hover:bg-orange-900/50'
+              : 'text-black/70 dark:text-white/70 hover:bg-secondary dark:hover:bg-secondary hover:text-black dark:hover:text-white',
           )}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+        >
+          <Undo2 size={18} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="end"
+        className="w-[min(100vw-2rem,28rem)] p-0 overflow-hidden"
+      >
+        {changes ? (
+          <div className="text-sm p-3 max-h-[min(70vh,420px)] overflow-y-auto">
+            <p className="font-medium mb-2">{t('revertConfirm')}</p>
+            <ul className="space-y-2">
+              {changes.map((c) => {
+                const diffItem = diffs?.find((d) => d.path === c.path);
+                const unified = diffItem ? buildUnifiedDiff(diffItem) : null;
+                const expanded = expandedPaths.has(c.path);
+                return (
+                  <li key={c.path} className="rounded-md border border-border/50 bg-muted/20 px-2 py-1.5">
+                    <button
+                      type="button"
+                      className={cn(
+                        'flex w-full items-center gap-1.5 text-left text-xs',
+                        unified ? 'cursor-pointer' : 'cursor-default',
+                      )}
+                      onClick={unified ? () => toggleExpanded(c.path) : undefined}
+                    >
+                      {unified ? (
+                        expanded ? (
+                          <ChevronDown className="w-3 h-3 shrink-0" />
+                        ) : (
+                          <ChevronRight className="w-3 h-3 shrink-0" />
+                        )
+                      ) : null}
+                      {c.operation === 'create' ? (
+                        <IconTrash className="w-3 h-3 shrink-0" />
+                      ) : (
+                        <IconUndo className="w-3 h-3 shrink-0" />
+                      )}
+                      <span className="truncate font-mono">{c.path.split('/').pop()}</span>
+                      {unified && !expanded && (
+                        <span className="ml-auto text-[10px] text-muted-foreground">{t('revertViewDiff')}</span>
+                      )}
+                    </button>
+                    {unified && expanded && (
+                      <div className="mt-1.5 max-w-full overflow-hidden">
+                        <DiffViewer diff={unified} filePath={c.path} className="text-[10px]" />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              className="mt-3 w-full"
+              disabled={status === 'loading'}
+              onClick={handleConfirmRevert}
+            >
+              {t('revertClickAgain')}
+            </Button>
+          </div>
+        ) : (
+          <p className="p-3 text-sm">{t('revertFiles')}</p>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 };
 
