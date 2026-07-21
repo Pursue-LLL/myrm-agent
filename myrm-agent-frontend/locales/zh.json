@@ -427,7 +427,9 @@
         "connectFailed": "连接失败",
         "connecting": "连接中...",
         "connect": "连接",
-        "cancel": "取消"
+        "cancel": "取消",
+        "probing": "正在检测连接...",
+        "probeUnreachable": "服务未启动或端口未开放，请检查编辑器是否已启动 MCP 服务器"
       }
     },
     "integrationMemory": {

@@ -3057,7 +3057,9 @@
         "connectFailed": "Failed to connect",
         "connecting": "Connecting...",
         "connect": "Connect",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "probing": "Checking connectivity...",
+        "probeUnreachable": "Service not running or port not open — please ensure the editor MCP server is started"
       }
     },
     "integrationMemory": {

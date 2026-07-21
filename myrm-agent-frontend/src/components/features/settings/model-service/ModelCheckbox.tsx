@@ -68,7 +68,7 @@ const ModelCheckbox = memo<ModelCheckboxProps>(
     });
 
     // 检查是否支持从 API 或 models.dev 导入模型
-    const canFetchFromApi = !!(apiKey && apiUrl);
+    const canFetchFromApi = !!apiUrl;
     const supportsModelsDevImport = hasModelsDevSupport(providerId, { providerType, apiUrl });
     const supportsImport = canFetchFromApi || supportsModelsDevImport;
 

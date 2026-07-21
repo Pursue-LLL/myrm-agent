@@ -42,6 +42,8 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
     );
     const [connecting, setConnecting] = useState(false);
     const [oauthPolling, setOauthPolling] = useState(false);
+    const [probeStatus, setProbeStatus] = useState<'idle' | 'probing' | 'reachable' | 'unreachable' | 'cloud_not_supported'>('idle');
+    const [probeError, setProbeError] = useState<string | null>(null);
     const [pendingCatalogAck, setPendingCatalogAck] = useState<{
       config: MCPServiceConfig;
       scanResult: MCPScanResult;
@@ -57,17 +59,53 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
     }, []);
 
     const helpText = locale === 'zh' && entry.helpTextZh ? entry.helpTextZh : entry.helpText;
+    const connectGuide = locale === 'zh' && entry.postConnectGuideZh ? entry.postConnectGuideZh : entry.postConnectGuide;
+    const probeUrl = (entry.mcpConfig as Record<string, unknown> | null)?.probeUrl as string | undefined;
+
+    const _runProbe = useCallback(async () => {
+      if (!probeUrl) return true;
+      setProbeStatus('probing');
+      setProbeError(null);
+      try {
+        const res = await apiRequest<{ status: string; error?: string }>('/integrations/mcp/probe', {
+          method: 'POST',
+          body: JSON.stringify({ url: probeUrl, timeout: 5 }),
+        });
+        if (res.status === 'reachable') {
+          setProbeStatus('reachable');
+          return true;
+        }
+        if (res.status === 'cloud_not_supported') {
+          setProbeStatus('cloud_not_supported');
+          return true;
+        }
+        setProbeStatus('unreachable');
+        setProbeError(res.error || t('probeUnreachable'));
+        return false;
+      } catch {
+        setProbeStatus('unreachable');
+        setProbeError(t('probeUnreachable'));
+        return false;
+      }
+    }, [probeUrl, t]);
 
     const persistCatalogConfig = useCallback(
       (config: MCPServiceConfig) => {
-        const exists = mcpConfigs.some((c) => c.name === config.name);
+        const mcpCfg = entry.mcpConfig as Record<string, unknown> | null;
+        const finalConfig: MCPServiceConfig = {
+          ...config,
+          hostSerial: mcpCfg?.hostSerial === true ? true : config.hostSerial,
+          keepaliveInterval:
+            typeof mcpCfg?.keepaliveInterval === 'number' ? mcpCfg.keepaliveInterval : config.keepaliveInterval,
+        };
+        const exists = mcpConfigs.some((c) => c.name === finalConfig.name);
         if (!exists) {
-          setMCPConfigs([...mcpConfigs, config]);
+          setMCPConfigs([...mcpConfigs, finalConfig]);
         }
         toast({ title: t('connectSuccess', { name: entry.name }) });
         onConnected();
       },
-      [entry.name, mcpConfigs, onConnected, setMCPConfigs, t, toast],
+      [entry.name, entry.mcpConfig, mcpConfigs, onConnected, setMCPConfigs, t, toast],
     );
 
     const runCatalogSecurityGate = useCallback(
@@ -210,6 +248,15 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       setConnecting(true);
       try {
         if (entry.connectorType === 'mcp' && entry.mcpConfig) {
+          // Run connectivity probe if available
+          if (probeUrl) {
+            const probeOk = await runProbe();
+            if (!probeOk) {
+              setConnecting(false);
+              return;
+            }
+          }
+
           const mcpCfg = entry.mcpConfig as {
             name: string;
             type: string;
@@ -272,7 +319,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       } finally {
         setConnecting(false);
       }
-    }, [entry, credential, fieldValues, hasMultiFields, locale, mcpConfigs, setMCPConfigs, onConnected, t]);
+    }, [entry, credential, fieldValues, hasMultiFields, locale, mcpConfigs, setMCPConfigs, onConnected, t, probeUrl, runProbe]);
 
     return (
       <>
@@ -286,6 +333,18 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {connectGuide && (
+              <div className="bg-muted rounded-md p-3">
+                <p className="text-sm whitespace-pre-line">{connectGuide}</p>
+              </div>
+            )}
+
+            {probeStatus === 'unreachable' && probeError && (
+              <div className="bg-destructive/10 border-destructive/20 rounded-md border p-3">
+                <p className="text-destructive text-sm">{probeError}</p>
+              </div>
+            )}
+
             {entry.authType === 'oauth2' ? (
               <div className="flex flex-col items-center justify-center space-y-4 py-4">
                 <div className="bg-muted flex h-16 w-16 items-center justify-center rounded-2xl">

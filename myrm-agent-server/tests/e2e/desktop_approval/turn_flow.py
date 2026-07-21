@@ -9,7 +9,14 @@ import subprocess
 import urllib.error
 
 import pytest
-from cdp_chat_support import chat_id_from_path, chat_messages_have_done, chat_user_message_count, get_e2e_api_url
+from cdp_chat_support import (
+    chat_id_from_path,
+    chat_messages_have_done,
+    chat_user_message_count,
+    fetch_provider_readiness_snapshot,
+    get_e2e_api_url,
+    wait_e2e_provider_ready,
+)
 from mcp_chat_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import APPROVAL_CLICK_DEADLINE_SEC, BASE_URL, E2E_PROMPT, progress
@@ -490,13 +497,43 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
             """(() => {
               const bridge = window.__MYRM_E2E_CHAT__;
               bridge?.prepareAutomationSend?.();
-              return bridge?.debugProviderState?.() ?? null;
+              if (!bridge?.ensureProviders) {
+                return bridge?.debugProviderState?.() ?? null;
+              }
+              return Promise.resolve(bridge.ensureProviders()).then(
+                () => bridge.debugProviderState?.() ?? null,
+              );
             })()""",
-            await_promise=False,
+            await_promise=True,
+            recv_timeout=60.0,
         )
         progress(f"provider debug after sync: {sync_result}")
         if isinstance(sync_result, dict):
             provider_debug = sync_result
+    if isinstance(provider_debug, dict) and not provider_debug.get("enabledProviderIds"):
+        if not wait_e2e_provider_ready():
+            readiness = fetch_provider_readiness_snapshot()
+            pytest.fail(
+                "Provider store empty after E2E bridge sync — "
+                f"readiness={readiness} ui={provider_debug}"
+            )
+        resync = await chat.evaluate(
+            """(() => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              bridge?.prepareAutomationSend?.();
+              if (!bridge?.ensureProviders) return bridge?.debugProviderState?.() ?? null;
+              return Promise.resolve(bridge.ensureProviders()).then(
+                () => bridge.debugProviderState?.() ?? null,
+              );
+            })()""",
+            await_promise=True,
+            recv_timeout=60.0,
+        )
+        progress(f"provider debug after API-ready resync: {resync}")
+        if isinstance(resync, dict):
+            provider_debug = resync
+    if isinstance(provider_debug, dict) and not provider_debug.get("enabledProviderIds"):
+        pytest.fail(f"Provider still not enabled for send: {provider_debug}")
     chat_id = ""
     if isinstance(provider_debug, dict):
         chat_id = str(provider_debug.get("chatId") or "").strip()

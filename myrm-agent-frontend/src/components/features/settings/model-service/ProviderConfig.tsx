@@ -10,7 +10,9 @@ import {
   CredentialPoolStrategy,
   getLiteLLMModelName,
   BUILT_IN_PROVIDER_INFO,
+  hasUsableProviderAuth,
   normalizeApiUrl,
+  resolveProviderApiKeyForRequests,
   resolveCustomProviderTypeInfo,
 } from '@/store/config/providerTypes';
 import ApiKeyManager from './ApiKeyManager';
@@ -126,8 +128,8 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
   );
 
   const handleCheckReachability = useCallback(async () => {
-    const activeKey = provider.apiKeys?.find((k) => k.isActive);
-    if (!activeKey?.key) return;
+    const requestApiKey = resolveProviderApiKeyForRequests(provider);
+    if (!requestApiKey || !hasUsableProviderAuth(provider)) return;
 
     const probeModel = (provider.enabledModels ?? provider.availableModels ?? [])[0];
     if (!probeModel) return;
@@ -136,7 +138,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
     const modelFullName = getLiteLLMModelName(provider.id, probeModel, provider.providerType);
     const result = await checkModelReachability({
       model: modelFullName,
-      api_key: activeKey.key,
+      api_key: requestApiKey,
       base_url: normalizeApiUrl(provider.apiUrl) || null,
       model_kwargs: {},
     });
@@ -207,8 +209,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
       // 如果这是第一个启用的模型，自动启用提供商主开关
       if ((provider.enabledModels?.length ?? 0) === 0 && !provider.isEnabled) {
         // 检查是否满足启用条件
-        const activeKey = provider.apiKeys?.find((k) => k.isActive);
-        const canAutoEnable = !!activeKey;
+        const canAutoEnable = hasUsableProviderAuth(provider);
 
         if (canAutoEnable) {
           // await onToggleEnabled(true); // 避免自动开启主开关导致的404重定向
@@ -236,13 +237,14 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
     }
   };
 
-  const activeKey = provider.apiKeys?.find((k) => k.isActive);
+  const hasUsableAuth = hasUsableProviderAuth(provider);
+  const requestApiKey = resolveProviderApiKeyForRequests(provider);
   const hasEnabledModels = (provider.enabledModels?.length ?? 0) > 0;
-  const canEnable = !!activeKey && hasEnabledModels;
+  const canEnable = hasUsableAuth && hasEnabledModels;
 
   // 确定禁用原因
   let disabledReason: string | undefined;
-  if (!activeKey) {
+  if (!hasUsableAuth) {
     disabledReason = t('noActiveKey');
   } else if (!hasEnabledModels) {
     disabledReason = t('noEnabledModels');
@@ -318,7 +320,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
             onClick={handleCheckReachability}
             disabled={
               reachabilityState === 'checking' ||
-              !activeKey ||
+              !requestApiKey ||
               (provider.enabledModels ?? provider.availableModels ?? []).length === 0
             }
             className={cn(
@@ -326,7 +328,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
               reachabilityState === 'checking'
                 ? 'border-primary/30 text-primary cursor-wait'
                 : 'border-border/50 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5',
-              (!activeKey || (provider.enabledModels ?? provider.availableModels ?? []).length === 0) &&
+              (!requestApiKey || (provider.enabledModels ?? provider.availableModels ?? []).length === 0) &&
                 'opacity-40 cursor-not-allowed',
             )}
           >
@@ -383,14 +385,14 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">{t('models')}</h4>
-          {!activeKey && <span className="text-xs text-amber-500">{t('addKeyFirst')}</span>}
+          {!hasUsableAuth && <span className="text-xs text-amber-500">{t('addKeyFirst')}</span>}
         </div>
         <div className="p-5 bg-background/50 rounded-xl border border-border/50">
           <ModelCheckbox
             providerId={provider.id}
             providerType={provider.providerType}
             apiUrl={provider.apiUrl}
-            apiKey={activeKey?.key}
+            apiKey={requestApiKey}
             models={models}
             onAddModel={handleAddModel}
             onRemoveModel={handleRemoveModel}

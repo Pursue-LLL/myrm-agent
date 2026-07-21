@@ -669,3 +669,71 @@ async def registry_detail(
     except Exception as e:
         logger.error("MCP registry detail failed for %s: %s", qualified_name, e)
         raise external_service_error("MCP Registry", f"Detail lookup failed: {e}") from e
+
+
+# =============================================================================
+# Connection probe endpoint
+# =============================================================================
+
+
+class MCPProbeBody(BaseModel):
+    """Request body for probing an MCP endpoint reachability."""
+
+    url: str = Field(..., description="URL to probe (e.g. http://127.0.0.1:8000/mcp)")
+    timeout: float = Field(default=5.0, ge=1.0, le=15.0, description="Probe timeout in seconds")
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+class MCPProbeData(BaseModel):
+    """Result of an MCP connectivity probe."""
+
+    status: str = Field(..., description="reachable | unreachable | cloud_not_supported")
+    latency_ms: float | None = Field(default=None, description="Round-trip time if reachable")
+    error: str | None = Field(default=None, description="Human-readable error if unreachable")
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+@router.post("/probe", response_model=StandardSuccessResponse)
+@limiter.limit(settings.rate_limit.mcp_verify)
+async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONResponse:
+    """Probe a local MCP server URL for reachability before connecting.
+
+    Used by the Integration Catalog connect flow to provide specific
+    diagnostic feedback (e.g. "editor not running") instead of a generic error.
+
+    In cloud/sandbox deployments, probing localhost is not possible, so this
+    returns cloud_not_supported status.
+    """
+    _ = request
+    caps = get_deployment_capabilities()
+    if caps.is_sandbox_instance:
+        data = MCPProbeData(status="cloud_not_supported")
+        return success_response(data=data.model_dump(by_alias=True))
+
+    import time
+
+    import httpx
+
+    try:
+        start = time.monotonic()
+        async with httpx.AsyncClient(timeout=body.timeout, verify=False) as client:
+            resp = await client.get(body.url)
+            latency = (time.monotonic() - start) * 1000
+            # Any HTTP response (even 4xx/5xx) means the server is reachable
+            data = MCPProbeData(status="reachable", latency_ms=round(latency, 1))
+            return success_response(data=data.model_dump(by_alias=True))
+    except httpx.ConnectError:
+        data = MCPProbeData(status="unreachable", error="Connection refused — editor or MCP server not running")
+        return success_response(data=data.model_dump(by_alias=True))
+    except httpx.ConnectTimeout:
+        data = MCPProbeData(status="unreachable", error="Connection timed out — host unreachable")
+        return success_response(data=data.model_dump(by_alias=True))
+    except Exception as e:
+        data = MCPProbeData(status="unreachable", error=str(e))
+        return success_response(data=data.model_dump(by_alias=True))

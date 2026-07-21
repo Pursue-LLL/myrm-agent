@@ -20,7 +20,8 @@ import type { SearchServiceType } from '@/store/config/types';
 import { IconArrowRight, IconCheck, IconCpu, IconGlobe, IconLoader, IconZap } from '@/components/features/icons/PremiumIcons';
 import SearxngInstallConsentDialog from '@/components/features/settings/SearxngInstallConsentDialog';
 import HardwareCookbook from '@/components/features/settings/model-service/HardwareCookbook';
-import { hasUsableProviderAuth } from '@/store/config/providerTypes';
+import { hasUsableProviderAuth, isLoopbackApiUrl } from '@/store/config/providerTypes';
+import { discoverModelsFromEndpoint } from '@/services/llm-config';
 
 interface LocalCapabilitiesSetupProps {
   probeResult: ProbeLocalResponse | null;
@@ -32,6 +33,8 @@ const CLOUD_PROVIDERS = [
   { id: 'siliconflow', nameKey: 'cloudProviderSiliconFlow', hintKey: 'cloudProviderSiliconFlowHint' },
   { id: 'openrouter', nameKey: 'cloudProviderOpenRouter', hintKey: 'cloudProviderOpenRouterHint' },
 ] as const;
+const LOCAL_OPENAI_COMPAT_PROVIDER_NAME = 'Local OpenAI Compatible';
+const LOCAL_OPENAI_COMPAT_PROVIDER_ID = 'local_openai_compatible';
 
 export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onComplete }: LocalCapabilitiesSetupProps) {
   const t = useTranslations('chat.localCapabilities');
@@ -44,9 +47,19 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
   const [activatingSearch, setActivatingSearch] = useState(false);
   const [startingSearxng, setStartingSearxng] = useState(false);
   const [searxngConsentOpen, setSearxngConsentOpen] = useState(false);
+  const [customApiUrl, setCustomApiUrl] = useState('');
+  const [customApiKey, setCustomApiKey] = useState('');
+  const [customProbeLoading, setCustomProbeLoading] = useState(false);
+  const [customActivateLoading, setCustomActivateLoading] = useState(false);
+  const [customProbeError, setCustomProbeError] = useState<string | null>(null);
+  const [customDetectedModels, setCustomDetectedModels] = useState<string[]>([]);
+  const [customSelectedModel, setCustomSelectedModel] = useState('');
+  const [customNormalizedApiUrl, setCustomNormalizedApiUrl] = useState('');
+  const [customNoAuthLocal, setCustomNoAuthLocal] = useState(false);
   const autoEnabledSearxngRef = useRef(false);
 
   const providers = useProviderStore((s) => s.providers);
+  const addProvider = useProviderStore((s) => s.addProvider);
   const updateProvider = useProviderStore((s) => s.updateProvider);
   const setBaseModel = useProviderStore((s) => s.setBaseModel);
   const setLiteModel = useProviderStore((s) => s.setLiteModel);
@@ -147,6 +160,106 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
     router.push('/settings/models');
   }, [router]);
 
+  const ensureLocalOpenAICompatProvider = useCallback(() => {
+    const existing = useProviderStore.getState().providers.find((p) => p.id === LOCAL_OPENAI_COMPAT_PROVIDER_ID);
+    if (existing) return existing.id;
+    addProvider(LOCAL_OPENAI_COMPAT_PROVIDER_NAME, 'openai-like');
+    const created = useProviderStore.getState().providers.find((p) => p.id === LOCAL_OPENAI_COMPAT_PROVIDER_ID);
+    if (!created) {
+      throw new Error('Failed to create local OpenAI-compatible provider');
+    }
+    return created.id;
+  }, [addProvider]);
+
+  const handleProbeCustomEndpoint = useCallback(async () => {
+    const url = customApiUrl.trim();
+    if (!url) {
+      setCustomProbeError('Please enter API URL');
+      return;
+    }
+
+    setCustomProbeLoading(true);
+    setCustomProbeError(null);
+    try {
+      const result = await discoverModelsFromEndpoint(url, customApiKey.trim() || undefined);
+      if (!result.success) {
+        setCustomDetectedModels([]);
+        setCustomSelectedModel('');
+        setCustomNormalizedApiUrl(result.normalized_api_url || url);
+        setCustomNoAuthLocal(false);
+        setCustomProbeError(result.error || 'Failed to detect models from this endpoint');
+        return;
+      }
+
+      const models = (result.models ?? []).filter(Boolean);
+      if (models.length === 0) {
+        setCustomDetectedModels([]);
+        setCustomSelectedModel('');
+        setCustomNormalizedApiUrl(result.normalized_api_url || url);
+        setCustomNoAuthLocal(Boolean(result.no_auth_local));
+        setCustomProbeError('Endpoint is reachable but returned no models');
+        return;
+      }
+
+      setCustomDetectedModels(models);
+      setCustomSelectedModel((prev) => (prev && models.includes(prev) ? prev : models[0]));
+      setCustomNormalizedApiUrl(result.normalized_api_url || url);
+      setCustomNoAuthLocal(Boolean(result.no_auth_local));
+      toast.success(`Detected ${models.length} model(s)`);
+    } catch (error) {
+      setCustomDetectedModels([]);
+      setCustomSelectedModel('');
+      setCustomNoAuthLocal(false);
+      setCustomProbeError(error instanceof Error ? error.message : 'Failed to probe endpoint');
+    } finally {
+      setCustomProbeLoading(false);
+    }
+  }, [customApiKey, customApiUrl]);
+
+  const handleActivateCustomEndpoint = useCallback(async () => {
+    if (!customSelectedModel || !customNormalizedApiUrl) {
+      setCustomProbeError('Please detect models first');
+      return;
+    }
+
+    setCustomActivateLoading(true);
+    try {
+      const providerId = ensureLocalOpenAICompatProvider();
+      const current = useProviderStore.getState().providers.find((p) => p.id === providerId);
+      const mergedModels = Array.from(new Set([...(current?.availableModels ?? []), ...customDetectedModels]));
+      const key = customApiKey.trim();
+      updateProvider(providerId, {
+        apiUrl: customNormalizedApiUrl,
+        availableModels: mergedModels,
+        enabledModels: [customSelectedModel],
+        isEnabled: true,
+        apiKeys: key
+          ? [{ id: `${providerId}_onboarding`, key, remark: 'Onboarding endpoint key', isActive: true }]
+          : [],
+      });
+
+      const selection = { providerId, model: customSelectedModel };
+      setBaseModel(selection);
+      setLiteModel(selection);
+      toast.success(tModel('useModel', { model: customSelectedModel.split(':')[0] }));
+    } catch {
+      toast.error(t('modelActivateFailed'));
+    } finally {
+      setCustomActivateLoading(false);
+    }
+  }, [
+    customApiKey,
+    customDetectedModels,
+    customNormalizedApiUrl,
+    customSelectedModel,
+    ensureLocalOpenAICompatProvider,
+    setBaseModel,
+    setLiteModel,
+    t,
+    tModel,
+    updateProvider,
+  ]);
+
   const availableModel = probeResult?.results?.find((r) => r.available && r.models.length > 0);
   const recommendedModel = probeResult?.recommended_model;
 
@@ -194,6 +307,77 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
 
       {!hasEnabledProvider && (
         <HardwareCookbook onApplyModel={handleApplyCookbookModel} />
+      )}
+
+      {!hasEnabledProvider && (
+        <div className="p-4 rounded-xl border bg-card space-y-4">
+          <div className="space-y-1">
+            <span className="text-base font-semibold">OpenAI-compatible local endpoint</span>
+            <span className="block text-sm text-muted-foreground">
+              Paste your local endpoint to auto-detect models and finish setup in one step.
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-xs text-muted-foreground">API URL</span>
+              <input
+                value={customApiUrl}
+                onChange={(e) => setCustomApiUrl(e.target.value)}
+                placeholder="http://127.0.0.1:8899/v1"
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs text-muted-foreground">API Key (optional for localhost)</span>
+              <input
+                value={customApiKey}
+                onChange={(e) => setCustomApiKey(e.target.value)}
+                placeholder="sk-..."
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+          {isLoopbackApiUrl(customApiUrl) && (
+            <p className="text-xs text-muted-foreground">
+              Localhost endpoints can leave API key empty; cloud or remote endpoints still require a key.
+            </p>
+          )}
+          {customNoAuthLocal && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              Local no-auth mode detected. This endpoint will be used without storing an API key.
+            </p>
+          )}
+          {customProbeError && <p className="text-xs text-destructive">{customProbeError}</p>}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={handleProbeCustomEndpoint} disabled={customProbeLoading}>
+              {customProbeLoading ? <IconLoader className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Detect Models
+            </Button>
+            {customDetectedModels.length > 0 && (
+              <>
+                <select
+                  value={customSelectedModel}
+                  onChange={(e) => setCustomSelectedModel(e.target.value)}
+                  className="h-10 min-w-[220px] rounded-lg border bg-background px-3 text-sm"
+                >
+                  {customDetectedModels.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+                <Button onClick={handleActivateCustomEndpoint} disabled={customActivateLoading}>
+                  {customActivateLoading ? (
+                    <IconLoader className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <IconCheck className="mr-2 h-4 w-4" />
+                  )}
+                  Use {customSelectedModel}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {!hasEnabledProvider && !availableModel && (

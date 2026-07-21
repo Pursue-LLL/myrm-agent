@@ -23,6 +23,8 @@ export interface CatalogEntry {
   tags: string[];
   website: string | null;
   mcpConfig: Record<string, unknown> | null;
+  postConnectGuide: string | null;
+  postConnectGuideZh: string | null;
 }
 
 export interface CatalogResponse {

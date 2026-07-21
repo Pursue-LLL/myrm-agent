@@ -52,6 +52,46 @@ class TestCatalogModels:
         assert config.name == "test-mcp"
         assert config.type == "stdio"
         assert config.args == ["-y", "test-server"]
+        assert config.host_serial is False
+        assert config.keepalive_interval is None
+        assert config.probe_url is None
+        assert config.post_connect_guide is None
+        assert config.post_connect_guide_zh is None
+
+    def test_mcp_preconfig_with_host_serial(self) -> None:
+        config = MCPPreConfig(
+            name="ue",
+            type="streamable_http",
+            url="http://127.0.0.1:8000/mcp",
+            description="UE MCP",
+            host_serial=True,
+            keepalive_interval=30.0,
+            probe_url="http://127.0.0.1:8000/mcp",
+            post_connect_guide="Enable the plugin",
+            post_connect_guide_zh="启用插件",
+        )
+        assert config.host_serial is True
+        assert config.keepalive_interval == 30.0
+        assert config.probe_url == "http://127.0.0.1:8000/mcp"
+        assert config.post_connect_guide == "Enable the plugin"
+        assert config.post_connect_guide_zh == "启用插件"
+
+    def test_mcp_preconfig_camel_serialization(self) -> None:
+        config = MCPPreConfig(
+            name="blender",
+            type="sse",
+            url="http://127.0.0.1:9876/sse",
+            host_serial=True,
+            keepalive_interval=30.0,
+            probe_url="http://127.0.0.1:9876/sse",
+            post_connect_guide="Start MCP server",
+        )
+        dumped = config.model_dump(by_alias=True, exclude_none=True)
+        assert "hostSerial" in dumped
+        assert "keepaliveInterval" in dumped
+        assert "probeUrl" in dumped
+        assert "postConnectGuide" in dumped
+        assert dumped["hostSerial"] is True
 
     def test_openapi_preconfig(self) -> None:
         config = OpenAPIPreConfig(
@@ -241,3 +281,38 @@ class TestCatalogRegistry:
         assert any(e.id == "tencent-docs" for e in results)
         results = registry.search("企查查")
         assert any(e.id == "qichacha" for e in results)
+
+    def test_unreal_engine_entry(self, registry: CatalogRegistry) -> None:
+        """Unreal Engine entry must exist with correct host_serial config."""
+        entry = registry.get_by_id("unreal-engine")
+        assert entry is not None
+        assert entry.name == "Unreal Engine"
+        assert entry.category == "design"
+        assert entry.auth.type == AuthType.NONE
+        assert entry.mcp_config is not None
+        assert entry.mcp_config.type == "streamable_http"
+        assert entry.mcp_config.host_serial is True
+        assert entry.mcp_config.keepalive_interval == 30.0
+        assert entry.mcp_config.probe_url == "http://127.0.0.1:8000/mcp"
+        assert entry.mcp_config.post_connect_guide is not None
+        assert entry.mcp_config.post_connect_guide_zh is not None
+
+    def test_blender_entry(self, registry: CatalogRegistry) -> None:
+        """Blender entry must exist with correct host_serial config."""
+        entry = registry.get_by_id("blender")
+        assert entry is not None
+        assert entry.name == "Blender"
+        assert entry.category == "design"
+        assert entry.auth.type == AuthType.NONE
+        assert entry.mcp_config is not None
+        assert entry.mcp_config.type == "sse"
+        assert entry.mcp_config.host_serial is True
+        assert entry.mcp_config.keepalive_interval == 30.0
+        assert entry.mcp_config.probe_url == "http://127.0.0.1:9876/sse"
+        assert entry.mcp_config.post_connect_guide is not None
+
+    def test_design_category_has_three_entries(self, registry: CatalogRegistry) -> None:
+        """Design category must have at least Figma, Unreal Engine, and Blender."""
+        design = registry.list_by_category("design")
+        ids = {e.id for e in design}
+        assert {"figma", "unreal-engine", "blender"}.issubset(ids)
