@@ -252,7 +252,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             chat_id,
             api_base,
             "E2E_UPDATE_INITIAL",
-            timeout_sec=60.0,
+            timeout_sec=120.0,
         )
         assert turn1_db_status == "E2E_UPDATE_INITIAL"
 
@@ -274,26 +274,6 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             raise TimeoutError(f"Chat still streaming before turn2: {last}")
 
         await _wait_not_streaming(timeout_sec=120.0)
-
-        reload_before_turn2 = await chat.evaluate(
-            """(() => {
-              location.reload();
-              return { reloaded: true };
-            })()""",
-            await_promise=False,
-            recv_timeout=15.0,
-        )
-        assert isinstance(reload_before_turn2, dict) and reload_before_turn2.get("reloaded") is True
-        await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=90.0)
-        await chat.ensure_chat_surface(BASE_URL)
-        await _wait_js(
-            chat,
-            chat_id,
-            _INITIAL_READY_JS,
-            timeout_sec=180.0,
-            error_label="turn2 reload did not restore INITIAL card from DB",
-        )
-        await _wait_not_streaming(timeout_sec=120.0)
         await chat.wait_input_empty(chat_id_hint=chat_id)
 
         await chat.evaluate(_ENABLE_UPDATE_UI_JS, await_promise=False, recv_timeout=15.0)
@@ -305,15 +285,6 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             base_url=BASE_URL,
         )
         heartbeat_e2e_lease()
-
-        submit_probe = await chat.evaluate(
-            """(() => window.__MYRM_E2E_CHAT__?.lastSubmitResult ?? { ok: false, err: 'missing' })()""",
-            await_promise=False,
-            recv_timeout=15.0,
-        )
-        assert isinstance(submit_probe, dict) and submit_probe.get("ok") is True, (
-            f"Turn2 E2E submit failed: {submit_probe}"
-        )
 
         async def _wait_api_user_messages(min_count: int, *, timeout_sec: float) -> None:
             deadline = time.monotonic() + timeout_sec

@@ -31,11 +31,27 @@ const CAPABILITY_DEFS = [
   { id: 'code_interpreter_tool', icon: Code },
 ] as const;
 
+/** SSOT: keep aligned with server `blueprints.py` `_CAP_*` / `_TOOLS_*`. */
+const BLUEPRINT_EXECUTION_POLICY = {
+  web: {
+    caps: ['web_search_tool', 'net_fetch'],
+    capsSorted: ['net_fetch', 'web_search_tool'],
+    tools: ['web_search'] as BuiltinToolId[],
+    toolsSorted: ['web_search'],
+  },
+  research: {
+    caps: ['web_search_tool', 'net_fetch', 'file_read'],
+    capsSorted: ['file_read', 'net_fetch', 'web_search_tool'],
+    tools: ['web_search', 'file_ops'] as BuiltinToolId[],
+    toolsSorted: ['file_ops', 'web_search'],
+  },
+} as const;
+
 const CAPABILITY_PRESETS = [
   {
     key: 'research',
-    caps: ['web_search_tool', 'net_fetch', 'file_read'],
-    sorted: ['file_read', 'net_fetch', 'web_search_tool'],
+    caps: [...BLUEPRINT_EXECUTION_POLICY.research.caps],
+    sorted: [...BLUEPRINT_EXECUTION_POLICY.research.capsSorted],
   },
   {
     key: 'devops',
@@ -51,13 +67,19 @@ const CRON_BUILTIN_TOOL_IDS = BUILTIN_TOOL_IDS.filter((id) => id !== 'cron') as 
 const CRON_TOOL_IDS = ['file_ops', 'code_execute', ...CRON_BUILTIN_TOOL_IDS] as const;
 
 const TOOL_PRESETS = [
-  { key: 'webOnly', tools: ['web_search'] as BuiltinToolId[], sorted: ['web_search'] },
+  {
+    key: 'webOnly',
+    caps: [...BLUEPRINT_EXECUTION_POLICY.web.caps],
+    tools: [...BLUEPRINT_EXECUTION_POLICY.web.tools],
+    sorted: [...BLUEPRINT_EXECUTION_POLICY.web.toolsSorted],
+  },
   {
     key: 'research',
-    tools: ['web_search', 'memory', 'wiki'] as BuiltinToolId[],
-    sorted: ['memory', 'web_search', 'wiki'],
+    caps: [...BLUEPRINT_EXECUTION_POLICY.research.caps],
+    tools: [...BLUEPRINT_EXECUTION_POLICY.research.tools],
+    sorted: [...BLUEPRINT_EXECUTION_POLICY.research.toolsSorted],
   },
-  { key: 'full', tools: [] as BuiltinToolId[], sorted: [] as string[] },
+  { key: 'full', caps: [] as string[], tools: [] as BuiltinToolId[], sorted: [] as string[] },
 ] as const;
 
 function sortedEqual(a: readonly string[], b: readonly string[]): boolean {
@@ -168,14 +190,18 @@ export function CapabilityEditor({ job, onUpdated }: EditorProps) {
         </div>
         <p className="text-[11px] text-muted-foreground">{t('toolsAllowedDesc')}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {TOOL_PRESETS.map(({ key, tools, sorted }) => {
-            const isActive = sortedEqual(sorted, localTools);
+          {TOOL_PRESETS.map(({ key, caps, tools, sorted }) => {
+            const isActive =
+              sortedEqual(sorted, localTools) && sortedEqual(caps, localCaps);
             return (
               <button
                 key={key}
                 type="button"
                 disabled={saving}
-                onClick={() => setLocalTools([...tools])}
+                onClick={() => {
+                  setLocalTools([...tools]);
+                  setLocalCaps([...caps]);
+                }}
                 className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
                   isActive
                     ? 'bg-primary/10 text-primary border-primary/40'

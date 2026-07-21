@@ -31,6 +31,7 @@ import {
   isSourceItems,
   isSkillSelectItems,
   isFilePathItems,
+  isSearchToolItems,
   isCodeItems,
   inferStageLabel,
   linkifyErrorText,
@@ -43,6 +44,7 @@ import {
   SourcesRenderer,
   SkillSelectRenderer,
   FilePathRenderer,
+  SearchToolCard,
   CodeRenderer,
   LiveTerminal,
 } from './renderers';
@@ -342,6 +344,14 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                   )}
                   {isFilePathItems(step.items) && (
                     <FilePathRenderer items={step.items} messageId={messageId} stepIndex={index} />
+                  )}
+                  {isSearchToolItems(step.items) && (
+                    <SearchToolCard
+                      items={step.items}
+                      toolName={step.tool_name}
+                      messageId={messageId}
+                      stepIndex={index}
+                    />
                   )}
                   {isCodeItems(step.items) && (
                     <CodeRenderer items={step.items} messageId={messageId} stepIndex={index} />

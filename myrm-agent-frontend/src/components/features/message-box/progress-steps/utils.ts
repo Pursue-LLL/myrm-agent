@@ -91,6 +91,16 @@ export const isFilePathItems = (items: unknown): items is FilePathItem[] => {
   return Array.isArray(items) && items.length > 0 && typeof items[0]?.file_path === 'string';
 };
 
+export interface SearchToolItem {
+  pattern: string;
+  search_path?: string;
+  file_pattern?: string;
+}
+
+export const isSearchToolItems = (items: unknown): items is SearchToolItem[] => {
+  return Array.isArray(items) && items.length > 0 && typeof items[0]?.pattern === 'string';
+};
+
 // 代码项类型定义
 export interface CodeItem {
   code: string;

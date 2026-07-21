@@ -19,7 +19,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
-| `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×3：看板渲染 + source_chat 深链过滤 + Drawer 附件） |
+| `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×4：看板渲染 + source_chat 深链过滤 + Drawer 附件 + Chat 成功卡片→看板） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
 | `e2e/test_memory_citations_chrome_e2e.py` | 模块 | Memory Chrome MCP E2E（READ×2：设置「历史会话搜索」开关；统一「依据/Evidence N」Sheet） |
 | `e2e/test_voice_memory_acl_chrome_e2e.py` | 模块 | Voice memory ACL Chrome MCP E2E（READ×2：`/settings/memory` UI 开/关「历史会话搜索」→ `GET /config/personalSettings` 断言；token corpus 由 HTTP 集成测覆盖） |
@@ -34,6 +34,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_subagent_dashboard_chrome_e2e.py` | 模块 | Subagent Dashboard Chrome MCP E2E（LIVE×3：cancel running、delegation pause toggle、SSE token/model 展示） |
 | `services/agent/test_subagent_rebind_event.py` | 模块 | `SUBAGENT_REBIND_REQUIRED` 事件：`subagent_ids` 变更时 publish、同值/非绑定字段不 emit |
 | `api/chats/test_citation_seed_fixture.py` | 模块 | citation fixture seed HTTP 单测（local-only，`/chats/test/seed-citation-fixture`） |
+| `api/chats/test_kanban_closure_seed_fixture.py` | 模块 | Kanban closure fixture seed HTTP 单测（`/chats/test/seed-kanban-closure-fixture`） |
+| `api/chats/test_kanban_closure_seed_integration.py` | 模块 | Kanban closure seed 真 DB 集成（metadata + board task） |
 | `api/chats/test_citation_seed_integration.py` | 模块 | citation seed → GET messages 集成单测（真 DB metadata） |
 | `integration/test_kanban_attach_handler_integration.py` | 模块 | SQLite attach handler + orchestrator unblock tool invoke |
 | `services/kanban/test_kanban_attach_handler.py` | 模块 | attach handler 单测（path/URL/SSRF/limits） |
@@ -67,7 +69,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - 单元 + API 集成：monorepo **`./myrm test -n0`**（单 worker；实测 `build_minimal_app(chats)` ~118MB，`app.main` ~439MB）
 - E2E（真实 LLM API，无 Chrome）：monorepo **`./myrm test -m e2e`**（`test.sh` 对非 chrome 路径自动设 `MYRM_E2E_LEASE_ID`；如 `tests/api/agent/test_kanban_agent_stream_e2e.py`）
 - **Chrome MCP UI E2E（`chrome_e2e` marker）**：monorepo **`./myrm test -m chrome_e2e -n0`**（须 `./myrm ready --chrome`；Wave lease；见 `scripts/dev/CHROME_MCP_E2E.md`）
-- **Kanban Chrome E2E**：`tests/e2e/test_kanban_chrome_e2e.py`（READ lane ×3：看板列渲染 + `?source_chat=` 深链过滤 + REST `attachment_ids` → Drawer 附件可见）
+- **Kanban Chrome E2E**：`tests/e2e/test_kanban_chrome_e2e.py`（READ lane ×4：看板列渲染 + `?source_chat=` 深链过滤 + REST `attachment_ids` → Drawer 附件 + Chat `KanbanTaskCreatedCard` →  filtered board）
 - **Wiki citation Chrome E2E**：`tests/e2e/test_wiki_citation_chrome_e2e.py`（READ lane ×2：`/chats/test/seed-citation-fixture` → citation 按钮 reload 持久；`/settings/wiki?agentId=` combobox）。Settings 用例先 `warm_ui_route` HTTP 编译再 Chrome 导航（webpack 冷启）。READ 使用共享 `:8080`（`conftest.py:244-251` `private_backend=False` 时 yield 共享 stack）；**新增 server 路由后须 `./myrm restart` 再跑 chrome e2e**；wave pin 阻塞 restart 时用 **`./myrm isolate <id> ready --chrome`** + `E2E_API_BASE`/`E2E_UI_BASE`。
 - **Memory citations Chrome E2E**：`tests/e2e/test_memory_citations_chrome_e2e.py`（READ lane ×2：`/settings/memory` 开「历史会话搜索」；聊天页注入 citations → 「依据/Evidence N」Sheet）。并行 attach 若 mux timeout drift，须 `MYRM_MUX_ALLOW_TIMEOUT_RESTART=1`（见 `chrome-e2e-preflight.sh` attach heal）。
 - **Voice memory ACL Chrome E2E**：`tests/e2e/test_voice_memory_acl_chrome_e2e.py`（READ lane ×2：Settings UI 开/关 memory+sessions → `personalSettings` API 断言；**不依赖** Providers Google key；corpus enum / tool-exec flags 见 `test_voice_memory_acl_api_integration.py`）。

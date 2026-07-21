@@ -5,5 +5,6 @@ export { default as URLItemsRenderer } from './URLItemsRenderer';
 export { default as SourcesRenderer } from './SourcesRenderer';
 export { default as SkillSelectRenderer } from './SkillSelectRenderer';
 export { default as FilePathRenderer } from './FilePathRenderer';
+export { default as SearchToolCard } from './SearchToolCard';
 export { default as CodeRenderer } from './CodeRenderer';
 export { LiveTerminal } from './LiveTerminal';

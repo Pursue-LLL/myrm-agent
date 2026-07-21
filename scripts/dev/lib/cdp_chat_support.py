@@ -198,6 +198,16 @@ PREPARE_AUTOMATION_SEND_JS = """
 })()
 """.strip()
 
+COUNT_DOM_USER_MESSAGES_JS = """
+(() => {
+  const main = document.querySelector('main');
+  const assistantCount =
+    main?.querySelectorAll('[data-test-id="assistant-message"]')?.length || 0;
+  const allWithId = main?.querySelectorAll('[data-message-id]')?.length || 0;
+  return Math.max(0, allWithId - assistantCount);
+})()
+""".strip()
+
 
 def _api_provider_ready() -> bool:
     try:

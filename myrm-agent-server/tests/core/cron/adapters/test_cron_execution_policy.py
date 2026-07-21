@@ -60,6 +60,14 @@ class TestLifecycleGuard:
         with pytest.raises(ValueError, match="lifecycle commands"):
             assert_cron_job_lifecycle_safe(prompt=None, command="./myrm stop")
 
+    def test_assert_rejects_restart_in_pre_condition(self) -> None:
+        with pytest.raises(ValueError, match="pre_condition_script"):
+            assert_cron_job_lifecycle_safe(
+                prompt=None,
+                command=None,
+                pre_condition_script='import os; os.system("./myrm restart")',
+            )
+
 
 class TestToolsPolicy:
     def test_normalize_strips_cron(self) -> None:
@@ -156,6 +164,20 @@ class TestCronExecutionPolicyApi:
         assert resp.status_code == 400
         assert "lifecycle" in resp.json()["detail"].lower()
 
+    def test_create_rejects_myrm_restart_pre_condition(self, guarded_cron_client: TestClient) -> None:
+        resp = guarded_cron_client.post(
+            "/cron",
+            json={
+                "name": "Bad probe job",
+                "job_type": "agent",
+                "schedule": {"kind": "cron", "expr": "0 9 * * *"},
+                "prompt": "Check status",
+                "pre_condition_script": 'import os; os.system("./myrm restart")',
+            },
+        )
+        assert resp.status_code == 400
+        assert "lifecycle" in resp.json()["detail"].lower()
+
     def test_patch_tools_allowed_roundtrip(self, guarded_cron_client: TestClient) -> None:
         create_resp = guarded_cron_client.post(
             "/cron",
@@ -180,3 +202,23 @@ class TestCronExecutionPolicyApi:
         clear_resp = guarded_cron_client.patch(f"/cron/{job_id}", json={"tools_allowed": []})
         assert clear_resp.status_code == 200
         assert clear_resp.json()["tools_allowed"] == []
+
+    def test_patch_rejects_myrm_restart_pre_condition(self, guarded_cron_client: TestClient) -> None:
+        create_resp = guarded_cron_client.post(
+            "/cron",
+            json={
+                "name": "Probe job",
+                "job_type": "agent",
+                "schedule": {"kind": "cron", "expr": "0 8 * * *"},
+                "prompt": "Check inbox",
+            },
+        )
+        assert create_resp.status_code == 201
+        job_id = create_resp.json()["id"]
+
+        patch_resp = guarded_cron_client.patch(
+            f"/cron/{job_id}",
+            json={"pre_condition_script": 'import os; os.system("./myrm restart")'},
+        )
+        assert patch_resp.status_code == 400
+        assert "lifecycle" in patch_resp.json()["detail"].lower()

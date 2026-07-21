@@ -6706,6 +6706,12 @@
     "legend": "图例"
   },
   "progressSteps": {
+    "searchTool": {
+      "globLabel": "文件搜索",
+      "grepLabel": "内容搜索",
+      "path": "路径",
+      "filePattern": "文件"
+    },
     "task": "任务步骤",
     "diagnosticHint": "诊断建议",
     "planning_task": "规划任务",
@@ -9072,6 +9078,7 @@
     "triggerFail": "触发失败",
     "pauseSuccess": "任务「{name}」已暂停",
     "resumeSuccess": "任务「{name}」已恢复",
+    "resumeBlocked": "无法恢复（已过期或达到上限）",
     "deleteSuccess": "任务「{name}」已删除",
     "actionFail": "操作失败",
     "duplicate": "复制",
@@ -11278,6 +11285,7 @@
     "revertFiles": "撤销文件变更",
     "revertConfirm": "撤销这些变更？",
     "revertClickAgain": "再次点击确认",
+    "revertViewDiff": "查看 diff",
     "revertSession": "撤销所有文件变更",
     "revertSessionConfirm": "撤销本次会话中 AI 的所有文件变更？",
     "revertSessionDesc": "将恢复 {count} 个文件到原始状态。",

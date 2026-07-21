@@ -13,7 +13,11 @@ from mcp_chat_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import APPROVAL_CLICK_DEADLINE_SEC, BASE_URL, E2E_PROMPT, progress
 from tests.e2e.desktop_approval.gate_probe import ensure_interact_gate
-from tests.e2e.desktop_approval.textedit_fixture import ensure_textedit_fixture_ready
+from tests.e2e.desktop_approval.textedit_fixture import (
+    activate_textedit_foreground,
+    ensure_textedit_fixture_ready,
+    hide_textedit_fixture,
+)
 from tests.e2e.desktop_approval.trust_api import (
     desktop_trust_revoke_selector_js,
     fetch_pending_approval_request_ids,
@@ -85,14 +89,7 @@ async def wait_stream_done_with_marker(
                     f"matched={probe.get('matched')} sample_len={len(sample)}"
                 )
             chat_id = str(probe.get("chatId") or chat_id_hint or "").strip()
-            if (
-                chat_id
-                and int(probe.get("userCount") or 0) >= 1
-                and not probe.get("isStreaming")
-                and probe.get("matched")
-            ):
-                return {**probe, "chatId": chat_id}
-            if chat_id and not probe.get("isStreaming"):
+            if chat_id:
                 api_has_done = await asyncio.to_thread(
                     chat_messages_have_done,
                     chat_id,
@@ -103,8 +100,15 @@ async def wait_stream_done_with_marker(
                         **probe,
                         "chatId": chat_id,
                         "matched": True,
-                        "mode": "post-approval-api-done",
+                        "mode": "api-done",
                     }
+            if (
+                chat_id
+                and int(probe.get("userCount") or 0) >= 1
+                and not probe.get("isStreaming")
+                and probe.get("matched")
+            ):
+                return {**probe, "chatId": chat_id}
             if (
                 not nudged_done
                 and poll >= 15
@@ -405,13 +409,35 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     assert tools_setup.get("ok") is True, f"computer_use bridge failed: {tools_setup}"
     assert "computer_use" in (tools_setup.get("tools") or []), tools_setup
 
+    provider_debug = await chat.evaluate(
+        """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
+        await_promise=False,
+    )
+    progress(f"provider debug before send: {provider_debug}")
+    chat_id = ""
+    if isinstance(provider_debug, dict):
+        chat_id = str(provider_debug.get("chatId") or "").strip()
+
     heartbeat_e2e_lease()
-    progress("send agent prompt (textedit stays minimized; no focus loop)")
-    await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+    progress("send agent prompt (Chrome foreground for CDP submit)")
+    send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+    progress(f"send result: {send_result.get('submit', send_result)}")
+    started = send_result.get("started")
+    submit = send_result.get("submit")
+    if isinstance(started, dict):
+        chat_id = str(started.get("chatId") or chat_id or "").strip()
+    if isinstance(submit, dict):
+        chat_id = str(submit.get("chatId") or chat_id or "").strip()
+    progress("activate TextEdit foreground for AX snapshot @drefs")
+    await asyncio.to_thread(activate_textedit_foreground)
     heartbeat_e2e_lease()
 
     progress("wait desktop tool activity")
-    tool_activity, last_tool, server_pending, ui_pending = await ensure_interact_gate(chat)
+    tool_activity, last_tool, server_pending, ui_pending = await ensure_interact_gate(
+        chat,
+        chat_id=chat_id,
+        textedit_foreground=True,
+    )
     progress(
         f"post-wait lastTool={last_tool} server_pending={server_pending} ui_pending={ui_pending}"
     )

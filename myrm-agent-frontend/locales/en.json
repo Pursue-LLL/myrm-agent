@@ -6706,6 +6706,12 @@
     "legend": "Legend"
   },
   "progressSteps": {
+    "searchTool": {
+      "globLabel": "File search",
+      "grepLabel": "Content search",
+      "path": "Path",
+      "filePattern": "Files"
+    },
     "task": "Task Steps",
     "diagnosticHint": "Diagnostic Hint",
     "planning_task": "Planning task",
@@ -9072,6 +9078,7 @@
     "triggerFail": "Trigger failed",
     "pauseSuccess": "Task \"{name}\" paused",
     "resumeSuccess": "Task \"{name}\" resumed",
+    "resumeBlocked": "Cannot resume (expired or limit reached)",
     "deleteSuccess": "Task \"{name}\" deleted",
     "actionFail": "Action failed",
     "duplicate": "Duplicate",
@@ -11278,6 +11285,7 @@
     "revertFiles": "Undo file changes",
     "revertConfirm": "Undo these changes?",
     "revertClickAgain": "Click again to confirm",
+    "revertViewDiff": "View diff",
     "revertSession": "Undo all file changes",
     "revertSessionConfirm": "Undo all AI file changes in this session?",
     "revertSessionDesc": "{count} file(s) will be restored to their original state.",

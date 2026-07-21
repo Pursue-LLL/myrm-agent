@@ -90,7 +90,11 @@ class EntitlementGuardedCronManager:
         from app.core.cron.adapters.lifecycle_guard import assert_cron_job_lifecycle_safe
         from app.core.cron.adapters.tools_policy import normalize_cron_tools_allowed
 
-        assert_cron_job_lifecycle_safe(prompt=prompt, command=command)
+        assert_cron_job_lifecycle_safe(
+            prompt=prompt,
+            command=command,
+            pre_condition_script=pre_condition_script,
+        )
         await self._enforce_slot(user_id)
         normalized_tools = normalize_cron_tools_allowed(tools_allowed) if tools_allowed else None
         return await self._inner.create_job(
@@ -135,7 +139,16 @@ class EntitlementGuardedCronManager:
         if existing:
             next_prompt = existing.prompt if patch.prompt is None else patch.prompt
             next_command = existing.command if patch.command is None else patch.command
-            assert_cron_job_lifecycle_safe(prompt=next_prompt, command=next_command)
+            next_pre_condition = existing.pre_condition_script
+            if patch.clear_pre_condition_script:
+                next_pre_condition = None
+            elif patch.pre_condition_script is not None:
+                next_pre_condition = patch.pre_condition_script
+            assert_cron_job_lifecycle_safe(
+                prompt=next_prompt,
+                command=next_command,
+                pre_condition_script=next_pre_condition,
+            )
 
         if patch.clear_tools_allowed:
             patch = replace(patch, tools_allowed=None)

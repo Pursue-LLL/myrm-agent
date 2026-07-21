@@ -84,6 +84,7 @@ export default function CronSection() {
       {view === 'history' && selectedJob && (
         <CronRunHistory
           job={selectedJob}
+          onJobUpdated={setSelectedJob}
           onBack={() => {
             setSelectedJob(null);
             setView('list');

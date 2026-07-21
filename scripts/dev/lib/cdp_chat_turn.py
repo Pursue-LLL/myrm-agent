@@ -31,7 +31,10 @@ class CdpChatTurn(CdpChatSubmit):
             f"""( () => {{
               const main = document.querySelector('main');
               const text = main?.innerText || '';
-              const userMsgs = main?.querySelectorAll('[data-message-id]')?.length || 0;
+              const assistantCount =
+                main?.querySelectorAll('[data-test-id="assistant-message"]')?.length || 0;
+              const allWithId = main?.querySelectorAll('[data-message-id]')?.length || 0;
+              const userMsgs = Math.max(0, allWithId - assistantCount);
               const assistantNodes = Array.from(
                 main?.querySelectorAll('[data-test-id="assistant-message"]') || [],
               );
@@ -434,6 +437,19 @@ class CdpChatTurn(CdpChatSubmit):
                     recv_timeout=30.0,
                 )
             ready = await self._ensure_send_ready()
+            if baseline_user_msgs > 0:
+                await self.evaluate(
+                    """(() => {
+                      const bridge = window.__MYRM_E2E_CHAT__;
+                      if (typeof bridge?.clearStreamRequestMessageId === 'function') {
+                        bridge.clearStreamRequestMessageId();
+                        return { ok: true, mode: 'cleared-stream-request-id' };
+                      }
+                      return { ok: false, mode: 'no-clear-hook' };
+                    })()""",
+                    await_promise=False,
+                    recv_timeout=10.0,
+                )
             send_probe = await self.evaluate(
                 """(() => ({
                   sendReady: !!window.__MYRM_E2E_CHAT__?.isSendReady?.(),
@@ -525,6 +541,20 @@ class CdpChatTurn(CdpChatSubmit):
                 chat_id = await self.bridge_chat_id()
             if chat_id:
                 started["chatId"] = chat_id
+            if chat_id:
+                api_deadline = time.monotonic() + 60.0
+                while time.monotonic() < api_deadline:
+                    try:
+                        if cdp_chat_support.chat_user_message_count(chat_id) > baseline_user_msgs:
+                            return {"fill": fill, "submit": submit, "started": started}
+                    except OSError:
+                        pass
+                    await asyncio.sleep(1.0)
+                bridge = await self._bridge_turn_snapshot()
+                raise RuntimeError(
+                    "API user message count did not increase after submit: "
+                    f"baseline={baseline_user_msgs} submit={submit} started={started} bridge={bridge}"
+                )
             confirmed = False
             if int(started.get("userMsgs") or 0) > baseline_user_msgs or started.get("sending"):
                 confirmed = True

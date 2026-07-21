@@ -46,6 +46,7 @@ import { SharedContextTargetBinding } from '@/components/features/memory/SharedC
 interface CronRunHistoryProps {
   job: CronJob;
   onBack: () => void;
+  onJobUpdated?: (job: CronJob) => void;
 }
 
 const STATUS_FILTERS = [
@@ -102,7 +103,7 @@ function HistorySkeleton() {
   );
 }
 
-export default function CronRunHistory({ job, onBack }: CronRunHistoryProps) {
+export default function CronRunHistory({ job, onBack, onJobUpdated }: CronRunHistoryProps) {
   const t = useTranslations('cron');
   const { runs, runsLoading, runsHasMore, runsTotal, runsStatusFilter, fetchRuns, fetchJobs, setRunsStatusFilter } =
     useCronStore();
@@ -131,10 +132,14 @@ export default function CronRunHistory({ job, onBack }: CronRunHistoryProps) {
     completed: t('statusCompleted'),
   };
 
-  const handleEditorUpdated = useCallback(() => {
-    fetchRuns(job.id);
-    fetchJobs(true);
-  }, [job.id, fetchRuns, fetchJobs]);
+  const handleEditorUpdated = useCallback(async () => {
+    await fetchRuns(job.id);
+    await fetchJobs(true);
+    const updated = useCronStore.getState().jobs.find((entry) => entry.id === job.id);
+    if (updated) {
+      onJobUpdated?.(updated);
+    }
+  }, [job.id, fetchRuns, fetchJobs, onJobUpdated]);
 
   return (
     <div className="space-y-4">

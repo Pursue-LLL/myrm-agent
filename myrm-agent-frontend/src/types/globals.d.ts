@@ -39,6 +39,7 @@ interface Window {
     isSendReady?: () => boolean;
     isProvidersInitialized?: () => boolean;
     debugProviderState?: () => Record<string, unknown>;
+    clearStreamRequestMessageId?: () => void;
     turnSnapshot: () => {
       chatId: string | null;
       userCount: number;

@@ -74,3 +74,30 @@ def test_getattr_delegates_to_inner() -> None:
     mgr = EntitlementGuardedCronManager(inner)
 
     assert mgr.list_jobs is inner.list_jobs
+
+
+@pytest.mark.asyncio
+async def test_update_job_clear_pre_condition_script_merges_for_lifecycle_guard() -> None:
+    from myrm_agent_harness.toolkits.cron.types import CronJob, CronJobPatch, JobType, Schedule, ScheduleKind
+
+    inner = MagicMock()
+    existing = CronJob(
+        id="job-1",
+        user_id="user-1",
+        name="Probe",
+        job_type=JobType.AGENT,
+        schedule=Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"),
+        prompt="Check inbox",
+        pre_condition_script='print("ok")',
+    )
+    inner.get_job = AsyncMock(return_value=existing)
+    inner.update_job = AsyncMock(return_value=existing)
+    mgr = EntitlementGuardedCronManager(inner)
+
+    await mgr.update_job(
+        "job-1",
+        "user-1",
+        CronJobPatch(clear_pre_condition_script=True),
+    )
+
+    inner.update_job.assert_awaited_once()

@@ -768,7 +768,10 @@ class CdpChatInput(CdpChatBootstrap):
             """(() => {
               const main = document.querySelector('main');
               const sending = !!main?.querySelector('button[aria-label="Stop"]');
-              const userMsgs = main?.querySelectorAll('[data-message-id]')?.length || 0;
+              const assistantCount =
+                main?.querySelectorAll('[data-test-id="assistant-message"]')?.length || 0;
+              const allWithId = main?.querySelectorAll('[data-message-id]')?.length || 0;
+              const userMsgs = Math.max(0, allWithId - assistantCount);
               const input = document.querySelector('[data-chat-input]');
               const cleared = (input?.value || '').trim().length === 0;
               const bridgeEmpty = !(window.__MYRM_E2E_CHAT__?.getInputMessage?.() || '').trim();

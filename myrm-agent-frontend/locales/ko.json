@@ -7895,6 +7895,7 @@
     "triggerFail": "Trigger failed",
     "pauseSuccess": "Task \"{name}\" paused",
     "resumeSuccess": "Task \"{name}\" resumed",
+    "resumeBlocked": "재개 불가 (만료 또는 한도 도달)",
     "deleteSuccess": "Task \"{name}\" deleted",
     "actionFail": "작업 실패",
     "duplicate": "복제",

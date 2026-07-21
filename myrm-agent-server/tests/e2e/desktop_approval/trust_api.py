@@ -18,9 +18,57 @@ import os
 import urllib.request
 from pathlib import Path
 
-from cdp_chat_support import _e2e_api_get_json, get_e2e_api_url
+from cdp_chat_support import _e2e_api_get_json, fetch_chat_messages, get_e2e_api_url
 
 from tests.e2e.desktop_approval.constants import progress
+
+
+def fetch_desktop_tool_progress_from_api(chat_id: str) -> dict[str, object] | None:
+    """Read desktop tool progress from persisted chat messages (SSE/UI may lag)."""
+    normalized = chat_id.strip()
+    if not normalized:
+        return None
+    messages = fetch_chat_messages(normalized)
+    if not messages:
+        return None
+    user_count = sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")
+    last_assistant: dict[str, object] | None = None
+    for msg in messages:
+        if isinstance(msg, dict) and msg.get("role") == "assistant":
+            last_assistant = msg
+    if last_assistant is None:
+        return {
+            "active": False,
+            "isStreaming": user_count > 0,
+            "pending": False,
+            "stepCount": 0,
+            "lastTool": "",
+            "assistantSample": "",
+            "completionStatus": "",
+            "source": "api",
+        }
+    metadata = last_assistant.get("metadata")
+    meta = metadata if isinstance(metadata, dict) else {}
+    steps_raw = meta.get("progressSteps")
+    steps = steps_raw if isinstance(steps_raw, list) else []
+    desktop_steps = [
+        step
+        for step in steps
+        if isinstance(step, dict) and str(step.get("tool_name") or "").startswith("desktop_")
+    ]
+    completion_status = str(meta.get("completionStatus") or "")
+    assistant_sample = str(last_assistant.get("content") or "")[:200]
+    is_complete = completion_status in {"complete", "error", "cancelled"}
+    return {
+        "active": len(desktop_steps) > 0,
+        "isStreaming": user_count > 0 and not is_complete,
+        "pending": False,
+        "stepCount": len(desktop_steps),
+        "lastTool": str(desktop_steps[-1].get("tool_name") or "") if desktop_steps else "",
+        "assistantSample": assistant_sample,
+        "completionStatus": completion_status,
+        "source": "api",
+    }
 
 
 def server_pending_approval_count() -> int:

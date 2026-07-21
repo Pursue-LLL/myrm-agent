@@ -7895,6 +7895,7 @@
     "triggerFail": "Trigger failed",
     "pauseSuccess": "Task \"{name}\" paused",
     "resumeSuccess": "Task \"{name}\" resumed",
+    "resumeBlocked": "再開不可（期限切れまたは上限到達）",
     "deleteSuccess": "Task \"{name}\" deleted",
     "actionFail": "アクション失敗",
     "duplicate": "複製",

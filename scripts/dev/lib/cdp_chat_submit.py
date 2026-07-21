@@ -69,6 +69,9 @@ class CdpChatSubmit(CdpChatInput):
             started = await self._submit_started()
             if isinstance(bridge_submit, dict) and bridge_submit.get("ok") and await self._stream_started(started):
                 return bridge_submit
+            if isinstance(bridge_submit, dict):
+                return bridge_submit
+            return {"ok": False, "err": "dev-bridge-submit-failed", "mode": "devBridgeRequired"}
 
         await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
         native = await self.evaluate(

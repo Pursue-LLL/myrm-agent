@@ -36,8 +36,6 @@
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed、创建 chat、`registerWaveLedger`、SSE delegate → JSON |
 | `subagent-dashboard-e2e-verify.mjs` | 双平台 | P2c verify：authenticated REST cancel 探测 subagent 已停止 |
-| `kanban-chrome-e2e-prepare.mjs` | 双平台 | Kanban LLM API prepare（provider seed + stream add_task + GET task 断言） |
-| `test-kanban-chrome-e2e.sh` | Unix | Kanban Chrome E2E — GLOBAL_WRITE lease + config snapshot restore + board/chat/task ledger + UI hold window |
 | `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
 | `lib/dev_state_paths.sh` | Unix | pid/log 路径 SSOT + 子目录回退读取；见 [lib/_ARCH.md](lib/_ARCH.md) |
 | `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |
@@ -53,8 +51,6 @@
 | `subagent-dashboard-e2e-verify.mjs` | UI cancel 后 REST 验证 subagent 已停止 |
 | `test-subagent-dashboard-e2e.sh` | 确保 backend :8080 + 运行 prepare |
 | `test-instinct-inbox-e2e.sh` | Instinct Inbox API pytest + seed-mock；UI 走 chrome-devtools |
-| `kanban-chrome-e2e-prepare.mjs` | Kanban API prepare（LLM add_task + REST 断言）；UI 走 chrome-devtools |
-| `test-kanban-chrome-e2e.sh` | Kanban UI 场景正式入口；负责 GLOBAL_WRITE、资源登记和结束清理 |
 | `chrome-e2e-preflight.sh` | 服务健康 + E2E Chrome + mux daemon + CDP WS → `CHROME_E2E_READY` |
 
 **Chrome E2E 稳定性清单**

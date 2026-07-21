@@ -193,6 +193,9 @@ export default function E2EChatBridge() {
           useChatStore.getState().setInputMessage(message);
         });
       },
+      clearStreamRequestMessageId: () => {
+        useChatStore.getState().clearCurrentSessionMessageId();
+      },
       handleSubmit: async () => {
         const message = useChatStore.getState().inputMessage.trim();
         if (!message) {
@@ -216,24 +219,35 @@ export default function E2EChatBridge() {
           }
           useChatStore.getState().clearCurrentSessionMessageId();
           const baselineUsers = window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0;
-          void useChatStore.getState().sendMessage(message, undefined);
-          const deadline = Date.now() + 20_000;
-          while (Date.now() < deadline) {
-            const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
-            const chatState = useChatStore.getState();
-            const userCount = snap?.userCount ?? 0;
-            if (userCount > baselineUsers && (chatState.loading || Boolean(chatState.abortController))) {
-              window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-                ok: true,
-                chatId: chatState.chatId,
-              };
-              return;
-            }
-            await new Promise((resolve) => setTimeout(resolve, 200));
+          try {
+            await useChatStore.getState().sendMessage(message, undefined);
+          } catch (error) {
+            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+              ok: false,
+              err: error instanceof Error ? error.message : String(error),
+              debug: {
+                turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
+                ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+              },
+            };
+            return;
+          }
+          const chatState = useChatStore.getState();
+          const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
+          if (
+            (snap?.userCount ?? 0) > baselineUsers ||
+            chatState.loading ||
+            Boolean(chatState.abortController)
+          ) {
+            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+              ok: true,
+              chatId: chatState.chatId,
+            };
+            return;
           }
           window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
             ok: false,
-            err: 'send-no-stream',
+            err: 'send-completed-without-progress',
             debug: {
               ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
               e2eApiBase: typeof window.__MYRM_E2E_API_BASE__ === 'string' ? window.__MYRM_E2E_API_BASE__ : null,
@@ -437,11 +451,18 @@ export default function E2EChatBridge() {
         const messages = chat.messages;
         const assistants = messages.filter((message) => message.role === 'assistant');
         const lastAssistant = assistants[assistants.length - 1];
-        const steps = lastAssistant?.progressSteps ?? [];
+        const metaSteps = Array.isArray(lastAssistant?.metadata?.progressSteps)
+          ? lastAssistant.metadata.progressSteps
+          : [];
+        const steps = lastAssistant?.progressSteps?.length
+          ? lastAssistant.progressSteps
+          : metaSteps;
         const desktopSteps = steps.filter((step) =>
           String(step.tool_name ?? '').startsWith('desktop_'),
         );
-        const isStreaming = Boolean(chat.loading || chat.abortController);
+        const completionStatus = String(lastAssistant?.metadata?.completionStatus ?? '');
+        const isComplete = completionStatus === 'complete';
+        const isStreaming = !isComplete && Boolean(chat.loading || chat.abortController);
         return {
           active: desktopSteps.length > 0,
           isStreaming,

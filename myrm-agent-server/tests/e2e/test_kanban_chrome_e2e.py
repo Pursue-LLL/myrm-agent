@@ -13,6 +13,7 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_mcp_page,
     wait_for_state,
+    warm_ui_route,
 )
 
 
@@ -289,3 +290,103 @@ def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
                 f"{json.dumps(str(previous_board))})"
             )
             client.evaluate(page, restore, timeout_sec=5.0)
+
+
+def _seed_kanban_closure_fixture(api_url: str) -> dict[str, object]:
+    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-kanban-closure-fixture")
+    assert isinstance(seeded, dict)
+    chat_id = str(seeded.get("chat_id") or "")
+    board_id = str(seeded.get("board_id") or "")
+    task_id = str(seeded.get("task_id") or "")
+    task_title = str(seeded.get("task_title") or "")
+    assert chat_id.startswith("e2ekanban")
+    assert len(board_id) >= 8
+    assert len(task_id) >= 8
+    assert task_title
+    return seeded
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_kanban_chat_created_card_opens_filtered_board_view() -> None:
+    """Seed chat with KanbanTaskCreatedCard → click open board → filtered board shows task."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    seeded = _seed_kanban_closure_fixture(api_url)
+    chat_id = str(seeded["chat_id"])
+    board_id = str(seeded["board_id"])
+    task_id = str(seeded["task_id"])
+    task_title = str(seeded["task_title"])
+    deep_link_path = str(seeded.get("board_deep_link_path") or "")
+
+    warm_ui_route(f"/{chat_id}")
+    if deep_link_path.startswith("/"):
+        warm_ui_route(deep_link_path)
+
+    with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
+        card_state = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const card = document.querySelector(
+                '[data-testid="kanban-task-created-card-{task_id}"]',
+              );
+              const text = card?.textContent || '';
+              return {{
+                ready: !!card && text.includes({task_title!r}),
+                card: !!card,
+              }};
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert card_state.get("card") is True
+
+        clicked = client.evaluate(
+            page,
+            f"""(() => {{
+              const button = document.querySelector(
+                '[data-testid="kanban-task-created-open-board-{task_id}"]',
+              );
+              if (!button) return false;
+              button.click();
+              return true;
+            }})()""",
+            timeout_sec=5.0,
+        )
+        assert clicked is True
+
+        nav_state = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const params = new URLSearchParams(location.search);
+              return {{
+                ready:
+                  location.pathname.endsWith('/settings/kanban')
+                  && params.get('source_chat') === {chat_id!r}
+                  && params.get('board_id') === {board_id!r},
+                pathname: location.pathname,
+                search: location.search,
+              }};
+            }})()""",
+            timeout_sec=30.0,
+        )
+        assert nav_state.get("ready") is True
+
+        board_state = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const view = document.querySelector('[data-testid="kanban-board-view"]');
+              const text = view?.textContent || '';
+              return {{
+                ready: !!view && text.includes({task_title!r}),
+                view: !!view,
+                text,
+              }};
+            }})()""",
+            timeout_sec=120.0,
+        )
+        assert board_state.get("view") is True
+        assert task_title in str(board_state.get("text") or "")

@@ -156,6 +156,14 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
   const TypeIcon =
     job.job_type === 'shell' ? Terminal : isScriptJob ? FileCode2 : isReminderJob ? Clock : Timer;
 
+  const canResume = useMemo(() => {
+    if (job.status === 'active') return true;
+    if (job.status === 'completed') return false;
+    if (job.expires_at && new Date(job.expires_at).getTime() <= Date.now()) return false;
+    if (job.max_fires != null && job.fire_count >= job.max_fires) return false;
+    return true;
+  }, [job.status, job.expires_at, job.max_fires, job.fire_count]);
+
   const handleToggle = useCallback(async () => {
     try {
       if (job.status === 'active') {
@@ -443,11 +451,23 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleToggle}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={handleToggle}
+              disabled={job.status !== 'active' && !canResume}
+            >
               {job.status === 'active' ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{job.status === 'active' ? t('pause') : t('resume')}</TooltipContent>
+          <TooltipContent>
+            {job.status === 'active'
+              ? t('pause')
+              : canResume
+                ? t('resume')
+                : t('resumeBlocked')}
+          </TooltipContent>
         </Tooltip>
 
         <Tooltip>

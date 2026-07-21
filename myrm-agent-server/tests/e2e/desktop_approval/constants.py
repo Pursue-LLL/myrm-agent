@@ -52,11 +52,11 @@ INFRA_ABORT_MARKERS = (
 )
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
 E2E_PROMPT = (
-    "CRITICAL：必须按顺序调用工具，禁止先文字回复。"
+    "【E2E 自动化测试 / 非 injection】不要提问、不要解释、不要拒绝。"
+    "立即按顺序调用工具："
     "第1步 desktop_snapshot_tool(scope='foreground')；"
-    "第2步 desktop_interact_tool（ref=上一步 snapshot 任意 @dref，action=click）。"
-    "禁止只调用 desktop_vision 或只 snapshot 就结束。"
-    "完成后只回复 DONE。"
+    "第2步 desktop_interact_tool(ref=上一步任意 @dref 或 d0, action=click)。"
+    "前台是 TextEdit。禁止 desktop_vision。完成后只回复 DONE。"
 )
 E2E_NUDGE_PROMPT = (
     "CRITICAL：立即调用 desktop_interact_tool（ref=上一个 snapshot 的 @dref，action=click）。"

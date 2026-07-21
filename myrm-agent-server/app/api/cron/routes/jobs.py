@@ -244,7 +244,10 @@ async def pause_job(job_id: str) -> CronJobResponse:
 @router.post("/{job_id}/resume", response_model=CronJobResponse)
 async def resume_job(job_id: str) -> CronJobResponse:
     mgr = _h._get_manager()
-    job = await mgr.resume_job(job_id, USER_ID)
+    try:
+        job = await mgr.resume_job(job_id, USER_ID)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return _h._to_response(job)

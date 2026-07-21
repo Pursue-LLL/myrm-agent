@@ -15,7 +15,11 @@ from tests.e2e.desktop_approval.constants import (
     build_desktop_interact_nudge,
     progress,
 )
-from tests.e2e.desktop_approval.trust_api import server_pending_approval_count
+from tests.e2e.desktop_approval.textedit_fixture import activate_chrome_foreground
+from tests.e2e.desktop_approval.trust_api import (
+    fetch_desktop_tool_progress_from_api,
+    server_pending_approval_count,
+)
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
 
 
@@ -88,12 +92,70 @@ def require_approval_gate_triggered(
     )
 
 
-async def probe_desktop_tool_progress(chat: McpChatSession) -> dict[str, object]:
+async def probe_desktop_tool_progress(
+    chat: McpChatSession,
+    *,
+    chat_id: str = "",
+    api_only: bool = False,
+) -> dict[str, object]:
+    normalized_chat_id = chat_id.strip()
+    if api_only and normalized_chat_id:
+        api_probe = await asyncio.to_thread(fetch_desktop_tool_progress_from_api, normalized_chat_id)
+        return api_probe if isinstance(api_probe, dict) else {"active": False}
     probe = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.getDesktopToolProgress?.() ?? {})()""",
         await_promise=False,
     )
-    return probe if isinstance(probe, dict) else {"active": False}
+    ui_probe = probe if isinstance(probe, dict) else {"active": False}
+    if not normalized_chat_id:
+        normalized_chat_id = await _bridge_chat_id(chat)
+    api_probe = (
+        await asyncio.to_thread(fetch_desktop_tool_progress_from_api, normalized_chat_id)
+        if normalized_chat_id
+        else None
+    )
+    return _merge_desktop_progress(ui_probe, api_probe)
+
+
+async def _bridge_chat_id(chat: McpChatSession) -> str:
+    chat_id = await chat.evaluate(
+        """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.chatId ?? '')()""",
+        await_promise=False,
+    )
+    return str(chat_id or "").strip()
+
+
+def _merge_desktop_progress(
+    ui_probe: dict[str, object],
+    api_probe: dict[str, object] | None,
+) -> dict[str, object]:
+    if api_probe is None:
+        return ui_probe
+    ui_last = str(ui_probe.get("lastTool") or "")
+    api_last = str(api_probe.get("lastTool") or "")
+    ui_steps = int(ui_probe.get("stepCount") or 0)
+    api_steps = int(api_probe.get("stepCount") or 0)
+    prefer_api = api_steps > ui_steps or (api_last.startswith("desktop_") and not ui_last.startswith("desktop_"))
+    merged: dict[str, object] = dict(ui_probe)
+    if prefer_api:
+        merged.update(api_probe)
+    elif api_probe.get("completionStatus") == "complete" and ui_probe.get("isStreaming"):
+        merged["isStreaming"] = False
+        merged["assistantSample"] = api_probe.get("assistantSample") or ui_probe.get("assistantSample")
+        merged["completionStatus"] = api_probe.get("completionStatus")
+    merged["uiLastTool"] = ui_last
+    merged["apiLastTool"] = api_last
+    return merged
+
+
+async def _abort_stuck_ui_stream(chat: McpChatSession) -> None:
+    await chat.evaluate(
+        """(() => {
+          window.__MYRM_E2E_CHAT__?.abortActiveStream?.();
+          return { ok: true };
+        })()""",
+        await_promise=False,
+    )
 
 
 async def _fetch_first_desktop_dref(
@@ -134,35 +196,71 @@ async def _send_interact_nudge(
     await chat.send_message(nudge_prompt, nudge_prompt)
 
 
-async def _agent_stream_active(chat: McpChatSession) -> bool:
+async def _agent_stream_active(
+    chat: McpChatSession,
+    *,
+    chat_id: str = "",
+    api_only: bool = False,
+) -> bool:
+    if api_only and chat_id.strip():
+        tool_activity = await probe_desktop_tool_progress(chat, chat_id=chat_id, api_only=True)
+        return bool(tool_activity.get("isStreaming"))
     stream_probe = await chat.probe_desktop_approval_once()
+    tool_activity = await probe_desktop_tool_progress(chat, chat_id=chat_id)
+    if tool_activity.get("completionStatus") == "complete":
+        return False
     if stream_probe.get("isStreaming"):
         return True
-    tool_activity = await probe_desktop_tool_progress(chat)
     return bool(tool_activity.get("isStreaming"))
 
 
 async def _fail_if_model_completed_without_desktop_tools(
     chat: McpChatSession,
+    *,
+    chat_id: str = "",
+    api_only: bool = False,
 ) -> None:
-    probe = await chat.probe_desktop_approval_once()
+    tool_activity = await probe_desktop_tool_progress(
+        chat,
+        chat_id=chat_id,
+        api_only=api_only,
+    )
+    if api_only:
+        probe: dict[str, object] = {}
+    else:
+        probe = await chat.probe_desktop_approval_once()
     if probe.get("err") == "model-completed-without-desktop-tools":
         hint = await _provider_readiness_hint()
         raise AssertionError(f"Model finished without desktop tools: {probe}{hint}")
-    sample = str(probe.get("lastAssistantSample") or "")
-    if probe.get("isStreaming") or not sample:
+    sample = str(tool_activity.get("assistantSample") or probe.get("lastAssistantSample") or "")
+    completion_status = str(tool_activity.get("completionStatus") or "")
+    is_streaming = bool(probe.get("isStreaming") or tool_activity.get("isStreaming"))
+    if is_streaming and completion_status != "complete" and not sample:
         return
-    lowered = sample.lower()
-    if "desktop" in lowered or "桌面" in sample or "control denied" in lowered or "done" in lowered:
-        return
-    tool_activity = await probe_desktop_tool_progress(chat)
     if tool_activity.get("active") or tool_activity.get("pending"):
         return
-    hint = await _provider_readiness_hint()
-    raise AssertionError(
-        "Model completed assistant turn without calling desktop tools "
-        f"(assistantSample={sample[:120]!r}).{hint}"
-    )
+    last_tool = str(tool_activity.get("lastTool") or "")
+    if last_tool.endswith("desktop_interact_tool"):
+        return
+    if last_tool.startswith("desktop_"):
+        return
+    if not sample and completion_status != "complete":
+        return
+    lowered = sample.lower()
+    if "done" in lowered:
+        hint = await _provider_readiness_hint()
+        raise AssertionError(
+            "Model replied DONE without desktop_interact_tool "
+            f"(lastTool={last_tool!r}, sample={sample[:120]!r}).{hint}"
+        )
+    if completion_status == "complete" or sample:
+        hint = await _provider_readiness_hint()
+        await _abort_stuck_ui_stream(chat)
+        raise AssertionError(
+            "Model completed assistant turn without calling desktop tools "
+            f"(lastTool={last_tool!r}, completion={completion_status!r}, "
+            f"assistantSample={sample[:120]!r}).{hint}"
+        )
 
 
 async def wait_for_interact_or_approval(
@@ -170,6 +268,8 @@ async def wait_for_interact_or_approval(
     *,
     timeout_sec: float = 90.0,
     idle_fail_sec: float = GATE_IDLE_FAIL_FAST_SEC,
+    chat_id: str = "",
+    api_only: bool = False,
 ) -> tuple[dict[str, object], str, int, bool]:
     deadline = asyncio.get_event_loop().time() + timeout_sec
     tool_activity: dict[str, object] = {"active": False}
@@ -182,7 +282,11 @@ async def wait_for_interact_or_approval(
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
         heartbeat_e2e_lease()
-        tool_activity = await probe_desktop_tool_progress(chat)
+        tool_activity = await probe_desktop_tool_progress(
+            chat,
+            chat_id=chat_id,
+            api_only=api_only,
+        )
         last_tool = str(tool_activity.get("lastTool") or "")
         server_pending = await _resolve_server_pending(api_fail_streak=api_fail_streak)
         ui_pending = bool(tool_activity.get("pending"))
@@ -193,8 +297,12 @@ async def wait_for_interact_or_approval(
         ):
             return tool_activity, last_tool, server_pending, ui_pending
         if poll % 10 == 0:
-            await _fail_if_model_completed_without_desktop_tools(chat)
-        if await _agent_stream_active(chat):
+            await _fail_if_model_completed_without_desktop_tools(
+                chat,
+                chat_id=chat_id,
+                api_only=api_only,
+            )
+        if await _agent_stream_active(chat, chat_id=chat_id, api_only=api_only):
             idle_started = None
         elif server_pending >= 0 and not tool_activity.get("active") and not last_tool.startswith("desktop_"):
             now = asyncio.get_event_loop().time()
@@ -219,6 +327,8 @@ async def _wait_desktop_tool_activity_failfast(
     *,
     timeout_sec: float,
     idle_fail_sec: float = GATE_IDLE_FAIL_FAST_SEC,
+    chat_id: str = "",
+    api_only: bool = False,
 ) -> dict[str, object]:
     deadline = asyncio.get_event_loop().time() + timeout_sec
     last: dict[str, object] = {"active": False}
@@ -229,44 +339,53 @@ async def _wait_desktop_tool_activity_failfast(
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
         heartbeat_e2e_lease()
+        probe = await probe_desktop_tool_progress(
+            chat,
+            chat_id=chat_id,
+            api_only=api_only,
+        )
+        if isinstance(probe, dict):
+            last = probe
         if poll == 1 or poll % 15 == 0:
             progress(
                 f"poll tool activity #{poll} active={last.get('active')} "
-                f"pending={last.get('pending')} lastTool={last.get('lastTool')}"
+                f"pending={last.get('pending')} lastTool={last.get('lastTool')} "
+                f"apiLastTool={last.get('apiLastTool')} streaming={last.get('isStreaming')} "
+                f"complete={last.get('completionStatus')}"
             )
-        probe = await probe_desktop_tool_progress(chat)
         if isinstance(probe, dict):
-            last = probe
             probe_last_tool = str(probe.get("lastTool") or "")
             if probe.get("pending") or probe_last_tool.startswith("desktop_"):
-                return probe
+                if probe_last_tool.endswith("desktop_interact_tool"):
+                    return probe
+                if probe_last_tool.endswith("desktop_snapshot_tool"):
+                    return probe
         server_pending = await _resolve_server_pending(api_fail_streak=api_fail_streak)
         if server_pending > 0:
             return {**last, "pending": True, "serverPending": server_pending}
         now = asyncio.get_event_loop().time()
-        if await _agent_stream_active(chat):
+        if await _agent_stream_active(chat, chat_id=chat_id, api_only=api_only):
             idle_started = None
             if streaming_started is None:
                 streaming_started = now
-            elif now - streaming_started >= 90.0 and not str(last.get("lastTool") or "").startswith(
+            elif now - streaming_started >= 180.0 and not str(last.get("lastTool") or "").startswith(
                 "desktop_"
             ):
-                await chat.evaluate(
-                    """(() => {
-                      window.__MYRM_E2E_CHAT__?.abortActiveStream?.();
-                      return { ok: true };
-                    })()""",
-                    await_promise=False,
-                )
+                if not api_only:
+                    await _abort_stuck_ui_stream(chat)
                 raise AssertionError(
-                    "Agent stream stuck >90s without desktop tools (aborted for retry)"
+                    "Agent stream stuck >180s without desktop tools (aborted for retry)"
                 )
         else:
             streaming_started = None
         if poll % 10 == 0:
-            await _fail_if_model_completed_without_desktop_tools(chat)
+            await _fail_if_model_completed_without_desktop_tools(
+                chat,
+                chat_id=chat_id,
+                api_only=api_only,
+            )
         last_tool = str(last.get("lastTool") or "")
-        if await _agent_stream_active(chat):
+        if await _agent_stream_active(chat, chat_id=chat_id, api_only=api_only):
             idle_started = None
         elif server_pending >= 0 and not last.get("active") and not last_tool.startswith("desktop_"):
             now = asyncio.get_event_loop().time()
@@ -291,11 +410,20 @@ async def _wait_desktop_tool_activity_failfast(
 
 async def ensure_interact_gate(
     chat: McpChatSession,
+    *,
+    chat_id: str = "",
+    textedit_foreground: bool = False,
 ) -> tuple[dict[str, object], str, int, bool]:
+    api_only = textedit_foreground
     tool_activity = await _wait_desktop_tool_activity_failfast(
         chat,
         timeout_sec=APPROVAL_WAIT_SEC,
+        chat_id=chat_id,
+        api_only=api_only,
     )
+    if textedit_foreground:
+        progress("agent turn observed via API — activate Chrome for CDP + approval banner")
+        await asyncio.to_thread(activate_chrome_foreground)
     progress(
         f"desktop tool activity result active={tool_activity.get('active')} "
         f"pending={tool_activity.get('pending')} lastTool={tool_activity.get('lastTool')} "

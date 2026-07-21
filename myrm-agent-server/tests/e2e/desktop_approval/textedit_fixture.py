@@ -95,6 +95,42 @@ def hide_textedit_fixture() -> None:
     )
 
 
+def activate_textedit_foreground() -> None:
+    """Bring TextEdit to the foreground so macOS AX snapshot returns @drefs."""
+    if platform.system() != "Darwin":
+        return
+    subprocess.run(
+        [
+            "osascript",
+            "-e",
+            'tell application "TextEdit" to activate',
+            "-e",
+            'tell application "System Events" to tell process "TextEdit" to repeat with w in windows',
+            "-e",
+            "set miniaturized of w to false",
+            "-e",
+            "end repeat",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+
+
+def activate_chrome_foreground() -> None:
+    """Bring Chrome E2E browser to the foreground for CDP polling and approval UI."""
+    if platform.system() != "Darwin":
+        return
+    subprocess.run(
+        ["osascript", "-e", 'tell application "Google Chrome" to activate'],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+
 async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
     for attempt in range(1, attempts + 1):
         await asyncio.to_thread(prepare_textedit_fixture)

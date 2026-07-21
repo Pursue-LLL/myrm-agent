@@ -218,6 +218,63 @@ describe('messageStreamHandler handler slices', () => {
     expect(lastStep?.error).toBe('Board board-1 not found');
   });
 
+  it('TOOL_END kanban_add_task success sets kanban_tasks_created metadata', async () => {
+    const assistant: Message = {
+      messageId: 'assistant-kanban-ok',
+      chatId: 'chat-1',
+      createdAt: new Date('2026-06-04T00:00:00Z'),
+      content: '',
+      role: 'assistant',
+      progressSteps: [
+        {
+          step_key: 'kanban_add_task',
+          tool_name: 'kanban_add_task',
+          items: [{ text: 'adding task' }],
+        },
+      ],
+    };
+    const state: StreamHandlerState = {
+      messages: [assistant],
+      messageAppeared: false,
+      loading: true,
+      scheduler: new AdaptiveScheduler(),
+    };
+
+    await handleMessageStream(
+      {
+        type: AgentEventType.TOOL_END,
+        messageId: 'assistant-kanban-ok',
+        tool_name: 'kanban_add_task',
+        duration_ms: 120,
+        result: JSON.stringify({
+          status: 'added',
+          task: {
+            task_id: 'task-abc',
+            title: 'Weekly report',
+            board_id: 'board-1',
+          },
+        }),
+      },
+      '',
+      undefined,
+      false,
+      '',
+      state,
+      createStatefulActions(state),
+    );
+
+    const lastStep = state.messages[0].progressSteps?.[0];
+    expect(lastStep?.duration_ms).toBe(120);
+    expect(lastStep?.status).toBe('success');
+    expect(state.messages[0].metadata?.kanban_tasks_created).toEqual([
+      {
+        task_id: 'task-abc',
+        title: 'Weekly report',
+        board_id: 'board-1',
+      },
+    ]);
+  });
+
   it('UI_UPDATE ui_artifact appends uiArtifacts on assistant message', async () => {
     const assistant: Message = {
       messageId: 'assistant-ui-1',
