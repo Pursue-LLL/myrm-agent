@@ -157,6 +157,15 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
       usePlanStore.getState().clearActivePlan();
     });
+
+    // Passive progression milestone detection
+    void import('@/lib/progression/tryMarkMilestone').then(({ tryMarkMilestone }) => {
+      tryMarkMilestone('first_chat');
+      const msg = state.messages[state.messages.length - 1];
+      if (msg?.toolCalls && msg.toolCalls.length > 0) {
+        tryMarkMilestone('first_tool_use');
+      }
+    });
   }
 
   return null;

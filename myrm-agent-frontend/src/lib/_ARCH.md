@@ -37,6 +37,7 @@
 | `server/` | Next Route Handler 用 HTTP 辅助 | [_ARCH.md](server/_ARCH.md) |
 | `skills/` | 技能 OAuth 展示名等纯函数 | [_ARCH.md](skills/_ARCH.md) |
 | `utils/` | 跨 feature 通用工具函数 | [_ARCH.md](utils/_ARCH.md) |
+| `progression/` | 被动里程碑触发 + level-up toast | [_ARCH.md](progression/_ARCH.md) |
 | `desktop/` | 桌面权限引导深链 SSOT（Tauri / Web fallback） | [_ARCH.md](desktop/_ARCH.md) |
 | `__tests__/` | lib 层单元测试 | 内联 |
 

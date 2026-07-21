@@ -79,6 +79,12 @@ export function useToolApprovalResolve() {
         for (const req of requestsToRemove) {
           removeRequest(req.requestId);
         }
+
+        if (decision === 'approve' || decision === 'edit') {
+          void import('@/lib/progression/tryMarkMilestone').then(({ tryMarkMilestone }) => {
+            tryMarkMilestone('first_approval');
+          });
+        }
       } catch (error) {
         console.error('[APPROVAL] Resume failed:', error);
         if (error instanceof ApprovalExpiredError) {

@@ -29,4 +29,5 @@
 
 ### 被依赖方
 - `app.api.progression.router` — HTTP API 端点
-- 未来：被动检测逻辑（§2 Quest 实施时引入）
+- 前端被动触发：`src/lib/progression/tryMarkMilestone.ts`
+- 前端触发点：`completionEvents.ts`（first_chat / first_tool_use）、`useToolApprovalResolve.ts`（first_approval）

@@ -133,3 +133,18 @@ class TestMCPProbeEndpoint:
             json={"url": "http://evil.com:8000/mcp"},
         )
         assert response.status_code == 400
+
+    def test_probe_unreachable_generic_error(self, client: TestClient) -> None:
+        """Probe returns unreachable with error message on generic exceptions."""
+        import httpx
+
+        with patch("httpx.AsyncClient.get", side_effect=httpx.ReadError("broken pipe")):
+            response = client.post(
+                "/api/v1/integrations/mcp/probe",
+                json={"url": "http://127.0.0.1:8000/mcp"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["status"] == "unreachable"
+        assert "broken pipe" in data["error"]
