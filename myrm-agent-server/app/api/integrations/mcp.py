@@ -717,8 +717,16 @@ async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONRespon
         return success_response(data=data.model_dump(by_alias=True))
 
     import time
+    from urllib.parse import urlparse
 
     import httpx
+
+    parsed = urlparse(body.url)
+    hostname = parsed.hostname or ""
+    if hostname not in ("127.0.0.1", "localhost", "::1", "0.0.0.0"):
+        from app.core.utils.errors import validation_error
+
+        raise validation_error("Probe is restricted to localhost addresses only (127.0.0.1, localhost, ::1)")
 
     try:
         start = time.monotonic()

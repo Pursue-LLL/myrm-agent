@@ -125,3 +125,11 @@ class TestMCPProbeEndpoint:
             json={"timeout": 5},
         )
         assert response.status_code == 422
+
+    def test_probe_rejects_non_localhost(self, client: TestClient) -> None:
+        """Probe must reject non-localhost URLs to prevent SSRF."""
+        response = client.post(
+            "/api/v1/integrations/mcp/probe",
+            json={"url": "http://evil.com:8000/mcp"},
+        )
+        assert response.status_code == 400
