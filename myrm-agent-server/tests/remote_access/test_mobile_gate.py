@@ -14,6 +14,7 @@ from app.remote_access.mobile_gate import (
     resolve_request_pair_token,
 )
 from app.remote_access.pairing import (
+    BROWSER_TAKEOVER_PURPOSE,
     MOBILE_HUB_CONTROL_PURPOSE,
     MOBILE_HUB_LIST_PURPOSE,
     create_pairing_token,
@@ -86,6 +87,16 @@ def test_scoped_control_token_authorizes_matching_paths() -> None:
 def test_scoped_control_token_rejects_message_cancel_path() -> None:
     token = create_pairing_token(chat_id="chat-a", purpose=MOBILE_HUB_CONTROL_PURPOSE)
     assert not pair_token_authorizes_path(token, "/api/v1/agents/agent/msg-1/cancel")
+
+
+def test_browser_takeover_token_scope_is_minimal() -> None:
+    token = create_pairing_token(chat_id="chat-a", purpose=BROWSER_TAKEOVER_PURPOSE)
+    assert pair_token_authorizes_path(token, "/api/v1/agents/agent-stream")
+    assert pair_token_authorizes_path(token, "/api/v1/remote-access/pairing-token/refresh")
+    assert not pair_token_authorizes_path(token, "/api/v1/remote-access/pairing-token")
+    assert not pair_token_authorizes_path(token, "/api/v1/agents/chats/chat-a/steer")
+    assert not pair_token_authorizes_path(token, "/ws/stt/stream")
+    assert not pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/sessions")
 
 
 def test_scoped_pair_authorizes_mobile_stt_ws() -> None:

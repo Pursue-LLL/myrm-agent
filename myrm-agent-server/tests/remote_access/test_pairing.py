@@ -21,6 +21,14 @@ def test_pairing_token_roundtrip() -> None:
     assert parsed["purpose"] == "mobile_hub"
 
 
+def test_browser_takeover_pairing_token_roundtrip() -> None:
+    token = create_pairing_token(chat_id="chat-123", purpose="browser_takeover")
+    parsed = parse_pairing_token(token)
+    assert parsed is not None
+    assert parsed["chat_id"] == "chat-123"
+    assert parsed["purpose"] == "browser_takeover"
+
+
 def test_pairing_token_rejects_tamper() -> None:
     token = create_pairing_token(purpose="mobile_hub_list")
     body, sig = token.rsplit(".", 1)

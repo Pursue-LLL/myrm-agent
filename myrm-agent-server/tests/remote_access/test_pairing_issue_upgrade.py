@@ -11,6 +11,7 @@ from app.config.deploy_mode import get_deploy_mode
 from app.config.settings import settings
 from app.middleware.auth import AuthMiddleware
 from app.remote_access.pairing import (
+    BROWSER_TAKEOVER_PURPOSE,
     MOBILE_HUB_CONTROL_PURPOSE,
     MOBILE_HUB_LIST_PURPOSE,
     create_pairing_token,
@@ -79,3 +80,37 @@ def test_hub_list_pair_rejects_inactive_chat(monkeypatch: pytest.MonkeyPatch) ->
         json={"chat_id": "chat-stale", "purpose": "mobile_hub"},
     )
     assert response.status_code == 404
+
+
+def test_issue_browser_takeover_pairing_token_from_scoped_control_pair() -> None:
+    control_token = create_pairing_token(
+        chat_id="chat-42",
+        purpose=MOBILE_HUB_CONTROL_PURPOSE,
+    )
+    client = TestClient(_build_app())
+    response = client.post(
+        "/api/v1/remote-access/pairing-token",
+        headers={"Host": "abc.trycloudflare.com", "X-Pair-Token": control_token},
+        json={"chat_id": "chat-42", "purpose": "browser_takeover"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    takeover_token = body["data"]["token"]
+    assert body["data"]["mobilePath"] == f"/mobile/takeover/chat-42?pair={takeover_token}"
+    parsed = parse_pairing_token(takeover_token)
+    assert parsed is not None
+    assert parsed["chat_id"] == "chat-42"
+    assert parsed["purpose"] == BROWSER_TAKEOVER_PURPOSE
+
+
+def test_refresh_browser_takeover_pairing_token_keeps_takeover_mobile_path() -> None:
+    token = create_pairing_token(chat_id="chat-42", purpose=BROWSER_TAKEOVER_PURPOSE)
+    client = TestClient(_build_app())
+    response = client.post(
+        "/api/v1/remote-access/pairing-token/refresh",
+        headers={"Host": "abc.trycloudflare.com", "X-Pair-Token": token},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    refreshed = body["data"]["token"]
+    assert body["data"]["mobilePath"] == f"/mobile/takeover/chat-42?pair={refreshed}"

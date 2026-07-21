@@ -12,6 +12,11 @@ const VisualDesktopToggle = dynamic(
   { ssr: false },
 );
 
+const ExtensionTakeoverBanner = dynamic(
+  () => import('@/components/features/chat-window/ExtensionTakeoverBanner'),
+  { ssr: false },
+);
+
 const BrowserInspectorToggle = dynamic(
   () =>
     import('@/components/features/browser-inspector').then((module) => ({
@@ -91,6 +96,7 @@ export default function ChatWindowSatellites({
   return (
     <>
       <DesktopControlApprovalOverlay />
+      <ExtensionTakeoverBanner />
       <VisualDesktopToggle />
       <BrowserInspectorToggle />
       <BrowserLiveView onSendInstruction={onInspectorInstruction} />

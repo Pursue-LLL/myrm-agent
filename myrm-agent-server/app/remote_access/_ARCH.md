@@ -18,7 +18,7 @@
 | `mobile_gate.py` | 核心 | scoped pair token 校验；`resolve_request_pair_token`（E2EE/query/header）；HTTP + `/ws/stt/*` mobile 控制面路径 | ✅ |
 | `mobile_deep_link.py` | 核心 | Channel → 前端 deep link 构建：`/mobile/status` (HITL) + `/{chatId}` (WebUI 续聊) | ✅ |
 | `tool_policy.py` | 核心 | 远程暴露时 harness `SecurityConfig.remote_exposed()` deny overlay | ✅ |
-| `pairing.py` | 核心 | HMAC 签名 token；`mobile_hub_list`（Hub 列表）与 `mobile_hub`（scoped 控制）；改密时 `rotate_pairing_key` | ✅ |
+| `pairing.py` | 核心 | HMAC 签名 token；`mobile_hub_list`（Hub 列表）、`mobile_hub`（scoped 控制）、`browser_takeover`（takeover 最小权限）；改密时 `rotate_pairing_key` | ✅ |
 | `e2ee/` | 子包 | Mobile remote E2EE：crypto / keystore / session / response / sse（见 `e2ee/_ARCH.md`） | ✅ |
 | `tunnel_manager.py` | 核心 | cloudflared quick tunnel 子进程 + 5s watchdog + shutdown hook | ✅ |
 
@@ -29,7 +29,7 @@
 `app/api/remote_access/router.py` — `/api/v1/remote-access/*`
 
 - `GET /mobile/sessions`：`trust_zone=remote_exposed` 时需有效 `mobile_hub_list` pair（query / header / E2EE 解密）或 WebUI session
-- `POST /pairing-token`：WebUI session 签发 Hub QR；`mobile_hub_list` pair 仅可 upgrade **活跃** 会话 scoped token
+- `POST /pairing-token`：WebUI session 签发 Hub QR / takeover deep link；`mobile_hub_list` pair 仅可 upgrade **活跃** 会话 scoped token
 - scoped control token 经 `request.state.pair_bound_chat_id` 绑定 attach/steer/agent-stream/**chat cancel**（不含 `/agents/agent/{message_id}/cancel`）
 - `POST /agents/chats/{chat_id}/cancel`（`general_agent/streaming.py`）：Mobile Stop → `gateway.interrupt_session` + `CancellationRegistry.cancel`（`ActiveSessionInfo.current_message_id`）
 - `POST /pairing-token/refresh`：`mobile_hub_list` / scoped pair 续期

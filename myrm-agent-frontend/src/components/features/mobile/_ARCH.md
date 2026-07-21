@@ -11,7 +11,9 @@
 | `MobileSessionHub.tsx` | `/mobile` Hub：拉取 active sessions，点击 mint scoped token 跳转 |
 | `../../app/mobile/page.tsx` | Hub 路由页 |
 | `../../app/mobile/status/[chatId]/page.tsx` | StatusBoard 路由页 |
+| `../../app/mobile/takeover/[chatId]/page.tsx` | takeover 专用路由页（签名链接入口） |
 | `../chat-window/MobileStatusBoard.tsx` | 单会话控制 UI（SSE attach、HITL、steer、语音、**Stop** → `cancelActiveChatAgent` + toast 反馈、**Live Preview** — Browser/Desktop 截图实时预览 + Lightbox 全屏放大） |
+| `MobileTakeoverBoard.tsx` | takeover 专用轻量面板（Done/Skip resume + 会话跳转） |
 
 ## 依赖
 

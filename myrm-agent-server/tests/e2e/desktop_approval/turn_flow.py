@@ -503,6 +503,8 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
 
     heartbeat_e2e_lease()
     progress("send agent prompt (Chrome foreground for CDP submit)")
+    await asyncio.to_thread(activate_chrome)
+    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
     send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
     progress(f"send result: {send_result.get('submit', send_result)}")
     started = send_result.get("started")

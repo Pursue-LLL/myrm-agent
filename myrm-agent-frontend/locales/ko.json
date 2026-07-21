@@ -11182,6 +11182,8 @@
       "takeoverSkip": "완료 불가",
       "takeoverExtensionTitle": "Chrome에서 작업을 완료하세요",
       "takeoverExtensionHint": "Chrome 브라우저에서 작업을 완료한 후 「완료」를 눌러주세요.",
+      "takeoverOpenLiveAssist": "원격 지원 링크 열기",
+      "takeoverCopyLiveAssist": "링크 복사",
       "takeoverCaptchaAuto": "인증 처리 중…",
       "takeoverCaptchaAutoHint": "에이전트가 자동으로 인증을 처리하고 있습니다. 잠시만 기다려주세요.",
       "takeoverLearned": "동작이 기록되었습니다 — 에이전트가 시연에서 학습합니다",
