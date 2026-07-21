@@ -40,6 +40,10 @@ contract:
 
 # Task Planning
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 Vague goals produce vague results. This workflow transforms ambiguous objectives into concrete, actionable task plans with clear dependencies and priorities.

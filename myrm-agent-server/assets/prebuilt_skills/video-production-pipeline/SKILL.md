@@ -90,6 +90,10 @@ contract:
 
 # Video Production Pipeline
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 A structured pipeline for creating professional videos, from initial research through final delivery. Leverages multiple specialized agents working in parallel where possible.

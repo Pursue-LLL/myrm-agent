@@ -9,6 +9,7 @@ import pytest
 
 from app.services.agent.stream_session.stream_loop import (
     ApprovalTimeoutHolder,
+    ClarificationTimeoutHolder,
     iter_agent_stream_chunks,
 )
 from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
@@ -87,7 +88,7 @@ class TestApprovalStatusBroadcast:
             patch.object(mux, "publish_session_status", side_effect=spy),
         ):
             collected = []
-            async for chunk in iter_agent_stream_chunks(session, approval):
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 collected.append(chunk)
 
         assert "awaiting_approval" in published
@@ -124,7 +125,7 @@ class TestApprovalStatusBroadcast:
             patch.object(mux, "publish_session_status", side_effect=spy),
         ):
             collected = []
-            async for chunk in iter_agent_stream_chunks(session, approval):
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 collected.append(chunk)
 
         assert published == ["awaiting_approval", "generating"]
@@ -159,7 +160,7 @@ class TestApprovalStatusBroadcast:
             ),
             patch.object(mux, "publish_session_status", side_effect=spy),
         ):
-            async for _ in iter_agent_stream_chunks(session, approval):
+            async for _ in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 pass
 
         assert published == ["awaiting_approval", "generating"]
@@ -196,7 +197,7 @@ class TestApprovalStatusBroadcast:
             ),
             patch.object(mux, "publish_session_status", side_effect=spy),
         ):
-            async for _ in iter_agent_stream_chunks(session, approval):
+            async for _ in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 pass
 
         assert published == [
@@ -234,7 +235,7 @@ class TestApprovalStatusBroadcast:
             ),
             patch.object(mux, "publish_session_status", side_effect=spy),
         ):
-            async for _ in iter_agent_stream_chunks(session, approval):
+            async for _ in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 pass
 
         assert published == []

@@ -115,12 +115,14 @@ export function MCPConfigEditor({
               <label className="text-black/70 dark:text-white/70 text-sm">{t('mcpConnectionType')}</label>
               <OptionSelect
                 value={formData.type}
-                onChange={(value) =>
+                onChange={(value) => {
+                  const nextType = value as 'sse' | 'stdio' | 'streamable_http';
                   onFormDataChange({
                     ...formData,
-                    type: value as 'sse' | 'stdio' | 'streamable_http',
-                  })
-                }
+                    type: nextType,
+                    keepaliveInterval: nextType === 'stdio' ? null : (formData.keepaliveInterval ?? null),
+                  });
+                }}
                 options={connectionTypeOptions}
               />
             </div>

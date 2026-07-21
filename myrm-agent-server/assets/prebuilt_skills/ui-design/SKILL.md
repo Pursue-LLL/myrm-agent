@@ -58,6 +58,10 @@ contract:
 
 # UI Design
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 Great UI is not just functional — it's memorable. This skill transforms frontend code from generic templates into distinctive, polished interfaces with genuine design character. The goal is production-grade code that looks and feels like it was crafted by a senior designer, not assembled by an algorithm.

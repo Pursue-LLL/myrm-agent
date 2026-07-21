@@ -18,6 +18,7 @@ import { getModelSelection } from '@/store/chat/messageRequest';
 import useChatStore from '@/store/useChatStore';
 import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
 import useApprovalStore from '@/store/useApprovalStore';
+import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useProviderStore from '@/store/useProviderStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
@@ -98,6 +99,145 @@ async function initProvidersForE2e(): Promise<void> {
   const providerState = useProviderStore.getState();
   if (!providerState.isInitialized) {
     await providerState.initProviders();
+  }
+}
+
+type E2eSubmitResult = {
+  ok: boolean;
+  err?: string;
+  chatId?: string | null;
+  mode?: string;
+  debug?: Record<string, unknown>;
+};
+
+async function executeE2eChatSend(
+  message: string,
+  baselineUsers: number,
+): Promise<E2eSubmitResult> {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    return { ok: false, err: 'empty-message' };
+  }
+  try {
+    await window.__MYRM_E2E_CHAT__?.ensureChatSession?.();
+    prepareAutomationSend();
+    flushSync(() => {
+      useChatStore.getState().setInputMessage(trimmed);
+    });
+    if (!useChatStore.getState().chatId?.trim()) {
+      return { ok: false, err: 'no-chat-id' };
+    }
+    if (!window.__MYRM_E2E_CHAT__?.isSendReady?.()) {
+      return {
+        ok: false,
+        err: 'send-not-ready',
+        debug: window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+      };
+    }
+    const staleRequestId = useChatStore.getState().currentSessionMessageId;
+    if (staleRequestId) {
+      useToolApprovalStore.getState().unmarkProcessing(staleRequestId);
+    }
+    useChatStore.getState().clearCurrentSessionMessageId();
+    const messagesLoadedDeadline = Date.now() + 30_000;
+    while (Date.now() < messagesLoadedDeadline) {
+      const loadedState = useChatStore.getState();
+      if (loadedState.isMessagesLoaded && !loadedState.loading) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    const sendReadyDeadline = Date.now() + 30_000;
+    while (Date.now() < sendReadyDeadline) {
+      const chatState = useChatStore.getState();
+      if (!chatState.loading && !chatState.abortController) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    const preSendState = useChatStore.getState();
+    if (preSendState.loading || preSendState.abortController) {
+      return {
+        ok: false,
+        err: 'chat-still-busy',
+        debug: {
+          turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
+          ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+        },
+      };
+    }
+    try {
+      await useChatStore.getState().sendMessage(trimmed, undefined);
+    } catch (error) {
+      return {
+        ok: false,
+        err: error instanceof Error ? error.message : String(error),
+        debug: {
+          turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
+          ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+        },
+      };
+    }
+    const chatState = useChatStore.getState();
+    const chatId = chatState.chatId?.trim() || '';
+    const lastUser = [...chatState.messages].reverse().find((msg) => msg.role === 'user');
+    if (lastUser?.sendFailed) {
+      return {
+        ok: false,
+        err: 'send-failed-flag',
+        chatId,
+        debug: { turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() },
+      };
+    }
+    if (chatId) {
+      const messagesUrl = `${getApiBaseUrl().replace(/\/+$/, '')}/chats/${encodeURIComponent(chatId)}/messages`;
+      const apiDeadline = Date.now() + 60_000;
+      while (Date.now() < apiDeadline) {
+        try {
+          const resp = await fetch(messagesUrl, { cache: 'no-store' });
+          if (resp.ok) {
+            const payload = (await resp.json()) as {
+              data?: { messages?: Array<{ role?: string }> };
+            };
+            const users =
+              payload.data?.messages?.filter((entry) => entry.role === 'user').length ?? 0;
+            if (users > baselineUsers) {
+              return { ok: true, chatId, mode: 'apiConfirmed' };
+            }
+          }
+        } catch {
+          // retry until deadline
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      return {
+        ok: false,
+        err: 'api-user-not-persisted',
+        chatId,
+        debug: {
+          turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
+          apiBase: getApiBaseUrl(),
+          e2eApiBase: resolveE2eApiBase() || null,
+          baselineUsers,
+        },
+      };
+    }
+    return {
+      ok: false,
+      err: 'send-completed-without-progress',
+      debug: {
+        ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+        apiBase: getApiBaseUrl(),
+        e2eApiBase: resolveE2eApiBase() || null,
+        turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
+        baselineUsers,
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      err: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -201,160 +341,40 @@ export default function E2EChatBridge() {
       clearStreamRequestMessageId: () => {
         useChatStore.getState().clearCurrentSessionMessageId();
       },
+      sendChatMessage: async (
+        text: string,
+        opts?: { baselineUserCount?: number },
+      ): Promise<E2eSubmitResult> => {
+        const baselineUsers =
+          typeof opts?.baselineUserCount === 'number'
+            ? opts.baselineUserCount
+            : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
+        const result = await executeE2eChatSend(text, baselineUsers);
+        window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
+        return result;
+      },
       handleSubmit: async () => {
-        const message = useChatStore.getState().inputMessage.trim();
-        if (!message) {
-          window.__MYRM_E2E_CHAT__!.lastSubmitResult = { ok: false, err: 'empty-message' };
-          return;
-        }
-        try {
-          await window.__MYRM_E2E_CHAT__?.ensureChatSession?.();
-          prepareAutomationSend();
-          if (!useChatStore.getState().chatId?.trim()) {
-            window.__MYRM_E2E_CHAT__!.lastSubmitResult = { ok: false, err: 'no-chat-id' };
-            return;
+        const resolveMessage = (): string => {
+          const fromStore = useChatStore.getState().inputMessage.trim();
+          if (fromStore) {
+            return fromStore;
           }
-          if (!window.__MYRM_E2E_CHAT__?.isSendReady?.()) {
-            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-              ok: false,
-              err: 'send-not-ready',
-              debug: window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
-            };
-            return;
+          const input = document.querySelector('[data-chat-input]') as HTMLTextAreaElement | null;
+          const fromDom = input?.value?.trim() ?? '';
+          if (fromDom) {
+            flushSync(() => {
+              useChatStore.getState().setInputMessage(fromDom);
+            });
+            return fromDom;
           }
-          useChatStore.getState().clearCurrentSessionMessageId();
-          const baselineUsers = window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0;
-          const sendReadyDeadline = Date.now() + 30_000;
-          while (Date.now() < sendReadyDeadline) {
-            const chatState = useChatStore.getState();
-            if (!chatState.loading && !chatState.abortController) {
-              break;
-            }
-            await new Promise((resolve) => setTimeout(resolve, 200));
-          }
-          const preSendState = useChatStore.getState();
-          if (preSendState.loading || preSendState.abortController) {
-            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-              ok: false,
-              err: 'chat-still-busy',
-              debug: {
-                turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
-                ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
-              },
-            };
-            return;
-          }
-          try {
-            await useChatStore.getState().sendMessage(message, undefined);
-          } catch (error) {
-            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-              ok: false,
-              err: error instanceof Error ? error.message : String(error),
-              debug: {
-                turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
-                ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
-              },
-            };
-            return;
-          }
-          const chatState = useChatStore.getState();
-          const chatId = chatState.chatId?.trim() || '';
-          const lastUser = [...chatState.messages].reverse().find((msg) => msg.role === 'user');
-          if (lastUser?.sendFailed) {
-            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-              ok: false,
-              err: 'send-failed-flag',
-              chatId,
-              debug: { turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() },
-            };
-            return;
-          }
-          const snapAfterSend = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
-          if ((snapAfterSend?.userCount ?? 0) <= baselineUsers) {
-            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-              ok: false,
-              err: 'send-no-op',
-              chatId,
-              debug: {
-                turn: snapAfterSend,
-                ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
-              },
-            };
-            return;
-          }
-          if (chatId) {
-            const messagesUrl = `${getApiBaseUrl().replace(/\/+$/, '')}/chats/${encodeURIComponent(chatId)}/messages`;
-            const apiDeadline = Date.now() + 60_000;
-            while (Date.now() < apiDeadline) {
-              try {
-                const resp = await fetch(messagesUrl, { cache: 'no-store' });
-                if (resp.ok) {
-                  const payload = (await resp.json()) as {
-                    data?: { messages?: Array<{ role?: string }> };
-                  };
-                  const users =
-                    payload.data?.messages?.filter((entry) => entry.role === 'user').length ?? 0;
-                  if (users > baselineUsers) {
-                    window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-                      ok: true,
-                      chatId,
-                      mode: 'apiConfirmed',
-                    };
-                    return;
-                  }
-                }
-              } catch {
-                // retry until deadline
-              }
-              if (useChatStore.getState().loading || useChatStore.getState().abortController) {
-                window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-                  ok: true,
-                  chatId,
-                  mode: 'streaming',
-                };
-                return;
-              }
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-            }
-            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-              ok: false,
-              err: 'api-user-not-persisted',
-              chatId,
-              debug: {
-                turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
-                apiBase: getApiBaseUrl(),
-                e2eApiBase: resolveE2eApiBase() || null,
-              },
-            };
-            return;
-          }
-          const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.();
-          if (
-            (snap?.userCount ?? 0) > baselineUsers &&
-            (chatState.loading || Boolean(chatState.abortController))
-          ) {
-            window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-              ok: true,
-              chatId: chatState.chatId,
-            };
-            return;
-          }
-          window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-            ok: false,
-            err: 'send-completed-without-progress',
-            debug: {
-              ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
-              apiBase: getApiBaseUrl(),
-              e2eApiBase: resolveE2eApiBase() || null,
-              turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
-            },
-          };
-        } catch (error) {
-          window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-            ok: false,
-            err: error instanceof Error ? error.message : String(error),
-          };
-        }
+          return '';
+        };
+        const baselineUsers =
+          typeof window.__MYRM_E2E_CHAT__?._submitBaselineUsers === 'number'
+            ? window.__MYRM_E2E_CHAT__!._submitBaselineUsers!
+            : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
+        const result = await executeE2eChatSend(resolveMessage(), baselineUsers);
+        window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
       },
       getInputMessage: () => useChatStore.getState().inputMessage,
       turnSnapshot: () => {

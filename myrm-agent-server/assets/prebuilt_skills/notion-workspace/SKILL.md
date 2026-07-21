@@ -38,6 +38,10 @@ contract:
 
 # Notion Workspace
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 Notion is a comprehensive workspace for notes, databases, wikis, and project management. This skill provides structured workflows for managing Notion content via the official API.

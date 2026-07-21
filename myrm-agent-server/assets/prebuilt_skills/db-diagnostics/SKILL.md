@@ -51,6 +51,10 @@ contract:
 
 # Database Diagnostics
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 A slow database is never "just slow." There is always a specific, identifiable cause: missing indexes, lock contention, connection exhaustion, or bloated tables. This workflow ensures systematic investigation so the real bottleneck is found — not guessed at.

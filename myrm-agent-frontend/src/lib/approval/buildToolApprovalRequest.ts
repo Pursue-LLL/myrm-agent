@@ -18,6 +18,7 @@ interface ApprovalActionPayload {
   command_span_risks?: unknown;
   command_span_reasons?: unknown;
   plain_explanation?: unknown;
+  execution_intent?: unknown;
 }
 
 interface ApprovalExtensionsPayload {
@@ -91,5 +92,9 @@ export function buildToolApprovalRequest({
       : undefined,
     workspaceRoot: extensions.workspaceRoot,
     plainExplanation: parsePlainExplanation(action.plain_explanation),
+    executionIntent:
+      typeof action.execution_intent === 'string' && action.execution_intent.trim()
+        ? action.execution_intent.trim()
+        : undefined,
   };
 }

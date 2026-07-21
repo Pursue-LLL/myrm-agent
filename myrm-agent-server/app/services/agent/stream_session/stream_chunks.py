@@ -25,7 +25,11 @@ from app.services.agent.stream_session.stream_finalize import (
     finalize_agent_stream_session,
     yield_stream_exception_chunks,
 )
-from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder, iter_agent_stream_chunks
+from app.services.agent.stream_session.stream_loop import (
+    ApprovalTimeoutHolder,
+    ClarificationTimeoutHolder,
+    iter_agent_stream_chunks,
+)
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.sse_failover_emitter import (
     SSEFailoverEmitter,
@@ -53,6 +57,7 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
 
     token_ctx = user_credentials_ctx.set(credentials_list)
     approval = ApprovalTimeoutHolder()
+    clarification = ClarificationTimeoutHolder()
 
     from myrm_agent_harness.core.config import ModelTier, infer_model_tier
 
@@ -113,6 +118,9 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
             user_text=session.entitlement_preflight_text,
             active_tool_groups=derive_active_tool_groups_from_params(session.params),
             chat_id=session.request.chat_id,
+            channel_name=getattr(session.params, "channel_name", "web_chat"),
+            client_surface=getattr(session.params, "client_surface", None),
+            locale=getattr(session.params, "locale", None),
         )
         if gap_event is not None:
             session.collector.feed_event(gap_event)
@@ -188,7 +196,7 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
         async with with_failover_emitter(failover_emitter):
             try:
                 async for chunk in merge_stream_with_emitter(
-                    iter_agent_stream_chunks(session, approval),
+                    iter_agent_stream_chunks(session, approval, clarification),
                     failover_emitter,
                 ):
                     yield chunk
@@ -197,4 +205,4 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
                     yield chunk
     finally:
         failover_emitter.close()
-        await finalize_agent_stream_session(session, token_ctx, approval)
+        await finalize_agent_stream_session(session, token_ctx, approval, clarification)

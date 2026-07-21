@@ -12,7 +12,7 @@
 | `FollowUpsPanel.tsx` | 核心 | 智能跟进列表（list / dismiss / snooze）；Vitest：`__tests__/FollowUpsPanel.test.tsx` |
 | `MemorySection.tsx` | 核心 | 记忆浏览器与 CRUD |
 | `MigrationWizardSection.tsx` | 核心 | 四源迁移向导（scan → preview → result）；支持 `?source=` 深链自动 preview | 
-| `MigrationWizardSteps.tsx` | 核心 | 向导步骤 UI（ScanStep / PreviewStep / ResultStep）；OpenClaw episodic 勾选仅当 scan 含 openclaw 源，且 preview API 对非 openclaw 强制 `include_episodic=false`；MCP 预览卡展示 `hostSerial`、可选 `keepaliveInterval`，并在迁移值被规则忽略时展示 `keepaliveIntervalIgnored` 解释提示 |
+| `MigrationWizardSteps.tsx` | 核心 | 向导步骤 UI（ScanStep / PreviewStep / ResultStep）；OpenClaw episodic 勾选仅当 scan 含 openclaw 源，且 preview API 对非 openclaw 强制 `include_episodic=false`；MCP 预览卡展示 `hostSerial`、remote transport 下可选 `keepaliveInterval`，并在迁移值被规则忽略（如 `stdio` 或低于 5 秒）时展示 `keepaliveIntervalIgnored` 解释提示 |
 | `MigrationPendingReviewSection.tsx` | 辅助 | 待审核迁移技能队列 |
 | `MemoryArchivalSection.tsx` | 辅助 | 归档导入/导出 |
 | `MemoryBackupSection.tsx` | 辅助 | 本地备份 |

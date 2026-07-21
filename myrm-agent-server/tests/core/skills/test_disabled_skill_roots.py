@@ -74,3 +74,39 @@ async def test_collect_disabled_skill_roots_returns_empty_on_list_failure() -> N
         roots = await collect_disabled_skill_roots()
 
     assert roots == []
+
+
+@pytest.mark.asyncio
+async def test_collect_disabled_skill_roots_skips_empty_storage_path() -> None:
+    enabled = Skill(
+        id="enabled-skill",
+        name="Enabled",
+        description="enabled",
+        type=SkillType.PREBUILT,
+        storage_path="/skills/enabled",
+    )
+    empty_path = Skill(
+        id="empty-path",
+        name="Empty",
+        description="empty",
+        type=SkillType.PREBUILT,
+        storage_path="   ",
+    )
+
+    mock_config = MagicMock()
+    mock_config.enabled_prebuilt_ids = ["enabled-skill"]
+    mock_config.enabled_local_skill_ids = []
+
+    mock_service = MagicMock()
+    mock_service.list_skills = AsyncMock(return_value=[enabled, empty_path])
+
+    with (
+        patch("app.core.skills.disabled_skill_roots.get_storage_provider"),
+        patch("app.core.skills.disabled_skill_roots.UserSkillConfigManager") as mock_config_cls,
+        patch("app.core.skills.disabled_skill_roots.SkillsService", return_value=mock_service),
+    ):
+        mock_config_cls.return_value.get_config = AsyncMock(return_value=mock_config)
+        roots = await collect_disabled_skill_roots()
+
+    assert roots == []
+

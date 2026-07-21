@@ -246,7 +246,7 @@ const ClarificationInput = ({
     setSubmitting(true);
     try {
       if (isResumeMode) {
-        await sendMessage('', messageId, undefined, null);
+        await sendMessage('', messageId, undefined, {});
       } else {
         await submitClarifyResponse(messageId, '');
       }

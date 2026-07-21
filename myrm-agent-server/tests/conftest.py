@@ -341,7 +341,10 @@ def _chrome_e2e_item_runtime(
     try:
         yield runtime
     finally:
-        runtime.close()
+        try:
+            runtime.close()
+        except RuntimeError as exc:
+            print(f"CHROME_E2E_RUNTIME_CLOSE_WARN: {exc}", flush=True)
 
 
 @pytest.fixture(autouse=True)
@@ -369,7 +372,17 @@ def _require_live_e2e_lease(
     os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
     from tests.support.e2e_runtime_guard import live_agent_stream_lock
 
-    stream_guard = live_agent_stream_lock() if lease.lane == "LIVE_AGENT" else nullcontext()
+    marker = request.node.get_closest_marker("chrome_e2e")
+    private_backend = (
+        marker is not None and marker.kwargs.get("private_backend", True) is not False
+    )
+    # Private per-item backends (e.g. cron live on :180xx) must not queue on shared :8080 stream lock.
+    skip_stream_lock = private_backend and _chrome_e2e_item_runtime is not None
+    stream_guard = (
+        live_agent_stream_lock()
+        if lease.lane == "LIVE_AGENT" and not skip_stream_lock
+        else nullcontext()
+    )
     with stream_guard:
         with e2e_lease_heartbeat_loop():
             yield

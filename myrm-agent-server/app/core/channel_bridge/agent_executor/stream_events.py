@@ -7,7 +7,8 @@
 
 [OUTPUT]
 - ChannelStreamEventState: mutable side-effect holder for approval timeout metadata
-- iter_channel_stream_progress: maps harness stream events to channel progress yields
+- iter_channel_stream_progress: maps harness stream events to channel progress yields;
+  capability_gap surface_unavailable → ProgressUpdate(display_message)
 
 [POS]
 Stream event loop extracted from ChannelAgentExecutor.execute_stream. Converts
@@ -158,6 +159,18 @@ async def iter_channel_stream_progress(
                     total = usage.get("total_tokens")
                     if isinstance(total, int) and total > 0:
                         acc.total_tokens += total
+
+        elif event_type == "capability_gap":
+            data = event.get("data", {})
+            if isinstance(data, dict) and str(data.get("reason") or "") == "surface_unavailable":
+                from app.services.agent.stream_session.entitlement_gap_preflight import (
+                    resolve_surface_unavailable_display_message,
+                )
+
+                display_message = str(data.get("display_message") or "").strip()
+                if not display_message:
+                    display_message = resolve_surface_unavailable_display_message(None)
+                yield ProgressUpdate(label=display_message)
 
         elif event_type == "message_end":
             end_cost = event.get("cost_usd")

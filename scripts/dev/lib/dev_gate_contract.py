@@ -43,6 +43,7 @@ PAGE_OWNERSHIP_ERROR_TOKENS: Final[tuple[str, ...]] = (
     "not owned by this shim session",
     "Chrome MCP context reset",
     "call new_page before",
+    "No McpPage found for the given page",
 )
 
 # --- Retry policy ---

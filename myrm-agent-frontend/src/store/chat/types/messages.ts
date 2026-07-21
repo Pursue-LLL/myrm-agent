@@ -162,6 +162,7 @@ export type MentionReferenceType =
   | 'workspace_folder'
   | 'uploaded_file'
   | 'generated_file'
+  | 'agent'
   | 'git_diff'
   | 'git_staged'
   | 'url'

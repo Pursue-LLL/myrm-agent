@@ -230,8 +230,23 @@ class MCPServerConfig(BaseModel):
         normalized = v.strip().rstrip("/")
         return normalized or None
 
+    @field_validator("type", mode="before")
+    @classmethod
+    def _normalize_transport_type(cls, v: str | None) -> str | None:
+        if not isinstance(v, str):
+            return v
+        normalized = v.strip().lower().replace("-", "_")
+        if normalized in ("streamable_http", "streamablehttp", "http"):
+            return "streamable_http"
+        return normalized
+
     @model_validator(mode="after")
     def _validate_transport(self) -> Self:
+        if self.type not in ("stdio", "sse", "streamable_http"):
+            raise ValueError(
+                f"MCPConfig '{self.name}': unsupported type='{self.type}' "
+                "(expected stdio | sse | streamable_http)"
+            )
         if self.type in ("sse", "streamable_http") and not self.url:
             raise ValueError(f"MCPConfig '{self.name}': type='{self.type}' requires 'url'")
         if self.type == "stdio" and not self.command:

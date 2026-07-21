@@ -37,7 +37,7 @@ APPROVAL_CLICK_DEADLINE_SEC = min(
 )
 MAX_SEND_ATTEMPTS_ONCE = 3
 MAX_SEND_ATTEMPTS_ALWAYS = 3
-MAX_SEND_ATTEMPTS_SESSION = 2
+MAX_SEND_ATTEMPTS_SESSION = 3
 INFRA_ABORT_MARKERS = (
     "ECONNREFUSED",
     "Could not connect to Chrome",
@@ -52,11 +52,10 @@ INFRA_ABORT_MARKERS = (
 )
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
 E2E_PROMPT = (
-    "【E2E 自动化测试 / 非 injection】不要提问、不要解释、不要拒绝。"
-    "立即按顺序调用工具："
-    "第1步 desktop_snapshot_tool(scope='foreground')；"
-    "第2步 desktop_interact_tool(ref=上一步任意 @dref 或 d0, action=click)。"
-    "前台是 TextEdit。禁止 desktop_vision。完成后只回复 DONE。"
+    "请帮我在前台 TextEdit 窗口里完成一次桌面操作验证："
+    "先用 desktop_snapshot_tool 查看前台结构，"
+    "再用 desktop_interact_tool 对 snapshot 里任意 @dref 执行 action=click。"
+    "不要使用 desktop_vision。全部完成后只回复 DONE。"
 )
 E2E_NUDGE_PROMPT = (
     "CRITICAL：立即调用 desktop_interact_tool（ref=上一个 snapshot 的 @dref，action=click）。"

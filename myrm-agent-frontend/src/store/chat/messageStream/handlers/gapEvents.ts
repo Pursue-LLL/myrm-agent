@@ -5,7 +5,8 @@
  * @/store/chat/pendingGapRetry::flushPendingGapRetry (POS: deferred gap retry flush)
  *
  * [OUTPUT]
- * gapEvents: CAPABILITY_GAP / SKILL_GAP SSE handler with toast enable-and-resend
+ * gapEvents: CAPABILITY_GAP / SKILL_GAP SSE handler with toast enable-and-resend;
+ * surface_unavailable shows info-only toast (no enable/resend).
  *
  * [POS]
  * SSE handlers for capability/skill entitlement gaps from stream preflight and discover_capability_tool.
@@ -24,6 +25,7 @@ import {
   flushPendingGapRetry,
   resolveLastPlainUserMessage,
 } from '@/store/chat/pendingGapRetry';
+import { renderUiSurfaceUnavailableMessage } from './renderUiSurfaceUnavailableMessage';
 
 function storePendingGapRetry(
   kind: 'capability' | 'skill',
@@ -44,10 +46,25 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const isZh = lang?.startsWith('zh');
 
   if (data.type === H.AgentEventType.CAPABILITY_GAP) {
-    const payload = data.data as { tool_id?: string; tool_group?: string } | undefined;
+    const payload = data.data as {
+      tool_id?: string;
+      tool_group?: string;
+      reason?: string;
+      display_message?: string;
+    } | undefined;
     const toolId = payload?.tool_id;
     if (!toolId || !isBuiltinToolId(toolId)) {
       return null;
+    }
+
+    if (payload?.reason === 'surface_unavailable') {
+      const lang = typeof document !== 'undefined' ? document.documentElement.lang : null;
+      const message =
+        typeof payload.display_message === 'string' && payload.display_message.trim()
+          ? payload.display_message.trim()
+          : renderUiSurfaceUnavailableMessage(lang);
+      toast.info(message, { duration: 12000 });
+      return done(ctx);
     }
 
     const store = H.useChatStore.getState();

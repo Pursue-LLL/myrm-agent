@@ -82,6 +82,10 @@ contract:
 
 # Code Review Pipeline
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 A multi-agent code review pipeline that ensures comprehensive coverage by running specialized review passes in an optimized order. Security and static analysis run in parallel, followed by logic review and final verification.

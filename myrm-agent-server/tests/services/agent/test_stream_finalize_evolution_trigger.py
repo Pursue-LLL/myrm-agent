@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.services.agent.stream_session.stream_finalize import finalize_agent_stream_session
-from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder
+from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder, ClarificationTimeoutHolder
 
 
 def _make_session(
@@ -48,6 +48,10 @@ def _make_session(
 def _make_approval() -> ApprovalTimeoutHolder:
     holder = ApprovalTimeoutHolder()
     return holder
+
+
+def _make_clarification() -> ClarificationTimeoutHolder:
+    return ClarificationTimeoutHolder()
 
 
 @pytest.mark.asyncio
@@ -89,7 +93,7 @@ async def test_evolution_triggered_when_tools_used() -> None:
         ) as mock_trigger,
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     mock_trigger.assert_called_once_with(
         chat_id="chat-evo-1",
@@ -139,7 +143,7 @@ async def test_evolution_passes_dw_content_when_workflow() -> None:
         ) as mock_trigger,
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     mock_trigger.assert_called_once_with(
         chat_id="chat-evo-1",
@@ -181,7 +185,7 @@ async def test_evolution_not_triggered_without_content() -> None:
         ) as mock_trigger,
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     mock_trigger.assert_not_called()
 
@@ -216,7 +220,7 @@ async def test_evolution_not_triggered_without_chat_id() -> None:
         ) as mock_trigger,
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     mock_trigger.assert_not_called()
 
@@ -262,7 +266,7 @@ async def test_evolution_trigger_exception_swallowed() -> None:
     ):
         mock_ctx.reset = MagicMock()
         # Must not raise
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     session.collector.cleanup.assert_called_once()
 
@@ -306,7 +310,7 @@ async def test_evolution_not_triggered_when_cancelled() -> None:
         ) as mock_trigger,
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     mock_trigger.assert_not_called()
 
@@ -359,7 +363,7 @@ async def test_finalize_persists_memory_budget_without_citations() -> None:
         ),
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     persisted_extra = mock_persist.await_args.kwargs["extra_data"]
     assert persisted_extra.get("memoryBudget") == {"used": 64, "total": 512}
@@ -414,7 +418,7 @@ async def test_finalize_citations_preserve_first_seen_order() -> None:
         ),
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     persisted_extra = mock_persist.await_args.kwargs["extra_data"]
     assert persisted_extra.get("citations") == ["doc-b", "doc-a"]
@@ -477,7 +481,7 @@ async def test_finalize_persists_memory_brief_status_payload() -> None:
         ),
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     persisted_extra = mock_persist.await_args.kwargs["extra_data"]
     assert persisted_extra.get("memoryBriefSnapshotId") == "snap-xyz"
@@ -555,7 +559,7 @@ async def test_finalize_skips_invalid_memory_budget_payload() -> None:
         ),
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     persisted_extra = mock_persist.await_args.kwargs["extra_data"]
     assert "memoryBudget" not in persisted_extra
@@ -611,7 +615,7 @@ async def test_finalize_persists_not_applied_injection_reason() -> None:
         ),
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     persisted_extra = mock_persist.await_args.kwargs["extra_data"]
     assert persisted_extra.get("memoryBriefStatus") == {
@@ -669,7 +673,7 @@ async def test_finalize_emits_injection_status_when_brief_status_missing() -> No
         ),
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     persisted_extra = mock_persist.await_args.kwargs["extra_data"]
     assert persisted_extra.get("memoryBudget") == {"used": 5, "total": 50}
@@ -727,7 +731,7 @@ async def test_finalize_keeps_injection_status_when_budget_hook_fails() -> None:
         ),
     ):
         mock_ctx.reset = MagicMock()
-        await finalize_agent_stream_session(session, MagicMock(), _make_approval())
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
 
     persisted_extra = mock_persist.await_args.kwargs["extra_data"]
     assert "memoryBudget" not in persisted_extra

@@ -42,6 +42,10 @@ contract:
 
 # Google Workspace
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 Access the user's Google Calendar, Gmail, and Drive through official Google REST APIs. Tokens are injected at runtime from the user's OAuth connection — **never** ask the user to paste tokens into chat.

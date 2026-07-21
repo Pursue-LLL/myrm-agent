@@ -1,4 +1,5 @@
 import { MCPServiceConfig } from './types';
+import { normalizeMCPServiceConfig, normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
 
 /**
  * MCP 配置管理模块
@@ -9,12 +10,12 @@ import { MCPServiceConfig } from './types';
 
 // 设置所有MCP配置
 export const setMCPConfigs = (configs: MCPServiceConfig[]) => {
-  return configs;
+  return normalizeMCPServiceConfigs(configs);
 };
 
 // 添加MCP配置
 export const addMCPConfig = (currentConfigs: MCPServiceConfig[], config: MCPServiceConfig): MCPServiceConfig[] => {
-  return [...currentConfigs, config];
+  return [...normalizeMCPServiceConfigs(currentConfigs), normalizeMCPServiceConfig(config)];
 };
 
 // 更新MCP配置
@@ -23,8 +24,8 @@ export const updateMCPConfig = (
   index: number,
   config: MCPServiceConfig,
 ): MCPServiceConfig[] => {
-  const newConfigs = [...currentConfigs];
-  newConfigs[index] = config;
+  const newConfigs = [...normalizeMCPServiceConfigs(currentConfigs)];
+  newConfigs[index] = normalizeMCPServiceConfig(config);
   return newConfigs;
 };
 
@@ -35,8 +36,8 @@ export const removeMCPConfig = (currentConfigs: MCPServiceConfig[], index: numbe
 
 // 切换MCP配置启用状态
 export const toggleMCPConfig = (currentConfigs: MCPServiceConfig[], index: number): MCPServiceConfig[] => {
-  const newConfigs = [...currentConfigs];
-  newConfigs[index] = { ...newConfigs[index], enabled: !newConfigs[index].enabled };
+  const newConfigs = [...normalizeMCPServiceConfigs(currentConfigs)];
+  newConfigs[index] = normalizeMCPServiceConfig({ ...newConfigs[index], enabled: !newConfigs[index].enabled });
   return newConfigs;
 };
 

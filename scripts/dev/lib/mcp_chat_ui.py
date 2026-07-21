@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 
-from cdp_chat_support import e2e_api_base_inject_js
+from cdp_chat_support import PAGE_PROBE_JS, e2e_api_base_inject_js
 from cdp_chat_ui import CdpChatSession
 from chrome_mcp_client import (
     ChromeMcpClient,
@@ -31,6 +32,11 @@ def is_mux_page_heal_error(exc: BaseException) -> bool:
 
 def _default_e2e_ui_base() -> str:
     return os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+
+
+def _path_needs_chat_navigate(path: str) -> bool:
+    normalized = path.strip().strip("/")
+    return normalized in {"", "blank", "about:blank"}
 
 
 class McpChatSession(CdpChatSession):
@@ -104,7 +110,7 @@ class McpChatSession(CdpChatSession):
         await asyncio.to_thread(
             self._client.navigate,
             self._page,
-            self._base_url,
+            f"{self._base_url.rstrip('/')}/",
             timeout_ms=60_000,
         )
         await asyncio.sleep(2.0)
@@ -114,6 +120,17 @@ class McpChatSession(CdpChatSession):
         except TimeoutError:
             pass
 
+    async def _navigate_to_chat_home(self, *, timeout_ms: int = 120_000) -> None:
+        ui_base = self._base_url.rstrip("/")
+        await asyncio.to_thread(
+            self._client.navigate,
+            self._page,
+            f"{ui_base}/",
+            timeout_ms=timeout_ms,
+        )
+        await asyncio.sleep(2.0)
+        await self._inject_e2e_api_base()
+
     async def bootstrap(
         self,
         base_url: str,
@@ -121,11 +138,63 @@ class McpChatSession(CdpChatSession):
         timeout_sec: float = 120.0,
         navigate: bool = False,
     ) -> dict[str, object]:
-        del navigate
         self._base_url = base_url
         await asyncio.sleep(1.0)
         await self.ensure_e2e_api_base_binding()
+        should_navigate = navigate
+        if not should_navigate:
+            try:
+                probe = await self.evaluate(
+                    PAGE_PROBE_JS,
+                    await_promise=False,
+                    recv_timeout=15.0,
+                )
+            except (RuntimeError, TimeoutError):
+                probe = None
+            if not isinstance(probe, dict) or not probe.get("hasLayout"):
+                should_navigate = True
+            else:
+                path = str(probe.get("path") or "")
+                should_navigate = _path_needs_chat_navigate(path)
+        if should_navigate:
+            await self._navigate_to_chat_home(
+                timeout_ms=min(int(timeout_sec * 1000), 120_000),
+            )
         return await self.wait_shell_ready(timeout_sec=timeout_sec, require_bridge=True)
+
+    async def wait_shell_ready(
+        self,
+        *,
+        timeout_sec: float = 120.0,
+        require_bridge: bool = True,
+    ) -> dict[str, object]:
+        deadline = time.monotonic() + timeout_sec
+        last_exc: TimeoutError | None = None
+        while time.monotonic() < deadline:
+            remaining = deadline - time.monotonic()
+            try:
+                probe = await self.evaluate(
+                    PAGE_PROBE_JS,
+                    await_promise=False,
+                    recv_timeout=15.0,
+                )
+            except (RuntimeError, TimeoutError):
+                probe = None
+            if isinstance(probe, dict):
+                path = str(probe.get("path") or "")
+                if _path_needs_chat_navigate(path) or not probe.get("hasLayout"):
+                    await self._navigate_to_chat_home(
+                        timeout_ms=max(15_000, int(remaining * 1000)),
+                    )
+            try:
+                return await super().wait_shell_ready(
+                    timeout_sec=min(remaining, 60.0),
+                    require_bridge=require_bridge,
+                )
+            except TimeoutError as exc:
+                last_exc = exc
+                await asyncio.sleep(0.5)
+        raise last_exc or TimeoutError(f"Chat shell not ready within {timeout_sec:.0f}s")
 
     async def ensure_dev_bridge(
         self, *, timeout_sec: float = 90.0, allow_reload: bool = True

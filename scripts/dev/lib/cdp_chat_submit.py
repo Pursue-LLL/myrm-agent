@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 
 from cdp_chat_input import CdpChatInput
@@ -10,27 +11,76 @@ from cdp_chat_support import PREPARE_AUTOMATION_SEND_JS, get_e2e_api_url
 
 
 class CdpChatSubmit(CdpChatInput):
-    async def _submit_via_dev_bridge(self) -> dict[str, object]:
+    async def send_chat_message_atomic(
+        self,
+        text: str,
+        *,
+        baseline_user_msgs: int = 0,
+    ) -> dict[str, object]:
         await self.ensure_e2e_api_base_binding()
-        dev_submit = await self.evaluate(
-            """(() => {
+        payload = json.dumps(text)
+        baseline = int(baseline_user_msgs)
+        result = await self.evaluate(
+            f"""(() => {{
               const bridge = window.__MYRM_E2E_CHAT__;
-              if (!bridge?.handleSubmit) {
-                return { ok: false, err: 'no dev bridge' };
-              }
-              return Promise.resolve(bridge.handleSubmit()).then(() => {
+              if (!bridge?.sendChatMessage) {{
+                return {{ ok: false, err: 'no-sendChatMessage' }};
+              }}
+              return Promise.resolve(
+                bridge.sendChatMessage({payload}, {{ baselineUserCount: {baseline} }}),
+              );
+            }})()""",
+            await_promise=True,
+            recv_timeout=180.0,
+        )
+        return result if isinstance(result, dict) else {"ok": False, "err": "atomic-send-invalid"}
+
+    async def _submit_via_dev_bridge(
+        self,
+        message_text: str | None = None,
+        *,
+        baseline_user_msgs: int = 0,
+    ) -> dict[str, object]:
+        await self.ensure_e2e_api_base_binding()
+        msg_payload = json.dumps(message_text) if message_text is not None else "null"
+        baseline_payload = int(baseline_user_msgs)
+        baseline_payload = int(baseline_user_msgs)
+        if message_text is not None:
+            result = await self.evaluate(
+                f"""(() => {{
+                  const bridge = window.__MYRM_E2E_CHAT__;
+                  if (!bridge?.sendChatMessage) {{
+                    return {{ ok: false, err: 'no-sendChatMessage' }};
+                  }}
+                  return Promise.resolve(
+                    bridge.sendChatMessage({msg_payload}, {{ baselineUserCount: {baseline_payload} }}),
+                  );
+                }})()""",
+                await_promise=True,
+                recv_timeout=180.0,
+            )
+            return result if isinstance(result, dict) else {"ok": False, "err": "bridge-submit-invalid"}
+
+        dev_submit = await self.evaluate(
+            f"""(() => {{
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (!bridge?.handleSubmit) {{
+                return {{ ok: false, err: 'no dev bridge' }};
+              }}
+              bridge._submitBaselineUsers = {baseline_payload};
+              return Promise.resolve(bridge.handleSubmit()).then(() => {{
                 const result = bridge.lastSubmitResult;
-                if (result?.ok) {
-                  return { ok: true, mode: 'devBridgeSubmitAsync', result };
-                }
-                return {
+                if (result?.ok) {{
+                  return {{ ok: true, mode: 'devBridgeSubmitAsync', result }};
+                }}
+                return {{
                   ok: false,
                   err: result?.err || 'bridge-submit-failed',
                   debug: result?.debug ?? null,
                   mode: 'devBridgeSubmitFailed',
-                };
-              });
-            })()""",
+                }};
+              }});
+            }})()""",
             await_promise=True,
             recv_timeout=120.0,
         )
@@ -62,11 +112,19 @@ class CdpChatSubmit(CdpChatInput):
                 return dev_submit
         return dev_submit
 
-    async def submit(self) -> dict[str, object]:
+    async def submit(
+        self,
+        message_text: str | None = None,
+        *,
+        baseline_user_msgs: int = 0,
+    ) -> dict[str, object]:
         e2e_api = get_e2e_api_url().strip()
         if e2e_api:
             await self.ensure_e2e_api_base_binding()
-            bridge_submit = await self._submit_via_dev_bridge()
+            bridge_submit = await self._submit_via_dev_bridge(
+                message_text,
+                baseline_user_msgs=baseline_user_msgs,
+            )
             started = await self._submit_started()
             if (
                 isinstance(bridge_submit, dict)
@@ -89,7 +147,10 @@ class CdpChatSubmit(CdpChatInput):
             await_promise=False,
         )
         if isinstance(prefer_bridge, dict) and prefer_bridge.get("prefer"):
-            bridge_submit = await self._submit_via_dev_bridge()
+            bridge_submit = await self._submit_via_dev_bridge(
+                message_text,
+                baseline_user_msgs=baseline_user_msgs,
+            )
             started = await self._submit_started()
             if (
                 isinstance(bridge_submit, dict)
@@ -121,7 +182,10 @@ class CdpChatSubmit(CdpChatInput):
             if await self._stream_started(started):
                 return native
 
-        bridge_submit = await self._submit_via_dev_bridge()
+        bridge_submit = await self._submit_via_dev_bridge(
+            message_text,
+            baseline_user_msgs=baseline_user_msgs,
+        )
         if isinstance(bridge_submit, dict) and bridge_submit.get("ok"):
             started = await self._submit_started()
             if await self._stream_started(started):

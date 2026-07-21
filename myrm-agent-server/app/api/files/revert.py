@@ -53,9 +53,16 @@ class FileDiffItem(BaseModel):
     is_binary: bool = False
 
 
+async def _hydrate_session(session_id: str) -> None:
+    from app.services.files.revert_hydrate import ensure_session_snapshots_hydrated
+
+    await ensure_session_snapshots_hydrated(session_id)
+
+
 @router.get("/changes/{session_id}")
 async def get_session_changes(session_id: str) -> dict[str, list[FileChangeInfo]]:
     """Get all file changes for a session, grouped by message_id."""
+    await _hydrate_session(session_id)
     changes = await RevertService.get_session_changes(session_id)
     return {
         msg_id: [
@@ -69,6 +76,7 @@ async def get_session_changes(session_id: str) -> dict[str, list[FileChangeInfo]
 @router.get("/changes/{session_id}/{message_id}")
 async def get_message_changes(session_id: str, message_id: str) -> list[FileChangeInfo]:
     """Get file changes for a specific message."""
+    await _hydrate_session(session_id)
     changes = await RevertService.get_message_changes(session_id, message_id)
     return [
         FileChangeInfo(path=c.path, operation=c.operation, has_original=c.has_original, timestamp=c.timestamp) for c in changes
@@ -82,6 +90,7 @@ async def get_message_diff(session_id: str, message_id: str) -> list[FileDiffIte
     Returns original content (from snapshot) and current content (from disk)
     for each modified file.
     """
+    await _hydrate_session(session_id)
     store = SnapshotStore.get()
     snapshots = store.get_message_snapshots(session_id, message_id)
 
@@ -115,6 +124,7 @@ async def get_message_diff(session_id: str, message_id: str) -> list[FileDiffIte
 @router.get("/diff/{session_id}")
 async def get_session_diff(session_id: str) -> dict[str, list[FileDiffItem]]:
     """Get diff content for all file changes in a session, grouped by message_id."""
+    await _hydrate_session(session_id)
     store = SnapshotStore.get()
     session_snaps = store.get_session_snapshots(session_id)
 
@@ -151,7 +161,12 @@ async def get_session_diff(session_id: str) -> dict[str, list[FileDiffItem]]:
 @router.post("/message")
 async def revert_message(req: RevertMessageRequest) -> RevertResponse:
     """Revert all file changes from a specific message."""
+    from app.services.files.revert_hydrate import cleanup_persisted_snapshots
+
+    await _hydrate_session(req.session_id)
     result = await RevertService.revert_message(req.session_id, req.message_id)
+    if result.reverted_files:
+        await cleanup_persisted_snapshots(req.session_id, req.message_id)
     return RevertResponse(
         success=len(result.reverted_files) > 0,
         reverted_files=result.reverted_files,
@@ -163,7 +178,12 @@ async def revert_message(req: RevertMessageRequest) -> RevertResponse:
 @router.post("/session")
 async def revert_session(req: RevertSessionRequest) -> RevertResponse:
     """Revert all file changes in an entire session (all messages)."""
+    from app.services.files.revert_hydrate import cleanup_persisted_snapshots
+
+    await _hydrate_session(req.session_id)
     result = await RevertService.revert_session(req.session_id)
+    if result.reverted_files:
+        await cleanup_persisted_snapshots(req.session_id)
     return RevertResponse(
         success=len(result.reverted_files) > 0,
         reverted_files=result.reverted_files,
@@ -175,6 +195,7 @@ async def revert_session(req: RevertSessionRequest) -> RevertResponse:
 @router.post("/file")
 async def revert_file(req: RevertFileRequest) -> RevertResponse:
     """Revert a single file change from a specific message."""
+    await _hydrate_session(req.session_id)
     result = await RevertService.revert_file(req.session_id, req.message_id, req.file_path)
     return RevertResponse(
         success=len(result.reverted_files) > 0,

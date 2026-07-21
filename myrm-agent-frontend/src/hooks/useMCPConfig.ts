@@ -337,7 +337,14 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
     } else if (formData.type !== 'stdio') {
       processedArgs = rawArgsInput.split('\n').filter((arg) => arg.trim() !== '');
     }
-    return { ...formData, args: processedArgs };
+    return {
+      ...formData,
+      args: processedArgs,
+      keepaliveInterval:
+        formData.type === 'sse' || formData.type === 'streamable_http'
+          ? (formData.keepaliveInterval ?? null)
+          : null,
+    };
   }, [formData, rawArgsInput]);
 
   useEffect(() => {

@@ -393,6 +393,13 @@ export default function SingleApprovalCard({
             <VisualApprovalHighlight visualContext={visualContext} className="mb-2" />
           )}
 
+          {request.executionIntent && (
+            <div className="text-xs text-foreground/90 mb-2 rounded-md border border-border/60 bg-muted/40 px-2.5 py-2">
+              <span className="font-medium text-muted-foreground">{t('executionIntent')}:</span>{' '}
+              {request.executionIntent}
+            </div>
+          )}
+
           {request.reason && (
             <div className="text-xs text-muted-foreground">
               <span className="font-medium">{t('reason')}:</span> {request.reason}

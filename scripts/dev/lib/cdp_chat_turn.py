@@ -487,17 +487,11 @@ class CdpChatTurn(CdpChatSubmit):
                 raise RuntimeError(
                     f"E2E send not ready before submit: ready={ready} probe={send_probe} debug={debug}"
                 )
-            fill = await self.fill_input(text)
-            if not fill.get("ok"):
-                debug = await self.evaluate(
-                    """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
-                    await_promise=False,
-                )
-                raise RuntimeError(
-                    "UI fill failed: "
-                    f"{fill} ready={ready} api={fetch_provider_readiness_snapshot()} debug={debug}"
-                )
-            submit = await self.submit()
+            fill = {"ok": True, "mode": "atomicSendChatMessage", "inputLen": len(text)}
+            submit = await self.send_chat_message_atomic(
+                text,
+                baseline_user_msgs=baseline_user_msgs,
+            )
             if not submit.get("ok"):
                 probe = await self.send_state()
                 if chat_id:

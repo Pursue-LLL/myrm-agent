@@ -9,6 +9,7 @@ import pytest
 
 from app.services.agent.stream_session.stream_loop import (
     ApprovalTimeoutHolder,
+    ClarificationTimeoutHolder,
     iter_agent_stream_chunks,
 )
 
@@ -98,7 +99,7 @@ class TestMemoryBriefPrelude:
             ) as mock_enqueue_status_telemetry,
         ):
             chunks: list[str] = []
-            async for chunk in iter_agent_stream_chunks(session, approval):
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
         assert chunks, "expected at least memory_brief and message_end chunks"
@@ -147,7 +148,7 @@ class TestMemoryBriefPrelude:
             ),
         ):
             chunks: list[str] = []
-            async for chunk in iter_agent_stream_chunks(session, approval):
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
         message_end_event = next(
@@ -185,7 +186,7 @@ class TestMemoryBriefPrelude:
             ),
         ):
             chunks: list[str] = []
-            async for chunk in iter_agent_stream_chunks(session, approval):
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
         assert all('"type":"memory_brief"' not in chunk for chunk in chunks)
@@ -226,7 +227,7 @@ class TestMemoryBriefPrelude:
             ),
         ):
             chunks: list[str] = []
-            async for chunk in iter_agent_stream_chunks(session, approval):
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
         message_end_event = next(
@@ -265,7 +266,7 @@ class TestMemoryBriefPrelude:
             ),
         ):
             chunks: list[str] = []
-            async for chunk in iter_agent_stream_chunks(session, approval):
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
         message_end_event = next(
@@ -313,7 +314,7 @@ class TestMemoryBriefPrelude:
             ),
         ):
             chunks: list[str] = []
-            async for chunk in iter_agent_stream_chunks(session, approval):
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
         message_end_event = next(
@@ -353,7 +354,7 @@ class TestMemoryBriefPrelude:
             ),
         ):
             chunks: list[str] = []
-            async for chunk in iter_agent_stream_chunks(session, approval):
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
         message_end_event = next(
@@ -386,7 +387,7 @@ class TestMemoryBriefPrelude:
             ),
         ):
             chunks: list[str] = []
-            async for chunk in iter_agent_stream_chunks(session, approval):
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
         assert all('"type":"memory_brief"' not in chunk for chunk in chunks)
@@ -419,7 +420,7 @@ class TestMemoryBriefPrelude:
             ),
         ):
             chunks: list[str] = []
-            async for chunk in iter_agent_stream_chunks(session, approval):
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
         message_end_event = next(

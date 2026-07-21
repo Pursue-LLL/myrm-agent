@@ -8,6 +8,7 @@
 - app.core.channel_bridge.config_parsers::extract_session_policy, session_policy_from_agent_dict
 - app.database.connection::get_session
 - app.services.chat.chat_service::ChatService
+- app.services.files.revert_hydrate::cleanup_persisted_snapshots (POS: Server-side revert snapshot disk hydrate and cleanup)
 - myrm_agent_harness.agent.meta_tools.file_ops.revert_service::RevertService
 
 [OUTPUT]
@@ -63,11 +64,15 @@ async def _resolve_session_with_agent(msg: InboundMessage) -> tuple[str, str | N
 
 async def _revert_messages(session_id: str, message_ids: list[str]) -> int:
     """Best-effort revert file snapshots for deleted messages. Returns count of reverted files."""
+    from app.services.files.revert_hydrate import cleanup_persisted_snapshots
+
     total = 0
     for mid in message_ids:
         try:
             result = await RevertService.revert_message(session_id, mid)
             total += len(result.reverted_files)
+            if result.reverted_files:
+                await cleanup_persisted_snapshots(session_id, mid)
             if result.warnings:
                 logger.debug("Revert warnings for message %s: %s", mid, result.warnings)
         except Exception:

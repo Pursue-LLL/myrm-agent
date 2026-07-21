@@ -37,6 +37,10 @@ contract:
 
 # Obsidian Notes
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 Obsidian is a knowledge management tool built on local Markdown files. Since everything is plain text, this skill can directly read and write vault files to manage notes, journals, and knowledge graphs.

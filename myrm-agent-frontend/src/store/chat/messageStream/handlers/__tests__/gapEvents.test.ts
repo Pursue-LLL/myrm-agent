@@ -153,6 +153,35 @@ describe('gapEvents', () => {
     expect(setCurrentBuiltinTools).toHaveBeenCalledWith(['web_search', 'memory', 'cron']);
   });
 
+  it('shows info-only toast on surface_unavailable capability_gap', async () => {
+    await gapEvents(
+      createCtx(AgentEventType.CAPABILITY_GAP, {
+        tool_id: 'render_ui',
+        reason: 'surface_unavailable',
+        display_message: 'Inline UI is Web-only.',
+      }),
+    );
+
+    expect(toastInfo).toHaveBeenCalledWith('Inline UI is Web-only.', { duration: 12000 });
+    expect(setPendingGapRetry).not.toHaveBeenCalled();
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: unknown };
+    expect(toastOptions?.action).toBeUndefined();
+  });
+
+  it('uses localized fallback when surface_unavailable has no display_message', async () => {
+    document.documentElement.lang = 'zh-CN';
+    await gapEvents(
+      createCtx(AgentEventType.CAPABILITY_GAP, {
+        tool_id: 'render_ui',
+        reason: 'surface_unavailable',
+      }),
+    );
+
+    const toastMessage = toastInfo.mock.calls[0]?.[0] as string;
+    expect(toastMessage).toContain('Web 对话');
+    expect(setPendingGapRetry).not.toHaveBeenCalled();
+  });
+
   it('ignores capability_gap for agent baseline tool ids (no UI toggle)', async () => {
     const result = await gapEvents(
       createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'file_ops' }),

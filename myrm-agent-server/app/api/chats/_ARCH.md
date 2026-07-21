@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 挂载 `chat/` 子路由 | ✅ |
-| `test_fixtures.py` | 测试 | local-only Chrome E2E seed（citation + Kanban Chat↔Board closure） | ✅ |
+| `test_fixtures.py` | 测试 | local-only Chrome E2E seed（citation + Kanban closure + RevertFiles 四 variant） | ✅ |
 | `chat/` | 子模块 | 单会话消息、搜索、分支、turn 等子路由 | [chat/_ARCH.md](chat/_ARCH.md) |
 
 ## 依赖

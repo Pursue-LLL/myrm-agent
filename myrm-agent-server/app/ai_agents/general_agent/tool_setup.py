@@ -300,7 +300,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 response = interrupt(payload)
 
                 if not response:
-                    return "User skipped the clarification. Please proceed with your best judgment or ask a different question."
+                    return (
+                        "User did not answer the clarification (skipped or timed out). "
+                        "Proceed with your best judgment; do not wait for further input."
+                    )
 
                 return json.dumps(response, ensure_ascii=False)
 

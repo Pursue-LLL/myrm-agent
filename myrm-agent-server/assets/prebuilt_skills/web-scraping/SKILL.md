@@ -40,6 +40,10 @@ contract:
 
 # Web Scraping
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 Web scraping requires careful planning to extract data reliably. Jumping straight to code without understanding the page structure leads to fragile scrapers that break immediately.

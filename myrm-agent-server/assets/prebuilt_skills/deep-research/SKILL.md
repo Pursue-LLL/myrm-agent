@@ -42,6 +42,10 @@ contract:
 
 # Deep Research
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 Shallow research produces shallow results. This workflow enforces systematic, multi-source investigation to produce reports that are evidence-based, properly cited, and actionable.

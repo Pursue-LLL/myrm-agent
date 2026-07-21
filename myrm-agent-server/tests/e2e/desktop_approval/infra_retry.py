@@ -46,6 +46,8 @@ def is_retriable_page_transport(exc: BaseException) -> bool:
     message = str(exc).lower()
     if "detached frame" in message:
         return True
+    if "no mcpage found for the given page" in message:
+        return True
     if is_mux_new_page_retriable(exc):
         return True
     if isinstance(exc, ExceptionGroup):
@@ -78,9 +80,10 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
                 await asyncio.to_thread(
                     client.navigate,
                     page,
-                    BASE_URL,
+                    f"{BASE_URL.rstrip('/')}/",
                     timeout_ms=120_000,
                 )
+                await asyncio.sleep(2.0)
                 return page
             progress(f"new_page {url} attempt {attempt}/3 (direct fallback)")
             page = await asyncio.to_thread(

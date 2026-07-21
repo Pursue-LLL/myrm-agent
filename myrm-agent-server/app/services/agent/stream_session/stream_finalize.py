@@ -26,7 +26,7 @@ from app.services.agent.stream_session._memory_status_helpers import (
     build_memory_brief_status_payload,
     observe_memory_brief_status_payload,
 )
-from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder
+from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder, ClarificationTimeoutHolder
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.citation_persistence import (
     merge_memory_citation_fallback,
@@ -35,6 +35,7 @@ from app.services.agent.streaming_support.sse_helpers import (
     clear_context_task_metrics,
     error_sse,
     schedule_approval_timeout,
+    schedule_clarification_timeout,
 )
 
 logger = logging.getLogger(__name__)
@@ -150,6 +151,7 @@ async def finalize_agent_stream_session(
     session: AgentStreamSession,
     token_ctx: object,
     approval: ApprovalTimeoutHolder,
+    clarification: ClarificationTimeoutHolder,
 ) -> None:
     from myrm_agent_harness.agent.security import user_credentials_ctx
 
@@ -231,6 +233,12 @@ async def finalize_agent_stream_session(
         schedule_approval_timeout(
             chat_id=session.request.chat_id,
             timeout_info=approval.value,
+            params=session.params,
+        )
+
+    if clarification.pending and session.request.chat_id:
+        schedule_clarification_timeout(
+            chat_id=session.request.chat_id,
             params=session.params,
         )
 

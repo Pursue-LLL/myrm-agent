@@ -17,6 +17,14 @@ class TestTransportValidation:
         with pytest.raises(ValidationError, match="requires 'command'"):
             MCPServerConfig(name="s", type="stdio")
 
+    def test_http_alias_maps_to_streamable_http(self) -> None:
+        cfg = MCPServerConfig(name="remote", type="http", url="https://example.com/mcp")
+        assert cfg.type == "streamable_http"
+
+    def test_unknown_transport_is_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="unsupported type"):
+            MCPServerConfig(name="bad", type="websocket", url="wss://example.com")
+
 
 class TestTLSValidation:
     def test_client_key_requires_cert(self) -> None:

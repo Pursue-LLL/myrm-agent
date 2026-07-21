@@ -1,4 +1,5 @@
-import { MCPServiceConfig } from '@/store/useConfigStore';
+import type { MCPServiceConfig } from '@/store/config/types';
+import { canonicalizeMCPTransport, normalizeMCPKeepaliveInterval } from '@/lib/utils/mcpConfigNormalizer';
 
 /**
  * 解析单个MCP服务器配置对象
@@ -13,18 +14,11 @@ export function parseServerConfig(name: string, config: Record<string, unknown>)
     throw new Error('Server name cannot be empty');
   }
 
-  // 判断连接类型
-  let type: 'sse' | 'stdio' | 'streamable_http' = 'stdio';
-
-  if (config.type === 'sse') {
-    type = 'sse';
-  } else if (config.type === 'streamableHttp' || config.type === 'streamable_http') {
-    type = 'streamable_http';
-  } else if (config.command) {
-    type = 'stdio';
-  } else if (config.url) {
-    type = 'sse';
-  }
+  const transportLike = config.type ?? config.transport;
+  const type = canonicalizeMCPTransport(transportLike, {
+    command: config.command,
+    url: config.url,
+  });
 
   const rawHeaders = config.headers as Record<string, string> | undefined;
   const rawHostSerial = config.host_serial ?? config.hostSerial;
@@ -40,10 +34,7 @@ export function parseServerConfig(name: string, config: Record<string, unknown>)
     enabled: true,
     headers: rawHeaders && Object.keys(rawHeaders).length > 0 ? rawHeaders : null,
     hostSerial: typeof rawHostSerial === 'boolean' ? rawHostSerial : false,
-    keepaliveInterval:
-      typeof rawKeepaliveInterval === 'number' && Number.isFinite(rawKeepaliveInterval) && rawKeepaliveInterval >= 5
-        ? rawKeepaliveInterval
-        : null,
+    keepaliveInterval: normalizeMCPKeepaliveInterval(type, rawKeepaliveInterval),
     extra_params: {
       ...(config.env ? { env: config.env as Record<string, string> } : {}),
       ...(config.cwd ? { cwd: config.cwd as string } : {}),

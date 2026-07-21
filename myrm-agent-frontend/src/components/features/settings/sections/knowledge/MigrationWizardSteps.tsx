@@ -608,7 +608,7 @@ export function PreviewStep({
                     {t('preview.mcpEnvKeysRequired', { count: srv.envKeyCount! })}
                   </div>
                 )}
-                {typeof srv.keepaliveInterval === 'number' && srv.keepaliveInterval > 0 && (
+                {srv.type !== 'stdio' && typeof srv.keepaliveInterval === 'number' && srv.keepaliveInterval > 0 && (
                   <div className="text-muted-foreground">
                     {t('preview.mcpKeepalive', { seconds: srv.keepaliveInterval })}
                   </div>

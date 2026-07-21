@@ -46,7 +46,7 @@ const syncPersonalSettings = (state: Partial<PersonalSettingsConfigValue>) => {
  * 同步 MCP 配置到后端
  */
 const syncMCPServers = (mcpConfigs: MCPServiceConfig[]) => {
-  const value: MCPServersConfigValue = { mcpConfigs };
+  const value: MCPServersConfigValue = { mcpConfigs: mcpManager.setMCPConfigs(mcpConfigs) };
   syncManager.set('mcpServers', value);
 };
 
@@ -464,12 +464,14 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
             description: s.description || '',
             extra_params: { ...s.extra_params, scope: 'org' },
           })) as MCPServiceConfig[];
+          const normalizedMcpConfigs = mcpManager.setMCPConfigs(mcpServers?.mcpConfigs ?? []);
+          const normalizedOrgConfigs = mcpManager.setMCPConfigs(orgConfigs);
 
           set({
             ...migratedPersonal,
             personalSettings: migratedPersonal,
-            mcpConfigs: mcpServers?.mcpConfigs ?? [],
-            orgMcpConfigs: orgConfigs,
+            mcpConfigs: normalizedMcpConfigs,
+            orgMcpConfigs: normalizedOrgConfigs,
             searchServiceConfigs: validatedSearchConfigs,
           });
 
@@ -482,7 +484,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
 
           syncManager.subscribe('mcpServers', (_key, value) => {
             const v = value as MCPServersConfigValue;
-            set({ mcpConfigs: v.mcpConfigs });
+            set({ mcpConfigs: mcpManager.setMCPConfigs(v.mcpConfigs ?? []) });
           });
 
           syncManager.subscribe('orgMcpServers', (_key, value) => {
@@ -493,7 +495,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
               description: s.description || '',
               extra_params: { ...s.extra_params, scope: 'org' },
             })) as MCPServiceConfig[];
-            set({ orgMcpConfigs: configs });
+            set({ orgMcpConfigs: mcpManager.setMCPConfigs(configs) });
           });
 
           syncManager.subscribe('searchServices', (_key, value) => {

@@ -38,6 +38,10 @@ contract:
 
 # Linear Project Management
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 Linear is a modern project management tool for software teams. This skill provides workflows for managing issues, cycles, and projects via the Linear GraphQL API.

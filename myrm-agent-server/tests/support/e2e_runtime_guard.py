@@ -16,6 +16,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, TypedDict, cast
 
+from tests.support.e2e_parallel_snapshot import (
+    clear_e2e_lock_holder,
+    current_pytest_node_label,
+    format_lock_holder,
+    print_e2e_parallel_snapshot,
+    read_e2e_lock_holder,
+    snapshot_live_e2e_processes,
+    write_e2e_lock_holder,
+)
+
 ResourceKind = Literal["chat", "project", "agent", "cron", "file", "kanban_board", "kanban_task"]
 
 _E2E_HEARTBEAT_INTERVAL_SEC = 30.0
@@ -447,6 +457,7 @@ def live_agent_stream_lock() -> Iterator[None]:
     deadline = time.monotonic() + _LIVE_AGENT_STREAM_WAIT_SEC
     acquired = False
     last_log = 0.0
+    holder_label = current_pytest_node_label("live_agent_stream")
     while time.monotonic() < deadline:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -455,22 +466,38 @@ def live_agent_stream_lock() -> Iterator[None]:
         except BlockingIOError:
             now = time.monotonic()
             if now - last_log >= 30.0:
+                holder = read_e2e_lock_holder(_LIVE_AGENT_STREAM_LOCK_PATH)
                 print(
                     "LIVE_AGENT_STREAM_WAIT: shared :8080 agent-stream busy; "
-                    f"queueing (max {_LIVE_AGENT_STREAM_WAIT_SEC:.0f}s)",
+                    f"queueing (max {_LIVE_AGENT_STREAM_WAIT_SEC:.0f}s) "
+                    f"holder={format_lock_holder(holder)}",
                     flush=True,
                 )
                 last_log = now
             time.sleep(1.0)
     if not acquired:
         os.close(fd)
+        holder = read_e2e_lock_holder(_LIVE_AGENT_STREAM_LOCK_PATH)
         raise RuntimeError(
             "LIVE_AGENT_STREAM_WAIT_TIMEOUT: shared :8080 agent-stream lock busy "
-            f"(lock={_LIVE_AGENT_STREAM_LOCK_PATH}, wait={_LIVE_AGENT_STREAM_WAIT_SEC:.0f}s). "
+            f"(lock={_LIVE_AGENT_STREAM_LOCK_PATH}, wait={_LIVE_AGENT_STREAM_WAIT_SEC:.0f}s, "
+            f"holder={format_lock_holder(holder)}). "
             "Do not kill other pytest — wait for FIFO queue."
         )
+    write_e2e_lock_holder(_LIVE_AGENT_STREAM_LOCK_PATH, holder_label)
+    print(
+        "LIVE_AGENT_STREAM_ACQUIRED: "
+        f"pid={os.getpid()} test={holder_label}",
+        flush=True,
+    )
     try:
         yield
     finally:
+        clear_e2e_lock_holder(_LIVE_AGENT_STREAM_LOCK_PATH)
         fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
+        print(
+            "LIVE_AGENT_STREAM_RELEASED: "
+            f"pid={os.getpid()} test={holder_label}",
+            flush=True,
+        )

@@ -65,7 +65,8 @@ def _convert_one(
         server_type = "stdio"
     elif url:
         transport = _str_or_none(raw, "type") or _str_or_none(raw, "transport") or ""
-        if transport.lower() in ("streamable_http", "streamable-http"):
+        normalized_transport = transport.strip().lower().replace("-", "_")
+        if normalized_transport in ("streamable_http", "streamablehttp", "http"):
             server_type = "streamable_http"
         else:
             server_type = "sse"
@@ -79,7 +80,10 @@ def _convert_one(
 
     connect_timeout = _float_or_default(raw, "connectTimeout", "connect_timeout", default=15.0)
     execute_timeout = _float_or_default(raw, "timeout", "execute_timeout", default=120.0)
-    keepalive_interval, keepalive_interval_ignored = _resolve_keepalive_interval(raw)
+    keepalive_interval, keepalive_interval_ignored = _resolve_keepalive_interval(
+        raw,
+        server_type=server_type,
+    )
     host_serial = _resolve_host_serial_policy(raw)
 
     tool_include, tool_exclude = _extract_tool_filters(raw)
@@ -135,7 +139,7 @@ def mcp_migration_item_to_config_dict(item: MCPMigrationItem) -> dict[str, objec
         cfg["tool_include"] = item.tool_include
     if item.tool_exclude:
         cfg["tool_exclude"] = item.tool_exclude
-    if item.keepalive_interval is not None:
+    if _is_remote_server_type(item.server_type) and item.keepalive_interval is not None:
         cfg["keepaliveInterval"] = item.keepalive_interval
     return cfg
 
@@ -156,7 +160,7 @@ def mcp_migration_item_to_preview(item: MCPMigrationItem) -> dict[str, object]:
         preview["url"] = item.url
     if item.env_key_names:
         preview["envKeyCount"] = len(item.env_key_names)
-    if item.keepalive_interval is not None:
+    if _is_remote_server_type(item.server_type) and item.keepalive_interval is not None:
         preview["keepaliveInterval"] = item.keepalive_interval
     if item.keepalive_interval_ignored:
         preview["keepaliveIntervalIgnored"] = True
@@ -176,18 +180,28 @@ def _float_or_default(d: dict[str, object], *keys: str, default: float) -> float
     return default
 
 
-def _resolve_keepalive_interval(raw: dict[str, object]) -> tuple[float | None, bool]:
-    """Resolve optional keepalive interval and whether a low value was ignored."""
-    ignored_low_value = False
+def _resolve_keepalive_interval(
+    raw: dict[str, object],
+    *,
+    server_type: str,
+) -> tuple[float | None, bool]:
+    """Resolve keepalive for remote transports; flag ignored stdio/low values."""
+    ignored_value = False
     for key in ("keepalive_interval", "keepaliveInterval", "keepalive", "keepAliveInterval"):
         value = raw.get(key)
         if not _is_numeric(value):
             continue
+        if not _is_remote_server_type(server_type):
+            return None, True
         numeric = float(value)
         if numeric >= 5:
             return numeric, False
-        ignored_low_value = True
-    return None, ignored_low_value
+        ignored_value = True
+    return None, ignored_value
+
+
+def _is_remote_server_type(server_type: str) -> bool:
+    return server_type in ("sse", "streamable_http")
 
 
 def _is_numeric(value: object) -> bool:

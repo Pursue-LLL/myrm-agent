@@ -53,6 +53,8 @@ export interface ToolApprovalRequest {
   workspaceRoot?: string;
   /** Bilingual human-readable command explanation for non-developer users */
   plainExplanation?: { en: string; zh: string };
+  /** LLM-provided execution intent from bash_code_execute_tool.reason */
+  executionIntent?: string;
 }
 export interface ToolCallInfo {
   callId: string;

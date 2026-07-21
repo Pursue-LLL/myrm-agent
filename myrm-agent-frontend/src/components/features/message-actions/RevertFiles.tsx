@@ -48,16 +48,16 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  const fetchChanges = useCallback(async () => {
+  const fetchChanges = useCallback(async (): Promise<FileChange[] | 'error'> => {
     try {
       const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${messageId}`, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) return null;
+      if (!res.ok) return 'error';
       const data: FileChange[] = await res.json();
-      return data.length > 0 ? data : null;
+      return data.length > 0 ? data : [];
     } catch {
-      return null;
+      return 'error';
     }
   }, [chatId, messageId]);
 
@@ -93,7 +93,11 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
 
   const handleTriggerClick = useCallback(async () => {
     const [fileChanges, fileDiffs] = await Promise.all([fetchChanges(), fetchDiffs()]);
-    if (!fileChanges) {
+    if (fileChanges === 'error') {
+      toast({ description: t('revertMessageEmpty'), variant: 'destructive' });
+      return;
+    }
+    if (fileChanges.length === 0) {
       toast({ description: t('revertMessageEmpty'), variant: 'default' });
       return;
     }

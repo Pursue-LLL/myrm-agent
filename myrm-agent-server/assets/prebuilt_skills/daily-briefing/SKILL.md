@@ -54,6 +54,10 @@ contract:
 
 # Daily Briefing
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 Start every day with clarity. This skill compiles pending tasks, contextual reminders from past conversations, and optional external intelligence (weather, news) into a single, scannable briefing.

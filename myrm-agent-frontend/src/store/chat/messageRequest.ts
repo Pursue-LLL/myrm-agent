@@ -64,6 +64,7 @@ import { fetchWithTimeout } from '@/lib/api';
 import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { normalizeApiUrl } from '@/store/config/providerTypes';
+import { normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
 import type { ChatState } from './types';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';
@@ -95,6 +96,7 @@ export interface ChatActionsState {
   goalConvergenceWindow: number | null;
   goalAcceptanceCriteria: Array<Record<string, unknown>> | null;
   goalConstraints: string[] | null;
+  isWorkflowMode: boolean;
   currentSessionMessageId: string | null;
   messageAppeared: boolean;
   isMessagesLoaded: boolean;
@@ -117,6 +119,7 @@ export interface ChatActionsMethods {
   setMessageAppeared: (appeared: boolean) => void;
   setHideAttachList: (hide: boolean) => void;
   setHasUsedImagesInCurrentChat: (hasUsed: boolean) => void;
+  setIsWorkflowMode: (enabled: boolean) => void;
   setSelectedModels: (models: { base: string | null; vision: string | null; reasoning: string | null }) => void;
   setHasUserSelectedModel: (hasSelected: boolean) => void;
   clearCurrentSessionMessageId: () => void;
@@ -482,8 +485,9 @@ export const createMessageRequest = async (
   const isAgentMode = actionMode === 'agent';
   const isStreamingMode = actionMode === 'agent' || actionMode === 'fast';
 
+  const normalizedMCPConfigs = normalizeMCPServiceConfigs(mcpConfigs);
   const enabledMCPConfigs = agentConfig
-    ? mcpConfigs.filter((mcp) => agentConfig.selectedMcpNames.includes(mcp.name))
+    ? normalizedMCPConfigs.filter((mcp) => agentConfig.selectedMcpNames.includes(mcp.name))
     : [];
 
   const { user } = useAuthStore.getState();
@@ -940,7 +944,7 @@ export const sendMessage = async (
       smartActions.setMessages((innerState) => {
         innerState.messages.push({
           content: input,
-          messageId: userMessageId,
+          messageId: userMessageId || requestMessageId,
           chatId: innerState.chatId!,
           role: 'user',
           createdAt: new Date(),

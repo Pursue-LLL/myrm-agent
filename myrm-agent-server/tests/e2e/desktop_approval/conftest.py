@@ -20,6 +20,14 @@ from pathlib import Path
 
 import pytest
 
+from tests.support.e2e_parallel_snapshot import (
+    format_lock_holder,
+    read_e2e_lock_holder,
+    write_e2e_lock_holder,
+    clear_e2e_lock_holder,
+    current_pytest_node_label,
+)
+
 _LOCK_PATH = Path(os.environ.get("TMPDIR", "/tmp")) / "myrm-desktop-approval-e2e.lock"
 _LOCK_WAIT_SEC = float(os.environ.get("MYRM_DESKTOP_E2E_LOCK_WAIT_SEC", "900"))
 
@@ -32,6 +40,7 @@ def _desktop_approval_e2e_single_flight() -> Iterator[None]:
     deadline = time.monotonic() + _LOCK_WAIT_SEC
     acquired = False
     last_log = 0.0
+    holder_label = current_pytest_node_label("desktop_approval_e2e")
     while time.monotonic() < deadline:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -40,22 +49,36 @@ def _desktop_approval_e2e_single_flight() -> Iterator[None]:
         except BlockingIOError:
             now = time.monotonic()
             if now - last_log >= 30.0:
+                holder = read_e2e_lock_holder(_LOCK_PATH)
                 print(
                     f"DESKTOP_E2E_LOCK_WAIT: another desktop approval session holds "
-                    f"{_LOCK_PATH}; queueing (max {_LOCK_WAIT_SEC:.0f}s)",
+                    f"{_LOCK_PATH}; queueing (max {_LOCK_WAIT_SEC:.0f}s) "
+                    f"holder={format_lock_holder(holder)}",
                     flush=True,
                 )
                 last_log = now
             time.sleep(1.0)
     if not acquired:
         os.close(fd)
+        holder = read_e2e_lock_holder(_LOCK_PATH)
         pytest.fail(
             "Timed out waiting for desktop approval Chrome E2E lock "
-            f"(lock={_LOCK_PATH}, wait={_LOCK_WAIT_SEC:.0f}s). "
+            f"(lock={_LOCK_PATH}, wait={_LOCK_WAIT_SEC:.0f}s, "
+            f"holder={format_lock_holder(holder)}). "
             "Another desktop pytest is still running — do not start a duplicate; wait for queue."
         )
+    write_e2e_lock_holder(_LOCK_PATH, holder_label)
+    print(
+        f"DESKTOP_E2E_LOCK_ACQUIRED: pid={os.getpid()} test={holder_label}",
+        flush=True,
+    )
     try:
         yield
     finally:
+        clear_e2e_lock_holder(_LOCK_PATH)
         fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
+        print(
+            f"DESKTOP_E2E_LOCK_RELEASED: pid={os.getpid()} test={holder_label}",
+            flush=True,
+        )

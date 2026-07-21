@@ -178,11 +178,41 @@ async def _fetch_first_desktop_dref(
     return None
 
 
+async def _ensure_nudge_chat_surface(
+    chat: McpChatSession,
+    *,
+    chat_id: str = "",
+) -> None:
+    normalized = chat_id.strip()
+    if normalized:
+        target = f"{BASE_URL.rstrip('/')}/chat/{normalized}"
+        probe = await chat.evaluate(
+            f"""(() => {{
+              const href = String(location.href || '');
+              return {{ href, onTarget: href.startsWith({target!r}) }};
+            }})()""",
+            await_promise=False,
+        )
+        if not (isinstance(probe, dict) and probe.get("onTarget")):
+            progress(f"restore chat route before nudge chat_id={normalized}")
+            await asyncio.to_thread(
+                chat._client.navigate,
+                chat._page,
+                target,
+                timeout_ms=120_000,
+            )
+            await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+    await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
+
+
 async def _send_interact_nudge(
     chat: McpChatSession,
     *,
     last_tool: str,
+    chat_id: str = "",
 ) -> None:
+    await asyncio.to_thread(activate_chrome_foreground)
+    await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
     dref: str | None = None
     if last_tool.endswith("desktop_snapshot_tool"):
         await asyncio.sleep(1.0)
@@ -454,14 +484,14 @@ async def ensure_interact_gate(
             return tool_activity, last_tool, server_pending, ui_pending
         progress("snapshot detected — send dref-targeted interact nudge")
         try:
-            await chat.ensure_chat_surface(BASE_URL)
-            await _send_interact_nudge(chat, last_tool=last_tool)
+            await _send_interact_nudge(chat, last_tool=last_tool, chat_id=chat_id)
         except (RuntimeError, TimeoutError, OSError) as exc:
             raise AssertionError(f"Snapshot nudge send failed (Chrome mux): {exc}") from exc
         heartbeat_e2e_lease()
         tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
             chat,
             timeout_sec=90.0,
+            chat_id=chat_id,
         )
 
     max_nudge_rounds = 4
@@ -478,6 +508,7 @@ async def ensure_interact_gate(
             tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
                 chat,
                 timeout_sec=45.0,
+                chat_id=chat_id,
             )
             if _desktop_gate_satisfied(
                 last_tool=last_tool,
@@ -490,13 +521,14 @@ async def ensure_interact_gate(
             f"round {round_idx + 1}/{max_nudge_rounds} lastTool={last_tool!r}"
         )
         try:
-            await _send_interact_nudge(chat, last_tool=last_tool)
+            await _send_interact_nudge(chat, last_tool=last_tool, chat_id=chat_id)
         except (RuntimeError, TimeoutError, OSError) as exc:
             raise AssertionError(f"Nudge send failed (Chrome mux): {exc}") from exc
         heartbeat_e2e_lease()
         tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
             chat,
             timeout_sec=90.0,
+            chat_id=chat_id,
         )
 
     provider_hint = await _provider_readiness_hint()

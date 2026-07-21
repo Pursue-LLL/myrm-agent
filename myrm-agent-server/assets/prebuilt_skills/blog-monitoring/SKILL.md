@@ -31,6 +31,10 @@ contract:
 
 # Blog Monitoring
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 
 Staying current in fast-moving fields requires systematic monitoring. This skill automates the discovery, filtering, and summarization of content from blogs, news sites, and RSS feeds.

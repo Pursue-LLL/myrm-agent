@@ -57,8 +57,32 @@ class TestConvertCompetitorMCPServers:
         assert slack.tool_exclude is None
         assert "SLACK_TOKEN" in slack.env_key_names
         assert slack.host_serial is True
-        assert slack.keepalive_interval == 30
-        assert slack.keepalive_interval_ignored is False
+        assert slack.keepalive_interval is None
+        assert slack.keepalive_interval_ignored is True
+
+    def test_remote_keepalive_is_preserved(self) -> None:
+        raw = {
+            "remote": {
+                "url": "https://example.com/mcp",
+                "type": "streamable_http",
+                "keepalive_interval": 30,
+            }
+        }
+        items = convert_competitor_mcp_servers(raw, competitor="hermes")
+        assert len(items) == 1
+        assert items[0].keepalive_interval == 30
+        assert items[0].keepalive_interval_ignored is False
+
+    def test_http_transport_alias_maps_to_streamable_http(self) -> None:
+        raw = {
+            "remote-http": {
+                "type": "http",
+                "url": "https://example.com/mcp",
+            }
+        }
+        items = convert_competitor_mcp_servers(raw, competitor="deer-flow")
+        assert len(items) == 1
+        assert items[0].server_type == "streamable_http"
 
     def test_explicit_host_serial_overrides_parallel_flag(self) -> None:
         raw = {
@@ -164,7 +188,7 @@ class TestMCPMigrationItemToConfigDict:
         assert cfg["args"] == ["server.js"]
         assert "url" not in cfg
         assert cfg["hostSerial"] is True
-        assert cfg["keepaliveInterval"] == 30.0
+        assert "keepaliveInterval" not in cfg
         assert cfg["tool_exclude"] == ["dangerous_tool"]
         assert "tool_include" not in cfg
 
@@ -189,6 +213,25 @@ class TestMCPMigrationItemToConfigDict:
         assert "command" not in cfg
         assert "args" not in cfg
         assert "keepaliveInterval" not in cfg
+
+    def test_remote_config_keeps_keepalive(self) -> None:
+        item = MCPMigrationItem(
+            name="remote",
+            server_type="streamable_http",
+            command=None,
+            args=None,
+            url="https://example.com/mcp",
+            description="Remote — Migrated from hermes",
+            connect_timeout=10.0,
+            execute_timeout=60.0,
+            keepalive_interval=30.0,
+            host_serial=False,
+            tool_include=None,
+            tool_exclude=None,
+            env_key_names=[],
+        )
+        cfg = mcp_migration_item_to_config_dict(item)
+        assert cfg["keepaliveInterval"] == 30.0
 
 
 class TestMCPMigrationItemToPreview:
@@ -257,6 +300,25 @@ class TestMCPMigrationItemToPreview:
         )
         preview = mcp_migration_item_to_preview(item)
         assert preview["hostSerial"] is True
+        assert "keepaliveInterval" not in preview
+
+    def test_preview_includes_keepalive_for_remote(self) -> None:
+        item = MCPMigrationItem(
+            name="remote",
+            server_type="streamable_http",
+            command=None,
+            args=None,
+            url="https://example.com/mcp",
+            description="Migrated from hermes",
+            connect_timeout=15.0,
+            execute_timeout=120.0,
+            keepalive_interval=20,
+            host_serial=False,
+            tool_include=None,
+            tool_exclude=None,
+            env_key_names=[],
+        )
+        preview = mcp_migration_item_to_preview(item)
         assert preview["keepaliveInterval"] == 20
 
     def test_preview_marks_ignored_keepalive(self) -> None:

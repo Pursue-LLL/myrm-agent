@@ -11,12 +11,14 @@
 - is_compression_exhausted: 检测上下文压缩耗尽事件
 - extract_approval_intercepted: 提取审批拦截信息
 - extract_approval_timeout: 提取审批超时信息
+- extract_clarification_required: 检测 structured clarify interrupt SSE
 - schedule_approval_timeout: 注册审批超时后台守护
+- schedule_clarification_timeout: 注册 Web ask_question 900s 超时 auto-resume（no_answer）
 - clear_context_task_metrics: 清理 harness 侧 TaskMetrics
 
 [POS]
-SSE 事件辅助层。提供 SSE 事件解析、错误格式化和审批超时调度能力，
-供 streaming.py 主路由调用。
+SSE 事件辅助层。提供 SSE 事件解析、错误格式化，以及审批/澄清 HITL 超时后台 auto-resume 调度，
+供 stream_loop / stream_finalize 调用。
 """
 
 from __future__ import annotations
@@ -38,6 +40,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _SSE_DATA_PREFIX = "data: "
+
+# Web structured clarify: auto-resume when user leaves the form open (OpenClaw default 900s).
+CLARIFICATION_TIMEOUT_SECONDS = 900.0
+
+# Empty dict is falsy in _on_ask_question and triggers best-judgment continuation.
+CLARIFICATION_NO_ANSWER_RESUME_VALUE: dict[str, object] = {}
 
 
 def error_sse(message: str, message_id: str | None) -> str:
@@ -117,6 +125,67 @@ def extract_approval_timeout(sse_chunk: str) -> dict[str, object] | None:
         }
     except (orjson.JSONDecodeError, TypeError):
         return None
+
+
+def extract_clarification_required(sse_chunk: str) -> bool:
+    """Return True when an SSE chunk signals a structured clarification interrupt."""
+    if "clarification_required" not in sse_chunk:
+        return False
+    if not sse_chunk.startswith(_SSE_DATA_PREFIX):
+        return False
+    try:
+        event = orjson.loads(sse_chunk[len(_SSE_DATA_PREFIX) :].rstrip())
+        return event.get("type") == "clarification_required"
+    except (orjson.JSONDecodeError, TypeError):
+        return False
+
+
+def schedule_clarification_timeout(
+    chat_id: str,
+    params: GeneralAgentParams,
+    *,
+    timeout_seconds: float = CLARIFICATION_TIMEOUT_SECONDS,
+) -> None:
+    """Register a backend timeout guard for a pending ask_question interrupt."""
+
+    async def resume_callback(resume_value: dict[str, object]) -> None:
+        from langgraph.types import Command
+
+        from app.services.agent.streaming import ai_agent_service_stream
+        from app.services.chat.chat_service import ChatService
+
+        resume_params = params.model_copy()
+        resume_params.query = Command(resume=resume_value)
+
+        resume_collector = StreamContentCollector()
+        next_approval_timeout: dict[str, object] | None = None
+        clarification_pending = False
+        async for chunk in ai_agent_service_stream(params=resume_params):
+            sse_line = f"data: {orjson.dumps(chunk).decode('utf-8')}\n\n" if isinstance(chunk, dict) else str(chunk)
+            resume_collector.feed_sse(sse_line)
+            next_approval_timeout = extract_approval_timeout(sse_line) or next_approval_timeout
+            if extract_clarification_required(sse_line):
+                clarification_pending = True
+
+        if resume_collector.has_content:
+            await ChatService.persist_assistant_message_safe(
+                chat_id, resume_collector.content, extra_data=resume_collector.extra_data
+            )
+
+        if next_approval_timeout:
+            schedule_approval_timeout(chat_id, next_approval_timeout, resume_params)
+        elif clarification_pending:
+            schedule_clarification_timeout(chat_id, resume_params, timeout_seconds=timeout_seconds)
+        else:
+            logger.info("Clarification timeout auto-resume completed: chat_id=%s", chat_id)
+
+    ApprovalTimeoutScheduler.get().schedule(
+        key=chat_id,
+        timeout_seconds=timeout_seconds,
+        behavior="deny",
+        resume_callback=resume_callback,
+        resume_value_override=CLARIFICATION_NO_ANSWER_RESUME_VALUE,
+    )
 
 
 def schedule_approval_timeout(

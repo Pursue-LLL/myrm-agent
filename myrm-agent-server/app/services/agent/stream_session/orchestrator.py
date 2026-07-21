@@ -178,7 +178,7 @@ async def run_agent_stream(
                     )
                     return JSONResponse(
                         status_code=409,
-                        content={"detail": "This approval has already been resolved by timeout."},
+                        content={"detail": "This HITL request has already been resolved by timeout."},
                     )
 
             logger.info(f"🔄 Resume 模式: chat_id={request.chat_id}, decision={request.resume_value.get('decision')}")

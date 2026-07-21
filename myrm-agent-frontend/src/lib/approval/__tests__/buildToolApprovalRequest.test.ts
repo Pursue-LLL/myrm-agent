@@ -97,4 +97,28 @@ describe('buildToolApprovalRequest', () => {
 
     expect(request.plainExplanation).toBeUndefined();
   });
+
+  it('maps execution_intent from harness payload', () => {
+    const request = buildToolApprovalRequest({
+      action: {
+        action: 'bash_code_execute_tool',
+        args: {
+          command: 'npm install',
+          reason: 'Install dependencies before running tests',
+        },
+        description: 'needs approval',
+        execution_intent: 'Install dependencies before running tests',
+      },
+      requestId: 'req-5',
+      messageId: 'msg-5',
+      chatId: 'chat-5',
+      actionMode: 'agent',
+      extensions: {
+        timeout: { seconds: 60, expiresAt: 1_700_000_000 },
+        displayMode: 'approval',
+      },
+    });
+
+    expect(request.executionIntent).toBe('Install dependencies before running tests');
+  });
 });

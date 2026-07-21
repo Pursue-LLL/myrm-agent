@@ -68,14 +68,55 @@ def test_build_entitlement_gap_sse_event_render_ui_form_query() -> None:
     assert data["tool_group"] == "render_ui"
 
 
-def test_build_entitlement_gap_sse_event_none_when_group_enabled() -> None:
+def test_build_entitlement_gap_sse_event_none_when_group_enabled_on_web_chat() -> None:
     event = build_entitlement_gap_sse_event(
         message_id="msg-2",
         user_text="帮我填表",
         active_tool_groups=derive_active_tool_groups_from_params(_params(enable_render_ui=True)),
         chat_id="chat-2",
+        channel_name="web_chat",
+        client_surface="web",
     )
     assert event is None
+
+
+def test_build_entitlement_gap_sse_event_surface_unavailable_on_im_channel() -> None:
+    event = build_entitlement_gap_sse_event(
+        message_id="msg-im-1",
+        user_text="帮我填表准备 staging 部署配置",
+        active_tool_groups=derive_active_tool_groups_from_params(_params(enable_render_ui=True)),
+        chat_id="chat-im-1",
+        channel_name="telegram",
+        client_surface=None,
+        locale="zh-CN",
+    )
+    assert event is not None
+    assert event["type"] == "capability_gap"
+    data = event["data"]
+    assert isinstance(data, dict)
+    assert data["tool_id"] == "render_ui"
+    assert data["reason"] == "surface_unavailable"
+    assert "Web 对话" in str(data["display_message"])
+
+
+def test_build_entitlement_gap_sse_event_surface_unavailable_dedup() -> None:
+    groups = derive_active_tool_groups_from_params(_params(enable_render_ui=True))
+    first = build_entitlement_gap_sse_event(
+        message_id="msg-im-2",
+        user_text="帮我填表",
+        active_tool_groups=groups,
+        chat_id="chat-im-dedup",
+        channel_name="telegram",
+    )
+    second = build_entitlement_gap_sse_event(
+        message_id="msg-im-3",
+        user_text="再帮我填表",
+        active_tool_groups=groups,
+        chat_id="chat-im-dedup",
+        channel_name="telegram",
+    )
+    assert first is not None
+    assert second is None
 
 
 def test_build_entitlement_gap_sse_event_dedup_within_cooldown() -> None:

@@ -50,6 +50,11 @@ contract:
 
 # MCP Server Builder
 
+
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 Build MCP servers that connect external services to the agent. Quality is measured by: tools work reliably, annotations enable smooth approval flow, errors are actionable.
 
 ---

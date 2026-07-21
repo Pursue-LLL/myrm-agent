@@ -15,7 +15,7 @@ from app.database.repositories.chat_repo import ChatRepository
 from app.services.agent.stream_session.stream_finalize import (
     finalize_agent_stream_session,
 )
-from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder
+from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder, ClarificationTimeoutHolder
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.chat.chat_service import ChatService
 from app.services.chat.ui_artifact_patch import (
@@ -285,7 +285,7 @@ class TestFinalizeCrossTurnUiPatch:
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(
-                session, MagicMock(), ApprovalTimeoutHolder()
+                session, MagicMock(), ApprovalTimeoutHolder(), ClarificationTimeoutHolder()
             )
 
         mock_patch.assert_awaited_once_with(

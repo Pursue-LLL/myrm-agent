@@ -414,17 +414,30 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                   const plainExplanation = parsePlainExplanation(
                     args.plain_explanation ?? args.plainExplanation,
                   );
+                  const executionIntent =
+                    typeof args.execution_intent === 'string' && args.execution_intent.trim()
+                      ? args.execution_intent.trim()
+                      : typeof args.reason === 'string' && args.reason.trim()
+                        ? args.reason.trim()
+                        : undefined;
                   return (
-                    <ShellCommandDisplay
-                      key={idx}
-                      toolName={call.name}
-                      command={command}
-                      commandSpans={commandSpans}
-                      commandSpanRisks={commandSpanRisks}
-                      commandSpanReasons={commandSpanReasons}
-                      plainExplanation={plainExplanation}
-                      workspaceRoot={workspaceRoot}
-                    />
+                    <div key={idx} className="space-y-2">
+                      {executionIntent && (
+                        <div className="text-xs text-foreground/90 rounded-md border border-border/60 bg-muted/40 px-2.5 py-2">
+                          <span className="font-medium text-muted-foreground">{t('executionIntent')}:</span>{' '}
+                          {executionIntent}
+                        </div>
+                      )}
+                      <ShellCommandDisplay
+                        toolName={call.name}
+                        command={command}
+                        commandSpans={commandSpans}
+                        commandSpanRisks={commandSpanRisks}
+                        commandSpanReasons={commandSpanReasons}
+                        plainExplanation={plainExplanation}
+                        workspaceRoot={workspaceRoot}
+                      />
+                    </div>
                   );
                 }
 

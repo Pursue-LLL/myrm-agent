@@ -60,6 +60,49 @@ async def test_tool_approval_request_sets_timeout_state() -> None:
 
 
 @pytest.mark.asyncio
+async def test_capability_gap_surface_unavailable_yields_progress_update() -> None:
+    acc = StreamAccumulator()
+    state = ChannelStreamEventState()
+    event = {
+        "type": "capability_gap",
+        "data": {
+            "tool_id": "render_ui",
+            "tool_group": "render_ui",
+            "reason": "surface_unavailable",
+            "display_message": "Inline UI is Web-only.",
+        },
+    }
+    progress = [
+        item
+        async for item in iter_channel_stream_progress(_events(event), acc, state)
+    ]
+    assert len(progress) == 1
+    assert isinstance(progress[0], ProgressUpdate)
+    assert progress[0].label == "Inline UI is Web-only."
+
+
+@pytest.mark.asyncio
+async def test_capability_gap_surface_unavailable_fallback_when_message_empty() -> None:
+    acc = StreamAccumulator()
+    state = ChannelStreamEventState()
+    event = {
+        "type": "capability_gap",
+        "data": {
+            "tool_id": "render_ui",
+            "reason": "surface_unavailable",
+            "display_message": "",
+        },
+    }
+    progress = [
+        item
+        async for item in iter_channel_stream_progress(_events(event), acc, state)
+    ]
+    assert len(progress) == 1
+    assert isinstance(progress[0], ProgressUpdate)
+    assert "Web Chat" in progress[0].label
+
+
+@pytest.mark.asyncio
 async def test_fission_topology_yields_raw_data() -> None:
     acc = StreamAccumulator()
     state = ChannelStreamEventState()

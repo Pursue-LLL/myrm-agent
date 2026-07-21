@@ -325,3 +325,62 @@ def test_formal_chrome_e2e_auto_heals_stale_lease_on_runtime_drift(
     assert lease.runtime_id == "runtime-healed"
     assert os.environ.get("MYRM_E2E_STACK_FP") == "runtime-healed"
     assert_e2e_runtime_unchanged(lease)
+
+
+def test_e2e_lock_holder_roundtrip(tmp_path: Path) -> None:
+    from tests.support.e2e_parallel_snapshot import (
+        clear_e2e_lock_holder,
+        read_e2e_lock_holder,
+        write_e2e_lock_holder,
+    )
+
+    lock_path = tmp_path / "myrm-live-agent-stream.lock"
+    write_e2e_lock_holder(lock_path, "tests/e2e/demo.py::test_demo")
+    holder = read_e2e_lock_holder(lock_path)
+    assert holder is not None
+    assert holder.pid == os.getpid()
+    assert holder.label == "tests/e2e/demo.py::test_demo"
+    clear_e2e_lock_holder(lock_path)
+    assert read_e2e_lock_holder(lock_path) is None
+
+
+def test_snapshot_live_e2e_processes_parses_ps(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from tests.support.e2e_parallel_snapshot import snapshot_live_e2e_processes
+
+    stream_lock = tmp_path / "myrm-live-agent-stream.lock"
+    desktop_lock = tmp_path / "myrm-desktop-approval-e2e.lock"
+    write_holder = tmp_path / "myrm-live-agent-stream.lock.holder"
+    write_holder.write_text("99999:tests/e2e/holder.py::test_holder\n", encoding="utf-8")
+
+    ps_output = (
+        " 2715 Ss 12:35 python -m pytest tests/e2e/test_desktop_control_approval_chrome_e2e.py"
+        "::test_chrome_ui_desktop_control_approval_allow_session -m chrome_e2e_desktop\n"
+        " 2694 S 12:35 python run_pytest_safe.py python -m pytest tests/e2e/other.py\n"
+    )
+
+    def _fake_run(cmd: list[str], **kwargs: object) -> object:
+        assert cmd[:2] == ["ps", "-eo"]
+        return type("Result", (), {"returncode": 0, "stdout": ps_output})()
+
+    monkeypatch.setattr(
+        "tests.support.e2e_parallel_snapshot.subprocess.run",
+        _fake_run,
+    )
+    monkeypatch.setattr(
+        "tests.support.e2e_parallel_snapshot._pid_alive",
+        lambda pid: pid in {2715, 99999},
+    )
+
+    snapshot = snapshot_live_e2e_processes(
+        agent_stream_lock_path=stream_lock,
+        desktop_approval_lock_path=desktop_lock,
+    )
+    assert snapshot.agent_stream_lock is not None
+    assert snapshot.agent_stream_lock.pid == 99999
+    assert len(snapshot.active_tests) == 1
+    assert snapshot.active_tests[0].pid == 2715
+    assert "allow_session" in snapshot.active_tests[0].test_id
+

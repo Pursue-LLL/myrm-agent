@@ -25,6 +25,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Check, X, Loader2, Terminal, FileCode, Search, Globe } from 'lucide-react';
 import { ToolCallInfo } from '@/store/chat/types';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -90,6 +91,7 @@ const ToolCallItem: React.FC<{
   onReject: () => Promise<void>;
 }> = ({ toolCall, onApprove, onReject }) => {
   const [loading, setLoading] = useState<'approve' | 'reject' | null>(null);
+  const t = useTranslations('toolApproval');
   const Icon = getToolIcon(toolCall.toolName);
   const isPending = toolCall.status === 'pending' && toolCall.requiresApproval;
 
@@ -164,10 +166,22 @@ const ToolCallItem: React.FC<{
       </div>
 
       {/* 参数显示 */}
+      {typeof toolCall.arguments.reason === 'string' && toolCall.arguments.reason.trim() && (
+        <div className="mb-2 text-xs text-foreground/90 rounded border border-border/60 bg-muted/30 px-2 py-1.5">
+          <span className="font-medium text-muted-foreground">{t('executionIntent')}: </span>
+          {String(toolCall.arguments.reason).trim()}
+        </div>
+      )}
       {Object.keys(toolCall.arguments).length > 0 && (
         <div className="mb-3">
           <pre className="text-xs bg-gray-100 dark:bg-gray-900 p-2 rounded overflow-x-auto max-h-32 text-gray-700 dark:text-gray-300">
-            {JSON.stringify(toolCall.arguments, null, 2)}
+            {JSON.stringify(
+              Object.fromEntries(
+                Object.entries(toolCall.arguments).filter(([key]) => key !== 'reason'),
+              ),
+              null,
+              2,
+            )}
           </pre>
         </div>
       )}

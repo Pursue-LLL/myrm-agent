@@ -29,6 +29,10 @@ interface Window {
   __MYRM_E2E_CHAT__?: {
     __e2eFallback: boolean;
     setInputMessage: (message: string) => void;
+    sendChatMessage?: (
+      text: string,
+      opts?: { baselineUserCount?: number },
+    ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
     handleSubmit: () => void | Promise<void>;
     getInputMessage: () => string;
     ensureProviders?: () => Promise<void>;
@@ -40,6 +44,8 @@ interface Window {
     isProvidersInitialized?: () => boolean;
     debugProviderState?: () => Record<string, unknown>;
     clearStreamRequestMessageId?: () => void;
+    /** CDP E2E: API-confirmed user message count before submit. */
+    _submitBaselineUsers?: number;
     turnSnapshot: () => {
       chatId: string | null;
       userCount: number;

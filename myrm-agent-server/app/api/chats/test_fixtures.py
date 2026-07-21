@@ -10,6 +10,7 @@ myrm_agent_harness.toolkits.kanban.types (POS: TaskPriority/TaskStatus/source_ch
 [OUTPUT]
 seed_citation_fixture: 创建带 citedMemoryIds 的 assistant 消息 + wiki settings 深链参数
 seed_kanban_closure_fixture: 创建 Kanban 看板/任务 + Chat 内 kanban_tasks_created 卡片数据
+seed_revert_fixture: 创建 RevertFiles E2E 数据（variant=modify|create|empty|session）
 
 [POS]
 Chats API 本地测试 fixture。为 Wiki citation / Kanban Chat↔Board closure Chrome E2E 提供可重复、无 LLM 的 DB 种子数据。
@@ -18,10 +19,16 @@ Chats API 本地测试 fixture。为 Wiki citation / Kanban Chat↔Board closure
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 
+from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
+    FileSnapshot,
+    SnapshotOp,
+    SnapshotStore,
+)
 from myrm_agent_harness.toolkits.kanban.types import (
     KANBAN_SOURCE_CHAT_METADATA_KEY,
     TaskPriority,
@@ -31,10 +38,15 @@ from myrm_agent_harness.toolkits.kanban.types import (
 from app.config.deploy_mode import is_local_mode
 from app.database.dto import ChatCreate
 from app.services.agent.agent_service import AgentService
+from app.services.agent.params.workspace_resolve import resolve_default_chat_workspace_dir
 from app.services.chat.chat_service import ChatService
 from app.services.kanban import KanbanService
 
 router = APIRouter()
+
+_REVERT_FIXTURE_FILE = "revert_e2e_fixture.txt"
+_REVERT_FIXTURE_BEFORE = "revert fixture before\n"
+_REVERT_FIXTURE_AFTER = "revert fixture after\n"
 
 _CITATION_COUNT = 10
 
@@ -186,3 +198,139 @@ async def seed_kanban_closure_fixture() -> dict[str, str]:
         "ui_path": f"/{chat_id}",
         "board_deep_link_path": board_deep_link_path,
     }
+
+
+@router.post("/test/seed-revert-fixture", include_in_schema=False)
+async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[str]]:
+    """Local dev/test only: seed chat message + optional on-disk file snapshot for RevertFiles E2E.
+
+    variant:
+      - modify (default): one MODIFY snapshot + changed file on disk
+      - create: one CREATE snapshot (revert deletes the new file)
+      - empty: assistant message without snapshots (empty-changes UX)
+      - session: two messages each with MODIFY snapshots (session-level revert)
+    """
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    normalized = variant.strip().lower()
+    if normalized not in {"modify", "create", "empty", "session"}:
+        raise HTTPException(status_code=400, detail=f"Unsupported revert fixture variant: {variant}")
+
+    agents, _total = await AgentService.get_agent_list(1, 100)
+    if not agents:
+        raise HTTPException(status_code=500, detail="No agents available for revert E2E seed")
+
+    agent = agents[0]
+    agent_id = agent.id
+    chat_id = f"e2erevert{uuid4().hex[:8]}"
+    message_id = str(uuid4())
+
+    workspace_dir = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=True)
+    if not workspace_dir and normalized != "empty":
+        raise HTTPException(status_code=500, detail="Failed to resolve workspace for revert E2E seed")
+
+    file_path = str(Path(workspace_dir) / _REVERT_FIXTURE_FILE) if workspace_dir else ""
+    message_ids: list[str] = [message_id]
+
+    if normalized in {"modify", "create", "session"}:
+        assert workspace_dir is not None
+        SnapshotStore.reset()
+        store = SnapshotStore.get()
+
+        if normalized == "modify":
+            Path(file_path).write_text(_REVERT_FIXTURE_AFTER, encoding="utf-8")
+            snapshot = FileSnapshot(
+                path=file_path,
+                operation=SnapshotOp.MODIFY,
+                original_content=_REVERT_FIXTURE_BEFORE,
+            )
+            store.record(chat_id, message_id, snapshot)
+            await store.persist_to_disk(workspace_dir, chat_id, message_id)
+        elif normalized == "create":
+            Path(file_path).write_text(_REVERT_FIXTURE_AFTER, encoding="utf-8")
+            snapshot = FileSnapshot(
+                path=file_path,
+                operation=SnapshotOp.CREATE,
+                original_content=None,
+            )
+            store.record(chat_id, message_id, snapshot)
+            await store.persist_to_disk(workspace_dir, chat_id, message_id)
+        else:
+            file_b = str(Path(workspace_dir) / "revert_e2e_fixture_b.txt")
+            Path(file_path).write_text(_REVERT_FIXTURE_AFTER, encoding="utf-8")
+            Path(file_b).write_text("file b after\n", encoding="utf-8")
+            snap_a = FileSnapshot(
+                path=file_path,
+                operation=SnapshotOp.MODIFY,
+                original_content=_REVERT_FIXTURE_BEFORE,
+            )
+            snap_b = FileSnapshot(
+                path=file_b,
+                operation=SnapshotOp.MODIFY,
+                original_content="file b before\n",
+            )
+            store.record(chat_id, message_id, snap_a)
+            await store.persist_to_disk(workspace_dir, chat_id, message_id)
+
+            message_id_b = str(uuid4())
+            message_ids.append(message_id_b)
+            store.record(chat_id, message_id_b, snap_b)
+            await store.persist_to_disk(workspace_dir, chat_id, message_id_b)
+
+    await ChatService.create_or_update_chat(
+        ChatCreate(
+            chat_id=chat_id,
+            title="RevertFiles Chrome E2E",
+            agent_id=agent_id,
+            messages=[],
+        ),
+    )
+
+    now = datetime.now(UTC)
+    timezone = "UTC"
+    await ChatService.append_message(
+        chat_id,
+        "user",
+        "Revert E2E fixture question",
+        now,
+        timezone,
+    )
+    await ChatService.append_message(
+        chat_id,
+        "assistant",
+        "Revert E2E fixture answer with file change.",
+        now,
+        timezone,
+        message_id=message_id,
+    )
+    if normalized == "session":
+        await ChatService.append_message(
+            chat_id,
+            "user",
+            "Revert E2E fixture follow-up",
+            now,
+            timezone,
+        )
+        await ChatService.append_message(
+            chat_id,
+            "assistant",
+            "Revert E2E fixture second answer with file change.",
+            now,
+            timezone,
+            message_id=message_ids[1],
+        )
+
+    payload: dict[str, str | list[str]] = {
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "ui_path": f"/{chat_id}",
+        "variant": normalized,
+    }
+    if file_path:
+        payload["file_path"] = file_path
+    if len(message_ids) > 1:
+        payload["message_ids"] = message_ids
+    if normalized == "session" and workspace_dir:
+        payload["file_path_b"] = str(Path(workspace_dir) / "revert_e2e_fixture_b.txt")
+    return payload

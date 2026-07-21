@@ -5,7 +5,7 @@
 - app.services.agent.stream_session.stream_lane_factory (POS: lane constructors)
 
 [OUTPUT]
-- iter_agent_stream_chunks(): async SSE chunk generator with routing, approval, and compression
+- iter_agent_stream_chunks(): async SSE chunk generator with routing, approval/clarification timeout detection, and compression
 
 [POS]
 Core streaming loop: routes to fast/reasoning/deep-research lanes, handles approval
@@ -40,6 +40,7 @@ from app.services.agent.streaming import ai_agent_service_stream
 from app.services.agent.streaming_support.sse_helpers import (
     extract_approval_intercepted,
     extract_approval_timeout,
+    extract_clarification_required,
     is_compression_exhausted,
 )
 
@@ -50,6 +51,11 @@ _CITATION_PATTERN = re.compile(r"<cite:([^>]+)>")
 @dataclass
 class ApprovalTimeoutHolder:
     value: dict[str, object] | None = None
+
+
+@dataclass
+class ClarificationTimeoutHolder:
+    pending: bool = False
 
 
 def _inject_message_end_memory_insights(
@@ -131,6 +137,7 @@ def _inject_message_end_memory_insights(
 async def iter_agent_stream_chunks(
     session: AgentStreamSession,
     approval: ApprovalTimeoutHolder,
+    clarification: ClarificationTimeoutHolder,
 ) -> AsyncGenerator[str, None]:
     if session.request.resume_value is None:
         preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
@@ -405,6 +412,8 @@ async def iter_agent_stream_chunks(
                 sse_chunk = f"data: {str(chunk)}\n\n"
 
         session.collector.feed_sse(sse_chunk)
+        if extract_clarification_required(sse_chunk):
+            clarification.pending = True
         updated = extract_approval_timeout(sse_chunk)
         if updated is not None:
             approval.value = updated

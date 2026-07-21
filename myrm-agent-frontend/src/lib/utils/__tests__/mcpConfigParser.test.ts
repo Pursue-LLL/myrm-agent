@@ -147,6 +147,31 @@ describe('parseServerConfig', () => {
       keepalive_interval: 1,
     });
     expect(invalid.keepaliveInterval).toBeNull();
+
+    const stdioIgnored = parseServerConfig('keepalive-stdio', {
+      command: 'python',
+      args: ['-m', 'stateful_mcp'],
+      keepalive_interval: 30,
+    });
+    expect(stdioIgnored.keepaliveInterval).toBeNull();
+  });
+
+  it('应该将 http transport 别名归一化为 streamable_http', () => {
+    const httpType = parseServerConfig('http-type', {
+      type: 'http',
+      url: 'https://example.com/mcp',
+      keepaliveInterval: 15,
+    });
+    expect(httpType.type).toBe('streamable_http');
+    expect(httpType.keepaliveInterval).toBe(15);
+
+    const transportAlias = parseServerConfig('http-transport', {
+      transport: 'streamable-http',
+      url: 'https://example.com/mcp',
+      keepalive_interval: 20,
+    });
+    expect(transportAlias.type).toBe('streamable_http');
+    expect(transportAlias.keepaliveInterval).toBe(20);
   });
 
   it('未提供 TLS 字段时不应设置', () => {

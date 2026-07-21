@@ -366,6 +366,17 @@ async def sync_approval_banner_from_pending_api(chat: McpChatSession) -> None:
     )
 
 
+async def _ensure_wide_viewport_for_banner(chat: McpChatSession) -> None:
+    """Session/always buttons use sm/md breakpoints; widen CDP window for E2E clicks."""
+    await chat.evaluate(
+        """(() => {
+          try { window.resizeTo(1400, 900); } catch { /* headless / policy */ }
+          return { ok: true, innerWidth: window.innerWidth, innerHeight: window.innerHeight };
+        })()""",
+        await_promise=False,
+    )
+
+
 async def wait_for_approval_banner_clickable(
     chat: McpChatSession,
     *,
@@ -391,34 +402,41 @@ async def wait_for_approval_banner_clickable(
     await ensure_desktop_inspector_panel_open(chat, chat_id=chat_id)
     if server_pending_hint > 0:
         await sync_approval_banner_from_pending_api(chat)
+    if scope in {"session", "always"}:
+        await _ensure_wide_viewport_for_banner(chat)
 
     deadline = asyncio.get_event_loop().time() + APPROVAL_CLICK_DEADLINE_SEC
     approval: dict[str, object] = {"pending": ui_pending_hint, "allowVisible": False}
     poll = 0
     activated = False
     panel_refreshed = False
+
+    def _scope_visible(probe: dict[str, object]) -> bool:
+        if scope == "once":
+            return bool(probe.get("allowVisible"))
+        if scope == "session":
+            return bool(probe.get("allowSessionVisible"))
+        return bool(probe.get("allowAlwaysVisible"))
+
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
         heartbeat_e2e_lease()
         server_pending = await asyncio.to_thread(server_pending_approval_count)
+        probe = await chat.probe_desktop_approval_once()
+        if isinstance(probe, dict):
+            approval = probe
+        scope_visible = _scope_visible(probe) if isinstance(probe, dict) else False
         if server_pending > 0:
-            if not panel_refreshed and poll <= 3:
-                await ensure_desktop_inspector_panel_open(chat, chat_id=chat_id)
-                panel_refreshed = True
+            if not scope_visible:
+                await sync_approval_banner_from_pending_api(chat)
+                if not panel_refreshed and poll <= 5:
+                    await ensure_desktop_inspector_panel_open(chat, chat_id=chat_id)
+                    panel_refreshed = True
             click = await _try_scope_click()
             if click.get("ok") is True:
                 progress(f"approval click ok scope={scope} poll=#{poll}")
                 return
-        probe = await chat.probe_desktop_approval_once()
         if isinstance(probe, dict):
-            approval = probe
-            scope_visible = (
-                probe.get("allowVisible")
-                if scope == "once"
-                else probe.get("allowSessionVisible")
-                if scope == "session"
-                else probe.get("allowAlwaysVisible")
-            )
             if poll == 1 or poll % 8 == 0:
                 progress(
                     f"approval poll #{poll} ui_pending={probe.get('pending')} "
@@ -455,6 +473,8 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     await ensure_textedit_fixture_ready()
 
     progress("enable computer_use")
+    await asyncio.to_thread(activate_chrome)
+    await chat.ensure_chat_surface(BASE_URL)
     tools_setup = await chat.enable_computer_use()
     assert tools_setup.get("ok") is True, f"computer_use bridge failed: {tools_setup}"
     assert "computer_use" in (tools_setup.get("tools") or []), tools_setup
