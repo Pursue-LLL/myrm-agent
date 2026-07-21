@@ -97,11 +97,13 @@ interface Window {
     };
     getDesktopToolProgress?: () => {
       active: boolean;
+      isStreaming?: boolean;
       pending: boolean;
       requestId: string;
       stepCount: number;
       lastTool: string;
     };
+    getFirstDesktopDref?: () => string | null;
     getDesktopApprovalSnapshot?: () => {
       pending: boolean;
       requestId: string;

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 
 from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_cron_job_result,
@@ -28,6 +29,7 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
 
 _SSE_DATA_PREFIX = "data: "
 _PERSISTED_STATUS_STEP_KEYS = frozenset({"archive_restore_blocked", "archive_restore_result"})
+logger = logging.getLogger(__name__)
 _STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
 
 
@@ -145,7 +147,24 @@ class StreamContentCollector:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             return
-        loop.create_task(patch_ui_artifact_data_by_surface_id(chat_id, surface_id, updates))
+
+        async def _run_patch() -> None:
+            try:
+                patched = await patch_ui_artifact_data_by_surface_id(chat_id, surface_id, updates)
+                if not patched:
+                    logger.warning(
+                        "Immediate cross-turn ui patch skipped: surface_id=%s chat_id=%s",
+                        surface_id,
+                        chat_id,
+                    )
+            except Exception:
+                logger.exception(
+                    "Immediate cross-turn ui patch failed: surface_id=%s chat_id=%s",
+                    surface_id,
+                    chat_id,
+                )
+
+        loop.create_task(_run_patch())
 
     def unsubscribe(self, q: asyncio.Queue[dict[str, object]]) -> None:
         """Remove a subscriber queue from the active subscriber list."""
@@ -415,6 +434,11 @@ class StreamContentCollector:
     @property
     def has_content(self) -> bool:
         return bool(self._content_parts) or bool(self._reasoning_parts)
+
+    @property
+    def has_persistable_turn(self) -> bool:
+        """True when finalize should persist an assistant message row."""
+        return self.has_content or self.extra_data is not None
 
     @property
     def sibling_group_id(self) -> str | None:

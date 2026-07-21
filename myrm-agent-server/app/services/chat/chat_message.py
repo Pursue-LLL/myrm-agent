@@ -191,7 +191,7 @@ class _ChatMessageMixin(_ChatServiceBase):
         timezone: str | None = None,
         sibling_group_id: str | None = None,
     ) -> None:
-        if not content.strip():
+        if not content.strip() and not extra_data:
             return
         try:
             from datetime import timezone as tz

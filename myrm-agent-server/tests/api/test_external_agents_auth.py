@@ -130,11 +130,11 @@ class TestAuthFeedMissingSession:
     def test_feed_forwards_to_active_session(self, client):
         from myrm_agent_harness.toolkits.acp.auth import CliLoginSession
 
-        from app.api.external_agents import router as external_agents_router
+        from app.api.external_agents.router import _login_registry
 
         mock_session = MagicMock(spec=CliLoginSession)
         mock_session.feed = AsyncMock()
-        external_agents_router._login_registry.add("sess-feed", mock_session)
+        _login_registry.add("sess-feed", mock_session)
         try:
             resp = client.post(
                 "/api/v1/external-agents/auth/login/sess-feed/feed",
@@ -144,7 +144,7 @@ class TestAuthFeedMissingSession:
             assert resp.json() == {"ok": True}
             mock_session.feed.assert_awaited_once_with("auth-code")
         finally:
-            external_agents_router._login_registry.remove("sess-feed")
+            _login_registry.remove("sess-feed")
 
 
 class TestAuthLogoutErrors:

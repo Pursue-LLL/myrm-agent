@@ -774,6 +774,7 @@ export const sendMessage = async (
   state: ChatActionsState,
   actions: ChatActionsMethods,
   getCurrentSessionMessageId: () => string,
+  allocateNewSessionMessageId: () => string,
   resumeValue?: unknown,
   archiveRestoreActions?: ArchiveRestoreAction[],
   agentConfigOverride?: AgentConfig | null,
@@ -816,7 +817,8 @@ export const sendMessage = async (
 
   useChatStore.getState().clearPendingGapRetry();
 
-  const requestMessageId = messageId ?? getCurrentSessionMessageId();
+  const requestMessageId =
+    messageId ?? (isHitlResume ? getCurrentSessionMessageId() : allocateNewSessionMessageId());
   const requestState: ChatActionsState =
     agentConfigOverride === undefined ? state : { ...state, agentConfig: agentConfigOverride };
 

@@ -86,6 +86,33 @@ class TestConvertCompetitorMCPServers:
         assert items[0].keepalive_interval is None
         assert items[0].keepalive_interval_ignored is True
 
+    def test_boolean_timeout_values_do_not_override_defaults(self) -> None:
+        raw = {
+            "stateful": {
+                "command": "python",
+                "args": ["-m", "stateful_mcp"],
+                "connect_timeout": True,
+                "timeout": True,
+            }
+        }
+        items = convert_competitor_mcp_servers(raw, competitor="hermes")
+        assert len(items) == 1
+        assert items[0].connect_timeout == 15.0
+        assert items[0].execute_timeout == 120.0
+
+    def test_boolean_keepalive_value_is_ignored_without_low_value_warning(self) -> None:
+        raw = {
+            "stateful": {
+                "command": "python",
+                "args": ["-m", "stateful_mcp"],
+                "keepalive_interval": True,
+            }
+        }
+        items = convert_competitor_mcp_servers(raw, competitor="hermes")
+        assert len(items) == 1
+        assert items[0].keepalive_interval is None
+        assert items[0].keepalive_interval_ignored is False
+
     def test_claude_sse_server(self) -> None:
         items = convert_competitor_mcp_servers(_CLAUDE_RAW, competitor="claude")
         assert len(items) == 1

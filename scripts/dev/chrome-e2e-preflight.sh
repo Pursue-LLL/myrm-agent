@@ -83,6 +83,38 @@ _maybe_seed_providers() {
   echo "CHROME_E2E_WARN: skip model seed (set BASIC_MODEL and BASIC_API_KEY in .env.test)" >&2
 }
 
+_wait_attach_endpoints_under_parallel_load() {
+  local initial_errors="$1"
+  [[ -n "${initial_errors}" ]] || return 0
+  local active_leases wait_sec poll_sec waited errors
+  active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
+  [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]] || return 1
+
+  wait_sec="${MYRM_CHROME_E2E_ATTACH_WAIT_SEC:-180}"
+  poll_sec="${MYRM_CHROME_E2E_ATTACH_POLL_SEC:-2}"
+  [[ "${wait_sec}" =~ ^[0-9]+$ ]] || wait_sec=180
+  [[ "${poll_sec}" =~ ^[0-9]+$ && "${poll_sec}" -gt 0 ]] || poll_sec=2
+  waited=0
+  while true; do
+    errors="$("${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from runtime_identity import attach_endpoint_errors
+print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
+")"
+    [[ -z "${errors}" ]] && return 0
+    if [[ "${waited}" -ge "${wait_sec}" ]]; then
+      printf '%s\n' "${errors}" >&2
+      return 1
+    fi
+    if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
+      echo "CHROME_E2E_WAIT: parallel attach waiting for ${errors} (${active_leases} active leases) ${waited}/${wait_sec}s" >&2
+    fi
+    sleep "${poll_sec}"
+    waited=$((waited + poll_sec))
+  done
+}
+
 _attach_fast_path() {
   local runtime_py="${SCRIPT_DIR}/lib/runtime_identity.py"
   local health="" waited=0
@@ -181,7 +213,9 @@ from runtime_identity import attach_endpoint_errors
 print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
 ")"
   if [[ -n "${attach_errors}" ]]; then
-    fail "CHROME_E2E_ATTACH_NOT_READY: ${attach_errors} — first Agent must run: ./myrm ready --chrome"
+    if ! _wait_attach_endpoints_under_parallel_load "${attach_errors}"; then
+      fail "CHROME_E2E_ATTACH_NOT_READY: ${attach_errors} — first Agent must run: ./myrm ready --chrome"
+    fi
   fi
 elif ! curl -sf --max-time 30 "$UI_BASE" >/dev/null; then
   if [[ -f "${AGENT_ROOT}/scripts/dev/dev-stack.sh" ]]; then
@@ -607,8 +641,13 @@ _ensure_mux_daemon() {
 
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
   if [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
-    MYRM_WAVE_GATE_BYPASS=1 bash "${SCRIPT_DIR}/dev-stack.sh" backend-only ensure >/dev/null 2>&1 \
-      || echo "CHROME_E2E_WARN: attach backend ensure for source drift failed" >&2
+    active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
+    if [[ "${active_leases}" == "0" ]] && _shared_backend_source_drift_pending "${SERVER_DIR}"; then
+      MYRM_WAVE_GATE_BYPASS=1 bash "${SCRIPT_DIR}/dev-stack.sh" backend-only ensure >/dev/null 2>&1 \
+        || echo "CHROME_E2E_WARN: attach backend ensure for source drift failed" >&2
+    elif [[ "${active_leases}" != "0" ]]; then
+      echo "CHROME_E2E_ATTACH: skip backend-only ensure (${active_leases} active wave leases)" >&2
+    fi
   fi
   _heal_mux_request_timeout_drift
   if [[ "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" == "1" ]]; then

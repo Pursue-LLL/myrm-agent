@@ -8012,6 +8012,20 @@
     "capabilitiesAllHint": "Unrestricted (all capabilities)",
     "capabilitiesUpdated": "Capability fence updated",
     "capabilitiesCleared": "Capability fence cleared",
+    "toolsAllowedLabel": "내장 도구 범위",
+    "toolsAllowedDesc": "실행 시 마운트할 내장 도구를 제한합니다. 연결된 에이전트 설정과 교집합됩니다. 비워 두면 추가 제한 없음.",
+    "toolsAllowedAllHint": "제한 없음(에이전트 설정만)",
+    "executionPolicyUpdated": "실행 정책이 업데이트되었습니다",
+    "capPreset": {
+      "research": "리서치",
+      "devops": "DevOps",
+      "full": "모든 기능"
+    },
+    "toolPreset": {
+      "webOnly": "웹만",
+      "research": "리서치 조합",
+      "full": "모든 도구"
+    },
     "allowedRootsLabel": "Allowed Paths",
     "allowedRootsDesc": "Declare filesystem paths this task may access (outside workspace). Leave empty for workspace-only.",
     "allowedRootsUpdated": "Allowed paths updated",

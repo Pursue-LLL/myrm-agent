@@ -203,6 +203,7 @@ export interface ChatState {
 
   // 当前会话messageId管理
   getCurrentSessionMessageId: () => string;
+  allocateNewSessionMessageId: () => string;
   clearCurrentSessionMessageId: () => void;
   resetSessionState: () => void;
 

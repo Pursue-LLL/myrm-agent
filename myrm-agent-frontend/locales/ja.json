@@ -8012,6 +8012,20 @@
     "capabilitiesAllHint": "Unrestricted (all capabilities)",
     "capabilitiesUpdated": "Capability fence updated",
     "capabilitiesCleared": "Capability fence cleared",
+    "toolsAllowedLabel": "組み込みツール範囲",
+    "toolsAllowedDesc": "実行時にマウントする組み込みツールを制限します。バインドされたエージェント設定と交差します。空欄の場合は追加制限なし。",
+    "toolsAllowedAllHint": "制限なし（エージェント設定のみ）",
+    "executionPolicyUpdated": "実行ポリシーを更新しました",
+    "capPreset": {
+      "research": "リサーチ",
+      "devops": "DevOps",
+      "full": "すべての能力"
+    },
+    "toolPreset": {
+      "webOnly": "Web のみ",
+      "research": "リサーチセット",
+      "full": "すべてのツール"
+    },
     "allowedRootsLabel": "Allowed Paths",
     "allowedRootsDesc": "Declare filesystem paths this task may access (outside workspace). Leave empty for workspace-only.",
     "allowedRootsUpdated": "Allowed paths updated",

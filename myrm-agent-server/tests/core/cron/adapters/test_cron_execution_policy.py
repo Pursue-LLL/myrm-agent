@@ -19,9 +19,9 @@ from app.core.cron.adapters.lifecycle_guard import (
 from app.core.cron.adapters.tools_policy import (
     intersect_cron_enabled_builtin_tools,
     normalize_cron_tools_allowed,
+    resolve_cron_runtime_tool_flags,
 )
 from app.services.agent.builtin_tool_ids import InvalidBuiltinToolIdsError
-from app.services.agent.profile_resolver import apply_agent_baseline_tool_flags, resolve_builtin_tool_flags
 
 
 class FakeDelivery:
@@ -46,6 +46,9 @@ def guarded_cron_client() -> Generator[TestClient, None, None]:
 
 
 class TestLifecycleGuard:
+    def test_empty_text_is_safe(self) -> None:
+        assert contains_myrm_lifecycle_command("") is False
+
     def test_detects_myrm_restart(self) -> None:
         assert contains_myrm_lifecycle_command("./myrm restart --chrome") is True
 
@@ -53,10 +56,24 @@ class TestLifecycleGuard:
         with pytest.raises(ValueError, match="lifecycle commands"):
             assert_cron_job_lifecycle_safe(prompt="Run ./myrm restart nightly", command=None)
 
+    def test_assert_rejects_restart_in_command(self) -> None:
+        with pytest.raises(ValueError, match="lifecycle commands"):
+            assert_cron_job_lifecycle_safe(prompt=None, command="./myrm stop")
+
 
 class TestToolsPolicy:
     def test_normalize_strips_cron(self) -> None:
         assert normalize_cron_tools_allowed(["web_search", "cron"]) == ("web_search",)
+
+    def test_normalize_empty_list_returns_none(self) -> None:
+        assert normalize_cron_tools_allowed([]) is None
+
+    def test_normalize_rejects_legacy_id(self) -> None:
+        with pytest.raises(InvalidBuiltinToolIdsError, match="legacy"):
+            normalize_cron_tools_allowed(["search"])
+
+    def test_normalize_deduplicates(self) -> None:
+        assert normalize_cron_tools_allowed(["web_search", "web_search"]) == ("web_search",)
 
     def test_normalize_rejects_unknown(self) -> None:
         with pytest.raises(InvalidBuiltinToolIdsError):
@@ -82,9 +99,25 @@ class TestToolsPolicy:
             ["web_search", "memory", "cron"],
             ("web_search",),
         )
-        flags = apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(tools))
+        flags = resolve_cron_runtime_tool_flags(tools, ("web_search",))
         assert flags["enable_cron_eager"] is False
+        assert flags["enable_file_ops"] is False
+        assert flags["enable_code_execute"] is False
+
+    def test_restricted_file_ops_skips_baseline_code_execute(self) -> None:
+        tools = intersect_cron_enabled_builtin_tools(
+            ["web_search", "memory"],
+            ("file_ops",),
+        )
+        flags = resolve_cron_runtime_tool_flags(tools, ("file_ops",))
         assert flags["enable_file_ops"] is True
+        assert flags["enable_code_execute"] is False
+
+    def test_unrestricted_cron_keeps_agent_baseline(self) -> None:
+        tools = intersect_cron_enabled_builtin_tools(["web_search", "memory"], None)
+        flags = resolve_cron_runtime_tool_flags(tools, None)
+        assert flags["enable_file_ops"] is True
+        assert flags["enable_code_execute"] is True
 
 
 class TestCronExecutionPolicyApi:

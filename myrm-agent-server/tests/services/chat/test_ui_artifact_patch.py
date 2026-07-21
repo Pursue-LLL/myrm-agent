@@ -190,6 +190,34 @@ class TestStreamCollectorCrossTurnDataUpdate:
             ("e2e_status_surface", {"status": {"label": "E2E_UPDATE_FINAL"}}),
         ]
 
+    def test_has_persistable_turn_when_only_ui_artifacts(self) -> None:
+        collector = StreamContentCollector(chat_id="chat_ui_only", sibling_group_id="sib_ui")
+        assert collector.has_content is False
+        assert collector.has_persistable_turn is False
+
+        collector.feed_event({
+            "type": "ui_update",
+            "subtype": "ui_artifact",
+            "data": [
+                {
+                    "surface_id": "e2e_status_surface",
+                    "title": "Status",
+                    "components": [],
+                    "root_ids": [],
+                    "data": {"status": "E2E_UPDATE_INITIAL"},
+                    "actions": [],
+                },
+            ],
+            "messageId": "msg_turn1",
+        })
+
+        assert collector.has_persistable_turn is True
+        extra = collector.extra_data
+        assert extra is not None
+        artifacts = extra.get("uiArtifacts")
+        assert isinstance(artifacts, list)
+        assert artifacts[0]["data"]["status"] == "E2E_UPDATE_INITIAL"
+
 
 class TestFinalizeCrossTurnUiPatch:
     @pytest.mark.asyncio
@@ -208,6 +236,9 @@ class TestFinalizeCrossTurnUiPatch:
         session.extra_context = {}
         session.collector = MagicMock()
         session.collector.has_content = False
+        session.collector.has_persistable_turn = False
+        session.collector.content = ""
+        session.collector.extra_data = None
         session.collector.cross_turn_data_updates = [
             ("surface_finalize", {"status": {"label": "FINAL"}}),
         ]

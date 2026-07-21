@@ -133,7 +133,7 @@ async def finalize_agent_stream_session(
     from myrm_agent_harness.agent.security import user_credentials_ctx
 
     user_credentials_ctx.reset(token_ctx)
-    if session.collector.has_content and session.request.chat_id:
+    if session.collector.has_persistable_turn and session.request.chat_id:
         import asyncio
         import re
 

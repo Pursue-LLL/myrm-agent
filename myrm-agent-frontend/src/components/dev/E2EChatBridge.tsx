@@ -432,20 +432,49 @@ export default function E2EChatBridge() {
       getActionMode: () => useChatStore.getState().actionMode,
       getDesktopToolProgress: () => {
         const approval = useDesktopControlApprovalStore.getState();
-        const messages = useChatStore.getState().messages;
+        const chat = useChatStore.getState();
+        const messages = chat.messages;
         const assistants = messages.filter((message) => message.role === 'assistant');
         const lastAssistant = assistants[assistants.length - 1];
         const steps = lastAssistant?.progressSteps ?? [];
         const desktopSteps = steps.filter((step) =>
           String(step.tool_name ?? '').startsWith('desktop_'),
         );
+        const isStreaming = Boolean(chat.loading || chat.abortController);
         return {
-          active: desktopSteps.length > 0,
+          active: desktopSteps.length > 0 || isStreaming,
+          isStreaming,
           pending: approval.pending,
           requestId: approval.requestId,
           stepCount: desktopSteps.length,
           lastTool: desktopSteps[desktopSteps.length - 1]?.tool_name ?? '',
         };
+      },
+      getFirstDesktopDref: () => {
+        const messages = useChatStore.getState().messages;
+        for (let index = messages.length - 1; index >= 0; index -= 1) {
+          const message = messages[index];
+          if (message.role !== 'assistant') {
+            continue;
+          }
+          const chunks: string[] = [];
+          if (typeof message.content === 'string') {
+            chunks.push(message.content);
+          }
+          for (const step of message.progressSteps ?? []) {
+            if (typeof step.stdout === 'string') {
+              chunks.push(step.stdout);
+            }
+            if (typeof step.items === 'string') {
+              chunks.push(step.items);
+            }
+          }
+          const match = chunks.join('\n').match(/@(d\d+)\b/);
+          if (match) {
+            return match[1];
+          }
+        }
+        return null;
       },
       getDesktopApprovalSnapshot: () => {
         const state = useDesktopControlApprovalStore.getState();

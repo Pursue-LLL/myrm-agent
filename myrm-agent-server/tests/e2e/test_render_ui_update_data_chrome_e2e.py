@@ -15,7 +15,13 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import chat_user_message_count, fetch_chat_messages, get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
+from cdp_chat_support import (
+    chat_user_message_count,
+    fetch_chat_messages,
+    get_e2e_api_url,
+    wait_e2e_backend_ready,
+    wait_e2e_provider_ready,
+)  # noqa: E402
 from cdp_chat_ui import chat_id_from_path  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
@@ -51,6 +57,16 @@ _ENABLE_RENDER_UI_JS = """(() => {
   return { ok: tools.includes('render_ui'), tools };
 })()"""
 
+_ENABLE_UPDATE_UI_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.setCurrentBuiltinTools) {
+    return { ok: false, err: 'no-bridge' };
+  }
+  bridge.setCurrentBuiltinTools(['render_ui']);
+  const tools = bridge.getCurrentBuiltinTools?.() ?? [];
+  return { ok: tools.includes('render_ui'), tools };
+})()"""
+
 _INITIAL_READY_JS = """(() => {
   const main = document.querySelector('main');
   const text = main?.innerText || '';
@@ -74,11 +90,13 @@ _UPDATE_DATA_READY_JS = """(() => {
   const main = document.querySelector('main');
   const text = main?.innerText || '';
   const hasTitle = /E2E_UPDATE_MARKER_ALPHA/.test(text);
+  const hasInitial = /E2E_UPDATE_INITIAL/.test(text);
   const hasFinal = /E2E_UPDATE_FINAL/.test(text);
   const sending = !!main?.querySelector('button[aria-label="Stop"]');
   return {
-    ready: hasTitle && hasFinal && !sending,
+    ready: hasTitle && hasFinal && !hasInitial && !sending,
     hasTitle,
+    hasInitial,
     hasFinal,
     sending,
     onChat: /^\\/c-/.test(location.pathname),
@@ -122,9 +140,12 @@ async def _wait_db_ui_status(
     last: str | None = None
     while time.monotonic() < deadline:
         heartbeat_e2e_lease()
-        last = _host_ui_artifact_status_label(chat_id, api_base)
-        if last == expected:
-            return last
+        try:
+            last = _host_ui_artifact_status_label(chat_id, api_base)
+            if last == expected:
+                return last
+        except (OSError, TimeoutError, urllib.error.URLError):
+            wait_e2e_backend_ready(timeout_sec=15.0, api_url=api_base)
         await asyncio.sleep(1.0)
     raise AssertionError(
         f"DB uiArtifacts status did not reach {expected!r} within {timeout_sec}s (last={last!r})"
@@ -227,8 +248,17 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             error_label="render_ui binding card did not appear",
         )
 
-        await _focus_chat(chat, chat_id)
+        turn1_db_status = await _wait_db_ui_status(
+            chat_id,
+            api_base,
+            "E2E_UPDATE_INITIAL",
+            timeout_sec=60.0,
+        )
+        assert turn1_db_status == "E2E_UPDATE_INITIAL"
+
         await chat.wait_input_empty(chat_id_hint=chat_id)
+
+        await chat.evaluate(_ENABLE_UPDATE_UI_JS, await_promise=False, recv_timeout=15.0)
 
         await chat.send_message(
             E2E_PROMPT_UPDATE,
@@ -237,6 +267,24 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             base_url=BASE_URL,
         )
         heartbeat_e2e_lease()
+
+        async def _wait_api_user_messages(min_count: int, *, timeout_sec: float) -> None:
+            deadline = time.monotonic() + timeout_sec
+            last = 0
+            while time.monotonic() < deadline:
+                heartbeat_e2e_lease()
+                try:
+                    last = chat_user_message_count(chat_id, api_url=api_base)
+                    if last >= min_count:
+                        return
+                except (OSError, TimeoutError, urllib.error.URLError):
+                    wait_e2e_backend_ready(timeout_sec=15.0, api_url=api_base)
+                await asyncio.sleep(1.0)
+            raise AssertionError(
+                f"Backend did not persist turn2 user message within {timeout_sec}s (last={last})"
+            )
+
+        await _wait_api_user_messages(2, timeout_sec=120.0)
         ui_state = await _wait_js(
             chat,
             chat_id,
@@ -245,19 +293,12 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             error_label="update_ui_data did not refresh inline binding UI",
         )
 
-        try:
-            await _wait_db_ui_status(
-                chat_id,
-                api_base,
-                "E2E_UPDATE_FINAL",
-                timeout_sec=90.0,
-            )
-        except (AssertionError, OSError, TimeoutError, urllib.error.URLError) as db_exc:
-            if ui_state.get("ready") is not True:
-                raise
-            pytest.fail(
-                f"Live UI showed FINAL but DB uiArtifacts did not persist: {db_exc}"
-            )
+        await _wait_db_ui_status(
+            chat_id,
+            api_base,
+            "E2E_UPDATE_FINAL",
+            timeout_sec=120.0,
+        )
 
         reload_probe = await chat.evaluate(
             """(() => {

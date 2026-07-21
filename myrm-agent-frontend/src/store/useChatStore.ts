@@ -12,7 +12,6 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import crypto from 'crypto';
 import {
   ChatState,
   Message,
@@ -22,6 +21,7 @@ import {
 export type { Message, File, ProgressItem, ChatHistoryItem, PaginationInfo, AgentConfig } from '@/store/chat/types';
 import { normalizeArchiveRestoreActions } from './chat/archiveRestoreActions';
 import { sendMessage, attachToChat } from './chat/messageRequest';
+import { generateStreamRequestMessageId } from './chat/streamRequestMessageId';
 import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat, persistActiveChatNavigationSnapshot, resolveInstantChatSnapshot } from './chat/messageManagement';
 import { processSuggestions, findAssistantMessageIndex } from './chat/messageUtils';
 import useQuoteStore from './useQuoteStore';
@@ -429,23 +429,29 @@ const useChatStore = create<ChatState>()(
       getCurrentSessionMessageId: () => {
         const state = get();
         const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
-        
-        let currentId = paneId ? useWorkspaceStore.getState().getPaneCurrentSessionMessageId(paneId) : state.currentSessionMessageId;
+
+        let currentId = paneId
+          ? useWorkspaceStore.getState().getPaneCurrentSessionMessageId(paneId)
+          : state.currentSessionMessageId;
 
         if (!currentId) {
-          // 生成更强的唯一性ID用于请求关联
-          const timestamp = Date.now().toString(36);
-          const microTime = (performance.now() * 1000).toString(36).replace('.', '');
-          const randomBytes = crypto.randomBytes(6).toString('hex');
-          const counter = ((Math.random() * 0xffff) | 0).toString(36);
-          const newMessageId = `r-${timestamp}-${microTime}-${randomBytes}-${counter}`;
+          currentId = generateStreamRequestMessageId();
           if (paneId) {
-            useWorkspaceStore.getState().setPaneCurrentSessionMessageId(paneId, newMessageId);
+            useWorkspaceStore.getState().setPaneCurrentSessionMessageId(paneId, currentId);
           }
-          set({ currentSessionMessageId: newMessageId });
-          return newMessageId;
+          set({ currentSessionMessageId: currentId });
         }
         return currentId;
+      },
+      allocateNewSessionMessageId: () => {
+        const state = get();
+        const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+        const newMessageId = generateStreamRequestMessageId();
+        if (paneId) {
+          useWorkspaceStore.getState().setPaneCurrentSessionMessageId(paneId, newMessageId);
+        }
+        set({ currentSessionMessageId: newMessageId });
+        return newMessageId;
       },
       clearCurrentSessionMessageId: () => {
         const state = get();
@@ -617,6 +623,7 @@ const useChatStore = create<ChatState>()(
             setInputMessage: (message) => set({ inputMessage: message }),
           },
           get().getCurrentSessionMessageId,
+          get().allocateNewSessionMessageId,
           resumeValue,
           archiveRestoreActions,
           agentConfigOverride,

@@ -171,7 +171,7 @@ def _str_or_none(d: dict[str, object], key: str) -> str | None:
 def _float_or_default(d: dict[str, object], *keys: str, default: float) -> float:
     for key in keys:
         v = d.get(key)
-        if isinstance(v, (int, float)) and v > 0:
+        if _is_positive_numeric(v):
             return float(v)
     return default
 
@@ -181,13 +181,23 @@ def _resolve_keepalive_interval(raw: dict[str, object]) -> tuple[float | None, b
     ignored_low_value = False
     for key in ("keepalive_interval", "keepaliveInterval", "keepalive", "keepAliveInterval"):
         value = raw.get(key)
-        if not isinstance(value, (int, float)):
+        if not _is_numeric(value):
             continue
         numeric = float(value)
         if numeric >= 5:
             return numeric, False
         ignored_low_value = True
     return None, ignored_low_value
+
+
+def _is_numeric(value: object) -> bool:
+    """Return True for int/float values but exclude bool."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _is_positive_numeric(value: object) -> bool:
+    """Return True for numeric values strictly greater than zero."""
+    return _is_numeric(value) and float(value) > 0
 
 
 def _extract_env_key_names(raw: dict[str, object]) -> list[str]:

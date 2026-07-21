@@ -489,11 +489,7 @@ class AgentJobRunner:
             agent_engine_params = None
             user_instructions: str | None = None
             agent_model_override: str | None = None
-            from app.services.agent.profile_resolver import (
-                DEFAULT_ENABLED_BUILTIN_TOOLS,
-                apply_agent_baseline_tool_flags,
-                resolve_builtin_tool_flags,
-            )
+            from app.services.agent.profile_resolver import DEFAULT_ENABLED_BUILTIN_TOOLS
 
             enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
             auto_restore_domains: list[str] = []
@@ -535,6 +531,13 @@ class AgentJobRunner:
             from app.core.cron.adapters.tools_policy import intersect_cron_enabled_builtin_tools
 
             enabled_builtin_tools = intersect_cron_enabled_builtin_tools(
+                enabled_builtin_tools,
+                job.tools_allowed,
+            )
+
+            from app.core.cron.adapters.tools_policy import resolve_cron_runtime_tool_flags
+
+            cron_tool_flags = resolve_cron_runtime_tool_flags(
                 enabled_builtin_tools,
                 job.tools_allowed,
             )
@@ -583,7 +586,7 @@ class AgentJobRunner:
                 enable_web_search="web_search" in enabled_builtin_tools
                 and user_cfgs.search_is_user_configured
                 and await verify_search_service_available(user_cfgs.search_cfg),
-                **apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(enabled_builtin_tools)),
+                **cron_tool_flags,
                 auto_restore_domains=auto_restore_domains,
                 unattended_mode=True,
                 user_instructions=user_instructions,

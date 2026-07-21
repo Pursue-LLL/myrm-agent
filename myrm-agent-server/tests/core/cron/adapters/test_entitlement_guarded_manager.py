@@ -55,6 +55,19 @@ async def test_duplicate_job_delegates_after_slot_check() -> None:
     inner.duplicate_job.assert_awaited_once_with("src-id", "user-1")
 
 
+@pytest.mark.asyncio
+async def test_duplicate_job_maps_entitlement_error_to_value_error() -> None:
+    inner = MagicMock()
+    inner.count_jobs = AsyncMock(return_value=0)
+    mgr = EntitlementGuardedCronManager(inner)
+
+    with patch(_SLOT_FN, side_effect=EntitlementGuardError("duplicate blocked")):
+        with pytest.raises(ValueError, match="duplicate blocked"):
+            await mgr.duplicate_job("src-id", "user-1")
+
+    inner.duplicate_job.assert_not_called()
+
+
 def test_getattr_delegates_to_inner() -> None:
     inner = MagicMock()
     inner.list_jobs = MagicMock(return_value=["job-a"])

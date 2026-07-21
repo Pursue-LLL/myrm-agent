@@ -553,7 +553,7 @@ describe('messageRequest - processing lock lifecycle', () => {
       setInputMessage: vi.fn(),
     } as unknown as ChatActionsMethods;
 
-    await sendMessage('请测试处理锁释放', 'req-1', state, actions, () => 'req-1');
+    await sendMessage('请测试处理锁释放', 'req-1', state, actions, () => 'req-1', () => 'req-1-alloc');
 
     expect(markProcessing).toHaveBeenCalledTimes(1);
     expect(markProcessing).toHaveBeenCalledWith('req-1');
@@ -642,6 +642,7 @@ describe('messageRequest - send preconditions', () => {
       { ...baseState, chatId: undefined },
       baseActions,
       () => 'req-no-chat',
+      () => 'req-no-chat-alloc',
     );
 
     expect(showI18nToastMock).toHaveBeenCalledWith(
@@ -654,7 +655,7 @@ describe('messageRequest - send preconditions', () => {
   it('shows toast when approval processing lock is active', async () => {
     useToolApprovalStore.getState().markProcessing('req-lock');
 
-    await sendMessage('hello', 'req-lock', baseState, baseActions, () => 'req-lock');
+    await sendMessage('hello', 'req-lock', baseState, baseActions, () => 'req-lock', () => 'req-lock-alloc');
 
     expect(showI18nToastMock).toHaveBeenCalledWith(
       'chat.sendBlocked.title',
@@ -672,6 +673,7 @@ describe('messageRequest - send preconditions', () => {
       { ...baseState, currentBuiltinTools: ['kanban'] },
       baseActions,
       () => 'req-kanban',
+      () => 'req-kanban-alloc',
     );
 
     expect(resolveKanbanSendBlockReasonMock).toHaveBeenCalledWith(['kanban']);

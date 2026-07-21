@@ -78,6 +78,17 @@ const CRON_BLUEPRINT_SLOT_KEYS = [
   'slotSubject',
 ];
 
+/** CapabilityEditor execution policy strings (`useTranslations('cron')`). */
+const CRON_EXECUTION_POLICY_STRING_KEYS = [
+  'toolsAllowedLabel',
+  'toolsAllowedDesc',
+  'toolsAllowedAllHint',
+  'executionPolicyUpdated',
+];
+
+const CRON_CAP_PRESET_KEYS = ['research', 'devops', 'full'];
+const CRON_TOOL_PRESET_KEYS = ['webOnly', 'research', 'full'];
+
 /** App-shell TSX files that render on first paint and must not use deferred i18n namespaces. */
 const SSR_SHELL_I18N_SCAN_ROOTS = [
   'src/components/layout',
@@ -362,6 +373,42 @@ for (const lang of LANGUAGES) {
     hasErrors = true;
   } else {
     console.log(`  ✅ ${lang}.json cron.blueprint 槽位标签完整`);
+  }
+}
+
+// 验证5: cron 执行策略编辑器（CapabilityEditor，全语言）
+console.log('\n📋 验证 cron 执行策略编辑器文案（全语言）...');
+for (const lang of LANGUAGES) {
+  const data = translations[lang];
+  if (!data) continue;
+
+  const cron = data.cron ?? {};
+  const missing = [];
+  for (const key of CRON_EXECUTION_POLICY_STRING_KEYS) {
+    const v = cron[key];
+    if (typeof v !== 'string' || v.length === 0) {
+      missing.push(key);
+    }
+  }
+  const capPreset = cron.capPreset ?? {};
+  for (const key of CRON_CAP_PRESET_KEYS) {
+    const v = capPreset[key];
+    if (typeof v !== 'string' || v.length === 0) {
+      missing.push(`capPreset.${key}`);
+    }
+  }
+  const toolPreset = cron.toolPreset ?? {};
+  for (const key of CRON_TOOL_PRESET_KEYS) {
+    const v = toolPreset[key];
+    if (typeof v !== 'string' || v.length === 0) {
+      missing.push(`toolPreset.${key}`);
+    }
+  }
+  if (missing.length > 0) {
+    console.error(`  ❌ ${lang}.json cron 执行策略缺少: ${missing.join(', ')}`);
+    hasErrors = true;
+  } else {
+    console.log(`  ✅ ${lang}.json cron 执行策略文案完整`);
   }
 }
 

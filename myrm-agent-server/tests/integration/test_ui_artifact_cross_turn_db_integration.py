@@ -12,7 +12,10 @@ from app.database.models import Chat
 from app.database.repositories.chat_repo import ChatRepository
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.chat.chat_service import ChatService
-from app.services.chat.ui_artifact_patch import patch_ui_artifact_data_updates
+from app.services.chat.ui_artifact_patch import (
+    patch_ui_artifact_data_by_surface_id,
+    patch_ui_artifact_data_updates,
+)
 
 
 def _make_chat(chat_id: str) -> Chat:
@@ -96,6 +99,20 @@ async def test_stream_collector_cross_turn_queue_persists_to_host_message(
         },
         "messageId": "msg_turn2",
     })
+
+    assert collector.cross_turn_data_updates == [
+        (
+            "integration_status_surface",
+            {"status": {"label": "E2E_UPDATE_FINAL"}},
+        ),
+    ]
+
+    patched = await patch_ui_artifact_data_by_surface_id(
+        cross_turn_chat,
+        "integration_status_surface",
+        {"status": {"label": "E2E_UPDATE_FINAL"}},
+    )
+    assert patched is True
 
     await patch_ui_artifact_data_updates(cross_turn_chat, collector.cross_turn_data_updates)
 

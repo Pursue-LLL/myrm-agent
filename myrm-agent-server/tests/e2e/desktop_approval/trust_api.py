@@ -18,7 +18,7 @@ import os
 import urllib.request
 from pathlib import Path
 
-from cdp_chat_support import get_e2e_api_url
+from cdp_chat_support import _e2e_api_get_json, get_e2e_api_url
 
 from tests.e2e.desktop_approval.constants import progress
 
@@ -26,8 +26,7 @@ from tests.e2e.desktop_approval.constants import progress
 def server_pending_approval_count() -> int:
     url = f"{get_e2e_api_url()}/webui/desktop/approval/pending"
     try:
-        with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310
-            payload = json.loads(response.read().decode("utf-8"))
+        payload = _e2e_api_get_json(url, timeout_sec=8.0, max_attempts=3)
     except OSError:
         return -1
     if not isinstance(payload, dict):
@@ -38,8 +37,7 @@ def server_pending_approval_count() -> int:
 def fetch_pending_approval_request_ids() -> list[str]:
     url = f"{get_e2e_api_url()}/webui/desktop/approval/pending"
     try:
-        with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310
-            payload = json.loads(response.read().decode("utf-8"))
+        payload = _e2e_api_get_json(url, timeout_sec=8.0, max_attempts=3)
     except OSError:
         return []
     if not isinstance(payload, dict):

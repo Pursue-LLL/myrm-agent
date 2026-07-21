@@ -8012,6 +8012,20 @@
     "capabilitiesAllHint": "Unrestricted (all capabilities)",
     "capabilitiesUpdated": "Capability fence updated",
     "capabilitiesCleared": "Capability fence cleared",
+    "toolsAllowedLabel": "Umfang der integrierten Tools",
+    "toolsAllowedDesc": "Begrenzt, welche integrierten Tools zur Laufzeit geladen werden. Schnittmenge mit dem Agentenprofil. Leer lassen = keine zusätzliche Einschränkung.",
+    "toolsAllowedAllHint": "Uneingeschränkt (nur Agentenprofil)",
+    "executionPolicyUpdated": "Ausführungsrichtlinie aktualisiert",
+    "capPreset": {
+      "research": "Recherche",
+      "devops": "DevOps",
+      "full": "Alle Fähigkeiten"
+    },
+    "toolPreset": {
+      "webOnly": "Nur Web",
+      "research": "Recherche-Stack",
+      "full": "Alle Tools"
+    },
     "allowedRootsLabel": "Allowed Paths",
     "allowedRootsDesc": "Declare filesystem paths this task may access (outside workspace). Leave empty for workspace-only.",
     "allowedRootsUpdated": "Allowed paths updated",

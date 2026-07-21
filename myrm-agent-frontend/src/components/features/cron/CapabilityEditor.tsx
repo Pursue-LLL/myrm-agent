@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
   Shield,
   Globe,
@@ -18,11 +18,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/primitives/toggle-gro
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { toast } from 'sonner';
 import { updateCronJob } from '@/services/cron';
-import {
-  BUILTIN_TOOL_IDS,
-  getBuiltinToolDisplayLabel,
-  type BuiltinToolId,
-} from '@/store/chat/types/builtinTools';
+import { BUILTIN_TOOL_IDS, type BuiltinToolId } from '@/store/chat/types/builtinTools';
 import type { EditorProps } from './CronDeliveryEditors';
 
 const CAPABILITY_DEFS = [
@@ -51,6 +47,9 @@ const CAPABILITY_PRESETS = [
 
 const CRON_BUILTIN_TOOL_IDS = BUILTIN_TOOL_IDS.filter((id) => id !== 'cron') as BuiltinToolId[];
 
+/** Baseline tools are cron-restrictable even though they are hidden from agent settings toggles. */
+const CRON_TOOL_IDS = ['file_ops', 'code_execute', ...CRON_BUILTIN_TOOL_IDS] as const;
+
 const TOOL_PRESETS = [
   { key: 'webOnly', tools: ['web_search'] as BuiltinToolId[], sorted: ['web_search'] },
   {
@@ -69,8 +68,7 @@ function sortedEqual(a: readonly string[], b: readonly string[]): boolean {
 
 export function CapabilityEditor({ job, onUpdated }: EditorProps) {
   const t = useTranslations('cron');
-  const locale = useLocale();
-  const labelLocale = locale.startsWith('zh') ? 'zh' : 'en';
+  const tPanel = useTranslations('agent.configPanel');
 
   const serverCaps = job.required_capabilities ?? [];
   const serverTools = job.tools_allowed ?? [];
@@ -196,14 +194,14 @@ export function CapabilityEditor({ job, onUpdated }: EditorProps) {
           className="flex-wrap justify-start"
           size="sm"
         >
-          {CRON_BUILTIN_TOOL_IDS.map((toolId) => (
+          {CRON_TOOL_IDS.map((toolId) => (
             <ToggleGroupItem
               key={toolId}
               value={toolId}
               disabled={saving}
               className="gap-1 text-xs h-7 px-2.5 rounded-full border border-border bg-muted/50 data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary/40"
             >
-              {getBuiltinToolDisplayLabel(toolId, labelLocale)}
+              {tPanel(`builtinToolNames.${toolId}`)}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>

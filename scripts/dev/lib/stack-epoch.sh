@@ -115,3 +115,32 @@ print(data.get('epoch', ''))
 _clear_stack_epoch() {
   rm -f "$(_stack_epoch_file)" 2>/dev/null || true
 }
+
+_shared_backend_source_drift_pending() {
+  local server_dir="${1:-}"
+  local stored_fp current_fp
+  stored_fp="$(_read_stack_epoch_source_fingerprint)"
+  current_fp="$(_backend_source_fingerprint "${server_dir}")"
+  [[ -n "${current_fp}" && ( -z "${stored_fp}" || "${stored_fp}" != "${current_fp}" ) ]]
+}
+
+_wave_active_lease_count() {
+  local monorepo_root="${1:-}"
+  local wave_bin status_json count
+  if [[ -z "${monorepo_root}" ]]; then
+    echo 0
+    return 0
+  fi
+  wave_bin="${monorepo_root}/scripts/dev/wave.sh"
+  if [[ ! -f "${wave_bin}" ]]; then
+    echo 0
+    return 0
+  fi
+  status_json="$(bash "${wave_bin}" status 2>/dev/null || true)"
+  count="$(printf '%s' "${status_json}" | python3 -c "import json,sys
+try:
+ d=json.loads(sys.stdin.read() or '{}'); print(int(d.get('activeLeaseCount') or 0))
+except Exception:
+ print(0)" 2>/dev/null || echo 0)"
+  printf '%s' "${count}"
+}
