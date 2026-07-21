@@ -374,6 +374,16 @@ def test_kanban_chat_created_card_opens_filtered_board_view() -> None:
         )
         assert nav_state.get("ready") is True
 
+        client.reload(page, timeout_ms=60_000)
+        wait_for_state(
+            client,
+            page,
+            """(() => ({
+              ready: !!document.querySelector('[data-testid="app-layout"]'),
+            }))()""",
+            timeout_sec=90.0,
+        )
+
         board_state = wait_for_state(
             client,
             page,

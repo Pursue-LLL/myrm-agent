@@ -325,10 +325,9 @@ def _chrome_e2e_item_runtime(
     from chrome_e2e_runtime import start_chrome_e2e_runtime
 
     runtime_lane = lane if lane in {"READ", "LIVE_AGENT"} else "LIVE_AGENT"
-    runtime_backend_only = not (private_backend and runtime_lane == "READ")
     runtime = start_chrome_e2e_runtime(
         request.node.nodeid,
-        backend_only=runtime_backend_only,
+        backend_only=True,
         lane=runtime_lane,
     )
     for key, value in runtime.environment.items():
@@ -337,12 +336,8 @@ def _chrome_e2e_item_runtime(
         "CHROME_E2E_RUNTIME: "
         f"item={request.node.name} runtime={runtime.runtime_id} "
         f"api={runtime.api_base} ui={runtime.environment.get('E2E_UI_BASE', '')} "
-        f"backend_only={runtime_backend_only} startup={runtime.startup_seconds:.2f}s"
+        f"startup={runtime.startup_seconds:.2f}s"
     )
-    if not runtime_backend_only:
-        from tests.support.e2e_runtime_guard import reap_chrome_e2e_session_hygiene
-
-        reap_chrome_e2e_session_hygiene()
     try:
         yield runtime
     finally:
