@@ -11,7 +11,9 @@ import {
   ProviderConfig as ProviderConfigType,
   getLiteLLMModelName,
   CustomProviderType,
+  hasUsableProviderAuth,
   normalizeApiUrl,
+  resolveProviderApiKeyForRequests,
 } from '@/store/config/providerTypes';
 import ProviderList from '../../model-service/ProviderList';
 import ProviderConfig from '../../model-service/ProviderConfig';
@@ -168,27 +170,22 @@ const ModelServiceSection = memo(() => {
         return { success: false, message: 'No provider selected' };
       }
 
-      const activeKey = currentProvider.apiKeys.find((k) => k.isActive);
-      if (!activeKey) {
+      const requestApiKey = resolveProviderApiKeyForRequests(currentProvider);
+      if (!requestApiKey || !hasUsableProviderAuth(currentProvider)) {
         console.log('[handleValidateModel] no active key found for provider:', currentProvider.id);
         return { success: false, message: t('noActiveKey') };
-      }
-
-      if (!activeKey.key || activeKey.key.trim() === '') {
-        console.log('[handleValidateModel] empty API key');
-        return { success: false, message: t('emptyApiKey') };
       }
 
       try {
         const modelFullName = getLiteLLMModelName(currentProvider.id, model, currentProvider.providerType);
         console.log('[handleValidateModel] sending validateLLM request:', {
           modelFullName,
-          api_key_length: activeKey.key.length,
+          api_key_length: requestApiKey.length,
           base_url: currentProvider.apiUrl,
         });
         const result = await validateLLM({
           model: modelFullName,
-          api_key: activeKey.key,
+          api_key: requestApiKey,
           base_url: normalizeApiUrl(currentProvider.apiUrl) || null,
           model_kwargs: {},
         });
@@ -218,14 +215,14 @@ const ModelServiceSection = memo(() => {
     const configs: { config: ModelConfig; displayName: string }[] = [];
     for (const provider of providers) {
       if (!provider.isEnabled) continue;
-      const activeKey = provider.apiKeys?.find((k) => k.isActive);
-      if (!activeKey?.key) continue;
+      const requestApiKey = resolveProviderApiKeyForRequests(provider);
+      if (!requestApiKey || !hasUsableProviderAuth(provider)) continue;
       for (const model of provider.enabledModels ?? []) {
         const fullName = getLiteLLMModelName(provider.id, model, provider.providerType);
         configs.push({
           config: {
             model: fullName,
-            api_key: activeKey.key,
+            api_key: requestApiKey,
             base_url: normalizeApiUrl(provider.apiUrl) || null,
             model_kwargs: {},
           },

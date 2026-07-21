@@ -4,6 +4,7 @@
  */
 
 import type { CustomModelInfo } from '@/store/config/providerTypes';
+import { discoverModelsFromEndpoint } from '@/services/llm-config';
 
 // ============ models.dev API 类型定义 ============
 
@@ -262,12 +263,12 @@ export async function getModelsForProvider(
   appProviderId: string,
   options?: { providerType?: string; apiUrl?: string; apiKey?: string },
 ): Promise<GetModelsResult> {
-  // 1. 并行调用 models.dev 和 Provider API（如果有 credentials）
+  // 1. 并行调用 models.dev 和 Provider API（只要有 API URL 就尝试）
   const [data, apiResult] = await Promise.all([
     fetchModelsDevData(),
-    options?.apiKey && options?.apiUrl
+    options?.apiUrl
       ? fetchModelsFromApi(options.apiUrl, options.apiKey)
-      : Promise.resolve({ success: false, models: [], error: 'No API credentials' }),
+      : Promise.resolve({ success: false, models: [], error: 'No API URL' }),
   ]);
 
   // 2. 确定 models.dev 中对应的 provider ID
@@ -290,8 +291,8 @@ export async function getModelsForProvider(
     ? Object.values(provider.models).filter((model) => model.status !== 'deprecated')
     : [];
 
-  // 3. 如果没有 apiKey 或 apiUrl，直接返回 models.dev 全量
-  if (!options?.apiKey || !options?.apiUrl) {
+  // 3. 如果没有 apiUrl，直接返回 models.dev 全量
+  if (!options?.apiUrl) {
     return {
       provider,
       models: allModelsDevModels,
@@ -427,36 +428,27 @@ interface FetchModelsFromApiResult {
 /**
  * 直接调用提供商的 OpenAI 兼容 /models 接口获取模型列表
  * @param apiUrl - Base URL（不含 /models 后缀）
- * @param apiKey - API Key
+ * @param apiKey - API Key（可选，localhost no-auth 可为空）
  * @returns 模型列表或错误信息
  */
-export async function fetchModelsFromApi(apiUrl: string, apiKey: string): Promise<FetchModelsFromApiResult> {
-  if (!apiUrl || !apiKey) {
-    return { success: false, models: [], error: 'API URL and API Key are required' };
+export async function fetchModelsFromApi(apiUrl: string, apiKey?: string): Promise<FetchModelsFromApiResult> {
+  if (!apiUrl) {
+    return { success: false, models: [], error: 'API URL is required' };
   }
 
   try {
-    const response = await fetch('/api/proxy-models', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ apiUrl, apiKey }),
-    });
-
-    const data = (await response.json()) as FetchModelsFromApiResult;
-
-    if (!response.ok || !data.success) {
+    const result = await discoverModelsFromEndpoint(apiUrl, apiKey);
+    if (!result.success) {
       return {
         success: false,
         models: [],
-        error: data.error || `Request failed with status ${response.status}`,
+        error: result.error || 'Model discovery failed',
       };
     }
 
     return {
       success: true,
-      models: data.models || [],
+      models: result.models || [],
     };
   } catch (error) {
     return {

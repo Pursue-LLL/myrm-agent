@@ -33,5 +33,69 @@
       "prototype"
     ],
     "website": "https://figma.com"
+  },
+  {
+    "id": "unreal-engine",
+    "name": "Unreal Engine",
+    "name_zh": "虚幻引擎",
+    "description": "Control Unreal Engine editor via MCP — create actors, modify levels, manage blueprints and assets",
+    "description_zh": "通过 MCP 控制虚幻引擎编辑器 — 创建 Actor、修改关卡、管理蓝图和资产",
+    "icon": "unreal",
+    "category": "design",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "unreal-engine",
+      "type": "streamable_http",
+      "url": "http://127.0.0.1:8000/mcp",
+      "description": "Unreal Engine - create/modify actors, levels, blueprints, materials via editor automation",
+      "host_serial": true,
+      "keepalive_interval": 30.0,
+      "probe_url": "http://127.0.0.1:8000/mcp",
+      "post_connect_guide": "1. Open Unreal Engine 5.4+ project\n2. Enable the \"Unreal MCP\" plugin (Edit > Plugins)\n3. In Editor Preferences, enable \"Auto Start MCP Server\"\n4. Verify http://127.0.0.1:8000/mcp is accessible",
+      "post_connect_guide_zh": "1. 打开 Unreal Engine 5.4+ 项目\n2. 启用 \"Unreal MCP\" 插件（编辑 > 插件）\n3. 在编辑器首选项中开启 \"自动启动 MCP 服务器\"\n4. 确认 http://127.0.0.1:8000/mcp 可访问"
+    },
+    "auth": {
+      "type": "none"
+    },
+    "tags": [
+      "game-dev",
+      "3d",
+      "editor",
+      "unreal",
+      "level-design"
+    ],
+    "website": "https://www.unrealengine.com"
+  },
+  {
+    "id": "blender",
+    "name": "Blender",
+    "name_zh": "Blender",
+    "description": "Control Blender via MCP — create meshes, apply modifiers, render scenes, manage materials",
+    "description_zh": "通过 MCP 控制 Blender — 创建网格、应用修改器、渲染场景、管理材质",
+    "icon": "blender",
+    "category": "design",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "blender",
+      "type": "sse",
+      "url": "http://127.0.0.1:9876/sse",
+      "description": "Blender - create/edit meshes, modifiers, materials, render scenes via Python scripting",
+      "host_serial": true,
+      "keepalive_interval": 30.0,
+      "probe_url": "http://127.0.0.1:9876/sse",
+      "post_connect_guide": "1. Open Blender 4.0+\n2. Install the \"Blender MCP\" addon (Edit > Preferences > Add-ons)\n3. In the addon settings, click \"Start MCP Server\"\n4. Verify http://127.0.0.1:9876/sse is accessible",
+      "post_connect_guide_zh": "1. 打开 Blender 4.0+\n2. 安装 \"Blender MCP\" 插件（编辑 > 首选项 > 插件）\n3. 在插件设置中点击 \"启动 MCP 服务器\"\n4. 确认 http://127.0.0.1:9876/sse 可访问"
+    },
+    "auth": {
+      "type": "none"
+    },
+    "tags": [
+      "3d",
+      "modeling",
+      "rendering",
+      "animation",
+      "blender"
+    ],
+    "website": "https://www.blender.org"
   }
 ]

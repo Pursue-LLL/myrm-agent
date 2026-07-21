@@ -22,8 +22,10 @@ for LiteLLM format conversion, combined with business-specific provider config p
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 from typing import TYPE_CHECKING, cast
+from urllib.parse import urlparse
 
 from myrm_agent_harness.agent.config.parsers import (
     parse_litellm_model,
@@ -39,6 +41,8 @@ logger = logging.getLogger(__name__)
 _PROVIDER_API_BASES: dict[str, str] = {
     "siliconflow": "https://api.siliconflow.cn/v1",
 }
+_LOCAL_NO_AUTH_API_KEY_MARKER = "__myrm_local_no_auth__"
+_OPENAI_LIKE_TYPES = {"openai-like", "openai_compatible", "openai-compatible", "openai_like"}
 
 
 def resolve_model_config(
@@ -286,7 +290,40 @@ def _extract_all_active_keys(provider: dict[str, object]) -> list[str]:
         key_raw = entry.get("key")
         if active and key_raw is not None:
             out.append(str(key_raw))
-    return out
+    if out:
+        return out
+    if _supports_provider_no_auth(provider):
+        return [_LOCAL_NO_AUTH_API_KEY_MARKER]
+    return []
+
+
+def _supports_provider_no_auth(provider: dict[str, object]) -> bool:
+    provider_id = str(provider.get("id", "")).strip().lower()
+    if provider_id in {"ollama", "lm_studio"}:
+        return True
+    provider_type = str(provider.get("providerType", "")).strip().lower()
+    if provider_type not in _OPENAI_LIKE_TYPES:
+        return False
+    api_url = str(provider.get("apiUrl") or provider.get("baseURL") or "").strip()
+    return _is_loopback_api_url(api_url)
+
+
+def _is_loopback_api_url(api_url: str) -> bool:
+    if not api_url:
+        return False
+    candidate = api_url if "://" in api_url else f"http://{api_url}"
+    try:
+        parsed = urlparse(candidate)
+    except ValueError:
+        return False
+    hostname = (parsed.hostname or "").strip().lower()
+    if hostname == "localhost":
+        return True
+    try:
+        ip_obj = ipaddress.ip_address(hostname)
+    except ValueError:
+        return False
+    return ip_obj.is_loopback or ip_obj.is_unspecified
 
 
 def _to_litellm_model(provider: str, model: str, provider_type: str | None = None) -> str:

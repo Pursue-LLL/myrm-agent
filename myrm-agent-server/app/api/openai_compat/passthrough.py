@@ -131,13 +131,15 @@ async def is_passthrough_model(model: str) -> bool:
         return False
 
     model_lower = model.lower()
+    from app.core.channel_bridge.model_resolver import _extract_all_active_keys
+
     for provider in providers_raw:
         if not isinstance(provider, dict):
             continue
         is_enabled = provider.get("isEnabled") or provider.get("enabled")
         if not is_enabled:
             continue
-        if not provider.get("apiKeys"):
+        if not _extract_all_active_keys(provider):
             continue
 
         enabled_models = provider.get("enabledModels", [])

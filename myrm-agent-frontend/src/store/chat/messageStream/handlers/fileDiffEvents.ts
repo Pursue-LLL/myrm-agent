@@ -83,7 +83,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       if (!matched) {
         steps.push({
           step_key: 'file_diff',
-          tool_name: null,
+          tool_name: undefined,
           items: [
             {
               file_path: diffData.path,

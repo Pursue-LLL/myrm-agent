@@ -44,6 +44,8 @@ class CatalogEntryResponse(BaseModel):
     tags: list[str] = Field(default_factory=list)
     website: str | None = None
     mcp_config: dict[str, object] | None = None
+    post_connect_guide: str | None = None
+    post_connect_guide_zh: str | None = None
 
 
 class CatalogListResponse(BaseModel):
@@ -63,6 +65,12 @@ def _entry_to_response(entry: CatalogEntry) -> CatalogEntryResponse:
     if entry.mcp_config:
         mcp_config_dict = entry.mcp_config.model_dump(exclude_none=True)
 
+    post_guide: str | None = None
+    post_guide_zh: str | None = None
+    if entry.mcp_config:
+        post_guide = entry.mcp_config.post_connect_guide
+        post_guide_zh = entry.mcp_config.post_connect_guide_zh
+
     return CatalogEntryResponse(
         id=entry.id,
         name=entry.name,
@@ -81,6 +89,8 @@ def _entry_to_response(entry: CatalogEntry) -> CatalogEntryResponse:
         tags=entry.tags,
         website=entry.website,
         mcp_config=mcp_config_dict,
+        post_connect_guide=post_guide,
+        post_connect_guide_zh=post_guide_zh,
     )
 
 

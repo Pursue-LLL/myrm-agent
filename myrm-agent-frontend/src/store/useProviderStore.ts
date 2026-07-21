@@ -23,6 +23,7 @@ import {
   CUSTOM_PROVIDER_TYPE_INFO,
   getInitialProviders,
   getInitialDefaultModelConfig,
+  hasUsableProviderAuth,
 } from './config/providerTypes';
 import { normalizeProviders } from '@/services/config/configNormalizer';
 import { getConfigSyncManager, type ProvidersConfigValue } from '@/services/config';
@@ -659,7 +660,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
 
     for (const provider of providers) {
       if (!provider.isEnabled) continue;
-      if (!provider.apiKeys?.some((k) => k.isActive && k.key)) continue;
+      if (!hasUsableProviderAuth(provider)) continue;
 
       for (const model of provider.enabledModels || []) {
         result.push({

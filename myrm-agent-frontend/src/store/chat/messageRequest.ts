@@ -63,7 +63,7 @@ import useCompanionStore from '../useCompanionStore';
 import { fetchWithTimeout } from '@/lib/api';
 import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
-import { normalizeApiUrl } from '@/store/config/providerTypes';
+import { hasUsableProviderAuth, normalizeApiUrl } from '@/store/config/providerTypes';
 import { normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
 import type { ChatState } from './types';
 
@@ -316,9 +316,7 @@ const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
 
   for (const provider of providers) {
     if (!provider.isEnabled) continue;
-    if (!provider.apiKeys?.some((k) => k.isActive && k.key)) {
-      if (!['ollama', 'lm_studio'].includes(provider.id)) continue;
-    }
+    if (!hasUsableProviderAuth(provider)) continue;
     for (const model of provider.enabledModels || []) {
       const info = customModelInfo[`${provider.id}/${model}`];
       if (info?.input_cost_per_million != null) {
@@ -424,7 +422,7 @@ export const validateChatModelConfig = (
   }
 
   const { defaultModelConfig, providers } = useProviderStore.getState();
-  const hasAnyUsableProvider = providers.some((p) => p.isEnabled && p.apiKeys?.some((k) => k.isActive && k.key));
+  const hasAnyUsableProvider = providers.some((p) => p.isEnabled && hasUsableProviderAuth(p));
   const primary = defaultModelConfig?.baseModel?.primary;
   const missingDefaultOnly = hasAnyUsableProvider && (!primary || !isModelAvailable(primary, providers));
 

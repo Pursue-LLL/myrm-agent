@@ -20,6 +20,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.config import ConfigReadinessResult
+from app.core.channel_bridge.model_resolver import _extract_all_active_keys
 
 if TYPE_CHECKING:
     pass
@@ -74,20 +75,9 @@ class ProviderConfigChecker:
         valid_providers = []
         for p in enabled_providers:
             provider_id = str(p.get("id", ""))
-            api_keys = p.get("apiKeys")
-
-            is_local = provider_id in {"ollama", "lm_studio"}
-            if is_local:
-                valid_providers.append(provider_id)
-                continue
-
-            if not isinstance(api_keys, list) or not api_keys:
-                logger.warning("Provider %s enabled but has no API keys", provider_id)
-                continue
-
-            has_active_key = any(k.get("isActive") and k.get("key") for k in api_keys if isinstance(k, dict))
-            if not has_active_key:
-                logger.warning("Provider %s enabled but has no active API key", provider_id)
+            keys = _extract_all_active_keys(p)
+            if not keys:
+                logger.warning("Provider %s enabled but has no usable auth/no-auth policy", provider_id)
                 continue
 
             valid_providers.append(provider_id)

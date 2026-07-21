@@ -6,16 +6,13 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import useProviderStore from '@/store/useProviderStore';
+import { hasUsableProviderAuth } from '@/store/config/providerTypes';
 
 const NoProviderBanner = memo(() => {
   const t = useTranslations('chat');
   const router = useRouter();
   const isInitialized = useProviderStore((s) => s.isInitialized);
-  const hasEnabledProvider = useProviderStore((s) =>
-    s.providers.some(
-      (p) => p.isEnabled && (p.apiKeys?.some((k) => k.isActive && k.key) || ['ollama', 'lm_studio'].includes(p.id)),
-    ),
-  );
+  const hasEnabledProvider = useProviderStore((s) => s.providers.some((p) => p.isEnabled && hasUsableProviderAuth(p)));
 
   if (!isInitialized || hasEnabledProvider) return null;
 

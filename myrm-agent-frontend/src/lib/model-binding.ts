@@ -7,6 +7,7 @@
 
 import type { ActionMode, AgentConfig } from '@/store/chat/types';
 import type { DefaultModelConfig, SingleModelSelection, ProviderConfig } from '@/store/config/providerTypes';
+import { hasUsableProviderAuth } from '@/store/config/providerTypes';
 
 export interface ResolvedModelConfig {
   selection: SingleModelSelection | null;
@@ -110,12 +111,12 @@ export function resolveActiveFallbackSelection(
 }
 
 /**
- * 检查模型是否可用（Provider 启用 + 有活跃 API Key + 模型在启用列表中）
+ * 检查模型是否可用（Provider 启用 + 有可用认证能力 + 模型在启用列表中）
  */
 export function isModelAvailable(selection: SingleModelSelection, providers: ProviderConfig[]): boolean {
   const provider = providers.find((p) => p.id === selection.providerId);
   if (!provider?.isEnabled) return false;
-  if (!provider.apiKeys?.some((k) => k.isActive && k.key)) return false;
+  if (!hasUsableProviderAuth(provider)) return false;
   if (!provider.enabledModels.includes(selection.model)) return false;
   return true;
 }

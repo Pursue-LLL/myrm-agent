@@ -119,6 +119,15 @@ export interface ReachabilityResult {
   cached: boolean;
 }
 
+export interface DiscoverModelsResult {
+  success: boolean;
+  normalized_api_url: string;
+  models_url?: string | null;
+  models: string[];
+  no_auth_local?: boolean;
+  error?: string | null;
+}
+
 type ReachabilityApiResponse = Partial<ReachabilityResult> & {
   data?: ReachabilityResult;
 };
@@ -142,6 +151,41 @@ export const checkModelReachability = async (config: ModelConfig): Promise<Reach
     };
   } catch {
     return { reachable: false, latency_ms: null, error: 'Network request failed', cached: false };
+  }
+};
+
+/**
+ * Discover models from OpenAI-compatible endpoint.
+ * Uses backend SSRF-guarded probe contract.
+ */
+export const discoverModelsFromEndpoint = async (
+  apiUrl: string,
+  apiKey?: string,
+): Promise<DiscoverModelsResult> => {
+  try {
+    const response = await apiRequest<DiscoverModelsResult>('/integrations/llm/discover-models', {
+      method: 'POST',
+      body: JSON.stringify({
+        api_url: apiUrl,
+        api_key: apiKey?.trim() || undefined,
+      }),
+    });
+    return {
+      success: response.success ?? false,
+      normalized_api_url: response.normalized_api_url ?? apiUrl,
+      models_url: response.models_url,
+      models: Array.isArray(response.models) ? response.models : [],
+      no_auth_local: response.no_auth_local ?? false,
+      error: response.error ?? null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      normalized_api_url: apiUrl,
+      models: [],
+      error: error instanceof Error ? error.message : 'Network request failed',
+      no_auth_local: false,
+    };
   }
 };
 

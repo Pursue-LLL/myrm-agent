@@ -33,6 +33,8 @@ router = APIRouter()
 
 def _collect_provider_models(providers_dict: dict[str, object]) -> list[ModelObject]:
     """Extract enabled LLM models from user's provider config for passthrough."""
+    from app.core.channel_bridge.model_resolver import _extract_all_active_keys
+
     models: list[ModelObject] = []
     providers_raw = providers_dict.get("providers")
     if not isinstance(providers_raw, list):
@@ -50,8 +52,7 @@ def _collect_provider_models(providers_dict: dict[str, object]) -> list[ModelObj
         if not isinstance(enabled_models, list):
             continue
 
-        has_keys = bool(provider.get("apiKeys"))
-        if not has_keys:
+        if not _extract_all_active_keys(provider):
             continue
 
         for model_name in enabled_models:

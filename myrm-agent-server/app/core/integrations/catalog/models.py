@@ -91,6 +91,28 @@ class MCPPreConfig(BaseModel):
         description="HTTP headers for SSE/streamable_http (values may use {{CREDENTIAL}} placeholders)",
     )
     description: str = Field(default="", description="Service description for LLM")
+    host_serial: bool = Field(
+        default=False,
+        description="Force serial tool scheduling for stateful host editors (UE, Blender)",
+    )
+    keepalive_interval: float | None = Field(
+        default=None,
+        ge=5.0,
+        le=3600.0,
+        description="Keepalive ping interval in seconds for long-running MCP connections",
+    )
+    probe_url: str | None = Field(
+        default=None,
+        description="URL to probe for connectivity diagnostics before connecting",
+    )
+    post_connect_guide: str | None = Field(
+        default=None,
+        description="Setup guide displayed in connect dialog (English)",
+    )
+    post_connect_guide_zh: str | None = Field(
+        default=None,
+        description="Setup guide displayed in connect dialog (Chinese)",
+    )
 
 
 class OpenAPIPreConfig(BaseModel):
