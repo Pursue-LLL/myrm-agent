@@ -12,6 +12,7 @@ export type TunnelStatus = {
 export type PairingTokenResponse = {
   token: string;
   mobilePath: string;
+  mobileUrl?: string;
 };
 
 export const remoteAccessService = {
@@ -30,7 +31,10 @@ export const remoteAccessService = {
     return apiRequest<TunnelStatus>('/remote-access/tunnel/stop', { method: 'POST' });
   },
 
-  async createPairingToken(chatId?: string, purpose?: 'mobile_hub' | 'mobile_hub_list'): Promise<PairingTokenResponse> {
+  async createPairingToken(
+    chatId?: string,
+    purpose?: 'mobile_hub' | 'mobile_hub_list' | 'browser_takeover',
+  ): Promise<PairingTokenResponse> {
     const resolvedPurpose = purpose ?? (chatId ? 'mobile_hub' : 'mobile_hub_list');
     const body = { chat_id: chatId ?? null, purpose: resolvedPurpose };
     if (isMobileRemoteSurface()) {

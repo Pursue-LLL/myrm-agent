@@ -47,6 +47,7 @@ export function useBrowserTakeoverActions() {
       autoDetectCompletion: useBrowserTakeoverStore.getState().autoDetectCompletion,
       screenshotBase64: useBrowserTakeoverStore.getState().screenshotBase64,
       url: useBrowserTakeoverStore.getState().url,
+      liveAssistUrl: useBrowserTakeoverStore.getState().liveAssistUrl,
     };
     completeTakeover();
     const resumeMessageId = resolveBrowserTakeoverMessageId(snapshot.messageId);
@@ -70,6 +71,7 @@ export function useBrowserTakeoverActions() {
         auto_detect_completion: snapshot.autoDetectCompletion,
         screenshot_base64: snapshot.screenshotBase64,
         url: snapshot.url,
+        live_assist_url: snapshot.liveAssistUrl,
       });
       toast.error(t('takeoverResumeFailed'));
     }
@@ -83,6 +85,7 @@ export function useBrowserTakeoverActions() {
       autoDetectCompletion: useBrowserTakeoverStore.getState().autoDetectCompletion,
       screenshotBase64: useBrowserTakeoverStore.getState().screenshotBase64,
       url: useBrowserTakeoverStore.getState().url,
+      liveAssistUrl: useBrowserTakeoverStore.getState().liveAssistUrl,
     };
     completeTakeover();
     const resumeMessageId = resolveBrowserTakeoverMessageId(snapshot.messageId);
@@ -103,6 +106,7 @@ export function useBrowserTakeoverActions() {
         auto_detect_completion: snapshot.autoDetectCompletion,
         screenshot_base64: snapshot.screenshotBase64,
         url: snapshot.url,
+        live_assist_url: snapshot.liveAssistUrl,
       });
       toast.error(t('takeoverResumeFailed'));
     }

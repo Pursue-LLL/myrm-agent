@@ -28,6 +28,7 @@ export interface ApprovalPayloadData {
   page_url?: string;
   url?: string;
   screenshot_base64?: string;
+  live_assist_url?: string;
   is_managed?: boolean;
   reason?: string;
   messageId?: string;
@@ -53,6 +54,7 @@ export interface BrowserTakeoverActivationInput {
   reason: string;
   url?: string;
   screenshot_base64?: string;
+  live_assist_url?: string;
   messageId?: string;
   is_managed?: boolean;
   auto_detect_completion?: boolean;
@@ -86,6 +88,7 @@ export function activateBrowserTakeover(input: BrowserTakeoverActivationInput): 
     reason: input.reason,
     url: input.url,
     screenshot_base64: input.screenshot_base64,
+    live_assist_url: input.live_assist_url,
     messageId,
     ui_mode: isManaged ? 'managed' : 'extension',
     auto_detect_completion: input.auto_detect_completion ?? false,
@@ -102,6 +105,7 @@ function syncBrowserTakeoverFromApproval(approval: ApprovalPayload): void {
   const reason = approval.reason ?? nested.reason ?? '';
   const urlValue = nested.url ?? nested.page_url ?? nestedRecord.url;
   const screenshot = nested.screenshot_base64 ?? nestedRecord.screenshot_base64;
+  const liveAssistUrl = nested.live_assist_url ?? nestedRecord.live_assist_url;
   const payloadMessageId =
     typeof nestedRecord.messageId === 'string' && nestedRecord.messageId.trim()
       ? nestedRecord.messageId.trim()
@@ -111,6 +115,7 @@ function syncBrowserTakeoverFromApproval(approval: ApprovalPayload): void {
     reason: String(reason),
     url: typeof urlValue === 'string' ? urlValue : undefined,
     screenshot_base64: typeof screenshot === 'string' ? screenshot : undefined,
+    live_assist_url: typeof liveAssistUrl === 'string' ? liveAssistUrl : undefined,
     messageId: payloadMessageId,
     is_managed: isManaged,
     auto_detect_completion: false,
@@ -149,6 +154,7 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
   const payloadToolName = asString(raw.tool_name ?? nestedPayload.tool_name);
   const payloadReason = asString(raw.reason ?? nestedPayload.reason);
   const screenshotBase64 = asString(nestedPayload.screenshot_base64) || undefined;
+  const liveAssistUrl = asString(nestedPayload.live_assist_url) || undefined;
   const isManaged = nestedPayload.is_managed === true;
   const payloadMessageId = asString(nestedPayload.messageId) || undefined;
 
@@ -173,6 +179,7 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
       page_url: pageUrl || undefined,
       url: payloadUrl || undefined,
       screenshot_base64: screenshotBase64,
+      live_assist_url: liveAssistUrl,
       is_managed: isManaged,
       reason: payloadReason || undefined,
       messageId: payloadMessageId,

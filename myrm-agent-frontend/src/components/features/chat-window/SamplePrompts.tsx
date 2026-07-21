@@ -30,6 +30,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import useChatStore from '@/store/useChatStore';
+import { useProgressionStore } from '@/store/useProgressionStore';
 import type { ActionMode } from '@/store/chat/types';
 
 const POOL_SIZE = 12;
@@ -62,6 +63,19 @@ const PROMPT_ICONS: Record<string, LucideIcon> = {
   agent_11: Users,
 };
 
+/**
+ * Maps prompt indices to the minimum user level that should see them prominently.
+ * Lower-level users still see all prompts but with different shuffle priority.
+ */
+const PROMPT_LEVEL_AFFINITY: Record<string, number> = {
+  agent_3: 3, // cron/scheduling
+  agent_7: 3, // checklists/planning
+  agent_8: 4, // database/vector
+  agent_6: 4, // competitor analysis
+  agent_10: 3, // industry research
+  agent_11: 4, // feedback collection
+};
+
 const SUPPORTED_MODES: ActionMode[] = ['fast', 'agent'];
 
 function hashSeed(seed: string): number {
@@ -89,13 +103,13 @@ const SamplePrompts = React.memo(() => {
   const actionMode = useChatStore((state) => state.actionMode);
   const setInputMessage = useChatStore((state) => state.setInputMessage);
   const agentConfig = useChatStore((state) => state.agentConfig);
+  const currentLevel = useProgressionStore((state) => state.currentLevel);
 
   const mode = SUPPORTED_MODES.includes(actionMode) ? actionMode : 'agent';
 
   const prompts = useMemo(() => {
-    const pickSeed = `${mode}:${agentConfig?.agentId ?? agentConfig?.presetId ?? 'default'}`;
+    const pickSeed = `${mode}:${agentConfig?.agentId ?? agentConfig?.presetId ?? 'default'}:L${currentLevel}`;
 
-    // 优先使用智能体自定义提示（如果有）
     if (agentConfig?.suggestionPrompts && agentConfig.suggestionPrompts.length > 0) {
       const agentPrompts = agentConfig.suggestionPrompts.map((text, i) => ({
         key: `agent_custom_${i}`,
@@ -105,7 +119,6 @@ const SamplePrompts = React.memo(() => {
       return stablePick(agentPrompts, DISPLAY_COUNT, `${pickSeed}:custom`);
     }
 
-    // fallback: 从模式提示池中稳定选取（SSR/CSR 一致，避免 hydration mismatch）
     const pool = Array.from({ length: POOL_SIZE }, (_, i) => {
       const key = `${mode}_${i}`;
       return {
@@ -114,8 +127,20 @@ const SamplePrompts = React.memo(() => {
         Icon: PROMPT_ICONS[key] ?? Search,
       };
     });
+
+    // Promote advanced prompts for higher-level users by moving them to front
+    if (currentLevel >= 3 && mode === 'agent') {
+      pool.sort((a, b) => {
+        const aAffinity = PROMPT_LEVEL_AFFINITY[a.key] ?? 1;
+        const bAffinity = PROMPT_LEVEL_AFFINITY[b.key] ?? 1;
+        const aMatch = aAffinity <= currentLevel ? 1 : 0;
+        const bMatch = bAffinity <= currentLevel ? 1 : 0;
+        return bMatch - aMatch;
+      });
+    }
+
     return stablePick(pool, DISPLAY_COUNT, pickSeed);
-  }, [mode, t, agentConfig?.agentId, agentConfig?.presetId, agentConfig?.suggestionPrompts]);
+  }, [mode, t, agentConfig?.agentId, agentConfig?.presetId, agentConfig?.suggestionPrompts, currentLevel]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full animate-in fade-in duration-500">

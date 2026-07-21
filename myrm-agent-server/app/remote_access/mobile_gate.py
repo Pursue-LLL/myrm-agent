@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from app.remote_access.pairing import (
+    BROWSER_TAKEOVER_PURPOSE,
     MOBILE_HUB_CONTROL_PURPOSE,
     MOBILE_HUB_LIST_PURPOSE,
     parse_pairing_token,
@@ -124,6 +125,11 @@ def _purpose_allows_path(purpose: str, path: str) -> bool:
             MOBILE_PAIRING_ISSUE_PATH,
             MOBILE_PAIRING_REFRESH_PATH,
             NODE_EVENTS_PATH,
+        )
+    if purpose == BROWSER_TAKEOVER_PURPOSE:
+        return path in (
+            MOBILE_PAIRING_REFRESH_PATH,
+            _AGENT_STREAM_PATH,
         )
     if purpose != MOBILE_HUB_CONTROL_PURPOSE:
         return False

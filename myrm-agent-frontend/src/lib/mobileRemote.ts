@@ -17,6 +17,7 @@ const PAIR_REFRESH_LEAD_MS = 5 * 60 * 1000;
 type PairingTokenResponse = {
   token: string;
   mobilePath?: string;
+  mobileUrl?: string;
 };
 
 export function isMobileRemoteSurface(): boolean {

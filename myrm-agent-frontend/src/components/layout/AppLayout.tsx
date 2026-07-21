@@ -22,6 +22,7 @@ import LocalBackendUnavailableBanner, {
   ConfigReadinessDegradedBanner,
 } from '@/components/features/app-shell/local-backend-unavailable-banner';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
+import { useProgressionStore } from '@/store/useProgressionStore';
 import E2EChatBridge from '@/components/dev/E2EChatBridge';
 
 const CronPushPoller = lazy(() =>
@@ -58,6 +59,7 @@ function AppLayout({
 
     const handle = schedule(() => {
       void useFeatureGateStore.getState().loadFeatures();
+      void useProgressionStore.getState().load();
     });
 
     return () => {

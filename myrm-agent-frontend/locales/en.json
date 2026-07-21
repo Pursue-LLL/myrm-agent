@@ -12332,6 +12332,8 @@
       "takeoverSkip": "Can't do this",
       "takeoverExtensionTitle": "Your turn in Chrome",
       "takeoverExtensionHint": "Complete the step in your Chrome browser, then tap Done when finished.",
+      "takeoverOpenLiveAssist": "Open remote assist link",
+      "takeoverCopyLiveAssist": "Copy link",
       "takeoverCaptchaAuto": "Resolving verification…",
       "takeoverCaptchaAutoHint": "The agent is handling verification automatically. Please wait.",
       "takeoverLearned": "Behavior recorded — Agent will learn from your demonstration",

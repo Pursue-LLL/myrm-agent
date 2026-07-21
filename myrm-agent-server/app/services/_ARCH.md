@@ -40,6 +40,7 @@
 | `security/` | ✅ 核心 | 安全配置服务（Profile 管理：CRUD、激活、克隆、内置 profile 种子） | [_ARCH.md](security/_ARCH.md) |
 | `message_filter/` | ✅ 核心 | 消息过滤服务（审计、配置管理、版本控制） | [_ARCH.md](message_filter/_ARCH.md) |
 | `features/` | ✅ 核心 | Feature Flags 服务（注册、用户覆盖配置持久化） | [_ARCH.md](features/_ARCH.md) |
+| `progression/` | ✅ 辅助 | 用户能力进度服务（里程碑追踪、等级计算、Feature Gate 联动） | — |
 | `repair/` | ✅ 核心 | 运行时修复动作契约与白名单执行服务 | [_ARCH.md](repair/_ARCH.md) |
 | `approvals/` | ✅ 核心 | 审批注册表（Agent 操作审批流） | [_ARCH.md](approvals/_ARCH.md) |
 | `channels/` | ✅ 核心 | 渠道业务编排（实例配置、CP egress、配对绑定） | [_ARCH.md](channels/_ARCH.md) |

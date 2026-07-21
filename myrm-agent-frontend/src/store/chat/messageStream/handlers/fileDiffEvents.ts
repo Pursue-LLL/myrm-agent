@@ -219,15 +219,19 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     const isManaged = Boolean(data.data.is_managed);
     const uiMode = isManaged ? 'managed' : 'extension';
     const autoDetectCompletion = Boolean(data.data.auto_detect_completion);
+    const eventReason = typeof data.data.reason === 'string' ? data.data.reason : '';
+    const eventPageUrl = typeof data.data.url === 'string' ? data.data.url : '';
 
     activateBrowserTakeover({
-      reason: String(data.data.reason ?? ''),
-      url: typeof data.data.url === 'string' ? data.data.url : undefined,
+      reason: eventReason,
+      url: eventPageUrl || undefined,
       screenshot_base64:
         typeof data.data.screenshot_base64 === 'string' ? data.data.screenshot_base64 : undefined,
       messageId: typeof data.messageId === 'string' ? data.messageId : undefined,
       is_managed: isManaged,
       auto_detect_completion: autoDetectCompletion,
+      live_assist_url:
+        typeof data.data.live_assist_url === 'string' ? data.data.live_assist_url : undefined,
     });
 
     actions.setLoading(false);
@@ -251,6 +255,47 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       }).catch(async () => {
         await notifyTakeoverVncOpenFailed();
       });
+    } else {
+      const { default: useChatStore } = await import('@/store/useChatStore');
+      const chatId = useChatStore.getState().chatId?.trim();
+      if (chatId) {
+        void (async () => {
+          try {
+            const { default: useBrowserTakeoverStore } = await import('@/store/useBrowserTakeoverStore');
+            const currentLiveAssistUrl = useBrowserTakeoverStore.getState().liveAssistUrl;
+            if (currentLiveAssistUrl) {
+              return;
+            }
+
+            const { remoteAccessService } = await import('@/services/remoteAccess');
+            const issued = await remoteAccessService.createPairingToken(chatId, 'browser_takeover');
+            const rawPath = issued.mobileUrl || issued.mobilePath;
+            if (!rawPath) {
+              return;
+            }
+
+            const absoluteBase =
+              typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+            const absoluteUrl =
+              rawPath.startsWith('http://') || rawPath.startsWith('https://')
+                ? rawPath
+                : `${absoluteBase}${rawPath.startsWith('/') ? rawPath : `/${rawPath}`}`;
+            const takeoverUrl = new URL(absoluteUrl, absoluteBase);
+            if (typeof data.messageId === 'string' && data.messageId.trim()) {
+              takeoverUrl.searchParams.set('mid', data.messageId.trim());
+            }
+            if (eventReason.trim()) {
+              takeoverUrl.searchParams.set('reason', eventReason.trim().slice(0, 280));
+            }
+            if (eventPageUrl.trim()) {
+              takeoverUrl.searchParams.set('page', eventPageUrl.trim().slice(0, 1024));
+            }
+            useBrowserTakeoverStore.getState().setLiveAssistUrl(takeoverUrl.toString());
+          } catch (error) {
+            console.warn('[TAKEOVER] Failed to create browser takeover live link:', error);
+          }
+        })();
+      }
     }
     return done(ctx);
   }

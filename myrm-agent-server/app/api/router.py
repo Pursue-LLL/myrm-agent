@@ -41,6 +41,7 @@ from app.api.extension import router as extension_router
 from app.api.extension import ws_router as extension_ws_router
 from app.api.external_agents import router as external_agents_router
 from app.api.features.router import router as features_router
+from app.api.progression import router as progression_router
 from app.api.files.artifact_share_api import public_router as artifact_share_public_router
 from app.api.files.router import router as files_router
 from app.api.files.vault_proxy import router as vault_proxy_router
@@ -188,6 +189,9 @@ if is_local_mode():
 
 # Feature Flags
 api_router.include_router(features_router, prefix="/features", tags=["features"])
+
+# User Progression
+api_router.include_router(progression_router, prefix="/progression", tags=["progression"])
 
 # 集成与基础设施
 api_router.include_router(integrations_router, prefix="/integrations", tags=["integrations"])

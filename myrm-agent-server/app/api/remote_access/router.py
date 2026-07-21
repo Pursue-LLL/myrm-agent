@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from app.config.settings import settings
+from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.infra.limiter import limiter
 from app.core.utils.response_utils import success_response
 from app.remote_access.e2ee import (
@@ -19,6 +20,7 @@ from app.remote_access.e2ee import (
     get_e2ee_session_store,
     load_or_create_daemon_keypair,
 )
+from app.remote_access.mobile_deep_link import resolve_mobile_remote_base_url
 from app.remote_access.mobile_gate import (
     extract_pair_token,
     pair_token_authorizes_path,
@@ -26,6 +28,7 @@ from app.remote_access.mobile_gate import (
     resolve_request_pair_token,
 )
 from app.remote_access.pairing import (
+    BROWSER_TAKEOVER_PURPOSE,
     MOBILE_HUB_CONTROL_PURPOSE,
     MOBILE_HUB_LIST_PURPOSE,
     create_pairing_token,
@@ -48,6 +51,7 @@ class PairingTokenRequest(BaseModel):
 class PairingTokenResponse(BaseModel):
     token: str
     mobile_path: str
+    mobile_url: str | None = None
 
 
 class E2EEHelloRequest(BaseModel):
@@ -57,6 +61,30 @@ class E2EEHelloRequest(BaseModel):
 
 class TunnelStartRequest(BaseModel):
     local_port: int | None = Field(default=None, ge=1, le=65535)
+
+
+_PAIRING_PURPOSES = {
+    MOBILE_HUB_LIST_PURPOSE,
+    MOBILE_HUB_CONTROL_PURPOSE,
+    BROWSER_TAKEOVER_PURPOSE,
+}
+
+
+def _mobile_path_for_token(*, token: str, purpose: str, chat_id: str | None) -> str:
+    if chat_id and purpose == BROWSER_TAKEOVER_PURPOSE:
+        return f"/mobile/takeover/{chat_id}?pair={token}"
+    if chat_id:
+        return f"/mobile/status/{chat_id}?pair={token}"
+    return f"/mobile?pair={token}"
+
+
+async def _mobile_url_for_path(mobile_path: str) -> str | None:
+    ingress = await get_public_ingress_base_url()
+    base = resolve_mobile_remote_base_url(public_ingress_base_url=ingress)
+    if not base:
+        return None
+    normalized_path = mobile_path if mobile_path.startswith("/") else f"/{mobile_path}"
+    return f"{base}{normalized_path}"
 
 
 @router.get("/e2ee/public-key")
@@ -133,6 +161,9 @@ async def tunnel_stop() -> dict[str, object]:
 
 @router.post("/pairing-token", response_model=None)
 async def issue_pairing_token(body: PairingTokenRequest, request: Request) -> dict[str, object]:
+    if body.purpose not in _PAIRING_PURPOSES:
+        raise HTTPException(status_code=400, detail="Unsupported pairing token purpose")
+
     caller_pair = extract_pair_token(request.headers, request.url.query)
     caller_parsed = parse_pairing_token(caller_pair)
     if caller_parsed and caller_parsed.get("purpose") == MOBILE_HUB_LIST_PURPOSE:
@@ -147,19 +178,34 @@ async def issue_pairing_token(body: PairingTokenRequest, request: Request) -> di
         if body.chat_id not in active_chat_ids:
             raise HTTPException(status_code=404, detail="No active session for this chat")
         token = create_pairing_token(chat_id=body.chat_id, purpose=MOBILE_HUB_CONTROL_PURPOSE)
-        mobile_path = f"/mobile/status/{body.chat_id}?pair={token}"
-        return e2ee_success_response(request, data={"token": token, "mobilePath": mobile_path})
+        mobile_path = _mobile_path_for_token(
+            token=token,
+            purpose=MOBILE_HUB_CONTROL_PURPOSE,
+            chat_id=body.chat_id,
+        )
+        mobile_url = await _mobile_url_for_path(mobile_path)
+        return e2ee_success_response(
+            request,
+            data={"token": token, "mobilePath": mobile_path, "mobileUrl": mobile_url},
+        )
 
     if body.purpose == MOBILE_HUB_LIST_PURPOSE and body.chat_id:
         raise HTTPException(status_code=400, detail="mobile_hub_list tokens must not bind chat_id")
     if body.purpose == MOBILE_HUB_CONTROL_PURPOSE and not body.chat_id:
         raise HTTPException(status_code=400, detail="mobile_hub control tokens require chat_id")
+    if body.purpose == BROWSER_TAKEOVER_PURPOSE and not body.chat_id:
+        raise HTTPException(status_code=400, detail="browser_takeover tokens require chat_id")
     token = create_pairing_token(chat_id=body.chat_id, purpose=body.purpose)
-    if body.chat_id:
-        mobile_path = f"/mobile/status/{body.chat_id}?pair={token}"
-    else:
-        mobile_path = f"/mobile?pair={token}"
-    return e2ee_success_response(request, data={"token": token, "mobilePath": mobile_path})
+    mobile_path = _mobile_path_for_token(
+        token=token,
+        purpose=body.purpose,
+        chat_id=body.chat_id,
+    )
+    mobile_url = await _mobile_url_for_path(mobile_path)
+    return e2ee_success_response(
+        request,
+        data={"token": token, "mobilePath": mobile_path, "mobileUrl": mobile_url},
+    )
 
 
 @router.post("/pairing-token/refresh", response_model=None)
@@ -172,11 +218,17 @@ async def refresh_pairing_token_route(request: Request) -> dict[str, object]:
 
     body = parse_pairing_token(refreshed)
     chat_id = body.get("chat_id") if body else None
-    if isinstance(chat_id, str):
-        mobile_path = f"/mobile/status/{chat_id}?pair={refreshed}"
-    else:
-        mobile_path = f"/mobile?pair={refreshed}"
-    return e2ee_success_response(request, data={"token": refreshed, "mobilePath": mobile_path})
+    purpose = body.get("purpose") if body else MOBILE_HUB_LIST_PURPOSE
+    mobile_path = _mobile_path_for_token(
+        token=refreshed,
+        purpose=purpose if isinstance(purpose, str) else MOBILE_HUB_LIST_PURPOSE,
+        chat_id=chat_id if isinstance(chat_id, str) else None,
+    )
+    mobile_url = await _mobile_url_for_path(mobile_path)
+    return e2ee_success_response(
+        request,
+        data={"token": refreshed, "mobilePath": mobile_path, "mobileUrl": mobile_url},
+    )
 
 
 @router.get("/mobile/sessions")

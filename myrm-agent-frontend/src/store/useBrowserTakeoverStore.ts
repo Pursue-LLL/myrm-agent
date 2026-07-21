@@ -22,6 +22,7 @@ const IDLE_TAKEOVER_STATE = {
   reason: '',
   screenshotBase64: null as string | null,
   url: '',
+  liveAssistUrl: '',
   messageId: '',
   requestedAt: 0,
 };
@@ -33,6 +34,7 @@ interface BrowserTakeoverState {
   reason: string;
   screenshotBase64: string | null;
   url: string;
+  liveAssistUrl: string;
   messageId: string;
   requestedAt: number;
 
@@ -40,10 +42,12 @@ interface BrowserTakeoverState {
     reason: string;
     screenshot_base64?: string | null;
     url?: string;
+    live_assist_url?: string;
     messageId?: string;
     ui_mode?: BrowserTakeoverUiMode;
     auto_detect_completion?: boolean;
   }) => void;
+  setLiveAssistUrl: (url: string) => void;
   completeTakeover: () => void;
   dismiss: () => void;
 }
@@ -59,9 +63,12 @@ const useBrowserTakeoverStore = create<BrowserTakeoverState>((set) => ({
       reason: payload.reason,
       screenshotBase64: payload.screenshot_base64 ?? null,
       url: payload.url ?? '',
+      liveAssistUrl: payload.live_assist_url ?? '',
       messageId: payload.messageId ?? '',
       requestedAt: Date.now(),
     }),
+
+  setLiveAssistUrl: (url) => set((state) => (state.pending ? { liveAssistUrl: url } : state)),
 
   completeTakeover: () => set({ ...IDLE_TAKEOVER_STATE }),
 

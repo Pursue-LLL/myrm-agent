@@ -11181,6 +11181,8 @@
       "takeoverSkip": "Nicht möglich",
       "takeoverExtensionTitle": "Bitte in Chrome fortfahren",
       "takeoverExtensionHint": "Schließen Sie den Schritt in Ihrem Chrome-Browser ab und tippen Sie anschließend auf „Fertig“.",
+      "takeoverOpenLiveAssist": "Remote-Assist-Link öffnen",
+      "takeoverCopyLiveAssist": "Link kopieren",
       "takeoverCaptchaAuto": "Verifizierung wird bearbeitet…",
       "takeoverCaptchaAutoHint": "Der Agent bearbeitet die Verifizierung automatisch. Bitte warten.",
       "takeoverLearned": "Verhalten aufgezeichnet — Agent lernt aus Ihrer Demonstration",

@@ -21,6 +21,7 @@ PAIRING_TOKEN_TTL_SECONDS = 60 * 60
 PAIRING_REFRESH_GRACE_SECONDS = 300
 MOBILE_HUB_LIST_PURPOSE = "mobile_hub_list"
 MOBILE_HUB_CONTROL_PURPOSE = "mobile_hub"
+BROWSER_TAKEOVER_PURPOSE = "browser_takeover"
 _KEY_FILE = Path("webui") / "pairing_key"
 
 
@@ -129,6 +130,7 @@ def refresh_pairing_token(
 
 
 __all__ = [
+    "BROWSER_TAKEOVER_PURPOSE",
     "MOBILE_HUB_CONTROL_PURPOSE",
     "MOBILE_HUB_LIST_PURPOSE",
     "PAIRING_REFRESH_GRACE_SECONDS",

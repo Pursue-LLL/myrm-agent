@@ -224,7 +224,12 @@ async def _send_interact_nudge(
         nudge_prompt = E2E_SNAPSHOT_NUDGE_PROMPT
     else:
         nudge_prompt = E2E_NUDGE_PROMPT
-    await chat.send_message(nudge_prompt, nudge_prompt)
+    normalized_chat_id = chat_id.strip()
+    await chat.send_message(
+        nudge_prompt,
+        nudge_prompt,
+        chat_id_hint=normalized_chat_id or None,
+    )
 
 
 async def _agent_stream_active(

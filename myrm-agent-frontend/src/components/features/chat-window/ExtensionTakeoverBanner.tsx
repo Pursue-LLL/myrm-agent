@@ -13,7 +13,7 @@
 
 'use client';
 
-import { CheckCircle2, Globe, XCircle } from 'lucide-react';
+import { CheckCircle2, Copy, ExternalLink, Globe, XCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useBrowserTakeoverActions } from '@/hooks/useBrowserTakeoverActions';
@@ -27,6 +27,7 @@ export default function ExtensionTakeoverBanner() {
   const reason = useBrowserTakeoverStore((s) => s.reason);
   const screenshotBase64 = useBrowserTakeoverStore((s) => s.screenshotBase64);
   const url = useBrowserTakeoverStore((s) => s.url);
+  const liveAssistUrl = useBrowserTakeoverStore((s) => s.liveAssistUrl);
   const { handleTakeoverComplete, handleTakeoverSkip } = useBrowserTakeoverActions();
 
   if (!pending || uiMode !== 'extension') {
@@ -79,6 +80,30 @@ export default function ExtensionTakeoverBanner() {
               <p className="truncate text-[11px] text-muted-foreground" title={url}>
                 {url}
               </p>
+            ) : null}
+            {liveAssistUrl ? (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <a
+                  href={liveAssistUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-800 transition-colors hover:bg-amber-500/20 dark:text-amber-100"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  {t('takeoverOpenLiveAssist')}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
+                    void navigator.clipboard.writeText(liveAssistUrl);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background/70 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-background"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  {t('takeoverCopyLiveAssist')}
+                </button>
+              </div>
             ) : null}
           </div>
         </div>
