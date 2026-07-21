@@ -20,6 +20,7 @@ import type { SearchServiceType } from '@/store/config/types';
 import { IconArrowRight, IconCheck, IconCpu, IconGlobe, IconLoader, IconZap } from '@/components/features/icons/PremiumIcons';
 import SearxngInstallConsentDialog from '@/components/features/settings/SearxngInstallConsentDialog';
 import HardwareCookbook from '@/components/features/settings/model-service/HardwareCookbook';
+import { hasUsableProviderAuth } from '@/store/config/providerTypes';
 
 interface LocalCapabilitiesSetupProps {
   probeResult: ProbeLocalResponse | null;
@@ -53,9 +54,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
   const searchServiceConfigs = useConfigStore((s) => s.searchServiceConfigs);
   const addSearchServiceConfig = useConfigStore((s) => s.addSearchServiceConfig);
 
-  const hasEnabledProvider = providers.some(
-    (p) => p.isEnabled && (p.apiKeys?.some((k) => k.isActive && k.key) || ['ollama', 'lm_studio'].includes(p.id)),
-  );
+  const hasEnabledProvider = providers.some((p) => p.isEnabled && hasUsableProviderAuth(p));
   const searchConfigured = !!getActiveSearchServiceConfig(searchServiceConfigs);
 
   const handleActivateModel = useCallback(

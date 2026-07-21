@@ -11,6 +11,7 @@ import { isLocalMode } from '@/lib/deploy-mode';
 import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
 import { getActiveSearchServiceConfig } from '@/store/config/searchService';
+import { hasUsableProviderAuth } from '@/store/config/providerTypes';
 
 import MigrationWizardSection from '@/components/features/settings/sections/knowledge/MigrationWizardSection';
 import LocalCapabilitiesSetup from './LocalCapabilitiesSetup';
@@ -40,9 +41,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const defaultModelConfig = useProviderStore((s) => s.defaultModelConfig);
   const getEnabledModels = useProviderStore((s) => s.getEnabledModels);
 
-  const hasEnabledProvider = providers.some(
-    (p) => p.isEnabled && (p.apiKeys?.some((k) => k.isActive && k.key) || ['ollama', 'lm_studio'].includes(p.id)),
-  );
+  const hasEnabledProvider = providers.some((p) => p.isEnabled && hasUsableProviderAuth(p));
   const searchConfigured = !!getActiveSearchServiceConfig(searchServiceConfigs);
   const routingAlreadyEnabled = defaultModelConfig.routingConfig?.enabled ?? false;
 
