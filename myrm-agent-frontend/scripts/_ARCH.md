@@ -16,7 +16,7 @@
 | `ci/fractal_docs_baseline.txt` | 递归扫描豁免目录（当前无条目） |
 | `ci/file_line_budget_baseline.txt` | 存量超大文件豁免列表 |
 | `ci/barrel_whitelist.txt` | 跨域 barrel 白名单（feature 内 barrel 由路径规则允许） |
-| `verify-i18n.mjs` | 五语系 i18n 完整性 + SSR shell/deferred namespace 门禁（`pretest` + CI） |
+| `verify-i18n.mjs` | 五语系 i18n 完整性 + SSR shell/deferred namespace 门禁 + `kanban` Chat↔Board closure keys（`pretest` + CI） |
 | `verify-sw-push.mjs` | `public/sw.js` 须含 Web Push handler、URL 消毒、`resolvePushClientFocusAction`、`.navigate(`（`build:sw-inject` + Serwist inject-manifest + CI） |
 | `build-sw-src.mjs` | esbuild 打包 `src/app/sw.ts` → `.serwist/sw-inject-src.js`（inject-manifest 入口，解析 lib import） |
 | `scan-home-i18n-shell.mjs` | home-route `settings.*` 引用须在 SSR shell（CI via verify-i18n） |
