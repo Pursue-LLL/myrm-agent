@@ -14,7 +14,7 @@
 | `BlueprintFillDialog.tsx` | 组件 | 模板参数填写弹窗（`useLocale()` + typed slots + delivery channel），用于 CronJobList 空状态 | ✅ |
 | `ActiveHoursEditor.tsx` | 组件 | 活跃时段（active hours）可视化编辑器 | ✅ |
 | `AllowedRootsEditor.tsx` | 组件 | Cron 允许工作目录 roots 列表编辑 | ✅ |
-| `CapabilityEditor.tsx` | 组件 | Cron Agent 能力/工具约束编辑 | ✅ |
+| `CapabilityEditor.tsx` | 组件 | Cron Agent 执行策略：能力围栏 + 内置工具范围（PATCH required_capabilities / tools_allowed） | ✅ |
 | `CronAdvancedEditors.tsx` | 组件 | 高级选项折叠区（timeout/retry/concurrency） | ✅ |
 | `CronDeliveryEditors.tsx` | 组件 | 投递渠道（email/webhook/push）配置编辑器 | ✅ |
 | `CronJobCard.tsx` | 核心 | 单条 Cron 任务卡片（状态/下次运行/快捷操作） | ✅ |

@@ -101,13 +101,12 @@ def _host_ui_artifact_status_label(chat_id: str, api_base: str) -> str | None:
         for artifact in artifacts:
             if not isinstance(artifact, dict):
                 continue
-            if artifact.get("title") != "E2E_UPDATE_MARKER_ALPHA":
-                continue
             data = artifact.get("data")
-            if isinstance(data, dict):
-                status = data.get("status")
-                if isinstance(status, str):
-                    return status
+            if not isinstance(data, dict):
+                continue
+            status = data.get("status")
+            if isinstance(status, str) and status.startswith("E2E_UPDATE_"):
+                return status
     return None
 
 

@@ -1,13 +1,28 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { Shield, Globe, Download, Terminal, FileInput, FileOutput, Plug, Code } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import {
+  Shield,
+  Globe,
+  Download,
+  Terminal,
+  FileInput,
+  FileOutput,
+  Plug,
+  Code,
+  Wrench,
+} from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/primitives/toggle-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { toast } from 'sonner';
 import { updateCronJob } from '@/services/cron';
+import {
+  BUILTIN_TOOL_IDS,
+  getBuiltinToolDisplayLabel,
+  type BuiltinToolId,
+} from '@/store/chat/types/builtinTools';
 import type { EditorProps } from './CronDeliveryEditors';
 
 const CAPABILITY_DEFS = [
@@ -34,29 +49,53 @@ const CAPABILITY_PRESETS = [
   { key: 'full', caps: [] as string[], sorted: [] as string[] },
 ] as const;
 
+const CRON_BUILTIN_TOOL_IDS = BUILTIN_TOOL_IDS.filter((id) => id !== 'cron') as BuiltinToolId[];
+
+const TOOL_PRESETS = [
+  { key: 'webOnly', tools: ['web_search'] as BuiltinToolId[], sorted: ['web_search'] },
+  {
+    key: 'research',
+    tools: ['web_search', 'memory', 'wiki'] as BuiltinToolId[],
+    sorted: ['memory', 'web_search', 'wiki'],
+  },
+  { key: 'full', tools: [] as BuiltinToolId[], sorted: [] as string[] },
+] as const;
+
+function sortedEqual(a: readonly string[], b: readonly string[]): boolean {
+  const left = [...a].sort();
+  const right = [...b].sort();
+  return left.length === right.length && left.every((v, i) => v === right[i]);
+}
+
 export function CapabilityEditor({ job, onUpdated }: EditorProps) {
   const t = useTranslations('cron');
+  const locale = useLocale();
+  const labelLocale = locale.startsWith('zh') ? 'zh' : 'en';
+
   const serverCaps = job.required_capabilities ?? [];
+  const serverTools = job.tools_allowed ?? [];
   const [localCaps, setLocalCaps] = useState<string[]>(serverCaps);
+  const [localTools, setLocalTools] = useState<string[]>(serverTools);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setLocalCaps(job.required_capabilities ?? []);
-  }, [job.required_capabilities]);
+    setLocalTools(job.tools_allowed ?? []);
+  }, [job.required_capabilities, job.tools_allowed]);
 
-  const sortedLocal = useMemo(() => [...localCaps].sort(), [localCaps]);
-
-  const dirty = useMemo(() => {
-    const b = [...serverCaps].sort();
-    return sortedLocal.length !== b.length || sortedLocal.some((v, i) => v !== b[i]);
-  }, [sortedLocal, serverCaps]);
+  const capsDirty = useMemo(() => !sortedEqual(localCaps, serverCaps), [localCaps, serverCaps]);
+  const toolsDirty = useMemo(() => !sortedEqual(localTools, serverTools), [localTools, serverTools]);
+  const dirty = capsDirty || toolsDirty;
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateCronJob(job.id, { required_capabilities: localCaps });
+      await updateCronJob(job.id, {
+        required_capabilities: localCaps,
+        tools_allowed: localTools,
+      });
       onUpdated();
-      toast.success(localCaps.length > 0 ? t('capabilitiesUpdated') : t('capabilitiesCleared'));
+      toast.success(t('executionPolicyUpdated'));
     } catch {
       toast.error(t('actionFail'));
     } finally {
@@ -65,62 +104,114 @@ export function CapabilityEditor({ job, onUpdated }: EditorProps) {
   };
 
   return (
-    <div className="rounded-lg border bg-card px-3 py-2.5 space-y-2">
-      <div className="flex items-center gap-1.5">
-        <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs font-medium text-muted-foreground">{t('capabilitiesLabel')}</span>
+    <div className="rounded-lg border bg-card px-3 py-2.5 space-y-4">
+      <div className="space-y-2">
+        <div className="flex items-center gap-1.5">
+          <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">{t('capabilitiesLabel')}</span>
+        </div>
+        <p className="text-[11px] text-muted-foreground">{t('capabilitiesDesc')}</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {CAPABILITY_PRESETS.map(({ key, caps, sorted }) => {
+            const isActive = sortedEqual(sorted, localCaps);
+            return (
+              <button
+                key={key}
+                type="button"
+                disabled={saving}
+                onClick={() => setLocalCaps([...caps])}
+                className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                  isActive
+                    ? 'bg-primary/10 text-primary border-primary/40'
+                    : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
+                }`}
+              >
+                {t(`capPreset.${key}`)}
+              </button>
+            );
+          })}
+        </div>
+        <TooltipProvider delayDuration={300}>
+          <ToggleGroup
+            type="multiple"
+            value={localCaps}
+            onValueChange={setLocalCaps}
+            className="flex-wrap justify-start"
+            size="sm"
+          >
+            {CAPABILITY_DEFS.map(({ id, icon: Icon }) => (
+              <Tooltip key={id}>
+                <TooltipTrigger asChild>
+                  <ToggleGroupItem
+                    value={id}
+                    disabled={saving}
+                    className="gap-1 text-xs h-7 px-2.5 rounded-full border border-border bg-muted/50 data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary/40"
+                  >
+                    <Icon className="h-3 w-3" />
+                    {t(`capability.${id}`)}
+                  </ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[200px]">
+                  {t(`capabilityDesc.${id}`)}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </ToggleGroup>
+        </TooltipProvider>
+        {localCaps.length === 0 && (
+          <p className="text-[11px] text-muted-foreground/70 italic">{t('capabilitiesAllHint')}</p>
+        )}
       </div>
-      <p className="text-[11px] text-muted-foreground">{t('capabilitiesDesc')}</p>
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {CAPABILITY_PRESETS.map(({ key, caps, sorted }) => {
-          const isActive = sorted.length === sortedLocal.length && sorted.every((v, i) => v === sortedLocal[i]);
-          return (
-            <button
-              key={key}
-              type="button"
-              disabled={saving}
-              onClick={() => setLocalCaps([...caps])}
-              className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
-                isActive
-                  ? 'bg-primary/10 text-primary border-primary/40'
-                  : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
-              }`}
-            >
-              {t(`preset.${key}`)}
-            </button>
-          );
-        })}
-      </div>
-      <TooltipProvider delayDuration={300}>
+
+      <div className="space-y-2 border-t border-border/60 pt-3">
+        <div className="flex items-center gap-1.5">
+          <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">{t('toolsAllowedLabel')}</span>
+        </div>
+        <p className="text-[11px] text-muted-foreground">{t('toolsAllowedDesc')}</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {TOOL_PRESETS.map(({ key, tools, sorted }) => {
+            const isActive = sortedEqual(sorted, localTools);
+            return (
+              <button
+                key={key}
+                type="button"
+                disabled={saving}
+                onClick={() => setLocalTools([...tools])}
+                className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                  isActive
+                    ? 'bg-primary/10 text-primary border-primary/40'
+                    : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
+                }`}
+              >
+                {t(`toolPreset.${key}`)}
+              </button>
+            );
+          })}
+        </div>
         <ToggleGroup
           type="multiple"
-          value={localCaps}
-          onValueChange={setLocalCaps}
+          value={localTools}
+          onValueChange={setLocalTools}
           className="flex-wrap justify-start"
           size="sm"
         >
-          {CAPABILITY_DEFS.map(({ id, icon: Icon }) => (
-            <Tooltip key={id}>
-              <TooltipTrigger asChild>
-                <ToggleGroupItem
-                  value={id}
-                  disabled={saving}
-                  className="gap-1 text-xs h-7 px-2.5 rounded-full border border-border bg-muted/50 data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary/40"
-                >
-                  <Icon className="h-3 w-3" />
-                  {t(`capability.${id}`)}
-                </ToggleGroupItem>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[200px]">
-                {t(`capabilityDesc.${id}`)}
-              </TooltipContent>
-            </Tooltip>
+          {CRON_BUILTIN_TOOL_IDS.map((toolId) => (
+            <ToggleGroupItem
+              key={toolId}
+              value={toolId}
+              disabled={saving}
+              className="gap-1 text-xs h-7 px-2.5 rounded-full border border-border bg-muted/50 data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary/40"
+            >
+              {getBuiltinToolDisplayLabel(toolId, labelLocale)}
+            </ToggleGroupItem>
           ))}
         </ToggleGroup>
-      </TooltipProvider>
-      {localCaps.length === 0 && (
-        <p className="text-[11px] text-muted-foreground/70 italic">{t('capabilitiesAllHint')}</p>
-      )}
+        {localTools.length === 0 && (
+          <p className="text-[11px] text-muted-foreground/70 italic">{t('toolsAllowedAllHint')}</p>
+        )}
+      </div>
+
       {dirty && (
         <Button size="sm" className="h-7 text-xs" onClick={handleSave} disabled={saving}>
           {t('save')}

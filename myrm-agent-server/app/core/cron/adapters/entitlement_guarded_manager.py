@@ -13,6 +13,7 @@ Server business-layer gate on harness CronManager mutations. All callers use ``g
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -128,12 +129,20 @@ class EntitlementGuardedCronManager:
 
     async def update_job(self, job_id: str, user_id: str, patch: CronJobPatch) -> CronJob | None:
         from app.core.cron.adapters.lifecycle_guard import assert_cron_job_lifecycle_safe
+        from app.core.cron.adapters.tools_policy import normalize_cron_tools_allowed
 
         existing = await self._inner.get_job(job_id, user_id)
         if existing:
             next_prompt = existing.prompt if patch.prompt is None else patch.prompt
             next_command = existing.command if patch.command is None else patch.command
             assert_cron_job_lifecycle_safe(prompt=next_prompt, command=next_command)
+
+        if patch.clear_tools_allowed:
+            patch = replace(patch, tools_allowed=None)
+        elif patch.tools_allowed is not None:
+            normalized = normalize_cron_tools_allowed(list(patch.tools_allowed))
+            patch = replace(patch, tools_allowed=normalized)
+
         return await self._inner.update_job(job_id, user_id, patch)
 
     async def duplicate_job(self, job_id: str, user_id: str) -> CronJob | None:

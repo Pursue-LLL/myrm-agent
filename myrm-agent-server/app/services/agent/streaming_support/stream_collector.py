@@ -129,6 +129,24 @@ class StreamContentCollector:
         if self._chat_id and self._chat_id in ACTIVE_COLLECTORS:
             del ACTIVE_COLLECTORS[self._chat_id]
 
+    def _schedule_cross_turn_ui_patch(
+        self,
+        surface_id: str,
+        updates: dict[str, object],
+    ) -> None:
+        if self._chat_id is None:
+            return
+        import asyncio
+
+        from app.services.chat.ui_artifact_patch import patch_ui_artifact_data_by_surface_id
+
+        chat_id = self._chat_id
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        loop.create_task(patch_ui_artifact_data_by_surface_id(chat_id, surface_id, updates))
+
     def unsubscribe(self, q: asyncio.Queue[dict[str, object]]) -> None:
         """Remove a subscriber queue from the active subscriber list."""
         if q in self._subscribers:
@@ -365,6 +383,7 @@ class StreamContentCollector:
                         normalized_updates = string_keyed_dict(updates)
                         if normalized_updates is not None:
                             self._cross_turn_data_updates.append((surface_id, normalized_updates))
+                            self._schedule_cross_turn_ui_patch(surface_id, normalized_updates)
         elif event_type == "status":
             step_key = event.get("step_key")
             if step_key == "cache_break" and isinstance(data, dict):

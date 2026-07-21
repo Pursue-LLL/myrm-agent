@@ -16,7 +16,9 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 | 文件 | 职责 |
 |------|------|
 | `setup.py` | 组装入口：创建 CronScheduler + entitlement-guarded CronManager，注入所有适配器 |
-| `entitlement_guarded_manager.py` | 包装 harness CronManager：`create_job` / `duplicate_job` 调用 `require_cron_slot`（REST + agent 共用 SSOT） |
+| `entitlement_guarded_manager.py` | 包装 harness CronManager：`create_job` / `update_job` / `duplicate_job` 调用 `require_cron_slot`、``lifecycle_guard``、``tools_policy.normalize_cron_tools_allowed`` |
+| `lifecycle_guard.py` | 拦截 cron prompt/command 中的 myrm restart/stop 等生命周期命令（防自杀 cron） |
+| `tools_policy.py` | ``tools_allowed`` 规范化 + 与 agent profile 求交（``intersect_cron_enabled_builtin_tools``） |
 | `sqlalchemy_store.py` | CronStore 协议的 SQLAlchemy 实现：Job/Run/MonitorState CRUD（`get_job` 路径对 legacy monitor_config 做 opportunistic 回写清洗，列表读取仅规范化映射不触发写入；启动阶段支持批量清洗并可设置批次数上限保护冷启动时延，返回结构化清洗统计与续清标记供可观测性收口） |
 | `sqlalchemy_mapping.py` | ORM <-> Domain 双向映射（含 monitor_config 规范化） |
 | `sqlalchemy_aggregation.py` | Token 用量聚合查询 |

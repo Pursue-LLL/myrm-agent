@@ -9189,6 +9189,20 @@
     "capabilitiesAllHint": "Unrestricted (all capabilities)",
     "capabilitiesUpdated": "Capability fence updated",
     "capabilitiesCleared": "Capability fence cleared",
+    "toolsAllowedLabel": "Built-in Tools Scope",
+    "toolsAllowedDesc": "Limit which built-in tools mount at run time. Intersected with the bound agent profile. Leave empty for no extra restriction.",
+    "toolsAllowedAllHint": "Unrestricted (agent profile only)",
+    "executionPolicyUpdated": "Execution policy updated",
+    "capPreset": {
+      "research": "Research",
+      "devops": "DevOps",
+      "full": "All capabilities"
+    },
+    "toolPreset": {
+      "webOnly": "Web only",
+      "research": "Research stack",
+      "full": "All tools"
+    },
     "allowedRootsLabel": "Allowed Paths",
     "allowedRootsDesc": "Declare filesystem paths this task may access (outside workspace). Leave empty for workspace-only.",
     "allowedRootsUpdated": "Allowed paths updated",

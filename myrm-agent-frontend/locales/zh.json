@@ -9189,6 +9189,20 @@
     "capabilitiesAllHint": "未限制（使用全部能力）",
     "capabilitiesUpdated": "能力围栏已更新",
     "capabilitiesCleared": "能力围栏已清除",
+    "toolsAllowedLabel": "内置工具范围",
+    "toolsAllowedDesc": "限制任务运行时挂载的内置工具，与绑定的智能体配置求交。留空表示不额外限制。",
+    "toolsAllowedAllHint": "不限制（仅受智能体配置约束）",
+    "executionPolicyUpdated": "执行策略已更新",
+    "capPreset": {
+      "research": "研究",
+      "devops": "运维",
+      "full": "全部能力"
+    },
+    "toolPreset": {
+      "webOnly": "仅联网",
+      "research": "研究组合",
+      "full": "全部工具"
+    },
     "allowedRootsLabel": "允许的路径",
     "allowedRootsDesc": "声明此任务可以访问的文件系统路径（工作区之外）。留空表示仅限工作区。",
     "allowedRootsUpdated": "允许路径已更新",

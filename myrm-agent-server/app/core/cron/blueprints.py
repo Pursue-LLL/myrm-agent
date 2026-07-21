@@ -881,7 +881,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         tags=("read-it-later", "knowledge", "ingestion", "wiki", "automation"),
         sort_order=12,
         default_required_capabilities=("net_fetch", "file_read"),
-        default_tools_allowed=("web_fetch", "file_read"),
+        default_tools_allowed=("file_ops",),
         _schedule_builder="time_weekdays",
     ),
 )

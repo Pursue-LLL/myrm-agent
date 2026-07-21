@@ -150,7 +150,7 @@ class TestFillBlueprint:
         assert "read-it-later" in data["prompt"].lower()
         assert data["name"]
         assert data["required_capabilities"] == ["net_fetch", "file_read"]
-        assert data["tools_allowed"] == ["web_fetch", "file_read"]
+        assert data["tools_allowed"] == ["file_ops"]
 
     def test_fill_news_digest_includes_web_defaults(self, client: TestClient) -> None:
         resp = client.post(
