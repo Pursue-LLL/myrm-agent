@@ -336,8 +336,13 @@ def _chrome_e2e_item_runtime(
     print(
         "CHROME_E2E_RUNTIME: "
         f"item={request.node.name} runtime={runtime.runtime_id} "
-        f"api={runtime.api_base} startup={runtime.startup_seconds:.2f}s"
+        f"api={runtime.api_base} ui={runtime.environment.get('E2E_UI_BASE', '')} "
+        f"backend_only={runtime_backend_only} startup={runtime.startup_seconds:.2f}s"
     )
+    if not runtime_backend_only:
+        from tests.support.e2e_runtime_guard import reap_chrome_e2e_session_hygiene
+
+        reap_chrome_e2e_session_hygiene()
     try:
         yield runtime
     finally:
@@ -353,8 +358,10 @@ def _require_live_e2e_lease(
     if not _is_formal_chrome_e2e(request):
         yield
         return
-    lease = require_e2e_runtime_lease()
     from tests.support.e2e_runtime_guard import assert_chrome_attach_health, reap_chrome_e2e_session_hygiene
+
+    reap_chrome_e2e_session_hygiene()
+    lease = require_e2e_runtime_lease()
 
     try:
         # Item runtimes already run chrome-e2e-preflight with attach checks on their env.

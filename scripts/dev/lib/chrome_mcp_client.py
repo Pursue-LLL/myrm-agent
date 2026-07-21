@@ -1009,12 +1009,27 @@ class ChromeMcpClient:
         args = ["lease", "acquire", "READ", "--ttl", str(_PAGE_LEASE_TTL_SEC)]
         if self._parent_lease_id:
             args.extend(["--parent-lease-id", self._parent_lease_id])
-        payload = self._wave_command(*args)
-        lease = payload.get("lease")
-        lease_id = lease.get("leaseId") if isinstance(lease, dict) else None
-        if not isinstance(lease_id, str) or not lease_id:
-            raise RuntimeError(f"Wave acquire did not return leaseId: {payload}")
-        return lease_id
+        last_error: RuntimeError | None = None
+        for attempt in range(2):
+            try:
+                payload = self._wave_command(*args)
+            except RuntimeError as exc:
+                last_error = exc
+                if "RUNTIME_DRIFT" in str(exc) and attempt == 0:
+                    try:
+                        self._wave_command("reap")
+                    except (RuntimeError, TimeoutError):
+                        pass
+                    continue
+                raise
+            lease = payload.get("lease")
+            lease_id = lease.get("leaseId") if isinstance(lease, dict) else None
+            if not isinstance(lease_id, str) or not lease_id:
+                raise RuntimeError(f"Wave acquire did not return leaseId: {payload}")
+            return lease_id
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Wave acquire failed without error detail")
 
     def _reclaim_stale_browser_context(
         self, context_id: str, *, holder_lease_id: str

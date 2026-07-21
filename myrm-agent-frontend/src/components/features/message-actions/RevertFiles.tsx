@@ -10,6 +10,7 @@ import { IconTrash, IconUndo } from '@/components/features/icons/PremiumIcons';
 import { DiffViewer } from '@/lib/diff/DiffViewer';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
+import { toast } from '@/hooks/useToast';
 
 interface FileChange {
   path: string;
@@ -92,11 +93,14 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
 
   const handleTriggerClick = useCallback(async () => {
     const [fileChanges, fileDiffs] = await Promise.all([fetchChanges(), fetchDiffs()]);
-    if (!fileChanges) return;
+    if (!fileChanges) {
+      toast({ description: t('revertMessageEmpty'), variant: 'default' });
+      return;
+    }
     setChanges(fileChanges);
     setDiffs(fileDiffs);
     setPopoverOpen(true);
-  }, [fetchChanges, fetchDiffs]);
+  }, [fetchChanges, fetchDiffs, t]);
 
   const handleConfirmRevert = useCallback(async () => {
     setStatus('loading');
@@ -111,7 +115,13 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setStatus(data.success ? 'success' : 'error');
+        if (data.success) {
+          setStatus('success');
+          window.dispatchEvent(new CustomEvent('app_resync_required'));
+          toast({ description: t('revertMessageSuccess'), variant: 'default' });
+        } else {
+          setStatus('error');
+        }
       } else {
         setStatus('error');
       }
@@ -119,7 +129,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
       setStatus('error');
     }
     setTimeout(resetState, 2000);
-  }, [chatId, messageId, resetState]);
+  }, [chatId, messageId, resetState, t]);
 
   if (status === 'success') {
     return (
@@ -222,7 +232,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
               disabled={status === 'loading'}
               onClick={handleConfirmRevert}
             >
-              {t('revertClickAgain')}
+              {t('revertConfirmAction')}
             </Button>
           </div>
         ) : (
