@@ -15,5 +15,5 @@ Integration Catalog 的静态预配置数据。按服务分类组织，每个 JS
 | `browser.json` | browser | 2 | Playwright, Browserbase |
 | `web_search.json` | web_search | 3 | Firecrawl, Exa, Brave Search |
 | `docs.json` | docs | 3 | Context7, Microsoft Learn, AWS Documentation |
-| `design.json` | design | 1 | Figma |
+| `design.json` | design | 3 | Figma, Unreal Engine, Blender |
 | `api.json` | api | 2 | Postman, QiChaCha |

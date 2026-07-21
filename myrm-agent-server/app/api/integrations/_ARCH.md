@@ -13,7 +13,7 @@
 | `hardware.py` | 模块 | 硬件推荐 API：检测本地硬件、估算 Tokens/s 并生成 Ollama 模型适配度推荐，含 Ollama pull/delete 代理端点。 | ✅ |
 | `im_contacts.py` | 模块 | Lightweight search users API for IM group management. | ✅ |
 | `integration_memory.py` | 模块 | REST API layer for Integration Memory. | ✅ |
-| `llms.py` | 模块 | LLM验证请求模型 | ✅ |
+| `llms.py` | 模块 | LLM 验证 / 可达性检查 / OpenAI-compatible `discover-models`（SSRF 保护 + loopback no-auth） | ✅ |
 | `mcp.py` | 模块 | 获取 MCP Agent 实例（单例模式） | ✅ |
 | `google_workspace_oauth.py` | 模块 | Google Workspace OAuth 2.0 + PKCE；readonly/write tier；写入 oauthCredentials（不含 client_secret） | ✅ |
 | `google_workspace_oauth_flow.py` | 模块 | OAuth PKCE 会话态、scope tier、redirect 解析与 Google userinfo 辅助 | ✅ |

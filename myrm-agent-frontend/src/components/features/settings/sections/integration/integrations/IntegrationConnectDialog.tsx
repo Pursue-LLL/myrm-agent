@@ -62,7 +62,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
     const connectGuide = locale === 'zh' && entry.postConnectGuideZh ? entry.postConnectGuideZh : entry.postConnectGuide;
     const probeUrl = (entry.mcpConfig as Record<string, unknown> | null)?.probeUrl as string | undefined;
 
-    const _runProbe = useCallback(async () => {
+    const runProbe = useCallback(async () => {
       if (!probeUrl) return true;
       setProbeStatus('probing');
       setProbeError(null);
