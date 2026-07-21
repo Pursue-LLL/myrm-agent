@@ -29,7 +29,10 @@ from pathlib import Path
 from typing import TypedDict
 
 from myrm_agent_harness.core.events.types import AgentEventType
-from myrm_agent_harness.toolkits.computer_use.app_identity import resolve_trust_key, trust_key_matches
+from myrm_agent_harness.toolkits.computer_use.app_identity import (
+    resolve_trust_key,
+    trust_key_matches,
+)
 from myrm_agent_harness.toolkits.computer_use.types import (
     ForegroundPermissionResult,
     ForegroundPermissionScope,
@@ -156,7 +159,9 @@ class DesktopControlGate:
             return None
         display_name = str(entry.get("display_name") or key).strip()
         app_id = str(entry.get("app_id") or "").strip()
-        trust_key = resolve_trust_key(app_name=display_name, app_id=app_id) or key.strip()
+        trust_key = (
+            resolve_trust_key(app_name=display_name, app_id=app_id) or key.strip()
+        )
         if not trust_key:
             return None
         return {
@@ -340,7 +345,9 @@ def resolve_desktop_control_approval(
         scope_enum = ForegroundPermissionScope(scope)
     except ValueError:
         scope_enum = ForegroundPermissionScope.once
-    return DesktopApprovalRegistry.resolve(request_id, granted=granted, scope=scope_enum)
+    return DesktopApprovalRegistry.resolve(
+        request_id, granted=granted, scope=scope_enum
+    )
 
 
 def _trust_store_workspace_roots(*, fallback_root: str | None) -> list[Path]:

@@ -6,6 +6,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
@@ -348,3 +349,179 @@ async def test_cleanup_stale_prebuilt_skills(storage: LocalStorageBackend) -> No
 
     with pytest.raises(FileNotFoundError):
         await storage.read_text(meta_path)
+
+
+@pytest.mark.asyncio
+async def test_sync_handles_invalid_frontmatter_gracefully(
+    storage: LocalStorageBackend,
+    tmp_path: Path,
+) -> None:
+    """Skills with invalid frontmatter are skipped without crashing the whole sync."""
+    from myrm_agent_harness.backends.skills._utils import SkillMetadataError
+
+    with patch(
+        "app.core.skills.prebuilt_sync.parse_skill_frontmatter",
+        side_effect=SkillMetadataError("Required field 'description' missing"),
+    ):
+        result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+
+    assert result.synced_count == 0
+    assert result.skill_ids == ()
+
+
+@pytest.mark.asyncio
+async def test_sync_handles_token_count_failure(
+    storage: LocalStorageBackend,
+) -> None:
+    """Token count failure should not block skill sync."""
+    with patch(
+        "app.core.skills.prebuilt_sync.get_token_count",
+        side_effect=RuntimeError("tiktoken unavailable"),
+    ):
+        result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+
+    assert result.synced_count >= 1
+    skills = await list_prebuilt_skills(storage)
+    assert len(skills) >= 1
+
+
+@pytest.mark.asyncio
+async def test_sync_skips_non_skill_dirs(
+    storage: LocalStorageBackend,
+) -> None:
+    """Directories without SKILL.md or starting with _ are skipped."""
+    seeds_dir = Path(prebuilt_sync.__file__).resolve().parents[3] / "assets" / "prebuilt_skills"
+    non_skill_dirs = [
+        d for d in seeds_dir.iterdir()
+        if d.is_dir() and not (d / "SKILL.md").exists()
+    ]
+    dot_dirs = [d for d in seeds_dir.iterdir() if d.name.startswith(("_", "."))]
+
+    result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+
+    for d in non_skill_dirs + dot_dirs:
+        assert d.name not in result.skill_ids
+
+
+@pytest.mark.asyncio
+async def test_sync_copies_references_directory(storage: LocalStorageBackend) -> None:
+    """Skills with references/ subdirectory should have all .md files synced."""
+    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+    result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+    assert "unreal-mcp" in result.skill_ids
+
+    ref_path = get_skill_file_path(
+        SkillType.PREBUILT, "unreal-mcp", "references/tool-surface.md"
+    )
+    stored = await storage.read_text(ref_path)
+    assert "ProgrammaticToolset" in stored or "toolset" in stored.lower()
+
+
+@pytest.mark.asyncio
+async def test_sync_copies_blender_references(storage: LocalStorageBackend) -> None:
+    """Blender skill references should be synced."""
+    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+    result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+    assert "blender-mcp" in result.skill_ids
+
+    ref_path = get_skill_file_path(
+        SkillType.PREBUILT, "blender-mcp", "references/bpy-patterns.md"
+    )
+    stored = await storage.read_text(ref_path)
+    assert "bpy" in stored
+
+
+@pytest.mark.asyncio
+async def test_cleanup_handles_list_failure(storage: LocalStorageBackend) -> None:
+    """Cleanup should handle storage.list failures gracefully."""
+    await prebuilt_sync.sync_prebuilt_seeds(storage)
+    prebuilt_sync._synced = False  # noqa: SLF001
+
+    with patch.object(storage, "list", side_effect=OSError("disk error")):
+        result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+
+    assert result.synced_count == 0
+
+
+@pytest.mark.asyncio
+async def test_cleanup_handles_delete_failure(storage: LocalStorageBackend) -> None:
+    """Cleanup should handle individual delete failures without crashing."""
+    from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+    stale_id = "stale-delete-fail-skill"
+    md_path = get_skill_file_path(SkillType.PREBUILT, stale_id, SKILL_MD_FILE)
+    meta_path = get_skill_metadata_path(SkillType.PREBUILT, stale_id)
+    await storage.write_text(md_path, "stale content")
+    await storage.write_text(meta_path, json.dumps({"id": stale_id}))
+
+    original_delete = storage.delete
+
+    async def failing_delete(path: str) -> None:
+        if stale_id in path:
+            raise OSError("permission denied")
+        return await original_delete(path)
+
+    with patch.object(storage, "delete", side_effect=failing_delete):
+        prebuilt_sync._synced = False  # noqa: SLF001
+        result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+
+    assert result.synced_count >= 0
+
+
+def test_parse_tags_edge_cases() -> None:
+    """_parse_tags handles None and non-list gracefully."""
+    from app.core.skills.prebuilt_sync import _parse_tags
+
+    assert _parse_tags(None) == []
+    assert _parse_tags({}) == []
+    assert _parse_tags({"tags": "not-a-list"}) == []
+    assert _parse_tags({"tags": ["a", "b"]}) == ["a", "b"]
+
+
+@pytest.mark.asyncio
+async def test_sync_upstream_update_for_unmodified_user(
+    storage: LocalStorageBackend,
+) -> None:
+    """When upstream changes but user content matches origin, silently update.
+
+    Scenario: current_hash == origin_hash (user didn't modify),
+    but source_hash != origin_hash (upstream changed since last sync).
+    This triggers line 254-259: silent update.
+    """
+    from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+    from myrm_agent_harness.api.skills import compute_content_hash
+    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+    await prebuilt_sync.sync_prebuilt_seeds(storage)
+    prebuilt_sync._synced = False  # noqa: SLF001
+
+    skill_id = "systematic-debugging"
+    md_path = get_skill_file_path(SkillType.PREBUILT, skill_id, SKILL_MD_FILE)
+    meta_path = get_skill_metadata_path(SkillType.PREBUILT, skill_id)
+
+    # Simulate "old content that was synced before upstream update":
+    # Write fake old content to storage and set origin_hash to match it.
+    old_content = "---\nname: systematic-debugging\ndescription: Old version\n---\n# Old"
+    old_hash = compute_content_hash(old_content)
+    await storage.write_text(md_path, old_content)
+
+    meta = json.loads(await storage.read_text(meta_path))
+    meta["origin_hash"] = old_hash
+    await storage.write_text(meta_path, json.dumps(meta, indent=2))
+
+    # Now: current_hash = hash(old_content) = old_hash = origin_hash  [user hasn't modified]
+    # source_hash = hash(actual SKILL.md on disk) != old_hash         [upstream changed]
+    # => triggers line 254-259: silent update
+
+    prebuilt_sync._synced = False  # noqa: SLF001
+    result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+
+    assert result.synced_count >= 1
+    new_meta = json.loads(await storage.read_text(meta_path))
+    assert new_meta["has_upstream_update"] is False
+    # Content should now be updated to source
+    updated_content = await storage.read_text(md_path)
+    assert "Old version" not in updated_content

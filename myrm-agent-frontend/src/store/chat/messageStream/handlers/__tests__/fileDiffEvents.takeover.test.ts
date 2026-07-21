@@ -151,4 +151,23 @@ describe('fileDiffEvents browser takeover', () => {
     });
     expect(useBrowserTakeoverStore.getState().liveAssistUrl).toContain('mid=msg-45');
   });
+
+  it('uses backend-provided takeover live link without issuing fallback token', async () => {
+    const backendLink = 'https://remote.example/mobile/takeover/chat-42?pair=server-token&mid=msg-46';
+    const { ctx } = buildCtx({
+      type: AgentEventType.BROWSER_TAKEOVER_REQUESTED,
+      messageId: 'msg-46',
+      data: {
+        reason: 'Confirm login',
+        is_managed: false,
+        url: 'https://example.com/confirm',
+        live_assist_url: backendLink,
+      },
+    });
+
+    await fileDiffEvents(ctx);
+
+    expect(createPairingToken).not.toHaveBeenCalled();
+    expect(useBrowserTakeoverStore.getState().liveAssistUrl).toBe(backendLink);
+  });
 });

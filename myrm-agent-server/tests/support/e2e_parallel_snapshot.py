@@ -178,7 +178,9 @@ def snapshot_live_e2e_processes(
 ) -> E2EParallelSnapshot:
     tmp = Path(os.environ.get("TMPDIR", "/tmp"))
     stream_path = agent_stream_lock_path or (tmp / "myrm-live-agent-stream.lock")
-    desktop_path = desktop_approval_lock_path or (tmp / "myrm-desktop-approval-e2e.lock")
+    desktop_path = desktop_approval_lock_path or (
+        tmp / "myrm-desktop-approval-e2e.lock"
+    )
     return E2EParallelSnapshot(
         agent_stream_lock=read_e2e_lock_holder(stream_path),
         desktop_approval_lock=read_e2e_lock_holder(desktop_path),
@@ -193,12 +195,17 @@ def print_e2e_parallel_snapshot() -> E2EParallelSnapshot:
             asdict(snapshot.agent_stream_lock) if snapshot.agent_stream_lock else None
         ),
         "desktop_approval_lock": (
-            asdict(snapshot.desktop_approval_lock) if snapshot.desktop_approval_lock else None
+            asdict(snapshot.desktop_approval_lock)
+            if snapshot.desktop_approval_lock
+            else None
         ),
         "active_tests": [asdict(row) for row in snapshot.active_tests],
         "active_test_count": len(snapshot.active_tests),
     }
-    print(f"E2E_PARALLEL_SNAPSHOT_JSON={json.dumps(payload, ensure_ascii=False)}", flush=True)
+    print(
+        f"E2E_PARALLEL_SNAPSHOT_JSON={json.dumps(payload, ensure_ascii=False)}",
+        flush=True,
+    )
     if snapshot.active_tests:
         for row in snapshot.active_tests:
             print(

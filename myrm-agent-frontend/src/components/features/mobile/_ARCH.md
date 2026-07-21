@@ -13,7 +13,7 @@
 | `../../app/mobile/status/[chatId]/page.tsx` | StatusBoard 路由页 |
 | `../../app/mobile/takeover/[chatId]/page.tsx` | takeover 专用路由页（签名链接入口） |
 | `../chat-window/MobileStatusBoard.tsx` | 单会话控制 UI（SSE attach、HITL、steer、语音、**Stop** → `cancelActiveChatAgent` + toast 反馈、**Live Preview** — Browser/Desktop 截图实时预览 + Lightbox 全屏放大） |
-| `MobileTakeoverBoard.tsx` | takeover 专用轻量面板（读取 `mid/reason/page/pair` 签名参数，Done/Skip resume + 会话跳转） |
+| `MobileTakeoverBoard.tsx` | takeover 专用轻量面板（读取 `mid/reason/page/pair` 签名参数，轮询 `/api/v1/remote-access/mobile/takeover/{chatId}/snapshot` 实时预览，Done/Skip resume + 会话跳转） |
 
 ## 依赖
 

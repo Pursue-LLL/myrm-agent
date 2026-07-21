@@ -94,7 +94,9 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
             return page
         except (TimeoutError, RuntimeError) as exc:
             last_exc = exc
-            if should_abort_desktop_e2e_retries(exc) and not is_retriable_page_transport(exc):
+            if should_abort_desktop_e2e_retries(
+                exc
+            ) and not is_retriable_page_transport(exc):
                 raise
             if attempt >= len(strategies) or not is_retriable_page_transport(exc):
                 raise

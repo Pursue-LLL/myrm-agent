@@ -26,7 +26,9 @@ from tests.support.e2e_parallel_snapshot import (
     write_e2e_lock_holder,
 )
 
-ResourceKind = Literal["chat", "project", "agent", "cron", "file", "kanban_board", "kanban_task"]
+ResourceKind = Literal[
+    "chat", "project", "agent", "cron", "file", "kanban_board", "kanban_task"
+]
 
 _E2E_HEARTBEAT_INTERVAL_SEC = 30.0
 _E2E_HEARTBEAT_EXTEND_SEC = 900
@@ -72,7 +74,10 @@ def _wave_script() -> Path:
 
 
 def _ledger_agent_id() -> str:
-    return os.environ.get("MYRM_E2E_AGENT_ID", "").strip() or f"pytest-ledger:{os.getpid()}"
+    return (
+        os.environ.get("MYRM_E2E_AGENT_ID", "").strip()
+        or f"pytest-ledger:{os.getpid()}"
+    )
 
 
 def heartbeat_e2e_lease() -> None:
@@ -173,7 +178,9 @@ def register_e2e_resource(
 
 
 @contextmanager
-def e2e_lease_heartbeat_loop(*, interval_sec: float = _E2E_HEARTBEAT_INTERVAL_SEC) -> Iterator[None]:
+def e2e_lease_heartbeat_loop(
+    *, interval_sec: float = _E2E_HEARTBEAT_INTERVAL_SEC
+) -> Iterator[None]:
     """Background heartbeat for long-running live E2E tests."""
     stop = threading.Event()
 
@@ -314,7 +321,9 @@ def require_e2e_runtime_lease(
 ) -> E2ERuntimeLease:
     lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
     if not lease_id:
-        raise RuntimeError("E2E_LEASE_REQUIRED: run live tests via ./myrm test -m e2e; direct pytest/uv entry is blocked")
+        raise RuntimeError(
+            "E2E_LEASE_REQUIRED: run live tests via ./myrm test -m e2e; direct pytest/uv entry is blocked"
+        )
     state_path = _wave_state_path()
     try:
         payload = json.loads(state_path.read_text(encoding="utf-8"))
@@ -346,7 +355,9 @@ def require_e2e_runtime_lease(
     try:
         expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
     except (AttributeError, ValueError) as exc:
-        raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} expiry is invalid") from exc
+        raise RuntimeError(
+            f"E2E_LEASE_INVALID: lease {lease_id} expiry is invalid"
+        ) from exc
     if expires <= datetime.now(UTC):
         raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} is expired")
     expected = lease.get("runtimeId", "").strip()
@@ -354,9 +365,14 @@ def require_e2e_runtime_lease(
     if _uses_shared_hot_runtime_probe() and wave_runtime:
         expected = wave_runtime
     if wave.get("runtimeId") != expected:
-        raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} runtime does not match open wave")
+        raise RuntimeError(
+            f"E2E_LEASE_INVALID: lease {lease_id} runtime does not match open wave"
+        )
     if _isolated_e2e_mode():
-        stack_fp = os.environ.get("MYRM_E2E_STACK_FP", "").strip() or _stack_scoped_runtime_id()
+        stack_fp = (
+            os.environ.get("MYRM_E2E_STACK_FP", "").strip()
+            or _stack_scoped_runtime_id()
+        )
         _assert_isolated_stack_unchanged(expected=stack_fp)
         return E2ERuntimeLease(
             lease_id=lease_id,
@@ -383,7 +399,9 @@ def assert_e2e_runtime_unchanged(
     runtime_id_reader: Callable[[], str] = _runtime_id_reader,
 ) -> None:
     if lease.isolated or _isolated_e2e_mode():
-        expected = lease.runtime_id.strip() or os.environ.get("MYRM_E2E_STACK_FP", "").strip()
+        expected = (
+            lease.runtime_id.strip() or os.environ.get("MYRM_E2E_STACK_FP", "").strip()
+        )
         _assert_isolated_stack_unchanged(expected=expected)
         return
     current = runtime_id_reader().strip()
@@ -394,12 +412,20 @@ def assert_e2e_runtime_unchanged(
         healed = _attempt_runtime_drift_heal(_wave_state_path(), lease.lease_id)
         if healed and healed == runtime_id_reader().strip():
             return
-        raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={expected_runtime} current={current or '<missing>'}")
+        raise RuntimeError(
+            f"RUNTIME_DRIFT: E2E lease expected={expected_runtime} current={current or '<missing>'}"
+        )
 
 
 def assert_chrome_attach_health() -> None:
     """Fail fast when Chrome mux/CDP attach snapshot is unsafe for live UI E2E."""
-    script = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib" / "runtime_identity.py"
+    script = (
+        Path(__file__).resolve().parents[3]
+        / "scripts"
+        / "dev"
+        / "lib"
+        / "runtime_identity.py"
+    )
     ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
     api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
     wait_sec = int(os.environ.get("MYRM_CHROME_E2E_ATTACH_WAIT_SEC", "180"))
@@ -433,7 +459,9 @@ def assert_chrome_attach_health() -> None:
         )
         if proc.returncode == 0:
             return
-        last_detail = proc.stderr.strip() or proc.stdout.strip() or f"exit={proc.returncode}"
+        last_detail = (
+            proc.stderr.strip() or proc.stdout.strip() or f"exit={proc.returncode}"
+        )
         if waited >= wait_sec:
             break
         time.sleep(poll_sec)
@@ -441,8 +469,12 @@ def assert_chrome_attach_health() -> None:
     raise RuntimeError(f"CHROME_E2E_ATTACH_NOT_READY: {last_detail}")
 
 
-_LIVE_AGENT_STREAM_LOCK_PATH = Path(os.environ.get("TMPDIR", "/tmp")) / "myrm-live-agent-stream.lock"
-_LIVE_AGENT_STREAM_WAIT_SEC = float(os.environ.get("MYRM_LIVE_AGENT_STREAM_WAIT_SEC", "900"))
+_LIVE_AGENT_STREAM_LOCK_PATH = (
+    Path(os.environ.get("TMPDIR", "/tmp")) / "myrm-live-agent-stream.lock"
+)
+_LIVE_AGENT_STREAM_WAIT_SEC = float(
+    os.environ.get("MYRM_LIVE_AGENT_STREAM_WAIT_SEC", "900")
+)
 
 
 @contextmanager
@@ -486,8 +518,7 @@ def live_agent_stream_lock() -> Iterator[None]:
         )
     write_e2e_lock_holder(_LIVE_AGENT_STREAM_LOCK_PATH, holder_label)
     print(
-        "LIVE_AGENT_STREAM_ACQUIRED: "
-        f"pid={os.getpid()} test={holder_label}",
+        "LIVE_AGENT_STREAM_ACQUIRED: " f"pid={os.getpid()} test={holder_label}",
         flush=True,
     )
     try:
@@ -497,7 +528,6 @@ def live_agent_stream_lock() -> Iterator[None]:
         fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
         print(
-            "LIVE_AGENT_STREAM_RELEASED: "
-            f"pid={os.getpid()} test={holder_label}",
+            "LIVE_AGENT_STREAM_RELEASED: " f"pid={os.getpid()} test={holder_label}",
             flush=True,
         )

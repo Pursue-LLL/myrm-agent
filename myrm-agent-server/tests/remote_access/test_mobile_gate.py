@@ -8,6 +8,7 @@ from app.remote_access.mobile_gate import (
     is_mobile_remote_api_path,
     is_mobile_remote_control_path,
     is_mobile_remote_ws_path,
+    is_mobile_takeover_snapshot_path,
     pair_token_authorizes_path,
     pair_token_grants_access,
     requires_mobile_remote_gate,
@@ -23,6 +24,8 @@ from app.remote_access.pairing import (
 
 def test_is_mobile_remote_api_path_attach() -> None:
     assert is_mobile_remote_api_path("/api/v1/agents/chat/abc/attach")
+    assert is_mobile_remote_api_path("/api/v1/remote-access/mobile/takeover/chat-a/snapshot")
+    assert is_mobile_takeover_snapshot_path("/api/v1/remote-access/mobile/takeover/chat-a/snapshot")
 
 
 def test_is_mobile_remote_ws_path_stt() -> None:
@@ -93,8 +96,10 @@ def test_browser_takeover_token_scope_is_minimal() -> None:
     token = create_pairing_token(chat_id="chat-a", purpose=BROWSER_TAKEOVER_PURPOSE)
     assert pair_token_authorizes_path(token, "/api/v1/agents/agent-stream")
     assert pair_token_authorizes_path(token, "/api/v1/remote-access/pairing-token/refresh")
+    assert pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/takeover/chat-a/snapshot")
     assert not pair_token_authorizes_path(token, "/api/v1/remote-access/pairing-token")
     assert not pair_token_authorizes_path(token, "/api/v1/agents/chats/chat-a/steer")
+    assert not pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/takeover/chat-b/snapshot")
     assert not pair_token_authorizes_path(token, "/ws/stt/stream")
     assert not pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/sessions")
 

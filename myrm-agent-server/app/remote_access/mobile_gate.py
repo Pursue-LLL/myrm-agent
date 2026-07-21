@@ -86,6 +86,7 @@ _CHAT_ID_PATH_PREFIXES = (
     "/api/v1/agents/chat/",
     "/api/v1/agents/chats/",
     "/api/v1/chats/",
+    "/api/v1/remote-access/mobile/takeover/",
 )
 
 
@@ -106,6 +107,13 @@ NODE_EVENTS_PATH = "/api/v1/remote-access/node/events"
 E2EE_PUBLIC_KEY_PATH = "/api/v1/remote-access/e2ee/public-key"
 E2EE_HANDSHAKE_PATH = "/api/v1/remote-access/e2ee/handshake"
 _AGENT_STREAM_PATH = "/api/v1/agents/agent-stream"
+_MOBILE_TAKEOVER_SNAPSHOT_SUFFIX = "/snapshot"
+
+
+def is_mobile_takeover_snapshot_path(path: str) -> bool:
+    return path.startswith("/api/v1/remote-access/mobile/takeover/") and path.endswith(
+        _MOBILE_TAKEOVER_SNAPSHOT_SUFFIX
+    )
 
 
 def is_e2ee_bootstrap_path(path: str) -> bool:
@@ -130,7 +138,7 @@ def _purpose_allows_path(purpose: str, path: str) -> bool:
         return path in (
             MOBILE_PAIRING_REFRESH_PATH,
             _AGENT_STREAM_PATH,
-        )
+        ) or is_mobile_takeover_snapshot_path(path)
     if purpose != MOBILE_HUB_CONTROL_PURPOSE:
         return False
     if path == MOBILE_SESSIONS_PATH:
@@ -201,6 +209,7 @@ __all__ = [
     "is_mobile_remote_api_path",
     "is_mobile_remote_control_path",
     "is_mobile_remote_pairing_path",
+    "is_mobile_takeover_snapshot_path",
     "is_mobile_remote_ws_path",
     "pair_token_authorizes_path",
     "pair_token_grants_access",

@@ -194,7 +194,9 @@ class McpChatSession(CdpChatSession):
             except TimeoutError as exc:
                 last_exc = exc
                 await asyncio.sleep(0.5)
-        raise last_exc or TimeoutError(f"Chat shell not ready within {timeout_sec:.0f}s")
+        raise last_exc or TimeoutError(
+            f"Chat shell not ready within {timeout_sec:.0f}s"
+        )
 
     async def ensure_dev_bridge(
         self, *, timeout_sec: float = 90.0, allow_reload: bool = True

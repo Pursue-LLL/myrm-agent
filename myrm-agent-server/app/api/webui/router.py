@@ -310,103 +310,26 @@ async def get_browser_snapshot() -> JSONResponse:
     Returns screenshot, page metadata, and interactive element bounding boxes
     for the Browser Inspector panel in the frontend.
     """
-    from app.services.agent.gateway import get_agent_gateway
-
-    gateway = get_agent_gateway()
-    session = gateway.get_active_browser_session()
-    if session is None:
-        return JSONResponse(
-            status_code=404,
-            content={"error": "no_active_browser", "message": "No active browser session"},
-        )
+    from app.services.agent.browser_snapshot import (
+        BrowserSnapshotUnavailableError,
+        collect_browser_snapshot_payload,
+    )
 
     try:
-        from myrm_agent_harness.toolkits.browser.session import BrowserSession
-
-        if not isinstance(session, BrowserSession):
-            return JSONResponse(
-                status_code=404,
-                content={"error": "invalid_session", "message": "Browser session type mismatch"},
-            )
-
-        snapshot_result = await session.snapshot(include_bbox=True)
-
-        from myrm_agent_harness.toolkits.browser.session.snapshot_result import SnapshotResult
-
-        if isinstance(snapshot_result, str):
-            refs_data: dict[str, dict[str, object]] = {}
-        elif isinstance(snapshot_result, tuple):
-            refs_data = {}
-        elif isinstance(snapshot_result, SnapshotResult):
-            refs_data = {
-                ref_id: {
-                    "role": info.role,
-                    "name": info.name,
-                    "nth": info.nth,
-                    "bbox": (
-                        {
-                            "x": info.bbox.x,
-                            "y": info.bbox.y,
-                            "width": info.bbox.width,
-                            "height": info.bbox.height,
-                            "centerX": info.bbox.centerX,
-                            "centerY": info.bbox.centerY,
-                            "viewport_x": info.bbox.viewport_x,
-                            "viewport_y": info.bbox.viewport_y,
-                            "viewport_width": info.bbox.viewport_width,
-                            "viewport_height": info.bbox.viewport_height,
-                        }
-                        if info.bbox
-                        else None
-                    ),
-                    "position": info.position,
-                }
-                for ref_id, info in snapshot_result.refs.items()
-            }
-        else:
-            refs_data = {}
-
-        screenshot_b64 = await session.extract_screenshot(scale=1.0)
-
-        page_url = ""
-        page_title = ""
-        viewport_width = 1280
-        viewport_height = 720
-
-        for info in refs_data.values():
-            bbox = info.get("bbox")
-            if isinstance(bbox, dict) and bbox.get("viewport_width"):
-                viewport_width = int(bbox["viewport_width"])
-                viewport_height = int(bbox["viewport_height"])
-                break
-
-        try:
-            tab_ctrl = getattr(session, "_tab_controller", None)
-            if tab_ctrl is not None:
-                page = tab_ctrl.get_active_page()
-                if page is not None:
-                    page_url = page.url
-                    page_title = await page.title()
-        except Exception:
-            pass
-
+        payload = await collect_browser_snapshot_payload()
+    except BrowserSnapshotUnavailableError as exc:
         return JSONResponse(
-            content={
-                "screenshot_base64": screenshot_b64,
-                "mime_type": "image/jpeg",
-                "refs": refs_data,
-                "page_url": page_url,
-                "page_title": page_title,
-                "viewport_width": viewport_width,
-                "viewport_height": viewport_height,
-            }
+            status_code=exc.status_code,
+            content={"error": exc.error, "message": exc.message},
         )
-    except Exception as e:
-        logger.error("Browser snapshot failed: %s", e, exc_info=True)
+    except Exception as exc:
+        logger.error("Browser snapshot failed: %s", exc, exc_info=True)
         return JSONResponse(
             status_code=500,
-            content={"error": "snapshot_failed", "message": str(e)},
+            content={"error": "snapshot_failed", "message": str(exc)},
         )
+
+    return JSONResponse(content=payload)
 
 
 @router.get("/desktop/permissions")

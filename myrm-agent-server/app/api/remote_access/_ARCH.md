@@ -18,6 +18,7 @@
 - `POST /pairing-token` — WebUI session 签发 Hub list token；list pair upgrade **活跃** scoped token；支持 `browser_takeover` purpose 并返回 `mobilePath/mobileUrl`
 - `POST /pairing-token/refresh` — pair token 续期（Hub list / scoped 控制 / browser takeover），返回续期后的 `mobilePath/mobileUrl`
 - `GET /mobile/sessions` — 活跃 Agent 会话（远程暴露时需 pair token [含 E2EE 头] 或 WebUI session）
+- `GET /mobile/takeover/{chatId}/snapshot` — takeover 实时预览截图（pair token 需 chat 绑定一致；支持 E2EE 响应）
 
 ## 模块依赖
 
@@ -26,3 +27,4 @@
 - `app.remote_access.e2ee` — E2EE 握手与会话（子包见 `e2ee/_ARCH.md`）
 - `app.remote_access.mobile_gate` — 远程路径鉴权
 - `app.services.agent.gateway` — 活跃会话列表
+- `app.services.agent.browser_snapshot` — 浏览器截图与页面元信息聚合

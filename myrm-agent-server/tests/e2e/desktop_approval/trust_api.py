@@ -31,7 +31,9 @@ def fetch_desktop_tool_progress_from_api(chat_id: str) -> dict[str, object] | No
     messages = fetch_chat_messages(normalized)
     if not messages:
         return None
-    user_count = sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")
+    user_count = sum(
+        1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
+    )
     last_assistant: dict[str, object] | None = None
     for msg in messages:
         if isinstance(msg, dict) and msg.get("role") == "assistant":
@@ -54,7 +56,8 @@ def fetch_desktop_tool_progress_from_api(chat_id: str) -> dict[str, object] | No
     desktop_steps = [
         step
         for step in steps
-        if isinstance(step, dict) and str(step.get("tool_name") or "").startswith("desktop_")
+        if isinstance(step, dict)
+        and str(step.get("tool_name") or "").startswith("desktop_")
     ]
     completion_status = str(meta.get("completionStatus") or "")
     assistant_sample = str(last_assistant.get("content") or "")[:200]
@@ -64,7 +67,9 @@ def fetch_desktop_tool_progress_from_api(chat_id: str) -> dict[str, object] | No
         "isStreaming": user_count > 0 and not is_complete,
         "pending": False,
         "stepCount": len(desktop_steps),
-        "lastTool": str(desktop_steps[-1].get("tool_name") or "") if desktop_steps else "",
+        "lastTool": (
+            str(desktop_steps[-1].get("tool_name") or "") if desktop_steps else ""
+        ),
         "assistantSample": assistant_sample,
         "completionStatus": completion_status,
         "source": "api",
@@ -114,12 +119,16 @@ def list_trusted_apps_via_api() -> list[dict[str, object]]:
 def clear_persisted_desktop_approvals() -> None:
     data_dir = os.environ.get("MYRM_DATA_DIR", "").strip()
     if data_dir:
-        approval_path = Path(data_dir) / ".agent" / "desktop_control" / "approved_apps.json"
+        approval_path = (
+            Path(data_dir) / ".agent" / "desktop_control" / "approved_apps.json"
+        )
         if approval_path.is_file():
             approval_path.unlink(missing_ok=True)
     reset_url = f"{get_e2e_api_url()}/webui/desktop/approval/reset-runtime"
     try:
-        request = urllib.request.Request(reset_url, method="POST", data=b"{}")  # noqa: S310
+        request = urllib.request.Request(
+            reset_url, method="POST", data=b"{}"
+        )  # noqa: S310
         request.add_header("Content-Type", "application/json")
         with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
             payload = json.loads(response.read().decode("utf-8"))

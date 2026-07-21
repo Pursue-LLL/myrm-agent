@@ -84,7 +84,10 @@ E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (
 def formal_chrome_e2e_runtime_heal_agent(agent_id: str) -> bool:
     """True when agentId belongs to a formal chrome E2E parent session."""
     normalized = agent_id.strip()
-    return any(normalized.startswith(prefix) for prefix in E2E_RUNTIME_HEAL_AGENT_PREFIXES)
+    return any(
+        normalized.startswith(prefix) for prefix in E2E_RUNTIME_HEAL_AGENT_PREFIXES
+    )
+
 
 # --- Adaptive mux load defaults (env may override in mux_load) ---
 
@@ -149,6 +152,7 @@ def apply_chrome_e2e_pytest_timeout_args(
     if not found:
         out.append(f"--timeout={floor}")
     return tuple(out)
+
 
 # --- Allowlisted Chrome E2E skips (test module suffix, reason substring) ---
 

@@ -40,11 +40,12 @@ export function useToolApprovalResolve() {
         requestsToRemove = [request];
 
         if (request.batchId) {
+          const currentBatchId = request.batchId;
           const nextDecisions = new Map(batchDecisions);
           nextDecisions.set(requestId, { type: decision, extra });
           useToolApprovalStore.setState({ batchDecisions: nextDecisions });
 
-          const batchRequests = queue.filter((r) => r.batchId === request.batchId);
+          const batchRequests = queue.filter((r) => r.batchId === currentBatchId);
           const allDecided = batchRequests.every((r) => nextDecisions.has(r.requestId));
 
           if (!allDecided) {

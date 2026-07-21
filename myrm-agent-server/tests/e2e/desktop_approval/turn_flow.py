@@ -19,7 +19,12 @@ from cdp_chat_support import (
 )
 from mcp_chat_ui import McpChatSession
 
-from tests.e2e.desktop_approval.constants import APPROVAL_CLICK_DEADLINE_SEC, BASE_URL, E2E_PROMPT, progress
+from tests.e2e.desktop_approval.constants import (
+    APPROVAL_CLICK_DEADLINE_SEC,
+    BASE_URL,
+    E2E_PROMPT,
+    progress,
+)
 from tests.e2e.desktop_approval.gate_probe import ensure_interact_gate
 from tests.e2e.desktop_approval.textedit_fixture import (
     activate_textedit_foreground,
@@ -158,7 +163,9 @@ async def wait_stream_done_with_marker(
             ):
                 nudged_done = True
                 progress("nudge model to reply DONE only")
-                await chat.send_message("Reply with only DONE.", "Reply with only DONE.")
+                await chat.send_message(
+                    "Reply with only DONE.", "Reply with only DONE."
+                )
                 heartbeat_e2e_lease()
                 continue
         await asyncio.sleep(2.0)
@@ -225,7 +232,11 @@ async def verify_settings_revoke_trusted_app(
             }})()""",
             await_promise=False,
         )
-        if isinstance(probe, dict) and probe.get("hasDisplayName") and probe.get("revokeReady"):
+        if (
+            isinstance(probe, dict)
+            and probe.get("hasDisplayName")
+            and probe.get("revokeReady")
+        ):
             break
         await asyncio.sleep(1.0)
     else:
@@ -240,7 +251,9 @@ async def verify_settings_revoke_trusted_app(
         }})()""",
         await_promise=False,
     )
-    assert isinstance(click, dict) and click.get("ok") is True, f"Settings revoke click failed: {click}"
+    assert (
+        isinstance(click, dict) and click.get("ok") is True
+    ), f"Settings revoke click failed: {click}"
 
     empty_deadline = asyncio.get_event_loop().time() + 60.0
     while asyncio.get_event_loop().time() < empty_deadline:
@@ -277,7 +290,9 @@ async def complete_turn_after_approval(
                     api_url=get_e2e_api_url(),
                 )
             except urllib.error.HTTPError as exc:
-                progress(f"post-approval API DONE probe HTTP {exc.code} chat_id={chat_id_probe}")
+                progress(
+                    f"post-approval API DONE probe HTTP {exc.code} chat_id={chat_id_probe}"
+                )
         if chat_id_probe and api_done:
             progress("approval verified via API DONE marker fallback")
             after_turn = {
@@ -289,9 +304,9 @@ async def complete_turn_after_approval(
 
     if str(after_turn.get("path", "")).startswith("/settings"):
         pytest.fail(f"Send redirected to settings: {after_turn}")
-    assert after_turn.get("matched") is True, (
-        f"Turn did not complete with DONE after approval: {after_turn}"
-    )
+    assert (
+        after_turn.get("matched") is True
+    ), f"Turn did not complete with DONE after approval: {after_turn}"
 
     chat_id = await resolve_chat_id(chat, after_turn)
     assert chat_id, f"Expected chat id after approval turn: {after_turn}"
@@ -339,9 +354,9 @@ async def ensure_desktop_inspector_panel_open(
         })()""",
         await_promise=False,
     )
-    assert isinstance(result, dict) and result.get("ok") is True, (
-        f"openDesktopInspectorPanel failed: {result}"
-    )
+    assert (
+        isinstance(result, dict) and result.get("ok") is True
+    ), f"openDesktopInspectorPanel failed: {result}"
 
 
 async def sync_approval_banner_from_pending_api(chat: McpChatSession) -> None:
@@ -368,9 +383,9 @@ async def sync_approval_banner_from_pending_api(chat: McpChatSession) -> None:
         }})()""",
         await_promise=False,
     )
-    assert isinstance(result, dict) and result.get("ok") is True, (
-        f"syncDesktopControlApproval failed: {result}"
-    )
+    assert (
+        isinstance(result, dict) and result.get("ok") is True
+    ), f"syncDesktopControlApproval failed: {result}"
 
 
 async def _ensure_wide_viewport_for_banner(chat: McpChatSession) -> None:
@@ -451,7 +466,9 @@ async def wait_for_approval_banner_clickable(
                 )
             if scope_visible:
                 click = await _try_scope_click()
-                assert click.get("ok") is True, f"Approval click failed after banner visible: {click}"
+                assert (
+                    click.get("ok") is True
+                ), f"Approval click failed after banner visible: {click}"
                 return
             if probe.get("err") == "model-completed-without-desktop-tools":
                 raise AssertionError(f"Model finished without desktop tools: {probe}")
@@ -491,7 +508,9 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         await_promise=False,
     )
     progress(f"provider debug before send: {provider_debug}")
-    if isinstance(provider_debug, dict) and not provider_debug.get("enabledProviderIds"):
+    if isinstance(provider_debug, dict) and not provider_debug.get(
+        "enabledProviderIds"
+    ):
         progress("provider not ready — sync model selection via E2E bridge")
         sync_result = await chat.evaluate(
             """(() => {
@@ -510,7 +529,9 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         progress(f"provider debug after sync: {sync_result}")
         if isinstance(sync_result, dict):
             provider_debug = sync_result
-    if isinstance(provider_debug, dict) and not provider_debug.get("enabledProviderIds"):
+    if isinstance(provider_debug, dict) and not provider_debug.get(
+        "enabledProviderIds"
+    ):
         if not wait_e2e_provider_ready():
             readiness = fetch_provider_readiness_snapshot()
             pytest.fail(
@@ -532,7 +553,9 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         progress(f"provider debug after API-ready resync: {resync}")
         if isinstance(resync, dict):
             provider_debug = resync
-    if isinstance(provider_debug, dict) and not provider_debug.get("enabledProviderIds"):
+    if isinstance(provider_debug, dict) and not provider_debug.get(
+        "enabledProviderIds"
+    ):
         pytest.fail(f"Provider still not enabled for send: {provider_debug}")
     chat_id = ""
     if isinstance(provider_debug, dict):
@@ -573,13 +596,19 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         chat_id=chat_id or None,
     )
 
-    chat_id_hint = chat_id or str(
-        (await chat.evaluate(
-            "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.chatId ?? null)()",
-            await_promise=False,
-        ))
-        or ""
-    ).strip() or None
+    chat_id_hint = (
+        chat_id
+        or str(
+            (
+                await chat.evaluate(
+                    "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.chatId ?? null)()",
+                    await_promise=False,
+                )
+            )
+            or ""
+        ).strip()
+        or None
+    )
 
     trusted: dict[str, object] | None = None
     if scope == "always":

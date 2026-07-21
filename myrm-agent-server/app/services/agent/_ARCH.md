@@ -46,7 +46,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `builtin_agent_specs.py` | ✅ 门面 | 聚合 `_BUILTIN_AGENTS`（26 段规格 tuple）+ re-export 类型/工具常量；实现位于 `builtin_specs/` |
 | `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — lifespan Phase 1b 幂等创建 26 个预置智能体（从 `builtin_agent_specs` 导入规格）；`suggestion_prompts` 仅在 DB 值为空时填充（保护用户自定义）；re-export `_BUILTIN_AGENTS`/`_TOOL_*` 保持外部导入兼容 |
 | `approval_payload.py` | ✅ 辅助 | LangGraph interrupt → ApprovalRegistry payload SSOT（nested payload 优先，flat semantic DOM HITL 字段回退） |
-| `streaming.py` | ✅ 核心 | General Agent / Deep Research Harness 流式桥接（Gateway + SSE 事件转换）；`PhaseWaiter` 通用阶段暂停/恢复门控（Clarification + Plan Confirmation HITL）；POOLED 路径经 `finalize_agent_session` 释放 execution cache | ✅ |
+| `streaming.py` | ✅ 核心 | General Agent / Deep Research Harness 流式桥接（Gateway + SSE 事件转换）；`PhaseWaiter` 通用阶段暂停/恢复门控（Clarification + Plan Confirmation HITL）；browser takeover 事件在服务端直出 `live_assist_url`（approval_required + browser_takeover_requested 同源签名链接）；POOLED 路径经 `finalize_agent_session` 释放 execution cache | ✅ |
 | `swarm_fission_resume.py` | ✅ 核心 | Swarm Fission 流式包装器：拦截 `swarm_fission` 事件，调用 Harness `execute_swarm_fission`，发射带 `failed_count`/`partial_success` 的 `tasks_steps`，再以 `Command(resume=...)` 恢复父 Agent | ✅ |
 | `fission_config.py` | ✅ 辅助 | 从 Agent `engine_params.max_parallel_fission` 解析并发上限（默认 3，上限 5），供 Web/Channel/Kanban/FastSearch 统一传入 `execute_swarm_fission` |
 | `steering_registry.py` | ✅ 核心 | 会话级 Steering 令牌注册表 — 通过 chat_id 管理运行中的 SteeringToken，使 HTTP API 能在运行时注入引导消息。与 CancellationRegistry 对称设计。 |

@@ -30,7 +30,9 @@ def _desktop_gate_satisfied(
     server_pending: int,
     ui_pending: bool,
 ) -> bool:
-    return ui_pending or server_pending > 0 or last_tool.endswith("desktop_interact_tool")
+    return (
+        ui_pending or server_pending > 0 or last_tool.endswith("desktop_interact_tool")
+    )
 
 
 _PENDING_API_FAIL_ABORT_STREAK = 20
@@ -101,7 +103,9 @@ async def probe_desktop_tool_progress(
 ) -> dict[str, object]:
     normalized_chat_id = chat_id.strip()
     if api_only and normalized_chat_id:
-        api_probe = await asyncio.to_thread(fetch_desktop_tool_progress_from_api, normalized_chat_id)
+        api_probe = await asyncio.to_thread(
+            fetch_desktop_tool_progress_from_api, normalized_chat_id
+        )
         return api_probe if isinstance(api_probe, dict) else {"active": False}
     probe = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.getDesktopToolProgress?.() ?? {})()""",
@@ -111,7 +115,9 @@ async def probe_desktop_tool_progress(
     if not normalized_chat_id:
         normalized_chat_id = await _bridge_chat_id(chat)
     api_probe = (
-        await asyncio.to_thread(fetch_desktop_tool_progress_from_api, normalized_chat_id)
+        await asyncio.to_thread(
+            fetch_desktop_tool_progress_from_api, normalized_chat_id
+        )
         if normalized_chat_id
         else None
     )
@@ -136,13 +142,19 @@ def _merge_desktop_progress(
     api_last = str(api_probe.get("lastTool") or "")
     ui_steps = int(ui_probe.get("stepCount") or 0)
     api_steps = int(api_probe.get("stepCount") or 0)
-    prefer_api = api_steps > ui_steps or (api_last.startswith("desktop_") and not ui_last.startswith("desktop_"))
+    prefer_api = api_steps > ui_steps or (
+        api_last.startswith("desktop_") and not ui_last.startswith("desktop_")
+    )
     merged: dict[str, object] = dict(ui_probe)
     if prefer_api:
         merged.update(api_probe)
-    elif api_probe.get("completionStatus") == "complete" and ui_probe.get("isStreaming"):
+    elif api_probe.get("completionStatus") == "complete" and ui_probe.get(
+        "isStreaming"
+    ):
         merged["isStreaming"] = False
-        merged["assistantSample"] = api_probe.get("assistantSample") or ui_probe.get("assistantSample")
+        merged["assistantSample"] = api_probe.get("assistantSample") or ui_probe.get(
+            "assistantSample"
+        )
         merged["completionStatus"] = api_probe.get("completionStatus")
     merged["uiLastTool"] = ui_last
     merged["apiLastTool"] = api_last
@@ -239,7 +251,9 @@ async def _agent_stream_active(
     api_only: bool = False,
 ) -> bool:
     if api_only and chat_id.strip():
-        tool_activity = await probe_desktop_tool_progress(chat, chat_id=chat_id, api_only=True)
+        tool_activity = await probe_desktop_tool_progress(
+            chat, chat_id=chat_id, api_only=True
+        )
         return bool(tool_activity.get("isStreaming"))
     stream_probe = await chat.probe_desktop_approval_once()
     tool_activity = await probe_desktop_tool_progress(chat, chat_id=chat_id)
@@ -268,7 +282,9 @@ async def _fail_if_model_completed_without_desktop_tools(
     if probe.get("err") == "model-completed-without-desktop-tools":
         hint = await _provider_readiness_hint()
         raise AssertionError(f"Model finished without desktop tools: {probe}{hint}")
-    sample = str(tool_activity.get("assistantSample") or probe.get("lastAssistantSample") or "")
+    sample = str(
+        tool_activity.get("assistantSample") or probe.get("lastAssistantSample") or ""
+    )
     completion_status = str(tool_activity.get("completionStatus") or "")
     is_streaming = bool(probe.get("isStreaming") or tool_activity.get("isStreaming"))
     if is_streaming and completion_status != "complete" and not sample:
@@ -340,7 +356,11 @@ async def wait_for_interact_or_approval(
             )
         if await _agent_stream_active(chat, chat_id=chat_id, api_only=api_only):
             idle_started = None
-        elif server_pending >= 0 and not tool_activity.get("active") and not last_tool.startswith("desktop_"):
+        elif (
+            server_pending >= 0
+            and not tool_activity.get("active")
+            and not last_tool.startswith("desktop_")
+        ):
             now = asyncio.get_event_loop().time()
             if idle_started is None:
                 idle_started = now
@@ -404,9 +424,9 @@ async def _wait_desktop_tool_activity_failfast(
             idle_started = None
             if streaming_started is None:
                 streaming_started = now
-            elif now - streaming_started >= 180.0 and not str(last.get("lastTool") or "").startswith(
-                "desktop_"
-            ):
+            elif now - streaming_started >= 180.0 and not str(
+                last.get("lastTool") or ""
+            ).startswith("desktop_"):
                 if not api_only:
                     await _abort_stuck_ui_stream(chat)
                 raise AssertionError(
@@ -423,7 +443,11 @@ async def _wait_desktop_tool_activity_failfast(
         last_tool = str(last.get("lastTool") or "")
         if await _agent_stream_active(chat, chat_id=chat_id, api_only=api_only):
             idle_started = None
-        elif server_pending >= 0 and not last.get("active") and not last_tool.startswith("desktop_"):
+        elif (
+            server_pending >= 0
+            and not last.get("active")
+            and not last_tool.startswith("desktop_")
+        ):
             now = asyncio.get_event_loop().time()
             if idle_started is None:
                 idle_started = now
@@ -458,7 +482,9 @@ async def ensure_interact_gate(
         api_only=api_only,
     )
     if textedit_foreground:
-        progress("agent turn observed via API — activate Chrome for CDP + approval banner")
+        progress(
+            "agent turn observed via API — activate Chrome for CDP + approval banner"
+        )
         await asyncio.to_thread(activate_chrome_foreground)
     progress(
         f"desktop tool activity result active={tool_activity.get('active')} "
@@ -476,10 +502,12 @@ async def ensure_interact_gate(
         ui_pending=ui_pending,
     ) and last_tool.endswith("desktop_snapshot_tool"):
         progress("snapshot detected — wait for interact or pending gate")
-        tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
-            chat,
-            timeout_sec=60.0,
-            chat_id=chat_id,
+        tool_activity, last_tool, server_pending, ui_pending = (
+            await wait_for_interact_or_approval(
+                chat,
+                timeout_sec=60.0,
+                chat_id=chat_id,
+            )
         )
         if _desktop_gate_satisfied(
             last_tool=last_tool,
@@ -491,12 +519,16 @@ async def ensure_interact_gate(
         try:
             await _send_interact_nudge(chat, last_tool=last_tool, chat_id=chat_id)
         except (RuntimeError, TimeoutError, OSError) as exc:
-            raise AssertionError(f"Snapshot nudge send failed (Chrome mux): {exc}") from exc
+            raise AssertionError(
+                f"Snapshot nudge send failed (Chrome mux): {exc}"
+            ) from exc
         heartbeat_e2e_lease()
-        tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
-            chat,
-            timeout_sec=90.0,
-            chat_id=chat_id,
+        tool_activity, last_tool, server_pending, ui_pending = (
+            await wait_for_interact_or_approval(
+                chat,
+                timeout_sec=90.0,
+                chat_id=chat_id,
+            )
         )
 
     max_nudge_rounds = 4
@@ -508,12 +540,15 @@ async def ensure_interact_gate(
         ):
             break
         if round_idx == 0 and not (
-            last_tool.endswith("desktop_snapshot_tool") or last_tool.endswith("desktop_vision_tool")
+            last_tool.endswith("desktop_snapshot_tool")
+            or last_tool.endswith("desktop_vision_tool")
         ):
-            tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
-                chat,
-                timeout_sec=45.0,
-                chat_id=chat_id,
+            tool_activity, last_tool, server_pending, ui_pending = (
+                await wait_for_interact_or_approval(
+                    chat,
+                    timeout_sec=45.0,
+                    chat_id=chat_id,
+                )
             )
             if _desktop_gate_satisfied(
                 last_tool=last_tool,
@@ -530,10 +565,12 @@ async def ensure_interact_gate(
         except (RuntimeError, TimeoutError, OSError) as exc:
             raise AssertionError(f"Nudge send failed (Chrome mux): {exc}") from exc
         heartbeat_e2e_lease()
-        tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
-            chat,
-            timeout_sec=90.0,
-            chat_id=chat_id,
+        tool_activity, last_tool, server_pending, ui_pending = (
+            await wait_for_interact_or_approval(
+                chat,
+                timeout_sec=90.0,
+                chat_id=chat_id,
+            )
         )
 
     provider_hint = await _provider_readiness_hint()

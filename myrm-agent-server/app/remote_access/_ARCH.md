@@ -29,7 +29,8 @@
 `app/api/remote_access/router.py` — `/api/v1/remote-access/*`
 
 - `GET /mobile/sessions`：`trust_zone=remote_exposed` 时需有效 `mobile_hub_list` pair（query / header / E2EE 解密）或 WebUI session
-- `POST /pairing-token`：WebUI session 签发 Hub QR / takeover deep link；`mobile_hub_list` pair 仅可 upgrade **活跃** 会话 scoped token；`browser_takeover` token 定向 `/mobile/takeover/{chatId}` 并最小权限放行 agent-stream + refresh
+- `POST /pairing-token`：WebUI session 签发 Hub QR / takeover deep link；`mobile_hub_list` pair 仅可 upgrade **活跃** 会话 scoped token；`browser_takeover` token 定向 `/mobile/takeover/{chatId}` 并最小权限放行 agent-stream + refresh + chat-scoped takeover snapshot
+- `GET /mobile/takeover/{chatId}/snapshot`：移动 takeover 页面实时预览（pair token 需 chat 绑定一致；返回浏览器截图 + 页面元信息）
 - scoped control token 经 `request.state.pair_bound_chat_id` 绑定 attach/steer/agent-stream/**chat cancel**（不含 `/agents/agent/{message_id}/cancel`）
 - `POST /agents/chats/{chat_id}/cancel`（`general_agent/streaming.py`）：Mobile Stop → `gateway.interrupt_session` + `CancellationRegistry.cancel`（`ActiveSessionInfo.current_message_id`）
 - `POST /pairing-token/refresh`：`mobile_hub_list` / scoped pair 续期

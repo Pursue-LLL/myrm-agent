@@ -91,7 +91,9 @@ atexit.register(_cleanup_temp_workspace)
 
 def _cleanup_browser_child_processes() -> None:
     try:
-        from tests.support.browser_process_cleanup import terminate_browser_processes_in_tree
+        from tests.support.browser_process_cleanup import (
+            terminate_browser_processes_in_tree,
+        )
 
         terminate_browser_processes_in_tree(os.getpid())
     except Exception as exc:
@@ -145,7 +147,9 @@ def _chrome_e2e_timeout_failure(item: pytest.Item, rep: pytest.TestReport) -> bo
 
 
 @pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) -> Iterator[None]:
+def pytest_runtest_makereport(
+    item: pytest.Item, call: pytest.CallInfo[None]
+) -> Iterator[None]:
     """Release DB/MCP hygiene when a formal chrome_e2e item hits pytest-timeout."""
     outcome = yield
     rep = outcome.get_result()
@@ -161,11 +165,15 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) ->
     try:
         reap_chrome_e2e_session_hygiene()
     except Exception as exc:
-        _logger.warning("Failed to reap chrome E2E session hygiene after timeout: %s", exc)
+        _logger.warning(
+            "Failed to reap chrome E2E session hygiene after timeout: %s", exc
+        )
     try:
         _shutdown_test_session_resources()
     except Exception as exc:
-        _logger.warning("Failed to shutdown test session resources after timeout: %s", exc)
+        _logger.warning(
+            "Failed to shutdown test session resources after timeout: %s", exc
+        )
 
 
 def _chrome_e2e_lane_timeout_sec(item: pytest.Item) -> int | None:
@@ -183,14 +191,19 @@ def _apply_chrome_e2e_lane_timeout(item: pytest.Item) -> None:
     existing = item.get_closest_marker("timeout")
     if existing is not None and int(existing.args[0]) >= floor:
         return
-    item.own_markers = [marker for marker in item.own_markers if marker.name != "timeout"]
+    item.own_markers = [
+        marker for marker in item.own_markers if marker.name != "timeout"
+    ]
     item.add_marker(pytest.mark.timeout(floor))
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Align benchmark markers with the default memory-safe suite filter."""
     for item in items:
-        if item.get_closest_marker("benchmark") is not None and item.get_closest_marker("performance") is None:
+        if (
+            item.get_closest_marker("benchmark") is not None
+            and item.get_closest_marker("performance") is None
+        ):
             item.add_marker(pytest.mark.performance)
         if item.get_closest_marker("chrome_e2e") is not None:
             _apply_chrome_e2e_lane_timeout(item)
@@ -234,7 +247,9 @@ def init_test_database():
 @pytest.fixture(scope="session", autouse=True)
 def _register_server_integration_write_patterns_for_tests() -> None:
     """Mirror main.py startup: register shell integration write patterns for tests."""
-    from app.core.security.integration_write_patterns import register_server_integration_write_patterns
+    from app.core.security.integration_write_patterns import (
+        register_server_integration_write_patterns,
+    )
 
     register_server_integration_write_patterns()
 
@@ -267,7 +282,9 @@ def blocking_io_gate() -> Iterator[BlockBuster]:
 
 
 @pytest.fixture(autouse=True)
-async def _reset_global_browser_pool_after_test(request: pytest.FixtureRequest) -> AsyncIterator[None]:
+async def _reset_global_browser_pool_after_test(
+    request: pytest.FixtureRequest,
+) -> AsyncIterator[None]:
     """Shut down harness GlobalBrowserPool after browser-related tests.
 
     TestClient bypasses app lifespan, so Chromium instances otherwise accumulate
@@ -279,7 +296,9 @@ async def _reset_global_browser_pool_after_test(request: pytest.FixtureRequest) 
         return
 
     try:
-        from myrm_agent_harness.toolkits.browser.pool import reset_global_browser_pool_for_tests
+        from myrm_agent_harness.toolkits.browser.pool import (
+            reset_global_browser_pool_for_tests,
+        )
 
         with suppress(Exception):
             await reset_global_browser_pool_for_tests()
@@ -300,10 +319,10 @@ def _chrome_e2e_item_runtime(
     marker = request.node.get_closest_marker("chrome_e2e")
     lane = str(marker.kwargs.get("lane", "")).strip().upper() if marker else ""
     if marker is not None and lane not in {"READ", "LIVE_AGENT"}:
-        raise RuntimeError(
-            "CHROME_E2E_MARKER_INVALID: lane must be READ or LIVE_AGENT"
-        )
-    private_backend = marker is not None and marker.kwargs.get("private_backend", True) is not False
+        raise RuntimeError("CHROME_E2E_MARKER_INVALID: lane must be READ or LIVE_AGENT")
+    private_backend = (
+        marker is not None and marker.kwargs.get("private_backend", True) is not False
+    )
     if (
         marker is None
         or not private_backend
@@ -356,7 +375,10 @@ def _require_live_e2e_lease(
     if not _is_formal_chrome_e2e(request):
         yield
         return
-    from tests.support.e2e_runtime_guard import assert_chrome_attach_health, reap_chrome_e2e_session_hygiene
+    from tests.support.e2e_runtime_guard import (
+        assert_chrome_attach_health,
+        reap_chrome_e2e_session_hygiene,
+    )
 
     reap_chrome_e2e_session_hygiene()
     lease = require_e2e_runtime_lease()

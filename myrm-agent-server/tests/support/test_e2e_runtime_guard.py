@@ -52,7 +52,9 @@ def test_assert_chrome_attach_health_raises_when_probe_fails(
             {"returncode": 1, "stderr": "mux not ready", "stdout": ""},
         )(),
     )
-    with pytest.raises(RuntimeError, match="CHROME_E2E_ATTACH_NOT_READY: mux not ready"):
+    with pytest.raises(
+        RuntimeError, match="CHROME_E2E_ATTACH_NOT_READY: mux not ready"
+    ):
         assert_chrome_attach_health()
 
 
@@ -91,7 +93,11 @@ def test_register_e2e_resource_noop_on_inactive_lease(
         lambda *args, **kwargs: type(
             "Result",
             (),
-            {"returncode": 1, "stderr": "LEDGER_DENIED: active lease not found: lease-1", "stdout": ""},
+            {
+                "returncode": 1,
+                "stderr": "LEDGER_DENIED: active lease not found: lease-1",
+                "stdout": "",
+            },
         )(),
     )
     register_e2e_resource("lease-1", kind="chat", ref="chat-1", namespace="ns")
@@ -118,7 +124,9 @@ def _write_state(
                         "lane": lane,
                         "runtimeId": runtime_id,
                         "status": "active",
-                        "expiresAt": (datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
+                        "expiresAt": (
+                            datetime.now(UTC) + timedelta(minutes=5)
+                        ).isoformat(),
                     }
                 ],
                 "resources": [],
@@ -231,7 +239,9 @@ def test_private_backend_reads_shared_wave_state(
                         "lane": "LIVE_AGENT",
                         "runtimeId": "runtime-1",
                         "status": "active",
-                        "expiresAt": (datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
+                        "expiresAt": (
+                            datetime.now(UTC) + timedelta(minutes=5)
+                        ).isoformat(),
                     }
                 ],
                 "resources": [],
@@ -285,6 +295,7 @@ def test_shared_hot_stack_fp_pins_runtime_for_shpoib(
     lease = require_e2e_runtime_lease()
     assert lease.runtime_id == "shared-hot-runtime"
     assert_e2e_runtime_unchanged(lease)
+
 
 def test_formal_chrome_e2e_auto_heals_stale_lease_on_runtime_drift(
     tmp_path: Path,
@@ -353,7 +364,9 @@ def test_snapshot_live_e2e_processes_parses_ps(
     stream_lock = tmp_path / "myrm-live-agent-stream.lock"
     desktop_lock = tmp_path / "myrm-desktop-approval-e2e.lock"
     write_holder = tmp_path / "myrm-live-agent-stream.lock.holder"
-    write_holder.write_text("99999:tests/e2e/holder.py::test_holder\n", encoding="utf-8")
+    write_holder.write_text(
+        "99999:tests/e2e/holder.py::test_holder\n", encoding="utf-8"
+    )
 
     ps_output = (
         " 2715 Ss 12:35 python -m pytest tests/e2e/test_desktop_control_approval_chrome_e2e.py"
@@ -383,4 +396,3 @@ def test_snapshot_live_e2e_processes_parses_ps(
     assert len(snapshot.active_tests) == 1
     assert snapshot.active_tests[0].pid == 2715
     assert "allow_session" in snapshot.active_tests[0].test_id
-
