@@ -477,6 +477,9 @@ export default function E2EChatBridge() {
         }
         return null;
       },
+      abortActiveStream: () => {
+        useChatStore.getState().stopMessage();
+      },
       getDesktopApprovalSnapshot: () => {
         const state = useDesktopControlApprovalStore.getState();
         return {

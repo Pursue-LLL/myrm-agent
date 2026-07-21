@@ -96,16 +96,22 @@ async def probe_desktop_tool_progress(chat: McpChatSession) -> dict[str, object]
     return probe if isinstance(probe, dict) else {"active": False}
 
 
-async def _fetch_first_desktop_dref(chat: McpChatSession) -> str | None:
+async def _fetch_first_desktop_dref(
+    chat: McpChatSession,
+    *,
+    last_tool: str = "",
+) -> str | None:
     probe = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.getFirstDesktopDref?.() ?? null)()""",
         await_promise=False,
     )
-    if probe is None:
-        return None
-    normalized = str(probe).strip().lstrip("@")
-    if normalized.startswith("d") and len(normalized) > 1:
-        return normalized
+    if probe is not None:
+        normalized = str(probe).strip().lstrip("@")
+        if normalized.startswith("d") and len(normalized) > 1:
+            return normalized
+    if last_tool.endswith("desktop_snapshot_tool"):
+        progress("dref fallback to d0 after desktop_snapshot_tool")
+        return "d0"
     return None
 
 
@@ -116,7 +122,8 @@ async def _send_interact_nudge(
 ) -> None:
     dref: str | None = None
     if last_tool.endswith("desktop_snapshot_tool"):
-        dref = await _fetch_first_desktop_dref(chat)
+        await asyncio.sleep(1.0)
+        dref = await _fetch_first_desktop_dref(chat, last_tool=last_tool)
     if dref:
         progress(f"nudge with concrete dref={dref!r}")
         nudge_prompt = build_desktop_interact_nudge(dref=dref)
@@ -216,6 +223,7 @@ async def _wait_desktop_tool_activity_failfast(
     deadline = asyncio.get_event_loop().time() + timeout_sec
     last: dict[str, object] = {"active": False}
     idle_started: float | None = None
+    streaming_started: float | None = None
     poll = 0
     api_fail_streak = [0]
     while asyncio.get_event_loop().time() < deadline:
@@ -235,6 +243,26 @@ async def _wait_desktop_tool_activity_failfast(
         server_pending = await _resolve_server_pending(api_fail_streak=api_fail_streak)
         if server_pending > 0:
             return {**last, "pending": True, "serverPending": server_pending}
+        now = asyncio.get_event_loop().time()
+        if await _agent_stream_active(chat):
+            idle_started = None
+            if streaming_started is None:
+                streaming_started = now
+            elif now - streaming_started >= 90.0 and not str(last.get("lastTool") or "").startswith(
+                "desktop_"
+            ):
+                await chat.evaluate(
+                    """(() => {
+                      window.__MYRM_E2E_CHAT__?.abortActiveStream?.();
+                      return { ok: true };
+                    })()""",
+                    await_promise=False,
+                )
+                raise AssertionError(
+                    "Agent stream stuck >90s without desktop tools (aborted for retry)"
+                )
+        else:
+            streaming_started = None
         if poll % 10 == 0:
             await _fail_if_model_completed_without_desktop_tools(chat)
         last_tool = str(last.get("lastTool") or "")
