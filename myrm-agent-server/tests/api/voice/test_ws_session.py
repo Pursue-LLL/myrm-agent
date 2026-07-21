@@ -621,21 +621,23 @@ class TestLoadVoiceConfig:
             with client.websocket_connect("/ws/voice/session") as ws:
                 ws.send_text(json.dumps({"type": "config"}))
 
-    def test_load_voice_config_sandbox_no_user_id(self, client: TestClient) -> None:
+    def test_load_voice_config_sandbox_no_user_id(self) -> None:
         """In sandbox mode without user_id, auth error is returned."""
         app = _make_app()
-
-        @app.middleware("http")
-        async def clear_user_id(request, call_next):
-            return await call_next(request)
-
         tc = TestClient(app)
+        caps = MagicMock(requires_strict_ws_auth=True)
         with (
-            patch("app.config.deploy_mode.is_sandbox", return_value=True),
             patch("app.api.voice.ws_session.verify_ws_origin", new_callable=AsyncMock, return_value=True),
+            patch(
+                "app.platform_utils.deployment_capabilities.get_deployment_capabilities",
+                return_value=caps,
+            ),
         ):
             with tc.websocket_connect("/ws/voice/session") as ws:
                 ws.send_text(json.dumps({"type": "config"}))
+                payload = json.loads(ws.receive_text())
+                assert payload["type"] == "error"
+                assert payload["message"] == "Authentication required"
 
 
 class TestSendJsonRobustness:

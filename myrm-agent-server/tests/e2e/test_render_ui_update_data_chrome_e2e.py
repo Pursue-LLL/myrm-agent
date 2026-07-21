@@ -14,7 +14,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import chat_user_message_count, get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
+from cdp_chat_support import chat_user_message_count, fetch_chat_messages, get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
 from cdp_chat_ui import chat_id_from_path  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
@@ -85,6 +85,50 @@ _UPDATE_DATA_READY_JS = """(() => {
     sample: text.slice(0, 900),
   };
 })()"""
+
+
+def _host_ui_artifact_status_label(chat_id: str, api_base: str) -> str | None:
+    messages = fetch_chat_messages(chat_id, api_url=api_base)
+    for message in reversed(messages):
+        if not isinstance(message, dict) or message.get("role") != "assistant":
+            continue
+        metadata = message.get("metadata")
+        if not isinstance(metadata, dict):
+            continue
+        artifacts = metadata.get("uiArtifacts")
+        if not isinstance(artifacts, list):
+            continue
+        for artifact in artifacts:
+            if not isinstance(artifact, dict):
+                continue
+            if artifact.get("title") != "E2E_UPDATE_MARKER_ALPHA":
+                continue
+            data = artifact.get("data")
+            if isinstance(data, dict):
+                status = data.get("status")
+                if isinstance(status, str):
+                    return status
+    return None
+
+
+async def _wait_db_ui_status(
+    chat_id: str,
+    api_base: str,
+    expected: str,
+    *,
+    timeout_sec: float,
+) -> str:
+    deadline = time.monotonic() + timeout_sec
+    last: str | None = None
+    while time.monotonic() < deadline:
+        heartbeat_e2e_lease()
+        last = _host_ui_artifact_status_label(chat_id, api_base)
+        if last == expected:
+            return last
+        await asyncio.sleep(1.0)
+    raise AssertionError(
+        f"DB uiArtifacts status did not reach {expected!r} within {timeout_sec}s (last={last!r})"
+    )
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
@@ -200,6 +244,33 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             timeout_sec=300.0,
             error_label="update_ui_data did not refresh inline binding UI",
         )
+
+        await _wait_db_ui_status(
+            chat_id,
+            api_base,
+            "E2E_UPDATE_FINAL",
+            timeout_sec=90.0,
+        )
+
+        reload_probe = await chat.evaluate(
+            """(() => {
+              location.reload();
+              return { reloaded: true };
+            })()""",
+            await_promise=False,
+            recv_timeout=15.0,
+        )
+        assert isinstance(reload_probe, dict)
+        assert reload_probe.get("reloaded") is True
+        await chat.ensure_chat_surface(BASE_URL)
+        reload_state = await _wait_js(
+            chat,
+            chat_id,
+            _UPDATE_DATA_READY_JS,
+            timeout_sec=180.0,
+            error_label="page reload did not restore E2E_UPDATE_FINAL from persisted DB",
+        )
+        assert reload_state.get("hasFinal") is True, reload_state
 
         try:
             assert chat_user_message_count(chat_id, api_url=api_base) >= 2, (

@@ -197,7 +197,11 @@ def _create_editable_agent(api_url: str) -> str:
     }
     created = http_json("POST", f"{api_url}/api/v1/user-agents", payload)
     assert isinstance(created, dict)
-    agent_id = created.get("data", {}).get("id") if isinstance(created.get("data"), dict) else created.get("id")
+    agent_id = (
+        created.get("data", {}).get("id")
+        if isinstance(created.get("data"), dict)
+        else created.get("id")
+    )
     assert isinstance(agent_id, str) and agent_id
     return agent_id
 
@@ -220,10 +224,12 @@ def _submit_and_wait_client_surface(
         client.evaluate(page, _CLEAR_SURFACE_CAPTURE_JS, timeout_sec=5.0)
         wait_for_state(client, page, _WAIT_SEND_READY_JS, timeout_sec=90.0)
         raw_submit = client.evaluate(page, submit_js, timeout_sec=120.0)
-        last_submit = raw_submit if isinstance(raw_submit, dict) else {"value": raw_submit}
-        assert last_submit.get("ok") is True, (
-            f"{failure_label} submit failed (attempt {attempt + 1}/{max_attempts}): {last_submit}"
+        last_submit = (
+            raw_submit if isinstance(raw_submit, dict) else {"value": raw_submit}
         )
+        assert (
+            last_submit.get("ok") is True
+        ), f"{failure_label} submit failed (attempt {attempt + 1}/{max_attempts}): {last_submit}"
         try:
             last_capture = wait_for_state(
                 client,
@@ -307,17 +313,23 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
             )
             opened = client.evaluate(page, _OPEN_BUILTIN_DIALOG_JS, timeout_sec=15.0)
             assert isinstance(opened, dict)
-            assert opened.get("clicked") is True, f"Built-in Tools card not found: {opened}"
+            assert (
+                opened.get("clicked") is True
+            ), f"Built-in Tools card not found: {opened}"
 
             wait_for_state(client, page, _BUILTIN_DIALOG_READY_JS, timeout_sec=30.0)
             client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
             toggled = client.evaluate(page, _TOGGLE_RENDER_UI_JS, timeout_sec=15.0)
             assert isinstance(toggled, dict)
-            assert toggled.get("toggled") is True, f"Failed to toggle render_ui: {toggled}"
+            assert (
+                toggled.get("toggled") is True
+            ), f"Failed to toggle render_ui: {toggled}"
 
             hint = client.evaluate(page, _HINT_ASSERT_JS, timeout_sec=10.0)
             assert isinstance(hint, dict)
-            assert hint.get("hasHint") is True, f"Missing renderUiWebOnlyHint in UI: {hint}"
+            assert (
+                hint.get("hasHint") is True
+            ), f"Missing renderUiWebOnlyHint in UI: {hint}"
 
         if not wait_e2e_provider_ready():
             pytest.fail(
@@ -329,9 +341,10 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
             wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
             client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
             capture = _submit_and_wait_web_surface(client, page)
-            assert capture.get("lastSurface") in {"web", "tauri"}, (
-                f"Unexpected client_surface: {capture.get('lastSurface')}"
-            )
+            assert capture.get("lastSurface") in {
+                "web",
+                "tauri",
+            }, f"Unexpected client_surface: {capture.get('lastSurface')}"
     finally:
         _delete_agent(api_url, agent_id)
 
@@ -353,7 +366,9 @@ def test_client_surface_emits_tauri_when_tauri_runtime_simulated() -> None:
         client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
         simulated = client.evaluate(page, _SIMULATE_TAURI_RUNTIME_JS, timeout_sec=10.0)
         assert isinstance(simulated, dict)
-        assert simulated.get("isTauri") is True, f"Tauri runtime simulation failed: {simulated}"
+        assert (
+            simulated.get("isTauri") is True
+        ), f"Tauri runtime simulation failed: {simulated}"
 
         capture = _submit_and_wait_tauri_surface(client, page)
         assert capture.get("lastSurface") == "tauri"

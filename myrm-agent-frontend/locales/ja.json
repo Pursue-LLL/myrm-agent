@@ -2910,6 +2910,7 @@
     "mcpConnectTimeout": "Connect Timeout (s)",
     "mcpExecuteTimeout": "Execute Timeout (s)",
     "mcpKeepaliveInterval": "Keepalive Interval (s)",
+    "mcpKeepaliveIntervalMin": "Keepalive interval must be at least 5 seconds",
     "mcpTlsSection": "TLS / mTLS",
     "mcpTlsConfigured": "設定済み",
     "mcpSslVerify": "SSL 検証",

@@ -52,13 +52,14 @@ INFRA_ABORT_MARKERS = (
 )
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
 E2E_PROMPT = (
-    f"TextEdit 已打开，文档含「{TEXTEDIT_FIXTURE_MARKER}」到 line 5。"
-    "你必须调用 desktop_interact（ref 来自 snapshot 的 @dref，action=scroll，text=down）。"
+    "当前 foreground 窗口是 Chrome。"
+    "先调用 desktop_snapshot_tool(scope='foreground')，"
+    "再对 snapshot 里任意可交互 @dref 调用 desktop_interact(action=click)。"
     "禁止只调用 desktop_snapshot 或 desktop_vision 就结束。"
     "完成后只回复 DONE。"
 )
 E2E_NUDGE_PROMPT = (
-    "请立即调用 desktop_interact（ref 来自上一个 snapshot 的 @dref，action=scroll，text=down）。"
+    "请立即对上一个 snapshot 的 @dref 调用 desktop_interact(action=click)。"
     "不要只用 snapshot/vision。完成后只回复 DONE。"
 )
 

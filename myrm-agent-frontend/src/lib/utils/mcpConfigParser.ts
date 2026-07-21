@@ -41,7 +41,7 @@ export function parseServerConfig(name: string, config: Record<string, unknown>)
     headers: rawHeaders && Object.keys(rawHeaders).length > 0 ? rawHeaders : null,
     hostSerial: typeof rawHostSerial === 'boolean' ? rawHostSerial : false,
     keepaliveInterval:
-      typeof rawKeepaliveInterval === 'number' && Number.isFinite(rawKeepaliveInterval) && rawKeepaliveInterval > 0
+      typeof rawKeepaliveInterval === 'number' && Number.isFinite(rawKeepaliveInterval) && rawKeepaliveInterval >= 5
         ? rawKeepaliveInterval
         : null,
     extra_params: {

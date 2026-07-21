@@ -3593,6 +3593,7 @@
     "mcpConnectTimeout": "连接超时(秒)",
     "mcpExecuteTimeout": "执行超时(秒)",
     "mcpKeepaliveInterval": "保活间隔(秒)",
+    "mcpKeepaliveIntervalMin": "保活间隔至少为 5 秒",
     "mcpTlsSection": "TLS / mTLS",
     "mcpTlsConfigured": "已配置",
     "mcpSslVerify": "SSL 验证",

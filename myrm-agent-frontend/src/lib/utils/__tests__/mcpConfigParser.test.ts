@@ -144,7 +144,7 @@ describe('parseServerConfig', () => {
     const invalid = parseServerConfig('keepalive-invalid', {
       type: 'sse',
       url: 'https://example.com/sse',
-      keepalive_interval: -1,
+      keepalive_interval: 1,
     });
     expect(invalid.keepaliveInterval).toBeNull();
   });

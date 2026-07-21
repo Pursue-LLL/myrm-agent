@@ -394,6 +394,12 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
       }
     }
 
+    if ((formData.type === 'sse' || formData.type === 'streamable_http') && formData.keepaliveInterval !== null) {
+      if (!Number.isFinite(formData.keepaliveInterval) || formData.keepaliveInterval < 5) {
+        newErrors.keepaliveInterval = t('mcpKeepaliveIntervalMin');
+      }
+    }
+
     if (!formData.description.trim()) {
       newErrors.description = t('mcpDescriptionRequired');
     }

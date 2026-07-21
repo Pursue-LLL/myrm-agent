@@ -176,7 +176,7 @@ def _resolve_keepalive_interval(raw: dict[str, object]) -> float | None:
     """Resolve optional keepalive interval from competitor config payload."""
     for key in ("keepalive_interval", "keepaliveInterval", "keepalive", "keepAliveInterval"):
         value = raw.get(key)
-        if isinstance(value, (int, float)) and value > 0:
+        if isinstance(value, (int, float)) and value >= 5:
             return float(value)
     return None
 

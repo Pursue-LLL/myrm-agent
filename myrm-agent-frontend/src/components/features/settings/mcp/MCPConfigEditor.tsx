@@ -252,6 +252,7 @@ export function MCPConfigEditor({
                 label={t('mcpKeepaliveInterval')}
                 type="number"
                 value={formData.keepaliveInterval ?? ''}
+                error={errors.keepaliveInterval}
                 onChange={(e) =>
                   onFormDataChange({
                     ...formData,

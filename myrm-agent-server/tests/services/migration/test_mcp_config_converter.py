@@ -72,6 +72,18 @@ class TestConvertCompetitorMCPServers:
         assert len(items) == 1
         assert items[0].host_serial is True
 
+    def test_keepalive_too_small_is_ignored(self) -> None:
+        raw = {
+            "stateful": {
+                "command": "python",
+                "args": ["-m", "stateful_mcp"],
+                "keepalive_interval": 1,
+            }
+        }
+        items = convert_competitor_mcp_servers(raw, competitor="hermes")
+        assert len(items) == 1
+        assert items[0].keepalive_interval is None
+
     def test_claude_sse_server(self) -> None:
         items = convert_competitor_mcp_servers(_CLAUDE_RAW, competitor="claude")
         assert len(items) == 1

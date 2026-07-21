@@ -86,14 +86,15 @@ async def list_memories_paginated(
     else:
         total = 0
         items: list[MemoryItem] = []
+        fetch_limit = offset + page_size
         for mem_type in types:
             try:
                 count = await manager.count_memories(mem_type, tag_filter=tag)
                 total += count
                 memories = await manager.list_memories(
                     mem_type,
-                    limit=page_size,
-                    offset=offset,
+                    limit=fetch_limit,
+                    offset=0,
                     sort_by=validated_sort,
                     sort_order=validated_order,
                     tag_filter=tag,
@@ -105,7 +106,7 @@ async def list_memories_paginated(
         reverse = validated_order == "desc"
         sort_attr = _SORT_KEYS[validated_sort]
         items.sort(key=lambda m: getattr(m, sort_attr, 0) or 0, reverse=reverse)
-        items = items[:page_size]
+        items = items[offset : offset + page_size]
 
     total_pages = max(1, (total + page_size - 1) // page_size)
 
@@ -508,19 +509,28 @@ async def get_memory_tags(
     """Get tag frequency statistics across all taggable memories."""
     from collections import Counter
 
+    _BATCH = 200
     tag_counter: Counter[str] = Counter()
     tagged_count = 0
 
     for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
-        try:
-            memories = await manager.list_memories(mem_type, limit=10000, offset=0)
+        batch_offset = 0
+        while True:
+            try:
+                memories = await manager.list_memories(mem_type, limit=_BATCH, offset=batch_offset)
+            except Exception as e:
+                logger.warning("Error reading %s tags: %s", mem_type, e)
+                break
+            if not memories:
+                break
             for mem in memories:
                 tags = getattr(mem, "tags", None) or []
                 if tags:
                     tagged_count += 1
                     tag_counter.update(tags)
-        except Exception as e:
-            logger.warning(f"Error reading {mem_type} tags: {e}")
+            if len(memories) < _BATCH:
+                break
+            batch_offset += _BATCH
 
     top_tags = [TagStatsItem(tag=t, count=c) for t, c in tag_counter.most_common(limit)]
     return TagStatsResponse(tags=top_tags, total_tagged=tagged_count)

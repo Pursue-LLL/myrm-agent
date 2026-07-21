@@ -25,7 +25,11 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import fetch_chat_messages, get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
+from cdp_chat_support import (
+    fetch_chat_messages,
+    get_e2e_api_url,
+    wait_e2e_provider_ready,
+)  # noqa: E402
 from cdp_chat_ui import chat_id_from_path  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
@@ -88,7 +92,11 @@ def _create_marketplace_agent(api_url: str) -> str:
     }
     created = http_json("POST", f"{api_url}/api/v1/user-agents", payload)
     assert isinstance(created, dict)
-    agent_id = created.get("data", {}).get("id") if isinstance(created.get("data"), dict) else created.get("id")
+    agent_id = (
+        created.get("data", {}).get("id")
+        if isinstance(created.get("data"), dict)
+        else created.get("id")
+    )
     assert isinstance(agent_id, str) and agent_id
     return agent_id
 
@@ -104,7 +112,9 @@ def _message_blob(msg: dict[str, object]) -> str:
     return "\n".join(parts)
 
 
-def _assistant_has_marketplace_result(chat_id: str, *, api_url: str) -> tuple[bool, str, set[str]]:
+def _assistant_has_marketplace_result(
+    chat_id: str, *, api_url: str
+) -> tuple[bool, str, set[str]]:
     invoked: set[str] = set()
     last_assistant = ""
     for msg in fetch_chat_messages(chat_id, api_url=api_url):
@@ -138,7 +148,14 @@ def _assistant_has_marketplace_result(chat_id: str, *, api_url: str) -> tuple[bo
 
     has_skill = any(
         token in last_assistant
-        for token in ("github-workflow", "Found ", "Official", "GitHub", "技能", "github")
+        for token in (
+            "github-workflow",
+            "Found ",
+            "Official",
+            "GitHub",
+            "技能",
+            "github",
+        )
     )
     return has_skill and len(last_assistant.strip()) > 20, last_assistant, invoked
 
@@ -161,12 +178,16 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
     agent_id = _create_marketplace_agent(api_base)
     e2e_resource_ledger.register("agent", agent_id)
 
-    async def _wait_agent_applied(chat: McpChatSession, *, timeout_sec: float = 90.0) -> None:
+    async def _wait_agent_applied(
+        chat: McpChatSession, *, timeout_sec: float = 90.0
+    ) -> None:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
-            raw = await chat.evaluate(_AGENT_READY_JS, await_promise=False, recv_timeout=20.0)
+            raw = await chat.evaluate(
+                _AGENT_READY_JS, await_promise=False, recv_timeout=20.0
+            )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return
@@ -183,7 +204,9 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
         last_api = ("", set[str]())
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
-            ok, assistant, invoked = _assistant_has_marketplace_result(chat_id, api_url=api_base)
+            ok, assistant, invoked = _assistant_has_marketplace_result(
+                chat_id, api_url=api_base
+            )
             last_api = (assistant, invoked)
             if ok:
                 return {
@@ -192,7 +215,9 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
                     "invoked": sorted(invoked),
                 }
 
-            raw = await chat.evaluate(_TURN_DONE_JS, await_promise=False, recv_timeout=20.0)
+            raw = await chat.evaluate(
+                _TURN_DONE_JS, await_promise=False, recv_timeout=20.0
+            )
             ui = raw if isinstance(raw, dict) else {"value": raw}
             if (
                 ui.get("hasAssistantText") is True
@@ -225,14 +250,20 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
         ).strip()
 
         heartbeat_e2e_lease()
-        started = await chat.wait_stream_started(_USER_QUERY, timeout_sec=120.0, chat_id_hint=chat_id_hint or None)
+        started = await chat.wait_stream_started(
+            _USER_QUERY, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
+        )
         chat_id = chat_id_hint or str(started.get("chatId") or "").strip() or None
         if not chat_id:
             after_start = await chat.main_state(_USER_QUERY, recv_timeout=30.0)
-            chat_id = chat_id_from_path(str(after_start.get("path") or "")) or str(
-                after_start.get("bridgeChatId") or ""
-            ).strip() or None
-        assert chat_id, f"Expected chat id after stream start: started={started}; send={send_result}"
+            chat_id = (
+                chat_id_from_path(str(after_start.get("path") or ""))
+                or str(after_start.get("bridgeChatId") or "").strip()
+                or None
+            )
+        assert (
+            chat_id
+        ), f"Expected chat id after stream start: started={started}; send={send_result}"
 
         await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=90.0)
         result = await _wait_turn_done(chat, chat_id, timeout_sec=420.0)
