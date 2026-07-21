@@ -203,6 +203,7 @@ async def iter_agent_stream_chunks(
 
     estimated_tokens = 0
     last_reported_tokens = 0
+    accumulated_cost_usd = 0.0
     async for chunk in stream:
         if session.cancel_token.is_cancelled:
             logger.warning(
@@ -244,6 +245,9 @@ async def iter_agent_stream_chunks(
         if isinstance(chunk, dict) and chunk.get("type") == "token_usage":
             data_val = chunk.get("data", {})
             if isinstance(data_val, dict):
+                cost_val = data_val.get("cost_usd")
+                if isinstance(cost_val, (int, float)) and cost_val > 0:
+                    accumulated_cost_usd += cost_val
                 usage = data_val.get("usage", {})
                 if isinstance(usage, dict):
                     total = usage.get("total_tokens")
@@ -340,6 +344,11 @@ async def iter_agent_stream_chunks(
 
                 # Inject goal_status into message_end and handle budget exhausted
                 if isinstance(chunk, dict) and chunk.get("type") == "message_end":
+                    if accumulated_cost_usd > 0 and "cost_usd" not in chunk:
+                        chunk["cost_usd"] = round(accumulated_cost_usd, 6)
+                    from app.services.agent.stream_session.stream_lane_factory import _inject_wu_consumed
+
+                    _inject_wu_consumed(chunk)
                     _inject_message_end_memory_insights(chunk=chunk, session=session)
 
                     if session.request.chat_id:

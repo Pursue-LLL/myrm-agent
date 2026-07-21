@@ -446,6 +446,9 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     if (update.latest_version_id) {
       setArtifactState((prev) => ({ ...prev, latest_version_id: update.latest_version_id }));
     }
+    void import('@/lib/progression/tryMarkMilestone').then(({ tryMarkMilestone }) => {
+      tryMarkMilestone('first_multistep_delivery');
+    });
   };
 
   const stalePublications = publications.filter((pub) =>

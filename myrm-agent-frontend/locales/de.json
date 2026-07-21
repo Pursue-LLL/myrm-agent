@@ -11153,6 +11153,16 @@
   "billing": {
     "wuBalance": "Work Units",
     "estimateToast": "Estimated ~{wu} WU for this message. {remaining} WU remaining.",
+    "sessionWuBurn": "This task used {wu} WU. {remaining} WU remaining.",
+    "spendSurface": {
+      "turnWu": "-{wu} WU",
+      "sessionWu": "Session {wu} WU",
+      "burnEta": "~{days}d left",
+      "sessionCost": "Session ${cost}",
+      "turnCost": "-${cost}",
+      "tooltipBalance": "Balance: {wu} WU",
+      "tooltipAvgTurn": "Avg/turn: ~{wu} WU"
+    },
     "insufficientWu": "Insufficient Work Units. Upgrade your plan or wait for daily refresh.",
     "exceeded": {
       "title": "Work Units exhausted",

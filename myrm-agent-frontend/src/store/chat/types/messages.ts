@@ -45,6 +45,7 @@ export type Message = {
   usage?: TokenUsage; // Token 使用量统计（最终累计）
   tokenEconomics?: TokenEconomicsSnapshot; // 细粒度成本与 Token 模型归因
   costUsd?: number; // LLM 调用总成本（USD）
+  wuConsumed?: number; // 本轮 Work Unit 消耗（Sandbox 模式，由 MESSAGE_END 携带）
   costStatus?: CostStatus; // 成本计算来源 (actual/estimated/unknown)
   cacheBreakReason?: string; // Prompt cache break 归因原因
   cacheSuggestedActions?: string; // Cache break 行动建议

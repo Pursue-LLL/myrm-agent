@@ -70,6 +70,10 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
             state.messages[messageIndex].costUsd = data.cost_usd;
           }
 
+          if (data.wu_consumed !== undefined) {
+            state.messages[messageIndex].wuConsumed = data.wu_consumed;
+          }
+
           if (data.cost_status) {
             state.messages[messageIndex].costStatus = data.cost_status;
           }
@@ -164,6 +168,9 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       const msg = state.messages[state.messages.length - 1];
       if (msg?.toolCalls && msg.toolCalls.length > 0) {
         tryMarkMilestone('first_tool_use');
+        if (msg.toolCalls.some((tc) => tc.toolName === 'delegate_to_agent')) {
+          tryMarkMilestone('first_remote_takeover');
+        }
       }
     });
   }

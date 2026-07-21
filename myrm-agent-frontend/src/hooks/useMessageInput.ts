@@ -19,7 +19,6 @@ import useChatStore from '@/store/useChatStore';
 import { compactChat } from '@/services/chat';
 import { toast } from '@/lib/utils/toast';
 import { useQuotaGuard } from '@/hooks/useQuotaGuard';
-import { useSessionWuBurnTracker } from '@/hooks/useSessionWuBurnTracker';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
@@ -91,7 +90,6 @@ export const useMessageInput = () => {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { validateMessageQuota } = useQuotaGuard();
-  const { markBalanceBeforeSend, reportBurnAfterTask } = useSessionWuBurnTracker();
   const { isUploadingPaste, handlePaste, handleDroppedFiles } = useInputFileUpload({
     actionMode,
     files,
@@ -105,14 +103,6 @@ export const useMessageInput = () => {
   // ─── 消息排队 ───
   const { queue, enqueue, dequeue, editMessage, removeMessage, clearQueue } = useMessageQueue(chatId);
 
-  const prevLoadingRef = useRef(loading);
-
-  useEffect(() => {
-    if (prevLoadingRef.current && !loading) {
-      reportBurnAfterTask();
-    }
-    prevLoadingRef.current = loading;
-  }, [loading, reportBurnAfterTask]);
 
   // 监听 loading 状态变化，当 loading 变为 false 时，自动发送队列中的下一条消息
   useEffect(() => {
@@ -201,12 +191,8 @@ export const useMessageInput = () => {
     if (!quota.allowed) {
       return false;
     }
-    if (quota.remainingWu !== undefined) {
-      markBalanceBeforeSend(quota.remainingWu);
-    }
-
     return true;
-  }, [inputMessage, files, actionMode, validateMessageQuota, markBalanceBeforeSend]);
+  }, [inputMessage, files, actionMode, validateMessageQuota]);
 
   // 获取并清理脏状态的 Artifacts，用于注入到消息中
   const _injectDirtyArtifacts = useCallback((message: string): string => {

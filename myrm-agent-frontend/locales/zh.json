@@ -12274,6 +12274,15 @@
     "wuBalance": "Work Units",
     "estimateToast": "预计消耗约 {wu} WU。剩余 {remaining} WU。",
     "sessionWuBurn": "本次任务消耗 {wu} WU，剩余 {remaining} WU。",
+    "spendSurface": {
+      "turnWu": "-{wu} WU",
+      "sessionWu": "本话 {wu} WU",
+      "burnEta": "约 {days} 天",
+      "sessionCost": "本话 ${cost}",
+      "turnCost": "-${cost}",
+      "tooltipBalance": "余额：{wu} WU",
+      "tooltipAvgTurn": "均/轮：~{wu} WU"
+    },
     "insufficientWu": "Work Units 不足，请升级方案或等待每日刷新。",
     "exceeded": {
       "title": "Work Units 已耗尽",

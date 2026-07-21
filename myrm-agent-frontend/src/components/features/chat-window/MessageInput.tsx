@@ -33,6 +33,7 @@ import BaseModelSelector from '../message-input-actions/BaseModelSelector';
 import ContextUsageIndicator from '../message-box/ContextUsageIndicator';
 import BudgetBadge from './BudgetBadge';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
+import SessionSpendSurface from '@/components/billing/SessionSpendSurface';
 import EnvironmentShield from '../message-input-actions/EnvironmentShield';
 import AgentIndicator from '../message-input-actions/AgentIndicator';
 import ToolsPanel from '../message-input-actions/ToolsPanel';
@@ -550,6 +551,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               <div className="flex flex-row items-center gap-1 sm:gap-2 flex-shrink-0">
                 <div className="flex items-center gap-1 overflow-x-auto max-w-[45vw] sm:max-w-none">
                   <WorkUnitBalanceBar compact className="shrink-0" />
+                  <SessionSpendSurface className="shrink-0" />
                   <ContextUsageIndicator />
                   <div className="hidden sm:flex items-center gap-1">
                     <EnvironmentShield />

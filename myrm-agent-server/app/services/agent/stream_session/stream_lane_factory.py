@@ -41,6 +41,21 @@ def _cfg_int(cfg: dict[str, object], key: str, default: int) -> int:
     return int(value) if isinstance(value, int | float | str) else default
 
 
+def _inject_wu_consumed(chunk: dict[str, object]) -> None:
+    """Attach ``wu_consumed`` to a MESSAGE_END chunk for Sandbox deployments."""
+    from app.config.deploy_mode import is_sandbox
+
+    if not is_sandbox():
+        return
+    cost_usd = chunk.get("cost_usd")
+    if not isinstance(cost_usd, int | float) or cost_usd <= 0:
+        return
+    from app.config.settings import get_settings
+
+    wu_per_usd = get_settings().control_plane.platform_wu_per_usd
+    chunk["wu_consumed"] = max(1, int(float(cost_usd) * wu_per_usd))
+
+
 def _cfg_int_or_none(cfg: dict[str, object], key: str) -> int | None:
     """Read a numeric config value as positive int, or ``None`` when unset."""
     value = cfg.get(key)
@@ -121,6 +136,7 @@ async def create_dynamic_workflow_stream(
                 if tracker:
                     chunk["usage"] = tracker.usage.to_dict() if hasattr(tracker.usage, "to_dict") else {}
                     chunk["cost_usd"] = round(tracker.total_cost_usd, 6)
+                    _inject_wu_consumed(chunk)
             yield chunk
     finally:
         reset_token_tracker()
@@ -584,7 +600,7 @@ async def create_consensus_stream(
             }
 
         tracker = get_token_tracker()
-        yield {
+        end_chunk: dict[str, object] = {
             "type": AgentEventType.MESSAGE_END.value,
             "messageId": msg_id,
             "usage": tracker.usage.to_dict() if tracker else {},
@@ -600,5 +616,7 @@ async def create_consensus_stream(
                 "elapsed_seconds": result.elapsed_seconds if result else 0,
             },
         }
+        _inject_wu_consumed(end_chunk)
+        yield end_chunk
     finally:
         reset_token_tracker()
