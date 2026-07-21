@@ -67,7 +67,10 @@ import type {
   ToolsSnapshotStreamEvent,
 } from './part2';
 import type {
+  BrowserTakeoverCompletedStreamEvent,
+  BrowserTakeoverRequestedStreamEvent,
   BrowserViewUpdateStreamEvent,
+  DesktopControlApprovalRequestStreamEvent,
   DesktopViewUpdateStreamEvent,
   FileDiffStreamEvent,
   FileMutationFailedStreamEvent,
@@ -131,6 +134,9 @@ export type AgentStreamEvent =
   | ToolImageOutputStreamEvent
   | BrowserViewUpdateStreamEvent
   | DesktopViewUpdateStreamEvent
+  | DesktopControlApprovalRequestStreamEvent
+  | BrowserTakeoverRequestedStreamEvent
+  | BrowserTakeoverCompletedStreamEvent
   | MascotXpUpdateStreamEvent
   | DagStateUpdateStreamEvent
   | IterationLimitReachedStreamEvent

@@ -4,7 +4,7 @@
  * - useBrowserTakeoverStore (POS: 浏览器 HITL takeover 请求状态)
  *
  * [OUTPUT]
- * fileDiffEvents: FILE_DIFF / TOOL_IMAGE / BROWSER_TAKEOVER SSE 切片
+ * fileDiffEvents: FILE_DIFF / TOOL_IMAGE / BROWSER_TAKEOVER SSE 切片（含 extension live-assist 链接生成）
  *
  * [POS]
  * Chat SSE event handler slice (fileDiffEvents)。
@@ -19,6 +19,11 @@ async function notifyTakeoverVncOpenFailed(): Promise<void> {
   const { getClientLocale } = await import("@/lib/utils/localeUtils");
   const { toast } = await import("@/lib/utils/toast");
   toast.error(takeoverVncOpenFailedMessage(getClientLocale()), { duration: 8000 });
+}
+
+function clampTakeoverContextValue(value: string, maxLength: number): string {
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, maxLength) : '';
 }
 
 export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
@@ -221,6 +226,8 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     const autoDetectCompletion = Boolean(data.data.auto_detect_completion);
     const eventReason = typeof data.data.reason === 'string' ? data.data.reason : '';
     const eventPageUrl = typeof data.data.url === 'string' ? data.data.url : '';
+    const normalizedReason = clampTakeoverContextValue(eventReason, 280);
+    const normalizedPageUrl = clampTakeoverContextValue(eventPageUrl, 1024);
 
     activateBrowserTakeover({
       reason: eventReason,
@@ -257,7 +264,8 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       });
     } else {
       const { default: useChatStore } = await import('@/store/useChatStore');
-      const chatId = useChatStore.getState().chatId?.trim();
+      const fallbackChatId = state.messages[0]?.chatId?.trim() ?? '';
+      const chatId = useChatStore.getState().chatId?.trim() || fallbackChatId;
       if (chatId) {
         void (async () => {
           try {
@@ -284,11 +292,11 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
             if (typeof data.messageId === 'string' && data.messageId.trim()) {
               takeoverUrl.searchParams.set('mid', data.messageId.trim());
             }
-            if (eventReason.trim()) {
-              takeoverUrl.searchParams.set('reason', eventReason.trim().slice(0, 280));
+            if (normalizedReason) {
+              takeoverUrl.searchParams.set('reason', normalizedReason);
             }
-            if (eventPageUrl.trim()) {
-              takeoverUrl.searchParams.set('page', eventPageUrl.trim().slice(0, 1024));
+            if (normalizedPageUrl) {
+              takeoverUrl.searchParams.set('page', normalizedPageUrl);
             }
             useBrowserTakeoverStore.getState().setLiveAssistUrl(takeoverUrl.toString());
           } catch (error) {
@@ -305,7 +313,6 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     useBrowserTakeoverStore.getState().completeTakeover();
     return done(ctx);
   }
-
 
   return null;
 }

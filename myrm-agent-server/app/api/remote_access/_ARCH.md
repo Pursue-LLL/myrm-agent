@@ -15,8 +15,8 @@
 - `GET|POST /tunnel/*` — tunnel 状态与生命周期
 - `GET /e2ee/public-key` — daemon 公钥（QR URL fragment `#e2ee=`）
 - `POST /e2ee/handshake` — `e2ee_hello` → `e2ee_ready` + sessionId（30/min 限流）
-- `POST /pairing-token` — WebUI session 签发 Hub list token；list pair upgrade **活跃** scoped token
-- `POST /pairing-token/refresh` — pair token 续期（Hub list / scoped 控制）
+- `POST /pairing-token` — WebUI session 签发 Hub list token；list pair upgrade **活跃** scoped token；支持 `browser_takeover` purpose 并返回 `mobilePath/mobileUrl`
+- `POST /pairing-token/refresh` — pair token 续期（Hub list / scoped 控制 / browser takeover），返回续期后的 `mobilePath/mobileUrl`
 - `GET /mobile/sessions` — 活跃 Agent 会话（远程暴露时需 pair token [含 E2EE 头] 或 WebUI session）
 
 ## 模块依赖

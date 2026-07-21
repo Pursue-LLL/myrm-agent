@@ -99,6 +99,37 @@ export interface DesktopViewUpdateStreamEvent extends BaseAgentEvent {
   };
 }
 
+export interface DesktopControlApprovalRequestStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.DESKTOP_CONTROL_APPROVAL_REQUEST;
+  data: {
+    request_id?: string;
+    reason?: string;
+    operation?: string;
+    app_name?: string;
+    window_title?: string;
+    require_app_approval?: boolean;
+  };
+}
+
+export interface BrowserTakeoverRequestedStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.BROWSER_TAKEOVER_REQUESTED;
+  data: {
+    reason?: string;
+    url?: string;
+    screenshot_base64?: string;
+    is_managed?: boolean;
+    auto_detect_completion?: boolean;
+    live_assist_url?: string;
+  };
+}
+
+export interface BrowserTakeoverCompletedStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.BROWSER_TAKEOVER_COMPLETED;
+  data?: {
+    reason?: string;
+  };
+}
+
 export interface PtcNotifyStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.PTC_NOTIFY;
   level?: 'info' | 'warn' | 'alert';

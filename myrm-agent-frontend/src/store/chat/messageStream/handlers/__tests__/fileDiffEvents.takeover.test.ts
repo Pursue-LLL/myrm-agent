@@ -35,20 +35,28 @@ function buildCtx(data: StreamCtx['data']): { ctx: StreamCtx; setLoading: Return
   const setLoading = vi.fn();
   const state: StreamHandlerState = {
     messages: [],
-    agentConfig: { browserSource: 'auto' },
-  } as StreamHandlerState;
-  const actions = {
+    messageAppeared: false,
+    loading: false,
+    scheduler: {} as StreamHandlerState['scheduler'],
+  };
+  const actions: StreamHandlerActions = {
     setMessages: vi.fn(),
+    setMessageAppeared: vi.fn(),
     setLoading,
-  } as unknown as StreamHandlerActions;
+    _processSuggestions: vi.fn(async () => undefined),
+    scheduleAutoSave: vi.fn(),
+  };
 
   return {
     ctx: {
       data,
-      added: {},
+      input: '',
+      sources: undefined,
+      added: false,
       state,
       actions,
-      recievedMessage: null,
+      recievedMessage: '',
+      files: [],
     },
     setLoading,
   };

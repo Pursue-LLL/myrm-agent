@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - useBrowserTakeoverStore (POS: 浏览器 HITL takeover 请求状态)
+ * - useBrowserTakeoverActions (POS: takeover 完成/跳过与会话恢复动作)
+ * - scheduleMobilePairRefresh (POS: 移动端 pair token 续期调度)
+ *
+ * [OUTPUT]
+ * - MobileTakeoverBoard: 移动端接管落地页（展示上下文并执行 Done/Skip）
+ *
+ * [POS]
+ * - /mobile/takeover/[chatId] 页面主体，承接签名链接参数并触发 takeover resume。
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, ExternalLink, XCircle } from 'lucide-react';
@@ -11,6 +24,17 @@ import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useChatStore from '@/store/useChatStore';
 import { Button } from '@/components/primitives/button';
 
+const TAKEOVER_REASON_MAX_CHARS = 280;
+const TAKEOVER_PAGE_URL_MAX_CHARS = 1024;
+
+function clampQueryParam(value: string | null, maxChars: number): string {
+  if (!value) {
+    return '';
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, maxChars) : '';
+}
+
 export default function MobileTakeoverBoard({ chatId }: { chatId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -19,8 +43,8 @@ export default function MobileTakeoverBoard({ chatId }: { chatId: string }) {
   const [ready, setReady] = useState(false);
 
   const takeoverMessageId = searchParams.get('mid')?.trim() ?? '';
-  const takeoverReason = searchParams.get('reason')?.trim() ?? '';
-  const takeoverPageUrl = searchParams.get('page')?.trim() ?? '';
+  const takeoverReason = clampQueryParam(searchParams.get('reason'), TAKEOVER_REASON_MAX_CHARS);
+  const takeoverPageUrl = clampQueryParam(searchParams.get('page'), TAKEOVER_PAGE_URL_MAX_CHARS);
   const pairToken = searchParams.get('pair')?.trim() ?? '';
 
   const pending = useBrowserTakeoverStore((state) => state.pending);
