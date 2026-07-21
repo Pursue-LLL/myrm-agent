@@ -30,6 +30,8 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 | `builtinActions.ts` | 内置 Slash 命令定义（compact/focus/yolo/freeze/new/stop/model） | 被 `useCommandStore` 初始化时调用 |
 | `useBrowserTakeoverStore.ts` | 浏览器 HITL takeover 状态（`uiMode` managed/extension、`autoDetectCompletion`、`liveAssistUrl`） | SSE `browser_takeover_requested`（handler 内 `setLoading(false)`）或 approval recovery 写入 |
 | `useApprovalStore.ts` | 审批队列；`activateBrowserTakeover()` / `resolveBrowserTakeoverMessageId()` SSOT；recovery 经 `isActiveChatForTakeover`（store chatId + URL pathname） | GET /approvals recovery + SSE interrupt |
+| `useBudgetExceededStore.ts` | WU 耗尽阻断弹窗状态 | balance=0 时由 SSE `budget_alert` 触发 |
+| `useUpgradeNudgeStore.ts` | 升级引导弹窗状态（低余额预警 + Feature Gate） | 24h 防骚扰 localStorage 节流 |
 | `use*Store.ts`（根级） | 看板、伴侣、浏览器检查器等 | 一域一 store |
 
 ## 依赖

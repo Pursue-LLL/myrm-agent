@@ -67,6 +67,7 @@ export interface BillingCatalogPlan {
   monthly_wu: number;
   trial_days: number;
   checkout_available: boolean;
+  features: string[];
 }
 
 export interface BillingCatalogResponse {

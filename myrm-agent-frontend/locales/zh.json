@@ -12299,7 +12299,26 @@
       "ingressDescription": "升级后可配置公网 URL，用于 Webhook 与通道回调。",
       "subagentTitle": "Sub-agents 需要 Companion 及以上套餐",
       "subagentDescription": "升级后可使用子智能体在云端沙箱中并行处理任务。",
-      "upgrade": "查看方案"
+      "upgrade": "查看方案",
+      "comparePlans": "对比所有方案"
+    },
+    "nudge": {
+      "lowBalanceTitle": "Work Units 余额不足",
+      "lowBalanceDescription": "当前剩余 {balance} WU（{pct}%）。建议升级以获取更多额度。",
+      "featureGateTitle": "解锁此功能",
+      "featureGateDescription": "{feature} 功能需要更高级别的方案。",
+      "recommendPlan": "推荐：{plan}",
+      "planWu": "{wu} WU / 月",
+      "dismiss": "暂不升级",
+      "viewPlans": "查看方案",
+      "features": {
+        "cron": "定时自动化任务",
+        "ingress": "公网 Webhook 与 URL",
+        "vnc": "可视化桌面控制",
+        "subagent": "多智能体协作",
+        "rollover": "WU 余额月度滚存",
+        "parallel": "并行任务执行"
+      }
     },
     "vnc": {
       "toggleTitle": "实时可视化桌面",

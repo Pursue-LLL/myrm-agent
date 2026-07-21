@@ -17,12 +17,14 @@ import { useVisibilityThrottling } from '@/hooks/useVisibilityThrottling';
 import { useTrayEvents } from '@/hooks/useTrayEvents';
 import { useCrashLoopGuard } from '@/hooks/useCrashLoopGuard';
 import BudgetExceededDialog from '@/components/billing/BudgetExceededDialog';
+import UpgradeNudgeDialog from '@/components/billing/UpgradeNudgeDialog';
 import CrashRecoveryDialog from '@/components/features/app-shell/crash-recovery-dialog';
 import LocalBackendUnavailableBanner, {
   ConfigReadinessDegradedBanner,
 } from '@/components/features/app-shell/local-backend-unavailable-banner';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { useProgressionStore } from '@/store/useProgressionStore';
+import { useWuBalanceWatcher } from '@/hooks/useWuBalanceWatcher';
 import E2EChatBridge from '@/components/dev/E2EChatBridge';
 
 const CronPushPoller = lazy(() =>
@@ -81,6 +83,7 @@ function AppLayout({
   useVisibilityThrottling();
   useTrayEvents();
   useGlobalShortcuts();
+  useWuBalanceWatcher();
   const { crashLoopActive, errorMessage: crashError, dismiss: dismissCrashLoop } = useCrashLoopGuard();
 
   return (
@@ -178,6 +181,7 @@ function AppLayout({
         <CronPushPoller />
       </Suspense>
       <BudgetExceededDialog />
+      <UpgradeNudgeDialog />
       <E2EChatBridge />
     </>
   );

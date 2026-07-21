@@ -11179,7 +11179,26 @@
       "ingressDescription": "Upgrade to expose webhooks and channel callbacks on a public URL for your cloud sandbox.",
       "subagentTitle": "Sub-agents require Companion or above",
       "subagentDescription": "Upgrade to delegate tasks to specialized sub-agents on your cloud sandbox.",
-      "upgrade": "View plans"
+      "upgrade": "View plans",
+      "comparePlans": "모든 플랜 비교"
+    },
+    "nudge": {
+      "lowBalanceTitle": "Work Units 잔액이 부족합니다",
+      "lowBalanceDescription": "현재 {balance} WU 남음({pct}%). 업그레이드를 고려해 주세요.",
+      "featureGateTitle": "이 기능 잠금 해제",
+      "featureGateDescription": "{feature} 기능은 상위 플랜이 필요합니다.",
+      "recommendPlan": "추천: {plan}",
+      "planWu": "{wu} WU / 월",
+      "dismiss": "나중에",
+      "viewPlans": "플랜 보기",
+      "features": {
+        "cron": "예약 자동화",
+        "ingress": "공개 Webhook 및 URL",
+        "vnc": "비주얼 데스크톱 제어",
+        "subagent": "멀티 에이전트 위임",
+        "rollover": "WU 월별 이월",
+        "parallel": "병렬 작업 실행"
+      }
     },
     "vnc": {
       "toggleTitle": "Live visual desktop",
