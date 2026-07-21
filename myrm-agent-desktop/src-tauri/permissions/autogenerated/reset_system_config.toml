@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reset-system-config"
+description = "Enables the reset_system_config command without any pre-configured scope."
+commands.allow = ["reset_system_config"]
+
+[[permission]]
+identifier = "deny-reset-system-config"
+description = "Denies the reset_system_config command without any pre-configured scope."
+commands.deny = ["reset_system_config"]

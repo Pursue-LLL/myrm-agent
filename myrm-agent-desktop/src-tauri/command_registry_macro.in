@@ -1,0 +1,72 @@
+// Single source of truth for Tauri command name/path registration.
+// Used by:
+// - build.rs (AppManifest command allowlist)
+// - src/app/mod.rs (generate_handler registration)
+// - src/ipc_security.rs tests (policy coverage assertion)
+macro_rules! tauri_command_registry {
+    ($consumer:ident) => {
+        $consumer! {
+            ("fix_quarantine_with_auth", fix_quarantine_with_auth),
+            ("inline_paste_back", inline_paste_back),
+            ("load_system_config", crate::commands::config::load_system_config),
+            ("save_system_config", crate::commands::config::save_system_config),
+            ("reset_system_config", crate::commands::config::reset_system_config),
+            ("get_current_mode", crate::commands::config::get_current_mode),
+            ("restart_app", crate::commands::config::restart_app),
+            ("get_local_ip", crate::commands::config::get_local_ip),
+            ("get_setup_token", crate::runtime::setup_token::get_setup_token),
+            ("update_global_shortcut", crate::commands::config::update_global_shortcut),
+            ("start_backend", crate::runtime::python_backend::start_backend),
+            ("stop_backend", crate::runtime::python_backend::stop_backend),
+            ("check_backend_health", crate::runtime::python_backend::check_backend_health),
+            ("get_backend_status", crate::runtime::python_backend::get_backend_status),
+            ("stop_frontend", crate::runtime::nextjs_frontend::stop_frontend),
+            ("detect_agents", crate::commands::agent::detect_agents),
+            ("list_agent_adapters", crate::commands::agent::list_agent_adapters),
+            ("get_agent_sidecar_status", crate::commands::agent::get_agent_sidecar_status),
+            ("create_agent_session", crate::commands::agent::session::create_agent_session),
+            ("list_agent_sessions", crate::commands::agent::session::list_agent_sessions),
+            ("get_agent_session", crate::commands::agent::session::get_agent_session),
+            ("delete_agent_session", crate::commands::agent::session::delete_agent_session),
+            ("resume_agent_session", crate::commands::agent::session::resume_agent_session),
+            ("send_agent_message", crate::commands::agent::message::send_agent_message),
+            ("stop_agent_message", crate::commands::agent::message::stop_agent_message),
+            ("respond_agent_permission", crate::commands::agent::permission::respond_agent_permission),
+            ("get_permission_mode", crate::commands::agent::permission::get_permission_mode),
+            ("set_permission_mode", crate::commands::agent::permission::set_permission_mode),
+            ("cycle_permission_mode", crate::commands::agent::permission::cycle_permission_mode),
+            ("power_lock_acquire", crate::commands::power::power_lock_acquire),
+            ("power_lock_release", crate::commands::power::power_lock_release),
+            ("power_lock_status", crate::commands::power::power_lock_status),
+            ("screen_is_locked", crate::commands::screen_lock::screen_is_locked),
+            ("screen_unlock", crate::commands::screen_lock::screen_unlock),
+            ("screen_relock", crate::commands::screen_lock::screen_relock),
+            ("screen_lock_store_password", crate::commands::screen_lock::screen_lock_store_password),
+            ("screen_lock_has_password", crate::commands::screen_lock::screen_lock_has_password),
+            ("screen_lock_delete_password", crate::commands::screen_lock::screen_lock_delete_password),
+            ("screen_lock_platform_support", crate::commands::screen_lock::screen_lock_platform_support),
+            (
+                "show_visual_approval_overlay",
+                crate::commands::visual_approval_overlay::show_visual_approval_overlay
+            ),
+            (
+                "hide_visual_approval_overlay",
+                crate::commands::visual_approval_overlay::hide_visual_approval_overlay
+            ),
+            ("show_pet_overlay", crate::commands::pet_overlay::show_pet_overlay),
+            ("hide_pet_overlay", crate::commands::pet_overlay::hide_pet_overlay),
+            ("pet_overlay_set_row", crate::commands::pet_overlay::pet_overlay_set_row),
+            ("open_session_window", crate::commands::session_window::open_session_window),
+            ("close_session_window", crate::commands::session_window::close_session_window),
+            ("force_appshot_capture", crate::commands::config::force_appshot_capture),
+            ("migrate_data_dir", crate::commands::config::migrate_data_dir),
+            ("export_local_sqlite", crate::commands::recovery::export_local_sqlite),
+            ("reveal_app_folder", crate::commands::recovery::reveal_app_folder),
+            (
+                "issue_sensitive_action_ticket",
+                crate::ipc_security::issue_sensitive_action_ticket
+            ),
+            ("set_tray_status", tray::set_tray_status),
+        }
+    };
+}

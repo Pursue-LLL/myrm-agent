@@ -53,11 +53,13 @@ _FAILED_SHELL_ROW_JS = """(() => {
   };
 })()"""
 
-_PANEL_RUNNING_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasRunning = /running|运行中/i.test(text);
-  const hasShell = /Long-running tasks|耗时任务/i.test(text);
-  return { ready: hasRunning && hasShell, text: text.slice(0, 500) };
+_PANEL_RUNNING_SHELL_CANCEL_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const cancelBtn = root.querySelector('[data-testid="background-task-cancel"]');
+  const text = root.innerText || '';
+  const hasShell = /Long-running tasks|耗时任务/.test(text);
+  return { ready: !!cancelBtn && hasShell, hasCancel: !!cancelBtn };
 })()"""
 
 
@@ -121,9 +123,8 @@ def test_background_tasks_panel_shows_failed_shell_job_from_seed() -> None:
 _CANCEL_RUNNING_JS = """(() => {
   const popover = document.querySelector('[data-radix-popper-content-wrapper]');
   const root = popover || document.body;
-  const buttons = Array.from(root.querySelectorAll('button'));
-  const cancelBtn = buttons.find((btn) => /cancel|取消/i.test(btn.textContent || ''));
-  if (!cancelBtn) return { clicked: false, buttonCount: buttons.length };
+  const cancelBtn = root.querySelector('[data-testid="background-task-cancel"]');
+  if (!cancelBtn) return { clicked: false };
   cancelBtn.click();
   return { clicked: true };
 })()"""
@@ -170,14 +171,16 @@ def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
         panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
         assert panel.get("ready") is True, panel
 
-        running_row = wait_for_state(client, page, _PANEL_RUNNING_JS, timeout_sec=30.0)
-        assert running_row.get("ready") is True, running_row
+        running_cancel = wait_for_state(
+            client, page, _PANEL_RUNNING_SHELL_CANCEL_JS, timeout_sec=60.0
+        )
+        assert running_cancel.get("ready") is True, running_cancel
 
         cancelled = client.evaluate(page, _CANCEL_RUNNING_JS, timeout_sec=10.0)
         assert cancelled.get("clicked") is True, cancelled
 
         # Keep the tab alive until cancel POST completes; closing the page aborts fetch.
-        deadline = time.monotonic() + 30.0
+        deadline = time.monotonic() + 60.0
         final_status = ""
         while time.monotonic() < deadline:
             row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")

@@ -21,8 +21,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ：看板渲染 + Drawer 附件） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
 | `e2e/test_memory_citations_chrome_e2e.py` | 模块 | Memory Chrome MCP E2E（READ×2：设置「历史会话搜索」开关；统一「依据/Evidence N」Sheet） |
-| `e2e/test_background_tasks_panel_chrome_e2e.py` | 模块 | Background Tasks Panel Chrome MCP E2E（READ×3：打开 Panel、「耗时任务」分区、seed failed/running + UI cancel） |
-| `e2e/test_background_shell_live_agent_chrome_e2e.py` | 模块 | Background shell LIVE×1：agent-stream 调 `bash_code_execute_tool` + `run_in_background` → REST running（Panel UI 由上一文件覆盖） |
+| `e2e/test_background_tasks_panel_chrome_e2e.py` | 模块 | Background Tasks Panel Chrome MCP E2E（READ×3：打开 Panel、「耗时任务」分区、seed failed/running + UI cancel via `data-testid=background-task-cancel`（wait 合并 testid+分区，防 running 文本假阳性）+ tab-alive API poll） |
+| `e2e/test_background_shell_live_agent_chrome_e2e.py` | 模块 | Background shell LIVE×1：`test_live_agent_background_shell_spawn_via_agent_stream` — agent-stream 必须调 `bash_code_execute_tool`（fast-fail）→ REST running（API-only；Panel UI 由 panel 文件覆盖）；`finally` teardown cancel；failed attempt 按 `chat_id` cancel 后再 retry；transport retry 1×（retry 前 10s running probe） |
 | `api/agent/test_memory_conversation_search_e2e.py` | 模块 | Memory + sessions opt-in API 集成（真实 LLM agent-stream；8 场景：opt-in/incognito/memory-off/多轮/passphrase） |
 | `ai_agents/test_custom_agent_factory.py` | 模块 | Custom/Ephemeral 子 Agent `memory_search_tool` rebind + factory build 路径（38 项；`--cov-fail-under=90` on factory） |
 | `ai_agents/test_conversation_search_opt_in_integration.py` | 模块 | conversation-search opt-in 与 tool_setup 绑定集成 |

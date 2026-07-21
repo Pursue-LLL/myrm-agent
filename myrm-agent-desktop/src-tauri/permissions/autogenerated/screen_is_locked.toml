@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-screen-is-locked"
+description = "Enables the screen_is_locked command without any pre-configured scope."
+commands.allow = ["screen_is_locked"]
+
+[[permission]]
+identifier = "deny-screen-is-locked"
+description = "Denies the screen_is_locked command without any pre-configured scope."
+commands.deny = ["screen_is_locked"]

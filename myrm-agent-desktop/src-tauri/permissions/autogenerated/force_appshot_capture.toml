@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-force-appshot-capture"
+description = "Enables the force_appshot_capture command without any pre-configured scope."
+commands.allow = ["force_appshot_capture"]
+
+[[permission]]
+identifier = "deny-force-appshot-capture"
+description = "Denies the force_appshot_capture command without any pre-configured scope."
+commands.deny = ["force_appshot_capture"]

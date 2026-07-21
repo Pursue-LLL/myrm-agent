@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-inline-paste-back"
+description = "Enables the inline_paste_back command without any pre-configured scope."
+commands.allow = ["inline_paste_back"]
+
+[[permission]]
+identifier = "deny-inline-paste-back"
+description = "Denies the inline_paste_back command without any pre-configured scope."
+commands.deny = ["inline_paste_back"]

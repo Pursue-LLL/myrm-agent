@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-close-session-window"
+description = "Enables the close_session_window command without any pre-configured scope."
+commands.allow = ["close_session_window"]
+
+[[permission]]
+identifier = "deny-close-session-window"
+description = "Denies the close_session_window command without any pre-configured scope."
+commands.deny = ["close_session_window"]

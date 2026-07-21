@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-stop-frontend"
+description = "Enables the stop_frontend command without any pre-configured scope."
+commands.allow = ["stop_frontend"]
+
+[[permission]]
+identifier = "deny-stop-frontend"
+description = "Denies the stop_frontend command without any pre-configured scope."
+commands.deny = ["stop_frontend"]

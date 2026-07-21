@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-screen-relock"
+description = "Enables the screen_relock command without any pre-configured scope."
+commands.allow = ["screen_relock"]
+
+[[permission]]
+identifier = "deny-screen-relock"
+description = "Denies the screen_relock command without any pre-configured scope."
+commands.deny = ["screen_relock"]
