@@ -1,13 +1,15 @@
-"""Tests for enrich_model_context_window and _resolve_model_max_input_tokens."""
+"""Tests for model_resolver: enrich_model_context_window, platform headers, and resolution."""
 
 from __future__ import annotations
 
 from unittest.mock import patch
 
 from app.core.channel_bridge.model_resolver import (
+    _build_platform_headers,
     _fallback_model_from_providers,
     _resolve_model_max_input_tokens,
     enrich_model_context_window,
+    resolve_model_config,
 )
 from app.core.types import ModelConfig
 
@@ -101,6 +103,74 @@ class TestEnrichModelContextWindow:
         assert result.base_url == "https://custom.api"
         assert result.api_keys == ["sk-1", "sk-2"]
         assert result.max_context_tokens == 128_000
+
+
+class TestBuildPlatformHeaders:
+    _SETTINGS_PATH = "app.config.settings.settings"
+
+    def test_returns_headers_for_platform_managed_key(self) -> None:
+        with patch(self._SETTINGS_PATH) as mock_settings:
+            mock_settings.control_plane.sandbox_id = "sb-123"
+            mock_settings.control_plane.telemetry_token.get_secret_value.return_value = "tok-abc"
+            result = _build_platform_headers("platform-managed")
+        assert result is not None
+        assert result["extra_headers"]["X-Sandbox-Id"] == "sb-123"
+        assert result["extra_headers"]["X-Telemetry-Token"] == "tok-abc"
+
+    def test_returns_none_for_byok_key(self) -> None:
+        result = _build_platform_headers("sk-user-real-key")
+        assert result is None
+
+    def test_returns_none_when_sandbox_id_empty(self) -> None:
+        with patch(self._SETTINGS_PATH) as mock_settings:
+            mock_settings.control_plane.sandbox_id = ""
+            mock_settings.control_plane.telemetry_token.get_secret_value.return_value = "tok-abc"
+            result = _build_platform_headers("platform-managed")
+        assert result is None
+
+
+class TestResolveOverridePlatformHeaders:
+    """Ensure _resolve_override injects platform headers like _fallback does."""
+
+    _SETTINGS_PATH = "app.config.settings.settings"
+    _PLATFORM_PROVIDERS: dict[str, object] = {
+        "providers": [
+            {
+                "id": "platform-openrouter",
+                "providerType": "openai-compatible",
+                "isEnabled": True,
+                "apiUrl": "https://relay.example.com/llm-relay/v1",
+                "apiKeys": [{"key": "platform-managed", "isActive": True}],
+                "enabledModels": ["google/gemma-3n-e4b-it:free"],
+            }
+        ],
+    }
+
+    def test_override_injects_platform_headers(self) -> None:
+        with patch(self._SETTINGS_PATH) as mock_settings:
+            mock_settings.control_plane.sandbox_id = "sb-456"
+            mock_settings.control_plane.telemetry_token.get_secret_value.return_value = "tok-xyz"
+            cfg = resolve_model_config(
+                self._PLATFORM_PROVIDERS,
+                model_override="platform-openrouter/google/gemma-3n-e4b-it:free",
+            )
+        assert cfg.model_kwargs is not None
+        assert cfg.model_kwargs["extra_headers"]["X-Sandbox-Id"] == "sb-456"
+        assert cfg.model_kwargs["extra_headers"]["X-Telemetry-Token"] == "tok-xyz"
+
+    def test_override_byok_no_platform_headers(self) -> None:
+        byok_providers: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "openai",
+                    "isEnabled": True,
+                    "apiKeys": [{"key": "sk-real-key", "isActive": True}],
+                    "enabledModels": ["gpt-4o"],
+                }
+            ],
+        }
+        cfg = resolve_model_config(byok_providers, model_override="openai/gpt-4o")
+        assert cfg.model_kwargs is None
 
 
 class TestFallbackModelFromProviders:

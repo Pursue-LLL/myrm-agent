@@ -42,7 +42,26 @@ _PROVIDER_API_BASES: dict[str, str] = {
     "siliconflow": "https://api.siliconflow.cn/v1",
 }
 _LOCAL_NO_AUTH_API_KEY_MARKER = "__myrm_local_no_auth__"
+_PLATFORM_MANAGED_KEY = "platform-managed"
 _OPENAI_LIKE_TYPES = {"openai-like", "openai_compatible", "openai-compatible", "openai_like"}
+
+
+def _build_platform_headers(api_key: str) -> dict[str, object] | None:
+    """Inject sandbox identity headers when using a platform-managed credential.
+
+    The relay requires X-Sandbox-Id and X-Telemetry-Token to authenticate
+    requests that carry the "platform-managed" placeholder instead of a virtual key.
+    """
+    if api_key != _PLATFORM_MANAGED_KEY:
+        return None
+    from app.config.settings import settings
+
+    cp = settings.control_plane
+    sandbox_id = cp.sandbox_id
+    token = cp.telemetry_token.get_secret_value()
+    if not sandbox_id or not token:
+        return None
+    return {"extra_headers": {"X-Sandbox-Id": sandbox_id, "X-Telemetry-Token": token}}
 
 
 def resolve_model_config(
@@ -182,6 +201,7 @@ def _fallback_model_from_providers(
                     api_url = str(provider.get("apiUrl") or provider.get("baseURL") or "")
                     api_url = api_url if api_url else None
                     pool_strategy = str(provider.get("credentialPoolStrategy", "")) or None
+                    model_kwargs = _build_platform_headers(all_keys[0])
                     logger.debug("model_resolver: using default model %s", full_model)
                     return ModelConfig(
                         model=full_model,
@@ -189,6 +209,7 @@ def _fallback_model_from_providers(
                         base_url=api_url,
                         api_keys=all_keys if len(all_keys) > 1 else None,
                         credential_pool_strategy=pool_strategy if len(all_keys) > 1 else None,
+                        model_kwargs=model_kwargs,
                     )
 
     raise ConfigIncompleteError(
@@ -246,12 +267,14 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
         api_url = api_url if api_url else None
         pool_strategy = str(p.get("credentialPoolStrategy", "")) or None
         resolved_model = _to_litellm_model(pid, raw_model, ptype or None)
+        model_kwargs = _build_platform_headers(all_keys[0])
         return ModelConfig(
             model=resolved_model,
             api_key=all_keys[0],
             base_url=api_url,
             api_keys=all_keys if len(all_keys) > 1 else None,
             credential_pool_strategy=pool_strategy if len(all_keys) > 1 else None,
+            model_kwargs=model_kwargs,
         )
 
     return None
