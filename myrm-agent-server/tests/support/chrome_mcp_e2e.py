@@ -15,7 +15,7 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from cdp_chat_support import _e2e_api_urlopen, get_e2e_api_url, get_e2e_ui_url  # noqa: E402
+from cdp_chat_support import _e2e_api_urlopen, e2e_runtime_binding, get_e2e_api_url, get_e2e_ui_url  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 
 __all__ = [
@@ -83,6 +83,31 @@ def warm_ui_route(path: str, *, timeout_sec: float = 120.0) -> None:
             raise RuntimeError(f"warm_ui_route GET {url} returned HTTP {response.status}")
 
 
+def _wait_for_shpoib_runtime_ready(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    timeout_sec: float = 60.0,
+) -> None:
+    """Wait until mux-injected private Backend binding is healthy after reload."""
+    wait_for_state(
+        client,
+        page,
+        """(async () => {
+          if (typeof window.__MYRM_E2E_RUNTIME_READY__ === 'undefined') {
+            return { ready: false, phase: 'missing' };
+          }
+          try {
+            await window.__MYRM_E2E_RUNTIME_READY__;
+            return { ready: true };
+          } catch (error) {
+            return { ready: false, phase: 'error', error: String(error) };
+          }
+        })()""",
+        timeout_sec=timeout_sec,
+    )
+
+
 @contextmanager
 def open_mcp_page(
     url: str,
@@ -92,6 +117,10 @@ def open_mcp_page(
     with ChromeMcpClient() as client:
         page = client.new_page(url, timeout_ms=timeout_ms)
         ensure_desktop_viewport(client, page)
+        if e2e_runtime_binding() is not None:
+            resolved_timeout_ms = timeout_ms if timeout_ms is not None else 60_000
+            client.reload(page, timeout_ms=resolved_timeout_ms)
+            _wait_for_shpoib_runtime_ready(client, page)
         wait_for_state(
             client,
             page,
