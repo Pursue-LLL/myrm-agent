@@ -2,8 +2,8 @@
 
 use tauri::State;
 
-use crate::cli_agent_types::PermissionMode;
 use super::{ensure_sidecar_ready, AgentSystemState};
+use crate::cli_agent_types::PermissionMode;
 
 #[tauri::command]
 pub async fn respond_agent_permission(

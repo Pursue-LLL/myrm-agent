@@ -49,6 +49,7 @@
 |------|------|
 | `__tests__/SystemStatusBanner.test.tsx` | Banner 展示/隐藏、recovered toast、dismiss、i18n key 绑定 |
 | `__tests__/SystemStatusBanner.locales.test.ts` | 五语言 `notifications.database*` keys 完整性 |
+| `__tests__/crash-recovery-dialog.test.tsx` | 容灾对话框高敏导出链路：先签发票据再执行导出，目录选择取消不签发票据，拒绝/取消场景错误可见 |
 | `__tests__/` | 其他 colocated 单测：BootScreen、LocalBackendUnavailableBanner、FlowPad、PWA 等壳层组件 |
 
 ## 依赖

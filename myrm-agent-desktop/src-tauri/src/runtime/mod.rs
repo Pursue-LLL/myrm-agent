@@ -29,10 +29,8 @@ pub use appshot::{
     handle_voice_ptt_stop, APPSHOT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
 };
 pub use inline_input::{handle_inline_input_shortcut, paste_back, INLINE_INPUT_SHORTCUT_STR};
-pub use nextjs_frontend::{start_frontend, NextJSFrontend, stop_frontend};
-pub use python_backend::{
-    start_backend_with_config, stop_backend, PythonBackend,
-};
+pub use nextjs_frontend::{start_frontend, stop_frontend, NextJSFrontend};
+pub use python_backend::{start_backend_with_config, stop_backend, PythonBackend};
 pub use setup_token::SetupTokenState;
 
 /// Host environment variables that must be stripped before spawning child processes.

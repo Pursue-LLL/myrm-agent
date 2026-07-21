@@ -17,6 +17,7 @@ use std::process::Command;
 use tauri::State;
 
 use crate::config::ConfigManager;
+use crate::ipc_security::{self, SensitiveAction};
 
 fn resolve_data_dir(config_manager: &ConfigManager) -> PathBuf {
     let config = config_manager.load();
@@ -64,10 +65,12 @@ fn reveal_in_file_manager(path: &std::path::Path) -> Result<(), String> {
 }
 
 /// 将本地 SQLite 数据库文件（含 WAL）导出到用户指定目录。
-/// 无需 Python 后端即可执行，利用 Rust 直接操作文件系统。
+/// 需要先通过高敏操作意图票据校验；无需 Python 后端即可执行。
 #[tauri::command]
 pub async fn export_local_sqlite(
+    app: tauri::AppHandle,
     target_dir: String,
+    action_ticket: String,
     config_manager: State<'_, ConfigManager>,
 ) -> Result<String, String> {
     let data_dir = resolve_data_dir(&config_manager);
@@ -82,6 +85,14 @@ pub async fn export_local_sqlite(
         return Err("Target directory does not exist".to_string());
     }
 
+    ipc_security::consume_sensitive_ticket(SensitiveAction::ExportLocalSqlite, &action_ticket)?;
+    ipc_security::require_sensitive_action_confirmation(
+        &app,
+        SensitiveAction::ExportLocalSqlite,
+        Some(&target_dir),
+    )
+    .await?;
+
     let extensions = ["", "-wal", "-shm"];
     let mut copied_count = 0u32;
 
@@ -94,7 +105,10 @@ pub async fn export_local_sqlite(
         }
     }
 
-    Ok(format!("Exported {} file(s) to {}", copied_count, target_dir))
+    Ok(format!(
+        "Exported {} file(s) to {}",
+        copied_count, target_dir
+    ))
 }
 
 /// 在系统文件管理器中打开指定类型的应用目录。
@@ -110,8 +124,7 @@ pub async fn reveal_app_folder(
     };
 
     if !path.exists() {
-        std::fs::create_dir_all(&path)
-            .map_err(|e| format!("Failed to create directory: {}", e))?;
+        std::fs::create_dir_all(&path).map_err(|e| format!("Failed to create directory: {}", e))?;
     }
 
     reveal_in_file_manager(&path)

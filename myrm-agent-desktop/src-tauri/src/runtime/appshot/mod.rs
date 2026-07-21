@@ -141,8 +141,13 @@ fn do_capture_and_emit(app: &AppHandle) {
         capture_windows::capture_appshot_windows();
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let (screenshot_b64, window_title, extracted_text, needs_permission, _selected) =
-        (String::new(), String::new(), String::new(), false, String::new());
+    let (screenshot_b64, window_title, extracted_text, needs_permission, _selected) = (
+        String::new(),
+        String::new(),
+        String::new(),
+        false,
+        String::new(),
+    );
 
     let payload = serde_json::json!({
         "screenshot": screenshot_b64,

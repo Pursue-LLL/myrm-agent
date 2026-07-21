@@ -6,14 +6,14 @@ use std::time::Duration;
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
+use super::{lifecycle, tray};
 use crate::commands::agent::AgentSystemState;
 use crate::config::{BackendConfig, ConfigManager, FrontendConfig};
 use crate::runtime::{
     bootstrap_agent_runner, resolve_agent_runner_path, start_backend_with_config, start_frontend,
-    APPSHOT_SHORTCUT_STR, INLINE_INPUT_SHORTCUT_STR, NextJSFrontend, PythonBackend,
-    SetupTokenState, VOICE_PTT_SHORTCUT_STR,
+    NextJSFrontend, PythonBackend, SetupTokenState, APPSHOT_SHORTCUT_STR,
+    INLINE_INPUT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
 };
-use super::{lifecycle, tray};
 use crate::{commands, runtime, utils};
 
 pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -42,7 +42,8 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         }
     });
 
-    let config_manager = ConfigManager::new(app.handle()).expect("Failed to initialize config manager");
+    let config_manager =
+        ConfigManager::new(app.handle()).expect("Failed to initialize config manager");
 
     let system_config = config_manager.load();
     println!("📋 Loaded config: {:?}", system_config);
@@ -139,7 +140,8 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
             }
             Err(e) => {
                 eprintln!("❌ Failed to auto-start backend: {}", e);
-                let tooltip = "MyrmAgent - Backend failed to start. Restart the app or check Settings.";
+                let tooltip =
+                    "MyrmAgent - Backend failed to start. Restart the app or check Settings.";
                 tray::update_native_tray_status(&app_handle, "error", tooltip);
                 let _ = app_handle.emit("backend-start-failed", e.clone());
             }

@@ -5,8 +5,8 @@ use tauri_plugin_global_shortcut::{Shortcut, ShortcutEvent, ShortcutState};
 
 use crate::runtime::{
     handle_appshot_shortcut, handle_inline_input_shortcut, handle_toggle_window,
-    handle_voice_ptt_start, handle_voice_ptt_stop, APPSHOT_SHORTCUT_STR,
-    INLINE_INPUT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
+    handle_voice_ptt_start, handle_voice_ptt_stop, APPSHOT_SHORTCUT_STR, INLINE_INPUT_SHORTCUT_STR,
+    VOICE_PTT_SHORTCUT_STR,
 };
 
 pub fn handle_global_shortcut(app: &AppHandle, shortcut: &Shortcut, event: ShortcutEvent) {

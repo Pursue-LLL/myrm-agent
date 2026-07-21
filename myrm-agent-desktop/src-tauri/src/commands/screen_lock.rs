@@ -45,7 +45,9 @@ pub fn screen_unlock(
         return Ok(false); // Screen not locked
     }
 
-    let reason_str = reason.as_deref().unwrap_or("CU session requires screen access");
+    let reason_str = reason
+        .as_deref()
+        .unwrap_or("CU session requires screen access");
     match ScreenUnlockGuard::unlock(reason_str) {
         Ok(g) => {
             *guard = Some(g);

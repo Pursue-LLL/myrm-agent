@@ -102,7 +102,9 @@ mod platform {
     impl CfString {
         fn new(value: &str) -> Result<Self, PowerError> {
             let c_string = CString::new(value).map_err(|_| {
-                PowerError::PlatformError("Power assertion strings must not contain NUL bytes".into())
+                PowerError::PlatformError(
+                    "Power assertion strings must not contain NUL bytes".into(),
+                )
             })?;
             let string_ref =
                 unsafe { CFStringCreateWithCString(ptr::null(), c_string.as_ptr(), UTF8_ENCODING) };
@@ -134,7 +136,7 @@ mod platform {
     impl PlatformLock {
         pub fn acquire(reason: &str, prevent_display_sleep: bool) -> Result<Self, PowerError> {
             let mut assertion_ids = Vec::new();
-            
+
             // We always want to prevent idle system sleep and system sleep on AC
             let kinds = if prevent_display_sleep {
                 vec![

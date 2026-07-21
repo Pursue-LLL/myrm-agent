@@ -282,8 +282,12 @@ mod tests {
     fn test_dangerous_commands() {
         assert!(PermissionManager::is_dangerous_command("rm -rf /"));
         assert!(PermissionManager::is_dangerous_command("sudo apt update"));
-        assert!(PermissionManager::is_dangerous_command("git push origin main"));
-        assert!(PermissionManager::is_dangerous_command("curl http://example.com"));
+        assert!(PermissionManager::is_dangerous_command(
+            "git push origin main"
+        ));
+        assert!(PermissionManager::is_dangerous_command(
+            "curl http://example.com"
+        ));
 
         assert!(!PermissionManager::is_dangerous_command("ls -la"));
         assert!(!PermissionManager::is_dangerous_command("cat file.txt"));

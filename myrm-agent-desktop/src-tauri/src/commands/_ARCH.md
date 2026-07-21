@@ -9,6 +9,8 @@
 [POS]
 Tauri IPC 薄封装层；业务逻辑委托 runtime 与子模块。
 
+> 注：命令调度前统一经过 `ipc_security` sender gate（app 层），并对高敏命令采用“短时意图票据 + 原生确认（多语言文案 + 主窗口 parent 绑定）”双校验（如数据迁移/数据库导出）。
+
 ## 架构概述
 
 Tauri `invoke` IPC 命令层：薄封装转发到 runtime、agent_runner_rpc、sessions、utils。

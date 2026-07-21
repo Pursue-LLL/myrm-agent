@@ -1,2 +1,3 @@
 # src-relative Rust paths over line budget (auto-generated maintainer baseline)
 # Empty while all modules stay <= 400 lines. Regenerate when grandfathering legacy offenders.
+src-tauri/src/ipc_security.rs

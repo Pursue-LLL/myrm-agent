@@ -68,7 +68,5 @@ pub enum SidecarEvent {
         error: Option<String>,
     },
     /// 错误
-    Error {
-        message: String,
-    },
+    Error { message: String },
 }

@@ -136,6 +136,7 @@ export function BackgroundTaskRow({
                 variant="ghost"
                 size="sm"
                 className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                data-testid="background-task-cancel"
                 onClick={() => onCancel(task.task_id)}
               >
                 <IconStop className="mr-1 h-3 w-3" />

@@ -152,20 +152,14 @@ fn pet_overlay_html(sheet_url: &str, size: f64, initial_row: u32) -> String {
 }
 
 #[tauri::command]
-pub fn show_pet_overlay(
-    app: AppHandle,
-    payload: PetOverlayPayload,
-) -> Result<(), String> {
+pub fn show_pet_overlay(app: AppHandle, payload: PetOverlayPayload) -> Result<(), String> {
     hide_pet_overlay(app.clone())?;
 
     let size = payload.size.unwrap_or(PET_WINDOW_SIZE);
     let initial_row = payload.initial_row.unwrap_or(0);
 
     let html = pet_overlay_html(&payload.sheet_url, size, initial_row);
-    let data_url = format!(
-        "data:text/html;base64,{}",
-        STANDARD.encode(html.as_bytes())
-    );
+    let data_url = format!("data:text/html;base64,{}", STANDARD.encode(html.as_bytes()));
     let overlay_url = Url::parse(&data_url).map_err(|e| e.to_string())?;
 
     let _window = WebviewWindowBuilder::new(

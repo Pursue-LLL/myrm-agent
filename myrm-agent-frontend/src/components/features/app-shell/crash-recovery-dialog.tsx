@@ -42,8 +42,12 @@ export default function CrashRecoveryDialog({ visible, errorMessage, onDismiss }
         setBusy(null);
         return;
       }
+      const actionTicket = await invokeTauriCommand<string>('issue_sensitive_action_ticket', {
+        action: 'export_local_sqlite',
+      });
       const msg = await invokeTauriCommand<string>('export_local_sqlite', {
         targetDir: selected,
+        actionTicket,
       });
       setResult(msg);
     } catch (e) {

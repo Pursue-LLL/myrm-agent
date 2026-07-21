@@ -23,8 +23,8 @@ use std::sync::{Arc, RwLock as StdRwLock};
 
 use tokio::sync::{broadcast, mpsc, Mutex};
 
-pub use types::SidecarEvent;
 use types::RPCRequest;
+pub use types::SidecarEvent;
 
 /// Agent Runner JSON-RPC 进程管理器
 pub struct SidecarManager {
@@ -65,7 +65,11 @@ impl SidecarManager {
                 let mut probe = Command::new("bun");
                 probe.arg("--version");
                 crate::runtime::suppress_console_window(&mut probe);
-                if probe.output().is_ok() { "bun" } else { "node" }
+                if probe.output().is_ok() {
+                    "bun"
+                } else {
+                    "node"
+                }
             };
             let mut c = Command::new(runner);
             c.arg(sidecar_path);

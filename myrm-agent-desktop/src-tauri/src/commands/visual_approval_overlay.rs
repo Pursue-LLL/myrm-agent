@@ -24,7 +24,11 @@ pub struct VisualApprovalOverlayPayload {
     pub label: Option<String>,
 }
 
-fn scaled_box(payload: &VisualApprovalOverlayPayload, screen_w: f64, screen_h: f64) -> (f64, f64, f64, f64) {
+fn scaled_box(
+    payload: &VisualApprovalOverlayPayload,
+    screen_w: f64,
+    screen_h: f64,
+) -> (f64, f64, f64, f64) {
     if payload.viewport_width <= 0.0 || payload.viewport_height <= 0.0 {
         return (payload.x, payload.y, payload.width, payload.height);
     }
@@ -59,7 +63,12 @@ fn resolve_overlay_box(
     scaled_box(payload, screen_w, screen_h)
 }
 
-fn monitor_dimensions_compatible(expected_w: f64, expected_h: f64, monitor_w: f64, monitor_h: f64) -> bool {
+fn monitor_dimensions_compatible(
+    expected_w: f64,
+    expected_h: f64,
+    monitor_w: f64,
+    monitor_h: f64,
+) -> bool {
     if expected_w <= 0.0 || expected_h <= 0.0 {
         return false;
     }
@@ -207,17 +216,19 @@ pub fn show_visual_approval_overlay(
     let pos_y = position.y as f64 / scale_factor;
 
     if payload.coordinate_mode == "screen"
-        && !monitor_dimensions_compatible(payload.screen_width, payload.screen_height, screen_w, screen_h)
+        && !monitor_dimensions_compatible(
+            payload.screen_width,
+            payload.screen_height,
+            screen_w,
+            screen_h,
+        )
     {
         return Err("Screen dimensions mismatch; overlay suppressed".to_string());
     }
 
     let (bx, by, bw, bh) = resolve_overlay_box(&payload, screen_w, screen_h, pos_x, pos_y);
     let html = overlay_html(bx, by, bw, bh, payload.label.as_deref());
-    let data_url = format!(
-        "data:text/html;base64,{}",
-        STANDARD.encode(html.as_bytes())
-    );
+    let data_url = format!("data:text/html;base64,{}", STANDARD.encode(html.as_bytes()));
     let overlay_url = Url::parse(&data_url).map_err(|error| error.to_string())?;
 
     let window = WebviewWindowBuilder::new(
@@ -340,7 +351,9 @@ mod tests {
 
     #[test]
     fn rejects_monitor_when_screen_dimensions_differ_too_much() {
-        assert!(!monitor_dimensions_compatible(1440.0, 900.0, 1920.0, 1080.0));
+        assert!(!monitor_dimensions_compatible(
+            1440.0, 900.0, 1920.0, 1080.0
+        ));
         assert!(monitor_dimensions_compatible(1440.0, 900.0, 1450.0, 905.0));
     }
 }

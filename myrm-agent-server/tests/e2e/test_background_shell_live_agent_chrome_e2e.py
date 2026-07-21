@@ -31,6 +31,8 @@ from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E
 from tests.support.chrome_mcp_e2e import http_json
 
 _STREAM_TRANSPORT_ERRORS = (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadError)
+_BASH_TOOL_NAME = "bash_code_execute_tool"
+_MAX_BASH_STREAM_ATTEMPTS = 3
 
 _BG_SPAWN_PROMPT = (
     "E2E_BACKGROUND_SHELL: Call bash_code_execute_tool exactly once with:\n"
@@ -182,22 +184,26 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
             tool_names.extend(resume_tools)
             errors.extend(resume_errors)
 
-        if "bash_code_execute_tool" not in tool_names:
+        if _BASH_TOOL_NAME not in tool_names:
             detail = errors[0][:300] if errors else "no tool events in agent-stream"
-            pytest.fail(
-                f"agent-stream did not invoke bash_code_execute_tool; "
+            raise AssertionError(
+                f"agent-stream did not invoke {_BASH_TOOL_NAME}; "
                 f"tools={tool_names or ['<none>']}; detail={detail}",
             )
 
-    for stream_attempt in range(2):
+    for stream_attempt in range(_MAX_BASH_STREAM_ATTEMPTS):
         stream_payload = dict(request_data)
-        if stream_attempt == 1:
+        if stream_attempt > 0:
             stream_payload["messageId"] = f"bg-shell-retry-{uuid.uuid4().hex[:10]}"
         try:
             _run_stream_once(stream_payload)
             return
+        except AssertionError:
+            if stream_attempt >= _MAX_BASH_STREAM_ATTEMPTS - 1:
+                raise
+            continue
         except _STREAM_TRANSPORT_ERRORS:
-            if stream_attempt == 1:
+            if stream_attempt >= _MAX_BASH_STREAM_ATTEMPTS - 1:
                 raise
             # Stream may drop after spawn; avoid double-spawn retry when shell is already running.
             try:

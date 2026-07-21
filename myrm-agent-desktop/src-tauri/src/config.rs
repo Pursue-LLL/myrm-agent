@@ -29,16 +29,16 @@ pub struct SystemConfig {
     /// 是否启用 WebUI 模式
     #[serde(rename = "enableWebUIMode")]
     pub enable_webui_mode: bool,
-    
+
     /// 是否允许远程访问
     pub enable_remote_access: bool,
-    
+
     /// WebUI 前端服务端口（Next.js Server）
     pub webui_port: u16,
-    
+
     /// API 后端服务端口（Python FastAPI）
     pub api_port: u16,
-    
+
     /// 是否需要密码（远程访问时强制开启）
     pub require_password: bool,
 
@@ -49,10 +49,10 @@ pub struct SystemConfig {
     /// 开机自动启动（登录后后台运行，仅显示托盘图标）
     #[serde(default = "default_auto_launch_at_login")]
     pub auto_launch_at_login: bool,
-    
+
     /// 配置文件版本（用于未来迁移）
     pub config_version: u8,
-    
+
     /// 全局唤醒快捷键
     #[serde(default = "default_global_shortcut")]
     pub global_shortcut: String,
@@ -213,18 +213,18 @@ impl ConfigManager {
             .path()
             .app_config_dir()
             .map_err(|e| format!("Failed to get config dir: {}", e))?;
-        
+
         // 确保配置目录存在
         fs::create_dir_all(&config_dir)
             .map_err(|e| format!("Failed to create config dir: {}", e))?;
-        
+
         let config_path = config_dir.join("system_config.json");
-        
+
         println!("📂 Config path: {:?}", config_path);
-        
+
         Ok(Self { config_path })
     }
-    
+
     /// 加载配置
     pub fn load(&self) -> SystemConfig {
         if let Ok(content) = fs::read_to_string(&self.config_path) {
@@ -243,19 +243,18 @@ impl ConfigManager {
             SystemConfig::default()
         }
     }
-    
+
     /// 保存配置
     pub fn save(&self, config: &SystemConfig) -> Result<(), String> {
         let json = serde_json::to_string_pretty(config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
-        
-        fs::write(&self.config_path, json)
-            .map_err(|e| format!("Failed to write config: {}", e))?;
-        
+
+        fs::write(&self.config_path, json).map_err(|e| format!("Failed to write config: {}", e))?;
+
         println!("✅ Config saved to {:?}", self.config_path);
         Ok(())
     }
-    
+
     /// 重置为默认配置
     pub fn reset(&self) -> Result<(), String> {
         let default_config = SystemConfig::default();
@@ -282,12 +281,18 @@ mod tests {
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: SystemConfig = serde_json::from_str(&json).unwrap();
 
-        assert_eq!(config.auto_launch_at_login, deserialized.auto_launch_at_login);
+        assert_eq!(
+            config.auto_launch_at_login,
+            deserialized.auto_launch_at_login
+        );
         assert_eq!(config.close_to_tray, deserialized.close_to_tray);
         assert_eq!(config.enable_webui_mode, deserialized.enable_webui_mode);
         assert_eq!(config.global_shortcut, deserialized.global_shortcut);
         assert_eq!(config.voice_ptt_shortcut, deserialized.voice_ptt_shortcut);
-        assert_eq!(config.inline_input_shortcut, deserialized.inline_input_shortcut);
+        assert_eq!(
+            config.inline_input_shortcut,
+            deserialized.inline_input_shortcut
+        );
     }
 
     #[test]
@@ -318,7 +323,10 @@ mod tests {
         }"#;
 
         let config: SystemConfig = serde_json::from_str(legacy_json).unwrap();
-        assert!(config.auto_launch_at_login, "should default to true for legacy configs");
+        assert!(
+            config.auto_launch_at_login,
+            "should default to true for legacy configs"
+        );
     }
 
     #[test]

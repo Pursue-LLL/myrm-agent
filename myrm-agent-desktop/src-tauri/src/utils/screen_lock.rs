@@ -12,7 +12,6 @@
 /// - Unlock is RAII-guarded: screen re-locks automatically on guard drop
 /// - Physical input detection triggers immediate re-lock
 /// - All unlock/lock operations are logged for audit
-
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -183,9 +182,7 @@ mod platform {
         let output = Command::new("osascript")
             .args(["-e", &script])
             .output()
-            .map_err(|e| {
-                ScreenLockError::OperationFailed(format!("osascript failed: {}", e))
-            })?;
+            .map_err(|e| ScreenLockError::OperationFailed(format!("osascript failed: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -308,10 +305,7 @@ mod platform {
         std::process::Command::new("loginctl")
             .args(["show-session", "self", "-p", "LockedHint"])
             .output()
-            .map(|o| {
-                String::from_utf8_lossy(&o.stdout)
-                    .contains("LockedHint=yes")
-            })
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains("LockedHint=yes"))
             .unwrap_or(false)
     }
 

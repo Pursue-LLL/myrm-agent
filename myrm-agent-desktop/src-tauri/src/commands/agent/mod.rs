@@ -19,10 +19,10 @@ pub mod session;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use crate::agent_runner_rpc::SidecarManager;
 use crate::cli_agent_types::{adapter_display_name, AdapterInfo};
 use crate::permissions::PermissionManager;
 use crate::sessions::SessionManager;
-use crate::agent_runner_rpc::SidecarManager;
 
 // ============================================================================
 // Sidecar 状态

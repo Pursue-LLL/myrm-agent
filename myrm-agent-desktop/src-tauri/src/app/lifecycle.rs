@@ -16,8 +16,8 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tokio::time::timeout;
 
-use crate::runtime::{stop_backend, stop_frontend, NextJSFrontend, PythonBackend};
 use crate::runtime::watchdog::WatchdogHandle;
+use crate::runtime::{stop_backend, stop_frontend, NextJSFrontend, PythonBackend};
 
 static SHUTDOWN_INITIATED: AtomicBool = AtomicBool::new(false);
 
@@ -34,7 +34,10 @@ async fn send_shutdown_signal(port: u16) -> Result<(), String> {
             if response.status().is_success() {
                 Ok(())
             } else {
-                Err(format!("Shutdown signal failed with status: {}", response.status()))
+                Err(format!(
+                    "Shutdown signal failed with status: {}",
+                    response.status()
+                ))
             }
         }
         Err(e) => Err(format!("Shutdown request failed: {}", e)),
@@ -64,7 +67,7 @@ pub async fn graceful_shutdown(app: AppHandle) {
 
     println!("Waiting for backend to gracefully exit...");
     let backend_state = app.state::<PythonBackend>();
-    
+
     let wait_result = timeout(Duration::from_secs(5), async {
         loop {
             let is_running = {
@@ -76,7 +79,8 @@ pub async fn graceful_shutdown(app: AppHandle) {
             }
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
-    }).await;
+    })
+    .await;
 
     if wait_result.is_err() {
         println!("Backend did not exit gracefully within timeout, forcing kill...");
@@ -85,10 +89,10 @@ pub async fn graceful_shutdown(app: AppHandle) {
     }
 
     let _ = stop_backend(backend_state);
-    
+
     let frontend_state = app.state::<NextJSFrontend>();
     let _ = stop_frontend(frontend_state);
-    
+
     println!("Graceful shutdown complete.");
 }
 

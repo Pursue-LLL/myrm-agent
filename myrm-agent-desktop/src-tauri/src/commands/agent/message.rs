@@ -2,8 +2,8 @@
 
 use tauri::State;
 
-use crate::cli_agent_types::SessionStatus;
 use super::{ensure_sidecar_ready, AgentSystemState};
+use crate::cli_agent_types::SessionStatus;
 
 /// 发送消息到 Agent（事件名: `agent:message:{session_id}`）
 #[tauri::command]

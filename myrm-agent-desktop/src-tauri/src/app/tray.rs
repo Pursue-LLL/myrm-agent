@@ -13,9 +13,9 @@
 //! 系统托盘模块。提供 Tray 菜单快捷操作和动态状态 tooltip。
 
 use tauri::image::Image;
-use tauri::{AppHandle, Emitter, Manager};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Emitter, Manager};
 
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
@@ -47,13 +47,21 @@ fn show_and_navigate(app: &AppHandle, event_name: &str) {
 }
 
 fn load_tray_icon() -> Result<Image<'static>, Box<dyn std::error::Error>> {
-    Ok(Image::from_bytes(include_bytes!("../../icons/tray_icon@2x.png"))?)
+    Ok(Image::from_bytes(include_bytes!(
+        "../../icons/tray_icon@2x.png"
+    ))?)
 }
 
-pub fn load_tray_icon_for_status(status: &str) -> Result<Image<'static>, Box<dyn std::error::Error>> {
+pub fn load_tray_icon_for_status(
+    status: &str,
+) -> Result<Image<'static>, Box<dyn std::error::Error>> {
     match status {
-        "busy" => Ok(Image::from_bytes(include_bytes!("../../icons/tray_icon_busy@2x.png"))?),
-        "degraded" | "error" => Ok(Image::from_bytes(include_bytes!("../../icons/tray_icon_degraded@2x.png"))?),
+        "busy" => Ok(Image::from_bytes(include_bytes!(
+            "../../icons/tray_icon_busy@2x.png"
+        ))?),
+        "degraded" | "error" => Ok(Image::from_bytes(include_bytes!(
+            "../../icons/tray_icon_degraded@2x.png"
+        ))?),
         _ => load_tray_icon(),
     }
 }
@@ -67,11 +75,18 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let sep2 = PredefinedMenuItem::separator(app)?;
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
-    let menu = Menu::with_items(app, &[
-        &show_i, &new_chat_i, &sep1,
-        &settings_i, &workspace_i, &sep2,
-        &quit_i,
-    ])?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &show_i,
+            &new_chat_i,
+            &sep1,
+            &settings_i,
+            &workspace_i,
+            &sep2,
+            &quit_i,
+        ],
+    )?;
 
     let mut builder = TrayIconBuilder::with_id("main")
         .icon(load_tray_icon()?)
@@ -103,7 +118,8 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
                 ..
-            } = event {
+            } = event
+            {
                 show_main_window(tray.app_handle());
             }
         })
@@ -115,7 +131,11 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 /// 根据 Agent 运行状态更新系统托盘图标与 tooltip。
 /// 前端 `useTrayStatus` 在全局 liveness 状态变化时调用此命令。
 #[tauri::command]
-pub fn set_tray_status(app: AppHandle, status: String, tooltip: Option<String>) -> Result<(), String> {
+pub fn set_tray_status(
+    app: AppHandle,
+    status: String,
+    tooltip: Option<String>,
+) -> Result<(), String> {
     if let Some(tray) = app.tray_by_id("main") {
         let text = tooltip.unwrap_or_else(|| default_tray_tooltip(&status));
         tray.set_tooltip(Some(text))

@@ -173,13 +173,9 @@ async fn restart_backend(app: &AppHandle) -> Result<(), String> {
 
     let backend_state = app.state::<PythonBackend>();
 
-    crate::runtime::start_backend_with_config(
-        app.clone(),
-        backend_state,
-        backend_config,
-    )
-    .await
-    .map(|_| ())
+    crate::runtime::start_backend_with_config(app.clone(), backend_state, backend_config)
+        .await
+        .map(|_| ())
 }
 
 fn update_tray_status(app: &AppHandle, status: &str) {

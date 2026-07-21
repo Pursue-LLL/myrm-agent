@@ -2,9 +2,9 @@
 
 use tauri::State;
 
+use super::{ensure_sidecar_ready, AgentSystemState};
 use crate::cli_agent_types::{PermissionMode, SessionStatus};
 use crate::sessions::Session;
-use super::{ensure_sidecar_ready, AgentSystemState};
 
 /// 创建 Agent 会话
 #[tauri::command]

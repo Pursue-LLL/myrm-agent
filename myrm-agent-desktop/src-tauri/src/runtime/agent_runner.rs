@@ -16,8 +16,8 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::commands::agent::{AgentSystemState, SidecarStatus};
 use crate::agent_runner_rpc;
+use crate::commands::agent::{AgentSystemState, SidecarStatus};
 
 /// 解析 Agent Runner 可执行路径（开发：`sidecar/agent-runner/src/index.ts`；生产：bundled 二进制）
 pub fn resolve_agent_runner_path(app: &AppHandle) -> String {
@@ -58,9 +58,7 @@ pub fn bootstrap_agent_runner(agent_system: Arc<AgentSystemState>, app: &AppHand
         match sidecar_guard.start(&sidecar_path).await {
             Ok(_) => {
                 println!("✅ Agent sidecar started");
-                agent_system
-                    .set_sidecar_status(SidecarStatus::Ready)
-                    .await;
+                agent_system.set_sidecar_status(SidecarStatus::Ready).await;
                 let _ = app_handle.emit("agent-sidecar-ready", ());
 
                 let mut event_rx = sidecar_guard.subscribe_events();
@@ -86,7 +84,10 @@ pub fn bootstrap_agent_runner(agent_system: Arc<AgentSystemState>, app: &AppHand
 
 fn forward_sidecar_event(app: &AppHandle, event: &agent_runner_rpc::SidecarEvent) {
     match event {
-        agent_runner_rpc::SidecarEvent::AgentMessage { session_id, message } => {
+        agent_runner_rpc::SidecarEvent::AgentMessage {
+            session_id,
+            message,
+        } => {
             let event_name = format!("agent:message:{}", session_id);
             let _ = app.emit(&event_name, message);
         }

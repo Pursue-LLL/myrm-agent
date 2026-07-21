@@ -73,7 +73,8 @@ const StorageCard = memo<{
       toast.info(t('storageMigrating'));
 
       const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('migrate_data_dir', { newDir: selectedDir });
+      const actionTicket = await invoke<string>('issue_sensitive_action_ticket', { action: 'migrate_data_dir' });
+      await invoke('migrate_data_dir', { newDir: selectedDir, actionTicket });
 
       onDataDirChange(selectedDir);
       toast.success(t('storageMigrateSuccess'));

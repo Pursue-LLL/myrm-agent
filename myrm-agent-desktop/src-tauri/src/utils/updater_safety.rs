@@ -51,7 +51,9 @@ pub enum UpdaterPubkeySafety {
 pub fn check_updater_pubkey_safety() -> UpdaterPubkeySafety {
     let config: serde_json::Value = match serde_json::from_str(TAURI_CONFIG_JSON) {
         Ok(v) => v,
-        Err(e) => return UpdaterPubkeySafety::Invalid(format!("parse tauri.conf.json failed: {e}")),
+        Err(e) => {
+            return UpdaterPubkeySafety::Invalid(format!("parse tauri.conf.json failed: {e}"))
+        }
     };
 
     let pubkey = match config
@@ -87,9 +89,7 @@ fn emit_dev_warning(pubkey: &str) {
     eprintln!("⚠️  OTA 自动更新功能在当前 dev 构建中已被运行时禁用。");
     eprintln!("⚠️  ");
     eprintln!("⚠️  生产发布前必须执行以下步骤：");
-    eprintln!(
-        "⚠️    1. cd myrm-agent-desktop && bun x @tauri-apps/cli signer generate \\"
-    );
+    eprintln!("⚠️    1. cd myrm-agent-desktop && bun x @tauri-apps/cli signer generate \\");
     eprintln!("⚠️         -w ~/.tauri/myrmagent.key");
     eprintln!("⚠️    2. 将公钥粘贴到 tauri.conf.json#plugins.updater.pubkey");
     eprintln!("⚠️    3. 将私钥内容和 passphrase 设为 GitHub Secret：");
@@ -105,7 +105,9 @@ fn emit_prod_error(pubkey: &str) {
     eprintln!("❌  CRITICAL: Production build with placeholder Updater pubkey: {pubkey}");
     eprintln!("❌  This is a supply-chain security risk. Refusing to enable OTA updates.");
     eprintln!("❌  ");
-    eprintln!("❌  See myrm-agent-desktop/DESKTOP_RELEASE_SYSTEM.md for the key generation procedure.");
+    eprintln!(
+        "❌  See myrm-agent-desktop/DESKTOP_RELEASE_SYSTEM.md for the key generation procedure."
+    );
     eprintln!("❌  ════════════════════════════════════════════════════════════════════");
 }
 

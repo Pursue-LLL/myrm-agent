@@ -26,7 +26,10 @@ mod tests {
         let session = Session::new("claude-code", "/home/user", PermissionMode::Ask);
         assert!(!session.id.is_empty());
         assert_eq!(session.agent_id, "claude-code");
-        assert_eq!(session.status, crate::cli_agent_types::SessionStatus::Pending);
+        assert_eq!(
+            session.status,
+            crate::cli_agent_types::SessionStatus::Pending
+        );
         assert!(!session.flagged);
     }
 

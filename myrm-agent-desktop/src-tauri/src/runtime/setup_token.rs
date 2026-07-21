@@ -11,6 +11,9 @@ pub struct SetupTokenState {
 /// 获取 Setup Token（仅 Tauri WebView 可调用，远程浏览器无法触发）
 #[tauri::command]
 pub fn get_setup_token(state: State<'_, SetupTokenState>) -> Result<Option<String>, String> {
-    let guard = state.token.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let guard = state
+        .token
+        .lock()
+        .map_err(|e| format!("Lock error: {}", e))?;
     Ok(guard.clone())
 }

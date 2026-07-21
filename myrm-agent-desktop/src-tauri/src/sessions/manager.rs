@@ -98,7 +98,10 @@ impl SessionManager {
     }
 
     pub async fn update_session(&self, session: Session) {
-        self.sessions.write().await.insert(session.id.clone(), session);
+        self.sessions
+            .write()
+            .await
+            .insert(session.id.clone(), session);
         self.save_to_file().await;
     }
 

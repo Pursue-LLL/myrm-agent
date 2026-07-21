@@ -20,7 +20,9 @@ use std::thread;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
-use super::appshot::{current_timestamp_ms, get_frontmost_app_name, is_app_excluded, load_excluded_apps};
+use super::appshot::{
+    current_timestamp_ms, get_frontmost_app_name, is_app_excluded, load_excluded_apps,
+};
 
 /// 用于在全局快捷键 handler 中识别 Inline Input 绑定
 pub static INLINE_INPUT_SHORTCUT_STR: Mutex<String> = Mutex::new(String::new());
@@ -282,4 +284,3 @@ fn activate_pid(pid: u32) {
         let _ = pid;
     }
 }
-
