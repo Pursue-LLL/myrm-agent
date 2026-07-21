@@ -88,9 +88,6 @@ class SqlAlchemyCronStore:
     ) -> list[CronJob]:
         stmt = select(CronJobModel)
 
-        if user_id is not None:
-            stmt = stmt.where(CronJobModel.user_id == user_id)
-
         if chat_id is not None:
             stmt = stmt.where(CronJobModel.chat_id == chat_id)
 
@@ -123,8 +120,6 @@ class SqlAlchemyCronStore:
         chat_id: str | None = None,
     ) -> int:
         stmt = select(sqlfunc.count()).select_from(CronJobModel)
-        if user_id is not None:
-            stmt = stmt.where(CronJobModel.user_id == user_id)
         if chat_id is not None:
             stmt = stmt.where(CronJobModel.chat_id == chat_id)
         if name_filter:

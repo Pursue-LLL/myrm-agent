@@ -67,6 +67,16 @@ class TestToolsPolicy:
         result = intersect_cron_enabled_builtin_tools(agent_tools, ("web_search",))
         assert result == ["web_search"]
 
+    def test_normalize_keeps_baseline_file_ops(self) -> None:
+        assert normalize_cron_tools_allowed(["file_ops"]) == ("file_ops",)
+
+    def test_intersect_includes_baseline_when_allowed(self) -> None:
+        result = intersect_cron_enabled_builtin_tools(
+            ["web_search", "memory"],
+            ("file_ops",),
+        )
+        assert result == ["file_ops"]
+
     def test_cron_run_flags_exclude_cron_eager(self) -> None:
         tools = intersect_cron_enabled_builtin_tools(
             ["web_search", "memory", "cron"],
@@ -74,7 +84,7 @@ class TestToolsPolicy:
         )
         flags = apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(tools))
         assert flags["enable_cron_eager"] is False
-        assert flags["enable_web_search"] is True
+        assert flags["enable_file_ops"] is True
 
 
 class TestCronExecutionPolicyApi:
