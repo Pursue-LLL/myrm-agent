@@ -518,8 +518,17 @@ async def test_execute_tool_success() -> None:
     mock_configs = MagicMock()
     mock_configs.providers_dict = _providers()
     mock_configs.model_cfg = MagicMock()
-    mock_configs.personal_settings_dict = {}
+    mock_configs.personal_settings_dict = {
+        "enableMemory": True,
+        "memoryEnableConversationSearch": True,
+    }
     mock_configs.retrieval_dict = {}
+
+    mock_profile = MagicMock()
+    mock_profile.enabled_builtin_tools = ("memory", "wiki")
+
+    mock_resolver = MagicMock()
+    mock_resolver.resolve = AsyncMock(return_value=mock_profile)
 
     captured: dict[str, object] = {}
 
@@ -534,7 +543,7 @@ async def test_execute_tool_success() -> None:
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
         patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=None),
         patch("app.core.channel_bridge.config_parsers.extract_retrieval_models", return_value=(None, None)),
-        patch("app.api.voice.realtime.resolve_voice_memory_context", AsyncMock(return_value=_ALL_MEMORY)),
+        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
         patch("app.api.voice.realtime._ensure_model_rebuild_for_tool_exec", return_value=None),
         patch("app.ai_agents.agents.GeneralAgentParams", side_effect=capture_params),
         patch("app.services.agent.streaming.ai_agent_service_stream", mock_stream),
@@ -551,6 +560,53 @@ async def test_execute_tool_success() -> None:
     assert "sunny" in str(result.result)
     assert captured.get("enable_conversation_search") is True
     assert captured.get("enable_memory") is True
+    assert captured.get("enable_wiki") is True
+
+
+@pytest.mark.asyncio
+async def test_execute_tool_honors_disabled_conversation_search() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    mock_configs = MagicMock()
+    mock_configs.providers_dict = _providers()
+    mock_configs.model_cfg = MagicMock()
+    mock_configs.personal_settings_dict = {"enableMemory": True}
+    mock_configs.retrieval_dict = {}
+
+    mock_profile = MagicMock()
+    mock_profile.enabled_builtin_tools = ("memory",)
+
+    mock_resolver = MagicMock()
+    mock_resolver.resolve = AsyncMock(return_value=mock_profile)
+
+    captured: dict[str, object] = {}
+
+    def capture_params(**kwargs: object) -> MagicMock:
+        captured.update(kwargs)
+        return MagicMock()
+
+    async def mock_stream(params):
+        yield {"type": "message", "data": "ok"}
+
+    with (
+        patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
+        patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=None),
+        patch("app.core.channel_bridge.config_parsers.extract_retrieval_models", return_value=(None, None)),
+        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("app.api.voice.realtime._ensure_model_rebuild_for_tool_exec", return_value=None),
+        patch("app.ai_agents.agents.GeneralAgentParams", side_effect=capture_params),
+        patch("app.services.agent.streaming.ai_agent_service_stream", mock_stream),
+    ):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="memory_search_tool",
+                arguments={"query": "budget", "corpus": "sessions"},
+            )
+        )
+
+    assert result.error is None
+    assert captured.get("enable_memory") is True
+    assert captured.get("enable_conversation_search") is False
 
 
 @pytest.mark.asyncio

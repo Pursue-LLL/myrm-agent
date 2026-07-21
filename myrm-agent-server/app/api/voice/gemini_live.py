@@ -12,6 +12,8 @@ via WebSocket, bypassing the server for audio streaming. The server's role:
 [INPUT]
 - app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader)
 - app.services.agent.profile_resolver (POS: Agent profile resolver)
+- app.api.voice.voice_memory_context::voice_memory_context_from (POS: voice memory ACL SSOT)
+- app.api.voice.tool_catalog (POS: dynamic memory_search_tool voice declarations)
 
 [OUTPUT]
 - router: FastAPI APIRouter with Gemini Live voice endpoints
@@ -30,7 +32,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.dependencies import verify_voice_enabled
-from app.api.voice.voice_memory_context import VoiceMemoryContext, resolve_voice_memory_context
+from app.api.voice.voice_memory_context import VoiceMemoryContext, voice_memory_context_from
 
 logger = logging.getLogger(__name__)
 
@@ -89,9 +91,13 @@ async def create_gemini_live_token(req: GeminiLiveTokenRequest) -> GeminiLiveTok
     if profile and profile.system_prompt:
         instructions = profile.system_prompt
 
+    memory_context = voice_memory_context_from(
+        configs.personal_settings_dict or {},
+        profile.enabled_builtin_tools if profile else (),
+    )
     tools = _build_gemini_tools(
         profile.enabled_builtin_tools if profile else (),
-        await resolve_voice_memory_context(agent_id),
+        memory_context,
     )
 
     ws_url = f"{_GEMINI_LIVE_WS_BASE}?key={google_key}"

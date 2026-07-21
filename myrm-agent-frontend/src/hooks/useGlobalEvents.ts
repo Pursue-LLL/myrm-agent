@@ -14,6 +14,7 @@ import { mutate as mutateSwr } from 'swr';
 import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationToasts';
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
 import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
+import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
 
 interface SSEPayload {
   type: string;
@@ -308,6 +309,7 @@ export function useGlobalEvents(): void {
           void import('@/store/chat/goals/useGoalStore').then(({ useGoalStore }) => {
             void useGoalStore.getState().refreshActiveGoal(meta.chat_id as string);
           });
+          notifyBackgroundTasksChangedForShellJobFinish(meta);
         }
 
         // Only show global toast if it's not a snapshot_created event

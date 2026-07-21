@@ -266,8 +266,20 @@ class BoundAgentRepository:
     async def get_profile(self, agent_id: str) -> AgentProfile | None:
         return await AgentRepository.get_profile(self.session, agent_id)
 
-    async def list_profiles(self) -> list[AgentProfile]:
-        return cast(list[AgentProfile], await AgentRepository.list_profiles(self.session))
+    async def list_profiles(
+        self,
+        *,
+        offset: int = 0,
+        limit: int | None = None,
+        exclude_ids: list[str] | None = None,
+    ) -> list[AgentProfile]:
+        return cast(
+            list[AgentProfile],
+            await AgentRepository.list_profiles(self.session, offset=offset, limit=limit, exclude_ids=exclude_ids),
+        )
+
+    async def count_profiles(self, *, exclude_ids: list[str] | None = None) -> int:
+        return await AgentRepository.count_profiles(self.session, exclude_ids=exclude_ids)
 
     async def create_profile(
         self,

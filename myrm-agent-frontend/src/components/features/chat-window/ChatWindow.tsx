@@ -279,10 +279,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
       if (meta?.kind === 'background_job_finish' && meta?.chat_id === id) {
         void initializeChat(id);
-        void useGoalStore.getState().refreshActiveGoal(id);
-        import('@/services/backgroundTasksRefresh').then(({ notifyBackgroundTasksChanged }) => {
-          notifyBackgroundTasksChanged();
-        });
       }
 
       if (meta?.kind === 'goal_needs_review' && meta?.chat_id === id) {

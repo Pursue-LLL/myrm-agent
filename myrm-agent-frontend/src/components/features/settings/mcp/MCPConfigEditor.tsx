@@ -222,7 +222,7 @@ export function MCPConfigEditor({
           </div>
 
           {/* 超时配置 */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <InputField
               label={t('mcpConnectTimeout')}
               type="number"
@@ -247,6 +247,20 @@ export function MCPConfigEditor({
               }
               placeholder="120"
             />
+            {(formData.type === 'sse' || formData.type === 'streamable_http') && (
+              <InputField
+                label={t('mcpKeepaliveInterval')}
+                type="number"
+                value={formData.keepaliveInterval ?? ''}
+                onChange={(e) =>
+                  onFormDataChange({
+                    ...formData,
+                    keepaliveInterval: e.target.value ? Number(e.target.value) : null,
+                  })
+                }
+                placeholder="180"
+              />
+            )}
           </div>
 
           {/* HTTP Headers (HTTP transports only) */}
@@ -263,6 +277,19 @@ export function MCPConfigEditor({
           {(formData.type === 'sse' || formData.type === 'streamable_http') && (
             <OAuthSection formData={formData} onFormDataChange={onFormDataChange} />
           )}
+
+          <div className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">{t('mcpStateAwareSerialMode')}</p>
+              <p className="text-xs text-muted-foreground">
+                {t('mcpStateAwareSerialModeHint')}
+              </p>
+            </div>
+            <Switch
+              checked={Boolean(formData.hostSerial)}
+              onCheckedChange={(checked) => onFormDataChange({ ...formData, hostSerial: checked })}
+            />
+          </div>
 
           <div className="flex items-center space-x-3">
             <Switch

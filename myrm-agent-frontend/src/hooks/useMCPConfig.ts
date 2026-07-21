@@ -18,6 +18,8 @@ export const DEFAULT_FORM_DATA: MCPServiceConfig = {
   enabled: true,
   headers: null,
   extra_params: {},
+  hostSerial: false,
+  keepaliveInterval: null,
 };
 
 /** 描述选择弹窗的待确认数据 */

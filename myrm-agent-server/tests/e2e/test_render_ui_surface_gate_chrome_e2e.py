@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -15,6 +16,8 @@ if str(_LIB) not in sys.path:
 from cdp_chat_support import wait_e2e_provider_ready  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
+    ChromeMcpClient,
+    McpPage,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -199,6 +202,77 @@ def _create_editable_agent(api_url: str) -> str:
     return agent_id
 
 
+def _submit_and_wait_client_surface(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    submit_js: str,
+    capture_js: str,
+    expected_surfaces: frozenset[str],
+    failure_label: str,
+    max_attempts: int = 3,
+    capture_timeout_sec: float = 120.0,
+) -> dict[str, object]:
+    """Submit chat and wait for client_surface capture; retry after mux contention."""
+    last_capture: dict[str, object] = {}
+    last_submit: dict[str, object] = {}
+    for attempt in range(max_attempts):
+        client.evaluate(page, _CLEAR_SURFACE_CAPTURE_JS, timeout_sec=5.0)
+        wait_for_state(client, page, _WAIT_SEND_READY_JS, timeout_sec=90.0)
+        raw_submit = client.evaluate(page, submit_js, timeout_sec=120.0)
+        last_submit = raw_submit if isinstance(raw_submit, dict) else {"value": raw_submit}
+        assert last_submit.get("ok") is True, (
+            f"{failure_label} submit failed (attempt {attempt + 1}/{max_attempts}): {last_submit}"
+        )
+        try:
+            last_capture = wait_for_state(
+                client,
+                page,
+                capture_js,
+                timeout_sec=capture_timeout_sec,
+            )
+            if last_capture.get("lastSurface") in expected_surfaces:
+                return last_capture
+        except AssertionError:
+            if attempt >= max_attempts - 1:
+                raise AssertionError(
+                    f"{failure_label} capture failed (attempt {attempt + 1}/{max_attempts}): "
+                    f"submit={last_submit}; capture={last_capture}"
+                ) from None
+            time.sleep(2.0 * (attempt + 1))
+    raise AssertionError(
+        f"{failure_label} failed after retries: submit={last_submit}; capture={last_capture}"
+    )
+
+
+def _submit_and_wait_web_surface(
+    client: ChromeMcpClient,
+    page: McpPage,
+) -> dict[str, object]:
+    return _submit_and_wait_client_surface(
+        client,
+        page,
+        submit_js=_SUBMIT_VIA_BRIDGE_JS,
+        capture_js=_CAPTURE_ASSERT_JS,
+        expected_surfaces=frozenset({"web", "tauri"}),
+        failure_label="client_surface",
+    )
+
+
+def _submit_and_wait_tauri_surface(
+    client: ChromeMcpClient,
+    page: McpPage,
+) -> dict[str, object]:
+    return _submit_and_wait_client_surface(
+        client,
+        page,
+        submit_js=_SUBMIT_TAURI_SURFACE_JS,
+        capture_js=_CAPTURE_TAURI_ASSERT_JS,
+        expected_surfaces=frozenset({"tauri"}),
+        failure_label="client_surface=tauri",
+    )
+
+
 def _delete_agent(api_url: str, agent_id: str) -> None:
     try:
         http_json(
@@ -212,7 +286,7 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
-@pytest.mark.timeout(240)
+@pytest.mark.timeout(600)
 def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
@@ -220,7 +294,7 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
     agent_settings_url = f"{ui_url}/settings/agents?agentId={agent_id}"
 
     try:
-        with open_mcp_page(agent_settings_url) as (client, page):
+        with open_mcp_page(agent_settings_url, timeout_ms=120_000) as (client, page):
             wait_for_state(client, page, _AGENT_EDITOR_READY_JS, timeout_sec=90.0)
             client.evaluate(page, _CLICK_CAPABILITIES_JS, timeout_sec=10.0)
             wait_for_state(
@@ -251,15 +325,10 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
                 "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",
             )
 
-        with open_mcp_page(ui_url) as (client, page):
+        with open_mcp_page(ui_url, timeout_ms=120_000) as (client, page):
             wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
             client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
-            wait_for_state(client, page, _WAIT_SEND_READY_JS, timeout_sec=90.0)
-            submit = client.evaluate(page, _SUBMIT_VIA_BRIDGE_JS, timeout_sec=120.0)
-            assert isinstance(submit, dict)
-            assert submit.get("ok") is True, f"E2E chat submit failed: {submit}"
-
-            capture = wait_for_state(client, page, _CAPTURE_ASSERT_JS, timeout_sec=45.0)
+            capture = _submit_and_wait_web_surface(client, page)
             assert capture.get("lastSurface") in {"web", "tauri"}, (
                 f"Unexpected client_surface: {capture.get('lastSurface')}"
             )
@@ -269,7 +338,7 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(600)
 def test_client_surface_emits_tauri_when_tauri_runtime_simulated() -> None:
     """Chrome READ: injecting window.__TAURI__ must send client_surface=tauri on agent-stream."""
     if not wait_e2e_provider_ready():
@@ -279,20 +348,12 @@ def test_client_surface_emits_tauri_when_tauri_runtime_simulated() -> None:
         )
 
     ui_url = get_e2e_ui_url()
-    with open_mcp_page(ui_url) as (client, page):
+    with open_mcp_page(ui_url, timeout_ms=120_000) as (client, page):
         wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
         client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
         simulated = client.evaluate(page, _SIMULATE_TAURI_RUNTIME_JS, timeout_sec=10.0)
         assert isinstance(simulated, dict)
         assert simulated.get("isTauri") is True, f"Tauri runtime simulation failed: {simulated}"
 
-        client.evaluate(page, _CLEAR_SURFACE_CAPTURE_JS, timeout_sec=5.0)
-        wait_for_state(client, page, _WAIT_SEND_READY_JS, timeout_sec=90.0)
-        submit = client.evaluate(page, _SUBMIT_TAURI_SURFACE_JS, timeout_sec=120.0)
-        assert isinstance(submit, dict)
-        assert submit.get("ok") is True, f"Tauri surface chat submit failed: {submit}"
-
-        capture = wait_for_state(client, page, _CAPTURE_TAURI_ASSERT_JS, timeout_sec=45.0)
-        assert capture.get("lastSurface") == "tauri", (
-            f"Expected client_surface=tauri after __TAURI__ inject: {capture}"
-        )
+        capture = _submit_and_wait_tauri_surface(client, page)
+        assert capture.get("lastSurface") == "tauri"

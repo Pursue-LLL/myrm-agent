@@ -16,13 +16,18 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/feature_flags.py` | 辅助 | `seed_voice_interaction_flags()`，供 `tests/api/voice`、`tests/api/stt` conftest autouse |
 | `support/bash_compressor_e2e.py` | 辅助 | bash compressor live/API E2E 共享 helper（模型 probe、workspace 压缩回放） |
 | `support/chrome_mcp_e2e.py` | 核心 | Chrome MCP E2E helper（`open_mcp_page` 默认 `timeout_ms=None` → mux adaptive；LIVE 用例显式 `MAX_PAGE_TIMEOUT_MS`） |
+| `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
 | `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ：看板渲染 + Drawer 附件） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
 | `e2e/test_memory_citations_chrome_e2e.py` | 模块 | Memory Chrome MCP E2E（READ×2：设置「历史会话搜索」开关；统一「依据/Evidence N」Sheet） |
+| `e2e/test_voice_memory_acl_chrome_e2e.py` | 模块 | Voice memory ACL Chrome MCP E2E（READ×2：`/settings/memory` UI 开/关「历史会话搜索」→ `GET /config/personalSettings` 断言；token corpus 由 HTTP 集成测覆盖） |
+| `api/voice/test_voice_memory_context.py` | 模块 | Voice memory ACL SSOT 单元 + policy 矩阵 |
+| `api/voice/test_voice_memory_acl_api_integration.py` | 模块 | Voice memory ACL HTTP 集成（realtime/gemini token enum + tool-exec flags，ACL 路径 unmocked） |
 | `e2e/test_background_tasks_panel_chrome_e2e.py` | 模块 | Background Tasks Panel Chrome MCP E2E（READ×3：打开 Panel、「耗时任务」分区、seed failed/running + UI cancel via `data-testid=background-task-cancel`（wait 合并 testid+分区，防 running 文本假阳性）+ tab-alive API poll） |
-| `e2e/test_background_shell_live_agent_chrome_e2e.py` | 模块 | Background shell LIVE×1：`test_live_agent_background_shell_spawn_via_agent_stream` — agent-stream 必须调 `bash_code_execute_tool`（fast-fail）→ REST running（API-only；Panel UI 由 panel 文件覆盖）；`finally` teardown cancel；failed attempt 按 `chat_id` cancel 后再 retry；transport retry 1×（retry 前 10s running probe） |
+| `e2e/test_background_shell_live_agent_chrome_e2e.py` | 模块 | Background shell LIVE×1：`test_live_agent_background_shell_spawn_via_agent_stream` — agent-stream 须调 `bash_code_execute_tool`（5× stream retry + REST 20s probe + 3× chat retry 含 URLError/transport）→ REST running；`finally` teardown cancel |
+| `e2e/test_skill_marketplace_live_agent_chrome_e2e.py` | 模块 | Skill marketplace LIVE×1：`test_live_agent_skill_marketplace_search_in_real_ui` — 自定义 Agent（`/?agentId=`）+ 自然语言用户消息 → 真实 WebUI 须呈现外部市场搜索结果；禁止注入式 `E2E_* MUST call` prompt（mimo 安全拒绝）；3× chat retry |
 | `api/agent/test_memory_conversation_search_e2e.py` | 模块 | Memory + sessions opt-in API 集成（真实 LLM agent-stream；8 场景：opt-in/incognito/memory-off/多轮/passphrase） |
 | `ai_agents/test_custom_agent_factory.py` | 模块 | Custom/Ephemeral 子 Agent `memory_search_tool` rebind + factory build 路径（38 项；`--cov-fail-under=90` on factory） |
 | `ai_agents/test_conversation_search_opt_in_integration.py` | 模块 | conversation-search opt-in 与 tool_setup 绑定集成 |
@@ -65,10 +70,13 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - **Kanban Chrome E2E**：`tests/e2e/test_kanban_chrome_e2e.py`（READ lane ×2：看板列渲染；REST `attachment_ids` → 点击附件 badge → Drawer 附件可见）
 - **Wiki citation Chrome E2E**：`tests/e2e/test_wiki_citation_chrome_e2e.py`（READ lane ×2：`/chats/test/seed-citation-fixture` → citation 按钮 reload 持久；`/settings/wiki?agentId=` combobox）。Settings 用例先 `warm_ui_route` HTTP 编译再 Chrome 导航（webpack 冷启）。READ 使用共享 `:8080`（`conftest.py:244-251` `private_backend=False` 时 yield 共享 stack）；**新增 server 路由后须 `./myrm restart` 再跑 chrome e2e**；wave pin 阻塞 restart 时用 **`./myrm isolate <id> ready --chrome`** + `E2E_API_BASE`/`E2E_UI_BASE`。
 - **Memory citations Chrome E2E**：`tests/e2e/test_memory_citations_chrome_e2e.py`（READ lane ×2：`/settings/memory` 开「历史会话搜索」；聊天页注入 citations → 「依据/Evidence N」Sheet）。并行 attach 若 mux timeout drift，须 `MYRM_MUX_ALLOW_TIMEOUT_RESTART=1`（见 `chrome-e2e-preflight.sh` attach heal）。
+- **Voice memory ACL Chrome E2E**：`tests/e2e/test_voice_memory_acl_chrome_e2e.py`（READ lane ×2：Settings UI 开/关 memory+sessions → `personalSettings` API 断言；**不依赖** Providers Google key；corpus enum / tool-exec flags 见 `test_voice_memory_acl_api_integration.py`）。
+- **Skill marketplace LIVE Chrome E2E**：`tests/e2e/test_skill_marketplace_live_agent_chrome_e2e.py`（LIVE×1：`skill_discovery_tool` 外部市场搜索；自定义 Agent system_prompt + `/?agentId=`；自然中文用户消息；API/UI 双路径断言；见 `scripts/dev/CHROME_MCP_E2E.md`）
 - **Subagent Dashboard Chrome E2E**：`tests/e2e/test_subagent_dashboard_chrome_e2e.py`（LIVE lane ×3：`subagent-dashboard-e2e-prepare.mjs` delegate → Dashboard cancel / pause toggle / token+model；`open_mcp_page(..., timeout_ms=MAX_PAGE_TIMEOUT_MS)`）
 - **Subagent rebind 单测**：`tests/services/agent/test_subagent_rebind_event.py`（`AgentService.update_agent` 变更 `subagent_ids` → `SUBAGENT_REBIND_REQUIRED`）
 - **Citation seed 集成单测**：`tests/api/chats/test_citation_seed_integration.py`（seed → GET messages 断言 `citedMemoryIds`；默认 CI 套件执行，不依赖 Chrome）
-- **A2UI Surface Gate Chrome E2E**：`tests/e2e/test_render_ui_surface_gate_chrome_e2e.py`（READ：Settings hint + `client_surface=web` + `__TAURI__`→`tauri`；同文件旁路 LIVE 见 `test_render_ui_inline_card_chrome_e2e.py`）
+- **A2UI Surface Gate Chrome E2E**：`tests/e2e/test_render_ui_surface_gate_chrome_e2e.py`（READ×2：Settings hint + `client_surface=web|tauri` + `__TAURI__`→`tauri`；submit+capture 3× mux 重试、`timeout=600`、`open_mcp_page timeout_ms=120_000`；LIVE inline 见 `test_render_ui_inline_card_chrome_e2e.py`；LIVE 按钮点击 → `ui_action` 见 `test_render_ui_inline_interaction_chrome_e2e.py`；LIVE `update_ui_data` 增量刷新见 `test_render_ui_update_data_chrome_e2e.py`）
+- **A2UI 跨轮 DB patch 单测**：`tests/services/chat/test_ui_artifact_patch.py`（双 turn seed → `patch_ui_artifact_data_by_surface_id` → GET messages 断言 merged binding；collector 跨轮队列；finalize 接线）
 - `tests/integration/test_render_ui_sse_wiring.py`：render_ui 确定性集成（20 场景：run_bind、fail-closed、data_update、collector 链、幂等）
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`

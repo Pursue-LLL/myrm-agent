@@ -24,7 +24,7 @@
 | `memoryBriefEvents.ts` | 核心 | `memory_brief` 发送前记忆简报事件：创建/更新 assistant 占位消息并挂载简报快照 | ✅ |
 | `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | ✅ |
 | `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA 文本流合并 | ✅ |
-| `artifactEvents.ts` | 核心 | ARTIFACTS、UI_UPDATE（`ui_artifact` 追加、`data_update` 合并 data） | ✅ |
+| `artifactEvents.ts` | 核心 | ARTIFACTS、UI_UPDATE（`ui_artifact` 追加；`data_update` 按 `surface_id` 跨 assistant 消息 merge data） | ✅ |
 | `captchaEvents.ts` | 核心 | CAPTCHA 进度展示与状态更新 | ✅ |
 | `sessionRecordingEvents.ts` | 核心 | SESSION_RECORDING 视频回放元数据 | ✅ |
 | `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、降级/切换通知 | ✅ |

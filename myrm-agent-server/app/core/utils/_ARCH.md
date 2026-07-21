@@ -20,6 +20,7 @@
 | `image_compressor.py` | 核心 | `ImageCompressor`：压缩、尺寸调整、格式转换、Base64 | — |
 | `network.py` | 核心 | `get_local_ip`：获取本机局域网 IP（WebUI 二维码、启动地址打印） | — |
 | `delivery_provenance.py` | 核心 | Human 前缀投递横幅：`format_delivery_banner`、`prepend_plain_banner`、`ingress_from_channel_metadata`、`apply_delivery_banner`、`resolve_general_agent_pipeline_labels`（含 `web_chat`→http_gui/browser_sse、`cron`、`eval`、**`headless_wakeup`→async_wake_consumer** 等）、`apply_general_agent_pipeline_banner`；多模态首块合并且幂等 | ✅ I/O/P 见文件头 |
+| `ui_data_merge.py` | 辅助 | `deep_merge_ui_data`：A2UI binding dict 深合并（stream collector + chat UI artifact DB patch 共用） | ✅ |
 | `__init__.py` | 核心 | 模块入口，公共 API 导出 | — |
 
 ---

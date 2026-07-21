@@ -20,6 +20,8 @@ _HERMES_RAW: dict[str, object] = {
         "args": ["-m", "slack_mcp"],
         "env": {"SLACK_TOKEN": "xoxb-secret", "SLACK_CHANNEL": "#general"},
         "tools": {"include": ["send_message", "list_channels"]},
+        "supports_parallel_tool_calls": False,
+        "keepalive_interval": 30,
     },
 }
 
@@ -45,6 +47,8 @@ class TestConvertCompetitorMCPServers:
         assert fs.url is None
         assert "HOME" in fs.env_key_names
         assert fs.tool_include is None
+        assert fs.host_serial is False
+        assert fs.keepalive_interval is None
 
     def test_hermes_tool_filters(self) -> None:
         items = convert_competitor_mcp_servers(_HERMES_RAW, competitor="hermes")
@@ -52,6 +56,21 @@ class TestConvertCompetitorMCPServers:
         assert slack.tool_include == ["send_message", "list_channels"]
         assert slack.tool_exclude is None
         assert "SLACK_TOKEN" in slack.env_key_names
+        assert slack.host_serial is True
+        assert slack.keepalive_interval == 30
+
+    def test_explicit_host_serial_overrides_parallel_flag(self) -> None:
+        raw = {
+            "stateful": {
+                "command": "python",
+                "args": ["-m", "stateful_mcp"],
+                "supports_parallel_tool_calls": True,
+                "hostSerial": True,
+            }
+        }
+        items = convert_competitor_mcp_servers(raw, competitor="hermes")
+        assert len(items) == 1
+        assert items[0].host_serial is True
 
     def test_claude_sse_server(self) -> None:
         items = convert_competitor_mcp_servers(_CLAUDE_RAW, competitor="claude")
@@ -62,6 +81,7 @@ class TestConvertCompetitorMCPServers:
         assert brave.url == "https://brave.search.mcp.example.com/sse"
         assert brave.command is None
         assert "BRAVE_API_KEY" in brave.env_key_names
+        assert brave.host_serial is False
 
     def test_skips_invalid_entries(self) -> None:
         items = convert_competitor_mcp_servers(_CLAUDE_RAW, competitor="claude")
@@ -89,6 +109,8 @@ class TestMCPMigrationItemToConfigDict:
             description="Test — Migrated from hermes",
             connect_timeout=15.0,
             execute_timeout=120.0,
+            keepalive_interval=30.0,
+            host_serial=True,
             tool_include=None,
             tool_exclude=["dangerous_tool"],
             env_key_names=["API_KEY"],
@@ -100,6 +122,8 @@ class TestMCPMigrationItemToConfigDict:
         assert cfg["command"] == "node"
         assert cfg["args"] == ["server.js"]
         assert "url" not in cfg
+        assert cfg["hostSerial"] is True
+        assert cfg["keepaliveInterval"] == 30.0
         assert cfg["tool_exclude"] == ["dangerous_tool"]
         assert "tool_include" not in cfg
 
@@ -113,6 +137,8 @@ class TestMCPMigrationItemToConfigDict:
             description="Remote — Migrated from claude",
             connect_timeout=10.0,
             execute_timeout=60.0,
+            keepalive_interval=None,
+            host_serial=False,
             tool_include=None,
             tool_exclude=None,
             env_key_names=[],
@@ -121,6 +147,7 @@ class TestMCPMigrationItemToConfigDict:
         assert cfg["url"] == "https://example.com/sse"
         assert "command" not in cfg
         assert "args" not in cfg
+        assert "keepaliveInterval" not in cfg
 
 
 class TestMCPMigrationItemToPreview:
@@ -134,6 +161,8 @@ class TestMCPMigrationItemToPreview:
             description="Migrated from hermes",
             connect_timeout=15.0,
             execute_timeout=120.0,
+            keepalive_interval=None,
+            host_serial=False,
             tool_include=None,
             tool_exclude=None,
             env_key_names=["HOME"],
@@ -141,9 +170,11 @@ class TestMCPMigrationItemToPreview:
         preview = mcp_migration_item_to_preview(item)
         assert preview["name"] == "fs"
         assert preview["type"] == "stdio"
+        assert preview["hostSerial"] is False
         assert preview["command"] == "npx"
         assert "commandPreview" in preview
         assert preview["envKeyCount"] == 1
+        assert "keepaliveInterval" not in preview
 
     def test_sse_preview_no_env(self) -> None:
         item = MCPMigrationItem(
@@ -155,11 +186,34 @@ class TestMCPMigrationItemToPreview:
             description="Migrated from claude",
             connect_timeout=15.0,
             execute_timeout=120.0,
+            keepalive_interval=None,
+            host_serial=False,
             tool_include=None,
             tool_exclude=None,
             env_key_names=[],
         )
         preview = mcp_migration_item_to_preview(item)
         assert preview["url"] == "https://example.com/sse"
+        assert preview["hostSerial"] is False
         assert "envKeyCount" not in preview
         assert "command" not in preview
+
+    def test_preview_marks_host_serial_true(self) -> None:
+        item = MCPMigrationItem(
+            name="stateful",
+            server_type="stdio",
+            command="python",
+            args=["-m", "stateful_mcp"],
+            url=None,
+            description="Migrated from hermes",
+            connect_timeout=15.0,
+            execute_timeout=120.0,
+            keepalive_interval=20,
+            host_serial=True,
+            tool_include=None,
+            tool_exclude=None,
+            env_key_names=[],
+        )
+        preview = mcp_migration_item_to_preview(item)
+        assert preview["hostSerial"] is True
+        assert preview["keepaliveInterval"] == 20

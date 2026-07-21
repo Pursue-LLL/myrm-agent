@@ -6,7 +6,9 @@
 
 **Inline A2UI**：语音会话无聊天气泡渲染面。`gemini_live` 与 `realtime` 工具目录均 **不** 暴露 `render_ui`；`agent_bridge` 使用 `channel_name="voice_bridge"`（IM），GeneralAgent Turn1 亦不挂载 `render_ui_tool`。内联表单/图表面板请使用 Web Chat 或 Tauri 桌面客户端。
 
-**Memory read-plane**：OpenAI Realtime 与 Gemini Live 通过 `voice_memory_context.py` 读取与 Chat 相同的 Settings ACL，经 `tool_catalog.py` 动态裁剪 `memory_search_tool` 的 corpus enum；`realtime-tool-exec` 与 `agent_bridge` 共用同一 flags 组装 `GeneralAgentParams`。
+**Memory read-plane**：OpenAI Realtime 与 Gemini Live 通过 `voice_memory_context.py` 读取与 Chat 相同的 Settings ACL，经 `tool_catalog.py` 动态裁剪 `memory_search_tool` 的 corpus enum；`realtime-tool-exec` 与 `agent_bridge` 共用同一 flags 组装 `GeneralAgentParams`。已加载 profile 与 settings 的路径须调用 `voice_memory_context_from`，禁止重复 resolver I/O。
+
+**测试**：`tests/api/voice/test_voice_memory_context.py`（SSOT 矩阵）、`tests/api/voice/test_voice_memory_acl_api_integration.py`（HTTP token/tool-exec）、`tests/e2e/test_voice_memory_acl_chrome_e2e.py`（Settings UI → `personalSettings` READ E2E）。
 
 ## 文件清单
 

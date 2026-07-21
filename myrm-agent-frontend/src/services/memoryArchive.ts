@@ -269,6 +269,7 @@ export interface MCPServerPreviewItem {
   commandPreview?: string;
   url?: string;
   envKeyCount?: number;
+  hostSerial?: boolean;
 }
 
 export interface MemoryImportDryRunResponse {

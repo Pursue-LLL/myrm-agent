@@ -596,11 +596,21 @@ export function PreviewStep({
                   <Badge variant="secondary" className="text-[10px] mr-1.5">
                     {srv.type}
                   </Badge>
+                  {srv.hostSerial ? (
+                    <Badge variant="outline" className="text-[10px] mr-1.5">
+                      {t('preview.mcpHostSerial')}
+                    </Badge>
+                  ) : null}
                   {srv.commandPreview || srv.url || '—'}
                 </div>
                 {(srv.envKeyCount ?? 0) > 0 && (
                   <div className="text-amber-600 dark:text-amber-400">
                     {t('preview.mcpEnvKeysRequired', { count: srv.envKeyCount! })}
+                  </div>
+                )}
+                {typeof srv.keepaliveInterval === 'number' && srv.keepaliveInterval > 0 && (
+                  <div className="text-muted-foreground">
+                    {t('preview.mcpKeepalive', { seconds: srv.keepaliveInterval })}
                   </div>
                 )}
               </div>

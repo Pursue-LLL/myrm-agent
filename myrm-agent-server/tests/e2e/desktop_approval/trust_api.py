@@ -35,6 +35,21 @@ def server_pending_approval_count() -> int:
     return int(payload.get("count") or 0)
 
 
+def fetch_pending_approval_request_ids() -> list[str]:
+    url = f"{get_e2e_api_url()}/webui/desktop/approval/pending"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310
+            payload = json.loads(response.read().decode("utf-8"))
+    except OSError:
+        return []
+    if not isinstance(payload, dict):
+        return []
+    pending = payload.get("pending")
+    if not isinstance(pending, list):
+        return []
+    return [str(item).strip() for item in pending if str(item).strip()]
+
+
 def list_trusted_apps_via_api() -> list[dict[str, object]]:
     url = f"{get_e2e_api_url()}/webui/desktop/trust/apps"
     try:

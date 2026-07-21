@@ -104,12 +104,12 @@ export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   // 处理 UI 工件事件
   if (data.type === H.AgentEventType.UI_UPDATE) {
     actions.setMessages((state) => {
-      const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-      if (messageIndex === -1) {
-        return;
-      }
-
       if (data.subtype === 'ui_artifact') {
+        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        if (messageIndex === -1) {
+          return;
+        }
+
         // 初始化 uiArtifacts 数组
         if (!state.messages[messageIndex].uiArtifacts) {
           state.messages[messageIndex].uiArtifacts = [];
@@ -130,19 +130,21 @@ export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null>
         if (!surfaceId || !updates || typeof updates !== 'object') {
           return;
         }
-        const artifacts = state.messages[messageIndex].uiArtifacts;
+        const location = H.findUiArtifactLocation(state.messages, surfaceId);
+        if (!location) {
+          return;
+        }
+        const artifacts = state.messages[location.messageIndex].uiArtifacts;
         if (!artifacts) {
           return;
         }
-        const artifactIndex = artifacts.findIndex((item) => item.surface_id === surfaceId);
-        if (artifactIndex === -1) {
-          return;
-        }
-        const current = artifacts[artifactIndex];
-        artifacts[artifactIndex] = {
+        const current = artifacts[location.artifactIndex];
+        artifacts[location.artifactIndex] = {
           ...current,
           data: mergeUiDataModel(current.data, updates),
         };
+      } else {
+        return;
       }
 
       if (!state.messageAppeared) {

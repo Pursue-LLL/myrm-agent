@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.api.voice.tool_catalog import (
     build_memory_search_tool_parameters,
     memory_search_corpus_enum,
@@ -39,3 +41,27 @@ def test_memory_search_corpus_enum_includes_sessions_when_opt_in_on() -> None:
     ctx = VoiceMemoryContext(enable_memory=True, enable_conversation_search=True, enable_wiki=True)
     enum = memory_search_corpus_enum(ctx)
     assert enum == ["memory", "wiki", "sessions", "all"]
+
+
+@pytest.mark.parametrize(
+    ("ctx", "expected_enum"),
+    [
+        (
+            VoiceMemoryContext(enable_memory=False, enable_conversation_search=False, enable_wiki=True),
+            ["memory"],
+        ),
+        (
+            VoiceMemoryContext(enable_memory=True, enable_conversation_search=True, enable_wiki=False),
+            ["memory", "sessions", "all"],
+        ),
+        (
+            VoiceMemoryContext(enable_memory=True, enable_conversation_search=False, enable_wiki=True),
+            ["memory", "wiki", "all"],
+        ),
+    ],
+)
+def test_memory_search_corpus_enum_policy_matrix(
+    ctx: VoiceMemoryContext,
+    expected_enum: list[str],
+) -> None:
+    assert memory_search_corpus_enum(ctx) == expected_enum

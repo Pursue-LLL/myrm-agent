@@ -27,6 +27,8 @@ export function parseServerConfig(name: string, config: Record<string, unknown>)
   }
 
   const rawHeaders = config.headers as Record<string, string> | undefined;
+  const rawHostSerial = config.host_serial ?? config.hostSerial;
+  const rawKeepaliveInterval = config.keepalive_interval ?? config.keepaliveInterval;
 
   const result: MCPServiceConfig = {
     name,
@@ -37,6 +39,11 @@ export function parseServerConfig(name: string, config: Record<string, unknown>)
     description: (config.description as string) || '',
     enabled: true,
     headers: rawHeaders && Object.keys(rawHeaders).length > 0 ? rawHeaders : null,
+    hostSerial: typeof rawHostSerial === 'boolean' ? rawHostSerial : false,
+    keepaliveInterval:
+      typeof rawKeepaliveInterval === 'number' && Number.isFinite(rawKeepaliveInterval) && rawKeepaliveInterval > 0
+        ? rawKeepaliveInterval
+        : null,
     extra_params: {
       ...(config.env ? { env: config.env as Record<string, string> } : {}),
       ...(config.cwd ? { cwd: config.cwd as string } : {}),

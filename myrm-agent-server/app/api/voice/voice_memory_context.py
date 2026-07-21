@@ -1,18 +1,17 @@
 """Voice memory ACL context — shared Settings + profile flags for all voice paths.
 
 [INPUT]
-- app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader)
 - app.core.memory.proactive.settings (POS: enableMemory / sessions opt-in SSOT)
 - app.services.agent.profile_resolver (POS: Agent profile resolver)
 
 [OUTPUT]
 - VoiceMemoryContext: memory_search_tool ACL flags for voice sessions
-- resolve_voice_memory_context: load flags for an agent_id
 - voice_memory_context_from: build flags from already-loaded config slices
 
 [POS]
 Voice-layer SSOT for memory read-plane ACL. Keeps Realtime, Gemini Live, and
-agent_bridge aligned with Chat memory settings without duplicating resolver logic.
+agent_bridge aligned with Chat memory settings. Callers load profile and settings
+once, then call voice_memory_context_from.
 """
 
 from __future__ import annotations
@@ -25,7 +24,6 @@ from app.core.memory.proactive.settings import (
     resolve_memory_enabled,
 )
 from app.services.agent.profile_resolver import (
-    DEFAULT_ENABLED_BUILTIN_TOOLS,
     apply_agent_baseline_tool_flags,
     resolve_builtin_tool_flags,
 )
@@ -59,18 +57,3 @@ def voice_memory_context_from(
         enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
         enable_wiki=bool(tool_flags["enable_wiki"]),
     )
-
-
-async def resolve_voice_memory_context(agent_id: str) -> VoiceMemoryContext:
-    """Load user settings and agent profile to resolve voice memory ACL."""
-    from app.core.channel_bridge.config_loader import load_user_configs
-    from app.services.agent.profile_resolver import get_agent_profile_resolver
-
-    configs = await load_user_configs()
-    resolver = get_agent_profile_resolver()
-    resolved_id = agent_id or "builtin-general"
-    profile = await resolver.resolve(resolved_id)
-    enabled_builtin_tools = (
-        list(profile.enabled_builtin_tools) if profile else list(DEFAULT_ENABLED_BUILTIN_TOOLS)
-    )
-    return voice_memory_context_from(configs.personal_settings_dict or {}, enabled_builtin_tools)

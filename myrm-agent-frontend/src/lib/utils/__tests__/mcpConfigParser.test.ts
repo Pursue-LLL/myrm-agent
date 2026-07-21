@@ -22,6 +22,8 @@ describe('parseServerConfig', () => {
       description: 'Test SSE server',
       enabled: true,
       headers: null,
+      hostSerial: false,
+      keepaliveInterval: null,
       extra_params: {},
     });
   });
@@ -42,6 +44,8 @@ describe('parseServerConfig', () => {
       description: 'CLI server',
       enabled: true,
       headers: null,
+      hostSerial: false,
+      keepaliveInterval: null,
       extra_params: {},
     });
   });
@@ -104,6 +108,45 @@ describe('parseServerConfig', () => {
     expect(result.sslVerify).toBe(false);
     expect(result.clientCert).toBe('/etc/client.pem');
     expect(result.clientKeyPassword).toBe('pw');
+  });
+
+  it('应该解析 host_serial / hostSerial 字段', () => {
+    const snake = parseServerConfig('host-serial-snake', {
+      type: 'sse',
+      url: 'https://example.com/sse',
+      host_serial: true,
+    });
+    expect(snake.hostSerial).toBe(true);
+
+    const camel = parseServerConfig('host-serial-camel', {
+      type: 'sse',
+      url: 'https://example.com/sse',
+      hostSerial: false,
+    });
+    expect(camel.hostSerial).toBe(false);
+  });
+
+  it('应该解析 keepalive_interval / keepaliveInterval 字段', () => {
+    const snake = parseServerConfig('keepalive-snake', {
+      type: 'sse',
+      url: 'https://example.com/sse',
+      keepalive_interval: 45,
+    });
+    expect(snake.keepaliveInterval).toBe(45);
+
+    const camel = parseServerConfig('keepalive-camel', {
+      type: 'sse',
+      url: 'https://example.com/sse',
+      keepaliveInterval: 30,
+    });
+    expect(camel.keepaliveInterval).toBe(30);
+
+    const invalid = parseServerConfig('keepalive-invalid', {
+      type: 'sse',
+      url: 'https://example.com/sse',
+      keepalive_interval: -1,
+    });
+    expect(invalid.keepaliveInterval).toBeNull();
   });
 
   it('未提供 TLS 字段时不应设置', () => {

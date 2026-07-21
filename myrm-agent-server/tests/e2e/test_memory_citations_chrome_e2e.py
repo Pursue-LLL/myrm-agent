@@ -8,42 +8,11 @@ import time
 import pytest
 
 from tests.support.chrome_mcp_e2e import get_e2e_ui_url, open_mcp_page, wait_for_state, warm_ui_route
-
-_SETTINGS_SHELL_READY_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasMemorySection =
-    /Memory|记忆/.test(text) &&
-    (/Conversation History Search|历史会话搜索/.test(text) || /Enable Memory|启用记忆/.test(text));
-  return { ready: hasMemorySection, sample: text.slice(0, 400) };
-})()"""
-
-_ENABLE_MEMORY_JS = """(() => {
-  const memoryLabels = ['Enable Memory', '启用记忆'];
-  const rows = Array.from(document.querySelectorAll('div.rounded-xl'));
-  for (const row of rows) {
-    const label = row.innerText || '';
-    if (!memoryLabels.some((needle) => label.includes(needle))) continue;
-    const sw = row.querySelector('button[role="switch"]');
-    if (!sw) continue;
-    if (sw.getAttribute('data-state') === 'unchecked') sw.click();
-    return { ok: true, state: sw.getAttribute('data-state') };
-  }
-  return { ok: false, err: 'memory-switch-not-found' };
-})()"""
-
-_ENABLE_CONVERSATION_SEARCH_JS = """(() => {
-  const labels = ['Conversation History Search', '历史会话搜索'];
-  const rows = Array.from(document.querySelectorAll('div.rounded-xl'));
-  for (const row of rows) {
-    const label = row.innerText || '';
-    if (!labels.some((needle) => label.includes(needle))) continue;
-    const sw = row.querySelector('button[role="switch"]');
-    if (!sw) continue;
-    if (sw.getAttribute('data-state') === 'unchecked') sw.click();
-    return { ok: sw.getAttribute('data-state') === 'checked', state: sw.getAttribute('data-state') };
-  }
-  return { ok: false, err: 'conversation-switch-not-found' };
-})()"""
+from tests.support.chrome_memory_settings_e2e import (
+    ENABLE_MEMORY_JS,
+    SETTINGS_SHELL_READY_JS,
+    conversation_search_toggle_js,
+)
 
 _INJECT_EVIDENCE_MESSAGE_JS = """(() => {
   const chatStore = window.__myrmChatStore;
@@ -139,17 +108,17 @@ def test_memory_settings_conversation_search_toggle() -> None:
     ui_base = get_e2e_ui_url()
     with open_mcp_page(ui_base, timeout_ms=90_000) as (client, page):
         client.navigate(page, f"{ui_base}/settings/memory", timeout_ms=90_000)
-        shell = wait_for_state(client, page, _SETTINGS_SHELL_READY_JS, timeout_sec=90.0)
+        shell = wait_for_state(client, page, SETTINGS_SHELL_READY_JS, timeout_sec=90.0)
         assert shell.get("ready") is True, shell
 
-        memory_on = client.evaluate(page, _ENABLE_MEMORY_JS, timeout_sec=15.0)
+        memory_on = client.evaluate(page, ENABLE_MEMORY_JS, timeout_sec=15.0)
         assert isinstance(memory_on, dict) and memory_on.get("ok") is True, memory_on
         time.sleep(1.0)
 
         toggled: dict[str, object] = {}
         deadline = time.monotonic() + 30.0
         while time.monotonic() < deadline:
-            raw = client.evaluate(page, _ENABLE_CONVERSATION_SEARCH_JS, timeout_sec=10.0)
+            raw = client.evaluate(page, conversation_search_toggle_js(target_checked=True), timeout_sec=10.0)
             toggled = raw if isinstance(raw, dict) else {"value": raw}
             if toggled.get("ok") is True:
                 break

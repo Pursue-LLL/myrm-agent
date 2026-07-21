@@ -41,12 +41,16 @@ class TestCamelCaseRoundTrip:
                 "clientKey": "/k.pem",
                 "clientKeyPassword": "s3cr3t",
                 "sslVerify": "/ca.pem",
+                "hostSerial": True,
+                "keepaliveInterval": 45,
             }
         )
         assert cfg.client_cert == "/c.pem"
         assert cfg.client_key == "/k.pem"
         assert cfg.client_key_password == "s3cr3t"
         assert cfg.ssl_verify == "/ca.pem"
+        assert cfg.host_serial is True
+        assert cfg.keepalive_interval == 45
 
     def test_parses_snake_case_field_name(self) -> None:
         cfg = MCPServerConfig.model_validate(
@@ -72,3 +76,11 @@ class TestCamelCaseRoundTrip:
         assert payload["clientKeyPassword"] == "pw"
         restored = MCPServerConfig.model_validate(payload)
         assert restored.client_key_password == "pw"
+
+    def test_host_serial_defaults_false(self) -> None:
+        cfg = MCPServerConfig(name="s", type="stdio", command="npx")
+        assert cfg.host_serial is False
+
+    def test_keepalive_interval_defaults_none(self) -> None:
+        cfg = MCPServerConfig(name="s", type="stdio", command="npx")
+        assert cfg.keepalive_interval is None

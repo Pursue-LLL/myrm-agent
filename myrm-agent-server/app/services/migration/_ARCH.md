@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-外部 AI 助手数据迁移服务层（三部署均等：Local/Tauri 使用文件系统扫描，Cloud/SaaS 通过 ZIP 上传）。五车道编排：指令（Agent system_prompt / 全局设置 / `.myrm/rules`）、全局记忆、技能审核、凭证 opt-in、**MCP 配置迁移**。Wizard dry-run 必须使用 source id 映射的 memory adapter（禁止裸 `auto` 误路由）。OpenClaw workspace Markdown 合并进 `openclaw_memory`；多 workspace 同文件名合并。MCP 配置从竞品 payload 自动提取并转换为 MCPServerConfig 格式，默认 `enabled: false`，用户在前端审核后手动启用。渠道在覆盖矩阵标 manual。
+外部 AI 助手数据迁移服务层（三部署均等：Local/Tauri 使用文件系统扫描，Cloud/SaaS 通过 ZIP 上传）。五车道编排：指令（Agent system_prompt / 全局设置 / `.myrm/rules`）、全局记忆、技能审核、凭证 opt-in、**MCP 配置迁移**。Wizard dry-run 必须使用 source id 映射的 memory adapter（禁止裸 `auto` 误路由）。OpenClaw workspace Markdown 合并进 `openclaw_memory`；多 workspace 同文件名合并。MCP 配置从竞品 payload 自动提取并转换为 MCPServerConfig 格式，默认 `enabled: false`，用户在前端审核后手动启用；当竞品显式声明 `supports_parallel_tool_calls: false`（或 `supportsParallelToolCalls: false`）时，会映射为 `hostSerial: true` 保留串行策略语义；若提供 `keepalive_interval` / `keepaliveInterval`，会透传为 `keepaliveInterval` 供远端 MCP 长连接保活。渠道在覆盖矩阵标 manual。
 
 ### 支持范围策略（封闭集合）
 
@@ -45,7 +45,7 @@
 | `memory_import_binding.py` | 辅助 | 全局 namespace MemoryManager 工厂 | ✅ |
 | `instruction_rollback.py` | 辅助 | 与 memory import batch 绑定的指令车道回滚 | ✅ |
 | `skill_binding.py` | 辅助 | 技能审核通过后绑定 Agent profile | ✅ |
-| `mcp_config_converter.py` | 核心 | 竞品 MCP 配置 → MCPMigrationItem → config dict / preview；无状态转换器 | ✅ |
+| `mcp_config_converter.py` | 核心 | 竞品 MCP 配置 → MCPMigrationItem → config dict / preview；无状态转换器；并发策略映射（`supports_parallel_*` ↔ `hostSerial`），可选保活间隔映射（`keepalive*` → `keepaliveInterval`） | ✅ |
 
 ## 模块依赖
 

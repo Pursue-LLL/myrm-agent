@@ -483,8 +483,16 @@ SELECT_FIRST_ENABLED_MODEL_JS = """
 
 DISMISS_MODALS_JS = """
 (() => {
-  sessionStorage.setItem('migration_discovery_dismissed', 'true');
-  sessionStorage.setItem('competitor_migration_dismissed', 'true');
+  const host = location.hostname;
+  if (host !== '127.0.0.1' && host !== 'localhost') {
+    return { ok: false, err: 'not-localhost', href: location.href };
+  }
+  try {
+    sessionStorage.setItem('migration_discovery_dismissed', 'true');
+    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+  } catch (err) {
+    return { ok: false, err: String(err), href: location.href };
+  }
   Array.from(document.querySelectorAll('button')).forEach((b) => {
     const text = (b.textContent || '').trim();
     if (/稍后再说|Later|Skip for now|关闭|Dismiss|Not now|打开迁移向导/i.test(text)) {

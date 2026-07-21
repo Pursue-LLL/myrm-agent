@@ -27,6 +27,8 @@ class MCPMigrationItem:
     description: str
     connect_timeout: float
     execute_timeout: float
+    keepalive_interval: float | None
+    host_serial: bool
     tool_include: list[str] | None
     tool_exclude: list[str] | None
     env_key_names: list[str]
@@ -76,6 +78,8 @@ def _convert_one(
 
     connect_timeout = _float_or_default(raw, "connectTimeout", "connect_timeout", default=15.0)
     execute_timeout = _float_or_default(raw, "timeout", "execute_timeout", default=120.0)
+    keepalive_interval = _resolve_keepalive_interval(raw)
+    host_serial = _resolve_host_serial_policy(raw)
 
     tool_include, tool_exclude = _extract_tool_filters(raw)
 
@@ -95,6 +99,8 @@ def _convert_one(
         description=description,
         connect_timeout=connect_timeout,
         execute_timeout=execute_timeout,
+        keepalive_interval=keepalive_interval,
+        host_serial=host_serial,
         tool_include=tool_include,
         tool_exclude=tool_exclude,
         env_key_names=env_key_names,
@@ -115,6 +121,7 @@ def mcp_migration_item_to_config_dict(item: MCPMigrationItem) -> dict[str, objec
         "enabled": False,
         "connectTimeout": item.connect_timeout,
         "executeTimeout": item.execute_timeout,
+        "hostSerial": item.host_serial,
     }
     if item.command:
         cfg["command"] = item.command
@@ -126,6 +133,8 @@ def mcp_migration_item_to_config_dict(item: MCPMigrationItem) -> dict[str, objec
         cfg["tool_include"] = item.tool_include
     if item.tool_exclude:
         cfg["tool_exclude"] = item.tool_exclude
+    if item.keepalive_interval is not None:
+        cfg["keepaliveInterval"] = item.keepalive_interval
     return cfg
 
 
@@ -135,6 +144,7 @@ def mcp_migration_item_to_preview(item: MCPMigrationItem) -> dict[str, object]:
     preview: dict[str, object] = {
         "name": item.name,
         "type": item.server_type,
+        "hostSerial": item.host_serial,
     }
     if item.command:
         preview["command"] = item.command
@@ -144,6 +154,8 @@ def mcp_migration_item_to_preview(item: MCPMigrationItem) -> dict[str, object]:
         preview["url"] = item.url
     if item.env_key_names:
         preview["envKeyCount"] = len(item.env_key_names)
+    if item.keepalive_interval is not None:
+        preview["keepaliveInterval"] = item.keepalive_interval
     return preview
 
 
@@ -158,6 +170,15 @@ def _float_or_default(d: dict[str, object], *keys: str, default: float) -> float
         if isinstance(v, (int, float)) and v > 0:
             return float(v)
     return default
+
+
+def _resolve_keepalive_interval(raw: dict[str, object]) -> float | None:
+    """Resolve optional keepalive interval from competitor config payload."""
+    for key in ("keepalive_interval", "keepaliveInterval", "keepalive", "keepAliveInterval"):
+        value = raw.get(key)
+        if isinstance(value, (int, float)) and value > 0:
+            return float(value)
+    return None
 
 
 def _extract_env_key_names(raw: dict[str, object]) -> list[str]:
@@ -181,3 +202,27 @@ def _extract_tool_filters(raw: dict[str, object]) -> tuple[list[str] | None, lis
     exclude = [str(t) for t in exclude_raw if isinstance(t, str)] if isinstance(exclude_raw, list) else None
 
     return include or None, exclude or None
+
+
+def _resolve_host_serial_policy(raw: dict[str, object]) -> bool:
+    """Derive host_serial from competitor flags.
+
+    Priority:
+    1) Explicit host_serial/hostSerial in source payload.
+    2) Invert explicit supports_parallel_tool_calls / supportsParallelToolCalls.
+    3) Default False (do not force serial unless source explicitly opts out of parallel).
+    """
+    explicit_host_serial = _bool_or_none(raw, "host_serial", "hostSerial")
+    if explicit_host_serial is not None:
+        return explicit_host_serial
+
+    supports_parallel = _bool_or_none(raw, "supports_parallel_tool_calls", "supportsParallelToolCalls")
+    return supports_parallel is False
+
+
+def _bool_or_none(d: dict[str, object], *keys: str) -> bool | None:
+    for key in keys:
+        value = d.get(key)
+        if isinstance(value, bool):
+            return value
+    return None

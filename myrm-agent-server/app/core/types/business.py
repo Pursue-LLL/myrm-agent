@@ -165,6 +165,13 @@ class MCPServerConfig(BaseModel):
         default=None,
         description="Tool blacklist: all but these register. Ignored when tool_include is set.",
     )
+    host_serial: bool = Field(
+        default=False,
+        description=(
+            "When true, treat all tools from this MCP server as host-stateful and force serial scheduling "
+            "(overrides read-only parallel hints)."
+        ),
+    )
     connect_timeout: float = Field(
         default=15.0,
         description="Connection timeout in seconds (stdio startup may be slow)",
@@ -172,6 +179,15 @@ class MCPServerConfig(BaseModel):
     execute_timeout: float = Field(
         default=120.0,
         description="Tool execution timeout in seconds (complex operations like DB queries need more time)",
+    )
+    keepalive_interval: float | None = Field(
+        default=None,
+        ge=5.0,
+        le=3600.0,
+        description=(
+            "Optional remote MCP keepalive interval in seconds. "
+            "Applies to SSE/streamable_http only; None uses framework default."
+        ),
     )
     ssl_verify: bool | str | None = Field(
         default=None,

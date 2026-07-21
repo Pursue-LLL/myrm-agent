@@ -221,36 +221,32 @@ async def ensure_interact_gate(
     last_tool = str(tool_activity.get("lastTool") or "")
     server_pending = await asyncio.to_thread(server_pending_approval_count)
     ui_pending = bool(tool_activity.get("pending"))
-    snapshot_only = last_tool.endswith("desktop_snapshot_tool") or last_tool.endswith(
-        "desktop_vision_tool"
-    )
-    if snapshot_only and not (ui_pending or server_pending > 0):
-        progress("snapshot-only detected; nudge interact immediately")
-        try:
-            await chat.send_message(E2E_NUDGE_PROMPT, E2E_NUDGE_PROMPT)
-        except (RuntimeError, TimeoutError, OSError) as exc:
-            raise AssertionError(f"Nudge send failed (Chrome mux): {exc}") from exc
-        heartbeat_e2e_lease()
-        tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
-            chat,
-            timeout_sec=120.0,
-        )
-    elif not _desktop_gate_satisfied(
-        last_tool=last_tool,
-        server_pending=server_pending,
-        ui_pending=ui_pending,
-    ):
-        tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
-            chat,
-            timeout_sec=45.0,
-        )
 
-    if not _desktop_gate_satisfied(
-        last_tool=last_tool,
-        server_pending=server_pending,
-        ui_pending=ui_pending,
-    ):
-        progress("nudge model to call desktop_interact_tool")
+    max_nudge_rounds = 4
+    for round_idx in range(max_nudge_rounds):
+        if _desktop_gate_satisfied(
+            last_tool=last_tool,
+            server_pending=server_pending,
+            ui_pending=ui_pending,
+        ):
+            break
+        if round_idx == 0 and not (
+            last_tool.endswith("desktop_snapshot_tool") or last_tool.endswith("desktop_vision_tool")
+        ):
+            tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
+                chat,
+                timeout_sec=45.0,
+            )
+            if _desktop_gate_satisfied(
+                last_tool=last_tool,
+                server_pending=server_pending,
+                ui_pending=ui_pending,
+            ):
+                break
+        progress(
+            f"nudge model to call desktop_interact_tool "
+            f"round {round_idx + 1}/{max_nudge_rounds} lastTool={last_tool!r}"
+        )
         try:
             await chat.send_message(E2E_NUDGE_PROMPT, E2E_NUDGE_PROMPT)
         except (RuntimeError, TimeoutError, OSError) as exc:
@@ -258,7 +254,7 @@ async def ensure_interact_gate(
         heartbeat_e2e_lease()
         tool_activity, last_tool, server_pending, ui_pending = await wait_for_interact_or_approval(
             chat,
-            timeout_sec=120.0,
+            timeout_sec=90.0,
         )
 
     provider_hint = await _provider_readiness_hint()

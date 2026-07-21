@@ -110,6 +110,14 @@ interface Window {
       appName: string;
       requireAppApproval: boolean;
     };
+    syncDesktopControlApproval?: (payload: {
+      request_id: string;
+      reason: string;
+      operation: string;
+      app_name?: string;
+      window_title?: string;
+      require_app_approval?: boolean;
+    }) => void;
     hideApprovalDrawer?: () => void;
     isApprovalDrawerOpen?: () => boolean;
     triggerBrowserTakeover?: (payload: {

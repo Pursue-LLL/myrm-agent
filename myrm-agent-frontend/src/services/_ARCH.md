@@ -29,6 +29,8 @@
 | `agent.ts` | `/user-agents/*` CRUD、密钥、快照回滚、导入导出；`getAgent(..., signal)` 支持请求级 abort；fetch 错误与 secret list normalize 见 `agentFetchErrorCore.ts` |
 | `agentFetchErrorCore.ts` | 纯函数：`parseUserAgentFetchErrorMessage`（detail/顶层 message）、`normalizeAgentSecretKeyNames`（`{key_name}[]` → `string[]`） |
 | `runs.ts` | `GET /runs`：Cron / Kanban / Shell 后台任务统一运行历史（只读聚合） |
+| `background-tasks.ts` | `GET/POST /background-tasks/*`：Panel 列表、cancel、steer |
+| `backgroundTasksRefresh.ts` | Panel/tray 即时刷新：`notifyBackgroundTasksChanged` + `notifyBackgroundTasksChangedForShellJobFinish`（global SSE finish） |
 | `hosting.ts` | `/artifacts/hosting/*`、publish、publications、WS URL |
 | `artifact*.ts` | 工件相关 REST |
 | `subscription*.ts` / `entitlements*.ts` | **仅 SaaS/sandbox** 构建使用的 CP 配额 |

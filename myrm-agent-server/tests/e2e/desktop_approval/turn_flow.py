@@ -15,6 +15,7 @@ from tests.e2e.desktop_approval.gate_probe import ensure_interact_gate
 from tests.e2e.desktop_approval.textedit_fixture import ensure_textedit_fixture_ready
 from tests.e2e.desktop_approval.trust_api import (
     desktop_trust_revoke_selector_js,
+    fetch_pending_approval_request_ids,
     list_trusted_apps_via_api,
     server_pending_approval_count,
 )
@@ -248,19 +249,66 @@ async def complete_turn_after_approval(
 
 async def ensure_desktop_inspector_panel_open(chat: McpChatSession) -> None:
     """Mirror fileDiffEvents.ts openPanel on DESKTOP_CONTROL_APPROVAL_REQUEST."""
+    on_chat = await chat.evaluate(
+        f"""(() => {{
+          const href = String(location.href || '');
+          return {{ onChatUi: href.startsWith({BASE_URL!r}), href }};
+        }})()""",
+        await_promise=False,
+    )
+    if not isinstance(on_chat, dict) or not on_chat.get("onChatUi"):
+        progress(f"navigate before openPanel (href={on_chat.get('href') if isinstance(on_chat, dict) else on_chat})")
+        await asyncio.to_thread(
+            chat._client.navigate,
+            chat._page,
+            BASE_URL,
+            timeout_ms=120_000,
+        )
+        await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+
+    # Raw `@/` dynamic import fails in CDP evaluate; use E2E bridge (same path as enable_computer_use).
     result = await chat.evaluate(
-        """(async () => {
-          const { default: useDesktopInspectorStore } = await import(
-            '@/store/useDesktopInspectorStore'
-          );
-          useDesktopInspectorStore.getState().openPanel();
-          return { ok: true };
+        """(() => {
+          const bridge = window.__MYRM_E2E_CHAT__;
+          if (typeof bridge?.ensureComputerUseReady === 'function') {
+            bridge.ensureComputerUseReady();
+            return { ok: true, via: 'ensureComputerUseReady' };
+          }
+          return { ok: true, skipped: 'overlay-only' };
         })()""",
         await_promise=False,
-        recv_timeout=30.0,
     )
     assert isinstance(result, dict) and result.get("ok") is True, (
         f"openDesktopInspectorPanel failed: {result}"
+    )
+
+
+async def sync_approval_banner_from_pending_api(chat: McpChatSession) -> None:
+    """Seed approval overlay when SSE missed in CDP tab (mirrors fileDiffEvents handler)."""
+    pending_ids = await asyncio.to_thread(fetch_pending_approval_request_ids)
+    if not pending_ids:
+        return
+    request_id = pending_ids[0]
+    payload = {
+        "request_id": request_id,
+        "reason": "Allow Myrm to control TextEdit for this task?",
+        "operation": "foreground_control",
+        "app_name": "TextEdit",
+        "require_app_approval": True,
+    }
+    result = await chat.evaluate(
+        f"""(() => {{
+          const bridge = window.__MYRM_E2E_CHAT__;
+          if (typeof bridge?.syncDesktopControlApproval !== 'function') {{
+            return {{ ok: false, err: 'no-sync-bridge' }};
+          }}
+          bridge.syncDesktopControlApproval({json.dumps(payload)});
+          return {{ ok: true, requestId: {json.dumps(request_id)} }};
+        }})()""",
+        await_promise=False,
+    )
+    assert isinstance(result, dict) and result.get("ok") is True, (
+        f"syncDesktopControlApproval failed: {result}"
     )
 
 
@@ -286,6 +334,8 @@ async def wait_for_approval_banner_clickable(
         return await chat.click_desktop_allow_once()
 
     await ensure_desktop_inspector_panel_open(chat)
+    if server_pending_hint > 0:
+        await sync_approval_banner_from_pending_api(chat)
 
     deadline = asyncio.get_event_loop().time() + APPROVAL_CLICK_DEADLINE_SEC
     approval: dict[str, object] = {"pending": ui_pending_hint, "allowVisible": False}

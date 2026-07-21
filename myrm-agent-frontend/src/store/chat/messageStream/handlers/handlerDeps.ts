@@ -25,7 +25,7 @@ export {
   parseArchiveRestoreBlockPayload,
   parseArchiveRestoreResultPayload,
 } from '../../archiveRestoreActions';
-export { findAssistantMessageIndex } from '../../messageUtils';
+export { findAssistantMessageIndex, findUiArtifactLocation } from '../../messageUtils';
 export {
   isMemoryRecallToolName,
   mergeCitedMemoryReferences,

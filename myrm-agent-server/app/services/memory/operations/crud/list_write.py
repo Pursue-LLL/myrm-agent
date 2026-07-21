@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 async def list_memories_paginated(
     type: str | None = Query(None, description="Filter by memory type"),
-    search: str | None = Query(None, description="Search query"),
+    search: str | None = Query(None, description="Semantic search query"),
     tag: str | None = Query(None, description="Filter by tag (exact match)"),
     sort_by: str = Query("created_at", description="Sort field: created_at, updated_at, importance"),
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
@@ -56,37 +56,93 @@ async def list_memories_paginated(
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> MemoryListPaginatedResponse:
-    """List user's memories with pagination and sorting."""
-    types = [parse_memory_type(type)] if type else list(ALL_MEMORY_TYPES)
+    """List user's memories with pagination and sorting.
 
-    all_memories: list[MemoryItem] = []
-    total = 0
-
-    for mem_type in types:
-        try:
-            count = await manager.count_memories(mem_type)
-            total += count
-            memories = await manager.list_memories(mem_type, limit=10000, offset=0)
-            all_memories.extend([memory_to_item(m, mem_type) for m in memories])
-        except Exception as e:
-            logger.warning(f"Error listing {mem_type} memories: {e}")
-
+    When ``search`` is provided, uses the semantic search pipeline instead of
+    listing, returning relevance-ranked results.
+    """
     if search:
-        search_lower = search.lower()
-        all_memories = [m for m in all_memories if search_lower in m.content.lower()]
-        total = len(all_memories)
+        return await _search_memories_paginated(
+            search=search, type=type, tag=tag, page=page, page_size=page_size, manager=manager
+        )
 
+    types = [parse_memory_type(type)] if type else list(ALL_MEMORY_TYPES)
+    validated_sort = sort_by if sort_by in _SORT_KEYS else "created_at"
+    validated_order = sort_order if sort_order in ("asc", "desc") else "desc"
+    offset = (page - 1) * page_size
+
+    if len(types) == 1:
+        mem_type = types[0]
+        total = await manager.count_memories(mem_type, tag_filter=tag)
+        memories = await manager.list_memories(
+            mem_type,
+            limit=page_size,
+            offset=offset,
+            sort_by=validated_sort,
+            sort_order=validated_order,
+            tag_filter=tag,
+        )
+        items = [memory_to_item(m, mem_type) for m in memories]
+    else:
+        total = 0
+        items: list[MemoryItem] = []
+        for mem_type in types:
+            try:
+                count = await manager.count_memories(mem_type, tag_filter=tag)
+                total += count
+                memories = await manager.list_memories(
+                    mem_type,
+                    limit=page_size,
+                    offset=offset,
+                    sort_by=validated_sort,
+                    sort_order=validated_order,
+                    tag_filter=tag,
+                )
+                items.extend(memory_to_item(m, mem_type) for m in memories)
+            except Exception as e:
+                logger.warning("Error listing %s memories: %s", mem_type, e)
+
+        reverse = validated_order == "desc"
+        sort_attr = _SORT_KEYS[validated_sort]
+        items.sort(key=lambda m: getattr(m, sort_attr, 0) or 0, reverse=reverse)
+        items = items[:page_size]
+
+    total_pages = max(1, (total + page_size - 1) // page_size)
+
+    return MemoryListPaginatedResponse(
+        items=items,
+        pagination=PaginationInfo(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=total_pages,
+            has_next=page < total_pages,
+            has_prev=page > 1,
+        ),
+    )
+
+
+async def _search_memories_paginated(
+    *,
+    search: str,
+    type: str | None,
+    tag: str | None,
+    page: int,
+    page_size: int,
+    manager: MemoryManager,
+) -> MemoryListPaginatedResponse:
+    """Handle the ``search`` parameter by delegating to the semantic search pipeline."""
+    types: list[MemoryType] | None = [parse_memory_type(type)] if type else None
+    results = await manager.search(search, memory_types=types, limit=page * page_size)
+
+    search_items = [memory_to_item(r.memory, r.memory_type) for r in results]
     if tag:
         tag_lower = tag.lower()
-        all_memories = [m for m in all_memories if any(t.lower() == tag_lower for t in m.tags)]
-        total = len(all_memories)
+        search_items = [m for m in search_items if any(t.lower() == tag_lower for t in m.tags)]
 
-    sort_attr = _SORT_KEYS.get(sort_by, "created_at")
-    reverse = sort_order != "asc"
-    all_memories.sort(key=lambda m: getattr(m, sort_attr, 0) or 0, reverse=reverse)
-
+    total = len(search_items)
     offset = (page - 1) * page_size
-    paginated = all_memories[offset : offset + page_size]
+    paginated = search_items[offset : offset + page_size]
     total_pages = max(1, (total + page_size - 1) // page_size)
 
     return MemoryListPaginatedResponse(

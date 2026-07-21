@@ -11,6 +11,7 @@ sentence-split and piped to TTS in real-time.
 - app.core.channel_bridge.config_parsers (POS: config extraction utilities)
 - app.core.channel_bridge.model_resolver (POS: model config resolution)
 - app.channels.voice.tts::synthesize_stream (POS: streaming TTS)
+- app.api.voice.voice_memory_context::voice_memory_context_from (POS: voice memory ACL SSOT)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: cancellation primitive)
 
 [OUTPUT]

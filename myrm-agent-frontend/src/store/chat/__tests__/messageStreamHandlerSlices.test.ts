@@ -349,4 +349,55 @@ describe('messageStreamHandler handler slices', () => {
       form: { note: 'done', env: 'staging' },
     });
   });
+
+  it('UI_UPDATE data_update merges into prior assistant message by surface_id', async () => {
+    const firstTurn: Message = {
+      messageId: 'assistant-ui-turn1',
+      chatId: 'chat-1',
+      createdAt: new Date('2026-06-04T00:00:00Z'),
+      content: '',
+      role: 'assistant',
+      uiArtifacts: [
+        {
+          surface_id: 'status_card',
+          title: 'Status',
+          components: [],
+          root_ids: [],
+          data: { status: 'E2E_UPDATE_INITIAL' },
+          actions: [],
+        },
+      ],
+    };
+    const secondTurn: Message = {
+      messageId: 'assistant-ui-turn2',
+      chatId: 'chat-1',
+      createdAt: new Date('2026-06-04T00:01:00Z'),
+      content: '',
+      role: 'assistant',
+    };
+    const state: StreamHandlerState = {
+      messages: [firstTurn, secondTurn],
+      messageAppeared: true,
+      loading: true,
+      scheduler: new AdaptiveScheduler(),
+    };
+
+    await handleMessageStream(
+      {
+        type: AgentEventType.UI_UPDATE,
+        subtype: 'data_update',
+        messageId: 'assistant-ui-turn2',
+        data: { surface_id: 'status_card', updates: { status: 'E2E_UPDATE_FINAL' } },
+      },
+      '',
+      undefined,
+      false,
+      'partial',
+      state,
+      createStatefulActions(state),
+    );
+
+    expect(state.messages[0].uiArtifacts?.[0].data).toEqual({ status: 'E2E_UPDATE_FINAL' });
+    expect(state.messages[1].uiArtifacts).toBeUndefined();
+  });
 });

@@ -52,8 +52,10 @@ export interface MCPServiceConfig {
   enabled: boolean;
   headers?: Record<string, string> | null;
   extra_params?: Record<string, unknown> | null;
+  hostSerial?: boolean | null;
   connectTimeout?: number | null;
   executeTimeout?: number | null;
+  keepaliveInterval?: number | null;
   sslVerify?: boolean | string | null;
   clientCert?: string | null;
   clientKey?: string | null;

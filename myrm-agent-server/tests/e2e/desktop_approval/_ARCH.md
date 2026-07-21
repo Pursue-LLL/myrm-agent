@@ -13,9 +13,9 @@ Chrome MCP E2E helpers for Desktop Control approval (allow once / allow always �
 | `constants.py` | Core | Timeouts (incl. `APPROVAL_CLICK_DEADLINE_SEC` SSOT with gate env), prompts, infra abort markers, `progress()` | ✅ |
 | `infra_retry.py` | Core | `open_mcp_chat_page` (about:blank→navigate → recover → direct :3000); `is_retriable_page_transport` (detached Frame + mux timeout) | ✅ |
 | `textedit_fixture.py` | Fixture | macOS TextEdit scroll target (background, minimized) | ✅ |
-| `trust_api.py` | Core | HTTP helpers + safe revoke `data-testid` selector JS | ✅ |
+| `trust_api.py` | Core | HTTP helpers + `fetch_pending_approval_request_ids` + safe revoke `data-testid` selector JS | ✅ |
 | `gate_probe.py` | Core | Desktop tool activity, 60s idle fail-fast, provider diagnostics | ✅ |
-| `turn_flow.py` | Core | `openPanel` via async evaluate (align `fileDiffEvents.ts`); scope-aware banner probe; DONE wait; Settings revoke | ✅ |
+| `turn_flow.py` | Core | navigate guard + E2E bridge openPanel/sync; scope-aware banner probe; DONE wait; Settings revoke | ✅ |
 | `runner.py` | Core | `run_desktop_approval_chrome_e2e` + detached Frame → mux recover + reopen page | ✅ |
 
 Unit smoke (no Chrome): `tests/unit/desktop_approval/test_trust_api_smoke.py`, `test_gate_probe_smoke.py`.

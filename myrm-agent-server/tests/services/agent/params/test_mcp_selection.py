@@ -85,6 +85,17 @@ class TestApplyAgentMcpSelection:
         assert result[0].tool_include == ["tool_a"]
         assert result[1].tool_include is None
 
+    def test_tool_level_filtering_preserves_host_serial(self) -> None:
+        cfgs = [_cfg("stateful", host_serial=True)]
+        result = apply_agent_mcp_selection(
+            cfgs,
+            mcp_ids=None,
+            mcp_tool_selections={"stateful": ("tool_a",)},
+        )
+        assert len(result) == 1
+        assert result[0].tool_include == ["tool_a"]
+        assert result[0].host_serial is True
+
     def test_combined_server_and_tool_filtering(self) -> None:
         cfgs = [_cfg("a"), _cfg("b"), _cfg("c")]
         result = apply_agent_mcp_selection(

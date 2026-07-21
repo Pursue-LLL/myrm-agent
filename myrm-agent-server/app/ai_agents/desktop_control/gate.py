@@ -93,6 +93,18 @@ class DesktopApprovalRegistry:
     def pending_snapshot(cls) -> list[str]:
         return list(cls._pending.keys())
 
+    @classmethod
+    def clear_all(cls) -> None:
+        """Deny and drop all in-memory pending approvals (E2E/dev recovery)."""
+        for pending in cls._pending.values():
+            if pending.result is None:
+                pending.result = ForegroundPermissionResult(
+                    granted=False,
+                    scope=ForegroundPermissionScope.once,
+                )
+            pending.event.set()
+        cls._pending.clear()
+
 
 class DesktopControlGate:
     """Server-side gate implementing ForegroundPermissionCallback for desktop tools."""
@@ -126,6 +138,7 @@ class DesktopControlGate:
 
     @classmethod
     def reset_all_runtime_approval_state(cls) -> None:
+        DesktopApprovalRegistry.clear_all()
         for gate in list(cls._live_gates):
             gate.reset_runtime_approval_state()
 

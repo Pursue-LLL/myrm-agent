@@ -21,6 +21,7 @@ import useApprovalStore from '@/store/useApprovalStore';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useProviderStore from '@/store/useProviderStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
+import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
 import type { BuiltinToolId } from '@/store/chat/types';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
@@ -369,6 +370,7 @@ export default function E2EChatBridge() {
             : undefined;
         if (kind === 'background_job_finish' && typeof chatId === 'string' && chatId.trim()) {
           void useGoalStore.getState().refreshActiveGoal(chatId.trim());
+          notifyBackgroundTasksChangedForShellJobFinish(meta as Record<string, unknown>);
         }
       },
       dispatchBackgroundJobFinishAndRefresh: async (chatId: string) => {
@@ -383,6 +385,7 @@ export default function E2EChatBridge() {
         };
         window.dispatchEvent(new CustomEvent('system-notification', { detail }));
         await useGoalStore.getState().refreshActiveGoal(trimmed);
+        notifyBackgroundTasksChangedForShellJobFinish(detail.data.meta_data as Record<string, unknown>);
         const snap = useGoalStore.getState().activeGoal;
         return {
           ok: true,
@@ -454,6 +457,26 @@ export default function E2EChatBridge() {
           appName: state.appName,
           requireAppApproval: state.requireAppApproval,
         };
+      },
+      syncDesktopControlApproval: (payload: {
+        request_id: string;
+        reason: string;
+        operation: string;
+        app_name?: string;
+        window_title?: string;
+        require_app_approval?: boolean;
+      }) => {
+        useDesktopControlApprovalStore.getState().requestApproval({
+          request_id: payload.request_id,
+          reason: payload.reason,
+          operation: payload.operation,
+          app_name: payload.app_name,
+          window_title: payload.window_title,
+          require_app_approval: payload.require_app_approval,
+        });
+        void import('@/store/useDesktopInspectorStore').then(({ default: useDesktopInspectorStore }) => {
+          useDesktopInspectorStore.getState().openPanel();
+        });
       },
       getChatShellState: () => {
         const state = useChatStore.getState();

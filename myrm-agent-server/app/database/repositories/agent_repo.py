@@ -132,10 +132,36 @@ class AgentRepository:
         return AgentRepository._agent_to_profile(agent)
 
     @staticmethod
-    async def list_profiles(db: AsyncSession) -> list[AgentProfile]:
-        result = await db.execute(select(Agent))
+    async def list_profiles(
+        db: AsyncSession,
+        *,
+        offset: int = 0,
+        limit: int | None = None,
+        exclude_ids: list[str] | None = None,
+    ) -> list[AgentProfile]:
+        stmt = select(Agent)
+        if exclude_ids:
+            stmt = stmt.where(Agent.id.notin_(exclude_ids))
+        stmt = stmt.offset(offset)
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        result = await db.execute(stmt)
         agents = result.scalars().all()
         return [AgentRepository._agent_to_profile(agent) for agent in agents]
+
+    @staticmethod
+    async def count_profiles(
+        db: AsyncSession,
+        *,
+        exclude_ids: list[str] | None = None,
+    ) -> int:
+        from sqlalchemy import func
+
+        stmt = select(func.count()).select_from(Agent)
+        if exclude_ids:
+            stmt = stmt.where(Agent.id.notin_(exclude_ids))
+        result = await db.execute(stmt)
+        return result.scalar_one()
 
     @staticmethod
     async def create_profile(

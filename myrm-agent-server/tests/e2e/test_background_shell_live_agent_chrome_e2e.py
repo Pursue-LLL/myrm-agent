@@ -2,13 +2,11 @@
 
 Panel running-row UX is covered by ``test_background_tasks_panel_chrome_e2e.py`` (seed + cancel).
 Teardown cancels the spawned shell via ``POST /background-tasks/{task_id}/cancel`` (best-effort).
-Failed wait attempts cancel running shells for that ``chat_id`` before retry (no cross-attempt orphans).
 
-Formal run (须 ``-m chrome_e2e``；不传 ``modelSelection``，使用 WebUI ``defaultModelConfig``)::
+Formal run (``-m chrome_e2e``; WebUI ``defaultModelConfig``; no ``modelSelection`` in request)::
 
-    ./myrm test -m chrome_e2e \\
-      myrm-agent/myrm-agent-server/tests/e2e/test_background_shell_live_agent_chrome_e2e.py \\
-      ::test_live_agent_background_shell_spawn_via_agent_stream
+    MYRM_E2E_LANE=LIVE_AGENT ./myrm test -m chrome_e2e \\
+      myrm-agent/myrm-agent-server/tests/e2e/test_background_shell_live_agent_chrome_e2e.py
 """
 
 from __future__ import annotations
@@ -17,6 +15,7 @@ import json
 import sys
 import time
 import uuid
+import urllib.error
 from pathlib import Path
 
 import httpx
@@ -32,7 +31,15 @@ from tests.support.chrome_mcp_e2e import http_json
 
 _STREAM_TRANSPORT_ERRORS = (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadError)
 _BASH_TOOL_NAME = "bash_code_execute_tool"
-_MAX_BASH_STREAM_ATTEMPTS = 3
+_MAX_BASH_STREAM_ATTEMPTS = 5
+_POST_STREAM_RUNNING_PROBE_SEC = 20.0
+_MAX_CHAT_SPAWN_ATTEMPTS = 3
+_RETRYABLE_SPAWN_ERRORS = (
+    AssertionError,
+    urllib.error.URLError,
+    OSError,
+    *_STREAM_TRANSPORT_ERRORS,
+)
 
 _BG_SPAWN_PROMPT = (
     "E2E_BACKGROUND_SHELL: Call bash_code_execute_tool exactly once with:\n"
@@ -191,6 +198,7 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
                 f"tools={tool_names or ['<none>']}; detail={detail}",
             )
 
+    last_bash_error: AssertionError | None = None
     for stream_attempt in range(_MAX_BASH_STREAM_ATTEMPTS):
         stream_payload = dict(request_data)
         if stream_attempt > 0:
@@ -198,19 +206,29 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
         try:
             _run_stream_once(stream_payload)
             return
-        except AssertionError:
+        except AssertionError as exc:
+            last_bash_error = exc
             if stream_attempt >= _MAX_BASH_STREAM_ATTEMPTS - 1:
-                raise
+                break
             continue
         except _STREAM_TRANSPORT_ERRORS:
             if stream_attempt >= _MAX_BASH_STREAM_ATTEMPTS - 1:
                 raise
-            # Stream may drop after spawn; avoid double-spawn retry when shell is already running.
             try:
                 _wait_for_running_shell(api_base, chat_id, timeout_sec=10.0)
                 return
             except AssertionError:
                 continue
+
+    try:
+        _wait_for_running_shell(api_base, chat_id, timeout_sec=_POST_STREAM_RUNNING_PROBE_SEC)
+        return
+    except AssertionError:
+        if last_bash_error is not None:
+            raise last_bash_error
+        raise AssertionError(
+            f"agent-stream finished without {_BASH_TOOL_NAME} and no running shell for chat_id={chat_id}",
+        )
 
 
 def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 180.0) -> str:
@@ -245,21 +263,24 @@ def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
     task_id: str | None = None
 
     try:
-        for attempt in range(2):
+        for attempt in range(_MAX_CHAT_SPAWN_ATTEMPTS):
             chat_id = f"e2e-bgshell-{uuid.uuid4().hex[:10]}"
-            with httpx.Client() as client:
-                chat_resp = client.post(f"{api_base}/api/v1/chats/", json={"chat_id": chat_id}, timeout=30.0)
-                chat_resp.raise_for_status()
-                agent_id = _create_background_agent(client, api_base)
-                _stream_background_spawn(client, api_base, agent_id, chat_id)
             try:
+                with httpx.Client() as client:
+                    chat_resp = client.post(
+                        f"{api_base}/api/v1/chats/", json={"chat_id": chat_id}, timeout=30.0
+                    )
+                    chat_resp.raise_for_status()
+                    agent_id = _create_background_agent(client, api_base)
+                    _stream_background_spawn(client, api_base, agent_id, chat_id)
                 task_id = _wait_for_running_shell(api_base, chat_id, timeout_sec=240.0)
                 break
-            except AssertionError as exc:
+            except _RETRYABLE_SPAWN_ERRORS as exc:
                 last_error = str(exc)
                 _cancel_running_shells_for_chat_best_effort(api_base, chat_id)
-                if attempt == 1:
+                if attempt >= _MAX_CHAT_SPAWN_ATTEMPTS - 1:
                     raise AssertionError(last_error) from exc
+                time.sleep(2.0)
         else:
             raise AssertionError(last_error or "background shell spawn failed")
 

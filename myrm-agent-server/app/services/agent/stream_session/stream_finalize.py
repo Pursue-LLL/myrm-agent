@@ -288,4 +288,12 @@ async def finalize_agent_stream_session(
         except Exception as flush_exc:
             logger.debug("Slice window flush skipped: %s", flush_exc)
 
+    if session.request.chat_id and session.collector.cross_turn_data_updates:
+        from app.services.chat.ui_artifact_patch import patch_ui_artifact_data_updates
+
+        await patch_ui_artifact_data_updates(
+            session.request.chat_id,
+            session.collector.cross_turn_data_updates,
+        )
+
     session.collector.cleanup()

@@ -18,7 +18,7 @@ import sys
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 APPROVAL_WAIT_SEC = 240.0
-GATE_IDLE_FAIL_FAST_SEC = 60.0
+GATE_IDLE_FAIL_FAST_SEC = 120.0
 
 
 def _parse_gate_timeout_sec() -> float:

@@ -114,6 +114,7 @@ class StreamContentCollector:
         self._usage_alert: dict[str, object] | None = None
         self._session_recording: dict[str, object] | None = None
         self._ui_artifacts: list[dict[str, object]] = []
+        self._cross_turn_data_updates: list[tuple[str, dict[str, object]]] = []
         self._kanban_tasks_created: list[dict[str, object]] = []
         self._cron_job_result: dict[str, object] | None = None
         self._sibling_group_id: str | None = sibling_group_id
@@ -352,12 +353,18 @@ class StreamContentCollector:
                 surface_id = data.get("surface_id")
                 updates = data.get("updates")
                 if isinstance(surface_id, str) and isinstance(updates, dict):
+                    merged_locally = False
                     for artifact in self._ui_artifacts:
                         if artifact.get("surface_id") == surface_id:
                             existing_data = artifact.get("data")
                             if isinstance(existing_data, dict):
                                 artifact["data"] = deep_merge_ui_data(existing_data, updates)
+                            merged_locally = True
                             break
+                    if not merged_locally and self._chat_id:
+                        normalized_updates = string_keyed_dict(updates)
+                        if normalized_updates is not None:
+                            self._cross_turn_data_updates.append((surface_id, normalized_updates))
         elif event_type == "status":
             step_key = event.get("step_key")
             if step_key == "cache_break" and isinstance(data, dict):
@@ -393,6 +400,10 @@ class StreamContentCollector:
     @property
     def sibling_group_id(self) -> str | None:
         return self._sibling_group_id
+
+    @property
+    def cross_turn_data_updates(self) -> list[tuple[str, dict[str, object]]]:
+        return list(self._cross_turn_data_updates)
 
     @property
     def extra_data(self) -> dict[str, object] | None:

@@ -45,7 +45,15 @@ class AgentUpdateOutcome:
 
 
 class _AgentRepositoryPort(Protocol):
-    async def list_profiles(self) -> list[AgentProfile]: ...
+    async def list_profiles(
+        self,
+        *,
+        offset: int = 0,
+        limit: int | None = None,
+        exclude_ids: list[str] | None = None,
+    ) -> list[AgentProfile]: ...
+
+    async def count_profiles(self, *, exclude_ids: list[str] | None = None) -> int: ...
 
     async def get_profile(self, agent_id: str) -> AgentProfile | None: ...
 
@@ -154,19 +162,18 @@ class AgentService:
 
     @staticmethod
     async def get_agent_list(page: int = 1, page_size: int = 20) -> tuple[list[AgentProfile], int]:
-        """获取智能体列表（支持分页）"""
-        from app.services.features.product_surface import is_hidden_builtin_agent
+        """获取智能体列表（支持分页）— DB-level pagination."""
+        from app.services.features.product_surface import HIDDEN_BUILTIN_AGENT_IDS
+
+        hidden_ids = list(HIDDEN_BUILTIN_AGENT_IDS)
+        offset = (page - 1) * page_size
 
         async with UnitOfWork() as uow:
-            profiles = await AgentService._ar(uow).list_profiles()
-            visible_profiles = [profile for profile in profiles if not is_hidden_builtin_agent(profile.id)]
-            total = len(visible_profiles)
+            repo = AgentService._ar(uow)
+            total = await repo.count_profiles(exclude_ids=hidden_ids)
+            profiles = await repo.list_profiles(offset=offset, limit=page_size, exclude_ids=hidden_ids)
 
-            # 内存分页
-            offset = (page - 1) * page_size
-            paginated = visible_profiles[offset : offset + page_size]
-
-            return paginated, total
+            return profiles, total
 
     @staticmethod
     async def get_agent_by_id(agent_id: str) -> AgentProfile | None:
