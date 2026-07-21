@@ -256,16 +256,29 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         )
         assert turn1_db_status == "E2E_UPDATE_INITIAL"
 
-        await chat.wait_turn_settled(
-            chat_id_hint=chat_id,
-            min_user_msgs=1,
-            timeout_sec=300.0,
-        )
+        async def _wait_not_streaming(*, timeout_sec: float) -> None:
+            deadline = time.monotonic() + timeout_sec
+            last: dict[str, object] = {}
+            while time.monotonic() < deadline:
+                heartbeat_e2e_lease()
+                probe = await chat.evaluate(
+                    """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? { err: 'no-bridge' })()""",
+                    await_promise=False,
+                    recv_timeout=15.0,
+                )
+                if isinstance(probe, dict):
+                    last = probe
+                    if probe.get("isStreaming") is False:
+                        return
+                await asyncio.sleep(1.0)
+            raise TimeoutError(f"Chat still streaming before turn2: {last}")
+
+        await _wait_not_streaming(timeout_sec=120.0)
         await chat.wait_input_empty(chat_id_hint=chat_id)
 
         await chat.evaluate(_ENABLE_UPDATE_UI_JS, await_promise=False, recv_timeout=15.0)
 
-        update_send = await chat.send_message(
+        await chat.send_message(
             E2E_PROMPT_UPDATE,
             E2E_PROMPT_UPDATE,
             chat_id_hint=chat_id,
