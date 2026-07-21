@@ -214,6 +214,7 @@ export default function E2EChatBridge() {
             };
             return;
           }
+          useChatStore.getState().clearCurrentSessionMessageId();
           const baselineUsers = window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0;
           void useChatStore.getState().sendMessage(message, undefined);
           const deadline = Date.now() + 20_000;
