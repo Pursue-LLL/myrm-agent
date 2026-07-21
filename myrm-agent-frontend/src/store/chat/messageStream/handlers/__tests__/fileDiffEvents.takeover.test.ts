@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AgentEventType } from '@/store/chat/types';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
+import useChatStore from '@/store/useChatStore';
 import type { StreamHandlerActions, StreamHandlerState } from '../../types';
 import type { StreamCtx } from '../../streamContext';
 import { fileDiffEvents } from '../fileDiffEvents';
 
 const fetchWithTimeout = vi.fn();
 const toastError = vi.fn();
+const createPairingToken = vi.fn();
 
 vi.mock('@/lib/api', () => ({
   fetchWithTimeout: (...args: unknown[]) => fetchWithTimeout(...args),
@@ -21,6 +23,12 @@ vi.mock('@/lib/utils/toast', () => ({
 
 vi.mock('@/lib/utils/localeUtils', () => ({
   getClientLocale: () => 'en',
+}));
+
+vi.mock('@/services/remoteAccess', () => ({
+  remoteAccessService: {
+    createPairingToken: (...args: unknown[]) => createPairingToken(...args),
+  },
 }));
 
 function buildCtx(data: StreamCtx['data']): { ctx: StreamCtx; setLoading: ReturnType<typeof vi.fn> } {
@@ -50,7 +58,12 @@ describe('fileDiffEvents browser takeover', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useBrowserTakeoverStore.getState().completeTakeover();
+    useChatStore.setState({ chatId: undefined });
     fetchWithTimeout.mockResolvedValue({ ok: true });
+    createPairingToken.mockResolvedValue({
+      token: 'pair-token',
+      mobilePath: '/mobile/takeover/chat-42?pair=pair-token',
+    });
   });
 
   it('skips VNC POST when harness reports is_managed=false', async () => {
@@ -108,5 +121,26 @@ describe('fileDiffEvents browser takeover', () => {
       );
     });
     expect(useBrowserTakeoverStore.getState().pending).toBe(true);
+  });
+
+  it('creates signed takeover live link for extension takeover', async () => {
+    useChatStore.setState({ chatId: 'chat-42' });
+    const { ctx } = buildCtx({
+      type: AgentEventType.BROWSER_TAKEOVER_REQUESTED,
+      messageId: 'msg-45',
+      data: {
+        reason: 'Enter MFA code',
+        is_managed: false,
+        url: 'https://example.com/login',
+      },
+    });
+
+    await fileDiffEvents(ctx);
+
+    await vi.waitFor(() => {
+      expect(createPairingToken).toHaveBeenCalledWith('chat-42', 'browser_takeover');
+      expect(useBrowserTakeoverStore.getState().liveAssistUrl).toContain('/mobile/takeover/chat-42?pair=pair-token');
+    });
+    expect(useBrowserTakeoverStore.getState().liveAssistUrl).toContain('mid=msg-45');
   });
 });

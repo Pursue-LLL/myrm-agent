@@ -373,6 +373,61 @@ export interface ProviderConfig {
   credentialPoolStrategy?: CredentialPoolStrategy;
 }
 
+export const LOCAL_NO_AUTH_API_KEY_MARKER = '__myrm_local_no_auth__';
+
+function isLoopbackHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().trim();
+  if (normalized === 'localhost') return true;
+  if (normalized === '127.0.0.1') return true;
+  if (normalized === '::1' || normalized === '[::1]') return true;
+  if (normalized === '0.0.0.0') return true;
+  return false;
+}
+
+export const isLoopbackApiUrl = (apiUrl?: string | null): boolean => {
+  if (!apiUrl) return false;
+  const trimmed = apiUrl.trim();
+  if (!trimmed) return false;
+  const candidate = trimmed.includes('://') ? trimmed : `http://${trimmed}`;
+  try {
+    const parsed = new URL(candidate);
+    return isLoopbackHostname(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
+export const hasActiveApiKey = (provider: Pick<ProviderConfig, 'apiKeys'>): boolean => {
+  return provider.apiKeys?.some((k) => k.isActive && k.key) ?? false;
+};
+
+export const supportsProviderNoAuth = (
+  provider: Pick<ProviderConfig, 'id' | 'providerType' | 'apiUrl'>,
+): boolean => {
+  if (provider.id === 'ollama' || provider.id === 'lm_studio') {
+    return true;
+  }
+  if (provider.providerType === 'openai-like' && isLoopbackApiUrl(provider.apiUrl)) {
+    return true;
+  }
+  return false;
+};
+
+export const hasUsableProviderAuth = (
+  provider: Pick<ProviderConfig, 'id' | 'providerType' | 'apiUrl' | 'apiKeys'>,
+): boolean => {
+  return hasActiveApiKey(provider) || supportsProviderNoAuth(provider);
+};
+
+export const resolveProviderApiKeyForRequests = (
+  provider: Pick<ProviderConfig, 'id' | 'providerType' | 'apiUrl' | 'apiKeys'>,
+): string | undefined => {
+  const active = provider.apiKeys.find((k) => k.isActive && k.key)?.key;
+  if (active) return active;
+  if (supportsProviderNoAuth(provider)) return LOCAL_NO_AUTH_API_KEY_MARKER;
+  return undefined;
+};
+
 // 单模型选择配置
 export interface SingleModelSelection {
   providerId: string;

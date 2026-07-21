@@ -129,7 +129,7 @@ Forbidden patterns (see `myrm-agent-harness/.../toolkits/_ARCH.md` and `TOOL_DES
 
 These domains use matching names under both layers:
 
-`approvals` · `audit` · `budget` · `channels` · `checkpoint` · `companion` · `config` · `connect` · `context` · `extension` · `features` · `files` · `integrations` · `kanban` · `memory` · `message_filter` · `migration` · `risk` · `security` · `skill_optimization` · `skills` · `webui` · `wiki`
+`approvals` · `audit` · `budget` · `channels` · `checkpoint` · `companion` · `config` · `connect` · `context` · `extension` · `features` · `files` · `integrations` · `kanban` · `memory` · `message_filter` · `migration` · `progression` · `risk` · `security` · `skill_optimization` · `skills` · `webui` · `wiki`
 
 ### Intentional name pairs (most common confusion)
 
