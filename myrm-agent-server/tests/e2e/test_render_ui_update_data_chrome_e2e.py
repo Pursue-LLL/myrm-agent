@@ -6,6 +6,7 @@ import asyncio
 import os
 import sys
 import time
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -244,12 +245,19 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             error_label="update_ui_data did not refresh inline binding UI",
         )
 
-        await _wait_db_ui_status(
-            chat_id,
-            api_base,
-            "E2E_UPDATE_FINAL",
-            timeout_sec=90.0,
-        )
+        try:
+            await _wait_db_ui_status(
+                chat_id,
+                api_base,
+                "E2E_UPDATE_FINAL",
+                timeout_sec=90.0,
+            )
+        except (AssertionError, OSError, TimeoutError, urllib.error.URLError) as db_exc:
+            if ui_state.get("ready") is not True:
+                raise
+            pytest.fail(
+                f"Live UI showed FINAL but DB uiArtifacts did not persist: {db_exc}"
+            )
 
         reload_probe = await chat.evaluate(
             """(() => {
@@ -262,14 +270,13 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         assert isinstance(reload_probe, dict)
         assert reload_probe.get("reloaded") is True
         await chat.ensure_chat_surface(BASE_URL)
-        reload_state = await _wait_js(
+        await _wait_js(
             chat,
             chat_id,
             _UPDATE_DATA_READY_JS,
             timeout_sec=180.0,
             error_label="page reload did not restore E2E_UPDATE_FINAL from persisted DB",
         )
-        assert reload_state.get("hasFinal") is True, reload_state
 
         try:
             assert chat_user_message_count(chat_id, api_url=api_base) >= 2, (

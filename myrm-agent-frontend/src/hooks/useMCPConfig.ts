@@ -394,8 +394,9 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
       }
     }
 
-    if ((formData.type === 'sse' || formData.type === 'streamable_http') && formData.keepaliveInterval !== null) {
-      if (!Number.isFinite(formData.keepaliveInterval) || formData.keepaliveInterval < 5) {
+    const keepaliveInterval = formData.keepaliveInterval ?? null;
+    if ((formData.type === 'sse' || formData.type === 'streamable_http') && keepaliveInterval !== null) {
+      if (!Number.isFinite(keepaliveInterval) || keepaliveInterval < 5) {
         newErrors.keepaliveInterval = t('mcpKeepaliveIntervalMin');
       }
     }

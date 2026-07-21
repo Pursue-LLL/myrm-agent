@@ -613,6 +613,11 @@ export function PreviewStep({
                     {t('preview.mcpKeepalive', { seconds: srv.keepaliveInterval })}
                   </div>
                 )}
+                {srv.keepaliveIntervalIgnored && (
+                  <div className="text-amber-600 dark:text-amber-400">
+                    {t('preview.mcpKeepaliveIgnored')}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -717,6 +722,7 @@ export function ResultStep({
   skillSubmitFailed: boolean;
   secretsImportMessage: string | null;
   rollingBack: boolean;
+  onRollback: () => void;
   onRetrySkillSubmit: () => void;
   retryingSkills: boolean;
   onDone: () => void;
@@ -758,12 +764,12 @@ export function ResultStep({
         )}
         {(result.workspace_rules_written ?? 0) > 0 && (
           <p className="text-sm text-muted-foreground">
-            {t('result.workspaceRulesWritten', { count: result.workspace_rules_written })}
+            {t('result.workspaceRulesWritten', { count: result.workspace_rules_written ?? 0 })}
           </p>
         )}
         {(result.workspace_rules_skipped ?? 0) > 0 && (
           <p className="text-sm text-amber-600 dark:text-amber-400">
-            {t('result.workspaceRulesSkipped', { count: result.workspace_rules_skipped })}
+            {t('result.workspaceRulesSkipped', { count: result.workspace_rules_skipped ?? 0 })}
           </p>
         )}
       </div>

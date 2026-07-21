@@ -7821,6 +7821,7 @@
         "mcpHostSerial": "状态感知串行模式",
         "mcpEnvKeysRequired": "需手动配置 {count} 个环境变量",
         "mcpKeepalive": "保活间隔：{seconds} 秒",
+        "mcpKeepaliveIgnored": "源配置保活值低于 5 秒，已按规则忽略",
         "instructionLargeWarning": "指令内容约 {count} 字符，导入后可能增加每轮 Token 消耗，请确认是否需要精简 SOUL/规则",
         "hermesEconomyHint": "Hermes 迁移将使用 Economy 智能体预设，并自动启用 Smart Routing；辅助模型会写入模型设置。",
         "providersMissingHint": "检测到外部助手 API Key，但尚未配置模型服务商。导入密钥前请先在模型设置中创建服务商，或确认导入后将自动创建对应槽位",

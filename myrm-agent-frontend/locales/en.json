@@ -7818,6 +7818,7 @@
         "mcpHostSerial": "State-aware serial mode",
         "mcpEnvKeysRequired": "{count} env key(s) need manual setup",
         "mcpKeepalive": "Keepalive interval: {seconds}s",
+        "mcpKeepaliveIgnored": "Keepalive setting ignored because the source value is below 5 seconds",
         "instructionLargeWarning": "Instruction content is ~{count} characters — importing may raise per-turn token cost; consider trimming SOUL/rules",
         "hermesEconomyHint": "Hermes imports use the Economy agent preset with Smart Routing defaults. Auxiliary models map into your model settings automatically.",
         "providersMissingHint": "External assistant API keys were detected but no model providers are configured. Add providers in settings, or confirm import to auto-create matching slots",

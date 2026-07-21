@@ -58,6 +58,7 @@ class TestConvertCompetitorMCPServers:
         assert "SLACK_TOKEN" in slack.env_key_names
         assert slack.host_serial is True
         assert slack.keepalive_interval == 30
+        assert slack.keepalive_interval_ignored is False
 
     def test_explicit_host_serial_overrides_parallel_flag(self) -> None:
         raw = {
@@ -83,6 +84,7 @@ class TestConvertCompetitorMCPServers:
         items = convert_competitor_mcp_servers(raw, competitor="hermes")
         assert len(items) == 1
         assert items[0].keepalive_interval is None
+        assert items[0].keepalive_interval_ignored is True
 
     def test_claude_sse_server(self) -> None:
         items = convert_competitor_mcp_servers(_CLAUDE_RAW, competitor="claude")
@@ -229,3 +231,23 @@ class TestMCPMigrationItemToPreview:
         preview = mcp_migration_item_to_preview(item)
         assert preview["hostSerial"] is True
         assert preview["keepaliveInterval"] == 20
+
+    def test_preview_marks_ignored_keepalive(self) -> None:
+        item = MCPMigrationItem(
+            name="stateful",
+            server_type="stdio",
+            command="python",
+            args=["-m", "stateful_mcp"],
+            url=None,
+            description="Migrated from hermes",
+            connect_timeout=15.0,
+            execute_timeout=120.0,
+            keepalive_interval=None,
+            keepalive_interval_ignored=True,
+            host_serial=True,
+            tool_include=None,
+            tool_exclude=None,
+            env_key_names=[],
+        )
+        preview = mcp_migration_item_to_preview(item)
+        assert preview["keepaliveIntervalIgnored"] is True

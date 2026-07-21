@@ -270,6 +270,8 @@ export interface MCPServerPreviewItem {
   url?: string;
   envKeyCount?: number;
   hostSerial?: boolean;
+  keepaliveInterval?: number;
+  keepaliveIntervalIgnored?: boolean;
 }
 
 export interface MemoryImportDryRunResponse {

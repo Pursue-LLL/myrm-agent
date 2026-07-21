@@ -32,6 +32,7 @@ class MCPMigrationItem:
     tool_include: list[str] | None
     tool_exclude: list[str] | None
     env_key_names: list[str]
+    keepalive_interval_ignored: bool = False
 
 
 def convert_competitor_mcp_servers(
@@ -78,7 +79,7 @@ def _convert_one(
 
     connect_timeout = _float_or_default(raw, "connectTimeout", "connect_timeout", default=15.0)
     execute_timeout = _float_or_default(raw, "timeout", "execute_timeout", default=120.0)
-    keepalive_interval = _resolve_keepalive_interval(raw)
+    keepalive_interval, keepalive_interval_ignored = _resolve_keepalive_interval(raw)
     host_serial = _resolve_host_serial_policy(raw)
 
     tool_include, tool_exclude = _extract_tool_filters(raw)
@@ -100,6 +101,7 @@ def _convert_one(
         connect_timeout=connect_timeout,
         execute_timeout=execute_timeout,
         keepalive_interval=keepalive_interval,
+        keepalive_interval_ignored=keepalive_interval_ignored,
         host_serial=host_serial,
         tool_include=tool_include,
         tool_exclude=tool_exclude,
@@ -156,6 +158,8 @@ def mcp_migration_item_to_preview(item: MCPMigrationItem) -> dict[str, object]:
         preview["envKeyCount"] = len(item.env_key_names)
     if item.keepalive_interval is not None:
         preview["keepaliveInterval"] = item.keepalive_interval
+    if item.keepalive_interval_ignored:
+        preview["keepaliveIntervalIgnored"] = True
     return preview
 
 
@@ -172,13 +176,18 @@ def _float_or_default(d: dict[str, object], *keys: str, default: float) -> float
     return default
 
 
-def _resolve_keepalive_interval(raw: dict[str, object]) -> float | None:
-    """Resolve optional keepalive interval from competitor config payload."""
+def _resolve_keepalive_interval(raw: dict[str, object]) -> tuple[float | None, bool]:
+    """Resolve optional keepalive interval and whether a low value was ignored."""
+    ignored_low_value = False
     for key in ("keepalive_interval", "keepaliveInterval", "keepalive", "keepAliveInterval"):
         value = raw.get(key)
-        if isinstance(value, (int, float)) and value >= 5:
-            return float(value)
-    return None
+        if not isinstance(value, (int, float)):
+            continue
+        numeric = float(value)
+        if numeric >= 5:
+            return numeric, False
+        ignored_low_value = True
+    return None, ignored_low_value
 
 
 def _extract_env_key_names(raw: dict[str, object]) -> list[str]:
