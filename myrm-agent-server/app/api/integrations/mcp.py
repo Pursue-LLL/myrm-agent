@@ -723,7 +723,7 @@ async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONRespon
     try:
         start = time.monotonic()
         async with httpx.AsyncClient(timeout=body.timeout, verify=False) as client:
-            resp = await client.get(body.url)
+            await client.get(body.url)
             latency = (time.monotonic() - start) * 1000
             # Any HTTP response (even 4xx/5xx) means the server is reachable
             data = MCPProbeData(status="reachable", latency_ms=round(latency, 1))
