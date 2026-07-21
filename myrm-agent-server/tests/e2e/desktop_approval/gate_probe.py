@@ -229,7 +229,8 @@ async def _wait_desktop_tool_activity_failfast(
         probe = await probe_desktop_tool_progress(chat)
         if isinstance(probe, dict):
             last = probe
-            if probe.get("active") or probe.get("pending"):
+            probe_last_tool = str(probe.get("lastTool") or "")
+            if probe.get("pending") or probe_last_tool.startswith("desktop_"):
                 return probe
         server_pending = await _resolve_server_pending(api_fail_streak=api_fail_streak)
         if server_pending > 0:

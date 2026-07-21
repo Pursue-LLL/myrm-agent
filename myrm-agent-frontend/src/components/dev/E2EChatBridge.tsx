@@ -442,7 +442,7 @@ export default function E2EChatBridge() {
         );
         const isStreaming = Boolean(chat.loading || chat.abortController);
         return {
-          active: desktopSteps.length > 0 || isStreaming,
+          active: desktopSteps.length > 0,
           isStreaming,
           pending: approval.pending,
           requestId: approval.requestId,

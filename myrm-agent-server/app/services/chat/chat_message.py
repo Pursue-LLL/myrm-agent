@@ -134,8 +134,19 @@ class _ChatMessageMixin(_ChatServiceBase):
                 if field_updates:
                     await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, field_updates)
 
+            resolved_message_id = message_id or str(uuid4())
+            if message_id:
+                existing = await _ChatServiceBase._cr(uow).get_message_by_id(chat_id, message_id)
+                if existing is not None:
+                    logger.warning(
+                        "Duplicate user message_id=%s for chat_id=%s; allocating fresh id",
+                        message_id,
+                        chat_id,
+                    )
+                    resolved_message_id = str(uuid4())
+
             msg = MessageDTO(
-                id=message_id or str(uuid4()),
+                id=resolved_message_id,
                 chat_id=chat_id,
                 role="user",
                 content=content,

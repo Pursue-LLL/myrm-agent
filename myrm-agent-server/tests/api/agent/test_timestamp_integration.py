@@ -199,3 +199,36 @@ async def test_sent_at_vs_created_at_semantic(db_session):
 
     # sent_at 应该早于 created_at（网络延迟）
     assert sent_ts < created_ts
+
+
+@pytest.mark.asyncio
+async def test_duplicate_user_message_id_allocates_fresh_id(db_session):
+    """Turn2 must not reuse Turn1 request message_id; duplicate ids get a fresh UUID."""
+    duplicate_id = "test-msg-duplicate-001"
+    sent_at_utc = datetime.now(timezone.utc)
+    first = await ChatService.ensure_chat_and_append_user_message(
+        chat_id="test-chat-dedup-001",
+        content="Turn 1",
+        sent_at=sent_at_utc,
+        sent_timezone="UTC",
+        message_id=duplicate_id,
+    )
+    second = await ChatService.ensure_chat_and_append_user_message(
+        chat_id="test-chat-dedup-001",
+        content="Turn 2",
+        sent_at=sent_at_utc,
+        sent_timezone="UTC",
+        message_id=duplicate_id,
+    )
+    await db_session.commit()
+
+    assert first.id == duplicate_id
+    assert second.id != duplicate_id
+    assert second.content == "Turn 2"
+
+    result = await db_session.execute(
+        select(Message).where(Message.chat_id == "test-chat-dedup-001", Message.role == "user")
+    )
+    user_messages = result.scalars().all()
+    assert len(user_messages) == 2
+    assert {m.id for m in user_messages} == {duplicate_id, second.id}

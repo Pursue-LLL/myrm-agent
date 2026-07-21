@@ -256,17 +256,28 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         )
         assert turn1_db_status == "E2E_UPDATE_INITIAL"
 
+        await chat.wait_turn_settled(
+            chat_id_hint=chat_id,
+            min_user_msgs=1,
+            timeout_sec=300.0,
+        )
         await chat.wait_input_empty(chat_id_hint=chat_id)
 
         await chat.evaluate(_ENABLE_UPDATE_UI_JS, await_promise=False, recv_timeout=15.0)
 
-        await chat.send_message(
+        update_send = await chat.send_message(
             E2E_PROMPT_UPDATE,
             E2E_PROMPT_UPDATE,
             chat_id_hint=chat_id,
             base_url=BASE_URL,
         )
         heartbeat_e2e_lease()
+        await chat.wait_stream_started(
+            E2E_PROMPT_UPDATE,
+            timeout_sec=120.0,
+            chat_id_hint=chat_id,
+            min_user_msgs=2,
+        )
 
         async def _wait_api_user_messages(min_count: int, *, timeout_sec: float) -> None:
             deadline = time.monotonic() + timeout_sec
