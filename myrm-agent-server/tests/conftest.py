@@ -9,7 +9,7 @@ import sys
 import tempfile
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Iterator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from pathlib import Path
 from typing import TypeVar
 
@@ -292,7 +292,11 @@ def _chrome_e2e_item_runtime(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[object | None]:
-    """Give each formal Chrome item its own private Backend and data directories."""
+    """Give each formal Chrome item its own private Backend when private_backend=True.
+
+    READ lane may use private Backend for write-heavy UI tests (e.g. Kanban POST/seed)
+    while keeping READ mux lease — see resolve_e2e_session_lane.py.
+    """
     marker = request.node.get_closest_marker("chrome_e2e")
     lane = str(marker.kwargs.get("lane", "")).strip().upper() if marker else ""
     if marker is not None and lane not in {"READ", "LIVE_AGENT"}:
@@ -300,10 +304,6 @@ def _chrome_e2e_item_runtime(
             "CHROME_E2E_MARKER_INVALID: lane must be READ or LIVE_AGENT"
         )
     private_backend = marker is not None and marker.kwargs.get("private_backend", True) is not False
-    if private_backend and lane != "LIVE_AGENT":
-        raise RuntimeError(
-            "CHROME_E2E_MARKER_INVALID: private Backend items require lane=LIVE_AGENT"
-        )
     if (
         marker is None
         or not private_backend
@@ -359,9 +359,13 @@ def _require_live_e2e_lease(
     reap_chrome_e2e_session_hygiene()
     namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
     os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
-    with e2e_lease_heartbeat_loop():
-        yield
-        reap_chrome_e2e_session_hygiene()
+    from tests.support.e2e_runtime_guard import live_agent_stream_lock
+
+    stream_guard = live_agent_stream_lock() if lease.lane == "LIVE_AGENT" else nullcontext()
+    with stream_guard:
+        with e2e_lease_heartbeat_loop():
+            yield
+            reap_chrome_e2e_session_hygiene()
     assert_e2e_runtime_unchanged(lease)
 
 

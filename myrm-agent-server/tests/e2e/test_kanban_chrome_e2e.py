@@ -17,7 +17,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_board_and_task_render_in_real_ui() -> None:
@@ -98,7 +98,7 @@ def test_kanban_board_and_task_render_in_real_ui() -> None:
             client.evaluate(page, restore, timeout_sec=5.0)
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_source_chat_deep_link_filters_board_view() -> None:
@@ -159,7 +159,7 @@ def test_kanban_source_chat_deep_link_filters_board_view() -> None:
         assert other_title not in str(view_state.get("text") or "")
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
@@ -306,7 +306,7 @@ def _seed_kanban_closure_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_chat_created_card_opens_filtered_board_view() -> None:
