@@ -19,8 +19,10 @@ from cdp_chat_support import (
     DISMISS_MODALS_JS,
     _e2e_api_urlopen,
     e2e_runtime_binding,
+    e2e_runtime_bootstrap_apply_js,
     get_e2e_api_url,
     get_e2e_ui_url,
+    wait_e2e_provider_ready,
 )  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 
@@ -170,6 +172,28 @@ def _wait_for_shpoib_runtime_ready(
     )
 
 
+def _reapply_shpoib_runtime_after_reload(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    timeout_sec: float = 120.0,
+) -> None:
+    """Reload clears window globals; re-run bootstrap fetch against private :180xx API."""
+    import os
+
+    api_base = get_e2e_api_url()
+    if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=timeout_sec):
+        raise RuntimeError(f"SHPOIB private API not ready before rebind: {api_base}")
+    bootstrap_js = e2e_runtime_bootstrap_apply_js()
+    if bootstrap_js is None:
+        raise RuntimeError("SHPOIB bootstrap JS missing after reload")
+    observed = client.evaluate(page, bootstrap_js, timeout_sec=timeout_sec)
+    if not isinstance(observed, dict) or observed.get("ok") is not True:
+        raise RuntimeError(f"SHPOIB runtime rebind after reload failed: {observed}")
+    rebind_timeout = float(os.environ.get("MYRM_SHPOIB_REBIND_TIMEOUT_SEC", str(timeout_sec)))
+    _wait_for_shpoib_runtime_ready(client, page, timeout_sec=rebind_timeout)
+
+
 @contextmanager
 def open_mcp_page(
     url: str,
@@ -182,7 +206,7 @@ def open_mcp_page(
         if e2e_runtime_binding() is not None:
             resolved_timeout_ms = timeout_ms if timeout_ms is not None else 60_000
             client.reload(page, timeout_ms=resolved_timeout_ms)
-            _wait_for_shpoib_runtime_ready(client, page)
+            _reapply_shpoib_runtime_after_reload(client, page)
         wait_for_state(
             client,
             page,

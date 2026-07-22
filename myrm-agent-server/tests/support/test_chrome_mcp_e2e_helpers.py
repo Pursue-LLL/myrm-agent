@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 import urllib.error
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from tests.support.chrome_mcp_e2e import wait_for_state, warm_ui_route
+
+
+def test_open_mcp_page_reapplies_shpoib_binding_after_reload() -> None:
+    source = Path(__file__).with_name("chrome_mcp_e2e.py").read_text(encoding="utf-8")
+    block = source.split("def open_mcp_page", 1)[1].split("\ndef ", 1)[0]
+    assert "client.reload" in block
+    assert "_reapply_shpoib_runtime_after_reload" in block
+    assert block.index("reload") < block.index("_reapply_shpoib_runtime_after_reload")
 
 
 def test_wait_for_state_parses_json_string_ready() -> None:
