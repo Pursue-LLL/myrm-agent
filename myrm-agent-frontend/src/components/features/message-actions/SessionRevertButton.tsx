@@ -12,6 +12,8 @@ interface FileChangeInfo {
   operation: string;
   has_original: boolean;
   timestamp: number;
+  revertible?: boolean;
+  skip_reason?: string | null;
 }
 
 interface RevertResponse {
@@ -29,26 +31,39 @@ export default function SessionRevertButton({ sessionId }: SessionRevertButtonPr
   const t = useTranslations('messageActions');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [fileCount, setFileCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleClick = useCallback(async () => {
     setStatus('loading');
     try {
       const data = (await apiRequest(`/files/revert/changes/${sessionId}`)) as Record<string, FileChangeInfo[]>;
-      const uniquePaths = new Set<string>();
+      const revertiblePaths = new Set<string>();
+      const nonRevertiblePaths = new Set<string>();
       for (const changes of Object.values(data)) {
         for (const c of changes) {
-          uniquePaths.add(c.path);
+          if (c.revertible === false) {
+            nonRevertiblePaths.add(c.path);
+          } else {
+            revertiblePaths.add(c.path);
+          }
         }
       }
 
-      if (uniquePaths.size === 0) {
+      if (revertiblePaths.size === 0 && nonRevertiblePaths.size === 0) {
         toast({ title: t('revertSessionEmpty'), variant: 'default' });
         setStatus('idle');
         return;
       }
 
-      setFileCount(uniquePaths.size);
+      if (revertiblePaths.size === 0) {
+        toast({ title: t('revertSessionNotRevertible'), variant: 'default' });
+        setStatus('idle');
+        return;
+      }
+
+      setFileCount(revertiblePaths.size);
+      setSkippedCount(nonRevertiblePaths.size);
       setShowConfirm(true);
     } catch {
       toast({ title: t('revertSessionFetchError'), variant: 'destructive' });
@@ -95,7 +110,11 @@ export default function SessionRevertButton({ sessionId }: SessionRevertButtonPr
         open={showConfirm}
         onOpenChange={setShowConfirm}
         title={t('revertSession')}
-        description={t('revertSessionDesc', { count: fileCount })}
+        description={
+          skippedCount > 0
+            ? t('revertSessionDescPartial', { count: fileCount, skipped: skippedCount })
+            : t('revertSessionDesc', { count: fileCount })
+        }
         confirmText={t('revertSessionConfirm')}
         cancelText={t('cancel')}
         variant="warning"

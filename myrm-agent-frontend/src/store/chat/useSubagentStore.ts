@@ -67,6 +67,10 @@ export interface SubagentNode {
   stream?: StreamEntry[];
   effective_model?: string;
   token_usage?: Record<string, SubagentMetadataValue>;
+  stale?: boolean;
+  staleDurationSeconds?: number;
+  wastedTokens?: number;
+  staleDismissed?: boolean;
 }
 
 export interface FissionTopologyNode {
@@ -100,6 +104,8 @@ export interface SubagentStore {
   updateProgress: (taskId: string, progress: number, lastTool?: string) => void;
   updateEstimate: (taskId: string, etaSeconds: number) => void;
   dismissOvertime: (taskId: string) => void;
+  markStale: (taskId: string, staleDurationSeconds: number, wastedTokens: number) => void;
+  dismissStale: (taskId: string) => void;
   completeNode: (taskId: string, status: SubagentStatus, error?: string) => void;
   setNodes: (nodes: SubagentNode[]) => void;
   appendTeammateMessage: (entry: TeammateMessageEntry) => void;
@@ -177,6 +183,33 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
         nodes: {
           ...state.nodes,
           [taskId]: { ...state.nodes[taskId], overtimeDismissed: true },
+        },
+      };
+    }),
+
+  markStale: (taskId, staleDurationSeconds, wastedTokens) =>
+    set((state) => {
+      if (!state.nodes[taskId]) return state;
+      return {
+        nodes: {
+          ...state.nodes,
+          [taskId]: {
+            ...state.nodes[taskId],
+            stale: true,
+            staleDurationSeconds,
+            wastedTokens,
+          },
+        },
+      };
+    }),
+
+  dismissStale: (taskId) =>
+    set((state) => {
+      if (!state.nodes[taskId]) return state;
+      return {
+        nodes: {
+          ...state.nodes,
+          [taskId]: { ...state.nodes[taskId], staleDismissed: true },
         },
       };
     }),

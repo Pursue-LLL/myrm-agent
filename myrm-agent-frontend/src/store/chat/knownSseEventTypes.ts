@@ -48,6 +48,7 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'subagent_log',
   'bash_command_executed',
   'subagent_completion',
+  'subagent_stale',
   'context_snapshot',
   'iteration_limit_reached',
   'approval_required',

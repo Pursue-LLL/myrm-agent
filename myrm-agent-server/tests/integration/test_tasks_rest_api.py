@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -162,3 +163,126 @@ async def test_rest_list_tasks_supports_ids_and_detail(tmp_path: object) -> None
         missing_payload = missing_resp.json()
         assert missing_payload["total"] == 0
         assert missing_payload["tasks"] == []
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_rest_retry_uses_structured_errors_and_recovers_failed_task(tmp_path: object) -> None:
+    db_path = tmp_path / "tasks-rest-retry.db"  # type: ignore[operator]
+    store = SQLiteTaskStore(db_path=str(db_path))
+    await store.initialize()
+
+    config = ImageGenerationConfig(
+        model="flux-pro",
+        api_key="sk-rest-retry",
+    )
+    async_engine = AsyncImageGenerationTools(
+        config,
+        store,
+        payload_postprocessor=seal_task_payload_secrets,
+    )
+    raw = await async_engine.generate_image("a retry cube", user_id="user-rest-retry")
+    task_id = json.loads(raw)["task_id"]
+
+    transport = ASGITransport(app=_build_rest_app(store))
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        missing_retry_resp = await client.post("/api/v1/tasks/task-does-not-exist/retry")
+        assert missing_retry_resp.status_code == 404
+        assert missing_retry_resp.json()["detail"] == {
+            "code": "TASK_NOT_FOUND",
+            "message": "Task not found",
+            "recoverable": "permanent",
+        }
+
+        non_failed_retry_resp = await client.post(f"/api/v1/tasks/{task_id}/retry")
+        assert non_failed_retry_resp.status_code == 400
+        assert non_failed_retry_resp.json()["detail"] == {
+            "code": "TASK_NOT_RETRYABLE",
+            "message": "Only failed tasks can be retried",
+            "recoverable": "permanent",
+        }
+
+        failed_at = datetime(2026, 1, 1, tzinfo=UTC)
+        await store.update_task(
+            task_id,
+            status=TaskStatus.FAILED,
+            result={"video_urls": ["https://cdn.example/stale.mp4"]},
+            progress=0.83,
+            progress_message="failed at 83%",
+            started_at=failed_at,
+            completed_at=failed_at,
+            cancellation_reason="stale cancellation reason",
+            worker_id="worker-stale",
+            worker_heartbeat_at=failed_at,
+            next_retry_at=failed_at,
+        )
+
+        with patch("app.api.tasks.router.task_event_bus.emit", new=AsyncMock()) as emit_mock:
+            retry_resp = await client.post(f"/api/v1/tasks/{task_id}/retry")
+
+        assert retry_resp.status_code == 200
+        assert retry_resp.json() == {
+            "message": "Task queued for retry",
+            "task_id": task_id,
+        }
+        emit_mock.assert_awaited_once_with(
+            task_id,
+            TaskStatus.PENDING,
+            {
+                "task_type": "image_generate",
+                "progress": 0.0,
+            },
+        )
+
+        retried_task = await store.get_task(task_id)
+        assert retried_task is not None
+        assert retried_task.status == TaskStatus.PENDING
+        assert retried_task.result is None
+        assert retried_task.error is None
+        assert retried_task.progress == 0.0
+        assert retried_task.progress_message is None
+        assert retried_task.started_at is None
+        assert retried_task.completed_at is None
+        assert retried_task.cancellation_reason is None
+        assert retried_task.worker_id is None
+        assert retried_task.worker_heartbeat_at is None
+        assert retried_task.next_retry_at is None
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_rest_cancel_uses_structured_errors_for_missing_and_terminal_task(tmp_path: object) -> None:
+    db_path = tmp_path / "tasks-rest-cancel.db"  # type: ignore[operator]
+    store = SQLiteTaskStore(db_path=str(db_path))
+    await store.initialize()
+
+    config = ImageGenerationConfig(
+        model="flux-pro",
+        api_key="sk-rest-cancel",
+    )
+    async_engine = AsyncImageGenerationTools(
+        config,
+        store,
+        payload_postprocessor=seal_task_payload_secrets,
+    )
+    raw = await async_engine.generate_image("a cancel cube", user_id="user-rest-cancel")
+    task_id = json.loads(raw)["task_id"]
+    await store.update_task(task_id, status=TaskStatus.SUCCEEDED)
+
+    transport = ASGITransport(app=_build_rest_app(store))
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        missing_cancel_resp = await client.post("/api/v1/tasks/task-does-not-exist/cancel")
+        assert missing_cancel_resp.status_code == 404
+        assert missing_cancel_resp.json()["detail"] == {
+            "code": "TASK_NOT_FOUND",
+            "message": "Task not found",
+            "recoverable": "permanent",
+        }
+
+        terminal_cancel_resp = await client.post(f"/api/v1/tasks/{task_id}/cancel")
+        assert terminal_cancel_resp.status_code == 400
+        assert terminal_cancel_resp.json()["detail"] == {
+            "code": "TASK_ALREADY_COMPLETED",
+            "message": "Only active tasks can be cancelled",
+            "recoverable": "permanent",
+        }

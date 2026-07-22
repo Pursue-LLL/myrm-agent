@@ -500,6 +500,26 @@ export function useGlobalEvents(): void {
         window.dispatchEvent(new CustomEvent('goal_dequeued', { detail: payload.data }));
       } else if (payload.type === 'extension_status_changed') {
         window.dispatchEvent(new CustomEvent('extension-status-changed', { detail: payload.data }));
+      } else if (payload.type === 'subagent_stale') {
+        const taskId = String(payload.data.task_id ?? '');
+        const agentType = String(payload.data.agent_type ?? 'subagent');
+        const staleDuration = typeof payload.data.stale_duration_seconds === 'number' ? payload.data.stale_duration_seconds : 0;
+        const wastedTokens = typeof payload.data.wasted_tokens === 'number' ? payload.data.wasted_tokens : 0;
+        const durationMin = Math.round(staleDuration / 60);
+        if (taskId) {
+          import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
+            useSubagentStore.getState().markStale(taskId, staleDuration, wastedTokens);
+          });
+        }
+        toast.warning(t('subagentStale') || `Subagent stalled: ${agentType}`, {
+          description: `${t('noProgressFor') || 'No progress for'} ${durationMin}min · ${wastedTokens.toLocaleString()} tokens`,
+          duration: 15_000,
+          dismissible: true,
+        });
+        notifyIfLeader(
+          t('subagentStale') || `Subagent stalled: ${agentType}`,
+          `${durationMin}min · ${wastedTokens.toLocaleString()} tokens`,
+        );
       } else if (payload.type === 'subagent_rebind_required') {
         toast.info(t('subagentRebindRequired'), {
           duration: 10_000,

@@ -62,6 +62,7 @@ class AppEventType(StrEnum):
     GOAL_DEQUEUED = "goal_dequeued"
     EXTENSION_STATUS_CHANGED = "extension_status_changed"
     SUBAGENT_REBIND_REQUIRED = "subagent_rebind_required"
+    SUBAGENT_STALE = "subagent_stale"
     MCP_AUTH_REQUIRED = "mcp_auth_required"
     OAUTH_REAUTH_REQUIRED = "oauth_reauth_required"
 

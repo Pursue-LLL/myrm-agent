@@ -76,7 +76,14 @@ _HOOK_RESYNC_JS = """(() => {
   return { hooked: true };
 })()"""
 
-_PROBE_REVERT_FETCH_JS = f"""(() => {{
+
+def _probe_revert_changes_js(*, expect_empty: bool) -> str:
+    ok_check = (
+        "res.ok && body === '[]'"
+        if expect_empty
+        else "res.ok && body.startsWith('[') && body.includes('revert_e2e_fixture.txt')"
+    )
+    return f"""(() => {{
   return (async () => {{
     const chatId = location.pathname.replace(/^\\//, '');
     const store = window.__myrmChatStore?.getState?.();
@@ -91,7 +98,7 @@ _PROBE_REVERT_FETCH_JS = f"""(() => {{
       const res = await fetch(`/api/v1/files/revert/changes/${{chatId}}/${{msg.messageId}}`);
       const body = await res.text();
       last = {{
-        ok: res.ok && body.startsWith('[') && body.includes('revert_e2e_fixture.txt'),
+        ok: {ok_check},
         status: res.status,
         chatId,
         messageId: msg.messageId,
@@ -103,6 +110,10 @@ _PROBE_REVERT_FETCH_JS = f"""(() => {{
     return last;
   }})();
 }})()"""
+
+
+_PROBE_REVERT_FETCH_JS = _probe_revert_changes_js(expect_empty=False)
+_PROBE_REVERT_EMPTY_FETCH_JS = _probe_revert_changes_js(expect_empty=True)
 
 
 def _http_json_with_retry(
@@ -273,28 +284,6 @@ _CLICK_UNDO_AND_WAIT_POPOVER_JS = f"""(() => {{
   }})();
 }})()"""
 
-_PROBE_REVERT_EMPTY_FETCH_JS = f"""(() => {{
-  return (async () => {{
-    const chatId = location.pathname.replace(/^\\//, '');
-    const store = window.__myrmChatStore?.getState?.();
-    const msg = (store?.messages || []).find(
-      (item) => item.role === 'assistant' && (item.content || '').includes({json.dumps(_FIXTURE_ANSWER)}),
-    );
-    if (!msg) {{
-      return {{ ok: false, err: 'fixture-message-missing', chatId }};
-    }}
-    const res = await fetch(`/api/v1/files/revert/changes/${{chatId}}/${{msg.messageId}}`);
-    const body = await res.text();
-    return {{
-      ok: res.ok && body === '[]',
-      status: res.status,
-      chatId,
-      messageId: msg.messageId,
-      body: body.slice(0, 120),
-    }};
-  }})();
-}})()"""
-
 _CLICK_UNDO_AND_WAIT_EMPTY_TOAST_JS = f"""(() => {{
   {_SCOPED_REVERT_BTN_HELPER}
   return (async () => {{
@@ -320,6 +309,75 @@ _CLICK_UNDO_AND_WAIT_EMPTY_TOAST_JS = f"""(() => {{
     return {{ ready: false, sample: fallback.slice(0, 400) }};
   }})();
 }})()"""
+
+
+_CLICK_UNDO_AND_WAIT_NON_REVERTIBLE_TOAST_JS = f"""(() => {{
+  {_SCOPED_REVERT_BTN_HELPER}
+  return (async () => {{
+    const {{ btn }} = findFixtureRevertButton({json.dumps(_FIXTURE_ANSWER)});
+    if (!btn) return {{ ready: false, err: 'revert-button-missing' }};
+    btn.click();
+    const deadline = Date.now() + 45000;
+    while (Date.now() < deadline) {{
+      const toastNodes = Array.from(
+        document.querySelectorAll('[data-sonner-toast], [data-sonner-toaster] [data-sonner-toast]'),
+      );
+      const toastText = toastNodes.map((node) => node.textContent || '').join(' ');
+      const bodyText = document.body?.innerText || '';
+      const merged = `${{toastText}} ${{bodyText}}`;
+      const hasNonRevertibleToast = /too large \\(>2 MB\\)|超过 2 MB|cannot be automatically reverted|无法自动撤销/i.test(merged);
+      const hasEmptyToast = /No file changes for this message|本条消息无文件变更/i.test(merged);
+      const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+      if (hasNonRevertibleToast && !hasEmptyToast && !popover) {{
+        return {{ ready: true, sample: merged.slice(0, 300) }};
+      }}
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }}
+    const fallback = document.body?.innerText || '';
+    return {{ ready: false, sample: fallback.slice(0, 400) }};
+  }})();
+}})()"""
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.integration
+@pytest.mark.timeout(240)
+def test_revert_files_large_skip_shows_non_revertible_toast() -> None:
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    seeded = _seed_revert_fixture(api_url, variant="large_skip")
+    chat_id = str(seeded["chat_id"])
+    message_id = str(seeded["message_id"])
+    _ensure_revert_changes_ready(api_url, chat_id, message_id, min_changes=1)
+
+    prepare_e2e_ui_session(api_url)
+    warm_ui_route(f"/{chat_id}")
+    with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=120_000) as (client, page):
+        message_ready = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const target = {json.dumps(_FIXTURE_ANSWER)};
+              const store = window.__myrmChatStore?.getState?.();
+              const msg = (store?.messages || []).find(
+                (item) => item.role === 'assistant' && (item.content || '').includes(target),
+              );
+              return {{ ready: !!msg }};
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert message_ready.get("ready") is True, json.dumps(message_ready, ensure_ascii=False)
+
+        dismiss_blocking_modals(client, page)
+
+        undo_ready = wait_for_state(client, page, _UNDO_BUTTON_READY_JS, timeout_sec=30.0)
+        assert undo_ready.get("ready") is True, json.dumps(undo_ready, ensure_ascii=False)
+
+        toast_state = client.evaluate(page, _CLICK_UNDO_AND_WAIT_NON_REVERTIBLE_TOAST_JS, timeout_sec=60.0)
+        assert isinstance(toast_state, dict) and toast_state.get("ready") is True, json.dumps(
+            toast_state,
+            ensure_ascii=False,
+        )
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
@@ -426,6 +484,9 @@ def test_revert_files_undo_works_after_page_reload() -> None:
             fetch_probe,
             ensure_ascii=False,
         )
+
+        button = wait_for_state(client, page, _UNDO_BUTTON_READY_JS, timeout_sec=45.0)
+        assert button.get("ready") is True, json.dumps(button, ensure_ascii=False)
 
         popover = client.evaluate(page, _CLICK_UNDO_AND_WAIT_POPOVER_JS, timeout_sec=70.0)
         assert isinstance(popover, dict) and popover.get("ready") is True, json.dumps(

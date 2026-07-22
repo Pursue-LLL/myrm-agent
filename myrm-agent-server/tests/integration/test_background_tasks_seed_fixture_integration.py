@@ -51,3 +51,40 @@ async def test_seed_shell_fixture_running_mode_exposes_live_row() -> None:
 
         assert row["status"] == "running"
         assert row.get("pid") is not None
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_seed_shell_fixture_success_mode_exposes_completed_row() -> None:
+    transport = ASGITransport(app=_build_rest_app())
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        seed_resp = await client.post("/api/v1/background-tasks/test/seed-shell-fixture?mode=success")
+        assert seed_resp.status_code == 200
+        seed = seed_resp.json()
+        job_id = str(seed["job_id"])
+
+        row_resp = await client.get(f"/api/v1/background-tasks/shell:{job_id}")
+        assert row_resp.status_code == 200
+        row = row_resp.json()
+        assert row["status"] == "completed"
+        assert row.get("exit_code") == 0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_seed_shell_fixture_completed_with_vault_exposes_vault_log_ref() -> None:
+    transport = ASGITransport(app=_build_rest_app())
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        seed_resp = await client.post(
+            "/api/v1/background-tasks/test/seed-shell-fixture?mode=completed_with_vault"
+        )
+        assert seed_resp.status_code == 200
+        seed = seed_resp.json()
+        job_id = str(seed["job_id"])
+        assert seed.get("vault_log_ref")
+
+        row_resp = await client.get(f"/api/v1/background-tasks/shell:{job_id}")
+        assert row_resp.status_code == 200
+        row = row_resp.json()
+        assert row["status"] == "completed"
+        assert row.get("vault_log_ref")

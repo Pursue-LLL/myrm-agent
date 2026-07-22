@@ -134,6 +134,7 @@ undo_failed = ℹ 取り消しに失敗しました。
 undo_failed_error =  取り消しに失敗しました：{ $error }
 undo_success = ↩ 取り消しました：{ $count } メッセージを削除しました。
 undo_reverted = ↩ { $count } ファイルを元に戻しました。
+undo_files_not_revertible = ↩ { $count } 件のファイル変更は自動的に元に戻せません（ファイルが大きすぎるかバッファが満杯です）。
 topic_not_configured = ℹ トピック管理が設定されていません。
 topic_bound =
      { $scope } をバインドしました{ $agent_label }。

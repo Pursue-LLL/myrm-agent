@@ -74,15 +74,6 @@ CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER: Final[str] = "chrome_e2e_browser_takeov
 CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
     "chrome_e2e and not chrome_e2e_desktop and not chrome_e2e_browser_takeover_live"
 )
-# SHPOIB private-backend LIVE tests seed/clear approvals on isolated :180xx — not shared :8080.
-SHARED_APPROVAL_PREFLIGHT_SKIP_MARKERS: Final[tuple[str, ...]] = (
-    "cron_execution_policy_live",
-    "allowlist_pattern_live",
-    CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER,
-    "clarify_skip_chrome_e2e",
-    "execution_cache_chrome_e2e",
-    "goal_focus_chrome_e2e",
-)
 # Unified E2E admission (UEA v3).
 E2E_UNIFIED_WAIT_SEC: Final[int] = 900
 LIVE_SHPOIB_MAX_CONCURRENT: Final[int] = 4
@@ -143,7 +134,13 @@ def chrome_e2e_pytest_safe_timeout_sec(
     """Hard timeout for run_pytest_safe wrapper across a chrome_e2e session."""
     per_item = chrome_e2e_pytest_timeout_floor(lane, joined_argv)
     normalized_count = max(1, int(item_count))
-    return min(per_item * normalized_count, CHROME_E2E_MATRIX_TIMEOUT_SECONDS)
+    raw = per_item * normalized_count
+    # CHROME_E2E_MATRIX is per long single-test (desktop/matrix); multi-item sessions scale by mux waves.
+    wave_cap = CHROME_E2E_MATRIX_TIMEOUT_SECONDS * max(
+        1,
+        (normalized_count + MUX_MAX_CONCURRENT_SESSIONS - 1) // MUX_MAX_CONCURRENT_SESSIONS,
+    )
+    return min(raw, wave_cap)
 
 
 def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
@@ -155,9 +152,9 @@ def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
     return chrome_e2e_pytest_timeout_for_lane(lane)
 
 
-def chrome_e2e_skips_shared_approval_preflight(joined_argv: str) -> bool:
-    """True when LIVE E2E uses private backend and must not block on shared :8080."""
-    return any(marker in joined_argv for marker in SHARED_APPROVAL_PREFLIGHT_SKIP_MARKERS)
+def chrome_e2e_skips_shared_approval_preflight(*, lane: str, shpoib: bool) -> bool:
+    """True when LIVE E2E uses SHPOIB private backend — skip shared :8080 approval preflight."""
+    return lane == "LIVE_AGENT" and shpoib
 
 
 def apply_chrome_e2e_pytest_timeout_args(

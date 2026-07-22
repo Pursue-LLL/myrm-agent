@@ -24,6 +24,7 @@ export function useTasksSubscription(task_ids: string[]) {
     const ids = stableIds.split(',');
     const notifiedTerminalTaskIds = new Set<string>();
     let disposed = false;
+    let nextMalformedSyncAtMs = 0;
 
     const upsertTask = (task: Task) => {
       setTasks((prev) => {
@@ -88,7 +89,23 @@ export function useTasksSubscription(task_ids: string[]) {
     const eventSource = new EventSource('/api/v1/tasks/stream');
 
     eventSource.addEventListener('task_update', (event) => {
-      const eventData = JSON.parse(event.data) as { task_id?: string };
+      let eventData: { task_id?: string } | null = null;
+      try {
+        const parsed = JSON.parse(event.data) as unknown;
+        if (!parsed || typeof parsed !== 'object') {
+          throw new Error('task_update SSE payload is not an object');
+        }
+        eventData = parsed as { task_id?: string };
+      } catch (error) {
+        console.warn('Failed to parse task_update SSE payload; syncing subscribed tasks snapshot.', error);
+        const now = Date.now();
+        if (now >= nextMalformedSyncAtMs) {
+          nextMalformedSyncAtMs = now + 1000;
+          void syncSubscribedTasks();
+        }
+        return;
+      }
+
       if (!eventData.task_id || !ids.includes(eventData.task_id)) {
         return;
       }

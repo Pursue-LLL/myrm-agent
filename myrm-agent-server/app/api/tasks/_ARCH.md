@@ -12,7 +12,7 @@
 | `GET /api/v1/tasks` | 列表/过滤（`ids` 批量过滤，`detail=true` 返回 payload/result） | 任务历史 + 订阅断线回退 |
 | `GET /api/v1/tasks/{id}` | 单任务状态 | ImageTaskCard 初始加载 |
 | `GET /api/v1/tasks/stream` | SSE 实时更新 | `useTasksSubscription` |
-| `POST /api/v1/tasks/{id}/retry` | 重试失败任务 | ImageTaskCard 重试按钮 |
+| `POST /api/v1/tasks/{id}/retry` | 重试失败任务（错误返回结构化 `detail={code,message,recoverable}`），重置旧输出与生命周期字段并立即广播 `pending` 事件 | ImageTaskCard / VideoTaskCard 重试按钮 |
 
 ## 文件清单
 

@@ -214,6 +214,69 @@ class TestRevertSeedIntegration:
         assert len(changes) == 1
         assert changes[0]["operation"] == "modify"
         assert changes[0]["path"] == str(file_path)
+        assert changes[0]["revertible"] is True
+        assert changes[0]["skip_reason"] is None
+
+    def test_changes_api_surfaces_non_revertible_skipped_snapshot(
+        self, client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
+            SnapshotOp,
+            SnapshotSkipReason,
+        )
+        from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
+
+        monkeypatch.delenv("WORKSPACE_ROOT", raising=False)
+        persist_root = tmp_path.resolve()
+        WorkspacePathResolver._cached_workspace_root = persist_root
+
+        chat_id = f"e2erevert{uuid.uuid4().hex[:8]}"
+        message_id = str(uuid.uuid4())
+        file_path = persist_root / "large.bin"
+        file_path.write_text("modified\n", encoding="utf-8")
+
+        SnapshotStore.reset()
+        store = SnapshotStore.get()
+        store.record_skipped(
+            chat_id,
+            message_id,
+            str(file_path),
+            SnapshotOp.MODIFY,
+            SnapshotSkipReason.FILE_TOO_LARGE,
+        )
+        asyncio.run(store.persist_to_disk(str(persist_root), chat_id, message_id))
+
+        SnapshotStore.reset()
+
+        changes_resp = client.get(f"/api/v1/files/revert/changes/{chat_id}/{message_id}")
+        assert changes_resp.status_code == 200
+        changes = changes_resp.json()
+        assert len(changes) == 1
+        assert changes[0]["revertible"] is False
+        assert changes[0]["skip_reason"] == "file_too_large"
+
+        revert_resp = client.post(
+            "/api/v1/files/revert/message",
+            json={"session_id": chat_id, "message_id": message_id},
+        )
+        assert revert_resp.status_code == 200
+        assert revert_resp.json()["success"] is False
+        assert file_path.read_text(encoding="utf-8") == "modified\n"
+
+    def test_revert_large_skip_fixture_surfaces_non_revertible(self, client: TestClient) -> None:
+        agent_id = f"agent_{uuid.uuid4().hex[:8]}"
+        asyncio.run(_seed_visible_agent(agent_id, display_name="Revert Large Skip Agent"))
+
+        seed_body = _seed(client, variant="large_skip")
+        chat_id = str(seed_body["chat_id"])
+        message_id = str(seed_body["message_id"])
+
+        changes_resp = client.get(f"/api/v1/files/revert/changes/{chat_id}/{message_id}")
+        assert changes_resp.status_code == 200
+        changes = changes_resp.json()
+        assert len(changes) == 1
+        assert changes[0]["revertible"] is False
+        assert changes[0]["skip_reason"] == "file_too_large"
 
     def test_channel_revert_cleans_disk_snapshot(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -251,6 +314,6 @@ class TestRevertSeedIntegration:
         assert snapshot_file.is_file()
 
         reverted = asyncio.run(_revert_messages(chat_id, [message_id]))
-        assert reverted == 1
+        assert reverted.reverted_count == 1
         assert file_path.read_text(encoding="utf-8") == "before\n"
         assert not snapshot_file.is_file()

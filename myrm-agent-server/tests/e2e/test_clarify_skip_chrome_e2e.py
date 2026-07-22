@@ -140,27 +140,35 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             await asyncio.sleep(1.0)
         raise AssertionError(f"Agent did not continue after Skip: {last}")
 
-    async def _run_flow(chat: McpChatSession) -> str:
-        api_base = get_e2e_api_url()
-        await chat.evaluate(_DISMISS_MIGRATION_JS, await_promise=False, recv_timeout=15.0)
-        await chat.dismiss_modals()
-        await chat.click_new_chat()
-        await chat.ensure_chat_surface(BASE_URL)
-
+    async def _enable_structured_clarify(chat: McpChatSession) -> None:
+        await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
         enabled = await chat.evaluate(_ENABLE_STRUCTURED_CLARIFY_JS, await_promise=False, recv_timeout=15.0)
         assert isinstance(enabled, dict)
         assert enabled.get("ok") is True, f"Failed to enable structured_clarify: {enabled}"
 
+    async def _prepare_fresh_clarify_chat(chat: McpChatSession) -> None:
+        await chat.evaluate(_DISMISS_MIGRATION_JS, await_promise=False, recv_timeout=15.0)
+        await chat.dismiss_modals()
+        await chat.click_new_chat()
+        await chat.ensure_chat_surface(BASE_URL)
+        await _enable_structured_clarify(chat)
+
+    async def _run_flow(chat: McpChatSession) -> str:
+        api_base = get_e2e_api_url()
+        await _prepare_fresh_clarify_chat(chat)
+
         chat_id_hint = ""
         form_state: dict[str, object] = {}
-        for attempt in range(2):
+        max_clarify_attempts = 4
+        for attempt in range(max_clarify_attempts):
+            if attempt > 0:
+                await _prepare_fresh_clarify_chat(chat)
             try:
                 send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
             except RuntimeError as exc:
-                if "timed out" not in str(exc).lower() or attempt == 1:
+                if "timed out" not in str(exc).lower() or attempt == max_clarify_attempts - 1:
                     raise
                 await asyncio.sleep(3.0)
-                await chat.evaluate(_ENABLE_STRUCTURED_CLARIFY_JS, await_promise=False, recv_timeout=15.0)
                 continue
             chat_id_hint = str(
                 send_result.get("started", {}).get("chatId")
@@ -174,12 +182,12 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             heartbeat_e2e_lease()
             await chat.wait_stream_started(E2E_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None)
             try:
-                form_state = await _wait_clarify_form(chat, timeout_sec=120.0)
+                form_state = await _wait_clarify_form(chat, timeout_sec=90.0)
                 break
             except AssertionError:
-                if attempt == 1:
+                if attempt == max_clarify_attempts - 1:
                     raise
-                await chat.evaluate(_DISMISS_MIGRATION_JS, await_promise=False, recv_timeout=15.0)
+                await asyncio.sleep(2.0)
 
         clicked = await chat.evaluate(_CLICK_SKIP_JS, await_promise=False, recv_timeout=15.0)
         assert isinstance(clicked, dict)

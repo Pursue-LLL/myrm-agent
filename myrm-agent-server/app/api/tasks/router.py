@@ -1,6 +1,19 @@
-"""Task management API routes."""
+"""Task management API routes.
+
+[INPUT]
+- app.lifecycle.task_worker::get_task_store (POS: TaskStore provider lifecycle entry)
+- app.tasks.events::task_event_bus (POS: SSE task status event hub)
+
+[OUTPUT]
+- router: FastAPI tasks router exposing list/detail/stream/retry/cancel APIs
+
+[POS]
+HTTP boundary for async task state query and lifecycle actions. It maps TaskStore
+state transitions into REST responses plus SSE notifications for frontend task cards.
+"""
 
 import logging
+from typing import Literal, TypedDict
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -12,6 +25,30 @@ from app.tasks.events import task_event_bus
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["tasks"])
+
+
+type TaskApiRecoverability = Literal["transient", "permanent"]
+
+
+class TaskApiErrorDetail(TypedDict):
+    code: str
+    message: str
+    recoverable: TaskApiRecoverability
+
+
+def _raise_task_api_error(
+    *,
+    status_code: int,
+    code: str,
+    message: str,
+    recoverable: TaskApiRecoverability = "permanent",
+) -> None:
+    detail: TaskApiErrorDetail = {
+        "code": code,
+        "message": message,
+        "recoverable": recoverable,
+    }
+    raise HTTPException(status_code=status_code, detail=detail)
 
 
 async def get_task_store() -> TaskStore:
@@ -110,7 +147,11 @@ async def get_task(
     """Get task by ID."""
     task = await store.get_task(task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        _raise_task_api_error(
+            status_code=404,
+            code="TASK_NOT_FOUND",
+            message="Task not found",
+        )
 
     return _serialize_task(task, include_detail=True)
 
@@ -123,10 +164,18 @@ async def cancel_task(
     """Cancel task."""
     task = await store.get_task(task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        _raise_task_api_error(
+            status_code=404,
+            code="TASK_NOT_FOUND",
+            message="Task not found",
+        )
 
     if task.is_terminal():
-        raise HTTPException(status_code=400, detail="Task already completed")
+        _raise_task_api_error(
+            status_code=400,
+            code="TASK_ALREADY_COMPLETED",
+            message="Only active tasks can be cancelled",
+        )
 
     if task.cancellation_event:
         task.cancellation_event.set()
@@ -152,15 +201,40 @@ async def retry_task(
     """Retry failed task."""
     task = await store.get_task(task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        _raise_task_api_error(
+            status_code=404,
+            code="TASK_NOT_FOUND",
+            message="Task not found",
+        )
 
     if task.status != TaskStatus.FAILED:
-        raise HTTPException(status_code=400, detail="Only failed tasks can be retried")
+        _raise_task_api_error(
+            status_code=400,
+            code="TASK_NOT_RETRYABLE",
+            message="Only failed tasks can be retried",
+        )
 
     await store.update_task(
         task_id,
         status=TaskStatus.PENDING,
+        result=None,
         error=None,
+        progress=0.0,
+        progress_message=None,
+        started_at=None,
+        completed_at=None,
+        cancellation_reason=None,
+        worker_id=None,
+        worker_heartbeat_at=None,
+        next_retry_at=None,
+    )
+    await task_event_bus.emit(
+        task_id,
+        TaskStatus.PENDING,
+        {
+            "task_type": task.task_type,
+            "progress": 0.0,
+        },
     )
 
     return {"message": "Task queued for retry", "task_id": task_id}

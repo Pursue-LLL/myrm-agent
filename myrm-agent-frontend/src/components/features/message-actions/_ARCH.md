@@ -14,8 +14,8 @@
 | `MemoryFeedback.tsx` | 组件 | 记忆召回质量 thumbs up/down 反馈 | ✅ |
 | `ReadAloud.tsx` | 组件 | TTS 朗读 assistant 消息（browser 默认本地 SpeechSynthesis；API 模式走 `/tts`，受 `voice_interaction` feature gate 隐藏） | ✅ |
 | `RegenerateMenu.tsx` | 组件 | 重新生成/换模型/regenerate 分支菜单 | ✅ |
-| `RevertFiles.tsx` | 组件 | 消息级文件变更撤销（fetch 完成前不打开 Popover；trigger loading；Confirm + resync/toast） | ✅ |
-| `SessionRevertButton.tsx` | 组件 | 会话级一键撤销所有 AI 文件变更（POST /files/revert/session；fetch 失败独立 toast） | ✅ |
+| `RevertFiles.tsx` | 组件 | 消息级文件撤销：空变更/不可撤销 toast 分流；混合变更 Popover 标注 skip_reason | ✅ |
+| `SessionRevertButton.tsx` | 组件 | 会话级撤销：仅统计可撤销文件；全非可撤销时 toast | ✅ |
 | `SaveEvalCase.tsx` | 组件 | 保存为 Eval Lab 用例 | ✅ |
 | `SaveToMemoryButton.tsx` | 组件 | 一键保存 assistant 消息到长期记忆（调用 createMemory API） | ✅ |
 | `SaveToWikiButton.tsx` | 组件 | 保存到 Wiki 知识库 | ✅ |

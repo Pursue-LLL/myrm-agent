@@ -17,6 +17,8 @@ interface FileChange {
   operation: string;
   has_original: boolean;
   timestamp: number;
+  revertible?: boolean;
+  skip_reason?: string | null;
 }
 
 interface FileDiffItem {
@@ -92,6 +94,20 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
     setPopoverOpen(false);
   }, []);
 
+  const resolveNonRevertibleToast = useCallback(
+    (changes: FileChange[]) => {
+      const reason = changes.find((c) => c.skip_reason)?.skip_reason;
+      if (reason === 'file_too_large') {
+        return t('revertMessageNotRevertibleFileTooLarge');
+      }
+      if (reason === 'store_full') {
+        return t('revertMessageNotRevertibleStoreFull');
+      }
+      return t('revertMessageNotRevertible');
+    },
+    [t],
+  );
+
   const handleTriggerClick = useCallback(async () => {
     if (triggerLoading) return;
     setTriggerLoading(true);
@@ -105,13 +121,18 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
         toast({ title: t('revertMessageEmpty'), variant: 'default' });
         return;
       }
+      const revertibleChanges = fileChanges.filter((c) => c.revertible !== false);
+      if (revertibleChanges.length === 0) {
+        toast({ title: resolveNonRevertibleToast(fileChanges), variant: 'default' });
+        return;
+      }
       setChanges(fileChanges);
       setDiffs(fileDiffs);
       setPopoverOpen(true);
     } finally {
       setTriggerLoading(false);
     }
-  }, [fetchChanges, fetchDiffs, t, triggerLoading]);
+  }, [fetchChanges, fetchDiffs, resolveNonRevertibleToast, t, triggerLoading]);
 
   const handleConfirmRevert = useCallback(async () => {
     setStatus('loading');
@@ -201,13 +222,25 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
         {changes ? (
           <div className="text-sm p-3 max-h-[min(70vh,420px)] overflow-y-auto">
             <p className="font-medium mb-2">{t('revertConfirm')}</p>
+            {changes.some((c) => c.revertible === false) && (
+              <p className="mb-2 text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
+                {t('revertPartialSkipHint')}
+              </p>
+            )}
             <ul className="space-y-2">
               {changes.map((c) => {
                 const diffItem = diffs?.find((d) => d.path === c.path);
                 const unified = diffItem ? buildUnifiedDiff(diffItem) : null;
                 const expanded = expandedPaths.has(c.path);
+                const notRevertible = c.revertible === false;
                 return (
-                  <li key={c.path} className="rounded-md border border-border/50 bg-muted/20 px-2 py-1.5">
+                  <li
+                    key={c.path}
+                    className={cn(
+                      'rounded-md border border-border/50 bg-muted/20 px-2 py-1.5',
+                      notRevertible && 'opacity-70',
+                    )}
+                  >
                     <button
                       type="button"
                       className={cn(
@@ -229,7 +262,16 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
                         <IconUndo className="w-3 h-3 shrink-0" />
                       )}
                       <span className="truncate font-mono">{c.path.split('/').pop()}</span>
-                      {unified && !expanded && (
+                      {notRevertible && (
+                        <span className="ml-auto text-[10px] text-amber-600 dark:text-amber-400">
+                          {c.skip_reason === 'file_too_large'
+                            ? t('revertSkipLabelFileTooLarge')
+                            : c.skip_reason === 'store_full'
+                              ? t('revertSkipLabelStoreFull')
+                              : t('revertSkipLabelGeneric')}
+                        </span>
+                      )}
+                      {unified && !expanded && !notRevertible && (
                         <span className="ml-auto text-[10px] text-muted-foreground">{t('revertViewDiff')}</span>
                       )}
                     </button>

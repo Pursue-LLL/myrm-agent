@@ -190,3 +190,104 @@ def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
                 break
             time.sleep(0.5)
         assert final_status == "cancelled"
+
+
+_VAULT_LOG_BUTTON_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const btn = Array.from(root.querySelectorAll('button')).find((node) =>
+    /View full log|查看完整日志|檢視完整日誌|完全なログ/.test(node.textContent || '')
+  );
+  if (!btn) {
+    return { clicked: false, text: (root.innerText || '').slice(0, 500) };
+  }
+  btn.click();
+  return { clicked: true };
+})()"""
+
+_VAULT_DRAWER_READY_JS = """(() => {
+  const text = document.body?.innerText || '';
+  return {
+    ready: /MYRM_E2E_VAULT_LINE_84|MYRM_E2E_VAULT_LINE_0/.test(text),
+    sample: text.slice(0, 400),
+  };
+})()"""
+
+_SUCCESS_FINISH_TOAST_JS = """(() => {
+  const toastNodes = Array.from(
+    document.querySelectorAll('[data-sonner-toast], [data-sonner-toaster] [data-sonner-toast]')
+  );
+  const toastText = toastNodes.map((node) => node.textContent || '').join(' ');
+  const bodyText = document.body?.innerText || '';
+  const merged = `${toastText} ${bodyText}`;
+  return {
+    ready:
+      /Background task finished|后台任务已完成|後臺任務已完成|バックグラウンドタスク完了/.test(merged),
+    toastText: toastText.slice(0, 400),
+  };
+})()"""
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.timeout(240)
+def test_background_tasks_panel_vault_log_drawer_from_seed() -> None:
+    api_base = get_e2e_api_url()
+    seed = http_json(
+        "POST",
+        f"{api_base}/api/v1/background-tasks/test/seed-shell-fixture?mode=completed_with_vault",
+    )
+    assert isinstance(seed, dict)
+    task_id = str(seed["task_id"])
+    assert seed.get("vault_log_ref"), seed
+
+    row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
+    assert isinstance(row, dict)
+    assert row.get("vault_log_ref")
+    assert row.get("status") == "completed"
+
+    warm_ui_route("/")
+    with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
+        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
+        assert opened.get("clicked") is True, opened
+
+        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
+        assert panel.get("ready") is True, panel
+
+        clicked = client.evaluate(page, _VAULT_LOG_BUTTON_JS, timeout_sec=15.0)
+        assert clicked.get("clicked") is True, clicked
+
+        drawer = wait_for_state(client, page, _VAULT_DRAWER_READY_JS, timeout_sec=45.0)
+        assert drawer.get("ready") is True, drawer
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.timeout(240)
+def test_background_tasks_success_finish_toast_from_seed() -> None:
+    api_base = get_e2e_api_url()
+    warm_ui_route("/")
+    with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
+        # Page must be connected to SSE before the job finishes so toast is delivered.
+        time.sleep(1.0)
+        seed = http_json(
+            "POST",
+            f"{api_base}/api/v1/background-tasks/test/seed-shell-fixture?mode=success",
+        )
+        assert isinstance(seed, dict)
+        task_id = str(seed["task_id"])
+
+        deadline = time.monotonic() + 45.0
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            state = client.evaluate(page, _SUCCESS_FINISH_TOAST_JS, timeout_sec=10.0)
+            if isinstance(state, dict) and state.get("ready"):
+                last = state
+                break
+            if isinstance(state, dict):
+                last = state
+            time.sleep(0.5)
+
+        assert last.get("ready") is True, last
+
+        row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
+        assert isinstance(row, dict)
+        assert row.get("status") == "completed"

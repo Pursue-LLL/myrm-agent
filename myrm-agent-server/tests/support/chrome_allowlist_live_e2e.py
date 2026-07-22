@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+_PATTERN_TOKEN = "ALLOWLIST_LIVE_PROBE"
+
 _AGENT_READY_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
   const debug = bridge?.debugProviderState?.() ?? {};
@@ -12,7 +14,12 @@ _AGENT_READY_JS = """(() => {
   };
 })()"""
 
-_APPROVAL_VISIBLE_JS = """(() => {
+_RUNTIME_BINDING_JS = """(() => ({
+  apiBase: window.__MYRM_E2E_API_BASE__ ?? '',
+  runtimeApi: window.__MYRM_E2E_RUNTIME__?.apiBase ?? '',
+}))()"""
+
+_APPROVAL_VISIBLE_JS = f"""(() => {{
   const dialog = document.querySelector('[role="dialog"]');
   const buttons = Array.from(document.querySelectorAll('button'));
   const hasApprove = buttons.some((btn) => /Approve|批准/.test((btn.textContent || '').trim()));
@@ -21,16 +28,16 @@ _APPROVAL_VISIBLE_JS = """(() => {
   );
   const text = document.body?.innerText || '';
   const hasShell =
-    /bash_code_execute_tool|echo E2E_ALLOWLIST_PATTERN|Shell|shell/i.test(text);
-  return {
+    /bash_code_execute_tool|{_PATTERN_TOKEN}|Shell|shell/i.test(text);
+  return {{
     ready: Boolean(dialog) && hasApprove && hasAlwaysAllow && hasShell,
     hasDialog: Boolean(dialog),
     hasApprove,
     hasAlwaysAllow,
     hasShell,
     sample: text.slice(0, 900),
-  };
-})()"""
+  }};
+}})()"""
 
 _CLICK_ALLOW_ALWAYS_JS = """(() => {
   const buttons = Array.from(document.querySelectorAll('button'));
@@ -88,3 +95,11 @@ _TURN_DONE_JS = """(() => {
     sample: text.slice(0, 400),
   };
 })()"""
+
+SETTINGS_PATTERN_VISIBLE_JS = f"""(() => {{
+  const text = document.body?.innerText || '';
+  const hasPattern =
+    text.includes('{_PATTERN_TOKEN} *') ||
+    text.includes('{_PATTERN_TOKEN}');
+  return {{ ready: hasPattern, sample: text.slice(0, 1200) }};
+}})()"""

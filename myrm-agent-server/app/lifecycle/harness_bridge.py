@@ -155,6 +155,22 @@ async def _handle_subagent_event(event: SubagentLifecycleEvent) -> None:
     if not session_id:
         return
 
+    if event.event_name == "stale":
+        extra = event.data.extra or {}
+        get_server_bus().publish(
+            AppEvent(
+                event_type=AppEventType.SUBAGENT_STALE,
+                data={
+                    "chat_id": _rest_chat_id(session_id),
+                    "task_id": event.task_id,
+                    "agent_type": event.data.agent_type,
+                    "stale_duration_seconds": extra.get("stale_duration_seconds", 0),
+                    "wasted_tokens": extra.get("wasted_tokens", 0),
+                },
+            )
+        )
+        return
+
     policy_node = _subagent_lifecycle_data_to_node(event)
     if policy_node is not None:
         get_server_bus().publish(

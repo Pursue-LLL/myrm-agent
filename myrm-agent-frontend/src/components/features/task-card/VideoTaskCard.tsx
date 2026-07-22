@@ -13,9 +13,11 @@
  */
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { useTaskSubscription } from '@/hooks/tasks/useTasksSubscription';
 import TaskCardPlaceholder from './TaskCardPlaceholder';
 import TaskCardError from './TaskCardError';
+import { useTaskRetry } from './useTaskRetry';
 
 interface VideoTaskCardProps {
   task_id: string;
@@ -51,6 +53,8 @@ function getStringPayloadValue(payload: Record<string, unknown>, key: string): s
 
 export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className }) => {
   const task = useTaskSubscription(task_id);
+  const t = useTranslations('taskCard');
+  const { isRetrying, retryErrorMessage, retry } = useTaskRetry(task_id, task?.status);
 
   if (!task) {
     return <TaskCardPlaceholder className={className} />;
@@ -68,7 +72,7 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
       return (
         <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
           <p className="text-sm text-muted-foreground">
-            Video completed. Open the artifacts panel to view output. / 视频已完成，可在工件面板查看输出。
+            {t('videoCompletedFallback')}
           </p>
         </div>
       );
@@ -82,7 +86,7 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
           src={result.videoUrls[0]}
           preload="metadata"
         >
-          Your browser does not support video playback. / 当前浏览器不支持视频播放。
+          {t('videoUnsupported')}
         </video>
         {result.videoUrls.length > 1 && (
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -94,15 +98,15 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
                 rel="noopener noreferrer"
                 className="underline underline-offset-2 hover:text-foreground"
               >
-                Alternate {index + 2} / 备用 {index + 2}
+                {t('alternateLabel', { index: index + 2 })}
               </a>
             ))}
           </div>
         )}
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {result.provider && <span>Provider / 提供商: {result.provider}</span>}
-          {result.model && <span>Model / 模型: {result.model}</span>}
-          {typeof result.latencyMs === 'number' && <span>Latency / 延迟: {Math.round(result.latencyMs)}ms</span>}
+          {result.provider && <span>{t('providerLabel')}: {result.provider}</span>}
+          {result.model && <span>{t('modelLabel')}: {result.model}</span>}
+          {typeof result.latencyMs === 'number' && <span>{t('latencyLabel')}: {Math.round(result.latencyMs)}ms</span>}
         </div>
       </div>
     );
@@ -110,18 +114,12 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
   }
 
   if (task.status === 'failed' && task.error) {
-    const handleRetry = async () => {
-      try {
-        await fetch(`/api/v1/tasks/${task_id}/retry`, { method: 'POST' });
-      } catch (error) {
-        console.error('Failed to retry task:', error);
-      }
-    };
-
     return (
       <TaskCardError
         error={task.error}
-        onRetry={task.error.recoverable === 'transient' ? handleRetry : undefined}
+        onRetry={task.error.recoverable === 'transient' ? retry : undefined}
+        isRetrying={isRetrying}
+        retryErrorMessage={retryErrorMessage}
         className={className}
       />
     );
@@ -130,7 +128,7 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
   if (task.status === 'cancelled') {
     return (
       <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
-        <p className="text-sm text-muted-foreground">Task cancelled / 任务已取消</p>
+        <p className="text-sm text-muted-foreground">{t('cancelled')}</p>
       </div>
     );
   }

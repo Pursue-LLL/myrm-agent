@@ -14,11 +14,13 @@
  */
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { useTaskSubscription } from '@/hooks/tasks/useTasksSubscription';
 import { ImageResultCard } from '@/components/features/image-gen/ImageResultCard';
 import TaskCardPlaceholder from './TaskCardPlaceholder';
 import TaskCardError from './TaskCardError';
 import type { ImageGenerationResult } from '@/store/tasks/types';
+import { useTaskRetry } from './useTaskRetry';
 
 interface ImageTaskCardProps {
   task_id: string;
@@ -73,6 +75,8 @@ function getStringPayloadValue(payload: Record<string, unknown>, key: string): s
 
 export const ImageTaskCard: React.FC<ImageTaskCardProps> = ({ task_id, className }) => {
   const task = useTaskSubscription(task_id);
+  const t = useTranslations('taskCard');
+  const { isRetrying, retryErrorMessage, retry } = useTaskRetry(task_id, task?.status);
 
   // Loading state
   if (!task) {
@@ -82,7 +86,7 @@ export const ImageTaskCard: React.FC<ImageTaskCardProps> = ({ task_id, className
   // Pending or running state
   if (task.status === 'pending' || task.status === 'queued' || task.status === 'running') {
     return (
-      <TaskCardPlaceholder prompt={task.payload.prompt as string} progress={task.progress} className={className} />
+      <TaskCardPlaceholder prompt={getStringPayloadValue(task.payload, 'prompt')} progress={task.progress} className={className} />
     );
   }
 
@@ -110,18 +114,12 @@ export const ImageTaskCard: React.FC<ImageTaskCardProps> = ({ task_id, className
 
   // Failed state
   if (task.status === 'failed' && task.error) {
-    const handleRetry = async () => {
-      try {
-        await fetch(`/api/v1/tasks/${task_id}/retry`, { method: 'POST' });
-      } catch (error) {
-        console.error('Failed to retry task:', error);
-      }
-    };
-
     return (
       <TaskCardError
         error={task.error}
-        onRetry={task.error.recoverable === 'transient' ? handleRetry : undefined}
+        onRetry={task.error.recoverable === 'transient' ? retry : undefined}
+        isRetrying={isRetrying}
+        retryErrorMessage={retryErrorMessage}
         className={className}
       />
     );
@@ -131,7 +129,7 @@ export const ImageTaskCard: React.FC<ImageTaskCardProps> = ({ task_id, className
   if (task.status === 'cancelled') {
     return (
       <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
-        <p className="text-sm text-muted-foreground">Task cancelled</p>
+        <p className="text-sm text-muted-foreground">{t('cancelled')}</p>
       </div>
     );
   }

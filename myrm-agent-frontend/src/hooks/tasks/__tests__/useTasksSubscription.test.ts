@@ -50,6 +50,13 @@ class MockEventSource {
     }
   }
 
+  emitRaw(type: string, rawData: string) {
+    const handlers = this.listeners[type] || [];
+    for (const h of handlers) {
+      h({ data: rawData });
+    }
+  }
+
   close = vi.fn();
 
   static instances: MockEventSource[] = [];
@@ -210,6 +217,55 @@ describe('useTasksSubscription', () => {
     expect(result.current.size).toBe(0);
     expect(mockNotify).not.toHaveBeenCalled();
     expect(mockFetch).not.toHaveBeenCalledWith('/api/v1/tasks/task-other');
+  });
+
+  it('syncs subscribed tasks when task_update event payload is malformed', async () => {
+    const { useTasksSubscription } = await import('../useTasksSubscription');
+
+    pollTasks = [createTask('task-9', 'running', { progress: 65 })];
+    const { result } = renderHook(() => useTasksSubscription(['task-9']));
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    mockFetch.mockClear();
+
+    await act(async () => {
+      MockEventSource.instances[0].emitRaw('task_update', '{not-json');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/v1/tasks?ids=task-9&detail=true');
+    expect(result.current.get('task-9')?.progress).toBe(65);
+  });
+
+  it('throttles malformed task_update self-healing sync bursts', async () => {
+    const { useTasksSubscription } = await import('../useTasksSubscription');
+
+    pollTasks = [createTask('task-10', 'running', { progress: 40 })];
+    renderHook(() => useTasksSubscription(['task-10']));
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    mockFetch.mockClear();
+
+    await act(async () => {
+      MockEventSource.instances[0].emitRaw('task_update', '{bad-1');
+      MockEventSource.instances[0].emitRaw('task_update', '{bad-2');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const listCalls = mockFetch.mock.calls.filter(([input]) =>
+      String(input).startsWith('/api/v1/tasks?ids=task-10&detail=true'),
+    );
+    expect(listCalls).toHaveLength(1);
   });
 
   it('polls with ids+detail when SSE is disconnected', async () => {

@@ -23,6 +23,7 @@ retry_last_turn / undo_last_turn 方法，并联动 RevertService 还原关联�
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 from myrm_agent_harness.agent.meta_tools.file_ops.revert_service import RevertService
 
@@ -38,6 +39,12 @@ from app.database.connection import get_session
 from app.services.chat.chat_service import ChatService
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class RevertMessagesOutcome:
+    reverted_count: int
+    not_revertible_count: int
 
 
 async def _resolve_session_with_agent(msg: InboundMessage) -> tuple[str, str | None]:
@@ -62,22 +69,35 @@ async def _resolve_session_with_agent(msg: InboundMessage) -> tuple[str, str | N
     return session_key, agent_id
 
 
-async def _revert_messages(session_id: str, message_ids: list[str]) -> int:
-    """Best-effort revert file snapshots for deleted messages. Returns count of reverted files."""
-    from app.services.files.revert_hydrate import cleanup_persisted_snapshots
+async def _revert_messages(session_id: str, message_ids: list[str]) -> RevertMessagesOutcome:
+    """Best-effort revert file snapshots for deleted messages."""
+    from app.services.files.revert_hydrate import (
+        cleanup_persisted_snapshots,
+        ensure_session_snapshots_hydrated,
+    )
 
-    total = 0
+    await ensure_session_snapshots_hydrated(session_id)
+
+    reverted_total = 0
+    not_revertible_total = 0
     for mid in message_ids:
         try:
+            changes = await RevertService.get_message_changes(session_id, mid)
+            not_revertible_paths = {c.path for c in changes if not c.revertible}
+            not_revertible_total += len(not_revertible_paths)
+
             result = await RevertService.revert_message(session_id, mid)
-            total += len(result.reverted_files)
+            reverted_total += len(result.reverted_files)
             if result.reverted_files:
                 await cleanup_persisted_snapshots(session_id, mid)
             if result.warnings:
                 logger.debug("Revert warnings for message %s: %s", mid, result.warnings)
         except Exception:
             logger.warning("Failed to revert snapshots for message %s", mid, exc_info=True)
-    return total
+    return RevertMessagesOutcome(
+        reverted_count=reverted_total,
+        not_revertible_count=not_revertible_total,
+    )
 
 
 class ChannelRetryHandler:
@@ -92,19 +112,22 @@ class ChannelRetryHandler:
                 return RetryResult(success=False)
             svc_result = await ChatService.retry_last_turn(chat.id, "sandbox")
 
-        reverted = 0
+        revert_outcome = RevertMessagesOutcome(reverted_count=0, not_revertible_count=0)
         if svc_result.success and svc_result.deleted_message_ids:
-            reverted = await _revert_messages(chat.id, svc_result.deleted_message_ids)
-            if reverted:
+            revert_outcome = await _revert_messages(chat.id, svc_result.deleted_message_ids)
+            if revert_outcome.reverted_count:
                 logger.info(
-                    "ChannelRetryHandler: reverted %d files for chat %s", reverted, chat.id,
+                    "ChannelRetryHandler: reverted %d files for chat %s",
+                    revert_outcome.reverted_count,
+                    chat.id,
                 )
 
         return RetryResult(
             success=svc_result.success,
             query=svc_result.query,
             deleted_count=svc_result.deleted_count,
-            reverted_count=reverted,
+            reverted_count=revert_outcome.reverted_count,
+            files_not_revertible=revert_outcome.not_revertible_count,
         )
 
 
@@ -120,16 +143,19 @@ class ChannelUndoHandler:
                 return UndoResult(success=False)
             svc_result = await ChatService.undo_last_turn(chat.id, "sandbox")
 
-        reverted = 0
+        revert_outcome = RevertMessagesOutcome(reverted_count=0, not_revertible_count=0)
         if svc_result.success and svc_result.deleted_message_ids:
-            reverted = await _revert_messages(chat.id, svc_result.deleted_message_ids)
-            if reverted:
+            revert_outcome = await _revert_messages(chat.id, svc_result.deleted_message_ids)
+            if revert_outcome.reverted_count:
                 logger.info(
-                    "ChannelUndoHandler: reverted %d files for chat %s", reverted, chat.id,
+                    "ChannelUndoHandler: reverted %d files for chat %s",
+                    revert_outcome.reverted_count,
+                    chat.id,
                 )
 
         return UndoResult(
             success=svc_result.success,
             deleted_count=svc_result.deleted_count,
-            reverted_count=reverted,
+            reverted_count=revert_outcome.reverted_count,
+            files_not_revertible=revert_outcome.not_revertible_count,
         )

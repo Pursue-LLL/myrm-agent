@@ -10,7 +10,7 @@ myrm_agent_harness.toolkits.kanban.types (POS: TaskPriority/TaskStatus/source_ch
 [OUTPUT]
 seed_citation_fixture: 创建带 citedMemoryIds 的 assistant 消息 + wiki settings 深链参数
 seed_kanban_closure_fixture: 创建 Kanban 看板/任务 + Chat 内 kanban_tasks_created 卡片数据
-seed_revert_fixture: 创建 RevertFiles E2E 数据（variant=modify|create|empty|session）
+seed_revert_fixture: 创建 RevertFiles E2E 数据（variant=modify|create|empty|session|large_skip）
 
 [POS]
 Chats API 本地测试 fixture。为 Wiki citation / Kanban Chat↔Board closure Chrome E2E 提供可重复、无 LLM 的 DB 种子数据。
@@ -26,6 +26,7 @@ from fastapi import APIRouter, HTTPException
 from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
     FileSnapshot,
     SnapshotOp,
+    SnapshotSkipReason,
     SnapshotStore,
 )
 from myrm_agent_harness.toolkits.kanban.types import (
@@ -218,12 +219,13 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
       - create: one CREATE snapshot (revert deletes the new file)
       - empty: assistant message without snapshots (empty-changes UX)
       - session: two messages each with MODIFY snapshots (session-level revert)
+      - large_skip: MODIFY skipped (file too large) — Honest UX non-revertible toast
     """
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
     normalized = variant.strip().lower()
-    if normalized not in {"modify", "create", "empty", "session"}:
+    if normalized not in {"modify", "create", "empty", "session", "large_skip"}:
         raise HTTPException(
             status_code=400, detail=f"Unsupported revert fixture variant: {variant}"
         )
@@ -250,7 +252,7 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
     file_path = str(Path(workspace_dir) / _REVERT_FIXTURE_FILE) if workspace_dir else ""
     message_ids: list[str] = [message_id]
 
-    if normalized in {"modify", "create", "session"}:
+    if normalized in {"modify", "create", "session", "large_skip"}:
         assert workspace_dir is not None
         SnapshotStore.reset()
         store = SnapshotStore.get()
@@ -263,6 +265,17 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
                 original_content=_REVERT_FIXTURE_BEFORE,
             )
             store.record(chat_id, message_id, snapshot)
+            await store.persist_to_disk(workspace_dir, chat_id, message_id)
+        elif normalized == "large_skip":
+            large_content = "x" * (2 * 1024 * 1024 + 128)
+            Path(file_path).write_text(large_content, encoding="utf-8")
+            store.record_skipped(
+                chat_id,
+                message_id,
+                file_path,
+                SnapshotOp.MODIFY,
+                SnapshotSkipReason.FILE_TOO_LARGE,
+            )
             await store.persist_to_disk(workspace_dir, chat_id, message_id)
         elif normalized == "create":
             Path(file_path).write_text(_REVERT_FIXTURE_AFTER, encoding="utf-8")

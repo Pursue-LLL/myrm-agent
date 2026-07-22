@@ -134,6 +134,7 @@ undo_failed = ℹ 撤銷失敗。
 undo_failed_error =  撤銷失敗：{ $error }
 undo_success = ↩ 已撤銷：移除了 { $count } 條訊息。
 undo_reverted = ↩ 已還原 { $count } 個檔案。
+undo_files_not_revertible = ↩ 有 { $count } 個檔案變更無法自動還原（檔案過大或緩衝區已滿）。
 topic_not_configured = ℹ 未配置話題管理。
 topic_bound =
      { $scope } 已繫結{ $agent_label }。

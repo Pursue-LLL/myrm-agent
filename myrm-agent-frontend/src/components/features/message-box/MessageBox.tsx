@@ -144,7 +144,9 @@ const MessageBox = ({
 }) => {
   const [parsedMessage, setParsedMessage] = useState('');
   const [showSystemMessages, setShowSystemMessages] = useState(false);
-  const [isReasoningExpanded, setIsReasoningExpanded] = useState(true);
+  const [isReasoningExpanded, setIsReasoningExpanded] = useState(
+    () => isLast && loading && !message.content,
+  );
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const markdownRef = useRef<HTMLDivElement>(null);
   const { state: quoteState, dismiss: dismissQuote } = useQuoteSelection(markdownRef);

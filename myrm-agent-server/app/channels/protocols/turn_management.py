@@ -30,6 +30,7 @@ class RetryResult:
     query: str = ""
     deleted_count: int = 0
     reverted_count: int = 0
+    files_not_revertible: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +40,7 @@ class UndoResult:
     success: bool
     deleted_count: int = 0
     reverted_count: int = 0
+    files_not_revertible: int = 0
 
 
 @runtime_checkable

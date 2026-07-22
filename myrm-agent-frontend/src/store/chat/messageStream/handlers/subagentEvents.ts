@@ -179,6 +179,36 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     return done(ctx);
   }
 
+  if (data.type === H.AgentEventType.SUBAGENT_STALE) {
+    import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
+      const payload = data.data;
+      const taskId = payload?.task_id;
+      if (taskId) {
+        useSubagentStore.getState().markStale(
+          taskId,
+          payload.stale_duration_seconds ?? 0,
+          payload.wasted_tokens ?? 0,
+        );
+      }
+    });
+
+    actions.setMessages((state) => {
+      const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+      if (messageIndex !== -1) {
+        if (!state.messages[messageIndex].progressSteps) {
+          state.messages[messageIndex].progressSteps = [];
+        }
+        const durationMin = Math.round((data.data?.stale_duration_seconds ?? 0) / 60);
+        state.messages[messageIndex].progressSteps!.push({
+          step_key: 'subagent_stale',
+          tool_name: data.data?.agent_type,
+          items: [{ text: `Subagent stalled (no progress for ${durationMin}min)` }],
+        });
+      }
+    });
+    return done(ctx);
+  }
+
   // SUBAGENT_STATUS_UPDATE: structured completion/failure/timeout event from Harness
   if (data.type === 'subagent_status_update') {
     import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {

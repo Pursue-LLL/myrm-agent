@@ -14,7 +14,9 @@ Background tasks API local test fixture. Enables Chrome E2E to assert panel rows
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
+import time
 import uuid
 from pathlib import Path
 from typing import Literal
@@ -24,8 +26,14 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.config.deploy_mode import is_local_mode
 from app.config.settings import get_settings
+from app.database.dto import ChatCreate
+from app.services.agent.agent_service import AgentService
+from app.services.chat.chat_service import ChatService
 
 router = APIRouter()
+
+_VAULT_SPILL_LINE_COUNT = 85
+_SUCCESS_MARKER = "MYRM_E2E_SHELL_SUCCESS"
 
 
 def _make_local_executor(workspace: Path) -> object:
@@ -99,15 +107,114 @@ async def _spawn_shell_fixture(
     return int(spawn_result["metadata"]["pid"])
 
 
+async def _ensure_e2e_chat(chat_id: str) -> None:
+    agents, _total = await AgentService.get_agent_list(1, 100)
+    agent_id = agents[0].id if agents else None
+    await ChatService.create_or_update_chat(
+        ChatCreate(
+            chat_id=chat_id,
+            title="Background shell Chrome E2E",
+            agent_id=agent_id,
+            messages=[],
+        ),
+    )
+
+
+async def _wait_registry_pid(
+    pid: int,
+    *,
+    want_status: str,
+    timeout_sec: float = 12.0,
+) -> object | None:
+    from myrm_agent_harness.api.hooks import get_background_registry
+
+    registry = get_background_registry()
+    deadline = time.monotonic() + timeout_sec
+    info: object | None = None
+    while time.monotonic() < deadline:
+        info = registry.get(pid)
+        if info is not None and getattr(info, "status", None) == want_status:
+            return info
+        await asyncio.sleep(0.05)
+    return registry.get(pid)
+
+
+async def _wait_vault_log_ref(pid: int, timeout_sec: float = 15.0) -> str | None:
+    from myrm_agent_harness.api.hooks import get_background_registry
+
+    registry = get_background_registry()
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        info = registry.get(pid)
+        ref = getattr(info, "vault_log_ref", None) if info is not None else None
+        if ref:
+            return str(ref)
+        await asyncio.sleep(0.05)
+    info = registry.get(pid)
+    if info is None:
+        return None
+    ref = getattr(info, "vault_log_ref", None)
+    return str(ref) if ref else None
+
+
+def _resolve_evicted_workspace_root(workspace: Path) -> Path:
+    workspace_env = os.environ.get("MYRM_WORKSPACE_ROOT")
+    if workspace_env:
+        candidate = Path(workspace_env).expanduser()
+        if candidate.is_dir():
+            return candidate
+    try:
+        from myrm_agent_harness.toolkits.code_execution.workspace.registry import get_active_workspace_path
+
+        active = get_active_workspace_path()
+        if active:
+            return Path(active)
+    except Exception:
+        pass
+    if is_local_mode():
+        default = Path.home() / ".myrm" / "workspace"
+        if default.is_dir():
+            return default
+    return workspace
+
+
+def _write_vault_log_fixture(*, chat_id: str, pid: int, workspace: Path) -> str:
+    """Ensure a real evicted spill file exists for Chrome E2E vault drawer tests."""
+    from myrm_agent_harness.agent.meta_tools.bash._background_registry_store_sync import persist_vault_log_ref
+    from myrm_agent_harness.api.hooks import get_background_registry
+
+    filename = f"output_{uuid.uuid4().hex[:8]}.txt"
+    content = "".join(f"MYRM_E2E_VAULT_LINE_{index}\n" for index in range(_VAULT_SPILL_LINE_COUNT))
+
+    write_roots = [workspace]
+    server_root = _resolve_evicted_workspace_root(workspace)
+    if server_root not in write_roots:
+        write_roots.append(server_root)
+
+    for root in write_roots:
+        evicted_dir = root / ".context" / chat_id / "evicted"
+        evicted_dir.mkdir(parents=True, exist_ok=True)
+        (evicted_dir / filename).write_text(content, encoding="utf-8")
+
+    info = get_background_registry().get(pid)
+    if info is not None:
+        info.vault_log_ref = filename
+        persist_vault_log_ref(info)
+    return filename
+
+
 @router.post("/test/seed-shell-fixture", include_in_schema=False)
 async def seed_shell_fixture(
-    mode: Literal["failed", "running"] = Query(default="failed"),
+    mode: Literal["failed", "running", "success", "completed_with_vault"] = Query(default="failed"),
 ) -> dict[str, object]:
     """Local dev/test only: seed a shell background job for Chrome E2E."""
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
     chat_id = f"e2e-shell-{uuid.uuid4().hex[:10]}"
+    if mode in {"success", "completed_with_vault"}:
+        await _ensure_e2e_chat(chat_id)
+
     settings = get_settings()
     workspace = Path(settings.database.state_dir).expanduser() / "e2e-fixtures" / chat_id
 
@@ -115,22 +222,32 @@ async def seed_shell_fixture(
         command = (
             f'{sys.executable} -c "import time; print(\'MYRM_E2E_SHELL_RUNNING\', flush=True); time.sleep(120)"'
         )
+    elif mode == "success":
+        command = (
+            f'{sys.executable} -c "print(\'{_SUCCESS_MARKER}\', flush=True)"'
+        )
+    elif mode == "completed_with_vault":
+        command = f'{sys.executable} -c "print(\'MYRM_E2E_VAULT_DONE\', flush=True)"'
     else:
         command = f'{sys.executable} -c "import sys; sys.exit(42)"'
 
     pid = await _spawn_shell_fixture(workspace=workspace, chat_id=chat_id, command=command)
     from myrm_agent_harness.api.hooks import get_background_registry
 
-    if mode == "failed":
-        registry = get_background_registry()
-        for _ in range(40):
-            info = registry.get(pid)
-            if info is not None and info.status == "exited":
-                break
-            await asyncio.sleep(0.05)
+    if mode in {"failed", "success", "completed_with_vault"}:
+        await _wait_registry_pid(pid, want_status="exited")
+
+    vault_log_ref: str | None = None
+    if mode == "completed_with_vault":
+        vault_log_ref = await _wait_vault_log_ref(pid, timeout_sec=2.0)
+        if not vault_log_ref:
+            vault_log_ref = _write_vault_log_fixture(chat_id=chat_id, pid=pid, workspace=workspace)
 
     info = get_background_registry().get(pid)
     job_id = info.job_id if info is not None else str(pid)
+    if vault_log_ref is None and info is not None:
+        ref = getattr(info, "vault_log_ref", None)
+        vault_log_ref = str(ref) if ref else None
 
     return {
         "chat_id": chat_id,
@@ -138,4 +255,5 @@ async def seed_shell_fixture(
         "job_id": job_id,
         "task_id": f"shell:{job_id}",
         "mode": mode,
+        "vault_log_ref": vault_log_ref,
     }

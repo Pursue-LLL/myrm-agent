@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter
 from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import SnapshotStore
-from myrm_agent_harness.agent.meta_tools.file_ops.revert_service import RevertService
+from myrm_agent_harness.agent.meta_tools.file_ops.revert_service import FileChange, RevertService
 from pydantic import BaseModel, Field
 
 router = APIRouter()
@@ -35,6 +35,19 @@ class FileChangeInfo(BaseModel):
     operation: str
     has_original: bool
     timestamp: float
+    revertible: bool = True
+    skip_reason: str | None = None
+
+
+def _to_change_info(c: FileChange) -> FileChangeInfo:
+    return FileChangeInfo(
+        path=c.path,
+        operation=c.operation,
+        has_original=c.has_original,
+        timestamp=c.timestamp,
+        revertible=c.revertible,
+        skip_reason=c.skip_reason,
+    )
 
 
 class FileDiffItem(BaseModel):
@@ -59,10 +72,7 @@ async def get_session_changes(session_id: str) -> dict[str, list[FileChangeInfo]
     await _hydrate_session(session_id)
     changes = await RevertService.get_session_changes(session_id)
     return {
-        msg_id: [
-            FileChangeInfo(path=c.path, operation=c.operation, has_original=c.has_original, timestamp=c.timestamp)
-            for c in file_changes
-        ]
+        msg_id: [_to_change_info(c) for c in file_changes]
         for msg_id, file_changes in changes.items()
     }
 
@@ -72,9 +82,7 @@ async def get_message_changes(session_id: str, message_id: str) -> list[FileChan
     """Get file changes for a specific message."""
     await _hydrate_session(session_id)
     changes = await RevertService.get_message_changes(session_id, message_id)
-    return [
-        FileChangeInfo(path=c.path, operation=c.operation, has_original=c.has_original, timestamp=c.timestamp) for c in changes
-    ]
+    return [_to_change_info(c) for c in changes]
 
 
 @router.get("/diff/{session_id}/{message_id}")

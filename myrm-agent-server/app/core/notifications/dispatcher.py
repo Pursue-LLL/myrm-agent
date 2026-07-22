@@ -60,6 +60,9 @@ _EVENT_TEMPLATES: dict[AppEventType, str] = {
     AppEventType.GOAL_TERMINAL: (
         "[Myrm AI] Goal {status}: {objective}\n{files_modified} files · {total_tokens:,} tokens · ${total_cost_usd:.2f}"
     ),
+    AppEventType.SUBAGENT_STALE: (
+        "[Myrm AI] Subagent stalled: {agent_type} ({task_id})\nNo progress for {stale_duration_seconds:.0f}s · {wasted_tokens:,} tokens"
+    ),
     AppEventType.GOAL_DEQUEUED: ("[Myrm AI] Next goal started: {objective}"),
     AppEventType.OAUTH_REAUTH_REQUIRED: (
         "[Myrm AI] {issuer} authorization expired ({reason}).\nPlease go to Settings → Integrations to reauthorize."

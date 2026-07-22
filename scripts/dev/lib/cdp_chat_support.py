@@ -841,6 +841,41 @@ def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
         raise RuntimeError(f"Failed to persist YOLO securityConfig: {persisted}")
 
 
+def ensure_e2e_hitl_mode(*, api_url: str | None = None) -> None:
+    """Disable YOLO + auto-review so shell HITL approval dialogs appear.
+
+    Agent-level ``yoloModeEnabled: false`` does not override user securityConfig
+    (merge uses OR). LIVE approval E2E must pin global securityConfig on the
+    target API (including SHPOIB private ``:180xx`` backends).
+
+    Also clears wildcard ``permissions.*=allow`` left by ``ensure_e2e_yolo_mode``.
+    """
+    current = fetch_config_value("securityConfig", api_url=api_url)
+    merged: dict[str, object] = {
+        **current,
+        "yoloModeEnabled": False,
+        "yoloModeEnabledAt": None,
+        "yoloModeTimeout": None,
+        "yolo_mode_enabled": False,
+        "yolo_mode_enabled_at": None,
+        "yolo_mode_timeout": None,
+        "autoModeEnabled": False,
+        "autoReviewEnabled": False,
+        "planConfirmEnabled": False,
+        "permissions": {
+            "shell_exec": "ask",
+            "code_interpreter": "ask",
+        },
+    }
+    put_config_value("securityConfig", merged, api_url=api_url)
+    persisted = fetch_config_value("securityConfig", api_url=api_url)
+    if persisted.get("yoloModeEnabled") or persisted.get("yolo_mode_enabled"):
+        raise RuntimeError(f"Failed to disable YOLO securityConfig: {persisted}")
+    perms = persisted.get("permissions")
+    if isinstance(perms, dict) and str(perms.get("*", "")).lower() == "allow":
+        raise RuntimeError(f"Wildcard permissions still allow-all: {persisted}")
+
+
 def ensure_e2e_memory_disabled(*, api_url: str | None = None) -> None:
     """Disable memory for live agent E2E to avoid poisoned procedural briefs."""
     personal = fetch_config_value("personalSettings", api_url=api_url)
