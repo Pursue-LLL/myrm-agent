@@ -389,6 +389,28 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
         </div>
       )}
 
+      {node.stale && !node.staleDismissed && (
+        <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-800 dark:text-red-200">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium">{t('staleTitle')}</p>
+            <p className="mt-0.5 text-red-700 dark:text-red-300">
+              {t('staleDescription', {
+                duration: String(Math.round((node.staleDurationSeconds ?? 0) / 60)),
+                tokens: String((node.wastedTokens ?? 0).toLocaleString()),
+              })}
+            </p>
+          </div>
+          <button
+            onClick={() => useSubagentStore.getState().dismissStale(node.task_id)}
+            className="text-red-500 hover:text-red-700 dark:hover:text-red-300 shrink-0 text-xs"
+            title={t('dismiss')}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {node.teammateMessages && node.teammateMessages.length > 0 && (
         <div className="mx-2 rounded-full border border-border/60 bg-muted/30 px-2 py-1.5 text-xs">
           <div className="mb-1 flex items-center gap-1.5 font-medium text-muted-foreground">

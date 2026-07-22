@@ -10992,6 +10992,8 @@
     "forcePushReceived": "エージェント設定が組織により更新規されました",
     "forcePushRollbackHint": "スナップショットが保存されました。エージェント設定からロールバックできます。",
     "subagentRebindRequired": "子 Agent バインド済み变更。してください有効化新規対話以使用更新規后の委派ツール。",
+    "subagentStale": "サブエージェントが停滞",
+    "noProgressFor": "進捗なし",
     "viewAgent": "表示",
     "approvalRequired": "Agent が必須要承認授权：{actionType}",
     "approvalsRecovered": "{count}件の保留中の承認を復元しました",
