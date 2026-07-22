@@ -261,6 +261,7 @@ myrm_agent_harness.toolkits.code_execution.sandbox.providers.null
 myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types
 myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer
 myrm_agent_harness.toolkits.code_execution.tool_discovery
+myrm_agent_harness.toolkits.code_execution.utils.workspace_path
 myrm_agent_harness.toolkits.code_execution.workspace.registry
 myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind
 myrm_agent_harness.toolkits.computer_use
