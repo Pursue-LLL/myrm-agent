@@ -86,6 +86,18 @@ class TestCatalogListEndpoint:
         for field in required_fields:
             assert field in entry, f"Missing field: {field}"
 
+    def test_list_unreal_mcp_config_uses_camel_case_keys(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog")
+        assert response.status_code == 200
+        entries = response.json()["data"]["entries"]
+        unreal = next(e for e in entries if e["id"] == "unreal-engine")
+        mcp = unreal["mcpConfig"]
+        assert mcp is not None
+        assert mcp["probeUrl"] == "http://127.0.0.1:8000/mcp"
+        assert "probe_url" not in mcp
+        assert mcp["hostSerial"] is True
+        assert "host_serial" not in mcp
+
 
 class TestCatalogDetailEndpoint:
     """Tests for GET /api/v1/integrations/catalog/{entry_id}."""
@@ -301,6 +313,16 @@ class TestCatalogDetailEndpoint:
         data = response.json()["data"]
         assert data["deploymentScope"] == "local_tauri_only"
         assert data["mcpConfig"]["deploymentScope"] == "local_tauri_only"
+
+    def test_unreal_entry_mcp_config_uses_camel_case_probe_key(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/unreal-engine")
+        assert response.status_code == 200
+        mcp = response.json()["data"]["mcpConfig"]
+        assert mcp is not None
+        assert mcp["probeUrl"] == "http://127.0.0.1:8000/mcp"
+        assert "probe_url" not in mcp
+        assert mcp["hostSerial"] is True
+        assert "host_serial" not in mcp
 
     def test_blender_entry_has_local_tauri_only_scope(self, client: TestClient) -> None:
         response = client.get("/api/v1/integrations/catalog/blender")

@@ -29,6 +29,8 @@ FRONTEND_PORT="${MYRM_FRONTEND_PORT:-3000}"
 source "${SCRIPT_DIR}/lib/frontend-warmup.sh"
 # shellcheck source=lib/stack-epoch.sh
 source "${SCRIPT_DIR}/lib/stack-epoch.sh"
+# shellcheck source=lib/stack_mutation_policy.sh
+source "${SCRIPT_DIR}/lib/stack_mutation_policy.sh"
 MUX_BIN="${MONOREPO_ROOT}/scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs"
 ENSURE_CHROME="${SCRIPT_DIR}/ensure-myrm-chrome-e2e.sh"
 SERVER_DIR="${AGENT_ROOT}/myrm-agent-server"
@@ -703,14 +705,7 @@ _ensure_mux_daemon() {
 
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
   if [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
-    active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
-    if _shared_backend_source_drift_pending "${SERVER_DIR}"; then
-      echo "CHROME_E2E_ATTACH: backend source drift — reloading backend only (${active_leases} active leases)" >&2
-      MYRM_WAVE_GATE_BYPASS=1 bash "${SCRIPT_DIR}/dev-stack.sh" backend-only ensure >/dev/null 2>&1 \
-        || echo "CHROME_E2E_WARN: attach backend ensure for source drift failed" >&2
-    elif [[ "${active_leases}" != "0" ]]; then
-      echo "CHROME_E2E_ATTACH: backend source fresh (${active_leases} active wave leases)" >&2
-    fi
+    _smp_attach_backend_drift_heal "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh"
   fi
   _heal_mux_request_timeout_drift
   if [[ "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" == "1" ]]; then

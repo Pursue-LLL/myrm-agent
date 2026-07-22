@@ -93,6 +93,8 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
     assert "localhost addresses only" in str(detail_payload.get("message") or "")
 
     # 3) Real user flow in Service Directory UI (Chrome MCP mux).
+    # For local-only entries, probe must gate the connect chain before scan/verify when
+    # the editor MCP endpoint is not running.
     warm_ui_route("/settings/integrationCatalog")
     last_open_error: RuntimeError | None = None
     for attempt in range(3):
@@ -111,7 +113,18 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
                           const url = typeof req === 'string' ? req : req?.url;
                           const method = (init.method || req?.method || 'GET').toUpperCase();
                           const resp = await origFetch(...args);
-                          window.__integrationFetchLogs.push({ url: String(url || ''), method, status: resp.status });
+                          let body = null;
+                          try {
+                            body = await resp.clone().json();
+                          } catch (_err) {
+                            body = null;
+                          }
+                          window.__integrationFetchLogs.push({
+                            url: String(url || ''),
+                            method,
+                            status: resp.status,
+                            body,
+                          });
                           return resp;
                         };
                       }
@@ -165,18 +178,33 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
                     page,
                     """(() => {
                       const logs = Array.isArray(window.__integrationFetchLogs) ? window.__integrationFetchLogs : [];
+                      const probe = logs.find((item) => item.url.includes('/api/v1/integrations/mcp/probe'));
                       const scan = logs.find((item) => item.url.includes('/api/v1/integrations/mcp/scan'));
                       const verify = logs.find((item) => item.url.includes('/api/v1/integrations/mcp/verify'));
+                      const probeData = probe?.body?.data ?? null;
+                      const reasonCode = probeData?.reasonCode ?? null;
+                      const shouldBlock = probeData?.shouldBlockConnect ?? null;
+                      const text = String(document.body?.innerText || '');
                       return {
-                        ready: !!(scan && verify),
+                        ready: !!probe,
+                        probeStatus: probe?.status ?? null,
+                        reasonCode,
+                        shouldBlock,
+                        scanSeen: !!scan,
+                        verifySeen: !!verify,
+                        hasBlockMessage: /not running|服务未启动/i.test(text),
                         scanStatus: scan?.status ?? null,
                         verifyStatus: verify?.status ?? null,
                       };
                     })()""",
                     timeout_sec=45.0,
                 )
-                assert fetch_chain.get("scanStatus") == 200
-                assert int(fetch_chain.get("verifyStatus") or 0) in (200, 400)
+                assert fetch_chain.get("probeStatus") == 200
+                assert fetch_chain.get("reasonCode") == "connection_refused"
+                assert fetch_chain.get("shouldBlock") is True
+                assert fetch_chain.get("scanSeen") is False
+                assert fetch_chain.get("verifySeen") is False
+                assert fetch_chain.get("hasBlockMessage") is True
             break
         except RuntimeError as exc:
             last_open_error = exc

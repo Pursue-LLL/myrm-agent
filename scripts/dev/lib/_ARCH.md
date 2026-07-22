@@ -29,7 +29,8 @@
 | `e2e_mux_admission.py` | Unix | 全局 mux session 准入（READ+LIVE 统一 cap、`E2E_MUX_ADMISSION_WAIT`）；`MYRM_E2E_RUN_ID` label 经 `_registry_key()` uuid5 归一化 |
 | `mux_upstream_admission.py` | Unix | 全局 mux cold attach 准入（cap=2、`MUX_UPSTREAM_WAIT`）；`chrome_mcp_client.new_page` 包装 |
 | `e2e_capacity_messages.py` | Unix | Dev Gate UX：cap 等待人话行（保留 `E2E_*_WAIT` token） |
-| `dev_gate_contract.py` | Unix | Dev Gate v2 SSOT（产品路径）：mux 错误分类、并行 cap（LIVE SHPOIB **4** / shared_hot **1** / mux **6** / cold attach **2**）、**`E2E_UNIFIED_WAIT_SEC=900`**、**`CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT=180000`**、**lane pytest timeout**（READ=1110 / LIVE=**1710** / desktop=7200） |
+| `dev_gate_contract.py` | Unix | Dev Gate v2 SSOT（产品路径）：mux 错误分类、并行 cap（LIVE SHPOIB **4** / shared_hot **1** / mux **6** / cold attach **2**）、**`E2E_UNIFIED_WAIT_SEC=900`**、**`CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT=180000`**、**lane pytest timeout**（READ=1110 / LIVE=**1710** / desktop=7200）、**session safe timeout**（`chrome_e2e_pytest_safe_timeout_sec`） |
+| `stack_mutation_policy.py` / `stack_mutation_policy.sh` | Unix | R30 SMP SSOT：shared-stack drift heal defer under active wave leases；`pending-stack-drift.json`；preflight/bootstrap/supervisor 统一入口 |
 | `e2e_unified_admission.py` | Unix | UEA v3 contract 常量 re-export（`E2E_UNIFIED_WAIT_SEC` · `LIVE_SHPOIB/SHARED_HOT_MAX`） |
 | `../resolve_e2e_session_profile.py` | Unix | UEA v3 profile SSOT（`{lane, shpoib, shared_hot}`）；`test.sh` 驱动 cap 与 stream-first |
 | `e2e_lease_runtime_sync.py` | Unix | formal chrome E2E acquire 后 fail-closed gate：`lease.runtimeId == _read_shared_hot_stack_runtime_id()`；state 经 `wave_state_paths.resolve_wave_state_file()`；`test.sh` 经 `_e2e_sync_lease_runtime` 调用 |

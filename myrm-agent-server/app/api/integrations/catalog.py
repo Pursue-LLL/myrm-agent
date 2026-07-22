@@ -72,7 +72,11 @@ def _entry_to_response(entry: CatalogEntry) -> CatalogEntryResponse:
 
     mcp_config_dict: dict[str, object] | None = None
     if entry.mcp_config:
-        mcp_config_dict = entry.mcp_config.model_dump(exclude_none=True)
+        # Keep MCP config keys camelCase to match frontend contract.
+        mcp_config_dict = entry.mcp_config.model_dump(
+            by_alias=True,
+            exclude_none=True,
+        )
     deployment_scope = _resolve_deployment_scope(entry)
     if mcp_config_dict is not None and deployment_scope is not None:
         mcp_config_dict["deploymentScope"] = deployment_scope.value

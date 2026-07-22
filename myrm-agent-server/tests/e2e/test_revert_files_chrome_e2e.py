@@ -48,13 +48,6 @@ _UNDO_BUTTON_READY_JS = f"""(() => {{
   return {{ ready: true, title: btn.getAttribute('title') || null }};
 }})()"""
 
-_CLICK_UNDO_JS = f"""(() => {{
-  {_SCOPED_REVERT_BTN_HELPER}
-  const {{ btn }} = findFixtureRevertButton({json.dumps(_FIXTURE_ANSWER)});
-  if (!btn) return {{ clicked: false }};
-  btn.click();
-  return {{ clicked: true, title: btn.getAttribute('title') || null }};
-}})()"""
 
 _CLICK_CONFIRM_JS = """(() => {
   const popover = document.querySelector('[data-radix-popper-content-wrapper]');
@@ -280,15 +273,53 @@ _CLICK_UNDO_AND_WAIT_POPOVER_JS = f"""(() => {{
   }})();
 }})()"""
 
-_EMPTY_TOAST_READY_JS = """(() => {
-  const toastNodes = Array.from(document.querySelectorAll('[data-sonner-toast]'));
-  const toastText = toastNodes.map((node) => node.textContent || '').join(' ');
-  const bodyText = document.body?.innerText || '';
-  const merged = `${toastText} ${bodyText}`;
-  const hasEmptyToast = /No file changes for this message|本条消息无文件变更/i.test(merged);
-  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
-  return { ready: hasEmptyToast && !popover, sample: merged.slice(0, 300) };
-})()"""
+_PROBE_REVERT_EMPTY_FETCH_JS = f"""(() => {{
+  return (async () => {{
+    const chatId = location.pathname.replace(/^\\//, '');
+    const store = window.__myrmChatStore?.getState?.();
+    const msg = (store?.messages || []).find(
+      (item) => item.role === 'assistant' && (item.content || '').includes({json.dumps(_FIXTURE_ANSWER)}),
+    );
+    if (!msg) {{
+      return {{ ok: false, err: 'fixture-message-missing', chatId }};
+    }}
+    const res = await fetch(`/api/v1/files/revert/changes/${{chatId}}/${{msg.messageId}}`);
+    const body = await res.text();
+    return {{
+      ok: res.ok && body === '[]',
+      status: res.status,
+      chatId,
+      messageId: msg.messageId,
+      body: body.slice(0, 120),
+    }};
+  }})();
+}})()"""
+
+_CLICK_UNDO_AND_WAIT_EMPTY_TOAST_JS = f"""(() => {{
+  {_SCOPED_REVERT_BTN_HELPER}
+  return (async () => {{
+    const {{ btn }} = findFixtureRevertButton({json.dumps(_FIXTURE_ANSWER)});
+    if (!btn) return {{ ready: false, err: 'revert-button-missing' }};
+    btn.click();
+    const deadline = Date.now() + 45000;
+    while (Date.now() < deadline) {{
+      const toastNodes = Array.from(
+        document.querySelectorAll('[data-sonner-toast], [data-sonner-toaster] [data-sonner-toast]'),
+      );
+      const toastText = toastNodes.map((node) => node.textContent || '').join(' ');
+      const bodyText = document.body?.innerText || '';
+      const merged = `${{toastText}} ${{bodyText}}`;
+      const hasEmptyToast = /No file changes for this message|本条消息无文件变更/i.test(merged);
+      const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+      if (hasEmptyToast && !popover) {{
+        return {{ ready: true, sample: merged.slice(0, 300) }};
+      }}
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }}
+    const fallback = document.body?.innerText || '';
+    return {{ ready: false, sample: fallback.slice(0, 400) }};
+  }})();
+}})()"""
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
@@ -322,14 +353,20 @@ def test_revert_files_empty_changes_shows_toast_not_popover() -> None:
 
         dismiss_blocking_modals(client, page)
 
+        empty_probe = client.evaluate(page, _PROBE_REVERT_EMPTY_FETCH_JS, timeout_sec=30.0)
+        assert isinstance(empty_probe, dict) and empty_probe.get("ok") is True, json.dumps(
+            empty_probe,
+            ensure_ascii=False,
+        )
+
         undo_ready = wait_for_state(client, page, _UNDO_BUTTON_READY_JS, timeout_sec=30.0)
         assert undo_ready.get("ready") is True, json.dumps(undo_ready, ensure_ascii=False)
 
-        clicked = client.evaluate(page, _CLICK_UNDO_JS, timeout_sec=10.0)
-        assert isinstance(clicked, dict) and clicked.get("clicked") is True, clicked
-
-        toast_state = wait_for_state(client, page, _EMPTY_TOAST_READY_JS, timeout_sec=45.0)
-        assert toast_state.get("ready") is True, json.dumps(toast_state, ensure_ascii=False)
+        toast_state = client.evaluate(page, _CLICK_UNDO_AND_WAIT_EMPTY_TOAST_JS, timeout_sec=60.0)
+        assert isinstance(toast_state, dict) and toast_state.get("ready") is True, json.dumps(
+            toast_state,
+            ensure_ascii=False,
+        )
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)

@@ -27,7 +27,7 @@
 | `cleanup.py` | 辅助 | 任务清理（`_db_maintenance_job` 每 6h 调用） | — |
 | `image_config_resolver.py` | 核心 | 从 task payload 快照还原 `ImageGenerationConfig`（含 media callback）；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
 | `video_config_resolver.py` | 核心 | 从 task payload 快照还原 `VideoGenerationConfig`（含 fallback / media callback）；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
-| `task_payload_crypto.py` | 核心 | persist 前递归 seal `api_key` / `gateway_config.auth_token`（含 `fallback_configs`）；worker resolver 仅 open 加密字段并剥离明文遗留值 | ✅ |
+| `task_payload_crypto.py` | 核心 | persist 前递归 seal `api_key` / `gateway_config.auth_token`（含 `fallback_configs`）；worker resolver open 阶段优先当前 key、可用时回退 `CONFIG_ENCRYPTION_KEY_FALLBACKS`/legacy key 解密并剥离明文遗留值 | ✅ |
 | `executors/` | 子模块 | 具体任务执行器 | — |
 
 ## 子模块

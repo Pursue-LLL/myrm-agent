@@ -9,6 +9,7 @@ from app.tasks.task_payload_crypto import (
     API_KEY_FIELD,
     AUTH_TOKEN_ENC_FIELD,
     AUTH_TOKEN_FIELD,
+    FALLBACK_KEY_SECRETS_ENV,
     FALLBACK_CONFIGS_FIELD,
     GATEWAY_CONFIG_FIELD,
     open_task_payload_secrets,
@@ -143,6 +144,104 @@ def test_open_without_encryption_key_leaves_sealed_fields_and_strips_plaintext(
 
     assert API_KEY_FIELD not in opened
     assert opened[API_KEY_ENC_FIELD] == "cipher-text"
+
+
+def test_open_uses_fallback_key_when_primary_key_rotated(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.services.config.encryption as enc_mod
+    from myrm_agent_harness.utils.crypto import ConfigCrypto
+
+    previous_secret = "previous-task-key"
+    rotated_secret = "rotated-task-key"
+    previous_key = ConfigCrypto.derive_key(previous_secret)
+    rotated_key = ConfigCrypto.derive_key(rotated_secret)
+
+    class _RotatedKeyService:
+        has_key = True
+        raw_key = rotated_key
+
+    monkeypatch.setattr(enc_mod, "get_encryption_service", lambda: _RotatedKeyService())
+    monkeypatch.setenv(FALLBACK_KEY_SECRETS_ENV, previous_secret)
+
+    sealed = {
+        API_KEY_ENC_FIELD: ConfigCrypto.encrypt_value({"value": "sk-rotated"}, previous_key),
+    }
+    opened = open_task_payload_secrets(sealed)
+    assert opened[API_KEY_FIELD] == "sk-rotated"
+
+
+def test_open_keeps_cipher_when_rotated_key_has_no_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.services.config.encryption as enc_mod
+    from myrm_agent_harness.utils.crypto import ConfigCrypto
+
+    previous_secret = "previous-task-key"
+    rotated_secret = "rotated-task-key"
+    previous_key = ConfigCrypto.derive_key(previous_secret)
+    rotated_key = ConfigCrypto.derive_key(rotated_secret)
+
+    class _RotatedKeyService:
+        has_key = True
+        raw_key = rotated_key
+
+    monkeypatch.setattr(enc_mod, "get_encryption_service", lambda: _RotatedKeyService())
+    monkeypatch.delenv(FALLBACK_KEY_SECRETS_ENV, raising=False)
+
+    cipher = ConfigCrypto.encrypt_value({"value": "sk-rotated"}, previous_key)
+    opened = open_task_payload_secrets({API_KEY_ENC_FIELD: cipher})
+    assert API_KEY_FIELD not in opened
+    assert opened[API_KEY_ENC_FIELD] == cipher
+
+
+def test_open_uses_fallback_key_for_gateway_token_when_primary_key_rotated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.services.config.encryption as enc_mod
+    from myrm_agent_harness.utils.crypto import ConfigCrypto
+
+    previous_secret = "previous-task-key"
+    rotated_secret = "rotated-task-key"
+    previous_key = ConfigCrypto.derive_key(previous_secret)
+    rotated_key = ConfigCrypto.derive_key(rotated_secret)
+
+    class _RotatedKeyService:
+        has_key = True
+        raw_key = rotated_key
+
+    monkeypatch.setattr(enc_mod, "get_encryption_service", lambda: _RotatedKeyService())
+    monkeypatch.setenv(FALLBACK_KEY_SECRETS_ENV, previous_secret)
+
+    sealed = {
+        GATEWAY_CONFIG_FIELD: {
+            "use_gateway": True,
+            AUTH_TOKEN_ENC_FIELD: ConfigCrypto.encrypt_value({"value": "vk-rotated"}, previous_key),
+        }
+    }
+    opened = open_task_payload_secrets(sealed)
+    opened_gateway = opened.get(GATEWAY_CONFIG_FIELD)
+    assert isinstance(opened_gateway, dict)
+    assert opened_gateway[AUTH_TOKEN_FIELD] == "vk-rotated"
+    assert AUTH_TOKEN_ENC_FIELD not in opened_gateway
+
+
+def test_open_does_not_use_fallback_env_when_primary_key_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.services.config.encryption as enc_mod
+    from myrm_agent_harness.utils.crypto import ConfigCrypto
+
+    class _NoKeyService:
+        has_key = False
+        raw_key = None
+
+    previous_secret = "previous-task-key"
+    previous_key = ConfigCrypto.derive_key(previous_secret)
+    cipher = ConfigCrypto.encrypt_value({"value": "sk-rotated"}, previous_key)
+
+    monkeypatch.setattr(enc_mod, "get_encryption_service", lambda: _NoKeyService())
+    monkeypatch.setenv(FALLBACK_KEY_SECRETS_ENV, previous_secret)
+
+    opened = open_task_payload_secrets({API_KEY_ENC_FIELD: cipher})
+    assert API_KEY_FIELD not in opened
+    assert opened[API_KEY_ENC_FIELD] == cipher
 
 
 def test_open_gateway_decrypt_failure_strips_auth_token_enc(monkeypatch: pytest.MonkeyPatch) -> None:

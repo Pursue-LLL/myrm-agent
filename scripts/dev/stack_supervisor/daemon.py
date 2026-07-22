@@ -24,6 +24,7 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TextIO
 
 import fcntl
@@ -204,6 +205,18 @@ class SupervisorDaemon:
         if not wave_write_allowed:
             if probe.api_http_ok:
                 return
+            active_leases = self._wave_active_lease_count()
+            pending_drift = self._pending_stack_drift_exists()
+            if self._should_defer_supervisor_backend_heal(
+                active_leases=active_leases,
+                pending_drift=pending_drift,
+                api_http_ok=probe.api_http_ok,
+            ):
+                logger.info(
+                    "Watchdog auto-heal: deferred — pending stack drift with %s active leases",
+                    active_leases,
+                )
+                return
             if not probe.frontend_http_ok and not probe.frontend_port_listening:
                 logger.info(
                     "Watchdog auto-heal: deferred — wave pin and frontend unavailable"
@@ -272,6 +285,42 @@ class SupervisorDaemon:
             return True
         logger.info("Wave stack-write gate denied mutation: %s", result.stderr.strip())
         return False
+
+    def _monorepo_root(self) -> Path:
+        return self.paths.agent_root.parent
+
+    def _stack_mutation_policy_module(self) -> object:
+        lib_dir = self.paths.dev_stack_sh.parent / "lib"
+        lib_str = str(lib_dir)
+        if lib_str not in sys.path:
+            sys.path.insert(0, lib_str)
+        import stack_mutation_policy
+
+        return stack_mutation_policy
+
+    def _wave_active_lease_count(self) -> int:
+        policy = self._stack_mutation_policy_module()
+        return int(policy.wave_active_lease_count(self._monorepo_root()))
+
+    def _pending_stack_drift_exists(self) -> bool:
+        policy = self._stack_mutation_policy_module()
+        return bool(policy.pending_drift_exists(self.paths.state_dir))
+
+    def _should_defer_supervisor_backend_heal(
+        self,
+        *,
+        active_leases: int,
+        pending_drift: bool,
+        api_http_ok: bool,
+    ) -> bool:
+        policy = self._stack_mutation_policy_module()
+        return bool(
+            policy.should_defer_supervisor_backend_heal(
+                active_leases=active_leases,
+                pending_drift=pending_drift,
+                api_http_ok=api_http_ok,
+            )
+        )
 
     def _watchdog_loop(self) -> None:
         while not self._stop_event.is_set():

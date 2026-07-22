@@ -183,11 +183,13 @@ class CdpChatInput(CdpChatBootstrap):
         """Wait for the full React E2E bridge (not DOM-only fallback)."""
         deadline = time.monotonic() + timeout_sec
         polls = 0
+        probe: object = None
         while time.monotonic() < deadline:
             polls += 1
             await self.dismiss_modals()
             await self.ensure_e2e_api_base_binding()
-            await self.evaluate(E2E_BRIDGE_INSTALL_JS, await_promise=False)
+            # Never install DOM fallback here — E2E_BRIDGE_INSTALL_JS would overwrite
+            # the window slot and prevent E2EChatBridge from exposing setCurrentBuiltinTools.
             probe = await self.evaluate(
                 """(() => ({
                   hasBuiltinTools: Boolean(window.__MYRM_E2E_CHAT__?.setCurrentBuiltinTools),
@@ -198,7 +200,10 @@ class CdpChatInput(CdpChatBootstrap):
             )
             if isinstance(probe, dict) and probe.get("hasBuiltinTools"):
                 return
-            if polls in {15, 30, 45}:
+            should_reload = polls in {15, 30, 45}
+            if isinstance(probe, dict) and probe.get("fallback"):
+                should_reload = True
+            if should_reload:
                 await self.cdp("Page.reload", {"ignoreCache": True}, recv_timeout=120.0)
                 await asyncio.sleep(4)
                 await self.ensure_e2e_api_base_binding()
