@@ -180,8 +180,7 @@ def _resolve_evicted_workspace_root(workspace: Path) -> Path:
 
 def _write_vault_log_fixture(*, chat_id: str, pid: int, workspace: Path) -> str:
     """Ensure a real evicted spill file exists for Chrome E2E vault drawer tests."""
-    from myrm_agent_harness.agent.meta_tools.bash._background_registry_store_sync import persist_vault_log_ref
-    from myrm_agent_harness.api.hooks import get_background_registry
+    from myrm_agent_harness.api.hooks import get_background_registry, persist_vault_log_ref
 
     filename = f"output_{uuid.uuid4().hex[:8]}.txt"
     content = "".join(f"MYRM_E2E_VAULT_LINE_{index}\n" for index in range(_VAULT_SPILL_LINE_COUNT))
