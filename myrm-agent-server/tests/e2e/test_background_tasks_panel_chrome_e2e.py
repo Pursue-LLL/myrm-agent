@@ -63,7 +63,7 @@ _PANEL_RUNNING_SHELL_CANCEL_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.timeout(180)
 def test_background_tasks_panel_opens_and_lists_api() -> None:
     api_base = get_e2e_api_url()
@@ -88,7 +88,7 @@ def test_background_tasks_panel_opens_and_lists_api() -> None:
             assert notice.get("hasNotice") is True, notice
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.timeout(180)
 def test_background_tasks_panel_shows_failed_shell_job_from_seed() -> None:
     api_base = get_e2e_api_url()
@@ -151,7 +151,7 @@ def _wait_api_task_status(
     )
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.timeout(300)
 def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
     api_base = get_e2e_api_url()

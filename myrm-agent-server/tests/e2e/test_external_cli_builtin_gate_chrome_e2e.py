@@ -109,7 +109,7 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
         pass
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 def test_external_cli_builtin_card_enabled_in_local_chrome_ui() -> None:
     """Local deploy: external_cli card is togglable and shows setup hints when enabled."""

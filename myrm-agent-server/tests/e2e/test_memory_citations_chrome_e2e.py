@@ -101,7 +101,7 @@ _EVIDENCE_SHEET_READY_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.timeout(240)
 def test_memory_settings_conversation_search_toggle() -> None:
     warm_ui_route("/settings/memory")
@@ -126,7 +126,7 @@ def test_memory_settings_conversation_search_toggle() -> None:
         assert toggled.get("ok") is True, json.dumps(toggled, ensure_ascii=False)
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.timeout(240)
 def test_memory_citations_evidence_button_opens_unified_sheet() -> None:
     warm_ui_route("/")

@@ -290,7 +290,7 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
         pass
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
@@ -349,7 +349,7 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
         _delete_agent(api_url, agent_id)
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_client_surface_emits_tauri_when_tauri_runtime_simulated() -> None:

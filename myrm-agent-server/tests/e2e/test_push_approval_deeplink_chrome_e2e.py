@@ -106,7 +106,7 @@ def _ensure_clean_chat_surface(client, page) -> None:
     raise AssertionError("Could not hide approval drawer before deeplink baseline")
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
@@ -147,7 +147,7 @@ def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
     assert resolved.get("status") == "REJECTED"
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_push_approval_deeplink_cold_start_opens_drawer() -> None:
@@ -181,7 +181,7 @@ def test_push_approval_deeplink_cold_start_opens_drawer() -> None:
     assert resolved.get("status") == "REJECTED"
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_push_approval_deeplink_from_different_open_chat_tab() -> None:
@@ -219,7 +219,7 @@ def test_push_approval_deeplink_from_different_open_chat_tab() -> None:
         assert resolved.get("status") == "REJECTED"
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_push_approval_deeplink_unknown_id_strips_query_without_drawer() -> None:

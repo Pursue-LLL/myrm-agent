@@ -28,7 +28,8 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url  # noqa: E402
-from chrome_mcp_client import ChromeMcpClient  # noqa: E402
+
+from tests.support.chrome_mcp_e2e import open_mcp_page  # noqa: E402
 
 _MIGRATION_SCAN_URL = f"{get_e2e_ui_url()}/settings/memory?sub=migration"
 
@@ -113,15 +114,14 @@ def _discover_has_hermes() -> bool:
     return any(isinstance(item, dict) and item.get("competitor") == "hermes" for item in sources)
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_hermes_migration_wizard_dry_run_uses_builtin_economy() -> None:
     if not _discover_has_hermes():
         pytest.skip("No Hermes migration source discovered on this machine")
 
-    with ChromeMcpClient() as client:
-        page = client.new_page(_MIGRATION_SCAN_URL, timeout_ms=90_000)
+    with open_mcp_page(_MIGRATION_SCAN_URL, timeout_ms=90_000) as (client, page):
 
         scan_deadline = time.monotonic() + 90.0
         while time.monotonic() < scan_deadline:

@@ -60,7 +60,7 @@ def _seed_wiki_citation_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_wiki_citation_button_survives_reload() -> None:
@@ -89,7 +89,7 @@ def test_wiki_citation_button_survives_reload() -> None:
         assert reloaded_state.get("ready") is True
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_settings_wiki_agent_scope_deeplink() -> None:
