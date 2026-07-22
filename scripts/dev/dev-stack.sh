@@ -649,8 +649,29 @@ cmd_backend_only_stop() {
   echo "STACK_BACKEND_ONLY_STOP_OK"
 }
 
+cmd_frontend_only_ensure() {
+  if _frontend_healthy; then
+    echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT}"
+    exit 0
+  fi
+  if _frontend_port_listening; then
+    if _wait_frontend_http_200 "${ATTACH_WAIT_SEC}"; then
+      _sync_frontend_pid_from_lock
+      echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} compile_wait=yes"
+      exit 0
+    fi
+    echo "STACK_FAIL: frontend listening but not HTTP 200 within ${ATTACH_WAIT_SEC}s" >&2
+    exit 1
+  fi
+  echo "STACK_HEAL: shared frontend port :${FRONTEND_PORT} dead — cold start (no kill)" >&2
+  if ! _start_frontend_supervisor; then
+    exit 1
+  fi
+  echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} cold_start=yes"
+}
+
 usage() {
-  echo "Usage: dev-stack.sh ensure|attach|reset|status|backend-only ensure|backend-only stop" >&2
+  echo "Usage: dev-stack.sh ensure|attach|reset|status|backend-only ensure|backend-only stop|frontend-only ensure" >&2
 }
 
 _supervisor_delegate_or_fail() {
@@ -718,6 +739,25 @@ main() {
           ;;
         *)
           echo "Unknown backend-only command: ${subcmd}" >&2
+          usage
+          exit 1
+          ;;
+      esac
+      ;;
+    frontend-only)
+      local subcmd="${2:-}"
+      case "${subcmd}" in
+        ensure)
+          if _supervisor_internal_call; then cmd_frontend_only_ensure; exit $?; fi
+          if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_E2E_SHPOIB:-}" == "1" ]]; then
+            cmd_frontend_only_ensure
+            exit $?
+          fi
+          echo "STACK_FAIL: frontend-only ensure requires MYRM_SUPERVISOR_BYPASS=1 or MYRM_E2E_SHPOIB=1" >&2
+          exit 1
+          ;;
+        *)
+          echo "Unknown frontend-only command: ${subcmd}" >&2
           usage
           exit 1
           ;;

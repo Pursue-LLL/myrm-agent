@@ -160,6 +160,9 @@ _wait_shared_ui_reachable() {
       ok "shared UI ${shared_ui}"
       return 0
     fi
+    if [[ "${waited}" -ge 30 && $((waited % 30)) -eq 0 ]]; then
+      _heal_dead_shared_ui_port
+    fi
     if [[ "${waited}" -ge "${wait_sec}" ]]; then
       fail "shared UI not reachable at ${shared_ui} within ${wait_sec}s — run: ./myrm ready --chrome"
     fi
@@ -169,6 +172,16 @@ _wait_shared_ui_reachable() {
     sleep "${poll_sec}"
     waited=$((waited + poll_sec))
   done
+}
+
+_heal_dead_shared_ui_port() {
+  if lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
+    return 0
+  fi
+  local stack="${AGENT_ROOT}/scripts/dev/dev-stack.sh"
+  [[ -f "${stack}" ]] || return 1
+  echo "CHROME_E2E_HEAL: shared UI port :${FRONTEND_PORT} dead — frontend-only cold start" >&2
+  MYRM_SUPERVISOR_BYPASS=1 MYRM_E2E_SHPOIB="${MYRM_E2E_SHPOIB:-1}" bash "${stack}" frontend-only ensure || true
 }
 
 _private_backend_attach_path() {
