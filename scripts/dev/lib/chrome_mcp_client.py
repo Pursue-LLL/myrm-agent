@@ -362,7 +362,11 @@ class ChromeMcpClient:
                         f"expected={expected['runtimeId']}@{expected['apiBase']} observed={observed}"
                     )
                 return
-            error_text = str(last_observed.get("error", last_observed))
+            error_text = (
+                str(last_observed.get("error", last_observed))
+                if isinstance(last_observed, dict)
+                else str(last_observed)
+            )
             transient = "Failed to fetch" in error_text or "fetch" in error_text.lower()
             if attempt < 4 and transient and api_base:
                 wait_e2e_provider_ready(api_url=api_base, timeout_sec=30.0)

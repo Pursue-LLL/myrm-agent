@@ -78,8 +78,34 @@ def _ledger_agent_id() -> str:
     )
 
 
+def _heartbeat_deferred_mux_admission() -> None:
+    run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+    token = os.environ.get("MYRM_E2E_MUX_ADMISSION_TOKEN", "").strip()
+    if not run_id or not token:
+        return
+    admission_py = Path(__file__).resolve().parents[3] / "scripts/dev/lib/e2e_mux_admission.py"
+    if not admission_py.is_file():
+        return
+    subprocess.run(
+        [
+            sys.executable,
+            str(admission_py),
+            "heartbeat",
+            "--session-id",
+            run_id,
+            "--owner-token",
+            token,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+
+
 def heartbeat_e2e_lease() -> None:
     """Extend the active LIVE_AGENT (or other) lease TTL during long UI E2E runs."""
+    _heartbeat_deferred_mux_admission()
     lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
     agent_id = os.environ.get("MYRM_E2E_AGENT_ID", "").strip()
     if not lease_id or not agent_id:
