@@ -14,8 +14,8 @@ from __future__ import annotations
 import json
 import sys
 import time
-import uuid
 import urllib.error
+import uuid
 from pathlib import Path
 
 import httpx
@@ -223,12 +223,12 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
     try:
         _wait_for_running_shell(api_base, chat_id, timeout_sec=_POST_STREAM_RUNNING_PROBE_SEC)
         return
-    except AssertionError:
+    except AssertionError as exc:
         if last_bash_error is not None:
-            raise last_bash_error
+            raise last_bash_error from exc
         raise AssertionError(
             f"agent-stream finished without {_BASH_TOOL_NAME} and no running shell for chat_id={chat_id}",
-        )
+        ) from exc
 
 
 def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 180.0) -> str:

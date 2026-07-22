@@ -13,14 +13,49 @@ from urllib.parse import urlsplit
 
 _E2E_RUNTIME_BINDING_PREFIX = "myrm-e2e-v1:"
 _E2E_RUNTIME_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "0.0.0.0"})
+
+
+def _normalize_loopback_http_origin(origin: str, *, env_name: str) -> str:
+    trimmed = origin.strip().rstrip("/")
+    if not trimmed:
+        raise RuntimeError(f"{env_name} is empty")
+    parsed = urlsplit(trimmed)
+    hostname = (parsed.hostname or "").strip().lower()
+    if (
+        parsed.scheme not in {"http", "https"}
+        or hostname not in _LOOPBACK_HOSTS
+        or bool(parsed.username)
+        or bool(parsed.password)
+        or bool(parsed.query)
+        or bool(parsed.fragment)
+        or parsed.path not in {"", "/"}
+    ):
+        raise RuntimeError(
+            f"{env_name} must be an explicit loopback HTTP origin (127.0.0.1 / localhost / ::1 / 0.0.0.0): {trimmed}"
+        )
+    return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+
+
+def _validate_loopback_http_url(url: str) -> None:
+    parsed = urlsplit(url.strip())
+    hostname = (parsed.hostname or "").strip().lower()
+    if parsed.scheme not in {"http", "https"} or hostname not in _LOOPBACK_HOSTS:
+        raise RuntimeError(f"E2E HTTP helper only permits loopback URLs: {url}")
 
 
 def get_e2e_api_url() -> str:
-    return os.getenv("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
+    return _normalize_loopback_http_origin(
+        os.getenv("E2E_API_BASE", "http://127.0.0.1:8080"),
+        env_name="E2E_API_BASE",
+    )
 
 
 def get_e2e_ui_url() -> str:
-    return os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+    return _normalize_loopback_http_origin(
+        os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000"),
+        env_name="E2E_UI_BASE",
+    )
 
 
 _OK_REPLY_RE = re.compile(r"(?:\bOK\b|GOAL_OK)", re.IGNORECASE)
@@ -30,7 +65,10 @@ _E2E_API_REQUEST_BACKOFF_SEC = 2.0
 
 
 def resolve_e2e_api_base(api_base: str | None = None) -> str:
-    return (api_base or os.getenv("E2E_API_BASE", "")).strip().rstrip("/")
+    raw = (api_base or os.getenv("E2E_API_BASE", "")).strip()
+    if not raw:
+        return ""
+    return _normalize_loopback_http_origin(raw, env_name="E2E_API_BASE")
 
 
 def _e2e_api_urlopen(
@@ -40,6 +78,7 @@ def _e2e_api_urlopen(
     max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> object:
     """Retry loopback E2E API reads on transient socket/timeouts under parallel load."""
+    _validate_loopback_http_url(req.full_url)
     last_error: BaseException | None = None
     for attempt in range(max_attempts):
         try:
@@ -60,7 +99,7 @@ def _e2e_api_get_json(
     timeout_sec: float = 15.0,
     max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> object:
-    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})  # noqa: S310 - validated in _e2e_api_urlopen
     with _e2e_api_urlopen(
         req, timeout_sec=timeout_sec, max_attempts=max_attempts
     ) as resp:
@@ -104,7 +143,7 @@ def e2e_runtime_binding(api_base: str | None = None) -> dict[str, object] | None
         raise RuntimeError("E2E runtime/run identity contains unsupported characters")
     api = urlsplit(base)
     ui = urlsplit(ui_base)
-    loopback_hosts = {"127.0.0.1", "localhost"}
+    loopback_hosts = _LOOPBACK_HOSTS
     if (
         api.scheme not in {"http", "https"}
         or ui.scheme not in {"http", "https"}
@@ -521,7 +560,7 @@ DISMISS_MODALS_JS = """
   }
   Array.from(document.querySelectorAll('button')).forEach((b) => {
     const text = (b.textContent || '').trim();
-    if (/稍后再说|Later|Skip for now|关闭|Dismiss|Not now|打开迁移向导/i.test(text)) {
+    if (/稍后再说|Later|Skip for now|关闭|Dismiss|Not now/i.test(text)) {
       b.click();
     }
   });
@@ -628,7 +667,9 @@ def warmup_frontend(base_url: str, *, timeout_sec: float = 120.0) -> None:
     last_error = "unknown"
     while time.monotonic() < deadline:
         try:
-            with urllib.request.urlopen(base_url.rstrip("/") + "/", timeout=45) as resp:
+            warm_url = base_url.rstrip("/") + "/"
+            _validate_loopback_http_url(warm_url)
+            with urllib.request.urlopen(warm_url, timeout=45) as resp:  # noqa: S310 - explicit loopback validation above
                 if resp.status == 200:
                     return
                 last_error = f"HTTP {resp.status}"
@@ -644,7 +685,7 @@ def fetch_chat_messages(
     chat_id: str, *, api_url: str | None = None
 ) -> list[dict[str, object]]:
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310 - validated in _e2e_api_urlopen
         f"{resolved_api}/api/v1/chats/{chat_id}/messages",
         headers={"Accept": "application/json"},
     )

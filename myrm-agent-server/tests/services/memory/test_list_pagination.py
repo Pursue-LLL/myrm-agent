@@ -1,11 +1,10 @@
 """Tests for list_memories_paginated true pagination and get_memory_tags batch scrolling."""
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
-from app.schemas.memory.crud import MemoryItem, MemoryListPaginatedResponse
 from app.services.memory.operations.crud.list_write import (
     TagStatsResponse,
     get_memory_tags,
@@ -88,7 +87,7 @@ class TestListMemoriesPaginatedSearch:
         manager = _mock_manager()
         manager.search.return_value = []
 
-        result = await list_memories_paginated(
+        await list_memories_paginated(
             type=None, search="hello world", tag=None, sort_by="created_at",
             sort_order="desc", page=1, page_size=20, manager=manager,
         )

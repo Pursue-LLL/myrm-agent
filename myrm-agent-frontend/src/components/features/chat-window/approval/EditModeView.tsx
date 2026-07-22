@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Pencil } from 'lucide-react';
 
@@ -10,6 +11,7 @@ import { Input } from '@/components/primitives/input';
 import { Checkbox } from '@/components/primitives/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import type { AllowAlwaysScope } from '@/lib/approval/allowAlwaysScope';
+import { deriveCommandPattern } from '@/lib/approval/shellCommandDisplay';
 
 interface EditModeViewProps {
   editedArgs: Record<string, string>;
@@ -23,6 +25,7 @@ interface EditModeViewProps {
   setAllowAlwaysScopeInEdit: (scope: AllowAlwaysScope) => void;
   permissionTypeLabel: string;
   toolName: string;
+  shellCommand?: string;
   requestId: string;
   onConfirm: () => void;
   onCancel: () => void;
@@ -41,12 +44,17 @@ export default function EditModeView({
   setAllowAlwaysScopeInEdit,
   permissionTypeLabel,
   toolName,
+  shellCommand = '',
   requestId,
   onConfirm,
   onCancel,
   isLoading,
 }: EditModeViewProps) {
   const t = useTranslations('toolApproval');
+  const patternPreview = useMemo(
+    () => (shellCommand ? deriveCommandPattern(shellCommand) : null),
+    [shellCommand],
+  );
 
   return (
     <div className="space-y-3 rounded-lg border p-4">
@@ -97,8 +105,9 @@ export default function EditModeView({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="tool">{t('allowAlwaysConfirm.scopeTool')}</SelectItem>
                 <SelectItem value="exact">{t('allowAlwaysConfirm.scopeExact')}</SelectItem>
+                <SelectItem value="pattern">{t('allowAlwaysConfirm.scopePattern')}</SelectItem>
+                <SelectItem value="tool">{t('allowAlwaysConfirm.scopeTool')}</SelectItem>
                 <SelectItem value="permission">{t('allowAlwaysConfirm.scopePermission')}</SelectItem>
               </SelectContent>
             </Select>
@@ -109,7 +118,19 @@ export default function EditModeView({
                 })}
               {allowAlwaysScopeInEdit === 'tool' && t('allowAlwaysConfirm.scopeToolDesc', { toolName })}
               {allowAlwaysScopeInEdit === 'exact' && t('allowAlwaysConfirm.scopeExactDesc')}
+              {allowAlwaysScopeInEdit === 'pattern' && t('allowAlwaysConfirm.scopePatternDesc')}
             </p>
+            {allowAlwaysScopeInEdit === 'pattern' && shellCommand && (
+              <p className="text-[10px]">
+                {patternPreview ? (
+                  <span className="font-mono text-foreground/80">
+                    {t('allowAlwaysConfirm.scopePatternPreview', { pattern: patternPreview })}
+                  </span>
+                ) : (
+                  <span className="text-destructive">{t('allowAlwaysConfirm.scopePatternUnavailable')}</span>
+                )}
+              </p>
+            )}
           </div>
         )}
       </div>

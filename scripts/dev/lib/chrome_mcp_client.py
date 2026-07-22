@@ -28,8 +28,17 @@ from chrome_mcp_errors import (
     is_transient_mux_error as _is_transient_mux_error,
 )
 from mcp_page_lease_heartbeat import PageLeaseHeartbeat
-from mcp_protocol import parse_evaluate_result, parse_new_page, text_content
-from cdp_chat_support import e2e_runtime_binding, e2e_runtime_binding_source, e2e_runtime_bootstrap_apply_js
+from mcp_protocol import (
+    is_retryable_incomplete_new_page_error,
+    parse_evaluate_result,
+    parse_new_page,
+    text_content,
+)
+from cdp_chat_support import (
+    e2e_runtime_binding,
+    e2e_runtime_binding_source,
+    e2e_runtime_bootstrap_apply_js,
+)
 from dev_gate_contract import (
     LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
     NEW_PAGE_TOOL_RETRY_ATTEMPTS,
@@ -296,7 +305,11 @@ class ChromeMcpClient:
             return None
         target = urlsplit(url)
         ui = urlsplit(str(binding["uiOrigin"]))
-        if (target.scheme, target.hostname, target.port) != (ui.scheme, ui.hostname, ui.port):
+        if (target.scheme, target.hostname, target.port) != (
+            ui.scheme,
+            ui.hostname,
+            ui.port,
+        ):
             return None
         return source, binding
 
@@ -368,18 +381,43 @@ class ChromeMcpClient:
                 if stagger_sec > 0:
                     time.sleep(stagger_sec)
                 initial_url = "about:blank" if runtime_binding is not None else url
-                arguments: dict[str, object] = {"url": initial_url, "timeout": resolved_timeout_ms}
+                arguments: dict[str, object] = {
+                    "url": initial_url,
+                    "timeout": resolved_timeout_ms,
+                }
                 if context_id is not None:
                     arguments["isolatedContext"] = context_id
-                result = self.call_tool(
-                    "new_page",
-                    arguments,
-                    timeout_sec=self._resolve_tool_timeout_sec(
-                        min(resolved_timeout_ms / 1000 + 5, self._request_timeout_sec),
-                        page_timeout_ms=resolved_timeout_ms,
-                    ),
-                )
-                page_id, target_id = parse_new_page(result)
+                page_id: int
+                target_id: str
+                new_page_result: dict[str, object] | None = None
+                for parse_attempt in range(_NEW_PAGE_TOOL_RETRY_ATTEMPTS):
+                    try:
+                        new_page_result = self.call_tool(
+                            "new_page",
+                            arguments,
+                            timeout_sec=self._resolve_tool_timeout_sec(
+                                min(resolved_timeout_ms / 1000 + 5, self._request_timeout_sec),
+                                page_timeout_ms=resolved_timeout_ms,
+                            ),
+                        )
+                        page_id, target_id = parse_new_page(new_page_result)
+                        break
+                    except RuntimeError as exc:
+                        if not is_retryable_incomplete_new_page_error(
+                            exc, new_page_result
+                        ):
+                            raise
+                        if parse_attempt + 1 >= _NEW_PAGE_TOOL_RETRY_ATTEMPTS:
+                            raise
+                        self._recover_mux_transport()
+                        time.sleep(
+                            _tool_retry_backoff_sec(
+                                "new_page", parse_attempt, transient=True
+                            )
+                        )
+                        self._heartbeat_lease(lease_id)
+                else:
+                    raise RuntimeError("Chrome MCP new_page failed without response")
                 page = McpPage(
                     page_id=page_id,
                     target_id=target_id,
@@ -425,7 +463,9 @@ class ChromeMcpClient:
                         )
                     except (RuntimeError, TimeoutError) as cleanup_exc:
                         cleanup_errors.append(f"close_page: {cleanup_exc}")
-                        if page.target_id.strip() and not _http_close_exact_target(page.target_id):
+                        if page.target_id.strip() and not _http_close_exact_target(
+                            page.target_id
+                        ):
                             cleanup_errors.append(
                                 f"http_close: targetId={page.target_id.strip()} failed"
                             )
@@ -461,13 +501,9 @@ class ChromeMcpClient:
             errors.append(f"close_page: {exc}")
         if not mcp_closed and page.target_id.strip():
             if _http_close_exact_target(page.target_id):
-                errors = [
-                    item for item in errors if not item.startswith("close_page:")
-                ]
+                errors = [item for item in errors if not item.startswith("close_page:")]
             else:
-                errors.append(
-                    f"http_close: targetId={page.target_id.strip()} failed"
-                )
+                errors.append(f"http_close: targetId={page.target_id.strip()} failed")
         self._pages.pop(page.page_id, None)
         self._disconnected_pages.pop(page.page_id, None)
         try:
@@ -477,9 +513,7 @@ class ChromeMcpClient:
         if not errors:
             return
         message = "Chrome MCP page cleanup failed: " + "; ".join(errors)
-        if ignore_errors or all(
-            _is_benign_cleanup_error(part) for part in errors
-        ):
+        if ignore_errors or all(_is_benign_cleanup_error(part) for part in errors):
             _LOGGER.warning(message)
             return
         raise RuntimeError(message)
@@ -782,7 +816,9 @@ class ChromeMcpClient:
                 if reclaimed is not None:
                     tool_arguments = reclaimed
                     if attempt + 1 < max_attempts:
-                        time.sleep(_tool_retry_backoff_sec(name, attempt, transient=False))
+                        time.sleep(
+                            _tool_retry_backoff_sec(name, attempt, transient=False)
+                        )
                         continue
                 transient = isinstance(exc, RuntimeError) and _is_transient_mux_error(
                     message
@@ -808,7 +844,9 @@ class ChromeMcpClient:
                 raise
             result = response.get("result")
             if not isinstance(result, dict):
-                raise RuntimeError(f"Chrome MCP {name} returned invalid result: {response}")
+                raise RuntimeError(
+                    f"Chrome MCP {name} returned invalid result: {response}"
+                )
             if result.get("isError") is True:
                 message = text_content(result)
                 reclaimed = self._maybe_reclaim_page_arguments(
@@ -818,14 +856,13 @@ class ChromeMcpClient:
                 if reclaimed is not None:
                     tool_arguments = reclaimed
                     if attempt + 1 < max_attempts:
-                        time.sleep(_tool_retry_backoff_sec(name, attempt, transient=False))
+                        time.sleep(
+                            _tool_retry_backoff_sec(name, attempt, transient=False)
+                        )
                         continue
-                if (
-                    not _is_page_ownership_error(message)
-                    and (
-                        _is_transient_mux_error(message)
-                        or (name in retry_tools and "timeout" in message.lower())
-                    )
+                if not _is_page_ownership_error(message) and (
+                    _is_transient_mux_error(message)
+                    or (name in retry_tools and "timeout" in message.lower())
                 ):
                     last_error = RuntimeError(f"Chrome MCP {name} failed: {message}")
                     self._recover_mux_transport()
@@ -1102,7 +1139,9 @@ class ChromeMcpClient:
         if errors:
             raise RuntimeError("; ".join(errors))
 
-    def _release_lease(self, lease_id: str, *, close_wave_if_idle: bool = False) -> None:
+    def _release_lease(
+        self, lease_id: str, *, close_wave_if_idle: bool = False
+    ) -> None:
         if close_wave_if_idle:
             self._wave_command("lease", "release", lease_id, "--close-wave-if-idle")
         else:

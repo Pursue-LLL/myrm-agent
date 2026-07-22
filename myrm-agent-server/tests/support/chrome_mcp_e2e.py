@@ -15,7 +15,12 @@ _DEV_LIB = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
-from cdp_chat_support import _e2e_api_urlopen, e2e_runtime_binding, get_e2e_api_url, get_e2e_ui_url  # noqa: E402
+from cdp_chat_support import (
+    _e2e_api_urlopen,
+    e2e_runtime_binding,
+    get_e2e_api_url,
+    get_e2e_ui_url,
+)  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 
 __all__ = [
@@ -40,7 +45,9 @@ _ENSURE_DESKTOP_VIEWPORT_JS = """(() => {
 })()"""
 
 
-def ensure_desktop_viewport(client: ChromeMcpClient, page: McpPage) -> dict[str, object]:
+def ensure_desktop_viewport(
+    client: ChromeMcpClient, page: McpPage
+) -> dict[str, object]:
     raw = client.evaluate(page, _ENSURE_DESKTOP_VIEWPORT_JS, timeout_sec=5.0)
     return raw if isinstance(raw, dict) else {"value": raw}
 
@@ -54,13 +61,17 @@ def http_json(
 ) -> object:
     allowed = (get_e2e_ui_url(), get_e2e_api_url())
     if not url.startswith(allowed):
-        raise ValueError(f"Chrome E2E HTTP helper only permits loopback app URLs: {url}")
+        raise ValueError(
+            f"Chrome E2E HTTP helper only permits loopback app URLs: {url}"
+        )
     data = json.dumps(body).encode("utf-8") if body is not None else None
     request = urllib.request.Request(url, data=data, method=method)  # noqa: S310 - validated loopback
     if data is not None:
         request.add_header("Content-Type", "application/json")
     try:
-        response = _e2e_api_urlopen(request, timeout_sec=30.0)  # noqa: S310 - loopback only
+        response = _e2e_api_urlopen(
+            request, timeout_sec=30.0
+        )  # noqa: S310 - loopback only
         with response as http_response:
             raw = http_response.read()
             status = http_response.status
@@ -80,7 +91,9 @@ def warm_ui_route(path: str, *, timeout_sec: float = 120.0) -> None:
     request = urllib.request.Request(url, method="GET")  # noqa: S310 - loopback only
     with urllib.request.urlopen(request, timeout=timeout_sec) as response:  # noqa: S310
         if response.status != 200:
-            raise RuntimeError(f"warm_ui_route GET {url} returned HTTP {response.status}")
+            raise RuntimeError(
+                f"warm_ui_route GET {url} returned HTTP {response.status}"
+            )
 
 
 def _wait_for_shpoib_runtime_ready(

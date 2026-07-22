@@ -56,10 +56,40 @@ class TestRevertMessages:
             "app.core.channel_bridge.turn_handler.RevertService.revert_message",
             new_callable=AsyncMock,
             side_effect=[mock_result_1, mock_result_2],
-        ):
+        ), patch(
+            "app.services.files.revert_hydrate.cleanup_persisted_snapshots",
+            new_callable=AsyncMock,
+        ) as mock_cleanup:
             total = await _revert_messages("session-1", ["msg-1", "msg-2"])
 
         assert total == 3
+        assert mock_cleanup.await_count == 2
+        mock_cleanup.assert_any_await("session-1", "msg-1")
+        mock_cleanup.assert_any_await("session-1", "msg-2")
+
+    @pytest.mark.asyncio
+    async def test_skips_cleanup_when_nothing_reverted(self) -> None:
+        from app.core.channel_bridge.turn_handler import _revert_messages
+
+        @dataclass
+        class _FakeRevertResult:
+            reverted_files: list[str]
+            warnings: list[str]
+
+        mock_result = _FakeRevertResult(reverted_files=[], warnings=["no snapshots"])
+
+        with patch(
+            "app.core.channel_bridge.turn_handler.RevertService.revert_message",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ), patch(
+            "app.services.files.revert_hydrate.cleanup_persisted_snapshots",
+            new_callable=AsyncMock,
+        ) as mock_cleanup:
+            total = await _revert_messages("session-1", ["msg-1"])
+
+        assert total == 0
+        mock_cleanup.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_logs_warnings(self) -> None:

@@ -21,13 +21,35 @@ import { buildLastScanSummary, gateMcpEnable } from '@/hooks/useMcpSecurityGate'
 import { formatMcpGateBlockedMessage } from '@/lib/utils/mcpScanFindingText';
 import { MCPScanAckDialog } from '@/components/features/settings/mcp/MCPScanAckDialog';
 import type { MCPScanResult, MCPServiceConfig } from '@/store/config/types';
+import { isSandbox } from '@/lib/deploy-mode';
 import type { CatalogEntry } from './catalog-types';
+import { shouldBlockCloudLoopbackConnect, shouldBlockLocalOnlyInSandbox } from './deploymentGuard';
 
 interface IntegrationConnectDialogProps {
   entry: CatalogEntry;
   locale: string;
   onClose: () => void;
   onConnected: () => void;
+}
+
+interface CatalogOAuthConfig {
+  authorization_endpoint: string;
+  token_endpoint: string;
+  client_id: string;
+  client_secret: string;
+  scope?: string;
+}
+
+interface CatalogMcpDialogConfig {
+  name: string;
+  type: 'sse' | 'stdio' | 'streamable_http';
+  url?: string;
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  headers?: Record<string, string>;
+  description?: string;
+  oauth?: CatalogOAuthConfig;
 }
 
 export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
@@ -60,14 +82,26 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
 
     const helpText = locale === 'zh' && entry.helpTextZh ? entry.helpTextZh : entry.helpText;
     const connectGuide = locale === 'zh' && entry.postConnectGuideZh ? entry.postConnectGuideZh : entry.postConnectGuide;
-    const probeUrl = (entry.mcpConfig as Record<string, unknown> | null)?.probeUrl as string | undefined;
+    const mcpConfig = entry.mcpConfig as Record<string, unknown> | null;
+    const probeUrl = mcpConfig?.probeUrl as string | undefined;
+    const deploymentScope =
+      entry.deploymentScope ??
+      ((mcpConfig?.deploymentScope as string | undefined) ?? null);
+    const isLocalTauriOnlyEntry = deploymentScope === 'local_tauri_only';
+    const isSandboxMode = isSandbox();
 
     const runProbe = useCallback(async () => {
       if (!probeUrl) return true;
       setProbeStatus('probing');
       setProbeError(null);
       try {
-        const res = await apiRequest<{ status: string; error?: string }>('/integrations/mcp/probe', {
+        const res = await apiRequest<{
+          status: string;
+          error?: string;
+          reasonCode?: string;
+          recommendedMode?: string;
+          shouldBlockConnect?: boolean;
+        }>('/integrations/mcp/probe', {
           method: 'POST',
           body: JSON.stringify({ url: probeUrl, timeout: 5 }),
         });
@@ -77,6 +111,20 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         }
         if (res.status === 'cloud_not_supported') {
           setProbeStatus('cloud_not_supported');
+          if (res.shouldBlockConnect === true) {
+            setProbeError(t('probeCloudLoopbackBlocked'));
+            return false;
+          }
+          if (
+            shouldBlockCloudLoopbackConnect({
+              status: res.status,
+              isSandboxMode,
+              isLocalTauriOnlyEntry,
+            })
+          ) {
+            setProbeError(t('probeCloudLoopbackBlocked'));
+            return false;
+          }
           return true;
         }
         setProbeStatus('unreachable');
@@ -87,16 +135,15 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         setProbeError(t('probeUnreachable'));
         return false;
       }
-    }, [probeUrl, t]);
+    }, [isLocalTauriOnlyEntry, isSandboxMode, probeUrl, t]);
 
     const persistCatalogConfig = useCallback(
       (config: MCPServiceConfig) => {
-        const mcpCfg = entry.mcpConfig as Record<string, unknown> | null;
         const finalConfig: MCPServiceConfig = {
           ...config,
-          hostSerial: mcpCfg?.hostSerial === true ? true : config.hostSerial,
+          hostSerial: mcpConfig?.hostSerial === true ? true : config.hostSerial,
           keepaliveInterval:
-            typeof mcpCfg?.keepaliveInterval === 'number' ? mcpCfg.keepaliveInterval : config.keepaliveInterval,
+            typeof mcpConfig?.keepaliveInterval === 'number' ? mcpConfig.keepaliveInterval : config.keepaliveInterval,
         };
         const exists = mcpConfigs.some((c) => c.name === finalConfig.name);
         if (!exists) {
@@ -105,7 +152,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         toast({ title: t('connectSuccess', { name: entry.name }) });
         onConnected();
       },
-      [entry.name, entry.mcpConfig, mcpConfigs, onConnected, setMCPConfigs, t, toast],
+      [entry.name, mcpConfig, mcpConfigs, onConnected, setMCPConfigs, t, toast],
     );
 
     const runCatalogSecurityGate = useCallback(
@@ -163,9 +210,9 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       if (entry.authType === 'oauth2') {
         setOauthPolling(true);
         try {
-          const mcpCfg = entry.mcpConfig as any;
+          const mcpCfg = entry.mcpConfig as CatalogMcpDialogConfig | null;
           const oauthCfg = mcpCfg?.oauth;
-          if (!oauthCfg) {
+          if (!mcpCfg || !oauthCfg) {
             toast({ title: t('connectFailed'), description: 'Missing OAuth config', variant: 'destructive' });
             setOauthPolling(false);
             return;
@@ -245,6 +292,17 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         }
       }
 
+      if (
+        shouldBlockLocalOnlyInSandbox({
+          isSandboxMode,
+          isLocalTauriOnlyEntry,
+        })
+      ) {
+        setProbeStatus('cloud_not_supported');
+        setProbeError(t('probeCloudLoopbackBlocked'));
+        return;
+      }
+
       setConnecting(true);
       try {
         if (entry.connectorType === 'mcp' && entry.mcpConfig) {
@@ -257,16 +315,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
             }
           }
 
-          const mcpCfg = entry.mcpConfig as {
-            name: string;
-            type: string;
-            url?: string;
-            command?: string;
-            args?: string[];
-            env?: Record<string, string>;
-            headers?: Record<string, string>;
-            description?: string;
-          };
+          const mcpCfg = entry.mcpConfig as CatalogMcpDialogConfig;
 
           let finalArgs = mcpCfg.args || [];
           const envMap: Record<string, string> = { ...mcpCfg.env };
@@ -319,7 +368,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       } finally {
         setConnecting(false);
       }
-    }, [entry, credential, fieldValues, hasMultiFields, locale, mcpConfigs, setMCPConfigs, onConnected, t, probeUrl, runProbe]);
+    }, [entry, credential, fieldValues, hasMultiFields, isLocalTauriOnlyEntry, isSandboxMode, locale, mcpConfigs, setMCPConfigs, onConnected, t, probeUrl, runProbe]);
 
     return (
       <>
@@ -339,7 +388,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
               </div>
             )}
 
-            {probeStatus === 'unreachable' && probeError && (
+            {(probeStatus === 'unreachable' || probeStatus === 'cloud_not_supported') && probeError && (
               <div className="bg-destructive/10 border-destructive/20 rounded-md border p-3">
                 <p className="text-destructive text-sm">{probeError}</p>
               </div>

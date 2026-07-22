@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import ssl
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
@@ -690,13 +692,64 @@ class MCPProbeBody(BaseModel):
 class MCPProbeData(BaseModel):
     """Result of an MCP connectivity probe."""
 
-    status: str = Field(..., description="reachable | unreachable | cloud_not_supported")
+    status: Literal["reachable", "unreachable", "cloud_not_supported"] = Field(
+        ...,
+        description="reachable | unreachable | cloud_not_supported",
+    )
     latency_ms: float | None = Field(default=None, description="Round-trip time if reachable")
     error: str | None = Field(default=None, description="Human-readable error if unreachable")
+    reason_code: Literal[
+        "reachable",
+        "connection_refused",
+        "tls_verification_failed",
+        "connection_timeout",
+        "probe_failed_unknown",
+        "loopback_unavailable_in_cloud",
+    ] | None = Field(
+        default=None,
+        description="Machine-friendly reason code for frontend UX routing",
+    )
+    recommended_mode: Literal[
+        "local_or_tauri",
+        "start_local_editor_mcp",
+        "verify_local_network_and_editor",
+    ] | None = Field(
+        default=None,
+        description="Suggested mode for user action (e.g. local_or_tauri)",
+    )
+    should_block_connect: bool | None = Field(
+        default=None,
+        description="Whether the frontend should stop the connect flow immediately",
+    )
 
     class Config:
         alias_generator = to_camel
         populate_by_name = True
+
+
+_TLS_VERIFY_ERROR_MARKERS = (
+    "certificate verify failed",
+    "certificateverifyfailed",
+    "self-signed certificate",
+    "unable to get local issuer certificate",
+    "certificate has expired",
+    "hostname/ip does not match certificate",
+    "hostname does not match",
+)
+
+
+def _is_tls_verification_connect_error(exc: Exception) -> bool:
+    parts: list[str] = [str(exc)]
+    cause = getattr(exc, "__cause__", None)
+    context = getattr(exc, "__context__", None)
+    if isinstance(cause, ssl.SSLCertVerificationError) or isinstance(context, ssl.SSLCertVerificationError):
+        return True
+    if cause is not None:
+        parts.append(str(cause))
+    if context is not None and context is not cause:
+        parts.append(str(context))
+    lowered = " | ".join(part.lower() for part in parts if part)
+    return any(marker in lowered for marker in _TLS_VERIFY_ERROR_MARKERS)
 
 
 @router.post("/probe", response_model=StandardSuccessResponse)
@@ -713,7 +766,12 @@ async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONRespon
     _ = request
     caps = get_deployment_capabilities()
     if caps.is_sandbox_instance:
-        data = MCPProbeData(status="cloud_not_supported")
+        data = MCPProbeData(
+            status="cloud_not_supported",
+            reason_code="loopback_unavailable_in_cloud",
+            recommended_mode="local_or_tauri",
+            should_block_connect=True,
+        )
         return success_response(data=data.model_dump(by_alias=True))
 
     import time
@@ -730,18 +788,48 @@ async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONRespon
 
     try:
         start = time.monotonic()
-        async with httpx.AsyncClient(timeout=body.timeout, verify=False) as client:
+        async with httpx.AsyncClient(timeout=body.timeout) as client:
             await client.get(body.url)
             latency = (time.monotonic() - start) * 1000
             # Any HTTP response (even 4xx/5xx) means the server is reachable
-            data = MCPProbeData(status="reachable", latency_ms=round(latency, 1))
+            data = MCPProbeData(
+                status="reachable",
+                latency_ms=round(latency, 1),
+                reason_code="reachable",
+                should_block_connect=False,
+            )
             return success_response(data=data.model_dump(by_alias=True))
-    except httpx.ConnectError:
-        data = MCPProbeData(status="unreachable", error="Connection refused — editor or MCP server not running")
+    except httpx.ConnectError as exc:
+        if _is_tls_verification_connect_error(exc):
+            data = MCPProbeData(
+                status="unreachable",
+                error="TLS certificate verification failed — trust the MCP certificate or configure a valid CA bundle",
+                reason_code="tls_verification_failed",
+                should_block_connect=True,
+            )
+            return success_response(data=data.model_dump(by_alias=True))
+        data = MCPProbeData(
+            status="unreachable",
+            error="Connection refused — editor or MCP server not running",
+            reason_code="connection_refused",
+            recommended_mode="start_local_editor_mcp",
+            should_block_connect=True,
+        )
         return success_response(data=data.model_dump(by_alias=True))
     except httpx.ConnectTimeout:
-        data = MCPProbeData(status="unreachable", error="Connection timed out — host unreachable")
+        data = MCPProbeData(
+            status="unreachable",
+            error="Connection timed out — host unreachable",
+            reason_code="connection_timeout",
+            recommended_mode="verify_local_network_and_editor",
+            should_block_connect=True,
+        )
         return success_response(data=data.model_dump(by_alias=True))
     except Exception as e:
-        data = MCPProbeData(status="unreachable", error=str(e))
+        data = MCPProbeData(
+            status="unreachable",
+            error=str(e),
+            reason_code="probe_failed_unknown",
+            should_block_connect=True,
+        )
         return success_response(data=data.model_dump(by_alias=True))

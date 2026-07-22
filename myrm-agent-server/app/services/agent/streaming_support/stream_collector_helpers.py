@@ -2,10 +2,9 @@
 
 [INPUT]
 - stdlib json (POS: tool result JSON decode)
-- app.core.utils.ui_data_merge::deep_merge_ui_data (POS: A2UI binding dict deep-merge)
 
 [OUTPUT]
-- deep_merge_ui_data (re-export), is_memory_citation_tool, parse_tool_end_result
+- deep_merge_ui_data, is_memory_citation_tool, parse_tool_end_result
 - collect_kanban_task_created, collect_cron_job_result
 - string_keyed_dict, string_keyed_dicts
 
@@ -17,7 +16,20 @@ from __future__ import annotations
 
 import json
 
-from app.core.utils.ui_data_merge import deep_merge_ui_data
+
+def deep_merge_ui_data(
+    base: dict[str, object],
+    updates: dict[str, object],
+) -> dict[str, object]:
+    """Deep-merge A2UI binding dicts; nested dicts merge, leaves in updates win."""
+    merged: dict[str, object] = dict(base)
+    for key, value in updates.items():
+        existing = merged.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            merged[key] = deep_merge_ui_data(existing, value)
+        else:
+            merged[key] = value
+    return merged
 
 _MEMORY_CITATION_TOOL_NAMES = frozenset(
     {"memory_search", "memory_search_tool", "memory_recall", "memory_recall_tool"}

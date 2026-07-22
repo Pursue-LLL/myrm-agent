@@ -771,6 +771,10 @@ INDEX_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_artifact_publications_artifact_id ON artifact_publications(artifact_id)",
     "CREATE INDEX IF NOT EXISTS idx_artifact_publications_target_id ON artifact_publications(hosting_target_id)",
     "ALTER TABLE chats DROP COLUMN task_adaptive_digest",
+    "ALTER TABLE user_tool_allowlist ADD COLUMN command_pattern VARCHAR(512) NOT NULL DEFAULT ''",
+    "DROP INDEX IF EXISTS uq_user_allowlist_final",
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_user_allowlist_final
+        ON user_tool_allowlist(permission, tool_name, tool_args_hash, command_pattern)""",
 ]
 
 

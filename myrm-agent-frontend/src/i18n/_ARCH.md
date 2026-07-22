@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻译 SSOT 在 `locales/{lang}.json`；`scripts/split-locale-namespaces.mjs` 生成 `locales/namespaces/` 供 shell/deferred 加载。
+Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻译 SSOT 在 `locales/{lang}.json`（zh/en/ja/ko/de/zh-TW）；`scripts/split-locale-namespaces.mjs` 生成 `locales/namespaces/` 供 shell/deferred 加载。
 
 ## 文件清单
 

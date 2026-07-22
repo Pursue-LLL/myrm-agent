@@ -52,6 +52,33 @@ else
   fail "mux missing — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
 fi
 
+upstream_js="${MONOREPO_ROOT}/scripts/dev/cdmcp-mux-autoconnect/node_modules/chrome-devtools-mcp-mux/dist/daemon/upstream.js"
+if [[ -f "${upstream_js}" ]] && grep -q '?? 180000' "${upstream_js}" && ! grep -q '?? 55000' "${upstream_js}"; then
+  ok "mux upstream patch default timeout=180000"
+else
+  fail "mux upstream patch drift — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
+fi
+
+pages_js="${MONOREPO_ROOT}/scripts/dev/cdmcp-mux-autoconnect/node_modules/chrome-devtools-mcp/build/src/tools/pages.js"
+if [[ -f "${pages_js}" ]] && grep -q 'Myrm exact targetId' "${pages_js}"; then
+  ok "chrome-devtools-mcp new_page targetId patch applied"
+else
+  fail "chrome-devtools-mcp patch missing — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
+fi
+
+MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}"
+MUX_SOCKET="${CDMCP_MUX_SOCKET:-${TMPDIR:-/tmp}/mux-$(id -u)/cdmcp-mux.sock}"
+if [[ -f "${SCRIPT_DIR}/lib/mux_responsive_probe.py" ]]; then
+  if "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux_responsive_probe.py" \
+    --expected-ms 180000 \
+    --state-dir "${MUX_STATE_DIR}" \
+    --socket "${MUX_SOCKET}" 2>/dev/null; then
+    ok "mux runtime upstream timeout effective (180000ms)"
+  else
+    fail "mux runtime timeout not effective — run: ./myrm restart --chrome"
+  fi
+fi
+
 shim="${MONOREPO_ROOT}/scripts/dev/cdmcp-mux-autoconnect/lib/resilient-shim.mjs"
 if [[ -f "${shim}" ]] && grep -q "chrome-e2e/cli.sh" "${shim}"; then
   ok "resilient-shim uses chrome-e2e CLI (no inline osascript)"

@@ -41,7 +41,6 @@ from app.api.extension import router as extension_router
 from app.api.extension import ws_router as extension_ws_router
 from app.api.external_agents import router as external_agents_router
 from app.api.features.router import router as features_router
-from app.api.progression import router as progression_router
 from app.api.files.artifact_share_api import public_router as artifact_share_public_router
 from app.api.files.router import router as files_router
 from app.api.files.vault_proxy import router as vault_proxy_router
@@ -57,6 +56,7 @@ from app.api.message_filter import router as message_filter_router
 from app.api.migration.discovery import router as migration_discovery_router
 from app.api.migration.upload import router as migration_upload_router
 from app.api.notifications.router import router as notifications_router
+from app.api.progression import router as progression_router
 from app.api.projects import router as project_router
 from app.api.remote_access.router import router as remote_access_router
 from app.api.risk.router import router as risk_router

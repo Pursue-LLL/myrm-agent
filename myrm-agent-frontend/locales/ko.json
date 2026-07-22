@@ -429,6 +429,7 @@
         "empty": "No allowlist records",
         "toolName": "Tool Name",
         "argsHash": "Args Hash",
+        "commandPattern": "명령 패턴",
         "deleteSuccess": "Record deleted",
         "deleteError": "Delete failed",
         "clearSuccess": "Cleared {count} records",
@@ -437,7 +438,8 @@
         "granularity": {
           "permission": "Permission",
           "tool": "Tool",
-          "exact": "Exact"
+          "exact": "Exact",
+          "pattern": "유사 명령"
         },
         "permissions": {
           "codeInterpreter": "Code Execution",
@@ -2271,8 +2273,12 @@
     },
     "language": "Language",
     "languageOptions": {
+      "chinese": "中文",
+      "chineseTraditional": "繁體中文",
       "english": "English",
-      "chinese": "Chinese"
+      "japanese": "日本語",
+      "korean": "한국어",
+      "german": "Deutsch"
     },
     "theme": "Choose your favorite theme",
     "themeOptions": {
@@ -3059,7 +3065,8 @@
         "connect": "Connect",
         "cancel": "Cancel",
         "probing": "Checking connectivity...",
-        "probeUnreachable": "Service not running or port not open — please ensure the editor MCP server is started"
+        "probeUnreachable": "Service not running or port not open — please ensure the editor MCP server is started",
+        "probeCloudLoopbackBlocked": "이 통합은 로컬 머신의 에디터 서비스에서 동작합니다. 클라우드 모드에서는 사용할 수 없습니다. Local WebUI 또는 Tauri 데스크톱으로 전환한 뒤 다시 연결하세요."
       }
     },
     "integrationMemory": {
@@ -5198,7 +5205,24 @@
       "chipLabel": "Enable search",
       "searchEnabled": "{service} search enabled",
       "searchEnableFailed": "Failed to enable search",
-      "modelActivateFailed": "Failed to activate local model"
+      "modelActivateFailed": "Failed to activate local model",
+      "customEndpointTitle": "OpenAI-compatible local endpoint",
+      "customEndpointDescription": "Paste your local endpoint to auto-detect models and finish setup in one step.",
+      "customApiUrlLabel": "API URL",
+      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
+      "customApiKeyLabel": "API Key (optional for localhost)",
+      "customApiKeyPlaceholder": "sk-...",
+      "customNoAuthHint": "Localhost endpoints can leave API key empty; cloud or remote endpoints still require a key.",
+      "customNoAuthDetected": "Local no-auth mode detected. This endpoint will be used without storing an API key.",
+      "customDetectModels": "Detect Models",
+      "customUseModel": "Use {model}",
+      "customErrorApiUrlRequired": "Please enter API URL",
+      "customErrorDetectFailed": "Failed to detect models from this endpoint",
+      "customErrorNoModels": "Endpoint is reachable but returned no models",
+      "customErrorProbeFailed": "Failed to probe endpoint",
+      "customErrorDetectFirst": "Please detect models first",
+      "customErrorReachabilityFailed": "Endpoint connected but model health check failed",
+      "customDetectSuccess": "Detected {count} model(s)"
     },
     "migrationDiscovery": {
       "detecting": "Scanning for AI assistant data...",
@@ -9644,11 +9668,15 @@
       "risk3": "Only use this feature for operations you fully trust",
       "confirm": "I understand the risks, proceed",
       "scopeLabel": "Match Scope",
-      "scopeTool": "This Tool Only (Recommended)",
-      "scopeExact": "Tool + Exact Args (Safest)",
+      "scopeTool": "이 도구만 (넓은 범위)",
+      "scopeExact": "정확한 명령 (권장)",
+      "scopePattern": "유사 명령",
       "scopePermission": "All Tools of This Type (Not Recommended)",
-      "scopeToolDesc": "Only auto-allow {toolName} tool",
+      "scopeToolDesc": "{toolName}의 이후 모든 호출 자동 허용",
       "scopeExactDesc": "Only auto-allow when tool and arguments match exactly",
+      "scopePatternDesc": "앞부분이 같은 후속 명령 자동 허용",
+      "scopePatternPreview": "유사 명령으로 기억: {pattern}",
+      "scopePatternUnavailable": "연쇄 명령에는 유사 명령 일치를 사용할 수 없습니다.",
       "scopePermissionDesc": "Auto-allow all {permissionType} type tools"
     },
     "permissionTypes": {
@@ -10065,11 +10093,13 @@
     "revertConfirmAction": "되돌리기 확인",
     "revertMessageSuccess": "이 메시지의 파일 변경이 취소되었습니다",
     "revertMessageEmpty": "이 메시지에 파일 변경이 없습니다",
+    "revertMessageFetchError": "파일 변경을 불러올 수 없습니다. 다시 시도하세요",
     "revertSession": "모든 파일 변경 취소",
     "revertSessionConfirm": "이 세션의 모든 AI 파일 변경을 취소하시겠습니까?",
     "revertSessionDesc": "{count}개 파일이 원래 상태로 복원됩니다.",
     "revertSessionSuccess": "모든 파일 변경이 취소되었습니다",
     "revertSessionEmpty": "이 세션에 파일 변경이 없습니다",
+    "revertSessionFetchError": "파일 변경을 불러올 수 없습니다. 다시 시도하세요",
     "cancel": "취소"
   },
   "checkpoint": {

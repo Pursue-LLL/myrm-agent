@@ -58,6 +58,14 @@ def _approval_intercepted_chunk(decision: str = "approve") -> str:
     return f"data: {json.dumps(event)}\n\n"
 
 
+def _clarification_required_chunk() -> str:
+    event = {
+        "type": "clarification_required",
+        "data": {"type": "ask_question", "form": {"questions": []}},
+    }
+    return f"data: {json.dumps(event)}\n\n"
+
+
 class TestApprovalStatusBroadcast:
     @pytest.mark.asyncio
     async def test_tool_approval_request_publishes_awaiting(self) -> None:
@@ -239,3 +247,27 @@ class TestApprovalStatusBroadcast:
                 pass
 
         assert published == []
+
+
+class TestClarificationTimeoutDetection:
+    @pytest.mark.asyncio
+    async def test_clarification_required_sets_pending_flag(self) -> None:
+        session = _make_session()
+        approval = ApprovalTimeoutHolder()
+        clarification = ClarificationTimeoutHolder()
+
+        chunks = [_clarification_required_chunk()]
+
+        async def _fake_stream(*_args, **_kwargs):
+            for c in chunks:
+                yield c
+
+        with patch(
+            "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
+            side_effect=_fake_stream,
+        ):
+            async for _ in iter_agent_stream_chunks(session, approval, clarification):
+                pass
+
+        assert clarification.pending is True
+        assert approval.value is None

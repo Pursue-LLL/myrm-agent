@@ -23,7 +23,6 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
-
 from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
     FileSnapshot,
     SnapshotOp,
@@ -38,7 +37,9 @@ from myrm_agent_harness.toolkits.kanban.types import (
 from app.config.deploy_mode import is_local_mode
 from app.database.dto import ChatCreate
 from app.services.agent.agent_service import AgentService
-from app.services.agent.params.workspace_resolve import resolve_default_chat_workspace_dir
+from app.services.agent.params.workspace_resolve import (
+    resolve_default_chat_workspace_dir,
+)
 from app.services.chat.chat_service import ChatService
 from app.services.kanban import KanbanService
 
@@ -78,7 +79,9 @@ async def seed_citation_fixture() -> dict[str, str | int]:
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(status_code=500, detail="No agents available for citation E2E seed")
+        raise HTTPException(
+            status_code=500, detail="No agents available for citation E2E seed"
+        )
 
     agent = agents[0]
     agent_id = agent.id
@@ -131,7 +134,9 @@ async def seed_kanban_closure_fixture() -> dict[str, str]:
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(status_code=500, detail="No agents available for kanban closure E2E seed")
+        raise HTTPException(
+            status_code=500, detail="No agents available for kanban closure E2E seed"
+        )
 
     agent = agents[0]
     agent_id = agent.id
@@ -142,7 +147,9 @@ async def seed_kanban_closure_fixture() -> dict[str, str]:
     task_title = f"Closure task {marker}"
 
     kanban = KanbanService.get_instance()
-    board = await kanban.create_board(board_name, description="Kanban Chat↔Board closure Chrome E2E")
+    board = await kanban.create_board(
+        board_name, description="Kanban Chat↔Board closure Chrome E2E"
+    )
     task = await kanban.add_task(
         board.board_id,
         task_title,
@@ -188,7 +195,9 @@ async def seed_kanban_closure_fixture() -> dict[str, str]:
         extra_data=kanban_card_extra,
     )
 
-    board_deep_link_path = f"/settings/kanban?source_chat={chat_id}&board_id={board.board_id}"
+    board_deep_link_path = (
+        f"/settings/kanban?source_chat={chat_id}&board_id={board.board_id}"
+    )
 
     return {
         "chat_id": chat_id,
@@ -215,20 +224,28 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
 
     normalized = variant.strip().lower()
     if normalized not in {"modify", "create", "empty", "session"}:
-        raise HTTPException(status_code=400, detail=f"Unsupported revert fixture variant: {variant}")
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported revert fixture variant: {variant}"
+        )
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(status_code=500, detail="No agents available for revert E2E seed")
+        raise HTTPException(
+            status_code=500, detail="No agents available for revert E2E seed"
+        )
 
     agent = agents[0]
     agent_id = agent.id
     chat_id = f"e2erevert{uuid4().hex[:8]}"
     message_id = str(uuid4())
 
-    workspace_dir = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=True)
+    workspace_dir = await resolve_default_chat_workspace_dir(
+        chat_id, persist_workspace=True
+    )
     if not workspace_dir and normalized != "empty":
-        raise HTTPException(status_code=500, detail="Failed to resolve workspace for revert E2E seed")
+        raise HTTPException(
+            status_code=500, detail="Failed to resolve workspace for revert E2E seed"
+        )
 
     file_path = str(Path(workspace_dir) / _REVERT_FIXTURE_FILE) if workspace_dir else ""
     message_ids: list[str] = [message_id]

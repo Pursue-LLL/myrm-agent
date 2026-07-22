@@ -41,7 +41,7 @@ async def run_desktop_approval_chrome_e2e(
     label: str,
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    if not wait_e2e_provider_ready():
+    if not wait_e2e_provider_ready(timeout_sec=180.0, poll_interval_sec=2.0):
         readiness = fetch_provider_readiness_snapshot()
         pytest.fail(
             "Provider config not ready for live E2E — run via ./myrm test -m chrome_e2e "
@@ -89,12 +89,11 @@ async def run_desktop_approval_chrome_e2e(
                     await asyncio.to_thread(
                         chat._client.navigate,
                         chat._page,
-                        BASE_URL,
+                        f"{BASE_URL.rstrip('/')}/",
                         timeout_ms=120_000,
                     )
                     await asyncio.sleep(2.0)
-                    await chat.ensure_e2e_api_base_binding()
-                    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+                    await chat.bootstrap(BASE_URL, navigate=False, timeout_sec=120.0)
                     progress("new chat + ensure surface")
                     await chat.click_new_chat()
                     await chat.ensure_chat_surface(BASE_URL)

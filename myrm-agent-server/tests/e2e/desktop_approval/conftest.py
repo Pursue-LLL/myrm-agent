@@ -21,11 +21,11 @@ from pathlib import Path
 import pytest
 
 from tests.support.e2e_parallel_snapshot import (
+    clear_e2e_lock_holder,
+    current_pytest_node_label,
     format_lock_holder,
     read_e2e_lock_holder,
     write_e2e_lock_holder,
-    clear_e2e_lock_holder,
-    current_pytest_node_label,
 )
 
 _LOCK_PATH = Path(os.environ.get("TMPDIR", "/tmp")) / "myrm-desktop-approval-e2e.lock"

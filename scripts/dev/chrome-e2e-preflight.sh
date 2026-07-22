@@ -242,6 +242,15 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" != "1" ]] || [[ "${MYRM_PRIVATE_BACKEND:-}" ==
   _maybe_seed_providers
 fi
 
+# 1c. API-only private backend (cron policy LIVE): no Chrome/CDP/mux required.
+if [[ "${MYRM_E2E_API_ONLY:-}" == "1" && "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
+  curl -sf --max-time 10 "${API_BASE}/api/v1/health" >/dev/null \
+    || fail "private backend not reachable at ${API_BASE}"
+  ok "private backend api-only ${API_BASE}"
+  echo "CHROME_E2E_READY ui=${UI_BASE} api=${API_BASE} api_only=1"
+  exit 0
+fi
+
 # 2. Legacy second Chrome / debug launchers
 if pgrep -lf 'MyrmChromeMcp' >/dev/null 2>&1; then
   fail "MyrmChromeMcp Chrome detected — quit it; use ./myrm ready --chrome (Myrm E2E profile on :9333)"
@@ -555,12 +564,58 @@ _mux_daemon_timeout_matches() {
   [[ "${stored}" == "${MUX_REQUEST_TIMEOUT_MS}" ]]
 }
 
+_mux_parallel_active_leases() {
+  _wave_active_lease_count "${MONOREPO_ROOT}" 2>/dev/null || echo 0
+}
+
+_mux_probe_timeout_sec() {
+  local active_leases probe_timeout
+  active_leases="$(_mux_parallel_active_leases)"
+  probe_timeout=8
+  if [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
+    probe_timeout=$((8 + active_leases * 3))
+    if [[ "${probe_timeout}" -gt 45 ]]; then
+      probe_timeout=45
+    fi
+  fi
+  echo "${probe_timeout}"
+}
+
 _mux_request_timeout_effective() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
+  local probe_timeout
+  probe_timeout="$(_mux_probe_timeout_sec)"
   "${PREFLIGHT_PY}" "${SCRIPT_DIR}/lib/mux_responsive_probe.py" \
     --expected-ms "${MUX_REQUEST_TIMEOUT_MS}" \
     --state-dir "${MUX_STATE_DIR}" \
-    --socket "${MUX_SOCKET}"
+    --socket "${MUX_SOCKET}" \
+    --probe-timeout-sec "${probe_timeout}"
+}
+
+_mux_daemon_pid_alive() {
+  [[ -f "${MUX_PID_FILE}" ]] || return 1
+  local pid
+  pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
+  [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
+}
+
+_heal_mux_under_parallel_attach_load() {
+  [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] || return 1
+  local active_leases attempt
+  active_leases="$(_mux_parallel_active_leases)"
+  [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]] || return 1
+  for attempt in 1 2 3; do
+    if _mux_request_timeout_effective; then
+      return 0
+    fi
+    echo "CHROME_E2E_WARN: mux probe slow (${active_leases} active leases) attempt ${attempt}/3" >&2
+    sleep $((attempt * 2))
+  done
+  if _mux_upstream_ready && _mux_ws_stamp_matches && _mux_daemon_pid_alive; then
+    echo "CHROME_E2E_WARN: mux probe timeout under parallel load — skip restart (${active_leases} active leases)" >&2
+    return 0
+  fi
+  return 1
 }
 
 _heal_mux_request_timeout_drift() {
@@ -568,43 +623,30 @@ _heal_mux_request_timeout_drift() {
   if _mux_request_timeout_effective; then
     return 0
   fi
-  local stamp_drift=0
-  if ! _mux_timeout_stamp_matches || ! _mux_daemon_timeout_matches; then
-    stamp_drift=1
-  fi
-  if [[ "${stamp_drift}" -eq 1 ]]; then
-    if [[ ! -f "${MUX_PID_FILE}" ]]; then
-      return 0
-    fi
-    local pid
-    pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
-    [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null || return 0
-    if _mux_timeout_restart_allowed || _mux_restart_allowed; then
-      _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
-    elif _mux_attach_timeout_restart_allowed; then
-      _restart_mux_safely "attach request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
-    elif _mux_upstream_ready && _mux_ws_stamp_matches; then
-      fail "mux request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms) — daemon probe failed; attach restart not allowed"
-    else
-      _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
-    fi
-    if ! _mux_request_timeout_effective; then
-      fail "mux timeout probe still failing after heal (${MUX_REQUEST_TIMEOUT_MS}ms)"
-    fi
+  if _heal_mux_under_parallel_attach_load; then
     return 0
   fi
-  local i
-  for i in $(seq 1 8); do
-    sleep 1
-    if _mux_request_timeout_effective; then
-      ok "mux responsive after SSOT stamp warmup retry"
+  local active_leases
+  active_leases="$(_mux_parallel_active_leases)"
+  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]]; then
+    if _mux_upstream_ready && _mux_ws_stamp_matches && _mux_daemon_pid_alive; then
+      echo "CHROME_E2E_WARN: mux heal restart suppressed during attach (${active_leases} active leases)" >&2
       return 0
     fi
-  done
-  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-    fail "mux tools/list unresponsive with matching timeout stamps (${MUX_REQUEST_TIMEOUT_MS}ms)"
   fi
-  _restart_mux_safely "mux unresponsive despite matching timeout stamps (${MUX_REQUEST_TIMEOUT_MS}ms)"
+  # Probe failed — heal/restart (fail-closed for stale 55s upstream; BUG-DG-2026-07-21-001).
+  if ! _mux_daemon_pid_alive; then
+    return 0
+  fi
+  if _mux_timeout_restart_allowed || _mux_restart_allowed; then
+    _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+  elif _mux_attach_timeout_restart_allowed; then
+    _restart_mux_safely "attach request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+  elif _mux_upstream_ready && _mux_ws_stamp_matches; then
+    fail "mux request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms) — daemon probe failed; attach restart not allowed"
+  else
+    _restart_mux_safely "request timeout drift (${MUX_REQUEST_TIMEOUT_MS}ms)"
+  fi
   if ! _mux_request_timeout_effective; then
     fail "mux timeout probe still failing after heal (${MUX_REQUEST_TIMEOUT_MS}ms)"
   fi

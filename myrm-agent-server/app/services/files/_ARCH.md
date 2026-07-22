@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `content_extraction.py` | ✅ 核心 | PDF/Office 提取（bytes/path）；`api/files` 与 Kanban 共用 | ✅ |
 | `attachment_settings.py` | ✅ 核心 | `extractDocumentText` 个人设置解析（默认开启） | — |
-| `revert_hydrate.py` | ✅ 核心 | 跨请求 SnapshotStore 磁盘 hydrate + revert 后 cleanup；搜索 root 含 chat workspace、`WORKSPACE_ROOT`、`WorkspacePathResolver.resolve_workspace_root()` | ✅ |
+| `revert_hydrate.py` | ✅ 核心 | 跨请求 SnapshotStore 磁盘 hydrate + revert 后 cleanup；root 顺序：`WORKSPACE_ROOT` → `resolve_workspace_root()` → chat.workspace_dir → default chat workspace（`resolve_workspace_root` 须在 default workspace 之前，避免 resolver 缓存被污染） | ✅ |
 
 ## 依赖关系
 

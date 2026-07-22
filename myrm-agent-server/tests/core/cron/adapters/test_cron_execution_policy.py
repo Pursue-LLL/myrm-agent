@@ -126,6 +126,15 @@ class TestToolsPolicy:
         flags = resolve_cron_runtime_tool_flags(tools, None)
         assert flags["enable_file_ops"] is True
         assert flags["enable_code_execute"] is True
+        assert flags["enable_cron_eager"] is False
+
+    def test_unrestricted_cron_strips_cron_eager_even_when_profile_has_cron(self) -> None:
+        tools = intersect_cron_enabled_builtin_tools(
+            ["web_search", "memory", "cron"],
+            None,
+        )
+        flags = resolve_cron_runtime_tool_flags(tools, None)
+        assert flags["enable_cron_eager"] is False
 
 
 class TestCronExecutionPolicyApi:

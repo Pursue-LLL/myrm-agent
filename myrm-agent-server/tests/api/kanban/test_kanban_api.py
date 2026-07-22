@@ -13,6 +13,8 @@ Covers TODO-05 features:
 
 from __future__ import annotations
 
+import asyncio
+import time
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -2061,6 +2063,65 @@ class TestTaskAttachments:
         assert len(attached["attachments"]) == 1
         assert plain["attachment_ids"] == []
         assert plain["attachments"] == []
+
+    def test_list_tasks_parallelizes_stats_and_attachment_loads(self, client: TestClient) -> None:
+        board = _create_board(client, "ListParallelBoard")
+        bid = str(board["board_id"])
+        _create_task(client, bid, "Parallel Task")
+        svc = KanbanService.get_instance()
+
+        from app.api.kanban.routes import tasks as tasks_routes
+
+        original_batch_stats = svc.store.batch_task_stats
+        original_attachment_loader = tasks_routes._batch_load_attachment_ids
+        timings: dict[str, float] = {}
+
+        async def slow_batch_stats(task_ids: list[str]) -> dict[str, object]:
+            timings["stats_start"] = time.perf_counter()
+            await asyncio.sleep(0.05)
+            result = await original_batch_stats(task_ids)
+            timings["stats_end"] = time.perf_counter()
+            return result
+
+        async def slow_attachment_loader(task_ids: list[str]) -> dict[str, list[str]]:
+            timings["attachments_start"] = time.perf_counter()
+            await asyncio.sleep(0.05)
+            result = await original_attachment_loader(task_ids)
+            timings["attachments_end"] = time.perf_counter()
+            return result
+
+        with (
+            patch.object(svc.store, "batch_task_stats", slow_batch_stats),
+            patch(
+                "app.api.kanban.routes.tasks._batch_load_attachment_ids",
+                slow_attachment_loader,
+            ),
+        ):
+            resp = client.get(f"/api/v1/kanban/boards/{bid}/tasks")
+        assert resp.status_code == 200
+        assert "stats_start" in timings and "attachments_start" in timings
+        start_delta = abs(timings["stats_start"] - timings["attachments_start"])
+        assert start_delta < 0.03
+
+    def test_attachment_metadata_failure_falls_back_to_file_id(self, client: TestClient) -> None:
+        board = _create_board(client, "AttachFallbackBoard")
+        bid = str(board["board_id"])
+        with patch(
+            "app.core.storage.files_service.get_file",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("storage unavailable"),
+        ):
+            resp = client.post(
+                f"/api/v1/kanban/boards/{bid}/tasks",
+                json={"title": "Attachment Fallback", "attachment_ids": ["file-broken"]},
+            )
+        assert resp.status_code == 201
+        payload = resp.json()
+        assert payload["attachment_ids"] == ["file-broken"]
+        assert len(payload["attachments"]) == 1
+        assert payload["attachments"][0]["file_id"] == "file-broken"
+        assert payload["attachments"][0]["filename"] == "file-broken"
+        assert payload["attachments"][0]["content_type"] == "application/octet-stream"
 
     def test_create_task_attachment_limit_exceeded(self, client: TestClient) -> None:
         board = _create_board(client, "LimitBoard")

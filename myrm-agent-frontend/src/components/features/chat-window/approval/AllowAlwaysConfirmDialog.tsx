@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { ShieldAlert } from 'lucide-react';
 
@@ -16,6 +17,7 @@ import {
 import { Label } from '@/components/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import type { AllowAlwaysScope } from '@/lib/approval/allowAlwaysScope';
+import { deriveCommandPattern } from '@/lib/approval/shellCommandDisplay';
 
 interface AllowAlwaysConfirmDialogProps {
   open: boolean;
@@ -24,6 +26,7 @@ interface AllowAlwaysConfirmDialogProps {
   setAllowAlwaysScope: (scope: AllowAlwaysScope) => void;
   permissionTypeLabel: string;
   toolName: string;
+  shellCommand?: string;
   onConfirm: () => void;
   isLoading: boolean;
 }
@@ -35,10 +38,15 @@ export default function AllowAlwaysConfirmDialog({
   setAllowAlwaysScope,
   permissionTypeLabel,
   toolName,
+  shellCommand = '',
   onConfirm,
   isLoading,
 }: AllowAlwaysConfirmDialogProps) {
   const t = useTranslations('toolApproval');
+  const patternPreview = useMemo(
+    () => (shellCommand ? deriveCommandPattern(shellCommand) : null),
+    [shellCommand],
+  );
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -74,8 +82,9 @@ export default function AllowAlwaysConfirmDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="tool">{t('allowAlwaysConfirm.scopeTool')}</SelectItem>
                     <SelectItem value="exact">{t('allowAlwaysConfirm.scopeExact')}</SelectItem>
+                    <SelectItem value="pattern">{t('allowAlwaysConfirm.scopePattern')}</SelectItem>
+                    <SelectItem value="tool">{t('allowAlwaysConfirm.scopeTool')}</SelectItem>
                     <SelectItem value="permission">{t('allowAlwaysConfirm.scopePermission')}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -86,7 +95,19 @@ export default function AllowAlwaysConfirmDialog({
                     })}
                   {allowAlwaysScope === 'tool' && t('allowAlwaysConfirm.scopeToolDesc', { toolName })}
                   {allowAlwaysScope === 'exact' && t('allowAlwaysConfirm.scopeExactDesc')}
+                  {allowAlwaysScope === 'pattern' && t('allowAlwaysConfirm.scopePatternDesc')}
                 </span>
+                {allowAlwaysScope === 'pattern' && shellCommand && (
+                  <span className="text-xs block">
+                    {patternPreview ? (
+                      <span className="font-mono text-foreground/80">
+                        {t('allowAlwaysConfirm.scopePatternPreview', { pattern: patternPreview })}
+                      </span>
+                    ) : (
+                      <span className="text-destructive">{t('allowAlwaysConfirm.scopePatternUnavailable')}</span>
+                    )}
+                  </span>
+                )}
               </div>
             </div>
           </AlertDialogDescription>

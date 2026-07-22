@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer::SnapshotStore (POS: File snapshot observer)
+- myrm_agent_harness.toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
 - app.services.chat.chat_service::ChatService (POS: chat metadata persistence)
 - app.services.agent.params.workspace_resolve::resolve_default_chat_workspace_dir (POS: JIT workspace path)
 
@@ -20,7 +21,9 @@ import logging
 import os
 from pathlib import Path
 
-from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import SnapshotStore
+from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
+    SnapshotStore,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,19 @@ async def _resolve_snapshot_search_roots(session_id: str) -> list[Path]:
         roots.append(Path(workspace_env))
 
     try:
+        from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import (
+            WorkspacePathResolver,
+        )
+
+        roots.append(WorkspacePathResolver.resolve_workspace_root())
+    except Exception:
+        logger.debug(
+            "Could not resolve harness workspace root for session=%s",
+            session_id,
+            exc_info=True,
+        )
+
+    try:
         from app.services.chat.chat_service import ChatService
 
         chat = await ChatService.get_chat_by_id(session_id)
@@ -42,13 +58,21 @@ async def _resolve_snapshot_search_roots(session_id: str) -> list[Path]:
         pass
 
     try:
-        from app.services.agent.params.workspace_resolve import resolve_default_chat_workspace_dir
+        from app.services.agent.params.workspace_resolve import (
+            resolve_default_chat_workspace_dir,
+        )
 
-        workspace_dir = await resolve_default_chat_workspace_dir(session_id, persist_workspace=False)
+        workspace_dir = await resolve_default_chat_workspace_dir(
+            session_id, persist_workspace=False
+        )
         if workspace_dir:
             roots.append(Path(workspace_dir))
     except Exception:
-        logger.debug("Could not resolve default workspace for session=%s", session_id, exc_info=True)
+        logger.debug(
+            "Could not resolve default workspace for session=%s",
+            session_id,
+            exc_info=True,
+        )
 
     seen: set[Path] = set()
     unique: list[Path] = []
@@ -72,7 +96,9 @@ async def ensure_session_snapshots_hydrated(session_id: str) -> None:
             return
 
 
-async def cleanup_persisted_snapshots(session_id: str, message_id: str | None = None) -> None:
+async def cleanup_persisted_snapshots(
+    session_id: str, message_id: str | None = None
+) -> None:
     """Remove on-disk snapshot files from all known workspace roots."""
     store = SnapshotStore.get()
     for root in await _resolve_snapshot_search_roots(session_id):

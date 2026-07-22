@@ -1,6 +1,20 @@
-"""Kanban API routes — tasks."""
+"""Kanban task routes: CRUD, transitions, and attachment persistence.
+
+[INPUT]
+app.api.kanban.http_common::router/get_kanban_service (POS: Kanban API 共享路由与 DTO 装配)
+app.services.kanban::KanbanService (POS: Kanban 业务编排)
+app.services.kanban.task_attachment_ids::save_task_attachment_ids (POS: 任务附件 ID 持久化)
+
+[OUTPUT]
+Task-domain REST endpoints under /api/v1/kanban/tasks and /boards/{board_id}/tasks.
+
+[POS]
+Kanban Task 路由层。负责请求校验、错误映射和 service 调用装配，不承载业务编排。
+"""
 
 from __future__ import annotations
+
+import asyncio
 
 from fastapi import HTTPException, Query
 from myrm_agent_harness.toolkits.kanban.types import (
@@ -12,7 +26,6 @@ from myrm_agent_harness.toolkits.kanban.types import (
 from app.api.kanban.http_common import (
     _batch_load_attachment_ids,
     _resolve_attachments,
-    _save_task_attachment_ids,
     _task_response_with_attachments,
     diag_engine,
     get_kanban_service,
@@ -36,6 +49,7 @@ from app.services.kanban.diagnostics import (
     CARD_FAST_RULES,
     compute_diagnostics_summary,
 )
+from app.services.kanban.task_attachment_ids import save_task_attachment_ids as _save_task_attachment_ids
 
 # ---------------------------------------------------------------------------
 # Task endpoints
@@ -68,7 +82,10 @@ async def list_tasks(
         offset=offset,
     )
     task_ids = [t.task_id for t in tasks]
-    stats, att_map = await svc.store.batch_task_stats(task_ids), await _batch_load_attachment_ids(task_ids)
+    stats, att_map = await asyncio.gather(
+        svc.store.batch_task_stats(task_ids),
+        _batch_load_attachment_ids(task_ids),
+    )
 
     all_file_ids = list({fid for ids in att_map.values() for fid in ids})
     all_resolved = await _resolve_attachments(all_file_ids)

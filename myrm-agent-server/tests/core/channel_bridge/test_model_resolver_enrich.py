@@ -121,6 +121,11 @@ class TestBuildPlatformHeaders:
         result = _build_platform_headers("sk-user-real-key")
         assert result is None
 
+    def test_returns_blank_authorization_override_for_local_no_auth_marker(self) -> None:
+        result = _build_platform_headers("__myrm_local_no_auth__")
+        assert result is not None
+        assert result["extra_headers"]["Authorization"] == ""
+
     def test_returns_none_when_sandbox_id_empty(self) -> None:
         with patch(self._SETTINGS_PATH) as mock_settings:
             mock_settings.control_plane.sandbox_id = ""

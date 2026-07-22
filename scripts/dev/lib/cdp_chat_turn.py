@@ -343,8 +343,28 @@ class CdpChatTurn(CdpChatSubmit):
     async def _attach_chat_session(self, chat_id: str) -> None:
         payload = json.dumps(chat_id)
         last: object = {"ok": False}
+        ui_base = (
+            getattr(self, "_base_url", None) or "http://127.0.0.1:3000"
+        ).rstrip("/")
         for attempt in range(12):
             await self.ensure_e2e_api_base_binding()
+            bridge_probe = await self.evaluate(
+                """(() => ({
+                  hasAttach: typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function',
+                  fallback: window.__MYRM_E2E_CHAT__?.__e2eFallback === true,
+                }))()""",
+                await_promise=False,
+            )
+            if isinstance(bridge_probe, dict) and not bridge_probe.get("hasAttach"):
+                try:
+                    await self.ensure_react_e2e_bridge(timeout_sec=min(45.0, 15.0 + attempt * 3))
+                except TimeoutError:
+                    await self.navigate_to_chat(
+                        chat_id,
+                        ui_base,
+                        timeout_sec=90.0,
+                    )
+                    continue
             try:
                 result = await self.evaluate(
                     f"""(() => {{
@@ -366,6 +386,10 @@ class CdpChatTurn(CdpChatSubmit):
             last = result
             if isinstance(result, dict) and result.get("ok"):
                 return
+            if isinstance(result, dict) and result.get("err") == "no attachToChat":
+                await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+                await asyncio.sleep(1.0)
+                continue
             await asyncio.sleep(1.0 + attempt)
         raise RuntimeError(f"E2E bridge attachToChat failed: {last}")
 
@@ -447,6 +471,7 @@ class CdpChatTurn(CdpChatSubmit):
             else:
                 await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
             if chat_id:
+                await self.ensure_react_e2e_bridge(timeout_sec=60.0)
                 await self._attach_chat_session(chat_id)
             else:
                 await self.evaluate(
@@ -493,8 +518,22 @@ class CdpChatTurn(CdpChatSubmit):
                 baseline_user_msgs=baseline_user_msgs,
             )
             if not submit.get("ok"):
+                atomic_err = str(submit.get("err") or "")
+                if atomic_err == "no-sendChatMessage":
+                    await self.evaluate(
+                        f"""(() => {{
+                          const bridge = window.__MYRM_E2E_CHAT__;
+                          bridge?.prepareAutomationSend?.();
+                          bridge?.setInputMessage?.({json.dumps(text)});
+                          return {{ ok: true }};
+                        }})()""",
+                        await_promise=False,
+                    )
+                    native = await self.submit_native_click()
+                    if native.get("ok"):
+                        submit = native
                 probe = await self.send_state()
-                if chat_id:
+                if chat_id and not submit.get("ok"):
                     try:
                         if (
                             cdp_chat_support.chat_user_message_count(chat_id)

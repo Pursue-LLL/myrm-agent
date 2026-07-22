@@ -34,6 +34,23 @@ def parse_new_page(result: dict[str, object]) -> tuple[int, str]:
     return int(page_matches[-1]), target_match.group(1)
 
 
+def is_retryable_incomplete_new_page_error(
+    exc: BaseException,
+    result: dict[str, object] | None,
+) -> bool:
+    """True when mux returned a page listing without Myrm exact targetId (parallel race)."""
+    if not isinstance(exc, RuntimeError):
+        return False
+    if "did not return pageId + exact targetId" not in str(exc):
+        return False
+    if result is None:
+        return True
+    text = text_content(result)
+    page_matches = _PAGE_RE.findall(text)
+    target_match = _TARGET_RE.search(text)
+    return bool(page_matches) and target_match is None
+
+
 def _coerce_parsed_json_value(value: object) -> object:
     """Unwrap MCP evaluate payloads that stringify JSON objects."""
     if not isinstance(value, str):

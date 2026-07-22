@@ -43,7 +43,7 @@ export default function SessionRevertButton({ sessionId }: SessionRevertButtonPr
       }
 
       if (uniquePaths.size === 0) {
-        toast({ description: t('revertSessionEmpty'), variant: 'default' });
+        toast({ title: t('revertSessionEmpty'), variant: 'default' });
         setStatus('idle');
         return;
       }
@@ -51,7 +51,7 @@ export default function SessionRevertButton({ sessionId }: SessionRevertButtonPr
       setFileCount(uniquePaths.size);
       setShowConfirm(true);
     } catch {
-      toast({ description: t('revertSessionEmpty'), variant: 'destructive' });
+      toast({ title: t('revertSessionFetchError'), variant: 'destructive' });
     }
     setStatus('idle');
   }, [sessionId, t]);
@@ -65,7 +65,7 @@ export default function SessionRevertButton({ sessionId }: SessionRevertButtonPr
     if (result.reverted_files.length > 0) {
       setStatus('success');
       window.dispatchEvent(new CustomEvent('app_resync_required'));
-      toast({ description: t('revertSessionSuccess'), variant: 'default' });
+      toast({ title: t('revertSessionSuccess'), variant: 'default' });
       setTimeout(() => setStatus('idle'), 2000);
     }
   }, [sessionId, t]);

@@ -31,7 +31,7 @@ _SERVER_ROOT = Path(__file__).resolve().parent.parent
 _DEV_LIB = _SERVER_ROOT.parent / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
-from dev_gate_contract import chrome_e2e_pytest_timeout_for_lane  # noqa: E402
+from dev_gate_contract import chrome_e2e_pytest_timeout_floor  # noqa: E402
 
 _logger = logging.getLogger(__name__)
 _T = TypeVar("_T")
@@ -176,12 +176,24 @@ def pytest_runtest_makereport(
         )
 
 
+def _chrome_e2e_marker_joined_argv(item: pytest.Item) -> str:
+    parts: list[str] = []
+    for marker in item.iter_markers():
+        if marker.name == "chrome_e2e":
+            lane = marker.kwargs.get("lane")
+            if lane:
+                parts.append(f"lane={lane}")
+        else:
+            parts.append(marker.name)
+    return " ".join(parts)
+
+
 def _chrome_e2e_lane_timeout_sec(item: pytest.Item) -> int | None:
     marker = item.get_closest_marker("chrome_e2e")
     if marker is None:
         return None
     lane = str(marker.kwargs.get("lane", "LIVE_AGENT"))
-    return chrome_e2e_pytest_timeout_for_lane(lane)
+    return chrome_e2e_pytest_timeout_floor(lane, _chrome_e2e_marker_joined_argv(item))
 
 
 def _apply_chrome_e2e_lane_timeout(item: pytest.Item) -> None:

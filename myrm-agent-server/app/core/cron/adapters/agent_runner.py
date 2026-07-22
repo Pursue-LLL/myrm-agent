@@ -259,6 +259,23 @@ def _build_effective_prompt(job: CronJob) -> str:
     return prompt
 
 
+async def _resolve_cron_enable_web_search(
+    *,
+    enabled_builtin_tools: list[str],
+    job: CronJob,
+    search_is_user_configured: bool,
+    search_cfg: object,
+) -> bool:
+    """Enable web_search for cron when policy allows it and search is configured."""
+    if "web_search" not in enabled_builtin_tools or not search_is_user_configured:
+        return False
+    if job.tools_allowed is not None and "web_search" in job.tools_allowed:
+        return True
+    from app.core.channel_bridge.config_parsers import verify_search_service_available
+
+    return await verify_search_service_available(search_cfg)  # type: ignore[arg-type]
+
+
 async def _build_daily_context(job: CronJob) -> str:
     """Build injected context for DAILY session-target jobs.
 
@@ -455,7 +472,6 @@ class AgentJobRunner:
             from app.core.channel_bridge.config_parsers import (
                 extract_fallback_model_configs,
                 extract_retrieval_models,
-                verify_search_service_available,
             )
             from app.core.channel_bridge.model_resolver import enrich_model_context_window, resolve_model_config
 
@@ -582,11 +598,13 @@ class AgentJobRunner:
                 channel_name="cron",
                 declared_capabilities=job.required_capabilities,
                 declared_allowed_roots=job.allowed_roots,
-                enable_cron_eager=False,
-                enable_web_search="web_search" in enabled_builtin_tools
-                and user_cfgs.search_is_user_configured
-                and await verify_search_service_available(user_cfgs.search_cfg),
                 **cron_tool_flags,
+                enable_web_search=await _resolve_cron_enable_web_search(
+                    enabled_builtin_tools=enabled_builtin_tools,
+                    job=job,
+                    search_is_user_configured=user_cfgs.search_is_user_configured,
+                    search_cfg=user_cfgs.search_cfg,
+                ),
                 auto_restore_domains=auto_restore_domains,
                 unattended_mode=True,
                 user_instructions=user_instructions,

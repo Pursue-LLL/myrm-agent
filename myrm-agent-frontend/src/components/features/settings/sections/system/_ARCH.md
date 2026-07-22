@@ -58,7 +58,7 @@
 | `SecurityPrivacyPanel.tsx` | PII 隐私保护面板 |
 | `SecurityProfileSelector.tsx` | 安全配置模板选择器 |
 | `NLPolicyGenerator.tsx` | AI 自然语言策略生成器 |
-| `AllowlistSection.tsx` | URL/域名白名单管理 |
+| `AllowlistSection.tsx` | Allow Always 持久记录管理（/security/allowlist；permission/tool/exact/pattern 粒度） |
 | `DomainAllowlistEditor.tsx` | 域名白名单编辑器 |
 | `DomainBlocklistEditor.tsx` | URL 域名 blocklist 编辑器（Settings 全局策略） |
 | `PathPolicyEditor.tsx` | 路径策略编辑器 |

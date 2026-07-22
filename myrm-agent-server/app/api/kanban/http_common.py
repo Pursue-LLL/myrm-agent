@@ -14,6 +14,7 @@ Kanban API 共享路由与 DTO 装配；`routes/*` 仅注册端点。
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from fastapi import APIRouter
 from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KanbanTask
@@ -21,14 +22,12 @@ from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KanbanTask
 from app.api.kanban.schemas import AttachmentInfo, BoardResponse, TaskResponse
 from app.services.kanban import KanbanService
 from app.services.kanban.diagnostics import create_diagnostic_engine
-from app.services.kanban.task_attachment_ids import (
-    load_task_attachment_ids as _load_task_attachment_ids,
-    save_task_attachment_ids as _save_task_attachment_ids,
-)
+from app.services.kanban.task_attachment_ids import load_task_attachment_ids as _load_task_attachment_ids
 
 router = APIRouter(prefix="/kanban", tags=["kanban"])
 
 diag_engine = create_diagnostic_engine()
+logger = logging.getLogger(__name__)
 
 
 def get_kanban_service() -> KanbanService:
@@ -98,8 +97,12 @@ async def _resolve_attachments(ids: list[str]) -> list[AttachmentInfo]:
             if info:
                 filename = getattr(info, "filename", fid)
                 content_type = getattr(info, "content_type", content_type)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(
+                "Failed to resolve attachment metadata; fallback to file_id. file_id=%s error=%s",
+                fid,
+                exc,
+            )
         return AttachmentInfo(
             file_id=fid,
             filename=filename,

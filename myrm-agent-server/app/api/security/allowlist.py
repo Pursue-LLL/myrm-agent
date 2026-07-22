@@ -1,10 +1,24 @@
-"""Allowlist management API endpoints."""
+"""Allowlist management API endpoints.
+
+[INPUT]
+- app.database.models::UserToolAllowlist (POS: 安全 allowlist ORM)
+- app.api.security.allowlist_granularity (POS: REST 粒度映射)
+- myrm_agent_harness.agent.security::get_allowlist (POS: harness 持久 allowlist)
+
+[OUTPUT]
+- GET/DELETE /api/v1/security/allowlist: list/delete allow-always records
+
+[POS]
+Settings「允许记录」REST 入口。返回 command_pattern 与正确 granularity，delete 同步 harness 缓存。
+"""
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.security.allowlist_granularity import nullable_db_field, resolve_allowlist_granularity
+from app.api.security.test_fixtures import router as allowlist_test_fixtures_router
 from app.core.utils.errors import not_found_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
@@ -26,10 +40,15 @@ async def list_allowlist_entries(
         {
             "id": entry.id,
             "permission": entry.permission,
-            "tool_name": entry.tool_name,
-            "tool_args_hash": entry.tool_args_hash,
+            "tool_name": nullable_db_field(entry.tool_name),
+            "tool_args_hash": nullable_db_field(entry.tool_args_hash),
+            "command_pattern": nullable_db_field(entry.command_pattern),
             "created_at": entry.created_at.isoformat(),
-            "granularity": ("exact" if entry.tool_args_hash else "tool" if entry.tool_name else "permission"),
+            "granularity": resolve_allowlist_granularity(
+                tool_name=entry.tool_name,
+                tool_args_hash=entry.tool_args_hash,
+                command_pattern=entry.command_pattern,
+            ),
         }
         for entry in entries
     ]
@@ -59,8 +78,9 @@ async def delete_allowlist_entry(
     await allowlist.remove(
         user_id="sandbox",
         permission=entry.permission,
-        tool_name=entry.tool_name,
-        tool_args_hash=entry.tool_args_hash,
+        tool_name=nullable_db_field(entry.tool_name),
+        tool_args_hash=nullable_db_field(entry.tool_args_hash),
+        command_pattern=nullable_db_field(entry.command_pattern),
     )
 
     return success_response(data={"deleted": True})
@@ -84,3 +104,5 @@ async def clear_all_allowlist_entries(
     await get_allowlist().clear_user(DEFAULT_USER_ID)
 
     return success_response(data={"count": count})
+
+router.include_router(allowlist_test_fixtures_router)

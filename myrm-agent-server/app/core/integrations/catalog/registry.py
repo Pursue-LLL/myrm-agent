@@ -8,11 +8,12 @@ import json
 import logging
 from pathlib import Path
 
-from app.core.integrations.catalog.models import CatalogEntry
+from app.core.integrations.catalog.models import CatalogEntry, DeploymentScope
 
 logger = logging.getLogger(__name__)
 
 _DATA_DIR = Path(__file__).parent / "data"
+_LOCAL_TAURI_ONLY_ENTRY_IDS = frozenset({"unreal-engine", "blender"})
 
 
 class CatalogRegistry:
@@ -54,15 +55,38 @@ class CatalogRegistry:
                 raw = json.loads(json_file.read_text(encoding="utf-8"))
                 if isinstance(raw, list):
                     for item in raw:
-                        entries.append(CatalogEntry.model_validate(item))
+                        entry = CatalogEntry.model_validate(item)
+                        entries.append(self._normalize_entry(entry))
                 elif isinstance(raw, dict):
-                    entries.append(CatalogEntry.model_validate(raw))
+                    entry = CatalogEntry.model_validate(raw)
+                    entries.append(self._normalize_entry(entry))
             except Exception as e:
                 logger.error("Failed to load catalog file %s: %s", json_file.name, e)
 
         self._entries = entries
         self._by_id = {e.id: e for e in entries}
         logger.info("Loaded %d integration catalog entries", len(entries))
+
+    @staticmethod
+    def _normalize_entry(entry: CatalogEntry) -> CatalogEntry:
+        """Apply explicit catalog defaults required by product-level UX guardrails."""
+        mcp_cfg = entry.mcp_config
+        if mcp_cfg is None or mcp_cfg.deployment_scope is not None:
+            return entry
+
+        default_scope = (
+            DeploymentScope.LOCAL_TAURI_ONLY
+            if entry.id in _LOCAL_TAURI_ONLY_ENTRY_IDS
+            else DeploymentScope.ALL_MODES
+        )
+
+        return entry.model_copy(
+            update={
+                "mcp_config": mcp_cfg.model_copy(
+                    update={"deployment_scope": default_scope}
+                )
+            }
+        )
 
     def list_all(self) -> list[CatalogEntry]:
         """Return all catalog entries."""

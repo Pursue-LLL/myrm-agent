@@ -6,8 +6,9 @@ and one-click enable from the Integration Catalog UI.
 
 from enum import Enum
 from typing import Literal
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic.alias_generators import to_camel
 from pydantic.config import ConfigDict
 
@@ -34,6 +35,30 @@ class CredentialFieldInject(str, Enum):
     ARG_PLACEHOLDER = "arg_placeholder"
     ENV = "env"
     HEADER = "header"
+
+
+class DeploymentScope(str, Enum):
+    """Deployment compatibility scope for a catalog integration entry."""
+
+    ALL_MODES = "all_modes"
+    LOCAL_TAURI_ONLY = "local_tauri_only"
+
+
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "0.0.0.0"})
+
+
+def _is_loopback_url(url: str | None) -> bool:
+    if not url:
+        return False
+    trimmed = url.strip()
+    if not trimmed:
+        return False
+    candidate = trimmed if "://" in trimmed else f"http://{trimmed}"
+    try:
+        parsed = urlparse(candidate)
+    except Exception:
+        return False
+    return (parsed.hostname or "").lower().strip() in _LOOPBACK_HOSTS
 
 
 class CredentialField(BaseModel):
@@ -105,6 +130,10 @@ class MCPPreConfig(BaseModel):
         default=None,
         description="URL to probe for connectivity diagnostics before connecting",
     )
+    deployment_scope: DeploymentScope | None = Field(
+        default=None,
+        description="Optional deployment compatibility hint for GUI guardrails",
+    )
     post_connect_guide: str | None = Field(
         default=None,
         description="Setup guide displayed in connect dialog (English)",
@@ -113,6 +142,19 @@ class MCPPreConfig(BaseModel):
         default=None,
         description="Setup guide displayed in connect dialog (Chinese)",
     )
+
+    @model_validator(mode="after")
+    def validate_local_tauri_scope(self) -> "MCPPreConfig":
+        """Ensure local/tauri-only catalog entries always point to loopback endpoints."""
+        if self.deployment_scope != DeploymentScope.LOCAL_TAURI_ONLY:
+            return self
+
+        probe_candidate = self.probe_url or self.url
+        if probe_candidate is None:
+            raise ValueError("deployment_scope=local_tauri_only requires probe_url or url")
+        if not _is_loopback_url(probe_candidate):
+            raise ValueError("deployment_scope=local_tauri_only requires a loopback probe/url")
+        return self
 
 
 class OpenAPIPreConfig(BaseModel):

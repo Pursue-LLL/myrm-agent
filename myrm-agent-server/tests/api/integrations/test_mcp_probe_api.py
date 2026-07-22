@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ssl
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
 
@@ -40,6 +41,38 @@ class TestMCPProbeEndpoint:
         data = response.json()["data"]
         assert data["status"] == "reachable"
         assert data["latencyMs"] is not None
+        assert data["reasonCode"] == "reachable"
+        assert data.get("recommendedMode") is None
+        assert data["shouldBlockConnect"] is False
+
+    def test_probe_does_not_disable_tls_verification(self, client: TestClient) -> None:
+        """Probe must not pass verify=False to AsyncClient."""
+        verify_values: list[object] = []
+
+        class _FakeAsyncClient:
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                verify_values.append(kwargs.get("verify", "__default__"))
+
+            async def __aenter__(self) -> "_FakeAsyncClient":
+                return self
+
+            async def __aexit__(self, exc_type: object, exc: object, tb: object) -> bool:
+                return False
+
+            async def get(self, _url: str) -> AsyncMock:
+                response = AsyncMock()
+                response.status_code = 200
+                return response
+
+        with patch("httpx.AsyncClient", _FakeAsyncClient):
+            response = client.post(
+                "/api/v1/integrations/mcp/probe",
+                json={"url": "http://127.0.0.1:8000/mcp", "timeout": 3},
+            )
+
+        assert response.status_code == 200
+        assert verify_values
+        assert verify_values[0] is not False
 
     def test_probe_unreachable_connect_error(self, client: TestClient) -> None:
         """Probe returns unreachable on connection refused."""
@@ -55,6 +88,56 @@ class TestMCPProbeEndpoint:
         data = response.json()["data"]
         assert data["status"] == "unreachable"
         assert "not running" in data["error"]
+        assert data["reasonCode"] == "connection_refused"
+        assert data["recommendedMode"] == "start_local_editor_mcp"
+        assert data["shouldBlockConnect"] is True
+
+    def test_probe_unreachable_tls_verification_error(self, client: TestClient) -> None:
+        """Probe returns a dedicated reason code for TLS certificate failures."""
+        import httpx
+
+        with patch(
+            "httpx.AsyncClient.get",
+            side_effect=httpx.ConnectError(
+                "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self signed certificate"
+            ),
+        ):
+            response = client.post(
+                "/api/v1/integrations/mcp/probe",
+                json={"url": "http://127.0.0.1:8000/mcp"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["status"] == "unreachable"
+        assert "certificate" in data["error"].lower()
+        assert data["reasonCode"] == "tls_verification_failed"
+        assert data.get("recommendedMode") is None
+        assert data["shouldBlockConnect"] is True
+
+    def test_probe_unreachable_tls_verification_error_from_ssl_cause(
+        self, client: TestClient
+    ) -> None:
+        """Probe classifies wrapped SSLCertVerificationError as TLS verification failure."""
+        import httpx
+
+        async def _raise_ssl_connect_error(_url: str) -> None:
+            try:
+                raise ssl.SSLCertVerificationError("certificate verify failed")
+            except ssl.SSLCertVerificationError as ssl_exc:
+                raise httpx.ConnectError("ssl handshake failed") from ssl_exc
+
+        with patch("httpx.AsyncClient.get", side_effect=_raise_ssl_connect_error):
+            response = client.post(
+                "/api/v1/integrations/mcp/probe",
+                json={"url": "http://127.0.0.1:8000/mcp"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["status"] == "unreachable"
+        assert data["reasonCode"] == "tls_verification_failed"
+        assert data["shouldBlockConnect"] is True
 
     def test_probe_unreachable_timeout(self, client: TestClient) -> None:
         """Probe returns unreachable on connection timeout."""
@@ -70,39 +153,39 @@ class TestMCPProbeEndpoint:
         data = response.json()["data"]
         assert data["status"] == "unreachable"
         assert "timed out" in data["error"]
+        assert data["reasonCode"] == "connection_timeout"
+        assert data["recommendedMode"] == "verify_local_network_and_editor"
+        assert data["shouldBlockConnect"] is True
 
-    def test_probe_cloud_not_supported(self, client: TestClient) -> None:
-        """Probe returns cloud_not_supported in sandbox deployment."""
-        from app.platform_utils.deployment_capabilities import DeploymentCapabilities
-
-        sandbox_caps = DeploymentCapabilities(
-            allows_local_skills=False,
-            requires_api_key_auth=True,
-            uses_platform_budget=True,
-            validates_mcp_response_size=True,
-            uses_config_encryption=True,
-            requires_strict_ws_auth=True,
-            uses_cp_entitlements=True,
-            trust_cp_proxy_identity=True,
-            enables_auth_audit=True,
-            default_metrics_enabled=False,
-            runs_sandbox_startup_validation=True,
-            skips_webui_model_preflight=True,
-            is_sandbox_instance=True,
+    def test_probe_cloud_not_supported(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Probe returns cloud_not_supported when runtime deploy mode is sandbox."""
+        from app.config.deploy_mode import get_deploy_mode
+        from app.platform_utils.deployment_capabilities import (
+            _reset_capabilities_cache_for_testing,
         )
 
-        with patch(
-            "app.api.integrations.mcp.get_deployment_capabilities",
-            return_value=sandbox_caps,
-        ):
-            response = client.post(
-                "/api/v1/integrations/mcp/probe",
-                json={"url": "http://127.0.0.1:8000/mcp"},
-            )
+        monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+        get_deploy_mode.cache_clear()
+        _reset_capabilities_cache_for_testing()
+        try:
+            with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+                response = client.post(
+                    "/api/v1/integrations/mcp/probe",
+                    json={"url": "http://127.0.0.1:8000/mcp"},
+                )
 
-        assert response.status_code == 200
-        data = response.json()["data"]
-        assert data["status"] == "cloud_not_supported"
+            assert response.status_code == 200
+            data = response.json()["data"]
+            assert data["status"] == "cloud_not_supported"
+            assert data["reasonCode"] == "loopback_unavailable_in_cloud"
+            assert data["recommendedMode"] == "local_or_tauri"
+            assert data["shouldBlockConnect"] is True
+            mock_get.assert_not_called()
+        finally:
+            get_deploy_mode.cache_clear()
+            _reset_capabilities_cache_for_testing()
 
     def test_probe_validation_timeout_range(self, client: TestClient) -> None:
         """Timeout must be between 1 and 15 seconds."""
@@ -148,3 +231,6 @@ class TestMCPProbeEndpoint:
         data = response.json()["data"]
         assert data["status"] == "unreachable"
         assert "broken pipe" in data["error"]
+        assert data["reasonCode"] == "probe_failed_unknown"
+        assert data.get("recommendedMode") is None
+        assert data["shouldBlockConnect"] is True

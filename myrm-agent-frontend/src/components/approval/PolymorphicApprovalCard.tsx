@@ -12,7 +12,7 @@ import { LazyMonacoEditor as Editor, LazyMonacoDiffEditor as DiffEditor } from '
 import ShellCommandDisplay from '@/components/features/chat-window/approval/ShellCommandDisplay';
 import EditModeView from '@/components/features/chat-window/approval/EditModeView';
 import AllowAlwaysConfirmDialog from '@/components/features/chat-window/approval/AllowAlwaysConfirmDialog';
-import { type AllowAlwaysScope, scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
+import { type AllowAlwaysScope, defaultAllowAlwaysScope, scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
 import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
 import {
   extractShellCommand,
@@ -194,12 +194,21 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   const tNotifications = useTranslations('notifications');
   const router = useRouter();
   const hideDrawer = useApprovalStore((s) => s.hideDrawer);
+  const toolCalls = useMemo(
+    () => approval.payload?.tool_calls ?? [],
+    [approval.payload?.tool_calls],
+  );
+  const primaryToolName = toolCalls[0]?.name ?? 'unknown';
   const [comment, setComment] = useState('');
   const [mode, setMode] = useState<CardDialogMode>('default');
   const [showAlwaysAllowConfirm, setShowAlwaysAllowConfirm] = useState(false);
-  const [allowAlwaysScope, setAllowAlwaysScope] = useState<AllowAlwaysScope>('tool');
+  const [allowAlwaysScope, setAllowAlwaysScope] = useState<AllowAlwaysScope>(() =>
+    defaultAllowAlwaysScope(primaryToolName),
+  );
   const [allowAlwaysInEdit, setAllowAlwaysInEdit] = useState(false);
-  const [allowAlwaysScopeInEdit, setAllowAlwaysScopeInEdit] = useState<AllowAlwaysScope>('tool');
+  const [allowAlwaysScopeInEdit, setAllowAlwaysScopeInEdit] = useState<AllowAlwaysScope>(() =>
+    defaultAllowAlwaysScope(primaryToolName),
+  );
   const [editValidationErrors, setEditValidationErrors] = useState<string[]>([]);
   const [shellEditedArgs, setShellEditedArgs] = useState<Record<string, string>>({});
   const [editedArgs, setEditedArgs] = useState<string>(() => {
@@ -212,11 +221,6 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
   const isDark = resolvedTheme === 'dark';
   const isSubagentApproval = approval.action_type === 'subagent_approval';
-  const toolCalls = useMemo(
-    () => approval.payload?.tool_calls ?? [],
-    [approval.payload?.tool_calls],
-  );
-  const primaryToolName = toolCalls[0]?.name ?? 'unknown';
   const singleShellToolCall = useMemo(() => {
     if (!isSubagentApproval || toolCalls.length !== 1) {
       return null;
@@ -238,6 +242,18 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   const isSingleStringShellParam =
     shellInputEntries.length === 1 && typeof shellInputEntries[0][1] === 'string';
 
+  const shellCommand = useMemo(() => {
+    if (!singleShellToolCall || typeof singleShellToolCall.args !== 'object' || singleShellToolCall.args === null) {
+      return '';
+    }
+    return extractShellCommand(singleShellToolCall.args as Record<string, unknown>);
+  }, [singleShellToolCall]);
+
+  const editedShellCommand = useMemo(
+    () => extractShellCommand(shellEditedArgs as Record<string, unknown>),
+    [shellEditedArgs],
+  );
+
   useEffect(() => {
     if (!singleShellToolCall || typeof singleShellToolCall.args !== 'object' || singleShellToolCall.args === null) {
       return;
@@ -254,6 +270,12 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     }
     setShellEditedArgs(initial);
   }, [shellInputEntries, singleShellToolCall]);
+
+  useEffect(() => {
+    const nextScope = defaultAllowAlwaysScope(primaryToolName);
+    setAllowAlwaysScope(nextScope);
+    setAllowAlwaysScopeInEdit(nextScope);
+  }, [approval.approval_id, primaryToolName]);
 
   const permissionTypeLabel = useMemo(() => {
     if (primaryToolName === 'bash_code_execute_tool' || primaryToolName === 'execute_code') {
@@ -326,7 +348,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
     setMode('default');
     setAllowAlwaysInEdit(false);
-    setAllowAlwaysScopeInEdit('tool');
+    setAllowAlwaysScopeInEdit(defaultAllowAlwaysScope(primaryToolName));
   }, [
     allowAlwaysInEdit,
     allowAlwaysScopeInEdit,
@@ -760,6 +782,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
           setAllowAlwaysScopeInEdit={setAllowAlwaysScopeInEdit}
           permissionTypeLabel={permissionTypeLabel}
           toolName={singleShellToolCall.name}
+          shellCommand={editedShellCommand}
           requestId={approval.approval_id}
           onConfirm={handleConfirmShellEdit}
           onCancel={() => {
@@ -857,6 +880,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
           setAllowAlwaysScope={setAllowAlwaysScope}
           permissionTypeLabel={permissionTypeLabel}
           toolName={primaryToolName}
+          shellCommand={shellCommand}
           onConfirm={handleConfirmAlwaysAllow}
           isLoading={isSubmitting}
         />

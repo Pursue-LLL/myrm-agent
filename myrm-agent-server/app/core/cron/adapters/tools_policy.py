@@ -20,8 +20,8 @@ from collections.abc import Sequence
 from app.services.agent.builtin_tool_ids import (
     AGENT_BASELINE_BUILTIN_TOOLS,
     BUILTIN_TOOL_ID_SET,
-    InvalidBuiltinToolIdsError,
     LEGACY_REJECTED_BUILTIN_TOOL_IDS,
+    InvalidBuiltinToolIdsError,
 )
 from app.services.agent.profile_resolver import (
     BuiltinToolFlags,
@@ -85,8 +85,10 @@ def resolve_cron_runtime_tool_flags(
     """
     flags = resolve_builtin_tool_flags(enabled_builtin_tools)
     if job_tools_allowed is None:
-        return apply_agent_baseline_tool_flags(flags)
-    return flags
+        flags = apply_agent_baseline_tool_flags(flags)
+    return BuiltinToolFlags(
+        **{**flags, "enable_cron_eager": False},
+    )
 
 
 def intersect_cron_enabled_builtin_tools(

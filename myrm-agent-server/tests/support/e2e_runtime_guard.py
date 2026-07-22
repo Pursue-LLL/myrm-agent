@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import subprocess
 import sys
 import threading
 import time
-import fcntl
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -20,9 +20,7 @@ from tests.support.e2e_parallel_snapshot import (
     clear_e2e_lock_holder,
     current_pytest_node_label,
     format_lock_holder,
-    print_e2e_parallel_snapshot,
     read_e2e_lock_holder,
-    snapshot_live_e2e_processes,
     write_e2e_lock_holder,
 )
 

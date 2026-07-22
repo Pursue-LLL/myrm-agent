@@ -35,6 +35,23 @@ class CdpChatSubmit(CdpChatInput):
         )
         return result if isinstance(result, dict) else {"ok": False, "err": "atomic-send-invalid"}
 
+    async def submit_native_click(self) -> dict[str, object]:
+        """Click the send button when the E2E bridge sendChatMessage hook is unavailable."""
+        await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+        native = await self.evaluate(
+            """(() => {
+              const btn = document.querySelector('.message-send-btn');
+              if (!btn) return { ok: false, err: 'no send button' };
+              if (btn.disabled) return { ok: false, err: 'send disabled' };
+              btn.click();
+              return { ok: true, mode: 'nativeClick' };
+            })()""",
+            await_promise=False,
+        )
+        return (
+            native if isinstance(native, dict) else {"ok": False, "err": "native-click-invalid"}
+        )
+
     async def _submit_via_dev_bridge(
         self,
         message_text: str | None = None,

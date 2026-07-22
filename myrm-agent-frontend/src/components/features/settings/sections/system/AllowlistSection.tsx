@@ -24,8 +24,9 @@ interface AllowlistEntry {
   permission: string;
   tool_name: string | null;
   tool_args_hash: string | null;
+  command_pattern: string | null;
   created_at: string;
-  granularity: 'permission' | 'tool' | 'exact';
+  granularity: 'permission' | 'tool' | 'exact' | 'pattern';
 }
 
 const AllowlistSection = memo(() => {
@@ -111,6 +112,8 @@ const AllowlistSection = memo(() => {
         return t('granularity.tool');
       case 'exact':
         return t('granularity.exact');
+      case 'pattern':
+        return t('granularity.pattern');
       default:
         return granularity;
     }
@@ -124,6 +127,8 @@ const AllowlistSection = memo(() => {
         return 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
       case 'exact':
         return 'bg-green-500/10 text-green-600 dark:text-green-400';
+      case 'pattern':
+        return 'bg-violet-500/10 text-violet-600 dark:text-violet-400';
       default:
         return 'bg-gray-500/10 text-gray-600 dark:text-gray-400';
     }
@@ -189,10 +194,17 @@ const AllowlistSection = memo(() => {
                     </div>
                   )}
 
-                  {entry.tool_args_hash && (
+                  {entry.tool_args_hash && entry.granularity !== 'pattern' && (
                     <div className="text-xs text-muted-foreground">
                       <span className="font-medium">{t('argsHash')}:</span>{' '}
                       <span className="font-mono">{entry.tool_args_hash}</span>
+                    </div>
+                  )}
+
+                  {entry.command_pattern && (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium">{t('commandPattern')}:</span>{' '}
+                      <span className="font-mono">{entry.command_pattern}</span>
                     </div>
                   )}
 

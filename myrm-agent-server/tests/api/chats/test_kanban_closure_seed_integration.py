@@ -58,7 +58,9 @@ class TestKanbanClosureSeedIntegration:
 
     def test_seed_persists_kanban_tasks_created(self, client: TestClient) -> None:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
-        asyncio.run(_seed_visible_agent(agent_id, display_name="Kanban Closure Seed Agent"))
+        asyncio.run(
+            _seed_visible_agent(agent_id, display_name="Kanban Closure Seed Agent")
+        )
 
         with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
             seed_resp = client.post("/api/v1/chats/test/seed-kanban-closure-fixture")

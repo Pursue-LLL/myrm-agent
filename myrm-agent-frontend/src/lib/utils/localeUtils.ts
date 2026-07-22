@@ -30,8 +30,8 @@ export function getClientLocale(): string | null {
 
 /**
  * Normalize locale to backend format
- * Frontend uses: 'zh', 'en', 'ja', 'ko', 'de'
- * Backend expects: 'zh-CN', 'en', 'ja', 'ko', 'de', etc.
+ * Frontend uses: 'zh', 'en', 'ja', 'ko', 'de', 'zh-TW'
+ * Backend expects: 'zh-CN', 'en', 'ja', 'ko', 'de', 'zh-TW', etc.
  */
 export function normalizeLocaleForBackend(frontendLocale: string | null): string | undefined {
   if (!frontendLocale) {
@@ -45,6 +45,7 @@ export function normalizeLocaleForBackend(frontendLocale: string | null): string
     ja: 'ja',
     ko: 'ko',
     de: 'de',
+    'zh-TW': 'zh-TW',
   };
 
   return mapping[frontendLocale] || frontendLocale;

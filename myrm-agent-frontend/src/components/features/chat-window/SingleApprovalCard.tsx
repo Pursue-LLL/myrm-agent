@@ -38,7 +38,7 @@ import {
 } from '@/lib/approval/shellCommandDisplay';
 import VisualApprovalHighlight from './approval/VisualApprovalHighlight';
 import ShellCommandDisplay from './approval/ShellCommandDisplay';
-import { type AllowAlwaysScope, scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
+import { type AllowAlwaysScope, defaultAllowAlwaysScope, scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
 type DialogMode = 'default' | 'editing' | 'rejecting';
@@ -73,9 +73,13 @@ export default function SingleApprovalCard({
   const [feedback, setFeedback] = useState('');
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [showAlwaysAllowConfirm, setShowAlwaysAllowConfirm] = useState(false);
-  const [allowAlwaysScope, setAllowAlwaysScope] = useState<AllowAlwaysScope>('tool');
+  const [allowAlwaysScope, setAllowAlwaysScope] = useState<AllowAlwaysScope>(() =>
+    defaultAllowAlwaysScope(request.toolName),
+  );
   const [allowAlwaysInEdit, setAllowAlwaysInEdit] = useState(false);
-  const [allowAlwaysScopeInEdit, setAllowAlwaysScopeInEdit] = useState<AllowAlwaysScope>('tool');
+  const [allowAlwaysScopeInEdit, setAllowAlwaysScopeInEdit] = useState<AllowAlwaysScope>(() =>
+    defaultAllowAlwaysScope(request.toolName),
+  );
   const [editValidationErrors, setEditValidationErrors] = useState<string[]>([]);
   const [guidance, setGuidance] = useState('');
   const [guidanceOpen, setGuidanceOpen] = useState(false);
@@ -100,6 +104,14 @@ export default function SingleApprovalCard({
   const shellCommand = useMemo(
     () => (isShellApprovalTool(request.toolName) ? extractShellCommand(request.toolInput) : ''),
     [request.toolInput, request.toolName],
+  );
+
+  const editedShellCommand = useMemo(
+    () =>
+      isShellApprovalTool(request.toolName)
+        ? extractShellCommand(editedArgs as Record<string, unknown>)
+        : '',
+    [editedArgs, request.toolName],
   );
 
   const isBrowserSession =
@@ -173,6 +185,12 @@ export default function SingleApprovalCard({
     }
     setEditedArgs(initial);
   }, [inputEntries]);
+
+  useEffect(() => {
+    const nextScope = defaultAllowAlwaysScope(request.toolName);
+    setAllowAlwaysScope(nextScope);
+    setAllowAlwaysScopeInEdit(nextScope);
+  }, [request.requestId, request.toolName]);
 
   useEffect(() => {
     if (mode === 'editing' || mode === 'rejecting') {
@@ -267,7 +285,7 @@ export default function SingleApprovalCard({
       });
     }
     setAllowAlwaysInEdit(false);
-    setAllowAlwaysScopeInEdit('tool');
+    setAllowAlwaysScopeInEdit(defaultAllowAlwaysScope(request.toolName));
   }, [
     editedArgs,
     inputEntries,
@@ -299,6 +317,7 @@ export default function SingleApprovalCard({
         setAllowAlwaysScopeInEdit={setAllowAlwaysScopeInEdit}
         permissionTypeLabel={permissionTypeLabel}
         toolName={request.toolName}
+        shellCommand={editedShellCommand}
         requestId={request.requestId}
         onConfirm={handleConfirmEdit}
         onCancel={() => {
@@ -524,6 +543,7 @@ export default function SingleApprovalCard({
         setAllowAlwaysScope={setAllowAlwaysScope}
         permissionTypeLabel={permissionTypeLabel}
         toolName={request.toolName}
+        shellCommand={shellCommand}
         onConfirm={handleConfirmAlwaysAllow}
         isLoading={isLoading}
       />

@@ -29,7 +29,6 @@ from tests.e2e.desktop_approval.gate_probe import ensure_interact_gate
 from tests.e2e.desktop_approval.textedit_fixture import (
     activate_textedit_foreground,
     ensure_textedit_fixture_ready,
-    hide_textedit_fixture,
 )
 from tests.e2e.desktop_approval.trust_api import (
     desktop_trust_revoke_selector_js,
@@ -565,7 +564,11 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     progress("send agent prompt (Chrome foreground for CDP submit)")
     await asyncio.to_thread(activate_chrome)
     await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
-    send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+    send_result = await chat.send_message(
+        E2E_PROMPT,
+        E2E_PROMPT,
+        chat_id_hint=chat_id or None,
+    )
     progress(f"send result: {send_result.get('submit', send_result)}")
     started = send_result.get("started")
     submit = send_result.get("submit")

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
+import {
+  defaultAllowAlwaysScope,
+  scopeToAllowAlwaysValue,
+} from '@/lib/approval/allowAlwaysScope';
 
 describe('scopeToAllowAlwaysValue', () => {
   it('maps permission scope to true', () => {
@@ -13,5 +16,20 @@ describe('scopeToAllowAlwaysValue', () => {
 
   it('maps exact scope to tool and args allowlist', () => {
     expect(scopeToAllowAlwaysValue('exact')).toEqual({ tool: true, args: true });
+  });
+
+  it('maps pattern scope to tool and pattern allowlist', () => {
+    expect(scopeToAllowAlwaysValue('pattern')).toEqual({ tool: true, pattern: true });
+  });
+});
+
+describe('defaultAllowAlwaysScope', () => {
+  it('defaults shell tools to exact', () => {
+    expect(defaultAllowAlwaysScope('bash_code_execute_tool')).toBe('exact');
+    expect(defaultAllowAlwaysScope('execute_code')).toBe('exact');
+  });
+
+  it('defaults non-shell tools to tool scope', () => {
+    expect(defaultAllowAlwaysScope('file_write_tool')).toBe('tool');
   });
 });

@@ -15,7 +15,7 @@ from .base import Base
 class UserToolAllowlist(Base):
     """工具白名单表（HITL 审批系统）
 
-    三种粒度：权限级别、工具级别、精确匹配。
+    四种粒度：权限级别、工具级别、精确匹配、命令模式匹配。
     使用空字符串代替 NULL 确保 UNIQUE 约束生效。
     """
 
@@ -25,10 +25,19 @@ class UserToolAllowlist(Base):
     permission: Mapped[str] = mapped_column(String(255), nullable=False)
     tool_name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     tool_args_hash: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    command_pattern: Mapped[str] = mapped_column(String(512), nullable=False, default="")
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    __table_args__ = (UniqueConstraint("permission", "tool_name", "tool_args_hash", name="uq_user_allowlist_final"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "permission",
+            "tool_name",
+            "tool_args_hash",
+            "command_pattern",
+            name="uq_user_allowlist_final",
+        ),
+    )
 
 
 class RiskRule(Base):

@@ -59,6 +59,10 @@ contract:
 
 # Unreal Engine MCP Skill
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 Companion skill for the `unreal-engine` integration in the Myrm catalog. The
 MCP server (Epic's official, experimental "Unreal MCP" plugin) runs INSIDE the
 Unreal Editor process and exposes editor functionality as typed tools. This

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  deriveCommandPattern,
   extractShellCommand,
   getShellEditInputEntries,
+  isCompoundShellCommand,
   isShellApprovalTool,
   mergeShellEditedArgs,
   parseCommandSpanReasons,
@@ -103,5 +105,16 @@ describe('shellCommandDisplay', () => {
         command_span_reasons: ['safe'],
       }),
     ).toEqual({ command: 'ls' });
+  });
+
+  it('derives conservative command patterns for preview', () => {
+    expect(deriveCommandPattern('npm install lodash')).toBe('npm install *');
+    expect(deriveCommandPattern('ls -la')).toBe('ls -la *');
+    expect(deriveCommandPattern('npm install && rm -rf /')).toBeNull();
+  });
+
+  it('detects compound shell commands', () => {
+    expect(isCompoundShellCommand('npm install')).toBe(false);
+    expect(isCompoundShellCommand('npm install | grep foo')).toBe(true);
   });
 });

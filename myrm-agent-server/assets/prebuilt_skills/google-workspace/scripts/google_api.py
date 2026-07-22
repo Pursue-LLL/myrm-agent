@@ -22,9 +22,19 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from email.mime.text import MIMEText
 from datetime import UTC, datetime, timedelta
+from email.mime.text import MIMEText
 from zoneinfo import ZoneInfo
+
+_ALLOWED_GOOGLE_API_HOSTS = frozenset({"www.googleapis.com", "gmail.googleapis.com"})
+
+
+def _validate_google_api_url(url: str) -> str:
+    parsed = urllib.parse.urlsplit(url.strip())
+    hostname = (parsed.hostname or "").strip().lower()
+    if parsed.scheme != "https" or hostname not in _ALLOWED_GOOGLE_API_HOSTS:
+        _fail(f"Unsupported Google API URL: {url}")
+    return parsed.geturl()
 
 
 def _require_token() -> str:
@@ -40,9 +50,13 @@ def _fail(message: str, *, code: int = 1) -> None:
 
 
 def _http_get(url: str, token: str) -> dict[str, object]:
-    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    safe_url = _validate_google_api_url(url)
+    request = urllib.request.Request(  # noqa: S310 - URL is validated by _validate_google_api_url
+        safe_url,
+        headers={"Authorization": f"Bearer {token}"},
+    )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - validated request URL
             payload = response.read().decode()
             parsed = json.loads(payload)
             return parsed if isinstance(parsed, dict) else {"data": parsed}
@@ -54,9 +68,10 @@ def _http_get(url: str, token: str) -> dict[str, object]:
 
 
 def _http_post(url: str, token: str, body: dict[str, object]) -> dict[str, object]:
+    safe_url = _validate_google_api_url(url)
     data = json.dumps(body).encode()
-    request = urllib.request.Request(
-        url,
+    request = urllib.request.Request(  # noqa: S310 - URL is validated by _validate_google_api_url
+        safe_url,
         data=data,
         headers={
             "Authorization": f"Bearer {token}",
@@ -65,7 +80,7 @@ def _http_post(url: str, token: str, body: dict[str, object]) -> dict[str, objec
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - validated request URL
             payload = response.read().decode()
             if not payload.strip():
                 return {"status": "ok"}
@@ -79,13 +94,14 @@ def _http_post(url: str, token: str, body: dict[str, object]) -> dict[str, objec
 
 
 def _http_delete(url: str, token: str) -> dict[str, object]:
-    request = urllib.request.Request(
-        url,
+    safe_url = _validate_google_api_url(url)
+    request = urllib.request.Request(  # noqa: S310 - URL is validated by _validate_google_api_url
+        safe_url,
         headers={"Authorization": f"Bearer {token}"},
         method="DELETE",
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - validated request URL
             if response.status in (200, 204):
                 return {"status": "deleted"}
             payload = response.read().decode()

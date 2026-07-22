@@ -12,9 +12,10 @@
 
 import { BUILTIN_AGENT_I18N } from './builtin-agent-i18n-data';
 
-type SupportedLocale = 'en' | 'zh' | 'ja' | 'ko' | 'de';
+type SupportedLocale = 'en' | 'zh' | 'zh-TW' | 'ja' | 'ko' | 'de';
 
 function resolveLocale(locale: string): SupportedLocale {
+  if (locale === 'zh-TW' || locale === 'zh-Hant') return 'zh-TW';
   if (locale.startsWith('zh')) return 'zh';
   if (locale.startsWith('ja')) return 'ja';
   if (locale.startsWith('ko')) return 'ko';

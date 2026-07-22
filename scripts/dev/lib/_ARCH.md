@@ -13,7 +13,7 @@
 | `cdp_chat_ui.py` | Unix | WebUI chat 自动化稳定导出层；实现按 transport/bootstrap/input/submit/turn/support 拆分 |
 | `chrome_mcp_client.py` / `chrome_mcp_errors.py` / `mcp_protocol.py` / `mcp_chat_ui.py` | Unix | 正式 pytest UI E2E 的 MCP JSON-RPC client；`mcp_protocol.parse_evaluate_result` 对 MCP 返回的 JSON 字符串二次解析；`dev_gate_contract.TRANSIENT_MUX_ERROR_TOKENS` 经 `chrome_mcp_errors` 分类；`evaluate` 用 `mux_load` 自适应 tool timeout；`call_tool` 对 transient/timeout 有限重试 + mux transport recover；公开 `recover_mux_transport()` 供 E2E orchestrator 在 page-open 重试间调用；`mcp_chat_ui.evaluate` 对 `TimeoutError` 有限退避重试，**对 `Target closed` 等 transport `RuntimeError` fail-fast（不 replay）**，ownership/context-reset/detached-frame 走单次 reclaim/navigate heal；page client 必须依附 active 父 E2E lease；`reclaim_owned_page`；`is_mux_page_heal_error` |
 | `cdp_chat_{transport,bootstrap,input,submit,turn,support}.py` | Unix | transport-independent chat UI 工作流；MCP 与 client warmup 复用；`cdp_chat_input.ensure_react_e2e_bridge` 拒绝 DOM fallback，computer_use/builtin-tools 须 React bridge |
-| `cdp_chat_support.py` | Unix | E2E API/chat 消息 SSOT；`_e2e_api_urlopen` 对 loopback config/messages 短重试 |
+| `cdp_chat_support.py` | Unix | E2E API/chat 消息 SSOT；`get_e2e_api_url/get_e2e_ui_url` 与 `_e2e_api_urlopen` 强制 loopback HTTP allowlist（127.0.0.1/localhost/::1/0.0.0.0）并对 config/messages 短重试 |
 | `infra_browser_registry.py` | Unix | client warmup 短生命周期 target 归属 ledger；`wave reap` 与 preflight prune 回收死亡 owner 的 exact targetId |
 | `browser_tab_hygiene.py` | Unix | `./myrm doctor --chrome` tab 计数报告（CDP / wave / infra registry） |
 | `cdp_write_guard.py` | Unix | raw `/json/new` 永久拒绝；仅 supervisor `MYRM_CDP_WARMUP=1` 预热例外；active lease 计数经 `wave_state_paths` |

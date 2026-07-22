@@ -1,10 +1,17 @@
 'use client';
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const mockPush = vi.fn();
 const mockCompleteOnboarding = vi.fn(() => Promise.resolve());
+const mockUpdateProvider = vi.fn();
+const mockSetBaseModel = vi.fn();
+const mockSetLiteModel = vi.fn();
+const mockAddProvider = vi.fn();
+const mockDiscoverModelsFromEndpoint = vi.fn();
+const mockCheckModelReachability = vi.fn();
+let mockProviders: Array<Record<string, unknown>> = [];
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), prefetch: vi.fn() }),
@@ -62,13 +69,19 @@ vi.mock('@/components/primitives/button', () => ({
 }));
 
 vi.mock('@/store/useProviderStore', () => ({
-  default: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({
-      providers: [],
-      updateProvider: vi.fn(),
-      setBaseModel: vi.fn(),
-      setLiteModel: vi.fn(),
-    }),
+  default: Object.assign(
+    (selector: (s: Record<string, unknown>) => unknown) =>
+      selector({
+        providers: mockProviders,
+        addProvider: mockAddProvider,
+        updateProvider: mockUpdateProvider,
+        setBaseModel: mockSetBaseModel,
+        setLiteModel: mockSetLiteModel,
+      }),
+    {
+      getState: () => ({ providers: mockProviders }),
+    },
+  ),
 }));
 
 vi.mock('@/store/useConfigStore', () => ({
@@ -77,6 +90,11 @@ vi.mock('@/store/useConfigStore', () => ({
       searchServiceConfigs: [],
       addSearchServiceConfig: vi.fn(),
     }),
+}));
+
+vi.mock('@/services/llm-config', () => ({
+  discoverModelsFromEndpoint: (...args: unknown[]) => mockDiscoverModelsFromEndpoint(...args),
+  checkModelReachability: (...args: unknown[]) => mockCheckModelReachability(...args),
 }));
 
 import LocalCapabilitiesSetup from '../LocalCapabilitiesSetup';
@@ -94,6 +112,17 @@ const WITH_MODEL_PROBE = {
 describe('LocalCapabilitiesSetup – Cloud Quick Start Card', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockProviders = [
+      {
+        id: 'local_openai_compatible',
+        providerType: 'openai-like',
+        apiUrl: 'http://127.0.0.1:8899/v1',
+        isEnabled: false,
+        apiKeys: [],
+        enabledModels: [],
+        availableModels: [],
+      },
+    ];
   });
 
   it('renders cloud card when no provider enabled and no local model available', () => {
@@ -149,5 +178,41 @@ describe('LocalCapabilitiesSetup – Cloud Quick Start Card', () => {
     render(<LocalCapabilitiesSetup probeResult={NO_MODEL_PROBE} onComplete={onComplete} />);
     fireEvent.click(screen.getByText('onboarding.enterWorkspace'));
     expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not activate custom endpoint when reachability check fails', async () => {
+    mockDiscoverModelsFromEndpoint.mockResolvedValue({
+      success: true,
+      normalized_api_url: 'http://127.0.0.1:8899/v1',
+      models_url: 'http://127.0.0.1:8899/v1/models',
+      models: ['qwen3:8b'],
+      no_auth_local: true,
+      error: null,
+    });
+    mockCheckModelReachability.mockResolvedValue({
+      reachable: false,
+      latency_ms: null,
+      error: 'Health check returned no response',
+      cached: false,
+    });
+
+    render(<LocalCapabilitiesSetup probeResult={NO_MODEL_PROBE} onComplete={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText('customApiUrlPlaceholder'), {
+      target: { value: 'http://127.0.0.1:8899/v1' },
+    });
+    fireEvent.click(screen.getByText('customDetectModels'));
+
+    await waitFor(() => {
+      expect(mockDiscoverModelsFromEndpoint).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(await screen.findByText('customUseModel'));
+
+    await waitFor(() => {
+      expect(mockCheckModelReachability).toHaveBeenCalledTimes(1);
+    });
+    expect(mockUpdateProvider).not.toHaveBeenCalled();
+    expect(screen.getByText('Health check returned no response')).toBeInTheDocument();
   });
 });

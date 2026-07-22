@@ -4,6 +4,12 @@
 
 Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common.py) 的 `router`（`/kanban` 前缀）。上级：[../_ARCH.md](../_ARCH.md)。
 
+## 模块依赖
+
+- `app.api.kanban.http_common`：共享 router、DTO 转换与附件解析装配
+- `app.services.kanban`：Task/Board/Bulk/Specify 等业务编排
+- `app.services.kanban.task_attachment_ids`：Task 附件 ID 读写持久化
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |

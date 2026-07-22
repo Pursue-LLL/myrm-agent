@@ -23,6 +23,7 @@ export interface CatalogEntry {
   tags: string[];
   website: string | null;
   mcpConfig: Record<string, unknown> | null;
+  deploymentScope: 'all_modes' | 'local_tauri_only' | null;
   postConnectGuide: string | null;
   postConnectGuideZh: string | null;
 }

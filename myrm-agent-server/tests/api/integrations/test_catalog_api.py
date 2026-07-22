@@ -294,3 +294,24 @@ class TestCatalogDetailEndpoint:
         entries = response.json()["data"]["entries"]
         figma_entries = [e for e in entries if e["id"] == "figma"]
         assert len(figma_entries) == 1
+
+    def test_unreal_entry_has_local_tauri_only_scope(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/unreal-engine")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["deploymentScope"] == "local_tauri_only"
+        assert data["mcpConfig"]["deploymentScope"] == "local_tauri_only"
+
+    def test_blender_entry_has_local_tauri_only_scope(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/blender")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["deploymentScope"] == "local_tauri_only"
+        assert data["mcpConfig"]["deploymentScope"] == "local_tauri_only"
+
+    def test_github_entry_defaults_all_modes_scope(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/github")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["deploymentScope"] == "all_modes"
+        assert data["mcpConfig"]["deploymentScope"] == "all_modes"

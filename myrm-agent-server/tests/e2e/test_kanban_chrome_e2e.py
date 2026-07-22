@@ -293,7 +293,9 @@ def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
 
 
 def _seed_kanban_closure_fixture(api_url: str) -> dict[str, object]:
-    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-kanban-closure-fixture")
+    seeded = http_json(
+        "POST", f"{api_url}/api/v1/chats/test/seed-kanban-closure-fixture"
+    )
     assert isinstance(seeded, dict)
     chat_id = str(seeded.get("chat_id") or "")
     board_id = str(seeded.get("board_id") or "")

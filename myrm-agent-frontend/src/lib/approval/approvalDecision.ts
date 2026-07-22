@@ -6,7 +6,7 @@ export interface ApprovalDecision {
   feedback?: string;
   guidance?: string;
   extensions: {
-    allowAlways: boolean | { tool?: boolean; args?: boolean };
+    allowAlways: boolean | { tool?: boolean; args?: boolean; pattern?: boolean };
     allowDomain?: boolean;
   };
 }
@@ -27,7 +27,7 @@ export interface ToolApprovalResolveExtra {
   edited_args?: Record<string, unknown>;
   feedback?: string;
   guidance?: string;
-  allow_always?: boolean | { tool?: boolean; args?: boolean };
+  allow_always?: boolean | { tool?: boolean; args?: boolean; pattern?: boolean };
   allow_domain?: boolean;
 }
 

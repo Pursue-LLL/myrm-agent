@@ -23,12 +23,6 @@ class RevertSessionRequest(BaseModel):
     session_id: str
 
 
-class RevertFileRequest(BaseModel):
-    session_id: str
-    message_id: str
-    file_path: str
-
-
 class RevertResponse(BaseModel):
     success: bool
     reverted_files: list[str] = Field(default_factory=list)
@@ -184,19 +178,6 @@ async def revert_session(req: RevertSessionRequest) -> RevertResponse:
     result = await RevertService.revert_session(req.session_id)
     if result.reverted_files:
         await cleanup_persisted_snapshots(req.session_id)
-    return RevertResponse(
-        success=len(result.reverted_files) > 0,
-        reverted_files=result.reverted_files,
-        warnings=result.warnings,
-        skipped_files=result.skipped_files,
-    )
-
-
-@router.post("/file")
-async def revert_file(req: RevertFileRequest) -> RevertResponse:
-    """Revert a single file change from a specific message."""
-    await _hydrate_session(req.session_id)
-    result = await RevertService.revert_file(req.session_id, req.message_id, req.file_path)
     return RevertResponse(
         success=len(result.reverted_files) > 0,
         reverted_files=result.reverted_files,

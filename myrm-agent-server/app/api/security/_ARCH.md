@@ -14,7 +14,9 @@ Security Center 与 Agent 工具安全策略的 HTTP 层：供应链仪表盘、
 | `generate.py` | 路由 | `POST /security/generate-policy`：NL → SecurityConfig | ✅ |
 | `profiles.py` | 路由 | `/security/profiles` CRUD、clone、activate | ✅ |
 | `schemas.py` | 模块 | Profile API schema | — |
-| `allowlist.py` | 路由 | `/security/allowlist` 工具 allowlist 查询与删除 | ✅ |
+| `allowlist.py` | 路由 | `/security/allowlist` 工具 allowlist 查询与删除；`command_pattern` 字段与 harness 四层匹配对齐 | ✅ |
+| `allowlist_granularity.py` | 模块 | allowlist REST 粒度映射与 DB 空串归一化 | — |
+| `test_fixtures.py` | 测试 | local-only Chrome E2E seed（`POST/DELETE /security/allowlist/test/*-pattern-fixture`） | ✅ |
 | `vault.py` | 路由 | `POST /security/vault/unlock`：本地主密钥派生 | ✅ |
 | `vault_credentials.py` | 路由 | `/security/vault-credentials` CRUD | ✅ |
 

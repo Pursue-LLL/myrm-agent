@@ -35,6 +35,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_calendar_schema_retired.py` | 磁盘无 calendar ORM/API；`migrations.py` 尾部 DROP calendar_events 表/索引 |
 | `test_migration_source_closure.py` | Wizard 封闭 4 源：probe 导出 ≡ `supported_source_ids()` ≡ loader 注册 |
 | `test_cookbook_specs_asset.py` | `assets/cookbook_specs.json` bundled 结构校验 |
+| `test_prebuilt_skill_bash_contract.py` | 引用 `bash_code_execute_tool` 的 prebuilt `SKILL.md` 必须含 `## Bash execution contract` |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |
 | `test_no_core_services_api_imports.py` | `app/{core,services,lifecycle}/` 禁止 import `app.api` |
 | `test_telegram_channel_mixin_mro.py` | `TelegramChannel._pre_emit_hook` 必须来自 hooks mixin；inbound 不得定义同名方法 |

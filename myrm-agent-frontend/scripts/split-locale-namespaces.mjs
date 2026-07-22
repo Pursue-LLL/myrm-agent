@@ -4,13 +4,13 @@
  * SSOT for translators remains locales/{lang}.json — run before dev/build/test.
  */
 
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
-const languages = ['zh', 'en', 'ja', 'ko', 'de'];
+const languages = ['zh', 'en', 'ja', 'ko', 'de', 'zh-TW'];
 const namespacesRoot = resolve(rootDir, 'locales/namespaces');
 const manifestPath = resolve(namespacesRoot, 'manifest.json');
 
@@ -28,7 +28,10 @@ function namespaceFilename(namespace) {
 }
 
 function splitLocale(lang, canonicalNamespaces, canonicalSettingsSections) {
-  const sourcePath = resolve(rootDir, `locales/${lang}.json`);
+  let sourcePath = resolve(rootDir, `locales/${lang}.json`);
+  if (!existsSync(sourcePath) && lang === 'zh-TW') {
+    sourcePath = resolve(rootDir, 'locales/zh.json');
+  }
   const messages = JSON.parse(readFileSync(sourcePath, 'utf-8'));
   const localeDir = resolve(namespacesRoot, lang);
 

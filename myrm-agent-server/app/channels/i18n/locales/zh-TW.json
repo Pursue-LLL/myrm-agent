@@ -1,0 +1,115 @@
+{
+  "connection_user_message": "無法連線到 LLM 端點",
+  "connection_resolution_steps": [
+    "檢查端點服務是否執行（例如 Ollama: ollama serve）",
+    "驗證 LLMConfig 中的 base_url 配置",
+    "檢查網路連線",
+    "檢查防火牆設定"
+  ],
+  "custom_endpoint_unreachable_user_message": "無法連線到 {service_name} ({base_url_display})",
+  "custom_endpoint_unreachable_resolution_steps": [
+    "確認 {service_name} 服務正在執行",
+    "在瀏覽器中測試: {base_url_display}/v1/models",
+    "檢查埠 {port} 是否被佔用",
+    "驗證 base_url 配置: {base_url_display}"
+  ],
+  "billing_user_message": "您的 API 賬戶餘額不足",
+  "billing_resolution_steps": [
+    "前往 LLM 提供商控制檯充值",
+    "新增備用 API Key（設定 > 模型 > 多Key輪轉）",
+    "切換到其他 LLM 提供商"
+  ],
+  "api_key_user_message": "API 金鑰認證失敗",
+  "api_key_resolution_steps": [
+    "檢查 MYRM_API_KEY 環境變數",
+    "驗證 API 金鑰是否有效且未過期",
+    "檢查 API 金鑰是否具有正確的許可權",
+    "對於 Ollama/LM Studio: 使用 'dummy' 或空字串作為 api_key"
+  ],
+  "model_user_message": "模型 '{model_name}' 未找到",
+  "model_resolution_steps": [
+    "安裝該模型（例如 Ollama: ollama pull {model_name}）",
+    "檢查 LLMConfig 中的模型名稱是否正確",
+    "列出可用模型並驗證",
+    "對於 OpenAI: 檢查模型名稱拼寫"
+  ],
+  "custom_model_not_found_user_message": "在 {service_name} 上未找到模型 '{model_name}'",
+  "custom_model_not_found_resolution_steps": [
+    "確認 '{model_name}' 已下載到 {service_name}",
+    "執行 'ollama list' 或檢查 LM Studio 模型列表",
+    "檢查模型名稱拼寫（區分大小寫）",
+    "如果未安裝，請下載該模型"
+  ],
+  "rate_limit_user_message": "API 速率限制超出",
+  "rate_limit_resolution_steps": [
+    "等待 60 秒後重試",
+    "升級 API 計劃以獲得更高的速率限制",
+    "檢查是否有其他程序正在使用相同的 API 金鑰",
+    "使用 fallback_llm 自動處理速率限制"
+  ],
+  "response_format_error_user_message": "模型輸出驗證失敗，正在自動切換至更強模型",
+  "response_format_error_resolution_steps": [
+    "系統已自動切換到 fallback 模型",
+    "如果問題持續，考慮升級主模型",
+    "檢查弱模型配置，確保 JSON 模式正確",
+    "驗證工具呼叫引數 schema 是否正確"
+  ],
+  "context_overflow_user_message": "上下文長度超出模型限制",
+  "context_overflow_resolution_steps": [
+    "在 AgentConfig 中啟用壓縮（context_management_strategy）",
+    "開始新的對話會話",
+    "使用具有更大上下文視窗的模型",
+    "減少對話歷史長度"
+  ],
+  "timeout_user_message": "LLM 請求超時",
+  "timeout_resolution_steps": [
+    "在 AgentConfig 中增加 timeout_seconds",
+    "檢查網路延遲",
+    "使用更快的模型或端點",
+    "啟用流式模式以獲得更好的響應性"
+  ],
+  "unknown_user_message": "LLM 錯誤: {error_message}",
+  "unknown_resolution_steps": [
+    "查閱 LiteLLM 文件以瞭解此錯誤",
+    "驗證 LLMConfig 設定（model, api_key, base_url）",
+    "啟用除錯日誌以獲取詳細的錯誤跟蹤"
+  ],
+  "thinking_budget_exhausted_user_message": "模型將所有輸出 token 用於推理，未產生實際回覆",
+  "thinking_budget_exhausted_resolution_steps": [
+    "切換到輸出容量更大的模型",
+    "簡化問題以減少推理深度",
+    "將複雜問題拆分為多個子問題"
+  ],
+  "tool_call_truncated_user_message": "工具引數可能因輸出長度限制而不完整",
+  "tool_call_truncated_resolution_steps": [
+    "對大檔案使用分塊寫入，而非一次性寫入",
+    "將任務拆分為更小的步驟",
+    "檢查輸出檔案的完整性"
+  ],
+  "text_continuation_user_message": "回覆被截斷——正在自動續寫",
+  "text_continuation_resolution_steps": [],
+  "text_continuation_exhausted_user_message": "經過 3 次續寫仍未完成回覆",
+  "text_continuation_exhausted_resolution_steps": [
+    "增大模型配置中的 max_tokens",
+    "要求模型更簡潔地回答",
+    "將問題拆分為更小的部分"
+  ],
+  "thinking_signature_user_message": "思維鏈簽名已失效——正在自動重試",
+  "thinking_signature_resolution_steps": [],
+  "image_too_large_user_message": "圖片超出服務商大小限制——正在自動壓縮並重試",
+  "image_too_large_resolution_steps": [],
+  "long_context_tier_user_message": "對話超出訂閱上下文層級限制——正在自動壓縮",
+  "long_context_tier_resolution_steps": [
+    "升級 API 訂閱以獲取更大上下文訪問許可權",
+    "開始新對話以減少上下文長度"
+  ],
+  "provider_policy_blocked_user_message": "請求被服務商資料/隱私策略阻止",
+  "provider_policy_blocked_resolution_steps": [
+    "前往服務商控制檯調整隱私設定（如 OpenRouter 設定 > 隱私）",
+    "嘗試使用其他模型或服務商"
+  ],
+  "cooldown_hint_single": " 請等待{seconds}秒後重試。",
+  "cooldown_hint_plural": " 請等待{seconds}秒後重試。",
+  "stuck_task_timeout_user_message": "⏱ 任務在 {elapsed} 秒後無響應，已自動取消。請重新傳送訊息重試。",
+  "risk_outbound_blocked": "⚠️ 該回復觸發了內容安全策略，已被攔截。請聯絡管理員或換個方式提問。"
+}

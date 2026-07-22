@@ -429,7 +429,8 @@
         "connect": "Connect",
         "cancel": "Cancel",
         "probing": "Checking connectivity...",
-        "probeUnreachable": "Service not running or port not open — please ensure the editor MCP server is started"
+        "probeUnreachable": "Service not running or port not open — please ensure the editor MCP server is started",
+        "probeCloudLoopbackBlocked": "This integration runs on your local machine. In cloud mode, switch to Local WebUI or Tauri desktop and reconnect."
       }
     },
     "integrationMemory": {
@@ -855,6 +856,7 @@
         "empty": "No allowlist records",
         "toolName": "Tool Name",
         "argsHash": "Args Hash",
+        "commandPattern": "Command Pattern",
         "deleteSuccess": "Record deleted",
         "deleteError": "Delete failed",
         "clearSuccess": "Cleared {count} records",
@@ -863,7 +865,8 @@
         "granularity": {
           "permission": "Permission",
           "tool": "Tool",
-          "exact": "Exact"
+          "exact": "Exact",
+          "pattern": "Similar Commands"
         },
         "permissions": {
           "codeInterpreter": "Code Execution",
@@ -2853,8 +2856,12 @@
     "language": "Language",
     "languageChannelSyncDesc": "Applies to the web interface and IM channel commands (/help, /goal, /status, etc.).",
     "languageOptions": {
+      "chinese": "中文",
+      "chineseTraditional": "繁體中文",
       "english": "English",
-      "chinese": "Chinese"
+      "japanese": "日本語",
+      "korean": "한국어",
+      "german": "Deutsch"
     },
     "theme": "Choose your favorite theme",
     "themeOptions": {
@@ -6281,7 +6288,24 @@
       "chipLabel": "Enable search",
       "searchEnabled": "{service} search enabled",
       "searchEnableFailed": "Failed to enable search",
-      "modelActivateFailed": "Failed to activate local model"
+      "modelActivateFailed": "Failed to activate local model",
+      "customEndpointTitle": "OpenAI-compatible local endpoint",
+      "customEndpointDescription": "Paste your local endpoint to auto-detect models and finish setup in one step.",
+      "customApiUrlLabel": "API URL",
+      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
+      "customApiKeyLabel": "API Key (optional for localhost)",
+      "customApiKeyPlaceholder": "sk-...",
+      "customNoAuthHint": "Localhost endpoints can leave API key empty; cloud or remote endpoints still require a key.",
+      "customNoAuthDetected": "Local no-auth mode detected. This endpoint will be used without storing an API key.",
+      "customDetectModels": "Detect Models",
+      "customUseModel": "Use {model}",
+      "customErrorApiUrlRequired": "Please enter API URL",
+      "customErrorDetectFailed": "Failed to detect models from this endpoint",
+      "customErrorNoModels": "Endpoint is reachable but returned no models",
+      "customErrorProbeFailed": "Failed to probe endpoint",
+      "customErrorDetectFirst": "Please detect models first",
+      "customErrorReachabilityFailed": "Endpoint connected but model health check failed",
+      "customDetectSuccess": "Detected {count} model(s)"
     },
     "migrationDiscovery": {
       "detecting": "Scanning for AI assistant data...",
@@ -10897,11 +10921,15 @@
       "risk3": "Only use this feature for operations you fully trust",
       "confirm": "I understand the risks, proceed",
       "scopeLabel": "Match Scope",
-      "scopeTool": "This Tool Only (Recommended)",
-      "scopeExact": "Tool + Exact Args (Safest)",
+      "scopeTool": "This Tool Only (Broad)",
+      "scopeExact": "Exact Command (Recommended)",
+      "scopePattern": "Similar Commands",
       "scopePermission": "All Tools of This Type (Not Recommended)",
-      "scopeToolDesc": "Only auto-allow {toolName} tool",
+      "scopeToolDesc": "Auto-allow all future calls to {toolName}",
       "scopeExactDesc": "Only auto-allow when tool and arguments match exactly",
+      "scopePatternDesc": "Auto-allow future commands that start the same way",
+      "scopePatternPreview": "Will remember similar commands like: {pattern}",
+      "scopePatternUnavailable": "Pattern matching is not available for chained commands.",
       "scopePermissionDesc": "Auto-allow all {permissionType} type tools"
     },
     "spanRiskReasons": {
@@ -11292,12 +11320,14 @@
     "revertConfirmAction": "Confirm revert",
     "revertMessageSuccess": "File changes reverted",
     "revertMessageEmpty": "No file changes for this message",
+    "revertMessageFetchError": "Could not load file changes. Try again.",
     "revertViewDiff": "View diff",
     "revertSession": "Undo all file changes",
     "revertSessionConfirm": "Undo all AI file changes in this session?",
     "revertSessionDesc": "{count} file(s) will be restored to their original state.",
     "revertSessionSuccess": "All file changes reverted",
     "revertSessionEmpty": "No file changes in this session",
+    "revertSessionFetchError": "Could not load file changes. Try again.",
     "cancel": "Cancel"
   },
   "errors": {

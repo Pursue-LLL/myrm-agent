@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import asyncio
 
-from cdp_chat_support import fetch_provider_readiness_snapshot, get_e2e_api_url
+from cdp_chat_support import (
+    fetch_provider_readiness_snapshot,
+    get_e2e_api_url,
+)
 from mcp_chat_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import (
@@ -214,7 +217,7 @@ async def _ensure_nudge_chat_surface(
                 timeout_ms=120_000,
             )
             await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
-    await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
+    await chat.ensure_chat_surface(BASE_URL, timeout_sec=45.0)
 
 
 async def _send_interact_nudge(
@@ -237,11 +240,21 @@ async def _send_interact_nudge(
     else:
         nudge_prompt = E2E_NUDGE_PROMPT
     normalized_chat_id = chat_id.strip()
-    await chat.send_message(
+    await _abort_stuck_ui_stream(chat)
+    await chat.evaluate(
+        """(() => {
+          window.__MYRM_E2E_CHAT__?.prepareAutomationSend?.();
+          window.__MYRM_E2E_CHAT__?.clearStreamRequestMessageId?.();
+          return { ok: true };
+        })()""",
+        await_promise=False,
+    )
+    send_result = await chat.send_message(
         nudge_prompt,
         nudge_prompt,
         chat_id_hint=normalized_chat_id or None,
     )
+    progress(f"nudge send: {send_result.get('submit', send_result)}")
 
 
 async def _agent_stream_active(

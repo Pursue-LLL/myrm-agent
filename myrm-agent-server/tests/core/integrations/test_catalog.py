@@ -15,6 +15,7 @@ from app.core.integrations.catalog.models import (
     AuthType,
     CatalogEntry,
     ConnectorType,
+    DeploymentScope,
     MCPPreConfig,
     OpenAPIPreConfig,
 )
@@ -55,6 +56,7 @@ class TestCatalogModels:
         assert config.host_serial is False
         assert config.keepalive_interval is None
         assert config.probe_url is None
+        assert config.deployment_scope is None
         assert config.post_connect_guide is None
         assert config.post_connect_guide_zh is None
 
@@ -67,14 +69,35 @@ class TestCatalogModels:
             host_serial=True,
             keepalive_interval=30.0,
             probe_url="http://127.0.0.1:8000/mcp",
+            deployment_scope=DeploymentScope.LOCAL_TAURI_ONLY,
             post_connect_guide="Enable the plugin",
             post_connect_guide_zh="启用插件",
         )
         assert config.host_serial is True
         assert config.keepalive_interval == 30.0
         assert config.probe_url == "http://127.0.0.1:8000/mcp"
+        assert config.deployment_scope == DeploymentScope.LOCAL_TAURI_ONLY
         assert config.post_connect_guide == "Enable the plugin"
         assert config.post_connect_guide_zh == "启用插件"
+
+    def test_mcp_preconfig_rejects_local_tauri_only_without_target_url(self) -> None:
+        with pytest.raises(ValueError, match="requires probe_url or url"):
+            MCPPreConfig(
+                name="ue",
+                type="streamable_http",
+                description="UE MCP",
+                deployment_scope=DeploymentScope.LOCAL_TAURI_ONLY,
+            )
+
+    def test_mcp_preconfig_rejects_non_loopback_local_tauri_only(self) -> None:
+        with pytest.raises(ValueError, match="requires a loopback probe/url"):
+            MCPPreConfig(
+                name="ue",
+                type="streamable_http",
+                probe_url="https://example.com/mcp",
+                description="UE MCP",
+                deployment_scope=DeploymentScope.LOCAL_TAURI_ONLY,
+            )
 
     def test_mcp_preconfig_camel_serialization(self) -> None:
         config = MCPPreConfig(
@@ -84,12 +107,14 @@ class TestCatalogModels:
             host_serial=True,
             keepalive_interval=30.0,
             probe_url="http://127.0.0.1:9876/sse",
+            deployment_scope=DeploymentScope.LOCAL_TAURI_ONLY,
             post_connect_guide="Start MCP server",
         )
         dumped = config.model_dump(by_alias=True, exclude_none=True)
         assert "hostSerial" in dumped
         assert "keepaliveInterval" in dumped
         assert "probeUrl" in dumped
+        assert "deploymentScope" in dumped
         assert "postConnectGuide" in dumped
         assert dumped["hostSerial"] is True
 
@@ -174,6 +199,24 @@ class TestCatalogRegistry:
         assert entry.mcp_config is not None
         assert entry.mcp_config.type == "stdio"
 
+    def test_unreal_entry_has_explicit_local_tauri_only_scope(self, registry: CatalogRegistry) -> None:
+        entry = registry.get_by_id("unreal-engine")
+        assert entry is not None
+        assert entry.mcp_config is not None
+        assert entry.mcp_config.deployment_scope == DeploymentScope.LOCAL_TAURI_ONLY
+
+    def test_blender_entry_has_explicit_local_tauri_only_scope(self, registry: CatalogRegistry) -> None:
+        entry = registry.get_by_id("blender")
+        assert entry is not None
+        assert entry.mcp_config is not None
+        assert entry.mcp_config.deployment_scope == DeploymentScope.LOCAL_TAURI_ONLY
+
+    def test_github_entry_has_explicit_all_modes_scope(self, registry: CatalogRegistry) -> None:
+        entry = registry.get_by_id("github")
+        assert entry is not None
+        assert entry.mcp_config is not None
+        assert entry.mcp_config.deployment_scope == DeploymentScope.ALL_MODES
+
     def test_get_by_id_not_found(self, registry: CatalogRegistry) -> None:
         assert registry.get_by_id("nonexistent") is None
 
@@ -230,6 +273,10 @@ class TestCatalogRegistry:
                 assert entry.mcp_config is not None
                 assert entry.mcp_config.name
                 assert entry.mcp_config.type in ("sse", "stdio", "streamable_http")
+                assert entry.mcp_config.deployment_scope in (
+                    DeploymentScope.ALL_MODES,
+                    DeploymentScope.LOCAL_TAURI_ONLY,
+                )
 
     def test_auth_env_keys_for_api_key(self, registry: CatalogRegistry) -> None:
         """API_KEY entries must have env_key or credential_fields for credential injection."""

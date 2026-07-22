@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import SnapshotStore
 
 from tests.support.minimal_app import build_minimal_app
@@ -149,35 +148,6 @@ class TestRevertSeedIntegration:
         assert file_path_b.read_text(encoding="utf-8") == "file b before\n"
 
         assert client.get(f"/api/v1/files/revert/changes/{chat_id}").json() == {}
-
-    def test_revert_single_file_only(self, client: TestClient) -> None:
-        agent_id = f"agent_{uuid.uuid4().hex[:8]}"
-        asyncio.run(_seed_visible_agent(agent_id, display_name="Revert File Agent"))
-
-        seed_body = _seed(client, variant="session")
-        chat_id = str(seed_body["chat_id"])
-        message_ids = seed_body["message_ids"]
-        assert isinstance(message_ids, list)
-        message_id_b = str(message_ids[1])
-        file_path = Path(str(seed_body["file_path"]))
-        file_path_b = Path(str(seed_body["file_path_b"]))
-
-        revert_resp = client.post(
-            "/api/v1/files/revert/file",
-            json={
-                "session_id": chat_id,
-                "message_id": message_id_b,
-                "file_path": str(file_path_b),
-            },
-        )
-        assert revert_resp.status_code == 200
-        body = revert_resp.json()
-        assert body["success"] is True
-        assert file_path_b.read_text(encoding="utf-8") == "file b before\n"
-        assert file_path.read_text(encoding="utf-8") == "revert fixture after\n"
-
-        remaining = client.get(f"/api/v1/files/revert/changes/{chat_id}")
-        assert len(remaining.json()) == 2
 
     def test_hydrate_finds_snapshots_at_harness_workspace_root(
         self, client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

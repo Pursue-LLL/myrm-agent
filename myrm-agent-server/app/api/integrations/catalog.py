@@ -14,6 +14,7 @@ from pydantic.alias_generators import to_camel
 from pydantic.config import ConfigDict
 
 from app.core.integrations.catalog import CatalogEntry, CatalogRegistry
+from app.core.integrations.catalog.models import DeploymentScope
 from app.core.utils.response_utils import success_response
 from app.database.standard_responses import StandardSuccessResponse
 
@@ -44,6 +45,7 @@ class CatalogEntryResponse(BaseModel):
     tags: list[str] = Field(default_factory=list)
     website: str | None = None
     mcp_config: dict[str, object] | None = None
+    deployment_scope: DeploymentScope | None = None
     post_connect_guide: str | None = None
     post_connect_guide_zh: str | None = None
 
@@ -58,12 +60,22 @@ class CatalogListResponse(BaseModel):
     total: int
 
 
+def _resolve_deployment_scope(entry: CatalogEntry) -> DeploymentScope | None:
+    mcp_cfg = entry.mcp_config
+    if mcp_cfg is None:
+        return None
+    return mcp_cfg.deployment_scope
+
+
 def _entry_to_response(entry: CatalogEntry) -> CatalogEntryResponse:
     """Convert a CatalogEntry to its API response form."""
 
     mcp_config_dict: dict[str, object] | None = None
     if entry.mcp_config:
         mcp_config_dict = entry.mcp_config.model_dump(exclude_none=True)
+    deployment_scope = _resolve_deployment_scope(entry)
+    if mcp_config_dict is not None and deployment_scope is not None:
+        mcp_config_dict["deploymentScope"] = deployment_scope.value
 
     post_guide: str | None = None
     post_guide_zh: str | None = None
@@ -89,6 +101,7 @@ def _entry_to_response(entry: CatalogEntry) -> CatalogEntryResponse:
         tags=entry.tags,
         website=entry.website,
         mcp_config=mcp_config_dict,
+        deployment_scope=deployment_scope,
         post_connect_guide=post_guide,
         post_connect_guide_zh=post_guide_zh,
     )

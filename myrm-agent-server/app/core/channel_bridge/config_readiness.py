@@ -20,6 +20,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.config import ConfigReadinessResult
+
 from app.core.channel_bridge.model_resolver import _extract_all_active_keys
 
 if TYPE_CHECKING:

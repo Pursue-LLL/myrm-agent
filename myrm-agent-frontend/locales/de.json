@@ -429,6 +429,7 @@
         "empty": "No allowlist records",
         "toolName": "Tool Name",
         "argsHash": "Args Hash",
+        "commandPattern": "Befehlsmuster",
         "deleteSuccess": "Record deleted",
         "deleteError": "Delete failed",
         "clearSuccess": "Cleared {count} records",
@@ -437,7 +438,8 @@
         "granularity": {
           "permission": "Permission",
           "tool": "Tool",
-          "exact": "Exact"
+          "exact": "Exact",
+          "pattern": "Ähnliche Befehle"
         },
         "permissions": {
           "codeInterpreter": "Code Execution",
@@ -2271,8 +2273,12 @@
     },
     "language": "Language",
     "languageOptions": {
+      "chinese": "中文",
+      "chineseTraditional": "繁體中文",
       "english": "English",
-      "chinese": "Chinese"
+      "japanese": "日本語",
+      "korean": "한국어",
+      "german": "Deutsch"
     },
     "theme": "Choose your favorite theme",
     "themeOptions": {
@@ -3059,7 +3065,8 @@
         "connect": "Connect",
         "cancel": "Cancel",
         "probing": "Checking connectivity...",
-        "probeUnreachable": "Service not running or port not open — please ensure the editor MCP server is started"
+        "probeUnreachable": "Service not running or port not open — please ensure the editor MCP server is started",
+        "probeCloudLoopbackBlocked": "Diese Integration läuft über einen Editor-Dienst auf deinem lokalen Rechner. Im Cloud-Modus ist sie nicht verfügbar. Wechsle zu Local WebUI oder Tauri Desktop und verbinde erneut."
       }
     },
     "integrationMemory": {
@@ -5198,7 +5205,24 @@
       "chipLabel": "Enable search",
       "searchEnabled": "{service} search enabled",
       "searchEnableFailed": "Failed to enable search",
-      "modelActivateFailed": "Failed to activate local model"
+      "modelActivateFailed": "Failed to activate local model",
+      "customEndpointTitle": "OpenAI-compatible local endpoint",
+      "customEndpointDescription": "Paste your local endpoint to auto-detect models and finish setup in one step.",
+      "customApiUrlLabel": "API URL",
+      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
+      "customApiKeyLabel": "API Key (optional for localhost)",
+      "customApiKeyPlaceholder": "sk-...",
+      "customNoAuthHint": "Localhost endpoints can leave API key empty; cloud or remote endpoints still require a key.",
+      "customNoAuthDetected": "Local no-auth mode detected. This endpoint will be used without storing an API key.",
+      "customDetectModels": "Detect Models",
+      "customUseModel": "Use {model}",
+      "customErrorApiUrlRequired": "Please enter API URL",
+      "customErrorDetectFailed": "Failed to detect models from this endpoint",
+      "customErrorNoModels": "Endpoint is reachable but returned no models",
+      "customErrorProbeFailed": "Failed to probe endpoint",
+      "customErrorDetectFirst": "Please detect models first",
+      "customErrorReachabilityFailed": "Endpoint connected but model health check failed",
+      "customDetectSuccess": "Detected {count} model(s)"
     },
     "migrationDiscovery": {
       "detecting": "Scanning for AI assistant data...",
@@ -7897,6 +7921,7 @@
     "triggerFail": "Trigger failed",
     "pauseSuccess": "Task \"{name}\" paused",
     "resumeSuccess": "Task \"{name}\" resumed",
+    "resumeBlocked": "Wiederaufnahme nicht möglich (abgelaufen oder Limit erreicht)",
     "deleteSuccess": "Task \"{name}\" deleted",
     "actionFail": "Aktion fehlgeschlagen",
     "duplicate": "Duplizieren",
@@ -9643,11 +9668,15 @@
       "risk3": "Only use this feature for operations you fully trust",
       "confirm": "I understand the risks, proceed",
       "scopeLabel": "Match Scope",
-      "scopeTool": "This Tool Only (Recommended)",
-      "scopeExact": "Tool + Exact Args (Safest)",
+      "scopeTool": "Nur dieses Tool (breit)",
+      "scopeExact": "Exakter Befehl (empfohlen)",
+      "scopePattern": "Ähnliche Befehle",
       "scopePermission": "All Tools of This Type (Not Recommended)",
-      "scopeToolDesc": "Only auto-allow {toolName} tool",
+      "scopeToolDesc": "Alle künftigen Aufrufe von {toolName} automatisch erlauben",
       "scopeExactDesc": "Only auto-allow when tool and arguments match exactly",
+      "scopePatternDesc": "Folgebefehle mit gleichem Anfang automatisch erlauben",
+      "scopePatternPreview": "Merkt ähnliche Befehle wie: {pattern}",
+      "scopePatternUnavailable": "Kettenbefehle unterstützen keine Musterübereinstimmung.",
       "scopePermissionDesc": "Auto-allow all {permissionType} type tools"
     },
     "permissionTypes": {
@@ -10064,11 +10093,13 @@
     "revertConfirmAction": "Rückgängig bestätigen",
     "revertMessageSuccess": "Dateiänderungen für diese Nachricht rückgängig gemacht",
     "revertMessageEmpty": "Keine Dateiänderungen für diese Nachricht",
+    "revertMessageFetchError": "Dateiänderungen konnten nicht geladen werden. Bitte erneut versuchen.",
     "revertSession": "Alle Dateiänderungen rückgängig machen",
     "revertSessionConfirm": "Alle KI-Dateiänderungen in dieser Sitzung rückgängig machen?",
     "revertSessionDesc": "{count} Datei(en) werden in den ursprünglichen Zustand zurückversetzt.",
     "revertSessionSuccess": "Alle Dateiänderungen wurden rückgängig gemacht",
     "revertSessionEmpty": "Keine Dateiänderungen in dieser Sitzung",
+    "revertSessionFetchError": "Dateiänderungen konnten nicht geladen werden. Bitte erneut versuchen.",
     "cancel": "Abbrechen"
   },
   "checkpoint": {

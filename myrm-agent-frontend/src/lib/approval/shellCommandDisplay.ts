@@ -173,3 +173,75 @@ export function zipSpansWithRisks(
   }));
   return [...indexed].sort((a, b) => a.span.startIndex - b.span.startIndex);
 }
+
+const COMPOUND_OPERATOR_RE = /(?:&&|\|\||\|\s|\|\s*$|;(?!\s*$))/;
+
+export function isCompoundShellCommand(command: string): boolean {
+  const stripped = command.trim();
+  if (!stripped) {
+    return false;
+  }
+  return COMPOUND_OPERATOR_RE.test(stripped);
+}
+
+/** POSIX-like tokenization for allow-always pattern preview (mirrors harness shlex.split). */
+function shlexSplitPosix(command: string): string[] | null {
+  const tokens: string[] = [];
+  let current = '';
+  let inSingle = false;
+  let inDouble = false;
+  let escape = false;
+
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (escape) {
+      current += char;
+      escape = false;
+      continue;
+    }
+    if (!inSingle && !inDouble && char === '\\') {
+      escape = true;
+      continue;
+    }
+    if (!inDouble && char === "'") {
+      inSingle = !inSingle;
+      continue;
+    }
+    if (!inSingle && char === '"') {
+      inDouble = !inDouble;
+      continue;
+    }
+    if (!inSingle && !inDouble && /\s/.test(char)) {
+      if (current.length > 0) {
+        tokens.push(current);
+        current = '';
+      }
+      continue;
+    }
+    current += char;
+  }
+
+  if (escape || inSingle || inDouble) {
+    return null;
+  }
+  if (current.length > 0) {
+    tokens.push(current);
+  }
+  return tokens;
+}
+
+/** Derive a conservative glob pattern for allow-always pattern scope preview. */
+export function deriveCommandPattern(command: string): string | null {
+  const normalized = command.trim();
+  if (!normalized || isCompoundShellCommand(normalized)) {
+    return null;
+  }
+  const tokens = shlexSplitPosix(normalized);
+  if (!tokens || tokens.length === 0) {
+    return null;
+  }
+  if (tokens.length >= 2) {
+    return `${tokens[0]} ${tokens[1]} *`;
+  }
+  return `${tokens[0]} *`;
+}

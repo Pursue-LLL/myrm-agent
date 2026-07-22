@@ -16,7 +16,9 @@ def client() -> TestClient:
 class TestChatsKanbanClosureSeedFixture:
     """HTTP tests for local-only Kanban Chat↔Board closure Chrome E2E seed (no LLM)."""
 
-    def test_seed_kanban_closure_fixture_http_endpoint(self, client: TestClient) -> None:
+    def test_seed_kanban_closure_fixture_http_endpoint(
+        self, client: TestClient
+    ) -> None:
         fake_agent = MagicMock()
         fake_agent.id = "agent-e2e-kanban"
         fake_board = MagicMock()
@@ -39,7 +41,9 @@ class TestChatsKanbanClosureSeedFixture:
                 "app.api.chats.test_fixtures.ChatService.append_message",
                 new_callable=AsyncMock,
             ) as append_message,
-            patch("app.api.chats.test_fixtures.KanbanService.get_instance") as get_kanban,
+            patch(
+                "app.api.chats.test_fixtures.KanbanService.get_instance"
+            ) as get_kanban,
         ):
             kanban = MagicMock()
             kanban.create_board = AsyncMock(return_value=fake_board)
@@ -70,7 +74,9 @@ class TestChatsKanbanClosureSeedFixture:
             }
         ]
 
-    def test_seed_kanban_closure_fixture_hidden_outside_local_mode(self, client: TestClient) -> None:
+    def test_seed_kanban_closure_fixture_hidden_outside_local_mode(
+        self, client: TestClient
+    ) -> None:
         with patch("app.api.chats.test_fixtures.is_local_mode", return_value=False):
             resp = client.post("/api/v1/chats/test/seed-kanban-closure-fixture")
         assert resp.status_code == 404

@@ -47,6 +47,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   const [diffs, setDiffs] = useState<FileDiffItem[] | null>(null);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [triggerLoading, setTriggerLoading] = useState(false);
 
   const fetchChanges = useCallback(async (): Promise<FileChange[] | 'error'> => {
     try {
@@ -92,19 +93,25 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   }, []);
 
   const handleTriggerClick = useCallback(async () => {
-    const [fileChanges, fileDiffs] = await Promise.all([fetchChanges(), fetchDiffs()]);
-    if (fileChanges === 'error') {
-      toast({ description: t('revertMessageEmpty'), variant: 'destructive' });
-      return;
+    if (triggerLoading) return;
+    setTriggerLoading(true);
+    try {
+      const [fileChanges, fileDiffs] = await Promise.all([fetchChanges(), fetchDiffs()]);
+      if (fileChanges === 'error') {
+        toast({ title: t('revertMessageFetchError'), variant: 'destructive' });
+        return;
+      }
+      if (fileChanges.length === 0) {
+        toast({ title: t('revertMessageEmpty'), variant: 'default' });
+        return;
+      }
+      setChanges(fileChanges);
+      setDiffs(fileDiffs);
+      setPopoverOpen(true);
+    } finally {
+      setTriggerLoading(false);
     }
-    if (fileChanges.length === 0) {
-      toast({ description: t('revertMessageEmpty'), variant: 'default' });
-      return;
-    }
-    setChanges(fileChanges);
-    setDiffs(fileDiffs);
-    setPopoverOpen(true);
-  }, [fetchChanges, fetchDiffs, t]);
+  }, [fetchChanges, fetchDiffs, t, triggerLoading]);
 
   const handleConfirmRevert = useCallback(async () => {
     setStatus('loading');
@@ -122,7 +129,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
         if (data.success) {
           setStatus('success');
           window.dispatchEvent(new CustomEvent('app_resync_required'));
-          toast({ description: t('revertMessageSuccess'), variant: 'default' });
+          toast({ title: t('revertMessageSuccess'), variant: 'default' });
         } else {
           setStatus('error');
         }
@@ -155,6 +162,9 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
     <Popover
       open={popoverOpen}
       onOpenChange={(open) => {
+        if (open && !changes) {
+          return;
+        }
         setPopoverOpen(open);
         if (!open) {
           setChanges(null);
@@ -166,17 +176,21 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
       <PopoverTrigger asChild>
         <button
           type="button"
-          onClick={handleTriggerClick}
-          disabled={status === 'loading'}
+          onClick={(event) => {
+            event.preventDefault();
+            void handleTriggerClick();
+          }}
+          disabled={status === 'loading' || triggerLoading}
           title={t('revertFiles')}
           className={cn(
             'p-2 rounded-xl transition duration-200',
             popoverOpen
               ? 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 hover:bg-orange-200 dark:hover:bg-orange-900/50'
               : 'text-black/70 dark:text-white/70 hover:bg-secondary dark:hover:bg-secondary hover:text-black dark:hover:text-white',
+            triggerLoading && 'opacity-60 cursor-wait',
           )}
         >
-          <Undo2 size={18} />
+          <Undo2 size={18} className={triggerLoading ? 'animate-spin' : undefined} />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -239,9 +253,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
               {t('revertConfirmAction')}
             </Button>
           </div>
-        ) : (
-          <p className="p-3 text-sm">{t('revertFiles')}</p>
-        )}
+        ) : null}
       </PopoverContent>
     </Popover>
   );

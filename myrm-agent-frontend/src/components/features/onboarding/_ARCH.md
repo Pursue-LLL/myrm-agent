@@ -13,7 +13,7 @@
 | 文件 | 职责 |
 |------|------|
 | `OnboardingWizard.tsx` | 步骤编排与完成回调 |
-| `LocalCapabilitiesSetup.tsx` | 本地 Ollama/LM Studio 探测、**OpenAI-compatible Paste-URL 一步接入**（服务端 discover-models 探测 + 原子写入 provider/default model）、SearXNG、**HardwareCookbook**（无 provider 时展示硬件推荐）、**云端快速开始卡片**（无本地模型时展示云端 Provider 引导） |
+| `LocalCapabilitiesSetup.tsx` | 本地 Ollama/LM Studio 探测、**OpenAI-compatible Paste-URL 一步接入**（服务端 discover-models 探测 + 激活前 reachability 1-token 校验 + 原子写入 provider/default model）、SearXNG、**HardwareCookbook**（无 provider 时展示硬件推荐）、**云端快速开始卡片**（无本地模型时展示云端 Provider 引导） |
 | `SmartRoutingStep.tsx` | Smart Routing 引导步骤：自动检测已配置模型并分类为 lite/standard/reasoning 三档，展示预估节省比例，一键启用或跳过 |
 
 ## 依赖

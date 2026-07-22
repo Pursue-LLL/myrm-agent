@@ -429,7 +429,8 @@
         "connect": "连接",
         "cancel": "取消",
         "probing": "正在检测连接...",
-        "probeUnreachable": "服务未启动或端口未开放，请检查编辑器是否已启动 MCP 服务器"
+        "probeUnreachable": "服务未启动或端口未开放，请检查编辑器是否已启动 MCP 服务器",
+        "probeCloudLoopbackBlocked": "该集成依赖你本机的编辑器服务。当前为云端模式，请切换到本地 WebUI 或 Tauri 桌面端后再连接。"
       }
     },
     "integrationMemory": {
@@ -855,6 +856,7 @@
         "empty": "暂无允许记录",
         "toolName": "工具名称",
         "argsHash": "参数指纹",
+        "commandPattern": "命令模式",
         "deleteSuccess": "已删除记录",
         "deleteError": "删除失败",
         "clearSuccess": "已清除 {count} 条记录",
@@ -863,7 +865,8 @@
         "granularity": {
           "permission": "权限级",
           "tool": "工具级",
-          "exact": "精确级"
+          "exact": "精确级",
+          "pattern": "相似命令"
         },
         "permissions": {
           "codeInterpreter": "代码执行",
@@ -2853,8 +2856,12 @@
     "language": "语言",
     "languageChannelSyncDesc": "同步应用于 Web 界面与 IM 渠道命令（/help、/goal、/status 等）。",
     "languageOptions": {
+      "chinese": "中文",
+      "chineseTraditional": "繁體中文",
       "english": "英文",
-      "chinese": "中文"
+      "japanese": "日本語",
+      "korean": "한국어",
+      "german": "Deutsch"
     },
     "theme": "选择你喜欢的主题",
     "themeOptions": {
@@ -6280,7 +6287,24 @@
       "chipLabel": "启用搜索",
       "searchEnabled": "已启用 {service} 搜索",
       "searchEnableFailed": "启用搜索失败",
-      "modelActivateFailed": "启用本地模型失败"
+      "modelActivateFailed": "启用本地模型失败",
+      "customEndpointTitle": "OpenAI 兼容本地端点",
+      "customEndpointDescription": "粘贴本地端点地址，自动探测模型并一步完成配置。",
+      "customApiUrlLabel": "API 地址",
+      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
+      "customApiKeyLabel": "API Key（localhost 可选）",
+      "customApiKeyPlaceholder": "sk-...",
+      "customNoAuthHint": "localhost 端点可留空 API Key；云端或远程端点仍需提供 Key。",
+      "customNoAuthDetected": "已识别本地免鉴权模式，将不会存储 API Key。",
+      "customDetectModels": "检测模型",
+      "customUseModel": "使用 {model}",
+      "customErrorApiUrlRequired": "请输入 API 地址",
+      "customErrorDetectFailed": "该端点模型探测失败",
+      "customErrorNoModels": "端点可达，但未返回任何模型",
+      "customErrorProbeFailed": "端点探测失败",
+      "customErrorDetectFirst": "请先执行模型探测",
+      "customErrorReachabilityFailed": "端点连通但模型健康检查失败",
+      "customDetectSuccess": "已检测到 {count} 个模型"
     },
     "migrationDiscovery": {
       "detecting": "正在扫描本地 AI 助手数据...",
@@ -10897,11 +10921,15 @@
       "risk3": "建议仅对完全信任的操作使用此功能",
       "confirm": "我理解风险，仍然允许",
       "scopeLabel": "匹配范围",
-      "scopeTool": "仅此工具（推荐）",
-      "scopeExact": "工具+参数精确匹配（最安全）",
+      "scopeTool": "仅此工具（范围较宽）",
+      "scopeExact": "精确命令（推荐）",
+      "scopePattern": "相似命令",
       "scopePermission": "所有同类型工具（不推荐）",
-      "scopeToolDesc": "仅自动允许 {toolName} 工具",
+      "scopeToolDesc": "自动允许该工具的所有后续调用",
       "scopeExactDesc": "仅当工具和参数完全相同时自动允许",
+      "scopePatternDesc": "自动允许开头相同的后续命令",
+      "scopePatternPreview": "将记住类似命令：{pattern}",
+      "scopePatternUnavailable": "链式命令无法使用相似命令匹配。",
       "scopePermissionDesc": "自动允许所有 {permissionType} 类型的工具"
     },
     "spanRiskReasons": {
@@ -11292,12 +11320,14 @@
     "revertConfirmAction": "确认撤销",
     "revertMessageSuccess": "已撤销本条消息的文件变更",
     "revertMessageEmpty": "本条消息无文件变更",
+    "revertMessageFetchError": "无法加载文件变更，请重试",
     "revertViewDiff": "查看 diff",
     "revertSession": "撤销所有文件变更",
     "revertSessionConfirm": "撤销本次会话中 AI 的所有文件变更？",
     "revertSessionDesc": "将恢复 {count} 个文件到原始状态。",
     "revertSessionSuccess": "已撤销所有文件变更",
     "revertSessionEmpty": "本次会话无文件变更",
+    "revertSessionFetchError": "无法加载文件变更，请重试",
     "cancel": "取消"
   },
   "errors": {

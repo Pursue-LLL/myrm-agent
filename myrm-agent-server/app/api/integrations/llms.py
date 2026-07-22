@@ -9,6 +9,9 @@ from urllib.parse import urlparse, urlunparse
 import httpx
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
+from myrm_agent_harness.core.security.http.secure_fetch import secure_request
+from myrm_agent_harness.infra.tls_compat import create_httpx_client
 from pydantic import BaseModel, Field
 
 from app.config.deploy_mode import is_local_mode
@@ -16,9 +19,6 @@ from app.core.types import ModelConfig
 from app.core.utils.errors import handle_llm_exception
 from app.core.utils.response_utils import success_response
 from app.database.standard_responses import StandardSuccessResponse
-from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
-from myrm_agent_harness.core.security.http.secure_fetch import secure_request
-from myrm_agent_harness.infra.tls_compat import create_httpx_client
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -106,6 +106,22 @@ def _is_loopback_host(hostname: str | None) -> bool:
     return parsed_ip.is_loopback or parsed_ip.is_unspecified
 
 
+def _apply_local_no_auth_marker_transport_overrides(
+    model_kwargs_raw: object,
+    api_key: object,
+) -> dict[str, object]:
+    """Normalize model_kwargs and suppress synthetic local marker auth headers."""
+    model_kwargs: dict[str, object] = dict(model_kwargs_raw) if isinstance(model_kwargs_raw, dict) else {}
+    if api_key != _LOCAL_NO_AUTH_KEY_MARKER:
+        return model_kwargs
+
+    raw_extra_headers = model_kwargs.get("extra_headers")
+    extra_headers = dict(raw_extra_headers) if isinstance(raw_extra_headers, dict) else {}
+    extra_headers["Authorization"] = ""
+    model_kwargs["extra_headers"] = extra_headers
+    return model_kwargs
+
+
 class ModelDiscoveryRequest(BaseModel):
     api_url: str = Field(..., min_length=1, description="OpenAI-compatible API base URL or endpoint URL")
     api_key: str | None = Field(default=None, description="Optional API key (required for non-local endpoints)")
@@ -164,7 +180,8 @@ async def discover_models(request: ModelDiscoveryRequest) -> JSONResponse:
 
     candidates = _build_models_candidates(normalized_api_url)
     last_error: str | None = None
-    allowed_hosts = [parsed.hostname] if (use_no_auth_local and parsed.hostname) else None
+    allow_loopback_host = bool(parsed.hostname and is_loopback and is_local_mode())
+    allowed_hosts = [parsed.hostname] if allow_loopback_host else None
 
     async with create_httpx_client(timeout=_MODELS_DISCOVERY_TIMEOUT_S, follow_redirects=False) as client:
         for models_url in candidates:
@@ -242,6 +259,10 @@ async def verify_llm_connection(request: LLMVerifyRequest) -> JSONResponse:
     """
     # 使用request的所有参数创建字典
     kwargs = request.model_dump(exclude_none=True)
+    kwargs["model_kwargs"] = _apply_local_no_auth_marker_transport_overrides(
+        kwargs.get("model_kwargs"),
+        kwargs.get("api_key"),
+    )
 
     if kwargs.get("api_key") == "sk-nznibczsofctvcsavtubpsgtyhqxijdsspzcvwypkouawunz":
         data = LLMVerifyData(model_name=request.model)
@@ -308,6 +329,10 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
         return success_response(data=cached_result.model_dump())
 
     kwargs = request.model_dump(exclude_none=True)
+    kwargs["model_kwargs"] = _apply_local_no_auth_marker_transport_overrides(
+        kwargs.get("model_kwargs"),
+        kwargs.get("api_key"),
+    )
 
     if kwargs.get("api_key") == "sk-nznibczsofctvcsavtubpsgtyhqxijdsspzcvwypkouawunz":
         result = ReachabilityResult(

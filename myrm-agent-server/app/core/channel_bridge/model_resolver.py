@@ -47,11 +47,15 @@ _OPENAI_LIKE_TYPES = {"openai-like", "openai_compatible", "openai-compatible", "
 
 
 def _build_platform_headers(api_key: str) -> dict[str, object] | None:
-    """Inject sandbox identity headers when using a platform-managed credential.
+    """Build transport header overrides for special credential markers.
 
     The relay requires X-Sandbox-Id and X-Telemetry-Token to authenticate
     requests that carry the "platform-managed" placeholder instead of a virtual key.
     """
+    if api_key == _LOCAL_NO_AUTH_API_KEY_MARKER:
+        # Keep synthetic marker for resolver bookkeeping but avoid forcing an
+        # Authorization bearer token for local no-auth OpenAI-compatible endpoints.
+        return {"extra_headers": {"Authorization": ""}}
     if api_key != _PLATFORM_MANAGED_KEY:
         return None
     from app.config.settings import settings

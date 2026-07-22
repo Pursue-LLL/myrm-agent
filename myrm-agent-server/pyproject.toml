@@ -25,7 +25,7 @@ dependencies = [
   "langchain>=1.3.14",      # Agent 工具/链定义 (70+ 文件)
   "langchain-core>=1.4.9", # 消息类型/BaseTool (70+ 文件)
   # --- Agent 框架 (PyPI wheel + compiled-core 平台包；见 docker/read_harness_pypi_spec.py) ---
-  "myrm-agent-harness[acp,browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,compiled-core]==0.1.0rc6",
+  "myrm-agent-harness[browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,compiled-core]==0.1.0rc5",
   "pyautogui>=0.9.54",  # computer_use desktop input (macOS/Linux); harness computer-use extra parity
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
   "aiohttp>=3.14.1",           # Matrix channel + alert notifier HTTP client
@@ -89,8 +89,8 @@ data-viz = [
 
 [tool.uv]
 index-url = "https://pypi.org/simple"
-# Universal lock: harness==0.1.0rc2 + compiled-core platform wheels from PyPI registry.
-# After publishing harness 0.1.0rc3 + platform wheels, bump pin and re-lock.
+# Universal lock: keep harness pin and compiled-core platform wheels aligned with uv.lock.
+# When bumping harness version, update this pin and regenerate uv.lock in the same change.
 prerelease = "allow"
 environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
 override-dependencies = [

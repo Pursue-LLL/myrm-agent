@@ -68,11 +68,11 @@ class TestIsCompressionExhausted:
     def test_empty_string_no_detection(self):
         assert is_compression_exhausted("") is False
 
-    def test_fast_path_no_keyword(self):
-        """Chunks without 'compression_exhausted' substring skip JSON parsing."""
-        event = {"type": "message", "data": "hello", "messageId": "msg-1"}
-        chunk = f"data: {json.dumps(event)}\n\n"
-        assert is_compression_exhausted(chunk) is False
+    def test_keyword_present_but_non_sse_prefix(self):
+        assert is_compression_exhausted('{"compression_exhausted": true}\n\n') is False
+
+    def test_malformed_json_with_keyword(self):
+        assert is_compression_exhausted("data: compression_exhausted {broken}\n\n") is False
 
 
 class TestClearContextTaskMetrics:

@@ -14,6 +14,7 @@ export interface LocaleStrings {
 export interface AgentI18nEntry {
   en: LocaleStrings;
   zh: LocaleStrings;
+  'zh-TW': LocaleStrings;
   ja: LocaleStrings;
   ko: LocaleStrings;
   de: LocaleStrings;
@@ -26,6 +27,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Versatile AI assistant for everyday tasks — writing, analysis, Q&A, brainstorming, and more.',
     },
     zh: { name: '通用助手', description: '多功能 AI 助手，适用于日常写作、分析、问答、头脑风暴等各类任务。' },
+    'zh-TW': { name: '通用助手', description: '多功能 AI 助手，適用於日常寫作、分析、問答、頭腦風暴等各類任務。' },
     ja: {
       name: '汎用アシスタント',
       description: '日常のライティング、分析、Q&A、ブレインストーミングなど多目的AIアシスタント。',
@@ -50,6 +52,10 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       name: '省成本助手',
       description: '面向高频日常任务的省成本智能体，内置 Smart Routing，适合 Hermes 迁移用户。',
     },
+    'zh-TW': {
+      name: '省成本助手',
+      description: '面向高頻日常任務的省成本智慧體，內建 Smart Routing，適合 Hermes 遷移使用者。',
+    },
     ja: {
       name: 'エコノミーアシスタント',
       description: 'Smart Routing 対応の低コストアシスタント。日常タスクと Hermes 移行ユーザー向け。',
@@ -70,6 +76,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Expert in writing, editing, copywriting, and content strategy with a creative flair.',
     },
     zh: { name: '内容创作者', description: '擅长写作、编辑、文案创意与内容策略，兼具创意灵感。' },
+    'zh-TW': { name: '內容創作者', description: '擅長寫作、編輯、文案創意與內容策略，兼具創意靈感。' },
     ja: {
       name: 'コンテンツクリエイター',
       description: 'ライティング、編集、コピーライティング、コンテンツ戦略のエキスパート。',
@@ -87,6 +94,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
         'Deep research and analysis — structured reports, data-driven insights, and multi-angle investigation.',
     },
     zh: { name: '研究分析师', description: '深度研究与分析——结构化报告、数据驱动洞察、多角度调研。' },
+    'zh-TW': { name: '研究分析師', description: '深度研究與分析——結構化報告、資料驅動洞察、多角度調研。' },
     ja: {
       name: 'リサーチアナリスト',
       description: '深い調査と分析 — 構造化レポート、データドリブンな洞察、多角的調査。',
@@ -107,6 +115,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Focused coding assistant — write, debug, review, and optimize code with precision.',
     },
     zh: { name: '代码开发者', description: '专注的编程助手——精准编写、调试、审查和优化代码。' },
+    'zh-TW': { name: '程式碼開發者', description: '專注的程式設計助手——精準編寫、除錯、審查和最佳化程式碼。' },
     ja: {
       name: 'コード開発者',
       description: '集中型コーディングアシスタント — 正確にコードを書き、デバッグ、レビュー、最適化。',
@@ -123,6 +132,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Fast web search — concise, real-time answers with source citations. Ideal for quick facts and news.',
     },
     zh: { name: '快速搜索', description: '快速网页搜索——简洁实时、带来源引用，适合查事实与新闻。' },
+    'zh-TW': { name: '快速搜尋', description: '快速網頁搜尋——簡潔即時、附來源引用，適合查事實與新聞。' },
     ja: {
       name: 'クイック検索',
       description: '高速ウェブ検索 — 簡潔でリアルタイム、出典付き回答。事実確認やニュース向け。',
@@ -143,6 +153,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Thorough multi-source research — reads full pages, cross-references, and self-validates answers.',
     },
     zh: { name: '深度搜索', description: '多源深度调研——阅读全文、交叉验证并自检答案。' },
+    'zh-TW': { name: '深度搜尋', description: '多源深度調研——閱讀全文、交叉驗證並自檢答案。' },
     ja: {
       name: 'ディープ検索',
       description: '徹底したマルチソース調査 — 全文読解、相互参照、回答の自己検証。',
@@ -163,6 +174,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Professional multilingual translation and localization — faithful, natural, culturally adapted.',
     },
     zh: { name: '翻译专家', description: '专业多语种翻译与本地化——忠实原意、表达自然、文化适配。' },
+    'zh-TW': { name: '翻譯專家', description: '專業多語種翻譯與在地化——忠實原意、表達自然、文化適配。' },
     ja: {
       name: '翻訳エキスパート',
       description: 'プロフェッショナルな多言語翻訳とローカライゼーション — 忠実で自然、文化に適応。',
@@ -183,6 +195,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
         'Content creation for Xiaohongshu, Douyin, Bilibili, Twitter, Instagram — platform-native copy and strategy.',
     },
     zh: { name: '社媒策略师', description: '为小红书、抖音、B站、Twitter、Instagram 创作平台原生内容与策略。' },
+    'zh-TW': { name: '社媒策略師', description: '為小紅書、抖音、B站、Twitter、Instagram 創作平台原生內容與策略。' },
     ja: {
       name: 'SNSストラテジスト',
       description: 'Xiaohongshu、Douyin、Bilibili、Twitter、Instagram向けプラットフォームネイティブコンテンツ制作。',
@@ -203,6 +216,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Data analysis, visualization recommendations, SQL, and insight extraction from structured data.',
     },
     zh: { name: '数据分析师', description: '数据分析、可视化建议、SQL 编写与结构化数据洞察提取。' },
+    'zh-TW': { name: '資料分析師', description: '資料分析、視覺化建議、SQL 編寫與結構化資料洞察提取。' },
     ja: { name: 'データアナリスト', description: 'データ分析、可視化推奨、SQL、構造化データからのインサイト抽出。' },
     ko: { name: '데이터 분석가', description: '데이터 분석, 시각화 추천, SQL, 구조화된 데이터에서 인사이트 추출.' },
     de: {
@@ -216,6 +230,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'PRD writing, competitive analysis, requirement breakdown, user story mapping, and prioritization.',
     },
     zh: { name: '产品经理', description: 'PRD 撰写、竞品分析、需求拆解、用户故事梳理与优先级排序。' },
+    'zh-TW': { name: '產品經理', description: 'PRD 撰寫、競品分析、需求拆解、使用者故事梳理與優先順序排序。' },
     ja: {
       name: 'プロダクトマネージャー',
       description: 'PRD作成、競合分析、要件分解、ユーザーストーリーマッピング、優先順位付け。',
@@ -237,6 +252,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
         'Patient teaching assistant — explain concepts, answer questions, create study plans, and guide learning.',
     },
     zh: { name: '学习导师', description: '耐心的教学助手——讲解概念、解答疑问、制定学习计划、引导学习。' },
+    'zh-TW': { name: '學習導師', description: '耐心的教學助手——講解概念、解答疑問、制定學習計劃、引導學習。' },
     ja: {
       name: 'チューター',
       description: '辛抱強い教育アシスタント — 概念説明、質問対応、学習計画作成、学習ガイド。',
@@ -254,6 +270,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Research topics, write engaging newsletters, manage editorial calendars, and optimize open rates.',
     },
     zh: { name: 'Newsletter 编辑', description: '选题调研、撰写有吸引力的通讯内容、管理编辑日历、优化打开率。' },
+    'zh-TW': { name: 'Newsletter 編輯', description: '選題調研、撰寫有吸引力的通訊內容、管理編輯日曆、最佳化開啟率。' },
     ja: {
       name: 'ニュースレター編集者',
       description: 'トピックリサーチ、魅力的なニュースレター作成、編集カレンダー管理、開封率最適化。',
@@ -274,6 +291,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Creative design assistant — generates images, critiques UI/UX, and provides visual inspiration.',
     },
     zh: { name: '设计师', description: '创意设计助手——生成图像、点评 UI/UX，并提供视觉灵感。' },
+    'zh-TW': { name: '設計師', description: '創意設計助手——生成影像、點評 UI/UX，並提供視覺靈感。' },
     ja: {
       name: 'デザイナー',
       description: 'クリエイティブデザインアシスタント — 画像生成、UI/UXレビュー、ビジュアルインスピレーション。',
@@ -298,6 +316,10 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       name: '视频工作室',
       description: 'AI 视频制作助手——脚本、分镜、画面生成、配音与成片组装。',
     },
+    'zh-TW': {
+      name: '影片工作室',
+      description: 'AI 影片製作助手——腳本、分鏡、畫面生成、配音與成片組裝。',
+    },
     ja: {
       name: 'ビデオスタジオ',
       description: 'AI動画制作アシスタント — 脚本、絵コンテ、ビジュアル生成、ナレーション、完成動画の組み立て。',
@@ -318,6 +340,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Keyword research, content optimization, technical SEO audits, and competitive SERP analysis.',
     },
     zh: { name: 'SEO 策略师', description: '关键词研究、内容优化、技术 SEO 审计与竞争 SERP 分析。' },
+    'zh-TW': { name: 'SEO 策略師', description: '關鍵詞研究、內容最佳化、技術 SEO 審計與競爭 SERP 分析。' },
     ja: {
       name: 'SEOストラテジスト',
       description: 'キーワードリサーチ、コンテンツ最適化、テクニカルSEO監査、競合SERP分析。',
@@ -335,6 +358,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
         'Task decomposition, time blocking, priority management, deadline tracking, and productivity systems.',
     },
     zh: { name: '日程规划师', description: '任务拆解、时间块规划、优先级管理、截止日期跟踪与效率系统。' },
+    'zh-TW': { name: '日程規劃師', description: '任務拆解、時間塊規劃、優先順序管理、截止日期追蹤與效率系統。' },
     ja: {
       name: 'スケジュールプランナー',
       description: 'タスク分解、タイムブロッキング、優先度管理、締切追跡、生産性システム。',
@@ -352,6 +376,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Extract key points, decisions, action items, and follow-ups from meeting notes or transcripts.',
     },
     zh: { name: '会议纪要员', description: '从会议记录中提取要点、决策、行动项与后续跟进事项。' },
+    'zh-TW': { name: '會議紀要員', description: '從會議記錄中提取要點、決策、行動項與後續跟進事項。' },
     ja: {
       name: '会議スクライブ',
       description: '会議メモや議事録から要点、決定事項、アクションアイテム、フォローアップを抽出。',
@@ -372,6 +397,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Resume optimization, interview prep, career planning, networking strategy, and salary negotiation.',
     },
     zh: { name: '职业教练', description: '简历优化、面试准备、职业规划、人脉策略与薪资谈判。' },
+    'zh-TW': { name: '職業教練', description: '履歷最佳化、面試準備、職業規劃、人脈策略與薪資談判。' },
     ja: {
       name: 'キャリアコーチ',
       description: '履歴書最適化、面接対策、キャリアプランニング、ネットワーキング戦略、給与交渉。',
@@ -389,6 +415,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Budget analysis, investment basics, expense tracking strategies, and personal financial planning.',
     },
     zh: { name: '理财顾问', description: '预算分析、投资基础、支出管理策略与个人财务规划。' },
+    'zh-TW': { name: '理財顧問', description: '預算分析、投資基礎、支出管理策略與個人財務規劃。' },
     ja: {
       name: 'ファイナンスアドバイザー',
       description: '予算分析、投資基礎、支出管理戦略、パーソナルファイナンス計画。',
@@ -406,6 +433,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Itinerary design, destination research, budget optimization, and local experience recommendations.',
     },
     zh: { name: '旅行规划师', description: '行程设计、目的地研究、预算优化与本地体验推荐。' },
+    'zh-TW': { name: '旅行規劃師', description: '行程設計、目的地研究、預算最佳化與在地體驗推薦。' },
     ja: {
       name: '旅行プランナー',
       description: '旅程設計、目的地リサーチ、予算最適化、ローカル体験レコメンデーション。',
@@ -422,6 +450,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Professional email drafting — cold outreach, follow-ups, negotiations, and business communication.',
     },
     zh: { name: '邮件专家', description: '专业邮件撰写——冷启动触达、跟进邮件、商务谈判与沟通。' },
+    'zh-TW': { name: '郵件專家', description: '專業郵件撰寫——冷啟動觸達、跟進郵件、商務談判與溝通。' },
     ja: {
       name: 'メールエキスパート',
       description:
@@ -443,6 +472,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Workflow design, task automation strategies, integration planning, and efficiency optimization.',
     },
     zh: { name: '自动化构建师', description: '工作流设计、任务自动化策略、集成规划与效率优化。' },
+    'zh-TW': { name: '自動化構建師', description: '工作流設計、任務自動化策略、整合規劃與效率最佳化。' },
     ja: {
       name: 'オートメーションビルダー',
       description: 'ワークフロー設計、タスク自動化戦略、インテグレーション計画、効率最適化。',
@@ -459,6 +489,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Supports programming assistants like Claude Code, Codex, and Gemini CLI in local sandbox',
     },
     zh: { name: 'CLI 可视化助手', description: '在本地沙箱中支持 Claude Code、Codex、Gemini CLI 等编程助手。' },
+    'zh-TW': { name: 'CLI 視覺化助手', description: '在本地沙箱中支援 Claude Code、Codex、Gemini CLI 等程式設計助手。' },
     ja: {
       name: 'CLIビジュアルエージェント',
       description: 'ローカルサンドボックスで Claude Code、Codex、Gemini CLI などのプログラミング助手をサポート。',
@@ -479,6 +510,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Automatically parse and extract key information from resumes and CVs into structured formats.',
     },
     zh: { name: 'HR 简历筛选', description: '自动解析简历与 CV，提取关键信息并输出结构化结果。' },
+    'zh-TW': { name: 'HR 履歷篩選', description: '自動解析履歷與 CV，提取關鍵資訊並輸出結構化結果。' },
     ja: {
       name: 'HR履歴書スクリーナー',
       description: '履歴書・CV から重要情報を自動抽出し、構造化フォーマットに整理。',
@@ -499,6 +531,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Text-to-speech assistant — converts text into natural-sounding audio.',
     },
     zh: { name: '语音助手', description: '文本转语音助手——将文字转换为自然流畅的音频。' },
+    'zh-TW': { name: '語音助手', description: '文字轉語音助手——將文字轉換為自然流暢的音訊。' },
     ja: {
       name: 'オーディオアシスタント',
       description: 'テキスト読み上げアシスタント — 自然な音声に変換。',

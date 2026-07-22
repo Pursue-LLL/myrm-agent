@@ -6,6 +6,6 @@
 |------|------|
 | `VisualApprovalRequestRenderer.tsx` | 审批请求主渲染 |
 | `BrowserSessionView.tsx` / `ShellCommandDisplay.tsx` | 浏览器/命令上下文 |
-| `EditModeView.tsx` / `HandoverModeView.tsx` / `RejectModeView.tsx` | 审批模式 UI |
+| `EditModeView.tsx` / `HandoverModeView.tsx` / `RejectModeView.tsx` | 审批模式 UI（Edit 含 pattern 预览） |
 | `VisualApprovalHighlight.tsx` / `VisualApprovalAttentionBar.tsx` | 屏幕高亮与注意力条 |
-| `AllowAlwaysConfirmDialog.tsx` | 「始终允许」确认 |
+| `AllowAlwaysConfirmDialog.tsx` | 「始终允许」确认（含 pattern 预览） |
