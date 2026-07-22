@@ -112,17 +112,37 @@ def http_json(
     return json.loads(raw) if raw else {}
 
 
-def warm_ui_route(path: str, *, timeout_sec: float = 120.0) -> None:
+def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
     """HTTP GET a UI route so webpack/turbopack compiles before Chrome navigation."""
+    import os
+
     if not path.startswith("/"):
         raise ValueError(f"warm_ui_route expects an absolute path, got: {path!r}")
     url = f"{get_e2e_ui_url()}{path}"
-    request = urllib.request.Request(url, method="GET")  # noqa: S310 - loopback only
-    with urllib.request.urlopen(request, timeout=timeout_sec) as response:  # noqa: S310
-        if response.status != 200:
-            raise RuntimeError(
-                f"warm_ui_route GET {url} returned HTTP {response.status}"
-            )
+    wait_sec = (
+        timeout_sec
+        if timeout_sec is not None
+        else float(os.environ.get("MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC", "180"))
+    )
+    poll_sec = float(os.environ.get("MYRM_CHROME_E2E_SHARED_UI_POLL_SEC", "2"))
+    deadline = time.monotonic() + wait_sec
+    last_error: BaseException | None = None
+    while time.monotonic() < deadline:
+        request = urllib.request.Request(url, method="GET")  # noqa: S310 - loopback only
+        per_attempt = max(5.0, min(30.0, deadline - time.monotonic()))
+        try:
+            with urllib.request.urlopen(request, timeout=per_attempt) as response:  # noqa: S310
+                if response.status == 200:
+                    return
+                last_error = RuntimeError(
+                    f"warm_ui_route GET {url} returned HTTP {response.status}"
+                )
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_error = exc
+        time.sleep(poll_sec)
+    raise RuntimeError(
+        f"warm_ui_route GET {url} failed after {wait_sec:.0f}s: {last_error!r}"
+    )
 
 
 def _wait_for_shpoib_runtime_ready(

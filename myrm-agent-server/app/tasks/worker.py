@@ -1,10 +1,23 @@
-"""Task worker for async task execution."""
+"""Task worker for async task execution.
+
+[INPUT]
+- myrm_agent_harness.toolkits.tasks::{Task, TaskStore, TaskStatus, TaskError} (POS: Queue protocol + persistence contract)
+- app/tasks/executors/*::_TaskExecutor impl (POS: Task-type specific execution capability)
+- TaskEventCallback (POS: Task status propagation bridge to SSE/event bus layer)
+
+[OUTPUT]
+- TaskWorker: server-side async task consumer with retry, timeout, cancellation, and status callbacks.
+
+[POS]
+- Business orchestration runtime for the task queue. It executes pending media jobs,
+  persists lifecycle transitions, and emits state updates consumed by API/SSE surfaces.
+"""
 
 import asyncio
 import logging
 import traceback
 from collections.abc import Callable, Coroutine
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from myrm_agent_harness.toolkits.tasks import (
@@ -227,12 +240,14 @@ class TaskWorker:
             traceback="".join(traceback.format_exception(exception)),
         )
 
-        # Check if can retry
-        if task.can_retry() and recoverable == ErrorRecoverability.TRANSIENT:
-            # Calculate next retry time
+        # Auto-retry runs while task is still in RUNNING state, so worker retry
+        # eligibility must not depend on Task.can_retry()'s FAILED-status guard.
+        if self._should_auto_retry(task, recoverable):
             task.retry_count += 1
             delay = task.retry_policy.get_delay(task.retry_count)
-            task.next_retry_at = datetime.now(UTC).timestamp() + delay
+            task.next_retry_at = datetime.now(UTC) + timedelta(seconds=delay)
+            task.status = TaskStatus.PENDING
+            task.error = error
 
             logger.info(
                 f"Task {task.task_id} will retry in {delay}s (attempt {task.retry_count}/{task.retry_policy.max_retries})"
@@ -245,6 +260,7 @@ class TaskWorker:
                 retry_count=task.retry_count,
                 next_retry_at=task.next_retry_at,
             )
+            await self._emit_event(task, TaskStatus.PENDING)
         else:
             # No more retries, mark as failed
             await self._store.update_task(
@@ -254,6 +270,14 @@ class TaskWorker:
                 completed_at=datetime.now(UTC),
             )
             await self._emit_event(task, TaskStatus.FAILED, error)
+
+    def _should_auto_retry(self, task: Task, recoverable: ErrorRecoverability) -> bool:
+        """Check retry eligibility for worker-side failure handling."""
+        if recoverable != ErrorRecoverability.TRANSIENT:
+            return False
+        if not task.retry_policy:
+            return False
+        return task.retry_count < task.retry_policy.max_retries
 
     async def _handle_no_executor(self, task: Task) -> None:
         """Handle missing executor."""

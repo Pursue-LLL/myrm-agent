@@ -3,10 +3,23 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import get_e2e_api_url, get_e2e_ui_url, http_json, open_mcp_page, wait_for_state, warm_ui_route
+from tests.support.chrome_mcp_e2e import (
+    ChromeMcpClient,
+    McpPage,
+    dismiss_blocking_modals,
+    get_e2e_api_url,
+    get_e2e_ui_url,
+    http_json,
+    open_mcp_page,
+    prepare_e2e_ui_session,
+    wait_for_state,
+    warm_ui_route,
+)
 
 _OPEN_PANEL_JS = """(() => {
   const btn = document.querySelector('button[aria-label="Background Tasks"], button[aria-label="后台任务"]');
@@ -63,6 +76,21 @@ _PANEL_RUNNING_SHELL_CANCEL_JS = """(() => {
 })()"""
 
 
+@contextmanager
+def _background_tasks_panel(
+    api_base: str,
+) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
+    prepare_e2e_ui_session(api_base)
+    warm_ui_route("/")
+    with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
+        dismiss_blocking_modals(client, page)
+        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=60.0)
+        assert opened.get("clicked") is True, opened
+        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=60.0)
+        assert panel.get("ready") is True, panel
+        yield client, page
+
+
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.timeout(180)
 def test_background_tasks_panel_opens_and_lists_api() -> None:
@@ -72,14 +100,7 @@ def test_background_tasks_panel_opens_and_lists_api() -> None:
     assert "tasks" in payload
     registry_ephemeral = payload.get("registry_ephemeral")
 
-    warm_ui_route("/")
-    with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
-        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
-        assert opened.get("clicked") is True, opened
-
-        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
-        assert panel.get("ready") is True, panel
-
+    with _background_tasks_panel(api_base) as (client, page):
         if registry_ephemeral is True:
             notice = client.evaluate(page, _EPHEMERAL_NOTICE_JS, timeout_sec=10.0)
             assert notice.get("hasNotice") is True, notice
@@ -106,14 +127,7 @@ def test_background_tasks_panel_shows_failed_shell_job_from_seed() -> None:
     assert row.get("exit_code") == 42
     assert row.get("error_category") == "nonzero_exit"
 
-    warm_ui_route("/")
-    with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
-        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
-        assert opened.get("clicked") is True, opened
-
-        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
-        assert panel.get("ready") is True, panel
-
+    with _background_tasks_panel(api_base) as (client, page):
         failed_row = wait_for_state(client, page, _FAILED_SHELL_ROW_JS, timeout_sec=30.0)
         assert failed_row.get("hasExitCode") is True, failed_row
         assert failed_row.get("hasErrorCategory") is True, failed_row
@@ -164,13 +178,7 @@ def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
 
     _wait_api_task_status(api_base, task_id, "running")
 
-    warm_ui_route("/")
-    with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
-        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
-        assert opened.get("clicked") is True, opened
-        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
-        assert panel.get("ready") is True, panel
-
+    with _background_tasks_panel(api_base) as (client, page):
         running_cancel = wait_for_state(
             client, page, _PANEL_RUNNING_SHELL_CANCEL_JS, timeout_sec=60.0
         )
@@ -245,14 +253,7 @@ def test_background_tasks_panel_vault_log_drawer_from_seed() -> None:
     assert row.get("vault_log_ref")
     assert row.get("status") == "completed"
 
-    warm_ui_route("/")
-    with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
-        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=30.0)
-        assert opened.get("clicked") is True, opened
-
-        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
-        assert panel.get("ready") is True, panel
-
+    with _background_tasks_panel(api_base) as (client, page):
         clicked = client.evaluate(page, _VAULT_LOG_BUTTON_JS, timeout_sec=15.0)
         assert clicked.get("clicked") is True, clicked
 
@@ -264,8 +265,10 @@ def test_background_tasks_panel_vault_log_drawer_from_seed() -> None:
 @pytest.mark.timeout(240)
 def test_background_tasks_success_finish_toast_from_seed() -> None:
     api_base = get_e2e_api_url()
+    prepare_e2e_ui_session(api_base)
     warm_ui_route("/")
     with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
+        dismiss_blocking_modals(client, page)
         # Page must be connected to SSE before the job finishes so toast is delivered.
         time.sleep(1.0)
         seed = http_json(

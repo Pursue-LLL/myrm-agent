@@ -38,6 +38,7 @@ from cdp_chat_support import (
     e2e_runtime_binding,
     e2e_runtime_binding_source,
     e2e_runtime_bootstrap_apply_js,
+    wait_e2e_provider_ready,
 )
 from dev_gate_contract import (
     LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
@@ -322,15 +323,23 @@ class ChromeMcpClient:
         timeout_ms: int,
     ) -> None:
         source, expected = binding
-        self.evaluate(page, f"(() => {{{source} return true; }})()")
-        self.navigate(page, url, timeout_ms=timeout_ms)
+        api_base = str(expected.get("apiBase") or "").strip()
+        if api_base and not wait_e2e_provider_ready(api_url=api_base, timeout_sec=120.0):
+            raise RuntimeError(
+                "E2E_RUNTIME_BINDING_FAILED: "
+                f"private API not ready before binding: {api_base}"
+            )
         bootstrap_js = e2e_runtime_bootstrap_apply_js()
-        if bootstrap_js is not None:
-            observed = self.evaluate(page, bootstrap_js, timeout_sec=30.0)
-        else:
-            observed = self.evaluate(
-                page,
-                """(async () => {
+        last_observed: dict[str, object] | str | None = None
+        for attempt in range(5):
+            self.evaluate(page, f"(() => {{{source} return true; }})()")
+            self.navigate(page, url, timeout_ms=timeout_ms)
+            if bootstrap_js is not None:
+                observed = self.evaluate(page, bootstrap_js, timeout_sec=30.0)
+            else:
+                observed = self.evaluate(
+                    page,
+                    """(async () => {
               const ready = window.__MYRM_E2E_RUNTIME_READY__;
               if (!ready) return {ok: false, error: 'runtime-bootstrap-missing'};
               try {
@@ -340,18 +349,27 @@ class ChromeMcpClient:
                 return {ok: false, error: String(error)};
               }
             })()""",
-                timeout_sec=30.0,
-            )
-        if not isinstance(observed, dict) or observed.get("ok") is not True:
-            raise RuntimeError(f"E2E_RUNTIME_BINDING_FAILED: {observed}")
-        if (
-            observed.get("runtimeId") != expected["runtimeId"]
-            or observed.get("apiBase") != expected["apiBase"]
-        ):
-            raise RuntimeError(
-                "E2E_RUNTIME_MISMATCH: "
-                f"expected={expected['runtimeId']}@{expected['apiBase']} observed={observed}"
-            )
+                    timeout_sec=30.0,
+                )
+            last_observed = observed if isinstance(observed, dict) else {"value": observed}
+            if isinstance(observed, dict) and observed.get("ok") is True:
+                if (
+                    observed.get("runtimeId") != expected["runtimeId"]
+                    or observed.get("apiBase") != expected["apiBase"]
+                ):
+                    raise RuntimeError(
+                        "E2E_RUNTIME_MISMATCH: "
+                        f"expected={expected['runtimeId']}@{expected['apiBase']} observed={observed}"
+                    )
+                return
+            error_text = str(last_observed.get("error", last_observed))
+            transient = "Failed to fetch" in error_text or "fetch" in error_text.lower()
+            if attempt < 4 and transient and api_base:
+                wait_e2e_provider_ready(api_url=api_base, timeout_sec=30.0)
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            break
+        raise RuntimeError(f"E2E_RUNTIME_BINDING_FAILED: {last_observed}")
 
     def new_page(
         self,

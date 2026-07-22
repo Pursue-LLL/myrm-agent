@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+import urllib.error
+from unittest.mock import MagicMock, patch
 
-from tests.support.chrome_mcp_e2e import wait_for_state
+import pytest
+
+from tests.support.chrome_mcp_e2e import wait_for_state, warm_ui_route
 
 
 def test_wait_for_state_parses_json_string_ready() -> None:
@@ -16,3 +19,30 @@ def test_wait_for_state_parses_json_string_ready() -> None:
 
     assert result["ready"] is True
     assert result["text"] == "ok"
+
+
+def test_warm_ui_route_retries_until_shared_ui_recovers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC", "5")
+    monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_POLL_SEC", "0.01")
+    attempts = {"count": 0}
+
+    class _FakeResponse:
+        status = 200
+
+        def __enter__(self) -> _FakeResponse:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+    def _urlopen(request: object, timeout: float = 30.0) -> _FakeResponse:
+        del request, timeout
+        attempts["count"] += 1
+        if attempts["count"] < 3:
+            raise urllib.error.URLError("connection refused")
+        return _FakeResponse()
+
+    with patch("tests.support.chrome_mcp_e2e.get_e2e_ui_url", return_value="http://127.0.0.1:3000"):
+        with patch("urllib.request.urlopen", side_effect=_urlopen):
+            warm_ui_route("/")
+    assert attempts["count"] == 3

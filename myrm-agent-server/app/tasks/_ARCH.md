@@ -21,7 +21,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 任务类型和 worker 导出 | — |
-| `worker.py` | 核心 | 任务 worker 主循环。优先级调度、并发控制、超时处理、重试策略、缓存复用。通过 `on_status_change` 回调在每次状态变化时发布事件到 SSE 流 | ✅ |
+| `worker.py` | 核心 | 任务 worker 主循环。优先级调度、并发控制、超时处理、重试策略、缓存复用。transient 失败按 retry policy 重新置回 `pending` 并写入 `next_retry_at`（datetime）；通过 `on_status_change` 回调发布 `running/pending/failed/succeeded` 事件到 SSE 流 | ✅ |
 | `events.py` | 核心 | TaskEventBus：内存 pub/sub 事件总线，SSE 订阅者实时接收 task_update 事件 | ✅ |
 | `metrics.py` | 辅助 | 任务指标采集 | — |
 | `cleanup.py` | 辅助 | 任务清理（`_db_maintenance_job` 每 6h 调用） | — |

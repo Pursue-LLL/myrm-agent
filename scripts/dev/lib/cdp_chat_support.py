@@ -259,10 +259,11 @@ COUNT_DOM_USER_MESSAGES_JS = """
 """.strip()
 
 
-def _api_provider_ready() -> bool:
+def _api_provider_ready(*, api_url: str | None = None) -> bool:
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     try:
         payload = _e2e_api_get_json(
-            f"{get_e2e_api_url()}/api/v1/config/readiness",
+            f"{resolved_api}/api/v1/config/readiness",
             timeout_sec=5.0,
         )
     except Exception:
@@ -293,13 +294,14 @@ def fetch_provider_readiness_snapshot() -> dict[str, object]:
 
 def wait_e2e_provider_ready(
     *,
+    api_url: str | None = None,
     timeout_sec: float = 60.0,
     poll_interval_sec: float = 1.0,
 ) -> bool:
     """Poll private-pool readiness until provider seed is ready (SHPOIB bootstrap race)."""
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
-        if _api_provider_ready():
+        if _api_provider_ready(api_url=api_url):
             return True
         time.sleep(poll_interval_sec)
     return False

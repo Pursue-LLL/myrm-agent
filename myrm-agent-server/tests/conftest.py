@@ -318,6 +318,43 @@ async def _reset_global_browser_pool_after_test(
         _logger.warning("Failed to reset GlobalBrowserPool after test: %s", exc)
 
 
+def _e2e_dev_lib_path() -> Path:
+    return _SERVER_ROOT.parents[1] / "scripts" / "dev" / "lib"
+
+
+def _acquire_deferred_mux_admission() -> str:
+    lib = _e2e_dev_lib_path()
+    if str(lib) not in sys.path:
+        sys.path.insert(0, str(lib))
+    from e2e_mux_admission import acquire_with_wait
+
+    run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+    lane = os.environ.get("MYRM_E2E_LANE", "").strip()
+    if not run_id or lane not in {"READ", "LIVE_AGENT"}:
+        raise RuntimeError(
+            "E2E_MUX_DEFERRED_INVALID: MYRM_E2E_RUN_ID and MYRM_E2E_LANE required"
+        )
+    token, _reason = acquire_with_wait(
+        session_id=run_id,
+        run_id=run_id,
+        lane=lane,
+        owner_pid=os.getpid(),
+    )
+    return token
+
+
+def _release_deferred_mux_admission(token: str) -> None:
+    run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+    if not run_id or not token.strip():
+        return
+    lib = _e2e_dev_lib_path()
+    if str(lib) not in sys.path:
+        sys.path.insert(0, str(lib))
+    from e2e_mux_admission import release
+
+    release(session_id=run_id, owner_token=token)
+
+
 @pytest.fixture(autouse=True)
 def _chrome_e2e_item_runtime(
     request: pytest.FixtureRequest,
@@ -369,9 +406,16 @@ def _chrome_e2e_item_runtime(
         f"api={runtime.api_base} ui={runtime.environment.get('E2E_UI_BASE', '')} "
         f"startup={runtime.startup_seconds:.2f}s"
     )
+    mux_token: str | None = None
+    if os.environ.get("MYRM_E2E_MUX_ADMISSION_DEFERRED", "").strip() == "1":
+        mux_token = _acquire_deferred_mux_admission()
+        os.environ["MYRM_E2E_MUX_ADMISSION_TOKEN"] = mux_token
     try:
         yield runtime
     finally:
+        if mux_token:
+            _release_deferred_mux_admission(mux_token)
+            os.environ.pop("MYRM_E2E_MUX_ADMISSION_TOKEN", None)
         try:
             runtime.close()
         except RuntimeError as exc:
