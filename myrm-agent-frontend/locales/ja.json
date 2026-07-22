@@ -11869,6 +11869,8 @@
   "subagentDashboard": {
     "overtimeTitle": "実行時間が予想を超過",
     "overtimeDescription": "このサブタスクは予想以上に長時間実行されており、ループに陥っている可能性があります。キャンセルしてプロンプトを調整することをお勧めします。",
+    "staleTitle": "サブエージェント停滞 — 進捗なし",
+    "staleDescription": "{duration}分間トークンやツール呼び出しの進捗がありません（{tokens} tokens消費）。サブエージェントが停止している可能性があります。キャンセルを検討してください。",
     "processing": "処理中...",
     "steerTitle": "引导 / 介入",
     "cancelTitle": "キャンセルし保存チェックポイント",
