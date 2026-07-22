@@ -213,8 +213,28 @@ from runtime_identity import attach_endpoint_errors
 print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
 ")"
   if [[ -n "${attach_errors}" ]]; then
-    if ! _wait_attach_endpoints_under_parallel_load "${attach_errors}"; then
-      fail "CHROME_E2E_ATTACH_NOT_READY: ${attach_errors} — first Agent must run: ./myrm ready --chrome"
+    if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
+      # SHPOIB private pools: shared :3000 may flap under parallel chrome_e2e; wait once below.
+      private_attach_errors=""
+      part=""
+      IFS=','
+      for part in ${attach_errors}; do
+        part="${part#"${part%%[![:space:]]*}"}"
+        part="${part%"${part##*[![:space:]]}"}"
+        [[ "${part}" == api=* ]] || continue
+        if [[ -n "${private_attach_errors}" ]]; then
+          private_attach_errors+=", ${part}"
+        else
+          private_attach_errors="${part}"
+        fi
+      done
+      IFS=$' \t\n'
+      attach_errors="${private_attach_errors}"
+    fi
+    if [[ -n "${attach_errors}" ]]; then
+      if ! _wait_attach_endpoints_under_parallel_load "${attach_errors}"; then
+        fail "CHROME_E2E_ATTACH_NOT_READY: ${attach_errors} — first Agent must run: ./myrm ready --chrome"
+      fi
     fi
   fi
 elif ! curl -sf --max-time 30 "$UI_BASE" >/dev/null; then

@@ -9,6 +9,7 @@ from app.tasks.task_payload_crypto import (
     API_KEY_FIELD,
     AUTH_TOKEN_ENC_FIELD,
     AUTH_TOKEN_FIELD,
+    FALLBACK_CONFIGS_FIELD,
     GATEWAY_CONFIG_FIELD,
     open_task_payload_secrets,
     seal_task_payload_secrets,
@@ -187,4 +188,111 @@ def test_seal_gateway_without_auth_token_is_noop() -> None:
     gateway = sealed.get(GATEWAY_CONFIG_FIELD)
     assert isinstance(gateway, dict)
     assert AUTH_TOKEN_ENC_FIELD not in gateway
+
+
+def test_seal_and_open_nested_fallback_secrets() -> None:
+    payload = {
+        "model": "sora",
+        FALLBACK_CONFIGS_FIELD: [
+            {
+                "provider": "openai",
+                "model": "sora",
+                API_KEY_FIELD: "sk-fallback",
+                GATEWAY_CONFIG_FIELD: {
+                    "use_gateway": True,
+                    AUTH_TOKEN_FIELD: "vk-fallback",
+                },
+            }
+        ],
+    }
+
+    sealed = seal_task_payload_secrets(payload)
+    fallback = sealed.get(FALLBACK_CONFIGS_FIELD)
+    assert isinstance(fallback, list)
+    fallback_item = fallback[0]
+    assert isinstance(fallback_item, dict)
+    assert API_KEY_FIELD not in fallback_item
+    assert isinstance(fallback_item.get(API_KEY_ENC_FIELD), str)
+    fallback_gateway = fallback_item.get(GATEWAY_CONFIG_FIELD)
+    assert isinstance(fallback_gateway, dict)
+    assert AUTH_TOKEN_FIELD not in fallback_gateway
+    assert isinstance(fallback_gateway.get(AUTH_TOKEN_ENC_FIELD), str)
+
+    opened = open_task_payload_secrets(sealed)
+    opened_fallback = opened.get(FALLBACK_CONFIGS_FIELD)
+    assert isinstance(opened_fallback, list)
+    opened_item = opened_fallback[0]
+    assert isinstance(opened_item, dict)
+    assert opened_item[API_KEY_FIELD] == "sk-fallback"
+    opened_gateway = opened_item.get(GATEWAY_CONFIG_FIELD)
+    assert isinstance(opened_gateway, dict)
+    assert opened_gateway[AUTH_TOKEN_FIELD] == "vk-fallback"
+
+
+def test_seal_strips_nested_fallback_plaintext_without_encryption_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.services.config.encryption as enc_mod
+
+    class _NoKeyService:
+        has_key = False
+        raw_key = None
+
+    monkeypatch.setattr(enc_mod, "get_encryption_service", lambda: _NoKeyService())
+
+    payload = {
+        FALLBACK_CONFIGS_FIELD: [
+            {
+                API_KEY_FIELD: "sk-fallback",
+                GATEWAY_CONFIG_FIELD: {
+                    AUTH_TOKEN_FIELD: "vk-fallback",
+                },
+            }
+        ]
+    }
+    sealed = seal_task_payload_secrets(payload)
+    fallback = sealed.get(FALLBACK_CONFIGS_FIELD)
+    assert isinstance(fallback, list)
+    fallback_item = fallback[0]
+    assert isinstance(fallback_item, dict)
+    assert API_KEY_FIELD not in fallback_item
+    fallback_gateway = fallback_item.get(GATEWAY_CONFIG_FIELD)
+    assert isinstance(fallback_gateway, dict)
+    assert AUTH_TOKEN_FIELD not in fallback_gateway
+
+
+def test_open_without_key_preserves_nested_ciphertext_and_strips_plaintext(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.services.config.encryption as enc_mod
+
+    class _NoKeyService:
+        has_key = False
+        raw_key = None
+
+    monkeypatch.setattr(enc_mod, "get_encryption_service", lambda: _NoKeyService())
+
+    payload = {
+        FALLBACK_CONFIGS_FIELD: [
+            {
+                API_KEY_FIELD: "sk-plain",
+                API_KEY_ENC_FIELD: "cipher-key",
+                GATEWAY_CONFIG_FIELD: {
+                    AUTH_TOKEN_FIELD: "vk-plain",
+                    AUTH_TOKEN_ENC_FIELD: "cipher-token",
+                },
+            }
+        ]
+    }
+    opened = open_task_payload_secrets(payload)
+    fallback = opened.get(FALLBACK_CONFIGS_FIELD)
+    assert isinstance(fallback, list)
+    fallback_item = fallback[0]
+    assert isinstance(fallback_item, dict)
+    assert API_KEY_FIELD not in fallback_item
+    assert fallback_item[API_KEY_ENC_FIELD] == "cipher-key"
+    fallback_gateway = fallback_item.get(GATEWAY_CONFIG_FIELD)
+    assert isinstance(fallback_gateway, dict)
+    assert AUTH_TOKEN_FIELD not in fallback_gateway
+    assert fallback_gateway[AUTH_TOKEN_ENC_FIELD] == "cipher-token"
 

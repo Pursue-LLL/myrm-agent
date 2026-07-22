@@ -20,7 +20,7 @@ from typing import cast
 from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore
 
 from app.config.settings import settings
-from app.tasks import ImageTaskExecutor, TaskWorker
+from app.tasks import ImageTaskExecutor, TaskWorker, VideoTaskExecutor
 from app.tasks.worker import _TaskExecutor
 
 logger = logging.getLogger(__name__)
@@ -83,11 +83,13 @@ async def start_task_worker() -> TaskWorker:
         _task_store_instance = store
 
         from app.tasks.image_config_resolver import resolve_image_generation_config
+        from app.tasks.video_config_resolver import resolve_video_generation_config
 
         executors: list[_TaskExecutor] = cast(
             list[_TaskExecutor],
             [
                 ImageTaskExecutor(resolve_image_generation_config),
+                VideoTaskExecutor(resolve_video_generation_config),
             ],
         )
 

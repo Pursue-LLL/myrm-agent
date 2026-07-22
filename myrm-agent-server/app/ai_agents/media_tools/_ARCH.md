@@ -11,7 +11,7 @@ Product-layer LangChain adapters for image/video/TTS generation. Engines live in
 |------|------|
 | `image_agent_tool.py` | `create_image_generation_tool` → `image_tool` (generate async via TaskStore + `payload_postprocessor=seal_task_payload_secrets` before persist; edit/list sync) |
 | `media_persist.py` | Shared media library persist callback for sync + async image paths |
-| `video_agent_tool.py` | `create_video_generation_tool` → `video_tool` |
+| `video_agent_tool.py` | `create_video_generation_tool` → `video_tool`（generate 强制非空 prompt，优先 async enqueue 到 TaskStore；status 支持按 task_id 查统一任务状态） |
 | `tts_agent_tool.py` | `create_tts_tool` → `tts_generate` |
 
 ## Mount policy

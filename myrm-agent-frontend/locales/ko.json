@@ -3066,6 +3066,7 @@
         "cancel": "Cancel",
         "probing": "Checking connectivity...",
         "probeUnreachable": "Service not running or port not open — please ensure the editor MCP server is started",
+        "probeTlsVerificationFailed": "TLS 인증서 검증에 실패했습니다. MCP 인증서를 신뢰하거나 유효한 CA 번들을 구성하세요.",
         "probeCloudLoopbackBlocked": "이 통합은 로컬 머신의 에디터 서비스에서 동작합니다. 클라우드 모드에서는 사용할 수 없습니다. Local WebUI 또는 Tauri 데스크톱으로 전환한 뒤 다시 연결하세요."
       }
     },

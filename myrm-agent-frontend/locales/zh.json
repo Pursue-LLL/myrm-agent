@@ -430,6 +430,7 @@
         "cancel": "取消",
         "probing": "正在检测连接...",
         "probeUnreachable": "服务未启动或端口未开放，请检查编辑器是否已启动 MCP 服务器",
+        "probeTlsVerificationFailed": "TLS 证书校验失败，请信任 MCP 证书或配置有效的 CA 证书链。",
         "probeCloudLoopbackBlocked": "该集成依赖你本机的编辑器服务。当前为云端模式，请切换到本地 WebUI 或 Tauri 桌面端后再连接。"
       }
     },

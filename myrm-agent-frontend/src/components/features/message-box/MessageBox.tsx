@@ -5,7 +5,7 @@
  * @/store/useChatStore::Message (POS: Chat state store and message state façade)
  * ./MarkdownContent (POS: Markdown answer renderer)
  * ./MessageActionBar (POS: Chat assistant message action surface)
- * components/features/task-card/ImageTaskCard (POS: Async image-generation task card)
+ * components/features/task-card/{ImageTaskCard,VideoTaskCard} (POS: Async media task cards)
  *
  * [OUTPUT]
  * MessageBox: Renders one chat message across user, assistant and system roles.
@@ -43,7 +43,7 @@ import MessageActionBar from './MessageActionBar';
 import { useCLIAgentStore } from '@/store/useCLIAgentStore';
 import { CLIDiffViewer } from '@/components/features/cli-visualization/CLIDiffViewer';
 import { isTauriEnvironment } from '@/lib/tauri';
-import { ImageTaskCard } from '@/components/features/task-card';
+import { ImageTaskCard, VideoTaskCard } from '@/components/features/task-card';
 import { CronJobSystemCard } from './CronJobSystemCard';
 import { KanbanTaskCreatedCard, type KanbanTaskCreatedResult } from './KanbanTaskCreatedCard';
 import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';
@@ -315,7 +315,7 @@ const MessageBox = ({
     try {
       const parsed = JSON.parse(message.content);
       if (parsed.task_id && typeof parsed.task_id === 'string') {
-        return parsed as { task_id: string; status?: string; message?: string };
+        return parsed as { task_id: string; task_type?: string; status?: string; message?: string };
       }
     } catch {
       // 不是有效 JSON 或不包含 task_id，继续正常渲染
@@ -580,7 +580,12 @@ const MessageBox = ({
             .map((tc) => <CLIDiffViewer key={tc.callId} diff={tc.diff!} filePath={tc.filePath} />)}
 
         {/* 异步任务卡片（如图片生成） */}
-        {taskResponse && <ImageTaskCard task_id={taskResponse.task_id} />}
+        {taskResponse &&
+          (taskResponse.task_type === 'video_generate' ? (
+            <VideoTaskCard task_id={taskResponse.task_id} />
+          ) : (
+            <ImageTaskCard task_id={taskResponse.task_id} />
+          ))}
 
         {/* 定时任务创建/更新卡片 */}
         {cronJobResult ? <CronJobSystemCard result={cronJobResult} /> : null}

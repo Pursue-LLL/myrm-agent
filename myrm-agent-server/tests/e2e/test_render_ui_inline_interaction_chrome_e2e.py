@@ -115,7 +115,7 @@ def _last_user_message_has_ui_action(chat_id: str, *, api_url: str) -> bool:
     return "<ui_action_data>" in content and "ui_action" in content
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio

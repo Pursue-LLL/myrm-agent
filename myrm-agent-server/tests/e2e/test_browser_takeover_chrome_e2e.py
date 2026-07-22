@@ -330,14 +330,18 @@ def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
         assert banner.get("buttonCount") == 0, f"Expected no action buttons during auto-detect: {banner}"
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
 @pytest.mark.chrome_e2e_browser_takeover_live
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    """Real model + WebUI send → browser_ask_human SSE → in-chat banner → Done → DONE."""
+    """Real model + WebUI send → browser_ask_human SSE → in-chat banner → Done → DONE.
+
+    Uses private_backend=True (SHPOIB): shared :3000 UI + isolated :180xx API — no shared
+    :8080 agent-stream lock contention with parallel LIVE pytest.
+    """
     if not wait_e2e_provider_ready():
         pytest.fail(
             "Provider config not ready for live browser takeover Chrome E2E — run via ./myrm test -m chrome_e2e "

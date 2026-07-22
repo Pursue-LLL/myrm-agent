@@ -41,7 +41,7 @@ DRAFT_OBJECTIVE = "Add health check endpoint returning 200 JSON"
 PAUSE_NOTE = "E2E pause note for v2.1"
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio

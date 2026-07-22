@@ -343,9 +343,9 @@ class CdpChatTurn(CdpChatSubmit):
     async def _attach_chat_session(self, chat_id: str) -> None:
         payload = json.dumps(chat_id)
         last: object = {"ok": False}
-        ui_base = (
-            getattr(self, "_base_url", None) or "http://127.0.0.1:3000"
-        ).rstrip("/")
+        ui_base = (getattr(self, "_base_url", None) or "http://127.0.0.1:3000").rstrip(
+            "/"
+        )
         for attempt in range(12):
             await self.ensure_e2e_api_base_binding()
             bridge_probe = await self.evaluate(
@@ -357,7 +357,9 @@ class CdpChatTurn(CdpChatSubmit):
             )
             if isinstance(bridge_probe, dict) and not bridge_probe.get("hasAttach"):
                 try:
-                    await self.ensure_react_e2e_bridge(timeout_sec=min(45.0, 15.0 + attempt * 3))
+                    await self.ensure_react_e2e_bridge(
+                        timeout_sec=min(45.0, 15.0 + attempt * 3)
+                    )
                 except TimeoutError:
                     await self.navigate_to_chat(
                         chat_id,

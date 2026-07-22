@@ -270,7 +270,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
             tools,
             task_user_id=getattr(self, "_task_user_id", "default"),
         )
-        self._setup_video_generation_tools(tools)
+        self._setup_video_generation_tools(
+            tools,
+            task_user_id=getattr(self, "_task_user_id", "default"),
+        )
         self._setup_tts_tools(tools)
 
     def _setup_clarification_tools(self, tools: list[object]) -> None:
@@ -377,7 +380,12 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("⚠️ Image generation tools failed to load: %s", e)
 
-    def _setup_video_generation_tools(self, tools: list[object]) -> None:
+    def _setup_video_generation_tools(
+        self,
+        tools: list[object],
+        *,
+        task_user_id: str = "default",
+    ) -> None:
         """Register video generation tools if configured (AgentDeclared eager mount)."""
         if not self.video_generation_params:
             return
@@ -423,7 +431,15 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 config,
                 on_artifact_created=_get_artifact_push_fn(),
             )
-            tools.append(create_video_generation_tool(video_engine))
+            tools.append(
+                create_video_generation_tool(
+                    video_engine,
+                    async_config=config,
+                    task_user_id=task_user_id,
+                    agent_id=getattr(self, "agent_id", None),
+                    chat_id=self.chat_id or getattr(self, "_current_chat_id", None),
+                )
+            )
             logger.warning(
                 "🎬 Video generation tool loaded (provider=%s, model=%s) [AgentDeclared]",
                 params.provider,

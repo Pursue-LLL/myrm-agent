@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from myrm_agent_harness.toolkits.tasks import TaskFilters, TaskStatus, TaskStore
+from myrm_agent_harness.toolkits.tasks import Task, TaskFilters, TaskStatus, TaskStore
 
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.tasks.events import task_event_bus
@@ -21,6 +21,45 @@ async def get_task_store() -> TaskStore:
     return get_store()
 
 
+def _parse_task_ids(ids: str | None) -> list[str] | None:
+    if ids is None:
+        return None
+    parsed = [item.strip() for item in ids.split(",") if item.strip()]
+    return parsed
+
+
+def _serialize_task(task: Task, *, include_detail: bool) -> dict[str, object]:
+    base: dict[str, object] = {
+        "task_id": task.task_id,
+        "task_type": task.task_type,
+        "status": task.status.value,
+        "priority": task.priority,
+        "progress": task.progress,
+        "created_at": task.created_at.isoformat(),
+        "updated_at": task.updated_at.isoformat(),
+    }
+    if not include_detail:
+        return base
+
+    base.update(
+        {
+            "payload": task.payload,
+            "result": task.result,
+            "error": {
+                "error_type": task.error.error_type,
+                "message": task.error.message,
+                "recoverable": task.error.recoverable.value,
+            }
+            if task.error
+            else None,
+            "progress_message": task.progress_message,
+            "started_at": task.started_at.isoformat() if task.started_at else None,
+            "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+        }
+    )
+    return base
+
+
 @router.get("/stream")
 async def stream_task_events() -> StreamingResponse:
     """Stream task status updates via SSE."""
@@ -35,14 +74,21 @@ async def stream_task_events() -> StreamingResponse:
 async def list_tasks(
     status: str | None = None,
     task_type: str | None = None,
+    ids: str | None = None,
+    detail: bool = False,
     limit: int = 100,
     offset: int = 0,
     store: TaskStore = Depends(get_task_store),
 ) -> dict[str, object]:
     """List tasks with filters."""
+    task_ids = _parse_task_ids(ids)
+    if task_ids == []:
+        return {"tasks": [], "total": 0}
+
     filters = TaskFilters(
         status=TaskStatus(status) if status else None,
         task_type=task_type,
+        task_ids=task_ids,
         limit=limit,
         offset=offset,
         order_by="created_at DESC",
@@ -51,17 +97,7 @@ async def list_tasks(
     tasks = await store.list_tasks(filters)
 
     return {
-        "tasks": [
-            {
-                "task_id": t.task_id,
-                "task_type": t.task_type,
-                "status": t.status.value,
-                "priority": t.priority,
-                "progress": t.progress,
-                "created_at": t.created_at.isoformat(),
-            }
-            for t in tasks
-        ],
+        "tasks": [_serialize_task(t, include_detail=detail) for t in tasks],
         "total": len(tasks),
     }
 
@@ -76,27 +112,7 @@ async def get_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    return {
-        "task_id": task.task_id,
-        "task_type": task.task_type,
-        "status": task.status.value,
-        "payload": task.payload,
-        "result": task.result,
-        "error": {
-            "error_type": task.error.error_type,
-            "message": task.error.message,
-            "recoverable": task.error.recoverable.value,
-        }
-        if task.error
-        else None,
-        "priority": task.priority,
-        "progress": task.progress,
-        "progress_message": task.progress_message,
-        "created_at": task.created_at.isoformat(),
-        "updated_at": task.updated_at.isoformat(),
-        "started_at": task.started_at.isoformat() if task.started_at else None,
-        "completed_at": task.completed_at.isoformat() if task.completed_at else None,
-    }
+    return _serialize_task(task, include_detail=True)
 
 
 @router.post("/{task_id}/cancel")

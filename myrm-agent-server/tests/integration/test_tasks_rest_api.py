@@ -118,3 +118,47 @@ async def test_rest_get_image_task_reflects_payload_snapshot_and_executor_result
         assert list_resp.status_code == 200
         listed = list_resp.json()["tasks"]
         assert any(row["task_id"] == task_id for row in listed)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_rest_list_tasks_supports_ids_and_detail(tmp_path: object) -> None:
+    db_path = tmp_path / "tasks-rest-ids.db"  # type: ignore[operator]
+    store = SQLiteTaskStore(db_path=str(db_path))
+    await store.initialize()
+
+    config = ImageGenerationConfig(
+        model="flux-pro",
+        api_key="sk-rest-ids",
+    )
+    async_engine = AsyncImageGenerationTools(
+        config,
+        store,
+        payload_postprocessor=seal_task_payload_secrets,
+    )
+    raw = await async_engine.generate_image("a yellow cube", user_id="user-rest")
+    task_id = json.loads(raw)["task_id"]
+
+    transport = ASGITransport(app=_build_rest_app(store))
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        detail_resp = await client.get(
+            "/api/v1/tasks",
+            params={"ids": task_id, "detail": "true"},
+        )
+        assert detail_resp.status_code == 200
+        detail_payload = detail_resp.json()
+        assert detail_payload["total"] == 1
+        task_row = detail_payload["tasks"][0]
+        assert task_row["task_id"] == task_id
+        assert task_row["task_type"] == "image_generate"
+        assert "payload" in task_row
+        assert "updated_at" in task_row
+
+        missing_resp = await client.get(
+            "/api/v1/tasks",
+            params={"ids": "task-not-found"},
+        )
+        assert missing_resp.status_code == 200
+        missing_payload = missing_resp.json()
+        assert missing_payload["total"] == 0
+        assert missing_payload["tasks"] == []

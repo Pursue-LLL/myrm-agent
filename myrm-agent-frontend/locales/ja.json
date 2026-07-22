@@ -430,6 +430,7 @@
         "cancel": "キャンセル",
         "probing": "中検出接続...",
         "probeUnreachable": "サービス未起動または端口未开放，してください检查編集器はいいいえ済み起動 MCP サービス器",
+        "probeTlsVerificationFailed": "TLS 証明書の検証に失敗しました。MCP 証明書を信頼するか、有効な CA バンドルを設定してください。",
         "probeCloudLoopbackBlocked": "この連携はローカルマシン上のエディターサービスで動作します。クラウドモードでは利用できません。Local WebUI または Tauri デスクトップに切り替えて再接続してください。"
       }
     },

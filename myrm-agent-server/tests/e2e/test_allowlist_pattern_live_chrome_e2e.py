@@ -1,6 +1,12 @@
 """Chrome LIVE_AGENT E2E: bash approval → allow-always pattern → Settings list.
 
-Uses real WebUI chat (openai-like/mimo-v2.5-pro from .env.test seed) and Chrome MCP mux.
+Uses ``private_backend=True`` so chat/agent-stream hit an isolated ``:180xx`` API — never
+contends with shared ``:8080`` agent-stream lock while parallel LIVE pytest runs.
+
+Formal run::
+
+    MYRM_E2E_LANE=LIVE_AGENT ./myrm test -m chrome_e2e \\
+      myrm-agent/myrm-agent-server/tests/e2e/test_allowlist_pattern_live_chrome_e2e.py
 """
 
 from __future__ import annotations
@@ -231,7 +237,7 @@ def _clear_allowlist_before_live() -> None:
     )
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
 @pytest.mark.timeout(900)
 @pytest.mark.asyncio
 async def test_live_agent_shell_allow_always_pattern_settings_roundtrip(

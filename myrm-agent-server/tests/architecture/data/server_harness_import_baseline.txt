@@ -319,6 +319,7 @@ myrm_agent_harness.toolkits.llms.tts.generator
 myrm_agent_harness.toolkits.llms.tts.models
 myrm_agent_harness.toolkits.llms.utils.model_utils
 myrm_agent_harness.toolkits.llms.video
+myrm_agent_harness.toolkits.llms.video.async_video_engine
 myrm_agent_harness.toolkits.llms.video.providers
 myrm_agent_harness.toolkits.llms.video.video_engine
 myrm_agent_harness.toolkits.llms.vision.fallback_engine

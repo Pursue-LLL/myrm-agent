@@ -28,6 +28,9 @@ export const SSR_SHELL_SETTINGS_SECTIONS = [
   'workingState',
   'sessionAnalytics',
   'common',
+  'language',
+  'languageChannelSyncDesc',
+  'languageOptions',
 ] as const satisfies readonly SettingsSection[];
 
 /** Remaining settings/* sections loaded via /api/i18n/deferred after mount. */

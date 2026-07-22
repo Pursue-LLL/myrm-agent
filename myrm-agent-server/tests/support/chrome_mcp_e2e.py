@@ -16,6 +16,7 @@ if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 
 from cdp_chat_support import (
+    DISMISS_MODALS_JS,
     _e2e_api_urlopen,
     e2e_runtime_binding,
     get_e2e_api_url,
@@ -26,11 +27,13 @@ from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 __all__ = [
     "ChromeMcpClient",
     "McpPage",
+    "dismiss_blocking_modals",
     "ensure_desktop_viewport",
     "get_e2e_api_url",
     "get_e2e_ui_url",
     "http_json",
     "open_mcp_page",
+    "prepare_e2e_ui_session",
     "wait_for_state",
     "warm_ui_route",
 ]
@@ -50,6 +53,32 @@ def ensure_desktop_viewport(
 ) -> dict[str, object]:
     raw = client.evaluate(page, _ENSURE_DESKTOP_VIEWPORT_JS, timeout_sec=5.0)
     return raw if isinstance(raw, dict) else {"value": raw}
+
+
+def dismiss_blocking_modals(client: ChromeMcpClient, page: McpPage) -> None:
+    """Dismiss onboarding/migration overlays that block E2E clicks (SSOT: cdp_chat_support)."""
+    dismissed = client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
+    assert isinstance(dismissed, dict) and dismissed.get("ok") is True, dismissed
+    boot = client.evaluate(
+        page,
+        """(() => {
+          try { localStorage.setItem('myrm_boot_shown', '1'); } catch (err) {
+            return { ok: false, err: String(err) };
+          }
+          return { ok: true };
+        })()""",
+        timeout_sec=5.0,
+    )
+    assert isinstance(boot, dict) and boot.get("ok") is True, boot
+
+
+def prepare_e2e_ui_session(api_url: str) -> None:
+    """Mark onboarding complete so PageLayout does not overlay the chat during E2E."""
+    http_json(
+        "POST",
+        f"{api_url}/api/v1/config/onboarding/complete",
+        expected_statuses=frozenset({200, 201}),
+    )
 
 
 def http_json(

@@ -3066,6 +3066,7 @@
         "cancel": "Cancel",
         "probing": "Checking connectivity...",
         "probeUnreachable": "Service not running or port not open — please ensure the editor MCP server is started",
+        "probeTlsVerificationFailed": "TLS-Zertifikatsprüfung fehlgeschlagen — vertraue dem MCP-Zertifikat oder konfiguriere ein gültiges CA-Bundle.",
         "probeCloudLoopbackBlocked": "Diese Integration läuft über einen Editor-Dienst auf deinem lokalen Rechner. Im Cloud-Modus ist sie nicht verfügbar. Wechsle zu Local WebUI oder Tauri Desktop und verbinde erneut."
       }
     },

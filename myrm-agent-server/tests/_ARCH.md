@@ -15,7 +15,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
 | `support/feature_flags.py` | 辅助 | `seed_voice_interaction_flags()`，供 `tests/api/voice`、`tests/api/stt` conftest autouse |
 | `support/bash_compressor_e2e.py` | 辅助 | bash compressor live/API E2E 共享 helper（模型 probe、workspace 压缩回放） |
-| `support/chrome_mcp_e2e.py` | 核心 | Chrome MCP E2E helper（`open_mcp_page` 默认 `timeout_ms=None` → mux adaptive；LIVE 用例显式 `MAX_PAGE_TIMEOUT_MS`） |
+| `support/chrome_mcp_e2e.py` | 核心 | Chrome MCP E2E helper（`open_mcp_page`、`dismiss_blocking_modals`、`prepare_e2e_ui_session` onboarding 收口；`open_mcp_page` 默认 `timeout_ms=None` → mux adaptive） |
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
@@ -40,9 +40,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_citation_seed_integration.py` | 模块 | citation seed → GET messages 集成单测（真 DB metadata） |
 | `api/files/test_revert_seed_integration.py` | 模块 | Revert seed 四 variant + production persist root hydrate + channel cleanup（6 项；无 RevertService mock） |
 | `services/files/test_revert_hydrate.py` | 单元 | `revert_hydrate.py` 100% 覆盖：root 解析顺序、hydrate、cleanup |
-| `e2e/test_revert_files_chrome_e2e.py` | 模块 | RevertFiles Chrome MCP E2E（READ×3：modify undo+diff+confirm；empty toast；reload hydrate undo） |
+| `e2e/test_revert_files_chrome_e2e.py` | 模块 | RevertFiles Chrome MCP E2E（READ×3：modify undo+diff+confirm；empty toast；reload hydrate undo）；`prepare_e2e_ui_session` + `dismiss_blocking_modals` |
 | `e2e/test_allowlist_pattern_chrome_e2e.py` | 模块 | Allowlist pattern Chrome MCP E2E（READ×1，`private_backend=True`：Settings `/settings/security` 展示 pattern 行） |
-| `e2e/test_allowlist_pattern_live_chrome_e2e.py` | 模块 | Allowlist pattern Chrome LIVE×1：真实模型 bash 审批→相似命令→Settings 验证 |
+| `e2e/test_allowlist_pattern_live_chrome_e2e.py` | 模块 | Allowlist pattern Chrome LIVE×1：`private_backend=True` 私池 agent-stream + 真实模型 bash 审批→相似命令→Settings 验证 |
 | `integration/test_kanban_attach_handler_integration.py` | 模块 | SQLite attach handler + orchestrator unblock tool invoke |
 | `services/kanban/test_kanban_attach_handler.py` | 模块 | attach handler 单测（path/URL/SSRF/limits） |
 | `api/agent/test_kanban_agent_stream_e2e.py` | 模块 | Live LLM agent-stream kanban add/list（`@pytest.mark.e2e`） |
@@ -77,7 +77,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - **Chrome MCP UI E2E（`chrome_e2e` marker）**：monorepo **`./myrm test -m chrome_e2e -n0`**（须 `./myrm ready --chrome`；Wave lease；见 `scripts/dev/CHROME_MCP_E2E.md`）
 - **Kanban Chrome E2E**：`tests/e2e/test_kanban_chrome_e2e.py`（READ lane ×4，`private_backend=True` 自动 per-item 私 Backend，避免共享 `:8080` SQLite 锁；看板列渲染 + `?source_chat=` 深链 + Chat 成功卡 → 过滤看板）
 - **Wiki citation Chrome E2E**：`tests/e2e/test_wiki_citation_chrome_e2e.py`（READ lane ×2：`/chats/test/seed-citation-fixture` → citation 按钮 reload 持久；`/settings/wiki?agentId=` combobox）。Settings 用例先 `warm_ui_route` HTTP 编译再 Chrome 导航（webpack 冷启）。READ 使用共享 `:8080`（`conftest.py:290-314` `_chrome_e2e_item_runtime` 在 `private_backend=False` 时 yield None，走共享 stack）；**新增 server 路由后须 `./myrm restart` 再跑 chrome e2e**；wave pin 阻塞 restart 时用 **`./myrm isolate <id> ready --chrome`** + `E2E_API_BASE`/`E2E_UI_BASE`。
-- **RevertFiles Chrome E2E**：`tests/e2e/test_revert_files_chrome_e2e.py`（READ×3：modify undo+diff+confirm；empty Sonner toast；**page reload 后 hydrate undo**）
+- **RevertFiles Chrome E2E**：`tests/e2e/test_revert_files_chrome_e2e.py`（READ×3：modify undo+diff+confirm；empty Sonner toast；page reload hydrate undo；`prepare_e2e_ui_session` 关闭 OnboardingWizard overlay）
 - **Memory citations Chrome E2E**：`tests/e2e/test_memory_citations_chrome_e2e.py`（READ lane ×2：`/settings/memory` 开「历史会话搜索」；聊天页注入 citations → 「依据/Evidence N」Sheet）。并行 attach 若 mux timeout drift，须 `MYRM_MUX_ALLOW_TIMEOUT_RESTART=1`（见 `chrome-e2e-preflight.sh` attach heal）。
 - **Voice memory ACL Chrome E2E**：`tests/e2e/test_voice_memory_acl_chrome_e2e.py`（READ lane ×2：Settings UI 开/关 memory+sessions → `personalSettings` API 断言；**不依赖** Providers Google key；corpus enum / tool-exec flags 见 `test_voice_memory_acl_api_integration.py`）。
 - **Skill marketplace LIVE Chrome E2E**：`tests/e2e/test_skill_marketplace_live_agent_chrome_e2e.py`（LIVE×1：`skill_discovery_tool` 外部市场搜索；自定义 Agent system_prompt + `/?agentId=`；自然中文用户消息；API/UI 双路径断言；见 `scripts/dev/CHROME_MCP_E2E.md`）

@@ -252,7 +252,7 @@ def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 18
     raise AssertionError(f"No running shell task for chat_id={chat_id} within {timeout_sec}s")
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.timeout(600)
 def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
     if not wait_e2e_provider_ready():

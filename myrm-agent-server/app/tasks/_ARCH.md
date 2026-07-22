@@ -10,11 +10,11 @@
 | 层 | 路径 | 职责 |
 |----|------|------|
 | Harness | `toolkits/tasks/` | `Task`, `SQLiteTaskStore`, `AsyncTaskExecutor` 协议 |
-| Harness | `toolkits/llms/image/async_image_engine.py` | 异步入队 |
+| Harness | `toolkits/llms/{image,video}/async_*_engine.py` | 异步入队 |
 | Server | `app/lifecycle/task_worker.py` | Store 单例 + worker 启停 |
 | Server | `app/tasks/` | Worker 循环、executor、crypto、事件 |
 | Server | `app/api/tasks/` | REST + SSE |
-| Frontend | `ImageTaskCard` + `useTasksSubscription` | 进度 UI |
+| Frontend | `ImageTaskCard/VideoTaskCard` + `useTasksSubscription` | 进度 UI |
 
 ## 文件清单
 
@@ -26,14 +26,15 @@
 | `metrics.py` | 辅助 | 任务指标采集 | — |
 | `cleanup.py` | 辅助 | 任务清理（`_db_maintenance_job` 每 6h 调用） | — |
 | `image_config_resolver.py` | 核心 | 从 task payload 快照还原 `ImageGenerationConfig`（含 media callback）；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
-| `task_payload_crypto.py` | 核心 | persist 前 seal `api_key` / `gateway_config.auth_token`；worker resolver 仅 open 加密字段 | ✅ |
+| `video_config_resolver.py` | 核心 | 从 task payload 快照还原 `VideoGenerationConfig`（含 fallback / media callback）；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
+| `task_payload_crypto.py` | 核心 | persist 前递归 seal `api_key` / `gateway_config.auth_token`（含 `fallback_configs`）；worker resolver 仅 open 加密字段并剥离明文遗留值 | ✅ |
 | `executors/` | 子模块 | 具体任务执行器 | — |
 
 ## 子模块
 
 | 模块 | 职责 |
 |------|------|
-| `executors/` | 图片生成等具体任务执行器（实现 harness `AsyncTaskExecutor`） |
+| `executors/` | 图片/视频生成等具体任务执行器（实现 harness `AsyncTaskExecutor`） |
 
 ## Key Dependencies
 

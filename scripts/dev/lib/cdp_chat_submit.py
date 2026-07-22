@@ -33,7 +33,11 @@ class CdpChatSubmit(CdpChatInput):
             await_promise=True,
             recv_timeout=180.0,
         )
-        return result if isinstance(result, dict) else {"ok": False, "err": "atomic-send-invalid"}
+        return (
+            result
+            if isinstance(result, dict)
+            else {"ok": False, "err": "atomic-send-invalid"}
+        )
 
     async def submit_native_click(self) -> dict[str, object]:
         """Click the send button when the E2E bridge sendChatMessage hook is unavailable."""
@@ -49,7 +53,9 @@ class CdpChatSubmit(CdpChatInput):
             await_promise=False,
         )
         return (
-            native if isinstance(native, dict) else {"ok": False, "err": "native-click-invalid"}
+            native
+            if isinstance(native, dict)
+            else {"ok": False, "err": "native-click-invalid"}
         )
 
     async def _submit_via_dev_bridge(
@@ -76,7 +82,11 @@ class CdpChatSubmit(CdpChatInput):
                 await_promise=True,
                 recv_timeout=180.0,
             )
-            return result if isinstance(result, dict) else {"ok": False, "err": "bridge-submit-invalid"}
+            return (
+                result
+                if isinstance(result, dict)
+                else {"ok": False, "err": "bridge-submit-invalid"}
+            )
 
         dev_submit = await self.evaluate(
             f"""(() => {{

@@ -149,4 +149,43 @@ describe('IntegrationConnectDialog', () => {
     expect(mockApiRequest).toHaveBeenCalledTimes(1);
     expect(mockSetMCPConfigs).not.toHaveBeenCalled();
   });
+
+  it('shows localized TLS probe message for tls_verification_failed reasonCode', async () => {
+    const entry = makeCatalogEntry({
+      deploymentScope: 'all_modes',
+      mcpConfig: {
+        name: 'unreal-engine',
+        type: 'streamable_http',
+        url: 'http://127.0.0.1:8000/mcp',
+        probeUrl: 'http://127.0.0.1:8000/mcp',
+      },
+    });
+    mockIsSandbox.mockReturnValue(false);
+    mockApiRequest.mockResolvedValueOnce({
+      status: 'unreachable',
+      reasonCode: 'tls_verification_failed',
+      error: 'TLS certificate verification failed — trust the MCP certificate or configure a valid CA bundle',
+    });
+
+    render(
+      <IntegrationConnectDialog
+        entry={entry}
+        locale="en"
+        onClose={vi.fn()}
+        onConnected={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'connect' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'TLS certificate verification failed — trust the MCP certificate or configure a valid CA bundle',
+        ),
+      ).toBeInTheDocument();
+    });
+    expect(mockApiRequest).toHaveBeenCalledTimes(1);
+    expect(mockSetMCPConfigs).not.toHaveBeenCalled();
+  });
 });

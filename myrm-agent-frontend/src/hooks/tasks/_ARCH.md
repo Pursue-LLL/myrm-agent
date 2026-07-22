@@ -4,5 +4,5 @@
 
 | 文件 | 职责 |
 |------|------|
-| `useTasksSubscription.ts` | WS 连接、任务事件写入 `store/tasks` |
+| `useTasksSubscription.ts` | SSE 连接、按 `task_id` 拉取详情、断线时 `GET /api/v1/tasks?ids=...&detail=true` 回退轮询 |
 | `index.ts` | 桶导出门面（白名单） |

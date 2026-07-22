@@ -430,6 +430,7 @@
         "cancel": "Cancel",
         "probing": "Checking connectivity...",
         "probeUnreachable": "Service not running or port not open — please ensure the editor MCP server is started",
+        "probeTlsVerificationFailed": "TLS certificate validation failed — trust the MCP certificate or configure a valid CA bundle.",
         "probeCloudLoopbackBlocked": "This integration runs on your local machine. In cloud mode, switch to Local WebUI or Tauri desktop and reconnect."
       }
     },

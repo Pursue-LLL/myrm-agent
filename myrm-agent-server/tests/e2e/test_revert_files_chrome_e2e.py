@@ -10,10 +10,12 @@ from pathlib import Path
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
 )
@@ -80,36 +82,6 @@ _HOOK_RESYNC_JS = """(() => {
   }, { once: true });
   return { hooked: true };
 })()"""
-
-_DISMISS_BLOCKING_MODALS_JS = """
-(() => {
-  const host = location.hostname;
-  if (host !== '127.0.0.1' && host !== 'localhost') {
-    return { ok: false, err: 'not-localhost', href: location.href };
-  }
-  try {
-    sessionStorage.setItem('migration_discovery_dismissed', 'true');
-    sessionStorage.setItem('competitor_migration_dismissed', 'true');
-  } catch (err) {
-    return { ok: false, err: String(err), href: location.href };
-  }
-  let clicked = 0;
-  Array.from(document.querySelectorAll('button')).forEach((b) => {
-    const text = (b.textContent || '').trim();
-    if (/稍后再说|Later|Skip for now|关闭|Dismiss|Not now/i.test(text)) {
-      b.click();
-      clicked += 1;
-    }
-  });
-  return { ok: true, clicked };
-})()
-""".strip()
-
-
-def _dismiss_blocking_modals(client, page) -> None:
-    dismissed = client.evaluate(page, _DISMISS_BLOCKING_MODALS_JS, timeout_sec=10.0)
-    assert isinstance(dismissed, dict) and dismissed.get("ok") is True, dismissed
-
 
 _PROBE_REVERT_FETCH_JS = f"""(() => {{
   return (async () => {{
@@ -235,6 +207,7 @@ def test_revert_files_undo_diff_confirm_flow() -> None:
     file_path = str(seeded["file_path"])
     _ensure_revert_changes_ready(api_url, chat_id, message_id, min_changes=1)
 
+    prepare_e2e_ui_session(api_url)
     warm_ui_route(f"/{chat_id}")
     with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=120_000) as (client, page):
         client.evaluate(page, _HOOK_RESYNC_JS, timeout_sec=10.0)
@@ -254,7 +227,7 @@ def test_revert_files_undo_diff_confirm_flow() -> None:
         )
         assert probe.get("ready") is True, json.dumps(probe, ensure_ascii=False)
 
-        _dismiss_blocking_modals(client, page)
+        dismiss_blocking_modals(client, page)
 
         fetch_probe = client.evaluate(page, _PROBE_REVERT_FETCH_JS, timeout_sec=30.0)
         assert isinstance(fetch_probe, dict) and fetch_probe.get("ok") is True, json.dumps(
@@ -329,6 +302,7 @@ def test_revert_files_empty_changes_shows_toast_not_popover() -> None:
     message_id = str(seeded["message_id"])
     _ensure_revert_changes_ready(api_url, chat_id, message_id, min_changes=0)
 
+    prepare_e2e_ui_session(api_url)
     warm_ui_route(f"/{chat_id}")
     with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=120_000) as (client, page):
         message_ready = wait_for_state(
@@ -346,7 +320,7 @@ def test_revert_files_empty_changes_shows_toast_not_popover() -> None:
         )
         assert message_ready.get("ready") is True, json.dumps(message_ready, ensure_ascii=False)
 
-        _dismiss_blocking_modals(client, page)
+        dismiss_blocking_modals(client, page)
 
         undo_ready = wait_for_state(client, page, _UNDO_BUTTON_READY_JS, timeout_sec=30.0)
         assert undo_ready.get("ready") is True, json.dumps(undo_ready, ensure_ascii=False)
@@ -371,6 +345,7 @@ def test_revert_files_undo_works_after_page_reload() -> None:
     file_path = str(seeded["file_path"])
     _ensure_revert_changes_ready(api_url, chat_id, message_id, min_changes=1)
 
+    prepare_e2e_ui_session(api_url)
     warm_ui_route(f"/{chat_id}")
     with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=120_000) as (client, page):
         client.evaluate(page, _HOOK_RESYNC_JS, timeout_sec=10.0)
@@ -407,7 +382,7 @@ def test_revert_files_undo_works_after_page_reload() -> None:
         )
         assert reloaded.get("ready") is True, json.dumps(reloaded, ensure_ascii=False)
 
-        _dismiss_blocking_modals(client, page)
+        dismiss_blocking_modals(client, page)
 
         fetch_probe = client.evaluate(page, _PROBE_REVERT_FETCH_JS, timeout_sec=30.0)
         assert isinstance(fetch_probe, dict) and fetch_probe.get("ok") is True, json.dumps(

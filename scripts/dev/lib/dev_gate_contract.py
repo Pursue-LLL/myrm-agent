@@ -74,6 +74,19 @@ CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER: Final[str] = "chrome_e2e_browser_takeov
 CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
     "chrome_e2e and not chrome_e2e_desktop and not chrome_e2e_browser_takeover_live"
 )
+# SHPOIB private-backend LIVE tests seed/clear approvals on isolated :180xx — not shared :8080.
+SHARED_APPROVAL_PREFLIGHT_SKIP_MARKERS: Final[tuple[str, ...]] = (
+    "cron_execution_policy_live",
+    "allowlist_pattern_live",
+    CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER,
+    "clarify_skip_chrome_e2e",
+    "execution_cache_chrome_e2e",
+    "goal_focus_chrome_e2e",
+)
+# Unified E2E admission (UEA v3).
+E2E_UNIFIED_WAIT_SEC: Final[int] = 900
+LIVE_SHPOIB_MAX_CONCURRENT: Final[int] = 4
+LIVE_SHARED_HOT_MAX_CONCURRENT: Final[int] = 1
 E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (
     "e2e-parent-",
     "myrm-test-e2e:",
@@ -99,10 +112,20 @@ BASE_TOOL_TIMEOUT_SEC: Final[float] = 180.0
 
 # --- Chrome E2E pytest-timeout SSOT (lane-aware; ≥ mux new_page retry window) ---
 
+# Shared-hot LIVE tests queue on :8080 agent-stream (e2e_runtime_guard default).
+LIVE_AGENT_STREAM_WAIT_SEC: Final[int] = 900
+# Typical LIVE chrome_e2e body (bootstrap + stream + inline UI waits).
+LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = 600
+
 READ_CHROME_E2E_PYTEST_TIMEOUT_SEC: Final[int] = (
     MUX_UPSTREAM_WAIT_SEC + MAX_PAGE_TIMEOUT_MS // 1000 + 90
 )
-LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC: Final[int] = 600
+LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC: Final[int] = (
+    LIVE_AGENT_STREAM_WAIT_SEC
+    + LIVE_AGENT_BODY_BUFFER_SEC
+    + MAX_PAGE_TIMEOUT_MS // 1000
+    + 90
+)
 
 
 def chrome_e2e_pytest_timeout_for_lane(lane: str) -> int:
@@ -119,6 +142,11 @@ def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
     if CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER in joined_argv:
         return CHROME_E2E_MATRIX_TIMEOUT_SECONDS
     return chrome_e2e_pytest_timeout_for_lane(lane)
+
+
+def chrome_e2e_skips_shared_approval_preflight(joined_argv: str) -> bool:
+    """True when LIVE E2E uses private backend and must not block on shared :8080."""
+    return any(marker in joined_argv for marker in SHARED_APPROVAL_PREFLIGHT_SKIP_MARKERS)
 
 
 def apply_chrome_e2e_pytest_timeout_args(

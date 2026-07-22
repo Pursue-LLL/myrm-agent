@@ -414,7 +414,9 @@ def _require_live_e2e_lease(
     skip_stream_lock = private_backend and _chrome_e2e_item_runtime is not None
     stream_guard = (
         live_agent_stream_lock()
-        if lease.lane == "LIVE_AGENT" and not skip_stream_lock
+        if lease.lane == "LIVE_AGENT"
+        and not skip_stream_lock
+        and os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip() != "1"
         else nullcontext()
     )
     with stream_guard:

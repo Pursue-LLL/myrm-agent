@@ -152,7 +152,7 @@ async def _wait_db_ui_status(
     )
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(900)
 @pytest.mark.asyncio

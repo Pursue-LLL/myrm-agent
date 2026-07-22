@@ -493,11 +493,13 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     progress("new chat + ensure surface")
     await chat.click_new_chat()
     await chat.ensure_chat_surface(BASE_URL)
+    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
     await ensure_textedit_fixture_ready()
 
     progress("enable computer_use")
     await asyncio.to_thread(activate_chrome)
     await chat.ensure_chat_surface(BASE_URL)
+    await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
     tools_setup = await chat.enable_computer_use()
     assert tools_setup.get("ok") is True, f"computer_use bridge failed: {tools_setup}"
     assert "computer_use" in (tools_setup.get("tools") or []), tools_setup

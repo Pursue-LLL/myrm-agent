@@ -22,48 +22,95 @@ export function useTasksSubscription(task_ids: string[]) {
     if (!stableIds) return;
 
     const ids = stableIds.split(',');
+    const notifiedTerminalTaskIds = new Set<string>();
+    let disposed = false;
+
+    const upsertTask = (task: Task) => {
+      setTasks((prev) => {
+        const next = new Map(prev);
+        next.set(task.task_id, task);
+        return next;
+      });
+    };
+
+    const notifyIfTerminal = (task: Task) => {
+      if (task.status !== 'succeeded' && task.status !== 'failed') {
+        return;
+      }
+      const dedupeKey = `${task.task_id}:${task.status}`;
+      if (notifiedTerminalTaskIds.has(dedupeKey)) {
+        return;
+      }
+      notifiedTerminalTaskIds.add(dedupeKey);
+
+      const title =
+        task.status === 'succeeded'
+          ? t('taskCompleted', { taskType: task.task_type })
+          : t('taskFailed', { taskType: task.task_type });
+      const body = task.status === 'failed' ? task.error?.message || t('taskUnknownError') : undefined;
+      notificationService.notify(title, { body });
+    };
+
+    const fetchTaskById = async (taskId: string): Promise<Task | null> => {
+      try {
+        const response = await fetch(`/api/v1/tasks/${encodeURIComponent(taskId)}`);
+        if (!response.ok) {
+          return null;
+        }
+        return (await response.json()) as Task;
+      } catch (error) {
+        console.error('Failed to fetch task detail:', error);
+        return null;
+      }
+    };
+
+    const syncSubscribedTasks = async () => {
+      try {
+        const response = await fetch(`/api/v1/tasks?ids=${encodeURIComponent(stableIds)}&detail=true`);
+        if (!response.ok) {
+          return;
+        }
+        const data = (await response.json()) as { tasks?: Task[] };
+        if (disposed || !Array.isArray(data.tasks)) {
+          return;
+        }
+        const tasksMap = new Map<string, Task>();
+        for (const task of data.tasks) {
+          tasksMap.set(task.task_id, task);
+          notifyIfTerminal(task);
+        }
+        setTasks(tasksMap);
+      } catch (error) {
+        console.error('Failed to poll tasks:', error);
+      }
+    };
 
     const eventSource = new EventSource('/api/v1/tasks/stream');
 
     eventSource.addEventListener('task_update', (event) => {
-      const data = JSON.parse(event.data) as Task;
-
-      if (ids.includes(data.task_id)) {
-        setTasks((prev) => {
-          const next = new Map(prev);
-          next.set(data.task_id, data);
-          return next;
-        });
-
-        if (data.status === 'succeeded' || data.status === 'failed') {
-          const title =
-            data.status === 'succeeded'
-              ? t('taskCompleted', { taskType: data.task_type })
-              : t('taskFailed', { taskType: data.task_type });
-          const body = data.status === 'failed' ? data.error?.message || t('taskUnknownError') : undefined;
-          notificationService.notify(title, { body });
-        }
+      const eventData = JSON.parse(event.data) as { task_id?: string };
+      if (!eventData.task_id || !ids.includes(eventData.task_id)) {
+        return;
       }
+      void fetchTaskById(eventData.task_id).then((task) => {
+        if (!task || disposed) {
+          return;
+        }
+        upsertTask(task);
+        notifyIfTerminal(task);
+      });
     });
+
+    void syncSubscribedTasks();
 
     const pollInterval = setInterval(async () => {
       if (eventSource.readyState !== EventSource.OPEN) {
-        try {
-          const response = await fetch(`/api/v1/tasks?ids=${stableIds}`);
-          const data = await response.json();
-
-          const tasksMap = new Map<string, Task>();
-          for (const task of data.tasks) {
-            tasksMap.set(task.task_id, task);
-          }
-          setTasks(tasksMap);
-        } catch (error) {
-          console.error('Failed to poll tasks:', error);
-        }
+        await syncSubscribedTasks();
       }
     }, 5000);
 
     return () => {
+      disposed = true;
       eventSource.close();
       clearInterval(pollInterval);
     };

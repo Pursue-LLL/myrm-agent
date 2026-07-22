@@ -9,7 +9,7 @@
 
 | 路由 | 用途 | 前端消费 |
 |------|------|----------|
-| `GET /api/v1/tasks` | 列表/过滤 | 任务历史 |
+| `GET /api/v1/tasks` | 列表/过滤（`ids` 批量过滤，`detail=true` 返回 payload/result） | 任务历史 + 订阅断线回退 |
 | `GET /api/v1/tasks/{id}` | 单任务状态 | ImageTaskCard 初始加载 |
 | `GET /api/v1/tasks/stream` | SSE 实时更新 | `useTasksSubscription` |
 | `POST /api/v1/tasks/{id}/retry` | 重试失败任务 | ImageTaskCard 重试按钮 |

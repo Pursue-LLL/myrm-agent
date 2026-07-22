@@ -19,7 +19,11 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from cdp_chat_support import fetch_provider_readiness_snapshot, get_e2e_api_url, wait_e2e_provider_ready
+from cdp_chat_support import (
+    fetch_provider_readiness_snapshot,
+    get_e2e_api_url,
+    wait_e2e_provider_ready,
+)
 from chrome_mcp_client import ChromeMcpClient
 from mcp_chat_ui import McpChatSession
 
@@ -30,7 +34,10 @@ from tests.e2e.desktop_approval.infra_retry import (
     should_abort_desktop_e2e_retries,
 )
 from tests.e2e.desktop_approval.textedit_fixture import hide_textedit_fixture
-from tests.e2e.desktop_approval.trust_api import clear_persisted_desktop_approvals, desktop_accessibility_granted
+from tests.e2e.desktop_approval.trust_api import (
+    clear_persisted_desktop_approvals,
+    desktop_accessibility_granted,
+)
 from tests.e2e.desktop_approval.turn_flow import run_approval_attempt
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
@@ -71,7 +78,11 @@ async def run_desktop_approval_chrome_e2e(
                 e2e_resource_ledger.register("chat", chat_id)
                 return chat_id
             except (AssertionError, RuntimeError, TimeoutError, OSError) as exc:
-                last_error = {"attempt": attempt, "error": str(exc), "type": type(exc).__name__}
+                last_error = {
+                    "attempt": attempt,
+                    "error": str(exc),
+                    "type": type(exc).__name__,
+                }
                 if is_retriable_page_transport(exc):
                     progress(f"page transport error during attempt: {last_error}")
                     raise
@@ -93,13 +104,16 @@ async def run_desktop_approval_chrome_e2e(
                         timeout_ms=120_000,
                     )
                     await asyncio.sleep(2.0)
-                    await chat.bootstrap(BASE_URL, navigate=False, timeout_sec=120.0)
+                    await chat.bootstrap(BASE_URL, navigate=True, timeout_sec=120.0)
+                    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
                     progress("new chat + ensure surface")
                     await chat.click_new_chat()
                     await chat.ensure_chat_surface(BASE_URL)
                 except (RuntimeError, TimeoutError, OSError) as reset_exc:
                     if is_retriable_page_transport(reset_exc):
-                        progress(f"page transport error during retry reset: {reset_exc}")
+                        progress(
+                            f"page transport error during retry reset: {reset_exc}"
+                        )
                         raise reset_exc from exc
                     if should_abort_desktop_e2e_retries(reset_exc):
                         pytest.fail(

@@ -160,7 +160,7 @@ def _assistant_has_marketplace_result(
     return has_skill and len(last_assistant.strip()) > 20, last_assistant, invoked
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(900)
 @pytest.mark.asyncio

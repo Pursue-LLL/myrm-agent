@@ -128,7 +128,13 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
           return true;
         }
         setProbeStatus('unreachable');
-        setProbeError(res.error || t('probeUnreachable'));
+        setProbeError(
+          res.reasonCode === 'tls_verification_failed'
+            ? t('probeTlsVerificationFailed', {
+                default: res.error || t('probeUnreachable'),
+              })
+            : (res.error || t('probeUnreachable')),
+        );
         return false;
       } catch {
         setProbeStatus('unreachable');
