@@ -154,7 +154,10 @@ async def test_group_mentioned_open_policy_routes_to_agent() -> None:
     try:
         msg = _make_group_msg(mentioned=True, content="@bot what is AI?")
         await bus._handle_inbound(msg)
-        await asyncio.sleep(0.3)
+        for _ in range(20):
+            await asyncio.sleep(0.1)
+            if executor.calls:
+                break
 
         assert len(executor.calls) == 1
         called_msg, called_uid = executor.calls[0]

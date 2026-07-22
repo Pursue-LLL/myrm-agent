@@ -11869,6 +11869,8 @@
   "subagentDashboard": {
     "overtimeTitle": "Running longer than expected",
     "overtimeDescription": "This sub-task has been running significantly longer than expected and may be stuck in a loop. Consider cancelling and adjusting your prompt.",
+    "staleTitle": "Subagent stalled — no progress detected",
+    "staleDescription": "No token or tool progress for {duration}min ({tokens} tokens consumed). The subagent may be stuck. Consider cancelling it.",
     "processing": "Processing...",
     "steerTitle": "Steer / Intervene",
     "cancelTitle": "Cancel & Checkpoint",

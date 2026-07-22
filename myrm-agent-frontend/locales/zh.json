@@ -11840,6 +11840,8 @@
   "subagentDashboard": {
     "overtimeTitle": "运行时间超出预期",
     "overtimeDescription": "该子任务运行时间已大幅超出预期，可能陷入死循环或遇到困难。建议取消并重新调整指令。",
+    "staleTitle": "子 Agent 停滞 — 未检测到进展",
+    "staleDescription": "已 {duration} 分钟无 token 或工具调用进展（已消耗 {tokens} tokens）。该子 Agent 可能卡住，建议取消。",
     "processing": "处理中...",
     "steerTitle": "引导 / 介入",
     "cancelTitle": "取消并保存检查点",
