@@ -8,6 +8,8 @@ import time
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    ChromeMcpClient,
+    McpPage,
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -19,6 +21,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _FIXTURE_ANSWER = "UECD evicted output E2E fixture answer."
+_PAGE_TIMEOUT_MS = 180_000
 
 _PROGRESS_STEPS_READY_JS = f"""(() => {{
   const target = {json.dumps(_FIXTURE_ANSWER)};
@@ -93,6 +96,10 @@ def _drawer_expired_js() -> str:
   };
 })()"""
 
+_CHAT_ROUTE_READY_JS = """(() => ({
+  ready: !!document.querySelector('[data-testid="app-layout"]'),
+}))()"""
+
 
 def _seed_uecd_fixture(api_base: str, *, variant: str = "full") -> dict[str, object]:
     seeded = http_json(
@@ -106,7 +113,6 @@ def _seed_uecd_fixture(api_base: str, *, variant: str = "full") -> dict[str, obj
 
 
 def _wait_fixture_assistant_via_api(api_base: str, chat_id: str, *, timeout_sec: float = 60.0) -> None:
-    """Ensure seeded assistant message is readable on the private backend before UI hydration."""
     deadline = time.monotonic() + timeout_sec
     last_count = 0
     while time.monotonic() < deadline:
@@ -138,64 +144,70 @@ def _wait_fixture_assistant_via_api(api_base: str, chat_id: str, *, timeout_sec:
     )
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
-@pytest.mark.integration
-@pytest.mark.timeout(240)
-def test_live_terminal_evicted_drawer_reads_uecd_spill() -> None:
-    api_base = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
-    seed = _seed_uecd_fixture(api_base)
-    chat_id = str(seed["chat_id"])
-    marker_line = str(seed["marker_line"])
+def _run_drawer_flow(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    marker_line: str | None,
+    expect_expired: bool,
+) -> None:
+    dismiss_blocking_modals(client, page)
+    loaded = wait_for_state(client, page, _PROGRESS_STEPS_READY_JS, timeout_sec=120.0)
+    assert loaded.get("ready") is True, json.dumps(loaded, ensure_ascii=False)
 
-    _wait_fixture_assistant_via_api(api_base, chat_id)
-    prepare_e2e_ui_session(api_base)
-    warm_ui_route(f"/{chat_id}")
+    expanded = wait_for_state(client, page, _EXPAND_PROGRESS_PANEL_JS, timeout_sec=30.0)
+    assert expanded.get("clicked") is True, json.dumps(expanded, ensure_ascii=False)
 
-    with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page)
-
-        loaded = wait_for_state(client, page, _PROGRESS_STEPS_READY_JS, timeout_sec=120.0)
-        assert loaded.get("ready") is True, json.dumps(loaded, ensure_ascii=False)
-
-        expanded = wait_for_state(client, page, _EXPAND_PROGRESS_PANEL_JS, timeout_sec=30.0)
-        assert expanded.get("clicked") is True, json.dumps(expanded, ensure_ascii=False)
-
+    if not expect_expired:
         terminal = wait_for_state(client, page, _TERMINAL_PREVIEW_JS, timeout_sec=60.0)
         assert terminal.get("ready") is True, json.dumps(terminal, ensure_ascii=False)
 
-        clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=60.0)
-        assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
+    clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=60.0)
+    assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
 
-        drawer = wait_for_state(
-            client,
-            page,
-            _drawer_ready_js(marker_line),
-            timeout_sec=45.0,
-        )
-        assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
+    if expect_expired:
+        drawer = wait_for_state(client, page, _drawer_expired_js(), timeout_sec=45.0)
+    else:
+        assert marker_line is not None
+        drawer = wait_for_state(client, page, _drawer_ready_js(marker_line), timeout_sec=45.0)
+    assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
-@pytest.mark.timeout(240)
-def test_live_terminal_evicted_drawer_shows_expired_when_file_removed() -> None:
+@pytest.mark.timeout(360)
+def test_live_terminal_evicted_drawer_reads_uecd_spill_and_expired() -> None:
+    """One SHPOIB backend + one Chrome tab: full spill read, then navigate to expired chat."""
     api_base = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
-    seed = _seed_uecd_fixture(api_base, variant="expired")
-    chat_id = str(seed["chat_id"])
 
-    _wait_fixture_assistant_via_api(api_base, chat_id)
+    seed_full = _seed_uecd_fixture(api_base, variant="full")
+    chat_full = str(seed_full["chat_id"])
+    marker_line = str(seed_full["marker_line"])
+    _wait_fixture_assistant_via_api(api_base, chat_full)
+
+    seed_expired = _seed_uecd_fixture(api_base, variant="expired")
+    chat_expired = str(seed_expired["chat_id"])
+    _wait_fixture_assistant_via_api(api_base, chat_expired)
+
     prepare_e2e_ui_session(api_base)
-    warm_ui_route(f"/{chat_id}")
+    warm_ui_route(f"/{chat_full}")
+    warm_ui_route(f"/{chat_expired}")
 
-    with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page)
-        loaded = wait_for_state(client, page, _PROGRESS_STEPS_READY_JS, timeout_sec=120.0)
-        assert loaded.get("ready") is True, json.dumps(loaded, ensure_ascii=False)
-        expanded = wait_for_state(client, page, _EXPAND_PROGRESS_PANEL_JS, timeout_sec=30.0)
-        assert expanded.get("clicked") is True, json.dumps(expanded, ensure_ascii=False)
-        clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=60.0)
-        assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
-        expired = wait_for_state(client, page, _drawer_expired_js(), timeout_sec=45.0)
-        assert expired.get("ready") is True, json.dumps(expired, ensure_ascii=False)
+    with open_mcp_page(f"{ui_url}/{chat_full}", timeout_ms=_PAGE_TIMEOUT_MS) as (client, page):
+        _run_drawer_flow(
+            client,
+            page,
+            marker_line=marker_line,
+            expect_expired=False,
+        )
+
+        client.navigate(page, f"{ui_url}/{chat_expired}", timeout_ms=_PAGE_TIMEOUT_MS)
+        wait_for_state(client, page, _CHAT_ROUTE_READY_JS, timeout_sec=90.0)
+
+        _run_drawer_flow(
+            client,
+            page,
+            marker_line=None,
+            expect_expired=True,
+        )
