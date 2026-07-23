@@ -32,6 +32,7 @@ import ChatWindowSatellites, {
 } from './ChatWindowSatellites';
 import { ParentChatLink } from './ParentChatLink';
 import { ChatCronLink } from './ChatCronLink';
+import SessionRevertButton from '../message-actions/SessionRevertButton';
 import WorkingStateBadge from './WorkingStateBadge';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
@@ -447,6 +448,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
               <div className="flex flex-wrap items-center gap-2 px-1 pb-1">
                 <ParentChatLink chatId={id} />
                 <ChatCronLink chatId={id} />
+                <SessionRevertButton sessionId={id} />
               </div>
             ) : null}
             <WorkingStateBadge />

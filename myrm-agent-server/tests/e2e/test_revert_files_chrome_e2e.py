@@ -542,3 +542,156 @@ def test_revert_files_undo_works_after_page_reload() -> None:
 
     _wait_revert_changes_cleared(api_url, chat_id, message_id)
     assert Path(file_path).read_text(encoding="utf-8") == "revert fixture before\n"
+
+
+def _ensure_session_revert_ready(
+    api_url: str,
+    chat_id: str,
+    *,
+    min_revertible_files: int,
+    timeout_sec: float = 45.0,
+) -> None:
+    deadline = time.monotonic() + timeout_sec
+    last_error = "timeout"
+    while time.monotonic() < deadline:
+        try:
+            data = http_json("GET", f"{api_url}/api/v1/files/revert/changes/{chat_id}")
+            if not isinstance(data, dict):
+                last_error = f"unexpected payload: {data!r}"
+            else:
+                revertible_paths: set[str] = set()
+                for changes in data.values():
+                    if not isinstance(changes, list):
+                        continue
+                    for item in changes:
+                        if not isinstance(item, dict):
+                            continue
+                        if item.get("revertible") is False:
+                            continue
+                        path = item.get("path")
+                        if isinstance(path, str) and path:
+                            revertible_paths.add(path)
+                if len(revertible_paths) >= min_revertible_files:
+                    return
+                last_error = f"revertible_paths={sorted(revertible_paths)!r}"
+        except (RuntimeError, urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_error = str(exc)
+        time.sleep(0.3)
+    raise AssertionError(
+        f"session revert/changes not ready chat={chat_id} "
+        f"min_revertible_files={min_revertible_files}: {last_error}"
+    )
+
+
+def _wait_session_revert_cleared(
+    api_url: str,
+    chat_id: str,
+    *,
+    timeout_sec: float = 30.0,
+) -> None:
+    deadline = time.monotonic() + timeout_sec
+    last: object = "timeout"
+    while time.monotonic() < deadline:
+        last = http_json("GET", f"{api_url}/api/v1/files/revert/changes/{chat_id}")
+        if last == {}:
+            return
+        if isinstance(last, dict) and all(
+            isinstance(changes, list) and len(changes) == 0 for changes in last.values()
+        ):
+            return
+        time.sleep(0.5)
+    raise AssertionError(
+        f"session revert/changes still present chat={chat_id}: {last!r}"
+    )
+
+
+_SESSION_REVERT_BUTTON_READY_JS = """(() => {
+  const btn = document.querySelector('[data-testid="session-revert-button"]');
+  if (!btn) return { ready: false };
+  return { ready: true, label: btn.getAttribute('aria-label') || null };
+})()"""
+
+_CLICK_SESSION_REVERT_FLOW_JS = """(() => {
+  return (async () => {
+    const trigger = document.querySelector('[data-testid="session-revert-button"]');
+    if (!trigger) return { ready: false, err: 'session-button-missing' };
+    trigger.click();
+    const deadline = Date.now() + 45000;
+    while (Date.now() < deadline) {
+      const dialog = document.querySelector('[role="alertdialog"]');
+      if (dialog) {
+        const confirmBtn = Array.from(dialog.querySelectorAll('button')).find((el) => {
+          const label = (el.textContent || '').trim();
+          return /Undo all AI file changes|撤销本次会话中 AI 的所有文件变更|撤銷本次會話中 AI 的所有檔案變更|Alle KI-Dateiänderungen|すべてのファイル変更を元に戻|모든 AI 파일 변경/i.test(
+            label,
+          );
+        });
+        if (confirmBtn) {
+          confirmBtn.click();
+          return { ready: true };
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    return { ready: false, err: 'session-confirm-missing' };
+  })();
+})()"""
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.integration
+@pytest.mark.timeout(240)
+def test_revert_session_button_restores_all_session_files() -> None:
+    """SessionRevertButton in ChatWindow: confirm dialog → revert all revertible files."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    seeded = _seed_revert_fixture(api_url, variant="session")
+    chat_id = str(seeded["chat_id"])
+    file_path = str(seeded["file_path"])
+    file_path_b = str(seeded.get("file_path_b") or "")
+    assert file_path_b
+
+    _ensure_session_revert_ready(api_url, chat_id, min_revertible_files=2)
+
+    prepare_e2e_ui_session(api_url)
+    warm_ui_route(f"/{chat_id}")
+    with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=120_000) as (client, page):
+        client.evaluate(page, _HOOK_RESYNC_JS, timeout_sec=10.0)
+
+        message_ready = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const target = {json.dumps(_FIXTURE_ANSWER)};
+              const store = window.__myrmChatStore?.getState?.();
+              const msg = (store?.messages || []).find(
+                (item) => item.role === 'assistant' && (item.content || '').includes(target),
+              );
+              return {{ ready: !!msg }};
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert message_ready.get("ready") is True, json.dumps(
+            message_ready,
+            ensure_ascii=False,
+        )
+
+        dismiss_blocking_modals(client, page)
+
+        button = wait_for_state(
+            client, page, _SESSION_REVERT_BUTTON_READY_JS, timeout_sec=30.0
+        )
+        assert button.get("ready") is True, json.dumps(button, ensure_ascii=False)
+
+        flow = client.evaluate(page, _CLICK_SESSION_REVERT_FLOW_JS, timeout_sec=70.0)
+        assert isinstance(flow, dict) and flow.get("ready") is True, json.dumps(
+            flow,
+            ensure_ascii=False,
+        )
+
+        success = wait_for_state(client, page, _SUCCESS_STATE_JS, timeout_sec=60.0)
+        assert success.get("ready") is True, json.dumps(success, ensure_ascii=False)
+
+    _wait_session_revert_cleared(api_url, chat_id)
+    assert Path(file_path).read_text(encoding="utf-8") == "revert fixture before\n"
+    assert Path(file_path_b).read_text(encoding="utf-8") == "file b before\n"
