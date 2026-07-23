@@ -6,7 +6,7 @@ import asyncio
 import json
 import uuid
 from collections.abc import Callable
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -38,7 +38,7 @@ class _DummyDeferredTool(BaseTool):
 
 
 def _discover_gateway_skills() -> list:
-    """Minimal searchable skill so DeferEconomics binds discover_capability_tool in tests."""
+    """Minimal searchable skill so sync_discover_capability_tool binds in tests."""
     from myrm_agent_harness.backends.skills.types import SkillMetadata
 
     return [
@@ -89,6 +89,21 @@ def _stop_on_render_ui_capability_gap(
         return False
     payload_data = event.get("data")
     return isinstance(payload_data, dict) and payload_data.get("tool_id") == "render_ui"
+
+
+def _stop_on_web_search_config_gap(
+    event: dict[str, object],
+    _collected: list[dict[str, object]],
+) -> bool:
+    if event.get("type") != "capability_gap":
+        return False
+    payload_data = event.get("data")
+    if not isinstance(payload_data, dict):
+        return False
+    return (
+        payload_data.get("tool_id") == "web_search"
+        and payload_data.get("reason") == "not_configured"
+    )
 
 
 _AGENT_STREAM_TEST_TIMEOUT = pytest.mark.timeout(420)
@@ -521,6 +536,61 @@ def test_agent_stream_preflight_emits_render_ui_gap_sse(client: TestClient) -> N
     assert isinstance(payload_data, dict)
     assert payload_data.get("tool_id") == "render_ui"
     assert payload_data.get("tool_group") == "render_ui"
+
+
+@pytest.mark.integration
+@_AGENT_STREAM_TEST_TIMEOUT
+def test_agent_stream_emits_web_search_config_gap_sse(
+    client: TestClient,
+    mock_load_user_configs: AsyncMock,
+) -> None:
+    """Preflight must emit capability_gap when web_search profile on but search unconfigured."""
+    from dataclasses import replace
+
+    from app.services.agent.stream_session.entitlement_gap_preflight import (
+        reset_capability_gap_emission_tracker,
+    )
+    from tests.api.agent.conftest import _build_mock_user_configs
+
+    reset_capability_gap_emission_tracker()
+    mock_load_user_configs.return_value = replace(
+        _build_mock_user_configs(),
+        search_is_user_configured=False,
+        search_cfg=None,
+    )
+
+    chat_id = f"test_preflight_web_search_cfg_{uuid.uuid4().hex[:8]}"
+    payload: dict[str, object] = {
+        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
+        "chatId": chat_id,
+        "query": "搜索一下今天的新闻",
+        "actionMode": "agent",
+        "modelSelection": get_lite_model_selection(),
+        "agentConfig": {
+            "enabledBuiltinTools": ["web_search", "memory"],
+        },
+        "timezone": "UTC",
+    }
+    events = _collect_agent_stream(
+        client,
+        payload,
+        stop_when=_stop_on_web_search_config_gap,
+    )
+    check_e2e_errors(events)
+
+    gaps = _gap_events(events, "capability_gap")
+    web_gaps = [
+        event
+        for event in gaps
+        if isinstance(event.get("data"), dict)
+        and event["data"].get("tool_id") == "web_search"
+        and event["data"].get("reason") == "not_configured"
+    ]
+    assert web_gaps, "expected stream preflight capability_gap SSE for unconfigured web_search"
+    payload_data = web_gaps[0]["data"]
+    assert isinstance(payload_data, dict)
+    assert payload_data.get("settings_path") == "/settings/search"
+    assert payload_data.get("tool_group") == "web"
 
 
 @pytest.mark.integration

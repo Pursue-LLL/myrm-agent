@@ -7,6 +7,7 @@ in UserConfig, with a TTL cache to avoid repeated DB queries.
 Features:
 - Dual-granularity binding: per-thread (forum topics) and per-channel
 - Agent name resolution: /bind accepts UUID or name, stores canonical UUID
+- Channel bind policy: reject prompt_mode=search at bind_topic; purge legacy search binds at resolve/get_all (General-only IM)
 - Lazy expiration: idle timeout + max age checked at resolve time (no bg tasks)
 - Activity tracking: in-memory cache with interval flush to reduce DB writes
 - Auto-discovery: sync_topic_metadata with dirty checking for UI display
@@ -42,6 +43,15 @@ _CHANNEL_LEVEL_KEY = "__channel__"
 
 _DEFAULT_IDLE_TIMEOUT_HOURS = 24
 _ACTIVE_FLUSH_INTERVAL = 300.0
+
+SEARCH_AGENT_CHANNEL_BIND_MSG = (
+    "Search agents cannot be bound to channels; choose a General agent."
+)
+
+
+def is_search_agent_channel_bind_error(exc: BaseException) -> bool:
+    """Return True when bind_topic rejected a prompt_mode=search agent."""
+    return isinstance(exc, ValueError) and str(exc) == SEARCH_AGENT_CHANNEL_BIND_MSG
 
 
 class SqlTopicManager:
@@ -95,12 +105,24 @@ class SqlTopicManager:
             return None
 
         if self._is_expired(topic_cfg):
-            del group_topics[storage_key]
-            if not group_topics:
-                del config[chat_id]
+            self._delete_binding_keys(config, chat_id, storage_key)
             await self._save_config(channel, config)
             logger.info("SqlTopicManager: expired binding %s/%s/%s auto-removed", channel, chat_id, storage_key)
             return None
+
+        raw_agent_id = topic_cfg.get("agentId")
+        if isinstance(raw_agent_id, str) and raw_agent_id:
+            if not await self._is_channel_bindable_agent(raw_agent_id):
+                self._delete_binding_keys(config, chat_id, storage_key)
+                await self._save_config(channel, config)
+                logger.info(
+                    "SqlTopicManager: unbindable agent %s binding %s/%s/%s auto-removed",
+                    raw_agent_id,
+                    channel,
+                    chat_id,
+                    storage_key,
+                )
+                return None
 
         await self._touch_active(channel, chat_id, storage_key, config)
 
@@ -141,6 +163,7 @@ class SqlTopicManager:
         resolved_agent_id = agent_id
         if agent_id:
             resolved_agent_id = await self._resolve_agent_id(agent_id)
+            await self._assert_channel_bindable_agent(resolved_agent_id)
 
         now_iso = datetime.now(timezone.utc).isoformat()
         topic_entry: dict[str, object] = {
@@ -276,8 +299,14 @@ class SqlTopicManager:
             logger.warning("SqlTopicManager: failed to cascade delete agent %s: %s", agent_id, exc)
 
     async def get_all_topics(self, channel: str) -> dict[str, object]:
-        """Get all topics for a channel (used by API)."""
-        return await self._load_config(channel)
+        """Get all topics for a channel (used by API).
+
+        Strips legacy Search-track bindings so Settings never shows ghost binds.
+        """
+        config = await self._load_config(channel)
+        if await self._sanitize_unbindable_bindings(channel, config):
+            await self._save_config(channel, config)
+        return config
 
     async def _resolve_agent_id(self, agent_id_or_name: str) -> str:
         """Resolve agent by UUID or name. Returns the canonical UUID.
@@ -302,6 +331,71 @@ class SqlTopicManager:
             raise ValueError(f"Agent not found: '{agent_id_or_name}'") from None
 
         return agent_id_or_name
+
+    @staticmethod
+    def _delete_binding_keys(
+        config: dict[str, object],
+        chat_id: str,
+        storage_key: str,
+    ) -> bool:
+        group_topics = config.get(chat_id)
+        if not isinstance(group_topics, dict) or storage_key not in group_topics:
+            return False
+        del group_topics[storage_key]
+        if not group_topics:
+            del config[chat_id]
+        return True
+
+    async def _is_channel_bindable_agent(self, agent_id: str) -> bool:
+        """Return False for Search-track or missing agents (Channel/IM = General-only)."""
+        from app.services.agent.agent_service import AgentService
+
+        agent = await AgentService.get_agent_by_id(agent_id)
+        if agent is None:
+            return False
+        return not self._agent_is_search_track(agent)
+
+    @staticmethod
+    def _agent_is_search_track(agent: object) -> bool:
+        meta = getattr(agent, "metadata", None)
+        if not isinstance(meta, dict):
+            return False
+        return str(meta.get("prompt_mode", "full")) == "search"
+
+    async def _sanitize_unbindable_bindings(self, channel: str, config: dict[str, object]) -> bool:
+        changed = False
+        for chat_id, group_topics in list(config.items()):
+            if not isinstance(group_topics, dict):
+                continue
+            chat_id_str = str(chat_id)
+            for storage_key, topic_cfg in list(group_topics.items()):
+                if not isinstance(topic_cfg, dict):
+                    continue
+                raw_agent_id = topic_cfg.get("agentId")
+                if not isinstance(raw_agent_id, str) or not raw_agent_id:
+                    continue
+                if await self._is_channel_bindable_agent(raw_agent_id):
+                    continue
+                self._delete_binding_keys(config, chat_id_str, str(storage_key))
+                logger.info(
+                    "SqlTopicManager: unbindable agent %s binding %s/%s/%s auto-removed",
+                    raw_agent_id,
+                    channel,
+                    chat_id_str,
+                    storage_key,
+                )
+                changed = True
+        return changed
+
+    async def _assert_channel_bindable_agent(self, agent_id: str) -> None:
+        """Reject Search-track agents — Channel/IM always runs General CORE."""
+        from app.services.agent.agent_service import AgentService
+
+        agent = await AgentService.get_agent_by_id(agent_id)
+        if agent is None:
+            raise ValueError(f"Agent not found: {agent_id}")
+        if self._agent_is_search_track(agent):
+            raise ValueError(SEARCH_AGENT_CHANNEL_BIND_MSG)
 
     async def sync_topic_metadata(
         self,

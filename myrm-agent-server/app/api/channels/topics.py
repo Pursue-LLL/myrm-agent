@@ -9,7 +9,7 @@
 - router: Topic 发现、绑定和默认 Agent 设置端点
 
 [POS]
-频道 Topic 路由。提供 Topic 列表查询、Agent 绑定和频道级默认 Agent 设置功能。
+频道 Topic 路由。Topic 列表与 Settings 绑定 API；Channel 绑定规则 SSOT 在 `core/channel_bridge/topic_config.py` `bind_topic`。
 """
 
 from __future__ import annotations

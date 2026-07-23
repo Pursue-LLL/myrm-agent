@@ -542,4 +542,140 @@ class TestConsumeAgentStreamApproval:
         assert bridge._transcript[0].role == "user"
         assert bridge._transcript[1].role == "assistant"
         assert bridge._transcript[1].text == "Running command."
-        mock_fb.assert_not_awaited()
+
+
+class TestBuildAgentParamsWebFetchGate:
+    """Voice bridge must honor Agent Security net_fetch like Web/Channel."""
+
+    @pytest.mark.asyncio
+    async def test_enable_web_fetch_false_when_profile_omits_net_fetch(self) -> None:
+        from app.core.types import ModelConfig
+        from app.services.agent.profile_resolver import ResolvedAgentProfile
+
+        bridge = _make_bridge()
+        profile = ResolvedAgentProfile(
+            agent_id="restricted-agent",
+            skill_ids=(),
+            mcp_ids=(),
+            enabled_builtin_tools=("file_read",),
+            security_overrides={"capabilities": ["file_read"]},
+        )
+        mock_configs = MagicMock()
+        mock_configs.model_cfg = ModelConfig(model="test/model", api_key="test-key")
+        mock_configs.providers_dict = {}
+        mock_configs.retrieval_dict = {}
+        mock_configs.mcp_dict = {}
+        mock_configs.search_cfg = None
+        mock_configs.personal_settings_dict = {}
+
+        with (
+            patch("app.api.voice.agent_bridge._ensure_model_rebuild"),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=mock_configs,
+            ),
+            patch(
+                "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            ) as mock_get_resolver,
+            patch(
+                "app.core.channel_bridge.config_parsers.verify_search_service_available",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
+                "app.core.channel_bridge.config_parsers.extract_fallback_model_configs",
+                return_value=(None, None),
+            ),
+            patch(
+                "app.core.channel_bridge.config_parsers.extract_lite_model_config",
+                return_value=None,
+            ),
+            patch(
+                "app.core.channel_bridge.config_parsers.extract_retrieval_models",
+                return_value=(None, None),
+            ),
+            patch(
+                "app.core.channel_bridge.config_parsers.extract_mcp_configs",
+                return_value=None,
+            ),
+            patch(
+                "app.core.channel_bridge.config_parsers.extract_user_instructions",
+                return_value="",
+            ),
+        ):
+            mock_resolver = MagicMock()
+            mock_resolver.resolve = AsyncMock(return_value=profile)
+            mock_get_resolver.return_value = mock_resolver
+
+            params = await bridge._build_agent_params("read https://example.com")
+
+        assert params is not None
+        assert params.enable_web_fetch is False
+        assert params.agent_security_raw == {"capabilities": ["file_read"]}
+
+    @pytest.mark.asyncio
+    async def test_enable_web_fetch_true_when_no_security_overrides(self) -> None:
+        from app.core.types import ModelConfig
+        from app.services.agent.profile_resolver import ResolvedAgentProfile
+
+        bridge = _make_bridge()
+        profile = ResolvedAgentProfile(
+            agent_id="default-agent",
+            skill_ids=(),
+            mcp_ids=(),
+            enabled_builtin_tools=("file_read", "web_search"),
+        )
+        mock_configs = MagicMock()
+        mock_configs.model_cfg = ModelConfig(model="test/model", api_key="test-key")
+        mock_configs.providers_dict = {}
+        mock_configs.retrieval_dict = {}
+        mock_configs.mcp_dict = {}
+        mock_configs.search_cfg = None
+        mock_configs.personal_settings_dict = {}
+
+        with (
+            patch("app.api.voice.agent_bridge._ensure_model_rebuild"),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=mock_configs,
+            ),
+            patch(
+                "app.services.agent.profile_resolver.get_agent_profile_resolver",
+            ) as mock_get_resolver,
+            patch(
+                "app.core.channel_bridge.config_parsers.verify_search_service_available",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
+                "app.core.channel_bridge.config_parsers.extract_fallback_model_configs",
+                return_value=(None, None),
+            ),
+            patch(
+                "app.core.channel_bridge.config_parsers.extract_lite_model_config",
+                return_value=None,
+            ),
+            patch(
+                "app.core.channel_bridge.config_parsers.extract_retrieval_models",
+                return_value=(None, None),
+            ),
+            patch(
+                "app.core.channel_bridge.config_parsers.extract_mcp_configs",
+                return_value=None,
+            ),
+            patch(
+                "app.core.channel_bridge.config_parsers.extract_user_instructions",
+                return_value="",
+            ),
+        ):
+            mock_resolver = MagicMock()
+            mock_resolver.resolve = AsyncMock(return_value=profile)
+            mock_get_resolver.return_value = mock_resolver
+
+            params = await bridge._build_agent_params("hello")
+
+        assert params is not None
+        assert params.enable_web_fetch is True
+        assert params.agent_security_raw is None

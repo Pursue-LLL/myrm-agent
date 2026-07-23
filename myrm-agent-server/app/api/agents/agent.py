@@ -325,6 +325,7 @@ async def get_agents(
                 avatar_url=agent.avatar,
                 is_built_in=agent.built_in,
                 agent_type=_metadata_as_mapping(agent).get("agent_type", "individual") or "individual",
+                prompt_mode=_metadata_as_mapping(agent).get("prompt_mode", "full") or "full",
                 enabled_builtin_tools=_resolve_enabled_builtin_tools(agent),
                 model_selection=_build_model_selection(agent.model, _metadata_as_mapping(agent)),
                 created_at=agent.created_at,

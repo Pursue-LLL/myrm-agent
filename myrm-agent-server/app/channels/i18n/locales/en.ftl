@@ -138,6 +138,9 @@ undo_success = ↩ Undone: { $count } message(s) removed.
 undo_reverted = ↩ Reverted { $count } file(s).
 undo_files_not_revertible = ↩ { $count } file change(s) could not be reverted automatically (file too large or buffer full).
 topic_not_configured = ℹ Topic management is not configured.
+topic_search_agent_rejected =
+    Search agents cannot be bound to channels.
+    Use a General agent here; use Web Fast mode for lightweight search.
 topic_bound =
      { $scope } bound{ $agent_label }.
     Use /unbind to remove.

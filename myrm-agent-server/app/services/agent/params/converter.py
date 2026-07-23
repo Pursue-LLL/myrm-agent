@@ -27,6 +27,7 @@ from app.ai_agents.general_agent.llm_factory import select_tool_capable_model_cf
 from app.core.channel_bridge.config_parsers import verify_search_service_available
 from app.core.types import ChatHistoryReq, MCPServerConfig
 from app.database.dto import PersonalityStyleLiteral
+from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
 from .archive_restore import (
     ArchiveRestoreRequestError,
@@ -46,6 +47,7 @@ from .upload_sync import inject_uploaded_files_into_query, sync_uploaded_files_t
 from .workspace_resolve import resolve_default_chat_workspace_dir
 
 logger = logging.getLogger(__name__)
+
 
 __all__ = [
     "ArchiveRestoreRequestError",
@@ -285,9 +287,9 @@ async def convert_to_general_agent_params(
 
     from app.services.agent.profile_resolver import (
         DEFAULT_ENABLED_BUILTIN_TOOLS,
-        apply_agent_baseline_tool_flags,
         resolve_builtin_tool_flags,
     )
+    from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
     enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
     auto_restore_domains: list[str] = []
@@ -709,7 +711,10 @@ async def convert_to_general_agent_params(
         # Deep vs normal differs by search_depth (sufficiency, prompt suffix, limits),
         # not browser — deep workflow is web_search → web_fetch → answer self-review.
         fast_builtin: list[str] = ["answer_tool"]
-        tool_flags = resolve_builtin_tool_flags(fast_builtin)
+        tool_flags = resolve_agent_mount(
+            ExecutionSurface.WEB_FAST,
+            resolve_builtin_tool_flags(fast_builtin),
+        )
         prompt_mode = "search"
         search_available = True
         user_instructions = request.user_instructions
@@ -722,8 +727,9 @@ async def convert_to_general_agent_params(
         engine_params = {"max_tool_calls": 20 if search_depth == "deep" else 8}
         agent_memory_policy = {"write_policy": "conversation"}
     else:
-        tool_flags = apply_agent_baseline_tool_flags(
-            resolve_builtin_tool_flags(enabled_builtin_tools)
+        tool_flags = resolve_agent_mount(
+            ExecutionSurface.WEB_CHAT,
+            resolve_builtin_tool_flags(enabled_builtin_tools),
         )
         prompt_mode = resolved.prompt_mode if resolved else "full"
 
@@ -745,6 +751,9 @@ async def convert_to_general_agent_params(
         user_instructions=user_instructions,
         fetch_raw_webpage=request.fetch_raw_webpage,
         enable_web_search=search_available,
+        web_search_profile_enabled="web_search" in enabled_builtin_tools,
+        search_is_user_configured=bool(configs and configs.search_is_user_configured),
+        enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
         **tool_flags,
         browser_source=browser_source,
         dialog_policy=dialog_policy,

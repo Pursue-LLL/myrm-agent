@@ -8,6 +8,8 @@
 
 **Memory read-plane**：OpenAI Realtime 与 Gemini Live 通过 `voice_memory_context.py` 读取与 Chat 相同的 Settings ACL，经 `tool_catalog.py` 动态裁剪 `memory_search_tool` 的 corpus enum；`realtime-tool-exec` 与 `agent_bridge` 共用同一 flags 组装 `GeneralAgentParams`。已加载 profile 与 settings 的路径须调用 `voice_memory_context_from`，禁止重复 resolver I/O。
 
+**Agent Security net_fetch**：`agent_bridge.py` 与 `realtime.py`（tool-exec 代理）均通过 `resolve_enable_web_fetch(profile.security_overrides)` 设置 `enable_web_fetch`，与 Web/Channel/Cron 入口一致。
+
 **测试**：`tests/api/voice/test_voice_memory_context.py`（SSOT 矩阵）、`tests/api/voice/test_voice_memory_acl_api_integration.py`（HTTP token/tool-exec）、`tests/e2e/test_voice_memory_acl_chrome_e2e.py`（Settings UI → `personalSettings` READ E2E）。
 
 ## 文件清单
@@ -17,7 +19,7 @@
 | `__init__.py` | 入口 | 包入口与导出 | — |
 | `voice_memory_context.py` | 核心 | Voice memory ACL SSOT（settings + profile → flags） | ✅ |
 | `tool_catalog.py` | 核心 | 动态 `memory_search_tool` 声明（Realtime + Gemini） | ✅ |
-| `agent_bridge.py` | 模块 | Agent execution bridge for voice sessions. | ✅ |
+| `agent_bridge.py` | 模块 | Voice STT→Agent bridge；`enable_web_fetch` 由 profile `net_fetch` 门控 | ✅ |
 | `gemini_live.py` | 模块 | Gemini Live API integration (token + WebSocket URL + tool declarations). | ✅ |
-| `realtime.py` | 模块 | OpenAI Realtime API integration (ephemeral token + tools + tool-exec proxy). | ✅ |
+| `realtime.py` | 模块 | OpenAI Realtime token/tools；tool-exec 代理同样应用 `net_fetch` gate | ✅ |
 | `ws_session.py` | 模块 | Full-duplex voice session WebSocket endpoint. | ✅ |

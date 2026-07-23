@@ -49,6 +49,8 @@ def _should_recover_mux_after_tool_error(
     if name == "new_page" and _STALE_MUX_PAGE_TOKEN in message:
         return True
     return name in retry_tools and "timeout" in message.lower()
+
+
 from cdp_chat_support import (
     e2e_runtime_binding,
     e2e_runtime_binding_source,
@@ -897,13 +899,13 @@ class ChromeMcpClient:
                 transient = isinstance(exc, RuntimeError) and _is_transient_mux_error(
                     message
                 )
-                stale_mux_page = (
-                    name == "new_page" and _STALE_MUX_PAGE_TOKEN in message
-                )
+                stale_mux_page = name == "new_page" and _STALE_MUX_PAGE_TOKEN in message
                 timed_out = isinstance(exc, TimeoutError) or (
                     isinstance(exc, RuntimeError) and "timed out" in message.lower()
                 )
-                if (transient and not _is_page_ownership_error(message)) or stale_mux_page:
+                if (
+                    transient and not _is_page_ownership_error(message)
+                ) or stale_mux_page:
                     self._recover_mux_transport()
                 elif timed_out and name in retry_tools and attempt >= 1:
                     self._recover_mux_transport()

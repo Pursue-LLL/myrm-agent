@@ -15,4 +15,4 @@ FastAPI 服务器配置层。管理应用 lifespan（启动三阶段 + 优雅关
 | `exceptions.py` | 辅助 | 全局异常处理器（未捕获异常→HTTP 响应映射） | — |
 | `middlewares.py` | 核心 | FastAPI 中间件注册：TextSanitizer → Auth → Cache → MaxBodySize → CORS → PublicIngress | ✅ |
 | `runtime_dev_info.py` | 辅助 | 运行时监听端口与 dev 模式标记；health 暴露 `backend_port` + `webui_dev_port`（split_dev 固定 3000） | ✅ |
-| `stack_epoch.py` | 辅助 | 读取 `stack-epoch.json`；`GET /api/v1/health` 暴露 `stack_epoch`（并行 Agent 漂移检测） | ✅ |
+| `stack_epoch.py` | 辅助 | 读取 `stack-epoch.json`（含 `source_fingerprint`）；`GET /api/v1/health` 暴露 `stack_epoch`（Verification Plane epoch 探测） | ✅ |

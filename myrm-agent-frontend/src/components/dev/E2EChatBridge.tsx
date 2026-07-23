@@ -22,6 +22,7 @@ import useApprovalStore from '@/store/useApprovalStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useProviderStore from '@/store/useProviderStore';
+import useWorkspaceStore from '@/store/useWorkspaceStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
 import type { BuiltinToolId } from '@/store/chat/types';
@@ -694,6 +695,30 @@ export default function E2EChatBridge() {
       },
       abortActiveStream: () => {
         useChatStore.getState().stopMessage();
+      },
+      /** Close in-flight SSE only (no cancel API) so a separate agent-stream resume can proceed. */
+      releaseActiveStreamForApiResume: () => {
+        const chatState = useChatStore.getState();
+        const paneId = useWorkspaceStore.getState().panes.find((pane) => pane.chatId === chatState.chatId)?.id;
+        const paneAbort =
+          paneId != null ? useWorkspaceStore.getState().getPaneAbortController(paneId) : null;
+        const controller = paneAbort ?? chatState.abortController;
+        let released = false;
+        if (controller && !controller.signal.aborted) {
+          controller.abort();
+          released = true;
+        }
+        flushSync(() => {
+          useChatStore.setState({
+            loading: false,
+            abortController: null,
+            messageAppeared: true,
+          });
+        });
+        if (paneId) {
+          useWorkspaceStore.getState().setPaneAbortController(paneId, null);
+        }
+        return { ok: true, released };
       },
       getDesktopApprovalSnapshot: () => {
         const state = useDesktopControlApprovalStore.getState();

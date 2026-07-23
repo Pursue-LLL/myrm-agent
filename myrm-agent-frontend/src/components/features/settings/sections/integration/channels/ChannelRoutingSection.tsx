@@ -25,7 +25,7 @@ export default function ChannelRoutingSection() {
   const t = useTranslations('settings.sections.channelRouting');
   const locale = useLocale();
   const {
-    agents,
+    channelBindableAgents,
     channels,
     globalAgentId,
     handleBindTopic,
@@ -135,7 +135,7 @@ export default function ChannelRoutingSection() {
                             className="bg-background border border-input rounded-full text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none"
                           >
                             <option value="none">{t('noDefaultAgent')}</option>
-                            {agents.map((agent) => (
+                            {channelBindableAgents.map((agent) => (
                               <option key={agent.id} value={agent.id}>
                                 {getBuiltinAgentName(agent.id, agent.name, locale)}
                               </option>
@@ -157,7 +157,7 @@ export default function ChannelRoutingSection() {
                             <ChannelRoutingTopicRow
                               key={topic.topicId}
                               topic={topic}
-                              agents={agents}
+                              agents={channelBindableAgents}
                               isSaving={saving === topic.topicId}
                               onBindTopic={handleBindTopic}
                               onSetThreadSharingMode={handleSetThreadSharingMode}

@@ -134,13 +134,24 @@ class RouterExecutionMixin:
 
         route_agent_id = exec_msg.metadata.get("route_agent_id")
         if isinstance(route_agent_id, str):
-            topic_ctx = TopicContext(
-                topic_id=exec_msg.thread_id or chat_id,
-                agent_id=route_agent_id,
-                enabled=True,
-                matched_by="alias",
-            )
-            logger.warning("AgentRouter: routing to agent %s via subcommand", route_agent_id)
+            from app.core.channel_bridge.topic_config import SqlTopicManager
+            from app.services.agent.agent_service import AgentService
+
+            route_agent = await AgentService.get_agent_by_id(route_agent_id)
+            if route_agent is not None and SqlTopicManager._agent_is_search_track(route_agent):
+                logger.warning(
+                    "AgentRouter: reject search-track route_agent_id %s on channel %s",
+                    route_agent_id,
+                    exec_msg.channel,
+                )
+            else:
+                topic_ctx = TopicContext(
+                    topic_id=exec_msg.thread_id or chat_id,
+                    agent_id=route_agent_id,
+                    enabled=True,
+                    matched_by="alias",
+                )
+                logger.warning("AgentRouter: routing to agent %s via subcommand", route_agent_id)
 
         return _RouterExecutionContext(
             user_id=user_id,

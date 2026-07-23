@@ -69,7 +69,7 @@ async def test_repo_create_profile_persists_canonical_tools(agent_db) -> None:
         created = await AgentRepository.create_profile(session, profile)
         await session.commit()
 
-    # AGENT_BASELINE_BUILTIN_TOOLS are stripped at persist; applied at runtime via apply_agent_baseline_tool_flags
+    # AGENT_BASELINE_BUILTIN_TOOLS are stripped at persist; applied at runtime via tool_mount.resolve_agent_mount
     assert created.tools_allowed == ["web_search"]
 
 

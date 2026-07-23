@@ -2,6 +2,31 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 
+const evictedOutputCopy = vi.hoisted(() => ({
+  savedHint: 'Full tool output saved to sandbox storage',
+  viewFull: 'View Full Output',
+  loading: 'Loading full output...',
+  expiredTitle: 'Output Expired',
+  expiredDesc: 'This output file has been cleaned up. Evicted outputs are retained for the session duration only.',
+  errorTitle: 'Failed to load output',
+  errorDesc: 'Please try again later.',
+  searchTitle: 'Search (Ctrl+F)',
+  searchPlaceholder: 'Search...',
+  copyAll: 'Copy all',
+  pageOf: 'Page {current} of {total}',
+  prev: 'Prev',
+  next: 'Next',
+  lineCount: '{count} lines',
+}));
+
+vi.mock('@/lib/deploy-mode', () => ({
+  getApiBaseUrl: () => '/api/v1',
+}));
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => evictedOutputCopy[key as keyof typeof evictedOutputCopy] ?? key,
+}));
+
 const MOCK_CONTENT = Array.from({ length: 20 }, (_, i) => {
   if (i === 3) return '$ npm install';
   if (i === 7) return 'Error: something failed here';
@@ -226,7 +251,34 @@ describe('EvictedOutputDrawer', () => {
     it('shows expired state', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
+        status: 404,
         json: () => Promise.resolve({ expired: true }),
+      });
+      const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
+      render(
+        <EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />,
+      );
+      await waitFor(() => expect(screen.getByText('Output Expired')).toBeInTheDocument());
+    });
+
+    it('shows expired state for FastAPI detail envelope', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({ detail: { expired: true } }),
+      });
+      const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
+      render(
+        <EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />,
+      );
+      await waitFor(() => expect(screen.getByText('Output Expired')).toBeInTheDocument());
+    });
+
+    it('shows expired state for legacy 404 envelope without readable body', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: () => Promise.reject(new Error('blocked')),
       });
       const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
       render(
@@ -238,6 +290,7 @@ describe('EvictedOutputDrawer', () => {
     it('shows error state on fetch failure', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
+        status: 500,
         json: () => Promise.resolve({}),
       });
       const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;

@@ -137,6 +137,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
     if TYPE_CHECKING:
         enable_web_search: bool
+        enable_web_fetch: bool
+        enable_web_crawl: bool
         search_service_cfg: SearchServiceConfig | None = None
         reranker_config: RerankerConfig | None
         enable_advanced_retrieval: bool
@@ -211,17 +213,18 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
         from app.config.deploy_mode import is_local_mode as _is_local
 
-        tools.append(
-            create_web_fetch_tool(
-                reranker_config=reranker_cfg,
-                embedding_config=embedding_cfg,
-                use_raw_markdown=self.fetch_raw_webpage,
-                allow_private_networks=_is_local(),
-                sufficiency_config=sufficiency_cfg,
-                sufficiency_llm_config=sufficiency_llm,
+        if getattr(self, "enable_web_fetch", True):
+            tools.append(
+                create_web_fetch_tool(
+                    reranker_config=reranker_cfg,
+                    embedding_config=embedding_cfg,
+                    use_raw_markdown=self.fetch_raw_webpage,
+                    allow_private_networks=_is_local(),
+                    sufficiency_config=sufficiency_cfg,
+                    sufficiency_llm_config=sufficiency_llm,
+                )
             )
-        )
-        logger.info("Loaded web_fetch_tool [Turn1 baseline, no search API required]")
+            logger.info("Loaded web_fetch_tool [Turn1 baseline, no search API required]")
 
         if self.enable_web_search and self.search_service_cfg:
             tools.append(
@@ -275,6 +278,32 @@ class ToolSetupMixin(ExternalAgentsMixin):
             task_user_id=getattr(self, "_task_user_id", "default"),
         )
         self._setup_tts_tools(tools)
+
+    def _setup_web_crawl_tool(
+        self,
+        tools: list[object],
+        *,
+        chat_id: str | None = None,
+        workspace_root: str | None = None,
+    ) -> None:
+        """Register web_crawl_tool when enabled (EXTENDED, opt-in)."""
+        if not getattr(self, "enable_web_crawl", False):
+            return
+        from myrm_agent_harness.toolkits.web_fetch.web_crawl_agent_tools import create_web_crawl_tool
+
+        from app.config.deploy_mode import is_local_mode as _is_local
+
+        data_dir: str | None = None
+        if workspace_root and chat_id:
+            data_dir = str(Path(workspace_root) / ".crawl" / chat_id)
+
+        tools.append(
+            create_web_crawl_tool(
+                allow_private_networks=_is_local(),
+                data_dir=data_dir,
+            )
+        )
+        logger.info("Loaded web_crawl_tool [EXTENDED opt-in]")
 
     def _setup_clarification_tools(self, tools: list[object]) -> None:
         """Set up ask_question HITL clarification tool for interactive web_chat sessions."""

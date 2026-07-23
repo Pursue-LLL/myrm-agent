@@ -24,6 +24,7 @@ import type {
   GoalStatusPayload,
   ErrorKind,
 } from '@/store/chat/types';
+import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import type { GoalState } from '@/components/features/chat-window/goals/GoalStatusCard';
 import type { SubagentStatus } from '../useSubagentStore';
 
@@ -94,7 +95,8 @@ function getSourceKey(source: Source): string {
   if (source.type === 'conversation_history' && source.conversation_id) {
     return `conversation:${source.conversation_id}:${source.message_id ?? ''}`;
   }
-  if (source.url) return `url:${source.url}`;
+  const clickUrl = resolveSourceClickUrl(source);
+  if (clickUrl) return `url:${clickUrl}`;
   if (source.skill_name) return `mcp:${source.skill_name}`;
   return `index:${source.index}`;
 }

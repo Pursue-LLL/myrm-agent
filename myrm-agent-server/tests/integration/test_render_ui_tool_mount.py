@@ -122,7 +122,7 @@ def test_im_channel_entitlement_differs_from_mount() -> None:
         enable_web_search=False,
         enable_browser=False,
         enable_file_ops=True,
-        enable_code_execute=True,
+        enable_shell_tools=True,
         enable_computer_use=False,
         enable_memory=True,
         incognito_mode=False,

@@ -70,10 +70,8 @@ async def build_channel_execution_agent(
         resolve_conversation_search_enabled,
         resolve_memory_enabled,
     )
-    from app.services.agent.profile_resolver import (
-        apply_agent_baseline_tool_flags,
-        resolve_builtin_tool_flags,
-    )
+    from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+    from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
     user_timezone = str(memory_settings.get("timezone", "")) or None
     memory_identity = _resolve_inbound_memory_identity(
@@ -144,6 +142,13 @@ async def build_channel_execution_agent(
     set_current_agent_id(resolved_agent_id or "default")
 
     from app.core.channel_bridge.executor_helpers import extract_external_agents
+    from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
+
+    agent_security_raw = (
+        {str(k): v for k, v in resolved_profile.security_overrides.items()}
+        if resolved_profile and resolved_profile.security_overrides
+        else None
+    )
 
     params = GeneralAgentParams(
         query=query,
@@ -163,7 +168,11 @@ async def build_channel_execution_agent(
         subagent_ids=agent_subagent_ids,
         fetch_raw_webpage=bool(memory_settings.get("fetchRawWebpage")),
         enable_web_search=search_available,
-        **apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(enabled_builtin_tools)),
+        enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
+        **resolve_agent_mount(
+            ExecutionSurface.CHANNEL,
+            resolve_builtin_tool_flags(enabled_builtin_tools),
+        ),
         auto_restore_domains=auto_restore_domains,
         enable_advanced_retrieval=bool(
             configs.retrieval_dict.get("enableAdvancedRetrieval") if configs.retrieval_dict else False
@@ -172,11 +181,7 @@ async def build_channel_execution_agent(
         enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction")),
         enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
         security_config_raw=build_security_config(configs.security_config_dict, msg.metadata),
-        agent_security_raw=(
-            {str(k): v for k, v in resolved_profile.security_overrides.items()}
-            if resolved_profile and resolved_profile.security_overrides
-            else None
-        ),
+        agent_security_raw=agent_security_raw,
         memory_policy=(resolved_profile.memory_policy if resolved_profile else None),
         memory_decay_profile=memory_decay_profile,
         engine_params=agent_engine_params,

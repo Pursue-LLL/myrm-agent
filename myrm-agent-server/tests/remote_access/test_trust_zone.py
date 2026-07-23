@@ -172,3 +172,48 @@ def test_loopback_direct_still_trusted_without_session_when_unprotected(
     identity = resolve_identity_from_http_scope(scope)
     assert identity.admission_path == AdmissionPath.LOOPBACK_DIRECT.value
     assert identity.user_id == "local-user"
+
+
+def test_manage_channel_named_webhook_is_loopback_not_channel_admission() -> None:
+    """Channel id 'webhook' in manage API must not trigger CHANNEL webhook admission."""
+    path = resolve_admission_path(
+        path="/api/v1/channels/manage/webhook/topics",
+        client_ip="127.0.0.1",
+        host_header="127.0.0.1:8080",
+        headers={"X-Forwarded-Host": "localhost:3000", "X-Forwarded-Proto": "http"},
+    )
+    assert path == AdmissionPath.LOOPBACK_DIRECT
+
+
+def test_shared_context_binding_target_webhook_is_loopback() -> None:
+    path = resolve_admission_path(
+        path="/api/v1/memory/shared-contexts/bindings/targets/channel/webhook",
+        client_ip="127.0.0.1",
+        host_header="127.0.0.1:8080",
+        headers={},
+    )
+    assert path == AdmissionPath.LOOPBACK_DIRECT
+
+
+def test_platform_telegram_webhook_is_channel_admission() -> None:
+    path = resolve_admission_path(
+        path="/api/channels/telegram/webhook",
+        client_ip="127.0.0.1",
+        host_header="127.0.0.1:8080",
+        headers={},
+    )
+    assert path == AdmissionPath.CHANNEL
+
+
+def test_manage_webhook_topics_auth_loopback_when_unprotected(monkeypatch: pytest.MonkeyPatch) -> None:
+    set_password_protection_enabled(False)
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/api/v1/channels/manage/webhook/topics",
+        "client": ("127.0.0.1", 54321),
+        "headers": [(b"host", b"127.0.0.1:8080")],
+    }
+    identity = resolve_identity_from_http_scope(scope)
+    assert identity.admission_path == AdmissionPath.LOOPBACK_DIRECT.value
+    assert identity.user_id == "local-user"

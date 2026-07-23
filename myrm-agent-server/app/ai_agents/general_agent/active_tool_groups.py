@@ -24,9 +24,10 @@ from typing import Protocol
 
 class ActiveToolGroupSource(Protocol):
     enable_web_search: bool
+    enable_web_crawl: bool
     enable_browser: bool
     enable_file_ops: bool
-    enable_code_execute: bool
+    enable_shell_tools: bool
     enable_computer_use: bool
     enable_memory: bool
     incognito_mode: bool
@@ -45,6 +46,7 @@ class ActiveToolGroupSource(Protocol):
 
 ACTIVE_TOOL_GROUP_KEYS: tuple[str, ...] = (
     "web",
+    "web_crawl",
     "browser",
     "file_ops",
     "shell",
@@ -73,9 +75,10 @@ def derive_active_tool_groups(
     """Map GeneralAgent flags to harness TOOL_GROUP_MAP group names."""
     flag_to_group: list[tuple[str, bool]] = [
         ("web", agent.enable_web_search),
+        ("web_crawl", agent.enable_web_crawl),
         ("browser", agent.enable_browser),
         ("file_ops", agent.enable_file_ops),
-        ("shell", agent.enable_code_execute),
+        ("shell", agent.enable_shell_tools),
         ("computer_use", agent.enable_computer_use),
         ("memory", agent.enable_memory and not agent.incognito_mode),
         (
@@ -103,9 +106,10 @@ def derive_active_tool_groups_from_params(params: object) -> frozenset[str]:
     """Map ``GeneralAgentParams`` entitlement flags to harness group names for gap preflight."""
     adapter = SimpleNamespace(
         enable_web_search=bool(getattr(params, "enable_web_search", False)),
+        enable_web_crawl=bool(getattr(params, "enable_web_crawl", False)),
         enable_browser=bool(getattr(params, "enable_browser", False)),
         enable_file_ops=bool(getattr(params, "enable_file_ops", True)),
-        enable_code_execute=bool(getattr(params, "enable_code_execute", True)),
+        enable_shell_tools=bool(getattr(params, "enable_shell_tools", True)),
         enable_computer_use=bool(getattr(params, "enable_computer_use", False)),
         enable_memory=bool(getattr(params, "enable_memory", True)),
         incognito_mode=bool(getattr(params, "incognito_mode", False)),

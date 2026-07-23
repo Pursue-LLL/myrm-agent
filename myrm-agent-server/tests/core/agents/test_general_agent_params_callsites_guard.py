@@ -1,8 +1,8 @@
 """Guardrail: every GeneralAgentParams direct constructor and `model_validate` site under `app/` must match allowlist.
 
 When adding a new construction site, update EXPECTED_* below and verify
-`auto_restore_domains`, `enable_browser`, `enable_render_ui`, and related ResolvedAgentProfile fields
-are passed consistently (Web / Channel / Cron / Eval parity).
+`auto_restore_domains`, `enable_browser`, `enable_render_ui`, `enable_web_fetch`, and related ResolvedAgentProfile fields
+are passed consistently (Web / Channel / Cron / Eval / Voice parity).
 """
 
 from __future__ import annotations

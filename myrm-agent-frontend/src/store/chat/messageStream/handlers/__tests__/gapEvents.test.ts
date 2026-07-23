@@ -4,6 +4,17 @@ import { AgentEventType } from '@/store/chat/types';
 import { AdaptiveScheduler } from '../../../adaptiveScheduler';
 import type { StreamHandlerActions, StreamHandlerState } from '../../types';
 import type { StreamCtx } from '../../streamContext';
+
+const isLocalModeMock = vi.hoisted(() => vi.fn(() => false));
+
+vi.mock('@/lib/deploy-mode', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
+  return {
+    ...actual,
+    isLocalMode: () => isLocalModeMock(),
+  };
+});
+
 import { gapEvents } from '../gapEvents';
 
 const setCurrentBuiltinTools = vi.fn();
@@ -87,6 +98,7 @@ function createCtx(eventType: string, data: Record<string, string>): StreamCtx {
 
 describe('gapEvents', () => {
   beforeEach(() => {
+    isLocalModeMock.mockReturnValue(false);
     document.documentElement.lang = 'en';
     mockLoading = false;
     mockState = {
@@ -180,6 +192,44 @@ describe('gapEvents', () => {
     const toastMessage = toastInfo.mock.calls[0]?.[0] as string;
     expect(toastMessage).toContain('Web 对话');
     expect(setPendingGapRetry).not.toHaveBeenCalled();
+  });
+
+  it('shows settings CTA on web_search not_configured capability_gap', async () => {
+    await gapEvents(
+      createCtx(AgentEventType.CAPABILITY_GAP, {
+        tool_id: 'web_search',
+        reason: 'not_configured',
+        display_message: 'Web search is enabled but no search API is configured.',
+        settings_path: '/settings/search',
+      }),
+    );
+
+    expect(toastInfo).toHaveBeenCalledTimes(1);
+    expect(setPendingGapRetry).not.toHaveBeenCalled();
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as {
+      action?: { label?: string; onClick?: () => void };
+    };
+    expect(toastOptions.action?.label).toBe('Go to Settings');
+    expect(typeof toastOptions.action?.onClick).toBe('function');
+  });
+
+  it('shows local quick-enable CTA on web_search not_configured in local mode', async () => {
+    isLocalModeMock.mockReturnValue(true);
+    document.documentElement.lang = 'zh';
+
+    await gapEvents(
+      createCtx(AgentEventType.CAPABILITY_GAP, {
+        tool_id: 'web_search',
+        reason: 'not_configured',
+        display_message: '已开启网页搜索，但未配置搜索 API。',
+        settings_path: '/settings/search',
+      }),
+    );
+
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as {
+      action?: { label?: string };
+    };
+    expect(toastOptions.action?.label).toBe('一键启用免费搜索');
   });
 
   it('ignores capability_gap for agent baseline tool ids (no UI toggle)', async () => {

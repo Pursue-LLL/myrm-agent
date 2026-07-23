@@ -43,6 +43,33 @@ _smp_apply_pending_drift_if_idle() {
   _smp_apply_backend_drift_ensure "${dev_stack}" "${policy_py}" "${state_dir}"
 }
 
+_smp_shared_api_http_ok() {
+  curl -sf --max-time 5 "http://127.0.0.1:8080/api/v1/health" >/dev/null 2>&1
+}
+
+_smp_attach_backend_crash_heal() {
+  local monorepo_root="${1:?}" dev_stack="${2:?}"
+  local stack_epoch_lib active_leases
+  stack_epoch_lib="$(dirname "${dev_stack}")/lib/stack-epoch.sh"
+  # shellcheck source=stack-epoch.sh
+  source "${stack_epoch_lib}"
+  active_leases="$(_wave_active_lease_count "${monorepo_root}")"
+  if _smp_shared_api_http_ok; then
+    return 0
+  fi
+  echo "CHROME_E2E_ATTACH_HEAL: shared api down — backend-only ensure (crash heal, ${active_leases} active leases)" >&2
+  if ! MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure >/dev/null 2>&1; then
+    echo "CHROME_E2E_FAIL: attach backend crash heal failed (api still down)" >&2
+    return 1
+  fi
+  if _smp_shared_api_http_ok; then
+    echo "CHROME_E2E_ATTACH_HEAL: shared api restored after crash heal" >&2
+    return 0
+  fi
+  echo "CHROME_E2E_FAIL: shared api still down after crash heal" >&2
+  return 1
+}
+
 _smp_attach_backend_drift_heal() {
   local monorepo_root="${1:?}" server_dir="${2:?}" dev_stack="${3:?}"
   local stack_epoch_lib active_leases policy_py state_dir action

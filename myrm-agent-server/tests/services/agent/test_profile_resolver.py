@@ -13,10 +13,10 @@ from app.services.agent.profile_resolver import (
     ResolvedAgentProfile,
     _coerce_str_tuple,
     _coerce_tool_selections,
-    apply_agent_baseline_tool_flags,
     get_agent_profile_resolver,
     resolve_builtin_tool_flags,
 )
+from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
 
 @dataclass
@@ -691,17 +691,17 @@ class TestDefaultEnabledBuiltinTools:
 class TestResolveBuiltinToolFlags:
     """Verify enabled_builtin_tools → enable_xxx flag mapping."""
 
-    def test_apply_agent_baseline_forces_file_and_bash(self):
+    def test_resolve_agent_mount_forces_file_and_shell_on_web_chat(self):
         flags = resolve_builtin_tool_flags(["web_search", "memory"])
-        baseline = apply_agent_baseline_tool_flags(flags)
-        assert baseline["enable_file_ops"] is True
-        assert baseline["enable_code_execute"] is True
-        assert baseline["enable_browser"] is False
+        mounted = resolve_agent_mount(ExecutionSurface.WEB_CHAT, flags)
+        assert mounted["enable_file_ops"] is True
+        assert mounted["enable_shell_tools"] is True
+        assert mounted["enable_browser"] is False
 
     def test_default_tools_enable_web_memory_and_structured_clarify(self):
         flags = resolve_builtin_tool_flags(DEFAULT_ENABLED_BUILTIN_TOOLS)
         assert flags["enable_file_ops"] is False
-        assert flags["enable_code_execute"] is False
+        assert flags["enable_shell_tools"] is False
         assert flags["enable_browser"] is False
         assert flags["enable_computer_use"] is False
         assert flags["enable_wiki"] is False
@@ -722,6 +722,7 @@ class TestResolveBuiltinToolFlags:
             "planning",
             "structured_clarify",
             "external_cli",
+            "web_crawl",
         )
         flags = resolve_builtin_tool_flags(tools)
         assert all(flags.values())
@@ -758,7 +759,7 @@ class TestResolveBuiltinToolFlags:
         assert flags["enable_wiki"] is True
         assert flags["enable_file_ops"] is True
         assert flags["enable_browser"] is False
-        assert flags["enable_code_execute"] is False
+        assert flags["enable_shell_tools"] is False
 
     def test_empty_list_disables_all(self):
         flags = resolve_builtin_tool_flags([])
@@ -804,7 +805,7 @@ class TestResolveBuiltinToolFlags:
             "enable_browser",
             "enable_computer_use",
             "enable_file_ops",
-            "enable_code_execute",
+            "enable_shell_tools",
             "enable_wiki",
             "enable_kanban",
             "enable_cron_eager",
@@ -813,6 +814,7 @@ class TestResolveBuiltinToolFlags:
             "enable_planning",
             "enable_structured_clarify",
             "enable_external_cli",
+            "enable_web_crawl",
         }
 
     def test_legacy_llm_map_tool_id_is_ignored(self):

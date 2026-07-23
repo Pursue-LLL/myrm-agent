@@ -5,8 +5,10 @@
 
 [OUTPUT]
 - build_entitlement_gap_sse_event: optional early SSE dict for disabled builtin tools
+- build_web_search_config_gap_sse_event: SSE when web_search profile on but API missing/unreachable
 - build_surface_unavailable_dedup_key: stable tracker key for IM/Web surface-unavailable toasts
 - resolve_surface_unavailable_display_message: localized surface-unavailable copy (SSE + IM)
+- resolve_web_search_config_gap_display_message: localized web_search config gap copy (IM fallback)
 - CapabilityGapEmissionTracker: per-chat cooldown dedup for gap toasts
 - reset_capability_gap_emission_tracker: test-only tracker reset
 
@@ -30,6 +32,15 @@ from myrm_agent_harness.agent.meta_tools.discover_capability.capability_gap impo
 _MAX_TRACKED_CHATS = 4096
 _GAP_TOAST_COOLDOWN_SECONDS = 900.0
 _SURFACE_UNAVAILABLE_DEDUP_SUFFIX = "surface_unavailable"
+_SEARCH_NOT_CONFIGURED_MESSAGES: dict[str, str] = {
+    "en": "Web search is enabled but no search API is configured. Add a provider in Settings.",
+    "zh": "已开启网页搜索，但未配置搜索 API。请前往设置添加搜索服务。",
+}
+_SEARCH_UNREACHABLE_MESSAGES: dict[str, str] = {
+    "en": "Web search is enabled but the configured search provider is unreachable. Check Settings.",
+    "zh": "已开启网页搜索，但配置的搜索服务不可用。请检查设置中的搜索服务。",
+}
+_SEARCH_SETTINGS_PATH = "/settings/search"
 _SURFACE_UNAVAILABLE_MESSAGES: dict[str, str] = {
     "en": (
         "Inline interactive UI renders only in Web Chat and the desktop app. "
@@ -142,6 +153,48 @@ def _build_surface_unavailable_sse_event(
             "tool_group": ui_intent.tool_group,
             "reason": _SURFACE_UNAVAILABLE_DEDUP_SUFFIX,
             "display_message": resolve_surface_unavailable_display_message(locale),
+        },
+    }
+
+
+def _resolve_web_search_config_message(*, reason: str, locale: str | None) -> str:
+    is_zh = bool(locale and locale.lower().startswith("zh"))
+    if reason == "unreachable":
+        return _SEARCH_UNREACHABLE_MESSAGES["zh" if is_zh else "en"]
+    return _SEARCH_NOT_CONFIGURED_MESSAGES["zh" if is_zh else "en"]
+
+
+def resolve_web_search_config_gap_display_message(*, reason: str, locale: str | None) -> str:
+    """Return localized web_search config gap copy for SSE and channel progress."""
+    return _resolve_web_search_config_message(reason=reason, locale=locale)
+
+
+def build_web_search_config_gap_sse_event(
+    *,
+    message_id: str,
+    web_search_profile_enabled: bool,
+    enable_web_search: bool,
+    search_is_user_configured: bool,
+    chat_id: str | None,
+    locale: str | None,
+) -> dict[str, object] | None:
+    """Emit capability_gap when profile enables web_search but runtime search is unavailable."""
+    if not web_search_profile_enabled or enable_web_search:
+        return None
+    reason = "not_configured" if not search_is_user_configured else "unreachable"
+    dedup_key = f"web_search:{reason}"
+    if not _gap_emission_tracker.should_emit(chat_id, dedup_key):
+        return None
+    _gap_emission_tracker.mark_emitted(chat_id, dedup_key)
+    return {
+        "type": "capability_gap",
+        "messageId": message_id,
+        "data": {
+            "tool_id": "web_search",
+            "tool_group": "web",
+            "reason": reason,
+            "display_message": _resolve_web_search_config_message(reason=reason, locale=locale),
+            "settings_path": _SEARCH_SETTINGS_PATH,
         },
     }
 

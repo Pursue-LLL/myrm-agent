@@ -11,7 +11,7 @@ core.memory.adapters.policy::memory_policy_from_dict (POS: 记忆策略字典解
 DEFAULT_ENABLED_BUILTIN_TOOLS: 自 builtin_tool_ids 再导出，供各入口引用
 BuiltinToolFlags: 工具启用标志 TypedDict
 resolve_builtin_tool_flags: enabled_builtin_tools → enable_xxx flags 统一映射
-apply_agent_baseline_tool_flags: 通用 Agent 强制 file/bash 基线（非 fast）
+tool_mount.resolve_agent_mount: General / Fast / Cron meta mount SSOT（见 tool_mount/_ARCH.md）
 ResolvedAgentProfile: 统一的智能体配置解析结果（含 auto_restore_domains 等运行时字段）
 AgentProfileResolver: 全局单例解析器（带 TTL 缓存）
 get_agent_profile_resolver: 获取全局单例
@@ -19,6 +19,7 @@ get_agent_profile_resolver: 获取全局单例
 [POS]
 统一智能体配置解析服务。消除 Web/Channel/Cron/Kanban/Eval/Voice 入口的重复解析逻辑，
 提供带 TTL 缓存的单点解析，确保字段完整性和缓存一致性。
+General 轨道 CORE file/bash 执行层：tool_mount.resolve_agent_mount（SSOT 见 ../_ARCH.md §Tool loading dual-track）。
 """
 
 from __future__ import annotations
@@ -45,7 +46,7 @@ class BuiltinToolFlags(TypedDict):
     enable_browser: bool
     enable_computer_use: bool
     enable_file_ops: bool
-    enable_code_execute: bool
+    enable_shell_tools: bool
     enable_wiki: bool
     enable_kanban: bool
     enable_cron_eager: bool
@@ -54,6 +55,7 @@ class BuiltinToolFlags(TypedDict):
     enable_planning: bool
     enable_structured_clarify: bool
     enable_external_cli: bool
+    enable_web_crawl: bool
 
 
 def resolve_builtin_tool_flags(
@@ -79,7 +81,7 @@ def resolve_builtin_tool_flags(
             "computer_use" in effective_tools and deploy_supports_computer_use
         ),
         enable_file_ops="file_ops" in effective_tools,
-        enable_code_execute="code_execute" in effective_tools,
+        enable_shell_tools="code_execute" in effective_tools,
         enable_wiki="wiki" in effective_tools,
         enable_kanban="kanban" in effective_tools,
         enable_cron_eager="cron" in effective_tools,
@@ -90,28 +92,7 @@ def resolve_builtin_tool_flags(
         enable_external_cli=(
             "external_cli" in effective_tools and deploy_supports_external_cli
         ),
-    )
-
-
-def apply_agent_baseline_tool_flags(flags: BuiltinToolFlags) -> BuiltinToolFlags:
-    """Force file/bash baseline for general agent runtimes (not fast search).
-
-    ``AGENT_BASELINE_BUILTIN_TOOLS`` are not GUI toggles; every non-fast entry
-    point must call this after ``resolve_builtin_tool_flags``.
-    """
-    return BuiltinToolFlags(
-        enable_browser=flags["enable_browser"],
-        enable_computer_use=flags["enable_computer_use"],
-        enable_file_ops=True,
-        enable_code_execute=True,
-        enable_wiki=flags["enable_wiki"],
-        enable_kanban=flags["enable_kanban"],
-        enable_cron_eager=flags["enable_cron_eager"],
-        enable_answer_tool=flags["enable_answer_tool"],
-        enable_render_ui=flags["enable_render_ui"],
-        enable_planning=flags["enable_planning"],
-        enable_structured_clarify=flags["enable_structured_clarify"],
-        enable_external_cli=flags["enable_external_cli"],
+        enable_web_crawl="web_crawl" in effective_tools,
     )
 
 

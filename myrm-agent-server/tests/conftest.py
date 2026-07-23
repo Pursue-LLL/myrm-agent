@@ -31,7 +31,11 @@ _SERVER_ROOT = Path(__file__).resolve().parent.parent
 _DEV_LIB = _SERVER_ROOT.parent / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
-from dev_gate_contract import chrome_e2e_pytest_timeout_floor  # noqa: E402
+from dev_gate_contract import (  # noqa: E402
+    CHROME_E2E_DESKTOP_MARKER,
+    LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
+    chrome_e2e_pytest_timeout_floor,
+)
 
 _logger = logging.getLogger(__name__)
 _T = TypeVar("_T")
@@ -193,7 +197,10 @@ def _chrome_e2e_lane_timeout_sec(item: pytest.Item) -> int | None:
     if marker is None:
         return None
     lane = str(marker.kwargs.get("lane", "LIVE_AGENT"))
-    return chrome_e2e_pytest_timeout_floor(lane, _chrome_e2e_marker_joined_argv(item))
+    floor = chrome_e2e_pytest_timeout_floor(lane, _chrome_e2e_marker_joined_argv(item))
+    if item.get_closest_marker(CHROME_E2E_DESKTOP_MARKER) is None:
+        floor = min(floor, LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
+    return floor
 
 
 def _apply_chrome_e2e_lane_timeout(item: pytest.Item) -> None:
@@ -458,9 +465,14 @@ def _require_live_e2e_lease(
     )
     # Private per-item backends (e.g. cron live on :180xx) must not queue on shared :8080 stream lock.
     shpoib_session = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
-    skip_stream_lock = private_backend and (
-        _chrome_e2e_item_runtime is not None or shpoib_session
-    )
+    dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
+    if str(dev_infra) not in sys.path:
+        sys.path.insert(0, str(dev_infra))
+    from dev_gate_contract import chrome_e2e_skips_shared_stream_lock
+
+    skip_stream_lock = chrome_e2e_skips_shared_stream_lock(
+        lane=lease.lane, shpoib=shpoib_session
+    ) or (private_backend and _chrome_e2e_item_runtime is not None)
     stream_guard = (
         live_agent_stream_lock()
         if lease.lane == "LIVE_AGENT"

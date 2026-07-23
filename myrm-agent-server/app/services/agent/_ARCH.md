@@ -9,6 +9,24 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 
 本层同时承担 Saved Agent 运行时契约的单一事实源职责。前端设置页、聊天配置面板、Web/Channel/Cron 入口和 DB 自定义子 Agent 都通过这里持久化和读取同一份配置，避免字段在不同入口之间漂移。
 
+Harness 工具层级 SSOT：`myrm-agent-harness/.../tool_management/tool_layers.py` 与 [tool_management/_ARCH.md](../../../myrm-agent-harness/src/myrm_agent_harness/agent/tool_management/_ARCH.md)。
+
+## Tool loading dual-track
+
+| Track | When | CORE file/bash | Primary SSOT |
+| --- | --- | --- | --- |
+| **General** | Default saved agent; Web non-fast; **Channel/IM**; Cron/Kanban | On | `tool_mount.resolve_agent_mount` → harness `get_meta_tools` |
+| **Search/Fast** | Web chat `action_mode=fast` only | Off | `params/converter.py` |
+| **Cron narrow** | Job `tools_allowed` without baseline | Optional off | `core/cron/adapters/tools_policy.py` |
+
+Design notes:
+
+- `DEFAULT_ENABLED_BUILTIN_TOOLS` excludes `file_ops` / `code_execute` by design; baseline IDs are stripped on persist and forced at runtime on General track.
+- `tool_mount.resolve_agent_mount` is the server execution layer for harness CORE meta mount.
+- **Channel/IM binds General agents only** (`SqlTopicManager.bind_topic` rejects `prompt_mode=search`; `resolve_topic` / `get_all_topics` purge legacy Search binds; IM `/bind` + Settings API). Search/Fast is Web `action_mode=fast`.
+- Saved agents with `prompt_mode=search` (Quick Search presets) are Web UI personas; non-fast Web chat still loads General CORE tools with search-oriented prompts.
+- Sub-agent readonly: harness `WorkspacePolicy.READ_ONLY_SANDBOX` + `delegate_task(readonly=True)`; separate from General CORE.
+
 ---
 
 ## 子模块
@@ -39,7 +57,8 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `confidence_approval_flow.py` | ✅ 核心 | 多信号风控审批流 — 基于置信度 + 2 个客观确定性信号（diff 变化范围、历史成功率）的智能审批。高分且全部风控信号绿灯时静默自动合并，任何红灯或 runtime failure 修复即降级人工 Diff Review。`ApprovalResult.risk_signals` 记录降级原因；risk_signals / runtime evidence 持久化为 `reason_code`、`remediation` 和审核证据供前端展示 |
 | `agent_service.py` | ✅ 核心 | Agent CRUD。WebUI mutable 变更前委托 `ProfileSnapshotService`；`update_agent` 返回 `AgentUpdateOutcome`（含 `snapshot_saved`）。创建/更新/删除/回滚后失效 `AgentProfileResolver` 缓存并热重载 CommandRegistry。 |
 | `profile_snapshot_service.py` | ✅ 核心 | Agent 配置快照与回滚专用服务 — `save_profile_snapshot` / `list_profile_snapshots` / `count_profile_snapshots` / `rollback_profile` / `rollback_profile_to_snapshot`。含完整 mutable 字段 diff 检测（`has_mutable_diff`，含 `cron_post_run_verify` DB 列）、pre-rollback 保险快照、10 条 retention 裁剪；`updates_from_snapshot_data` 回滚时写回该列。由 `AgentService` 委托，供 WebUI 时光机 API 使用。 |
-| `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析 — `resolve_builtin_tool_flags()`（strip deploy 不兼容工具 + `enable_computer_use`/`enable_external_cli` 双保险 deploy gate）+ `apply_agent_baseline_tool_flags()`；TTL 缓存 | ✅ |
+| `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析 — `resolve_builtin_tool_flags()`（strip deploy 不兼容工具 + deploy gate）；TTL 缓存 | ✅ |
+| `tool_mount/` | ✅ 核心 | Meta-tool mount SSOT — `resolve_agent_mount` / `apply_ptc_meta_mount` | [_ARCH.md](tool_mount/_ARCH.md) |
 | `builtin_tool_ids.py` | ✅ 核心 | `enabled_builtin_tools` SSOT：17 canonical IDs（15 UI 可切换 + 2 Agent 基线无开关）；`strip_deploy_incompatible_builtin_tools()` 按 deploy 剔除 `computer_use`（VNC）与 `external_cli`（仅 local/Tauri）；`external_cli` ON + UserConfig 有 CLI backend → Turn1 挂载 `delegate_to_agent_tool`；**persist 前** `external_cli_gate.assert_external_cli_tools_allowed()` 拒绝无 backend 的 `external_cli` 开关；`cron` 开启 → Turn1 eager（`enable_cron_eager`）；关闭则不加载；`structured_clarify` 开启 → 挂载 `ask_question_tool`（默认 ON）；`DEFAULT_ENABLED_BUILTIN_TOOLS=(web_search, memory, structured_clarify)`；`normalize` 静默剥离 baseline ID；`persist_enabled_builtin_tools` DB 写校验 |
 | `external_cli_gate.py` | ✅ 核心 | Local persist gate：`external_cli` ∈ `enabled_builtin_tools` 时要求 Settings CLI backend 或本地 auto-detect；与 runtime `_resolve_external_agent_cfgs` 同源 |
 | `builtin_tool_validation.py` | ✅ 辅助 | Pydantic `RequiredBuiltinTools` / `OptionalBuiltinTools` validators for DTO/API models |

@@ -113,3 +113,27 @@ def test_set_default_agent(client, mock_topic_manager):
     assert kwargs.get("channel") == "whatsapp"
     assert kwargs.get("chat_id") == "__global__"
     assert kwargs.get("agent_id") == "global_agent2"
+
+
+def test_set_default_agent_rejects_search_agent(client, mock_topic_manager):
+    from app.core.channel_bridge.topic_config import SEARCH_AGENT_CHANNEL_BIND_MSG
+
+    instance = mock_topic_manager.return_value
+    instance.bind_topic = AsyncMock(side_effect=ValueError(SEARCH_AGENT_CHANNEL_BIND_MSG))
+
+    with patch("app.services.agent.agent_service.AgentService.get_agent_by_id", new_callable=AsyncMock) as mock_agent:
+        mock_agent.return_value = MagicMock(
+            id="builtin-fast-search",
+            skill_ids=[],
+            metadata={"prompt_mode": "search"},
+        )
+        response = client.post(
+            "/api/v1/channels/manage/whatsapp/default-agent",
+            json={"agentId": "builtin-fast-search"},
+            headers={"Authorization": "Bearer test"},
+        )
+
+    assert response.status_code == 400
+    assert "Search agents cannot be bound" in response.json()["detail"]
+    instance.bind_topic.assert_called_once()
+

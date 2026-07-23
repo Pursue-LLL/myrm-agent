@@ -6,7 +6,8 @@
  *
  * [OUTPUT]
  * gapEvents: CAPABILITY_GAP / SKILL_GAP SSE handler with toast enable-and-resend;
- * surface_unavailable shows info-only toast (no enable/resend).
+ * surface_unavailable shows info-only toast (no enable/resend);
+ * web_search not_configured|unreachable → SSOT config-gap toast (agent mode relies on SSE only).
  *
  * [POS]
  * SSE handlers for capability/skill entitlement gaps from stream preflight and discover_capability_tool.
@@ -26,6 +27,11 @@ import {
   resolveLastPlainUserMessage,
 } from '@/store/chat/pendingGapRetry';
 import { renderUiSurfaceUnavailableMessage } from './renderUiSurfaceUnavailableMessage';
+import {
+  resolveWebSearchConfigGapActionLabel,
+  runWebSearchConfigGapAction,
+  SEARCH_SETTINGS_PATH,
+} from '@/store/config/webSearchConfigGap';
 
 function storePendingGapRetry(
   kind: 'capability' | 'skill',
@@ -51,10 +57,36 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
       tool_group?: string;
       reason?: string;
       display_message?: string;
+      settings_path?: string;
     } | undefined;
     const toolId = payload?.tool_id;
     if (!toolId || !isBuiltinToolId(toolId)) {
       return null;
+    }
+
+    if (payload?.reason === 'not_configured' || payload?.reason === 'unreachable') {
+      const message =
+        typeof payload.display_message === 'string' && payload.display_message.trim()
+          ? payload.display_message.trim()
+          : isZh
+            ? '网页搜索未配置或不可用，请前往设置。'
+            : 'Web search is not configured or unavailable. Open Settings.';
+      const settingsPath =
+        typeof payload.settings_path === 'string' && payload.settings_path.trim()
+          ? payload.settings_path.trim()
+          : SEARCH_SETTINGS_PATH;
+      const actionLabel = resolveWebSearchConfigGapActionLabel(isZh);
+
+      toast.info(message, {
+        duration: 12000,
+        action: {
+          label: actionLabel,
+          onClick: () => {
+            void runWebSearchConfigGapAction(settingsPath);
+          },
+        },
+      });
+      return done(ctx);
     }
 
     if (payload?.reason === 'surface_unavailable') {

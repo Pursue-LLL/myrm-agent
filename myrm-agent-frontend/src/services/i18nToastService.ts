@@ -28,6 +28,14 @@ export const setGlobalTranslator = (translator: TranslatorFunction) => {
   globalTranslator = translator;
 };
 
+/** Resolve a locale key outside React; falls back when translator is not initialized. */
+export const translateI18nKey = (key: string, fallback: string): string => {
+  if (!globalTranslator) {
+    return fallback;
+  }
+  return globalTranslator(key);
+};
+
 /**
  * 使用翻译 key 显示 toast
  */

@@ -11,6 +11,7 @@ sentence-split and piped to TTS in real-time.
 - app.core.channel_bridge.config_parsers (POS: config extraction utilities)
 - app.core.channel_bridge.model_resolver (POS: model config resolution)
 - app.channels.voice.tts::synthesize_stream (POS: streaming TTS)
+- app.services.agent.resolve_enable_web_fetch::resolve_enable_web_fetch (POS: net_fetch capability gate)
 - app.api.voice.voice_memory_context::voice_memory_context_from (POS: voice memory ACL SSOT)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: cancellation primitive)
 
@@ -172,6 +173,7 @@ class VoiceAgentBridge:
 
     async def _build_agent_params(self, query: str) -> GeneralAgentParams | None:
         _ensure_model_rebuild()
+        from app.ai_agents.agents import GeneralAgentParams
 
         from app.core.channel_bridge.config_loader import load_user_configs
         from app.core.channel_bridge.config_parsers import (
@@ -238,8 +240,15 @@ class VoiceAgentBridge:
         from app.api.voice.voice_memory_context import voice_memory_context_from
         from app.services.agent.profile_resolver import (
             DEFAULT_ENABLED_BUILTIN_TOOLS,
-            apply_agent_baseline_tool_flags,
             resolve_builtin_tool_flags,
+        )
+        from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
+        from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
+
+        agent_security_raw = (
+            {str(k): v for k, v in profile.security_overrides.items()}
+            if profile and profile.security_overrides
+            else None
         )
 
         skill_ids = list(profile.skill_ids) if profile else []
@@ -263,12 +272,17 @@ class VoiceAgentBridge:
             reranker_config=reranker_cfg,
             enable_memory=memory_context.enable_memory,
             enable_web_search=search_available,
-            **apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(enabled_builtin_tools)),
+            enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
+            **resolve_agent_mount(
+                ExecutionSurface.VOICE,
+                resolve_builtin_tool_flags(enabled_builtin_tools),
+            ),
             fetch_raw_webpage=bool(memory_settings.get("fetchRawWebpage")),
             enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction", True)),
             enable_conversation_search=memory_context.enable_conversation_search,
             agent_skill_ids=skill_ids,
             subagent_ids=subagent_ids,
+            agent_security_raw=agent_security_raw,
             channel_name="voice_bridge",
             providers_dict=configs.providers_dict,
         )

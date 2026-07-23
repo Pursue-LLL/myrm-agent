@@ -15,10 +15,16 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 APPROVAL_WAIT_SEC = 240.0
 GATE_IDLE_FAIL_FAST_SEC = 180.0
+# Steer/nudge while agent stream is active but no desktop tool has started yet.
+GATE_STREAM_NUDGE_SEC = 45.0
+GATE_IDLE_NUDGE_SEC = 30.0
+# Hard wall-clock fail-fast for one desktop approval attempt (prevents 7200s empty spin).
+DESKTOP_E2E_WALL_CLOCK_FAIL_SEC = 600.0
 
 
 def _parse_gate_timeout_sec() -> float:
@@ -79,6 +85,16 @@ def build_desktop_interact_nudge(*, dref: str | None = None) -> str:
 
 def progress(message: str) -> None:
     print(f"DESKTOP_E2E: {message}", file=sys.stderr, flush=True)
+
+
+def assert_desktop_e2e_wall_clock(started_at: float, *, phase: str) -> None:
+    elapsed = time.monotonic() - started_at
+    if elapsed >= DESKTOP_E2E_WALL_CLOCK_FAIL_SEC:
+        raise AssertionError(
+            "Desktop E2E wall-clock fail-fast "
+            f"({phase}): {elapsed:.0f}s >= {DESKTOP_E2E_WALL_CLOCK_FAIL_SEC:.0f}s "
+            "(check LITE_MODEL pin, send button, provider state)"
+        )
 
 
 def max_send_attempts(scope: str) -> int:

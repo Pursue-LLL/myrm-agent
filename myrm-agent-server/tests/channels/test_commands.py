@@ -727,6 +727,24 @@ class TestHandleTopicCommand:
         assert "support-agent" in reply.content
 
     @pytest.mark.asyncio
+    async def test_bind_rejects_search_agent(self) -> None:
+        """IM /bind must surface the same Search-agent rejection as Settings API."""
+        from app.core.channel_bridge.topic_config import SEARCH_AGENT_CHANNEL_BIND_MSG
+
+        msg = _make_msg(thread_id=None, chat_id="c1")
+        cmd = TopicCommand(action="bind", agent_id="builtin-fast-search")
+        bus = _mock_bus()
+
+        topic_resolver = MagicMock()
+        topic_resolver.bind_topic = AsyncMock(side_effect=ValueError(SEARCH_AGENT_CHANNEL_BIND_MSG))
+
+        await handle_topic_command(msg, cmd, bus, topic_resolver=topic_resolver)
+
+        bus.publish_outbound.assert_called_once()
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "Search agents cannot" in reply.content
+
+    @pytest.mark.asyncio
     async def test_channel_level_unbind(self) -> None:
         """Channel-level unbind when thread_id is None."""
         msg = _make_msg(thread_id=None, chat_id="c1")

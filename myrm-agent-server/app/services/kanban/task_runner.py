@@ -32,9 +32,9 @@ from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskTimeoutErro
 
 from app.services.agent.profile_resolver import (
     DEFAULT_ENABLED_BUILTIN_TOOLS,
-    apply_agent_baseline_tool_flags,
     resolve_builtin_tool_flags,
 )
+from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 from app.services.kanban.task_runner_profile import (
     _ResolvedProfile,
     resolve_agent_profile,
@@ -263,6 +263,9 @@ class KanbanTaskRunner:
             declared_roots = (workspace_root,)
 
         from app.core.memory.proactive.settings import resolve_conversation_search_enabled
+        from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
+
+        kanban_agent_security_raw = profile.security_overrides if profile else None
 
         params = GeneralAgentParams(
             query=context,
@@ -275,17 +278,21 @@ class KanbanTaskRunner:
             embedding_config=embedding_cfg,
             reranker_config=reranker_cfg,
             security_config_raw=security_config_raw,
-            agent_security_raw=profile.security_overrides if profile else None,
+            agent_security_raw=kanban_agent_security_raw,
             channel_name=_CHANNEL_NAME,
             declared_allowed_roots=declared_roots,
             enable_web_search=(
                 user_cfgs.search_is_user_configured and await verify_search_service_available(user_cfgs.search_cfg)
             ),
+            enable_web_fetch=resolve_enable_web_fetch(kanban_agent_security_raw),
             kanban_tool_mode="worker",
             kanban_current_task_id=task.task_id,
             kanban_max_runtime_seconds=task.max_runtime_seconds,
             kanban_zombie_timeout_seconds=zombie_timeout,
-            **apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(enabled_builtin_tools)),
+            **resolve_agent_mount(
+                ExecutionSurface.KANBAN,
+                resolve_builtin_tool_flags(enabled_builtin_tools),
+            ),
             auto_restore_domains=list(profile.auto_restore_domains) if profile else [],
             unattended_mode=True,
             user_instructions=task_user_instructions,

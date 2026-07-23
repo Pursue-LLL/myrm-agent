@@ -2,7 +2,7 @@
 
 [INPUT]
 - builtin_tool_ids.BUILTIN_TOOL_ID_SET / AGENT_BASELINE_BUILTIN_TOOLS: canonical ID catalog
-- profile_resolver.resolve_builtin_tool_flags / apply_agent_baseline_tool_flags (POS: enabled_builtin_tools → flag 映射)
+- profile_resolver.resolve_builtin_tool_flags / tool_mount.resolve_agent_mount (POS: enabled_builtin_tools → flag 映射)
 
 [OUTPUT]
 - normalize_cron_tools_allowed: Clean and validate cron job tools_allowed
@@ -25,9 +25,9 @@ from app.services.agent.builtin_tool_ids import (
 )
 from app.services.agent.profile_resolver import (
     BuiltinToolFlags,
-    apply_agent_baseline_tool_flags,
     resolve_builtin_tool_flags,
 )
+from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
 
 def normalize_cron_tools_allowed(tools: Sequence[str] | None) -> tuple[str, ...] | None:
@@ -84,8 +84,11 @@ def resolve_cron_runtime_tool_flags(
     ``tools_allowed`` jobs honor the explicit allow-list only.
     """
     flags = resolve_builtin_tool_flags(enabled_builtin_tools)
-    if job_tools_allowed is None:
-        flags = apply_agent_baseline_tool_flags(flags)
+    flags = resolve_agent_mount(
+        ExecutionSurface.CRON,
+        flags,
+        cron_job_tools_allowed=job_tools_allowed,
+    )
     return BuiltinToolFlags(
         **{**flags, "enable_cron_eager": False},
     )

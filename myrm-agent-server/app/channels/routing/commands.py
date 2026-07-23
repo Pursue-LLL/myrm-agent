@@ -556,6 +556,37 @@ async def handle_topic_command(
             )
             await bus.publish_outbound(reply)
 
+    except ValueError as exc:
+        from app.core.channel_bridge.topic_config import is_search_agent_channel_bind_error
+
+        logger.warning(
+            "AgentRouter: %s command %s rejected for %s/%s/%s: %s",
+            "topic" if msg.thread_id else "channel",
+            cmd.action,
+            msg.channel,
+            chat_id,
+            msg.thread_id,
+            exc,
+        )
+        if is_search_agent_channel_bind_error(exc):
+            content = get_text(msg, "topic_search_agent_rejected")
+        else:
+            content = get_text(
+                msg,
+                "topic_command_failed",
+                scope=scope_name,
+                error=str(exc),
+            )
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=chat_id,
+            content=content,
+            user_id=msg.user_id or "",
+            thread_id=msg.thread_id,
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+        )
+        await bus.publish_outbound(reply)
+
     except Exception as exc:
         logger.warning(
             "AgentRouter: %s command %s failed for %s/%s/%s: %s",

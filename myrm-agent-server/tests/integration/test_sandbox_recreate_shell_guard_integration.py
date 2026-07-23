@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import reset_deferred_activation_for_tests
+from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import reset_spawn_lifecycle_for_tests
 from myrm_agent_harness.api.hooks import get_background_registry, set_global_background_job_finish_handler
 
 from app.services.agent.background_job_finish_handler import ServerBackgroundJobFinishHandler
@@ -30,11 +30,11 @@ def _build_system_app():
 def _clear_registry() -> None:
     registry = get_background_registry()
     registry._entries.clear()  # type: ignore[attr-defined]
-    reset_deferred_activation_for_tests()
+    reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
     yield
     registry._entries.clear()  # type: ignore[attr-defined]
-    reset_deferred_activation_for_tests()
+    reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(None)
 
 

@@ -19,7 +19,7 @@
 | `execute_finalize.py` | 模块 | 流结束后 persist + metadata + media + artifact 深链 reply 组装。 | ✅ |
 | `execute_errors.py` | 模块 | ConfigIncomplete / MyrmLLM / 通用异常 → OutboundMessage 回复。 | ✅ |
 | `artifact_deep_links.py` | 模块 | 可分享 artifact 的 IM 附件收集 + HMAC 深链 ActionButton 生成 + DB version 批量查询。 | ✅ |
-| `stream_events.py` | 模块 | harness `process_stream` 事件 → ProgressUpdate/StreamingText 映射；`capability_gap` + `reason=surface_unavailable` → ProgressUpdate(display_message)；审批超时 side-effect 状态。 | ✅ |
+| `stream_events.py` | 模块 | harness `process_stream` 事件 → ProgressUpdate/StreamingText 映射；`capability_gap` + `reason=surface_unavailable` 或 `web_search` + `not_configured`/`unreachable` → ProgressUpdate(display_message)；审批超时 side-effect 状态。 | ✅ |
 | `helpers.py` | 模块 | 入站 query 组装：`build_channel_inbound_query`（含 reply context、group context、document blocks、contact cards、forwarded email context、multimodal images）、memory identity 解析、delivery provenance banner。 | ✅ |
 | `session.py` | 模块 | Build a structured session key (base, without epoch). Exports `build_channel_budget_key(msg)` for channel budget guard key construction (single source of truth for peer resolution). | ✅ |
 

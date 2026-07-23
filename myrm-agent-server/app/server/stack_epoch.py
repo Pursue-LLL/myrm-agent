@@ -4,7 +4,7 @@
 - `~/.local/state/myrm-dev/stack-epoch.json` (override: `MYRM_STACK_EPOCH_FILE`)
 
 [OUTPUT]
-- `StackEpochPayload` / `read_stack_epoch()` for `/api/v1/health`
+- `StackEpochPayload` / `read_stack_epoch()` for `/api/v1/health`（含 `source_fingerprint`）
 
 [POS]
 Dev-only backend generation SSOT; shell bumps on restart, API exposes for Agent drift checks.
@@ -23,6 +23,7 @@ class StackEpochPayload(TypedDict):
     backend_pid: int | None
     started_at: str
     harness_fingerprint: str
+    source_fingerprint: str
 
 
 def _stack_epoch_file() -> Path:
@@ -58,11 +59,16 @@ def read_stack_epoch() -> StackEpochPayload | None:
     if not isinstance(harness_fingerprint, str):
         harness_fingerprint = ""
 
+    source_fingerprint = raw.get("source_fingerprint")
+    if not isinstance(source_fingerprint, str):
+        source_fingerprint = ""
+
     return {
         "epoch": epoch,
         "backend_pid": backend_pid,
         "started_at": started_at,
         "harness_fingerprint": harness_fingerprint,
+        "source_fingerprint": source_fingerprint,
     }
 
 

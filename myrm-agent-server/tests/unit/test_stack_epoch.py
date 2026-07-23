@@ -22,6 +22,7 @@ def test_read_stack_epoch_valid_payload(tmp_path: Path, monkeypatch) -> None:
                 "backend_pid": 4242,
                 "started_at": "2026-07-11T12:00:00Z",
                 "harness_fingerprint": "source:/path/to/harness",
+                "source_fingerprint": "deadbeef01234567",
             }
         ),
         encoding="utf-8",
@@ -34,6 +35,7 @@ def test_read_stack_epoch_valid_payload(tmp_path: Path, monkeypatch) -> None:
     assert payload["backend_pid"] == 4242
     assert payload["started_at"] == "2026-07-11T12:00:00Z"
     assert payload["harness_fingerprint"] == "source:/path/to/harness"
+    assert payload["source_fingerprint"] == "deadbeef01234567"
 
 
 def test_read_stack_epoch_invalid_epoch_returns_none(tmp_path: Path, monkeypatch) -> None:

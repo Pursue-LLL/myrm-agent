@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, lazy, Suspense } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import useChatStore from '@/store/useChatStore';
 
@@ -14,6 +15,7 @@ interface LiveTerminalProps {
 }
 
 export const LiveTerminal: React.FC<LiveTerminalProps> = ({ stdout, evictedFileRef }) => {
+  const t = useTranslations('progressSteps.evictedOutput');
   const containerRef = useRef<HTMLPreElement>(null);
   const workspaceDir = useChatStore((s) => s.workspaceDir);
   const chatId = useChatStore((s) => s.chatId);
@@ -24,6 +26,42 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({ stdout, evictedFileR
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
   }, [stdout]);
+
+  if (!stdout && !evictedFileRef) return null;
+
+  if (!stdout && evictedFileRef) {
+    return (
+      <div className="relative mt-2">
+        <div
+          className={cn(
+            'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-xl px-3 py-2',
+            'bg-zinc-950/80 border border-zinc-800/80',
+          )}
+        >
+          <span className="text-[11px] text-zinc-400">{t('savedHint')}</span>
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium',
+              'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300',
+              'border border-blue-500/20 transition-colors duration-150',
+            )}
+          >
+            {t('viewFull')}
+          </button>
+        </div>
+        {drawerOpen && (
+          <Suspense fallback={null}>
+            <EvictedOutputDrawer
+              filename={evictedFileRef}
+              chatId={chatId || ''}
+              onClose={() => setDrawerOpen(false)}
+            />
+          </Suspense>
+        )}
+      </div>
+    );
+  }
 
   if (!stdout) return null;
 
@@ -133,7 +171,7 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({ stdout, evictedFileR
                 <line x1="16" y1="13" x2="8" y2="13" />
                 <line x1="16" y1="17" x2="8" y2="17" />
               </svg>
-              View Full Output
+              {t('viewFull')}
             </button>
           </div>
         )}

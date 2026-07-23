@@ -4,13 +4,15 @@
 
 设置页「通信」域全部 UI：渠道连接卡片、DM/群组策略、渠道路由、语音 STT/TTS、配对与连接状态。由 `integration/CommunicationSection` 以 Tab 聚合本目录组件。
 
+**渠道路由 Agent 策略**：UI 下拉仅 General Agent（`@/services/channels/channelAgentBinding`）；服务端 `SqlTopicManager.bind_topic` 写拒 + `resolve_topic`/`get_all_topics` 读清 legacy Search 绑定。
+
 ## 文件清单
 
 | 文件 | 职责 |
 |------|------|
 | `ChannelsSection.tsx` | 渠道总览、安装依赖、各 Provider 配置卡片 |
 | `ChannelRoutingSection.tsx` | 渠道路由页壳与布局 |
-| `useChannelRouting.ts` | 渠道路由状态与 API 绑定 handlers |
+| `useChannelRouting.ts` | 渠道路由状态与 API 绑定 handlers；暴露 `channelBindableAgents`（`filterChannelBindableAgents(agents)` 结果，General-only） |
 | `ChannelRoutingTopicRow.tsx` | 单 Topic 绑定行（Agent / 线程共享 / 回复模式） |
 | `VoiceSection.tsx` | 语音输入输出设置 |
 | `ChannelList.tsx` / `ChannelIcon.tsx` | 渠道列表与图标 |

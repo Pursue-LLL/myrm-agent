@@ -234,8 +234,15 @@ async def execute_realtime_tool(req: RealtimeToolExecRequest) -> RealtimeToolExe
         embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
 
         from app.ai_agents.agents import GeneralAgentParams
+        from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
         _ensure_model_rebuild_for_tool_exec()
+
+        agent_security_raw = (
+            {str(k): v for k, v in profile.security_overrides.items()}
+            if profile and profile.security_overrides
+            else None
+        )
 
         params = GeneralAgentParams(
             query=lite_query,
@@ -250,8 +257,10 @@ async def execute_realtime_tool(req: RealtimeToolExecRequest) -> RealtimeToolExe
             enable_memory=memory_context.enable_memory,
             enable_conversation_search=memory_context.enable_conversation_search,
             enable_wiki=memory_context.enable_wiki,
+            enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
             fetch_raw_webpage=bool(memory_settings.get("fetchRawWebpage")),
             enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction", True)),
+            agent_security_raw=agent_security_raw,
         )
 
         result_parts: list[str] = []

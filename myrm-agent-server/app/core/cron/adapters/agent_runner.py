@@ -583,6 +583,8 @@ class AgentJobRunner:
             memory_settings = user_cfgs.personal_settings_dict or {}
             from app.core.memory.proactive.settings import resolve_conversation_search_enabled
 
+            from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
+
             params = GeneralAgentParams(
                 query=effective_prompt,
                 model_cfg=model_cfg,
@@ -605,6 +607,7 @@ class AgentJobRunner:
                     search_is_user_configured=user_cfgs.search_is_user_configured,
                     search_cfg=user_cfgs.search_cfg,
                 ),
+                enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
                 auto_restore_domains=auto_restore_domains,
                 unattended_mode=True,
                 user_instructions=user_instructions,

@@ -12,6 +12,7 @@ from app.services.agent.stream_session import entitlement_gap_preflight as prefl
 from app.services.agent.stream_session.entitlement_gap_preflight import (
     CapabilityGapEmissionTracker,
     build_entitlement_gap_sse_event,
+    build_web_search_config_gap_sse_event,
     reset_capability_gap_emission_tracker,
 )
 
@@ -21,7 +22,7 @@ def _params(**overrides: object) -> SimpleNamespace:
         enable_web_search=True,
         enable_browser=False,
         enable_file_ops=True,
-        enable_code_execute=True,
+        enable_shell_tools=True,
         enable_computer_use=False,
         enable_memory=True,
         incognito_mode=False,
@@ -32,6 +33,7 @@ def _params(**overrides: object) -> SimpleNamespace:
         enable_render_ui=False,
         enable_structured_clarify=True,
         enable_cron_eager=False,
+        enable_web_crawl=False,
         enable_planning=False,
         image_generation=None,
         video_generation=None,
@@ -51,6 +53,31 @@ def test_derive_active_tool_groups_from_params_maps_media_fields() -> None:
     )
     assert "render_ui" in groups
     assert "image_generation" in groups
+
+
+def test_build_entitlement_gap_sse_event_web_crawl_query() -> None:
+    event = build_entitlement_gap_sse_event(
+        message_id="msg-crawl-1",
+        user_text="please crawl entire site docs.example.com",
+        active_tool_groups=derive_active_tool_groups_from_params(_params()),
+        chat_id="chat-crawl-1",
+    )
+    assert event is not None
+    assert event["type"] == "capability_gap"
+    data = event["data"]
+    assert isinstance(data, dict)
+    assert data["tool_id"] == "web_crawl"
+    assert data["tool_group"] == "web_crawl"
+
+
+def test_build_entitlement_gap_sse_event_none_when_web_crawl_enabled() -> None:
+    event = build_entitlement_gap_sse_event(
+        message_id="msg-crawl-2",
+        user_text="crawl entire site docs.example.com",
+        active_tool_groups=derive_active_tool_groups_from_params(_params(enable_web_crawl=True)),
+        chat_id="chat-crawl-2",
+    )
+    assert event is None
 
 
 def test_build_entitlement_gap_sse_event_render_ui_form_query() -> None:
@@ -179,3 +206,46 @@ def test_build_entitlement_gap_sse_event_re_emits_after_cooldown(monkeypatch: py
         chat_id="chat-cooldown-emit",
     )
     assert third is not None
+
+
+def test_build_web_search_config_gap_not_configured() -> None:
+    event = build_web_search_config_gap_sse_event(
+        message_id="msg-search-1",
+        web_search_profile_enabled=True,
+        enable_web_search=False,
+        search_is_user_configured=False,
+        chat_id="chat-search-1",
+        locale="en",
+    )
+    assert event is not None
+    data = event["data"]
+    assert isinstance(data, dict)
+    assert data["tool_id"] == "web_search"
+    assert data["reason"] == "not_configured"
+    assert data["settings_path"] == "/settings/search"
+
+
+def test_build_web_search_config_gap_none_when_runtime_enabled() -> None:
+    event = build_web_search_config_gap_sse_event(
+        message_id="msg-search-2",
+        web_search_profile_enabled=True,
+        enable_web_search=True,
+        search_is_user_configured=True,
+        chat_id="chat-search-2",
+        locale="en",
+    )
+    assert event is None
+
+
+def test_resolve_web_search_config_gap_display_message_localized() -> None:
+    from app.services.agent.stream_session.entitlement_gap_preflight import (
+        resolve_web_search_config_gap_display_message,
+    )
+
+    en = resolve_web_search_config_gap_display_message(reason="not_configured", locale="en")
+    zh = resolve_web_search_config_gap_display_message(reason="not_configured", locale="zh")
+    unreachable = resolve_web_search_config_gap_display_message(reason="unreachable", locale="en")
+
+    assert "search API" in en
+    assert "搜索" in zh
+    assert "unreachable" in unreachable.lower() or "Check Settings" in unreachable

@@ -16,6 +16,7 @@ Must stay aligned with myrm-agent-frontend ``BUILTIN_TOOL_IDS`` in
 
 [POS]
 Server-side SSOT for enabled_builtin_tools IDs and legacy rejection.
+GUI-togglable IDs only; AGENT_BASELINE_BUILTIN_TOOLS (file_ops/code_execute) are stripped at persist and forced at runtime on General track via tool_mount.resolve_agent_mount. Search/Fast (no file/bash) is Web action_mode=fast only; Channel/IM is General-only.
 """
 
 from __future__ import annotations
@@ -51,6 +52,7 @@ TOGGLABLE_BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "planning",
     "structured_clarify",
     "external_cli",
+    "web_crawl",
 )
 """IDs shown in BuiltinToolsPanel; excludes AGENT_BASELINE_BUILTIN_TOOLS."""
 
@@ -97,6 +99,10 @@ BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
     {
         "id": "external_cli",
         "desc": "Delegate tasks to external CLI agents (Claude Code, Codex, Gemini CLI)",
+    },
+    {
+        "id": "web_crawl",
+        "desc": "Recursively crawl entire websites into sandbox storage",
     },
 )
 

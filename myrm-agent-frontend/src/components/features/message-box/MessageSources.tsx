@@ -16,6 +16,7 @@
 import React, { useCallback, useState } from 'react';
 import { File, Puzzle, BookOpen, MessageSquareText } from 'lucide-react';
 import { Source, MCPCallRecord } from '@/store/chat/types';
+import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import LinkPopover from '@/components/features/markdown-render-tools/LinkPopover';
 import SourceChunkDrawer from './SourceChunkDrawer';
 import { useTranslations } from 'next-intl';
@@ -71,12 +72,14 @@ function getSourceCardData(source: Source, fallbackTitle: string): SourceCardDat
     };
   }
 
+  const clickUrl = resolveSourceClickUrl(source);
+
   return {
     index: source.index,
     title: source.title || fallbackTitle,
-    url: source.url,
+    url: clickUrl,
     description: source.snippet,
-    kind: source.url ? 'web' : 'generic',
+    kind: clickUrl ? 'web' : 'generic',
   };
 }
 

@@ -112,7 +112,12 @@ async def hitl_runtime_probe(
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
-    from myrm_agent_harness.agent.security.channel_presets import build_channel_security_config
+    from myrm_agent_harness.agent.middlewares.approval.batch_processor import (
+        is_yolo_mode_active,
+    )
+    from myrm_agent_harness.agent.security.channel_presets import (
+        build_channel_security_config,
+    )
     from myrm_agent_harness.agent.security.engine import evaluate_tool_call
     from myrm_agent_harness.agent.security.types import PermissionAction
 
@@ -142,18 +147,32 @@ async def hitl_runtime_probe(
         tool_name="bash_code_execute_tool",
     )
     collector = ACTIVE_COLLECTORS.get(chat_id) if chat_id else None
-    pending_interrupts = collector.has_pending_hitl_replay() if collector is not None else False
+    pending_interrupts = (
+        collector.has_pending_hitl_replay() if collector is not None else False
+    )
     pending_events: list[dict[str, object]] = []
     if collector is not None and pending_interrupts:
         pending_events = [dict(event) for event in collector._pending_interrupt_events]
+    yolo_active = is_yolo_mode_active(sec)
     return {
         "yolo": sec.yolo_mode_enabled,
+        "yolo_active": yolo_active,
+        "yolo_at": sec.yolo_mode_enabled_at,
+        "yolo_timeout": sec.yolo_mode_timeout,
         "auto_mode": sec.auto_mode_enabled,
         "action": action.value,
         "reason": reason,
-        "permissions": (raw or {}).get("permissions") if isinstance(raw, dict) else None,
-        "raw_yolo": (raw or {}).get("yoloModeEnabled") if isinstance(raw, dict) else None,
-        "agent_yolo": (agent_raw or {}).get("yoloModeEnabled") if isinstance(agent_raw, dict) else None,
+        "permissions": (
+            (raw or {}).get("permissions") if isinstance(raw, dict) else None
+        ),
+        "raw_yolo": (
+            (raw or {}).get("yoloModeEnabled") if isinstance(raw, dict) else None
+        ),
+        "agent_yolo": (
+            (agent_raw or {}).get("yoloModeEnabled")
+            if isinstance(agent_raw, dict)
+            else None
+        ),
         "agent_id": agent_id,
         "expects_ask": action == PermissionAction.ASK and not sec.yolo_mode_enabled,
         "harness_audit_tail": _harness_audit_tail(),
@@ -173,7 +192,9 @@ def _harness_audit_tail(*, limit: int = 12) -> list[dict[str, object]]:
         for row in rows[-limit:]:
             if hasattr(row, "to_dict"):
                 payload = row.to_dict()
-                tail.append(payload if isinstance(payload, dict) else {"value": str(payload)})
+                tail.append(
+                    payload if isinstance(payload, dict) else {"value": str(payload)}
+                )
             elif isinstance(row, dict):
                 tail.append(row)
         return tail

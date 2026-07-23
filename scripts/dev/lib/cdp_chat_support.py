@@ -8,6 +8,7 @@ import re
 import time
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -727,8 +728,13 @@ def fetch_chat_messages(
         f"{resolved_api}/api/v1/chats/{chat_id}/messages",
         headers={"Accept": "application/json"},
     )
-    with _e2e_api_urlopen(req, timeout_sec=15) as resp:
-        payload = json.loads(resp.read())
+    try:
+        with _e2e_api_urlopen(req, timeout_sec=15) as resp:
+            payload = json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return []
+        raise
     data = payload.get("data")
     if not isinstance(data, dict):
         return []
@@ -1156,6 +1162,103 @@ def chat_messages_have_done(
     return bool(_DONE_REPLY_RE.search(content))
 
 
+def _sse_message_text(events: list[dict[str, object]]) -> str:
+    chunks: list[str] = []
+    for event in events:
+        if event.get("type") != "message":
+            continue
+        data = event.get("data")
+        if isinstance(data, str) and data:
+            chunks.append(data)
+    return "".join(chunks)
+
+
+def resume_clarify_skip_via_api(
+    chat_id: str,
+    *,
+    model_selection: dict[str, object],
+    api_url: str | None = None,
+    timeout_sec: float = 180.0,
+) -> dict[str, object]:
+    """POST agent-stream with resumeValue {} (Skip parity) on the private E2E backend."""
+    resolved = (api_url or get_e2e_api_url()).rstrip("/")
+    payload: dict[str, object] = {
+        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
+        "chatId": chat_id,
+        "query": "",
+        "modelSelection": model_selection,
+        "actionMode": "agent",
+        "enableMemory": False,
+        "agentConfig": {"enabledBuiltinTools": ["structured_clarify"]},
+        "resumeValue": {},
+    }
+    req = urllib.request.Request(  # noqa: S310
+        f"{resolved}/api/v1/agents/agent-stream",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
+        method="POST",
+    )
+    events: list[dict[str, object]] = []
+    error_event: dict[str, object] | None = None
+    deadline = time.monotonic() + timeout_sec
+    with _e2e_api_urlopen(req, timeout_sec=timeout_sec) as resp:
+        status = getattr(resp, "status", 200)
+        if status != 200:
+            body = resp.read().decode("utf-8", errors="replace")
+            return {
+                "ok": False,
+                "status": status,
+                "body": body[:500],
+                "events": events,
+                "event_types": [],
+                "final_text": "",
+                "error": None,
+            }
+        while time.monotonic() < deadline:
+            line_bytes = resp.readline()
+            if not line_bytes:
+                break
+            line = line_bytes.decode("utf-8", errors="replace").strip()
+            if not line.startswith("data: "):
+                continue
+            raw = line[6:]
+            if raw == "[DONE]":
+                break
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(data, dict):
+                continue
+            events.append(data)
+            if data.get("type") == "error":
+                error_event = data
+                break
+
+    final_text = _sse_message_text(events)
+    event_types = sorted(
+        {str(event.get("type")) for event in events if event.get("type") is not None}
+    )
+    ok = (
+        error_event is None
+        and bool(events)
+        and "error" not in event_types
+        and event_types != ["clarification_required"]
+        and (
+            "message_end" in event_types
+            or "DONE-SKIPPED" in final_text.upper()
+            or "message" in event_types
+        )
+    )
+    return {
+        "ok": ok,
+        "events": events,
+        "event_types": event_types,
+        "final_text": final_text,
+        "error": error_event,
+    }
+
+
 def chat_messages_have_clarify_skip_done(
     chat_id: str, *, min_user_count: int = 1, api_url: str | None = None
 ) -> bool:
@@ -1170,9 +1273,6 @@ def chat_messages_have_clarify_skip_done(
     for msg in messages:
         if isinstance(msg, dict) and msg.get("role") == "assistant":
             last_assistant = msg
-            content = str(msg.get("content") or "")
-            if _CLARIFY_SKIP_DONE_RE.search(content):
-                return True
     if last_assistant is None:
         return False
     content = str(last_assistant.get("content") or "")

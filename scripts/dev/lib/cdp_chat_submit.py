@@ -39,8 +39,40 @@ class CdpChatSubmit(CdpChatInput):
             else {"ok": False, "err": "atomic-send-invalid"}
         )
 
+    async def wait_send_button_ready(
+        self,
+        *,
+        timeout_sec: float = 60.0,
+        poll_interval_sec: float = 0.5,
+    ) -> dict[str, object]:
+        """Poll until `.message-send-btn` exists and is enabled (post route-restore)."""
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {"hasBtn": False, "disabled": True}
+        while time.monotonic() < deadline:
+            probe = await self.evaluate(
+                """(() => {
+                  const btn = document.querySelector('.message-send-btn');
+                  return {
+                    hasBtn: Boolean(btn),
+                    disabled: btn ? Boolean(btn.disabled) : true,
+                    sendReady: !!window.__MYRM_E2E_CHAT__?.isSendReady?.(),
+                    href: String(location.href || ''),
+                  };
+                })()""",
+                await_promise=False,
+            )
+            if isinstance(probe, dict):
+                last = probe
+                if probe.get("hasBtn") and not probe.get("disabled"):
+                    return {"ok": True, **probe}
+            await asyncio.sleep(poll_interval_sec)
+        return {"ok": False, "err": "send-button-not-ready", **last}
+
     async def submit_native_click(self) -> dict[str, object]:
         """Click the send button when the E2E bridge sendChatMessage hook is unavailable."""
+        ready = await self.wait_send_button_ready(timeout_sec=60.0)
+        if not ready.get("ok"):
+            return {"ok": False, "err": "no send button", "probe": ready}
         await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
         native = await self.evaluate(
             """(() => {

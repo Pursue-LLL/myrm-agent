@@ -27,10 +27,11 @@
 | `backend_bg.sh` | Unix | 后台启动 `myrm-agent-server`（:8080）；pid/log 写入 `dev_state_paths`；source drift 时 **leases>0 defer reload + record-pending**（R31-G），leases=0 才 TERM reload |
 | `process_identity.py` | Unix | 记录 `pid + OS start token + runtimeId`；停止前复验进程代次，只终止精确 owner 的进程树，PID 复用时 fail-closed |
 | `e2e_mux_admission.py` | Unix | 全局 mux session 准入（READ+LIVE 统一 cap、`E2E_MUX_ADMISSION_WAIT`）；`MYRM_E2E_RUN_ID` label 经 `_registry_key()` uuid5 归一化 |
-| `mux_upstream_admission.py` | Unix | 全局 mux cold attach 准入（cap=2、`MUX_UPSTREAM_WAIT`）；`chrome_mcp_client.new_page` 包装 |
+| `mux_upstream_admission.py` | Unix | 全局 mux cold attach 准入（cap=3、`MUX_UPSTREAM_WAIT`）；`chrome_mcp_client.new_page` 包装 |
 | `e2e_capacity_messages.py` | Unix | Dev Gate UX：cap 等待人话行（保留 `E2E_*_WAIT` token） |
-| `dev_gate_contract.py` | Unix | Dev Gate v2 SSOT（产品路径）：mux 错误分类、并行 cap（LIVE SHPOIB **4** / shared_hot **1** / mux **6** / cold attach **2**）、**`E2E_UNIFIED_WAIT_SEC=900`**、**`CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT=180000`**、**lane pytest timeout**（READ=1110 / LIVE=**1710** / desktop=7200）、**session safe timeout**（`chrome_e2e_pytest_safe_timeout_sec`）、**`chrome_e2e_skips_shared_approval_preflight(lane, shpoib)`**（LIVE SHPOIB 跳过共享 approval） |
+| `dev_gate_contract.py` | Unix | Dev Gate v2 SSOT（产品路径）：mux 错误分类、并行 cap（LIVE SHPOIB **4** / shared_hot **1** / mux **6** / cold attach **3**）、**`E2E_UNIFIED_WAIT_SEC=900`**、**`CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT=180000`**、**lane pytest timeout**（READ=1110 / LIVE=**1710** / desktop=7200）、**session safe timeout**（`chrome_e2e_pytest_safe_timeout_sec`）、**`chrome_e2e_skips_shared_approval_preflight(lane, shpoib)`**（LIVE SHPOIB 跳过共享 approval） |
 | `stack_mutation_policy.py` / `stack_mutation_policy.sh` | Unix | R30 SMP SSOT：shared-stack drift heal defer under active wave leases；`pending-stack-drift.json`；preflight/bootstrap/supervisor 统一入口 |
+| `e2e_api_verify.py` | Unix | Agent `./myrm verify-api` / `e2e-context` SSOT：**stored stack-epoch fingerprint** 对比 workspace；epoch 匹配 backend 路由；无私池/stale 私池 fail-closed |
 | `e2e_unified_admission.py` | Unix | UEA v3 contract 常量 re-export（`E2E_UNIFIED_WAIT_SEC` · `LIVE_SHPOIB/SHARED_HOT_MAX`） |
 | `../resolve_e2e_session_profile.py` | Unix | UEA v3 profile SSOT（`{lane, shpoib, shared_hot}`）；`-m`/`-k` pytest collect-only（scoped `tests/e2e`）；驱动 cap、stream-first、approval skip |
 | `e2e_lease_runtime_sync.py` | Unix | formal chrome E2E acquire 后 fail-closed gate：`lease.runtimeId == _read_shared_hot_stack_runtime_id()`；state 经 `wave_state_paths.resolve_wave_state_file()`；`test.sh` 经 `_e2e_sync_lease_runtime` 调用 |

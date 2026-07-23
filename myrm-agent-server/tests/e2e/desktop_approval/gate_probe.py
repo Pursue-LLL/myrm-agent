@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
 from cdp_chat_support import (
     fetch_provider_readiness_snapshot,
@@ -16,6 +17,9 @@ from tests.e2e.desktop_approval.constants import (
     E2E_NUDGE_PROMPT,
     E2E_SNAPSHOT_NUDGE_PROMPT,
     GATE_IDLE_FAIL_FAST_SEC,
+    GATE_IDLE_NUDGE_SEC,
+    GATE_STREAM_NUDGE_SEC,
+    assert_desktop_e2e_wall_clock,
     build_desktop_interact_nudge,
     progress,
 )
@@ -241,6 +245,25 @@ async def _send_interact_nudge(
         nudge_prompt = E2E_NUDGE_PROMPT
     normalized_chat_id = chat_id.strip()
     await _abort_stuck_ui_stream(chat)
+    await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
+    for _ in range(20):
+        probe = await chat.evaluate(
+            """(() => {
+              const btn = document.querySelector('.message-send-btn');
+              return {
+                hasBtn: Boolean(btn),
+                disabled: btn ? Boolean(btn.disabled) : true,
+              };
+            })()""",
+            await_promise=False,
+        )
+        if (
+            isinstance(probe, dict)
+            and probe.get("hasBtn")
+            and not probe.get("disabled")
+        ):
+            break
+        await asyncio.sleep(0.5)
     await chat.evaluate(
         """(() => {
           window.__MYRM_E2E_CHAT__?.prepareAutomationSend?.();
@@ -249,8 +272,7 @@ async def _send_interact_nudge(
         })()""",
         await_promise=False,
     )
-    send_result = await chat.fast_desktop_agent_submit(
-        nudge_prompt,
+    send_result = await chat.submit_desktop_nudge(
         nudge_prompt,
         chat_id_hint=normalized_chat_id or None,
     )
@@ -398,15 +420,22 @@ async def _wait_desktop_tool_activity_failfast(
     idle_fail_sec: float = GATE_IDLE_FAIL_FAST_SEC,
     chat_id: str = "",
     api_only: bool = False,
+    wall_started_at: float | None = None,
 ) -> dict[str, object]:
     deadline = asyncio.get_event_loop().time() + timeout_sec
     last: dict[str, object] = {"active": False}
     idle_started: float | None = None
     streaming_started: float | None = None
+    stream_nudge_sent = False
+    idle_nudge_sent = False
     poll = 0
     api_fail_streak = [0]
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
+        if wall_started_at is not None:
+            assert_desktop_e2e_wall_clock(
+                wall_started_at, phase="wait_desktop_tool_activity"
+            )
         heartbeat_e2e_lease()
         probe = await probe_desktop_tool_progress(
             chat,
@@ -433,13 +462,32 @@ async def _wait_desktop_tool_activity_failfast(
                 if probe_last_tool.endswith("desktop_snapshot_tool"):
                     return probe
         now = asyncio.get_event_loop().time()
+        last_tool = str(last.get("lastTool") or "")
         if await _agent_stream_active(chat, chat_id=chat_id, api_only=api_only):
             idle_started = None
             if streaming_started is None:
                 streaming_started = now
-            elif now - streaming_started >= 180.0 and not str(
-                last.get("lastTool") or ""
-            ).startswith("desktop_"):
+            elif (
+                not stream_nudge_sent
+                and not api_only
+                and now - streaming_started >= GATE_STREAM_NUDGE_SEC
+                and not last_tool.startswith("desktop_")
+            ):
+                progress(
+                    f"streaming {now - streaming_started:.0f}s without desktop tools "
+                    f"— early steer nudge"
+                )
+                try:
+                    await _send_interact_nudge(
+                        chat, last_tool=last_tool, chat_id=chat_id
+                    )
+                except (RuntimeError, TimeoutError, OSError) as exc:
+                    progress(f"early stream nudge skipped (non-fatal): {exc}")
+                stream_nudge_sent = True
+                streaming_started = now
+            elif now - streaming_started >= 180.0 and not last_tool.startswith(
+                "desktop_"
+            ):
                 if not api_only:
                     await _abort_stuck_ui_stream(chat)
                 raise AssertionError(
@@ -447,15 +495,16 @@ async def _wait_desktop_tool_activity_failfast(
                 )
         else:
             streaming_started = None
+            stream_nudge_sent = False
         if poll % 10 == 0:
             await _fail_if_model_completed_without_desktop_tools(
                 chat,
                 chat_id=chat_id,
                 api_only=api_only,
             )
-        last_tool = str(last.get("lastTool") or "")
         if await _agent_stream_active(chat, chat_id=chat_id, api_only=api_only):
             idle_started = None
+            idle_nudge_sent = False
         elif (
             server_pending >= 0
             and not last.get("active")
@@ -463,6 +512,22 @@ async def _wait_desktop_tool_activity_failfast(
         ):
             now = asyncio.get_event_loop().time()
             if idle_started is None:
+                idle_started = now
+            elif (
+                not idle_nudge_sent
+                and not api_only
+                and now - idle_started >= GATE_IDLE_NUDGE_SEC
+            ):
+                progress(
+                    f"idle {now - idle_started:.0f}s without desktop tools — early nudge"
+                )
+                try:
+                    await _send_interact_nudge(
+                        chat, last_tool=last_tool, chat_id=chat_id
+                    )
+                except (RuntimeError, TimeoutError, OSError) as exc:
+                    progress(f"early idle nudge skipped (non-fatal): {exc}")
+                idle_nudge_sent = True
                 idle_started = now
             elif now - idle_started >= idle_fail_sec:
                 hint = await _provider_readiness_hint()
@@ -486,13 +551,16 @@ async def ensure_interact_gate(
     *,
     chat_id: str = "",
     textedit_foreground: bool = False,
+    wall_started_at: float | None = None,
 ) -> tuple[dict[str, object], str, int, bool]:
+    wall_clock = wall_started_at if wall_started_at is not None else time.monotonic()
     api_only = textedit_foreground
     tool_activity = await _wait_desktop_tool_activity_failfast(
         chat,
         timeout_sec=APPROVAL_WAIT_SEC,
         chat_id=chat_id,
         api_only=api_only,
+        wall_started_at=wall_clock,
     )
     if textedit_foreground:
         progress(
@@ -532,9 +600,7 @@ async def ensure_interact_gate(
         try:
             await _send_interact_nudge(chat, last_tool=last_tool, chat_id=chat_id)
         except (RuntimeError, TimeoutError, OSError) as exc:
-            raise AssertionError(
-                f"Snapshot nudge send failed (Chrome mux): {exc}"
-            ) from exc
+            progress(f"snapshot nudge send skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
         tool_activity, last_tool, server_pending, ui_pending = (
             await wait_for_interact_or_approval(
@@ -546,6 +612,7 @@ async def ensure_interact_gate(
 
     max_nudge_rounds = 4
     for round_idx in range(max_nudge_rounds):
+        assert_desktop_e2e_wall_clock(wall_clock, phase=f"nudge_round_{round_idx + 1}")
         if _desktop_gate_satisfied(
             last_tool=last_tool,
             server_pending=server_pending,
@@ -576,7 +643,7 @@ async def ensure_interact_gate(
         try:
             await _send_interact_nudge(chat, last_tool=last_tool, chat_id=chat_id)
         except (RuntimeError, TimeoutError, OSError) as exc:
-            raise AssertionError(f"Nudge send failed (Chrome mux): {exc}") from exc
+            progress(f"nudge send skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
         tool_activity, last_tool, server_pending, ui_pending = (
             await wait_for_interact_or_approval(

@@ -83,6 +83,23 @@ class TestSourcesCollection:
         assert len(snapshot["sources"]) == 1
         assert snapshot["sources"][0]["title"] == "Updated Version"
 
+    def test_sources_preserve_citation_redirect_url(self, collector: StreamContentCollector) -> None:
+        collector.feed_event({
+            "type": "sources",
+            "data": [
+                {
+                    "url": "https://real.example/article",
+                    "redirect_url": "https://redirect.example/r",
+                    "title": "Resolved",
+                },
+            ],
+        })
+
+        extra = collector.extra_data
+        assert extra is not None
+        assert extra["sources"][0]["url"] == "https://real.example/article"
+        assert extra["sources"][0]["redirect_url"] == "https://redirect.example/r"
+
     def test_sources_without_url_are_preserved(self, collector: StreamContentCollector) -> None:
         """KB sources may lack URL but should still be collected."""
         collector.feed_event({

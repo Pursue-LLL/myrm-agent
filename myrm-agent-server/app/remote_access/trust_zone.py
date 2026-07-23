@@ -11,11 +11,22 @@ Resolve AdmissionPath / TrustZone from request headers and ingress URL.
 from __future__ import annotations
 
 import ipaddress
+import re
 from collections.abc import Mapping
 from enum import Enum
 from urllib.parse import urlparse
 
 from app.core.security.auth.identity import _normalize_client_ip, is_loopback_ip, is_private_network_ip
+
+# Inbound platform callbacks: /api/channels/{provider}/webhook[/…]
+_CHANNEL_PROVIDER_WEBHOOK_RE = re.compile(
+    r"^/api/channels/[^/]+/webhook(?:/|$)",
+    re.IGNORECASE,
+)
+_CHANNEL_PROVIDER_WEBHOOK_V1_RE = re.compile(
+    r"^/api/v1/channels/[^/]+/webhook(?:/|$)",
+    re.IGNORECASE,
+)
 
 
 class AdmissionPath(str, Enum):
@@ -64,8 +75,15 @@ def _host_matches_ingress(host_header: str, public_ingress_base_url: str) -> boo
 
 
 def _is_channel_webhook_path(path: str) -> bool:
+    """True for inbound platform webhook/ingress callbacks, not manage API channel ids."""
     lowered = path.lower()
-    if "webhook" in lowered:
+    # Settings manage API: /api/v1/channels/manage/{channelId}/… (channelId may be "webhook").
+    if "/channels/manage/" in lowered:
+        return False
+    # Shared-context binding target: …/bindings/targets/channel/{targetId}.
+    if "/bindings/targets/channel/" in lowered:
+        return False
+    if _CHANNEL_PROVIDER_WEBHOOK_RE.match(path) or _CHANNEL_PROVIDER_WEBHOOK_V1_RE.match(path):
         return True
     return lowered.startswith("/api/v1/channels/") and "/ingress" in lowered
 

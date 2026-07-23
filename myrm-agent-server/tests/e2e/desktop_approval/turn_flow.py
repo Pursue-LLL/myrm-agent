@@ -6,6 +6,7 @@ import asyncio
 import json
 import platform
 import subprocess
+import time
 import urllib.error
 
 import pytest
@@ -36,6 +37,7 @@ from tests.e2e.desktop_approval.trust_api import (
     list_trusted_apps_via_api,
     server_pending_approval_count,
 )
+from tests.support.e2e_lite_model_pin import pin_lite_model_for_e2e
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
 
 
@@ -490,6 +492,7 @@ async def wait_for_approval_banner_clickable(
 
 
 async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> str:
+    wall_started_at = time.monotonic()
     progress("new chat + ensure surface")
     await chat.click_new_chat()
     await chat.ensure_chat_surface(BASE_URL)
@@ -503,6 +506,9 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     tools_setup = await chat.enable_computer_use()
     assert tools_setup.get("ok") is True, f"computer_use bridge failed: {tools_setup}"
     assert "computer_use" in (tools_setup.get("tools") or []), tools_setup
+
+    progress("pin LITE_MODEL from .env.test before agent send")
+    await pin_lite_model_for_e2e(chat)
 
     provider_debug = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
@@ -587,6 +593,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         chat,
         chat_id=chat_id,
         textedit_foreground=True,
+        wall_started_at=wall_started_at,
     )
     progress(
         f"post-wait lastTool={last_tool} server_pending={server_pending} ui_pending={ui_pending}"

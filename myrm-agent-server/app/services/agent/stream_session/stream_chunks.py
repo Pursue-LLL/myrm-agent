@@ -9,7 +9,7 @@
 - generate_cancellable_stream: 可取消的 SSE chunk 异步生成器
 
 [POS]
-Agent 流式 SSE chunk 编排：凭据注入、entitlement gap 预检、Vision fallback，委托 loop/finalize。
+Agent 流式 SSE chunk 编排：凭据注入、config/entitlement 双轨 gap 预检、Vision fallback，委托 loop/finalize。
 """
 
 from __future__ import annotations
@@ -106,6 +106,23 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
             }
             session.collector.feed_event(restore_event_data)
             yield SSEEnvelope.from_any(restore_event_data).to_sse_chunk()
+
+    if session.request.resume_value is None:
+        from app.services.agent.stream_session.entitlement_gap_preflight import (
+            build_web_search_config_gap_sse_event,
+        )
+
+        search_gap_event = build_web_search_config_gap_sse_event(
+            message_id=session.params.message_id or "",
+            web_search_profile_enabled=bool(getattr(session.params, "web_search_profile_enabled", False)),
+            enable_web_search=bool(session.params.enable_web_search),
+            search_is_user_configured=bool(getattr(session.params, "search_is_user_configured", False)),
+            chat_id=session.request.chat_id,
+            locale=getattr(session.params, "locale", None),
+        )
+        if search_gap_event is not None:
+            session.collector.feed_event(search_gap_event)
+            yield SSEEnvelope.from_any(search_gap_event).to_sse_chunk()
 
     if session.entitlement_preflight_text:
         from app.ai_agents.general_agent.active_tool_groups import derive_active_tool_groups_from_params

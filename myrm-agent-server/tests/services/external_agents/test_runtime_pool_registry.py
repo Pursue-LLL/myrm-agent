@@ -196,6 +196,7 @@ async def test_facade_cancel_does_not_deadlock_during_run_turn() -> None:
         session_id: str,
         *,
         mode: str = "persistent",
+        mcp_servers: list | None = None,
     ):
         entered.set()
         await unblock.wait()

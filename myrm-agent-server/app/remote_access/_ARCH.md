@@ -14,7 +14,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 | --- | --- | --- | --- |
-| `trust_zone.py` | 核心 | AdmissionPath / TrustZone 解析 | ✅ |
+| `trust_zone.py` | 核心 | AdmissionPath / TrustZone 解析；入站 platform webhook 仅匹配 `/api/channels/{provider}/webhook`，排除 manage API 渠道名 `webhook` 与 shared-context binding target | ✅ |
 | `mobile_gate.py` | 核心 | scoped pair token 校验；`resolve_request_pair_token`（E2EE/query/header）；HTTP + `/ws/stt/*` mobile 控制面路径 | ✅ |
 | `mobile_deep_link.py` | 核心 | Channel → 前端 deep link 构建：`/mobile/status` (HITL) + `/{chatId}` (WebUI 续聊) | ✅ |
 | `tool_policy.py` | 核心 | 远程暴露时 harness `SecurityConfig.remote_exposed()` deny overlay | ✅ |

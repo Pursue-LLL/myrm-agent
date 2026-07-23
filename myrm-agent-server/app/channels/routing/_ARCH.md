@@ -135,7 +135,7 @@ deadlocks when an agent execution hangs without crashing.
 | router_commands_goals.py | Core | `/goal`, `/subgoal`, `/background`, `/handoff` commands. | ✅ |
 | router_commands_memory.py | Core | `/status`, `/kanban`, `/learn`, `/memory` commands. | ✅ |
 | router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
-| router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; `_deliver_agent_result` auto-attaches WebUI handoff deep link button for IM channel replies and intercepts outbound messages as draft ApprovalRecord when `topic_ctx.reply_mode == "draft_review"` (Channel Outbound HITL). | — |
+| router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; `_prepare_execution_context` rejects search-track `route_agent_id` (external CLI aliases like `claude` unchanged); `_deliver_agent_result` auto-attaches WebUI handoff deep link button for IM channel replies and intercepts outbound messages as draft ApprovalRecord when `topic_ctx.reply_mode == "draft_review"` (Channel Outbound HITL). | — |
 | router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | ✅ |
 | router_keys.py | Core | ``routing_session_key`` builds ``f"{channel}:{peer_id}"`` for DM/group peer maps | — |
 | router_models.py | Core | Data models referenced by AgentRouter in router.py and router_commands (_ActiveTask with steering_token, `requester_id` for reaction approval auth, `locale` for stuck watchdog i18n, ReactionPolicy, etc.) | — |
@@ -146,6 +146,10 @@ deadlocks when an agent execution hangs without crashing.
 | stream_config.py | Config | Unified configuration for streaming components. | ✅ |
 | stream_manager.py | Core | Streaming optimization components used by Router for intelligent updates. | ✅ |
 | stream_metrics.py | Core | Provides observability into streaming quality via tracing infrastructure. | ✅ |
+
+## Channel agent bind (`/bind`)
+
+`/bind` persists via `SqlTopicManager.bind_topic` (SSOT). Search-track agents (`prompt_mode=search`) are rejected with `topic_search_agent_rejected` i18n — same rule as Settings channel routing API. Legacy Search binds are purged at `resolve_topic` / `get_all_topics` read time.
 
 ## Key Dependencies
 

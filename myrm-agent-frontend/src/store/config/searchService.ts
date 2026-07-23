@@ -1,8 +1,13 @@
 import { showI18nToast } from '@/services/i18nToastService';
-import { isLocalMode } from '@/lib/deploy-mode';
-import useConfigStore from '@/store/useConfigStore';
-import { probeAndBuildQuickSearchConfig } from '@/store/config/quickSearchSetup';
 import { SearchServiceConfigItem, SearchServiceConfig } from './types';
+import { runWebSearchConfigGapAction, resolveWebSearchConfigGapActionLabelKey } from './webSearchConfigGap';
+
+export {
+  SEARCH_SETTINGS_PATH,
+  resolveWebSearchConfigGapActionLabel,
+  resolveWebSearchConfigGapActionLabelKey,
+  runWebSearchConfigGapAction,
+} from './webSearchConfigGap';
 
 /**
  * 搜索服务配置管理模块
@@ -160,24 +165,14 @@ export const getActiveSearchServiceConfig = (configs: SearchServiceConfigItem[])
  * Centralized here to avoid duplicating toast parameters across components.
  */
 export const showSearchNotConfiguredToast = (): void => {
-  const local = isLocalMode();
   showI18nToast('chat.searchNotConfigured.title', undefined, {
     descriptionKey: 'chat.searchNotConfigured.description',
     type: 'warning',
     duration: 6000,
     action: {
-      label: local ? 'chat.searchNotConfigured.enableAction' : 'chat.searchNotConfigured.action',
+      label: resolveWebSearchConfigGapActionLabelKey(),
       onClick: () => {
-        void (async () => {
-          if (local) {
-            const config = await probeAndBuildQuickSearchConfig();
-            if (config) {
-              useConfigStore.getState().addSearchServiceConfig(config);
-              return;
-            }
-          }
-          window.location.href = '/settings/search';
-        })();
+        void runWebSearchConfigGapAction();
       },
     },
   });

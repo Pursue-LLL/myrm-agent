@@ -64,6 +64,7 @@
 7. **runtimeId + Wave + Stack Pin**：`CHROME_E2E_HEALTH_JSON.runtimeId` — `wave open` 冻结并钉死栈 → `lease acquire READ` → 断言前 `./myrm runtime-drift --expect <id>`；open wave 或持 lease 时 `ensure/reset/restart` 机械拒绝；并行 Agent 仅 `--attach --chrome`
 8. **client_hot + infra browser registry**：`ready --chrome` 用短生命周期 exact target 预热 client chunk，hydrate 后立即关闭并注销到 `infra-browser-targets.json`；`./myrm doctor --chrome` 输出 Tab Hygiene；mux 按 client 隔离 page ownership；改码后 UI 测 **`./myrm restart --chrome`** 开新 wave
 9. **CDP 单写者**：项目内 pytest/bun raw `/json/new` 永久拒绝（`CDP_WRITE_DENIED`）；仅 supervisor client warmup 使用 `MYRM_CDP_WARMUP=1`，正式 UI E2E 只能经 mux MCP；外部 Playwright/raw CDP 属明确禁止项
+10. **API 端口 SSOT（禁止硬编码 :8080）**：attach / private backend 时 API 端口可能非 8080。集成断言与 curl **必须**先用 `./myrm ready --attach --chrome` 输出中的 `CHROME_E2E_HEALTH_JSON.api`（或 MCP `list_network_requests` 里 UI 实际请求的 host:port）。禁止裸 `curl :8080` 推断后端版本或 bind 行为；跟 UI 网络请求走即与联调栈一致
 
 **勿引用（已移除）**：`browser-delegate-chrome-e2e.mjs`、`clarify-chrome-e2e.mjs`、`start-chrome-mcp-debug.sh`（第二 Chrome / Allow 冲突）；`browser-delegate-e2e-once.mjs`、`render-ui-gap-e2e-prepare.mjs`、`notify-channel-e2e-prepare.mjs`、`cron-gap-e2e-prepare.mjs`、`test-cron-gap-e2e.sh`（API 重复 → `myrm-agent-server/tests/api/agent/`）；`ui_pong_chrome_verify.py`、`render_ui_chrome_verify.py`、`wfel-settings-ui-check.py`（主 Chrome CDP → 用 `:9333` + `tests/` 或 MCP）；`subagent-dashboard-e2e-poll.mjs`（debug 轮询，正式链用 prepare + verify）；`test-instinct-inbox-seed.py`（已改名 `instinct-inbox-seed.py`）。品牌图标生成见 `myrm-agent-desktop/scripts/inset-app-icon.py`。
 

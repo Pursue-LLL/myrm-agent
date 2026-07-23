@@ -23,6 +23,7 @@ import { useTranslations } from 'next-intl';
 import useChatStore, { Message } from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
 import type { McpAppView, Source, ToolCallInfo, ToolImageOutput, UIArtifact } from '@/store/chat/types';
+import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { stripDatetimeTag } from '@/lib/utils/messageUtils';
 import { regenerateLastTurn, undoLastTurn, cancelAgentRequest, truncateAfterMessage } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
@@ -339,8 +340,9 @@ const MessageBox = ({
           // 生成唯一标识符用于去重
           // 优先使用 URL，其次使用 skill 名称组合，最后使用 kb/filename 组合
           let key: string;
-          if (source.url) {
-            key = source.url;
+          const clickUrl = resolveSourceClickUrl(source);
+          if (clickUrl) {
+            key = clickUrl;
           } else if (source.skill_name && source.calls && source.calls.length > 0) {
             // 使用 skill_name 和 calls 中的工具名称组合
             const toolNames = source.calls.map((c) => c.tool_name).join(',');

@@ -622,6 +622,7 @@ class AgentListItem(BaseModel):
     avatar_url: str | None = Field(None, description="智能体头像/图标 URL")
     is_built_in: bool = Field(False, description="是否为内置 Agent")
     agent_type: AgentTypeLiteral = Field(default="individual", description="Agent type")
+    prompt_mode: str = Field(default="full", description="Prompt mode (full, lean, naked, search)")
     enabled_builtin_tools: list[str] | None = Field(
         None,
         description="Enabled builtin tool IDs for gallery preview",

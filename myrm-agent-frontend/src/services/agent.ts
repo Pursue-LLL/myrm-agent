@@ -140,6 +140,7 @@ export interface AgentListItem {
   avatar_url?: string;
   is_built_in?: boolean;
   agent_type?: AgentType;
+  prompt_mode?: string;
   skill_ids?: string[];
   mcp_ids?: string[];
   enabled_builtin_tools?: string[] | null;

@@ -1,6 +1,6 @@
 /**
  * [OUTPUT]
- * Source, MCPCallRecord, CitedMemoryReference, FileMutationFailure.
+ * Source, MCPCallRecord, CitedMemoryReference, FileMutationFailure, resolveSourceClickUrl.
  * 
  * [POS]
  * 消息引用来源与 citation 契约。
@@ -21,7 +21,8 @@ export interface Source {
   type: SourceType; // 来源类型
   source_key?: string; // 稳定去重键
   // web_search 和 web_fetch 共有字段
-  url?: string; // URL
+  url?: string; // 终态可点击 URL（harness citation_resolver 归一化后）
+  redirect_url?: string; // 搜索提供商 redirect 链原始 URL（与 url 不同时存在）
   title?: string; // 页面标题
   snippet?: string; // 摘要（仅 web_search）
   summary?: string; // 长摘要（会话历史等结构化来源）
@@ -60,5 +61,10 @@ export interface FileMutationFailure {
   path: string;
   tool: string;
   error_preview: string;
+}
+
+/** Canonical clickable URL for a web source (harness-normalized `url` field). */
+export function resolveSourceClickUrl(source: Source): string | undefined {
+  return source.url;
 }
 

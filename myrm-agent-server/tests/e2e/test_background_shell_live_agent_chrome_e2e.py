@@ -26,10 +26,15 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
+from cdp_chat_support import ensure_e2e_hitl_mode  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import http_json
 
-_STREAM_TRANSPORT_ERRORS = (httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadError)
+_STREAM_TRANSPORT_ERRORS = (
+    httpx.RemoteProtocolError,
+    httpx.ConnectError,
+    httpx.ReadError,
+)
 _BASH_TOOL_NAME = "bash_code_execute_tool"
 _MAX_BASH_STREAM_ATTEMPTS = 5
 _POST_STREAM_RUNNING_PROBE_SEC = 20.0
@@ -81,7 +86,13 @@ def _create_background_agent(client: httpx.Client, api_base: str) -> str:
     probe_resp.raise_for_status()
     probe = probe_resp.json()
     if probe.get("yolo") is not True:
-        raise AssertionError(f"hitl-probe expected yolo=true after agent create: {probe}")
+        raise AssertionError(
+            f"hitl-probe expected yolo=true after agent create: {probe}"
+        )
+    if probe.get("yolo_active") is not True:
+        raise AssertionError(
+            f"hitl-probe expected yolo_active=true after agent create: {probe}"
+        )
     return agent_id
 
 
@@ -184,7 +195,9 @@ def _cancel_running_shells_for_chat_best_effort(api_base: str, chat_id: str) -> 
         pass
 
 
-def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str, chat_id: str) -> None:
+def _stream_background_spawn(
+    client: httpx.Client, api_base: str, agent_id: str, chat_id: str
+) -> None:
     request_data: dict[str, object] = {
         "messageId": f"bg-shell-{uuid.uuid4().hex[:10]}",
         "chatId": chat_id,
@@ -196,7 +209,9 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
         "enableMemoryAutoExtraction": False,
     }
 
-    def _consume_stream(payload: dict[str, object]) -> tuple[dict[str, object] | None, list[str], list[str], str]:
+    def _consume_stream(
+        payload: dict[str, object],
+    ) -> tuple[dict[str, object] | None, list[str], list[str], str]:
         resume_payload: dict[str, object] | None = None
         tool_names: list[str] = []
         errors: list[str] = []
@@ -301,7 +316,9 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
                 continue
 
     try:
-        _wait_for_running_shell(api_base, chat_id, timeout_sec=_POST_STREAM_RUNNING_PROBE_SEC)
+        _wait_for_running_shell(
+            api_base, chat_id, timeout_sec=_POST_STREAM_RUNNING_PROBE_SEC
+        )
         return
     except AssertionError as exc:
         if last_bash_error is not None:
@@ -311,7 +328,9 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
         ) from exc
 
 
-def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 180.0) -> str:
+def _wait_for_running_shell(
+    api_base: str, chat_id: str, timeout_sec: float = 180.0
+) -> str:
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         payload = http_json("GET", f"{api_base}/api/v1/background-tasks")
@@ -329,14 +348,18 @@ def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 18
             if task_id is not None:
                 return task_id
         time.sleep(1.0)
-    raise AssertionError(f"No running shell task for chat_id={chat_id} within {timeout_sec}s")
+    raise AssertionError(
+        f"No running shell task for chat_id={chat_id} within {timeout_sec}s"
+    )
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.timeout(600)
 def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
     if not wait_e2e_provider_ready():
-        pytest.fail("Provider config not ready — configure default model in WebUI E2E profile")
+        pytest.fail(
+            "Provider config not ready — configure default model in WebUI E2E profile"
+        )
 
     api_base = get_e2e_api_url()
     last_error = ""
@@ -348,10 +371,13 @@ def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
             try:
                 with httpx.Client() as client:
                     chat_resp = client.post(
-                        f"{api_base}/api/v1/chats/", json={"chat_id": chat_id}, timeout=30.0
+                        f"{api_base}/api/v1/chats/",
+                        json={"chat_id": chat_id},
+                        timeout=30.0,
                     )
                     chat_resp.raise_for_status()
                     agent_id = _create_background_agent(client, api_base)
+                    ensure_e2e_hitl_mode(api_url=api_base)
                     reset_resp = client.post(
                         f"{api_base}/api/v1/security/allowlist/test/reset-hitl-runtime",
                         timeout=30.0,

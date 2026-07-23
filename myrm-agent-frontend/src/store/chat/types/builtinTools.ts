@@ -5,7 +5,8 @@
  *
  * [POS]
  * GUI 可切换 builtin 产品 ID 与本地化 capability 标签 SSOT（gap toast + wrench 面板共用）。
- * file_ops / code_execute 为 Agent 基线，由服务端强制加载，不在 UI 展示。
+ * file_ops / code_execute 为 General Agent 基线（harness CORE），服务端 apply_agent_baseline_tool_flags 强制加载，不在 UI 展示。
+ * Search/Fast（无 file/bash）仅 Web action_mode=fast；Channel/IM 仅绑定 General Agent。
  */
 
 // ---------------------------------------------------------------------------
@@ -27,7 +28,8 @@ export type BuiltinToolId =
   | 'render_ui'
   | 'planning'
   | 'structured_clarify'
-  | 'external_cli';
+  | 'external_cli'
+  | 'web_crawl';
 
 export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'web_search',
@@ -45,6 +47,7 @@ export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'planning',
   'structured_clarify',
   'external_cli',
+  'web_crawl',
 ] as const;
 
 export const DEFAULT_ENABLED_BUILTIN_TOOLS: BuiltinToolId[] = [
@@ -76,6 +79,7 @@ export const BUILTIN_TOOL_LABELS: Record<BuiltinToolId, { en: string; zh: string
   planning: { en: 'Planning', zh: '任务规划' },
   structured_clarify: { en: 'Structured Clarify', zh: '结构化澄清' },
   external_cli: { en: 'External CLI', zh: '外部 CLI' },
+  web_crawl: { en: 'Site Crawl', zh: '整站爬取' },
 };
 
 export function getBuiltinToolDisplayLabel(

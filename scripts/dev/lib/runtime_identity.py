@@ -8,6 +8,7 @@
 
 [OUTPUT]
 - `build_health_json()` / CLI: unified `CHROME_E2E_HEALTH_JSON` with `runtimeId` and four epochs
+- `read_backend_epoch()`: `stored_source_fingerprint` + `workspace_source_fingerprint` + `epoch_match`
 - `stack_core_health_errors()` / `api_health_errors()`: stack keepalive (mux epochs + API `/api/v1/health`; no UI curl)
 - CLI `--require-stack-core`: exit 2 when stack core or API health is not ready
 - `read_current_runtime_id()` / `--drift --expect`: see `runtime_probe.py` (mechanical RUNTIME_DRIFT check)
@@ -38,7 +39,9 @@ class BackendEpoch(TypedDict):
     backend_pid: int | None
     started_at: str
     harness_fingerprint: str
-    source_fingerprint: str
+    stored_source_fingerprint: str
+    workspace_source_fingerprint: str
+    epoch_match: bool
 
 
 class FrontendEpoch(TypedDict):
@@ -261,9 +264,10 @@ def _mux_state_dir() -> Path:
 
 
 def _default_chrome_data_dir() -> Path:
-    from_env = os.getenv("MYRM_CHROME_E2E_DATA_DIR", "").strip() or os.getenv(
-        "CHROME_DATA_DIR", ""
-    ).strip()
+    from_env = (
+        os.getenv("MYRM_CHROME_E2E_DATA_DIR", "").strip()
+        or os.getenv("CHROME_DATA_DIR", "").strip()
+    )
     if from_env:
         return Path(from_env)
     if os.name == "nt":
@@ -308,13 +312,23 @@ def read_backend_epoch() -> BackendEpoch | None:
     harness_fingerprint = raw.get("harness_fingerprint")
     if not isinstance(harness_fingerprint, str):
         harness_fingerprint = ""
-    source_fingerprint = _backend_source_fingerprint()
+    stored_source_fingerprint = raw.get("source_fingerprint")
+    if not isinstance(stored_source_fingerprint, str):
+        stored_source_fingerprint = ""
+    workspace_source_fingerprint = _backend_source_fingerprint()
+    epoch_match = (
+        bool(stored_source_fingerprint)
+        and bool(workspace_source_fingerprint)
+        and stored_source_fingerprint == workspace_source_fingerprint
+    )
     return {
         "epoch": epoch,
         "backend_pid": backend_pid,
         "started_at": started_at,
         "harness_fingerprint": harness_fingerprint,
-        "source_fingerprint": source_fingerprint,
+        "stored_source_fingerprint": stored_source_fingerprint,
+        "workspace_source_fingerprint": workspace_source_fingerprint,
+        "epoch_match": epoch_match,
     }
 
 
@@ -322,7 +336,9 @@ def _backend_source_fingerprint() -> str:
     """Hash backend and harness source changes that do not restart the server."""
     root = Path(__file__).resolve().parents[3]
     server_dir = Path(os.environ.get("MYRM_SERVER_DIR", root / "myrm-agent-server"))
-    harness_dir = Path(os.environ.get("MYRM_HARNESS_DIR", root.parent / "myrm-agent-harness"))
+    harness_dir = Path(
+        os.environ.get("MYRM_HARNESS_DIR", root.parent / "myrm-agent-harness")
+    )
     tracked_groups = (
         (server_dir, ("app", "pyproject.toml", "uv.lock")),
         (harness_dir, ("src", "pyproject.toml")),
@@ -334,13 +350,32 @@ def _backend_source_fingerprint() -> str:
             continue
         try:
             diff = subprocess.run(
-                ["git", "-C", str(repo), "diff", "--no-ext-diff", "--binary", "HEAD", "--", *paths],
+                [
+                    "git",
+                    "-C",
+                    str(repo),
+                    "diff",
+                    "--no-ext-diff",
+                    "--binary",
+                    "HEAD",
+                    "--",
+                    *paths,
+                ],
                 check=False,
                 capture_output=True,
                 timeout=10,
             ).stdout
             untracked = subprocess.run(
-                ["git", "-C", str(repo), "ls-files", "--others", "--exclude-standard", "--", *paths],
+                [
+                    "git",
+                    "-C",
+                    str(repo),
+                    "ls-files",
+                    "--others",
+                    "--exclude-standard",
+                    "--",
+                    *paths,
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -641,7 +676,9 @@ def _canonical_parts_for_hash(parts: RuntimeIdentityParts) -> dict[str, object]:
 
 
 def compute_runtime_id(parts: RuntimeIdentityParts) -> str:
-    canonical = json.dumps(_canonical_parts_for_hash(parts), sort_keys=True, separators=(",", ":"))
+    canonical = json.dumps(
+        _canonical_parts_for_hash(parts), sort_keys=True, separators=(",", ":")
+    )
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     return digest[:32]
 
@@ -670,7 +707,9 @@ def _stable_stack_epoch_parts(parts: RuntimeIdentityParts) -> RuntimeIdentityPar
     if backend is not None:
         stable_backend = {
             **backend,
-            "source_fingerprint": "",
+            "stored_source_fingerprint": "",
+            "workspace_source_fingerprint": "",
+            "epoch_match": True,
             "harness_fingerprint": backend.get("harness_fingerprint", ""),
         }
     if frontend is not None:
@@ -756,16 +795,24 @@ def main() -> None:
 
     from runtime_probe import probe_runtime_context, run_drift_check
 
-    parser = argparse.ArgumentParser(description="Runtime identity SSOT for Chrome MCP E2E")
-    parser.add_argument("--drift", action="store_true", help="Compare current runtimeId to --expect")
+    parser = argparse.ArgumentParser(
+        description="Runtime identity SSOT for Chrome MCP E2E"
+    )
+    parser.add_argument(
+        "--drift", action="store_true", help="Compare current runtimeId to --expect"
+    )
     parser.add_argument("--expect", default="", help="Expected runtimeId for --drift")
     parser.add_argument(
         "--auto-probe",
         action="store_true",
         help="Probe mux/CDP/frontend paths (SSOT for preflight and runtime-drift)",
     )
-    parser.add_argument("--ui", default=os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000"))
-    parser.add_argument("--api", default=os.getenv("E2E_API_BASE", "http://127.0.0.1:8080"))
+    parser.add_argument(
+        "--ui", default=os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000")
+    )
+    parser.add_argument(
+        "--api", default=os.getenv("E2E_API_BASE", "http://127.0.0.1:8080")
+    )
     parser.add_argument("--mux-daemons", type=int, default=0)
     parser.add_argument("--upstream-ready", action="store_true")
     parser.add_argument("--ws-stamp-match", action="store_true")
@@ -831,14 +878,18 @@ def main() -> None:
         profile_dir=profile_dir,
     )
     if args.require_attach_ready:
-        errors = attach_health_errors(payload) + attach_endpoint_errors(args.ui, args.api)
+        errors = attach_health_errors(payload) + attach_endpoint_errors(
+            args.ui, args.api
+        )
         if errors:
             print(format_attach_endpoint_failure(errors), file=sys.stderr)
             raise SystemExit(2)
     if args.require_stack_core:
         errors = stack_core_health_errors(payload) + api_health_errors(args.api)
         if errors:
-            print("CHROME_E2E_STACK_CORE_NOT_READY: " + ", ".join(errors), file=sys.stderr)
+            print(
+                "CHROME_E2E_STACK_CORE_NOT_READY: " + ", ".join(errors), file=sys.stderr
+            )
             raise SystemExit(2)
     print(f"CHROME_E2E_HEALTH_JSON={json.dumps(payload, separators=(',', ':'))}")
 

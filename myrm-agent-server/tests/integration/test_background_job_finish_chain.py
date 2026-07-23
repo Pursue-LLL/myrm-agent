@@ -17,7 +17,7 @@ from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
     BASH_PROCESS_TOOL_NAME,
 )
 from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
-    reset_deferred_activation_for_tests,
+    reset_spawn_lifecycle_for_tests,
 )
 from myrm_agent_harness.api.hooks import get_background_registry, set_global_background_job_finish_handler
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -90,11 +90,11 @@ def _stop_sandbox_patches() -> None:
 def _clear_registry() -> None:
     registry = get_background_registry()
     registry._entries.clear()  # type: ignore[attr-defined]
-    reset_deferred_activation_for_tests()
+    reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(None)
     yield
     registry._entries.clear()  # type: ignore[attr-defined]
-    reset_deferred_activation_for_tests()
+    reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(None)
 
 
@@ -300,10 +300,10 @@ async def test_background_nonzero_exit_persists_finish_message(tmp_path: Path) -
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_kill_session_jobs_clears_deferred_and_skips_chat(tmp_path: Path) -> None:
-    """Stream-cancel path: kill_session_jobs kills all jobs and clears AutoMount."""
+async def test_kill_session_jobs_clears_spawn_and_skips_chat(tmp_path: Path) -> None:
+    """Stream-cancel path: kill_session_jobs kills all jobs and clears spawn markers."""
     from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
-        get_session_deferred_tool_names,
+        get_session_spawn_tool_names,
     )
 
     chat_id = f"bg-cancel-{uuid.uuid4().hex[:12]}"
@@ -349,13 +349,13 @@ async def test_kill_session_jobs_clears_deferred_and_skips_chat(tmp_path: Path) 
             config=config,
         )
 
-    assert BASH_PROCESS_TOOL_NAME in get_session_deferred_tool_names(chat_id)
+    assert BASH_PROCESS_TOOL_NAME in get_session_spawn_tool_names(chat_id)
 
     killed = await get_background_registry().kill_session_jobs(chat_id, grace_seconds=0.05)
     assert killed >= 1
     await asyncio.sleep(0.2)
 
-    assert get_session_deferred_tool_names(chat_id) == frozenset()
+    assert get_session_spawn_tool_names(chat_id) == frozenset()
 
     chat = await ChatService.get_chat_by_id(chat_id)
     assert chat is not None

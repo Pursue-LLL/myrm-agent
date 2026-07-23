@@ -75,7 +75,7 @@ async def test_discover_capability_e2e_real_model() -> None:
         llm=llm,
         skill_backend=_StubSkillBackend([_sample_skill()]),
         enable_file_tools=False,
-        enable_bash=False,
+        enable_shell_tools=False,
         enable_answer_tool=False,
         system_prompt=(
             "You are a test assistant. You MUST call discover_capability_tool exactly once "

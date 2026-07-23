@@ -23,10 +23,8 @@ from app.core.memory.proactive.settings import (
     resolve_conversation_search_enabled,
     resolve_memory_enabled,
 )
-from app.services.agent.profile_resolver import (
-    apply_agent_baseline_tool_flags,
-    resolve_builtin_tool_flags,
-)
+from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +49,10 @@ def voice_memory_context_from(
     enabled_builtin_tools: Sequence[str],
 ) -> VoiceMemoryContext:
     """Build voice memory ACL from settings and agent builtin tool flags."""
-    tool_flags = apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(enabled_builtin_tools))
+    tool_flags = resolve_agent_mount(
+        ExecutionSurface.VOICE,
+        resolve_builtin_tool_flags(enabled_builtin_tools),
+    )
     return VoiceMemoryContext(
         enable_memory=resolve_memory_enabled(memory_settings),
         enable_conversation_search=resolve_conversation_search_enabled(memory_settings),

@@ -423,6 +423,24 @@ class CdpChatTurn(CdpChatSubmit):
             await_promise=False,
         )
         submit = await self.submit_native_click()
+        if not submit.get("ok") and str(submit.get("err") or "") in {
+            "no send button",
+            "send disabled",
+        }:
+            ui_base = (
+                getattr(self, "_base_url", None) or "http://127.0.0.1:3000"
+            ).rstrip("/")
+            await self.ensure_chat_surface(ui_base)
+            await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+            await self.evaluate(
+                f"""(() => {{
+                  const bridge = window.__MYRM_E2E_CHAT__;
+                  bridge?.setInputMessage?.({json.dumps(text)});
+                  return {{ ok: true, inputLen: {len(text)} }};
+                }})()""",
+                await_promise=False,
+            )
+            submit = await self.submit_native_click()
         if not submit.get("ok"):
             raise RuntimeError(f"fast desktop native submit failed: {submit}")
         try:
@@ -444,6 +462,127 @@ class CdpChatTurn(CdpChatSubmit):
             "submit": submit,
             "started": started,
         }
+
+    async def submit_desktop_nudge(
+        self,
+        text: str,
+        *,
+        chat_id_hint: str | None = None,
+    ) -> dict[str, object]:
+        """Follow-up after desktop_snapshot; steer when agent stream is still active."""
+        chat_id = chat_id_hint
+        baseline_user_msgs = 0
+        if chat_id:
+            try:
+                baseline_user_msgs = cdp_chat_support.chat_user_message_count(chat_id)
+            except OSError:
+                baseline_user_msgs = 0
+        await self.ensure_react_e2e_bridge(timeout_sec=60.0)
+        ui_base = (getattr(self, "_base_url", None) or "http://127.0.0.1:3000").rstrip(
+            "/"
+        )
+        await self.ensure_chat_surface(ui_base)
+        await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+        payload = json.dumps(text)
+        streaming_probe = await self.evaluate(
+            """(() => {
+              const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+              return { isStreaming: Boolean(snap.isStreaming) };
+            })()""",
+            await_promise=False,
+        )
+        await self.evaluate(
+            f"""(() => {{
+              window.__MYRM_E2E_CHAT__?.setInputMessage?.({payload});
+              return {{ ok: true, inputLen: {len(text)} }};
+            }})()""",
+            await_promise=False,
+        )
+        if isinstance(streaming_probe, dict) and streaming_probe.get("isStreaming"):
+            steer = await self.evaluate(
+                """(() => {
+                  const buttons = [...document.querySelectorAll('button[aria-label]')];
+                  const steerBtn = buttons.find((btn) => {
+                    const label = String(btn.getAttribute('aria-label') || '').toLowerCase();
+                    return (
+                      label.includes('steer')
+                      || label.includes('guidance')
+                      || label.includes('转向')
+                      || label.includes('指导')
+                    );
+                  });
+                  if (steerBtn && !steerBtn.disabled) {
+                    steerBtn.click();
+                    return { ok: true, mode: 'steerClick' };
+                  }
+                  return { ok: false, err: 'no-steer-button' };
+                })()""",
+                await_promise=False,
+            )
+            if isinstance(steer, dict) and steer.get("ok"):
+                return {"submit": steer, "mode": "steerClick"}
+        if chat_id:
+            try:
+                await asyncio.wait_for(self._attach_chat_session(chat_id), timeout=30.0)
+            except TimeoutError:
+                pass
+        await self.evaluate(
+            """(() => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              bridge?.abortActiveStream?.();
+              bridge?.releaseActiveStreamForApiResume?.();
+              bridge?.prepareAutomationSend?.();
+              bridge?.clearStreamRequestMessageId?.();
+              return { ok: true };
+            })()""",
+            await_promise=False,
+        )
+        for _ in range(40):
+            snap = await self.evaluate(BRIDGE_TURN_SNAPSHOT_JS, await_promise=False)
+            if isinstance(snap, dict) and not snap.get("isStreaming"):
+                break
+            await asyncio.sleep(0.5)
+        await self.evaluate(
+            f"""(() => {{
+              window.__MYRM_E2E_CHAT__?.setInputMessage?.({payload});
+              return {{ ok: true, inputLen: {len(text)} }};
+            }})()""",
+            await_promise=False,
+        )
+        for _ in range(40):
+            probe = await self.evaluate(
+                """(() => {
+                  const btn = document.querySelector('.message-send-btn');
+                  return {
+                    hasBtn: Boolean(btn),
+                    disabled: btn ? Boolean(btn.disabled) : true,
+                    sendReady: !!window.__MYRM_E2E_CHAT__?.isSendReady?.(),
+                  };
+                })()""",
+                await_promise=False,
+            )
+            if (
+                isinstance(probe, dict)
+                and probe.get("hasBtn")
+                and not probe.get("disabled")
+            ):
+                break
+            await asyncio.sleep(0.5)
+        try:
+            submit = await asyncio.wait_for(
+                self.send_chat_message_atomic(
+                    text,
+                    baseline_user_msgs=baseline_user_msgs,
+                ),
+                timeout=90.0,
+            )
+        except TimeoutError:
+            submit = {"ok": False, "err": "atomic-send-timeout"}
+        if not submit.get("ok"):
+            submit = await self.submit_native_click()
+        if not submit.get("ok"):
+            raise RuntimeError(f"desktop nudge submit failed: {submit}")
+        return {"submit": submit, "mode": submit.get("mode", "nudge")}
 
     async def _sync_model_selection(self, *, timeout_sec: float = 45.0) -> None:
         await self.ensure_e2e_api_base_binding()

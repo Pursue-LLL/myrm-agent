@@ -24,6 +24,7 @@ import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { deleteChat, updateChatRecallExclusion } from '@/services/chat';
 import { toast } from '@/hooks/useToast';
 import type { Source } from '@/store/chat/types';
+import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { Database, ExternalLink, EyeOff, Globe, Plug, Trash2 } from 'lucide-react';
 import { useAgentName } from '@/hooks/useAgentName';
 
@@ -48,9 +49,10 @@ const SourcesButton: React.FC<SourcesButtonProps> = ({ sources }) => {
     const seen = new Set<string>();
 
     for (const source of sources) {
-      if (source.url && !source.skill_name) {
+      const clickUrl = resolveSourceClickUrl(source);
+      if (clickUrl && !source.skill_name) {
         try {
-          const url = new URL(source.url);
+          const url = new URL(clickUrl);
           const domain = url.hostname;
           if (!seen.has(domain)) {
             seen.add(domain);
@@ -294,6 +296,8 @@ export function SourceItem({ source }: { source: Source }) {
   }
 
   // Web 类型来源
+  const clickUrl = resolveSourceClickUrl(source);
+
   const getDomain = (url: string) => {
     try {
       return new URL(url).hostname.replace(/^www\./, '');
@@ -302,14 +306,14 @@ export function SourceItem({ source }: { source: Source }) {
     }
   };
 
-  const faviconUrl = source.url ? `https://www.google.com/s2/favicons?sz=64&domain=${getDomain(source.url)}` : '';
+  const faviconUrl = clickUrl ? `https://www.google.com/s2/favicons?sz=64&domain=${getDomain(clickUrl)}` : '';
 
   const content = (
     <div
       className={cn(
         'flex items-start gap-3 p-3 rounded-lg',
         'bg-accent hover:bg-muted transition-colors',
-        source.url && 'cursor-pointer',
+        clickUrl && 'cursor-pointer',
       )}
     >
       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white border border-border/30 overflow-hidden flex items-center justify-center">
@@ -338,19 +342,19 @@ export function SourceItem({ source }: { source: Source }) {
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">[{source.index}]</span>
           <span className="text-sm font-medium truncate flex-1">{source.title || t('untitled')}</span>
-          {source.url && <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+          {clickUrl && <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
         </div>
 
-        {source.url && <p className="text-xs text-muted-foreground mt-1 truncate">{getDomain(source.url)}</p>}
+        {clickUrl && <p className="text-xs text-muted-foreground mt-1 truncate">{getDomain(clickUrl)}</p>}
 
         {source.snippet && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{source.snippet}</p>}
       </div>
     </div>
   );
 
-  if (source.url) {
+  if (clickUrl) {
     return (
-      <a href={source.url} target="_blank" rel="noopener noreferrer" className="block">
+      <a href={clickUrl} target="_blank" rel="noopener noreferrer" className="block">
         {content}
       </a>
     );

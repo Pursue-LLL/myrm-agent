@@ -4,9 +4,34 @@ from contextlib import asynccontextmanager
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.channel_bridge.topic_config import SEARCH_AGENT_CHANNEL_BIND_MSG, _CHANNEL_LEVEL_KEY
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app("user_agents", preset="channels_local")
+
+
+async def _ensure_builtin_agents_seeded() -> None:
+    from app.services.agent.builtin_initializer import initialize_builtin_agents
+
+    await initialize_builtin_agents()
+
+
+async def _seed_legacy_search_global_bind(channel: str) -> None:
+    from app.core.channel_bridge.topic_config import SqlTopicManager
+
+    manager = SqlTopicManager()
+    await manager._save_config(
+        channel,
+        {
+            "__global__": {
+                _CHANNEL_LEVEL_KEY: {
+                    "agentId": "builtin-fast-search",
+                    "enabled": True,
+                    "boundAt": "2020-01-01T00:00:00+00:00",
+                }
+            }
+        },
+    )
 
 
 @asynccontextmanager
@@ -103,6 +128,40 @@ def test_topic_binding_e2e(client):
     assert response.status_code == 404, response.text
 
     print("E2E Test Passed Successfully (Including Edge Cases)!")
+
+
+def test_search_agent_channel_bind_rejected_e2e(client):
+    """Real DB: Search-track agents cannot bind to channels; legacy binds are purged on read."""
+    import asyncio
+
+    asyncio.run(_ensure_builtin_agents_seeded())
+
+    unique_id = str(uuid.uuid4())[:8]
+    channel_name = f"test_search_reject_{unique_id}"
+    topic_id = f"chat_{unique_id}:thread_{unique_id}"
+
+    default_response = client.post(
+        f"/api/v1/channels/manage/{channel_name}/default-agent",
+        json={"agentId": "builtin-fast-search"},
+    )
+    assert default_response.status_code == 400, default_response.text
+    assert SEARCH_AGENT_CHANNEL_BIND_MSG in default_response.json()["detail"]
+
+    topics_response = client.get(f"/api/v1/channels/manage/{channel_name}/topics")
+    assert topics_response.status_code == 200, topics_response.text
+    assert topics_response.json()["globalAgentId"] is None
+
+    topic_response = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json={"agentId": "builtin-fast-search"},
+    )
+    assert topic_response.status_code == 400, topic_response.text
+    assert SEARCH_AGENT_CHANNEL_BIND_MSG in topic_response.json()["detail"]
+
+    asyncio.run(_seed_legacy_search_global_bind(channel_name))
+    sanitized = client.get(f"/api/v1/channels/manage/{channel_name}/topics")
+    assert sanitized.status_code == 200, sanitized.text
+    assert sanitized.json()["globalAgentId"] is None
 
 
 def test_topic_thread_sharing_mode_e2e(client):

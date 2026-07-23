@@ -138,6 +138,9 @@ undo_success = ↩ 已撤销：移除了 { $count } 条消息。
 undo_reverted = ↩ 已还原 { $count } 个文件。
 undo_files_not_revertible = ↩ 有 { $count } 个文件变更无法自动还原（文件过大或缓冲区已满）。
 topic_not_configured = ℹ 未配置话题管理。
+topic_search_agent_rejected =
+    搜索类智能体不能绑定到渠道。
+    请绑定 General 智能体；轻量搜索请使用 Web Fast 模式。
 topic_bound =
      { $scope } 已绑定{ $agent_label }。
     使用 /unbind 解除绑定。

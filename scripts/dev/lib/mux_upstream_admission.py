@@ -156,6 +156,15 @@ def _admission_disabled() -> bool:
     }
 
 
+def _active_snapshot() -> tuple[int, int]:
+    now = time.time()
+    with _locked_registry() as registry_path:
+        registry = _load_registry(registry_path)
+        _prune_stale(registry, now=now)
+        cap = effective_max_slots()
+        return _active_count(registry), cap
+
+
 def try_acquire(
     *,
     operation_id: str,
@@ -254,7 +263,13 @@ def acquire_with_wait(
             )
             print(message, file=sys.stderr)
             raise RuntimeError(message)
-        cap = effective_max_slots()
+        active, cap = _active_snapshot()
+        pos = max(1, active - cap + 1)
+        print(
+            f"MUX_QUEUE_WAIT: operation={operation_id} pos={pos} active={active} cap={cap} "
+            f"elapsed={elapsed}s — retry in {poll_sec}s (do not stop other tests)",
+            file=sys.stderr,
+        )
         print(
             f"MUX_UPSTREAM_WAIT: operation={operation_id} upstream busy — retry in {poll_sec}s "
             f"(elapsed={elapsed}s cap={cap})",

@@ -3,10 +3,39 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import {
   getClarificationNotificationTitle,
   mapTaskStepStatus,
+  mergeMessageSources,
   resolveClarificationFormFromEventData,
   resolveStreamLocale,
 } from '../streamHelpers';
 import { preloadNotificationCopy } from '@/lib/i18n/streamNotificationCopy';
+
+describe('mergeMessageSources', () => {
+  it('deduplicates by normalized final url after citation resolve', () => {
+    const merged = mergeMessageSources(
+      [
+        {
+          index: 1,
+          type: 'web_search',
+          url: 'https://real.example/article',
+          redirect_url: 'https://redirect-a.example/r',
+          title: 'A',
+        },
+      ],
+      [
+        {
+          index: 2,
+          type: 'web_search',
+          url: 'https://real.example/article',
+          redirect_url: 'https://redirect-b.example/r',
+          title: 'B',
+        },
+      ],
+    );
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.url).toBe('https://real.example/article');
+    expect(merged[0]?.title).toBe('B');
+  });
+});
 
 describe('mapTaskStepStatus', () => {
   it('maps harness checklist and planner terminal statuses', () => {

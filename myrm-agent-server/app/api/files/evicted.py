@@ -1,19 +1,22 @@
 """Evicted output file reader API.
 
-Securely serves full outputs that were evicted (saved to disk) during bash execution
-when they exceeded the token threshold. Provides line-range reading and graceful
-expiration handling.
+Securely serves full outputs evicted (saved to disk) during tool execution
+when they exceeded the delivery threshold. Provides line-range reading and
+graceful expiration handling.
 
 [POS]
-Evicted tool output reader endpoint. Allows GUI users to view full bash outputs
+Evicted tool output reader endpoint. Allows GUI users to view full tool outputs
 that were offloaded to disk during agent execution.
 """
 
 import logging
 import os
-import re
 
 from fastapi import APIRouter, HTTPException, Query
+
+from myrm_agent_harness.agent.context_management.infra.evicted_content import (
+    EVICTED_BASENAME_PATTERN,
+)
 
 from app.config.deploy_mode import is_local_mode
 
@@ -21,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_FILENAME_PATTERN = re.compile(r"^output_[a-f0-9]{8}\.txt$")
+_FILENAME_PATTERN = EVICTED_BASENAME_PATTERN
 
 
 def _resolve_evicted_path(chat_id: str, filename: str) -> str:
@@ -82,11 +85,11 @@ def _get_workspace_root() -> str | None:
 @router.get("/evicted")
 async def read_evicted_output(
     chat_id: str = Query(..., description="Chat/session ID that produced the evicted output"),
-    filename: str = Query(..., description="Evicted output filename (e.g. output_a3f5c8d1.txt)"),
+    filename: str = Query(..., description="Evicted output filename (e.g. web_fetch_a3f5c8d1.md)"),
     offset: int = Query(0, ge=0, description="Line offset to start reading from (0-based)"),
     limit: int = Query(0, ge=0, description="Number of lines to return (0 = all)"),
 ) -> dict:
-    """Read an evicted bash output file.
+    """Read an evicted tool output file.
 
     Returns the full or partial content of a file that was saved during
     output eviction. Supports line-range pagination via offset/limit.

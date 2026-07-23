@@ -11,7 +11,11 @@ import pytest
 from app.ai_agents.general_agent.agent import GeneralAgent
 from app.ai_agents.general_agent.stream_pipeline import execute_stream_pipeline
 from app.core.types import ModelConfig
-from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session, get_execution_cache
+from app.services.agent.execution_cache import (
+    ExecutionMode,
+    finalize_agent_session,
+    get_execution_cache,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -19,6 +23,25 @@ async def _reset_execution_cache_singleton() -> None:
     await get_execution_cache().close_all()
     yield
     await get_execution_cache().close_all()
+
+
+@pytest.fixture(autouse=True)
+def _mock_security_store_sync() -> None:
+    with patch(
+        "app.ai_agents.extensions.security_policy_extension.sync_wrapper_security_from_store",
+        new=AsyncMock(),
+    ):
+        yield
+
+
+def _skill_agent_mock() -> MagicMock:
+    from myrm_agent_harness.agent.security.types import SecurityConfig
+    from myrm_agent_harness.agent.types import AgentRuntimeConfig
+
+    skill_agent = MagicMock()
+    skill_agent.config = AgentRuntimeConfig(security_config=SecurityConfig(ruleset=()))
+    skill_agent.memory_manager = None
+    return skill_agent
 
 
 async def _collect_pipeline_events(
@@ -41,13 +64,15 @@ async def _collect_pipeline_events(
 @pytest.mark.asyncio
 async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
         mcp_config=None,
         chat_id="chat-pool-1",
         agent_id="agent-a",
     )
     build_count = 0
-    skill_agent = MagicMock()
+    skill_agent = _skill_agent_mock()
 
     async def fake_run(
         *_args: object,
@@ -56,7 +81,6 @@ async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
         yield {"type": "message", "data": "ok"}
 
     skill_agent.run = fake_run
-    skill_agent.memory_manager = None
 
     async def fake_build(
         agent_wrapper: GeneralAgent,
@@ -73,7 +97,10 @@ async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
         yield
 
     with (
-        patch("app.ai_agents.general_agent.factory.build_general_agent", side_effect=fake_build),
+        patch(
+            "app.ai_agents.general_agent.factory.build_general_agent",
+            side_effect=fake_build,
+        ),
         patch.object(
             wrapper,
             "_build_runtime_context",
@@ -83,7 +110,9 @@ async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
         patch(
             "app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware.reset_answer_tool_convergence",
         ),
-        patch("app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context),
+        patch(
+            "app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context
+        ),
         patch(
             "app.services.web_fetch.binding.open_web_fetch_escalation_context",
             noop_async_context,
@@ -113,12 +142,14 @@ async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
 @pytest.mark.asyncio
 async def test_ephemeral_same_chat_rebuilds_each_message() -> None:
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
         mcp_config=None,
         chat_id="chat-ephemeral-1",
     )
     build_count = 0
-    skill_agent = MagicMock()
+    skill_agent = _skill_agent_mock()
     skill_agent.close = AsyncMock()
 
     async def fake_run(
@@ -128,7 +159,6 @@ async def test_ephemeral_same_chat_rebuilds_each_message() -> None:
         yield {"type": "message", "data": "ok"}
 
     skill_agent.run = fake_run
-    skill_agent.memory_manager = None
 
     async def fake_build(
         agent_wrapper: GeneralAgent,
@@ -145,7 +175,10 @@ async def test_ephemeral_same_chat_rebuilds_each_message() -> None:
         yield
 
     with (
-        patch("app.ai_agents.general_agent.factory.build_general_agent", side_effect=fake_build),
+        patch(
+            "app.ai_agents.general_agent.factory.build_general_agent",
+            side_effect=fake_build,
+        ),
         patch.object(
             wrapper,
             "_build_runtime_context",
@@ -155,7 +188,9 @@ async def test_ephemeral_same_chat_rebuilds_each_message() -> None:
         patch(
             "app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware.reset_answer_tool_convergence",
         ),
-        patch("app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context),
+        patch(
+            "app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context
+        ),
         patch(
             "app.services.web_fetch.binding.open_web_fetch_escalation_context",
             noop_async_context,
@@ -193,20 +228,21 @@ async def test_ephemeral_same_chat_rebuilds_each_message() -> None:
 async def test_pooled_stream_seeds_yolo_security_context_before_run() -> None:
     """Per-agent YOLO must reach approval middleware ContextVar before SkillAgent.run()."""
     from myrm_agent_harness.agent.security.types import SecurityConfig
-    from myrm_agent_harness.agent.types import AgentRuntimeConfig
 
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
+        model_cfg=ModelConfig(
+            model="test-model", api_key="test-key", base_url="http://test"
+        ),
         mcp_config=None,
         chat_id="chat-yolo-ctx",
         agent_id="agent-yolo",
-        agent_security_raw={"yoloModeEnabled": True, "yolo_mode_enabled_at": 1_700_000_000.0},
+        agent_security_raw={
+            "yoloModeEnabled": True,
+            "yolo_mode_enabled_at": 1_700_000_000.0,
+        },
         security_config_raw={"yoloModeEnabled": False},
     )
-    skill_agent = MagicMock()
-    skill_agent.config = AgentRuntimeConfig(
-        security_config=SecurityConfig(ruleset=(), yolo_mode_enabled=False),
-    )
+    skill_agent = _skill_agent_mock()
 
     async def fake_run(
         *_args: object,
@@ -236,22 +272,26 @@ async def test_pooled_stream_seeds_yolo_security_context_before_run() -> None:
         yield
 
     with (
-        patch("app.ai_agents.general_agent.factory.build_general_agent", side_effect=fake_build),
+        patch(
+            "app.ai_agents.general_agent.factory.build_general_agent",
+            side_effect=fake_build,
+        ),
         patch.object(
             wrapper,
             "_build_runtime_context",
             return_value={"session_id": "sess-yolo", "query": "hello"},
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares._session_context.set_security_config",
+            "myrm_agent_harness.api.hooks.set_security_config",
             side_effect=_capture_seed,
         ),
         patch(
-            "app.ai_agents.extensions.security_policy_extension.sync_wrapper_security_from_store",
-            new=AsyncMock(),
+            "app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context
         ),
-        patch("app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context),
-        patch("app.services.web_fetch.binding.open_web_fetch_escalation_context", noop_async_context),
+        patch(
+            "app.services.web_fetch.binding.open_web_fetch_escalation_context",
+            noop_async_context,
+        ),
     ):
         async for _ in execute_stream_pipeline(
             wrapper,

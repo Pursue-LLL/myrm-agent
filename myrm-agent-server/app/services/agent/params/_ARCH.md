@@ -42,6 +42,19 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 - `archive_restore.py` 提供流式入口预校验；`converter.py` 参数转换期物化并注入 query。单请求最多 3 个恢复范围；校验成功才把精确范围注入本轮 Agent 输入，并返回不含正文的 restore result 元数据供 SSE 结果卡片展示。
 - 前端请求使用 snake_case `archive_restore_actions[].restore_arg`，Server Pydantic 模型接收后传入 harness 恢复上下文构建，不依赖 camelCase 边界字段。
 
+## General Agent tool loading（非 fast Web、Channel/IM）
+
+- **轨道**：默认 Saved Agent、Channel/IM/Cron/Kanban/Eval/Voice 等非 fast Web 入口。
+- **CORE file/bash**：Harness `tool_layers.py` CORE 层 Turn1 eager；前端无开关。
+- **Server 执行层**：`resolve_builtin_tool_flags()` 后调用 `tool_mount.resolve_agent_mount()`，再传入 harness `get_meta_tools`。
+- **Channel/IM**：仅绑定 General Agent（`SqlTopicManager.bind_topic` 拒绝 `prompt_mode=search`；`resolve_topic` / `get_all_topics` 读时清除 legacy Search 绑定）；未绑定时 `DEFAULT_ENABLED_BUILTIN_TOOLS` + baseline。
+- **persist 语义**：`enabled_builtin_tools` 不含 `file_ops` / `code_execute`；写入 DB 时 strip baseline ID。
+
+## Search/Fast（Web `action_mode=fast`）
+
+- **唯一无 file/bash 的入口**：`converter.py` 在 `action_mode=fast` 时 `resolve_agent_mount(WEB_FAST, …)`，设 `prompt_mode=search`。
+- Quick Search / Deep Search 预置 Agent（`builtin_specs/search.py`）供 Web UI 选用；非 fast Web 聊天仍加载 General CORE，仅 prompt/skills 走 search 语义。
+
 ## Fast Search（`action_mode='fast'`）
 
 - `converter.py` 覆盖 Agent profile 的 `enabled_builtin_tools` 为 `["answer_tool"]`，并强制 `enable_web_search=True`；skills / MCP / subagents / 媒体生成置空。

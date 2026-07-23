@@ -15,7 +15,7 @@ def _agent(**overrides: object) -> SimpleNamespace:
         enable_web_search=True,
         enable_browser=False,
         enable_file_ops=True,
-        enable_code_execute=True,
+        enable_shell_tools=True,
         enable_computer_use=False,
         enable_memory=True,
         incognito_mode=False,
@@ -27,6 +27,7 @@ def _agent(**overrides: object) -> SimpleNamespace:
         enable_structured_clarify=False,
         enable_external_cli=False,
         enable_cron_eager=False,
+        enable_web_crawl=False,
         image_generation_params=None,
         video_generation_params=None,
         tts_params=None,
@@ -38,6 +39,7 @@ def _agent(**overrides: object) -> SimpleNamespace:
 def test_active_tool_group_keys_match_derive_tuple_length() -> None:
     agent = _agent(
         enable_browser=True,
+        enable_web_crawl=True,
         enable_render_ui=True,
         enable_computer_use=True,
         enable_kanban=True,
@@ -54,6 +56,16 @@ def test_active_tool_group_keys_match_derive_tuple_length() -> None:
     groups = derive_active_tool_groups(agent, enable_planning=True)
     assert len(groups) == len(ACTIVE_TOOL_GROUP_KEYS)
     assert set(groups) == set(ACTIVE_TOOL_GROUP_KEYS)
+
+
+def test_derive_includes_web_crawl_when_enabled() -> None:
+    groups = derive_active_tool_groups(_agent(enable_web_crawl=True), enable_planning=False)
+    assert "web_crawl" in groups
+
+
+def test_derive_excludes_web_crawl_when_disabled() -> None:
+    groups = derive_active_tool_groups(_agent(enable_web_crawl=False), enable_planning=False)
+    assert "web_crawl" not in groups
 
 
 def test_derive_includes_render_ui_when_enabled() -> None:

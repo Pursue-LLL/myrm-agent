@@ -57,7 +57,7 @@ LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC: Final[float] = 15.0
 DEFAULT_XDIST_WORKERS: Final[int] = 2
 STRESS_XDIST_WORKERS: Final[int] = 4
 DEFAULT_BOOTSTRAP_SLOTS: Final[int] = 2
-MUX_COLD_ATTACH_SLOTS: Final[int] = 2
+MUX_COLD_ATTACH_SLOTS: Final[int] = 3
 MUX_COLD_ATTACH_TIMEOUT_MS: Final[int] = 30_000
 CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT: Final[int] = 180_000
 LEGACY_MUX_REQUEST_TIMEOUT_MS: Final[tuple[int, ...]] = (55_000, 65_000, 120_000)
@@ -66,8 +66,13 @@ E2E_MUX_ADMISSION_WAIT_SEC: Final[int] = 900
 E2E_MUX_ADMISSION_POLL_SEC: Final[int] = 15
 MUX_UPSTREAM_WAIT_SEC: Final[int] = 900
 MUX_UPSTREAM_POLL_SEC: Final[int] = 15
+# Single LIVE chrome_e2e test wall-clock stall budget (fail-fast, not pytest floor).
+LIVE_SINGLE_TEST_WALL_CLOCK_SEC: Final[int] = 600
+# Holder / progress stale detection while queueing on shared_hot stream.
+STALL_PROGRESS_SEC: Final[int] = 90
 CHROME_E2E_MATRIX_TIMEOUT_SECONDS: Final[int] = 7200
-CHROME_E2E_DESKTOP_TIMEOUT_SECONDS: Final[int] = 7200
+# Single desktop approval chrome_e2e uses the global wall budget (not matrix duration).
+CHROME_E2E_DESKTOP_TIMEOUT_SECONDS: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 CHROME_E2E_STRESS_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_DESKTOP_MARKER: Final[str] = "chrome_e2e_desktop"
 CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER: Final[str] = "chrome_e2e_browser_takeover_live"
@@ -105,8 +110,16 @@ BASE_TOOL_TIMEOUT_SEC: Final[float] = 180.0
 
 # Shared-hot LIVE tests queue on :8080 agent-stream (e2e_runtime_guard default).
 LIVE_AGENT_STREAM_WAIT_SEC: Final[int] = 900
+# Desktop shared_hot queue cap aligns with monotonic wall budget (R39).
+LIVE_AGENT_STREAM_WAIT_DESKTOP_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 # Typical LIVE chrome_e2e body (bootstrap + stream + inline UI waits).
 LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = 600
+# SHPOIB clarify skip API poll under parallel load (API-first path).
+CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
+# run_pytest_safe outer budget padding beyond pytest floor (bootstrap/MCP setup).
+PYTEST_SAFE_BOOTSTRAP_BUFFER_SEC: Final[int] = 120
+# Stream lock holder heartbeat file (waiters read holder identity while queueing).
+LIVE_AGENT_STREAM_HOLDER_INFO_BASENAME: Final[str] = "myrm-live-agent-stream.holder.json"
 
 READ_CHROME_E2E_PYTEST_TIMEOUT_SEC: Final[int] = (
     MUX_UPSTREAM_WAIT_SEC + MAX_PAGE_TIMEOUT_MS // 1000 + 90
@@ -141,7 +154,7 @@ def chrome_e2e_pytest_safe_timeout_sec(
         (normalized_count + MUX_MAX_CONCURRENT_SESSIONS - 1)
         // MUX_MAX_CONCURRENT_SESSIONS,
     )
-    return min(raw, wave_cap)
+    return min(raw, wave_cap) + PYTEST_SAFE_BOOTSTRAP_BUFFER_SEC
 
 
 def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
@@ -156,6 +169,18 @@ def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
 def chrome_e2e_skips_shared_approval_preflight(*, lane: str, shpoib: bool) -> bool:
     """True when LIVE E2E uses SHPOIB private backend — skip shared :8080 approval preflight."""
     return lane == "LIVE_AGENT" and shpoib
+
+
+def chrome_e2e_skips_shared_stream_lock(*, lane: str, shpoib: bool) -> bool:
+    """True when SHPOIB LIVE must not FIFO-queue on shared :8080 agent-stream lock."""
+    return lane == "LIVE_AGENT" and shpoib
+
+
+def live_agent_stream_wait_sec(joined_argv: str) -> int:
+    """Seconds to FIFO-wait on shared :8080 agent-stream lock before fail-closed."""
+    if CHROME_E2E_DESKTOP_MARKER in joined_argv:
+        return LIVE_AGENT_STREAM_WAIT_DESKTOP_SEC
+    return LIVE_AGENT_STREAM_WAIT_SEC
 
 
 def apply_chrome_e2e_pytest_timeout_args(

@@ -81,7 +81,7 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "session_recording": getattr(agent_wrapper, "session_recording", None),
         "enable_computer_use": agent_wrapper.enable_computer_use,
         "enable_file_ops": agent_wrapper.enable_file_ops,
-        "enable_code_execute": agent_wrapper.enable_code_execute,
+        "enable_shell_tools": agent_wrapper.enable_shell_tools,
         "enable_memory": agent_wrapper.enable_memory,
         "incognito_mode": agent_wrapper.incognito_mode,
         "enable_wiki": agent_wrapper.enable_wiki,

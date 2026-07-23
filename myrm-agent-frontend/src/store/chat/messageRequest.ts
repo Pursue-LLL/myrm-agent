@@ -879,25 +879,14 @@ export const sendMessage = async (
 
     // 搜索服务检查：
     // - 快速搜索/深度研究模式：严格要求搜索服务，否则拦截
-    // - agent 模式：web_search 工具可选，如果没有配置仅警告，不拦截（后端会处理）
+    // - agent 模式：未配置时由 stream preflight SSE capability_gap 通知（避免与 client toast 重复）
     const requiresSearch = state.actionMode === 'fast' || state.actionMode === 'deep_research';
-    const wantsSearch = state.actionMode === 'agent' && state.currentBuiltinTools.includes('web_search');
 
-    if (requiresSearch || wantsSearch) {
+    if (requiresSearch) {
       const { guardSearchServiceConfigured } = await import('@/store/config/searchService');
       const { searchServiceConfigs } = useConfigStore.getState();
-      const searchServiceOk = guardSearchServiceConfigured(searchServiceConfigs);
-
-      if (!searchServiceOk) {
-        if (requiresSearch) {
-          // 快速搜索/深度研究模式：必须有搜索服务，拦截请求
-          return;
-        } else {
-          // agent 模式：仅警告，不拦截（web_search 工具在执行时会优雅降级）
-          console.warn(
-            '[WARN] web_search tool enabled but search service not configured. Tool will be skipped during execution.',
-          );
-        }
+      if (!guardSearchServiceConfigured(searchServiceConfigs)) {
+        return;
       }
     }
 

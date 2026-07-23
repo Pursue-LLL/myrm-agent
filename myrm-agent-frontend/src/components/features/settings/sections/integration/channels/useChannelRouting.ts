@@ -14,6 +14,7 @@ import {
   type ThreadSharingMode,
 } from '@/services/channels';
 import { listAgents, type AgentListItem } from '@/services/agent';
+import { filterChannelBindableAgents } from '@/services/channels/channelAgentBinding';
 
 interface UseChannelRoutingOptions {
   initialLoadError: string;
@@ -201,6 +202,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
 
   return {
     agents,
+    channelBindableAgents: filterChannelBindableAgents(agents),
     channels,
     globalAgentId,
     handleBindTopic,

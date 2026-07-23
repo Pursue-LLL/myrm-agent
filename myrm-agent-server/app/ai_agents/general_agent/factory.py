@@ -171,6 +171,11 @@ async def build_general_agent(
     agent_wrapper._task_user_id = user_id or "default"
     agent_wrapper._setup_search_and_basic_tools(tools)
     agent_wrapper._setup_clarification_tools(tools)
+    agent_wrapper._setup_web_crawl_tool(
+        tools,
+        chat_id=effective_chat_id,
+        workspace_root=workspace_root,
+    )
 
     from app.services.context.context_assembly import ContextAssemblyService
 
@@ -671,17 +676,13 @@ async def build_general_agent(
     )
 
     # PTC dependency auto-injection: MCP/PTC skills require bash + file_read
-    effective_enable_file = agent_wrapper.enable_file_ops
-    effective_enable_bash = agent_wrapper.enable_code_execute
-    if agent_wrapper.mcp_config and not (effective_enable_file and effective_enable_bash):
-        effective_enable_file = True
-        effective_enable_bash = True
-        logger.info(
-            "PTC auto-inject: file_tools=%s, bash=%s (required by %d MCP skills)",
-            effective_enable_file,
-            effective_enable_bash,
-            len(agent_wrapper.mcp_config),
-        )
+    from app.services.agent.tool_mount import apply_ptc_meta_mount
+
+    effective_enable_file, effective_enable_shell = apply_ptc_meta_mount(
+        agent_wrapper.enable_file_ops,
+        agent_wrapper.enable_shell_tools,
+        has_mcp=bool(agent_wrapper.mcp_config),
+    )
 
     agent = await create_skill_agent(
         spec=spec,
@@ -723,7 +724,7 @@ async def build_general_agent(
         similarity_checker=sim_checker,
         model_resolver=subagent_model_resolver,
         enable_file_tools=effective_enable_file,
-        enable_bash=effective_enable_bash,
+        enable_shell_tools=effective_enable_shell,
         enable_answer_tool=agent_wrapper.enable_answer_tool,
         enable_planning=enable_planning,
         task_workspace_root=workspace_root,

@@ -109,9 +109,9 @@ class LocalEvalExecutor:
         agent_model_override: str | None = None
         from app.services.agent.profile_resolver import (
             DEFAULT_ENABLED_BUILTIN_TOOLS,
-            apply_agent_baseline_tool_flags,
             resolve_builtin_tool_flags,
         )
+        from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
         enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
         auto_restore_domains: list[str] = []
@@ -185,6 +185,8 @@ class LocalEvalExecutor:
 
         from app.core.memory.proactive.settings import resolve_conversation_search_enabled
 
+        from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
+
         params = GeneralAgentParams(
             query=message,
             model_cfg=eval_model_cfg,
@@ -200,7 +202,11 @@ class LocalEvalExecutor:
             reranker_config=reranker_cfg,
             channel_name="eval",
             enable_web_search=configs.search_is_user_configured and await verify_search_service_available(configs.search_cfg),
-            **apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(enabled_builtin_tools)),
+            enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
+            **resolve_agent_mount(
+                ExecutionSurface.EVAL,
+                resolve_builtin_tool_flags(enabled_builtin_tools),
+            ),
             auto_restore_domains=auto_restore_domains,
             unattended_mode=True,
             agent_skill_ids=agent_skill_ids,

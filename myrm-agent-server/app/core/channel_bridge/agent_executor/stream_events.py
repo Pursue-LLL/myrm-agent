@@ -8,7 +8,7 @@
 [OUTPUT]
 - ChannelStreamEventState: mutable side-effect holder for approval timeout metadata
 - iter_channel_stream_progress: maps harness stream events to channel progress yields;
-  capability_gap surface_unavailable → ProgressUpdate(display_message)
+  capability_gap surface_unavailable / web_search not_configured|unreachable → ProgressUpdate
 
 [POS]
 Stream event loop extracted from ChannelAgentExecutor.execute_stream. Converts
@@ -162,7 +162,11 @@ async def iter_channel_stream_progress(
 
         elif event_type == "capability_gap":
             data = event.get("data", {})
-            if isinstance(data, dict) and str(data.get("reason") or "") == "surface_unavailable":
+            if not isinstance(data, dict):
+                continue
+            reason = str(data.get("reason") or "")
+            tool_id = str(data.get("tool_id") or "")
+            if reason == "surface_unavailable":
                 from app.services.agent.stream_session.entitlement_gap_preflight import (
                     resolve_surface_unavailable_display_message,
                 )
@@ -170,6 +174,21 @@ async def iter_channel_stream_progress(
                 display_message = str(data.get("display_message") or "").strip()
                 if not display_message:
                     display_message = resolve_surface_unavailable_display_message(None)
+                yield ProgressUpdate(label=display_message)
+            elif (
+                tool_id == "web_search"
+                and reason in ("not_configured", "unreachable")
+            ):
+                from app.services.agent.stream_session.entitlement_gap_preflight import (
+                    resolve_web_search_config_gap_display_message,
+                )
+
+                display_message = str(data.get("display_message") or "").strip()
+                if not display_message:
+                    display_message = resolve_web_search_config_gap_display_message(
+                        reason=reason,
+                        locale=None,
+                    )
                 yield ProgressUpdate(label=display_message)
 
         elif event_type == "message_end":

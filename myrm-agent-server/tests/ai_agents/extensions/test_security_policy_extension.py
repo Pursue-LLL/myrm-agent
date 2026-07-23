@@ -127,7 +127,10 @@ class TestAgentYoloSecurityMerge:
             privacy_s3_action="redact",
             channel_name="web_chat",
             security_config_raw={"yoloModeEnabled": False},
-            agent_security_raw={"yoloModeEnabled": True, "yolo_mode_enabled_at": 1_700_000_000.0},
+            agent_security_raw={
+                "yoloModeEnabled": True,
+                "yolo_mode_enabled_at": 1_700_000_000.0,
+            },
             declared_capabilities=[],
             declared_allowed_roots=[],
         )
@@ -151,7 +154,10 @@ class TestAgentYoloSecurityMerge:
             privacy_s3_action="redact",
             channel_name="web_chat",
             security_config_raw=user_raw,
-            agent_security_raw={"yoloModeEnabled": True, "yolo_mode_enabled_at": 1_700_000_000.0},
+            agent_security_raw={
+                "yoloModeEnabled": True,
+                "yolo_mode_enabled_at": 1_700_000_000.0,
+            },
             declared_capabilities=[],
             declared_allowed_roots=[],
         )

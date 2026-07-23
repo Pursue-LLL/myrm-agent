@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { X, Copy, Check, Search, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { getApiBaseUrl } from '@/lib/deploy-mode';
 import { getLineTone, TONE_CLASSES } from './lineToneUtils';
 
 interface EvictedOutputDrawerProps {
@@ -15,7 +17,23 @@ type LoadState = 'loading' | 'ready' | 'expired' | 'error';
 
 const PAGE_SIZE = 500;
 
+function isEvictedExpiredResponse(body: unknown): boolean {
+  if (!body || typeof body !== 'object') {
+    return false;
+  }
+  const record = body as Record<string, unknown>;
+  if (record.expired === true) {
+    return true;
+  }
+  const detail = record.detail;
+  if (detail && typeof detail === 'object') {
+    return (detail as { expired?: boolean }).expired === true;
+  }
+  return false;
+}
+
 const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, chatId, onClose }) => {
+  const t = useTranslations('progressSteps.evictedOutput');
   const [content, setContent] = useState('');
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [copied, setCopied] = useState(false);
@@ -30,13 +48,16 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
     const controller = new AbortController();
     const fetchContent = async () => {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-        const url = `${baseUrl}/api/v1/files/evicted?chat_id=${encodeURIComponent(chatId)}&filename=${encodeURIComponent(filename)}`;
+        const url = `${getApiBaseUrl()}/files/evicted?chat_id=${encodeURIComponent(chatId)}&filename=${encodeURIComponent(filename)}&offset=0&limit=0`;
         const res = await fetch(url, { signal: controller.signal });
 
         if (!res.ok) {
+          if (res.status === 404) {
+            setLoadState('expired');
+            return;
+          }
           const body = await res.json().catch(() => null);
-          if (body?.expired) {
+          if (isEvictedExpiredResponse(body)) {
             setLoadState('expired');
           } else {
             setLoadState('error');
@@ -183,7 +204,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
         className={cn(
-          'relative flex flex-col w-[90vw] max-w-5xl h-[80vh]',
+          'relative flex flex-col w-[min(90vw,100%)] sm:w-[90vw] max-w-5xl h-[min(80vh,100%)] sm:h-[80vh]',
           'bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden',
         )}
         onClick={(e) => e.stopPropagation()}
@@ -196,9 +217,9 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
               <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
               <div className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
             </div>
-            <span className="text-xs font-medium text-zinc-400 truncate max-w-[300px]">{filename}</span>
+            <span className="text-xs font-medium text-zinc-400 truncate max-w-[50vw] sm:max-w-[300px]">{filename}</span>
             {loadState === 'ready' && (
-              <span className="text-[10px] text-zinc-600">{lines.length.toLocaleString()} lines</span>
+              <span className="text-[10px] text-zinc-600">{t('lineCount', { count: lines.length.toLocaleString() })}</span>
             )}
           </div>
 
@@ -211,14 +232,14 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
                     if (!searchVisible) setTimeout(() => searchInputRef.current?.focus(), 50);
                   }}
                   className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
-                  title="Search (Ctrl+F)"
+                  title={t('searchTitle')}
                 >
                   <Search size={14} />
                 </button>
                 <button
                   onClick={handleCopy}
                   className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
-                  title="Copy all"
+                  title={t('copyAll')}
                 >
                   {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
                 </button>
@@ -248,7 +269,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
                   jumpToMatch(e.shiftKey ? currentMatchIdx - 1 : currentMatchIdx + 1);
                 }
               }}
-              placeholder="Search..."
+              placeholder={t('searchPlaceholder')}
               className="flex-1 bg-transparent text-xs text-zinc-300 placeholder-zinc-600 outline-none"
             />
             {searchTerm && (
@@ -281,7 +302,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
             <div className="flex items-center justify-center h-full">
               <div className="flex items-center gap-2 text-zinc-500 text-sm">
                 <div className="w-4 h-4 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin" />
-                Loading full output...
+                {t('loading')}
               </div>
             </div>
           )}
@@ -292,17 +313,17 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
-              <p className="text-sm font-medium text-zinc-400">Output Expired</p>
+              <p className="text-sm font-medium text-zinc-400">{t('expiredTitle')}</p>
               <p className="text-xs text-zinc-600 max-w-[300px] text-center">
-                This output file has been cleaned up. Evicted outputs are retained for the session duration only.
+                {t('expiredDesc')}
               </p>
             </div>
           )}
 
           {loadState === 'error' && (
             <div className="flex flex-col items-center justify-center h-full gap-2 text-zinc-500">
-              <p className="text-sm font-medium text-red-400">Failed to load output</p>
-              <p className="text-xs text-zinc-600">Please try again later.</p>
+              <p className="text-sm font-medium text-red-400">{t('errorTitle')}</p>
+              <p className="text-xs text-zinc-600">{t('errorDesc')}</p>
             </div>
           )}
 
@@ -343,7 +364,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
         {loadState === 'ready' && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-800/60 bg-zinc-900/40">
             <span className="text-[10px] text-zinc-600">
-              Page {currentPage} of {totalPages}
+              {t('pageOf', { current: currentPage, total: totalPages })}
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -351,14 +372,14 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
                 disabled={currentPage === 1}
                 className="px-2 py-0.5 rounded text-[10px] text-zinc-400 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                Prev
+                {t('prev')}
               </button>
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 className="px-2 py-0.5 rounded text-[10px] text-zinc-400 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                Next
+                {t('next')}
               </button>
             </div>
           </div>

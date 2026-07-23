@@ -103,6 +103,70 @@ async def test_capability_gap_surface_unavailable_fallback_when_message_empty() 
 
 
 @pytest.mark.asyncio
+async def test_capability_gap_web_search_not_configured_yields_progress_update() -> None:
+    acc = StreamAccumulator()
+    state = ChannelStreamEventState()
+    event = {
+        "type": "capability_gap",
+        "data": {
+            "tool_id": "web_search",
+            "tool_group": "web",
+            "reason": "not_configured",
+            "display_message": "Web search is enabled but no search API is configured.",
+        },
+    }
+    progress = [
+        item
+        async for item in iter_channel_stream_progress(_events(event), acc, state)
+    ]
+    assert len(progress) == 1
+    assert isinstance(progress[0], ProgressUpdate)
+    assert progress[0].label == "Web search is enabled but no search API is configured."
+
+
+@pytest.mark.asyncio
+async def test_capability_gap_web_search_unreachable_yields_progress_update() -> None:
+    acc = StreamAccumulator()
+    state = ChannelStreamEventState()
+    event = {
+        "type": "capability_gap",
+        "data": {
+            "tool_id": "web_search",
+            "reason": "unreachable",
+            "display_message": "Web search provider is unreachable.",
+        },
+    }
+    progress = [
+        item
+        async for item in iter_channel_stream_progress(_events(event), acc, state)
+    ]
+    assert len(progress) == 1
+    assert isinstance(progress[0], ProgressUpdate)
+    assert progress[0].label == "Web search provider is unreachable."
+
+
+@pytest.mark.asyncio
+async def test_capability_gap_web_search_skipped_when_display_message_empty() -> None:
+    acc = StreamAccumulator()
+    state = ChannelStreamEventState()
+    event = {
+        "type": "capability_gap",
+        "data": {
+            "tool_id": "web_search",
+            "reason": "not_configured",
+            "display_message": "",
+        },
+    }
+    progress = [
+        item
+        async for item in iter_channel_stream_progress(_events(event), acc, state)
+    ]
+    assert len(progress) == 1
+    assert isinstance(progress[0], ProgressUpdate)
+    assert "search API" in progress[0].label
+
+
+@pytest.mark.asyncio
 async def test_fission_topology_yields_raw_data() -> None:
     acc = StreamAccumulator()
     state = ChannelStreamEventState()

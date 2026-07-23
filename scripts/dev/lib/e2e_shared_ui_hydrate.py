@@ -1,7 +1,7 @@
-"""Serialize shared :3000 UI hydrate for parallel SHPOIB Chrome E2E.
+"""Serialize shared :3000 UI navigate/reload bursts for parallel SHPOIB Chrome E2E.
 
-Holds an exclusive flock while a test waits for Next.js shell + E2E bridge hydration,
-preventing thundering herd on the shared dev frontend during parallel chrome_e2e runs.
+R36: the flock guards **navigate/reload bursts** only — not MCP probe polling loops.
+Holding the lock during long probe loops caused 180s×retry silent blocking (BUG-022).
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def shared_ui_hydrate_slot() -> Iterator[None]:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                 elapsed = int(time.monotonic() - started)
                 print(
-                    f"E2E_SHARED_UI_HYDRATE_OK: pid={os.getpid()} elapsed={elapsed}s",
+                    f"E2E_SHARED_UI_HYDRATE_LOCK_ACQUIRED: pid={os.getpid()} elapsed={elapsed}s",
                     file=sys.stderr,
                 )
                 break
@@ -76,6 +76,27 @@ def shared_ui_hydrate_slot() -> Iterator[None]:
             yield
         finally:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def shared_ui_hydrate_burst() -> Iterator[None]:
+    """Exclusive slot for navigate/reload burst only (R36 — not probe polling)."""
+    with shared_ui_hydrate_slot():
+        yield
+
+
+@asynccontextmanager
+async def async_shared_ui_hydrate_burst() -> AsyncIterator[None]:
+    """Async navigate/reload burst slot (R36)."""
+    if not shpoib_shared_ui_queue_enabled():
+        yield
+        return
+    slot = shared_ui_hydrate_burst()
+    await asyncio.to_thread(slot.__enter__)
+    try:
+        yield
+    finally:
+        await asyncio.to_thread(slot.__exit__, None, None, None)
 
 
 @asynccontextmanager

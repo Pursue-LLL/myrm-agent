@@ -1,15 +1,15 @@
 /**
  * [INPUT]
- * - @/i18n/index (POS: getLocale / setLocale cookie 读写)
+ * - @/i18n/config (POS: defaultLocale 静态 html lang 占位)
  * - @/i18n/LocalizedProviders (POS: 根 i18n + 全局 initializer 树)
  *
- * [POS] Next.js 根布局：主题、国际化（动态 SSR lang）、全局初始化器、页面壳层。
+ * [POS] Next.js 根布局：主题、国际化（DocumentLang 在 Suspense 内同步 lang）、全局初始化器、页面壳层。
  */
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { Suspense } from 'react';
 import './globals.css';
-import { getLocale } from '@/i18n/index';
+import { defaultLocale } from '@/i18n/config';
 import { LocalizedProviders } from '@/i18n/LocalizedProviders';
 import { cn } from '@/lib/utils/classnameUtils';
 import AppShellSkeleton from '@/components/features/app-shell/AppShellSkeleton';
@@ -30,10 +30,9 @@ export const metadata: Metadata = {
   description: metadataMessages.appDescription,
 };
 
-export default async function LocaleLayout({ children }: { children: React.ReactNode }) {
-  const locale = await getLocale();
+export default function LocaleLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang={locale} className="min-h-full" suppressHydrationWarning>
+    <html lang={defaultLocale} className="min-h-full" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#fdfdfb" />
