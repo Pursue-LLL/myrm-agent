@@ -21,7 +21,7 @@ import { buildLastScanSummary, gateMcpEnable } from '@/hooks/useMcpSecurityGate'
 import { formatMcpGateBlockedMessage } from '@/lib/utils/mcpScanFindingText';
 import { MCPScanAckDialog } from '@/components/features/settings/mcp/MCPScanAckDialog';
 import type { MCPScanResult, MCPServiceConfig } from '@/store/config/types';
-import { isSandbox } from '@/lib/deploy-mode';
+import { getDocsUrl, isSandbox } from '@/lib/deploy-mode';
 import type { CatalogEntry } from './catalog-types';
 import { shouldBlockCloudLoopbackConnect, shouldBlockLocalOnlyInSandbox } from './deploymentGuard';
 
@@ -57,11 +57,74 @@ type ProbeRecommendedMode =
   | 'start_local_editor_mcp'
   | 'verify_local_network_and_editor';
 
+type ProbeReasonCode =
+  | 'reachable'
+  | 'connection_refused'
+  | 'connection_unreachable'
+  | 'tls_verification_failed'
+  | 'connection_timeout'
+  | 'probe_failed_unknown'
+  | 'loopback_unavailable_in_cloud';
+
 function normalizeProbeRecommendedMode(value: string | undefined): ProbeRecommendedMode | null {
   if (value === 'local_or_tauri' || value === 'start_local_editor_mcp' || value === 'verify_local_network_and_editor') {
     return value;
   }
   return null;
+}
+
+function normalizeProbeReasonCode(value: string | undefined): ProbeReasonCode | null {
+  if (
+    value === 'reachable' ||
+    value === 'connection_refused' ||
+    value === 'connection_unreachable' ||
+    value === 'tls_verification_failed' ||
+    value === 'connection_timeout' ||
+    value === 'probe_failed_unknown' ||
+    value === 'loopback_unavailable_in_cloud'
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function probeErrorI18nKey(
+  reasonCode: ProbeReasonCode | null,
+):
+  | 'probeConnectionRefused'
+  | 'probeConnectionUnreachable'
+  | 'probeTlsVerificationFailed'
+  | 'probeConnectionTimeout'
+  | 'probeUnknownFailure'
+  | null {
+  if (reasonCode === 'connection_refused') {
+    return 'probeConnectionRefused';
+  }
+  if (reasonCode === 'connection_unreachable') {
+    return 'probeConnectionUnreachable';
+  }
+  if (reasonCode === 'tls_verification_failed') {
+    return 'probeTlsVerificationFailed';
+  }
+  if (reasonCode === 'connection_timeout') {
+    return 'probeConnectionTimeout';
+  }
+  if (reasonCode === 'probe_failed_unknown') {
+    return 'probeUnknownFailure';
+  }
+  return null;
+}
+
+function resolveProbeUrl(mcpConfig: Record<string, unknown> | null): string | undefined {
+  const probeUrlCandidate = mcpConfig?.probeUrl;
+  if (typeof probeUrlCandidate === 'string' && probeUrlCandidate.trim()) {
+    return probeUrlCandidate;
+  }
+  const urlCandidate = mcpConfig?.url;
+  if (typeof urlCandidate === 'string' && urlCandidate.trim()) {
+    return urlCandidate;
+  }
+  return undefined;
 }
 
 export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
@@ -96,7 +159,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
     const helpText = locale === 'zh' && entry.helpTextZh ? entry.helpTextZh : entry.helpText;
     const connectGuide = locale === 'zh' && entry.postConnectGuideZh ? entry.postConnectGuideZh : entry.postConnectGuide;
     const mcpConfig = entry.mcpConfig as Record<string, unknown> | null;
-    const probeUrl = mcpConfig?.probeUrl as string | undefined;
+    const probeUrl = resolveProbeUrl(mcpConfig);
     const deploymentScope =
       entry.deploymentScope ??
       ((mcpConfig?.deploymentScope as string | undefined) ?? null);
@@ -148,12 +211,14 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         }
         setProbeStatus('unreachable');
         setProbeRecommendedMode(normalizeProbeRecommendedMode(res.recommendedMode));
+        const reasonCode = normalizeProbeReasonCode(res.reasonCode);
+        const errorKey = probeErrorI18nKey(reasonCode);
         setProbeError(
-          res.reasonCode === 'tls_verification_failed'
-            ? t('probeTlsVerificationFailed', {
-                default: res.error || t('probeUnreachable'),
-              })
-            : (res.error || t('probeUnreachable')),
+          errorKey
+            ? t(errorKey)
+            : t('probeUnknownFailure', {
+                default: t('probeUnreachable'),
+              }),
         );
         return false;
       } catch {
@@ -400,6 +465,11 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
 
     const handleProbeRecommendedAction = useCallback(async () => {
       if (probeRecommendedMode === 'local_or_tauri') {
+        const localDeploymentGuideUrl = getDocsUrl('/getting-started/local-deployment');
+        const opened = window.open(localDeploymentGuideUrl, '_blank', 'noopener,noreferrer');
+        if (!opened) {
+          window.location.assign(localDeploymentGuideUrl);
+        }
         onClose();
         return;
       }

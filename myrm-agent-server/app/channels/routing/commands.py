@@ -582,6 +582,40 @@ async def handle_topic_command(
         await bus.publish_outbound(reply)
 
 
+def _format_file_revert_notice(
+    msg: InboundMessage,
+    *,
+    reverted_count: int,
+    files_not_revertible: int,
+    reverted_key: str,
+    not_revertible_key: str,
+) -> str | None:
+    lines: list[str] = []
+    if reverted_count > 0:
+        lines.append(get_text(msg, reverted_key, count=reverted_count))
+    if files_not_revertible > 0:
+        lines.append(get_text(msg, not_revertible_key, count=files_not_revertible))
+    return "\n".join(lines) if lines else None
+
+
+async def _publish_outbound_notice(
+    msg: InboundMessage,
+    bus: MessageBus,
+    *,
+    content: str,
+) -> None:
+    peer_id = msg.chat_id or msg.sender_id
+    reply = OutboundMessage(
+        channel=msg.channel,
+        recipient_id=peer_id,
+        content=content,
+        user_id=msg.user_id or "",
+        thread_id=msg.thread_id,
+        reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+    )
+    await bus.publish_outbound(reply)
+
+
 async def handle_retry(
     msg: InboundMessage,
     bus: MessageBus,
@@ -623,6 +657,15 @@ async def handle_retry(
         result = await retry_handler(msg, user_id)
 
         if result.success and result.query:
+            revert_notice = _format_file_revert_notice(
+                msg,
+                reverted_count=result.reverted_count,
+                files_not_revertible=result.files_not_revertible,
+                reverted_key="retry_reverted",
+                not_revertible_key="retry_files_not_revertible",
+            )
+            if revert_notice:
+                await _publish_outbound_notice(msg, bus, content=revert_notice)
             return dataclasses.replace(msg, content=result.query)
 
         if result.deleted_count == 0:

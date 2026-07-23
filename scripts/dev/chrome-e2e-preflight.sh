@@ -175,12 +175,16 @@ _wait_shared_ui_reachable() {
 }
 
 _heal_dead_shared_ui_port() {
-  if lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
+  if curl -sf --max-time 5 "http://127.0.0.1:${FRONTEND_PORT}/" >/dev/null 2>&1; then
     return 0
   fi
   local stack="${AGENT_ROOT}/scripts/dev/dev-stack.sh"
   [[ -f "${stack}" ]] || return 1
-  echo "CHROME_E2E_HEAL: shared UI port :${FRONTEND_PORT} dead — frontend-only cold start" >&2
+  if lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "CHROME_E2E_HEAL: STACK_UI_HALF_DEAD :${FRONTEND_PORT} listening but HTTP unreachable — frontend-only cold start" >&2
+  else
+    echo "CHROME_E2E_HEAL: shared UI port :${FRONTEND_PORT} dead — frontend-only cold start" >&2
+  fi
   MYRM_SUPERVISOR_BYPASS=1 MYRM_E2E_SHPOIB="${MYRM_E2E_SHPOIB:-1}" bash "${stack}" frontend-only ensure || true
 }
 
@@ -248,7 +252,13 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
     fi
     if [[ -n "${attach_errors}" ]]; then
       if ! _wait_attach_endpoints_under_parallel_load "${attach_errors}"; then
-        fail "CHROME_E2E_ATTACH_NOT_READY: ${attach_errors} — first Agent must run: ./myrm ready --chrome"
+        attach_msg="$("${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from runtime_identity import format_attach_endpoint_failure
+print(format_attach_endpoint_failure([p.strip() for p in '''${attach_errors}'''.split(',') if p.strip()]))
+")"
+        fail "${attach_msg} — first Agent must run: ./myrm ready --chrome"
       fi
     fi
   fi

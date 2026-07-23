@@ -25,7 +25,6 @@ import { generateStreamRequestMessageId } from './chat/streamRequestMessageId';
 import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat, persistActiveChatNavigationSnapshot, resolveInstantChatSnapshot } from './chat/messageManagement';
 import { processSuggestions, findAssistantMessageIndex } from './chat/messageUtils';
 import useQuoteStore from './useQuoteStore';
-import useToolApprovalStore from './useToolApprovalStore';
 import useWorkspaceStore from './useWorkspaceStore';
 import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';

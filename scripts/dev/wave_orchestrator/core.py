@@ -114,6 +114,52 @@ def _prune_infra_browser_registry() -> tuple[int, int]:
     return infra_browser_registry.prune_infra_registry()
 
 
+def _import_stack_mutation_policy():
+    import sys
+    from pathlib import Path
+
+    lib_dir = Path(__file__).resolve().parent.parent / "lib"
+    lib_str = str(lib_dir)
+    if lib_str not in sys.path:
+        sys.path.insert(0, lib_str)
+    import stack_mutation_policy
+
+    return stack_mutation_policy
+
+
+def _resolve_monorepo_root(*, paths: WavePaths) -> Path:
+    import os
+    from pathlib import Path
+
+    override = os.environ.get("MYRM_MONOREPO_ROOT", "").strip()
+    if override:
+        return Path(override).resolve()
+    return paths.agent_dev_lib.parent.parent.parent.parent
+
+
+def _maybe_apply_pending_drift_after_release(*, paths: WavePaths | None = None) -> None:
+    """R31-A: when the last wave lease releases, apply deferred shared-backend drift heal."""
+    import sys
+
+    resolved = paths or resolve_wave_paths()
+    policy = _import_stack_mutation_policy()
+    result = policy.apply_pending_drift_if_idle(
+        monorepo_root=_resolve_monorepo_root(paths=resolved),
+        state_dir=resolved.state_dir,
+    )
+    if result.action == "applied":
+        print(
+            "CHROME_E2E_ATTACH_HEAL: apply pending stack drift "
+            f"(0 active wave leases) {result.detail}",
+            file=sys.stderr,
+        )
+    elif result.action == "failed":
+        print(
+            f"CHROME_E2E_FAIL: pending drift apply failed: {result.detail}",
+            file=sys.stderr,
+        )
+
+
 def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
     """Run TTL and runtime drift reaping for the supervisor watchdog."""
     resolved = paths or resolve_wave_paths()
@@ -344,6 +390,7 @@ def release_lease(
 
     lease = run_locked(resolved.state_file, _edit)
     _cleanup_released_lease(lease, paths=resolved, skip_resource_cleanup=skip_cleanup, strict=False)
+    _maybe_apply_pending_drift_after_release(paths=resolved)
     return lease
 
 
@@ -423,6 +470,7 @@ def release_lease_and_close_wave_if_idle(
         _cleanup_released_lease(lease, paths=resolved, strict=False)
     if result["waveClosed"]:
         clear_stack_pin(paths=resolved)
+    _maybe_apply_pending_drift_after_release(paths=resolved)
     return result
 
 

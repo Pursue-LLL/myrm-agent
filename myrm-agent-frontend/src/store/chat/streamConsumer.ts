@@ -24,7 +24,7 @@ function shouldUseMultiplexedAgentStream(): boolean {
 async function tryE2eAttachForPendingApproval(
   state: ChatActionsState,
   actions: ChatActionsMethods,
-  abortController: AbortController,
+  _abortController: AbortController,
 ): Promise<{ attached: boolean; queueLen: number }> {
   if (typeof window === 'undefined') {
     return { attached: false, queueLen: 0 };

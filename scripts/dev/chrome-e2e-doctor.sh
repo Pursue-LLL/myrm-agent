@@ -111,6 +111,20 @@ if [[ -f "${hygiene}" ]] && chrome_e2e_cdp_healthy; then
   fi
 fi
 
+endpoint_errors="$("${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from runtime_identity import attach_endpoint_errors
+print(','.join(attach_endpoint_errors('http://127.0.0.1:3000', 'http://127.0.0.1:8080')))
+" 2>/dev/null || true)"
+if [[ "${endpoint_errors}" == *"ui=half_dead"* ]]; then
+  fail "STACK_UI_HALF_DEAD :3000 listening but HTTP unreachable — run: ./myrm restart --chrome (do not stop other pytest)"
+elif [[ "${endpoint_errors}" == *"ui=unreachable"* ]]; then
+  fail "shared UI unreachable — run: ./myrm ready --chrome"
+elif [[ "${endpoint_errors}" == *"api=unreachable"* ]]; then
+  fail "shared API unreachable — run: ./myrm ready --chrome"
+fi
+
 if [[ "${failures}" -eq 0 ]]; then
   echo "CHROME_E2E_DOCTOR_READY"
   exit 0

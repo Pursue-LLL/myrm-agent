@@ -28,6 +28,7 @@ import sys
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 from pathlib import Path
 from typing import TypedDict
 
@@ -153,6 +154,54 @@ def _http_url_ok(url: str, *, timeout_sec: float = 5.0) -> bool:
         return False
 
 
+def _frontend_tcp_port_listening(host: str, port: int) -> bool:
+    """True when something is LISTEN on port (lsof SSOT on macOS/Linux)."""
+    try:
+        result = subprocess.run(
+            ["lsof", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
+def _ui_probe_host_port(ui_base: str) -> tuple[str, int]:
+    parsed = urlparse(ui_base)
+    host = parsed.hostname or "127.0.0.1"
+    if parsed.port is not None:
+        port = parsed.port
+    elif parsed.scheme == "https":
+        port = 443
+    else:
+        port = 80
+    return host, port
+
+
+def classify_ui_endpoint_error(ui_base: str, *, timeout_sec: float = 5.0) -> str | None:
+    """Return ui error token or None when UI responds HTTP 2xx."""
+    url = ui_base.rstrip("/") + "/"
+    if _http_url_ok(url, timeout_sec=timeout_sec):
+        return None
+    _, port = _ui_probe_host_port(ui_base)
+    if _frontend_tcp_port_listening("127.0.0.1", port):
+        return "ui=half_dead"
+    return "ui=unreachable"
+
+
+def format_attach_endpoint_failure(errors: list[str]) -> str:
+    """Human-facing attach failure with STACK_UI_HALF_DEAD guidance."""
+    if any(error.strip() == "ui=half_dead" for error in errors):
+        return (
+            "STACK_UI_HALF_DEAD: shared UI listening but HTTP unreachable — "
+            "run: ./myrm restart --chrome (do not stop other pytest)"
+        )
+    return "CHROME_E2E_ATTACH_NOT_READY: " + ", ".join(errors)
+
+
 def api_health_errors(api_base: str) -> list[str]:
     """Probe API health only — used by stack-core keepalive."""
     api_timeout = 10.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
@@ -166,16 +215,25 @@ def attach_endpoint_errors(ui_base: str, api_base: str) -> list[str]:
     """Probe UI and API concurrently for the attach-only fast path."""
     ui_timeout = 30.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
     api_timeout = 10.0 if os.getenv("MYRM_E2E_ISOLATED") == "1" else 5.0
-    endpoints = (
-        ("ui", ui_base.rstrip("/") + "/", ui_timeout),
-        ("api", api_base.rstrip("/") + "/api/v1/health", api_timeout),
-    )
+    api_url = api_base.rstrip("/") + "/api/v1/health"
+
+    def probe_ui() -> str | None:
+        return classify_ui_endpoint_error(ui_base, timeout_sec=ui_timeout)
+
+    def probe_api() -> str | None:
+        if _http_url_ok(api_url, timeout_sec=api_timeout):
+            return None
+        return "api=unreachable"
+
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="attach-health") as pool:
-        ready = tuple(
-            pool.submit(_http_url_ok, url, timeout_sec=timeout).result()
-            for _, url, timeout in endpoints
-        )
-    return [f"{name}=unreachable" for (name, _, _), ok in zip(endpoints, ready, strict=True) if not ok]
+        ui_error = pool.submit(probe_ui).result()
+        api_error = pool.submit(probe_api).result()
+    errors: list[str] = []
+    if ui_error is not None:
+        errors.append(ui_error)
+    if api_error is not None:
+        errors.append(api_error)
+    return errors
 
 
 _BROWSER_ID_RE = re.compile(r"/devtools/browser/([0-9a-f-]{36})")
@@ -775,7 +833,7 @@ def main() -> None:
     if args.require_attach_ready:
         errors = attach_health_errors(payload) + attach_endpoint_errors(args.ui, args.api)
         if errors:
-            print("CHROME_E2E_ATTACH_NOT_READY: " + ", ".join(errors), file=sys.stderr)
+            print(format_attach_endpoint_failure(errors), file=sys.stderr)
             raise SystemExit(2)
     if args.require_stack_core:
         errors = stack_core_health_errors(payload) + api_health_errors(args.api)

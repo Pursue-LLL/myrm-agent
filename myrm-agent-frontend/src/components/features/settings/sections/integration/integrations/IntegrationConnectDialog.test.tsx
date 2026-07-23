@@ -11,7 +11,7 @@ const mockIsSandbox = vi.fn();
 const mockToast = vi.fn();
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, opts?: { default?: string }) => opts?.default ?? key,
+  useTranslations: () => (key: string) => key,
 }));
 
 vi.mock('@/hooks/useToast', () => ({
@@ -45,6 +45,7 @@ vi.mock('@/components/features/settings/mcp/MCPScanAckDialog', () => ({
 
 vi.mock('@/lib/deploy-mode', () => ({
   isSandbox: () => mockIsSandbox(),
+  getDocsUrl: (path: string = '/') => `https://docs.myrm.ai${path === '/' ? '' : path}`,
 }));
 
 import { IntegrationConnectDialog } from './IntegrationConnectDialog';
@@ -99,6 +100,7 @@ describe('IntegrationConnectDialog', () => {
   it('blocks local-only entries in sandbox without probe url', async () => {
     const entry = makeCatalogEntry();
     const onClose = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
     render(
       <IntegrationConnectDialog
         entry={entry}
@@ -118,6 +120,12 @@ describe('IntegrationConnectDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'probeRecommendedActionSwitchMode' }));
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://docs.myrm.ai/getting-started/local-deployment',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    openSpy.mockRestore();
   });
 
   it('blocks connect when probe response carries shouldBlockConnect=true', async () => {
@@ -152,6 +160,44 @@ describe('IntegrationConnectDialog', () => {
     });
     expect(mockApiRequest).toHaveBeenCalledTimes(1);
     expect(mockSetMCPConfigs).not.toHaveBeenCalled();
+  });
+
+  it('falls back to mcp url when probeUrl is missing', async () => {
+    const entry = makeCatalogEntry({
+      deploymentScope: 'all_modes',
+      mcpConfig: {
+        name: 'unreal-engine',
+        type: 'streamable_http',
+        url: 'http://127.0.0.1:7001/mcp',
+      },
+    });
+    mockIsSandbox.mockReturnValue(false);
+    mockApiRequest.mockResolvedValueOnce({
+      status: 'unreachable',
+      reasonCode: 'connection_refused',
+      shouldBlockConnect: true,
+      recommendedMode: 'start_local_editor_mcp',
+      error: 'raw backend detail should not be exposed in toc',
+    });
+
+    render(
+      <IntegrationConnectDialog
+        entry={entry}
+        locale="en"
+        onClose={vi.fn()}
+        onConnected={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'connect' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('probeConnectionRefused')).toBeInTheDocument();
+    });
+    expect(mockApiRequest).toHaveBeenCalledTimes(1);
+    const firstCallOptions = mockApiRequest.mock.calls[0]?.[1] as { body?: string } | undefined;
+    const requestBody = JSON.parse(firstCallOptions?.body ?? '{}') as { url?: string };
+    expect(requestBody.url).toBe('http://127.0.0.1:7001/mcp');
   });
 
   it('renders recommendedMode guidance and retries probe for start_local_editor_mcp', async () => {
@@ -259,6 +305,7 @@ describe('IntegrationConnectDialog', () => {
       },
     });
     const onClose = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
     mockIsSandbox.mockReturnValue(false);
     mockApiRequest.mockResolvedValueOnce({
       status: 'cloud_not_supported',
@@ -283,8 +330,14 @@ describe('IntegrationConnectDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'probeRecommendedActionSwitchMode' }));
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://docs.myrm.ai/getting-started/local-deployment',
+      '_blank',
+      'noopener,noreferrer',
+    );
     expect(mockApiRequest).toHaveBeenCalledTimes(1);
     expect(mockSetMCPConfigs).not.toHaveBeenCalled();
+    openSpy.mockRestore();
   });
 
   it('shows localized TLS probe message for tls_verification_failed reasonCode', async () => {
@@ -316,11 +369,47 @@ describe('IntegrationConnectDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'connect' }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(
-          'TLS certificate verification failed — trust the MCP certificate or configure a valid CA bundle',
-        ),
-      ).toBeInTheDocument();
+      expect(screen.getByText('probeTlsVerificationFailed')).toBeInTheDocument();
+    });
+    expect(mockApiRequest).toHaveBeenCalledTimes(1);
+    expect(mockSetMCPConfigs).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['connection_refused', 'probeConnectionRefused'],
+    ['connection_unreachable', 'probeConnectionUnreachable'],
+    ['connection_timeout', 'probeConnectionTimeout'],
+    ['probe_failed_unknown', 'probeUnknownFailure'],
+    ['unexpected_reason_code', 'probeUnknownFailure'],
+  ])('shows localized probe message for %s', async (reasonCode, expectedMessageKey) => {
+    const onClose = vi.fn();
+    mockIsSandbox.mockReturnValue(false);
+    mockApiRequest.mockResolvedValueOnce({
+      status: 'unreachable',
+      reasonCode,
+      shouldBlockConnect: true,
+      recommendedMode: 'start_local_editor_mcp',
+      error: 'raw backend detail should not be exposed in toc',
+    });
+
+    render(
+      <IntegrationConnectDialog
+        entry={makeCatalogEntry({
+          mcpConfig: {
+            url: 'http://127.0.0.1:7777/mcp',
+            probeUrl: 'http://127.0.0.1:7777/mcp',
+          },
+        })}
+        locale="zh"
+        onClose={onClose}
+        onConnected={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'connect' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(expectedMessageKey)).toBeInTheDocument();
     });
     expect(mockApiRequest).toHaveBeenCalledTimes(1);
     expect(mockSetMCPConfigs).not.toHaveBeenCalled();

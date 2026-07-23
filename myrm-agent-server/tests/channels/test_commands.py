@@ -1114,6 +1114,32 @@ class TestHandleRetry:
         assert result is not None
         assert result.content == "original question"
         handler.assert_awaited_once()
+        bus.publish_outbound.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_retry_success_publishes_revert_notice(self) -> None:
+        from app.channels.protocols.turn_management import RetryResult
+
+        msg = _make_msg(content="/retry")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+
+        handler = AsyncMock(return_value=RetryResult(
+            success=True,
+            query="original question",
+            deleted_count=2,
+            reverted_count=3,
+            files_not_revertible=1,
+        ))
+
+        result = await handle_retry(msg, bus, resolver, retry_handler=handler)
+
+        assert result is not None
+        assert result.content == "original question"
+        bus.publish_outbound.assert_called_once()
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "3" in reply.content
+        assert "1" in reply.content
 
     @pytest.mark.asyncio
     async def test_retry_nothing_to_delete(self) -> None:
