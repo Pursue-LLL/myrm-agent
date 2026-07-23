@@ -727,12 +727,15 @@ async def handle_undo(
         if result.success:
             if result.deleted_count > 0:
                 content = get_text(msg, "undo_success", count=result.deleted_count)
-                if result.reverted_count > 0:
-                    content = f"{content}\n{get_text(msg, 'undo_reverted', count=result.reverted_count)}"
-                    if result.files_not_revertible > 0:
-                        content = f"{content}\n{get_text(msg, 'undo_files_not_revertible', count=result.files_not_revertible)}"
-                elif result.files_not_revertible > 0:
-                    content = f"{content}\n{get_text(msg, 'undo_files_not_revertible', count=result.files_not_revertible)}"
+                revert_notice = _format_file_revert_notice(
+                    msg,
+                    reverted_count=result.reverted_count,
+                    files_not_revertible=result.files_not_revertible,
+                    reverted_key="undo_reverted",
+                    not_revertible_key="undo_files_not_revertible",
+                )
+                if revert_notice:
+                    content = f"{content}\n{revert_notice}"
             else:
                 content = get_text(msg, "undo_nothing")
         else:

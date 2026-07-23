@@ -135,6 +135,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   }, [fetchChanges, fetchDiffs, resolveNonRevertibleToast, t, triggerLoading]);
 
   const handleConfirmRevert = useCallback(async () => {
+    const nonRevertibleCount = changes?.filter((c) => c.revertible === false).length ?? 0;
     setStatus('loading');
     try {
       const res = await fetch('/api/v1/files/revert/message', {
@@ -155,7 +156,10 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
           setStatus('success');
           window.dispatchEvent(new CustomEvent('app_resync_required'));
           const revertedCount = data.reverted_files?.length ?? 0;
-          const skippedTotal = data.skipped_files?.length ?? 0;
+          const skippedTotal =
+            (data.skipped_files?.length ?? 0) > 0
+              ? (data.skipped_files?.length ?? 0)
+              : nonRevertibleCount;
           toast({
             title:
               skippedTotal > 0
@@ -176,7 +180,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
       setStatus('error');
     }
     setTimeout(resetState, 2000);
-  }, [chatId, messageId, resetState, t]);
+  }, [chatId, messageId, changes, resetState, t]);
 
   if (status === 'success') {
     return (
