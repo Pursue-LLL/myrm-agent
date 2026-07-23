@@ -243,7 +243,7 @@ class TestMCPProbeEndpoint:
         assert response.status_code == 400
 
     def test_probe_unreachable_generic_error(self, client: TestClient) -> None:
-        """Probe returns unreachable with error message on generic exceptions."""
+        """Probe returns a sanitized generic error on unexpected exceptions."""
         import httpx
 
         with patch("httpx.AsyncClient.get", side_effect=httpx.ReadError("broken pipe")):
@@ -255,7 +255,27 @@ class TestMCPProbeEndpoint:
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["status"] == "unreachable"
-        assert "broken pipe" in data["error"]
+        assert data["error"] == "Connectivity check failed unexpectedly — verify editor MCP settings and retry"
+        assert "broken pipe" not in data["error"]
         assert data["reasonCode"] == "probe_failed_unknown"
-        assert data.get("recommendedMode") is None
+        assert data["recommendedMode"] == "verify_local_network_and_editor"
         assert data["shouldBlockConnect"] is True
+
+    def test_probe_unreachable_generic_error_logs_sanitized_target(self, client: TestClient) -> None:
+        """Probe logging must drop credentials and query parameters from target URL."""
+        import httpx
+
+        with (
+            patch("httpx.AsyncClient.get", side_effect=httpx.ReadError("broken pipe")),
+            patch("app.api.integrations.mcp.logger.exception") as mock_logger_exception,
+        ):
+            response = client.post(
+                "/api/v1/integrations/mcp/probe",
+                json={"url": "http://user:secret@127.0.0.1:8000/mcp?token=abc"},
+            )
+
+        assert response.status_code == 200
+        mock_logger_exception.assert_called_once_with(
+            "Unexpected MCP probe failure for target=%s",
+            "http://127.0.0.1:8000/mcp",
+        )

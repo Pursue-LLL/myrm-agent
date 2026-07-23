@@ -102,6 +102,53 @@ def test_progress_from_info_handles_missing_or_invalid() -> None:
     assert _progress_from_info({"progress": 75.5}) == 75
 
 
+def test_list_shell_background_tasks_backfills_vault_log_ref_from_store() -> None:
+    from myrm_agent_harness.api.hooks import BackgroundJobRecord
+
+    info = BackgroundProcessInfo(
+        job_id="job-vault",
+        pid=200,
+        command="echo spill",
+        session_id="chat-vault",
+        started_at=1_700_000_000.0,
+        status="exited",
+        exit_code=0,
+    )
+    store_record = BackgroundJobRecord(
+        job_id="job-vault",
+        pid=200,
+        session_id="chat-vault",
+        command="echo spill",
+        status="exited",
+        started_at=1_700_000_000.0,
+        completed_at=1_700_000_010.0,
+        exit_code=0,
+        error_category=None,
+        finish_processed=True,
+        vault_log_ref="output_spill.txt",
+    )
+    fake_registry = MagicMock()
+    fake_registry.list_processes.return_value = [info]
+    fake_store = MagicMock()
+    fake_store.list_recent.return_value = [store_record]
+    fake_store.get_by_job_id.return_value = store_record
+
+    with (
+        patch(
+            "myrm_agent_harness.api.hooks.get_background_registry",
+            return_value=fake_registry,
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_background_job_store",
+            return_value=fake_store,
+        ),
+    ):
+        rows = list_shell_background_tasks()
+
+    assert len(rows) == 1
+    assert rows[0].vault_log_ref == "output_spill.txt"
+
+
 def test_list_shell_background_tasks_maps_completed_and_preview() -> None:
     info = BackgroundProcessInfo(
         job_id="job-101",

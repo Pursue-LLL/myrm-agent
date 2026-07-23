@@ -1,10 +1,11 @@
-"""Consume AgentExecutor event streams: progress, streaming text, interactive approvals, silence reassurance.
+"""Consume AgentExecutor event streams: progress, streaming text, interactive approvals, silence heartbeat.
 
 [POS]
 RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance;
-methods constrain self via RouterStreamHost. Includes parallel reassurance loop for
-long-task silence detection. Placeholder throttle interval logic in
-router_stream_throttle.py (pure function, unit-testable). Logger name consistent with router package.
+methods constrain self via RouterStreamHost. Includes edit-in-place heartbeat loop
+for long-task silence detection (sends one message then edits it with elapsed time).
+Placeholder throttle interval logic in router_stream_throttle.py (pure function,
+unit-testable). Logger name consistent with router package.
 """
 
 from __future__ import annotations
@@ -470,12 +471,19 @@ class RouterStreamMixin:
         chat_id: str,
         state: dict[str, float | int | str],
     ) -> None:
-        """Send periodic reassurance messages during long silent periods.
+        """Edit-in-place heartbeat during long silent periods.
 
-        Runs as a parallel asyncio.Task alongside the executor stream consumption.
-        Monitors `state["last_activity"]` timestamp; when silence exceeds
-        _SILENCE_REASSURANCE_THRESHOLD, sends an i18n reassurance message via MessageBus.
+        First heartbeat sends a new message and saves its ``message_id``.
+        Subsequent heartbeats edit the same message with updated elapsed time
+        and stage info, avoiding message spam. Falls back to sending a new
+        message when the channel does not support editing or the edit fails.
         """
+        heartbeat_mid: str | None = None
+        loop_start = time.monotonic()
+
+        channel_obj = self._bus.get_channel(msg.channel)
+        can_edit = bool(channel_obj and channel_obj.capabilities.edit)
+
         sent_count = 0
         while sent_count < _MAX_REASSURANCE_COUNT:
             await asyncio.sleep(_SILENCE_REASSURANCE_THRESHOLD)
@@ -486,22 +494,33 @@ class RouterStreamMixin:
             steps = int(state["step_count"])
             stage = str(state["current_stage"])
             stage_suffix = f", {stage}" if stage else ""
+            elapsed_mins = int((time.monotonic() - loop_start) // 60)
             text = get_text(
-                msg, "reassurance_still_running", steps=steps, stage=stage_suffix,
+                msg, "reassurance_still_running",
+                steps=steps, stage=stage_suffix, elapsed=elapsed_mins,
             )
-            reply = OutboundMessage(
-                channel=msg.channel,
-                recipient_id=chat_id,
-                content=text,
-                user_id=msg.user_id or "",
-                thread_id=msg.thread_id,
-                priority=MessagePriority.SYSTEM,
-            )
+
             try:
-                await self._bus.send_tracked(reply)
+                if heartbeat_mid and can_edit:
+                    ok = await self._bus.edit_channel_message(
+                        msg.channel, chat_id, heartbeat_mid, text,
+                    )
+                    if not ok:
+                        heartbeat_mid = None
+                if not heartbeat_mid:
+                    reply = OutboundMessage(
+                        channel=msg.channel,
+                        recipient_id=chat_id,
+                        content=text,
+                        user_id=msg.user_id or "",
+                        thread_id=msg.thread_id,
+                        priority=MessagePriority.NORMAL,
+                    )
+                    heartbeat_mid = await self._bus.send_tracked(reply)
                 logger.info(
-                    "reassurance_sent channel=%s chat=%s count=%d steps=%d",
-                    msg.channel, chat_id, sent_count, steps,
+                    "reassurance_sent channel=%s chat=%s count=%d steps=%d elapsed_min=%d edit=%s",
+                    msg.channel, chat_id, sent_count, steps, elapsed_mins,
+                    heartbeat_mid is not None and can_edit,
                 )
             except Exception:
                 logger.warning(

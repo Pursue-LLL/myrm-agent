@@ -12262,7 +12262,7 @@
     "ephemeralRegistryNotice": "Long-running tasks are in-memory only and are lost when the server restarts or the sandbox is recreated.",
     "durableRegistryNotice": "Long-running task history is saved. Tasks interrupted by a restart show as Interrupted.",
     "processingCapsule": "Processing background tasks…",
-    "viewFullLog": "Open chat",
+    "viewFullLog": "View full log",
     "orphanedHint": "This job was interrupted when the service restarted. Run the command again if needed.",
     "trayTooltipIdle": "Myrm Agent - Idle",
     "trayTooltipBusy": "Myrm Agent - Running…",

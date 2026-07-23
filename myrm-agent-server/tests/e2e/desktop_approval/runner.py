@@ -97,14 +97,11 @@ async def run_desktop_approval_chrome_e2e(
                     break
                 progress(f"retry after: {last_error}")
                 try:
-                    await asyncio.to_thread(
-                        chat._client.navigate,
-                        chat._page,
-                        f"{BASE_URL.rstrip('/')}/",
-                        timeout_ms=120_000,
-                    )
+                    progress("retry reset: mux recover + reopen chat page")
+                    await asyncio.to_thread(chat._client.recover_mux_transport)
                     await asyncio.sleep(2.0)
-                    await chat.bootstrap(BASE_URL, navigate=True, timeout_sec=120.0)
+                    chat._page = await open_mcp_chat_page(chat._client)
+                    await chat.bootstrap(BASE_URL, navigate=False, timeout_sec=120.0)
                     await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
                     progress("new chat + ensure surface")
                     await chat.click_new_chat()

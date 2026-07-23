@@ -14,6 +14,7 @@
 [OUTPUT]
 - ChannelRetryHandler: RetryHandler 业务实现
 - ChannelUndoHandler: UndoHandler 业务实现
+- _revert_messages: best-effort file revert + restore_inbox notify
 
 [POS]
 将框架层的 RetryHandler / UndoHandler 协议映射到 ChatService 的
@@ -80,6 +81,7 @@ async def _revert_messages(session_id: str, message_ids: list[str]) -> RevertMes
 
     reverted_total = 0
     not_revertible_total = 0
+    reverted_paths: list[str] = []
     for mid in message_ids:
         try:
             changes = await RevertService.get_message_changes(session_id, mid)
@@ -89,11 +91,22 @@ async def _revert_messages(session_id: str, message_ids: list[str]) -> RevertMes
             result = await RevertService.revert_message(session_id, mid)
             reverted_total += len(result.reverted_files)
             if result.reverted_files:
+                reverted_paths.extend(result.reverted_files)
                 await cleanup_persisted_snapshots(session_id, mid)
             if result.warnings:
                 logger.debug("Revert warnings for message %s: %s", mid, result.warnings)
         except Exception:
             logger.warning("Failed to revert snapshots for message %s", mid, exc_info=True)
+
+    if reverted_paths:
+        from app.services.files.revert_agent_notify import notify_agent_of_turn_revert
+
+        notify_agent_of_turn_revert(
+            session_id=session_id,
+            message_id=None,
+            reverted_files=list(dict.fromkeys(reverted_paths)),
+        )
+
     return RevertMessagesOutcome(
         reverted_count=reverted_total,
         not_revertible_count=not_revertible_total,

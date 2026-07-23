@@ -11151,7 +11151,8 @@
     "goalStatusBudgetLimited": "Budget Limited",
     "goalStatusNeedsReview": "Needs Review",
     "goalStatusQueued": "Queued",
-    "goalActionSuccess": "Action completed"
+    "goalActionSuccess": "Action completed",
+    "viewFullLog": "Vollständiges Protokoll anzeigen"
   },
   "boot": {
     "title": "MyrmAgent",

@@ -12252,7 +12252,7 @@
     "ephemeralRegistryNotice": "所要時間タスクのみ保存で内存中，サービス再起動またはサンドボックス重建后会丢失。",
     "durableRegistryNotice": "所要時間タスク履歴済み保存。因サービス再起動中断のタスク会表示为「済み中断」。",
     "processingCapsule": "バックグラウンドタスク処理中…",
-    "viewFullLog": "開くセッション",
+    "viewFullLog": "完全なログを表示",
     "orphanedHint": "该タスクでサービス再起動时された中断。如が必須続行，してください重新規実行コマンド。",
     "trayTooltipIdle": "Myrm Agent - アイドル",
     "trayTooltipBusy": "Myrm Agent - タスク実行中…",

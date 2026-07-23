@@ -12233,7 +12233,7 @@
     "ephemeralRegistryNotice": "耗时任务仅保存在内存中，服务重启或沙箱重建后会丢失。",
     "durableRegistryNotice": "耗时任务历史已保存。因服务重启中断的任务会显示为「已中断」。",
     "processingCapsule": "后台任务处理中…",
-    "viewFullLog": "打开会话",
+    "viewFullLog": "查看完整日志",
     "orphanedHint": "该任务在服务重启时被中断。如需继续，请重新运行命令。",
     "trayTooltipIdle": "Myrm Agent - 空闲",
     "trayTooltipBusy": "Myrm Agent - 任务执行中…",

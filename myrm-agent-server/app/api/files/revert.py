@@ -163,12 +163,18 @@ async def get_session_diff(session_id: str) -> dict[str, list[FileDiffItem]]:
 @router.post("/message")
 async def revert_message(req: RevertMessageRequest) -> RevertResponse:
     """Revert all file changes from a specific message."""
+    from app.services.files.revert_agent_notify import notify_agent_of_turn_revert
     from app.services.files.revert_hydrate import cleanup_persisted_snapshots
 
     await _hydrate_session(req.session_id)
     result = await RevertService.revert_message(req.session_id, req.message_id)
     if result.reverted_files:
         await cleanup_persisted_snapshots(req.session_id, req.message_id)
+        notify_agent_of_turn_revert(
+            session_id=req.session_id,
+            message_id=req.message_id,
+            reverted_files=result.reverted_files,
+        )
     return RevertResponse(
         success=len(result.reverted_files) > 0,
         reverted_files=result.reverted_files,
@@ -180,12 +186,18 @@ async def revert_message(req: RevertMessageRequest) -> RevertResponse:
 @router.post("/session")
 async def revert_session(req: RevertSessionRequest) -> RevertResponse:
     """Revert all file changes in an entire session (all messages)."""
+    from app.services.files.revert_agent_notify import notify_agent_of_turn_revert
     from app.services.files.revert_hydrate import cleanup_persisted_snapshots
 
     await _hydrate_session(req.session_id)
     result = await RevertService.revert_session(req.session_id)
     if result.reverted_files:
         await cleanup_persisted_snapshots(req.session_id)
+        notify_agent_of_turn_revert(
+            session_id=req.session_id,
+            message_id=None,
+            reverted_files=result.reverted_files,
+        )
     return RevertResponse(
         success=len(result.reverted_files) > 0,
         reverted_files=result.reverted_files,

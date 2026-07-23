@@ -105,6 +105,24 @@ _start_backend_bg() {
         stored_fp="$(_read_stack_epoch_source_fingerprint)"
         current_fp="$(_backend_source_fingerprint "${server_dir}")"
         if [[ -n "${current_fp}" && ( -z "${stored_fp}" || "${stored_fp}" != "${current_fp}" ) ]]; then
+          local monorepo_root agent_root active_leases policy_py defer_reason
+          agent_root="$(cd "${server_dir}/.." && pwd)"
+          monorepo_root="$(cd "${agent_root}/.." && pwd)"
+          active_leases="$(_wave_active_lease_count "${monorepo_root}")"
+          if [[ "${active_leases}" != "0" ]]; then
+            policy_py="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py"
+            defer_reason="backend_source_drift"
+            if [[ -z "${stored_fp}" ]]; then
+              defer_reason="backend_source_fingerprint_missing"
+            fi
+            python3 "${policy_py}" record-pending \
+              --state-dir "${state_dir}" \
+              --reason "${defer_reason}" \
+              --server-dir "${server_dir}" >/dev/null 2>&1 || true
+            echo "CHROME_E2E_ATTACH: defer backend reload (${active_leases} active wave leases)" >&2
+            echo "Backend already running (pid ${old_pid})"
+            return 0
+          fi
           if [[ -z "${stored_fp}" ]]; then
             echo "STACK_WARN: shared backend missing source_fingerprint — reloading pid=${old_pid}" >&2
           else

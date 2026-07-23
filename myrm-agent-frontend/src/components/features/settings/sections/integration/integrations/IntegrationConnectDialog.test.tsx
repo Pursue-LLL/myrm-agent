@@ -376,19 +376,19 @@ describe('IntegrationConnectDialog', () => {
   });
 
   it.each([
-    ['connection_refused', 'probeConnectionRefused'],
-    ['connection_unreachable', 'probeConnectionUnreachable'],
-    ['connection_timeout', 'probeConnectionTimeout'],
-    ['probe_failed_unknown', 'probeUnknownFailure'],
-    ['unexpected_reason_code', 'probeUnknownFailure'],
-  ])('shows localized probe message for %s', async (reasonCode, expectedMessageKey) => {
+    ['connection_refused', 'probeConnectionRefused', 'start_local_editor_mcp'],
+    ['connection_unreachable', 'probeConnectionUnreachable', 'verify_local_network_and_editor'],
+    ['connection_timeout', 'probeConnectionTimeout', 'verify_local_network_and_editor'],
+    ['probe_failed_unknown', 'probeUnknownFailure', 'verify_local_network_and_editor'],
+    ['unexpected_reason_code', 'probeUnknownFailure', 'start_local_editor_mcp'],
+  ])('shows localized probe message for %s', async (reasonCode, expectedMessageKey, recommendedMode) => {
     const onClose = vi.fn();
     mockIsSandbox.mockReturnValue(false);
     mockApiRequest.mockResolvedValueOnce({
       status: 'unreachable',
       reasonCode,
       shouldBlockConnect: true,
-      recommendedMode: 'start_local_editor_mcp',
+      recommendedMode,
       error: 'raw backend detail should not be exposed in toc',
     });
 

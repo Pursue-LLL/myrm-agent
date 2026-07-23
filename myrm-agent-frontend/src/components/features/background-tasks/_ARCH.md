@@ -11,7 +11,7 @@ Shell 完成刷新：`useGlobalEvents` 收到 `SYSTEM_NOTIFICATION`（`meta.kind
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `BackgroundTasksPanel.tsx` | ✅ 核心 | NavBar Popover 壳层：轮询、SSE refresh、分区编排；`vault_log_ref` 时复用 `EvictedOutputDrawer` 查看完整 spill 日志 | ✅ |
-| `BackgroundTaskRow.tsx` | ✅ 核心 | 单条 Shell/Agent 任务行（progress、running/completed `result_preview`、Cancel `data-testid=background-task-cancel`、Steer、`viewFullLog` → Drawer） | ✅ |
+| `BackgroundTaskRow.tsx` | ✅ 核心 | 单条 Shell/Agent 任务行（progress、running/completed `result_preview`、Cancel `data-testid=background-task-cancel`、Steer、`viewFullLog`「查看完整日志 / View full log」→ Drawer；`navigate` 为跳转会话） | ✅ |
 | `ActiveGoalsSection.tsx` | ✅ 核心 | Active Goals 列表与 pause/resume/cancel | ✅ |
 | `backgroundTasksPanel.constants.ts` | 辅助 | 轮询间隔、状态样式映射与 Goal 类型常量 | ✅ |
 

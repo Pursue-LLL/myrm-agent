@@ -46,6 +46,8 @@ def is_retriable_page_transport(exc: BaseException) -> bool:
     message = str(exc).lower()
     if "detached frame" in message:
         return True
+    if "not owned by this shim session" in message:
+        return True
     if "no mcpage found for the given page" in message:
         return True
     if is_mux_new_page_retriable(exc):

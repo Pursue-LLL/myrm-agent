@@ -828,6 +828,11 @@ async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONRespon
 
     parsed = urlparse(body.url)
     hostname = parsed.hostname or ""
+    safe_probe_host = parsed.hostname or ""
+    if ":" in safe_probe_host and not safe_probe_host.startswith("["):
+        safe_probe_host = f"[{safe_probe_host}]"
+    safe_probe_port = f":{parsed.port}" if parsed.port is not None else ""
+    safe_probe_target = f"{parsed.scheme}://{safe_probe_host}{safe_probe_port}{parsed.path}"
     if hostname not in ("127.0.0.1", "localhost", "::1", "0.0.0.0"):
         from app.core.utils.errors import validation_error
 
@@ -881,11 +886,13 @@ async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONRespon
             should_block_connect=True,
         )
         return success_response(data=data.model_dump(by_alias=True))
-    except Exception as e:
+    except Exception:
+        logger.exception("Unexpected MCP probe failure for target=%s", safe_probe_target)
         data = MCPProbeData(
             status="unreachable",
-            error=str(e),
+            error="Connectivity check failed unexpectedly — verify editor MCP settings and retry",
             reason_code="probe_failed_unknown",
+            recommended_mode="verify_local_network_and_editor",
             should_block_connect=True,
         )
         return success_response(data=data.model_dump(by_alias=True))
