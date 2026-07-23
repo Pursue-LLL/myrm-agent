@@ -236,18 +236,21 @@ describe('filterNodes', () => {
     const result = filterNodes(makeTree(), 'running');
     expect(result).toHaveLength(1);
     expect(result[0].task_id).toBe('run');
+    expect(result[0].children).toEqual([]);
   });
 
   it('failed filters to failed/timed_out/interrupted', () => {
     const result = filterNodes(makeTree(), 'failed');
     expect(result).toHaveLength(1);
     expect(result[0].task_id).toBe('root');
+    expect(result[0].children).toEqual([]);
   });
 
   it('leaf filters to nodes without children', () => {
     const result = filterNodes(makeTree(), 'leaf');
     expect(result).toHaveLength(2);
     expect(result.map((n) => n.task_id).sort()).toEqual(['leaf', 'run']);
+    result.forEach((n) => expect(n.children).toEqual([]));
   });
 });
 

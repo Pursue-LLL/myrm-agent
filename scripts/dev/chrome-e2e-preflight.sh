@@ -728,6 +728,7 @@ _ensure_mux_daemon() {
 
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
   if [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
+    _smp_apply_pending_drift_if_idle "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh" || true
     _smp_attach_backend_drift_heal "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh"
   fi
   _heal_mux_request_timeout_drift

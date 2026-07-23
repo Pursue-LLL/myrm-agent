@@ -86,7 +86,18 @@ export default function SessionRevertButton({ sessionId }: SessionRevertButtonPr
       if (result.reverted_files.length > 0) {
         setStatus('success');
         window.dispatchEvent(new CustomEvent('app_resync_required'));
-        toast({ title: t('revertSessionSuccess'), variant: 'default' });
+        const skippedTotal =
+          result.skipped_files.length > 0 ? result.skipped_files.length : skippedCount;
+        toast({
+          title:
+            skippedTotal > 0
+              ? t('revertSessionSuccessPartial', {
+                  count: result.reverted_files.length,
+                  skipped: skippedTotal,
+                })
+              : t('revertSessionSuccess'),
+          variant: 'default',
+        });
         setTimeout(() => setStatus('idle'), 2000);
         return;
       }
@@ -98,7 +109,7 @@ export default function SessionRevertButton({ sessionId }: SessionRevertButtonPr
       toast({ title: t('revertSessionFetchError'), variant: 'destructive' });
       setStatus('idle');
     }
-  }, [sessionId, t]);
+  }, [sessionId, skippedCount, t]);
 
   const chipClassName =
     'inline-flex items-center justify-center rounded-full border border-border/70 bg-muted/40 p-1.5 text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-60';

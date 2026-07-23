@@ -1222,6 +1222,25 @@ class TestHandleUndo:
         assert "4" in reply.content
 
     @pytest.mark.asyncio
+    async def test_undo_only_not_revertible_files(self) -> None:
+        from app.channels.protocols.turn_management import UndoResult
+
+        msg = _make_msg(content="/undo")
+        bus = _mock_bus()
+        resolver = _mock_resolver()
+
+        handler = AsyncMock(return_value=UndoResult(
+            success=True, deleted_count=2, reverted_count=0, files_not_revertible=3,
+        ))
+
+        await handle_undo(msg, bus, resolver, undo_handler=handler)
+
+        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
+        assert "2" in reply.content
+        assert "3" in reply.content
+        assert "revert" not in reply.content.lower().split("\n")[0]
+
+    @pytest.mark.asyncio
     async def test_undo_zero_reverted_no_revert_line(self) -> None:
         from app.channels.protocols.turn_management import UndoResult
 

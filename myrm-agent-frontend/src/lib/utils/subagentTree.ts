@@ -182,13 +182,14 @@ export function filterNodes(nodes: TreeNode[], mode: FilterMode): TreeNode[] {
   if (mode === 'all') return nodes;
 
   const flat = flattenTree(nodes);
+  const strip = (n: TreeNode): TreeNode => ({ ...n, children: [] });
   switch (mode) {
     case 'running':
-      return flat.filter(n => n.status === 'running' || n.status === 'verifying');
+      return flat.filter(n => n.status === 'running' || n.status === 'verifying').map(strip);
     case 'failed':
-      return flat.filter(n => FAILED_STATUSES.has(n.status));
+      return flat.filter(n => FAILED_STATUSES.has(n.status)).map(strip);
     case 'leaf':
-      return flat.filter(n => n.children.length === 0);
+      return flat.filter(n => n.children.length === 0).map(strip);
     default:
       return nodes;
   }

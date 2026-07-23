@@ -95,7 +95,7 @@ const UTILITY_CLASSES = `
 .font-normal{font-weight:400}.font-medium{font-weight:500}.font-semibold{font-weight:600}.font-bold{font-weight:700}
 .text-left{text-align:left}.text-center{text-align:center}.text-right{text-align:right}
 .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tabular-nums{font-variant-numeric:tabular-nums}
-.rounded{border-radius:8px}.rounded-full{border-radius:8px}.rounded-lg{border-radius:12px}.rounded-xl{border-radius:16px}.rounded-full{border-radius:9999px}
+.rounded{border-radius:8px}.rounded-md{border-radius:6px}.rounded-lg{border-radius:12px}.rounded-xl{border-radius:16px}.rounded-full{border-radius:9999px}
 .border{border:1px solid var(--widget-border)}.border-0{border-width:0}.border-t{border-top:1px solid var(--widget-border)}.border-b{border-bottom:1px solid var(--widget-border)}
 .overflow-hidden{overflow:hidden}.overflow-auto{overflow:auto}.overflow-x-auto{overflow-x:auto}
 .relative{position:relative}.absolute{position:absolute}.inset-0{top:0;right:0;bottom:0;left:0}

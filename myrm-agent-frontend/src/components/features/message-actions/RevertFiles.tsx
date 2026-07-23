@@ -146,11 +146,26 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
         body: JSON.stringify({ session_id: chatId, message_id: messageId }),
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as {
+          success: boolean;
+          reverted_files?: string[];
+          skipped_files?: string[];
+        };
         if (data.success) {
           setStatus('success');
           window.dispatchEvent(new CustomEvent('app_resync_required'));
-          toast({ title: t('revertMessageSuccess'), variant: 'default' });
+          const revertedCount = data.reverted_files?.length ?? 0;
+          const skippedTotal = data.skipped_files?.length ?? 0;
+          toast({
+            title:
+              skippedTotal > 0
+                ? t('revertMessageSuccessPartial', {
+                    count: revertedCount,
+                    skipped: skippedTotal,
+                  })
+                : t('revertMessageSuccess'),
+            variant: 'default',
+          });
         } else {
           setStatus('error');
         }

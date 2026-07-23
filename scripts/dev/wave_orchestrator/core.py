@@ -189,6 +189,8 @@ def reap(*, paths: WavePaths | None = None) -> dict[str, object]:
     closed, failed = _prune_infra_browser_registry()
     result["infraPruneClosed"] = closed
     result["infraPruneFailed"] = failed
+    if int(result.get("activeLeaseCount", 0)) == 0:
+        _maybe_apply_pending_drift_after_release(paths=resolved)
     return result
 
 
@@ -270,6 +272,7 @@ def close_wave(
     if force:
         for lease in released_leases:
             _cleanup_released_lease(lease, paths=resolved)
+    _maybe_apply_pending_drift_after_release(paths=resolved)
     return closed
 
 

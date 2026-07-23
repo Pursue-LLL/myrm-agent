@@ -13,11 +13,15 @@ policy (allow-scripts without allow-same-origin), so this table backs a
 postMessage-based storage bridge.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, Index, String, Text
 
 from app.database.models.base import Base
+
+
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
 
 
 class WidgetKVEntry(Base):
@@ -32,4 +36,4 @@ class WidgetKVEntry(Base):
     key = Column(String(256), primary_key=True, nullable=False)
     value = Column(Text, nullable=False)
     chat_id = Column(String(36), nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
