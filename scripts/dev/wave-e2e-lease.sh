@@ -24,6 +24,12 @@ case "${1:-}" in
         echo "E2E_NAMESPACE_REQUIRED: ./myrm test must provide MYRM_E2E_NAMESPACE" >&2
         exit 2
       }
+    elif [[ "${lane}" == "LIVE_AGENT" ]]; then
+      if [[ "${MYRM_E2E_SHARED_HOT:-0}" == "1" ]]; then
+        namespace="e2e:shared_hot"
+      elif [[ "${MYRM_E2E_SHPOIB:-0}" == "1" ]]; then
+        namespace="e2e:shpoib"
+      fi
     fi
     _wave_acquire_owned_lease_with_wait "${WAVE}" "myrm-test-e2e" "${lane}" "${namespace}"
     ;;

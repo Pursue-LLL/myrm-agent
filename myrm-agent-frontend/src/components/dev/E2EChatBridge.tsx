@@ -8,6 +8,7 @@
  *
  * [OUTPUT]
  * - E2EChatBridge: localhost dev-only `window.__MYRM_E2E_CHAT__` for CDP Chrome E2E
+ * - pinLiteModelForE2e: bind agent chat to defaultModelConfig.liteModel (API E2E parity)
  *
  * [POS]
  * App shell dev bridge。在 MessageInput 水合前挂载，供 CDP/MCP E2E 驱动聊天与 Goal 模式（非终端用户功能）。
@@ -29,6 +30,7 @@ import { markLocalBackendUnreachable } from '@/lib/backend-health';
 import { fetchWithTimeout } from '@/lib/api';
 import { getApiBaseUrl, resolveE2eApiBase as resolveInjectedE2eApiBase } from '@/lib/deploy-mode';
 import { markPlatformUnreachable } from '@/lib/platform-readiness';
+import { isModelAvailable } from '@/lib/model-binding';
 
 function isLocalDevHost(): boolean {
   if (typeof window === 'undefined') return false;
@@ -555,6 +557,39 @@ export default function E2EChatBridge() {
         });
       },
       getCurrentBuiltinTools: () => [...useChatStore.getState().currentBuiltinTools],
+      pinLiteModelForE2e: async () => {
+        await initProvidersForE2e();
+        prepareAutomationSend();
+        const { defaultModelConfig, providers } = useProviderStore.getState();
+        const litePrimary = defaultModelConfig?.liteModel?.primary;
+        if (!litePrimary?.providerId || !litePrimary?.model) {
+          throw new Error('e2e-lite-model-unconfigured');
+        }
+        if (!isModelAvailable(litePrimary, providers)) {
+          throw new Error(
+            `e2e-lite-model-unavailable:${litePrimary.providerId}/${litePrimary.model}`,
+          );
+        }
+        const selection = {
+          providerId: litePrimary.providerId,
+          model: litePrimary.model,
+        };
+        flushSync(() => {
+          const chat = useChatStore.getState();
+          if (chat.agentConfig) {
+            chat.updateAgentConfig({ modelSelection: selection });
+            return;
+          }
+          chat.setAgentConfig({
+            modelSelection: selection,
+            enabledBuiltinTools: [...chat.currentBuiltinTools],
+            selectedSkillIds: [],
+            selectedMcpNames: [],
+            systemPrompt: '',
+          });
+        });
+        return selection;
+      },
       setBrowserSource: (source: string) => {
         flushSync(() => {
           const chat = useChatStore.getState();

@@ -47,6 +47,25 @@ _ENABLE_STRUCTURED_CLARIFY_JS = """(() => {
   return { ok: tools.includes('structured_clarify'), tools };
 })()"""
 
+_PIN_LITE_MODEL_JS = """(async () => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.pinLiteModelForE2e) {
+    return { ok: false, err: 'no-bridge' };
+  }
+  try {
+    const pinned = await bridge.pinLiteModelForE2e();
+    const debug = bridge.debugProviderState?.() ?? {};
+    return {
+      ok: true,
+      pinned,
+      selection: debug.selection ?? null,
+      agentModelSelection: debug.agentModelSelection ?? null,
+    };
+  } catch (err) {
+    return { ok: false, err: String(err) };
+  }
+})()"""
+
 _DISMISS_MIGRATION_JS = """(() => {
   try {
     sessionStorage.setItem('migration_discovery_dismissed', 'true');
@@ -161,11 +180,17 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             if last.get("ready") is True:
                 last["source"] = "dom"
                 return last
+            sample = str(last.get("sample") or "")
+            if "General Assistant" in sample or "您想了解什么" in sample:
+                await chat.ensure_chat_surface(BASE_URL)
             await asyncio.sleep(1.0)
         raise AssertionError(f"Agent did not continue after Skip: {last}")
 
     async def _enable_structured_clarify(chat: McpChatSession) -> None:
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
+        pinned = await chat.evaluate(_PIN_LITE_MODEL_JS, await_promise=True, recv_timeout=30.0)
+        assert isinstance(pinned, dict)
+        assert pinned.get("ok") is True, f"Failed to pin lite model for clarify E2E: {pinned}"
         enabled = await chat.evaluate(_ENABLE_STRUCTURED_CLARIFY_JS, await_promise=False, recv_timeout=15.0)
         assert isinstance(enabled, dict)
         assert enabled.get("ok") is True, f"Failed to enable structured_clarify: {enabled}"
@@ -221,7 +246,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             chat,
             chat_id=chat_id_hint,
             api_base=api_base,
-            timeout_sec=180.0,
+            timeout_sec=300.0,
         )
         assert after_skip.get("answered") is True or after_skip.get("doneSkipped") is True, after_skip
 

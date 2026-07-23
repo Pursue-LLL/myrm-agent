@@ -30,7 +30,7 @@
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
 | `chrome-e2e-preflight.sh` | Unix | 首 Agent 完整 reconcile/client_hot；attach 聚合快照；private backend 路径 `_wait_shared_ui_reachable`（默认 180s）；`MYRM_PRIVATE_BACKEND=1` 时 attach 阶段**仅**等待 `api=` 错误（shared UI 只等一次）；**mux timeout SSOT** `CDMCP_MUX_REQUEST_TIMEOUT_MS` 默认 **180000**；attach `_heal_mux_request_timeout_drift`：active Wave leases>0 时 **禁止 mux restart**、探活 timeout=`min(8+leases×3,45)s` + 3 轮退避、daemon 存活则 WARN 继续；否则 stamp 漂移时重启 daemon；`mux_responsive_probe.py --probe-timeout-sec`；输出 `CHROME_E2E_HEALTH_JSON` |
 | `chrome-e2e-model-seed.mjs` | Bun | 新对话 UI E2E 前置：无 defaultModel 时从 `.env.test` 写入 providers |
-| `chrome-e2e-seed-providers.mjs` | Bun | seed 逻辑模块（local 模式免 WebUI 登录） |
+| `chrome-e2e-seed-providers.mjs` | Bun | seed 逻辑模块（local 模式免 WebUI 登录；`LITE_MODEL` → `liteModel.primary`；已有 default 时 env 漂移 patch） |
 | `wave-resource-lease.sh` | Unix | `./myrm` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |
 | `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — GLOBAL_WRITE lease + config snapshot restore + ledger register chat；API prepare + UI MCP |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |

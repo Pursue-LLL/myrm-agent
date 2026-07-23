@@ -100,6 +100,8 @@ interface Window {
     }>;
     setCurrentBuiltinTools?: (tools: string[]) => void;
     getCurrentBuiltinTools?: () => string[];
+    /** CDP E2E: pin agent chat to defaultModelConfig.liteModel (matches API get_lite_model_selection). */
+    pinLiteModelForE2e?: () => Promise<{ providerId: string; model: string }>;
     setBrowserSource?: (source: string) => void;
     getBrowserSource?: () => string | null | undefined;
     ensureComputerUseReady?: () => void;

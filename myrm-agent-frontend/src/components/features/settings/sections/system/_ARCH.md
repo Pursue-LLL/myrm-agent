@@ -109,7 +109,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `HeartbeatSection.tsx` | 心跳监控 |
+| `HeartbeatSection.tsx` | 心跳巡检配置（含 Agent 绑定 + 模型继承显示） |
 | `CompanionSection.tsx` | 伴侣模式配置 |
 | `CronSection.tsx` | 定时任务管理 |
 | `DLQSection.tsx` | 死信队列管理 |

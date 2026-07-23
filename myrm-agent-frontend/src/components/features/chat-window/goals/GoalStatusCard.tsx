@@ -23,6 +23,7 @@ const KNOWN_GOAL_REASON_KEYS: Record<string, string> = {
   'Goal completed via complete_goal_tool': 'reasonToolComplete',
   'Budget exhausted': 'reasonBudgetExhausted',
   'Wait timeout exceeded — goal paused': 'reasonWaitTimeout',
+  'Sandbox boundary violation — goal paused for human review': 'reasonSandboxBoundary',
 };
 
 function translateGoalReason(reason: string | undefined, t: (key: string) => string): string | undefined {
@@ -31,6 +32,12 @@ function translateGoalReason(reason: string | undefined, t: (key: string) => str
   if (key) return t(key);
   if (reason.startsWith('No new progress for ') && reason.includes('convergence reached')) {
     return t('reasonConvergence');
+  }
+  if (reason.startsWith('Goal drift detected')) {
+    return t('reasonDriftDetected');
+  }
+  if (reason.startsWith('Sandbox boundary violation')) {
+    return t('reasonSandboxBoundary');
   }
   return reason;
 }
@@ -402,6 +409,8 @@ export function GoalStatusCard() {
       case 'active':
         return <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />;
       case 'paused':
+        if (goal.verdict === 'drift_pause')
+          return <AlertIcon className="h-4 w-4 text-orange-500 animate-pulse" />;
         return <PauseIcon className="h-4 w-4 text-yellow-500" />;
       case 'wait':
         return <PauseIcon className="h-4 w-4 text-blue-500 animate-pulse" />;
@@ -425,6 +434,7 @@ export function GoalStatusCard() {
         }
         return t('statusActive');
       case 'paused':
+        if (goal.verdict === 'drift_pause') return t('statusDriftPaused');
         return t('statusPaused');
       case 'wait':
         return t('statusWait');

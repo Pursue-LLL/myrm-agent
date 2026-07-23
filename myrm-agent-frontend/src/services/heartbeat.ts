@@ -11,6 +11,7 @@ export interface HeartbeatStatus {
   schedule_description: string | null;
   prompt: string | null;
   model: string | null;
+  agent_id: string | null;
   last_run_at: string | null;
   last_status: string | null;
   next_run_at: string | null;
@@ -24,6 +25,7 @@ export interface HeartbeatEnableRequest {
   timezone?: string;
   prompt?: string;
   model?: string;
+  agent_id?: string;
 }
 
 export async function getHeartbeatStatus(): Promise<HeartbeatStatus> {

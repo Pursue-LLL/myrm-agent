@@ -14,12 +14,26 @@ Lane scheduling policy. Encodes READ/RESOURCE_WRITE/GLOBAL_WRITE/LIVE_AGENT/STAC
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 
+_dev_lib = Path(__file__).resolve().parent.parent / "lib"
+_dev_lib_str = str(_dev_lib)
+if _dev_lib_str not in sys.path:
+    sys.path.insert(0, _dev_lib_str)
+
+from dev_gate_contract import (
+    LIVE_SHARED_HOT_MAX_CONCURRENT,
+    LIVE_SHPOIB_MAX_CONCURRENT,
+)
 from wave_orchestrator.types import Lane, LeaseRecord
 
 ALL_LANES: frozenset[Lane] = frozenset(
     {"READ", "RESOURCE_WRITE", "GLOBAL_WRITE", "LIVE_AGENT", "STACK_WRITE"}
 )
+
+LIVE_E2E_SHPOIB_NAMESPACE = "e2e:shpoib"
+LIVE_E2E_SHARED_HOT_NAMESPACE = "e2e:shared_hot"
 
 
 def live_agent_max_concurrent() -> int:
@@ -29,6 +43,20 @@ def live_agent_max_concurrent() -> int:
     except ValueError:
         return 1
     return max(value, 1)
+
+
+def _live_agent_bucket(lease: LeaseRecord) -> str:
+    ns = str(lease.get("namespace", "")).strip()
+    if ns == LIVE_E2E_SHARED_HOT_NAMESPACE:
+        return "shared_hot"
+    return "shpoib"
+
+
+def _live_agent_bucket_for_namespace(namespace: str) -> str:
+    ns = namespace.strip()
+    if ns == LIVE_E2E_SHARED_HOT_NAMESPACE:
+        return "shared_hot"
+    return "shpoib"
 
 
 def lane_conflict_reason(
@@ -72,10 +100,25 @@ def lane_conflict_reason(
         global_holders = [item for item in active if item["lane"] == "GLOBAL_WRITE"]
         if global_holders:
             return "LEASE_DENIED: GLOBAL_WRITE lease active"
-        live_count = sum(1 for item in active if item["lane"] == "LIVE_AGENT")
+        live_leases = [item for item in active if item["lane"] == "LIVE_AGENT"]
+        acquiring_bucket = _live_agent_bucket_for_namespace(ns)
+        if acquiring_bucket == "shared_hot":
+            shared_hot_count = sum(
+                1 for item in live_leases if _live_agent_bucket(item) == "shared_hot"
+            )
+            if shared_hot_count >= LIVE_SHARED_HOT_MAX_CONCURRENT:
+                return (
+                    "LEASE_DENIED: LIVE_AGENT shared_hot cap "
+                    f"{LIVE_SHARED_HOT_MAX_CONCURRENT} reached"
+                )
+            return None
+        shpoib_count = sum(
+            1 for item in live_leases if _live_agent_bucket(item) == "shpoib"
+        )
         cap = live_agent_max_concurrent()
-        if live_count >= cap:
-            return f"LEASE_DENIED: LIVE_AGENT cap {cap} reached"
+        shpoib_cap = min(LIVE_SHPOIB_MAX_CONCURRENT, cap)
+        if shpoib_count >= shpoib_cap:
+            return f"LEASE_DENIED: LIVE_AGENT SHPOIB cap {shpoib_cap} reached"
         return None
 
     if lane == "RESOURCE_WRITE":

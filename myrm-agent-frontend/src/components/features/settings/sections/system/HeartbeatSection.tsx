@@ -1,7 +1,7 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { ConfigLoadError } from '@/components/features/app-shell/config-load-error';
 import { Skeleton } from '@/components/primitives/skeleton';
 import {
@@ -13,6 +13,7 @@ import {
   IconSun,
   IconZap,
 } from '@/components/features/icons/PremiumIcons';
+import { Bot } from 'lucide-react';
 import { toast } from 'sonner';
 import { Label } from '@/components/primitives/label';
 import { Textarea } from '@/components/primitives/textarea';
@@ -20,6 +21,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Toggle from '@/components/features/settings/common/Toggle';
 import SettingsSection from '../SettingsSection';
 import { enableHeartbeat, disableHeartbeat, getHeartbeatStatus } from '@/services/heartbeat';
+import useAgentStore from '@/store/useAgentStore';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 
 import type { HeartbeatEnableRequest, HeartbeatStatus, ScheduleKind } from '@/services/heartbeat';
 
@@ -101,6 +104,7 @@ const RHYTHM_PRESETS: RhythmPreset[] = [
 
 const HeartbeatSection = memo(() => {
   const t = useTranslations('heartbeat');
+  const locale = useLocale();
   const [status, setStatus] = useState<HeartbeatStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
@@ -114,6 +118,9 @@ const HeartbeatSection = memo(() => {
   const [cronDayPreset, setCronDayPreset] = useState<DayPreset>('everyday');
   const [timezone, setTimezone] = useState(getSystemTimezone);
   const [customPrompt, setCustomPrompt] = useState('');
+  const [agentId, setAgentId] = useState('__default__');
+
+  const { agents, fetchAgents } = useAgentStore();
 
   const fetchStatus = useCallback(() => {
     setLoading(true);
@@ -135,6 +142,7 @@ const HeartbeatSection = memo(() => {
           if (s.interval_ms) setIntervalMs(String(s.interval_ms));
         }
         if (s.prompt) setCustomPrompt(s.prompt);
+        setAgentId(s.agent_id ?? '__default__');
       })
       .catch(() => {
         if (!cancelled) setFetchError(true);
@@ -147,22 +155,39 @@ const HeartbeatSection = memo(() => {
     };
   }, []);
 
-  useEffect(fetchStatus, [fetchStatus]);
+  useEffect(() => {
+    fetchStatus();
+    fetchAgents();
+  }, [fetchStatus, fetchAgents]);
+
+  const selectedAgent = useMemo(
+    () => (agentId !== '__default__' ? agents.find((a) => a.id === agentId) : undefined),
+    [agentId, agents],
+  );
+
+  const inheritedModel = useMemo(() => {
+    const ms = selectedAgent?.model_selection;
+    if (!ms?.model) return null;
+    return `${ms.providerId}/${ms.model}`;
+  }, [selectedAgent]);
 
   const buildEnableParams = useCallback((): HeartbeatEnableRequest => {
+    const agentParam = agentId !== '__default__' ? agentId : undefined;
     if (scheduleMode === 'cron') {
       return {
         schedule_kind: 'cron',
         cron_expr: buildCronExpr(cronHour, cronMinute, cronDayPreset),
         timezone,
         prompt: customPrompt || undefined,
+        agent_id: agentParam,
       };
     }
     return {
       interval_ms: Number(intervalMs),
       prompt: customPrompt || undefined,
+      agent_id: agentParam,
     };
-  }, [scheduleMode, cronHour, cronMinute, cronDayPreset, timezone, intervalMs, customPrompt]);
+  }, [scheduleMode, cronHour, cronMinute, cronDayPreset, timezone, intervalMs, customPrompt, agentId]);
 
   const handleToggle = useCallback(async () => {
     if (!status) return;
@@ -394,6 +419,34 @@ const HeartbeatSection = memo(() => {
               {timezone}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Agent Binding */}
+      {agents.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium flex items-center gap-1.5">
+            <Bot className="h-3.5 w-3.5" />
+            {t('agentLabel')}
+          </Label>
+          <Select value={agentId} onValueChange={setAgentId} disabled={isDisabled}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue placeholder={t('agentDefault')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__default__">{t('agentDefault')}</SelectItem>
+              {agents.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {getBuiltinAgentName(a.id, a.name, locale)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {inheritedModel && (
+            <p className="text-xs text-muted-foreground">
+              {t('agentModelHint', { model: inheritedModel })}
+            </p>
+          )}
         </div>
       )}
 

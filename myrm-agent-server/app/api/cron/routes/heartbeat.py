@@ -49,6 +49,7 @@ def _job_to_response(job: CronJob, enabled: bool) -> HeartbeatStatusResponse:
         schedule_description=describe_schedule(sched),
         prompt=job.prompt,
         model=job.model,
+        agent_id=job.agent_id,
         last_run_at=job.last_run_at,
         last_status=job.last_status.value if job.last_status else None,
         next_run_at=job.next_run_at,
@@ -109,6 +110,7 @@ async def heartbeat_enable(body: HeartbeatEnableRequest) -> HeartbeatStatusRespo
             schedule=schedule,
             prompt=body.prompt,
             model=body.model,
+            agent_id=body.agent_id,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

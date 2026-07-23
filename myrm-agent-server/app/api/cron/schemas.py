@@ -445,6 +445,7 @@ class HeartbeatEnableRequest(BaseModel):
     )
     prompt: str | None = None
     model: str | None = None
+    agent_id: str | None = None
 
 
 class HeartbeatStatusResponse(BaseModel):
@@ -456,6 +457,7 @@ class HeartbeatStatusResponse(BaseModel):
     schedule_description: str | None = None
     prompt: str | None = None
     model: str | None = None
+    agent_id: str | None = None
     last_run_at: datetime | None = None
     last_status: str | None = None
     next_run_at: datetime | None = None

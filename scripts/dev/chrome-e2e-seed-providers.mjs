@@ -1,6 +1,6 @@
 /**
  * Idempotent provider + defaultModelConfig seed for Chrome MCP UI E2E.
- * Requires BASIC_MODEL, BASIC_API_KEY (from .env.test).
+ * Requires BASIC_MODEL, BASIC_API_KEY (from .env.test); optional LITE_MODEL seeds liteModel.primary.
  * Local dev: /api/v1/config works without WebUI session (see config/router.py local mode).
  */
 
@@ -41,6 +41,40 @@ function stripProviderPrefix(model) {
   return model.split('/').slice(1).join('/');
 }
 
+function providerType(providerId) {
+  const normalized = providerId.replace(/-/g, '_');
+  if (normalized === 'minimax') {
+    return 'minimax';
+  }
+  if (normalized === 'openai' || normalized === 'openai_like' || normalized === 'openai_compatible') {
+    return 'openai';
+  }
+  return normalized;
+}
+
+function buildProviderEntry({ providerId, modelId, apiUrl, apiKey }) {
+  return {
+    id: providerId,
+    name: providerId === 'minimax' ? 'MiniMax' : providerId,
+    routingProfile: providerId,
+    isBuiltIn: providerId === 'minimax',
+    isEnabled: true,
+    apiUrl,
+    apiKeys: [{ key: apiKey, isActive: true }],
+    enabledModels: [modelId],
+    availableModels: [modelId],
+    providerType: providerType(providerId),
+  };
+}
+
+function mergeProviders(basicEntry, liteEntry) {
+  if (!liteEntry || basicEntry.id === liteEntry.id) {
+    const mergedModels = [...new Set([...basicEntry.enabledModels, ...(liteEntry?.enabledModels ?? [])])];
+    return [{ ...basicEntry, enabledModels: mergedModels, availableModels: mergedModels }];
+  }
+  return [basicEntry, liteEntry];
+}
+
 async function putConfig(configKey, value) {
   const res = await apiFetch(`/api/v1/config/${configKey}`, {
     method: 'PUT',
@@ -62,44 +96,148 @@ async function hasDefaultModel() {
   return Boolean(primary?.providerId && primary?.model);
 }
 
+async function readProvidersConfig() {
+  const res = await apiFetch('/api/v1/config/providers');
+  if (!res.ok) {
+    return null;
+  }
+  const body = await res.json();
+  return body?.value ?? body;
+}
+
+async function ensureLiteModelFromEnv(existingConfig) {
+  const liteModelRaw = process.env.LITE_MODEL?.trim();
+  if (!liteModelRaw) {
+    return { patched: false, reason: 'no_lite_env' };
+  }
+  const config = existingConfig ?? (await readProvidersConfig());
+  if (!config) {
+    return { patched: false, reason: 'providers_unreadable' };
+  }
+  const litePrimary = config?.defaultModelConfig?.liteModel?.primary;
+  const expectedProviderId = inferProviderId(liteModelRaw);
+  const expectedModelId = stripProviderPrefix(liteModelRaw);
+  if (
+    litePrimary?.providerId === expectedProviderId &&
+    litePrimary?.model === expectedModelId
+  ) {
+    return { patched: false, reason: 'lite_already_configured', litePrimary };
+  }
+
+  const basicKey = process.env.BASIC_API_KEY?.trim();
+  const liteKey = process.env.LITE_API_KEY?.trim() || basicKey;
+  if (!liteKey) {
+    throw new Error('Missing LITE_API_KEY or BASIC_API_KEY for lite model seed');
+  }
+  const basicUrl = process.env.BASIC_BASE_URL?.trim() || 'https://api.minimaxi.com/v1';
+  const liteUrl = process.env.LITE_BASE_URL?.trim() || basicUrl;
+  const liteProviderId = inferProviderId(liteModelRaw);
+  const liteModelId = stripProviderPrefix(liteModelRaw);
+  const liteEntry = buildProviderEntry({
+    providerId: liteProviderId,
+    modelId: liteModelId,
+    apiUrl: liteUrl,
+    apiKey: liteKey,
+  });
+
+  const existingProviders = Array.isArray(config.providers) ? config.providers : [];
+  const byId = new Map(existingProviders.map((provider) => [provider.id, provider]));
+  const existingLite = byId.get(liteProviderId);
+  if (existingLite) {
+    const mergedModels = [...new Set([...(existingLite.enabledModels ?? []), liteModelId])];
+    byId.set(liteProviderId, {
+      ...existingLite,
+      enabledModels: mergedModels,
+      availableModels: mergedModels,
+      apiKeys: existingLite.apiKeys?.length ? existingLite.apiKeys : liteEntry.apiKeys,
+      isEnabled: true,
+    });
+  } else {
+    byId.set(liteProviderId, liteEntry);
+  }
+
+  const defaultModelConfig = {
+    ...(config.defaultModelConfig ?? {}),
+    liteModel: {
+      ...(config.defaultModelConfig?.liteModel ?? {}),
+      primary: { providerId: liteProviderId, model: liteModelId },
+      fallback: config.defaultModelConfig?.liteModel?.fallback ?? null,
+    },
+  };
+
+  await putConfig('providers', {
+    ...config,
+    providers: [...byId.values()],
+    defaultModelConfig,
+    customModelInfo: config.customModelInfo ?? {},
+  });
+  return {
+    patched: true,
+    liteProviderId,
+    liteModelId,
+  };
+}
+
 export async function seedChromeE2eProviders() {
   const forceSeed = process.env.MYRM_E2E_FORCE_MODEL_SEED === '1';
   if (!forceSeed && (await hasDefaultModel())) {
-    return { seeded: false, reason: 'default_model_already_configured' };
+    const litePatch = await ensureLiteModelFromEnv();
+    return { seeded: false, reason: 'default_model_already_configured', ...litePatch };
   }
   const basicModel = requireEnv('BASIC_MODEL');
   const basicKey = requireEnv('BASIC_API_KEY');
   const basicUrl = process.env.BASIC_BASE_URL?.trim() || 'https://api.minimaxi.com/v1';
   const providerId = inferProviderId(basicModel);
   const modelId = stripProviderPrefix(basicModel);
+  const basicEntry = buildProviderEntry({
+    providerId,
+    modelId,
+    apiUrl: basicUrl,
+    apiKey: basicKey,
+  });
+
+  const liteModelRaw = process.env.LITE_MODEL?.trim();
+  let litePrimary = null;
+  let liteEntry = null;
+  if (liteModelRaw) {
+    const liteKey = process.env.LITE_API_KEY?.trim() || basicKey;
+    const liteUrl = process.env.LITE_BASE_URL?.trim() || basicUrl;
+    const liteProviderId = inferProviderId(liteModelRaw);
+    const liteModelId = stripProviderPrefix(liteModelRaw);
+    litePrimary = { providerId: liteProviderId, model: liteModelId };
+    liteEntry = buildProviderEntry({
+      providerId: liteProviderId,
+      modelId: liteModelId,
+      apiUrl: liteUrl,
+      apiKey: liteKey,
+    });
+  }
+
+  const basePrimary = { providerId, model: modelId };
   await putConfig('providers', {
-    providers: [
-      {
-        id: providerId,
-        name: providerId === 'minimax' ? 'MiniMax' : providerId,
-        routingProfile: providerId,
-        isBuiltIn: providerId === 'minimax',
-        isEnabled: true,
-        apiUrl: basicUrl,
-        apiKeys: [{ key: basicKey, isActive: true }],
-        enabledModels: [modelId],
-        availableModels: [modelId],
-        providerType: providerId === 'minimax' ? 'minimax' : 'openai',
-      },
-    ],
+    providers: mergeProviders(basicEntry, liteEntry),
     defaultModelConfig: {
       baseModel: {
-        primary: { providerId, model: modelId },
+        primary: basePrimary,
         fallback: null,
         temperature: 0.7,
         modelKwargs: {},
       },
-      liteModel: { primary: null, fallback: null },
+      liteModel: {
+        primary: litePrimary,
+        fallback: null,
+      },
       fastModeModel: null,
       routingConfig: null,
       visionFallbackModel: null,
     },
     customModelInfo: {},
   });
-  return { seeded: true, providerId, modelId };
+  return {
+    seeded: true,
+    providerId,
+    modelId,
+    liteProviderId: litePrimary?.providerId ?? null,
+    liteModelId: litePrimary?.model ?? null,
+  };
 }

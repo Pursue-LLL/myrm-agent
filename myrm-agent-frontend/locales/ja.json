@@ -89,6 +89,9 @@
     "reasonBudgetExhausted": "予算枯渇",
     "reasonWaitTimeout": "待機タイムアウト — 一時停止中",
     "reasonConvergence": "接続续なし新規进展后完",
+    "reasonDriftDetected": "目標からの逸脱を検出 — レビュー待ち",
+    "reasonSandboxBoundary": "サンドボックス境界に到達 — レビュー待ち",
+    "statusDriftPaused": "目標逸脱",
     "draftSection": "ゴール设定助手",
     "draftObjectivePlaceholder": "説明あなた希望 Agent 完のゴール…",
     "suggestCriteria": "スマート生成検収基準",
@@ -9577,10 +9580,13 @@
     "disabled": "自動巡检済み閉じる",
     "toggleError": "操作に失敗しました，再試行してください",
     "saveError": "保存に失敗しました，再試行してください",
-    "intervalCostHint": "约{count}回检查/日，推奨配合予算制御使用",
-    "lastRun": "上回巡检",
-    "nextRun": "下回巡检",
-    "totalRuns": "累计巡检"
+    "intervalCostHint": "约{count}回検査/日，推奨配合予算制御使用",
+    "agentLabel": "巡検エージェント",
+    "agentDefault": "デフォルトエージェント",
+    "agentModelHint": "使用モデル：{model}",
+    "lastRun": "前回巡検",
+    "nextRun": "次回巡検",
+    "totalRuns": "累計巡検"
   },
   "kanban": {
     "sectionTitle": "カンバンタスク",

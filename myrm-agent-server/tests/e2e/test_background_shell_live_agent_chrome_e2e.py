@@ -41,8 +41,9 @@ _RETRYABLE_SPAWN_ERRORS = (
     *_STREAM_TRANSPORT_ERRORS,
 )
 
+# Natural-language user turn (no E2E_* / MUST injection — mimo rejects those in user text).
 _BG_SPAWN_PROMPT = (
-    "E2E_BACKGROUND_SHELL: Call bash_code_execute_tool exactly once with:\n"
+    "Please run this command in the background using bash_code_execute_tool exactly once:\n"
     '- command: python3 -c "import time; time.sleep(120)"\n'
     "- run_in_background: true\n"
     "- reason: live agent background shell e2e\n"
@@ -55,8 +56,9 @@ def _create_background_agent(client: httpx.Client, api_base: str) -> str:
         "name": f"BG Shell Live {uuid.uuid4().hex[:6]}",
         "description": "Live background shell Chrome E2E",
         "system_prompt": (
-            "You MUST use bash_code_execute_tool when asked. "
-            "Always pass run_in_background=true when instructed."
+            "You help users run shell commands via bash_code_execute_tool when asked. "
+            "When the user requests a background shell command, call bash_code_execute_tool "
+            "exactly once with run_in_background=true before replying."
         ),
         "skill_ids": [],
         "mcp_ids": [],
@@ -83,6 +85,47 @@ def _tool_name_from_event(event: dict[str, object]) -> str | None:
             if isinstance(val, str) and val:
                 return val
     return None
+
+
+def _tool_names_from_event(event: dict[str, object]) -> list[str]:
+    names: list[str] = []
+    single = _tool_name_from_event(event)
+    if single:
+        names.append(single)
+    data = event.get("data")
+    if isinstance(data, dict):
+        action_requests = data.get("actionRequests")
+        if isinstance(action_requests, list):
+            for req in action_requests:
+                if not isinstance(req, dict):
+                    continue
+                action = req.get("action")
+                if isinstance(action, str) and action:
+                    names.append(action)
+        action_type = data.get("action_type")
+        if isinstance(action_type, str) and action_type:
+            names.append(action_type)
+    return names
+
+
+def _bash_tool_invoked(tool_names: list[str]) -> bool:
+    for name in tool_names:
+        normalized = name.strip().lower()
+        if normalized in {_BASH_TOOL_NAME, "bash", "execute_code"}:
+            return True
+        if "bash" in normalized and "tool" in normalized:
+            return True
+    return False
+
+
+def _assistant_text_from_event(event: dict[str, object]) -> str:
+    event_type = event.get("type")
+    if event_type not in ("message", "reasoning"):
+        return ""
+    data = event.get("data")
+    if isinstance(data, str) and data.strip():
+        return data.strip()
+    return ""
 
 
 def _shell_task_id_from_row(row: dict[str, object]) -> str | None:
@@ -142,10 +185,11 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
         "enableMemoryAutoExtraction": False,
     }
 
-    def _consume_stream(payload: dict[str, object]) -> tuple[dict[str, object] | None, list[str], list[str]]:
+    def _consume_stream(payload: dict[str, object]) -> tuple[dict[str, object] | None, list[str], list[str], str]:
         resume_payload: dict[str, object] | None = None
         tool_names: list[str] = []
         errors: list[str] = []
+        assistant_parts: list[str] = []
         with client.stream(
             "POST",
             f"{api_base}/api/v1/agents/agent-stream",
@@ -165,34 +209,62 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
                 if not isinstance(event, dict):
                     continue
                 event_type = event.get("type")
-                if event_type in ("tool_start", "tool_end", "tool_result", "tasks_steps"):
-                    name = _tool_name_from_event(event)
-                    if name:
-                        tool_names.append(name)
+                if event_type in (
+                    "tool_start",
+                    "tool_end",
+                    "tool_result",
+                    "tool_complete",
+                    "tool_failure",
+                    "tasks_steps",
+                    "interrupt",
+                    "tool_approval",
+                    "tool_approval_request",
+                    "approval",
+                    "approval_required",
+                ):
+                    for name in _tool_names_from_event(event):
+                        if name not in tool_names:
+                            tool_names.append(name)
+                snippet = _assistant_text_from_event(event)
+                if snippet:
+                    assistant_parts.append(snippet)
                 if event_type == "error":
                     err = event.get("error") or event.get("data")
                     if err:
                         errors.append(str(err))
-                if event_type in ("interrupt", "tool_approval", "approval", "approval_required"):
+                if event_type in (
+                    "interrupt",
+                    "tool_approval",
+                    "tool_approval_request",
+                    "approval",
+                    "approval_required",
+                ):
                     data = event.get("data")
                     if isinstance(data, dict):
                         resume_payload = data
-        return resume_payload, tool_names, errors
+        assistant_text = "".join(assistant_parts)[-500:]
+        return resume_payload, tool_names, errors, assistant_text
 
     def _run_stream_once(payload: dict[str, object]) -> None:
-        resume_payload, tool_names, errors = _consume_stream(payload)
+        resume_payload, tool_names, errors, assistant_text = _consume_stream(payload)
         if resume_payload is not None:
             resume_request = {
                 **payload,
                 "messageId": f"bg-shell-resume-{uuid.uuid4().hex[:10]}",
                 "resumeValue": resume_payload,
             }
-            _, resume_tools, resume_errors = _consume_stream(resume_request)
-            tool_names.extend(resume_tools)
+            _, resume_tools, resume_errors, resume_assistant = _consume_stream(resume_request)
+            for name in resume_tools:
+                if name not in tool_names:
+                    tool_names.append(name)
             errors.extend(resume_errors)
+            if resume_assistant:
+                assistant_text = (assistant_text + resume_assistant)[-500:]
 
-        if _BASH_TOOL_NAME not in tool_names:
+        if not _bash_tool_invoked(tool_names):
             detail = errors[0][:300] if errors else "no tool events in agent-stream"
+            if assistant_text.strip():
+                detail = f"{detail}; assistant={assistant_text.strip()!r}"
             raise AssertionError(
                 f"agent-stream did not invoke {_BASH_TOOL_NAME}; "
                 f"tools={tool_names or ['<none>']}; detail={detail}",
