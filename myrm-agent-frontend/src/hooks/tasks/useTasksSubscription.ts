@@ -24,7 +24,7 @@ export function useTasksSubscription(task_ids: string[]) {
     const ids = stableIds.split(',');
     const notifiedTerminalTaskIds = new Set<string>();
     let disposed = false;
-    let nextMalformedSyncAtMs = 0;
+    let nextSnapshotSyncAtMs = 0;
 
     const upsertTask = (task: Task) => {
       setTasks((prev) => {
@@ -86,26 +86,34 @@ export function useTasksSubscription(task_ids: string[]) {
       }
     };
 
+    const requestSnapshotSync = () => {
+      const now = Date.now();
+      if (now < nextSnapshotSyncAtMs) {
+        return;
+      }
+      nextSnapshotSyncAtMs = now + 1000;
+      void syncSubscribedTasks();
+    };
+
     const eventSource = new EventSource('/api/v1/tasks/stream');
 
     eventSource.addEventListener('task_update', (event) => {
-      let eventData: { task_id?: string } | null = null;
+      let eventData: { task_id?: string; sync_required?: boolean } | null = null;
       try {
         const parsed = JSON.parse(event.data) as unknown;
         if (!parsed || typeof parsed !== 'object') {
           throw new Error('task_update SSE payload is not an object');
         }
-        eventData = parsed as { task_id?: string };
+        eventData = parsed as { task_id?: string; sync_required?: boolean };
       } catch (error) {
         console.warn('Failed to parse task_update SSE payload; syncing subscribed tasks snapshot.', error);
-        const now = Date.now();
-        if (now >= nextMalformedSyncAtMs) {
-          nextMalformedSyncAtMs = now + 1000;
-          void syncSubscribedTasks();
-        }
+        requestSnapshotSync();
         return;
       }
 
+      if (eventData.sync_required === true) {
+        requestSnapshotSync();
+      }
       if (!eventData.task_id || !ids.includes(eventData.task_id)) {
         return;
       }

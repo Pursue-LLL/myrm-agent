@@ -8,6 +8,15 @@ interface Window {
   __MYRM_TRACE_ID__?: string;
   /** Chrome E2E SHPOIB: private backend API base injected before chat automation. */
   __MYRM_E2E_API_BASE__?: string;
+  /** SHPOIB Chrome E2E: force POST agent-stream direct SSE (skip workspace multiplex). */
+  __MYRM_E2E_DIRECT_SSE__?: boolean;
+  /** SHPOIB E2E: last attach fallback diagnostics from streamConsumer. */
+  __MYRM_E2E_ATTACH_DIAG__?: {
+    attached: boolean;
+    queueLen: number;
+    attempt?: number;
+    error?: string;
+  };
   /** Page-local private runtime identity parsed from window.name before hydration. */
   __MYRM_E2E_RUNTIME__?: Readonly<{
     version: 1;

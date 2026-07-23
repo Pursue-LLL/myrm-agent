@@ -25,3 +25,18 @@ def test_execution_fingerprint_changes_when_skill_version_bumps() -> None:
     ):
         second = compute_execution_fingerprint(wrapper)
     assert first != second
+
+
+def test_execution_fingerprint_changes_when_security_config_changes() -> None:
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
+        mcp_config=None,
+    )
+    wrapper.security_config_raw = {"yoloModeEnabled": True}
+    first = compute_execution_fingerprint(wrapper)
+    wrapper.security_config_raw = {
+        "yoloModeEnabled": False,
+        "permissions": {"code_interpreter": "ask"},
+    }
+    second = compute_execution_fingerprint(wrapper)
+    assert first != second

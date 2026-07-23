@@ -7,6 +7,78 @@ import { isRetryableHttpStatus, FatalNetworkError } from '@/lib/utils/networkRes
 import { decryptSseFrame, loadStoredE2EESession } from '@/lib/e2ee/client';
 import { createMultiplexReadableStream } from './multiplexChunkBridge';
 import { recoverPendingApprovals } from '@/hooks/usePendingApprovalsRecovery';
+import { connectionManager } from '@/services/ConnectionManager';
+import { resolveE2eApiBase } from '@/lib/deploy-mode';
+import useToolApprovalStore from '@/store/useToolApprovalStore';
+
+function shouldUseMultiplexedAgentStream(): boolean {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+  if (window.__MYRM_E2E_DIRECT_SSE__) {
+    return false;
+  }
+  return !resolveE2eApiBase();
+}
+
+async function tryE2eAttachForPendingApproval(
+  state: ChatActionsState,
+  actions: ChatActionsMethods,
+  abortController: AbortController,
+): Promise<{ attached: boolean; queueLen: number }> {
+  if (typeof window === 'undefined') {
+    return { attached: false, queueLen: 0 };
+  }
+  if (!window.__MYRM_E2E_DIRECT_SSE__ && !resolveE2eApiBase()) {
+    return { attached: false, queueLen: 0 };
+  }
+  const chatId = state.chatId?.trim();
+  if (!chatId || useToolApprovalStore.getState().queue.length > 0) {
+    return { attached: false, queueLen: useToolApprovalStore.getState().queue.length };
+  }
+  const { default: useChatStore } = await import('../useChatStore');
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (useToolApprovalStore.getState().queue.length > 0) {
+      const queueLen = useToolApprovalStore.getState().queue.length;
+      if (typeof window !== 'undefined') {
+        window.__MYRM_E2E_ATTACH_DIAG__ = { attached: true, queueLen, attempt };
+      }
+      return { attached: true, queueLen, attempt };
+    }
+    try {
+      const { attachForHitlRecovery } = await import('./messageRequest');
+      const recovery = await attachForHitlRecovery(chatId, actions, useChatStore.getState);
+      if (recovery.attached || recovery.queueLen > 0) {
+        const queueLen = recovery.queueLen;
+        if (typeof window !== 'undefined') {
+          window.__MYRM_E2E_ATTACH_DIAG__ = {
+            attached: recovery.attached,
+            queueLen,
+            attempt,
+            source: recovery.source,
+          };
+        }
+        return { attached: recovery.attached, queueLen, attempt };
+      }
+    } catch (error) {
+      console.warn('SHPOIB E2E attach fallback failed:', error);
+      if (typeof window !== 'undefined') {
+        window.__MYRM_E2E_ATTACH_DIAG__ = {
+          attached: false,
+          queueLen: 0,
+          attempt,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+    if (attempt < 4) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+  return { attached: false, queueLen: useToolApprovalStore.getState().queue.length, attempt: 4 };
+}
+
+export { tryE2eAttachForPendingApproval };
 
 const RETRY_INITIAL_DELAY_MS = 2000;
 const RETRY_BACKOFF_FACTOR = 1.5;
@@ -94,10 +166,19 @@ export async function executeStreamWithRetry(
     }
 
     try {
-      const multiplexBridge =
-        typeof window !== 'undefined'
-          ? createMultiplexReadableStream(requestMessageId, abortController.signal)
-          : null;
+      const useMultiplexedStream = shouldUseMultiplexedAgentStream();
+      const multiplexBridge = useMultiplexedStream
+        ? createMultiplexReadableStream(requestMessageId, abortController.signal)
+        : null;
+
+      if (multiplexBridge) {
+        const workspaceReady = await connectionManager.waitUntilReady(30_000);
+        if (!workspaceReady.ok) {
+          throw new Error(
+            workspaceReady.err ?? 'Workspace multiplex stream not ready before agent-stream POST',
+          );
+        }
+      }
 
       const res = await createMessageRequest(
         input,
@@ -137,7 +218,20 @@ export async function executeStreamWithRetry(
         if (!multiplexBridge) {
           throw new Error('Multiplexed agent-stream requires a browser environment');
         }
-        const mockResponse = new Response(multiplexBridge, {
+        let streamMessageId = requestMessageId;
+        try {
+          const accepted = (await res.clone().json()) as { message_id?: string };
+          if (typeof accepted.message_id === 'string' && accepted.message_id.trim()) {
+            streamMessageId = accepted.message_id.trim();
+          }
+        } catch {
+          // fall back to request-scoped id
+        }
+        const effectiveBridge =
+          streamMessageId === requestMessageId
+            ? multiplexBridge
+            : createMultiplexReadableStream(streamMessageId, abortController.signal);
+        const mockResponse = new Response(effectiveBridge, {
           headers: { 'Content-Type': 'text/event-stream' },
         });
 
@@ -145,6 +239,7 @@ export async function executeStreamWithRetry(
       } else {
         await consumeStream(res, input, state, actions, abortController, added, recievedMessage);
       }
+      await tryE2eAttachForPendingApproval(state, actions, abortController);
       return;
     } catch (error) {
       if (!(error instanceof Error)) throw error;
@@ -167,7 +262,9 @@ export async function executeStreamWithRetry(
               if (abortController.signal.aborted) throw error;
             }
             try {
-              const attached = await attachToChat(state.chatId, actions, useChatStore.getState);
+              const attached = await attachToChat(state.chatId, actions, useChatStore.getState, {
+                allowWhileLoading: true,
+              });
               if (attached) {
                 attachSuccess = true;
                 break;
@@ -202,6 +299,20 @@ export async function executeStreamWithRetry(
   }
 }
 
+export type ConsumeStreamOptions = {
+  /** Stop once tool approval queue is populated (SHPOIB HITL attach recovery). */
+  untilApprovalQueued?: boolean;
+  /** Wall-clock cap in ms; only used with untilApprovalQueued. */
+  maxWaitMs?: number;
+};
+
+export type ConsumeStreamResult = {
+  added: boolean;
+  recievedMessage: string;
+  queueLen: number;
+  stoppedEarly: boolean;
+};
+
 export async function consumeStream(
   res: Response,
   input: string,
@@ -210,7 +321,8 @@ export async function consumeStream(
   abortController: AbortController,
   added: boolean,
   recievedMessage: string,
-): Promise<void> {
+  options?: ConsumeStreamOptions,
+): Promise<ConsumeStreamResult> {
   const reader = res.body!.getReader();
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
@@ -220,6 +332,9 @@ export async function consumeStream(
   let lastDataTime = Date.now();
   const DATA_TIMEOUT = 5 * 60 * 1000;
   let firstDataReceived = false;
+  let stoppedEarly = false;
+  const recoveryDeadline =
+    options?.maxWaitMs !== undefined ? Date.now() + Math.max(0, options.maxWaitMs) : null;
 
   const scheduler = new AdaptiveScheduler();
 
@@ -321,6 +436,13 @@ export async function consumeStream(
                 streamActions,
                 state.files,
               ));
+              if (
+                options?.untilApprovalQueued &&
+                useToolApprovalStore.getState().queue.length > 0
+              ) {
+                stoppedEarly = true;
+                break;
+              }
             } catch (err) {
               console.warn('Invalid JSON skipped:', err);
             }
@@ -334,11 +456,33 @@ export async function consumeStream(
       }
 
       buffer = buffer.substring(startIndex);
+
+      if (stoppedEarly) {
+        break;
+      }
+      if (recoveryDeadline !== null && Date.now() >= recoveryDeadline) {
+        stoppedEarly = true;
+        break;
+      }
     }
   } finally {
+    if (stoppedEarly) {
+      try {
+        await reader.cancel();
+      } catch {
+        // ignore cancel errors during recovery detach
+      }
+    }
     // 确保在流结束或异常中断时清理定时器并立即执行最后一次渲染
     scheduler.flush();
     scheduler.cancel();
     void recoverPendingApprovals();
   }
+
+  return {
+    added,
+    recievedMessage,
+    queueLen: useToolApprovalStore.getState().queue.length,
+    stoppedEarly,
+  };
 }

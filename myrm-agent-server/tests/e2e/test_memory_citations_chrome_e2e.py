@@ -7,7 +7,12 @@ import time
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import get_e2e_ui_url, open_mcp_page, wait_for_state, warm_ui_route
+from tests.support.chrome_mcp_e2e import (
+    get_e2e_ui_url,
+    open_mcp_page,
+    wait_for_state,
+    warm_ui_route,
+)
 from tests.support.chrome_memory_settings_e2e import (
     ENABLE_MEMORY_JS,
     SETTINGS_SHELL_READY_JS,
@@ -118,7 +123,11 @@ def test_memory_settings_conversation_search_toggle() -> None:
         toggled: dict[str, object] = {}
         deadline = time.monotonic() + 30.0
         while time.monotonic() < deadline:
-            raw = client.evaluate(page, conversation_search_toggle_js(target_checked=True), timeout_sec=10.0)
+            raw = client.evaluate(
+                page,
+                conversation_search_toggle_js(target_checked=True),
+                timeout_sec=10.0,
+            )
             toggled = raw if isinstance(raw, dict) else {"value": raw}
             if toggled.get("ok") is True:
                 break
@@ -135,7 +144,9 @@ def test_memory_citations_evidence_button_opens_unified_sheet() -> None:
         assert isinstance(injected, dict), injected
         assert injected.get("ok") is True, json.dumps(injected, ensure_ascii=False)
 
-        button = wait_for_state(client, page, _EVIDENCE_BUTTON_READY_JS, timeout_sec=45.0)
+        button = wait_for_state(
+            client, page, _EVIDENCE_BUTTON_READY_JS, timeout_sec=45.0
+        )
         assert button.get("ready") is True, button
 
         opened = client.evaluate(page, _OPEN_EVIDENCE_SHEET_JS, timeout_sec=10.0)

@@ -52,6 +52,25 @@ task_retry_total = create_counter(
     ("task_type",),
 )
 
+# Task event bus counters
+task_event_emitted_total = create_counter(
+    "task_event_emitted_total",
+    "Total number of task events emitted to subscribers",
+    ("status",),
+)
+
+task_event_dropped_total = create_counter(
+    "task_event_dropped_total",
+    "Total number of task events dropped due to subscriber backpressure",
+    ("status", "reason"),
+)
+
+task_event_replaced_total = create_counter(
+    "task_event_replaced_total",
+    "Total number of task events delivered by replacing oldest buffered event",
+    ("status",),
+)
+
 # Task duration
 task_duration_seconds = create_histogram(
     "task_duration_seconds",
@@ -88,6 +107,9 @@ __all__ = [
     "task_timeout_total",
     "task_cache_hit_total",
     "task_retry_total",
+    "task_event_emitted_total",
+    "task_event_dropped_total",
+    "task_event_replaced_total",
     "task_duration_seconds",
     "task_queue_length",
     "worker_active_count",

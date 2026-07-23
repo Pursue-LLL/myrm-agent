@@ -44,6 +44,7 @@ import {
   FatalNetworkError,
   consumeStream,
 } from './streamConsumer';
+import useToolApprovalStore from '../useToolApprovalStore';
 import { isRetryableHttpStatus } from '@/lib/utils/networkResilience';
 import { buildMultimodalQuery } from './multimodalBuilder';
 import { resolveKanbanDefaultBoardIdForRequest, resolveKanbanSendBlockReason } from '@/lib/kanban/kanbanChatBoard';
@@ -53,7 +54,7 @@ import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding'
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
 import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
-import { isTauriRuntime } from '@/lib/deploy-mode';
+import { isTauriRuntime, resolveE2eApiBase } from '@/lib/deploy-mode';
 import {
   generateCompanion,
   getEnhancedPersonality,
@@ -68,6 +69,16 @@ import { normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
 import type { ChatState } from './types';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';
+
+function shouldUseMultiplexedAgentStream(): boolean {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+  if (window.__MYRM_E2E_DIRECT_SSE__) {
+    return false;
+  }
+  return !resolveE2eApiBase();
+}
 
 export interface ChatActionsState {
   chatId: string | undefined;
@@ -548,7 +559,7 @@ export const createMessageRequest = async (
     message_id: messageId,
     chat_id: chatId!,
     action_mode: actionMode,
-    multiplexed: true,
+    multiplexed: shouldUseMultiplexedAgentStream(),
     client_surface: isTauriRuntime() ? 'tauri' : 'web',
     ...(actionMode === 'fast' && searchDepth && { search_depth: searchDepth }),
     ...(state.isWorkflowMode && { use_workflow: true }),
@@ -722,7 +733,6 @@ export const createMessageRequest = async (
 /**
  * 发送消息主函数
  */
-import useToolApprovalStore from '../useToolApprovalStore';
 
 import { produce } from 'immer';
 import useWorkspaceStore from '../useWorkspaceStore';
@@ -1035,6 +1045,203 @@ export const sendMessage = async (
 
     // Always release the processing lock on finally
     useToolApprovalStore.getState().unmarkProcessing(requestMessageId);
+
+    if (
+      typeof window !== 'undefined' &&
+      (window.__MYRM_E2E_DIRECT_SSE__ || resolveE2eApiBase()) &&
+      state.chatId?.trim() &&
+      useToolApprovalStore.getState().queue.length === 0
+    ) {
+      const { tryE2eAttachForPendingApproval } = await import('./streamConsumer');
+      await tryE2eAttachForPendingApproval(
+        { ...state, loading: false, abortController: null },
+        smartActions,
+        abortController,
+      );
+    }
+  }
+};
+
+export type AttachToChatOptions = {
+  /** SHPOIB E2E / stream recovery: attach while the primary POST stream still holds loading. */
+  allowWhileLoading?: boolean;
+};
+
+export type HitlRecoveryResult = {
+  ok: true;
+  attached: boolean;
+  queueLen: number;
+  source: 'attach' | 'probe' | 'none';
+};
+
+const HITL_ATTACH_RECOVERY_MS = 12_000;
+
+async function replayPendingHitlFromProbe(
+  chatId: string,
+  state: ChatActionsState,
+  actions: ChatActionsMethods,
+): Promise<number> {
+  if (!resolveE2eApiBase()) {
+    return useToolApprovalStore.getState().queue.length;
+  }
+  try {
+    const response = await fetchWithTimeout(
+      `/security/allowlist/test/hitl-probe?chat_id=${encodeURIComponent(chatId)}`,
+      { method: 'GET' },
+      10_000,
+    );
+    if (!response.ok) {
+      return useToolApprovalStore.getState().queue.length;
+    }
+    const probe = (await response.json()) as { pending_interrupt_events?: unknown[] };
+    const events = probe.pending_interrupt_events;
+    if (!Array.isArray(events) || events.length === 0) {
+      return useToolApprovalStore.getState().queue.length;
+    }
+
+    const { handleMessageStream } = await import('./messageStream/handleMessageStream');
+    const { parseSseEnvelope } = await import('./schema');
+    const { AdaptiveScheduler } = await import('./adaptiveScheduler');
+    const scheduler = new AdaptiveScheduler();
+    const streamState = {
+      messages: state.messages,
+      messageAppeared: state.messageAppeared,
+      loading: state.loading,
+      scheduler,
+    };
+    const streamActions = {
+      setMessages: (updater: (draft: ChatActionsState) => void) => {
+        actions.setMessages((draft) => updater(draft));
+      },
+      setMessageAppeared: actions.setMessageAppeared,
+      setLoading: actions.setLoading,
+      _processSuggestions: actions._processSuggestions,
+      scheduleAutoSave: actions.scheduleAutoSave,
+    };
+    let added = false;
+    let recievedMessage = '';
+    for (const raw of events) {
+      const event = parseSseEnvelope(raw);
+      if (!event) {
+        continue;
+      }
+      ({ added, recievedMessage } = await handleMessageStream(
+        event,
+        '',
+        undefined,
+        added,
+        recievedMessage,
+        streamState,
+        streamActions,
+        state.files,
+      ));
+      if (useToolApprovalStore.getState().queue.length > 0) {
+        break;
+      }
+    }
+    scheduler.flush();
+    scheduler.cancel();
+  } catch (error) {
+    console.warn('SHPOIB HITL probe replay failed:', error);
+  }
+  return useToolApprovalStore.getState().queue.length;
+}
+
+/** Bounded attach for SHPOIB E2E: replay pending tool_approval_request without blocking on HITL wait. */
+export const attachForHitlRecovery = async (
+  chatId: string,
+  actions: ChatActionsMethods,
+  get: () => ChatState,
+): Promise<HitlRecoveryResult> => {
+  const normalized = chatId.trim();
+  if (!normalized) {
+    return { ok: true, attached: false, queueLen: 0, source: 'none' };
+  }
+
+  const existingQueue = useToolApprovalStore.getState().queue.length;
+  if (existingQueue > 0) {
+    return { ok: true, attached: true, queueLen: existingQueue, source: 'attach' };
+  }
+
+  const state = get();
+  const smartSetMessages = createSmartUpdater(normalized, actions.setMessages);
+  const smartActions = { ...actions, setMessages: smartSetMessages };
+  const attachAbort = new AbortController();
+
+  try {
+    await ensureMobileE2EE();
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const headers = withMobilePairHeaders({
+      Accept: 'text/event-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    });
+
+    const response = await fetchWithTimeout(
+      `/agents/chat/${normalized}/attach`,
+      {
+        method: 'GET',
+        headers,
+        signal: attachAbort.signal,
+      },
+      0,
+    );
+
+    if (!response.ok) {
+      const queueLen = await replayPendingHitlFromProbe(normalized, get(), smartActions);
+      return {
+        ok: true,
+        attached: queueLen > 0,
+        queueLen,
+        source: queueLen > 0 ? 'probe' : 'none',
+      };
+    }
+    if (!response.body) {
+      const queueLen = await replayPendingHitlFromProbe(normalized, get(), smartActions);
+      return {
+        ok: true,
+        attached: queueLen > 0,
+        queueLen,
+        source: queueLen > 0 ? 'probe' : 'none',
+      };
+    }
+
+    const streamResult = await consumeStream(
+      response,
+      '',
+      state,
+      smartActions,
+      attachAbort,
+      false,
+      '',
+      { untilApprovalQueued: true, maxWaitMs: HITL_ATTACH_RECOVERY_MS },
+    );
+    if (streamResult.queueLen > 0) {
+      return {
+        ok: true,
+        attached: true,
+        queueLen: streamResult.queueLen,
+        source: 'attach',
+      };
+    }
+
+    const queueLen = await replayPendingHitlFromProbe(normalized, get(), smartActions);
+    return {
+      ok: true,
+      attached: queueLen > 0,
+      queueLen,
+      source: queueLen > 0 ? 'probe' : 'none',
+    };
+  } catch (error) {
+    console.warn('SHPOIB HITL attach recovery failed:', error);
+    const queueLen = await replayPendingHitlFromProbe(normalized, get(), smartActions);
+    return {
+      ok: true,
+      attached: queueLen > 0,
+      queueLen,
+      source: queueLen > 0 ? 'probe' : 'none',
+    };
+  } finally {
+    attachAbort.abort();
   }
 };
 
@@ -1042,9 +1249,10 @@ export const attachToChat = async (
   chatId: string,
   actions: ChatActionsMethods,
   get: () => ChatState,
+  options?: AttachToChatOptions,
 ): Promise<boolean> => {
   const state = get();
-  if (state.loading) {
+  if (state.loading && !options?.allowWhileLoading) {
     return false;
   }
 

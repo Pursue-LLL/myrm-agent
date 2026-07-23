@@ -25,6 +25,7 @@ import { generateStreamRequestMessageId } from './chat/streamRequestMessageId';
 import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat, persistActiveChatNavigationSnapshot, resolveInstantChatSnapshot } from './chat/messageManagement';
 import { processSuggestions, findAssistantMessageIndex } from './chat/messageUtils';
 import useQuoteStore from './useQuoteStore';
+import useToolApprovalStore from './useToolApprovalStore';
 import useWorkspaceStore from './useWorkspaceStore';
 import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
@@ -628,6 +629,35 @@ const useChatStore = create<ChatState>()(
           archiveRestoreActions,
           agentConfigOverride,
         );
+      },
+
+      recoverHitlStream: async (chatId: string) => {
+        const normalized = chatId.trim();
+        if (!normalized) {
+          return { ok: false as const, err: 'empty-chat-id' };
+        }
+        const actions = {
+          setMessages: (updater: (state: ChatState) => void) => set(updater),
+          setLoading: (loading: boolean) => set({ loading }),
+          setMessageAppeared: (appeared: boolean) => set({ messageAppeared: appeared }),
+          setHideAttachList: (hide: boolean) => set({ hideAttachList: hide }),
+          setHasUsedImagesInCurrentChat: (hasUsed: boolean) => set({ hasUsedImagesInCurrentChat: hasUsed }),
+          setSelectedModels: (models: { base: string | null; vision: string | null; reasoning: string | null }) =>
+            set({ selectedModels: models }),
+          setHasUserSelectedModel: (hasSelected: boolean) => set({ hasUserSelectedModel: hasSelected }),
+          clearCurrentSessionMessageId: () => set({ currentSessionMessageId: null }),
+          _processSuggestions: get()._processSuggestions,
+          scheduleAutoSave: get().scheduleAutoSave,
+          setInputMessage: (message: string) => set({ inputMessage: message }),
+        };
+        const { attachForHitlRecovery } = await import('./chat/messageRequest');
+        const recovery = await attachForHitlRecovery(normalized, actions, get);
+        return {
+          ok: true as const,
+          attached: recovery.attached,
+          queueLen: recovery.queueLen,
+          source: recovery.source,
+        };
       },
 
       // 初始化聊天

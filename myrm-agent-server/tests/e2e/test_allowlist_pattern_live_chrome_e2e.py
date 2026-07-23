@@ -26,38 +26,161 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import fetch_chat_messages, get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
-from cdp_chat_support import ensure_e2e_hitl_mode  # noqa: E402
+from cdp_chat_support import (  # noqa: E402
+    ensure_e2e_hitl_mode,
+    ensure_e2e_hitl_mode_in_browser,
+    ensure_e2e_onboarding_complete,
+    fetch_chat_messages,
+    fetch_config_value,
+    get_e2e_api_url,
+    hard_reset_e2e_hitl_mode,
+    shared_hot_e2e_api_base,
+    WAIT_WORKSPACE_STREAM_JS,
+    STREAM_API_BINDING_JS,
+    wait_e2e_provider_ready,
+)
 from cdp_chat_ui import chat_id_from_path  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.support.chrome_allowlist_live_e2e import (
-    SETTINGS_PATTERN_VISIBLE_JS,
     _AGENT_READY_JS,
     _APPROVAL_VISIBLE_JS,
     _CLICK_ALLOW_ALWAYS_JS,
     _CONFIRM_ALLOW_ALWAYS_DIALOG_JS,
+    _RECOVER_HITL_JS,
     _RUNTIME_BINDING_JS,
     _SELECT_PATTERN_SCOPE_JS,
     _TURN_DONE_JS,
+    SETTINGS_PATTERN_VISIBLE_JS,
 )
 from tests.support.chrome_allowlist_settings_e2e import SETTINGS_SECURITY_SHELL_READY_JS
 from tests.support.chrome_mcp_e2e import get_e2e_ui_url, http_json, wait_for_state, warm_ui_route
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
+
+def _parse_browser_eval(raw: object) -> dict[str, object]:
+    if isinstance(raw, str):
+        try:
+            return _parse_browser_eval(json.loads(raw))
+        except json.JSONDecodeError:
+            return {"value": raw}
+    if isinstance(raw, dict):
+        if "ready" in raw or "queueLen" in raw or "hasApprove" in raw:
+            return raw
+        inner = raw.get("value")
+        if inner is not None and inner is not raw:
+            nested = _parse_browser_eval(inner)
+            if any(key in nested for key in ("ready", "queueLen", "hasApprove", "sample")):
+                return nested
+        return raw
+    return {"value": raw}
+
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 _BASH_TOOL = "bash_code_execute_tool"
 # Must be UNKNOWN risk (not SAFE like echo) or engine auto-allows without HITL dialog.
-_PATTERN_COMMAND = "curl ALLOWLIST_LIVE_PROBE"
+# Use a syntactically valid URL so the live model executes curl; connection refused is OK.
+_PATTERN_COMMAND = "curl -sS http://127.0.0.1:9/ALLOWLIST_LIVE_PROBE"
+# Matches deriveCommandPattern(first_two_tokens + " *") for the probe command.
+_PATTERN_STORED = "curl -sS *"
 # Natural-language user turn (no E2E_* / MUST injection — mimo rejects those in user text).
 _USER_PROMPT = (
-    "请用 bash_code_execute_tool 执行一条 shell 命令："
-    f"`{_PATTERN_COMMAND}`，只执行这一条命令，不要调用其他工具。"
+    "Run this shell connectivity probe exactly once with bash_code_execute_tool: "
+    f"`{_PATTERN_COMMAND}`. Connection refused is expected."
 )
 _APPROVAL_WAIT_SEC = 240.0
 _STALL_AFTER_STREAM_SEC = 90.0
 _MAX_CHAT_ATTEMPTS = 2
+
+
+def _hitl_probe(api_url: str, *, chat_id: str | None = None) -> dict[str, object]:
+    from cdp_chat_support import _e2e_api_get_json
+
+    query = f"chat_id={chat_id}" if chat_id else ""
+    suffix = f"?{query}" if query else ""
+    probe = _e2e_api_get_json(
+        f"{api_url.rstrip('/')}/api/v1/security/allowlist/test/hitl-probe{suffix}",
+        timeout_sec=15.0,
+    )
+    return probe if isinstance(probe, dict) else {}
+
+
+def _pin_and_verify_hitl_mode(api_url: str) -> None:
+    """Pin global securityConfig on private API and shared :8080 (YOLO drift guard)."""
+    ensure_e2e_hitl_mode(api_url=api_url)
+    targets: list[str] = [api_url.rstrip("/")]
+    shared = shared_hot_e2e_api_base()
+    if shared not in targets:
+        targets.append(shared)
+    for target in targets:
+        ensure_e2e_onboarding_complete(api_url=target)
+        cfg = fetch_config_value("securityConfig", api_url=target)
+        if cfg.get("yoloModeEnabled") or cfg.get("yolo_mode_enabled"):
+            raise AssertionError(f"LIVE E2E requires YOLO off on {target}; got {cfg!r}")
+        perms = cfg.get("permissions")
+        if isinstance(perms, dict) and str(perms.get("*", "")).lower() == "allow":
+            raise AssertionError(f"LIVE E2E requires no permissions.*=allow on {target}; got {cfg!r}")
+        probe = _hitl_probe(target)
+        if probe.get("yolo") or probe.get("expects_ask") is not True:
+            raise AssertionError(
+                f"LIVE E2E HITL probe failed on {target}: {probe!r}; cfg={cfg!r}"
+            )
+
+
+def _fetch_allowlist_rows(api_url: str) -> list[dict[str, object]]:
+    listed = http_json("GET", f"{api_url.rstrip('/')}/api/v1/security/allowlist")
+    rows = listed.get("data") if isinstance(listed, dict) else None
+    return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+
+
+def _is_live_probe_pattern_row(row: dict[str, object]) -> bool:
+    if row.get("granularity") != "pattern":
+        return False
+    pattern = str(row.get("command_pattern") or "")
+    return pattern == _PATTERN_STORED or "ALLOWLIST_LIVE_PROBE" in pattern
+
+
+async def _wait_for_pattern_allowlist_on_api(
+    api_url: str,
+    *,
+    timeout_sec: float = 120.0,
+) -> list[dict[str, object]]:
+    deadline = time.monotonic() + timeout_sec
+    last_rows: list[dict[str, object]] = []
+    while time.monotonic() < deadline:
+        heartbeat_e2e_lease()
+        last_rows = _fetch_allowlist_rows(api_url)
+        pattern_rows = [row for row in last_rows if row.get("granularity") == "pattern"]
+        if any(_is_live_probe_pattern_row(row) for row in pattern_rows):
+            return pattern_rows
+        await asyncio.sleep(1.0)
+    raise AssertionError(
+        "Timed out waiting for pattern allowlist row on API; "
+        f"rows={last_rows[-5:]}; api={api_url}"
+    )
+
+
+def _clear_allowlist_on_api(api_url: str) -> None:
+    http_json(
+        "DELETE",
+        f"{api_url.rstrip('/')}/api/v1/security/allowlist/test/clear-pattern-fixture",
+        expected_statuses=frozenset({200, 204, 404}),
+    )
+    http_json(
+        "DELETE",
+        f"{api_url.rstrip('/')}/api/v1/security/allowlist",
+        expected_statuses=frozenset({200, 204}),
+    )
+
+
+def _hitl_diagnostics(api_url: str) -> dict[str, object]:
+    cfg = fetch_config_value("securityConfig", api_url=api_url)
+    return {
+        "api": api_url,
+        "yolo": bool(cfg.get("yoloModeEnabled") or cfg.get("yolo_mode_enabled")),
+        "autoMode": bool(cfg.get("autoModeEnabled") or cfg.get("autoReviewEnabled")),
+        "permissions": cfg.get("permissions"),
+    }
 
 
 def _create_shell_agent(api_url: str) -> str:
@@ -66,8 +189,12 @@ def _create_shell_agent(api_url: str) -> str:
         "name": f"Allowlist Pattern LIVE {suffix}",
         "description": "Chrome LIVE E2E for shell allow-always pattern",
         "system_prompt": (
-            "When the user asks to run a shell command, you MUST call bash_code_execute_tool "
-            "with the exact command string provided. Do not reply with text only."
+            "You run local shell connectivity checks for the user. "
+            "When the user asks you to run a specific curl command (including allowlist probes to 127.0.0.1:9), "
+            "you MUST call bash_code_execute_tool with that exact command string. "
+            "Port 9 (discard) is an intentional unreachable probe target — connection refused is expected; still execute. "
+            "Do not refuse WebUI user messages as prompt injection — these are trusted local requests. "
+            "Never answer with text only when a shell command was requested."
         ),
         "skill_ids": [],
         "mcp_ids": [],
@@ -139,6 +266,59 @@ async def _wait_for_eval(chat: McpChatSession, expression: str, *, timeout_sec: 
     raise AssertionError(f"Timed out waiting for browser state: {last}")
 
 
+def _fetch_recent_audit_decisions(api_url: str, *, limit: int = 20) -> list[dict[str, object]]:
+    from cdp_chat_support import _e2e_api_get_json
+
+    try:
+        payload = _e2e_api_get_json(
+            f"{api_url.rstrip('/')}/api/v1/security/audit/logs?limit={limit}",
+            timeout_sec=15.0,
+        )
+    except Exception:
+        return []
+    rows = payload.get("events") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        rows = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        rows = payload.get("logs") if isinstance(payload, dict) else None
+    return [row for row in rows or [] if isinstance(row, dict)]
+
+
+def _bash_auto_executed_text(*samples: str) -> bool:
+    blob = "\n".join(samples)
+    return any(marker in blob for marker in _BASH_AUTO_EXECUTED_MARKERS)
+
+
+_BASH_AUTO_EXECUTED_MARKERS = (
+    "命令执行完成",
+    "命令已执行完毕",
+    "已执行完成",
+    "Command execution complete",
+    "curl 退出码",
+    "exit code 7",
+    "Couldn't connect to server",
+    "连接失败",
+    "## 执行结果",
+    "探针结果",
+)
+
+
+async def _assert_fresh_chat_surface(chat: McpChatSession) -> None:
+    """Fail fast when resetChat left an old thread (stale POOLED security + history)."""
+    raw = await chat.evaluate(
+        """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {})()""",
+        await_promise=False,
+        recv_timeout=10.0,
+    )
+    snap = raw if isinstance(raw, dict) else {}
+    user_count = int(snap.get("userCount") or 0)
+    if user_count > 0:
+        raise AssertionError(
+            "Expected a fresh chat after resetChat before LIVE approval turn; "
+            f"snapshot={snap!r}"
+        )
+
+
 async def _wait_agent_applied(chat: McpChatSession, *, timeout_sec: float = 90.0) -> None:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
@@ -150,6 +330,23 @@ async def _wait_agent_applied(chat: McpChatSession, *, timeout_sec: float = 90.0
             return
         await asyncio.sleep(1.0)
     raise AssertionError(f"E2E chat bridge not ready for shell agent: {last}")
+
+
+async def _assert_stream_api_binding(chat: McpChatSession, *, expected_api: str) -> None:
+    """Fail fast when chat stream would hit Next /api/v1 proxy (:8080 YOLO drift)."""
+    expected_origin = _api_origin(expected_api)
+    raw = await chat.evaluate(STREAM_API_BINDING_JS, await_promise=False, recv_timeout=15.0)
+    binding = raw if isinstance(raw, dict) else {}
+    if binding.get("usesRelativeProxy") is True or binding.get("hasPrivateBinding") is not True:
+        raise AssertionError(
+            "SHPOIB stream binding missing — agent-stream may hit shared :8080; "
+            f"binding={binding!r}; expected={expected_origin!r}"
+        )
+    bound = str(binding.get("origin") or "").strip()
+    if _api_origin(bound) != expected_origin:
+        raise AssertionError(
+            f"SHPOIB stream binding mismatch: expected={expected_origin!r} got={binding!r}"
+        )
 
 
 async def _assert_runtime_binding(chat: McpChatSession, *, expected_api: str) -> None:
@@ -174,35 +371,63 @@ async def _wait_for_shell_approval_ui(
     last_ui: dict[str, object] = {}
     last_invoked: set[str] = set()
     stream_idle_since: float | None = None
+    last_recover_at: float = 0.0
     while time.monotonic() < deadline:
         heartbeat_e2e_lease()
+        await chat.dismiss_modals()
         raw = await chat.evaluate(_APPROVAL_VISIBLE_JS, await_promise=False, recv_timeout=20.0)
-        last_ui = raw if isinstance(raw, dict) else {"value": raw}
+        last_ui = _parse_browser_eval(raw)
         if last_ui.get("ready") is True:
             return last_ui
 
         has_bash, invoked = _chat_bash_invocation(chat_id, api_url=api_url)
         last_invoked = invoked
-        if has_bash and not last_ui.get("hasDialog"):
-            sample_text = str(last_ui.get("sample") or "")
-            if "命令执行完成" in sample_text or "命令已执行完毕" in sample_text or "Command execution complete" in sample_text.lower():
-                raise AssertionError(
-                    "bash auto-executed without approval (SAFE-command bypass or yolo); "
-                    f"ui={last_ui}; invoked={sorted(invoked)}; api={api_url}"
-                )
         bridge = await chat.evaluate(
             """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {})()""",
             await_promise=False,
             recv_timeout=10.0,
         )
-        is_streaming = isinstance(bridge, dict) and bridge.get("isStreaming") is True
+        bridge_snap = bridge if isinstance(bridge, dict) else {}
+        assistant_sample = str(bridge_snap.get("lastAssistantSample") or "")
+        ui_sample = str(last_ui.get("sample") or "")
+        if has_bash and not last_ui.get("ready"):
+            if _bash_auto_executed_text(ui_sample, assistant_sample):
+                probe = _hitl_probe(api_url)
+                audit = _fetch_recent_audit_decisions(api_url)
+                bash_audit = [
+                    row
+                    for row in audit
+                    if "bash" in str(row.get("tool_name", "")).lower()
+                    or "bash" in str(row.get("tool", "")).lower()
+                ]
+                raise AssertionError(
+                    "bash auto-executed without approval (YOLO/config drift or SAFE bypass); "
+                    f"ui={last_ui}; invoked={sorted(invoked)}; hitl_probe={probe}; "
+                    f"audit={bash_audit[-5:] or audit[-5:]}; api={api_url}"
+                )
+            now = time.monotonic()
+            if now - last_recover_at >= 5.0:
+                last_recover_at = now
+                try:
+                    recover_raw = await chat.evaluate(
+                        f"({ _RECOVER_HITL_JS })({json.dumps(chat_id)})",
+                        await_promise=True,
+                        recv_timeout=20.0,
+                    )
+                except RuntimeError as exc:
+                    if "timed out" not in str(exc).lower():
+                        raise
+                    recover_raw = {"ok": False, "err": "mcp-eval-timeout"}
+                if isinstance(recover_raw, dict) and int(recover_raw.get("queueLen") or 0) > 0:
+                    continue
+        is_streaming = bridge_snap.get("isStreaming") is True
         if is_streaming:
             stream_idle_since = None
         elif stream_idle_since is None:
             stream_idle_since = time.monotonic()
 
-        if isinstance(bridge, dict) and not is_streaming:
-            sample = str(bridge.get("lastAssistantSample") or "")
+        if isinstance(bridge_snap, dict) and not is_streaming:
+            sample = assistant_sample
             if sample.strip() and not has_bash:
                 raise AssertionError(
                     "Model finished without invoking bash_code_execute_tool; "
@@ -221,9 +446,25 @@ async def _wait_for_shell_approval_ui(
             if has_bash and not last_ui.get("hasDialog") and stream_idle_since is not None:
                 idle = time.monotonic() - stream_idle_since
                 if idle >= 120.0:
+                    diag = _hitl_diagnostics(api_url)
+                    shared_diag = _hitl_diagnostics(shared_hot_e2e_api_base())
+                    sse_probe = await chat.evaluate(
+                        """(() => ({
+                          sse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [],
+                          attach: window.__MYRM_E2E_ATTACH_DIAG__ ?? null,
+                          workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
+                          multiplex: window.__MYRM_MULTIPLEX_STATS__?.() ?? null,
+                        }))()""",
+                        await_promise=False,
+                        recv_timeout=10.0,
+                    )
+                    audit = _fetch_recent_audit_decisions(api_url)
+                    hitl = _hitl_probe(api_url, chat_id=chat_id)
                     raise AssertionError(
                         "bash invoked on API but ToolApproval dialog never opened; "
-                        f"idle_sec={idle:.0f}; ui={last_ui}; invoked={sorted(invoked)}"
+                        f"idle_sec={idle:.0f}; ui={last_ui}; invoked={sorted(invoked)}; "
+                        f"diag={sse_probe}; hitl={hitl}; audit={audit[-8:]}; "
+                        f"private={diag}; shared={shared_diag}"
                     )
         await asyncio.sleep(1.0)
 
@@ -234,12 +475,25 @@ async def _wait_for_shell_approval_ui(
 
 
 async def _run_live_pattern_flow(chat: McpChatSession, agent_id: str, *, api_url: str) -> str:
+    agent_url = f"{get_e2e_ui_url()}/?agentId={agent_id}"
     await chat.dismiss_modals()
     await _wait_agent_applied(chat)
     await _assert_runtime_binding(chat, expected_api=api_url)
+    await hard_reset_e2e_hitl_mode(chat, api_url=api_url, page_url=agent_url)
+    await _wait_agent_applied(chat)
     await chat.click_new_chat()
     await chat.ensure_chat_surface(BASE_URL)
+    await _assert_fresh_chat_surface(chat)
 
+    _pin_and_verify_hitl_mode(api_url)
+    await ensure_e2e_hitl_mode_in_browser(chat)
+    await _assert_stream_api_binding(chat, expected_api=api_url)
+    workspace_ready = await _wait_for_eval(
+        chat, WAIT_WORKSPACE_STREAM_JS, timeout_sec=45.0
+    )
+    assert workspace_ready.get("ok") is True, (
+        f"Workspace multiplex stream not ready before LIVE turn: {workspace_ready!r}; api={api_url}"
+    )
     send_result = await chat.send_message(_USER_PROMPT, _USER_PROMPT)
     chat_id_hint = str(
         send_result.get("started", {}).get("chatId")
@@ -260,40 +514,45 @@ async def _run_live_pattern_flow(chat: McpChatSession, agent_id: str, *, api_url
         )
     assert chat_id, f"Expected chat id after stream start: started={started}; send={send_result}"
 
-    await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=90.0)
+    # Stay on the streaming tab — mid-stream Page.navigate drops SSE approval events.
+    path_probe = await chat.evaluate(
+        "(() => ({ path: location.pathname }))()",
+        await_promise=False,
+        recv_timeout=10.0,
+    )
+    current_path = str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
+    if current_path != f"/{chat_id}":
+        await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=90.0)
     await _assert_runtime_binding(chat, expected_api=api_url)
+    await _assert_stream_api_binding(chat, expected_api=api_url)
     await _wait_for_shell_approval_ui(chat, chat_id, api_url=api_url, timeout_sec=_APPROVAL_WAIT_SEC)
 
     click_always = await chat.evaluate(_CLICK_ALLOW_ALWAYS_JS, await_promise=False)
     assert isinstance(click_always, dict) and click_always.get("ok") is True, click_always
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.8)
 
-    select_scope = await chat.evaluate(_SELECT_PATTERN_SCOPE_JS, await_promise=False)
+    select_scope = await chat.evaluate(
+        _SELECT_PATTERN_SCOPE_JS,
+        await_promise=True,
+        recv_timeout=20.0,
+    )
     assert isinstance(select_scope, dict) and select_scope.get("ok") is True, select_scope
     await asyncio.sleep(0.3)
 
     confirm = await chat.evaluate(_CONFIRM_ALLOW_ALWAYS_DIALOG_JS, await_promise=False)
     assert isinstance(confirm, dict) and confirm.get("ok") is True, confirm
 
-    await _wait_for_eval(chat, _TURN_DONE_JS, timeout_sec=240.0)
+    await _wait_for_pattern_allowlist_on_api(api_url, timeout_sec=120.0)
     return chat_id
 
 
 @pytest.fixture(autouse=True)
 def _clear_allowlist_before_live(_chrome_e2e_item_runtime: object | None) -> None:
     api_base = get_e2e_api_url()
-    ensure_e2e_hitl_mode(api_url=api_base)
-    http_json(
-        "DELETE",
-        f"{api_base}/api/v1/security/allowlist/test/clear-pattern-fixture",
-        expected_statuses=frozenset({200, 204, 404}),
-    )
+    _pin_and_verify_hitl_mode(api_base)
+    _clear_allowlist_on_api(api_base)
     yield
-    http_json(
-        "DELETE",
-        f"{api_base}/api/v1/security/allowlist/test/clear-pattern-fixture",
-        expected_statuses=frozenset({200, 204, 404}),
-    )
+    _clear_allowlist_on_api(api_base)
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
@@ -305,6 +564,7 @@ async def test_live_agent_shell_allow_always_pattern_settings_roundtrip(
         pytest.fail("Provider not ready — seed WebUI model via chrome-e2e-model-seed.mjs")
 
     api_base = get_e2e_api_url()
+    _pin_and_verify_hitl_mode(api_base)
     ui_base = get_e2e_ui_url()
     agent_id = _create_shell_agent(api_base)
     e2e_resource_ledger.register("agent", agent_id)
@@ -350,7 +610,7 @@ async def test_live_agent_shell_allow_always_pattern_settings_roundtrip(
         assert isinstance(rows, list) and len(rows) >= 1, listed
         pattern_rows = [row for row in rows if row.get("granularity") == "pattern"]
         assert pattern_rows, rows
-        assert any("ALLOWLIST_LIVE_PROBE" in str(row.get("command_pattern", "")) for row in pattern_rows)
+        assert any(_is_live_probe_pattern_row(row) for row in pattern_rows)
 
         warm_ui_route("/settings/security")
         await asyncio.to_thread(

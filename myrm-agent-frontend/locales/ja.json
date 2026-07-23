@@ -11925,7 +11925,20 @@
     "teammateInbound": "来自 {from}",
     "teammateOutbound": "发往 {to}",
     "streamMore": "もっと見る",
-    "streamCollapse": "折りたたむ"
+    "streamCollapse": "折りたたむ",
+    "sortSpawn": "生成順",
+    "sortBusiest": "高コスト",
+    "sortSlowest": "最も遅い",
+    "sortStatus": "ステータス",
+    "filterAll": "すべて",
+    "filterRunning": "実行中",
+    "filterFailed": "失敗",
+    "filterLeaf": "リーフ",
+    "ganttTitle": "タイムライン",
+    "agents": "エージェント",
+    "active": "実行中",
+    "failed": "失敗",
+    "approvalCardNotFound": "承認カードが見つかりません"
   },
   "evalLab": {
     "pageTitle": "評価ラボ",

@@ -245,6 +245,16 @@ export default function E2EChatBridge() {
   useLayoutEffect(() => {
     if (!isLocalDevHost()) return;
 
+    const sseEvents: string[] = [];
+    (window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string) => void }).__MYRM_E2E_RECORD_SSE__ = (
+      type: string,
+    ) => {
+      sseEvents.push(type);
+      if (sseEvents.length > 48) {
+        sseEvents.splice(0, sseEvents.length - 48);
+      }
+    };
+
     window.__MYRM_E2E_CHAT__ = {
       __e2eFallback: false,
       ensureProviders: initProvidersForE2e,
@@ -327,6 +337,16 @@ export default function E2EChatBridge() {
           `attach-timeout chatId=${finalState.chatId} notFound=${finalState.notFound} loadError=${finalState.loadError} loaded=${finalState.isMessagesLoaded}`,
         );
       },
+      recoverHitlStream: async (chatId: string) => {
+        const id = chatId.trim();
+        if (!id) {
+          return { ok: false, err: 'empty-chat-id' };
+        }
+        if (typeof window.__MYRM_E2E_RUNTIME_READY__ !== 'undefined') {
+          await window.__MYRM_E2E_RUNTIME_READY__;
+        }
+        return useChatStore.getState().recoverHitlStream(id);
+      },
       resetChat: () => {
         flushSync(() => {
           prepareAutomationSend();
@@ -390,8 +410,14 @@ export default function E2EChatBridge() {
           hasOk: /\bOK\b/i.test(assistantText),
           hasDone: /\bDONE\b/i.test(assistantText),
           lastAssistantSample: assistantText.slice(0, 200),
+          toolApprovalQueueLen: useToolApprovalStore.getState().queue.length,
         };
       },
+      toolApprovalSnapshot: () => ({
+        queueLen: useToolApprovalStore.getState().queue.length,
+        tools: useToolApprovalStore.getState().queue.map((row) => row.toolName),
+      }),
+      sseSnapshot: () => [...sseEvents],
       setGoalMode: (enabled: boolean) => {
         flushSync(() => {
           useChatStore.getState().setIsGoalMode(enabled);

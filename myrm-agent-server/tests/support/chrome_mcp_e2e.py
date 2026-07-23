@@ -96,7 +96,9 @@ def http_json(
             f"Chrome E2E HTTP helper only permits loopback app URLs: {url}"
         )
     data = json.dumps(body).encode("utf-8") if body is not None else None
-    request = urllib.request.Request(url, data=data, method=method)  # noqa: S310 - validated loopback
+    request = urllib.request.Request(
+        url, data=data, method=method
+    )  # noqa: S310 - validated loopback
     if data is not None:
         request.add_header("Content-Type", "application/json")
     try:
@@ -117,6 +119,7 @@ def http_json(
 def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
     """HTTP GET a UI route so webpack/turbopack compiles before Chrome navigation."""
     import os
+    import subprocess
 
     if not path.startswith("/"):
         raise ValueError(f"warm_ui_route expects an absolute path, got: {path!r}")
@@ -129,16 +132,56 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
     poll_sec = float(os.environ.get("MYRM_CHROME_E2E_SHARED_UI_POLL_SEC", "2"))
     deadline = time.monotonic() + wait_sec
     last_error: BaseException | None = None
+    heal_interval = 30.0
+    next_heal_at = 0.0
+    monorepo_root = Path(__file__).resolve().parents[4]
+    dev_stack = monorepo_root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
+
+    def _heal_shared_frontend() -> None:
+        if not dev_stack.is_file():
+            return
+        subprocess.run(
+            ["bash", str(dev_stack), "frontend-only", "ensure"],
+            cwd=str(monorepo_root),
+            env={
+                **os.environ,
+                "MYRM_SUPERVISOR_BYPASS": "1",
+                "MYRM_E2E_SHPOIB": os.environ.get("MYRM_E2E_SHPOIB", "1"),
+            },
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+
     while time.monotonic() < deadline:
-        request = urllib.request.Request(url, method="GET")  # noqa: S310 - loopback only
+        if time.monotonic() >= next_heal_at:
+            next_heal_at = time.monotonic() + heal_interval
+            _heal_shared_frontend()
+        request = urllib.request.Request(
+            url, method="GET"
+        )  # noqa: S310 - loopback only
         per_attempt = max(5.0, min(30.0, deadline - time.monotonic()))
         try:
-            with urllib.request.urlopen(request, timeout=per_attempt) as response:  # noqa: S310
+            with urllib.request.urlopen(
+                request, timeout=per_attempt
+            ) as response:  # noqa: S310
                 if response.status == 200:
                     return
                 last_error = RuntimeError(
                     f"warm_ui_route GET {url} returned HTTP {response.status}"
                 )
+                if response.status in {404, 502, 503}:
+                    _heal_shared_frontend()
+                    next_heal_at = time.monotonic() + heal_interval
+        except urllib.error.HTTPError as exc:
+            # Next.js cold compile often returns 404 before routes are ready.
+            if exc.code in {404, 502, 503}:
+                last_error = exc
+                _heal_shared_frontend()
+                next_heal_at = time.monotonic() + heal_interval
+            else:
+                last_error = exc
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             last_error = exc
         time.sleep(poll_sec)
@@ -182,16 +225,34 @@ def _reapply_shpoib_runtime_after_reload(
     import os
 
     api_base = get_e2e_api_url()
-    if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=timeout_sec):
-        raise RuntimeError(f"SHPOIB private API not ready before rebind: {api_base}")
     bootstrap_js = e2e_runtime_bootstrap_apply_js()
     if bootstrap_js is None:
         raise RuntimeError("SHPOIB bootstrap JS missing after reload")
-    observed = client.evaluate(page, bootstrap_js, timeout_sec=timeout_sec)
-    if not isinstance(observed, dict) or observed.get("ok") is not True:
-        raise RuntimeError(f"SHPOIB runtime rebind after reload failed: {observed}")
-    rebind_timeout = float(os.environ.get("MYRM_SHPOIB_REBIND_TIMEOUT_SEC", str(timeout_sec)))
-    _wait_for_shpoib_runtime_ready(client, page, timeout_sec=rebind_timeout)
+    deadline = time.monotonic() + timeout_sec
+    last_observed: dict[str, object] = {"phase": "not_started"}
+    while time.monotonic() < deadline:
+        remaining = max(0.0, deadline - time.monotonic())
+        if wait_e2e_provider_ready(
+            api_url=api_base, timeout_sec=min(30.0, max(5.0, remaining))
+        ):
+            observed = client.evaluate(
+                page,
+                bootstrap_js,
+                timeout_sec=min(60.0, max(5.0, remaining)),
+            )
+            if isinstance(observed, dict) and observed.get("ok") is True:
+                rebind_timeout = float(
+                    os.environ.get("MYRM_SHPOIB_REBIND_TIMEOUT_SEC", str(timeout_sec))
+                )
+                _wait_for_shpoib_runtime_ready(
+                    client, page, timeout_sec=min(rebind_timeout, remaining)
+                )
+                return
+            last_observed = (
+                observed if isinstance(observed, dict) else {"value": observed}
+            )
+        time.sleep(2.0)
+    raise RuntimeError(f"SHPOIB runtime rebind after reload failed: {last_observed}")
 
 
 @contextmanager

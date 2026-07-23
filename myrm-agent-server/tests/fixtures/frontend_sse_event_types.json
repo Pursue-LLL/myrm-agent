@@ -58,6 +58,7 @@
   "subagent_completion",
   "subagent_log",
   "subagent_progress",
+  "subagent_stale",
   "subagent_start",
   "subagent_status_update",
   "tasks_steps",

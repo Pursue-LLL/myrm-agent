@@ -1,14 +1,14 @@
 /**
  * [INPUT]
- * - lib/utils/localeUtils.ts (POS: App locale 解析与营销接力工具)
+ * - lib/utils/localeUtils.ts (POS: Locale 工具集。供 middleware 自动检测、营销接力、客户端读取和后端格式归一化)
  * - lib/auth-cookie.ts (POS: SaaS sandbox 会话 cookie)
  * - lib/marketing-paths.ts (POS: SaaS 公开路径白名单)
  *
  * [OUTPUT]
- * - middleware(): 营销 `?locale=` 接力 + sandbox 未登录重定向
+ * - middleware(): 营销 `?locale=` 接力 + 首次 Accept-Language 自动检测 + sandbox 未登录重定向
  *
  * [POS]
- * Next.js 边缘中间件：全 deploy mode 下首请求写入 NEXT_LOCALE；sandbox 模式追加鉴权重定向。
+ * Next.js 边缘中间件：首次访问自动检测 OS locale 写入 NEXT_LOCALE cookie；营销站 locale 参数接力；sandbox 模式鉴权重定向。
  */
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -16,6 +16,7 @@ import { AUTH_SESSION_COOKIE } from '@/lib/auth-cookie';
 import { isSaasPublicPath } from '@/lib/marketing-paths';
 import {
   NEXT_LOCALE_COOKIE_NAME,
+  negotiateLocale,
   parseLocaleQueryParam,
   urlWithoutLocaleParam,
 } from '@/lib/utils/localeUtils';
@@ -45,16 +46,25 @@ export function middleware(request: NextRequest) {
     return localeRelay;
   }
 
+  const needsLocaleDetection = !request.cookies.has(NEXT_LOCALE_COOKIE_NAME);
   const { pathname } = request.nextUrl;
 
   if (pathname === '/workspace') {
     const url = request.nextUrl.clone();
     url.pathname = '/work';
-    return NextResponse.redirect(url, 301);
+    const response = NextResponse.redirect(url, 301);
+    if (needsLocaleDetection) {
+      attachDetectedLocale(request, response);
+    }
+    return response;
   }
 
   if (!isSandboxDeployMode()) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    if (needsLocaleDetection) {
+      attachDetectedLocale(request, response);
+    }
+    return response;
   }
 
   if (
@@ -69,7 +79,11 @@ export function middleware(request: NextRequest) {
   }
 
   if (isSaasPublicPath(pathname)) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    if (needsLocaleDetection) {
+      attachDetectedLocale(request, response);
+    }
+    return response;
   }
 
   const hasSession = request.cookies.get(AUTH_SESSION_COOKIE)?.value === '1';
@@ -79,10 +93,26 @@ export function middleware(request: NextRequest) {
     if (returnPath !== '/') {
       loginUrl.searchParams.set('redirect', returnPath);
     }
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    if (needsLocaleDetection) {
+      attachDetectedLocale(request, response);
+    }
+    return response;
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if (needsLocaleDetection) {
+    attachDetectedLocale(request, response);
+  }
+  return response;
+}
+
+function attachDetectedLocale(request: NextRequest, response: NextResponse): void {
+  const detected = negotiateLocale(request.headers.get('accept-language'));
+  response.cookies.set(NEXT_LOCALE_COOKIE_NAME, detected, {
+    path: '/',
+    maxAge: LOCALE_COOKIE_MAX_AGE_SECONDS,
+  });
 }
 
 export const config = {

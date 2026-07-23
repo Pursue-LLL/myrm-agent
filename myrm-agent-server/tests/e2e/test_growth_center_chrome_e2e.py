@@ -58,8 +58,9 @@ def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
 
-    seed_url = f"{api_url}/api/v1/skills/drafts/test/seed-mock?" + urllib.parse.urlencode(
-        {"agent_id": "builtin-general"}
+    seed_url = (
+        f"{api_url}/api/v1/skills/drafts/test/seed-mock?"
+        + urllib.parse.urlencode({"agent_id": "builtin-general"})
     )
     seeded = http_json("POST", seed_url)
     assert isinstance(seeded, dict)
@@ -82,7 +83,9 @@ def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:
     assert "proposed_content" not in case_items[0]
 
     with open_mcp_page(f"{ui_url}/settings/skills?sub=pending") as (client, page):
-        dashboard = wait_for_state(client, page, _GROWTH_DASHBOARD_STATE, timeout_sec=90.0)
+        dashboard = wait_for_state(
+            client, page, _GROWTH_DASHBOARD_STATE, timeout_sec=90.0
+        )
         total_text = str(dashboard.get("totalText") or "")
         pending_text = str(dashboard.get("pendingText") or "")
         assert any(char.isdigit() for char in total_text)
@@ -117,9 +120,13 @@ def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:
             timeout_sec=5.0,
         )
         assert filter_state.get("ready") is True
-        pending_card_digits = "".join(ch for ch in str(filter_state.get("pendingCardText") or "") if ch.isdigit())
+        pending_card_digits = "".join(
+            ch for ch in str(filter_state.get("pendingCardText") or "") if ch.isdigit()
+        )
         pending_filter_digits = "".join(
-            ch for ch in str(filter_state.get("pendingFilterText") or "") if ch.isdigit()
+            ch
+            for ch in str(filter_state.get("pendingFilterText") or "")
+            if ch.isdigit()
         )
         if pending_card_digits and pending_filter_digits:
             assert pending_filter_digits == pending_card_digits

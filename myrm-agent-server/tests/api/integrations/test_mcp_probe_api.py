@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import ssl
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
@@ -90,6 +91,30 @@ class TestMCPProbeEndpoint:
         assert "not running" in data["error"]
         assert data["reasonCode"] == "connection_refused"
         assert data["recommendedMode"] == "start_local_editor_mcp"
+        assert data["shouldBlockConnect"] is True
+
+    def test_probe_unreachable_connect_error_network_unreachable(self, client: TestClient) -> None:
+        """Probe maps route-level failures to verify_local_network_and_editor."""
+        import httpx
+
+        async def _raise_network_unreachable(_url: str) -> None:
+            try:
+                raise OSError(errno.EHOSTUNREACH, "No route to host")
+            except OSError as os_exc:
+                raise httpx.ConnectError("No route to host") from os_exc
+
+        with patch("httpx.AsyncClient.get", side_effect=_raise_network_unreachable):
+            response = client.post(
+                "/api/v1/integrations/mcp/probe",
+                json={"url": "http://127.0.0.1:8000/mcp"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["status"] == "unreachable"
+        assert "network route unavailable" in data["error"]
+        assert data["reasonCode"] == "connection_unreachable"
+        assert data["recommendedMode"] == "verify_local_network_and_editor"
         assert data["shouldBlockConnect"] is True
 
     def test_probe_unreachable_tls_verification_error(self, client: TestClient) -> None:

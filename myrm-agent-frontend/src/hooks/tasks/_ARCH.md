@@ -4,5 +4,5 @@
 
 | 文件 | 职责 |
 |------|------|
-| `useTasksSubscription.ts` | SSE 连接、按 `task_id` 拉取详情、断线时 `GET /api/v1/tasks?ids=...&detail=true` 回退轮询 |
+| `useTasksSubscription.ts` | SSE 连接、按 `task_id` 拉取详情；`task_update.sync_required=true` 或事件解析异常时节流触发 `GET /api/v1/tasks?ids=...&detail=true` 全量自愈同步；断线时回退轮询 |
 | `index.ts` | 桶导出门面（白名单） |

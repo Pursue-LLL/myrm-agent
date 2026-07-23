@@ -110,6 +110,20 @@ async def test_stream_collector_full_coverage():
     assert "test_chat_1" not in ACTIVE_COLLECTORS
 
 
+def test_stream_collector_replays_pending_interrupts_to_late_subscriber() -> None:
+    ACTIVE_COLLECTORS.clear()
+    collector = StreamContentCollector(chat_id="chat-interrupt-replay")
+    approval = {
+        "type": "tool_approval_request",
+        "messageId": "msg-1",
+        "data": {"actionRequests": [{"action": "bash_code_execute_tool", "args": {"command": "echo hi"}}]},
+    }
+    collector.feed_event(approval)
+    _snapshot, queue = collector.subscribe()
+    assert queue.get_nowait() == approval
+    collector.cleanup()
+
+
 @pytest.mark.asyncio
 async def test_stream_collector_session_recording():
     """session_recording event is collected and included in extra_data."""
@@ -167,4 +181,24 @@ async def test_stream_collector_session_recording_absent():
     assert "sessionRecording" not in extra
     assert extra["routingTier"] == "fast"
 
+    collector.cleanup()
+
+
+def test_stream_collector_cleanup_only_removes_self_from_registry() -> None:
+    ACTIVE_COLLECTORS.clear()
+    first = StreamContentCollector(chat_id="chat-cleanup-race")
+    second = StreamContentCollector(chat_id="chat-cleanup-race")
+    assert ACTIVE_COLLECTORS["chat-cleanup-race"] is second
+    first.cleanup()
+    assert ACTIVE_COLLECTORS["chat-cleanup-race"] is second
+    second.cleanup()
+    assert "chat-cleanup-race" not in ACTIVE_COLLECTORS
+
+
+def test_stream_collector_has_pending_hitl_replay() -> None:
+    ACTIVE_COLLECTORS.clear()
+    collector = StreamContentCollector(chat_id="chat-hitl-pending")
+    assert collector.has_pending_hitl_replay() is False
+    collector.feed_event({"type": "tool_approval_request", "data": {"actionRequests": []}})
+    assert collector.has_pending_hitl_replay() is True
     collector.cleanup()

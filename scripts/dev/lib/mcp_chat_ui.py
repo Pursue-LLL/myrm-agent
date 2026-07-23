@@ -6,7 +6,7 @@ import asyncio
 import os
 import time
 
-from cdp_chat_support import PAGE_PROBE_JS, e2e_api_base_inject_js
+from cdp_chat_support import PAGE_PROBE_JS, e2e_api_base_inject_js, shpoib_shell_wait_slice_cap, shpoib_parallel_shell_timeout_sec
 from cdp_chat_ui import CdpChatSession
 from chrome_mcp_client import (
     ChromeMcpClient,
@@ -168,6 +168,7 @@ class McpChatSession(CdpChatSession):
         timeout_sec: float = 120.0,
         require_bridge: bool = True,
     ) -> dict[str, object]:
+        timeout_sec = shpoib_parallel_shell_timeout_sec(timeout_sec)
         deadline = time.monotonic() + timeout_sec
         last_exc: TimeoutError | None = None
         while time.monotonic() < deadline:
@@ -188,7 +189,7 @@ class McpChatSession(CdpChatSession):
                     )
             try:
                 return await super().wait_shell_ready(
-                    timeout_sec=min(remaining, 60.0),
+                    timeout_sec=shpoib_shell_wait_slice_cap(remaining),
                     require_bridge=require_bridge,
                 )
             except TimeoutError as exc:

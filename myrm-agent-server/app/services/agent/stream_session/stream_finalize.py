@@ -333,4 +333,15 @@ async def finalize_agent_stream_session(
             session.collector.cross_turn_data_updates,
         )
 
-    session.collector.cleanup()
+    pending_hitl = bool(
+        approval.value
+        or clarification.pending
+        or session.collector.has_pending_hitl_replay()
+    )
+    if pending_hitl:
+        logger.info(
+            "Deferring collector cleanup for pending HITL: chat_id=%s",
+            session.request.chat_id,
+        )
+    else:
+        session.collector.cleanup()

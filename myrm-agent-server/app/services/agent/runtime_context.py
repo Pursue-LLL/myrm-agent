@@ -15,10 +15,32 @@ passes the same runtime context keys to the harness, including disabled skill pa
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from app.services.agent.execution_cache.types import ExecutionMode
 
+if TYPE_CHECKING:
+    from app.services.agent.params.models import AgentRequest
+
 logger = logging.getLogger(__name__)
+
+
+def resolve_stream_execution_mode() -> ExecutionMode:
+    """POOLED by default; SHPOIB private backends force ephemeral to avoid stale security."""
+    import os
+
+    if os.environ.get("MYRM_E2E_FORCE_EPHEMERAL", "").strip() == "1":
+        return ExecutionMode.EPHEMERAL
+    return ExecutionMode.POOLED
+
+
+def prefer_direct_agent_stream(request: AgentRequest) -> AgentRequest:
+    """SHPOIB Chrome E2E: workspace multiplex is unreliable across isolated backends."""
+    import os
+
+    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1" or not request.multiplexed:
+        return request
+    return request.model_copy(update={"multiplexed": False})
 
 
 async def build_agent_runtime_context(

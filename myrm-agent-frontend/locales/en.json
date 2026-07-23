@@ -431,7 +431,13 @@
         "probing": "Checking connectivity...",
         "probeUnreachable": "Service not running or port not open — please ensure the editor MCP server is started",
         "probeTlsVerificationFailed": "TLS certificate validation failed — trust the MCP certificate or configure a valid CA bundle.",
-        "probeCloudLoopbackBlocked": "This integration runs on your local machine. In cloud mode, switch to Local WebUI or Tauri desktop and reconnect."
+        "probeCloudLoopbackBlocked": "This integration runs on your local machine. In cloud mode, switch to Local WebUI or Tauri desktop and reconnect.",
+        "probeRecommendedActionTitle": "Recommended next step",
+        "probeRecommendedModeLocalOrTauri": "Switch to Local WebUI or Tauri desktop, then reconnect this integration from your local machine.",
+        "probeRecommendedModeStartLocalEditorMcp": "Start the MCP server in your local editor, then run the connectivity check again.",
+        "probeRecommendedModeVerifyLocalNetworkAndEditor": "Check local network reachability and editor MCP settings, then run the connectivity check again.",
+        "probeRecommendedActionSwitchMode": "Close and switch mode",
+        "probeRecommendedActionRetryProbe": "Retry and connect"
       }
     },
     "integrationMemory": {
@@ -11925,7 +11931,20 @@
     "teammateInbound": "From {from}",
     "teammateOutbound": "To {to}",
     "streamMore": "more",
-    "streamCollapse": "Collapse"
+    "streamCollapse": "Collapse",
+    "sortSpawn": "Spawn",
+    "sortBusiest": "Busiest",
+    "sortSlowest": "Slowest",
+    "sortStatus": "Status",
+    "filterAll": "All",
+    "filterRunning": "Running",
+    "filterFailed": "Failed",
+    "filterLeaf": "Leaves",
+    "ganttTitle": "Timeline",
+    "agents": "agents",
+    "active": "active",
+    "failed": "failed",
+    "approvalCardNotFound": "No pending approval card found"
   },
   "evalLab": {
     "pageTitle": "Eval Lab",

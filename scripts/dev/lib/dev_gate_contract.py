@@ -138,7 +138,8 @@ def chrome_e2e_pytest_safe_timeout_sec(
     # CHROME_E2E_MATRIX is per long single-test (desktop/matrix); multi-item sessions scale by mux waves.
     wave_cap = CHROME_E2E_MATRIX_TIMEOUT_SECONDS * max(
         1,
-        (normalized_count + MUX_MAX_CONCURRENT_SESSIONS - 1) // MUX_MAX_CONCURRENT_SESSIONS,
+        (normalized_count + MUX_MAX_CONCURRENT_SESSIONS - 1)
+        // MUX_MAX_CONCURRENT_SESSIONS,
     )
     return min(raw, wave_cap)
 

@@ -47,7 +47,9 @@ def _ensure_voice_feature_enabled() -> None:
     )
 
 
-def _wait_personal_settings(*, enable_memory: bool, conversation_search: bool) -> dict[str, object]:
+def _wait_personal_settings(
+    *, enable_memory: bool, conversation_search: bool
+) -> dict[str, object]:
     deadline = time.monotonic() + 30.0
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
@@ -72,7 +74,9 @@ def _wait_personal_settings(*, enable_memory: bool, conversation_search: bool) -
     )
 
 
-def _toggle_conversation_search(client, page, *, target_checked: bool) -> dict[str, object]:
+def _toggle_conversation_search(
+    client, page, *, target_checked: bool
+) -> dict[str, object]:
     deadline = time.monotonic() + 30.0
     last: dict[str, object] = {}
     script = conversation_search_toggle_js(target_checked=target_checked)
@@ -141,6 +145,8 @@ def test_voice_memory_settings_ui_disables_conversation_search_in_api() -> None:
         toggled_off = _toggle_conversation_search(client, page, target_checked=False)
         assert toggled_off.get("ok") is True, toggled_off
 
-    settings = _wait_personal_settings(enable_memory=True, conversation_search=False)
-    assert settings.get("enableMemory") is True
-    assert settings.get("memoryEnableConversationSearch") is False
+        settings = _wait_personal_settings(
+            enable_memory=True, conversation_search=False
+        )
+        assert settings.get("enableMemory") is True
+        assert settings.get("memoryEnableConversationSearch") is False

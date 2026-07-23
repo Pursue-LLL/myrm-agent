@@ -95,6 +95,9 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "unattended_mode": agent_wrapper.unattended_mode,
         "declared_capabilities": list(agent_wrapper.declared_capabilities),
         "declared_allowed_roots": list(agent_wrapper.declared_allowed_roots),
+        # Security policy must bust POOLED cache when YOLO/HITL or permissions change.
+        "security_config_raw": _stable_json(agent_wrapper.security_config_raw),
+        "agent_security_raw": _stable_json(agent_wrapper.agent_security_raw),
     }
 
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)

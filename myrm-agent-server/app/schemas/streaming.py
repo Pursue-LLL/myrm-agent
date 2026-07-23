@@ -17,6 +17,8 @@ SSE_RESPONSE_HEADERS: dict[str, str] = {
     "Cache-Control": "no-cache",
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no",
+    # SHPOIB E2E: allow cross-origin SSE reads from :3000 under COEP credentialless.
+    "Cross-Origin-Resource-Policy": "cross-origin",
 }
 
 

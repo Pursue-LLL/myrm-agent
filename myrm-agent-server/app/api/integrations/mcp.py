@@ -1,4 +1,5 @@
 import asyncio
+import errno
 import logging
 import ssl
 from typing import Literal
@@ -701,6 +702,7 @@ class MCPProbeData(BaseModel):
     reason_code: Literal[
         "reachable",
         "connection_refused",
+        "connection_unreachable",
         "tls_verification_failed",
         "connection_timeout",
         "probe_failed_unknown",
@@ -737,19 +739,64 @@ _TLS_VERIFY_ERROR_MARKERS = (
     "hostname does not match",
 )
 
+_CONNECT_UNREACHABLE_ERRNOS = frozenset(
+    {
+        errno.EADDRNOTAVAIL,
+        errno.EHOSTDOWN,
+        errno.EHOSTUNREACH,
+        errno.ENETDOWN,
+        errno.ENETUNREACH,
+    }
+)
+
+_CONNECT_UNREACHABLE_MARKERS = (
+    "network is unreachable",
+    "no route to host",
+    "host is down",
+    "cannot assign requested address",
+)
+
+
+def _iter_exception_chain(exc: BaseException) -> list[BaseException]:
+    stack: list[BaseException] = [exc]
+    ordered: list[BaseException] = []
+    seen: set[int] = set()
+    while stack:
+        current = stack.pop()
+        marker = id(current)
+        if marker in seen:
+            continue
+        seen.add(marker)
+        ordered.append(current)
+        cause = getattr(current, "__cause__", None)
+        if isinstance(cause, BaseException):
+            stack.append(cause)
+        context = getattr(current, "__context__", None)
+        if isinstance(context, BaseException) and context is not cause:
+            stack.append(context)
+    return ordered
+
 
 def _is_tls_verification_connect_error(exc: Exception) -> bool:
-    parts: list[str] = [str(exc)]
-    cause = getattr(exc, "__cause__", None)
-    context = getattr(exc, "__context__", None)
-    if isinstance(cause, ssl.SSLCertVerificationError) or isinstance(context, ssl.SSLCertVerificationError):
+    chain = _iter_exception_chain(exc)
+    if any(isinstance(item, ssl.SSLCertVerificationError) for item in chain):
         return True
-    if cause is not None:
-        parts.append(str(cause))
-    if context is not None and context is not cause:
-        parts.append(str(context))
+    parts = [str(part) for part in chain]
     lowered = " | ".join(part.lower() for part in parts if part)
     return any(marker in lowered for marker in _TLS_VERIFY_ERROR_MARKERS)
+
+
+def _is_network_unreachable_connect_error(exc: Exception) -> bool:
+    chain = _iter_exception_chain(exc)
+    lowered = " | ".join(str(part).lower() for part in chain if str(part))
+    if any(marker in lowered for marker in _CONNECT_UNREACHABLE_MARKERS):
+        return True
+    errnos = {
+        int(item.errno)
+        for item in chain
+        if isinstance(item, OSError) and isinstance(getattr(item, "errno", None), int)
+    }
+    return any(code in _CONNECT_UNREACHABLE_ERRNOS for code in errnos)
 
 
 @router.post("/probe", response_model=StandardSuccessResponse)
@@ -805,6 +852,15 @@ async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONRespon
                 status="unreachable",
                 error="TLS certificate verification failed — trust the MCP certificate or configure a valid CA bundle",
                 reason_code="tls_verification_failed",
+                should_block_connect=True,
+            )
+            return success_response(data=data.model_dump(by_alias=True))
+        if _is_network_unreachable_connect_error(exc):
+            data = MCPProbeData(
+                status="unreachable",
+                error="Local network route unavailable — verify localhost routing, VPN/proxy policy, and editor MCP settings",
+                reason_code="connection_unreachable",
+                recommended_mode="verify_local_network_and_editor",
                 should_block_connect=True,
             )
             return success_response(data=data.model_dump(by_alias=True))

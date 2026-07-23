@@ -40,9 +40,15 @@ def _make_local_executor(workspace: Path) -> object:
     from unittest.mock import patch as mock_patch
 
     from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
-    from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
-    from myrm_agent_harness.toolkits.code_execution.sandbox.providers.null import NullProvider
-    from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import SandboxStatus
+    from myrm_agent_harness.toolkits.code_execution.executors.local.executor import (
+        LocalExecutor,
+    )
+    from myrm_agent_harness.toolkits.code_execution.sandbox.providers.null import (
+        NullProvider,
+    )
+    from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import (
+        SandboxStatus,
+    )
 
     executor = LocalExecutor(ExecutionConfig())
     executor.bind_workspace(str(workspace))
@@ -67,9 +73,13 @@ async def _spawn_shell_fixture(
     chat_id: str,
     command: str,
 ) -> int:
-    from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import create_bash_code_execute_tool
+    from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
+        create_bash_code_execute_tool,
+    )
     from myrm_agent_harness.toolkits.code_execution.executors.base import set_executor
-    from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind import bind_workspace_storage_root
+    from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind import (
+        bind_workspace_storage_root,
+    )
 
     workspace.mkdir(parents=True, exist_ok=True)
     executor = _make_local_executor(workspace)
@@ -87,7 +97,9 @@ async def _spawn_shell_fixture(
     }
     bash_tool = create_bash_code_execute_tool()
     with (
-        patch("myrm_agent_harness.utils.event_utils.dispatch_custom_event", AsyncMock()),
+        patch(
+            "myrm_agent_harness.utils.event_utils.dispatch_custom_event", AsyncMock()
+        ),
         patch(
             "myrm_agent_harness.agent.skills.mcp.notify_registry.session_scope",
             return_value=AsyncMock(
@@ -164,7 +176,9 @@ def _resolve_evicted_workspace_root(workspace: Path) -> Path:
         if candidate.is_dir():
             return candidate
     try:
-        from myrm_agent_harness.toolkits.code_execution.workspace.registry import get_active_workspace_path
+        from myrm_agent_harness.toolkits.code_execution.workspace.registry import (
+            get_active_workspace_path,
+        )
 
         active = get_active_workspace_path()
         if active:
@@ -180,10 +194,22 @@ def _resolve_evicted_workspace_root(workspace: Path) -> Path:
 
 def _write_vault_log_fixture(*, chat_id: str, pid: int, workspace: Path) -> str:
     """Ensure a real evicted spill file exists for Chrome E2E vault drawer tests."""
-    from myrm_agent_harness.api.hooks import get_background_registry, persist_vault_log_ref
+    from myrm_agent_harness.agent.meta_tools.bash._background_job_store import (
+        get_background_job_store,
+    )
+    from myrm_agent_harness.agent.meta_tools.bash._background_registry_store_sync import (
+        persist_terminal_state,
+        persist_vault_log_ref,
+    )
+    from myrm_agent_harness.agent.meta_tools.bash._background_types import (
+        BackgroundProcessInfo,
+    )
+    from myrm_agent_harness.api.hooks import get_background_registry
 
     filename = f"output_{uuid.uuid4().hex[:8]}.txt"
-    content = "".join(f"MYRM_E2E_VAULT_LINE_{index}\n" for index in range(_VAULT_SPILL_LINE_COUNT))
+    content = "".join(
+        f"MYRM_E2E_VAULT_LINE_{index}\n" for index in range(_VAULT_SPILL_LINE_COUNT)
+    )
 
     write_roots = [workspace]
     server_root = _resolve_evicted_workspace_root(workspace)
@@ -195,16 +221,44 @@ def _write_vault_log_fixture(*, chat_id: str, pid: int, workspace: Path) -> str:
         evicted_dir.mkdir(parents=True, exist_ok=True)
         (evicted_dir / filename).write_text(content, encoding="utf-8")
 
-    info = get_background_registry().get(pid)
-    if info is not None:
-        info.vault_log_ref = filename
-        persist_vault_log_ref(info)
+    registry = get_background_registry()
+    live_info: BackgroundProcessInfo | None = None
+    with registry._lock:  # noqa: SLF001 — E2E fixture must mutate live registry, not get() snapshot
+        entry = registry._entries.get(pid)  # noqa: SLF001
+        if entry is not None:
+            entry.info.vault_log_ref = filename
+            live_info = registry._snapshot(entry)  # noqa: SLF001
+
+    if live_info is not None:
+        persist_vault_log_ref(live_info)
+        persist_terminal_state(live_info)
+        return filename
+
+    store = get_background_job_store()
+    if store is not None:
+        record = store.get_by_pid(pid)
+        if record is not None:
+            store.set_vault_log_ref(record.job_id, filename)
+            synthetic = BackgroundProcessInfo(
+                job_id=record.job_id,
+                pid=pid,
+                command=record.command,
+                session_id=record.session_id,
+                started_at=record.started_at,
+                status=record.status if record.status != "orphaned" else "exited",
+                exit_code=record.exit_code,
+                error_category=record.error_category,
+                vault_log_ref=filename,
+            )
+            persist_terminal_state(synthetic)
     return filename
 
 
 @router.post("/test/seed-shell-fixture", include_in_schema=False)
 async def seed_shell_fixture(
-    mode: Literal["failed", "running", "success", "completed_with_vault"] = Query(default="failed"),
+    mode: Literal["failed", "running", "success", "completed_with_vault"] = Query(
+        default="failed"
+    ),
 ) -> dict[str, object]:
     """Local dev/test only: seed a shell background job for Chrome E2E."""
     if not is_local_mode():
@@ -215,22 +269,22 @@ async def seed_shell_fixture(
         await _ensure_e2e_chat(chat_id)
 
     settings = get_settings()
-    workspace = Path(settings.database.state_dir).expanduser() / "e2e-fixtures" / chat_id
+    workspace = (
+        Path(settings.database.state_dir).expanduser() / "e2e-fixtures" / chat_id
+    )
 
     if mode == "running":
-        command = (
-            f'{sys.executable} -c "import time; print(\'MYRM_E2E_SHELL_RUNNING\', flush=True); time.sleep(120)"'
-        )
+        command = f"{sys.executable} -c \"import time; print('MYRM_E2E_SHELL_RUNNING', flush=True); time.sleep(120)\""
     elif mode == "success":
-        command = (
-            f'{sys.executable} -c "print(\'{_SUCCESS_MARKER}\', flush=True)"'
-        )
+        command = f"{sys.executable} -c \"print('{_SUCCESS_MARKER}', flush=True)\""
     elif mode == "completed_with_vault":
-        command = f'{sys.executable} -c "print(\'MYRM_E2E_VAULT_DONE\', flush=True)"'
+        command = f"{sys.executable} -c \"print('MYRM_E2E_VAULT_DONE', flush=True)\""
     else:
         command = f'{sys.executable} -c "import sys; sys.exit(42)"'
 
-    pid = await _spawn_shell_fixture(workspace=workspace, chat_id=chat_id, command=command)
+    pid = await _spawn_shell_fixture(
+        workspace=workspace, chat_id=chat_id, command=command
+    )
     from myrm_agent_harness.api.hooks import get_background_registry
 
     if mode in {"failed", "success", "completed_with_vault"}:
@@ -240,7 +294,9 @@ async def seed_shell_fixture(
     if mode == "completed_with_vault":
         vault_log_ref = await _wait_vault_log_ref(pid, timeout_sec=2.0)
         if not vault_log_ref:
-            vault_log_ref = _write_vault_log_fixture(chat_id=chat_id, pid=pid, workspace=workspace)
+            vault_log_ref = _write_vault_log_fixture(
+                chat_id=chat_id, pid=pid, workspace=workspace
+            )
 
     info = get_background_registry().get(pid)
     job_id = info.job_id if info is not None else str(pid)

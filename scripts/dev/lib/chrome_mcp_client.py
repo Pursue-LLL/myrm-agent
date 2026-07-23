@@ -324,7 +324,11 @@ class ChromeMcpClient:
     ) -> None:
         source, expected = binding
         api_base = str(expected.get("apiBase") or "").strip()
-        if api_base and not wait_e2e_provider_ready(api_url=api_base, timeout_sec=120.0):
+        bootstrap_timeout_sec = max(30.0, min(120.0, timeout_ms / 1000.0))
+        provider_wait_sec = max(60.0, bootstrap_timeout_sec)
+        if api_base and not wait_e2e_provider_ready(
+            api_url=api_base, timeout_sec=provider_wait_sec
+        ):
             raise RuntimeError(
                 "E2E_RUNTIME_BINDING_FAILED: "
                 f"private API not ready before binding: {api_base}"
@@ -335,7 +339,9 @@ class ChromeMcpClient:
             self.evaluate(page, f"(() => {{{source} return true; }})()")
             self.navigate(page, url, timeout_ms=timeout_ms)
             if bootstrap_js is not None:
-                observed = self.evaluate(page, bootstrap_js, timeout_sec=30.0)
+                observed = self.evaluate(
+                    page, bootstrap_js, timeout_sec=bootstrap_timeout_sec
+                )
             else:
                 observed = self.evaluate(
                     page,
@@ -349,9 +355,11 @@ class ChromeMcpClient:
                 return {ok: false, error: String(error)};
               }
             })()""",
-                    timeout_sec=30.0,
+                    timeout_sec=bootstrap_timeout_sec,
                 )
-            last_observed = observed if isinstance(observed, dict) else {"value": observed}
+            last_observed = (
+                observed if isinstance(observed, dict) else {"value": observed}
+            )
             if isinstance(observed, dict) and observed.get("ok") is True:
                 if (
                     observed.get("runtimeId") != expected["runtimeId"]
@@ -369,8 +377,11 @@ class ChromeMcpClient:
             )
             transient = "Failed to fetch" in error_text or "fetch" in error_text.lower()
             if attempt < 4 and transient and api_base:
-                wait_e2e_provider_ready(api_url=api_base, timeout_sec=30.0)
-                time.sleep(1.5 * (attempt + 1))
+                wait_e2e_provider_ready(
+                    api_url=api_base, timeout_sec=bootstrap_timeout_sec
+                )
+                time.sleep(2.0 * (attempt + 1))
+                self.navigate(page, "about:blank", timeout_ms=min(timeout_ms, 30_000))
                 continue
             break
         raise RuntimeError(f"E2E_RUNTIME_BINDING_FAILED: {last_observed}")
@@ -418,7 +429,10 @@ class ChromeMcpClient:
                             "new_page",
                             arguments,
                             timeout_sec=self._resolve_tool_timeout_sec(
-                                min(resolved_timeout_ms / 1000 + 5, self._request_timeout_sec),
+                                min(
+                                    resolved_timeout_ms / 1000 + 5,
+                                    self._request_timeout_sec,
+                                ),
                                 page_timeout_ms=resolved_timeout_ms,
                             ),
                         )
@@ -582,7 +596,7 @@ class ChromeMcpClient:
         effective_timeout = self._resolve_tool_timeout_sec(
             max(timeout_sec, _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC)
         )
-        for reload_attempt in range(2):
+        for reload_attempt in range(3):
             try:
                 result = self.call_tool(
                     "evaluate_script",
@@ -592,6 +606,9 @@ class ChromeMcpClient:
                 return parse_evaluate_result(result)
             except RuntimeError as exc:
                 message = str(exc)
+                if reload_attempt < 2 and _is_page_ownership_error(message):
+                    resolved = self.reclaim_owned_page(resolved)
+                    continue
                 if reload_attempt == 0 and (
                     "Execution context was destroyed" in message
                     or "detached Frame" in message
@@ -614,11 +631,12 @@ class ChromeMcpClient:
         resolved_timeout_ms = (
             timeout_ms if timeout_ms is not None else self._default_page_timeout_ms()
         )
-        try:
+
+        def _navigate_resolved(target: McpPage) -> None:
             self.call_tool(
                 "navigate_page",
                 {
-                    "pageId": resolved.page_id,
+                    "pageId": target.page_id,
                     "type": "url",
                     "url": url,
                     "timeout": resolved_timeout_ms,
@@ -628,9 +646,28 @@ class ChromeMcpClient:
                     page_timeout_ms=resolved_timeout_ms,
                 ),
             )
-        except (RuntimeError, TimeoutError) as exc:
-            if "timeout" not in str(exc).lower():
+
+        try:
+            _navigate_resolved(resolved)
+        except RuntimeError as exc:
+            if _is_page_ownership_error(str(exc)):
+                resolved = self.reclaim_owned_page(resolved)
+                _navigate_resolved(resolved)
+            elif "timeout" not in str(exc).lower():
                 raise
+            else:
+                probe = self.evaluate(
+                    resolved,
+                    "({href: location.href, bodyLength: document.body?.innerText?.length ?? 0})",
+                    timeout_sec=_LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
+                )
+                if not isinstance(probe, dict):
+                    raise exc
+                href = probe.get("href")
+                body_length = probe.get("bodyLength")
+                if href != url or not isinstance(body_length, int) or body_length <= 0:
+                    raise exc
+        except TimeoutError as exc:
             probe = self.evaluate(
                 resolved,
                 "({href: location.href, bodyLength: document.body?.innerText?.length ?? 0})",

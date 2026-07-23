@@ -58,7 +58,9 @@ def read_pending_drift(state_dir: Path) -> PendingStackDrift | None:
     recorded_at = str(payload.get("recorded_at", "")).strip()
     if not reason:
         return None
-    return PendingStackDrift(reason=reason, recorded_at=recorded_at, server_dir=server_dir)
+    return PendingStackDrift(
+        reason=reason, recorded_at=recorded_at, server_dir=server_dir
+    )
 
 
 def pending_drift_exists(state_dir: Path) -> bool:
@@ -138,7 +140,9 @@ def wave_active_lease_count(monorepo_root: Path) -> int:
 def _default_state_dir() -> Path:
     home = Path.home()
     return Path(
-        os.environ.get("MYRM_DEV_STATE_DIR", str(home / ".local" / "state" / "myrm-dev"))
+        os.environ.get(
+            "MYRM_DEV_STATE_DIR", str(home / ".local" / "state" / "myrm-dev")
+        )
     )
 
 

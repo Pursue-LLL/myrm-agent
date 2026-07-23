@@ -10349,7 +10349,20 @@
     "teammateInbound": "From {from}",
     "teammateOutbound": "To {to}",
     "streamMore": "mehr",
-    "streamCollapse": "Einklappen"
+    "streamCollapse": "Einklappen",
+    "sortSpawn": "Reihenfolge",
+    "sortBusiest": "Teuerste",
+    "sortSlowest": "Langsamste",
+    "sortStatus": "Status",
+    "filterAll": "Alle",
+    "filterRunning": "Laufend",
+    "filterFailed": "Fehlgeschlagen",
+    "filterLeaf": "Blätter",
+    "ganttTitle": "Zeitleiste",
+    "agents": "Agenten",
+    "active": "aktiv",
+    "failed": "fehlgeschlagen",
+    "approvalCardNotFound": "Keine ausstehende Genehmigungskarte gefunden"
   },
   "evalLab": {
     "pageTitle": "Eval-Labor",

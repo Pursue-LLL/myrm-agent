@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { connectionManager } from '@/services/ConnectionManager';
+import { resolveE2eApiBase } from '@/lib/deploy-mode';
 import useAuthStore from '@/store/useAuthStore';
 
 /**
@@ -18,7 +19,21 @@ export function useWorkspaceStream(): void {
     }
 
     connectionManager.connect();
+
+    const resync = () => {
+      connectionManager.connect();
+    };
+
+    window.addEventListener('myrm_e2e_runtime_ready', resync);
+    const poll = window.setInterval(() => {
+      if (resolveE2eApiBase()) {
+        resync();
+      }
+    }, 1500);
+
     return () => {
+      window.clearInterval(poll);
+      window.removeEventListener('myrm_e2e_runtime_ready', resync);
       connectionManager.disconnect();
     };
   }, [isAuthenticated]);

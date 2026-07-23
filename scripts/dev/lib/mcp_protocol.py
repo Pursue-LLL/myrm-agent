@@ -74,4 +74,3 @@ def parse_evaluate_result(result: dict[str, object]) -> object:
         return _coerce_parsed_json_value(json.loads(candidate))
     except json.JSONDecodeError:
         return candidate
-

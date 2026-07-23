@@ -1,4 +1,4 @@
-"""Real Chrome MCP E2E for external_cli builtin gate (local toggle + setup hints)."""
+"""Real Chrome MCP E2E for planning builtin tool toggle in agent settings."""
 
 from __future__ import annotations
 
@@ -40,29 +40,30 @@ _OPEN_BUILTIN_DIALOG_JS = """(() => {
   return { clicked: true };
 })()"""
 
-_BUILTIN_DIALOG_READY_JS = """(() => ({
+_PLANNING_DIALOG_READY_JS = """(() => ({
   ready:
     !!document.querySelector('[role="dialog"]') &&
-    !!document.querySelector('[data-testid="builtin-external_cli"]'),
+    !!document.querySelector('[data-testid="builtin-planning"]'),
 }))()"""
 
-_EXTERNAL_CLI_LOCAL_ASSERT_JS = """(() => {
-  const card = document.querySelector('[data-testid="builtin-external_cli"]');
+_PLANNING_CARD_ASSERT_JS = """(() => {
+  const card = document.querySelector('[data-testid="builtin-planning"]');
   if (!card) {
     return { ok: false, reason: 'missing-card' };
   }
-  const disabled = card.getAttribute('aria-disabled') === 'true' || card.hasAttribute('disabled');
+  const disabled =
+    card.getAttribute('aria-disabled') === 'true' || card.hasAttribute('disabled');
   const text = document.body?.innerText || '';
-  const hasLocalOnlyHint = /local or desktop mode|本地或桌面模式/i.test(text);
+  const hasPlanningLabel = /Multi-Step Progress|多步进度/i.test(text);
   return {
-    ok: !disabled && !hasLocalOnlyHint,
+    ok: !disabled && hasPlanningLabel,
     disabled,
-    hasLocalOnlyHint,
+    hasPlanningLabel,
   };
 })()"""
 
-_TOGGLE_EXTERNAL_CLI_JS = """(() => {
-  const card = document.querySelector('[data-testid="builtin-external_cli"]');
+_TOGGLE_PLANNING_JS = """(() => {
+  const card = document.querySelector('[data-testid="builtin-planning"]');
   if (!card) {
     return { toggled: false, reason: 'missing-card' };
   }
@@ -70,13 +71,17 @@ _TOGGLE_EXTERNAL_CLI_JS = """(() => {
   return { toggled: true };
 })()"""
 
-_EXTERNAL_CLI_SETUP_HINT_JS = """(() => {
-  const text = document.body?.innerText || '';
+_PLANNING_ENABLED_ASSERT_JS = """(() => {
+  const card = document.querySelector('[data-testid="builtin-planning"]');
+  if (!card) {
+    return { ready: false, reason: 'missing-card' };
+  }
+  const checkedRing = card.querySelector('.bg-primary.border-primary');
+  const checkedBorder = /border-primary\\/30/.test(card.className);
   return {
-    ready:
-      (/Settings.*Developer.*External Agents|设置.*开发者.*外部/i.test(text) ||
-        /Configure External Agents|配置外部/i.test(text)) &&
-      (/external CLI|外部 CLI|CLI backend|CLI 后端/i.test(text)),
+    ready: !!checkedRing || checkedBorder,
+    hasCheckedRing: !!checkedRing,
+    checkedBorder,
   };
 })()"""
 
@@ -84,12 +89,12 @@ _EXTERNAL_CLI_SETUP_HINT_JS = """(() => {
 def _create_editable_agent(api_url: str) -> str:
     suffix = uuid.uuid4().hex[:8]
     payload = {
-        "name": f"External CLI E2E {suffix}",
-        "description": "Chrome E2E for external_cli builtin gate",
+        "name": f"Planning E2E {suffix}",
+        "description": "Chrome E2E for planning builtin gate",
         "system_prompt": "You are a test agent.",
         "mcp_ids": [],
         "skill_ids": [],
-        "enabled_builtin_tools": ["web_search"],
+        "enabled_builtin_tools": ["web_search", "memory"],
     }
     created = http_json("POST", f"{api_url}/api/v1/user-agents", payload)
     assert isinstance(created, dict)
@@ -115,8 +120,8 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
-def test_external_cli_builtin_card_enabled_in_local_chrome_ui() -> None:
-    """Local deploy: external_cli card is togglable and shows setup hints when enabled."""
+def test_planning_builtin_card_visible_and_togglable_in_chrome_ui() -> None:
+    """Planning opt-in card is visible in Built-in Tools dialog and can be enabled."""
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     agent_id = _create_editable_agent(api_url)
@@ -140,25 +145,27 @@ def test_external_cli_builtin_card_enabled_in_local_chrome_ui() -> None:
                 opened.get("clicked") is True
             ), f"Built-in Tools card not found: {opened}"
 
-            wait_for_state(client, page, _BUILTIN_DIALOG_READY_JS, timeout_sec=30.0)
+            wait_for_state(client, page, _PLANNING_DIALOG_READY_JS, timeout_sec=30.0)
 
-            local_state = client.evaluate(
-                page, _EXTERNAL_CLI_LOCAL_ASSERT_JS, timeout_sec=10.0
+            card_state = client.evaluate(
+                page, _PLANNING_CARD_ASSERT_JS, timeout_sec=10.0
             )
-            assert isinstance(local_state, dict)
+            assert isinstance(card_state, dict)
             assert (
-                local_state.get("ok") is True
-            ), f"external_cli should be enabled in local UI: {local_state}"
+                card_state.get("ok") is True
+            ), f"planning card should be visible and enabled: {card_state}"
 
-            toggled = client.evaluate(page, _TOGGLE_EXTERNAL_CLI_JS, timeout_sec=10.0)
+            toggled = client.evaluate(page, _TOGGLE_PLANNING_JS, timeout_sec=10.0)
             assert isinstance(toggled, dict)
             assert (
                 toggled.get("toggled") is True
-            ), f"Failed to toggle external_cli: {toggled}"
+            ), f"Failed to toggle planning: {toggled}"
 
-            hint = wait_for_state(
-                client, page, _EXTERNAL_CLI_SETUP_HINT_JS, timeout_sec=30.0
+            enabled = wait_for_state(
+                client, page, _PLANNING_ENABLED_ASSERT_JS, timeout_sec=15.0
             )
-            assert hint.get("ready") is True, f"Missing externalCli setup hint: {hint}"
+            assert (
+                enabled.get("ready") is True
+            ), f"planning should be enabled after toggle: {enabled}"
     finally:
         _delete_agent(api_url, agent_id)

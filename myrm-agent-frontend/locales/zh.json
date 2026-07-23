@@ -431,7 +431,13 @@
         "probing": "正在检测连接...",
         "probeUnreachable": "服务未启动或端口未开放，请检查编辑器是否已启动 MCP 服务器",
         "probeTlsVerificationFailed": "TLS 证书校验失败，请信任 MCP 证书或配置有效的 CA 证书链。",
-        "probeCloudLoopbackBlocked": "该集成依赖你本机的编辑器服务。当前为云端模式，请切换到本地 WebUI 或 Tauri 桌面端后再连接。"
+        "probeCloudLoopbackBlocked": "该集成依赖你本机的编辑器服务。当前为云端模式，请切换到本地 WebUI 或 Tauri 桌面端后再连接。",
+        "probeRecommendedActionTitle": "建议的下一步",
+        "probeRecommendedModeLocalOrTauri": "请切换到本地 WebUI 或 Tauri 桌面端，再在本机重新连接该集成。",
+        "probeRecommendedModeStartLocalEditorMcp": "请先在本地编辑器中启动 MCP 服务，再重新执行连通性检测。",
+        "probeRecommendedModeVerifyLocalNetworkAndEditor": "请先检查本地网络连通性与编辑器 MCP 配置，再重新执行连通性检测。",
+        "probeRecommendedActionSwitchMode": "关闭并切换模式",
+        "probeRecommendedActionRetryProbe": "重新检测并连接"
       }
     },
     "integrationMemory": {
@@ -11896,7 +11902,20 @@
     "swarmFissionProgress": "{completed}/{total} 路并行任务",
     "swarmFissionPartialProgress": "{completed}/{total} 成功，{failed} 路失败",
     "streamMore": "更多",
-    "streamCollapse": "收起"
+    "streamCollapse": "收起",
+    "sortSpawn": "顺序",
+    "sortBusiest": "最贵",
+    "sortSlowest": "最慢",
+    "sortStatus": "状态",
+    "filterAll": "全部",
+    "filterRunning": "运行中",
+    "filterFailed": "失败",
+    "filterLeaf": "叶子",
+    "ganttTitle": "时间线",
+    "agents": "代理",
+    "active": "运行中",
+    "failed": "失败",
+    "approvalCardNotFound": "未找到待审批卡片"
   },
   "evalLab": {
     "pageTitle": "评测实验室",

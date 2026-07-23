@@ -139,8 +139,16 @@ class SupervisorDaemon:
                 env=self._dev_stack_env(env_overrides),
             )
         except subprocess.TimeoutExpired as exc:
-            stdout = exc.stdout if isinstance(exc.stdout, str) else (exc.stdout or b"").decode("utf-8", errors="replace")
-            stderr = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", errors="replace")
+            stdout = (
+                exc.stdout
+                if isinstance(exc.stdout, str)
+                else (exc.stdout or b"").decode("utf-8", errors="replace")
+            )
+            stderr = (
+                exc.stderr
+                if isinstance(exc.stderr, str)
+                else (exc.stderr or b"").decode("utf-8", errors="replace")
+            )
             return RpcResponse(
                 ok=False,
                 exit_code=1,
@@ -241,8 +249,12 @@ class SupervisorDaemon:
                     subcommand="ensure",
                 )
             else:
-                logger.info("Watchdog auto-heal: stack lost warmth — running ensure once")
-                ensure_wait = float(os.environ.get("MYRM_STACK_FRONTEND_WAIT_SEC", "180"))
+                logger.info(
+                    "Watchdog auto-heal: stack lost warmth — running ensure once"
+                )
+                ensure_wait = float(
+                    os.environ.get("MYRM_STACK_FRONTEND_WAIT_SEC", "180")
+                )
                 result = self._run_dev_stack("ensure", timeout_sec=ensure_wait + 30.0)
             self._mark_auto_heal_at(backend_only_heal, time.monotonic())
             if result.ok:
@@ -334,7 +346,9 @@ class SupervisorDaemon:
     def start_watchdog(self) -> None:
         if self._watchdog_thread is not None:
             return
-        thread = threading.Thread(target=self._watchdog_loop, name="stack-watchdog", daemon=True)
+        thread = threading.Thread(
+            target=self._watchdog_loop, name="stack-watchdog", daemon=True
+        )
         thread.start()
         self._watchdog_thread = thread
 
@@ -343,7 +357,9 @@ class SupervisorDaemon:
         if self._watchdog_thread is not None:
             self._watchdog_thread.join(timeout=2.0)
 
-    def handle(self, command: RpcCommand, env_overrides: dict[str, str] | None = None) -> RpcResponse:
+    def handle(
+        self, command: RpcCommand, env_overrides: dict[str, str] | None = None
+    ) -> RpcResponse:
         if command == "ping":
             return RpcResponse(
                 ok=True,
@@ -353,7 +369,9 @@ class SupervisorDaemon:
             )
 
         if command == "shutdown":
-            return RpcResponse(ok=True, exit_code=0, stdout="SUPERVISOR_SHUTDOWN_OK\n", stderr="")
+            return RpcResponse(
+                ok=True, exit_code=0, stdout="SUPERVISOR_SHUTDOWN_OK\n", stderr=""
+            )
 
         if command == "status":
             probe, gc_action = collect_stale_state(
@@ -361,7 +379,9 @@ class SupervisorDaemon:
                 advance_failure_streak=False,
             )
             write_supervisor_state(self.paths, probe, gc_action)
-            dev = self._run_dev_stack("status", timeout_sec=15.0, env_overrides=env_overrides)
+            dev = self._run_dev_stack(
+                "status", timeout_sec=15.0, env_overrides=env_overrides
+            )
             return RpcResponse(
                 ok=dev.ok,
                 exit_code=dev.exit_code,
@@ -406,7 +426,9 @@ class SupervisorDaemon:
                     stderr="WAVE_STACK_MUTATION_DENIED: open wave pin or active lease blocks stack reset",
                 )
             if command == "reset":
-                dev = self._run_dev_stack("reset", timeout_sec=120.0, env_overrides=env_overrides)
+                dev = self._run_dev_stack(
+                    "reset", timeout_sec=120.0, env_overrides=env_overrides
+                )
                 self._watchdog_once()
                 if dev.ok:
                     self._last_stack_warm_at = None
@@ -428,7 +450,9 @@ class SupervisorDaemon:
                     self._last_stack_warm_at = time.monotonic()
                 return dev
 
-        return RpcResponse(ok=False, exit_code=1, stdout="", stderr=f"Unknown command: {command}")
+        return RpcResponse(
+            ok=False, exit_code=1, stdout="", stderr=f"Unknown command: {command}"
+        )
 
     def serve_forever(self) -> None:
         self.paths.state_dir.mkdir(parents=True, exist_ok=True)
@@ -482,8 +506,17 @@ class SupervisorDaemon:
                 env_overrides = None
             else:
                 env_overrides = {str(k): str(v) for k, v in env_overrides.items()}
-            if command not in ("ensure", "attach", "reset", "status", "ping", "shutdown"):
-                response = RpcResponse(ok=False, exit_code=1, stdout="", stderr=f"Invalid cmd: {command}")
+            if command not in (
+                "ensure",
+                "attach",
+                "reset",
+                "status",
+                "ping",
+                "shutdown",
+            ):
+                response = RpcResponse(
+                    ok=False, exit_code=1, stdout="", stderr=f"Invalid cmd: {command}"
+                )
             else:
                 if command in ("ensure", "reset", "attach"):
                     conn.settimeout(630.0)
@@ -569,7 +602,9 @@ def main() -> int:
 
     lock_handle = _acquire_daemon_lock(paths)
     if lock_handle is None:
-        logger.info("Supervisor daemon already owns %s", paths.state_dir / "supervisor.lock")
+        logger.info(
+            "Supervisor daemon already owns %s", paths.state_dir / "supervisor.lock"
+        )
         return 0
 
     def _on_signal(_signum: int, _frame: object) -> None:

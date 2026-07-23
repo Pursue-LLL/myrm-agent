@@ -87,6 +87,28 @@ class TestMultiplexerPublish:
         mux = WorkspaceMultiplexer.get()
         await mux.publish("c1", "m1", "data: lonely\n\n")
 
+    @pytest.mark.asyncio
+    async def test_orphan_buffer_replayed_to_late_subscriber(self) -> None:
+        mux = WorkspaceMultiplexer.get()
+
+        await mux.publish("chat-late", "msg-late", 'data: {"type":"tool_approval_request"}\n\n')
+
+        received: list[str] = []
+
+        async def consume():
+            async for chunk in mux.subscribe():
+                received.append(chunk)
+                break
+
+        task = asyncio.create_task(consume())
+        await asyncio.wait_for(task, timeout=1.0)
+        assert len(received) == 1
+        data_line = next(line for line in received[0].strip().split("\n") if line.startswith("data: "))
+        payload = json.loads(data_line[len("data: ") :])
+        assert payload["chat_id"] == "chat-late"
+        assert payload["message_id"] == "msg-late"
+        assert "tool_approval_request" in payload["raw_chunk"]
+
 
 class TestMultiplexerSessionStatus:
     @pytest.mark.asyncio

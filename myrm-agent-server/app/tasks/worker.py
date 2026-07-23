@@ -29,6 +29,16 @@ from myrm_agent_harness.toolkits.tasks import (
     TaskStore,
 )
 
+from app.tasks.metrics import (
+    task_cache_hit_total,
+    task_cancelled_total,
+    task_duration_seconds,
+    task_failed_total,
+    task_retry_total,
+    task_succeeded_total,
+    task_timeout_total,
+)
+
 logger = logging.getLogger(__name__)
 
 type TaskEventCallback = Callable[[str, TaskStatus, dict[str, object] | None], Coroutine[object, object, None]]
@@ -41,19 +51,7 @@ class _TaskExecutor(Protocol):
 
 
 class TaskWorker:
-    """Worker that consumes and executes tasks.
-
-    Features:
-    - Priority-based task consumption
-    - Concurrency control (prevents OOM)
-    - Timeout handling
-    - Cancellation support
-    - Result caching
-    - Automatic retry
-    - Progress tracking
-    - Worker health monitoring
-    - Real-time event emission via callback
-    """
+    """Worker that consumes and executes tasks with retry/cache/timeout support."""
 
     def __init__(
         self,
@@ -69,6 +67,39 @@ class TaskWorker:
         self._worker_id = worker_id
         self._running = False
         self._on_status_change = on_status_change
+
+    @staticmethod
+    def _safe_counter_inc(counter: object, **labels: str) -> None:
+        """Best-effort metric increment that never blocks task execution."""
+        try:
+            if labels:
+                counter.labels(**labels).inc()  # type: ignore[attr-defined, call-arg]
+            else:
+                counter.inc()  # type: ignore[attr-defined]
+        except Exception as exc:  # pragma: no cover - defensive metrics guard
+            logger.debug("Failed to increment task metric: %s", exc)
+
+    @staticmethod
+    def _safe_histogram_observe(histogram: object, value: float, **labels: str) -> None:
+        """Best-effort histogram observe that never blocks task execution."""
+        try:
+            histogram.labels(**labels).observe(value)  # type: ignore[attr-defined, call-arg]
+        except Exception as exc:  # pragma: no cover - defensive metrics guard
+            logger.debug("Failed to observe task metric: %s", exc)
+
+    def _observe_duration(self, task: Task, status: TaskStatus) -> None:
+        """Record task execution duration when start time is available."""
+        if task.started_at is None:
+            return
+        elapsed_seconds = (datetime.now(UTC) - task.started_at).total_seconds()
+        if elapsed_seconds < 0:
+            return
+        self._safe_histogram_observe(
+            task_duration_seconds,
+            elapsed_seconds,
+            task_type=task.task_type,
+            status=status.value,
+        )
 
     async def _emit_event(self, task: Task, status: TaskStatus, error: TaskError | None = None) -> None:
         """Emit task status change event via callback."""
@@ -111,6 +142,7 @@ class TaskWorker:
                 tasks = await self._store.list_tasks(
                     TaskFilters(
                         status=TaskStatus.PENDING,
+                        ready_before=datetime.now(UTC),
                         limit=10,
                         order_by="priority DESC, created_at ASC",
                     )
@@ -136,6 +168,7 @@ class TaskWorker:
                     cached = await self._store.find_by_cache_key(task.cache_key)
                     if cached and cached.status == TaskStatus.SUCCEEDED:
                         logger.info(f"Task {task.task_id} cache hit: {task.cache_key}")
+                        self._safe_counter_inc(task_cache_hit_total, task_type=task.task_type)
                         await self._reuse_cached_result(task, cached)
                         return
 
@@ -175,6 +208,8 @@ class TaskWorker:
                     completed_at=task.completed_at,
                 )
                 await self._emit_event(task, TaskStatus.SUCCEEDED)
+                self._safe_counter_inc(task_succeeded_total, task_type=task.task_type)
+                self._observe_duration(task, TaskStatus.SUCCEEDED)
 
                 logger.info(f"Task {task.task_id} succeeded")
 
@@ -201,6 +236,7 @@ class TaskWorker:
         )
         task.progress = 1.0
         await self._emit_event(task, TaskStatus.SUCCEEDED)
+        self._safe_counter_inc(task_succeeded_total, task_type=task.task_type)
 
     async def _handle_timeout(self, task: Task) -> None:
         """Handle task timeout."""
@@ -217,6 +253,9 @@ class TaskWorker:
             completed_at=datetime.now(UTC),
         )
         await self._emit_event(task, TaskStatus.FAILED, error)
+        self._safe_counter_inc(task_timeout_total, task_type=task.task_type)
+        self._safe_counter_inc(task_failed_total, task_type=task.task_type, error_type=error.error_type)
+        self._observe_duration(task, TaskStatus.FAILED)
 
     async def _handle_cancellation(self, task: Task) -> None:
         """Handle task cancellation."""
@@ -227,6 +266,8 @@ class TaskWorker:
             completed_at=datetime.now(UTC),
         )
         await self._emit_event(task, TaskStatus.CANCELLED)
+        self._safe_counter_inc(task_cancelled_total, task_type=task.task_type)
+        self._observe_duration(task, TaskStatus.CANCELLED)
 
     async def _handle_failure(self, task: Task, exception: Exception) -> None:
         """Handle task failure with retry logic."""
@@ -246,8 +287,25 @@ class TaskWorker:
             task.retry_count += 1
             delay = task.retry_policy.get_delay(task.retry_count)
             task.next_retry_at = datetime.now(UTC) + timedelta(seconds=delay)
+            task.metadata = {
+                **task.metadata,
+                "last_error": {
+                    "error_type": error.error_type,
+                    "message": error.message,
+                    "recoverable": error.recoverable.value,
+                    "captured_at": datetime.now(UTC).isoformat(),
+                },
+            }
             task.status = TaskStatus.PENDING
-            task.error = error
+            task.error = None
+            task.result = None
+            task.progress = 0.0
+            task.progress_message = None
+            task.started_at = None
+            task.completed_at = None
+            task.cancellation_reason = None
+            task.worker_id = None
+            task.worker_heartbeat_at = None
 
             logger.info(
                 f"Task {task.task_id} will retry in {delay}s (attempt {task.retry_count}/{task.retry_policy.max_retries})"
@@ -256,11 +314,21 @@ class TaskWorker:
             await self._store.update_task(
                 task.task_id,
                 status=TaskStatus.PENDING,  # Reset to pending for retry
-                error=error,
+                error=None,
+                result=None,
+                progress=0.0,
+                progress_message=None,
+                started_at=None,
+                completed_at=None,
+                cancellation_reason=None,
+                worker_id=None,
+                worker_heartbeat_at=None,
                 retry_count=task.retry_count,
                 next_retry_at=task.next_retry_at,
+                metadata=task.metadata,
             )
             await self._emit_event(task, TaskStatus.PENDING)
+            self._safe_counter_inc(task_retry_total, task_type=task.task_type)
         else:
             # No more retries, mark as failed
             await self._store.update_task(
@@ -270,6 +338,8 @@ class TaskWorker:
                 completed_at=datetime.now(UTC),
             )
             await self._emit_event(task, TaskStatus.FAILED, error)
+            self._safe_counter_inc(task_failed_total, task_type=task.task_type, error_type=error.error_type)
+            self._observe_duration(task, TaskStatus.FAILED)
 
     def _should_auto_retry(self, task: Task, recoverable: ErrorRecoverability) -> bool:
         """Check retry eligibility for worker-side failure handling."""
@@ -294,6 +364,8 @@ class TaskWorker:
             completed_at=datetime.now(UTC),
         )
         await self._emit_event(task, TaskStatus.FAILED, error)
+        self._safe_counter_inc(task_failed_total, task_type=task.task_type, error_type=error.error_type)
+        self._observe_duration(task, TaskStatus.FAILED)
 
     def _find_executor(self, task_type: str) -> _TaskExecutor | None:
         """Find executor that can handle task type."""
@@ -304,26 +376,13 @@ class TaskWorker:
 
     def _classify_error(self, exception: Exception) -> ErrorRecoverability:
         """Classify error as transient or permanent."""
-        # Network errors, timeouts, overloads are transient
-        transient_types = (
-            "ConnectionError",
-            "TimeoutError",
-            "HTTPError",
-            "RateLimitError",
-            "ServiceUnavailable",
-        )
+        transient_types = ("ConnectionError", "TimeoutError", "HTTPError", "RateLimitError", "ServiceUnavailable")
 
         exc_name = type(exception).__name__
         if exc_name in transient_types:
             return ErrorRecoverability.TRANSIENT
 
-        # Validation, auth, not found are permanent
-        permanent_types = (
-            "ValidationError",
-            "AuthenticationError",
-            "PermissionError",
-            "NotFoundError",
-        )
+        permanent_types = ("ValidationError", "AuthenticationError", "PermissionError", "NotFoundError")
 
         if exc_name in permanent_types:
             return ErrorRecoverability.PERMANENT

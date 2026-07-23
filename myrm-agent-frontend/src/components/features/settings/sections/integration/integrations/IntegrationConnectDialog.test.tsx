@@ -98,11 +98,12 @@ describe('IntegrationConnectDialog', () => {
 
   it('blocks local-only entries in sandbox without probe url', async () => {
     const entry = makeCatalogEntry();
+    const onClose = vi.fn();
     render(
       <IntegrationConnectDialog
         entry={entry}
         locale="en"
-        onClose={vi.fn()}
+        onClose={onClose}
         onConnected={vi.fn()}
       />,
     );
@@ -114,6 +115,9 @@ describe('IntegrationConnectDialog', () => {
     });
     expect(mockApiRequest).not.toHaveBeenCalled();
     expect(mockSetMCPConfigs).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'probeRecommendedActionSwitchMode' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('blocks connect when probe response carries shouldBlockConnect=true', async () => {
@@ -146,6 +150,139 @@ describe('IntegrationConnectDialog', () => {
     await waitFor(() => {
       expect(screen.getByText('probeCloudLoopbackBlocked')).toBeInTheDocument();
     });
+    expect(mockApiRequest).toHaveBeenCalledTimes(1);
+    expect(mockSetMCPConfigs).not.toHaveBeenCalled();
+  });
+
+  it('renders recommendedMode guidance and retries probe for start_local_editor_mcp', async () => {
+    const entry = makeCatalogEntry({
+      deploymentScope: 'all_modes',
+      mcpConfig: {
+        name: 'unreal-engine',
+        type: 'streamable_http',
+        url: 'http://127.0.0.1:8000/mcp',
+        probeUrl: 'http://127.0.0.1:8000/mcp',
+      },
+    });
+    mockIsSandbox.mockReturnValue(false);
+    mockApiRequest
+      .mockResolvedValueOnce({
+        status: 'unreachable',
+        reasonCode: 'connection_refused',
+        recommendedMode: 'start_local_editor_mcp',
+        error: 'Connection refused',
+      })
+      .mockResolvedValueOnce({
+        status: 'reachable',
+      });
+
+    render(
+      <IntegrationConnectDialog
+        entry={entry}
+        locale="en"
+        onClose={vi.fn()}
+        onConnected={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'connect' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('probeRecommendedModeStartLocalEditorMcp')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'probeRecommendedActionRetryProbe' }));
+
+    await waitFor(() => {
+      expect(mockApiRequest).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(mockSetMCPConfigs).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('retries probe and auto-connects for verify_local_network_and_editor', async () => {
+    const entry = makeCatalogEntry({
+      deploymentScope: 'all_modes',
+      mcpConfig: {
+        name: 'unreal-engine',
+        type: 'streamable_http',
+        url: 'http://127.0.0.1:8000/mcp',
+        probeUrl: 'http://127.0.0.1:8000/mcp',
+      },
+    });
+    mockIsSandbox.mockReturnValue(false);
+    mockApiRequest
+      .mockResolvedValueOnce({
+        status: 'unreachable',
+        reasonCode: 'connection_timeout',
+        recommendedMode: 'verify_local_network_and_editor',
+        error: 'Connection timed out — host unreachable',
+      })
+      .mockResolvedValueOnce({
+        status: 'reachable',
+      });
+
+    render(
+      <IntegrationConnectDialog
+        entry={entry}
+        locale="en"
+        onClose={vi.fn()}
+        onConnected={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'connect' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('probeRecommendedModeVerifyLocalNetworkAndEditor')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'probeRecommendedActionRetryProbe' }));
+
+    await waitFor(() => {
+      expect(mockApiRequest).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(mockSetMCPConfigs).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('uses switch-mode action when backend recommends local_or_tauri', async () => {
+    const entry = makeCatalogEntry({
+      deploymentScope: 'all_modes',
+      mcpConfig: {
+        name: 'unreal-engine',
+        type: 'streamable_http',
+        url: 'http://127.0.0.1:8000/mcp',
+        probeUrl: 'http://127.0.0.1:8000/mcp',
+      },
+    });
+    const onClose = vi.fn();
+    mockIsSandbox.mockReturnValue(false);
+    mockApiRequest.mockResolvedValueOnce({
+      status: 'cloud_not_supported',
+      shouldBlockConnect: true,
+      recommendedMode: 'local_or_tauri',
+    });
+
+    render(
+      <IntegrationConnectDialog
+        entry={entry}
+        locale="en"
+        onClose={onClose}
+        onConnected={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'connect' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('probeRecommendedModeLocalOrTauri')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'probeRecommendedActionSwitchMode' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
     expect(mockApiRequest).toHaveBeenCalledTimes(1);
     expect(mockSetMCPConfigs).not.toHaveBeenCalled();
   });

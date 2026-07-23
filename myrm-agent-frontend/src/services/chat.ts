@@ -515,7 +515,6 @@ export const createAISearchStream = async (
   const fetchOptions: RequestInit = {
     method: 'POST',
     headers,
-    credentials: 'include',
     body: JSON.stringify(requestBody),
     signal: controller.signal,
   };

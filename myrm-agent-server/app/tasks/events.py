@@ -3,11 +3,29 @@
 import asyncio
 import json
 import logging
-from collections.abc import AsyncGenerator
+import time
+from collections.abc import AsyncGenerator, Callable
 
 from myrm_agent_harness.toolkits.tasks import TaskStatus
 
+from app.tasks.metrics import (
+    task_event_dropped_total,
+    task_event_emitted_total,
+    task_event_replaced_total,
+)
+
 logger = logging.getLogger(__name__)
+
+
+def _safe_counter_inc(counter: object, **labels: str) -> None:
+    """Best-effort counter increment that never interrupts event delivery."""
+    try:
+        if labels:
+            counter.labels(**labels).inc()  # type: ignore[call-arg, attr-defined]
+        else:
+            counter.inc()  # type: ignore[attr-defined]
+    except Exception as exc:  # pragma: no cover - defensive metrics guard
+        logger.debug("Failed to increment task event metric: %s", exc)
 
 
 class TaskEventBus:
@@ -16,8 +34,33 @@ class TaskEventBus:
     Broadcasts task events to all SSE subscribers in real-time.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        queue_full_warning_interval_seconds: float = 10.0,
+        monotonic_clock: Callable[[], float] | None = None,
+    ) -> None:
         self._subscribers: set[asyncio.Queue[dict[str, object]]] = set()
+        self._queue_full_warning_interval_seconds = max(queue_full_warning_interval_seconds, 0.0)
+        self._monotonic_clock = monotonic_clock or time.monotonic
+        self._next_queue_full_warning_at = 0.0
+        self._suppressed_queue_full_warnings = 0
+
+    def _warn_queue_full(self, task_id: str, action: str) -> None:
+        if self._queue_full_warning_interval_seconds <= 0:
+            logger.warning("Subscriber queue full, %s for task %s", action, task_id)
+            return
+
+        now = self._monotonic_clock()
+        if now < self._next_queue_full_warning_at:
+            self._suppressed_queue_full_warnings += 1
+            return
+
+        suppressed = self._suppressed_queue_full_warnings
+        self._suppressed_queue_full_warnings = 0
+        self._next_queue_full_warning_at = now + self._queue_full_warning_interval_seconds
+        suffix = f" (suppressed {suppressed} similar warnings)" if suppressed else ""
+        logger.warning("Subscriber queue full, %s for task %s%s", action, task_id, suffix)
 
     def subscribe(self) -> asyncio.Queue[dict[str, object]]:
         """Subscribe to task events."""
@@ -45,8 +88,20 @@ class TaskEventBus:
         for queue in self._subscribers:
             try:
                 queue.put_nowait(event)
+                _safe_counter_inc(task_event_emitted_total, status=status.value)
             except asyncio.QueueFull:
-                logger.warning(f"Subscriber queue full, dropping event for task {task_id}")
+                _safe_counter_inc(task_event_dropped_total, status=status.value, reason="queue_full_drop_oldest")
+                overflow_event = dict(event)
+                overflow_event["sync_required"] = True
+                try:
+                    queue.get_nowait()
+                    queue.put_nowait(overflow_event)
+                    _safe_counter_inc(task_event_replaced_total, status=status.value)
+                    _safe_counter_inc(task_event_emitted_total, status=status.value)
+                    self._warn_queue_full(task_id, "replaced oldest buffered event")
+                except (asyncio.QueueEmpty, asyncio.QueueFull):
+                    _safe_counter_inc(task_event_dropped_total, status=status.value, reason="queue_full_drop_newest")
+                    self._warn_queue_full(task_id, "dropping newest event")
             except Exception as e:
                 logger.error(f"Failed to emit event to subscriber: {e}")
                 dead_queues.append(queue)

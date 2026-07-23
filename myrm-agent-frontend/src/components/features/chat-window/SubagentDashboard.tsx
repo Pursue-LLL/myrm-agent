@@ -29,12 +29,28 @@ import {
   ShieldCheck,
   X,
   GitCompareArrows,
+  ArrowUpDown,
+  Filter,
+  BarChart3,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithTimeout } from '@/lib/api';
 import { normalizeTeammateEntry } from '@/lib/utils/teammateMessage';
 import type { TeammateMessageEntry } from '@/store/chat/useSubagentStore';
 import { AgentToolDiagnostics } from './AgentToolDiagnostics';
+import {
+  buildTree,
+  treeTotals,
+  aggregate,
+  sortNodes,
+  filterNodes,
+  flattenTree,
+  fmtCost,
+  fmtTokens,
+  type TreeNode,
+  type SortMode,
+  type FilterMode,
+} from '@/lib/utils/subagentTree';
 
 const STATUS_ICON_MAP: Record<SubagentStatus, { icon: typeof Loader2; className: string; spin?: boolean }> = {
   running: { icon: Loader2, className: 'text-blue-500', spin: true },
@@ -125,7 +141,7 @@ const NodeStream = ({ stream, isRunning }: { stream: StreamEntry[]; isRunning: b
 };
 
 type TreeNodeProps = {
-  node: SubagentNode & { children?: SubagentNode[] };
+  node: TreeNode;
   chatId: string;
   setOpen: (open: boolean) => void;
 };
@@ -283,6 +299,7 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
           <div className="flex flex-col flex-1 min-w-0">
             <span className="font-medium truncate" title={node.description || node.agent_type}>
               {node.description || node.agent_type}
+              <AggregateBadge node={node} />
             </span>
             <div className="flex items-center gap-2 text-xs text-gray-500">
               {node.role && (
@@ -483,34 +500,198 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
   );
 };
 
-function buildTree(nodes: Record<string, SubagentNode>) {
-  const entries = Object.values(nodes);
-  if (entries.length === 0) return [];
-  const rootNodes: (SubagentNode & { children: SubagentNode[] })[] = [];
-  const map: Record<string, SubagentNode & { children: SubagentNode[] }> = {};
-  entries.forEach((n) => {
-    map[n.task_id] = { ...n, children: [] };
-  });
-  entries.forEach((n) => {
-    if (n.parent_task_id && map[n.parent_task_id]) {
-      map[n.parent_task_id].children.push(map[n.task_id]);
-    } else {
-      rootNodes.push(map[n.task_id]);
-    }
-  });
-  return rootNodes;
-}
+// ── Sort/Filter Controls ─────────────────────────────────────────────
+
+const SORT_OPTIONS: { value: SortMode; labelKey: string }[] = [
+  { value: 'spawn', labelKey: 'sortSpawn' },
+  { value: 'busiest', labelKey: 'sortBusiest' },
+  { value: 'slowest', labelKey: 'sortSlowest' },
+  { value: 'status', labelKey: 'sortStatus' },
+];
+
+const FILTER_OPTIONS: { value: FilterMode; labelKey: string }[] = [
+  { value: 'all', labelKey: 'filterAll' },
+  { value: 'running', labelKey: 'filterRunning' },
+  { value: 'failed', labelKey: 'filterFailed' },
+  { value: 'leaf', labelKey: 'filterLeaf' },
+];
+
+const SortFilterBar = ({
+  sort, onSortChange, filter, onFilterChange, t,
+}: {
+  sort: SortMode;
+  onSortChange: (s: SortMode) => void;
+  filter: FilterMode;
+  onFilterChange: (f: FilterMode) => void;
+  t: (key: string) => string;
+}) => (
+  <div className="flex items-center gap-1.5 flex-wrap">
+    <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+    {SORT_OPTIONS.map((opt) => (
+      <button
+        key={opt.value}
+        onClick={() => onSortChange(opt.value)}
+        className={`px-2 py-0.5 text-[11px] rounded-full border transition-colors ${
+          sort === opt.value
+            ? 'bg-primary text-primary-foreground border-primary'
+            : 'bg-transparent text-muted-foreground border-border/50 hover:bg-muted'
+        }`}
+      >
+        {t(opt.labelKey)}
+      </button>
+    ))}
+    <span className="mx-1 text-border">|</span>
+    <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+    {FILTER_OPTIONS.map((opt) => (
+      <button
+        key={opt.value}
+        onClick={() => onFilterChange(opt.value)}
+        className={`px-2 py-0.5 text-[11px] rounded-full border transition-colors ${
+          filter === opt.value
+            ? 'bg-primary text-primary-foreground border-primary'
+            : 'bg-transparent text-muted-foreground border-border/50 hover:bg-muted'
+        }`}
+      >
+        {t(opt.labelKey)}
+      </button>
+    ))}
+  </div>
+);
+
+// ── Aggregate Badge ──────────────────────────────────────────────────
+
+const AggregateBadge = ({ node }: { node: TreeNode }) => {
+  if (node.children.length === 0) return null;
+  const agg = aggregate(node);
+  if (agg.descendantCount === 0) return null;
+  const parts: string[] = [`▸ ${agg.descendantCount}`];
+  const cost = fmtCost(agg.totalCostUsd);
+  if (cost) parts.push(cost);
+  const tok = agg.totalTokens > 0 ? `${fmtTokens(agg.totalTokens)} tok` : '';
+  if (tok) parts.push(tok);
+  return (
+    <span className="ml-1 text-[10px] text-muted-foreground/70 tabular-nums">
+      {parts.join(' · ')}
+    </span>
+  );
+};
+
+// ── Mini Gantt ───────────────────────────────────────────────────────
+
+const MiniGantt = ({ nodes, t }: { nodes: TreeNode[]; t: (key: string) => string }) => {
+  const [open, setOpen] = useState(false);
+
+  const spans = useMemo(() => {
+    const now = Date.now();
+    return nodes
+      .filter((n) => n.startedAt != null)
+      .map((n) => ({
+        id: n.task_id,
+        label: n.description || n.agent_type,
+        status: n.status,
+        start: n.startedAt!,
+        end: n.duration_seconds != null ? n.startedAt! + n.duration_seconds * 1000 : now,
+      }))
+      .filter((s) => s.end >= s.start);
+  }, [nodes]);
+
+  if (spans.length < 2) return null;
+
+  const globalStart = Math.min(...spans.map((s) => s.start));
+  const globalEnd = Math.max(...spans.map((s) => s.end));
+  const totalSpan = Math.max(1, globalEnd - globalStart);
+  const totalSec = totalSpan / 1000;
+
+  const STATUS_BAR_COLOR: Record<string, string> = {
+    running: 'bg-blue-500',
+    verifying: 'bg-amber-500',
+    completed: 'bg-green-500',
+    failed: 'bg-red-500',
+    timed_out: 'bg-yellow-500',
+    cancelled: 'bg-gray-400',
+    interrupted: 'bg-orange-500',
+    checkpoint: 'bg-purple-500',
+  };
+
+  return (
+    <div className="mb-2">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <BarChart3 className="w-3.5 h-3.5" />
+        <span>
+          {t('ganttTitle')} · {totalSec < 60 ? `${Math.round(totalSec)}s` : `${Math.floor(totalSec / 60)}m${Math.round(totalSec % 60)}s`}
+        </span>
+        {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+      </button>
+      {open && (
+        <div className="mt-1.5 space-y-1">
+          {spans.map((s) => {
+            const left = ((s.start - globalStart) / totalSpan) * 100;
+            const width = Math.max(1, ((s.end - s.start) / totalSpan) * 100);
+            return (
+              <div key={s.id} className="flex items-center gap-2 text-[10px]">
+                <span className="w-20 truncate text-muted-foreground shrink-0" title={s.label}>
+                  {s.label}
+                </span>
+                <div className="flex-1 h-3 bg-muted/30 rounded-sm relative overflow-hidden">
+                  <div
+                    className={`absolute top-0 h-full rounded-sm ${STATUS_BAR_COLOR[s.status] ?? 'bg-gray-400'}`}
+                    style={{ left: `${left}%`, width: `${width}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Header Summary ───────────────────────────────────────────────────
+
+const HeaderSummary = ({ nodes, t }: { nodes: TreeNode[]; t: (key: string) => string }) => {
+  const totals = useMemo(() => treeTotals(nodes), [nodes]);
+  if (totals.totalAgents === 0) return null;
+
+  const parts: string[] = [];
+  parts.push(`${totals.totalAgents} ${t('agents')}`);
+  if (totals.activeCount > 0) parts.push(`${totals.activeCount} ${t('active')}`);
+  if (totals.failedCount > 0) parts.push(`${totals.failedCount} ${t('failed')}`);
+  const cost = fmtCost(totals.totalCostUsd);
+  if (cost) parts.push(cost);
+  if (totals.modelMix.length > 0) {
+    parts.push(totals.modelMix.map((m) => `${m.model}×${m.count}`).join(' '));
+  }
+
+  return (
+    <div className="text-[11px] text-muted-foreground mt-0.5">
+      {parts.join(' · ')}
+    </div>
+  );
+};
 
 export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) => {
   const t = useTranslations('subagentDashboard');
   const [open, setOpen] = useState(false);
   const [stopAllOpen, setStopAllOpen] = useState(false);
   const [delegationPaused, setDelegationPaused] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('spawn');
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const nodes = useSubagentStore((s) => s.nodes);
   const fissionBatch = useSubagentStore((s) => s.fissionBatch);
   const storeChatId = useChatStore((s) => s.chatId);
   const chatId = chatIdProp ?? storeChatId;
   const treeNodes = useMemo(() => buildTree(nodes), [nodes]);
+
+  const displayNodes = useMemo(() => {
+    const sorted = sortNodes(treeNodes, sortMode);
+    return filterNodes(sorted, filterMode);
+  }, [treeNodes, sortMode, filterMode]);
+
+  const flatNodes = useMemo(() => flattenTree(treeNodes), [treeNodes]);
 
   const runningCount = useMemo(() => Object.values(nodes).filter((n) => n.status === 'running').length, [nodes]);
 
@@ -670,6 +851,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
                 </div>
               </SheetTitle>
               <SheetDescription>{t('description')}</SheetDescription>
+              <HeaderSummary nodes={treeNodes} t={t} />
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <Button
@@ -693,6 +875,18 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
         </SheetHeader>
         <ScrollArea className="flex-1 p-4">
           <div className="flex flex-col pb-10">
+            {Object.keys(nodes).length > 1 && (
+              <div className="mb-3 pb-2 border-b border-border/30">
+                <SortFilterBar
+                  sort={sortMode}
+                  onSortChange={setSortMode}
+                  filter={filterMode}
+                  onFilterChange={setFilterMode}
+                  t={t}
+                />
+              </div>
+            )}
+            <MiniGantt nodes={flatNodes} t={t} />
             {fissionBatch && fissionBatch.total > 0 && (
               <div
                 className={`mb-4 rounded-lg border p-3 text-sm ${
@@ -717,7 +911,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
                 </div>
               </div>
             )}
-            {treeNodes.map((node) => (
+            {displayNodes.map((node) => (
               <SubagentTreeNode key={node.task_id} node={node} chatId={chatId || ''} setOpen={setOpen} />
             ))}
           </div>

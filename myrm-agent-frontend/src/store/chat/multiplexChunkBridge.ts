@@ -1,6 +1,7 @@
 /**
  * [INPUT]
- * window CustomEvent multiplex_chunk_{messageId} (POS: workspace SSE fan-out)
+ * @/services/ConnectionManager::connectionManager (POS: workspace multiplex fan-out + pending buffer)
+ * window CustomEvent multiplex_chunk_{messageId} (legacy fan-out)
  *
  * [OUTPUT]
  * createMultiplexChunkBridge: buffers early multiplex chunks until consumer attaches
@@ -9,6 +10,8 @@
  * Multiplexed agent-stream returns JSON before the pump may emit preflight SSE (e.g.
  * capability_gap). Register the listener before POST so early chunks are not dropped.
  */
+
+import { connectionManager } from '@/services/ConnectionManager';
 
 export type MultiplexChunkHandler = (chunk: string) => void;
 
@@ -28,17 +31,22 @@ export function createMultiplexChunkBridge(
   const eventName = `multiplex_chunk_${requestMessageId}`;
   const pendingChunks: string[] = [];
   let onChunk: MultiplexChunkHandler | null = null;
+  let unregisterManager: (() => void) | null = null;
+
+  const deliver = (chunk: string) => {
+    if (onChunk) {
+      onChunk(chunk);
+      return;
+    }
+    pendingChunks.push(chunk);
+  };
 
   const listener = (event: Event) => {
     const chunk = (event as CustomEvent<string>).detail;
     if (!chunk) {
       return;
     }
-    if (onChunk) {
-      onChunk(chunk);
-      return;
-    }
-    pendingChunks.push(chunk);
+    deliver(chunk);
   };
 
   const onAbort = () => {
@@ -48,11 +56,14 @@ export function createMultiplexChunkBridge(
   const dispose = () => {
     window.removeEventListener(eventName, listener);
     abortSignal.removeEventListener('abort', onAbort);
+    unregisterManager?.();
+    unregisterManager = null;
     onChunk = null;
     pendingChunks.length = 0;
   };
 
   window.addEventListener(eventName, listener);
+  unregisterManager = connectionManager.registerMultiplexHandler(requestMessageId, deliver);
   abortSignal.addEventListener('abort', onAbort);
 
   return {

@@ -244,14 +244,18 @@ def test_extension_takeover_banner_shows_actions_and_dismisses_on_done() -> None
     with open_mcp_page(ui_url) as (client, page):
         wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
 
-        triggered = client.evaluate(page, _TRIGGER_EXTENSION_TAKEOVER_JS, timeout_sec=10.0)
+        triggered = client.evaluate(
+            page, _TRIGGER_EXTENSION_TAKEOVER_JS, timeout_sec=10.0
+        )
         assert isinstance(triggered, dict)
         assert triggered.get("pending") is True
         assert triggered.get("uiMode") == "extension"
 
         banner = wait_for_state(client, page, _BANNER_ASSERT_JS, timeout_sec=15.0)
         assert banner.get("hasAlert") is True, f"Missing takeover alert: {banner}"
-        assert banner.get("hasExtensionTitle") is True, f"Missing extension title: {banner}"
+        assert (
+            banner.get("hasExtensionTitle") is True
+        ), f"Missing extension title: {banner}"
         assert banner.get("hasReason") is True, f"Missing reason text: {banner}"
         assert banner.get("hasUrl") is True, f"Missing URL line: {banner}"
         assert banner.get("hasDone") is True, f"Missing Done button: {banner}"
@@ -284,7 +288,9 @@ def test_extension_takeover_skip_dismisses_banner() -> None:
     with open_mcp_page(ui_url) as (client, page):
         wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
 
-        triggered = client.evaluate(page, _TRIGGER_EXTENSION_TAKEOVER_JS, timeout_sec=10.0)
+        triggered = client.evaluate(
+            page, _TRIGGER_EXTENSION_TAKEOVER_JS, timeout_sec=10.0
+        )
         assert isinstance(triggered, dict)
         assert triggered.get("pending") is True
         assert triggered.get("uiMode") == "extension"
@@ -326,8 +332,12 @@ def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
 
         banner = wait_for_state(client, page, _CAPTCHA_AUTO_ASSERT_JS, timeout_sec=15.0)
         assert banner.get("hasAlert") is True, f"Missing takeover alert: {banner}"
-        assert banner.get("hasCaptchaText") is True, f"Missing captcha auto copy: {banner}"
-        assert banner.get("buttonCount") == 0, f"Expected no action buttons during auto-detect: {banner}"
+        assert (
+            banner.get("hasCaptchaText") is True
+        ), f"Missing captcha auto copy: {banner}"
+        assert (
+            banner.get("buttonCount") == 0
+        ), f"Expected no action buttons during auto-detect: {banner}"
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
@@ -361,10 +371,14 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         pytest.fail("Backend not healthy before browser takeover LIVE Chrome E2E")
 
     async def _probe_browser_tool_progress(chat: McpChatSession) -> dict[str, object]:
-        probe = await chat.evaluate(_BROWSER_TOOL_PROGRESS_JS, await_promise=False, recv_timeout=15.0)
+        probe = await chat.evaluate(
+            _BROWSER_TOOL_PROGRESS_JS, await_promise=False, recv_timeout=15.0
+        )
         return probe if isinstance(probe, dict) else {"active": False}
 
-    def _require_browser_gate_triggered(*, last_tool: str, takeover_pending: bool) -> None:
+    def _require_browser_gate_triggered(
+        *, last_tool: str, takeover_pending: bool
+    ) -> None:
         if takeover_pending or last_tool.endswith("browser_ask_human_tool"):
             return
         raise AssertionError(
@@ -389,7 +403,11 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             await_promise=True,
             recv_timeout=45.0,
         )
-        if isinstance(recover, dict) and recover.get("ok") and recover.get("pending") is True:
+        if (
+            isinstance(recover, dict)
+            and recover.get("ok")
+            and recover.get("pending") is True
+        ):
             return "browser_ask_human_tool", True
         return None
 
@@ -411,7 +429,9 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             if takeover_pending or last_tool.endswith("browser_ask_human_tool"):
                 return last_tool, takeover_pending
 
-            banner = await chat.evaluate(_BANNER_ASSERT_JS, await_promise=False, recv_timeout=15.0)
+            banner = await chat.evaluate(
+                _BANNER_ASSERT_JS, await_promise=False, recv_timeout=15.0
+            )
             if isinstance(banner, dict) and (
                 banner.get("ready") is True or banner.get("storePending") is True
             ):
@@ -428,7 +448,9 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             await asyncio.sleep(1.0)
         return last_tool, takeover_pending
 
-    async def _wait_takeover_banner(chat: McpChatSession, *, timeout_sec: float = 90.0) -> dict[str, object]:
+    async def _wait_takeover_banner(
+        chat: McpChatSession, *, timeout_sec: float = 90.0
+    ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         banner_started = time.monotonic()
         last_recovery_at = [0.0]
@@ -439,7 +461,9 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 await chat.ensure_e2e_api_base_binding()
                 await asyncio.sleep(2.0)
                 continue
-            raw = await chat.evaluate(_BANNER_ASSERT_JS, await_promise=False, recv_timeout=30.0)
+            raw = await chat.evaluate(
+                _BANNER_ASSERT_JS, await_promise=False, recv_timeout=30.0
+            )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("backendUnreachable") is True:
                 await chat.ensure_e2e_api_base_binding()
@@ -453,7 +477,9 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 last_recovery_at=last_recovery_at,
             )
             if recovered is not None:
-                raw = await chat.evaluate(_BANNER_ASSERT_JS, await_promise=False, recv_timeout=30.0)
+                raw = await chat.evaluate(
+                    _BANNER_ASSERT_JS, await_promise=False, recv_timeout=30.0
+                )
                 last = raw if isinstance(raw, dict) else {"value": raw}
                 if last.get("ready") is True:
                     return last
@@ -461,15 +487,25 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         raise AssertionError(f"Browser takeover banner did not appear: {last}")
 
     async def _prepare_browser_turn(chat: McpChatSession) -> None:
-        connect = await chat.evaluate(_SET_BROWSER_CONNECT_JS, await_promise=False, recv_timeout=15.0)
+        connect = await chat.evaluate(
+            _SET_BROWSER_CONNECT_JS, await_promise=False, recv_timeout=15.0
+        )
         assert isinstance(connect, dict)
-        assert connect.get("ok") is True, f"Failed to set browser source connect: {connect}"
-        enabled = await chat.evaluate(_ENABLE_BROWSER_JS, await_promise=False, recv_timeout=15.0)
+        assert (
+            connect.get("ok") is True
+        ), f"Failed to set browser source connect: {connect}"
+        enabled = await chat.evaluate(
+            _ENABLE_BROWSER_JS, await_promise=False, recv_timeout=15.0
+        )
         assert isinstance(enabled, dict)
-        assert enabled.get("ok") is True, f"Failed to enable browser in chat session: {enabled}"
+        assert (
+            enabled.get("ok") is True
+        ), f"Failed to enable browser in chat session: {enabled}"
         await chat.evaluate(_ENABLE_YOLO_JS, await_promise=False, recv_timeout=15.0)
 
-    async def _wait_api_done(chat_id: str, *, api_url: str, timeout_sec: float = 120.0) -> bool:
+    async def _wait_api_done(
+        chat_id: str, *, api_url: str, timeout_sec: float = 120.0
+    ) -> bool:
         deadline = time.monotonic() + timeout_sec
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
@@ -500,22 +536,29 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             last_prompt = E2E_PROMPT if attempt == 1 else E2E_NUDGE_PROMPT
             heartbeat_e2e_lease()
             send_result = await chat.send_message(last_prompt, last_prompt)
-            chat_id_hint = str(
-                send_result.get("started", {}).get("chatId")
-                or send_result.get("submit", {}).get("chatId")
-                or chat_id_hint
-                or ""
-            ).strip() or None
+            chat_id_hint = (
+                str(
+                    send_result.get("started", {}).get("chatId")
+                    or send_result.get("submit", {}).get("chatId")
+                    or chat_id_hint
+                    or ""
+                ).strip()
+                or None
+            )
             if not chat_id_hint:
                 chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
 
             try:
-                await chat.wait_stream_started(last_prompt, timeout_sec=90.0, chat_id_hint=chat_id_hint)
+                await chat.wait_stream_started(
+                    last_prompt, timeout_sec=90.0, chat_id_hint=chat_id_hint
+                )
             except (AssertionError, TimeoutError, RuntimeError):
                 pass
 
             last_tool, takeover_pending = await _wait_for_browser_ask_human_gate(chat)
-            if not takeover_pending and not last_tool.endswith("browser_ask_human_tool"):
+            if not takeover_pending and not last_tool.endswith(
+                "browser_ask_human_tool"
+            ):
                 if attempt >= MAX_SEND_ATTEMPTS:
                     _require_browser_gate_triggered(
                         last_tool=last_tool,
@@ -533,11 +576,17 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
 
         assert banner is not None
 
-        assert banner.get("hasExtensionTitle") is True, f"Expected extension banner: {banner}"
+        assert (
+            banner.get("hasExtensionTitle") is True
+        ), f"Expected extension banner: {banner}"
 
-        clicked = await chat.evaluate(_CLICK_DONE_JS, await_promise=False, recv_timeout=15.0)
+        clicked = await chat.evaluate(
+            _CLICK_DONE_JS, await_promise=False, recv_timeout=15.0
+        )
         assert isinstance(clicked, dict)
-        assert clicked.get("clicked") is True, f"Failed to click Done on takeover banner: {clicked}"
+        assert (
+            clicked.get("clicked") is True
+        ), f"Failed to click Done on takeover banner: {clicked}"
 
         try:
             after_turn = await chat.wait_turn_done(
@@ -546,8 +595,12 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 chat_id_hint=chat_id_hint,
             )
         except TimeoutError:
-            resolved_chat_id = chat_id_hint or str((await chat.bridge_chat_id()) or "").strip() or None
-            if resolved_chat_id and await _wait_api_done(resolved_chat_id, api_url=api_base):
+            resolved_chat_id = (
+                chat_id_hint or str((await chat.bridge_chat_id()) or "").strip() or None
+            )
+            if resolved_chat_id and await _wait_api_done(
+                resolved_chat_id, api_url=api_base
+            ):
                 after_turn = {
                     "chatId": resolved_chat_id,
                     "okViaApi": True,
@@ -561,14 +614,18 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         chat_id = chat_id_hint or chat_id_from_path(str(after_turn.get("path") or ""))
         if not chat_id:
             chat_id = str(after_turn.get("bridgeChatId") or "").strip() or None
-        assert chat_id, f"Expected chat id after browser takeover turn: {after_turn}; banner={banner}"
+        assert (
+            chat_id
+        ), f"Expected chat id after browser takeover turn: {after_turn}; banner={banner}"
 
         if not chat_messages_have_done(chat_id, api_url=api_base):
             turn = await chat.evaluate(
                 """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()""",
                 await_promise=False,
             )
-            pytest.fail(f"Assistant did not reply DONE for chat {chat_id}: turn={turn}; after={after_turn}")
+            pytest.fail(
+                f"Assistant did not reply DONE for chat {chat_id}: turn={turn}; after={after_turn}"
+            )
 
         assert chat_user_message_count(chat_id, api_url=api_base) >= 1
         e2e_resource_ledger.register("chat", chat_id)
@@ -579,10 +636,14 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
     try:
         page: McpPage | None = None
         try:
-            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+            page = await asyncio.to_thread(
+                client.new_page, BASE_URL, timeout_ms=120_000
+            )
         except TimeoutError:
             await asyncio.sleep(2.0)
-            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+            page = await asyncio.to_thread(
+                client.new_page, BASE_URL, timeout_ms=120_000
+            )
         if page is None:
             raise RuntimeError("new_page returned no page")
         chat = McpChatSession(client, page)

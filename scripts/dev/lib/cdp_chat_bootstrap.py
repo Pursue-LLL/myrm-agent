@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 
 from cdp_chat_support import (
@@ -14,8 +15,13 @@ from cdp_chat_support import (
     chat_id_from_path,
     e2e_api_base_inject_js,
     e2e_api_base_persist_source,
+    shpoib_parallel_shell_timeout_sec,
 )
 from cdp_chat_transport import CdpChatTransport
+
+
+def _parallel_shpoib_shell_timeout(timeout_sec: float) -> float:
+    return shpoib_parallel_shell_timeout_sec(timeout_sec)
 
 
 def _shell_probe_ready(probe: dict[str, object]) -> bool:
@@ -44,6 +50,23 @@ class CdpChatBootstrap(CdpChatTransport):
         await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
 
     async def bootstrap(
+        self,
+        base_url: str,
+        *,
+        timeout_sec: float = 180.0,
+        navigate: bool = False,
+    ) -> dict[str, object]:
+        timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
+        from e2e_shared_ui_hydrate import async_shared_ui_hydrate_slot
+
+        async with async_shared_ui_hydrate_slot():
+            return await self._bootstrap_inner(
+                base_url,
+                timeout_sec=timeout_sec,
+                navigate=navigate,
+            )
+
+    async def _bootstrap_inner(
         self,
         base_url: str,
         *,
@@ -119,6 +142,26 @@ class CdpChatBootstrap(CdpChatTransport):
         require_bridge: bool = True,
     ) -> dict[str, object]:
         """Lightweight shell wait for MCP pages already navigated to the app URL."""
+        timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
+        if require_bridge:
+            from e2e_shared_ui_hydrate import async_shared_ui_hydrate_slot
+
+            async with async_shared_ui_hydrate_slot():
+                return await self._wait_shell_ready_inner(
+                    timeout_sec=timeout_sec,
+                    require_bridge=require_bridge,
+                )
+        return await self._wait_shell_ready_inner(
+            timeout_sec=timeout_sec,
+            require_bridge=require_bridge,
+        )
+
+    async def _wait_shell_ready_inner(
+        self,
+        *,
+        timeout_sec: float = 120.0,
+        require_bridge: bool = True,
+    ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:

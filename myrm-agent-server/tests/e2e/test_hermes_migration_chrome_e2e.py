@@ -104,14 +104,19 @@ _FINAL_ASSERT_JS = """(() => {
 def _discover_has_hermes() -> bool:
     url = f"{get_e2e_api_url()}/api/v1/migration/discover"
     try:
-        with urllib.request.urlopen(url, timeout=15) as response:  # noqa: S310 - loopback
+        with urllib.request.urlopen(
+            url, timeout=15
+        ) as response:  # noqa: S310 - loopback
             payload = json.loads(response.read())
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
         return False
     sources = payload.get("sources")
     if not isinstance(sources, list):
         return False
-    return any(isinstance(item, dict) and item.get("competitor") == "hermes" for item in sources)
+    return any(
+        isinstance(item, dict) and item.get("competitor") == "hermes"
+        for item in sources
+    )
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
@@ -136,7 +141,9 @@ def test_hermes_migration_wizard_dry_run_uses_builtin_economy() -> None:
         client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
         clicked_raw = client.evaluate(page, _CLICK_HERMES_PREVIEW_JS, timeout_sec=10.0)
         clicked = clicked_raw if isinstance(clicked_raw, dict) else {}
-        assert clicked.get("clicked") is True, f"Hermes preview button not clicked: {clicked!r}"
+        assert (
+            clicked.get("clicked") is True
+        ), f"Hermes preview button not clicked: {clicked!r}"
 
         deadline = time.monotonic() + 120.0
         final: dict[str, object] = {}

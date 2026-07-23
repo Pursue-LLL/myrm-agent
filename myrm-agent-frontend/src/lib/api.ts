@@ -13,7 +13,7 @@
  */
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { ensureLocalBackendReady, markLocalBackendUnreachable } from '@/lib/backend-health';
-import { getApiBaseUrl, getBackendBaseUrl, isLocalMode, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
+import { getApiBaseUrl, getBackendBaseUrl, isLocalMode, resolveE2eApiBase, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 import {
   BACKEND_UNREACHABLE_CODE,
   resolveBackendUnreachableMessage,
@@ -230,10 +230,12 @@ export const fetchWithTimeout = async (
     const headers = withMobilePairHeaders(incomingHeaders);
     const fetchOptions: RequestInit = {
       cache: 'no-store',
-      credentials: 'include',
       ...options,
       headers,
       signal: combinedSignal,
+      // SHPOIB E2E: private :180xx auth is loopback-trusted; omit cookies on cross-origin SSE.
+      // Applied after spread so callers cannot accidentally override with credentials: 'include'.
+      credentials: options.credentials ?? (resolveE2eApiBase() ? 'omit' : 'include'),
     };
     const response = await fetch(url, fetchOptions);
 

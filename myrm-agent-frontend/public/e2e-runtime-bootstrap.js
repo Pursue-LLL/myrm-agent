@@ -31,6 +31,7 @@
 
   window.__MYRM_E2E_RUNTIME__ = Object.freeze(binding);
   window.__MYRM_E2E_API_BASE__ = binding.apiBase;
+  window.__MYRM_E2E_DIRECT_SSE__ = true;
 
   const routeHttpUrl = (value) => {
     const url = new URL(value, location.origin);
@@ -54,6 +55,7 @@
           `E2E_RUNTIME_MISMATCH expected=${binding.runtimeId} actual=${payload.runtime_id || '<missing>'}`,
         );
       }
+      window.dispatchEvent(new CustomEvent('myrm_e2e_runtime_ready', { detail: binding }));
       return binding;
     });
   window.__MYRM_E2E_RUNTIME_READY__ = runtimeReady;

@@ -186,6 +186,7 @@ async def cancel_task(
         status=TaskStatus.CANCELLED,
         cancellation_reason=task.cancellation_reason,
         completed_at=task.completed_at,
+        next_retry_at=None,
     )
 
     await task_event_bus.emit(task_id, TaskStatus.CANCELLED)

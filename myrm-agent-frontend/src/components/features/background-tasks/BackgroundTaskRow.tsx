@@ -114,6 +114,7 @@ export function BackgroundTaskRow({
                       variant="ghost"
                       size="sm"
                       className="h-6 px-2 text-xs"
+                      data-testid="background-task-view-vault-log"
                       onClick={handleSecondaryAction}
                     >
                       <LogActionIcon className="mr-1 h-3 w-3" />
@@ -161,6 +162,7 @@ export function BackgroundTaskRow({
                   variant="ghost"
                   size="sm"
                   className="h-6 px-2 text-xs"
+                  data-testid={canViewVaultLog ? 'background-task-view-vault-log' : undefined}
                   onClick={handleSecondaryAction}
                 >
                   <LogActionIcon className="mr-1 h-3 w-3" />

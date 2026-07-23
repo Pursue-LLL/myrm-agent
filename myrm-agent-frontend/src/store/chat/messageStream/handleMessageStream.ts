@@ -33,6 +33,11 @@ export const handleMessageStream = async (
   added: boolean;
   recievedMessage: string;
 }> => {
+  if (data && typeof data === 'object' && 'type' in data && typeof data.type === 'string') {
+    const recorder = (window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string) => void }).__MYRM_E2E_RECORD_SSE__;
+    recorder?.(data.type);
+  }
+
   if (data && typeof data === 'object' && 'mascot_status' in data && typeof data.mascot_status === 'string') {
     try {
       const companionStore = (await import('@/store/useCompanionStore')).default;

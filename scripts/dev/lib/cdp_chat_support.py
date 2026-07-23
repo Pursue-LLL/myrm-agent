@@ -51,6 +51,20 @@ def get_e2e_api_url() -> str:
     )
 
 
+def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
+    """Extend shell hydration budget for parallel SHPOIB chrome_e2e on shared :3000."""
+    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1":
+        return max(timeout_sec, 180.0)
+    return timeout_sec
+
+
+def shpoib_shell_wait_slice_cap(remaining_sec: float) -> float:
+    """Per-iteration cap for MCP shell wait loops (parallel SHPOIB needs >60s)."""
+    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1":
+        return max(60.0, min(remaining_sec, 180.0))
+    return min(remaining_sec, 60.0)
+
+
 def get_e2e_ui_url() -> str:
     return _normalize_loopback_http_origin(
         os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000"),
@@ -173,6 +187,7 @@ def e2e_runtime_binding_source(api_base: str | None = None) -> str | None:
         f"window.name = {json.dumps(name)};"
         f"window.__MYRM_E2E_RUNTIME__ = Object.freeze({json.dumps(binding)});"
         f"window.__MYRM_E2E_API_BASE__ = {json.dumps(binding['apiBase'])};"
+        f"window.__MYRM_E2E_DIRECT_SSE__ = true;"
     )
 
 
@@ -189,6 +204,7 @@ def e2e_runtime_bootstrap_apply_js(api_base: str | None = None) -> str | None:
   window.name = prefix + JSON.stringify(binding);
   window.__MYRM_E2E_RUNTIME__ = binding;
   window.__MYRM_E2E_API_BASE__ = binding.apiBase;
+  window.__MYRM_E2E_DIRECT_SSE__ = true;
   const nativeFetch = window.fetch.bind(window);
   const healthUrl = `${{binding.apiBase}}/api/v1/health`;
   window.__MYRM_E2E_RUNTIME_READY__ = nativeFetch(healthUrl, {{ cache: 'no-store' }})
@@ -202,6 +218,7 @@ def e2e_runtime_bootstrap_apply_js(api_base: str | None = None) -> str | None:
           `E2E_RUNTIME_MISMATCH expected=${{binding.runtimeId}} actual=${{payload.runtime_id || '<missing>'}}`,
         );
       }}
+      window.dispatchEvent(new CustomEvent('myrm_e2e_runtime_ready', {{ detail: binding }}));
       return binding;
     }});
   try {{
@@ -298,10 +315,24 @@ def wait_e2e_provider_ready(
     timeout_sec: float = 60.0,
     poll_interval_sec: float = 1.0,
 ) -> bool:
-    """Poll private-pool readiness until provider seed is ready (SHPOIB bootstrap race)."""
+    """Poll private-pool health + provider readiness (SHPOIB bootstrap race)."""
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     deadline = time.monotonic() + timeout_sec
+    health_ok = False
     while time.monotonic() < deadline:
-        if _api_provider_ready(api_url=api_url):
+        if not health_ok:
+            try:
+                health_payload = _e2e_api_get_json(
+                    f"{resolved_api}/api/v1/health",
+                    timeout_sec=5.0,
+                )
+                health_ok = (
+                    isinstance(health_payload, dict)
+                    and health_payload.get("status") == "healthy"
+                )
+            except Exception:
+                health_ok = False
+        if health_ok and _api_provider_ready(api_url=api_url):
             return True
         time.sleep(poll_interval_sec)
     return False
@@ -557,12 +588,13 @@ DISMISS_MODALS_JS = """
   try {
     sessionStorage.setItem('migration_discovery_dismissed', 'true');
     sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    localStorage.setItem('myrm_onboarding_complete', 'true');
   } catch (err) {
     return { ok: false, err: String(err), href: location.href };
   }
   Array.from(document.querySelectorAll('button')).forEach((b) => {
     const text = (b.textContent || '').trim();
-    if (/稍后再说|Later|Skip for now|关闭|Dismiss|Not now/i.test(text)) {
+    if (/稍后再说|Later|Skip for now|关闭|Dismiss|Not now|跳过|Skip/i.test(text)) {
       b.click();
     }
   });
@@ -821,6 +853,17 @@ def wait_e2e_cdp_ready(
     return False
 
 
+_SHARED_HOT_E2E_API_BASE = "http://127.0.0.1:8080"
+
+
+def shared_hot_e2e_api_base() -> str:
+    """Shared dev-stack API (:8080). Never the SHPOIB-monkeypatched ``E2E_API_BASE``."""
+    explicit = os.getenv("MYRM_SHARED_E2E_API_BASE", "").strip()
+    if explicit:
+        return explicit.rstrip("/")
+    return _SHARED_HOT_E2E_API_BASE
+
+
 def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
     """Enable YOLO mode for live Chrome agent E2E (skips tool approval gate)."""
     current = fetch_config_value("securityConfig", api_url=api_url)
@@ -843,17 +886,8 @@ def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
         raise RuntimeError(f"Failed to persist YOLO securityConfig: {persisted}")
 
 
-def ensure_e2e_hitl_mode(*, api_url: str | None = None) -> None:
-    """Disable YOLO + auto-review so shell HITL approval dialogs appear.
-
-    Agent-level ``yoloModeEnabled: false`` does not override user securityConfig
-    (merge uses OR). LIVE approval E2E must pin global securityConfig on the
-    target API (including SHPOIB private ``:180xx`` backends).
-
-    Also clears wildcard ``permissions.*=allow`` left by ``ensure_e2e_yolo_mode``.
-    """
-    current = fetch_config_value("securityConfig", api_url=api_url)
-    merged: dict[str, object] = {
+def _hitl_security_payload(current: dict[str, object]) -> dict[str, object]:
+    return {
         **current,
         "yoloModeEnabled": False,
         "yoloModeEnabledAt": None,
@@ -864,18 +898,191 @@ def ensure_e2e_hitl_mode(*, api_url: str | None = None) -> None:
         "autoModeEnabled": False,
         "autoReviewEnabled": False,
         "planConfirmEnabled": False,
+        "domainHitlEnabled": False,
+        "approvalTimeoutBehavior": "deny",
         "permissions": {
             "shell_exec": "ask",
             "code_interpreter": "ask",
         },
     }
-    put_config_value("securityConfig", merged, api_url=api_url)
+
+
+def _pin_hitl_on_api(api_url: str) -> None:
+    current = fetch_config_value("securityConfig", api_url=api_url)
+    put_config_value("securityConfig", _hitl_security_payload(current), api_url=api_url)
+    reset_url = f"{api_url.rstrip('/')}/api/v1/security/allowlist/test/reset-hitl-runtime"
+    reset_req = urllib.request.Request(  # noqa: S310 - loopback validated below
+        reset_url,
+        data=b"{}",
+        method="POST",
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+    )
+    _validate_loopback_http_url(reset_url)
+    try:
+        with _e2e_api_urlopen(reset_req, timeout_sec=15.0) as reset_resp:
+            if reset_resp.status != 200:
+                body = reset_resp.read(500)
+                raise RuntimeError(
+                    f"reset-hitl-runtime failed on {api_url}: {reset_resp.status} {body!r}"
+                )
+    except urllib.error.HTTPError as exc:
+        if exc.code != 404:
+            raise
     persisted = fetch_config_value("securityConfig", api_url=api_url)
     if persisted.get("yoloModeEnabled") or persisted.get("yolo_mode_enabled"):
-        raise RuntimeError(f"Failed to disable YOLO securityConfig: {persisted}")
+        raise RuntimeError(f"Failed to disable YOLO securityConfig on {api_url}: {persisted}")
     perms = persisted.get("permissions")
     if isinstance(perms, dict) and str(perms.get("*", "")).lower() == "allow":
-        raise RuntimeError(f"Wildcard permissions still allow-all: {persisted}")
+        raise RuntimeError(f"Wildcard permissions still allow-all on {api_url}: {persisted}")
+
+
+def ensure_e2e_onboarding_complete(*, api_url: str) -> None:
+    """Mark onboarding complete on any SHPOIB private or shared API (bypasses http_json allowlist)."""
+    _e2e_api_post_json(
+        f"{api_url.rstrip('/')}/api/v1/config/onboarding/complete",
+        {},
+        timeout_sec=15.0,
+    )
+
+
+def ensure_e2e_hitl_mode(*, api_url: str | None = None) -> None:
+    """Disable YOLO + auto-review so shell HITL approval dialogs appear.
+
+    Agent-level ``yoloModeEnabled: false`` does not override user securityConfig
+    (merge uses OR). LIVE approval E2E must pin global securityConfig on the
+    target API (including SHPOIB private ``:180xx`` backends).
+
+    Also pins shared ``:8080`` when it differs from the private API — SHPOIB UI
+    may briefly stream via Next ``/api/v1`` proxy before ``__MYRM_E2E_API_BASE__``
+    inject completes, and parallel LIVE tests leave YOLO on the shared backend.
+
+    Also clears wildcard ``permissions.*=allow`` left by ``ensure_e2e_yolo_mode``.
+    """
+    targets: list[str] = []
+    if api_url:
+        targets.append(api_url.rstrip("/"))
+    shared = shared_hot_e2e_api_base()
+    if shared not in targets:
+        targets.append(shared)
+    for target in targets:
+        _pin_hitl_on_api(target)
+
+
+STREAM_API_BINDING_JS = """(() => {
+  const raw = window.__MYRM_E2E_RUNTIME__?.apiBase ?? window.__MYRM_E2E_API_BASE__ ?? '';
+  const trimmed = String(raw).trim().replace(/\\/+$/, '');
+  return {
+    hasPrivateBinding: trimmed.length > 0,
+    origin: trimmed,
+    usesRelativeProxy: trimmed.length === 0,
+  };
+})()"""
+
+WAIT_WORKSPACE_STREAM_JS = """(async () => {
+  const wait = window.__MYRM_WAIT_WORKSPACE_STREAM__;
+  if (typeof wait !== 'function') {
+    return { ok: false, err: 'missing-wait-hook' };
+  }
+  return await wait(30000);
+})()"""
+
+CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS = """(() => {
+  try {
+    localStorage.removeItem('config-offline-queue');
+  } catch (_) {}
+  return { ok: true };
+})()"""
+
+PUT_E2E_HITL_CONFIG_JS = """(async () => {
+  const privateApi = String(window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
+  const sharedApi = 'http://127.0.0.1:8080';
+  const targets = [...new Set([privateApi, sharedApi].filter(Boolean))];
+  if (targets.length === 0) {
+    return { ok: false, err: 'no-api-base' };
+  }
+  try {
+    localStorage.removeItem('config-offline-queue');
+    const value = {
+      yoloModeEnabled: false,
+      yoloModeEnabledAt: null,
+      yoloModeTimeout: null,
+      yolo_mode_enabled: false,
+      yolo_mode_enabled_at: null,
+      yolo_mode_timeout: null,
+      autoModeEnabled: false,
+      autoReviewEnabled: false,
+      planConfirmEnabled: false,
+      domainHitlEnabled: false,
+      approvalTimeoutBehavior: 'deny',
+      permissions: { shell_exec: 'ask', code_interpreter: 'ask' },
+    };
+    const results = [];
+    for (const api of targets) {
+      const putResp = await fetch(`${api}/api/v1/config/securityConfig`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: 'web', value }),
+        cache: 'no-store',
+      });
+      if (!putResp.ok) {
+        results.push({ api, ok: false, err: `put-${putResp.status}` });
+        continue;
+      }
+      const verifyResp = await fetch(`${api}/api/v1/config/securityConfig`, { cache: 'no-store' });
+      if (!verifyResp.ok) {
+        results.push({ api, ok: false, err: `fetch-${verifyResp.status}` });
+        continue;
+      }
+      const body = await verifyResp.json();
+      const persisted = body?.value ?? body?.data?.value ?? body?.data ?? {};
+      const yolo = Boolean(persisted?.yoloModeEnabled || persisted?.yolo_mode_enabled);
+      const perms = persisted?.permissions;
+      const wildcardAllow =
+        typeof perms === 'object' &&
+        perms !== null &&
+        String(perms['*'] || '').toLowerCase() === 'allow';
+      results.push({ api, ok: !yolo && !wildcardAllow, yoloModeEnabled: yolo, wildcardAllow });
+    }
+    try {
+      const { getConfigSyncManager } = await import('@/services/config/ConfigSyncManager');
+      getConfigSyncManager().set('securityConfig', value);
+    } catch (_) {
+      /* E2E pin still valid via server PUT when local sync import fails */
+    }
+    return {
+      ok: results.every((row) => row.ok),
+      results,
+    };
+  } catch (error) {
+    return { ok: false, err: String(error), targets };
+  }
+})()"""
+
+
+async def ensure_e2e_hitl_mode_in_browser(chat: object) -> None:
+    """PUT HITL securityConfig on the bound private API and clear ConfigSync drift."""
+    await chat.evaluate(CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, await_promise=False)  # type: ignore[attr-defined]
+    raw = await chat.evaluate(PUT_E2E_HITL_CONFIG_JS, await_promise=True)  # type: ignore[attr-defined]
+    observed = raw if isinstance(raw, dict) else {"value": raw}
+    if observed.get("ok") is not True:
+        raise RuntimeError(f"Browser HITL pin failed: {observed}")
+
+
+async def hard_reset_e2e_hitl_mode(
+    chat: object,
+    *,
+    api_url: str,
+    page_url: str,
+) -> None:
+    """Pin HITL on API, reload UI to reset ConfigSync cache, then pin again."""
+    ensure_e2e_hitl_mode(api_url=api_url)
+    ensure_e2e_onboarding_complete(api_url=api_url)
+    await ensure_e2e_hitl_mode_in_browser(chat)
+    await chat.cdp("Page.reload", recv_timeout=120.0)  # type: ignore[attr-defined]
+    await chat.bootstrap(page_url, timeout_sec=120.0)  # type: ignore[attr-defined]
+    ensure_e2e_hitl_mode(api_url=api_url)
+    ensure_e2e_onboarding_complete(api_url=api_url)
+    await ensure_e2e_hitl_mode_in_browser(chat)
 
 
 def ensure_e2e_memory_disabled(*, api_url: str | None = None) -> None:

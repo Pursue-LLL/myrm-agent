@@ -294,3 +294,63 @@ async def test_handle_mcp_auth_expired_event_error_tolerant():
     event = MCPAuthExpiredEvent(server_name="broken", error_detail="401")
     with patch("app.lifecycle.harness_bridge.get_server_bus", side_effect=Exception("Bus down")):
         await _handle_mcp_auth_expired_event(event)
+
+
+@pytest.mark.asyncio
+async def test_stale_event_publishes_subagent_stale_app_event():
+    """Stale lifecycle event should bypass throttle and publish SUBAGENT_STALE immediately."""
+    from app.services.event.app_event_bus import AppEventType
+
+    session_id = "chat_stale-session"
+    event = SubagentLifecycleEvent(
+        session_id=session_id,
+        event_name="stale",
+        task_id="stale-task-1",
+        data=SubagentLifecycleData(
+            agent_type="researcher",
+            extra={
+                "stale_duration_seconds": 320.0,
+                "wasted_tokens": 5000,
+            },
+        ),
+    )
+
+    with patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus:
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+
+        await _handle_subagent_event(event)
+
+        mock_bus.publish.assert_called_once()
+        app_event = mock_bus.publish.call_args[0][0]
+        assert app_event.event_type == AppEventType.SUBAGENT_STALE
+        assert app_event.data["chat_id"] == "stale-session"
+        assert app_event.data["task_id"] == "stale-task-1"
+        assert app_event.data["agent_type"] == "researcher"
+        assert app_event.data["stale_duration_seconds"] == 320.0
+        assert app_event.data["wasted_tokens"] == 5000
+
+    # Stale must NOT schedule a debounced tree emission
+    assert session_id not in _pending_subagent_events
+
+
+@pytest.mark.asyncio
+async def test_stale_event_empty_extra_uses_defaults():
+    """Stale event with empty extra dict should use 0 defaults."""
+    from app.services.event.app_event_bus import AppEventType
+
+    event = SubagentLifecycleEvent(
+        session_id="chat_x",
+        event_name="stale",
+        task_id="t-empty",
+        data=SubagentLifecycleData(agent_type="worker", extra={}),
+    )
+    with patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus:
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        await _handle_subagent_event(event)
+
+        app_event = mock_bus.publish.call_args[0][0]
+        assert app_event.event_type == AppEventType.SUBAGENT_STALE
+        assert app_event.data["stale_duration_seconds"] == 0
+        assert app_event.data["wasted_tokens"] == 0

@@ -82,6 +82,18 @@ def _redact_preview(text: str | None) -> str | None:
     return redact_sensitive_text(text)
 
 
+def _vault_log_ref_from_store(job_id: str) -> str | None:
+    from myrm_agent_harness.api.hooks import get_background_job_store
+
+    store = get_background_job_store()
+    if store is None:
+        return None
+    record = store.get_by_job_id(job_id)
+    if record is None or not record.vault_log_ref:
+        return None
+    return record.vault_log_ref
+
+
 def _row_from_registry_info(info: object) -> ShellBackgroundTaskDTO:
     from myrm_agent_harness.api.hooks import BackgroundProcessInfo
 
@@ -109,7 +121,7 @@ def _row_from_registry_info(info: object) -> ShellBackgroundTaskDTO:
         progress_percent=_progress_from_info(info.last_progress),
         exit_code=info.exit_code,
         error_category=info.error_category,
-        vault_log_ref=info.vault_log_ref,
+        vault_log_ref=info.vault_log_ref or _vault_log_ref_from_store(info.job_id),
     )
 
 
@@ -137,7 +149,10 @@ def _row_from_store_record(record: object) -> ShellBackgroundTaskDTO:
 
 def list_shell_background_tasks() -> list[ShellBackgroundTaskDTO]:
     """Return tracked shell jobs from live registry merged with durable store."""
-    from myrm_agent_harness.api.hooks import get_background_job_store, get_background_registry
+    from myrm_agent_harness.api.hooks import (
+        get_background_job_store,
+        get_background_registry,
+    )
 
     registry = get_background_registry()
     merged: dict[str, ShellBackgroundTaskDTO] = {}
@@ -152,7 +167,9 @@ def list_shell_background_tasks() -> list[ShellBackgroundTaskDTO]:
             if record.job_id in merged:
                 live = merged[record.job_id]
                 if live.vault_log_ref is None and record.vault_log_ref:
-                    merged[record.job_id] = live.model_copy(update={"vault_log_ref": record.vault_log_ref})
+                    merged[record.job_id] = live.model_copy(
+                        update={"vault_log_ref": record.vault_log_ref}
+                    )
                 continue
             merged[record.job_id] = _row_from_store_record(record)
 

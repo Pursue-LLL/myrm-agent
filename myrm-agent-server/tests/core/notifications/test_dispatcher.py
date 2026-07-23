@@ -216,6 +216,32 @@ class TestFormatMessage:
         result = _format_message(event)
         assert result is None
 
+    def test_subagent_stale(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.SUBAGENT_STALE,
+            data={
+                "chat_id": "c1",
+                "task_id": "t-stale",
+                "agent_type": "researcher",
+                "stale_duration_seconds": 310.0,
+                "wasted_tokens": 4500,
+            },
+        )
+        result = _format_message(event)
+        assert result is not None
+        assert "[Myrm AI]" in result
+        assert "researcher" in result
+        assert "t-stale" in result
+        assert "310" in result
+        assert "4,500" in result
+
+    def test_subagent_stale_missing_field_returns_none(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.SUBAGENT_STALE,
+            data={"chat_id": "c2", "task_id": "t2"},  # missing agent_type, etc.
+        )
+        assert _format_message(event) is None
+
     def test_unregistered_event_returns_none(self) -> None:
         event = AppEvent(
             event_type=AppEventType.IDLE_STATUS,

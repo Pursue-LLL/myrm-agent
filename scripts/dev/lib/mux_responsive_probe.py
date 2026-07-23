@@ -54,7 +54,9 @@ def _stamp_value_ms(raw: str | None) -> int | None:
 
 
 def _effective_upstream_timeout_ms(state_dir: Path) -> int | None:
-    return _stamp_value_ms(_read_stamp(state_dir / MUX_UPSTREAM_TIMEOUT_EFFECTIVE_STAMP))
+    return _stamp_value_ms(
+        _read_stamp(state_dir / MUX_UPSTREAM_TIMEOUT_EFFECTIVE_STAMP)
+    )
 
 
 def _effective_upstream_timeout_aligned(*, state_dir: Path, expected_ms: int) -> bool:
@@ -67,7 +69,9 @@ def _effective_upstream_timeout_aligned(*, state_dir: Path, expected_ms: int) ->
 
 
 def _mux_tools_list_probe(socket_path: str, *, timeout_sec: float) -> bool:
-    payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}})
+    payload = json.dumps(
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
+    )
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     deadline = time.monotonic() + timeout_sec
     try:
@@ -81,7 +85,9 @@ def _mux_tools_list_probe(socket_path: str, *, timeout_sec: float) -> bool:
                 break
             buffered += chunk
             if b"\n" in buffered:
-                line = buffered.split(b"\n", maxsplit=1)[0].decode("utf-8", errors="replace")
+                line = buffered.split(b"\n", maxsplit=1)[0].decode(
+                    "utf-8", errors="replace"
+                )
                 parsed = json.loads(line)
                 if isinstance(parsed, dict) and "result" in parsed:
                     return True
@@ -108,12 +114,17 @@ def mux_timeout_effective(
         return False
     stamp_ms = _stamp_value_ms(stamp)
     daemon_stamp_ms = _stamp_value_ms(daemon_stamp)
-    if stamp_ms in LEGACY_MUX_REQUEST_TIMEOUT_MS or daemon_stamp_ms in LEGACY_MUX_REQUEST_TIMEOUT_MS:
+    if (
+        stamp_ms in LEGACY_MUX_REQUEST_TIMEOUT_MS
+        or daemon_stamp_ms in LEGACY_MUX_REQUEST_TIMEOUT_MS
+    ):
         return False
     pid = _read_daemon_pid(state_dir)
     if pid is None or not _process_alive(pid):
         return False
-    if not _effective_upstream_timeout_aligned(state_dir=state_dir, expected_ms=expected_ms):
+    if not _effective_upstream_timeout_aligned(
+        state_dir=state_dir, expected_ms=expected_ms
+    ):
         return False
     if not socket_path or not os.path.exists(socket_path):
         return False
@@ -122,10 +133,14 @@ def mux_timeout_effective(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Probe mux request timeout effectiveness.")
+    parser = argparse.ArgumentParser(
+        description="Probe mux request timeout effectiveness."
+    )
     parser.add_argument("--expected-ms", type=int, required=True)
     parser.add_argument("--state-dir", type=str, required=True)
-    parser.add_argument("--socket", type=str, default=os.environ.get("CDMCP_MUX_SOCKET", ""))
+    parser.add_argument(
+        "--socket", type=str, default=os.environ.get("CDMCP_MUX_SOCKET", "")
+    )
     parser.add_argument(
         "--probe-timeout-sec",
         type=float,

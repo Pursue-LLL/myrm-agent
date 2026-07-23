@@ -15,7 +15,9 @@ from tests.integration.test_background_tasks_rest_api import _build_rest_app
 async def test_seed_shell_fixture_failed_mode_exposes_exit_metadata() -> None:
     transport = ASGITransport(app=_build_rest_app())
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        seed_resp = await client.post("/api/v1/background-tasks/test/seed-shell-fixture?mode=failed")
+        seed_resp = await client.post(
+            "/api/v1/background-tasks/test/seed-shell-fixture?mode=failed"
+        )
         assert seed_resp.status_code == 200
         seed = seed_resp.json()
         int(seed["pid"])
@@ -34,7 +36,9 @@ async def test_seed_shell_fixture_failed_mode_exposes_exit_metadata() -> None:
 async def test_seed_shell_fixture_running_mode_exposes_live_row() -> None:
     transport = ASGITransport(app=_build_rest_app())
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        seed_resp = await client.post("/api/v1/background-tasks/test/seed-shell-fixture?mode=running")
+        seed_resp = await client.post(
+            "/api/v1/background-tasks/test/seed-shell-fixture?mode=running"
+        )
         assert seed_resp.status_code == 200
         seed = seed_resp.json()
         job_id = str(seed["job_id"])
@@ -58,7 +62,9 @@ async def test_seed_shell_fixture_running_mode_exposes_live_row() -> None:
 async def test_seed_shell_fixture_success_mode_exposes_completed_row() -> None:
     transport = ASGITransport(app=_build_rest_app())
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        seed_resp = await client.post("/api/v1/background-tasks/test/seed-shell-fixture?mode=success")
+        seed_resp = await client.post(
+            "/api/v1/background-tasks/test/seed-shell-fixture?mode=success"
+        )
         assert seed_resp.status_code == 200
         seed = seed_resp.json()
         job_id = str(seed["job_id"])
@@ -88,3 +94,19 @@ async def test_seed_shell_fixture_completed_with_vault_exposes_vault_log_ref() -
         row = row_resp.json()
         assert row["status"] == "completed"
         assert row.get("vault_log_ref")
+
+        list_resp = await client.get("/api/v1/background-tasks")
+        assert list_resp.status_code == 200
+        payload = list_resp.json()
+        tasks = payload.get("tasks")
+        assert isinstance(tasks, list)
+        listed = next(
+            (
+                item
+                for item in tasks
+                if isinstance(item, dict) and item.get("task_id") == f"shell:{job_id}"
+            ),
+            None,
+        )
+        assert listed is not None, payload
+        assert listed.get("vault_log_ref"), listed

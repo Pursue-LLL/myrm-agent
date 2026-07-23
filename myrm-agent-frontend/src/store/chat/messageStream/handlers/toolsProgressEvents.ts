@@ -3,6 +3,7 @@
  * Chat SSE event handler slice (toolsProgressEvents).
  */
 
+import type { ToolApprovalRequest } from "@/store/chat/types";
 import type { StreamCtx, StreamTurn } from "../streamContext";
 import { done } from "../streamContext";
 import { buildToolApprovalRequest } from "@/lib/approval/buildToolApprovalRequest";
@@ -199,7 +200,21 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       url?: string;
       screenshot_base64?: string;
       is_managed?: boolean;
+      actionRequests?: unknown[];
+      reviewConfigs?: unknown[];
+      extensions?: Record<string, unknown>;
     };
+
+    // LangGraph tool HITL via stream_dispatcher emits approval_required-shaped payloads
+    // with actionRequests — route them to the ToolApproval queue + dialog.
+    if (Array.isArray(payload?.actionRequests) && payload.actionRequests.length > 0) {
+      const rerouted = {
+        ...data,
+        type: H.AgentEventType.TOOL_APPROVAL_REQUEST,
+        data: payload,
+      };
+      return toolsProgressEvents({ ...ctx, data: rerouted as typeof data });
+    }
 
     if (payload?.action_type === 'browser_takeover') {
       const { activateBrowserTakeover } = await import('@/store/useApprovalStore');
@@ -285,20 +300,58 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
   // 处理 tool_approval_request 事件：弹出审批对话框
   if (data.type === H.AgentEventType.TOOL_APPROVAL_REQUEST) {
-    const payload = data.data;
+    const payload = data.data as {
+      actionRequests?: unknown[];
+      reviewConfigs?: unknown[];
+      extensions?: {
+        approval?: { requestId?: string };
+        timeout?: { seconds?: number; expiresAt?: number; behavior?: 'deny' | 'allow' };
+        displayMode?: ToolApprovalRequest['displayMode'];
+        workspaceRoot?: string;
+      };
+    };
+
+    const actionRequests = Array.isArray(payload?.actionRequests) ? payload.actionRequests : [];
+    if (actionRequests.length === 0) {
+      console.warn('[TOOL_APPROVAL_REQUEST] missing actionRequests', payload);
+      return done(ctx);
+    }
 
     const { chatId: currentChatId, actionMode: currentActionMode } = H.useChatStore.getState();
 
-    // Parse standard LangChain HITL payload structure (supports batch approval)
-    const { actionRequests, reviewConfigs, extensions } = payload;
-    const isBatch = actionRequests.length > 1;
-    const batchId = isBatch ? extensions.approval.requestId : null;
+    const extensions = payload.extensions ?? {};
+    const approvalMeta = extensions.approval ?? {};
+    const requestIdFallback = String(approvalMeta.requestId || data.messageId || `approval-${Date.now()}`);
+    const normalizedExtensions = {
+      timeout: {
+        seconds: extensions.timeout?.seconds ?? 600,
+        expiresAt: extensions.timeout?.expiresAt ?? Date.now() + 600_000,
+        behavior: extensions.timeout?.behavior ?? 'deny',
+      },
+      displayMode: extensions.displayMode ?? 'approval',
+      workspaceRoot: extensions.workspaceRoot,
+      approval: { requestId: requestIdFallback },
+    };
 
-    // Create approval requests for all actions in the batch
+    const { reviewConfigs } = payload;
+    const isBatch = actionRequests.length > 1;
+    const batchId = isBatch ? requestIdFallback : null;
+
     for (let i = 0; i < actionRequests.length; i++) {
-      const action = actionRequests[i];
-      const reviewConfig = reviewConfigs?.[i];
-      const requestId = isBatch ? `${batchId}_${i}` : extensions.approval.requestId;
+      const action = actionRequests[i] as {
+        action: string;
+        args: Record<string, unknown>;
+        description: string;
+        domains?: string[];
+        ptc_annotations?: Record<string, boolean>;
+        command_spans?: unknown;
+        command_span_risks?: unknown;
+        command_span_reasons?: unknown;
+        plain_explanation?: unknown;
+        execution_intent?: unknown;
+      };
+      const reviewConfig = reviewConfigs?.[i] as { domainApproval?: boolean } | undefined;
+      const requestId = isBatch ? `${batchId}_${i}` : requestIdFallback;
 
       const approvalRequest = buildToolApprovalRequest({
         action,
@@ -307,7 +360,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         messageId: data.messageId,
         chatId: currentChatId!,
         actionMode: currentActionMode,
-        extensions,
+        extensions: normalizedExtensions,
         batchId: batchId || undefined,
         batchIndex: isBatch ? i : undefined,
         batchSize: isBatch ? actionRequests.length : undefined,

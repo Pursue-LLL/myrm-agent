@@ -52,6 +52,18 @@ interface CatalogMcpDialogConfig {
   oauth?: CatalogOAuthConfig;
 }
 
+type ProbeRecommendedMode =
+  | 'local_or_tauri'
+  | 'start_local_editor_mcp'
+  | 'verify_local_network_and_editor';
+
+function normalizeProbeRecommendedMode(value: string | undefined): ProbeRecommendedMode | null {
+  if (value === 'local_or_tauri' || value === 'start_local_editor_mcp' || value === 'verify_local_network_and_editor') {
+    return value;
+  }
+  return null;
+}
+
 export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
   ({ entry, locale, onClose, onConnected }) => {
     const t = useTranslations('settings.integrationCatalog.connectDialog');
@@ -66,6 +78,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
     const [oauthPolling, setOauthPolling] = useState(false);
     const [probeStatus, setProbeStatus] = useState<'idle' | 'probing' | 'reachable' | 'unreachable' | 'cloud_not_supported'>('idle');
     const [probeError, setProbeError] = useState<string | null>(null);
+    const [probeRecommendedMode, setProbeRecommendedMode] = useState<ProbeRecommendedMode | null>(null);
     const [pendingCatalogAck, setPendingCatalogAck] = useState<{
       config: MCPServiceConfig;
       scanResult: MCPScanResult;
@@ -94,6 +107,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       if (!probeUrl) return true;
       setProbeStatus('probing');
       setProbeError(null);
+      setProbeRecommendedMode(null);
       try {
         const res = await apiRequest<{
           status: string;
@@ -107,12 +121,15 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         });
         if (res.status === 'reachable') {
           setProbeStatus('reachable');
+          setProbeRecommendedMode(null);
           return true;
         }
         if (res.status === 'cloud_not_supported') {
+          const nextMode = normalizeProbeRecommendedMode(res.recommendedMode) ?? 'local_or_tauri';
           setProbeStatus('cloud_not_supported');
           if (res.shouldBlockConnect === true) {
             setProbeError(t('probeCloudLoopbackBlocked'));
+            setProbeRecommendedMode(nextMode);
             return false;
           }
           if (
@@ -123,11 +140,14 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
             })
           ) {
             setProbeError(t('probeCloudLoopbackBlocked'));
+            setProbeRecommendedMode(nextMode);
             return false;
           }
+          setProbeRecommendedMode(null);
           return true;
         }
         setProbeStatus('unreachable');
+        setProbeRecommendedMode(normalizeProbeRecommendedMode(res.recommendedMode));
         setProbeError(
           res.reasonCode === 'tls_verification_failed'
             ? t('probeTlsVerificationFailed', {
@@ -138,6 +158,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         return false;
       } catch {
         setProbeStatus('unreachable');
+        setProbeRecommendedMode(null);
         setProbeError(t('probeUnreachable'));
         return false;
       }
@@ -212,7 +233,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       setFieldValues((prev) => ({ ...prev, [key]: value }));
     }, []);
 
-    const handleConnect = useCallback(async () => {
+    const handleConnect = useCallback(async (options?: { skipProbe?: boolean }) => {
       if (entry.authType === 'oauth2') {
         setOauthPolling(true);
         try {
@@ -306,6 +327,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       ) {
         setProbeStatus('cloud_not_supported');
         setProbeError(t('probeCloudLoopbackBlocked'));
+        setProbeRecommendedMode('local_or_tauri');
         return;
       }
 
@@ -313,7 +335,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       try {
         if (entry.connectorType === 'mcp' && entry.mcpConfig) {
           // Run connectivity probe if available
-          if (probeUrl) {
+          if (probeUrl && options?.skipProbe !== true) {
             const probeOk = await runProbe();
             if (!probeOk) {
               setConnecting(false);
@@ -376,6 +398,32 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       }
     }, [entry, credential, fieldValues, hasMultiFields, isLocalTauriOnlyEntry, isSandboxMode, locale, mcpConfigs, setMCPConfigs, onConnected, t, probeUrl, runProbe]);
 
+    const handleProbeRecommendedAction = useCallback(async () => {
+      if (probeRecommendedMode === 'local_or_tauri') {
+        onClose();
+        return;
+      }
+      const probeOk = await runProbe();
+      if (!probeOk) {
+        return;
+      }
+      await handleConnect({ skipProbe: true });
+    }, [handleConnect, onClose, probeRecommendedMode, runProbe]);
+
+    const probeRecommendedMessage =
+      probeRecommendedMode === 'local_or_tauri'
+        ? t('probeRecommendedModeLocalOrTauri')
+        : probeRecommendedMode === 'start_local_editor_mcp'
+          ? t('probeRecommendedModeStartLocalEditorMcp')
+          : probeRecommendedMode === 'verify_local_network_and_editor'
+            ? t('probeRecommendedModeVerifyLocalNetworkAndEditor')
+            : null;
+
+    const probeRecommendedActionLabel =
+      probeRecommendedMode === 'local_or_tauri'
+        ? t('probeRecommendedActionSwitchMode')
+        : t('probeRecommendedActionRetryProbe');
+
     return (
       <>
       <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -399,6 +447,24 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
                 <p className="text-destructive text-sm">{probeError}</p>
               </div>
             )}
+            {(probeStatus === 'unreachable' || probeStatus === 'cloud_not_supported') &&
+              probeRecommendedMode &&
+              probeRecommendedMessage && (
+                <div className="bg-muted rounded-md border p-3">
+                  <p className="text-sm font-medium">{t('probeRecommendedActionTitle')}</p>
+                  <p className="text-muted-foreground mt-1 text-sm">{probeRecommendedMessage}</p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="mt-3"
+                    disabled={probeStatus === 'probing' || connecting || oauthPolling}
+                    onClick={handleProbeRecommendedAction}
+                  >
+                    {probeRecommendedActionLabel}
+                  </Button>
+                </div>
+              )}
 
             {entry.authType === 'oauth2' ? (
               <div className="flex flex-col items-center justify-center space-y-4 py-4">

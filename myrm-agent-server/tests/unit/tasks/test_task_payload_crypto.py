@@ -9,8 +9,8 @@ from app.tasks.task_payload_crypto import (
     API_KEY_FIELD,
     AUTH_TOKEN_ENC_FIELD,
     AUTH_TOKEN_FIELD,
-    FALLBACK_KEY_SECRETS_ENV,
     FALLBACK_CONFIGS_FIELD,
+    FALLBACK_KEY_SECRETS_ENV,
     GATEWAY_CONFIG_FIELD,
     open_task_payload_secrets,
     seal_task_payload_secrets,
@@ -147,8 +147,9 @@ def test_open_without_encryption_key_leaves_sealed_fields_and_strips_plaintext(
 
 
 def test_open_uses_fallback_key_when_primary_key_rotated(monkeypatch: pytest.MonkeyPatch) -> None:
-    import app.services.config.encryption as enc_mod
     from myrm_agent_harness.utils.crypto import ConfigCrypto
+
+    import app.services.config.encryption as enc_mod
 
     previous_secret = "previous-task-key"
     rotated_secret = "rotated-task-key"
@@ -170,8 +171,9 @@ def test_open_uses_fallback_key_when_primary_key_rotated(monkeypatch: pytest.Mon
 
 
 def test_open_keeps_cipher_when_rotated_key_has_no_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
-    import app.services.config.encryption as enc_mod
     from myrm_agent_harness.utils.crypto import ConfigCrypto
+
+    import app.services.config.encryption as enc_mod
 
     previous_secret = "previous-task-key"
     rotated_secret = "rotated-task-key"
@@ -194,8 +196,9 @@ def test_open_keeps_cipher_when_rotated_key_has_no_fallback(monkeypatch: pytest.
 def test_open_uses_fallback_key_for_gateway_token_when_primary_key_rotated(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import app.services.config.encryption as enc_mod
     from myrm_agent_harness.utils.crypto import ConfigCrypto
+
+    import app.services.config.encryption as enc_mod
 
     previous_secret = "previous-task-key"
     rotated_secret = "rotated-task-key"
@@ -225,8 +228,9 @@ def test_open_uses_fallback_key_for_gateway_token_when_primary_key_rotated(
 def test_open_does_not_use_fallback_env_when_primary_key_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import app.services.config.encryption as enc_mod
     from myrm_agent_harness.utils.crypto import ConfigCrypto
+
+    import app.services.config.encryption as enc_mod
 
     class _NoKeyService:
         has_key = False

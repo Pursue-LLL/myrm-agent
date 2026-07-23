@@ -171,6 +171,24 @@ async def execute_stream_pipeline(
                 )
 
         assert agent_wrapper.agent is not None
+        from app.ai_agents.extensions.security_policy_extension import (
+            refresh_wrapper_security_config,
+            sync_wrapper_security_from_store,
+        )
+
+        await sync_wrapper_security_from_store(agent_wrapper)
+        refresh_wrapper_security_config(agent_wrapper)
+        runtime_sec = agent_wrapper.agent.config.security_config
+        if runtime_sec is None:
+            raise RuntimeError(
+                f"security_config is None after refresh (agent_id={agent_wrapper.agent_id})"
+            )
+        logger.info(
+            "stream_security_snapshot agent=%s yolo=%s auto_mode=%s",
+            agent_wrapper.agent_id,
+            runtime_sec.yolo_mode_enabled,
+            runtime_sec.auto_mode_enabled,
+        )
         artifact_processor = get_artifact_processor(
             user_id="sandbox",
             chat_id=effective_chat_id,

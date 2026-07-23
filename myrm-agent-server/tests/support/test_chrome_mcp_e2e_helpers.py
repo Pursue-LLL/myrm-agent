@@ -30,7 +30,9 @@ def test_wait_for_state_parses_json_string_ready() -> None:
     assert result["text"] == "ok"
 
 
-def test_warm_ui_route_retries_until_shared_ui_recovers(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_warm_ui_route_retries_until_shared_ui_recovers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC", "5")
     monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_POLL_SEC", "0.01")
     attempts = {"count": 0}
@@ -51,7 +53,10 @@ def test_warm_ui_route_retries_until_shared_ui_recovers(monkeypatch: pytest.Monk
             raise urllib.error.URLError("connection refused")
         return _FakeResponse()
 
-    with patch("tests.support.chrome_mcp_e2e.get_e2e_ui_url", return_value="http://127.0.0.1:3000"):
+    with patch(
+        "tests.support.chrome_mcp_e2e.get_e2e_ui_url",
+        return_value="http://127.0.0.1:3000",
+    ):
         with patch("urllib.request.urlopen", side_effect=_urlopen):
             warm_ui_route("/")
     assert attempts["count"] == 3

@@ -85,6 +85,19 @@ def _temporary_self_signed_tls_server() -> Iterator[str]:
             server.server_close()
 
 
+def _is_retryable_open_mcp_error(exc: RuntimeError) -> bool:
+    message = str(exc)
+    if "No McpPage found for the given page" in message:
+        return True
+    if "SHPOIB runtime rebind after reload failed" in message:
+        return True
+    if "pageId " in message and "not owned by this shim session" in message:
+        return True
+    if "Chrome MCP new_page failed: Error: Timed out after waiting 30000ms" in message:
+        return True
+    return False
+
+
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(240)
@@ -256,7 +269,7 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
             break
         except RuntimeError as exc:
             last_open_error = exc
-            if "No McpPage found for the given page" not in str(exc) or attempt == 2:
+            if not _is_retryable_open_mcp_error(exc) or attempt == 2:
                 raise
             time.sleep(2.0)
     else:
@@ -406,7 +419,7 @@ def test_integration_catalog_tls_verification_failed_end_to_end() -> None:
                 break
             except RuntimeError as exc:
                 last_open_error = exc
-                if "No McpPage found for the given page" not in str(exc) or attempt == 2:
+                if not _is_retryable_open_mcp_error(exc) or attempt == 2:
                     raise
                 time.sleep(2.0)
         else:

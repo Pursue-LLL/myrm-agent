@@ -27,6 +27,7 @@ from myrm_agent_harness.utils.runtime.cancellation import (
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.core.types import ModelConfig
+from app.services.agent.runtime_context import prefer_direct_agent_stream
 from app.services.agent.params import (
     AgentRequest,
     ArchiveRestoreRequestError,
@@ -70,6 +71,7 @@ async def run_agent_stream(
     Backend is the authoritative store: persists user message first,
     then loads chat history from DB (frontend no longer sends chat_history).
     """
+    request = prefer_direct_agent_stream(request)
     async for _ in http_request.stream():
         pass
 
@@ -274,11 +276,10 @@ async def run_agent_stream(
         extra_context = {}
     extra_context["goal_provider"] = goal_provider
 
-    from app.services.agent.execution_cache import ExecutionMode
-    from app.services.agent.runtime_context import build_agent_runtime_context
+    from app.services.agent.runtime_context import build_agent_runtime_context, resolve_stream_execution_mode
 
     extra_context = await build_agent_runtime_context(
-        execution_mode=ExecutionMode.POOLED,
+        execution_mode=resolve_stream_execution_mode(),
         base=extra_context,
     )
 

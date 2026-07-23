@@ -10349,7 +10349,20 @@
     "teammateInbound": "From {from}",
     "teammateOutbound": "To {to}",
     "streamMore": "더 보기",
-    "streamCollapse": "접기"
+    "streamCollapse": "접기",
+    "sortSpawn": "생성순",
+    "sortBusiest": "가장 비싼",
+    "sortSlowest": "가장 느린",
+    "sortStatus": "상태",
+    "filterAll": "전체",
+    "filterRunning": "실행 중",
+    "filterFailed": "실패",
+    "filterLeaf": "리프",
+    "ganttTitle": "타임라인",
+    "agents": "에이전트",
+    "active": "실행 중",
+    "failed": "실패",
+    "approvalCardNotFound": "승인 카드를 찾을 수 없습니다"
   },
   "evalLab": {
     "pageTitle": "평가 실험실",

@@ -87,6 +87,14 @@ def _iteration_limit_message(detail: dict[str, object] | None) -> str:
 
 ACTIVE_COLLECTORS: dict[str, "StreamContentCollector"] = {}
 
+_INTERRUPT_REPLAY_TYPES: frozenset[str] = frozenset(
+    {
+        "tool_approval_request",
+        "approval_required",
+        "clarification_required",
+    }
+)
+
 
 class StreamContentCollector:
     """Collects content and metadata from SSE stream events.
@@ -121,6 +129,7 @@ class StreamContentCollector:
         self._usage_alert: dict[str, object] | None = None
         self._session_recording: dict[str, object] | None = None
         self._ui_artifacts: list[dict[str, object]] = []
+        self._pending_interrupt_events: list[dict[str, object]] = []
         self._cross_turn_data_updates: list[tuple[str, dict[str, object]]] = []
         self._kanban_tasks_created: list[dict[str, object]] = []
         self._cron_job_result: dict[str, object] | None = None
@@ -131,9 +140,13 @@ class StreamContentCollector:
         if self._chat_id:
             ACTIVE_COLLECTORS[self._chat_id] = self
 
+    def has_pending_hitl_replay(self) -> bool:
+        """True when attach subscribers may still need interrupt replay."""
+        return bool(self._pending_interrupt_events)
+
     def cleanup(self) -> None:
         """Remove from active collectors registry."""
-        if self._chat_id and self._chat_id in ACTIVE_COLLECTORS:
+        if self._chat_id and ACTIVE_COLLECTORS.get(self._chat_id) is self:
             del ACTIVE_COLLECTORS[self._chat_id]
 
     def _schedule_cross_turn_ui_patch(
@@ -225,6 +238,8 @@ class StreamContentCollector:
         """Atomically get current snapshot and subscribe to future events."""
         q: asyncio.Queue[dict[str, object]] = asyncio.Queue()
         self._subscribers.append(q)
+        for event in self._pending_interrupt_events:
+            q.put_nowait(event)
         return self.get_snapshot(), q
 
     def feed_sse(self, chunk: str) -> None:
@@ -251,6 +266,8 @@ class StreamContentCollector:
 
     def _process_event(self, event: dict[str, object]) -> None:
         event_type = event.get("type")
+        if isinstance(event_type, str) and event_type in _INTERRUPT_REPLAY_TYPES:
+            self._pending_interrupt_events.append(event)
         data = event.get("data")
 
         if event_type == "message" and data:

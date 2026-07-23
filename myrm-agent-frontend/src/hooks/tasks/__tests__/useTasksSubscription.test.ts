@@ -268,6 +268,56 @@ describe('useTasksSubscription', () => {
     expect(listCalls).toHaveLength(1);
   });
 
+  it('syncs subscribed tasks when event requests sync_required', async () => {
+    const { useTasksSubscription } = await import('../useTasksSubscription');
+
+    pollTasks = [createTask('task-11', 'running', { progress: 33 })];
+    const { result } = renderHook(() => useTasksSubscription(['task-11']));
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    mockFetch.mockClear();
+
+    await act(async () => {
+      MockEventSource.instances[0].emit('task_update', { task_id: 'task-other', sync_required: true });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/v1/tasks?ids=task-11&detail=true');
+    expect(result.current.get('task-11')?.progress).toBe(33);
+    expect(mockFetch).not.toHaveBeenCalledWith('/api/v1/tasks/task-other');
+  });
+
+  it('throttles sync_required snapshot sync bursts', async () => {
+    const { useTasksSubscription } = await import('../useTasksSubscription');
+
+    pollTasks = [createTask('task-12', 'running', { progress: 27 })];
+    renderHook(() => useTasksSubscription(['task-12']));
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    mockFetch.mockClear();
+
+    await act(async () => {
+      MockEventSource.instances[0].emit('task_update', { sync_required: true });
+      MockEventSource.instances[0].emit('task_update', { sync_required: true });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const listCalls = mockFetch.mock.calls.filter(([input]) =>
+      String(input).startsWith('/api/v1/tasks?ids=task-12&detail=true'),
+    );
+    expect(listCalls).toHaveLength(1);
+  });
+
   it('polls with ids+detail when SSE is disconnected', async () => {
     const { useTasksSubscription } = await import('../useTasksSubscription');
 
