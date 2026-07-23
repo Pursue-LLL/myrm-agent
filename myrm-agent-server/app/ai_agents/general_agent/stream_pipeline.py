@@ -196,7 +196,7 @@ async def execute_stream_pipeline(
             runtime_sec.yolo_mode_enabled,
             runtime_sec.auto_mode_enabled,
         )
-        from myrm_agent_harness.agent.middlewares._session_context import set_security_config
+        from myrm_agent_harness.api.hooks import set_security_config
 
         set_security_config(runtime_sec)
         artifact_processor = get_artifact_processor(
