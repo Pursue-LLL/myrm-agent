@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import http.server
 import os
+import socket
 import socketserver
 import ssl
 import subprocess
@@ -53,6 +54,29 @@ def _temporary_loopback_server_url() -> Iterator[str]:
     try:
         port = int(server.server_address[1])
         yield f"http://127.0.0.1:{port}"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+@contextmanager
+def _temporary_broken_loopback_server_url() -> Iterator[str]:
+    class _BrokenResponseHandler(socketserver.BaseRequestHandler):
+        def handle(self) -> None:
+            # Return malformed bytes then close to trigger a generic read/protocol error.
+            self.request.sendall(b"BROKEN\r\n")
+            try:
+                self.request.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            self.request.close()
+
+    server = socketserver.TCPServer(("127.0.0.1", 0), _BrokenResponseHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = int(server.server_address[1])
+        yield f"http://127.0.0.1:{port}/mcp"
     finally:
         server.shutdown()
         server.server_close()
@@ -270,7 +294,7 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
                         shouldBlock,
                         scanSeen: !!scan,
                         verifySeen: !!verify,
-                        hasBlockMessage: /not running|服务未启动/i.test(text),
+                            hasBlockMessage: /not running|服务未启动|connection refused|连接被拒绝/i.test(text),
                         scanStatus: scan?.status ?? null,
                         verifyStatus: verify?.status ?? null,
                       };
@@ -450,6 +474,168 @@ def test_integration_catalog_recommended_retry_auto_continue_end_to_end() -> Non
                 time.sleep(2.0)
         else:
             raise AssertionError(f"failed to open MCP page after retries: {last_open_error}")
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.integration
+@pytest.mark.timeout(240)
+def test_integration_catalog_recommended_retry_unknown_auto_continue_end_to_end() -> None:
+    ui_url = get_e2e_ui_url()
+
+    with _temporary_broken_loopback_server_url() as unknown_probe_url:
+        with _temporary_loopback_server_url() as reachable_probe_url:
+            warm_ui_route("/settings/integrationCatalog")
+            last_open_error: RuntimeError | None = None
+            for attempt in range(3):
+                try:
+                    with open_mcp_page(f"{ui_url}/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
+                        fetch_spy = client.evaluate(
+                            page,
+                            f"""(() => {{
+                              const unknownProbeUrl = {unknown_probe_url!r};
+                              const reachableProbeUrl = {reachable_probe_url!r};
+                              if (!window.__integrationFetchLogs) {{
+                                window.__integrationFetchLogs = [];
+                              }}
+                              if (typeof window.__integrationProbeRewriteCountUnknown !== 'number') {{
+                                window.__integrationProbeRewriteCountUnknown = 0;
+                              }}
+                              if (!window.__integrationFetchWrappedRecommendedRetryUnknown) {{
+                                window.__integrationFetchWrappedRecommendedRetryUnknown = true;
+                                const origFetch = window.fetch.bind(window);
+                                window.fetch = async (...args) => {{
+                                  const req = args[0];
+                                  const init = args[1] || {{}};
+                                  const url = typeof req === 'string' ? req : req?.url;
+                                  let nextArgs = args;
+                                  if (String(url || '').includes('/api/v1/integrations/mcp/probe')) {{
+                                    try {{
+                                      window.__integrationProbeRewriteCountUnknown += 1;
+                                      const payload = JSON.parse(String(init.body || '{{}}'));
+                                      payload.url =
+                                        window.__integrationProbeRewriteCountUnknown === 1
+                                          ? unknownProbeUrl
+                                          : reachableProbeUrl;
+                                      const nextInit = {{ ...init, body: JSON.stringify(payload) }};
+                                      nextArgs = [req, nextInit];
+                                    }} catch (_err) {{
+                                      nextArgs = args;
+                                    }}
+                                  }}
+                                  const resp = await origFetch(...nextArgs);
+                                  let body = null;
+                                  try {{
+                                    body = await resp.clone().json();
+                                  }} catch (_err) {{
+                                    body = null;
+                                  }}
+                                  window.__integrationFetchLogs.push({{
+                                    url: String(url || ''),
+                                    method: (init.method || req?.method || 'GET').toUpperCase(),
+                                    status: resp.status,
+                                    body,
+                                  }});
+                                  return resp;
+                                }};
+                              }}
+                              return {{ ready: true }};
+                            }})()""",
+                            timeout_sec=8.0,
+                        )
+                        assert isinstance(fetch_spy, dict)
+                        assert fetch_spy.get("ready") is True
+
+                        open_dialog = client.evaluate(
+                            page,
+                            """(() => {
+                              const titles = Array.from(document.querySelectorAll('h4'));
+                              const title = titles.find((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
+                              if (!title) return { ok: false, reason: 'entry_missing' };
+                              const card = title.closest('div');
+                              if (!card) return { ok: false, reason: 'card_missing' };
+                              const button = Array.from(card.querySelectorAll('button')).find((el) =>
+                                /Connect|连接/i.test(el.textContent || '')
+                              );
+                              if (!button) return { ok: false, reason: 'card_connect_missing' };
+                              button.click();
+                              return { ok: true };
+                            })()""",
+                            timeout_sec=8.0,
+                        )
+                        assert isinstance(open_dialog, dict)
+                        assert open_dialog.get("ok") is True, f"failed to open dialog: {open_dialog}"
+
+                        click_connect = wait_for_state(
+                            client,
+                            page,
+                            """(() => {
+                              const dialog = document.querySelector('[role="dialog"]');
+                              if (!dialog) return { ready: false };
+                              const button = Array.from(dialog.querySelectorAll('button')).find((el) =>
+                                /Connect|连接/i.test(el.textContent || '')
+                              );
+                              if (!button) return { ready: false, reason: 'dialog_connect_missing' };
+                              button.click();
+                              return { ready: true };
+                            })()""",
+                            timeout_sec=30.0,
+                        )
+                        assert click_connect.get("ready") is True
+
+                        click_recommended_action = wait_for_state(
+                            client,
+                            page,
+                            """(() => {
+                              const dialog = document.querySelector('[role="dialog"]');
+                              if (!dialog) return { ready: false };
+                              const button = Array.from(dialog.querySelectorAll('button')).find((el) =>
+                                /Retry and connect|重新检测并连接/i.test(el.textContent || '')
+                              );
+                              if (!button) return { ready: false, reason: 'retry_action_missing' };
+                              button.click();
+                              return { ready: true };
+                            })()""",
+                            timeout_sec=30.0,
+                        )
+                        assert click_recommended_action.get("ready") is True
+
+                        fetch_chain = wait_for_state(
+                            client,
+                            page,
+                            """(() => {
+                              const logs = Array.isArray(window.__integrationFetchLogs) ? window.__integrationFetchLogs : [];
+                              const probeCalls = logs.filter((item) => item.url.includes('/api/v1/integrations/mcp/probe'));
+                              const scanCalls = logs.filter((item) => item.url.includes('/api/v1/integrations/mcp/scan'));
+                              const verifyCalls = logs.filter((item) => item.url.includes('/api/v1/integrations/mcp/verify'));
+                              const firstProbeData = probeCalls[0]?.body?.data ?? null;
+                              const secondProbeData = probeCalls[1]?.body?.data ?? null;
+                              return {
+                                ready: probeCalls.length >= 2 && (scanCalls.length > 0 || verifyCalls.length > 0),
+                                probeCalls: probeCalls.length,
+                                firstReasonCode: firstProbeData?.reasonCode ?? null,
+                                firstShouldBlock: firstProbeData?.shouldBlockConnect ?? null,
+                                secondReasonCode: secondProbeData?.reasonCode ?? null,
+                                secondShouldBlock: secondProbeData?.shouldBlockConnect ?? null,
+                                scanSeen: scanCalls.length > 0,
+                                verifySeen: verifyCalls.length > 0,
+                              };
+                            })()""",
+                            timeout_sec=45.0,
+                        )
+                        assert fetch_chain.get("probeCalls", 0) >= 2
+                        assert fetch_chain.get("firstReasonCode") == "probe_failed_unknown"
+                        assert fetch_chain.get("firstShouldBlock") is True
+                        assert fetch_chain.get("secondReasonCode") == "reachable"
+                        assert fetch_chain.get("secondShouldBlock") is False
+                        assert fetch_chain.get("scanSeen") is True or fetch_chain.get("verifySeen") is True
+                    break
+                except RuntimeError as exc:
+                    last_open_error = exc
+                    if not _is_retryable_open_mcp_error(exc) or attempt == 2:
+                        raise
+                    time.sleep(2.0)
+            else:
+                raise AssertionError(f"failed to open MCP page after retries: {last_open_error}")
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)

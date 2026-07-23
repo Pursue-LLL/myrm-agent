@@ -21,7 +21,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
 | `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×4：看板渲染 + source_chat 深链过滤 + Drawer 附件 + Chat 成功卡片→看板） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
-| `e2e/test_integration_catalog_loopback_guard_chrome_e2e.py` | 模块 | Integration Catalog loopback guard Chrome MCP E2E（READ×2：live API `deployment_scope` 与 `/integrations/mcp/probe` 语义断言 + 阻断链 `scan/verify` 不扇出 + `recommendedMode` 重试后自动续接连接） |
+| `e2e/test_integration_catalog_loopback_guard_chrome_e2e.py` | 模块 | Integration Catalog loopback guard Chrome MCP E2E（READ×3：live API `deployment_scope` 与 `/integrations/mcp/probe` 语义断言 + 阻断链 `scan/verify` 不扇出 + `recommendedMode` 在 `connection_refused` / `probe_failed_unknown` 重试后自动续接连接） |
 | `e2e/test_memory_citations_chrome_e2e.py` | 模块 | Memory Chrome MCP E2E（READ×2：设置「历史会话搜索」开关；统一「依据/Evidence N」Sheet） |
 | `e2e/test_voice_memory_acl_chrome_e2e.py` | 模块 | Voice memory ACL Chrome MCP E2E（READ×2：`/settings/memory` UI 开/关「历史会话搜索」→ `GET /config/personalSettings` 断言；token corpus 由 HTTP 集成测覆盖） |
 | `api/voice/test_voice_memory_context.py` | 模块 | Voice memory ACL SSOT 单元 + policy 矩阵 |

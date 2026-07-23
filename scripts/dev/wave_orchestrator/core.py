@@ -392,7 +392,9 @@ def release_lease(
         raise RuntimeError(f"LEASE_NOT_FOUND: {lease_id}")
 
     lease = run_locked(resolved.state_file, _edit)
-    _cleanup_released_lease(lease, paths=resolved, skip_resource_cleanup=skip_cleanup, strict=False)
+    _cleanup_released_lease(
+        lease, paths=resolved, skip_resource_cleanup=skip_cleanup, strict=False
+    )
     _maybe_apply_pending_drift_after_release(paths=resolved)
     return lease
 

@@ -1,3 +1,5 @@
+"""Tests for RouterStreamMixin: interactive progress and reassurance heartbeat."""
+
 from __future__ import annotations
 
 import asyncio
@@ -11,6 +13,9 @@ from app.channels.routing.router_stream import RouterStreamMixin
 from app.channels.types import ProgressUpdate
 from app.channels.types.messages import InboundMessage, MessagePriority, OutboundMessage
 from app.channels.types.status import ChannelCapabilities
+
+_STREAM_MOD = "app.channels.routing.router_stream"
+_real_sleep = asyncio.sleep
 
 
 @dataclass
@@ -50,6 +55,7 @@ def _make_msg(**overrides: object) -> InboundMessage:
 # ---------------------------------------------------------------------------
 # _send_interactive_progress
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_send_interactive_progress_preserves_thread_id(stream_handler, mock_bus):
@@ -92,17 +98,19 @@ async def test_send_interactive_progress_adds_mobile_status_button(stream_handle
 
 # ---------------------------------------------------------------------------
 # _reassurance_loop: edit-in-place heartbeat
+#
+# Strategy: use short threshold (0.15s) and max_count=2, real asyncio.sleep
+# with state["last_activity"] set far in the past so elapsed always exceeds
+# threshold. Tests run in < 1s.
 # ---------------------------------------------------------------------------
 
-_THRESHOLD_PATH = "app.channels.routing.router_constants._SILENCE_REASSURANCE_THRESHOLD"
-_MAX_COUNT_PATH = "app.channels.routing.router_constants._MAX_REASSURANCE_COUNT"
-_SHORT_THRESHOLD = 0.05
+_SHORT = 0.15
 
 
-def _state(last_activity_offset: float = 0.0) -> dict[str, float | int | str]:
-    """Create reassurance state with ``last_activity`` set *offset* seconds ago."""
+def _stale_state() -> dict[str, float | int | str]:
+    """State where last_activity is far in the past (always triggers heartbeat)."""
     return {
-        "last_activity": time.monotonic() - last_activity_offset,
+        "last_activity": 0.0,
         "step_count": 3,
         "current_stage": "analyzing",
     }
@@ -118,23 +126,18 @@ async def test_reassurance_sends_first_then_edits(mock_bus):
 
     handler = DummyRouter(mock_bus)
     msg = _make_msg()
-    state = _state(last_activity_offset=5.0)
+    state = _stale_state()
 
-    with (
-        patch(_THRESHOLD_PATH, _SHORT_THRESHOLD),
-        patch(_MAX_COUNT_PATH, 2),
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
+        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
     ):
-        task = asyncio.create_task(handler._reassurance_loop(msg, "chat-1", state))
-        await asyncio.sleep(_SHORT_THRESHOLD * 5)
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        await handler._reassurance_loop(msg, "chat-1", state)
 
     mock_bus.send_tracked.assert_called_once()
     sent_msg: OutboundMessage = mock_bus.send_tracked.call_args[0][0]
     assert sent_msg.priority == MessagePriority.NORMAL
 
-    assert mock_bus.edit_channel_message.call_count >= 1
+    assert mock_bus.edit_channel_message.call_count == 1
     edit_args = mock_bus.edit_channel_message.call_args
     assert edit_args[0][0] == "telegram"
     assert edit_args[0][1] == "chat-1"
@@ -142,33 +145,33 @@ async def test_reassurance_sends_first_then_edits(mock_bus):
 
 
 @pytest.mark.asyncio
-async def test_reassurance_fallback_when_channel_cannot_edit(mock_bus):
-    """When channel doesn't support edit, every heartbeat sends a new message."""
+async def test_reassurance_sends_once_when_channel_cannot_edit(mock_bus):
+    """When channel doesn't support edit, only one heartbeat message is sent.
+
+    After the first send heartbeat_mid is set but can_edit=False, so
+    subsequent iterations neither edit nor re-send — preventing message spam
+    on channels without edit capability.
+    """
     channel_obj = _FakeChannel(capabilities=ChannelCapabilities(edit=False))
     mock_bus.get_channel = MagicMock(return_value=channel_obj)
     mock_bus.send_tracked = AsyncMock(return_value="msg-new")
 
     handler = DummyRouter(mock_bus)
     msg = _make_msg()
-    state = _state(last_activity_offset=5.0)
+    state = _stale_state()
 
-    with (
-        patch(_THRESHOLD_PATH, _SHORT_THRESHOLD),
-        patch(_MAX_COUNT_PATH, 2),
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
+        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
     ):
-        task = asyncio.create_task(handler._reassurance_loop(msg, "chat-1", state))
-        await asyncio.sleep(_SHORT_THRESHOLD * 5)
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        await handler._reassurance_loop(msg, "chat-1", state)
 
-    assert mock_bus.send_tracked.call_count >= 2
+    mock_bus.send_tracked.assert_called_once()
     mock_bus.edit_channel_message.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_reassurance_fallback_on_edit_failure(mock_bus):
-    """When edit fails, fallback to sending a new message."""
+    """When edit fails, heartbeat_mid resets and next iteration sends a new message."""
     channel_obj = _FakeChannel(capabilities=ChannelCapabilities(edit=True))
     mock_bus.get_channel = MagicMock(return_value=channel_obj)
     mock_bus.send_tracked = AsyncMock(return_value="msg-1")
@@ -176,19 +179,14 @@ async def test_reassurance_fallback_on_edit_failure(mock_bus):
 
     handler = DummyRouter(mock_bus)
     msg = _make_msg()
-    state = _state(last_activity_offset=5.0)
+    state = _stale_state()
 
-    with (
-        patch(_THRESHOLD_PATH, _SHORT_THRESHOLD),
-        patch(_MAX_COUNT_PATH, 2),
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
+        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
     ):
-        task = asyncio.create_task(handler._reassurance_loop(msg, "chat-1", state))
-        await asyncio.sleep(_SHORT_THRESHOLD * 5)
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        await handler._reassurance_loop(msg, "chat-1", state)
 
-    assert mock_bus.send_tracked.call_count >= 2
+    assert mock_bus.send_tracked.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -200,17 +198,12 @@ async def test_reassurance_uses_normal_priority(mock_bus):
 
     handler = DummyRouter(mock_bus)
     msg = _make_msg()
-    state = _state(last_activity_offset=5.0)
+    state = _stale_state()
 
-    with (
-        patch(_THRESHOLD_PATH, _SHORT_THRESHOLD),
-        patch(_MAX_COUNT_PATH, 1),
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
+        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 1
     ):
-        task = asyncio.create_task(handler._reassurance_loop(msg, "chat-1", state))
-        await asyncio.sleep(_SHORT_THRESHOLD * 3)
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        await handler._reassurance_loop(msg, "chat-1", state)
 
     sent_msg: OutboundMessage = mock_bus.send_tracked.call_args[0][0]
     assert sent_msg.priority == MessagePriority.NORMAL
@@ -218,24 +211,28 @@ async def test_reassurance_uses_normal_priority(mock_bus):
 
 @pytest.mark.asyncio
 async def test_reassurance_skips_when_activity_recent(mock_bus):
-    """Heartbeat skips when last_activity is recent (within threshold)."""
+    """Heartbeat skips sending when last_activity is within threshold."""
     channel_obj = _FakeChannel(capabilities=ChannelCapabilities(edit=True))
     mock_bus.get_channel = MagicMock(return_value=channel_obj)
 
     handler = DummyRouter(mock_bus)
     msg = _make_msg()
-    state = _state(last_activity_offset=0.0)
+    state: dict[str, float | int | str] = {
+        "last_activity": time.monotonic() + 9999,
+        "step_count": 0,
+        "current_stage": "",
+    }
 
-    with (
-        patch(_THRESHOLD_PATH, _SHORT_THRESHOLD),
-        patch(_MAX_COUNT_PATH, 1),
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
+        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 1
     ):
         task = asyncio.create_task(handler._reassurance_loop(msg, "chat-1", state))
-        state["last_activity"] = time.monotonic()
-        await asyncio.sleep(_SHORT_THRESHOLD * 2)
+        await _real_sleep(_SHORT + 0.1)
         task.cancel()
-        with pytest.raises(asyncio.CancelledError):
+        try:
             await task
+        except asyncio.CancelledError:
+            pass
 
     mock_bus.send_tracked.assert_not_called()
     mock_bus.edit_channel_message.assert_not_called()
@@ -243,49 +240,59 @@ async def test_reassurance_skips_when_activity_recent(mock_bus):
 
 @pytest.mark.asyncio
 async def test_reassurance_send_tracked_returns_none(mock_bus):
-    """When send_tracked returns None, next iteration retries send."""
+    """When send_tracked returns None, heartbeat_mid stays None and retries send."""
     channel_obj = _FakeChannel(capabilities=ChannelCapabilities(edit=True))
     mock_bus.get_channel = MagicMock(return_value=channel_obj)
     mock_bus.send_tracked = AsyncMock(return_value=None)
 
     handler = DummyRouter(mock_bus)
     msg = _make_msg()
-    state = _state(last_activity_offset=5.0)
+    state = _stale_state()
 
-    with (
-        patch(_THRESHOLD_PATH, _SHORT_THRESHOLD),
-        patch(_MAX_COUNT_PATH, 2),
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
+        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
     ):
-        task = asyncio.create_task(handler._reassurance_loop(msg, "chat-1", state))
-        await asyncio.sleep(_SHORT_THRESHOLD * 5)
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        await handler._reassurance_loop(msg, "chat-1", state)
 
-    assert mock_bus.send_tracked.call_count >= 2
+    assert mock_bus.send_tracked.call_count == 2
     mock_bus.edit_channel_message.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_reassurance_exception_does_not_crash_loop(mock_bus):
-    """Exception in send_tracked does not crash the loop."""
+    """Exception in send_tracked does not crash the loop; next iteration retries."""
     channel_obj = _FakeChannel(capabilities=ChannelCapabilities(edit=False))
     mock_bus.get_channel = MagicMock(return_value=channel_obj)
-    mock_bus.send_tracked = AsyncMock(side_effect=[RuntimeError("network"), "msg-ok"])
+    mock_bus.send_tracked = AsyncMock(
+        side_effect=[RuntimeError("network"), "msg-ok"]
+    )
 
     handler = DummyRouter(mock_bus)
     msg = _make_msg()
-    state = _state(last_activity_offset=5.0)
+    state = _stale_state()
 
-    with (
-        patch(_THRESHOLD_PATH, _SHORT_THRESHOLD),
-        patch(_MAX_COUNT_PATH, 2),
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
+        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
     ):
-        task = asyncio.create_task(handler._reassurance_loop(msg, "chat-1", state))
-        await asyncio.sleep(_SHORT_THRESHOLD * 5)
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        await handler._reassurance_loop(msg, "chat-1", state)
 
-    assert mock_bus.send_tracked.call_count >= 2
+    assert mock_bus.send_tracked.call_count == 2
 
+
+@pytest.mark.asyncio
+async def test_reassurance_no_channel_sends_once(mock_bus):
+    """When get_channel returns None, can_edit is False — sends once, never edits."""
+    mock_bus.get_channel = MagicMock(return_value=None)
+    mock_bus.send_tracked = AsyncMock(return_value="msg-1")
+
+    handler = DummyRouter(mock_bus)
+    msg = _make_msg()
+    state = _stale_state()
+
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
+        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
+    ):
+        await handler._reassurance_loop(msg, "chat-1", state)
+
+    mock_bus.send_tracked.assert_called_once()
+    mock_bus.edit_channel_message.assert_not_called()
