@@ -109,6 +109,60 @@ def should_defer_supervisor_backend_heal(
     return False
 
 
+@dataclass(frozen=True, slots=True)
+class PendingDriftApplyResult:
+    action: str
+    detail: str = ""
+
+
+def apply_pending_drift_if_idle(
+    *,
+    monorepo_root: Path,
+    state_dir: Path | None = None,
+    server_dir: Path | None = None,
+) -> PendingDriftApplyResult:
+    """Apply deferred shared-backend drift heal when no active wave leases remain (R31 / SMP R3)."""
+    root = monorepo_root.resolve()
+    resolved_state = state_dir or _default_state_dir()
+    resolved_server = server_dir or (root / "myrm-agent" / "myrm-agent-server")
+    dev_stack = root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
+    active_leases = wave_active_lease_count(root)
+    if active_leases > 0:
+        return PendingDriftApplyResult(
+            "skipped",
+            f"active_leases={active_leases}",
+        )
+    if not pending_drift_exists(resolved_state):
+        return PendingDriftApplyResult("noop")
+    if not dev_stack.is_file():
+        return PendingDriftApplyResult("failed", f"missing dev-stack: {dev_stack}")
+    env = {
+        **os.environ,
+        "MYRM_WAVE_GATE_BYPASS": "1",
+        "MYRM_SUPERVISOR_BYPASS": "1",
+    }
+    try:
+        proc = subprocess.run(
+            ["bash", str(dev_stack), "backend-only", "ensure"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+            cwd=str(root),
+            env=env,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return PendingDriftApplyResult("failed", str(exc))
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "backend-only ensure failed").strip()
+        return PendingDriftApplyResult("failed", detail[:500])
+    clear_pending_drift(resolved_state)
+    return PendingDriftApplyResult(
+        "applied",
+        f"server_dir={resolved_server}",
+    )
+
+
 def wave_active_lease_count(monorepo_root: Path) -> int:
     wave_bin = monorepo_root / "scripts" / "dev" / "wave.sh"
     if not wave_bin.is_file():

@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.api.hooks::get_background_registry
-- myrm_agent_harness.agent.meta_tools.bash._background_job_store (POS: BSDL Core ledger)
+- myrm_agent_harness.api.hooks::get_background_job_store (POS: BSDL Core ledger)
 
 [OUTPUT]
 - list_shell_background_tasks: Merge in-process + durable store rows

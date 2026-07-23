@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.agent.meta_tools.bash._background_types import BackgroundProcessInfo
+from myrm_agent_harness.api.hooks import BackgroundProcessInfo
 
 from app.services.agent.shell_background_tasks import (
     _command_preview,

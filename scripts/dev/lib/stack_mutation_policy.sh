@@ -14,6 +14,35 @@ _smp_state_dir() {
   printf '%s' "${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
 }
 
+_smp_apply_backend_drift_ensure() {
+  local dev_stack="${1:?}" policy_py="${2:?}" state_dir="${3:?}"
+  if ! MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure >/dev/null 2>&1; then
+    echo "CHROME_E2E_FAIL: attach backend drift ensure failed" >&2
+    return 1
+  fi
+  python3 "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
+  return 0
+}
+
+_smp_apply_pending_drift_if_idle() {
+  local monorepo_root="${1:?}" server_dir="${2:?}" dev_stack="${3:?}"
+  local stack_epoch_lib policy_py state_dir active_leases
+  stack_epoch_lib="$(dirname "${dev_stack}")/lib/stack-epoch.sh"
+  policy_py="$(_smp_policy_py "$(dirname "${stack_epoch_lib}")")"
+  state_dir="$(_smp_state_dir)"
+  # shellcheck source=stack-epoch.sh
+  source "${stack_epoch_lib}"
+  active_leases="$(_wave_active_lease_count "${monorepo_root}")"
+  if [[ "${active_leases}" != "0" ]]; then
+    return 0
+  fi
+  if ! python3 "${policy_py}" pending-exists --state-dir "${state_dir}" | grep -q '^1$'; then
+    return 0
+  fi
+  echo "CHROME_E2E_ATTACH_HEAL: apply pending stack drift (0 active wave leases)" >&2
+  _smp_apply_backend_drift_ensure "${dev_stack}" "${policy_py}" "${state_dir}"
+}
+
 _smp_attach_backend_drift_heal() {
   local monorepo_root="${1:?}" server_dir="${2:?}" dev_stack="${3:?}"
   local stack_epoch_lib active_leases policy_py state_dir action
@@ -42,9 +71,7 @@ _smp_attach_backend_drift_heal() {
       ;;
     apply)
       echo "CHROME_E2E_ATTACH_HEAL: backend-only ensure (source drift, no active leases)" >&2
-      MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure >/dev/null 2>&1 \
-        || echo "CHROME_E2E_WARN: attach backend ensure for source drift failed" >&2
-      python3 "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
+      _smp_apply_backend_drift_ensure "${dev_stack}" "${policy_py}" "${state_dir}"
       ;;
     *)
       ;;
