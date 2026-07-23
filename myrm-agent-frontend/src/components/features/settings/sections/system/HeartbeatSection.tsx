@@ -142,7 +142,7 @@ const HeartbeatSection = memo(() => {
           if (s.interval_ms) setIntervalMs(String(s.interval_ms));
         }
         if (s.prompt) setCustomPrompt(s.prompt);
-        setAgentId(s.agent_id ?? '__default__');
+        setAgentId(s.agent_id || '__default__');
       })
       .catch(() => {
         if (!cancelled) setFetchError(true);
