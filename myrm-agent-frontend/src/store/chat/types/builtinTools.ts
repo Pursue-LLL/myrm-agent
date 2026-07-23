@@ -5,7 +5,7 @@
  *
  * [POS]
  * GUI 可切换 builtin 产品 ID 与本地化 capability 标签 SSOT（gap toast + wrench 面板共用）。
- * file_ops / code_execute 为 General Agent 基线（harness CORE），服务端 apply_agent_baseline_tool_flags 强制加载，不在 UI 展示。
+ * file_ops / code_execute 为 General Agent 基线（harness CORE），服务端 tool_mount.resolve_agent_mount 强制加载，不在 UI 展示。
  * Search/Fast（无 file/bash）仅 Web action_mode=fast；Channel/IM 仅绑定 General Agent。
  */
 

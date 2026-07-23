@@ -469,7 +469,6 @@ async def _wait_desktop_tool_activity_failfast(
                 streaming_started = now
             elif (
                 not stream_nudge_sent
-                and not api_only
                 and now - streaming_started >= GATE_STREAM_NUDGE_SEC
                 and not last_tool.startswith("desktop_")
             ):
@@ -515,7 +514,6 @@ async def _wait_desktop_tool_activity_failfast(
                 idle_started = now
             elif (
                 not idle_nudge_sent
-                and not api_only
                 and now - idle_started >= GATE_IDLE_NUDGE_SEC
             ):
                 progress(
