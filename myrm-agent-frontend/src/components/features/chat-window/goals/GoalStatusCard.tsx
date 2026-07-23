@@ -409,8 +409,10 @@ export function GoalStatusCard() {
       case 'active':
         return <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />;
       case 'paused':
-        if (goal.verdict === 'drift_pause')
-          return <AlertIcon className="h-4 w-4 text-orange-500 animate-pulse" />;
+        if (goal.verdict === 'drift_pause') {
+          const isSandbox = goal.reason?.startsWith('Sandbox boundary');
+          return <AlertIcon className={`h-4 w-4 ${isSandbox ? 'text-red-500' : 'text-orange-500'} animate-pulse`} />;
+        }
         return <PauseIcon className="h-4 w-4 text-yellow-500" />;
       case 'wait':
         return <PauseIcon className="h-4 w-4 text-blue-500 animate-pulse" />;
@@ -434,7 +436,11 @@ export function GoalStatusCard() {
         }
         return t('statusActive');
       case 'paused':
-        if (goal.verdict === 'drift_pause') return t('statusDriftPaused');
+        if (goal.verdict === 'drift_pause') {
+          return goal.reason?.startsWith('Sandbox boundary')
+            ? t('statusSandboxPaused')
+            : t('statusDriftPaused');
+        }
         return t('statusPaused');
       case 'wait':
         return t('statusWait');

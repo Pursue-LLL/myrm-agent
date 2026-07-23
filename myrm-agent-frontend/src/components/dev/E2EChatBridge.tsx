@@ -412,6 +412,8 @@ export default function E2EChatBridge() {
           hasOk: /\bOK\b/i.test(assistantText),
           hasDone: /\bDONE\b/i.test(assistantText),
           lastAssistantSample: assistantText.slice(0, 200),
+          lastAssistantHasDoneSkipped: /DONE-SKIPPED/i.test(assistantText),
+          clarificationAnswered: lastAssistant?.clarification?.answered === true,
           toolApprovalQueueLen: useToolApprovalStore.getState().queue.length,
         };
       },
@@ -589,6 +591,22 @@ export default function E2EChatBridge() {
           });
         });
         return selection;
+      },
+      skipActiveClarificationForE2e: () => {
+        const state = useChatStore.getState();
+        const pending = [...state.messages]
+          .reverse()
+          .find(
+            (message) =>
+              message.role === 'assistant' &&
+              message.clarification &&
+              !message.clarification.answered,
+          );
+        if (!pending?.messageId) {
+          throw new Error('e2e-no-active-clarification');
+        }
+        void state.sendMessage('', pending.messageId, undefined, {});
+        return { messageId: pending.messageId };
       },
       setBrowserSource: (source: string) => {
         flushSync(() => {

@@ -92,6 +92,7 @@
     "reasonDriftDetected": "检测到偏离目标 — 已暂停等待审查",
     "reasonSandboxBoundary": "触达沙箱边界 — 已暂停等待审查",
     "statusDriftPaused": "偏离目标",
+    "statusSandboxPaused": "沙箱边界",
     "draftSection": "目标设定助手",
     "draftObjectivePlaceholder": "描述你希望 Agent 完成的目标…",
     "suggestCriteria": "智能生成验收标准",

@@ -10636,6 +10636,7 @@
     "statusComplete": "Complete",
     "statusCancelled": "Cancelled",
     "statusDriftPaused": "목표 이탈 감지",
+    "statusSandboxPaused": "샌드박스 경계",
     "reasonDriftDetected": "목표 이탈 감지됨 — 검토 대기 중",
     "reasonSandboxBoundary": "샌드박스 경계 도달 — 검토 대기 중",
     "tokenUsage": "Token Usage",

@@ -771,7 +771,7 @@ export const DEFAULT_PERSONAL_SETTINGS: PersonalSettingsConfigValue = {
   codeExecutionAllowNetwork: true,
   enableEvalLab: false,
   smoothStreamEnabled: true,
-  suggestWorkflowMode: true,
+  suggestWorkflowMode: false,
   publicIngressBaseUrl: '',
 };
 

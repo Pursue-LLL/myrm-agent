@@ -63,13 +63,25 @@ def _create_background_agent(client: httpx.Client, api_base: str) -> str:
         "skill_ids": [],
         "mcp_ids": [],
         "enabled_builtin_tools": ["code_execute"],
-        "security_overrides": {"yoloModeEnabled": True},
+        "security_overrides": {
+            "yoloModeEnabled": True,
+            "yolo_mode_enabled_at": time.time(),
+        },
     }
     resp = client.post(f"{api_base}/api/v1/user-agents", json=payload, timeout=60.0)
     resp.raise_for_status()
     body = resp.json()
     agent_id = body.get("data", {}).get("id") or body.get("id")
     assert isinstance(agent_id, str) and agent_id
+    probe_resp = client.get(
+        f"{api_base}/api/v1/security/allowlist/test/hitl-probe",
+        params={"agent_id": agent_id},
+        timeout=30.0,
+    )
+    probe_resp.raise_for_status()
+    probe = probe_resp.json()
+    if probe.get("yolo") is not True:
+        raise AssertionError(f"hitl-probe expected yolo=true after agent create: {probe}")
     return agent_id
 
 
@@ -180,7 +192,6 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
         "actionMode": "agent",
         "agentId": agent_id,
         "agentConfig": {"enabledBuiltinTools": ["code_execute"]},
-        "yoloModeEnabled": True,
         "memoryRequireConfirmation": False,
         "enableMemoryAutoExtraction": False,
     }
@@ -225,6 +236,10 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
                     for name in _tool_names_from_event(event):
                         if name not in tool_names:
                             tool_names.append(name)
+                    if event_type == "tasks_steps" and event.get("status") == "error":
+                        err = event.get("error")
+                        if err:
+                            errors.append(str(err))
                 snippet = _assistant_text_from_event(event)
                 if snippet:
                     assistant_parts.append(snippet)
@@ -248,18 +263,11 @@ def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str,
     def _run_stream_once(payload: dict[str, object]) -> None:
         resume_payload, tool_names, errors, assistant_text = _consume_stream(payload)
         if resume_payload is not None:
-            resume_request = {
-                **payload,
-                "messageId": f"bg-shell-resume-{uuid.uuid4().hex[:10]}",
-                "resumeValue": resume_payload,
-            }
-            _, resume_tools, resume_errors, resume_assistant = _consume_stream(resume_request)
-            for name in resume_tools:
-                if name not in tool_names:
-                    tool_names.append(name)
-            errors.extend(resume_errors)
-            if resume_assistant:
-                assistant_text = (assistant_text + resume_assistant)[-500:]
+            raise AssertionError(
+                "agent yoloModeEnabled=True but agent-stream emitted HITL interrupt; "
+                f"payload_keys={sorted(resume_payload.keys())}; "
+                "expected YOLO auto-approve (batch_processor.py YOLO path)",
+            )
 
         if not _bash_tool_invoked(tool_names):
             detail = errors[0][:300] if errors else "no tool events in agent-stream"
@@ -344,6 +352,11 @@ def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
                     )
                     chat_resp.raise_for_status()
                     agent_id = _create_background_agent(client, api_base)
+                    reset_resp = client.post(
+                        f"{api_base}/api/v1/security/allowlist/test/reset-hitl-runtime",
+                        timeout=30.0,
+                    )
+                    reset_resp.raise_for_status()
                     _stream_background_spawn(client, api_base, agent_id, chat_id)
                 task_id = _wait_for_running_shell(api_base, chat_id, timeout_sec=240.0)
                 break

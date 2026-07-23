@@ -395,6 +395,56 @@ class CdpChatTurn(CdpChatSubmit):
             await asyncio.sleep(1.0 + attempt)
         raise RuntimeError(f"E2E bridge attachToChat failed: {last}")
 
+    async def fast_desktop_agent_submit(
+        self,
+        text: str,
+        prompt_for_wait: str,
+        *,
+        chat_id_hint: str | None = None,
+    ) -> dict[str, object]:
+        """Desktop approval E2E: setInputMessage + nativeClick (matches v48 PASS path)."""
+        chat_id = chat_id_hint
+        baseline_user_msgs = 0
+        if chat_id:
+            try:
+                baseline_user_msgs = cdp_chat_support.chat_user_message_count(chat_id)
+            except OSError:
+                baseline_user_msgs = 0
+        await self.ensure_react_e2e_bridge(timeout_sec=60.0)
+        if chat_id:
+            await self._attach_chat_session(chat_id)
+        await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+        await self.evaluate(
+            f"""(() => {{
+              const bridge = window.__MYRM_E2E_CHAT__;
+              bridge?.setInputMessage?.({json.dumps(text)});
+              return {{ ok: true, inputLen: {len(text)} }};
+            }})()""",
+            await_promise=False,
+        )
+        submit = await self.submit_native_click()
+        if not submit.get("ok"):
+            raise RuntimeError(f"fast desktop native submit failed: {submit}")
+        try:
+            started = await asyncio.wait_for(
+                self.wait_stream_started(
+                    prompt_for_wait,
+                    min_user_msgs=baseline_user_msgs + 1,
+                    chat_id_hint=chat_id,
+                ),
+                timeout=45.0,
+            )
+        except TimeoutError:
+            started = await self.main_state(prompt_for_wait)
+            started["streamProbe"] = "deferred_to_wait_turn_done"
+        if chat_id:
+            started["chatId"] = chat_id
+        return {
+            "fill": {"ok": True, "mode": "fastNative", "inputLen": len(text)},
+            "submit": submit,
+            "started": started,
+        }
+
     async def _sync_model_selection(self, *, timeout_sec: float = 45.0) -> None:
         await self.ensure_e2e_api_base_binding()
         try:

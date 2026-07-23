@@ -23,6 +23,7 @@ from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
+from tests.api.agent.utils import get_lite_model_selection, _strip_provider_prefix  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
@@ -106,21 +107,43 @@ _CLICK_SKIP_JS = """(() => {
   return { ok: true };
 })()"""
 
+_SKIP_CLARIFY_VIA_BRIDGE_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.skipActiveClarificationForE2e) {
+    return { ok: false, err: 'no-bridge' };
+  }
+  try {
+    const result = bridge.skipActiveClarificationForE2e();
+    return { ok: true, ...result };
+  } catch (err) {
+    return { ok: false, err: String(err) };
+  }
+})()"""
+
 _AFTER_SKIP_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  const snap = bridge?.turnSnapshot?.() ?? {};
   const main = document.querySelector('main');
   const text = main?.innerText || '';
-  const answered = /Clarification answered|已回答澄清问题/i.test(text);
-  const doneSkipped = /DONE-SKIPPED/i.test(text);
-  const sending = !!main?.querySelector('button[aria-label="Stop"]');
+  const answered =
+    snap.clarificationAnswered === true ||
+    /Clarification answered|已回答澄清/i.test(text);
+  const doneSkipped = snap.lastAssistantHasDoneSkipped === true;
+  const sending = snap.isStreaming === true;
   const stillHasSkip = [...(main?.querySelectorAll('button') ?? [])].some((b) =>
     /^(Skip|跳过)$/i.test((b.textContent || '').trim()),
   );
   return {
-    ready: (answered || doneSkipped) && !stillHasSkip && !sending,
+    ready:
+      !sending &&
+      (doneSkipped ||
+        snap.clarificationAnswered === true ||
+        (answered && !stillHasSkip)),
     answered,
     doneSkipped,
     sending,
     stillHasSkip,
+    snap,
     sample: text.slice(0, 1200),
   };
 })()"""
@@ -191,6 +214,15 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         pinned = await chat.evaluate(_PIN_LITE_MODEL_JS, await_promise=True, recv_timeout=30.0)
         assert isinstance(pinned, dict)
         assert pinned.get("ok") is True, f"Failed to pin lite model for clarify E2E: {pinned}"
+        expected_lite = get_lite_model_selection()
+        pinned_model = pinned.get("pinned")
+        assert isinstance(pinned_model, dict), f"Missing pinned model payload: {pinned}"
+        assert pinned_model.get("providerId") == expected_lite["providerId"], (
+            f"Pinned provider mismatch: {pinned_model} vs {expected_lite}"
+        )
+        assert pinned_model.get("model") == _strip_provider_prefix(str(expected_lite["model"])), (
+            f"Pinned model mismatch: {pinned_model} vs {expected_lite}"
+        )
         enabled = await chat.evaluate(_ENABLE_STRUCTURED_CLARIFY_JS, await_promise=False, recv_timeout=15.0)
         assert isinstance(enabled, dict)
         assert enabled.get("ok") is True, f"Failed to enable structured_clarify: {enabled}"
@@ -238,9 +270,9 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     raise
                 await asyncio.sleep(2.0)
 
-        clicked = await chat.evaluate(_CLICK_SKIP_JS, await_promise=False, recv_timeout=15.0)
+        clicked = await chat.evaluate(_SKIP_CLARIFY_VIA_BRIDGE_JS, await_promise=False, recv_timeout=15.0)
         assert isinstance(clicked, dict)
-        assert clicked.get("ok") is True, f"Skip click failed: {clicked}; form={form_state}"
+        assert clicked.get("ok") is True, f"Skip via bridge failed: {clicked}; form={form_state}"
 
         after_skip = await _wait_after_skip(
             chat,

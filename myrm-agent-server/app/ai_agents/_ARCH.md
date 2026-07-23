@@ -28,7 +28,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 | `personality_templates.py` | ✅ 辅助 | Personality 风格模板定义（17 种预置风格：8 实用型 + 9 趣味型，含中英双语描述、emoji、system prompt suffix）。类型定义从 `dto.PersonalityStyleLiteral` 单一数据源导入。导出 `DEFAULT_PERSONALITY_STYLE` 常量供全局引用 | ✅ |
 | `team_protocol.py` | ✅ 核心 | 团队型 Agent Leader Operating Protocol — 当 `agent_type='team'` 时，`build_leader_protocol_prompt()` 解析 `subagent_ids` 为成员名册（名称+描述），`dynamic_discovery=True` 时通过 `_resolve_roster()` 异步扫描用户全部 Agent（排除 leader 自身、无描述者、allow_discovery=False者，上限15），渲染 Leader 调度协议模板，在 Web/Channel/Cron/Kanban 四入口自动注入 `user_instructions` |
 | `subagent_catalog.py` | ✅ 核心 | DatabaseSubagentCatalog — SubagentCatalog Protocol 实现，解析 YAML 预设（注入 `_LLMModelResolver` 作为 ModelResolver）+ DB 自定义智能体（注入 CustomAgentFactory + display_name）。DB 自定义智能体会继承业务层保存的 `workspace_policy`，并统一映射为运行时 `SubagentConfig.workspace_policy`；同时强制 `LEAF` 控制范围和 `READ_ONLY_GLOBAL` 记忆隔离。`_LLMModelResolver` 通过 `resolve_model_config()` 从用户 provider 配置获取完整模型配置 |
-| `custom_agent_factory.py` | ✅ 核心 | CustomAgentFactory + EphemeralAgentFactory — 子 Agent 重绑 `memory_search_tool`（scoped policy/backends，尊重父级 `enable_conversation_search`）。 | ✅ |
+| `custom_agent_factory.py` | ✅ 核心 | CustomAgentFactory + EphemeralAgentFactory — 子 Agent 重绑 `memory_search_tool`（scoped policy/backends，尊重父级 `enable_conversation_search`）；创建 SkillBackend 时同步注入用户 `enabled_prebuilt_ids` 白名单，保持与 GeneralAgent 一致的 prebuilt 可见性契约。 | ✅ |
 | `subagent_presets.py` | ✅ 核心 | 子 Agent 配置预置（adversarial-reviewer/analysis/browser/coding/deep-audit/search），启动时注册 |
 | `general_agent/` | ✅ 核心 | 通用对话 Agent（配置、中间件、工具） |
 | `media_tools/` | ✅ 核心 | 产品层媒体 LangChain 适配器（image/video/tts）；引擎在 harness `toolkits/llms/` |

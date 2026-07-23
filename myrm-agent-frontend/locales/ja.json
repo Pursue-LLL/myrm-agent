@@ -92,6 +92,7 @@
     "reasonDriftDetected": "目標からの逸脱を検出 — レビュー待ち",
     "reasonSandboxBoundary": "サンドボックス境界に到達 — レビュー待ち",
     "statusDriftPaused": "目標逸脱",
+    "statusSandboxPaused": "サンドボックス境界",
     "draftSection": "ゴール设定助手",
     "draftObjectivePlaceholder": "説明あなた希望 Agent 完のゴール…",
     "suggestCriteria": "スマート生成検収基準",

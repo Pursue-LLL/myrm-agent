@@ -79,7 +79,7 @@ def should_suggest_workflow(
 
 def should_suggest_workflow_for_session(session: AgentStreamSession) -> bool:
     """Session-aware guard: checks user settings and skip flag before detection."""
-    if not session.extra_context.get("suggest_workflow_mode", True):
+    if not session.extra_context.get("suggest_workflow_mode", False):
         return False
 
     engine_params = session.request.engine_params or {}

@@ -9,7 +9,7 @@
 
 详细设计请参考 [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)
 
-**Catalog vs Runtime（OAuth 集成技能）**：`oauth_availability.py` 在 Skills HTTP API 与 `loader.create_skill_backend()` 外包 `IntegrationOAuthSkillBackend`，使 `google-workspace` 等在 OAuth 未连接时 Catalog 与 Agent preload WARNING 一致。`enabled_prebuilt_ids` 白名单过滤仍见 loader；全量 prebuilt 暴露给 Agent `list_skills()` 的 broader gap 见 [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)。
+**Catalog vs Runtime（OAuth 集成技能）**：`oauth_availability.py` 在 Skills HTTP API 与 `loader.create_skill_backend()` 外包 `IntegrationOAuthSkillBackend`，使 `google-workspace` 等在 OAuth 未连接时 Catalog 与 Agent preload WARNING 一致。`enabled_prebuilt_ids` 白名单过滤由 `loader.create_skill_backend()` 统一承载，GeneralAgent 与 CustomAgent 均按用户启用清单注入该白名单，保持 Catalog 与 Runtime 的 prebuilt 可见性契约一致。
 
 ---
 

@@ -115,3 +115,45 @@ class TestExtensionName:
             declared_allowed_roots=[],
         )
         assert ext.name == "SecurityPolicyExtension"
+
+
+class TestAgentYoloSecurityMerge:
+    """Per-agent yoloModeEnabled must merge over user security_config for web_chat streams."""
+
+    def test_agent_yolo_enabled_when_user_yolo_off(self) -> None:
+        ext = SecurityPolicyExtension(
+            privacy_enabled=False,
+            privacy_s2_action="warn",
+            privacy_s3_action="redact",
+            channel_name="web_chat",
+            security_config_raw={"yoloModeEnabled": False},
+            agent_security_raw={"yoloModeEnabled": True, "yolo_mode_enabled_at": 1_700_000_000.0},
+            declared_capabilities=[],
+            declared_allowed_roots=[],
+        )
+        built = ext._build_security_config()
+        assert built.yolo_mode_enabled is True
+
+    def test_remote_overlay_strips_user_yolo_agent_yolo_still_wins(self) -> None:
+        from app.remote_access.tool_policy import merge_remote_security_overlay
+
+        user_raw = merge_remote_security_overlay(
+            {"yoloModeEnabled": True},
+            trust_zone="remote_exposed",
+            admission_path="/api/v1/agents/agent-stream",
+        )
+        assert user_raw is not None
+        assert user_raw.get("yoloModeEnabled") is False
+
+        ext = SecurityPolicyExtension(
+            privacy_enabled=False,
+            privacy_s2_action="warn",
+            privacy_s3_action="redact",
+            channel_name="web_chat",
+            security_config_raw=user_raw,
+            agent_security_raw={"yoloModeEnabled": True, "yolo_mode_enabled_at": 1_700_000_000.0},
+            declared_capabilities=[],
+            declared_allowed_roots=[],
+        )
+        built = ext._build_security_config()
+        assert built.yolo_mode_enabled is True

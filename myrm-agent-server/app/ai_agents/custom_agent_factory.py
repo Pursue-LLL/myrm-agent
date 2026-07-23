@@ -33,15 +33,16 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, cast
 
-from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
 from myrm_agent_harness.api import AgentRuntimeSpec
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
     from langchain_core.tools import BaseTool
+    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
     from myrm_agent_harness.agent.base_agent import BaseAgent
 
 logger = logging.getLogger(__name__)
+_EPHEMERAL_MEMORY_ISOLATION = "ephemeral_session"
 
 
 def _coerce_str_list(value: object) -> list[str]:
@@ -52,6 +53,12 @@ def _coerce_str_list(value: object) -> list[str]:
         if isinstance(item, str):
             out.append(item)
     return out
+
+
+def _coerce_str_frozenset(value: object) -> frozenset[str]:
+    if not isinstance(value, (list, tuple, set, frozenset)):
+        return frozenset()
+    return frozenset(item for item in value if isinstance(item, str))
 
 
 def _filter_tools_by_profile(tools: list[object], enabled_builtin_tools: tuple[str, ...]) -> list[object]:
@@ -269,14 +276,20 @@ class CustomAgentFactory:
             metadata: dict[str, object] = getattr(profile, "metadata", None) or {}
 
             from app.core.skills.loader import create_skill_backend
+            from app.core.skills.store.user_config import UserSkillConfigManager
             from app.platform_utils import get_storage_provider
 
             storage_backend = get_storage_provider()
             skill_ids: list[str] = getattr(profile, "skills", None) or []
+            # Keep custom subagents in the same prebuilt-visibility contract as GeneralAgent:
+            # only user-enabled prebuilt skills are loaded into runtime action space.
+            user_skill_cfg = await UserSkillConfigManager(storage_backend).get_config()
+            allowed_prebuilt = _coerce_str_frozenset(getattr(user_skill_cfg, "enabled_prebuilt_ids", []))
 
             self._cached_skill_backend = await create_skill_backend(
                 storage=storage_backend,
                 skill_ids=skill_ids or None,
+                allowed_prebuilt_ids=allowed_prebuilt,
             )
 
             mcp_ids = _coerce_str_list(metadata.get("mcp_ids", []))
@@ -358,7 +371,7 @@ class CustomAgentFactory:
 
         # --- 2. Memory Manager (respects memory_isolation policy) ---
         memory_manager = None
-        if config.memory_isolation != MemoryIsolationPolicy.EPHEMERAL_SESSION:
+        if str(getattr(config, "memory_isolation", _EPHEMERAL_MEMORY_ISOLATION)) != _EPHEMERAL_MEMORY_ISOLATION:
             try:
                 from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
 

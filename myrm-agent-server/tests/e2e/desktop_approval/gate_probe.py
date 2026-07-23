@@ -249,7 +249,7 @@ async def _send_interact_nudge(
         })()""",
         await_promise=False,
     )
-    send_result = await chat.send_message(
+    send_result = await chat.fast_desktop_agent_submit(
         nudge_prompt,
         nudge_prompt,
         chat_id_hint=normalized_chat_id or None,

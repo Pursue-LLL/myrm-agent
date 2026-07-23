@@ -68,8 +68,8 @@ prebuilt_sync.py                 启动时同步到 storage + 清理幽灵条目
     → 写入 skills/prebuilt/{id}/_metadata.json（供 list_prebuilt_skills 发现）
     → 清理 storage 中已无对应 seed 目录的孤儿 SKILL.md 与 _metadata.json
 user_config.ensure_prebuilt_enabled_after_sync()
-    → 新用户：Catalog 默认空（enabled_prebuilt_ids = []）
-    → 老用户：增量启用新种子（尊重 disabled_prebuilt_ids）；从 enabled/disabled 列表移除已无 seed 的 skill ID
+    → 新安装（无 config 文件）：默认启用全部 seed（enabled_prebuilt_ids = all seeded prebuilt skills）
+    → 已有配置：增量启用新种子（尊重 disabled_prebuilt_ids）；从 enabled/disabled 列表移除已无 seed 的 skill ID
 builtin_initializer                  BuiltIn Agent 预绑定 default_skill_ids（is_core=false）
 ```
 

@@ -34,6 +34,21 @@ from mcp_protocol import (
     parse_new_page,
     text_content,
 )
+
+_STALE_MUX_PAGE_TOKEN = "No McpPage found for the given page"
+
+
+def _should_recover_mux_after_tool_error(
+    name: str,
+    message: str,
+    *,
+    retry_tools: frozenset[str],
+) -> bool:
+    if _is_transient_mux_error(message):
+        return True
+    if name == "new_page" and _STALE_MUX_PAGE_TOKEN in message:
+        return True
+    return name in retry_tools and "timeout" in message.lower()
 from cdp_chat_support import (
     e2e_runtime_binding,
     e2e_runtime_binding_source,
@@ -882,10 +897,13 @@ class ChromeMcpClient:
                 transient = isinstance(exc, RuntimeError) and _is_transient_mux_error(
                     message
                 )
+                stale_mux_page = (
+                    name == "new_page" and _STALE_MUX_PAGE_TOKEN in message
+                )
                 timed_out = isinstance(exc, TimeoutError) or (
                     isinstance(exc, RuntimeError) and "timed out" in message.lower()
                 )
-                if transient and not _is_page_ownership_error(message):
+                if (transient and not _is_page_ownership_error(message)) or stale_mux_page:
                     self._recover_mux_transport()
                 elif timed_out and name in retry_tools and attempt >= 1:
                     self._recover_mux_transport()
@@ -893,6 +911,7 @@ class ChromeMcpClient:
                     reclaimed is not None
                     or transient
                     or timed_out
+                    or stale_mux_page
                     or (name in retry_tools and isinstance(exc, TimeoutError))
                 )
                 if can_retry:
@@ -919,9 +938,8 @@ class ChromeMcpClient:
                             _tool_retry_backoff_sec(name, attempt, transient=False)
                         )
                         continue
-                if not _is_page_ownership_error(message) and (
-                    _is_transient_mux_error(message)
-                    or (name in retry_tools and "timeout" in message.lower())
+                if _should_recover_mux_after_tool_error(
+                    name, message, retry_tools=frozenset(retry_tools)
                 ):
                     last_error = RuntimeError(f"Chrome MCP {name} failed: {message}")
                     self._recover_mux_transport()
@@ -1026,7 +1044,19 @@ class ChromeMcpClient:
                 list(self._stderr_lines)[-5:],
             )
             self._process = None
-            self.start()
+            try:
+                self.start()
+            except RuntimeError:
+                self._recover_mux_transport()
+            process = self._process
+        if process is None or process.poll() is not None:
+            try:
+                self._recover_mux_transport()
+            except RuntimeError as exc:
+                raise RuntimeError(
+                    "Chrome MCP client is not running; "
+                    f"stderr tail={list(self._stderr_lines)[-5:]}"
+                ) from exc
             process = self._process
         if process is None or process.poll() is not None:
             raise RuntimeError(

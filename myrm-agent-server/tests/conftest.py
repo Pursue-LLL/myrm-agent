@@ -457,7 +457,10 @@ def _require_live_e2e_lease(
         marker is not None and marker.kwargs.get("private_backend", True) is not False
     )
     # Private per-item backends (e.g. cron live on :180xx) must not queue on shared :8080 stream lock.
-    skip_stream_lock = private_backend and _chrome_e2e_item_runtime is not None
+    shpoib_session = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
+    skip_stream_lock = private_backend and (
+        _chrome_e2e_item_runtime is not None or shpoib_session
+    )
     stream_guard = (
         live_agent_stream_lock()
         if lease.lane == "LIVE_AGENT"

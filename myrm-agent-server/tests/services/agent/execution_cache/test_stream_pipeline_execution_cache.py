@@ -187,3 +187,80 @@ async def test_ephemeral_same_chat_rebuilds_each_message() -> None:
 
     assert build_count == 2
     skill_agent.close.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_pooled_stream_seeds_yolo_security_context_before_run() -> None:
+    """Per-agent YOLO must reach approval middleware ContextVar before SkillAgent.run()."""
+    from myrm_agent_harness.agent.security.types import SecurityConfig
+    from myrm_agent_harness.agent.types import AgentRuntimeConfig
+
+    wrapper = GeneralAgent(
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
+        mcp_config=None,
+        chat_id="chat-yolo-ctx",
+        agent_id="agent-yolo",
+        agent_security_raw={"yoloModeEnabled": True, "yolo_mode_enabled_at": 1_700_000_000.0},
+        security_config_raw={"yoloModeEnabled": False},
+    )
+    skill_agent = MagicMock()
+    skill_agent.config = AgentRuntimeConfig(
+        security_config=SecurityConfig(ruleset=(), yolo_mode_enabled=False),
+    )
+
+    async def fake_run(
+        *_args: object,
+        **_kwargs: object,
+    ) -> AsyncGenerator[dict[str, object], None]:
+        yield {"type": "message", "data": "ok"}
+
+    skill_agent.run = fake_run
+    skill_agent.memory_manager = None
+    wrapper.agent = skill_agent
+
+    seeded: list[SecurityConfig | None] = []
+
+    def _capture_seed(config: SecurityConfig | None) -> None:
+        seeded.append(config)
+
+    async def fake_build(
+        agent_wrapper: GeneralAgent,
+        effective_chat_id: str,
+        user_id: str | None = None,
+    ) -> MagicMock:
+        agent_wrapper.agent = skill_agent
+        return skill_agent
+
+    @asynccontextmanager
+    async def noop_async_context(*_args: object, **_kwargs: object):
+        yield
+
+    with (
+        patch("app.ai_agents.general_agent.factory.build_general_agent", side_effect=fake_build),
+        patch.object(
+            wrapper,
+            "_build_runtime_context",
+            return_value={"session_id": "sess-yolo", "query": "hello"},
+        ),
+        patch(
+            "myrm_agent_harness.agent.middlewares._session_context.set_security_config",
+            side_effect=_capture_seed,
+        ),
+        patch(
+            "app.ai_agents.extensions.security_policy_extension.sync_wrapper_security_from_store",
+            new=AsyncMock(),
+        ),
+        patch("app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context),
+        patch("app.services.web_fetch.binding.open_web_fetch_escalation_context", noop_async_context),
+    ):
+        async for _ in execute_stream_pipeline(
+            wrapper,
+            query="run bash",
+            chat_id="chat-yolo-ctx",
+            extra_context={"execution_mode": ExecutionMode.POOLED},
+        ):
+            pass
+
+    assert seeded, "expected set_security_config before SkillAgent.run"
+    assert seeded[0] is not None
+    assert seeded[0].yolo_mode_enabled is True

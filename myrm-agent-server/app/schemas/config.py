@@ -178,7 +178,7 @@ class PersonalSettingsConfigValue(BaseModel):
         "preferences", default=True, description="启用平滑流输出", group="advanced"
     )
     suggestWorkflowMode: bool = _personal_settings_field(
-        "preferences", default=True, description="智能建议工作流模式", group="advanced"
+        "preferences", default=False, description="智能建议工作流模式", group="advanced"
     )
     enterpriseTlsCompat: bool = _personal_settings_field(
         "preferences",

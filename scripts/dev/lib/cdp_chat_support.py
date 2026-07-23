@@ -1170,6 +1170,9 @@ def chat_messages_have_clarify_skip_done(
     for msg in messages:
         if isinstance(msg, dict) and msg.get("role") == "assistant":
             last_assistant = msg
+            content = str(msg.get("content") or "")
+            if _CLARIFY_SKIP_DONE_RE.search(content):
+                return True
     if last_assistant is None:
         return False
     content = str(last_assistant.get("content") or "")

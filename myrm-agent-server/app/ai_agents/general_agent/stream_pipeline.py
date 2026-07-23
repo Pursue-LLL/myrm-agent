@@ -176,6 +176,13 @@ async def execute_stream_pipeline(
             sync_wrapper_security_from_store,
         )
 
+        if agent_wrapper.agent_id:
+            from app.services.agent.profile_resolver import get_agent_profile_resolver
+
+            resolved_profile = await get_agent_profile_resolver().resolve(agent_wrapper.agent_id)
+            if resolved_profile is not None and resolved_profile.security_overrides:
+                agent_wrapper.agent_security_raw = dict(resolved_profile.security_overrides)
+
         await sync_wrapper_security_from_store(agent_wrapper)
         refresh_wrapper_security_config(agent_wrapper)
         runtime_sec = agent_wrapper.agent.config.security_config
@@ -189,6 +196,9 @@ async def execute_stream_pipeline(
             runtime_sec.yolo_mode_enabled,
             runtime_sec.auto_mode_enabled,
         )
+        from myrm_agent_harness.agent.middlewares._session_context import set_security_config
+
+        set_security_config(runtime_sec)
         artifact_processor = get_artifact_processor(
             user_id="sandbox",
             chat_id=effective_chat_id,

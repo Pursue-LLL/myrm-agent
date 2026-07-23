@@ -92,6 +92,7 @@
     "reasonDriftDetected": "Goal drift detected — paused for review",
     "reasonSandboxBoundary": "Sandbox boundary reached — paused for review",
     "statusDriftPaused": "Drift Detected",
+    "statusSandboxPaused": "Sandbox Boundary",
     "draftSection": "Goal setup assistant",
     "draftObjectivePlaceholder": "Describe what you want the agent to achieve…",
     "suggestCriteria": "Suggest acceptance criteria",

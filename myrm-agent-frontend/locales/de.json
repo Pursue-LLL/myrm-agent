@@ -10636,6 +10636,7 @@
     "statusComplete": "Complete",
     "statusCancelled": "Cancelled",
     "statusDriftPaused": "Zielabweichung erkannt",
+    "statusSandboxPaused": "Sandbox-Grenze",
     "reasonDriftDetected": "Zielabweichung erkannt — Überprüfung ausstehend",
     "reasonSandboxBoundary": "Sandbox-Grenze erreicht — Überprüfung ausstehend",
     "tokenUsage": "Token Usage",
