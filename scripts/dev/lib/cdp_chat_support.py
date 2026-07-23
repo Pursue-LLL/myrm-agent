@@ -742,6 +742,32 @@ def fetch_chat_messages(
     return messages if isinstance(messages, list) else []
 
 
+def steer_chat_message(
+    chat_id: str,
+    message: str,
+    *,
+    api_url: str | None = None,
+) -> dict[str, object]:
+    """Steer an in-flight agent turn via REST (no Chrome UI surface required)."""
+    normalized_chat = chat_id.strip()
+    normalized_message = message.strip()
+    if not normalized_chat or not normalized_message:
+        return {"ok": False, "err": "missing-chat-id-or-message"}
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
+    payload = _e2e_api_post_json(
+        f"{resolved_api}/api/v1/agents/chats/{normalized_chat}/steer",
+        {"message": normalized_message},
+        timeout_sec=30.0,
+    )
+    if isinstance(payload, dict):
+        data = payload.get("data")
+        if isinstance(data, dict) and data.get("steered") is True:
+            return {"ok": True, "mode": "steerApi", "chatId": normalized_chat}
+        if payload.get("success") is True:
+            return {"ok": True, "mode": "steerApi", "chatId": normalized_chat}
+    return {"ok": False, "err": "steer-api-rejected", "payload": payload}
+
+
 def chat_user_message_count(chat_id: str, *, api_url: str | None = None) -> int:
     messages = fetch_chat_messages(chat_id, api_url=api_url)
     return sum(

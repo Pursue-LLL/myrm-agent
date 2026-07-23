@@ -84,6 +84,27 @@ def _load_record(path: Path) -> _DedupeRecord | None:
     return payload  # type: ignore[return-value]
 
 
+def _max_holder_wall_sec() -> float:
+    from dev_gate_contract import LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+
+    return float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
+
+
+def _record_is_stale(record: _DedupeRecord, *, now: float) -> bool:
+    holder_pid = record.get("holderPid")
+    if not isinstance(holder_pid, int):
+        return True
+    if not _pid_alive(holder_pid):
+        return True
+    acquired_at = record.get("acquiredAt")
+    if isinstance(acquired_at, (int, float)) and now - float(acquired_at) > _max_holder_wall_sec():
+        return True
+    heartbeat_at = record.get("heartbeatAt")
+    if isinstance(heartbeat_at, (int, float)) and now - float(heartbeat_at) > 7200.0:
+        return True
+    return False
+
+
 def _prune_stale_records(root: Path) -> None:
     if not root.is_dir():
         return
@@ -93,15 +114,13 @@ def _prune_stale_records(root: Path) -> None:
         if record is None:
             path.unlink(missing_ok=True)
             continue
-        holder_pid = record.get("holderPid")
-        heartbeat_at = record.get("heartbeatAt")
-        if not isinstance(holder_pid, int):
-            path.unlink(missing_ok=True)
-            continue
-        if not _pid_alive(holder_pid):
-            path.unlink(missing_ok=True)
-            continue
-        if isinstance(heartbeat_at, (int, float)) and now - float(heartbeat_at) > 7200.0:
+        if _record_is_stale(record, now=now):
+            stale_pid = record.get("holderPid")
+            print(
+                f"E2E_PYTEST_DEDUPE_REAP: fingerprint={record.get('fingerprint')} "
+                f"holder_pid={stale_pid} reason=stale",
+                file=sys.stderr,
+            )
             path.unlink(missing_ok=True)
 
 

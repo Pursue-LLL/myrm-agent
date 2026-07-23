@@ -68,6 +68,24 @@ def _cfg_int(cfg: dict[str, object], key: str, default: int) -> int:
     return default
 
 
+def _normalized_env(cfg: dict[str, object]) -> dict[str, str] | None:
+    """Return a stable env mapping used by RuntimeConfig or None."""
+    raw_env = cfg.get("env")
+    if not isinstance(raw_env, dict):
+        return None
+
+    normalized: dict[str, str] = {}
+    for raw_key, raw_value in raw_env.items():
+        key = str(raw_key).strip()
+        if not key:
+            continue
+        normalized[key] = str(raw_value)
+
+    if not normalized:
+        return None
+    return {key: normalized[key] for key in sorted(normalized)}
+
+
 def should_mount_delegate_tool(*, agent_id: str | None, force_delegate_agent: str | None) -> bool:
     """Return False when direct-delegate routing makes the LLM tool redundant."""
     if force_delegate_agent:
@@ -115,13 +133,28 @@ def _config_fingerprint(agent_cfgs: list[dict[str, object]]) -> str:
         args: list[str] = []
         if isinstance(args_raw, (list, tuple)):
             args = [a if isinstance(a, str) else str(a) for a in args_raw]
+        auth_mode = _auth_mode(cfg)
+        normalized_env = _normalized_env(cfg)
+        cwd_value = str(cfg["cwd"]).strip() if cfg.get("cwd") else None
+        timeout_seconds = _cfg_int(cfg, "timeout", 300)
+        max_response_chars = _cfg_int(cfg, "maxResponseChars", 50_000)
+        permission_mode = str(cfg.get("permissionMode", "allow_all"))
+        max_turns = _cfg_int(cfg, "maxTurns", 25)
+        description = str(cfg.get("description", ""))
         normalized.append(
             {
                 "name": str(name),
                 "type": str(cfg.get("type", "cli")),
                 "command": str(command),
                 "args": args,
-                "authMode": cfg.get("authMode"),
+                "authMode": auth_mode,
+                "env": normalized_env,
+                "cwd": cwd_value,
+                "timeout": timeout_seconds,
+                "maxResponseChars": max_response_chars,
+                "permissionMode": permission_mode,
+                "maxTurns": max_turns,
+                "description": description,
             }
         )
     normalized.sort(key=lambda item: str(item.get("name", "")))
@@ -145,7 +178,7 @@ async def _resolve_external_agent_cfgs(
         from myrm_agent_harness.toolkits.acp.backend_detector import BackendDetector
 
         detector = BackendDetector()
-        detected = await detector.detect()
+        detected = await detector.detect(include_version=False)
         if not detected:
             return None
         agent_cfgs = [

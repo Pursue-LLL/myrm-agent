@@ -47,6 +47,26 @@ class TestResolveAgentMount:
         assert mounted["enable_file_ops"] is True
         assert mounted["enable_shell_tools"] is True
 
+    def test_cron_restricted_returns_profile_flags_unchanged(self) -> None:
+        base = resolve_builtin_tool_flags(["web_search"])
+        from app.services.agent.profile_resolver import BuiltinToolFlags
+
+        restricted = BuiltinToolFlags(
+            **{
+                **base,
+                "enable_file_ops": True,
+                "enable_shell_tools": False,
+            }
+        )
+        mounted = resolve_agent_mount(
+            ExecutionSurface.CRON,
+            restricted,
+            cron_job_tools_allowed=("file_ops",),
+        )
+        assert mounted is restricted
+        assert mounted["enable_file_ops"] is True
+        assert mounted["enable_shell_tools"] is False
+
 
 class TestApplyPtcMetaMount:
     def test_ptc_forces_file_and_shell_when_shell_already_on(self) -> None:
@@ -61,5 +81,10 @@ class TestApplyPtcMetaMount:
 
     def test_no_mcp_is_noop(self) -> None:
         file_ops, shell = apply_ptc_meta_mount(True, True, has_mcp=False)
+        assert file_ops is True
+        assert shell is True
+
+    def test_ptc_noop_when_file_and_shell_already_on(self) -> None:
+        file_ops, shell = apply_ptc_meta_mount(True, True, has_mcp=True)
         assert file_ops is True
         assert shell is True

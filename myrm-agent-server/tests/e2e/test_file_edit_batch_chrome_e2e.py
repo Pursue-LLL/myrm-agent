@@ -96,7 +96,9 @@ _FILE_EDIT_STEP_JS = """(() => {
 })()"""
 
 
-def _seed_fixture(api_url: str, *, variant: str, agent_id: str | None = None) -> dict[str, object]:
+def _seed_fixture(
+    api_url: str, *, variant: str, agent_id: str | None = None
+) -> dict[str, object]:
     query = f"variant={variant}"
     if agent_id:
         query += f"&agent_id={agent_id}"
@@ -266,7 +268,9 @@ async def test_file_edit_batch_live_agent_webui(
         last_api = ("", False)
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
-            invoked, assistant = _file_edit_invoked_in_messages(chat_id, api_url=api_base)
+            invoked, assistant = _file_edit_invoked_in_messages(
+                chat_id, api_url=api_base
+            )
             last_api = (assistant, invoked)
             if invoked and "BATCH_OK" in assistant.upper():
                 try:
@@ -335,7 +339,9 @@ async def test_file_edit_batch_live_agent_webui(
         assert isinstance(ensured, dict) and ensured.get("ok") is True, ensured
 
         chat_id = str((await chat.bridge_chat_id()) or "").strip()
-        assert chat_id, "Expected client chat id after new chat before seeding workspace file"
+        assert (
+            chat_id
+        ), "Expected client chat id after new chat before seeding workspace file"
 
         workspace_seed = _seed_workspace_file(api_base, chat_id)
         file_path = Path(str(workspace_seed["file_path"]))
@@ -352,7 +358,9 @@ async def test_file_edit_batch_live_agent_webui(
         started = await chat.wait_stream_started(
             _LIVE_USER_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
         )
-        resolved_chat_id = chat_id_hint or str(started.get("chatId") or "").strip() or None
+        resolved_chat_id = (
+            chat_id_hint or str(started.get("chatId") or "").strip() or None
+        )
         if not resolved_chat_id:
             after_start = await chat.main_state(_LIVE_USER_PROMPT, recv_timeout=30.0)
             resolved_chat_id = (
@@ -373,7 +381,9 @@ async def test_file_edit_batch_live_agent_webui(
         invoked, _assistant = _file_edit_invoked_in_messages(
             resolved_chat_id, api_url=api_base
         )
-        assert invoked, f"{_FILE_EDIT_TOOL} not found in persisted messages; result={result}"
+        assert (
+            invoked
+        ), f"{_FILE_EDIT_TOOL} not found in persisted messages; result={result}"
 
         step = await chat.evaluate(
             _FILE_EDIT_STEP_JS, await_promise=False, recv_timeout=20.0

@@ -220,8 +220,7 @@ async def _ensure_nudge_chat_surface(
                 target,
                 timeout_ms=120_000,
             )
-            await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
-    await chat.ensure_chat_surface(BASE_URL, timeout_sec=45.0)
+            await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
 
 
 async def _send_interact_nudge(
@@ -231,7 +230,6 @@ async def _send_interact_nudge(
     chat_id: str = "",
 ) -> None:
     await asyncio.to_thread(activate_chrome_foreground)
-    await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
     dref: str | None = None
     if last_tool.endswith("desktop_snapshot_tool"):
         await asyncio.sleep(1.0)
@@ -244,38 +242,18 @@ async def _send_interact_nudge(
     else:
         nudge_prompt = E2E_NUDGE_PROMPT
     normalized_chat_id = chat_id.strip()
-    await _abort_stuck_ui_stream(chat)
-    await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
-    for _ in range(20):
-        probe = await chat.evaluate(
-            """(() => {
-              const btn = document.querySelector('.message-send-btn');
-              return {
-                hasBtn: Boolean(btn),
-                disabled: btn ? Boolean(btn.disabled) : true,
-              };
-            })()""",
-            await_promise=False,
+    try:
+        send_result = await chat.submit_desktop_nudge(
+            nudge_prompt,
+            chat_id_hint=normalized_chat_id or None,
         )
-        if (
-            isinstance(probe, dict)
-            and probe.get("hasBtn")
-            and not probe.get("disabled")
-        ):
-            break
-        await asyncio.sleep(0.5)
-    await chat.evaluate(
-        """(() => {
-          window.__MYRM_E2E_CHAT__?.prepareAutomationSend?.();
-          window.__MYRM_E2E_CHAT__?.clearStreamRequestMessageId?.();
-          return { ok: true };
-        })()""",
-        await_promise=False,
-    )
-    send_result = await chat.submit_desktop_nudge(
-        nudge_prompt,
-        chat_id_hint=normalized_chat_id or None,
-    )
+    except (RuntimeError, TimeoutError, OSError) as exc:
+        progress(f"nudge fast-path failed (retry with chat surface): {exc}")
+        await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
+        send_result = await chat.submit_desktop_nudge(
+            nudge_prompt,
+            chat_id_hint=normalized_chat_id or None,
+        )
     progress(f"nudge send: {send_result.get('submit', send_result)}")
 
 

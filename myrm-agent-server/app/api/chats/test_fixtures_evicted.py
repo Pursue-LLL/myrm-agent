@@ -67,14 +67,17 @@ async def seed_evicted_live_terminal_fixture(
 
     normalized = variant.strip().lower()
     if normalized not in {"full", "expired"}:
-        raise HTTPException(status_code=400, detail=f"Unsupported evicted fixture variant: {variant}")
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported evicted fixture variant: {variant}"
+        )
 
     from myrm_agent_harness.api.hooks import build_evicted_basename
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
         raise HTTPException(
-            status_code=500, detail="No agents available for evicted live terminal E2E seed"
+            status_code=500,
+            detail="No agents available for evicted live terminal E2E seed",
         )
 
     agent = agents[0]

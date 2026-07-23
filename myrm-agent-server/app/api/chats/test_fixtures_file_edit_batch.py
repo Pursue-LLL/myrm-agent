@@ -75,7 +75,8 @@ async def seed_file_edit_batch_fixture(
     )
     if not workspace_dir:
         raise HTTPException(
-            status_code=500, detail="Failed to resolve workspace for file-edit batch E2E seed"
+            status_code=500,
+            detail="Failed to resolve workspace for file-edit batch E2E seed",
         )
 
     rel_path = _BATCH_EDIT_FIXTURE_FILE

@@ -11,7 +11,7 @@ source_fingerprint matches the workspace fingerprint. Fail-closed when no match.
 
 [OUTPUT]
 - resolve_e2e_api_context / resolve_verify_api_base
-- CLI: context-json, verify-api (proxy curl)
+- CLI: context-json, verify-api (proxy curl; optional --ensure-backend seed)
 
 [POS]
 Agent-facing SSOT for API verification — eliminates stale :8080 / stale private pool false results.
@@ -482,7 +482,19 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
 
 
 def _cmd_verify_api(args: argparse.Namespace) -> int:
-    ctx = resolve_e2e_api_context()
+    ctx = resolve_e2e_api_context(
+        retry_after_apply=not bool(getattr(args, "ensure_backend", False))
+    )
+    if ctx.blocked and bool(getattr(args, "ensure_backend", False)):
+        from verify_backend_seed import ensure_verify_backend_seed  # noqa: PLC0415
+
+        seed = ensure_verify_backend_seed(monorepo=monorepo_root())
+        sys.stderr.write(
+            f"MYRM_VERIFY_API_SEED: ok={seed.ok} runtime={seed.runtime_id} "
+            f"api={seed.api_base} detail={seed.detail}\n"
+        )
+        if seed.ok:
+            ctx = resolve_e2e_api_context(retry_after_apply=False)
     if ctx.blocked:
         sys.stderr.write(f"MYRM_VERIFY_API_BLOCKED: {ctx.blocked_reason}\n")
         sys.stderr.write(f"AGENT_RULE={ctx.agent_rule}\n")
@@ -530,6 +542,11 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("method", choices=("GET", "POST", "PUT", "PATCH", "DELETE"))
     verify.add_argument("path")
     verify.add_argument("data", nargs="?", default=None)
+    verify.add_argument(
+        "--ensure-backend",
+        action="store_true",
+        help="When BLOCKED, seed one backend-only isolated runtime (SHPOIB cap)",
+    )
     verify.set_defaults(handler=_cmd_verify_api)
 
     ns = parser.parse_args(argv)

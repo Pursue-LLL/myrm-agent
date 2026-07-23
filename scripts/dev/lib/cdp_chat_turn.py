@@ -477,11 +477,18 @@ class CdpChatTurn(CdpChatSubmit):
                 baseline_user_msgs = cdp_chat_support.chat_user_message_count(chat_id)
             except OSError:
                 baseline_user_msgs = 0
-        await self.ensure_react_e2e_bridge(timeout_sec=60.0)
-        ui_base = (getattr(self, "_base_url", None) or "http://127.0.0.1:3000").rstrip(
-            "/"
-        )
-        await self.ensure_chat_surface(ui_base)
+        if chat_id:
+            try:
+                api_steer = await asyncio.to_thread(
+                    cdp_chat_support.steer_chat_message,
+                    chat_id,
+                    text,
+                )
+            except OSError as exc:
+                api_steer = {"ok": False, "err": str(exc)}
+            if isinstance(api_steer, dict) and api_steer.get("ok"):
+                return {"submit": api_steer, "mode": "steerApi"}
+        await self.ensure_react_e2e_bridge(timeout_sec=20.0)
         await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
         payload = json.dumps(text)
         streaming_probe = await self.evaluate(
@@ -498,29 +505,83 @@ class CdpChatTurn(CdpChatSubmit):
             }})()""",
             await_promise=False,
         )
-        if isinstance(streaming_probe, dict) and streaming_probe.get("isStreaming"):
-            steer = await self.evaluate(
-                """(() => {
-                  const buttons = [...document.querySelectorAll('button[aria-label]')];
-                  const steerBtn = buttons.find((btn) => {
-                    const label = String(btn.getAttribute('aria-label') || '').toLowerCase();
-                    return (
-                      label.includes('steer')
-                      || label.includes('guidance')
-                      || label.includes('转向')
-                      || label.includes('指导')
-                    );
-                  });
-                  if (steerBtn && !steerBtn.disabled) {
-                    steerBtn.click();
-                    return { ok: true, mode: 'steerClick' };
-                  }
-                  return { ok: false, err: 'no-steer-button' };
-                })()""",
+        steer = await self.evaluate(
+            """(() => {
+              const buttons = [...document.querySelectorAll('button[aria-label]')];
+              const steerBtn = buttons.find((btn) => {
+                const label = String(btn.getAttribute('aria-label') || '').toLowerCase();
+                return (
+                  label.includes('steer')
+                  || label.includes('guidance')
+                  || label.includes('转向')
+                  || label.includes('指导')
+                );
+              });
+              if (steerBtn && !steerBtn.disabled) {
+                steerBtn.click();
+                return { ok: true, mode: 'steerClick' };
+              }
+              return { ok: false, err: 'no-steer-button' };
+            })()""",
+            await_promise=False,
+        )
+        if isinstance(steer, dict) and steer.get("ok"):
+            return {"submit": steer, "mode": "steerClick"}
+        ui_base = (getattr(self, "_base_url", None) or "http://127.0.0.1:3000").rstrip(
+            "/"
+        )
+        if chat_id:
+            chat_target = f"{ui_base}/chat/{chat_id}"
+            on_chat = await self.evaluate(
+                f"""(() => {{
+                  const href = String(location.href || '');
+                  return {{ onChat: href.startsWith({chat_target!r}) }};
+                }})()""",
                 await_promise=False,
             )
-            if isinstance(steer, dict) and steer.get("ok"):
-                return {"submit": steer, "mode": "steerClick"}
+            if not (isinstance(on_chat, dict) and on_chat.get("onChat")):
+                await asyncio.to_thread(
+                    self._client.navigate,
+                    self._page,
+                    chat_target,
+                    timeout_ms=120_000,
+                )
+                await self.ensure_react_e2e_bridge(timeout_sec=20.0)
+                await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
+                await self.evaluate(
+                    f"""(() => {{
+                      window.__MYRM_E2E_CHAT__?.setInputMessage?.({payload});
+                      return {{ ok: true, inputLen: {len(text)} }};
+                    }})()""",
+                    await_promise=False,
+                )
+                steer = await self.evaluate(
+                    """(() => {
+                      const buttons = [...document.querySelectorAll('button[aria-label]')];
+                      const steerBtn = buttons.find((btn) => {
+                        const label = String(btn.getAttribute('aria-label') || '').toLowerCase();
+                        return (
+                          label.includes('steer')
+                          || label.includes('guidance')
+                          || label.includes('转向')
+                          || label.includes('指导')
+                        );
+                      });
+                      if (steerBtn && !steerBtn.disabled) {
+                        steerBtn.click();
+                        return { ok: true, mode: 'steerClick' };
+                      }
+                      return { ok: false, err: 'no-steer-button' };
+                    })()""",
+                    await_promise=False,
+                )
+                if isinstance(steer, dict) and steer.get("ok"):
+                    return {"submit": steer, "mode": "steerClick"}
+            try:
+                await asyncio.wait_for(self._attach_chat_session(chat_id), timeout=15.0)
+            except TimeoutError:
+                pass
+        await self.ensure_chat_surface(ui_base, timeout_sec=30.0)
         if chat_id:
             try:
                 await asyncio.wait_for(self._attach_chat_session(chat_id), timeout=30.0)

@@ -61,6 +61,41 @@ def test_config_fingerprint_stable_and_skips_disabled() -> None:
     assert len(fp1) == 16
 
 
+def test_config_fingerprint_changes_when_runtime_fields_change() -> None:
+    base_cfg = {
+        "name": "claude",
+        "type": "cli",
+        "command": "/usr/bin/claude",
+        "args": ["-p"],
+        "authMode": "subscription",
+        "env": {"FOO": "bar"},
+        "cwd": "/workspace",
+        "timeout": 300,
+        "maxResponseChars": 50000,
+        "permissionMode": "allow_all",
+        "maxTurns": 25,
+        "description": "baseline",
+        "enabled": True,
+    }
+    baseline = _config_fingerprint([base_cfg])
+
+    changed_env = dict(base_cfg)
+    changed_env["env"] = {"FOO": "baz"}
+    assert _config_fingerprint([changed_env]) != baseline
+
+    changed_timeout = dict(base_cfg)
+    changed_timeout["timeout"] = 120
+    assert _config_fingerprint([changed_timeout]) != baseline
+
+    changed_max_turns = dict(base_cfg)
+    changed_max_turns["maxTurns"] = 12
+    assert _config_fingerprint([changed_max_turns]) != baseline
+
+    changed_cwd = dict(base_cfg)
+    changed_cwd["cwd"] = "/workspace/subdir"
+    assert _config_fingerprint([changed_cwd]) != baseline
+
+
 @pytest.mark.asyncio
 async def test_resolve_external_agent_cfgs_returns_explicit_config() -> None:
     explicit = [{"name": "cli", "command": "echo", "args": []}]
@@ -76,9 +111,11 @@ async def test_resolve_external_agent_cfgs_non_local_returns_none() -> None:
 @pytest.mark.asyncio
 async def test_resolve_external_agent_cfgs_auto_detect_local() -> None:
     detected = SimpleNamespace(name="claude", path="/usr/bin/claude")
+    seen_include_version: dict[str, bool] = {}
 
     class _FakeDetector:
-        async def detect(self) -> list[object]:
+        async def detect(self, *, include_version: bool = True) -> list[object]:
+            seen_include_version["value"] = include_version
             return [detected]
 
     with (
@@ -93,6 +130,7 @@ async def test_resolve_external_agent_cfgs_auto_detect_local() -> None:
     assert cfgs is not None
     assert cfgs[0]["name"] == "claude"
     assert cfgs[0]["command"] == "/usr/bin/claude"
+    assert seen_include_version["value"] is False
 
 
 def test_register_backends_on_pool_skips_invalid_and_registers_valid() -> None:
@@ -162,7 +200,7 @@ async def test_ensure_runtime_pool_noop_when_pool_exists() -> None:
 @pytest.mark.asyncio
 async def test_resolve_external_agent_cfgs_auto_detect_empty_returns_none() -> None:
     class _EmptyDetector:
-        async def detect(self) -> list[object]:
+        async def detect(self, *, include_version: bool = True) -> list[object]:
             return []
 
     with (

@@ -78,7 +78,13 @@ _TOOL_RETRY_ATTEMPTS = TOOL_RETRY_ATTEMPTS
 _NEW_PAGE_TOOL_RETRY_ATTEMPTS = NEW_PAGE_TOOL_RETRY_ATTEMPTS
 _PAGE_LEASE_TTL_SEC = int(os.environ.get("MYRM_PAGE_LEASE_TTL_SEC", "600"))
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
+_TRANSPORT_RECOVER_ATTEMPTS = 3
+_EXPLICIT_SHORT_TOOL_TIMEOUT_CEILING_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
+
+
+class _TransportDeadError(RuntimeError):
+    """Raised when the mux shim process is missing or exited."""
 
 
 def _chrome_e2e_port() -> int:
@@ -237,55 +243,13 @@ class ChromeMcpClient:
             raise
 
     def start(self) -> None:
-        if self._process is not None:
+        process = self._process
+        if process is not None and process.poll() is None:
             return
-        node = shutil.which("node")
-        if node is None:
-            raise RuntimeError("Chrome MCP runner requires node")
-        shim = self._monorepo_root / "scripts/dev/cdmcp-mux-autoconnect-shim.sh"
-        if not shim.is_file():
-            raise RuntimeError(f"Chrome MCP shim missing: {shim}")
-        self._process = subprocess.Popen(
-            ["bash", str(shim)],
-            cwd=str(self._monorepo_root),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-            env={
-                **os.environ,
-                "CDMCP_MUX_REQUEST_TIMEOUT_MS": os.environ.get(
-                    "CDMCP_MUX_REQUEST_TIMEOUT_MS", "180000"
-                ),
-            },
-        )
-        assert self._process.stderr is not None
-        self._stderr_thread = threading.Thread(
-            target=self._drain_stderr,
-            args=(self._process.stderr,),
-            name="chrome-mcp-stderr",
-            daemon=True,
-        )
-        self._stderr_thread.start()
-        response = self._request(
-            "initialize",
-            {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {"name": "myrm-pytest-mcp", "version": "1.0"},
-            },
-        )
-        result = response.get("result")
-        if not isinstance(result, dict) or not isinstance(
-            result.get("capabilities"), dict
-        ):
-            self.close()
-            raise RuntimeError(
-                f"Chrome MCP initialize returned invalid result: {response}"
-            )
-        self._notify("notifications/initialized", {})
-        self._page_lease_heartbeat.start()
+        if process is not None:
+            self._teardown_shim_process()
+        self._spawn_shim_process()
+        self._initialize_shim_session()
 
     def close(self) -> None:
         errors: list[Exception] = []
@@ -605,14 +569,19 @@ class ChromeMcpClient:
         self._disconnected_pages.pop(resolved.page_id, None)
         return reopened
 
+    def _resolve_evaluate_timeout_sec(self, timeout_sec: float) -> float:
+        if timeout_sec <= _EXPLICIT_SHORT_TOOL_TIMEOUT_CEILING_SEC:
+            return timeout_sec
+        return self._resolve_tool_timeout_sec(
+            max(timeout_sec, _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC)
+        )
+
     def evaluate(
         self, page: McpPage, expression: str, *, timeout_sec: float = 15.0
     ) -> object:
         resolved = self._resolve_page(page)
         function = f"async () => await (0, eval)({json.dumps(expression)})"
-        effective_timeout = self._resolve_tool_timeout_sec(
-            max(timeout_sec, _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC)
-        )
+        effective_timeout = self._resolve_evaluate_timeout_sec(timeout_sec)
         for reload_attempt in range(3):
             try:
                 result = self.call_tool(
@@ -826,28 +795,97 @@ class ChromeMcpClient:
         updated["pageId"] = reopened.page_id
         return updated
 
-    def _recover_mux_transport(self) -> None:
+    def _teardown_shim_process(self) -> None:
         process = self._process
         self._process = None
         if self._pages:
             self._disconnected_pages.update(self._pages)
         self._pages.clear()
-        if process is not None:
-            try:
-                if process.stdin is not None:
-                    process.stdin.close()
-                process.terminate()
-                process.wait(timeout=3)
-            except Exception as exc:
-                _LOGGER.warning("Chrome MCP transport recovery warning: %s", exc)
+        if process is None:
+            return
+        try:
+            if process.stdin is not None:
+                process.stdin.close()
+            process.terminate()
+            process.wait(timeout=3)
+        except Exception as exc:
+            _LOGGER.warning("Chrome MCP transport teardown warning: %s", exc)
+
+    def _spawn_shim_process(self) -> None:
+        if shutil.which("node") is None:
+            raise RuntimeError("Chrome MCP runner requires node")
+        shim = self._monorepo_root / "scripts/dev/cdmcp-mux-autoconnect-shim.sh"
+        if not shim.is_file():
+            raise RuntimeError(f"Chrome MCP shim missing: {shim}")
+        self._process = subprocess.Popen(
+            ["bash", str(shim)],
+            cwd=str(self._monorepo_root),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+            env={
+                **os.environ,
+                "CDMCP_MUX_REQUEST_TIMEOUT_MS": os.environ.get(
+                    "CDMCP_MUX_REQUEST_TIMEOUT_MS", "180000"
+                ),
+            },
+        )
+        assert self._process.stderr is not None
+        self._stderr_thread = threading.Thread(
+            target=self._drain_stderr,
+            args=(self._process.stderr,),
+            name="chrome-mcp-stderr",
+            daemon=True,
+        )
+        self._stderr_thread.start()
+
+    def _initialize_shim_session(self) -> None:
+        with self._request_lock:
+            process = self._require_live_process()
+            response = self._exchange_locked(
+                process,
+                "initialize",
+                {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "myrm-pytest-mcp", "version": "1.0"},
+                },
+                timeout_sec=self._resolve_tool_timeout_sec(None),
+            )
+        result = response.get("result")
+        if not isinstance(result, dict) or not isinstance(
+            result.get("capabilities"), dict
+        ):
+            self._teardown_shim_process()
+            raise RuntimeError(
+                f"Chrome MCP initialize returned invalid result: {response}"
+            )
+        with self._request_lock:
+            process = self._require_live_process()
+            self._write(
+                process,
+                {
+                    "jsonrpc": "2.0",
+                    "method": "notifications/initialized",
+                    "params": {},
+                },
+            )
+        self._page_lease_heartbeat.start()
+
+    def _recover_mux_transport(self) -> None:
+        self._teardown_shim_process()
         last_error: RuntimeError | None = None
-        for attempt in range(3):
+        for attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
             try:
-                self.start()
+                self._spawn_shim_process()
+                self._initialize_shim_session()
                 return
             except RuntimeError as exc:
                 last_error = exc
-                if attempt + 1 < 3:
+                self._teardown_shim_process()
+                if attempt + 1 < _TRANSPORT_RECOVER_ATTEMPTS:
                     time.sleep(0.75 * (attempt + 1))
         if last_error is not None:
             raise last_error
@@ -957,6 +995,53 @@ class ChromeMcpClient:
             raise last_error
         raise RuntimeError(f"Chrome MCP {name} failed without response")
 
+    def _exchange_locked(
+        self,
+        process: subprocess.Popen[str],
+        method: str,
+        params: dict[str, object],
+        *,
+        timeout_sec: float | None = None,
+    ) -> dict[str, object]:
+        self._request_id += 1
+        request_id = self._request_id
+        self._write(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "method": method,
+                "params": params,
+            },
+        )
+        timeout = (
+            timeout_sec
+            if timeout_sec is not None
+            else self._resolve_tool_timeout_sec(None)
+        )
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"Chrome MCP {method} response timed out")
+            if process.poll() is not None:
+                raise _TransportDeadError(
+                    f"Chrome MCP transport exited rc={process.poll()}; "
+                    f"stderr={list(self._stderr_lines)[-5:]}"
+                )
+            try:
+                response = self._read(process, min(remaining, _MCP_READ_POLL_SEC))
+            except TimeoutError:
+                continue
+            if response.get("id") != request_id:
+                continue
+            error = response.get("error")
+            if isinstance(error, dict):
+                raise RuntimeError(
+                    f"Chrome MCP {method} error: {error.get('message', error)}"
+                )
+            return response
+
     def _request(
         self,
         method: str,
@@ -964,47 +1049,43 @@ class ChromeMcpClient:
         *,
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
-        with self._request_lock:
-            process = self._require_process()
-            self._request_id += 1
-            request_id = self._request_id
-            self._write(
-                process,
-                {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "method": method,
-                    "params": params,
-                },
-            )
-            timeout = (
-                timeout_sec
-                if timeout_sec is not None
-                else self._resolve_tool_timeout_sec(None)
-            )
-            deadline = time.monotonic() + timeout
-            while True:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    raise TimeoutError(f"Chrome MCP {method} response timed out")
-                try:
-                    response = self._read(process, min(remaining, _MCP_READ_POLL_SEC))
-                except TimeoutError:
-                    continue
-                if response.get("id") != request_id:
-                    continue
-                error = response.get("error")
-                if isinstance(error, dict):
-                    raise RuntimeError(
-                        f"Chrome MCP {method} error: {error.get('message', error)}"
+        last_transport_error: _TransportDeadError | None = None
+        for transport_attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
+            try:
+                with self._request_lock:
+                    process = self._require_live_process()
+                    return self._exchange_locked(
+                        process,
+                        method,
+                        params,
+                        timeout_sec=timeout_sec,
                     )
-                return response
+            except _TransportDeadError as exc:
+                last_transport_error = exc
+                _LOGGER.warning(
+                    "Chrome MCP transport dead during %s (attempt %s/%s): %s",
+                    method,
+                    transport_attempt + 1,
+                    _TRANSPORT_RECOVER_ATTEMPTS,
+                    exc,
+                )
+            if transport_attempt + 1 >= _TRANSPORT_RECOVER_ATTEMPTS:
+                break
+            self._recover_mux_transport()
+        if last_transport_error is not None:
+            raise RuntimeError(
+                "Chrome MCP client is not running after transport recovery; "
+                f"stderr tail={list(self._stderr_lines)[-5:]}"
+            ) from last_transport_error
+        raise RuntimeError(f"Chrome MCP {method} failed without transport")
 
     def _notify(self, method: str, params: dict[str, object]) -> None:
-        self._write(
-            self._require_process(),
-            {"jsonrpc": "2.0", "method": method, "params": params},
-        )
+        with self._request_lock:
+            process = self._require_live_process()
+            self._write(
+                process,
+                {"jsonrpc": "2.0", "method": method, "params": params},
+            )
 
     def _write(
         self, process: subprocess.Popen[str], payload: dict[str, object]
@@ -1035,7 +1116,7 @@ class ChromeMcpClient:
             raise RuntimeError(f"Chrome MCP returned non-object payload: {payload}")
         return payload
 
-    def _require_process(self) -> subprocess.Popen[str]:
+    def _require_live_process(self) -> subprocess.Popen[str]:
         process = self._process
         if process is not None and process.poll() is None:
             return process
@@ -1045,27 +1126,10 @@ class ChromeMcpClient:
                 process.poll(),
                 list(self._stderr_lines)[-5:],
             )
-            self._process = None
-            try:
-                self.start()
-            except RuntimeError:
-                self._recover_mux_transport()
-            process = self._process
-        if process is None or process.poll() is not None:
-            try:
-                self._recover_mux_transport()
-            except RuntimeError as exc:
-                raise RuntimeError(
-                    "Chrome MCP client is not running; "
-                    f"stderr tail={list(self._stderr_lines)[-5:]}"
-                ) from exc
-            process = self._process
-        if process is None or process.poll() is not None:
-            raise RuntimeError(
-                "Chrome MCP client is not running; "
-                f"stderr tail={list(self._stderr_lines)[-5:]}"
-            )
-        return process
+        raise _TransportDeadError(
+            "Chrome MCP transport unavailable; "
+            f"stderr tail={list(self._stderr_lines)[-5:]}"
+        )
 
     def _drain_stderr(self, stream: TextIO) -> None:
         for line in stream:

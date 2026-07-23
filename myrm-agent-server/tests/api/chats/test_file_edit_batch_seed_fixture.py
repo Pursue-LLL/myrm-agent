@@ -36,11 +36,15 @@ async def _seed_visible_agent(agent_id: str, *, display_name: str) -> None:
         await db.commit()
 
 
-def _seed(client: TestClient, *, variant: str, agent_id: str | None = None) -> dict[str, object]:
+def _seed(
+    client: TestClient, *, variant: str, agent_id: str | None = None
+) -> dict[str, object]:
     query = f"variant={variant}"
     if agent_id:
         query += f"&agent_id={agent_id}"
-    with patch("app.api.chats.test_fixtures_file_edit_batch.is_local_mode", return_value=True):
+    with patch(
+        "app.api.chats.test_fixtures_file_edit_batch.is_local_mode", return_value=True
+    ):
         resp = client.post(f"/api/v1/chats/test/seed-file-edit-batch-fixture?{query}")
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -68,9 +72,13 @@ class TestFileEditBatchSeedIntegration:
         roles = [m.get("role") for m in messages if isinstance(m, dict)]
         assert roles.count("assistant") == 0
 
-    def test_read_ui_variant_persists_batch_progress_steps(self, client: TestClient) -> None:
+    def test_read_ui_variant_persists_batch_progress_steps(
+        self, client: TestClient
+    ) -> None:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
-        asyncio.run(_seed_visible_agent(agent_id, display_name="Batch Edit UI Seed Agent"))
+        asyncio.run(
+            _seed_visible_agent(agent_id, display_name="Batch Edit UI Seed Agent")
+        )
 
         body = _seed(client, variant="read_ui", agent_id=agent_id)
         chat_id = str(body["chat_id"])
@@ -93,7 +101,10 @@ class TestFileEditBatchSeedIntegration:
         self, client: TestClient
     ) -> None:
         chat_id = f"c-{uuid.uuid4().hex[:12]}"
-        with patch("app.api.chats.test_fixtures_file_edit_batch.is_local_mode", return_value=True):
+        with patch(
+            "app.api.chats.test_fixtures_file_edit_batch.is_local_mode",
+            return_value=True,
+        ):
             resp = client.post(
                 f"/api/v1/chats/test/seed-file-edit-batch-workspace?chat_id={chat_id}"
             )

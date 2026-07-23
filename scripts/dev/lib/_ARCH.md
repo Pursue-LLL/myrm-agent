@@ -32,7 +32,8 @@
 | `dev_gate_contract.py` | Unix | Dev Gate v2 SSOT（产品路径）：mux 错误分类、并行 cap（LIVE SHPOIB **4** / shared_hot **1** / mux **6** / cold attach **3**）、**`E2E_UNIFIED_WAIT_SEC=900`**、**`CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT=180000`**、**lane pytest timeout**（READ=1110 / LIVE=1710 / **desktop=600** / matrix=7200）、**`LIVE_SINGLE_TEST_WALL_CLOCK_SEC=600`**、**session safe timeout**（`chrome_e2e_pytest_safe_timeout_sec`）、**`chrome_e2e_skips_shared_approval_preflight(lane, shpoib)`** |
 | `e2e_wall_budget.py` | Unix | R39 monotonic **600s** wall budget SSOT：`assert_wall_budget` · `stream_wait_cap_sec` · holder stale helpers |
 | `stack_mutation_policy.py` / `stack_mutation_policy.sh` | Unix | R30 SMP SSOT：shared-stack drift heal defer under active wave leases；`pending-stack-drift.json`；preflight/bootstrap/supervisor 统一入口 |
-| `e2e_api_verify.py` | Unix | Agent `./myrm verify-api` / `e2e-context` SSOT：**stored stack-epoch fingerprint** 对比 workspace；epoch 匹配 backend 路由；无私池/stale 私池 fail-closed |
+| `e2e_api_verify.py` | Unix | Agent `./myrm verify-api` / `e2e-context` SSOT：epoch 匹配路由；`--ensure-backend` 按需 seed 私池 |
+| `verify_backend_seed.py` | Unix | verify-api BLOCKED 时 backend-only isolated spawn（SHPOIB cap 内） |
 | `e2e_unified_admission.py` | Unix | UEA v3 contract 常量 re-export（`E2E_UNIFIED_WAIT_SEC` · `LIVE_SHPOIB/SHARED_HOT_MAX`） |
 | `../resolve_e2e_session_profile.py` | Unix | UEA v3 profile SSOT（`{lane, shpoib, shared_hot}`）；`-m`/`-k` pytest collect-only（scoped `tests/e2e`）；驱动 cap、stream-first、approval skip |
 | `e2e_lease_runtime_sync.py` | Unix | formal chrome E2E acquire 后 fail-closed gate：`lease.runtimeId == _read_shared_hot_stack_runtime_id()`；state 经 `wave_state_paths.resolve_wave_state_file()`；`test.sh` 经 `_e2e_sync_lease_runtime` 调用 |
