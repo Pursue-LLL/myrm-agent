@@ -289,7 +289,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         """Register web_crawl_tool when enabled (EXTENDED, opt-in)."""
         if not getattr(self, "enable_web_crawl", False):
             return
-        from myrm_agent_harness.toolkits.web_fetch.web_crawl_agent_tools import create_web_crawl_tool
+        from myrm_agent_harness.api.hooks import create_web_crawl_tool
 
         from app.config.deploy_mode import is_local_mode as _is_local
 

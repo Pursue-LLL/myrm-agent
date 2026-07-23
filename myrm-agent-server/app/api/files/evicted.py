@@ -14,9 +14,7 @@ import os
 
 from fastapi import APIRouter, HTTPException, Query
 
-from myrm_agent_harness.agent.context_management.infra.evicted_content import (
-    EVICTED_BASENAME_PATTERN,
-)
+from myrm_agent_harness.api.hooks import EVICTED_BASENAME_PATTERN
 
 from app.config.deploy_mode import is_local_mode
 

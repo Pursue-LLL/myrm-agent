@@ -1041,11 +1041,12 @@ export const sendMessage = async (
       state.chatId?.trim() &&
       useToolApprovalStore.getState().queue.length === 0
     ) {
+      const smartActionsForE2e = { ...actions, setMessages: smartSetMessages };
       const { tryE2eAttachForPendingApproval } = await import('./streamConsumer');
       await tryE2eAttachForPendingApproval(
         { ...state, loading: false, abortController: null },
-        smartActions,
-        abortController,
+        smartActionsForE2e,
+        new AbortController(),
       );
     }
   }

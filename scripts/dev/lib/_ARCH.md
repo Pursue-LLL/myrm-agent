@@ -29,7 +29,8 @@
 | `e2e_mux_admission.py` | Unix | 全局 mux session 准入（READ+LIVE 统一 cap、`E2E_MUX_ADMISSION_WAIT`）；`MYRM_E2E_RUN_ID` label 经 `_registry_key()` uuid5 归一化 |
 | `mux_upstream_admission.py` | Unix | 全局 mux cold attach 准入（cap=3、`MUX_UPSTREAM_WAIT`）；`chrome_mcp_client.new_page` 包装 |
 | `e2e_capacity_messages.py` | Unix | Dev Gate UX：cap 等待人话行（保留 `E2E_*_WAIT` token） |
-| `dev_gate_contract.py` | Unix | Dev Gate v2 SSOT（产品路径）：mux 错误分类、并行 cap（LIVE SHPOIB **4** / shared_hot **1** / mux **6** / cold attach **3**）、**`E2E_UNIFIED_WAIT_SEC=900`**、**`CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT=180000`**、**lane pytest timeout**（READ=1110 / LIVE=**1710** / desktop=7200）、**session safe timeout**（`chrome_e2e_pytest_safe_timeout_sec`）、**`chrome_e2e_skips_shared_approval_preflight(lane, shpoib)`**（LIVE SHPOIB 跳过共享 approval） |
+| `dev_gate_contract.py` | Unix | Dev Gate v2 SSOT（产品路径）：mux 错误分类、并行 cap（LIVE SHPOIB **4** / shared_hot **1** / mux **6** / cold attach **3**）、**`E2E_UNIFIED_WAIT_SEC=900`**、**`CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT=180000`**、**lane pytest timeout**（READ=1110 / LIVE=1710 / **desktop=600** / matrix=7200）、**`LIVE_SINGLE_TEST_WALL_CLOCK_SEC=600`**、**session safe timeout**（`chrome_e2e_pytest_safe_timeout_sec`）、**`chrome_e2e_skips_shared_approval_preflight(lane, shpoib)`** |
+| `e2e_wall_budget.py` | Unix | R39 monotonic **600s** wall budget SSOT：`assert_wall_budget` · `stream_wait_cap_sec` · holder stale helpers |
 | `stack_mutation_policy.py` / `stack_mutation_policy.sh` | Unix | R30 SMP SSOT：shared-stack drift heal defer under active wave leases；`pending-stack-drift.json`；preflight/bootstrap/supervisor 统一入口 |
 | `e2e_api_verify.py` | Unix | Agent `./myrm verify-api` / `e2e-context` SSOT：**stored stack-epoch fingerprint** 对比 workspace；epoch 匹配 backend 路由；无私池/stale 私池 fail-closed |
 | `e2e_unified_admission.py` | Unix | UEA v3 contract 常量 re-export（`E2E_UNIFIED_WAIT_SEC` · `LIVE_SHPOIB/SHARED_HOT_MAX`） |

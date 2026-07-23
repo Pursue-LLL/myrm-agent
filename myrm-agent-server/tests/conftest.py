@@ -32,7 +32,7 @@ _DEV_LIB = _SERVER_ROOT.parent / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 from dev_gate_contract import (  # noqa: E402
-    CHROME_E2E_DESKTOP_MARKER,
+    CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER,
     LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
     chrome_e2e_pytest_timeout_floor,
 )
@@ -198,9 +198,9 @@ def _chrome_e2e_lane_timeout_sec(item: pytest.Item) -> int | None:
         return None
     lane = str(marker.kwargs.get("lane", "LIVE_AGENT"))
     floor = chrome_e2e_pytest_timeout_floor(lane, _chrome_e2e_marker_joined_argv(item))
-    if item.get_closest_marker(CHROME_E2E_DESKTOP_MARKER) is None:
-        floor = min(floor, LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
-    return floor
+    if item.get_closest_marker(CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER) is not None:
+        return floor
+    return min(floor, LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
 
 
 def _apply_chrome_e2e_lane_timeout(item: pytest.Item) -> None:
@@ -477,6 +477,7 @@ def _require_live_e2e_lease(
         live_agent_stream_lock()
         if lease.lane == "LIVE_AGENT"
         and not skip_stream_lock
+        and os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() != "1"
         and os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip() != "1"
         else nullcontext()
     )

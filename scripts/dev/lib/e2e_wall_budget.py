@@ -1,4 +1,15 @@
-"""Monotonic wall-clock budget for Chrome E2E sessions (R39 Wall Budget Plane)."""
+"""Monotonic wall-clock budget for Chrome E2E sessions (R39 Wall Budget Plane).
+
+[INPUT]
+- dev_gate_contract.py (LIVE_SINGLE_TEST_WALL_CLOCK_SEC, STALL_PROGRESS_SEC)
+
+[OUTPUT]
+- export_wall_budget_env(), assert_wall_budget(), stream_wait_cap_sec()
+- holder_exceeded_wall_budget(), holder_progress_stale()
+
+[POS]
+SSOT for single-test 600s wall clock across test.sh bootstrap, stream queue, and pytest body.
+"""
 
 from __future__ import annotations
 

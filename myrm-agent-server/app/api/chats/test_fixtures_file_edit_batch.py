@@ -5,7 +5,7 @@ app.config.deploy_mode::is_local_mode (POS: local/tauri gate)
 app.services.agent.agent_service::AgentService (POS: agent list for seed scope)
 app.services.chat.chat_service::ChatService (POS: chat/message persistence)
 app.services.agent.params.workspace_resolve::resolve_default_chat_workspace_dir (POS: workspace path)
-myrm_agent_harness.agent.streaming.step_builder::build_step_data (POS: progressSteps diff items)
+myrm_agent_harness.api.hooks::build_step_data (POS: progressSteps diff items)
 
 [OUTPUT]
 seed_file_edit_batch_fixture: batch file_edit E2E（variant=live|read_ui）
@@ -102,7 +102,7 @@ async def seed_file_edit_batch_fixture(
     )
 
     if normalized == "read_ui":
-        from myrm_agent_harness.agent.streaming.step_builder import build_step_data
+        from myrm_agent_harness.api.hooks import build_step_data
 
         built = build_step_data(
             "file_edit_tool",

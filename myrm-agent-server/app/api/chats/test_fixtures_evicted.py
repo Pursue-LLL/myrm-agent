@@ -5,7 +5,7 @@ app.config.deploy_mode::is_local_mode (POS: local/tauri gate)
 app.services.agent.agent_service::AgentService (POS: agent list for seed scope)
 app.services.chat.chat_service::ChatService (POS: chat/message persistence)
 app.services.agent.params.workspace_resolve::resolve_default_chat_workspace_dir (POS: workspace path)
-myrm_agent_harness.agent.context_management.infra.evicted_content::build_evicted_basename (POS: spill filename)
+myrm_agent_harness.api.hooks::build_evicted_basename (POS: spill filename)
 
 [OUTPUT]
 seed_evicted_live_terminal_fixture: UECD web_fetch spill + LiveTerminal progressSteps
@@ -69,9 +69,7 @@ async def seed_evicted_live_terminal_fixture(
     if normalized not in {"full", "expired"}:
         raise HTTPException(status_code=400, detail=f"Unsupported evicted fixture variant: {variant}")
 
-    from myrm_agent_harness.agent.context_management.infra.evicted_content import (
-        build_evicted_basename,
-    )
+    from myrm_agent_harness.api.hooks import build_evicted_basename
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:

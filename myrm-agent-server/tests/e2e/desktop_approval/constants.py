@@ -51,6 +51,9 @@ INFRA_ABORT_MARKERS = (
     "immutable test wave is not open",
     "E2E_WAVE_OPEN_FAILED",
     "E2E_RUNTIME_BINDING_FAILED",
+    "E2E_WALL_BUDGET_FAIL_FAST",
+    "e2e-lite-model-unconfigured",
+    "Failed to pin lite model for E2E",
     "LEASE_NOT_ACTIVE",
     "LEASE_CLEANUP_FAILED",
     "upstream request timed out",
@@ -84,6 +87,9 @@ def build_desktop_interact_nudge(*, dref: str | None = None) -> str:
 
 
 def progress(message: str) -> None:
+    from tests.support.e2e_wall_progress import touch_e2e_wall_progress
+
+    touch_e2e_wall_progress()
     print(f"DESKTOP_E2E: {message}", file=sys.stderr, flush=True)
 
 

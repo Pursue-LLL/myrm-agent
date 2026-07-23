@@ -29,7 +29,7 @@ Unit smoke (no Chrome): `tests/unit/desktop_approval/test_trust_api_smoke.py`, `
 ## Verification
 
 ```bash
-MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC=120 PYTEST_SAFE_TIMEOUT_SECONDS=7200 \
+MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC=120 PYTEST_SAFE_TIMEOUT_SECONDS=720 \
   CDMCP_MUX_REQUEST_TIMEOUT_MS=180000 MYRM_MUX_ALLOW_TIMEOUT_RESTART=1 \
   ./myrm ready --chrome && \
   ./myrm test myrm-agent/myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py \

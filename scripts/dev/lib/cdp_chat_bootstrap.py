@@ -48,6 +48,13 @@ class CdpChatBootstrap(CdpChatTransport):
             self._bootstrap_started_monotonic = time.monotonic()
 
     def _check_bootstrap_stall_fail_fast(self, *, phase: str) -> None:
+        try:
+            from e2e_wall_budget import assert_wall_budget
+
+            assert_wall_budget(phase=phase)
+            return
+        except ImportError:
+            pass
         from dev_gate_contract import LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 
         if self._bootstrap_started_monotonic is None:

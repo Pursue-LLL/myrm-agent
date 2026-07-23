@@ -216,9 +216,6 @@ async def execute_stream_pipeline(
             runtime_sec.yolo_mode_enabled,
             runtime_sec.auto_mode_enabled,
         )
-        from myrm_agent_harness.agent.middlewares._session_context import (
-            EFFECTIVE_SECURITY_CONFIG_CONTEXT_KEY,
-        )
         from myrm_agent_harness.api.hooks import set_security_config
 
         set_security_config(runtime_sec)
@@ -227,7 +224,6 @@ async def execute_stream_pipeline(
             chat_history=chat_history,
             effective_chat_id=effective_chat_id,
         )
-        context[EFFECTIVE_SECURITY_CONFIG_CONTEXT_KEY] = runtime_sec
         if extra_context:
             context.update(extra_context)
 
