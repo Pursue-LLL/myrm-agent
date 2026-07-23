@@ -14,7 +14,11 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
+from cdp_chat_support import (  # noqa: E402
+    chat_messages_have_clarify_skip_done,
+    get_e2e_api_url,
+    wait_e2e_provider_ready,
+)
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
@@ -23,14 +27,14 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lea
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
+# Natural-language user turn (no CRITICAL/MUST — mimo and similar models reject injection in user text).
 E2E_PROMPT = (
-    "CRITICAL: Your very first action MUST be a single ask_question_tool call — no text reply before it. "
-    "You MUST call ask_question_tool exactly once before any other action. "
-    'Use title "Pick stack". Ask one question with id "stack" and prompt '
-    '"Which stack?" with two options: id "a" label "Option A", id "b" label "Option B". '
-    "Set requires_confirmation to false. "
+    "Before doing anything else, use ask_question_tool exactly once to ask which stack I prefer. "
+    'Use title "Pick stack", one question with id "stack" and prompt "Which stack?", '
+    'two options id "a" label "Option A" and id "b" label "Option B", '
+    "requires_confirmation false. "
     "Do not use bash, write_file, render_ui_tool, or any other tools. "
-    "If the user skips or gives no answer, reply with exactly: DONE-SKIPPED"
+    "If I skip without answering, reply with exactly: DONE-SKIPPED"
 )
 
 _ENABLE_STRUCTURED_CLARIFY_JS = """(() => {
@@ -128,14 +132,34 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             await asyncio.sleep(1.0)
         raise AssertionError(f"Clarification form did not appear in chat: {last}")
 
-    async def _wait_after_skip(chat: McpChatSession, *, timeout_sec: float = 300.0) -> dict[str, object]:
+    async def _wait_after_skip(
+        chat: McpChatSession,
+        *,
+        chat_id: str,
+        api_base: str,
+        timeout_sec: float = 300.0,
+    ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
+            if chat_id.strip():
+                api_ready = await asyncio.to_thread(
+                    chat_messages_have_clarify_skip_done,
+                    chat_id,
+                    api_url=api_base,
+                )
+                if api_ready:
+                    return {
+                        "ready": True,
+                        "source": "api",
+                        "doneSkipped": True,
+                        "answered": True,
+                    }
             raw = await chat.evaluate(_AFTER_SKIP_JS, await_promise=False, recv_timeout=30.0)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
+                last["source"] = "dom"
                 return last
             await asyncio.sleep(1.0)
         raise AssertionError(f"Agent did not continue after Skip: {last}")
@@ -193,7 +217,12 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         assert isinstance(clicked, dict)
         assert clicked.get("ok") is True, f"Skip click failed: {clicked}; form={form_state}"
 
-        after_skip = await _wait_after_skip(chat, timeout_sec=180.0)
+        after_skip = await _wait_after_skip(
+            chat,
+            chat_id=chat_id_hint,
+            api_base=api_base,
+            timeout_sec=180.0,
+        )
         assert after_skip.get("answered") is True or after_skip.get("doneSkipped") is True, after_skip
 
         after_turn = await chat.main_state(E2E_PROMPT, recv_timeout=30.0)

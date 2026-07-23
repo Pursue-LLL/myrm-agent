@@ -50,14 +50,12 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
     }
 
     query = (
-        "CRITICAL: Your very first action MUST be a single ask_question_tool call — no text reply before it. "
-        "You MUST call ask_question_tool exactly once before any other action. "
-        'Use title "Framework choice". Ask one question with id "framework" and prompt '
-        '"Which AI framework should I use?". Provide exactly two options: '
-        'id "langchain" label "LangChain", id "llamaindex" label "LlamaIndex". '
-        "Set requires_confirmation to false. "
+        "Before doing anything else, use ask_question_tool exactly once to ask which framework I should use. "
+        'Use title "Framework choice", one question id "framework" prompt "Which AI framework should I use?", '
+        'two options id "langchain" label "LangChain" and id "llamaindex" label "LlamaIndex", '
+        "requires_confirmation false. "
         "Do not use bash, write_file, render_ui_tool, or any other tools. "
-        "After you receive the user's answer, reply with a single line starting with DONE."
+        "After you receive my answer, reply with a single line starting with DONE."
     )
 
     resume_answer = {"framework": "langchain"}

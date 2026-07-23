@@ -20,10 +20,20 @@ _DETACHED_FRAME_TOKENS = (
     "Execution context was destroyed",
 )
 
+_TARGET_CLOSED_TOKENS = (
+    "Target closed",
+    "No page found",
+)
+
 
 def is_detached_frame_error(exc: BaseException) -> bool:
     message = str(exc)
     return any(token in message for token in _DETACHED_FRAME_TOKENS)
+
+
+def is_target_closed_error(exc: BaseException) -> bool:
+    message = str(exc)
+    return any(token in message for token in _TARGET_CLOSED_TOKENS)
 
 
 def is_mux_page_heal_error(exc: BaseException) -> bool:
@@ -78,7 +88,9 @@ class McpChatSession(CdpChatSession):
                     heal_attempts += 1
                     await self._heal_detached_page()
                     continue
-                if heal_attempts < max_heal_attempts and is_mux_page_heal_error(exc):
+                if heal_attempts < max_heal_attempts and (
+                    is_target_closed_error(exc) or is_mux_page_heal_error(exc)
+                ):
                     heal_attempts += 1
                     await self._heal_reclaimed_page()
                     continue

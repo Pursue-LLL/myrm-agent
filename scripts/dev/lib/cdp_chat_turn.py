@@ -515,13 +515,32 @@ class CdpChatTurn(CdpChatSubmit):
                     f"E2E send not ready before submit: ready={ready} probe={send_probe} debug={debug}"
                 )
             fill = {"ok": True, "mode": "atomicSendChatMessage", "inputLen": len(text)}
-            submit = await self.send_chat_message_atomic(
-                text,
-                baseline_user_msgs=baseline_user_msgs,
-            )
+            submit: dict[str, object]
+            try:
+                submit = await asyncio.wait_for(
+                    self.send_chat_message_atomic(
+                        text,
+                        baseline_user_msgs=baseline_user_msgs,
+                    ),
+                    timeout=45.0,
+                )
+            except asyncio.TimeoutError:
+                submit = {"ok": False, "err": "atomic-send-timeout"}
+            except RuntimeError as exc:
+                if any(
+                    token in str(exc)
+                    for token in ("Target closed", "No page found", "detached Frame")
+                ):
+                    submit = {"ok": False, "err": "target-closed-during-atomic"}
+                else:
+                    raise
             if not submit.get("ok"):
                 atomic_err = str(submit.get("err") or "")
-                if atomic_err == "no-sendChatMessage":
+                if atomic_err in {
+                    "no-sendChatMessage",
+                    "atomic-send-timeout",
+                    "target-closed-during-atomic",
+                }:
                     await self.evaluate(
                         f"""(() => {{
                           const bridge = window.__MYRM_E2E_CHAT__;

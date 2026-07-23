@@ -74,6 +74,10 @@ def get_e2e_ui_url() -> str:
 
 _OK_REPLY_RE = re.compile(r"(?:\bOK\b|GOAL_OK)", re.IGNORECASE)
 _DONE_REPLY_RE = re.compile(r"\bDONE\b", re.IGNORECASE)
+_CLARIFY_SKIP_DONE_RE = re.compile(
+    r"DONE-SKIPPED|Clarification answered|已回答澄清",
+    re.IGNORECASE,
+)
 _E2E_API_REQUEST_ATTEMPTS = 3
 _E2E_API_REQUEST_BACKOFF_SEC = 2.0
 
@@ -1150,6 +1154,26 @@ def chat_messages_have_done(
         return False
     content = str(last_assistant.get("content") or "")
     return bool(_DONE_REPLY_RE.search(content))
+
+
+def chat_messages_have_clarify_skip_done(
+    chat_id: str, *, min_user_count: int = 1, api_url: str | None = None
+) -> bool:
+    """Return True when the last assistant message shows clarify Skip resume completed."""
+    messages = fetch_chat_messages(chat_id, api_url=api_url)
+    user_count = sum(
+        1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
+    )
+    if user_count < min_user_count:
+        return False
+    last_assistant: dict[str, object] | None = None
+    for msg in messages:
+        if isinstance(msg, dict) and msg.get("role") == "assistant":
+            last_assistant = msg
+    if last_assistant is None:
+        return False
+    content = str(last_assistant.get("content") or "")
+    return bool(_CLARIFY_SKIP_DONE_RE.search(content))
 
 
 BRIDGE_CHAT_ID_JS = """

@@ -193,12 +193,17 @@ class CdpChatInput(CdpChatBootstrap):
             probe = await self.evaluate(
                 """(() => ({
                   hasBuiltinTools: Boolean(window.__MYRM_E2E_CHAT__?.setCurrentBuiltinTools),
+                  hasAttach: typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function',
                   fallback: window.__MYRM_E2E_CHAT__?.__e2eFallback === true,
                   hasInput: Boolean(document.querySelector('[data-chat-input]')),
                 }))()""",
                 await_promise=False,
             )
-            if isinstance(probe, dict) and probe.get("hasBuiltinTools"):
+            if (
+                isinstance(probe, dict)
+                and probe.get("hasBuiltinTools")
+                and probe.get("hasAttach")
+            ):
                 return
             should_reload = polls in {15, 30, 45}
             if isinstance(probe, dict) and probe.get("fallback"):

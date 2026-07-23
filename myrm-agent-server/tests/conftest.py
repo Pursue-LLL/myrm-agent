@@ -410,6 +410,8 @@ def _chrome_e2e_item_runtime(
     if os.environ.get("MYRM_E2E_MUX_ADMISSION_DEFERRED", "").strip() == "1":
         mux_token = _acquire_deferred_mux_admission()
         os.environ["MYRM_E2E_MUX_ADMISSION_TOKEN"] = mux_token
+        run_id = os.environ.get("MYRM_E2E_RUN_ID", "").strip()
+        print(f"E2E_MUX_ADMISSION_OK: run={run_id} deferred=1", flush=True)
     try:
         yield runtime
     finally:
