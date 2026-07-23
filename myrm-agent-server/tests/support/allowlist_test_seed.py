@@ -9,7 +9,7 @@ from sqlalchemy import delete
 from app.database.models import UserToolAllowlist
 from app.platform_utils import get_session_factory
 
-PATTERN_ENTRY_PERMISSION = "shell_exec"
+PATTERN_ENTRY_PERMISSION = "code_interpreter"
 PATTERN_ENTRY_TOOL = "bash_code_execute_tool"
 PATTERN_ENTRY_COMMAND_PATTERN = "npm install *"
 

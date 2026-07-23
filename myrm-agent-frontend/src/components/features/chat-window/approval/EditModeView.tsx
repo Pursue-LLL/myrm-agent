@@ -51,10 +51,24 @@ export default function EditModeView({
   isLoading,
 }: EditModeViewProps) {
   const t = useTranslations('toolApproval');
+  const effectiveShellCommand = useMemo(() => {
+    if (isSingleStringParam && inputEntries[0]) {
+      const edited = editedArgs[inputEntries[0][0]];
+      if (typeof edited === 'string' && edited.trim()) {
+        return edited;
+      }
+    }
+    return shellCommand;
+  }, [editedArgs, inputEntries, isSingleStringParam, shellCommand]);
   const patternPreview = useMemo(
-    () => (shellCommand ? deriveCommandPattern(shellCommand) : null),
-    [shellCommand],
+    () => (effectiveShellCommand ? deriveCommandPattern(effectiveShellCommand) : null),
+    [effectiveShellCommand],
   );
+  const patternConfirmBlocked =
+    allowAlwaysInEdit &&
+    allowAlwaysScopeInEdit === 'pattern' &&
+    effectiveShellCommand.trim().length > 0 &&
+    patternPreview === null;
 
   return (
     <div className="space-y-3 rounded-lg border p-4">
@@ -120,7 +134,7 @@ export default function EditModeView({
               {allowAlwaysScopeInEdit === 'exact' && t('allowAlwaysConfirm.scopeExactDesc')}
               {allowAlwaysScopeInEdit === 'pattern' && t('allowAlwaysConfirm.scopePatternDesc')}
             </p>
-            {allowAlwaysScopeInEdit === 'pattern' && shellCommand && (
+            {allowAlwaysScopeInEdit === 'pattern' && effectiveShellCommand && (
               <p className="text-[10px]">
                 {patternPreview ? (
                   <span className="font-mono text-foreground/80">
@@ -135,7 +149,7 @@ export default function EditModeView({
         )}
       </div>
       <div className="flex gap-2">
-        <Button size="sm" onClick={onConfirm} disabled={isLoading}>
+        <Button size="sm" onClick={onConfirm} disabled={isLoading || patternConfirmBlocked}>
           {t('confirmEdit')}
         </Button>
         <Button size="sm" variant="ghost" onClick={onCancel} disabled={isLoading}>

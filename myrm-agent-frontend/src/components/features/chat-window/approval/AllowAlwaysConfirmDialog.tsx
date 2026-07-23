@@ -47,6 +47,8 @@ export default function AllowAlwaysConfirmDialog({
     () => (shellCommand ? deriveCommandPattern(shellCommand) : null),
     [shellCommand],
   );
+  const patternConfirmBlocked =
+    allowAlwaysScope === 'pattern' && shellCommand.trim().length > 0 && patternPreview === null;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -114,7 +116,11 @@ export default function AllowAlwaysConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isLoading}>{t('cancel')}</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} disabled={isLoading} className="bg-amber-600 hover:bg-amber-700">
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={isLoading || patternConfirmBlocked}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
             {t('allowAlwaysConfirm.confirm')}
           </AlertDialogAction>
         </AlertDialogFooter>

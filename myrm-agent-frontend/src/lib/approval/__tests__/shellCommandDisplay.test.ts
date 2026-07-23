@@ -113,6 +113,21 @@ describe('shellCommandDisplay', () => {
     expect(deriveCommandPattern('npm install && rm -rf /')).toBeNull();
   });
 
+  /** Keep aligned with myrm-agent-harness/tests/agent/security/test_command_allowlist_pattern.py */
+  it('deriveCommandPattern parity with harness SSOT vectors', () => {
+    const vectors: Array<{ command: string; expected: string | null }> = [
+      { command: 'npm install lodash', expected: 'npm install *' },
+      { command: 'ls -la', expected: 'ls -la *' },
+      { command: 'curl -sS http://127.0.0.1:9/ALLOWLIST_LIVE_PROBE', expected: 'curl -sS *' },
+      { command: 'npm install && rm -rf /', expected: null },
+      { command: 'npm install | grep foo', expected: null },
+      { command: 'npm install; rm file', expected: null },
+    ];
+    for (const { command, expected } of vectors) {
+      expect(deriveCommandPattern(command)).toBe(expected);
+    }
+  });
+
   it('detects compound shell commands', () => {
     expect(isCompoundShellCommand('npm install')).toBe(false);
     expect(isCompoundShellCommand('npm install | grep foo')).toBe(true);

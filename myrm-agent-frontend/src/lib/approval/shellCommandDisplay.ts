@@ -230,7 +230,10 @@ function shlexSplitPosix(command: string): string[] | null {
   return tokens;
 }
 
-/** Derive a conservative glob pattern for allow-always pattern scope preview. */
+/** Derive a conservative glob pattern for allow-always pattern scope preview.
+ * SSOT: myrm-agent-harness/.../command_allowlist_pattern.py::derive_command_pattern
+ * Keep vitest parity vectors in shellCommandDisplay.test.ts aligned with harness tests.
+ */
 export function deriveCommandPattern(command: string): string | null {
   const normalized = command.trim();
   if (!normalized || isCompoundShellCommand(normalized)) {
