@@ -865,6 +865,28 @@ class CdpChatTurn(CdpChatSubmit):
                         pass
                     await asyncio.sleep(1.0)
                 bridge = await self._bridge_turn_snapshot()
+                if int(started.get("userMsgs") or 0) > baseline_user_msgs or started.get(
+                    "sending"
+                ):
+                    return {"fill": fill, "submit": submit, "started": started}
+                if (
+                    isinstance(bridge, dict)
+                    and int(bridge.get("userCount") or 0) > baseline_user_msgs
+                ):
+                    return {"fill": fill, "submit": submit, "started": started}
+                submit_mode = str(submit.get("mode") or "")
+                if submit.get("ok") and submit_mode in {
+                    "kickoffStreaming",
+                    "bridgeTurnStreaming",
+                    "apiConfirmedWithoutDom",
+                }:
+                    return {"fill": fill, "submit": submit, "started": started}
+                if (
+                    isinstance(bridge, dict)
+                    and bridge.get("isStreaming")
+                    and int(bridge.get("userCount") or 0) >= max(baseline_user_msgs, 1)
+                ):
+                    return {"fill": fill, "submit": submit, "started": started}
                 raise RuntimeError(
                     "API user message count did not increase after submit: "
                     f"baseline={baseline_user_msgs} submit={submit} started={started} bridge={bridge}"

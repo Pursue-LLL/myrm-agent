@@ -18,6 +18,7 @@ from cdp_chat_support import (
     chat_id_from_path,
     chat_user_message_count,
     fetch_provider_readiness_snapshot,
+    get_e2e_ui_url,
     PREPARE_AUTOMATION_SEND_JS,
 )
 
@@ -181,17 +182,16 @@ class CdpChatInput(CdpChatBootstrap):
 
     async def _heal_empty_chat_shell_for_bridge(self) -> None:
         """Re-navigate when CDP page lost chat shell (blank / no input / no bridge)."""
-        import os
-
-        base = getattr(self, "_base_url", None) or os.getenv(
-            "E2E_UI_BASE", "http://127.0.0.1:3000"
-        )
-        ui_base = str(base).rstrip("/")
-        await asyncio.to_thread(
-            self._client.navigate,
-            self._page,
-            f"{ui_base}/",
-            timeout_ms=120_000,
+        ui_base = (
+            getattr(self, "_base_url", None) or get_e2e_ui_url()
+        ).rstrip("/")
+        await self._shared_ui_burst(
+            "navigate",
+            self.cdp(
+                "Page.navigate",
+                {"url": f"{ui_base}/"},
+                recv_timeout=120.0,
+            ),
         )
         await asyncio.sleep(2.0)
         await self.ensure_e2e_api_base_binding()

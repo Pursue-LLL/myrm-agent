@@ -15,7 +15,9 @@ from cdp_chat_support import (
     chat_id_from_path,
     e2e_api_base_inject_js,
     e2e_api_base_persist_source,
+    get_e2e_ui_url,
     shpoib_parallel_shell_timeout_sec,
+    shpoib_shell_wait_slice_cap,
 )
 from cdp_chat_transport import CdpChatTransport
 
@@ -271,7 +273,8 @@ class CdpChatBootstrap(CdpChatTransport):
     async def _recover_shell_probe_mux(self, mux_recover_attempts: int) -> int:
         client = getattr(self, "_client", None)
         if client is not None and mux_recover_attempts < 1:
-            await asyncio.to_thread(client.recover_mux_transport)
+            client.abandon_inflight_requests()
+            client._recover_mux_transport()
             return mux_recover_attempts + 1
         return mux_recover_attempts
 
@@ -310,14 +313,21 @@ class CdpChatBootstrap(CdpChatTransport):
                         "recover mux and retry"
                     )
             try:
-                state = await asyncio.wait_for(
+                evaluate_task = asyncio.create_task(
                     self.evaluate(
                         PAGE_PROBE_JS,
                         await_promise=False,
                         recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
-                    ),
-                    timeout=eval_wall_sec,
+                    )
                 )
+                try:
+                    state = await asyncio.wait_for(
+                        evaluate_task,
+                        timeout=min(stall_cap, eval_wall_sec),
+                    )
+                except TimeoutError:
+                    evaluate_task.cancel()
+                    raise
             except RuntimeError as exc:
                 message = str(exc)
                 if MUX_RECLAIM_STALL_TOKEN in message:
@@ -335,6 +345,11 @@ class CdpChatBootstrap(CdpChatTransport):
                     continue
                 raise
             except TimeoutError:
+                client = getattr(self, "_client", None)
+                if client is not None:
+                    # Sync teardown — must not use default thread pool when orphan
+                    # evaluate threads already exhausted it (R48 deadlock fix).
+                    client.abandon_inflight_requests()
                 mux_recover_attempts = await self._recover_shell_probe_mux(
                     mux_recover_attempts
                 )
@@ -347,6 +362,38 @@ class CdpChatBootstrap(CdpChatTransport):
                     )
                 state = {"probeError": "evaluate_timeout"}
             last = state if isinstance(state, dict) else {"probeError": state}
+            if (
+                last.get("probeError") == "evaluate_timeout"
+                and polls >= 25
+                and polls % 25 == 0
+            ):
+                try:
+                    await self._reload_chat_shell_burst()
+                except (RuntimeError, TimeoutError):
+                    pass
+            if not _shell_probe_ready(last):
+                path = str(last.get("path") or "")
+                stale_home = path in ("", "/", "blank", "about:blank") or not last.get(
+                    "hasLayout"
+                )
+                if stale_home and polls in {8, 24, 48, 72, 96, 120}:
+                    ui_base = (
+                        getattr(self, "_base_url", None) or get_e2e_ui_url()
+                    ).rstrip("/")
+                    hydrate_deadline = min(deadline, time.monotonic() + 120.0)
+                    try:
+                        await self._hydrate_chat_home_surface(
+                            ui_base,
+                            deadline=hydrate_deadline,
+                        )
+                        probe_started = time.monotonic()
+                        mux_recover_attempts = 0
+                    except (RuntimeError, TimeoutError):
+                        try:
+                            await self._reload_chat_shell_burst()
+                        except (RuntimeError, TimeoutError):
+                            pass
+                    continue
             if _shell_probe_ready(last):
                 return last
             await asyncio.sleep(0.5)
@@ -602,64 +649,77 @@ class CdpChatBootstrap(CdpChatTransport):
         await self.ensure_e2e_api_base_binding()
         await self.wait_shell_ready(timeout_sec=timeout_sec)
 
+    async def _reload_chat_shell_burst(self) -> None:
+        await self._shared_ui_burst(
+            "reload",
+            self.cdp("Page.reload", {"ignoreCache": True}, recv_timeout=120.0),
+        )
+        await asyncio.sleep(3.0)
+        await self.ensure_e2e_api_base_binding()
+
+    async def _hydrate_chat_home_surface(
+        self,
+        ui_base: str,
+        *,
+        deadline: float,
+    ) -> None:
+        remaining = max(0.0, deadline - time.monotonic())
+        if remaining <= 0:
+            raise TimeoutError("Chat surface hydrate budget exhausted")
+        slice_sec = shpoib_shell_wait_slice_cap(remaining)
+        await self._shared_ui_burst(
+            "navigate",
+            self.cdp(
+                "Page.navigate",
+                {"url": f"{ui_base}/"},
+                recv_timeout=120.0,
+            ),
+        )
+        await asyncio.sleep(2.0)
+        await self.ensure_e2e_api_base_binding()
+        await self.wait_shell_ready(timeout_sec=slice_sec, require_bridge=True)
+        await self._after_new_chat_reset(deadline=deadline)
+        ensure_bridge = getattr(self, "ensure_react_e2e_bridge", None)
+        if not callable(ensure_bridge):
+            return
+        bridge_remaining = max(0.0, deadline - time.monotonic())
+        if bridge_remaining <= 0:
+            return
+        bridge_cap = min(90.0, shpoib_shell_wait_slice_cap(bridge_remaining))
+        try:
+            await ensure_bridge(timeout_sec=bridge_cap)
+        except TimeoutError:
+            await self._reload_chat_shell_burst()
+
     async def ensure_chat_surface(
         self, base_url: str, *, timeout_sec: float = 90.0
     ) -> None:
         """Leave settings/onboarding routes before chat send automation."""
         ui_base = base_url.rstrip("/")
+        timeout_sec = shpoib_parallel_shell_timeout_sec(timeout_sec)
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {"path": ""}
         self._mark_bootstrap_started()
         while time.monotonic() < deadline:
             self._check_bootstrap_stall_fail_fast(phase="ensure_chat_surface")
-            probe = await self.evaluate(
-                PAGE_PROBE_JS,
-                await_promise=False,
-                recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
-            )
+            try:
+                probe = await self.evaluate(
+                    PAGE_PROBE_JS,
+                    await_promise=False,
+                    recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+                )
+            except (RuntimeError, TimeoutError):
+                probe = {"probeError": "evaluate_failed"}
             last = probe if isinstance(probe, dict) else {"probeError": probe}
             path = str(last.get("path") or "")
             if path in ("blank", "", "about:blank") or not last.get("hasLayout"):
-                await self._shared_ui_burst(
-                    "navigate",
-                    self.cdp(
-                        "Page.navigate",
-                        {"url": f"{ui_base}/"},
-                        recv_timeout=120.0,
-                    ),
-                )
-                await asyncio.sleep(2)
-                await self.ensure_e2e_api_base_binding()
-                await self.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
-                await self._after_new_chat_reset()
+                await self._hydrate_chat_home_surface(ui_base, deadline=deadline)
                 continue
             if path.startswith("/settings") or path == "/onboarding":
-                await self._shared_ui_burst(
-                    "navigate",
-                    self.cdp(
-                        "Page.navigate",
-                        {"url": f"{ui_base}/"},
-                        recv_timeout=120.0,
-                    ),
-                )
-                await asyncio.sleep(2)
-                await self.ensure_e2e_api_base_binding()
-                await self.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
-                await self._after_new_chat_reset()
+                await self._hydrate_chat_home_surface(ui_base, deadline=deadline)
                 continue
             if path == "/" and not last.get("hasInput"):
-                await self._shared_ui_burst(
-                    "navigate",
-                    self.cdp(
-                        "Page.navigate",
-                        {"url": f"{ui_base}/"},
-                        recv_timeout=120.0,
-                    ),
-                )
-                await asyncio.sleep(2)
-                await self.ensure_e2e_api_base_binding()
-                await self.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
-                await self._after_new_chat_reset()
+                await self._hydrate_chat_home_surface(ui_base, deadline=deadline)
                 continue
             if (
                 (chat_id_from_path(path) is not None or last.get("hasInput"))
@@ -669,13 +729,17 @@ class CdpChatBootstrap(CdpChatTransport):
                 return
             reset = await self.click_new_chat()
             if reset.get("ok"):
+                await self._after_new_chat_reset(deadline=deadline)
                 return
             await asyncio.sleep(0.5)
         raise RuntimeError(f"Chat surface not ready (path={last.get('path')}): {last}")
 
-    async def _after_new_chat_reset(self) -> None:
+    async def _after_new_chat_reset(self, *, deadline: float | None = None) -> None:
         """SHPOIB hot UI: re-bind private backend and refresh provider store after reset."""
         await self.ensure_e2e_api_base_binding()
+        recv_cap = 45.0
+        if deadline is not None:
+            recv_cap = min(45.0, shpoib_shell_wait_slice_cap(deadline - time.monotonic()))
         try:
             await self.evaluate(
                 """(() => {
@@ -685,14 +749,18 @@ class CdpChatBootstrap(CdpChatTransport):
                   return Promise.resolve(bridge.ensureProviders()).then(() => ({ ok: true }));
                 })()""",
                 await_promise=True,
-                recv_timeout=45.0,
+                recv_timeout=recv_cap,
             )
         except (RuntimeError, TimeoutError):
             pass
+        shell_cap = 45.0
+        if deadline is not None:
+            shell_cap = shpoib_shell_wait_slice_cap(max(0.0, deadline - time.monotonic()))
         try:
-            await self.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
+            await self.wait_shell_ready(timeout_sec=shell_cap, require_bridge=True)
         except TimeoutError:
-            await self.ensure_dev_bridge(timeout_sec=45.0, allow_reload=True)
+            bridge_cap = min(45.0, shell_cap)
+            await self.ensure_dev_bridge(timeout_sec=bridge_cap, allow_reload=True)
 
     async def click_new_chat(self) -> dict[str, object]:
         reset_js = """

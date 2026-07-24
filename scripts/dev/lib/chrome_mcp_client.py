@@ -173,6 +173,7 @@ class ChromeMcpClient:
         self._request_timeout_sec = request_timeout_sec
         self._process: subprocess.Popen[str] | None = None
         self._request_id = 0
+        self._request_generation = 0
         self._request_lock = threading.Lock()
         self._stderr_lines: deque[str] = deque(maxlen=100)
         self._stderr_thread: threading.Thread | None = None
@@ -953,7 +954,20 @@ class ChromeMcpClient:
 
     def recover_mux_transport(self) -> None:
         """Restart MCP shim after mux timeout or transport drift (E2E orchestrator hook)."""
+        if not self._request_lock.acquire(blocking=False):
+            self.abandon_inflight_requests()
+        else:
+            self._request_lock.release()
         self._recover_mux_transport()
+
+    def abandon_inflight_requests(self) -> None:
+        """Invalidate orphaned mux I/O after asyncio cancelled a blocking evaluate thread."""
+        self._request_generation += 1
+        self._page_lease_heartbeat.stop()
+        self._teardown_shim_process()
+        # Orphan to_thread may still hold the old lock in select(); replace so recover
+        # on the event loop thread cannot deadlock (R49-R50).
+        self._request_lock = threading.Lock()
 
     def call_tool(
         self,
@@ -1122,10 +1136,15 @@ class ChromeMcpClient:
         *,
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
+        start_generation = self._request_generation
         last_transport_error: _TransportDeadError | None = None
         for transport_attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
             try:
                 with self._request_lock:
+                    if start_generation != self._request_generation:
+                        raise RuntimeError(
+                            f"{MUX_RECLAIM_STALL_TOKEN}: request abandoned before acquire"
+                        )
                     process = self._require_live_process()
                     return self._exchange_locked(
                         process,

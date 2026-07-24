@@ -58,7 +58,6 @@ class McpChatSession(CdpChatSession):
         self._client = client
         self._page = page
         self._base_url = _default_e2e_ui_base()
-        self._evaluate_async_lock = asyncio.Lock()
 
     async def evaluate(
         self,
@@ -82,51 +81,53 @@ class McpChatSession(CdpChatSession):
         max_heal_attempts = 3
         mux_attempts = 0
         max_mux_attempts = 2
-        async with self._evaluate_async_lock:
-            while time.monotonic() < wall_deadline:
-                remaining = wall_deadline - time.monotonic()
-                attempt_timeout = min(recv_timeout + 10.0, remaining)
-                try:
-                    return await asyncio.wait_for(
-                        asyncio.to_thread(
-                            self._client.evaluate,
-                            self._page,
-                            expression,
-                            timeout_sec=recv_timeout,
-                        ),
-                        timeout=attempt_timeout,
-                    )
-                except TimeoutError:
+        while time.monotonic() < wall_deadline:
+            remaining = wall_deadline - time.monotonic()
+            attempt_timeout = min(recv_timeout + 10.0, remaining)
+            try:
+                return await asyncio.wait_for(
+                    asyncio.to_thread(
+                        self._client.evaluate,
+                        self._page,
+                        expression,
+                        timeout_sec=recv_timeout,
+                    ),
+                    timeout=attempt_timeout,
+                )
+            except TimeoutError:
+                self._client.abandon_inflight_requests()
+                mux_attempts += 1
+                if mux_attempts < max_mux_attempts:
+                    self._client._recover_mux_transport()
+                    await asyncio.sleep(0.75 * mux_attempts)
+                    continue
+                raise
+            except RuntimeError as exc:
+                message = str(exc)
+                if mux_attempts < max_mux_attempts and MUX_RECLAIM_STALL_TOKEN in message:
                     mux_attempts += 1
-                    if mux_attempts < max_mux_attempts:
-                        await asyncio.to_thread(self._client.recover_mux_transport)
-                        await asyncio.sleep(0.75 * mux_attempts)
-                        continue
-                    raise
-                except RuntimeError as exc:
-                    message = str(exc)
-                    if mux_attempts < max_mux_attempts and MUX_RECLAIM_STALL_TOKEN in message:
-                        mux_attempts += 1
-                        await asyncio.to_thread(self._client.recover_mux_transport)
-                        await asyncio.sleep(0.75 * mux_attempts)
-                        continue
-                    if mux_attempts < max_mux_attempts and (
-                        "transport unavailable" in message.lower()
-                        or "not running after transport recovery" in message.lower()
-                    ):
-                        mux_attempts += 1
-                        await asyncio.to_thread(self._client.recover_mux_transport)
-                        await asyncio.sleep(0.75 * mux_attempts)
-                        continue
-                    if heal_attempts < max_heal_attempts and is_detached_frame_error(exc):
-                        heal_attempts += 1
-                        await self._heal_detached_page()
-                        continue
-                    if heal_attempts < max_heal_attempts and is_mux_page_heal_error(exc):
-                        heal_attempts += 1
-                        await self._heal_reclaimed_page()
-                        continue
-                    raise
+                    self._client.abandon_inflight_requests()
+                    self._client._recover_mux_transport()
+                    await asyncio.sleep(0.75 * mux_attempts)
+                    continue
+                if mux_attempts < max_mux_attempts and (
+                    "transport unavailable" in message.lower()
+                    or "not running after transport recovery" in message.lower()
+                ):
+                    mux_attempts += 1
+                    self._client.abandon_inflight_requests()
+                    self._client._recover_mux_transport()
+                    await asyncio.sleep(0.75 * mux_attempts)
+                    continue
+                if heal_attempts < max_heal_attempts and is_detached_frame_error(exc):
+                    heal_attempts += 1
+                    await self._heal_detached_page()
+                    continue
+                if heal_attempts < max_heal_attempts and is_mux_page_heal_error(exc):
+                    heal_attempts += 1
+                    await self._heal_reclaimed_page()
+                    continue
+                raise
         raise TimeoutError(
             f"{MUX_RECLAIM_STALL_TOKEN}: evaluate exceeded "
             f"{recv_timeout + float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC) + 15.0:.0f}s wall"
