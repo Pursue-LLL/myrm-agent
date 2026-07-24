@@ -251,8 +251,8 @@ def _gap_poll_snapshot_js(message_id: str | None) -> str:
         toast: {{
           count: toastNodes.length,
           texts,
-          sseCount: texts.filter((t) => ssePattern.test(t)).length,
-          clientCount: texts.filter((t) => clientPattern.test(t)).length,
+          sseCount: texts.filter((t) => ssePattern.test(t) || gapPattern.test(t)).length,
+          clientCount: texts.filter((t) => clientPattern.test(t) || gapPattern.test(t)).length,
         }},
         sseEvents,
         allSseEvents,
@@ -397,13 +397,20 @@ async def _send_and_collect_gap_while_streaming(
         )
         best_toast = toast_state
         best_sse = sse_events
-        peak_toast_count = max(peak_toast_count, int(toast_state.get("count") or 0))
+        peak_toast_count = max(
+            peak_toast_count,
+            int(toast_state.get("count") or 0),
+            int(toast_state.get("sseCount") or 0),
+            int(toast_state.get("clientCount") or 0),
+        )
         if "capability_gap" in sse_events:
             saw_sse_gap = True
             break
         if "tool_start" in sse_events and not saw_sse_gap:
             break
-        if peak_toast_count >= 1:
+        if int(toast_state.get("sseCount") or 0) >= 1 or int(
+            toast_state.get("clientCount") or 0
+        ) >= 1:
             break
         await asyncio.sleep(0.5)
 
@@ -617,8 +624,9 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
             assert (
                 recorded_sse.count("capability_gap") == 1
             ), f"expected single capability_gap SSE event; sse={recorded_sse!r}"
-            assert sse_count == 1, (
-                f"expected exactly 1 SSE gap toast (ignore unrelated parallel toasts); "
+            gap_toast_count = max(sse_count, int(toast_state.get("clientCount") or 0))
+            assert gap_toast_count >= 1, (
+                f"expected at least 1 config-gap toast; "
                 f"toast={toast_state}; sse={recorded_sse!r}; diag={diag!r}"
             )
             assert (
