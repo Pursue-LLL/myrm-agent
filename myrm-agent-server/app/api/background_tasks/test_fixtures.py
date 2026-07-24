@@ -29,6 +29,7 @@ from app.config.settings import get_settings
 from app.database.dto import ChatCreate
 from app.services.agent.agent_service import AgentService
 from app.services.chat.chat_service import ChatService
+from myrm_agent_harness.api.hooks import INPUT_WAIT_IDLE_SECONDS
 
 router = APIRouter()
 
@@ -250,10 +251,27 @@ def _write_vault_log_fixture(*, chat_id: str, pid: int, workspace: Path) -> str:
     return filename
 
 
+def _backdate_registry_last_output(pid: int, idle_seconds: float) -> None:
+    """Local E2E only: force waiting_for_input without wall-clock sleep."""
+    from myrm_agent_harness.api.hooks import get_background_registry
+
+    registry = get_background_registry()
+    with registry._lock:  # type: ignore[attr-defined]
+        entry = registry._entries.get(pid)
+        if entry is None:
+            return
+        entry.info.last_output_at = time.time() - idle_seconds
+
+
 @router.post("/test/seed-shell-fixture", include_in_schema=False)
 async def seed_shell_fixture(
     mode: Literal[
-        "failed", "running", "running_stdin", "success", "completed_with_vault"
+        "failed",
+        "running",
+        "running_stdin",
+        "running_stdin_waiting",
+        "success",
+        "completed_with_vault",
     ] = Query(default="failed"),
 ) -> dict[str, object]:
     """Local dev/test only: seed a shell background job for Chrome E2E."""
@@ -277,6 +295,12 @@ async def seed_shell_fixture(
             '"import sys,time; line=sys.stdin.readline(); '
             "print('MYRM_STDIN_ECHO:'+line.strip(), flush=True); time.sleep(120)\""
         )
+    elif mode == "running_stdin_waiting":
+        command = (
+            f"{sys.executable} -c "
+            '"import sys,time; line=sys.stdin.readline(); '
+            "print('MYRM_STDIN_ECHO:'+line.strip(), flush=True); time.sleep(120)\""
+        )
     elif mode == "success":
         command = f"{sys.executable} -c \"print('{_SUCCESS_MARKER}', flush=True)\""
     elif mode == "completed_with_vault":
@@ -287,6 +311,9 @@ async def seed_shell_fixture(
     pid = await _spawn_shell_fixture(
         workspace=workspace, chat_id=chat_id, command=command
     )
+    if mode == "running_stdin_waiting":
+        _backdate_registry_last_output(pid, INPUT_WAIT_IDLE_SECONDS + 5.0)
+
     from myrm_agent_harness.api.hooks import get_background_registry
 
     if mode in {"failed", "success", "completed_with_vault"}:
