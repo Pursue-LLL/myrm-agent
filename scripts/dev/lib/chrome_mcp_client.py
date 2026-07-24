@@ -219,20 +219,28 @@ class ChromeMcpClient:
             )
         return self._mux_reset_executor
 
-    def _acquire_request_lock(self, *, timeout_sec: float | None = None) -> None:
+    def _acquire_request_lock(self, *, timeout_sec: float | None = None) -> threading.Lock:
         wait_sec = (
             float(timeout_sec)
             if timeout_sec is not None
             else _REQUEST_LOCK_ACQUIRE_SEC
         )
         wait_sec = max(0.1, min(wait_sec, _REQUEST_LOCK_ACQUIRE_SEC))
-        if not self._request_lock.acquire(timeout=wait_sec):
+        lock = self._request_lock
+        if not lock.acquire(timeout=wait_sec):
             raise RuntimeError(
                 f"{MUX_RECLAIM_STALL_TOKEN}: request lock blocked for {wait_sec:.1f}s"
             )
+        return lock
 
-    def _release_request_lock(self) -> None:
-        self._request_lock.release()
+    def _release_request_lock(self, lock: threading.Lock | None = None) -> None:
+        target = lock if lock is not None else self._request_lock
+        try:
+            target.release()
+        except RuntimeError:
+            # abandon_inflight_requests() may replace _request_lock while orphan
+            # threads still hold the previous lock instance.
+            pass
 
     def _read_wave_status(self) -> dict[str, object] | None:
         try:
@@ -1185,7 +1193,7 @@ class ChromeMcpClient:
         last_transport_error: _TransportDeadError | None = None
         for transport_attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
             try:
-                self._acquire_request_lock()
+                held_lock = self._acquire_request_lock()
                 try:
                     if start_generation != self._request_generation:
                         raise RuntimeError(
@@ -1199,7 +1207,7 @@ class ChromeMcpClient:
                         timeout_sec=timeout_sec,
                     )
                 finally:
-                    self._release_request_lock()
+                    self._release_request_lock(held_lock)
             except _TransportDeadError as exc:
                 last_transport_error = exc
                 _LOGGER.warning(
