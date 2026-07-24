@@ -265,7 +265,14 @@ async function initProvidersForE2e(opts?: E2eChatSessionOpts): Promise<void> {
       throw new Error('e2e-private-backend-not-ready');
     }
     await useProviderStore.getState().retryInit();
-    await hydrateSearchServicesFromE2eApi();
+    if (
+      typeof window !== 'undefined' &&
+      window.__MYRM_E2E_BLOCK_SEARCH_SYNC__
+    ) {
+      clearSearchServicesForE2e();
+    } else {
+      await hydrateSearchServicesFromE2eApi();
+    }
     await waitE2eProviderSendReady(Date.now() + 120_000);
     return;
   }

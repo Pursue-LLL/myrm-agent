@@ -277,6 +277,7 @@ class CdpChatBootstrap(CdpChatTransport):
 
     async def _wait_shell_layout_ready(self, *, deadline: float) -> dict[str, object]:
         from dev_gate_contract import (
+            MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
             MUX_RECLAIM_STALL_TOKEN,
             SHELL_PROBE_STALL_FAIL_FAST_SEC,
         )
@@ -286,7 +287,11 @@ class CdpChatBootstrap(CdpChatTransport):
         probe_started = time.monotonic()
         mux_recover_attempts = 0
         stall_cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
-        eval_wall_sec = _SHELL_PROBE_RECV_TIMEOUT_SEC + 5.0
+        eval_wall_sec = (
+            _SHELL_PROBE_RECV_TIMEOUT_SEC
+            + float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC)
+            + 15.0
+        )
         while time.monotonic() < deadline:
             polls += 1
             self._shell_probe_progress(

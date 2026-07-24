@@ -75,21 +75,21 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
     await bridge.pinLiteModelForE2e();
   }
   window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
+  if (typeof bridge.setActionMode !== 'function') {
+    return { ok: false, err: 'no-setActionMode' };
+  }
   bridge.resetChat?.();
-  await bridge.ensureChatSession?.();
+  bridge.setActionMode('fast');
   if (typeof bridge.clearSearchServicesForE2e === 'function') {
     bridge.clearSearchServicesForE2e();
   } else if (typeof bridge.syncSearchServicesFromE2eApi === 'function') {
     await bridge.syncSearchServicesFromE2eApi();
   }
-  if (typeof bridge.setActionMode !== 'function') {
-    return { ok: false, err: 'no-setActionMode' };
-  }
-  bridge.setActionMode('fast');
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
+  const sendOpts = { baselineUserCount: usersBefore, preserveActionMode: true };
   let result;
   if (typeof bridge.sendChatMessage === 'function') {
-    result = await bridge.sendChatMessage('快速搜索今天新闻', { baselineUserCount: usersBefore });
+    result = await bridge.sendChatMessage('快速搜索今天新闻', sendOpts);
   } else if (typeof bridge.setInputMessage === 'function' && typeof bridge.handleSubmit === 'function') {
     bridge.setInputMessage('快速搜索今天新闻');
     bridge._submitBaselineUsers = usersBefore;
@@ -121,38 +121,38 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
   };
   if (!result?.ok) {
     const { texts, clientCount, toastNodes } = await waitForClientToast(Date.now() + 15000);
+    const usersAfter = bridge.turnSnapshot?.().userCount ?? 0;
+    if (clientCount >= 1 && usersAfter === usersBefore) {
+      return {
+        ok: true,
+        usersBefore,
+        usersAfter,
+        clientCount,
+        toastCount: toastNodes.length,
+        texts,
+        actionMode: bridge.getActionMode?.() ?? null,
+        sendErr: result?.err ?? 'send-blocked',
+      };
+    }
     return {
-      ok: true,
+      ok: false,
+      err: 'send-blocked-without-toast',
       usersBefore,
-      usersAfter: bridge.turnSnapshot?.().userCount ?? 0,
+      usersAfter,
       clientCount,
       toastCount: toastNodes.length,
       texts,
       actionMode: bridge.getActionMode?.() ?? null,
       sendErr: result?.err ?? 'send-blocked',
-    };
-  }
-  const { texts, clientCount, toastNodes } = await waitForClientToast(Date.now() + 15000);
-  const usersAfter = bridge.turnSnapshot?.().userCount ?? 0;
-  if (clientCount === 0 && usersAfter === usersBefore) {
-    return {
-      ok: false,
-      err: 'send-unexpected-ok-without-toast',
-      usersBefore,
-      usersAfter,
-      clientCount,
       send: result,
-      actionMode: bridge.getActionMode?.() ?? null,
-      texts,
     };
   }
   return {
-    ok: true,
+    ok: false,
+    err: 'send-unexpected-ok',
     usersBefore,
-    usersAfter,
-    clientCount,
-    toastCount: toastNodes.length,
-    texts,
+    usersAfter: bridge.turnSnapshot?.().userCount ?? 0,
+    send: result,
     actionMode: bridge.getActionMode?.() ?? null,
   };
 })()"""
