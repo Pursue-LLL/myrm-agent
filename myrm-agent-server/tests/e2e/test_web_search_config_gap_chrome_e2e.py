@@ -75,7 +75,9 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
   window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
   bridge.resetChat?.();
   await bridge.ensureChatSession?.();
-  if (typeof bridge.syncSearchServicesFromE2eApi === 'function') {
+  if (typeof bridge.clearSearchServicesForE2e === 'function') {
+    bridge.clearSearchServicesForE2e();
+  } else if (typeof bridge.syncSearchServicesFromE2eApi === 'function') {
     await bridge.syncSearchServicesFromE2eApi();
   }
   if (typeof bridge.setActionMode !== 'function') {

@@ -38,6 +38,7 @@ import {
   shouldPreserveE2eActionMode,
   shouldRunPrepareAutomationSend,
 } from '@/components/dev/e2eChatBridgeSendPolicy';
+import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 
 function isLocalDevHost(): boolean {
   if (typeof window === 'undefined') return false;
@@ -114,6 +115,17 @@ async function fetchSearchServiceConfigsFromApi(apiBase: string): Promise<Search
   }
   const body: unknown = await resp.json();
   return extractSearchServiceConfigs(body);
+}
+
+function clearSearchServicesForE2e(): { ok: boolean; count: number } {
+  window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
+  useConfigStore.setState({ searchServiceConfigs: [] });
+  try {
+    getConfigSyncManager().set('searchServices', { searchServiceConfigs: [] });
+  } catch {
+    /* cache-only mirror when sync manager unavailable */
+  }
+  return { ok: true, count: 0 };
 }
 
 async function hydrateSearchServicesFromE2eApi(): Promise<{ ok: boolean; err?: string; count?: number }> {
@@ -488,6 +500,7 @@ export default function E2EChatBridge() {
         return getModelSelection(actionMode, agentConfig) !== null;
       },
       syncSearchServicesFromE2eApi: hydrateSearchServicesFromE2eApi,
+      clearSearchServicesForE2e,
       debugProviderState: () => {
         const { isInitialized, providers, defaultModelConfig } = useProviderStore.getState();
         const { actionMode, agentConfig, chatId, currentSessionMessageId } = useChatStore.getState();

@@ -38,22 +38,24 @@ def reset_e2e_wall_budget_clock() -> None:
 
 
 def reset_chrome_e2e_body_clocks(*, timeout_sec: int, item: pytest.Item) -> None:
-    """R48: SHPOIB/bootstrap complete — start fresh 600s body + pytest-timeout budgets."""
+    """SHPOIB/bootstrap complete — fresh body wall + pytest-timeout budgets."""
     reset_e2e_wall_budget_clock()
     try:
         import pytest_timeout
 
         pytest_timeout.pytest_timeout_cancel_timer(item)
-        base = pytest_timeout._get_item_settings(item)
+        cfg = item.config
         settings = pytest_timeout.Settings(
             int(timeout_sec),
-            base.method,
-            base.func_only,
-            base.disable_debugger_detection,
+            getattr(cfg, "_env_timeout_method", pytest_timeout.DEFAULT_METHOD),
+            getattr(cfg, "_env_timeout_func_only", False),
+            getattr(cfg, "_env_timeout_disable_debugger_detection", False),
         )
         pytest_timeout.pytest_timeout_set_timer(item, settings)
     except ImportError:
         pass
+    except Exception as exc:
+        print(f"E2E_BODY_CLOCK_RESET_WARN: {exc}", flush=True)
     print(
         f"E2E_BODY_CLOCK_RESET: timeout={int(timeout_sec)}s "
         "(SHPOIB/bootstrap excluded from body budget)",

@@ -333,6 +333,13 @@ class CdpChatBootstrap(CdpChatTransport):
                 mux_recover_attempts = await self._recover_shell_probe_mux(
                     mux_recover_attempts
                 )
+                elapsed_after = time.monotonic() - probe_started
+                if mux_recover_attempts >= 1 and elapsed_after >= stall_cap:
+                    raise RuntimeError(
+                        f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout evaluate "
+                        f"timed out after mux recover ({elapsed_after:.1f}s "
+                        f"cap={int(stall_cap)}s)"
+                    )
                 state = {"probeError": "evaluate_timeout"}
             last = state if isinstance(state, dict) else {"probeError": state}
             if _shell_probe_ready(last):

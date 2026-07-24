@@ -15,7 +15,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
 | `support/feature_flags.py` | 辅助 | `seed_voice_interaction_flags()`，供 `tests/api/voice`、`tests/api/stt` conftest autouse |
 | `support/bash_compressor_e2e.py` | 辅助 | bash compressor live/API E2E 共享 helper（模型 probe、workspace 压缩回放） |
-| `support/chrome_mcp_e2e.py` | 核心 | Chrome MCP E2E helper（`open_mcp_page`、`dismiss_blocking_modals`、`prepare_e2e_ui_session` onboarding 收口；`open_mcp_page` 默认 `timeout_ms=None` → mux adaptive） |
+| `support/e2e_wall_progress.py` | 辅助 | Chrome E2E 墙钟 progress token（R39 touch/reset）；`reset_chrome_e2e_body_clocks` 在 SHPOIB bootstrap 后重设 body 600s + pytest-timeout（R48 · 日志 `E2E_BODY_CLOCK_RESET`） |
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
@@ -101,6 +101,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - **A2UI Surface Gate Chrome E2E**：`tests/e2e/test_render_ui_surface_gate_chrome_e2e.py`（READ×2：Settings hint + `client_surface=web|tauri` + `__TAURI__`→`tauri`；submit+capture 3× mux 重试、`timeout=600`、`open_mcp_page timeout_ms=120_000`；LIVE inline 见 `test_render_ui_inline_card_chrome_e2e.py`；LIVE 按钮点击 → `ui_action` 见 `test_render_ui_inline_interaction_chrome_e2e.py`；LIVE `update_ui_data` 增量刷新 + **reload DB 持久**见 `test_render_ui_update_data_chrome_e2e.py`）
 - **A2UI surface_unavailable 单测**：`tests/services/agent/stream_session/test_entitlement_gap_preflight.py`（IM + render_ui ON + UI 意图 → `reason=surface_unavailable`；Web 可挂载 → None；dedup）；`tests/core/channel_bridge/test_stream_events.py`（`capability_gap` surface_unavailable + web_search config gap → ProgressUpdate）；frontend `gapEvents.test.ts`（info-only toast，无 enable/resend）
 - **web_search 未配置 gap 单测/集成**：`test_entitlement_gap_preflight.py`（`build_web_search_config_gap_sse_event` unit）；`test_stream_chunks_web_search_preflight.py`（config gap 独立于 entitlement preflight text / resume 边界）；`tests/api/agent/test_capability_gap_integration.py::test_agent_stream_emits_web_search_config_gap_sse`（agent-stream preflight SSE：`reason=not_configured` + `settings_path=/settings/search`）；`tests/core/channel_bridge/test_stream_events.py`（IM web_search gap + empty display_message fallback）；frontend `gapEvents.test.ts` + `webSearchConfigGap.test.ts`（`not_configured|unreachable` → i18n CTA / local 一键启用）
+- **web_search config-gap Chrome E2E**：`tests/e2e/test_web_search_config_gap_chrome_e2e.py`（LIVE×1 agent SSE capability_gap + READ×1 fast client guard toast；私池 search 空 + mux/allSse fallback + API 双通道；见 `CHROME_MCP_E2E.md` R48-B）
 - **A2UI 跨轮 DB patch 单测**：`tests/services/chat/test_ui_artifact_patch.py`（双 turn seed → `patch_ui_artifact_data_by_surface_id` → GET messages 断言 merged binding；collector 跨轮队列；finalize 接线）
 - `tests/integration/test_render_ui_sse_wiring.py`：render_ui 确定性集成（20 场景：run_bind、fail-closed、data_update、collector 链、幂等）
 - `tests/integration/test_ui_artifact_cross_turn_db_integration.py`：跨轮 `data_update` collector 队列 → 真实 SQLite patch → GET messages 断言 merged binding（无 mock 持久化路径）

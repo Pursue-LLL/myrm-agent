@@ -110,6 +110,8 @@ interface Window {
     pinLiteModelForE2e?: () => Promise<{ providerId: string; model: string }>;
     /** CDP E2E SHPOIB: mirror private-backend searchServices into useConfigStore. */
     syncSearchServicesFromE2eApi?: () => Promise<{ ok: boolean; err?: string; count?: number }>;
+    /** CDP E2E gap: force empty searchServices in FE store (no :8080 fallback). */
+    clearSearchServicesForE2e?: () => { ok: boolean; count: number };
     /** CDP E2E: pin agent chat to defaultModelConfig.baseModel (matches API get_model_selection). */
     pinBasicModelForE2e?: () => Promise<{ providerId: string; model: string }>;
     /** CDP E2E: abort in-flight SSE so API agent-stream resume can proceed (no cancel API). */
