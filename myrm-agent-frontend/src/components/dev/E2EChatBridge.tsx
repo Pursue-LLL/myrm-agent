@@ -57,9 +57,14 @@ function resolveE2eApiBase(): string {
   return resolveInjectedE2eApiBase() ?? '';
 }
 
-async function waitE2eProviderSendReady(deadlineMs: number): Promise<void> {
+async function waitE2eProviderSendReady(
+  deadlineMs: number,
+  preserveActionMode = false,
+): Promise<void> {
   while (Date.now() < deadlineMs) {
-    prepareAutomationSend();
+    if (!preserveActionMode) {
+      prepareAutomationSend();
+    }
     const { actionMode, agentConfig } = useChatStore.getState();
     const refreshed = useProviderStore.getState();
     const readyLite = refreshed.defaultModelConfig?.liteModel?.primary;
@@ -273,14 +278,15 @@ async function initProvidersForE2e(opts?: E2eChatSessionOpts): Promise<void> {
     } else {
       await hydrateSearchServicesFromE2eApi();
     }
-    await waitE2eProviderSendReady(Date.now() + 120_000);
+    await waitE2eProviderSendReady(Date.now() + 120_000, preserveActionMode);
     return;
   }
   const providerState = useProviderStore.getState();
   if (!providerState.isInitialized) {
     await providerState.initProviders();
   }
-  await waitE2eProviderSendReady(Date.now() + 120_000);
+  const preserveActionMode = shouldPreserveE2eActionMode(useChatStore.getState().actionMode, false);
+  await waitE2eProviderSendReady(Date.now() + 120_000, preserveActionMode);
 }
 
 type E2eSubmitResult = {
