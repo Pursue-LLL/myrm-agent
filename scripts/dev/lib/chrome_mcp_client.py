@@ -952,14 +952,6 @@ class ChromeMcpClient:
         if last_error is not None:
             raise last_error
 
-    def recover_mux_transport(self) -> None:
-        """Restart MCP shim after mux timeout or transport drift (E2E orchestrator hook)."""
-        if not self._request_lock.acquire(blocking=False):
-            self.abandon_inflight_requests()
-        else:
-            self._request_lock.release()
-        self._recover_mux_transport()
-
     def abandon_inflight_requests(self) -> None:
         """Invalidate orphaned mux I/O after asyncio cancelled a blocking evaluate thread."""
         self._request_generation += 1
@@ -968,6 +960,19 @@ class ChromeMcpClient:
         # Orphan to_thread may still hold the old lock in select(); replace so recover
         # on the event loop thread cannot deadlock (R49-R50).
         self._request_lock = threading.Lock()
+
+    def reset_after_orphan(self) -> None:
+        """Single orphan recovery entry: invalidate in-flight mux I/O and restart transport."""
+        self.abandon_inflight_requests()
+        self._recover_mux_transport()
+
+    def recover_mux_transport(self) -> None:
+        """Restart MCP shim after mux timeout or transport drift (E2E orchestrator hook)."""
+        if not self._request_lock.acquire(blocking=False):
+            self.reset_after_orphan()
+            return
+        self._request_lock.release()
+        self._recover_mux_transport()
 
     def call_tool(
         self,

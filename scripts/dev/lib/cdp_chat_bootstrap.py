@@ -273,8 +273,7 @@ class CdpChatBootstrap(CdpChatTransport):
     async def _recover_shell_probe_mux(self, mux_recover_attempts: int) -> int:
         client = getattr(self, "_client", None)
         if client is not None and mux_recover_attempts < 1:
-            client.abandon_inflight_requests()
-            client._recover_mux_transport()
+            client.reset_after_orphan()
             return mux_recover_attempts + 1
         return mux_recover_attempts
 
@@ -287,9 +286,11 @@ class CdpChatBootstrap(CdpChatTransport):
 
         last: dict[str, object] = {}
         polls = 0
-        probe_started = time.monotonic()
+        layout_wait_started = time.monotonic()
+        probe_started = layout_wait_started
         mux_recover_attempts = 0
         stall_cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
+        per_eval_cap = min(30.0, stall_cap)
         eval_wall_sec = (
             _SHELL_PROBE_RECV_TIMEOUT_SEC
             + float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC)
@@ -300,7 +301,7 @@ class CdpChatBootstrap(CdpChatTransport):
             self._shell_probe_progress(
                 polls=polls, started=probe_started, phase="wait_shell_layout"
             )
-            elapsed_total = time.monotonic() - probe_started
+            elapsed_total = time.monotonic() - layout_wait_started
             if elapsed_total >= stall_cap:
                 if mux_recover_attempts < 1:
                     mux_recover_attempts = await self._recover_shell_probe_mux(
@@ -323,7 +324,11 @@ class CdpChatBootstrap(CdpChatTransport):
                 try:
                     state = await asyncio.wait_for(
                         evaluate_task,
-                        timeout=min(stall_cap, eval_wall_sec),
+                        timeout=min(
+                            per_eval_cap,
+                            eval_wall_sec,
+                            max(5.0, deadline - time.monotonic()),
+                        ),
                     )
                 except TimeoutError:
                     evaluate_task.cancel()
@@ -345,15 +350,10 @@ class CdpChatBootstrap(CdpChatTransport):
                     continue
                 raise
             except TimeoutError:
-                client = getattr(self, "_client", None)
-                if client is not None:
-                    # Sync teardown — must not use default thread pool when orphan
-                    # evaluate threads already exhausted it (R48 deadlock fix).
-                    client.abandon_inflight_requests()
                 mux_recover_attempts = await self._recover_shell_probe_mux(
                     mux_recover_attempts
                 )
-                elapsed_after = time.monotonic() - probe_started
+                elapsed_after = time.monotonic() - layout_wait_started
                 if mux_recover_attempts >= 1 and elapsed_after >= stall_cap:
                     raise RuntimeError(
                         f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout evaluate "
@@ -387,7 +387,6 @@ class CdpChatBootstrap(CdpChatTransport):
                             deadline=hydrate_deadline,
                         )
                         probe_started = time.monotonic()
-                        mux_recover_attempts = 0
                     except (RuntimeError, TimeoutError):
                         try:
                             await self._reload_chat_shell_burst()
@@ -739,7 +738,9 @@ class CdpChatBootstrap(CdpChatTransport):
         await self.ensure_e2e_api_base_binding()
         recv_cap = 45.0
         if deadline is not None:
-            recv_cap = min(45.0, shpoib_shell_wait_slice_cap(deadline - time.monotonic()))
+            recv_cap = min(
+                45.0, shpoib_shell_wait_slice_cap(deadline - time.monotonic())
+            )
         try:
             await self.evaluate(
                 """(() => {
@@ -755,7 +756,9 @@ class CdpChatBootstrap(CdpChatTransport):
             pass
         shell_cap = 45.0
         if deadline is not None:
-            shell_cap = shpoib_shell_wait_slice_cap(max(0.0, deadline - time.monotonic()))
+            shell_cap = shpoib_shell_wait_slice_cap(
+                max(0.0, deadline - time.monotonic())
+            )
         try:
             await self.wait_shell_ready(timeout_sec=shell_cap, require_bridge=True)
         except TimeoutError:

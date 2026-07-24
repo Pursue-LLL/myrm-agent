@@ -95,10 +95,9 @@ class McpChatSession(CdpChatSession):
                     timeout=attempt_timeout,
                 )
             except TimeoutError:
-                self._client.abandon_inflight_requests()
                 mux_attempts += 1
                 if mux_attempts < max_mux_attempts:
-                    self._client._recover_mux_transport()
+                    self._client.reset_after_orphan()
                     await asyncio.sleep(0.75 * mux_attempts)
                     continue
                 raise
@@ -106,8 +105,7 @@ class McpChatSession(CdpChatSession):
                 message = str(exc)
                 if mux_attempts < max_mux_attempts and MUX_RECLAIM_STALL_TOKEN in message:
                     mux_attempts += 1
-                    self._client.abandon_inflight_requests()
-                    self._client._recover_mux_transport()
+                    self._client.reset_after_orphan()
                     await asyncio.sleep(0.75 * mux_attempts)
                     continue
                 if mux_attempts < max_mux_attempts and (
@@ -115,8 +113,7 @@ class McpChatSession(CdpChatSession):
                     or "not running after transport recovery" in message.lower()
                 ):
                     mux_attempts += 1
-                    self._client.abandon_inflight_requests()
-                    self._client._recover_mux_transport()
+                    self._client.reset_after_orphan()
                     await asyncio.sleep(0.75 * mux_attempts)
                     continue
                 if heal_attempts < max_heal_attempts and is_detached_frame_error(exc):
