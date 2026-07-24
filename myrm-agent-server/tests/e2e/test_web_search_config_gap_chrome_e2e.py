@@ -39,13 +39,15 @@ _COUNT_TOASTS_JS = """(() => {
   );
   const texts = toastNodes.map((node) => (node.textContent || '').trim()).filter(Boolean);
   const ssePattern = /已开启网页搜索|Web search is enabled but no search API/i;
+  const gapPattern =
+    /网页搜索未配置|Web search is not configured|未配置或不可用|not configured or unavailable/i;
   const clientPattern =
     /此模式需要搜索服务|请先配置并启用搜索服务|搜索服务未配置|Search service not configured|This mode requires a search service|requires a search service/i;
   return {
     count: toastNodes.length,
     texts,
-    sseCount: texts.filter((t) => ssePattern.test(t)).length,
-    clientCount: texts.filter((t) => clientPattern.test(t)).length,
+    sseCount: texts.filter((t) => ssePattern.test(t) || gapPattern.test(t)).length,
+    clientCount: texts.filter((t) => clientPattern.test(t) || gapPattern.test(t)).length,
   };
 })()"""
 
@@ -99,13 +101,26 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
   const countClientToasts = () => {
     const toastNodes = Array.from(document.querySelectorAll('[data-sonner-toast]'));
     const texts = toastNodes.map((n) => (n.textContent || '').trim()).filter(Boolean);
+    const gapPattern =
+      /网页搜索未配置|Web search is not configured|未配置或不可用|not configured or unavailable/i;
     const clientCount = texts.filter((t) =>
-      /此模式需要搜索服务|请先配置并启用搜索服务|搜索服务未配置|Search service not configured|This mode requires a search service|requires a search service/i.test(t),
+      /此模式需要搜索服务|请先配置并启用搜索服务|搜索服务未配置|Search service not configured|This mode requires a search service|requires a search service/i.test(t)
+      || gapPattern.test(t),
     ).length;
     return { toastNodes, texts, clientCount };
   };
+  const waitForClientToast = async (deadlineMs) => {
+    while (Date.now() < deadlineMs) {
+      const snap = countClientToasts();
+      if (snap.clientCount >= 1) {
+        return snap;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    return countClientToasts();
+  };
   if (!result?.ok) {
-    const { texts, clientCount, toastNodes } = countClientToasts();
+    const { texts, clientCount, toastNodes } = await waitForClientToast(Date.now() + 15000);
     return {
       ok: true,
       usersBefore,
@@ -117,8 +132,7 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
       sendErr: result?.err ?? 'send-blocked',
     };
   }
-  await new Promise((r) => setTimeout(r, 1200));
-  const { texts, clientCount, toastNodes } = countClientToasts();
+  const { texts, clientCount, toastNodes } = await waitForClientToast(Date.now() + 15000);
   const usersAfter = bridge.turnSnapshot?.().userCount ?? 0;
   if (clientCount === 0 && usersAfter === usersBefore) {
     return {
@@ -204,6 +218,8 @@ def _gap_poll_snapshot_js(message_id: str | None) -> str:
       );
       const texts = toastNodes.map((node) => (node.textContent || '').trim()).filter(Boolean);
       const ssePattern = /已开启网页搜索|Web search is enabled but no search API/i;
+      const gapPattern =
+        /网页搜索未配置|Web search is not configured|未配置或不可用|not configured or unavailable/i;
       const clientPattern =
         /此模式需要搜索服务|请先配置并启用搜索服务|搜索服务未配置|Search service not configured|This mode requires a search service|requires a search service/i;
       let streamMessageId = {filter_json};
