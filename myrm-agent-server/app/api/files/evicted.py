@@ -95,7 +95,7 @@ async def read_evicted_output(
         0, ge=0, description="Line offset to start reading from (0-based)"
     ),
     limit: int = Query(0, ge=0, description="Number of lines to return (0 = all)"),
-) -> dict:
+) -> dict[str, object] | JSONResponse:
     """Read an evicted tool output file.
 
     Returns the full or partial content of a file that was saved during
