@@ -44,10 +44,17 @@ def _shell_probe_ready(probe: dict[str, object]) -> bool:
 class CdpChatBootstrap(CdpChatTransport):
     _e2e_api_base_bound: bool = False
     _bootstrap_started_monotonic: float | None = None
+    # Session SSOT: hydrate re-entry must not reset shell-layout stall clock (R51).
+    _shell_layout_wait_started: float | None = None
 
     def _mark_bootstrap_started(self) -> None:
         if self._bootstrap_started_monotonic is None:
             self._bootstrap_started_monotonic = time.monotonic()
+
+    def _reset_shell_layout_wait_clock(self) -> None:
+        """Fresh shell-layout stall budget after page reopen or bootstrap retry."""
+        self._shell_layout_wait_started = None
+        self._last_shell_probe_log_sec = -1
 
     def _check_bootstrap_stall_fail_fast(self, *, phase: str) -> None:
         try:
@@ -119,6 +126,7 @@ class CdpChatBootstrap(CdpChatTransport):
     ) -> dict[str, object]:
         timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
         deadline = time.monotonic() + timeout_sec
+        self._reset_shell_layout_wait_clock()
         self._mark_bootstrap_started()
         last = await self._bootstrap_shell_ready_phase(
             base_url,
@@ -271,13 +279,23 @@ class CdpChatBootstrap(CdpChatTransport):
         )
 
     async def _recover_shell_probe_mux(self, mux_recover_attempts: int) -> int:
+        from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
+
         client = getattr(self, "_client", None)
         if client is not None and mux_recover_attempts < 1:
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                client.mux_eval_executor(),
-                client.reset_after_orphan,
-            )
+            try:
+                await asyncio.wait_for(
+                    loop.run_in_executor(
+                        client.mux_reset_executor(),
+                        client.reset_after_orphan,
+                    ),
+                    timeout=45.0,
+                )
+            except TimeoutError as exc:
+                raise RuntimeError(
+                    f"{MUX_RECLAIM_STALL_TOKEN}: reset_after_orphan timed out after 45s"
+                ) from exc
             return mux_recover_attempts + 1
         return mux_recover_attempts
 
@@ -290,16 +308,20 @@ class CdpChatBootstrap(CdpChatTransport):
 
         last: dict[str, object] = {}
         polls = 0
-        layout_wait_started = time.monotonic()
+        if self._shell_layout_wait_started is None:
+            self._shell_layout_wait_started = time.monotonic()
+        layout_wait_started = self._shell_layout_wait_started
         probe_started = layout_wait_started
         mux_recover_attempts = 0
         stall_cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
         per_eval_cap = min(30.0, stall_cap)
-        eval_wall_sec = (
+        eval_wall_sec = min(
+            _SHELL_PROBE_RECV_TIMEOUT_SEC + 25.0,
             _SHELL_PROBE_RECV_TIMEOUT_SEC
             + float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC)
-            + 15.0
+            + 15.0,
         )
+        orphan_eval_task: asyncio.Task[object] | None = None
         while time.monotonic() < deadline:
             polls += 1
             self._shell_probe_progress(
@@ -318,6 +340,12 @@ class CdpChatBootstrap(CdpChatTransport):
                         "recover mux and retry"
                     )
             try:
+                if orphan_eval_task is not None and not orphan_eval_task.done():
+                    await asyncio.wait({orphan_eval_task}, timeout=2.0)
+                    if not orphan_eval_task.done():
+                        mux_recover_attempts = await self._recover_shell_probe_mux(
+                            mux_recover_attempts
+                        )
                 eval_timeout = min(
                     per_eval_cap,
                     eval_wall_sec,
@@ -336,6 +364,7 @@ class CdpChatBootstrap(CdpChatTransport):
                 )
                 if pending:
                     # Never cancel to_thread evaluate — wait_for cancel deadlocks (R48).
+                    orphan_eval_task = evaluate_task
                     mux_recover_attempts = await self._recover_shell_probe_mux(
                         mux_recover_attempts
                     )
@@ -348,7 +377,33 @@ class CdpChatBootstrap(CdpChatTransport):
                         )
                     state = {"probeError": "evaluate_timeout"}
                 else:
-                    state = evaluate_task.result()
+                    orphan_eval_task = None
+                    try:
+                        state = evaluate_task.result()
+                    except TimeoutError:
+                        mux_recover_attempts = await self._recover_shell_probe_mux(
+                            mux_recover_attempts
+                        )
+                        elapsed_after = time.monotonic() - layout_wait_started
+                        if mux_recover_attempts >= 1 and elapsed_after >= stall_cap:
+                            raise RuntimeError(
+                                f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout evaluate "
+                                f"timed out after mux recover ({elapsed_after:.1f}s "
+                                f"cap={int(stall_cap)}s)"
+                            ) from None
+                        state = {"probeError": "evaluate_timeout"}
+            except TimeoutError:
+                mux_recover_attempts = await self._recover_shell_probe_mux(
+                    mux_recover_attempts
+                )
+                elapsed_after = time.monotonic() - layout_wait_started
+                if mux_recover_attempts >= 1 and elapsed_after >= stall_cap:
+                    raise RuntimeError(
+                        f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout evaluate "
+                        f"timed out after mux recover ({elapsed_after:.1f}s "
+                        f"cap={int(stall_cap)}s)"
+                    ) from None
+                state = {"probeError": "evaluate_timeout"}
             except RuntimeError as exc:
                 message = str(exc)
                 if MUX_RECLAIM_STALL_TOKEN in message:
@@ -390,7 +445,6 @@ class CdpChatBootstrap(CdpChatTransport):
                             ui_base,
                             deadline=hydrate_deadline,
                         )
-                        probe_started = time.monotonic()
                     except (RuntimeError, TimeoutError):
                         try:
                             await self._reload_chat_shell_burst()
