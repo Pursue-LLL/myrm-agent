@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -71,6 +72,7 @@ def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
 
 def shpoib_shell_wait_slice_cap(remaining_sec: float) -> float:
     """Per-iteration cap for MCP shell wait loops (parallel SHPOIB needs >60s)."""
+    remaining_sec = max(0.0, remaining_sec)
     if os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1":
         return max(60.0, min(remaining_sec, 180.0))
     return min(remaining_sec, 60.0)
@@ -1241,18 +1243,36 @@ async def ensure_e2e_search_cleared_in_browser(
     """Clear searchServices: Python SSOT first, then browser mirror (PUT retry + verify fallback)."""
     resolved = (api_url or get_e2e_api_url()).rstrip("/")
     clear_search_services_ssot(api_url=resolved)
-    await chat.evaluate(CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, await_promise=False)  # type: ignore[attr-defined]
-    raw = await chat.evaluate(PUT_E2E_CLEAR_SEARCH_CONFIG_JS, await_promise=True)  # type: ignore[attr-defined]
-    observed = raw if isinstance(raw, dict) else {"value": raw}
-    if observed.get("ok") is True:
-        return
+    await chat.evaluate(CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, await_promise=False, recv_timeout=30.0)  # type: ignore[attr-defined]
+    last_err: object = None
+    for attempt in range(3):
+        try:
+            raw = await chat.evaluate(  # type: ignore[attr-defined]
+                PUT_E2E_CLEAR_SEARCH_CONFIG_JS,
+                await_promise=True,
+                recv_timeout=120.0,
+            )
+        except TimeoutError as exc:
+            last_err = exc
+            if attempt + 1 >= 3:
+                raise
+            await asyncio.sleep(1.5 * (attempt + 1))
+            continue
+        observed = raw if isinstance(raw, dict) else {"value": raw}
+        if observed.get("ok") is True:
+            return
+        last_err = observed
+        if attempt + 1 < 3:
+            await asyncio.sleep(1.0)
+            continue
+        break
     # Last resort: Python SSOT still empty → accept FE mirror failure only if verify holds.
     value = fetch_config_value("searchServices", api_url=resolved)
     configs = value.get("searchServiceConfigs")
     if configs == []:
         return
     raise RuntimeError(
-        f"Browser search clear failed: {observed}; persisted={value!r}; api={resolved}"
+        f"Browser search clear failed: {last_err}; persisted={value!r}; api={resolved}"
     )
 
 

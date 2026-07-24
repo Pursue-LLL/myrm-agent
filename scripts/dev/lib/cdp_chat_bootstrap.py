@@ -736,10 +736,16 @@ class CdpChatBootstrap(CdpChatTransport):
     async def _after_new_chat_reset(self, *, deadline: float | None = None) -> None:
         """SHPOIB hot UI: re-bind private backend and refresh provider store after reset."""
         await self.ensure_e2e_api_base_binding()
+        if deadline is not None and time.monotonic() >= deadline:
+            return
         recv_cap = 45.0
         if deadline is not None:
-            recv_cap = min(
-                45.0, shpoib_shell_wait_slice_cap(deadline - time.monotonic())
+            recv_cap = max(
+                5.0,
+                min(
+                    45.0,
+                    shpoib_shell_wait_slice_cap(deadline - time.monotonic()),
+                ),
             )
         try:
             await self.evaluate(
@@ -754,10 +760,13 @@ class CdpChatBootstrap(CdpChatTransport):
             )
         except (RuntimeError, TimeoutError):
             pass
+        if deadline is not None and time.monotonic() >= deadline:
+            return
         shell_cap = 45.0
         if deadline is not None:
-            shell_cap = shpoib_shell_wait_slice_cap(
-                max(0.0, deadline - time.monotonic())
+            shell_cap = max(
+                5.0,
+                shpoib_shell_wait_slice_cap(deadline - time.monotonic()),
             )
         try:
             await self.wait_shell_ready(timeout_sec=shell_cap, require_bridge=True)
