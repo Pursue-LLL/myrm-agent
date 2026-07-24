@@ -300,6 +300,7 @@ myrm_agent_harness.toolkits.kanban.protocols
 myrm_agent_harness.toolkits.kanban.types
 myrm_agent_harness.toolkits.llms
 myrm_agent_harness.toolkits.llms.consensus
+myrm_agent_harness.toolkits.llms.core.credential_pool
 myrm_agent_harness.toolkits.llms.errors
 myrm_agent_harness.toolkits.llms.errors.classifier
 myrm_agent_harness.toolkits.llms.errors.resilient
