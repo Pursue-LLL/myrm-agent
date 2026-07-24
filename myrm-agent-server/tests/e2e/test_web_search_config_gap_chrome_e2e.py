@@ -193,7 +193,7 @@ _FORCE_IDLE_BEFORE_GAP_SEND_JS = """(async () => {
   bridge.abortActiveStream?.();
   bridge.releaseActiveStreamForApiResume?.();
   bridge.clearSseSnapshot?.();
-  const deadline = Date.now() + 20000;
+  const deadline = Date.now() + 45000;
   while (Date.now() < deadline) {
     const turn = bridge.turnSnapshot?.() ?? {};
     const sendReady = !!bridge.isSendReady?.();
@@ -203,10 +203,13 @@ _FORCE_IDLE_BEFORE_GAP_SEND_JS = """(async () => {
     bridge.abortActiveStream?.();
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
+  const turn = bridge.turnSnapshot?.() ?? {};
   return {
     ok: false,
-    err: 'chat-still-streaming',
-    turn: bridge.turnSnapshot?.() ?? null,
+    err: turn.isStreaming ? 'chat-still-streaming' : 'send-not-ready',
+    turn,
+    sendReady: !!bridge.isSendReady?.(),
+    debug: bridge.debugProviderState?.() ?? null,
   };
 })()"""
 
@@ -377,7 +380,7 @@ async def _send_and_collect_gap_while_streaming(
     force_idle = await chat.evaluate(
         _FORCE_IDLE_BEFORE_GAP_SEND_JS,
         await_promise=True,
-        recv_timeout=25.0,
+        recv_timeout=60.0,
     )
     assert isinstance(force_idle, dict) and force_idle.get("ok") is True, force_idle
 

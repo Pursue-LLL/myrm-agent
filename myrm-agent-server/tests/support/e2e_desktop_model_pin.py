@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 
 from tests.api.agent.utils import get_model_selection
+from tests.e2e.desktop_approval.constants import BASE_URL
 from tests.support.e2e_lite_model_pin import strip_provider_prefix
 
 try:
@@ -113,6 +114,7 @@ async def pin_basic_model_for_desktop_e2e(
             or err in {"no-bridge", "no-selection"}
         ):
             if err in {"no-bridge", "no-selection"}:
+                await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)  # type: ignore[attr-defined]
                 await chat.ensure_react_e2e_bridge(timeout_sec=120.0)  # type: ignore[attr-defined]
             await asyncio.sleep(retry_sleep_sec)
             continue

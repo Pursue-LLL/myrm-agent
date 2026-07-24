@@ -179,6 +179,23 @@ class CdpChatInput(CdpChatBootstrap):
         )
         return result if isinstance(result, dict) else {"hasPauseTrigger": False}
 
+    async def _heal_empty_chat_shell_for_bridge(self) -> None:
+        """Re-navigate when CDP page lost chat shell (blank / no input / no bridge)."""
+        import os
+
+        base = getattr(self, "_base_url", None) or os.getenv(
+            "E2E_UI_BASE", "http://127.0.0.1:3000"
+        )
+        ui_base = str(base).rstrip("/")
+        await asyncio.to_thread(
+            self._client.navigate,
+            self._page,
+            f"{ui_base}/",
+            timeout_ms=120_000,
+        )
+        await asyncio.sleep(2.0)
+        await self.ensure_e2e_api_base_binding()
+
     async def ensure_react_e2e_bridge(self, *, timeout_sec: float = 90.0) -> None:
         """Wait for the full React E2E bridge (not DOM-only fallback)."""
         deadline = time.monotonic() + timeout_sec
@@ -218,6 +235,14 @@ class CdpChatInput(CdpChatBootstrap):
             should_reload = polls in {15, 30, 45}
             if isinstance(probe, dict) and probe.get("fallback"):
                 should_reload = True
+            if (
+                isinstance(probe, dict)
+                and not probe.get("hasInput")
+                and not probe.get("hasBuiltinTools")
+                and polls in {1, 5, 10, 20, 30, 40}
+            ):
+                await self._heal_empty_chat_shell_for_bridge()
+                continue
             if should_reload:
                 await self.cdp("Page.reload", {"ignoreCache": True}, recv_timeout=120.0)
                 await asyncio.sleep(4)
