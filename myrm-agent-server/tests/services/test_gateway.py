@@ -57,7 +57,9 @@ class TestGatewayBasic:
             yield {"done": True}
 
         async def run():
-            async for _ in gw.execute_stream(long_stream(), agent_type="test", session_id="s1"):
+            async for _ in gw.execute_stream(
+                long_stream(), agent_type="test", session_id="s1"
+            ):
                 pass
 
         _task = asyncio.create_task(run())
@@ -83,7 +85,10 @@ class TestGatewayBasic:
 
         async def run():
             async for _ in gw.execute_stream(
-                long_stream(), agent_type="general", session_id="s-fleet", agent_id="agent-xyz"
+                long_stream(),
+                agent_type="general",
+                session_id="s-fleet",
+                agent_id="agent-xyz",
             ):
                 pass
 
@@ -131,14 +136,18 @@ class TestGatewayBusy:
             yield {}
 
         async def run():
-            async for _ in gw.execute_stream(long_stream(), agent_type="test", session_id="dup"):
+            async for _ in gw.execute_stream(
+                long_stream(), agent_type="test", session_id="dup"
+            ):
                 pass
 
         _task = asyncio.create_task(run())
         await asyncio.sleep(0.05)
 
         with pytest.raises(AgentBusyError):
-            async for _ in gw.execute_stream(_dummy_stream(), agent_type="test", session_id="dup"):
+            async for _ in gw.execute_stream(
+                _dummy_stream(), agent_type="test", session_id="dup"
+            ):
                 pass
 
         _task.cancel()
@@ -158,14 +167,18 @@ class TestGatewayQueueTimeout:
             yield {}
 
         async def run_blocker():
-            async for _ in gw.execute_stream(blocker(), agent_type="test", session_id="blocker"):
+            async for _ in gw.execute_stream(
+                blocker(), agent_type="test", session_id="blocker"
+            ):
                 pass
 
         _task = asyncio.create_task(run_blocker())
         await asyncio.sleep(0.05)
 
         with pytest.raises(AgentQueueTimeout):
-            async for _ in gw.execute_stream(_dummy_stream(), agent_type="test", session_id="waiter"):
+            async for _ in gw.execute_stream(
+                _dummy_stream(), agent_type="test", session_id="waiter"
+            ):
                 pass
 
         assert "waiter" not in gw._session_info
@@ -193,7 +206,9 @@ class TestGatewayInterrupt:
 
         async def run():
             nonlocal interrupted
-            async for _ in gw.execute_stream(slow_stream(), agent_type="test", session_id="s1"):
+            async for _ in gw.execute_stream(
+                slow_stream(), agent_type="test", session_id="s1"
+            ):
                 pass
             interrupted = True
 
@@ -215,7 +230,9 @@ class TestGatewayInterrupt:
                 yield {}
 
         async def run(sid: str):
-            async for _ in gw.execute_stream(slow_stream(), agent_type="test", session_id=sid):
+            async for _ in gw.execute_stream(
+                slow_stream(), agent_type="test", session_id=sid
+            ):
                 pass
             results[sid] = True
 
@@ -248,7 +265,9 @@ class TestGatewayInterrupt:
 
         async def run() -> None:
             nonlocal interrupted
-            async for _ in gw.execute_stream(slow_stream(), agent_type="test", session_id="chat-a"):
+            async for _ in gw.execute_stream(
+                slow_stream(), agent_type="test", session_id="chat-a"
+            ):
                 pass
             interrupted = True
 
@@ -337,7 +356,9 @@ class TestGatewayPerUserConcurrency:
         await asyncio.sleep(0.05)
 
         with pytest.raises(AgentQueueTimeout):
-            async for _ in gw.execute_stream(_dummy_stream(), agent_type="t", session_id="s3"):
+            async for _ in gw.execute_stream(
+                _dummy_stream(), agent_type="t", session_id="s3"
+            ):
                 pass
 
         t1.cancel()
@@ -409,7 +430,9 @@ class TestGatewayErrorCleanup:
             raise RuntimeError("Agent crashed")
 
         with pytest.raises(RuntimeError, match="Agent crashed"):
-            async for _ in gw.execute_stream(failing_stream(), agent_type="t", session_id="s1"):
+            async for _ in gw.execute_stream(
+                failing_stream(), agent_type="t", session_id="s1"
+            ):
                 pass
 
         assert gw.active_count == 0
@@ -444,7 +467,9 @@ class TestGatewayExecutionTimeout:
                 yield {}
 
         with pytest.raises(AgentExecutionTimeout):
-            async for _ in gw.execute_stream(infinite(), agent_type="t", session_id="timeout_sid"):
+            async for _ in gw.execute_stream(
+                infinite(), agent_type="t", session_id="timeout_sid"
+            ):
                 pass
 
         assert "timeout_sid" not in gw._active_sessions
@@ -463,7 +488,12 @@ class TestGatewayExecutionTimeout:
 
         # Without goal_active: 0.1s timeout would kill a 0.15s stream
         # With goal_active: 3600s timeout allows it to complete
-        events = [e async for e in gw.execute_stream(slow_stream(), agent_type="test", session_id="goal_s1", goal_active=True)]
+        events = [
+            e
+            async for e in gw.execute_stream(
+                slow_stream(), agent_type="test", session_id="goal_s1", goal_active=True
+            )
+        ]
         assert len(events) == 3
         assert gw.active_count == 0
 
@@ -494,11 +524,23 @@ class TestGatewayExecutionTimeout:
     def test_resolve_effective_timeout_tiers(self) -> None:
         """确定性验证超时分层：goal > fission > default（不依赖 wall-clock）。"""
         gw = AgentGateway(_cfg(execution_timeout=5.0))
-        assert gw._resolve_effective_timeout(goal_active=False, fission_active=False) == 5.0
-        assert gw._resolve_effective_timeout(goal_active=False, fission_active=True) == 10.0
-        assert gw._resolve_effective_timeout(goal_active=True, fission_active=False) == 3600.0
+        assert (
+            gw._resolve_effective_timeout(goal_active=False, fission_active=False)
+            == 5.0
+        )
+        assert (
+            gw._resolve_effective_timeout(goal_active=False, fission_active=True)
+            == 10.0
+        )
+        assert (
+            gw._resolve_effective_timeout(goal_active=True, fission_active=False)
+            == 3600.0
+        )
         # goal 优先级高于 fission
-        assert gw._resolve_effective_timeout(goal_active=True, fission_active=True) == 3600.0
+        assert (
+            gw._resolve_effective_timeout(goal_active=True, fission_active=True)
+            == 3600.0
+        )
 
 
 class TestGatewayMultipleActiveSessions:
@@ -562,7 +604,9 @@ class TestGatewayMemoryPressure:
         assert not gw._pressure_resolved.is_set()
 
         with pytest.raises(AgentQueueTimeout, match="Memory pressure"):
-            async for _ in gw.execute_stream(_dummy_stream(), agent_type="test", session_id="blocked"):
+            async for _ in gw.execute_stream(
+                _dummy_stream(), agent_type="test", session_id="blocked"
+            ):
                 pass
 
         assert "blocked" not in gw._active_sessions
@@ -576,11 +620,18 @@ class TestGatewayMemoryPressure:
 
         async def delayed_resolve() -> None:
             await asyncio.sleep(0.2)
-            await gw.on_pressure_change(_pressure_event(PressureLevel.WARNING, PressureLevel.CRITICAL, 82.0))
+            await gw.on_pressure_change(
+                _pressure_event(PressureLevel.WARNING, PressureLevel.CRITICAL, 82.0)
+            )
 
         asyncio.create_task(delayed_resolve())
 
-        events = [e async for e in gw.execute_stream(_dummy_stream(), agent_type="test", session_id="unblocked")]
+        events = [
+            e
+            async for e in gw.execute_stream(
+                _dummy_stream(), agent_type="test", session_id="unblocked"
+            )
+        ]
         assert len(events) == 3
         assert gw.active_count == 0
 
@@ -600,7 +651,9 @@ class TestGatewayMemoryPressure:
         """EMERGENCY pressure should also block (>= CRITICAL)."""
         gw = AgentGateway(_cfg(queue_timeout=0.3))
 
-        await gw.on_pressure_change(_pressure_event(PressureLevel.EMERGENCY, PressureLevel.CRITICAL, 96.0))
+        await gw.on_pressure_change(
+            _pressure_event(PressureLevel.EMERGENCY, PressureLevel.CRITICAL, 96.0)
+        )
         assert not gw._pressure_resolved.is_set()
 
         with pytest.raises(AgentQueueTimeout, match="Memory pressure"):
@@ -619,7 +672,9 @@ class TestGatewayMemoryPressure:
                 yield {"i": i}
 
         async def run() -> None:
-            async for e in gw.execute_stream(slow_stream(), agent_type="test", session_id="running"):
+            async for e in gw.execute_stream(
+                slow_stream(), agent_type="test", session_id="running"
+            ):
                 events_collected.append(e)
 
         task = asyncio.create_task(run())
@@ -953,7 +1008,9 @@ class TestGatewaySessionStatusEvents:
             raise RuntimeError("crash")
 
         with pytest.raises(RuntimeError, match="crash"):
-            async for _ in gw.execute_stream(failing_stream(), agent_type="general", session_id="err-test"):
+            async for _ in gw.execute_stream(
+                failing_stream(), agent_type="general", session_id="err-test"
+            ):
                 pass
 
         assert published == ["err-test:generating", "err-test:idle"]
@@ -992,7 +1049,9 @@ class TestGatewaySessionStatusEvents:
                 yield {}
 
         with pytest.raises(AgentExecutionTimeout):
-            async for _ in gw.execute_stream(infinite(), agent_type="test", session_id="timeout-test"):
+            async for _ in gw.execute_stream(
+                infinite(), agent_type="test", session_id="timeout-test"
+            ):
                 pass
 
         assert published == ["timeout-test:generating", "timeout-test:idle"]

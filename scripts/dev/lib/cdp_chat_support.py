@@ -1468,9 +1468,7 @@ def _assistant_clarification_from_message(
     return None
 
 
-def chat_has_pending_clarification(
-    chat_id: str, *, api_url: str | None = None
-) -> bool:
+def chat_has_pending_clarification(chat_id: str, *, api_url: str | None = None) -> bool:
     """Return True when chat messages show unanswered structured clarify (API SSOT)."""
     normalized = chat_id.strip()
     if not normalized:

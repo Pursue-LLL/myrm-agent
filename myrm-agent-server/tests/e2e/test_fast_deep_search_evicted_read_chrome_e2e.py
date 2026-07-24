@@ -98,6 +98,7 @@ def _kickoff_fast_search_js(prompt: str) -> str:
   return {{ ...result, usersBefore, chatId: bridge.turnSnapshot?.().chatId ?? result.chatId ?? null }};
 }})()"""
 
+
 _BRIDGE_READY_JS = """(() => ({
   hasProgressSnap: typeof window.__MYRM_E2E_CHAT__?.getFastSearchProgressSnapshot === 'function',
   hasSetSearchDepth: typeof window.__MYRM_E2E_CHAT__?.setSearchDepth === 'function',
@@ -142,7 +143,9 @@ def _search_configs_from_value(value: dict[str, object]) -> list[dict[str, objec
 def _minimal_e2e_search_services() -> dict[str, object]:
     """Minimal searchServices for SHPOIB when shared :8080 has no configs."""
     search_service = resolve_test_env("SEARCH_SERVICE", "tavily") or "tavily"
-    api_key = resolve_test_env("TAVILY_API_KEY") or resolve_test_env("SEARCH_API_KEY", "")
+    api_key = resolve_test_env("TAVILY_API_KEY") or resolve_test_env(
+        "SEARCH_API_KEY", ""
+    )
     item: dict[str, object] = {
         "id": f"e2e-search-{uuid.uuid4().hex[:8]}",
         "name": "E2E Search",
@@ -161,7 +164,9 @@ def _minimal_e2e_search_services() -> dict[str, object]:
     return {"searchServiceConfigs": [item]}
 
 
-def _wait_search_services_persisted(api_base: str, *, timeout_sec: float = 15.0) -> list[dict[str, object]]:
+def _wait_search_services_persisted(
+    api_base: str, *, timeout_sec: float = 15.0
+) -> list[dict[str, object]]:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
@@ -184,7 +189,9 @@ def _ensure_private_search_configured(api_base: str) -> None:
     if _search_configs_from_value(shared):
         put_config_value("searchServices", shared, api_url=api_base)
     else:
-        put_config_value("searchServices", _minimal_e2e_search_services(), api_url=api_base)
+        put_config_value(
+            "searchServices", _minimal_e2e_search_services(), api_url=api_base
+        )
     _wait_search_services_persisted(api_base)
 
 
@@ -199,17 +206,25 @@ def _ensure_private_providers_configured(api_base: str) -> None:
         else None
     )
     merged = dict(shared)
-    if isinstance(lite_primary, dict) and lite_primary.get("providerId") and lite_primary.get("model"):
+    if (
+        isinstance(lite_primary, dict)
+        and lite_primary.get("providerId")
+        and lite_primary.get("model")
+    ):
         dmc = dict(merged.get("defaultModelConfig") or {})
         dmc["fastModeModel"] = {
             "primary": lite_primary,
             "fallback": None,
-            "temperature": dmc.get("baseModel", {}).get("temperature", 0.7)
-            if isinstance(dmc.get("baseModel"), dict)
-            else 0.7,
-            "modelKwargs": dmc.get("baseModel", {}).get("modelKwargs", {})
-            if isinstance(dmc.get("baseModel"), dict)
-            else {},
+            "temperature": (
+                dmc.get("baseModel", {}).get("temperature", 0.7)
+                if isinstance(dmc.get("baseModel"), dict)
+                else 0.7
+            ),
+            "modelKwargs": (
+                dmc.get("baseModel", {}).get("modelKwargs", {})
+                if isinstance(dmc.get("baseModel"), dict)
+                else {}
+            ),
         }
         merged["defaultModelConfig"] = dmc
     put_config_value("providers", merged, api_url=api_base)
@@ -228,8 +243,12 @@ def _api_deep_search_progress(chat_id: str, api_base: str) -> dict[str, object]:
     )
     if not isinstance(assistant, dict):
         return {"ready": False, "err": "no-assistant", "source": "api"}
-    meta = assistant.get("metadata") if isinstance(assistant.get("metadata"), dict) else {}
-    steps = meta.get("progressSteps") if isinstance(meta.get("progressSteps"), list) else []
+    meta = (
+        assistant.get("metadata") if isinstance(assistant.get("metadata"), dict) else {}
+    )
+    steps = (
+        meta.get("progressSteps") if isinstance(meta.get("progressSteps"), list) else []
+    )
     tool_names = [str(s.get("tool_name") or "") for s in steps if isinstance(s, dict)]
     evicted_refs = [
         str(s.get("evicted_file_ref"))
@@ -374,25 +393,29 @@ async def _run_fast_evicted_read_live_e2e(
         assert prep.get("actionMode") == "fast", prep
         assert prep.get("searchDepth") == search_depth, prep
         injected_api = str(prep.get("apiBase") or "")
-        assert expected_api_origin in injected_api, (
-            f"UI must stream to SHPOIB private API {api_base}, got {injected_api!r}"
-        )
+        assert (
+            expected_api_origin in injected_api
+        ), f"UI must stream to SHPOIB private API {api_base}, got {injected_api!r}"
         model_used = str(prep.get("model") or prep.get("providerId") or "unknown")
-        assert "minimax" in model_used.lower() or "minimax-m" in model_used.lower(), (
-            f"Fast E2E must use lite/fast model (MiniMax), got {model_used!r}; prep={prep}"
-        )
+        assert (
+            "minimax" in model_used.lower() or "minimax-m" in model_used.lower()
+        ), f"Fast E2E must use lite/fast model (MiniMax), got {model_used!r}; prep={prep}"
 
         workspace_ready = await chat.evaluate(
             WAIT_WORKSPACE_STREAM_JS,
             await_promise=True,
             recv_timeout=60.0,
         )
-        assert isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True, (
+        assert (
+            isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True
+        ), (
             f"workspace multiplex stream not ready before fast {search_depth} send: "
             f"{workspace_ready!r}; api={api_base}"
         )
 
-        kickoff = await chat.evaluate(kickoff_js, await_promise=True, recv_timeout=120.0)
+        kickoff = await chat.evaluate(
+            kickoff_js, await_promise=True, recv_timeout=120.0
+        )
         assert isinstance(kickoff, dict) and kickoff.get("ok") is True, kickoff
         post_send_mode = await chat.evaluate(
             """(() => ({
@@ -404,9 +427,9 @@ async def _run_fast_evicted_read_live_e2e(
             recv_timeout=15.0,
         )
         assert isinstance(post_send_mode, dict), post_send_mode
-        assert post_send_mode.get("actionMode") == "fast", (
-            f"send must preserve fast mode, got {post_send_mode!r}"
-        )
+        assert (
+            post_send_mode.get("actionMode") == "fast"
+        ), f"send must preserve fast mode, got {post_send_mode!r}"
         assert post_send_mode.get("searchDepth") == search_depth, post_send_mode
         chat_id = str(kickoff.get("chatId") or "").strip()
         assert chat_id, kickoff
@@ -417,7 +440,9 @@ async def _run_fast_evicted_read_live_e2e(
         api_last: dict[str, object] = {"ready": False, "source": "api"}
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
-            ui_last, api_last = await _poll_fast_search_progress(chat, chat_id, api_base)
+            ui_last, api_last = await _poll_fast_search_progress(
+                chat, chat_id, api_base
+            )
             if ui_last.get("ready") is True or api_last.get("ready") is True:
                 last = _merge_fast_search_progress(ui_last, api_last)
                 break
@@ -449,9 +474,19 @@ async def _run_fast_evicted_read_live_e2e(
                 None,
             )
             assert assistant is not None
-            meta = assistant.get("metadata") if isinstance(assistant.get("metadata"), dict) else {}
-            steps = meta.get("progressSteps") if isinstance(meta.get("progressSteps"), list) else []
-            api_tools = {str(s.get("tool_name") or "") for s in steps if isinstance(s, dict)}
+            meta = (
+                assistant.get("metadata")
+                if isinstance(assistant.get("metadata"), dict)
+                else {}
+            )
+            steps = (
+                meta.get("progressSteps")
+                if isinstance(meta.get("progressSteps"), list)
+                else []
+            )
+            api_tools = {
+                str(s.get("tool_name") or "") for s in steps if isinstance(s, dict)
+            }
             assert "web_fetch_tool" in api_tools, api_tools
             if any(isinstance(s, dict) and s.get("evicted_file_ref") for s in steps):
                 assert "file_read_tool" in api_tools, api_tools

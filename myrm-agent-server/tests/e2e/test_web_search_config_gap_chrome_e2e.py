@@ -334,7 +334,10 @@ async def _send_and_collect_gap_while_streaming(
             message_id=stream_message_id,
             wall_deadline=wall_deadline,
         )
-        if isinstance(snapshot.get("streamMessageId"), str) and snapshot["streamMessageId"].strip():
+        if (
+            isinstance(snapshot.get("streamMessageId"), str)
+            and snapshot["streamMessageId"].strip()
+        ):
             stream_message_id = snapshot["streamMessageId"].strip()
         toast_state = (
             snapshot.get("toast")

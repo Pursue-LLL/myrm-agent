@@ -56,18 +56,15 @@ async def pin_lite_model_for_e2e(
             recv_timeout=recv_timeout,
         )
         last_raw = pinned_raw
-        if (
-            isinstance(pinned_raw, dict)
-            and pinned_raw.get("ok") is True
-        ):
+        if isinstance(pinned_raw, dict) and pinned_raw.get("ok") is True:
             expected = get_lite_model_selection()
             pinned_model = pinned_raw.get("pinned")
-            assert isinstance(pinned_model, dict), (
-                f"Missing pinned model payload: {pinned_raw}"
-            )
-            assert pinned_model.get("providerId") == expected["providerId"], (
-                f"Pinned provider mismatch: {pinned_model} vs {expected}"
-            )
+            assert isinstance(
+                pinned_model, dict
+            ), f"Missing pinned model payload: {pinned_raw}"
+            assert (
+                pinned_model.get("providerId") == expected["providerId"]
+            ), f"Pinned provider mismatch: {pinned_model} vs {expected}"
             assert pinned_model.get("model") == strip_provider_prefix(
                 str(expected["model"])
             ), f"Pinned model mismatch: {pinned_model} vs {expected}"
@@ -85,10 +82,8 @@ async def pin_lite_model_for_e2e(
             await asyncio.sleep(retry_sleep_sec)
             continue
         break
-    assert isinstance(last_raw, dict), (
-        f"pinLiteModelForE2e returned non-dict: {last_raw}"
-    )
-    assert last_raw.get("ok") is True, (
-        f"Failed to pin lite model for E2E: {last_raw}"
-    )
+    assert isinstance(
+        last_raw, dict
+    ), f"pinLiteModelForE2e returned non-dict: {last_raw}"
+    assert last_raw.get("ok") is True, f"Failed to pin lite model for E2E: {last_raw}"
     return last_raw

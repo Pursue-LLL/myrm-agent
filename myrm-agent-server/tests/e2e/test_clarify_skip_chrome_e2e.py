@@ -406,7 +406,10 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         )
         if isinstance(bridge, dict) and bridge.get("ok") is True:
             try:
-                return await _wait_ui_skip_done(chat, timeout_sec=poll_budget), resume_result
+                return (
+                    await _wait_ui_skip_done(chat, timeout_sec=poll_budget),
+                    resume_result,
+                )
             except AssertionError:
                 try:
                     return (
@@ -448,9 +451,9 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             chat_id,
             api_base=api_base,
         )
-        assert resume_result.get("ok") is True, (
-            f"API skip resume failed: {resume_result}; form={form_state}"
-        )
+        assert (
+            resume_result.get("ok") is True
+        ), f"API skip resume failed: {resume_result}; form={form_state}"
         after_skip: dict[str, object] = {
             "ready": True,
             "source": "resume_stream",

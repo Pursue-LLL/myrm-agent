@@ -10,6 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 挂载 `chat/` 子路由 | ✅ |
 | `test_fixtures.py` | 测试 | local-only Chrome E2E seed（citation + Kanban closure + RevertFiles 四 variant） | ✅ |
+| `test_fixtures_clarify_refresh.py` | 测试 | clarify refresh HITL hydrate seed | ✅ |
 | `test_fixtures_file_edit_batch.py` | 测试 | file_edit batch live/read_ui + workspace-only seed | ✅ |
 | `test_fixtures_evicted.py` | 测试 | UECD evicted LiveTerminal seed | ✅ |
 | `chat/` | 子模块 | 单会话消息、搜索、分支、turn 等子路由 | [chat/_ARCH.md](chat/_ARCH.md) |

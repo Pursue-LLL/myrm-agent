@@ -394,9 +394,4 @@ class KanbanTaskRunner:
 
                 return acc.to_result()
             finally:
-                await finalize_agent_session(
-                    agent,
-                    chat_id=task.task_id,
-                    agent_id=params.agent_id,
-                    extra_context=runtime_context,
-                )
+                await finalize_agent_session(agent, chat_id=task.task_id, agent_id=params.agent_id, extra_context=runtime_context)

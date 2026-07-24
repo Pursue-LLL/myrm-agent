@@ -229,7 +229,9 @@ def _stdin_echo_cmd() -> str:
     )
 
 
-async def _wait_stdout_tail_contains(pid: int, needle: str, *, timeout_sec: float = 10.0) -> None:
+async def _wait_stdout_tail_contains(
+    pid: int, needle: str, *, timeout_sec: float = 10.0
+) -> None:
     import time as time_mod
 
     deadline = time_mod.monotonic() + timeout_sec

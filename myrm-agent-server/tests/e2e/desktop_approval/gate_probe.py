@@ -414,8 +414,7 @@ async def _send_interact_nudge(
         await asyncio.to_thread(activate_textedit_foreground)
         return
     progress(
-        f"steer nudge after {last_tool or 'idle'} "
-        f"(stream_active={stream_active})"
+        f"steer nudge after {last_tool or 'idle'} " f"(stream_active={stream_active})"
     )
     try:
         send_result = await chat.submit_desktop_nudge(
@@ -862,9 +861,7 @@ async def ensure_interact_gate(
         except (RuntimeError, TimeoutError, OSError) as exc:
             progress(f"nudge send skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
-        post_nudge_wait = (
-            45.0 if _is_snapshot_or_vision_loop(last_tool) else 90.0
-        )
+        post_nudge_wait = 45.0 if _is_snapshot_or_vision_loop(last_tool) else 90.0
         tool_activity, last_tool, server_pending, ui_pending = (
             await wait_for_interact_or_approval(
                 chat,

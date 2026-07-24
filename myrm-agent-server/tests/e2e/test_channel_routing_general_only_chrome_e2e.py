@@ -68,7 +68,9 @@ def test_channel_routing_dropdown_excludes_search_agents() -> None:
     prepare_e2e_ui_session(get_e2e_api_url())
 
     warm_ui_route("/settings/channels?sub=routing")
-    with open_mcp_page(f"{ui_url}/settings/channels?sub=routing", timeout_ms=90_000) as (
+    with open_mcp_page(
+        f"{ui_url}/settings/channels?sub=routing", timeout_ms=90_000
+    ) as (
         client,
         page,
     ):
@@ -83,7 +85,9 @@ def test_channel_routing_dropdown_excludes_search_agents() -> None:
         option_values = state.get("optionValues")
         assert isinstance(option_values, list), state
         blocked = [value for value in option_values if value in _BLOCKED_SEARCH_IDS]
-        assert blocked == [], f"Search agents must not appear in channel routing UI: {blocked}"
+        assert (
+            blocked == []
+        ), f"Search agents must not appear in channel routing UI: {blocked}"
         search_like = [
             value
             for value in option_values
