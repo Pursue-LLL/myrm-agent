@@ -511,6 +511,12 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     sys.stdout.write(f"WORKSPACE_FINGERPRINT={ctx.workspace_fingerprint}\n")
     if ctx.blocked:
         sys.stdout.write(f"BLOCKED_REASON={ctx.blocked_reason}\n")
+        if not ctx.epoch_match:
+            sys.stdout.write(
+                "E2E_BLOCKED_EPOCH: shared reload deferred "
+                f"({ctx.active_leases} active leases); use SHPOIB verify-api; "
+                "do not stop other tests.\n"
+            )
     mux_fields = _mux_context_fields()
     sys.stdout.write(
         "MUX_COLD_ATTACH="

@@ -78,7 +78,7 @@ async def pin_lite_model_for_e2e(
             "e2e-lite-model-unconfigured" in err or err == "no-bridge"
         ):
             if err == "no-bridge":
-                await chat.ensure_react_e2e_bridge(timeout_sec=30.0)  # type: ignore[attr-defined]
+                await chat.ensure_react_e2e_bridge(timeout_sec=120.0)  # type: ignore[attr-defined]
             await asyncio.sleep(retry_sleep_sec)
             continue
         break

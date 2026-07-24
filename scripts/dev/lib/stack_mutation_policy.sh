@@ -47,9 +47,14 @@ _smp_shared_api_http_ok() {
   curl -sf --max-time 5 "http://127.0.0.1:8080/api/v1/health" >/dev/null 2>&1
 }
 
+_smp_run_backend_crash_ensure() {
+  local dev_stack="${1:?}"
+  MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure >/dev/null 2>&1
+}
+
 _smp_attach_backend_crash_heal() {
   local monorepo_root="${1:?}" dev_stack="${2:?}"
-  local stack_epoch_lib active_leases
+  local stack_epoch_lib active_leases attempt backoff_sec
   stack_epoch_lib="$(dirname "${dev_stack}")/lib/stack-epoch.sh"
   # shellcheck source=stack-epoch.sh
   source "${stack_epoch_lib}"
@@ -57,16 +62,24 @@ _smp_attach_backend_crash_heal() {
   if _smp_shared_api_http_ok; then
     return 0
   fi
-  echo "CHROME_E2E_ATTACH_HEAL: shared api down — backend-only ensure (crash heal, ${active_leases} active leases)" >&2
-  if ! MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure >/dev/null 2>&1; then
-    echo "CHROME_E2E_FAIL: attach backend crash heal failed (api still down)" >&2
-    return 1
-  fi
-  if _smp_shared_api_http_ok; then
-    echo "CHROME_E2E_ATTACH_HEAL: shared api restored after crash heal" >&2
-    return 0
-  fi
-  echo "CHROME_E2E_FAIL: shared api still down after crash heal" >&2
+  echo "CHROME_E2E_ATTACH_HEAL: shared api down — crash heal starting (${active_leases} active leases)" >&2
+  for attempt in 1 2 3; do
+    case "${attempt}" in
+      2) backoff_sec=5 ;;
+      3) backoff_sec=10 ;;
+      *) backoff_sec=0 ;;
+    esac
+    if [[ "${backoff_sec}" -gt 0 ]]; then
+      sleep "${backoff_sec}"
+    fi
+    echo "CHROME_E2E_ATTACH_HEAL: crash heal attempt ${attempt}/3 (${active_leases} active leases)" >&2
+    if _smp_run_backend_crash_ensure "${dev_stack}" && _smp_shared_api_http_ok; then
+      echo "CHROME_E2E_ATTACH_HEAL: shared api restored after crash heal (attempt ${attempt})" >&2
+      return 0
+    fi
+    echo "CHROME_E2E_ATTACH_HEAL: crash heal attempt ${attempt}/3 failed (api still down)" >&2
+  done
+  echo "CHROME_E2E_FAIL: attach backend crash heal failed after 3 attempts (api still down)" >&2
   return 1
 }
 

@@ -116,6 +116,10 @@ LIVE_AGENT_STREAM_WAIT_DESKTOP_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = 600
 # SHPOIB clarify skip API poll under parallel load (API-first path).
 CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
+# R47: hard wall for mux page reopen/reclaim (nested call_tool must not burn 600s).
+MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC: Final[int] = 120
+SHELL_PROBE_STALL_FAIL_FAST_SEC: Final[int] = 120
+MUX_RECLAIM_STALL_TOKEN: Final[str] = "MUX_RECLAIM_STALL"
 # run_pytest_safe outer budget padding beyond pytest floor (bootstrap/MCP setup).
 PYTEST_SAFE_BOOTSTRAP_BUFFER_SEC: Final[int] = 120
 # Stream lock holder heartbeat file (waiters read holder identity while queueing).

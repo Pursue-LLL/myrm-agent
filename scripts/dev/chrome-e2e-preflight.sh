@@ -88,7 +88,7 @@ _maybe_seed_providers() {
 _wait_attach_endpoints_under_parallel_load() {
   local initial_errors="$1"
   [[ -n "${initial_errors}" ]] || return 0
-  local active_leases wait_sec poll_sec waited errors
+  local active_leases wait_sec poll_sec waited errors heal_during_wait=0
   active_leases="$(_wave_active_lease_count "${MONOREPO_ROOT}")"
   [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]] || return 1
 
@@ -108,6 +108,17 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
     if [[ "${waited}" -ge "${wait_sec}" ]]; then
       printf '%s\n' "${errors}" >&2
       return 1
+    fi
+    if [[ "${errors}" == *"api=unreachable"* ]] \
+      && [[ "${waited}" -ge 30 ]] \
+      && [[ $((waited % 30)) -eq 0 ]] \
+      && [[ "${heal_during_wait}" -lt 2 ]] \
+      && [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
+      heal_during_wait=$((heal_during_wait + 1))
+      echo "CHROME_E2E_ATTACH_HEAL: api unreachable during attach wait — retry crash heal ${heal_during_wait}/2" >&2
+      if _smp_attach_backend_crash_heal "${MONOREPO_ROOT}" "${SCRIPT_DIR}/dev-stack.sh"; then
+        continue
+      fi
     fi
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
       echo "CHROME_E2E_WAIT: parallel attach waiting for ${errors} (${active_leases} active leases) ${waited}/${wait_sec}s" >&2

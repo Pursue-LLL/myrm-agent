@@ -84,11 +84,17 @@ class McpChatSession(CdpChatSession):
             except TimeoutError:
                 mux_attempts += 1
                 if mux_attempts < max_mux_attempts:
+                    await asyncio.to_thread(self._client.recover_mux_transport)
                     await asyncio.sleep(0.75 * mux_attempts)
                     continue
                 raise
             except RuntimeError as exc:
                 message = str(exc)
+                if mux_attempts < max_mux_attempts and "MUX_RECLAIM_STALL" in message:
+                    mux_attempts += 1
+                    await asyncio.to_thread(self._client.recover_mux_transport)
+                    await asyncio.sleep(0.75 * mux_attempts)
+                    continue
                 if mux_attempts < max_mux_attempts and (
                     "transport unavailable" in message.lower()
                     or "not running after transport recovery" in message.lower()

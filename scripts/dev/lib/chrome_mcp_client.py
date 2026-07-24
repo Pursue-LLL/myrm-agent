@@ -59,6 +59,8 @@ from cdp_chat_support import (
 )
 from dev_gate_contract import (
     LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
+    MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
+    MUX_RECLAIM_STALL_TOKEN,
     NEW_PAGE_TOOL_RETRY_ATTEMPTS,
     TOOL_RETRY_ATTEMPTS,
 )
@@ -77,6 +79,27 @@ _MCP_READ_POLL_SEC = _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
 _TOOL_RETRY_ATTEMPTS = TOOL_RETRY_ATTEMPTS
 _NEW_PAGE_TOOL_RETRY_ATTEMPTS = NEW_PAGE_TOOL_RETRY_ATTEMPTS
 _PAGE_LEASE_TTL_SEC = int(os.environ.get("MYRM_PAGE_LEASE_TTL_SEC", "600"))
+
+
+def _reclaim_wall_deadline() -> float:
+    return time.monotonic() + float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC)
+
+
+def _remaining_reclaim_sec(deadline: float) -> float:
+    return max(0.0, deadline - time.monotonic())
+
+
+def _raise_mux_reclaim_stall(phase: str, *, started: float) -> None:
+    elapsed = time.monotonic() - started
+    raise RuntimeError(
+        f"{MUX_RECLAIM_STALL_TOKEN}: {phase} blocked for {elapsed:.1f}s "
+        f"(cap={MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC}s); recover mux and retry"
+    )
+
+
+def _check_mux_reclaim_deadline(deadline: float, phase: str, *, started: float) -> None:
+    if time.monotonic() >= deadline:
+        _raise_mux_reclaim_stall(phase, started=started)
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _TRANSPORT_RECOVER_ATTEMPTS = 3
 _EXPLICIT_SHORT_TOOL_TIMEOUT_CEILING_SEC = 30.0
@@ -168,6 +191,7 @@ class ChromeMcpClient:
         self._monorepo_root = Path(__file__).resolve().parents[4]
         self._wave = self._monorepo_root / "myrm-agent/scripts/dev/wave.sh"
         self._mux_load_cache: MuxLoadSnapshot | None = None
+        self._reclaim_in_progress = False
 
     def _read_wave_status(self) -> dict[str, object] | None:
         try:
@@ -699,7 +723,21 @@ class ChromeMcpClient:
         self._recover_mux_transport()
 
     def _reopen_owned_page(self, page: McpPage) -> McpPage:
+        if getattr(self, "_reclaim_in_progress", False):
+            _raise_mux_reclaim_stall("reclaim_reentry", started=time.monotonic())
+        self._reclaim_in_progress = True
+        try:
+            return self._reopen_owned_page_inner(page)
+        finally:
+            self._reclaim_in_progress = False
+
+    def _reopen_owned_page_inner(self, page: McpPage) -> McpPage:
+        reclaim_deadline = _reclaim_wall_deadline()
+        reclaim_started = time.monotonic()
         self._ensure_shim_transport()
+        _check_mux_reclaim_deadline(
+            reclaim_deadline, "reopen_start", started=reclaim_started
+        )
         reopen_url = (page.url or "http://127.0.0.1:3000").strip()
         runtime_binding = self._runtime_binding_source_for(reopen_url)
         old_target_id = page.target_id.strip()
@@ -712,11 +750,19 @@ class ChromeMcpClient:
         arguments: dict[str, object] = {"url": initial_url, "timeout": 120_000}
         if page.context_id is not None:
             arguments["isolatedContext"] = page.context_id
+        remaining = _remaining_reclaim_sec(reclaim_deadline)
+        _check_mux_reclaim_deadline(
+            reclaim_deadline, "new_page", started=reclaim_started
+        )
         with upstream_cold_attach_slot():
             result = self.call_tool(
                 "new_page",
                 arguments,
-                timeout_sec=min(125.0, self._request_timeout_sec),
+                timeout_sec=min(
+                    125.0,
+                    self._request_timeout_sec,
+                    remaining,
+                ),
             )
         page_id, target_id = parse_new_page(result)
         lease_id = page.lease_id
@@ -729,8 +775,13 @@ class ChromeMcpClient:
         )
         self._heartbeat_lease(lease_id)
         try:
+            _check_mux_reclaim_deadline(
+                reclaim_deadline, "bind_lease", started=reclaim_started
+            )
             self._bind_page_lease(reopened)
         except RuntimeError as exc:
+            if MUX_RECLAIM_STALL_TOKEN in str(exc):
+                raise
             if "LEASE_NOT_ACTIVE" not in str(exc):
                 raise
             self._page_lease_heartbeat.untrack(lease_id)
@@ -743,15 +794,25 @@ class ChromeMcpClient:
                 url=reopen_url,
             )
             self._heartbeat_lease(lease_id)
+            _check_mux_reclaim_deadline(
+                reclaim_deadline, "bind_lease_retry", started=reclaim_started
+            )
             self._bind_page_lease(reopened)
         self._pages[page_id] = reopened
         self._page_lease_heartbeat.track(lease_id)
         if runtime_binding is not None:
+            remaining = _remaining_reclaim_sec(reclaim_deadline)
+            _check_mux_reclaim_deadline(
+                reclaim_deadline, "runtime_bind", started=reclaim_started
+            )
             self._bind_and_navigate_runtime_page(
                 reopened,
                 reopen_url,
                 runtime_binding,
-                timeout_ms=120_000,
+                timeout_ms=min(
+                    120_000,
+                    int(max(5_000, remaining * 1000)),
+                ),
             )
         return reopened
 
@@ -923,10 +984,20 @@ class ChromeMcpClient:
             except (TimeoutError, RuntimeError) as exc:
                 last_error = exc
                 message = str(exc)
-                reclaimed = self._maybe_reclaim_page_arguments(
-                    tool_arguments,
-                    error_message=message,
-                )
+                if MUX_RECLAIM_STALL_TOKEN in message:
+                    self._recover_mux_transport()
+                    if attempt + 1 < max_attempts:
+                        time.sleep(
+                            _tool_retry_backoff_sec(name, attempt, transient=True)
+                        )
+                        continue
+                    raise
+                reclaimed = None
+                if not getattr(self, "_reclaim_in_progress", False):
+                    reclaimed = self._maybe_reclaim_page_arguments(
+                        tool_arguments,
+                        error_message=message,
+                    )
                 if reclaimed is not None:
                     tool_arguments = reclaimed
                     if attempt + 1 < max_attempts:
@@ -967,10 +1038,12 @@ class ChromeMcpClient:
                 )
             if result.get("isError") is True:
                 message = text_content(result)
-                reclaimed = self._maybe_reclaim_page_arguments(
-                    tool_arguments,
-                    error_message=message,
-                )
+                reclaimed = None
+                if not getattr(self, "_reclaim_in_progress", False):
+                    reclaimed = self._maybe_reclaim_page_arguments(
+                        tool_arguments,
+                        error_message=message,
+                    )
                 if reclaimed is not None:
                     tool_arguments = reclaimed
                     if attempt + 1 < max_attempts:

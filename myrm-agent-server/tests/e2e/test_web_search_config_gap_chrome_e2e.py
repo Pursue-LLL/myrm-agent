@@ -72,18 +72,16 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
   if (bridge.pinLiteModelForE2e) {
     await bridge.pinLiteModelForE2e();
   }
+  window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
   bridge.resetChat?.();
   await bridge.ensureChatSession?.();
-  if (typeof bridge.setActionMode === 'function') {
-    bridge.setActionMode('fast');
-  } else {
-    try {
-      const useChatStore = (await import('/src/store/useChatStore')).default;
-      useChatStore.getState().setActionMode('fast');
-    } catch (error) {
-      return { ok: false, err: `no-setActionMode:${String(error)}` };
-    }
+  if (typeof bridge.syncSearchServicesFromE2eApi === 'function') {
+    await bridge.syncSearchServicesFromE2eApi();
   }
+  if (typeof bridge.setActionMode !== 'function') {
+    return { ok: false, err: 'no-setActionMode' };
+  }
+  bridge.setActionMode('fast');
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
   let result;
   if (typeof bridge.sendChatMessage === 'function') {
@@ -96,12 +94,16 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
   } else {
     return { ok: false, err: 'no-sendChatMessage' };
   }
-  if (!result?.ok) {
+  const countClientToasts = () => {
     const toastNodes = Array.from(document.querySelectorAll('[data-sonner-toast]'));
     const texts = toastNodes.map((n) => (n.textContent || '').trim()).filter(Boolean);
     const clientCount = texts.filter((t) =>
       /此模式需要搜索服务|请先配置并启用搜索服务|搜索服务未配置|Search service not configured|This mode requires a search service|requires a search service/i.test(t),
     ).length;
+    return { toastNodes, texts, clientCount };
+  };
+  if (!result?.ok) {
+    const { texts, clientCount, toastNodes } = countClientToasts();
     return {
       ok: true,
       usersBefore,
@@ -114,12 +116,20 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
     };
   }
   await new Promise((r) => setTimeout(r, 1200));
-  const toastNodes = Array.from(document.querySelectorAll('[data-sonner-toast]'));
-  const texts = toastNodes.map((n) => (n.textContent || '').trim()).filter(Boolean);
-  const clientCount = texts.filter((t) =>
-    /此模式需要搜索服务|请先配置并启用搜索服务|搜索服务未配置|Search service not configured|This mode requires a search service|requires a search service/i.test(t),
-  ).length;
+  const { texts, clientCount, toastNodes } = countClientToasts();
   const usersAfter = bridge.turnSnapshot?.().userCount ?? 0;
+  if (clientCount === 0 && usersAfter === usersBefore) {
+    return {
+      ok: false,
+      err: 'send-unexpected-ok-without-toast',
+      usersBefore,
+      usersAfter,
+      clientCount,
+      send: result,
+      actionMode: bridge.getActionMode?.() ?? null,
+      texts,
+    };
+  }
   return {
     ok: true,
     usersBefore,
@@ -598,6 +608,7 @@ async def test_fast_mode_blocks_send_with_client_search_toast(
             await chat.bootstrap(BASE_URL, timeout_sec=120.0)
             await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
             await ensure_e2e_search_cleared_in_browser(chat, api_url=api_base)
+            await asyncio.to_thread(_assert_search_cleared, api_base)
 
             result = await chat.evaluate(
                 _FAST_MODE_CLIENT_GUARD_JS,

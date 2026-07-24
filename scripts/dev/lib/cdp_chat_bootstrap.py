@@ -269,14 +269,32 @@ class CdpChatBootstrap(CdpChatTransport):
         )
 
     async def _wait_shell_layout_ready(self, *, deadline: float) -> dict[str, object]:
+        from dev_gate_contract import (
+            MUX_RECLAIM_STALL_TOKEN,
+            SHELL_PROBE_STALL_FAIL_FAST_SEC,
+        )
+
         last: dict[str, object] = {}
         polls = 0
         probe_started = time.monotonic()
+        last_progress_at = probe_started
+        mux_recover_attempts = 0
         while time.monotonic() < deadline:
             polls += 1
             self._shell_probe_progress(
                 polls=polls, started=probe_started, phase="wait_shell_layout"
             )
+            stall_sec = time.monotonic() - last_progress_at
+            if (
+                polls > 1
+                and stall_sec >= float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
+                and mux_recover_attempts < 1
+            ):
+                client = getattr(self, "_client", None)
+                if client is not None:
+                    await asyncio.to_thread(client.recover_mux_transport)
+                mux_recover_attempts += 1
+                last_progress_at = time.monotonic()
             try:
                 state = await self.evaluate(
                     PAGE_PROBE_JS,
@@ -285,11 +303,20 @@ class CdpChatBootstrap(CdpChatTransport):
                 )
             except RuntimeError as exc:
                 message = str(exc)
+                if MUX_RECLAIM_STALL_TOKEN in message:
+                    client = getattr(self, "_client", None)
+                    if client is not None and mux_recover_attempts < 1:
+                        await asyncio.to_thread(client.recover_mux_transport)
+                        mux_recover_attempts += 1
+                        last_progress_at = time.monotonic()
+                        continue
+                    raise
                 if any(
                     token in message
                     for token in ("Target closed", "No page found", "detached Frame")
                 ):
                     await asyncio.sleep(1)
+                    last_progress_at = time.monotonic()
                     continue
                 raise
             except TimeoutError:
@@ -297,6 +324,7 @@ class CdpChatBootstrap(CdpChatTransport):
                 if client is not None:
                     await asyncio.to_thread(client.recover_mux_transport)
                 state = {"probeError": "evaluate_timeout"}
+            last_progress_at = time.monotonic()
             last = state if isinstance(state, dict) else {"probeError": state}
             if _shell_probe_ready(last):
                 return last
