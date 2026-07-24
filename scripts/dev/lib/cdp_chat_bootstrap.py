@@ -57,6 +57,20 @@ class CdpChatBootstrap(CdpChatTransport):
         self._shell_layout_wait_started = None
         self._last_shell_probe_log_sec = -1
 
+    def _check_shell_layout_stall_cap(self) -> None:
+        from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN, SHELL_PROBE_STALL_FAIL_FAST_SEC
+
+        started = self._shell_layout_wait_started
+        if started is None:
+            return
+        elapsed = time.monotonic() - started
+        stall_cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
+        if elapsed >= stall_cap:
+            raise RuntimeError(
+                f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout stalled "
+                f"{elapsed:.1f}s (cap={int(stall_cap)}s); recover mux and retry"
+            )
+
     def _check_bootstrap_stall_fail_fast(self, *, phase: str) -> None:
         try:
             from e2e_wall_budget import assert_wall_budget
@@ -336,6 +350,7 @@ class CdpChatBootstrap(CdpChatTransport):
                     f"{elapsed_total:.1f}s (cap={int(stall_cap)}s); "
                     "recover mux and retry"
                 )
+            self._check_shell_layout_stall_cap()
             try:
                 if orphan_eval_task is not None and not orphan_eval_task.done():
                     await asyncio.wait({orphan_eval_task}, timeout=2.0)
@@ -732,6 +747,7 @@ class CdpChatBootstrap(CdpChatTransport):
         if remaining <= 0:
             raise TimeoutError("Chat surface hydrate budget exhausted")
         slice_sec = shpoib_shell_wait_slice_cap(remaining)
+        self._check_shell_layout_stall_cap()
         self._shell_hydrate_depth += 1
         try:
             await self._shared_ui_burst(
@@ -843,7 +859,10 @@ class CdpChatBootstrap(CdpChatTransport):
                 return
             shell_cap = max(5.0, shpoib_shell_wait_slice_cap(remaining))
         try:
-            await self.wait_shell_ready(timeout_sec=shell_cap, require_bridge=True)
+            await self._wait_shell_ready_inner(
+                timeout_sec=shell_cap,
+                require_bridge=True,
+            )
         except TimeoutError:
             bridge_cap = min(45.0, shell_cap)
             await self.ensure_dev_bridge(timeout_sec=bridge_cap, allow_reload=True)
