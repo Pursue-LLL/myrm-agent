@@ -509,7 +509,10 @@ def _require_live_e2e_lease(
     with stream_guard:
         from tests.support.e2e_wall_progress import reset_chrome_e2e_body_clocks
 
-        reset_chrome_e2e_body_clocks(timeout_sec=LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
+        reset_chrome_e2e_body_clocks(
+            timeout_sec=LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
+            item=request.node,
+        )
         with e2e_lease_heartbeat_loop():
             yield
             reap_chrome_e2e_session_hygiene()

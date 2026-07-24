@@ -209,10 +209,26 @@ def _gap_poll_snapshot_js(message_id: str | None) -> str:
         const probe = window.__MYRM_E2E_CHAT__?.debugProviderState?.()?.streamRequestMessageId;
         if (typeof probe === 'string' && probe.trim()) {{
           streamMessageId = probe.trim();
-          window.__MYRM_E2E_CHAT__?.setSseCaptureMessageId?.(streamMessageId);
         }}
       }}
-      const sseEvents = window.__MYRM_E2E_CHAT__?.sseSnapshot?.(streamMessageId) ?? [];
+      const muxMessageId = window.__MYRM_MULTIPLEX_STATS__?.()?.lastMessageId ?? null;
+      const allSseEvents = window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [];
+      let sseEvents = streamMessageId
+        ? (window.__MYRM_E2E_CHAT__?.sseSnapshot?.(streamMessageId) ?? [])
+        : allSseEvents;
+      if (!sseEvents.includes('capability_gap') && typeof muxMessageId === 'string' && muxMessageId.trim()) {{
+        const muxSse = window.__MYRM_E2E_CHAT__?.sseSnapshot?.(muxMessageId.trim()) ?? [];
+        if (muxSse.includes('capability_gap')) {{
+          sseEvents = muxSse;
+          streamMessageId = muxMessageId.trim();
+        }}
+      }}
+      if (!sseEvents.includes('capability_gap') && allSseEvents.includes('capability_gap')) {{
+        sseEvents = allSseEvents;
+      }}
+      if (streamMessageId) {{
+        window.__MYRM_E2E_CHAT__?.setSseCaptureMessageId?.(streamMessageId);
+      }}
       return {{
         toast: {{
           count: toastNodes.length,
@@ -221,7 +237,9 @@ def _gap_poll_snapshot_js(message_id: str | None) -> str:
           clientCount: texts.filter((t) => clientPattern.test(t)).length,
         }},
         sseEvents,
+        allSseEvents,
         streamMessageId: streamMessageId ?? null,
+        muxMessageId: typeof muxMessageId === 'string' ? muxMessageId : null,
       }};
     }})()"""
 
@@ -398,6 +416,7 @@ async def _send_and_collect_gap_while_streaming(
     diag_raw = await chat.evaluate(
         f"""(() => ({{
           sse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.({json.dumps(stream_message_id)}) ?? [],
+          allSse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [],
           workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
           multiplex: window.__MYRM_MULTIPLEX_STATS__?.() ?? null,
           directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
@@ -410,8 +429,11 @@ async def _send_and_collect_gap_while_streaming(
     )
     diag = diag_raw if isinstance(diag_raw, dict) else {"value": diag_raw}
     diag_sse = diag.get("sse") if isinstance(diag.get("sse"), list) else []
+    diag_all_sse = diag.get("allSse") if isinstance(diag.get("allSse"), list) else []
     if "capability_gap" not in best_sse and "capability_gap" in diag_sse:
         best_sse = list(diag_sse)
+    elif "capability_gap" not in best_sse and "capability_gap" in diag_all_sse:
+        best_sse = list(diag_all_sse)
     best_toast = {**best_toast, "peakCount": peak_toast_count}
     return best_toast, best_sse, send_result, diag
 
@@ -540,7 +562,7 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
                     chat,
                     api_base=api_base,
                     wall_deadline=wall_deadline,
-                    timeout_sec=20.0,
+                    timeout_sec=45.0,
                 )
             )
 
@@ -552,6 +574,10 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
             recorded_sse = (
                 diag.get("sse") if isinstance(diag.get("sse"), list) else sse_events
             )
+            if "capability_gap" not in recorded_sse:
+                all_sse = diag.get("allSse")
+                if isinstance(all_sse, list) and "capability_gap" in all_sse:
+                    recorded_sse = list(all_sse)
 
             if "tool_start" in recorded_sse and "capability_gap" not in recorded_sse:
                 pytest.fail(

@@ -6,6 +6,10 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pytest
 
 ENV_PROGRESS_AT = "MYRM_E2E_WALL_PROGRESS_AT_MONOTONIC"
 _PROGRESS_BASENAME = "myrm-e2e-wall-progress.json"
@@ -33,13 +37,21 @@ def reset_e2e_wall_budget_clock() -> None:
     )
 
 
-def reset_chrome_e2e_body_clocks(*, timeout_sec: int) -> None:
+def reset_chrome_e2e_body_clocks(*, timeout_sec: int, item: pytest.Item) -> None:
     """R48: SHPOIB/bootstrap complete — start fresh 600s body + pytest-timeout budgets."""
     reset_e2e_wall_budget_clock()
     try:
-        from pytest_timeout import pytest_timeout_set_timer
+        import pytest_timeout
 
-        pytest_timeout_set_timer(int(timeout_sec))
+        pytest_timeout.pytest_timeout_cancel_timer(item)
+        base = pytest_timeout._get_item_settings(item)
+        settings = pytest_timeout.Settings(
+            int(timeout_sec),
+            base.method,
+            base.func_only,
+            base.disable_debugger_detection,
+        )
+        pytest_timeout.pytest_timeout_set_timer(item, settings)
     except ImportError:
         pass
     print(

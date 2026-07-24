@@ -268,6 +268,13 @@ class CdpChatBootstrap(CdpChatTransport):
             require_bridge=require_bridge,
         )
 
+    async def _recover_shell_probe_mux(self, mux_recover_attempts: int) -> int:
+        client = getattr(self, "_client", None)
+        if client is not None and mux_recover_attempts < 1:
+            await asyncio.to_thread(client.recover_mux_transport)
+            return mux_recover_attempts + 1
+        return mux_recover_attempts
+
     async def _wait_shell_layout_ready(self, *, deadline: float) -> dict[str, object]:
         from dev_gate_contract import (
             MUX_RECLAIM_STALL_TOKEN,
@@ -277,38 +284,42 @@ class CdpChatBootstrap(CdpChatTransport):
         last: dict[str, object] = {}
         polls = 0
         probe_started = time.monotonic()
-        last_progress_at = probe_started
         mux_recover_attempts = 0
+        stall_cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
+        eval_wall_sec = _SHELL_PROBE_RECV_TIMEOUT_SEC + 5.0
         while time.monotonic() < deadline:
             polls += 1
             self._shell_probe_progress(
                 polls=polls, started=probe_started, phase="wait_shell_layout"
             )
-            stall_sec = time.monotonic() - last_progress_at
-            if (
-                polls > 1
-                and stall_sec >= float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
-                and mux_recover_attempts < 1
-            ):
-                client = getattr(self, "_client", None)
-                if client is not None:
-                    await asyncio.to_thread(client.recover_mux_transport)
-                mux_recover_attempts += 1
-                last_progress_at = time.monotonic()
+            elapsed_total = time.monotonic() - probe_started
+            if elapsed_total >= stall_cap:
+                if mux_recover_attempts < 1:
+                    mux_recover_attempts = await self._recover_shell_probe_mux(
+                        mux_recover_attempts
+                    )
+                else:
+                    raise RuntimeError(
+                        f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout stalled "
+                        f"{elapsed_total:.1f}s (cap={int(stall_cap)}s); "
+                        "recover mux and retry"
+                    )
             try:
-                state = await self.evaluate(
-                    PAGE_PROBE_JS,
-                    await_promise=False,
-                    recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+                state = await asyncio.wait_for(
+                    self.evaluate(
+                        PAGE_PROBE_JS,
+                        await_promise=False,
+                        recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+                    ),
+                    timeout=eval_wall_sec,
                 )
             except RuntimeError as exc:
                 message = str(exc)
                 if MUX_RECLAIM_STALL_TOKEN in message:
-                    client = getattr(self, "_client", None)
-                    if client is not None and mux_recover_attempts < 1:
-                        await asyncio.to_thread(client.recover_mux_transport)
-                        mux_recover_attempts += 1
-                        last_progress_at = time.monotonic()
+                    if mux_recover_attempts < 1:
+                        mux_recover_attempts = await self._recover_shell_probe_mux(
+                            mux_recover_attempts
+                        )
                         continue
                     raise
                 if any(
@@ -316,15 +327,13 @@ class CdpChatBootstrap(CdpChatTransport):
                     for token in ("Target closed", "No page found", "detached Frame")
                 ):
                     await asyncio.sleep(1)
-                    last_progress_at = time.monotonic()
                     continue
                 raise
             except TimeoutError:
-                client = getattr(self, "_client", None)
-                if client is not None:
-                    await asyncio.to_thread(client.recover_mux_transport)
+                mux_recover_attempts = await self._recover_shell_probe_mux(
+                    mux_recover_attempts
+                )
                 state = {"probeError": "evaluate_timeout"}
-            last_progress_at = time.monotonic()
             last = state if isinstance(state, dict) else {"probeError": state}
             if _shell_probe_ready(last):
                 return last

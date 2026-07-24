@@ -121,19 +121,21 @@ async function hydrateSearchServicesFromE2eApi(): Promise<{ ok: boolean; err?: s
   if (!e2eApiBase) {
     return { ok: false, err: 'no-e2e-api-base' };
   }
+  const blockSearchSync =
+    typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
   const deadline = Date.now() + 15_000;
   let configs: SearchServiceConfigItem[] = [];
   while (Date.now() < deadline) {
     configs = await fetchSearchServiceConfigsFromApi(e2eApiBase);
-    if (configs.length > 0) {
+    if (configs.length > 0 || blockSearchSync) {
       break;
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  if (configs.length === 0) {
+  if (configs.length === 0 && !blockSearchSync) {
     configs = await fetchSearchServiceConfigsFromApi('http://127.0.0.1:8080');
   }
-  if (configs.length === 0) {
+  if (configs.length === 0 && !blockSearchSync) {
     return { ok: false, err: 'empty-search-configs' };
   }
   useConfigStore.setState({ searchServiceConfigs: configs });
