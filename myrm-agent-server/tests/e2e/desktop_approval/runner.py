@@ -41,7 +41,6 @@ from tests.e2e.desktop_approval.trust_api import (
     desktop_accessibility_granted,
 )
 from tests.e2e.desktop_approval.turn_flow import run_approval_attempt
-from tests.support.e2e_desktop_model_pin import pin_basic_model_for_desktop_e2e
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 from tests.support.e2e_wall_progress import reset_e2e_wall_budget_clock
 
@@ -70,12 +69,8 @@ async def run_desktop_approval_chrome_e2e(
 
     async def run_flow(chat: McpChatSession) -> str:
         await chat.bootstrap(BASE_URL, navigate=False, timeout_sec=120.0)
-        await chat.wait_shell_ready(timeout_sec=120.0, require_bridge=True)
-        await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
         ensure_e2e_hitl_mode(api_url=get_e2e_api_url())
         await ensure_e2e_hitl_mode_in_browser(chat)
-        progress("pin BASIC_MODEL from .env.test for desktop E2E")
-        await pin_basic_model_for_desktop_e2e(chat)
 
         last_error: dict[str, object] | None = None
         attempts = max_send_attempts(scope)
