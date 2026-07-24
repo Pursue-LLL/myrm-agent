@@ -102,6 +102,7 @@ def _check_mux_reclaim_deadline(deadline: float, phase: str, *, started: float) 
         _raise_mux_reclaim_stall(phase, started=started)
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _TRANSPORT_RECOVER_ATTEMPTS = 3
+_REQUEST_LOCK_ACQUIRE_SEC = 5.0
 _EXPLICIT_SHORT_TOOL_TIMEOUT_CEILING_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
 
@@ -193,6 +194,45 @@ class ChromeMcpClient:
         self._wave = self._monorepo_root / "myrm-agent/scripts/dev/wave.sh"
         self._mux_load_cache: MuxLoadSnapshot | None = None
         self._reclaim_in_progress = False
+        self._mux_eval_executor: object | None = None
+        self._mux_reset_executor: object | None = None
+
+    def mux_eval_executor(self) -> object:
+        """Dedicated pool for mux evaluate — avoids default asyncio pool exhaustion."""
+        if self._mux_eval_executor is None:
+            from concurrent.futures import ThreadPoolExecutor
+
+            self._mux_eval_executor = ThreadPoolExecutor(
+                max_workers=4,
+                thread_name_prefix="myrm-mux-eval",
+            )
+        return self._mux_eval_executor
+
+    def mux_reset_executor(self) -> object:
+        """Separate single-worker pool so reset never queues behind hung evaluate threads."""
+        if self._mux_reset_executor is None:
+            from concurrent.futures import ThreadPoolExecutor
+
+            self._mux_reset_executor = ThreadPoolExecutor(
+                max_workers=1,
+                thread_name_prefix="myrm-mux-reset",
+            )
+        return self._mux_reset_executor
+
+    def _acquire_request_lock(self, *, timeout_sec: float | None = None) -> None:
+        wait_sec = (
+            float(timeout_sec)
+            if timeout_sec is not None
+            else _REQUEST_LOCK_ACQUIRE_SEC
+        )
+        wait_sec = max(0.1, min(wait_sec, _REQUEST_LOCK_ACQUIRE_SEC))
+        if not self._request_lock.acquire(timeout=wait_sec):
+            raise RuntimeError(
+                f"{MUX_RECLAIM_STALL_TOKEN}: request lock blocked for {wait_sec:.1f}s"
+            )
+
+    def _release_request_lock(self) -> None:
+        self._request_lock.release()
 
     def _read_wave_status(self) -> dict[str, object] | None:
         try:
@@ -1145,7 +1185,8 @@ class ChromeMcpClient:
         last_transport_error: _TransportDeadError | None = None
         for transport_attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
             try:
-                with self._request_lock:
+                self._acquire_request_lock()
+                try:
                     if start_generation != self._request_generation:
                         raise RuntimeError(
                             f"{MUX_RECLAIM_STALL_TOKEN}: request abandoned before acquire"
@@ -1157,6 +1198,8 @@ class ChromeMcpClient:
                         params,
                         timeout_sec=timeout_sec,
                     )
+                finally:
+                    self._release_request_lock()
             except _TransportDeadError as exc:
                 last_transport_error = exc
                 _LOGGER.warning(
@@ -1177,12 +1220,15 @@ class ChromeMcpClient:
         raise RuntimeError(f"Chrome MCP {method} failed without transport")
 
     def _notify(self, method: str, params: dict[str, object]) -> None:
-        with self._request_lock:
+        self._acquire_request_lock()
+        try:
             process = self._require_live_process()
             self._write(
                 process,
                 {"jsonrpc": "2.0", "method": method, "params": params},
             )
+        finally:
+            self._release_request_lock()
 
     def _write(
         self, process: subprocess.Popen[str], payload: dict[str, object]

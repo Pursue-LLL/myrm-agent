@@ -68,7 +68,10 @@ class McpChatSession(CdpChatSession):
     ) -> object:
         del await_promise
         if recv_timeout <= 0:
-            raise ValueError("recv_timeout must be positive")
+            raise TimeoutError(
+                f"MCP evaluate budget exhausted (recv_timeout={recv_timeout:.3f}s)"
+            )
+        recv_timeout = min(recv_timeout, 180.0)
         from dev_gate_contract import (
             MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
             MUX_RECLAIM_STALL_TOKEN,
@@ -81,31 +84,47 @@ class McpChatSession(CdpChatSession):
         max_heal_attempts = 3
         mux_attempts = 0
         max_mux_attempts = 2
+        loop = asyncio.get_running_loop()
+
+        async def _reset_mux_after_orphan() -> None:
+            await loop.run_in_executor(
+                self._client.mux_reset_executor(),
+                self._client.reset_after_orphan,
+            )
+
         while time.monotonic() < wall_deadline:
             remaining = wall_deadline - time.monotonic()
             attempt_timeout = min(recv_timeout + 10.0, remaining)
-            try:
-                return await asyncio.wait_for(
-                    asyncio.to_thread(
-                        self._client.evaluate,
-                        self._page,
-                        expression,
-                        timeout_sec=recv_timeout,
-                    ),
-                    timeout=attempt_timeout,
-                )
-            except TimeoutError:
+            eval_future = loop.run_in_executor(
+                self._client.mux_eval_executor(),
+                lambda: self._client.evaluate(
+                    self._page,
+                    expression,
+                    timeout_sec=recv_timeout,
+                ),
+            )
+            eval_task = asyncio.ensure_future(eval_future)
+            done, pending = await asyncio.wait(
+                {eval_task},
+                timeout=attempt_timeout,
+            )
+            if pending:
                 mux_attempts += 1
                 if mux_attempts < max_mux_attempts:
-                    self._client.reset_after_orphan()
+                    await _reset_mux_after_orphan()
                     await asyncio.sleep(0.75 * mux_attempts)
                     continue
-                raise
+                raise TimeoutError(
+                    f"{MUX_RECLAIM_STALL_TOKEN}: evaluate orphaned after "
+                    f"{attempt_timeout:.0f}s"
+                )
+            try:
+                return eval_task.result()
             except RuntimeError as exc:
                 message = str(exc)
                 if mux_attempts < max_mux_attempts and MUX_RECLAIM_STALL_TOKEN in message:
                     mux_attempts += 1
-                    self._client.reset_after_orphan()
+                    await _reset_mux_after_orphan()
                     await asyncio.sleep(0.75 * mux_attempts)
                     continue
                 if mux_attempts < max_mux_attempts and (
@@ -113,7 +132,7 @@ class McpChatSession(CdpChatSession):
                     or "not running after transport recovery" in message.lower()
                 ):
                     mux_attempts += 1
-                    self._client.reset_after_orphan()
+                    await _reset_mux_after_orphan()
                     await asyncio.sleep(0.75 * mux_attempts)
                     continue
                 if heal_attempts < max_heal_attempts and is_detached_frame_error(exc):
