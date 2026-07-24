@@ -83,7 +83,7 @@ def _get_workspace_root() -> str | None:
     return None
 
 
-@router.get("/evicted")
+@router.get("/evicted", response_model=None)
 async def read_evicted_output(
     chat_id: str = Query(
         ..., description="Chat/session ID that produced the evicted output"
