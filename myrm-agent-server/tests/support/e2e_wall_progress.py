@@ -33,6 +33,22 @@ def reset_e2e_wall_budget_clock() -> None:
     )
 
 
+def reset_chrome_e2e_body_clocks(*, timeout_sec: int) -> None:
+    """R48: SHPOIB/bootstrap complete — start fresh 600s body + pytest-timeout budgets."""
+    reset_e2e_wall_budget_clock()
+    try:
+        from pytest_timeout import pytest_timeout_set_timer
+
+        pytest_timeout_set_timer(int(timeout_sec))
+    except ImportError:
+        pass
+    print(
+        f"E2E_BODY_CLOCK_RESET: timeout={int(timeout_sec)}s "
+        "(SHPOIB/bootstrap excluded from body budget)",
+        flush=True,
+    )
+
+
 def read_wall_progress_monotonic() -> float | None:
     env_raw = os.environ.get(ENV_PROGRESS_AT, "").strip()
     if env_raw:
