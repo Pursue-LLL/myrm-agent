@@ -273,7 +273,11 @@ class CdpChatBootstrap(CdpChatTransport):
     async def _recover_shell_probe_mux(self, mux_recover_attempts: int) -> int:
         client = getattr(self, "_client", None)
         if client is not None and mux_recover_attempts < 1:
-            client.reset_after_orphan()
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                client.mux_eval_executor(),
+                client.reset_after_orphan,
+            )
             return mux_recover_attempts + 1
         return mux_recover_attempts
 
@@ -314,6 +318,11 @@ class CdpChatBootstrap(CdpChatTransport):
                         "recover mux and retry"
                     )
             try:
+                eval_timeout = min(
+                    per_eval_cap,
+                    eval_wall_sec,
+                    max(5.0, deadline - time.monotonic()),
+                )
                 evaluate_task = asyncio.create_task(
                     self.evaluate(
                         PAGE_PROBE_JS,
@@ -321,18 +330,25 @@ class CdpChatBootstrap(CdpChatTransport):
                         recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
                     )
                 )
-                try:
-                    state = await asyncio.wait_for(
-                        evaluate_task,
-                        timeout=min(
-                            per_eval_cap,
-                            eval_wall_sec,
-                            max(5.0, deadline - time.monotonic()),
-                        ),
+                done, pending = await asyncio.wait(
+                    {evaluate_task},
+                    timeout=eval_timeout,
+                )
+                if pending:
+                    # Never cancel to_thread evaluate — wait_for cancel deadlocks (R48).
+                    mux_recover_attempts = await self._recover_shell_probe_mux(
+                        mux_recover_attempts
                     )
-                except TimeoutError:
-                    evaluate_task.cancel()
-                    raise
+                    elapsed_after = time.monotonic() - layout_wait_started
+                    if mux_recover_attempts >= 1 and elapsed_after >= stall_cap:
+                        raise RuntimeError(
+                            f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout evaluate "
+                            f"timed out after mux recover ({elapsed_after:.1f}s "
+                            f"cap={int(stall_cap)}s)"
+                        )
+                    state = {"probeError": "evaluate_timeout"}
+                else:
+                    state = evaluate_task.result()
             except RuntimeError as exc:
                 message = str(exc)
                 if MUX_RECLAIM_STALL_TOKEN in message:
@@ -349,18 +365,6 @@ class CdpChatBootstrap(CdpChatTransport):
                     await asyncio.sleep(1)
                     continue
                 raise
-            except TimeoutError:
-                mux_recover_attempts = await self._recover_shell_probe_mux(
-                    mux_recover_attempts
-                )
-                elapsed_after = time.monotonic() - layout_wait_started
-                if mux_recover_attempts >= 1 and elapsed_after >= stall_cap:
-                    raise RuntimeError(
-                        f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout evaluate "
-                        f"timed out after mux recover ({elapsed_after:.1f}s "
-                        f"cap={int(stall_cap)}s)"
-                    )
-                state = {"probeError": "evaluate_timeout"}
             last = state if isinstance(state, dict) else {"probeError": state}
             if (
                 last.get("probeError") == "evaluate_timeout"
@@ -566,6 +570,9 @@ class CdpChatBootstrap(CdpChatTransport):
 
     async def _wait_providers_hydrated(self, *, timeout_sec: float) -> None:
         """Wait until provider store is initialized; prefer E2E bridge over UI picker label."""
+        if timeout_sec <= 0:
+            return
+        timeout_sec = max(5.0, min(timeout_sec, 60.0))
         if _api_provider_ready():
             deadline = time.monotonic() + timeout_sec
             try:
@@ -737,15 +744,15 @@ class CdpChatBootstrap(CdpChatTransport):
         """SHPOIB hot UI: re-bind private backend and refresh provider store after reset."""
         await self.ensure_e2e_api_base_binding()
         if deadline is not None and time.monotonic() >= deadline:
-            return
+            raise TimeoutError("Chat surface provider reset budget exhausted")
         recv_cap = 45.0
         if deadline is not None:
+            remaining = max(0.0, deadline - time.monotonic())
+            if remaining <= 0:
+                return
             recv_cap = max(
                 5.0,
-                min(
-                    45.0,
-                    shpoib_shell_wait_slice_cap(deadline - time.monotonic()),
-                ),
+                min(45.0, shpoib_shell_wait_slice_cap(remaining)),
             )
         try:
             await self.evaluate(
@@ -764,10 +771,10 @@ class CdpChatBootstrap(CdpChatTransport):
             return
         shell_cap = 45.0
         if deadline is not None:
-            shell_cap = max(
-                5.0,
-                shpoib_shell_wait_slice_cap(deadline - time.monotonic()),
-            )
+            remaining = max(0.0, deadline - time.monotonic())
+            if remaining <= 0:
+                return
+            shell_cap = max(5.0, shpoib_shell_wait_slice_cap(remaining))
         try:
             await self.wait_shell_ready(timeout_sec=shell_cap, require_bridge=True)
         except TimeoutError:
