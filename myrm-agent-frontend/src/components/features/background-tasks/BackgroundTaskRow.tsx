@@ -249,6 +249,7 @@ export function BackgroundTaskRow({
                   }
                 }}
               />
+              <p className="text-[10px] text-muted-foreground/80">{t('shellInputHint')}</p>
               <div className="flex flex-wrap items-center gap-1.5">
                 <Button
                   variant="default"
