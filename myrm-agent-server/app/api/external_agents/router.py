@@ -77,12 +77,12 @@ _login_registry = _LoginRegistry()
 
 @router.get("/auth/status")
 async def external_agent_auth_status() -> dict[str, object]:
-    """Report install + login state for every known backend (drives status badges)."""
+    """Report install + login state for every known backend via fresh detection."""
     from myrm_agent_harness.toolkits.acp.auth import CredentialStore, known_backends, profile_for
     from myrm_agent_harness.toolkits.acp.backend_detector import BackendDetector
 
     detector = BackendDetector()
-    detected = {b.name: b for b in await detector.detect()}
+    detected = {b.name: b for b in await detector.detect(include_version=True, refresh=True)}
     store = CredentialStore()
 
     backends: list[dict[str, object]] = []

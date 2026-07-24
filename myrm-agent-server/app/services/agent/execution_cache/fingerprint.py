@@ -24,7 +24,10 @@ def _stable_json(value: object) -> object:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     if isinstance(value, dict):
-        return {str(k): _stable_json(v) for k, v in sorted(value.items(), key=lambda item: item[0])}
+        return {
+            str(k): _stable_json(v)
+            for k, v in sorted(value.items(), key=lambda item: item[0])
+        }
     if isinstance(value, (list, tuple)):
         return [_stable_json(v) for v in value]
     if hasattr(value, "model_dump"):
@@ -39,7 +42,9 @@ def _serialize_mcp_configs(agent_wrapper: GeneralAgent) -> list[dict[str, object
         if hasattr(cfg, "model_dump"):
             dumped = cfg.model_dump(mode="json")
             if isinstance(dumped, dict):
-                configs.append({str(k): _stable_json(v) for k, v in sorted(dumped.items())})
+                configs.append(
+                    {str(k): _stable_json(v) for k, v in sorted(dumped.items())}
+                )
     configs.sort(key=lambda item: str(item.get("name", "")))
     return configs
 
@@ -57,9 +62,13 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "model": agent_wrapper.model_cfg.model,
         "provider": getattr(agent_wrapper.model_cfg, "provider", None),
         "fallback_model": (
-            agent_wrapper.fallback_model_cfg.model if agent_wrapper.fallback_model_cfg else None
+            agent_wrapper.fallback_model_cfg.model
+            if agent_wrapper.fallback_model_cfg
+            else None
         ),
-        "lite_model": agent_wrapper.lite_model_cfg.model if agent_wrapper.lite_model_cfg else None,
+        "lite_model": (
+            agent_wrapper.lite_model_cfg.model if agent_wrapper.lite_model_cfg else None
+        ),
         "prompt_mode": agent_wrapper.prompt_mode,
         "engine_params": _stable_json(agent_wrapper.engine_params),
         "skill_config_version": get_skill_config_version(),
@@ -100,7 +109,9 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "agent_security_raw": _stable_json(agent_wrapper.agent_security_raw),
     }
 
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    encoded = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:16]
 
 

@@ -9,6 +9,8 @@ from app.channels.types import TopicContext
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="channels_local")
+
+
 async def override_get_deploy_identity():
     return "test_user_id"
 
@@ -55,7 +57,10 @@ def test_get_channel_topics(client, mock_topic_manager):
     )
 
     # Call API
-    response = client.get("/api/v1/channels/manage/whatsapp/topics", headers={"Authorization": "Bearer test"})
+    response = client.get(
+        "/api/v1/channels/manage/whatsapp/topics",
+        headers={"Authorization": "Bearer test"},
+    )
 
     # Assert
     assert response.status_code == 200
@@ -72,8 +77,13 @@ def test_bind_topic(client, mock_topic_manager):
     # Setup mock
     instance = mock_topic_manager.return_value
 
-    instance.bind_topic = AsyncMock(return_value=TopicContext(topic_id="topic1", agent_id="agent2"))
-    with patch("app.services.agent.agent_service.AgentService.get_agent_by_id", new_callable=AsyncMock) as mock_agent:
+    instance.bind_topic = AsyncMock(
+        return_value=TopicContext(topic_id="topic1", agent_id="agent2")
+    )
+    with patch(
+        "app.services.agent.agent_service.AgentService.get_agent_by_id",
+        new_callable=AsyncMock,
+    ) as mock_agent:
         mock_agent.return_value = MagicMock(id="agent2", skill_ids=[])
         # Call API
         response = client.post(
@@ -96,8 +106,13 @@ def test_set_default_agent(client, mock_topic_manager):
     # Setup mock
     instance = mock_topic_manager.return_value
 
-    instance.bind_topic = AsyncMock(return_value=TopicContext(topic_id="__global__", agent_id="global_agent2"))
-    with patch("app.services.agent.agent_service.AgentService.get_agent_by_id", new_callable=AsyncMock) as mock_agent:
+    instance.bind_topic = AsyncMock(
+        return_value=TopicContext(topic_id="__global__", agent_id="global_agent2")
+    )
+    with patch(
+        "app.services.agent.agent_service.AgentService.get_agent_by_id",
+        new_callable=AsyncMock,
+    ) as mock_agent:
         mock_agent.return_value = MagicMock(id="global_agent2", skill_ids=[])
         # Call API
         response = client.post(
@@ -119,9 +134,14 @@ def test_set_default_agent_rejects_search_agent(client, mock_topic_manager):
     from app.core.channel_bridge.topic_config import SEARCH_AGENT_CHANNEL_BIND_MSG
 
     instance = mock_topic_manager.return_value
-    instance.bind_topic = AsyncMock(side_effect=ValueError(SEARCH_AGENT_CHANNEL_BIND_MSG))
+    instance.bind_topic = AsyncMock(
+        side_effect=ValueError(SEARCH_AGENT_CHANNEL_BIND_MSG)
+    )
 
-    with patch("app.services.agent.agent_service.AgentService.get_agent_by_id", new_callable=AsyncMock) as mock_agent:
+    with patch(
+        "app.services.agent.agent_service.AgentService.get_agent_by_id",
+        new_callable=AsyncMock,
+    ) as mock_agent:
         mock_agent.return_value = MagicMock(
             id="builtin-fast-search",
             skill_ids=[],
@@ -136,4 +156,3 @@ def test_set_default_agent_rejects_search_agent(client, mock_topic_manager):
     assert response.status_code == 400
     assert "Search agents cannot be bound" in response.json()["detail"]
     instance.bind_topic.assert_called_once()
-

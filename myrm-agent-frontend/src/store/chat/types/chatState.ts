@@ -68,6 +68,7 @@ export interface ChatState {
   goalConvergenceWindow: number | null;
   goalAcceptanceCriteria: Array<Record<string, unknown>> | null;
   goalConstraints: string[] | null;
+  goalCheckpointMode: boolean;
 
   // 智能代理模式工具开关（当前会话临时配置，切换 Agent 时从永久配置初始化）
   currentBuiltinTools: BuiltinToolId[];
@@ -169,6 +170,7 @@ export interface ChatState {
   setGoalConvergenceWindow: (window: number | null) => void;
   setGoalAcceptanceCriteria: (criteria: Array<Record<string, unknown>> | null) => void;
   setGoalConstraints: (constraints: string[] | null) => void;
+  setGoalCheckpointMode: (checkpoint: boolean) => void;
   toggleBuiltinTool: (toolId: BuiltinToolId) => void;
   setCurrentBuiltinTools: (tools: BuiltinToolId[]) => void;
   setAgentConfig: (config: AgentConfig | null) => void;

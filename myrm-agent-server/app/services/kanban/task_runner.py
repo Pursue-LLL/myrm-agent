@@ -74,7 +74,11 @@ class KanbanTaskRunner:
         workspace_root = await resolve_workspace(self._store, task)
 
         is_background_task = (task.metadata or {}).get("background_source") == "btw"
-        default_timeout = _BACKGROUND_TASK_TIMEOUT_SECONDS if is_background_task else self._timeout_seconds
+        default_timeout = (
+            _BACKGROUND_TASK_TIMEOUT_SECONDS
+            if is_background_task
+            else self._timeout_seconds
+        )
         effective_timeout = task.max_runtime_seconds or default_timeout
 
         self._register_background_tokens(task)
@@ -120,7 +124,9 @@ class KanbanTaskRunner:
                     SteeringToken(),
                 )
         except Exception:
-            logger.debug("Could not register background tokens for %s", task.task_id[:8])
+            logger.debug(
+                "Could not register background tokens for %s", task.task_id[:8]
+            )
 
     def _unregister_background_tokens(self, task: KanbanTask) -> None:
         if (task.metadata or {}).get("background_source") != "btw":
@@ -132,23 +138,31 @@ class KanbanTaskRunner:
             if handler:
                 handler.unregister_runtime_tokens(task.task_id)
         except Exception:
-            logger.debug("Could not unregister background tokens for %s", task.task_id[:8])
+            logger.debug(
+                "Could not unregister background tokens for %s", task.task_id[:8]
+            )
 
     async def cleanup_worktree(self, task: KanbanTask) -> None:
         await cleanup_worktree(self._store, task)
 
     async def _load_attachment_ids(self, task_id: str) -> list[str]:
-        from app.services.kanban.task_runner_stream import _load_attachment_ids as load_ids
+        from app.services.kanban.task_runner_stream import (
+            _load_attachment_ids as load_ids,
+        )
 
         return await load_ids(task_id)
 
     async def _extract_pdf_text(self, file_id: str) -> str:
-        from app.services.kanban.task_runner_stream import _extract_pdf_text as extract_pdf
+        from app.services.kanban.task_runner_stream import (
+            _extract_pdf_text as extract_pdf,
+        )
 
         return await extract_pdf(file_id)
 
     async def _extract_document_text(self, file_id: str) -> str:
-        from app.services.kanban.task_runner_stream import _extract_document_text as extract_doc
+        from app.services.kanban.task_runner_stream import (
+            _extract_document_text as extract_doc,
+        )
 
         return await extract_doc(file_id)
 
@@ -190,15 +204,21 @@ class KanbanTaskRunner:
         user_cfgs = await load_user_configs()
 
         board = await self._store.get_board(task.board_id) if task.board_id else None
-        zombie_timeout = board.settings.zombie_timeout_seconds if board and board.settings else 120
+        zombie_timeout = (
+            board.settings.zombie_timeout_seconds if board and board.settings else 120
+        )
 
         embedding_cfg, reranker_cfg = extract_retrieval_models(user_cfgs.retrieval_dict)
         fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
             user_cfgs.providers_dict,
         )
 
-        from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
-        from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
+        from myrm_agent_harness.toolkits.retriever.embedding.factory import (
+            EmbeddingConfig,
+        )
+        from myrm_agent_harness.toolkits.retriever.reranker.factory import (
+            RerankerConfig,
+        )
 
         GeneralAgentParams.model_rebuild(
             _types_namespace={
@@ -245,7 +265,9 @@ class KanbanTaskRunner:
             enabled_builtin_tools.append("kanban")
 
         task_user_instructions: str | None = profile.system_prompt if profile else None
-        agent_subagent_ids = list(profile.subagent_ids) if profile and profile.subagent_ids else None
+        agent_subagent_ids = (
+            list(profile.subagent_ids) if profile and profile.subagent_ids else None
+        )
         if profile and profile.agent_type == "team":
             from app.ai_agents.team_protocol import build_leader_protocol_prompt
 
@@ -255,14 +277,18 @@ class KanbanTaskRunner:
                 dynamic_discovery=True,
             )
             task_user_instructions = (
-                f"{task_user_instructions}\n\n{leader_protocol}" if task_user_instructions else leader_protocol
+                f"{task_user_instructions}\n\n{leader_protocol}"
+                if task_user_instructions
+                else leader_protocol
             )
 
         declared_roots: tuple[str, ...] = ()
         if workspace_root:
             declared_roots = (workspace_root,)
 
-        from app.core.memory.proactive.settings import resolve_conversation_search_enabled
+        from app.core.memory.proactive.settings import (
+            resolve_conversation_search_enabled,
+        )
         from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
         kanban_agent_security_raw = profile.security_overrides if profile else None
@@ -282,7 +308,8 @@ class KanbanTaskRunner:
             channel_name=_CHANNEL_NAME,
             declared_allowed_roots=declared_roots,
             enable_web_search=(
-                user_cfgs.search_is_user_configured and await verify_search_service_available(user_cfgs.search_cfg)
+                user_cfgs.search_is_user_configured
+                and await verify_search_service_available(user_cfgs.search_cfg)
             ),
             enable_web_fetch=resolve_enable_web_fetch(kanban_agent_security_raw),
             kanban_tool_mode="worker",
@@ -296,8 +323,14 @@ class KanbanTaskRunner:
             auto_restore_domains=list(profile.auto_restore_domains) if profile else [],
             unattended_mode=True,
             user_instructions=task_user_instructions,
-            agent_skill_ids=list(dict.fromkeys((*(profile.skill_ids if profile else []), *task.extra_skill_ids))),
-            subagent_ids=(list(profile.subagent_ids) if profile and profile.subagent_ids else None),
+            agent_skill_ids=list(
+                dict.fromkeys(
+                    (*(profile.skill_ids if profile else []), *task.extra_skill_ids)
+                )
+            ),
+            subagent_ids=(
+                list(profile.subagent_ids) if profile and profile.subagent_ids else None
+            ),
             max_iterations=profile.max_iterations if profile else None,
             memory_policy=profile.memory_policy if profile else None,
             memory_decay_profile=profile.memory_decay_profile if profile else None,
@@ -308,7 +341,10 @@ class KanbanTaskRunner:
             ),
         )
 
-        from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+        from app.services.agent.execution_cache import (
+            ExecutionMode,
+            finalize_agent_session,
+        )
         from app.services.agent.runtime_context import build_agent_runtime_context
 
         runtime_context = await build_agent_runtime_context(
@@ -318,7 +354,9 @@ class KanbanTaskRunner:
         agent = AgentFactory.create_general_agent(params)
         agent.approval_session_key = f"kanban:{task.task_id}"
 
-        from app.services.agent.session_credential_assembler import session_credentials_scope
+        from app.services.agent.session_credential_assembler import (
+            session_credentials_scope,
+        )
 
         async with session_credentials_scope(
             oauth_credentials_dict=user_cfgs.oauth_credentials_dict,
@@ -337,14 +375,20 @@ class KanbanTaskRunner:
                         if isinstance(event, dict):
                             yield event
 
-                from app.services.agent.fission_config import max_parallel_from_engine_params
-                from app.services.agent.swarm_fission_resume import stream_with_swarm_fission_resume
+                from app.services.agent.fission_config import (
+                    max_parallel_from_engine_params,
+                )
+                from app.services.agent.swarm_fission_resume import (
+                    stream_with_swarm_fission_resume,
+                )
 
                 async for event in stream_with_swarm_fission_resume(
                     agent,
                     context,
                     _open_stream,
-                    max_concurrent=max_parallel_from_engine_params(profile.engine_params if profile else None),
+                    max_concurrent=max_parallel_from_engine_params(
+                        profile.engine_params if profile else None
+                    ),
                 ):
                     acc.add(event)
 

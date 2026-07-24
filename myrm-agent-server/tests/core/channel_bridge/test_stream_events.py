@@ -51,8 +51,7 @@ async def test_tool_approval_request_sets_timeout_state() -> None:
         },
     }
     progress = [
-        item
-        async for item in iter_channel_stream_progress(_events(event), acc, state)
+        item async for item in iter_channel_stream_progress(_events(event), acc, state)
     ]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
@@ -73,8 +72,7 @@ async def test_capability_gap_surface_unavailable_yields_progress_update() -> No
         },
     }
     progress = [
-        item
-        async for item in iter_channel_stream_progress(_events(event), acc, state)
+        item async for item in iter_channel_stream_progress(_events(event), acc, state)
     ]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
@@ -94,8 +92,7 @@ async def test_capability_gap_surface_unavailable_fallback_when_message_empty() 
         },
     }
     progress = [
-        item
-        async for item in iter_channel_stream_progress(_events(event), acc, state)
+        item async for item in iter_channel_stream_progress(_events(event), acc, state)
     ]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
@@ -103,7 +100,9 @@ async def test_capability_gap_surface_unavailable_fallback_when_message_empty() 
 
 
 @pytest.mark.asyncio
-async def test_capability_gap_web_search_not_configured_yields_progress_update() -> None:
+async def test_capability_gap_web_search_not_configured_yields_progress_update() -> (
+    None
+):
     acc = StreamAccumulator()
     state = ChannelStreamEventState()
     event = {
@@ -116,8 +115,7 @@ async def test_capability_gap_web_search_not_configured_yields_progress_update()
         },
     }
     progress = [
-        item
-        async for item in iter_channel_stream_progress(_events(event), acc, state)
+        item async for item in iter_channel_stream_progress(_events(event), acc, state)
     ]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
@@ -137,8 +135,7 @@ async def test_capability_gap_web_search_unreachable_yields_progress_update() ->
         },
     }
     progress = [
-        item
-        async for item in iter_channel_stream_progress(_events(event), acc, state)
+        item async for item in iter_channel_stream_progress(_events(event), acc, state)
     ]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)
@@ -158,8 +155,7 @@ async def test_capability_gap_web_search_skipped_when_display_message_empty() ->
         },
     }
     progress = [
-        item
-        async for item in iter_channel_stream_progress(_events(event), acc, state)
+        item async for item in iter_channel_stream_progress(_events(event), acc, state)
     ]
     assert len(progress) == 1
     assert isinstance(progress[0], ProgressUpdate)

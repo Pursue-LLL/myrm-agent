@@ -23,12 +23,37 @@ class CdpChatSubmit(CdpChatInput):
         result = await self.evaluate(
             f"""(() => {{
               const bridge = window.__MYRM_E2E_CHAT__;
-              if (!bridge?.sendChatMessage) {{
-                return {{ ok: false, err: 'no-sendChatMessage' }};
+              const baseline = {baseline};
+              const text = {payload};
+              if (typeof bridge?.kickoffChatMessage === 'function') {{
+                return Promise.resolve(
+                  bridge.kickoffChatMessage(text, {{ baselineUserCount: baseline }}),
+                );
               }}
-              return Promise.resolve(
-                bridge.sendChatMessage({payload}, {{ baselineUserCount: {baseline} }}),
-              );
+              if (typeof bridge?.sendChatMessage === 'function') {{
+                return Promise.resolve(
+                  bridge.sendChatMessage(text, {{
+                    baselineUserCount: baseline,
+                    waitForStreamCompletion: false,
+                  }}),
+                );
+              }}
+              if (typeof bridge?.setInputMessage === 'function' && typeof bridge?.handleSubmit === 'function') {{
+                bridge.setInputMessage(text);
+                bridge._submitBaselineUsers = baseline;
+                return Promise.resolve(bridge.handleSubmit()).then(() => {{
+                  const submit = bridge.lastSubmitResult;
+                  if (submit?.ok) {{
+                    return {{ ok: true, chatId: submit.chatId ?? null, mode: 'handleSubmitFallback' }};
+                  }}
+                  return {{
+                    ok: false,
+                    err: submit?.err || 'handleSubmit-fallback-failed',
+                    debug: submit?.debug ?? null,
+                  }};
+                }});
+              }}
+              return {{ ok: false, err: 'no-sendChatMessage' }};
             }})()""",
             await_promise=True,
             recv_timeout=180.0,

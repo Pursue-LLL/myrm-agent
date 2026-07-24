@@ -12,6 +12,7 @@ import {
   listBackgroundTasks,
   cancelBackgroundTask,
   steerBackgroundTask,
+  sendShellBackgroundStdin,
   evictedFilenameFromVaultRef,
   type BackgroundTask,
 } from '@/services/background-tasks';
@@ -47,6 +48,8 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const [isOpen, setIsOpen] = useState(false);
   const [steerTaskId, setSteerTaskId] = useState<string | null>(null);
   const [steerInput, setSteerInput] = useState('');
+  const [shellInputTaskId, setShellInputTaskId] = useState<string | null>(null);
+  const [shellInput, setShellInput] = useState('');
   const [vaultLogDrawer, setVaultLogDrawer] = useState<VaultLogDrawerState | null>(null);
   const idleCountRef = useRef(0);
 
@@ -164,6 +167,28 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const handleToggleSteer = (taskId: string) => {
     setSteerTaskId((current) => (current === taskId ? null : taskId));
     setSteerInput('');
+    setShellInputTaskId(null);
+    setShellInput('');
+  };
+
+  const handleToggleShellInput = (taskId: string) => {
+    setShellInputTaskId((current) => (current === taskId ? null : taskId));
+    setShellInput('');
+    setSteerTaskId(null);
+    setSteerInput('');
+  };
+
+  const handleShellInputSend = async (taskId: string) => {
+    if (!shellInput.trim()) return;
+    try {
+      await sendShellBackgroundStdin(taskId, shellInput, { submit: true });
+      toast.success(t('shellInputSuccess'));
+      setShellInputTaskId(null);
+      setShellInput('');
+      fetchTasks();
+    } catch {
+      toast.error(t('shellInputFailed'));
+    }
   };
 
   const runningCount = tasks.filter((task) => task.status === 'running').length;
@@ -224,11 +249,17 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                         key={task.task_id}
                         task={task}
                         allowSteer={false}
+                        allowShellInput={task.status === 'running'}
                         steerTaskId={steerTaskId}
+                        shellInputTaskId={shellInputTaskId}
                         steerInput={steerInput}
+                        shellInput={shellInput}
                         onSteerInputChange={setSteerInput}
+                        onShellInputChange={setShellInput}
                         onToggleSteer={handleToggleSteer}
+                        onToggleShellInput={handleToggleShellInput}
                         onSteer={handleSteer}
+                        onShellInputSend={handleShellInputSend}
                         onCancel={handleCancel}
                         onNavigateChat={handleNavigateChat}
                         onViewVaultLog={handleViewVaultLog}
@@ -249,11 +280,17 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                         key={task.task_id}
                         task={task}
                         allowSteer
+                        allowShellInput={false}
                         steerTaskId={steerTaskId}
+                        shellInputTaskId={shellInputTaskId}
                         steerInput={steerInput}
+                        shellInput={shellInput}
                         onSteerInputChange={setSteerInput}
+                        onShellInputChange={setShellInput}
                         onToggleSteer={handleToggleSteer}
+                        onToggleShellInput={handleToggleShellInput}
                         onSteer={handleSteer}
+                        onShellInputSend={handleShellInputSend}
                         onCancel={handleCancel}
                         onNavigateChat={handleNavigateChat}
                         onViewVaultLog={handleViewVaultLog}

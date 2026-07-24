@@ -10,8 +10,10 @@ from myrm_agent_harness.agent.meta_tools.bash._background_types import Backgroun
 from app.services.agent.shell_background_tasks import (
     _redact_preview,
     cancel_shell_background_task,
+    find_shell_background_task,
     list_shell_background_tasks,
     shell_registry_is_ephemeral,
+    write_shell_background_stdin,
 )
 
 
@@ -120,3 +122,73 @@ async def test_cancel_shell_background_task_returns_false_when_unknown() -> None
         ok = await cancel_shell_background_task(404)
 
     assert ok is False
+
+
+@pytest.mark.asyncio
+async def test_write_shell_background_stdin_forwards_to_registry() -> None:
+    fake_registry = MagicMock()
+    fake_registry.write_stdin = AsyncMock(
+        return_value={"ok": True, "pid": 55, "bytes_written": 2}
+    )
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=fake_registry,
+    ):
+        result = await write_shell_background_stdin(55, "y", submit=True, close=False)
+
+    assert result["ok"] is True
+    fake_registry.write_stdin.assert_awaited_once_with(
+        55,
+        "y",
+        append_newline=True,
+        close=False,
+    )
+
+
+@pytest.mark.asyncio
+async def test_write_shell_background_stdin_close_forwards_to_registry() -> None:
+    fake_registry = MagicMock()
+    fake_registry.write_stdin = AsyncMock(
+        return_value={"ok": True, "pid": 56, "bytes_written": 0, "closed": True}
+    )
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=fake_registry,
+    ):
+        result = await write_shell_background_stdin(56, "", submit=False, close=True)
+
+    assert result["closed"] is True
+    fake_registry.write_stdin.assert_awaited_once_with(
+        56,
+        "",
+        append_newline=False,
+        close=True,
+    )
+
+
+def test_find_shell_background_task_by_job_id() -> None:
+    from app.services.agent.shell_background_tasks import find_shell_background_task
+
+    info = BackgroundProcessInfo(
+        job_id="abc123",
+        pid=301,
+        command="npm test",
+        session_id="chat-find",
+        started_at=1.0,
+        status="running",
+    )
+    fake_registry = MagicMock()
+    fake_registry.list_processes.return_value = [info]
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=fake_registry,
+    ):
+        row = find_shell_background_task("abc123")
+        missing = find_shell_background_task("missing")
+
+    assert row is not None
+    assert row.pid == 301
+    assert missing is None

@@ -19,4 +19,4 @@
 | `rate_limits.py` | 模块 | API endpoints for fetching real-time rate limit statistics | ✅ |
 | `router.py` | 路由 | Base statistics routes: usage, daily, sessions, activity, tool-stability, badges（含 activeGoals 计数）. | ✅ |
 | `session_analytics.py` | 模块 | 会话级分析 API。提供单个会话的详细统计（token、工具、事件时间线、任务指标）和执行追踪。 | ✅ |
-| `usage_aggregation.py` | 模块 | Coerce SQLAlchemy Row / tuple results into aggregate_usage inputs. | ✅ |
+| `usage_aggregation.py` | 模块 | Coerce SQLAlchemy Row / tuple results into aggregate_usage inputs；聚合 token/cost/cache 指标并输出端到端 `streamTtft` 统计摘要（sampleCount/avg/p95，基于 `streamTtftMs` 样本，不依赖 usage 字段是否存在）。 | ✅ |

@@ -13,6 +13,7 @@ Service-layer stream orchestration. HTTP route decorators remain in api/agents/g
 
 import asyncio
 import logging
+import time
 
 from fastapi import Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -71,6 +72,7 @@ async def run_agent_stream(
     Backend is the authoritative store: persists user message first,
     then loads chat history from DB (frontend no longer sends chat_history).
     """
+    stream_started_at_monotonic = time.perf_counter()
     request = prefer_direct_agent_stream(request)
     async for _ in http_request.stream():
         pass
@@ -260,6 +262,12 @@ async def run_agent_stream(
             protected_paths = request.goal.protected_paths
             active_goal = await goal_provider.get_active_goal(request.chat_id)
             if not active_goal:
+                checkpoint_mode_raw = getattr(request.goal, "checkpoint_mode", "none")
+                checkpoint_mode = checkpoint_mode_raw if checkpoint_mode_raw in ("none", "per_todo") else "none"
+                from typing import cast
+
+                from myrm_agent_harness.agent.goals.types import CheckpointMode
+
                 await goal_provider.create_goal(
                     session_id=request.chat_id,
                     objective="User requested goal",
@@ -268,6 +276,7 @@ async def run_agent_stream(
                     constraints=constraints,
                     protected_paths=protected_paths,
                     ui_summary=ui_summary,
+                    checkpoint_mode=cast(CheckpointMode, checkpoint_mode),
                 )
             else:
                 await goal_provider.set_budget(active_goal.goal_id, budget)
@@ -376,6 +385,7 @@ async def run_agent_stream(
         is_long_running_task=is_long_running_task,
         goal_provider=goal_provider,
         extra_context=extra_context or {},
+        stream_started_at_monotonic=stream_started_at_monotonic,
         consensus_config=consensus_config,
         consensus_ref_model_cfgs=consensus_ref_cfgs,
         consensus_agg_model_cfg=consensus_agg_cfg,

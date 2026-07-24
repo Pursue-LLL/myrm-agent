@@ -89,7 +89,9 @@ def _meta_str(meta: dict[str, object], key: str) -> str | None:
     return v if isinstance(v, str) else None
 
 
-def _meta_str_list(meta: dict[str, object], key: str, *, default: list[str] | None = None) -> list[str]:
+def _meta_str_list(
+    meta: dict[str, object], key: str, *, default: list[str] | None = None
+) -> list[str]:
     v = meta.get(key)
     if isinstance(v, list):
         return [str(x) for x in v]
@@ -119,7 +121,9 @@ def _meta_list_or_empty(meta: dict[str, object], key: str) -> list[dict[str, obj
     return []
 
 
-def _meta_list_or_none(meta: dict[str, object], key: str) -> list[dict[str, str]] | None:
+def _meta_list_or_none(
+    meta: dict[str, object], key: str
+) -> list[dict[str, str]] | None:
     v = meta.get(key)
     if isinstance(v, list) and v:
         return [item for item in v if isinstance(item, dict)]
@@ -133,7 +137,11 @@ _WORKSPACE_POLICY_MAP: dict[str, WorkspacePolicyLiteral] = {
 
 
 def _workspace_policy_from_metadata(raw: object) -> WorkspacePolicyLiteral:
-    return _WORKSPACE_POLICY_MAP.get(str(raw), "INHERIT_REQUESTER") if raw else "INHERIT_REQUESTER"
+    return (
+        _WORKSPACE_POLICY_MAP.get(str(raw), "INHERIT_REQUESTER")
+        if raw
+        else "INHERIT_REQUESTER"
+    )
 
 
 def _response_memory_policy(agent: AgentProfile) -> AgentMemoryPolicyConfig | None:
@@ -143,7 +151,9 @@ def _response_memory_policy(agent: AgentProfile) -> AgentMemoryPolicyConfig | No
     return AgentMemoryPolicyConfig.model_validate(raw)
 
 
-def _response_session_policy(metadata: dict[str, object]) -> AgentSessionPolicyConfig | None:
+def _response_session_policy(
+    metadata: dict[str, object],
+) -> AgentSessionPolicyConfig | None:
     raw = metadata.get("session_policy")
     if not isinstance(raw, dict):
         return None
@@ -203,7 +213,9 @@ def _marketplace_signature_policy() -> tuple[bool, str | None]:
     return require_signature, normalized_secret
 
 
-def _build_model_selection(model: str | None, metadata: dict[str, object]) -> ModelSelection | None:
+def _build_model_selection(
+    model: str | None, metadata: dict[str, object]
+) -> ModelSelection | None:
     """Build ModelSelection from stored model_selection JSON or fallback to basic."""
     full = metadata.get("model_selection_full")
     if isinstance(full, dict) and full.get("model"):
@@ -270,7 +282,9 @@ def _to_agent_response(
         browser_source=_meta_str(metadata, "browser_source"),
         dialog_policy=_meta_str(metadata, "dialog_policy"),
         session_recording=_meta_str(metadata, "session_recording"),
-        auto_restore_domains=_meta_str_list(metadata, "auto_restore_domains", default=[]),
+        auto_restore_domains=_meta_str_list(
+            metadata, "auto_restore_domains", default=[]
+        ),
         suggestion_prompts=_meta_str_list_or_none(metadata, "suggestion_prompts"),
         model_selection=_build_model_selection(agent.model, metadata),
         security_overrides=_meta_dict_or_none(metadata, "security_overrides"),
@@ -278,7 +292,9 @@ def _to_agent_response(
         personality_style=_safe_personality(metadata.get("personality_style")),
         subagent_ids=_meta_str_list(metadata, "subagent_ids", default=[]),
         max_iterations=agent.max_iterations,
-        workspace_policy=_workspace_policy_from_metadata(metadata.get("workspace_policy", "INHERIT_REQUESTER")),
+        workspace_policy=_workspace_policy_from_metadata(
+            metadata.get("workspace_policy", "INHERIT_REQUESTER")
+        ),
         memory_policy=_response_memory_policy(agent),
         session_policy=_response_session_policy(metadata),
         engine_params=_meta_dict_or_none(metadata, "engine_params"),
@@ -324,10 +340,14 @@ async def get_agents(
                 description=agent.description,
                 avatar_url=agent.avatar,
                 is_built_in=agent.built_in,
-                agent_type=_metadata_as_mapping(agent).get("agent_type", "individual") or "individual",
-                prompt_mode=_metadata_as_mapping(agent).get("prompt_mode", "full") or "full",
+                agent_type=_metadata_as_mapping(agent).get("agent_type", "individual")
+                or "individual",
+                prompt_mode=_metadata_as_mapping(agent).get("prompt_mode", "full")
+                or "full",
                 enabled_builtin_tools=_resolve_enabled_builtin_tools(agent),
-                model_selection=_build_model_selection(agent.model, _metadata_as_mapping(agent)),
+                model_selection=_build_model_selection(
+                    agent.model, _metadata_as_mapping(agent)
+                ),
                 created_at=agent.created_at,
                 updated_at=agent.updated_at,
             )
@@ -344,7 +364,9 @@ async def get_agents(
             has_prev=page > 1,
         )
 
-        paginated_data = PaginatedResponse[AgentListItem](items=agent_items, pagination=pagination_meta)
+        paginated_data = PaginatedResponse[AgentListItem](
+            items=agent_items, pagination=pagination_meta
+        )
 
         return success_response(data=paginated_data.model_dump())
     except Exception as e:
@@ -354,7 +376,9 @@ async def get_agents(
 @router.get("/{agent_id}", response_model=StandardSuccessResponse)
 async def get_agent(
     agent_id: str,
-    show_system_prompt: bool = Query(False, description="Show system prompt (hidden by default for security)"),
+    show_system_prompt: bool = Query(
+        False, description="Show system prompt (hidden by default for security)"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """获取智能体详情
@@ -381,7 +405,9 @@ async def get_agent(
             import logging
 
             audit_logger = logging.getLogger("audit")
-            audit_logger.info(f"System prompt viewed - agent_id={agent_id}, agent_name={agent.display_name}")
+            audit_logger.info(
+                f"System prompt viewed - agent_id={agent_id}, agent_name={agent.display_name}"
+            )
 
         return success_response(
             data=_to_agent_response(
@@ -412,7 +438,9 @@ async def create_agent(
     except HTTPException:
         raise
     except Exception as e:
-        from app.services.agent.external_cli_gate import ExternalCliBackendUnavailableError
+        from app.services.agent.external_cli_gate import (
+            ExternalCliBackendUnavailableError,
+        )
 
         if isinstance(e, ExternalCliBackendUnavailableError):
             raise validation_error(str(e)) from e
@@ -451,7 +479,9 @@ async def update_agent(
     except HTTPException:
         raise
     except Exception as e:
-        from app.services.agent.external_cli_gate import ExternalCliBackendUnavailableError
+        from app.services.agent.external_cli_gate import (
+            ExternalCliBackendUnavailableError,
+        )
 
         if isinstance(e, ExternalCliBackendUnavailableError):
             raise validation_error(str(e)) from e
@@ -479,7 +509,9 @@ async def delete_agent(
         raise internal_error(operation="Delete agent", exception=e) from e
 
 
-_SENSITIVE_AUTH_FIELDS = frozenset({"api_key", "bearer_token", "client_secret", "password", "username"})
+_SENSITIVE_AUTH_FIELDS = frozenset(
+    {"api_key", "bearer_token", "client_secret", "password", "username"}
+)
 
 
 def _strip_sensitive_auth(export_data: dict[str, Any]) -> None:
@@ -529,13 +561,17 @@ async def export_agent(
                 try:
                     members.append(await _export_single_agent(mid))
                 except HTTPException:
-                    logger.warning("Skipping missing subagent %s during team export", mid)
-            return success_response(data={
-                "_export_version": 1,
-                "agent_type": "team",
-                "leader": leader_data,
-                "members": members,
-            })
+                    logger.warning(
+                        "Skipping missing subagent %s during team export", mid
+                    )
+            return success_response(
+                data={
+                    "_export_version": 1,
+                    "agent_type": "team",
+                    "leader": leader_data,
+                    "members": members,
+                }
+            )
 
         return success_response(data=leader_data)
     except HTTPException:
@@ -572,7 +608,9 @@ async def marketplace_import_agent(
     from app.services.agent.marketplace import import_agent_package
 
     try:
-        package_payload, marketplace_entry_id = _parse_marketplace_import_request_body(body)
+        package_payload, marketplace_entry_id = _parse_marketplace_import_request_body(
+            body
+        )
         require_signature, signature_secret = _marketplace_signature_policy()
         agent_id = await import_agent_package(
             skill_creation_service,
@@ -621,7 +659,9 @@ def _parse_marketplace_import_request_body(
     return body, None
 
 
-def _extract_marketplace_profile_display_name(package_payload: dict[str, object]) -> str | None:
+def _extract_marketplace_profile_display_name(
+    package_payload: dict[str, object],
+) -> str | None:
     profile_raw = package_payload.get("agent_profile")
     if not isinstance(profile_raw, dict):
         return None
@@ -644,15 +684,21 @@ async def clone_agent(
             raise not_found_error("Agent")
 
         agent_resp = _to_agent_response(agent, show_system_prompt=True)
-        clone_data = agent_resp.model_dump(exclude={"id", "user_id", "created_at", "updated_at"})
+        clone_data = agent_resp.model_dump(
+            exclude={"id", "user_id", "created_at", "updated_at"}
+        )
 
         clone_data["home_directory"] = None
 
-        if isinstance(clone_data.get("avatar_url"), str) and clone_data["avatar_url"].startswith("home://"):
+        if isinstance(clone_data.get("avatar_url"), str) and clone_data[
+            "avatar_url"
+        ].startswith("home://"):
             clone_data["avatar_url"] = None
 
         original_name = clone_data.get("name") or "Agent"
-        clone_data["name"] = body.name if body and body.name else f"{original_name} (Copy)"
+        clone_data["name"] = (
+            body.name if body and body.name else f"{original_name} (Copy)"
+        )
         clone_data["is_built_in"] = False
 
         new_agent_data = AgentCreate.model_validate(clone_data)
@@ -707,14 +753,18 @@ async def rollback_agent(
                 status_code=400,
                 detail="No snapshot found for rollback or agent missing.",
             )
-        return success_response(data={"message": "Agent profile rolled back successfully."})
+        return success_response(
+            data={"message": "Agent profile rolled back successfully."}
+        )
     except HTTPException:
         raise
     except Exception as e:
         raise internal_error(operation="Rollback agent profile", exception=e) from e
 
 
-@router.post("/{agent_id}/rollback/{snapshot_id}", response_model=StandardSuccessResponse)
+@router.post(
+    "/{agent_id}/rollback/{snapshot_id}", response_model=StandardSuccessResponse
+)
 async def rollback_agent_to_snapshot(
     agent_id: str,
     snapshot_id: str,
@@ -728,11 +778,15 @@ async def rollback_agent_to_snapshot(
                 status_code=400,
                 detail="Snapshot not found or agent missing.",
             )
-        return success_response(data={"message": "Agent profile rolled back successfully."})
+        return success_response(
+            data={"message": "Agent profile rolled back successfully."}
+        )
     except HTTPException:
         raise
     except Exception as e:
-        raise internal_error(operation="Rollback agent profile to snapshot", exception=e) from e
+        raise internal_error(
+            operation="Rollback agent profile to snapshot", exception=e
+        ) from e
 
 
 @router.post("/import", response_model=StandardSuccessResponse)
@@ -824,7 +878,9 @@ async def upload_agent_avatar(
             "image/webp",
         ]
         if file.content_type not in allowed_types:
-            raise validation_error(f"Unsupported file type: {file.content_type}. Allowed: {', '.join(allowed_types)}")
+            raise validation_error(
+                f"Unsupported file type: {file.content_type}. Allowed: {', '.join(allowed_types)}"
+            )
 
         # Validate file size (5MB max)
         content = await file.read()
@@ -856,9 +912,13 @@ async def upload_agent_avatar(
         # Update agent avatar_url to home:// reference
         avatar_url = f"home://{avatar_filename}"
 
-        await AgentService.update_agent(agent_id, AgentUpdate.model_validate({"avatar_url": avatar_url}))
+        await AgentService.update_agent(
+            agent_id, AgentUpdate.model_validate({"avatar_url": avatar_url})
+        )
 
-        return success_response(data={"avatar_url": avatar_url, "local_path": avatar_path})
+        return success_response(
+            data={"avatar_url": avatar_url, "local_path": avatar_path}
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -932,7 +992,9 @@ async def create_agent_secret(
             raise not_found_error("Agent")
 
         secret_manager = _get_secret_backend()
-        await secret_manager.save_secret(agent_id, secret_data.key_name, secret_data.secret_value)
+        await secret_manager.save_secret(
+            agent_id, secret_data.key_name, secret_data.secret_value
+        )
         return success_response(data={"key_name": secret_data.key_name})
     except HTTPException:
         raise
@@ -988,18 +1050,25 @@ async def get_agent_statistics(
         from app.database.models import Chat, Message
 
         # Count sessions where this agent was used
-        sessions_result = await db.execute(select(func.count(Chat.id)).where(Chat.agent_id == agent_id))
+        sessions_result = await db.execute(
+            select(func.count(Chat.id)).where(Chat.agent_id == agent_id)
+        )
         total_sessions = sessions_result.scalar_one()
 
         # Count total messages in agent's sessions
         messages_result = await db.execute(
-            select(func.count(Message.id)).join(Chat, Message.chat_id == Chat.id).where(Chat.agent_id == agent_id)
+            select(func.count(Message.id))
+            .join(Chat, Message.chat_id == Chat.id)
+            .where(Chat.agent_id == agent_id)
         )
         total_messages = messages_result.scalar_one()
 
         # Get last used time
         last_chat_result = await db.execute(
-            select(Chat.updated_at).where(Chat.agent_id == agent_id).order_by(desc(Chat.updated_at)).limit(1)
+            select(Chat.updated_at)
+            .where(Chat.agent_id == agent_id)
+            .order_by(desc(Chat.updated_at))
+            .limit(1)
         )
         last_used_at = last_chat_result.scalar_one_or_none()
 
@@ -1045,7 +1114,9 @@ async def evaluate_action_space(
             skill = await SkillsService.get_skill_by_id(skill_id)
             if skill:
                 # API 层采用极速启发式估算，避免阻断 UI 线程去实例化厚重的 Python Tool 对象
-                cost = ActionSpaceProfiler.BASE_TOOL_COST + (len(skill.description or "") // 50)
+                cost = ActionSpaceProfiler.BASE_TOOL_COST + (
+                    len(skill.description or "") // 50
+                )
                 if not is_core:
                     cost = int(cost * 0.5)  # 外围工具因按需加载，常驻认知负载减半
                 total_score += cost

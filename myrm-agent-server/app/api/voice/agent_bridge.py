@@ -129,7 +129,9 @@ class VoiceAgentBridge:
                 return
 
             if full_text:
-                self._transcript.append(_TranscriptEntry(role="assistant", text=full_text))
+                self._transcript.append(
+                    _TranscriptEntry(role="assistant", text=full_text)
+                )
             elif has_approval:
                 outcome = "approval_pending"
             else:
@@ -201,18 +203,26 @@ class VoiceAgentBridge:
         profile = await resolver.resolve(agent_id)
 
         if profile and profile.model:
-            agent_model_cfg = resolve_model_config(configs.providers_dict, model_override=profile.model)
-            agent_model_cfg = enrich_model_context_window(agent_model_cfg, configs.providers_dict)
+            agent_model_cfg = resolve_model_config(
+                configs.providers_dict, model_override=profile.model
+            )
+            agent_model_cfg = enrich_model_context_window(
+                agent_model_cfg, configs.providers_dict
+            )
         else:
             agent_model_cfg = configs.model_cfg
 
-        fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(configs.providers_dict)
+        fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
+            configs.providers_dict
+        )
         lite_model_cfg = extract_lite_model_config(configs.providers_dict)
         embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
         mcp_configs = extract_mcp_configs(configs.mcp_dict)
 
         if mcp_configs and profile:
-            from app.services.agent.params.mcp_selection import apply_agent_mcp_selection
+            from app.services.agent.params.mcp_selection import (
+                apply_agent_mcp_selection,
+            )
 
             mcp_configs = apply_agent_mcp_selection(
                 mcp_configs,
@@ -229,8 +239,13 @@ class VoiceAgentBridge:
         transcript_ctx = ""
         if self._transcript:
             recent = self._transcript[-_MAX_TRANSCRIPT_HISTORY:]
-            lines = [f"{'User' if e.role == 'user' else 'Assistant'}: {e.text}" for e in recent]
-            transcript_ctx = "\n\n[Recent voice transcript for context]\n" + "\n".join(lines)
+            lines = [
+                f"{'User' if e.role == 'user' else 'Assistant'}: {e.text}"
+                for e in recent
+            ]
+            transcript_ctx = "\n\n[Recent voice transcript for context]\n" + "\n".join(
+                lines
+            )
 
         chat_id = self._chat_id or f"voice-{uuid.uuid4().hex[:12]}"
         message_id = f"vmsg-{uuid.uuid4().hex[:12]}"
@@ -252,9 +267,17 @@ class VoiceAgentBridge:
         )
 
         skill_ids = list(profile.skill_ids) if profile else []
-        subagent_ids = list(profile.subagent_ids) if profile and profile.subagent_ids else None
-        enabled_builtin_tools = list(profile.enabled_builtin_tools) if profile else list(DEFAULT_ENABLED_BUILTIN_TOOLS)
-        memory_context = voice_memory_context_from(memory_settings, enabled_builtin_tools)
+        subagent_ids = (
+            list(profile.subagent_ids) if profile and profile.subagent_ids else None
+        )
+        enabled_builtin_tools = (
+            list(profile.enabled_builtin_tools)
+            if profile
+            else list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+        )
+        memory_context = voice_memory_context_from(
+            memory_settings, enabled_builtin_tools
+        )
 
         return GeneralAgentParams(
             query=query + transcript_ctx,
@@ -278,7 +301,9 @@ class VoiceAgentBridge:
                 resolve_builtin_tool_flags(enabled_builtin_tools),
             ),
             fetch_raw_webpage=bool(memory_settings.get("fetchRawWebpage")),
-            enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction", True)),
+            enable_memory_auto_extraction=bool(
+                memory_settings.get("enableMemoryAutoExtraction", True)
+            ),
             enable_conversation_search=memory_context.enable_conversation_search,
             agent_skill_ids=skill_ids,
             subagent_ids=subagent_ids,
@@ -328,7 +353,11 @@ class VoiceAgentBridge:
                         )
 
             elif event_type == "tool_use":
-                tool_name = event.get("data", {}).get("name", "") if isinstance(event.get("data"), dict) else ""
+                tool_name = (
+                    event.get("data", {}).get("name", "")
+                    if isinstance(event.get("data"), dict)
+                    else ""
+                )
                 await self._send_json(
                     {
                         "type": "agent_tool_use",
@@ -427,7 +456,9 @@ class VoiceAgentBridge:
         lang = (self._voice_config.stt_language or "").lower()
         msg = _FALLBACK_ZH if "zh" in lang or "cn" in lang else _FALLBACK_EN
         await self._stream_tts_segment(msg, self._current_turn or "")
-        await self._send_json({"type": "agent_error", "message": "Agent execution failed"})
+        await self._send_json(
+            {"type": "agent_error", "message": "Agent execution failed"}
+        )
 
     # ── WebSocket helpers ─────────────────────────────────────────────
 

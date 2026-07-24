@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import fcntl
 import logging
 import os
 import shutil
@@ -207,9 +208,7 @@ def _apply_chrome_e2e_lane_timeout(item: pytest.Item) -> None:
     floor = _chrome_e2e_lane_timeout_sec(item)
     if floor is None:
         return
-    existing = item.get_closest_marker("timeout")
-    if existing is not None and int(existing.args[0]) >= floor:
-        return
+    # R43: always cap chrome_e2e to lane floor; per-item marks must not exceed SSOT.
     item.own_markers = [
         marker for marker in item.own_markers if marker.name != "timeout"
     ]
@@ -252,15 +251,28 @@ def test_secrets():
 
 
 # Ensure schema is created since TestClient bypasses lifespan
+_INIT_DB_LOCK = Path(tempfile.gettempdir()) / "myrm-server-pytest-init-db.lock"
+
+
 @pytest.fixture(scope="session", autouse=True)
 def init_test_database():
     """Initialize database schema for isolated test DBs."""
+    # Formal chrome_e2e runs against the live server stack; parallel pytest
+    # processes must not race init_database() on the shared SQLite file.
+    if os.environ.get("MYRM_E2E_LANE", "").strip() in {"READ", "LIVE_AGENT"}:
+        return
+
     from app.database.connection import init_database
 
-    try:
-        asyncio.run(init_database())
-    except Exception as e:
-        print(f"Warning: init_database failed: {e}")
+    _INIT_DB_LOCK.parent.mkdir(parents=True, exist_ok=True)
+    with _INIT_DB_LOCK.open("w", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            _run_async_teardown(init_database())
+        except Exception as e:
+            print(f"Warning: init_database failed: {e}")
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -301,9 +313,9 @@ def blocking_io_gate() -> Iterator[BlockBuster]:
 
 
 @pytest.fixture(autouse=True)
-async def _reset_global_browser_pool_after_test(
+def _reset_global_browser_pool_after_test(
     request: pytest.FixtureRequest,
-) -> AsyncIterator[None]:
+) -> Iterator[None]:
     """Shut down harness GlobalBrowserPool after browser-related tests.
 
     TestClient bypasses app lifespan, so Chromium instances otherwise accumulate
@@ -320,7 +332,7 @@ async def _reset_global_browser_pool_after_test(
         )
 
         with suppress(Exception):
-            await reset_global_browser_pool_for_tests()
+            _run_async_teardown(reset_global_browser_pool_for_tests())
     except Exception as exc:
         _logger.warning("Failed to reset GlobalBrowserPool after test: %s", exc)
 
@@ -448,10 +460,26 @@ def _require_live_e2e_lease(
     reap_chrome_e2e_session_hygiene()
     lease = require_e2e_runtime_lease()
 
+    dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
+    if str(dev_infra) not in sys.path:
+        sys.path.insert(0, str(dev_infra))
+    from dev_gate_contract import chrome_e2e_skips_attach_health_reprobe
+
     try:
         # Item runtimes already run chrome-e2e-preflight with attach checks on their env.
-        if _chrome_e2e_item_runtime is None:
+        skip_attach_reprobe = chrome_e2e_skips_attach_health_reprobe(
+            chrome_attach=os.environ.get("MYRM_CHROME_E2E_ATTACH", "").strip() == "1",
+            shared_hot=os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() == "1",
+            stream_lock_held=os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip()
+            == "1",
+        )
+        if _chrome_e2e_item_runtime is None and not skip_attach_reprobe:
             assert_chrome_attach_health()
+        elif skip_attach_reprobe:
+            print(
+                "MYRM_TEST: skip attach health reprobe (bootstrap verified)",
+                flush=True,
+            )
     except RuntimeError as exc:
         pytest.fail(str(exc))
     reap_chrome_e2e_session_hygiene()
@@ -465,9 +493,6 @@ def _require_live_e2e_lease(
     )
     # Private per-item backends (e.g. cron live on :180xx) must not queue on shared :8080 stream lock.
     shpoib_session = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
-    dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
-    if str(dev_infra) not in sys.path:
-        sys.path.insert(0, str(dev_infra))
     from dev_gate_contract import chrome_e2e_skips_shared_stream_lock
 
     skip_stream_lock = chrome_e2e_skips_shared_stream_lock(

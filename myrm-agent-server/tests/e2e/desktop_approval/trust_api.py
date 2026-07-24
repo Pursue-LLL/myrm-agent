@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.request
 from pathlib import Path
 
@@ -26,6 +27,52 @@ from cdp_chat_support import (
 )
 
 from tests.e2e.desktop_approval.constants import progress
+
+_DESKTOP_DREF_PATTERN = re.compile(r"@(d\d+)\b")
+
+
+def extract_first_desktop_dref_from_messages(
+    messages: list[object],
+) -> str | None:
+    """Parse first @dref from persisted assistant progress (API SSOT under TextEdit foreground)."""
+    for msg in reversed(messages):
+        if not isinstance(msg, dict) or msg.get("role") != "assistant":
+            continue
+        chunks: list[str] = []
+        content = msg.get("content")
+        if isinstance(content, str):
+            chunks.append(content)
+        metadata = msg.get("metadata")
+        meta = metadata if isinstance(metadata, dict) else {}
+        top_steps_raw = msg.get("progressSteps")
+        if isinstance(top_steps_raw, list):
+            steps = top_steps_raw
+        else:
+            steps_raw = meta.get("progressSteps")
+            steps = steps_raw if isinstance(steps_raw, list) else []
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            for key in ("stdout", "items", "output", "result"):
+                value = step.get(key)
+                if isinstance(value, str):
+                    chunks.append(value)
+                elif value is not None:
+                    chunks.append(json.dumps(value, ensure_ascii=False))
+        match = _DESKTOP_DREF_PATTERN.search("\n".join(chunks))
+        if match:
+            return match.group(1)
+    return None
+
+
+def fetch_first_desktop_dref_from_api(chat_id: str) -> str | None:
+    normalized = chat_id.strip()
+    if not normalized:
+        return None
+    messages = fetch_chat_messages(normalized)
+    if not messages:
+        return None
+    return extract_first_desktop_dref_from_messages(messages)
 
 
 def fetch_desktop_tool_progress_from_api(chat_id: str) -> dict[str, object] | None:

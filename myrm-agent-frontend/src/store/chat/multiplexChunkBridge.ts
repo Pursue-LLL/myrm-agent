@@ -28,7 +28,6 @@ export function createMultiplexChunkBridge(
   requestMessageId: string,
   abortSignal: AbortSignal,
 ): MultiplexChunkBridge {
-  const eventName = `multiplex_chunk_${requestMessageId}`;
   const pendingChunks: string[] = [];
   let onChunk: MultiplexChunkHandler | null = null;
   let unregisterManager: (() => void) | null = null;
@@ -41,20 +40,11 @@ export function createMultiplexChunkBridge(
     pendingChunks.push(chunk);
   };
 
-  const listener = (event: Event) => {
-    const chunk = (event as CustomEvent<string>).detail;
-    if (!chunk) {
-      return;
-    }
-    deliver(chunk);
-  };
-
   const onAbort = () => {
     dispose();
   };
 
   const dispose = () => {
-    window.removeEventListener(eventName, listener);
     abortSignal.removeEventListener('abort', onAbort);
     unregisterManager?.();
     unregisterManager = null;
@@ -62,7 +52,6 @@ export function createMultiplexChunkBridge(
     pendingChunks.length = 0;
   };
 
-  window.addEventListener(eventName, listener);
   unregisterManager = connectionManager.registerMultiplexHandler(requestMessageId, deliver);
   abortSignal.addEventListener('abort', onAbort);
 

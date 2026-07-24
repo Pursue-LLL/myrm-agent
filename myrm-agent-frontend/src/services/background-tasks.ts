@@ -51,6 +51,22 @@ export async function cancelBackgroundTask(taskId: string): Promise<{ message: s
   return apiRequest(`/background-tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' });
 }
 
+export async function sendShellBackgroundStdin(
+  taskId: string,
+  data: string,
+  options?: { submit?: boolean; close?: boolean },
+): Promise<{ message: string; task_id: string; result: Record<string, unknown> }> {
+  return apiRequest(`/background-tasks/${encodeURIComponent(taskId)}/stdin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      data,
+      submit: options?.submit ?? false,
+      close: options?.close ?? false,
+    }),
+  });
+}
+
 export async function steerBackgroundTask(
   taskId: string,
   instruction: string,

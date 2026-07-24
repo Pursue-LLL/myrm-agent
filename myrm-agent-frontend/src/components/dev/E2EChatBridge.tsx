@@ -22,16 +22,22 @@ import useApprovalStore from '@/store/useApprovalStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useProviderStore from '@/store/useProviderStore';
+import useConfigStore from '@/store/useConfigStore';
+import type { SearchServiceConfigItem } from '@/store/config/types';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
-import type { BuiltinToolId } from '@/store/chat/types';
+import type { ActionMode, BuiltinToolId } from '@/store/chat/types';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
 import { fetchWithTimeout } from '@/lib/api';
 import { getApiBaseUrl, resolveE2eApiBase as resolveInjectedE2eApiBase } from '@/lib/deploy-mode';
 import { markPlatformUnreachable } from '@/lib/platform-readiness';
 import { isModelAvailable } from '@/lib/model-binding';
+import {
+  shouldPreserveE2eActionMode,
+  shouldRunPrepareAutomationSend,
+} from '@/components/dev/e2eChatBridgeSendPolicy';
 
 function isLocalDevHost(): boolean {
   if (typeof window === 'undefined') return false;
@@ -48,6 +54,127 @@ function prepareAutomationSend(): void {
 
 function resolveE2eApiBase(): string {
   return resolveInjectedE2eApiBase() ?? '';
+}
+
+async function waitE2eProviderSendReady(deadlineMs: number): Promise<void> {
+  while (Date.now() < deadlineMs) {
+    prepareAutomationSend();
+    const { actionMode, agentConfig } = useChatStore.getState();
+    const refreshed = useProviderStore.getState();
+    const readyLite = refreshed.defaultModelConfig?.liteModel?.primary;
+    if (
+      refreshed.isInitialized &&
+      getModelSelection(actionMode, agentConfig) !== null &&
+      readyLite?.providerId &&
+      readyLite?.model
+    ) {
+      return;
+    }
+    if (!refreshed.isInitialized) {
+      await useProviderStore.getState().initProviders();
+    } else if (!readyLite?.providerId || !readyLite?.model) {
+      await useProviderStore.getState().retryInit();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error('e2e-send-not-ready-after-provider-init');
+}
+
+type E2eProviderConfigBody = {
+  value?: {
+    defaultModelConfig?: {
+      baseModel?: { primary?: { providerId?: string; model?: string } | null };
+      liteModel?: { primary?: { providerId?: string; model?: string } | null };
+    };
+  };
+  defaultModelConfig?: {
+    baseModel?: { primary?: { providerId?: string; model?: string } | null };
+    liteModel?: { primary?: { providerId?: string; model?: string } | null };
+  };
+};
+
+function extractSearchServiceConfigs(body: unknown): SearchServiceConfigItem[] {
+  if (!body || typeof body !== 'object') {
+    return [];
+  }
+  const record = body as { value?: { searchServiceConfigs?: unknown }; searchServiceConfigs?: unknown };
+  const root =
+    record.value && typeof record.value === 'object'
+      ? record.value
+      : (record as { searchServiceConfigs?: unknown });
+  const configs = root.searchServiceConfigs;
+  return Array.isArray(configs) ? (configs as SearchServiceConfigItem[]) : [];
+}
+
+async function fetchSearchServiceConfigsFromApi(apiBase: string): Promise<SearchServiceConfigItem[]> {
+  const normalizedApi = apiBase.replace(/\/+$/, '');
+  const resp = await fetch(`${normalizedApi}/api/v1/config/searchServices`, { cache: 'no-store' });
+  if (!resp.ok) {
+    return [];
+  }
+  const body: unknown = await resp.json();
+  return extractSearchServiceConfigs(body);
+}
+
+async function hydrateSearchServicesFromE2eApi(): Promise<{ ok: boolean; err?: string; count?: number }> {
+  const e2eApiBase = resolveE2eApiBase();
+  if (!e2eApiBase) {
+    return { ok: false, err: 'no-e2e-api-base' };
+  }
+  const deadline = Date.now() + 15_000;
+  let configs: SearchServiceConfigItem[] = [];
+  while (Date.now() < deadline) {
+    configs = await fetchSearchServiceConfigsFromApi(e2eApiBase);
+    if (configs.length > 0) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  if (configs.length === 0) {
+    configs = await fetchSearchServiceConfigsFromApi('http://127.0.0.1:8080');
+  }
+  if (configs.length === 0) {
+    return { ok: false, err: 'empty-search-configs' };
+  }
+  useConfigStore.setState({ searchServiceConfigs: configs });
+  return { ok: true, count: configs.length };
+}
+
+async function fetchE2eProviderConfigBody(): Promise<E2eProviderConfigBody> {
+  const apiBase = (resolveE2eApiBase() || getApiBaseUrl()).replace(/\/+$/, '');
+  const res = await fetch(`${apiBase}/api/v1/config/providers`, { cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error(`e2e-provider-config-fetch-${res.status}`);
+  }
+  return (await res.json()) as E2eProviderConfigBody;
+}
+
+async function hydrateLiteModelFromConfigApi(): Promise<void> {
+  const config = await fetchE2eProviderConfigBody();
+  const litePrimary = (config.value ?? config)?.defaultModelConfig?.liteModel?.primary;
+  if (!litePrimary?.providerId || !litePrimary?.model) {
+    throw new Error('e2e-lite-model-unconfigured');
+  }
+  flushSync(() => {
+    useProviderStore.getState().setLiteModel({
+      providerId: litePrimary.providerId,
+      model: litePrimary.model,
+    });
+  });
+}
+
+async function hydrateBaseModelFromConfigApi(): Promise<void> {
+  const config = await fetchE2eProviderConfigBody();
+  const basePrimary = (config.value ?? config)?.defaultModelConfig?.baseModel?.primary;
+  if (!basePrimary?.providerId || !basePrimary?.model) {
+    throw new Error('e2e-base-model-unconfigured');
+  }
+  flushSync(() => {
+    useProviderStore.getState().setBaseModel({
+      providerId: basePrimary.providerId,
+      model: basePrimary.model,
+    });
+  });
 }
 
 async function probePrivateBackendReady(e2eApiBase: string): Promise<boolean> {
@@ -67,17 +194,56 @@ async function probePrivateBackendReady(e2eApiBase: string): Promise<boolean> {
   }
 }
 
-async function initProvidersForE2e(): Promise<void> {
+type E2eChatSessionOpts = { preserveActionMode?: boolean };
+
+async function initProvidersForE2e(opts?: E2eChatSessionOpts): Promise<void> {
   const e2eApiBase = resolveE2eApiBase();
   if (e2eApiBase) {
+    const preserveActionMode = shouldPreserveE2eActionMode(
+      useChatStore.getState().actionMode,
+      Boolean(opts?.preserveActionMode),
+    );
+    if (shouldRunPrepareAutomationSend(preserveActionMode)) {
+      prepareAutomationSend();
+    }
+    const { actionMode, agentConfig } = useChatStore.getState();
+    const providerState = useProviderStore.getState();
+    const litePrimary = providerState.defaultModelConfig?.liteModel?.primary;
+    if (
+      providerState.isInitialized &&
+      getModelSelection(actionMode, agentConfig) !== null &&
+      litePrimary?.providerId &&
+      litePrimary?.model
+    ) {
+      return;
+    }
+
     markPlatformUnreachable();
     markLocalBackendUnreachable();
-    const deadline = Date.now() + 60_000;
+    const normalizedApi = e2eApiBase.replace(/\/+$/, '');
+    const workspaceStatus =
+      typeof window !== 'undefined' ? window.__MYRM_WORKSPACE_STREAM_STATUS__?.() : undefined;
+    const workspaceConnected =
+      workspaceStatus?.connected === true &&
+      (workspaceStatus.origin ?? '').replace(/\/+$/, '') === normalizedApi;
+
+    const deadline = Date.now() + 120_000;
     let ready = false;
     while (Date.now() < deadline) {
       if (await probePrivateBackendReady(e2eApiBase)) {
         ready = true;
         break;
+      }
+      if (workspaceConnected) {
+        try {
+          const health = await fetch(`${normalizedApi}/api/v1/health`, { cache: 'no-store' });
+          if (health.ok) {
+            ready = true;
+            break;
+          }
+        } catch {
+          // retry until deadline
+        }
       }
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
@@ -85,24 +251,15 @@ async function initProvidersForE2e(): Promise<void> {
       throw new Error('e2e-private-backend-not-ready');
     }
     await useProviderStore.getState().retryInit();
-    const sendReadyDeadline = Date.now() + 60_000;
-    while (Date.now() < sendReadyDeadline) {
-      prepareAutomationSend();
-      const { actionMode, agentConfig } = useChatStore.getState();
-      if (
-        useProviderStore.getState().isInitialized &&
-        getModelSelection(actionMode, agentConfig) !== null
-      ) {
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
-    throw new Error('e2e-send-not-ready-after-provider-init');
+    await hydrateSearchServicesFromE2eApi();
+    await waitE2eProviderSendReady(Date.now() + 120_000);
+    return;
   }
   const providerState = useProviderStore.getState();
   if (!providerState.isInitialized) {
     await providerState.initProviders();
   }
+  await waitE2eProviderSendReady(Date.now() + 120_000);
 }
 
 type E2eSubmitResult = {
@@ -116,14 +273,23 @@ type E2eSubmitResult = {
 async function executeE2eChatSend(
   message: string,
   baselineUsers: number,
+  waitForStreamCompletion = true,
+  preserveActionMode = false,
 ): Promise<E2eSubmitResult> {
   const trimmed = message.trim();
   if (!trimmed) {
     return { ok: false, err: 'empty-message' };
   }
   try {
-    await window.__MYRM_E2E_CHAT__?.ensureChatSession?.();
-    prepareAutomationSend();
+    window.__MYRM_E2E_CHAT__?.abortActiveStream?.();
+    window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.();
+    const { actionMode: sendActionMode } = useChatStore.getState();
+    const shouldPreserveActionMode = shouldPreserveE2eActionMode(
+      sendActionMode,
+      preserveActionMode,
+    );
+    const sessionOpts = shouldPreserveActionMode ? { preserveActionMode: true } : undefined;
+    await window.__MYRM_E2E_CHAT__?.ensureChatSession?.(sessionOpts);
     flushSync(() => {
       useChatStore.getState().setInputMessage(trimmed);
     });
@@ -169,17 +335,46 @@ async function executeE2eChatSend(
         },
       };
     }
-    try {
-      await useChatStore.getState().sendMessage(trimmed, undefined);
-    } catch (error) {
-      return {
-        ok: false,
-        err: error instanceof Error ? error.message : String(error),
-        debug: {
-          turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
-          ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
-        },
-      };
+    if (!waitForStreamCompletion) {
+      void useChatStore.getState().sendMessage(trimmed, undefined).catch((error) => {
+        window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+          ok: false,
+          err: error instanceof Error ? error.message : String(error),
+          mode: 'kickoffBackgroundError',
+        };
+      });
+      const kickoffDeadline = Date.now() + 45_000;
+      while (Date.now() < kickoffDeadline) {
+        const chatState = useChatStore.getState();
+        const userCount = chatState.messages.filter((msg) => msg.role === 'user').length;
+        if (
+          chatState.loading
+          || chatState.abortController
+          || userCount > baselineUsers
+        ) {
+          const chatId = chatState.chatId?.trim() || '';
+          return {
+            ok: true,
+            chatId,
+            mode: 'kickoffStreaming',
+            debug: { turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() },
+          };
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    } else {
+      try {
+        await useChatStore.getState().sendMessage(trimmed, undefined);
+      } catch (error) {
+        return {
+          ok: false,
+          err: error instanceof Error ? error.message : String(error),
+          debug: {
+            turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
+            ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+          },
+        };
+      }
     }
     const chatState = useChatStore.getState();
     const chatId = chatState.chatId?.trim() || '';
@@ -248,13 +443,33 @@ export default function E2EChatBridge() {
   useLayoutEffect(() => {
     if (!isLocalDevHost()) return;
 
-    const sseEvents: string[] = [];
-    (window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string) => void }).__MYRM_E2E_RECORD_SSE__ = (
+    const sseEvents: Array<{ type: string; messageId: string | null }> = [];
+    let sseCaptureMessageId: string | null = null;
+    let sseCaptureLocked = false;
+    (window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string, messageId?: string | null) => void }).__MYRM_E2E_RECORD_SSE__ = (
       type: string,
+      messageId?: string | null,
     ) => {
-      sseEvents.push(type);
-      if (sseEvents.length > 48) {
-        sseEvents.splice(0, sseEvents.length - 48);
+      if (sseCaptureLocked) {
+        const normalizedId =
+          typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
+        if (type !== 'capability_gap' || !normalizedId) {
+          return;
+        }
+        sseCaptureMessageId = normalizedId;
+        sseCaptureLocked = false;
+      }
+      const normalizedId =
+        typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
+      if (sseCaptureMessageId && normalizedId !== sseCaptureMessageId) {
+        return;
+      }
+      sseEvents.push({
+        type,
+        messageId: normalizedId,
+      });
+      if (sseEvents.length > 64) {
+        sseEvents.splice(0, sseEvents.length - 64);
       }
     };
 
@@ -267,18 +482,19 @@ export default function E2EChatBridge() {
         if (!useProviderStore.getState().isInitialized) {
           return false;
         }
-        prepareAutomationSend();
         const { actionMode, agentConfig } = useChatStore.getState();
         return getModelSelection(actionMode, agentConfig) !== null;
       },
+      syncSearchServicesFromE2eApi: hydrateSearchServicesFromE2eApi,
       debugProviderState: () => {
         const { isInitialized, providers, defaultModelConfig } = useProviderStore.getState();
-        const { actionMode, agentConfig, chatId } = useChatStore.getState();
+        const { actionMode, agentConfig, chatId, currentSessionMessageId } = useChatStore.getState();
         const selection = getModelSelection(actionMode, agentConfig);
         return {
           isInitialized,
           actionMode,
           chatId,
+          streamRequestMessageId: currentSessionMessageId?.trim() || null,
           providerIds: providers.map((p) => p.id),
           enabledProviderIds: providers.filter((p) => p.isEnabled).map((p) => p.id),
           primary: defaultModelConfig?.baseModel?.primary ?? null,
@@ -286,9 +502,15 @@ export default function E2EChatBridge() {
           selection: selection ? { providerId: selection.providerId, model: selection.model } : null,
         };
       },
-      ensureChatSession: async () => {
-        await initProvidersForE2e();
-        prepareAutomationSend();
+      ensureChatSession: async (opts?: E2eChatSessionOpts) => {
+        await initProvidersForE2e(opts);
+        const preserveActionMode = shouldPreserveE2eActionMode(
+          useChatStore.getState().actionMode,
+          Boolean(opts?.preserveActionMode),
+        );
+        if (shouldRunPrepareAutomationSend(preserveActionMode)) {
+          prepareAutomationSend();
+        }
         if (!useChatStore.getState().chatId?.trim()) {
           flushSync(() => {
             useChatStore.getState().initializeChat(undefined);
@@ -361,18 +583,80 @@ export default function E2EChatBridge() {
           useChatStore.getState().setInputMessage(message);
         });
       },
+      submitSteerNudge: async (message: string) => {
+        const trimmed = message.trim();
+        if (!trimmed) {
+          return { ok: false, err: 'empty-message' };
+        }
+        flushSync(() => {
+          useChatStore.getState().setInputMessage(trimmed);
+        });
+        const storeOk = await useChatStore.getState().steerMessage(trimmed);
+        if (storeOk) {
+          flushSync(() => {
+            useChatStore.getState().setInputMessage('');
+          });
+          return { ok: true, mode: 'steerStore' };
+        }
+        const buttons = [...document.querySelectorAll('button[aria-label]')];
+        const steerBtn = buttons.find((btn) => {
+          const label = String(btn.getAttribute('aria-label') || '').toLowerCase();
+          return (
+            label.includes('steer')
+            || label.includes('guidance')
+            || label.includes('转向')
+            || label.includes('指导')
+          );
+        }) as HTMLButtonElement | undefined;
+        if (steerBtn && !steerBtn.disabled) {
+          steerBtn.click();
+          return { ok: true, mode: 'steerClick' };
+        }
+        const baselineUsers = window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0;
+        const sendResult = await executeE2eChatSend(trimmed, baselineUsers);
+        return sendResult.ok
+          ? { ok: true, mode: 'steerSendFallback', detail: sendResult }
+          : { ok: false, err: 'steer-fallback-send-failed', detail: sendResult };
+      },
       clearStreamRequestMessageId: () => {
         useChatStore.getState().clearCurrentSessionMessageId();
       },
       sendChatMessage: async (
         text: string,
-        opts?: { baselineUserCount?: number },
+        opts?: {
+          baselineUserCount?: number;
+          waitForStreamCompletion?: boolean;
+          preserveActionMode?: boolean;
+        },
       ): Promise<E2eSubmitResult> => {
         const baselineUsers =
           typeof opts?.baselineUserCount === 'number'
             ? opts.baselineUserCount
             : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
-        const result = await executeE2eChatSend(text, baselineUsers);
+        const waitForStreamCompletion = opts?.waitForStreamCompletion !== false;
+        const result = await executeE2eChatSend(
+          text,
+          baselineUsers,
+          waitForStreamCompletion,
+          opts?.preserveActionMode === true,
+        );
+        window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
+        return result;
+      },
+      kickoffChatMessage: async (
+        text: string,
+        opts?: { baselineUserCount?: number; preserveActionMode?: boolean },
+      ): Promise<E2eSubmitResult> => {
+        const baselineUsers =
+          typeof opts?.baselineUserCount === 'number'
+            ? opts.baselineUserCount
+            : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
+        const result = await executeE2eChatSend(
+          text,
+          baselineUsers,
+          false,
+          opts?.preserveActionMode === true,
+        );
         window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
         return result;
       },
@@ -422,7 +706,26 @@ export default function E2EChatBridge() {
         queueLen: useToolApprovalStore.getState().queue.length,
         tools: useToolApprovalStore.getState().queue.map((row) => row.toolName),
       }),
-      sseSnapshot: () => [...sseEvents],
+      sseSnapshot: (messageId?: string | null) => {
+        const filterId = typeof messageId === 'string' ? messageId.trim() : '';
+        if (!filterId) {
+          return sseEvents.map((entry) => entry.type);
+        }
+        return sseEvents
+          .filter((entry) => entry.messageId === filterId)
+          .map((entry) => entry.type);
+      },
+      clearSseSnapshot: () => {
+        sseEvents.length = 0;
+        sseCaptureMessageId = null;
+        sseCaptureLocked = true;
+      },
+      allocateStreamMessageId: () => useChatStore.getState().allocateNewSessionMessageId(),
+      setSseCaptureMessageId: (messageId: string | null | undefined) => {
+        sseCaptureMessageId =
+          typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
+        sseCaptureLocked = false;
+      },
       setGoalMode: (enabled: boolean) => {
         flushSync(() => {
           useChatStore.getState().setIsGoalMode(enabled);
@@ -563,8 +866,13 @@ export default function E2EChatBridge() {
       pinLiteModelForE2e: async () => {
         await initProvidersForE2e();
         prepareAutomationSend();
-        const { defaultModelConfig, providers } = useProviderStore.getState();
-        const litePrimary = defaultModelConfig?.liteModel?.primary;
+        let { defaultModelConfig, providers } = useProviderStore.getState();
+        let litePrimary = defaultModelConfig?.liteModel?.primary;
+        if (!litePrimary?.providerId || !litePrimary?.model) {
+          await hydrateLiteModelFromConfigApi();
+          ({ defaultModelConfig, providers } = useProviderStore.getState());
+          litePrimary = defaultModelConfig?.liteModel?.primary;
+        }
         if (!litePrimary?.providerId || !litePrimary?.model) {
           throw new Error('e2e-lite-model-unconfigured');
         }
@@ -578,6 +886,45 @@ export default function E2EChatBridge() {
           model: litePrimary.model,
         };
         flushSync(() => {
+          useProviderStore.getState().setFastModeModel(selection);
+          const chat = useChatStore.getState();
+          if (chat.agentConfig) {
+            chat.updateAgentConfig({ modelSelection: selection });
+            return;
+          }
+          chat.setAgentConfig({
+            modelSelection: selection,
+            enabledBuiltinTools: [...chat.currentBuiltinTools],
+            selectedSkillIds: [],
+            selectedMcpNames: [],
+            systemPrompt: '',
+          });
+        });
+        return selection;
+      },
+      pinBasicModelForE2e: async () => {
+        await initProvidersForE2e();
+        let { defaultModelConfig, providers } = useProviderStore.getState();
+        let basePrimary = defaultModelConfig?.baseModel?.primary;
+        if (!basePrimary?.providerId || !basePrimary?.model) {
+          await hydrateBaseModelFromConfigApi();
+          ({ defaultModelConfig, providers } = useProviderStore.getState());
+          basePrimary = defaultModelConfig?.baseModel?.primary;
+        }
+        if (!basePrimary?.providerId || !basePrimary?.model) {
+          throw new Error('e2e-base-model-unconfigured');
+        }
+        if (!isModelAvailable(basePrimary, providers)) {
+          throw new Error(
+            `e2e-base-model-unavailable:${basePrimary.providerId}/${basePrimary.model}`,
+          );
+        }
+        const selection = {
+          providerId: basePrimary.providerId,
+          model: basePrimary.model,
+        };
+        flushSync(() => {
+          useProviderStore.getState().setFastModeModel(selection);
           const chat = useChatStore.getState();
           if (chat.agentConfig) {
             chat.updateAgentConfig({ modelSelection: selection });
@@ -640,6 +987,42 @@ export default function E2EChatBridge() {
         });
       },
       getActionMode: () => useChatStore.getState().actionMode,
+      setActionMode: (mode: ActionMode) => {
+        flushSync(() => {
+          useChatStore.getState().setActionMode(mode);
+        });
+      },
+      getSearchDepth: () => useChatStore.getState().searchDepth,
+      setSearchDepth: (depth: 'normal' | 'deep') => {
+        flushSync(() => {
+          useChatStore.getState().setSearchDepth(depth);
+        });
+      },
+      getFastSearchProgressSnapshot: () => {
+        const chat = useChatStore.getState();
+        const assistants = chat.messages.filter((message) => message.role === 'assistant');
+        const lastAssistant = assistants[assistants.length - 1];
+        const metaSteps = Array.isArray(lastAssistant?.metadata?.progressSteps)
+          ? lastAssistant.metadata.progressSteps
+          : [];
+        const steps = lastAssistant?.progressSteps?.length
+          ? lastAssistant.progressSteps
+          : metaSteps;
+        const toolNames = steps.map((step) => String(step.tool_name ?? ''));
+        const evictedRefs = steps
+          .map((step) => step.evicted_file_ref)
+          .filter((ref): ref is string => typeof ref === 'string' && ref.length > 0);
+        const content = typeof lastAssistant?.content === 'string' ? lastAssistant.content : '';
+        return {
+          chatId: chat.chatId?.trim() || null,
+          isStreaming: Boolean(chat.loading || chat.abortController),
+          toolNames,
+          evictedRefs,
+          contentSample: content.slice(0, 240),
+          mentionsGuido: /Guido van Rossum/i.test(content),
+          hasAssistant: Boolean(lastAssistant),
+        };
+      },
       getDesktopToolProgress: () => {
         const approval = useDesktopControlApprovalStore.getState();
         const chat = useChatStore.getState();
@@ -678,7 +1061,11 @@ export default function E2EChatBridge() {
           if (typeof message.content === 'string') {
             chunks.push(message.content);
           }
-          for (const step of message.progressSteps ?? []) {
+          const metaSteps = Array.isArray(message.metadata?.progressSteps)
+            ? message.metadata.progressSteps
+            : [];
+          const steps = message.progressSteps?.length ? message.progressSteps : metaSteps;
+          for (const step of steps) {
             if (typeof step.stdout === 'string') {
               chunks.push(step.stdout);
             }

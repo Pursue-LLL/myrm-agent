@@ -45,6 +45,7 @@ async def test_stream_collector_full_coverage():
             "cost_usd": 0.05,
             "cost_status": "calculated",
             "completion_status": "success",
+            "stream_ttft_ms": 120,
             "model": "test_model",
             "usage_alert": {"alert": "high"},
         }
@@ -92,6 +93,7 @@ async def test_stream_collector_full_coverage():
     assert extra["costUsd"] == 0.05
     assert extra["costStatus"] == "calculated"
     assert extra["completionStatus"] == "success"
+    assert extra["streamTtftMs"] == 120
     assert extra["modelName"] == "test_model"
     assert extra["usageAlert"]["alert"] == "high"
     assert extra["tokenEconomics"]["total_cache_savings_usd"] == 0.01
@@ -201,4 +203,77 @@ def test_stream_collector_has_pending_hitl_replay() -> None:
     assert collector.has_pending_hitl_replay() is False
     collector.feed_event({"type": "tool_approval_request", "data": {"actionRequests": []}})
     assert collector.has_pending_hitl_replay() is True
+    collector.cleanup()
+
+
+def test_stream_collector_persists_clarification_required() -> None:
+    ACTIVE_COLLECTORS.clear()
+    collector = StreamContentCollector(chat_id="chat-clarify-persist")
+    collector.feed_event(
+        {
+            "type": "clarification_required",
+            "messageId": "msg-clarify-1",
+            "data": {
+                "type": "ask_question",
+                "source": "deep_research",
+                "title": "Framework choice",
+                "form": {
+                    "questions": [
+                        {
+                            "id": "framework",
+                            "prompt": "Which framework?",
+                            "options": [
+                                {"id": "langchain", "label": "LangChain"},
+                            ],
+                        }
+                    ]
+                },
+            },
+        }
+    )
+
+    extra = collector.extra_data
+    assert extra is not None
+    clarification = extra.get("clarification")
+    assert isinstance(clarification, dict)
+    assert clarification.get("answered") is False
+    assert clarification.get("isResumeMode") is False
+    assert clarification.get("title") == "Framework choice"
+    assert isinstance(clarification.get("form"), dict)
+
+    collector.feed_event(
+        {
+            "type": "status",
+            "messageId": "msg-clarify-1",
+            "data": {"phase": "clarify", "status": "resolved"},
+        }
+    )
+    extra_after = collector.extra_data
+    assert extra_after is not None
+    assert extra_after["clarification"]["answered"] is True
+    collector.cleanup()
+
+
+def test_stream_collector_persists_plan_confirmation_waiting() -> None:
+    ACTIVE_COLLECTORS.clear()
+    collector = StreamContentCollector(chat_id="chat-plan-persist")
+    collector.feed_event(
+        {
+            "type": "status",
+            "messageId": "msg-plan-1",
+            "data": {
+                "phase": "plan_confirm",
+                "status": "waiting",
+                "plan": "1. Research\n2. Write report",
+            },
+        }
+    )
+
+    extra = collector.extra_data
+    assert extra is not None
+    plan_confirmation = extra.get("planConfirmation")
+    assert isinstance(plan_confirmation, dict)
+    assert plan_confirmation.get("status") == "waiting"
+    assert plan_confirmation.get("source") == "deep_research"
+    assert "Research" in str(plan_confirmation.get("plan"))
     collector.cleanup()

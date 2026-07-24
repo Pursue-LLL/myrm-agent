@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-首次启动向导：欢迎屏 → 可选外部助手迁移 → 本地能力配置（模型 + OpenAI-compatible Paste-URL 向导 + 搜索 + HardwareCookbook + 云端快速开始） → 条件性 Smart Routing 引导（≥2 模型且未启用时展示）。
+首次启动向导：欢迎屏 → 可选外部助手迁移 → 本地能力配置（模型 + OpenAI-compatible Paste-URL 向导 + 搜索 + HardwareCookbook + 云端快速开始） → 条件性 Smart Routing 引导（≥2 模型且未启用时展示）→ Telegram Personal Assistant 一键接入（未配置 Telegram 时展示）。
 
 无 GPU 用户在本地能力配置阶段可通过**云端快速开始卡片**直接跳转至 `/settings/models` 配置 Gemini / SiliconFlow / OpenRouter 等含免费方案的云端 Provider，避免因无本地模型而流失。
 
@@ -15,9 +15,11 @@
 | `OnboardingWizard.tsx` | 步骤编排与完成回调 |
 | `LocalCapabilitiesSetup.tsx` | 本地 Ollama/LM Studio 探测、**OpenAI-compatible Paste-URL 一步接入**（服务端 discover-models 探测 + 激活前 reachability 1-token 校验 + 原子写入 provider/default model）、SearXNG、**HardwareCookbook**（无 provider 时展示硬件推荐）、**云端快速开始卡片**（无本地模型时展示云端 Provider 引导） |
 | `SmartRoutingStep.tsx` | Smart Routing 引导步骤：自动检测已配置模型并分类为 lite/standard/reasoning 三档，展示预估节省比例，一键启用或跳过 |
+| `TelegramAssistantOnboardingStep.tsx` | Telegram 助手一键接入步骤：Bot Token 校验、助手名称/描述、服务端原子配置编排入口；当后端返回 `connected=false` 时展示“已配置待连通”语义并支持继续/重试；当返回锁冲突 `409` 时自动重试一次并给出非技术化提示 |
 
 ## 依赖
 
 - `@/components/features/settings/model-service/HardwareCookbook` — 硬件模型推荐（Settings 与 Onboarding 共用）
 - `@/services/onboarding` — readiness 状态
+- `@/services/channels` — Telegram 凭据配置探测（判断是否展示 Telegram onboarding step）
 - `@/components/features/chat-window/NoProviderBanner` — EmptyChat 未配置 Provider 引导横幅

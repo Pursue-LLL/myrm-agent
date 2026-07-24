@@ -70,6 +70,10 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
             state.messages[messageIndex].costUsd = data.cost_usd;
           }
 
+          if (data.stream_ttft_ms !== undefined) {
+            state.messages[messageIndex].streamTtftMs = data.stream_ttft_ms;
+          }
+
           if (data.wu_consumed !== undefined) {
             state.messages[messageIndex].wuConsumed = data.wu_consumed;
           }

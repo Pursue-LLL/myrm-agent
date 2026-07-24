@@ -142,7 +142,11 @@ class CdpChatBootstrap(CdpChatTransport):
                 await_promise=False,
                 recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
             )
-            if not (isinstance(probe, dict) and probe.get("hasInput") and not probe.get("skeleton")):
+            if not (
+                isinstance(probe, dict)
+                and probe.get("hasInput")
+                and not probe.get("skeleton")
+            ):
                 await self._shared_ui_burst(
                     "navigate",
                     self.cdp(
@@ -158,7 +162,9 @@ class CdpChatBootstrap(CdpChatTransport):
         probe_started = time.monotonic()
         while time.monotonic() < deadline:
             polls += 1
-            self._shell_probe_progress(polls=polls, started=probe_started, phase="bootstrap_shell")
+            self._shell_probe_progress(
+                polls=polls, started=probe_started, phase="bootstrap_shell"
+            )
             try:
                 state = await self.evaluate(
                     PAGE_PROBE_JS,
@@ -170,11 +176,7 @@ class CdpChatBootstrap(CdpChatTransport):
             last = state if isinstance(state, dict) else {"probeError": state}
             if _shell_probe_ready(last):
                 return last
-            if (
-                not navigate
-                and polls == 20
-                and not last.get("hasInput")
-            ):
+            if not navigate and polls == 20 and not last.get("hasInput"):
                 await self._shared_ui_burst(
                     "navigate",
                     self.cdp(
@@ -184,7 +186,11 @@ class CdpChatBootstrap(CdpChatTransport):
                     ),
                 )
                 await asyncio.sleep(3)
-            if isinstance(last, dict) and last.get("hasLayout") is False and polls % 15 == 0:
+            if (
+                isinstance(last, dict)
+                and last.get("hasLayout") is False
+                and polls % 15 == 0
+            ):
                 await self._shared_ui_burst(
                     "reload",
                     self.cdp("Page.reload", {"ignoreCache": True}, recv_timeout=120.0),
@@ -213,7 +219,9 @@ class CdpChatBootstrap(CdpChatTransport):
                 await self._wait_react_hydration(timeout_sec=hydrate_timeout)
             provider_timeout = max(0.0, deadline - time.monotonic())
             if provider_timeout > 0:
-                await self._wait_providers_hydrated(timeout_sec=min(provider_timeout, 60.0))
+                await self._wait_providers_hydrated(
+                    timeout_sec=min(provider_timeout, 60.0)
+                )
             probe = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
             if isinstance(probe, dict):
                 last = probe
@@ -266,7 +274,9 @@ class CdpChatBootstrap(CdpChatTransport):
         probe_started = time.monotonic()
         while time.monotonic() < deadline:
             polls += 1
-            self._shell_probe_progress(polls=polls, started=probe_started, phase="wait_shell_layout")
+            self._shell_probe_progress(
+                polls=polls, started=probe_started, phase="wait_shell_layout"
+            )
             try:
                 state = await self.evaluate(
                     PAGE_PROBE_JS,
@@ -275,11 +285,17 @@ class CdpChatBootstrap(CdpChatTransport):
                 )
             except RuntimeError as exc:
                 message = str(exc)
-                if any(token in message for token in ("Target closed", "No page found", "detached Frame")):
+                if any(
+                    token in message
+                    for token in ("Target closed", "No page found", "detached Frame")
+                ):
                     await asyncio.sleep(1)
                     continue
                 raise
             except TimeoutError:
+                client = getattr(self, "_client", None)
+                if client is not None:
+                    await asyncio.to_thread(client.recover_mux_transport)
                 state = {"probeError": "evaluate_timeout"}
             last = state if isinstance(state, dict) else {"probeError": state}
             if _shell_probe_ready(last):
@@ -303,7 +319,9 @@ class CdpChatBootstrap(CdpChatTransport):
                 )
             provider_timeout = max(0.0, deadline - time.monotonic())
             if provider_timeout > 0:
-                await self._wait_providers_hydrated(timeout_sec=min(provider_timeout, 45.0))
+                await self._wait_providers_hydrated(
+                    timeout_sec=min(provider_timeout, 45.0)
+                )
             settle_deadline = time.monotonic() + 5.0
             stable = 0
             while time.monotonic() < settle_deadline and stable < 3:
@@ -311,11 +329,20 @@ class CdpChatBootstrap(CdpChatTransport):
                     probe = await self.evaluate(
                         PAGE_PROBE_JS,
                         await_promise=False,
-                        recv_timeout=min(15.0, max(5.0, settle_deadline - time.monotonic())),
+                        recv_timeout=min(
+                            15.0, max(5.0, settle_deadline - time.monotonic())
+                        ),
                     )
                 except RuntimeError as exc:
                     message = str(exc)
-                    if any(token in message for token in ("Target closed", "No page found", "detached Frame")):
+                    if any(
+                        token in message
+                        for token in (
+                            "Target closed",
+                            "No page found",
+                            "detached Frame",
+                        )
+                    ):
                         stable = 0
                         await asyncio.sleep(0.5)
                         continue
@@ -324,7 +351,11 @@ class CdpChatBootstrap(CdpChatTransport):
                     stable = 0
                     await asyncio.sleep(0.5)
                     continue
-                if isinstance(probe, dict) and _shell_probe_ready(probe) and probe.get("hasBridge"):
+                if (
+                    isinstance(probe, dict)
+                    and _shell_probe_ready(probe)
+                    and probe.get("hasBridge")
+                ):
                     stable += 1
                     last = probe
                 else:
@@ -345,7 +376,10 @@ class CdpChatBootstrap(CdpChatTransport):
                 state = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
             except RuntimeError as exc:
                 message = str(exc)
-                if any(token in message for token in ("Target closed", "No page found", "detached Frame")):
+                if any(
+                    token in message
+                    for token in ("Target closed", "No page found", "detached Frame")
+                ):
                     await asyncio.sleep(1)
                     continue
                 raise
@@ -362,7 +396,9 @@ class CdpChatBootstrap(CdpChatTransport):
                         )
                     provider_timeout = max(0.0, deadline - time.monotonic())
                     if provider_timeout > 0:
-                        await self._wait_providers_hydrated(timeout_sec=min(provider_timeout, 45.0))
+                        await self._wait_providers_hydrated(
+                            timeout_sec=min(provider_timeout, 45.0)
+                        )
                     settle_deadline = time.monotonic() + 5.0
                     stable = 0
                     while time.monotonic() < settle_deadline and stable < 3:
@@ -370,11 +406,20 @@ class CdpChatBootstrap(CdpChatTransport):
                             probe = await self.evaluate(
                                 PAGE_PROBE_JS,
                                 await_promise=False,
-                                recv_timeout=min(15.0, max(5.0, settle_deadline - time.monotonic())),
+                                recv_timeout=min(
+                                    15.0, max(5.0, settle_deadline - time.monotonic())
+                                ),
                             )
                         except RuntimeError as exc:
                             message = str(exc)
-                            if any(token in message for token in ("Target closed", "No page found", "detached Frame")):
+                            if any(
+                                token in message
+                                for token in (
+                                    "Target closed",
+                                    "No page found",
+                                    "detached Frame",
+                                )
+                            ):
                                 stable = 0
                                 await asyncio.sleep(0.5)
                                 continue
@@ -383,7 +428,11 @@ class CdpChatBootstrap(CdpChatTransport):
                             stable = 0
                             await asyncio.sleep(0.5)
                             continue
-                        if isinstance(probe, dict) and _shell_probe_ready(probe) and probe.get("hasBridge"):
+                        if (
+                            isinstance(probe, dict)
+                            and _shell_probe_ready(probe)
+                            and probe.get("hasBridge")
+                        ):
                             stable += 1
                         else:
                             stable = 0
@@ -460,7 +509,11 @@ class CdpChatBootstrap(CdpChatTransport):
             except RuntimeError:
                 await asyncio.sleep(0.5)
                 continue
-            if isinstance(probe, dict) and probe.get("ok") and not probe.get("sendDisabled"):
+            if (
+                isinstance(probe, dict)
+                and probe.get("ok")
+                and not probe.get("sendDisabled")
+            ):
                 return
             if isinstance(probe, dict) and not probe.get("unconfigured"):
                 await asyncio.sleep(0.5)
@@ -500,7 +553,9 @@ class CdpChatBootstrap(CdpChatTransport):
         await self.ensure_e2e_api_base_binding()
         await self.wait_shell_ready(timeout_sec=timeout_sec)
 
-    async def ensure_chat_surface(self, base_url: str, *, timeout_sec: float = 90.0) -> None:
+    async def ensure_chat_surface(
+        self, base_url: str, *, timeout_sec: float = 90.0
+    ) -> None:
         """Leave settings/onboarding routes before chat send automation."""
         ui_base = base_url.rstrip("/")
         deadline = time.monotonic() + timeout_sec
@@ -558,8 +613,10 @@ class CdpChatBootstrap(CdpChatTransport):
                 await self._after_new_chat_reset()
                 continue
             if (
-                chat_id_from_path(path) is not None or last.get("hasInput")
-            ) and not path.startswith("/settings") and path != "/onboarding":
+                (chat_id_from_path(path) is not None or last.get("hasInput"))
+                and not path.startswith("/settings")
+                and path != "/onboarding"
+            ):
                 return
             reset = await self.click_new_chat()
             if reset.get("ok"):
@@ -614,17 +671,23 @@ class CdpChatBootstrap(CdpChatTransport):
         for _ in range(8):
             try:
                 result = await self.evaluate(reset_js, await_promise=False)
-                last = result if isinstance(result, dict) else {"ok": False, "probeError": result}
+                last = (
+                    result
+                    if isinstance(result, dict)
+                    else {"ok": False, "probeError": result}
+                )
                 if last.get("ok"):
                     await self._after_new_chat_reset()
                     await asyncio.sleep(0.5)
                     return last
             except RuntimeError as exc:
                 message = str(exc)
-                if any(token in message for token in ("detached Frame", "Target closed", "No page found")):
+                if any(
+                    token in message
+                    for token in ("detached Frame", "Target closed", "No page found")
+                ):
                     await asyncio.sleep(1)
                     continue
                 raise
             await asyncio.sleep(0.5)
         return last
-

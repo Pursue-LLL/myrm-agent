@@ -1,21 +1,24 @@
-"""OpenAI-compatible LLM passthrough — transparent API forwarding.
+"""OpenAI-compatible LLM passthrough — transparent API forwarding with failover.
 
 [INPUT]
 - app.api.openai_compat.types (POS: OpenAI request/response types)
 - app.core.channel_bridge.model_resolver::_extract_all_active_keys, _to_litellm_model (POS: Provider key extraction & LiteLLM model formatting)
 - app.services.config.service::config_service (POS: Config service for provider settings)
+- myrm_agent_harness.toolkits.llms.core.credential_pool::CredentialPool (POS: API key pool with strategy-aware dispatch and error-aware cooldown)
 
 [OUTPUT]
 - is_passthrough_model: check if model field matches a configured LLM (not an Agent)
-- passthrough_completion: execute LLM call via litellm and return OpenAI-format response
+- passthrough_stream: streaming LLM completion with automatic key rotation and failover
+- passthrough_completion: non-streaming LLM completion with automatic key rotation and failover
 
 [POS]
-LLM passthrough for the /v1/chat/completions endpoint. When the `model` field
+LLM passthrough for the /v1/chat/completions endpoint.  When the `model` field
 matches a user-configured LLM model (e.g. "claude-3.5-sonnet") rather than an
 Agent ID, this module forwards the request directly to the upstream LLM via
-litellm — bypassing the Agent execution engine entirely. This turns MyrmAgent
-into an OpenAI-compatible API proxy that external tools (Aider, Cline, Codex,
-Continue) can connect to with zero configuration.
+litellm — bypassing the Agent execution engine entirely.
+
+Integrates CredentialPool from the Harness layer for multi-key rotation
+and automatic failover across keys on 429/5xx errors.
 """
 
 from __future__ import annotations
@@ -38,6 +41,9 @@ from app.api.openai_compat.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+_FAILOVER_STATUS_CODES = frozenset({429, 500, 502, 503, 529})
+_MAX_PASSTHROUGH_RETRIES = 3
 
 
 async def _load_providers_dict() -> dict[str, object] | None:
@@ -160,15 +166,11 @@ async def is_passthrough_model(model: str) -> bool:
 def _resolve_passthrough_provider(
     model: str,
     providers_dict: dict[str, object],
-) -> tuple[str, str, str | None]:
-    """Find the provider that owns ``model`` and return litellm-ready credentials.
-
-    Unlike ``resolve_model_config`` (designed for Agent engine, expects LiteLLM
-    format ``provider/model``), this function matches bare model names (e.g.
-    ``claude-sonnet-4-20250514``) against each provider's ``enabledModels``.
+) -> tuple[str, list[str], str | None, str]:
+    """Find the provider that owns *model* and return credentials for CredentialPool.
 
     Returns:
-        (litellm_model, api_key, base_url | None)
+        (litellm_model, all_api_keys, base_url | None, provider_id)
 
     Raises:
         ValueError: if no matching provider is found.
@@ -216,27 +218,61 @@ def _resolve_passthrough_provider(
         litellm_model = _to_litellm_model(pid, matched_raw_model, ptype)
         api_url = str(provider.get("apiUrl") or provider.get("baseURL") or "")
 
-        return litellm_model, keys[0], api_url or None
+        return litellm_model, keys, api_url or None, pid
 
     raise ValueError(f"Model '{model}' not found in any enabled provider")
 
 
+def _classify_error_kind(exc: Exception) -> str:
+    """Classify an upstream error for CredentialPool cooldown policy."""
+    exc_str = str(exc).lower()
+    exc_type = type(exc).__name__.lower()
+
+    if "429" in exc_str or "rate" in exc_str or "ratelimit" in exc_type:
+        return "rate_limit"
+    if "401" in exc_str or "403" in exc_str or "auth" in exc_str or "unauthorized" in exc_str:
+        return "auth"
+    if "billing" in exc_str or "insufficient" in exc_str or "quota" in exc_str:
+        return "billing"
+    return "transient"
+
+
+def _extract_http_status(exc: Exception) -> int | None:
+    """Try to extract HTTP status code from a litellm/httpx exception."""
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        return status
+    status = getattr(exc, "code", None)
+    if isinstance(status, int) and 100 <= status < 600:
+        return status
+    return None
+
+
+def _is_failoverable(exc: Exception) -> bool:
+    """Determine if the error should trigger a failover retry."""
+    status = _extract_http_status(exc)
+    if status is not None and status in _FAILOVER_STATUS_CODES:
+        return True
+    error_kind = _classify_error_kind(exc)
+    return error_kind in ("rate_limit", "transient")
+
+
 async def _build_litellm_kwargs(
     request: ChatCompletionRequest,
+    litellm_model: str,
+    api_key: str,
+    base_url: str | None,
     *,
     stream: bool,
 ) -> dict[str, object]:
-    """Build litellm.acompletion kwargs from request + user provider config."""
-    providers_dict = await _load_providers_dict()
-    if not providers_dict:
-        raise ValueError("No providers configuration available")
-
-    litellm_model, api_key, base_url = _resolve_passthrough_provider(
-        request.model,
-        providers_dict,
-    )
-
-    messages = [{"role": m.role, "content": m.content if isinstance(m.content, str) else m.content} for m in request.messages]
+    """Build litellm.acompletion kwargs from resolved target credentials."""
+    messages = [
+        {
+            "role": m.role,
+            "content": m.content if isinstance(m.content, str) else m.content,
+        }
+        for m in request.messages
+    ]
 
     kwargs: dict[str, object] = {
         "model": litellm_model,
@@ -266,12 +302,19 @@ async def _build_litellm_kwargs(
 async def passthrough_stream(
     request: ChatCompletionRequest,
 ) -> AsyncGenerator[str, None]:
-    """Stream LLM response in OpenAI SSE format via litellm."""
+    """Stream LLM response in OpenAI SSE format with automatic key rotation and failover."""
     import litellm
+    from myrm_agent_harness.toolkits.llms.core.credential_pool import CredentialPool
 
     try:
-        litellm_kwargs = await _build_litellm_kwargs(request, stream=True)
-    except (ValueError, Exception) as exc:
+        providers_dict = await _load_providers_dict()
+        if not providers_dict:
+            raise ValueError("No providers configuration available")
+        litellm_model, all_keys, base_url, _pid = _resolve_passthrough_provider(
+            request.model,
+            providers_dict,
+        )
+    except Exception as exc:
         error_body = json.dumps(
             {
                 "error": {
@@ -285,6 +328,7 @@ async def passthrough_stream(
         yield "data: [DONE]\n\n"
         return
 
+    pool = CredentialPool(all_keys)
     completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
     created = int(time.time())
 
@@ -296,70 +340,106 @@ async def passthrough_stream(
     )
     yield f"data: {first_chunk.model_dump_json()}\n\n"
 
-    try:
-        response = await litellm.acompletion(**litellm_kwargs)
-        async for part in response:
-            delta_content = None
-            finish = None
+    last_error: Exception | None = None
 
-            if hasattr(part, "choices") and part.choices:
-                choice = part.choices[0]
-                if hasattr(choice, "delta") and choice.delta:
-                    delta_content = getattr(choice.delta, "content", None)
-                finish = getattr(choice, "finish_reason", None)
+    for attempt in range(_MAX_PASSTHROUGH_RETRIES):
+        api_key = pool.acquire()
+        try:
+            litellm_kwargs = await _build_litellm_kwargs(
+                request, litellm_model, api_key, base_url, stream=True,
+            )
+            response = await litellm.acompletion(**litellm_kwargs)
+            async for part in response:
+                delta_content = None
+                finish = None
 
-            if delta_content:
-                chunk = ChatCompletionChunk(
-                    id=completion_id,
-                    created=created,
-                    model=request.model,
-                    choices=[
-                        StreamChoice(
-                            delta=DeltaMessage(content=delta_content),
-                            finish_reason=None,
-                        )
-                    ],
-                )
-                yield f"data: {chunk.model_dump_json()}\n\n"
+                if hasattr(part, "choices") and part.choices:
+                    choice = part.choices[0]
+                    if hasattr(choice, "delta") and choice.delta:
+                        delta_content = getattr(choice.delta, "content", None)
+                    finish = getattr(choice, "finish_reason", None)
 
-            if finish:
-                finish_chunk = ChatCompletionChunk(
-                    id=completion_id,
-                    created=created,
-                    model=request.model,
-                    choices=[
-                        StreamChoice(
-                            delta=DeltaMessage(),
-                            finish_reason=finish,
-                        )
-                    ],
-                )
-                yield f"data: {finish_chunk.model_dump_json()}\n\n"
+                if delta_content:
+                    chunk = ChatCompletionChunk(
+                        id=completion_id,
+                        created=created,
+                        model=request.model,
+                        choices=[
+                            StreamChoice(
+                                delta=DeltaMessage(content=delta_content),
+                                finish_reason=None,
+                            )
+                        ],
+                    )
+                    yield f"data: {chunk.model_dump_json()}\n\n"
 
-    except Exception as exc:
-        error_body = json.dumps(
-            {
-                "error": {
-                    "message": str(exc),
-                    "type": "upstream_error",
-                    "code": "passthrough_error",
-                }
+                if finish:
+                    finish_chunk = ChatCompletionChunk(
+                        id=completion_id,
+                        created=created,
+                        model=request.model,
+                        choices=[
+                            StreamChoice(
+                                delta=DeltaMessage(),
+                                finish_reason=finish,
+                            )
+                        ],
+                    )
+                    yield f"data: {finish_chunk.model_dump_json()}\n\n"
+
+            pool.report_success(api_key)
+            yield "data: [DONE]\n\n"
+            return
+
+        except Exception as exc:
+            last_error = exc
+            error_kind = _classify_error_kind(exc)
+            pool.report_error(api_key, error_kind)
+
+            if not _is_failoverable(exc) or attempt >= _MAX_PASSTHROUGH_RETRIES - 1:
+                break
+
+            if pool.available_count() == 0:
+                break
+
+            logger.info(
+                "Passthrough stream failover: attempt %d/%d, key ...%s %s, rotating",
+                attempt + 1,
+                _MAX_PASSTHROUGH_RETRIES,
+                api_key[-4:],
+                error_kind,
+            )
+
+    error_body = json.dumps(
+        {
+            "error": {
+                "message": str(last_error) if last_error else "All keys exhausted",
+                "type": "upstream_error",
+                "code": "passthrough_error",
             }
-        )
-        yield f"data: {error_body}\n\n"
-
+        }
+    )
+    yield f"data: {error_body}\n\n"
     yield "data: [DONE]\n\n"
 
 
 async def passthrough_completion(
     request: ChatCompletionRequest,
 ) -> ChatCompletionResponse:
-    """Non-streaming LLM completion via litellm."""
+    """Non-streaming LLM completion with automatic key rotation and failover."""
     import litellm
     from fastapi import HTTPException
 
+    from myrm_agent_harness.toolkits.llms.core.credential_pool import CredentialPool
+
     try:
-        litellm_kwargs = await _build_litellm_kwargs(request, stream=False)
+        providers_dict = await _load_providers_dict()
+        if not providers_dict:
+            raise ValueError("No providers configuration available")
+        litellm_model, all_keys, base_url, _pid = _resolve_passthrough_provider(
+            request.model,
+            providers_dict,
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -372,37 +452,66 @@ async def passthrough_completion(
             },
         ) from exc
 
-    try:
-        response = await litellm.acompletion(**litellm_kwargs)
-    except Exception as exc:
-        logger.warning("Passthrough completion failed: %s", exc)
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "error": {
-                    "message": f"Upstream LLM error: {exc}",
-                    "type": "upstream_error",
-                    "code": "passthrough_error",
-                }
-            },
-        ) from exc
+    pool = CredentialPool(all_keys)
+    last_error: Exception | None = None
 
-    content = ""
-    usage_info = UsageInfo()
+    for attempt in range(_MAX_PASSTHROUGH_RETRIES):
+        api_key = pool.acquire()
+        try:
+            litellm_kwargs = await _build_litellm_kwargs(
+                request, litellm_model, api_key, base_url, stream=False,
+            )
+            response = await litellm.acompletion(**litellm_kwargs)
 
-    if hasattr(response, "choices") and response.choices:
-        msg = response.choices[0].message
-        content = getattr(msg, "content", "") or ""
+            pool.report_success(api_key)
 
-    if hasattr(response, "usage") and response.usage:
-        usage_info = UsageInfo(
-            prompt_tokens=getattr(response.usage, "prompt_tokens", 0) or 0,
-            completion_tokens=getattr(response.usage, "completion_tokens", 0) or 0,
-            total_tokens=getattr(response.usage, "total_tokens", 0) or 0,
-        )
+            content = ""
+            usage_info = UsageInfo()
 
-    return ChatCompletionResponse(
-        model=request.model,
-        choices=[Choice(message=ChoiceMessage(content=content))],
-        usage=usage_info,
-    )
+            if hasattr(response, "choices") and response.choices:
+                msg = response.choices[0].message
+                content = getattr(msg, "content", "") or ""
+
+            if hasattr(response, "usage") and response.usage:
+                usage_info = UsageInfo(
+                    prompt_tokens=getattr(response.usage, "prompt_tokens", 0) or 0,
+                    completion_tokens=getattr(response.usage, "completion_tokens", 0) or 0,
+                    total_tokens=getattr(response.usage, "total_tokens", 0) or 0,
+                )
+
+            return ChatCompletionResponse(
+                model=request.model,
+                choices=[Choice(message=ChoiceMessage(content=content))],
+                usage=usage_info,
+            )
+
+        except Exception as exc:
+            last_error = exc
+            error_kind = _classify_error_kind(exc)
+            pool.report_error(api_key, error_kind)
+
+            if not _is_failoverable(exc) or attempt >= _MAX_PASSTHROUGH_RETRIES - 1:
+                break
+
+            if pool.available_count() == 0:
+                break
+
+            logger.info(
+                "Passthrough completion failover: attempt %d/%d, key ...%s %s, rotating",
+                attempt + 1,
+                _MAX_PASSTHROUGH_RETRIES,
+                api_key[-4:],
+                error_kind,
+            )
+
+    logger.warning("Passthrough completion failed after %d attempts: %s", _MAX_PASSTHROUGH_RETRIES, last_error)
+    raise HTTPException(
+        status_code=502,
+        detail={
+            "error": {
+                "message": f"Upstream LLM error: {last_error}",
+                "type": "upstream_error",
+                "code": "passthrough_error",
+            }
+        },
+    ) from last_error

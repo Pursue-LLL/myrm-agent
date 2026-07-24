@@ -471,14 +471,16 @@ def assert_chrome_attach_health() -> None:
         "--api",
         api_base,
     ]
-    waited = 0
+    deadline = time.monotonic() + float(wait_sec)
     last_detail = "unknown attach probe failure"
-    while waited <= wait_sec:
+    while time.monotonic() < deadline:
+        remaining = deadline - time.monotonic()
+        proc_timeout = min(60, max(1, int(remaining)))
         proc = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=proc_timeout,
             check=False,
         )
         if proc.returncode == 0:
@@ -486,10 +488,11 @@ def assert_chrome_attach_health() -> None:
         last_detail = (
             proc.stderr.strip() or proc.stdout.strip() or f"exit={proc.returncode}"
         )
-        if waited >= wait_sec:
+        if time.monotonic() >= deadline:
             break
-        time.sleep(poll_sec)
-        waited += poll_sec
+        sleep_for = min(float(poll_sec), max(0.0, deadline - time.monotonic()))
+        if sleep_for > 0:
+            time.sleep(sleep_for)
     raise RuntimeError(f"CHROME_E2E_ATTACH_NOT_READY: {last_detail}")
 
 

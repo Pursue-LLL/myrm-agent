@@ -57,7 +57,9 @@
     ".next-isolated-chrome-test_kanban_chat_created_card_opens_filt-b55c6bdd-94672-9b118b0f/types/**/*.ts",
     ".next-isolated-chrome-test_kanban_chat_created_card_opens_filt-b55c6bdd-94672-9b118b0f/dev/types/**/*.ts",
     ".next-isolated-chrome-test_kanban_chat_created_card_opens_filt-b55c6bdd-33289-26dfe17e/types/**/*.ts",
-    ".next-isolated-chrome-test_kanban_chat_created_card_opens_filt-b55c6bdd-33289-26dfe17e/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_kanban_chat_created_card_opens_filt-b55c6bdd-33289-26dfe17e/dev/types/**/*.ts",
+    ".next-isolated-crawlfix/types/**/*.ts",
+    ".next-isolated-crawlfix/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

@@ -74,10 +74,13 @@ function shouldUseMultiplexedAgentStream(): boolean {
   if (typeof window === 'undefined') {
     return true;
   }
+  if (resolveE2eApiBase()) {
+    return true;
+  }
   if (window.__MYRM_E2E_DIRECT_SSE__) {
     return false;
   }
-  return !resolveE2eApiBase();
+  return true;
 }
 
 export interface ChatActionsState {
@@ -671,6 +674,7 @@ export const createMessageRequest = async (
         ...(state.goalMaxTurns != null && { max_turns: state.goalMaxTurns }),
         ...(state.goalConvergenceWindow != null && { convergence_window: state.goalConvergenceWindow }),
         ...(state.goalLoopOnPause && { loop_on_pause: true }),
+        ...(state.goalCheckpointMode && { checkpoint_mode: 'per_todo' }),
         ...(state.goalAcceptanceCriteria &&
           state.goalAcceptanceCriteria.length > 0 && { acceptance_criteria: state.goalAcceptanceCriteria }),
         ...(() => {

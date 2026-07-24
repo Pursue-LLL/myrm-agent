@@ -57,7 +57,7 @@ export type ProgressItem = {
   notify_step_index?: number; // 当前步骤序号（>=1）
   notify_total_steps?: number; // 总步骤数（>=1）
   notify_level?: 'info' | 'warn' | 'alert'; // notify 等级（用于渲染颜色）
-  notify_category?: string; // 业务分类（如 crawl / parse / render）
+  notify_category?: string; // 业务分类（如 parse / render）
   recovery_actions?: RecoveryAction[]; // LLM 错误恢复操作按钮
   archive_restore_block?: ArchiveRestoreBlockPayload; // 归档恢复阻断详情，用于聊天流内恢复入口
   archive_restore_actions?: ArchiveRestoreAction[]; // 可直接发送的 typed archive restore actions

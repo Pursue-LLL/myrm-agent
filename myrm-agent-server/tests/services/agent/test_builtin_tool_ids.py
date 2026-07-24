@@ -143,6 +143,11 @@ def test_normalize_rejects_legacy_task_tracking() -> None:
         normalize_enabled_builtin_tools(["web_search", "task_tracking"])
 
 
+def test_normalize_rejects_legacy_web_crawl() -> None:
+    with pytest.raises(InvalidBuiltinToolIdsError, match="web_crawl"):
+        normalize_enabled_builtin_tools(["web_search", "web_crawl"])
+
+
 def test_normalize_rejects_unknown_ids() -> None:
     with pytest.raises(InvalidBuiltinToolIdsError, match="unknown IDs"):
         normalize_enabled_builtin_tools(["web_search", "not_a_real_tool"])

@@ -27,7 +27,6 @@ def _agent(**overrides: object) -> SimpleNamespace:
         enable_structured_clarify=False,
         enable_external_cli=False,
         enable_cron_eager=False,
-        enable_web_crawl=False,
         image_generation_params=None,
         video_generation_params=None,
         tts_params=None,
@@ -39,7 +38,6 @@ def _agent(**overrides: object) -> SimpleNamespace:
 def test_active_tool_group_keys_match_derive_tuple_length() -> None:
     agent = _agent(
         enable_browser=True,
-        enable_web_crawl=True,
         enable_render_ui=True,
         enable_computer_use=True,
         enable_kanban=True,
@@ -58,23 +56,17 @@ def test_active_tool_group_keys_match_derive_tuple_length() -> None:
     assert set(groups) == set(ACTIVE_TOOL_GROUP_KEYS)
 
 
-def test_derive_includes_web_crawl_when_enabled() -> None:
-    groups = derive_active_tool_groups(_agent(enable_web_crawl=True), enable_planning=False)
-    assert "web_crawl" in groups
-
-
-def test_derive_excludes_web_crawl_when_disabled() -> None:
-    groups = derive_active_tool_groups(_agent(enable_web_crawl=False), enable_planning=False)
-    assert "web_crawl" not in groups
-
-
 def test_derive_includes_render_ui_when_enabled() -> None:
-    groups = derive_active_tool_groups(_agent(enable_render_ui=True), enable_planning=False)
+    groups = derive_active_tool_groups(
+        _agent(enable_render_ui=True), enable_planning=False
+    )
     assert "render_ui" in groups
 
 
 def test_derive_excludes_render_ui_when_disabled() -> None:
-    groups = derive_active_tool_groups(_agent(enable_render_ui=False), enable_planning=False)
+    groups = derive_active_tool_groups(
+        _agent(enable_render_ui=False), enable_planning=False
+    )
     assert "render_ui" not in groups
 
 
@@ -98,12 +90,16 @@ def test_derive_active_tool_groups_from_params_includes_external_cli() -> None:
     )
     groups = derive_active_tool_groups_from_params(params)
     assert "external_cli" in groups
-    groups = derive_active_tool_groups(_agent(enable_cron_eager=True), enable_planning=False)
+    groups = derive_active_tool_groups(
+        _agent(enable_cron_eager=True), enable_planning=False
+    )
     assert "cron" in groups
 
 
 def test_derive_excludes_cron_when_eager_disabled() -> None:
-    groups = derive_active_tool_groups(_agent(enable_cron_eager=False), enable_planning=False)
+    groups = derive_active_tool_groups(
+        _agent(enable_cron_eager=False), enable_planning=False
+    )
     assert "cron" not in groups
 
 
@@ -131,9 +127,13 @@ def test_incognito_excludes_memory_and_conversation_history() -> None:
 
 
 def test_conversation_history_requires_explicit_flag() -> None:
-    groups = derive_active_tool_groups(_agent(enable_conversation_search=False), enable_planning=False)
+    groups = derive_active_tool_groups(
+        _agent(enable_conversation_search=False), enable_planning=False
+    )
     assert "conversation_history" not in groups
-    groups_on = derive_active_tool_groups(_agent(enable_conversation_search=True), enable_planning=False)
+    groups_on = derive_active_tool_groups(
+        _agent(enable_conversation_search=True), enable_planning=False
+    )
     assert "conversation_history" in groups_on
 
 
@@ -167,4 +167,6 @@ def test_builtin_tool_id_to_group_keys_match_togglable_catalog() -> None:
     assert set(BUILTIN_TOOL_ID_TO_GROUP) == set(TOGGLABLE_BUILTIN_TOOL_IDS)
     for entry in CAPABILITY_GAP_REGISTRY:
         assert BUILTIN_TOOL_ID_TO_GROUP[entry.tool_id] == entry.tool_group
-        assert entry.triggers, f"capability gap triggers must be non-empty for {entry.tool_id!r}"
+        assert (
+            entry.triggers
+        ), f"capability gap triggers must be non-empty for {entry.tool_id!r}"

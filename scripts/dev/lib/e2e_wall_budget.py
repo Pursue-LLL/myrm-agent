@@ -74,7 +74,13 @@ def remaining_wall_sec() -> float:
 
 
 def stream_wait_cap_sec(configured_wait: int) -> int:
-    """Cap stream-lock wait by remaining monotonic wall budget."""
+    """Cap stream-lock wait by remaining monotonic wall budget.
+
+    Before ``export_wall_budget_env`` runs (stream/lease queue phase), the full
+    configured wait is allowed so FIFO queue time does not consume pytest body budget.
+    """
+    if wall_started_monotonic() is None:
+        return max(0, int(configured_wait))
     remaining = int(remaining_wall_sec())
     if remaining <= 0:
         return 0

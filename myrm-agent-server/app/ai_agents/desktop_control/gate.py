@@ -144,6 +144,20 @@ class DesktopControlGate:
         DesktopApprovalRegistry.clear_all()
         for gate in list(cls._live_gates):
             gate.reset_runtime_approval_state()
+        try:
+            from app.services.agent.gateway import get_agent_gateway
+
+            cleared = get_agent_gateway().reset_all_desktop_session_permission_caches()
+            if cleared:
+                logger.info(
+                    "Reset desktop session permission caches on %s active agent(s)",
+                    cleared,
+                )
+        except Exception as exc:
+            logger.warning(
+                "Failed to reset active desktop session permission caches: %s",
+                exc,
+            )
 
     def _approval_path(self) -> Path | None:
         if self._workspace_root is None:

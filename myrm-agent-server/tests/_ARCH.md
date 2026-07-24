@@ -38,14 +38,21 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_kanban_closure_seed_fixture.py` | 模块 | Kanban closure fixture seed HTTP 单测（`/chats/test/seed-kanban-closure-fixture`） |
 | `api/chats/test_kanban_closure_seed_integration.py` | 模块 | Kanban closure seed 真 DB 集成（metadata + board task） |
 | `api/chats/test_citation_seed_integration.py` | 模块 | citation seed → GET messages 集成单测（真 DB metadata） |
+| `e2e/test_evicted_live_terminal_chrome_e2e.py` | 模块 | UECD EvictedOutputDrawer Chrome MCP E2E（READ×1 SHPOIB：**单 tab** 全文 spill + `navigate` 过期 chat；禁止拆成 2× `open_mcp_page`，并行 mux 会 30s timeout） |
+| `api/files/test_evicted_web_fetch_spill.py` | 模块 | UECD evicted-file API 单测（`web_fetch_{hex8}.md` basename + GET content） |
+| `api/files/test_evicted_background_spill.py` | 模块 | UECD bash/background spill → evicted API 单测 |
+| `integration/test_evicted_uecd_live_api_integration.py` | 模块 | UECD live API 集成（seed fixture → GET evicted；live `:8080` 未就绪时 honest skip） |
+| `api/config/test_telegram_onboarding_apply.py` | 模块 | Telegram onboarding 原子编排回归（成功、失败回滚、同名冲突复用、并发防重、跨进程锁占用冲突） |
 | `api/files/test_revert_seed_integration.py` | 模块 | Revert seed 四 variant + production persist root hydrate + channel cleanup（6 项；无 RevertService mock） |
 | `services/files/test_revert_hydrate.py` | 单元 | `revert_hydrate.py` 100% 覆盖：root 解析顺序、hydrate、cleanup |
 | `e2e/test_revert_files_chrome_e2e.py` | 模块 | RevertFiles Chrome MCP E2E（READ×5：modify undo+diff+confirm；empty toast；large_skip non-revertible toast；reload hydrate undo；session SessionRevertButton）；`prepare_e2e_ui_session` + `dismiss_blocking_modals` + async Sonner wait |
+| `e2e/test_channel_routing_general_only_chrome_e2e.py` | 模块 | Channel Settings 渠道路由 Chrome MCP E2E（READ×1 SHPOIB：Settings → Channel Routing；Agent 下拉 **0 Search**；General-only SSOT 签收） |
 | `e2e/test_allowlist_pattern_live_chrome_e2e.py` | 模块 | Allowlist pattern Chrome LIVE×1（`private_backend=True`：bash 审批→pattern allow-always→Settings 验证） |
 | `api/agent/test_shpoib_hitl_attach_replay.py` | 模块 | SHPOIB HITL attach replay 集成（subscribe / multiplexed attach / hitl-probe / CORP；无 Chrome/LLM） |
 | `api/security/test_allowlist_api.py` | 模块 | Allowlist REST list/delete + pattern 粒度 round-trip |
 | `integration/test_kanban_attach_handler_integration.py` | 模块 | SQLite attach handler + orchestrator unblock tool invoke |
 | `services/kanban/test_kanban_attach_handler.py` | 模块 | attach handler 单测（path/URL/SSRF/limits） |
+| `services/agent/test_agent_name_resolution.py` | 模块 | Agent 同名解析确定性单测（大小写归一 + 稳定排序 + 空名短路） |
 | `api/agent/test_kanban_agent_stream_e2e.py` | 模块 | Live LLM agent-stream kanban add/list（`@pytest.mark.e2e`） |
 | `benchmarks/bench_mcp_ptc_vs_direct.py` | 基准 | MCP PTC vs 直连 token/延迟对比；凭据仅来自 `.env.test` |
 | `fixtures/cp_proxy_signature_contract.json` | 辅助 | 控制服务反向代理 HMAC 契约向量（server 侧自包含） |
@@ -86,6 +93,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - **Skill marketplace LIVE Chrome E2E**：`tests/e2e/test_skill_marketplace_live_agent_chrome_e2e.py`（LIVE×1：`skill_discovery_tool` 外部市场搜索；自定义 Agent system_prompt + `/?agentId=`；自然中文用户消息；API/UI 双路径断言；见 `scripts/dev/CHROME_MCP_E2E.md`）
 - **Background Tasks Panel Chrome E2E**：`tests/e2e/test_background_tasks_panel_chrome_e2e.py`（READ×5 SHPOIB：panel 列表、failed/running seed、UI cancel、vault log drawer、success finish toast；见 `scripts/dev/CHROME_MCP_E2E.md` §Background Shell）
 - **Background shell LIVE Chrome E2E**：`tests/e2e/test_background_shell_live_agent_chrome_e2e.py`（LIVE×1 SHPOIB：自然语言 prompt + agent-stream spawn；HITL 时 `decisions[]` approve；见 `BUGFIX_LOG.md` BUG-DG-2026-07-23-010）
+- **UECD EvictedOutputDrawer Chrome E2E**：`tests/e2e/test_evicted_live_terminal_chrome_e2e.py`（READ×1 SHPOIB：`seed-evicted-live-terminal-fixture?variant=full|expired` → LiveTerminal 截断预览 → View Full Output → Drawer 全文/过期）。**CI anti-mux**：同一 SHPOIB + **单 `open_mcp_page`**，场景间 `client.navigate` 切 chat；**禁止**拆成 2 测例各开新 tab（并行 E2E 下第二次 `new_page` 易 30s timeout；pytest rerun 不采纳）。HTTP/API 覆盖见 `test_evicted_web_fetch_spill.py`、`test_evicted_background_spill.py`、`test_evicted_uecd_live_api_integration.py`
+- **UECD LIVE fast+deep Chrome E2E**：`tests/e2e/test_fast_deep_search_evicted_read_chrome_e2e.py`（LIVE×1 SHPOIB：真实 MiniMax + fast/deep + Wikipedia `web_fetch_tool` spill → `file_read_tool`；`preserveActionMode` + progress **UI 优先 / API 自愈**（Chrome CDP flake 时 `_api_deep_search_progress` 不断言中断））
 - **Subagent Dashboard Chrome E2E**：`tests/e2e/test_subagent_dashboard_chrome_e2e.py`（LIVE lane ×3：`subagent-dashboard-e2e-prepare.mjs` delegate → Dashboard cancel / pause toggle / token+model；`open_mcp_page(..., timeout_ms=MAX_PAGE_TIMEOUT_MS)`）
 - **Subagent rebind 单测**：`tests/services/agent/test_subagent_rebind_event.py`（`AgentService.update_agent` 变更 `subagent_ids` → `SUBAGENT_REBIND_REQUIRED`）
 - **Citation seed 集成单测**：`tests/api/chats/test_citation_seed_integration.py`（seed → GET messages 断言 `citedMemoryIds`；默认 CI 套件执行，不依赖 Chrome）
@@ -97,7 +106,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - `tests/integration/test_ui_artifact_cross_turn_db_integration.py`：跨轮 `data_update` collector 队列 → 真实 SQLite patch → GET messages 断言 merged binding（无 mock 持久化路径）
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`
-- WebUI E2E：MCP **chrome-devtools** + Myrm E2E Chrome `:9333`（`./myrm ready --chrome`）；marker **`chrome_e2e`**（`lane=READ|LIVE_AGENT`）；禁止 `@playwright/test`。正式入口 **`./myrm test -m chrome_e2e`**；`tests/e2e/test_*_chrome_e2e.py`（含 Goal、execution_cache、edge_tts、parallel_tabs READ lane、`test_push_approval_deeplink_chrome_e2e` 等）；READ 只读测例不占 LIVE_AGENT cap（`resolve_e2e_session_lane.py`）
+- WebUI E2E：MCP **chrome-devtools** + Myrm E2E Chrome `:9333`（`./myrm ready --chrome`）；marker **`chrome_e2e`**（`lane=READ|LIVE_AGENT`）；禁止 `@playwright/test`。正式入口 **`./myrm test -m chrome_e2e`**；`tests/e2e/test_*_chrome_e2e.py`（含 Goal、execution_cache、edge_tts、parallel_tabs READ lane、`test_channel_routing_general_only_chrome_e2e` General-only 签收、`test_push_approval_deeplink_chrome_e2e` 等）；READ 只读测例不占 LIVE_AGENT cap（`resolve_e2e_session_lane.py`）
 - CI 默认套件：`scripts/ci/run_default_tests.sh`（`-m 'not e2e and not performance' -n0`，workflow `server-unit-tests.yml`）
 - `tests/api/skills/test_drafts_seed_mock.py`：seed-mock HTTP 单测（含 `agent_id` 查询参数，默认套件执行）
 - `tests/api/approvals/test_seed_mock.py`：approvals push deeplink seed-mock HTTP 单测（local guard + pending list）

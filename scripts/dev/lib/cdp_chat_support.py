@@ -54,9 +54,19 @@ def get_e2e_api_url() -> str:
 
 def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
     """Extend shell hydration budget for parallel SHPOIB chrome_e2e on shared :3000."""
-    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1":
-        return max(timeout_sec, 180.0)
-    return timeout_sec
+    if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
+        return timeout_sec
+    base_floor = max(timeout_sec, 180.0)
+    active_leases = 0
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        active_leases = wave_active_lease_count(monorepo_root)
+    except Exception:
+        active_leases = 0
+    scaled = max(base_floor, 180.0 + active_leases * 45.0)
+    return min(scaled, 420.0)
 
 
 def shpoib_shell_wait_slice_cap(remaining_sec: float) -> float:
@@ -102,6 +112,12 @@ def _e2e_api_urlopen(
     for attempt in range(max_attempts):
         try:
             return urllib.request.urlopen(req, timeout=timeout_sec)  # noqa: S310
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+            if exc.code in {409, 423, 500, 503} and attempt + 1 < max_attempts:
+                time.sleep(_E2E_API_REQUEST_BACKOFF_SEC * (attempt + 1))
+                continue
+            raise
         except (TimeoutError, OSError, urllib.error.URLError) as exc:
             last_error = exc
             if attempt + 1 >= max_attempts:
@@ -118,7 +134,9 @@ def _e2e_api_get_json(
     timeout_sec: float = 15.0,
     max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> object:
-    req = urllib.request.Request(url, headers={"Accept": "application/json"})  # noqa: S310 - validated in _e2e_api_urlopen
+    req = urllib.request.Request(
+        url, headers={"Accept": "application/json"}
+    )  # noqa: S310 - validated in _e2e_api_urlopen
     with _e2e_api_urlopen(
         req, timeout_sec=timeout_sec, max_attempts=max_attempts
     ) as resp:
@@ -649,7 +667,11 @@ E2E_BRIDGE_INSTALL_JS = """
   };
   const install = () => {
     const existing = window.__MYRM_E2E_CHAT__;
-    if (existing?.setInputMessage && existing?.handleSubmit && !existing.__e2eFallback) {
+    if (
+      existing?.pinLiteModelForE2e
+      || existing?.pinBasicModelForE2e
+      || (existing?.setInputMessage && existing?.handleSubmit && !existing.__e2eFallback)
+    ) {
       return { ok: true, mode: 'react-bridge' };
     }
     window.__MYRM_E2E_CHAT__ = {
@@ -708,7 +730,9 @@ def warmup_frontend(base_url: str, *, timeout_sec: float = 120.0) -> None:
         try:
             warm_url = base_url.rstrip("/") + "/"
             _validate_loopback_http_url(warm_url)
-            with urllib.request.urlopen(warm_url, timeout=45) as resp:  # noqa: S310 - explicit loopback validation above
+            with urllib.request.urlopen(
+                warm_url, timeout=45
+            ) as resp:  # noqa: S310 - explicit loopback validation above
                 if resp.status == 200:
                     return
                 last_error = f"HTTP {resp.status}"
@@ -946,7 +970,9 @@ def _hitl_security_payload(current: dict[str, object]) -> dict[str, object]:
 def _pin_hitl_on_api(api_url: str) -> None:
     current = fetch_config_value("securityConfig", api_url=api_url)
     put_config_value("securityConfig", _hitl_security_payload(current), api_url=api_url)
-    reset_url = f"{api_url.rstrip('/')}/api/v1/security/allowlist/test/reset-hitl-runtime"
+    reset_url = (
+        f"{api_url.rstrip('/')}/api/v1/security/allowlist/test/reset-hitl-runtime"
+    )
     reset_req = urllib.request.Request(  # noqa: S310 - loopback validated below
         reset_url,
         data=b"{}",
@@ -966,10 +992,14 @@ def _pin_hitl_on_api(api_url: str) -> None:
             raise
     persisted = fetch_config_value("securityConfig", api_url=api_url)
     if persisted.get("yoloModeEnabled") or persisted.get("yolo_mode_enabled"):
-        raise RuntimeError(f"Failed to disable YOLO securityConfig on {api_url}: {persisted}")
+        raise RuntimeError(
+            f"Failed to disable YOLO securityConfig on {api_url}: {persisted}"
+        )
     perms = persisted.get("permissions")
     if isinstance(perms, dict) and str(perms.get("*", "")).lower() == "allow":
-        raise RuntimeError(f"Wildcard permissions still allow-all on {api_url}: {persisted}")
+        raise RuntimeError(
+            f"Wildcard permissions still allow-all on {api_url}: {persisted}"
+        )
 
 
 def ensure_e2e_onboarding_complete(*, api_url: str) -> None:
@@ -1027,6 +1057,89 @@ CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS = """(() => {
     localStorage.removeItem('config-offline-queue');
   } catch (_) {}
   return { ok: true };
+})()"""
+
+PUT_E2E_CLEAR_SEARCH_CONFIG_JS = """(async () => {
+  const privateApi = String(window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
+  if (!privateApi) {
+    return { ok: false, err: 'no-api-base' };
+  }
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const mirrorStore = async () => {
+    window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
+    try {
+      const useConfigStore = (await import('/src/store/useConfigStore')).default;
+      useConfigStore.setState({ searchServiceConfigs: [] });
+    } catch (_) {
+      /* optional FE store mirror */
+    }
+    try {
+      const { getConfigSyncManager } = await import('@/services/config/ConfigSyncManager');
+      getConfigSyncManager().set('searchServices', { searchServiceConfigs: [] });
+    } catch (_) {
+      /* cache-only mirror when sync import unavailable */
+    }
+  };
+  const verifyEmpty = async () => {
+    const verifyResp = await fetch(`${privateApi}/api/v1/config/searchServices`, { cache: 'no-store' });
+    if (!verifyResp.ok) {
+      return { ok: false, err: `fetch-${verifyResp.status}` };
+    }
+    const body = await verifyResp.json();
+    const persisted = body?.value ?? body?.data?.value ?? body?.data ?? {};
+    const configs = Array.isArray(persisted?.searchServiceConfigs)
+      ? persisted.searchServiceConfigs
+      : [];
+    return { ok: configs.length === 0, configCount: configs.length };
+  };
+  try {
+    localStorage.removeItem('config-offline-queue');
+    window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
+    const value = { searchServiceConfigs: [] };
+    let lastPutStatus = 0;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const putResp = await fetch(`${privateApi}/api/v1/config/searchServices`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: 'web', value }),
+        cache: 'no-store',
+      });
+      lastPutStatus = putResp.status;
+      if (putResp.ok) {
+        const verified = await verifyEmpty();
+        await mirrorStore();
+        return {
+          ok: verified.ok === true,
+          mode: 'put-ok',
+          configCount: verified.configCount ?? null,
+          err: verified.err ?? null,
+        };
+      }
+      if (putResp.status >= 500 && attempt < 2) {
+        await sleep(250 * (attempt + 1));
+        continue;
+      }
+      break;
+    }
+    const verified = await verifyEmpty();
+    if (verified.ok === true) {
+      await mirrorStore();
+      return {
+        ok: true,
+        mode: 'verify-fallback',
+        putStatus: lastPutStatus,
+        configCount: verified.configCount ?? 0,
+      };
+    }
+    return {
+      ok: false,
+      err: lastPutStatus ? `put-${lastPutStatus}` : 'put-failed',
+      configCount: verified.configCount ?? null,
+      verifyErr: verified.err ?? null,
+    };
+  } catch (error) {
+    return { ok: false, err: String(error) };
+  }
 })()"""
 
 PUT_E2E_HITL_CONFIG_JS = """(async () => {
@@ -1102,6 +1215,45 @@ async def ensure_e2e_hitl_mode_in_browser(chat: object) -> None:
     observed = raw if isinstance(raw, dict) else {"value": raw}
     if observed.get("ok") is not True:
         raise RuntimeError(f"Browser HITL pin failed: {observed}")
+
+
+def clear_search_services_ssot(*, api_url: str | None = None) -> None:
+    """Python SSOT: empty searchServices on the bound E2E API, with verify."""
+    resolved = (api_url or get_e2e_api_url()).rstrip("/")
+    put_config_value(
+        "searchServices",
+        {"searchServiceConfigs": []},
+        api_url=resolved,
+    )
+    value = fetch_config_value("searchServices", api_url=resolved)
+    configs = value.get("searchServiceConfigs")
+    if configs != []:
+        raise RuntimeError(
+            f"searchServices must be empty after Python PUT, got {value!r} api={resolved}"
+        )
+
+
+async def ensure_e2e_search_cleared_in_browser(
+    chat: object,
+    *,
+    api_url: str | None = None,
+) -> None:
+    """Clear searchServices: Python SSOT first, then browser mirror (PUT retry + verify fallback)."""
+    resolved = (api_url or get_e2e_api_url()).rstrip("/")
+    clear_search_services_ssot(api_url=resolved)
+    await chat.evaluate(CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, await_promise=False)  # type: ignore[attr-defined]
+    raw = await chat.evaluate(PUT_E2E_CLEAR_SEARCH_CONFIG_JS, await_promise=True)  # type: ignore[attr-defined]
+    observed = raw if isinstance(raw, dict) else {"value": raw}
+    if observed.get("ok") is True:
+        return
+    # Last resort: Python SSOT still empty → accept FE mirror failure only if verify holds.
+    value = fetch_config_value("searchServices", api_url=resolved)
+    configs = value.get("searchServiceConfigs")
+    if configs == []:
+        return
+    raise RuntimeError(
+        f"Browser search clear failed: {observed}; persisted={value!r}; api={resolved}"
+    )
 
 
 async def hard_reset_e2e_hitl_mode(
@@ -1283,6 +1435,62 @@ def resume_clarify_skip_via_api(
         "final_text": final_text,
         "error": error_event,
     }
+
+
+def clarify_skip_resume_should_retry(result: dict[str, object]) -> bool:
+    """True when SSE ended early (e.g. UI stream still holds agent) and retry may succeed."""
+    if result.get("ok") is True:
+        return False
+    error = result.get("error")
+    if isinstance(error, dict) and error.get("error_type") == "AgentBusyError":
+        return True
+    event_types = result.get("event_types")
+    if not isinstance(event_types, list):
+        return False
+    normalized = {str(item) for item in event_types}
+    if normalized == {"progress"}:
+        return True
+    return False
+
+
+def _assistant_clarification_from_message(
+    msg: dict[str, object],
+) -> dict[str, object] | None:
+    if msg.get("role") != "assistant":
+        return None
+    for key in ("metadata", "extra_data"):
+        container = msg.get(key)
+        if not isinstance(container, dict):
+            continue
+        clarification = container.get("clarification")
+        if isinstance(clarification, dict):
+            return clarification
+    return None
+
+
+def chat_has_pending_clarification(
+    chat_id: str, *, api_url: str | None = None
+) -> bool:
+    """Return True when chat messages show unanswered structured clarify (API SSOT)."""
+    normalized = chat_id.strip()
+    if not normalized:
+        return False
+    try:
+        messages = fetch_chat_messages(normalized, api_url=api_url)
+    except (TimeoutError, OSError, urllib.error.URLError):
+        # SHPOIB/shared backend may stall under parallel LIVE load; treat as not-ready.
+        return False
+    for msg in reversed(messages):
+        if not isinstance(msg, dict):
+            continue
+        clarification = _assistant_clarification_from_message(msg)
+        if clarification is None:
+            continue
+        if clarification.get("answered") is False:
+            return True
+        if clarification.get("answered") is True:
+            return False
+    return False
 
 
 def chat_messages_have_clarify_skip_done(

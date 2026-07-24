@@ -69,6 +69,16 @@ class _AgentRepositoryPort(Protocol):
     async def delete_profile(self, agent_id: str) -> bool: ...
 
 
+def _normalize_agent_name(name: str) -> str:
+    return name.strip().casefold()
+
+
+def _agent_name_match_sort_key(profile: AgentProfile) -> tuple[int, str]:
+    # Prefer user-created agents over built-ins, then use id for deterministic ordering.
+    built_in_rank = 1 if profile.built_in else 0
+    return (built_in_rank, profile.id)
+
+
 def _memory_policy_from_request(raw: object) -> AgentMemoryPolicy | None:
     if raw is None:
         return None
@@ -182,14 +192,26 @@ class AgentService:
             return await AgentService._ar(uow).get_profile(agent_id)
 
     @staticmethod
-    async def get_agent_by_name(name: str) -> AgentProfile | None:
-        """根据名称获取智能体（不区分大小写）"""
+    async def get_agents_by_name(name: str) -> list[AgentProfile]:
+        """根据名称获取智能体列表（不区分大小写，结果稳定排序）"""
+        normalized_name = _normalize_agent_name(name)
+        if not normalized_name:
+            return []
         async with UnitOfWork() as uow:
             profiles = await AgentService._ar(uow).list_profiles()
-            for p in profiles:
-                if p.display_name and p.display_name.lower() == name.lower():
-                    return p
-            return None
+        matches = [
+            p
+            for p in profiles
+            if p.display_name and _normalize_agent_name(p.display_name) == normalized_name
+        ]
+        matches.sort(key=_agent_name_match_sort_key)
+        return matches
+
+    @staticmethod
+    async def get_agent_by_name(name: str) -> AgentProfile | None:
+        """根据名称获取智能体（不区分大小写，稳定返回首个候选）"""
+        matches = await AgentService.get_agents_by_name(name)
+        return matches[0] if matches else None
 
     @staticmethod
     async def resolve_agent(agent_id_or_name: str) -> AgentProfile | None:

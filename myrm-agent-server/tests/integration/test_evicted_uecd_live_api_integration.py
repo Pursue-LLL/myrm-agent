@@ -85,7 +85,9 @@ class TestEvictedUecdLiveServerIntegration:
         if isinstance(detail, dict) and "expired" in detail:
             assert detail.get("expired") is True
         elif payload.get("code") == 40401:
-            pytest.skip("Live server evicted API envelope is pre-UECD — restart when wave idle")
+            pytest.skip(
+                "Live server evicted API envelope is pre-UECD — restart when wave idle"
+            )
         else:
             raise AssertionError(f"Unexpected 404 payload: {payload!r}")
 
@@ -94,7 +96,9 @@ class TestEvictedUecdLiveServerIntegration:
 class TestEvictedUecdSeedFixtureIntegration:
     """Seed fixture contract via in-process app (DB + disk, no live :8080)."""
 
-    def test_seed_fixture_persists_progress_steps_and_spill_file(self, init_test_database) -> None:
+    def test_seed_fixture_persists_progress_steps_and_spill_file(
+        self, init_test_database
+    ) -> None:
         import asyncio
         import uuid
         from pathlib import Path

@@ -22,6 +22,17 @@ def touch_e2e_wall_progress() -> None:
     path.write_text(json.dumps({"atMonotonic": stamp}), encoding="utf-8")
 
 
+def reset_e2e_wall_budget_clock() -> None:
+    """Reset monotonic wall budget at each desktop approval retry attempt."""
+    stamp = time.monotonic()
+    os.environ["MYRM_E2E_WALL_STARTED_MONOTONIC"] = str(stamp)
+    os.environ[ENV_PROGRESS_AT] = str(stamp)
+    wall_progress_path().write_text(
+        json.dumps({"atMonotonic": stamp}),
+        encoding="utf-8",
+    )
+
+
 def read_wall_progress_monotonic() -> float | None:
     env_raw = os.environ.get(ENV_PROGRESS_AT, "").strip()
     if env_raw:

@@ -46,15 +46,19 @@ class TestToolMountConverterIntegration:
         self, base_request: dict[str, object]
     ) -> None:
         base_request["action_mode"] = "fast"
-        base_request["agent_config"] = {"enabledBuiltinTools": ["web_search", "browser"]}
+        base_request["agent_config"] = {
+            "enabledBuiltinTools": ["web_search", "browser"]
+        }
         request = AgentRequest(**base_request)
 
         params, _, _, _ = await convert_to_general_agent_params(request, [])
 
         assert params.enable_file_ops is False
         assert params.enable_shell_tools is False
+        assert params.enable_evicted_read is True
         assert params.prompt_mode == "search"
 
         agent = AgentFactory.create_general_agent(params)
         assert agent.enable_file_ops is False
         assert agent.enable_shell_tools is False
+        assert agent.enable_evicted_read is True

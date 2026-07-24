@@ -14,6 +14,9 @@ PIN_LITE_MODEL_JS = """(async () => {
   if (!bridge?.pinLiteModelForE2e) {
     return { ok: false, err: 'no-bridge' };
   }
+  if (bridge.ensureProviders) {
+    await bridge.ensureProviders();
+  }
   try {
     const pinned = await bridge.pinLiteModelForE2e();
     const debug = bridge.debugProviderState?.() ?? {};
@@ -39,22 +42,53 @@ async def pin_lite_model_for_e2e(
     chat: McpChatSession,
     *,
     recv_timeout: float = 30.0,
+    max_attempts: int = 5,
+    retry_sleep_sec: float = 3.0,
 ) -> dict[str, object]:
     """Pin lite model via E2E bridge; assert against get_lite_model_selection()."""
-    pinned_raw = await chat.evaluate(  # type: ignore[attr-defined]
-        PIN_LITE_MODEL_JS,
-        await_promise=True,
-        recv_timeout=recv_timeout,
+    import asyncio
+
+    last_raw: object = None
+    for attempt in range(1, max_attempts + 1):
+        pinned_raw = await chat.evaluate(  # type: ignore[attr-defined]
+            PIN_LITE_MODEL_JS,
+            await_promise=True,
+            recv_timeout=recv_timeout,
+        )
+        last_raw = pinned_raw
+        if (
+            isinstance(pinned_raw, dict)
+            and pinned_raw.get("ok") is True
+        ):
+            expected = get_lite_model_selection()
+            pinned_model = pinned_raw.get("pinned")
+            assert isinstance(pinned_model, dict), (
+                f"Missing pinned model payload: {pinned_raw}"
+            )
+            assert pinned_model.get("providerId") == expected["providerId"], (
+                f"Pinned provider mismatch: {pinned_model} vs {expected}"
+            )
+            assert pinned_model.get("model") == strip_provider_prefix(
+                str(expected["model"])
+            ), f"Pinned model mismatch: {pinned_model} vs {expected}"
+            return pinned_raw
+        err = (
+            str(pinned_raw.get("err") or pinned_raw)
+            if isinstance(pinned_raw, dict)
+            else str(pinned_raw)
+        )
+        if attempt < max_attempts and (
+            "e2e-lite-model-unconfigured" in err or err == "no-bridge"
+        ):
+            if err == "no-bridge":
+                await chat.ensure_react_e2e_bridge(timeout_sec=30.0)  # type: ignore[attr-defined]
+            await asyncio.sleep(retry_sleep_sec)
+            continue
+        break
+    assert isinstance(last_raw, dict), (
+        f"pinLiteModelForE2e returned non-dict: {last_raw}"
     )
-    assert isinstance(pinned_raw, dict), f"pinLiteModelForE2e returned non-dict: {pinned_raw}"
-    assert pinned_raw.get("ok") is True, f"Failed to pin lite model for E2E: {pinned_raw}"
-    expected = get_lite_model_selection()
-    pinned_model = pinned_raw.get("pinned")
-    assert isinstance(pinned_model, dict), f"Missing pinned model payload: {pinned_raw}"
-    assert pinned_model.get("providerId") == expected["providerId"], (
-        f"Pinned provider mismatch: {pinned_model} vs {expected}"
+    assert last_raw.get("ok") is True, (
+        f"Failed to pin lite model for E2E: {last_raw}"
     )
-    assert pinned_model.get("model") == strip_provider_prefix(str(expected["model"])), (
-        f"Pinned model mismatch: {pinned_model} vs {expected}"
-    )
-    return pinned_raw
+    return last_raw

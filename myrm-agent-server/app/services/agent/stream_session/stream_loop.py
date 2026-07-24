@@ -5,7 +5,7 @@
 - app.services.agent.stream_session.stream_lane_factory (POS: lane constructors)
 
 [OUTPUT]
-- iter_agent_stream_chunks(): async SSE chunk generator with routing, approval/clarification timeout detection, and compression
+- iter_agent_stream_chunks(): async SSE chunk generator with routing, approval/clarification timeout detection, compression, and end-to-end TTFT sampling
 
 [POS]
 Core streaming loop: routes to fast/reasoning/deep-research lanes, handles approval
@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from collections.abc import AsyncGenerator, AsyncIterable
 from dataclasses import dataclass
 
@@ -46,6 +47,7 @@ from app.services.agent.streaming_support.sse_helpers import (
 
 logger = logging.getLogger(__name__)
 _CITATION_PATTERN = re.compile(r"<cite:([^>]+)>")
+_TTFT_VISIBLE_EVENT_TYPES = frozenset({"message", "reasoning"})
 
 
 @dataclass
@@ -56,6 +58,53 @@ class ApprovalTimeoutHolder:
 @dataclass
 class ClarificationTimeoutHolder:
     pending: bool = False
+
+
+def _has_visible_text_for_ttft(event_type: str, payload: object) -> bool:
+    if event_type not in _TTFT_VISIBLE_EVENT_TYPES:
+        return False
+    return _payload_contains_visible_text(payload)
+
+
+def _payload_contains_visible_text(payload: object) -> bool:
+    if isinstance(payload, str):
+        return bool(payload.strip())
+    if isinstance(payload, list):
+        return any(_payload_contains_visible_text(item) for item in payload)
+    if isinstance(payload, dict):
+        content = payload.get("content")
+        if _payload_contains_visible_text(content):
+            return True
+        text = payload.get("text")
+        if _payload_contains_visible_text(text):
+            return True
+    return False
+
+
+def _capture_stream_ttft_if_needed(
+    *,
+    session: AgentStreamSession,
+    chunk: dict[str, object],
+) -> None:
+    if session.stream_ttft_ms is not None:
+        return
+    if session.stream_started_at_monotonic <= 0:
+        return
+
+    event_type = chunk.get("type")
+    if not isinstance(event_type, str) or event_type not in _TTFT_VISIBLE_EVENT_TYPES:
+        return
+    if not _has_visible_text_for_ttft(event_type, chunk.get("data")):
+        return
+
+    elapsed_ms = int(max((time.perf_counter() - session.stream_started_at_monotonic) * 1000.0, 0.0))
+    session.stream_ttft_ms = elapsed_ms
+    logger.info(
+        "stream_ttft_captured message_id=%s ttft_ms=%d event_type=%s",
+        session.params.message_id,
+        elapsed_ms,
+        event_type,
+    )
 
 
 def _inject_message_end_memory_insights(
@@ -205,6 +254,9 @@ async def iter_agent_stream_chunks(
     last_reported_tokens = 0
     accumulated_cost_usd = 0.0
     async for chunk in stream:
+        if isinstance(chunk, dict):
+            _capture_stream_ttft_if_needed(session=session, chunk=chunk)
+
         if session.cancel_token.is_cancelled:
             logger.warning(
                 "Agent cancelled: message_id=%s, reason=%s",
@@ -346,6 +398,8 @@ async def iter_agent_stream_chunks(
                 if isinstance(chunk, dict) and chunk.get("type") == "message_end":
                     if accumulated_cost_usd > 0 and "cost_usd" not in chunk:
                         chunk["cost_usd"] = round(accumulated_cost_usd, 6)
+                    if session.stream_ttft_ms is not None and "stream_ttft_ms" not in chunk:
+                        chunk["stream_ttft_ms"] = session.stream_ttft_ms
                     from app.services.agent.stream_session.stream_lane_factory import _inject_wu_consumed
 
                     _inject_wu_consumed(chunk)

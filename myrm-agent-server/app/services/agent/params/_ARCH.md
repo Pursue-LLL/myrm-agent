@@ -52,13 +52,13 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 
 ## Search/Fast（Web `action_mode=fast`）
 
-- **唯一无 file/bash 的入口**：`converter.py` 在 `action_mode=fast` 时 `resolve_agent_mount(WEB_FAST, …)`，设 `prompt_mode=search`。
+- **唯一无 file/bash 的入口**：`converter.py` 在 `action_mode=fast` 时 `resolve_agent_mount(WEB_FAST, …)`，设 `prompt_mode=search`。仍挂载 **UECD 只读** `file_read_tool`（`.context/{chat_id}/evicted/` + `_uploaded/`），不挂载 write/edit/glob/grep/bash。
 - Quick Search / Deep Search 预置 Agent（`builtin_specs/search.py`）供 Web UI 选用；非 fast Web 聊天仍加载 General CORE，仅 prompt/skills 走 search 语义。
 
 ## Fast Search（`action_mode='fast'`）
 
 - `converter.py` 覆盖 Agent profile 的 `enabled_builtin_tools` 为 `["answer_tool"]`，并强制 `enable_web_search=True`；skills / MCP / subagents / 媒体生成置空。
 - Normal 与 Deep 共享同一 builtin 开关集；`search_depth=deep` 仅追加 `SEARCH_DEEP_SUFFIX` prompt、`tool_setup` 内 SufficiencyConfig，以及更高的 `max_tool_calls` / `max_iterations`。
-- Turn1：`web_search_tool`、`web_fetch_tool`、记忆三件套（`enable_memory` 且非无痕，COMMON 层）；`request_answer_user_tool`（`answer_tool` opt-in，EXTENDED 层）。历史会话搜索不单独 bind 工具：`memoryEnableConversationSearch=true` 时在 `memory_search_tool` 上启用 `corpus=sessions` ACL。**不默认 bind browser**；browser 仅当用户选用带 `browser` 开关的 Agent profile 时加载。
+- Turn1：`web_search_tool`、`web_fetch_tool`、记忆三件套（`enable_memory` 且非无痕，COMMON 层）；`file_read_tool`（UECD 只读，读 evicted spill + `_uploaded/`）；`request_answer_user_tool`（`answer_tool` opt-in，EXTENDED 层）。历史会话搜索不单独 bind 工具：`memoryEnableConversationSearch=true` 时在 `memory_search_tool` 上启用 `corpus=sessions` ACL。**不默认 bind browser**；browser 仅当用户选用带 `browser` 开关的 Agent profile 时加载。
 - Browser 开启时，`browser-automation` peripheral skill 在 `AgentFactory.create_general_agent` 合并（非 converter），保证 Cron/Channel/Kanban 与 Web 一致；`prompt_mode="search"` 跳过绑定。
 - SSOT：`myrm-agent-server/app/services/agent/builtin_tool_ids.py`（全局默认 4 项开关）；Fast 模式运行时覆盖见 `converter.py`。

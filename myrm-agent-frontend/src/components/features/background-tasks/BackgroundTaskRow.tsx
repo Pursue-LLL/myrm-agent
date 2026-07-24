@@ -1,6 +1,6 @@
 'use client';
 
-import { Navigation, FileText } from 'lucide-react';
+import { Navigation, FileText, Terminal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { formatDistanceToNow } from 'date-fns';
 import { IconStop } from '@/components/features/icons/PremiumIcons';
@@ -13,11 +13,17 @@ import { STATUS_CONFIG } from './backgroundTasksPanel.constants';
 interface BackgroundTaskRowProps {
   task: BackgroundTask;
   allowSteer: boolean;
+  allowShellInput: boolean;
   steerTaskId: string | null;
+  shellInputTaskId: string | null;
   steerInput: string;
+  shellInput: string;
   onSteerInputChange: (value: string) => void;
+  onShellInputChange: (value: string) => void;
   onToggleSteer: (taskId: string) => void;
+  onToggleShellInput: (taskId: string) => void;
   onSteer: (taskId: string) => void;
+  onShellInputSend: (taskId: string) => void;
   onCancel: (taskId: string) => void;
   onNavigateChat: (chatId: string) => void;
   onViewVaultLog?: (chatId: string, vaultLogRef: string) => void;
@@ -26,11 +32,17 @@ interface BackgroundTaskRowProps {
 export function BackgroundTaskRow({
   task,
   allowSteer,
+  allowShellInput,
   steerTaskId,
+  shellInputTaskId,
   steerInput,
+  shellInput,
   onSteerInputChange,
+  onShellInputChange,
   onToggleSteer,
+  onToggleShellInput,
   onSteer,
+  onShellInputSend,
   onCancel,
   onNavigateChat,
   onViewVaultLog,
@@ -154,6 +166,18 @@ export function BackgroundTaskRow({
                   {t('steer')}
                 </Button>
               )}
+              {allowShellInput && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  data-testid="background-task-shell-input-toggle"
+                  onClick={() => onToggleShellInput(task.task_id)}
+                >
+                  <Terminal className="mr-1 h-3 w-3" />
+                  {t('shellInput')}
+                </Button>
+              )}
             </div>
           ) : (
             task.chat_id && (
@@ -191,6 +215,31 @@ export function BackgroundTaskRow({
                 disabled={!steerInput.trim()}
               >
                 <Navigation className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+
+          {allowShellInput && shellInputTaskId === task.task_id && (
+            <div className="mt-2 flex items-center gap-1.5">
+              <Input
+                className="h-7 text-xs font-mono"
+                placeholder={t('shellInputPlaceholder')}
+                value={shellInput}
+                data-testid="background-task-shell-input"
+                onChange={(e) => onShellInputChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') onShellInputSend(task.task_id);
+                }}
+              />
+              <Button
+                variant="default"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                data-testid="background-task-shell-input-send"
+                onClick={() => onShellInputSend(task.task_id)}
+                disabled={!shellInput.trim()}
+              >
+                <Terminal className="h-3 w-3" />
               </Button>
             </div>
           )}

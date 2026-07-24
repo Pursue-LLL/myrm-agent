@@ -156,6 +156,33 @@ def _admission_disabled() -> bool:
     }
 
 
+class MuxColdAttachStatus(TypedDict):
+    active: int
+    maxSlots: int
+    saturated: bool
+    handProbeAllowed: bool
+
+
+def read_mux_cold_attach_status() -> MuxColdAttachStatus:
+    """Snapshot for Agent e2e-context: hand MCP new_page when not saturated."""
+    cap = effective_max_slots()
+    if _admission_disabled():
+        return {
+            "active": 0,
+            "maxSlots": cap,
+            "saturated": False,
+            "handProbeAllowed": True,
+        }
+    active, resolved_cap = _active_snapshot()
+    saturated = active >= resolved_cap
+    return {
+        "active": active,
+        "maxSlots": resolved_cap,
+        "saturated": saturated,
+        "handProbeAllowed": not saturated,
+    }
+
+
 def _active_snapshot() -> tuple[int, int]:
     now = time.time()
     with _locked_registry() as registry_path:
@@ -291,7 +318,9 @@ def upstream_cold_attach_slot(*, operation_id: str | None = None) -> Iterator[st
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Global mux upstream cold-attach admission")
+    parser = argparse.ArgumentParser(
+        description="Global mux upstream cold-attach admission"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     acquire = sub.add_parser("acquire")
     acquire.add_argument("--operation-id", required=True)
@@ -329,12 +358,20 @@ def main() -> int:
             )
         return 0
     if args.command == "release":
-        return 0 if release(operation_id=args.operation_id, owner_token=args.owner_token) else 1
+        return (
+            0
+            if release(operation_id=args.operation_id, owner_token=args.owner_token)
+            else 1
+        )
     if args.wait:
-        token = acquire_with_wait(operation_id=args.operation_id, owner_pid=args.owner_pid)
+        token = acquire_with_wait(
+            operation_id=args.operation_id, owner_pid=args.owner_pid
+        )
         print(token)
         return 0
-    ok, token, reason = try_acquire(operation_id=args.operation_id, owner_pid=args.owner_pid)
+    ok, token, reason = try_acquire(
+        operation_id=args.operation_id, owner_pid=args.owner_pid
+    )
     if not ok or token is None:
         print(reason, file=sys.stderr)
         return 3

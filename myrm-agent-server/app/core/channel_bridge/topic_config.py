@@ -107,7 +107,12 @@ class SqlTopicManager:
         if self._is_expired(topic_cfg):
             self._delete_binding_keys(config, chat_id, storage_key)
             await self._save_config(channel, config)
-            logger.info("SqlTopicManager: expired binding %s/%s/%s auto-removed", channel, chat_id, storage_key)
+            logger.info(
+                "SqlTopicManager: expired binding %s/%s/%s auto-removed",
+                channel,
+                chat_id,
+                storage_key,
+            )
             return None
 
         raw_agent_id = topic_cfg.get("agentId")
@@ -127,7 +132,11 @@ class SqlTopicManager:
         await self._touch_active(channel, chat_id, storage_key, config)
 
         raw_reply_mode = str(topic_cfg.get("replyMode", "auto"))
-        reply_mode = ReplyMode(raw_reply_mode) if raw_reply_mode in ReplyMode.__members__.values() else ReplyMode.AUTO
+        reply_mode = (
+            ReplyMode(raw_reply_mode)
+            if raw_reply_mode in ReplyMode.__members__.values()
+            else ReplyMode.AUTO
+        )
         raw_timeout_action = str(topic_cfg.get("draftTimeoutAction", "auto_reject"))
         timeout_action = (
             DraftTimeoutAction(raw_timeout_action)
@@ -227,7 +236,9 @@ class SqlTopicManager:
 
         return False
 
-    async def _touch_active(self, channel: str, chat_id: str, storage_key: str, config: dict[str, object]) -> None:
+    async def _touch_active(
+        self, channel: str, chat_id: str, storage_key: str, config: dict[str, object]
+    ) -> None:
         """Update last-active timestamp in cache and persist to DB at intervals."""
         mem_key = f"{channel}:{chat_id}:{storage_key}"
         now_mono = time.monotonic()
@@ -257,7 +268,9 @@ class SqlTopicManager:
             from app.database.models import UserConfig
 
             async with get_session() as session:
-                result = await session.execute(select(UserConfig).where(UserConfig.config_key.like("%Topics")))
+                result = await session.execute(
+                    select(UserConfig).where(UserConfig.config_key.like("%Topics"))
+                )
                 rows = result.scalars().all()
 
                 changed_channels = []
@@ -272,7 +285,10 @@ class SqlTopicManager:
                             continue
 
                         for storage_key, topic_cfg in list(group_topics.items()):
-                            if isinstance(topic_cfg, dict) and topic_cfg.get("agentId") == agent_id:
+                            if (
+                                isinstance(topic_cfg, dict)
+                                and topic_cfg.get("agentId") == agent_id
+                            ):
                                 # Remove the binding completely
                                 del group_topics[storage_key]
                                 changed = True
@@ -286,17 +302,27 @@ class SqlTopicManager:
                         row.config_value = config
                         session.add(row)
                         # Extract channel name from config_key (e.g., "telegramTopics" -> "telegram")
-                        channel_name = row.config_key[:-6] if row.config_key.endswith("Topics") else row.config_key
+                        channel_name = (
+                            row.config_key[:-6]
+                            if row.config_key.endswith("Topics")
+                            else row.config_key
+                        )
                         changed_channels.append(channel_name)
 
                 if changed_channels:
                     await session.commit()
                     for channel in changed_channels:
                         self._invalidate_cache(channel)
-                        logger.info("SqlTopicManager: Cascaded deletion of agent %s from channel %s", agent_id, channel)
+                        logger.info(
+                            "SqlTopicManager: Cascaded deletion of agent %s from channel %s",
+                            agent_id,
+                            channel,
+                        )
 
         except Exception as exc:
-            logger.warning("SqlTopicManager: failed to cascade delete agent %s: %s", agent_id, exc)
+            logger.warning(
+                "SqlTopicManager: failed to cascade delete agent %s: %s", agent_id, exc
+            )
 
     async def get_all_topics(self, channel: str) -> dict[str, object]:
         """Get all topics for a channel (used by API).
@@ -362,7 +388,9 @@ class SqlTopicManager:
             return False
         return str(meta.get("prompt_mode", "full")) == "search"
 
-    async def _sanitize_unbindable_bindings(self, channel: str, config: dict[str, object]) -> bool:
+    async def _sanitize_unbindable_bindings(
+        self, channel: str, config: dict[str, object]
+    ) -> bool:
         changed = False
         for chat_id, group_topics in list(config.items()):
             if not isinstance(group_topics, dict):
@@ -503,7 +531,9 @@ class SqlTopicManager:
 
             self._invalidate_cache(channel)
         except Exception as exc:
-            logger.warning("SqlTopicManager: failed to save %s topics: %s", channel, exc)
+            logger.warning(
+                "SqlTopicManager: failed to save %s topics: %s", channel, exc
+            )
 
     async def _load_config(self, channel: str) -> dict[str, object]:
         now = time.monotonic()
@@ -531,7 +561,9 @@ class SqlTopicManager:
             self._cache[channel] = data
             return data
         except Exception as exc:
-            logger.warning("SqlTopicManager: failed to load %s topics: %s", channel, exc)
+            logger.warning(
+                "SqlTopicManager: failed to load %s topics: %s", channel, exc
+            )
             return self._cache.get(channel, {})
 
     def _invalidate_cache(self, channel: str) -> None:

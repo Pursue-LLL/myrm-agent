@@ -9,10 +9,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import reset_spawn_lifecycle_for_tests
-from myrm_agent_harness.api.hooks import get_background_registry, set_global_background_job_finish_handler
+from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
+    reset_spawn_lifecycle_for_tests,
+)
+from myrm_agent_harness.api.hooks import (
+    get_background_registry,
+    set_global_background_job_finish_handler,
+)
 
-from app.services.agent.background_job_finish_handler import ServerBackgroundJobFinishHandler
+from app.services.agent.background_job_finish_handler import (
+    ServerBackgroundJobFinishHandler,
+)
 from tests.integration.test_background_tasks_rest_api import _spawn_background
 
 
@@ -40,7 +47,9 @@ def _clear_registry() -> None:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_sandbox_recreate_returns_409_when_shell_jobs_running(tmp_path: Path) -> None:
+async def test_sandbox_recreate_returns_409_when_shell_jobs_running(
+    tmp_path: Path,
+) -> None:
     chat_id = f"recreate-guard-{uuid.uuid4().hex[:12]}"
     sleep_cmd = f'{sys.executable} -c "import time; time.sleep(60)"'
     await _spawn_background(
@@ -61,7 +70,9 @@ async def test_sandbox_recreate_returns_409_when_shell_jobs_running(tmp_path: Pa
         patch("app.api.system.router.get_deployment_capabilities", return_value=caps),
         patch("app.api.system.router.get_settings", return_value=settings),
     ):
-        async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        async with AsyncClient(
+            transport=transport, base_url="http://testserver"
+        ) as client:
             resp = await client.post("/api/v1/system/sandbox/recreate")
 
     assert resp.status_code == 409
@@ -90,7 +101,9 @@ async def test_sandbox_recreate_allowed_when_no_shell_jobs(tmp_path: Path) -> No
         patch("app.api.system.router.get_settings", return_value=settings),
         patch("app.api.system.router.httpx.AsyncClient", return_value=mock_client),
     ):
-        async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        async with AsyncClient(
+            transport=transport, base_url="http://testserver"
+        ) as client:
             resp = await client.post("/api/v1/system/sandbox/recreate")
 
     assert resp.status_code == 200

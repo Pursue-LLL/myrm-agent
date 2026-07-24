@@ -194,6 +194,25 @@ async def cancel_shell_background_task(pid: int) -> bool:
     return await registry.kill(pid, force=False)
 
 
+async def write_shell_background_stdin(
+    pid: int,
+    data: str,
+    *,
+    submit: bool = False,
+    close: bool = False,
+) -> dict[str, object]:
+    """Write to a running shell background job stdin; returns harness status dict."""
+    from myrm_agent_harness.api.hooks import get_background_registry
+
+    registry = get_background_registry()
+    return await registry.write_stdin(
+        pid,
+        data,
+        append_newline=submit,
+        close=close,
+    )
+
+
 def shell_registry_is_ephemeral() -> bool:
     """False when durable BackgroundJobStore is configured on Volume."""
     from myrm_agent_harness.api.hooks import get_background_job_store

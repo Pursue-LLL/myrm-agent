@@ -85,6 +85,7 @@ export function normalizeGoalState(payload: GoalStatusPayload): GoalState {
     acceptanceCriteria: payload.acceptance_criteria,
     acceptanceResults: payload.metadata?.acceptance_results as GoalState['acceptanceResults'],
     acceptanceHistory: payload.metadata?.acceptance_history as GoalState['acceptanceHistory'],
+    checkpointMode: payload.checkpoint_mode === 'per_todo' ? 'per_todo' : undefined,
     subgoals: payload.subgoals,
     executionSummary: payload.metadata?.execution_summary,
   };

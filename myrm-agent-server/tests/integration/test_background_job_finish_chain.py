@@ -19,7 +19,10 @@ from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
 from myrm_agent_harness.agent.meta_tools.bash.session_spawn_lifecycle import (
     reset_spawn_lifecycle_for_tests,
 )
-from myrm_agent_harness.api.hooks import get_background_registry, set_global_background_job_finish_handler
+from myrm_agent_harness.api.hooks import (
+    get_background_registry,
+    set_global_background_job_finish_handler,
+)
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import set_executor
 from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind import (
@@ -166,12 +169,18 @@ async def test_background_exit_persists_finish_message_to_chat(tmp_path: Path) -
         if m.extra_data and m.extra_data.get("background_job") is True
     ]
     assert len(bg_messages) == 1
-    assert str(pid) in bg_messages[0].content or "completed" in bg_messages[0].content.lower() or "已完成" in bg_messages[0].content
+    assert (
+        str(pid) in bg_messages[0].content
+        or "completed" in bg_messages[0].content.lower()
+        or "已完成" in bg_messages[0].content
+    )
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_background_killed_does_not_persist_finish_message(tmp_path: Path) -> None:
+async def test_background_killed_does_not_persist_finish_message(
+    tmp_path: Path,
+) -> None:
     """Cancel path: kill job → no chat finish message."""
     chat_id = f"bg-kill-{uuid.uuid4().hex[:12]}"
     await _create_chat(chat_id)
@@ -191,7 +200,7 @@ async def test_background_killed_does_not_persist_finish_message(tmp_path: Path)
         }
     }
 
-    long_cmd = f"{sys.executable} -c \"import time; time.sleep(60)\""
+    long_cmd = f'{sys.executable} -c "import time; time.sleep(60)"'
     bash_tool = create_bash_code_execute_tool()
 
     with (
@@ -252,7 +261,7 @@ async def test_background_nonzero_exit_persists_finish_message(tmp_path: Path) -
         }
     }
 
-    fail_cmd = f"{sys.executable} -c \"import sys; sys.exit(2)\""
+    fail_cmd = f'{sys.executable} -c "import sys; sys.exit(2)"'
     bash_tool = create_bash_code_execute_tool()
 
     with (
@@ -324,7 +333,7 @@ async def test_kill_session_jobs_clears_spawn_and_skips_chat(tmp_path: Path) -> 
         }
     }
 
-    long_cmd = f"{sys.executable} -c \"import time; time.sleep(60)\""
+    long_cmd = f'{sys.executable} -c "import time; time.sleep(60)"'
     bash_tool = create_bash_code_execute_tool()
 
     with (
@@ -351,7 +360,9 @@ async def test_kill_session_jobs_clears_spawn_and_skips_chat(tmp_path: Path) -> 
 
     assert BASH_PROCESS_TOOL_NAME in get_session_spawn_tool_names(chat_id)
 
-    killed = await get_background_registry().kill_session_jobs(chat_id, grace_seconds=0.05)
+    killed = await get_background_registry().kill_session_jobs(
+        chat_id, grace_seconds=0.05
+    )
     assert killed >= 1
     await asyncio.sleep(0.2)
 

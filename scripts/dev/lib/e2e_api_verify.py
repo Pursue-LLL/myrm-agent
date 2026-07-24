@@ -136,7 +136,9 @@ def _read_stored_epoch(state_dir: Path) -> tuple[int | None, str]:
     return epoch, stored_fp.strip()
 
 
-def _api_health_ok(api_base: str, timeout_sec: float = HEALTH_PROBE_TIMEOUT_SEC) -> bool:
+def _api_health_ok(
+    api_base: str, timeout_sec: float = HEALTH_PROBE_TIMEOUT_SEC
+) -> bool:
     base = api_base.rstrip("/")
     for path in HEALTH_PATHS:
         url = f"{base}{path}"
@@ -152,9 +154,17 @@ def _api_health_ok(api_base: str, timeout_sec: float = HEALTH_PROBE_TIMEOUT_SEC)
 def _read_health_stack_epoch(api_base: str) -> tuple[int | None, str]:
     url = f"{api_base.rstrip('/')}/api/v1/health"
     try:
-        with urllib.request.urlopen(url, timeout=HEALTH_PROBE_TIMEOUT_SEC) as resp:  # noqa: S310
+        with urllib.request.urlopen(
+            url, timeout=HEALTH_PROBE_TIMEOUT_SEC
+        ) as resp:  # noqa: S310
             payload = json.loads(resp.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, ValueError):
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        OSError,
+        json.JSONDecodeError,
+        ValueError,
+    ):
         return None, ""
     if not isinstance(payload, dict):
         return None, ""
@@ -322,7 +332,10 @@ def _blocked_reason(
     if stale and drift_pending:
         return "pending stack drift; no private backend at workspace epoch"
     if stale:
-        return "all healthy backends run stale code; run ./myrm restart --backend"
+        return (
+            "all healthy backends run stale code; retry with "
+            "./myrm verify-api --ensure-backend (do not restart shared stack during parallel E2E)"
+        )
     return "no verify target selected"
 
 
@@ -414,7 +427,9 @@ def resolve_e2e_api_context(
     verify = _select_verify_candidate(candidates, active_leases=active_leases)
 
     if verify is None and retry_after_apply and active_leases == 0 and drift_pending:
-        apply_result = apply_pending_drift_if_idle(monorepo_root=root, state_dir=resolved_state)
+        apply_result = apply_pending_drift_if_idle(
+            monorepo_root=root, state_dir=resolved_state
+        )
         if apply_result.action == "applied":
             drift_pending = pending_drift_exists(resolved_state)
             drift_action = decide_drift_heal(
@@ -450,10 +465,29 @@ def _candidate_to_dict(candidate: BackendCandidate) -> dict[str, object]:
     return asdict(candidate)
 
 
+def _mux_context_fields() -> dict[str, object]:
+    from mux_upstream_admission import read_mux_cold_attach_status  # noqa: PLC0415
+
+    mux = read_mux_cold_attach_status()
+    return {
+        "muxColdAttachActive": mux["active"],
+        "muxColdAttachMax": mux["maxSlots"],
+        "muxColdAttachSaturated": mux["saturated"],
+        "muxHandProbeAllowed": mux["handProbeAllowed"],
+    }
+
+
 def _context_to_dict(ctx: E2eApiContext) -> dict[str, object]:
     payload = asdict(ctx)
     payload["candidates"] = [_candidate_to_dict(item) for item in ctx.candidates]
     payload["verifyTarget"] = ctx.verify_api_base
+    payload.update(_mux_context_fields())
+    if payload.get("muxColdAttachSaturated") is True:
+        payload["agent_rule"] = (
+            f"{ctx.agent_rule} "
+            "MUX_COLD_ATTACH_SATURATED: do not hand new_page/navigate; "
+            "use verify-api or ./myrm test -m chrome_e2e (auto queue ≤900s)."
+        )
     return payload
 
 
@@ -477,7 +511,15 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     sys.stdout.write(f"WORKSPACE_FINGERPRINT={ctx.workspace_fingerprint}\n")
     if ctx.blocked:
         sys.stdout.write(f"BLOCKED_REASON={ctx.blocked_reason}\n")
-    sys.stdout.write(f"AGENT_RULE={ctx.agent_rule}\n")
+    mux_fields = _mux_context_fields()
+    sys.stdout.write(
+        "MUX_COLD_ATTACH="
+        f"{mux_fields['muxColdAttachActive']}/{mux_fields['muxColdAttachMax']} "
+        f"saturated={'yes' if mux_fields['muxColdAttachSaturated'] else 'no'} "
+        f"handProbe={'yes' if mux_fields['muxHandProbeAllowed'] else 'no'}\n"
+    )
+    enriched = _context_to_dict(ctx)
+    sys.stdout.write(f"AGENT_RULE={enriched['agent_rule']}\n")
     return 0
 
 
@@ -498,10 +540,16 @@ def _cmd_verify_api(args: argparse.Namespace) -> int:
     if ctx.blocked:
         sys.stderr.write(f"MYRM_VERIFY_API_BLOCKED: {ctx.blocked_reason}\n")
         sys.stderr.write(f"AGENT_RULE={ctx.agent_rule}\n")
-        sys.stderr.write(
-            "Hint: parallel leases defer shared reload; seed a private backend via "
-            "SHPOIB pytest or wait for auto drift heal when leases finish.\n"
-        )
+        if bool(getattr(args, "ensure_backend", False)):
+            sys.stderr.write(
+                "Hint: --ensure-backend seed failed or SHPOIB cap full; "
+                "wait for auto queue (do not stop other pytest).\n"
+            )
+        else:
+            sys.stderr.write(
+                "Hint: retry with ./myrm verify-api --ensure-backend … "
+                "(parallel leases defer shared reload; do not stop other pytest).\n"
+            )
         return 2
     method = str(args.method).upper()
     path = str(args.path)

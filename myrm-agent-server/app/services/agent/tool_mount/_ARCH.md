@@ -11,7 +11,7 @@ Harness `get_meta_tools(enable_file_tools, enable_shell_tools)` remains the fact
 | Surface | Meta file | Meta shell | SSOT |
 | --- | --- | --- | --- |
 | `WEB_CHAT`, `CHANNEL`, `KANBAN`, `VOICE`, `EVAL` | On | On | `resolve_agent_mount` |
-| `WEB_FAST` | Off | Off | `resolve_agent_mount` |
+| `WEB_FAST` | Off (UECD read-only `file_read` via `enable_evicted_read`) | Off | `resolve_agent_mount` |
 | `CRON` unrestricted | On | On | `resolve_agent_mount` |
 | `CRON` restricted | Allow-list | Allow-list | `tools_policy` intersect + `resolve_agent_mount(..., cron_job_tools_allowed=...)` |
 

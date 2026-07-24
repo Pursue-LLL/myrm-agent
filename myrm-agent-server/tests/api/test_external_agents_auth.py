@@ -123,6 +123,18 @@ class TestAuthStatus:
         assert claude["installed"] is False
         assert claude["readyForDelegation"] is False
 
+    def test_status_forces_fresh_detection(self, client):
+        detector = MagicMock()
+        detector.detect = AsyncMock(return_value=[])
+        with patch(
+            "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+            return_value=detector,
+        ):
+            resp = client.get("/api/v1/external-agents/auth/status")
+
+        assert resp.status_code == 200
+        detector.detect.assert_awaited_once_with(include_version=True, refresh=True)
+
 
 class TestAuthFeedMissingSession:
     """POST /external-agents/auth/login/{session_id}/feed."""

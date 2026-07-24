@@ -46,6 +46,7 @@ class BuiltinToolFlags(TypedDict):
     enable_browser: bool
     enable_computer_use: bool
     enable_file_ops: bool
+    enable_evicted_read: bool  # WEB_FAST: UECD read-only file_read without full file_ops
     enable_shell_tools: bool
     enable_wiki: bool
     enable_kanban: bool
@@ -55,21 +56,29 @@ class BuiltinToolFlags(TypedDict):
     enable_planning: bool
     enable_structured_clarify: bool
     enable_external_cli: bool
-    enable_web_crawl: bool
 
 
 def resolve_builtin_tool_flags(
     tools: Sequence[str],
+    *,
+    allow_answer_tool: bool = False,
 ) -> BuiltinToolFlags:
     """Map enabled_builtin_tools list to GeneralAgentParams boolean flags.
 
     All entry points (Web, Channel, Cron, Kanban, Eval, Voice) must use this
     function to ensure parity. Adding a new tool flag requires only a single
     change here.
+
+    ``answer_tool`` is only mounted for Fast Search via ``allow_answer_tool=True``
+    in ``converter.py``; profile opt-in is ignored.
     """
-    from app.services.agent.builtin_tool_ids import strip_deploy_incompatible_builtin_tools
+    from app.services.agent.builtin_tool_ids import (
+        strip_deploy_incompatible_builtin_tools,
+    )
 
     effective_tools = strip_deploy_incompatible_builtin_tools(tools)
+    if not allow_answer_tool:
+        effective_tools = [tool for tool in effective_tools if tool != "answer_tool"]
     from app.config.computer_use_deploy import is_computer_use_deploy_supported
     from app.config.external_cli_deploy import is_external_cli_deploy_supported
 
@@ -81,6 +90,7 @@ def resolve_builtin_tool_flags(
             "computer_use" in effective_tools and deploy_supports_computer_use
         ),
         enable_file_ops="file_ops" in effective_tools,
+        enable_evicted_read=False,
         enable_shell_tools="code_execute" in effective_tools,
         enable_wiki="wiki" in effective_tools,
         enable_kanban="kanban" in effective_tools,
@@ -92,7 +102,6 @@ def resolve_builtin_tool_flags(
         enable_external_cli=(
             "external_cli" in effective_tools and deploy_supports_external_cli
         ),
-        enable_web_crawl="web_crawl" in effective_tools,
     )
 
 
@@ -147,15 +156,21 @@ class ResolvedAgentProfile:
     engine_params: dict[str, object] | None = field(default=None, kw_only=True)
     auto_restore_domains: tuple[str, ...] = field(default_factory=tuple, kw_only=True)
     model_kwargs: dict[str, object] | None = field(default=None, kw_only=True)
-    openapi_services: list[dict[str, object]] = field(default_factory=list, kw_only=True)
+    openapi_services: list[dict[str, object]] = field(
+        default_factory=list, kw_only=True
+    )
     session_policy: dict[str, object] | None = field(default=None, kw_only=True)
-    mcp_tool_selections: dict[str, tuple[str, ...]] = field(default_factory=dict, kw_only=True)
+    mcp_tool_selections: dict[str, tuple[str, ...]] = field(
+        default_factory=dict, kw_only=True
+    )
     """Per-MCP-server tool whitelist {server: (tool, ...)}; empty = no per-tool constraint."""
     browser_source: str | None = field(default=None, kw_only=True)
     dialog_policy: str | None = field(default=None, kw_only=True)
     session_recording: str | None = field(default=None, kw_only=True)
 
-    notify_targets: tuple[dict[str, str], ...] = field(default_factory=tuple, kw_only=True)
+    notify_targets: tuple[dict[str, str], ...] = field(
+        default_factory=tuple, kw_only=True
+    )
     """Configured notification targets: each dict has {channel, recipient_id, label?}."""
 
     tool_gateway_config: dict[str, object] | None = field(default=None, kw_only=True)
@@ -239,24 +254,40 @@ class AgentProfileResolver:
                 stripped_tools = strip_deploy_incompatible_builtin_tools(
                     strip_legacy_builtin_tool_ids(coerced_tools)
                 )
-                tools_tuple = tuple(
-                    normalize_enabled_builtin_tools(stripped_tools)
-                )
+                tools_tuple = tuple(normalize_enabled_builtin_tools(stripped_tools))
                 raw_workspace_policy = metadata.get("workspace_policy")
                 raw_engine_params = metadata.get("engine_params")
 
                 mcp_tuple = _coerce_str_tuple(raw_mcp_ids)
-                mcp_tool_selections = _coerce_tool_selections(metadata.get("mcp_tool_selections"))
-                sub_tuple = _coerce_str_tuple(raw_subagent_ids) if raw_subagent_ids is not None else ()
+                mcp_tool_selections = _coerce_tool_selections(
+                    metadata.get("mcp_tool_selections")
+                )
+                sub_tuple = (
+                    _coerce_str_tuple(raw_subagent_ids)
+                    if raw_subagent_ids is not None
+                    else ()
+                )
                 raw_auto_restore = metadata.get("auto_restore_domains")
-                auto_domains_tuple = _coerce_str_tuple(raw_auto_restore) if raw_auto_restore is not None else ()
+                auto_domains_tuple = (
+                    _coerce_str_tuple(raw_auto_restore)
+                    if raw_auto_restore is not None
+                    else ()
+                )
 
-                raw_browser_source = getattr(agent, "browser_source", None) or metadata.get("browser_source")
+                raw_browser_source = getattr(
+                    agent, "browser_source", None
+                ) or metadata.get("browser_source")
                 browser_source = str(raw_browser_source) if raw_browser_source else None
-                raw_dialog_policy = getattr(agent, "dialog_policy", None) or metadata.get("dialog_policy")
+                raw_dialog_policy = getattr(
+                    agent, "dialog_policy", None
+                ) or metadata.get("dialog_policy")
                 dialog_policy = str(raw_dialog_policy) if raw_dialog_policy else None
-                raw_session_recording = getattr(agent, "session_recording", None) or metadata.get("session_recording")
-                session_recording = str(raw_session_recording) if raw_session_recording else None
+                raw_session_recording = getattr(
+                    agent, "session_recording", None
+                ) or metadata.get("session_recording")
+                session_recording = (
+                    str(raw_session_recording) if raw_session_recording else None
+                )
 
                 raw_model_selection = getattr(agent, "model_selection", None)
                 model_kwargs: dict[str, object] | None = None
@@ -267,7 +298,9 @@ class AgentProfileResolver:
 
                 raw_openapi_services = metadata.get("openapi_services", [])
                 openapi_services: list[dict[str, object]] = (
-                    list(raw_openapi_services) if isinstance(raw_openapi_services, list) else []
+                    list(raw_openapi_services)
+                    if isinstance(raw_openapi_services, list)
+                    else []
                 )
 
                 raw_notify = metadata.get("notify_targets", [])
@@ -292,30 +325,55 @@ class AgentProfileResolver:
                     browser_source=browser_source,
                     dialog_policy=dialog_policy,
                     session_recording=session_recording,
-                    security_overrides=(raw_security if isinstance(raw_security, dict) else None),
+                    security_overrides=(
+                        raw_security if isinstance(raw_security, dict) else None
+                    ),
                     personality_style=str(raw_personality) if raw_personality else None,
                     prompt_mode=str(metadata.get("prompt_mode", "full")),
                     max_iterations=agent.max_iterations,
-                    workspace_policy=(str(raw_workspace_policy) if raw_workspace_policy else None),
-                    memory_policy=(agent.memory_policy if isinstance(agent.memory_policy, AgentMemoryPolicy) else None),
+                    workspace_policy=(
+                        str(raw_workspace_policy) if raw_workspace_policy else None
+                    ),
+                    memory_policy=(
+                        agent.memory_policy
+                        if isinstance(agent.memory_policy, AgentMemoryPolicy)
+                        else None
+                    ),
                     memory_decay_profile=getattr(agent, "memory_decay_profile", None),
                     enabled_builtin_tools=tools_tuple,
                     model_kwargs=model_kwargs,
                     openapi_services=openapi_services,
                     auto_restore_domains=auto_domains_tuple,
-                    engine_params=(raw_engine_params if isinstance(raw_engine_params, dict) else None),
-                    session_policy=(metadata.get("session_policy") if isinstance(metadata.get("session_policy"), dict) else None),
+                    engine_params=(
+                        raw_engine_params
+                        if isinstance(raw_engine_params, dict)
+                        else None
+                    ),
+                    session_policy=(
+                        metadata.get("session_policy")
+                        if isinstance(metadata.get("session_policy"), dict)
+                        else None
+                    ),
                     notify_targets=notify_targets,
                     tool_gateway_config=(
-                        metadata.get("tool_gateway_config") if isinstance(metadata.get("tool_gateway_config"), dict) else None
+                        metadata.get("tool_gateway_config")
+                        if isinstance(metadata.get("tool_gateway_config"), dict)
+                        else None
                     ),
-                    built_in=bool(getattr(agent, "is_built_in", False) or getattr(agent, "is_public", False)),
-                    cron_post_run_verify=bool(metadata.get("cron_post_run_verify", False)),
+                    built_in=bool(
+                        getattr(agent, "is_built_in", False)
+                        or getattr(agent, "is_public", False)
+                    ),
+                    cron_post_run_verify=bool(
+                        metadata.get("cron_post_run_verify", False)
+                    ),
                 )
         except InvalidBuiltinToolIdsError:
             raise
         except Exception:
-            logger.error("Failed to resolve agent profile for '%s'", agent_id, exc_info=True)
+            logger.error(
+                "Failed to resolve agent profile for '%s'", agent_id, exc_info=True
+            )
             return None
 
 

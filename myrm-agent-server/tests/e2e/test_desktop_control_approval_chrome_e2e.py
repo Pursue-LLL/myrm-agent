@@ -23,7 +23,6 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", shared_hot=True, private_backend=False)
 @pytest.mark.chrome_e2e_desktop
 @pytest.mark.integration
-@pytest.mark.timeout(1800)
 @pytest.mark.skipif(platform.system() != "Darwin", reason="macOS computer_use only")
 @pytest.mark.asyncio
 async def test_chrome_ui_desktop_control_approval_allow_once(
@@ -39,7 +38,6 @@ async def test_chrome_ui_desktop_control_approval_allow_once(
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", shared_hot=True, private_backend=False)
 @pytest.mark.chrome_e2e_desktop
 @pytest.mark.integration
-@pytest.mark.timeout(2400)
 @pytest.mark.skipif(platform.system() != "Darwin", reason="macOS computer_use only")
 @pytest.mark.asyncio
 async def test_chrome_ui_desktop_control_approval_allow_always_settings_revoke(
@@ -55,7 +53,6 @@ async def test_chrome_ui_desktop_control_approval_allow_always_settings_revoke(
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", shared_hot=True, private_backend=False)
 @pytest.mark.chrome_e2e_desktop
 @pytest.mark.integration
-@pytest.mark.timeout(1800)
 @pytest.mark.skipif(platform.system() != "Darwin", reason="macOS computer_use only")
 @pytest.mark.asyncio
 async def test_chrome_ui_desktop_control_approval_allow_session(

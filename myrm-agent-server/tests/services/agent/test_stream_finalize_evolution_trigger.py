@@ -21,12 +21,14 @@ def _make_session(
     tool_steps: int = 3,
     content: str = "Result text",
     is_cancelled: bool = False,
+    has_persistable_turn: bool = False,
 ) -> MagicMock:
     session = MagicMock()
     session.request = MagicMock()
     session.request.chat_id = chat_id
     session.request.use_workflow = use_workflow
     session.request.timezone = "UTC"
+    session.request.resume_value = None
     session.cancel_token = MagicMock()
     session.cancel_token.is_cancelled = is_cancelled
     session.params = MagicMock()
@@ -34,14 +36,20 @@ def _make_session(
     session.params.model_cfg = MagicMock()
     session.params.locale = "en"
     session.collector = MagicMock()
+    session.collector.has_persistable_turn = has_persistable_turn
     session.collector.has_content = has_content
     session.collector.content = content
     session.collector.extra_data = {}
     session.collector._progress_steps = [{}] * tool_steps
     session.collector.sibling_group_id = None
+    session.collector.cross_turn_data_updates = {}
+    session.collector.has_pending_hitl_replay = MagicMock(return_value=False)
     session.collector.cleanup = MagicMock()
     session.monitor = MagicMock()
     session.monitor.stop = AsyncMock()
+    session.extra_context = {}
+    session.stream_ttft_ms = None
+    session.had_fatal_error = False
     return session
 
 
@@ -318,7 +326,7 @@ async def test_evolution_not_triggered_when_cancelled() -> None:
 @pytest.mark.asyncio
 async def test_finalize_persists_memory_budget_without_citations() -> None:
     """memoryBudget must persist even when no citations were emitted."""
-    session = _make_session(content="Result without citation tags")
+    session = _make_session(content="Result without citation tags", has_persistable_turn=True)
     session.extra_context = {"memory_brief_preview": {"snapshot_id": "snap-budget"}}
 
     with (
@@ -373,7 +381,10 @@ async def test_finalize_persists_memory_budget_without_citations() -> None:
 @pytest.mark.asyncio
 async def test_finalize_citations_preserve_first_seen_order() -> None:
     """Persisted citations should be de-duplicated in first-seen order."""
-    session = _make_session(content="alpha <cite:doc-b> beta <cite:doc-a> gamma <cite:doc-b>")
+    session = _make_session(
+        content="alpha <cite:doc-b> beta <cite:doc-a> gamma <cite:doc-b>",
+        has_persistable_turn=True,
+    )
     session.extra_context = {}
 
     with (
@@ -427,7 +438,7 @@ async def test_finalize_citations_preserve_first_seen_order() -> None:
 @pytest.mark.asyncio
 async def test_finalize_persists_memory_brief_status_payload() -> None:
     """Memory brief snapshot/status should be persisted for chat reload."""
-    session = _make_session(content="Result without citation tags")
+    session = _make_session(content="Result without citation tags", has_persistable_turn=True)
     session.extra_context = {
         "memory_brief_preview": {"snapshot_id": "snap-xyz"},
         "memory_brief_status": {"state": "skipped", "reason": "timeout"},
@@ -514,7 +525,7 @@ async def test_finalize_persists_memory_brief_status_payload() -> None:
 @pytest.mark.asyncio
 async def test_finalize_skips_invalid_memory_budget_payload() -> None:
     """Invalid manager budget payload should not leak into persisted metadata."""
-    session = _make_session(content="Result without citation tags")
+    session = _make_session(content="Result without citation tags", has_persistable_turn=True)
     session.extra_context = {"memory_brief_status": {"state": "ready"}}
 
     with (
@@ -568,7 +579,7 @@ async def test_finalize_skips_invalid_memory_budget_payload() -> None:
 
 @pytest.mark.asyncio
 async def test_finalize_persists_not_applied_injection_reason() -> None:
-    session = _make_session(content="Result without citation tags")
+    session = _make_session(content="Result without citation tags", has_persistable_turn=True)
     session.extra_context = {
         "memory_brief_status": {"state": "skipped", "reason": "timeout"},
     }
@@ -628,7 +639,7 @@ async def test_finalize_persists_not_applied_injection_reason() -> None:
 
 @pytest.mark.asyncio
 async def test_finalize_emits_injection_status_when_brief_status_missing() -> None:
-    session = _make_session(content="Result without citation tags")
+    session = _make_session(content="Result without citation tags", has_persistable_turn=True)
     session.extra_context = {}
 
     with (
@@ -686,7 +697,7 @@ async def test_finalize_emits_injection_status_when_brief_status_missing() -> No
 
 @pytest.mark.asyncio
 async def test_finalize_keeps_injection_status_when_budget_hook_fails() -> None:
-    session = _make_session(content="Result without citation tags")
+    session = _make_session(content="Result without citation tags", has_persistable_turn=True)
     session.extra_context = {"memory_brief_status": {"state": "skipped", "reason": "timeout"}}
 
     with (

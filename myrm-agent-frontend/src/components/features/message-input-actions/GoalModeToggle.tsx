@@ -92,6 +92,8 @@ export default function GoalModeToggle() {
     setGoalAcceptanceCriteria,
     goalConstraints,
     setGoalConstraints,
+    goalCheckpointMode,
+    setGoalCheckpointMode,
   } = useChatStore(
     useShallow((state) => ({
       actionMode: state.actionMode,
@@ -116,6 +118,8 @@ export default function GoalModeToggle() {
       setGoalAcceptanceCriteria: state.setGoalAcceptanceCriteria,
       goalConstraints: state.goalConstraints,
       setGoalConstraints: state.setGoalConstraints,
+      goalCheckpointMode: state.goalCheckpointMode,
+      setGoalCheckpointMode: state.setGoalCheckpointMode,
     })),
   );
 
@@ -471,6 +475,24 @@ export default function GoalModeToggle() {
                 </button>
                 {showAdvanced && (
                   <div className="space-y-3 mt-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] text-muted-foreground">{t('checkpointModeLabel')}</label>
+                      <button
+                        type="button"
+                        className={cn(
+                          'relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full transition-colors',
+                          goalCheckpointMode ? 'bg-accent-warm' : 'bg-muted',
+                        )}
+                        onClick={() => setGoalCheckpointMode(!goalCheckpointMode)}
+                      >
+                        <span
+                          className={cn(
+                            'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow transition',
+                            goalCheckpointMode ? 'translate-x-3.5' : 'translate-x-0.5',
+                          )}
+                        />
+                      </button>
+                    </div>
                     <div className="flex items-center justify-between">
                       <label className="text-[10px] text-muted-foreground">{t('loopOnPauseLabel')}</label>
                       <button

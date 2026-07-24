@@ -41,6 +41,29 @@ from app.services.agent.streaming_support.sse_helpers import (
 logger = logging.getLogger(__name__)
 
 
+async def _mark_pending_clarification_answered(chat_id: str) -> None:
+    """Mark the latest assistant clarification as answered after a successful resume.
+
+    Clarification lives on the persisted assistant row (new UUID at finalize), not on
+    the API request message_id which is bound to the user row.
+    """
+    from app.services.chat.chat_service import ChatService
+
+    messages = await ChatService.get_all_messages(chat_id)
+    for message in reversed(messages):
+        if message.role != "assistant":
+            continue
+        extra_data = dict(message.extra_data or {})
+        clarification = extra_data.get("clarification")
+        if not isinstance(clarification, dict):
+            continue
+        if clarification.get("answered") is True:
+            continue
+        extra_data["clarification"] = {**clarification, "answered": True}
+        await ChatService.update_message_extra_data(message.id, extra_data)
+        return
+
+
 async def yield_stream_exception_chunks(
     session: AgentStreamSession,
     exc: BaseException,
@@ -170,6 +193,8 @@ async def finalize_agent_stream_session(
 
         content = session.collector.content
         extra_data = dict(session.collector.extra_data or {})
+        if session.stream_ttft_ms is not None and session.stream_ttft_ms >= 0:
+            extra_data["streamTtftMs"] = session.stream_ttft_ms
         merge_memory_citation_fallback(extra_data)
         preview = (
             session.extra_context.get("memory_brief_preview")
@@ -228,6 +253,21 @@ async def finalize_agent_stream_session(
             timezone=session.request.timezone,
             sibling_group_id=session.collector.sibling_group_id,
         )
+
+    if session.request.chat_id:
+        extra = session.collector.extra_data
+        collector_clarification = (
+            extra.get("clarification") if isinstance(extra, dict) else None
+        )
+        collector_clarification_answered = (
+            isinstance(collector_clarification, dict)
+            and collector_clarification.get("answered") is True
+        )
+        resume_completed = (
+            session.request.resume_value is not None and not clarification.pending
+        )
+        if resume_completed or collector_clarification_answered:
+            await _mark_pending_clarification_answered(session.request.chat_id)
 
     if approval.value and session.request.chat_id:
         schedule_approval_timeout(

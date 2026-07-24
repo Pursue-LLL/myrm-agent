@@ -45,7 +45,11 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
     from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
-    from app.ai_agents.agents import ImageGenerationParams, TTSParams, VideoGenerationParams
+    from app.ai_agents.agents import (
+        ImageGenerationParams,
+        TTSParams,
+        VideoGenerationParams,
+    )
     from app.core.memory.adapters.types import ResolvedContextBinding
     from app.core.types import ModelConfig
 
@@ -102,7 +106,9 @@ def _configured_media_api_key(api_key: str | None) -> bool:
 def _media_gateway_configured(gateway_config: dict[str, object] | None) -> bool:
     if not gateway_config:
         return False
-    use_gateway = bool(gateway_config.get("use_gateway") or gateway_config.get("useGateway"))
+    use_gateway = bool(
+        gateway_config.get("use_gateway") or gateway_config.get("useGateway")
+    )
     if not use_gateway:
         return False
     auth_token = gateway_config.get("auth_token") or gateway_config.get("authToken")
@@ -119,14 +125,18 @@ def _is_media_credential_configured(
     api_key: str | None,
     gateway_config: dict[str, object] | None,
 ) -> bool:
-    return _configured_media_api_key(api_key) or _media_gateway_configured(gateway_config)
+    return _configured_media_api_key(api_key) or _media_gateway_configured(
+        gateway_config
+    )
 
 
 def _video_generation_credential_configured(params: VideoGenerationParams) -> bool:
     if _is_media_credential_configured(params.api_key, params.gateway_config):
         return True
     return any(
-        _configured_media_api_key(str(fb.get("api_key")) if fb.get("api_key") is not None else None)
+        _configured_media_api_key(
+            str(fb.get("api_key")) if fb.get("api_key") is not None else None
+        )
         for fb in params.fallback_providers
         if isinstance(fb, dict)
     )
@@ -138,7 +148,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
     if TYPE_CHECKING:
         enable_web_search: bool
         enable_web_fetch: bool
-        enable_web_crawl: bool
         search_service_cfg: SearchServiceConfig | None = None
         reranker_config: RerankerConfig | None
         enable_advanced_retrieval: bool
@@ -181,10 +190,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
         if X_LIVE_SEARCH_SKILL_ID not in (self.skill_ids or []):
             return
         try:
-            from app.services.integrations.tools.x_live_search import create_x_live_search_tool
+            from app.services.integrations.tools.x_live_search import (
+                create_x_live_search_tool,
+            )
 
             tools.append(create_x_live_search_tool())
-            logger.info("Loaded x_search_tool (%s skill) [Turn1]", X_LIVE_SEARCH_SKILL_ID)
+            logger.info(
+                "Loaded x_search_tool (%s skill) [Turn1]", X_LIVE_SEARCH_SKILL_ID
+            )
         except Exception as e:
             logger.debug("x_search_tool skipped: %s", e)
 
@@ -196,13 +209,17 @@ class ToolSetupMixin(ExternalAgentsMixin):
         )
 
         reranker_cfg = self.reranker_config if self.enable_advanced_retrieval else None
-        embedding_cfg = self.embedding_config if self.enable_advanced_retrieval else None
+        embedding_cfg = (
+            self.embedding_config if self.enable_advanced_retrieval else None
+        )
 
         sufficiency_cfg = None
         sufficiency_llm = None
         if self.search_depth == "deep":
             from myrm_agent_harness.api import LLMConfig
-            from myrm_agent_harness.toolkits.retriever.sufficiency import SufficiencyConfig
+            from myrm_agent_harness.toolkits.retriever.sufficiency import (
+                SufficiencyConfig,
+            )
 
             sufficiency_cfg = SufficiencyConfig(enabled=True)
             sufficiency_llm = LLMConfig(
@@ -224,7 +241,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     sufficiency_llm_config=sufficiency_llm,
                 )
             )
-            logger.info("Loaded web_fetch_tool [Turn1 baseline, no search API required]")
+            logger.info(
+                "Loaded web_fetch_tool [Turn1 baseline, no search API required]"
+            )
 
         if self.enable_web_search and self.search_service_cfg:
             tools.append(
@@ -258,16 +277,22 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 update_ui_data_tool,
             )
 
-            workspace_roots: tuple[str, ...] = getattr(self, "declared_allowed_roots", ())
+            workspace_roots: tuple[str, ...] = getattr(
+                self, "declared_allowed_roots", ()
+            )
             if workspace_roots:
                 try:
                     seed_reference_to_workspace(Path(workspace_roots[0]))
                 except OSError as exc:
-                    logger.warning("Failed to seed A2UI reference to workspace: %s", exc)
+                    logger.warning(
+                        "Failed to seed A2UI reference to workspace: %s", exc
+                    )
 
             tools.append(render_ui_tool)
             tools.append(update_ui_data_tool)
-            logger.info("🎨 已加载 render_ui_tool / update_ui_data_tool（交互式 UI）[Turn1]")
+            logger.info(
+                "🎨 已加载 render_ui_tool / update_ui_data_tool（交互式 UI）[Turn1]"
+            )
 
         self._setup_image_generation_tools(
             tools,
@@ -278,32 +303,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             task_user_id=getattr(self, "_task_user_id", "default"),
         )
         self._setup_tts_tools(tools)
-
-    def _setup_web_crawl_tool(
-        self,
-        tools: list[object],
-        *,
-        chat_id: str | None = None,
-        workspace_root: str | None = None,
-    ) -> None:
-        """Register web_crawl_tool when enabled (EXTENDED, opt-in)."""
-        if not getattr(self, "enable_web_crawl", False):
-            return
-        from myrm_agent_harness.api.hooks import create_web_crawl_tool
-
-        from app.config.deploy_mode import is_local_mode as _is_local
-
-        data_dir: str | None = None
-        if workspace_root and chat_id:
-            data_dir = str(Path(workspace_root) / ".crawl" / chat_id)
-
-        tools.append(
-            create_web_crawl_tool(
-                allow_private_networks=_is_local(),
-                data_dir=data_dir,
-            )
-        )
-        logger.info("Loaded web_crawl_tool [EXTENDED opt-in]")
 
     def _setup_clarification_tools(self, tools: list[object]) -> None:
         """Set up ask_question HITL clarification tool for interactive web_chat sessions."""
@@ -318,7 +317,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
         try:
             import json
 
-            from myrm_agent_harness.agent.meta_tools.clarification.ask_question import AskQuestionInput
+            from myrm_agent_harness.agent.meta_tools.clarification.ask_question import (
+                AskQuestionInput,
+            )
             from myrm_agent_harness.agent.meta_tools.clarification.clarification_agent_tools import (
                 create_ask_question_tool,
             )
@@ -356,7 +357,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
         params = self.image_generation_params
         if not _is_media_credential_configured(params.api_key, params.gateway_config):
-            logger.debug("Image generation tool skipped: no API key or gateway configured")
+            logger.debug(
+                "Image generation tool skipped: no API key or gateway configured"
+            )
             return
 
         try:
@@ -365,8 +368,12 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 ImageGenerationTools,
             )
 
-            from app.ai_agents.media_tools.image_agent_tool import create_image_generation_tool
-            from app.ai_agents.media_tools.media_persist import create_media_persist_callback
+            from app.ai_agents.media_tools.image_agent_tool import (
+                create_image_generation_tool,
+            )
+            from app.ai_agents.media_tools.media_persist import (
+                create_media_persist_callback,
+            )
             from app.config.deploy_mode import is_local_mode
 
             chat_id = self.chat_id or getattr(self, "_current_chat_id", None)
@@ -421,7 +428,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
         params = self.video_generation_params
         if not _video_generation_credential_configured(params):
-            logger.debug("Video generation tool skipped: no API key or gateway configured")
+            logger.debug(
+                "Video generation tool skipped: no API key or gateway configured"
+            )
             return
 
         try:
@@ -430,7 +439,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 VideoGenerationTools,
             )
 
-            from app.ai_agents.media_tools.video_agent_tool import create_video_generation_tool
+            from app.ai_agents.media_tools.video_agent_tool import (
+                create_video_generation_tool,
+            )
 
             fallback_configs = []
             for fb in params.fallback_providers:
@@ -480,7 +491,11 @@ class ToolSetupMixin(ExternalAgentsMixin):
     def _create_video_media_callback(self) -> MediaCallback | None:
         """Create a media_callback for persisting generated videos to the media library."""
         return self._create_media_persist_callback(
-            model_name=(self.video_generation_params.model if self.video_generation_params else None),
+            model_name=(
+                self.video_generation_params.model
+                if self.video_generation_params
+                else None
+            ),
             source="video_generate",
         )
 
@@ -537,9 +552,13 @@ class ToolSetupMixin(ExternalAgentsMixin):
         source: str,
     ) -> MediaCallback | None:
         """Generic media persist callback factory."""
-        from app.ai_agents.media_tools.media_persist import create_media_persist_callback
+        from app.ai_agents.media_tools.media_persist import (
+            create_media_persist_callback,
+        )
 
-        chat_id = self._current_chat_id if hasattr(self, "_current_chat_id") else self.chat_id
+        chat_id = (
+            self._current_chat_id if hasattr(self, "_current_chat_id") else self.chat_id
+        )
         return create_media_persist_callback(
             chat_id=chat_id,
             model_name=model_name,
@@ -554,12 +573,17 @@ class ToolSetupMixin(ExternalAgentsMixin):
         if channel in ("web_chat", "cron", "subagent"):
             return None
 
-        from myrm_agent_harness.agent.security.channel_presets import ChannelType, resolve_channel_type
+        from myrm_agent_harness.agent.security.channel_presets import (
+            ChannelType,
+            resolve_channel_type,
+        )
 
         if resolve_channel_type(channel) == ChannelType.WEB_CHAT:
             return None
 
-        recipient = getattr(self, "memory_conversation_id", None) or getattr(self, "chat_id", None)
+        recipient = getattr(self, "memory_conversation_id", None) or getattr(
+            self, "chat_id", None
+        )
         if not recipient:
             return None
         return DeliveryConfig(channel=channel, target=str(recipient))
@@ -592,7 +616,16 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             def _blueprint_filler(
                 bp_id: str, values: dict[str, str], tz: str | None
-            ) -> tuple[dict[str, str | int | None], str, str, tuple[str, ...], tuple[str, ...] | None] | None:
+            ) -> (
+                tuple[
+                    dict[str, str | int | None],
+                    str,
+                    str,
+                    tuple[str, ...],
+                    tuple[str, ...] | None,
+                ]
+                | None
+            ):
                 try:
                     result = fill_blueprint(bp_id, values, locale=agent_locale, tz=tz)
                 except BlueprintFillError as exc:
@@ -621,7 +654,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 chat_id=self.chat_id,
                 agent_id=self.agent_id,
                 blueprint_filler=_blueprint_filler,
-                blueprint_catalog_provider=lambda: get_blueprints_for_tool_description(agent_locale),
+                blueprint_catalog_provider=lambda: get_blueprints_for_tool_description(
+                    agent_locale
+                ),
                 delivery_resolver=resolve_cron_delivery,
                 default_delivery=self._resolve_cron_default_delivery(),
             )
@@ -639,7 +674,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
         try:
             from myrm_agent_harness.toolkits import create_memory_tools
 
-            from app.core.memory.adapters.setup import create_conflict_callback, create_memory_manager
+            from app.core.memory.adapters.setup import (
+                create_conflict_callback,
+                create_memory_manager,
+            )
 
             if self.embedding_config is None:
                 logger.warning("⚠️ 记忆工具未加载（缺少 embedding_config）")
@@ -668,7 +706,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             search_policy = MemorySearchPolicy(
                 allow_wiki=bool(self.enable_wiki and not self.incognito_mode),
-                allow_sessions=bool(self.enable_conversation_search and not self.incognito_mode),
+                allow_sessions=bool(
+                    self.enable_conversation_search and not self.incognito_mode
+                ),
             )
             query_wiki = None
             conversation_provider = None
@@ -678,12 +718,16 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 lite_llm = self._lite_llm
 
                 async def _query_wiki(question: str) -> str:
-                    archiver = get_wiki_archiver(lite_llm, manager, agent_id=self.agent_id)
+                    archiver = get_wiki_archiver(
+                        lite_llm, manager, agent_id=self.agent_id
+                    )
                     return await archiver.query_wiki(question)
 
                 query_wiki = _query_wiki
             if search_policy.allow_sessions:
-                from app.services.chat.conversation_search_service import ConversationHistorySearchProvider
+                from app.services.chat.conversation_search_service import (
+                    ConversationHistorySearchProvider,
+                )
 
                 conversation_provider = ConversationHistorySearchProvider(
                     current_chat_id=binding.conversation_id,
@@ -732,9 +776,15 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 get_global_browser_pool,
             )
 
-            from app.config.browser import get_browser_launch_options, get_browser_pool_config
+            from app.config.browser import (
+                get_browser_launch_options,
+                get_browser_pool_config,
+            )
             from app.config.deploy_mode import is_local_mode
-            from app.core.security.browser_vault import get_agent_session_vault, get_global_session_vault
+            from app.core.security.browser_vault import (
+                get_agent_session_vault,
+                get_global_session_vault,
+            )
 
             pool = get_global_browser_pool(
                 config=get_browser_pool_config(),
@@ -762,9 +812,13 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 local_mode=is_local_mode(),
             )
             if merged_security.network_allowlist:
-                domain_allowlist = DomainAllowlist.from_strings(merged_security.network_allowlist)
+                domain_allowlist = DomainAllowlist.from_strings(
+                    merged_security.network_allowlist
+                )
             if merged_security.network_blocklist:
-                domain_blocklist = DomainAllowlist.from_strings(merged_security.network_blocklist)
+                domain_blocklist = DomainAllowlist.from_strings(
+                    merged_security.network_blocklist
+                )
 
             thread_id = self.approval_session_key or f"chat_{effective_chat_id}"
             self._current_thread_id = thread_id
@@ -788,7 +842,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
             if recording_mode and recording_mode != "off":
                 from app.config.settings import get_settings
 
-                recordings_dir = str(Path(get_settings().database.harness_dir) / "recordings")
+                recordings_dir = str(
+                    Path(get_settings().database.harness_dir) / "recordings"
+                )
                 observability = BrowserObservability(
                     RecordingConfig(
                         enabled=True,
@@ -822,13 +878,19 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
             if memory_manager is not None:
-                from myrm_agent_harness.toolkits.browser.session import SessionMemoryBridge
+                from myrm_agent_harness.toolkits.browser.session import (
+                    SessionMemoryBridge,
+                )
 
                 bridge = SessionMemoryBridge(memory_manager)
                 browser_session.set_session_lifecycle_hook(bridge)
-                logger.info("SessionMemoryBridge wired: browser sessions → memory profile")
+                logger.info(
+                    "SessionMemoryBridge wired: browser sessions → memory profile"
+                )
 
-            logger.warning(f"BrowserSession created: context_key={browser_context_key} (thread_id={thread_id})")
+            logger.warning(
+                f"BrowserSession created: context_key={browser_context_key} (thread_id={thread_id})"
+            )
 
             browser_tools = create_browser_tools(browser_session)
             # Browser tools are high frequency if enabled
@@ -886,15 +948,23 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             constraints = _select_image_constraints(self.model_cfg.model)
             workspace_root = (
-                self.declared_allowed_roots[0] if getattr(self, "declared_allowed_roots", ()) else None
+                self.declared_allowed_roots[0]
+                if getattr(self, "declared_allowed_roots", ())
+                else None
             )
-            auto_grant = is_sandbox() and is_computer_use_deploy_supported() and not is_local_mode()
+            auto_grant = (
+                is_sandbox()
+                and is_computer_use_deploy_supported()
+                and not is_local_mode()
+            )
             execution_mode = (
                 ExecutionMode.background_strict
                 if is_local_mode()
                 else ExecutionMode.background_best_effort
             )
-            gate = DesktopControlGate(workspace_root=workspace_root, auto_grant=auto_grant)
+            gate = DesktopControlGate(
+                workspace_root=workspace_root, auto_grant=auto_grant
+            )
             config_kwargs: dict[str, object] = {"execution_mode": execution_mode}
             if constraints:
                 config_kwargs["image_constraints"] = constraints
@@ -912,6 +982,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
         except Exception as e:
             logger.warning("Computer use tools load failed (degraded): %s", e)
+
 
 def _select_image_constraints(model_name: str) -> object | None:
     """Select optimal ImageConstraints based on model family.
@@ -943,7 +1014,12 @@ def _get_artifact_push_fn() -> Callable[[str, str, ArtifactType, str], None] | N
     try:
         from myrm_agent_harness.agent.artifacts import push_inline_artifact
 
-        def _push(filename: str, preview_url: str, artifact_type: ArtifactType, content_type: str) -> None:
+        def _push(
+            filename: str,
+            preview_url: str,
+            artifact_type: ArtifactType,
+            content_type: str,
+        ) -> None:
             push_inline_artifact(
                 filename=filename,
                 preview_url=preview_url,

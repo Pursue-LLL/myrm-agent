@@ -1,4 +1,8 @@
-"""Chrome E2E pytest session dedupe — reject duplicate concurrent invocations (R32)."""
+"""Chrome E2E pytest session dedupe — one concurrent session per test file.
+
+Rejects duplicate chrome_e2e invocations that target the same ``tests/e2e/*.py``
+file regardless of ``::nodeid``, ``-q``, ``-n0``, or ``--timeout=`` argv shape.
+"""
 
 from __future__ import annotations
 
@@ -46,10 +50,20 @@ def _pid_alive(pid: int) -> bool:
     return True
 
 
+def _strip_pytest_node_id(arg: str) -> str:
+    """Collapse ``file.py::node`` to ``file.py`` for session-level dedupe."""
+    if "::" in arg and arg.split("::", 1)[0].endswith(".py"):
+        return arg.split("::", 1)[0]
+    return arg
+
+
 def _normalize_argv(argv: tuple[str, ...]) -> tuple[str, ...]:
     normalized: list[str] = []
     skip_next = False
-    for index, arg in enumerate(argv):
+    cosmetic_flags = frozenset(
+        {"-q", "-v", "-s", "-x", "--quiet", "--verbose", "--capture=no"}
+    )
+    for arg in argv:
         if skip_next:
             skip_next = False
             continue
@@ -58,7 +72,13 @@ def _normalize_argv(argv: tuple[str, ...]) -> tuple[str, ...]:
             continue
         if arg.startswith("MYRM_E2E_RUN_ID="):
             continue
-        normalized.append(arg)
+        if arg in cosmetic_flags:
+            continue
+        if arg.startswith(("-n", "--numprocesses=")):
+            continue
+        if arg.startswith(("--tb=", "--timeout=", "-k=")):
+            continue
+        normalized.append(_strip_pytest_node_id(arg))
     return tuple(normalized)
 
 
@@ -85,9 +105,10 @@ def _load_record(path: Path) -> _DedupeRecord | None:
 
 
 def _max_holder_wall_sec() -> float:
-    from dev_gate_contract import LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+    """Match LIVE chrome_e2e pytest floor so long runs are not dedupe-released early."""
+    from dev_gate_contract import LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC
 
-    return float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
+    return float(LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC)
 
 
 def _record_is_stale(record: _DedupeRecord, *, now: float) -> bool:
@@ -97,7 +118,10 @@ def _record_is_stale(record: _DedupeRecord, *, now: float) -> bool:
     if not _pid_alive(holder_pid):
         return True
     acquired_at = record.get("acquiredAt")
-    if isinstance(acquired_at, (int, float)) and now - float(acquired_at) > _max_holder_wall_sec():
+    if (
+        isinstance(acquired_at, (int, float))
+        and now - float(acquired_at) > _max_holder_wall_sec()
+    ):
         return True
     heartbeat_at = record.get("heartbeatAt")
     if isinstance(heartbeat_at, (int, float)) and now - float(heartbeat_at) > 7200.0:
@@ -156,7 +180,9 @@ def acquire_session_lock(
     root = _dedupe_root()
     root.mkdir(parents=True, exist_ok=True)
     _prune_stale_records(root)
-    duplicate = find_duplicate_pid(fingerprint, exclude_pids=(resolved_pid, os.getppid()))
+    duplicate = find_duplicate_pid(
+        fingerprint, exclude_pids=(resolved_pid, os.getppid())
+    )
     if duplicate is not None:
         message = (
             f"E2E_PYTEST_DEDUPE_DENIED: duplicate chrome_e2e session "

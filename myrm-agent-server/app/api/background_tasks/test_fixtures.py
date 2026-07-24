@@ -252,9 +252,9 @@ def _write_vault_log_fixture(*, chat_id: str, pid: int, workspace: Path) -> str:
 
 @router.post("/test/seed-shell-fixture", include_in_schema=False)
 async def seed_shell_fixture(
-    mode: Literal["failed", "running", "success", "completed_with_vault"] = Query(
-        default="failed"
-    ),
+    mode: Literal[
+        "failed", "running", "running_stdin", "success", "completed_with_vault"
+    ] = Query(default="failed"),
 ) -> dict[str, object]:
     """Local dev/test only: seed a shell background job for Chrome E2E."""
     if not is_local_mode():
@@ -271,6 +271,12 @@ async def seed_shell_fixture(
 
     if mode == "running":
         command = f"{sys.executable} -c \"import time; print('MYRM_E2E_SHELL_RUNNING', flush=True); time.sleep(120)\""
+    elif mode == "running_stdin":
+        command = (
+            f"{sys.executable} -c "
+            '"import sys,time; line=sys.stdin.readline(); '
+            "print('MYRM_STDIN_ECHO:'+line.strip(), flush=True); time.sleep(120)\""
+        )
     elif mode == "success":
         command = f"{sys.executable} -c \"print('{_SUCCESS_MARKER}', flush=True)\""
     elif mode == "completed_with_vault":

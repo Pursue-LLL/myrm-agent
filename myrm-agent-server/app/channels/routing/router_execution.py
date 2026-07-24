@@ -46,7 +46,9 @@ logger = logging.getLogger("app.channels.routing.router")
 class RouterExecutionMixin:
     """Mixin: execution lifecycle — prepare, effects, stream, deliver, cleanup."""
 
-    async def _resolve_topic(self: RouterExecutionHost, msg: InboundMessage) -> TopicContext | None:
+    async def _resolve_topic(
+        self: RouterExecutionHost, msg: InboundMessage
+    ) -> TopicContext | None:
         """Load per-thread or per-channel overrides when a TopicManager is configured.
         Also syncs topic metadata for auto-discovery in the UI.
         """
@@ -66,16 +68,22 @@ class RouterExecutionMixin:
                     chat_id,
                     msg.thread_id,
                     display_name=chat_name if isinstance(chat_name, str) else None,
-                    avatar_url=(chat_avatar_url if isinstance(chat_avatar_url, str) else None),
+                    avatar_url=(
+                        chat_avatar_url if isinstance(chat_avatar_url, str) else None
+                    ),
                 )
             except Exception as e:
                 import logging
 
-                logging.getLogger(__name__).warning(f"Failed to sync topic metadata: {e}")
+                logging.getLogger(__name__).warning(
+                    f"Failed to sync topic metadata: {e}"
+                )
 
         # 1. Thread-level binding
         if msg.thread_id:
-            ctx = await self._topic_resolver.resolve_topic(msg.channel, chat_id, msg.thread_id)
+            ctx = await self._topic_resolver.resolve_topic(
+                msg.channel, chat_id, msg.thread_id
+            )
             if ctx is not None:
                 return dataclasses.replace(ctx, matched_by="thread_binding")
 
@@ -91,7 +99,9 @@ class RouterExecutionMixin:
 
         return None
 
-    async def _prepare_execution_context(self: RouterExecutionHost, inbound: InboundMessage) -> _RouterExecutionContext | None:
+    async def _prepare_execution_context(
+        self: RouterExecutionHost, inbound: InboundMessage
+    ) -> _RouterExecutionContext | None:
         """Prepare execution context: identity resolution, session check, topic validation.
 
         Returns:
@@ -138,7 +148,9 @@ class RouterExecutionMixin:
             from app.services.agent.agent_service import AgentService
 
             route_agent = await AgentService.get_agent_by_id(route_agent_id)
-            if route_agent is not None and SqlTopicManager._agent_is_search_track(route_agent):
+            if route_agent is not None and SqlTopicManager._agent_is_search_track(
+                route_agent
+            ):
                 logger.warning(
                     "AgentRouter: reject search-track route_agent_id %s on channel %s",
                     route_agent_id,
@@ -151,7 +163,9 @@ class RouterExecutionMixin:
                     enabled=True,
                     matched_by="alias",
                 )
-                logger.warning("AgentRouter: routing to agent %s via subcommand", route_agent_id)
+                logger.warning(
+                    "AgentRouter: routing to agent %s via subcommand", route_agent_id
+                )
 
         return _RouterExecutionContext(
             user_id=user_id,
@@ -178,13 +192,17 @@ class RouterExecutionMixin:
         if not is_resume:
             rp = self._reaction_policy
             if rp.should_processing:
-                await self._fx.set_reaction(msg.channel, chat_id, message_id, rp.processing_emoji)
+                await self._fx.set_reaction(
+                    msg.channel, chat_id, message_id, rp.processing_emoji
+                )
 
             deferred: DeferredPlaceholder | None = None
             if rp.level != ReactionLevel.OFF:
 
                 async def _send_placeholder() -> str | None:
-                    return await self._fx.send_placeholder(msg.channel, chat_id, thread_id=msg.thread_id, msg=msg)
+                    return await self._fx.send_placeholder(
+                        msg.channel, chat_id, thread_id=msg.thread_id, msg=msg
+                    )
 
                 deferred = DeferredPlaceholder()
                 deferred.start(_send_placeholder)
@@ -208,7 +226,9 @@ class RouterExecutionMixin:
                 await self._fx.set_typing(msg.channel, chat_id, composing=True)
                 self._fx.start_typing_keepalive(msg.channel, chat_id)
 
-            self._register_cleanup(state_key, msg.channel, chat_id, message_id, None, msg=msg)
+            self._register_cleanup(
+                state_key, msg.channel, chat_id, message_id, None, msg=msg
+            )
             return deferred
         else:
             active = self._active_tasks.get(state_key)
@@ -216,7 +236,9 @@ class RouterExecutionMixin:
                 return active.deferred_placeholder  # type: ignore[return-value]
             return None
 
-    def _resolve_live_placeholder_id(self: RouterExecutionHost, state_key: str) -> str | None:
+    def _resolve_live_placeholder_id(
+        self: RouterExecutionHost, state_key: str
+    ) -> str | None:
         active = self._active_tasks.get(state_key)
         if not active:
             return None
@@ -242,11 +264,15 @@ class RouterExecutionMixin:
         When ``topic_ctx.reply_mode`` is ``draft_review``, the outbound message
         is held as an ApprovalRecord instead of being sent immediately.
         """
-        placeholder_id = await deferred.resolve_for_delivery(result) if deferred else None
+        placeholder_id = (
+            await deferred.resolve_for_delivery(result) if deferred else None
+        )
 
         if result and _is_silent_content(result.content):
             if placeholder_id:
-                await self._fx.cleanup_placeholder(msg.channel, chat_id, placeholder_id, "\u200b")
+                await self._fx.cleanup_placeholder(
+                    msg.channel, chat_id, placeholder_id, "\u200b"
+                )
             return
 
         if result:
@@ -259,23 +285,35 @@ class RouterExecutionMixin:
                 try:
                     await self._create_outbound_draft(result, msg, chat_id, topic_ctx)
                 except Exception:
-                    logger.exception("Failed to create outbound draft, falling back to direct send")
+                    logger.exception(
+                        "Failed to create outbound draft, falling back to direct send"
+                    )
                     if placeholder_id:
-                        await self._fx.wait_for_edit_gap(last_progress_at, _MIN_PROGRESS_INTERVAL)
-                        await self._fx.edit_placeholder(msg.channel, chat_id, placeholder_id, result)
+                        await self._fx.wait_for_edit_gap(
+                            last_progress_at, _MIN_PROGRESS_INTERVAL
+                        )
+                        await self._fx.edit_placeholder(
+                            msg.channel, chat_id, placeholder_id, result
+                        )
                     else:
                         await self._bus.publish_outbound(result)
                     return
                 if placeholder_id:
                     await self._fx.cleanup_placeholder(
-                        msg.channel, chat_id, placeholder_id,
+                        msg.channel,
+                        chat_id,
+                        placeholder_id,
                         get_text(msg, "draft_review_pending"),
                     )
                 return
 
             if placeholder_id:
-                await self._fx.wait_for_edit_gap(last_progress_at, _MIN_PROGRESS_INTERVAL)
-                await self._fx.edit_placeholder(msg.channel, chat_id, placeholder_id, result)
+                await self._fx.wait_for_edit_gap(
+                    last_progress_at, _MIN_PROGRESS_INTERVAL
+                )
+                await self._fx.edit_placeholder(
+                    msg.channel, chat_id, placeholder_id, result
+                )
             else:
                 await self._bus.publish_outbound(result)
         elif placeholder_id:
@@ -304,7 +342,10 @@ class RouterExecutionMixin:
         payload: dict[str, object] = {
             "draft_content": result.content,
             "draft_media": [
-                {"url": m.url, "type": m.type.value if hasattr(m.type, "value") else str(m.type)}
+                {
+                    "url": m.url,
+                    "type": m.type.value if hasattr(m.type, "value") else str(m.type),
+                }
                 for m in (result.media or ())
             ],
             "channel": result.channel,
@@ -328,8 +369,10 @@ class RouterExecutionMixin:
         )
         logger.info(
             "Outbound draft created for %s/%s (timeout=%dm, action=%s)",
-            original_msg.channel, chat_id,
-            topic_ctx.draft_timeout_minutes, topic_ctx.draft_timeout_action.value,
+            original_msg.channel,
+            chat_id,
+            topic_ctx.draft_timeout_minutes,
+            topic_ctx.draft_timeout_action.value,
         )
 
     async def _cleanup_effects(
@@ -401,7 +444,11 @@ class RouterExecutionMixin:
                 steering_token=steering_token,
                 topic_context=ctx.topic_ctx if not is_resume else None,
             )
-            deferred = scratch.deferred_placeholder if isinstance(scratch.deferred_placeholder, DeferredPlaceholder) else None
+            deferred = (
+                scratch.deferred_placeholder
+                if isinstance(scratch.deferred_placeholder, DeferredPlaceholder)
+                else None
+            )
             await self._deliver_agent_result(
                 result,
                 deferred,
@@ -426,7 +473,9 @@ class RouterExecutionMixin:
                 inner_exc,
             )
             if isinstance(scratch.deferred_placeholder, DeferredPlaceholder):
-                resolved_id = await scratch.deferred_placeholder.resolve_for_delivery(None)
+                resolved_id = await scratch.deferred_placeholder.resolve_for_delivery(
+                    None
+                )
                 if resolved_id:
                     await self._fx.cleanup_placeholder(
                         ctx.exec_msg.channel,
@@ -498,7 +547,9 @@ class RouterExecutionMixin:
         Failures are swallowed so the main reply is never blocked.
         """
         try:
-            from app.remote_access.mobile_deep_link import resolve_web_handoff_components
+            from app.remote_access.mobile_deep_link import (
+                resolve_web_handoff_components,
+            )
             from app.services.chat.chat_service import ChatService
 
             session_key = routing_session_key(msg.channel, chat_id)

@@ -164,7 +164,9 @@ def _resolve_web_search_config_message(*, reason: str, locale: str | None) -> st
     return _SEARCH_NOT_CONFIGURED_MESSAGES["zh" if is_zh else "en"]
 
 
-def resolve_web_search_config_gap_display_message(*, reason: str, locale: str | None) -> str:
+def resolve_web_search_config_gap_display_message(
+    *, reason: str, locale: str | None
+) -> str:
     """Return localized web_search config gap copy for SSE and channel progress."""
     return _resolve_web_search_config_message(reason=reason, locale=locale)
 
@@ -193,7 +195,9 @@ def build_web_search_config_gap_sse_event(
             "tool_id": "web_search",
             "tool_group": "web",
             "reason": reason,
-            "display_message": _resolve_web_search_config_message(reason=reason, locale=locale),
+            "display_message": _resolve_web_search_config_message(
+                reason=reason, locale=locale
+            ),
             "settings_path": _SEARCH_SETTINGS_PATH,
         },
     }

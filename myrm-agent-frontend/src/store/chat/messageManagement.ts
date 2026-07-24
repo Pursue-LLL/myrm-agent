@@ -23,6 +23,7 @@ import { stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
 import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
+import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
 import useAgentStore from '@/store/useAgentStore';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import {
@@ -187,12 +188,18 @@ function parseMessages(raw: Message[]): Message[] {
     const citedMemoryIds = normalizeStringArray(metadata.citedMemoryIds ?? rawRecord.citedMemoryIds);
     const citedMemoryRefs = normalizeCitedMemoryRefs(metadata.citedMemoryRefs ?? rawRecord.citedMemoryRefs);
 
-    return {
+    const parsed = {
       ...msg,
       ...metadata,
       ...(citedMemoryIds ? { citedMemoryIds } : {}),
       ...(citedMemoryRefs ? { citedMemoryRefs } : {}),
-    };
+    } as Message;
+
+    if (parsed.clarification) {
+      parsed.clarification = normalizeHydratedClarification(parsed.clarification);
+    }
+
+    return parsed;
   });
 }
 

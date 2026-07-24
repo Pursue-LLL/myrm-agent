@@ -146,6 +146,55 @@ _CANCEL_RUNNING_JS = """(() => {
   return { clicked: true };
 })()"""
 
+_SHELL_INPUT_TOGGLE_VISIBLE_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const toggle = root.querySelector('[data-testid="background-task-shell-input-toggle"]');
+  return { ready: !!toggle };
+})()"""
+
+_SHELL_INPUT_CLICK_TOGGLE_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const toggle = root.querySelector('[data-testid="background-task-shell-input-toggle"]');
+  if (!toggle) return { clicked: false };
+  toggle.click();
+  return { clicked: true };
+})()"""
+
+_SHELL_INPUT_VISIBLE_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const input = root.querySelector('[data-testid="background-task-shell-input"]');
+  return { ready: !!input };
+})()"""
+
+_SHELL_INPUT_FOCUS_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const input = root.querySelector('[data-testid="background-task-shell-input"]');
+  if (!input) return { focused: false };
+  input.focus();
+  input.click();
+  return { focused: true };
+})()"""
+
+_SHELL_INPUT_SEND_READY_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const send = root.querySelector('[data-testid="background-task-shell-input-send"]');
+  return { ready: !!send && !send.disabled };
+})()"""
+
+_SHELL_INPUT_CLICK_SEND_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const send = root.querySelector('[data-testid="background-task-shell-input-send"]');
+  if (!send || send.disabled) return { clicked: false, disabled: send?.disabled ?? true };
+  send.click();
+  return { clicked: true };
+})()"""
+
 
 def _wait_api_task_status(
     api_base: str,
@@ -400,3 +449,71 @@ def test_background_tasks_success_finish_toast_from_seed() -> None:
         row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
         assert isinstance(row, dict)
         assert row.get("status") == "completed"
+
+
+def _wait_api_result_preview_contains(
+    api_base: str,
+    task_id: str,
+    needle: str,
+    *,
+    timeout_sec: float = 30.0,
+) -> None:
+    deadline = time.monotonic() + timeout_sec
+    last_preview = ""
+    while time.monotonic() < deadline:
+        row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
+        assert isinstance(row, dict)
+        last_preview = str(row.get("result_preview") or "")
+        if needle in last_preview:
+            return
+        time.sleep(0.5)
+    raise AssertionError(
+        f"result_preview never contained {needle!r} for {task_id}; last={last_preview!r}"
+    )
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.timeout(240)
+def test_background_tasks_panel_shell_stdin_via_ui() -> None:
+    api_base = get_e2e_api_url()
+    seed = http_json(
+        "POST",
+        f"{api_base}/api/v1/background-tasks/test/seed-shell-fixture?mode=running_stdin",
+    )
+    assert isinstance(seed, dict)
+    task_id = str(seed["task_id"])
+
+    _wait_api_task_status(api_base, task_id, "running")
+
+    with _background_tasks_panel(api_base) as (client, page):
+        toggle_visible = wait_for_state(
+            client, page, _SHELL_INPUT_TOGGLE_VISIBLE_JS, timeout_sec=60.0
+        )
+        assert toggle_visible.get("ready") is True, toggle_visible
+
+        clicked = client.evaluate(page, _SHELL_INPUT_CLICK_TOGGLE_JS, timeout_sec=10.0)
+        assert clicked.get("clicked") is True, clicked
+
+        input_visible = wait_for_state(
+            client, page, _SHELL_INPUT_VISIBLE_JS, timeout_sec=15.0
+        )
+        assert input_visible.get("ready") is True, input_visible
+
+        focus = client.evaluate(page, _SHELL_INPUT_FOCUS_JS, timeout_sec=10.0)
+        assert focus.get("focused") is True, focus
+        client.type_text(page, "hello")
+
+        send_ready = wait_for_state(
+            client, page, _SHELL_INPUT_SEND_READY_JS, timeout_sec=15.0
+        )
+        assert send_ready.get("ready") is True, send_ready
+
+        sent = client.evaluate(page, _SHELL_INPUT_CLICK_SEND_JS, timeout_sec=10.0)
+        assert sent.get("clicked") is True, sent
+
+        # Keep the tab alive until stdin POST completes; closing the page aborts fetch.
+        _wait_api_result_preview_contains(
+            api_base, task_id, "MYRM_STDIN_ECHO:hello", timeout_sec=45.0
+        )
+
+        http_json("POST", f"{api_base}/api/v1/background-tasks/{task_id}/cancel")

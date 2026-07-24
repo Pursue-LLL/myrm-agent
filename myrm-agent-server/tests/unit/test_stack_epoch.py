@@ -8,7 +8,9 @@ from pathlib import Path
 from app.server.stack_epoch import read_stack_epoch
 
 
-def test_read_stack_epoch_missing_file_returns_none(tmp_path: Path, monkeypatch) -> None:
+def test_read_stack_epoch_missing_file_returns_none(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setenv("MYRM_STACK_EPOCH_FILE", str(tmp_path / "missing.json"))
     assert read_stack_epoch() is None
 
@@ -38,7 +40,9 @@ def test_read_stack_epoch_valid_payload(tmp_path: Path, monkeypatch) -> None:
     assert payload["source_fingerprint"] == "deadbeef01234567"
 
 
-def test_read_stack_epoch_invalid_epoch_returns_none(tmp_path: Path, monkeypatch) -> None:
+def test_read_stack_epoch_invalid_epoch_returns_none(
+    tmp_path: Path, monkeypatch
+) -> None:
     epoch_file = tmp_path / "stack-epoch.json"
     epoch_file.write_text(json.dumps({"epoch": 0}), encoding="utf-8")
     monkeypatch.setenv("MYRM_STACK_EPOCH_FILE", str(epoch_file))

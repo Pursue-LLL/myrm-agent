@@ -39,11 +39,18 @@ from app.services.agent.streaming_support.sse_failover_emitter import (
 logger = logging.getLogger(__name__)
 
 
-async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGenerator[str, None]:
-    from myrm_agent_harness.agent.security import EphemeralUserCredential, user_credentials_ctx
+async def generate_cancellable_stream(
+    session: AgentStreamSession,
+) -> AsyncGenerator[str, None]:
+    from myrm_agent_harness.agent.security import (
+        EphemeralUserCredential,
+        user_credentials_ctx,
+    )
 
     from app.core.channel_bridge.config_loader import load_user_configs
-    from app.services.agent.session_credential_assembler import assemble_session_credentials
+    from app.services.agent.session_credential_assembler import (
+        assemble_session_credentials,
+    )
 
     credentials_list: tuple[EphemeralUserCredential, ...] = ()
     try:
@@ -53,7 +60,9 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
             providers_dict=configs.providers_dict if configs else None,
         )
     except Exception as e:
-        logger.warning("Failed to resolve user configs/credentials in web stream: %s", e)
+        logger.warning(
+            "Failed to resolve user configs/credentials in web stream: %s", e
+        )
 
     token_ctx = user_credentials_ctx.set(credentials_list)
     approval = ApprovalTimeoutHolder()
@@ -63,7 +72,9 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
 
     _custom_def = getattr(session.params.model_cfg, "custom_model_def", None)
     _max_ctx = getattr(session.params.model_cfg, "max_context_tokens", None)
-    _model_tier = infer_model_tier(session.params.model_cfg.model, _custom_def, _max_ctx)
+    _model_tier = infer_model_tier(
+        session.params.model_cfg.model, _custom_def, _max_ctx
+    )
 
     if session.routing_tier:
         routing_data: dict[str, object] = {"tier": session.routing_tier}
@@ -114,9 +125,13 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
 
         search_gap_event = build_web_search_config_gap_sse_event(
             message_id=session.params.message_id or "",
-            web_search_profile_enabled=bool(getattr(session.params, "web_search_profile_enabled", False)),
+            web_search_profile_enabled=bool(
+                getattr(session.params, "web_search_profile_enabled", False)
+            ),
             enable_web_search=bool(session.params.enable_web_search),
-            search_is_user_configured=bool(getattr(session.params, "search_is_user_configured", False)),
+            search_is_user_configured=bool(
+                getattr(session.params, "search_is_user_configured", False)
+            ),
             chat_id=session.request.chat_id,
             locale=getattr(session.params, "locale", None),
         )
@@ -125,7 +140,9 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
             yield SSEEnvelope.from_any(search_gap_event).to_sse_chunk()
 
     if session.entitlement_preflight_text:
-        from app.ai_agents.general_agent.active_tool_groups import derive_active_tool_groups_from_params
+        from app.ai_agents.general_agent.active_tool_groups import (
+            derive_active_tool_groups_from_params,
+        )
         from app.services.agent.stream_session.entitlement_gap_preflight import (
             build_entitlement_gap_sse_event,
         )
@@ -155,10 +172,12 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
         }
         try:
             has_images = any(
-                isinstance(item, dict) and item.get("type") in ("image_url", "image") for item in session.params.query
+                isinstance(item, dict) and item.get("type") in ("image_url", "image")
+                for item in session.params.query
             )
             has_videos = any(
-                isinstance(item, dict) and item.get("type") == "video_url" for item in session.params.query
+                isinstance(item, dict) and item.get("type") == "video_url"
+                for item in session.params.query
             ) and not getattr(session.params.model_cfg, "supports_video", False)
             if has_images:
                 yield SSEEnvelope.from_any(

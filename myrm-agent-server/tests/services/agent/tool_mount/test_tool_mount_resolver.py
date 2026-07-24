@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 from app.services.agent.profile_resolver import resolve_builtin_tool_flags
-from app.services.agent.tool_mount import ExecutionSurface, apply_ptc_meta_mount, resolve_agent_mount
+from app.services.agent.tool_mount import (
+    ExecutionSurface,
+    apply_ptc_meta_mount,
+    resolve_agent_mount,
+)
 
 
 class TestResolveAgentMount:
     def test_web_fast_disables_meta_file_and_shell(self) -> None:
         mounted = resolve_agent_mount(
             ExecutionSurface.WEB_FAST,
-            resolve_builtin_tool_flags(["answer_tool"]),
+            resolve_builtin_tool_flags(["answer_tool"], allow_answer_tool=True),
         )
         assert mounted["enable_file_ops"] is False
         assert mounted["enable_shell_tools"] is False
+        assert mounted["enable_evicted_read"] is True
         assert mounted["enable_answer_tool"] is True
 
     def test_web_chat_forces_general_baseline(self) -> None:
@@ -23,6 +28,19 @@ class TestResolveAgentMount:
         )
         assert mounted["enable_file_ops"] is True
         assert mounted["enable_shell_tools"] is True
+        assert mounted["enable_evicted_read"] is False
+
+    def test_web_fast_preserves_profile_answer_tool(self) -> None:
+        mounted = resolve_agent_mount(
+            ExecutionSurface.WEB_FAST,
+            resolve_builtin_tool_flags(
+                ["answer_tool", "web_search"],
+                allow_answer_tool=True,
+            ),
+        )
+        assert mounted["enable_evicted_read"] is True
+        assert mounted["enable_answer_tool"] is True
+        assert mounted["enable_file_ops"] is False
 
     def test_cron_restricted_via_tools_policy(self) -> None:
         from app.core.cron.adapters.tools_policy import (

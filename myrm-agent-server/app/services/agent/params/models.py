@@ -123,6 +123,7 @@ class GoalBudgetRequest(BaseModel):
     constraints: list[str] | None = None
     protected_paths: list[str] | None = None
     ui_summary: str = Field(default="", max_length=120)
+    checkpoint_mode: str = "none"
 
     class Config:
         alias_generator = to_camel

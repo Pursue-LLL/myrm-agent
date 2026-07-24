@@ -41,19 +41,38 @@ _PROGRESS_STEPS_READY_JS = f"""(() => {{
 }})()"""
 
 _EXPAND_PROGRESS_PANEL_JS = """(() => {
-  const taskHeader = Array.from(document.querySelectorAll('h3')).find(
-    (el) => /Task|任务|タスク|작업/.test(el.textContent || ''),
+  const viewFull = Array.from(document.querySelectorAll('button')).find(
+    (el) => /View Full Output|查看完整输出|完整输出を表示|전체 출력 보기/.test(el.textContent || ''),
   );
-  if (!taskHeader) {
+  if (viewFull) {
+    return { ready: true, alreadyVisible: true };
+  }
+  const header = Array.from(document.querySelectorAll('h3')).find(
+    (el) => /Task Steps|任务步骤|Task|任务|タスク|작업/.test(el.textContent || ''),
+  );
+  if (!header) {
     return { ready: false, reason: 'no-task-header' };
   }
-  const headerRow = taskHeader.closest('.flex.items-center.justify-between');
-  const card = headerRow?.nextElementSibling;
-  if (!(card instanceof HTMLElement)) {
-    return { ready: false, reason: 'no-progress-card' };
+  const toggleRow = header.closest('.cursor-pointer');
+  if (!(toggleRow instanceof HTMLElement)) {
+    return { ready: false, reason: 'no-toggle-row' };
   }
-  card.click();
+  toggleRow.click();
   return { ready: true, clicked: true };
+})()"""
+
+_WAIT_PROGRESS_UI_DOM_JS = """(() => {
+  const header = Array.from(document.querySelectorAll('h3')).find(
+    (el) => /Task Steps|任务步骤|Task|任务|タスク|작업/.test(el.textContent || ''),
+  );
+  const viewFull = Array.from(document.querySelectorAll('button')).find(
+    (el) => /View Full Output|查看完整输出|完整输出を表示|전체 출력 보기/.test(el.textContent || ''),
+  );
+  return {
+    ready: !!header || !!viewFull,
+    hasHeader: !!header,
+    hasViewFull: !!viewFull,
+  };
 })()"""
 
 _TERMINAL_PREVIEW_JS = """(() => {
@@ -96,6 +115,7 @@ def _drawer_expired_js() -> str:
   };
 })()"""
 
+
 _CHAT_ROUTE_READY_JS = """(() => ({
   ready: !!document.querySelector('[data-testid="app-layout"]'),
 }))()"""
@@ -112,7 +132,9 @@ def _seed_uecd_fixture(api_base: str, *, variant: str = "full") -> dict[str, obj
     return seeded
 
 
-def _wait_fixture_assistant_via_api(api_base: str, chat_id: str, *, timeout_sec: float = 60.0) -> None:
+def _wait_fixture_assistant_via_api(
+    api_base: str, chat_id: str, *, timeout_sec: float = 60.0
+) -> None:
     deadline = time.monotonic() + timeout_sec
     last_count = 0
     while time.monotonic() < deadline:
@@ -133,9 +155,17 @@ def _wait_fixture_assistant_via_api(api_base: str, chat_id: str, *, timeout_sec:
                         None,
                     )
                     if assistant is not None:
-                        meta = assistant.get("metadata") if isinstance(assistant.get("metadata"), dict) else {}
+                        meta = (
+                            assistant.get("metadata")
+                            if isinstance(assistant.get("metadata"), dict)
+                            else {}
+                        )
                         steps = meta.get("progressSteps")
-                        if isinstance(steps, list) and steps and steps[0].get("evicted_file_ref"):
+                        if (
+                            isinstance(steps, list)
+                            and steps
+                            and steps[0].get("evicted_file_ref")
+                        ):
                             return
         time.sleep(0.5)
     raise AssertionError(
@@ -155,8 +185,11 @@ def _run_drawer_flow(
     loaded = wait_for_state(client, page, _PROGRESS_STEPS_READY_JS, timeout_sec=120.0)
     assert loaded.get("ready") is True, json.dumps(loaded, ensure_ascii=False)
 
+    dom_ready = wait_for_state(client, page, _WAIT_PROGRESS_UI_DOM_JS, timeout_sec=90.0)
+    assert dom_ready.get("ready") is True, json.dumps(dom_ready, ensure_ascii=False)
+
     expanded = wait_for_state(client, page, _EXPAND_PROGRESS_PANEL_JS, timeout_sec=30.0)
-    assert expanded.get("clicked") is True, json.dumps(expanded, ensure_ascii=False)
+    assert expanded.get("ready") is True, json.dumps(expanded, ensure_ascii=False)
 
     if not expect_expired:
         terminal = wait_for_state(client, page, _TERMINAL_PREVIEW_JS, timeout_sec=60.0)
@@ -169,7 +202,9 @@ def _run_drawer_flow(
         drawer = wait_for_state(client, page, _drawer_expired_js(), timeout_sec=45.0)
     else:
         assert marker_line is not None
-        drawer = wait_for_state(client, page, _drawer_ready_js(marker_line), timeout_sec=45.0)
+        drawer = wait_for_state(
+            client, page, _drawer_ready_js(marker_line), timeout_sec=45.0
+        )
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 
 
@@ -194,7 +229,10 @@ def test_live_terminal_evicted_drawer_reads_uecd_spill_and_expired() -> None:
     warm_ui_route(f"/{chat_full}")
     warm_ui_route(f"/{chat_expired}")
 
-    with open_mcp_page(f"{ui_url}/{chat_full}", timeout_ms=_PAGE_TIMEOUT_MS) as (client, page):
+    with open_mcp_page(f"{ui_url}/{chat_full}", timeout_ms=_PAGE_TIMEOUT_MS) as (
+        client,
+        page,
+    ):
         _run_drawer_flow(
             client,
             page,

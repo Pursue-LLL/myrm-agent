@@ -51,7 +51,9 @@ def _resolve_evicted_path(chat_id: str, filename: str) -> str:
 
     expected_prefix = os.path.realpath(evicted_dir)
     if not resolved.startswith(expected_prefix + os.sep):
-        raise HTTPException(status_code=403, detail="Access denied: path traversal detected")
+        raise HTTPException(
+            status_code=403, detail="Access denied: path traversal detected"
+        )
 
     return resolved
 
@@ -82,9 +84,15 @@ def _get_workspace_root() -> str | None:
 
 @router.get("/evicted")
 async def read_evicted_output(
-    chat_id: str = Query(..., description="Chat/session ID that produced the evicted output"),
-    filename: str = Query(..., description="Evicted output filename (e.g. web_fetch_a3f5c8d1.md)"),
-    offset: int = Query(0, ge=0, description="Line offset to start reading from (0-based)"),
+    chat_id: str = Query(
+        ..., description="Chat/session ID that produced the evicted output"
+    ),
+    filename: str = Query(
+        ..., description="Evicted output filename (e.g. web_fetch_a3f5c8d1.md)"
+    ),
+    offset: int = Query(
+        0, ge=0, description="Line offset to start reading from (0-based)"
+    ),
     limit: int = Query(0, ge=0, description="Number of lines to return (0 = all)"),
 ) -> dict:
     """Read an evicted tool output file.
@@ -114,7 +122,9 @@ async def read_evicted_output(
                 }
             else:
                 content = f.read()
-                total_lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
+                total_lines = content.count("\n") + (
+                    1 if content and not content.endswith("\n") else 0
+                )
                 return {
                     "content": content,
                     "total_lines": total_lines,

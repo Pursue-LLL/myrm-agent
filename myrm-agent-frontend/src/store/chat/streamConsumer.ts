@@ -15,10 +15,33 @@ function shouldUseMultiplexedAgentStream(): boolean {
   if (typeof window === 'undefined') {
     return true;
   }
+  // Private-backend Chrome E2E tees agent-stream chunks on /workspace/stream even when
+  // the HTTP response is direct SSE (SHPOIB prefer_direct_agent_stream).
+  if (resolveE2eApiBase()) {
+    return true;
+  }
   if (window.__MYRM_E2E_DIRECT_SSE__) {
     return false;
   }
-  return !resolveE2eApiBase();
+  return true;
+}
+
+async function drainResponseBodyInBackground(res: Response): Promise<void> {
+  const body = res.body;
+  if (!body) {
+    return;
+  }
+  try {
+    const reader = body.getReader();
+    while (true) {
+      const { done } = await reader.read();
+      if (done) {
+        break;
+      }
+    }
+  } catch {
+    // Multiplex workspace path owns event delivery for this turn.
+  }
 }
 
 async function tryE2eAttachForPendingApproval(
@@ -235,6 +258,13 @@ export async function executeStreamWithRetry(
           headers: { 'Content-Type': 'text/event-stream' },
         });
 
+        await consumeStream(mockResponse, input, state, actions, abortController, added, recievedMessage);
+      } else if (multiplexBridge) {
+        // SHPOIB may downgrade multiplexed POST to direct SSE while still teeing chunks on /workspace/stream.
+        void drainResponseBodyInBackground(res);
+        const mockResponse = new Response(multiplexBridge, {
+          headers: { 'Content-Type': 'text/event-stream' },
+        });
         await consumeStream(mockResponse, input, state, actions, abortController, added, recievedMessage);
       } else {
         await consumeStream(res, input, state, actions, abortController, added, recievedMessage);

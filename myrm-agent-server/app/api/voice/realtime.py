@@ -33,7 +33,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.dependencies import verify_voice_enabled
-from app.api.voice.voice_memory_context import VoiceMemoryContext, voice_memory_context_from
+from app.api.voice.voice_memory_context import (
+    VoiceMemoryContext,
+    voice_memory_context_from,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +146,11 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
     )
 
     openai_base = _extract_openai_base_url(providers)
-    sessions_url = f"{openai_base}/realtime/sessions" if openai_base else _OPENAI_REALTIME_SESSIONS_URL
+    sessions_url = (
+        f"{openai_base}/realtime/sessions"
+        if openai_base
+        else _OPENAI_REALTIME_SESSIONS_URL
+    )
 
     session_payload: dict[str, Any] = {
         "model": model,
@@ -156,7 +163,12 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
         session_payload["instructions"] = instructions
     if tools:
         session_payload["tools"] = [
-            {"type": t.type, "name": t.name, "description": t.description, "parameters": t.parameters}
+            {
+                "type": t.type,
+                "name": t.name,
+                "description": t.description,
+                "parameters": t.parameters,
+            }
             for t in tools
         ]
 
@@ -171,7 +183,11 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
         )
 
     if resp.status_code != 200:
-        logger.error("OpenAI Realtime session creation failed: %s %s", resp.status_code, resp.text[:200])
+        logger.error(
+            "OpenAI Realtime session creation failed: %s %s",
+            resp.status_code,
+            resp.text[:200],
+        )
         raise HTTPException(
             status_code=502,
             detail=f"OpenAI Realtime API error: {resp.status_code}",
@@ -181,17 +197,25 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
     client_secret = data.get("client_secret", {})
 
     return RealtimeTokenResponse(
-        client_secret=client_secret.get("value", "") if isinstance(client_secret, dict) else str(client_secret),
+        client_secret=(
+            client_secret.get("value", "")
+            if isinstance(client_secret, dict)
+            else str(client_secret)
+        ),
         model=model,
         voice=voice,
-        expires_at=client_secret.get("expires_at") if isinstance(client_secret, dict) else None,
+        expires_at=(
+            client_secret.get("expires_at") if isinstance(client_secret, dict) else None
+        ),
         instructions=instructions,
         tools=tools,
     )
 
 
 @router.post("/realtime-tool-exec", response_model=RealtimeToolExecResponse)
-async def execute_realtime_tool(req: RealtimeToolExecRequest) -> RealtimeToolExecResponse:
+async def execute_realtime_tool(
+    req: RealtimeToolExecRequest,
+) -> RealtimeToolExecResponse:
     """Execute a tool call proxied from the Realtime WebRTC session.
 
     When the Realtime API emits a function_call, the frontend proxies it here.
@@ -214,10 +238,14 @@ async def execute_realtime_tool(req: RealtimeToolExecRequest) -> RealtimeToolExe
         resolver = get_agent_profile_resolver()
         profile = await resolver.resolve(agent_id)
         enabled_builtin_tools = (
-            list(profile.enabled_builtin_tools) if profile else list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+            list(profile.enabled_builtin_tools)
+            if profile
+            else list(DEFAULT_ENABLED_BUILTIN_TOOLS)
         )
         memory_settings = configs.personal_settings_dict or {}
-        memory_context = voice_memory_context_from(memory_settings, enabled_builtin_tools)
+        memory_context = voice_memory_context_from(
+            memory_settings, enabled_builtin_tools
+        )
 
         lite_query = (
             f"Execute tool '{req.tool_name}' with arguments: "
@@ -259,7 +287,9 @@ async def execute_realtime_tool(req: RealtimeToolExecRequest) -> RealtimeToolExe
             enable_wiki=memory_context.enable_wiki,
             enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
             fetch_raw_webpage=bool(memory_settings.get("fetchRawWebpage")),
-            enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction", True)),
+            enable_memory_auto_extraction=bool(
+                memory_settings.get("enableMemoryAutoExtraction", True)
+            ),
             agent_security_raw=agent_security_raw,
         )
 
@@ -280,7 +310,9 @@ async def execute_realtime_tool(req: RealtimeToolExecRequest) -> RealtimeToolExe
 
 
 @router.post("/realtime-transcript")
-async def persist_realtime_transcript(req: RealtimeTranscriptRequest) -> dict[str, bool]:
+async def persist_realtime_transcript(
+    req: RealtimeTranscriptRequest,
+) -> dict[str, bool]:
     """Persist voice conversation transcript entries to chat history."""
     from datetime import datetime, timezone
 
@@ -318,7 +350,10 @@ def _find_openai_provider(providers: dict[str, object]) -> dict[str, object] | N
     if not isinstance(provider_list, list):
         return None
     for provider in provider_list:
-        if isinstance(provider, dict) and "openai" in str(provider.get("id", "")).lower():
+        if (
+            isinstance(provider, dict)
+            and "openai" in str(provider.get("id", "")).lower()
+        ):
             return provider
     return None
 
@@ -373,34 +408,87 @@ _REALTIME_TOOL_CATALOG: dict[str, RealtimeToolDef] = {
     "web_search": RealtimeToolDef(
         name="web_search",
         description="Search the web for current information. Use when the user asks about recent events, facts, or anything you're unsure about.",
-        parameters={"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]},
+        parameters={
+            "type": "object",
+            "properties": {"query": {"type": "string", "description": "Search query"}},
+            "required": ["query"],
+        },
     ),
     "file_ops": RealtimeToolDef(
         name="file_ops",
         description="Read, write, or list files in the workspace.",
-        parameters={"type": "object", "properties": {"action": {"type": "string", "enum": ["read", "write", "list"], "description": "File operation"}, "path": {"type": "string", "description": "File path"}}, "required": ["action", "path"]},
+        parameters={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["read", "write", "list"],
+                    "description": "File operation",
+                },
+                "path": {"type": "string", "description": "File path"},
+            },
+            "required": ["action", "path"],
+        },
     ),
     "code_execute": RealtimeToolDef(
         name="code_execute",
         description="Execute code (Python, shell, etc.) in a sandboxed environment and return the result.",
-        parameters={"type": "object", "properties": {"code": {"type": "string", "description": "Code to execute"}, "language": {"type": "string", "description": "Programming language", "default": "python"}}, "required": ["code"]},
+        parameters={
+            "type": "object",
+            "properties": {
+                "code": {"type": "string", "description": "Code to execute"},
+                "language": {
+                    "type": "string",
+                    "description": "Programming language",
+                    "default": "python",
+                },
+            },
+            "required": ["code"],
+        },
     ),
     "browser": RealtimeToolDef(
         name="browser",
         description="Browse a webpage and extract its content.",
-        parameters={"type": "object", "properties": {"url": {"type": "string", "description": "URL to browse"}}, "required": ["url"]},
+        parameters={
+            "type": "object",
+            "properties": {"url": {"type": "string", "description": "URL to browse"}},
+            "required": ["url"],
+        },
     ),
     "kanban": RealtimeToolDef(
         name="kanban",
         description="Manage tasks on the kanban board: create, update, or query tasks.",
-        parameters={"type": "object", "properties": {"action": {"type": "string", "enum": ["create", "update", "query"], "description": "Kanban action"}, "description": {"type": "string", "description": "Task description or query"}}, "required": ["action", "description"]},
+        parameters={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["create", "update", "query"],
+                    "description": "Kanban action",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Task description or query",
+                },
+            },
+            "required": ["action", "description"],
+        },
     ),
 }
 
 _ALWAYS_AVAILABLE_TOOL = RealtimeToolDef(
     name="run_background_task",
     description="Delegate a complex task to run in the background. Use for long-running operations that shouldn't block the voice conversation. The result will be available later.",
-    parameters={"type": "object", "properties": {"task": {"type": "string", "description": "Detailed description of the task to run"}}, "required": ["task"]},
+    parameters={
+        "type": "object",
+        "properties": {
+            "task": {
+                "type": "string",
+                "description": "Detailed description of the task to run",
+            }
+        },
+        "required": ["task"],
+    },
 )
 
 
@@ -417,7 +505,9 @@ def _build_realtime_tools(
     tools: list[RealtimeToolDef] = [_ALWAYS_AVAILABLE_TOOL]
     for tool_key in enabled_builtin_tools:
         if tool_key == "memory":
-            if include_memory_search_in_voice_catalog(memory_context, enabled_builtin_tools):
+            if include_memory_search_in_voice_catalog(
+                memory_context, enabled_builtin_tools
+            ):
                 tools.append(build_realtime_memory_tool(memory_context))
             continue
         if tool_key in _REALTIME_TOOL_CATALOG:

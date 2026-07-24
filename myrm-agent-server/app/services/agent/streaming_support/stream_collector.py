@@ -6,7 +6,8 @@ JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 
 [OUTPUT]
 StreamContentCollector: collects assistant content and message extra_data, including memory citation refs,
-retrieval traces, kanban_tasks_created, and cron_job_result.
+retrieval traces, end-to-end stream TTFT (`streamTtftMs`), kanban_tasks_created, cron_job_result,
+HITL clarification (`clarification`), and deep-research plan confirmation (`planConfirmation`).
 
 [POS]
 Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata.
@@ -19,8 +20,10 @@ import json
 import logging
 
 from app.services.agent.streaming_support.stream_collector_helpers import (
+    collect_clarification_required,
     collect_cron_job_result,
     collect_kanban_task_created,
+    collect_plan_confirmation_status,
     deep_merge_ui_data,
     is_memory_citation_tool,
     string_keyed_dict,
@@ -119,6 +122,7 @@ class StreamContentCollector:
         self._cost_usd: float | None = None
         self._cost_status: str | None = None
         self._completion_status: str | None = None
+        self._stream_ttft_ms: int | None = None
         self._stop_reason: dict[str, object] | None = None
         self._model_name: str | None = None
         self._routing_tier: str | None = None
@@ -128,6 +132,8 @@ class StreamContentCollector:
         self._token_economics: dict[str, object] | None = None
         self._usage_alert: dict[str, object] | None = None
         self._session_recording: dict[str, object] | None = None
+        self._clarification: dict[str, object] | None = None
+        self._plan_confirmation: dict[str, object] | None = None
         self._ui_artifacts: list[dict[str, object]] = []
         self._pending_interrupt_events: list[dict[str, object]] = []
         self._cross_turn_data_updates: list[tuple[str, dict[str, object]]] = []
@@ -365,6 +371,9 @@ class StreamContentCollector:
             completion_status = event.get("completion_status")
             if isinstance(completion_status, str):
                 self._completion_status = completion_status
+            stream_ttft_ms = event.get("stream_ttft_ms")
+            if isinstance(stream_ttft_ms, (int, float)) and stream_ttft_ms >= 0:
+                self._stream_ttft_ms = int(stream_ttft_ms)
             model = event.get("model")
             if isinstance(model, str):
                 self._model_name = model
@@ -412,6 +421,10 @@ class StreamContentCollector:
                 self._privacy_route = route
         elif event_type == "session_recording" and isinstance(data, dict):
             self._session_recording = string_keyed_dict(data)
+        elif event_type == "clarification_required":
+            clarification = collect_clarification_required(event)
+            if clarification is not None:
+                self._clarification = clarification
         elif event_type == "ui_update":
             subtype = event.get("subtype")
             if subtype == "ui_artifact" and isinstance(data, list):
@@ -441,6 +454,27 @@ class StreamContentCollector:
                             )
         elif event_type == "status":
             step_key = event.get("step_key")
+            if isinstance(data, dict):
+                phase_payload = string_keyed_dict(data)
+                if phase_payload is not None:
+                    plan_update = collect_plan_confirmation_status(phase_payload)
+                    if plan_update is not None:
+                        if self._plan_confirmation is None:
+                            self._plan_confirmation = plan_update
+                        else:
+                            self._plan_confirmation = {
+                                **self._plan_confirmation,
+                                **plan_update,
+                            }
+                    if (
+                        phase_payload.get("phase") == "clarify"
+                        and phase_payload.get("status") == "resolved"
+                        and self._clarification is not None
+                    ):
+                        self._clarification = {
+                            **self._clarification,
+                            "answered": True,
+                        }
             if step_key == "cache_break" and isinstance(data, dict):
                 self._cache_break = data
             if isinstance(step_key, str) and step_key in _PERSISTED_STATUS_STEP_KEYS:
@@ -508,6 +542,8 @@ class StreamContentCollector:
             result["costStatus"] = self._cost_status
         if self._completion_status:
             result["completionStatus"] = self._completion_status
+        if self._stream_ttft_ms is not None:
+            result["streamTtftMs"] = self._stream_ttft_ms
 
         if hasattr(self, "_usage_alert") and self._usage_alert:
             result["usageAlert"] = self._usage_alert
@@ -532,6 +568,10 @@ class StreamContentCollector:
             result["memoryRetrievalTraces"] = self._memory_retrieval_traces
         if self._session_recording:
             result["sessionRecording"] = self._session_recording
+        if self._clarification:
+            result["clarification"] = self._clarification
+        if self._plan_confirmation:
+            result["planConfirmation"] = self._plan_confirmation
         if self._ui_artifacts:
             result["uiArtifacts"] = self._ui_artifacts
         if self._kanban_tasks_created:

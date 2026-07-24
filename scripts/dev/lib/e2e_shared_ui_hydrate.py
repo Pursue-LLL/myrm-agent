@@ -41,8 +41,15 @@ def shared_ui_hydrate_slot() -> Iterator[None]:
         yield
         return
 
-    wait_sec = int(os.environ.get("MYRM_E2E_SHARED_UI_HYDRATE_WAIT_SEC", str(DEFAULT_WAIT_SEC)))
-    poll_sec = max(1, int(os.environ.get("MYRM_E2E_SHARED_UI_HYDRATE_POLL_SEC", str(DEFAULT_POLL_SEC))))
+    wait_sec = int(
+        os.environ.get("MYRM_E2E_SHARED_UI_HYDRATE_WAIT_SEC", str(DEFAULT_WAIT_SEC))
+    )
+    poll_sec = max(
+        1,
+        int(
+            os.environ.get("MYRM_E2E_SHARED_UI_HYDRATE_POLL_SEC", str(DEFAULT_POLL_SEC))
+        ),
+    )
     lock_path = _lock_path()
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()

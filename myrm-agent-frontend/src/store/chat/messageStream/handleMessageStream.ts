@@ -34,8 +34,12 @@ export const handleMessageStream = async (
   recievedMessage: string;
 }> => {
   if (data && typeof data === 'object' && 'type' in data && typeof data.type === 'string') {
-    const recorder = (window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string) => void }).__MYRM_E2E_RECORD_SSE__;
-    recorder?.(data.type);
+    const recorder = (window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string, messageId?: string | null) => void }).__MYRM_E2E_RECORD_SSE__;
+    const messageId =
+      'messageId' in data && typeof data.messageId === 'string'
+        ? data.messageId
+        : null;
+    recorder?.(data.type, messageId);
   }
 
   if (data && typeof data === 'object' && 'mascot_status' in data && typeof data.mascot_status === 'string') {

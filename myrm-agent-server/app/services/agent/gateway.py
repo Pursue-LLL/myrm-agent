@@ -238,6 +238,24 @@ class AgentGateway:
                 return session
         return None
 
+    def reset_all_desktop_session_permission_caches(self) -> int:
+        """Reset harness desktop session in-memory approval shortcuts on all agents."""
+        cleared = 0
+        for info in self._session_info.values():
+            if info.agent is None:
+                continue
+            agent = info.agent()
+            if agent is None:
+                continue
+            session = getattr(agent, "_desktop_session", None)
+            if session is None:
+                continue
+            reset_fn = getattr(session, "reset_runtime_permission_cache", None)
+            if callable(reset_fn):
+                reset_fn()
+                cleared += 1
+        return cleared
+
     def get_active_event_log_backend(self) -> tuple[str, object] | None:
         """Get (session_id, EventLogBackend) from the first active agent that has one."""
         for info in self._session_info.values():

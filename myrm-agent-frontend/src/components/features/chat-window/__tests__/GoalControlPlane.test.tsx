@@ -109,13 +109,13 @@ describe('GoalControlPlane', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('renders loading state', async () => {
+  it('renders null when plan is null while loading', async () => {
     mockPlanState.plan = null;
     mockPlanState.isLoading = true;
 
     const { GoalControlPlane } = await import('../goals/GoalControlPlane');
-    render(<GoalControlPlane />);
+    const { container } = render(<GoalControlPlane />);
 
-    expect(screen.getByText('loadingProgress')).toBeDefined();
+    expect(container.innerHTML).toBe('');
   });
 });

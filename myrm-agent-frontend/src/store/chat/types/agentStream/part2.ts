@@ -91,6 +91,7 @@ export interface GoalStatusPayload {
   should_continue?: boolean;
   constraints?: string[];
   acceptance_criteria?: { type: string; command?: string; criteria?: string }[];
+  checkpoint_mode?: string;
   subgoals?: { text: string }[];
   metadata?: {
     execution_summary?: {
@@ -131,6 +132,7 @@ export interface MessageEndStreamEvent extends BaseAgentEvent {
   cost_status?: CostStatus;
   completion_status?: CompletionStatus;
   model?: string;
+  stream_ttft_ms?: number;
   context_budget?: ContextBudget;
   citations?: string[];
   memoryBudget?: { used: number; total: number };

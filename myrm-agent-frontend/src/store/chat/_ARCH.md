@@ -15,7 +15,8 @@
 | `messageRequest.ts` | 组装请求并启动流（含 Smart Updater 路由、kanban 发送前看板 guard）；发送前统一归一化 `mcp_cfg` transport/keepalive 语义；fast/deep 发送前 search guard block；agent 模式 web_search 未配置由 SSE preflight gap 通知（无 client 重复 toast）；`resumeValue` 存在时跳过 loading/isProcessing 守卫以支持 browser takeover Done/Skip resume；新 send 时 clear pending gap |
 | `pendingGapRetry.ts` | entitlement gap 延迟重发：pending 状态 + flush + schedule |
 | `multimodalBuilder.ts` | 附件→multimodal 消息构建（PDF/图片/视频/摄像头/文本），视觉内容始终发送由后端 VisionFallback 路由 |
-| `messageManagement.ts` | 会话初始化（LRU 优先 + pane 流式 merge）、silent refresh 保留 session config、`LoadMessagesOptions` |
+| `messageManagement.ts` | 会话初始化（LRU 优先 + pane 流式 merge）、silent refresh 保留 session config、`LoadMessagesOptions`；hydrate 时 `normalizeHydratedClarification` 恢复 pending clarify |
+| `clarificationState.ts` | pending clarify 选择器（倒序扫描 assistant，跳过无 pending 的较新消息）+ DB hydrate 归一化（`answered`/`isResumeMode`） |
 | `chatNavigationSnapshotCache.ts` | 侧边栏 LRU snapshot（20 条，跳过 incognito）；含 agentConfig/actionMode/selectedModels |
 | `messageUtils.ts` | assistant 消息索引、`findUiArtifactLocation`（`data_update` 跨回合 surface 定位） |
 | `goals/` | Goal 队列与 Plan 步骤 store | [_ARCH.md](goals/_ARCH.md) |

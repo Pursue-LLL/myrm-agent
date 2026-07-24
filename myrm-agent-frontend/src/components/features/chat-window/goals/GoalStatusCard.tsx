@@ -39,6 +39,9 @@ function translateGoalReason(reason: string | undefined, t: (key: string) => str
   if (reason.startsWith('Sandbox boundary violation')) {
     return t('reasonSandboxBoundary');
   }
+  if (reason.startsWith('Checkpoint:')) {
+    return reason;
+  }
   return reason;
 }
 
@@ -92,6 +95,7 @@ export interface GoalState {
   acceptanceCriteria?: { type: string; command?: string; criteria?: string }[];
   acceptanceResults?: AcceptanceResultItem[];
   acceptanceHistory?: AcceptanceHistoryEntry[];
+  checkpointMode?: 'none' | 'per_todo';
   subgoals?: { text: string }[];
   executionSummary?: {
     files_modified: string[];

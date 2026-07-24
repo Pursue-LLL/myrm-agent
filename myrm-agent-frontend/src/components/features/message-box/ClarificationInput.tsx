@@ -155,6 +155,7 @@ interface ClarificationInputProps {
   title?: string;
   form?: ClarificationForm;
   isResumeMode?: boolean;
+  variant?: 'inline' | 'composer';
 }
 
 const ClarificationInput = ({
@@ -165,6 +166,7 @@ const ClarificationInput = ({
   title,
   form,
   isResumeMode,
+  variant = 'inline',
 }: ClarificationInputProps) => {
   const t = useTranslations('chat.clarification');
   const [input, setInput] = useState('');
@@ -317,7 +319,10 @@ const ClarificationInput = ({
   );
 
   return (
-    <div className="mt-3 sm:mt-4">
+    <div
+      className={variant === 'composer' ? 'mt-0' : 'mt-3 sm:mt-4'}
+      data-clarification-form={hasStructuredForm ? 'structured' : 'simple'}
+    >
       <div className={resolveClarificationShellClass(requiresConfirmation)}>
         <div className={resolveClarificationGradientClass(requiresConfirmation)} />
 

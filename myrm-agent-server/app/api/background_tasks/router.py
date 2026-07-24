@@ -10,7 +10,7 @@ shell jobs merge in-process harness registry with durable BackgroundJobStore.
 - app.services.agent.shell_background_tasks (POS: registry + Store facade)
 
 [OUTPUT]
-- router: FastAPI APIRouter with /background-tasks endpoints (list, get, cancel, steer)
+- router: FastAPI APIRouter with /background-tasks endpoints (list, get, cancel, steer, shell stdin)
 
 [POS]
 REST API layer for background task management. Merges Kanban agent tasks and
@@ -33,6 +33,7 @@ from app.services.agent.shell_background_tasks import (
     find_shell_background_task,
     list_shell_background_tasks,
     shell_registry_is_ephemeral,
+    write_shell_background_stdin,
 )
 
 router = APIRouter(tags=["background-tasks"])
@@ -70,6 +71,14 @@ class SteerRequest(BaseModel):
     """Request body for steering a background task."""
 
     instruction: str
+
+
+class ShellStdinRequest(BaseModel):
+    """Request body for writing to a shell background task stdin."""
+
+    data: str = ""
+    submit: bool = False
+    close: bool = False
 
 
 def _shell_row_to_response(row: ShellBackgroundTaskDTO) -> BackgroundTaskResponse:
@@ -206,6 +215,30 @@ async def cancel_background_task(task_id: str) -> dict[str, str]:
         raise HTTPException(status_code=400, detail="Task is not cancellable or not found")
 
     return {"message": "Background task cancelled", "task_id": task_id}
+
+
+@router.post("/{task_id}/stdin")
+async def shell_background_stdin(task_id: str, body: ShellStdinRequest) -> dict[str, object]:
+    """Write to a running shell background task stdin (GUI manual input)."""
+    if not task_id.startswith("shell:"):
+        raise HTTPException(status_code=400, detail="Not a shell background task")
+    suffix = task_id.split(":", maxsplit=1)[1] if ":" in task_id else ""
+    if not suffix:
+        raise HTTPException(status_code=400, detail="Invalid shell task id")
+    row = find_shell_background_task(suffix)
+    if row is None or row.pid is None:
+        raise HTTPException(status_code=404, detail="Shell background task not found")
+    if row.status != "running":
+        raise HTTPException(status_code=400, detail="Shell task is not running")
+    result = await write_shell_background_stdin(
+        row.pid,
+        body.data,
+        submit=body.submit,
+        close=body.close,
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=str(result.get("error", "stdin_failed")))
+    return {"message": "Shell stdin written", "task_id": task_id, "result": result}
 
 
 @router.post("/{task_id}/steer")

@@ -16,7 +16,7 @@ Must stay aligned with myrm-agent-frontend ``BUILTIN_TOOL_IDS`` in
 
 [POS]
 Server-side SSOT for enabled_builtin_tools IDs and legacy rejection.
-GUI-togglable IDs only; AGENT_BASELINE_BUILTIN_TOOLS (file_ops/code_execute) are stripped at persist and forced at runtime on General track via tool_mount.resolve_agent_mount. Search/Fast (no file/bash) is Web action_mode=fast only; Channel/IM is General-only.
+GUI-togglable IDs only; AGENT_BASELINE_BUILTIN_TOOLS (file_ops/code_execute) are stripped at persist and forced at runtime on General track via tool_mount.resolve_agent_mount. Search/Fast (Web `action_mode=fast`) mounts UECD read-only `file_read_tool` via `enable_evicted_read`; write/edit/glob/grep/bash stay off. Channel/IM is General-only.
 """
 
 from __future__ import annotations
@@ -52,7 +52,6 @@ TOGGLABLE_BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "planning",
     "structured_clarify",
     "external_cli",
-    "web_crawl",
 )
 """IDs shown in BuiltinToolsPanel; excludes AGENT_BASELINE_BUILTIN_TOOLS."""
 
@@ -72,6 +71,7 @@ LEGACY_REJECTED_BUILTIN_TOOL_IDS: frozenset[str] = frozenset(
         "bash_tool",
         "task_tracking",
         "canvas",
+        "web_crawl",
     }
 )
 
@@ -100,10 +100,6 @@ BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
         "id": "external_cli",
         "desc": "Delegate tasks to external CLI agents (Claude Code, Codex, Gemini CLI)",
     },
-    {
-        "id": "web_crawl",
-        "desc": "Recursively crawl entire websites into sandbox storage",
-    },
 )
 
 
@@ -116,7 +112,8 @@ def strip_legacy_builtin_tool_ids(tools: Sequence[str]) -> list[str]:
     return [
         tool_id
         for raw in tools
-        if (tool_id := str(raw).strip()) and tool_id not in LEGACY_REJECTED_BUILTIN_TOOL_IDS
+        if (tool_id := str(raw).strip())
+        and tool_id not in LEGACY_REJECTED_BUILTIN_TOOL_IDS
     ]
 
 
@@ -166,9 +163,7 @@ def normalize_enabled_builtin_tools(tools: Sequence[str]) -> list[str]:
     if legacy or invalid:
         parts: list[str] = []
         if legacy:
-            parts.append(
-                f"legacy IDs are no longer accepted: {sorted(set(legacy))}"
-            )
+            parts.append(f"legacy IDs are no longer accepted: {sorted(set(legacy))}")
         if invalid:
             parts.append(
                 f"unknown IDs: {sorted(set(invalid))}; "

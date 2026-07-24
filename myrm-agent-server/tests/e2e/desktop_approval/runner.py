@@ -20,6 +20,8 @@ import asyncio
 
 import pytest
 from cdp_chat_support import (
+    ensure_e2e_hitl_mode,
+    ensure_e2e_hitl_mode_in_browser,
     fetch_provider_readiness_snapshot,
     get_e2e_api_url,
     wait_e2e_provider_ready,
@@ -39,8 +41,9 @@ from tests.e2e.desktop_approval.trust_api import (
     desktop_accessibility_granted,
 )
 from tests.e2e.desktop_approval.turn_flow import run_approval_attempt
-from tests.support.e2e_lite_model_pin import pin_lite_model_for_e2e
+from tests.support.e2e_desktop_model_pin import pin_basic_model_for_desktop_e2e
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.e2e_wall_progress import reset_e2e_wall_budget_clock
 
 
 async def run_desktop_approval_chrome_e2e(
@@ -67,15 +70,20 @@ async def run_desktop_approval_chrome_e2e(
 
     async def run_flow(chat: McpChatSession) -> str:
         await chat.bootstrap(BASE_URL, navigate=False, timeout_sec=120.0)
-        await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
-        progress("pin LITE_MODEL from .env.test for desktop E2E")
-        await pin_lite_model_for_e2e(chat)
+        await chat.wait_shell_ready(timeout_sec=120.0, require_bridge=False)
+        await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
+        ensure_e2e_hitl_mode(api_url=get_e2e_api_url())
+        await ensure_e2e_hitl_mode_in_browser(chat)
+        progress("pin BASIC_MODEL from .env.test for desktop E2E")
+        await pin_basic_model_for_desktop_e2e(chat)
 
         last_error: dict[str, object] | None = None
         attempts = max_send_attempts(scope)
         for attempt in range(1, attempts + 1):
+            reset_e2e_wall_budget_clock()
             heartbeat_e2e_lease()
             progress(f"{label} attempt {attempt}/{attempts}")
+            ensure_e2e_hitl_mode(api_url=get_e2e_api_url())
             clear_persisted_desktop_approvals()
             try:
                 chat_id = await run_approval_attempt(chat, scope=scope)
@@ -100,16 +108,18 @@ async def run_desktop_approval_chrome_e2e(
                 if attempt >= attempts:
                     break
                 progress(f"retry after: {last_error}")
+                reset_e2e_wall_budget_clock()
                 try:
                     progress("retry reset: mux recover + reopen chat page")
                     await asyncio.to_thread(chat._client.recover_mux_transport)
                     await asyncio.sleep(2.0)
                     chat._page = await open_mcp_chat_page(chat._client)
                     await chat.bootstrap(BASE_URL, navigate=True, timeout_sec=120.0)
-                    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+                    await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
                     progress("new chat + ensure surface")
                     await chat.click_new_chat()
                     await chat.ensure_chat_surface(BASE_URL)
+                    await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
                 except (RuntimeError, TimeoutError, OSError) as reset_exc:
                     if is_retriable_page_transport(reset_exc):
                         progress(

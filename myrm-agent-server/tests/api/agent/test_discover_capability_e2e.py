@@ -55,7 +55,9 @@ async def test_discover_capability_e2e_real_model() -> None:
     """
     api_key = os.environ.get("BASIC_API_KEY", "").strip()
     if not api_key:
-        pytest.skip("BASIC_API_KEY not found in environment (see myrm-agent-server/.env.test)")
+        pytest.skip(
+            "BASIC_API_KEY not found in environment (see myrm-agent-server/.env.test)"
+        )
 
     base_url = (os.environ.get("BASIC_BASE_URL") or "").strip() or None
     raw_model = (
@@ -112,4 +114,6 @@ async def test_discover_capability_e2e_real_model() -> None:
         )
 
     assert final_response, "Agent did not produce a final response"
-    assert _SKILL_NAME in final_response or _SKILL_NAME in " ".join(message_chunks).lower()
+    assert (
+        _SKILL_NAME in final_response or _SKILL_NAME in " ".join(message_chunks).lower()
+    )

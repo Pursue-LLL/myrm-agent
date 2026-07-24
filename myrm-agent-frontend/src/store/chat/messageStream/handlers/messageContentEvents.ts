@@ -86,17 +86,23 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
           updateState.messages[messageIndex].content = recievedMessage;
 
           if (isClarify) {
+            const existing = updateState.messages[messageIndex].clarification;
+            const actionMode = H.useChatStore.getState().actionMode;
             updateState.messages[messageIndex].clarification = {
+              ...(existing ?? {}),
               question: recievedMessage,
               answered: false,
-              options: clarifyOptions,
-              allowMultiple: clarifyAllowMultiple,
+              options: clarifyOptions ?? existing?.options,
+              allowMultiple: clarifyAllowMultiple || existing?.allowMultiple,
               ...(clarificationForm
                 ? {
-                    title: clarificationForm.title ?? undefined,
+                    title: clarificationForm.title ?? existing?.title ?? undefined,
                     form: clarificationForm,
                   }
                 : {}),
+              isResumeMode:
+                existing?.isResumeMode ??
+                (actionMode !== 'deep_research'),
             };
           }
 

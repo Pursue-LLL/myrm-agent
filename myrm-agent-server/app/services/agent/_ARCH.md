@@ -16,7 +16,7 @@ Harness 工具层级 SSOT：`myrm-agent-harness/.../tool_management/tool_layers.
 | Track | When | CORE file/bash | Primary SSOT |
 | --- | --- | --- | --- |
 | **General** | Default saved agent; Web non-fast; **Channel/IM**; Cron/Kanban | On | `tool_mount.resolve_agent_mount` → harness `get_meta_tools` |
-| **Search/Fast** | Web chat `action_mode=fast` only | Off | `params/converter.py` |
+| **Search/Fast** | Web chat `action_mode=fast` only | UECD read-only (`enable_evicted_read`) | `params/converter.py` + `tool_mount.resolve_agent_mount(WEB_FAST)` |
 | **Cron narrow** | Job `tools_allowed` without baseline | Optional off | `core/cron/adapters/tools_policy.py` |
 
 Design notes:
@@ -55,9 +55,9 @@ Design notes:
 |------|------|------|-------|
 | `gateway.py` | ✅ 核心 | Agent 执行网关 — 全局/Per-User 并发控制、**内存压力熔断**（订阅 `MemoryPressureMonitor`，CRITICAL/EMERGENCY 级别时阻塞新任务直到恢复或队列超时）、排队超时、执行超时、活跃会话元数据追踪（Multi-Pane 状态 API）、结构化日志、会话级互斥（AgentBusyError 409）。`interrupt()` / `interrupt_session(chat_id)` 中断运行中 stream。`ActiveSessionInfo` 持有 `BaseAgent` 弱引用及 `current_message_id`（供 chat 级 cancel 同步 `CancellationRegistry`），供子 Agent 控制 API 获取 `SubagentManager` 实例 |
 | `confidence_approval_flow.py` | ✅ 核心 | 多信号风控审批流 — 基于置信度 + 2 个客观确定性信号（diff 变化范围、历史成功率）的智能审批。高分且全部风控信号绿灯时静默自动合并，任何红灯或 runtime failure 修复即降级人工 Diff Review。`ApprovalResult.risk_signals` 记录降级原因；risk_signals / runtime evidence 持久化为 `reason_code`、`remediation` 和审核证据供前端展示 |
-| `agent_service.py` | ✅ 核心 | Agent CRUD。WebUI mutable 变更前委托 `ProfileSnapshotService`；`update_agent` 返回 `AgentUpdateOutcome`（含 `snapshot_saved`）。创建/更新/删除/回滚后失效 `AgentProfileResolver` 缓存并热重载 CommandRegistry。 |
+| `agent_service.py` | ✅ 核心 | Agent CRUD。WebUI mutable 变更前委托 `ProfileSnapshotService`；`update_agent` 返回 `AgentUpdateOutcome`（含 `snapshot_saved`）。创建/更新/删除/回滚后失效 `AgentProfileResolver` 缓存并热重载 CommandRegistry。`get_agents_by_name` 提供同名候选稳定排序（优先用户自建，再按 id），避免同名解析不确定性。 |
 | `profile_snapshot_service.py` | ✅ 核心 | Agent 配置快照与回滚专用服务 — `save_profile_snapshot` / `list_profile_snapshots` / `count_profile_snapshots` / `rollback_profile` / `rollback_profile_to_snapshot`。含完整 mutable 字段 diff 检测（`has_mutable_diff`，含 `cron_post_run_verify` DB 列）、pre-rollback 保险快照、10 条 retention 裁剪；`updates_from_snapshot_data` 回滚时写回该列。由 `AgentService` 委托，供 WebUI 时光机 API 使用。 |
-| `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析 — `resolve_builtin_tool_flags()`（strip deploy 不兼容工具 + deploy gate）；TTL 缓存 | ✅ |
+| `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析 — `resolve_builtin_tool_flags(..., allow_answer_tool=False)`（strip deploy 不兼容工具 + 忽略 profile `answer_tool`；Fast Search 在 converter 显式 `allow_answer_tool=True`）；TTL 缓存 | ✅ |
 | `tool_mount/` | ✅ 核心 | Meta-tool mount SSOT — `resolve_agent_mount` / `apply_ptc_meta_mount` | [_ARCH.md](tool_mount/_ARCH.md) |
 | `builtin_tool_ids.py` | ✅ 核心 | `enabled_builtin_tools` SSOT：17 canonical IDs（15 UI 可切换 + 2 Agent 基线无开关）；`strip_deploy_incompatible_builtin_tools()` 按 deploy 剔除 `computer_use`（VNC）与 `external_cli`（仅 local/Tauri）；`external_cli` ON + UserConfig 有 CLI backend → Turn1 挂载 `delegate_to_agent_tool`；**persist 前** `external_cli_gate.assert_external_cli_tools_allowed()` 拒绝无 backend 的 `external_cli` 开关；`cron` 开启 → Turn1 eager（`enable_cron_eager`）；关闭则不加载；`structured_clarify` 开启 → 挂载 `ask_question_tool`（默认 ON）；`DEFAULT_ENABLED_BUILTIN_TOOLS=(web_search, memory, structured_clarify)`；`normalize` 静默剥离 baseline ID；`persist_enabled_builtin_tools` DB 写校验 |
 | `external_cli_gate.py` | ✅ 核心 | Local persist gate：`external_cli` ∈ `enabled_builtin_tools` 时要求 Settings CLI backend 或本地 auto-detect；与 runtime `_resolve_external_agent_cfgs` 同源 |
@@ -74,7 +74,7 @@ Design notes:
 | `background_job_startup.py` | ✅ 核心 | 启动 configure `BackgroundJobStore`（harness_dir/.myrm/background_jobs.db）并 reconcile orphaned running 行。 |
 | `goal_wait_orphan_recovery.py` | ✅ 核心 | 启动时在 Store reconcile 之后：WAIT + orphaned background pid → NEEDS_HUMAN_REVIEW + goal_needs_review SSE（对称 `pause_orphaned_active_goals`）。 |
 | `goal_wait_background_resume.py` | ✅ 核心 | background job finish 匹配 wait_on_background_job_id → exit_wait → `trigger_goal_stream_with_failure_policy(needs_human_review)`；前端 refreshActiveGoal 同步 Card |
-| `shell_background_tasks.py` | ✅ 核心 | registry + Store 合并 REST 门面；`task_id=shell:{job_id}`；`list_shell_background_tasks` / `cancel_shell_background_task` / `find_shell_background_task`。 |
+| `shell_background_tasks.py` | ✅ 核心 | registry + Store 合并 REST 门面；`task_id=shell:{job_id}`；`list_shell_background_tasks` / `cancel_shell_background_task` / `find_shell_background_task` / `write_shell_background_stdin`。 |
 | `context_compaction_telemetry.py` | ✅ 核心 | Context 压缩遥测分发器。配置来自 `settings.control_plane` + `settings.context_compaction_telemetry`（`ContextCompactionTelemetryConfig.from_settings()`）；读取 Harness `TaskMetrics` 快照，有界队列 + 批量 flush + 背压保护异步上报 Control Plane（`events` 契约，`X-Telemetry-Subject` 头）。 |
 | `search.py` | ✅ 辅助 | Web 搜索服务封装 | ✅ |
 | `routing_advisor.py` | ✅ 核心 | 智能路由顾问 — 根据历史事件提供高危模型的降级建议 | ✅ |

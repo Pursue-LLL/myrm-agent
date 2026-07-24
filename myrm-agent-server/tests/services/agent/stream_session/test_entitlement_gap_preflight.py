@@ -7,7 +7,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.ai_agents.general_agent.active_tool_groups import derive_active_tool_groups_from_params
+from app.ai_agents.general_agent.active_tool_groups import (
+    derive_active_tool_groups_from_params,
+)
 from app.services.agent.stream_session import entitlement_gap_preflight as preflight
 from app.services.agent.stream_session.entitlement_gap_preflight import (
     CapabilityGapEmissionTracker,
@@ -33,7 +35,6 @@ def _params(**overrides: object) -> SimpleNamespace:
         enable_render_ui=False,
         enable_structured_clarify=True,
         enable_cron_eager=False,
-        enable_web_crawl=False,
         enable_planning=False,
         image_generation=None,
         video_generation=None,
@@ -55,31 +56,6 @@ def test_derive_active_tool_groups_from_params_maps_media_fields() -> None:
     assert "image_generation" in groups
 
 
-def test_build_entitlement_gap_sse_event_web_crawl_query() -> None:
-    event = build_entitlement_gap_sse_event(
-        message_id="msg-crawl-1",
-        user_text="please crawl entire site docs.example.com",
-        active_tool_groups=derive_active_tool_groups_from_params(_params()),
-        chat_id="chat-crawl-1",
-    )
-    assert event is not None
-    assert event["type"] == "capability_gap"
-    data = event["data"]
-    assert isinstance(data, dict)
-    assert data["tool_id"] == "web_crawl"
-    assert data["tool_group"] == "web_crawl"
-
-
-def test_build_entitlement_gap_sse_event_none_when_web_crawl_enabled() -> None:
-    event = build_entitlement_gap_sse_event(
-        message_id="msg-crawl-2",
-        user_text="crawl entire site docs.example.com",
-        active_tool_groups=derive_active_tool_groups_from_params(_params(enable_web_crawl=True)),
-        chat_id="chat-crawl-2",
-    )
-    assert event is None
-
-
 def test_build_entitlement_gap_sse_event_render_ui_form_query() -> None:
     event = build_entitlement_gap_sse_event(
         message_id="msg-1",
@@ -99,7 +75,9 @@ def test_build_entitlement_gap_sse_event_none_when_group_enabled_on_web_chat() -
     event = build_entitlement_gap_sse_event(
         message_id="msg-2",
         user_text="帮我填表",
-        active_tool_groups=derive_active_tool_groups_from_params(_params(enable_render_ui=True)),
+        active_tool_groups=derive_active_tool_groups_from_params(
+            _params(enable_render_ui=True)
+        ),
         chat_id="chat-2",
         channel_name="web_chat",
         client_surface="web",
@@ -111,7 +89,9 @@ def test_build_entitlement_gap_sse_event_surface_unavailable_on_im_channel() -> 
     event = build_entitlement_gap_sse_event(
         message_id="msg-im-1",
         user_text="帮我填表准备 staging 部署配置",
-        active_tool_groups=derive_active_tool_groups_from_params(_params(enable_render_ui=True)),
+        active_tool_groups=derive_active_tool_groups_from_params(
+            _params(enable_render_ui=True)
+        ),
         chat_id="chat-im-1",
         channel_name="telegram",
         client_surface=None,
@@ -164,7 +144,9 @@ def test_build_entitlement_gap_sse_event_dedup_within_cooldown() -> None:
     assert second is None
 
 
-def test_capability_gap_emission_tracker_re_emits_after_cooldown(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_capability_gap_emission_tracker_re_emits_after_cooldown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     tracker = CapabilityGapEmissionTracker(cooldown_seconds=30.0)
     now = 1000.0
     monkeypatch.setattr(time, "monotonic", lambda: now)
@@ -177,7 +159,9 @@ def test_capability_gap_emission_tracker_re_emits_after_cooldown(monkeypatch: py
     assert tracker.should_emit("chat-cooldown", "render_ui") is True
 
 
-def test_build_entitlement_gap_sse_event_re_emits_after_cooldown(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_entitlement_gap_sse_event_re_emits_after_cooldown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     reset_capability_gap_emission_tracker()
     monkeypatch.setattr(preflight, "_GAP_TOAST_COOLDOWN_SECONDS", 1.0)
     preflight._gap_emission_tracker = CapabilityGapEmissionTracker(cooldown_seconds=1.0)
@@ -242,9 +226,15 @@ def test_resolve_web_search_config_gap_display_message_localized() -> None:
         resolve_web_search_config_gap_display_message,
     )
 
-    en = resolve_web_search_config_gap_display_message(reason="not_configured", locale="en")
-    zh = resolve_web_search_config_gap_display_message(reason="not_configured", locale="zh")
-    unreachable = resolve_web_search_config_gap_display_message(reason="unreachable", locale="en")
+    en = resolve_web_search_config_gap_display_message(
+        reason="not_configured", locale="en"
+    )
+    zh = resolve_web_search_config_gap_display_message(
+        reason="not_configured", locale="zh"
+    )
+    unreachable = resolve_web_search_config_gap_display_message(
+        reason="unreachable", locale="en"
+    )
 
     assert "search API" in en
     assert "搜索" in zh

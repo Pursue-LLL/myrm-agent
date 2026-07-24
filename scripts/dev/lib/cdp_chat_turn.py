@@ -489,44 +489,22 @@ class CdpChatTurn(CdpChatSubmit):
             if isinstance(api_steer, dict) and api_steer.get("ok"):
                 return {"submit": api_steer, "mode": "steerApi"}
         await self.ensure_react_e2e_bridge(timeout_sec=20.0)
-        await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
         payload = json.dumps(text)
-        streaming_probe = await self.evaluate(
-            """(() => {
-              const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
-              return { isStreaming: Boolean(snap.isStreaming) };
-            })()""",
-            await_promise=False,
-        )
-        await self.evaluate(
-            f"""(() => {{
-              window.__MYRM_E2E_CHAT__?.setInputMessage?.({payload});
-              return {{ ok: true, inputLen: {len(text)} }};
+        bridge_steer = await self.evaluate(
+            f"""(async () => {{
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (typeof bridge?.submitSteerNudge !== 'function') {{
+                return {{ ok: false, err: 'no-submitSteerNudge' }};
+              }}
+              return await bridge.submitSteerNudge({payload});
             }})()""",
-            await_promise=False,
+            await_promise=True,
         )
-        steer = await self.evaluate(
-            """(() => {
-              const buttons = [...document.querySelectorAll('button[aria-label]')];
-              const steerBtn = buttons.find((btn) => {
-                const label = String(btn.getAttribute('aria-label') || '').toLowerCase();
-                return (
-                  label.includes('steer')
-                  || label.includes('guidance')
-                  || label.includes('转向')
-                  || label.includes('指导')
-                );
-              });
-              if (steerBtn && !steerBtn.disabled) {
-                steerBtn.click();
-                return { ok: true, mode: 'steerClick' };
-              }
-              return { ok: false, err: 'no-steer-button' };
-            })()""",
-            await_promise=False,
-        )
-        if isinstance(steer, dict) and steer.get("ok"):
-            return {"submit": steer, "mode": "steerClick"}
+        if isinstance(bridge_steer, dict) and bridge_steer.get("ok"):
+            return {
+                "submit": bridge_steer,
+                "mode": str(bridge_steer.get("mode", "steerBridge")),
+            }
         ui_base = (getattr(self, "_base_url", None) or "http://127.0.0.1:3000").rstrip(
             "/"
         )

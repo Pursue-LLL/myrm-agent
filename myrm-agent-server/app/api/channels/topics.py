@@ -62,7 +62,9 @@ async def list_channel_topics(
             continue
 
         if chat_id == "__global__":
-            global_agent_id = str(group_topics.get(_CHANNEL_LEVEL_KEY, {}).get("agentId", "")) or None
+            global_agent_id = (
+                str(group_topics.get(_CHANNEL_LEVEL_KEY, {}).get("agentId", "")) or None
+            )
             continue
 
         for thread_id, topic_cfg in group_topics.items():
@@ -80,10 +82,14 @@ async def list_channel_topics(
                     boundAt=str(topic_cfg.get("boundAt", "")) or None,
                     displayName=str(topic_cfg.get("displayName", "")) or None,
                     avatarUrl=str(topic_cfg.get("avatarUrl", "")) or None,
-                    threadSharingMode=str(topic_cfg.get("threadSharingMode", "isolated")),
+                    threadSharingMode=str(
+                        topic_cfg.get("threadSharingMode", "isolated")
+                    ),
                     replyMode=str(topic_cfg.get("replyMode", "auto")),
                     draftTimeoutMinutes=int(topic_cfg.get("draftTimeoutMinutes", 5)),
-                    draftTimeoutAction=str(topic_cfg.get("draftTimeoutAction", "auto_reject")),
+                    draftTimeoutAction=str(
+                        topic_cfg.get("draftTimeoutAction", "auto_reject")
+                    ),
                 )
             )
 
@@ -94,7 +100,9 @@ async def list_channel_topics(
     )
 
 
-@router.post("/{channel}/topics/{topic_id:path}/bind", response_model=TopicBindingResponse)
+@router.post(
+    "/{channel}/topics/{topic_id:path}/bind", response_model=TopicBindingResponse
+)
 async def bind_channel_topic(
     channel: str,
     topic_id: str,
@@ -132,12 +140,18 @@ async def bind_channel_topic(
             high_risk_tools = {"bash", "file_io", "shell"}
             agent_tools = set(_meta_str_list(meta_map, "enabled_builtin_tools"))
             if agent_tools.intersection(high_risk_tools):
-                logger.warning(f"Security Warning: Binding high-risk agent {agent.id} to channel {channel} topic {topic_id}")
+                logger.warning(
+                    f"Security Warning: Binding high-risk agent {agent.id} to channel {channel} topic {topic_id}"
+                )
 
     from app.channels.types import DraftTimeoutAction, ReplyMode
 
     reply_mode = ReplyMode(body.reply_mode) if body.reply_mode else ReplyMode.AUTO
-    draft_timeout_action = DraftTimeoutAction(body.draft_timeout_action) if body.draft_timeout_action else DraftTimeoutAction.AUTO_REJECT
+    draft_timeout_action = (
+        DraftTimeoutAction(body.draft_timeout_action)
+        if body.draft_timeout_action
+        else DraftTimeoutAction.AUTO_REJECT
+    )
 
     manager = SqlTopicManager()
     try:

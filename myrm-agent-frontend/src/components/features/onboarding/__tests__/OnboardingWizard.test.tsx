@@ -4,6 +4,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 const mockCompleteOnboarding = vi.fn(() => Promise.resolve({ success: true, message: 'ok' }));
 const mockDiscoverMigrationSources = vi.fn(() => Promise.resolve({ sources: [] }));
 const mockProbeLocalCapabilities = vi.fn(() => Promise.resolve({ results: [], search: [] }));
+const mockGetTelegramCredentials = vi.fn(() => Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }));
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -37,6 +38,10 @@ vi.mock('@/services/onboarding', () => ({
   completeOnboarding: () => mockCompleteOnboarding(),
 }));
 
+vi.mock('@/services/channels', () => ({
+  getTelegramCredentials: (...args: unknown[]) => mockGetTelegramCredentials(...args),
+}));
+
 vi.mock('@/components/features/app-shell/BrandLogo', () => ({
   default: () => <div data-testid="brand-logo" />,
 }));
@@ -68,6 +73,15 @@ vi.mock('../SmartRoutingStep', () => ({
     <div data-testid="smart-routing-step">
       <button data-testid="routing-enable" onClick={onComplete}>Enable</button>
       <button data-testid="routing-skip" onClick={onSkip}>Skip</button>
+    </div>
+  ),
+}));
+
+vi.mock('../TelegramAssistantOnboardingStep', () => ({
+  default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
+    <div data-testid="telegram-onboarding-step">
+      <button data-testid="telegram-setup-done" onClick={onComplete}>Done</button>
+      <button data-testid="telegram-setup-skip" onClick={onSkip}>Skip</button>
     </div>
   ),
 }));
@@ -122,6 +136,9 @@ describe('OnboardingWizard', () => {
     mockRoutingEnabled.value = false;
     mockDiscoverMigrationSources.mockImplementation(() => Promise.resolve({ sources: [] }));
     mockProbeLocalCapabilities.mockImplementation(() => Promise.resolve({ results: [], search: [] }));
+    mockGetTelegramCredentials.mockImplementation(() =>
+      Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }),
+    );
   });
 
   afterEach(() => {
@@ -184,6 +201,22 @@ describe('OnboardingWizard', () => {
 
       await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
+      });
+    });
+
+    it('routes to telegram onboarding when prerequisites are ready but telegram is not configured', async () => {
+      mockHasEnabledProvider.value = true;
+      mockSearchConfigured.value = true;
+      mockGetTelegramCredentials.mockImplementation(() => Promise.resolve(null));
+
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
       });
     });
   });
@@ -366,6 +399,30 @@ describe('OnboardingWizard', () => {
 
       expect(screen.getByText('title')).toBeInTheDocument();
       expect(screen.queryByTestId('local-capabilities')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('telegram onboarding step', () => {
+    it('finishes after telegram setup complete click', async () => {
+      mockHasEnabledProvider.value = true;
+      mockSearchConfigured.value = true;
+      mockGetTelegramCredentials.mockImplementation(() => Promise.resolve(null));
+
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('telegram-setup-done'));
+
+      await waitFor(() => {
+        expect(mockCompleteOnboarding).toHaveBeenCalled();
+      });
     });
   });
 });

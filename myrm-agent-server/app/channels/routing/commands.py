@@ -175,7 +175,9 @@ _APPROVAL_DECISION_VALUES: frozenset[str] = frozenset(get_args(ApprovalDecision)
 _VARIATION_SELECTOR_RE = re.compile(r"[\uFE0E\uFE0F]")
 _FITZPATRICK_RE = re.compile(r"[\U0001F3FB-\U0001F3FF]")
 
-_APPROVE_ONCE_EMOJIS: frozenset[str] = frozenset({"\U0001f44d", "\u2764", "\u2705", "\U0001f91d", "\U0001f4aa"})
+_APPROVE_ONCE_EMOJIS: frozenset[str] = frozenset(
+    {"\U0001f44d", "\u2764", "\u2705", "\U0001f91d", "\U0001f4aa"}
+)
 _APPROVE_ALWAYS_EMOJIS: frozenset[str] = frozenset({"\u267e", "\u2b50"})
 _DENY_EMOJIS: frozenset[str] = frozenset({"\U0001f44e", "\u274c", "\U0001f6ab"})
 
@@ -236,7 +238,9 @@ def normalize_approval_emoji(value: str) -> str:
     return _FITZPATRICK_RE.sub("", cleaned)
 
 
-def parse_approval_command(content: str) -> ApprovalDecision | list[ApprovalDecision] | None:
+def parse_approval_command(
+    content: str,
+) -> ApprovalDecision | list[ApprovalDecision] | None:
     """Parse approval commands into the three-tier decision model.
 
     Supports slash commands (/approve, /approve-always, /deny), natural shortcuts
@@ -292,7 +296,9 @@ def parse_approval_command(content: str) -> ApprovalDecision | list[ApprovalDeci
 def is_explicit_approval_command(content: str) -> bool:
     """Whether ``content`` is an explicit /approve, /approve-always, /deny, or /batch."""
     cmd = content.strip().lower()
-    return cmd in ("/approve", "/approve-always", "/always", "/deny") or cmd.startswith("/batch ")
+    return cmd in ("/approve", "/approve-always", "/always", "/deny") or cmd.startswith(
+        "/batch "
+    )
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -358,7 +364,9 @@ async def handle_compact(
     )
 
     peer_id = msg.chat_id or msg.sender_id
-    effective_topic = focus_topic[:MAX_FOCUS_TOPIC_LENGTH].strip() if focus_topic else ""
+    effective_topic = (
+        focus_topic[:MAX_FOCUS_TOPIC_LENGTH].strip() if focus_topic else ""
+    )
 
     if not compact_handler:
         content = get_text(msg, "compact_not_configured")
@@ -368,7 +376,11 @@ async def handle_compact(
             content=content,
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            reply_to_id=(
+                (msg.message_id or str(msg.metadata.get("message_id", "")))
+                if msg.is_group
+                else None
+            ),
         )
         await bus.publish_outbound(reply)
         return
@@ -398,9 +410,13 @@ async def handle_compact(
                 topic_hint=topic_hint,
             )
         else:
-            content = get_text(msg, "compact_skipped", reason=result.reason or "no action needed")
+            content = get_text(
+                msg, "compact_skipped", reason=result.reason or "no action needed"
+            )
     except Exception as exc:
-        logger.warning("AgentRouter: /compact failed for %s/%s: %s", msg.channel, peer_id, exc)
+        logger.warning(
+            "AgentRouter: /compact failed for %s/%s: %s", msg.channel, peer_id, exc
+        )
         content = get_text(msg, "compact_failed", error=str(exc))
 
     reply = OutboundMessage(
@@ -409,7 +425,11 @@ async def handle_compact(
         content=content,
         user_id=msg.user_id or "",
         thread_id=msg.thread_id,
-        reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+        reply_to_id=(
+            (msg.message_id or str(msg.metadata.get("message_id", "")))
+            if msg.is_group
+            else None
+        ),
     )
     await bus.publish_outbound(reply)
 
@@ -430,16 +450,26 @@ async def handle_topic_command(
             content=get_text(msg, "topic_not_configured"),
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            reply_to_id=(
+                (msg.message_id or str(msg.metadata.get("message_id", "")))
+                if msg.is_group
+                else None
+            ),
         )
         await bus.publish_outbound(reply)
         return
 
-    scope_name = get_text(msg, "topic_scope_topic") if msg.thread_id else get_text(msg, "topic_scope_channel")
+    scope_name = (
+        get_text(msg, "topic_scope_topic")
+        if msg.thread_id
+        else get_text(msg, "topic_scope_channel")
+    )
 
     try:
         if cmd.action == "bind":
-            ctx = await topic_resolver.bind_topic(msg.channel, chat_id, msg.thread_id, agent_id=cmd.agent_id)
+            ctx = await topic_resolver.bind_topic(
+                msg.channel, chat_id, msg.thread_id, agent_id=cmd.agent_id
+            )
             if ctx.agent_id and cmd.agent_id and ctx.agent_id != cmd.agent_id:
                 agent_label = get_text(
                     msg,
@@ -452,7 +482,9 @@ async def handle_topic_command(
             else:
                 agent_label = ""
             scope_label = (
-                f"{get_text(msg, 'topic_scope_topic')} {msg.thread_id}" if msg.thread_id else get_text(msg, "topic_scope_channel")
+                f"{get_text(msg, 'topic_scope_topic')} {msg.thread_id}"
+                if msg.thread_id
+                else get_text(msg, "topic_scope_channel")
             )
             content = get_text(
                 msg,
@@ -477,7 +509,11 @@ async def handle_topic_command(
                     content=content,
                     user_id=msg.user_id or "",
                     thread_id=msg.thread_id,
-                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                    reply_to_id=(
+                        (msg.message_id or str(msg.metadata.get("message_id", "")))
+                        if msg.is_group
+                        else None
+                    ),
                 )
                 await bus.publish_outbound(reply)
 
@@ -494,9 +530,13 @@ async def handle_topic_command(
             )
 
         elif cmd.action == "unbind":
-            removed = await topic_resolver.unbind_topic(msg.channel, chat_id, msg.thread_id)
+            removed = await topic_resolver.unbind_topic(
+                msg.channel, chat_id, msg.thread_id
+            )
             scope_label = (
-                f"{get_text(msg, 'topic_scope_topic')} {msg.thread_id}" if msg.thread_id else get_text(msg, "topic_scope_channel")
+                f"{get_text(msg, 'topic_scope_topic')} {msg.thread_id}"
+                if msg.thread_id
+                else get_text(msg, "topic_scope_channel")
             )
             if removed:
                 content = get_text(msg, "topic_unbound", scope=scope_label)
@@ -508,7 +548,11 @@ async def handle_topic_command(
                 content=content,
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                reply_to_id=(
+                    (msg.message_id or str(msg.metadata.get("message_id", "")))
+                    if msg.is_group
+                    else None
+                ),
             )
             await bus.publish_outbound(reply)
             if removed:
@@ -521,9 +565,13 @@ async def handle_topic_command(
                 )
 
         elif cmd.action == "topic":
-            topic_ctx = await topic_resolver.resolve_topic(msg.channel, chat_id, msg.thread_id)
+            topic_ctx = await topic_resolver.resolve_topic(
+                msg.channel, chat_id, msg.thread_id
+            )
             scope_label = (
-                f"{get_text(msg, 'topic_scope_topic')} {msg.thread_id}" if msg.thread_id else get_text(msg, "topic_scope_channel")
+                f"{get_text(msg, 'topic_scope_topic')} {msg.thread_id}"
+                if msg.thread_id
+                else get_text(msg, "topic_scope_channel")
             )
             if topic_ctx:
                 agent_label = (
@@ -531,10 +579,18 @@ async def handle_topic_command(
                     if topic_ctx.agent_id
                     else get_text(msg, "topic_status_agent_default")
                 )
-                bound_label = get_text(msg, "topic_status_bound_at", bound_at=topic_ctx.bound_at) if topic_ctx.bound_at else ""
+                bound_label = (
+                    get_text(msg, "topic_status_bound_at", bound_at=topic_ctx.bound_at)
+                    if topic_ctx.bound_at
+                    else ""
+                )
                 status = get_text(
                     msg,
-                    ("topic_status_enabled" if topic_ctx.enabled else "topic_status_disabled"),
+                    (
+                        "topic_status_enabled"
+                        if topic_ctx.enabled
+                        else "topic_status_disabled"
+                    ),
                 )
                 content = get_text(
                     msg,
@@ -552,12 +608,18 @@ async def handle_topic_command(
                 content=content,
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                reply_to_id=(
+                    (msg.message_id or str(msg.metadata.get("message_id", "")))
+                    if msg.is_group
+                    else None
+                ),
             )
             await bus.publish_outbound(reply)
 
     except ValueError as exc:
-        from app.core.channel_bridge.topic_config import is_search_agent_channel_bind_error
+        from app.core.channel_bridge.topic_config import (
+            is_search_agent_channel_bind_error,
+        )
 
         logger.warning(
             "AgentRouter: %s command %s rejected for %s/%s/%s: %s",
@@ -583,7 +645,11 @@ async def handle_topic_command(
             content=content,
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            reply_to_id=(
+                (msg.message_id or str(msg.metadata.get("message_id", "")))
+                if msg.is_group
+                else None
+            ),
         )
         await bus.publish_outbound(reply)
 
@@ -608,7 +674,11 @@ async def handle_topic_command(
             ),
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            reply_to_id=(
+                (msg.message_id or str(msg.metadata.get("message_id", "")))
+                if msg.is_group
+                else None
+            ),
         )
         await bus.publish_outbound(reply)
 
@@ -642,7 +712,11 @@ async def _publish_outbound_notice(
         content=content,
         user_id=msg.user_id or "",
         thread_id=msg.thread_id,
-        reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+        reply_to_id=(
+            (msg.message_id or str(msg.metadata.get("message_id", "")))
+            if msg.is_group
+            else None
+        ),
     )
     await bus.publish_outbound(reply)
 
@@ -667,7 +741,11 @@ async def handle_retry(
             content=get_text(msg, "retry_not_configured"),
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            reply_to_id=(
+                (msg.message_id or str(msg.metadata.get("message_id", "")))
+                if msg.is_group
+                else None
+            ),
         )
         await bus.publish_outbound(reply)
         return None
@@ -704,7 +782,9 @@ async def handle_retry(
         else:
             content = get_text(msg, "retry_failed")
     except Exception as exc:
-        logger.warning("AgentRouter: /retry failed for %s/%s: %s", msg.channel, peer_id, exc)
+        logger.warning(
+            "AgentRouter: /retry failed for %s/%s: %s", msg.channel, peer_id, exc
+        )
         content = get_text(msg, "retry_failed_error", error=str(exc))
 
     reply = OutboundMessage(
@@ -713,7 +793,11 @@ async def handle_retry(
         content=content,
         user_id=msg.user_id or "",
         thread_id=msg.thread_id,
-        reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+        reply_to_id=(
+            (msg.message_id or str(msg.metadata.get("message_id", "")))
+            if msg.is_group
+            else None
+        ),
     )
     await bus.publish_outbound(reply)
     return None
@@ -735,7 +819,11 @@ async def handle_undo(
             content=get_text(msg, "undo_not_configured"),
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            reply_to_id=(
+                (msg.message_id or str(msg.metadata.get("message_id", "")))
+                if msg.is_group
+                else None
+            ),
         )
         await bus.publish_outbound(reply)
         return
@@ -772,7 +860,9 @@ async def handle_undo(
         else:
             content = get_text(msg, "undo_failed")
     except Exception as exc:
-        logger.warning("AgentRouter: /undo failed for %s/%s: %s", msg.channel, peer_id, exc)
+        logger.warning(
+            "AgentRouter: /undo failed for %s/%s: %s", msg.channel, peer_id, exc
+        )
         content = get_text(msg, "undo_failed_error", error=str(exc))
 
     reply = OutboundMessage(
@@ -781,6 +871,10 @@ async def handle_undo(
         content=content,
         user_id=msg.user_id or "",
         thread_id=msg.thread_id,
-        reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+        reply_to_id=(
+            (msg.message_id or str(msg.metadata.get("message_id", "")))
+            if msg.is_group
+            else None
+        ),
     )
     await bus.publish_outbound(reply)

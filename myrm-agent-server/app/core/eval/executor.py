@@ -68,11 +68,15 @@ class LocalEvalExecutor:
 
         # Initialize a sandbox executor for this session if needed by assertions
         # We use the local executor for testing purposes and bind it to the isolated workspace
-        self._sandbox_executors[self._session_id] = LocalExecutor(ExecutionConfig(), workspace_path=str(workspace_dir))
+        self._sandbox_executors[self._session_id] = LocalExecutor(
+            ExecutionConfig(), workspace_path=str(workspace_dir)
+        )
 
         return self._session_id
 
-    def get_sandbox_executor(self, session_id: str | None = None) -> CodeExecutor | None:
+    def get_sandbox_executor(
+        self, session_id: str | None = None
+    ) -> CodeExecutor | None:
         """Return the SandboxExecutor for evaluating state assertions."""
         if session_id and session_id in self._sandbox_executors:
             return self._sandbox_executors[session_id]
@@ -80,7 +84,9 @@ class LocalEvalExecutor:
             return self._sandbox_executors[self._session_id]
         return None
 
-    async def execute(self, message: str, *, session_id: str | None = None) -> AgentResponse:
+    async def execute(
+        self, message: str, *, session_id: str | None = None
+    ) -> AgentResponse:
         """Execute a single eval case."""
         from pathlib import Path
 
@@ -96,7 +102,9 @@ class LocalEvalExecutor:
         embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
         mcp_configs = extract_mcp_configs(configs.mcp_dict)
         lite_model_cfg = extract_lite_model_config(configs.providers_dict)
-        fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(configs.providers_dict)
+        fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
+            configs.providers_dict
+        )
         user_instructions = extract_user_instructions(configs.personal_settings_dict)
 
         agent_skill_ids = []
@@ -124,10 +132,14 @@ class LocalEvalExecutor:
             if resolved:
                 if resolved.system_prompt:
                     user_instructions = (
-                        f"{user_instructions}\n\n{resolved.system_prompt}" if user_instructions else resolved.system_prompt
+                        f"{user_instructions}\n\n{resolved.system_prompt}"
+                        if user_instructions
+                        else resolved.system_prompt
                     )
                 agent_skill_ids = list(resolved.skill_ids)
-                agent_subagent_ids = list(resolved.subagent_ids) if resolved.subagent_ids else None
+                agent_subagent_ids = (
+                    list(resolved.subagent_ids) if resolved.subagent_ids else None
+                )
                 if resolved.security_overrides:
                     for _k, _v in resolved.security_overrides.items():
                         agent_security_raw[str(_k)] = _v
@@ -141,7 +153,9 @@ class LocalEvalExecutor:
                 memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
 
                 if mcp_configs:
-                    from app.services.agent.params.mcp_selection import apply_agent_mcp_selection
+                    from app.services.agent.params.mcp_selection import (
+                        apply_agent_mcp_selection,
+                    )
 
                     mcp_configs = apply_agent_mcp_selection(
                         mcp_configs,
@@ -159,10 +173,16 @@ class LocalEvalExecutor:
                 conversation_id=chat_id,
             )
         except Exception as e:
-            logger.warning("Failed to resolve shared memory contexts for eval run: %s", e)
+            logger.warning(
+                "Failed to resolve shared memory contexts for eval run: %s", e
+            )
 
-        from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
-        from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
+        from myrm_agent_harness.toolkits.retriever.embedding.factory import (
+            EmbeddingConfig,
+        )
+        from myrm_agent_harness.toolkits.retriever.reranker.factory import (
+            RerankerConfig,
+        )
 
         GeneralAgentParams.model_rebuild(
             _types_namespace={
@@ -173,17 +193,24 @@ class LocalEvalExecutor:
 
         # Resolve model: agent-specific model > global default
         if agent_model_override:
-            from app.core.channel_bridge.model_resolver import enrich_model_context_window, resolve_model_config
+            from app.core.channel_bridge.model_resolver import (
+                enrich_model_context_window,
+                resolve_model_config,
+            )
 
             eval_model_cfg = resolve_model_config(
                 configs.providers_dict,
                 model_override=agent_model_override,
             )
-            eval_model_cfg = enrich_model_context_window(eval_model_cfg, configs.providers_dict)
+            eval_model_cfg = enrich_model_context_window(
+                eval_model_cfg, configs.providers_dict
+            )
         else:
             eval_model_cfg = configs.model_cfg
 
-        from app.core.memory.proactive.settings import resolve_conversation_search_enabled
+        from app.core.memory.proactive.settings import (
+            resolve_conversation_search_enabled,
+        )
 
         from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
@@ -201,7 +228,8 @@ class LocalEvalExecutor:
             embedding_config=embedding_cfg,
             reranker_config=reranker_cfg,
             channel_name="eval",
-            enable_web_search=configs.search_is_user_configured and await verify_search_service_available(configs.search_cfg),
+            enable_web_search=configs.search_is_user_configured
+            and await verify_search_service_available(configs.search_cfg),
             enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
             **resolve_agent_mount(
                 ExecutionSurface.EVAL,
@@ -217,11 +245,16 @@ class LocalEvalExecutor:
             memory_decay_profile=memory_decay_profile,
             engine_params=agent_engine_params,
             memory_shared_context_ids=memory_shared_context_ids,
-            enable_conversation_search=resolve_conversation_search_enabled(configs.personal_settings_dict),
+            enable_conversation_search=resolve_conversation_search_enabled(
+                configs.personal_settings_dict
+            ),
             declared_allowed_roots=(str(workspace_dir),),
         )
 
-        from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+        from app.services.agent.execution_cache import (
+            ExecutionMode,
+            finalize_agent_session,
+        )
         from app.services.agent.runtime_context import build_agent_runtime_context
 
         runtime_context = await build_agent_runtime_context(
@@ -247,7 +280,9 @@ class LocalEvalExecutor:
                 if event_type == "message" and isinstance(event.get("data"), str):
                     chunks.append(str(event["data"]))
                 elif event_type == "tasks_steps":
-                    tool_name = str(event.get("tool_name", "")) or str(event.get("step_key", ""))
+                    tool_name = str(event.get("tool_name", "")) or str(
+                        event.get("step_key", "")
+                    )
                     if tool_name:
                         tools_called.append(tool_name)
                 elif event_type == "token_usage":

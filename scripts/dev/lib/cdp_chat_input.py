@@ -194,6 +194,14 @@ class CdpChatInput(CdpChatBootstrap):
                 """(() => ({
                   hasBuiltinTools: Boolean(window.__MYRM_E2E_CHAT__?.setCurrentBuiltinTools),
                   hasAttach: typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function',
+                  hasPinLite: typeof window.__MYRM_E2E_CHAT__?.pinLiteModelForE2e === 'function',
+                  hasPinBasic: typeof window.__MYRM_E2E_CHAT__?.pinBasicModelForE2e === 'function',
+                  hasSendCapability:
+                    typeof window.__MYRM_E2E_CHAT__?.sendChatMessage === 'function'
+                    || (
+                      typeof window.__MYRM_E2E_CHAT__?.setInputMessage === 'function'
+                      && typeof window.__MYRM_E2E_CHAT__?.handleSubmit === 'function'
+                    ),
                   fallback: window.__MYRM_E2E_CHAT__?.__e2eFallback === true,
                   hasInput: Boolean(document.querySelector('[data-chat-input]')),
                 }))()""",
@@ -203,6 +211,8 @@ class CdpChatInput(CdpChatBootstrap):
                 isinstance(probe, dict)
                 and probe.get("hasBuiltinTools")
                 and probe.get("hasAttach")
+                and (probe.get("hasPinLite") or probe.get("hasPinBasic"))
+                and probe.get("hasSendCapability")
             ):
                 return
             should_reload = polls in {15, 30, 45}
@@ -214,7 +224,7 @@ class CdpChatInput(CdpChatBootstrap):
                 await self.ensure_e2e_api_base_binding()
             await asyncio.sleep(1)
         raise TimeoutError(
-            "React E2E chat bridge missing setCurrentBuiltinTools "
+            "React E2E chat bridge missing pinLiteModelForE2e/pinBasicModelForE2e "
             f"(last probe={probe!r})"
         )
 

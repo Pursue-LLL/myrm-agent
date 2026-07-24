@@ -266,6 +266,28 @@ class ConfigSyncManager {
    * 设置配置（乐观更新 + 异步同步）
    */
   set<K extends ConfigKey>(key: K, value: ConfigValueMap[K]): void {
+    if (
+      typeof window !== 'undefined' &&
+      window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ &&
+      key === 'searchServices'
+    ) {
+      this.changeQueue = this.changeQueue.filter((change) => change.key !== 'searchServices');
+      const current = this.cache.get(key) as ConfigRecord<K> | undefined;
+      const currentVersion = current?.meta.version ?? createInitialVersion();
+      const newRecord: ConfigRecord<K> = {
+        key,
+        value,
+        meta: {
+          version: incrementVersion(currentVersion),
+          updatedAt: new Date().toISOString(),
+          deviceId: (this.adapter as BaseConfigAdapter).getDeviceId(),
+        },
+      };
+      this.cache.set(key, newRecord as ConfigRecord);
+      this.notifyListeners(key, value, newRecord.meta);
+      return;
+    }
+
     const current = this.cache.get(key) as ConfigRecord<K> | undefined;
     const currentVersion = current?.meta.version ?? createInitialVersion();
     const newVersion = incrementVersion(currentVersion);
@@ -352,6 +374,12 @@ class ConfigSyncManager {
    * 立即同步所有待处理变更
    */
   private async flushSync(): Promise<SyncResult> {
+    if (
+      typeof window !== 'undefined' &&
+      window.__MYRM_E2E_BLOCK_SEARCH_SYNC__
+    ) {
+      this.changeQueue = this.changeQueue.filter((change) => change.key !== 'searchServices');
+    }
     if (this.changeQueue.length === 0) {
       return {
         success: true,

@@ -25,7 +25,9 @@ def _local_protected_admin(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("WEBUI_REMOTE_MODE", "true")
     monkeypatch.setattr(settings.database, "state_dir", str(tmp_path))
     get_deploy_mode.cache_clear()
-    from app.platform_utils.deployment_capabilities import _reset_capabilities_cache_for_testing
+    from app.platform_utils.deployment_capabilities import (
+        _reset_capabilities_cache_for_testing,
+    )
 
     _reset_capabilities_cache_for_testing()
     admin_store.save_admin("admin", hash_password("Str0ng!Pass"))
@@ -205,7 +207,9 @@ def test_platform_telegram_webhook_is_channel_admission() -> None:
     assert path == AdmissionPath.CHANNEL
 
 
-def test_manage_webhook_topics_auth_loopback_when_unprotected(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_manage_webhook_topics_auth_loopback_when_unprotected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     set_password_protection_enabled(False)
     scope = {
         "type": "http",

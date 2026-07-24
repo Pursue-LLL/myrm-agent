@@ -58,6 +58,8 @@ import { CommandPalette } from '@/components/features/app-shell/command-palette'
 import { useSlashCommand } from '@/hooks/useSlashCommand';
 import { useReferenceMention } from '@/hooks/useReferenceMention';
 import { ReferenceMentionPopover } from './ReferenceMentionPopover';
+import ClarificationInput from '../message-box/ClarificationInput';
+import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import useChatStore from '@/store/useChatStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { QuoteCard } from './QuoteCard';
@@ -118,6 +120,11 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
   const mentionReferences = useChatStore((s) => s.mentionReferences);
   const removeMentionReference = useChatStore((s) => s.removeMentionReference);
   const keyterms = React.useMemo(() => extractKeyterms(messages), [messages]);
+  const pendingClarification = React.useMemo(
+    () => findActivePendingClarification(messages),
+    [messages],
+  );
+  const isComposerClarifyMode = pendingClarification !== null;
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
 
   const [isMobileSheetOpen, setIsMobileSheetOpen] = React.useState(false);
@@ -476,6 +483,19 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               onClose={inputHistory.close}
             />
             <QuoteCard />
+            {isComposerClarifyMode && pendingClarification ? (
+              <ClarificationInput
+                messageId={pendingClarification.messageId}
+                answered={pendingClarification.clarification.answered}
+                options={pendingClarification.clarification.options}
+                allowMultiple={pendingClarification.clarification.allowMultiple}
+                isResumeMode={pendingClarification.clarification.isResumeMode}
+                title={pendingClarification.clarification.title}
+                form={pendingClarification.clarification.form}
+                variant="composer"
+              />
+            ) : (
+              <>
             <TextareaAutosize
               ref={inputRef}
               data-chat-input
@@ -614,6 +634,8 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                 )}
               </div>
             </div>
+              </>
+            )}
           </div>
         </form>
       </div>

@@ -38,7 +38,6 @@ const PROGRESS_STEP_KEYS = new Set([
   'workflow_stage',
   'loop_guard_warn',
   'loop_guard_break',
-  'crawl_task_progress',
 ]);
 
 export function isStatusProgressStep(stepKey: string | undefined): boolean {
@@ -172,7 +171,6 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         stepKey === 'archive_restore_blocked' ||
         stepKey === 'loop_guard_warn' ||
         stepKey === 'loop_guard_break' ||
-        stepKey === 'crawl_task_progress' ||
         stepKey === 'workflow_stage'
       ) {
         const existingStep = state.messages[messageIndex].progressSteps!.find(

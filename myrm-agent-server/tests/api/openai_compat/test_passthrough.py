@@ -75,31 +75,32 @@ class TestResolvePassthroughProvider:
     """Tests for _resolve_passthrough_provider."""
 
     def test_bare_anthropic_model(self):
-        litellm_model, api_key, base_url = _resolve_passthrough_provider("claude-sonnet-4-20250514", _MOCK_PROVIDERS_DICT)
+        litellm_model, all_keys, base_url, pid = _resolve_passthrough_provider("claude-sonnet-4-20250514", _MOCK_PROVIDERS_DICT)
         assert "anthropic" in litellm_model.lower()
         assert "claude-sonnet-4-20250514" in litellm_model
-        assert api_key == "sk-ant-test-xxx"
+        assert "sk-ant-test-xxx" in all_keys
         assert base_url is None
+        assert pid == "anthropic"
 
     def test_bare_openai_model(self):
-        litellm_model, api_key, _ = _resolve_passthrough_provider("gpt-4o-mini", _MOCK_PROVIDERS_DICT)
+        litellm_model, all_keys, _, _pid = _resolve_passthrough_provider("gpt-4o-mini", _MOCK_PROVIDERS_DICT)
         assert "gpt-4o-mini" in litellm_model
-        assert api_key == "sk-test-xxx"
+        assert "sk-test-xxx" in all_keys
 
     def test_bare_deepseek_model(self):
-        litellm_model, api_key, base_url = _resolve_passthrough_provider("deepseek-chat", _MOCK_PROVIDERS_DICT)
+        litellm_model, all_keys, base_url, _pid = _resolve_passthrough_provider("deepseek-chat", _MOCK_PROVIDERS_DICT)
         assert "deepseek" in litellm_model.lower()
-        assert api_key == "sk-ds-test"
+        assert "sk-ds-test" in all_keys
         assert base_url == "https://api.deepseek.com/v1"
 
     def test_prefixed_model(self):
-        litellm_model, api_key, _ = _resolve_passthrough_provider("anthropic/claude-3-haiku", _MOCK_PROVIDERS_DICT)
+        litellm_model, all_keys, _, _pid = _resolve_passthrough_provider("anthropic/claude-3-haiku", _MOCK_PROVIDERS_DICT)
         assert "anthropic" in litellm_model.lower()
         assert "claude-3-haiku" in litellm_model
-        assert api_key == "sk-ant-test-xxx"
+        assert "sk-ant-test-xxx" in all_keys
 
     def test_case_insensitive_match(self):
-        litellm_model, _, _ = _resolve_passthrough_provider("Claude-Sonnet-4-20250514", _MOCK_PROVIDERS_DICT)
+        litellm_model, _, _, _ = _resolve_passthrough_provider("Claude-Sonnet-4-20250514", _MOCK_PROVIDERS_DICT)
         assert "claude-sonnet-4-20250514" in litellm_model.lower()
 
     def test_nonexistent_model_raises(self):
@@ -200,19 +201,17 @@ def _make_request(
 
 
 class TestBuildLitellmKwargs:
-    """Tests for _build_litellm_kwargs."""
+    """Tests for _build_litellm_kwargs with explicit credential arguments."""
 
     @pytest.mark.asyncio
     async def test_basic_kwargs(self):
-        with patch(
-            "app.api.openai_compat.passthrough._load_providers_dict",
-            new_callable=AsyncMock,
-            return_value=_MOCK_PROVIDERS_DICT,
-        ):
-            kwargs = await _build_litellm_kwargs(
-                _make_request(),
-                stream=False,
-            )
+        kwargs = await _build_litellm_kwargs(
+            _make_request(),
+            litellm_model="anthropic/claude-sonnet-4-20250514",
+            api_key="sk-ant-test-xxx",
+            base_url=None,
+            stream=False,
+        )
 
         assert "anthropic" in kwargs["model"]
         assert kwargs["api_key"] == "sk-ant-test-xxx"
@@ -221,15 +220,13 @@ class TestBuildLitellmKwargs:
 
     @pytest.mark.asyncio
     async def test_optional_params_passed(self):
-        with patch(
-            "app.api.openai_compat.passthrough._load_providers_dict",
-            new_callable=AsyncMock,
-            return_value=_MOCK_PROVIDERS_DICT,
-        ):
-            kwargs = await _build_litellm_kwargs(
-                _make_request(temperature=0.7, max_tokens=100, top_p=0.9),
-                stream=True,
-            )
+        kwargs = await _build_litellm_kwargs(
+            _make_request(temperature=0.7, max_tokens=100, top_p=0.9),
+            litellm_model="anthropic/claude-sonnet-4-20250514",
+            api_key="sk-ant-test-xxx",
+            base_url=None,
+            stream=True,
+        )
 
         assert kwargs["temperature"] == 0.7
         assert kwargs["max_tokens"] == 100
@@ -238,27 +235,15 @@ class TestBuildLitellmKwargs:
 
     @pytest.mark.asyncio
     async def test_base_url_included(self):
-        with patch(
-            "app.api.openai_compat.passthrough._load_providers_dict",
-            new_callable=AsyncMock,
-            return_value=_MOCK_PROVIDERS_DICT,
-        ):
-            kwargs = await _build_litellm_kwargs(
-                _make_request(model="deepseek-chat"),
-                stream=False,
-            )
+        kwargs = await _build_litellm_kwargs(
+            _make_request(model="deepseek-chat"),
+            litellm_model="deepseek/deepseek-chat",
+            api_key="sk-ds-test",
+            base_url="https://api.deepseek.com/v1",
+            stream=False,
+        )
 
         assert kwargs["api_base"] == "https://api.deepseek.com/v1"
-
-    @pytest.mark.asyncio
-    async def test_no_providers_raises(self):
-        with patch(
-            "app.api.openai_compat.passthrough._load_providers_dict",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            with pytest.raises(ValueError, match="No providers"):
-                await _build_litellm_kwargs(_make_request(), stream=False)
 
 
 def _mock_litellm_response(content: str = "Hello!") -> SimpleNamespace:

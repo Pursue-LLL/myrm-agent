@@ -7,30 +7,39 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { discoverMigrationSources, type DiscoveryResponse } from '@/services/migrationDiscovery';
 import { probeLocalCapabilities, type ProbeLocalResponse } from '@/services/localCapabilitiesProbe';
 import { completeOnboarding } from '@/services/onboarding';
-import { isLocalMode } from '@/lib/deploy-mode';
+import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
 import { getActiveSearchServiceConfig } from '@/store/config/searchService';
 import { hasUsableProviderAuth } from '@/store/config/providerTypes';
+import { getTelegramCredentials, type TelegramCredentials } from '@/services/channels';
 
 import MigrationWizardSection from '@/components/features/settings/sections/knowledge/MigrationWizardSection';
 import LocalCapabilitiesSetup from './LocalCapabilitiesSetup';
 import SmartRoutingStep from './SmartRoutingStep';
+import TelegramAssistantOnboardingStep from './TelegramAssistantOnboardingStep';
 import { Button } from '@/components/primitives/button';
 
 interface OnboardingWizardProps {
   onComplete: () => void;
 }
 
-type Step = 'welcome' | 'migration' | 'capabilities' | 'routing' | 'finishing';
+type Step = 'welcome' | 'migration' | 'capabilities' | 'routing' | 'telegram_assistant' | 'finishing';
 
 const WELCOME_DURATION_MS = 2500;
+
+function isTelegramConfiguredForOnboarding(creds: TelegramCredentials | null): boolean {
+  if (!creds) return false;
+  if ((creds.botToken ?? '').trim()) return true;
+  return isSandbox();
+}
 
 export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const t = useTranslations('boot');
   const [step, setStep] = useState<Step>('welcome');
   const [discovery, setDiscovery] = useState<DiscoveryResponse | null>(null);
   const [probe, setProbe] = useState<ProbeLocalResponse | null>(null);
+  const [telegramConfigured, setTelegramConfigured] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const [initDone, setInitDone] = useState(false);
 
@@ -57,15 +66,17 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
 
     const runProbes = async () => {
       try {
-        const [discRes, probeRes] = await Promise.all([
+        const [discRes, probeRes, telegramCreds] = await Promise.all([
           isLocalMode() ? discoverMigrationSources(false).catch(() => null) : Promise.resolve(null),
           isLocalMode() ? probeLocalCapabilities(false).catch(() => null) : Promise.resolve(null),
+          getTelegramCredentials().catch(() => null),
         ]);
 
         if (!mounted) return;
 
         setDiscovery(discRes);
         setProbe(probeRes);
+        setTelegramConfigured(isTelegramConfiguredForOnboarding(telegramCreds));
 
         const elapsed = Date.now() - startTime;
         const remaining = Math.max(0, WELCOME_DURATION_MS - elapsed);
@@ -94,6 +105,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         setStep('capabilities');
       } else if (shouldShowRouting()) {
         setStep('routing');
+      } else if (!telegramConfigured) {
+        setStep('telegram_assistant');
       } else {
         handleFinish();
       }
@@ -112,17 +125,25 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     setTimeout(onComplete, 400);
   }, [onComplete]);
 
-  const handleRoutingCompleteOrSkip = useCallback(() => {
+  const moveToTelegramStepOrFinish = useCallback(() => {
+    if (!telegramConfigured) {
+      setStep('telegram_assistant');
+      return;
+    }
     handleFinish();
-  }, [handleFinish]);
+  }, [handleFinish, telegramConfigured]);
+
+  const handleRoutingCompleteOrSkip = useCallback(() => {
+    moveToTelegramStepOrFinish();
+  }, [moveToTelegramStepOrFinish]);
 
   const handleCapabilitiesComplete = useCallback(() => {
     if (shouldShowRouting()) {
       setStep('routing');
     } else {
-      handleFinish();
+      moveToTelegramStepOrFinish();
     }
-  }, [shouldShowRouting, handleFinish]);
+  }, [moveToTelegramStepOrFinish, shouldShowRouting]);
 
   const handleMigrationCompleteOrSkip = useCallback(() => {
     if (isLocalMode() && (!hasEnabledProvider || !searchConfigured)) {
@@ -130,9 +151,9 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     } else if (shouldShowRouting()) {
       setStep('routing');
     } else {
-      handleFinish();
+      moveToTelegramStepOrFinish();
     }
-  }, [hasEnabledProvider, searchConfigured, shouldShowRouting, handleFinish]);
+  }, [hasEnabledProvider, moveToTelegramStepOrFinish, searchConfigured, shouldShowRouting]);
 
   if (step === 'welcome' || step === 'finishing') {
     return (
@@ -207,6 +228,21 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             </div>
             <div className="bg-card border rounded-xl p-6">
               <SmartRoutingStep onComplete={handleRoutingCompleteOrSkip} onSkip={handleRoutingCompleteOrSkip} />
+            </div>
+          </div>
+        )}
+
+        {step === 'telegram_assistant' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.telegramAssistant.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.telegramAssistant.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <TelegramAssistantOnboardingStep
+                onComplete={handleFinish}
+                onSkip={handleFinish}
+              />
             </div>
           </div>
         )}

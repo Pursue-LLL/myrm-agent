@@ -13,7 +13,9 @@ from fastapi.testclient import TestClient
 from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
 
 
-def _clarification_required_events(events: list[dict[str, object]]) -> list[dict[str, object]]:
+def _clarification_required_events(
+    events: list[dict[str, object]],
+) -> list[dict[str, object]]:
     return [event for event in events if event.get("type") == "clarification_required"]
 
 
@@ -29,7 +31,9 @@ def _message_text(events: list[dict[str, object]]) -> str:
 
 
 def _event_types(events: list[dict[str, object]]) -> list[str]:
-    return sorted({str(event.get("type")) for event in events if event.get("type") is not None})
+    return sorted(
+        {str(event.get("type")) for event in events if event.get("type") is not None}
+    )
 
 
 @pytest.mark.e2e
@@ -81,7 +85,9 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
         }
 
         initial_events = []
-        with client.stream("POST", "/api/v1/agents/agent-stream", json=initial_payload, timeout=180.0) as response:
+        with client.stream(
+            "POST", "/api/v1/agents/agent-stream", json=initial_payload, timeout=180.0
+        ) as response:
             assert response.status_code == 200
             for line in response.iter_lines():
                 if not line or not line.strip().startswith("data: "):
@@ -129,7 +135,9 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
         "resumeValue": resume_answer,
     }
     resume_events: list[dict[str, object]] = []
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_payload, timeout=180.0) as response:
+    with client.stream(
+        "POST", "/api/v1/agents/agent-stream", json=resume_payload, timeout=180.0
+    ) as response:
         assert response.status_code == 200
         for line in response.iter_lines():
             if not line or not line.strip().startswith("data: "):
@@ -145,11 +153,13 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
                 resume_events.append(data)
 
     check_e2e_errors(resume_events)
-    assert resume_events, "Resume stream should return events after clarification answer"
+    assert (
+        resume_events
+    ), "Resume stream should return events after clarification answer"
     final_text = _message_text(resume_events)
-    assert "DONE" in final_text.upper() or "langchain" in final_text.lower(), (
-        f"Expected completion after resume; final_text={final_text[:200]!r}"
-    )
+    assert (
+        "DONE" in final_text.upper() or "langchain" in final_text.lower()
+    ), f"Expected completion after resume; final_text={final_text[:200]!r}"
 
 
 @pytest.mark.e2e
@@ -200,7 +210,9 @@ def test_agent_stream_structured_clarify_skip_empty_resume(
         }
 
         initial_events = []
-        with client.stream("POST", "/api/v1/agents/agent-stream", json=initial_payload, timeout=180.0) as response:
+        with client.stream(
+            "POST", "/api/v1/agents/agent-stream", json=initial_payload, timeout=180.0
+        ) as response:
             assert response.status_code == 200
             for line in response.iter_lines():
                 if not line or not line.strip().startswith("data: "):
@@ -238,7 +250,9 @@ def test_agent_stream_structured_clarify_skip_empty_resume(
         "resumeValue": {},
     }
     resume_events: list[dict[str, object]] = []
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_payload, timeout=180.0) as response:
+    with client.stream(
+        "POST", "/api/v1/agents/agent-stream", json=resume_payload, timeout=180.0
+    ) as response:
         assert response.status_code == 200
         for line in response.iter_lines():
             if not line or not line.strip().startswith("data: "):
@@ -257,9 +271,9 @@ def test_agent_stream_structured_clarify_skip_empty_resume(
     assert resume_events, "Skip resume stream should return events"
     resume_types = _event_types(resume_events)
     assert "error" not in resume_types, f"resume stream errored: {resume_types}"
-    assert resume_types != ["clarification_required"], (
-        f"resumeValue {{}} did not progress past clarify interrupt: {resume_types}"
-    )
+    assert resume_types != [
+        "clarification_required"
+    ], f"resumeValue {{}} did not progress past clarify interrupt: {resume_types}"
     final_text = _message_text(resume_events)
     completed = (
         "DONE-SKIPPED" in final_text.upper()

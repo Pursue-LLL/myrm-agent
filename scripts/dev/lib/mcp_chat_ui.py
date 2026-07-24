@@ -88,13 +88,20 @@ class McpChatSession(CdpChatSession):
                     continue
                 raise
             except RuntimeError as exc:
+                message = str(exc)
+                if mux_attempts < max_mux_attempts and (
+                    "transport unavailable" in message.lower()
+                    or "not running after transport recovery" in message.lower()
+                ):
+                    mux_attempts += 1
+                    await asyncio.to_thread(self._client.recover_mux_transport)
+                    await asyncio.sleep(0.75 * mux_attempts)
+                    continue
                 if heal_attempts < max_heal_attempts and is_detached_frame_error(exc):
                     heal_attempts += 1
                     await self._heal_detached_page()
                     continue
-                if heal_attempts < max_heal_attempts and (
-                    is_target_closed_error(exc) or is_mux_page_heal_error(exc)
-                ):
+                if heal_attempts < max_heal_attempts and is_mux_page_heal_error(exc):
                     heal_attempts += 1
                     await self._heal_reclaimed_page()
                     continue

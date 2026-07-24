@@ -22,7 +22,9 @@ def test_server_filename_pattern_matches_harness_ssot() -> None:
 
 
 @pytest.mark.asyncio
-async def test_read_evicted_web_fetch_md_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_read_evicted_web_fetch_md_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     chat_id = "chat_web_fetch_spill"
     filename = f"web_fetch_{uuid.uuid4().hex[:8]}.md"
     evicted_dir = tmp_path / ".context" / chat_id / "evicted"
@@ -51,7 +53,9 @@ async def test_read_evicted_web_fetch_md_file(tmp_path: Path, monkeypatch: pytes
 
 
 @pytest.mark.asyncio
-async def test_read_evicted_limit_zero_returns_full_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_read_evicted_limit_zero_returns_full_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     chat_id = "chat_full_read"
     filename = f"tool_{uuid.uuid4().hex[:8]}.txt"
     evicted_dir = tmp_path / ".context" / chat_id / "evicted"
@@ -81,7 +85,9 @@ async def test_read_evicted_limit_zero_returns_full_file(tmp_path: Path, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_uecd_persist_then_api_read_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_uecd_persist_then_api_read_roundtrip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     chat_id = "chat_roundtrip"
     monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
     w_tok = workspace_root_var.set(str(tmp_path))
@@ -101,7 +107,12 @@ async def test_uecd_persist_then_api_read_roundtrip(tmp_path: Path, monkeypatch:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.get(
                 "/api/v1/files/evicted",
-                params={"chat_id": chat_id, "filename": result.evicted_ref, "offset": 0, "limit": 0},
+                params={
+                    "chat_id": chat_id,
+                    "filename": result.evicted_ref,
+                    "offset": 0,
+                    "limit": 0,
+                },
             )
 
         assert resp.status_code == 200
@@ -112,7 +123,9 @@ async def test_uecd_persist_then_api_read_roundtrip(tmp_path: Path, monkeypatch:
 
 
 @pytest.mark.asyncio
-async def test_read_evicted_rejects_invalid_filename(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_read_evicted_rejects_invalid_filename(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
 
     from app.api.files.evicted import router as evicted_router
@@ -132,7 +145,9 @@ async def test_read_evicted_rejects_invalid_filename(tmp_path: Path, monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_read_evicted_rejects_invalid_chat_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_read_evicted_rejects_invalid_chat_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
     filename = f"output_{uuid.uuid4().hex[:8]}.txt"
 
@@ -153,7 +168,9 @@ async def test_read_evicted_rejects_invalid_chat_id(tmp_path: Path, monkeypatch:
 
 
 @pytest.mark.asyncio
-async def test_read_evicted_missing_file_returns_404(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_read_evicted_missing_file_returns_404(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
     filename = f"output_{uuid.uuid4().hex[:8]}.txt"
 
@@ -175,7 +192,9 @@ async def test_read_evicted_missing_file_returns_404(tmp_path: Path, monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_read_evicted_workspace_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_read_evicted_workspace_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
     filename = f"output_{uuid.uuid4().hex[:8]}.txt"
 
@@ -199,7 +218,9 @@ async def test_read_evicted_workspace_unavailable(monkeypatch: pytest.MonkeyPatc
 
 
 @pytest.mark.asyncio
-async def test_read_evicted_dangerous_path_returns_403(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_read_evicted_dangerous_path_returns_403(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     chat_id = "chat_danger"
     filename = f"output_{uuid.uuid4().hex[:8]}.txt"
     monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
@@ -226,7 +247,9 @@ async def test_read_evicted_dangerous_path_returns_403(tmp_path: Path, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_read_evicted_path_traversal_returns_403(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_read_evicted_path_traversal_returns_403(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     chat_id = "chat_escape"
     filename = f"output_{uuid.uuid4().hex[:8]}.txt"
     monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
@@ -260,7 +283,9 @@ def test_get_workspace_root_from_registry(monkeypatch: pytest.MonkeyPatch) -> No
     from app.api.files import evicted as evicted_module
 
     monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
-    registry_mod = ModuleType("myrm_agent_harness.toolkits.code_execution.workspace.registry")
+    registry_mod = ModuleType(
+        "myrm_agent_harness.toolkits.code_execution.workspace.registry"
+    )
     registry_mod.get_active_workspace_path = lambda: "/registry/workspace"
     monkeypatch.setitem(
         sys.modules,
@@ -272,7 +297,9 @@ def test_get_workspace_root_from_registry(monkeypatch: pytest.MonkeyPatch) -> No
     assert evicted_module._get_workspace_root() == "/registry/workspace"
 
 
-def test_get_workspace_root_local_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_workspace_root_local_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import sys
     from types import ModuleType
 
@@ -282,8 +309,12 @@ def test_get_workspace_root_local_default(tmp_path: Path, monkeypatch: pytest.Mo
     default_ws = tmp_path / ".myrm" / "workspace"
     default_ws.mkdir(parents=True)
 
-    registry_mod = ModuleType("myrm_agent_harness.toolkits.code_execution.workspace.registry")
-    registry_mod.get_active_workspace_path = lambda: (_ for _ in ()).throw(RuntimeError("no registry"))
+    registry_mod = ModuleType(
+        "myrm_agent_harness.toolkits.code_execution.workspace.registry"
+    )
+    registry_mod.get_active_workspace_path = lambda: (_ for _ in ()).throw(
+        RuntimeError("no registry")
+    )
     monkeypatch.setitem(
         sys.modules,
         "myrm_agent_harness.toolkits.code_execution.workspace.registry",
@@ -296,7 +327,9 @@ def test_get_workspace_root_local_default(tmp_path: Path, monkeypatch: pytest.Mo
 
 
 @pytest.mark.asyncio
-async def test_read_evicted_read_oserror_returns_500(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_read_evicted_read_oserror_returns_500(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     chat_id = "chat_oserror"
     filename = f"output_{uuid.uuid4().hex[:8]}.txt"
     evicted_dir = tmp_path / ".context" / chat_id / "evicted"

@@ -38,8 +38,16 @@ from myrm_agent_harness.toolkits.cron.cron_agent_tools import (
     exit_cron_execution_context,
 )
 from myrm_agent_harness.toolkits.cron.heartbeat import HEARTBEAT_JOB_NAME
-from myrm_agent_harness.toolkits.cron.situation import SituationContext, SituationReportBuilder
-from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult, ScheduleKind, SessionTarget
+from myrm_agent_harness.toolkits.cron.situation import (
+    SituationContext,
+    SituationReportBuilder,
+)
+from myrm_agent_harness.toolkits.cron.types import (
+    CronJob,
+    JobResult,
+    ScheduleKind,
+    SessionTarget,
+)
 
 from .injection_scan import scan_cron_prompt
 
@@ -52,7 +60,9 @@ def _heartbeat_follow_up_delivered(job_output: str | None) -> bool:
     return bool(text) and not text.startswith("[SILENT]")
 
 
-async def _finalize_heartbeat_follow_up_delivery(job: CronJob, result: JobResult) -> None:
+async def _finalize_heartbeat_follow_up_delivery(
+    job: CronJob, result: JobResult
+) -> None:
     """Confirm or reset follow-up delivery state after a heartbeat agent run."""
     if job.name != HEARTBEAT_JOB_NAME:
         return
@@ -63,7 +73,9 @@ async def _finalize_heartbeat_follow_up_delivery(job: CronJob, result: JobResult
     )
 
     if result.success and not result.skipped:
-        await confirm_follow_up_delivery(delivered=_heartbeat_follow_up_delivered(result.output))
+        await confirm_follow_up_delivery(
+            delivered=_heartbeat_follow_up_delivered(result.output)
+        )
         return
     reset_follow_up_delivery()
 
@@ -108,7 +120,9 @@ def _stop_reason_priority(code: str) -> int:
     return 10
 
 
-def _normalize_stop_reason_payload(payload: dict[str, object] | None) -> dict[str, object] | None:
+def _normalize_stop_reason_payload(
+    payload: dict[str, object] | None,
+) -> dict[str, object] | None:
     if payload is None:
         return None
     code_obj = payload.get("code")
@@ -132,7 +146,9 @@ def _normalize_stop_reason_payload(payload: dict[str, object] | None) -> dict[st
     }
     detail_obj = payload.get("detail")
     if isinstance(detail_obj, dict):
-        normalized["detail"] = {str(k): v for k, v in detail_obj.items() if isinstance(k, str)}
+        normalized["detail"] = {
+            str(k): v for k, v in detail_obj.items() if isinstance(k, str)
+        }
     return normalized
 
 
@@ -148,7 +164,9 @@ def _extract_step_item_text(items: object) -> str | None:
     return None
 
 
-def _derive_stop_reason_from_event(event: dict[str, object]) -> dict[str, object] | None:
+def _derive_stop_reason_from_event(
+    event: dict[str, object],
+) -> dict[str, object] | None:
     event_type = event.get("type")
     if not isinstance(event_type, str):
         return None
@@ -160,7 +178,9 @@ def _derive_stop_reason_from_event(event: dict[str, object]) -> dict[str, object
             limit = detail.get("limit")
             nodes = detail.get("nodes_completed")
             if limit is not None and nodes is not None:
-                message = f"Iteration limit reached ({limit} iterations / {nodes} nodes)"
+                message = (
+                    f"Iteration limit reached ({limit} iterations / {nodes} nodes)"
+                )
             elif limit is not None:
                 message = f"Iteration limit reached ({limit} iterations)"
         payload: dict[str, object] = {
@@ -194,7 +214,9 @@ def _derive_stop_reason_from_event(event: dict[str, object]) -> dict[str, object
         payload_3: dict[str, object] = {
             "code": "agent_cancelled",
             "category": "cancelled",
-            "message": "Cancelled by user" if reason == "user_cancelled" else "Run cancelled",
+            "message": (
+                "Cancelled by user" if reason == "user_cancelled" else "Run cancelled"
+            ),
         }
         if detail is not None:
             payload_3["detail"] = detail
@@ -324,7 +346,9 @@ async def _build_daily_context(job: CronJob) -> str:
     if not fragments:
         return ""
 
-    logger.debug("Daily context for job %s: %d fragments injected", job.id, len(fragments))
+    logger.debug(
+        "Daily context for job %s: %d fragments injected", job.id, len(fragments)
+    )
     return "<daily_context>\n" + "\n---\n".join(fragments) + "\n</daily_context>"
 
 
@@ -336,7 +360,9 @@ class AgentJobRunner:
     transforming blind self-checks into intelligence-driven actions.
     """
 
-    def __init__(self, *, situation_builder: SituationReportBuilder | None = None) -> None:
+    def __init__(
+        self, *, situation_builder: SituationReportBuilder | None = None
+    ) -> None:
         self._situation_builder = situation_builder
 
     async def run(self, job: CronJob, *, context: str = "") -> JobResult:
@@ -354,7 +380,9 @@ class AgentJobRunner:
 
         return last_result
 
-    async def _inject_situation_report(self, job: CronJob, prompt: str) -> tuple[str, bool]:
+    async def _inject_situation_report(
+        self, job: CronJob, prompt: str
+    ) -> tuple[str, bool]:
         """Build and prepend a situation report for heartbeat jobs.
 
         Returns ``(effective_prompt, has_actionable_content)`` so the caller
@@ -382,15 +410,22 @@ class AgentJobRunner:
             )
             report = await self._situation_builder.build(ctx)
             if report:
-                return f"<situation_report>\n{report}</situation_report>\n\n{prompt}", True
+                return (
+                    f"<situation_report>\n{report}</situation_report>\n\n{prompt}",
+                    True,
+                )
         except Exception:
-            logger.warning("Situation report build failed for job %s", job.id, exc_info=True)
+            logger.warning(
+                "Situation report build failed for job %s", job.id, exc_info=True
+            )
             reset_follow_up_delivery()
             return prompt, True
         reset_follow_up_delivery()
         return prompt, False
 
-    async def _try_enqueue_if_goal_active(self, job: CronJob, *, context: str = "") -> bool:
+    async def _try_enqueue_if_goal_active(
+        self, job: CronJob, *, context: str = ""
+    ) -> bool:
         """If an active goal exists on this chat, enqueue the cron task as a queued goal.
 
         Returns True if the job was enqueued (caller should skip direct execution).
@@ -430,12 +465,17 @@ class AgentJobRunner:
         from app.services.budget.enforcer import should_block_execution
 
         if await should_block_execution():
-            return JobResult(success=False, error="daily budget exceeded (block policy)")
+            return JobResult(
+                success=False, error="daily budget exceeded (block policy)"
+            )
 
         if job.chat_id:
             queued = await self._try_enqueue_if_goal_active(job, context=context)
             if queued:
-                return JobResult(success=True, output="cron job enqueued as goal (active goal exists)")
+                return JobResult(
+                    success=True,
+                    output="cron job enqueued as goal (active goal exists)",
+                )
 
         effective_prompt = _build_effective_prompt(job)
 
@@ -452,9 +492,13 @@ class AgentJobRunner:
             )
 
         if self._situation_builder and job.name == HEARTBEAT_JOB_NAME:
-            effective_prompt, has_content = await self._inject_situation_report(job, effective_prompt)
+            effective_prompt, has_content = await self._inject_situation_report(
+                job, effective_prompt
+            )
             if not has_content:
-                logger.info("Heartbeat job %s: all sections empty, skipping LLM call", job.id)
+                logger.info(
+                    "Heartbeat job %s: all sections empty, skipping LLM call", job.id
+                )
                 return JobResult(success=True, skipped=True, skip_reason="no-content")
 
         if job.session_target == SessionTarget.DAILY:
@@ -473,15 +517,26 @@ class AgentJobRunner:
                 extract_fallback_model_configs,
                 extract_retrieval_models,
             )
-            from app.core.channel_bridge.model_resolver import enrich_model_context_window, resolve_model_config
+            from app.core.channel_bridge.model_resolver import (
+                enrich_model_context_window,
+                resolve_model_config,
+            )
 
             user_cfgs = await load_user_configs()
 
-            embedding_cfg, reranker_cfg = extract_retrieval_models(user_cfgs.retrieval_dict)
-            fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(user_cfgs.providers_dict)
+            embedding_cfg, reranker_cfg = extract_retrieval_models(
+                user_cfgs.retrieval_dict
+            )
+            fallback_model_cfg, fallback_lite_model_cfg = (
+                extract_fallback_model_configs(user_cfgs.providers_dict)
+            )
 
-            from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
-            from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
+            from myrm_agent_harness.toolkits.retriever.embedding.factory import (
+                EmbeddingConfig,
+            )
+            from myrm_agent_harness.toolkits.retriever.reranker.factory import (
+                RerankerConfig,
+            )
 
             GeneralAgentParams.model_rebuild(
                 _types_namespace={
@@ -495,7 +550,10 @@ class AgentJobRunner:
                 security_config_raw["yolo_mode_enabled"] = True
                 security_config_raw["yolo_mode_enabled_at"] = time.time()
                 security_config_raw["yolo_mode_timeout"] = None
-                logger.info("Cron job %s: auto-enabled YOLO mode for unattended execution", job.id)
+                logger.info(
+                    "Cron job %s: auto-enabled YOLO mode for unattended execution",
+                    job.id,
+                )
 
             agent_skill_ids: list[str] = []
             agent_subagent_ids: list[str] | None = None
@@ -505,7 +563,9 @@ class AgentJobRunner:
             agent_engine_params = None
             user_instructions: str | None = None
             agent_model_override: str | None = None
-            from app.services.agent.profile_resolver import DEFAULT_ENABLED_BUILTIN_TOOLS
+            from app.services.agent.profile_resolver import (
+                DEFAULT_ENABLED_BUILTIN_TOOLS,
+            )
 
             enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
             auto_restore_domains: list[str] = []
@@ -513,14 +573,18 @@ class AgentJobRunner:
             cron_post_run_verify = False
 
             if job.agent_id:
-                from app.services.agent.profile_resolver import get_agent_profile_resolver
+                from app.services.agent.profile_resolver import (
+                    get_agent_profile_resolver,
+                )
 
                 resolved = await get_agent_profile_resolver().resolve(job.agent_id)
                 if resolved:
                     if resolved.system_prompt:
                         user_instructions = resolved.system_prompt
                     agent_skill_ids = list(resolved.skill_ids)
-                    agent_subagent_ids = list(resolved.subagent_ids) if resolved.subagent_ids else None
+                    agent_subagent_ids = (
+                        list(resolved.subagent_ids) if resolved.subagent_ids else None
+                    )
                     agent_security_raw = resolved.security_overrides
                     agent_max_iterations = resolved.max_iterations
                     agent_memory_policy = resolved.memory_policy
@@ -529,7 +593,9 @@ class AgentJobRunner:
                     enabled_builtin_tools = list(resolved.enabled_builtin_tools)
                     auto_restore_domains = list(resolved.auto_restore_domains)
                     raw_decay = resolved.memory_decay_profile
-                    memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
+                    memory_decay_profile = (
+                        raw_decay if isinstance(raw_decay, str) else None
+                    )
                     cron_post_run_verify = resolved.cron_post_run_verify
 
                     if resolved.agent_type == "team":
@@ -542,16 +608,24 @@ class AgentJobRunner:
                             leader_id=job.agent_id,
                             dynamic_discovery=True,
                         )
-                        user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
+                        user_instructions = (
+                            f"{user_instructions}\n\n{leader_protocol}"
+                            if user_instructions
+                            else leader_protocol
+                        )
 
-            from app.core.cron.adapters.tools_policy import intersect_cron_enabled_builtin_tools
+            from app.core.cron.adapters.tools_policy import (
+                intersect_cron_enabled_builtin_tools,
+            )
 
             enabled_builtin_tools = intersect_cron_enabled_builtin_tools(
                 enabled_builtin_tools,
                 job.tools_allowed,
             )
 
-            from app.core.cron.adapters.tools_policy import resolve_cron_runtime_tool_flags
+            from app.core.cron.adapters.tools_policy import (
+                resolve_cron_runtime_tool_flags,
+            )
 
             cron_tool_flags = resolve_cron_runtime_tool_flags(
                 enabled_builtin_tools,
@@ -568,7 +642,9 @@ class AgentJobRunner:
 
             memory_shared_context_ids: list[str] = []
             try:
-                from app.services.memory.shared_context import resolve_shared_context_ids
+                from app.services.memory.shared_context import (
+                    resolve_shared_context_ids,
+                )
 
                 memory_shared_context_ids = await resolve_shared_context_ids(
                     agent_id=job.agent_id,
@@ -578,12 +654,20 @@ class AgentJobRunner:
                     task_id=job.id,
                 )
             except Exception as e:
-                logger.warning("Cron job %s: failed to resolve shared memory contexts: %s", job.id, e)
+                logger.warning(
+                    "Cron job %s: failed to resolve shared memory contexts: %s",
+                    job.id,
+                    e,
+                )
 
             memory_settings = user_cfgs.personal_settings_dict or {}
-            from app.core.memory.proactive.settings import resolve_conversation_search_enabled
+            from app.core.memory.proactive.settings import (
+                resolve_conversation_search_enabled,
+            )
 
-            from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
+            from app.services.agent.resolve_enable_web_fetch import (
+                resolve_enable_web_fetch,
+            )
 
             params = GeneralAgentParams(
                 query=effective_prompt,
@@ -618,7 +702,9 @@ class AgentJobRunner:
                 memory_decay_profile=memory_decay_profile,
                 engine_params=agent_engine_params,
                 memory_shared_context_ids=memory_shared_context_ids,
-                enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
+                enable_conversation_search=resolve_conversation_search_enabled(
+                    memory_settings
+                ),
                 notify_targets=(resolved.notify_targets if resolved else ()),
             )
 
@@ -629,9 +715,14 @@ class AgentJobRunner:
 
             from myrm_agent_harness.agent.security import user_credentials_ctx
 
-            from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+            from app.services.agent.execution_cache import (
+                ExecutionMode,
+                finalize_agent_session,
+            )
             from app.services.agent.runtime_context import build_agent_runtime_context
-            from app.services.agent.session_credential_assembler import assemble_session_credentials
+            from app.services.agent.session_credential_assembler import (
+                assemble_session_credentials,
+            )
 
             runtime_context = await build_agent_runtime_context(
                 execution_mode=ExecutionMode.EPHEMERAL,
@@ -677,8 +768,15 @@ class AgentJobRunner:
                 user_credentials_ctx.reset(cred_ctx)
 
         except asyncio.TimeoutError:
-            logger.warning("Cron agent job %s timed out after %ds", job.id, job.timeout_seconds or 300)
-            return JobResult(success=False, error=f"agent timed out after {job.timeout_seconds or 300}s")
+            logger.warning(
+                "Cron agent job %s timed out after %ds",
+                job.id,
+                job.timeout_seconds or 300,
+            )
+            return JobResult(
+                success=False,
+                error=f"agent timed out after {job.timeout_seconds or 300}s",
+            )
         except Exception as exc:
             logger.warning("Cron agent job %s failed: %s", job.id, exc)
             return JobResult(success=False, error=str(exc))
@@ -750,9 +848,13 @@ class _StreamAccumulator:
             self.stop_reason = normalized
             return
         current_code = self.stop_reason.get("code")
-        current_priority = _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
+        current_priority = (
+            _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
+        )
         next_code = normalized.get("code")
-        next_priority = _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
+        next_priority = (
+            _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
+        )
         if next_priority >= current_priority:
             self.stop_reason = normalized
 
@@ -769,10 +871,19 @@ async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:
             max_messages=30,
         )
         if history:
-            logger.debug("Cron job %s: loaded %d history entries from chat %s", job.id, len(history), job.chat_id)
+            logger.debug(
+                "Cron job %s: loaded %d history entries from chat %s",
+                job.id,
+                len(history),
+                job.chat_id,
+            )
         return history
     except Exception:
-        logger.warning("Cron job %s: failed to load thread history for chat %s", job.id, job.chat_id)
+        logger.warning(
+            "Cron job %s: failed to load thread history for chat %s",
+            job.id,
+            job.chat_id,
+        )
         return None
 
 
@@ -818,7 +929,9 @@ async def _consume_stream(
                     "tool_name": event.get("tool_name"),
                     "items": event.get("data"),
                     "count": event.get("count"),
-                    "error": event.get("error") if event.get("status") == "error" else None,
+                    "error": (
+                        event.get("error") if event.get("status") == "error" else None
+                    ),
                 }
             )
         elif event_type == "sources" and isinstance(event.get("data"), list):

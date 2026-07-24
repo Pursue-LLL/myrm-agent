@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime
+from math import ceil
 from typing import cast
 
 
@@ -102,6 +103,30 @@ def to_int(value: object) -> int:
     return int(value) if isinstance(value, (int, float)) else 0
 
 
+def extract_stream_ttft_ms(extra_data: dict[str, object] | None) -> int | None:
+    if not extra_data or not isinstance(extra_data, dict):
+        return None
+    raw = extra_data.get("streamTtftMs")
+    if isinstance(raw, (int, float)) and raw >= 0:
+        return int(raw)
+    return None
+
+
+def build_stream_ttft_summary(samples: list[int]) -> dict[str, object] | None:
+    if not samples:
+        return None
+    ordered = sorted(samples)
+    sample_count = len(ordered)
+    average_ms = round(sum(ordered) / sample_count, 2)
+    p95_index = max(0, min(sample_count - 1, ceil(sample_count * 0.95) - 1))
+    p95_ms = ordered[p95_index]
+    return {
+        "sampleCount": sample_count,
+        "avgMs": average_ms,
+        "p95Ms": p95_ms,
+    }
+
+
 _VALID_ROUTING_TIERS = frozenset({"simple", "standard", "reasoning"})
 _TIER_NORMALIZE: dict[str, str] = {"complex": "standard"}
 _MIN_STANDARD_CALLS_FOR_SAVINGS = 5
@@ -173,13 +198,18 @@ def aggregate_usage(
     model_breakdown: dict[str, dict[str, int | float]] = {}
     tier_accs: dict[str, TierAccumulator] = {}
     privacy_route_counts: dict[str, int] = {}
+    stream_ttft_samples: list[int] = []
 
     for extra_data, _ in rows:
+        extra = extra_data if isinstance(extra_data, dict) else None
+        stream_ttft = extract_stream_ttft_ms(extra)
+        if stream_ttft is not None:
+            stream_ttft_samples.append(stream_ttft)
+
         usage = extract_usage(extra_data)
         if not usage:
             continue
 
-        extra = extra_data if isinstance(extra_data, dict) else None
         acc.add(usage, extra)
 
         tier = normalize_tier(extra.get("routingTier")) if extra else None
@@ -234,6 +264,9 @@ def aggregate_usage(
             result["estimatedSavings"] = savings
     if privacy_route_counts:
         result["privacyRouteBreakdown"] = privacy_route_counts
+    stream_ttft_summary = build_stream_ttft_summary(stream_ttft_samples)
+    if stream_ttft_summary is not None:
+        result["streamTtft"] = stream_ttft_summary
     return result
 
 
@@ -242,6 +275,8 @@ __all__ = [
     "TierAccumulator",
     "aggregate_usage",
     "compute_estimated_savings",
+    "build_stream_ttft_summary",
+    "extract_stream_ttft_ms",
     "extract_usage",
     "normalize_tier",
     "normalize_usage_rows",

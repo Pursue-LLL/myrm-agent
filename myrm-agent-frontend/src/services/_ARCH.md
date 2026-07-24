@@ -24,12 +24,13 @@
 | `skill-optimization.ts` | `/skill-optimization/*` 质量历史、版本列表/对比/回滚、Shadow A/B 启动；另封装 `/batch-optimization/tasks/{id}/cancel` 与 `rollback` |
 | `memory*.ts` / `memoryArchive.ts` | 记忆、Shared Context、导入 dry-run、Memory Guardian `safe/force` 触发 + 策略配置 + `overview` 单接口（health/policy/alerts+digest，携带客户端时区头）+ 守卫不可用告警阈值契约 |
 | `migrationDiscovery.ts` | Local/Tauri 外部助手数据自动发现（Hermes / OpenClaw / Claude Code / Codex） |
+| `onboarding.ts` | Onboarding readiness/complete + Telegram assistant 一键接入编排接口 `/config/onboarding/telegram-assistant/apply` |
 | `google-workspace-oauth.ts` | `/integrations/google-workspace/oauth/*`：config/start/poll/status/disconnect；Tauri 用 shell.open |
 | `kanban.ts` | `/kanban/*`：Board/Task CRUD、move/promote/reclaim、bulk、依赖边、Specify/Decompose、Pipeline 实例化 |
 | `agent.ts` | `/user-agents/*` CRUD、密钥、快照回滚、导入导出；`getAgent(..., signal)` 支持请求级 abort；fetch 错误与 secret list normalize 见 `agentFetchErrorCore.ts` |
 | `agentFetchErrorCore.ts` | 纯函数：`parseUserAgentFetchErrorMessage`（detail/顶层 message）、`normalizeAgentSecretKeyNames`（`{key_name}[]` → `string[]`） |
 | `runs.ts` | `GET /runs`：Cron / Kanban / Shell 后台任务统一运行历史（只读聚合） |
-| `background-tasks.ts` | `GET/POST /background-tasks/*`：Panel 列表、cancel、steer |
+| `background-tasks.ts` | `GET/POST /background-tasks/*`：Panel 列表、cancel、steer、**shell stdin**（`sendShellBackgroundStdin` → `POST …/stdin`） |
 | `backgroundTasksRefresh.ts` | Panel/tray 即时刷新：`notifyBackgroundTasksChanged` + `notifyBackgroundTasksChangedForShellJobFinish`（global SSE finish） |
 | `hosting.ts` | `/artifacts/hosting/*`、publish、publications、WS URL |
 | `artifact*.ts` | 工件相关 REST |

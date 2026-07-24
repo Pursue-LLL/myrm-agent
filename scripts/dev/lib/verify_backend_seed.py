@@ -126,8 +126,15 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
     )
     from isolated_runtime_process import record_backend_process  # noqa: PLC0415
     from isolated_runtime_reaper import start_reaper_daemon  # noqa: PLC0415
-    from isolated_runtime_registry import locked_registry, read_registry, write_registry  # noqa: PLC0415
-    from isolated_runtime_allocator import isolated_root, heartbeat_runtime  # noqa: PLC0415
+    from isolated_runtime_registry import (
+        locked_registry,
+        read_registry,
+        write_registry,
+    )  # noqa: PLC0415
+    from isolated_runtime_allocator import (
+        isolated_root,
+        heartbeat_runtime,
+    )  # noqa: PLC0415
 
     active = _count_active_backend_only()
     if active >= LIVE_SHPOIB_MAX_CONCURRENT:

@@ -759,6 +759,38 @@ class TestGetActiveDesktopSession:
         assert result is agent._desktop_session
 
 
+class TestResetDesktopSessionPermissionCaches:
+    def test_clears_runtime_permission_flags(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeDesktopSession:
+            def __init__(self) -> None:
+                self._session_permission_granted = True
+                self._always_permission_granted = True
+                self._operation_foreground_waived = True
+
+            def reset_runtime_permission_cache(self) -> None:
+                self._session_permission_granted = False
+                self._always_permission_granted = False
+                self._operation_foreground_waived = False
+
+        session = FakeDesktopSession()
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._desktop_session = session
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        assert gw.reset_all_desktop_session_permission_caches() == 1
+        assert session._session_permission_granted is False
+        assert session._always_permission_granted is False
+        assert session._operation_foreground_waived is False
+
+
 class TestDesktopSessionCloseOnStreamEnd:
     """Verify that gateway finally block calls desktop session close()."""
 

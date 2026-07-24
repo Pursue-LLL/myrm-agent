@@ -43,7 +43,10 @@ from .mention import (
 )
 from .models import AgentRequest
 from .resolvers import _resolve_model_config
-from .upload_sync import inject_uploaded_files_into_query, sync_uploaded_files_to_workspace
+from .upload_sync import (
+    inject_uploaded_files_into_query,
+    sync_uploaded_files_to_workspace,
+)
 from .workspace_resolve import resolve_default_chat_workspace_dir
 
 logger = logging.getLogger(__name__)
@@ -54,6 +57,8 @@ __all__ = [
     "convert_to_general_agent_params",
     "prevalidate_archive_restore_actions",
 ]
+
+
 async def convert_to_general_agent_params(
     request: AgentRequest,
     chat_history: list[list[str | dict[str, object]]],
@@ -85,43 +90,64 @@ async def convert_to_general_agent_params(
 
         model_cfg = resolve_model_config(providers_dict)
 
-    if configs and hasattr(configs, "model_cfg") and configs.model_cfg and configs.model_cfg.max_context_tokens is not None:
-        model_cfg = model_cfg.model_copy(update={"max_context_tokens": configs.model_cfg.max_context_tokens})
+    if (
+        configs
+        and hasattr(configs, "model_cfg")
+        and configs.model_cfg
+        and configs.model_cfg.max_context_tokens is not None
+    ):
+        model_cfg = model_cfg.model_copy(
+            update={"max_context_tokens": configs.model_cfg.max_context_tokens}
+        )
 
     fallback_model_cfg = None
     if request.fallback_model_selection:
         try:
-            fallback_model_cfg = await _resolve_model_config(request.fallback_model_selection, providers_dict)
+            fallback_model_cfg = await _resolve_model_config(
+                request.fallback_model_selection, providers_dict
+            )
         except ValueError:
             logger.warning("Failed to resolve fallback model, proceeding without it")
 
     safety_fallback_model_cfg = None
     if request.safety_fallback_model_selection:
         try:
-            safety_fallback_model_cfg = await _resolve_model_config(request.safety_fallback_model_selection, providers_dict)
+            safety_fallback_model_cfg = await _resolve_model_config(
+                request.safety_fallback_model_selection, providers_dict
+            )
         except ValueError:
-            logger.warning("Failed to resolve safety fallback model, proceeding without it")
+            logger.warning(
+                "Failed to resolve safety fallback model, proceeding without it"
+            )
 
     lite_model_cfg = None
     if request.lite_model_selection:
         try:
-            lite_model_cfg = await _resolve_model_config(request.lite_model_selection, providers_dict)
+            lite_model_cfg = await _resolve_model_config(
+                request.lite_model_selection, providers_dict
+            )
         except ValueError:
             logger.warning("Failed to resolve filter model, proceeding without it")
 
     fallback_lite_model_cfg = None
     if request.fallback_lite_model_selection:
         try:
-            fallback_lite_model_cfg = await _resolve_model_config(request.fallback_lite_model_selection, providers_dict)
+            fallback_lite_model_cfg = await _resolve_model_config(
+                request.fallback_lite_model_selection, providers_dict
+            )
         except ValueError:
             pass
 
     vision_fallback_model_cfg = None
     if request.vision_fallback_model_selection:
         try:
-            vision_fallback_model_cfg = await _resolve_model_config(request.vision_fallback_model_selection, providers_dict)
+            vision_fallback_model_cfg = await _resolve_model_config(
+                request.vision_fallback_model_selection, providers_dict
+            )
         except ValueError:
-            logger.warning("Failed to resolve vision fallback model, proceeding without it")
+            logger.warning(
+                "Failed to resolve vision fallback model, proceeding without it"
+            )
 
     model_cfg, selected_source = select_tool_capable_model_cfg(
         model_cfg,
@@ -147,21 +173,27 @@ async def convert_to_general_agent_params(
             light_model_cfg = None
             if request.light_model_selection:
                 try:
-                    light_model_cfg = await _resolve_model_config(request.light_model_selection, providers_dict)
+                    light_model_cfg = await _resolve_model_config(
+                        request.light_model_selection, providers_dict
+                    )
                 except ValueError:
                     logger.warning("Failed to resolve light model")
 
             light_fallback_cfg = None
             if request.fallback_light_model_selection:
                 try:
-                    light_fallback_cfg = await _resolve_model_config(request.fallback_light_model_selection, providers_dict)
+                    light_fallback_cfg = await _resolve_model_config(
+                        request.fallback_light_model_selection, providers_dict
+                    )
                 except ValueError:
                     pass
 
             reasoning_model_cfg = None
             if request.reasoning_model_selection:
                 try:
-                    reasoning_model_cfg = await _resolve_model_config(request.reasoning_model_selection, providers_dict)
+                    reasoning_model_cfg = await _resolve_model_config(
+                        request.reasoning_model_selection, providers_dict
+                    )
                 except ValueError:
                     logger.warning("Failed to resolve reasoning model")
 
@@ -179,9 +211,13 @@ async def convert_to_general_agent_params(
                 from myrm_agent_harness.toolkits.llms import llm_manager
 
                 try:
-                    judge_llm = await llm_manager.get_llm_from_config(lite_model_cfg, "api_keys", None)
+                    judge_llm = await llm_manager.get_llm_from_config(
+                        lite_model_cfg, "api_keys", None
+                    )
                 except Exception as exc:
-                    logger.debug("Failed to create judge LLM for smart routing: %s", exc)
+                    logger.debug(
+                        "Failed to create judge LLM for smart routing: %s", exc
+                    )
 
             from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
                 RoutingTier,
@@ -194,17 +230,26 @@ async def convert_to_general_agent_params(
                     from app.database.repositories.chat_repo import ChatRepository
 
                     async with get_session() as db:
-                        tier_strings = await ChatRepository.get_recent_routing_tiers(db, request.chat_id)
+                        tier_strings = await ChatRepository.get_recent_routing_tiers(
+                            db, request.chat_id
+                        )
                     if tier_strings:
                         recent_routing_tiers = [RoutingTier(t) for t in tier_strings]
                 except Exception as exc:
                     logger.debug("Failed to fetch recent routing tiers: %s", exc)
 
             complaint_min_tier: RoutingTier | None = None
-            is_complaint_up = request.sibling_group_id and not request.regenerate_instruction
+            is_complaint_up = (
+                request.sibling_group_id and not request.regenerate_instruction
+            )
             if is_complaint_up and recent_routing_tiers:
-                _tier_next = {RoutingTier.SIMPLE: RoutingTier.STANDARD, RoutingTier.STANDARD: RoutingTier.REASONING}
-                complaint_min_tier = _tier_next.get(recent_routing_tiers[-1], RoutingTier.REASONING)
+                _tier_next = {
+                    RoutingTier.SIMPLE: RoutingTier.STANDARD,
+                    RoutingTier.STANDARD: RoutingTier.REASONING,
+                }
+                complaint_min_tier = _tier_next.get(
+                    recent_routing_tiers[-1], RoutingTier.REASONING
+                )
             elif is_complaint_up:
                 complaint_min_tier = RoutingTier.STANDARD
 
@@ -226,7 +271,9 @@ async def convert_to_general_agent_params(
             routing_tier = routing_result.tier.value
 
             if is_complaint_up and recent_routing_tiers:
-                from myrm_agent_harness.toolkits.llms.routing.complexity_router import record_misroute
+                from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
+                    record_misroute,
+                )
 
                 record_misroute(recent_routing_tiers[-1])
 
@@ -247,10 +294,16 @@ async def convert_to_general_agent_params(
     if request.retrieval_dict:
         embedding_cfg, reranker_cfg = extract_retrieval_models(request.retrieval_dict)
     else:
-        embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict) if configs else (None, None)
+        embedding_cfg, reranker_cfg = (
+            extract_retrieval_models(configs.retrieval_dict)
+            if configs
+            else (None, None)
+        )
 
     if embedding_cfg is None and reranker_cfg is None:
-        logger.debug("No embedding/reranker config in request or user retrieval settings")
+        logger.debug(
+            "No embedding/reranker config in request or user retrieval settings"
+        )
 
     mcp_configs: list[MCPServerConfig] | None = None
     if request.mcp_cfg:
@@ -266,7 +319,10 @@ async def convert_to_general_agent_params(
             for raw in org_servers:
                 if not isinstance(raw, dict) or not raw.get("name"):
                     continue
-                cfg = {**raw, "extra_params": {**(raw.get("extra_params") or {}), "scope": "org"}}
+                cfg = {
+                    **raw,
+                    "extra_params": {**(raw.get("extra_params") or {}), "scope": "org"},
+                }
                 try:
                     org_mcp_list.append(MCPServerConfig.model_validate(cfg))
                 except Exception:
@@ -306,7 +362,9 @@ async def convert_to_general_agent_params(
         if resolved:
             if not request.agent_config and resolved.system_prompt:
                 user_instructions = (
-                    f"{user_instructions}\n\n{resolved.system_prompt}" if user_instructions else resolved.system_prompt
+                    f"{user_instructions}\n\n{resolved.system_prompt}"
+                    if user_instructions
+                    else resolved.system_prompt
                 )
             # Inject Hybrid Routing Rules when browser + desktop control are both runtime-ready
             if (
@@ -314,7 +372,9 @@ async def convert_to_general_agent_params(
                 and "browser" in resolved.enabled_builtin_tools
                 and "computer_use" in resolved.enabled_builtin_tools
             ):
-                from app.config.computer_use_deploy import is_computer_use_deploy_supported
+                from app.config.computer_use_deploy import (
+                    is_computer_use_deploy_supported,
+                )
 
                 hybrid_ready = is_computer_use_deploy_supported()
             else:
@@ -330,12 +390,16 @@ async def convert_to_general_agent_params(
                     "4. If 'browser_snapshot' or 'browser_interact_tool' warns you that an OS dialog is blocking the page, immediately switch to 'desktop_snapshot' and 'desktop_interact_tool'."
                 )
                 user_instructions = (
-                    f"{user_instructions}{hybrid_routing_rule}" if user_instructions else hybrid_routing_rule.strip()
+                    f"{user_instructions}{hybrid_routing_rule}"
+                    if user_instructions
+                    else hybrid_routing_rule.strip()
                 )
 
             agent_skill_ids = list(resolved.skill_ids)
             agent_skill_configs = resolved.skill_configs
-            agent_subagent_ids = list(resolved.subagent_ids) if resolved.subagent_ids else None
+            agent_subagent_ids = (
+                list(resolved.subagent_ids) if resolved.subagent_ids else None
+            )
             agent_security_raw = resolved.security_overrides
             enabled_builtin_tools = list(resolved.enabled_builtin_tools)
             agent_max_iterations = resolved.max_iterations
@@ -359,7 +423,9 @@ async def convert_to_general_agent_params(
                         model_kwargs=resolved.model_kwargs,
                     )
                     try:
-                        model_cfg = await _resolve_model_config(agent_model_selection, providers_dict)
+                        model_cfg = await _resolve_model_config(
+                            agent_model_selection, providers_dict
+                        )
                     except Exception:
                         logger.warning(
                             "Failed to resolve agent model '%s' with kwargs, keeping default",
@@ -371,7 +437,9 @@ async def convert_to_general_agent_params(
                     )
 
                     try:
-                        model_cfg = _resolve_override_model(providers_dict, model_override=resolved.model)
+                        model_cfg = _resolve_override_model(
+                            providers_dict, model_override=resolved.model
+                        )
                     except Exception:
                         logger.warning(
                             "Failed to resolve agent model '%s', keeping default",
@@ -386,19 +454,32 @@ async def convert_to_general_agent_params(
                     leader_id=request.agent_id,
                     dynamic_discovery=True,
                 )
-                user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
+                user_instructions = (
+                    f"{user_instructions}\n\n{leader_protocol}"
+                    if user_instructions
+                    else leader_protocol
+                )
 
             from app.ai_agents.personality_templates import (
                 DEFAULT_PERSONALITY_STYLE,
                 get_personality_template,
             )
 
-            if resolved.personality_style and resolved.personality_style != DEFAULT_PERSONALITY_STYLE:
+            if (
+                resolved.personality_style
+                and resolved.personality_style != DEFAULT_PERSONALITY_STYLE
+            ):
                 try:
-                    template = get_personality_template(cast(PersonalityStyleLiteral, resolved.personality_style))
-                    personality_suffix = f"\n\n**Communication Style**: {template.system_prompt_suffix}"
+                    template = get_personality_template(
+                        cast(PersonalityStyleLiteral, resolved.personality_style)
+                    )
+                    personality_suffix = (
+                        f"\n\n**Communication Style**: {template.system_prompt_suffix}"
+                    )
                     user_instructions = (
-                        f"{user_instructions}{personality_suffix}" if user_instructions else personality_suffix.strip()
+                        f"{user_instructions}{personality_suffix}"
+                        if user_instructions
+                        else personality_suffix.strip()
                     )
                 except Exception:
                     logger.warning(
@@ -432,9 +513,21 @@ async def convert_to_general_agent_params(
             agent_skill_configs = cfg.skill_configs
         enabled_builtin_tools = cfg.enabled_builtin_tools
         auto_restore_domains = list(cfg.auto_restore_domains)
-        browser_source = cfg.browser_source if hasattr(cfg, "browser_source") else (resolved.browser_source if resolved else None)
-        dialog_policy = cfg.dialog_policy if hasattr(cfg, "dialog_policy") else (resolved.dialog_policy if resolved else None)
-        session_recording = cfg.session_recording if hasattr(cfg, "session_recording") else (resolved.session_recording if resolved else None)
+        browser_source = (
+            cfg.browser_source
+            if hasattr(cfg, "browser_source")
+            else (resolved.browser_source if resolved else None)
+        )
+        dialog_policy = (
+            cfg.dialog_policy
+            if hasattr(cfg, "dialog_policy")
+            else (resolved.dialog_policy if resolved else None)
+        )
+        session_recording = (
+            cfg.session_recording
+            if hasattr(cfg, "session_recording")
+            else (resolved.session_recording if resolved else None)
+        )
         kanban_default_board_id = (
             cfg.kanban_default_board_id
             if hasattr(cfg, "kanban_default_board_id")
@@ -450,7 +543,9 @@ async def convert_to_general_agent_params(
         tool_gateway_config = resolved.tool_gateway_config if resolved else None
 
     if tool_gateway_config and isinstance(tool_gateway_config, dict):
-        if tool_gateway_config.get("use_gateway") and not tool_gateway_config.get("auth_token"):
+        if tool_gateway_config.get("use_gateway") and not tool_gateway_config.get(
+            "auth_token"
+        ):
             logger.warning(
                 "tool_gateway_config.use_gateway is true but auth_token is missing; disabling gateway routing"
             )
@@ -464,7 +559,11 @@ async def convert_to_general_agent_params(
 
     if request.regenerate_instruction:
         regen_suffix = f"\n\n[Regeneration guidance: {request.regenerate_instruction}]"
-        user_instructions = f"{user_instructions}{regen_suffix}" if user_instructions else regen_suffix.strip()
+        user_instructions = (
+            f"{user_instructions}{regen_suffix}"
+            if user_instructions
+            else regen_suffix.strip()
+        )
 
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
@@ -510,41 +609,77 @@ async def convert_to_general_agent_params(
         enrich_model_context_window,
     )
 
-    selection_vision = request.model_selection.supports_vision if request.model_selection else None
-    model_cfg = enrich_model_capabilities(model_cfg, providers_dict, selection_supports_vision=selection_vision)
+    selection_vision = (
+        request.model_selection.supports_vision if request.model_selection else None
+    )
+    model_cfg = enrich_model_capabilities(
+        model_cfg, providers_dict, selection_supports_vision=selection_vision
+    )
     model_cfg = enrich_model_context_window(model_cfg, providers_dict)
     if fallback_model_cfg:
-        fb_vision = request.fallback_model_selection.supports_vision if request.fallback_model_selection else None
-        fallback_model_cfg = enrich_model_capabilities(fallback_model_cfg, providers_dict, selection_supports_vision=fb_vision)
-        fallback_model_cfg = enrich_model_context_window(fallback_model_cfg, providers_dict)
+        fb_vision = (
+            request.fallback_model_selection.supports_vision
+            if request.fallback_model_selection
+            else None
+        )
+        fallback_model_cfg = enrich_model_capabilities(
+            fallback_model_cfg, providers_dict, selection_supports_vision=fb_vision
+        )
+        fallback_model_cfg = enrich_model_context_window(
+            fallback_model_cfg, providers_dict
+        )
     if safety_fallback_model_cfg:
-        sf_vision = request.safety_fallback_model_selection.supports_vision if request.safety_fallback_model_selection else None
+        sf_vision = (
+            request.safety_fallback_model_selection.supports_vision
+            if request.safety_fallback_model_selection
+            else None
+        )
         safety_fallback_model_cfg = enrich_model_capabilities(
             safety_fallback_model_cfg,
             providers_dict,
             selection_supports_vision=sf_vision,
         )
-        safety_fallback_model_cfg = enrich_model_context_window(safety_fallback_model_cfg, providers_dict)
+        safety_fallback_model_cfg = enrich_model_context_window(
+            safety_fallback_model_cfg, providers_dict
+        )
     if lite_model_cfg:
-        lite_vision = request.lite_model_selection.supports_vision if request.lite_model_selection else None
-        lite_model_cfg = enrich_model_capabilities(lite_model_cfg, providers_dict, selection_supports_vision=lite_vision)
+        lite_vision = (
+            request.lite_model_selection.supports_vision
+            if request.lite_model_selection
+            else None
+        )
+        lite_model_cfg = enrich_model_capabilities(
+            lite_model_cfg, providers_dict, selection_supports_vision=lite_vision
+        )
         lite_model_cfg = enrich_model_context_window(lite_model_cfg, providers_dict)
     if fallback_lite_model_cfg:
-        fl_vision = request.fallback_lite_model_selection.supports_vision if request.fallback_lite_model_selection else None
+        fl_vision = (
+            request.fallback_lite_model_selection.supports_vision
+            if request.fallback_lite_model_selection
+            else None
+        )
         fallback_lite_model_cfg = enrich_model_capabilities(
             fallback_lite_model_cfg,
             providers_dict,
             selection_supports_vision=fl_vision,
         )
-        fallback_lite_model_cfg = enrich_model_context_window(fallback_lite_model_cfg, providers_dict)
+        fallback_lite_model_cfg = enrich_model_context_window(
+            fallback_lite_model_cfg, providers_dict
+        )
     if vision_fallback_model_cfg:
-        vf_vision = request.vision_fallback_model_selection.supports_vision if request.vision_fallback_model_selection else None
+        vf_vision = (
+            request.vision_fallback_model_selection.supports_vision
+            if request.vision_fallback_model_selection
+            else None
+        )
         vision_fallback_model_cfg = enrich_model_capabilities(
             vision_fallback_model_cfg,
             providers_dict,
             selection_supports_vision=vf_vision,
         )
-        vision_fallback_model_cfg = enrich_model_context_window(vision_fallback_model_cfg, providers_dict)
+        vision_fallback_model_cfg = enrich_model_context_window(
+            vision_fallback_model_cfg, providers_dict
+        )
 
     jit_subagents = request.ephemeral_subagents
     session_loaded_skill_names: list[str] | None = None
@@ -594,10 +729,13 @@ async def convert_to_general_agent_params(
         if isinstance(result, str):
             sandbox_worktree_dir = result
             chat_workspace_dir = sandbox_worktree_dir
-            await ChatService.update_chat_fields(request.chat_id, {
-                "workspace_dir": sandbox_worktree_dir,
-                "sandbox_base_dir": original_workspace,
-            })
+            await ChatService.update_chat_fields(
+                request.chat_id,
+                {
+                    "workspace_dir": sandbox_worktree_dir,
+                    "sandbox_base_dir": original_workspace,
+                },
+            )
 
     memory_shared_context_ids: list[str] = []
     try:
@@ -611,7 +749,9 @@ async def convert_to_general_agent_params(
             project_id=chat.project_id if chat_loaded and chat else None,
         )
     except Exception as e:
-        logger.warning("Failed to resolve shared memory contexts for agent request: %s", e)
+        logger.warning(
+            "Failed to resolve shared memory contexts for agent request: %s", e
+        )
 
     from app.config.settings import get_settings
 
@@ -637,8 +777,13 @@ async def convert_to_general_agent_params(
 
     if request.mention_references and chat_workspace_dir:
         max_ctx_tokens = model_cfg.max_context_tokens if model_cfg else None
-        mention_ctx, mention_context_warnings, mention_tokens = await _build_mention_reference_context(
-            request.mention_references, chat_workspace_dir, max_ctx_tokens, request.agent_id
+        mention_ctx, mention_context_warnings, mention_tokens = (
+            await _build_mention_reference_context(
+                request.mention_references,
+                chat_workspace_dir,
+                max_ctx_tokens,
+                request.agent_id,
+            )
         )
         mention_warnings.extend(mention_context_warnings)
         if mention_ctx:
@@ -652,9 +797,13 @@ async def convert_to_general_agent_params(
 
     if request.uploaded_file_ids and chat_workspace_dir:
         try:
-            synced = await sync_uploaded_files_to_workspace(request.uploaded_file_ids, chat_workspace_dir)
+            synced = await sync_uploaded_files_to_workspace(
+                request.uploaded_file_ids, chat_workspace_dir
+            )
             if synced:
-                final_query = inject_uploaded_files_into_query(final_query, synced, workspace_dir=chat_workspace_dir)
+                final_query = inject_uploaded_files_into_query(
+                    final_query, synced, workspace_dir=chat_workspace_dir
+                )
                 logger.info("Synced %d uploaded files to workspace", len(synced))
         except Exception:
             logger.warning("Failed to sync uploaded files to workspace", exc_info=True)
@@ -695,7 +844,9 @@ async def convert_to_general_agent_params(
             logger.warning("Failed to inject mentioned agents directive: %s", e)
 
     declared_caps = set()
-    if security_config_dict and isinstance(security_config_dict.get("capabilities"), list):
+    if security_config_dict and isinstance(
+        security_config_dict.get("capabilities"), list
+    ):
         for c in security_config_dict["capabilities"]:
             if isinstance(c, str):
                 declared_caps.add(c)
@@ -707,13 +858,17 @@ async def convert_to_general_agent_params(
     is_fast_search = request.action_mode == "fast"
     search_depth: str = "normal"
     if is_fast_search:
-        search_depth = request.search_depth if request.search_depth in ("normal", "deep") else "normal"
+        search_depth = (
+            request.search_depth
+            if request.search_depth in ("normal", "deep")
+            else "normal"
+        )
         # Deep vs normal differs by search_depth (sufficiency, prompt suffix, limits),
         # not browser — deep workflow is web_search → web_fetch → answer self-review.
         fast_builtin: list[str] = ["answer_tool"]
         tool_flags = resolve_agent_mount(
             ExecutionSurface.WEB_FAST,
-            resolve_builtin_tool_flags(fast_builtin),
+            resolve_builtin_tool_flags(fast_builtin, allow_answer_tool=True),
         )
         prompt_mode = "search"
         search_available = True
@@ -761,12 +916,17 @@ async def convert_to_general_agent_params(
         kanban_default_board_id=kanban_default_board_id,
         enable_memory=request.enable_memory,
         memory_require_confirmation=request.memory_require_confirmation,
-        enable_memory_auto_extraction=False
-        if request.incognito_mode
-        else (request.enable_memory and request.enable_memory_auto_extraction),
-        enable_conversation_search=request.enable_conversation_search and not request.incognito_mode,
+        enable_memory_auto_extraction=(
+            False
+            if request.incognito_mode
+            else (request.enable_memory and request.enable_memory_auto_extraction)
+        ),
+        enable_conversation_search=request.enable_conversation_search
+        and not request.incognito_mode,
         incognito_mode=request.incognito_mode,
-        enable_advanced_retrieval=request.enable_advanced_retrieval if not is_fast_search else False,
+        enable_advanced_retrieval=(
+            request.enable_advanced_retrieval if not is_fast_search else False
+        ),
         embedding_config=embedding_cfg if not is_fast_search else None,
         reranker_config=reranker_cfg if not is_fast_search else None,
         auto_restore_domains=auto_restore_domains if not is_fast_search else [],
@@ -804,7 +964,9 @@ async def convert_to_general_agent_params(
         quote=request.quote,
         jit_subagents=jit_subagents if not is_fast_search else None,
         session_loaded_skill_names=(
-            session_loaded_skill_names if not is_fast_search and not request.incognito_mode else None
+            session_loaded_skill_names
+            if not is_fast_search and not request.incognito_mode
+            else None
         ),
         declared_capabilities=tuple(declared_caps),
         declared_allowed_roots=(chat_workspace_dir,) if chat_workspace_dir else (),
@@ -812,7 +974,9 @@ async def convert_to_general_agent_params(
         openapi_services=openapi_services,
         prompt_mode=prompt_mode,
         search_depth=search_depth,
-        notify_targets=resolved.notify_targets if resolved and not is_fast_search else (),
+        notify_targets=(
+            resolved.notify_targets if resolved and not is_fast_search else ()
+        ),
         tool_gateway_config=tool_gateway_config,
         client_surface=request.client_surface,
     )

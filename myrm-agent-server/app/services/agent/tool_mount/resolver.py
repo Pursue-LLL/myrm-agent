@@ -5,7 +5,7 @@
 - surfaces.ExecutionSurface (POS: product entry surface)
 
 [OUTPUT]
-- resolve_agent_mount: surface + profile flags → meta mount flags
+- resolve_agent_mount: surface + profile flags → meta mount flags (incl. enable_evicted_read on WEB_FAST)
 - apply_ptc_meta_mount: MCP PTC dependency injection at factory time
 
 [POS]
@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 def resolve_agent_mount(
     surface: ExecutionSurface,
     profile_flags: BuiltinToolFlags,
@@ -33,19 +34,26 @@ def resolve_agent_mount(
 ) -> BuiltinToolFlags:
     """Apply entry-surface meta mount policy on top of profile entitlement flags.
 
-    - ``WEB_FAST``: no file/shell meta tools (search track).
+    - ``WEB_FAST``: no write/shell meta tools; UECD read-only ``file_read_tool`` only.
     - General surfaces: force file + shell meta tools (agent baseline).
     - ``CRON`` with ``cron_job_tools_allowed``: honor intersected allow-list only.
     """
     from app.services.agent.profile_resolver import BuiltinToolFlags
 
     if surface == ExecutionSurface.WEB_FAST:
-        return _with_meta_mount(profile_flags, enable_file_ops=False, enable_shell_tools=False)
+        return _with_meta_mount(
+            profile_flags,
+            enable_file_ops=False,
+            enable_shell_tools=False,
+            enable_evicted_read=True,
+        )
 
     if surface == ExecutionSurface.CRON and cron_job_tools_allowed is not None:
         return profile_flags
 
-    return _with_meta_mount(profile_flags, enable_file_ops=True, enable_shell_tools=True)
+    return _with_meta_mount(
+        profile_flags, enable_file_ops=True, enable_shell_tools=True
+    )
 
 
 def apply_ptc_meta_mount(
@@ -76,13 +84,20 @@ def _with_meta_mount(
     *,
     enable_file_ops: bool,
     enable_shell_tools: bool,
+    enable_evicted_read: bool | None = None,
 ) -> BuiltinToolFlags:
     from app.services.agent.profile_resolver import BuiltinToolFlags
 
+    resolved_evicted_read = (
+        flags["enable_evicted_read"]
+        if enable_evicted_read is None
+        else enable_evicted_read
+    )
     return BuiltinToolFlags(
         enable_browser=flags["enable_browser"],
         enable_computer_use=flags["enable_computer_use"],
         enable_file_ops=enable_file_ops,
+        enable_evicted_read=resolved_evicted_read,
         enable_shell_tools=enable_shell_tools,
         enable_wiki=flags["enable_wiki"],
         enable_kanban=flags["enable_kanban"],
@@ -92,5 +107,4 @@ def _with_meta_mount(
         enable_planning=flags["enable_planning"],
         enable_structured_clarify=flags["enable_structured_clarify"],
         enable_external_cli=flags["enable_external_cli"],
-        enable_web_crawl=flags["enable_web_crawl"],
     )

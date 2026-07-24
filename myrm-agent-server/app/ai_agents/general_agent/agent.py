@@ -87,13 +87,13 @@ class GeneralAgent(ToolSetupMixin):
         client_surface: str | None = None,
         enable_web_search: bool = True,
         enable_web_fetch: bool = True,
-        enable_web_crawl: bool = False,
         enable_browser: bool = False,
         browser_source: str | None = None,
         dialog_policy: str | None = None,
         session_recording: str | None = None,
         enable_computer_use: bool = False,
         enable_file_ops: bool = True,
+        enable_evicted_read: bool = False,
         enable_shell_tools: bool = True,
         enable_wiki: bool = False,
         enable_kanban: bool = False,
@@ -189,13 +189,13 @@ class GeneralAgent(ToolSetupMixin):
         self.client_surface = client_surface
         self.enable_web_search = enable_web_search
         self.enable_web_fetch = enable_web_fetch
-        self.enable_web_crawl = enable_web_crawl
         self.enable_browser = enable_browser
         self.browser_source = browser_source
         self.dialog_policy = dialog_policy
         self.session_recording = session_recording
         self.enable_computer_use = enable_computer_use
         self.enable_file_ops = enable_file_ops
+        self.enable_evicted_read = enable_evicted_read
         self.enable_shell_tools = enable_shell_tools
         self.enable_wiki = enable_wiki
         self.enable_kanban = enable_kanban
@@ -280,7 +280,10 @@ class GeneralAgent(ToolSetupMixin):
         """Resolve shared read-only wiki vaults bound to this agent."""
         from app.services.wiki.vault_resolver import resolve_shared_wiki_vault_paths
 
-        return [str(path) for path in resolve_shared_wiki_vault_paths(self.memory_shared_context_ids)]
+        return [
+            str(path)
+            for path in resolve_shared_wiki_vault_paths(self.memory_shared_context_ids)
+        ]
 
     def _build_wiki_search_fn(
         self,
@@ -316,13 +319,17 @@ class GeneralAgent(ToolSetupMixin):
 
         return _wiki_bm25_search
 
-    def _resolve_context_binding(self, effective_chat_id: str) -> ResolvedContextBinding | None:
+    def _resolve_context_binding(
+        self, effective_chat_id: str
+    ) -> ResolvedContextBinding | None:
         """Resolve the unified context binding contract for the current agent run."""
 
         if not self.enable_memory or self.incognito_mode:
             return None
 
-        task_root = self.declared_allowed_roots[0] if self.declared_allowed_roots else None
+        task_root = (
+            self.declared_allowed_roots[0] if self.declared_allowed_roots else None
+        )
         return resolve_context_binding(
             namespaces=None,
             agent_id=self.agent_id or "default",
@@ -338,7 +345,9 @@ class GeneralAgent(ToolSetupMixin):
         self,
         *,
         query: object,
-        chat_history: (list[list[str]] | list[list[str | object]] | Sequence[BaseMessage] | None),
+        chat_history: (
+            list[list[str]] | list[list[str | object]] | Sequence[BaseMessage] | None
+        ),
         effective_chat_id: str,
     ) -> dict[str, object]:
         """Build server-layer runtime context passed into the harness."""
@@ -376,7 +385,10 @@ class GeneralAgent(ToolSetupMixin):
         if self.model_cfg.max_context_tokens:
             context["max_context_tokens"] = self.model_cfg.max_context_tokens
 
-        if self.engine_params and self.engine_params.get("compress_start_ratio") is not None:
+        if (
+            self.engine_params
+            and self.engine_params.get("compress_start_ratio") is not None
+        ):
             context["compress_start_ratio"] = self.engine_params["compress_start_ratio"]
 
         context["supports_vision"] = self.model_cfg.supports_vision
@@ -411,7 +423,9 @@ class GeneralAgent(ToolSetupMixin):
                 SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY,
             )
 
-            context[SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY] = list(self.session_loaded_skill_names)
+            context[SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY] = list(
+                self.session_loaded_skill_names
+            )
 
         return context
 
@@ -469,9 +483,13 @@ class GeneralAgent(ToolSetupMixin):
                     cleanup_session_context_files,
                 )
 
-                await cleanup_session_context_files(self._current_chat_id, self._executor)
+                await cleanup_session_context_files(
+                    self._current_chat_id, self._executor
+                )
             except Exception as e:
-                logger.warning(f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}")
+                logger.warning(
+                    f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}"
+                )
 
     async def close(self) -> None:
         """Close Agent and release resources."""
@@ -508,9 +526,13 @@ class GeneralAgent(ToolSetupMixin):
                     cleanup_session_context_files,
                 )
 
-                await cleanup_session_context_files(self._current_chat_id, self._executor)
+                await cleanup_session_context_files(
+                    self._current_chat_id, self._executor
+                )
             except Exception as e:
-                logger.warning(f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}")
+                logger.warning(
+                    f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}"
+                )
 
         if self.agent is not None:
             try:
@@ -539,7 +561,7 @@ class GeneralAgent(ToolSetupMixin):
             harness_dir = get_settings().database.harness_dir
             relative_path = str(video_path)
             if relative_path.startswith(harness_dir):
-                relative_path = relative_path[len(harness_dir):]
+                relative_path = relative_path[len(harness_dir) :]
                 if relative_path.startswith("/"):
                     relative_path = relative_path[1:]
 

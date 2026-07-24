@@ -184,6 +184,25 @@ class TestAgentBuiltinToolsCRUD:
         detail = resp.json()["detail"]
         assert any("image_gen" in str(item.get("msg", "")) for item in detail)
 
+    def test_create_agent_rejects_legacy_web_crawl(self, auth_headers: dict[str, str]) -> None:
+        """Removed web_crawl product path must be rejected at API boundary with 422."""
+        payload = {
+            "name": "Legacy Web Crawl Agent",
+            "system_prompt": "",
+            "mcp_ids": [],
+            "skill_ids": [],
+            "enabled_builtin_tools": ["web_search", "web_crawl"],
+        }
+        resp = _e2e_request(
+            "POST",
+            f"{BASE_URL}/api/v1/user-agents",
+            json=payload,
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("web_crawl" in str(item.get("msg", "")) for item in detail)
+
     def test_create_agent_rejects_unknown_builtin_tool_id(self, auth_headers: dict[str, str]) -> None:
         """Unknown tool IDs must be rejected at API boundary with 422."""
         payload = {
@@ -217,6 +236,20 @@ class TestAgentBuiltinToolsCRUD:
         detail = resp.json()["detail"]
         assert any("task_tracking" in str(item.get("msg", "")) for item in detail)
 
+    def test_update_agent_rejects_legacy_web_crawl(
+        self, auth_headers: dict[str, str], created_agent_id: str
+    ) -> None:
+        """Removed web_crawl must be rejected on PUT with 422."""
+        resp = _e2e_request(
+            "PUT",
+            f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
+            json={"enabled_builtin_tools": ["web_search", "web_crawl"]},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("web_crawl" in str(item.get("msg", "")) for item in detail)
+
     def test_update_agent_rejects_unknown_builtin_tool_id(
         self, auth_headers: dict[str, str], created_agent_id: str
     ) -> None:
@@ -232,9 +265,14 @@ class TestAgentBuiltinToolsCRUD:
         assert any("unknown" in str(item.get("msg", "")).lower() for item in detail)
 
     def test_builtin_preset_tools_match_initializer_spec(self, auth_headers: dict[str, str]) -> None:
-        """Gallery SSOT: all 24 built-in agents expose canonical tool matrices."""
+        """Gallery SSOT: visible built-in agents expose canonical tool matrices."""
         from app.services.agent.builtin_initializer import _BUILTIN_AGENTS
         from app.services.agent.builtin_tool_ids import normalize_enabled_builtin_tools
+        from app.services.features.product_surface import HIDDEN_BUILTIN_AGENT_IDS
+
+        visible_specs = [
+            spec for spec in _BUILTIN_AGENTS if spec.id not in HIDDEN_BUILTIN_AGENT_IDS
+        ]
 
         resp = _e2e_request(
             "GET",
@@ -248,10 +286,23 @@ class TestAgentBuiltinToolsCRUD:
             for item in items
             if item.get("is_built_in")
         }
-        assert len(api_by_id) == len(_BUILTIN_AGENTS)
-        for spec in _BUILTIN_AGENTS:
+        assert len(api_by_id) == len(visible_specs)
+        for spec in visible_specs:
             assert normalize_enabled_builtin_tools(api_by_id[spec.id]) == list(
                 spec.enabled_builtin_tools or ()
+            )
+
+        for hidden_id in HIDDEN_BUILTIN_AGENT_IDS:
+            hidden_resp = _e2e_request(
+                "GET",
+                f"{BASE_URL}/api/v1/user-agents/{hidden_id}",
+                headers=auth_headers,
+            )
+            assert hidden_resp.status_code == 200
+            hidden_spec = next(spec for spec in _BUILTIN_AGENTS if spec.id == hidden_id)
+            hidden_tools = hidden_resp.json()["data"]["enabled_builtin_tools"]
+            assert normalize_enabled_builtin_tools(hidden_tools) == list(
+                hidden_spec.enabled_builtin_tools or ()
             )
 
 

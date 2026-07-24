@@ -36,6 +36,12 @@ export interface EstimatedSavings {
   savingsPercent: number;
 }
 
+export interface StreamTtftStats {
+  sampleCount: number;
+  avgMs: number;
+  p95Ms: number;
+}
+
 export interface UsageStats {
   calls: number;
   inputTokens: number;
@@ -48,6 +54,7 @@ export interface UsageStats {
   cacheSavingsUsd?: number;
   cacheHitRate: number;
   modelBreakdown: Record<string, ModelBreakdown>;
+  streamTtft?: StreamTtftStats;
   routingBreakdown?: Record<string, TierStats>;
   estimatedSavings?: EstimatedSavings;
   privacyRouteBreakdown?: Record<string, number>;
@@ -237,6 +244,7 @@ export interface SessionAnalytics {
   task_metrics: Record<string, unknown>;
   context_health: ContextHealth;
   token_economics?: TokenEconomicsSnapshot;
+  streamTtft?: StreamTtftStats;
 }
 
 export interface TokenEconomicsSnapshot {

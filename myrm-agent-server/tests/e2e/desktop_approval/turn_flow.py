@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import platform
 import subprocess
 import time
@@ -37,7 +38,7 @@ from tests.e2e.desktop_approval.trust_api import (
     list_trusted_apps_via_api,
     server_pending_approval_count,
 )
-from tests.support.e2e_lite_model_pin import pin_lite_model_for_e2e
+from tests.support.e2e_desktop_model_pin import pin_basic_model_for_desktop_e2e
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
 
 
@@ -491,12 +492,25 @@ async def wait_for_approval_banner_clickable(
     )
 
 
+def _wall_clock_start() -> float:
+    from tests.support.e2e_wall_progress import reset_e2e_wall_budget_clock
+
+    reset_e2e_wall_budget_clock()
+    raw = os.environ.get("MYRM_E2E_WALL_STARTED_MONOTONIC", "").strip()
+    if raw:
+        try:
+            return float(raw)
+        except ValueError:
+            pass
+    return time.monotonic()
+
+
 async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> str:
-    wall_started_at = time.monotonic()
+    wall_started_at = _wall_clock_start()
     progress("new chat + ensure surface")
     await chat.click_new_chat()
     await chat.ensure_chat_surface(BASE_URL)
-    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+    await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
     await ensure_textedit_fixture_ready()
 
     progress("enable computer_use")
@@ -507,8 +521,8 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     assert tools_setup.get("ok") is True, f"computer_use bridge failed: {tools_setup}"
     assert "computer_use" in (tools_setup.get("tools") or []), tools_setup
 
-    progress("pin LITE_MODEL from .env.test before agent send")
-    await pin_lite_model_for_e2e(chat)
+    progress("pin BASIC_MODEL from .env.test before agent send")
+    await pin_basic_model_for_desktop_e2e(chat)
 
     provider_debug = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",

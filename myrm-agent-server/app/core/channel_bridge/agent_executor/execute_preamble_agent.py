@@ -17,7 +17,9 @@ from __future__ import annotations
 import logging
 
 from langgraph.types import Command
-from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
+from myrm_agent_harness.agent.middlewares.approval.scheduler import (
+    ApprovalTimeoutScheduler,
+)
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
 
@@ -105,7 +107,9 @@ async def build_channel_execution_agent(
             configs.providers_dict,
             model_override=resolved_profile.model,
         )
-        agent_model_cfg = enrich_model_context_window(agent_model_cfg, configs.providers_dict)
+        agent_model_cfg = enrich_model_context_window(
+            agent_model_cfg, configs.providers_dict
+        )
     else:
         agent_model_cfg = configs.model_cfg
 
@@ -131,10 +135,16 @@ async def build_channel_execution_agent(
         else:
             err_msg = get_text(msg, "search_unreachable")
         return ChannelAgentBuildOutcome(
-            early_reply=msg.get_or_create_correlation_context().create_reply(content=err_msg),
+            early_reply=msg.get_or_create_correlation_context().create_reply(
+                content=err_msg
+            ),
         )
 
-    from app.ai_agents.general_agent.context import set_current_agent_id, set_current_chat_id, set_current_turn_id
+    from app.ai_agents.general_agent.context import (
+        set_current_agent_id,
+        set_current_chat_id,
+        set_current_turn_id,
+    )
 
     turn_id = msg.metadata.get("turn_id") or msg.message_id or "unknown"
     set_current_turn_id(turn_id)
@@ -175,12 +185,20 @@ async def build_channel_execution_agent(
         ),
         auto_restore_domains=auto_restore_domains,
         enable_advanced_retrieval=bool(
-            configs.retrieval_dict.get("enableAdvancedRetrieval") if configs.retrieval_dict else False
+            configs.retrieval_dict.get("enableAdvancedRetrieval")
+            if configs.retrieval_dict
+            else False
         ),
-        memory_require_confirmation=bool(memory_settings.get("memoryRequireConfirmation")),
-        enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction")),
+        memory_require_confirmation=bool(
+            memory_settings.get("memoryRequireConfirmation")
+        ),
+        enable_memory_auto_extraction=bool(
+            memory_settings.get("enableMemoryAutoExtraction")
+        ),
         enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
-        security_config_raw=build_security_config(configs.security_config_dict, msg.metadata),
+        security_config_raw=build_security_config(
+            configs.security_config_dict, msg.metadata
+        ),
         agent_security_raw=agent_security_raw,
         memory_policy=(resolved_profile.memory_policy if resolved_profile else None),
         memory_decay_profile=memory_decay_profile,
@@ -201,7 +219,10 @@ async def build_channel_execution_agent(
     if is_resume:
         approval_key = f"{msg.channel}:{approval_peer}"
         if not ApprovalTimeoutScheduler.get().resolve_if_first(approval_key):
-            logger.warning("Channel resume rejected (timeout already resolved): key=%s", approval_key)
+            logger.warning(
+                "Channel resume rejected (timeout already resolved): key=%s",
+                approval_key,
+            )
             return ChannelAgentBuildOutcome(
                 early_reply=msg.get_or_create_correlation_context().create_reply(
                     content=get_text(msg, "approval_timeout_resolved"),
@@ -219,7 +240,9 @@ async def build_channel_execution_agent(
 
     from myrm_agent_harness.agent.security import user_credentials_ctx
 
-    from app.services.agent.session_credential_assembler import assemble_session_credentials
+    from app.services.agent.session_credential_assembler import (
+        assemble_session_credentials,
+    )
 
     credentials_list = await assemble_session_credentials(
         oauth_credentials_dict=configs.oauth_credentials_dict,

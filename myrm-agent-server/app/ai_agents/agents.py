@@ -118,6 +118,7 @@ class GeneralAgentParams(BaseAgentParams):
     session_recording: str | None = None
     enable_computer_use: bool = False
     enable_file_ops: bool = True
+    enable_evicted_read: bool = False
     enable_shell_tools: bool = True
     enable_wiki: bool = False
     enable_kanban: bool = False
@@ -136,7 +137,6 @@ class GeneralAgentParams(BaseAgentParams):
     web_search_profile_enabled: bool = False
     search_is_user_configured: bool = False
     enable_web_fetch: bool = True
-    enable_web_crawl: bool = False
     agent_skill_ids: list[str] = []
     agent_skill_configs: dict[str, dict] | None = None
     security_config_raw: dict[str, object] | None = None
@@ -211,7 +211,9 @@ class AgentFactory:
         from app.config.settings import get_settings
 
         if params.enable_browser and params.prompt_mode != "search":
-            from app.services.agent.browser_skill_binding import apply_browser_automation_skill_binding
+            from app.services.agent.browser_skill_binding import (
+                apply_browser_automation_skill_binding,
+            )
 
             skill_ids, skill_configs = apply_browser_automation_skill_binding(
                 list(params.agent_skill_ids),
@@ -276,13 +278,13 @@ class AgentFactory:
             client_surface=params.client_surface,
             enable_web_search=params.enable_web_search,
             enable_web_fetch=params.enable_web_fetch,
-            enable_web_crawl=params.enable_web_crawl,
             enable_browser=params.enable_browser,
             browser_source=params.browser_source,
             dialog_policy=params.dialog_policy,
             session_recording=params.session_recording,
             enable_computer_use=params.enable_computer_use,
             enable_file_ops=params.enable_file_ops,
+            enable_evicted_read=params.enable_evicted_read,
             enable_shell_tools=params.enable_shell_tools,
             enable_wiki=params.enable_wiki,
             enable_kanban=params.enable_kanban,

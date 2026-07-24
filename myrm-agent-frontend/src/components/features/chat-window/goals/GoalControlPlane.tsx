@@ -1,6 +1,5 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/primitives/scroll-area';
 import useChatStore from '@/store/useChatStore';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
@@ -45,20 +44,12 @@ const XCircleIcon = ({ className = 'w-4 h-4' }) => (
 export const GoalControlPlane = () => {
   const t = useTranslations('Goal');
   const chatId = useChatStore((s) => s.chatId);
-  const { plan, isLoading } = usePlanStore();
+  const { plan } = usePlanStore();
   const activeGoal = useGoalStore((s) => s.activeGoal);
 
   useGoalPlanSync(chatId);
 
   if (!plan) {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col h-full border-l border-border bg-background/50 backdrop-blur-sm w-72 lg:w-80 shrink-0 items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground mt-2">{t('loadingProgress')}</p>
-        </div>
-      );
-    }
     return null;
   }
 

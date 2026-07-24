@@ -124,6 +124,7 @@ const useChatStore = create<ChatState>()(
       goalConvergenceWindow: null,
       goalAcceptanceCriteria: null,
       goalConstraints: null,
+      goalCheckpointMode: false,
       // Hydrated from localStorage after mount via hydrateChatPreferencesFromStorage().
       currentBuiltinTools: [...DEFAULT_ENABLED_BUILTIN_TOOLS],
       inputMessage: '',
@@ -242,6 +243,7 @@ const useChatStore = create<ChatState>()(
       setGoalConvergenceWindow: (window) => set({ goalConvergenceWindow: window }),
       setGoalAcceptanceCriteria: (criteria) => set({ goalAcceptanceCriteria: criteria }),
       setGoalConstraints: (constraints) => set({ goalConstraints: constraints }),
+      setGoalCheckpointMode: (checkpoint) => set({ goalCheckpointMode: checkpoint }),
       toggleBuiltinTool: (toolId) => {
         const current = get().currentBuiltinTools;
         const next = current.includes(toolId) ? current.filter((id) => id !== toolId) : [...current, toolId];

@@ -105,20 +105,21 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
   );
 
   const messages = useMemo(() => {
-    if (compactedSummary && rawMessages.length > 0) {
+    const safeMessages = Array.isArray(rawMessages) ? rawMessages : [];
+    if (compactedSummary && safeMessages.length > 0) {
       return [
         {
           messageId: 'compacted-summary-view',
           chatId: chatId || '',
-          createdAt: rawMessages[0].createdAt || new Date(),
+          createdAt: safeMessages[0].createdAt || new Date(),
           content: '',
           role: 'system' as const,
           isCompactedSummaryView: true,
         },
-        ...rawMessages,
+        ...safeMessages,
       ];
     }
-    return rawMessages;
+    return safeMessages;
   }, [rawMessages, compactedSummary, chatId]);
 
   const searchParams = useSearchParams();

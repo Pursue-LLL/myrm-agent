@@ -16,8 +16,8 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Background tasks API — manage /background (/btw /bg) session tasks. | ✅ |
-| `router.py` | 路由 | 合并 Kanban + shell；暴露 `job_id` / `vault_log_ref`；shell cancel 走 harness kill | ✅ |
-| `test_fixtures.py` | 测试 | local-only Chrome E2E seed（`POST /background-tasks/test/seed-shell-fixture`） | ✅ |
+| `router.py` | 路由 | 合并 Kanban + shell；暴露 `job_id` / `vault_log_ref`；shell cancel 走 harness kill；`POST /{task_id}/stdin` GUI 手动 stdin | ✅ |
+| `test_fixtures.py` | 测试 | local-only Chrome E2E seed（`POST /background-tasks/test/seed-shell-fixture`；`mode=running` / **`running_stdin`** / failed / success / completed_with_vault） | ✅ |
 
 ## 依赖
 

@@ -20,6 +20,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { AlertTriangle, Ban, Disc3, ShieldAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import useChatStore, { Message } from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
 import type { McpAppView, Source, ToolCallInfo, ToolImageOutput, UIArtifact } from '@/store/chat/types';
@@ -153,6 +154,12 @@ const MessageBox = ({
   const { state: quoteState, dismiss: dismissQuote } = useQuoteSelection(markdownRef);
   const sendMessage = useChatStore((state) => state.sendMessage);
   const messages = useChatStore((state) => state.messages);
+  const composerPendingClarification = useMemo(
+    () => findActivePendingClarification(messages),
+    [messages],
+  );
+  const hideInlineClarification =
+    composerPendingClarification?.messageId === message.messageId;
   const chatId = useChatStore((state) => (typeof state.chatId === 'string' ? state.chatId : undefined));
   const enableEvalLab = useConfigStore((state) => state.enableEvalLab);
   const previousContentRef = useRef('');
@@ -522,9 +529,24 @@ const MessageBox = ({
         )}
 
         {/* 进度步骤 */}
-        {message.progressSteps && message.progressSteps.length > 0 && (
-          <ProgressSteps messageId={message.messageId} steps={message.progressSteps || []} loading={loading} />
-        )}
+        {(() => {
+          const resolvedProgressSteps =
+            message.progressSteps && message.progressSteps.length > 0
+              ? message.progressSteps
+              : Array.isArray(message.metadata?.progressSteps)
+                ? (message.metadata.progressSteps as typeof message.progressSteps)
+                : [];
+          if (!resolvedProgressSteps || resolvedProgressSteps.length === 0) {
+            return null;
+          }
+          return (
+            <ProgressSteps
+              messageId={message.messageId}
+              steps={resolvedProgressSteps}
+              loading={loading}
+            />
+          );
+        })()}
 
         {message.consensusRefs && message.consensusRefs.length > 0 && (
           <ConsensusThinkingPanel
@@ -681,8 +703,8 @@ const MessageBox = ({
 
             <QuoteToolbar state={quoteState} onDismiss={dismissQuote} />
 
-            {/* Clarification 输入 */}
-            {message.clarification && (
+            {/* Clarification 输入（Composer takeover 时由 MessageInput 承载） */}
+            {message.clarification && !hideInlineClarification && (
               <ClarificationInput
                 messageId={message.messageId}
                 answered={message.clarification.answered}

@@ -48,7 +48,9 @@ def test_web_search_config_gap_emits_when_preflight_text_empty() -> None:
         enable_web_search=False,
         search_is_user_configured=False,
     )
-    assert events, "expected capability_gap when web_search profile on but search unconfigured"
+    assert (
+        events
+    ), "expected capability_gap when web_search profile on but search unconfigured"
     data = events[0]["data"]
     assert isinstance(data, dict)
     assert data.get("tool_id") == "web_search"

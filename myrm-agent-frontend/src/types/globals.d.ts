@@ -10,6 +10,8 @@ interface Window {
   __MYRM_E2E_API_BASE__?: string;
   /** SHPOIB Chrome E2E: force POST agent-stream direct SSE (skip workspace multiplex). */
   __MYRM_E2E_DIRECT_SSE__?: boolean;
+  /** Chrome E2E: block outbound ConfigSync for searchServices (gap toast tests). */
+  __MYRM_E2E_BLOCK_SEARCH_SYNC__?: boolean;
   /** SHPOIB E2E: last attach fallback diagnostics from streamConsumer. */
   __MYRM_E2E_ATTACH_DIAG__?: {
     attached: boolean;
@@ -40,13 +42,17 @@ interface Window {
     setInputMessage: (message: string) => void;
     sendChatMessage?: (
       text: string,
-      opts?: { baselineUserCount?: number },
+      opts?: {
+        baselineUserCount?: number;
+        waitForStreamCompletion?: boolean;
+        preserveActionMode?: boolean;
+      },
     ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
     handleSubmit: () => void | Promise<void>;
     getInputMessage: () => string;
     ensureProviders?: () => Promise<void>;
     prepareAutomationSend?: () => void;
-    ensureChatSession?: () => Promise<void>;
+    ensureChatSession?: (opts?: { preserveActionMode?: boolean }) => Promise<void>;
     attachToChat?: (chatId: string) => Promise<void>;
     resetChat?: () => void;
     isSendReady?: () => boolean;
@@ -102,6 +108,10 @@ interface Window {
     getCurrentBuiltinTools?: () => string[];
     /** CDP E2E: pin agent chat to defaultModelConfig.liteModel (matches API get_lite_model_selection). */
     pinLiteModelForE2e?: () => Promise<{ providerId: string; model: string }>;
+    /** CDP E2E SHPOIB: mirror private-backend searchServices into useConfigStore. */
+    syncSearchServicesFromE2eApi?: () => Promise<{ ok: boolean; err?: string; count?: number }>;
+    /** CDP E2E: pin agent chat to defaultModelConfig.baseModel (matches API get_model_selection). */
+    pinBasicModelForE2e?: () => Promise<{ providerId: string; model: string }>;
     /** CDP E2E: abort in-flight SSE so API agent-stream resume can proceed (no cancel API). */
     releaseActiveStreamForApiResume?: () => { ok: boolean; released: boolean };
     /** CDP E2E: resume active clarification with empty answer (Skip parity). */
@@ -110,6 +120,7 @@ interface Window {
     getBrowserSource?: () => string | null | undefined;
     ensureComputerUseReady?: () => void;
     getActionMode?: () => string;
+    setActionMode?: (mode: string) => void;
     getBrowserToolProgress?: () => {
       active: boolean;
       takeoverPending: boolean;

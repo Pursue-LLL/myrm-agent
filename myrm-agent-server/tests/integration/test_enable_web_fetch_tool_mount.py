@@ -1,4 +1,4 @@
-"""Integration: enable_web_fetch / enable_web_crawl gate real tool_setup wiring (no mocks on gate path)."""
+"""Integration: enable_web_fetch gate real tool_setup wiring (no mocks on gate path)."""
 
 from __future__ import annotations
 
@@ -22,7 +22,6 @@ def _minimal_tool_setup_mixin(**overrides: object) -> ToolSetupMixin:
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     defaults: dict[str, object] = {
         "enable_web_fetch": True,
-        "enable_web_crawl": False,
         "enable_web_search": False,
         "search_service_cfg": None,
         "search_depth": "standard",
@@ -57,17 +56,3 @@ def test_setup_search_includes_web_fetch_when_gate_true() -> None:
     tools: list[object] = []
     mixin._setup_search_and_basic_tools(tools)
     assert "web_fetch_tool" in _tool_names(tools)
-
-
-def test_setup_web_crawl_skipped_when_opt_in_off() -> None:
-    mixin = _minimal_tool_setup_mixin(enable_web_crawl=False)
-    tools: list[object] = []
-    mixin._setup_web_crawl_tool(tools, chat_id="chat-1", workspace_root="/tmp/workspace")
-    assert tools == []
-
-
-def test_setup_web_crawl_mounted_when_opt_in_on() -> None:
-    mixin = _minimal_tool_setup_mixin(enable_web_crawl=True)
-    tools: list[object] = []
-    mixin._setup_web_crawl_tool(tools, chat_id="chat-1", workspace_root="/tmp/workspace")
-    assert "web_crawl_tool" in _tool_names(tools)

@@ -54,7 +54,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 
 ### prompts/fast_search_agent_prompt.py
 
-搜索模式提示词。被 `general_agent_prompt.py` 静态引用为 `_SEARCH_PROMPT_BASE` 和 `SEARCH_DEEP_SUFFIX`（Kv Cache 稳定），作为 `prompt_mode="search"` 的唯一提示词来源。支持 normal 和 deep 两种深度，共享引用规则（`EXTERNAL_SOURCES_CITATION_RULES`）。Deep 后缀指引 `web_fetch_tool` 深读与 `request_answer_user_tool` 自审；Fast 模式 Turn1 工具为 web_search + web_fetch + answer_tool + memory（可选），browser 仅通过 Agent profile 的 `browser` 开关 opt-in，不由 `search_depth=deep` 自动加载。
+搜索模式提示词。被 `general_agent_prompt.py` 静态引用为 `_SEARCH_PROMPT_BASE` 和 `SEARCH_DEEP_SUFFIX`（Kv Cache 稳定），作为 `prompt_mode="search"` 的唯一提示词来源。支持 normal 和 deep 两种深度，共享引用规则（`EXTERNAL_SOURCES_CITATION_RULES`）。Deep 后缀指引 `web_fetch_tool` 深读与 `request_answer_user_tool` 自审；Fast 模式 Turn1 工具为 web_search + web_fetch + UECD 只读 file_read + answer_tool + memory（可选），browser 仅通过 Agent profile 的 `browser` 开关 opt-in，不由 `search_depth=deep` 自动加载。
 
 ---
 

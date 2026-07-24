@@ -20,9 +20,24 @@ import time
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 APPROVAL_WAIT_SEC = 240.0
 GATE_IDLE_FAIL_FAST_SEC = 180.0
+
+
+def _parse_stream_stuck_sec() -> float:
+    raw = os.getenv("MYRM_DESKTOP_E2E_STREAM_STUCK_SEC", "180").strip()
+    try:
+        parsed = float(raw)
+    except ValueError:
+        parsed = 180.0
+    return max(60.0, parsed)
+
+
+GATE_STREAM_STUCK_SEC = _parse_stream_stuck_sec()
+GATE_PENDING_GRACE_SEC = 30.0
 # Steer/nudge while agent stream is active but no desktop tool has started yet.
 GATE_STREAM_NUDGE_SEC = 45.0
 GATE_IDLE_NUDGE_SEC = 30.0
+# After snapshot + nudge, fail-fast if model still loops snapshot without interact.
+GATE_SNAPSHOT_LOOP_FAIL_SEC = 90.0
 # Hard wall-clock fail-fast for one desktop approval attempt (prevents 7200s empty spin).
 DESKTOP_E2E_WALL_CLOCK_FAIL_SEC = 600.0
 
@@ -61,18 +76,18 @@ INFRA_ABORT_MARKERS = (
 )
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
 E2E_PROMPT = (
-    "请帮我在前台 TextEdit 窗口里完成一次桌面操作验证："
-    "先用 desktop_snapshot_tool 查看前台结构，"
-    "再用 desktop_interact_tool 对 snapshot 里任意 @dref 执行 action=click。"
-    "不要使用 desktop_vision。全部完成后只回复 DONE。"
+    "CRITICAL: Your first tool call MUST be desktop_snapshot_tool on the foreground TextEdit window. "
+    "Your second tool call MUST be desktop_interact_tool (action=click on a @dref from that snapshot). "
+    "Do not reply with text before both tool calls complete. "
+    "Do not use desktop_vision. When finished, reply exactly: DONE"
 )
 E2E_NUDGE_PROMPT = (
-    "CRITICAL：立即调用 desktop_interact_tool（ref=上一个 snapshot 的 @dref，action=click）。"
-    "禁止 vision/snapshot。完成后只回复 DONE。"
+    "Please continue: call desktop_interact_tool on a @dref from your last snapshot "
+    "(action=click). Reply DONE when complete."
 )
 E2E_SNAPSHOT_NUDGE_PROMPT = (
-    "CRITICAL：snapshot 已完成。下一步必须是 desktop_interact_tool(ref=<@dref>, action=click)。"
-    "不要 vision。完成后只回复 DONE。"
+    "Snapshot looks good. Next, use desktop_interact_tool(ref=<@dref>, action=click) "
+    "on TextEdit. Reply DONE when done."
 )
 
 
@@ -80,8 +95,8 @@ def build_desktop_interact_nudge(*, dref: str | None = None) -> str:
     normalized = (dref or "").strip().lstrip("@")
     if normalized.startswith("d") and len(normalized) > 1:
         return (
-            f"CRITICAL：立即调用 desktop_interact_tool(ref='{normalized}', action='click')。"
-            "禁止 vision/snapshot。完成后只回复 DONE。"
+            f"Please call desktop_interact_tool(ref='{normalized}', action='click') on TextEdit now. "
+            "Reply DONE when complete."
         )
     return E2E_NUDGE_PROMPT
 

@@ -119,7 +119,9 @@ CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
 # run_pytest_safe outer budget padding beyond pytest floor (bootstrap/MCP setup).
 PYTEST_SAFE_BOOTSTRAP_BUFFER_SEC: Final[int] = 120
 # Stream lock holder heartbeat file (waiters read holder identity while queueing).
-LIVE_AGENT_STREAM_HOLDER_INFO_BASENAME: Final[str] = "myrm-live-agent-stream.holder.json"
+LIVE_AGENT_STREAM_HOLDER_INFO_BASENAME: Final[str] = (
+    "myrm-live-agent-stream.holder.json"
+)
 
 READ_CHROME_E2E_PYTEST_TIMEOUT_SEC: Final[int] = (
     MUX_UPSTREAM_WAIT_SEC + MAX_PAGE_TIMEOUT_MS // 1000 + 90
@@ -175,6 +177,16 @@ def chrome_e2e_skips_shared_approval_preflight(*, lane: str, shpoib: bool) -> bo
 def chrome_e2e_skips_shared_stream_lock(*, lane: str, shpoib: bool) -> bool:
     """True when SHPOIB LIVE must not FIFO-queue on shared :8080 agent-stream lock."""
     return lane == "LIVE_AGENT" and shpoib
+
+
+def chrome_e2e_skips_attach_health_reprobe(
+    *,
+    chrome_attach: bool,
+    shared_hot: bool = False,
+    stream_lock_held: bool = False,
+) -> bool:
+    """True when test.sh bootstrap already verified Chrome attach — skip pytest fixture reprobe."""
+    return chrome_attach or shared_hot or stream_lock_held
 
 
 def live_agent_stream_wait_sec(joined_argv: str) -> int:

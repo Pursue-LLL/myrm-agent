@@ -255,12 +255,19 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
   if (data.type === H.AgentEventType.CLARIFICATION_REQUIRED) {
     const form = resolveClarificationFormFromEventData(data.data);
+    const payload =
+      data.data && typeof data.data === 'object'
+        ? (data.data as Record<string, unknown>)
+        : undefined;
+    const actionMode = H.useChatStore.getState().actionMode;
+    const source = typeof payload?.source === 'string' ? payload.source : undefined;
+    const isResumeMode = source === 'deep_research' ? false : actionMode !== 'deep_research';
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
       if (messageIndex !== -1) {
         state.messages[messageIndex].clarification = {
           answered: false,
-          isResumeMode: true,
+          isResumeMode,
           title: form?.title ?? undefined,
           form,
         };
@@ -273,7 +280,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
           createdAt: new Date(),
           clarification: {
             answered: false,
-            isResumeMode: true,
+            isResumeMode,
             title: form?.title ?? undefined,
             form,
           },

@@ -4,7 +4,10 @@ from contextlib import asynccontextmanager
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.channel_bridge.topic_config import SEARCH_AGENT_CHANNEL_BIND_MSG, _CHANNEL_LEVEL_KEY
+from app.core.channel_bridge.topic_config import (
+    SEARCH_AGENT_CHANNEL_BIND_MSG,
+    _CHANNEL_LEVEL_KEY,
+)
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app("user_agents", preset="channels_local")
@@ -72,9 +75,16 @@ def test_topic_binding_e2e(client):
     topic_id = f"test_e2e_chat_{unique_id}:test_e2e_thread_{unique_id}"
 
     # 1. Bind an agent to a topic
-    bind_payload = {"agentId": agent_id, "displayName": "E2E Test Group", "avatarUrl": "http://example.com/e2e.png"}
+    bind_payload = {
+        "agentId": agent_id,
+        "displayName": "E2E Test Group",
+        "avatarUrl": "http://example.com/e2e.png",
+    }
 
-    response = client.post(f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind", json=bind_payload)
+    response = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json=bind_payload,
+    )
     assert response.status_code == 200, response.text
 
     # 2. Get topics to verify
@@ -96,7 +106,9 @@ def test_topic_binding_e2e(client):
 
     # 3. Set global default agent
     global_payload = {"agentId": agent_id}
-    response = client.post(f"/api/v1/channels/manage/{channel_name}/default-agent", json=global_payload)
+    response = client.post(
+        f"/api/v1/channels/manage/{channel_name}/default-agent", json=global_payload
+    )
     assert response.status_code == 200, response.text
 
     # 4. Verify global default agent
@@ -105,8 +117,15 @@ def test_topic_binding_e2e(client):
     assert data["globalAgentId"] == agent_id
 
     # 5. Unbind agent
-    unbind_payload = {"agentId": None, "displayName": "E2E Test Group Unbound", "avatarUrl": "http://example.com/e2e.png"}
-    response = client.post(f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind", json=unbind_payload)
+    unbind_payload = {
+        "agentId": None,
+        "displayName": "E2E Test Group Unbound",
+        "avatarUrl": "http://example.com/e2e.png",
+    }
+    response = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json=unbind_payload,
+    )
     assert response.status_code == 200, response.text
 
     # Verify unbind
@@ -124,7 +143,10 @@ def test_topic_binding_e2e(client):
         "displayName": "E2E Test Group Invalid",
         "avatarUrl": "http://example.com/e2e.png",
     }
-    response = client.post(f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind", json=invalid_payload)
+    response = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json=invalid_payload,
+    )
     assert response.status_code == 404, response.text
 
     print("E2E Test Passed Successfully (Including Edge Cases)!")
@@ -192,7 +214,10 @@ def test_topic_thread_sharing_mode_e2e(client):
         "threadSharingMode": "shared",
     }
 
-    response = client.post(f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind", json=bind_shared_payload)
+    response = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json=bind_shared_payload,
+    )
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["threadSharingMode"] == "shared"
@@ -212,7 +237,10 @@ def test_topic_thread_sharing_mode_e2e(client):
     # 3. Update to isolated mode
     bind_isolated_payload = {"agentId": agent_id, "threadSharingMode": "isolated"}
 
-    response = client.post(f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind", json=bind_isolated_payload)
+    response = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json=bind_isolated_payload,
+    )
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["threadSharingMode"] == "isolated"
