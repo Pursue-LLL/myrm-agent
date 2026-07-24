@@ -329,16 +329,11 @@ class CdpChatBootstrap(CdpChatTransport):
             )
             elapsed_total = time.monotonic() - layout_wait_started
             if elapsed_total >= stall_cap:
-                if mux_recover_attempts < 1:
-                    mux_recover_attempts = await self._recover_shell_probe_mux(
-                        mux_recover_attempts
-                    )
-                else:
-                    raise RuntimeError(
-                        f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout stalled "
-                        f"{elapsed_total:.1f}s (cap={int(stall_cap)}s); "
-                        "recover mux and retry"
-                    )
+                raise RuntimeError(
+                    f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout stalled "
+                    f"{elapsed_total:.1f}s (cap={int(stall_cap)}s); "
+                    "recover mux and retry"
+                )
             try:
                 if orphan_eval_task is not None and not orphan_eval_task.done():
                     await asyncio.wait({orphan_eval_task}, timeout=2.0)
@@ -432,10 +427,14 @@ class CdpChatBootstrap(CdpChatTransport):
                     pass
             if not _shell_probe_ready(last):
                 path = str(last.get("path") or "")
-                stale_home = path in ("", "/", "blank", "about:blank") or not last.get(
-                    "hasLayout"
+                probe_timed_out = last.get("probeError") == "evaluate_timeout"
+                stale_home = (
+                    probe_timed_out
+                    or path in ("", "/", "blank", "about:blank")
+                    or not last.get("hasLayout")
                 )
-                if stale_home and polls in {8, 24, 48, 72, 96, 120}:
+                hydrate_polls = {2, 4, 8, 16, 24, 48, 72, 96, 120}
+                if stale_home and polls in hydrate_polls:
                     ui_base = (
                         getattr(self, "_base_url", None) or get_e2e_ui_url()
                     ).rstrip("/")
