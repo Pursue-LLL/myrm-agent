@@ -1004,6 +1004,7 @@ class ChromeMcpClient:
         """Invalidate orphaned mux I/O after asyncio cancelled a blocking evaluate thread."""
         self._request_generation += 1
         self._page_lease_heartbeat.stop()
+        self._reclaim_in_progress = False
         self._teardown_shim_process()
         # Orphan to_thread may still hold the old lock in select(); replace so recover
         # on the event loop thread cannot deadlock (R49-R50).
@@ -1228,7 +1229,7 @@ class ChromeMcpClient:
         raise RuntimeError(f"Chrome MCP {method} failed without transport")
 
     def _notify(self, method: str, params: dict[str, object]) -> None:
-        self._acquire_request_lock()
+        held_lock = self._acquire_request_lock()
         try:
             process = self._require_live_process()
             self._write(
@@ -1236,7 +1237,7 @@ class ChromeMcpClient:
                 {"jsonrpc": "2.0", "method": method, "params": params},
             )
         finally:
-            self._release_request_lock()
+            self._release_request_lock(held_lock)
 
     def _write(
         self, process: subprocess.Popen[str], payload: dict[str, object]
