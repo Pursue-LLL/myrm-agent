@@ -265,6 +265,7 @@ class CdpChatBootstrap(CdpChatTransport):
         """Lightweight shell wait for MCP pages already navigated to the app URL."""
         timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
         deadline = time.monotonic() + timeout_sec
+        # R51: preserve _shell_layout_wait_started across hydrate re-entry.
         self._mark_bootstrap_started()
         if require_bridge:
             last = await self._wait_shell_layout_ready(deadline=deadline)
