@@ -278,21 +278,35 @@ class CdpChatBootstrap(CdpChatTransport):
         require_bridge: bool = True,
     ) -> dict[str, object]:
         """Lightweight shell wait for MCP pages already navigated to the app URL."""
+        from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
+
         timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
-        deadline = time.monotonic() + timeout_sec
         # R51: preserve _shell_layout_wait_started across hydrate re-entry.
         self._mark_bootstrap_started()
-        if require_bridge:
-            last = await self._wait_shell_layout_ready(deadline=deadline)
-            return await self._wait_shell_bridge_finish(
-                last,
-                deadline=deadline,
-                require_bridge=True,
-            )
-        return await self._wait_shell_ready_inner(
-            timeout_sec=timeout_sec,
-            require_bridge=require_bridge,
-        )
+        for attempt in range(2):
+            deadline = time.monotonic() + timeout_sec
+            try:
+                if require_bridge:
+                    last = await self._wait_shell_layout_ready(deadline=deadline)
+                    return await self._wait_shell_bridge_finish(
+                        last,
+                        deadline=deadline,
+                        require_bridge=True,
+                    )
+                return await self._wait_shell_ready_inner(
+                    timeout_sec=max(0.0, deadline - time.monotonic()),
+                    require_bridge=require_bridge,
+                )
+            except RuntimeError as exc:
+                if MUX_RECLAIM_STALL_TOKEN not in str(exc) or attempt >= 1:
+                    raise
+                await self._recover_shell_probe_mux(0)
+                self._reset_shell_layout_wait_clock()
+                client = getattr(self, "_client", None)
+                abandon = getattr(client, "abandon_inflight_requests", None)
+                if callable(abandon):
+                    abandon()
+                await asyncio.sleep(1.0)
 
     async def _recover_shell_probe_mux(self, mux_recover_attempts: int) -> int:
         from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
