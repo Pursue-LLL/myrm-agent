@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Final
 
 CONTRACT_VERSION: Final[str] = "2"
@@ -145,6 +146,26 @@ def chrome_e2e_pytest_timeout_for_lane(lane: str) -> int:
     return LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC
 
 
+def chrome_e2e_pytest_safe_queue_buffer_sec(
+    lane: str,
+    joined_argv: str,
+    *,
+    shpoib: bool | None = None,
+) -> int:
+    """Queue wait excluded from R42 body wall clock but counted by run_pytest_safe."""
+    if lane.strip().upper() != "LIVE_AGENT":
+        return 0
+    resolved_shpoib = (
+        shpoib
+        if shpoib is not None
+        else os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
+    )
+    buffer = E2E_UNIFIED_WAIT_SEC
+    if not chrome_e2e_skips_shared_stream_lock(lane=lane, shpoib=resolved_shpoib):
+        buffer += live_agent_stream_wait_sec(joined_argv)
+    return buffer
+
+
 def chrome_e2e_pytest_safe_timeout_sec(
     lane: str,
     item_count: int,
@@ -160,7 +181,8 @@ def chrome_e2e_pytest_safe_timeout_sec(
         (normalized_count + MUX_MAX_CONCURRENT_SESSIONS - 1)
         // MUX_MAX_CONCURRENT_SESSIONS,
     )
-    return min(raw, wave_cap) + PYTEST_SAFE_BOOTSTRAP_BUFFER_SEC
+    queue_buffer = chrome_e2e_pytest_safe_queue_buffer_sec(lane, joined_argv)
+    return min(raw, wave_cap) + PYTEST_SAFE_BOOTSTRAP_BUFFER_SEC + queue_buffer
 
 
 def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
