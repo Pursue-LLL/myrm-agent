@@ -13,6 +13,7 @@ import logging
 import os
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 
 from myrm_agent_harness.api.hooks import EVICTED_BASENAME_PATTERN
 
@@ -100,12 +101,12 @@ async def read_evicted_output(
     Returns the full or partial content of a file that was saved during
     output eviction. Supports line-range pagination via offset/limit.
 
-    Returns {"expired": true} with 404 when the file has been cleaned up.
+    Returns JSON ``{"expired": true}`` with HTTP 404 when the file has been cleaned up.
     """
     resolved = _resolve_evicted_path(chat_id, filename)
 
     if not os.path.isfile(resolved):
-        raise HTTPException(status_code=404, detail={"expired": True})
+        return JSONResponse(status_code=404, content={"expired": True})
 
     try:
         with open(resolved, encoding="utf-8", errors="replace") as f:

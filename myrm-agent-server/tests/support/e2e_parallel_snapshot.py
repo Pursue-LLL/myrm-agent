@@ -188,9 +188,8 @@ def snapshot_live_e2e_processes(
     )
 
 
-def print_e2e_parallel_snapshot() -> E2EParallelSnapshot:
-    snapshot = snapshot_live_e2e_processes()
-    payload = {
+def parallel_snapshot_to_dict(snapshot: E2EParallelSnapshot) -> dict[str, object]:
+    return {
         "agent_stream_lock": (
             asdict(snapshot.agent_stream_lock) if snapshot.agent_stream_lock else None
         ),
@@ -202,24 +201,34 @@ def print_e2e_parallel_snapshot() -> E2EParallelSnapshot:
         "active_tests": [asdict(row) for row in snapshot.active_tests],
         "active_test_count": len(snapshot.active_tests),
     }
+
+
+def format_parallel_snapshot_human(snapshot: E2EParallelSnapshot) -> list[str]:
+    lines: list[str] = []
+    if snapshot.active_tests:
+        for row in snapshot.active_tests:
+            lines.append(
+                "E2E_PARALLEL_ACTIVE: "
+                f"pid={row.pid} state={row.state} elapsed={row.elapsed_sec:.0f}s "
+                f"test={row.test_id}"
+            )
+    else:
+        lines.append("E2E_PARALLEL_ACTIVE: none")
+    lines.append(
+        "E2E_PARALLEL_LOCKS: "
+        f"agent_stream={format_lock_holder(snapshot.agent_stream_lock)} "
+        f"desktop={format_lock_holder(snapshot.desktop_approval_lock)}"
+    )
+    return lines
+
+
+def print_e2e_parallel_snapshot() -> E2EParallelSnapshot:
+    snapshot = snapshot_live_e2e_processes()
+    payload = parallel_snapshot_to_dict(snapshot)
     print(
         f"E2E_PARALLEL_SNAPSHOT_JSON={json.dumps(payload, ensure_ascii=False)}",
         flush=True,
     )
-    if snapshot.active_tests:
-        for row in snapshot.active_tests:
-            print(
-                "E2E_PARALLEL_ACTIVE: "
-                f"pid={row.pid} state={row.state} elapsed={row.elapsed_sec:.0f}s "
-                f"test={row.test_id}",
-                flush=True,
-            )
-    else:
-        print("E2E_PARALLEL_ACTIVE: none", flush=True)
-    print(
-        "E2E_PARALLEL_LOCKS: "
-        f"agent_stream={format_lock_holder(snapshot.agent_stream_lock)} "
-        f"desktop={format_lock_holder(snapshot.desktop_approval_lock)}",
-        flush=True,
-    )
+    for line in format_parallel_snapshot_human(snapshot):
+        print(line, flush=True)
     return snapshot

@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Files management API module | ✅ |
-| `evicted.py` | 模块 | UECD evicted-file read API (`GET /evicted`); imports harness `EVICTED_BASENAME_PATTERN`; path traversal checks | ✅ |
+| `evicted.py` | 模块 | UECD evicted-file read API (`GET /evicted`); imports harness `EVICTED_BASENAME_PATTERN`; path traversal checks; missing file → HTTP 404 + `{"expired": true}` | ✅ |
 | `artifact_api.py` | 模块 | List/retrieve/verify artifacts; exposes `publications[]` per artifact | ✅ |
 | `artifact_share_api.py` | 模块 | Lets GUI users share html/pdf/document artifacts without publication deploy | ✅ |
 | `browse.py` | 模块 | Workspace browse API; `/browse/search` uses harness `filesystem_suggest`. | ✅ |

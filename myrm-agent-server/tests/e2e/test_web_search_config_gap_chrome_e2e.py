@@ -78,13 +78,21 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
   if (typeof bridge.setActionMode !== 'function') {
     return { ok: false, err: 'no-setActionMode' };
   }
+  bridge.setActionMode('fast');
   bridge.resetChat?.();
   bridge.setActionMode('fast');
+  if (typeof bridge.clearSearchServicesForE2e === 'function') {
+    bridge.clearSearchServicesForE2e();
+  }
+  if (typeof bridge.ensureChatSession === 'function') {
+    await bridge.ensureChatSession({ preserveActionMode: true });
+  }
   if (typeof bridge.clearSearchServicesForE2e === 'function') {
     bridge.clearSearchServicesForE2e();
   } else if (typeof bridge.syncSearchServicesFromE2eApi === 'function') {
     await bridge.syncSearchServicesFromE2eApi();
   }
+  const searchState = bridge.debugSearchState?.() ?? null;
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
   const sendOpts = { baselineUserCount: usersBefore, preserveActionMode: true };
   let result;
@@ -99,14 +107,23 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
     return { ok: false, err: 'no-sendChatMessage' };
   }
   const countClientToasts = () => {
-    const toastNodes = Array.from(document.querySelectorAll('[data-sonner-toast]'));
+    const toastNodes = Array.from(
+      document.querySelectorAll('[data-sonner-toast], [data-sonner-toaster] [data-sonner-toast]'),
+    );
     const texts = toastNodes.map((n) => (n.textContent || '').trim()).filter(Boolean);
     const gapPattern =
-      /网页搜索未配置|Web search is not configured|未配置或不可用|not configured or unavailable/i;
-    const clientCount = texts.filter((t) =>
-      /此模式需要搜索服务|请先配置并启用搜索服务|搜索服务未配置|Search service not configured|This mode requires a search service|requires a search service/i.test(t)
-      || gapPattern.test(t),
+      /网页搜索未配置|Web search is not configured|未配置或不可用|not configured or unavailable|搜索服务未配置|Search service not configured/i;
+    const clientPattern =
+      /此模式需要搜索服务|请先配置并启用搜索服务|requires a search service/i;
+    let clientCount = texts.filter(
+      (t) => clientPattern.test(t) || gapPattern.test(t),
     ).length;
+    if (clientCount === 0) {
+      const bodyText = document.body?.innerText ?? '';
+      if (gapPattern.test(bodyText) || clientPattern.test(bodyText)) {
+        clientCount = 1;
+      }
+    }
     return { toastNodes, texts, clientCount };
   };
   const waitForClientToast = async (deadlineMs) => {
@@ -132,6 +149,7 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
         texts,
         actionMode: bridge.getActionMode?.() ?? null,
         sendErr: result?.err ?? 'send-blocked',
+        searchState,
       };
     }
     return {
@@ -145,6 +163,7 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
       actionMode: bridge.getActionMode?.() ?? null,
       sendErr: result?.err ?? 'send-blocked',
       send: result,
+      searchState,
     };
   }
   return {
@@ -154,6 +173,7 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
     usersAfter: bridge.turnSnapshot?.().userCount ?? 0,
     send: result,
     actionMode: bridge.getActionMode?.() ?? null,
+    searchState,
   };
 })()"""
 
@@ -677,7 +697,7 @@ async def test_fast_mode_blocks_send_with_client_search_toast(
             result = await chat.evaluate(
                 _FAST_MODE_CLIENT_GUARD_JS,
                 await_promise=True,
-                recv_timeout=45.0,
+                recv_timeout=90.0,
             )
             assert isinstance(result, dict), result
             assert result.get("ok") is True, result

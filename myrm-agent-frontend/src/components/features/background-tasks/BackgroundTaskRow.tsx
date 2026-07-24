@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { IconStop } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
+import { Textarea } from '@/components/primitives/textarea';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { BackgroundTask } from '@/services/background-tasks';
 import { STATUS_CONFIG } from './backgroundTasksPanel.constants';
@@ -24,6 +25,7 @@ interface BackgroundTaskRowProps {
   onToggleShellInput: (taskId: string) => void;
   onSteer: (taskId: string) => void;
   onShellInputSend: (taskId: string) => void;
+  onShellInputClose: (taskId: string) => void;
   onCancel: (taskId: string) => void;
   onNavigateChat: (chatId: string) => void;
   onViewVaultLog?: (chatId: string, vaultLogRef: string) => void;
@@ -43,6 +45,7 @@ export function BackgroundTaskRow({
   onToggleShellInput,
   onSteer,
   onShellInputSend,
+  onShellInputClose,
   onCancel,
   onNavigateChat,
   onViewVaultLog,
@@ -88,6 +91,17 @@ export function BackgroundTaskRow({
               <>
                 <span className="text-border">·</span>
                 <span>{t('exitCode', { code: task.exit_code })}</span>
+              </>
+            )}
+            {task.kind === 'shell' && task.status === 'running' && task.waiting_for_input && (
+              <>
+                <span className="text-border">·</span>
+                <span
+                  className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
+                  data-testid="background-task-waiting-for-input"
+                >
+                  {t('waitingForInput')}
+                </span>
               </>
             )}
           </div>
@@ -220,27 +234,43 @@ export function BackgroundTaskRow({
           )}
 
           {allowShellInput && shellInputTaskId === task.task_id && (
-            <div className="mt-2 flex items-center gap-1.5">
-              <Input
-                className="h-7 text-xs font-mono"
+            <div className="mt-2 space-y-1.5">
+              <Textarea
+                className="min-h-[72px] resize-y text-xs font-mono"
                 placeholder={t('shellInputPlaceholder')}
                 value={shellInput}
+                rows={3}
                 data-testid="background-task-shell-input"
                 onChange={(e) => onShellInputChange(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') onShellInputSend(task.task_id);
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    onShellInputSend(task.task_id);
+                  }
                 }}
               />
-              <Button
-                variant="default"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                data-testid="background-task-shell-input-send"
-                onClick={() => onShellInputSend(task.task_id)}
-                disabled={!shellInput.trim()}
-              >
-                <Terminal className="h-3 w-3" />
-              </Button>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  data-testid="background-task-shell-input-send"
+                  onClick={() => onShellInputSend(task.task_id)}
+                  disabled={!shellInput.trim()}
+                >
+                  <Terminal className="mr-1 h-3 w-3" />
+                  {t('shellInput')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  data-testid="background-task-shell-input-close"
+                  onClick={() => onShellInputClose(task.task_id)}
+                >
+                  {t('shellInputClose')}
+                </Button>
+              </div>
             </div>
           )}
         </div>

@@ -499,6 +499,9 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
           });
 
           syncManager.subscribe('searchServices', (_key, value) => {
+            if (typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__) {
+              return;
+            }
             const v = value as SearchServicesConfigValue;
             set({ searchServiceConfigs: v.searchServiceConfigs });
           });

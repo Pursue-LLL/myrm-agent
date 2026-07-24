@@ -29,6 +29,14 @@ import { ALL_CONFIG_KEYS, CORE_CONFIG_KEYS, createInitialVersion, incrementVersi
 // 防抖延迟（毫秒）
 const SYNC_DEBOUNCE_MS = 1000;
 
+function isE2eSearchSyncBlocked(): boolean {
+  return typeof window !== 'undefined' && Boolean(window.__MYRM_E2E_BLOCK_SEARCH_SYNC__);
+}
+
+function shouldSuppressE2eSearchInbound(key: ConfigKey): boolean {
+  return key === 'searchServices' && isE2eSearchSyncBlocked();
+}
+
 const INIT_FETCH_MAX_ATTEMPTS = 3;
 const INIT_FETCH_RETRY_DELAY_MS = 500;
 
@@ -581,6 +589,9 @@ class ConfigSyncManager {
    * 通知监听器
    */
   private notifyListeners<K extends ConfigKey>(key: K, value: ConfigValueMap[K], meta: ConfigRecord<K>['meta']): void {
+    if (shouldSuppressE2eSearchInbound(key)) {
+      return;
+    }
     const listeners = this.listeners.get(key);
     if (listeners) {
       for (const listener of listeners) {

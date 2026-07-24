@@ -191,6 +191,18 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
     }
   };
 
+  const handleShellInputClose = async (taskId: string) => {
+    try {
+      await sendShellBackgroundStdin(taskId, '', { close: true });
+      toast.success(t('shellInputCloseSuccess'));
+      setShellInputTaskId(null);
+      setShellInput('');
+      fetchTasks();
+    } catch {
+      toast.error(t('shellInputCloseFailed'));
+    }
+  };
+
   const runningCount = tasks.filter((task) => task.status === 'running').length;
   const totalBadge = runningCount + activeGoals.length;
 
@@ -260,6 +272,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                         onToggleShellInput={handleToggleShellInput}
                         onSteer={handleSteer}
                         onShellInputSend={handleShellInputSend}
+                        onShellInputClose={handleShellInputClose}
                         onCancel={handleCancel}
                         onNavigateChat={handleNavigateChat}
                         onViewVaultLog={handleViewVaultLog}
@@ -291,6 +304,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                         onToggleShellInput={handleToggleShellInput}
                         onSteer={handleSteer}
                         onShellInputSend={handleShellInputSend}
+                        onShellInputClose={handleShellInputClose}
                         onCancel={handleCancel}
                         onNavigateChat={handleNavigateChat}
                         onViewVaultLog={handleViewVaultLog}

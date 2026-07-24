@@ -188,7 +188,8 @@ async def test_read_evicted_missing_file_returns_404(
         )
 
     assert resp.status_code == 404
-    assert resp.json()["detail"]["expired"] is True
+    body = resp.json()
+    assert body.get("expired") is True
 
 
 @pytest.mark.asyncio

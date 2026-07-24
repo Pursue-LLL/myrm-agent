@@ -3,13 +3,34 @@
 from __future__ import annotations
 
 import os
+import sys
 import uuid
+from pathlib import Path
 from unittest.mock import patch
 
 import httpx
 import pytest
 
-from tests.support.chrome_mcp_e2e import get_e2e_api_url, http_json
+_DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_DEV_LIB) not in sys.path:
+    sys.path.insert(0, str(_DEV_LIB))
+
+
+def _resolve_verify_api_base(*, ensure_backend: bool = True) -> str:
+    """Epoch-matched API base for live server-route tests (parallel-safe, not shared :8080)."""
+    from e2e_api_verify import monorepo_root, resolve_e2e_api_context  # noqa: PLC0415
+
+    ctx = resolve_e2e_api_context()
+    if ctx.blocked and ensure_backend:
+        from verify_backend_seed import ensure_verify_backend_seed  # noqa: PLC0415
+
+        seed = ensure_verify_backend_seed(monorepo=monorepo_root())
+        if not seed.ok:
+            pytest.skip(f"verify-api seed failed: {seed.detail}")
+        ctx = resolve_e2e_api_context(retry_after_apply=False)
+    if ctx.blocked:
+        pytest.skip(f"verify-api blocked: {ctx.blocked_reason}")
+    return ctx.verify_api_base.rstrip("/")
 
 
 def _live_api_reachable(api_base: str) -> bool:
@@ -18,6 +39,30 @@ def _live_api_reachable(api_base: str) -> bool:
         return resp.status_code == 200
     except httpx.HTTPError:
         return False
+
+
+def _post_json_loopback(
+    api_base: str,
+    path: str,
+    *,
+    expected_statuses: frozenset[int] = frozenset({200, 201, 204}),
+) -> object:
+    url = f"{api_base.rstrip('/')}{path}"
+    if not url.startswith("http://127.0.0.1:"):
+        raise ValueError(f"Live integration only permits loopback API URLs: {url}")
+    resp = httpx.post(url, timeout=30.0)
+    if resp.status_code not in expected_statuses:
+        raise RuntimeError(f"HTTP POST {url} returned {resp.status_code}: {resp.text[:500]!r}")
+    return resp.json() if resp.text else {}
+
+
+def _assert_evicted_expired_404(payload: dict[str, object]) -> None:
+    if payload.get("expired") is True:
+        return
+    detail = payload.get("detail")
+    if isinstance(detail, dict) and detail.get("expired") is True:
+        return
+    raise AssertionError(f"Expected evicted expired 404 payload, got {payload!r}")
 
 
 @pytest.mark.integration
@@ -29,13 +74,13 @@ class TestEvictedUecdLiveServerIntegration:
         reason="Live server checks disabled",
     )
     def test_live_evicted_api_reads_web_fetch_uecd_spill(self) -> None:
-        api_base = get_e2e_api_url()
+        api_base = _resolve_verify_api_base()
         if not _live_api_reachable(api_base):
             pytest.skip(f"Live API not reachable at {api_base}")
 
-        seed = http_json(
-            "POST",
-            f"{api_base}/api/v1/chats/test/seed-evicted-live-terminal-fixture",
+        seed = _post_json_loopback(
+            api_base,
+            "/api/v1/chats/test/seed-evicted-live-terminal-fixture",
             expected_statuses=frozenset({200, 201, 404}),
         )
         if not isinstance(seed, dict) or "chat_id" not in seed:
@@ -67,7 +112,7 @@ class TestEvictedUecdLiveServerIntegration:
         reason="Live server checks disabled",
     )
     def test_live_evicted_api_404_when_file_missing(self) -> None:
-        api_base = get_e2e_api_url()
+        api_base = _resolve_verify_api_base()
         if not _live_api_reachable(api_base):
             pytest.skip(f"Live API not reachable at {api_base}")
 
@@ -81,15 +126,7 @@ class TestEvictedUecdLiveServerIntegration:
         )
         assert resp.status_code == 404
         payload = resp.json()
-        detail = payload.get("detail")
-        if isinstance(detail, dict) and "expired" in detail:
-            assert detail.get("expired") is True
-        elif payload.get("code") == 40401:
-            pytest.skip(
-                "Live server evicted API envelope is pre-UECD — restart when wave idle"
-            )
-        else:
-            raise AssertionError(f"Unexpected 404 payload: {payload!r}")
+        _assert_evicted_expired_404(payload)
 
 
 @pytest.mark.integration

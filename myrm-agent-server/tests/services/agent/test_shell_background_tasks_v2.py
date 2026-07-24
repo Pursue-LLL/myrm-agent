@@ -19,6 +19,31 @@ from app.services.agent.shell_background_tasks import (
 )
 
 
+def test_shell_dto_includes_waiting_for_input_when_running() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-wait",
+        pid=99,
+        command="python -c 'input()'",
+        session_id="chat-wait",
+        started_at=1.0,
+        status="running",
+        waiting_for_input=True,
+    )
+
+    class _FakeRegistry:
+        def list_processes(self) -> list[BackgroundProcessInfo]:
+            return [info]
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=_FakeRegistry(),
+    ):
+        rows = list_shell_background_tasks()
+
+    assert len(rows) == 1
+    assert rows[0].waiting_for_input is True
+
+
 def test_shell_dto_includes_exit_code_and_error_category() -> None:
     info = BackgroundProcessInfo(
         job_id="job-42",

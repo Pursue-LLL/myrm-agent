@@ -477,16 +477,129 @@ def _mux_context_fields() -> dict[str, object]:
     }
 
 
-def _context_to_dict(ctx: E2eApiContext) -> dict[str, object]:
+def _server_tests_support_dir() -> Path:
+    return monorepo_root() / "myrm-agent" / "myrm-agent-server"
+
+
+def _load_parallel_runtime_snapshot() -> tuple[dict[str, object], list[str]]:
+    """SSOT parallel chrome_e2e processes + flock holders for Agent diagnosis."""
+    support_dir = _server_tests_support_dir()
+    inserted = False
+    support_text = str(support_dir)
+    if support_text not in sys.path:
+        sys.path.insert(0, support_text)
+        inserted = True
+    try:
+        from tests.support.e2e_parallel_snapshot import (  # noqa: PLC0415
+            format_parallel_snapshot_human,
+            parallel_snapshot_to_dict,
+            snapshot_live_e2e_processes,
+        )
+
+        snapshot = snapshot_live_e2e_processes()
+        return parallel_snapshot_to_dict(snapshot), format_parallel_snapshot_human(
+            snapshot
+        )
+    except Exception as exc:
+        fallback = {
+            "agent_stream_lock": None,
+            "desktop_approval_lock": None,
+            "active_tests": [],
+            "active_test_count": 0,
+            "snapshot_error": str(exc),
+        }
+        return fallback, [
+            "E2E_PARALLEL_ACTIVE: unavailable",
+            f"E2E_PARALLEL_SNAPSHOT_ERROR={exc}",
+        ]
+    finally:
+        if inserted:
+            sys.path.remove(support_text)
+
+
+def _cap_headroom_fields(
+    *,
+    active_leases: int,
+    mux_fields: dict[str, object],
+    active_test_count: int,
+) -> dict[str, object]:
+    from dev_gate_contract import (  # noqa: PLC0415
+        LIVE_SHARED_HOT_MAX_CONCURRENT,
+        LIVE_SHPOIB_MAX_CONCURRENT,
+        MUX_COLD_ATTACH_SLOTS,
+    )
+
+    mux_active = int(mux_fields.get("muxColdAttachActive", 0))
+    mux_max = int(mux_fields.get("muxColdAttachMax", MUX_COLD_ATTACH_SLOTS))
+    mux_saturated = bool(mux_fields.get("muxColdAttachSaturated", False))
+    return {
+        "waveLeasesActive": active_leases,
+        "shpoibMaxConcurrent": LIVE_SHPOIB_MAX_CONCURRENT,
+        "sharedHotMaxConcurrent": LIVE_SHARED_HOT_MAX_CONCURRENT,
+        "muxColdAttachRemaining": max(0, mux_max - mux_active),
+        "activeTestCount": active_test_count,
+        "parallelQueueExpected": mux_saturated or active_leases >= LIVE_SHPOIB_MAX_CONCURRENT,
+    }
+
+
+def _format_cap_headroom_human(
+    *,
+    active_leases: int,
+    mux_fields: dict[str, object],
+    active_test_count: int,
+) -> str:
+    headroom = _cap_headroom_fields(
+        active_leases=active_leases,
+        mux_fields=mux_fields,
+        active_test_count=active_test_count,
+    )
+    mux_active = int(mux_fields.get("muxColdAttachActive", 0))
+    mux_max = int(mux_fields.get("muxColdAttachMax", 0))
+    saturated = "yes" if mux_fields.get("muxColdAttachSaturated") else "no"
+    queue = "yes" if headroom["parallelQueueExpected"] else "no"
+    return (
+        "E2E_CAP_HEADROOM: "
+        f"wave_leases={active_leases} shpoib_max={headroom['shpoibMaxConcurrent']} "
+        f"shared_hot_max={headroom['sharedHotMaxConcurrent']} "
+        f"mux_cold_attach={mux_active}/{mux_max} saturated={saturated} "
+        f"active_tests={active_test_count} queue_expected={queue} "
+        "(do not stop other pytest)"
+    )
+
+
+def _context_to_dict(
+    ctx: E2eApiContext,
+    *,
+    parallel_snapshot: dict[str, object] | None = None,
+    mux_fields: dict[str, object] | None = None,
+) -> dict[str, object]:
+    resolved_mux = mux_fields or _mux_context_fields()
+    resolved_parallel = parallel_snapshot
+    if resolved_parallel is None:
+        resolved_parallel, _ = _load_parallel_runtime_snapshot()
+    headroom = _cap_headroom_fields(
+        active_leases=ctx.active_leases,
+        mux_fields=resolved_mux,
+        active_test_count=int(resolved_parallel.get("active_test_count", 0)),
+    )
     payload = asdict(ctx)
     payload["candidates"] = [_candidate_to_dict(item) for item in ctx.candidates]
     payload["verifyTarget"] = ctx.verify_api_base
-    payload.update(_mux_context_fields())
+    payload.update(resolved_mux)
+    payload["parallelSnapshot"] = resolved_parallel
+    payload["capHeadroom"] = headroom
     if payload.get("muxColdAttachSaturated") is True:
         payload["agent_rule"] = (
             f"{ctx.agent_rule} "
             "MUX_COLD_ATTACH_SATURATED: do not hand new_page/navigate; "
             "use verify-api or ./myrm test -m chrome_e2e (auto queue ≤900s)."
+        )
+    active_count = int(resolved_parallel.get("active_test_count", 0))
+    if active_count > 0:
+        payload["agent_rule"] = (
+            f"{payload['agent_rule']} "
+            f"PARALLEL_E2E_ACTIVE={active_count}: use active_tests[] from e2e-context; "
+            "do not pgrep; do not stop other pytest."
         )
     return payload
 
@@ -518,13 +631,33 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
                 "do not stop other tests.\n"
             )
     mux_fields = _mux_context_fields()
+    parallel_snapshot, parallel_lines = _load_parallel_runtime_snapshot()
+    active_test_count = int(parallel_snapshot.get("active_test_count", 0))
     sys.stdout.write(
         "MUX_COLD_ATTACH="
         f"{mux_fields['muxColdAttachActive']}/{mux_fields['muxColdAttachMax']} "
         f"saturated={'yes' if mux_fields['muxColdAttachSaturated'] else 'no'} "
         f"handProbe={'yes' if mux_fields['muxHandProbeAllowed'] else 'no'}\n"
     )
-    enriched = _context_to_dict(ctx)
+    sys.stdout.write(
+        _format_cap_headroom_human(
+            active_leases=ctx.active_leases,
+            mux_fields=mux_fields,
+            active_test_count=active_test_count,
+        )
+        + "\n"
+    )
+    for line in parallel_lines:
+        sys.stdout.write(f"{line}\n")
+    sys.stdout.write(
+        "E2E_PARALLEL_SNAPSHOT_JSON="
+        f"{json.dumps(parallel_snapshot, ensure_ascii=False)}\n"
+    )
+    enriched = _context_to_dict(
+        ctx,
+        parallel_snapshot=parallel_snapshot,
+        mux_fields=mux_fields,
+    )
     sys.stdout.write(f"AGENT_RULE={enriched['agent_rule']}\n")
     return 0
 

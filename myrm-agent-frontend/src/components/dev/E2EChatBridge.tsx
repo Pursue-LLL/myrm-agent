@@ -514,6 +514,15 @@ export default function E2EChatBridge() {
       },
       syncSearchServicesFromE2eApi: hydrateSearchServicesFromE2eApi,
       clearSearchServicesForE2e,
+      debugSearchState: () => {
+        const configs = useConfigStore.getState().searchServiceConfigs;
+        const enabled = configs.filter((item) => item.enabled);
+        return {
+          count: configs.length,
+          enabledCount: enabled.length,
+          blockSearchSync: Boolean(window.__MYRM_E2E_BLOCK_SEARCH_SYNC__),
+        };
+      },
       debugProviderState: () => {
         const { isInitialized, providers, defaultModelConfig } = useProviderStore.getState();
         const { actionMode, agentConfig, chatId, currentSessionMessageId } = useChatStore.getState();
@@ -602,7 +611,10 @@ export default function E2EChatBridge() {
       },
       resetChat: () => {
         flushSync(() => {
-          prepareAutomationSend();
+          const { actionMode } = useChatStore.getState();
+          if (!shouldPreserveE2eActionMode(actionMode)) {
+            prepareAutomationSend();
+          }
           useChatStore.getState().initializeChat(undefined);
         });
       },
