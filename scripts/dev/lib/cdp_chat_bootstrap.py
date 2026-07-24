@@ -46,6 +46,7 @@ class CdpChatBootstrap(CdpChatTransport):
     _bootstrap_started_monotonic: float | None = None
     # Session SSOT: hydrate re-entry must not reset shell-layout stall clock (R51).
     _shell_layout_wait_started: float | None = None
+    _shell_hydrate_depth: int = 0
 
     def _mark_bootstrap_started(self) -> None:
         if self._bootstrap_started_monotonic is None:
@@ -435,7 +436,11 @@ class CdpChatBootstrap(CdpChatTransport):
                     or not last.get("hasLayout")
                 )
                 hydrate_polls = {2, 4, 8, 16, 24, 48, 72, 96, 120}
-                if stale_home and polls in hydrate_polls:
+                if (
+                    stale_home
+                    and polls in hydrate_polls
+                    and self._shell_hydrate_depth == 0
+                ):
                     ui_base = (
                         getattr(self, "_base_url", None) or get_e2e_ui_url()
                     ).rstrip("/")
@@ -727,29 +732,37 @@ class CdpChatBootstrap(CdpChatTransport):
         if remaining <= 0:
             raise TimeoutError("Chat surface hydrate budget exhausted")
         slice_sec = shpoib_shell_wait_slice_cap(remaining)
-        await self._shared_ui_burst(
-            "navigate",
-            self.cdp(
-                "Page.navigate",
-                {"url": f"{ui_base}/"},
-                recv_timeout=120.0,
-            ),
-        )
-        await asyncio.sleep(2.0)
-        await self.ensure_e2e_api_base_binding()
-        await self.wait_shell_ready(timeout_sec=slice_sec, require_bridge=True)
-        await self._after_new_chat_reset(deadline=deadline)
-        ensure_bridge = getattr(self, "ensure_react_e2e_bridge", None)
-        if not callable(ensure_bridge):
-            return
-        bridge_remaining = max(0.0, deadline - time.monotonic())
-        if bridge_remaining <= 0:
-            return
-        bridge_cap = min(90.0, shpoib_shell_wait_slice_cap(bridge_remaining))
+        self._shell_hydrate_depth += 1
         try:
-            await ensure_bridge(timeout_sec=bridge_cap)
-        except TimeoutError:
-            await self._reload_chat_shell_burst()
+            await self._shared_ui_burst(
+                "navigate",
+                self.cdp(
+                    "Page.navigate",
+                    {"url": f"{ui_base}/"},
+                    recv_timeout=120.0,
+                ),
+            )
+            await asyncio.sleep(2.0)
+            await self.ensure_e2e_api_base_binding()
+            # R53: inner poll only — avoid nested wait_shell_layout + mux deadlock.
+            await self._wait_shell_ready_inner(
+                timeout_sec=slice_sec,
+                require_bridge=True,
+            )
+            await self._after_new_chat_reset(deadline=deadline)
+            ensure_bridge = getattr(self, "ensure_react_e2e_bridge", None)
+            if not callable(ensure_bridge):
+                return
+            bridge_remaining = max(0.0, deadline - time.monotonic())
+            if bridge_remaining <= 0:
+                return
+            bridge_cap = min(90.0, shpoib_shell_wait_slice_cap(bridge_remaining))
+            try:
+                await ensure_bridge(timeout_sec=bridge_cap)
+            except TimeoutError:
+                await self._reload_chat_shell_burst()
+        finally:
+            self._shell_hydrate_depth -= 1
 
     async def ensure_chat_surface(
         self, base_url: str, *, timeout_sec: float = 90.0
