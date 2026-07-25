@@ -43,6 +43,7 @@ class ShellBackgroundTaskDTO(BaseModel):
     error_category: str | None = None
     vault_log_ref: str | None = None
     waiting_for_input: bool = False
+    stdin_closed: bool = False
 
 
 def _map_shell_status(raw: str, exit_code: int | None) -> ShellTaskStatus:
@@ -124,6 +125,7 @@ def _row_from_registry_info(info: object) -> ShellBackgroundTaskDTO:
         error_category=info.error_category,
         vault_log_ref=info.vault_log_ref or _vault_log_ref_from_store(info.job_id),
         waiting_for_input=info.waiting_for_input if status == "running" else False,
+        stdin_closed=info.stdin_closed if status == "running" else False,
     )
 
 

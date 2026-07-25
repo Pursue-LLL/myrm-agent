@@ -48,6 +48,7 @@ from app.services.agent.streaming_support.sse_helpers import (
 logger = logging.getLogger(__name__)
 _CITATION_PATTERN = re.compile(r"<cite:([^>]+)>")
 _TTFT_VISIBLE_EVENT_TYPES = frozenset({"message", "reasoning"})
+_REASONING_DISPLAY_MODE_OFF = "off"
 
 
 @dataclass
@@ -105,6 +106,13 @@ def _capture_stream_ttft_if_needed(
         elapsed_ms,
         event_type,
     )
+
+
+def _is_reasoning_hidden(session: AgentStreamSession) -> bool:
+    raw_mode = getattr(session.params, "reasoning_display_mode", None)
+    if not isinstance(raw_mode, str):
+        return False
+    return raw_mode.strip().lower() == _REASONING_DISPLAY_MODE_OFF
 
 
 def _inject_message_end_memory_insights(
@@ -255,6 +263,8 @@ async def iter_agent_stream_chunks(
     accumulated_cost_usd = 0.0
     async for chunk in stream:
         if isinstance(chunk, dict):
+            if chunk.get("type") == "reasoning" and _is_reasoning_hidden(session):
+                continue
             _capture_stream_ttft_if_needed(session=session, chunk=chunk)
 
         if session.cancel_token.is_cancelled:

@@ -15,6 +15,7 @@ systems (n8n, Zapier, custom webhooks) and third-party integrations.
 [POS]
 Generic webhook push channel. Converts OutboundMessage to JSON POST to user-specified URL.
 Suitable for third-party integrations like n8n, Zapier, or platforms without a dedicated Channel.
+Reasoning payload follows secure-default OFF and requires explicit per-message opt-in.
 """
 
 from __future__ import annotations
@@ -38,6 +39,7 @@ from app.channels.types import (
 logger = logging.getLogger(__name__)
 
 _TIMEOUT = 15.0
+_REASONING_OPT_IN_KEY = "webhook_include_reasoning"
 
 
 class WebhookChannel(BaseChannel):
@@ -139,7 +141,7 @@ class WebhookChannel(BaseChannel):
                 for att in msg.media
             ]
 
-        if msg.reasoning:
+        if msg.reasoning and self._should_include_reasoning(msg):
             payload["reasoning"] = msg.reasoning
 
         if msg.tool_steps:
@@ -157,6 +159,19 @@ class WebhookChannel(BaseChannel):
                 payload["steps"] = steps
 
         return payload
+
+    @staticmethod
+    def _should_include_reasoning(msg: OutboundMessage) -> bool:
+        metadata = msg.metadata
+        if not metadata:
+            return False
+
+        raw_flag = metadata.get(_REASONING_OPT_IN_KEY)
+        if isinstance(raw_flag, bool):
+            return raw_flag
+        if isinstance(raw_flag, str):
+            return raw_flag.strip().lower() in {"1", "true", "yes", "on"}
+        return False
 
     @staticmethod
     def _extract_message_id(resp: httpx.Response) -> str | None:

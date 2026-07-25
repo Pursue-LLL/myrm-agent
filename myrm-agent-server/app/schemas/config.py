@@ -137,6 +137,11 @@ class PersonalSettingsConfigValue(BaseModel):
     showContextUsage: bool = _personal_settings_field(
         "preferences", default=True, description="显示上下文使用率", visible_if="local"
     )
+    reasoningDisplayMode: Literal["off", "collapsed", "inline"] = _personal_settings_field(
+        "preferences",
+        default="collapsed",
+        description="思考过程展示方式",
+    )
     enableMemory: bool = _personal_settings_field("memory", default=False, description="启用记忆")
     memoryRequireConfirmation: bool = _personal_settings_field("memory", default=False, description="记忆需要确认")
     enableMemoryAutoExtraction: bool = _personal_settings_field("memory", default=True, description="启用记忆自动提取")

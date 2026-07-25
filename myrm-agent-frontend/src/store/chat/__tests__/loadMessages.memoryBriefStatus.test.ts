@@ -88,6 +88,7 @@ describe('loadMessages memoryBriefStatus hydration', () => {
           role: 'assistant',
           content: 'done',
           metadata: JSON.stringify({
+            reasoning_content: 'historical reasoning',
             memoryBriefStatus: {
               state: 'skipped',
               reason: 'timeout',
@@ -131,5 +132,32 @@ describe('loadMessages memoryBriefStatus hydration', () => {
       reason: 'timeout',
       injection: { state: 'applied', source: 'fallback' },
     });
+  });
+
+  it('maps metadata.reasoning_content to message.reasoning for history replay', async () => {
+    const state = {
+      chatId: '',
+      messages: [],
+      loading: false,
+      isMessagesLoaded: false,
+      notFound: false,
+      loadError: false,
+      actionMode: 'agent',
+      compactedSummary: null,
+      compactedBeforeId: null,
+      workspaceDir: null,
+      sessionSkillOverrides: null,
+      incognitoMode: false,
+      hasMoreMessages: false,
+      nextCursor: null,
+    } as unknown as ChatState;
+
+    const actions = {
+      setMessages: (updater: (draft: ChatState) => void) => updater(state),
+    } as unknown as Parameters<typeof loadMessages>[1];
+
+    await loadMessages('chat-memory-brief', actions);
+
+    expect(state.messages[0]?.reasoning).toBe('historical reasoning');
   });
 });

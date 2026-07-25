@@ -199,6 +199,13 @@ function parseMessages(raw: Message[]): Message[] {
       parsed.clarification = normalizeHydratedClarification(parsed.clarification);
     }
 
+    if (!parsed.reasoning) {
+      const persistedReasoning = metadata.reasoning_content;
+      if (typeof persistedReasoning === 'string' && persistedReasoning.trim().length > 0) {
+        parsed.reasoning = persistedReasoning;
+      }
+    }
+
     return parsed;
   });
 }

@@ -17,6 +17,7 @@ function selectPersonalSettings(state: ReturnType<typeof useConfigStore.getState
     enableCostEstimation: state.enableCostEstimation,
     enableCacheBreakNotification: state.enableCacheBreakNotification,
     showContextUsage: state.showContextUsage,
+    reasoningDisplayMode: state.reasoningDisplayMode,
     enableMemory: state.enableMemory,
     memoryRequireConfirmation: state.memoryRequireConfirmation,
     enableMemoryAutoExtraction: state.enableMemoryAutoExtraction,

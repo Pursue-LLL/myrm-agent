@@ -19,7 +19,9 @@ Server-layer X/Twitter search provider. API client used by integrations/tools/x_
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from datetime import date, datetime, timezone
 from typing import Any
 
 import httpx
@@ -32,6 +34,7 @@ _DEFAULT_XAI_BASE_URL = "https://api.x.ai/v1"
 _DEFAULT_MODEL = "grok-3"
 _DEFAULT_TIMEOUT_SECONDS = 60
 _MAX_HANDLES = 10
+_MAX_RETRIES = 2
 
 
 class XSearchProviderConfig(BaseModel):
@@ -58,6 +61,34 @@ def _normalize_handles(handles: list[str] | None) -> list[str]:
     if len(cleaned) > _MAX_HANDLES:
         raise ValueError(f"Maximum {_MAX_HANDLES} handles allowed")
     return cleaned
+
+
+def _validate_date_range(from_date: str, to_date: str) -> str | None:
+    """Validate from_date / to_date before they reach xAI.
+
+    Returns an error message if validation fails, None if valid.
+    xAI silently returns a billable 200 with fabricated content for malformed
+    dates, so client-side validation prevents wasted API calls and misleading results.
+    """
+    parsed_from: date | None = None
+    parsed_to: date | None = None
+    for raw, label in ((from_date, "from_date"), (to_date, "to_date")):
+        trimmed = raw.strip()
+        if not trimmed:
+            continue
+        try:
+            parsed = datetime.strptime(trimmed, "%Y-%m-%d").date()
+        except ValueError:
+            return f"{label} must be YYYY-MM-DD (got {trimmed!r})"
+        if label == "from_date":
+            parsed_from = parsed
+        else:
+            parsed_to = parsed
+    if parsed_from and parsed_to and parsed_from > parsed_to:
+        return f"from_date ({parsed_from.isoformat()}) must be on or before to_date ({parsed_to.isoformat()})"
+    if parsed_from is not None and parsed_from > datetime.now(timezone.utc).date():
+        return f"from_date ({parsed_from.isoformat()}) is in the future; X Search only indexes past posts"
+    return None
 
 
 class XSearchProvider:
@@ -124,6 +155,15 @@ class XSearchProvider:
                     is_error=True,
                 )
 
+            date_error = _validate_date_range(from_date, to_date)
+            if date_error:
+                return SearchResult(
+                    title="X Search Error",
+                    link="",
+                    snippet=date_error,
+                    is_error=True,
+                )
+
             tool_def: dict[str, Any] = {"type": "x_search"}
             if allowed:
                 tool_def["allowed_x_handles"] = allowed
@@ -146,34 +186,86 @@ class XSearchProvider:
             }
 
             client = await self._get_client()
-            response = await client.post(
-                f"{self._config.base_url}/responses",
-                headers={
-                    "Authorization": f"Bearer {self._config.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            )
-            response.raise_for_status()
+            headers = {
+                "Authorization": f"Bearer {self._config.api_key}",
+                "Content-Type": "application/json",
+            }
+            url = f"{self._config.base_url}/responses"
+
+            response: httpx.Response | None = None
+            for attempt in range(_MAX_RETRIES + 1):
+                try:
+                    response = await client.post(url, headers=headers, json=payload)
+                    response.raise_for_status()
+                    break
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code < 500 or attempt >= _MAX_RETRIES:
+                        raise
+                    logger.warning(
+                        "x_search upstream %s on attempt %s/%s",
+                        e.response.status_code,
+                        attempt + 1,
+                        _MAX_RETRIES + 1,
+                    )
+                    await asyncio.sleep(min(5.0, 1.5 * (attempt + 1)))
+                except httpx.TimeoutException:
+                    if attempt >= _MAX_RETRIES:
+                        raise
+                    logger.warning(
+                        "x_search timeout on attempt %s/%s",
+                        attempt + 1,
+                        _MAX_RETRIES + 1,
+                    )
+                    await asyncio.sleep(min(5.0, 1.5 * (attempt + 1)))
+
+            if response is None:
+                return SearchResult(
+                    title="X Search Error",
+                    link="",
+                    snippet="xAI API did not return a response after retries",
+                    is_error=True,
+                )
             data = response.json()
 
             answer = self._extract_response_text(data)
             inline_citations = self._extract_inline_citations(data)
+            top_level_citations: list[dict[str, Any]] = list(data.get("citations") or [])
+
+            seen_urls: set[str] = set()
+            merged: list[Citation] = []
+            for c in inline_citations:
+                url = c.get("url", "")
+                if not url or url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                merged.append(Citation(
+                    url=url,
+                    title=c.get("title", ""),
+                    start_index=c.get("start_index"),
+                    end_index=c.get("end_index"),
+                ))
+            for tc in top_level_citations:
+                url = tc.get("url", "") if isinstance(tc, dict) else str(tc)
+                if not url or url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                merged.append(Citation(
+                    url=url,
+                    title=tc.get("title", "") if isinstance(tc, dict) else "",
+                ))
+
+            has_filters = bool(allowed or excluded or from_date.strip() or to_date.strip())
+            if has_filters and not merged:
+                answer += (
+                    "\n\nNote: No matching posts found for the specified filters. "
+                    "This answer may be based on general knowledge rather than actual X posts."
+                )
 
             return SearchResult(
                 title=f"X Search: {query[:50]}",
                 link=f"https://x.com/search?q={query}",
                 snippet=answer,
-                citations=[
-                    Citation(
-                        url=c.get("url", ""),
-                        title=c.get("title", ""),
-                        start_index=c.get("start_index"),
-                        end_index=c.get("end_index"),
-                    )
-                    for c in inline_citations
-                    if c.get("url")
-                ],
+                citations=merged,
             )
 
         except httpx.HTTPStatusError as e:

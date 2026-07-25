@@ -554,6 +554,8 @@ export const createMessageRequest = async (
   const savedLocale = configStore.personalSettings?.locale;
   const cookieLocale = getClientLocale();
   const userLocale = normalizeLocaleForBackend(savedLocale || cookieLocale);
+  const reasoningDisplayMode =
+    configStore.personalSettings?.reasoningDisplayMode ?? configStore.reasoningDisplayMode ?? 'collapsed';
 
   const kanbanDefaultBoardId = resolveKanbanDefaultBoardIdForRequest(currentBuiltinTools);
 
@@ -579,6 +581,7 @@ export const createMessageRequest = async (
     timezone: configStore.timezone || getBrowserTimezone(),
     timestamp: getCurrentTimestamp(),
     ...(userLocale && { locale: userLocale }),
+    reasoning_display_mode: reasoningDisplayMode,
     ...(effectiveAgentId && { agent_id: effectiveAgentId }),
     ...(agentConfig?.ephemeralSubagents && { ephemeral_subagents: agentConfig.ephemeralSubagents }),
     ...(userInstructions && { user_instructions: userInstructions }),

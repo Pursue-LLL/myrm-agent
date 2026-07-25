@@ -47,7 +47,7 @@ const useAgentStore = create<AgentState>()(
 
     fetchAgents: async (page = 1, pageSize = AGENT_LIST_BUILTIN_PAGE_SIZE, forceRefresh = false) => {
       const { loading, agents } = get();
-      // Skip duplicate fetches unless caller forces refresh (gallery needs page_size=50 for 24 presets).
+      // Skip duplicate fetches unless caller forces refresh (gallery needs page_size=50 for 27 presets).
       if (!forceRefresh && (loading || agents.length > 0)) {
         return;
       }

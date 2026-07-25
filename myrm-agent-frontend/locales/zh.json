@@ -565,7 +565,33 @@
       "openAuth": "开放认证模式",
       "openAuthDesc": "启用后，任意非空 Bearer Token 即可访问（无需数据库注册的 API Key）。适合本地开发环境。",
       "openAuthWarning": "安全提示：开放认证模式下，任何知道你端点地址的人都可以调用 API。请仅在可信网络环境中使用。",
-      "saveFailed": "保存代理设置失败"
+      "saveFailed": "保存代理设置失败",
+      "combo": {
+        "title": "多服务商路由",
+        "description": "配置跨服务商的降级链。当一个服务商的密钥耗尽时，请求自动路由到下一个。",
+        "addTarget": "添加服务商",
+        "noTargets": "未配置路由链 — 请求使用单服务商模式。",
+        "strategy": "路由策略",
+        "strategyPriority": "优先级（按顺序降级）",
+        "strategyCostOptimized": "成本优化（优先低成本）",
+        "strategyRoundRobin": "轮询（均匀分配）",
+        "strategyRandom": "随机",
+        "strategyLkgp": "最近成功（粘性）",
+        "strategyContextRelay": "上下文接力（缓存感知）",
+        "strategyHeadroom": "余量优先（剩余配额最多）",
+        "maxRetries": "跨服务商最大重试次数",
+        "enabled": "启用",
+        "provider": "服务商",
+        "model": "模型",
+        "saved": "路由链已保存"
+      },
+      "cliConfig": {
+        "title": "外部工具配置",
+        "description": "为主流 AI 编码工具一键生成配置。",
+        "copy": "复制",
+        "copied": "配置已复制到剪贴板",
+        "selectTool": "选择一个工具查看其配置"
+      }
     },
     "workspaceRules": {
       "title": "项目规则",
@@ -3052,6 +3078,13 @@
     "enableEvalLabDesc": "启用评测实验室功能，用于测试和评估 Agent 能力表现",
     "showContextUsage": "上下文窗口使用率",
     "showContextUsageDesc": "在输入框旁显示上下文窗口使用率进度环",
+    "reasoningDisplayMode": "思考过程显示方式",
+    "reasoningDisplayModeDesc": "控制模型思考过程在对话中的展示方式",
+    "reasoningDisplayModeOptions": {
+      "off": "隐藏",
+      "collapsed": "折叠显示",
+      "inline": "内联展开"
+    },
     "codeExecutionAllowNetwork": "代码执行网络权限",
     "codeExecutionAllowNetworkDesc": "允许 Agent 执行的代码访问网络（如 pip install、API 调用）。关闭后沙箱内代码执行将完全禁止网络访问。",
     "enableAutoTitleGeneration": "AI 自动生成标题",
@@ -12244,6 +12277,7 @@
     "shellInputClose": "关闭 stdin",
     "shellInputCloseSuccess": "已关闭进程 stdin",
     "shellInputCloseFailed": "关闭进程 stdin 失败",
+    "stdinClosed": "stdin 已关闭",
     "waitingForInput": "等待输入",
     "taskStarted": "后台任务已启动",
     "elapsed": "已耗时",

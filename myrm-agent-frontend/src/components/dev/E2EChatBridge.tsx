@@ -9,6 +9,8 @@
  * [OUTPUT]
  * - E2EChatBridge: localhost dev-only `window.__MYRM_E2E_CHAT__` for CDP Chrome E2E
  * - pinLiteModelForE2e: bind agent chat to defaultModelConfig.liteModel (API E2E parity)
+ * - pinBasicModelForE2e: bind desktop E2E to defaultModelConfig.baseModel (mimo SSOT)
+ * - isE2eProviderSendReady / waitE2eProviderSendReady: getModelSelection SSOT (lite or base)
  *
  * [POS]
  * App shell dev bridge。在 MessageInput 水合前挂载，供 CDP/MCP E2E 驱动聊天与 Goal 模式（非终端用户功能）。
@@ -23,11 +25,12 @@ import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
+import { guardSearchServiceConfigured } from '@/store/config/searchService';
 import type { SearchServiceConfigItem } from '@/store/config/types';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
-import type { ActionMode, BuiltinToolId } from '@/store/chat/types';
+import type { ActionMode, AgentConfig, BuiltinToolId } from '@/store/chat/types';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
 import { fetchWithTimeout } from '@/lib/api';
@@ -57,6 +60,14 @@ function resolveE2eApiBase(): string {
   return resolveInjectedE2eApiBase() ?? '';
 }
 
+function isE2eProviderSendReady(actionMode: ActionMode, agentConfig: AgentConfig | null): boolean {
+  const refreshed = useProviderStore.getState();
+  if (!refreshed.isInitialized) {
+    return false;
+  }
+  return getModelSelection(actionMode, agentConfig) !== null;
+}
+
 async function waitE2eProviderSendReady(
   deadlineMs: number,
   preserveActionMode = false,
@@ -66,19 +77,13 @@ async function waitE2eProviderSendReady(
       prepareAutomationSend();
     }
     const { actionMode, agentConfig } = useChatStore.getState();
-    const refreshed = useProviderStore.getState();
-    const readyLite = refreshed.defaultModelConfig?.liteModel?.primary;
-    if (
-      refreshed.isInitialized &&
-      getModelSelection(actionMode, agentConfig) !== null &&
-      readyLite?.providerId &&
-      readyLite?.model
-    ) {
+    if (isE2eProviderSendReady(actionMode, agentConfig)) {
       return;
     }
+    const refreshed = useProviderStore.getState();
     if (!refreshed.isInitialized) {
       await useProviderStore.getState().initProviders();
-    } else if (!readyLite?.providerId || !readyLite?.model) {
+    } else {
       await useProviderStore.getState().retryInit();
     }
     await new Promise((resolve) => setTimeout(resolve, 200));
@@ -226,14 +231,7 @@ async function initProvidersForE2e(opts?: E2eChatSessionOpts): Promise<void> {
       prepareAutomationSend();
     }
     const { actionMode, agentConfig } = useChatStore.getState();
-    const providerState = useProviderStore.getState();
-    const litePrimary = providerState.defaultModelConfig?.liteModel?.primary;
-    if (
-      providerState.isInitialized &&
-      getModelSelection(actionMode, agentConfig) !== null &&
-      litePrimary?.providerId &&
-      litePrimary?.model
-    ) {
+    if (isE2eProviderSendReady(actionMode, agentConfig)) {
       return;
     }
 
@@ -322,6 +320,21 @@ async function executeE2eChatSend(
     });
     if (!useChatStore.getState().chatId?.trim()) {
       return { ok: false, err: 'no-chat-id' };
+    }
+    const { actionMode: currentActionMode } = useChatStore.getState();
+    if (currentActionMode === 'fast' || currentActionMode === 'deep_research') {
+      const configs = useConfigStore.getState().searchServiceConfigs;
+      if (!guardSearchServiceConfigured(configs)) {
+        return {
+          ok: false,
+          err: 'search-not-configured',
+          debug: {
+            actionMode: currentActionMode,
+            searchCount: configs.length,
+            enabledCount: configs.filter((item) => item.enabled).length,
+          },
+        };
+      }
     }
     if (!window.__MYRM_E2E_CHAT__?.isSendReady?.()) {
       return {
@@ -903,9 +916,17 @@ export default function E2EChatBridge() {
         });
       },
       getCurrentBuiltinTools: () => [...useChatStore.getState().currentBuiltinTools],
-      pinLiteModelForE2e: async () => {
-        await initProvidersForE2e();
-        prepareAutomationSend();
+      pinLiteModelForE2e: async (opts?: { preserveActionMode?: boolean }) => {
+        const preserveActionMode = shouldPreserveE2eActionMode(
+          useChatStore.getState().actionMode,
+          Boolean(opts?.preserveActionMode),
+        );
+        await initProvidersForE2e(
+          preserveActionMode ? { preserveActionMode: true } : undefined,
+        );
+        if (shouldRunPrepareAutomationSend(preserveActionMode)) {
+          prepareAutomationSend();
+        }
         let { defaultModelConfig, providers } = useProviderStore.getState();
         let litePrimary = defaultModelConfig?.liteModel?.primary;
         if (!litePrimary?.providerId || !litePrimary?.model) {

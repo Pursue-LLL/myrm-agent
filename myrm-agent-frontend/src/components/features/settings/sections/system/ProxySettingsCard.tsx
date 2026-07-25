@@ -8,6 +8,8 @@ import { BACKEND_BASE_URL } from '@/lib/api';
 import { getConfigSyncManager, type ProxySettingsConfigValue } from '@/services/config';
 import { toast } from '@/hooks/useToast';
 import SettingsSection from '../SettingsSection';
+import ComboEditorCard from './ComboEditorCard';
+import CliConfigTemplates from './CliConfigTemplates';
 
 const DEFAULT_PROXY_SETTINGS: ProxySettingsConfigValue = {
   enabled: false,
@@ -88,22 +90,11 @@ const ProxySettingsCard = memo(() => {
             </code>
           </div>
 
-          {/* Tool config examples */}
-          <div className="p-4 rounded-lg border border-border/50 bg-muted/30">
-            <h3 className="text-sm font-medium mb-2">{t('toolConfigTitle')}</h3>
-            <pre className="p-3 rounded bg-background text-xs font-mono overflow-x-auto whitespace-pre">
-              {`# Aider
-export OPENAI_API_BASE=${apiEndpoint}
-export OPENAI_API_KEY=sk-myrm-...
+          {/* Tool configuration templates */}
+          <CliConfigTemplates apiEndpoint={apiEndpoint} />
 
-# Cline / Continue
-{
-  "apiProvider": "openai-compatible",
-  "apiBaseUrl": "${apiEndpoint}",
-  "apiKey": "sk-myrm-..."
-}`}
-            </pre>
-          </div>
+          {/* Multi-provider routing chain */}
+          <ComboEditorCard />
 
           {/* Open auth toggle */}
           <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-muted/30">

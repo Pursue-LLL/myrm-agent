@@ -26,7 +26,7 @@
 | `registry.py` | 模块 | Channel provider registry — lazy-loading, thread-safe, zero overhead for unused channels. | ✅ |
 | `sms.py` | 模块 | SMS channel provider. Sends/receives text messages via Twilio. Inbound via webhook, outbound via REST API. Pure text (no markdown). | ✅ |
 | `voice_channel.py` | 模块 | Voice/phone call channel. Twilio ConversationRelay WebSocket protocol. Framework layer is WebSocket-library-agnostic — business layer injects receive/send funct | ✅ |
-| `webhook.py` | 模块 | Generic webhook push channel. Converts OutboundMessage to JSON POST to user-specified URL. Suitable for third-party integrations like n8n, Zapier, or platforms  | ✅ |
+| `webhook.py` | 模块 | Generic webhook push channel. Converts OutboundMessage to JSON POST to user-specified URL. Suitable for third-party integrations like n8n, Zapier, or platforms. Reasoning payload is security-default OFF and requires explicit `metadata.webhook_include_reasoning=true` opt-in. | ✅ |
 | `wechat/` | 包 | WeChat channel via iLink protocol. QR code login (AsyncLoginProtocol), bidirectional text/media messaging, typing indicator, multi-account support. See `wechat/_ARCH.md`. | ✅ |
 | `whatsapp/` | 包 | WhatsApp channel via whatsapp-web.js Node bridge. QR code pairing (AsyncLoginProtocol), bidirectional text/media/reaction messaging, presence sync. See `whatsapp/_ARCH.md`. | ✅ |
 | `_ilink/` | 共享库 | WeChat iLink HTTP protocol client. QR code fetch/poll, message send/receive, media upload/download, silk audio conversion. Used by `wechat/`. See `_ilink/_ARCH.md`. | ✅ |

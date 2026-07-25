@@ -430,6 +430,7 @@ export interface StreamRequestBody {
   chat_id: string;
   action_mode: ActionMode;
   search_depth?: 'normal' | 'deep';
+  reasoning_display_mode?: 'off' | 'collapsed' | 'inline';
   model_selection: ModelSelection;
   timezone: string;
   timestamp?: number;

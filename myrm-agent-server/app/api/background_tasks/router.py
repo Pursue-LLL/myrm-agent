@@ -60,6 +60,8 @@ class BackgroundTaskResponse(BaseModel):
     error_category: str | None = None
     job_id: str | None = None
     vault_log_ref: str | None = None
+    waiting_for_input: bool = False
+    stdin_closed: bool = False
 
 
 class BackgroundTaskListResponse(BaseModel):
@@ -99,6 +101,8 @@ def _shell_row_to_response(row: ShellBackgroundTaskDTO) -> BackgroundTaskRespons
         error_category=row.error_category,
         job_id=row.job_id,
         vault_log_ref=row.vault_log_ref,
+        waiting_for_input=row.waiting_for_input,
+        stdin_closed=row.stdin_closed,
     )
 
 

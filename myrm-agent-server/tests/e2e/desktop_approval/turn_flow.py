@@ -505,18 +505,26 @@ def _wall_clock_start() -> float:
     return time.monotonic()
 
 
+async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
+    """Navigate off about:blank and wait for hydrated shell before chat automation."""
+    progress(f"force chat shell ({label})")
+    await chat._navigate_to_chat_home(timeout_ms=120_000)
+    await chat.wait_shell_ready(timeout_sec=120.0, require_bridge=True)
+
+
 async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> str:
     wall_started_at = _wall_clock_start()
+    await _force_chat_shell(chat, label="pre-attempt")
     progress("new chat + ensure surface")
     await chat.click_new_chat()
-    await chat.ensure_chat_surface(BASE_URL)
+    await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
     await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
     await ensure_textedit_fixture_ready()
 
     progress("enable computer_use")
     await asyncio.to_thread(activate_chrome)
-    await chat.ensure_chat_surface(BASE_URL)
-    await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
+    await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
+    await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
     tools_setup = await chat.enable_computer_use()
     assert tools_setup.get("ok") is True, f"computer_use bridge failed: {tools_setup}"
     assert "computer_use" in (tools_setup.get("tools") or []), tools_setup
@@ -578,6 +586,11 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         "enabledProviderIds"
     ):
         pytest.fail(f"Provider still not enabled for send: {provider_debug}")
+    if isinstance(provider_debug, dict):
+        selection = provider_debug.get("selection") or provider_debug.get("primary")
+        if isinstance(selection, dict):
+            model = str(selection.get("model") or "").strip()
+            assert model, f"Provider model empty before desktop send: {provider_debug}"
     chat_id = ""
     if isinstance(provider_debug, dict):
         chat_id = str(provider_debug.get("chatId") or "").strip()

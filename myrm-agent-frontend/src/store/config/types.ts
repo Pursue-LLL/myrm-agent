@@ -119,6 +119,8 @@ export interface ConfigState {
 
   // 上下文窗口使用率展示开关
   showContextUsage: boolean;
+  // 思考过程展示策略（off/collapsed/inline）
+  reasoningDisplayMode: import('@/services/config/types').ReasoningDisplayMode;
 
   // 记忆功能开关
   enableMemory: boolean;

@@ -26,6 +26,7 @@ export interface BackgroundTask {
   job_id?: string | null;
   vault_log_ref?: string | null;
   waiting_for_input?: boolean;
+  stdin_closed?: boolean;
 }
 
 export interface BackgroundTaskListResponse {

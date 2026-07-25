@@ -658,7 +658,7 @@ async def _wait_desktop_tool_activity_failfast(
             if probe.get("pending") or probe_last_tool.startswith("desktop_"):
                 if probe_last_tool.endswith("desktop_interact_tool"):
                     return probe
-                if probe_last_tool.endswith("desktop_snapshot_tool"):
+                if _is_snapshot_or_vision_loop(probe_last_tool):
                     return probe
         now = asyncio.get_event_loop().time()
         last_tool = str(last.get("lastTool") or "")

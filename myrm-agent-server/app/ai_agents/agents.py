@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -52,6 +52,7 @@ class BaseAgentParams(BaseModel):
     user_instructions: str | None = None
     fetch_raw_webpage: bool = False
     timezone: str | None = None
+    reasoning_display_mode: Literal["off", "collapsed", "inline"] = "collapsed"
     quote: str | None = None
 
 

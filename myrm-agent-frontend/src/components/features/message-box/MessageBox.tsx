@@ -58,6 +58,7 @@ import VisualApprovalInlineSection from '@/components/features/chat-window/Visua
 import { ChevronDown, ChevronRight, BrainCircuit } from 'lucide-react';
 import { MessageToc } from './MessageToc';
 import { McpAppSection } from './McpAppSection';
+import type { ReasoningDisplayMode } from '@/services/config/types';
 
 const ReasoningBlock = ({
   message,
@@ -65,16 +66,20 @@ const ReasoningBlock = ({
   loading,
   isExpanded,
   onToggle,
+  displayMode,
 }: {
   message: Message;
   isLast: boolean;
   loading: boolean;
   isExpanded: boolean;
   onToggle: () => void;
+  displayMode: ReasoningDisplayMode;
 }) => {
   const t = useTranslations('chat');
   const isThinking = isLast && loading && !message.content;
   const [elapsedSec, setElapsedSec] = useState(0);
+  const forceExpanded = displayMode === 'inline';
+  const showExpanded = forceExpanded || isExpanded;
 
   useEffect(() => {
     if (!isThinking || !message.reasoningStartedAt) {
@@ -98,21 +103,30 @@ const ReasoningBlock = ({
 
   return (
     <div className="mb-4 border border-border/50 rounded-lg overflow-hidden bg-muted/20">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-2 hover:bg-muted/50 transition-colors text-sm"
-      >
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <BrainCircuit className="w-4 h-4" />
-          <span className="font-medium">{label}</span>
+      {displayMode === 'inline' ? (
+        <div className="w-full flex items-center px-4 py-2 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <BrainCircuit className="w-4 h-4" />
+            <span className="font-medium">{label}</span>
+          </div>
         </div>
-        {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        )}
-      </button>
-      {isExpanded && (
+      ) : (
+        <button
+          onClick={onToggle}
+          className="w-full flex items-center justify-between px-4 py-2 hover:bg-muted/50 transition-colors text-sm"
+        >
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <BrainCircuit className="w-4 h-4" />
+            <span className="font-medium">{label}</span>
+          </div>
+          {isExpanded ? (
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          )}
+        </button>
+      )}
+      {showExpanded && (
         <div className="px-4 py-3 border-t border-border/50 text-sm text-muted-foreground bg-muted/10">
           <MarkdownContent
             content={message.reasoning!}
@@ -162,6 +176,9 @@ const MessageBox = ({
     composerPendingClarification?.messageId === message.messageId;
   const chatId = useChatStore((state) => (typeof state.chatId === 'string' ? state.chatId : undefined));
   const enableEvalLab = useConfigStore((state) => state.enableEvalLab);
+  const reasoningDisplayMode = useConfigStore(
+    (state) => state.personalSettings?.reasoningDisplayMode ?? state.reasoningDisplayMode ?? 'collapsed',
+  );
   const previousContentRef = useRef('');
   const t = useTranslations('chat');
   const tProgress = useTranslations('progressSteps');
@@ -245,10 +262,22 @@ const MessageBox = ({
 
   // 自动折叠思考过程：当思考结束（开始输出正文）时自动折叠
   useEffect(() => {
-    if (message.reasoning && message.content && message.content.length > 0 && isReasoningExpanded) {
+    if (
+      reasoningDisplayMode !== 'inline'
+      && message.reasoning
+      && message.content
+      && message.content.length > 0
+      && isReasoningExpanded
+    ) {
       setIsReasoningExpanded(false);
     }
-  }, [message.content, message.reasoning]);
+  }, [isReasoningExpanded, message.content, message.reasoning, reasoningDisplayMode]);
+
+  useEffect(() => {
+    if (reasoningDisplayMode === 'inline' && message.reasoning && !isReasoningExpanded) {
+      setIsReasoningExpanded(true);
+    }
+  }, [isReasoningExpanded, message.reasoning, reasoningDisplayMode]);
 
   // 处理交互式 UI 动作回传
   const handleUIAction = (event: UIActionEvent) => {
@@ -647,18 +676,19 @@ const MessageBox = ({
             </div>
 
             {/* Reasoning display */}
-            {message.reasoning && (
+            {message.reasoning && reasoningDisplayMode !== 'off' && (
               <ReasoningBlock
                 message={message}
                 isLast={isLast}
                 loading={loading}
                 isExpanded={isReasoningExpanded}
                 onToggle={() => setIsReasoningExpanded(!isReasoningExpanded)}
+                displayMode={reasoningDisplayMode}
               />
             )}
 
             {/* TTFT indicator — visible only during pre-first-token blank period */}
-            {isLast && loading && !parsedMessage && !message.reasoning && (
+            {isLast && loading && !parsedMessage && (!message.reasoning || reasoningDisplayMode === 'off') && (
               <span className="inline-flex items-center gap-0.5 py-2" aria-label={t('thinking')}>
                 <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-[pulse_1s_ease-in-out_infinite]" />
                 <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-[pulse_1s_ease-in-out_0.2s_infinite]" />

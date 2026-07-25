@@ -99,6 +99,26 @@ class TestReasoningBlock:
         full_text = "".join(result)
         assert "…" in full_text
 
+    def test_reasoning_metadata_override_to_off(self) -> None:
+        result = render(
+            _msg(
+                reasoning="should be hidden",
+                metadata={"reasoning_display_mode": "off"},
+            ),
+            _style(reasoning_display=ReasoningDisplay.INLINE),
+        )
+        assert "should be hidden" not in result[0]
+
+    def test_reasoning_metadata_override_to_inline(self) -> None:
+        result = render(
+            _msg(
+                reasoning="visible from metadata",
+                metadata={"reasoning_display_mode": "inline"},
+            ),
+            _style(reasoning_display=ReasoningDisplay.OFF),
+        )
+        assert "visible from metadata" in result[0]
+
 
 class TestToolSummary:
     def test_tool_summary_off(self) -> None:

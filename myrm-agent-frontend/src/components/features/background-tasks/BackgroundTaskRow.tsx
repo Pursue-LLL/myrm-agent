@@ -93,6 +93,12 @@ export function BackgroundTaskRow({
                 <span>{t('exitCode', { code: task.exit_code })}</span>
               </>
             )}
+            {task.kind === 'shell' && task.status === 'running' && task.stdin_closed && (
+              <>
+                <span className="text-border">·</span>
+                <span className="text-[10px] text-muted-foreground/80">{t('stdinClosed')}</span>
+              </>
+            )}
             {task.kind === 'shell' && task.status === 'running' && task.waiting_for_input && (
               <>
                 <span className="text-border">·</span>

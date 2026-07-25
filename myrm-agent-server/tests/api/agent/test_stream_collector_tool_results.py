@@ -102,3 +102,26 @@ def test_stream_collector_persists_cron_manage_success() -> None:
     assert extra_data is not None
     assert extra_data["cron_job_result"]["job_id"] == "job-1"
     assert extra_data["cron_job_result"]["name"] == "Daily sync"
+
+
+def test_stream_collector_persists_tool_evicted_ref_on_progress_step() -> None:
+    collector = StreamContentCollector()
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "tool_name": "bash_code_execute_tool",
+            "data": [{"status": "running"}],
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "tool_evicted_ref",
+            "tool_name": "bash_code_execute_tool",
+            "data": "output_deadbeef.txt",
+        }
+    )
+    extra = collector.extra_data
+    assert extra is not None
+    steps = extra.get("progressSteps")
+    assert isinstance(steps, list) and steps
+    assert steps[-1].get("evicted_file_ref") == "output_deadbeef.txt"

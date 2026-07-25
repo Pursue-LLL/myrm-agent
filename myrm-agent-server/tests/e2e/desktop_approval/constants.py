@@ -82,12 +82,10 @@ E2E_PROMPT = (
     "Do not use desktop_vision. When finished, reply exactly: DONE"
 )
 E2E_NUDGE_PROMPT = (
-    "Please continue: call desktop_interact_tool on a @dref from your last snapshot "
-    "(action=click). Reply DONE when complete."
+    "Please click one element in TextEdit from your last snapshot, then reply DONE."
 )
 E2E_SNAPSHOT_NUDGE_PROMPT = (
-    "Snapshot looks good. Next, use desktop_interact_tool(ref=<@dref>, action=click) "
-    "on TextEdit. Reply DONE when done."
+    "Please click one element in TextEdit from that snapshot, then reply DONE."
 )
 
 

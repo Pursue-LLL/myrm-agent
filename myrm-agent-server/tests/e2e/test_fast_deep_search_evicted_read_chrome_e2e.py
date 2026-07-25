@@ -105,6 +105,22 @@ _BRIDGE_READY_JS = """(() => ({
   hasSendChatMessage: typeof window.__MYRM_E2E_CHAT__?.sendChatMessage === 'function',
 }))()"""
 
+_ENSURE_SEARCH_SYNC_JS = """(async () => {
+  window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = false;
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.syncSearchServicesFromE2eApi) {
+    return { ok: false, err: 'no-bridge' };
+  }
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const sync = await bridge.syncSearchServicesFromE2eApi();
+    if (sync?.ok && (sync.count ?? 0) > 0) {
+      return { ok: true, count: sync.count, attempt };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return { ok: false, err: 'search-sync-exhausted' };
+})()"""
+
 _VERIFY_FAST_SEARCH_PROGRESS_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.getFastSearchProgressSnapshot) {
@@ -331,6 +347,84 @@ def _merge_fast_search_progress(
     return ui_last
 
 
+async def _ensure_fast_search_bridge_ready(
+    chat: McpChatSession,
+    base_url: str,
+    *,
+    timeout_sec: float = 90.0,
+) -> None:
+    """Re-mount React E2E bridge after new-chat navigation (hot UI can drop the slot)."""
+    await chat.ensure_react_e2e_bridge(timeout_sec=timeout_sec)
+    await chat.ensure_e2e_api_base_binding()
+    bridge_caps = await chat.evaluate(
+        _BRIDGE_READY_JS, await_promise=False, recv_timeout=15.0
+    )
+    if isinstance(bridge_caps, dict) and bridge_caps.get("hasProgressSnap"):
+        return
+    await chat.evaluate(
+        "(() => { location.reload(); return { ok: true }; })()",
+        await_promise=False,
+        recv_timeout=30.0,
+    )
+    await asyncio.sleep(4.0)
+    await chat.bootstrap(base_url, timeout_sec=120.0)
+    await chat.ensure_react_e2e_bridge(timeout_sec=timeout_sec)
+    await chat.ensure_e2e_api_base_binding()
+    bridge_caps = await chat.evaluate(
+        _BRIDGE_READY_JS, await_promise=False, recv_timeout=15.0
+    )
+    assert isinstance(bridge_caps, dict) and bridge_caps.get(
+        "hasProgressSnap"
+    ), f"Fast search E2E bridge missing getFastSearchProgressSnapshot: {bridge_caps!r}"
+
+
+async def _open_e2e_page_with_runtime_retry(
+    client: ChromeMcpClient,
+    base_url: str,
+    api_base: str,
+) -> object:
+    """Open CDP page with SHPOIB runtime binding; retry transient fetch failures."""
+    last_exc: RuntimeError | None = None
+    for attempt in range(4):
+        if attempt > 0:
+            wait_e2e_provider_ready(api_url=api_base, timeout_sec=30.0)
+            await asyncio.sleep(2.0 * attempt)
+        try:
+            return await asyncio.to_thread(
+                client.new_page, base_url, timeout_ms=120_000
+            )
+        except RuntimeError as exc:
+            message = str(exc)
+            if "E2E_RUNTIME_BINDING_FAILED" not in message:
+                raise
+            last_exc = exc
+    assert last_exc is not None
+    raise last_exc
+
+
+async def _ensure_search_services_in_browser(
+    chat: McpChatSession,
+    api_base: str,
+) -> None:
+    """Seed private searchServices and hydrate browser store (clears gap-test block flag)."""
+    last: dict[str, object] = {"ok": False}
+    for attempt in range(4):
+        _ensure_private_search_configured(api_base)
+        raw = await chat.evaluate(
+            _ENSURE_SEARCH_SYNC_JS,
+            await_promise=True,
+            recv_timeout=45.0,
+        )
+        last = raw if isinstance(raw, dict) else {"value": raw}
+        if last.get("ok") is True:
+            return
+        await asyncio.sleep(1.0 * (attempt + 1))
+    pytest.fail(
+        "searchServices not synced to browser for fast evicted read E2E; "
+        f"last={json.dumps(last, ensure_ascii=False)}; api={api_base}"
+    )
+
+
 async def _run_fast_evicted_read_live_e2e(
     e2e_resource_ledger: E2EResourceLedger,
     *,
@@ -363,32 +457,27 @@ async def _run_fast_evicted_read_live_e2e(
     await asyncio.to_thread(client.start)
     model_used = "unknown"
     try:
-        page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
+        page = await _open_e2e_page_with_runtime_retry(client, BASE_URL, api_base)
         chat = McpChatSession(client, page)
         await chat.bootstrap(BASE_URL, timeout_sec=120.0)
-        await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
-        await chat.ensure_e2e_api_base_binding()
-
-        bridge_caps = await chat.evaluate(
-            _BRIDGE_READY_JS, await_promise=False, recv_timeout=15.0
-        )
-        if not isinstance(bridge_caps, dict) or not bridge_caps.get("hasProgressSnap"):
-            await chat.evaluate(
-                "(() => { location.reload(); return { ok: true }; })()",
-                await_promise=False,
-                recv_timeout=30.0,
-            )
-            await asyncio.sleep(4.0)
-            await chat.bootstrap(BASE_URL, timeout_sec=120.0)
-            await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
-            await chat.ensure_e2e_api_base_binding()
+        await _ensure_fast_search_bridge_ready(chat, BASE_URL, timeout_sec=60.0)
 
         await chat.dismiss_modals()
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
-        await chat.ensure_e2e_api_base_binding()
+        await _ensure_fast_search_bridge_ready(chat, BASE_URL, timeout_sec=60.0)
+        await _ensure_search_services_in_browser(chat, api_base)
 
-        prep = await chat.evaluate(prep_js, await_promise=True, recv_timeout=90.0)
+        prep: dict[str, object] | None = None
+        for prep_attempt in range(3):
+            _ensure_private_search_configured(api_base)
+            _ensure_private_providers_configured(api_base)
+            raw_prep = await chat.evaluate(prep_js, await_promise=True, recv_timeout=90.0)
+            if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
+                prep = raw_prep
+                break
+            if prep_attempt + 1 < 3:
+                await asyncio.sleep(2.0 * (prep_attempt + 1))
         assert isinstance(prep, dict) and prep.get("ok") is True, prep
         assert prep.get("actionMode") == "fast", prep
         assert prep.get("searchDepth") == search_depth, prep

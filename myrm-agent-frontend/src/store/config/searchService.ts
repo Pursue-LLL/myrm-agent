@@ -1,6 +1,7 @@
-import { showI18nToast } from '@/services/i18nToastService';
+import { translateI18nKey } from '@/services/i18nToastService';
+import { toast } from '@/lib/utils/toast';
 import { SearchServiceConfigItem, SearchServiceConfig } from './types';
-import { runWebSearchConfigGapAction, resolveWebSearchConfigGapActionLabelKey } from './webSearchConfigGap';
+import { runWebSearchConfigGapAction, resolveWebSearchConfigGapActionLabel } from './webSearchConfigGap';
 
 export {
   SEARCH_SETTINGS_PATH,
@@ -163,14 +164,26 @@ export const getActiveSearchServiceConfig = (configs: SearchServiceConfigItem[])
 /**
  * Show a warning toast when search service is not configured.
  * Centralized here to avoid duplicating toast parameters across components.
+ * Copy fallbacks align with gapEvents SSE toast and locales/chat.searchNotConfigured.
  */
 export const showSearchNotConfiguredToast = (): void => {
-  showI18nToast('chat.searchNotConfigured.title', undefined, {
-    descriptionKey: 'chat.searchNotConfigured.description',
-    type: 'warning',
+  const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
+  const isZh = lang?.startsWith('zh');
+  const title = translateI18nKey(
+    'chat.searchNotConfigured.title',
+    isZh ? '搜索服务未配置' : 'Search Service Not Configured',
+  );
+  const description = translateI18nKey(
+    'chat.searchNotConfigured.description',
+    isZh
+      ? '此模式需要搜索服务，请先在设置中添加并启用搜索服务。'
+      : 'This mode requires a search service. Please add and enable one in Settings first.',
+  );
+  toast.warning(title, {
+    description,
     duration: 6000,
     action: {
-      label: resolveWebSearchConfigGapActionLabelKey(),
+      label: resolveWebSearchConfigGapActionLabel(isZh),
       onClick: () => {
         void runWebSearchConfigGapAction();
       },

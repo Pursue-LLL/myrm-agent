@@ -212,6 +212,7 @@ class AgentRequest(BaseModel):
     timezone: str | None = None
     action_mode: str = "fast"
     search_depth: str = "normal"
+    reasoning_display_mode: Literal["off", "collapsed", "inline"] | None = None
     locale: str | None = None
     force_delegate_agent: str | None = None
     privacy_enabled: bool = False

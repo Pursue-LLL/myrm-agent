@@ -3042,6 +3042,13 @@
     "enableEvalLabDesc": "有効評価实验室機能，使用于テストと评估 Agent 能力表现",
     "showContextUsage": "コンテキストウィンドウ使用率",
     "showContextUsageDesc": "で入力框旁表示コンテキストウィンドウ使用率進捗环",
+    "reasoningDisplayMode": "思考プロセス表示",
+    "reasoningDisplayModeDesc": "チャット内でモデルの思考プロセスをどう表示するかを設定します",
+    "reasoningDisplayModeOptions": {
+      "off": "非表示",
+      "collapsed": "折りたたみ",
+      "inline": "インライン展開"
+    },
     "codeExecutionAllowNetwork": "代码実行网络権限",
     "codeExecutionAllowNetworkDesc": "許可 Agent 実行の代码アクセス网络（如 pip install、API 调使用）。閉じる后サンドボックス内代码実行が完全禁止网络アクセス。",
     "enableAutoTitleGeneration": "AI 自動生成タイトル",
@@ -12263,6 +12270,7 @@
     "shellInputClose": "stdin を閉じる",
     "shellInputCloseSuccess": "プロセスの stdin を閉じました",
     "shellInputCloseFailed": "プロセスの stdin を閉じるのに失敗しました",
+    "stdinClosed": "stdin を閉じました",
     "waitingForInput": "入力待ち",
     "taskStarted": "バックグラウンドタスク済み起動",
     "elapsed": "済み所要時間",

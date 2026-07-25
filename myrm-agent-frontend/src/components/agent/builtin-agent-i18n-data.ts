@@ -545,4 +545,32 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Text-zu-Sprache-Assistent — wandelt Text in natürlich klingende Audio um.',
     },
   },
+  'builtin-social_intelligence': {
+    en: {
+      name: 'Social Intelligence',
+      description:
+        'Track discussions, sentiment, and trends on X (Twitter) — monitor influencers, brands, and competitors.',
+    },
+    zh: {
+      name: '社媒情报',
+      description: '追踪 X (Twitter) 上的讨论、情绪与趋势——监控意见领袖、品牌与竞品动态。',
+    },
+    'zh-TW': {
+      name: '社媒情報',
+      description: '追蹤 X (Twitter) 上的討論、情緒與趨勢——監控意見領袖、品牌與競品動態。',
+    },
+    ja: {
+      name: 'ソーシャルインテリジェンス',
+      description: 'X (Twitter) 上の議論、センチメント、トレンドを追跡 — インフルエンサー、ブランド、競合をモニタリング。',
+    },
+    ko: {
+      name: '소셜 인텔리전스',
+      description: 'X (Twitter)의 논의, 감정, 트렌드 추적 — 인플루언서, 브랜드, 경쟁사 모니터링.',
+    },
+    de: {
+      name: 'Social Intelligence',
+      description:
+        'Diskussionen, Stimmungen und Trends auf X (Twitter) verfolgen — Influencer, Marken und Wettbewerber überwachen.',
+    },
+  },
 };

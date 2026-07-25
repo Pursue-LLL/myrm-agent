@@ -14,6 +14,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.api.openai_compat.passthrough import (
+    _apply_passthrough_strategy,
     _build_litellm_kwargs,
     _resolve_passthrough_provider,
     is_passthrough_model,
@@ -282,17 +283,29 @@ async def _mock_litellm_stream():
     )
 
 
+def _passthrough_provider_patches():
+    """Common mock context for passthrough tests — providers + CredentialPool."""
+    return (
+        patch(
+            "app.api.openai_compat.passthrough._load_providers_dict",
+            new_callable=AsyncMock,
+            return_value=_MOCK_PROVIDERS_DICT,
+        ),
+        patch(
+            "app.api.openai_compat.passthrough._resolve_passthrough_provider",
+            return_value=("anthropic/claude-sonnet-4-20250514", ["sk-ant-test-xxx"], None, "anthropic"),
+        ),
+    )
+
+
 class TestPassthroughCompletion:
-    """Tests for passthrough_completion function."""
+    """Tests for passthrough_completion with CredentialPool failover."""
 
     @pytest.mark.asyncio
     async def test_success(self):
+        p1, p2 = _passthrough_provider_patches()
         with (
-            patch(
-                "app.api.openai_compat.passthrough._build_litellm_kwargs",
-                new_callable=AsyncMock,
-                return_value={"model": "anthropic/claude-sonnet-4-20250514", "messages": [], "api_key": "k", "stream": False},
-            ),
+            p1, p2,
             patch(
                 "litellm.acompletion",
                 new_callable=AsyncMock,
@@ -308,12 +321,9 @@ class TestPassthroughCompletion:
     async def test_upstream_error_raises_502(self):
         from fastapi import HTTPException
 
+        p1, p2 = _passthrough_provider_patches()
         with (
-            patch(
-                "app.api.openai_compat.passthrough._build_litellm_kwargs",
-                new_callable=AsyncMock,
-                return_value={"model": "x", "messages": [], "api_key": "k", "stream": False},
-            ),
+            p1, p2,
             patch(
                 "litellm.acompletion",
                 new_callable=AsyncMock,
@@ -329,9 +339,9 @@ class TestPassthroughCompletion:
         from fastapi import HTTPException
 
         with patch(
-            "app.api.openai_compat.passthrough._build_litellm_kwargs",
+            "app.api.openai_compat.passthrough._load_providers_dict",
             new_callable=AsyncMock,
-            side_effect=ValueError("No providers"),
+            return_value=None,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await passthrough_completion(_make_request())
@@ -339,16 +349,13 @@ class TestPassthroughCompletion:
 
 
 class TestPassthroughStream:
-    """Tests for passthrough_stream function."""
+    """Tests for passthrough_stream with CredentialPool failover."""
 
     @pytest.mark.asyncio
     async def test_success_yields_sse(self):
+        p1, p2 = _passthrough_provider_patches()
         with (
-            patch(
-                "app.api.openai_compat.passthrough._build_litellm_kwargs",
-                new_callable=AsyncMock,
-                return_value={"model": "anthropic/claude-sonnet-4-20250514", "messages": [], "api_key": "k", "stream": True},
-            ),
+            p1, p2,
             patch(
                 "litellm.acompletion",
                 new_callable=AsyncMock,
@@ -366,9 +373,9 @@ class TestPassthroughStream:
     @pytest.mark.asyncio
     async def test_config_error_yields_error_sse(self):
         with patch(
-            "app.api.openai_compat.passthrough._build_litellm_kwargs",
+            "app.api.openai_compat.passthrough._load_providers_dict",
             new_callable=AsyncMock,
-            side_effect=ValueError("No providers"),
+            return_value=None,
         ):
             chunks: list[str] = []
             async for chunk in passthrough_stream(_make_request()):
@@ -381,12 +388,9 @@ class TestPassthroughStream:
 
     @pytest.mark.asyncio
     async def test_upstream_error_yields_error_sse(self):
+        p1, p2 = _passthrough_provider_patches()
         with (
-            patch(
-                "app.api.openai_compat.passthrough._build_litellm_kwargs",
-                new_callable=AsyncMock,
-                return_value={"model": "x", "messages": [], "api_key": "k", "stream": True},
-            ),
+            p1, p2,
             patch(
                 "litellm.acompletion",
                 new_callable=AsyncMock,
@@ -483,3 +487,56 @@ class TestPassthroughHTTP:
         error_data = json.loads(lines[0].replace("data: ", ""))
         assert error_data["error"]["type"] == "configuration_error"
         assert lines[-1] == "data: [DONE]"
+
+
+class TestApplyPassthroughStrategy:
+    """Tests for _apply_passthrough_strategy routing logic."""
+
+    TARGETS = [
+        ("openai/gpt-4o", ["k1"], None, "openai"),
+        ("anthropic/claude-3", ["k2"], None, "anthropic"),
+        ("deepseek/chat", ["k3"], None, "deepseek"),
+    ]
+
+    def test_priority_keeps_order(self):
+        result = _apply_passthrough_strategy(self.TARGETS, "priority")
+        assert result == self.TARGETS
+
+    def test_cost_optimized_keeps_order(self):
+        result = _apply_passthrough_strategy(self.TARGETS, "cost_optimized")
+        assert result == self.TARGETS
+
+    def test_unknown_strategy_keeps_order(self):
+        result = _apply_passthrough_strategy(self.TARGETS, "nonexistent")
+        assert result == self.TARGETS
+
+    def test_round_robin_rotates(self):
+        import app.api.openai_compat.passthrough as pt
+
+        pt._combo_rr_counter = 0
+
+        r0 = _apply_passthrough_strategy(self.TARGETS, "round_robin")
+        assert r0[0] == self.TARGETS[0]
+
+        r1 = _apply_passthrough_strategy(self.TARGETS, "round_robin")
+        assert r1[0] == self.TARGETS[1]
+
+        r2 = _apply_passthrough_strategy(self.TARGETS, "round_robin")
+        assert r2[0] == self.TARGETS[2]
+
+        r3 = _apply_passthrough_strategy(self.TARGETS, "round_robin")
+        assert r3[0] == self.TARGETS[0]
+
+    def test_random_produces_permutation(self):
+        result = _apply_passthrough_strategy(self.TARGETS, "random")
+        assert sorted(result) == sorted(self.TARGETS)
+        assert len(result) == len(self.TARGETS)
+
+    def test_single_target_unchanged(self):
+        single = [self.TARGETS[0]]
+        assert _apply_passthrough_strategy(single, "round_robin") == single
+        assert _apply_passthrough_strategy(single, "random") == single
+
+    def test_empty_targets(self):
+        assert _apply_passthrough_strategy([], "round_robin") == []
+        assert _apply_passthrough_strategy([], "random") == []

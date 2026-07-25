@@ -124,6 +124,31 @@ class TestWebhookPayload:
         assert payload["sources"] == [{"url": "https://src.com"}]
         assert payload["steps"] == ["step1"]
 
+    def test_payload_reasoning_hidden_by_default(self) -> None:
+        ch = WebhookChannel()
+        msg = OutboundMessage(
+            channel="webhook",
+            recipient_id="https://example.com",
+            content="Hi",
+            user_id="u1",
+            reasoning="internal-thought",
+        )
+        payload = ch._build_payload(msg)
+        assert "reasoning" not in payload
+
+    def test_payload_reasoning_opt_in_via_metadata(self) -> None:
+        ch = WebhookChannel()
+        msg = OutboundMessage(
+            channel="webhook",
+            recipient_id="https://example.com",
+            content="Hi",
+            user_id="u1",
+            reasoning="internal-thought",
+            metadata={"webhook_include_reasoning": True},
+        )
+        payload = ch._build_payload(msg)
+        assert payload["reasoning"] == "internal-thought"
+
 
 class TestWebhookExtractMessageId:
     def test_extract_id(self) -> None:

@@ -23,7 +23,7 @@
 | `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果；`kanban_add_task`/`cron_manage` 成功写入 message metadata；`kanban_add_task` 软错误 JSON 标记 progress error | ✅ |
 | `memoryBriefEvents.ts` | 核心 | `memory_brief` 发送前记忆简报事件：创建/更新 assistant 占位消息并挂载简报快照 | ✅ |
 | `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | ✅ |
-| `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA 文本流合并；clarify metadata 合并时保留既有 `isResumeMode`/form | ✅ |
+| `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA 文本流合并；当 `personalSettings.reasoningDisplayMode=off` 时直接丢弃 reasoning chunk 以减少前端内存占用；clarify metadata 合并时保留既有 `isResumeMode`/form | ✅ |
 | `artifactEvents.ts` | 核心 | ARTIFACTS、UI_UPDATE（`ui_artifact` 追加；`data_update` 按 `surface_id` 跨 assistant 消息 merge data） | ✅ |
 | `captchaEvents.ts` | 核心 | CAPTCHA 进度展示与状态更新 | ✅ |
 | `sessionRecordingEvents.ts` | 核心 | SESSION_RECORDING 视频回放元数据 | ✅ |

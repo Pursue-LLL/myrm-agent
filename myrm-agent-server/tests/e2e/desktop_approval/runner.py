@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - run_desktop_approval_chrome_e2e: full allow-once / allow-always→revoke runner
-- mux recover + page reopen on retriable page transport errors
+- retry: assert_chrome_attach_health → mux recover → page reopen on retriable transport errors
 
 [POS]
 Top-level Chrome E2E entry for desktop trust flows; owns MCP client lifecycle and retries.
@@ -31,6 +31,7 @@ from mcp_chat_ui import McpChatSession
 
 from tests.e2e.desktop_approval.constants import BASE_URL, max_send_attempts, progress
 from tests.e2e.desktop_approval.infra_retry import (
+    heal_chrome_attach_before_reopen,
     is_retriable_page_transport,
     open_mcp_chat_page,
     should_abort_desktop_e2e_retries,
@@ -105,13 +106,15 @@ async def run_desktop_approval_chrome_e2e(
                 progress(f"retry after: {last_error}")
                 reset_e2e_wall_budget_clock()
                 try:
-                    progress("retry reset: mux recover + reopen chat page")
+                    progress("retry reset: attach heal + mux recover + reopen chat page")
+                    await heal_chrome_attach_before_reopen()
                     await asyncio.to_thread(chat._client.recover_mux_transport)
                     await asyncio.sleep(2.0)
                     chat._page = await open_mcp_chat_page(chat._client)
                     await chat.bootstrap(BASE_URL, navigate=True, timeout_sec=120.0)
                     await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
                     progress("new chat + ensure surface")
+                    chat._reset_shell_layout_wait_clock()
                     await chat.click_new_chat()
                     await chat.ensure_chat_surface(BASE_URL)
                     await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
@@ -145,7 +148,8 @@ async def run_desktop_approval_chrome_e2e(
         except (RuntimeError, TimeoutError, OSError) as exc:
             if not is_retriable_page_transport(exc):
                 raise
-            progress(f"mux recover + reopen after page transport error: {exc}")
+            progress(f"attach heal + mux recover + reopen after page transport error: {exc}")
+            await heal_chrome_attach_before_reopen()
             await asyncio.to_thread(client.recover_mux_transport)
             await asyncio.sleep(2.0)
             page = await open_mcp_chat_page(client)

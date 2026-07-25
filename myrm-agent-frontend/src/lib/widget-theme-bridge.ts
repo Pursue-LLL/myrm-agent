@@ -101,7 +101,7 @@ const UTILITY_CLASSES = `
 .relative{position:relative}.absolute{position:absolute}.inset-0{top:0;right:0;bottom:0;left:0}
 .opacity-50{opacity:.5}.opacity-75{opacity:.75}.cursor-pointer{cursor:pointer}.select-none{user-select:none}
 .transition{transition:all .15s ease}.transition-colors{transition:color .15s,background-color .15s,border-color .15s}
-.{box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.shadow{box-shadow:0 1px 2px rgba(0,0,0,.05)}
 .bg-widget{background:var(--widget-bg)}.bg-widget-secondary{background:var(--widget-bg-secondary)}.bg-widget-card{background:var(--widget-bg-card)}.bg-transparent{background:transparent}
 .text-widget{color:var(--widget-text)}.text-widget-secondary{color:var(--widget-text-secondary)}.text-widget-primary{color:var(--widget-primary)}
 .border-widget{border-color:var(--widget-border)}

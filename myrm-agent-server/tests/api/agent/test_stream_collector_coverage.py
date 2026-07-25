@@ -1,6 +1,10 @@
 import pytest
 
-from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS, StreamContentCollector
+from app.services.agent.streaming_support.stream_collector import (
+    ACTIVE_COLLECTORS,
+    StreamContentCollector,
+    _MAX_REASONING_CHARS,
+)
 
 
 @pytest.mark.asyncio
@@ -277,3 +281,29 @@ def test_stream_collector_persists_plan_confirmation_waiting() -> None:
     assert plan_confirmation.get("source") == "deep_research"
     assert "Research" in str(plan_confirmation.get("plan"))
     collector.cleanup()
+
+
+def test_stream_collector_clamps_reasoning_and_marks_truncation() -> None:
+    collector = StreamContentCollector()
+    collector.feed_event({"type": "reasoning", "data": "x" * (_MAX_REASONING_CHARS + 64)})
+    collector.feed_event({"type": "reasoning", "data": "y" * 128})
+
+    extra = collector.extra_data
+    assert extra is not None
+    reasoning = extra.get("reasoning")
+    assert isinstance(reasoning, str)
+    assert len(reasoning) == _MAX_REASONING_CHARS
+    assert extra["reasoningTruncated"] is True
+    assert extra["reasoningCharLimit"] == _MAX_REASONING_CHARS
+
+
+def test_stream_collector_reasoning_is_scrubbed_before_persist() -> None:
+    collector = StreamContentCollector()
+    collector.feed_event({"type": "reasoning", "data": "api_key=sk-test-12345 /Users/alice/private"})
+
+    extra = collector.extra_data
+    assert extra is not None
+    reasoning = extra.get("reasoning")
+    assert isinstance(reasoning, str)
+    assert "sk-test-12345" not in reasoning
+    assert "/Users/alice" not in reasoning

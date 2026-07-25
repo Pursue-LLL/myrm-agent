@@ -865,9 +865,9 @@ class CdpChatTurn(CdpChatSubmit):
                         pass
                     await asyncio.sleep(1.0)
                 bridge = await self._bridge_turn_snapshot()
-                if int(started.get("userMsgs") or 0) > baseline_user_msgs or started.get(
-                    "sending"
-                ):
+                if int(
+                    started.get("userMsgs") or 0
+                ) > baseline_user_msgs or started.get("sending"):
                     return {"fill": fill, "submit": submit, "started": started}
                 if (
                     isinstance(bridge, dict)

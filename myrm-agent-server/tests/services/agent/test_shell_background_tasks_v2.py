@@ -44,6 +44,33 @@ def test_shell_dto_includes_waiting_for_input_when_running() -> None:
     assert rows[0].waiting_for_input is True
 
 
+def test_shell_dto_includes_stdin_closed_when_running() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-closed",
+        pid=100,
+        command="npm create vite",
+        session_id="chat-closed",
+        started_at=1.0,
+        status="running",
+        stdin_closed=True,
+        waiting_for_input=False,
+    )
+
+    class _FakeRegistry:
+        def list_processes(self) -> list[BackgroundProcessInfo]:
+            return [info]
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=_FakeRegistry(),
+    ):
+        rows = list_shell_background_tasks()
+
+    assert len(rows) == 1
+    assert rows[0].stdin_closed is True
+    assert rows[0].waiting_for_input is False
+
+
 def test_shell_dto_includes_exit_code_and_error_category() -> None:
     info = BackgroundProcessInfo(
         job_id="job-42",

@@ -66,6 +66,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
       enableCostEstimation: DEFAULT_PERSONAL_SETTINGS.enableCostEstimation,
       enableCacheBreakNotification: DEFAULT_PERSONAL_SETTINGS.enableCacheBreakNotification,
       showContextUsage: DEFAULT_PERSONAL_SETTINGS.showContextUsage,
+      reasoningDisplayMode: DEFAULT_PERSONAL_SETTINGS.reasoningDisplayMode,
       enableMemory: DEFAULT_PERSONAL_SETTINGS.enableMemory,
       memoryRequireConfirmation: DEFAULT_PERSONAL_SETTINGS.memoryRequireConfirmation,
       enableMemoryAutoExtraction: DEFAULT_PERSONAL_SETTINGS.enableMemoryAutoExtraction,

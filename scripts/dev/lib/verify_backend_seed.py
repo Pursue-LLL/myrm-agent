@@ -6,7 +6,8 @@
 - runtime_identity._backend_source_fingerprint (POS: workspace epoch SSOT)
 
 [OUTPUT]
-- ensure_verify_backend_seed(): spawn ephemeral backend-only runtime at workspace epoch
+- ensure_verify_backend_seed(): spawn ephemeral backend-only runtime at workspace epoch (cap/bootstrap retry)
+- _spawn_verify_backend_seed(): single seed attempt with claim_bootstrap_slot → running phase transition
 
 [POS]
 Verification Plane helper — unblocks verify-api during parallel E2E without stopping pytest.
@@ -31,6 +32,8 @@ from runtime_identity import _backend_source_fingerprint
 
 SEED_START_TIMEOUT_SEC: Final[int] = 180
 SEED_HEALTH_WAIT_SEC: Final[float] = 120.0
+SEED_CAP_RETRY_BACKOFF_SEC: Final[float] = 5.0
+SEED_CAP_MAX_ATTEMPTS: Final[int] = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,37 +120,67 @@ def _wait_backend_healthy(api_base: str, state_dir: Path, *, deadline: float) ->
     return False
 
 
-def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
-    root = monorepo.resolve()
-    _ensure_scripts_dev_importable(root)
-    from isolated_runtime_allocator import (  # noqa: PLC0415
-        allocate_runtime,
-        runtime_environment,
+def _cap_reached_result(active: int) -> VerifyBackendSeedResult:
+    return VerifyBackendSeedResult(
+        ok=False,
+        runtime_id="",
+        api_base="",
+        detail=(
+            f"private backend cap reached ({active}/{LIVE_SHPOIB_MAX_CONCURRENT}); "
+            "wait for pytest release or auto queue"
+        ),
     )
-    from isolated_runtime_process import record_backend_process  # noqa: PLC0415
-    from isolated_runtime_reaper import start_reaper_daemon  # noqa: PLC0415
-    from isolated_runtime_registry import (
+
+
+def _is_retriable_seed_detail(detail: str) -> bool:
+    lowered = detail.lower()
+    return "cap reached" in lowered or "bootstrap slot unavailable" in lowered
+
+
+def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
+    """Spawn backend-only runtime; retry once when SHPOIB cap is temporarily full."""
+    last_result: VerifyBackendSeedResult | None = None
+    for attempt in range(SEED_CAP_MAX_ATTEMPTS):
+        active = _count_active_backend_only()
+        if active >= LIVE_SHPOIB_MAX_CONCURRENT:
+            last_result = _cap_reached_result(active)
+            if attempt + 1 < SEED_CAP_MAX_ATTEMPTS:
+                time.sleep(SEED_CAP_RETRY_BACKOFF_SEC)
+                continue
+            return last_result
+        result = _spawn_verify_backend_seed(monorepo=monorepo)
+        if result.ok:
+            return result
+        last_result = result
+        if attempt + 1 < SEED_CAP_MAX_ATTEMPTS and _is_retriable_seed_detail(
+            result.detail
+        ):
+            time.sleep(SEED_CAP_RETRY_BACKOFF_SEC)
+            continue
+        return result
+    if last_result is not None:
+        return last_result
+    active = _count_active_backend_only()
+    return _cap_reached_result(active)
+
+
+def _mark_runtime_cleaning(runtime_id: str) -> None:
+    from isolated_runtime_allocator import isolated_root  # noqa: PLC0415
+    from isolated_runtime_registry import (  # noqa: PLC0415
         locked_registry,
         read_registry,
         write_registry,
-    )  # noqa: PLC0415
-    from isolated_runtime_allocator import (
-        isolated_root,
-        heartbeat_runtime,
-    )  # noqa: PLC0415
+    )
 
-    active = _count_active_backend_only()
-    if active >= LIVE_SHPOIB_MAX_CONCURRENT:
-        return VerifyBackendSeedResult(
-            ok=False,
-            runtime_id="",
-            api_base="",
-            detail=(
-                f"private backend cap reached ({active}/{LIVE_SHPOIB_MAX_CONCURRENT}); "
-                "wait for pytest release or auto queue"
-            ),
-        )
+    with locked_registry(isolated_root()) as registry_path:
+        records = read_registry(registry_path)
+        if runtime_id in records:
+            records[runtime_id]["phase"] = "cleaning"
+            write_registry(registry_path, records)
 
+
+def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
+    root = monorepo.resolve()
     agent_root = root / "myrm-agent"
     if not (agent_root / "myrm-agent-server" / "run.py").is_file():
         return VerifyBackendSeedResult(
@@ -156,6 +189,16 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
             api_base="",
             detail=f"missing agent root: {agent_root}",
         )
+
+    _ensure_scripts_dev_importable(root)
+    from isolated_runtime_allocator import (  # noqa: PLC0415
+        allocate_runtime,
+        claim_bootstrap_slot,
+        heartbeat_runtime,
+        runtime_environment,
+    )
+    from isolated_runtime_process import record_backend_process  # noqa: PLC0415
+    from isolated_runtime_reaper import start_reaper_daemon  # noqa: PLC0415
 
     runtime_id = f"verify-api-{uuid.uuid4().hex[:12]}"
     owner_token = f"verify-{uuid.uuid4().hex}"
@@ -183,6 +226,20 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
     api_base = environment["E2E_API_BASE"]
     dev_stack = root / "myrm-agent" / "scripts" / "dev" / "dev-stack.sh"
     ready_sh = root / "scripts" / "dev" / "ready.sh"
+
+    if not claim_bootstrap_slot(
+        runtime_id, owner_token, LIVE_SHPOIB_MAX_CONCURRENT
+    ):
+        _mark_runtime_cleaning(runtime_id)
+        return VerifyBackendSeedResult(
+            ok=False,
+            runtime_id=runtime_id,
+            api_base=api_base.rstrip("/"),
+            detail=(
+                f"private backend bootstrap slot unavailable "
+                f"(cap {LIVE_SHPOIB_MAX_CONCURRENT})"
+            ),
+        )
 
     process_env = os.environ.copy()
     process_env.update(environment)
@@ -222,19 +279,16 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
             raise RuntimeError(f"backend-only ensure failed: {detail}")
 
         record_backend_process(runtime_id, owner_token)
-        heartbeat_runtime(runtime_id, owner_token, phase="running")
 
         state_dir = Path(record["stateDir"])
         deadline = time.monotonic() + SEED_HEALTH_WAIT_SEC
         if not _wait_backend_healthy(api_base, state_dir, deadline=deadline):
             raise RuntimeError("seed backend health or epoch match timeout")
 
+        heartbeat_runtime(runtime_id, owner_token, phase="running")
+
     except (OSError, subprocess.TimeoutExpired, RuntimeError) as exc:
-        with locked_registry(isolated_root()) as registry_path:
-            records = read_registry(registry_path)
-            if runtime_id in records:
-                records[runtime_id]["phase"] = "cleaning"
-                write_registry(registry_path, records)
+        _mark_runtime_cleaning(runtime_id)
         return VerifyBackendSeedResult(
             ok=False,
             runtime_id=runtime_id,

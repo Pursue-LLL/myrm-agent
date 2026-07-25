@@ -87,7 +87,7 @@ export function useAgentGallery({
     if (!isInitialized) {
       initProviders();
     }
-    // 24 built-in presets exceed default page_size=20; fetch enough for gallery SSOT.
+    // 27 built-in presets exceed default page_size=20; fetch enough for gallery SSOT.
     fetchAgents(1, AGENT_LIST_BUILTIN_PAGE_SIZE, true);
   }, [isInitialized, initProviders, fetchAgents]);
 

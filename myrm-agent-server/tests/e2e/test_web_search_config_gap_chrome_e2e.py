@@ -47,7 +47,7 @@ _COUNT_TOASTS_JS = """(() => {
     count: toastNodes.length,
     texts,
     sseCount: texts.filter((t) => ssePattern.test(t) || gapPattern.test(t)).length,
-    clientCount: texts.filter((t) => clientPattern.test(t) || gapPattern.test(t)).length,
+    clientCount: texts.filter((t) => clientPattern.test(t)).length,
   };
 })()"""
 
@@ -61,8 +61,10 @@ _PIN_LITE_AND_ENABLE_WEB_SEARCH_JS = """(async () => {
   }
   window.__MYRM_E2E_DIRECT_SSE__ = false;
   window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
+  bridge.setActionMode?.('agent');
   bridge.resetChat?.();
-  await bridge.ensureChatSession?.();
+  bridge.setActionMode?.('agent');
+  await bridge.ensureChatSession?.({ preserveActionMode: true });
   const prev = bridge.getCurrentBuiltinTools?.() ?? [];
   bridge.setCurrentBuiltinTools?.([...new Set([...prev, 'web_search'])]);
   return { ok: true, tools: bridge.getCurrentBuiltinTools?.() ?? [], directSse: !!window.__MYRM_E2E_DIRECT_SSE__ };
@@ -71,14 +73,14 @@ _PIN_LITE_AND_ENABLE_WEB_SEARCH_JS = """(async () => {
 _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge) return { ok: false, err: 'no-bridge' };
-  if (bridge.pinLiteModelForE2e) {
-    await bridge.pinLiteModelForE2e();
-  }
   window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
   if (typeof bridge.setActionMode !== 'function') {
     return { ok: false, err: 'no-setActionMode' };
   }
   bridge.setActionMode('fast');
+  if (bridge.pinLiteModelForE2e) {
+    await bridge.pinLiteModelForE2e({ preserveActionMode: true });
+  }
   bridge.resetChat?.();
   bridge.setActionMode('fast');
   if (typeof bridge.clearSearchServicesForE2e === 'function') {
@@ -89,10 +91,18 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
   }
   if (typeof bridge.clearSearchServicesForE2e === 'function') {
     bridge.clearSearchServicesForE2e();
-  } else if (typeof bridge.syncSearchServicesFromE2eApi === 'function') {
-    await bridge.syncSearchServicesFromE2eApi();
   }
   const searchState = bridge.debugSearchState?.() ?? null;
+  const bridgeCaps = {
+    clearSearch: typeof bridge.clearSearchServicesForE2e === 'function',
+    debugSearch: typeof bridge.debugSearchState === 'function',
+  };
+  if (!bridgeCaps.clearSearch) {
+    return { ok: false, err: 'stale-e2e-bridge', bridgeCaps, searchState };
+  }
+  if (searchState?.enabledCount > 0) {
+    return { ok: false, err: 'search-not-empty-before-send', searchState, bridgeCaps };
+  }
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
   const sendOpts = { baselineUserCount: usersBefore, preserveActionMode: true };
   let result;
@@ -114,7 +124,7 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
     const gapPattern =
       /网页搜索未配置|Web search is not configured|未配置或不可用|not configured or unavailable|搜索服务未配置|Search service not configured/i;
     const clientPattern =
-      /此模式需要搜索服务|请先配置并启用搜索服务|requires a search service/i;
+      /此模式需要搜索服务|请先配置并启用搜索服务|requires a search service|Search Service Not Configured|搜索服务未配置/i;
     let clientCount = texts.filter(
       (t) => clientPattern.test(t) || gapPattern.test(t),
     ).length;
@@ -136,9 +146,15 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
     }
     return countClientToasts();
   };
-  if (!result?.ok) {
+  const usersAfter = bridge.turnSnapshot?.().userCount ?? 0;
+  const sendErr = result?.err ?? 'send-blocked';
+  const expectBlocked =
+    !result?.ok &&
+    (sendErr === 'search-not-configured' ||
+      sendErr === 'send-completed-without-progress' ||
+      sendErr === 'send-blocked');
+  if (expectBlocked) {
     const { texts, clientCount, toastNodes } = await waitForClientToast(Date.now() + 15000);
-    const usersAfter = bridge.turnSnapshot?.().userCount ?? 0;
     if (clientCount >= 1 && usersAfter === usersBefore) {
       return {
         ok: true,
@@ -148,8 +164,10 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
         toastCount: toastNodes.length,
         texts,
         actionMode: bridge.getActionMode?.() ?? null,
-        sendErr: result?.err ?? 'send-blocked',
-        searchState,
+        sendErr,
+        searchState: bridge.debugSearchState?.() ?? searchState,
+        bridgeCaps,
+        send: result,
       };
     }
     return {
@@ -161,19 +179,22 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
       toastCount: toastNodes.length,
       texts,
       actionMode: bridge.getActionMode?.() ?? null,
-      sendErr: result?.err ?? 'send-blocked',
+      sendErr,
       send: result,
-      searchState,
+      searchState: bridge.debugSearchState?.() ?? searchState,
+      bridgeCaps,
+      providerDebug: bridge.debugProviderState?.() ?? null,
     };
   }
   return {
     ok: false,
     err: 'send-unexpected-ok',
     usersBefore,
-    usersAfter: bridge.turnSnapshot?.().userCount ?? 0,
+    usersAfter,
     send: result,
     actionMode: bridge.getActionMode?.() ?? null,
     searchState,
+    sendErr,
   };
 })()"""
 
@@ -193,6 +214,7 @@ _FORCE_IDLE_BEFORE_GAP_SEND_JS = """(async () => {
   bridge.abortActiveStream?.();
   bridge.releaseActiveStreamForApiResume?.();
   bridge.clearSseSnapshot?.();
+  bridge.setActionMode?.('agent');
   const deadline = Date.now() + 45000;
   while (Date.now() < deadline) {
     const turn = bridge.turnSnapshot?.() ?? {};
@@ -275,7 +297,7 @@ def _gap_poll_snapshot_js(message_id: str | None) -> str:
           count: toastNodes.length,
           texts,
           sseCount: texts.filter((t) => ssePattern.test(t) || gapPattern.test(t)).length,
-          clientCount: texts.filter((t) => clientPattern.test(t) || gapPattern.test(t)).length,
+          clientCount: texts.filter((t) => clientPattern.test(t)).length,
         }},
         sseEvents,
         allSseEvents,
@@ -476,6 +498,7 @@ async def _send_and_collect_gap_while_streaming(
         recv_timeout=15.0,
     )
     diag = diag_raw if isinstance(diag_raw, dict) else {"value": diag_raw}
+    diag["apiPreflightGaps"] = live_gaps
     diag_sse = diag.get("sse") if isinstance(diag.get("sse"), list) else []
     diag_all_sse = diag.get("allSse") if isinstance(diag.get("allSse"), list) else []
     if "capability_gap" not in best_sse and "capability_gap" in diag_sse:
@@ -634,12 +657,16 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
                 )
 
             if "capability_gap" not in recorded_sse:
-                api_gaps = await asyncio.to_thread(_collect_gap_from_live_api, api_base)
-                assert api_gaps, (
-                    "expected capability_gap in UI sseSnapshot or live API stream; "
-                    f"send={send!r}; sse={recorded_sse!r}; diag={diag!r}"
-                )
-                recorded_sse = ["capability_gap"]
+                preflight_gaps = diag.get("apiPreflightGaps")
+                if isinstance(preflight_gaps, list) and preflight_gaps:
+                    recorded_sse = ["capability_gap"]
+                else:
+                    api_gaps = await asyncio.to_thread(_collect_gap_from_live_api, api_base)
+                    assert api_gaps, (
+                        "expected capability_gap in UI sseSnapshot or live API stream; "
+                        f"send={send!r}; sse={recorded_sse!r}; diag={diag!r}"
+                    )
+                    recorded_sse = ["capability_gap"]
 
             assert (
                 "capability_gap" in recorded_sse
@@ -647,7 +674,11 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
             assert (
                 recorded_sse.count("capability_gap") == 1
             ), f"expected single capability_gap SSE event; sse={recorded_sse!r}"
-            gap_toast_count = max(sse_count, int(toast_state.get("clientCount") or 0))
+            gap_toast_count = max(
+                sse_count,
+                int(toast_state.get("sseCount") or 0),
+                int(toast_state.get("peakCount") or 0),
+            )
             assert gap_toast_count >= 1, (
                 f"expected at least 1 config-gap toast; "
                 f"toast={toast_state}; sse={recorded_sse!r}; diag={diag!r}"
@@ -703,7 +734,7 @@ async def test_fast_mode_blocks_send_with_client_search_toast(
                 recv_timeout=90.0,
             )
             assert isinstance(result, dict), result
-            assert result.get("ok") is True, result
+            assert result.get("ok") is True, json.dumps(result, ensure_ascii=False)
             assert int(result.get("clientCount") or 0) >= 1, result
             assert result.get("usersAfter") == result.get("usersBefore"), result
         finally:

@@ -261,7 +261,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                         key={task.task_id}
                         task={task}
                         allowSteer={false}
-                        allowShellInput={task.status === 'running'}
+                        allowShellInput={task.status === 'running' && !task.stdin_closed}
                         steerTaskId={steerTaskId}
                         shellInputTaskId={shellInputTaskId}
                         steerInput={steerInput}

@@ -145,3 +145,57 @@ async def test_iter_stream_injects_ttft_into_message_end(monkeypatch) -> None:
     payload = json.loads(message_end_chunk[len("data: ") :].strip())
     assert payload["stream_ttft_ms"] == 200
 
+
+@pytest.mark.asyncio
+async def test_iter_stream_hides_reasoning_chunks_when_mode_off(monkeypatch) -> None:
+    async def _fake_fast_lane_stream(*_args, **_kwargs):
+        yield {"type": "reasoning", "data": "hidden reasoning"}
+        yield {"type": "message", "data": "visible answer"}
+        yield {"type": "message_end", "usage": {"total_tokens": 2}}
+
+    monkeypatch.setattr(
+        "app.services.agent.stream_session.stream_loop.create_fast_lane_stream",
+        lambda *_args, **_kwargs: _fake_fast_lane_stream(),
+    )
+    monkeypatch.setattr(
+        "app.services.agent.stream_session.stream_loop.time.perf_counter",
+        lambda: 300.2,
+    )
+
+    session = SimpleNamespace(
+        request=SimpleNamespace(
+            resume_value=None,
+            action_mode="fast",
+            use_workflow=False,
+            blueprint_id=None,
+            mention_references=None,
+            ephemeral_subagents=None,
+            chat_id=None,
+        ),
+        params=SimpleNamespace(
+            message_id="msg-reasoning-hidden",
+            query="hi",
+            reasoning_display_mode="off",
+        ),
+        cancel_token=SimpleNamespace(
+            is_cancelled=False,
+            cancel_reason=None,
+            cancel=lambda *_args, **_kwargs: None,
+        ),
+        steering_token=None,
+        routing_tier="simple",
+        collector=StreamContentCollector(chat_id=None),
+        goal_provider=None,
+        extra_context={},
+        stream_started_at_monotonic=300.0,
+        stream_ttft_ms=None,
+    )
+    approval = ApprovalTimeoutHolder()
+    clarification = ClarificationTimeoutHolder()
+
+    chunks = [chunk async for chunk in iter_agent_stream_chunks(session, approval, clarification)]
+
+    assert not any('"type":"reasoning"' in chunk or '"type": "reasoning"' in chunk for chunk in chunks)
+    assert any('"type":"message"' in chunk or '"type": "message"' in chunk for chunk in chunks)
+    assert session.collector.reasoning is None
+

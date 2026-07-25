@@ -22,7 +22,7 @@
 | `PlanConfirmationCard.tsx` | 组件 | Plan-phase HITL 卡片：展示 AI 计划，提供批准/编辑/跳过三种操作。支持 Deep Research（PhaseWaiter REST）和 General Agent（LangGraph interrupt SSE resume）双路径 | ✅ |
 | `WorkflowSuggestionCard.tsx` | 组件 | 非阻塞式 Workflow 建议内联卡片：检测到复杂可拆分任务时显示，提供 Enable（激活工作流模式）和 Dismiss（忽略）操作。不阻塞标准 Agent 流 | ✅ |
 | `MessageActionBar.tsx` | 组件 | 消息操作栏：复制/朗读/Fork/记忆保存/技能提炼/Wiki保存/统一依据按钮 | ✅ |
-| `MessageBox.tsx` | 核心 | 单条消息气泡根组件：路由 user/assistant/tool 分支 | ✅ |
+| `MessageBox.tsx` | 核心 | 单条消息气泡根组件：路由 user/assistant/tool 分支；`ReasoningBlock` 遵循全局 `reasoningDisplayMode`（off/collapsed/inline）控制显示形态 | ✅ |
 | `MessageBoxLoading.tsx` | 辅助 | 流式生成中 assistant 气泡 loading 态 | ✅ |
 | `MessageSources.tsx` | 组件 | 消息引用来源卡片网格（web/mcp/kb/conversation 四种类型差异化图标和 hover 预览）；KB 卡片点击打开 SourceChunkDrawer | ✅ |
 | `SourceChunkDrawer.tsx` | 组件 | KB 引用原文片段 Drawer：点击 KB citation 后以右侧 Sheet 展示原文 snippet，支持 section 标签和分段渲染 | ✅ |

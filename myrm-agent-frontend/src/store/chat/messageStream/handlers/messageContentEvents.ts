@@ -9,6 +9,13 @@ import * as H from "./handlerDeps";
 export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, recievedMessage, state, actions } = ctx;
   if (data.type === H.AgentEventType.REASONING) {
+    const reasoningDisplayMode =
+      H.useConfigStore.getState().personalSettings?.reasoningDisplayMode ??
+      H.useConfigStore.getState().reasoningDisplayMode ??
+      'collapsed';
+    if (reasoningDisplayMode === 'off') {
+      return null;
+    }
     if (data.data && data.data.length > 0) {
       const reasoningChunk = H.sanitizeStreamText(data.data as string);
 

@@ -77,20 +77,32 @@ class McpChatSession(CdpChatSession):
             MUX_RECLAIM_STALL_TOKEN,
         )
 
-        wall_deadline = time.monotonic() + recv_timeout + float(
-            MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC
-        ) + 15.0
+        reclaim_budget = float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC) + 15.0
+        if recv_timeout <= 15.0:
+            # Shell probe polls must not inherit full reclaim wall (R50).
+            reclaim_budget = 20.0
+        elif recv_timeout <= 30.0:
+            reclaim_budget = 35.0
+        wall_deadline = time.monotonic() + recv_timeout + reclaim_budget
         heal_attempts = 0
-        max_heal_attempts = 3
+        max_heal_attempts = 0 if recv_timeout <= 15.0 else 3
         mux_attempts = 0
-        max_mux_attempts = 2
+        max_mux_attempts = 1 if recv_timeout <= 15.0 else 2
         loop = asyncio.get_running_loop()
 
         async def _reset_mux_after_orphan() -> None:
-            await loop.run_in_executor(
-                self._client.mux_reset_executor(),
-                self._client.reset_after_orphan,
-            )
+            try:
+                await asyncio.wait_for(
+                    loop.run_in_executor(
+                        self._client.mux_reset_executor(),
+                        self._client.reset_after_orphan,
+                    ),
+                    timeout=45.0,
+                )
+            except TimeoutError as exc:
+                raise RuntimeError(
+                    f"{MUX_RECLAIM_STALL_TOKEN}: reset_after_orphan timed out after 45s"
+                ) from exc
 
         while time.monotonic() < wall_deadline:
             remaining = wall_deadline - time.monotonic()
@@ -122,7 +134,10 @@ class McpChatSession(CdpChatSession):
                 return eval_task.result()
             except RuntimeError as exc:
                 message = str(exc)
-                if mux_attempts < max_mux_attempts and MUX_RECLAIM_STALL_TOKEN in message:
+                if (
+                    mux_attempts < max_mux_attempts
+                    and MUX_RECLAIM_STALL_TOKEN in message
+                ):
                     mux_attempts += 1
                     await _reset_mux_after_orphan()
                     await asyncio.sleep(0.75 * mux_attempts)
@@ -164,6 +179,7 @@ class McpChatSession(CdpChatSession):
             self._page,
         )
         self._page = reopened
+        self._reset_shell_layout_wait_clock()
         await asyncio.sleep(1.0)
         await self._inject_e2e_api_base()
         try:
@@ -179,6 +195,7 @@ class McpChatSession(CdpChatSession):
             timeout_ms=60_000,
         )
         await asyncio.sleep(2.0)
+        self._reset_shell_layout_wait_clock()
         await self._inject_e2e_api_base()
         try:
             await self.wait_shell_ready(timeout_sec=60.0, require_bridge=True)

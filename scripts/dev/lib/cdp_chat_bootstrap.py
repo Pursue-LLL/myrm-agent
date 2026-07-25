@@ -281,7 +281,7 @@ class CdpChatBootstrap(CdpChatTransport):
         from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
 
         timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
-        # R51: preserve _shell_layout_wait_started across hydrate re-entry.
+        self._reset_shell_layout_wait_clock()
         self._mark_bootstrap_started()
         for attempt in range(2):
             deadline = time.monotonic() + timeout_sec

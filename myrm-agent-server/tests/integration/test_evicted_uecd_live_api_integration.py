@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import sys
 import uuid
 from pathlib import Path
 from unittest.mock import patch
@@ -11,26 +10,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-_DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
-if str(_DEV_LIB) not in sys.path:
-    sys.path.insert(0, str(_DEV_LIB))
-
-
-def _resolve_verify_api_base(*, ensure_backend: bool = True) -> str:
-    """Epoch-matched API base for live server-route tests (parallel-safe, not shared :8080)."""
-    from e2e_api_verify import monorepo_root, resolve_e2e_api_context  # noqa: PLC0415
-
-    ctx = resolve_e2e_api_context()
-    if ctx.blocked and ensure_backend:
-        from verify_backend_seed import ensure_verify_backend_seed  # noqa: PLC0415
-
-        seed = ensure_verify_backend_seed(monorepo=monorepo_root())
-        if not seed.ok:
-            pytest.skip(f"verify-api seed failed: {seed.detail}")
-        ctx = resolve_e2e_api_context(retry_after_apply=False)
-    if ctx.blocked:
-        pytest.skip(f"verify-api blocked: {ctx.blocked_reason}")
-    return ctx.verify_api_base.rstrip("/")
+from tests.support.verify_api_base import resolve_verify_api_base
 
 
 def _live_api_reachable(api_base: str) -> bool:
@@ -39,6 +19,9 @@ def _live_api_reachable(api_base: str) -> bool:
         return resp.status_code == 200
     except httpx.HTTPError:
         return False
+
+
+_LIVE_SEED_POST_TIMEOUT_SEC = 60.0
 
 
 def _post_json_loopback(
@@ -50,7 +33,7 @@ def _post_json_loopback(
     url = f"{api_base.rstrip('/')}{path}"
     if not url.startswith("http://127.0.0.1:"):
         raise ValueError(f"Live integration only permits loopback API URLs: {url}")
-    resp = httpx.post(url, timeout=30.0)
+    resp = httpx.post(url, timeout=_LIVE_SEED_POST_TIMEOUT_SEC)
     if resp.status_code not in expected_statuses:
         raise RuntimeError(f"HTTP POST {url} returned {resp.status_code}: {resp.text[:500]!r}")
     return resp.json() if resp.text else {}
@@ -74,7 +57,7 @@ class TestEvictedUecdLiveServerIntegration:
         reason="Live server checks disabled",
     )
     def test_live_evicted_api_reads_web_fetch_uecd_spill(self) -> None:
-        api_base = _resolve_verify_api_base()
+        api_base = resolve_verify_api_base()
         if not _live_api_reachable(api_base):
             pytest.skip(f"Live API not reachable at {api_base}")
 
@@ -112,7 +95,7 @@ class TestEvictedUecdLiveServerIntegration:
         reason="Live server checks disabled",
     )
     def test_live_evicted_api_404_when_file_missing(self) -> None:
-        api_base = _resolve_verify_api_base()
+        api_base = resolve_verify_api_base()
         if not _live_api_reachable(api_base):
             pytest.skip(f"Live API not reachable at {api_base}")
 

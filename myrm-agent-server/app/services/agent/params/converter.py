@@ -604,6 +604,16 @@ async def convert_to_general_agent_params(
         locale = str(ps_dict.get("language", "en"))
     locale = locale or "en"
 
+    reasoning_display_mode = request.reasoning_display_mode
+    if reasoning_display_mode is None and isinstance(ps_dict, dict):
+        raw_mode = ps_dict.get("reasoningDisplayMode")
+        if isinstance(raw_mode, str):
+            normalized_mode = raw_mode.strip().lower()
+            if normalized_mode in {"off", "collapsed", "inline"}:
+                reasoning_display_mode = normalized_mode
+    if reasoning_display_mode not in {"off", "collapsed", "inline"}:
+        reasoning_display_mode = "collapsed"
+
     from app.core.channel_bridge.model_resolver import (
         enrich_model_capabilities,
         enrich_model_context_window,
@@ -936,6 +946,7 @@ async def convert_to_general_agent_params(
         security_config_raw=security_config_dict,
         agent_security_raw=agent_security_raw,
         timezone=request.timezone,
+        reasoning_display_mode=reasoning_display_mode,
         external_agents_config=external_agents_config if not is_fast_search else None,
         force_delegate_agent=request.force_delegate_agent,
         image_generation=image_gen_params if not is_fast_search else None,

@@ -565,7 +565,33 @@
       "openAuth": "Open Authentication Mode",
       "openAuthDesc": "When enabled, any non-empty Bearer token is accepted (no registered API key required). Suitable for local development.",
       "openAuthWarning": "Security notice: In open auth mode, anyone with your endpoint URL can make API calls. Only use this in trusted network environments.",
-      "saveFailed": "Failed to save proxy settings"
+      "saveFailed": "Failed to save proxy settings",
+      "combo": {
+        "title": "Multi-Provider Routing",
+        "description": "Configure a failover chain across your providers. When one provider's keys are exhausted, requests automatically route to the next.",
+        "addTarget": "Add Provider",
+        "noTargets": "No routing chain configured — requests use single-provider mode.",
+        "strategy": "Routing Strategy",
+        "strategyPriority": "Priority (ordered failover)",
+        "strategyCostOptimized": "Cost Optimized (cheapest first)",
+        "strategyRoundRobin": "Round Robin (even distribution)",
+        "strategyRandom": "Random",
+        "strategyLkgp": "Last Known Good (sticky)",
+        "strategyContextRelay": "Context Relay (cache-aware)",
+        "strategyHeadroom": "Headroom (most quota remaining)",
+        "maxRetries": "Max cross-provider retries",
+        "enabled": "Active",
+        "provider": "Provider",
+        "model": "Model",
+        "saved": "Routing chain saved"
+      },
+      "cliConfig": {
+        "title": "External Tool Setup",
+        "description": "One-click configuration for popular AI coding tools.",
+        "copy": "Copy",
+        "copied": "Configuration copied to clipboard",
+        "selectTool": "Select a tool to see its configuration"
+      }
     },
     "workspaceRules": {
       "title": "Workspace Rules",
@@ -3052,6 +3078,13 @@
     "enableEvalLabDesc": "Enable evaluation lab for testing and benchmarking agent performance",
     "showContextUsage": "Context Window Usage",
     "showContextUsageDesc": "Show context window usage progress ring next to the input box",
+    "reasoningDisplayMode": "Reasoning Display",
+    "reasoningDisplayModeDesc": "Control how model reasoning is shown in chat",
+    "reasoningDisplayModeOptions": {
+      "off": "Hide",
+      "collapsed": "Collapsed",
+      "inline": "Inline"
+    },
     "codeExecutionAllowNetwork": "Code Execution Network Access",
     "codeExecutionAllowNetworkDesc": "Allow Agent-executed code to access the network (e.g. pip install, API calls). Disabling blocks all network access in sandboxed code execution.",
     "enableAutoTitleGeneration": "AI Auto Title Generation",
@@ -12273,6 +12306,7 @@
     "shellInputClose": "Close stdin",
     "shellInputCloseSuccess": "Stdin closed for process",
     "shellInputCloseFailed": "Failed to close process stdin",
+    "stdinClosed": "Stdin closed",
     "waitingForInput": "Waiting for input",
     "taskStarted": "Background task started",
     "elapsed": "Elapsed",

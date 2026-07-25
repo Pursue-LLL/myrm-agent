@@ -3,11 +3,16 @@
 [INPUT]
 JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 - stream_collector_helpers (POS: stateless SSE event parsing helpers)
+- myrm_agent_harness.toolkits.code_execution.executors.models::scrub_sensitive_info
+  (POS: Harness-level sensitive token/path scrubbing)
+- myrm_agent_harness.utils.text_sanitizer::sanitize_llm_output
+  (POS: LLM raw text sanitizer for control/sentinel cleanup)
 
 [OUTPUT]
 StreamContentCollector: collects assistant content and message extra_data, including memory citation refs,
 retrieval traces, end-to-end stream TTFT (`streamTtftMs`), kanban_tasks_created, cron_job_result,
-HITL clarification (`clarification`), and deep-research plan confirmation (`planConfirmation`).
+HITL clarification (`clarification`), deep-research plan confirmation (`planConfirmation`),
+and reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`).
 
 [POS]
 Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata.
@@ -18,6 +23,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+
+from myrm_agent_harness.toolkits.code_execution.executors.models import (
+    scrub_sensitive_info,
+)
+from myrm_agent_harness.utils.text_sanitizer import sanitize_llm_output
 
 from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_clarification_required,
@@ -31,6 +41,7 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
 )
 
 _SSE_DATA_PREFIX = "data: "
+_MAX_REASONING_CHARS = 24_000
 _PERSISTED_STATUS_STEP_KEYS = frozenset(
     {"archive_restore_blocked", "archive_restore_result"}
 )
@@ -112,6 +123,8 @@ class StreamContentCollector:
     ) -> None:
         self._content_parts: list[str] = []
         self._reasoning_parts: list[str] = []
+        self._reasoning_char_count = 0
+        self._reasoning_truncated = False
         self._sources: list[dict[str, object]] = []
         self._progress_steps: list[dict[str, object]] = []
         self._cited_memory_ids: list[str] = []
@@ -338,7 +351,7 @@ class StreamContentCollector:
                     payload_4["detail"] = detail_2
                 self._set_stop_reason(payload_4)
         elif event_type == "reasoning" and data:
-            self._reasoning_parts.append(str(data))
+            self._append_reasoning(str(data))
         elif event_type == "sources" and isinstance(data, list):
             self._sources.extend(string_keyed_dicts(data))
         elif event_type == "tasks_steps":
@@ -390,6 +403,32 @@ class StreamContentCollector:
                 self._extend_cited_memory_refs(refs)
         elif event_type == "tool_stdout_chunk" and isinstance(data, str):
             pass
+        elif event_type == "tool_evicted_ref":
+            ref: str | None = None
+            if isinstance(data, str) and data.strip():
+                ref = data.strip()
+            elif isinstance(data, dict):
+                raw_ref = data.get("evicted_ref")
+                if isinstance(raw_ref, str) and raw_ref.strip():
+                    ref = raw_ref.strip()
+            if ref:
+                tool_name = event.get("tool_name")
+                matched = False
+                for step in reversed(self._progress_steps):
+                    step_tool = step.get("tool_name")
+                    if isinstance(tool_name, str) and step_tool == tool_name:
+                        step["evicted_file_ref"] = ref
+                        matched = True
+                        break
+                    if step_tool == "bash_code_execute_tool":
+                        step["evicted_file_ref"] = ref
+                        matched = True
+                        break
+                if not matched:
+                    step_payload: dict[str, object] = {"evicted_file_ref": ref}
+                    if isinstance(tool_name, str) and tool_name:
+                        step_payload["tool_name"] = tool_name
+                    self._progress_steps.append(step_payload)
         elif event_type == "tool_end":
             cited = event.get("cited_memory_ids")
             is_memory_recall = is_memory_citation_tool(event.get("tool_name"))
@@ -580,6 +619,9 @@ class StreamContentCollector:
             result["cron_job_result"] = self._cron_job_result
         if self.reasoning:
             result["reasoning"] = self.reasoning
+            if self._reasoning_truncated:
+                result["reasoningTruncated"] = True
+                result["reasoningCharLimit"] = _MAX_REASONING_CHARS
         return result or None
 
     def _set_stop_reason(self, payload: dict[str, object]) -> None:
@@ -630,3 +672,28 @@ class StreamContentCollector:
             str(key): value for key, value in trace.items() if isinstance(key, str)
         }
         self._memory_retrieval_traces.append(normalized)
+
+    def _append_reasoning(self, chunk: str) -> None:
+        if not chunk:
+            return
+        remaining = _MAX_REASONING_CHARS - self._reasoning_char_count
+        if remaining <= 0:
+            self._reasoning_truncated = True
+            return
+        raw_chunk = chunk
+        if len(raw_chunk) > remaining:
+            raw_chunk = raw_chunk[:remaining]
+            self._reasoning_truncated = True
+
+        safe_chunk = scrub_sensitive_info(sanitize_llm_output(raw_chunk))
+        if not safe_chunk:
+            return
+
+        if len(safe_chunk) <= remaining:
+            self._reasoning_parts.append(safe_chunk)
+            self._reasoning_char_count += len(safe_chunk)
+            return
+
+        self._reasoning_parts.append(safe_chunk[:remaining])
+        self._reasoning_char_count += remaining
+        self._reasoning_truncated = True

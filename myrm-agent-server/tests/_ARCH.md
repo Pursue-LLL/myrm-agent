@@ -14,6 +14,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`） |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
 | `support/feature_flags.py` | 辅助 | `seed_voice_interaction_flags()`，供 `tests/api/voice`、`tests/api/stt` conftest autouse |
+| `support/verify_api_base.py` | 辅助 | Live 集成测 verify-api 私池 base SSOT（`resolve_verify_api_base()`；epoch 匹配 + `--ensure-backend` seed） |
 | `support/bash_compressor_e2e.py` | 辅助 | bash compressor live/API E2E 共享 helper（模型 probe、workspace 压缩回放） |
 | `support/e2e_wall_progress.py` | 辅助 | Chrome E2E 墙钟 progress token（R39 touch/reset）；`reset_chrome_e2e_body_clocks` 在 SHPOIB bootstrap 后重设 body 600s + pytest-timeout（R48 · 日志 `E2E_BODY_CLOCK_RESET`） |
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
@@ -41,7 +42,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_evicted_live_terminal_chrome_e2e.py` | 模块 | UECD EvictedOutputDrawer Chrome MCP E2E（READ×1 SHPOIB：**单 tab** 全文 spill + `navigate` 过期 chat；禁止拆成 2× `open_mcp_page`，并行 mux 会 30s timeout） |
 | `api/files/test_evicted_web_fetch_spill.py` | 模块 | UECD evicted-file API 单测（`web_fetch_{hex8}.md` basename + GET content） |
 | `api/files/test_evicted_background_spill.py` | 模块 | UECD bash/background spill → evicted API 单测 |
-| `integration/test_evicted_uecd_live_api_integration.py` | 模块 | UECD live API 集成（seed fixture → GET evicted；live `:8080` 未就绪时 honest skip） |
+| `integration/test_evicted_uecd_live_api_integration.py` | 模块 | UECD live API 集成（`resolve_verify_api_base()` 私池 · seed POST `_LIVE_SEED_POST_TIMEOUT_SEC=60` · GET evicted · 404 `expired` envelope） |
 | `api/config/test_telegram_onboarding_apply.py` | 模块 | Telegram onboarding 原子编排回归（成功、失败回滚、同名冲突复用、并发防重、跨进程锁占用冲突） |
 | `api/files/test_revert_seed_integration.py` | 模块 | Revert seed 四 variant + production persist root hydrate + channel cleanup（6 项；无 RevertService mock） |
 | `services/files/test_revert_hydrate.py` | 单元 | `revert_hydrate.py` 100% 覆盖：root 解析顺序、hydrate、cleanup |

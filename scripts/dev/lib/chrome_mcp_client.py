@@ -100,6 +100,8 @@ def _raise_mux_reclaim_stall(phase: str, *, started: float) -> None:
 def _check_mux_reclaim_deadline(deadline: float, phase: str, *, started: float) -> None:
     if time.monotonic() >= deadline:
         _raise_mux_reclaim_stall(phase, started=started)
+
+
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _TRANSPORT_RECOVER_ATTEMPTS = 3
 _REQUEST_LOCK_ACQUIRE_SEC = 5.0
@@ -219,11 +221,11 @@ class ChromeMcpClient:
             )
         return self._mux_reset_executor
 
-    def _acquire_request_lock(self, *, timeout_sec: float | None = None) -> threading.Lock:
+    def _acquire_request_lock(
+        self, *, timeout_sec: float | None = None
+    ) -> threading.Lock:
         wait_sec = (
-            float(timeout_sec)
-            if timeout_sec is not None
-            else _REQUEST_LOCK_ACQUIRE_SEC
+            float(timeout_sec) if timeout_sec is not None else _REQUEST_LOCK_ACQUIRE_SEC
         )
         wait_sec = max(0.1, min(wait_sec, _REQUEST_LOCK_ACQUIRE_SEC))
         lock = self._request_lock
@@ -772,13 +774,15 @@ class ChromeMcpClient:
         self._recover_mux_transport()
 
     def _reopen_owned_page(self, page: McpPage) -> McpPage:
-        if getattr(self, "_reclaim_in_progress", False):
-            _raise_mux_reclaim_stall("reclaim_reentry", started=time.monotonic())
-        self._reclaim_in_progress = True
+        depth = getattr(self, "_reclaim_depth", 0)
+        if depth >= 1:
+            # Nested reclaim during orphan recovery — return page; caller will retry or fail fast.
+            return page
+        self._reclaim_depth = depth + 1
         try:
             return self._reopen_owned_page_inner(page)
         finally:
-            self._reclaim_in_progress = False
+            self._reclaim_depth = depth
 
     def _reopen_owned_page_inner(self, page: McpPage) -> McpPage:
         reclaim_deadline = _reclaim_wall_deadline()
@@ -985,9 +989,15 @@ class ChromeMcpClient:
         self._page_lease_heartbeat.start()
 
     def _recover_mux_transport(self) -> None:
+        reclaim_deadline = _reclaim_wall_deadline()
         self._teardown_shim_process()
         last_error: RuntimeError | None = None
         for attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
+            _check_mux_reclaim_deadline(
+                reclaim_deadline,
+                "recover_mux_transport",
+                started=reclaim_deadline - float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC),
+            )
             try:
                 self._spawn_shim_process()
                 self._initialize_shim_session()
@@ -996,9 +1006,19 @@ class ChromeMcpClient:
                 last_error = exc
                 self._teardown_shim_process()
                 if attempt + 1 < _TRANSPORT_RECOVER_ATTEMPTS:
-                    time.sleep(0.75 * (attempt + 1))
+                    time.sleep(
+                        min(
+                            0.75 * (attempt + 1),
+                            _remaining_reclaim_sec(reclaim_deadline),
+                        )
+                    )
         if last_error is not None:
             raise last_error
+        _check_mux_reclaim_deadline(
+            reclaim_deadline,
+            "recover_mux_transport",
+            started=reclaim_deadline - float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC),
+        )
 
     def abandon_inflight_requests(self) -> None:
         """Invalidate orphaned mux I/O after asyncio cancelled a blocking evaluate thread."""
@@ -1143,6 +1163,7 @@ class ChromeMcpClient:
         params: dict[str, object],
         *,
         timeout_sec: float | None = None,
+        request_generation: int | None = None,
     ) -> dict[str, object]:
         self._request_id += 1
         request_id = self._request_id
@@ -1162,6 +1183,13 @@ class ChromeMcpClient:
         )
         deadline = time.monotonic() + timeout
         while True:
+            if (
+                request_generation is not None
+                and request_generation != self._request_generation
+            ):
+                raise RuntimeError(
+                    f"{MUX_RECLAIM_STALL_TOKEN}: request abandoned during I/O"
+                )
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise TimeoutError(f"Chrome MCP {method} response timed out")
@@ -1206,6 +1234,7 @@ class ChromeMcpClient:
                         method,
                         params,
                         timeout_sec=timeout_sec,
+                        request_generation=start_generation,
                     )
                 finally:
                     self._release_request_lock(held_lock)

@@ -13,7 +13,7 @@ async function throwUserAgentFetchError(response: Response, action: string): Pro
 
 export const DEFAULT_PERSONALITY_STYLE = 'professional' as const;
 
-/** 24 built-in presets exceed API default page_size=20. */
+/** 27 built-in presets exceed API default page_size=20. */
 export const AGENT_LIST_BUILTIN_PAGE_SIZE = 50;
 
 export interface AgentModelSelection {

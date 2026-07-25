@@ -48,6 +48,7 @@ from .text_utils import (
 )
 
 _EMPTY_FALLBACK = "Done."
+_REASONING_DISPLAY_METADATA_KEY = "reasoning_display_mode"
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +89,8 @@ def _prepare(msg: OutboundMessage, style: RenderStyle) -> _PreparedContent:
         else:
             header = f"{label}\n"
 
-    reasoning_block = _build_reasoning_block(msg.reasoning, style)
+    reasoning_display = _resolve_reasoning_display(msg, style)
+    reasoning_block = _build_reasoning_block(msg.reasoning, style, reasoning_display)
     sources_block = _build_sources_block(msg, style)
     tool_summary_block = _build_tool_summary_block(msg.tool_steps, style)
     cost_footer = _build_cost_footer(msg, style)
@@ -113,8 +115,31 @@ def _prepare(msg: OutboundMessage, style: RenderStyle) -> _PreparedContent:
 _REASONING_MAX_LEN = 2000
 
 
-def _build_reasoning_block(reasoning: str | None, style: RenderStyle) -> str:
-    if not reasoning or style.reasoning_display == ReasoningDisplay.OFF:
+def _resolve_reasoning_display(msg: OutboundMessage, style: RenderStyle) -> ReasoningDisplay:
+    metadata = msg.metadata
+    if not metadata:
+        return style.reasoning_display
+
+    raw_mode = metadata.get(_REASONING_DISPLAY_METADATA_KEY)
+    if isinstance(raw_mode, ReasoningDisplay):
+        return raw_mode
+    if isinstance(raw_mode, str):
+        normalized = raw_mode.strip().lower()
+        if normalized in {
+            ReasoningDisplay.OFF.value,
+            ReasoningDisplay.COLLAPSED.value,
+            ReasoningDisplay.INLINE.value,
+        }:
+            return ReasoningDisplay(normalized)
+    return style.reasoning_display
+
+
+def _build_reasoning_block(
+    reasoning: str | None,
+    style: RenderStyle,
+    reasoning_display: ReasoningDisplay,
+) -> str:
+    if not reasoning or reasoning_display == ReasoningDisplay.OFF:
         return ""
 
     trimmed = reasoning.strip()
@@ -124,7 +149,7 @@ def _build_reasoning_block(reasoning: str | None, style: RenderStyle) -> str:
     if len(trimmed) > _REASONING_MAX_LEN:
         trimmed = trimmed[:_REASONING_MAX_LEN] + "…"
 
-    if style.reasoning_display == ReasoningDisplay.COLLAPSED:
+    if reasoning_display == ReasoningDisplay.COLLAPSED:
         emoji = "\U0001f9e0 " if style.use_emoji else ""
         if style.supports_latex:
             quoted = "\n".join(f"> {line}" for line in trimmed.split("\n"))

@@ -2435,6 +2435,13 @@
     "enableEvalLabDesc": "Enable evaluation lab for testing and benchmarking agent performance",
     "showContextUsage": "Context Window Usage",
     "showContextUsageDesc": "Show context window usage progress ring next to the input box",
+    "reasoningDisplayMode": "Reasoning Display",
+    "reasoningDisplayModeDesc": "Control how model reasoning is shown in chat",
+    "reasoningDisplayModeOptions": {
+      "off": "Hide",
+      "collapsed": "Collapsed",
+      "inline": "Inline"
+    },
     "codeExecutionAllowNetwork": "Code Execution Network Access",
     "codeExecutionAllowNetworkDesc": "Allow Agent-executed code to access the network (e.g. pip install, API calls). Disabling blocks all network access in sandboxed code execution.",
     "enableAutoTitleGeneration": "AI Auto Title Generation",
@@ -11170,6 +11177,7 @@
     "shellInputClose": "Stdin schließen",
     "shellInputCloseSuccess": "Stdin des Prozesses geschlossen",
     "shellInputCloseFailed": "Stdin des Prozesses konnte nicht geschlossen werden",
+    "stdinClosed": "Stdin geschlossen",
     "waitingForInput": "Wartet auf Eingabe",
     "taskStarted": "Background task started",
     "elapsed": "Elapsed",

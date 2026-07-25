@@ -3036,6 +3036,13 @@
     "enableEvalLabDesc": "啟用評測實驗室功能，用於測試和評估 Agent 能力表現",
     "showContextUsage": "上下文視窗使用率",
     "showContextUsageDesc": "在輸入框旁顯示上下文視窗使用率進度環",
+    "reasoningDisplayMode": "思考過程顯示方式",
+    "reasoningDisplayModeDesc": "控制模型思考過程在對話中的顯示方式",
+    "reasoningDisplayModeOptions": {
+      "off": "隱藏",
+      "collapsed": "摺疊顯示",
+      "inline": "內聯展開"
+    },
     "codeExecutionAllowNetwork": "程式碼執行網路許可權",
     "codeExecutionAllowNetworkDesc": "允許 Agent 執行的程式碼訪問網路（如 pip install、API 呼叫）。關閉後沙箱內程式碼執行將完全禁止網路訪問。",
     "enableAutoTitleGeneration": "AI 自動生成標題",
@@ -12212,6 +12219,7 @@
     "shellInputClose": "關閉 stdin",
     "shellInputCloseSuccess": "已關閉程序 stdin",
     "shellInputCloseFailed": "關閉程序 stdin 失敗",
+    "stdinClosed": "stdin 已關閉",
     "waitingForInput": "等待輸入",
     "taskStarted": "後臺任務已啟動",
     "elapsed": "已耗時",

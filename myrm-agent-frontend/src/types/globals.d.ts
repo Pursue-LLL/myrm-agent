@@ -107,7 +107,9 @@ interface Window {
     setCurrentBuiltinTools?: (tools: string[]) => void;
     getCurrentBuiltinTools?: () => string[];
     /** CDP E2E: pin agent chat to defaultModelConfig.liteModel (matches API get_lite_model_selection). */
-    pinLiteModelForE2e?: () => Promise<{ providerId: string; model: string }>;
+    pinLiteModelForE2e?: (opts?: {
+      preserveActionMode?: boolean;
+    }) => Promise<{ providerId: string; model: string }>;
     /** CDP E2E SHPOIB: mirror private-backend searchServices into useConfigStore. */
     syncSearchServicesFromE2eApi?: () => Promise<{ ok: boolean; err?: string; count?: number }>;
     /** CDP E2E gap: force empty searchServices in FE store (no :8080 fallback). */

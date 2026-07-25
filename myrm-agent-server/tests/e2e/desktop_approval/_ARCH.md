@@ -11,12 +11,12 @@ Chrome MCP E2E helpers for Desktop Control approval (allow once / allow always �
 | `__init__.py` | Package | Docstring-only package marker (`tests/conftest.py` owns dev lib path) | ✅ |
 | `conftest.py` | Guard | Session fcntl lock — one desktop approval E2E pytest at a time | ✅ |
 | `constants.py` | Core | Timeouts (incl. `APPROVAL_CLICK_DEADLINE_SEC` SSOT with gate env), prompts, infra abort markers, `progress()` | ✅ |
-| `infra_retry.py` | Core | `open_mcp_chat_page` (about:blank→navigate → recover → direct :3000); `is_retriable_page_transport` (detached Frame + mux timeout) | ✅ |
+| `infra_retry.py` | Core | `heal_chrome_attach_before_reopen`（R46 attach SSOT）+ `open_mcp_chat_page`（about:blank→navigate → recover → direct :3000）；`is_retriable_page_transport` | ✅ |
 | `textedit_fixture.py` | Fixture | macOS TextEdit scroll target (background, minimized) | ✅ |
 | `trust_api.py` | Core | HTTP helpers（统一走 `cdp_chat_support._e2e_api_urlopen` loopback 校验 + 重试）+ `fetch_pending_approval_request_ids` + safe revoke `data-testid` selector JS | ✅ |
 | `gate_probe.py` | Core | Desktop tool activity, 60s idle fail-fast, provider diagnostics | ✅ |
 | `turn_flow.py` | Core | navigate guard + E2E bridge openPanel/sync; scope-aware banner probe; DONE wait; Settings revoke | ✅ |
-| `runner.py` | Core | `run_desktop_approval_chrome_e2e` + detached Frame → mux recover + reopen page | ✅ |
+| `runner.py` | Core | `run_desktop_approval_chrome_e2e` + retry 路径 attach heal → mux recover → reopen page | ✅ |
 
 Unit smoke (no Chrome): `tests/unit/desktop_approval/test_trust_api_smoke.py`, `test_gate_probe_smoke.py`.
 

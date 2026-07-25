@@ -3,11 +3,12 @@
 [INPUT]
 - chrome_mcp_client::ChromeMcpClient (POS: synchronous Chrome MCP mux client)
 - tests.e2e.desktop_approval.constants (POS: desktop approval E2E tuning knobs)
+- tests.support.e2e_runtime_guard::assert_chrome_attach_health (POS: Chrome mux/CDP attach gate)
 - tests.support.e2e_runtime_guard::heartbeat_e2e_lease (POS: live E2E lease heartbeat)
 
 [OUTPUT]
-- open_mcp_chat_page, should_abort_desktop_e2e_retries, is_mux_new_page_retriable
-- is_retriable_page_transport
+- heal_chrome_attach_before_reopen, open_mcp_chat_page
+- should_abort_desktop_e2e_retries, is_mux_new_page_retriable, is_retriable_page_transport
 
 [POS]
 Mux/page-open retry layer for desktop approval Chrome E2E; orchestrator-owned heal, not user cleanup.
@@ -20,7 +21,7 @@ import asyncio
 from chrome_mcp_client import ChromeMcpClient, McpPage
 
 from tests.e2e.desktop_approval.constants import BASE_URL, INFRA_ABORT_MARKERS, progress
-from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import assert_chrome_attach_health, heartbeat_e2e_lease
 
 
 def should_abort_desktop_e2e_retries(exc: BaseException) -> bool:
@@ -57,6 +58,12 @@ def is_retriable_page_transport(exc: BaseException) -> bool:
     return False
 
 
+async def heal_chrome_attach_before_reopen() -> None:
+    """R46 attach heal before mux page reopen (orchestrator-owned, not user cleanup)."""
+    progress("chrome attach heal before page reopen")
+    await asyncio.to_thread(assert_chrome_attach_health)
+
+
 async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
     """Open chat UI; prefer about:blank (no runtime binding), then recover, then direct :3000."""
     last_exc: BaseException | None = None
@@ -70,6 +77,7 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
         try:
             if mode.endswith("_recover"):
                 progress(f"mux recover before new_page attempt {attempt}/3")
+                await heal_chrome_attach_before_reopen()
                 await asyncio.to_thread(client.recover_mux_transport)
             if url == "about:blank":
                 progress(f"new_page about:blank attempt {attempt}/3")
@@ -79,21 +87,82 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
                     timeout_ms=90_000,
                 )
                 progress("navigate to chat UI")
-                await asyncio.to_thread(
-                    client.navigate,
-                    page,
-                    f"{BASE_URL.rstrip('/')}/",
-                    timeout_ms=120_000,
+                chat_home = f"{BASE_URL.rstrip('/')}/"
+                for nav_pass in (1, 2):
+                    await asyncio.to_thread(
+                        client.navigate,
+                        page,
+                        chat_home,
+                        timeout_ms=120_000,
+                    )
+                    await asyncio.sleep(2.0)
+                    probe = await asyncio.to_thread(
+                        client.evaluate,
+                        page,
+                        """(() => ({
+                          path: location.pathname || 'blank',
+                          hasLayout: !!document.querySelector('[data-testid="app-layout"]'),
+                        }))()""",
+                        timeout_sec=30.0,
+                    )
+                    if isinstance(probe, dict) and probe.get("hasLayout"):
+                        progress("post-navigate reload for fresh dev bridge bundle")
+                        await asyncio.to_thread(
+                            client.reload,
+                            page,
+                            timeout_ms=120_000,
+                        )
+                        await asyncio.sleep(3.0)
+                        probe = await asyncio.to_thread(
+                            client.evaluate,
+                            page,
+                            """(() => ({
+                              path: location.pathname || 'blank',
+                              hasLayout: !!document.querySelector('[data-testid="app-layout"]'),
+                            }))()""",
+                            timeout_sec=30.0,
+                        )
+                        if isinstance(probe, dict) and probe.get("hasLayout"):
+                            return page
+                        if nav_pass == 1:
+                            progress(
+                                "post-reload layout retry "
+                                f"(path={probe.get('path') if isinstance(probe, dict) else probe})"
+                            )
+                            continue
+                        break
+                    if nav_pass == 1:
+                        progress(
+                            "navigate verify retry "
+                            f"(path={probe.get('path') if isinstance(probe, dict) else probe})"
+                        )
+                progress(
+                    "about:blank navigate verify failed "
+                    f"(path={probe.get('path') if isinstance(probe, dict) else probe}); next strategy"
                 )
-                await asyncio.sleep(2.0)
-                return page
+                continue
             progress(f"new_page {url} attempt {attempt}/3 (direct fallback)")
             page = await asyncio.to_thread(
                 client.new_page,
                 url,
                 timeout_ms=120_000,
             )
-            return page
+            probe = await asyncio.to_thread(
+                client.evaluate,
+                page,
+                """(() => ({
+                  path: location.pathname || 'blank',
+                  hasLayout: !!document.querySelector('[data-testid="app-layout"]'),
+                }))()""",
+                timeout_sec=30.0,
+            )
+            if isinstance(probe, dict) and probe.get("hasLayout"):
+                return page
+            progress(
+                "direct new_page layout missing "
+                f"(path={probe.get('path') if isinstance(probe, dict) else probe})"
+            )
+            continue
         except (TimeoutError, RuntimeError) as exc:
             last_exc = exc
             if should_abort_desktop_e2e_retries(

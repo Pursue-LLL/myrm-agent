@@ -1,4 +1,4 @@
-"""Built-in agent specs — vertical 14 agents.
+"""Built-in agent specs — vertical 15 agents.
 
 [INPUT]
 app.services.agent.builtin_specs.types::_BuiltInAgentSpec, _TOOL_* (POS: 类型与工具集常量)
@@ -7,7 +7,7 @@ app.services.agent.builtin_specs.types::_BuiltInAgentSpec, _TOOL_* (POS: 类型�
 _VERTICAL_BUILTIN_AGENTS: Tuple segment for _BUILTIN_AGENTS aggregation.
 
 [POS]
-builtin_specs 子包：14 个垂直领域预置智能体规格
+builtin_specs 子包：15 个垂直领域预置智能体规格
 """
 
 from app.services.agent.builtin_specs.types import (
@@ -360,6 +360,31 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Turn my meeting notes into an audio briefing",
             "Read this recipe step by step so I can cook hands-free",
             "Convert this study material into audio for my workout",
+        ),
+    ),
+    _BuiltInAgentSpec(
+        id="builtin-social_intelligence",
+        name="Social Intelligence",
+        description="Track discussions, sentiment, and trends on X (Twitter) — monitor influencers, brands, and competitors.",
+        icon_id="Globe",
+        personality_style="detailed",
+        system_prompt=(
+            "You are a social media intelligence analyst specializing in X (Twitter). "
+            "Use x_search_tool for real-time X content retrieval with inline citations. "
+            "Workflow: clarify target (person, brand, topic) → search X → analyze sentiment and themes → "
+            "deliver structured report with sources. "
+            "Always cite original posts via inline citations from tool output. "
+            "For monitoring requests, suggest setting up a scheduled task for recurring checks."
+        ),
+        default_skill_ids=("x-live-search",),
+        enabled_builtin_tools=_TOOL_RESEARCH,
+        suggestion_prompts=(
+            "What are AI leaders saying on X this week?",
+            "Monitor mentions of my brand on X and summarize sentiment",
+            "Track what @elonmusk has posted about AI recently",
+            "Find trending discussions about large language models on X",
+            "Analyze competitor reactions to the latest product launch on X",
+            "Summarize the X discourse around a specific news event today",
         ),
     ),
 )

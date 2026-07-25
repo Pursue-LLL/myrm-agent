@@ -472,6 +472,27 @@ def _wait_api_result_preview_contains(
     )
 
 
+def _wait_api_stdin_closed(
+    api_base: str,
+    task_id: str,
+    *,
+    timeout_sec: float = 15.0,
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
+        assert isinstance(row, dict)
+        last = row
+        if row.get("waiting_for_input") is False and row.get("stdin_closed") is True:
+            return row
+        time.sleep(0.5)
+    raise AssertionError(
+        f"stdin close never reflected for {task_id}; last waiting={last.get('waiting_for_input')!r} "
+        f"stdin_closed={last.get('stdin_closed')!r}"
+    )
+
+
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.timeout(240)
 def test_background_tasks_panel_shell_stdin_via_ui() -> None:
@@ -517,3 +538,62 @@ def test_background_tasks_panel_shell_stdin_via_ui() -> None:
         )
 
         http_json("POST", f"{api_base}/api/v1/background-tasks/{task_id}/cancel")
+
+
+_WAITING_BADGE_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const badge = root.querySelector('[data-testid="background-task-waiting-for-input"]');
+  return { ready: !!badge };
+})()"""
+
+_SHELL_INPUT_CLOSE_VISIBLE_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const closeBtn = root.querySelector('[data-testid="background-task-shell-input-close"]');
+  return { ready: !!closeBtn };
+})()"""
+
+_SHELL_INPUT_CLICK_CLOSE_JS = """(() => {
+  const popover = document.querySelector('[data-radix-popper-content-wrapper]');
+  const root = popover || document.body;
+  const closeBtn = root.querySelector('[data-testid="background-task-shell-input-close"]');
+  if (!closeBtn) return { clicked: false };
+  closeBtn.click();
+  return { clicked: true };
+})()"""
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.timeout(240)
+def test_background_tasks_panel_shell_waiting_badge_and_close_stdin() -> None:
+    api_base = get_e2e_api_url()
+    seed = http_json(
+        "POST",
+        f"{api_base}/api/v1/background-tasks/test/seed-shell-fixture?mode=running_stdin_waiting",
+    )
+    assert isinstance(seed, dict)
+    task_id = str(seed["task_id"])
+
+    row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
+    assert isinstance(row, dict)
+    assert row.get("waiting_for_input") is True
+
+    with _background_tasks_panel(api_base) as (client, page):
+        badge = wait_for_state(client, page, _WAITING_BADGE_JS, timeout_sec=30.0)
+        assert badge.get("ready") is True, badge
+
+        clicked = client.evaluate(page, _SHELL_INPUT_CLICK_TOGGLE_JS, timeout_sec=10.0)
+        assert clicked.get("clicked") is True, clicked
+
+        close_visible = wait_for_state(
+            client, page, _SHELL_INPUT_CLOSE_VISIBLE_JS, timeout_sec=15.0
+        )
+        assert close_visible.get("ready") is True, close_visible
+
+        closed = client.evaluate(page, _SHELL_INPUT_CLICK_CLOSE_JS, timeout_sec=10.0)
+        assert closed.get("clicked") is True, closed
+
+        _wait_api_stdin_closed(api_base, task_id, timeout_sec=15.0)
+
+    http_json("POST", f"{api_base}/api/v1/background-tasks/{task_id}/cancel")

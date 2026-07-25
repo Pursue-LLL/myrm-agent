@@ -17,14 +17,17 @@ matches a user-configured LLM model (e.g. "claude-3.5-sonnet") rather than an
 Agent ID, this module forwards the request directly to the upstream LLM via
 litellm — bypassing the Agent execution engine entirely.
 
-Integrates CredentialPool from the Harness layer for multi-key rotation
-and automatic failover across keys on 429/5xx errors.
+Supports Combo multi-provider routing with configurable strategies
+(priority/round_robin/random).  Integrates CredentialPool from the Harness
+layer for multi-key rotation and automatic failover across keys on 429/5xx
+errors.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import random
 import time
 import uuid
 from collections.abc import AsyncGenerator
@@ -65,6 +68,107 @@ async def _load_providers_dict() -> dict[str, object] | None:
     except Exception:
         logger.debug("Failed to load providers config for passthrough", exc_info=True)
     return None
+
+
+async def _load_combo_config() -> dict[str, object] | None:
+    """Load user's Combo routing configuration from config_service."""
+    try:
+        from app.services.config.service import config_service
+
+        record = await config_service.get("comboConfig")
+        if record is None:
+            return None
+        value = record.value if hasattr(record, "value") else record
+        if isinstance(value, dict) and value.get("targets"):
+            return value
+    except Exception:
+        logger.debug("Failed to load comboConfig for passthrough", exc_info=True)
+    return None
+
+
+def _resolve_combo_targets(
+    combo_raw: dict[str, object],
+    providers_dict: dict[str, object],
+) -> list[tuple[str, list[str], str | None, str]]:
+    """Resolve Combo targets into a list of (litellm_model, keys, base_url, provider_id).
+
+    Skips targets whose provider_id is not found or has no active keys.
+    """
+    from app.core.channel_bridge.model_resolver import (
+        _extract_all_active_keys,
+        _to_litellm_model,
+    )
+
+    providers_raw = providers_dict.get("providers", [])
+    if not isinstance(providers_raw, list):
+        return []
+
+    provider_map: dict[str, dict[str, object]] = {}
+    for p in providers_raw:
+        if isinstance(p, dict):
+            pid = str(p.get("id", ""))
+            if pid and (p.get("isEnabled") or p.get("enabled")):
+                provider_map[pid] = p
+
+    targets_raw = combo_raw.get("targets", [])
+    if not isinstance(targets_raw, list):
+        return []
+
+    resolved: list[tuple[str, list[str], str | None, str]] = []
+    for t in targets_raw:
+        if not isinstance(t, dict):
+            continue
+        if not t.get("enabled", True):
+            continue
+
+        pid = str(t.get("provider_id", ""))
+        model = str(t.get("model", ""))
+        if not pid or not model:
+            continue
+
+        provider = provider_map.get(pid)
+        if not provider:
+            continue
+
+        keys = _extract_all_active_keys(provider)
+        if not keys:
+            continue
+
+        ptype = str(provider.get("providerType", "")) or None
+        litellm_model = _to_litellm_model(pid, model, ptype)
+        api_url = str(provider.get("apiUrl") or provider.get("baseURL") or "")
+
+        resolved.append((litellm_model, keys, api_url or None, pid))
+
+    return resolved
+
+
+_combo_rr_counter: int = 0
+
+
+def _apply_passthrough_strategy(
+    targets: list[tuple[str, list[str], str | None, str]],
+    strategy: str,
+) -> list[tuple[str, list[str], str | None, str]]:
+    """Reorder targets according to the user-configured Combo routing strategy.
+
+    Strategies that require Agent-level context (lkgp, context_relay, headroom)
+    are only available in the Harness ComboResolver; passthrough falls back to
+    priority ordering for those.
+    """
+    global _combo_rr_counter  # noqa: PLW0603
+
+    if strategy == "round_robin" and len(targets) > 1:
+        offset = _combo_rr_counter % len(targets)
+        _combo_rr_counter += 1
+        return targets[offset:] + targets[:offset]
+
+    if strategy == "random" and len(targets) > 1:
+        shuffled = list(targets)
+        random.shuffle(shuffled)
+        return shuffled
+
+    return targets
 
 
 _AGENT_ALIAS_MODELS = frozenset({"default", "gpt-4", "gpt-4o", "gpt-3.5-turbo"})
@@ -302,33 +406,37 @@ async def _build_litellm_kwargs(
 async def passthrough_stream(
     request: ChatCompletionRequest,
 ) -> AsyncGenerator[str, None]:
-    """Stream LLM response in OpenAI SSE format with automatic key rotation and failover."""
-    import litellm
-    from myrm_agent_harness.toolkits.llms.core.credential_pool import CredentialPool
-
+    """Stream LLM response with Combo multi-provider routing and key failover."""
     try:
         providers_dict = await _load_providers_dict()
         if not providers_dict:
             raise ValueError("No providers configuration available")
-        litellm_model, all_keys, base_url, _pid = _resolve_passthrough_provider(
-            request.model,
-            providers_dict,
-        )
     except Exception as exc:
         error_body = json.dumps(
-            {
-                "error": {
-                    "message": str(exc),
-                    "type": "configuration_error",
-                    "code": "passthrough_config_error",
-                }
-            }
+            {"error": {"message": str(exc), "type": "configuration_error", "code": "passthrough_config_error"}}
         )
         yield f"data: {error_body}\n\n"
         yield "data: [DONE]\n\n"
         return
 
-    pool = CredentialPool(all_keys)
+    combo_raw = await _load_combo_config()
+    targets = _resolve_combo_targets(combo_raw, providers_dict) if combo_raw else []
+
+    if targets and combo_raw:
+        targets = _apply_passthrough_strategy(targets, str(combo_raw.get("strategy", "priority")))
+
+    if not targets:
+        try:
+            litellm_model, all_keys, base_url, _pid = _resolve_passthrough_provider(request.model, providers_dict)
+            targets = [(litellm_model, all_keys, base_url, _pid)]
+        except Exception as exc:
+            error_body = json.dumps(
+                {"error": {"message": str(exc), "type": "configuration_error", "code": "passthrough_config_error"}}
+            )
+            yield f"data: {error_body}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+
     completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
     created = int(time.time())
 
@@ -342,13 +450,11 @@ async def passthrough_stream(
 
     last_error: Exception | None = None
 
-    for attempt in range(_MAX_PASSTHROUGH_RETRIES):
-        api_key = pool.acquire()
+    for litellm_model, all_keys, base_url, pid in targets:
         try:
-            litellm_kwargs = await _build_litellm_kwargs(
-                request, litellm_model, api_key, base_url, stream=True,
+            response = await _try_single_target(
+                request, litellm_model, all_keys, base_url, stream=True,
             )
-            response = await litellm.acompletion(**litellm_kwargs)
             async for part in response:
                 delta_content = None
                 finish = None
@@ -361,96 +467,45 @@ async def passthrough_stream(
 
                 if delta_content:
                     chunk = ChatCompletionChunk(
-                        id=completion_id,
-                        created=created,
-                        model=request.model,
-                        choices=[
-                            StreamChoice(
-                                delta=DeltaMessage(content=delta_content),
-                                finish_reason=None,
-                            )
-                        ],
+                        id=completion_id, created=created, model=request.model,
+                        choices=[StreamChoice(delta=DeltaMessage(content=delta_content), finish_reason=None)],
                     )
                     yield f"data: {chunk.model_dump_json()}\n\n"
 
                 if finish:
                     finish_chunk = ChatCompletionChunk(
-                        id=completion_id,
-                        created=created,
-                        model=request.model,
-                        choices=[
-                            StreamChoice(
-                                delta=DeltaMessage(),
-                                finish_reason=finish,
-                            )
-                        ],
+                        id=completion_id, created=created, model=request.model,
+                        choices=[StreamChoice(delta=DeltaMessage(), finish_reason=finish)],
                     )
                     yield f"data: {finish_chunk.model_dump_json()}\n\n"
 
-            pool.report_success(api_key)
             yield "data: [DONE]\n\n"
             return
 
         except Exception as exc:
             last_error = exc
-            error_kind = _classify_error_kind(exc)
-            pool.report_error(api_key, error_kind)
-
-            if not _is_failoverable(exc) or attempt >= _MAX_PASSTHROUGH_RETRIES - 1:
+            if not _is_failoverable(exc):
                 break
-
-            if pool.available_count() == 0:
-                break
-
-            logger.info(
-                "Passthrough stream failover: attempt %d/%d, key ...%s %s, rotating",
-                attempt + 1,
-                _MAX_PASSTHROUGH_RETRIES,
-                api_key[-4:],
-                error_kind,
-            )
+            logger.info("Combo stream failover: provider %s exhausted, sliding to next target", pid)
 
     error_body = json.dumps(
-        {
-            "error": {
-                "message": str(last_error) if last_error else "All keys exhausted",
-                "type": "upstream_error",
-                "code": "passthrough_error",
-            }
-        }
+        {"error": {"message": str(last_error) if last_error else "All targets exhausted", "type": "upstream_error", "code": "passthrough_error"}}
     )
     yield f"data: {error_body}\n\n"
     yield "data: [DONE]\n\n"
 
 
-async def passthrough_completion(
+async def _try_single_target(
     request: ChatCompletionRequest,
-) -> ChatCompletionResponse:
-    """Non-streaming LLM completion with automatic key rotation and failover."""
+    litellm_model: str,
+    all_keys: list[str],
+    base_url: str | None,
+    *,
+    stream: bool,
+) -> object:
+    """Attempt a completion against a single provider target with CredentialPool retry."""
     import litellm
-    from fastapi import HTTPException
-
     from myrm_agent_harness.toolkits.llms.core.credential_pool import CredentialPool
-
-    try:
-        providers_dict = await _load_providers_dict()
-        if not providers_dict:
-            raise ValueError("No providers configuration available")
-        litellm_model, all_keys, base_url, _pid = _resolve_passthrough_provider(
-            request.model,
-            providers_dict,
-        )
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "error": {
-                    "message": str(exc),
-                    "type": "configuration_error",
-                    "code": "passthrough_config_error",
-                }
-            },
-        ) from exc
 
     pool = CredentialPool(all_keys)
     last_error: Exception | None = None
@@ -459,11 +514,68 @@ async def passthrough_completion(
         api_key = pool.acquire()
         try:
             litellm_kwargs = await _build_litellm_kwargs(
-                request, litellm_model, api_key, base_url, stream=False,
+                request, litellm_model, api_key, base_url, stream=stream,
             )
             response = await litellm.acompletion(**litellm_kwargs)
-
             pool.report_success(api_key)
+            return response
+        except Exception as exc:
+            last_error = exc
+            error_kind = _classify_error_kind(exc)
+            pool.report_error(api_key, error_kind)
+
+            if not _is_failoverable(exc) or attempt >= _MAX_PASSTHROUGH_RETRIES - 1:
+                raise
+            if pool.available_count() == 0:
+                raise
+
+            logger.info(
+                "Passthrough failover: attempt %d/%d, key ...%s %s, rotating",
+                attempt + 1, _MAX_PASSTHROUGH_RETRIES, api_key[-4:], error_kind,
+            )
+
+    raise last_error  # type: ignore[misc]
+
+
+async def passthrough_completion(
+    request: ChatCompletionRequest,
+) -> ChatCompletionResponse:
+    """Non-streaming LLM completion with Combo multi-provider routing and key failover."""
+    from fastapi import HTTPException
+
+    try:
+        providers_dict = await _load_providers_dict()
+        if not providers_dict:
+            raise ValueError("No providers configuration available")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": {"message": str(exc), "type": "configuration_error", "code": "passthrough_config_error"}},
+        ) from exc
+
+    combo_raw = await _load_combo_config()
+    targets = _resolve_combo_targets(combo_raw, providers_dict) if combo_raw else []
+
+    if targets and combo_raw:
+        targets = _apply_passthrough_strategy(targets, str(combo_raw.get("strategy", "priority")))
+
+    if not targets:
+        try:
+            litellm_model, all_keys, base_url, _pid = _resolve_passthrough_provider(request.model, providers_dict)
+            targets = [(litellm_model, all_keys, base_url, _pid)]
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": {"message": str(exc), "type": "configuration_error", "code": "passthrough_config_error"}},
+            ) from exc
+
+    last_error: Exception | None = None
+
+    for litellm_model, all_keys, base_url, pid in targets:
+        try:
+            response = await _try_single_target(
+                request, litellm_model, all_keys, base_url, stream=False,
+            )
 
             content = ""
             usage_info = UsageInfo()
@@ -471,7 +583,6 @@ async def passthrough_completion(
             if hasattr(response, "choices") and response.choices:
                 msg = response.choices[0].message
                 content = getattr(msg, "content", "") or ""
-
             if hasattr(response, "usage") and response.usage:
                 usage_info = UsageInfo(
                     prompt_tokens=getattr(response.usage, "prompt_tokens", 0) or 0,
@@ -484,34 +595,14 @@ async def passthrough_completion(
                 choices=[Choice(message=ChoiceMessage(content=content))],
                 usage=usage_info,
             )
-
         except Exception as exc:
             last_error = exc
-            error_kind = _classify_error_kind(exc)
-            pool.report_error(api_key, error_kind)
-
-            if not _is_failoverable(exc) or attempt >= _MAX_PASSTHROUGH_RETRIES - 1:
+            if not _is_failoverable(exc):
                 break
+            logger.info("Combo failover: provider %s exhausted, sliding to next target", pid)
 
-            if pool.available_count() == 0:
-                break
-
-            logger.info(
-                "Passthrough completion failover: attempt %d/%d, key ...%s %s, rotating",
-                attempt + 1,
-                _MAX_PASSTHROUGH_RETRIES,
-                api_key[-4:],
-                error_kind,
-            )
-
-    logger.warning("Passthrough completion failed after %d attempts: %s", _MAX_PASSTHROUGH_RETRIES, last_error)
+    logger.warning("Passthrough completion failed after all targets: %s", last_error)
     raise HTTPException(
         status_code=502,
-        detail={
-            "error": {
-                "message": f"Upstream LLM error: {last_error}",
-                "type": "upstream_error",
-                "code": "passthrough_error",
-            }
-        },
+        detail={"error": {"message": f"Upstream LLM error: {last_error}", "type": "upstream_error", "code": "passthrough_error"}},
     ) from last_error
