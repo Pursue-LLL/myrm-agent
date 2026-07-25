@@ -3193,6 +3193,8 @@
       "openAuth": "Open Authentication Mode",
       "openAuthDesc": "When enabled, any non-empty Bearer token is accepted (no registered API key required). Suitable for local development.",
       "openAuthWarning": "Security notice: In open auth mode, anyone with your endpoint URL can make API calls. Only use this in trusted network environments.",
+      "visionBridge": "비전 브리지",
+      "visionBridgeDesc": "대상 모델이 비전을 지원하지 않을 때 이미지를 자동으로 텍스트 설명으로 변환합니다.",
       "saveFailed": "Failed to save proxy settings"
     },
     "workspaceRules": {

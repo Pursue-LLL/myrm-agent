@@ -148,6 +148,11 @@ async def apply_shared_ui_session_contract(
     if deadline is not None and time.monotonic() >= deadline:
         raise _session_error("E2E_SHARED_UI_SESSION", "budget exhausted before RESET_GLOBALS")
 
+    print(
+        "E2E_SHARED_UI_SESSION_PROGRESS: phase=RESET_GLOBALS",
+        file=sys.stderr,
+        flush=True,
+    )
     reset_raw = await chat.evaluate(
         RESET_GLOBALS_JS,
         await_promise=False,
@@ -166,11 +171,21 @@ async def apply_shared_ui_session_contract(
     if bridge_timeout <= 0:
         raise _session_error("E2E_SHARED_UI_SESSION", "budget exhausted before BRIDGE_READY")
 
+    print(
+        "E2E_SHARED_UI_SESSION_PROGRESS: phase=BRIDGE_READY",
+        file=sys.stderr,
+        flush=True,
+    )
     ensure_bridge = getattr(chat, "ensure_react_e2e_bridge", None)
     if callable(ensure_bridge):
         await ensure_bridge(timeout_sec=bridge_timeout)
 
     if policy == "empty":
+        print(
+            "E2E_SHARED_UI_SESSION_PROGRESS: phase=SEARCH_POLICY empty",
+            file=sys.stderr,
+            flush=True,
+        )
         await ensure_e2e_search_cleared_in_browser(chat, api_url=resolved_api)
         block_raw = await chat.evaluate(
             SET_EMPTY_SEARCH_BLOCK_JS,

@@ -436,6 +436,7 @@ export interface ProxyAuthMode {
 export interface ProxySettingsConfigValue {
   enabled: boolean;
   auth: ProxyAuthMode;
+  visionBridgeEnabled?: boolean;
 }
 
 /**

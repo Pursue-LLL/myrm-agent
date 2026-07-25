@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.api.openai_compat.types (POS: OpenAI request/response types)
+- app.api.openai_compat.vision_bridge::bridge_vision (POS: Vision Bridge guardrail for image-bearing requests)
 - app.core.channel_bridge.model_resolver::_extract_all_active_keys, _to_litellm_model (POS: Provider key extraction & LiteLLM model formatting)
 - app.services.config.service::config_service (POS: Config service for provider settings)
 - myrm_agent_harness.toolkits.llms.core.credential_pool::CredentialPool (POS: API key pool with strategy-aware dispatch and error-aware cooldown)
@@ -20,7 +21,8 @@ litellm — bypassing the Agent execution engine entirely.
 Supports Combo multi-provider routing with configurable strategies
 (priority/round_robin/random).  Integrates CredentialPool from the Harness
 layer for multi-key rotation and automatic failover across keys on 429/5xx
-errors.
+errors.  Vision Bridge guardrail converts image content to text descriptions
+when the target model lacks vision support (fail-open).
 """
 
 from __future__ import annotations
@@ -50,6 +52,7 @@ _MAX_PASSTHROUGH_RETRIES = 3
 _NON_RETRYABLE_FINISH_REASONS = frozenset({
     "content_filter", "refusal", "length",
     "SAFETY", "BLOCKLIST", "PROHIBITED_CONTENT",
+    "SPII", "RECITATION", "IMAGE_SAFETY",
 })
 
 
@@ -580,6 +583,14 @@ async def passthrough_completion(
                 status_code=422,
                 detail={"error": {"message": str(exc), "type": "configuration_error", "code": "passthrough_config_error"}},
             ) from exc
+
+    primary_model = targets[0][0] if targets else request.model
+    try:
+        from app.api.openai_compat.vision_bridge import bridge_vision
+
+        request.messages = await bridge_vision(request.messages, primary_model)
+    except Exception:
+        logger.debug("Vision bridge skipped in completion", exc_info=True)
 
     last_error: Exception | None = None
 

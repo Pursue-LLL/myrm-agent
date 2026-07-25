@@ -555,6 +555,8 @@
       "openAuth": "开放认证模式",
       "openAuthDesc": "有効后，任意非空 Bearer Token 即可アクセス（なしが必須データ库登録の API Key）。适合本に开发環境。",
       "openAuthWarning": "セキュリティヒント：开放认证模式下，いかなる知道あなたエンドポイントアドレスの人都できます调使用 API。してくださいのみで可信网络環境中使用。",
+      "visionBridge": "ビジョンブリッジ",
+      "visionBridgeDesc": "ターゲットモデルがビジョンをサポートしていない場合、画像を自動的にテキスト説明に変換します。",
       "saveFailed": "保存プロキシ設定失敗"
     },
     "workspaceRules": {

@@ -565,6 +565,8 @@
       "openAuth": "Open Authentication Mode",
       "openAuthDesc": "When enabled, any non-empty Bearer token is accepted (no registered API key required). Suitable for local development.",
       "openAuthWarning": "Security notice: In open auth mode, anyone with your endpoint URL can make API calls. Only use this in trusted network environments.",
+      "visionBridge": "Vision Bridge",
+      "visionBridgeDesc": "Automatically describe images when the target model doesn't support vision. Uses your configured vision fallback model to convert images to text descriptions.",
       "saveFailed": "Failed to save proxy settings",
       "combo": {
         "title": "Multi-Provider Routing",

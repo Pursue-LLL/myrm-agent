@@ -209,6 +209,11 @@ class ProxySettingsConfigValue(BaseModel):
 
     enabled: bool = Field(default=False, description="Enable the LLM passthrough proxy")
     auth: ProxyAuthMode = Field(default_factory=ProxyAuthMode, description="Authentication mode")
+    visionBridgeEnabled: bool = Field(
+        default=False,
+        description="When True, image-bearing requests to non-vision models are "
+        "automatically converted to text descriptions via VisionFallbackEngine",
+    )
 
 
 class SecurityDashboardSettingsConfigValue(BaseModel):

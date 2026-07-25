@@ -3,7 +3,7 @@
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Switch } from '@/components/primitives/switch';
-import { IconGlobe, IconShieldAlert } from '@/components/features/icons/PremiumIcons';
+import { IconGlobe, IconShieldAlert, IconEye } from '@/components/features/icons/PremiumIcons';
 import { BACKEND_BASE_URL } from '@/lib/api';
 import { getConfigSyncManager, type ProxySettingsConfigValue } from '@/services/config';
 import { toast } from '@/hooks/useToast';
@@ -62,6 +62,11 @@ const ProxySettingsCard = memo(() => {
     [handleUpdate, settings.auth],
   );
 
+  const handleToggleVisionBridge = useCallback(
+    (checked: boolean) => handleUpdate({ visionBridgeEnabled: checked }),
+    [handleUpdate],
+  );
+
   const apiEndpoint = `${BACKEND_BASE_URL}/v1`;
 
   if (isLoading) {
@@ -95,6 +100,18 @@ const ProxySettingsCard = memo(() => {
 
           {/* Multi-provider routing chain */}
           <ComboEditorCard />
+
+          {/* Vision Bridge toggle */}
+          <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-muted/30">
+            <div className="flex items-start gap-3">
+              <IconEye className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium">{t('visionBridge')}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('visionBridgeDesc')}</p>
+              </div>
+            </div>
+            <Switch checked={settings.visionBridgeEnabled ?? false} onCheckedChange={handleToggleVisionBridge} />
+          </div>
 
           {/* Open auth toggle */}
           <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-muted/30">

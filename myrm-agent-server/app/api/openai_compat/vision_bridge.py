@@ -23,9 +23,14 @@ from __future__ import annotations
 
 import copy
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.api.openai_compat.types import ChatMessage
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
+        VisionFallbackEngine,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +66,7 @@ def _check_model_vision_support(litellm_model: str) -> bool:
     return True
 
 
-async def _load_vision_engine() -> Any | None:
+async def _load_vision_engine() -> VisionFallbackEngine | None:
     """Create a VisionFallbackEngine from the user's visionFallbackModel config.
 
     Returns None if not configured.
@@ -127,21 +132,21 @@ async def bridge_vision(
 ) -> list[ChatMessage]:
     """Replace image_url blocks with text descriptions when the target model lacks vision.
 
-    Conditions for bridging:
-    1. visionBridgeEnabled is True in proxySettings
-    2. Messages contain image_url content
-    3. Target model does not support vision
-    4. visionFallbackModel is configured
+    Conditions for bridging (checked in this order for minimal I/O):
+    1. Messages contain image_url content
+    2. Target model does not support vision (sync litellm check)
+    3. visionBridgeEnabled is True in proxySettings (async DB read)
+    4. visionFallbackModel is configured (async config load)
 
     If any condition fails, returns the original messages unchanged (fail-open).
     """
     if not has_image_content(messages):
         return messages
 
-    if not await _is_bridge_enabled():
+    if _check_model_vision_support(litellm_model):
         return messages
 
-    if _check_model_vision_support(litellm_model):
+    if not await _is_bridge_enabled():
         return messages
 
     engine = await _load_vision_engine()

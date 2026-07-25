@@ -224,30 +224,14 @@ class McpChatSession(CdpChatSession):
         timeout_sec: float = 120.0,
         navigate: bool = False,
     ) -> dict[str, object]:
+        """MCP pages use the full bootstrap + shared UI session contract (R72)."""
         self._base_url = base_url
         self._mark_bootstrap_started()
-        await asyncio.sleep(1.0)
-        await self.ensure_e2e_api_base_binding()
-        should_navigate = navigate
-        if not should_navigate:
-            try:
-                probe = await self.evaluate(
-                    PAGE_PROBE_JS,
-                    await_promise=False,
-                    recv_timeout=15.0,
-                )
-            except (RuntimeError, TimeoutError):
-                probe = None
-            if not isinstance(probe, dict) or not probe.get("hasLayout"):
-                should_navigate = True
-            else:
-                path = str(probe.get("path") or "")
-                should_navigate = _path_needs_chat_navigate(path)
-        if should_navigate:
-            await self._navigate_to_chat_home(
-                timeout_ms=min(int(timeout_sec * 1000), 120_000),
-            )
-        return await self.wait_shell_ready(timeout_sec=timeout_sec, require_bridge=True)
+        return await super().bootstrap(
+            base_url,
+            timeout_sec=timeout_sec,
+            navigate=navigate,
+        )
 
     async def wait_shell_ready(
         self,

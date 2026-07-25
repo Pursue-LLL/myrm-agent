@@ -565,6 +565,8 @@
       "openAuth": "开放认证模式",
       "openAuthDesc": "启用后，任意非空 Bearer Token 即可访问（无需数据库注册的 API Key）。适合本地开发环境。",
       "openAuthWarning": "安全提示：开放认证模式下，任何知道你端点地址的人都可以调用 API。请仅在可信网络环境中使用。",
+      "visionBridge": "视觉桥接",
+      "visionBridgeDesc": "当目标模型不支持视觉时，自动将图片转为文字描述。使用你配置的视觉回退模型进行图像理解。",
       "saveFailed": "保存代理设置失败",
       "combo": {
         "title": "多服务商路由",

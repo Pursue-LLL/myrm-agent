@@ -130,6 +130,17 @@ def _e2e_api_urlopen(
     raise RuntimeError("E2E API request failed without response")
 
 
+def _set_http_response_read_timeout(resp: object, timeout_sec: float) -> None:
+    """Apply a per-read socket timeout so SSE loops can honor wall deadlines."""
+    fp = getattr(resp, "fp", None)
+    if fp is None:
+        return
+    raw = getattr(fp, "raw", None)
+    sock = getattr(raw, "_sock", None) if raw is not None else None
+    if sock is not None:
+        sock.settimeout(max(0.1, timeout_sec))
+
+
 def _e2e_api_get_json(
     url: str,
     *,
@@ -1413,7 +1424,14 @@ def resume_clarify_skip_via_api(
                 "error": None,
             }
         while time.monotonic() < deadline:
-            line_bytes = resp.readline()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            _set_http_response_read_timeout(resp, min(30.0, remaining))
+            try:
+                line_bytes = resp.readline()
+            except TimeoutError:
+                continue
             if not line_bytes:
                 break
             line = line_bytes.decode("utf-8", errors="replace").strip()

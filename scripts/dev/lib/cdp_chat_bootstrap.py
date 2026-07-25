@@ -131,7 +131,11 @@ class CdpChatBootstrap(CdpChatTransport):
         if not self._e2e_api_base_bound:
             await self.cdp("Page.addScriptToEvaluateOnNewDocument", {"source": source})
             self._e2e_api_base_bound = True
-        await self.evaluate(e2e_api_base_inject_js(), await_promise=False)
+        await self.evaluate(
+            e2e_api_base_inject_js(),
+            await_promise=False,
+            recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+        )
 
     async def bootstrap(
         self,
@@ -158,9 +162,17 @@ class CdpChatBootstrap(CdpChatTransport):
         deadline: float,
         navigate: bool,
     ) -> dict[str, object]:
+        import sys
+
+        print(
+            "E2E_BOOTSTRAP_SHELL_START: phase=bootstrap_shell",
+            file=sys.stderr,
+            flush=True,
+        )
         last: dict[str, object] = {}
-        await self.cdp("Runtime.enable")
-        await self.cdp("Page.enable")
+        cdp_cap = min(30.0, max(5.0, deadline - time.monotonic()))
+        await asyncio.wait_for(self.cdp("Runtime.enable"), timeout=cdp_cap)
+        await asyncio.wait_for(self.cdp("Page.enable"), timeout=cdp_cap)
         await self.ensure_e2e_api_base_binding()
         if navigate:
             probe = await self.evaluate(
@@ -613,7 +625,11 @@ class CdpChatBootstrap(CdpChatTransport):
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             try:
-                state = await self.evaluate(PAGE_PROBE_JS, await_promise=False)
+                state = await self.evaluate(
+                    PAGE_PROBE_JS,
+                    await_promise=False,
+                    recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
+                )
             except RuntimeError as exc:
                 message = str(exc)
                 if any(
@@ -817,6 +833,13 @@ class CdpChatBootstrap(CdpChatTransport):
         self._check_shell_layout_stall_cap()
         self._shell_hydrate_depth += 1
         try:
+            import sys
+
+            print(
+                "E2E_HYDRATE_HOME_START: navigate",
+                file=sys.stderr,
+                flush=True,
+            )
             await self._shared_ui_burst(
                 "navigate",
                 self.cdp(
@@ -824,6 +847,11 @@ class CdpChatBootstrap(CdpChatTransport):
                     {"url": f"{ui_base}/"},
                     recv_timeout=120.0,
                 ),
+            )
+            print(
+                "E2E_HYDRATE_HOME_PROGRESS: post_navigate binding",
+                file=sys.stderr,
+                flush=True,
             )
             await asyncio.sleep(2.0)
             await self.ensure_e2e_api_base_binding()

@@ -549,6 +549,8 @@
       "openAuth": "開放認證模式",
       "openAuthDesc": "啟用後，任意非空 Bearer Token 即可訪問（無需資料庫註冊的 API Key）。適合本地開發環境。",
       "openAuthWarning": "安全提示：開放認證模式下，任何知道你端點地址的人都可以呼叫 API。請僅在可信網路環境中使用。",
+      "visionBridge": "視覺橋接",
+      "visionBridgeDesc": "當目標模型不支援視覺時，自動將圖片轉為文字描述。使用你配置的視覺回退模型進行圖像理解。",
       "saveFailed": "儲存代理設定失敗"
     },
     "workspaceRules": {

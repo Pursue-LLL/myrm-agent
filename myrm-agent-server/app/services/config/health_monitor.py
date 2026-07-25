@@ -87,6 +87,7 @@ async def check_all_users_health(db: "AsyncSession") -> list[dict[str, object]]:
             if not health.get("healthy"):
                 logger.warning(
                     "User %s has unhealthy provider config: %s",
+                    user_id,
                     health.get("missing_items"),
                 )
 
@@ -103,7 +104,7 @@ async def check_all_users_health(db: "AsyncSession") -> list[dict[str, object]]:
                     )
                 )
         except Exception as e:
-            logger.error("Failed to check health for user %s: %s", e)
+            logger.error("Failed to check health for user %s: %s", user_id, e)
             results.append(
                 {
                     "user_id": user_id,
