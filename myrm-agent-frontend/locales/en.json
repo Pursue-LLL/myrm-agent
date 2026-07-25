@@ -6088,6 +6088,7 @@
       "queued": "Queued ({index}/{total})",
       "cancel": "Cancel queue",
       "added": "Message queued — will send after current task completes",
+      "added_with_position": "Message queued (#{position}) — will send after current task completes",
       "sendLater": "Queue for later",
       "sendLaterTooltip": "Don't interrupt — send after the current task finishes",
       "placeholder": "Type next task (will queue, not interrupt)...",

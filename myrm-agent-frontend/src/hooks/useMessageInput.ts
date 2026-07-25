@@ -309,7 +309,7 @@ export const useMessageInput = () => {
     sendMessage(finalMessage, undefined, undefined, undefined, archiveRestoreActions).catch((error) => {
       if (error && error.name === 'AgentBusyError') {
         enqueue(finalMessage, files, archiveRestoreActions);
-        toast.info(t('queue.added'));
+        toast.info(t('queue.added_with_position', { position: queue.length + 1 }));
         return;
       }
       if (isArchiveRestoreActionInvalidError(error)) {

@@ -3,18 +3,24 @@
 Groups rapid-fire messages from the same conversation into a single
 merged InboundMessage before forwarding to Agent execution.
 
-Two complementary mechanisms:
+Three complementary mechanisms:
 1. **Debounce Timer**: Accumulates messages within a configurable time
    window (default 300 ms). The timer resets on each new message.
 2. **Active-Session Pending Queue**: When a session already has an Agent
    task in progress, new messages are held in a pending queue. After the
    task completes, pending messages are merged and re-dispatched.
+3. **Busy Ack Callback**: When a message is queued while the session is
+   active (or dropped because the queue is full), an optional
+   ``on_busy_ack`` callback notifies the caller so the Router can send
+   an immediate acknowledgment to the user. Debounced at 30 s per
+   session to prevent ack spam.
 
 [INPUT]
 - channels.routing.router_keys::routing_session_key (POS: debounce grouping key format, consistent with Router ``state_key``)
 
 [OUTPUT]
 - Merged InboundMessage delivered via callback to Router
+- Busy ack notifications via ``on_busy_ack`` callback
 
 [POS]
 Sits between Router's consume loop and the per-message handler.
@@ -26,6 +32,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import logging
+import time
 from collections.abc import Awaitable, Callable
 
 from app.channels.routing.router_keys import routing_session_key
@@ -38,9 +45,11 @@ from app.channels.types import (
 logger = logging.getLogger(__name__)
 
 OnReady = Callable[[InboundMessage], Awaitable[None]]
+OnBusyAck = Callable[[InboundMessage, int, int], Awaitable[None]]
 
 _DEFAULT_DEBOUNCE_MS = 300
 _MAX_PENDING = 10
+_BUSY_ACK_DEBOUNCE_S = 30
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -138,10 +147,18 @@ class SessionGate:
         gate.on_task_complete(msg)
     """
 
-    def __init__(self, config: SessionGateConfig, *, on_ready: OnReady) -> None:
+    def __init__(
+        self,
+        config: SessionGateConfig,
+        *,
+        on_ready: OnReady,
+        on_busy_ack: OnBusyAck | None = None,
+    ) -> None:
         self._config = config
         self._on_ready = on_ready
+        self._on_busy_ack = on_busy_ack
         self._sessions: dict[str, _SessionState] = {}
+        self._last_ack_time: dict[str, float] = {}
         self._loop: asyncio.AbstractEventLoop | None = None
 
     def _ensure_loop(self) -> asyncio.AbstractEventLoop:
@@ -162,13 +179,16 @@ class SessionGate:
         state = self._get_state(key)
 
         if state.active:
-            if len(state.pending) < self._config.max_pending_per_session:
+            max_pending = self._config.max_pending_per_session
+            if len(state.pending) < max_pending:
                 state.pending.append(msg)
+                self._emit_busy_ack(key, msg, len(state.pending), max_pending)
             else:
                 logger.warning(
                     "SessionGate: pending queue full for %s, dropping message",
                     key,
                 )
+                self._emit_busy_ack(key, msg, -1, max_pending)
             return
 
         window = self._config.debounce_window_ms
@@ -215,6 +235,26 @@ class SessionGate:
         finally:
             self._drain_pending(key)
 
+    def _emit_busy_ack(
+        self, key: str, msg: InboundMessage, position: int, max_pending: int
+    ) -> None:
+        """Fire the busy-ack callback with debounce (30s per session key)."""
+        if self._on_busy_ack is None:
+            return
+        now = time.monotonic()
+        if now - self._last_ack_time.get(key, 0.0) < _BUSY_ACK_DEBOUNCE_S:
+            return
+        self._last_ack_time[key] = now
+        asyncio.ensure_future(self._safe_busy_ack(msg, position, max_pending))
+
+    async def _safe_busy_ack(
+        self, msg: InboundMessage, position: int, max_pending: int
+    ) -> None:
+        try:
+            await self._on_busy_ack(msg, position, max_pending)  # type: ignore[misc]
+        except Exception:
+            logger.warning("SessionGate: on_busy_ack failed", exc_info=True)
+
     def _drain_pending(self, key: str) -> None:
         """After task completes, drain and re-dispatch pending messages.
 
@@ -228,6 +268,7 @@ class SessionGate:
         if not state.pending:
             if not state.buffer:
                 self._sessions.pop(key, None)
+                self._last_ack_time.pop(key, None)
             return
 
         pending = tuple(state.pending)
@@ -266,3 +307,4 @@ class SessionGate:
             if state.timer is not None:
                 state.timer.cancel()
         self._sessions.clear()
+        self._last_ack_time.clear()

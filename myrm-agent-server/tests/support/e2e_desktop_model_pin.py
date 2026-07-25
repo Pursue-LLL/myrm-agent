@@ -6,8 +6,9 @@ v48 LIVE PASS used mimo-v2.5-pro (BASIC); LITE MiniMax-M3 often stops after snap
 from __future__ import annotations
 
 import asyncio
+import os
 
-from tests.api.agent.utils import get_model_selection
+from tests.api.agent.utils import get_model_selection, get_lite_model_selection
 from tests.support.chrome_mcp_e2e import get_e2e_ui_url
 from tests.support.e2e_lite_model_pin import strip_provider_prefix
 
@@ -60,10 +61,16 @@ PIN_BASIC_MODEL_JS = """(async () => {
 })()"""
 
 
+def _expected_model_selection() -> dict[str, object]:
+    if os.environ.get("MYRM_E2E_DESKTOP_BASIC_FROM_LITE", "").strip() == "1":
+        return get_lite_model_selection()
+    return get_model_selection()
+
+
 def _assert_pinned_payload(
     pinned_raw: dict[str, object],
 ) -> dict[str, object]:
-    expected = get_model_selection()
+    expected = _expected_model_selection()
     pinned_model = pinned_raw.get("pinned")
     assert isinstance(
         pinned_model, dict
@@ -85,6 +92,7 @@ async def pin_basic_model_for_desktop_e2e(
     retry_sleep_sec: float = 3.0,
 ) -> dict[str, object]:
     """Pin BASIC model via E2E bridge; assert against get_model_selection()."""
+    _ = get_model_selection  # re-export compatibility for tests importing symbol
     last_raw: object = None
     for attempt in range(1, max_attempts + 1):
         fast_raw = await chat.evaluate(  # type: ignore[attr-defined]

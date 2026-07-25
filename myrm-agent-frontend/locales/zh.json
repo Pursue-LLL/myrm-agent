@@ -6087,6 +6087,7 @@
       "queued": "排队中 ({index}/{total})",
       "cancel": "取消排队",
       "added": "消息已排队 — 当前任务完成后自动发送",
+      "added_with_position": "消息已排队（第 {position} 条）— 当前任务完成后自动发送",
       "sendLater": "排队稍后发送",
       "sendLaterTooltip": "不打断当前任务 — 任务完成后自动发送",
       "placeholder": "输入下个任务（排队等待，不会打断）...",

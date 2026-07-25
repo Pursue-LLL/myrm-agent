@@ -341,3 +341,267 @@ class TestSessionGate:
         gate.clear()
         await asyncio.sleep(0.2)
         assert len(received) == 0
+
+
+# ---------------------------------------------------------------------------
+# Busy Ack Callback
+# ---------------------------------------------------------------------------
+
+
+class TestBusyAck:
+    @pytest.mark.asyncio
+    async def test_busy_ack_fires_on_queue(self) -> None:
+        """When a message is queued while active, on_busy_ack fires with correct position."""
+        received: list[InboundMessage] = []
+        ack_calls: list[tuple[InboundMessage, int, int]] = []
+        proceed = asyncio.Event()
+
+        async def on_ready(msg: InboundMessage) -> None:
+            received.append(msg)
+            if len(received) == 1:
+                await proceed.wait()
+
+        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
+            ack_calls.append((msg, position, max_pending))
+
+        gate = SessionGate(
+            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=10),
+            on_ready=on_ready,
+            on_busy_ack=on_busy_ack,
+        )
+        gate.submit(_msg("first"))
+        await asyncio.sleep(0.1)
+        assert len(received) == 1
+
+        gate.submit(_msg("queued"))
+        await asyncio.sleep(0.05)
+
+        assert len(ack_calls) == 1
+        assert ack_calls[0][1] == 1
+        assert ack_calls[0][2] == 10
+
+        proceed.set()
+        await asyncio.sleep(0.15)
+
+    @pytest.mark.asyncio
+    async def test_busy_ack_fires_on_queue_full(self) -> None:
+        """When the pending queue is full, on_busy_ack fires with position=-1."""
+        received: list[InboundMessage] = []
+        ack_calls: list[tuple[InboundMessage, int, int]] = []
+        proceed = asyncio.Event()
+
+        async def on_ready(msg: InboundMessage) -> None:
+            received.append(msg)
+            if len(received) == 1:
+                await proceed.wait()
+
+        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
+            ack_calls.append((msg, position, max_pending))
+
+        gate = SessionGate(
+            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=1),
+            on_ready=on_ready,
+            on_busy_ack=on_busy_ack,
+        )
+        gate.submit(_msg("first"))
+        await asyncio.sleep(0.1)
+
+        gate.submit(_msg("fills queue"))
+        await asyncio.sleep(0.05)
+        assert len(ack_calls) == 1
+        assert ack_calls[0][1] == 1
+
+        gate._last_ack_time.clear()
+        gate.submit(_msg("dropped"))
+        await asyncio.sleep(0.05)
+        assert len(ack_calls) == 2
+        assert ack_calls[1][1] == -1
+        assert ack_calls[1][2] == 1
+
+        proceed.set()
+        await asyncio.sleep(0.15)
+
+    @pytest.mark.asyncio
+    async def test_busy_ack_debounce_suppresses_rapid_acks(self) -> None:
+        """Within the debounce window (30s), only the first ack fires."""
+        received: list[InboundMessage] = []
+        ack_calls: list[tuple[InboundMessage, int, int]] = []
+        proceed = asyncio.Event()
+
+        async def on_ready(msg: InboundMessage) -> None:
+            received.append(msg)
+            if len(received) == 1:
+                await proceed.wait()
+
+        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
+            ack_calls.append((msg, position, max_pending))
+
+        gate = SessionGate(
+            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=10),
+            on_ready=on_ready,
+            on_busy_ack=on_busy_ack,
+        )
+        gate.submit(_msg("first"))
+        await asyncio.sleep(0.1)
+
+        gate.submit(_msg("q1"))
+        gate.submit(_msg("q2"))
+        gate.submit(_msg("q3"))
+        await asyncio.sleep(0.05)
+
+        assert len(ack_calls) == 1
+
+        proceed.set()
+        await asyncio.sleep(0.15)
+
+    @pytest.mark.asyncio
+    async def test_busy_ack_independent_per_session(self) -> None:
+        """Different session keys have independent debounce timers."""
+        ack_calls: list[tuple[str, int]] = []
+        proceeds: dict[str, asyncio.Event] = {"alice": asyncio.Event(), "bob": asyncio.Event()}
+
+        async def on_ready(msg: InboundMessage) -> None:
+            key = msg.sender_id
+            if key in proceeds:
+                await proceeds[key].wait()
+
+        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
+            ack_calls.append((msg.sender_id, position))
+
+        gate = SessionGate(
+            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=10),
+            on_ready=on_ready,
+            on_busy_ack=on_busy_ack,
+        )
+
+        gate.submit(_msg("a1", sender_id="alice"))
+        gate.submit(_msg("b1", sender_id="bob"))
+        await asyncio.sleep(0.1)
+
+        gate.submit(_msg("a-queued", sender_id="alice"))
+        gate.submit(_msg("b-queued", sender_id="bob"))
+        await asyncio.sleep(0.05)
+
+        senders = {s for s, _ in ack_calls}
+        assert senders == {"alice", "bob"}
+
+        proceeds["alice"].set()
+        proceeds["bob"].set()
+        await asyncio.sleep(0.15)
+
+    @pytest.mark.asyncio
+    async def test_no_busy_ack_without_callback(self) -> None:
+        """When on_busy_ack is None, queuing works normally without errors."""
+        received: list[InboundMessage] = []
+        proceed = asyncio.Event()
+
+        async def on_ready(msg: InboundMessage) -> None:
+            received.append(msg)
+            if len(received) == 1:
+                await proceed.wait()
+
+        gate = SessionGate(
+            SessionGateConfig(debounce_window_ms=30),
+            on_ready=on_ready,
+        )
+        gate.submit(_msg("first"))
+        await asyncio.sleep(0.1)
+        assert len(received) == 1
+
+        gate.submit(_msg("queued"))
+        await asyncio.sleep(0.05)
+        assert gate.pending_count("telegram:user1") == 1
+
+        proceed.set()
+        await asyncio.sleep(0.15)
+        assert len(received) == 2
+
+    @pytest.mark.asyncio
+    async def test_busy_ack_callback_exception_does_not_break_queue(self) -> None:
+        """If on_busy_ack raises, the message is still queued correctly."""
+        received: list[InboundMessage] = []
+        proceed = asyncio.Event()
+
+        async def on_ready(msg: InboundMessage) -> None:
+            received.append(msg)
+            if len(received) == 1:
+                await proceed.wait()
+
+        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
+            raise RuntimeError("ack send failure")
+
+        gate = SessionGate(
+            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=5),
+            on_ready=on_ready,
+            on_busy_ack=on_busy_ack,
+        )
+        gate.submit(_msg("first"))
+        await asyncio.sleep(0.1)
+
+        gate.submit(_msg("queued"))
+        await asyncio.sleep(0.1)
+
+        assert gate.pending_count("telegram:user1") == 1
+
+        proceed.set()
+        await asyncio.sleep(0.15)
+        assert len(received) == 2
+
+    @pytest.mark.asyncio
+    async def test_clear_also_clears_ack_debounce(self) -> None:
+        """clear() removes _last_ack_time entries along with sessions."""
+        ack_calls: list[int] = []
+        proceed = asyncio.Event()
+
+        async def on_ready(msg: InboundMessage) -> None:
+            await proceed.wait()
+
+        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
+            ack_calls.append(position)
+
+        gate = SessionGate(
+            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=5),
+            on_ready=on_ready,
+            on_busy_ack=on_busy_ack,
+        )
+        gate.submit(_msg("first"))
+        await asyncio.sleep(0.1)
+
+        gate.submit(_msg("queued"))
+        await asyncio.sleep(0.05)
+        assert len(gate._last_ack_time) == 1
+
+        gate.clear()
+        assert len(gate._last_ack_time) == 0
+        assert len(gate._sessions) == 0
+
+    @pytest.mark.asyncio
+    async def test_drain_clears_ack_debounce_on_session_end(self) -> None:
+        """After task completes and session is fully drained, _last_ack_time is cleaned."""
+        received: list[InboundMessage] = []
+        proceed = asyncio.Event()
+
+        async def on_ready(msg: InboundMessage) -> None:
+            received.append(msg)
+            if len(received) == 1:
+                await proceed.wait()
+
+        async def on_busy_ack(msg: InboundMessage, position: int, max_pending: int) -> None:
+            pass
+
+        gate = SessionGate(
+            SessionGateConfig(debounce_window_ms=30, max_pending_per_session=5),
+            on_ready=on_ready,
+            on_busy_ack=on_busy_ack,
+        )
+        gate.submit(_msg("first"))
+        await asyncio.sleep(0.1)
+
+        gate.submit(_msg("queued"))
+        await asyncio.sleep(0.05)
+        assert "telegram:user1" in gate._last_ack_time
+
+        proceed.set()
+        await asyncio.sleep(0.3)
+
+        assert "telegram:user1" not in gate._last_ack_time

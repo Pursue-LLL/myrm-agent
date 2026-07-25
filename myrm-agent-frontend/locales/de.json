@@ -4985,6 +4985,7 @@
       "queued": "Warteschlange ({index}/{total})",
       "cancel": "Abbrechen",
       "added": "Nachricht eingereiht — wird nach Abschluss der aktuellen Aufgabe gesendet",
+      "added_with_position": "Nachricht eingereiht (#{position}) — wird nach Abschluss der aktuellen Aufgabe gesendet",
       "sendLater": "Später senden",
       "sendLaterTooltip": "Nicht unterbrechen — nach Abschluss der aktuellen Aufgabe senden",
       "placeholder": "Nächste Aufgabe eingeben (wird eingereiht, nicht unterbrochen)...",

@@ -122,7 +122,7 @@ deadlocks when an agent execution hangs without crashing.
 | commands.py | Core | Pure argument parsers for complex commands (approval incl. emoji reactions, yolo, personality, memory, topic) and async command handlers. No business-specific route definitions. | ✅ |
 | context_buffer.py | Core | Pure in-memory buffer, no I/O, no lifecycle management. | ✅ |
 | graceful_degradation.py | Core | Graceful degradation controller for smooth quality adaptation. | ✅ |
-| message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply). Operational replies use `MessagePriority.SYSTEM` for important-mode notify. | ✅ |
+| message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply, busy ack). Operational replies use `MessagePriority.SYSTEM` for important-mode notify. `send_busy_ack` delivers queued/dropped acknowledgements with `send_with_retry`. | ✅ |
 | placeholder_strategy.py | Core | Adaptive placeholder defer (180ms) and short-circuit for fast replies; eager materialize on stream activity. | ✅ |
 | policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. Guest mode requires `explicit_mention` metadata (entity-based only; reply-to-bot does not bypass non-enabled groups). | ✅ |
 | policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker helpers for PolicyResolver. | ✅ |
@@ -141,7 +141,7 @@ deadlocks when an agent execution hangs without crashing.
 | router_models.py | Core | Data models referenced by AgentRouter in router.py and router_commands (_ActiveTask with steering_token, `requester_id` for reaction approval auth, `locale` for stuck watchdog i18n, ReactionPolicy, etc.) | — |
 | router_stream.py | Core | RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance; includes edit-in-place heartbeat loop for long-task silence detection (sends once, then edits the same message with elapsed time). | — |
 | router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | ✅ |
-| session_gate.py | Core | Sits between Router's consume loop and the per-message handler. | ✅ |
+| session_gate.py | Core | Sits between Router's consume loop and the per-message handler. Supports optional `on_busy_ack` callback (30s debounce) for immediate user feedback when messages are queued or dropped. | ✅ |
 | session_rate_limiter.py | Core | Session-level rate limiting for single-instance self-protection. | ✅ |
 | stream_config.py | Config | Unified configuration for streaming components. | ✅ |
 | stream_manager.py | Core | Streaming optimization components used by Router for intelligent updates. | ✅ |

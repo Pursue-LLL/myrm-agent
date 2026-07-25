@@ -6052,6 +6052,7 @@
       "queued": "キュー中 ({index}/{total})",
       "cancel": "キャンセル",
       "added": "メッセージをキューに追加しました — 現でのタスク完後に送信されます",
+      "added_with_position": "メッセージをキューに追加しました（#{position}）— 現でのタスク完後に送信されます",
       "sendLater": "後で送信",
       "sendLaterTooltip": "中断しない — 現でのタスク完後に自動送信",
       "placeholder": "次のタスクを入力（キューに追加、中断しません）...",

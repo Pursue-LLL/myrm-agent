@@ -662,3 +662,111 @@ class TestSendErrorReplyLogging:
         with patch("app.channels.routing.message_effects.logger") as mock_logger:
             await fx.send_error_reply(msg, " Already friendly [ref: abc12345]")
             mock_logger.error.assert_not_called()
+
+
+class TestSendBusyAck:
+    """Tests for send_busy_ack — the busy acknowledgement method."""
+
+    @pytest.mark.asyncio
+    async def test_queued_ack_dm(self) -> None:
+        """DM queued ack uses sender_id as recipient and includes position."""
+        bus = _make_bus(None)
+        fx = MessageEffects(bus)
+        msg = _inbound("hi", sender_id="u1", is_group=False)
+        with patch("app.channels.routing.message_effects.get_text", return_value="Queued #2/5"):
+            await fx.send_busy_ack(msg, position=2, max_pending=5)
+        bus.publish_outbound.assert_called_once()
+        out = bus.publish_outbound.call_args[0][0]
+        assert out.recipient_id == "u1"
+        assert out.content == "Queued #2/5"
+
+    @pytest.mark.asyncio
+    async def test_queued_ack_group(self) -> None:
+        """Group queued ack uses chat_id as recipient."""
+        bus = _make_bus(None)
+        fx = MessageEffects(bus)
+        msg = _inbound(
+            "hi", sender_id="u1", chat_id="grp-1", is_group=True,
+            metadata={"message_id": "99"},
+        )
+        with patch("app.channels.routing.message_effects.get_text", return_value="Queued"):
+            await fx.send_busy_ack(msg, position=1, max_pending=10)
+        out = bus.publish_outbound.call_args[0][0]
+        assert out.recipient_id == "grp-1"
+        assert out.reply_to_id == "99"
+
+    @pytest.mark.asyncio
+    async def test_queue_full_ack(self) -> None:
+        """When position=-1, uses busy_ack_queue_full i18n key."""
+        bus = _make_bus(None)
+        fx = MessageEffects(bus)
+        msg = _inbound("hi", sender_id="u1")
+        with patch("app.channels.routing.message_effects.get_text", return_value="Queue full") as mock_gt:
+            await fx.send_busy_ack(msg, position=-1, max_pending=3)
+        mock_gt.assert_called_once_with(msg, "busy_ack_queue_full")
+        out = bus.publish_outbound.call_args[0][0]
+        assert out.content == "Queue full"
+
+    @pytest.mark.asyncio
+    async def test_uses_system_priority(self) -> None:
+        """Busy ack messages use MessagePriority.SYSTEM."""
+        from app.channels.types import MessagePriority
+
+        bus = _make_bus(None)
+        fx = MessageEffects(bus)
+        msg = _inbound("hi", sender_id="u1")
+        with patch("app.channels.routing.message_effects.get_text", return_value="ack"):
+            await fx.send_busy_ack(msg, position=1, max_pending=5)
+        out = bus.publish_outbound.call_args[0][0]
+        assert out.priority == MessagePriority.SYSTEM
+
+    @pytest.mark.asyncio
+    async def test_publish_failure_silenced(self) -> None:
+        """publish_outbound failure is silently caught (best-effort)."""
+        bus = _make_bus(None)
+        bus.publish_outbound = AsyncMock(side_effect=Exception("network error"))
+        fx = MessageEffects(bus)
+        msg = _inbound("hi", sender_id="u1")
+        with patch("app.channels.routing.message_effects.get_text", return_value="ack"):
+            await fx.send_busy_ack(msg, position=1, max_pending=5)
+
+    @pytest.mark.asyncio
+    async def test_thread_id_propagated(self) -> None:
+        """thread_id from the inbound message is preserved in ack reply."""
+        bus = _make_bus(None)
+        fx = MessageEffects(bus)
+        msg = InboundMessage(
+            channel="test", sender_id="u1", content="hi",
+            thread_id="thread-42", metadata={},
+        )
+        with patch("app.channels.routing.message_effects.get_text", return_value="ack"):
+            await fx.send_busy_ack(msg, position=1, max_pending=5)
+        out = bus.publish_outbound.call_args[0][0]
+        assert out.thread_id == "thread-42"
+
+    @pytest.mark.asyncio
+    async def test_reply_to_id_none_when_no_message_id(self) -> None:
+        """reply_to_id is None when msg has no message_id or metadata message_id."""
+        bus = _make_bus(None)
+        fx = MessageEffects(bus)
+        msg = InboundMessage(
+            channel="test", sender_id="u1", content="hi", metadata={},
+        )
+        with patch("app.channels.routing.message_effects.get_text", return_value="ack"):
+            await fx.send_busy_ack(msg, position=1, max_pending=5)
+        out = bus.publish_outbound.call_args[0][0]
+        assert out.reply_to_id is None
+
+    @pytest.mark.asyncio
+    async def test_user_id_empty_fallback(self) -> None:
+        """user_id falls back to empty string when msg.user_id is empty."""
+        bus = _make_bus(None)
+        fx = MessageEffects(bus)
+        msg = InboundMessage(
+            channel="test", sender_id="u1", content="hi",
+            user_id="", metadata={},
+        )
+        with patch("app.channels.routing.message_effects.get_text", return_value="ack"):
+            await fx.send_busy_ack(msg, position=1, max_pending=5)
+        out = bus.publish_outbound.call_args[0][0]
+        assert out.user_id == ""

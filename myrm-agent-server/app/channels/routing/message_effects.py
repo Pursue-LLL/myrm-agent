@@ -13,7 +13,7 @@ instead of raw internal errors.
 - llms.errors.classifier::classify_error, ErrorKind (POS: LLM error classification)
 
 [OUTPUT]
-- MessageEffects: Helper for typing/keepalive/reaction/placeholder/reply operations
+- MessageEffects: Helper for typing/keepalive/reaction/placeholder/reply/busy-ack operations
 - friendly_error_message(): Classify exception → user-friendly localized message with reference ID
 
 [POS]
@@ -401,6 +401,39 @@ class MessageEffects:
             priority=MessagePriority.SYSTEM,
         )
         await self._bus.publish_outbound(reply)
+
+    async def send_busy_ack(
+        self, msg: InboundMessage, position: int, max_pending: int
+    ) -> None:
+        """Acknowledge a message received while the agent is busy.
+
+        Args:
+            msg: The inbound message that was queued or dropped.
+            position: Queue position (1-based) or -1 when dropped.
+            max_pending: Maximum pending queue capacity.
+        """
+        recipient = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
+        if position < 0:
+            content = get_text(msg, "busy_ack_queue_full")
+        else:
+            content = get_text(
+                msg, "busy_ack_queued", position=position, max_pending=max_pending
+            )
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=recipient,
+            content=content,
+            user_id=msg.user_id or "",
+            reply_to_id=msg.message_id or msg.metadata.get("message_id"),
+            thread_id=msg.thread_id,
+            priority=MessagePriority.SYSTEM,
+        )
+        try:
+            await self._bus.publish_outbound(reply)
+        except Exception:
+            logger.debug(
+                "busy_ack send failed for %s/%s", msg.channel, recipient, exc_info=True
+            )
 
     @staticmethod
     async def wait_for_edit_gap(last_progress_at: float, min_interval: float = 2.0) -> None:

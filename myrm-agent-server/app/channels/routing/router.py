@@ -297,6 +297,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         self._gate = SessionGate(
             session_gate_config or SessionGateConfig(),
             on_ready=self._handle_merged,
+            on_busy_ack=self._fx.send_busy_ack,
         )
         self._task: asyncio.Task[None] | None = None
         self._active_tasks: dict[str, _ActiveTask] = {}

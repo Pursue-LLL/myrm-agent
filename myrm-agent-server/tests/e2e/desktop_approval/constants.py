@@ -75,11 +75,12 @@ INFRA_ABORT_MARKERS = (
     "connection reset",
 )
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
+# Natural-language user turn (no CRITICAL/MUST — mimo-v2.5-pro treats those as injection).
 E2E_PROMPT = (
-    "CRITICAL: Your first tool call MUST be desktop_snapshot_tool on the foreground TextEdit window. "
-    "Your second tool call MUST be desktop_interact_tool (action=click on a @dref from that snapshot). "
-    "Do not reply with text before both tool calls complete. "
-    "Do not use desktop_vision. When finished, reply exactly: DONE"
+    "TextEdit is in the foreground with sample text for a desktop smoke check. "
+    "Use desktop_snapshot_tool on that window, then desktop_interact_tool to click "
+    "one element from the snapshot. desktop_vision_tool is not needed for TextEdit. "
+    "When finished, reply exactly: DONE"
 )
 E2E_NUDGE_PROMPT = (
     "Please click one element in TextEdit from your last snapshot, then reply DONE."
