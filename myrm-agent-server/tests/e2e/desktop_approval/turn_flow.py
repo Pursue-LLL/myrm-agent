@@ -29,8 +29,8 @@ from tests.e2e.desktop_approval.constants import (
 )
 from tests.e2e.desktop_approval.gate_probe import ensure_interact_gate
 from tests.e2e.desktop_approval.textedit_fixture import (
-    activate_textedit_foreground,
     ensure_textedit_fixture_ready,
+    preflight_textedit_foreground,
 )
 from tests.e2e.desktop_approval.trust_api import (
     desktop_trust_revoke_selector_js,
@@ -38,7 +38,11 @@ from tests.e2e.desktop_approval.trust_api import (
     list_trusted_apps_via_api,
     server_pending_approval_count,
 )
-from tests.support.e2e_desktop_model_pin import pin_basic_model_for_desktop_e2e
+from tests.support.e2e_desktop_model_pin import (
+    ensure_desktop_basic_model_pinned_for_send,
+    expected_desktop_e2e_model,
+    ui_provider_debug_matches_expected,
+)
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
 
 
@@ -530,13 +534,22 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     assert "computer_use" in (tools_setup.get("tools") or []), tools_setup
 
     progress("pin BASIC_MODEL from .env.test before agent send")
-    await pin_basic_model_for_desktop_e2e(chat)
-
-    provider_debug = await chat.evaluate(
-        """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
-        await_promise=False,
-    )
+    pin_result = await ensure_desktop_basic_model_pinned_for_send(chat)
+    provider_debug = pin_result.get("debug")
+    if not isinstance(provider_debug, dict):
+        provider_debug = await chat.evaluate(
+            """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
+            await_promise=False,
+        )
     progress(f"provider debug before send: {provider_debug}")
+    if isinstance(provider_debug, dict) and not ui_provider_debug_matches_expected(
+        provider_debug
+    ):
+        expected = expected_desktop_e2e_model()
+        pytest.fail(
+            "Desktop E2E send blocked: UI model is not pinned BASIC_MODEL "
+            f"expected={expected} ui={provider_debug}"
+        )
     if isinstance(provider_debug, dict) and not provider_debug.get(
         "enabledProviderIds"
     ):
@@ -587,15 +600,17 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     ):
         pytest.fail(f"Provider still not enabled for send: {provider_debug}")
     if isinstance(provider_debug, dict):
-        selection = provider_debug.get("selection") or provider_debug.get("primary")
-        if isinstance(selection, dict):
-            model = str(selection.get("model") or "").strip()
-            assert model, f"Provider model empty before desktop send: {provider_debug}"
+        assert ui_provider_debug_matches_expected(provider_debug), (
+            "Provider model drifted after sync before desktop send: "
+            f"expected={expected_desktop_e2e_model()} ui={provider_debug}"
+        )
     chat_id = ""
     if isinstance(provider_debug, dict):
         chat_id = str(provider_debug.get("chatId") or "").strip()
 
     heartbeat_e2e_lease()
+    progress("preflight TextEdit foreground before agent send")
+    await asyncio.to_thread(preflight_textedit_foreground)
     progress("send agent prompt (Chrome foreground for CDP submit)")
     await asyncio.to_thread(activate_chrome)
     await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
@@ -612,7 +627,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     if isinstance(submit, dict):
         chat_id = str(submit.get("chatId") or chat_id or "").strip()
     progress("activate TextEdit foreground for AX snapshot @drefs")
-    await asyncio.to_thread(activate_textedit_foreground)
+    await asyncio.to_thread(preflight_textedit_foreground)
     heartbeat_e2e_lease()
 
     progress("wait desktop tool activity")

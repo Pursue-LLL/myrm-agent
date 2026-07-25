@@ -38,8 +38,9 @@ GATE_STREAM_NUDGE_SEC = 45.0
 GATE_IDLE_NUDGE_SEC = 30.0
 # After snapshot + nudge, fail-fast if model still loops snapshot without interact.
 GATE_SNAPSHOT_LOOP_FAIL_SEC = 60.0
-# Hard wall-clock fail-fast for one desktop approval attempt (prevents 7200s empty spin).
-DESKTOP_E2E_WALL_CLOCK_FAIL_SEC = 600.0
+# Hard wall-clock fail-fast for one desktop approval attempt.
+# Single attempt × 300s fits within pytest-timeout 600s with bootstrap headroom.
+DESKTOP_E2E_WALL_CLOCK_FAIL_SEC = 300.0
 
 
 def _parse_gate_timeout_sec() -> float:
@@ -56,7 +57,7 @@ APPROVAL_CLICK_DEADLINE_SEC = min(
     APPROVAL_WAIT_SEC,
     max(5.0, GATE_APPROVAL_TIMEOUT_SEC - 5.0),
 )
-MAX_SEND_ATTEMPTS_ONCE = 3
+MAX_SEND_ATTEMPTS_ONCE = 1
 MAX_SEND_ATTEMPTS_ALWAYS = 3
 MAX_SEND_ATTEMPTS_SESSION = 3
 INFRA_ABORT_MARKERS = (
@@ -75,22 +76,26 @@ INFRA_ABORT_MARKERS = (
     "connection reset",
 )
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
-# Pure user task — no tool names (mimo rejects tool-enumeration / injection patterns).
 E2E_PROMPT = (
     "I have a TextEdit window open with a few lines of sample text. "
-    "Please click the first line of text in that window, then reply exactly: DONE"
+    "Please take a snapshot of the screen to see the text elements, "
+    "then click the first line of text in that window. Reply exactly: DONE"
 )
 E2E_NUDGE_PROMPT = (
     "Call desktop_interact_tool to click one line in the TextEdit window "
     "from your last snapshot, then reply DONE. Do NOT call desktop_vision_tool."
 )
 E2E_SNAPSHOT_NUDGE_PROMPT = (
-    "Call desktop_interact_tool with ref=@dref from your snapshot to click one "
-    "TextEdit element, then reply DONE. Do NOT call desktop_snapshot_tool again."
+    "IMPORTANT: You already have a snapshot with element references. "
+    "Do NOT take another snapshot. "
+    "Call desktop_interact_tool now to click one of the text elements "
+    "using its ref (like @d1 or @d2). Then reply DONE."
 )
 E2E_VISION_CORRECT_PROMPT = (
-    "Stop using desktop_vision_tool. Call desktop_interact_tool to click one line "
-    "in the TextEdit window (use AX tree ref), then reply DONE."
+    "Stop. Do NOT call desktop_vision_tool again. "
+    "Call desktop_snapshot_tool to get the accessibility tree, "
+    "then call desktop_interact_tool with the ref to click one line in TextEdit. "
+    "Reply DONE."
 )
 
 

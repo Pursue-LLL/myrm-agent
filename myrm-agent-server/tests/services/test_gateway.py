@@ -11,6 +11,7 @@ from myrm_agent_harness.runtime.memory_pressure import PressureEvent, PressureLe
 from app.services.agent.gateway import (
     ActiveSessionInfo,
     AgentBusyError,
+    AgentDrainingError,
     AgentExecutionTimeout,
     AgentGateway,
     AgentQueueTimeout,
@@ -1055,3 +1056,165 @@ class TestGatewaySessionStatusEvents:
                 pass
 
         assert published == ["timeout-test:generating", "timeout-test:idle"]
+
+
+class TestGatewayDrain:
+    """Tests for graceful drain lifecycle: begin_drain, cancel_drain, AgentDrainingError."""
+
+    @pytest.mark.asyncio
+    async def test_draining_rejects_new_execution(self) -> None:
+        gw = AgentGateway(_cfg())
+        await gw.begin_drain(timeout=1.0)
+
+        with pytest.raises(AgentDrainingError):
+            async for _ in gw.execute_stream(
+                _dummy_stream(), agent_type="test", session_id="rejected"
+            ):
+                pass
+
+        assert "rejected" not in gw._active_sessions
+
+    @pytest.mark.asyncio
+    async def test_drain_completes_immediately_when_idle(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert gw.active_count == 0
+
+        await gw.begin_drain(timeout=5.0)
+        assert gw.is_draining
+
+    @pytest.mark.asyncio
+    async def test_drain_waits_for_active_sessions(self) -> None:
+        gw = AgentGateway(_cfg())
+        finished = False
+
+        async def slow_stream():
+            nonlocal finished
+            await asyncio.sleep(0.3)
+            yield {"done": True}
+            finished = True
+
+        async def run():
+            async for _ in gw.execute_stream(
+                slow_stream(), agent_type="test", session_id="active"
+            ):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+        assert gw.active_count == 1
+
+        await gw.begin_drain(timeout=5.0)
+        assert finished
+        assert gw.active_count == 0
+
+        await task
+
+    @pytest.mark.asyncio
+    async def test_drain_timeout_interrupts_remaining(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def infinite_stream():
+            while True:
+                await asyncio.sleep(0.01)
+                yield {"tick": True}
+
+        async def run():
+            async for _ in gw.execute_stream(
+                infinite_stream(), agent_type="test", session_id="stuck"
+            ):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+        assert gw.active_count == 1
+
+        await gw.begin_drain(timeout=0.3)
+        assert gw.is_draining
+
+        await task
+        assert gw.active_count == 0
+
+    @pytest.mark.asyncio
+    async def test_cancel_drain_re_accepts(self) -> None:
+        gw = AgentGateway(_cfg())
+        await gw.begin_drain(timeout=1.0)
+        assert gw.is_draining
+
+        assert gw.cancel_drain()
+        assert not gw.is_draining
+
+        events = await _collect(gw, agent_type="test", session_id="after-cancel")
+        assert len(events) == 3
+
+    @pytest.mark.asyncio
+    async def test_cancel_drain_returns_false_when_not_draining(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert not gw.cancel_drain()
+
+    @pytest.mark.asyncio
+    async def test_is_draining_property(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert not gw.is_draining
+
+        await gw.begin_drain(timeout=1.0)
+        assert gw.is_draining
+
+        gw.cancel_drain()
+        assert not gw.is_draining
+
+    @pytest.mark.asyncio
+    async def test_cancel_drain_stops_poll_loop_no_interrupt(self) -> None:
+        """cancel_drain during active drain must exit poll loop without interrupt_all."""
+        gw = AgentGateway(_cfg())
+        interrupted = False
+        orig_interrupt_all = gw.interrupt_all
+
+        def spy_interrupt_all() -> None:
+            nonlocal interrupted
+            interrupted = True
+            orig_interrupt_all()
+
+        gw.interrupt_all = spy_interrupt_all  # type: ignore[method-assign]
+
+        async def slow_stream():
+            await asyncio.sleep(5.0)
+            yield {"done": True}
+
+        async def run():
+            async for _ in gw.execute_stream(
+                slow_stream(), agent_type="test", session_id="cancel-test"
+            ):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+        assert gw.active_count == 1
+
+        drain_task = asyncio.create_task(gw.begin_drain(timeout=2.0))
+        await asyncio.sleep(0.1)
+        assert gw.is_draining
+
+        gw.cancel_drain()
+        assert not gw.is_draining
+
+        await drain_task
+        assert not interrupted, "cancel_drain should prevent interrupt_all"
+
+        gw.interrupt_all = orig_interrupt_all  # type: ignore[method-assign]
+        gw._draining = True
+        gw.interrupt_all()
+        task.cancel()
+        try:
+            await task
+        except (asyncio.CancelledError, Exception):
+            pass
+
+    @pytest.mark.asyncio
+    async def test_begin_drain_idempotent(self) -> None:
+        """Second begin_drain call while already draining returns immediately."""
+        gw = AgentGateway(_cfg())
+        await gw.begin_drain(timeout=1.0)
+        assert gw.is_draining
+
+        await gw.begin_drain(timeout=1.0)
+        assert gw.is_draining

@@ -10850,6 +10850,23 @@
     "agentBridge": "Agent Bridge モード",
     "agentBridgeDesc": "Agent がサーバー上で直接音声を処理し、遅延を低減"
   },
+  "securityPreset": {
+    "label": "セキュリティプリセット",
+    "presets": {
+      "hitl": {
+        "label": "手動承認",
+        "desc": "すべてのツール呼び出しは実行前に明示的な承認が必要です"
+      },
+      "accept_edits": {
+        "label": "編集を自動承認",
+        "desc": "ファイル編集は自動承認、シェルコマンドや機密操作はスマートガードが審査"
+      },
+      "explore": {
+        "label": "読み取り専用",
+        "desc": "読み取り操作のみ許可、すべての書き込み操作はブロックされます"
+      }
+    }
+  },
   "yoloBanner": {
     "message": "YOLO モード有効 – すべてのツールが自動承認されます",
     "disable": "閉じる"
@@ -12300,6 +12317,7 @@
     "orphanedHint": "该タスクでサービス再起動时された中断。如が必須続行，してください重新規実行コマンド。",
     "trayTooltipIdle": "Myrm Agent - アイドル",
     "trayTooltipBusy": "Myrm Agent - タスク実行中…",
+    "trayTooltipDraining": "Myrm Agent - シャットダウン中…",
     "trayTooltipDegraded": "Myrm Agent - サービス异常",
     "trayTooltipBackground": "{count} 個バックグラウンドタスク実行中",
     "trayTooltipUsage": "今日: {usage}",

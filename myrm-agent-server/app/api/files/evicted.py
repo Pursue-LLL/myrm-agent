@@ -26,11 +26,31 @@ router = APIRouter()
 _FILENAME_PATTERN = EVICTED_BASENAME_PATTERN
 
 
-def _resolve_evicted_path(chat_id: str, filename: str) -> str:
+async def _get_chat_workspace_root(chat_id: str) -> str | None:
+    """Resolve the harness workspace directory for a chat session."""
+    try:
+        from app.services.agent.params.workspace_resolve import (
+            resolve_default_chat_workspace_dir,
+        )
+
+        resolved = await resolve_default_chat_workspace_dir(
+            chat_id, persist_workspace=False
+        )
+        if resolved and os.path.isdir(resolved):
+            return resolved
+    except Exception as exc:
+        logger.warning(
+            "Failed to resolve chat workspace for evicted read (chat_id=%s): %s",
+            chat_id,
+            exc,
+        )
+    return _get_workspace_root()
+
+
+async def _resolve_evicted_path(chat_id: str, filename: str) -> str:
     """Resolve the absolute path to an evicted output file with security checks.
 
-    The evicted outputs live in .context/{session_id}/evicted/ within the workspace.
-    For local mode, the workspace is discovered from the harness runtime.
+    The evicted outputs live in .context/{session_id}/evicted/ within the chat workspace.
     """
     if not _FILENAME_PATTERN.match(filename):
         raise HTTPException(status_code=400, detail="Invalid filename format")
@@ -40,7 +60,7 @@ def _resolve_evicted_path(chat_id: str, filename: str) -> str:
 
     from myrm_agent_harness.agent.security.path_security import is_dangerous_path
 
-    workspace_root = _get_workspace_root()
+    workspace_root = await _get_chat_workspace_root(chat_id)
     if not workspace_root:
         raise HTTPException(status_code=500, detail="Workspace root unavailable")
 
@@ -103,7 +123,7 @@ async def read_evicted_output(
 
     Returns JSON ``{"expired": true}`` with HTTP 404 when the file has been cleaned up.
     """
-    resolved = _resolve_evicted_path(chat_id, filename)
+    resolved = await _resolve_evicted_path(chat_id, filename)
 
     if not os.path.isfile(resolved):
         return JSONResponse(status_code=404, content={"expired": True})

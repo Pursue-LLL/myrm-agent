@@ -114,3 +114,48 @@ A structured pipeline for creating professional videos, from initial research th
 | Writer | Narrative structure, pacing | Complete script with timing marks |
 | Creator | Asset production, editing | Final video file |
 | Reviewer | Quality assurance, compliance | Approval or revision notes |
+
+## Shot Pipeline Best Practices
+
+Video generation providers limit each clip to **6–12 seconds**. Any video longer than a single clip requires a multi-shot pipeline.
+
+### Step 1 — Discover provider capabilities
+
+Before planning shots, call `video_tool(action="list")` and read `max_duration_seconds` and `supported_durations` from the active provider's capabilities. Use these values (not hardcoded numbers) to plan shot duration.
+
+### Step 2 — Plan shots
+
+Divide the target duration into shots that fit the provider's supported durations. Prefer the shortest supported duration (typically 6s) for tighter creative control. Each shot should have a clear purpose: establishing, action, detail, transition, or closing.
+
+### Step 3 — Generate a base image for visual consistency
+
+Before generating video clips, use `image_tool` to create a single **base image** that anchors the visual style (character appearance, color palette, lighting). Reuse this image as `reference_images` for every shot to maintain consistency across clips.
+
+### Step 4 — Generate clips with I2V
+
+For each shot, call `video_tool(action="generate")` with:
+- `reference_images` pointing to the base image (or a targeted edit of it for the specific shot)
+- `enable_audio=false` to produce silent clips — this prevents per-clip ambient sound from conflicting with the final soundtrack
+- `duration_seconds` set to the provider's supported value from Step 1
+
+### Step 5 — Concatenate with FFmpeg
+
+After all clips are generated, use `bash_code_execute_tool` to concatenate them losslessly:
+
+```bash
+ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4
+```
+
+Where `list.txt` contains one `file '/path/to/shotN.mp4'` entry per clip in sequence order.
+
+### Step 6 — Add soundtrack
+
+If background music or voiceover is needed, overlay it on the concatenated video:
+
+```bash
+ffmpeg -i output.mp4 -i bgm.mp3 -filter_complex "[1:a]afade=t=in:d=1,afade=t=out:st=<END-1>:d=1[a]" -map 0:v -map "[a]" -shortest final.mp4
+```
+
+### Step 7 — Verify keyframe quality
+
+Before delivering, spot-check generated clips for artifacts. If the scene is complex (many characters, fine text, intricate backgrounds), verify that keyframes are clean — no watermarks, garbled text, or visual glitches. Use vision tools to inspect extracted frames when in doubt. If a clip fails quality check, regenerate that single shot with a simplified prompt.

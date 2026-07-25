@@ -10840,6 +10840,23 @@
     "agentBridge": "Agent Bridge 模式",
     "agentBridgeDesc": "Agent 在服務端直接處理語音，降低響應延遲"
   },
+  "securityPreset": {
+    "label": "安全預設",
+    "presets": {
+      "hitl": {
+        "label": "手動審批",
+        "desc": "每個工具呼叫都需要您手動確認後才會執行"
+      },
+      "accept_edits": {
+        "label": "自動批准編輯",
+        "desc": "檔案編輯自動批准；Shell 命令等敏感操作由智能審查把關"
+      },
+      "explore": {
+        "label": "唯讀模式",
+        "desc": "僅允許讀取操作，所有寫入操作將被阻止"
+      }
+    }
+  },
   "yoloBanner": {
     "message": "YOLO 模式已開啟 – 所有工具自動審批",
     "disable": "關閉"
@@ -12248,6 +12265,7 @@
     "orphanedHint": "該任務在服務重啟時被中斷。如需繼續，請重新執行命令。",
     "trayTooltipIdle": "Myrm Agent - 空閒",
     "trayTooltipBusy": "Myrm Agent - 任務執行中…",
+    "trayTooltipDraining": "Myrm Agent - 正在關閉…",
     "trayTooltipDegraded": "Myrm Agent - 服務異常",
     "trayTooltipBackground": "{count} 個後臺任務執行中",
     "trayTooltipUsage": "今日: {usage}",

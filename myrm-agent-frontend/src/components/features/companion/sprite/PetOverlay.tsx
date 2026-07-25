@@ -103,7 +103,7 @@ const PetOverlay = memo(function PetOverlay() {
   const spriteEnabled = useCompanionStore((s) => s.spriteEnabled);
   const setSpriteEnabled = useCompanionStore((s) => s.setSpriteEnabled);
   const liveness = useLivenessState();
-  const loading = liveness.state === 'busy';
+  const loading = liveness.state === 'busy' || liveness.state === 'draining';
 
   const [petSize, setPetSize] = useState<PetSize>(getStoredSize);
   const [position, setPosition] = useState<PetPosition>(() => {

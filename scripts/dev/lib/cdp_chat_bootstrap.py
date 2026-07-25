@@ -59,7 +59,10 @@ class CdpChatBootstrap(CdpChatTransport):
         self._last_shell_probe_log_sec = -1
 
     def _check_shell_layout_stall_cap(self) -> None:
-        from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN, SHELL_PROBE_STALL_FAIL_FAST_SEC
+        from dev_gate_contract import (
+            MUX_RECLAIM_STALL_TOKEN,
+            SHELL_PROBE_STALL_FAIL_FAST_SEC,
+        )
 
         started = self._shell_layout_wait_started
         if started is None:
@@ -80,17 +83,25 @@ class CdpChatBootstrap(CdpChatTransport):
             return
         except ImportError:
             pass
-        from dev_gate_contract import LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+        from dev_gate_contract import (
+            LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
+            SHELL_PROBE_STALL_FAIL_FAST_SEC,
+        )
 
         if self._bootstrap_started_monotonic is None:
             return
         elapsed = time.monotonic() - self._bootstrap_started_monotonic
-        if elapsed >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
+        bootstrap_cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
+        if phase in {"bootstrap_shell", "ensure_chat_surface", "wait_shell_layout"}:
+            cap = bootstrap_cap
+        else:
+            cap = float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
+        if elapsed >= cap:
             import sys
 
             print(
                 f"E2E_BOOTSTRAP_STALL_FAIL_FAST: elapsed={int(elapsed)}s "
-                f"cap={LIVE_SINGLE_TEST_WALL_CLOCK_SEC}s phase={phase}",
+                f"cap={int(cap)}s phase={phase}",
                 file=sys.stderr,
                 flush=True,
             )
@@ -461,7 +472,10 @@ class CdpChatBootstrap(CdpChatTransport):
                         f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout poll hard "
                         f"timeout {elapsed_after:.1f}s (cap={int(stall_cap)}s)"
                     )
-            elif isinstance(state, dict) and state.get("probeError") == "evaluate_timeout":
+            elif (
+                isinstance(state, dict)
+                and state.get("probeError") == "evaluate_timeout"
+            ):
                 elapsed_after = time.monotonic() - layout_wait_started
                 if mux_recover_attempts >= 1 and elapsed_after >= stall_cap:
                     raise RuntimeError(

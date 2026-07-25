@@ -81,7 +81,8 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "visual generation → voiceover → assembly. "
             "For short-form content (TikTok/Reels), keep it punchy and hook-first. "
             "For long-form (YouTube/tutorials), structure with clear sections. "
-            "Always consider aspect ratio, pacing, and platform-specific requirements."
+            "Always consider aspect ratio, pacing, and platform-specific requirements. "
+            "Video providers limit clips to 6-12s; for longer content, plan multi-shot and concatenate with FFmpeg."
         ),
         enabled_builtin_tools=_TOOL_VIDEO_STUDIO,
         default_skill_ids=("video-production-pipeline",),

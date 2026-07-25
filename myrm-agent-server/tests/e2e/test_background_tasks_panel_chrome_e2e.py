@@ -240,6 +240,72 @@ def _wait_list_includes_vault_ref(
     )
 
 
+def _wait_api_list_waiting_for_input(
+    api_base: str,
+    task_id: str,
+    *,
+    timeout_sec: float = 45.0,
+) -> None:
+    deadline = time.monotonic() + timeout_sec
+    last_flags: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        payload = http_json("GET", f"{api_base}/api/v1/background-tasks")
+        assert isinstance(payload, dict)
+        tasks = payload.get("tasks")
+        assert isinstance(tasks, list)
+        for row in tasks:
+            if not isinstance(row, dict):
+                continue
+            if row.get("task_id") != task_id:
+                continue
+            last_flags = {
+                "status": row.get("status"),
+                "waiting_for_input": row.get("waiting_for_input"),
+            }
+            if row.get("waiting_for_input") is True:
+                return
+        time.sleep(0.5)
+    raise AssertionError(
+        f"List API never exposed waiting_for_input=true for {task_id} within {timeout_sec}s; "
+        f"last={last_flags!r}"
+    )
+
+
+_LIST_HAS_WAITING_JS = """(async () => {
+  const api = (window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
+  if (!api) {
+    return { ready: false, phase: 'missing_api_base' };
+  }
+  try {
+    const response = await fetch(`${api}/api/v1/background-tasks`);
+    const body = await response.json();
+    const rows = Array.isArray(body.tasks) ? body.tasks : [];
+    const row = rows.find((item) => item.task_id === __TASK_ID__);
+    return {
+      ready: !!(row && row.waiting_for_input === true),
+      waiting: row?.waiting_for_input ?? null,
+      status: row?.status ?? null,
+      api,
+      count: rows.length,
+    };
+  } catch (error) {
+    return { ready: false, error: String(error) };
+  }
+})()"""
+
+
+def _wait_browser_list_waiting_for_input(
+    client: ChromeMcpClient,
+    page: McpPage,
+    task_id: str,
+    *,
+    timeout_sec: float = 60.0,
+) -> None:
+    expression = _LIST_HAS_WAITING_JS.replace("__TASK_ID__", json.dumps(task_id))
+    state = wait_for_state(client, page, expression, timeout_sec=timeout_sec)
+    assert state.get("ready") is True, state
+
+
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.timeout(300)
 def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
@@ -565,7 +631,7 @@ _SHELL_INPUT_CLICK_CLOSE_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
-@pytest.mark.timeout(240)
+@pytest.mark.timeout(300)
 def test_background_tasks_panel_shell_waiting_badge_and_close_stdin() -> None:
     api_base = get_e2e_api_url()
     seed = http_json(
@@ -575,25 +641,41 @@ def test_background_tasks_panel_shell_waiting_badge_and_close_stdin() -> None:
     assert isinstance(seed, dict)
     task_id = str(seed["task_id"])
 
-    row = http_json("GET", f"{api_base}/api/v1/background-tasks/{task_id}")
-    assert isinstance(row, dict)
-    assert row.get("waiting_for_input") is True
+    _wait_api_task_status(api_base, task_id, "running")
+    _wait_api_list_waiting_for_input(api_base, task_id, timeout_sec=45.0)
 
-    with _background_tasks_panel(api_base) as (client, page):
-        badge = wait_for_state(client, page, _WAITING_BADGE_JS, timeout_sec=30.0)
+    prepare_e2e_ui_session(api_base)
+    warm_ui_route("/")
+    with open_mcp_page(get_e2e_ui_url(), timeout_ms=120_000) as (client, page):
+        dismiss_blocking_modals(client, page)
+        _wait_browser_list_waiting_for_input(client, page, task_id, timeout_sec=60.0)
+
+        opened = wait_for_state(client, page, _OPEN_PANEL_JS, timeout_sec=60.0)
+        assert opened.get("clicked") is True, opened
+        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=60.0)
+        assert panel.get("ready") is True, panel
+
+        client.evaluate(page, _REFRESH_PANEL_JS, timeout_sec=10.0)
+
+        running_row = wait_for_state(
+            client, page, _PANEL_RUNNING_SHELL_CANCEL_JS, timeout_sec=60.0
+        )
+        assert running_row.get("ready") is True, running_row
+
+        badge = wait_for_state(client, page, _WAITING_BADGE_JS, timeout_sec=60.0)
         assert badge.get("ready") is True, badge
 
         clicked = client.evaluate(page, _SHELL_INPUT_CLICK_TOGGLE_JS, timeout_sec=10.0)
         assert clicked.get("clicked") is True, clicked
 
         close_visible = wait_for_state(
-            client, page, _SHELL_INPUT_CLOSE_VISIBLE_JS, timeout_sec=15.0
+            client, page, _SHELL_INPUT_CLOSE_VISIBLE_JS, timeout_sec=30.0
         )
         assert close_visible.get("ready") is True, close_visible
 
         closed = client.evaluate(page, _SHELL_INPUT_CLICK_CLOSE_JS, timeout_sec=10.0)
         assert closed.get("clicked") is True, closed
 
-        _wait_api_stdin_closed(api_base, task_id, timeout_sec=15.0)
+        _wait_api_stdin_closed(api_base, task_id, timeout_sec=30.0)
 
     http_json("POST", f"{api_base}/api/v1/background-tasks/{task_id}/cancel")

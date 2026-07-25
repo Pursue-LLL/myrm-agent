@@ -53,7 +53,7 @@ Design notes:
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `gateway.py` | ✅ 核心 | Agent 执行网关 — 全局/Per-User 并发控制、**内存压力熔断**（订阅 `MemoryPressureMonitor`，CRITICAL/EMERGENCY 级别时阻塞新任务直到恢复或队列超时）、排队超时、执行超时、活跃会话元数据追踪（Multi-Pane 状态 API）、结构化日志、会话级互斥（AgentBusyError 409）。`interrupt()` / `interrupt_session(chat_id)` 中断运行中 stream。`ActiveSessionInfo` 持有 `BaseAgent` 弱引用及 `current_message_id`（供 chat 级 cancel 同步 `CancellationRegistry`），供子 Agent 控制 API 获取 `SubagentManager` 实例 |
+| `gateway.py` | ✅ 核心 | Agent 执行网关 — 全局/Per-User 并发控制、**内存压力熔断**（订阅 `MemoryPressureMonitor`，CRITICAL/EMERGENCY 级别时阻塞新任务直到恢复或队列超时）、排队超时、执行超时、**优雅排空**（`begin_drain(timeout=30)` 等待 in-flight turns 完成后再关闭，超时后 `interrupt_all()`）、活跃会话元数据追踪（Multi-Pane 状态 API）、结构化日志、会话级互斥（AgentBusyError 409）。`interrupt()` / `interrupt_session(chat_id)` 中断运行中 stream。`ActiveSessionInfo` 持有 `BaseAgent` 弱引用及 `current_message_id`（供 chat 级 cancel 同步 `CancellationRegistry`），供子 Agent 控制 API 获取 `SubagentManager` 实例 |
 | `confidence_approval_flow.py` | ✅ 核心 | 多信号风控审批流 — 基于置信度 + 2 个客观确定性信号（diff 变化范围、历史成功率）的智能审批。高分且全部风控信号绿灯时静默自动合并，任何红灯或 runtime failure 修复即降级人工 Diff Review。`ApprovalResult.risk_signals` 记录降级原因；risk_signals / runtime evidence 持久化为 `reason_code`、`remediation` 和审核证据供前端展示 |
 | `agent_service.py` | ✅ 核心 | Agent CRUD。WebUI mutable 变更前委托 `ProfileSnapshotService`；`update_agent` 返回 `AgentUpdateOutcome`（含 `snapshot_saved`）。创建/更新/删除/回滚后失效 `AgentProfileResolver` 缓存并热重载 CommandRegistry。`get_agents_by_name` 提供同名候选稳定排序（优先用户自建，再按 id），避免同名解析不确定性。 |
 | `profile_snapshot_service.py` | ✅ 核心 | Agent 配置快照与回滚专用服务 — `save_profile_snapshot` / `list_profile_snapshots` / `count_profile_snapshots` / `rollback_profile` / `rollback_profile_to_snapshot`。含完整 mutable 字段 diff 检测（`has_mutable_diff`，含 `cron_post_run_verify` DB 列）、pre-rollback 保险快照、10 条 retention 裁剪；`updates_from_snapshot_data` 回滚时写回该列。由 `AgentService` 委托，供 WebUI 时光机 API 使用。 |
@@ -99,6 +99,7 @@ Design notes:
 - **排队超时**：等待超过 `AGENT_QUEUE_TIMEOUT` 秒抛 `AgentQueueTimeout`
 - **执行超时**：执行超过 `AGENT_EXECUTION_TIMEOUT` 秒抛 `AgentExecutionTimeout`
 - **中断支持**：`interrupt()` 信号全部运行中 Agent 停止；`interrupt_session(chat_id)` 单会话停止；`get_active_message_id(chat_id)` 供 chat cancel 同步 harness `CancellationRegistry`
+- **优雅排空**：`begin_drain(timeout=120)` 进入 draining 状态 → 拒绝新 turn（`AgentDrainingError`）→ 等待 `_active_sessions` 清空或超时 → 超时后 `interrupt_all()` 强制中断。`cancel_drain()` 撤销排空重新接受请求。`lifespan._shutdown()` 和 `POST /shutdown` API 均在关闭组件前先 drain；CP 通过 `POST /system/drain` + `DELETE /system/drain` 外部触发/取消
 - **活跃会话追踪**：`ActiveSessionInfo` 元数据（chatId、agentType、agentId、elapsedSeconds、current_message_id），`get_active_sessions()` 和 `get_available_slots()` 供 Multi-Pane 工作台和 Fleet Overview 使用
 - **API 端点**：`GET /agents/active-sessions`（Multi-Pane 状态）、`POST /api/agent/interrupt`（远程中断）、`POST /agents/chats/{chat_id}/cancel`（scoped pair 单 chat 取消：interrupt + registry）
 

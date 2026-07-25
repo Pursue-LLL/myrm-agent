@@ -120,3 +120,46 @@ class TestGetDesktopSnapshot:
         data = response.json()
         assert data["error"] == "snapshot_failed"
         assert "capture failed" in data["message"]
+
+    @pytest.mark.asyncio
+    async def test_registry_source_returns_cached_refs(self, client: httpx.AsyncClient) -> None:
+        payload = {
+            "screenshot_base64": "",
+            "mime_type": "",
+            "refs": {"d1": {"role": "text", "name": "Line 1"}},
+            "app_name": "TextEdit",
+            "window_title": "Doc",
+            "scope": "foreground",
+            "needs_permission": False,
+            "viewport_width": 800,
+            "viewport_height": 600,
+            "registry_generation": 2,
+        }
+        mock_session = _desktop_session_with_export({})
+        mock_session.export_registry_view = MagicMock(return_value=payload)  # type: ignore[method-assign]
+
+        mock_gateway = MagicMock()
+        mock_gateway.get_active_desktop_session.return_value = mock_session
+
+        with patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway):
+            response = await client.get("/webui/desktop/snapshot?source=registry")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["app_name"] == "TextEdit"
+        assert "d1" in data["refs"]
+        mock_session.export_inspector_snapshot.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_registry_source_empty_returns_404(self, client: httpx.AsyncClient) -> None:
+        mock_session = _desktop_session_with_export({})
+        mock_session.export_registry_view = MagicMock(return_value=None)  # type: ignore[method-assign]
+
+        mock_gateway = MagicMock()
+        mock_gateway.get_active_desktop_session.return_value = mock_session
+
+        with patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway):
+            response = await client.get("/webui/desktop/snapshot?source=registry")
+
+        assert response.status_code == 404
+        assert response.json()["error"] == "no_registry_snapshot"

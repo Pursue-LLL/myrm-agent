@@ -69,7 +69,12 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       void inspectorStore.getState().fetchSnapshot();
     }
 
-    if (data.tool_name?.startsWith('desktop_')) {
+    if (
+      data.tool_name?.startsWith('desktop_') &&
+      data.tool_name !== 'desktop_snapshot_tool'
+    ) {
+      // desktop_snapshot_tool already pushed refs via DESKTOP_VIEW_UPDATE SSE;
+      // re-fetch here would re-capture the wrong foreground window (e.g. Chrome).
       const { default: desktopStore } = await import('@/store/useDesktopInspectorStore');
       void desktopStore.getState().fetchSnapshot();
     }

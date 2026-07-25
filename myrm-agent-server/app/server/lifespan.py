@@ -531,7 +531,16 @@ async def _phase_1b_parallel() -> None:
 
 
 async def _shutdown(app_instance: FastAPI) -> None:
-    """Graceful shutdown: stop all components in parallel."""
+    """Graceful shutdown: drain in-flight Agent turns, then stop all components."""
+    try:
+        from app.services.agent.gateway import get_agent_gateway
+
+        gateway = get_agent_gateway()
+        if not gateway.is_draining:
+            await gateway.begin_drain()
+    except Exception as e:
+        logger.error("[Shutdown] Agent gateway drain failed: %s", e)
+
     try:
         from app.remote_access.tunnel_manager import get_tunnel_manager
 

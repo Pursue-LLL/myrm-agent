@@ -10,4 +10,4 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | System API routes. | ✅ |
 | `router.py` | 路由 | Ingress 需求/URL、LAN 网络信息、存储磁盘信息、沙箱容器重建（SaaS） | ✅ |
-| `shutdown.py` | 模块 | HTTP shutdown control. | ✅ |
+| `shutdown.py` | 模块 | HTTP shutdown/drain control — `POST /shutdown` (graceful SIGTERM), `POST /drain` (begin draining), `DELETE /drain` (cancel drain). | ✅ |

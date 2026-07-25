@@ -8,7 +8,7 @@
  *
  * [POS]
  * Tab badge hook. Adds a visual prefix to the browser tab title reflecting
- * global agent liveness (busy/degraded). Yields to approval alert title
+ * global agent liveness (busy/draining/degraded). Yields to approval alert title
  * flashing when active. Works in all deployment modes (Web, Tauri, cloud).
  */
 import { useEffect, useRef } from 'react';
@@ -20,6 +20,7 @@ import type { LivenessState } from '@/hooks/useLivenessState';
 
 const BADGE_PREFIX: Record<LivenessState, string> = {
   busy: '[*] ',
+  draining: '[↓] ',
   degraded: '[!] ',
   idle: '',
 };
@@ -32,7 +33,7 @@ export function useTabBadge(): void {
     if (typeof document === 'undefined') return;
 
     if (baseTitleRef.current === null) {
-      baseTitleRef.current = document.title.replace(/^\[[*!]\]\s*/, '');
+      baseTitleRef.current = document.title.replace(/^\[[*!↓]\]\s*/, '');
     }
 
     if (isTitleFlashing()) return;

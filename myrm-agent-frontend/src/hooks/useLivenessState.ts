@@ -6,15 +6,15 @@
  * useLivenessState: Global agent liveness state from SSOT API
  *
  * [POS]
- * Polls `/api/v1/health/liveness` to provide a single global tri-state
- * (busy / idle / degraded) for all consumers: tray, Pet, tab badge.
+ * Polls `/api/v1/health/liveness` to provide a single global quad-state
+ * (busy / idle / degraded / draining) for all consumers: tray, Pet, tab badge.
  * Falls back to "degraded" when the API is unreachable.
  * Uses a module-level singleton poller so multiple hook consumers
  * share a single setInterval (no duplicate polling).
  */
 import { useSyncExternalStore } from 'react';
 
-export type LivenessState = 'busy' | 'idle' | 'degraded';
+export type LivenessState = 'busy' | 'idle' | 'degraded' | 'draining';
 
 export interface LivenessData {
   state: LivenessState;
@@ -23,7 +23,7 @@ export interface LivenessData {
 }
 
 const POLL_INTERVAL_MS = 3_000;
-const VALID_STATES = new Set<LivenessState>(['busy', 'idle', 'degraded']);
+const VALID_STATES = new Set<LivenessState>(['busy', 'idle', 'degraded', 'draining']);
 
 function toLivenessState(raw: unknown): LivenessState {
   if (typeof raw === 'string' && VALID_STATES.has(raw as LivenessState)) {
@@ -33,6 +33,11 @@ function toLivenessState(raw: unknown): LivenessState {
 }
 
 function buildTooltip(state: LivenessState, activeCount: number): string {
+  if (state === 'draining') {
+    return activeCount > 0
+      ? `Shutting down — ${activeCount} task${activeCount > 1 ? 's' : ''} finishing`
+      : 'Shutting down…';
+  }
   if (state === 'busy') {
     return `${activeCount} task${activeCount > 1 ? 's' : ''} running`;
   }

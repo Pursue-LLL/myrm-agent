@@ -9,8 +9,9 @@
 GET /api/v1/health/liveness — aggregated agent liveness state
 
 [POS]
-Agent 全局存活状态 SSOT 端点。聚合 AgentGateway 活跃会话、渠道健康摘要、
-内存压力等级为单一 JSON 响应，供前端 tray/Pet 三态指示器和运维监控使用。
+Agent 全局存活状态 SSOT 端点。聚合 AgentGateway 活跃会话、排空状态、渠道健康摘要、
+内存压力等级为单一 JSON 响应（四态：busy/idle/degraded/draining），
+供前端 tray/Pet/tab-badge 指示器和运维监控使用。
 """
 
 from __future__ import annotations
@@ -59,7 +60,9 @@ async def agent_liveness() -> dict[str, object]:
         for ch in channels_summary.values()
     ) if channels_summary else False
 
-    if active_count > 0:
+    if gateway.is_draining:
+        state = "draining"
+    elif active_count > 0:
         state = "busy"
     elif has_degraded_channel or memory.get("level") in ("WARNING", "CRITICAL", "EMERGENCY"):
         state = "degraded"

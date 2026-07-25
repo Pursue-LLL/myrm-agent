@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import platform
 import subprocess
+import time
 
 import pytest
 
@@ -60,12 +61,6 @@ def prepare_textedit_fixture() -> None:
             'set text of document 1 to "E2E desktop control scroll target line 1" & return & "E2E desktop control scroll target line 2" & return & "E2E desktop control scroll target line 3" & return & "E2E desktop control scroll target line 4" & return & "E2E desktop control scroll target line 5"',
             "-e",
             "end tell",
-            "-e",
-            'tell application "System Events" to tell process "TextEdit" to repeat with w in windows',
-            "-e",
-            "set miniaturized of w to true",
-            "-e",
-            "end repeat",
         ],
         check=False,
         capture_output=True,
@@ -131,12 +126,50 @@ def activate_chrome_foreground() -> None:
     )
 
 
+def textedit_is_frontmost() -> bool:
+    """True when TextEdit is the frontmost app (AX snapshot targets foreground window)."""
+    if platform.system() != "Darwin":
+        return False
+    proc = subprocess.run(
+        [
+            "osascript",
+            "-e",
+            "tell application \"System Events\" to return name of first application process whose frontmost is true",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    return proc.returncode == 0 and proc.stdout.strip() == "TextEdit"
+
+
+def preflight_textedit_foreground(*, attempts: int = 5) -> None:
+    """Ensure TextEdit is un-minimized and frontmost before agent desktop tools run."""
+    if platform.system() != "Darwin":
+        return
+    for attempt in range(1, attempts + 1):
+        activate_textedit_foreground()
+        time.sleep(0.35)
+        if textedit_is_frontmost():
+            progress(f"textedit foreground preflight ok (attempt {attempt}/{attempts})")
+            return
+        progress(
+            f"textedit foreground preflight retry {attempt}/{attempts} "
+            f"(frontmost={textedit_is_frontmost()})"
+        )
+    pytest.fail(
+        "TextEdit not frontmost after preflight — desktop_snapshot will miss @drefs "
+        "and the model may fall back to desktop_vision_tool"
+    )
+
+
 async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
     for attempt in range(1, attempts + 1):
         await asyncio.to_thread(prepare_textedit_fixture)
         if await asyncio.to_thread(textedit_fixture_ready):
-            await asyncio.to_thread(hide_textedit_fixture)
-            progress("textedit fixture ready (background, minimized)")
+            await asyncio.to_thread(activate_textedit_foreground)
+            progress("textedit fixture ready (foreground for AX @drefs)")
             return
         progress(f"textedit fixture not ready yet ({attempt}/{attempts})")
         await asyncio.sleep(0.5)

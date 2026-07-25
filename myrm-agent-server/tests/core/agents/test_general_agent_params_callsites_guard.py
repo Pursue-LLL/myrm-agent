@@ -20,6 +20,7 @@ EXPECTED_GENERAL_AGENT_PARAMS_DIRECT: frozenset[str] = frozenset(
         "app/api/voice/realtime.py",
         "app/services/agent/goal_stream_trigger.py",
         "app/services/agent/params/converter.py",
+        "app/services/agent/stream_session/memory_brief.py",
         "app/core/channel_bridge/agent_executor/execute_preamble_agent.py",
         "app/core/channel_bridge/agent_executor/execute_preamble_types.py",
         "app/core/cron/adapters/agent_runner.py",

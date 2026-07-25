@@ -23,6 +23,8 @@ import type {
 } from './messages';
 import type { PendingGapRetry } from './pendingGapRetry';
 
+export type SecurityPreset = 'hitl' | 'accept_edits' | 'explore';
+
 export interface ChatState {
   // 聊天基本信息
   chatId: string | undefined;
@@ -59,6 +61,7 @@ export interface ChatState {
   isWorkflowMode: boolean;
   incognitoMode: boolean;
   sandboxMode: boolean;
+  securityPreset: SecurityPreset;
   goalBudgetTokens: number | null;
   goalBudgetUsd: number | null;
   goalMaxTimeSeconds: number | null;
@@ -161,6 +164,7 @@ export interface ChatState {
   setIncognitoMode: (incognitoMode: boolean) => void;
   setSessionSkillOverrides: (overrides: string[] | null) => void;
   setSandboxMode: (sandboxMode: boolean) => void;
+  setSecurityPreset: (preset: SecurityPreset) => void;
   setGoalBudgetTokens: (tokens: number | null) => void;
   setGoalBudgetUsd: (usd: number | null) => void;
   setGoalMaxTimeSeconds: (seconds: number | null) => void;

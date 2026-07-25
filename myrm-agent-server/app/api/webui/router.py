@@ -366,13 +366,57 @@ async def get_desktop_permissions() -> JSONResponse:
             await session.close()
 
 
+async def _ephemeral_foreground_desktop_snapshot() -> dict[str, object] | None:
+    """Foreground AX capture without an active agent session (E2E dref fallback only)."""
+    import platform
+
+    if platform.system() != "Darwin":
+        return None
+    try:
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
+        from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
+        from myrm_agent_harness.toolkits.computer_use.types import ComputerUseConfig
+
+        backend = MacOSBackend()
+        session = DesktopSession(backend=backend, config=ComputerUseConfig())
+        payload = await session.export_inspector_snapshot()
+        if isinstance(payload, dict):
+            return payload
+    except Exception as exc:
+        logger.warning("Ephemeral foreground desktop snapshot failed: %s", exc)
+    return None
+
+
 @router.get("/desktop/snapshot")
-async def get_desktop_snapshot() -> JSONResponse:
-    """Get the latest desktop snapshot for the Desktop Inspector panel."""
+async def get_desktop_snapshot(
+    source: str = "live",
+    chat_id: str | None = None,
+) -> JSONResponse:
+    """Get desktop snapshot for the Desktop Inspector panel.
+
+    ``source=live`` (default) re-captures foreground AX; ``source=registry`` reads the
+    last agent snapshot from DRefRegistry without re-capturing (E2E / approval overlay).
+    ``source=foreground_e2e`` captures foreground AX without an active agent session (E2E only).
+    Optional ``chat_id`` scopes registry/live lookup to a specific chat session.
+    """
     from app.services.agent.gateway import get_agent_gateway
 
+    normalized_source = source.strip().lower()
+    if normalized_source == "foreground_e2e":
+        payload = await _ephemeral_foreground_desktop_snapshot()
+        if payload is None:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": "foreground_e2e_unavailable",
+                    "message": "Ephemeral foreground desktop snapshot unavailable",
+                },
+            )
+        return JSONResponse(content=payload)
+
     gateway = get_agent_gateway()
-    session = gateway.get_active_desktop_session()
+    scoped_chat_id = chat_id.strip() if chat_id else None
+    session = gateway.get_active_desktop_session(scoped_chat_id)
     if session is None:
         return JSONResponse(
             status_code=404,
@@ -387,6 +431,18 @@ async def get_desktop_snapshot() -> JSONResponse:
                 status_code=404,
                 content={"error": "invalid_session", "message": "Desktop session type mismatch"},
             )
+
+        if normalized_source == "registry":
+            payload = session.export_registry_view()
+            if payload is None:
+                return JSONResponse(
+                    status_code=404,
+                    content={
+                        "error": "no_registry_snapshot",
+                        "message": "No snapshot refs in active desktop session registry",
+                    },
+                )
+            return JSONResponse(content=payload)
 
         payload = await session.export_inspector_snapshot()
         return JSONResponse(content=payload)

@@ -1,20 +1,21 @@
-"""Agent Execution Gateway — concurrency, timeout, memory pressure, and observability.
+"""Agent Execution Gateway — concurrency, timeout, memory pressure, drain, and observability.
 
 Unified entry point for all Agent executions.
 Provides global + per-user concurrency control, memory pressure circuit breaker,
-execution timeout, graceful queue rejection, and structured logging.
+execution timeout, graceful drain on shutdown, and structured logging.
 
 [INPUT]
 - AsyncGenerator[dict, None]: bound agent stream from any Agent type
 
 [OUTPUT]
 - AsyncGenerator[dict, None]: same events, wrapped with lifecycle management
+- AgentDrainingError: raised when gateway is draining (graceful shutdown)
 - AgentQueueTimeout: raised when queue wait exceeds limit
 - AgentExecutionTimeout: raised when execution exceeds limit
 
 [POS]
 Agent 执行网关。所有 Agent 执行（General / FastSearch）
-都经过此网关，确保并发控制、内存压力熔断、超时保护和可观测性。
+都经过此网关，确保并发控制、内存压力熔断、优雅排空、超时保护和可观测性。
 """
 
 from __future__ import annotations
@@ -44,6 +45,10 @@ class AgentExecutionTimeout(Exception):
 
 class AgentBusyError(Exception):
     """Raised when attempting to execute a request on a session that is already active."""
+
+
+class AgentDrainingError(Exception):
+    """Raised when the gateway is draining and cannot accept new executions."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +111,8 @@ class AgentGateway:
     until pressure de-escalates or queue_timeout expires.
     """
 
+    _DRAIN_TIMEOUT_DEFAULT = 120.0
+
     def __init__(self, config: GatewayConfig | None = None) -> None:
         cfg = config or GatewayConfig.from_settings()
         self._config = cfg
@@ -115,6 +122,7 @@ class AgentGateway:
         self._interrupt_events: dict[str, dict[str, asyncio.Event]] = {}
         self._active_sessions: set[str] = set()
         self._session_info: dict[str, ActiveSessionInfo] = {}
+        self._draining = False
 
         from myrm_agent_harness.runtime.memory_pressure import PressureLevel
 
@@ -284,6 +292,63 @@ class AgentGateway:
             count += 1
         return count
 
+    @property
+    def is_draining(self) -> bool:
+        return self._draining
+
+    async def begin_drain(self, timeout: float | None = None) -> None:
+        """Enter draining state: reject new turns, wait for in-flight ones to finish.
+
+        Idempotent: if already draining, returns immediately to avoid
+        duplicate polling loops.
+
+        Called during graceful shutdown. Sets ``_draining`` so ``execute_stream``
+        rejects new executions with ``AgentDrainingError``. Then polls
+        ``_active_sessions`` until empty or *timeout* expires. On timeout the
+        remaining agents are interrupted via ``interrupt_all()``.
+        """
+        if self._draining:
+            logger.info("[Drain] Already draining, skipping duplicate drain request")
+            return
+        self._draining = True
+        effective_timeout = timeout if timeout is not None else self._DRAIN_TIMEOUT_DEFAULT
+        active = len(self._active_sessions)
+        if active == 0:
+            logger.info("[Drain] No active sessions, drain complete immediately")
+            return
+
+        logger.info("[Drain] Waiting for %d active session(s) (timeout=%.0fs)", active, effective_timeout)
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + effective_timeout
+        poll_interval = 0.5
+        while self._active_sessions and self._draining:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                still_active = len(self._active_sessions)
+                logger.warning("[Drain] Timeout after %.0fs with %d session(s) still active, interrupting", effective_timeout, still_active)
+                if self._draining:
+                    self.interrupt_all()
+                    await asyncio.sleep(1.0)
+                break
+            await asyncio.sleep(min(poll_interval, remaining))
+
+        if not self._draining:
+            logger.info("[Drain] Drain cancelled externally, exiting poll loop")
+        else:
+            logger.info("[Drain] Drain complete (sessions remaining: %d)", len(self._active_sessions))
+
+    def cancel_drain(self) -> bool:
+        """Revert draining state, re-accept new executions.
+
+        Returns True if the gateway was draining; False if it was not.
+        Intended for CP-driven drain that gets cancelled before shutdown.
+        """
+        if not self._draining:
+            return False
+        self._draining = False
+        logger.info("[Drain] Drain cancelled, re-accepting new executions")
+        return True
+
     async def on_pressure_change(self, event: "PressureEvent") -> None:
         """PressureSubscriber callback — update circuit breaker state.
 
@@ -358,10 +423,14 @@ class AgentGateway:
             Agent events (dict), transparently forwarded.
 
         Raises:
+            AgentDrainingError: Gateway is draining (graceful shutdown).
             AgentQueueTimeout: Queue wait exceeded queue_timeout.
             AgentExecutionTimeout: Execution exceeded execution_timeout.
             AgentBusyError: Session is already active.
         """
+        if self._draining:
+            raise AgentDrainingError("Gateway is draining, not accepting new executions")
+
         if session_id:
             if session_id in self._active_sessions:
                 raise AgentBusyError(f"Session {session_id} is already active")

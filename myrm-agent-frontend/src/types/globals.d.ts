@@ -36,6 +36,12 @@ interface Window {
     uiOrigin: string;
   }>>;
   __TAURI_INTERNALS__?: unknown;
+  /** Dev E2E: last DESKTOP_VIEW_UPDATE refs (survives TOOL_END inspector re-fetch). */
+  __MYRM_E2E_DESKTOP_REFS__?: {
+    refs: Record<string, { role?: string; name?: string }>;
+    appName: string;
+    updatedAt: number;
+  };
   /** Dev-only bridge for CDP Chrome E2E (AppLayout E2EChatBridge). */
   __MYRM_E2E_CHAT__?: {
     __e2eFallback: boolean;

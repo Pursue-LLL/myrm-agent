@@ -35,6 +35,7 @@ from tests.e2e.desktop_approval.textedit_fixture import (
 from tests.e2e.desktop_approval.trust_api import (
     fetch_desktop_tool_progress_from_api,
     fetch_first_desktop_dref_from_api,
+    fetch_first_desktop_dref_from_local_capture,
     fetch_first_desktop_dref_from_snapshot_api,
     server_pending_approval_count,
 )
@@ -225,6 +226,37 @@ async def _abort_stuck_ui_stream(chat: McpChatSession) -> None:
     )
 
 
+async def _wait_stream_idle(
+    chat: McpChatSession,
+    *,
+    chat_id: str = "",
+    timeout_sec: float = 45.0,
+) -> bool:
+    deadline = asyncio.get_event_loop().time() + timeout_sec
+    poll = 0
+    while asyncio.get_event_loop().time() < deadline:
+        poll += 1
+        if not await _agent_stream_active(chat, chat_id=chat_id, api_only=True):
+            progress(f"stream idle after abort poll=#{poll}")
+            return True
+        await asyncio.sleep(1.0)
+    progress(f"stream still active after abort ({timeout_sec:.0f}s)")
+    return False
+
+
+async def _wait_nudge_send_surface(
+    chat: McpChatSession,
+    *,
+    chat_id: str = "",
+    timeout_sec: float = 60.0,
+) -> None:
+    await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
+    await chat.ensure_react_e2e_bridge(timeout_sec=min(60.0, timeout_sec))
+    ready = await chat.wait_send_button_ready(timeout_sec=timeout_sec)
+    if not ready.get("ok"):
+        progress(f"send button not ready before nudge follow-up: {ready}")
+
+
 async def _fetch_first_desktop_dref(
     chat: McpChatSession,
     *,
@@ -232,26 +264,7 @@ async def _fetch_first_desktop_dref(
     chat_id: str = "",
 ) -> str | None:
     normalized_chat_id = chat_id.strip()
-    if normalized_chat_id:
-        api_dref = await asyncio.to_thread(
-            fetch_first_desktop_dref_from_api, normalized_chat_id
-        )
-        if api_dref:
-            progress(f"dref from API chat metadata: {api_dref!r}")
-            return api_dref
-    if last_tool.endswith("desktop_snapshot_tool"):
-        for attempt in range(1, 4):
-            snapshot_dref = await asyncio.to_thread(
-                fetch_first_desktop_dref_from_snapshot_api
-            )
-            if snapshot_dref:
-                progress(
-                    f"dref from snapshot API refs: {snapshot_dref!r} "
-                    f"(attempt {attempt}/3)"
-                )
-                return snapshot_dref
-            if attempt < 3:
-                await asyncio.sleep(1.0)
+    await asyncio.to_thread(activate_chrome_foreground)
     probe = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.getFirstDesktopDref?.() ?? null)()""",
         await_promise=False,
@@ -261,7 +274,38 @@ async def _fetch_first_desktop_dref(
         if normalized.startswith("d") and len(normalized) > 1:
             progress(f"dref from UI bridge: {normalized!r}")
             return normalized
+    if normalized_chat_id:
+        for attempt in range(1, 7):
+            api_dref = await asyncio.to_thread(
+                fetch_first_desktop_dref_from_api, normalized_chat_id
+            )
+            if api_dref:
+                progress(
+                    f"dref from API chat metadata: {api_dref!r} "
+                    f"(attempt {attempt}/6)"
+                )
+                return api_dref
+            if attempt < 6:
+                await asyncio.sleep(2.0)
     if last_tool.endswith("desktop_snapshot_tool"):
+        await asyncio.to_thread(activate_textedit_foreground)
+        for attempt in range(1, 5):
+            snapshot_dref = await asyncio.to_thread(
+                fetch_first_desktop_dref_from_snapshot_api,
+                chat_id=normalized_chat_id,
+            )
+            if snapshot_dref:
+                progress(
+                    f"dref from snapshot API refs: {snapshot_dref!r} "
+                    f"(attempt {attempt}/4)"
+                )
+                return snapshot_dref
+            if attempt < 4:
+                await asyncio.sleep(1.5)
+    if last_tool.endswith("desktop_snapshot_tool"):
+        local_dref = await asyncio.to_thread(fetch_first_desktop_dref_from_local_capture)
+        if local_dref:
+            return local_dref
         progress("no dref from API/UI after desktop_snapshot_tool")
     return None
 
@@ -368,6 +412,7 @@ async def _send_interact_nudge(
     *,
     last_tool: str,
     chat_id: str = "",
+    prefetched_dref: str | None = None,
 ) -> None:
     if last_tool.endswith(("desktop_snapshot_tool", "desktop_vision_tool")):
         await asyncio.to_thread(activate_textedit_foreground)
@@ -377,9 +422,9 @@ async def _send_interact_nudge(
     baseline_user_msgs, baseline_step_count = await _nudge_baseline_markers(
         normalized_chat_id
     )
-    dref: str | None = None
-    if last_tool.endswith("desktop_snapshot_tool"):
-        await asyncio.sleep(1.0)
+    dref: str | None = prefetched_dref
+    if dref is None and last_tool.endswith("desktop_snapshot_tool"):
+        await asyncio.sleep(2.0)
         dref = await _fetch_first_desktop_dref(
             chat, last_tool=last_tool, chat_id=normalized_chat_id
         )
@@ -393,15 +438,22 @@ async def _send_interact_nudge(
     else:
         nudge_prompt = E2E_NUDGE_PROMPT
     stream_active = await _agent_stream_active(chat, chat_id=chat_id)
+    # Concrete @dref nudges use follow-up send; steerStore is unreliable with mimo.
+    force_follow_up = dref is not None
     if last_tool.endswith("desktop_snapshot_tool"):
-        # Prefer steer while the agent turn is still streaming after snapshot.
-        use_follow_up = not stream_active
+        use_follow_up = force_follow_up or not stream_active
     else:
-        use_follow_up = not stream_active or not last_tool.startswith("desktop_")
+        use_follow_up = force_follow_up or (
+            not stream_active or not last_tool.startswith("desktop_")
+        )
     if use_follow_up:
-        if stream_active and not last_tool.endswith("desktop_snapshot_tool"):
+        if stream_active:
             progress("abort active stream before follow-up nudge")
             await _abort_stuck_ui_stream(chat)
+            await _wait_stream_idle(chat, chat_id=normalized_chat_id)
+            await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
+        elif force_follow_up:
+            await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
         reason = (
             "snapshot turn complete"
             if last_tool.endswith("desktop_snapshot_tool")
@@ -459,7 +511,8 @@ async def _send_interact_nudge(
         if not consumed:
             progress("steer nudge not consumed — abort + follow-up fallback")
             await _abort_stuck_ui_stream(chat)
-            await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
+            await _wait_stream_idle(chat, chat_id=normalized_chat_id)
+            await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
             await asyncio.to_thread(activate_chrome_foreground)
             send_result = await chat.fast_desktop_agent_submit(
                 nudge_prompt,
@@ -469,6 +522,12 @@ async def _send_interact_nudge(
             progress(
                 f"steer fallback follow-up send: {send_result.get('submit', send_result)}"
             )
+            if normalized_chat_id:
+                await _wait_nudge_consumed(
+                    normalized_chat_id,
+                    baseline_user_msgs=baseline_user_msgs,
+                    baseline_step_count=baseline_step_count,
+                )
             await asyncio.to_thread(activate_textedit_foreground)
             return
 
@@ -783,6 +842,18 @@ async def ensure_interact_gate(
         api_only=api_only,
         wall_started_at=wall_clock,
     )
+    last_tool = str(tool_activity.get("lastTool") or "")
+    prefetched_dref: str | None = None
+    if last_tool.endswith("desktop_snapshot_tool"):
+        progress("prefetch dref while snapshot session may still be active")
+        await asyncio.to_thread(activate_textedit_foreground)
+        prefetched_dref = await _fetch_first_desktop_dref(
+            chat,
+            last_tool=last_tool,
+            chat_id=chat_id,
+        )
+        if prefetched_dref:
+            progress(f"prefetched dref={prefetched_dref!r} before approval chrome activate")
     if textedit_foreground:
         progress(
             "agent turn observed via API — activate Chrome for CDP + approval banner"
@@ -798,21 +869,31 @@ async def ensure_interact_gate(
     server_pending = await asyncio.to_thread(server_pending_approval_count)
     ui_pending = bool(tool_activity.get("pending"))
 
-    if not _desktop_gate_satisfied(
-        last_tool=last_tool,
-        server_pending=server_pending,
-        ui_pending=ui_pending,
-    ) and last_tool.endswith("desktop_vision_tool"):
-        progress("vision detected — steer to desktop_snapshot_tool + interact")
+    _VISION_NUDGE_ROUNDS = 3
+    for vision_round in range(1, _VISION_NUDGE_ROUNDS + 1):
+        if _desktop_gate_satisfied(
+            last_tool=last_tool,
+            server_pending=server_pending,
+            ui_pending=ui_pending,
+        ) or not last_tool.endswith("desktop_vision_tool"):
+            break
+        progress(
+            f"vision detected — steer nudge round {vision_round}/{_VISION_NUDGE_ROUNDS}"
+        )
         try:
-            await _send_interact_nudge(chat, last_tool=last_tool, chat_id=chat_id)
+            await _send_interact_nudge(
+                chat,
+                last_tool=last_tool,
+                chat_id=chat_id,
+                prefetched_dref=prefetched_dref,
+            )
         except (RuntimeError, TimeoutError, OSError) as exc:
-            progress(f"immediate vision nudge skipped (non-fatal): {exc}")
+            progress(f"vision nudge round {vision_round} skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
         tool_activity, last_tool, server_pending, ui_pending = (
             await wait_for_interact_or_approval(
                 chat,
-                timeout_sec=45.0,
+                timeout_sec=30.0,
                 chat_id=chat_id,
                 wall_started_at=wall_clock,
             )
@@ -823,6 +904,9 @@ async def ensure_interact_gate(
             ui_pending=ui_pending,
         ):
             return tool_activity, last_tool, server_pending, ui_pending
+        if last_tool.endswith("desktop_snapshot_tool"):
+            progress("vision→snapshot transition detected after nudge")
+            break
 
     if not _desktop_gate_satisfied(
         last_tool=last_tool,
@@ -831,7 +915,12 @@ async def ensure_interact_gate(
     ) and last_tool.endswith("desktop_snapshot_tool"):
         progress("snapshot detected — immediate interact steer nudge")
         try:
-            await _send_interact_nudge(chat, last_tool=last_tool, chat_id=chat_id)
+            await _send_interact_nudge(
+                chat,
+                last_tool=last_tool,
+                chat_id=chat_id,
+                prefetched_dref=prefetched_dref,
+            )
         except (RuntimeError, TimeoutError, OSError) as exc:
             progress(f"immediate snapshot nudge skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
@@ -866,7 +955,12 @@ async def ensure_interact_gate(
             return tool_activity, last_tool, server_pending, ui_pending
         progress("snapshot detected — send dref-targeted interact nudge (retry)")
         try:
-            await _send_interact_nudge(chat, last_tool=last_tool, chat_id=chat_id)
+            await _send_interact_nudge(
+                chat,
+                last_tool=last_tool,
+                chat_id=chat_id,
+                prefetched_dref=prefetched_dref,
+            )
         except (RuntimeError, TimeoutError, OSError) as exc:
             progress(f"snapshot nudge send skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
@@ -908,7 +1002,12 @@ async def ensure_interact_gate(
             f"round {round_idx + 1}/{max_nudge_rounds} lastTool={last_tool!r}"
         )
         try:
-            await _send_interact_nudge(chat, last_tool=last_tool, chat_id=chat_id)
+            await _send_interact_nudge(
+                chat,
+                last_tool=last_tool,
+                chat_id=chat_id,
+                prefetched_dref=prefetched_dref,
+            )
         except (RuntimeError, TimeoutError, OSError) as exc:
             progress(f"nudge send skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()

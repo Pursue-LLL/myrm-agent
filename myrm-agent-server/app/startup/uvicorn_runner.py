@@ -125,6 +125,7 @@ def start_with_uvicorn(
             log_level=uvicorn_log_level,
             access_log=is_debug_mode(),
             loop=loop_impl,
+            timeout_graceful_shutdown=120,
         )
     except KeyboardInterrupt:
         _cleanup_frontend()

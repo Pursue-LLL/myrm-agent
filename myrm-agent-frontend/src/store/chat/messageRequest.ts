@@ -118,6 +118,7 @@ export interface ChatActionsState {
   nextCursor: string | null;
   incognitoMode: boolean;
   sandboxMode: boolean;
+  securityPreset: import('./types/chatState').SecurityPreset;
   notFound: boolean;
   loadError: boolean;
   newChatCreated: boolean;
@@ -636,6 +637,10 @@ export const createMessageRequest = async (
     ...(isAgentMode &&
       agentConfig?.forceDelegateAgent && {
         force_delegate_agent: agentConfig.forceDelegateAgent,
+      }),
+    ...(isAgentMode &&
+      useChatStore.getState().securityPreset !== 'hitl' && {
+        security_preset: useChatStore.getState().securityPreset,
       }),
     ...(isStreamingMode &&
       useConfigStore.getState().privacyEnabled && {

@@ -22,9 +22,9 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | `useSlashCommand.ts` | Slash 命令面板 Hook（`/` 触发检测 + 模糊搜索 + 键盘导航 + 命令执行；合并系统行为、用户命令、Agent 绑定技能） |
 | `useGlobalShortcuts.ts` | 全局键盘快捷键（Cmd+N 新建会话、Cmd+B 切换 Browser LiveView 面板、Cmd+1~9 置顶跳转，平台差异化 Shift 适配） |
 | `useTauri*.ts` / `useTray*.ts` / `useAppUpdate.ts` | 桌面端 Tauri 集成 |
-| `useLivenessState.ts` | 全局 Agent liveness SSOT：轮询 `/health/liveness` API 提供 busy/idle/degraded 三态，供 tray、Pet、tab badge 消费 |
-| `useTrayStatus.ts` | Tauri tray icon/tooltip/taskbar 进度条/预算通知：消费 `useLivenessState` 全局三态 + `/background-tasks` running 数驱动图标切换；tooltip 附带今日 token/cost 摘要；`budget_alert` SSE 触发原生 OS 通知；hidden 窗口时 busy→idle 转换触发 `requestUserAttention`（仅 Tauri） |
-| `useTabBadge.ts` | Tab title 状态前缀：消费 `useLivenessState` 在 `document.title` 添加 `[*]`/`[!]` 前缀，与审批闪烁协调让步（全部署模式） |
+| `useLivenessState.ts` | 全局 Agent liveness SSOT：轮询 `/health/liveness` API 提供 busy/idle/degraded/draining 四态，供 tray、Pet、tab badge 消费 |
+| `useTrayStatus.ts` | Tauri tray icon/tooltip/taskbar 进度条/预算通知：消费 `useLivenessState` 全局四态 + `/background-tasks` running 数驱动图标切换；tooltip 附带今日 token/cost 摘要；draining 状态显示关闭中提示；`budget_alert` SSE 触发原生 OS 通知；hidden 窗口时 busy→idle 转换触发 `requestUserAttention`（仅 Tauri） |
+| `useTabBadge.ts` | Tab title 状态前缀：消费 `useLivenessState` 在 `document.title` 添加 `[*]`/`[↓]`/`[!]` 前缀，与审批闪烁协调让步（全部署模式） |
 | `useWhatsNew.ts` | 版本变更感知：启动时对比 localStorage 已查看版本与当前版本，变更时从 GitHub Release API 拉取 Release Notes |
 | `usePushSubscription.ts` | Web Push VAPID 订阅 SSOT（Settings Personal + System；subscribe/unsubscribe/test；Tauri skip） |
 | `usePWAInstall.ts` | PWA beforeinstallprompt 安装引导（配合 WebPushCard iOS 路径） |

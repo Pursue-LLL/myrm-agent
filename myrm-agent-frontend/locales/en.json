@@ -10886,6 +10886,23 @@
     "agentBridge": "Agent Bridge mode",
     "agentBridgeDesc": "Agent processes voice directly on server, reducing latency"
   },
+  "securityPreset": {
+    "label": "Security Preset",
+    "presets": {
+      "hitl": {
+        "label": "Manual Approval",
+        "desc": "Every tool call requires your explicit approval before execution"
+      },
+      "accept_edits": {
+        "label": "Auto-Approve Edits",
+        "desc": "File edits auto-approved; shell commands and sensitive actions reviewed by smart guard"
+      },
+      "explore": {
+        "label": "Read-Only",
+        "desc": "Only read operations allowed; all write actions are blocked"
+      }
+    }
+  },
   "yoloBanner": {
     "message": "YOLO Mode Active – All tools auto-approved",
     "disable": "Disable"
@@ -12336,6 +12353,7 @@
     "orphanedHint": "This job was interrupted when the service restarted. Run the command again if needed.",
     "trayTooltipIdle": "Myrm Agent - Idle",
     "trayTooltipBusy": "Myrm Agent - Running…",
+    "trayTooltipDraining": "Myrm Agent - Shutting Down…",
     "trayTooltipDegraded": "Myrm Agent - Service Degraded",
     "trayTooltipBackground": "{count} background task(s) running",
     "trayTooltipUsage": "Today: {usage}",

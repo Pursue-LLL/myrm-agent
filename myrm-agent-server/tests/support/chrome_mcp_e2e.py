@@ -260,8 +260,9 @@ def open_mcp_page(
     url: str,
     *,
     timeout_ms: int | None = None,
+    request_timeout_sec: float = 180.0,
 ) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
-    with ChromeMcpClient() as client:
+    with ChromeMcpClient(request_timeout_sec=request_timeout_sec) as client:
         page = client.new_page(url, timeout_ms=timeout_ms)
         ensure_desktop_viewport(client, page)
         if e2e_runtime_binding() is not None:

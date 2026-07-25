@@ -17,7 +17,11 @@ from app.schemas.streaming import SSEEnvelope
 from app.services.agent.context_compaction_telemetry import (
     enqueue_context_compaction_telemetry,
 )
-from app.services.agent.gateway import AgentExecutionTimeout, AgentQueueTimeout
+from app.services.agent.gateway import (
+    AgentDrainingError,
+    AgentExecutionTimeout,
+    AgentQueueTimeout,
+)
 from app.services.agent.memory_brief_telemetry import (
     enqueue_memory_brief_status_telemetry,
 )
@@ -96,6 +100,11 @@ async def yield_stream_exception_chunks(
     elif isinstance(exc, AgentQueueTimeout):
         yield error_sse(
             str(exc) or "Server is busy, please try again later.",
+            session.params.message_id,
+        )
+    elif isinstance(exc, AgentDrainingError):
+        yield error_sse(
+            "Service is restarting, please try again shortly.",
             session.params.message_id,
         )
     elif isinstance(exc, AgentExecutionTimeout):

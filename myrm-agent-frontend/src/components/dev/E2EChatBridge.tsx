@@ -28,6 +28,7 @@ import useConfigStore from '@/store/useConfigStore';
 import { guardSearchServiceConfigured } from '@/store/config/searchService';
 import type { SearchServiceConfigItem } from '@/store/config/types';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
+import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
 import type { ActionMode, AgentConfig, BuiltinToolId } from '@/store/chat/types';
@@ -1112,34 +1113,41 @@ export default function E2EChatBridge() {
         };
       },
       getFirstDesktopDref: () => {
-        const messages = useChatStore.getState().messages;
-        for (let index = messages.length - 1; index >= 0; index -= 1) {
-          const message = messages[index];
-          if (message.role !== 'assistant') {
-            continue;
+        const pickDref = (
+          refs: Record<string, { role?: string; name?: string }> | undefined,
+        ): string | null => {
+          if (!refs || typeof refs !== 'object') {
+            return null;
           }
-          const chunks: string[] = [];
-          if (typeof message.content === 'string') {
-            chunks.push(message.content);
-          }
-          const metaSteps = Array.isArray(message.metadata?.progressSteps)
-            ? message.metadata.progressSteps
-            : [];
-          const steps = message.progressSteps?.length ? message.progressSteps : metaSteps;
-          for (const step of steps) {
-            if (typeof step.stdout === 'string') {
-              chunks.push(step.stdout);
-            }
-            if (typeof step.items === 'string') {
-              chunks.push(step.items);
+          const preferredRoles = new Set(['text', 'statictext', 'axtextarea', 'scrollarea']);
+          for (const [refId, info] of Object.entries(refs)) {
+            const role = String(info?.role ?? '').toLowerCase();
+            const normalized = refId.trim().replace(/^@/, '');
+            if (
+              preferredRoles.has(role) &&
+              normalized.startsWith('d') &&
+              normalized.length > 1
+            ) {
+              return normalized;
             }
           }
-          const match = chunks.join('\n').match(/@(d\d+)\b/);
-          if (match) {
-            return match[1];
+          for (const refId of Object.keys(refs).sort()) {
+            const normalized = refId.trim().replace(/^@/, '');
+            if (normalized.startsWith('d') && normalized.length > 1) {
+              return normalized;
+            }
           }
+          return null;
+        };
+
+        const e2eRefs = window.__MYRM_E2E_DESKTOP_REFS__?.refs;
+        const fromE2eCache = pickDref(e2eRefs);
+        if (fromE2eCache) {
+          return fromE2eCache;
         }
-        return null;
+
+        const viewData = useDesktopInspectorStore.getState().viewData;
+        return pickDref(viewData?.refs);
       },
       abortActiveStream: () => {
         useChatStore.getState().stopMessage();

@@ -45,6 +45,7 @@ import ThinkingIntensityButton from '../message-input-actions/ThinkingIntensityB
 import GoalModeToggle from '../message-input-actions/GoalModeToggle';
 import IncognitoModeToggle from '../message-input-actions/IncognitoModeToggle';
 import SandboxModeToggle from '../message-input-actions/SandboxModeToggle';
+import SecurityPresetSelector from '../message-input-actions/SecurityPresetSelector';
 import FocusFlushButton from '../message-input-actions/FocusFlushButton';
 import { ForkButton } from './ForkButton';
 import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemoryPanel';
@@ -548,6 +549,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                   <GoalModeToggle />
                   <IncognitoModeToggle />
                   <SandboxModeToggle />
+                  <SecurityPresetSelector />
                   <FocusFlushButton />
                   {chatId && messages.length > 0 && !loading && (
                     <ForkButton chatId={chatId} messageIndex={messages.length - 1} />
@@ -697,6 +699,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
             <WorkflowModeToggle />
             <IncognitoModeToggle />
             <SandboxModeToggle />
+            <SecurityPresetSelector />
             <AgentIndicator />
           </>
         }

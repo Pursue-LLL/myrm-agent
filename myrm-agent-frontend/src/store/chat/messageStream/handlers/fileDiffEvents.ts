@@ -175,6 +175,13 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       dpiScale: data.data.dpi_scale,
       updatedAt: Date.now(),
     });
+    if (typeof window !== 'undefined' && data.data.refs) {
+      window.__MYRM_E2E_DESKTOP_REFS__ = {
+        refs: data.data.refs,
+        appName: String(data.data.app_name ?? ''),
+        updatedAt: Date.now(),
+      };
+    }
     return done(ctx);
   }
 

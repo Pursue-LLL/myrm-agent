@@ -16,6 +16,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import urllib.parse
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -29,6 +31,26 @@ from cdp_chat_support import (
 from tests.e2e.desktop_approval.constants import progress
 
 _DESKTOP_DREF_PATTERN = re.compile(r"@(d\d+)\b")
+
+
+def _append_dref_scan_chunks(chunks: list[str], value: object) -> None:
+    if isinstance(value, str):
+        chunks.append(value)
+        return
+    if isinstance(value, dict):
+        refs = value.get("refs")
+        if isinstance(refs, dict):
+            for ref_key in refs:
+                if isinstance(ref_key, str) and ref_key.startswith("d"):
+                    chunks.append(f"@{ref_key}")
+        chunks.append(json.dumps(value, ensure_ascii=False))
+        return
+    if isinstance(value, list):
+        for item in value:
+            _append_dref_scan_chunks(chunks, item)
+        return
+    if value is not None:
+        chunks.append(json.dumps(value, ensure_ascii=False))
 
 
 def extract_first_desktop_dref_from_messages(
@@ -54,14 +76,127 @@ def extract_first_desktop_dref_from_messages(
             if not isinstance(step, dict):
                 continue
             for key in ("stdout", "items", "output", "result"):
-                value = step.get(key)
-                if isinstance(value, str):
-                    chunks.append(value)
-                elif value is not None:
-                    chunks.append(json.dumps(value, ensure_ascii=False))
+                _append_dref_scan_chunks(chunks, step.get(key))
         match = _DESKTOP_DREF_PATTERN.search("\n".join(chunks))
         if match:
             return match.group(1)
+    return None
+
+
+def _dref_from_snapshot_payload(payload: dict[str, object]) -> str | None:
+    refs = payload.get("refs")
+    if not isinstance(refs, dict) or not refs:
+        return None
+    for ref_key in sorted(refs):
+        normalized = str(ref_key).strip().lstrip("@")
+        if normalized.startswith("d") and len(normalized) > 1:
+            return normalized
+    return None
+
+
+def fetch_first_desktop_dref_from_local_capture() -> str | None:
+    """Foreground AX capture in the pytest process when gateway session is gone."""
+    import platform
+
+    if platform.system() != "Darwin":
+        return None
+    try:
+        from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
+        from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
+        from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
+            capture_snapshot,
+        )
+
+        meta, refs = capture_snapshot(MacOSBackend(), "foreground", None)
+        element_refs = {
+            key: value for key, value in refs.items() if isinstance(value, ElementRef)
+        }
+        if not element_refs:
+            progress(
+                f"local AX capture refs empty app={meta.app_name!r} "
+                f"window={meta.window_title!r}"
+            )
+            return None
+        preferred_roles = {"text", "statictext", "axtextarea", "scrollarea"}
+        for ref_key, ref in element_refs.items():
+            role = str(getattr(ref, "role", "") or "").lower()
+            normalized = str(ref_key).strip().lstrip("@")
+            if (
+                role in preferred_roles
+                and normalized.startswith("d")
+                and len(normalized) > 1
+            ):
+                progress(
+                    f"dref from local AX capture role={role!r}: {normalized!r} "
+                    f"app={meta.app_name!r}"
+                )
+                return normalized
+        for ref_key in sorted(element_refs):
+            normalized = str(ref_key).strip().lstrip("@")
+            if normalized.startswith("d") and len(normalized) > 1:
+                progress(f"dref from local AX capture fallback: {normalized!r}")
+                return normalized
+    except OSError as exc:
+        progress(f"local AX capture failed: {exc}")
+    except Exception as exc:
+        progress(f"local AX capture failed: {type(exc).__name__}: {exc}")
+    return None
+
+
+def fetch_first_desktop_dref_from_snapshot_api(*, chat_id: str = "") -> str | None:
+    """Read first @dref from desktop snapshot API (registry → live → foreground_e2e)."""
+    base = get_e2e_api_url()
+    chat_q = (
+        f"&chat_id={urllib.parse.quote(chat_id.strip())}" if chat_id.strip() else ""
+    )
+    sources = ("registry", "live", "foreground_e2e")
+    for source in sources:
+        query = f"source={source}"
+        if source != "foreground_e2e":
+            query = f"{query}{chat_q}"
+        url = f"{base}/webui/desktop/snapshot?{query}"
+        try:
+            payload = _e2e_api_get_json(url, timeout_sec=8.0, max_attempts=2)
+        except OSError as exc:
+            detail = str(exc)
+            if isinstance(exc, urllib.error.HTTPError):
+                try:
+                    body = exc.read().decode("utf-8")
+                    parsed = json.loads(body)
+                    if isinstance(parsed, dict):
+                        detail = (
+                            f"{parsed.get('error', exc.code)}: "
+                            f"{parsed.get('message', body)}"
+                        )
+                except OSError:
+                    detail = f"HTTP {exc.code}"
+            progress(f"snapshot API fetch failed source={source}: {detail}")
+            continue
+        if not isinstance(payload, dict):
+            progress(
+                f"snapshot API unexpected payload type source={source}: "
+                f"{type(payload).__name__}"
+            )
+            continue
+        error = payload.get("error")
+        if error:
+            progress(
+                f"snapshot API error source={source}: {error} — "
+                f"{payload.get('message', '')}"
+            )
+            continue
+        dref = _dref_from_snapshot_payload(payload)
+        if dref:
+            progress(f"dref from snapshot API source={source}: {dref!r}")
+            return dref
+        progress(
+            f"snapshot API refs empty source={source}: "
+            f"app_name={payload.get('app_name')!r} "
+            f"needs_permission={payload.get('needs_permission')}"
+        )
+    local_dref = fetch_first_desktop_dref_from_local_capture()
+    if local_dref:
+        return local_dref
     return None
 
 
@@ -156,7 +291,9 @@ def fetch_pending_approval_request_ids() -> list[str]:
 def list_trusted_apps_via_api() -> list[dict[str, object]]:
     url = f"{get_e2e_api_url()}/webui/desktop/trust/apps"
     try:
-        request = urllib.request.Request(url, method="GET")  # noqa: S310 - validated in _e2e_api_urlopen
+        request = urllib.request.Request(
+            url, method="GET"
+        )  # noqa: S310 - validated in _e2e_api_urlopen
         with _e2e_api_urlopen(
             request,
             timeout_sec=5.0,
@@ -183,7 +320,9 @@ def clear_persisted_desktop_approvals() -> None:
             approval_path.unlink(missing_ok=True)
     reset_url = f"{get_e2e_api_url()}/webui/desktop/approval/reset-runtime"
     try:
-        request = urllib.request.Request(reset_url, method="POST", data=b"{}")  # noqa: S310
+        request = urllib.request.Request(
+            reset_url, method="POST", data=b"{}"
+        )  # noqa: S310
         request.add_header("Content-Type", "application/json")
         with _e2e_api_urlopen(
             request,
@@ -222,7 +361,9 @@ def clear_persisted_desktop_approvals() -> None:
 def desktop_accessibility_granted() -> bool:
     url = f"{get_e2e_api_url()}/webui/desktop/permissions"
     try:
-        request = urllib.request.Request(url, method="GET")  # noqa: S310 - validated in _e2e_api_urlopen
+        request = urllib.request.Request(
+            url, method="GET"
+        )  # noqa: S310 - validated in _e2e_api_urlopen
         with _e2e_api_urlopen(
             request,
             timeout_sec=10.0,

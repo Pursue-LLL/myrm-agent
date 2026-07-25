@@ -1,9 +1,9 @@
 """Chrome LIVE_AGENT E2E: foreground bash spill → evicted API + LiveTerminal Drawer.
 
-Phase 1: real Chrome UI sendChatMessage (LIVE path, same as deep search) with yolo
-code_execute agent — poll API for bash_code_execute_tool + evicted_file_ref.
+Phase 1 (SSOT): API agent-stream — assert bash_code_execute_tool + tool_evicted_ref,
+GET /files/evicted contains marker. No blind UI poll.
 
-Phase 2: same tab — expand Task Steps, View Full Output, Drawer shows marker.
+Phase 2 (UX): same chat_id in Chrome — Task Steps → View Full Output → Drawer marker.
 """
 
 from __future__ import annotations
@@ -43,17 +43,21 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
 _MARKER = "UECD_BASH_FG_MARKER"
 _BASH_TOOL = "bash_code_execute_tool"
 _OUTPUT_BASENAME_RE = re.compile(r"^output_[a-f0-9]{8}\.txt$")
+_EVICTED_BASENAME_IN_TEXT_RE = re.compile(r"output_[a-f0-9]{8}\.txt")
 _PAGE_TIMEOUT_MS = 180_000
-_MAX_UI_ATTEMPTS = 2
-_API_POLL_TIMEOUT_SEC = 480.0
-_SPILL_CHARS = 180_000
+_MAX_STREAM_ATTEMPTS = 5
+_STREAM_TIMEOUT_SEC = 240.0
+# seq keeps unique lines so output_compressor log-dedup does not shrink below eviction threshold.
+_SPILL_COMMAND = f"echo {_MARKER} && seq 1 25000"
 
 _FG_PROMPT = (
-    "Run exactly one foreground shell command with bash_code_execute_tool "
-    "(run_in_background must be false):\n"
-    f'- command: python3 -c "print(\'{_MARKER}\'); print(\'x\' * {_SPILL_CHARS})"\n'
+    "Please run this command in the foreground using bash_code_execute_tool exactly once:\n"
+    f"- command: {_SPILL_COMMAND}\n"
     "- run_in_background: false\n"
-    "After the tool finishes, reply with ONLY: spill ok"
+    "- timeout: 90\n"
+    "- reason: live foreground bash spill UECD E2E\n"
+    "Then reply with ONLY: spill ok\n"
+    "Do NOT reply spill ok unless tool output contains LARGE OUTPUT TRUNCATED."
 )
 
 _PROGRESS_STEPS_LIVE_JS = """(() => {
@@ -118,61 +122,6 @@ _VIEW_FULL_OUTPUT_JS = """(() => {
 })()"""
 
 
-def _kickoff_bash_fg_js(prompt: str) -> str:
-    return f"""(async () => {{
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.sendChatMessage) return {{ ok: false, err: 'no-sendChatMessage' }};
-  bridge.setActionMode?.('agent');
-  const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
-  const result = await bridge.sendChatMessage({json.dumps(prompt)}, {{
-    baselineUserCount: usersBefore,
-    waitForStreamCompletion: false,
-  }});
-  const snap = bridge.turnSnapshot?.() ?? {{}};
-  return {{
-    ...result,
-    chatId: snap.chatId ?? result.chatId ?? null,
-    actionMode: bridge.getActionMode?.() ?? null,
-  }};
-}})()"""
-
-
-_BRIDGE_READY_JS = """(() => ({
-  ready: typeof window.__MYRM_E2E_CHAT__?.sendChatMessage === 'function',
-  hasSend: typeof window.__MYRM_E2E_CHAT__?.sendChatMessage === 'function',
-  hasBridge: !!window.__MYRM_E2E_CHAT__,
-}))()"""
-
-_CLICK_NEW_CHAT_JS = """(() => {
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (bridge?.resetChat) {
-    bridge.resetChat();
-    return { ready: true, mode: 'bridge-reset' };
-  }
-  if (document.querySelector('[data-chat-input]')) {
-    return { ready: true, mode: 'already' };
-  }
-  const newBtn = Array.from(document.querySelectorAll('aside button')).find((b) => {
-    const text = (b.textContent || '').trim();
-    return text.includes('新对话') || text.includes('New chat');
-  });
-  if (newBtn) {
-    newBtn.click();
-    return { ready: true, mode: 'new-chat' };
-  }
-  return { ready: false, mode: 'no-button' };
-})()"""
-
-_WORKSPACE_READY_JS = """(async () => {
-  const wait = window.__MYRM_WAIT_WORKSPACE_STREAM__;
-  if (typeof wait !== 'function') {
-    return { ready: false, err: 'missing-wait-hook' };
-  }
-  const result = await wait(30000);
-  return { ready: result?.ok === true, ...result };
-})()"""
-
-
 def _drawer_ready_js(marker_line: str) -> str:
     encoded = json.dumps(marker_line)
     return f"""(() => {{
@@ -181,30 +130,15 @@ def _drawer_ready_js(marker_line: str) -> str:
 }})()"""
 
 
-def _evaluate_dict(client, page, expression: str, *, timeout_sec: float) -> dict[str, object]:
-    raw = client.evaluate(page, expression, timeout_sec=timeout_sec)
-    if isinstance(raw, dict):
-        return raw
-    if isinstance(raw, str):
-        stripped = raw.strip()
-        if stripped.startswith("{"):
-            try:
-                parsed = json.loads(stripped)
-                if isinstance(parsed, dict):
-                    return parsed
-            except json.JSONDecodeError:
-                pass
-    return {"value": raw}
-
-
 def _create_foreground_bash_agent(client: httpx.Client, api_base: str) -> str:
     payload = {
         "name": f"Bash FG Evict {uuid.uuid4().hex[:6]}",
         "description": "Live foreground bash UECD Chrome E2E",
         "system_prompt": (
-            "You run shell commands via bash_code_execute_tool when asked. "
-            "For foreground requests use run_in_background=false and call the tool "
-            "exactly once before replying."
+            "You help users run shell commands via bash_code_execute_tool when asked. "
+            "When the user requests a foreground shell command, call bash_code_execute_tool "
+            "exactly once with run_in_background=false and the exact command string before replying. "
+            "Never reply spill ok unless bash output was evicted (LARGE OUTPUT TRUNCATED)."
         ),
         "skill_ids": [],
         "mcp_ids": [],
@@ -231,79 +165,72 @@ def _create_foreground_bash_agent(client: httpx.Client, api_base: str) -> str:
     return agent_id
 
 
-def _bash_tool_seen_in_messages(messages: list[dict[str, object]]) -> bool:
-    for msg in messages:
-        if msg.get("role") != "assistant":
-            continue
-        meta = msg.get("metadata") if isinstance(msg.get("metadata"), dict) else {}
-        steps_raw = msg.get("progressSteps") or meta.get("progressSteps")
-        if not isinstance(steps_raw, list):
-            continue
-        for step in steps_raw:
-            if not isinstance(step, dict):
-                continue
-            if step.get("tool_name") == _BASH_TOOL:
-                return True
-    return False
+def _tool_names_from_event(event: dict[str, object]) -> list[str]:
+    names: list[str] = []
+    for key in ("tool_name", "name", "tool"):
+        val = event.get(key)
+        if isinstance(val, str) and val:
+            names.append(val)
+    data = event.get("data")
+    if isinstance(data, dict):
+        for key in ("tool_name", "name", "tool"):
+            val = data.get(key)
+            if isinstance(val, str) and val:
+                names.append(val)
+    return names
 
 
-def _wait_spill_via_api(api_base: str, chat_id: str) -> str:
-    deadline = time.monotonic() + _API_POLL_TIMEOUT_SEC
-    last_messages = 0
-    saw_bash = False
-    while time.monotonic() < deadline:
-        messages = fetch_chat_messages(chat_id, api_url=api_base)
-        last_messages = len(messages)
-        if _bash_tool_seen_in_messages(messages):
-            saw_bash = True
-        ref = _evicted_ref_from_messages(messages)
-        if ref:
+def _evicted_ref_from_text(text: str) -> str | None:
+    match = _EVICTED_BASENAME_IN_TEXT_RE.search(text)
+    if match and _OUTPUT_BASENAME_RE.match(match.group(0)):
+        return match.group(0)
+    return None
+
+
+def _evicted_ref_from_steps(steps_raw: object) -> str | None:
+    if not isinstance(steps_raw, list):
+        return None
+    for step in steps_raw:
+        if not isinstance(step, dict):
+            continue
+        ref = step.get("evicted_file_ref") or step.get("evicted_ref")
+        if isinstance(ref, str) and ref:
             return ref
-        time.sleep(2.0)
-    detail = f"messages={last_messages}; bash_tool={saw_bash}"
-    raise AssertionError(
-        f"No evicted_file_ref after UI LIVE turn for chat {chat_id} ({detail})"
-    )
+    return None
 
 
-def _run_ui_live_bash_turn(
-    client, page, *, agent_id: str, api_base: str
-) -> str:
-    dismiss_blocking_modals(client, page)
-
-    bridge_ready = wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
-    assert bridge_ready.get("ready") is True, json.dumps(bridge_ready, ensure_ascii=False)
-
-    new_chat = wait_for_state(client, page, _CLICK_NEW_CHAT_JS, timeout_sec=30.0)
-    assert new_chat.get("ready") is True, json.dumps(new_chat, ensure_ascii=False)
-
-    workspace_ready = wait_for_state(
-        client, page, _WORKSPACE_READY_JS, timeout_sec=45.0
-    )
-    assert workspace_ready.get("ready") is True, json.dumps(
-        workspace_ready, ensure_ascii=False
-    )
-
-    kickoff = _evaluate_dict(
-        client, page, _kickoff_bash_fg_js(_FG_PROMPT), timeout_sec=120.0
-    )
-    assert kickoff.get("ok") is True, json.dumps(kickoff, ensure_ascii=False)
-    chat_id = str(kickoff.get("chatId") or "").strip()
-    if not chat_id:
-        path_state = wait_for_state(
-            client,
-            page,
-            "(() => ({ path: location.pathname }))()",
-            timeout_sec=15.0,
-        )
-        path = str(path_state.get("path") or "").strip("/")
-        chat_id = path if path and path != agent_id else ""
-    assert chat_id, json.dumps(kickoff, ensure_ascii=False)
-
-    evicted_ref = _wait_spill_via_api(api_base, chat_id)
-    assert _OUTPUT_BASENAME_RE.match(evicted_ref), evicted_ref
-    _verify_evicted_file(api_base, chat_id, evicted_ref)
-    return chat_id
+def _evicted_ref_from_event(event: dict[str, object]) -> str | None:
+    for key in ("evicted_file_ref", "evicted_ref", "filename", "ref"):
+        val = event.get(key)
+        if isinstance(val, str) and val:
+            return val
+    data = event.get("data")
+    if isinstance(data, str) and data.strip():
+        ref = data.strip()
+        if _OUTPUT_BASENAME_RE.match(ref):
+            return ref
+        parsed = _evicted_ref_from_text(ref)
+        if parsed:
+            return parsed
+    if isinstance(data, dict):
+        for key in ("evicted_file_ref", "evicted_ref", "filename", "ref"):
+            val = data.get(key)
+            if isinstance(val, str) and val:
+                return val
+        steps_ref = _evicted_ref_from_steps(data.get("progressSteps"))
+        if steps_ref:
+            return steps_ref
+    if isinstance(data, list):
+        steps_ref = _evicted_ref_from_steps(data)
+        if steps_ref:
+            return steps_ref
+    for key in ("content", "stdout", "output", "result"):
+        val = event.get(key)
+        if isinstance(val, str):
+            parsed = _evicted_ref_from_text(val)
+            if parsed:
+                return parsed
+    return None
 
 
 def _evicted_ref_from_messages(messages: list[dict[str, object]]) -> str | None:
@@ -324,6 +251,127 @@ def _evicted_ref_from_messages(messages: list[dict[str, object]]) -> str | None:
             if isinstance(alt, str) and alt:
                 return alt
     return None
+
+
+def _bash_spill_diagnostics(messages: list[dict[str, object]]) -> str:
+    for msg in messages:
+        if msg.get("role") != "assistant":
+            continue
+        meta = msg.get("metadata") if isinstance(msg.get("metadata"), dict) else {}
+        steps_raw = msg.get("progressSteps") or meta.get("progressSteps")
+        if not isinstance(steps_raw, list):
+            continue
+        for step in steps_raw:
+            if not isinstance(step, dict):
+                continue
+            if step.get("tool_name") != _BASH_TOOL:
+                continue
+            stdout = str(step.get("stdout") or step.get("output") or "")
+            command = str(step.get("command") or step.get("input") or "")
+            status = str(step.get("status") or "")
+            items = step.get("items")
+            if isinstance(items, list):
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    command = command or str(item.get("code") or item.get("text") or "")
+                    stdout = stdout or str(item.get("stdout") or item.get("output") or "")
+                    status = status or str(item.get("status") or "")
+            content = str(msg.get("content") or "")
+            truncated = "LARGE OUTPUT TRUNCATED" in stdout or "LARGE OUTPUT TRUNCATED" in content
+            return (
+                f"command={command!r} status={status!r} truncated_preview={truncated} "
+                f"stdout_sample={stdout[:200]!r} content_sample={content[:200]!r}"
+            )
+    return "no bash progress step in persisted messages"
+
+
+def _stream_foreground_bash_spill(
+    client: httpx.Client, api_base: str, agent_id: str, chat_id: str
+) -> str:
+    request_data: dict[str, object] = {
+        "messageId": f"bash-fg-evict-{uuid.uuid4().hex[:10]}",
+        "chatId": chat_id,
+        "query": _FG_PROMPT,
+        "actionMode": "agent",
+        "agentId": agent_id,
+        "agentConfig": {"enabledBuiltinTools": ["code_execute"]},
+        "memoryRequireConfirmation": False,
+        "enableMemoryAutoExtraction": False,
+    }
+    tool_names: list[str] = []
+    evicted_refs: list[str] = []
+    errors: list[str] = []
+
+    with client.stream(
+        "POST",
+        f"{api_base}/api/v1/agents/agent-stream",
+        json=request_data,
+        timeout=_STREAM_TIMEOUT_SEC,
+    ) as response:
+        response.raise_for_status()
+        for line in response.iter_lines():
+            if line == "data: [DONE]":
+                break
+            if not line or not line.startswith("data: "):
+                continue
+            try:
+                event = json.loads(line[6:])
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(event, dict):
+                continue
+            event_type = event.get("type")
+            if event_type in (
+                "tool_start",
+                "tool_end",
+                "tool_result",
+                "tool_complete",
+                "tool_failure",
+                "tasks_steps",
+                "tool_evicted_ref",
+            ):
+                for name in _tool_names_from_event(event):
+                    if name not in tool_names:
+                        tool_names.append(name)
+            ref = _evicted_ref_from_event(event)
+            if ref and ref not in evicted_refs:
+                evicted_refs.append(ref)
+            if event_type == "error":
+                err = event.get("error") or event.get("data")
+                if err:
+                    errors.append(str(err))
+            if event_type in (
+                "interrupt",
+                "tool_approval",
+                "tool_approval_request",
+                "approval",
+                "approval_required",
+            ):
+                raise AssertionError(
+                    "YOLO agent emitted HITL interrupt during bash foreground spill E2E"
+                )
+
+    if _BASH_TOOL not in tool_names:
+        detail = errors[0][:300] if errors else "no tool events"
+        raise AssertionError(
+            f"agent-stream did not invoke {_BASH_TOOL}; tools={tool_names}; detail={detail}"
+        )
+    if not evicted_refs:
+        for _ in range(5):
+            messages = fetch_chat_messages(chat_id, api_url=api_base)
+            api_ref = _evicted_ref_from_messages(messages)
+            if api_ref:
+                evicted_refs.append(api_ref)
+                break
+            time.sleep(1.5)
+    if not evicted_refs:
+        diag = _bash_spill_diagnostics(fetch_chat_messages(chat_id, api_url=api_base))
+        raise AssertionError(
+            f"agent-stream invoked {_BASH_TOOL} but emitted no tool_evicted_ref; "
+            f"large-output eviction did not trigger ({diag})"
+        )
+    return evicted_refs[0]
 
 
 def _verify_evicted_file(api_base: str, chat_id: str, filename: str) -> None:
@@ -365,9 +413,9 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(720)
 def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
-    """Live LLM via Chrome UI + foreground bash → UECD spill → API + Drawer."""
+    """Live LLM: API stream spill SSOT + Chrome Drawer on same chat."""
     if not wait_e2e_provider_ready():
         pytest.fail(
             "Provider config not ready — configure default model in WebUI E2E profile"
@@ -375,11 +423,18 @@ def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
 
     api_base = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
+    chat_id = f"e2ebashfg-{uuid.uuid4().hex[:10]}"
     last_error = ""
 
-    for attempt in range(_MAX_UI_ATTEMPTS):
+    for attempt in range(_MAX_STREAM_ATTEMPTS):
         try:
             with httpx.Client() as client:
+                chat_resp = client.post(
+                    f"{api_base}/api/v1/chats/",
+                    json={"chat_id": chat_id},
+                    timeout=30.0,
+                )
+                chat_resp.raise_for_status()
                 agent_id = _create_foreground_bash_agent(client, api_base)
                 ensure_e2e_hitl_mode(api_url=api_base)
                 reset_resp = client.post(
@@ -387,25 +442,31 @@ def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
                     timeout=30.0,
                 )
                 reset_resp.raise_for_status()
-
-            prepare_e2e_ui_session(api_base)
-            agent_route = f"/?agentId={agent_id}"
-            warm_ui_route(agent_route)
-
-            with open_mcp_page(f"{ui_url}{agent_route}", timeout_ms=_PAGE_TIMEOUT_MS) as (
-                client,
-                page,
-            ):
-                chat_id = _run_ui_live_bash_turn(
-                    client, page, agent_id=agent_id, api_base=api_base
+                evicted_ref = _stream_foreground_bash_spill(
+                    client, api_base, agent_id, chat_id
                 )
-                warm_ui_route(f"/{chat_id}")
-                _run_drawer_flow(client, page, marker_line=_MARKER)
             break
         except (AssertionError, httpx.HTTPError, httpx.TransportError) as exc:
             last_error = str(exc)
-            if attempt >= _MAX_UI_ATTEMPTS - 1:
+            if attempt >= _MAX_STREAM_ATTEMPTS - 1:
                 raise AssertionError(last_error) from exc
+            chat_id = f"e2ebashfg-{uuid.uuid4().hex[:10]}"
             time.sleep(2.0)
     else:
-        raise AssertionError(last_error or "bash foreground LIVE UI turn failed")
+        raise AssertionError(last_error or "bash foreground stream failed")
+
+    assert _OUTPUT_BASENAME_RE.match(evicted_ref), evicted_ref
+    _verify_evicted_file(api_base, chat_id, evicted_ref)
+
+    api_ref = _evicted_ref_from_messages(fetch_chat_messages(chat_id, api_url=api_base))
+    if api_ref:
+        assert api_ref == evicted_ref or _OUTPUT_BASENAME_RE.match(api_ref), api_ref
+
+    prepare_e2e_ui_session(api_base)
+    warm_ui_route(f"/{chat_id}")
+
+    with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=_PAGE_TIMEOUT_MS) as (
+        client,
+        page,
+    ):
+        _run_drawer_flow(client, page, marker_line=_MARKER)

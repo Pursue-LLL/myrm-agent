@@ -1,18 +1,21 @@
-"""System shutdown API — graceful sandbox recycle (control plane triggered).
+"""System shutdown and drain API — graceful sandbox recycle (control plane triggered).
 
 [INPUT]
 - app.lifecycle.harness_bridge::close_harness_resources
+- app.services.agent.gateway::get_agent_gateway (POS: Agent 执行网关)
 
 [OUTPUT]
 - POST /shutdown: initiate graceful process exit
+- POST /drain: begin draining (reject new turns, wait for in-flight)
+- DELETE /drain: cancel drain and re-accept new turns
 
 [POS]
-HTTP shutdown control. Distinct from app/lifecycle/ daemon schedulers.
+HTTP shutdown/drain control. POST /drain lets CP pre-drain before sleep/destroy;
+POST /shutdown drains then SIGTERM.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import signal
@@ -25,18 +28,21 @@ router = APIRouter()
 
 
 async def graceful_shutdown_task() -> None:
-    """Execute graceful shutdown sequence."""
-    logger.info("Starting graceful shutdown process...")
-    logger.info("Step 1: Stopping new task acceptance...")
-    logger.info("Step 2: Waiting for active tasks to complete...")
-    await asyncio.sleep(1)
+    """Execute graceful shutdown: drain active Agent turns, then SIGTERM."""
+    logger.info("[GracefulShutdown] Starting graceful shutdown process...")
 
-    logger.info("Step 3: Closing Harness resources...")
+    from app.services.agent.gateway import get_agent_gateway
+
+    gateway = get_agent_gateway()
+    logger.info("[GracefulShutdown] Draining %d active Agent session(s)...", gateway.active_count)
+    await gateway.begin_drain()
+
+    logger.info("[GracefulShutdown] Closing Harness resources...")
     from app.lifecycle.harness_bridge import close_harness_resources
 
     await close_harness_resources()
 
-    logger.info("Step 4: Sending SIGTERM to self...")
+    logger.info("[GracefulShutdown] Sending SIGTERM to self...")
     os.kill(os.getpid(), signal.SIGTERM)
 
 
@@ -46,3 +52,40 @@ async def shutdown(background_tasks: BackgroundTasks) -> dict[str, str]:
     logger.warning("Graceful shutdown requested via API")
     background_tasks.add_task(graceful_shutdown_task)
     return {"status": "shutting_down", "message": "Graceful shutdown initiated"}
+
+
+@router.post("/drain", summary="Begin drain")
+async def begin_drain(background_tasks: BackgroundTasks) -> dict[str, object]:
+    """Begin draining: reject new Agent turns, wait for in-flight to finish.
+
+    Used by the control plane before sandbox sleep/destroy to ensure no
+    active Agent turn is hard-cut. The caller can poll this endpoint (or
+    ``/health/liveness``) until ``active_count`` reaches 0, then proceed.
+    """
+    from app.services.agent.gateway import get_agent_gateway
+
+    gateway = get_agent_gateway()
+    if not gateway.is_draining:
+        background_tasks.add_task(gateway.begin_drain)
+        logger.info("[Drain] Drain initiated via API")
+    return {
+        "draining": True,
+        "active_count": gateway.active_count,
+    }
+
+
+@router.delete("/drain", summary="Cancel drain")
+async def cancel_drain() -> dict[str, object]:
+    """Cancel an in-progress drain and re-accept new Agent turns.
+
+    Idempotent: returns success even if no drain was active.
+    """
+    from app.services.agent.gateway import get_agent_gateway
+
+    gateway = get_agent_gateway()
+    was_draining = gateway.cancel_drain()
+    return {
+        "draining": False,
+        "was_draining": was_draining,
+        "active_count": gateway.active_count,
+    }

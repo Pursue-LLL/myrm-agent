@@ -59,6 +59,65 @@ __all__ = [
 ]
 
 
+_PRESET_OVERLAYS: dict[str, dict[str, object]] = {
+    "accept_edits": {
+        "permissions": {
+            "*": "allow",
+            "shell_exec": "ask",
+            "code_interpreter": "ask",
+            "browser_evaluate": "deny",
+            "browser_upload": "ask",
+            "browser_download": "ask",
+            "browser_fill": "ask",
+            "skill_manage": "ask",
+            "cron_manage": "ask",
+            "mcp_invoke": "ask",
+            "delegate_agent": "allow",
+        },
+        "autoModeEnabled": True,
+    },
+    "explore": {
+        "permissions": {
+            "*": "allow",
+            "file_write": "deny",
+            "file_edit": "deny",
+            "file_delete": "deny",
+            "shell_exec": "deny",
+            "code_interpreter": "deny",
+            "browser_evaluate": "deny",
+            "browser_fill": "deny",
+            "browser_upload": "deny",
+            "browser_download": "deny",
+            "skill_manage": "deny",
+            "cron_manage": "deny",
+            "mcp_invoke": "ask",
+            "delegate_agent": "allow",
+        },
+    },
+}
+
+
+def _apply_session_preset(
+    base: dict[str, object] | None,
+    preset: str | None,
+) -> dict[str, object] | None:
+    """Merge a chat-session security preset overlay onto the base config dict.
+
+    When *preset* is ``None`` or ``"hitl"``, the base config is returned
+    unchanged (HITL is the default — every tool call requires approval).
+    """
+    if not preset or preset == "hitl":
+        return base
+    overlay = _PRESET_OVERLAYS.get(preset)
+    if overlay is None:
+        return base
+    if base is None:
+        return dict(overlay)
+    merged = dict(base)
+    merged.update(overlay)
+    return merged
+
+
 async def convert_to_general_agent_params(
     request: AgentRequest,
     chat_history: list[list[str | dict[str, object]]],
@@ -584,6 +643,10 @@ async def convert_to_general_agent_params(
             trust_zone=getattr(http_request.state, "trust_zone", None),
             admission_path=getattr(http_request.state, "admission_path", None),
         )
+
+    security_config_dict = _apply_session_preset(
+        security_config_dict, request.security_preset
+    )
 
     external_agents_config = None
     if configs and configs.external_agents_dict:
