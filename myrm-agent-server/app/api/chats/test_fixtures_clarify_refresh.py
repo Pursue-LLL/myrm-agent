@@ -6,7 +6,7 @@ app.services.agent.agent_service::AgentService (POS: agent list for seed scope)
 app.services.chat.chat_service::ChatService (POS: chat/message persistence)
 
 [OUTPUT]
-seed_clarify_refresh_fixture: HITL clarify hydrate states (pending|answered|regenerate_sibling)
+seed_clarify_refresh_fixture: HITL clarify hydrate states (pending|answered|regenerate_sibling|structured_form)
 
 [POS]
 Split from test_fixtures.py for line-budget compliance; mounted via test_fixtures router include.
@@ -26,10 +26,39 @@ from app.services.chat.chat_service import ChatService
 
 router = APIRouter()
 
-_CLARIFY_REFRESH_VARIANTS = frozenset({"pending", "answered", "regenerate_sibling"})
+_CLARIFY_REFRESH_VARIANTS = frozenset(
+    {"pending", "answered", "regenerate_sibling", "structured_form"}
+)
+
+_STRUCTURED_CLARIFY_FORM: dict[str, object] = {
+    "title": "E2E Structured Clarify",
+    "questions": [
+        {
+            "id": "destination",
+            "prompt": "Which destination should we plan for?",
+            "options": [
+                {"id": "paris", "label": "Paris"},
+                {"id": "tokyo", "label": "Tokyo"},
+            ],
+        }
+    ],
+}
 
 
-def _build_clarification_extra_data(*, answered: bool) -> dict[str, object]:
+def _build_clarification_extra_data(
+    *,
+    answered: bool,
+    variant: str,
+) -> dict[str, object]:
+    if variant == "structured_form":
+        return {
+            "clarification": {
+                "answered": answered,
+                "title": "E2E Structured Clarify",
+                "isResumeMode": True,
+                "form": _STRUCTURED_CLARIFY_FORM,
+            }
+        }
     return {
         "clarification": {
             "answered": answered,
@@ -65,6 +94,7 @@ async def seed_clarify_refresh_fixture(variant: str = "pending") -> dict[str, st
     chat_id = f"e2eclarify{uuid4().hex[:8]}"
     clarify_message_id = str(uuid4())
     answered = normalized == "answered"
+    use_structured = normalized == "structured_form"
 
     await ChatService.create_or_update_chat(
         ChatCreate(
@@ -91,7 +121,10 @@ async def seed_clarify_refresh_fixture(variant: str = "pending") -> dict[str, st
         now,
         timezone,
         message_id=clarify_message_id,
-        extra_data=_build_clarification_extra_data(answered=answered),
+        extra_data=_build_clarification_extra_data(
+            answered=answered,
+            variant="structured_form" if use_structured else normalized,
+        ),
     )
     if normalized == "regenerate_sibling":
         await ChatService.append_message(

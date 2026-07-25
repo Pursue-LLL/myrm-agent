@@ -22,7 +22,10 @@ class TestChatsClarifyRefreshSeedFixture:
         fake_agent.display_name = "Clarify E2E Agent"
 
         with (
-            patch("app.api.chats.test_fixtures_clarify_refresh.is_local_mode", return_value=True),
+            patch(
+                "app.api.chats.test_fixtures_clarify_refresh.is_local_mode",
+                return_value=True,
+            ),
             patch(
                 "app.api.chats.test_fixtures_clarify_refresh.AgentService.get_agent_list",
                 new_callable=AsyncMock,
@@ -38,13 +41,12 @@ class TestChatsClarifyRefreshSeedFixture:
             ) as append_message,
         ):
             resp = client.post(
-                "/api/v1/chats/test/seed-clarify-refresh-fixture",
-                params={"variant": "pending"},
+                "/api/v1/chats/test/seed-clarify-refresh-fixture?variant=pending",
             )
 
         assert resp.status_code == 200
         body = resp.json()
-        chat_id = body["chat_id"]
+        chat_id = str(body["chat_id"])
         assert chat_id.startswith("e2eclarify")
         assert body["agent_id"] == "agent-e2e-clarify"
         assert body["variant"] == "pending"
@@ -52,15 +54,15 @@ class TestChatsClarifyRefreshSeedFixture:
         assert body["ui_path"] == f"/{chat_id}"
         assert append_message.await_count == 2
 
-    def test_seed_clarify_refresh_fixture_regenerate_sibling(
-        self, client: TestClient
-    ) -> None:
+    def test_seed_clarify_refresh_fixture_answered(self, client: TestClient) -> None:
         fake_agent = MagicMock()
         fake_agent.id = "agent-e2e-clarify"
-        fake_agent.display_name = "Clarify E2E Agent"
 
         with (
-            patch("app.api.chats.test_fixtures_clarify_refresh.is_local_mode", return_value=True),
+            patch(
+                "app.api.chats.test_fixtures_clarify_refresh.is_local_mode",
+                return_value=True,
+            ),
             patch(
                 "app.api.chats.test_fixtures_clarify_refresh.AgentService.get_agent_list",
                 new_callable=AsyncMock,
@@ -76,8 +78,43 @@ class TestChatsClarifyRefreshSeedFixture:
             ) as append_message,
         ):
             resp = client.post(
-                "/api/v1/chats/test/seed-clarify-refresh-fixture",
-                params={"variant": "regenerate_sibling"},
+                "/api/v1/chats/test/seed-clarify-refresh-fixture?variant=answered",
+            )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["variant"] == "answered"
+        assert body["clarification_answered"] is True
+        assert append_message.await_count == 2
+
+    def test_seed_clarify_refresh_fixture_regenerate_sibling(
+        self, client: TestClient
+    ) -> None:
+        fake_agent = MagicMock()
+        fake_agent.id = "agent-e2e-clarify"
+
+        with (
+            patch(
+                "app.api.chats.test_fixtures_clarify_refresh.is_local_mode",
+                return_value=True,
+            ),
+            patch(
+                "app.api.chats.test_fixtures_clarify_refresh.AgentService.get_agent_list",
+                new_callable=AsyncMock,
+                return_value=([fake_agent], 1),
+            ),
+            patch(
+                "app.api.chats.test_fixtures_clarify_refresh.ChatService.create_or_update_chat",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.api.chats.test_fixtures_clarify_refresh.ChatService.append_message",
+                new_callable=AsyncMock,
+            ) as append_message,
+        ):
+            resp = client.post(
+                "/api/v1/chats/test/seed-clarify-refresh-fixture"
+                "?variant=regenerate_sibling",
             )
 
         assert resp.status_code == 200
@@ -86,9 +123,50 @@ class TestChatsClarifyRefreshSeedFixture:
         assert body["clarification_answered"] is False
         assert append_message.await_count == 3
 
+    def test_seed_clarify_refresh_fixture_structured_form(
+        self, client: TestClient
+    ) -> None:
+        fake_agent = MagicMock()
+        fake_agent.id = "agent-e2e-clarify"
+
+        with (
+            patch(
+                "app.api.chats.test_fixtures_clarify_refresh.is_local_mode",
+                return_value=True,
+            ),
+            patch(
+                "app.api.chats.test_fixtures_clarify_refresh.AgentService.get_agent_list",
+                new_callable=AsyncMock,
+                return_value=([fake_agent], 1),
+            ),
+            patch(
+                "app.api.chats.test_fixtures_clarify_refresh.ChatService.create_or_update_chat",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.api.chats.test_fixtures_clarify_refresh.ChatService.append_message",
+                new_callable=AsyncMock,
+            ) as append_message,
+        ):
+            resp = client.post(
+                "/api/v1/chats/test/seed-clarify-refresh-fixture"
+                "?variant=structured_form",
+            )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["variant"] == "structured_form"
+        assert body["clarification_answered"] is False
+        assert append_message.await_count == 2
+
     def test_seed_clarify_refresh_fixture_hidden_outside_local_mode(
         self, client: TestClient
     ) -> None:
-        with patch("app.api.chats.test_fixtures_clarify_refresh.is_local_mode", return_value=False):
-            resp = client.post("/api/v1/chats/test/seed-clarify-refresh-fixture")
+        with patch(
+            "app.api.chats.test_fixtures_clarify_refresh.is_local_mode",
+            return_value=False,
+        ):
+            resp = client.post(
+                "/api/v1/chats/test/seed-clarify-refresh-fixture?variant=pending",
+            )
         assert resp.status_code == 404

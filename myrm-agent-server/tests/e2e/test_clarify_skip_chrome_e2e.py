@@ -176,6 +176,7 @@ def _is_resume_progress_stall(result: dict[str, object]) -> bool:
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
+@pytest.mark.timeout(900)
 @pytest.mark.asyncio
 async def test_clarify_skip_button_resumes_agent_in_real_chat(
     e2e_resource_ledger: E2EResourceLedger,
