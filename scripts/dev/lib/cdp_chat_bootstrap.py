@@ -196,52 +196,10 @@ class CdpChatBootstrap(CdpChatTransport):
                 await asyncio.sleep(2)
         else:
             await asyncio.sleep(2)
-        polls = 0
         probe_started = time.monotonic()
-        while time.monotonic() < deadline:
-            polls += 1
-            self._shell_probe_progress(
-                polls=polls, started=probe_started, phase="bootstrap_shell"
-            )
-            try:
-                state = await self.evaluate(
-                    PAGE_PROBE_JS,
-                    await_promise=False,
-                    recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
-                )
-            except TimeoutError:
-                state = {"probeError": "evaluate_timeout"}
-            last = state if isinstance(state, dict) else {"probeError": state}
-            if _shell_probe_ready(last):
-                return last
-            if not navigate and polls == 20 and not last.get("hasInput"):
-                await self._shared_ui_burst(
-                    "navigate",
-                    self.cdp(
-                        "Page.navigate",
-                        {"url": base_url.rstrip("/") + "/"},
-                        recv_timeout=120.0,
-                    ),
-                )
-                await asyncio.sleep(3)
-            if (
-                isinstance(last, dict)
-                and last.get("hasLayout") is False
-                and polls % 15 == 0
-            ):
-                await self._shared_ui_burst(
-                    "reload",
-                    self.cdp("Page.reload", {"ignoreCache": True}, recv_timeout=120.0),
-                )
-                await asyncio.sleep(3)
-            if polls % 10 == 0:
-                await self.evaluate(
-                    RESET_CHAT_JS,
-                    await_promise=False,
-                    recv_timeout=_SHELL_PROBE_RECV_TIMEOUT_SEC,
-                )
-            await asyncio.sleep(1)
-        raise TimeoutError(f"Chat shell not ready before deadline: {last}")
+        if self._shell_layout_wait_started is None:
+            self._shell_layout_wait_started = probe_started
+        return await self._wait_shell_layout_ready(deadline=deadline)
 
     async def _bootstrap_bridge_hydrate_phase(
         self,

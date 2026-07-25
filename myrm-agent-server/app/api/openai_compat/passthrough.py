@@ -5,6 +5,8 @@
 - app.api.openai_compat.vision_bridge::bridge_vision (POS: Vision Bridge guardrail for image-bearing requests)
 - app.core.channel_bridge.model_resolver::_extract_all_active_keys, _to_litellm_model (POS: Provider key extraction & LiteLLM model formatting)
 - app.services.config.service::config_service (POS: Config service for provider settings)
+- app.config.deploy_mode::is_local_mode (POS: Deploy mode detection for SSRF policy)
+- myrm_agent_harness.core.security.guards.ssrf::check_url (POS: SSRF URL validation)
 - myrm_agent_harness.toolkits.llms.core.credential_pool::CredentialPool (POS: API key pool with strategy-aware dispatch and error-aware cooldown)
 
 [OUTPUT]
@@ -45,15 +47,42 @@ from app.api.openai_compat.types import (
     UsageInfo,
 )
 
+from urllib.parse import urlparse
+
+from myrm_agent_harness.core.security.guards.ssrf import check_url
+
+from app.config.deploy_mode import is_local_mode
+
 logger = logging.getLogger(__name__)
 
 _FAILOVER_STATUS_CODES = frozenset({429, 500, 502, 503, 529})
+
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "[::1]", "::1", "0.0.0.0"})
+
 _MAX_PASSTHROUGH_RETRIES = 3
 _NON_RETRYABLE_FINISH_REASONS = frozenset({
     "content_filter", "refusal", "length",
     "SAFETY", "BLOCKLIST", "PROHIBITED_CONTENT",
     "SPII", "RECITATION", "IMAGE_SAFETY",
 })
+
+
+def _is_url_ssrf_safe(url: str) -> bool:
+    """Check if a provider apiUrl is safe from SSRF attacks.
+
+    Local/Tauri mode allows loopback hosts (Ollama, vLLM, etc.).
+    Cloud/Sandbox mode blocks all private/internal IPs.
+
+    Pre-checks loopback hosts in local mode because check_url's underlying
+    validate_scheme_and_hostname blocks "localhost" before the
+    allowed_internal_hosts parameter can apply.
+    """
+    if is_local_mode():
+        hostname = (urlparse(url).hostname or "").lower().rstrip(".")
+        if hostname in _LOOPBACK_HOSTS:
+            return True
+    verdict = check_url(url)
+    return verdict.allowed
 
 
 async def _load_providers_dict() -> dict[str, object] | None:
@@ -144,6 +173,10 @@ def _resolve_combo_targets(
         ptype = str(provider.get("providerType", "")) or None
         litellm_model = _to_litellm_model(pid, model, ptype)
         api_url = str(provider.get("apiUrl") or provider.get("baseURL") or "")
+
+        if api_url and not _is_url_ssrf_safe(api_url):
+            logger.warning("Combo target skipped: provider %s apiUrl blocked by SSRF guard", pid)
+            continue
 
         resolved.append((litellm_model, keys, api_url or None, pid))
 
@@ -328,6 +361,10 @@ def _resolve_passthrough_provider(
 
         litellm_model = _to_litellm_model(pid, matched_raw_model, ptype)
         api_url = str(provider.get("apiUrl") or provider.get("baseURL") or "")
+
+        if api_url and not _is_url_ssrf_safe(api_url):
+            logger.warning("Passthrough provider skipped: %s apiUrl blocked by SSRF guard", pid)
+            continue
 
         return litellm_model, keys, api_url or None, pid
 
