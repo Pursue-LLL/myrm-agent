@@ -1293,6 +1293,7 @@ export default function E2EChatBridge() {
     return () => {
       delete window.__MYRM_E2E_CHAT__;
       delete window.__MYRM_E2E_SUBAGENT__;
+      delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
     };
   }, []);
 

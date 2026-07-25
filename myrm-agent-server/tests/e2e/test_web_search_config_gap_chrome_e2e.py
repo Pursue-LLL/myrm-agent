@@ -576,6 +576,7 @@ async def _prepare_chat(chat: McpChatSession) -> None:
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_agent_web_search_config_gap_shows_single_sse_toast(
@@ -702,6 +703,7 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_fast_mode_blocks_send_with_client_search_toast(

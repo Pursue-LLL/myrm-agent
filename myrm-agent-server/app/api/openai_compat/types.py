@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import time
 import uuid
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 
 class ChatMessage(BaseModel):
     role: str = Field(..., description="Message role: system, user, assistant")
-    content: str | list[dict[str, str]] = Field(..., description="Message content")
+    content: str | list[dict[str, Any]] = Field(..., description="Message content")
     name: str | None = None
 
 

@@ -47,6 +47,10 @@ logger = logging.getLogger(__name__)
 
 _FAILOVER_STATUS_CODES = frozenset({429, 500, 502, 503, 529})
 _MAX_PASSTHROUGH_RETRIES = 3
+_NON_RETRYABLE_FINISH_REASONS = frozenset({
+    "content_filter", "refusal", "length",
+    "SAFETY", "BLOCKLIST", "PROHIBITED_CONTENT",
+})
 
 
 async def _load_providers_dict() -> dict[str, object] | None:
@@ -373,7 +377,7 @@ async def _build_litellm_kwargs(
     messages = [
         {
             "role": m.role,
-            "content": m.content if isinstance(m.content, str) else m.content,
+            "content": m.content,
         }
         for m in request.messages
     ]
@@ -436,6 +440,14 @@ async def passthrough_stream(
             yield f"data: {error_body}\n\n"
             yield "data: [DONE]\n\n"
             return
+
+    primary_model = targets[0][0] if targets else request.model
+    try:
+        from app.api.openai_compat.vision_bridge import bridge_vision
+
+        request.messages = await bridge_vision(request.messages, primary_model)
+    except Exception:
+        logger.debug("Vision bridge skipped in stream", exc_info=True)
 
     completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
     created = int(time.time())
@@ -578,11 +590,14 @@ async def passthrough_completion(
             )
 
             content = ""
+            finish_reason = "stop"
             usage_info = UsageInfo()
 
             if hasattr(response, "choices") and response.choices:
-                msg = response.choices[0].message
+                choice = response.choices[0]
+                msg = choice.message
                 content = getattr(msg, "content", "") or ""
+                finish_reason = getattr(choice, "finish_reason", "stop") or "stop"
             if hasattr(response, "usage") and response.usage:
                 usage_info = UsageInfo(
                     prompt_tokens=getattr(response.usage, "prompt_tokens", 0) or 0,
@@ -590,9 +605,13 @@ async def passthrough_completion(
                     total_tokens=getattr(response.usage, "total_tokens", 0) or 0,
                 )
 
+            if not content and finish_reason not in _NON_RETRYABLE_FINISH_REASONS:
+                logger.warning("Passthrough soft failure: 200 OK but empty content (finish_reason=%s, provider=%s)", finish_reason, pid)
+                raise RuntimeError(f"Empty response from upstream (finish_reason={finish_reason})")
+
             return ChatCompletionResponse(
                 model=request.model,
-                choices=[Choice(message=ChoiceMessage(content=content))],
+                choices=[Choice(message=ChoiceMessage(content=content), finish_reason=finish_reason)],
                 usage=usage_info,
             )
         except Exception as exc:

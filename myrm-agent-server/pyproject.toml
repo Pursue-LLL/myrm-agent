@@ -175,6 +175,8 @@ markers = [
   "performance: Performance and benchmark tests (excluded from default suite)",
   "benchmark: pytest-benchmark tests (auto-remapped to performance in conftest)",
   "allow_blocking_io: Opt out of the blockbuster blocking-IO gate for this test",
+  "e2e_search_policy(empty|hydrate_private): Shared UI session search policy for chrome_e2e (default hydrate_private)",
+  "requires_empty_search_services: Legacy alias for e2e_search_policy(empty)",
 ]
 python_files = "test_*.py"
 import_mode = "importlib"

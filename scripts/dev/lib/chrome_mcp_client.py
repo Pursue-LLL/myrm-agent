@@ -216,7 +216,7 @@ class ChromeMcpClient:
             from concurrent.futures import ThreadPoolExecutor
 
             self._mux_reset_executor = ThreadPoolExecutor(
-                max_workers=1,
+                max_workers=2,
                 thread_name_prefix="myrm-mux-reset",
             )
         return self._mux_reset_executor

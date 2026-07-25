@@ -7,6 +7,7 @@ Holding the lock during long probe loops caused 180s×retry silent blocking (BUG
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import fcntl
 import os
 import sys
@@ -17,6 +18,11 @@ from typing import AsyncIterator, Iterator
 
 DEFAULT_WAIT_SEC = 900
 DEFAULT_POLL_SEC = 2
+
+# R68: nested navigate/reload bursts on one asyncio task must not re-enter flock.
+_burst_depth_var: contextvars.ContextVar[int] = contextvars.ContextVar(
+    "e2e_shared_ui_burst_depth", default=0
+)
 
 
 def _state_dir() -> Path:
@@ -88,8 +94,23 @@ def shared_ui_hydrate_slot() -> Iterator[None]:
 @contextmanager
 def shared_ui_hydrate_burst() -> Iterator[None]:
     """Exclusive slot for navigate/reload burst only (R36 — not probe polling)."""
-    with shared_ui_hydrate_slot():
+    if not shpoib_shared_ui_queue_enabled():
         yield
+        return
+    depth = _burst_depth_var.get()
+    if depth > 0:
+        token = _burst_depth_var.set(depth + 1)
+        try:
+            yield
+        finally:
+            _burst_depth_var.reset(token)
+        return
+    token = _burst_depth_var.set(1)
+    try:
+        with shared_ui_hydrate_slot():
+            yield
+    finally:
+        _burst_depth_var.reset(token)
 
 
 @asynccontextmanager
@@ -98,12 +119,24 @@ async def async_shared_ui_hydrate_burst() -> AsyncIterator[None]:
     if not shpoib_shared_ui_queue_enabled():
         yield
         return
-    slot = shared_ui_hydrate_burst()
-    await asyncio.to_thread(slot.__enter__)
+    depth = _burst_depth_var.get()
+    if depth > 0:
+        token = _burst_depth_var.set(depth + 1)
+        try:
+            yield
+        finally:
+            _burst_depth_var.reset(token)
+        return
+    token = _burst_depth_var.set(1)
     try:
-        yield
+        slot = shared_ui_hydrate_slot()
+        await asyncio.to_thread(slot.__enter__)
+        try:
+            yield
+        finally:
+            await asyncio.to_thread(slot.__exit__, None, None, None)
     finally:
-        await asyncio.to_thread(slot.__exit__, None, None, None)
+        _burst_depth_var.reset(token)
 
 
 @asynccontextmanager

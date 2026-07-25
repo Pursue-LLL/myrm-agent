@@ -36,15 +36,21 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lea
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
-# Align with API skip E2E (test_clarify_agent_stream_e2e) — MiniMax-M3 follows CRITICAL tool-first.
+# WebUI path: avoid CRITICAL/MUST phrasing — MiniMax-M3 may treat it as prompt injection.
+# Align intent with API skip E2E (test_clarify_agent_stream_e2e) but frame as a user task.
 E2E_PROMPT = (
-    "CRITICAL: Your very first action MUST be a single ask_question_tool call — no text reply before it. "
-    "You MUST call ask_question_tool exactly once before any other action. "
-    'Use title "Pick stack". Ask one question with id "stack" and prompt '
-    '"Which stack?" with two options: id "a" label "Option A", id "b" label "Option B". '
-    "Set requires_confirmation to false. "
-    "Do not use bash, write_file, render_ui_tool, or any other tools. "
-    "If the user skips or gives no answer, reply with exactly: DONE-SKIPPED"
+    "I need to choose between two stacks for a small demo project. "
+    "Please use ask_question_tool exactly once before any other action to ask which stack I prefer. "
+    'Use title "Pick stack", one question id "stack" prompt "Which stack?", '
+    'options id "a" label "Option A" and id "b" label "Option B", requires_confirmation false. '
+    "Do not use bash, write_file, render_ui_tool, or other tools. "
+    "If I skip without answering, reply with exactly: DONE-SKIPPED"
+)
+
+E2E_NUDGE_PROMPT = (
+    "Please open the structured clarification form now: ask_question_tool once, "
+    'title "Pick stack", question id "stack" prompt "Which stack?", '
+    'options "a" Option A and "b" Option B. If I skip, reply DONE-SKIPPED.'
 )
 
 _ENABLE_STRUCTURED_CLARIFY_JS = """(() => {
@@ -168,6 +174,7 @@ def _is_resume_progress_stall(result: dict[str, object]) -> bool:
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_clarify_skip_button_resumes_agent_in_real_chat(
@@ -200,24 +207,6 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         while time.monotonic() < deadline:
             touch_wall_progress()
             heartbeat_e2e_lease()
-            try:
-                raw = await chat.evaluate(
-                    _CLARIFY_FORM_READY_JS, await_promise=False, recv_timeout=15.0
-                )
-            except RuntimeError as exc:
-                message = str(exc).lower()
-                if (
-                    "transport unavailable" in message
-                    or "transport dead" in message
-                    or "transport closed" in message
-                ):
-                    raise AssertionError(
-                        f"Chrome MCP transport dead during clarify DOM wait: {exc}"
-                    ) from exc
-                raise
-            last_dom = raw if isinstance(raw, dict) else {"value": raw}
-            if last_dom.get("ready") is True:
-                return {**last_dom, "source": "dom"}
             if normalized_chat_id:
                 api_pending = await asyncio.to_thread(
                     chat_has_pending_clarification,
@@ -231,6 +220,30 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                         "hasSkip": last_dom.get("hasSkip") is True,
                         "hasForm": True,
                     }
+            try:
+                raw = await chat.evaluate(
+                    _CLARIFY_FORM_READY_JS, await_promise=False, recv_timeout=30.0
+                )
+            except TimeoutError:
+                await asyncio.sleep(1.0)
+                continue
+            except RuntimeError as exc:
+                message = str(exc).lower()
+                if (
+                    "transport unavailable" in message
+                    or "transport dead" in message
+                    or "transport closed" in message
+                ):
+                    raise AssertionError(
+                        f"Chrome MCP transport dead during clarify DOM wait: {exc}"
+                    ) from exc
+                if "mux_reclaim_stall" in message:
+                    await asyncio.sleep(1.0)
+                    continue
+                raise
+            last_dom = raw if isinstance(raw, dict) else {"value": raw}
+            if last_dom.get("ready") is True:
+                return {**last_dom, "source": "dom"}
             await asyncio.sleep(1.0)
         raise AssertionError(
             f"Clarification not ready within {wait_sec}s "
@@ -505,7 +518,8 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 _DISMISS_MIGRATION_JS, await_promise=False, recv_timeout=15.0
             )
             try:
-                send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
+                prompt = E2E_PROMPT if attempt == 0 else E2E_NUDGE_PROMPT
+                send_result = await chat.send_message(prompt, prompt)
             except RuntimeError as exc:
                 if (
                     "timed out" not in str(exc).lower()
@@ -524,8 +538,9 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 chat_id_hint = str((await chat.bridge_chat_id()) or "").strip()
 
             heartbeat_e2e_lease()
+            stream_prompt = E2E_PROMPT if attempt == 0 else E2E_NUDGE_PROMPT
             await chat.wait_stream_started(
-                E2E_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
+                stream_prompt, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
             )
             try:
                 form_state = await _wait_clarify_ready(

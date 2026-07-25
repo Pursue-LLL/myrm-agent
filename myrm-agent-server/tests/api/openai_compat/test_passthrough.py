@@ -247,10 +247,16 @@ class TestBuildLitellmKwargs:
         assert kwargs["api_base"] == "https://api.deepseek.com/v1"
 
 
-def _mock_litellm_response(content: str = "Hello!") -> SimpleNamespace:
+def _mock_litellm_response(
+    content: str = "Hello!",
+    finish_reason: str = "stop",
+) -> SimpleNamespace:
     """Create a mock litellm non-streaming response."""
     return SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content=content),
+            finish_reason=finish_reason,
+        )],
         usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5, total_tokens=15),
     )
 
@@ -315,7 +321,60 @@ class TestPassthroughCompletion:
             resp = await passthrough_completion(_make_request())
 
         assert resp.choices[0].message.content == "Test response"
+        assert resp.choices[0].finish_reason == "stop"
         assert resp.usage.total_tokens == 15
+
+    @pytest.mark.asyncio
+    async def test_finish_reason_length_passthrough(self):
+        """finish_reason='length' from upstream must be preserved, not hardcoded to 'stop'."""
+        p1, p2 = _passthrough_provider_patches()
+        with (
+            p1, p2,
+            patch(
+                "litellm.acompletion",
+                new_callable=AsyncMock,
+                return_value=_mock_litellm_response("partial code...", finish_reason="length"),
+            ),
+        ):
+            resp = await passthrough_completion(_make_request())
+
+        assert resp.choices[0].message.content == "partial code..."
+        assert resp.choices[0].finish_reason == "length"
+
+    @pytest.mark.asyncio
+    async def test_finish_reason_content_filter_passthrough(self):
+        """finish_reason='content_filter' with empty content should NOT trigger failover."""
+        p1, p2 = _passthrough_provider_patches()
+        with (
+            p1, p2,
+            patch(
+                "litellm.acompletion",
+                new_callable=AsyncMock,
+                return_value=_mock_litellm_response("", finish_reason="content_filter"),
+            ),
+        ):
+            resp = await passthrough_completion(_make_request())
+
+        assert resp.choices[0].message.content == ""
+        assert resp.choices[0].finish_reason == "content_filter"
+
+    @pytest.mark.asyncio
+    async def test_empty_response_triggers_failover(self):
+        """200 OK + empty content + finish_reason=stop should raise (triggering Combo failover)."""
+        from fastapi import HTTPException
+
+        p1, p2 = _passthrough_provider_patches()
+        with (
+            p1, p2,
+            patch(
+                "litellm.acompletion",
+                new_callable=AsyncMock,
+                return_value=_mock_litellm_response("", finish_reason="stop"),
+            ),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                await passthrough_completion(_make_request())
+            assert exc_info.value.status_code == 502
 
     @pytest.mark.asyncio
     async def test_upstream_error_raises_502(self):

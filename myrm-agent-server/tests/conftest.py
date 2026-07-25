@@ -513,9 +513,15 @@ def _require_live_e2e_lease(
             timeout_sec=LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
             item=request.node,
         )
-        with e2e_lease_heartbeat_loop():
-            yield
-            reap_chrome_e2e_session_hygiene()
+        from e2e_shared_ui_session import E2E_SEARCH_POLICY_ENV, prime_search_policy_env
+
+        prime_search_policy_env(request.node)
+        try:
+            with e2e_lease_heartbeat_loop():
+                yield
+                reap_chrome_e2e_session_hygiene()
+        finally:
+            os.environ.pop(E2E_SEARCH_POLICY_ENV, None)
     assert_e2e_runtime_unchanged(lease)
 
 

@@ -99,28 +99,6 @@ def _kickoff_fast_search_js(prompt: str) -> str:
 }})()"""
 
 
-_BRIDGE_READY_JS = """(() => ({
-  hasProgressSnap: typeof window.__MYRM_E2E_CHAT__?.getFastSearchProgressSnapshot === 'function',
-  hasSetSearchDepth: typeof window.__MYRM_E2E_CHAT__?.setSearchDepth === 'function',
-  hasSendChatMessage: typeof window.__MYRM_E2E_CHAT__?.sendChatMessage === 'function',
-}))()"""
-
-_ENSURE_SEARCH_SYNC_JS = """(async () => {
-  window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = false;
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.syncSearchServicesFromE2eApi) {
-    return { ok: false, err: 'no-bridge' };
-  }
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const sync = await bridge.syncSearchServicesFromE2eApi();
-    if (sync?.ok && (sync.count ?? 0) > 0) {
-      return { ok: true, count: sync.count, attempt };
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  return { ok: false, err: 'search-sync-exhausted' };
-})()"""
-
 _VERIFY_FAST_SEARCH_PROGRESS_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.getFastSearchProgressSnapshot) {
@@ -347,37 +325,6 @@ def _merge_fast_search_progress(
     return ui_last
 
 
-async def _ensure_fast_search_bridge_ready(
-    chat: McpChatSession,
-    base_url: str,
-    *,
-    timeout_sec: float = 90.0,
-) -> None:
-    """Re-mount React E2E bridge after new-chat navigation (hot UI can drop the slot)."""
-    await chat.ensure_react_e2e_bridge(timeout_sec=timeout_sec)
-    await chat.ensure_e2e_api_base_binding()
-    bridge_caps = await chat.evaluate(
-        _BRIDGE_READY_JS, await_promise=False, recv_timeout=15.0
-    )
-    if isinstance(bridge_caps, dict) and bridge_caps.get("hasProgressSnap"):
-        return
-    await chat.evaluate(
-        "(() => { location.reload(); return { ok: true }; })()",
-        await_promise=False,
-        recv_timeout=30.0,
-    )
-    await asyncio.sleep(4.0)
-    await chat.bootstrap(base_url, timeout_sec=120.0)
-    await chat.ensure_react_e2e_bridge(timeout_sec=timeout_sec)
-    await chat.ensure_e2e_api_base_binding()
-    bridge_caps = await chat.evaluate(
-        _BRIDGE_READY_JS, await_promise=False, recv_timeout=15.0
-    )
-    assert isinstance(bridge_caps, dict) and bridge_caps.get(
-        "hasProgressSnap"
-    ), f"Fast search E2E bridge missing getFastSearchProgressSnapshot: {bridge_caps!r}"
-
-
 async def _open_e2e_page_with_runtime_retry(
     client: ChromeMcpClient,
     base_url: str,
@@ -400,29 +347,6 @@ async def _open_e2e_page_with_runtime_retry(
             last_exc = exc
     assert last_exc is not None
     raise last_exc
-
-
-async def _ensure_search_services_in_browser(
-    chat: McpChatSession,
-    api_base: str,
-) -> None:
-    """Seed private searchServices and hydrate browser store (clears gap-test block flag)."""
-    last: dict[str, object] = {"ok": False}
-    for attempt in range(4):
-        _ensure_private_search_configured(api_base)
-        raw = await chat.evaluate(
-            _ENSURE_SEARCH_SYNC_JS,
-            await_promise=True,
-            recv_timeout=45.0,
-        )
-        last = raw if isinstance(raw, dict) else {"value": raw}
-        if last.get("ok") is True:
-            return
-        await asyncio.sleep(1.0 * (attempt + 1))
-    pytest.fail(
-        "searchServices not synced to browser for fast evicted read E2E; "
-        f"last={json.dumps(last, ensure_ascii=False)}; api={api_base}"
-    )
 
 
 async def _run_fast_evicted_read_live_e2e(
@@ -460,13 +384,10 @@ async def _run_fast_evicted_read_live_e2e(
         page = await _open_e2e_page_with_runtime_retry(client, BASE_URL, api_base)
         chat = McpChatSession(client, page)
         await chat.bootstrap(BASE_URL, timeout_sec=120.0)
-        await _ensure_fast_search_bridge_ready(chat, BASE_URL, timeout_sec=60.0)
 
         await chat.dismiss_modals()
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
-        await _ensure_fast_search_bridge_ready(chat, BASE_URL, timeout_sec=60.0)
-        await _ensure_search_services_in_browser(chat, api_base)
 
         prep: dict[str, object] | None = None
         for prep_attempt in range(3):
@@ -587,6 +508,7 @@ async def _run_fast_evicted_read_live_e2e(
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
 @pytest.mark.timeout(720)
 @pytest.mark.asyncio
@@ -602,6 +524,7 @@ async def test_fast_deep_search_web_fetch_spill_uses_file_read_in_real_ui(
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
 @pytest.mark.timeout(720)
 @pytest.mark.asyncio

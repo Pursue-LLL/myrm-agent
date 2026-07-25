@@ -27,6 +27,8 @@
 | `backend_bg.sh` | Unix | 后台启动 `myrm-agent-server`（:8080）；pid/log 写入 `dev_state_paths`；source drift 时 **leases>0 defer reload + record-pending**（R31-G），leases=0 才 TERM reload |
 | `process_identity.py` | Unix | 记录 `pid + OS start token + runtimeId`；停止前复验进程代次，只终止精确 owner 的进程树，PID 复用时 fail-closed |
 | `e2e_mux_admission.py` | Unix | 全局 mux session 准入（READ+LIVE 统一 cap、`E2E_MUX_ADMISSION_WAIT`）；`MYRM_E2E_RUN_ID` label 经 `_registry_key()` uuid5 归一化 |
+| `e2e_shared_ui_hydrate.py` | Unix | SHPOIB 并行 navigate/reload burst flock（R36 窄化锁；queue ≤900s） |
+| `e2e_shared_ui_session.py` | Unix | chrome_e2e Shared UI Session Contract（marker `e2e_search_policy` · RESET/BIND/BRIDGE/SEARCH 四阶段 · bootstrap + `click_new_chat` hook） |
 | `e2e_pytest_dedupe.py` | Unix | chrome_e2e 文件级 dedupe；stale wall = `LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC`（1710s）；`E2E_PYTEST_DEDUPE_DENIED` |
 | `mux_upstream_admission.py` | Unix | 全局 mux cold attach 准入（cap=3、`MUX_UPSTREAM_WAIT`）；`read_mux_cold_attach_status()` 供 `e2e-context` 暴露 `muxColdAttachSaturated`；`chrome_mcp_client.new_page` 包装 |
 | `e2e_capacity_messages.py` | Unix | Dev Gate UX：cap 等待人话行（保留 `E2E_*_WAIT` token） |
