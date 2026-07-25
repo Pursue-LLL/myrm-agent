@@ -221,6 +221,13 @@ class ChromeMcpClient:
             )
         return self._mux_reset_executor
 
+    def discard_mux_reset_executor(self) -> None:
+        """Drop a hung reset worker so the next orphan recover can submit immediately."""
+        old = self._mux_reset_executor
+        self._mux_reset_executor = None
+        if old is not None:
+            old.shutdown(wait=False, cancel_futures=True)
+
     def _acquire_request_lock(
         self, *, timeout_sec: float | None = None
     ) -> threading.Lock:

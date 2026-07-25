@@ -100,6 +100,7 @@ class McpChatSession(CdpChatSession):
                     timeout=45.0,
                 )
             except TimeoutError as exc:
+                self._client.discard_mux_reset_executor()
                 raise RuntimeError(
                     f"{MUX_RECLAIM_STALL_TOKEN}: reset_after_orphan timed out after 45s"
                 ) from exc
