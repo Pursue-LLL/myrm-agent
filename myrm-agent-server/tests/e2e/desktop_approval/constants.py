@@ -37,7 +37,7 @@ GATE_PENDING_GRACE_SEC = 30.0
 GATE_STREAM_NUDGE_SEC = 45.0
 GATE_IDLE_NUDGE_SEC = 30.0
 # After snapshot + nudge, fail-fast if model still loops snapshot without interact.
-GATE_SNAPSHOT_LOOP_FAIL_SEC = 90.0
+GATE_SNAPSHOT_LOOP_FAIL_SEC = 60.0
 # Hard wall-clock fail-fast for one desktop approval attempt (prevents 7200s empty spin).
 DESKTOP_E2E_WALL_CLOCK_FAIL_SEC = 600.0
 
@@ -75,18 +75,22 @@ INFRA_ABORT_MARKERS = (
     "connection reset",
 )
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
-# Natural-language user turn (no CRITICAL/MUST — mimo-v2.5-pro treats those as injection).
+# Pure user task — no tool names (mimo rejects tool-enumeration / injection patterns).
 E2E_PROMPT = (
-    "TextEdit is in the foreground with sample text for a desktop smoke check. "
-    "Use desktop_snapshot_tool on that window, then desktop_interact_tool to click "
-    "one element from the snapshot. desktop_vision_tool is not needed for TextEdit. "
-    "When finished, reply exactly: DONE"
+    "I have a TextEdit window open with a few lines of sample text. "
+    "Please click the first line of text in that window, then reply exactly: DONE"
 )
 E2E_NUDGE_PROMPT = (
-    "Please click one element in TextEdit from your last snapshot, then reply DONE."
+    "Call desktop_interact_tool to click one line in the TextEdit window "
+    "from your last snapshot, then reply DONE. Do NOT call desktop_vision_tool."
 )
 E2E_SNAPSHOT_NUDGE_PROMPT = (
-    "Please click one element in TextEdit from that snapshot, then reply DONE."
+    "Call desktop_interact_tool with ref=@dref from your snapshot to click one "
+    "TextEdit element, then reply DONE. Do NOT call desktop_snapshot_tool again."
+)
+E2E_VISION_CORRECT_PROMPT = (
+    "Stop using desktop_vision_tool. Call desktop_interact_tool to click one line "
+    "in the TextEdit window (use AX tree ref), then reply DONE."
 )
 
 
@@ -94,8 +98,8 @@ def build_desktop_interact_nudge(*, dref: str | None = None) -> str:
     normalized = (dref or "").strip().lstrip("@")
     if normalized.startswith("d") and len(normalized) > 1:
         return (
-            f"Please call desktop_interact_tool(ref='{normalized}', action='click') on TextEdit now. "
-            "Reply DONE when complete."
+            f"Call desktop_interact_tool to click TextEdit element @{normalized} "
+            "from your snapshot, then reply DONE."
         )
     return E2E_NUDGE_PROMPT
 

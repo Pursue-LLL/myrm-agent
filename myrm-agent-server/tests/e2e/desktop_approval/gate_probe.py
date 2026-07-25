@@ -17,6 +17,7 @@ from tests.e2e.desktop_approval.constants import (
     BASE_URL,
     E2E_NUDGE_PROMPT,
     E2E_SNAPSHOT_NUDGE_PROMPT,
+    E2E_VISION_CORRECT_PROMPT,
     GATE_IDLE_FAIL_FAST_SEC,
     GATE_IDLE_NUDGE_SEC,
     GATE_PENDING_GRACE_SEC,
@@ -34,6 +35,7 @@ from tests.e2e.desktop_approval.textedit_fixture import (
 from tests.e2e.desktop_approval.trust_api import (
     fetch_desktop_tool_progress_from_api,
     fetch_first_desktop_dref_from_api,
+    fetch_first_desktop_dref_from_snapshot_api,
     server_pending_approval_count,
 )
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
@@ -81,7 +83,8 @@ async def _provider_readiness_hint() -> str:
     if isinstance(provider, dict):
         return (
             f" provider.is_ready={provider.get('is_ready')!r}"
-            f" provider.model={provider.get('model')!r}"
+            " (readiness API has no active model field;"
+            " desktop E2E requires UI pinBasicModelForE2e BASIC_MODEL)"
             f" provider.error={provider.get('error')!r}"
         )
     return f" provider_readiness={snapshot!r}"
@@ -236,6 +239,19 @@ async def _fetch_first_desktop_dref(
         if api_dref:
             progress(f"dref from API chat metadata: {api_dref!r}")
             return api_dref
+    if last_tool.endswith("desktop_snapshot_tool"):
+        for attempt in range(1, 4):
+            snapshot_dref = await asyncio.to_thread(
+                fetch_first_desktop_dref_from_snapshot_api
+            )
+            if snapshot_dref:
+                progress(
+                    f"dref from snapshot API refs: {snapshot_dref!r} "
+                    f"(attempt {attempt}/3)"
+                )
+                return snapshot_dref
+            if attempt < 3:
+                await asyncio.sleep(1.0)
     probe = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.getFirstDesktopDref?.() ?? null)()""",
         await_promise=False,
@@ -353,7 +369,10 @@ async def _send_interact_nudge(
     last_tool: str,
     chat_id: str = "",
 ) -> None:
-    await asyncio.to_thread(activate_chrome_foreground)
+    if last_tool.endswith(("desktop_snapshot_tool", "desktop_vision_tool")):
+        await asyncio.to_thread(activate_textedit_foreground)
+    else:
+        await asyncio.to_thread(activate_chrome_foreground)
     normalized_chat_id = chat_id.strip()
     baseline_user_msgs, baseline_step_count = await _nudge_baseline_markers(
         normalized_chat_id
@@ -369,6 +388,8 @@ async def _send_interact_nudge(
         nudge_prompt = build_desktop_interact_nudge(dref=dref)
     elif last_tool.endswith("desktop_snapshot_tool"):
         nudge_prompt = E2E_SNAPSHOT_NUDGE_PROMPT
+    elif last_tool.endswith("desktop_vision_tool"):
+        nudge_prompt = E2E_VISION_CORRECT_PROMPT
     else:
         nudge_prompt = E2E_NUDGE_PROMPT
     stream_active = await _agent_stream_active(chat, chat_id=chat_id)
@@ -548,6 +569,8 @@ async def wait_for_interact_or_approval(
                 wall_started_at, phase="wait_for_interact_or_approval"
             )
         heartbeat_e2e_lease()
+        if api_only and poll % 5 == 0:
+            await asyncio.to_thread(activate_textedit_foreground)
         tool_activity = await probe_desktop_tool_progress(
             chat,
             chat_id=chat_id,
@@ -636,6 +659,8 @@ async def _wait_desktop_tool_activity_failfast(
                 wall_started_at, phase="wait_desktop_tool_activity"
             )
         heartbeat_e2e_lease()
+        if api_only and poll % 5 == 0:
+            await asyncio.to_thread(activate_textedit_foreground)
         probe = await probe_desktop_tool_progress(
             chat,
             chat_id=chat_id,
@@ -777,6 +802,32 @@ async def ensure_interact_gate(
         last_tool=last_tool,
         server_pending=server_pending,
         ui_pending=ui_pending,
+    ) and last_tool.endswith("desktop_vision_tool"):
+        progress("vision detected — steer to desktop_snapshot_tool + interact")
+        try:
+            await _send_interact_nudge(chat, last_tool=last_tool, chat_id=chat_id)
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            progress(f"immediate vision nudge skipped (non-fatal): {exc}")
+        heartbeat_e2e_lease()
+        tool_activity, last_tool, server_pending, ui_pending = (
+            await wait_for_interact_or_approval(
+                chat,
+                timeout_sec=45.0,
+                chat_id=chat_id,
+                wall_started_at=wall_clock,
+            )
+        )
+        if _desktop_gate_satisfied(
+            last_tool=last_tool,
+            server_pending=server_pending,
+            ui_pending=ui_pending,
+        ):
+            return tool_activity, last_tool, server_pending, ui_pending
+
+    if not _desktop_gate_satisfied(
+        last_tool=last_tool,
+        server_pending=server_pending,
+        ui_pending=ui_pending,
     ) and last_tool.endswith("desktop_snapshot_tool"):
         progress("snapshot detected — immediate interact steer nudge")
         try:
@@ -828,7 +879,7 @@ async def ensure_interact_gate(
             )
         )
 
-    max_nudge_rounds = 2
+    max_nudge_rounds = 4
     for round_idx in range(max_nudge_rounds):
         assert_desktop_e2e_wall_clock(wall_clock, phase=f"nudge_round_{round_idx + 1}")
         if _desktop_gate_satisfied(
@@ -861,7 +912,7 @@ async def ensure_interact_gate(
         except (RuntimeError, TimeoutError, OSError) as exc:
             progress(f"nudge send skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
-        post_nudge_wait = 45.0 if _is_snapshot_or_vision_loop(last_tool) else 90.0
+        post_nudge_wait = 30.0 if _is_snapshot_or_vision_loop(last_tool) else 60.0
         tool_activity, last_tool, server_pending, ui_pending = (
             await wait_for_interact_or_approval(
                 chat,
