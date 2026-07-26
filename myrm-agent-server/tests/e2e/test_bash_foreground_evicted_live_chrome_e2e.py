@@ -56,8 +56,10 @@ _EVICTED_BASENAME_IN_TEXT_RE = re.compile(r"output_[a-f0-9]{8}\.txt")
 _PAGE_TIMEOUT_MS = 180_000
 _MAX_STREAM_ATTEMPTS = 5
 _STREAM_TIMEOUT_SEC = 240.0
-# seq keeps unique lines so output_compressor log-dedup does not shrink below eviction threshold.
-_SPILL_COMMAND = f"echo {_MARKER} && seq 1 25000"
+# Keep enough unique lines to exceed UECD eviction threshold while reducing
+# runtime variance versus the previous 25k-line payload.
+_SPILL_SEQ_LINES = 20000
+_SPILL_COMMAND = f"echo {_MARKER} && seq 1 {_SPILL_SEQ_LINES}"
 
 _FG_PROMPT = (
     "Please run this command in the foreground using bash_code_execute_tool exactly once:\n"

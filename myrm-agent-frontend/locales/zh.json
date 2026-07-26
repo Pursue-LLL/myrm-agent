@@ -5480,7 +5480,9 @@
       "timeoutTitle": "审批超时覆盖",
       "timeoutDesc": "覆盖此智能体的全局审批超时时间。留空表示继承全局设置。",
       "timeoutPlaceholder": "继承全局",
-      "seconds": "秒"
+      "seconds": "秒",
+      "healthScoreTitle": "安全健康评分",
+      "findingsCount": "条发现"
     },
     "secrets": {
       "tabTitle": "密钥管理",
@@ -7573,6 +7575,12 @@
         }
       },
       "migrationTitle": "迁移准备度",
+      "migrationAdapterStatusTitle": "适配器就绪状态",
+      "migrationAdapterStatus": {
+        "ready": "已就绪",
+        "planned": "已规划",
+        "missing": "暂不可用"
+      },
       "trackedImports": "{count} 个已追踪导入",
       "unmappedItems": "{count} 个未映射条目",
       "importCleanupPending": "{count} 个待确认导入审查",
@@ -12360,6 +12368,8 @@
     "onboarding": {
       "migrationTitle": "发现历史数据",
       "migrationDescription": "我们扫描到了您在其他 AI 助手中的数据，是否一键无缝导入？",
+      "migrationCloudTitle": "从其他助手导入",
+      "migrationCloudDescription": "上传导出包，将记忆与工作区偏好迁移到你的云端沙箱。",
       "skipStep": "跳过此步",
       "capabilitiesTitle": "配置 AI 引擎",
       "capabilitiesDescription": "连接本地大模型与联网搜索，实现开箱即用的 AI 体验。",

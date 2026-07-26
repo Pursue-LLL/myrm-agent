@@ -48,9 +48,9 @@ def _sample_skill() -> SkillMetadata:
 @pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_discover_capability_e2e_real_model() -> None:
-    """Real-model E2E: agent invokes discover_capability_tool to search bound skills.
+    """Real-model E2E: agent invokes skill_search_tool to search bound skills.
 
-    discover_capability_tool mounts only when searchable skills exist
+    skill_search_tool mounts only when searchable skills exist
     (``sync_discover_capability_tool``); deferred-tool AutoMount is no longer in scope.
     """
     api_key = os.environ.get("BASIC_API_KEY", "").strip()
@@ -80,7 +80,7 @@ async def test_discover_capability_e2e_real_model() -> None:
         enable_shell_tools=False,
         enable_answer_tool=False,
         system_prompt=(
-            "You are a test assistant. You MUST call discover_capability_tool exactly once "
+            "You are a test assistant. You MUST call skill_search_tool exactly once "
             'with query "*" to list bound skills. Do NOT call skill_select_tool or any other '
             "tool. After the tool returns, reply with the skill names you found."
         ),
@@ -91,7 +91,7 @@ async def test_discover_capability_e2e_real_model() -> None:
     message_chunks: list[str] = []
 
     async for event in agent.run(
-        'Call discover_capability_tool with query "*" and summarize bound skill names.',
+        'Call skill_search_tool with query "*" and summarize bound skill names.',
         context={
             "session_id": "test_discover_e2e",
             "workspaces_storage_root": "/tmp/myrm_test_workspaces",
@@ -107,9 +107,9 @@ async def test_discover_capability_e2e_real_model() -> None:
 
     final_response = "".join(message_chunks).strip()
 
-    if "discover_capability_tool" not in tool_calls_made:
+    if "skill_search_tool" not in tool_calls_made:
         pytest.skip(
-            f"model did not invoke discover_capability_tool (got {tool_calls_made!r}); "
+            f"model did not invoke skill_search_tool (got {tool_calls_made!r}); "
             f"model={raw_model!r}; deterministic wiring covered in harness integration tests"
         )
 

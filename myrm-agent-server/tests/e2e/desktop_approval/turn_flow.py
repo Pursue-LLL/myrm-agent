@@ -520,9 +520,10 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     wall_started_at = _wall_clock_start()
     await _force_chat_shell(chat, label="pre-attempt")
     progress("new chat + ensure surface")
-    await chat.click_new_chat()
-    await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
-    await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
+    reset_result = await chat.click_new_chat(timeout_sec=75.0)
+    progress(f"new chat reset result: {reset_result}")
+    await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)
+    await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
     await ensure_textedit_fixture_ready()
 
     progress("enable computer_use")

@@ -45,12 +45,14 @@ const SPACE_KINDS = ['global', 'agent', 'channel', 'conversation', 'task', 'shar
 const RECORD_STATUSES = ['pending', 'approved', 'rejected', 'active', 'archived', 'success'] as const;
 const RUNTIME_STATUSES = ['available', 'unavailable', 'custom', 'not_used', 'proxied_by_sandbox'] as const;
 const COVERAGE_STATUSES = ['not_tracked', 'partial', 'complete'] as const;
+const MIGRATION_ADAPTER_STATUSES = ['ready', 'planned', 'missing'] as const;
 
 type MemoryTranslation = ReturnType<typeof useTranslations<'memory'>>;
 type SpaceKind = (typeof SPACE_KINDS)[number];
 type RecordStatus = (typeof RECORD_STATUSES)[number];
 type RuntimeStatus = (typeof RUNTIME_STATUSES)[number];
 type CoverageStatus = (typeof COVERAGE_STATUSES)[number];
+type MigrationAdapterStatus = (typeof MIGRATION_ADAPTER_STATUSES)[number];
 type DoctorAction = 'run_diagnostics' | 'run_health_refresh';
 
 const formatTime = (value: string): string =>
@@ -67,6 +69,8 @@ const isRecordStatus = (value: string): value is RecordStatus => RECORD_STATUSES
 const isRuntimeStatus = (value: string): value is RuntimeStatus => RUNTIME_STATUSES.includes(value as RuntimeStatus);
 const isCoverageStatus = (value: string): value is CoverageStatus =>
   COVERAGE_STATUSES.includes(value as CoverageStatus);
+const isMigrationAdapterStatus = (value: string): value is MigrationAdapterStatus =>
+  MIGRATION_ADAPTER_STATUSES.includes(value as MigrationAdapterStatus);
 
 export const ObserveSection = ({
   snapshot,
@@ -462,6 +466,26 @@ const MigrationPanel = ({
   const rollbackActionId = importBatchId ? `migration:rollback:${importBatchId}` : '';
   const rollbackPreviewActionId = importBatchId ? `migration:rollback-preview:${importBatchId}` : '';
   const rollbackBusy = actionId === rollbackActionId || actionId === rollbackPreviewActionId;
+  const adapterStatus = snapshot.migration.adapter_status;
+  const sourceOrder = Array.from(
+    new Set([...snapshot.migration.supported_sources, ...Object.keys(adapterStatus)]),
+  );
+  const adapterEntries = sourceOrder.map((source) => {
+    const rawStatus = adapterStatus[source];
+    return {
+      source,
+      status: isMigrationAdapterStatus(rawStatus) ? rawStatus : 'missing',
+    };
+  });
+  const adapterStatusBadgeClass = (statusValue: MigrationAdapterStatus): string => {
+    if (statusValue === 'ready') {
+      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+    }
+    if (statusValue === 'planned') {
+      return 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300';
+    }
+    return 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300';
+  };
   return (
     <div className="rounded-lg border border-border/50 bg-accent/20 p-3">
       <div className="text-sm font-medium text-foreground">{t(`commandCenter.coverageStatus.${status}`)}</div>
@@ -486,6 +510,29 @@ const MigrationPanel = ({
           </span>
         ))}
       </div>
+      {adapterEntries.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <div className="text-xs font-medium text-foreground">{t('commandCenter.migrationAdapterStatusTitle')}</div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {adapterEntries.map(({ source, status: entryStatus }) => (
+              <div
+                key={`${source}:${entryStatus}`}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/80 px-2.5 py-2"
+              >
+                <span className="truncate text-xs text-foreground">{source}</span>
+                <span
+                  className={cn(
+                    'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                    adapterStatusBadgeClass(entryStatus),
+                  )}
+                >
+                  {t(`commandCenter.migrationAdapterStatus.${entryStatus}`)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {(snapshot.migration.verification_recommended || importBatchId) && (
         <div className="mt-3 rounded-lg border border-border/60 bg-background/70 p-3">
           <div className="text-xs font-medium text-foreground">{t('commandCenter.importPostVerifyTitle')}</div>

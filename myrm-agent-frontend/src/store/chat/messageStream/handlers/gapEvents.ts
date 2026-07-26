@@ -10,7 +10,7 @@
  * web_search not_configured|unreachable → SSOT config-gap toast (agent mode relies on SSE only).
  *
  * [POS]
- * SSE handlers for capability/skill entitlement gaps from stream preflight and discover_capability_tool.
+ * SSE handlers for capability/skill entitlement gaps from stream preflight and skill_search_tool.
  */
 
 import type { StreamCtx, StreamTurn } from '../streamContext';

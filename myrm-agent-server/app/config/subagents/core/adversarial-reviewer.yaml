@@ -20,7 +20,7 @@ disallowed_tools:
   - file_write_tool
   - file_edit_tool
   - skill_manage_tool
-  - skill_discovery_tool
+  - skill_market_tool
   - delegate_to_agent_tool
 
 system_prompt: |

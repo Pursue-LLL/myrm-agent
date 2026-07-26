@@ -5480,7 +5480,9 @@
       "timeoutTitle": "Approval Timeout Override",
       "timeoutDesc": "Override the global approval timeout for this agent. Leave empty to inherit.",
       "timeoutPlaceholder": "Inherit",
-      "seconds": "seconds"
+      "seconds": "seconds",
+      "healthScoreTitle": "Security Health Score",
+      "findingsCount": "findings"
     },
     "secrets": {
       "tabTitle": "Secrets",
@@ -7570,6 +7572,12 @@
         }
       },
       "migrationTitle": "Migration Readiness",
+      "migrationAdapterStatusTitle": "Adapter readiness",
+      "migrationAdapterStatus": {
+        "ready": "Ready",
+        "planned": "Planned",
+        "missing": "Not available"
+      },
       "trackedImports": "{count} tracked imports",
       "unmappedItems": "{count} unmapped items",
       "importCleanupPending": "{count} pending import reviews",
@@ -12389,6 +12397,8 @@
     "onboarding": {
       "migrationTitle": "History Data Detected",
       "migrationDescription": "We found your data from other AI assistants. Import it seamlessly?",
+      "migrationCloudTitle": "Import from Another Assistant",
+      "migrationCloudDescription": "Upload an export package to migrate memories and workspace preferences into your cloud sandbox.",
       "skipStep": "Skip",
       "capabilitiesTitle": "Configure AI Engine",
       "capabilitiesDescription": "Connect local models and web search for an out-of-the-box AI experience.",

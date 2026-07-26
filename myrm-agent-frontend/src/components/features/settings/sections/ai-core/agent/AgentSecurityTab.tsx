@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconBan, IconFolder, IconGlobe, IconPlus, IconShieldCheck, IconX } from '@/components/features/icons/PremiumIcons';
 import { DOMAIN_PATTERN } from '../../system/securityPolicyUtils';
@@ -9,6 +9,7 @@ import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import { Label } from '@/components/primitives/label';
+import { apiRequest } from '@/lib/api';
 
 const KNOWN_CAPABILITIES = [
   'web_search_tool',
@@ -95,17 +96,55 @@ function serializeOverrides(data: SecurityOverridesData): Record<string, unknown
 interface AgentSecurityTabProps {
   value: Record<string, unknown> | null;
   onChange: (value: Record<string, unknown> | null) => void;
+  agentId?: string | null;
+  saveVersion?: number;
 }
 
-export function AgentSecurityTab({ value, onChange }: AgentSecurityTabProps) {
+interface AuditFinding {
+  checker: string;
+  severity: string;
+  title: string;
+  description: string;
+  recommendation: string;
+  source_location: string;
+}
+
+interface AuditResult {
+  score: number;
+  risk_level: string;
+  findings: AuditFinding[];
+  total_findings: number;
+  finding_counts: Record<string, number>;
+}
+
+export function AgentSecurityTab({ value, onChange, agentId, saveVersion }: AgentSecurityTabProps) {
   const t = useTranslations('agent.security');
   const tCap = useTranslations('cron.capability');
   const [newPath, setNewPath] = useState('');
   const [newDomain, setNewDomain] = useState('');
   const [newBlockedDomain, setNewBlockedDomain] = useState('');
   const [blocklistError, setBlocklistError] = useState<string | null>(null);
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const data = useMemo(() => parseOverrides(value), [value]);
+
+  useEffect(() => {
+    if (!agentId) return;
+    let cancelled = false;
+    setAuditLoading(true);
+    apiRequest<AuditResult>(`/user-agents/${agentId}/audit`, { method: 'POST', silent: true })
+      .then((res) => {
+        if (!cancelled) setAuditResult(res);
+      })
+      .catch(() => {
+        if (!cancelled) setAuditResult(null);
+      })
+      .finally(() => {
+        if (!cancelled) setAuditLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [agentId, saveVersion]);
 
   const update = useCallback(
     (patch: Partial<SecurityOverridesData>) => {
@@ -178,6 +217,11 @@ export function AgentSecurityTab({ value, onChange }: AgentSecurityTabProps) {
 
   return (
     <div className={cn('space-y-5', 'animate-in fade-in-50 duration-300')}>
+      {/* Health Score Card */}
+      {agentId && (
+        <HealthScoreCard result={auditResult} loading={auditLoading} t={t} />
+      )}
+
       {/* Capabilities */}
       <div className="rounded-xl border border-border bg-card p-4 space-y-3">
         <div>
@@ -420,6 +464,89 @@ export function AgentSecurityTab({ value, onChange }: AgentSecurityTabProps) {
           <span className="text-sm text-muted-foreground">{t('seconds')}</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+const RISK_LEVEL_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  safe: { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/30' },
+  low: { bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/30' },
+  medium: { bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/30' },
+  high: { bg: 'bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-500/30' },
+  critical: { bg: 'bg-destructive/10', text: 'text-destructive', border: 'border-destructive/30' },
+};
+
+const SEVERITY_BORDER: Record<string, string> = {
+  critical: 'border-l-destructive/70',
+  high: 'border-l-orange-500/70',
+  medium: 'border-l-amber-500/70',
+  low: 'border-l-blue-500/70',
+  info: 'border-l-muted',
+};
+
+function HealthScoreCard({
+  result,
+  loading,
+  t,
+}: {
+  result: AuditResult | null;
+  loading: boolean;
+  t: (key: string) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-4 animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-muted" />
+          <div className="space-y-2 flex-1">
+            <div className="h-4 w-32 bg-muted rounded" />
+            <div className="h-3 w-48 bg-muted rounded" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!result) return null;
+
+  const style = RISK_LEVEL_STYLES[result.risk_level] || RISK_LEVEL_STYLES.medium;
+
+  return (
+    <div className={cn('rounded-xl border bg-card p-4 space-y-3', style.border)}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={cn('flex items-center justify-center h-10 w-10 rounded-full text-sm font-bold', style.bg, style.text)}>
+            {result.score}
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-foreground">{t('healthScoreTitle')}</h3>
+            <p className={cn('text-xs font-medium capitalize', style.text)}>{result.risk_level}</p>
+          </div>
+        </div>
+        {result.total_findings > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs text-muted-foreground"
+          >
+            {result.total_findings} {t('findingsCount')}
+          </Button>
+        )}
+      </div>
+
+      {expanded && result.findings.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-border/50">
+          {result.findings.map((finding, idx) => (
+            <div key={idx} className={cn('text-xs space-y-0.5 pl-2 border-l-2', SEVERITY_BORDER[finding.severity] || 'border-l-muted')}>
+              <p className="font-medium text-foreground">{finding.title}</p>
+              <p className="text-muted-foreground">{finding.recommendation}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

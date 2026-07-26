@@ -1,4 +1,4 @@
-"""Chrome LIVE_AGENT E2E: agent invokes skill_discovery_tool (external marketplace search).
+"""Chrome LIVE_AGENT E2E: agent invokes skill_market_tool (external marketplace search).
 
 Verifies discover_capability vs skill_discovery boundary in real WebUI chat with a
 custom agent system prompt (legitimate config) and a natural user query (no injection).
@@ -39,8 +39,8 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lea
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
-_MARKETPLACE_TOOL = "skill_discovery_tool"
-_DISCOVER_TOOL = "discover_capability_tool"
+_MARKETPLACE_TOOL = "skill_market_tool"
+_DISCOVER_TOOL = "skill_search_tool"
 _MAX_CHAT_ATTEMPTS = 3
 
 _USER_QUERY = (

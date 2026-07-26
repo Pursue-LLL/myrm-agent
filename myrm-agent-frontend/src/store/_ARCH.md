@@ -26,8 +26,8 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 | `useWorkspaceStore.ts` | 多标签页与上下文切换（RAM） | 负责保存后台 Tab 的快照（Snapshot）与生命周期句柄（AbortController） |
 | `useAgentStore.ts` | Agent 列表与详情状态 | `fetchAgent(signal)` 支持请求级中止，供 FlowPad route-switch 防晚到污染 |
 | `useFlowPadStore.ts` | FlowPad 模态窗口状态（截屏上下文、初始文本、开关） | 服务 Appshot 和 deep link 入口 |
-| `useCommandStore.ts` | Slash 命令管理（系统行为 + 用户自定义命令 + 搜索 + 最近使用） | `builtinActions.ts` 定义 7 个内置命令；通过 ConfigSyncManager 跨端同步 |
-| `builtinActions.ts` | 内置 Slash 命令定义（compact/focus/yolo/freeze/new/stop/model） | 被 `useCommandStore` 初始化时调用 |
+| `useCommandStore.ts` | Slash 命令管理（系统行为 + 用户自定义命令 + 搜索 + 最近使用） | `builtinActions.ts` 定义 9 个内置命令；通过 ConfigSyncManager 跨端同步 |
+| `builtinActions.ts` | 内置 Slash 命令定义（compact/focus/yolo/freeze/new/stop/model/learn/fork） | 被 `useCommandStore` 初始化时调用 |
 | `useBrowserTakeoverStore.ts` | 浏览器 HITL takeover 状态（`uiMode` managed/extension、`autoDetectCompletion`、`liveAssistUrl`） | SSE `browser_takeover_requested`（handler 内 `setLoading(false)`）或 approval recovery 写入 |
 | `useApprovalStore.ts` | 审批队列；`activateBrowserTakeover()` / `resolveBrowserTakeoverMessageId()` SSOT；recovery 经 `isActiveChatForTakeover`（store chatId + URL pathname） | GET /approvals recovery + SSE interrupt |
 | `useBudgetExceededStore.ts` | WU 耗尽阻断弹窗状态 | balance=0 时由 SSE `budget_alert` 触发 |

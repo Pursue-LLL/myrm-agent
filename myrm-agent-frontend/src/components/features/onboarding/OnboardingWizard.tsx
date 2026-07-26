@@ -53,6 +53,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const hasEnabledProvider = providers.some((p) => p.isEnabled && hasUsableProviderAuth(p));
   const searchConfigured = !!getActiveSearchServiceConfig(searchServiceConfigs);
   const routingAlreadyEnabled = defaultModelConfig.routingConfig?.enabled ?? false;
+  const isLocalDeployment = isLocalMode();
+  const shouldOfferMigrationStep = isLocalDeployment ? Boolean(discovery && discovery.sources.length > 0) : true;
 
   const shouldShowRouting = useCallback(() => {
     if (routingAlreadyEnabled) return false;
@@ -67,8 +69,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     const runProbes = async () => {
       try {
         const [discRes, probeRes, telegramCreds] = await Promise.all([
-          isLocalMode() ? discoverMigrationSources(false).catch(() => null) : Promise.resolve(null),
-          isLocalMode() ? probeLocalCapabilities(false).catch(() => null) : Promise.resolve(null),
+          isLocalDeployment ? discoverMigrationSources(false).catch(() => null) : Promise.resolve(null),
+          isLocalDeployment ? probeLocalCapabilities(false).catch(() => null) : Promise.resolve(null),
           getTelegramCredentials().catch(() => null),
         ]);
 
@@ -99,9 +101,9 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   // When both the minimum welcome duration has passed AND the stores are initialized, we decide the next step
   useEffect(() => {
     if (initDone && isInitialized && step === 'welcome') {
-      if (discovery && discovery.sources.length > 0) {
+      if (shouldOfferMigrationStep) {
         setStep('migration');
-      } else if (isLocalMode() && (!hasEnabledProvider || !searchConfigured)) {
+      } else if (isLocalDeployment && (!hasEnabledProvider || !searchConfigured)) {
         setStep('capabilities');
       } else if (shouldShowRouting()) {
         setStep('routing');
@@ -112,7 +114,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initDone, isInitialized, step, discovery, hasEnabledProvider, searchConfigured]);
+  }, [initDone, isInitialized, step, shouldOfferMigrationStep, isLocalDeployment, hasEnabledProvider, searchConfigured, shouldShowRouting, telegramConfigured]);
 
   const handleFinish = useCallback(async () => {
     setStep('finishing');
@@ -146,14 +148,14 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   }, [moveToTelegramStepOrFinish, shouldShowRouting]);
 
   const handleMigrationCompleteOrSkip = useCallback(() => {
-    if (isLocalMode() && (!hasEnabledProvider || !searchConfigured)) {
+    if (isLocalDeployment && (!hasEnabledProvider || !searchConfigured)) {
       setStep('capabilities');
     } else if (shouldShowRouting()) {
       setStep('routing');
     } else {
       moveToTelegramStepOrFinish();
     }
-  }, [hasEnabledProvider, moveToTelegramStepOrFinish, searchConfigured, shouldShowRouting]);
+  }, [isLocalDeployment, hasEnabledProvider, moveToTelegramStepOrFinish, searchConfigured, shouldShowRouting]);
 
   if (step === 'welcome' || step === 'finishing') {
     return (
@@ -194,8 +196,14 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         {step === 'migration' && (
           <div className="space-y-6">
             <div className="text-center space-y-2 mb-8">
-              <h1 className="text-2xl font-bold">{t('onboarding.migrationTitle')}</h1>
-              <p className="text-muted-foreground">{t('onboarding.migrationDescription')}</p>
+              <h1 className="text-2xl font-bold">
+                {isLocalDeployment ? t('onboarding.migrationTitle') : t('onboarding.migrationCloudTitle')}
+              </h1>
+              <p className="text-muted-foreground">
+                {isLocalDeployment
+                  ? t('onboarding.migrationDescription')
+                  : t('onboarding.migrationCloudDescription')}
+              </p>
             </div>
             <div className="bg-card border rounded-xl p-6">
               <MigrationWizardSection onMigrationComplete={handleMigrationCompleteOrSkip} />

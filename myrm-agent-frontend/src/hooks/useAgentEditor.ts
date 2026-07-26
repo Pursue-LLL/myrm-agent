@@ -74,6 +74,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [saveVersion, setSaveVersion] = useState(0);
 
   const isReadonly = agent?.is_built_in === true;
 
@@ -522,6 +523,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       }
 
       setHasChanges(false);
+      setSaveVersion((v) => v + 1);
     } catch (error) {
       toast({
         title: t('agent.operationFailed'),
@@ -669,6 +671,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     // 安全策略
     securityOverrides,
     setSecurityOverrides,
+    saveVersion,
     // Personality
     personalityStyle,
     setPersonalityStyle,

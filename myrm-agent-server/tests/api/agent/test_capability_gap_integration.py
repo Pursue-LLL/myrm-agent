@@ -472,7 +472,7 @@ def test_agent_stream_discover_miss_emits_capability_gap_sse(
         "message_id": "test-cap-gap-1",
         "chat_id": chat_id,
         "query": (
-            "You MUST call discover_capability_tool exactly once with query "
+            "You MUST call skill_search_tool exactly once with query "
             f"'{gap_query}'. Do not call any other tool. "
             "After the tool returns, reply with the single word DONE."
         ),
@@ -493,9 +493,9 @@ def test_agent_stream_discover_miss_emits_capability_gap_sse(
     check_e2e_errors(events)
 
     invoked = _invoked_tool_names(events)
-    if "discover_capability_tool" not in invoked:
+    if "skill_search_tool" not in invoked:
         pytest.skip(
-            "model did not invoke discover_capability_tool; deterministic gap wiring covered elsewhere"
+            "model did not invoke skill_search_tool; deterministic gap wiring covered elsewhere"
         )
 
     gaps = _gap_events(events, "capability_gap")
@@ -779,7 +779,7 @@ def test_agent_stream_discover_miss_emits_cron_capability_gap_sse(
         "message_id": "test-cron-cap-gap-1",
         "chat_id": chat_id,
         "query": (
-            "You MUST call discover_capability_tool exactly once with query "
+            "You MUST call skill_search_tool exactly once with query "
             f"'{gap_query}'. Do not call any other tool. "
             "After the tool returns, reply with the single word DONE."
         ),
@@ -795,9 +795,9 @@ def test_agent_stream_discover_miss_emits_cron_capability_gap_sse(
     check_e2e_errors(events)
 
     invoked = _invoked_tool_names(events)
-    if "discover_capability_tool" not in invoked:
+    if "skill_search_tool" not in invoked:
         pytest.skip(
-            "model did not invoke discover_capability_tool; deterministic cron gap covered in harness unit tests"
+            "model did not invoke skill_search_tool; deterministic cron gap covered in harness unit tests"
         )
 
     gaps = _gap_events(events, "capability_gap")

@@ -16,7 +16,7 @@ tags:
   - 高密度信息大图
   - data-visualization
 license: MIT
-allowed-tools: bash_code_execute_tool file_write_tool file_read_tool image_tool ask_question_tool
+allowed-tools: bash_code_execute_tool file_write_tool file_read_tool image_tool ask_question_tool browser_navigate_tool
 ---
 
 # Infographic Generator
@@ -192,6 +192,7 @@ Combine: layout definition + style definition + base template from `references/b
 - Responsive design with appropriate breakpoints
 - All text content embedded inline
 - SVG icons and decorative elements as needed
+- **Verify rendering** (when browser available): serve locally and use `browser_navigate_tool` with a `verify_goal` describing the expected layout and style — the tool runs a 3-layer visual check automatically. Fix any rendering issues before delivery.
 
 ### Step 7: Output Summary
 

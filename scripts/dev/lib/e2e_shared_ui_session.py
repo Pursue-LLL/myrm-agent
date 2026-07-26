@@ -18,6 +18,7 @@ import asyncio
 import os
 import sys
 import time
+import urllib.error
 from typing import Literal, Protocol, runtime_checkable
 
 from cdp_chat_support import ensure_e2e_search_cleared_in_browser, get_e2e_api_url
@@ -207,7 +208,7 @@ async def apply_shared_ui_session_contract(
                 ),
                 timeout=search_budget,
             )
-        except (TimeoutError, RuntimeError) as exc:
+        except (TimeoutError, RuntimeError, OSError, urllib.error.URLError) as exc:
             # Empty-policy fallback: always block browser-side sync even if API clear timed out.
             print(
                 f"E2E_SHARED_UI_SESSION_WARN: empty search clear fallback block-only err={exc}",

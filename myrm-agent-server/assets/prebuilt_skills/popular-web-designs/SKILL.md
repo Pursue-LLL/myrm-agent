@@ -20,7 +20,7 @@ tags:
   - 品牌风格
   - 落地页
 license: MIT
-allowed-tools: bash_code_execute_tool file_write_tool file_read_tool
+allowed-tools: bash_code_execute_tool file_write_tool file_read_tool browser_navigate_tool
 ---
 
 # Popular Web Designs
@@ -42,6 +42,7 @@ styles, spacing system, shadows, responsive behavior, and practical CSS values.
 2. Load the template from `templates/<site>.md`
 3. Use the design tokens and component specs when generating HTML
 4. Produce a self-contained HTML artifact with inline CSS using the exact values
+5. Verify visual accuracy (when browser available): serve the file locally and use `browser_navigate_tool` with a `verify_goal` describing the expected brand appearance — the tool runs a 3-layer visual verification automatically
 
 ## Bash execution contract
 

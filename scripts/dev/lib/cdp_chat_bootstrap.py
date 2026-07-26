@@ -935,7 +935,11 @@ class CdpChatBootstrap(CdpChatTransport):
             bridge_cap = min(45.0, shell_cap)
             await self.ensure_dev_bridge(timeout_sec=bridge_cap, allow_reload=True)
 
-    async def click_new_chat(self) -> dict[str, object]:
+    async def click_new_chat(
+        self,
+        *,
+        timeout_sec: float | None = None,
+    ) -> dict[str, object]:
         reset_js = """
 (() => {
   const bridge = window.__MYRM_E2E_CHAT__;
@@ -958,7 +962,14 @@ class CdpChatBootstrap(CdpChatTransport):
 })()
 """.strip()
         last: dict[str, object] = {"ok": False}
+        deadline = (
+            time.monotonic() + timeout_sec
+            if timeout_sec is not None and timeout_sec > 0
+            else None
+        )
         for _ in range(8):
+            if deadline is not None and time.monotonic() >= deadline:
+                break
             try:
                 result = await self.evaluate(reset_js, await_promise=False)
                 last = (
@@ -967,9 +978,15 @@ class CdpChatBootstrap(CdpChatTransport):
                     else {"ok": False, "probeError": result}
                 )
                 if last.get("ok"):
-                    await self._after_new_chat_reset()
+                    await self._after_new_chat_reset(deadline=deadline)
                     await asyncio.sleep(0.5)
                     return last
+            except TimeoutError as exc:
+                if "Dev E2E chat bridge not available on WebUI" in str(exc):
+                    await self._heal_empty_chat_shell_for_bridge()
+                    await asyncio.sleep(1.0)
+                    continue
+                raise
             except RuntimeError as exc:
                 message = str(exc)
                 if any(

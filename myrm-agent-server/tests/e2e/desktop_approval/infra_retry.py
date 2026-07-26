@@ -47,6 +47,8 @@ def is_mux_new_page_retriable(exc: BaseException) -> bool:
 
 def is_retriable_page_transport(exc: BaseException) -> bool:
     """Mux timeout or detached CDP frame — orchestrator should recover + reopen page."""
+    if isinstance(exc, TimeoutError):
+        return True
     message = str(exc).lower()
     if "detached frame" in message:
         return True
@@ -74,6 +76,28 @@ async def heal_chrome_attach_before_reopen() -> None:
 async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
     """Open chat UI; prefer about:blank (no runtime binding), then recover, then direct :3000."""
     last_exc: BaseException | None = None
+    new_page_wall_timeout_sec = 70.0
+    navigate_wall_timeout_sec = 70.0
+    eval_wall_timeout_sec = 45.0
+    reload_wall_timeout_sec = 70.0
+
+    async def _call_with_wall_timeout(
+        label: str,
+        wall_timeout_sec: float,
+        fn: object,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(fn, *args, **kwargs),
+                timeout=wall_timeout_sec,
+            )
+        except TimeoutError as exc:
+            raise TimeoutError(
+                f"{label} wall timeout after {wall_timeout_sec:.0f}s"
+            ) from exc
+
     strategies: list[tuple[str, str]] = [
         ("about_blank", "about:blank"),
         ("about_blank_recover", "about:blank"),
@@ -88,7 +112,9 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
                 await asyncio.to_thread(client.recover_mux_transport)
             if url == "about:blank":
                 progress(f"new_page about:blank attempt {attempt}/3")
-                page = await asyncio.to_thread(
+                page = await _call_with_wall_timeout(
+                    "new_page about:blank",
+                    new_page_wall_timeout_sec,
                     client.new_page,
                     "about:blank",
                     timeout_ms=90_000,
@@ -96,14 +122,18 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
                 progress("navigate to chat UI")
                 chat_home = f"{BASE_URL.rstrip('/')}/"
                 for nav_pass in (1, 2):
-                    await asyncio.to_thread(
+                    await _call_with_wall_timeout(
+                        "navigate chat home",
+                        navigate_wall_timeout_sec,
                         client.navigate,
                         page,
                         chat_home,
                         timeout_ms=120_000,
                     )
                     await asyncio.sleep(2.0)
-                    probe = await asyncio.to_thread(
+                    probe = await _call_with_wall_timeout(
+                        "evaluate post-navigate layout",
+                        eval_wall_timeout_sec,
                         client.evaluate,
                         page,
                         """(() => ({
@@ -114,13 +144,17 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
                     )
                     if isinstance(probe, dict) and probe.get("hasLayout"):
                         progress("post-navigate reload for fresh dev bridge bundle")
-                        await asyncio.to_thread(
+                        await _call_with_wall_timeout(
+                            "reload chat page",
+                            reload_wall_timeout_sec,
                             client.reload,
                             page,
                             timeout_ms=120_000,
                         )
                         await asyncio.sleep(3.0)
-                        probe = await asyncio.to_thread(
+                        probe = await _call_with_wall_timeout(
+                            "evaluate post-reload layout",
+                            eval_wall_timeout_sec,
                             client.evaluate,
                             page,
                             """(() => ({
@@ -149,12 +183,16 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
                 )
                 continue
             progress(f"new_page {url} attempt {attempt}/3 (direct fallback)")
-            page = await asyncio.to_thread(
+            page = await _call_with_wall_timeout(
+                f"new_page {url}",
+                new_page_wall_timeout_sec,
                 client.new_page,
                 url,
                 timeout_ms=120_000,
             )
-            probe = await asyncio.to_thread(
+            probe = await _call_with_wall_timeout(
+                "evaluate direct layout",
+                eval_wall_timeout_sec,
                 client.evaluate,
                 page,
                 """(() => ({
@@ -179,6 +217,9 @@ async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
             if attempt >= len(strategies) or not is_retriable_page_transport(exc):
                 raise
             progress(f"open/nav mux retry {attempt}/3 after: {exc}")
+            if isinstance(exc, TimeoutError):
+                progress("open/nav wall timeout — abandon in-flight mux requests")
+                await asyncio.to_thread(client.abandon_inflight_requests)
             await asyncio.to_thread(client.recover_mux_transport)
             await asyncio.sleep(5.0 * attempt)
     raise last_exc or RuntimeError("Chrome MCP open/nav failed without exception")

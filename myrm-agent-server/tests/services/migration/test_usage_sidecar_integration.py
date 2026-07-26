@@ -186,11 +186,16 @@ class TestUsageSidecarIntegration:
             d.mkdir(parents=True)
             (d / "SKILL.md").write_text(f"---\nname: {name}\n---\n{name}.", encoding="utf-8")
 
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)
+        last_used = (now - timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        created = (now - timedelta(days=120)).strftime("%Y-%m-%dT%H:%M:%SZ")
         usage_data = {
             "tracked": {
                 "use_count": 30,
-                "last_used_at": "2026-06-20T10:00:00Z",
-                "created_at": "2026-03-01T08:00:00Z",
+                "last_used_at": last_used,
+                "created_at": created,
                 "state": "active",
                 "pinned": False,
             },
@@ -235,11 +240,16 @@ class TestUsageSidecarIntegration:
         skill_d = skills_dir / "production-deploy"
         skill_d.mkdir(parents=True)
         (skill_d / "SKILL.md").write_text("---\nname: production-deploy\n---\nDeploy.", encoding="utf-8")
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)
+        last_used = (now - timedelta(days=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        created = (now - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ")
         usage_data = {
             "production-deploy": {
                 "use_count": 50,
-                "last_used_at": "2026-06-20T10:00:00Z",
-                "created_at": "2025-06-01T08:00:00Z",
+                "last_used_at": last_used,
+                "created_at": created,
                 "state": "active",
                 "pinned": False,
             },

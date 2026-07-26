@@ -5,13 +5,14 @@ const mockCompleteOnboarding = vi.fn(() => Promise.resolve({ success: true, mess
 const mockDiscoverMigrationSources = vi.fn(() => Promise.resolve({ sources: [] }));
 const mockProbeLocalCapabilities = vi.fn(() => Promise.resolve({ results: [], search: [] }));
 const mockGetTelegramCredentials = vi.fn(() => Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }));
+const mockIsLocalMode = vi.hoisted(() => ({ value: true }));
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
 vi.mock('@/lib/deploy-mode', () => ({
-  isLocalMode: () => true,
+  isLocalMode: () => mockIsLocalMode.value,
   isTauriRuntime: () => false,
   getApiBaseUrl: () => '/api/v1',
   getBackendBaseUrl: () => 'http://localhost:8080',
@@ -139,6 +140,7 @@ describe('OnboardingWizard', () => {
     mockGetTelegramCredentials.mockImplementation(() =>
       Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }),
     );
+    mockIsLocalMode.value = true;
   });
 
   afterEach(() => {
@@ -187,6 +189,21 @@ describe('OnboardingWizard', () => {
       await waitFor(() => {
         expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
       });
+    });
+
+    it('routes to migration in cloud mode even without local discovery', async () => {
+      mockIsLocalMode.value = false;
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
+      });
+      expect(mockDiscoverMigrationSources).not.toHaveBeenCalled();
+      expect(mockProbeLocalCapabilities).not.toHaveBeenCalled();
     });
 
     it('auto-finishes when provider and search are already ready', async () => {

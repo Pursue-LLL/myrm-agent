@@ -21,3 +21,4 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `suggestions.py` | 模块 | Generate follow-up question suggestions using the filter model. | ✅ |
 | `fleet_overview.py` | 模块 | Agent Fleet Overview — 按 agent_id 聚合月度 Token/Cost、Cron 数、待审批数、实时运行状态的 KPI 端点，供 /agents 页面 Fleet 视图使用。零新表，纯读聚合。 | ✅ |
 | `templates.py` | 模块 | Agent template catalog and factory. | ✅ |
+| `profile_audit.py` | 模块 | Agent Profile security audit: POST /{agent_id}/audit — deterministic risk scoring via harness profile_audit engine. | ✅ |

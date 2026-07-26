@@ -95,29 +95,51 @@ def _dref_from_snapshot_payload(payload: dict[str, object]) -> str | None:
 
 
 def fetch_first_desktop_dref_from_local_capture() -> str | None:
-    """Foreground AX capture in the pytest process when gateway session is gone."""
+    """Local AX capture fallback when gateway desktop snapshot sources are unavailable."""
     import platform
 
     if platform.system() != "Darwin":
         return None
-    try:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
-        from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
-        from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
-            capture_snapshot,
-        )
+    from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
+    from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
+    from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
+        capture_snapshot,
+    )
 
-        meta, refs = capture_snapshot(MacOSBackend(), "foreground", None)
+    backend = MacOSBackend()
+    preferred_roles = {"text", "statictext", "axtextarea", "scrollarea"}
+    strategies: tuple[tuple[str, str | None], ...] = (
+        ("window_title", "TextEdit"),
+        ("foreground", None),
+        ("full_screen", None),
+    )
+
+    for scope, window_title in strategies:
+        try:
+            meta, refs = capture_snapshot(backend, scope, window_title)
+        except OSError as exc:
+            progress(
+                "local AX capture failed "
+                f"scope={scope} window={window_title!r}: {exc}"
+            )
+            continue
+        except Exception as exc:
+            progress(
+                "local AX capture failed "
+                f"scope={scope} window={window_title!r}: {type(exc).__name__}: {exc}"
+            )
+            continue
+
         element_refs = {
             key: value for key, value in refs.items() if isinstance(value, ElementRef)
         }
         if not element_refs:
             progress(
-                f"local AX capture refs empty app={meta.app_name!r} "
-                f"window={meta.window_title!r}"
+                "local AX capture refs empty "
+                f"scope={scope} app={meta.app_name!r} window={meta.window_title!r}"
             )
-            return None
-        preferred_roles = {"text", "statictext", "axtextarea", "scrollarea"}
+            continue
+
         for ref_key, ref in element_refs.items():
             role = str(getattr(ref, "role", "") or "").lower()
             normalized = str(ref_key).strip().lstrip("@")
@@ -127,19 +149,18 @@ def fetch_first_desktop_dref_from_local_capture() -> str | None:
                 and len(normalized) > 1
             ):
                 progress(
-                    f"dref from local AX capture role={role!r}: {normalized!r} "
-                    f"app={meta.app_name!r}"
+                    "dref from local AX capture "
+                    f"scope={scope} role={role!r}: {normalized!r} app={meta.app_name!r}"
                 )
                 return normalized
         for ref_key in sorted(element_refs):
             normalized = str(ref_key).strip().lstrip("@")
             if normalized.startswith("d") and len(normalized) > 1:
-                progress(f"dref from local AX capture fallback: {normalized!r}")
+                progress(
+                    "dref from local AX capture fallback "
+                    f"scope={scope}: {normalized!r}"
+                )
                 return normalized
-    except OSError as exc:
-        progress(f"local AX capture failed: {exc}")
-    except Exception as exc:
-        progress(f"local AX capture failed: {type(exc).__name__}: {exc}")
     return None
 
 

@@ -15,7 +15,7 @@ tags:
   - tailwind
   - motion
   - creative
-allowed-tools: bash_code_execute_tool file_write_tool file_read_tool grep_tool
+allowed-tools: bash_code_execute_tool file_write_tool file_read_tool grep_tool browser_navigate_tool
 contract:
   steps:
     - "Phase 1: Design Intent — understand purpose, audience, declare surface archetype, and commit to a bold aesthetic direction"
@@ -51,6 +51,10 @@ contract:
     - step_id: motion_polished
       description: "Motion design enhances the experience with purposeful, orchestrated animations"
       validation_method: "Key transitions use staggered timing; hover states are refined; no jarring movements"
+      is_required: false
+    - step_id: visual_verified
+      description: "HTML artifact rendered correctly in browser — layout, colors, and interactions match intent"
+      validation_method: "browser_navigate_tool with verify_goal scores ≥4/5"
       is_required: false
   success_criteria: "A visually striking, production-ready interface with a clear aesthetic identity that feels genuinely designed, not AI-generated"
   estimated_duration_seconds: 2400
@@ -243,6 +247,21 @@ Score the output against these 10 common AI-design flaws. Each item scores 0 (pr
 - **8-10**: Ship it
 - **5-7**: Fix the failing tells — each has a direct remedy in Phase 2/3
 - **Below 5**: Restart from Phase 1 — the design intent was too weak
+
+### Visual Verification (when browser available)
+
+After writing the HTML artifact, verify rendering accuracy before delivery:
+
+1. Serve the file locally in background: `bash_code_execute_tool(command="python -m http.server 8765", run_in_background=true)`
+2. Navigate with verification goal:
+   ```
+   browser_navigate_tool(url="http://localhost:8765/artifact.html", verify_goal="<describe expected layout, colors, and key elements>")
+   ```
+3. The tool automatically runs a 3-layer visual check (DOM presence → screenshot comparison → Vision LLM scoring 1-5)
+4. If score < 3: read the feedback, fix the issues, re-verify
+5. If score ≥ 4: kill the background server and proceed to delivery
+
+This step is optional — skip if browser tools are unavailable or the deliverable is a code component (not standalone HTML).
 
 ## Sandpack Runtime Environment
 

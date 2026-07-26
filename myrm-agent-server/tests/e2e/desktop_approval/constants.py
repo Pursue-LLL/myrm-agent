@@ -100,6 +100,13 @@ E2E_VISION_CORRECT_PROMPT = (
     "then call desktop_interact_tool(ref=@dref, action='click') to click one line in TextEdit. "
     "Do not end the turn before desktop_interact_tool runs. Reply DONE."
 )
+E2E_SNAPSHOT_RESEED_PROMPT = (
+    "If desktop_snapshot_tool reports no active desktop or returns no @drefs, "
+    "call desktop_vision_tool once to re-seed desktop context for TextEdit. "
+    "Then call desktop_snapshot_tool(scope='foreground') and immediately call "
+    "desktop_interact_tool(ref=@dref, action='click') on a TextEdit line. "
+    "Do not finish before desktop_interact_tool runs. Reply DONE."
+)
 
 
 def build_desktop_interact_nudge(*, dref: str | None = None) -> str:

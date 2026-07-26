@@ -20,7 +20,7 @@ tools:
 
 disallowed_tools:
   - skill_manage_tool
-  - skill_discovery_tool
+  - skill_market_tool
 
 system_prompt: |
   You are a software engineering specialist. Your goal is to write, edit, debug, and refactor code accurately and efficiently.

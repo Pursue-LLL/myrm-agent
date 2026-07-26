@@ -12,7 +12,6 @@ Implementation modules: tests/e2e/desktop_approval/
 
 from __future__ import annotations
 
-import os
 import platform
 
 import pytest
@@ -30,11 +29,6 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger
 async def test_chrome_ui_desktop_control_approval_allow_once(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    if os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() == "1":
-        pytest.skip(
-            "Skip desktop approval allow-once in shared-hot mode; "
-            "shared-hot AX snapshot path is unstable on this host."
-        )
     await run_desktop_approval_chrome_e2e(
         scope="once",
         label="allow-once",

@@ -16,6 +16,7 @@ from tests.e2e.desktop_approval.constants import (
     APPROVAL_WAIT_SEC,
     BASE_URL,
     E2E_NUDGE_PROMPT,
+    E2E_SNAPSHOT_RESEED_PROMPT,
     E2E_VISION_CORRECT_PROMPT,
     GATE_IDLE_FAIL_FAST_SEC,
     GATE_IDLE_NUDGE_SEC,
@@ -440,7 +441,7 @@ async def _send_interact_nudge(
         progress(f"nudge with concrete dref={dref!r}")
         nudge_prompt = build_desktop_interact_nudge(dref=dref)
     elif last_tool.endswith("desktop_snapshot_tool"):
-        nudge_prompt = E2E_VISION_CORRECT_PROMPT
+        nudge_prompt = E2E_SNAPSHOT_RESEED_PROMPT
     elif last_tool.endswith("desktop_vision_tool"):
         nudge_prompt = E2E_VISION_CORRECT_PROMPT
     else:
@@ -873,10 +874,16 @@ async def ensure_interact_gate(
                 f"prefetched dref={prefetched_dref!r} before approval chrome activate"
             )
     if textedit_foreground:
-        progress(
-            "agent turn observed via API — activate Chrome for CDP + approval banner"
-        )
-        await asyncio.to_thread(activate_chrome_foreground)
+        if _is_snapshot_or_vision_loop(last_tool):
+            progress(
+                "agent turn observed via API — keep TextEdit foreground for snapshot/interact"
+            )
+            await asyncio.to_thread(activate_textedit_foreground)
+        else:
+            progress(
+                "agent turn observed via API — activate Chrome for CDP + approval banner"
+            )
+            await asyncio.to_thread(activate_chrome_foreground)
     progress(
         f"desktop tool activity result active={tool_activity.get('active')} "
         f"pending={tool_activity.get('pending')} lastTool={tool_activity.get('lastTool')} "
@@ -887,6 +894,15 @@ async def ensure_interact_gate(
     server_pending = await asyncio.to_thread(server_pending_approval_count)
     ui_pending = bool(tool_activity.get("pending"))
     interact_seen = last_tool.endswith("desktop_interact_tool")
+
+    async def _wait_gate(timeout_sec: float) -> tuple[dict[str, object], str, int, bool]:
+        return await wait_for_interact_or_approval(
+            chat,
+            timeout_sec=timeout_sec,
+            chat_id=chat_id,
+            api_only=api_only,
+            wall_started_at=wall_clock,
+        )
 
     _VISION_NUDGE_ROUNDS = 3
     for vision_round in range(1, _VISION_NUDGE_ROUNDS + 1):
@@ -909,14 +925,9 @@ async def ensure_interact_gate(
         except (RuntimeError, TimeoutError, OSError) as exc:
             progress(f"vision nudge round {vision_round} skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
-        tool_activity, last_tool, server_pending, ui_pending = (
-            await wait_for_interact_or_approval(
-                chat,
-                timeout_sec=30.0,
-                chat_id=chat_id,
-                wall_started_at=wall_clock,
-            )
-        )
+        if textedit_foreground:
+            await asyncio.to_thread(activate_textedit_foreground)
+        tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(30.0)
         interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
         if _desktop_gate_satisfied(
             last_tool=last_tool,
@@ -944,14 +955,9 @@ async def ensure_interact_gate(
         except (RuntimeError, TimeoutError, OSError) as exc:
             progress(f"immediate snapshot nudge skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
-        tool_activity, last_tool, server_pending, ui_pending = (
-            await wait_for_interact_or_approval(
-                chat,
-                timeout_sec=45.0,
-                chat_id=chat_id,
-                wall_started_at=wall_clock,
-            )
-        )
+        if textedit_foreground:
+            await asyncio.to_thread(activate_textedit_foreground)
+        tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(45.0)
         interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
         if _desktop_gate_satisfied(
             last_tool=last_tool,
@@ -960,14 +966,9 @@ async def ensure_interact_gate(
         ):
             return tool_activity, last_tool, server_pending, ui_pending
         progress("snapshot detected — wait for interact or pending gate")
-        tool_activity, last_tool, server_pending, ui_pending = (
-            await wait_for_interact_or_approval(
-                chat,
-                timeout_sec=30.0,
-                chat_id=chat_id,
-                wall_started_at=wall_clock,
-            )
-        )
+        if textedit_foreground:
+            await asyncio.to_thread(activate_textedit_foreground)
+        tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(30.0)
         interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
         if _desktop_gate_satisfied(
             last_tool=last_tool,
@@ -986,14 +987,9 @@ async def ensure_interact_gate(
         except (RuntimeError, TimeoutError, OSError) as exc:
             progress(f"snapshot nudge send skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
-        tool_activity, last_tool, server_pending, ui_pending = (
-            await wait_for_interact_or_approval(
-                chat,
-                timeout_sec=45.0,
-                chat_id=chat_id,
-                wall_started_at=wall_clock,
-            )
-        )
+        if textedit_foreground:
+            await asyncio.to_thread(activate_textedit_foreground)
+        tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(45.0)
         interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
 
     max_nudge_rounds = 4
@@ -1012,14 +1008,7 @@ async def ensure_interact_gate(
             )
             break
         if round_idx == 0 and not _is_snapshot_or_vision_loop(last_tool):
-            tool_activity, last_tool, server_pending, ui_pending = (
-                await wait_for_interact_or_approval(
-                    chat,
-                    timeout_sec=45.0,
-                    chat_id=chat_id,
-                    wall_started_at=wall_clock,
-                )
-            )
+            tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(45.0)
             interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
             if _desktop_gate_satisfied(
                 last_tool=last_tool,
@@ -1042,13 +1031,10 @@ async def ensure_interact_gate(
             progress(f"nudge send skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
         post_nudge_wait = 30.0 if _is_snapshot_or_vision_loop(last_tool) else 60.0
-        tool_activity, last_tool, server_pending, ui_pending = (
-            await wait_for_interact_or_approval(
-                chat,
-                timeout_sec=post_nudge_wait,
-                chat_id=chat_id,
-                wall_started_at=wall_clock,
-            )
+        if textedit_foreground and _is_snapshot_or_vision_loop(last_tool):
+            await asyncio.to_thread(activate_textedit_foreground)
+        tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(
+            post_nudge_wait
         )
         interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
 
@@ -1084,6 +1070,27 @@ async def ensure_interact_gate(
                 tool_activity = probe if isinstance(probe, dict) else tool_activity
                 break
             await asyncio.sleep(1.0)
+    if interact_seen and not _desktop_gate_satisfied(
+        last_tool=last_tool,
+        server_pending=server_pending,
+        ui_pending=ui_pending,
+    ):
+        progress(
+            "interact_tool seen without pending gate — force snapshot reseed nudge"
+        )
+        try:
+            await _send_interact_nudge(
+                chat,
+                last_tool="desktop_snapshot_tool",
+                chat_id=chat_id,
+                prefetched_dref=None,
+            )
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            progress(f"snapshot reseed nudge skipped (non-fatal): {exc}")
+        heartbeat_e2e_lease()
+        if textedit_foreground:
+            await asyncio.to_thread(activate_textedit_foreground)
+        tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(45.0)
 
     provider_hint = await _provider_readiness_hint()
     require_approval_gate_triggered(
