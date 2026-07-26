@@ -106,9 +106,19 @@ export const useMessageQueue = (chatId: string | null | undefined) => {
   // For 409 Conflict: put the message back at the front of the queue
   const requeue = useCallback((message: QueuedMessage) => {
     setQueue((prev) => {
-      // Avoid duplicates if it's already there
       if (prev.some((m) => m.id === message.id)) return prev;
       return [message, ...prev];
+    });
+  }, []);
+
+  const reorder = useCallback((oldIndex: number, newIndex: number) => {
+    setQueue((prev) => {
+      if (oldIndex === newIndex || oldIndex < 0 || newIndex < 0 || oldIndex >= prev.length || newIndex >= prev.length)
+        return prev;
+      const next = [...prev];
+      const [moved] = next.splice(oldIndex, 1);
+      next.splice(newIndex, 0, moved);
+      return next;
     });
   }, []);
 
@@ -120,6 +130,7 @@ export const useMessageQueue = (chatId: string | null | undefined) => {
     removeMessage,
     clearQueue,
     requeue,
+    reorder,
     hasQueuedMessages: queue.length > 0,
   };
 };

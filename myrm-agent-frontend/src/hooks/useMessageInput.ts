@@ -103,7 +103,7 @@ export const useMessageInput = () => {
   const { initialDraft, clearDraft } = useDraftPersistence(chatId, inputMessage);
 
   // ─── 消息排队 ───
-  const { queue, enqueue, dequeue, editMessage, removeMessage, clearQueue, requeue } = useMessageQueue(chatId);
+  const { queue, enqueue, dequeue, editMessage, removeMessage, clearQueue, requeue, reorder } = useMessageQueue(chatId);
 
   const drainFailCountRef = useRef(0);
 
@@ -470,6 +470,7 @@ export const useMessageInput = () => {
     editMessage,
     removeMessage,
     clearQueue,
+    reorder,
 
     // Handlers
     handlePaste,

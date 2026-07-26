@@ -237,7 +237,7 @@ def textedit_is_frontmost() -> bool:
         [
             "osascript",
             "-e",
-            "tell application \"System Events\" to return name of first application process whose frontmost is true",
+            'tell application "System Events" to return name of first application process whose frontmost is true',
         ],
         check=False,
         capture_output=True,

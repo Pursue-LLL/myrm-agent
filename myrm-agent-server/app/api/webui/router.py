@@ -342,7 +342,9 @@ async def get_desktop_permissions() -> JSONResponse:
     """
     session = None
     try:
-        from myrm_agent_harness.toolkits.computer_use.session import create_computer_session
+        from myrm_agent_harness.toolkits.computer_use.session import (
+            create_computer_session,
+        )
 
         session = create_computer_session()
         status = await session.check_permissions()
@@ -374,7 +376,9 @@ async def _ephemeral_foreground_desktop_snapshot() -> dict[str, object] | None:
         return None
     try:
         from myrm_agent_harness.toolkits.computer_use.backends.macos import MacOSBackend
-        from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
+        from myrm_agent_harness.toolkits.computer_use.desktop_session import (
+            DesktopSession,
+        )
         from myrm_agent_harness.toolkits.computer_use.types import ComputerUseConfig
 
         backend = MacOSBackend()
@@ -420,16 +424,24 @@ async def get_desktop_snapshot(
     if session is None:
         return JSONResponse(
             status_code=404,
-            content={"error": "no_active_desktop", "message": "No active desktop session"},
+            content={
+                "error": "no_active_desktop",
+                "message": "No active desktop session",
+            },
         )
 
     try:
-        from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
+        from myrm_agent_harness.toolkits.computer_use.desktop_session import (
+            DesktopSession,
+        )
 
         if not isinstance(session, DesktopSession):
             return JSONResponse(
                 status_code=404,
-                content={"error": "invalid_session", "message": "Desktop session type mismatch"},
+                content={
+                    "error": "invalid_session",
+                    "message": "Desktop session type mismatch",
+                },
             )
 
         if normalized_source == "registry":
@@ -523,7 +535,10 @@ async def resolve_desktop_approval(body: DesktopApprovalResolveBody) -> JSONResp
     if not resolved:
         return JSONResponse(
             status_code=404,
-            content={"error": "not_found", "message": "Approval request not found or already resolved"},
+            content={
+                "error": "not_found",
+                "message": "Approval request not found or already resolved",
+            },
         )
     return JSONResponse(content={"ok": True})
 

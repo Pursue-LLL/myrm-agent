@@ -477,7 +477,9 @@ async def wait_for_approval_banner_clickable(
                 and not stream_abort_attempted
                 and poll >= 8
             ):
-                progress("approval pending while stream active — abort stream for banner")
+                progress(
+                    "approval pending while stream active — abort stream for banner"
+                )
                 await _abort_stream_for_approval_banner(chat)
                 stream_abort_attempted = True
             if not scope_visible:
@@ -489,11 +491,7 @@ async def wait_for_approval_banner_clickable(
             if click.get("ok") is True:
                 progress(f"approval click ok scope={scope} poll=#{poll}")
                 return
-            if (
-                not scope_visible
-                and not api_resolve_attempted
-                and poll >= 16
-            ):
+            if not scope_visible and not api_resolve_attempted and poll >= 16:
                 api_resolve_attempted = True
                 request_id = ""
                 if isinstance(probe, dict):
@@ -618,9 +616,9 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         })()""",
         await_promise=False,
     )
-    assert isinstance(tools_locked, dict) and tools_locked.get(
-        "ok"
-    ) is True, f"computer_use lock failed: {tools_locked}"
+    assert (
+        isinstance(tools_locked, dict) and tools_locked.get("ok") is True
+    ), f"computer_use lock failed: {tools_locked}"
     locked_tools_raw = tools_locked.get("tools")
     locked_tools = (
         [str(item) for item in locked_tools_raw if isinstance(item, str)]
@@ -628,8 +626,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         else []
     )
     assert "computer_use" in locked_tools, (
-        "computer_use missing after tool lock: "
-        f"{tools_locked}"
+        "computer_use missing after tool lock: " f"{tools_locked}"
     )
     progress(f"builtin tools locked for desktop approval: {locked_tools}")
 

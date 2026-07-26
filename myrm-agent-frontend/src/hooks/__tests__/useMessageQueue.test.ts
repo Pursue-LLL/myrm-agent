@@ -136,4 +136,62 @@ describe('useMessageQueue', () => {
 
     expect(result.current.queue).toHaveLength(0);
   });
+
+  describe('reorder', () => {
+    it('moves item from one position to another', () => {
+      const { result } = renderHook(() => useMessageQueue('chat-reorder'));
+
+      act(() => {
+        result.current.enqueue('A', []);
+        result.current.enqueue('B', []);
+        result.current.enqueue('C', []);
+      });
+
+      act(() => {
+        result.current.reorder(2, 0);
+      });
+
+      expect(result.current.queue.map((m) => m.text)).toEqual(['C', 'A', 'B']);
+    });
+
+    it('is a no-op when oldIndex equals newIndex', () => {
+      const { result } = renderHook(() => useMessageQueue('chat-reorder-same'));
+
+      act(() => {
+        result.current.enqueue('A', []);
+        result.current.enqueue('B', []);
+      });
+
+      const before = result.current.queue;
+
+      act(() => {
+        result.current.reorder(0, 0);
+      });
+
+      expect(result.current.queue).toBe(before);
+    });
+
+    it('is a no-op for out-of-bounds indices', () => {
+      const { result } = renderHook(() => useMessageQueue('chat-reorder-oob'));
+
+      act(() => {
+        result.current.enqueue('A', []);
+        result.current.enqueue('B', []);
+      });
+
+      const before = result.current.queue;
+
+      act(() => {
+        result.current.reorder(-1, 0);
+      });
+
+      expect(result.current.queue).toBe(before);
+
+      act(() => {
+        result.current.reorder(0, 5);
+      });
+
+      expect(result.current.queue).toBe(before);
+    });
+  });
 });

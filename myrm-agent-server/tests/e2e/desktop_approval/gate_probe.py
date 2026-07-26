@@ -476,7 +476,9 @@ async def _fetch_first_desktop_dref(
                 return snapshot_dref
             if attempt < 2:
                 await asyncio.sleep(1.0)
-        local_dref = await asyncio.to_thread(fetch_first_desktop_dref_from_local_capture)
+        local_dref = await asyncio.to_thread(
+            fetch_first_desktop_dref_from_local_capture
+        )
         if local_dref:
             progress(f"dref from local AX capture after reseed: {local_dref!r}")
             return local_dref
@@ -618,9 +620,8 @@ async def _send_interact_nudge(
             chat_id=normalized_chat_id,
             fast_only=True,
         )
-    if (
-        dref is None
-        and last_tool.endswith(("desktop_snapshot_tool", "desktop_vision_tool"))
+    if dref is None and last_tool.endswith(
+        ("desktop_snapshot_tool", "desktop_vision_tool")
     ):
         # Deterministic fallback: force interact call to trigger approval gate
         # even when AX/snapshot refs are temporarily unavailable.
@@ -728,7 +729,9 @@ async def _send_interact_nudge(
                     timeout=60.0,
                 )
             except asyncio.TimeoutError as exc:
-                raise TimeoutError("follow-up native send wall timeout after 60s") from exc
+                raise TimeoutError(
+                    "follow-up native send wall timeout after 60s"
+                ) from exc
 
         try:
             send_result = await _submit_follow_up_native()
@@ -1389,7 +1392,9 @@ async def ensure_interact_gate(
     ui_pending = bool(tool_activity.get("pending"))
     interact_seen = last_tool.endswith("desktop_interact_tool")
 
-    async def _wait_gate(timeout_sec: float) -> tuple[dict[str, object], str, int, bool]:
+    async def _wait_gate(
+        timeout_sec: float,
+    ) -> tuple[dict[str, object], str, int, bool]:
         return await wait_for_interact_or_approval(
             chat,
             timeout_sec=timeout_sec,
@@ -1508,7 +1513,9 @@ async def ensure_interact_gate(
             )
             break
         if round_idx == 0 and not _is_snapshot_or_vision_loop(last_tool):
-            tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(45.0)
+            tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(
+                45.0
+            )
             interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
             if _desktop_gate_satisfied(
                 last_tool=last_tool,

@@ -146,7 +146,9 @@ async def run_desktop_approval_chrome_e2e(
         except (RuntimeError, TimeoutError, OSError) as exc:
             if not is_retriable_page_transport(exc):
                 raise
-            progress(f"attach heal + mux recover + reopen after page transport error: {exc}")
+            progress(
+                f"attach heal + mux recover + reopen after page transport error: {exc}"
+            )
             await heal_chrome_attach_before_reopen()
             await asyncio.to_thread(client.recover_mux_transport)
             await asyncio.sleep(2.0)
