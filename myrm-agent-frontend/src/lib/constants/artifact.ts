@@ -48,6 +48,9 @@ export const PORTAL_DEFAULT_WIDTH = 600;
 /** 移动端断点（像素） */
 export const MOBILE_BREAKPOINT = 768;
 
+/** Side-by-side 模式最小屏幕宽度（像素）：宽于此值时默认并排，窄于此值时默认 overlay */
+export const SIDE_BY_SIDE_MIN_SCREEN_WIDTH = 1280;
+
 // ==================== 手势配置 ====================
 
 /** 触摸滑动关闭阈值（像素） */

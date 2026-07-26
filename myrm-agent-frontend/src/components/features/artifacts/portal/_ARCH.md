@@ -4,7 +4,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `PortalHeader.tsx` / `PortalTabs.tsx` | 门户顶栏与多标签 |
+| `PortalHeader.tsx` / `PortalTabs.tsx` | 门户顶栏（含布局模式切换）与多标签 |
 | `VersionHistory.tsx` | 版本列表与回滚入口 |
 | `SelectionToolbar.tsx` / `DocumentSelectionToolbar.tsx` / `ElementPickerToolbar.tsx` | 选区与元素拾取 |
 | `usePortalGestures.ts` / `usePortalKeyboard.ts` / `useSelectionAction.ts` | 交互 hook |

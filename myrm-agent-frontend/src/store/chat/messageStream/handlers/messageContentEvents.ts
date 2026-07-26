@@ -96,7 +96,7 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
             const existing = updateState.messages[messageIndex].clarification;
             const actionMode = H.useChatStore.getState().actionMode;
             updateState.messages[messageIndex].clarification = {
-              ...(existing ?? {}),
+              ...existing,
               question: recievedMessage,
               answered: false,
               options: clarifyOptions ?? existing?.options,

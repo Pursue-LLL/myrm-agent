@@ -52,7 +52,7 @@ async def audit_agent_profile(
     """Run security audit on an Agent's profile configuration."""
     agent = await db.get(Agent, agent_id)
     if not agent:
-        raise not_found_error(resource="Agent", identifier=agent_id)
+        raise not_found_error(resource="Agent")
 
     audit_input = await _build_audit_input(agent, db)
     result = run_profile_audit(audit_input)

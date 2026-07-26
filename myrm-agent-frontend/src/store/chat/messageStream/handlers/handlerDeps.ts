@@ -15,6 +15,7 @@ export type {
   ClarificationOption,
   ClarificationQuestion,
   ErrorKind,
+  FissionTopologyUpdateStreamEvent,
   GoalStatusPayload,
   ProgressItem,
   Message,

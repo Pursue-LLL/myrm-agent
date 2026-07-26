@@ -9,7 +9,8 @@
  * ObserveSection, UnderstandSection, ActSection, VerifySection: Personal Brain Command Center section panels.
  *
  * [POS]
- * 个人大脑指挥中心基础展示面板。按观察、理解、治理、验证分区展示记忆快照、证据、治理和运行状态。
+ * 个人大脑指挥中心基础展示面板。按观察、理解、治理、验证分区展示记忆快照、证据、治理和运行状态，
+ * 并为 migration adapter missing 状态提供迁移向导动作闭环。
  */
 
 import { lazy, Suspense, type ReactNode } from 'react';
@@ -172,6 +173,7 @@ export const ActSection = ({
   onAction,
   onDoctorAction,
   onRollbackImport,
+  onOpenMigrationWizard,
   consolidationSummary,
   onConsolidationRollback,
 }: {
@@ -181,6 +183,7 @@ export const ActSection = ({
   onAction: (item: MemoryCommandGovernanceItem, action: 'approve' | 'reject') => void;
   onDoctorAction: (action: DoctorAction) => void;
   onRollbackImport: (importBatchId: string) => void;
+  onOpenMigrationWizard: (source: string) => void;
   consolidationSummary?: ConsolidationLastSummary | null;
   onConsolidationRollback?: () => void;
 }) => (
@@ -221,6 +224,7 @@ export const ActSection = ({
         actionId={actionId}
         onDoctorAction={onDoctorAction}
         onRollbackImport={onRollbackImport}
+        onOpenMigrationWizard={onOpenMigrationWizard}
       />
     </Panel>
   </div>
@@ -452,12 +456,14 @@ const MigrationPanel = ({
   actionId,
   onDoctorAction,
   onRollbackImport,
+  onOpenMigrationWizard,
 }: {
   snapshot: MemoryCommandCenterResponse;
   t: MemoryTranslation;
   actionId: string | null;
   onDoctorAction: (action: DoctorAction) => void;
   onRollbackImport: (importBatchId: string) => void;
+  onOpenMigrationWizard: (source: string) => void;
 }) => {
   const status = isCoverageStatus(snapshot.migration.coverage_status)
     ? snapshot.migration.coverage_status
@@ -517,17 +523,33 @@ const MigrationPanel = ({
             {adapterEntries.map(({ source, status: entryStatus }) => (
               <div
                 key={`${source}:${entryStatus}`}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/80 px-2.5 py-2"
+                className="space-y-2 rounded-lg border border-border/60 bg-background/80 px-2.5 py-2"
               >
-                <span className="truncate text-xs text-foreground">{source}</span>
-                <span
-                  className={cn(
-                    'rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                    adapterStatusBadgeClass(entryStatus),
-                  )}
-                >
-                  {t(`commandCenter.migrationAdapterStatus.${entryStatus}`)}
-                </span>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate text-xs text-foreground">{source}</span>
+                  <span
+                    className={cn(
+                      'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                      adapterStatusBadgeClass(entryStatus),
+                    )}
+                  >
+                    {t(`commandCenter.migrationAdapterStatus.${entryStatus}`)}
+                  </span>
+                </div>
+                {entryStatus === 'missing' && (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] leading-5 text-muted-foreground">
+                      {t('commandCenter.migrationAdapterMissingHint', { source })}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => onOpenMigrationWizard(source)}
+                      className="rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                    >
+                      {t('commandCenter.migrationAdapterOpenWizard')}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -16,12 +16,29 @@ _smp_state_dir() {
 
 _smp_apply_backend_drift_ensure() {
   local dev_stack="${1:?}" policy_py="${2:?}" state_dir="${3:?}"
-  if ! MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure >/dev/null 2>&1; then
-    echo "CHROME_E2E_FAIL: attach backend drift ensure failed" >&2
-    return 1
-  fi
-  python3 "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
-  return 0
+  local attempt max_attempts backoff_sec
+  max_attempts="${MYRM_E2E_ATTACH_BACKEND_ENSURE_MAX_ATTEMPTS:-3}"
+  [[ "${max_attempts}" =~ ^[0-9]+$ && "${max_attempts}" -gt 0 ]] || max_attempts=3
+  for attempt in $(seq 1 "${max_attempts}"); do
+    if MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure >/dev/null 2>&1; then
+      python3 "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
+      return 0
+    fi
+    # backend-only ensure can return early while shared api is still converging;
+    # treat immediate post-failure recovery as success to avoid false fail-fast.
+    if _smp_shared_api_http_ok; then
+      echo "CHROME_E2E_ATTACH_HEAL: backend drift ensure failed but api recovered (attempt ${attempt}/${max_attempts})" >&2
+      python3 "${policy_py}" clear-pending --state-dir "${state_dir}" >/dev/null 2>&1 || true
+      return 0
+    fi
+    if [[ "${attempt}" -lt "${max_attempts}" ]]; then
+      echo "CHROME_E2E_ATTACH_HEAL: backend drift ensure retry ${attempt}/${max_attempts}" >&2
+      backoff_sec=$((attempt * 3))
+      sleep "${backoff_sec}"
+    fi
+  done
+  echo "CHROME_E2E_FAIL: attach backend drift ensure failed" >&2
+  return 1
 }
 
 _smp_apply_pending_drift_if_idle() {

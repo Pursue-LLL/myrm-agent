@@ -7578,6 +7578,8 @@
         "planned": "Planned",
         "missing": "Not available"
       },
+      "migrationAdapterMissingHint": "{source} is not directly available yet. You can continue through compatible import formats in the migration wizard.",
+      "migrationAdapterOpenWizard": "Open import wizard",
       "trackedImports": "{count} tracked imports",
       "unmappedItems": "{count} unmapped items",
       "importCleanupPending": "{count} pending import reviews",
@@ -8610,6 +8612,8 @@
       "success": "Inserted as attachment",
       "alreadyAttached": "Already attached to current message"
     },
+    "sideBySide": "Side by Side",
+    "overlay": "Overlay",
     "elementPicker": {
       "toggle": "Point & Edit",
       "placeholder": "Describe what to change on this element...",

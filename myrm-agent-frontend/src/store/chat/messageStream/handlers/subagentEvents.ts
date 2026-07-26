@@ -234,7 +234,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
   if (data.type === H.AgentEventType.FISSION_TOPOLOGY) {
     import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
-      const payload = data.data as any;
+      const payload = data.data as H.FissionTopologyUpdateStreamEvent['data'];
       if (payload && payload.fission_id) {
         useSubagentStore.getState().setFissionTopology({
           fission_id: payload.fission_id,

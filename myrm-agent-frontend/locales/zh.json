@@ -7581,6 +7581,8 @@
         "planned": "已规划",
         "missing": "暂不可用"
       },
+      "migrationAdapterMissingHint": "{source} 暂不支持直接导入，你可以在迁移向导中通过兼容格式继续迁移。",
+      "migrationAdapterOpenWizard": "打开迁移向导",
       "trackedImports": "{count} 个已追踪导入",
       "unmappedItems": "{count} 个未映射条目",
       "importCleanupPending": "{count} 个待确认导入审查",
@@ -8610,6 +8612,8 @@
       "success": "已作为附件插入",
       "alreadyAttached": "已添加到当前消息"
     },
+    "sideBySide": "并排显示",
+    "overlay": "浮层显示",
     "elementPicker": {
       "toggle": "指哪改哪",
       "placeholder": "描述你想对这个元素做的修改...",

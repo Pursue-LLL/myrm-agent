@@ -17,7 +17,7 @@
 | `MemoryCommandCenterAdvancedPanels.tsx` | 组件 | 高级面板：导入/导出/图谱/Doctor | ✅ |
 | `MemoryCommandCenterChrome.tsx` | 组件 | 命令中心顶栏、Tab 与搜索框 | ✅ |
 | `MemoryCommandCenterDoctorPanel.tsx` | 组件 | 记忆系统 Doctor 诊断面板 | ✅ |
-| `MemoryCommandCenterPanels.tsx` | 组件 | 主内容区 Tab 面板编排（含 migration adapter readiness 可视化） | ✅ |
+| `MemoryCommandCenterPanels.tsx` | 组件 | 主内容区 Tab 面板编排（含 migration adapter readiness 可视化与 missing 状态迁移向导动作闭环） | ✅ |
 | `MemoryContextPanel.tsx` | 组件 | Shared Context 编辑与预览 | ✅ |
 | `MemoryCreateDialog.tsx` | 组件 | 手动创建记忆对话框 | ✅ |
 | `MemoryDetailSheet.tsx` | 组件 | 记忆详情 Sheet（全文/metadata/来源） | ✅ |
@@ -34,6 +34,7 @@
 | `PendingMemoryBadge.tsx` | 组件 | 待审批记忆计数徽章（ChatWindow 顶栏入口，pendingCount=0 时隐藏） | ✅ |
 | `PendingMemoryDialog.tsx` | 组件 | 待审批记忆审批弹窗（支持编辑、批准、拒绝、来源跳转；连续审批：处理完自动显示下一条） | ✅ |
 | `PendingMemoryList.tsx` | 组件 | 待审批记忆列表（含批量操作，用于 MemorySection pending tab） | ✅ |
+| `__tests__/MemoryCommandCenterPanels.test.tsx` | 测试 | migration adapter missing 状态动作闭环与渲染守卫测试 | ✅ |
 
 ## 依赖
 

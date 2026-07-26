@@ -440,8 +440,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         <PendingMemoryDialog />
 
         <div className="flex h-full w-full">
-          {/* 主内容区域 - 工件弹窗采用 overlay 模式，不挤压聊天空间 */}
-          <div className="flex-1 min-w-0 w-full flex flex-col">
+          <div className="flex-1 min-w-0 flex flex-col">
             {/* Agent Info Banner */}
             {agentConfig?.agentId && <AgentInfoBanner agentId={agentConfig.agentId} />}
             {id ? (
@@ -469,7 +468,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             </div>
           </div>
 
-          {/* Artifact Portal 侧边面板 - 完全 overlay 模式 */}
           <ArtifactPortal />
         </div>
 

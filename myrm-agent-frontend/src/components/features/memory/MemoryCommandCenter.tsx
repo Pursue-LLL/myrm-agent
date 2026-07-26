@@ -9,11 +9,13 @@
  * MemoryCommandCenter: Personal Brain Command Center container with health dashboard, governance, diagnostics, archive export, rollback preview orchestration, and SSE-backed live memory stream.
  *
  * [POS]
- * 个人大脑指挥中心容器。按观察、理解、治理、验证分区展示记忆快照，编排治理动作、Memory Doctor 动作和导入回滚预演强确认。
+ * 个人大脑指挥中心容器。按观察、理解、治理、验证分区展示记忆快照，编排治理动作、Memory Doctor 动作、
+ * 导入回滚预演强确认与 migration missing 状态的迁移向导跳转。
  */
 
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/hooks/useToast';
 import SessionAnalyticsDialog from '@/components/features/settings/sections/system/SessionAnalyticsDialog';
@@ -54,6 +56,7 @@ import MemoryHealthDashboard from './MemoryHealthDashboard';
 
 const SECTIONS = ['observe', 'understand', 'act', 'verify'] as const;
 const HEALTH_STATUSES = ['healthy', 'degraded', 'critical', 'unknown'] as const;
+const MIGRATION_DEEP_LINK_SOURCES = new Set(['hermes', 'openclaw', 'codex', 'claude', 'chatgpt']);
 
 type Section = (typeof SECTIONS)[number];
 type HealthStatus = (typeof HEALTH_STATUSES)[number];
@@ -71,6 +74,7 @@ const isHealthStatus = (value: string): value is HealthStatus => HEALTH_STATUSES
 
 const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   const t = useTranslations('memory');
+  const router = useRouter();
   const [snapshot, setSnapshot] = useState<MemoryCommandCenterResponse | null>(null);
   const [activeSection, setActiveSection] = useState<Section>('observe');
   const [loading, setLoading] = useState(false);
@@ -250,6 +254,17 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
       setActionId(null);
     }
   }, [loadSnapshot, rollbackPreview, t]);
+
+  const openMigrationWizard = useCallback(
+    (source: string) => {
+      const normalizedSource = source.trim().toLowerCase();
+      const sourceQuery = MIGRATION_DEEP_LINK_SOURCES.has(normalizedSource)
+        ? `&source=${encodeURIComponent(normalizedSource)}`
+        : '';
+      router.push(`/settings/memory?sub=migration${sourceQuery}`);
+    },
+    [router],
+  );
 
   const handleConsolidationRollback = useCallback(async () => {
     setActionId('consolidation:rollback');
@@ -478,6 +493,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
           onAction={runAction}
           onDoctorAction={runDoctorAction}
           onRollbackImport={previewRollbackImport}
+          onOpenMigrationWizard={openMigrationWizard}
           consolidationSummary={consolidationSummary}
           onConsolidationRollback={handleConsolidationRollback}
         />

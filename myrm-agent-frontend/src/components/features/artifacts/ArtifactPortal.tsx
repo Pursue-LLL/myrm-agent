@@ -2,11 +2,11 @@
 
 /**
  * [INPUT]
- * useArtifactPortalStore::{useActiveTab, actions} (POS: Portal 标签、缓存、`diffPreviewTruncated`);
+ * useArtifactPortalStore::{useActiveTab, actions, usePortalMode} (POS: Portal 标签、缓存、布局模式、`diffPreviewTruncated`);
  * ArtifactRenderer / PortalTabs / PortalHeader / VersionHistoryBanner (POS: Artifact 预览子树);
- * next-intl `artifacts`（含 `diffTruncatedNotice`）。
- * [OUTPUT] ArtifactPortal: 侧栏宿主；在 `activeTab.diffPreviewTruncated` 时展示单行截断说明条。
- * [POS] Artifact 预览入口容器；协调加载、手势、快捷键与 Diff 截断 UX。
+ * next-intl `artifacts`（含 `diffTruncatedNotice`、`sideBySide`、`overlay`）。
+ * [OUTPUT] ArtifactPortal: 支持 overlay/side-by-side 双布局模式的 Artifact 预览面板。
+ * [POS] Artifact 预览入口容器；协调加载、手势、快捷键、布局模式切换与 Diff 截断 UX。
  */
 
 import React, { useEffect, useCallback, useRef, useState } from 'react';
@@ -20,7 +20,6 @@ import useArtifactPortalStore, {
   ArtifactErrorType,
   parseErrorFromResponse,
   parseNetworkError,
-  // Selector hooks for optimized rendering
   useIsPortalOpen,
   useCurrentArtifact,
   useArtifactContent,
@@ -29,6 +28,7 @@ import useArtifactPortalStore, {
   useIsGenerating,
   useDisplayMode,
   usePanelWidth,
+  usePortalMode,
   useOpenTabs,
   useArtifactVersions,
   useViewingVersionIndex,
@@ -111,11 +111,12 @@ const ArtifactPortal: React.FC = () => {
   const [pickerMode, setPickerMode] = useState(false);
   const [pickedElement, setPickedElement] = useState<PickedElement | null>(null);
   const isMobile = useIsMobile();
+  const portalMode = usePortalMode();
   const portalRef = useRef<HTMLDivElement>(null);
 
-  // Prevent scroll penetration when portal is open
-  // 防止弹窗打开时的滚动穿透
-  useScrollLock(isOpen);
+  const isSideBySide = !isMobile && portalMode === 'side-by-side' && !isFullscreen;
+
+  useScrollLock(isOpen && !isSideBySide);
 
   // 包装 switchToVersion 以支持历史版本内容
   const handleSwitchVersion = useCallback(
@@ -328,16 +329,14 @@ const ArtifactPortal: React.FC = () => {
 
   return (
     <>
-      {/* 背景遮罩 - 完全 overlay 模式 */}
-      {isOpen && (
+      {/* 背景遮罩 - 仅 overlay 模式 */}
+      {isOpen && !isSideBySide && (
         <div
           className={cn(
             'fixed inset-0 z-40 animate-in fade-in-0 duration-200',
-            // 全屏/移动端：深色遮罩；PC 端非全屏：中等遮罩（提升可见性）
             effectiveFullscreen ? 'bg-black/50' : 'bg-black/30',
           )}
           onClick={() => {
-            // 移动端：关闭弹窗；PC 端全屏：退出全屏；PC 端非全屏：关闭弹窗
             if (isMobile || !effectiveFullscreen) {
               closePortal();
             } else {
@@ -359,11 +358,16 @@ const ArtifactPortal: React.FC = () => {
                 'fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t max-h-[85vh]',
                 isOpen ? 'translate-y-0' : 'translate-y-full',
               )
-            : cn(
-                'fixed top-0 right-0 h-full z-40 border-l border-border',
-                effectiveFullscreen ? 'inset-4 rounded-xl shadow-2xl border border-border z-50' : '',
-                isOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none',
-              ),
+            : isSideBySide
+              ? cn(
+                  'relative h-full border-l border-border shrink-0',
+                  isOpen ? 'opacity-100' : 'w-0 opacity-0 pointer-events-none overflow-hidden',
+                )
+              : cn(
+                  'fixed top-0 right-0 h-full z-40 border-l border-border',
+                  effectiveFullscreen ? 'inset-4 rounded-xl shadow-2xl border border-border z-50' : '',
+                  isOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none',
+                ),
         )}
         style={{
           transitionTimingFunction: isOpen ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'cubic-bezier(0.36, 0, 0.66, -0.56)',
@@ -374,8 +378,8 @@ const ArtifactPortal: React.FC = () => {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        role="dialog"
-        aria-modal="true"
+        role={isSideBySide ? 'complementary' : 'dialog'}
+        aria-modal={isSideBySide ? undefined : true}
         aria-label={`${t('preview')}: ${currentArtifact.filename}`}
         tabIndex={-1}
       >
@@ -441,9 +445,14 @@ const ArtifactPortal: React.FC = () => {
           isHtml={isHtml}
           isImage={isImage}
           pickerMode={pickerMode}
+          portalMode={portalMode}
           versions={versions}
           viewingVersionIndex={viewingVersionIndex}
           onSetDisplayMode={setDisplayMode}
+          onTogglePortalMode={() => {
+            const next = portalMode === 'side-by-side' ? 'overlay' : 'side-by-side';
+            useArtifactPortalStore.getState().setPortalMode(next);
+          }}
           onCopy={handleCopy}
           onDownload={handleDownload}
           onOpenInNewTab={handleOpenInNewTab}
@@ -463,6 +472,8 @@ const ArtifactPortal: React.FC = () => {
             generating: t('tabs.generating'),
             type: (type: string) => t(`types.${type}`),
             elementPicker: t('elementPicker.toggle'),
+            sideBySide: t('sideBySide'),
+            overlay: t('overlay'),
           }}
         />
 

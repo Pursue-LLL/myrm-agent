@@ -12,6 +12,7 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
+| `ArtifactPortal.tsx` | 核心 | Artifact 预览入口容器；支持 overlay/side-by-side 双布局模式；协调加载、手势、快捷键与 Diff 截断 UX |
 | `ArtifactCard.tsx` | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染；Globe 发布；publication badges；per-target stale banner |
 | `PublishModal.tsx` | 核心 | 多 target 发布；target 下拉 + `/publish` + WS + Settings 深链 |
 | `artifactUtils.ts` | 辅助 | preflight/share API、`isPublicationStale`、`publicationsChanged` |

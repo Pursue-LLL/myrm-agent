@@ -305,24 +305,3 @@ export function isNodeOvertime(node: SubagentNode): boolean {
   }
   return elapsed > OVERTIME_NO_ETA_THRESHOLD_MS && node.progress < OVERTIME_NO_ETA_PROGRESS_THRESHOLD;
 }
-
-// Helper selector to get tree structure
-export const selectSubagentTree = (state: SubagentStore) => {
-  const nodes = Object.values(state.nodes);
-  const rootNodes: (SubagentNode & { children: SubagentNode[] })[] = [];
-  const map: Record<string, SubagentNode & { children: SubagentNode[] }> = {};
-
-  nodes.forEach((n) => {
-    map[n.task_id] = { ...n, children: [] };
-  });
-
-  nodes.forEach((n) => {
-    if (n.parent_task_id && map[n.parent_task_id]) {
-      map[n.parent_task_id].children.push(map[n.task_id]);
-    } else {
-      rootNodes.push(map[n.task_id]);
-    }
-  });
-
-  return rootNodes;
-};

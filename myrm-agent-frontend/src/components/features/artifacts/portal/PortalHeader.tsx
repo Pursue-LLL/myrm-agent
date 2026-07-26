@@ -13,7 +13,10 @@ import {
   Maximize01Icon,
   Minimize01Icon,
   Cursor02Icon,
+  LeftToRightBlockQuoteIcon,
+  SquareArrowMoveRightDownIcon,
 } from 'hugeicons-react';
+import type { PortalLayoutMode } from '@/store/useArtifactPortalStore';
 import { Button } from '@/components/primitives/button';
 import { Artifact, ArtifactType, ArtifactVersion } from '@/store/chat/types';
 import { ArtifactDisplayMode } from '@/store/useArtifactPortalStore';
@@ -36,7 +39,11 @@ interface PortalHeaderProps {
   viewingVersionIndex: number;
   /** Element picker mode active */
   pickerMode?: boolean;
+  /** 当前布局模式 */
+  portalMode?: PortalLayoutMode;
   onSetDisplayMode: (mode: ArtifactDisplayMode) => void;
+  /** 切换布局模式 */
+  onTogglePortalMode?: () => void;
   onCopy: () => void;
   onDownload: () => void;
   onOpenInNewTab: () => void;
@@ -59,6 +66,8 @@ interface PortalHeaderProps {
     generating: string;
     type: (type: string) => string;
     elementPicker?: string;
+    sideBySide?: string;
+    overlay?: string;
   };
 }
 
@@ -74,9 +83,11 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
   isHtml,
   isImage,
   pickerMode,
+  portalMode,
   versions,
   viewingVersionIndex,
   onSetDisplayMode,
+  onTogglePortalMode,
   onCopy,
   onDownload,
   onOpenInNewTab,
@@ -222,6 +233,23 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
         >
           <Download01Icon className="w-4 h-4" />
         </Button>
+
+        {/* 布局模式切换 */}
+        {!isMobile && !isFullscreen && onTogglePortalMode && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-8 h-8 flex-shrink-0"
+            onClick={onTogglePortalMode}
+            title={portalMode === 'side-by-side' ? labels.overlay : labels.sideBySide}
+          >
+            {portalMode === 'side-by-side' ? (
+              <SquareArrowMoveRightDownIcon className="w-4 h-4" />
+            ) : (
+              <LeftToRightBlockQuoteIcon className="w-4 h-4" />
+            )}
+          </Button>
+        )}
 
         {/* 全屏切换 */}
         {!isMobile && (

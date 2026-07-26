@@ -3,11 +3,12 @@
 /**
  * [INPUT]
  * `@/store/chat/types`::Artifact（POS: 聊天与工件领域类型）；
- * `@/lib/constants/artifact`（POS: Portal 宽度、缓存 TTL、标签上限等常量）。
+ * `@/lib/constants/artifact`（POS: Portal 宽度、缓存 TTL、标签上限、并排断点等常量）。
  * [OUTPUT]
- * Zustand `useArtifactPortalStore`：`openArtifact`/`addTab` 支持 `OpenArtifactTabOptions`（`lineRange`、`diffPreviewTruncated`）、`updateTabContent` 可将 diff 预览标为截断。
+ * Zustand `useArtifactPortalStore`：`openArtifact`/`addTab` 支持 `OpenArtifactTabOptions`（`lineRange`、`diffPreviewTruncated`）、`updateTabContent` 可将 diff 预览标为截断；
+ * `PortalLayoutMode` 类型、`setPortalMode`/`usePortalMode` 管理 overlay/side-by-side 布局模式（localStorage 持久化）。
  * [POS]
- * Artifact Portal 全局状态（打开的标签、缓存、协同脏标记、diff 截断语义）。
+ * Artifact Portal 全局状态（打开的标签、缓存、布局模式、协同脏标记、diff 截断语义）。
  */
 
 import { create } from 'zustand';
@@ -15,9 +16,6 @@ import { immer } from 'zustand/middleware/immer';
 import { useShallow } from 'zustand/react/shallow';
 
 import { Artifact, ArtifactVersion } from '@/store/chat/types';
-
-/** 空版本数组常量，避免每次创建新引用 */
-const EMPTY_VERSIONS: ArtifactVersion[] = [];
 import {
   ARTIFACT_CACHE_MAX_SIZE,
   ARTIFACT_CACHE_TTL,
@@ -26,7 +24,36 @@ import {
   PORTAL_MAX_WIDTH,
   MAX_VERSIONS_PER_ARTIFACT,
   MAX_OPEN_TABS,
+  SIDE_BY_SIDE_MIN_SCREEN_WIDTH,
 } from '@/lib/constants/artifact';
+
+/** 空版本数组常量，避免每次创建新引用 */
+const EMPTY_VERSIONS: ArtifactVersion[] = [];
+
+/** Portal 布局模式 */
+export type PortalLayoutMode = 'overlay' | 'side-by-side';
+
+const PORTAL_MODE_STORAGE_KEY = 'myrm-portal-layout-mode';
+const PORTAL_WIDTH_STORAGE_KEY = 'myrm-portal-panel-width';
+
+function readStoredPortalMode(): PortalLayoutMode {
+  if (typeof window === 'undefined') return 'overlay';
+  const stored = localStorage.getItem(PORTAL_MODE_STORAGE_KEY);
+  if (stored === 'overlay' || stored === 'side-by-side') return stored;
+  return window.innerWidth >= SIDE_BY_SIDE_MIN_SCREEN_WIDTH ? 'side-by-side' : 'overlay';
+}
+
+function readStoredPanelWidth(): number {
+  if (typeof window === 'undefined') return PORTAL_DEFAULT_WIDTH;
+  const stored = localStorage.getItem(PORTAL_WIDTH_STORAGE_KEY);
+  if (stored) {
+    const parsed = Number(stored);
+    if (Number.isFinite(parsed) && parsed >= PORTAL_MIN_WIDTH && parsed <= PORTAL_MAX_WIDTH) {
+      return parsed;
+    }
+  }
+  return PORTAL_DEFAULT_WIDTH;
+}
 
 /** Portal 显示模式 */
 export enum ArtifactDisplayMode {
@@ -100,6 +127,8 @@ interface ArtifactPortalCoreState {
   isOpen: boolean;
   /** 面板宽度 */
   panelWidth: number;
+  /** 布局模式：overlay（浮层覆盖）或 side-by-side（与聊天并排） */
+  portalMode: PortalLayoutMode;
   /** 内容缓存 (artifactId -> content) */
   contentCache: Record<string, CacheEntry>;
   /** 打开的工件标签页列表（核心数据源） */
@@ -144,8 +173,10 @@ interface ArtifactPortalActions {
   updateCurrentArtifact: (artifact: Partial<Artifact>) => void;
   /** 自动切换到预览模式（生成完成后调用） */
   autoSwitchToPreview: () => void;
-  /** 设置面板宽度 */
+  /** 设置面板宽度（持久化到 localStorage） */
   setPanelWidth: (width: number) => void;
+  /** 切换布局模式（持久化到 localStorage） */
+  setPortalMode: (mode: PortalLayoutMode) => void;
   /** 获取缓存内容 */
   getCachedContent: (artifactId: string) => string | null;
   /** 设置缓存内容 */
@@ -269,7 +300,8 @@ type ArtifactPortalStore = ArtifactPortalCoreState & ArtifactPortalActions;
 /** 初始状态 */
 const initialCoreState: ArtifactPortalCoreState = {
   isOpen: false,
-  panelWidth: PORTAL_DEFAULT_WIDTH,
+  panelWidth: readStoredPanelWidth(),
+  portalMode: readStoredPortalMode(),
   contentCache: {},
   openTabs: [],
   activeTabIndex: -1,
@@ -485,9 +517,22 @@ const useArtifactPortalStore = create<ArtifactPortalStore>()(
     },
 
     setPanelWidth: (width: number) => {
+      const clamped = Math.max(PORTAL_MIN_WIDTH, Math.min(PORTAL_MAX_WIDTH, width));
       set((state) => {
-        state.panelWidth = Math.max(PORTAL_MIN_WIDTH, Math.min(PORTAL_MAX_WIDTH, width));
+        state.panelWidth = clamped;
       });
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(PORTAL_WIDTH_STORAGE_KEY, String(clamped));
+      }
+    },
+
+    setPortalMode: (mode: PortalLayoutMode) => {
+      set((state) => {
+        state.portalMode = mode;
+      });
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(PORTAL_MODE_STORAGE_KEY, mode);
+      }
     },
 
     getCachedContent: (artifactId: string) => {
@@ -858,6 +903,9 @@ export const useDisplayMode = () =>
 
 /** 选择器：面板宽度 */
 export const usePanelWidth = () => useArtifactPortalStore((state) => state.panelWidth);
+
+/** 选择器：布局模式 */
+export const usePortalMode = () => useArtifactPortalStore((state) => state.portalMode);
 
 /** 选择器：打开的标签页信息 */
 export const useOpenTabs = () =>
