@@ -7,9 +7,11 @@ cdp_chat_support::get_e2e_api_url (POS: E2E API/chat 消息 SSOT)
 [OUTPUT]
 apply_shared_ui_session_contract: 四阶段 UI 会话隔离（RESET → BIND → BRIDGE → SEARCH）
 prime_search_policy_env / resolve_search_policy_from_item: pytest marker → env SSOT
+RESET_GLOBALS_KEEP_SEARCH_BLOCK_JS: empty 策略专用 RESET 变体（保留 __MYRM_E2E_BLOCK_SEARCH_SYNC__）
 
 [POS]
 Dev Gate 层共享 UI 污染隔离。每 chrome_e2e item 在 bootstrap / new-chat 后重置 window 全局状态。
+empty 策略在同测例内的二次调用通过 short-circuit 避免重复 45s PUT+verify。
 """
 
 from __future__ import annotations

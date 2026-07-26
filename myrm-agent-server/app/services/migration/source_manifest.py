@@ -14,6 +14,7 @@ Centralizes Wizard migration source metadata to avoid frontend/backend drift.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Final, Literal, TypedDict
 
@@ -83,10 +84,25 @@ def migration_source_manifest_entries() -> tuple[MigrationSourceManifestEntry, .
     return _MIGRATION_SOURCE_MANIFEST
 
 
+def migration_source_manifest_ids() -> frozenset[str]:
+    """Return the canonical migration source id set declared by SSOT."""
+
+    return frozenset(entry.id for entry in _MIGRATION_SOURCE_MANIFEST)
+
+
 def migration_source_manifest_authoritative() -> bool:
     """Return whether server payload should replace frontend local defaults."""
 
     return MIGRATION_SOURCE_MANIFEST_AUTHORITATIVE
+
+
+def migration_source_manifest_authoritative_for_ids(source_ids: Iterable[str]) -> bool:
+    """Return authoritative only when payload ids fully cover the SSOT set."""
+
+    if not MIGRATION_SOURCE_MANIFEST_AUTHORITATIVE:
+        return False
+    normalized_ids = frozenset(source_id.strip().lower() for source_id in source_ids if source_id.strip())
+    return migration_source_manifest_ids().issubset(normalized_ids)
 
 
 def migration_source_manifest_payload() -> list[MigrationSourceManifestPayloadItem]:

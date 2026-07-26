@@ -13,6 +13,7 @@ secrets import opt-in). SaaS returns empty discovery.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Literal
 
@@ -27,11 +28,13 @@ from app.services.migration.source_discovery import (
 from app.services.migration.source_manifest import (
     MigrationImportSource,
     migration_source_manifest_authoritative,
+    migration_source_manifest_authoritative_for_ids,
     migration_source_manifest_payload,
 )
 from app.services.migration.source_secrets_importer import import_external_source_secrets
 
 router = APIRouter(prefix="/migration", tags=["migration"])
+logger = logging.getLogger(__name__)
 
 
 class DiscoveredFileResponse(BaseModel):
@@ -84,6 +87,19 @@ def build_source_manifest_response() -> list[MigrationSourceManifestItemResponse
     return [MigrationSourceManifestItemResponse.model_validate(item) for item in migration_source_manifest_payload()]
 
 
+def resolve_source_manifest_authoritative(manifest: list[MigrationSourceManifestItemResponse]) -> bool:
+    """Resolve authoritative flag with SSOT completeness guard."""
+
+    authoritative = migration_source_manifest_authoritative_for_ids(item.id for item in manifest)
+    if authoritative:
+        return True
+    if migration_source_manifest_authoritative():
+        logger.warning(
+            "Migration source manifest incomplete in /migration/discover; authoritative flag downgraded",
+        )
+    return False
+
+
 class SecretsImportRequest(BaseModel):
     root: str = Field(..., min_length=1, description="External data root directory")
     competitor: str = Field(..., min_length=1, description="Source identifier")
@@ -121,12 +137,14 @@ async def discover_external_source_data() -> DiscoveryResponse:
     Only available in local/Tauri deployment modes. Returns empty in SaaS mode.
     """
 
+    manifest = build_source_manifest_response()
+    manifest_authoritative = resolve_source_manifest_authoritative(manifest)
     if not is_local_mode():
         return DiscoveryResponse(
             sources=[],
             available=False,
-            source_manifest=build_source_manifest_response(),
-            source_manifest_authoritative=migration_source_manifest_authoritative(),
+            source_manifest=manifest,
+            source_manifest_authoritative=manifest_authoritative,
         )
 
     result = discover_external_sources()
@@ -134,6 +152,6 @@ async def discover_external_source_data() -> DiscoveryResponse:
         sources=[_to_response(s) for s in result.sources],
         scan_path=result.scan_path,
         available=True,
-        source_manifest=build_source_manifest_response(),
-        source_manifest_authoritative=migration_source_manifest_authoritative(),
+        source_manifest=manifest,
+        source_manifest_authoritative=manifest_authoritative,
     )

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import os
 import shutil
 import tempfile
@@ -30,13 +31,18 @@ from app.api.migration.discovery import (
     DiscoveredFileResponse,
     DiscoveryResponse,
     ExternalSourceResponse,
+    MigrationSourceManifestItemResponse,
     _to_response,
     build_source_manifest_response,
 )
 from app.services.migration.source_discovery import discover_external_sources
-from app.services.migration.source_manifest import migration_source_manifest_authoritative
+from app.services.migration.source_manifest import (
+    migration_source_manifest_authoritative,
+    migration_source_manifest_authoritative_for_ids,
+)
 
 router = APIRouter(prefix="/migration", tags=["migration"])
+logger = logging.getLogger(__name__)
 
 MAX_ZIP_BYTES = 50 * 1024 * 1024  # 50 MB
 MAX_EXTRACTED_FILES = 5000
@@ -78,6 +84,19 @@ def _is_chatgpt_conversations_file(path: str) -> bool:
         return False
 
 
+def _resolve_manifest_authoritative(manifest: list[MigrationSourceManifestItemResponse]) -> bool:
+    """Resolve authoritative flag with SSOT completeness guard."""
+
+    authoritative = migration_source_manifest_authoritative_for_ids(item.id for item in manifest)
+    if authoritative:
+        return True
+    if migration_source_manifest_authoritative():
+        logger.warning(
+            "Migration source manifest incomplete in /migration/upload; authoritative flag downgraded",
+        )
+    return False
+
+
 @router.post("/upload", response_model=DiscoveryResponse)
 async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
     """Accept a ZIP of competitor data and return discovered sources.
@@ -117,10 +136,12 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
     tmpdir = tempfile.mkdtemp(prefix="myrm_migration_")
     archive.extractall(tmpdir)
     archive.close()
+    manifest = build_source_manifest_response()
+    manifest_authoritative = _resolve_manifest_authoritative(manifest)
 
     chatgpt_path = _detect_chatgpt_zip(tmpdir)
     if chatgpt_path:
-        return _build_chatgpt_discovery(chatgpt_path)
+        return _build_chatgpt_discovery(chatgpt_path, manifest, manifest_authoritative)
 
     result = discover_external_sources(home_dir=tmpdir)
 
@@ -130,20 +151,24 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
             sources=[],
             scan_path="upload",
             available=True,
-            source_manifest=build_source_manifest_response(),
-            source_manifest_authoritative=migration_source_manifest_authoritative(),
+            source_manifest=manifest,
+            source_manifest_authoritative=manifest_authoritative,
         )
 
     return DiscoveryResponse(
         sources=[_to_response(s) for s in result.sources],
         scan_path="upload",
         available=True,
-        source_manifest=build_source_manifest_response(),
-        source_manifest_authoritative=migration_source_manifest_authoritative(),
+        source_manifest=manifest,
+        source_manifest_authoritative=manifest_authoritative,
     )
 
 
-def _build_chatgpt_discovery(conversations_path: str) -> DiscoveryResponse:
+def _build_chatgpt_discovery(
+    conversations_path: str,
+    manifest: list[MigrationSourceManifestItemResponse],
+    manifest_authoritative: bool,
+) -> DiscoveryResponse:
     """Build a discovery response for a ChatGPT export ZIP."""
 
     count = 0
@@ -167,6 +192,6 @@ def _build_chatgpt_discovery(conversations_path: str) -> DiscoveryResponse:
         sources=[source],
         scan_path="upload",
         available=True,
-        source_manifest=build_source_manifest_response(),
-        source_manifest_authoritative=migration_source_manifest_authoritative(),
+        source_manifest=manifest,
+        source_manifest_authoritative=manifest_authoritative,
     )

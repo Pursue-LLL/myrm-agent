@@ -428,8 +428,10 @@ const SkillResultCard = memo(
     t,
   }: SkillResultCardProps) => {
     const SourceIcon = SOURCE_ICONS[skill.source] || Globe;
-    const sourceColor = SOURCE_COLORS[skill.source] || 'text-gray-500';
-    const sourceLabel = t(`source.${skill.source}` as Parameters<typeof t>[0]);
+    const sourceColor = SOURCE_COLORS[skill.source] || (skill.source.startsWith('well-known:') ? 'text-primary' : 'text-gray-500');
+    const sourceLabel = skill.source.startsWith('well-known:')
+      ? skill.source.replace('well-known:', '').replace(/^https?:\/\//, '')
+      : t(`source.${skill.source}` as Parameters<typeof t>[0]);
     const isBusy = isInstalling || isPreviewing || isUninstalling;
     const isLocalInstalled = !!skill.installed_version;
 
