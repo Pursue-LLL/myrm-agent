@@ -44,8 +44,9 @@ exact payload `myrm-agent-harness.apply_approval_decisions` expects:
 - `deny`         → `{"type": "reject", "feedback": "Denied via {channel} channel command"}`
   — when the user provides a reason via `/deny <reason>` (capped at 280 chars),
   an additional `"guidance": "<reason>"` field is included; the harness injects
-  it as a `HumanMessage` for the agent to course-correct. Without a reason,
-  `guidance` is omitted and only the generic feedback is sent.
+  it as a `HumanMessage` for the agent to course-correct. The IM status message
+  also displays the reason (i18n key `approval_denial_with_reason_processing`).
+  Without a reason, `guidance` is omitted and only the generic feedback is sent.
 
 ## ActionButton Callback Approval
 
