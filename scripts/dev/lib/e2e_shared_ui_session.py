@@ -11,7 +11,7 @@ RESET_GLOBALS_KEEP_SEARCH_BLOCK_JS: empty 策略专用 RESET 变体（保留 __M
 
 [POS]
 Dev Gate 层共享 UI 污染隔离。每 chrome_e2e item 在 bootstrap / new-chat 后重置 window 全局状态。
-empty 策略在同测例内的二次调用通过 short-circuit 避免重复 45s PUT+verify。
+empty 策略使用两态契约：同 nodeid+api 首轮强一致清理；后续重试快路径 short-circuit。
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from cdp_chat_support import ensure_e2e_search_cleared_in_browser, get_e2e_api_u
 E2E_SEARCH_POLICY_ENV = "MYRM_E2E_SEARCH_POLICY"
 SearchPolicy = Literal["empty", "hydrate_private"]
 DEFAULT_SEARCH_POLICY: SearchPolicy = "hydrate_private"
+_EMPTY_POLICY_STRONG_CLEAR_DONE: set[tuple[str, str]] = set()
 
 RESET_GLOBALS_JS = """(() => {
   delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
@@ -78,6 +79,34 @@ BRIDGE_READY_PROBE_JS = """(() => ({
   blockSearchSync: Boolean(window.__MYRM_E2E_BLOCK_SEARCH_SYNC__),
   phase: 'BRIDGE_READY',
 }))()"""
+
+
+def _normalize_api_url(api_url: str) -> str:
+    return api_url.rstrip("/")
+
+
+def _current_pytest_node_id() -> str:
+    raw = os.environ.get("PYTEST_CURRENT_TEST", "").strip()
+    if not raw:
+        return "global"
+    node_id = raw.partition(" (")[0].strip()
+    return node_id or "global"
+
+
+def _empty_policy_state_key(api_url: str) -> tuple[str, str]:
+    return (_normalize_api_url(api_url), _current_pytest_node_id())
+
+
+def _empty_policy_strong_clear_done(key: tuple[str, str]) -> bool:
+    return key in _EMPTY_POLICY_STRONG_CLEAR_DONE
+
+
+def _mark_empty_policy_strong_clear_done(key: tuple[str, str]) -> None:
+    _EMPTY_POLICY_STRONG_CLEAR_DONE.add(key)
+
+
+def _reset_empty_policy_runtime_state_for_tests() -> None:
+    _EMPTY_POLICY_STRONG_CLEAR_DONE.clear()
 
 
 @runtime_checkable
@@ -161,8 +190,9 @@ async def apply_shared_ui_session_contract(
     if deadline is not None and time.monotonic() >= deadline:
         raise _session_error("E2E_SHARED_UI_SESSION", "budget exhausted before RESET_GLOBALS")
 
-    # R55: empty policy preserves __MYRM_E2E_BLOCK_SEARCH_SYNC__ across
-    # _after_new_chat_reset calls to avoid redundant 45s PUT+verify cycles.
+    # R56: empty policy two-state contract:
+    # 1) first pass per nodeid+api does strong clear;
+    # 2) retries use fast-path short-circuit.
     reset_js = (
         RESET_GLOBALS_KEEP_SEARCH_BLOCK_JS if policy == "empty" else RESET_GLOBALS_JS
     )
@@ -181,7 +211,7 @@ async def apply_shared_ui_session_contract(
 
     await chat.ensure_e2e_api_base_binding()
 
-    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
+    resolved_api = _normalize_api_url(api_url or get_e2e_api_url())
 
     bridge_timeout = min(60.0, timeout_sec)
     if deadline is not None:
@@ -199,15 +229,21 @@ async def apply_shared_ui_session_contract(
         await ensure_bridge(timeout_sec=bridge_timeout)
 
     if policy == "empty":
-        # R55: if block flag survived from a prior empty-policy pass (same test),
-        # skip the expensive 45s PUT+verify and just confirm the flag.
+        empty_state_key = _empty_policy_state_key(resolved_api)
+        strong_clear_done = _empty_policy_strong_clear_done(empty_state_key)
+
+        # Fast path triggers when either:
+        # - block flag survives on the same page; or
+        # - strong clear has completed once for this nodeid+api pair.
         search_block_preserved = (
             isinstance(reset_raw, dict) and reset_raw.get("searchBlockPreserved") is True
         )
+        strong_clear_short_circuit = strong_clear_done and not search_block_preserved
 
         print(
             f"E2E_SHARED_UI_SESSION_PROGRESS: phase=SEARCH_POLICY empty"
-            f"{' (block-preserved)' if search_block_preserved else ''}",
+            f"{' (block-preserved)' if search_block_preserved else ''}"
+            f"{' (strong-clear-done)' if strong_clear_short_circuit else ''}",
             file=sys.stderr,
             flush=True,
         )
@@ -218,8 +254,21 @@ async def apply_shared_ui_session_contract(
             "phase": "SEARCH_POLICY",
         }
 
+        short_circuit_reason: str | None = None
         if search_block_preserved:
+            short_circuit_reason = "block_preserved"
+        elif strong_clear_done:
+            short_circuit_reason = "strong_clear_done"
+
+        if short_circuit_reason is not None:
+            print(
+                "E2E_SHARED_UI_SESSION_FASTPATH_EMPTY: "
+                f"reason={short_circuit_reason} api={empty_state_key[0]} nodeid={empty_state_key[1]}",
+                file=sys.stderr,
+                flush=True,
+            )
             search_result["short_circuit"] = True
+            search_result["short_circuit_reason"] = short_circuit_reason
         else:
             search_budget = min(45.0, timeout_sec)
             if deadline is not None:
@@ -238,6 +287,7 @@ async def apply_shared_ui_session_contract(
                     ),
                     timeout=search_budget,
                 )
+                search_result["strong_clear"] = "python_ssot_and_browser_verified"
             except (TimeoutError, RuntimeError, OSError, urllib.error.URLError) as exc:
                 print(
                     f"E2E_SHARED_UI_SESSION_WARN: empty search clear fallback block-only err={exc}",
@@ -246,6 +296,9 @@ async def apply_shared_ui_session_contract(
                 )
                 search_result["fallback"] = "block_only"
                 search_result["clear_error"] = str(exc)
+                search_result["strong_clear"] = "fallback_block_only"
+
+            _mark_empty_policy_strong_clear_done(empty_state_key)
 
         block_raw = await chat.evaluate(
             SET_EMPTY_SEARCH_BLOCK_JS,

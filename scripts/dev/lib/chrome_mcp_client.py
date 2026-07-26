@@ -110,7 +110,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class _TransportDeadError(RuntimeError):
-    """Raised when the mux shim process is missing or exited."""
+    """Raised when the MCP shim process is missing, exited, or its stdio pipe closed.
+
+    All transport-level failures (_read EOF, _write BrokenPipe, process poll ≠ None)
+    MUST use this type so ``_request`` can catch and trigger ``_recover_mux_transport``.
+    Application-level errors (tool failures, protocol errors) use plain RuntimeError.
+    """
 
 
 def _chrome_e2e_port() -> int:
@@ -1280,8 +1285,14 @@ class ChromeMcpClient:
     ) -> None:
         if process.stdin is None:
             raise RuntimeError("Chrome MCP stdin is unavailable")
-        process.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
-        process.stdin.flush()
+        try:
+            process.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
+            process.stdin.flush()
+        except (BrokenPipeError, ValueError) as exc:
+            raise _TransportDeadError(
+                f"Chrome MCP transport closed during write; "
+                f"stderr={list(self._stderr_lines)[-5:]}"
+            ) from exc
 
     def _read(
         self, process: subprocess.Popen[str], timeout_sec: float
@@ -1296,7 +1307,7 @@ class ChromeMcpClient:
             )
         line = process.stdout.readline()
         if not line:
-            raise RuntimeError(
+            raise _TransportDeadError(
                 f"Chrome MCP transport closed; stderr={list(self._stderr_lines)[-5:]}"
             )
         payload = json.loads(line)

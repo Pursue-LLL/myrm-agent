@@ -55,14 +55,88 @@ def _desktop_gate_satisfied(
 _PENDING_API_FAIL_ABORT_STREAK = 20
 _FAST_API_TIMEOUT_SEC = 4.0
 _FAST_API_MAX_ATTEMPTS = 1
+_FAST_API_WALL_TIMEOUT_SEC = _FAST_API_TIMEOUT_SEC + 1.0
+
+
+def _empty_desktop_progress_probe() -> dict[str, object]:
+    return {
+        "active": False,
+        "pending": False,
+        "isStreaming": False,
+        "stepCount": 0,
+        "lastTool": "",
+        "completionStatus": "",
+    }
+
+
+async def _server_pending_count_fast() -> int:
+    try:
+        value = await asyncio.wait_for(
+            asyncio.to_thread(
+                server_pending_approval_count,
+                timeout_sec=_FAST_API_TIMEOUT_SEC,
+                max_attempts=_FAST_API_MAX_ATTEMPTS,
+            ),
+            timeout=_FAST_API_WALL_TIMEOUT_SEC,
+        )
+    except asyncio.TimeoutError:
+        return -1
+    except OSError:
+        return -1
+    return int(value) if isinstance(value, int) else -1
+
+
+async def _desktop_tool_progress_api_fast(chat_id: str) -> dict[str, object]:
+    normalized = chat_id.strip()
+    if not normalized:
+        return _empty_desktop_progress_probe()
+    try:
+        probe = await asyncio.wait_for(
+            asyncio.to_thread(
+                fetch_desktop_tool_progress_from_api,
+                normalized,
+                timeout_sec=_FAST_API_TIMEOUT_SEC,
+                max_attempts=_FAST_API_MAX_ATTEMPTS,
+            ),
+            timeout=_FAST_API_WALL_TIMEOUT_SEC,
+        )
+    except asyncio.TimeoutError:
+        progress(
+            f"desktop progress API wall-timeout>{_FAST_API_WALL_TIMEOUT_SEC:.0f}s "
+            f"chat_id={normalized[:8]}..."
+        )
+        return {
+            **_empty_desktop_progress_probe(),
+            "err": "api-progress-wall-timeout",
+        }
+    except OSError:
+        return _empty_desktop_progress_probe()
+    return probe if isinstance(probe, dict) else _empty_desktop_progress_probe()
+
+
+async def _chat_user_message_count_fast(chat_id: str) -> int:
+    normalized = chat_id.strip()
+    if not normalized:
+        return 0
+    try:
+        value = await asyncio.wait_for(
+            asyncio.to_thread(
+                chat_user_message_count,
+                normalized,
+                timeout_sec=_FAST_API_TIMEOUT_SEC,
+                max_attempts=_FAST_API_MAX_ATTEMPTS,
+            ),
+            timeout=_FAST_API_WALL_TIMEOUT_SEC,
+        )
+    except asyncio.TimeoutError:
+        return 0
+    except OSError:
+        return 0
+    return int(value) if isinstance(value, int) else 0
 
 
 async def _resolve_server_pending(*, api_fail_streak: list[int]) -> int:
-    count = await asyncio.to_thread(
-        server_pending_approval_count,
-        timeout_sec=_FAST_API_TIMEOUT_SEC,
-        max_attempts=_FAST_API_MAX_ATTEMPTS,
-    )
+    count = await _server_pending_count_fast()
     if count >= 0:
         if api_fail_streak[0] > 0:
             progress(f"backend pending API recovered after {api_fail_streak[0]} blips")
@@ -164,13 +238,7 @@ async def probe_desktop_tool_progress(
 ) -> dict[str, object]:
     normalized_chat_id = chat_id.strip()
     if api_only and normalized_chat_id:
-        api_probe = await asyncio.to_thread(
-            fetch_desktop_tool_progress_from_api,
-            normalized_chat_id,
-            timeout_sec=_FAST_API_TIMEOUT_SEC,
-            max_attempts=_FAST_API_MAX_ATTEMPTS,
-        )
-        return api_probe if isinstance(api_probe, dict) else {"active": False}
+        return await _desktop_tool_progress_api_fast(normalized_chat_id)
     probe = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.getDesktopToolProgress?.() ?? {})()""",
         await_promise=False,
@@ -179,12 +247,7 @@ async def probe_desktop_tool_progress(
     if not normalized_chat_id:
         normalized_chat_id = await _bridge_chat_id(chat)
     api_probe = (
-        await asyncio.to_thread(
-            fetch_desktop_tool_progress_from_api,
-            normalized_chat_id,
-            timeout_sec=_FAST_API_TIMEOUT_SEC,
-            max_attempts=_FAST_API_MAX_ATTEMPTS,
-        )
+        await _desktop_tool_progress_api_fast(normalized_chat_id)
         if normalized_chat_id
         else None
     )
@@ -371,21 +434,8 @@ async def _nudge_baseline_markers(chat_id: str) -> tuple[int, int]:
     normalized = chat_id.strip()
     if not normalized:
         return 0, 0
-    try:
-        baseline_user_msgs = await asyncio.to_thread(
-            chat_user_message_count,
-            normalized,
-            timeout_sec=_FAST_API_TIMEOUT_SEC,
-            max_attempts=_FAST_API_MAX_ATTEMPTS,
-        )
-    except OSError:
-        baseline_user_msgs = 0
-    api_progress = await asyncio.to_thread(
-        fetch_desktop_tool_progress_from_api,
-        normalized,
-        timeout_sec=_FAST_API_TIMEOUT_SEC,
-        max_attempts=_FAST_API_MAX_ATTEMPTS,
-    )
+    baseline_user_msgs = await _chat_user_message_count_fast(normalized)
+    api_progress = await _desktop_tool_progress_api_fast(normalized)
     baseline_step_count = 0
     if isinstance(api_progress, dict):
         baseline_step_count = int(api_progress.get("stepCount") or 0)
@@ -409,22 +459,9 @@ async def _wait_nudge_consumed(
         heartbeat_e2e_lease()
         user_count = baseline_user_msgs
         user_advanced = False
-        try:
-            user_count = await asyncio.to_thread(
-                chat_user_message_count,
-                normalized,
-                timeout_sec=_FAST_API_TIMEOUT_SEC,
-                max_attempts=_FAST_API_MAX_ATTEMPTS,
-            )
-            user_advanced = user_count > baseline_user_msgs
-        except OSError:
-            pass
-        api_progress = await asyncio.to_thread(
-            fetch_desktop_tool_progress_from_api,
-            normalized,
-            timeout_sec=_FAST_API_TIMEOUT_SEC,
-            max_attempts=_FAST_API_MAX_ATTEMPTS,
-        )
+        user_count = await _chat_user_message_count_fast(normalized)
+        user_advanced = user_count > baseline_user_msgs
+        api_progress = await _desktop_tool_progress_api_fast(normalized)
         if isinstance(api_progress, dict):
             last_tool = str(api_progress.get("lastTool") or "")
             step_count = int(api_progress.get("stepCount") or 0)
@@ -594,7 +631,7 @@ async def _send_interact_nudge(
                 await asyncio.to_thread(activate_textedit_foreground)
 
             try:
-                await asyncio.wait_for(_steer_fallback_follow_up(), timeout=180.0)
+                await asyncio.wait_for(_steer_fallback_follow_up(), timeout=60.0)
             except (asyncio.TimeoutError, RuntimeError, TimeoutError, OSError) as exc:
                 progress(f"steer fallback follow-up failed (non-fatal): {exc}")
             return
@@ -825,8 +862,10 @@ async def _wait_desktop_tool_activity_failfast(
             ):
                 progress(
                     f"streaming {now - streaming_started:.0f}s without desktop tools "
-                    f"— early steer nudge"
+                    f"— abort stream then steer nudge"
                 )
+                await _abort_stuck_ui_stream(chat)
+                await _wait_stream_idle(chat, chat_id=chat_id, timeout_sec=15.0)
                 try:
                     await _send_interact_nudge(
                         chat, last_tool=last_tool, chat_id=chat_id
@@ -942,11 +981,7 @@ async def ensure_interact_gate(
     )
 
     last_tool = str(tool_activity.get("lastTool") or "")
-    server_pending = await asyncio.to_thread(
-        server_pending_approval_count,
-        timeout_sec=_FAST_API_TIMEOUT_SEC,
-        max_attempts=_FAST_API_MAX_ATTEMPTS,
-    )
+    server_pending = await _server_pending_count_fast()
     ui_pending = bool(tool_activity.get("pending"))
     interact_seen = last_tool.endswith("desktop_interact_tool")
 
@@ -1106,11 +1141,7 @@ async def ensure_interact_gate(
         while asyncio.get_event_loop().time() < grace_deadline:
             assert_desktop_e2e_wall_clock(wall_clock, phase="interact_pending_grace")
             heartbeat_e2e_lease()
-            server_pending = await asyncio.to_thread(
-                server_pending_approval_count,
-                timeout_sec=_FAST_API_TIMEOUT_SEC,
-                max_attempts=_FAST_API_MAX_ATTEMPTS,
-            )
+            server_pending = await _server_pending_count_fast()
             probe = await probe_desktop_tool_progress(
                 chat, chat_id=chat_id, api_only=api_only
             )

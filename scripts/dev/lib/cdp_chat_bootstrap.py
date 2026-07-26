@@ -704,12 +704,34 @@ class CdpChatBootstrap(CdpChatTransport):
                 return
             await asyncio.sleep(2)
 
+    async def _api_provider_ready_non_blocking(self, *, timeout_sec: float) -> bool:
+        """Bound API readiness probe so provider checks cannot stall shell recovery."""
+        probe_timeout = max(1.0, min(timeout_sec, 5.0))
+        try:
+            return bool(
+                await asyncio.wait_for(
+                    asyncio.to_thread(_api_provider_ready),
+                    timeout=probe_timeout,
+                )
+            )
+        except TimeoutError:
+            import sys
+
+            print(
+                f"E2E_PROVIDER_READY_CHECK_TIMEOUT: timeout={probe_timeout:.1f}s",
+                file=sys.stderr,
+                flush=True,
+            )
+            return False
+        except Exception:
+            return False
+
     async def _wait_providers_hydrated(self, *, timeout_sec: float) -> None:
         """Wait until provider store is initialized; prefer E2E bridge over UI picker label."""
         if timeout_sec <= 0:
             return
         timeout_sec = max(5.0, min(timeout_sec, 60.0))
-        if _api_provider_ready():
+        if await self._api_provider_ready_non_blocking(timeout_sec=timeout_sec):
             deadline = time.monotonic() + timeout_sec
             try:
                 await self.evaluate(

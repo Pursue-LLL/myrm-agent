@@ -19,6 +19,11 @@
 #   - db:      PostgreSQL + AGE（可选图查询扩展）
 #   - search:  SearXNG 搜索服务（Self-hosted 模式专用）
 #   - storage: MinIO 对象存储（Sandbox 模式需要）
+#
+# Security:
+#   All ports bind to 127.0.0.1 (localhost only). To allow LAN access
+#   (e.g. from a phone on the same WiFi), edit the port mapping or use
+#   a reverse proxy with authentication.
 
 services:
 
@@ -40,7 +45,7 @@ services:
     networks:
       - myrm
     ports:
-      - "25808:25808"
+      - "127.0.0.1:25808:25808"
     environment:
       DEPLOY_MODE: local
       PORT: "25808"
@@ -80,7 +85,7 @@ services:
     networks:
       - myrm
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       backend:
         condition: service_healthy
@@ -132,7 +137,7 @@ services:
     networks:
       - myrm
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     command:
       - "postgres"
       - "-c"
@@ -174,7 +179,7 @@ services:
     networks:
       - myrm
     ports:
-      - "8081:8080"
+      - "127.0.0.1:8081:8080"
     volumes:
       - ./searxng:/etc/searxng:rw
     environment:
@@ -209,8 +214,8 @@ services:
       - myrm
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"  # S3 API
-      - "9001:9001"  # Web Console
+      - "127.0.0.1:9000:9000"  # S3 API
+      - "127.0.0.1:9001:9001"  # Web Console
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin

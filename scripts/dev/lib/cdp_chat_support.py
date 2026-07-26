@@ -873,7 +873,7 @@ def _config_http_json(
         headers={"Content-Type": "application/json"} if data is not None else {},
         method=method,
     )
-    with _e2e_api_urlopen(req, timeout_sec=30) as resp:  # noqa: S310
+    with _e2e_api_urlopen(req, timeout_sec=10) as resp:  # noqa: S310
         raw = resp.read()
         if not raw:
             return {}

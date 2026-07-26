@@ -23,11 +23,11 @@ GATE_IDLE_FAIL_FAST_SEC = 180.0
 
 
 def _parse_stream_stuck_sec() -> float:
-    raw = os.getenv("MYRM_DESKTOP_E2E_STREAM_STUCK_SEC", "180").strip()
+    raw = os.getenv("MYRM_DESKTOP_E2E_STREAM_STUCK_SEC", "120").strip()
     try:
         parsed = float(raw)
     except ValueError:
-        parsed = 180.0
+        parsed = 120.0
     return max(60.0, parsed)
 
 
@@ -39,8 +39,8 @@ GATE_IDLE_NUDGE_SEC = 30.0
 # After snapshot + nudge, fail-fast if model still loops snapshot without interact.
 GATE_SNAPSHOT_LOOP_FAIL_SEC = 60.0
 # Hard wall-clock fail-fast for one desktop approval attempt.
-# Single attempt × 300s fits within pytest-timeout 600s with bootstrap headroom.
-DESKTOP_E2E_WALL_CLOCK_FAIL_SEC = 300.0
+# 200s per attempt × 2 attempts + 60s bootstrap < 600s pytest-timeout.
+DESKTOP_E2E_WALL_CLOCK_FAIL_SEC = 200.0
 
 
 def _parse_gate_timeout_sec() -> float:
@@ -77,16 +77,17 @@ INFRA_ABORT_MARKERS = (
 )
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
 E2E_PROMPT = (
-    "I have a TextEdit window open with a few lines of sample text. "
-    "Please take a snapshot of the screen to see the text elements, "
-    "then click the first line of text in that window. Reply exactly: DONE"
+    "INSTRUCTION: You MUST call tools. Do NOT reply with text only.\n"
+    "Step 1: Call desktop_snapshot_tool(scope='foreground') to capture the screen.\n"
+    "Step 2: Call desktop_interact_tool(ref=@d1, action='click') to click the first line.\n"
+    "Step 3: Reply exactly: DONE\n"
+    "Context: A TextEdit window with sample text is in the foreground."
 )
 E2E_NUDGE_PROMPT = (
-    "Call desktop_interact_tool to click one line in the TextEdit window "
-    "from your latest @dref snapshot. "
-    "If you do not have @drefs, call desktop_snapshot_tool(scope='foreground') once, "
-    "then call desktop_interact_tool(ref=@dref, action='click'). "
-    "Do NOT call desktop_vision_tool. Reply DONE."
+    "MANDATORY: Call a tool NOW. Do NOT output text without a tool call.\n"
+    "If you have @drefs: call desktop_interact_tool(ref=@d1, action='click').\n"
+    "If you have NO @drefs: call desktop_snapshot_tool(scope='foreground') first.\n"
+    "Do NOT call desktop_vision_tool. Reply DONE after tool calls."
 )
 E2E_SNAPSHOT_NUDGE_PROMPT = (
     "IMPORTANT: You already have a snapshot with element references. "

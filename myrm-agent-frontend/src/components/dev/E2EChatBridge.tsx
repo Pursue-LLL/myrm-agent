@@ -965,6 +965,9 @@ export default function E2EChatBridge() {
         return selection;
       },
       pinBasicModelForE2e: async () => {
+        // Desktop approval E2E requires tool-capable agent mode; fast/deep can keep send disabled
+        // when search configs are intentionally empty under e2e_search_policy("empty").
+        prepareAutomationSend();
         await initProvidersForE2e();
         let { defaultModelConfig, providers } = useProviderStore.getState();
         let basePrimary = defaultModelConfig?.baseModel?.primary;

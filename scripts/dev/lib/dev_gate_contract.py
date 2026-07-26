@@ -37,6 +37,7 @@ TRANSIENT_MUX_ERROR_TOKENS: Final[tuple[str, ...]] = (
     "Chrome MCP reconnect queue is full",
     "MUX_COLD_ATTACH_TIMEOUT",
     "MUX_UPSTREAM_WAIT_TIMEOUT",
+    "Chrome MCP transport closed",
     "retry this call",
 )
 
