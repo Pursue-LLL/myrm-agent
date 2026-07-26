@@ -33,6 +33,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandInfluenceItem,
     MemoryCommandInfluenceRef,
     MemoryCommandMigrationProvenance,
+    MemoryCommandMigrationSourceManifestItem,
     MemoryCommandPlaneSummary,
     MemoryCommandPrivacySignal,
     MemoryCommandReplayEvent,
@@ -65,6 +66,7 @@ from app.services.memory.import_sessions import (
     MemoryImportSessionService,
 )
 from app.services.memory.operation_ledger import MemoryOperationLedgerService
+from app.services.migration.source_manifest import migration_source_manifest_entries
 
 logger = logging.getLogger(__name__)
 
@@ -431,6 +433,16 @@ class MemoryCommandCenterInsights:
         coverage = raw_coverage if raw_coverage in {"not_tracked", "partial", "complete"} else "not_tracked"
         return MemoryCommandMigrationProvenance(
             supported_sources=memory_import_supported_sources(),
+            source_manifest=[
+                MemoryCommandMigrationSourceManifestItem(
+                    id=item.id,
+                    display_name=item.display_name,
+                    import_source=item.import_source,
+                    discover_modes=list(item.discover_modes),
+                    deep_link_enabled=item.deep_link_enabled,
+                )
+                for item in migration_source_manifest_entries()
+            ],
             tracked_imports=tracked,
             unmapped_items=unmapped,
             coverage_status=coverage,

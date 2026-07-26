@@ -18,7 +18,12 @@ import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/primitives/button';
 import { isLocalMode } from '@/lib/deploy-mode';
-import { discoverMigrationSources, getMigrationSourceDisplayName, type ExternalSource } from '@/services/migrationDiscovery';
+import {
+  canDeepLinkMigrationSource,
+  discoverMigrationSources,
+  getMigrationSourceDisplayName,
+  type ExternalSource,
+} from '@/services/migrationDiscovery';
 import { IconArrowRight, IconDownload, IconLoader } from '@/components/features/icons/PremiumIcons';
 
 type BannerState = 'idle' | 'scanning' | 'found' | 'dismissed';
@@ -70,8 +75,13 @@ export default function MigrationDiscoveryBanner() {
 
   const handleNavigate = useCallback(() => {
     if (sources.length === 1) {
+      const sourceId = sources[0].competitor;
+      if (!canDeepLinkMigrationSource(sourceId)) {
+        router.push('/settings/memory?sub=migration');
+        return;
+      }
       router.push(
-        `/settings/memory?sub=migration&source=${encodeURIComponent(sources[0].competitor)}`,
+        `/settings/memory?sub=migration&source=${encodeURIComponent(sourceId)}`,
       );
       return;
     }

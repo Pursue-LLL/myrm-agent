@@ -14,6 +14,7 @@ secrets import opt-in). SaaS returns empty discovery.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -22,6 +23,9 @@ from app.config.deploy_mode import is_local_mode
 from app.services.migration.source_discovery import (
     ExternalSource,
     discover_external_sources,
+)
+from app.services.migration.source_manifest import (
+    migration_source_manifest_entries,
 )
 from app.services.migration.source_secrets_importer import import_external_source_secrets
 
@@ -44,10 +48,19 @@ class ExternalSourceResponse(BaseModel):
     has_api_keys: bool = False
 
 
+class MigrationSourceManifestItemResponse(BaseModel):
+    id: str
+    display_name: str
+    import_source: str
+    discover_modes: list[Literal["local_scan", "zip_upload"]] = Field(default_factory=list)
+    deep_link_enabled: bool = True
+
+
 class DiscoveryResponse(BaseModel):
     sources: list[ExternalSourceResponse] = Field(default_factory=list)
     scan_path: str = ""
     available: bool = True
+    source_manifest: list[MigrationSourceManifestItemResponse] = Field(default_factory=list)
 
 
 def _to_response(source: ExternalSource) -> ExternalSourceResponse:
@@ -60,6 +73,21 @@ def _to_response(source: ExternalSource) -> ExternalSourceResponse:
         skill_count=source.skill_count,
         has_api_keys=source.has_api_keys,
     )
+
+
+def build_source_manifest_response() -> list[MigrationSourceManifestItemResponse]:
+    """Build the Wizard source manifest payload for frontend consumption."""
+
+    return [
+        MigrationSourceManifestItemResponse(
+            id=item.id,
+            display_name=item.display_name,
+            import_source=item.import_source,
+            discover_modes=list(item.discover_modes),
+            deep_link_enabled=item.deep_link_enabled,
+        )
+        for item in migration_source_manifest_entries()
+    ]
 
 
 class SecretsImportRequest(BaseModel):
@@ -100,11 +128,16 @@ async def discover_external_source_data() -> DiscoveryResponse:
     """
 
     if not is_local_mode():
-        return DiscoveryResponse(sources=[], available=False)
+        return DiscoveryResponse(
+            sources=[],
+            available=False,
+            source_manifest=build_source_manifest_response(),
+        )
 
     result = discover_external_sources()
     return DiscoveryResponse(
         sources=[_to_response(s) for s in result.sources],
         scan_path=result.scan_path,
         available=True,
+        source_manifest=build_source_manifest_response(),
     )

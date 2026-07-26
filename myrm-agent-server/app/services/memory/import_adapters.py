@@ -39,6 +39,7 @@ from app.services.memory.import_mem0 import dry_run_mem0, is_mem0_payload
 from app.services.memory.import_myrm_archive import dry_run_myrm_archive, is_myrm_archive
 from app.services.memory.import_native_json import dry_run_native_json
 from app.services.memory.import_openclaw import dry_run_openclaw
+from app.services.migration.source_manifest import migration_source_import_map
 from app.services.migration.source_payload_loader import (
     is_source_discovery_payload,
     load_source_payload,
@@ -62,12 +63,8 @@ RequestedImportSource = Literal[
 ]
 
 _MIGRATION_SOURCE_TO_ADAPTER: dict[str, RequestedImportSource] = {
-    "hermes": "hermes",
-    "openclaw": "openclaw",
-    "codex": "codex",
-    "claude": "claude",
-    "mem0": "mem0",
-    "chatgpt": "chatgpt",
+    source_id: import_source
+    for source_id, import_source in migration_source_import_map().items()
 }
 
 _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {

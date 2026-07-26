@@ -15,6 +15,7 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `test_source_discovery.py` | 核心 | 四源 filesystem discover（confidence、多源共存、edge cases） |
+| `test_source_manifest.py` | 核心 | 迁移来源 manifest SSOT（ids、import map、local-scan 封闭集、payload 结构） |
 | `test_source_payload_loader.py` | 核心 | load_source_payload / build_coverage_items |
 | `test_source_payload_split.py` | 核心 | instruction vs memory 车道拆分 |
 | `test_migration_source_coverage.py` | 核心 | import source 映射、auto 路由回归、supported_source_ids |

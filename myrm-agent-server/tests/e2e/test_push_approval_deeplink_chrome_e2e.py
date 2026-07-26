@@ -56,6 +56,28 @@ _HIDE_APPROVAL_DRAWER_JS = """(() => {
 })()"""
 
 
+def _resolve_with_retry(
+    api_url: str, approval_id: str, *, decision: str = "deny", retries: int = 3
+) -> object:
+    """Resolve with retry to handle transient 404 from page-close race condition.
+
+    Private SHPOIB backends may briefly report 404 if the browser tab close
+    triggered an async SSE teardown that races with the test's resolve call.
+    """
+    for attempt in range(retries):
+        try:
+            return http_json(
+                "POST",
+                f"{api_url}/api/v1/approvals/{approval_id}/resolve",
+                {"decision": decision},
+            )
+        except RuntimeError as exc:
+            if "returned 404" in str(exc) and attempt < retries - 1:
+                time.sleep(0.5)
+                continue
+            raise
+
+
 def _deny_stale_e2e_push_approvals(api_url: str) -> None:
     listed = http_json("GET", f"{api_url}/api/v1/approvals?limit=100&offset=0")
     if not isinstance(listed, dict):
@@ -142,11 +164,7 @@ def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
         )
         assert stripped.get("ready") is True
 
-    resolved = http_json(
-        "POST",
-        f"{api_url}/api/v1/approvals/{approval_id}/resolve",
-        {"decision": "deny"},
-    )
+    resolved = _resolve_with_retry(api_url, approval_id, decision="deny")
     assert isinstance(resolved, dict)
     assert resolved.get("status") == "REJECTED"
 
@@ -178,11 +196,7 @@ def test_push_approval_deeplink_cold_start_opens_drawer() -> None:
         )
         assert stripped.get("ready") is True
 
-    resolved = http_json(
-        "POST",
-        f"{api_url}/api/v1/approvals/{approval_id}/resolve",
-        {"decision": "deny"},
-    )
+    resolved = _resolve_with_retry(api_url, approval_id, decision="deny")
     assert isinstance(resolved, dict)
     assert resolved.get("status") == "REJECTED"
 
@@ -217,12 +231,8 @@ def test_push_approval_deeplink_from_different_open_chat_tab() -> None:
         )
         assert stripped.get("ready") is True
 
-    for approval_id in (decoy["approval_id"], target["approval_id"]):
-        resolved = http_json(
-            "POST",
-            f"{api_url}/api/v1/approvals/{approval_id}/resolve",
-            {"decision": "deny"},
-        )
+    for aid in (decoy["approval_id"], target["approval_id"]):
+        resolved = _resolve_with_retry(api_url, aid, decision="deny")
         assert isinstance(resolved, dict)
         assert resolved.get("status") == "REJECTED"
 

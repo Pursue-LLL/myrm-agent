@@ -53,10 +53,16 @@ def _desktop_gate_satisfied(
 
 
 _PENDING_API_FAIL_ABORT_STREAK = 20
+_FAST_API_TIMEOUT_SEC = 4.0
+_FAST_API_MAX_ATTEMPTS = 1
 
 
 async def _resolve_server_pending(*, api_fail_streak: list[int]) -> int:
-    count = await asyncio.to_thread(server_pending_approval_count)
+    count = await asyncio.to_thread(
+        server_pending_approval_count,
+        timeout_sec=_FAST_API_TIMEOUT_SEC,
+        max_attempts=_FAST_API_MAX_ATTEMPTS,
+    )
     if count >= 0:
         if api_fail_streak[0] > 0:
             progress(f"backend pending API recovered after {api_fail_streak[0]} blips")
@@ -159,7 +165,10 @@ async def probe_desktop_tool_progress(
     normalized_chat_id = chat_id.strip()
     if api_only and normalized_chat_id:
         api_probe = await asyncio.to_thread(
-            fetch_desktop_tool_progress_from_api, normalized_chat_id
+            fetch_desktop_tool_progress_from_api,
+            normalized_chat_id,
+            timeout_sec=_FAST_API_TIMEOUT_SEC,
+            max_attempts=_FAST_API_MAX_ATTEMPTS,
         )
         return api_probe if isinstance(api_probe, dict) else {"active": False}
     probe = await chat.evaluate(
@@ -171,7 +180,10 @@ async def probe_desktop_tool_progress(
         normalized_chat_id = await _bridge_chat_id(chat)
     api_probe = (
         await asyncio.to_thread(
-            fetch_desktop_tool_progress_from_api, normalized_chat_id
+            fetch_desktop_tool_progress_from_api,
+            normalized_chat_id,
+            timeout_sec=_FAST_API_TIMEOUT_SEC,
+            max_attempts=_FAST_API_MAX_ATTEMPTS,
         )
         if normalized_chat_id
         else None
@@ -282,7 +294,10 @@ async def _fetch_first_desktop_dref(
     if normalized_chat_id:
         for attempt in range(1, 7):
             api_dref = await asyncio.to_thread(
-                fetch_first_desktop_dref_from_api, normalized_chat_id
+                fetch_first_desktop_dref_from_api,
+                normalized_chat_id,
+                timeout_sec=_FAST_API_TIMEOUT_SEC,
+                max_attempts=_FAST_API_MAX_ATTEMPTS,
             )
             if api_dref:
                 progress(
@@ -354,12 +369,18 @@ async def _nudge_baseline_markers(chat_id: str) -> tuple[int, int]:
         return 0, 0
     try:
         baseline_user_msgs = await asyncio.to_thread(
-            chat_user_message_count, normalized
+            chat_user_message_count,
+            normalized,
+            timeout_sec=_FAST_API_TIMEOUT_SEC,
+            max_attempts=_FAST_API_MAX_ATTEMPTS,
         )
     except OSError:
         baseline_user_msgs = 0
     api_progress = await asyncio.to_thread(
-        fetch_desktop_tool_progress_from_api, normalized
+        fetch_desktop_tool_progress_from_api,
+        normalized,
+        timeout_sec=_FAST_API_TIMEOUT_SEC,
+        max_attempts=_FAST_API_MAX_ATTEMPTS,
     )
     baseline_step_count = 0
     if isinstance(api_progress, dict):
@@ -384,7 +405,12 @@ async def _wait_nudge_consumed(
         heartbeat_e2e_lease()
         user_count = baseline_user_msgs
         try:
-            user_count = await asyncio.to_thread(chat_user_message_count, normalized)
+            user_count = await asyncio.to_thread(
+                chat_user_message_count,
+                normalized,
+                timeout_sec=_FAST_API_TIMEOUT_SEC,
+                max_attempts=_FAST_API_MAX_ATTEMPTS,
+            )
             if user_count > baseline_user_msgs:
                 progress(
                     f"nudge consumed: user_msgs {baseline_user_msgs}->{user_count} "
@@ -394,7 +420,10 @@ async def _wait_nudge_consumed(
         except OSError:
             pass
         api_progress = await asyncio.to_thread(
-            fetch_desktop_tool_progress_from_api, normalized
+            fetch_desktop_tool_progress_from_api,
+            normalized,
+            timeout_sec=_FAST_API_TIMEOUT_SEC,
+            max_attempts=_FAST_API_MAX_ATTEMPTS,
         )
         if isinstance(api_progress, dict):
             last_tool = str(api_progress.get("lastTool") or "")
@@ -472,23 +501,30 @@ async def _send_interact_nudge(
             else "turn complete"
         )
         progress(f"follow-up native send ({reason}, not steer)")
+
+        async def _submit_follow_up_native() -> dict[str, object]:
+            try:
+                return await asyncio.wait_for(
+                    chat.fast_desktop_agent_submit(
+                        nudge_prompt,
+                        nudge_prompt,
+                        chat_id_hint=normalized_chat_id or None,
+                        baseline_user_msgs_hint=baseline_user_msgs,
+                    ),
+                    timeout=90.0,
+                )
+            except asyncio.TimeoutError as exc:
+                raise TimeoutError("follow-up native send wall timeout after 90s") from exc
+
         try:
-            send_result = await chat.fast_desktop_agent_submit(
-                nudge_prompt,
-                nudge_prompt,
-                chat_id_hint=normalized_chat_id or None,
-            )
+            send_result = await _submit_follow_up_native()
         except (RuntimeError, TimeoutError, OSError) as exc:
             if "E2E_WALL_BUDGET_FAIL_FAST" in str(exc):
                 raise
             progress(f"follow-up send failed (retry with chat surface): {exc}")
             await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
             await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
-            send_result = await chat.fast_desktop_agent_submit(
-                nudge_prompt,
-                nudge_prompt,
-                chat_id_hint=normalized_chat_id or None,
-            )
+            send_result = await _submit_follow_up_native()
         progress(f"nudge follow-up send: {send_result.get('submit', send_result)}")
         if normalized_chat_id:
             await _wait_nudge_consumed(
@@ -532,6 +568,7 @@ async def _send_interact_nudge(
                     nudge_prompt,
                     nudge_prompt,
                     chat_id_hint=normalized_chat_id or None,
+                    baseline_user_msgs_hint=baseline_user_msgs,
                 )
                 progress(
                     f"steer fallback follow-up send: "
@@ -894,7 +931,11 @@ async def ensure_interact_gate(
     )
 
     last_tool = str(tool_activity.get("lastTool") or "")
-    server_pending = await asyncio.to_thread(server_pending_approval_count)
+    server_pending = await asyncio.to_thread(
+        server_pending_approval_count,
+        timeout_sec=_FAST_API_TIMEOUT_SEC,
+        max_attempts=_FAST_API_MAX_ATTEMPTS,
+    )
     ui_pending = bool(tool_activity.get("pending"))
     interact_seen = last_tool.endswith("desktop_interact_tool")
 
@@ -1054,7 +1095,11 @@ async def ensure_interact_gate(
         while asyncio.get_event_loop().time() < grace_deadline:
             assert_desktop_e2e_wall_clock(wall_clock, phase="interact_pending_grace")
             heartbeat_e2e_lease()
-            server_pending = await asyncio.to_thread(server_pending_approval_count)
+            server_pending = await asyncio.to_thread(
+                server_pending_approval_count,
+                timeout_sec=_FAST_API_TIMEOUT_SEC,
+                max_attempts=_FAST_API_MAX_ATTEMPTS,
+            )
             probe = await probe_desktop_tool_progress(
                 chat, chat_id=chat_id, api_only=api_only
             )

@@ -127,6 +127,31 @@ class CdpChatTurn(CdpChatSubmit):
             return None
         return result if isinstance(result, dict) else None
 
+    async def _best_effort_user_message_count(
+        self,
+        chat_id: str,
+        *,
+        timeout_sec: float = 4.0,
+        max_attempts: int = 1,
+        wall_timeout_sec: float = 6.0,
+    ) -> int:
+        normalized = chat_id.strip()
+        if not normalized:
+            return 0
+        try:
+            count = await asyncio.wait_for(
+                asyncio.to_thread(
+                    cdp_chat_support.chat_user_message_count,
+                    normalized,
+                    timeout_sec=timeout_sec,
+                    max_attempts=max_attempts,
+                ),
+                timeout=wall_timeout_sec,
+            )
+        except (TimeoutError, OSError, ValueError):
+            return 0
+        return max(0, int(count))
+
     async def _finish_if_api_ok(
         self,
         chat_id: str,
@@ -401,15 +426,17 @@ class CdpChatTurn(CdpChatSubmit):
         prompt_for_wait: str,
         *,
         chat_id_hint: str | None = None,
+        baseline_user_msgs_hint: int | None = None,
     ) -> dict[str, object]:
         """Desktop approval E2E: setInputMessage + nativeClick (matches v48 PASS path)."""
         chat_id = chat_id_hint
-        baseline_user_msgs = 0
-        if chat_id:
-            try:
-                baseline_user_msgs = cdp_chat_support.chat_user_message_count(chat_id)
-            except OSError:
-                baseline_user_msgs = 0
+        baseline_user_msgs = (
+            max(0, int(baseline_user_msgs_hint))
+            if baseline_user_msgs_hint is not None
+            else 0
+        )
+        if baseline_user_msgs_hint is None and chat_id:
+            baseline_user_msgs = await self._best_effort_user_message_count(chat_id)
         await self.ensure_react_e2e_bridge(timeout_sec=60.0)
         if chat_id:
             await self._attach_chat_session(chat_id)
@@ -509,10 +536,7 @@ class CdpChatTurn(CdpChatSubmit):
         chat_id = chat_id_hint
         baseline_user_msgs = 0
         if chat_id:
-            try:
-                baseline_user_msgs = cdp_chat_support.chat_user_message_count(chat_id)
-            except OSError:
-                baseline_user_msgs = 0
+            baseline_user_msgs = await self._best_effort_user_message_count(chat_id)
         if chat_id:
             try:
                 api_steer = await asyncio.to_thread(

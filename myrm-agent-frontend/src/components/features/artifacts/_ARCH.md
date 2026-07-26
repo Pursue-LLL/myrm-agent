@@ -4,7 +4,7 @@
 
 ## 架构概述
 
-聊天流工件展示：Globe 多 target 发布、preflight 门禁、只读分享短链、知识库写入、对话附件插入。视觉型工件（HTML/SVG/Mermaid）默认在消息流内 inline 展开渲染，其余类型保持卡片模式。卡片与全屏预览双入口一致。
+聊天流工件展示：Globe 多 target 发布、preflight 门禁、只读分享短链、知识库写入、对话附件插入。视觉型工件（HTML/SVG/Mermaid）默认在消息流内 inline 展开渲染（超过 `LARGE_FILE_THRESHOLD` 的大文件自动降级为全屏引导 CTA），其余类型保持卡片模式。卡片与全屏预览双入口一致。
 
 ---
 
@@ -13,7 +13,7 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `ArtifactPortal.tsx` | 核心 | Artifact 预览入口容器；支持 overlay/side-by-side 双布局模式；协调加载、手势、快捷键与 Diff 截断 UX |
-| `ArtifactCard.tsx` | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染；Globe 发布；publication badges；per-target stale banner |
+| `ArtifactCard.tsx` | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染（>1MB 大文件降级为全屏引导）；Globe 发布；publication badges；per-target stale banner |
 | `PublishModal.tsx` | 核心 | 多 target 发布；target 下拉 + `/publish` + WS + Settings 深链 |
 | `artifactUtils.ts` | 辅助 | preflight/share API、`isPublicationStale`、`publicationsChanged` |
 | `ArtifactRenderer.tsx` | 核心 | 多类型工件渲染路由；Code/Document/Mermaid 预览 dynamic import |
@@ -28,6 +28,7 @@
 | `portal/ElementPickerToolbar.tsx` | 辅助 | DOM 元素拾取指令栏 |
 | `renderers/DocumentPreview.tsx` | 核心 | 文档/Markdown 渲染预览（集成 DocumentSelectionToolbar） |
 | `renderers/SpreadsheetPreview/` | 辅助 | CSV/TSV/XLSX 表格预览 |
+| `__tests__/largeFileInlinePreview.test.ts` | 测试 | large-file inline preview 文案与阈值回归守卫 |
 
 ---
 
@@ -35,5 +36,6 @@
 
 - `@/services/hosting.ts`：targets CRUD、publish、publications、WS URL
 - `@/lib/api`：artifact GET
+- `@/lib/constants/artifact`：`LARGE_FILE_THRESHOLD` 等工件系统配置常量
 - `@/store/chat`：`publications[]` 同步
 - `app/api/files/hosting_api.py`、`artifact_share_api.py`（服务端）

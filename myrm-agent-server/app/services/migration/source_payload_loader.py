@@ -19,6 +19,7 @@ from typing import TypedDict
 
 from app.config.deploy_mode import is_local_mode
 
+from .source_manifest import migration_source_local_scan_ids
 from .source_payload_loaders_impl import (
     load_chatgpt,
     load_claude,
@@ -27,7 +28,7 @@ from .source_payload_loaders_impl import (
     load_openclaw,
 )
 
-_SUPPORTED_SOURCES = frozenset({"hermes", "openclaw", "claude", "codex"})
+_SUPPORTED_SOURCES = migration_source_local_scan_ids()
 
 
 class SourceDiscoveryPayload(TypedDict, total=False):

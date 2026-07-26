@@ -371,7 +371,7 @@ const ArtifactPortal: React.FC = () => {
         )}
         style={{
           transitionTimingFunction: isOpen ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'cubic-bezier(0.36, 0, 0.66, -0.56)',
-          width: effectiveFullscreen || isMobile ? undefined : `${panelWidth}px`,
+          width: effectiveFullscreen || isMobile ? undefined : (isSideBySide && !isOpen) ? 0 : `${panelWidth}px`,
           transform: isMobile && swipeOffset > 0 ? `translateY(${swipeOffset}px)` : undefined,
           opacity: isMobile && swipeOffset > 0 ? 1 - (swipeOffset / SWIPE_MAX_OFFSET) * 0.5 : undefined,
         }}

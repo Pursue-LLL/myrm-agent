@@ -11,6 +11,7 @@
  */
 
 import { apiRequest } from '@/lib/api';
+import type { MemoryImportSource } from '@/services/memoryArchive';
 import type { MemoryType } from './memory';
 
 export interface MemoryCommandOverview {
@@ -278,6 +279,7 @@ export interface MemoryCommandDiagnosticRun {
 
 export interface MemoryCommandMigrationProvenance {
   supported_sources: string[];
+  source_manifest?: MemoryCommandMigrationSourceManifestItem[];
   tracked_imports: number;
   unmapped_items: number;
   coverage_status: 'not_tracked' | 'partial' | 'complete';
@@ -291,6 +293,14 @@ export interface MemoryCommandMigrationProvenance {
   cleanup_expired_sessions: number;
   cleanup_rolled_back_sessions: number;
   cleanup_retention_days: number;
+}
+
+export interface MemoryCommandMigrationSourceManifestItem {
+  id: string;
+  display_name: string;
+  import_source: MemoryImportSource;
+  discover_modes: ('local_scan' | 'zip_upload')[];
+  deep_link_enabled: boolean;
 }
 
 export interface MemoryCommandPlaneSummary {

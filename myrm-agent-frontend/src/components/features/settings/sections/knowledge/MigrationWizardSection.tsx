@@ -21,7 +21,10 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
 import {
+  canDeepLinkMigrationSource,
   discoverMigrationSources,
+  registerMigrationSourceManifest,
+  resolveMigrationImportSource,
   importMigrationSecrets,
   invalidateDiscoveryCache,
   uploadMigrationZip,
@@ -35,7 +38,6 @@ import {
   type MemoryImportConfirmResponse,
   type MemoryImportDryRunResponse,
   type MemoryImportPendingSkill,
-  type MemoryImportSource,
 } from '@/services/memoryArchive';
 import { submitSkillMigration, type SkillMigrationSubmitResponse } from '@/services/skillMigration';
 
@@ -44,18 +46,6 @@ import useAgentStore from '@/store/useAgentStore';
 import { ScanStep, PreviewStep, ResultStep } from './MigrationWizardSteps';
 
 type WizardStep = 'scan' | 'preview' | 'result';
-
-const MIGRATION_SOURCE_IMPORT_BY_ID: Record<string, MemoryImportSource> = {
-  hermes: 'hermes',
-  openclaw: 'openclaw',
-  codex: 'codex',
-  claude: 'claude',
-  chatgpt: 'chatgpt',
-};
-
-function resolveMigrationImportSource(competitor: string): MemoryImportSource {
-  return MIGRATION_SOURCE_IMPORT_BY_ID[competitor.trim().toLowerCase()] ?? 'auto';
-}
 
 interface MigrationWizardSectionProps {
   onMigrationComplete?: () => void;
@@ -95,6 +85,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
       try {
         if (force) invalidateDiscoveryCache();
         const result = await discoverMigrationSources(force);
+        registerMigrationSourceManifest(result.source_manifest);
         setDiscovery(result);
       } catch {
         toast.error(t('scanFailed'));
@@ -112,6 +103,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
       setUploading(true);
       try {
         const result = await uploadMigrationZip(file);
+        registerMigrationSourceManifest(result.source_manifest);
         setDiscovery(result);
         if (result.sources.length === 0) {
           toast.info(t('cloudUploadEmpty'));
@@ -146,10 +138,10 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
           payload,
           resolveMigrationImportSource(source.competitor),
           {
-          target_agent_id: targetAgentId,
-          clone_from_agent_id: cloneFromAgentId,
-          include_episodic: source.competitor === 'chatgpt' || (source.competitor === 'openclaw' && includeEpisodic),
-          apply_global_instructions: true,
+            target_agent_id: targetAgentId,
+            clone_from_agent_id: cloneFromAgentId,
+            include_episodic: source.competitor === 'chatgpt' || (source.competitor === 'openclaw' && includeEpisodic),
+            apply_global_instructions: true,
           },
         );
         setDryRunResult(result);
@@ -177,7 +169,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
       return;
     }
 
-    if (!(deepLinkSourceId in MIGRATION_SOURCE_IMPORT_BY_ID)) {
+    if (!canDeepLinkMigrationSource(deepLinkSourceId)) {
       deepLinkPreviewAttemptedRef.current = true;
       toast.error(t('deepLinkSourceInvalid'));
       return;

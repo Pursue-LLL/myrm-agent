@@ -53,10 +53,10 @@ import { useMemoryArchiveRestoreActions } from './useMemoryArchiveRestoreActions
 import { useMemoryDemoSeed } from './useMemoryDemoSeed';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import MemoryHealthDashboard from './MemoryHealthDashboard';
+import { canDeepLinkMigrationSource, registerMigrationSourceManifest } from '@/services/migrationDiscovery';
 
 const SECTIONS = ['observe', 'understand', 'act', 'verify'] as const;
 const HEALTH_STATUSES = ['healthy', 'degraded', 'critical', 'unknown'] as const;
-const MIGRATION_DEEP_LINK_SOURCES = new Set(['hermes', 'openclaw', 'codex', 'claude', 'chatgpt']);
 
 type Section = (typeof SECTIONS)[number];
 type HealthStatus = (typeof HEALTH_STATUSES)[number];
@@ -98,6 +98,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
         getMemoryCommandCenter(),
         getConsolidationLastSummary().catch(() => null),
       ]);
+      registerMigrationSourceManifest(snap.migration.source_manifest);
       setSnapshot(snap);
       setConsolidationSummary(consolSummary);
     } catch (err) {
@@ -258,7 +259,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   const openMigrationWizard = useCallback(
     (source: string) => {
       const normalizedSource = source.trim().toLowerCase();
-      const sourceQuery = MIGRATION_DEEP_LINK_SOURCES.has(normalizedSource)
+      const sourceQuery = canDeepLinkMigrationSource(normalizedSource)
         ? `&source=${encodeURIComponent(normalizedSource)}`
         : '';
       router.push(`/settings/memory?sub=migration${sourceQuery}`);

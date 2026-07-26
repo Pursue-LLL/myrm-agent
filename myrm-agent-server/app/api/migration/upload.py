@@ -31,6 +31,7 @@ from app.api.migration.discovery import (
     DiscoveryResponse,
     ExternalSourceResponse,
     _to_response,
+    build_source_manifest_response,
 )
 from app.services.migration.source_discovery import discover_external_sources
 
@@ -124,12 +125,18 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
 
     if not result.sources:
         shutil.rmtree(tmpdir, ignore_errors=True)
-        return DiscoveryResponse(sources=[], scan_path="upload", available=True)
+        return DiscoveryResponse(
+            sources=[],
+            scan_path="upload",
+            available=True,
+            source_manifest=build_source_manifest_response(),
+        )
 
     return DiscoveryResponse(
         sources=[_to_response(s) for s in result.sources],
         scan_path="upload",
         available=True,
+        source_manifest=build_source_manifest_response(),
     )
 
 
@@ -153,4 +160,9 @@ def _build_chatgpt_discovery(conversations_path: str) -> DiscoveryResponse:
         files=[DiscoveredFileResponse(path=conversations_path, kind="conversations_json", size_bytes=size_bytes)],
         memory_count_estimate=count,
     )
-    return DiscoveryResponse(sources=[source], scan_path="upload", available=True)
+    return DiscoveryResponse(
+        sources=[source],
+        scan_path="upload",
+        available=True,
+        source_manifest=build_source_manifest_response(),
+    )

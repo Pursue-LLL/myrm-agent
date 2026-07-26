@@ -8547,7 +8547,9 @@
     "inlinePreview": {
       "expand": "展開內聯預覽",
       "collapse": "收起預覽",
-      "loadError": "預覽載入失敗"
+      "loadError": "預覽載入失敗",
+      "largeFileHint": "檔案過大，無法內聯預覽（{size}）",
+      "viewFullscreen": "全螢幕檢視"
     },
     "ingestToWiki": {
       "title": "新增到知識庫",
@@ -11998,6 +12000,13 @@
       "avgTime": "平均耗時",
       "avgToken": "平均 Token",
       "executionDetails": "執行明細",
+      "environment": "環境快照",
+      "envModel": "模型",
+      "envThinking": "思考模式",
+      "envVersion": "框架版本",
+      "envTools": "工具集",
+      "envDataset": "資料集",
+      "envPrompt": "提示詞指紋",
       "status": "狀態",
       "messageSnippet": "訊息片段",
       "tokenUsage": "Token消耗",

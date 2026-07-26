@@ -342,6 +342,7 @@ def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
 @pytest.mark.chrome_e2e_browser_takeover_live
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes(

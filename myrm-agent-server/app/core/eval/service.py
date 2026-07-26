@@ -22,7 +22,7 @@ from itertools import groupby
 from pathlib import Path
 from typing import cast
 
-from myrm_agent_harness.eval import EvalRunner, JsonlReporter
+from myrm_agent_harness.eval import EvalManifest, EvalRunner, JsonlReporter
 
 from app.core.eval.executor import LocalEvalExecutor
 
@@ -143,6 +143,86 @@ def abort_eval() -> bool:
     return False
 
 
+async def _build_eval_manifest(
+    profile_id: str | None,
+    dataset_id: str,
+    cases_path: Path,
+) -> EvalManifest:
+    """Build an EvalManifest capturing the current evaluation environment."""
+    import hashlib
+    from datetime import datetime, timezone
+
+    import myrm_agent_harness
+
+    from app.core.channel_bridge.config_loader import load_user_configs
+
+    configs = await load_user_configs()
+
+    # Resolve model info
+    model_provider = "unknown"
+    model_id = "unknown"
+    budget_max_tokens = 4096
+    thinking_effort = "default"
+
+    if profile_id:
+        from app.services.agent.profile_resolver import get_agent_profile_resolver
+
+        resolved = await get_agent_profile_resolver().resolve(profile_id)
+        if resolved and resolved.model:
+            parts = resolved.model.split("/", 1)
+            if len(parts) == 2:
+                model_provider, model_id = parts
+            else:
+                model_id = resolved.model
+        if resolved and resolved.engine_params:
+            thinking_effort = str(resolved.engine_params.get("thinking_effort", "default"))
+            budget_max_tokens = int(resolved.engine_params.get("max_tokens", budget_max_tokens))
+
+    if model_id == "unknown" and configs.model_cfg:
+        model_id = str(configs.model_cfg.get("model", "unknown"))
+        model_provider = str(configs.model_cfg.get("provider", "unknown"))
+
+    # Resolve enabled tools
+    tool_policy: list[str] = []
+    if profile_id:
+        from app.services.agent.profile_resolver import get_agent_profile_resolver
+
+        resolved = await get_agent_profile_resolver().resolve(profile_id)
+        if resolved:
+            tool_policy = list(resolved.enabled_builtin_tools)
+
+    # Compute task_set_hash (SHA256 of the cases file content)
+    task_set_hash = "empty"
+    if cases_path.exists():
+        content = cases_path.read_bytes()
+        task_set_hash = hashlib.sha256(content).hexdigest()
+
+    # Compute prompt_fingerprint (SHA256 of system prompt, privacy-safe)
+    prompt_fingerprint = "none"
+    if profile_id:
+        from app.services.agent.profile_resolver import get_agent_profile_resolver
+
+        resolved = await get_agent_profile_resolver().resolve(profile_id)
+        if resolved and resolved.system_prompt:
+            prompt_fingerprint = hashlib.sha256(
+                resolved.system_prompt.encode("utf-8")
+            ).hexdigest()
+
+    return EvalManifest(
+        model_provider=model_provider,
+        model_id=model_id,
+        thinking_effort=thinking_effort,
+        harness_version=myrm_agent_harness.__version__,
+        tool_policy=tuple(tool_policy),
+        task_set_id=dataset_id,
+        task_set_hash=task_set_hash,
+        prompt_fingerprint=prompt_fingerprint,
+        budget_max_tokens=budget_max_tokens,
+        timeout_seconds=300,
+        created_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
 async def run_eval_suite_background(
     dataset_id: str | None = None, reports_dir: Path | None = None, profile_id: str | None = None
 ) -> None:
@@ -223,10 +303,16 @@ async def run_eval_suite(
     adaptive_manager = AdaptiveEvalManager(max_concurrency=3, idle_wait_seconds=3.0)
     runner = EvalRunner(executor, max_concurrency=3, on_case_complete=_on_case_complete, yielding_strategy=adaptive_manager)
 
+    manifest = await _build_eval_manifest(
+        profile_id=profile_id,
+        dataset_id=dataset_id or "default",
+        cases_path=cases_path,
+    )
+
     logger.info("Starting evaluation suite with %d sessions (%d turns) (Adaptive Yielding Enabled)", len(cases), total_turns)
     _active_runner = runner
     try:
-        result = await runner.run_multi_turn(cases)
+        result = await runner.run_multi_turn(cases, manifest=manifest)
     finally:
         _active_runner = None
 
@@ -262,6 +348,7 @@ async def run_eval_suite(
         "all_passed": result.all_passed,
         "total_ms": result.total_ms,
         "report_path": str(report_path),
+        "manifest": manifest.to_dict(),
     }
 
 

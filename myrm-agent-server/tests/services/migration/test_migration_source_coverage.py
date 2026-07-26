@@ -34,6 +34,7 @@ class TestResolveCompetitorImportSource:
             ("openclaw", "openclaw"),
             ("codex", "codex"),
             ("claude", "claude"),
+            ("chatgpt", "chatgpt"),
             ("unknown_vendor", "auto"),
         ],
     )

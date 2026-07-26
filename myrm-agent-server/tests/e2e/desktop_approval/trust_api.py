@@ -221,22 +221,40 @@ def fetch_first_desktop_dref_from_snapshot_api(*, chat_id: str = "") -> str | No
     return None
 
 
-def fetch_first_desktop_dref_from_api(chat_id: str) -> str | None:
+def fetch_first_desktop_dref_from_api(
+    chat_id: str,
+    *,
+    timeout_sec: float = 15.0,
+    max_attempts: int = 3,
+) -> str | None:
     normalized = chat_id.strip()
     if not normalized:
         return None
-    messages = fetch_chat_messages(normalized)
+    messages = fetch_chat_messages(
+        normalized,
+        timeout_sec=timeout_sec,
+        max_attempts=max_attempts,
+    )
     if not messages:
         return None
     return extract_first_desktop_dref_from_messages(messages)
 
 
-def fetch_desktop_tool_progress_from_api(chat_id: str) -> dict[str, object] | None:
+def fetch_desktop_tool_progress_from_api(
+    chat_id: str,
+    *,
+    timeout_sec: float = 15.0,
+    max_attempts: int = 3,
+) -> dict[str, object] | None:
     """Read desktop tool progress from persisted chat messages (SSE/UI may lag)."""
     normalized = chat_id.strip()
     if not normalized:
         return None
-    messages = fetch_chat_messages(normalized)
+    messages = fetch_chat_messages(
+        normalized,
+        timeout_sec=timeout_sec,
+        max_attempts=max_attempts,
+    )
     if not messages:
         return None
     user_count = sum(
@@ -284,10 +302,16 @@ def fetch_desktop_tool_progress_from_api(chat_id: str) -> dict[str, object] | No
     }
 
 
-def server_pending_approval_count() -> int:
+def server_pending_approval_count(
+    *,
+    timeout_sec: float = 8.0,
+    max_attempts: int = 3,
+) -> int:
     url = f"{get_e2e_api_url()}/webui/desktop/approval/pending"
     try:
-        payload = _e2e_api_get_json(url, timeout_sec=8.0, max_attempts=3)
+        payload = _e2e_api_get_json(
+            url, timeout_sec=timeout_sec, max_attempts=max_attempts
+        )
     except OSError:
         return -1
     if not isinstance(payload, dict):

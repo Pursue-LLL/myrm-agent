@@ -8600,7 +8600,9 @@
     "inlinePreview": {
       "expand": "展开内联预览",
       "collapse": "收起预览",
-      "loadError": "预览加载失败"
+      "loadError": "预览加载失败",
+      "largeFileHint": "文件过大，无法内联预览（{size}）",
+      "viewFullscreen": "全屏查看"
     },
     "ingestToWiki": {
       "title": "添加到知识库",
@@ -12069,6 +12071,13 @@
       "avgTime": "平均耗时",
       "avgToken": "平均 Token",
       "executionDetails": "执行明细",
+      "environment": "环境快照",
+      "envModel": "模型",
+      "envThinking": "思考模式",
+      "envVersion": "框架版本",
+      "envTools": "工具集",
+      "envDataset": "数据集",
+      "envPrompt": "提示词指纹",
       "status": "状态",
       "messageSnippet": "消息片段",
       "tokenUsage": "Token消耗",

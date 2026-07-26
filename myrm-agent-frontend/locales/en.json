@@ -8600,7 +8600,9 @@
     "inlinePreview": {
       "expand": "Expand Inline Preview",
       "collapse": "Collapse Preview",
-      "loadError": "Failed to load preview"
+      "loadError": "Failed to load preview",
+      "largeFileHint": "File too large for inline preview ({size})",
+      "viewFullscreen": "View in Fullscreen"
     },
     "ingestToWiki": {
       "title": "Add to Knowledge Base",
@@ -12098,6 +12100,13 @@
       "avgTime": "Avg Time",
       "avgToken": "Avg Token",
       "executionDetails": "Execution Details",
+      "environment": "Environment Snapshot",
+      "envModel": "Model",
+      "envThinking": "Thinking",
+      "envVersion": "Harness",
+      "envTools": "Tools",
+      "envDataset": "Dataset",
+      "envPrompt": "Prompt FP",
       "status": "Status",
       "messageSnippet": "Message Snippet",
       "tokenUsage": "Token Usage",

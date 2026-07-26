@@ -758,7 +758,11 @@ def warmup_frontend(base_url: str, *, timeout_sec: float = 120.0) -> None:
 
 
 def fetch_chat_messages(
-    chat_id: str, *, api_url: str | None = None
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+    timeout_sec: float = 15.0,
+    max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> list[dict[str, object]]:
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     req = urllib.request.Request(  # noqa: S310 - validated in _e2e_api_urlopen
@@ -766,7 +770,9 @@ def fetch_chat_messages(
         headers={"Accept": "application/json"},
     )
     try:
-        with _e2e_api_urlopen(req, timeout_sec=15) as resp:
+        with _e2e_api_urlopen(
+            req, timeout_sec=timeout_sec, max_attempts=max_attempts
+        ) as resp:
             payload = json.loads(resp.read())
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
@@ -805,17 +811,38 @@ def steer_chat_message(
     return {"ok": False, "err": "steer-api-rejected", "payload": payload}
 
 
-def chat_user_message_count(chat_id: str, *, api_url: str | None = None) -> int:
-    messages = fetch_chat_messages(chat_id, api_url=api_url)
+def chat_user_message_count(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+    timeout_sec: float = 15.0,
+    max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
+) -> int:
+    messages = fetch_chat_messages(
+        chat_id,
+        api_url=api_url,
+        timeout_sec=timeout_sec,
+        max_attempts=max_attempts,
+    )
     return sum(
         1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
     )
 
 
 def chat_messages_have_ok(
-    chat_id: str, *, min_user_count: int = 1, api_url: str | None = None
+    chat_id: str,
+    *,
+    min_user_count: int = 1,
+    api_url: str | None = None,
+    timeout_sec: float = 15.0,
+    max_attempts: int = _E2E_API_REQUEST_ATTEMPTS,
 ) -> bool:
-    messages = fetch_chat_messages(chat_id, api_url=api_url)
+    messages = fetch_chat_messages(
+        chat_id,
+        api_url=api_url,
+        timeout_sec=timeout_sec,
+        max_attempts=max_attempts,
+    )
     user_count = sum(
         1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
     )

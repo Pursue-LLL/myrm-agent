@@ -502,6 +502,42 @@ export default function EvalLabDashboard() {
                   </div>
                 </div>
 
+                {report.manifest && (
+                  <div className="border rounded-lg p-4 bg-muted/10">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">{t('report.environment')}</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">{t('report.envModel')}</span>
+                        <p className="font-mono text-xs mt-0.5">{report.manifest.model_provider}/{report.manifest.model_id}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">{t('report.envThinking')}</span>
+                        <p className="font-mono text-xs mt-0.5">{report.manifest.thinking_effort}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">{t('report.envVersion')}</span>
+                        <p className="font-mono text-xs mt-0.5">{report.manifest.harness_version}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">{t('report.envTools')}</span>
+                        <p className="font-mono text-xs mt-0.5 truncate" title={report.manifest.tool_policy?.join(', ')}>
+                          {report.manifest.tool_policy?.join(', ') || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">{t('report.envDataset')}</span>
+                        <p className="font-mono text-xs mt-0.5">{report.manifest.task_set_id}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">{t('report.envPrompt')}</span>
+                        <p className="font-mono text-xs mt-0.5" title={report.manifest.prompt_fingerprint}>
+                          {report.manifest.prompt_fingerprint?.slice(0, 12)}...
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   <h3 className="text-lg font-medium">{t('report.executionDetails')}</h3>
                   <div className="border rounded-lg overflow-hidden">

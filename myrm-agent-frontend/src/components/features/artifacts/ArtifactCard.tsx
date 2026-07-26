@@ -17,6 +17,7 @@ import { PublishModal, type PublishedArtifactUpdate } from './PublishModal';
 import { type ArtifactPublication } from '@/services/hosting';
 import { HtmlPreview, SvgPreview } from './renderers/MediaPreview';
 import MermaidPreview from './renderers/MermaidPreview';
+import { LARGE_FILE_THRESHOLD } from '@/lib/constants/artifact';
 import {
   deploymentHostname,
   formatBytes,
@@ -106,6 +107,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const canDeploy = isDeployCandidate && deployPreflight?.deployable === true;
   const canSharePreview = isSharePreviewableArtifact(artifactState);
   const canIngestToWiki = isIngestableToWiki(artifact.type as ArtifactType);
+  const isLargeFile = canInlinePreview && artifact.size > LARGE_FILE_THRESHOLD;
 
   useEffect(() => {
     setArtifactState(artifact);
@@ -252,23 +254,23 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         return;
       }
 
-      if (inlineContent) {
-        setInlineExpanded(true);
+      setInlineExpanded(true);
+
+      if (isLargeFile || inlineContent) {
         return;
       }
 
       inlineFetchAttempted.current = true;
       setInlineLoading(true);
-      setInlineExpanded(true);
       const content = await fetchInlineContent();
       setInlineContent(content);
       setInlineLoading(false);
     },
-    [inlineExpanded, inlineContent, fetchInlineContent],
+    [inlineExpanded, inlineContent, fetchInlineContent, isLargeFile],
   );
 
   useEffect(() => {
-    if (!canInlinePreview || !inlineExpanded || inlineContent || inlineLoading || inlineFetchAttempted.current) return;
+    if (!canInlinePreview || !inlineExpanded || inlineContent || inlineLoading || inlineFetchAttempted.current || isLargeFile) return;
     inlineFetchAttempted.current = true;
     let cancelled = false;
     setInlineLoading(true);
@@ -279,12 +281,13 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
       }
     });
     return () => { cancelled = true; };
-  }, [canInlinePreview, inlineExpanded, inlineContent, inlineLoading, fetchInlineContent]);
+  }, [canInlinePreview, inlineExpanded, inlineContent, inlineLoading, fetchInlineContent, isLargeFile]);
 
   const preloadContent = useCallback(async () => {
     if (!['code', 'document', 'svg', 'mermaid', 'html'].includes(artifact.type)) {
       return;
     }
+    if (isLargeFile) return;
     if (getCachedContent(artifact.id)) return;
 
     try {
@@ -297,7 +300,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     } catch {
       // silent preload failure
     }
-  }, [artifact, getCachedContent, setCachedContent]);
+  }, [artifact, getCachedContent, setCachedContent, isLargeFile]);
 
   const handleMouseEnter = useCallback(() => {
     preloadTimerRef.current = setTimeout(() => {
@@ -744,7 +747,25 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
       {/* Inline visual preview */}
       {canInlinePreview && inlineExpanded && (
         <div className="border-t border-gray-200/60 dark:border-gray-700/60">
-          {inlineLoading && !inlineContent ? (
+          {isLargeFile ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-6">
+              <span className="text-sm text-muted-foreground">
+                {t('inlinePreview.largeFileHint', { size: formatBytes(artifact.size) })}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPreview?.(artifactState);
+                }}
+              >
+                <Eye className="w-3.5 h-3.5 mr-1.5" />
+                {t('inlinePreview.viewFullscreen')}
+              </Button>
+            </div>
+          ) : inlineLoading && !inlineContent ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin w-5 h-5 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
             </div>

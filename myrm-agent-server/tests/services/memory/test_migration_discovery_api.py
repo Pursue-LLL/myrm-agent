@@ -49,6 +49,14 @@ class TestDiscoveryEndpointLocalMode:
         data = resp.json()
         assert data["available"] is True
         assert data["sources"] == []
+        assert isinstance(data["source_manifest"], list)
+        assert {item["id"] for item in data["source_manifest"]} == {
+            "hermes",
+            "openclaw",
+            "claude",
+            "codex",
+            "chatgpt",
+        }
 
     def test_discover_with_hermes_data(self, client: TestClient, tmp_path: Path) -> None:
         hermes = tmp_path / ".hermes"
@@ -121,6 +129,14 @@ class TestDiscoveryEndpointLocalMode:
         assert "memory_count_estimate" in src
         assert "skill_count" in src
         assert "has_api_keys" in src
+        assert "source_manifest" in data
+        assert isinstance(data["source_manifest"], list)
+        manifest_item = data["source_manifest"][0]
+        assert "id" in manifest_item
+        assert "display_name" in manifest_item
+        assert "import_source" in manifest_item
+        assert "discover_modes" in manifest_item
+        assert "deep_link_enabled" in manifest_item
 
         for f in src["files"]:
             assert "path" in f
@@ -142,3 +158,4 @@ class TestDiscoveryEndpointSaaSMode:
         data = resp.json()
         assert data["available"] is False
         assert data["sources"] == []
+        assert isinstance(data["source_manifest"], list)

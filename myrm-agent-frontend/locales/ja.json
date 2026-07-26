@@ -8554,7 +8554,9 @@
     "inlinePreview": {
       "expand": "展開内联プレビュー",
       "collapse": "閉じるプレビュー",
-      "loadError": "プレビュー読み込みに失敗しました"
+      "loadError": "プレビュー読み込みに失敗しました",
+      "largeFileHint": "ファイルが大きすぎてインラインプレビューできません（{size}）",
+      "viewFullscreen": "フルスクリーンで表示"
     },
     "ingestToWiki": {
       "title": "ナレッジベースに追加",
@@ -12050,6 +12052,13 @@
       "avgTime": "平均所要時間",
       "avgToken": "平均 Token",
       "executionDetails": "実行明细",
+      "environment": "環境スナップショット",
+      "envModel": "モデル",
+      "envThinking": "思考モード",
+      "envVersion": "フレームワーク",
+      "envTools": "ツール",
+      "envDataset": "データセット",
+      "envPrompt": "プロンプトFP",
       "status": "ステータス",
       "messageSnippet": "メッセージ抜粋",
       "tokenUsage": "Token消費",
