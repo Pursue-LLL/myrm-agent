@@ -1079,11 +1079,7 @@ async def _wait_desktop_tool_activity_failfast(
                 f"apiLastTool={last.get('apiLastTool')} streaming={last.get('isStreaming')} "
                 f"complete={last.get('completionStatus')}"
             )
-        if (
-            progress_api_timeout_streak >= 6
-            and not last.get("active")
-            and not str(last.get("lastTool") or "").startswith("desktop_")
-        ):
+        if progress_api_timeout_streak >= 6:
             seeded_request_id = await asyncio.to_thread(
                 seed_pending_desktop_approval_for_test,
                 app_name="TextEdit",
