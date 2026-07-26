@@ -104,6 +104,38 @@ def test_stream_collector_persists_cron_manage_success() -> None:
     assert extra_data["cron_job_result"]["name"] == "Daily sync"
 
 
+def test_stream_collector_persists_evicted_stats_on_progress_step() -> None:
+    collector = StreamContentCollector()
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "tool_name": "bash_code_execute_tool",
+            "data": [{"status": "running"}],
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "tool_evicted_ref",
+            "tool_name": "bash_code_execute_tool",
+            "data": {
+                "evicted_ref": "output_stats.txt",
+                "stored_chars": 4096,
+                "total_lines": 25000,
+                "storage_truncated": True,
+            },
+        }
+    )
+    extra = collector.extra_data
+    assert extra is not None
+    steps = extra.get("progressSteps")
+    assert isinstance(steps, list) and steps
+    step = steps[-1]
+    assert step.get("evicted_file_ref") == "output_stats.txt"
+    assert step.get("evicted_stored_chars") == 4096
+    assert step.get("evicted_total_lines") == 25000
+    assert step.get("evicted_storage_truncated") is True
+
+
 def test_stream_collector_persists_tool_evicted_ref_on_progress_step() -> None:
     collector = StreamContentCollector()
     collector.feed_event(
@@ -125,3 +157,131 @@ def test_stream_collector_persists_tool_evicted_ref_on_progress_step() -> None:
     steps = extra.get("progressSteps")
     assert isinstance(steps, list) and steps
     assert steps[-1].get("evicted_file_ref") == "output_deadbeef.txt"
+    assert "LARGE OUTPUT TRUNCATED" in str(steps[-1].get("stdout") or "")
+
+
+def test_stream_collector_defers_evicted_ref_until_tasks_steps() -> None:
+    collector = StreamContentCollector()
+    collector.feed_event(
+        {
+            "type": "tool_evicted_ref",
+            "data": "output_cafebabe.txt",
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "step_key": "bash_code_execute_tool_tool",
+            "tool_name": "bash_code_execute_tool",
+            "data": [{"code": "echo hi"}],
+        }
+    )
+    collector.feed_event({"type": "message_end"})
+    extra = collector.extra_data
+    assert extra is not None
+    steps = extra.get("progressSteps")
+    assert isinstance(steps, list) and len(steps) == 1
+    step = steps[0]
+    assert step.get("evicted_file_ref") == "output_cafebabe.txt"
+    assert step.get("step_key") == "bash_code_execute_tool_tool"
+
+
+def test_stream_collector_binds_evicted_ref_by_tool_call_id() -> None:
+    collector = StreamContentCollector()
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "step_key": "bash_code_execute_tool_tool",
+            "tool_name": "bash_code_execute_tool",
+            "tool_call_id": "call_evict_1",
+            "data": [{"code": "seq 1 25000"}],
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "step_key": "bash_code_execute_tool_tool",
+            "tool_name": "bash_code_execute_tool",
+            "tool_call_id": "call_evict_2",
+            "data": [{"code": "echo second"}],
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "tool_evicted_ref",
+            "data": {
+                "evicted_ref": "output_deadbeef.txt",
+                "tool_call_id": "call_evict_1",
+                "preview_stdout": "[LARGE OUTPUT TRUNCATED]\nline-25000",
+            },
+        }
+    )
+    extra = collector.extra_data
+    assert extra is not None
+    steps = extra.get("progressSteps")
+    assert isinstance(steps, list) and len(steps) == 2
+    first = steps[0]
+    second = steps[1]
+    assert first.get("tool_call_id") == "call_evict_1"
+    assert first.get("evicted_file_ref") == "output_deadbeef.txt"
+    assert "line-25000" in str(first.get("stdout") or "")
+    assert second.get("evicted_file_ref") is None
+
+
+def test_stream_collector_merges_duplicate_tool_call_id_tasks_steps() -> None:
+    collector = StreamContentCollector()
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "step_key": "bash_code_execute_tool_tool",
+            "tool_name": "bash_code_execute_tool",
+            "tool_call_id": "call_merge_1",
+            "data": [{"code": "echo hi"}],
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "step_key": "bash_code_execute_tool_tool",
+            "tool_name": "bash_code_execute_tool",
+            "tool_call_id": "call_merge_1",
+            "data": [{"code": "echo hi"}],
+            "status": "success",
+        }
+    )
+    extra = collector.extra_data
+    assert extra is not None
+    steps = extra.get("progressSteps")
+    assert isinstance(steps, list) and len(steps) == 1
+    assert steps[0].get("tool_call_id") == "call_merge_1"
+    assert steps[0].get("status") == "success"
+
+
+def test_stream_collector_persists_tool_stdout_chunks_on_progress_step() -> None:
+    collector = StreamContentCollector()
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "tool_name": "bash_code_execute_tool",
+            "data": [{"status": "running"}],
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "tool_stdout_chunk",
+            "tool_name": "bash_code_execute_tool",
+            "data": "line-1\n",
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "tool_stdout_chunk",
+            "tool_name": "bash_code_execute_tool",
+            "data": "line-2\n",
+        }
+    )
+    extra = collector.extra_data
+    assert extra is not None
+    steps = extra.get("progressSteps")
+    assert isinstance(steps, list) and steps
+    assert steps[-1].get("stdout") == "line-1\nline-2\n"

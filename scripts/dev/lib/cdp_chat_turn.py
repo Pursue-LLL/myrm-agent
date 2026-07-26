@@ -441,6 +441,16 @@ class CdpChatTurn(CdpChatSubmit):
                 await_promise=False,
             )
             submit = await self.submit_native_click()
+        if not submit.get("ok") and str(submit.get("err") or "") in {
+            "no send button",
+            "send disabled",
+        }:
+            bridge_submit = await self._submit_via_dev_bridge(
+                text,
+                baseline_user_msgs=baseline_user_msgs,
+            )
+            if bridge_submit.get("ok"):
+                submit = {**bridge_submit, "mode": "bridgeSendChatMessage"}
         if not submit.get("ok"):
             raise RuntimeError(f"fast desktop native submit failed: {submit}")
         try:

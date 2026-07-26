@@ -8,7 +8,7 @@ Agent 执行进度步骤 UI：折叠/展开 Task Steps 树、多态 step 渲染�
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `ProgressSteps.tsx` | 核心 | 进度步骤树与折叠面板 | ✅ |
+| `ProgressSteps.tsx` | 核心 | 进度步骤树与折叠面板（`data-testid=progress-steps-toggle/panel` 供 Chrome E2E 稳定定位） | ✅ |
 | `utils.ts` | 辅助 | 步骤标题、items 类型推断、错误 linkify | ✅ |
 | `treeUtils.ts` | 辅助 | progressSteps 树构建 | ✅ |
 | `toolIcons.tsx` | 辅助 | 步骤图标与 agent 主题色 | ✅ |

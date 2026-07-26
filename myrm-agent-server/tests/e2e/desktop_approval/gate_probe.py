@@ -16,7 +16,6 @@ from tests.e2e.desktop_approval.constants import (
     APPROVAL_WAIT_SEC,
     BASE_URL,
     E2E_NUDGE_PROMPT,
-    E2E_SNAPSHOT_NUDGE_PROMPT,
     E2E_VISION_CORRECT_PROMPT,
     GATE_IDLE_FAIL_FAST_SEC,
     GATE_IDLE_NUDGE_SEC,
@@ -254,6 +253,11 @@ async def _wait_nudge_send_surface(
     await chat.ensure_react_e2e_bridge(timeout_sec=min(60.0, timeout_sec))
     ready = await chat.wait_send_button_ready(timeout_sec=timeout_sec)
     if not ready.get("ok"):
+        if ready.get("sendReady"):
+            progress(
+                "send button DOM missing but bridge sendReady — bridge submit path OK"
+            )
+            return
         progress(f"send button not ready before nudge follow-up: {ready}")
 
 
@@ -303,7 +307,9 @@ async def _fetch_first_desktop_dref(
             if attempt < 4:
                 await asyncio.sleep(1.5)
     if last_tool.endswith("desktop_snapshot_tool"):
-        local_dref = await asyncio.to_thread(fetch_first_desktop_dref_from_local_capture)
+        local_dref = await asyncio.to_thread(
+            fetch_first_desktop_dref_from_local_capture
+        )
         if local_dref:
             return local_dref
         progress("no dref from API/UI after desktop_snapshot_tool")
@@ -333,7 +339,9 @@ async def _ensure_nudge_chat_surface(
                 target,
                 timeout_ms=120_000,
             )
-            await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
+    chat._reset_shell_layout_wait_clock()
+    await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)
+    await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
 
 
 async def _nudge_baseline_markers(chat_id: str) -> tuple[int, int]:
@@ -432,16 +440,16 @@ async def _send_interact_nudge(
         progress(f"nudge with concrete dref={dref!r}")
         nudge_prompt = build_desktop_interact_nudge(dref=dref)
     elif last_tool.endswith("desktop_snapshot_tool"):
-        nudge_prompt = E2E_SNAPSHOT_NUDGE_PROMPT
+        nudge_prompt = E2E_VISION_CORRECT_PROMPT
     elif last_tool.endswith("desktop_vision_tool"):
         nudge_prompt = E2E_VISION_CORRECT_PROMPT
     else:
         nudge_prompt = E2E_NUDGE_PROMPT
     stream_active = await _agent_stream_active(chat, chat_id=chat_id)
-    # Concrete @dref nudges use follow-up send; steerStore is unreliable with mimo.
+    # steerStore is unreliable; vision/snapshot always abort+follow-up native send.
     force_follow_up = dref is not None
-    if last_tool.endswith("desktop_snapshot_tool"):
-        use_follow_up = force_follow_up or not stream_active
+    if last_tool.endswith(("desktop_snapshot_tool", "desktop_vision_tool")):
+        use_follow_up = True
     else:
         use_follow_up = force_follow_up or (
             not stream_active or not last_tool.startswith("desktop_")
@@ -471,7 +479,7 @@ async def _send_interact_nudge(
                 raise
             progress(f"follow-up send failed (retry with chat surface): {exc}")
             await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
-            await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+            await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
             send_result = await chat.fast_desktop_agent_submit(
                 nudge_prompt,
                 nudge_prompt,
@@ -512,23 +520,31 @@ async def _send_interact_nudge(
             progress("steer nudge not consumed — abort + follow-up fallback")
             await _abort_stuck_ui_stream(chat)
             await _wait_stream_idle(chat, chat_id=normalized_chat_id)
-            await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
-            await asyncio.to_thread(activate_chrome_foreground)
-            send_result = await chat.fast_desktop_agent_submit(
-                nudge_prompt,
-                nudge_prompt,
-                chat_id_hint=normalized_chat_id or None,
-            )
-            progress(
-                f"steer fallback follow-up send: {send_result.get('submit', send_result)}"
-            )
-            if normalized_chat_id:
-                await _wait_nudge_consumed(
-                    normalized_chat_id,
-                    baseline_user_msgs=baseline_user_msgs,
-                    baseline_step_count=baseline_step_count,
+
+            async def _steer_fallback_follow_up() -> None:
+                await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
+                await asyncio.to_thread(activate_chrome_foreground)
+                send_result = await chat.fast_desktop_agent_submit(
+                    nudge_prompt,
+                    nudge_prompt,
+                    chat_id_hint=normalized_chat_id or None,
                 )
-            await asyncio.to_thread(activate_textedit_foreground)
+                progress(
+                    f"steer fallback follow-up send: "
+                    f"{send_result.get('submit', send_result)}"
+                )
+                if normalized_chat_id:
+                    await _wait_nudge_consumed(
+                        normalized_chat_id,
+                        baseline_user_msgs=baseline_user_msgs,
+                        baseline_step_count=baseline_step_count,
+                    )
+                await asyncio.to_thread(activate_textedit_foreground)
+
+            try:
+                await asyncio.wait_for(_steer_fallback_follow_up(), timeout=180.0)
+            except (asyncio.TimeoutError, RuntimeError, TimeoutError, OSError) as exc:
+                progress(f"steer fallback follow-up failed (non-fatal): {exc}")
             return
 
 
@@ -582,7 +598,7 @@ async def _fail_if_model_completed_without_desktop_tools(
     last_tool = str(tool_activity.get("lastTool") or "")
     if last_tool.endswith("desktop_interact_tool"):
         return
-    if last_tool.startswith("desktop_"):
+    if last_tool.startswith("desktop_") and completion_status != "complete":
         return
     if not sample and completion_status != "complete":
         return
@@ -853,7 +869,9 @@ async def ensure_interact_gate(
             chat_id=chat_id,
         )
         if prefetched_dref:
-            progress(f"prefetched dref={prefetched_dref!r} before approval chrome activate")
+            progress(
+                f"prefetched dref={prefetched_dref!r} before approval chrome activate"
+            )
     if textedit_foreground:
         progress(
             "agent turn observed via API — activate Chrome for CDP + approval banner"

@@ -19,6 +19,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/e2e_wall_progress.py` | 辅助 | Chrome E2E 墙钟 progress token（R39 touch/reset）；`reset_chrome_e2e_body_clocks` 在 SHPOIB bootstrap 后重设 body 600s + pytest-timeout（R48 · 日志 `E2E_BODY_CLOCK_RESET`） |
 | `../scripts/dev/lib/e2e_shared_ui_session.py` | 辅助 | R51-v2 Shared UI Session Contract（marker `e2e_search_policy` · conftest env · bootstrap/`click_new_chat` 四阶段 reset） |
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
+| `support/evicted_drawer_selectors.py` | 辅助 | UECD Drawer Chrome E2E 共享选择器/探针 SSOT（`data-testid` 定位 + `/files/evicted` 分页参数断言） |
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
 | `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×4：看板渲染 + source_chat 深链过滤 + Drawer 附件 + Chat 成功卡片→看板） |
@@ -43,7 +44,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_kanban_closure_seed_fixture.py` | 模块 | Kanban closure fixture seed HTTP 单测（`/chats/test/seed-kanban-closure-fixture`） |
 | `api/chats/test_kanban_closure_seed_integration.py` | 模块 | Kanban closure seed 真 DB 集成（metadata + board task） |
 | `api/chats/test_citation_seed_integration.py` | 模块 | citation seed → GET messages 集成单测（真 DB metadata） |
-| `e2e/test_evicted_live_terminal_chrome_e2e.py` | 模块 | UECD EvictedOutputDrawer Chrome MCP E2E（READ×1 SHPOIB：**单 tab** 全文 spill + `navigate` 过期 chat；禁止拆成 2× `open_mcp_page`，并行 mux 会 30s timeout） |
+| `e2e/test_evicted_live_terminal_chrome_e2e.py` | 模块 | UECD EvictedOutputDrawer Chrome MCP E2E（READ×1 SHPOIB：**单 tab** 全文 spill + `navigate` 过期 chat；选择器与分页探针统一来自 `support/evicted_drawer_selectors.py`；禁止拆成 2× `open_mcp_page`，并行 mux 会 30s timeout） |
 | `api/files/test_evicted_web_fetch_spill.py` | 模块 | UECD evicted-file API 单测（`web_fetch_{hex8}.md` basename + GET content） |
 | `api/files/test_evicted_background_spill.py` | 模块 | UECD bash/background spill → evicted API 单测 |
 | `integration/test_evicted_uecd_live_api_integration.py` | 模块 | UECD live API 集成（`resolve_verify_api_base()` 私池 · seed POST `_LIVE_SEED_POST_TIMEOUT_SEC=60` · GET evicted · 404 `expired` envelope） |
@@ -100,9 +101,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - **Skill marketplace LIVE Chrome E2E**：`tests/e2e/test_skill_marketplace_live_agent_chrome_e2e.py`（LIVE×1：`skill_discovery_tool` 外部市场搜索；自定义 Agent system_prompt + `/?agentId=`；自然中文用户消息；API/UI 双路径断言；见 `scripts/dev/CHROME_MCP_E2E.md`）
 - **Background Tasks Panel Chrome E2E**：`tests/e2e/test_background_tasks_panel_chrome_e2e.py`（READ×5 SHPOIB：panel 列表、failed/running seed、UI cancel、vault log drawer、success finish toast；见 `scripts/dev/CHROME_MCP_E2E.md` §Background Shell）
 - **Background shell LIVE Chrome E2E**：`tests/e2e/test_background_shell_live_agent_chrome_e2e.py`（LIVE×1 SHPOIB：自然语言 prompt + agent-stream spawn；HITL 时 `decisions[]` approve；见 `BUGFIX_LOG.md` BUG-DG-2026-07-23-010）
-- **UECD EvictedOutputDrawer Chrome E2E**：`tests/e2e/test_evicted_live_terminal_chrome_e2e.py`（READ×1 SHPOIB：`seed-evicted-live-terminal-fixture?variant=full|expired` → LiveTerminal 截断预览 → View Full Output → Drawer 全文/过期）。**CI anti-mux**：同一 SHPOIB + **单 `open_mcp_page`**，场景间 `client.navigate` 切 chat；**禁止**拆成 2 测例各开新 tab（并行 E2E 下第二次 `new_page` 易 30s timeout；pytest rerun 不采纳）。HTTP/API 覆盖见 `test_evicted_web_fetch_spill.py`、`test_evicted_background_spill.py`、`test_evicted_uecd_live_api_integration.py`
+- **UECD EvictedOutputDrawer Chrome E2E**：`tests/e2e/test_evicted_live_terminal_chrome_e2e.py`（READ×1 SHPOIB：`seed-evicted-live-terminal-fixture?variant=full|expired` → LiveTerminal 截断预览 → View Full Output → Drawer 全文/过期；共享 `tests/support/evicted_drawer_selectors.py` 统一选择器与分页参数探针）。**CI anti-mux**：同一 SHPOIB + **单 `open_mcp_page`**，场景间 `client.navigate` 切 chat；**禁止**拆成 2 测例各开新 tab（并行 E2E 下第二次 `new_page` 易 30s timeout；pytest rerun 不采纳）。HTTP/API 覆盖见 `test_evicted_web_fetch_spill.py`、`test_evicted_background_spill.py`、`test_evicted_uecd_live_api_integration.py`
 - **UECD LIVE fast+deep Chrome E2E**：`tests/e2e/test_fast_deep_search_evicted_read_chrome_e2e.py`（LIVE×1 SHPOIB：真实 MiniMax + fast/deep + Wikipedia `web_fetch_tool` spill → `file_read_tool`；`preserveActionMode` + progress **UI 优先 / API 自愈**（Chrome CDP flake 时 `_api_deep_search_progress` 不断言中断））
-- **UECD LIVE bash foreground Chrome E2E**：`tests/e2e/test_bash_foreground_evicted_live_chrome_e2e.py`（LIVE×1 SHPOIB：yolo code_execute agent → 前台 `bash_code_execute_tool` 大输出 spill → GET `/files/evicted` + LiveTerminal Drawer）
+- **UECD LIVE bash foreground Chrome E2E**：`tests/e2e/test_bash_foreground_evicted_live_chrome_e2e.py`（LIVE×1 SHPOIB：yolo code_execute agent → 前台 `bash_code_execute_tool` 大输出 spill → GET `/files/evicted` + LiveTerminal Drawer；**无 enrich 端点**，断言真实 `tool_call_id` 绑定 reload 路径）
 - **Subagent Dashboard Chrome E2E**：`tests/e2e/test_subagent_dashboard_chrome_e2e.py`（LIVE lane ×3：`subagent-dashboard-e2e-prepare.mjs` delegate → Dashboard cancel / pause toggle / token+model；`open_mcp_page(..., timeout_ms=MAX_PAGE_TIMEOUT_MS)`）
 - **Subagent rebind 单测**：`tests/services/agent/test_subagent_rebind_event.py`（`AgentService.update_agent` 变更 `subagent_ids` → `SUBAGENT_REBIND_REQUIRED`）
 - **Citation seed 集成单测**：`tests/api/chats/test_citation_seed_integration.py`（seed → GET messages 断言 `citedMemoryIds`；默认 CI 套件执行，不依赖 Chrome）

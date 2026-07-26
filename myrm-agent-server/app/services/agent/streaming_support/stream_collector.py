@@ -99,6 +99,189 @@ def _iteration_limit_message(detail: dict[str, object] | None) -> str:
     return "Iteration limit reached"
 
 
+def _ensure_evicted_stdout_preview(step: dict[str, object]) -> None:
+    stdout = step.get("stdout")
+    if isinstance(stdout, str) and stdout.strip():
+        return
+    step["stdout"] = (
+        "[LARGE OUTPUT TRUNCATED]\n\n(Full output evicted to workspace file)"
+    )
+
+
+_BASH_EXECUTE_TOOL = "bash_code_execute_tool"
+_MAX_EVICTED_PREVIEW_CHARS = 8_000
+
+
+def _cap_evicted_preview(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    if len(text) > _MAX_EVICTED_PREVIEW_CHARS:
+        return text[:_MAX_EVICTED_PREVIEW_CHARS]
+    return text
+
+
+def _parse_evicted_ref_payload(
+    data: object,
+    event: dict[str, object],
+) -> dict[str, object] | None:
+    payload: dict[str, object] = {}
+    if isinstance(data, str) and data.strip():
+        payload["evicted_ref"] = data.strip()
+    elif isinstance(data, dict):
+        raw_ref = data.get("evicted_ref")
+        if isinstance(raw_ref, str) and raw_ref.strip():
+            payload["evicted_ref"] = raw_ref.strip()
+        tool_name = data.get("tool_name")
+        if isinstance(tool_name, str) and tool_name.strip():
+            payload["tool_name"] = tool_name.strip()
+        tool_call_id = data.get("tool_call_id")
+        if isinstance(tool_call_id, str) and tool_call_id.strip():
+            payload["tool_call_id"] = tool_call_id.strip()
+        preview = _cap_evicted_preview(data.get("preview_stdout"))
+        if preview:
+            payload["preview_stdout"] = preview
+        stored_chars = data.get("stored_chars")
+        if isinstance(stored_chars, int) and stored_chars > 0:
+            payload["stored_chars"] = stored_chars
+        total_lines = data.get("total_lines")
+        if isinstance(total_lines, int) and total_lines > 0:
+            payload["total_lines"] = total_lines
+        storage_truncated = data.get("storage_truncated")
+        if storage_truncated is True:
+            payload["storage_truncated"] = True
+    event_tool = event.get("tool_name")
+    if isinstance(event_tool, str) and event_tool.strip() and "tool_name" not in payload:
+        payload["tool_name"] = event_tool.strip()
+    ref = payload.get("evicted_ref")
+    return payload if isinstance(ref, str) and ref else None
+
+
+def _attach_evicted_to_step(step: dict[str, object], payload: dict[str, object]) -> None:
+    ref = payload.get("evicted_ref")
+    if not isinstance(ref, str) or not ref:
+        return
+    step["evicted_file_ref"] = ref
+    step["status"] = "success"
+    preview = payload.get("preview_stdout")
+    if isinstance(preview, str) and preview.strip():
+        step["stdout"] = preview
+    else:
+        _ensure_evicted_stdout_preview(step)
+    tool_call_id = payload.get("tool_call_id")
+    if isinstance(tool_call_id, str) and tool_call_id.strip() and not step.get("tool_call_id"):
+        step["tool_call_id"] = tool_call_id.strip()
+    if not step.get("step_key"):
+        step_tool = step.get("tool_name")
+        if step_tool == _BASH_EXECUTE_TOOL:
+            step["step_key"] = "bash_code_execute_tool_tool"
+        elif isinstance(step_tool, str) and step_tool:
+            step["step_key"] = step_tool
+    stored_chars = payload.get("stored_chars")
+    if isinstance(stored_chars, int) and stored_chars > 0:
+        step["evicted_stored_chars"] = stored_chars
+    total_lines = payload.get("total_lines")
+    if isinstance(total_lines, int) and total_lines > 0:
+        step["evicted_total_lines"] = total_lines
+    if payload.get("storage_truncated") is True:
+        step["evicted_storage_truncated"] = True
+
+
+def _find_step_for_evicted(
+    steps: list[dict[str, object]],
+    payload: dict[str, object],
+) -> dict[str, object] | None:
+    tool_call_id = payload.get("tool_call_id")
+    if isinstance(tool_call_id, str) and tool_call_id.strip():
+        target_id = tool_call_id.strip()
+        for step in reversed(steps):
+            if step.get("tool_call_id") == target_id:
+                return step
+    tool_hint = payload.get("tool_name")
+    if isinstance(tool_hint, str) and tool_hint.strip():
+        for step in reversed(steps):
+            if step.get("evicted_file_ref"):
+                continue
+            if step.get("tool_name") == tool_hint.strip():
+                return step
+    for step in reversed(steps):
+        if step.get("evicted_file_ref"):
+            continue
+        if step.get("tool_name") == _BASH_EXECUTE_TOOL:
+            return step
+    return None
+
+
+def _merge_tasks_step(
+    progress_steps: list[dict[str, object]],
+    event: dict[str, object],
+    data: object,
+) -> dict[str, object]:
+    step_key = event.get("step_key")
+    tool_name = event.get("tool_name")
+    tool_call_id = event.get("tool_call_id")
+    new_fields: dict[str, object] = {
+        "step_key": step_key,
+        "tool_name": tool_name,
+        "items": data,
+        "count": event.get("count"),
+    }
+    if isinstance(tool_call_id, str) and tool_call_id.strip():
+        new_fields["tool_call_id"] = tool_call_id.strip()
+    for key in ("reason", "status", "error", "error_hint", "error_category"):
+        value = event.get(key)
+        if value is not None:
+            new_fields[key] = value
+
+    if isinstance(tool_call_id, str) and tool_call_id.strip():
+        target_id = tool_call_id.strip()
+        for existing in progress_steps:
+            if existing.get("tool_call_id") == target_id:
+                for key, value in new_fields.items():
+                    if value is not None:
+                        existing[key] = value
+                return existing
+
+    if isinstance(step_key, str) and step_key.strip():
+        for existing in reversed(progress_steps):
+            if existing.get("step_key") != step_key:
+                continue
+            existing_id = existing.get("tool_call_id")
+            if isinstance(tool_call_id, str) and tool_call_id.strip():
+                if existing_id in (None, "", tool_call_id.strip()):
+                    for key, value in new_fields.items():
+                        if value is not None:
+                            existing[key] = value
+                    if not existing_id:
+                        existing["tool_call_id"] = tool_call_id.strip()
+                    return existing
+            elif not existing_id:
+                for key, value in new_fields.items():
+                    if value is not None:
+                        existing[key] = value
+                return existing
+
+    step = {key: value for key, value in new_fields.items() if value is not None}
+    progress_steps.append(step)
+    return step
+
+
+def _step_accepts_pending_evicted(step: dict[str, object], payload: dict[str, object]) -> bool:
+    tool_call_id = payload.get("tool_call_id")
+    if isinstance(tool_call_id, str) and tool_call_id.strip():
+        return step.get("tool_call_id") == tool_call_id.strip()
+    tool_hint = payload.get("tool_name")
+    step_tool = step.get("tool_name")
+    if isinstance(tool_hint, str) and tool_hint:
+        return step_tool == tool_hint
+    if step_tool == _BASH_EXECUTE_TOOL:
+        return True
+    step_key = step.get("step_key")
+    return isinstance(step_key, str) and step_key.startswith("bash_code_execute_tool")
+
+
 ACTIVE_COLLECTORS: dict[str, "StreamContentCollector"] = {}
 
 _INTERRUPT_REPLAY_TYPES: frozenset[str] = frozenset(
@@ -152,6 +335,7 @@ class StreamContentCollector:
         self._cross_turn_data_updates: list[tuple[str, dict[str, object]]] = []
         self._kanban_tasks_created: list[dict[str, object]] = []
         self._cron_job_result: dict[str, object] | None = None
+        self._pending_evicted: dict[str, object] | None = None
         self._sibling_group_id: str | None = sibling_group_id
         self._chat_id: str | None = chat_id
         self._subscribers: list[asyncio.Queue[dict[str, object]]] = []
@@ -355,17 +539,17 @@ class StreamContentCollector:
         elif event_type == "sources" and isinstance(data, list):
             self._sources.extend(string_keyed_dicts(data))
         elif event_type == "tasks_steps":
-            step = {
-                "step_key": event.get("step_key"),
-                "tool_name": event.get("tool_name"),
-                "items": data,
-                "count": event.get("count"),
-            }
-            self._progress_steps.append(step)
+            step = _merge_tasks_step(self._progress_steps, event, data)
+            if self._pending_evicted and _step_accepts_pending_evicted(
+                step, self._pending_evicted
+            ):
+                _attach_evicted_to_step(step, self._pending_evicted)
+                self._pending_evicted = None
         elif event_type == "token_usage" and isinstance(data, dict):
             self._usage = string_keyed_dict(data.get("usage"))
 
         elif event_type == "message_end":
+            self._flush_pending_evicted_ref()
             usage = string_keyed_dict(event.get("usage"))
             if usage is not None:
                 self._usage = usage
@@ -402,33 +586,23 @@ class StreamContentCollector:
             if isinstance(refs, list):
                 self._extend_cited_memory_refs(refs)
         elif event_type == "tool_stdout_chunk" and isinstance(data, str):
-            pass
-        elif event_type == "tool_evicted_ref":
-            ref: str | None = None
-            if isinstance(data, str) and data.strip():
-                ref = data.strip()
-            elif isinstance(data, dict):
-                raw_ref = data.get("evicted_ref")
-                if isinstance(raw_ref, str) and raw_ref.strip():
-                    ref = raw_ref.strip()
-            if ref:
-                tool_name = event.get("tool_name")
-                matched = False
+            tool_name = event.get("tool_name")
+            if isinstance(tool_name, str):
                 for step in reversed(self._progress_steps):
-                    step_tool = step.get("tool_name")
-                    if isinstance(tool_name, str) and step_tool == tool_name:
-                        step["evicted_file_ref"] = ref
-                        matched = True
+                    if step.get("tool_name") == tool_name:
+                        prev = step.get("stdout")
+                        step["stdout"] = (
+                            f"{prev}{data}" if isinstance(prev, str) else data
+                        )
                         break
-                    if step_tool == "bash_code_execute_tool":
-                        step["evicted_file_ref"] = ref
-                        matched = True
-                        break
-                if not matched:
-                    step_payload: dict[str, object] = {"evicted_file_ref": ref}
-                    if isinstance(tool_name, str) and tool_name:
-                        step_payload["tool_name"] = tool_name
-                    self._progress_steps.append(step_payload)
+        elif event_type == "tool_evicted_ref":
+            payload = _parse_evicted_ref_payload(data, event)
+            if payload is not None:
+                matched = _find_step_for_evicted(self._progress_steps, payload)
+                if matched is not None:
+                    _attach_evicted_to_step(matched, payload)
+                else:
+                    self._pending_evicted = payload
         elif event_type == "tool_end":
             cited = event.get("cited_memory_ids")
             is_memory_recall = is_memory_citation_tool(event.get("tool_name"))
@@ -560,6 +734,27 @@ class StreamContentCollector:
     @property
     def cross_turn_data_updates(self) -> list[tuple[str, dict[str, object]]]:
         return list(self._cross_turn_data_updates)
+
+    def _flush_pending_evicted_ref(self) -> None:
+        payload = self._pending_evicted
+        if payload is None:
+            return
+        matched = _find_step_for_evicted(self._progress_steps, payload)
+        if matched is not None:
+            _attach_evicted_to_step(matched, payload)
+            self._pending_evicted = None
+            return
+        tool_hint = payload.get("tool_name")
+        fallback: dict[str, object] = {
+            "tool_name": tool_hint if isinstance(tool_hint, str) else _BASH_EXECUTE_TOOL,
+            "step_key": "bash_code_execute_tool_tool",
+        }
+        tool_call_id = payload.get("tool_call_id")
+        if isinstance(tool_call_id, str) and tool_call_id.strip():
+            fallback["tool_call_id"] = tool_call_id.strip()
+        _attach_evicted_to_step(fallback, payload)
+        self._progress_steps.append(fallback)
+        self._pending_evicted = None
 
     @property
     def extra_data(self) -> dict[str, object] | None:

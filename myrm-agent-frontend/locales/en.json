@@ -227,7 +227,6 @@
     "autoSaveFailed": "Auto-save failed. Please save manually before leaving.",
     "common": {
       "providerDisabledWarning": "The provider for this model is disabled. Please select a different model.",
-      "modelSyncFailed": "Failed to save model configuration, reverted to previous selection.",
       "edit": "Edit",
       "delete": "Delete",
       "cancel": "Cancel",
@@ -6094,7 +6093,8 @@
       "placeholder": "Type next task (will queue, not interrupt)...",
       "edit": "Edit message",
       "saveEdit": "Save",
-      "cancelEdit": "Cancel"
+      "cancelEdit": "Cancel",
+      "stuck": "Queued message failed to send after multiple retries. Please try again manually."
     },
     "fileMention": {
       "title": "Workspace References",
@@ -6804,7 +6804,11 @@
       "pageOf": "Page {current} of {total}",
       "prev": "Prev",
       "next": "Next",
-      "lineCount": "{count} lines"
+      "lineCount": "{count} lines",
+      "sizeBadge": "{lines} lines · {size}",
+      "storageTruncated": "Storage capped; file may be incomplete",
+      "loadingPage": "Loading page...",
+      "searchPagePlaceholder": "Search current page..."
     },
     "task": "Task Steps",
     "diagnosticHint": "Diagnostic Hint",

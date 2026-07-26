@@ -8,16 +8,11 @@ import { toast } from '@/hooks/useToast';
 import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
+import type { OriginalAgentSnapshot } from './use-agent-config-panel/configChanges';
 
 interface UsePresetAgentOptions {
   setAgentConfig: (config: AgentConfig | null) => void;
-  originalAgentConfigRef: React.MutableRefObject<{
-    agentId: string;
-    selectedSkillIds: string[];
-    selectedMcpNames: string[];
-    systemPrompt: string;
-    autoRestoreDomains: string[];
-  } | null>;
+  originalAgentConfigRef: React.MutableRefObject<OriginalAgentSnapshot | null>;
 }
 
 interface UsePresetAgentReturn {

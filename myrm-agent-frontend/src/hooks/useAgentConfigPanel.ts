@@ -13,6 +13,7 @@ import { toast } from '@/hooks/useToast';
 import { usePresetAgent } from '@/hooks/usePresetAgent';
 import type { ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import { createSaveConfigHandler } from './use-agent-config-panel/handlers';
+import { detectAgentConfigChanges, type OriginalAgentSnapshot } from './use-agent-config-panel/configChanges';
 
 /**
  * AgentConfigPanel 业务逻辑Hook
@@ -141,17 +142,7 @@ export const useAgentConfigPanel = () => {
   const [showTypewriter, setShowTypewriter] = useState(false);
   const prevActionModeRef = useRef<string | null>(null);
 
-  // 记录智能体的原始配置，用于检测是否有变化
-  const originalAgentConfigRef = useRef<{
-    agentId: string;
-    selectedSkillIds: string[];
-    skillConfigs?: Record<string, { is_core?: boolean }>;
-    selectedMcpNames: string[];
-    systemPrompt: string;
-    autoRestoreDomains: string[];
-    enabledBuiltinTools: BuiltinToolId[];
-    memoryDecayProfile?: 'permanent' | 'normal' | 'fast';
-  } | null>(null);
+  const originalAgentConfigRef = useRef<OriginalAgentSnapshot | null>(null);
 
   // 使用预置智能体 Hook
   const { selectedPresetId, handleSelectPreset, clearPresetSelection } = usePresetAgent({
@@ -178,55 +169,10 @@ export const useAgentConfigPanel = () => {
     return mcpConfigs.filter((mcp) => agentConfig.selectedMcpNames.includes(mcp.name));
   }, [agentConfig, mcpConfigs]);
 
-  // 检测当前配置是否相对于已保存的智能体有变化
-  const hasConfigChanges = useMemo(() => {
-    // 如果没有智能体 ID，说明是新配置，不需要检测变化
-    if (!agentConfig?.agentId) return false;
-    // 如果没有原始配置引用，说明还没有加载过智能体
-    if (!originalAgentConfigRef.current) return false;
-    // 如果 agentId 不匹配，说明切换了智能体
-    if (originalAgentConfigRef.current.agentId !== agentConfig.agentId) return false;
-
-    const original = originalAgentConfigRef.current;
-    const current = agentConfig;
-
-    // 比较技能
-    const origSkills = original.selectedSkillIds ?? [];
-    const currSkills = current.selectedSkillIds ?? [];
-    const skillsChanged = origSkills.length !== currSkills.length || !origSkills.every((id) => currSkills.includes(id));
-
-    // 比较 MCP
-    const origMcps = original.selectedMcpNames ?? [];
-    const currMcps = current.selectedMcpNames ?? [];
-    const mcpsChanged = origMcps.length !== currMcps.length || !origMcps.every((name) => currMcps.includes(name));
-
-    // 比较系统指令
-    const promptChanged = original.systemPrompt !== (current.systemPrompt || '');
-
-    // 比较自动恢复域名
-    const origDomains = original.autoRestoreDomains ?? [];
-    const currDomains = current.autoRestoreDomains ?? [];
-    const autoRestoreDomainsChanged =
-      origDomains.length !== currDomains.length || !origDomains.every((domain) => currDomains.includes(domain));
-
-    // 比较内置工具（对比 session-level 与原始持久化配置）
-    const origBuiltins = original.enabledBuiltinTools ?? [];
-    const builtinToolsChanged =
-      origBuiltins.length !== currentBuiltinTools.length ||
-      !origBuiltins.every((id) => currentBuiltinTools.includes(id));
-
-    // 比较记忆遗忘速度
-    const memoryDecayChanged = (original.memoryDecayProfile || 'normal') !== (current.memoryDecayProfile || 'normal');
-
-    return (
-      skillsChanged ||
-      mcpsChanged ||
-      promptChanged ||
-      autoRestoreDomainsChanged ||
-      builtinToolsChanged ||
-      memoryDecayChanged
-    );
-  }, [agentConfig, currentBuiltinTools]);
+  const hasConfigChanges = useMemo(
+    () => detectAgentConfigChanges(originalAgentConfigRef.current, agentConfig, currentBuiltinTools),
+    [agentConfig, currentBuiltinTools],
+  );
 
   // ==================== Effects ====================
 
@@ -387,6 +333,10 @@ export const useAgentConfigPanel = () => {
         systemPrompt: agentConfig.systemPrompt || '',
         autoRestoreDomains: [...(agentConfig.autoRestoreDomains || [])],
         enabledBuiltinTools: [...currentBuiltinTools],
+        memoryDecayProfile: agentConfig.memoryDecayProfile || 'normal',
+        modelSelection: agentConfig.modelSelection ?? null,
+        fallbackModelSelection: agentConfig.fallbackModelSelection ?? null,
+        safetyFallbackModelSelection: agentConfig.safetyFallbackModelSelection ?? null,
       };
 
       // 更新 store 中的智能体数据
@@ -453,6 +403,9 @@ export const useAgentConfigPanel = () => {
           autoRestoreDomains: agentDetail.auto_restore_domains || [],
           enabledBuiltinTools: builtinTools,
           memoryDecayProfile: agentDetail.memory_decay_profile || 'normal',
+          modelSelection: newConfig.modelSelection ?? null,
+          fallbackModelSelection: newConfig.fallbackModelSelection ?? null,
+          safetyFallbackModelSelection: newConfig.safetyFallbackModelSelection ?? null,
         };
       } catch (error) {
         console.error('加载智能体详情失败:', error);

@@ -17,6 +17,10 @@ const evictedOutputCopy = vi.hoisted(() => ({
   prev: 'Prev',
   next: 'Next',
   lineCount: '{count} lines',
+  sizeBadge: '{lines} lines · {size}',
+  storageTruncated: 'Storage capped; file may be incomplete',
+  loadingPage: 'Loading page...',
+  searchPagePlaceholder: 'Search current page...',
 }));
 
 vi.mock('@/lib/deploy-mode', () => ({
@@ -50,7 +54,14 @@ describe('EvictedOutputDrawer', () => {
     vi.clearAllMocks();
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ content: MOCK_CONTENT }),
+      json: () =>
+        Promise.resolve({
+          content: MOCK_CONTENT,
+          total_lines: 20,
+          stored_chars: MOCK_CONTENT.length,
+          offset: 0,
+          limit: 500,
+        }),
     });
   });
 

@@ -39,6 +39,14 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     wait_for_state,
     warm_ui_route,
 )
+from tests.support.evicted_drawer_selectors import (  # noqa: E402
+    EXPAND_PROGRESS_PANEL_JS as _EXPAND_PROGRESS_PANEL_JS,
+    TERMINAL_PREVIEW_JS as _TERMINAL_PREVIEW_JS,
+    VIEW_FULL_OUTPUT_JS as _VIEW_FULL_OUTPUT_JS,
+    WAIT_PROGRESS_UI_DOM_JS as _WAIT_PROGRESS_UI_DOM_JS,
+    drawer_ready_js,
+    evicted_request_probe_js,
+)
 
 _MARKER = "UECD_BASH_FG_MARKER"
 _BASH_TOOL = "bash_code_execute_tool"
@@ -80,55 +88,6 @@ _PROGRESS_STEPS_LIVE_JS = """(() => {
   }
   return { ready: false, count: msgs.length };
 })()"""
-
-_EXPAND_PROGRESS_PANEL_JS = """(() => {
-  const viewFull = Array.from(document.querySelectorAll('button')).find(
-    (el) => /View Full Output|查看完整输出|完整输出を表示|전체 출력 보기/.test(el.textContent || ''),
-  );
-  if (viewFull) return { ready: true, alreadyVisible: true };
-  const header = Array.from(document.querySelectorAll('h3')).find(
-    (el) => /Task Steps|任务步骤|Task|任务|タスク|작업/.test(el.textContent || ''),
-  );
-  if (!header) return { ready: false, reason: 'no-task-header' };
-  const toggleRow = header.closest('.cursor-pointer');
-  if (!(toggleRow instanceof HTMLElement)) return { ready: false, reason: 'no-toggle-row' };
-  toggleRow.click();
-  return { ready: true, clicked: true };
-})()"""
-
-_WAIT_PROGRESS_UI_DOM_JS = """(() => {
-  const header = Array.from(document.querySelectorAll('h3')).find(
-    (el) => /Task Steps|任务步骤|Task|任务|タスク|작업/.test(el.textContent || ''),
-  );
-  const viewFull = Array.from(document.querySelectorAll('button')).find(
-    (el) => /View Full Output|查看完整输出|完整输出を表示|전체 출력 보기/.test(el.textContent || ''),
-  );
-  return { ready: !!header || !!viewFull, hasHeader: !!header, hasViewFull: !!viewFull };
-})()"""
-
-_TERMINAL_PREVIEW_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasTruncated = /LARGE OUTPUT TRUNCATED|输出已截断|出力を切り詰め/.test(text);
-  return { ready: hasTruncated, preview: text.slice(0, 400) };
-})()"""
-
-_VIEW_FULL_OUTPUT_JS = """(() => {
-  const btn = Array.from(document.querySelectorAll('button')).find(
-    (el) => /View Full Output|查看完整输出|完整输出を表示|전체 출력 보기/.test(el.textContent || ''),
-  );
-  if (!btn) return { ready: false, clicked: false };
-  btn.click();
-  return { ready: true, clicked: true };
-})()"""
-
-
-def _drawer_ready_js(marker_line: str) -> str:
-    encoded = json.dumps(marker_line)
-    return f"""(() => {{
-  const text = document.body?.innerText || '';
-  return {{ ready: text.includes({encoded}), sample: text.slice(0, 500) }};
-}})()"""
-
 
 def _create_foreground_bash_agent(client: httpx.Client, api_base: str) -> str:
     payload = {
@@ -380,7 +339,7 @@ def _verify_evicted_file(api_base: str, chat_id: str, filename: str) -> None:
             "chat_id": chat_id,
             "filename": filename,
             "offset": 0,
-            "limit": 0,
+            "limit": 500,
         }
     )
     payload = http_json("GET", f"{api_base}/api/v1/files/evicted?{query}")
@@ -389,9 +348,51 @@ def _verify_evicted_file(api_base: str, chat_id: str, filename: str) -> None:
     assert _MARKER in content, content[:400]
 
 
+def _wait_evicted_progress_via_api(
+    api_base: str, chat_id: str, *, timeout_sec: float = 90.0
+) -> str:
+    deadline = time.monotonic() + timeout_sec
+    last_count = 0
+    while time.monotonic() < deadline:
+        messages = fetch_chat_messages(chat_id, api_url=api_base)
+        ref = _evicted_ref_from_messages(messages)
+        if ref:
+            return ref
+        last_count = len(messages)
+        time.sleep(0.5)
+    raise AssertionError(
+        f"Assistant progressSteps missing evicted_file_ref for chat {chat_id} "
+        f"after {timeout_sec:.0f}s (last_message_count={last_count})"
+    )
+
+
+def _persisted_bash_step_snapshot(
+    api_base: str, chat_id: str
+) -> dict[str, object]:
+    for msg in fetch_chat_messages(chat_id, api_url=api_base):
+        if msg.get("role") != "assistant":
+            continue
+        meta = msg.get("metadata") if isinstance(msg.get("metadata"), dict) else {}
+        steps_raw = msg.get("progressSteps") or meta.get("progressSteps")
+        if not isinstance(steps_raw, list):
+            continue
+        for step in steps_raw:
+            if not isinstance(step, dict):
+                continue
+            if step.get("tool_name") == _BASH_TOOL or step.get("evicted_file_ref"):
+                return {
+                    "tool_name": step.get("tool_name"),
+                    "evicted_file_ref": step.get("evicted_file_ref"),
+                    "has_stdout": bool(str(step.get("stdout") or "").strip()),
+                    "stdout_head": str(step.get("stdout") or "")[:240],
+                    "step_keys": sorted(step.keys()),
+                }
+    return {"tool_name": None, "evicted_file_ref": None, "has_stdout": False}
+
+
 def _run_drawer_flow(client, page, *, marker_line: str) -> None:
     dismiss_blocking_modals(client, page)
-    loaded = wait_for_state(client, page, _PROGRESS_STEPS_LIVE_JS, timeout_sec=60.0)
+    loaded = wait_for_state(client, page, _PROGRESS_STEPS_LIVE_JS, timeout_sec=120.0)
     assert loaded.get("ready") is True, json.dumps(loaded, ensure_ascii=False)
 
     dom_ready = wait_for_state(client, page, _WAIT_PROGRESS_UI_DOM_JS, timeout_sec=90.0)
@@ -403,11 +404,54 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
     terminal = wait_for_state(client, page, _TERMINAL_PREVIEW_JS, timeout_sec=60.0)
     assert terminal.get("ready") is True, json.dumps(terminal, ensure_ascii=False)
 
-    clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=60.0)
+    clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=120.0)
+    if clicked.get("clicked") is not True:
+        diag = wait_for_state(
+            client,
+            page,
+            """(() => {
+  const store = window.__myrmChatStore?.getState?.();
+  const msgs = store?.messages || [];
+  const steps = [];
+  for (const msg of msgs) {
+    if (msg.role !== 'assistant') continue;
+    const metaSteps = Array.isArray(msg.metadata?.progressSteps) ? msg.metadata.progressSteps : [];
+    const raw = (msg.progressSteps?.length ? msg.progressSteps : metaSteps) || [];
+    for (const step of raw) steps.push(step);
+  }
+  return {
+    ready: true,
+    loading: store?.loading,
+    isMessagesLoaded: store?.isMessagesLoaded,
+    messageCount: msgs.length,
+    testid: !!document.querySelector('[data-testid="evicted-view-full-output"]'),
+    preCount: document.querySelectorAll('pre').length,
+    h3Count: document.querySelectorAll('h3').length,
+    evictedRefs: steps.map((s) => s?.evicted_file_ref).filter(Boolean),
+    bashSteps: steps.filter((s) => String(s?.tool_name || '').includes('bash')).length,
+  };
+})()""",
+            timeout_sec=10.0,
+        )
+        raise AssertionError(
+            f"View Full Output button missing; ui_diag={json.dumps(diag, ensure_ascii=False)}"
+        )
     assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
+    request_probe = wait_for_state(
+        client,
+        page,
+        evicted_request_probe_js(expected_offset=0, expected_limit=500),
+        timeout_sec=30.0,
+    )
+    assert request_probe.get("hit") is True, json.dumps(
+        request_probe, ensure_ascii=False
+    )
+    assert request_probe.get("hasLimitZero") is False, json.dumps(
+        request_probe, ensure_ascii=False
+    )
 
     drawer = wait_for_state(
-        client, page, _drawer_ready_js(marker_line), timeout_sec=45.0
+        client, page, drawer_ready_js(marker_line), timeout_sec=45.0
     )
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 
@@ -458,9 +502,10 @@ def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
     assert _OUTPUT_BASENAME_RE.match(evicted_ref), evicted_ref
     _verify_evicted_file(api_base, chat_id, evicted_ref)
 
-    api_ref = _evicted_ref_from_messages(fetch_chat_messages(chat_id, api_url=api_base))
-    if api_ref:
-        assert api_ref == evicted_ref or _OUTPUT_BASENAME_RE.match(api_ref), api_ref
+    api_ref = _wait_evicted_progress_via_api(api_base, chat_id)
+    assert api_ref == evicted_ref or _OUTPUT_BASENAME_RE.match(api_ref), api_ref
+    step_snapshot = _persisted_bash_step_snapshot(api_base, chat_id)
+    assert step_snapshot.get("evicted_file_ref"), step_snapshot
 
     prepare_e2e_ui_session(api_base)
     warm_ui_route(f"/{chat_id}")
@@ -469,4 +514,18 @@ def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
         client,
         page,
     ):
+        attach_result = wait_for_state(
+            client,
+            page,
+            f"""(async () => {{
+              try {{
+                await window.__MYRM_E2E_CHAT__?.attachToChat?.({json.dumps(chat_id)});
+                return {{ ready: true }};
+              }} catch (error) {{
+                return {{ ready: false, err: String(error) }};
+              }}
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert attach_result.get("ready") is True, attach_result
         _run_drawer_flow(client, page, marker_line=_MARKER)

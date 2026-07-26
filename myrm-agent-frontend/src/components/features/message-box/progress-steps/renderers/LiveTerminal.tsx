@@ -12,14 +12,36 @@ const EvictedOutputDrawer = lazy(() => import('./EvictedOutputDrawer'));
 interface LiveTerminalProps {
   stdout?: string;
   evictedFileRef?: string;
+  evictedStoredChars?: number;
+  evictedTotalLines?: number;
+  evictedStorageTruncated?: boolean;
 }
 
-export const LiveTerminal: React.FC<LiveTerminalProps> = ({ stdout, evictedFileRef }) => {
+function formatStoredSize(chars: number): string {
+  if (chars < 1024) return `${chars} B`;
+  if (chars < 1024 * 1024) return `${(chars / 1024).toFixed(1)} KB`;
+  return `${(chars / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export const LiveTerminal: React.FC<LiveTerminalProps> = ({
+  stdout,
+  evictedFileRef,
+  evictedStoredChars,
+  evictedTotalLines,
+  evictedStorageTruncated,
+}) => {
   const t = useTranslations('progressSteps.evictedOutput');
   const containerRef = useRef<HTMLPreElement>(null);
   const workspaceDir = useChatStore((s) => s.workspaceDir);
   const chatId = useChatStore((s) => s.chatId);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const evictedBadge = evictedFileRef && (evictedTotalLines || evictedStoredChars)
+    ? t('sizeBadge', {
+        lines: (evictedTotalLines ?? 0).toLocaleString(),
+        size: evictedStoredChars ? formatStoredSize(evictedStoredChars) : '—',
+      })
+    : null;
 
   useEffect(() => {
     if (containerRef.current) {
@@ -28,6 +50,38 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({ stdout, evictedFileR
   }, [stdout]);
 
   if (!stdout && !evictedFileRef) return null;
+
+  const evictedFooter = evictedFileRef ? (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-1.5 px-3 py-1.5 border-t border-zinc-800/80 bg-zinc-900/30">
+      <div className="flex flex-col sm:items-end gap-0.5 min-w-0">
+        {evictedBadge && (
+          <span className="text-[10px] text-zinc-500 tabular-nums truncate">{evictedBadge}</span>
+        )}
+        {evictedStorageTruncated && (
+          <span className="text-[10px] text-amber-500/80">{t('storageTruncated')}</span>
+        )}
+      </div>
+      <button
+        data-testid="evicted-view-full-output"
+        onClick={() => setDrawerOpen(true)}
+        className={cn(
+          'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium shrink-0',
+          'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300',
+          'border border-blue-500/20 transition-colors duration-150',
+        )}
+      >
+        {stdout ? (
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        ) : null}
+        {t('viewFull')}
+      </button>
+    </div>
+  ) : null;
 
   if (!stdout && evictedFileRef) {
     return (
@@ -38,11 +92,20 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({ stdout, evictedFileR
             'bg-zinc-950/80 border border-zinc-800/80',
           )}
         >
-          <span className="text-[11px] text-zinc-400">{t('savedHint')}</span>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-[11px] text-zinc-400">{t('savedHint')}</span>
+            {evictedBadge && (
+              <span className="text-[10px] text-zinc-500 tabular-nums">{evictedBadge}</span>
+            )}
+            {evictedStorageTruncated && (
+              <span className="text-[10px] text-amber-500/80">{t('storageTruncated')}</span>
+            )}
+          </div>
           <button
+            data-testid="evicted-view-full-output"
             onClick={() => setDrawerOpen(true)}
             className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium',
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium shrink-0',
               'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300',
               'border border-blue-500/20 transition-colors duration-150',
             )}
@@ -65,8 +128,6 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({ stdout, evictedFileR
 
   if (!stdout) return null;
 
-  // Regular expression to extract zero-copy WebP plotted image pointers
-  // Pattern matches the Myrm proprietary APC sequence format
   const escapeSequence = '\\u001b';
   const imageSequenceRegex = new RegExp(
     `${escapeSequence}_MyrmImage:vault://([^,]+),w=(\\d+),h=(\\d+)${escapeSequence}\\\\`,
@@ -78,7 +139,6 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({ stdout, evictedFileR
       <div
         className={cn(
           'relative rounded-xl overflow-hidden',
-          // Dark background for terminal feel
           'bg-zinc-950 dark:bg-[#0a0a0a]',
           'border border-zinc-800 dark:border-zinc-800/50',
           'shadow-inner',
@@ -99,12 +159,10 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({ stdout, evictedFileR
             'p-3 overflow-y-auto max-h-[400px]',
             'font-mono text-[12px] leading-relaxed text-zinc-300',
             'whitespace-pre-wrap break-words',
-            // Custom scrollbar
             'scrollbar-thin scrollbar-thumb-zinc-700 hover:scrollbar-thumb-zinc-600 scrollbar-track-transparent',
           )}
         >
           {stdout.split('\n').map((line, i) => {
-            // Check if this line is an intercepted image pointer sequence
             imageSequenceRegex.lastIndex = 0;
             const match = imageSequenceRegex.exec(line);
 
@@ -113,7 +171,6 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({ stdout, evictedFileR
               const columns = parseInt(match[2], 10);
               const rows = parseInt(match[3], 10);
 
-              // Build our secure sandbox Vault Proxy rendering URL
               const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
               const proxyUrl = `/api/v1/files/vault/render?filepath=${encodeURIComponent(filepath)}&workspace=${encodeURIComponent(workspaceDir || '')}`;
               const imageUrl = baseUrl ? `${baseUrl}${proxyUrl}` : proxyUrl;
@@ -155,26 +212,7 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({ stdout, evictedFileR
           })}
         </pre>
 
-        {evictedFileRef && (
-          <div className="flex items-center justify-end px-3 py-1.5 border-t border-zinc-800/80 bg-zinc-900/30">
-            <button
-              onClick={() => setDrawerOpen(true)}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium',
-                'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300',
-                'border border-blue-500/20 transition-colors duration-150',
-              )}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
-              {t('viewFull')}
-            </button>
-          </div>
-        )}
+        {evictedFooter}
       </div>
 
       {evictedFileRef && drawerOpen && (

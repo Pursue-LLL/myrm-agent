@@ -67,4 +67,7 @@ export type ProgressItem = {
   duration_ms?: number; // 工具执行耗时（毫秒）
   stdout?: string; // 实时终端输出流（用于 Live Terminal 组件）
   evicted_file_ref?: string; // 被 evict 的完整输出文件名（用于"查看完整输出"按钮）
+  evicted_stored_chars?: number; // evicted 文件字节大小（GUI badge）
+  evicted_total_lines?: number; // evicted 文件总行数（GUI badge / 分页）
+  evicted_storage_truncated?: boolean; // 磁盘写入是否被截断
 };

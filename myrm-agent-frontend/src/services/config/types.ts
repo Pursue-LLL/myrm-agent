@@ -166,7 +166,7 @@ export interface PrivacyRoutingConfig {
 }
 
 export type ImageGenerationProvider = 'openai' | 'gemini' | 'stability';
-export type VideoGenerationProvider = 'openai' | 'gemini' | 'qwen' | 'minimax';
+export type VideoGenerationProvider = 'openai' | 'gemini' | 'qwen' | 'minimax' | 'xai';
 
 export interface ImageGenerationConfig {
   model: string;

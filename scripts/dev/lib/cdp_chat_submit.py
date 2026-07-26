@@ -90,6 +90,13 @@ class CdpChatSubmit(CdpChatInput):
                 last = probe
                 if probe.get("hasBtn") and not probe.get("disabled"):
                     return {"ok": True, **probe}
+                if probe.get("sendReady") and not probe.get("hasBtn"):
+                    return {
+                        "ok": False,
+                        "err": "no send button",
+                        "sendReady": True,
+                        **probe,
+                    }
             await asyncio.sleep(poll_interval_sec)
         return {"ok": False, "err": "send-button-not-ready", **last}
 

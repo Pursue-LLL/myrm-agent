@@ -157,8 +157,10 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
             msg.progressSteps = [];
           }
           const stepKey = stepItem.step_key;
-          const existing =
-            stepKey !== undefined && stepKey !== null
+          const toolCallId = stepItem.tool_call_id;
+          const existing = toolCallId
+            ? msg.progressSteps.find((s) => s.tool_call_id === toolCallId)
+            : stepKey !== undefined && stepKey !== null
               ? msg.progressSteps.find((s) => s.step_key === stepKey)
               : undefined;
           if (existing) {

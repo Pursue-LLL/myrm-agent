@@ -21,7 +21,10 @@ import asyncio
 from chrome_mcp_client import ChromeMcpClient, McpPage
 
 from tests.e2e.desktop_approval.constants import BASE_URL, INFRA_ABORT_MARKERS, progress
-from tests.support.e2e_runtime_guard import assert_chrome_attach_health, heartbeat_e2e_lease
+from tests.support.e2e_runtime_guard import (
+    assert_chrome_attach_health,
+    heartbeat_e2e_lease,
+)
 
 
 def should_abort_desktop_e2e_retries(exc: BaseException) -> bool:
@@ -52,6 +55,10 @@ def is_retriable_page_transport(exc: BaseException) -> bool:
     if "no mcpage found for the given page" in message:
         return True
     if is_mux_new_page_retriable(exc):
+        return True
+    if "chrome mcp transport closed" in message:
+        return True
+    if "dev e2e chat bridge not available" in message:
         return True
     if isinstance(exc, ExceptionGroup):
         return any(is_retriable_page_transport(sub) for sub in exc.exceptions)

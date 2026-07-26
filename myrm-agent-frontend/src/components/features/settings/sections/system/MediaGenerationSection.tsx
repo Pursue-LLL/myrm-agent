@@ -35,6 +35,8 @@ const IMAGE_MODEL_OPTIONS = [
   { value: 'flux/schnell', label: 'Flux Schnell', description: 'Together AI' },
   { value: 'flux/pro', label: 'Flux Pro', description: 'Together AI' },
   { value: 'stability/stable-diffusion-xl', label: 'SDXL', description: 'Stability AI' },
+  { value: 'xai/grok-imagine-image', label: 'Grok Imagine', description: 'xAI' },
+  { value: 'xai/grok-imagine-image-quality', label: 'Grok Imagine Quality', description: 'xAI' },
 ];
 
 const FALLBACK_VIDEO_PROVIDERS: {
@@ -46,6 +48,7 @@ const FALLBACK_VIDEO_PROVIDERS: {
   { value: 'gemini', label: 'Google Veo', description: 'veo-3.1-fast-generate-preview' },
   { value: 'qwen', label: 'Qwen Wan', description: 'wan2.6-t2v' },
   { value: 'minimax', label: 'MiniMax Hailuo', description: 'MiniMax-Hailuo-2.3' },
+  { value: 'xai', label: 'xAI Grok', description: 'grok-imagine-video' },
 ];
 
 const PROVIDER_CONFIG_IDS = VIDEO_PROVIDER_CONFIG_IDS;

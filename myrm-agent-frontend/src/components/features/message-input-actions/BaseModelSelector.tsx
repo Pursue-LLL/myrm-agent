@@ -1,31 +1,16 @@
 'use client';
 
-import { useMemo, useCallback, useRef, useEffect } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useProviderStore from '@/store/useProviderStore';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
 import { resolveActiveModelSelection, resolveActiveFallbackSelection } from '@/lib/model-binding';
-import { updateAgent, type AgentModelSelection } from '@/services/agent';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
-import { toast } from '@/hooks/useToast';
-import type { AgentConfig } from '@/store/chat/types';
 
 type SingleModelSelection = { providerId: string; model: string };
-
-function buildFullModelSelection(config: AgentConfig): AgentModelSelection | null {
-  if (!config.modelSelection) return null;
-  return {
-    providerId: config.modelSelection.providerId,
-    model: config.modelSelection.model,
-    fallbackProviderId: config.fallbackModelSelection?.providerId,
-    fallbackModel: config.fallbackModelSelection?.model,
-    safetyFallbackProviderId: config.safetyFallbackModelSelection?.providerId,
-    safetyFallbackModel: config.safetyFallbackModelSelection?.model,
-  };
-}
 
 const BaseModelSelector = () => {
   const commonT = useTranslations('common');
@@ -98,31 +83,6 @@ const BaseModelSelector = () => {
     [currentSelection, isCurrentSelectionValid, commonT],
   );
 
-  const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
-  useEffect(
-    () => () => {
-      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-    },
-    [],
-  );
-
-  const syncAgentToBackend = useCallback(
-    (configSnapshot: AgentConfig, rollback: () => void) => {
-      if (!configSnapshot.agentId) return;
-      const fullSelection = buildFullModelSelection(configSnapshot);
-      if (!fullSelection) return;
-
-      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-      syncTimerRef.current = setTimeout(() => {
-        updateAgent(configSnapshot.agentId!, { model_selection: fullSelection }).catch(() => {
-          rollback();
-          toast({ title: commonT('modelSyncFailed'), variant: 'destructive' });
-        });
-      }, 500);
-    },
-    [commonT],
-  );
-
   const handleModelSelect = useCallback(
     (providerId: string, model: string) => {
       const selection: SingleModelSelection = { providerId, model };
@@ -130,22 +90,12 @@ const BaseModelSelector = () => {
       if (actionMode === 'fast') {
         setFastModeModel(selection);
       } else if (actionMode === 'agent') {
-        const prev = {
-          modelSelection: agentConfig?.modelSelection ?? null,
-          fallbackModelSelection: agentConfig?.fallbackModelSelection ?? null,
-          safetyFallbackModelSelection: agentConfig?.safetyFallbackModelSelection ?? null,
-        };
         updateAgentConfig({ modelSelection: selection });
-        const snapshot: AgentConfig = {
-          ...(agentConfig as AgentConfig),
-          modelSelection: selection,
-        };
-        syncAgentToBackend(snapshot, () => updateAgentConfig(prev));
       } else {
         setBaseModel(selection);
       }
     },
-    [actionMode, agentConfig, setFastModeModel, setBaseModel, updateAgentConfig, syncAgentToBackend],
+    [actionMode, setFastModeModel, setBaseModel, updateAgentConfig],
   );
 
   const handleFallbackSelect = useCallback(
@@ -153,61 +103,37 @@ const BaseModelSelector = () => {
       const selection: SingleModelSelection = { providerId, model };
 
       if (actionMode === 'agent') {
-        const prevFallback = agentConfig?.fallbackModelSelection ?? null;
         updateAgentConfig({ fallbackModelSelection: selection });
-        const snapshot: AgentConfig = {
-          ...(agentConfig as AgentConfig),
-          fallbackModelSelection: selection,
-        };
-        syncAgentToBackend(snapshot, () => updateAgentConfig({ fallbackModelSelection: prevFallback }));
       } else {
         setBaseModelFallback(selection);
       }
     },
-    [actionMode, agentConfig, setBaseModelFallback, updateAgentConfig, syncAgentToBackend],
+    [actionMode, setBaseModelFallback, updateAgentConfig],
   );
 
   const handleClearFallback = useCallback(() => {
     if (actionMode === 'agent') {
-      const prevFallback = agentConfig?.fallbackModelSelection ?? null;
       updateAgentConfig({ fallbackModelSelection: null });
-      const snapshot: AgentConfig = {
-        ...(agentConfig as AgentConfig),
-        fallbackModelSelection: null,
-      };
-      syncAgentToBackend(snapshot, () => updateAgentConfig({ fallbackModelSelection: prevFallback }));
     } else {
       setBaseModelFallback(null);
     }
-  }, [actionMode, agentConfig, setBaseModelFallback, updateAgentConfig, syncAgentToBackend]);
+  }, [actionMode, setBaseModelFallback, updateAgentConfig]);
 
   const handleSafetyFallbackSelect = useCallback(
     (providerId: string, model: string) => {
       const selection: SingleModelSelection = { providerId, model };
       if (actionMode === 'agent') {
-        const prevSafety = agentConfig?.safetyFallbackModelSelection ?? null;
         updateAgentConfig({ safetyFallbackModelSelection: selection });
-        const snapshot: AgentConfig = {
-          ...(agentConfig as AgentConfig),
-          safetyFallbackModelSelection: selection,
-        };
-        syncAgentToBackend(snapshot, () => updateAgentConfig({ safetyFallbackModelSelection: prevSafety }));
       }
     },
-    [actionMode, agentConfig, updateAgentConfig, syncAgentToBackend],
+    [actionMode, updateAgentConfig],
   );
 
   const handleClearSafetyFallback = useCallback(() => {
     if (actionMode === 'agent') {
-      const prevSafety = agentConfig?.safetyFallbackModelSelection ?? null;
       updateAgentConfig({ safetyFallbackModelSelection: null });
-      const snapshot: AgentConfig = {
-        ...(agentConfig as AgentConfig),
-        safetyFallbackModelSelection: null,
-      };
-      syncAgentToBackend(snapshot, () => updateAgentConfig({ safetyFallbackModelSelection: prevSafety }));
     }
-  }, [actionMode, agentConfig, updateAgentConfig, syncAgentToBackend]);
+  }, [actionMode, updateAgentConfig]);
 
   const isProviderDisabled = useMemo(() => {
     if (!currentSelection) return false;

@@ -24,6 +24,7 @@ export const VIDEO_PROVIDER_CONFIG_IDS: Record<VideoGenerationProvider, string> 
   gemini: 'gemini',
   qwen: 'dashscope',
   minimax: 'minimax',
+  xai: 'xai',
 };
 
 export async function fetchMediaProviderStatus(): Promise<Record<string, MediaProviderStatus>> {
@@ -52,6 +53,9 @@ export function resolveImageProviderId(model: string): string {
   }
   if (normalized.startsWith('stability/')) {
     return 'stability';
+  }
+  if (normalized.startsWith('xai/') || normalized.includes('grok-imagine')) {
+    return 'xai';
   }
   return 'openai';
 }

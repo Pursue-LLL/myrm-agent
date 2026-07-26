@@ -52,6 +52,7 @@ E2E_NUDGE_PROMPT = (
     'title "Pick stack", question id "stack" prompt "Which stack?", '
     'options "a" Option A and "b" Option B. If I skip, reply DONE-SKIPPED.'
 )
+E2E_SKIP_RESUME_QUERY = "Continue after skip."
 
 _ENABLE_STRUCTURED_CLARIFY_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
@@ -171,6 +172,15 @@ def _is_resume_progress_stall(result: dict[str, object]) -> bool:
     return normalized == {"progress"} or (
         normalized.issubset({"progress"}) and "progress" in normalized
     )
+
+
+def _is_no_user_query_error(result: dict[str, object]) -> bool:
+    error = result.get("error")
+    if isinstance(error, dict):
+        message = str(error.get("error") or error.get("message") or "").lower()
+        if "no user query found in messages" in message:
+            return True
+    return False
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
@@ -387,6 +397,16 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 api_url=api_base,
                 timeout_sec=api_timeout,
             )
+            if _is_no_user_query_error(last):
+                heartbeat_e2e_lease()
+                last = await asyncio.to_thread(
+                    resume_clarify_skip_via_api,
+                    chat_id,
+                    model_selection=get_lite_model_selection(),
+                    api_url=api_base,
+                    timeout_sec=api_timeout,
+                    query=E2E_SKIP_RESUME_QUERY,
+                )
             if last.get("ok") is True:
                 return last
             error = last.get("error")

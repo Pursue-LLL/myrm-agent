@@ -19,6 +19,15 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_state,
     warm_ui_route,
 )
+from tests.support.evicted_drawer_selectors import (
+    EXPAND_PROGRESS_PANEL_JS as _EXPAND_PROGRESS_PANEL_JS,
+    TERMINAL_PREVIEW_JS as _TERMINAL_PREVIEW_JS,
+    VIEW_FULL_OUTPUT_JS as _VIEW_FULL_OUTPUT_JS,
+    WAIT_PROGRESS_UI_DOM_JS as _WAIT_PROGRESS_UI_DOM_JS,
+    drawer_expired_js,
+    drawer_ready_js,
+    evicted_request_probe_js,
+)
 
 _FIXTURE_ANSWER = "UECD evicted output E2E fixture answer."
 _PAGE_TIMEOUT_MS = 180_000
@@ -39,82 +48,6 @@ _PROGRESS_STEPS_READY_JS = f"""(() => {{
     hasStdout: !!step?.stdout,
   }};
 }})()"""
-
-_EXPAND_PROGRESS_PANEL_JS = """(() => {
-  const viewFull = Array.from(document.querySelectorAll('button')).find(
-    (el) => /View Full Output|查看完整输出|完整输出を表示|전체 출력 보기/.test(el.textContent || ''),
-  );
-  if (viewFull) {
-    return { ready: true, alreadyVisible: true };
-  }
-  const header = Array.from(document.querySelectorAll('h3')).find(
-    (el) => /Task Steps|任务步骤|Task|任务|タスク|작업/.test(el.textContent || ''),
-  );
-  if (!header) {
-    return { ready: false, reason: 'no-task-header' };
-  }
-  const toggleRow = header.closest('.cursor-pointer');
-  if (!(toggleRow instanceof HTMLElement)) {
-    return { ready: false, reason: 'no-toggle-row' };
-  }
-  toggleRow.click();
-  return { ready: true, clicked: true };
-})()"""
-
-_WAIT_PROGRESS_UI_DOM_JS = """(() => {
-  const header = Array.from(document.querySelectorAll('h3')).find(
-    (el) => /Task Steps|任务步骤|Task|任务|タスク|작업/.test(el.textContent || ''),
-  );
-  const viewFull = Array.from(document.querySelectorAll('button')).find(
-    (el) => /View Full Output|查看完整输出|完整输出を表示|전체 출력 보기/.test(el.textContent || ''),
-  );
-  return {
-    ready: !!header || !!viewFull,
-    hasHeader: !!header,
-    hasViewFull: !!viewFull,
-  };
-})()"""
-
-_TERMINAL_PREVIEW_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasTruncated = /LARGE OUTPUT TRUNCATED|输出已截断|出力を切り詰め/.test(text);
-  return { ready: hasTruncated, preview: text.slice(0, 400) };
-})()"""
-
-_VIEW_FULL_OUTPUT_JS = """(() => {
-  const btn = Array.from(document.querySelectorAll('button')).find(
-    (el) => /View Full Output|查看完整输出|完整输出を表示|전체 출력 보기/.test(el.textContent || ''),
-  );
-  if (!btn) {
-    return { ready: false, clicked: false };
-  }
-  btn.click();
-  return { ready: true, clicked: true };
-})()"""
-
-
-def _drawer_ready_js(marker_line: str) -> str:
-    encoded = json.dumps(marker_line)
-    return f"""(() => {{
-  const text = document.body?.innerText || '';
-  return {{
-    ready: text.includes({encoded}),
-    sample: text.slice(0, 500),
-  }};
-}})()"""
-
-
-def _drawer_expired_js() -> str:
-    return """(() => {
-  const modal = document.querySelector('.fixed.inset-0.z-50');
-  const text = modal?.textContent || document.body?.innerText || '';
-  return {
-    ready: /输出已过期|Output Expired|Content Expired/.test(text),
-    hasModal: !!modal,
-    sample: text.slice(0, 400),
-  };
-})()"""
-
 
 _CHAT_ROUTE_READY_JS = """(() => ({
   ready: !!document.querySelector('[data-testid="app-layout"]'),
@@ -197,13 +130,25 @@ def _run_drawer_flow(
 
     clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=60.0)
     assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
+    request_probe = wait_for_state(
+        client,
+        page,
+        evicted_request_probe_js(expected_offset=0, expected_limit=500),
+        timeout_sec=30.0,
+    )
+    assert request_probe.get("hit") is True, json.dumps(
+        request_probe, ensure_ascii=False
+    )
+    assert request_probe.get("hasLimitZero") is False, json.dumps(
+        request_probe, ensure_ascii=False
+    )
 
     if expect_expired:
-        drawer = wait_for_state(client, page, _drawer_expired_js(), timeout_sec=45.0)
+        drawer = wait_for_state(client, page, drawer_expired_js(), timeout_sec=45.0)
     else:
         assert marker_line is not None
         drawer = wait_for_state(
-            client, page, _drawer_ready_js(marker_line), timeout_sec=45.0
+            client, page, drawer_ready_js(marker_line), timeout_sec=45.0
         )
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 

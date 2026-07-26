@@ -10,9 +10,32 @@ from httpx import ASGITransport, AsyncClient
 
 from myrm_agent_harness.agent.context_management.infra.evicted_content import (
     EVICTED_BASENAME_PATTERN,
+    normalize_delivery_chat_id,
     write_evicted_content_sync,
 )
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
+
+
+@pytest.fixture(autouse=True)
+def _evicted_api_prefer_env_workspace(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ASGI tests seed MYRM_WORKSPACE_ROOT; skip DB chat workspace resolution."""
+
+    async def _skip_chat_workspace(
+        _chat_id: str, *, persist_workspace: bool = False
+    ) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
+        _skip_chat_workspace,
+    )
+
+
+def _evicted_dir(tmp_path: Path, chat_id: str) -> Path:
+    normalized = normalize_delivery_chat_id(chat_id)
+    directory = tmp_path / ".context" / normalized / "evicted"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
 
 
 def test_server_filename_pattern_matches_harness_ssot() -> None:
@@ -27,8 +50,7 @@ async def test_read_evicted_web_fetch_md_file(
 ) -> None:
     chat_id = "chat_web_fetch_spill"
     filename = f"web_fetch_{uuid.uuid4().hex[:8]}.md"
-    evicted_dir = tmp_path / ".context" / chat_id / "evicted"
-    evicted_dir.mkdir(parents=True)
+    evicted_dir = _evicted_dir(tmp_path, chat_id)
     content = "# Title\n\n" + ("paragraph\n" * 50)
     (evicted_dir / filename).write_text(content, encoding="utf-8")
 
@@ -53,15 +75,46 @@ async def test_read_evicted_web_fetch_md_file(
 
 
 @pytest.mark.asyncio
-async def test_read_evicted_limit_zero_returns_full_file(
+async def test_read_evicted_paginated_slice(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    chat_id = "chat_full_read"
+    chat_id = "chat_paginated"
     filename = f"tool_{uuid.uuid4().hex[:8]}.txt"
-    evicted_dir = tmp_path / ".context" / chat_id / "evicted"
-    evicted_dir.mkdir(parents=True)
-    content = "line\n" * 6000
+    evicted_dir = _evicted_dir(tmp_path, chat_id)
+    content = "line\n" * 1200
     (evicted_dir / filename).write_text(content, encoding="utf-8")
+
+    monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
+
+    from app.api.files.evicted import router as evicted_router
+    from fastapi import FastAPI
+
+    app = FastAPI()
+    app.include_router(evicted_router, prefix="/api/v1/files")
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get(
+            "/api/v1/files/evicted",
+            params={"chat_id": chat_id, "filename": filename, "offset": 500, "limit": 100},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["offset"] == 500
+    assert data["limit"] == 100
+    assert data["total_lines"] == 1200
+    assert data["content"].count("line\n") == 100
+
+
+@pytest.mark.asyncio
+async def test_read_evicted_rejects_limit_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    chat_id = "chat_limit_zero"
+    filename = f"tool_{uuid.uuid4().hex[:8]}.txt"
+    evicted_dir = _evicted_dir(tmp_path, chat_id)
+    (evicted_dir / filename).write_text("line\n", encoding="utf-8")
 
     monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
 
@@ -78,10 +131,7 @@ async def test_read_evicted_limit_zero_returns_full_file(
             params={"chat_id": chat_id, "filename": filename, "offset": 0, "limit": 0},
         )
 
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["content"] == content
-    assert data["total_lines"] >= 6000
+    assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -111,15 +161,47 @@ async def test_uecd_persist_then_api_read_roundtrip(
                     "chat_id": chat_id,
                     "filename": result.evicted_ref,
                     "offset": 0,
-                    "limit": 0,
+                    "limit": 500,
                 },
             )
 
         assert resp.status_code == 200
-        assert resp.json()["content"] == body
+        page = resp.json()
+        assert page["total_lines"] == result.total_lines
+        assert page["offset"] == 0
+        assert page["limit"] == 500
+        assert page["content"].startswith("payload\n")
+        assert page["content"].count("payload\n") == 500
     finally:
         workspace_root_var.reset(w_tok)
         chat_id_var.reset(c_tok)
+
+
+@pytest.mark.asyncio
+async def test_read_evicted_normalizes_chat_id_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api_chat_id = "chat_prefix_norm"
+    filename = f"output_{uuid.uuid4().hex[:8]}.txt"
+    evicted_dir = _evicted_dir(tmp_path, api_chat_id)
+    (evicted_dir / filename).write_text("normalized\n", encoding="utf-8")
+    monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
+
+    from app.api.files.evicted import router as evicted_router
+    from fastapi import FastAPI
+
+    app = FastAPI()
+    app.include_router(evicted_router, prefix="/api/v1/files")
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get(
+            "/api/v1/files/evicted",
+            params={"chat_id": api_chat_id, "filename": filename, "offset": 0, "limit": 10},
+        )
+
+    assert resp.status_code == 200
+    assert "normalized" in resp.json()["content"]
 
 
 @pytest.mark.asyncio
@@ -203,7 +285,13 @@ async def test_read_evicted_workspace_unavailable(
     from app.api.files.evicted import router as evicted_router
     from fastapi import FastAPI
 
+    async def _unavailable_workspace(_chat_id: str) -> None:
+        return None
+
     monkeypatch.setattr(evicted_module, "_get_workspace_root", lambda: None)
+    monkeypatch.setattr(
+        evicted_module, "_get_evicted_workspace_root", _unavailable_workspace
+    )
 
     app = FastAPI()
     app.include_router(evicted_router, prefix="/api/v1/files")
@@ -258,8 +346,7 @@ async def test_read_evicted_path_traversal_returns_403(
     from app.api.files.evicted import router as evicted_router
     from fastapi import FastAPI
 
-    evicted_dir = tmp_path / ".context" / chat_id / "evicted"
-    evicted_dir.mkdir(parents=True)
+    evicted_dir = _evicted_dir(tmp_path, chat_id)
     outside = tmp_path / "outside.txt"
     outside.write_text("outside", encoding="utf-8")
     (evicted_dir / filename).symlink_to(outside)
@@ -333,18 +420,18 @@ async def test_read_evicted_read_oserror_returns_500(
 ) -> None:
     chat_id = "chat_oserror"
     filename = f"output_{uuid.uuid4().hex[:8]}.txt"
-    evicted_dir = tmp_path / ".context" / chat_id / "evicted"
-    evicted_dir.mkdir(parents=True)
+    evicted_dir = _evicted_dir(tmp_path, chat_id)
     (evicted_dir / filename).write_text("data", encoding="utf-8")
     monkeypatch.setenv("MYRM_WORKSPACE_ROOT", str(tmp_path))
 
+    from app.api.files import evicted as evicted_module
     from app.api.files.evicted import router as evicted_router
     from fastapi import FastAPI
 
-    def _raise_oserror(*_args: object, **_kwargs: object) -> None:
+    def _raise_oserror(*_args: object, **_kwargs: object) -> object:
         raise OSError("read failed")
 
-    monkeypatch.setattr("builtins.open", _raise_oserror)
+    monkeypatch.setattr(evicted_module, "read_evicted_line_range", _raise_oserror)
 
     app = FastAPI()
     app.include_router(evicted_router, prefix="/api/v1/files")

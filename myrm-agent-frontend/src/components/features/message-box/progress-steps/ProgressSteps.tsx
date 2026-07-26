@@ -79,6 +79,15 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
     }
   }, [steps.length, isExpanded, loading]);
 
+  useEffect(() => {
+    const hasEvictedOutput = steps.some(
+      (step) => typeof step.evicted_file_ref === 'string' && step.evicted_file_ref.length > 0,
+    );
+    if (hasEvictedOutput) {
+      setIsExpanded(true);
+    }
+  }, [messageId, steps]);
+
   const handleLinkClick = (text: string) => {
     if (!isUrl(text)) return;
     let url = text;
@@ -117,6 +126,15 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
       }
     }
     return latestStep;
+  })();
+  const collapsedEvictedStep = (() => {
+    for (let index = steps.length - 1; index >= 0; index -= 1) {
+      const ref = steps[index]?.evicted_file_ref;
+      if (typeof ref === 'string' && ref.length > 0) {
+        return steps[index];
+      }
+    }
+    return null;
   })();
   const isCollapsedStepCurrent = loading;
   const isCollapsedCompleted = !collapsedStep.error && !isCollapsedStepCurrent;
@@ -395,7 +413,13 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
 
               {step.archive_restore_result && <ArchiveRestoreResultChip result={step.archive_restore_result} />}
 
-              <LiveTerminal stdout={step.stdout} evictedFileRef={step.evicted_file_ref} />
+              <LiveTerminal
+                stdout={step.stdout}
+                evictedFileRef={step.evicted_file_ref}
+                evictedStoredChars={step.evicted_stored_chars}
+                evictedTotalLines={step.evicted_total_lines}
+                evictedStorageTruncated={step.evicted_storage_truncated}
+              />
             </>
           )}
 
@@ -421,6 +445,8 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
   return (
     <>
       <div
+        data-testid="progress-steps-toggle"
+        data-expanded={isExpanded ? 'true' : 'false'}
         className="flex items-center justify-between mt-6 cursor-pointer group hover:opacity-90 transition-opacity duration-200"
         onClick={toggleExpanded}
       >
@@ -429,7 +455,12 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 dark:from-blue-400/20 dark:to-purple-400/20 blur-xl rounded-full" />
             <ClipboardList size={22} className="relative text-gray-700 dark:text-gray-200" />
           </div>
-          <h3 className="text-gray-800 dark:text-gray-100 font-medium text-lg">{t('task')}</h3>
+          <h3
+            data-testid="progress-steps-title"
+            className="text-gray-800 dark:text-gray-100 font-medium text-lg"
+          >
+            {t('task')}
+          </h3>
         </div>
         <button className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200">
           <div className={cn('transition-transform duration-300', isExpanded ? 'rotate-0' : 'rotate-180')}>
@@ -439,6 +470,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
       </div>
 
       <div
+        data-testid="progress-steps-panel"
         className={cn(
           'relative bg-card backdrop-blur-xl border border-border/60 rounded-2xl mt-1 mb-6 transition-all duration-300 hover:shadow-lg',
           isExpanded ? 'p-4 sm:p-6' : 'p-3 sm:p-4 cursor-pointer',
@@ -609,6 +641,16 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
             </p>
           ) : null;
         })()}
+
+        {!isExpanded && collapsedEvictedStep && (
+          <LiveTerminal
+            stdout={collapsedEvictedStep.stdout}
+            evictedFileRef={collapsedEvictedStep.evicted_file_ref}
+            evictedStoredChars={collapsedEvictedStep.evicted_stored_chars}
+            evictedTotalLines={collapsedEvictedStep.evicted_total_lines}
+            evictedStorageTruncated={collapsedEvictedStep.evicted_storage_truncated}
+          />
+        )}
 
         {isExpanded && (
           <div ref={scrollContainerRef} className="relative space-y-4 sm:space-y-6">

@@ -227,7 +227,6 @@
     "autoSaveFailed": "自动保存失败，请手动保存后再离开。",
     "common": {
       "providerDisabledWarning": "该模型所属提供商已禁用，请重新选择",
-      "modelSyncFailed": "模型配置保存失败，已恢复为之前的选择。",
       "edit": "编辑",
       "delete": "删除",
       "cancel": "取消",
@@ -6093,7 +6092,8 @@
       "placeholder": "输入下个任务（排队等待，不会打断）...",
       "edit": "编辑消息",
       "saveEdit": "保存",
-      "cancelEdit": "取消"
+      "cancelEdit": "取消",
+      "stuck": "队列消息多次重试后仍无法发送，请手动重试。"
     },
     "fileMention": {
       "title": "工作区引用",
@@ -6804,7 +6804,11 @@
       "pageOf": "第 {current} 页，共 {total} 页",
       "prev": "上一页",
       "next": "下一页",
-      "lineCount": "{count} 行"
+      "lineCount": "{count} 行",
+      "sizeBadge": "{lines} 行 · {size}",
+      "storageTruncated": "存储已截断，文件可能不完整",
+      "loadingPage": "正在加载分页...",
+      "searchPagePlaceholder": "搜索当前页..."
     },
     "task": "任务步骤",
     "diagnosticHint": "诊断建议",

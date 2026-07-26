@@ -138,10 +138,6 @@ export function buildBuiltinActions(): SlashAction[] {
         });
 
         if (newEnabled) {
-          const { default: useChatStore } = await import('@/store/useChatStore');
-          if (useChatStore.getState().securityPreset !== 'hitl') {
-            useChatStore.getState().setSecurityPreset('hitl');
-          }
           const suffix = timeout ? ` (${timeout}s)` : '';
           showI18nToast('commands.builtin.yoloEnabled', { timeout: suffix }, { type: 'warning' });
         } else {

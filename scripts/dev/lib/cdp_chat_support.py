@@ -1388,13 +1388,14 @@ def resume_clarify_skip_via_api(
     model_selection: dict[str, object],
     api_url: str | None = None,
     timeout_sec: float = 180.0,
+    query: str = "",
 ) -> dict[str, object]:
     """POST agent-stream with resumeValue {} (Skip parity) on the private E2E backend."""
     resolved = (api_url or get_e2e_api_url()).rstrip("/")
     payload: dict[str, object] = {
         "messageId": f"msg_{uuid.uuid4().hex[:8]}",
         "chatId": chat_id,
-        "query": "",
+        "query": str(query),
         "modelSelection": model_selection,
         "actionMode": "agent",
         "enableMemory": False,

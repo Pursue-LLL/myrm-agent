@@ -227,7 +227,6 @@
     "autoSaveFailed": "自動保存に失敗しました，してください手動保存后再离开。",
     "common": {
       "providerDisabledWarning": "该モデル所属プロバイダー無効，してください重新規選択",
-      "modelSyncFailed": "モデル設定保存に失敗しました，済み復元为以前の選択。",
       "edit": "編集",
       "delete": "削除",
       "cancel": "キャンセル",
@@ -6058,7 +6057,8 @@
       "placeholder": "次のタスクを入力（キューに追加、中断しません）...",
       "edit": "メッセージを編集",
       "saveEdit": "保存",
-      "cancelEdit": "キャンセル"
+      "cancelEdit": "キャンセル",
+      "stuck": "キューメッセージは複数回のリトライ後も送信できませんでした。手動で再試行してください。"
     },
     "fileMention": {
       "title": "ワークスペースファイル",
@@ -6768,7 +6768,11 @@
       "pageOf": "Page {current} of {total}",
       "prev": "Prev",
       "next": "Next",
-      "lineCount": "{count} lines"
+      "lineCount": "{count} lines",
+      "sizeBadge": "{lines} lines · {size}",
+      "storageTruncated": "Storage capped; file may be incomplete",
+      "loadingPage": "Loading page...",
+      "searchPagePlaceholder": "Search current page..."
     },
     "task": "タスク步骤",
     "diagnosticHint": "诊断推奨",

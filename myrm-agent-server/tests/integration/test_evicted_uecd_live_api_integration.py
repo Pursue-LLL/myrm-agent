@@ -81,7 +81,7 @@ class TestEvictedUecdLiveServerIntegration:
                 "chat_id": chat_id,
                 "filename": filename,
                 "offset": 0,
-                "limit": 0,
+                "limit": 500,
             },
             timeout=15.0,
         )

@@ -12,6 +12,7 @@ vi.mock('@/lib/deploy-mode', () => ({
   getBackendBaseUrl: () => 'http://127.0.0.1:8080',
   shouldRedirectToLoginOnAuthFailure: () => true,
   isLocalMode: vi.fn(() => true),
+  resolveE2eApiBase: () => '',
 }));
 
 vi.mock('@/lib/backend-health', () => ({

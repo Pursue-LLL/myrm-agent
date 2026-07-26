@@ -4,9 +4,9 @@
 
 | 文件 | 职责 |
 |------|------|
-| `LiveTerminal.tsx` | 流式终端输出 |
+| `LiveTerminal.tsx` | 流式终端输出；evicted badge（行数/大小）+ View Full Output |
 | `CodeRenderer.tsx` / `EnhancedSyntaxHighlighter.tsx` | 代码高亮 |
 | `FilePathRenderer.tsx` / `URLItemsRenderer.tsx` | 路径与链接 |
 | `SourcesRenderer.tsx` / `QueryItemsRenderer.tsx` / `TextItemsRenderer.tsx` | 检索与文本块 |
 | `SkillSelectRenderer.tsx` | 技能选择步骤 |
-| `EvictedOutputDrawer.tsx` | UECD 超长输出抽屉：`getApiBaseUrl()` + `GET /files/evicted?limit=0`；404 → expired UX；搜索/分页/复制；移动/桌面响应式 |
+| `EvictedOutputDrawer.tsx` | UECD 超长输出抽屉：分页 `GET /files/evicted?offset&limit=500`；404 → expired UX（`data-testid=evicted-output-expired`）；**当前页**搜索/复制（跨页搜索需翻页）；移动/桌面响应式 |

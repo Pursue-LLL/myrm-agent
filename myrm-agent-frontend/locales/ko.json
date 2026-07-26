@@ -34,8 +34,7 @@
       "cancel": "Cancel",
       "save": "Save",
       "confirm": "Confirm",
-      "providerDisabledWarning": "The provider for this model is disabled. Please select a different model.",
-      "modelSyncFailed": "Failed to save model configuration, reverted to previous selection."
+      "providerDisabledWarning": "The provider for this model is disabled. Please select a different model."
     },
     "menu": {
       "account": "Account",
@@ -5640,7 +5639,11 @@
       "pageOf": "Page {current} of {total}",
       "prev": "Prev",
       "next": "Next",
-      "lineCount": "{count} lines"
+      "lineCount": "{count} lines",
+      "sizeBadge": "{lines} lines · {size}",
+      "storageTruncated": "Storage capped; file may be incomplete",
+      "loadingPage": "Loading page...",
+      "searchPagePlaceholder": "Search current page..."
     },
     "task": "Task",
     "planning_task": "Planning task",

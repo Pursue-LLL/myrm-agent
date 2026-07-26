@@ -28,6 +28,8 @@ import { useInputFileUpload } from '@/hooks/useInputFileUpload';
 import { resolveArchiveRestoreActionsForMessage } from '@/store/chat/archiveRestoreActions';
 import { addInputHistory } from '@/hooks/useInputHistory';
 
+const MAX_DRAIN_RETRIES = 4;
+
 export const useMessageInput = () => {
   const t = useTranslations('chat');
 
@@ -101,42 +103,56 @@ export const useMessageInput = () => {
   const { initialDraft, clearDraft } = useDraftPersistence(chatId, inputMessage);
 
   // ─── 消息排队 ───
-  const { queue, enqueue, dequeue, editMessage, removeMessage, clearQueue } = useMessageQueue(chatId);
+  const { queue, enqueue, dequeue, editMessage, removeMessage, clearQueue, requeue } = useMessageQueue(chatId);
 
+  const drainFailCountRef = useRef(0);
 
-  // 监听 loading 状态变化，当 loading 变为 false 时，自动发送队列中的下一条消息
+  // busy→idle 时重置重试计数，允许后续 auto-drain 正常工作
   useEffect(() => {
-    if (!loading && queue.length > 0) {
-      const nextMessage = dequeue();
-      if (nextMessage) {
-        // 延迟一点点发送，确保状态完全重置
-        setTimeout(() => {
-          sendMessage(nextMessage.text, undefined, undefined, undefined, nextMessage.archiveRestoreActions).catch(
-            (error) => {
-              if (error && error.name === 'AgentBusyError') {
-                // 如果还是 busy，退回队列头部
-                enqueue(nextMessage.text, nextMessage.files, nextMessage.archiveRestoreActions);
-                return;
-              }
-              if (isArchiveRestoreActionInvalidError(error)) {
-                setInputMessage(nextMessage.text);
-                setFiles(nextMessage.files);
-                setPendingArchiveRestoreActions(nextMessage.archiveRestoreActions ?? []);
-              }
-            },
-          );
-        }, 300);
-      }
+    if (loading) {
+      drainFailCountRef.current = 0;
     }
+  }, [loading]);
+
+  useEffect(() => {
+    if (loading || queue.length === 0 || drainFailCountRef.current >= MAX_DRAIN_RETRIES) {
+      return;
+    }
+
+    const nextMessage = dequeue();
+    if (!nextMessage) return;
+
+    const timer = setTimeout(() => {
+      sendMessage(nextMessage.text, undefined, undefined, undefined, nextMessage.archiveRestoreActions).catch(
+        (error) => {
+          if (error && error.name === 'AgentBusyError') {
+            drainFailCountRef.current += 1;
+            requeue(nextMessage);
+            if (drainFailCountRef.current >= MAX_DRAIN_RETRIES) {
+              toast.error(t('queue.stuck'));
+            }
+            return;
+          }
+          if (isArchiveRestoreActionInvalidError(error)) {
+            setInputMessage(nextMessage.text);
+            setFiles(nextMessage.files);
+            setPendingArchiveRestoreActions(nextMessage.archiveRestoreActions ?? []);
+          }
+        },
+      );
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [
     loading,
     queue.length,
     dequeue,
     sendMessage,
-    enqueue,
+    requeue,
     setInputMessage,
     setFiles,
     setPendingArchiveRestoreActions,
+    t,
   ]);
 
   // 仅在组件挂载且有草稿，且当前输入框为空时恢复草稿

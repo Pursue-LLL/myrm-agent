@@ -4,6 +4,14 @@ Securely serves full outputs evicted (saved to disk) during tool execution
 when they exceeded the delivery threshold. Provides line-range reading and
 graceful expiration handling.
 
+[INPUT]
+- myrm_agent_harness.agent.context_management.infra.evicted_reader (POS: paginated evicted file I/O)
+- myrm_agent_harness.agent.context_management.infra.evicted_content::normalize_delivery_chat_id (POS: UECD delivery SSOT)
+- myrm_agent_harness.api.hooks::EVICTED_BASENAME_PATTERN (POS: spill filename validation)
+
+[OUTPUT]
+- GET /evicted: paginated line-range read (default limit 500)
+
 [POS]
 Evicted tool output reader endpoint. Allows GUI users to view full tool outputs
 that were offloaded to disk during agent execution.
@@ -15,6 +23,12 @@ import os
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
+from myrm_agent_harness.agent.context_management.infra.evicted_reader import (
+    read_evicted_line_range,
+)
+from myrm_agent_harness.agent.context_management.infra.evicted_content import (
+    normalize_delivery_chat_id,
+)
 from myrm_agent_harness.api.hooks import EVICTED_BASENAME_PATTERN
 
 from app.config.deploy_mode import is_local_mode
@@ -24,10 +38,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _FILENAME_PATTERN = EVICTED_BASENAME_PATTERN
+_DEFAULT_PAGE_LIMIT = 500
+_MAX_PAGE_LIMIT = 1000
 
 
-async def _get_chat_workspace_root(chat_id: str) -> str | None:
-    """Resolve the harness workspace directory for a chat session."""
+async def _get_evicted_workspace_root(chat_id: str) -> str | None:
+    """Resolve the workspace root that holds `.context/{chat_id}/evicted/`."""
     try:
         from app.services.agent.params.workspace_resolve import (
             resolve_default_chat_workspace_dir,
@@ -44,6 +60,11 @@ async def _get_chat_workspace_root(chat_id: str) -> str | None:
             chat_id,
             exc,
         )
+
+    env_root = os.environ.get("MYRM_WORKSPACE_ROOT")
+    if env_root and os.path.isdir(env_root):
+        return env_root
+
     return _get_workspace_root()
 
 
@@ -58,13 +79,17 @@ async def _resolve_evicted_path(chat_id: str, filename: str) -> str:
     if ".." in chat_id or "/" in chat_id or "\\" in chat_id:
         raise HTTPException(status_code=400, detail="Invalid chat_id")
 
+    normalized_chat_id = normalize_delivery_chat_id(chat_id)
+
     from myrm_agent_harness.agent.security.path_security import is_dangerous_path
 
-    workspace_root = await _get_chat_workspace_root(chat_id)
+    workspace_root = await _get_evicted_workspace_root(chat_id)
     if not workspace_root:
         raise HTTPException(status_code=500, detail="Workspace root unavailable")
 
-    evicted_dir = os.path.join(workspace_root, ".context", chat_id, "evicted")
+    evicted_dir = os.path.join(
+        workspace_root, ".context", normalized_chat_id, "evicted"
+    )
     resolved = os.path.realpath(os.path.join(evicted_dir, filename))
 
     if is_dangerous_path(resolved):
@@ -114,12 +139,14 @@ async def read_evicted_output(
     offset: int = Query(
         0, ge=0, description="Line offset to start reading from (0-based)"
     ),
-    limit: int = Query(0, ge=0, description="Number of lines to return (0 = all)"),
+    limit: int = Query(
+        _DEFAULT_PAGE_LIMIT,
+        ge=1,
+        le=_MAX_PAGE_LIMIT,
+        description="Number of lines to return",
+    ),
 ) -> dict[str, object] | JSONResponse:
-    """Read an evicted tool output file.
-
-    Returns the full or partial content of a file that was saved during
-    output eviction. Supports line-range pagination via offset/limit.
+    """Read a paginated slice of an evicted tool output file.
 
     Returns JSON ``{"expired": true}`` with HTTP 404 when the file has been cleaned up.
     """
@@ -129,27 +156,20 @@ async def read_evicted_output(
         return JSONResponse(status_code=404, content={"expired": True})
 
     try:
-        with open(resolved, encoding="utf-8", errors="replace") as f:
-            if limit > 0:
-                lines = f.readlines()
-                total_lines = len(lines)
-                sliced = lines[offset : offset + limit]
-                content = "".join(sliced)
-                return {
-                    "content": content,
-                    "total_lines": total_lines,
-                    "offset": offset,
-                    "limit": limit,
-                }
-            else:
-                content = f.read()
-                total_lines = content.count("\n") + (
-                    1 if content and not content.endswith("\n") else 0
-                )
-                return {
-                    "content": content,
-                    "total_lines": total_lines,
-                }
-    except OSError as e:
-        logger.warning("Failed to read evicted file %s: %s", resolved, e)
-        raise HTTPException(status_code=500, detail="Failed to read file") from e
+        page = read_evicted_line_range(
+            resolved,
+            offset=offset,
+            limit=limit,
+        )
+        return {
+            "content": page.content,
+            "total_lines": page.total_lines,
+            "stored_chars": page.stored_chars,
+            "offset": page.offset,
+            "limit": page.limit,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        logger.warning("Failed to read evicted file %s: %s", resolved, exc)
+        raise HTTPException(status_code=500, detail="Failed to read file") from exc

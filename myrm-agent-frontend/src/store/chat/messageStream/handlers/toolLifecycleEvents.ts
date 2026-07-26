@@ -189,9 +189,82 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     if (messageIndex === -1) return done(ctx);
 
     const steps = state.messages[messageIndex].progressSteps;
-    if (steps && steps.length > 0) {
-      const lastStep = steps[steps.length - 1];
-      lastStep.evicted_file_ref = data.data;
+    if (!steps || steps.length === 0) return done(ctx);
+
+    const rawPayload = data.data as unknown;
+    let ref: string | undefined;
+    let toolCallId: string | undefined;
+    let previewStdout: string | undefined;
+    let toolName: string | undefined;
+    let storedChars: number | undefined;
+    let totalLines: number | undefined;
+    let storageTruncated: boolean | undefined;
+
+    if (typeof rawPayload === 'string') {
+      ref = rawPayload;
+    } else if (rawPayload && typeof rawPayload === 'object') {
+      const payload = rawPayload as Record<string, unknown>;
+      if (typeof payload.evicted_ref === 'string') {
+        ref = payload.evicted_ref;
+      }
+      if (typeof payload.tool_call_id === 'string') {
+        toolCallId = payload.tool_call_id;
+      }
+      if (typeof payload.preview_stdout === 'string') {
+        previewStdout = payload.preview_stdout;
+      }
+      if (typeof payload.tool_name === 'string') {
+        toolName = payload.tool_name;
+      }
+      if (typeof payload.stored_chars === 'number' && payload.stored_chars > 0) {
+        storedChars = payload.stored_chars;
+      }
+      if (typeof payload.total_lines === 'number' && payload.total_lines > 0) {
+        totalLines = payload.total_lines;
+      }
+      if (payload.storage_truncated === true) {
+        storageTruncated = true;
+      }
+    }
+
+    const eventToolName = (data as { tool_name?: string }).tool_name;
+    if (!toolName && typeof eventToolName === 'string') {
+      toolName = eventToolName;
+    }
+
+    if (!ref) {
+      return done(ctx);
+    }
+
+    let target =
+      toolCallId !== undefined
+        ? steps.find((step) => step.tool_call_id === toolCallId)
+        : undefined;
+    if (!target && toolName) {
+      for (let index = steps.length - 1; index >= 0; index -= 1) {
+        const step = steps[index];
+        if (step.tool_name === toolName && !step.evicted_file_ref) {
+          target = step;
+          break;
+        }
+      }
+    }
+    if (!target) {
+      target = steps[steps.length - 1];
+    }
+
+    target.evicted_file_ref = ref;
+    if (previewStdout) {
+      target.stdout = previewStdout;
+    }
+    if (storedChars !== undefined) {
+      target.evicted_stored_chars = storedChars;
+    }
+    if (totalLines !== undefined) {
+      target.evicted_total_lines = totalLines;
+    }
+    if (storageTruncated === true) {
+      target.evicted_storage_truncated = true;
     }
     return done(ctx);
   }

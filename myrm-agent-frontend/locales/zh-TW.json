@@ -222,7 +222,6 @@
     "autoSaveFailed": "自動儲存失敗，請手動儲存後再離開。",
     "common": {
       "providerDisabledWarning": "該模型所屬提供商已禁用，請重新選擇",
-      "modelSyncFailed": "模型配置儲存失敗，已恢復為之前的選擇。",
       "edit": "編輯",
       "delete": "刪除",
       "cancel": "取消",
@@ -6050,7 +6049,8 @@
       "placeholder": "輸入下個任務（排隊等待，不會打斷）...",
       "edit": "編輯訊息",
       "saveEdit": "儲存",
-      "cancelEdit": "取消"
+      "cancelEdit": "取消",
+      "stuck": "佇列訊息多次重試後仍無法傳送，請手動重試。"
     },
     "fileMention": {
       "title": "工作區引用",
@@ -6761,7 +6761,11 @@
       "pageOf": "第 {current} 頁，共 {total} 頁",
       "prev": "上一頁",
       "next": "下一頁",
-      "lineCount": "{count} 行"
+      "lineCount": "{count} 行",
+      "sizeBadge": "{lines} 行 · {size}",
+      "storageTruncated": "儲存已截斷，檔案可能不完整",
+      "loadingPage": "正在載入分頁...",
+      "searchPagePlaceholder": "搜尋目前頁..."
     },
     "task": "任務步驟",
     "diagnosticHint": "診斷建議",
