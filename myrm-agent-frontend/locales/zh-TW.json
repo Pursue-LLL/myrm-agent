@@ -899,9 +899,8 @@
         "selectModel": "選擇審查模型",
         "selectModelPlaceholder": "選擇一個快速模型（如 GPT-4o-mini）",
         "modelRecommendation": "建議：使用快速、低成本的模型（如 GPT-4o-mini 或 Claude 3 Haiku）以獲得最佳延遲。",
-        "selectModelFirst": "請先選擇審查模型，然後再啟用智慧意圖守護。",
         "disabledNoModel": "智慧意圖守護已禁用 — 未選擇模型。",
-        "noModelWarning": "請選擇審查模型以啟用智慧意圖守護。沒有專用模型，守護功能無法執行。",
+        "noModelHint": "智慧意圖守護正在使用您的預設模型運行。為獲得最佳延遲和成本效益，建議選擇一個專用的快速模型（如 GPT-4o-mini）。",
         "shellEscalationHint": "提示：在智慧意圖守護模式下，高風險操作（如終端命令）即使在許可權規則中設定為「允許」，仍將由安全審查模型進行額外審查。安全的只讀命令（ls、cat、git status 等）將直接放行，無需 LLM 審查。"
       },
       "riskRules": {

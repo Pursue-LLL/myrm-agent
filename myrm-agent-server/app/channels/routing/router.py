@@ -39,14 +39,17 @@ and voice STT/TTS via voice_handler module.
 - channels.media.image_enrichment::enrich_image_inbound, has_image_attachment (POS: image attachment base64 enrichment)
 - channels.media.video_enrichment::enrich_video_inbound, has_video_attachment (POS: video attachment metadata enrichment)
 - channels.media.document_enrichment::enrich_document_inbound, has_document_attachment (POS: PDF/Office text extraction for IM)
+- services.risk.detection::get_detection_service (POS: stateful risk detection engine with compiled regex cache)
 
 [OUTPUT]
 - AgentRouter: inbound message routing hub managing dedup, command dispatch, agent task lifecycle, and streaming progress
+- _record_inbound_risk_hits: fire-and-forget inbound risk audit persistence
 - _ActiveTask, _CleanupEntry, _RouterExecutionContext, _AgentTurnScratch: see `router_models.py`
 - Concurrency and dedup constants: see `router_constants.py`
 
 [POS]
-Core inbound message routing loop. Connects MessageBus (inbound queue) to agent executor.
+Core inbound message routing loop. Connects MessageBus (inbound queue) to agent executor
+with symmetric inbound risk gate (complements outbound risk gate in bus.py).
 Uses PolicyResolver to check DM/group policies and resolve user identity;
 group policies may rewrite InboundMessage (prefix stripping, context_messages, etc.),
 with the rewritten message stored in `_RouterExecutionContext.exec_msg`. After successful
@@ -84,7 +87,7 @@ from app.channels.core.bus import (
     MessageBus,
     set_correlation_context,
 )
-from app.channels.i18n import get_text, resolve_message_locale
+from app.channels.i18n import channel_t, get_text, resolve_message_locale
 from app.channels.media.contact_enrichment import (
     enrich_contact_inbound,
     has_contact_attachment,
@@ -917,8 +920,6 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 risk_result = risk_service.detect(msg.content)
                 if risk_result.blocked:
                     locale = resolve_message_locale(msg)
-                    from app.channels.i18n import channel_t
-
                     blocked_reply = OutboundMessage(
                         channel=msg.channel,
                         recipient_id=msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id,

@@ -941,9 +941,8 @@
         "selectModel": "Select Reviewer Model",
         "selectModelPlaceholder": "Select a fast model (e.g. GPT-4o-mini)",
         "modelRecommendation": "Recommendation: Use a fast, low-cost model like GPT-4o-mini or Claude 3 Haiku for optimal latency.",
-        "selectModelFirst": "Please select a reviewer model before enabling Smart Intent Guard.",
         "disabledNoModel": "Smart Intent Guard disabled — no model selected.",
-        "noModelWarning": "Please select a reviewer model to enable Smart Intent Guard. Without a dedicated model, the guard cannot function.",
+        "noModelHint": "Smart Intent Guard is active using your default model. For optimal latency and cost, consider selecting a dedicated fast model (e.g. GPT-4o-mini).",
         "shellEscalationHint": "Note: In Smart Intent Guard mode, high-risk operations (e.g. shell commands) will be reviewed by the security model even if your permission rules set them to \"Allow\". Trivially safe commands (ls, cat, git status, etc.) are fast-tracked without LLM review."
       },
       "riskRules": {

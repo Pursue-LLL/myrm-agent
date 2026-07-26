@@ -1205,24 +1205,10 @@ async def ensure_interact_gate(
         server_pending=server_pending,
         ui_pending=ui_pending,
     ):
-        progress(
-            "interact_tool seen without pending gate — force snapshot reseed nudge"
-        )
-        try:
-            await _send_interact_nudge(
-                chat,
-                last_tool="desktop_snapshot_tool",
-                chat_id=chat_id,
-                prefetched_dref=None,
-            )
-        except (RuntimeError, TimeoutError, OSError) as exc:
-            if _is_hard_nudge_failure(exc):
-                raise
-            progress(f"snapshot reseed nudge skipped (non-fatal): {exc}")
-        heartbeat_e2e_lease()
-        if textedit_foreground:
-            await asyncio.to_thread(activate_textedit_foreground)
-        tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(45.0)
+        progress("interact_tool observed; defer pending wait to approval banner stage")
+        if isinstance(tool_activity, dict):
+            tool_activity = {**tool_activity, "interactSeen": True}
+        return tool_activity, last_tool, max(server_pending, 0), ui_pending
 
     provider_hint = await _provider_readiness_hint()
     require_approval_gate_triggered(

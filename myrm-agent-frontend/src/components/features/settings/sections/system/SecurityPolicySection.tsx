@@ -249,7 +249,6 @@ const SecurityPolicySection = memo(() => {
             <Switch
               checked={policy.autoReviewEnabled}
               onCheckedChange={policy.handleAutoReviewToggle}
-              disabled={!policy.autoReviewModel && policy.enabledModels.length > 0 && !policy.autoReviewEnabled}
             />
           </div>
 
@@ -264,13 +263,13 @@ const SecurityPolicySection = memo(() => {
                 default: 'Select a fast model (e.g. GPT-4o-mini)',
               })}
             />
-            {!policy.autoReviewModel && policy.enabledModels.length > 0 && (
-              <div className="flex items-start gap-2 p-2.5 rounded-full bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
-                <IconAlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-amber-700 dark:text-amber-400">
-                  {t('autoReview.noModelWarning', {
+            {policy.autoReviewEnabled && !policy.autoReviewModel && policy.enabledModels.length > 0 && (
+              <div className="flex items-start gap-2 p-2.5 rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
+                <IconShieldCheck className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-blue-700 dark:text-blue-400">
+                  {t('autoReview.noModelHint', {
                     default:
-                      'Please select a reviewer model to enable Smart Intent Guard. Without a dedicated model, the guard cannot function.',
+                      'Smart Intent Guard is active using your default model. For optimal latency and cost, consider selecting a dedicated fast model (e.g. GPT-4o-mini).',
                   })}
                 </p>
               </div>

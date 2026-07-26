@@ -905,9 +905,8 @@
         "selectModel": "選択審査モデル",
         "selectModelPlaceholder": "選択ひとつ快速モデル（如 GPT-4o-mini）",
         "modelRecommendation": "推奨：使用快速、低成本のモデル（如 GPT-4o-mini または Claude 3 Haiku）以取最佳レイテンシ。",
-        "selectModelFirst": "してください先選択審査モデル，その後再有効スマート意图守护。",
         "disabledNoModel": "スマート意图守护無効 — 未選択モデル。",
-        "noModelWarning": "してください選択審査モデル以有効スマート意图守护。ない专使用モデル，守护機能なし法実行。",
+        "noModelHint": "Smart Intent Guard is active using your default model. For optimal latency and cost, consider selecting a dedicated fast model (e.g. GPT-4o-mini).",
         "shellEscalationHint": "ヒント：でスマート意图守护模式下，高リスク操作（如ターミナルコマンド）即使で権限ルール中設定为「許可」，仍が由セキュリティ審査モデル进行额外審査。セキュリティの只読み取りコマンド（ls、cat、git status 等）が直接放行，なしが必須 LLM 審査。"
       },
       "riskRules": {

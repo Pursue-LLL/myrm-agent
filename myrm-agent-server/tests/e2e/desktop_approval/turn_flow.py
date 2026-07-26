@@ -411,10 +411,11 @@ async def wait_for_approval_banner_clickable(
     scope: str,
     server_pending_hint: int,
     ui_pending_hint: bool,
+    interact_seen_hint: bool = False,
     chat_id: str | None = None,
 ) -> None:
     """Wait for approval controls; click as soon as server gate is pending."""
-    if server_pending_hint <= 0 and not ui_pending_hint:
+    if server_pending_hint <= 0 and not ui_pending_hint and not interact_seen_hint:
         raise AssertionError(
             "Expected pending desktop approval after interact gate "
             f"(server_pending={server_pending_hint}, ui_pending={ui_pending_hint})"
@@ -479,6 +480,14 @@ async def wait_for_approval_banner_clickable(
             if probe.get("err") == "model-completed-without-desktop-tools":
                 raise AssertionError(f"Model finished without desktop tools: {probe}")
         if server_pending <= 0:
+            if interact_seen_hint:
+                if poll == 1 or poll % 8 == 0:
+                    progress(
+                        "interact_tool observed; waiting pending approval registration "
+                        f"poll=#{poll}"
+                    )
+                await asyncio.sleep(0.25)
+                continue
             raise AssertionError(
                 "Desktop approval gate expired before approval click succeeded "
                 f"(scope={scope}, last_probe={approval})"
@@ -660,6 +669,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         scope=scope,
         server_pending_hint=server_pending,
         ui_pending_hint=ui_pending,
+        interact_seen_hint=last_tool.endswith("desktop_interact_tool"),
         chat_id=chat_id or None,
     )
 

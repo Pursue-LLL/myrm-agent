@@ -127,7 +127,7 @@ deadlocks when an agent execution hangs without crashing.
 | policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. Guest mode requires `explicit_mention` metadata (entity-based only; reply-to-bot does not bypass non-enabled groups). | ✅ |
 | policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker helpers for PolicyResolver. | ✅ |
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
-| router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | ✅ |
+| router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, applies inbound risk gate (symmetric with outbound risk gate in bus.py), dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | ✅ |
 | router_commands.py | Core | Composed `RouterCommandsMixin` — aggregates approval/session/modes/goals/memory mixins. | ✅ |
 | router_commands_approval.py | Core | `/stop`, reaction/button approval, decision resume payloads. | ✅ |
 | router_commands_session.py | Core | `/new`, `/compact`, `/retry`, `/undo`, topic commands. | ✅ |

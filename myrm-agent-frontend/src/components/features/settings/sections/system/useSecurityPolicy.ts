@@ -29,7 +29,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
   const [domainHitlEnabled, setDomainHitlEnabled] = useState(true);
   const [planConfirmEnabled, setPlanConfirmEnabled] = useState(false);
   const [yoloModeEnabled, setYoloModeEnabled] = useState(false);
-  const [autoReviewEnabled, setAutoReviewEnabled] = useState(false);
+  const [autoReviewEnabled, setAutoReviewEnabled] = useState(true);
   const [autoReviewModel, setAutoReviewModel] = useState<SingleModelSelection | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -48,7 +48,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       setDomainHitlEnabled(cached.domainHitlEnabled ?? false);
       setPlanConfirmEnabled(cached.planConfirmEnabled ?? false);
       setYoloModeEnabled(cached.yoloModeEnabled ?? false);
-      setAutoReviewEnabled(cached.autoReviewEnabled ?? false);
+      setAutoReviewEnabled(cached.autoReviewEnabled ?? true);
       if (cached.autoReviewModel) {
         const parts = cached.autoReviewModel.split('/');
         if (parts.length === 2) {
@@ -280,19 +280,11 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
 
   const handleAutoReviewToggle = useCallback(
     (checked: boolean) => {
-      if (checked && !autoReviewModel && enabledModels.length > 0) {
-        toast.error(
-          t('autoReview.selectModelFirst', {
-            default: 'Please select a reviewer model before enabling Smart Intent Guard.',
-          }),
-        );
-        return;
-      }
       setAutoReviewEnabled(checked);
       save({ autoReview: checked });
       toast.success(t('autoReview.saved', { default: 'Smart Intent Guard setting saved' }));
     },
-    [save, t, autoReviewModel, enabledModels.length],
+    [save, t],
   );
 
   const handleAutoReviewModelChange = useCallback(
