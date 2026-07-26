@@ -30,6 +30,7 @@ vi.mock('@/services/kanban', () => ({
   reclaimTask: vi.fn(),
   updateTask: vi.fn().mockResolvedValue({}),
   getTaskDiagnostics: vi.fn().mockResolvedValue({ diagnostics: [] }),
+  KANBAN_SOURCE_CHAT_METADATA_KEY: 'source_chat_id',
 }));
 
 vi.mock('@/lib/api', () => ({
