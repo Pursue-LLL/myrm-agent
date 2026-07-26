@@ -61,4 +61,79 @@ describe('useMessageQueue', () => {
     expect(result.current.queue).toHaveLength(1);
     expect(result.current.queue[0]!.text).toBe('hello');
   });
+
+  it('requeue inserts message at head preserving original id', () => {
+    const { result } = renderHook(() => useMessageQueue('chat-requeue'));
+
+    act(() => {
+      result.current.enqueue('first', []);
+      result.current.enqueue('second', []);
+    });
+
+    expect(result.current.queue).toHaveLength(2);
+    const firstMsg = result.current.queue[0]!;
+
+    act(() => {
+      result.current.dequeue();
+    });
+
+    expect(result.current.queue).toHaveLength(1);
+    expect(result.current.queue[0]!.text).toBe('second');
+
+    act(() => {
+      result.current.requeue(firstMsg);
+    });
+
+    expect(result.current.queue).toHaveLength(2);
+    expect(result.current.queue[0]!.id).toBe(firstMsg.id);
+    expect(result.current.queue[0]!.text).toBe('first');
+    expect(result.current.queue[1]!.text).toBe('second');
+  });
+
+  it('requeue deduplicates if message already in queue', () => {
+    const { result } = renderHook(() => useMessageQueue('chat-requeue-dedup'));
+
+    act(() => {
+      result.current.enqueue('msg', []);
+    });
+
+    const msg = result.current.queue[0]!;
+
+    act(() => {
+      result.current.requeue(msg);
+    });
+
+    expect(result.current.queue).toHaveLength(1);
+    expect(result.current.queue[0]!.id).toBe(msg.id);
+  });
+
+  it('dequeue returns null on empty queue', () => {
+    const { result } = renderHook(() => useMessageQueue('chat-empty'));
+
+    let dequeued: ReturnType<typeof result.current.dequeue>;
+    act(() => {
+      dequeued = result.current.dequeue();
+    });
+
+    expect(dequeued!).toBeNull();
+    expect(result.current.queue).toHaveLength(0);
+  });
+
+  it('clearQueue removes all messages', () => {
+    const { result } = renderHook(() => useMessageQueue('chat-clear'));
+
+    act(() => {
+      result.current.enqueue('a', []);
+      result.current.enqueue('b', []);
+      result.current.enqueue('c', []);
+    });
+
+    expect(result.current.queue).toHaveLength(3);
+
+    act(() => {
+      result.current.clearQueue();
+    });
+
+    expect(result.current.queue).toHaveLength(0);
+  });
 });

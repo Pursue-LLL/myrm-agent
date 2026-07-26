@@ -122,7 +122,7 @@ export const useMessageInput = () => {
     const nextMessage = dequeue();
     if (!nextMessage) return;
 
-    const timer = setTimeout(() => {
+    setTimeout(() => {
       sendMessage(nextMessage.text, undefined, undefined, undefined, nextMessage.archiveRestoreActions).catch(
         (error) => {
           if (error && error.name === 'AgentBusyError') {
@@ -141,8 +141,6 @@ export const useMessageInput = () => {
         },
       );
     }, 300);
-
-    return () => clearTimeout(timer);
   }, [
     loading,
     queue.length,

@@ -4990,7 +4990,8 @@
       "placeholder": "Nächste Aufgabe eingeben (wird eingereiht, nicht unterbrochen)...",
       "edit": "Nachricht bearbeiten",
       "saveEdit": "Speichern",
-      "cancelEdit": "Abbrechen"
+      "cancelEdit": "Abbrechen",
+      "stuck": "Die Nachricht in der Warteschlange konnte nach mehreren Versuchen nicht gesendet werden. Bitte versuchen Sie es manuell erneut."
     },
     "fileMention": {
       "title": "Arbeitsbereich-Dateien",
