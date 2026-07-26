@@ -27,6 +27,13 @@ Two dimensions: **layout** (information structure) × **style** (visual aestheti
 
 Trigger this skill when the user asks to create an infographic, visual summary, information graphic, or uses terms like "信息图", "可视化", or "高密度信息大图". The user provides content (text, file path, URL, or topic) and optionally specifies layout, style, aspect ratio, or language.
 
+## Bash execution contract
+
+- Use `bash_code_execute_tool` only for deterministic local operations that directly support this skill workflow.
+- Every bash tool call must include a specific, user-facing reason in plain language.
+- Prefer read/transform/generate steps; avoid destructive shell operations.
+- Keep commands scoped to workspace files created or consumed by the current infographic task.
+
 ## Options
 
 | Option | Values |

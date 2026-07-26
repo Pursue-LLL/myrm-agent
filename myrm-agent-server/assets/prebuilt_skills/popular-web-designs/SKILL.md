@@ -43,6 +43,13 @@ styles, spacing system, shadows, responsive behavior, and practical CSS values.
 3. Use the design tokens and component specs when generating HTML
 4. Produce a self-contained HTML artifact with inline CSS using the exact values
 
+## Bash execution contract
+
+- Use `bash_code_execute_tool` only when shell execution is necessary for this skill's HTML/CSS generation workflow.
+- Every bash invocation must include a concrete, user-relevant reason.
+- Prefer non-destructive commands and keep all operations confined to workspace files for this task.
+- Do not run unrelated background processes or broad system-level commands.
+
 Each template includes an **Implementation Notes** block with:
 - CDN font substitute and Google Fonts `<link>` tag (ready to paste)
 - CSS font-family stacks for primary and monospace
