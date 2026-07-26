@@ -167,6 +167,19 @@ describe('useTrayStatus', () => {
     });
   });
 
+  it('maps offline liveness to degraded tray status with offline tooltip', async () => {
+    mockIsTauri = true;
+    mockLivenessState = 'offline';
+    const { useTrayStatus } = await import('../useTrayStatus');
+    renderHook(() => useTrayStatus());
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('set_tray_status', {
+        status: 'degraded',
+        tooltip: 'trayTooltipOffline',
+      });
+    });
+  });
+
   it('shows background running count in tray when liveness is idle', async () => {
     mockIsTauri = true;
     mockLivenessState = 'idle';

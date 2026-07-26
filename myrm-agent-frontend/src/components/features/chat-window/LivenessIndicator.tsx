@@ -25,7 +25,7 @@ const DOT_COLOR: Record<LivenessState, string> = {
 };
 
 const LivenessIndicator = memo(() => {
-  const t = useTranslations('Chat.liveness');
+  const t = useTranslations('chat.liveness');
   const { state } = useLivenessState();
 
   if (state === 'idle') return null;

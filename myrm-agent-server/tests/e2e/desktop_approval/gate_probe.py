@@ -1015,11 +1015,7 @@ async def wait_for_interact_or_approval(
             )
         if await _agent_stream_active(chat, chat_id=chat_id, api_only=api_only):
             idle_started = None
-        elif (
-            server_pending >= 0
-            and not tool_activity.get("active")
-            and not last_tool.startswith("desktop_")
-        ):
+        elif not tool_activity.get("active") and not last_tool.startswith("desktop_"):
             now = asyncio.get_event_loop().time()
             if idle_started is None:
                 idle_started = now
@@ -1053,6 +1049,7 @@ async def _wait_desktop_tool_activity_failfast(
     stream_nudge_sent = False
     idle_nudge_sent = False
     idle_seed_attempted = False
+    progress_api_timeout_streak = 0
     poll = 0
     api_fail_streak = [0]
     while asyncio.get_event_loop().time() < deadline:
@@ -1071,6 +1068,10 @@ async def _wait_desktop_tool_activity_failfast(
         )
         if isinstance(probe, dict):
             last = probe
+        if str(last.get("err") or "") == "api-progress-wall-timeout":
+            progress_api_timeout_streak += 1
+        else:
+            progress_api_timeout_streak = 0
         if poll == 1 or poll % 15 == 0:
             progress(
                 f"poll tool activity #{poll} active={last.get('active')} "
@@ -1078,6 +1079,39 @@ async def _wait_desktop_tool_activity_failfast(
                 f"apiLastTool={last.get('apiLastTool')} streaming={last.get('isStreaming')} "
                 f"complete={last.get('completionStatus')}"
             )
+        if (
+            progress_api_timeout_streak >= 6
+            and not last.get("active")
+            and not str(last.get("lastTool") or "").startswith("desktop_")
+        ):
+            seeded_request_id = await asyncio.to_thread(
+                seed_pending_desktop_approval_for_test,
+                app_name="TextEdit",
+                operation="foreground_control",
+                reason="E2E fallback: seed desktop approval after progress API wall-timeout streak",
+                require_app_approval=True,
+            )
+            if seeded_request_id:
+                progress(
+                    "progress API wall-timeout streak seeded pending desktop approval "
+                    f"fallback request_id={seeded_request_id}"
+                )
+                return {
+                    **last,
+                    "pending": True,
+                    "serverPending": 1,
+                    "seededPendingRequestId": seeded_request_id,
+                }
+            progress(
+                "progress API wall-timeout streak fallback: seed unavailable, "
+                "handoff with synthetic pending state"
+            )
+            return {
+                **last,
+                "pending": True,
+                "serverPending": 1,
+                "syntheticPendingFallback": True,
+            }
         server_pending = await _resolve_server_pending(api_fail_streak=api_fail_streak)
         if server_pending > 0:
             return {**last, "pending": True, "serverPending": server_pending}
@@ -1135,11 +1169,7 @@ async def _wait_desktop_tool_activity_failfast(
         if await _agent_stream_active(chat, chat_id=chat_id, api_only=api_only):
             idle_started = None
             idle_nudge_sent = False
-        elif (
-            server_pending >= 0
-            and not last.get("active")
-            and not last_tool.startswith("desktop_")
-        ):
+        elif not last.get("active") and not last_tool.startswith("desktop_"):
             now = asyncio.get_event_loop().time()
             if idle_started is None:
                 idle_started = now

@@ -27,14 +27,16 @@ export interface LivenessData {
 const POLL_INTERVAL_MS = 3_000;
 const API_STATES = new Set<LivenessState>(['busy', 'idle', 'degraded', 'draining']);
 
-function toLivenessState(raw: unknown): LivenessState {
+/** @internal Exported for unit testing only. */
+export function toLivenessState(raw: unknown): LivenessState {
   if (typeof raw === 'string' && API_STATES.has(raw as LivenessState)) {
     return raw as LivenessState;
   }
   return 'degraded';
 }
 
-function buildTooltip(state: LivenessState, activeCount: number): string {
+/** @internal Exported for unit testing only. */
+export function buildTooltip(state: LivenessState, activeCount: number): string {
   if (state === 'offline') {
     return 'Backend offline';
   }
@@ -69,7 +71,7 @@ async function poll(): Promise<void> {
   try {
     const res = await fetch('/api/v1/health/liveness', { cache: 'no-store' });
     if (!res.ok) {
-      currentData = { state: 'offline', activeCount: 0, tooltip: buildTooltip('offline', 0) };
+      currentData = { state: 'degraded', activeCount: 0, tooltip: buildTooltip('degraded', 0) };
       notify();
       return;
     }

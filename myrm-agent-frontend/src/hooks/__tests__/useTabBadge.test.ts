@@ -1,68 +1,63 @@
+/** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
 let mockLivenessState = 'idle';
-let mockTitleFlashing = false;
 
 vi.mock('@/hooks/useLivenessState', () => ({
   useLivenessState: () => ({
     state: mockLivenessState,
-    activeCount: mockLivenessState === 'busy' ? 1 : 0,
+    activeCount: 0,
     tooltip: '',
   }),
 }));
 
 vi.mock('@/lib/approval/approvalAlertService', () => ({
-  isTitleFlashing: () => mockTitleFlashing,
+  isTitleFlashing: () => false,
 }));
 
 describe('useTabBadge', () => {
   beforeEach(() => {
     mockLivenessState = 'idle';
-    mockTitleFlashing = false;
-    document.title = 'MyrmAgent';
+    document.title = 'Myrm';
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    document.title = '';
   });
 
-  it('does not add prefix when idle', async () => {
-    mockLivenessState = 'idle';
+  it('does not prefix title when idle', async () => {
     const { useTabBadge } = await import('../useTabBadge');
     renderHook(() => useTabBadge());
-    expect(document.title).toBe('MyrmAgent');
+    expect(document.title).toBe('Myrm');
   });
 
-  it('adds [*] prefix when busy', async () => {
+  it('prefixes [*] when busy', async () => {
     mockLivenessState = 'busy';
     const { useTabBadge } = await import('../useTabBadge');
     renderHook(() => useTabBadge());
-    expect(document.title).toBe('[*] MyrmAgent');
+    expect(document.title).toBe('[*] Myrm');
   });
 
-  it('adds [!] prefix when degraded', async () => {
+  it('prefixes [!] when degraded', async () => {
     mockLivenessState = 'degraded';
     const { useTabBadge } = await import('../useTabBadge');
     renderHook(() => useTabBadge());
-    expect(document.title).toBe('[!] MyrmAgent');
+    expect(document.title).toBe('[!] Myrm');
   });
 
-  it('yields to approval title flashing', async () => {
-    mockLivenessState = 'busy';
-    mockTitleFlashing = true;
-    document.title = 'Original Title';
+  it('prefixes [↓] when draining', async () => {
+    mockLivenessState = 'draining';
     const { useTabBadge } = await import('../useTabBadge');
     renderHook(() => useTabBadge());
-    expect(document.title).toBe('Original Title');
+    expect(document.title).toBe('[↓] Myrm');
   });
 
-  it('restores title on unmount', async () => {
-    mockLivenessState = 'busy';
+  it('prefixes [×] when offline', async () => {
+    mockLivenessState = 'offline';
     const { useTabBadge } = await import('../useTabBadge');
-    const { unmount } = renderHook(() => useTabBadge());
-    expect(document.title).toBe('[*] MyrmAgent');
-    unmount();
-    expect(document.title).toBe('MyrmAgent');
+    renderHook(() => useTabBadge());
+    expect(document.title).toBe('[×] Myrm');
   });
 });

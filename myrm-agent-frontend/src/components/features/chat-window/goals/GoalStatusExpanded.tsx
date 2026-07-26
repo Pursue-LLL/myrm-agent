@@ -10,6 +10,7 @@ import useChatStore from '@/store/useChatStore';
 import { AcceptanceCriteriaPanel } from './AcceptanceCriteriaPanel';
 import { CheckCircleIcon, XCircleIcon, AlertIcon, BellIcon } from './goal-icons';
 import type { GoalState } from './goalStatusTypes';
+import { formatEta, formatBurnRate, getProgressColor } from './goalStatusUtils';
 import { notificationService } from '@/services/notification';
 
 interface GoalStatusExpandedProps {
@@ -19,13 +20,10 @@ interface GoalStatusExpandedProps {
   tokenProgress: number;
   isWarning: boolean;
   isCritical: boolean;
-  getProgressColor: () => string;
   hasSufficientData: boolean;
   burnRate: number;
   costRate: number;
   etaSeconds: number | null;
-  formatEta: (seconds: number) => string;
-  formatBurnRate: (tokPerMin: number) => string;
   canEditObjective: boolean;
   notificationPermission: NotificationPermission;
   onRequestNotification: (e: React.MouseEvent) => void;
@@ -49,13 +47,10 @@ export function GoalStatusExpanded({
   tokenProgress,
   isWarning,
   isCritical,
-  getProgressColor,
   hasSufficientData,
   burnRate,
   costRate,
   etaSeconds,
-  formatEta,
-  formatBurnRate,
   canEditObjective,
   notificationPermission,
   onRequestNotification,
@@ -73,7 +68,7 @@ export function GoalStatusExpanded({
 }: GoalStatusExpandedProps) {
   const plan = usePlanStore((s) => s.plan);
 
-  const completedSteps = plan?.steps.filter((s) => s.status === 'completed').length ?? 0;
+  const completedSteps = plan?.steps.filter((s) => s.status === 'completed' || s.status === 'skipped').length ?? 0;
   const totalSteps = plan?.steps.length ?? 0;
   const stepProgress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
@@ -149,7 +144,7 @@ export function GoalStatusExpanded({
             <Progress
               value={tokenProgress}
               className={`h-1.5 ${isCritical ? 'animate-pulse' : ''}`}
-              indicatorClassName={getProgressColor()}
+              indicatorClassName={getProgressColor(isCritical, isWarning)}
             />
           </div>
         )}

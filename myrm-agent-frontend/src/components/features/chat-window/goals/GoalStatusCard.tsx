@@ -20,7 +20,7 @@ import { notificationService } from '@/services/notification';
 import { PlayIcon, PauseIcon, XCircleIcon, CheckCircleIcon, AlertIcon, GoalIcon } from './goal-icons';
 import { GoalStatusExpanded } from './GoalStatusExpanded';
 import type { GoalStatus } from './goalStatusTypes';
-import { translateGoalReason, computeEtaSeconds, formatEta, formatBurnRate, getProgressColor } from './goalStatusUtils';
+import { translateGoalReason, computeEtaSeconds, formatEta } from './goalStatusUtils';
 
 export type { GoalStatus, GoalState, AcceptanceResultItem, AcceptanceHistoryEntry } from './goalStatusTypes';
 
@@ -221,13 +221,10 @@ export function GoalStatusCard() {
               tokenProgress={tokenProgress}
               isWarning={isWarning}
               isCritical={isCritical}
-              getProgressColor={() => getProgressColor(isCritical, isWarning)}
               hasSufficientData={hasSufficientData}
               burnRate={burnRate}
               costRate={costRate}
               etaSeconds={etaSeconds}
-              formatEta={formatEta}
-              formatBurnRate={formatBurnRate}
               canEditObjective={canEditObjective}
               notificationPermission={notificationPermission}
               onRequestNotification={handleRequestNotification}
