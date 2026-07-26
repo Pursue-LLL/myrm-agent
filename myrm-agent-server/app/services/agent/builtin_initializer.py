@@ -25,6 +25,7 @@ from app.database.models import Agent
 from app.services.agent.builtin_agent_specs import (
     _BUILTIN_AGENTS,
     _TOOL_CODING,
+    _TOOL_DATA_VIZ,
     _TOOL_DEFAULT,
     _TOOL_DESIGN,
     _TOOL_MINIMAL,
@@ -37,6 +38,7 @@ __all__ = [
     "_BUILTIN_AGENTS",
     "_BuiltInAgentSpec",
     "_TOOL_CODING",
+    "_TOOL_DATA_VIZ",
     "_TOOL_DEFAULT",
     "_TOOL_DESIGN",
     "_TOOL_MINIMAL",

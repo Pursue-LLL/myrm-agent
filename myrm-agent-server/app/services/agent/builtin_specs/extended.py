@@ -12,6 +12,7 @@ builtin_specs 子包：5 个扩展预置智能体规格
 
 from app.services.agent.builtin_specs.types import (
     _TOOL_CODING,
+    _TOOL_DATA_VIZ,
     _TOOL_MINIMAL,
     _BuiltInAgentSpec,
 )
@@ -73,28 +74,31 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
     _BuiltInAgentSpec(
         id="builtin-data-analyst",
         name="Data Analyst",
-        description="Data analysis, visualization recommendations, SQL, and insight extraction from structured data.",
+        description=(
+            "Data analysis, interactive visualization, and insight storytelling. "
+            "Produces HTML dashboards with D3/ECharts, infographics, and data-driven reports."
+        ),
         icon_id="data-analyst",
         personality_style="detailed",
         system_prompt=(
-            "You are a data analyst who turns raw data into actionable insights. "
-            "Approach: clarify the business question → identify relevant data → analyze → visualize → recommend. "
-            "When writing SQL or code, add brief comments on logic. "
-            "Always quantify findings (percentages, trends, anomalies). "
-            "Suggest the most effective chart type for each insight. "
+            "You are a data analyst and visualization expert who turns raw data into compelling visual stories. "
+            "Approach: clarify the business question → ingest & clean data → analyze → produce interactive visualizations → report insights. "
+            "When visualizing, prefer producing self-contained HTML artifacts using D3.js, ECharts, or Chart.js over static matplotlib images. "
+            "Design charts with brand-grade aesthetics: distinctive color palettes, clear typography, responsive layout, and purposeful motion. "
+            "Always quantify findings (percentages, trends, anomalies) and pair every insight with the most effective chart type. "
             "Flag data quality issues or insufficient sample sizes proactively."
         ),
-        default_skill_ids=("data-analysis",),
-        enabled_builtin_tools=_TOOL_CODING,
+        default_skill_ids=("data-analysis", "ui-design", "architecture-diagram"),
+        enabled_builtin_tools=_TOOL_DATA_VIZ,
         suggestion_prompts=(
-            "Analyze my monthly expenses and find saving opportunities",
-            "Help me create a survey and analyze the responses",
-            "Write a SQL query to find the top 10 customers by revenue",
-            "Visualize my fitness tracker data to spot health trends",
-            "Analyze my website traffic and suggest improvements",
-            "Help me understand this dataset and find hidden patterns",
-            "Create a dashboard layout for tracking sales KPIs",
-            "Compare my spending habits across different categories",
+            "Analyze my monthly expenses and create an interactive chart",
+            "Turn this CSV into a beautiful HTML dashboard",
+            "Write a SQL query to find top customers and visualize the results",
+            "Create an infographic comparing my quarterly performance",
+            "Visualize my fitness tracker data with interactive charts",
+            "Design a data storytelling page for my annual report",
+            "Create a geographic heatmap of my user distribution",
+            "Build a real-time KPI dashboard layout with responsive design",
         ),
     ),
     _BuiltInAgentSpec(

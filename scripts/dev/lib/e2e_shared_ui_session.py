@@ -14,6 +14,7 @@ Dev Gate 层共享 UI 污染隔离。每 chrome_e2e item 在 bootstrap / new-cha
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 import time
@@ -186,7 +187,20 @@ async def apply_shared_ui_session_contract(
             file=sys.stderr,
             flush=True,
         )
-        await ensure_e2e_search_cleared_in_browser(chat, api_url=resolved_api)
+        search_budget = min(45.0, timeout_sec)
+        if deadline is not None:
+            search_budget = min(search_budget, max(0.0, deadline - time.monotonic()))
+        if search_budget <= 0:
+            raise _session_error("E2E_SHARED_UI_SESSION", "budget exhausted before SEARCH_POLICY")
+        await asyncio.wait_for(
+            ensure_e2e_search_cleared_in_browser(
+                chat,
+                api_url=resolved_api,
+                recv_timeout_sec=min(30.0, search_budget),
+                max_attempts=2,
+            ),
+            timeout=search_budget,
+        )
         block_raw = await chat.evaluate(
             SET_EMPTY_SEARCH_BLOCK_JS,
             await_promise=False,

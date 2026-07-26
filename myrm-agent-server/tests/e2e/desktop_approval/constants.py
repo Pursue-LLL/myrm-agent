@@ -83,7 +83,10 @@ E2E_PROMPT = (
 )
 E2E_NUDGE_PROMPT = (
     "Call desktop_interact_tool to click one line in the TextEdit window "
-    "from your last snapshot, then reply DONE. Do NOT call desktop_vision_tool."
+    "from your latest @dref snapshot. "
+    "If you do not have @drefs, call desktop_snapshot_tool(scope='foreground') once, "
+    "then call desktop_interact_tool(ref=@dref, action='click'). "
+    "Do NOT call desktop_vision_tool. Reply DONE."
 )
 E2E_SNAPSHOT_NUDGE_PROMPT = (
     "IMPORTANT: You already have a snapshot with element references. "
@@ -93,9 +96,9 @@ E2E_SNAPSHOT_NUDGE_PROMPT = (
 )
 E2E_VISION_CORRECT_PROMPT = (
     "Stop. Do NOT call desktop_vision_tool again. "
-    "Call desktop_snapshot_tool to get the accessibility tree, "
-    "then call desktop_interact_tool with the ref to click one line in TextEdit. "
-    "Reply DONE."
+    "Call desktop_snapshot_tool(scope='foreground') to get @drefs for the front app, "
+    "then call desktop_interact_tool(ref=@dref, action='click') to click one line in TextEdit. "
+    "Do not end the turn before desktop_interact_tool runs. Reply DONE."
 )
 
 
@@ -103,8 +106,8 @@ def build_desktop_interact_nudge(*, dref: str | None = None) -> str:
     normalized = (dref or "").strip().lstrip("@")
     if normalized.startswith("d") and len(normalized) > 1:
         return (
-            f"Call desktop_interact_tool to click TextEdit element @{normalized} "
-            "from your snapshot, then reply DONE."
+            f"Call desktop_interact_tool(ref=@{normalized}, action='click') "
+            "to click that TextEdit element, then reply DONE."
         )
     return E2E_NUDGE_PROMPT
 

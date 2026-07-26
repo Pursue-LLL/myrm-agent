@@ -47,7 +47,11 @@ EXPAND_PROGRESS_PANEL_JS = f"""(() => {{
 }})()"""
 
 TERMINAL_PREVIEW_JS = """(() => {
-  const text = document.body?.innerText || '';
+  const panel = document.querySelector('[data-testid="progress-steps-panel"]');
+  if (!(panel instanceof HTMLElement)) {
+    return { ready: false, reason: 'progress-panel-missing' };
+  }
+  const text = panel.innerText || '';
   const hasTruncated = /LARGE OUTPUT TRUNCATED|输出已截断|出力を切り詰め/.test(text);
   return { ready: hasTruncated, preview: text.slice(0, 400) };
 })()"""
@@ -58,6 +62,15 @@ VIEW_FULL_OUTPUT_JS = f"""(() => {{
   btn.click();
   return {{ ready: true, clicked: true }};
 }})()"""
+
+CLEAR_RESOURCE_TIMINGS_JS = """(() => {
+  try {
+    performance.clearResourceTimings();
+  } catch {
+    // ignore
+  }
+  return { ready: true };
+})()"""
 
 
 def drawer_ready_js(marker_line: str) -> str:

@@ -40,6 +40,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     warm_ui_route,
 )
 from tests.support.evicted_drawer_selectors import (  # noqa: E402
+    CLEAR_RESOURCE_TIMINGS_JS as _CLEAR_RESOURCE_TIMINGS_JS,
     EXPAND_PROGRESS_PANEL_JS as _EXPAND_PROGRESS_PANEL_JS,
     TERMINAL_PREVIEW_JS as _TERMINAL_PREVIEW_JS,
     VIEW_FULL_OUTPUT_JS as _VIEW_FULL_OUTPUT_JS,
@@ -403,6 +404,8 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
 
     terminal = wait_for_state(client, page, _TERMINAL_PREVIEW_JS, timeout_sec=60.0)
     assert terminal.get("ready") is True, json.dumps(terminal, ensure_ascii=False)
+    clear_result = client.evaluate(page, _CLEAR_RESOURCE_TIMINGS_JS, timeout_sec=5.0)
+    assert isinstance(clear_result, dict) and clear_result.get("ready") is True, clear_result
 
     clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=120.0)
     if clicked.get("clicked") is not True:

@@ -1250,22 +1250,30 @@ async def ensure_e2e_search_cleared_in_browser(
     chat: object,
     *,
     api_url: str | None = None,
+    recv_timeout_sec: float = 45.0,
+    max_attempts: int = 2,
 ) -> None:
     """Clear searchServices: Python SSOT first, then browser mirror (PUT retry + verify fallback)."""
     resolved = (api_url or get_e2e_api_url()).rstrip("/")
+    recv_timeout = min(60.0, max(10.0, float(recv_timeout_sec)))
+    attempts = max(1, int(max_attempts))
     clear_search_services_ssot(api_url=resolved)
-    await chat.evaluate(CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, await_promise=False, recv_timeout=30.0)  # type: ignore[attr-defined]
+    await chat.evaluate(  # type: ignore[attr-defined]
+        CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS,
+        await_promise=False,
+        recv_timeout=min(20.0, recv_timeout),
+    )
     last_err: object = None
-    for attempt in range(3):
+    for attempt in range(attempts):
         try:
             raw = await chat.evaluate(  # type: ignore[attr-defined]
                 PUT_E2E_CLEAR_SEARCH_CONFIG_JS,
                 await_promise=True,
-                recv_timeout=120.0,
+                recv_timeout=recv_timeout,
             )
         except TimeoutError as exc:
             last_err = exc
-            if attempt + 1 >= 3:
+            if attempt + 1 >= attempts:
                 raise
             await asyncio.sleep(1.5 * (attempt + 1))
             continue
@@ -1273,7 +1281,7 @@ async def ensure_e2e_search_cleared_in_browser(
         if observed.get("ok") is True:
             return
         last_err = observed
-        if attempt + 1 < 3:
+        if attempt + 1 < attempts:
             await asyncio.sleep(1.0)
             continue
         break
@@ -1411,46 +1419,82 @@ def resume_clarify_skip_via_api(
     events: list[dict[str, object]] = []
     error_event: dict[str, object] | None = None
     deadline = time.monotonic() + timeout_sec
-    with _e2e_api_urlopen(req, timeout_sec=timeout_sec) as resp:
-        status = getattr(resp, "status", 200)
-        if status != 200:
-            body = resp.read().decode("utf-8", errors="replace")
-            return {
-                "ok": False,
-                "status": status,
-                "body": body[:500],
-                "events": events,
-                "event_types": [],
-                "final_text": "",
-                "error": None,
-            }
-        while time.monotonic() < deadline:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                break
-            _set_http_response_read_timeout(resp, min(30.0, remaining))
-            try:
-                line_bytes = resp.readline()
-            except TimeoutError:
-                continue
-            if not line_bytes:
-                break
-            line = line_bytes.decode("utf-8", errors="replace").strip()
-            if not line.startswith("data: "):
-                continue
-            raw = line[6:]
-            if raw == "[DONE]":
-                break
-            try:
-                data = json.loads(raw)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(data, dict):
-                continue
-            events.append(data)
-            if data.get("type") == "error":
-                error_event = data
-                break
+    idle_timeout_sec = min(45.0, max(15.0, timeout_sec / 3.0))
+    last_event_at = time.monotonic()
+    connect_timeout_sec = min(30.0, max(5.0, timeout_sec / 3.0))
+    try:
+        with _e2e_api_urlopen(req, timeout_sec=connect_timeout_sec) as resp:
+            status = getattr(resp, "status", 200)
+            if status != 200:
+                body = resp.read().decode("utf-8", errors="replace")
+                return {
+                    "ok": False,
+                    "status": status,
+                    "body": body[:500],
+                    "events": events,
+                    "event_types": [],
+                    "final_text": "",
+                    "error": None,
+                }
+            while time.monotonic() < deadline:
+                now = time.monotonic()
+                if now - last_event_at >= idle_timeout_sec:
+                    error_event = {
+                        "type": "error",
+                        "error_type": "ResumeStreamIdleTimeout",
+                        "error": (
+                            "clarify resume stream idle timeout "
+                            f"after {idle_timeout_sec:.0f}s without SSE data"
+                        ),
+                    }
+                    break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                _set_http_response_read_timeout(resp, min(30.0, remaining))
+                try:
+                    line_bytes = resp.readline()
+                except TimeoutError:
+                    continue
+                if not line_bytes:
+                    break
+                line = line_bytes.decode("utf-8", errors="replace").strip()
+                if not line.startswith("data: "):
+                    continue
+                raw = line[6:]
+                if raw == "[DONE]":
+                    break
+                try:
+                    data = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(data, dict):
+                    continue
+                events.append(data)
+                last_event_at = time.monotonic()
+                if data.get("type") == "error":
+                    error_event = data
+                    break
+    except urllib.error.HTTPError as exc:
+        try:
+            body = exc.read().decode("utf-8", errors="replace")
+        except Exception:
+            body = ""
+        error_event = {
+            "type": "error",
+            "error_type": (
+                "AgentBusyError" if exc.code in {409, 423} else "ResumeApiHttpError"
+            ),
+            "status": exc.code,
+            "error": f"HTTP Error {exc.code}: {exc.reason}",
+            "body": body[:500],
+        }
+    except (TimeoutError, urllib.error.URLError, OSError) as exc:
+        error_event = {
+            "type": "error",
+            "error_type": "ResumeApiConnectTimeout",
+            "error": str(exc),
+        }
 
     final_text = _sse_message_text(events)
     event_types = sorted(

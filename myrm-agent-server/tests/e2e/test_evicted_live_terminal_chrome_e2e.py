@@ -20,6 +20,7 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 from tests.support.evicted_drawer_selectors import (
+    CLEAR_RESOURCE_TIMINGS_JS as _CLEAR_RESOURCE_TIMINGS_JS,
     EXPAND_PROGRESS_PANEL_JS as _EXPAND_PROGRESS_PANEL_JS,
     TERMINAL_PREVIEW_JS as _TERMINAL_PREVIEW_JS,
     VIEW_FULL_OUTPUT_JS as _VIEW_FULL_OUTPUT_JS,
@@ -97,7 +98,10 @@ def _wait_fixture_assistant_via_api(
                         if (
                             isinstance(steps, list)
                             and steps
-                            and steps[0].get("evicted_file_ref")
+                            and any(
+                                isinstance(step, dict) and step.get("evicted_file_ref")
+                                for step in steps
+                            )
                         ):
                             return
         time.sleep(0.5)
@@ -127,6 +131,8 @@ def _run_drawer_flow(
     if not expect_expired:
         terminal = wait_for_state(client, page, _TERMINAL_PREVIEW_JS, timeout_sec=60.0)
         assert terminal.get("ready") is True, json.dumps(terminal, ensure_ascii=False)
+    clear_result = client.evaluate(page, _CLEAR_RESOURCE_TIMINGS_JS, timeout_sec=5.0)
+    assert isinstance(clear_result, dict) and clear_result.get("ready") is True, clear_result
 
     clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=60.0)
     assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)

@@ -886,6 +886,7 @@ async def ensure_interact_gate(
     last_tool = str(tool_activity.get("lastTool") or "")
     server_pending = await asyncio.to_thread(server_pending_approval_count)
     ui_pending = bool(tool_activity.get("pending"))
+    interact_seen = last_tool.endswith("desktop_interact_tool")
 
     _VISION_NUDGE_ROUNDS = 3
     for vision_round in range(1, _VISION_NUDGE_ROUNDS + 1):
@@ -916,6 +917,7 @@ async def ensure_interact_gate(
                 wall_started_at=wall_clock,
             )
         )
+        interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
         if _desktop_gate_satisfied(
             last_tool=last_tool,
             server_pending=server_pending,
@@ -950,6 +952,7 @@ async def ensure_interact_gate(
                 wall_started_at=wall_clock,
             )
         )
+        interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
         if _desktop_gate_satisfied(
             last_tool=last_tool,
             server_pending=server_pending,
@@ -965,6 +968,7 @@ async def ensure_interact_gate(
                 wall_started_at=wall_clock,
             )
         )
+        interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
         if _desktop_gate_satisfied(
             last_tool=last_tool,
             server_pending=server_pending,
@@ -990,6 +994,7 @@ async def ensure_interact_gate(
                 wall_started_at=wall_clock,
             )
         )
+        interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
 
     max_nudge_rounds = 4
     for round_idx in range(max_nudge_rounds):
@@ -1000,6 +1005,12 @@ async def ensure_interact_gate(
             ui_pending=ui_pending,
         ):
             break
+        if last_tool.endswith("desktop_interact_tool"):
+            interact_seen = True
+            progress(
+                "desktop_interact_tool observed — stop nudging and wait pending gate"
+            )
+            break
         if round_idx == 0 and not _is_snapshot_or_vision_loop(last_tool):
             tool_activity, last_tool, server_pending, ui_pending = (
                 await wait_for_interact_or_approval(
@@ -1009,6 +1020,7 @@ async def ensure_interact_gate(
                     wall_started_at=wall_clock,
                 )
             )
+            interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
             if _desktop_gate_satisfied(
                 last_tool=last_tool,
                 server_pending=server_pending,
@@ -1038,8 +1050,9 @@ async def ensure_interact_gate(
                 wall_started_at=wall_clock,
             )
         )
+        interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
 
-    if last_tool.endswith("desktop_interact_tool") and not _desktop_gate_satisfied(
+    if interact_seen and not _desktop_gate_satisfied(
         last_tool=last_tool,
         server_pending=server_pending,
         ui_pending=ui_pending,

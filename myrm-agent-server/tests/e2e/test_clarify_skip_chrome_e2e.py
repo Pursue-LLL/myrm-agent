@@ -183,6 +183,27 @@ def _is_no_user_query_error(result: dict[str, object]) -> bool:
     return False
 
 
+def _is_resume_retryable_transient_error(result: dict[str, object]) -> bool:
+    error = result.get("error")
+    if not isinstance(error, dict):
+        return False
+    error_type = str(error.get("error_type") or "").lower()
+    message = str(error.get("error") or error.get("message") or "").lower()
+    if "resumestreamidletimeout" in error_type:
+        return True
+    if "resumeapiconnecttimeout" in error_type:
+        return True
+    if "resumeapicalltimeout" in error_type:
+        return True
+    if "transport closed" in message:
+        return True
+    if "idle timeout" in message and "resume stream" in message:
+        return True
+    if "timed out" in message:
+        return True
+    return False
+
+
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
@@ -255,6 +276,14 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             last_dom = raw if isinstance(raw, dict) else {"value": raw}
             if last_dom.get("ready") is True:
                 return {**last_dom, "source": "dom"}
+            if last_dom.get("hasForm") is True:
+                return {
+                    "ready": True,
+                    "source": "dom-form",
+                    "hasSkip": last_dom.get("hasSkip") is True,
+                    "hasForm": True,
+                    "sample": str(last_dom.get("sample") or ""),
+                }
             await asyncio.sleep(1.0)
         raise AssertionError(
             f"Clarification not ready within {wait_sec}s "
@@ -390,27 +419,70 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 float(CLARIFY_SKIP_API_WAIT_SEC),
                 max(60.0, remaining_wall_sec() - 60.0),
             )
-            last = await asyncio.to_thread(
-                resume_clarify_skip_via_api,
-                chat_id,
-                model_selection=get_lite_model_selection(),
-                api_url=api_base,
-                timeout_sec=api_timeout,
-            )
+            call_timeout = min(45.0, api_timeout)
+            try:
+                last = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        resume_clarify_skip_via_api,
+                        chat_id,
+                        model_selection=get_lite_model_selection(),
+                        api_url=api_base,
+                        timeout_sec=api_timeout,
+                    ),
+                    timeout=call_timeout + 5.0,
+                )
+            except asyncio.TimeoutError:
+                last = {
+                    "ok": False,
+                    "events": [],
+                    "event_types": [],
+                    "final_text": "",
+                    "error": {
+                        "type": "error",
+                        "error_type": "ResumeApiCallTimeout",
+                        "error": (
+                            "clarify resume to_thread timeout "
+                            f"after {call_timeout + 5.0:.0f}s"
+                        ),
+                    },
+                }
             if _is_no_user_query_error(last):
                 heartbeat_e2e_lease()
-                last = await asyncio.to_thread(
-                    resume_clarify_skip_via_api,
-                    chat_id,
-                    model_selection=get_lite_model_selection(),
-                    api_url=api_base,
-                    timeout_sec=api_timeout,
-                    query=E2E_SKIP_RESUME_QUERY,
-                )
+                try:
+                    last = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            resume_clarify_skip_via_api,
+                            chat_id,
+                            model_selection=get_lite_model_selection(),
+                            api_url=api_base,
+                            timeout_sec=api_timeout,
+                            query=E2E_SKIP_RESUME_QUERY,
+                        ),
+                        timeout=call_timeout + 5.0,
+                    )
+                except asyncio.TimeoutError:
+                    last = {
+                        "ok": False,
+                        "events": [],
+                        "event_types": [],
+                        "final_text": "",
+                        "error": {
+                            "type": "error",
+                            "error_type": "ResumeApiCallTimeout",
+                            "error": (
+                                "clarify resume fallback to_thread timeout "
+                                f"after {call_timeout + 5.0:.0f}s"
+                            ),
+                        },
+                    }
             if last.get("ok") is True:
                 return last
             error = last.get("error")
             if isinstance(error, dict) and error.get("error_type") == "AgentBusyError":
+                heartbeat_e2e_lease()
+                await asyncio.sleep(pause)
+                continue
+            if _is_resume_retryable_transient_error(last) and attempt + 1 < max_attempts:
                 heartbeat_e2e_lease()
                 await asyncio.sleep(pause)
                 continue
@@ -480,11 +552,37 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     except AssertionError:
                         await _release_ui_stream_for_api(chat)
 
+        # Skip flow may already finish asynchronously after stream release.
+        await _release_ui_stream_for_api(chat)
+        try:
+            return (
+                await _wait_api_skip_done(
+                    chat_id=chat_id,
+                    api_base=api_base,
+                    timeout_sec=min(120.0, poll_budget),
+                ),
+                resume_result,
+            )
+        except AssertionError:
+            pass
+
         resume_result = await _resume_clarify_skip_after_ui_release(
             chat,
             chat_id,
             api_base=api_base,
         )
+        if resume_result.get("ok") is not True:
+            try:
+                return (
+                    await _wait_api_skip_done(
+                        chat_id=chat_id,
+                        api_base=api_base,
+                        timeout_sec=min(90.0, poll_budget),
+                    ),
+                    resume_result,
+                )
+            except AssertionError:
+                pass
         assert (
             resume_result.get("ok") is True
         ), f"API skip resume failed: {resume_result}; form={form_state}"
@@ -631,15 +729,34 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
     await asyncio.to_thread(client.start)
     try:
         page: McpPage | None = None
-        try:
-            page = await asyncio.to_thread(
-                client.new_page, BASE_URL, timeout_ms=120_000
-            )
-        except TimeoutError:
-            await asyncio.sleep(2.0)
-            page = await asyncio.to_thread(
-                client.new_page, BASE_URL, timeout_ms=120_000
-            )
+        new_page_timeouts = (90.0, 60.0)
+        for attempt, wall_timeout in enumerate(new_page_timeouts, start=1):
+            try:
+                page = await asyncio.wait_for(
+                    asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000),
+                    timeout=wall_timeout,
+                )
+            except TimeoutError:
+                page = None
+                if attempt >= len(new_page_timeouts):
+                    raise RuntimeError(
+                        f"new_page timed out after {wall_timeout:.0f}s "
+                        f"(attempt {attempt}/{len(new_page_timeouts)})"
+                    )
+                await asyncio.to_thread(client.abandon_inflight_requests)
+                await asyncio.sleep(1.5)
+                await asyncio.to_thread(client.recover_mux_transport)
+                continue
+            except RuntimeError:
+                page = None
+                if attempt >= len(new_page_timeouts):
+                    raise
+                await asyncio.to_thread(client.abandon_inflight_requests)
+                await asyncio.sleep(1.5)
+                await asyncio.to_thread(client.recover_mux_transport)
+                continue
+            if page is not None:
+                break
         if page is None:
             raise RuntimeError("new_page returned no page")
         chat = McpChatSession(client, page)

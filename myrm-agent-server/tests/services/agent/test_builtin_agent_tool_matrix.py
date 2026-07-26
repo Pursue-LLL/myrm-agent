@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.services.agent.builtin_initializer import (
     _BUILTIN_AGENTS,
     _TOOL_CODING,
+    _TOOL_DATA_VIZ,
     _TOOL_DEFAULT,
     _TOOL_DESIGN,
     _TOOL_RESEARCH,
@@ -41,3 +42,10 @@ def test_research_analyst_has_answer_tool() -> None:
 def test_general_assistant_has_default_tools() -> None:
     general = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-general")
     assert general.enabled_builtin_tools == _TOOL_DEFAULT
+
+
+def test_data_analyst_has_data_viz_tools() -> None:
+    analyst = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-data-analyst")
+    assert analyst.enabled_builtin_tools == _TOOL_DATA_VIZ
+    assert "external_cli" in analyst.enabled_builtin_tools
+    assert "image_generation" in analyst.enabled_builtin_tools
