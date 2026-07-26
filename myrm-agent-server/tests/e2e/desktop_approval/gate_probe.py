@@ -340,9 +340,12 @@ async def _ensure_nudge_chat_surface(
                 target,
                 timeout_ms=120_000,
             )
+    # Avoid full ensure_chat_surface here. In nudge loops it reapplies shared session
+    # SEARCH_POLICY and can spend most of the wall budget on repeated API clears.
+    await chat.ensure_e2e_api_base_binding()
     chat._reset_shell_layout_wait_clock()
-    await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)
-    await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
+    await chat.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
+    await chat.ensure_react_e2e_bridge(timeout_sec=45.0)
 
 
 async def _nudge_baseline_markers(chat_id: str) -> tuple[int, int]:

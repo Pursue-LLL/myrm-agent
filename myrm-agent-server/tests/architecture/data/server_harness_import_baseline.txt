@@ -84,6 +84,8 @@ myrm_agent_harness.agent.security.guards.estop
 myrm_agent_harness.agent.security.message_filtering
 myrm_agent_harness.agent.security.path_security
 myrm_agent_harness.agent.security.policy_generator
+myrm_agent_harness.agent.security.profile_audit
+myrm_agent_harness.agent.security.profile_audit.types
 myrm_agent_harness.agent.security.rate_limiter
 myrm_agent_harness.agent.security.redact
 myrm_agent_harness.agent.security.transcript_classifier

@@ -423,14 +423,40 @@ class CdpChatTurn(CdpChatSubmit):
             await_promise=False,
         )
         submit = await self.submit_native_click()
-        if not submit.get("ok") and str(submit.get("err") or "") in {
-            "no send button",
-            "send disabled",
-        }:
+        recoverable_submit_errors = {"no send button", "send disabled"}
+        submit_err = str(submit.get("err") or "")
+        submit_probe = submit.get("probe") if isinstance(submit.get("probe"), dict) else {}
+        send_ready_no_button = bool(
+            isinstance(submit_probe, dict)
+            and submit_probe.get("sendReady")
+            and not submit_probe.get("hasBtn")
+        )
+        # In shared-hot retries the DOM button can disappear while bridge send is ready.
+        # Prefer bridge submit first to avoid expensive chat-surface re-hydration loops.
+        if (
+            not submit.get("ok")
+            and submit_err in recoverable_submit_errors
+            and send_ready_no_button
+        ):
+            bridge_submit = await self._submit_via_dev_bridge(
+                text,
+                baseline_user_msgs=baseline_user_msgs,
+            )
+            if bridge_submit.get("ok"):
+                submit = {**bridge_submit, "mode": "bridgeSendChatMessage"}
+        if (
+            not submit.get("ok")
+            and str(submit.get("err") or "") in recoverable_submit_errors
+        ):
             ui_base = (
                 getattr(self, "_base_url", None) or "http://127.0.0.1:3000"
             ).rstrip("/")
-            await self.ensure_chat_surface(ui_base)
+            await self.ensure_chat_surface(ui_base, timeout_sec=30.0)
+            if chat_id:
+                try:
+                    await asyncio.wait_for(self._attach_chat_session(chat_id), timeout=30.0)
+                except TimeoutError:
+                    pass
             await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
             await self.evaluate(
                 f"""(() => {{
@@ -441,10 +467,10 @@ class CdpChatTurn(CdpChatSubmit):
                 await_promise=False,
             )
             submit = await self.submit_native_click()
-        if not submit.get("ok") and str(submit.get("err") or "") in {
-            "no send button",
-            "send disabled",
-        }:
+        if (
+            not submit.get("ok")
+            and str(submit.get("err") or "") in recoverable_submit_errors
+        ):
             bridge_submit = await self._submit_via_dev_bridge(
                 text,
                 baseline_user_msgs=baseline_user_msgs,
