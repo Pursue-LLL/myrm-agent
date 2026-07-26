@@ -219,10 +219,11 @@ class ServerGoalManager(GoalManager):
 
             if parsed is not None:
                 done = parsed.get("done", False)
+                wait = bool(parsed.get("wait", False))
                 reason = str(parsed.get("reason", ""))
-                if done:
+                if done and not wait:
                     return VerificationResult(passed=True, reason=reason)
-                return VerificationResult(passed=False, reason=reason)
+                return VerificationResult(passed=False, reason=reason, wait=wait)
 
             # Judge output was not parseable as JSON — signal parse_failed
             # so the harness can track consecutive failures and auto-pause.

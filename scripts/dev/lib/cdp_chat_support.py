@@ -1257,7 +1257,11 @@ async def ensure_e2e_search_cleared_in_browser(
     resolved = (api_url or get_e2e_api_url()).rstrip("/")
     recv_timeout = min(60.0, max(10.0, float(recv_timeout_sec)))
     attempts = max(1, int(max_attempts))
-    clear_search_services_ssot(api_url=resolved)
+    python_ssot_timeout = min(20.0, recv_timeout)
+    await asyncio.wait_for(
+        asyncio.to_thread(clear_search_services_ssot, api_url=resolved),
+        timeout=python_ssot_timeout,
+    )
     await chat.evaluate(  # type: ignore[attr-defined]
         CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS,
         await_promise=False,
@@ -1286,7 +1290,10 @@ async def ensure_e2e_search_cleared_in_browser(
             continue
         break
     # Last resort: Python SSOT still empty → accept FE mirror failure only if verify holds.
-    value = fetch_config_value("searchServices", api_url=resolved)
+    value = await asyncio.wait_for(
+        asyncio.to_thread(fetch_config_value, "searchServices", api_url=resolved),
+        timeout=python_ssot_timeout,
+    )
     configs = value.get("searchServiceConfigs")
     if configs == []:
         return

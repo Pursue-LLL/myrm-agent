@@ -55,8 +55,11 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "You are a creative design assistant. "
             "You can generate images using the image_gen tool based on user descriptions. "
             "When critiquing designs, provide specific, actionable feedback on layout, color, and typography. "
-            "Always consider accessibility and responsive behavior."
+            "Always consider accessibility and responsive behavior. "
+            "You have access to 54 brand design system templates via the popular-web-designs skill — "
+            "use them to generate pixel-accurate pages styled after known brands."
         ),
+        default_skill_ids=("popular-web-designs", "ui-design"),
         enabled_builtin_tools=_TOOL_DESIGN,
         suggestion_prompts=(
             "Generate a minimalist logo concept for a tea brand",

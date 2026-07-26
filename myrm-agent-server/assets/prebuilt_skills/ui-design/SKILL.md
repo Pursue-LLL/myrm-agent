@@ -18,10 +18,10 @@ tags:
 allowed-tools: bash_code_execute_tool file_write_tool file_read_tool grep_tool
 contract:
   steps:
-    - "Phase 1: Design Intent — understand purpose, audience, and commit to a bold aesthetic direction"
+    - "Phase 1: Design Intent — understand purpose, audience, declare surface archetype, and commit to a bold aesthetic direction"
     - "Phase 2: Visual System — establish typography, color palette, spatial rhythm, and motion language"
     - "Phase 3: Implement — build production-grade code with meticulous aesthetic execution"
-    - "Phase 4: Refine — audit visual cohesion, motion polish, responsive elegance, and uniqueness"
+    - "Phase 4: Refine — audit visual cohesion, motion polish, responsive elegance, and 10-Tell Slop Diagnostic (≥8/10)"
   potential_traps:
     - description: "Falling into generic AI aesthetics — Inter font, purple gradients, predictable card layouts"
       mitigation: "Every design must have a clear conceptual direction; verify font choices are distinctive and contextually appropriate"
@@ -37,8 +37,8 @@ contract:
       severity: medium
   verification_steps:
     - step_id: aesthetic_direction_set
-      description: "A clear, intentional aesthetic direction is chosen and articulated before coding"
-      validation_method: "Design intent statement exists with tone, differentiation, and font/color choices"
+      description: "A clear surface archetype and intentional aesthetic direction are chosen before coding"
+      validation_method: "Design intent statement exists with surface archetype, tone, differentiation, and font/color choices"
       is_required: true
     - step_id: typography_distinctive
       description: "Typography uses distinctive, contextually appropriate fonts — not generic defaults"
@@ -62,6 +62,11 @@ contract:
 
 When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
 
+## Related Skills
+
+- **`popular-web-designs`** — 54 real-world brand design systems (Stripe, Linear, Vercel, etc.) with exact CSS tokens. Pair with this skill: use `ui-design` for the design *process and taste*, then pull specific color palettes, font stacks, and component specs from `popular-web-designs` when styling after a known brand.
+- **`infographic`** — 21 layouts × 21 styles for generating infographics and visual summaries. Use when the deliverable is a data-driven visual rather than a full UI page.
+
 ## Overview
 
 Great UI is not just functional — it's memorable. This skill transforms frontend code from generic templates into distinctive, polished interfaces with genuine design character. The goal is production-grade code that looks and feels like it was crafted by a senior designer, not assembled by an algorithm.
@@ -84,12 +89,32 @@ Before writing any code, establish a clear creative direction:
 ### Design Intent Statement Template
 
 ```
+Surface archetype: [Editorial / Dashboard / Catalog / Canvas / Wizard / Conversational / Landing / Custom: ...]
 Aesthetic: [chosen direction]
 Signature element: [the unforgettable detail]
 Font pairing: [display font] + [body font]
 Color strategy: [dominant/accent approach]
 Motion philosophy: [restrained elegance / orchestrated drama / etc.]
 ```
+
+### Surface-First: Composition Archetype
+
+Before designing any element, **declare** the composition archetype. This is the single highest-leverage decision — it prevents the LLM default of "hero + 3 cards + CTA footer" regardless of content.
+
+| Archetype | When to Use | Key Constraint |
+|-----------|-------------|----------------|
+| **Editorial** | Long-form content, storytelling, blogs | Generous whitespace, drop caps, pull quotes; **no card grids** |
+| **Dashboard** | Monitoring, analytics, data-dense views | Density-first; **no hero sections**, minimal decorative space |
+| **Catalog** | Products, portfolios, collections | Grid/masonry dominates; **filtering is the UX**, not marketing copy |
+| **Canvas** | Tools, editors, creative apps | Toolbars at edges, content fills center; **no page chrome** |
+| **Wizard** | Onboarding, multi-step forms, setup flows | Single focus per step; progress indicator; **no distractions** |
+| **Conversational** | Chat, messaging, support interfaces | Message-bubble rhythm; input at bottom; **no sidebars** |
+| **Landing** | Marketing, product launches, announcements | Hero is acceptable here (and only here); scroll-driven narrative |
+
+**Rules:**
+1. State the archetype at the top of the Design Intent Statement before any visual choices
+2. The archetype dictates layout structure — visual techniques (Phase 3) work *within* this frame
+3. If the content matches no archetype, declare "Custom" and describe the structural constraint
 
 ## Phase 2: Visual System
 
@@ -197,14 +222,27 @@ These details separate "generated" from "designed":
 - [ ] **Visual weight balance** — Dark and light areas are distributed intentionally across the viewport
 - [ ] **Responsive elegance** — The design adapts beautifully, not just functionally, at 375px / 768px / 1280px
 
-### Uniqueness Verification
+### 10-Tell Slop Diagnostic
 
-Ask these questions about the final output:
+Score the output against these 10 common AI-design flaws. Each item scores 0 (present) or 1 (absent). **Minimum passing score: 8/10.** Any score below → fix before delivery.
 
-1. Could someone identify this as coming from a specific aesthetic direction? → If no, the design lacks commitment
-2. Would this look identical to other AI-generated pages? → If yes, revisit typography and composition
-3. Is there at least one visual element that surprises? → If no, add a signature detail
-4. Does the motion feel orchestrated or random? → If random, simplify and focus on 2-3 key moments
+| # | Tell | What to Look For |
+|---|------|-----------------|
+| 1 | **Generic hero** | Full-width hero with centered H1 + subtitle + CTA button when the archetype doesn't call for it |
+| 2 | **Card trinity** | Exactly 3 feature cards in a row with icon + title + paragraph |
+| 3 | **Purple/blue gradient** | Default AI color palette — purple-to-blue gradients without conceptual justification |
+| 4 | **Inter/system font** | Using Inter, Roboto, Arial, or system-ui as the primary display font |
+| 5 | **Symmetry everywhere** | Every section perfectly centered; no asymmetry, overlap, or tension |
+| 6 | **Decoration without meaning** | Floating blobs, random dots, gradient orbs that serve no informational purpose |
+| 7 | **Uniform spacing** | Every section has identical padding; no rhythm variation or density contrast |
+| 8 | **Stock motion** | `transition-all duration-300` on everything; no orchestrated timing or meaningful easing |
+| 9 | **No signature element** | Nothing memorable; remove the logo and it could be any product |
+| 10 | **Responsive afterthought** | Mobile is just "stack everything vertically" with no design adaptation |
+
+**Scoring & repair:**
+- **8-10**: Ship it
+- **5-7**: Fix the failing tells — each has a direct remedy in Phase 2/3
+- **Below 5**: Restart from Phase 1 — the design intent was too weak
 
 ## Sandpack Runtime Environment
 

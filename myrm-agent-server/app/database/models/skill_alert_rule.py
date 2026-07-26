@@ -9,12 +9,16 @@ Enables flexible per-skill alert thresholds and multi-channel notification.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
+
+
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
 
 
 class SkillAlertRule(Base):
@@ -23,24 +27,16 @@ class SkillAlertRule(Base):
     Enables flexible alert configuration per skill:
     - Configurable quality thresholds (different skills, different importance)
     - Multi-channel support (Slack/Discord/Email/HTTP)
+    - HMAC-SHA256 signature on HTTP webhook payloads
     - Enable/disable toggle
 
     Example:
         ```python
-        # Core skill with high threshold
         rule = SkillAlertRule(
             skill_id="pdf-generator",
             quality_threshold=0.8,
             channels=["slack", "email"],
             slack_webhook_url="https://hooks.slack.com/...",
-            enabled=True,
-        )
-
-        # Regular skill with default threshold
-        rule = SkillAlertRule(
-            skill_id="web-search",
-            quality_threshold=0.5,
-            channels=["slack"],
             enabled=True,
         )
         ```
@@ -57,6 +53,7 @@ class SkillAlertRule(Base):
     discord_webhook_url: Mapped[str | None] = mapped_column(String, nullable=True)
     email_recipients: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     http_webhook_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    webhook_secret: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)

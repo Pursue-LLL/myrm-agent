@@ -88,7 +88,7 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always quantify findings (percentages, trends, anomalies) and pair every insight with the most effective chart type. "
             "Flag data quality issues or insufficient sample sizes proactively."
         ),
-        default_skill_ids=("data-analysis", "ui-design", "architecture-diagram"),
+        default_skill_ids=("data-analysis", "ui-design", "architecture-diagram", "infographic"),
         enabled_builtin_tools=_TOOL_DATA_VIZ,
         suggestion_prompts=(
             "Analyze my monthly expenses and create an interactive chart",

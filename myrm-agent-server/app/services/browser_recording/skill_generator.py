@@ -112,9 +112,12 @@ def generate_skill_from_session(
     skill_id = f"recorded-{skill_name}-{uuid.uuid4().hex[:8]}"
 
     logger.info(
-        f"Generated skill '{skill_name}' (id={skill_id}) from session "
-        f"{session.session_id}: {len(session.steps)} steps, "
-        f"{len(credential_seqs)} credential fields"
+        "Generated skill '%s' (id=%s) from session %s: %d steps, %d credential fields",
+        skill_name,
+        skill_id,
+        session.session_id,
+        len(session.steps),
+        len(credential_seqs),
     )
 
     return skill_id, content, credential_labels

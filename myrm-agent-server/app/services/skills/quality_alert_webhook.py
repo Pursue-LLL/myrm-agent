@@ -17,15 +17,23 @@ Features:
 2. Multi-channel notifications (Slack/Discord/Email/HTTP)
 3. Rate limiting (max 1 alert per skill per hour)
 4. Graceful degradation (failed channels logged, don't block)
+5. SSRF protection on all outbound HTTP (via secure_request)
+6. HMAC-SHA256 signature on HTTP webhook payloads
 """
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import httpx
+
+from myrm_agent_harness.core.security.http.secure_fetch import secure_request
+from myrm_agent_harness.infra.tls_compat import create_httpx_client
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.skills.optimization.types import SkillQualityScore
@@ -101,24 +109,36 @@ class SkillQualityAlertWebhook:
         rule = await self._get_alert_rule(skill_id)
 
         if not rule or not rule.enabled:
-            logger.debug(f"Alert disabled for skill {skill_id}")
+            logger.debug("Alert disabled for skill %s", skill_id)
             return False
 
         if latest_score.overall_score >= rule.quality_threshold:
-            logger.debug(f"Quality {latest_score.overall_score:.2f} >= threshold {rule.quality_threshold:.2f}, no alert")
+            logger.debug(
+                "Quality %.2f >= threshold %.2f, no alert",
+                latest_score.overall_score,
+                rule.quality_threshold,
+            )
             return False
 
         last_alert = self._last_alerts.get(skill_id)
         if last_alert:
-            elapsed = (datetime.now() - last_alert).total_seconds()
+            elapsed = (datetime.now(UTC) - last_alert).total_seconds()
             if elapsed < self.rate_limit_seconds:
-                logger.info(f"Alert rate-limited for {skill_id}: {elapsed:.0f}s < {self.rate_limit_seconds}s")
+                logger.info(
+                    "Alert rate-limited for %s: %.0fs < %ds",
+                    skill_id,
+                    elapsed,
+                    self.rate_limit_seconds,
+                )
                 return False
 
         await self._send_alert(skill_id, latest_score, rule)
-        self._last_alerts[skill_id] = datetime.now()
+        self._last_alerts[skill_id] = datetime.now(UTC)
         logger.info(
-            f"Alert sent for skill {skill_id}: quality {latest_score.overall_score:.2f} < threshold {rule.quality_threshold:.2f}"
+            "Alert sent for skill %s: quality %.2f < threshold %.2f",
+            skill_id,
+            latest_score.overall_score,
+            rule.quality_threshold,
         )
 
         return True
@@ -139,7 +159,7 @@ class SkillQualityAlertWebhook:
                 loaded: SkillAlertRule | None = await session.get(SkillAlertRule, skill_id)
                 return loaded
         except Exception as e:
-            logger.error(f"Failed to fetch alert rule for {skill_id}: {e}")
+            logger.error("Failed to fetch alert rule for %s: %s", skill_id, e)
             return None
 
     async def _send_alert(
@@ -160,21 +180,21 @@ class SkillQualityAlertWebhook:
         for channel in rule.channels:
             try:
                 if channel == "slack" and rule.slack_webhook_url:
-                    await self._send_slack(message, rule.slack_webhook_url)
-                    logger.info(f"Slack alert sent for {skill_id}")
+                    await self._send_webhook(rule.slack_webhook_url, {"text": message})
+                    logger.info("Slack alert sent for %s", skill_id)
                 elif channel == "discord" and rule.discord_webhook_url:
-                    await self._send_discord(message, rule.discord_webhook_url)
-                    logger.info(f"Discord alert sent for {skill_id}")
+                    await self._send_webhook(rule.discord_webhook_url, {"content": message})
+                    logger.info("Discord alert sent for %s", skill_id)
                 elif channel == "email" and rule.email_recipients:
                     await self._send_email(message, rule.email_recipients)
-                    logger.info(f"Email alert sent for {skill_id}")
+                    logger.info("Email alert sent for %s", skill_id)
                 elif channel == "http" and rule.http_webhook_url:
-                    await self._send_http(message, rule.http_webhook_url, skill_id, score)
-                    logger.info(f"HTTP alert sent for {skill_id}")
+                    await self._send_http(message, rule.http_webhook_url, skill_id, score, rule)
+                    logger.info("HTTP alert sent for %s", skill_id)
                 else:
-                    logger.warning(f"Channel {channel} not configured for {skill_id}")
+                    logger.warning("Channel %s not configured for %s", channel, skill_id)
             except Exception as e:
-                logger.error(f"Failed to send alert to {channel} for {skill_id}: {e}")
+                logger.error("Failed to send alert to %s for %s: %s", channel, skill_id, e)
 
     @staticmethod
     def _format_alert_message(
@@ -205,47 +225,33 @@ class SkillQualityAlertWebhook:
             f"🔍 Please investigate and optimize this skill.\n"
         )
 
-    async def _send_slack(self, message: str, webhook_url: str) -> None:
-        """Send alert to Slack
+    async def _send_webhook(self, webhook_url: str, payload: dict[str, str]) -> None:
+        """Send payload to a webhook URL with SSRF protection.
 
         Args:
-            message: Alert message
-            webhook_url: Slack webhook URL
+            webhook_url: Target webhook URL (Slack, Discord, etc.)
+            payload: JSON payload to send
         """
-        async with httpx.AsyncClient(timeout=10) as client:
-            await client.post(
+        async with create_httpx_client(
+            timeout=httpx.Timeout(10, connect=5),
+            follow_redirects=False,
+        ) as client:
+            resp = await secure_request(
+                client,
+                "POST",
                 webhook_url,
-                json={"text": message},
+                json=payload,
                 headers={"Content-Type": "application/json"},
+                timeout=httpx.Timeout(10, connect=5),
             )
-
-    async def _send_discord(self, message: str, webhook_url: str) -> None:
-        """Send alert to Discord
-
-        Args:
-            message: Alert message
-            webhook_url: Discord webhook URL
-        """
-        async with httpx.AsyncClient(timeout=10) as client:
-            await client.post(
-                webhook_url,
-                json={"content": message},
-                headers={"Content-Type": "application/json"},
-            )
+            if resp.status_code >= 400:
+                raise RuntimeError(
+                    "Webhook returned %d: %s" % (resp.status_code, resp.text[:200])
+                )
 
     async def _send_email(self, message: str, recipients: list[str]) -> None:
-        """Send alert via email
-
-        Args:
-            message: Alert message
-            recipients: List of email addresses
-
-        Note:
-            Email sending requires SMTP configuration.
-            This is a placeholder that logs the message.
-            Integrate with SendGrid/SMTP in production.
-        """
-        logger.info(f"Email alert (placeholder): recipients={recipients}, message={message}")
+        """Send alert via email (placeholder — integrate with SendGrid/SMTP in production)."""
+        logger.info("Email alert (placeholder): recipients=%s", recipients)
 
     async def _send_http(
         self,
@@ -253,30 +259,50 @@ class SkillQualityAlertWebhook:
         webhook_url: str,
         skill_id: str,
         score: SkillQualityScore,
+        rule: SkillAlertRule,
     ) -> None:
-        """Send alert to custom HTTP endpoint
+        """Send alert to custom HTTP endpoint with SSRF protection and HMAC signature.
 
         Args:
             message: Alert message
             webhook_url: HTTP webhook URL
             skill_id: Skill identifier
             score: Quality score
+            rule: Alert rule (provides HMAC secret via ``rule.webhook_secret``)
         """
-        async with httpx.AsyncClient(timeout=10) as client:
-            await client.post(
+        payload = {
+            "event": "skill.quality_alert",
+            "skill_id": skill_id,
+            "message": message,
+            "quality_score": {
+                "overall_score": score.overall_score,
+                "success_rate": score.success_rate,
+                "token_efficiency": score.token_efficiency,
+                "execution_time": score.execution_time,
+                "user_satisfaction": score.user_satisfaction,
+            },
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+        body = json.dumps(payload, ensure_ascii=False)
+
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        secret = getattr(rule, "webhook_secret", None) or skill_id
+        signature = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+        headers["X-Webhook-Signature"] = "sha256=%s" % signature
+
+        async with create_httpx_client(
+            timeout=httpx.Timeout(10, connect=5),
+            follow_redirects=False,
+        ) as client:
+            resp = await secure_request(
+                client,
+                "POST",
                 webhook_url,
-                json={
-                    "type": "skill_quality_alert",
-                    "skill_id": skill_id,
-                    "message": message,
-                    "quality_score": {
-                        "overall_score": score.overall_score,
-                        "success_rate": score.success_rate,
-                        "token_efficiency": score.token_efficiency,
-                        "execution_time": score.execution_time,
-                        "user_satisfaction": score.user_satisfaction,
-                    },
-                    "timestamp": datetime.now().isoformat(),
-                },
-                headers={"Content-Type": "application/json"},
+                content=body,
+                headers=headers,
+                timeout=httpx.Timeout(10, connect=5),
             )
+            if resp.status_code >= 400:
+                raise RuntimeError(
+                    "Webhook returned %d: %s" % (resp.status_code, resp.text[:200])
+                )

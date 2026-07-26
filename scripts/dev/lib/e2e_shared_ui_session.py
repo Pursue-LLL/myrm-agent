@@ -192,15 +192,30 @@ async def apply_shared_ui_session_contract(
             search_budget = min(search_budget, max(0.0, deadline - time.monotonic()))
         if search_budget <= 0:
             raise _session_error("E2E_SHARED_UI_SESSION", "budget exhausted before SEARCH_POLICY")
-        await asyncio.wait_for(
-            ensure_e2e_search_cleared_in_browser(
-                chat,
-                api_url=resolved_api,
-                recv_timeout_sec=min(30.0, search_budget),
-                max_attempts=2,
-            ),
-            timeout=search_budget,
-        )
+        search_result: dict[str, object] = {
+            "ok": True,
+            "policy": "empty",
+            "phase": "SEARCH_POLICY",
+        }
+        try:
+            await asyncio.wait_for(
+                ensure_e2e_search_cleared_in_browser(
+                    chat,
+                    api_url=resolved_api,
+                    recv_timeout_sec=min(30.0, search_budget),
+                    max_attempts=2,
+                ),
+                timeout=search_budget,
+            )
+        except (TimeoutError, RuntimeError) as exc:
+            # Empty-policy fallback: always block browser-side sync even if API clear timed out.
+            print(
+                f"E2E_SHARED_UI_SESSION_WARN: empty search clear fallback block-only err={exc}",
+                file=sys.stderr,
+                flush=True,
+            )
+            search_result["fallback"] = "block_only"
+            search_result["clear_error"] = str(exc)
         block_raw = await chat.evaluate(
             SET_EMPTY_SEARCH_BLOCK_JS,
             await_promise=False,
@@ -208,11 +223,6 @@ async def apply_shared_ui_session_contract(
         )
         if not isinstance(block_raw, dict) or block_raw.get("ok") is not True:
             raise _session_error("E2E_SHARED_UI_SESSION_SEARCH", block_raw)
-        search_result: dict[str, object] = {
-            "ok": True,
-            "policy": "empty",
-            "phase": "SEARCH_POLICY",
-        }
     else:
         search_raw = await chat.evaluate(
             HYDRATE_PRIVATE_SEARCH_JS,

@@ -59,7 +59,7 @@ class SubagentModelResolver(ModelResolver):
         # 1. If the user explicitly configured a specific model for this subagent type in YAML,
         # we respect it (unless it's a generic placeholder like "default").
         if model_name and model_name.lower() != "default":
-            logger.info(f"[SubagentModelResolver] Using explicitly configured model: {model_name}")
+            logger.info("[SubagentModelResolver] Using explicitly configured model: %s", model_name)
             cfg = resolve_model_config(self.providers_dict, model_override=model_name)
             return self._build_chat_model(cfg)
 
@@ -70,10 +70,11 @@ class SubagentModelResolver(ModelResolver):
         if complexity_tier:
             try:
                 target_tier = RoutingTier(complexity_tier.lower())
-                logger.info(f"[SubagentModelResolver] Using explicit complexity_tier: {target_tier.value}")
+                logger.info("[SubagentModelResolver] Using explicit complexity_tier: %s", target_tier.value)
             except ValueError:
                 logger.warning(
-                    f"[SubagentModelResolver] Invalid complexity_tier '{complexity_tier}', falling back to auto-routing."
+                    "[SubagentModelResolver] Invalid complexity_tier '%s', falling back to auto-routing.",
+                    complexity_tier,
                 )
 
         if not target_tier:
@@ -86,7 +87,9 @@ class SubagentModelResolver(ModelResolver):
             )
             target_tier = routing_result.tier
             logger.info(
-                f"[SubagentModelResolver] Auto-routed task to tier: {target_tier.value} (reason: {routing_result.reason})"
+                "[SubagentModelResolver] Auto-routed task to tier: %s (reason: %s)",
+                target_tier.value,
+                routing_result.reason,
             )
 
         # 3. Select the best config for the tier
@@ -96,12 +99,16 @@ class SubagentModelResolver(ModelResolver):
         elif target_tier == RoutingTier.REASONING and self.reasoning_model_cfg:
             selected_cfg = self.reasoning_model_cfg
 
-        logger.info(f"[SubagentModelResolver] Final selected model for subagent: {selected_cfg.model}")
+        logger.info("[SubagentModelResolver] Final selected model for subagent: %s", selected_cfg.model)
         return self._build_chat_model(selected_cfg)
 
     def _build_chat_model(self, cfg: "ModelConfig") -> "BaseChatModel":
         """Build a LangChain BaseChatModel from a ModelConfig using LiteLLM."""
         from myrm_agent_harness.toolkits.llms import create_litellm_model
+
+        extra: dict[str, object] = {}
+        if cfg.model_kwargs:
+            extra["model_kwargs"] = cfg.model_kwargs
 
         return create_litellm_model(
             model=cfg.model,
@@ -109,4 +116,5 @@ class SubagentModelResolver(ModelResolver):
             api_key=cfg.api_key,
             max_tokens=cfg.max_output_tokens or 4096,
             temperature=cfg.temperature or 0.0,
+            **extra,
         )
