@@ -115,7 +115,10 @@
     "goalActionSuccess_cancel": "目標已取消",
     "goalActionSuccess_approve": "目標已批准",
     "goalActionSuccess_reject": "目標已拒絕",
-    "goalActionSuccess_unwait": "目標已恢復"
+    "goalActionSuccess_unwait": "目標已恢復",
+    "stepProgress": "步驟進度",
+    "cancel": "取消",
+    "save": "儲存"
   },
   "commands": {
     "palette": {
@@ -5993,6 +5996,13 @@
       "historyAvg": "歷史均值",
       "viewTrace": "檢視深度時序分析",
       "noSessionStats": "暫無效能資料"
+    },
+    "liveness": {
+      "idle": "就緒",
+      "busy": "任務執行中…",
+      "degraded": "服務異常",
+      "draining": "正在關閉…",
+      "offline": "後端離線"
     },
     "contextUsage": {
       "title": "上下文使用量",
@@ -12319,6 +12329,7 @@
     "trayTooltipBusy": "Myrm Agent - 任務執行中…",
     "trayTooltipDraining": "Myrm Agent - 正在關閉…",
     "trayTooltipDegraded": "Myrm Agent - 服務異常",
+    "trayTooltipOffline": "Myrm Agent - 後端離線",
     "trayTooltipBackground": "{count} 個後臺任務執行中",
     "trayTooltipUsage": "今日: {usage}",
     "budgetAlertTitle": "預算提醒",

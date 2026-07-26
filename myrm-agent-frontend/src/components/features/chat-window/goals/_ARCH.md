@@ -1,11 +1,16 @@
 # chat-window/goals/
 
-对话内 Goal DAG 控制面 UI；状态在 `store/chat/goals/`。
+Goal DAG control-plane UI inside chat window; state in `store/chat/goals/`.
 
-| 文件 | 职责 |
-|------|------|
-| `GoalStatusCard.tsx` | 活跃 goal 状态卡（`GoalState` 类型 SSOT）；`needs_human_review` 橙色续跑区块 |
-| `GoalControlPlane.tsx` | 控制面布局 |
-| `GoalQueueSection.tsx` / `GoalPlanStepsList.tsx` | 队列与计划步骤 |
-| `useGoalPlanSync.ts` | Plan 与 store 同步 |
-| `goal-icons.tsx` | Goal 状态图标 |
+| File | Responsibility |
+|------|----------------|
+| `goalStatusTypes.ts` | `GoalState` / `GoalStatus` / acceptance types (SSOT, re-exported by `GoalStatusCard`) |
+| `goalStatusUtils.ts` | Pure helper functions: ETA computation, burn-rate/ETA formatting, reason translation, progress color |
+| `GoalStatusCard.tsx` | Active goal status card header + action buttons + pause dialog; delegates expanded view |
+| `GoalStatusExpanded.tsx` | Expanded details: objective editor, step progress, token/burn-rate/ETA, constraints, acceptance criteria, subgoals, budget/human-review actions |
+| `AcceptanceCriteriaPanel.tsx` | Acceptance criteria display with pass/fail badges and history |
+| `GoalControlPlane.tsx` | Control-plane sidebar layout |
+| `GoalQueueSection.tsx` | Queued goals list |
+| `GoalPlanStepsList.tsx` | Plan steps list (used in control-plane and mobile status) |
+| `useGoalPlanSync.ts` | Plan ↔ store synchronization |
+| `goal-icons.tsx` | Goal status SVG icons |

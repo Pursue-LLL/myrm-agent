@@ -382,9 +382,20 @@ def resolve_pending_desktop_approval_for_test(*, scope: str = "once") -> bool:
     pending_ids = fetch_pending_approval_request_ids()
     if not pending_ids:
         return False
-    request_id = pending_ids[0]
+    return resolve_desktop_approval_request_for_test(pending_ids[0], scope=scope)
+
+
+def resolve_desktop_approval_request_for_test(
+    request_id: str,
+    *,
+    scope: str = "once",
+) -> bool:
+    """Resolve a specific desktop approval request id via server API fallback."""
+    normalized_request_id = request_id.strip()
+    if not normalized_request_id:
+        return False
     payload = {
-        "request_id": request_id,
+        "request_id": normalized_request_id,
         "granted": True,
         "scope": scope,
     }
@@ -403,14 +414,20 @@ def resolve_pending_desktop_approval_for_test(*, scope: str = "once") -> bool:
         ) as response:
             body = json.loads(response.read().decode("utf-8"))
     except OSError as exc:
-        progress(f"desktop approval resolve fallback failed: {exc}")
+        progress(
+            "desktop approval resolve fallback failed "
+            f"request_id={normalized_request_id}: {exc}"
+        )
         return False
     if not isinstance(body, dict) or body.get("ok") is not True:
-        progress(f"desktop approval resolve fallback unexpected response: {body!r}")
+        progress(
+            "desktop approval resolve fallback unexpected response "
+            f"request_id={normalized_request_id}: {body!r}"
+        )
         return False
     progress(
         "desktop approval resolve fallback ok "
-        f"request_id={request_id} scope={scope}"
+        f"request_id={normalized_request_id} scope={scope}"
     )
     return True
 

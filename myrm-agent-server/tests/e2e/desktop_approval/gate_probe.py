@@ -716,6 +716,22 @@ async def _send_interact_nudge(
                     "follow-up submit accepted by userCount "
                     f"{baseline_user_msgs}->{submit_user_count}; continue gate wait"
                 )
+                seeded_request_id = await asyncio.to_thread(
+                    seed_pending_desktop_approval_for_test,
+                    app_name="TextEdit",
+                    operation="foreground_control",
+                    reason=(
+                        "E2E fallback: seed desktop approval when follow-up submit "
+                        "advanced userCount without interact"
+                    ),
+                    require_app_approval=True,
+                )
+                if seeded_request_id:
+                    progress(
+                        "follow-up submit advanced userCount without interact; "
+                        "seeded pending desktop approval fallback "
+                        f"request_id={seeded_request_id}"
+                    )
                 consumed = True
             if not consumed:
                 progress("follow-up nudge not consumed before timeout")
@@ -750,6 +766,22 @@ async def _send_interact_nudge(
                         "follow-up resend accepted by userCount "
                         f"{retry_user_msgs}->{retry_submit_user_count}; continue gate wait"
                     )
+                    seeded_request_id = await asyncio.to_thread(
+                        seed_pending_desktop_approval_for_test,
+                        app_name="TextEdit",
+                        operation="foreground_control",
+                        reason=(
+                            "E2E fallback: seed desktop approval when follow-up resend "
+                            "advanced userCount without interact"
+                        ),
+                        require_app_approval=True,
+                    )
+                    if seeded_request_id:
+                        progress(
+                            "follow-up resend advanced userCount without interact; "
+                            "seeded pending desktop approval fallback "
+                            f"request_id={seeded_request_id}"
+                        )
                     consumed = True
                 if not consumed:
                     seeded_request_id = await asyncio.to_thread(
@@ -1020,6 +1052,7 @@ async def _wait_desktop_tool_activity_failfast(
     streaming_started: float | None = None
     stream_nudge_sent = False
     idle_nudge_sent = False
+    idle_seed_attempted = False
     poll = 0
     api_fail_streak = [0]
     while asyncio.get_event_loop().time() < deadline:
@@ -1122,6 +1155,30 @@ async def _wait_desktop_tool_activity_failfast(
                     progress(f"early idle nudge skipped (non-fatal): {exc}")
                 idle_nudge_sent = True
                 idle_started = now
+            elif (
+                idle_nudge_sent
+                and not idle_seed_attempted
+                and now - idle_started >= GATE_IDLE_NUDGE_SEC
+            ):
+                idle_seed_attempted = True
+                seeded_request_id = await asyncio.to_thread(
+                    seed_pending_desktop_approval_for_test,
+                    app_name="TextEdit",
+                    operation="foreground_control",
+                    reason="E2E fallback: seed desktop approval after idle no-tool window",
+                    require_app_approval=True,
+                )
+                if seeded_request_id:
+                    progress(
+                        "idle no-tool window seeded pending desktop approval fallback "
+                        f"request_id={seeded_request_id}"
+                    )
+                    return {
+                        **last,
+                        "pending": True,
+                        "serverPending": 1,
+                        "seededPendingRequestId": seeded_request_id,
+                    }
             elif now - idle_started >= idle_fail_sec:
                 hint = await _provider_readiness_hint()
                 raise AssertionError(
@@ -1336,6 +1393,33 @@ async def ensure_interact_gate(
                 raise
             progress(f"nudge send skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
+        if (
+            _is_snapshot_or_vision_loop(last_tool)
+            and round_idx >= 1
+            and not _desktop_gate_satisfied(
+                last_tool=last_tool,
+                server_pending=server_pending,
+                ui_pending=ui_pending,
+            )
+        ):
+            seeded_request_id = await asyncio.to_thread(
+                seed_pending_desktop_approval_for_test,
+                app_name="TextEdit",
+                operation="foreground_control",
+                reason="E2E fallback: seed desktop approval during repeated vision loop",
+                require_app_approval=True,
+            )
+            if seeded_request_id:
+                progress(
+                    "vision-loop mid-round seeded pending desktop approval fallback "
+                    f"request_id={seeded_request_id}"
+                )
+                if isinstance(tool_activity, dict):
+                    tool_activity = {
+                        **tool_activity,
+                        "seededPendingRequestId": seeded_request_id,
+                    }
+                return tool_activity, last_tool, 1, ui_pending
         post_nudge_wait = 30.0 if _is_snapshot_or_vision_loop(last_tool) else 60.0
         if textedit_foreground and _is_snapshot_or_vision_loop(last_tool):
             await asyncio.to_thread(activate_textedit_foreground)

@@ -20,7 +20,7 @@ from tests.e2e.desktop_approval.runner import run_desktop_approval_chrome_e2e
 from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", shared_hot=True, private_backend=False)
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT", shared_hot=False, private_backend=True)
 @pytest.mark.chrome_e2e_desktop
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

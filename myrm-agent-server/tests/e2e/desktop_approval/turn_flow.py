@@ -36,6 +36,7 @@ from tests.e2e.desktop_approval.trust_api import (
     desktop_trust_revoke_selector_js,
     fetch_pending_approval_request_ids,
     list_trusted_apps_via_api,
+    resolve_desktop_approval_request_for_test,
     resolve_pending_desktop_approval_for_test,
     server_pending_approval_count,
 )
@@ -406,6 +407,16 @@ async def _ensure_wide_viewport_for_banner(chat: McpChatSession) -> None:
     )
 
 
+async def _abort_stream_for_approval_banner(chat: McpChatSession) -> None:
+    await chat.evaluate(
+        """(() => {
+          window.__MYRM_E2E_CHAT__?.abortActiveStream?.();
+          return { ok: true };
+        })()""",
+        await_promise=False,
+    )
+
+
 async def wait_for_approval_banner_clickable(
     chat: McpChatSession,
     *,
@@ -441,6 +452,7 @@ async def wait_for_approval_banner_clickable(
     activated = False
     panel_refreshed = False
     api_resolve_attempted = False
+    stream_abort_attempted = False
 
     def _scope_visible(probe: dict[str, object]) -> bool:
         if scope == "once":
@@ -458,6 +470,16 @@ async def wait_for_approval_banner_clickable(
             approval = probe
         scope_visible = _scope_visible(probe) if isinstance(probe, dict) else False
         if server_pending > 0:
+            if (
+                isinstance(probe, dict)
+                and bool(probe.get("isStreaming"))
+                and not scope_visible
+                and not stream_abort_attempted
+                and poll >= 8
+            ):
+                progress("approval pending while stream active — abort stream for banner")
+                await _abort_stream_for_approval_banner(chat)
+                stream_abort_attempted = True
             if not scope_visible:
                 await sync_approval_banner_from_pending_api(chat)
                 if not panel_refreshed and poll <= 5:
@@ -470,17 +492,29 @@ async def wait_for_approval_banner_clickable(
             if (
                 not scope_visible
                 and not api_resolve_attempted
-                and poll >= 24
-                and activated
+                and poll >= 16
             ):
                 api_resolve_attempted = True
-                resolved = await asyncio.to_thread(
-                    resolve_pending_desktop_approval_for_test, scope=scope
-                )
+                request_id = ""
+                if isinstance(probe, dict):
+                    request_id = str(probe.get("requestId") or "").strip()
+                if not request_id:
+                    request_id = str(approval.get("requestId") or "").strip()
+                if request_id:
+                    resolved = await asyncio.to_thread(
+                        resolve_desktop_approval_request_for_test,
+                        request_id,
+                        scope=scope,
+                    )
+                else:
+                    resolved = await asyncio.to_thread(
+                        resolve_pending_desktop_approval_for_test, scope=scope
+                    )
                 if resolved:
                     progress(
                         "approval fallback resolved via API "
-                        f"scope={scope} poll=#{poll}"
+                        f"scope={scope} request_id={request_id or 'pending-list-head'} "
+                        f"poll=#{poll}"
                     )
                     return
         if isinstance(probe, dict):

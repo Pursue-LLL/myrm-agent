@@ -2,9 +2,10 @@
  * [INPUT]
  * - @/hooks/useMessageInput::useMessageInput (POS: 聊天输入状态与提交编排)
  * - @/store/useChatStore::useChatStore (POS: 聊天状态总线)
+ * - ./LivenessIndicator::LivenessIndicator (POS: 聊天输入区 Agent 状态指示灯)
  *
  * [OUTPUT]
- * - MessageInput: 渲染聊天输入区、工具栏、快捷操作和发送入口。
+ * - MessageInput: 渲染聊天输入区、工具栏、快捷操作、Agent 状态灯和发送入口。
  *
  * [POS]
  * 聊天输入区视图层。承载消息输入、模式切换、附件、快捷操作与发送控制。
@@ -31,6 +32,7 @@ import DeepSearchToggle from '../message-input-actions/DeepSearchToggle';
 import WorkflowModeToggle from '../message-input-actions/WorkflowModeToggle';
 import BaseModelSelector from '../message-input-actions/BaseModelSelector';
 import ContextUsageIndicator from '../message-box/ContextUsageIndicator';
+import LivenessIndicator from './LivenessIndicator';
 import BudgetBadge from './BudgetBadge';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
 import SessionSpendSurface from '@/components/billing/SessionSpendSurface';
@@ -575,6 +577,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                   <WorkUnitBalanceBar compact className="shrink-0" />
                   <SessionSpendSurface className="shrink-0" />
                   <ContextUsageIndicator />
+                  <LivenessIndicator />
                   <div className="hidden sm:flex items-center gap-1">
                     <EnvironmentShield />
                     <BudgetBadge />

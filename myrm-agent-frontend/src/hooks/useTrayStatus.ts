@@ -14,9 +14,10 @@
  * notification with global agent liveness state.
  *
  * [POS]
- * Desktop tray bridge hook. Consumes the global liveness SSOT (busy/idle/degraded/draining)
- * from `/health/liveness` to drive tray icon switching and tooltip. Enriches tooltip
- * with today's token/cost snapshot. Fires native OS notification on budget_alert SSE.
+ * Desktop tray bridge hook. Consumes the global liveness SSOT (busy/idle/degraded/draining/offline)
+ * from `/health/liveness` to drive tray icon switching and tooltip. Maps offline→degraded
+ * for Tauri's four-state icon set while providing a distinct offline tooltip.
+ * Enriches tooltip with today's token/cost snapshot. Fires native OS notification on budget_alert SSE.
  * Inert in non-Tauri environments.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -164,21 +165,24 @@ export function useTrayStatus() {
           import('@tauri-apps/api/window'),
         ]);
 
-        let tooltip = liveness.state === 'draining'
-          ? t('trayTooltipDraining')
-          : liveness.state === 'busy'
-            ? t('trayTooltipBusy')
-            : liveness.state === 'degraded'
-              ? t('trayTooltipDegraded')
-              : bgRunningCount > 0
-                ? t('trayTooltipBackground', { count: bgRunningCount })
-                : t('trayTooltipIdle');
+        let tooltip = liveness.state === 'offline'
+          ? t('trayTooltipOffline')
+          : liveness.state === 'draining'
+            ? t('trayTooltipDraining')
+            : liveness.state === 'busy'
+              ? t('trayTooltipBusy')
+              : liveness.state === 'degraded'
+                ? t('trayTooltipDegraded')
+                : bgRunningCount > 0
+                  ? t('trayTooltipBackground', { count: bgRunningCount })
+                  : t('trayTooltipIdle');
 
         if (todayUsage && todayUsage.tokens > 0) {
           tooltip += `\n${t('trayTooltipUsage', { usage: formatUsageLine(todayUsage) })}`;
         }
 
-        await invoke('set_tray_status', { status: liveness.state, tooltip });
+        const trayStatus = liveness.state === 'offline' ? 'degraded' : liveness.state;
+        await invoke('set_tray_status', { status: trayStatus, tooltip });
 
         const win = getCurrentWindow();
         const showProgress = liveness.state === 'busy' || liveness.state === 'draining' || bgRunningCount > 0;

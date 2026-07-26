@@ -121,13 +121,12 @@ def build_desktop_interact_nudge(*, dref: str | None = None) -> str:
     normalized = (dref or "").strip().lstrip("@")
     if normalized.startswith("d") and len(normalized) > 1:
         return (
-            f"MANDATORY: Call desktop_interact_tool(ref=@{normalized}, action='click') NOW. "
-            "If this @dref is unavailable or AX is empty, immediately call "
-            "desktop_vision_tool(action='left_click', coordinate=[640, 360]) "
-            "to request desktop control approval, then retry desktop_snapshot_tool(scope='foreground') "
-            f"and desktop_interact_tool(ref=@{normalized}, action='click'). "
-            "Do not use bash or text-only explanations before tool calls. "
-            "Reply DONE only after a desktop control tool call."
+            f"MANDATORY TEST ACTION: Call desktop_interact_tool(ref=@{normalized}, action='click') NOW "
+            "as your first tool call. "
+            "Do NOT call desktop_snapshot_tool or desktop_vision_tool before this interact call. "
+            f"If the call errors, retry desktop_interact_tool(ref=@{normalized}, action='click') once. "
+            "Do not output explanations before tool calls. "
+            "Reply DONE only after desktop_interact_tool is called."
         )
     return E2E_NUDGE_PROMPT
 

@@ -120,7 +120,10 @@
     "goalActionSuccess_cancel": "ゴールキャンセル済み",
     "goalActionSuccess_approve": "ゴール済み承認",
     "goalActionSuccess_reject": "ゴール済み拒否",
-    "goalActionSuccess_unwait": "ゴール済み復元"
+    "goalActionSuccess_unwait": "ゴール済み復元",
+    "stepProgress": "ステップ進捗",
+    "cancel": "キャンセル",
+    "save": "保存"
   },
   "commands": {
     "palette": {
@@ -6000,6 +6003,13 @@
       "historyAvg": "履歴均値",
       "viewTrace": "表示深度时序分析",
       "noSessionStats": "暂なしパフォーマンスデータ"
+    },
+    "liveness": {
+      "idle": "待機中",
+      "busy": "タスク実行中…",
+      "degraded": "サービス異常",
+      "draining": "シャットダウン中…",
+      "offline": "バックエンドオフライン"
     },
     "contextUsage": {
       "title": "コンテキスト使用量",
@@ -12370,7 +12380,8 @@
     "trayTooltipIdle": "Myrm Agent - アイドル",
     "trayTooltipBusy": "Myrm Agent - タスク実行中…",
     "trayTooltipDraining": "Myrm Agent - シャットダウン中…",
-    "trayTooltipDegraded": "Myrm Agent - サービス异常",
+    "trayTooltipDegraded": "Myrm Agent - サービス異常",
+    "trayTooltipOffline": "Myrm Agent - バックエンドオフライン",
     "trayTooltipBackground": "{count} 個バックグラウンドタスク実行中",
     "trayTooltipUsage": "今日: {usage}",
     "budgetAlertTitle": "予算リマインダー",

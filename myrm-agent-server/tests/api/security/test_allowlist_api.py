@@ -34,6 +34,9 @@ def client() -> TestClient:
 
 @pytest.fixture(autouse=True)
 def _clean_allowlist_table() -> None:
+    from app.database.connection import init_database
+
+    asyncio.run(init_database())
     asyncio.run(clear_allowlist_entries())
     yield
     asyncio.run(clear_allowlist_entries())

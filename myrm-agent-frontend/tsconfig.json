@@ -51,7 +51,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-isolated-e2e-parent-83432-83435-dd3bcf51/types/**/*.ts",
-    ".next-isolated-e2e-parent-83432-83435-dd3bcf51/dev/types/**/*.ts"
+    ".next-isolated-e2e-parent-83432-83435-dd3bcf51/dev/types/**/*.ts",
+    ".next-isolated-e2e-parent-70345-70373-bfa82159/types/**/*.ts",
+    ".next-isolated-e2e-parent-70345-70373-bfa82159/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

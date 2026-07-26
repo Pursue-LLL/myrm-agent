@@ -120,7 +120,10 @@
     "goalActionSuccess_cancel": "Goal cancelled",
     "goalActionSuccess_approve": "Goal approved",
     "goalActionSuccess_reject": "Goal rejected",
-    "goalActionSuccess_unwait": "Goal resumed"
+    "goalActionSuccess_unwait": "Goal resumed",
+    "stepProgress": "Step Progress",
+    "cancel": "Cancel",
+    "save": "Save"
   },
   "commands": {
     "palette": {
@@ -6071,6 +6074,13 @@
       "historyAvg": "Session Avg",
       "viewTrace": "View Detailed Trace",
       "noSessionStats": "No performance data"
+    },
+    "liveness": {
+      "idle": "Ready",
+      "busy": "Running tasks…",
+      "degraded": "Service degraded",
+      "draining": "Shutting down…",
+      "offline": "Backend offline"
     },
     "contextUsage": {
       "title": "Context Usage",
@@ -12452,6 +12462,7 @@
     "trayTooltipBusy": "Myrm Agent - Running…",
     "trayTooltipDraining": "Myrm Agent - Shutting Down…",
     "trayTooltipDegraded": "Myrm Agent - Service Degraded",
+    "trayTooltipOffline": "Myrm Agent - Backend Offline",
     "trayTooltipBackground": "{count} background task(s) running",
     "trayTooltipUsage": "Today: {usage}",
     "budgetAlertTitle": "Budget Alert",
