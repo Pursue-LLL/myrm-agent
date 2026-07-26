@@ -1,9 +1,9 @@
 import pytest
 
 from app.services.agent.streaming_support.stream_collector import (
+    _MAX_REASONING_CHARS,
     ACTIVE_COLLECTORS,
     StreamContentCollector,
-    _MAX_REASONING_CHARS,
 )
 
 

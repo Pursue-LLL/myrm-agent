@@ -84,6 +84,8 @@ async def load_user_configs() -> UserConfigs:
     Results are cached in-memory with a 30s TTL to avoid repeated DB queries
     for high-frequency channel messages.
     """
+    import os
+
     from app.core.channel_bridge.config_cache import (
         _get_cached,
         _set_cached,
@@ -97,8 +99,6 @@ async def load_user_configs() -> UserConfigs:
         _fallback_model_from_providers,
         register_custom_model_pricing,
     )
-
-    import os
 
     if os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1":
         invalidate_user_configs_cache()

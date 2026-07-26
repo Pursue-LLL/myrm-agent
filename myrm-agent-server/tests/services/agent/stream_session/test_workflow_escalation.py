@@ -10,13 +10,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.services.agent.stream_session.workflow_escalation import (
     should_suggest_workflow,
     should_suggest_workflow_for_session,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

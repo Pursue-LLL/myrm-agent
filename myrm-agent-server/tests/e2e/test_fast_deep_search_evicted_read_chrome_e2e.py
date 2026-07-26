@@ -18,20 +18,20 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import (  # noqa: E402
+    WAIT_WORKSPACE_STREAM_JS,
     fetch_chat_messages,
     fetch_config_value,
     get_e2e_api_url,
     put_config_value,
     shared_hot_e2e_api_base,
     wait_e2e_provider_ready,
-    WAIT_WORKSPACE_STREAM_JS,
 )
-from tests.support.chrome_mcp_e2e import http_json  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
-from tests.support.test_secrets import resolve_test_env  # noqa: E402
 
+from tests.support.chrome_mcp_e2e import http_json  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
+from tests.support.test_secrets import resolve_test_env  # noqa: E402
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 

@@ -38,7 +38,6 @@ def resolve_agent_mount(
     - General surfaces: force file + shell meta tools (agent baseline).
     - ``CRON`` with ``cron_job_tools_allowed``: honor intersected allow-list only.
     """
-    from app.services.agent.profile_resolver import BuiltinToolFlags
 
     if surface == ExecutionSurface.WEB_FAST:
         return _with_meta_mount(

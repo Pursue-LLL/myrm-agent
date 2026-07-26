@@ -16,7 +16,7 @@
 | `archive.py` | 核心 | 单用户 Memory Archive 服务。基于 Harness archive DTO 聚合普通记忆、Shared Context、会话、回放事件和记忆审计账本，执行内容脱敏并提供导入前结构校验，不包含多租户或控制平面语义 | ✅ |
 | `archive_restore.py` | 核心 | 单用户 Memory Archive 恢复服务。提供归档分区 dry-run、payload/plan hash 强校验、恢复前安全预检、journaled safe-merge 恢复、关系型恢复账本、恢复后诊断 metadata 挂载、中断恢复回滚、profile 并发保护、Shared Context/会话/回放/审计恢复和精准回滚，不包含多租户或控制平面语义 | ✅ |
 | `command_center.py` | 核心 | 个人大脑指挥中心聚合服务。基于 MemoryManager、Shared Context ORM、待审批记忆、记忆操作账本、导入回滚账本健康、归档恢复账本健康、Memory Diagnostics 和部署设置生成单用户/单沙箱可观测快照，把账本中的检索步骤聚合为运行级 trace run，并支持强制刷新健康快照 | ✅ |
-| `command_center_insights.py` | 核心 | 个人大脑指挥中心洞察服务。生成影响证据、注入成本/缓存、声明替代、会话回放覆盖层、replay event trail、瀑布流、eval checks、连接器状态、隐私信号、含导入回滚与归档恢复健康的部署边界摘要、迁移来源聚合、最近导入批次、导入后验证建议、自动诊断状态和导入审查清理指标 | ✅ |
+| `command_center_insights.py` | 核心 | 个人大脑指挥中心洞察服务。生成影响证据、注入成本/缓存、声明替代、会话回放覆盖层、replay event trail、瀑布流、eval checks、连接器状态、隐私信号、含导入回滚与归档恢复健康的部署边界摘要、迁移来源聚合（含 source_manifest authoritative 完整性降级守卫）、最近导入批次、导入后验证建议、自动诊断状态和导入审查清理指标 | ✅ |
 | `diagnostic_probe_results.py` | 辅助 | Memory Diagnostics probe 结果归一化。集中处理 rollup、action 状态映射、impact/next action/auto-fix/retry 字段、repair plan 传递和静态检查到可执行探针的转换 | ✅ |
 | `diagnostic_quality_governance.py` | 辅助 | Memory Doctor 质量治理探针。读取框架层 health score，返回内容不可见的新鲜度、覆盖率、保留健康和一致性证据 | ✅ |
 | `diagnostic_recall_benchmark.py` | 辅助 | Memory Doctor 黄金召回基准。16 个合成 case（8 类别 × 中英双语），写入 semantic/episodic 记忆、检索 top-5、清理探针数据，返回 recall@5/ndcg@5/mrr/precision@5/latency_p50/p95、per-category 命中统计和结构化 MemoryCommandBenchmarkSummary | ✅ |

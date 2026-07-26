@@ -23,13 +23,13 @@ from typing import Literal
 from unittest.mock import AsyncMock, patch
 
 from fastapi import APIRouter, HTTPException, Query
+from myrm_agent_harness.api.hooks import INPUT_WAIT_IDLE_SECONDS
 
 from app.config.deploy_mode import is_local_mode
 from app.config.settings import get_settings
 from app.database.dto import ChatCreate
 from app.services.agent.agent_service import AgentService
 from app.services.chat.chat_service import ChatService
-from myrm_agent_harness.api.hooks import INPUT_WAIT_IDLE_SECONDS
 
 router = APIRouter()
 

@@ -30,6 +30,16 @@ def _parallel_shpoib_shell_timeout(timeout_sec: float) -> float:
     return shpoib_parallel_shell_timeout_sec(timeout_sec)
 
 
+def _shell_probe_stall_cap_sec() -> float:
+    from dev_gate_contract import SHELL_PROBE_STALL_FAIL_FAST_SEC
+
+    cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
+    # Shared-hot desktop chrome_e2e can require longer mux reclaim/hydration.
+    if os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() == "1":
+        return max(cap, 180.0)
+    return cap
+
+
 def _shell_probe_ready(probe: dict[str, object]) -> bool:
     if probe.get("skeleton"):
         return False
@@ -61,14 +71,13 @@ class CdpChatBootstrap(CdpChatTransport):
     def _check_shell_layout_stall_cap(self) -> None:
         from dev_gate_contract import (
             MUX_RECLAIM_STALL_TOKEN,
-            SHELL_PROBE_STALL_FAIL_FAST_SEC,
         )
 
         started = self._shell_layout_wait_started
         if started is None:
             return
         elapsed = time.monotonic() - started
-        stall_cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
+        stall_cap = _shell_probe_stall_cap_sec()
         if elapsed >= stall_cap:
             raise RuntimeError(
                 f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout stalled "
@@ -85,13 +94,12 @@ class CdpChatBootstrap(CdpChatTransport):
             pass
         from dev_gate_contract import (
             LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
-            SHELL_PROBE_STALL_FAIL_FAST_SEC,
         )
 
         if self._bootstrap_started_monotonic is None:
             return
         elapsed = time.monotonic() - self._bootstrap_started_monotonic
-        bootstrap_cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
+        bootstrap_cap = _shell_probe_stall_cap_sec()
         if phase in {"bootstrap_shell", "ensure_chat_surface", "wait_shell_layout"}:
             cap = bootstrap_cap
         else:
@@ -336,7 +344,6 @@ class CdpChatBootstrap(CdpChatTransport):
         from dev_gate_contract import (
             MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
             MUX_RECLAIM_STALL_TOKEN,
-            SHELL_PROBE_STALL_FAIL_FAST_SEC,
         )
 
         last: dict[str, object] = {}
@@ -346,7 +353,7 @@ class CdpChatBootstrap(CdpChatTransport):
         layout_wait_started = self._shell_layout_wait_started
         probe_started = layout_wait_started
         mux_recover_attempts = 0
-        stall_cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
+        stall_cap = _shell_probe_stall_cap_sec()
         per_eval_cap = min(30.0, stall_cap)
         eval_wall_sec = min(
             _SHELL_PROBE_RECV_TIMEOUT_SEC + 25.0,

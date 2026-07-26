@@ -223,7 +223,6 @@ async def test_write_shell_background_stdin_close_forwards_to_registry() -> None
 
 
 def test_find_shell_background_task_by_job_id() -> None:
-    from app.services.agent.shell_background_tasks import find_shell_background_task
 
     info = BackgroundProcessInfo(
         job_id="abc123",

@@ -35,6 +35,9 @@ import random
 import time
 import uuid
 from collections.abc import AsyncGenerator
+from urllib.parse import urlparse
+
+from myrm_agent_harness.core.security.guards.ssrf import check_url
 
 from app.api.openai_compat.types import (
     ChatCompletionChunk,
@@ -46,11 +49,6 @@ from app.api.openai_compat.types import (
     StreamChoice,
     UsageInfo,
 )
-
-from urllib.parse import urlparse
-
-from myrm_agent_harness.core.security.guards.ssrf import check_url
-
 from app.config.deploy_mode import is_local_mode
 
 logger = logging.getLogger(__name__)

@@ -16,8 +16,8 @@ from __future__ import annotations
 import json
 import os
 import re
-import urllib.parse
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -336,9 +336,9 @@ def fetch_pending_approval_request_ids() -> list[str]:
 def list_trusted_apps_via_api() -> list[dict[str, object]]:
     url = f"{get_e2e_api_url()}/webui/desktop/trust/apps"
     try:
-        request = urllib.request.Request(
+        request = urllib.request.Request(  # noqa: S310 - validated in _e2e_api_urlopen
             url, method="GET"
-        )  # noqa: S310 - validated in _e2e_api_urlopen
+        )
         with _e2e_api_urlopen(
             request,
             timeout_sec=5.0,
@@ -365,9 +365,9 @@ def clear_persisted_desktop_approvals() -> None:
             approval_path.unlink(missing_ok=True)
     reset_url = f"{get_e2e_api_url()}/webui/desktop/approval/reset-runtime"
     try:
-        request = urllib.request.Request(
+        request = urllib.request.Request(  # noqa: S310
             reset_url, method="POST", data=b"{}"
-        )  # noqa: S310
+        )
         request.add_header("Content-Type", "application/json")
         with _e2e_api_urlopen(
             request,
@@ -406,9 +406,9 @@ def clear_persisted_desktop_approvals() -> None:
 def desktop_accessibility_granted() -> bool:
     url = f"{get_e2e_api_url()}/webui/desktop/permissions"
     try:
-        request = urllib.request.Request(
+        request = urllib.request.Request(  # noqa: S310 - validated in _e2e_api_urlopen
             url, method="GET"
-        )  # noqa: S310 - validated in _e2e_api_urlopen
+        )
         with _e2e_api_urlopen(
             request,
             timeout_sec=10.0,

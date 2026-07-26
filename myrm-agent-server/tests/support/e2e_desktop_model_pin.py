@@ -6,7 +6,6 @@ v48 LIVE PASS used mimo-v2.5-pro (BASIC); LITE MiniMax-M3 often stops after snap
 from __future__ import annotations
 
 import asyncio
-import os
 
 from tests.api.agent.utils import get_model_selection
 from tests.support.chrome_mcp_e2e import get_e2e_ui_url

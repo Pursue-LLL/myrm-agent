@@ -510,10 +510,9 @@ async def _send_and_collect_gap_while_streaming(
 
 
 def _collect_gap_from_live_api(api_base: str) -> list[dict[str, object]]:
-    import uuid
-
     import urllib.error
     import urllib.request
+    import uuid
 
     from tests.api.agent.utils import get_lite_model_selection
 
@@ -638,9 +637,6 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
                 )
             )
 
-            peak_count = int(
-                toast_state.get("peakCount") or toast_state.get("count") or 0
-            )
             sse_count = int(toast_state.get("sseCount") or 0)
             client_count = int(toast_state.get("clientCount") or 0)
             recorded_sse = (

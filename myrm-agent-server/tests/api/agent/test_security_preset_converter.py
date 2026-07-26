@@ -5,10 +5,10 @@ overlay logic — the only new converter code for #1 Chat Session Permission Pre
 """
 
 import pytest
+from pydantic import ValidationError
 
-from app.services.agent.params.converter import _apply_session_preset, _PRESET_OVERLAYS
+from app.services.agent.params.converter import _PRESET_OVERLAYS, _apply_session_preset
 from app.services.agent.params.models import AgentRequest
-
 
 # ---------------------------------------------------------------------------
 # _apply_session_preset: pure dict merge
@@ -131,7 +131,7 @@ class TestAgentRequestSecurityPreset:
         assert req.security_preset == preset
 
     def test_invalid_preset_rejected(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             AgentRequest(message_id="m1", query="test", security_preset="invalid")
 
     def test_default_preset_is_none(self) -> None:

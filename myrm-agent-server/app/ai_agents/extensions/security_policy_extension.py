@@ -64,7 +64,7 @@ class SecurityPolicyExtension(AgentExtension):
         from myrm_agent_harness.agent.security.channel_presets import (
             build_channel_security_config,
         )
-        from myrm_agent_harness.agent.security.types import PIIAction, PrivacyPolicy, SecurityConfig
+        from myrm_agent_harness.agent.security.types import PIIAction, PrivacyPolicy
 
         from app.config.deploy_mode import is_local_mode
 

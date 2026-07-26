@@ -104,9 +104,9 @@ _FINAL_ASSERT_JS = """(() => {
 def _discover_has_hermes() -> bool:
     url = f"{get_e2e_api_url()}/api/v1/migration/discover"
     try:
-        with urllib.request.urlopen(
+        with urllib.request.urlopen(  # noqa: S310 - loopback
             url, timeout=15
-        ) as response:  # noqa: S310 - loopback
+        ) as response:
             payload = json.loads(response.read())
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
         return False

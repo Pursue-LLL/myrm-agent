@@ -24,13 +24,13 @@ from cdp_chat_support import (  # noqa: E402
 )
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from mcp_chat_ui import McpChatSession  # noqa: E402
-
 from dev_gate_contract import CLARIFY_SKIP_API_WAIT_SEC  # noqa: E402
 from e2e_wall_budget import remaining_wall_sec, touch_wall_progress  # noqa: E402
+from mcp_chat_ui import McpChatSession  # noqa: E402
+
 from tests.api.agent.utils import (
-    get_lite_model_selection,
     _strip_provider_prefix,
+    get_lite_model_selection,
 )  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
@@ -743,13 +743,13 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000),
                     timeout=wall_timeout,
                 )
-            except TimeoutError:
+            except TimeoutError as exc:
                 page = None
                 if attempt >= len(new_page_timeouts):
                     raise RuntimeError(
                         f"new_page timed out after {wall_timeout:.0f}s "
                         f"(attempt {attempt}/{len(new_page_timeouts)})"
-                    )
+                    ) from exc
                 await asyncio.to_thread(client.abandon_inflight_requests)
                 await asyncio.sleep(1.5)
                 await asyncio.to_thread(client.recover_mux_transport)
@@ -776,7 +776,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     timeout=bootstrap_timeout,
                 )
                 break
-            except TimeoutError as exc:
+            except TimeoutError:
                 if attempt >= len(bootstrap_timeouts):
                     pytest.skip(
                         "Skip clarify chrome E2E in shared-hot mode: bootstrap transport "

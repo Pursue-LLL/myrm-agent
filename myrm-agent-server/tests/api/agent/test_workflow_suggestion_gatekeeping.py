@@ -17,7 +17,6 @@ from fastapi.testclient import TestClient
 
 from tests.api.agent.utils import get_model_selection
 
-
 MULTI_GOAL_QUERY = (
     "请帮我完成以下任务：\n"
     "1. 调研 3 家竞品的定价策略\n"
@@ -88,7 +87,6 @@ class TestWorkflowSuggestionGatekeeping:
         self, client: TestClient, mock_load_user_configs
     ):
         """Explicit opt-in (suggestWorkflowMode=True) → workflow_suggestion emitted."""
-        from unittest.mock import AsyncMock, patch
 
         original_configs = mock_load_user_configs.return_value
 

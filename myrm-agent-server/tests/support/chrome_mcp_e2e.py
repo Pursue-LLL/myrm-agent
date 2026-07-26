@@ -96,9 +96,9 @@ def http_json(
             f"Chrome E2E HTTP helper only permits loopback app URLs: {url}"
         )
     data = json.dumps(body).encode("utf-8") if body is not None else None
-    request = urllib.request.Request(
+    request = urllib.request.Request(  # noqa: S310 - validated loopback
         url, data=data, method=method
-    )  # noqa: S310 - validated loopback
+    )
     if data is not None:
         request.add_header("Content-Type", "application/json")
     try:
@@ -158,14 +158,14 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
         if time.monotonic() >= next_heal_at:
             next_heal_at = time.monotonic() + heal_interval
             _heal_shared_frontend()
-        request = urllib.request.Request(
+        request = urllib.request.Request(  # noqa: S310 - loopback only
             url, method="GET"
-        )  # noqa: S310 - loopback only
+        )
         per_attempt = max(5.0, min(30.0, deadline - time.monotonic()))
         try:
-            with urllib.request.urlopen(
+            with urllib.request.urlopen(  # noqa: S310
                 request, timeout=per_attempt
-            ) as response:  # noqa: S310
+            ) as response:
                 if response.status == 200:
                     return
                 last_error = RuntimeError(

@@ -211,7 +211,6 @@ class LocalEvalExecutor:
         from app.core.memory.proactive.settings import (
             resolve_conversation_search_enabled,
         )
-
         from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
         params = GeneralAgentParams(

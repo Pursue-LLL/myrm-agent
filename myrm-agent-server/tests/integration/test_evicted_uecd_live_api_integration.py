@@ -121,7 +121,6 @@ class TestEvictedUecdSeedFixtureIntegration:
     ) -> None:
         import asyncio
         import uuid
-        from pathlib import Path
 
         from fastapi.testclient import TestClient
 
@@ -147,7 +146,7 @@ class TestEvictedUecdSeedFixtureIntegration:
                 await db.commit()
             return agent_id
 
-        agent_id = asyncio.run(_seed_agent())
+        asyncio.run(_seed_agent())
         with patch("app.api.chats.test_fixtures.is_local_mode", return_value=True):
             resp = client.post(
                 "/api/v1/chats/test/seed-evicted-live-terminal-fixture",
@@ -172,7 +171,6 @@ class TestEvictedUecdSeedFixtureIntegration:
     def test_seed_expired_variant_removes_spill_file(self, init_test_database) -> None:
         import asyncio
         import uuid
-        from pathlib import Path
 
         from fastapi.testclient import TestClient
 

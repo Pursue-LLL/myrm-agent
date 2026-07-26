@@ -25,8 +25,11 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat_support import get_e2e_api_url, wait_e2e_provider_ready  # noqa: E402
-from cdp_chat_support import ensure_e2e_hitl_mode  # noqa: E402
+from cdp_chat_support import (  # noqa: E402
+    ensure_e2e_hitl_mode,  # noqa: E402
+    get_e2e_api_url,
+    wait_e2e_provider_ready,
+)
 
 from tests.support.chrome_mcp_e2e import http_json
 

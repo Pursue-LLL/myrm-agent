@@ -5,8 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.channel_bridge.topic_config import (
-    SEARCH_AGENT_CHANNEL_BIND_MSG,
     _CHANNEL_LEVEL_KEY,
+    SEARCH_AGENT_CHANNEL_BIND_MSG,
 )
 from tests.support.minimal_app import build_minimal_app
 

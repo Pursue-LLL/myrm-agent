@@ -1,10 +1,8 @@
 'use client';
 import { useTheme } from 'next-themes';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-
-type Theme = 'dark' | 'light' | 'system';
 
 const ThemeSwitcher = ({ className }: { className?: string }) => {
   const [mounted, setMounted] = useState(false);
@@ -12,32 +10,9 @@ const ThemeSwitcher = ({ className }: { className?: string }) => {
 
   const { theme, setTheme } = useTheme();
 
-  const isTheme = useCallback((t: Theme) => t === theme, [theme]);
-
-  const handleThemeSwitch = (theme: Theme) => {
-    setTheme(theme);
-  };
-
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (isTheme('system')) {
-      const preferDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-
-      const detectThemeChange = (event: MediaQueryListEvent) => {
-        const theme: Theme = event.matches ? 'dark' : 'light';
-        setTheme(theme);
-      };
-
-      preferDarkScheme.addEventListener('change', detectThemeChange);
-
-      return () => {
-        preferDarkScheme.removeEventListener('change', detectThemeChange);
-      };
-    }
-  }, [isTheme, setTheme, theme]);
 
   // Avoid Hydration Mismatch
   if (!mounted) {
@@ -47,7 +22,7 @@ const ThemeSwitcher = ({ className }: { className?: string }) => {
   return (
     <div className={cn('flex flex-row space-x-2', className)}>
       <button
-        onClick={() => handleThemeSwitch('light')}
+        onClick={() => setTheme('light')}
         className={cn(
           'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
           theme === 'light'
@@ -58,7 +33,7 @@ const ThemeSwitcher = ({ className }: { className?: string }) => {
         {t('themeOptions.light')}
       </button>
       <button
-        onClick={() => handleThemeSwitch('dark')}
+        onClick={() => setTheme('dark')}
         className={cn(
           'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
           theme === 'dark'
@@ -69,7 +44,7 @@ const ThemeSwitcher = ({ className }: { className?: string }) => {
         {t('themeOptions.dark')}
       </button>
       <button
-        onClick={() => handleThemeSwitch('system')}
+        onClick={() => setTheme('system')}
         className={cn(
           'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
           theme === 'system'

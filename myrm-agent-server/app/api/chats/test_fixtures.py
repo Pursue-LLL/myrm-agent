@@ -19,7 +19,6 @@ clarify refresh / file_edit batch / UECD evicted seed 见子模块 test_fixtures
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -45,6 +44,10 @@ from app.services.agent.params.workspace_resolve import (
 )
 from app.services.chat.chat_service import ChatService
 from app.services.kanban import KanbanService
+
+from .test_fixtures_clarify_refresh import router as clarify_refresh_fixture_router
+from .test_fixtures_evicted import router as evicted_fixture_router
+from .test_fixtures_file_edit_batch import router as file_edit_batch_fixture_router
 
 router = APIRouter()
 
@@ -367,10 +370,6 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
         payload["file_path_b"] = str(Path(workspace_dir) / "revert_e2e_fixture_b.txt")
     return payload
 
-
-from .test_fixtures_clarify_refresh import router as clarify_refresh_fixture_router
-from .test_fixtures_evicted import router as evicted_fixture_router
-from .test_fixtures_file_edit_batch import router as file_edit_batch_fixture_router
 
 router.include_router(clarify_refresh_fixture_router)
 router.include_router(file_edit_batch_fixture_router)

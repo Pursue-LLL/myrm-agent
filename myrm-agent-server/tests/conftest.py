@@ -9,7 +9,7 @@ import shutil
 import sys
 import tempfile
 import uuid
-from collections.abc import AsyncIterator, Awaitable, Iterator
+from collections.abc import Awaitable, Iterator
 from contextlib import contextmanager, nullcontext, suppress
 from pathlib import Path
 from typing import TypeVar

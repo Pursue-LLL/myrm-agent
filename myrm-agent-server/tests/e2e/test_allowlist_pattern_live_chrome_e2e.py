@@ -27,6 +27,8 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import (  # noqa: E402
+    STREAM_API_BINDING_JS,
+    WAIT_WORKSPACE_STREAM_JS,
     ensure_e2e_hitl_mode,
     ensure_e2e_hitl_mode_in_browser,
     ensure_e2e_onboarding_complete,
@@ -35,8 +37,6 @@ from cdp_chat_support import (  # noqa: E402
     get_e2e_api_url,
     hard_reset_e2e_hitl_mode,
     shared_hot_e2e_api_base,
-    WAIT_WORKSPACE_STREAM_JS,
-    STREAM_API_BINDING_JS,
     wait_e2e_provider_ready,
 )
 from cdp_chat_ui import chat_id_from_path  # noqa: E402
@@ -51,7 +51,6 @@ from tests.support.chrome_allowlist_live_e2e import (
     _RECOVER_HITL_JS,
     _RUNTIME_BINDING_JS,
     _SELECT_PATTERN_SCOPE_JS,
-    _TURN_DONE_JS,
     SETTINGS_PATTERN_VISIBLE_JS,
 )
 from tests.support.chrome_allowlist_settings_e2e import SETTINGS_SECURITY_SHELL_READY_JS

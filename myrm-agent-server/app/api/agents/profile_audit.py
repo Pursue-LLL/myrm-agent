@@ -166,7 +166,6 @@ async def _build_cron_inputs(
         select(CronJobModel).where(CronJobModel.agent_id == agent_id)
     )
     jobs: list[CronJobInput] = []
-    tools_set = frozenset(enabled_tools)
     for job in result.scalars():
         schedule_dict = job.schedule or {}
         schedule_str = schedule_dict.get("cron", str(schedule_dict))

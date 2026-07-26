@@ -176,7 +176,6 @@ class VoiceAgentBridge:
     async def _build_agent_params(self, query: str) -> GeneralAgentParams | None:
         _ensure_model_rebuild()
         from app.ai_agents.agents import GeneralAgentParams
-
         from app.core.channel_bridge.config_loader import load_user_configs
         from app.core.channel_bridge.config_parsers import (
             extract_fallback_model_configs,
@@ -257,8 +256,8 @@ class VoiceAgentBridge:
             DEFAULT_ENABLED_BUILTIN_TOOLS,
             resolve_builtin_tool_flags,
         )
-        from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
         from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
+        from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
         agent_security_raw = (
             {str(k): v for k, v in profile.security_overrides.items()}

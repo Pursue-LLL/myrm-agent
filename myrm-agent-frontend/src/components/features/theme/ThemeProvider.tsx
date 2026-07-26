@@ -42,7 +42,7 @@ const ThemeProviderComponent = ({ children }: { children: React.ReactNode }) => 
   return (
     <ThemeProvider
       attribute="class"
-      enableSystem={false}
+      enableSystem
       defaultTheme="dark"
       scriptProps={nextThemesScriptProps}
     >

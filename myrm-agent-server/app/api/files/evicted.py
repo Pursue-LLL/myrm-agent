@@ -22,12 +22,11 @@ import os
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
-
-from myrm_agent_harness.agent.context_management.infra.evicted_reader import (
-    read_evicted_line_range,
-)
 from myrm_agent_harness.agent.context_management.infra.evicted_content import (
     normalize_delivery_chat_id,
+)
+from myrm_agent_harness.agent.context_management.infra.evicted_reader import (
+    read_evicted_line_range,
 )
 from myrm_agent_harness.api.hooks import EVICTED_BASENAME_PATTERN
 

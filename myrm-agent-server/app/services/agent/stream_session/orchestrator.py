@@ -28,7 +28,6 @@ from myrm_agent_harness.utils.runtime.cancellation import (
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.core.types import ModelConfig
-from app.services.agent.runtime_context import prefer_direct_agent_stream
 from app.services.agent.params import (
     AgentRequest,
     ArchiveRestoreRequestError,
@@ -38,6 +37,7 @@ from app.services.agent.params import (
     convert_to_general_agent_params,
     prevalidate_archive_restore_actions,
 )
+from app.services.agent.runtime_context import prefer_direct_agent_stream
 from app.services.agent.steering_registry import SteeringRegistry
 from app.services.agent.stream_session.reconnect import try_stream_reconnect
 from app.services.agent.stream_session.risk_gate import check_stream_risk

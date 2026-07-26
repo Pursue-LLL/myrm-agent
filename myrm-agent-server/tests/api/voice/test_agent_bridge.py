@@ -544,7 +544,7 @@ class TestConsumeAgentStreamApproval:
             patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock),
             patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
             patch.object(bridge, "_handle_approval_required", new_callable=AsyncMock),
-            patch.object(bridge, "_speak_fallback", new_callable=AsyncMock) as mock_fb,
+            patch.object(bridge, "_speak_fallback", new_callable=AsyncMock),
             patch(
                 "app.services.agent.streaming.ai_agent_service_stream",
                 side_effect=fake_stream,

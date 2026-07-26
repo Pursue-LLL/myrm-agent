@@ -11,7 +11,6 @@ builtin_specs 子包：5 个扩展预置智能体规格
 """
 
 from app.services.agent.builtin_specs.types import (
-    _TOOL_CODING,
     _TOOL_DATA_VIZ,
     _TOOL_MINIMAL,
     _BuiltInAgentSpec,

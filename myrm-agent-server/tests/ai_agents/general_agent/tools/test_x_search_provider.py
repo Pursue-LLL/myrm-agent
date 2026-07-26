@@ -5,7 +5,6 @@ Covers date validation, retry logic, degraded detection, and citation merging.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -16,7 +15,6 @@ from app.ai_agents.general_agent.tools.x_search_provider import (
     XSearchProviderConfig,
     _validate_date_range,
 )
-
 
 # ---------------------------------------------------------------------------
 # _validate_date_range

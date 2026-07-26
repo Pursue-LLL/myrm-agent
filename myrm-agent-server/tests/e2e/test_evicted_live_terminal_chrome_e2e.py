@@ -21,10 +21,20 @@ from tests.support.chrome_mcp_e2e import (
 )
 from tests.support.evicted_drawer_selectors import (
     CLEAR_RESOURCE_TIMINGS_JS as _CLEAR_RESOURCE_TIMINGS_JS,
+)
+from tests.support.evicted_drawer_selectors import (
     EXPAND_PROGRESS_PANEL_JS as _EXPAND_PROGRESS_PANEL_JS,
+)
+from tests.support.evicted_drawer_selectors import (
     TERMINAL_PREVIEW_JS as _TERMINAL_PREVIEW_JS,
+)
+from tests.support.evicted_drawer_selectors import (
     VIEW_FULL_OUTPUT_JS as _VIEW_FULL_OUTPUT_JS,
+)
+from tests.support.evicted_drawer_selectors import (
     WAIT_PROGRESS_UI_DOM_JS as _WAIT_PROGRESS_UI_DOM_JS,
+)
+from tests.support.evicted_drawer_selectors import (
     drawer_expired_js,
     drawer_ready_js,
     evicted_request_probe_js,

@@ -38,8 +38,8 @@ from myrm_agent_harness.api import AgentRuntimeSpec
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
     from langchain_core.tools import BaseTool
-    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
     from myrm_agent_harness.agent.base_agent import BaseAgent
+    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
 
 logger = logging.getLogger(__name__)
 _EPHEMERAL_MEMORY_ISOLATION = "ephemeral_session"
