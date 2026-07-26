@@ -24,7 +24,7 @@ normalised away by `normalize_approval_emoji`):
 |-----------------|------------------------------------------------|---------------------------------------------|
 | `allow_once`    | 👍, ❤, ✅, 🤝, 💪                              | `/approve`, `1`, `y`/`yes`, `ok`, 同意, 好的 |
 | `allow_always`  | ♾️, ⭐                                         | `/approve-always`, `/always`, `aa`, `!y`, 永远允许 |
-| `deny`          | 👎, ❌, 🚫                                      | `/deny`, `2`, `n`/`no`, 拒绝, 不行         |
+| `deny`          | 👎, ❌, 🚫                                      | `/deny`, `/deny <reason>`, `2`, `n`/`no`, 拒绝, 不行 |
 
 `_is_reaction_approval_valid` in `router_commands_approval.py` enforces a layered gate:
 1. **Pending-approval check** — the chat must have an active interrupted task.
@@ -41,7 +41,11 @@ exact payload `myrm-agent-harness.apply_approval_decisions` expects:
 - `allow_always` → `{"type": "approve", "extensions": {"allowAlways": True}}`
   — drives `add_to_allowlist_if_needed` once the channel agent executor has
   bound the user via `set_approval_user_id`.
-- `deny`         → `{"type": "reject", "feedback": "..."}`
+- `deny`         → `{"type": "reject", "feedback": "Denied via {channel} channel command"}`
+  — when the user provides a reason via `/deny <reason>` (capped at 280 chars),
+  an additional `"guidance": "<reason>"` field is included; the harness injects
+  it as a `HumanMessage` for the agent to course-correct. Without a reason,
+  `guidance` is omitted and only the generic feedback is sent.
 
 ## ActionButton Callback Approval
 

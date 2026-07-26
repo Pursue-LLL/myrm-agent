@@ -11125,6 +11125,10 @@
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
     },
+    "smartDenied": {
+      "title": "Security reviewer recommends denial",
+      "overrideOnce": "Override Once"
+    },
     "batchCostTitle": "Batch Task Cost Approval",
     "batchCostDescription": "The agent wants to spawn multiple subagents. Review the estimated cost before proceeding.",
     "batchCostEstimated": "Estimated Cost",

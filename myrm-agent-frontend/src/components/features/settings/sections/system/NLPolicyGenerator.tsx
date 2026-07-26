@@ -61,6 +61,8 @@ const NLPolicyGenerator = memo(({ currentConfig, onApply }: NLPolicyGeneratorPro
                   permissions: currentConfig.permissions,
                   pathPolicy: currentConfig.pathPolicy,
                   networkAllowlist: currentConfig.networkAllowlist,
+                  networkBlocklist: currentConfig.networkBlocklist,
+                  commandDenylist: currentConfig.commandDenylist,
                 }
               : null,
           }),

@@ -101,7 +101,9 @@ async def preview_skill(
     Downloads the skill content and runs a security scan without installing.
     """
     try:
-        preview = await _discovery_framework(market_service).preview(request.skill_id, request.source)
+        preview = await _discovery_framework(market_service).preview(
+            request.skill_id, request.source
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -131,7 +133,9 @@ async def install_skill(
     """Install a skill from external source to local filesystem."""
     result = await market_service.install(request.skill_id, request.source)
     if result.success:
-        _audit_skill_action("install", result.skill_id or request.skill_id, source=request.source)
+        _audit_skill_action(
+            "install", result.skill_id or request.skill_id, source=request.source
+        )
     return SkillInstallResponse(
         success=result.success,
         skill_name=result.skill_name,
@@ -142,7 +146,9 @@ async def install_skill(
     )
 
 
-@router.get("/detail/{source}/{skill_id:path}", response_model=SkillSearchResultResponse | None)
+@router.get(
+    "/detail/{source}/{skill_id:path}", response_model=SkillSearchResultResponse | None
+)
 async def get_skill_detail(
     source: str,
     skill_id: str,
@@ -216,7 +222,9 @@ async def update_skill(
     result = await checker.update_skill(update_info, "default")
 
     if result.success:
-        _audit_skill_action("update", result.skill_id or request.skill_id, source=request.source)
+        _audit_skill_action(
+            "update", result.skill_id or request.skill_id, source=request.source
+        )
 
     return SkillInstallResponse(
         success=result.success,
@@ -274,7 +282,9 @@ async def install_skill_from_url(
     """Install a skill directly from a GitHub URL."""
     result = await market_service.install_from_url(request.url)
     if result.success:
-        _audit_skill_action("install_from_url", result.skill_id or request.url, source="github")
+        _audit_skill_action(
+            "install_from_url", result.skill_id or request.url, source="github"
+        )
     return SkillInstallResponse(
         success=result.success,
         skill_name=result.skill_name,
@@ -314,18 +324,24 @@ async def add_custom_source(
     request: CustomSourceRequest,
 ) -> CustomSourceProbeResponse:
     """Add a custom skill source after probing for reachability."""
-    from myrm_agent_harness.agent.skills.market.sources.wellknown import WellKnownSkillSource
+    from myrm_agent_harness.agent.skills.market.sources.wellknown import (
+        WellKnownSkillSource,
+    )
 
     from app.core.skills.custom_source_config import add_custom_source as _add_source
 
     if request.source_type != "well-known":
-        raise HTTPException(status_code=400, detail=f"Unsupported source type: {request.source_type}")
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported source type: {request.source_type}"
+        )
 
     source = WellKnownSkillSource(request.url)
     reachable, skill_count = await source.probe()
 
     if not reachable:
-        raise HTTPException(status_code=422, detail=f"Cannot reach source: {request.url}")
+        raise HTTPException(
+            status_code=422, detail=f"Cannot reach source: {request.url}"
+        )
 
     try:
         _add_source(request.url, request.source_type, request.label or request.url)
@@ -334,7 +350,9 @@ async def add_custom_source(
 
     market_service._base.register_source(source)
 
-    return CustomSourceProbeResponse(reachable=True, skill_count=skill_count, url=request.url)
+    return CustomSourceProbeResponse(
+        reachable=True, skill_count=skill_count, url=request.url
+    )
 
 
 @router.delete("/sources")

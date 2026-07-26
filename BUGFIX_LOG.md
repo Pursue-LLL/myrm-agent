@@ -89,3 +89,47 @@ daemon.py → subprocess.run(["bash", "wave.sh", "reap"]) → wave.sh → python
 
 1. **等待超时 = max(正常等待) × 安全系数**：正常 slot 释放 ~2-3min，安全系数 2x = 5min 合理
 2. **zombie lease + 长等待 = 灾难组合**：两个 "安全保守" 的设计叠加产生最差体验
+
+---
+
+## BUG-AGENT-2026-07-26-003: E2E 等待超时分散硬编码导致修改不一致
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-07-26 |
+| 修复日期 | 2026-07-26 |
+| 严重程度 | P3（配置漂移、维护成本） |
+| 影响范围 | 多个 bash/python 文件硬编码 `:-900` 默认值 |
+| 出现次数 | 1（首次系统性发现） |
+| 关联 | BUG-AGENT-2026-07-26-002（修改 `dev_gate_contract.py` 后发现不生效） |
+
+### 现象
+
+修改 `dev_gate_contract.py` 中的等待常量为 300s 后，实际运行时仍表现为 900s 等待。
+
+### 根因
+
+多个 bash 脚本和 Python 文件硬编码了 `:-900` 默认值，绕过了 `dev_gate_contract.py` 的 SSOT：
+
+- `scripts/dev/test.sh:378` — `MYRM_E2E_LEASE_WAIT_SEC:-900`
+- `scripts/dev/lib/e2e_bootstrap.sh:127,226,527` — 三处 `:-900`
+- `scripts/dev/lib/_e2e_gate_wave.py:30` — `_DEFAULT_QUEUE_WAIT_SEC = 900`
+- `scripts/dev/chrome_e2e_runtime.py:206` — 硬编码 900
+- `scripts/dev/lib/e2e_stream_lock.py:130` — `--wait` 默认 900.0
+- `myrm-agent/scripts/dev/lib/e2e_shared_ui_hydrate.py:19` — `DEFAULT_WAIT_SEC = 900`
+- `myrm-agent/scripts/dev/lib/e2e_mux_admission.py:24` — `DEFAULT_WAIT_SEC = 900`
+- `myrm-agent/scripts/dev/lib/wave-lease-owner.sh:70` — `MYRM_E2E_LEASE_WAIT_SEC:-900`
+- `myrm-agent/myrm-agent-server/tests/e2e/desktop_approval/conftest.py:32` — 默认 900
+- 3 个测试文件断言 `== 900` 的旧常量值
+
+### 修复
+
+1. `test.sh` 改为从 `dev_gate_contract.E2E_UNIFIED_WAIT_SEC` 动态读取
+2. 其他所有硬编码改为 300（与 SSOT 一致）
+3. 测试断言更新为 `== 300`
+
+### 踩坑经验
+
+1. **分布式默认值是维护灾难** — 单一 SSOT 必须贯穿所有调用链
+2. **改常量后必须全局 grep** — `rg ":-900" "== 900" "default.*900"` 类搜索是必须步骤
+3. **bash 脚本中的 `${VAR:-default}` 是隐性 SSOT 违规** — 应通过 Python 一行代码从合约文件读取

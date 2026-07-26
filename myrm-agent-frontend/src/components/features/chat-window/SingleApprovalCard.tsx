@@ -412,6 +412,22 @@ export default function SingleApprovalCard({
             <VisualApprovalHighlight visualContext={visualContext} className="mb-2" />
           )}
 
+          {request.smartDenied && (
+            <div className="flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2.5 mb-2">
+              <ShieldAlert className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                  {t('smartDenied.title')}
+                </p>
+                {request.reviewerReason && (
+                  <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5 break-words">
+                    {request.reviewerReason}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {request.executionIntent && (
             <div className="text-xs text-foreground/90 mb-2 rounded-md border border-border/60 bg-muted/40 px-2.5 py-2">
               <span className="font-medium text-muted-foreground">{t('executionIntent')}:</span>{' '}
@@ -500,39 +516,54 @@ export default function SingleApprovalCard({
       </Collapsible>
 
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={handleApprove} disabled={isLoading || isExpired}>
-          <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-          {t('approve')}
-        </Button>
-        <Button size="sm" variant="secondary" onClick={() => setMode('editing')} disabled={isLoading || isExpired}>
-          <Pencil className="mr-1 h-3.5 w-3.5" />
-          {t('edit')}
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setMode('rejecting')} disabled={isLoading}>
-          <MessageSquareX className="mr-1 h-3.5 w-3.5" />
-          {t('reject')}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleAlwaysAllow}
-          disabled={isLoading || isExpired}
-          className="text-xs text-amber-600 hover:text-amber-700"
-        >
-          {t('allowAlways')}
-        </Button>
-        {request.domainApproval && request.domains && request.domains.length > 0 && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleAllowDomain}
-            disabled={isLoading || isExpired}
-            className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
-            title={t('domain.allowDomainDesc')}
-          >
-            <Globe className="mr-1 h-3.5 w-3.5" />
-            {t('domain.allowDomain')}
-          </Button>
+        {request.smartDenied ? (
+          <>
+            <Button size="sm" variant="outline" onClick={handleApprove} disabled={isLoading || isExpired}>
+              <ShieldAlert className="mr-1 h-3.5 w-3.5" />
+              {t('smartDenied.overrideOnce')}
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setMode('rejecting')} disabled={isLoading}>
+              <MessageSquareX className="mr-1 h-3.5 w-3.5" />
+              {t('reject')}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button size="sm" onClick={handleApprove} disabled={isLoading || isExpired}>
+              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+              {t('approve')}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setMode('editing')} disabled={isLoading || isExpired}>
+              <Pencil className="mr-1 h-3.5 w-3.5" />
+              {t('edit')}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setMode('rejecting')} disabled={isLoading}>
+              <MessageSquareX className="mr-1 h-3.5 w-3.5" />
+              {t('reject')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleAlwaysAllow}
+              disabled={isLoading || isExpired}
+              className="text-xs text-amber-600 hover:text-amber-700"
+            >
+              {t('allowAlways')}
+            </Button>
+            {request.domainApproval && request.domains && request.domains.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleAllowDomain}
+                disabled={isLoading || isExpired}
+                className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                title={t('domain.allowDomainDesc')}
+              >
+                <Globe className="mr-1 h-3.5 w-3.5" />
+                {t('domain.allowDomain')}
+              </Button>
+            )}
+          </>
         )}
       </div>
 

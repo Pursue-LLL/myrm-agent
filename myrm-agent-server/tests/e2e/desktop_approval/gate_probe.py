@@ -99,6 +99,7 @@ def _is_hard_nudge_failure(exc: BaseException) -> bool:
         token in message
         for token in (
             "follow-up native send wall timeout",
+            "follow-up nudge not consumed after resend",
             "stream still active after abort",
             "chat shell not ready before deadline",
             "request lock blocked",
@@ -614,14 +615,28 @@ async def _send_interact_nudge(
             not stream_active or not last_tool.startswith("desktop_")
         )
     if use_follow_up:
-        if stream_active:
-            progress("abort active stream before follow-up nudge")
+        if stream_active or snapshot_or_vision:
+            if stream_active:
+                progress("abort active stream before follow-up nudge")
+            else:
+                progress("snapshot/vision follow-up pre-abort stream guard")
             await _abort_stuck_ui_stream(chat)
             stream_idle = await _wait_stream_idle(
                 chat,
                 chat_id=normalized_chat_id,
                 timeout_sec=20.0,
             )
+            if not stream_idle and snapshot_or_vision:
+                progress(
+                    "stream remained active after abort; retry abort once before "
+                    "follow-up tolerance"
+                )
+                await _abort_stuck_ui_stream(chat)
+                stream_idle = await _wait_stream_idle(
+                    chat,
+                    chat_id=normalized_chat_id,
+                    timeout_sec=10.0,
+                )
             if not stream_idle:
                 if snapshot_or_vision:
                     progress(
@@ -674,6 +689,29 @@ async def _send_interact_nudge(
             )
             if not consumed:
                 progress("follow-up nudge not consumed before timeout")
+                await _abort_stuck_ui_stream(chat)
+                await _wait_stream_idle(
+                    chat,
+                    chat_id=normalized_chat_id,
+                    timeout_sec=15.0,
+                )
+                retry_user_msgs, retry_step_count = await _nudge_baseline_markers(
+                    normalized_chat_id
+                )
+                await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
+                retry_result = await _submit_follow_up_native()
+                progress(
+                    f"nudge follow-up resend: "
+                    f"{retry_result.get('submit', retry_result)}"
+                )
+                consumed = await _wait_nudge_consumed(
+                    normalized_chat_id,
+                    baseline_user_msgs=retry_user_msgs,
+                    baseline_step_count=retry_step_count,
+                    timeout_sec=30.0,
+                )
+                if not consumed:
+                    raise TimeoutError("follow-up nudge not consumed after resend")
         await asyncio.to_thread(activate_textedit_foreground)
         return
     progress(

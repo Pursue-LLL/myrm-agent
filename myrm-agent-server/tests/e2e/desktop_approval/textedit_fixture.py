@@ -12,6 +12,39 @@ import pytest
 from tests.e2e.desktop_approval.constants import TEXTEDIT_FIXTURE_MARKER, progress
 
 
+def _run_command_no_raise(
+    args: list[str],
+    *,
+    timeout: int,
+    label: str,
+) -> subprocess.CompletedProcess[str] | None:
+    try:
+        return subprocess.run(
+            args,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        progress(f"{label} timed out after {timeout}s")
+        return None
+
+
+def _force_kill_textedit_process(*, include_sigkill: bool) -> None:
+    _run_command_no_raise(
+        ["pkill", "-x", "TextEdit"],
+        timeout=5,
+        label="textedit pkill",
+    )
+    if include_sigkill:
+        _run_command_no_raise(
+            ["pkill", "-9", "-x", "TextEdit"],
+            timeout=5,
+            label="textedit pkill -9",
+        )
+
+
 def textedit_fixture_ready() -> bool:
     if platform.system() != "Darwin":
         return False
@@ -82,14 +115,12 @@ def prepare_textedit_fixture() -> None:
     """Open TextEdit in the background and seed scrollable fixture text without stealing focus."""
     if platform.system() != "Darwin":
         return
-    subprocess.run(
+    _run_command_no_raise(
         ["open", "-gj", "-a", "TextEdit"],
-        check=False,
-        capture_output=True,
-        text=True,
         timeout=10,
+        label="textedit open",
     )
-    subprocess.run(
+    seed_proc = _run_command_no_raise(
         [
             "osascript",
             "-e",
@@ -103,53 +134,40 @@ def prepare_textedit_fixture() -> None:
             "-e",
             "end tell",
         ],
-        check=False,
-        capture_output=True,
-        text=True,
         timeout=20,
+        label="textedit prepare",
     )
+    if seed_proc is None:
+        progress("textedit prepare timed out; force-kill fallback")
+        _force_kill_textedit_process(include_sigkill=True)
+        return
+    if seed_proc.returncode != 0:
+        progress(
+            "textedit prepare returned non-zero; force-kill fallback "
+            f"code={seed_proc.returncode}"
+        )
+        _force_kill_textedit_process(include_sigkill=True)
+        return
 
 
 def restart_textedit_fixture_process() -> None:
     """Hard-restart TextEdit when AX snapshots remain empty."""
     if platform.system() != "Darwin":
         return
-    try:
-        quit_proc = subprocess.run(
-            ["osascript", "-e", 'tell application "TextEdit" to quit'],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if quit_proc.returncode != 0:
-            progress(
-                "textedit quit returned non-zero; force-kill fallback "
-                f"code={quit_proc.returncode}"
-            )
-            subprocess.run(
-                ["pkill", "-x", "TextEdit"],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-    except subprocess.TimeoutExpired:
+    quit_proc = _run_command_no_raise(
+        ["osascript", "-e", 'tell application "TextEdit" to quit'],
+        timeout=10,
+        label="textedit quit",
+    )
+    if quit_proc is None:
         progress("textedit quit timed out after 10s; force-kill fallback")
-        subprocess.run(
-            ["pkill", "-x", "TextEdit"],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=5,
+        _force_kill_textedit_process(include_sigkill=True)
+    elif quit_proc.returncode != 0:
+        progress(
+            "textedit quit returned non-zero; force-kill fallback "
+            f"code={quit_proc.returncode}"
         )
-        subprocess.run(
-            ["pkill", "-9", "-x", "TextEdit"],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
+        _force_kill_textedit_process(include_sigkill=False)
     time.sleep(0.6)
     prepare_textedit_fixture()
 

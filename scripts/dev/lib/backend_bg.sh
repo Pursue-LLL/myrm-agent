@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 # Start myrm-agent-server on :8080 in background. Sets SERVER_DIR, writes pid/log under server dir.
+# Health-aware self-healing (R61/R61-A):
+#   - identity mismatch: recycle state files
+#   - health probe fail + leases=0: kill+restart
+#   - health probe fail + leases>0: defer kill (protect parallel E2E)
+#   - source drift + leases>0: defer reload + record-pending (R31-G SMP)
+# [POS] Dev 栈 backend 进程管理。source stack-epoch.sh 获取 _wave_active_lease_count。
 set -euo pipefail
 
 _require_harness_editable_for_monorepo() {
@@ -94,10 +100,15 @@ _start_backend_bg() {
         rm -f "${pid_file}" "${identity_file}"
       else
         if ! curl -sf --max-time 3 "${health_url}" >/dev/null 2>&1; then
-          local monorepo_root_heal agent_root_heal active_leases_heal
+          local stack_epoch_lib_heal monorepo_root_heal agent_root_heal active_leases_heal
+          stack_epoch_lib_heal="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
+          if [[ -f "${stack_epoch_lib_heal}" ]]; then
+            # shellcheck source=stack-epoch.sh
+            source "${stack_epoch_lib_heal}"
+          fi
           agent_root_heal="$(cd "${server_dir}/.." && pwd)"
           monorepo_root_heal="$(cd "${agent_root_heal}/.." && pwd)"
-          active_leases_heal="$(_wave_active_lease_count "${monorepo_root_heal}")"
+          active_leases_heal="$(_wave_active_lease_count "${monorepo_root_heal}" 2>/dev/null || echo 0)"
           if [[ "${active_leases_heal}" != "0" ]]; then
             echo "STACK_WARN: backend unresponsive (pid=${old_pid}) but ${active_leases_heal} active leases — defer kill" >&2
             echo "Backend already running (pid ${old_pid})"

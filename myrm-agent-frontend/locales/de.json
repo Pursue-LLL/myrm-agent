@@ -9665,6 +9665,13 @@
     "batchTitle": "Batch Approval ({count} tools)",
     "description": "The agent wants to execute the following action(s). Review and decide: approve, edit parameters, or reject with feedback.",
     "subagentApprovalRequired": "Subagent Task Approval",
+    "deployApprovalTitle": "Artefakt-Bereitstellung bestätigen",
+    "deployApprovalArtifact": "Artefakt",
+    "deployApprovalHint": "Die Freigabe veröffentlicht dieses Artefakt auf Vercel und erstellt eine öffentliche URL.",
+    "outboundDraftTitle": "Kanal-Antwort-Entwurf",
+    "outboundDraftDescription": "Die KI hat eine Antwort erstellt, die vor dem Senden überprüft werden muss.",
+    "outboundDraftOriginal": "Kundennachricht",
+    "outboundDraftReply": "KI-Antwortentwurf",
     "skillGrowthPending": "Skill Growth Review",
     "viewChanges": "Änderungen anzeigen",
     "hideChanges": "Änderungen ausblenden",
@@ -9677,6 +9684,7 @@
     "parameters": "Parameters",
     "reason": "Reason",
     "executionIntent": "Agent-Absicht",
+    "workspaceLabel": "Arbeitsbereich",
     "expiresIn": "Expires in {seconds}s",
     "expired": "Expired",
     "expiredToast": "Approval timed out — action was automatically rejected",
@@ -9717,6 +9725,7 @@
     "handoverDialogTitle": "Waiting for You",
     "handoverDialogDescription": "The agent needs you to complete an action in the browser. Click \"Done\" when finished.",
     "resumeError": "Failed to resume execution. Please try again.",
+    "approvalExpired": "Diese Freigabe wurde bereits durch Zeitüberschreitung verarbeitet. Keine weitere Aktion erforderlich.",
     "resolveError": "Freigabe konnte nicht übermittelt werden, bitte erneut versuchen.",
     "browserSession": {
       "title": "Browser Session Operation",
@@ -9727,6 +9736,12 @@
     },
     "allowAlwaysAfterEdit": "Also mark as always allow",
     "editValidationError": "Parameter format error: {fields}",
+    "guidance": {
+      "toggle": "Anleitung für Agent hinzufügen",
+      "placeholder": "Zusätzlichen Kontext oder Anweisungen für den Agent bereitstellen (z.B. 'Produktions-API verwenden', 'Fehlerprüfung für diesen Lauf überspringen')...",
+      "hint": "Diese Anleitung wird als Kontext eingefügt, wenn der Agent die Ausführung fortsetzt.",
+      "hasGuidance": "Anleitung angehängt"
+    },
     "allowAlwaysConfirm": {
       "title": "Confirm Always Allow?",
       "description": "This will automatically approve future matching operations without requiring approval again.",
@@ -9753,10 +9768,22 @@
       "browser": "Browser Operations",
       "default": "This Type"
     },
+    "spanRiskReasons": {
+      "safe": "Sicher — schreibgeschützter Befehl, automatisch erlaubt",
+      "empty_segment": "Leeres Segment — kein Befehl erkannt",
+      "redirect": "Schreibt in eine Datei — bitte Zielpfad prüfen",
+      "unknown_command": "Unbekannter Befehl — Bestätigung erforderlich",
+      "unknown_subcommand": "Unbekannter Unterbefehl — Bestätigung erforderlich",
+      "invalid_flags": "Unbekannte Flags — Bestätigung erforderlich"
+    },
     "domain": {
       "label": "Target Domain",
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
+    },
+    "smartDenied": {
+      "title": "Sicherheitsprüfer empfiehlt Ablehnung",
+      "overrideOnce": "Einmal überschreiben"
     },
     "batchCostTitle": "Batch-Aufgabenkosten Genehmigung",
     "batchCostDescription": "Der Agent moechte mehrere Sub-Agenten starten. Pruefen Sie die geschaetzten Kosten, bevor Sie fortfahren.",
@@ -9768,7 +9795,8 @@
     "batchCostTournament": "Turnier-Modus (Bester gewinnt)",
     "highRiskDomAction": "Hochrisiko-Browseraktion erkannt",
     "targetElement": "Zielelement",
-    "action": "Aktion"
+    "action": "Aktion",
+    "jsExpression": "JavaScript-Ausdruck"
   },
   "notifications": {
     "pairingPending": "New pairing request from {sender} on {channel}",

@@ -19,6 +19,7 @@ interface ApprovalActionPayload {
   command_span_reasons?: unknown;
   plain_explanation?: unknown;
   execution_intent?: unknown;
+  reviewerReason?: string;
 }
 
 interface ApprovalExtensionsPayload {
@@ -33,7 +34,7 @@ interface ApprovalExtensionsPayload {
 
 interface BuildToolApprovalRequestParams {
   action: ApprovalActionPayload;
-  reviewConfig?: { domainApproval?: boolean };
+  reviewConfig?: { domainApproval?: boolean; smartDenied?: boolean };
   requestId: string;
   messageId: string;
   chatId: string;
@@ -96,5 +97,7 @@ export function buildToolApprovalRequest({
       typeof action.execution_intent === 'string' && action.execution_intent.trim()
         ? action.execution_intent.trim()
         : undefined,
+    smartDenied: reviewConfig?.smartDenied === true ? true : undefined,
+    reviewerReason: action.reviewerReason,
   };
 }

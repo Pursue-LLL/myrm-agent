@@ -28,7 +28,9 @@ class TestSkillDiscoveryE2E:
         """A nonexistent repo should return 200 with an empty or fallback list, not crash."""
         response = client.post(
             "/api/v1/skills/discovery/analyze-url",
-            json={"url": "https://github.com/nonexistent-owner-xyz/nonexistent-repo-abc"},
+            json={
+                "url": "https://github.com/nonexistent-owner-xyz/nonexistent-repo-abc"
+            },
         )
         assert response.status_code == 200
         data = response.json()

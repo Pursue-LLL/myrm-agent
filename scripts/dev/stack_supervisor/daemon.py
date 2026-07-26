@@ -187,6 +187,7 @@ class SupervisorDaemon:
         self._ensure_wave_pythonpath()
         try:
             from wave_orchestrator.core import reap
+
             reap()
         except Exception:
             logger.warning("Wave lease reaper failed", exc_info=True)
@@ -276,6 +277,7 @@ class SupervisorDaemon:
         self._ensure_wave_pythonpath()
         try:
             from wave_orchestrator.core import check_stack_write_gate
+
             result = check_stack_write_gate()
             if result["allowed"]:
                 return True

@@ -83,6 +83,39 @@ def test_restart_textedit_fixture_process_force_kills_on_quit_timeout(
     assert prepared == [True]
 
 
+def test_prepare_textedit_fixture_force_kills_on_seed_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
+    calls: list[tuple[str, ...]] = []
+
+    def _run(
+        args: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(tuple(args))
+        if (
+            args
+            and args[0] == "osascript"
+            and len(args) >= 3
+            and args[2] == 'tell application "TextEdit"'
+        ):
+            raise subprocess.TimeoutExpired(args, timeout)
+        return subprocess.CompletedProcess(args, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(textedit_fixture.subprocess, "run", _run)
+
+    textedit_fixture.prepare_textedit_fixture()
+
+    assert ("open", "-gj", "-a", "TextEdit") in calls
+    assert ("pkill", "-x", "TextEdit") in calls
+    assert ("pkill", "-9", "-x", "TextEdit") in calls
+
+
 @pytest.mark.asyncio
 async def test_ensure_textedit_fixture_ready_passes_when_marker_and_ax_ready(
     monkeypatch: pytest.MonkeyPatch,

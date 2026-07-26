@@ -259,6 +259,7 @@ Discord / Signal / Feishu / iMessage / **Mattermost** / **Matrix**）会把
 | `allow_once`    | 👍 / ✅ / `/approve` / `1` / `y` / 同意         | `{"type": "approve"}`                                    |
 | `allow_always`  | ♾️ / ⭐ / `/approve-always` / `aa` / 永远允许    | `{"type": "approve", "extensions": {"allowAlways": True}}` |
 | `deny`          | 👎 / ❌ / `/deny` / `2` / `n` / 拒绝            | `{"type": "reject", "feedback": "Denied via ..."}`       |
+| `deny` + reason | `/deny <reason>`（≤280 字符）                   | `{"type": "reject", "feedback": "...", "guidance": "<reason>"}` |
 
 `_is_reaction_approval_valid` 在群聊场景下校验 `sender_id` 必须是原始
 请求者（`_ActiveTask.requester_id`）或显式配置的 `approval_co_approvers`

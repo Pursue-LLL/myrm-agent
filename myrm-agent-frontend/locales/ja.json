@@ -11044,6 +11044,10 @@
       "allowDomain": "始终許可此ドメイン",
       "allowDomainDesc": "后续に対する该ドメインのリクエストが自動合格（のみ現でセッション）"
     },
+    "smartDenied": {
+      "title": "セキュリティレビューがこの操作の拒否を推奨しています",
+      "overrideOnce": "一度だけ上書き"
+    },
     "batchCostTitle": "バッチタスク費使用確認",
     "batchCostDescription": "エージェントが複数のサブエージェントを起動しようとしています。推定費使用を確認してから続行してください。",
     "batchCostEstimated": "预估コスト",

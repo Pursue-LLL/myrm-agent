@@ -29,7 +29,7 @@ from tests.support.e2e_parallel_snapshot import (
 )
 
 _LOCK_PATH = Path(os.environ.get("TMPDIR", "/tmp")) / "myrm-desktop-approval-e2e.lock"
-_LOCK_WAIT_SEC = float(os.environ.get("MYRM_DESKTOP_E2E_LOCK_WAIT_SEC", "900"))
+_LOCK_WAIT_SEC = float(os.environ.get("MYRM_DESKTOP_E2E_LOCK_WAIT_SEC", "300"))
 
 
 @pytest.fixture(scope="session", autouse=True)

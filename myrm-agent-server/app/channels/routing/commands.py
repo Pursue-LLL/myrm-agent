@@ -15,7 +15,7 @@ without bloating the core routing loop.
 - channels.routing.router_keys::routing_session_key (POS: /new session marker and mapping key format)
 
 [OUTPUT]
-- parse_approval_command, is_explicit_approval_command: approval command parsing
+- parse_approval_command, is_explicit_approval_command, DenyWithReason: approval command parsing
 - parse_yolo_args, parse_personality_args, parse_memory_args: argument parsers for complex commands
 - MemoryAction: Literal type for /memory sub-commands
 - TopicCommand, parse_topic_args: topic command parsing
@@ -171,6 +171,20 @@ def parse_memory_args(raw_args: str) -> tuple[MemoryAction, str | None]:
 ApprovalDecision = Literal["allow_once", "allow_always", "deny"]
 _APPROVAL_DECISION_VALUES: frozenset[str] = frozenset(get_args(ApprovalDecision))
 
+_MAX_DENY_REASON_LENGTH = 280
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class DenyWithReason:
+    """Deny decision carrying a user-supplied reason for Agent course-correction.
+
+    When the user types ``/deny <reason>`` in an IM channel, the reason is
+    captured here and later injected into the harness ``guidance`` field so
+    the Agent can adapt rather than blindly retrying the denied action.
+    """
+
+    reason: str
+
 
 _VARIATION_SELECTOR_RE = re.compile(r"[\uFE0E\uFE0F]")
 _FITZPATRICK_RE = re.compile(r"[\U0001F3FB-\U0001F3FF]")
@@ -240,15 +254,20 @@ def normalize_approval_emoji(value: str) -> str:
 
 def parse_approval_command(
     content: str,
-) -> ApprovalDecision | list[ApprovalDecision] | None:
+) -> ApprovalDecision | DenyWithReason | list[ApprovalDecision] | None:
     """Parse approval commands into the three-tier decision model.
 
     Supports slash commands (/approve, /approve-always, /deny), natural shortcuts
     (1, 2, y, n, ok, etc.), emoji reactions (👍/♾/👎 with skin-tone & VS-16 normalisation),
     and batch mode (/batch a,aa,d).
 
+    ``/deny <reason>`` captures trailing text as the deny reason, capped at
+    280 characters, and returns a ``DenyWithReason`` so the reason can be
+    relayed to the Agent via the harness ``guidance`` field.
+
     Returns:
         - ``"allow_once" | "allow_always" | "deny"`` for a single decision
+        - ``DenyWithReason`` for deny with a user-supplied reason
         - ``list[ApprovalDecision]`` for batch decisions
         - ``None`` if not an approval command
     """
@@ -270,6 +289,9 @@ def parse_approval_command(
         return "allow_once"
     if cmd_lower in _DENY_TEXT:
         return "deny"
+    if cmd_lower.startswith("/deny "):
+        reason = cmd[len("/deny "):].strip()[:_MAX_DENY_REASON_LENGTH].strip()
+        return DenyWithReason(reason=reason) if reason else "deny"
 
     if cmd_lower.startswith("/batch "):
         batch_spec = cmd_lower[7:].strip()
@@ -296,8 +318,10 @@ def parse_approval_command(
 def is_explicit_approval_command(content: str) -> bool:
     """Whether ``content`` is an explicit /approve, /approve-always, /deny, or /batch."""
     cmd = content.strip().lower()
-    return cmd in ("/approve", "/approve-always", "/always", "/deny") or cmd.startswith(
-        "/batch "
+    return (
+        cmd in ("/approve", "/approve-always", "/always", "/deny")
+        or cmd.startswith("/deny ")
+        or cmd.startswith("/batch ")
     )
 
 

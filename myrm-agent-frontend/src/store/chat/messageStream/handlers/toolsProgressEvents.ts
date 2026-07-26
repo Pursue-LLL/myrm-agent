@@ -358,8 +358,9 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         command_span_reasons?: unknown;
         plain_explanation?: unknown;
         execution_intent?: unknown;
+        reviewerReason?: string;
       };
-      const reviewConfig = reviewConfigs?.[i] as { domainApproval?: boolean } | undefined;
+      const reviewConfig = reviewConfigs?.[i] as { domainApproval?: boolean; smartDenied?: boolean } | undefined;
       const requestId = isBatch ? `${batchId}_${i}` : requestIdFallback;
 
       const approvalRequest = buildToolApprovalRequest({

@@ -554,6 +554,32 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     tools_setup = await chat.enable_computer_use()
     assert tools_setup.get("ok") is True, f"computer_use bridge failed: {tools_setup}"
     assert "computer_use" in (tools_setup.get("tools") or []), tools_setup
+    tools_locked = await chat.evaluate(
+        """(() => {
+          const bridge = window.__MYRM_E2E_CHAT__;
+          if (!bridge?.setCurrentBuiltinTools) {
+            return { ok: false, err: 'no-builtin-tools-bridge' };
+          }
+          bridge.setCurrentBuiltinTools(['computer_use']);
+          const tools = bridge.getCurrentBuiltinTools?.() ?? [];
+          return { ok: true, tools };
+        })()""",
+        await_promise=False,
+    )
+    assert isinstance(tools_locked, dict) and tools_locked.get(
+        "ok"
+    ) is True, f"computer_use lock failed: {tools_locked}"
+    locked_tools_raw = tools_locked.get("tools")
+    locked_tools = (
+        [str(item) for item in locked_tools_raw if isinstance(item, str)]
+        if isinstance(locked_tools_raw, list)
+        else []
+    )
+    assert "computer_use" in locked_tools, (
+        "computer_use missing after tool lock: "
+        f"{tools_locked}"
+    )
+    progress(f"builtin tools locked for desktop approval: {locked_tools}")
 
     progress("pin BASIC_MODEL from .env.test before agent send")
     pin_result = await ensure_desktop_basic_model_pinned_for_send(chat)

@@ -221,6 +221,16 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
   const isDark = resolvedTheme === 'dark';
   const isSubagentApproval = approval.action_type === 'subagent_approval';
+  const hasAnySmartDenied = useMemo(() => {
+    const configs = approval.payload?.reviewConfigs;
+    if (!configs || !Array.isArray(configs)) return false;
+    return configs.some((c) => c?.smartDenied === true);
+  }, [approval.payload?.reviewConfigs]);
+  const smartDeniedReason = useMemo(() => {
+    const reasons = approval.payload?.reviewerReasons;
+    if (!reasons || !Array.isArray(reasons)) return undefined;
+    return reasons.find((r) => typeof r === 'string' && r.length > 0);
+  }, [approval.payload?.reviewerReasons]);
   const singleShellToolCall = useMemo(() => {
     if (!isSubagentApproval || toolCalls.length !== 1) {
       return null;
@@ -820,6 +830,22 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
       {renderContent()}
 
+      {hasAnySmartDenied && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3">
+          <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+          <div>
+            <h4 className="font-semibold text-sm text-amber-700 dark:text-amber-300">
+              {t('smartDenied.title')}
+            </h4>
+            {smartDeniedReason && (
+              <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+                {smartDeniedReason}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         <label htmlFor={`comment-${approval.approval_id}`} className="text-sm font-medium">
           {t('commentsOptional')}
@@ -834,42 +860,66 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t">
-        <Button variant="outline" onClick={() => onResolve('reject', comment, undefined, { feedback: comment || undefined })} disabled={isSubmitting}>
-          {t('reject')}
-        </Button>
-        {singleShellToolCall && approval.action_type !== 'deploy_approval' && (
-          <Button variant="secondary" onClick={() => setMode('editing')} disabled={isSubmitting}>
-            <Pencil className="mr-1 h-3.5 w-3.5" />
-            {t('edit')}
-          </Button>
+        {hasAnySmartDenied ? (
+          <>
+            <Button
+              variant="destructive"
+              onClick={() => onResolve('reject', comment, undefined, { feedback: comment || undefined })}
+              disabled={isSubmitting}
+            >
+              {t('reject')}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                onResolve('approve', comment, undefined, { feedback: comment || undefined });
+              }}
+              disabled={isSubmitting}
+            >
+              <AlertTriangle className="mr-1 h-3.5 w-3.5" />
+              {t('smartDenied.overrideOnce')}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="outline" onClick={() => onResolve('reject', comment, undefined, { feedback: comment || undefined })} disabled={isSubmitting}>
+              {t('reject')}
+            </Button>
+            {singleShellToolCall && approval.action_type !== 'deploy_approval' && (
+              <Button variant="secondary" onClick={() => setMode('editing')} disabled={isSubmitting}>
+                <Pencil className="mr-1 h-3.5 w-3.5" />
+                {t('edit')}
+              </Button>
+            )}
+            {isSubagentApproval && (
+              <Button
+                variant="ghost"
+                onClick={() => setShowAlwaysAllowConfirm(true)}
+                disabled={isSubmitting}
+                className="text-xs text-amber-600 hover:text-amber-700"
+              >
+                {t('allowAlways')}
+              </Button>
+            )}
+            <Button
+              onClick={() => {
+                let edited_payload: Record<string, unknown> | undefined = undefined;
+                if (approval.action_type === 'tool_clarification') {
+                  try {
+                    edited_payload = JSON.parse(editedArgs);
+                  } catch {
+                    console.error('Invalid JSON payload');
+                    return;
+                  }
+                }
+                onResolve('approve', comment, edited_payload, { feedback: comment || undefined });
+              }}
+              disabled={isSubmitting}
+            >
+              {t('approve')}
+            </Button>
+          </>
         )}
-        {isSubagentApproval && (
-          <Button
-            variant="ghost"
-            onClick={() => setShowAlwaysAllowConfirm(true)}
-            disabled={isSubmitting}
-            className="text-xs text-amber-600 hover:text-amber-700"
-          >
-            {t('allowAlways')}
-          </Button>
-        )}
-        <Button
-          onClick={() => {
-            let edited_payload: Record<string, unknown> | undefined = undefined;
-            if (approval.action_type === 'tool_clarification') {
-              try {
-                edited_payload = JSON.parse(editedArgs);
-              } catch {
-                console.error('Invalid JSON payload');
-                return;
-              }
-            }
-            onResolve('approve', comment, edited_payload, { feedback: comment || undefined });
-          }}
-          disabled={isSubmitting}
-        >
-          {t('approve')}
-        </Button>
       </div>
 
       {isSubagentApproval && (

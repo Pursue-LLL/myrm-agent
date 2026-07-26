@@ -21,7 +21,7 @@ from typing import Iterator, NotRequired, TypedDict
 SCHEMA_VERSION = 1
 DEFAULT_OWNER_TTL_SEC = 900.0
 DEFAULT_MAX_SESSIONS = 6
-DEFAULT_WAIT_SEC = 900
+DEFAULT_WAIT_SEC = 300
 DEFAULT_POLL_SEC = 15
 NORMAL_PRIORITY = 0
 
@@ -136,7 +136,9 @@ def _registry_key(session_id: str) -> str:
 
 def effective_max_sessions() -> int:
     """Return global mux session cap for formal chrome_e2e sessions."""
-    base_raw = os.environ.get("MYRM_MUX_MAX_CONCURRENT_SESSIONS", str(DEFAULT_MAX_SESSIONS))
+    base_raw = os.environ.get(
+        "MYRM_MUX_MAX_CONCURRENT_SESSIONS", str(DEFAULT_MAX_SESSIONS)
+    )
     try:
         return max(1, int(base_raw))
     except ValueError:
@@ -249,8 +251,12 @@ def acquire_with_wait(
 ) -> tuple[str, str]:
     from e2e_capacity_messages import format_mux_wait, format_mux_wait_timeout
 
-    wait_sec = int(os.environ.get("MYRM_E2E_MUX_ADMISSION_WAIT_SEC", str(DEFAULT_WAIT_SEC)))
-    poll_sec = int(os.environ.get("MYRM_E2E_MUX_ADMISSION_POLL_SEC", str(DEFAULT_POLL_SEC)))
+    wait_sec = int(
+        os.environ.get("MYRM_E2E_MUX_ADMISSION_WAIT_SEC", str(DEFAULT_WAIT_SEC))
+    )
+    poll_sec = int(
+        os.environ.get("MYRM_E2E_MUX_ADMISSION_POLL_SEC", str(DEFAULT_POLL_SEC))
+    )
     poll_sec = max(1, poll_sec)
     started = time.monotonic()
     while True:
@@ -349,9 +355,17 @@ def main() -> int:
             )
         return 0
     if args.command == "release":
-        return 0 if release(session_id=args.session_id, owner_token=args.owner_token) else 1
+        return (
+            0
+            if release(session_id=args.session_id, owner_token=args.owner_token)
+            else 1
+        )
     if args.command == "heartbeat":
-        return 0 if heartbeat(session_id=args.session_id, owner_token=args.owner_token) else 1
+        return (
+            0
+            if heartbeat(session_id=args.session_id, owner_token=args.owner_token)
+            else 1
+        )
     if args.wait:
         token, _ = acquire_with_wait(
             session_id=args.session_id,

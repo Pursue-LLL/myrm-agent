@@ -1,4 +1,22 @@
-"""Pure lease-state transitions shared by Wave orchestration modules."""
+"""Pure lease-state transitions shared by Wave orchestration modules.
+
+[INPUT]
+dev_gate_contract::formal_chrome_e2e_runtime_heal_agent (POS: Dev Gate v2 合约常量 SSOT)
+wave_orchestrator.browser_lifecycle::cleanup_expired_browser (POS: browser lease 清理)
+wave_orchestrator.resource_ledger::cleanup_expired_lease_resources (POS: 资源账本清理)
+wave_orchestrator.types::LeaseRecord, OrchestratorState (POS: 类型定义)
+
+[OUTPUT]
+active_leases / find_active_lease: 活跃租约查询
+reap_abandoned_leases / reap_expired_leases: owner 死亡/TTL 过期租约回收
+heal_open_wave_runtime_id / restore_drifted_formal_e2e_wave: runtime drift 修复
+close_wave_after_last_expired_lease: 最后 lease 过期后关闭 wave
+reap_runtime_drift: runtime 漂移租约 reap
+
+[POS]
+无 I/O 的租约状态转换规则。所有 waveId 访问使用 .get() 防御性访问，
+支持 zombie lease 缺失字段场景。
+"""
 
 from __future__ import annotations
 
@@ -140,7 +158,7 @@ def formal_chrome_e2e_wave_heal_allowed(state: OrchestratorState) -> bool:
         return False
     wave_id = wave["waveId"]
     return any(
-        lease["waveId"] == wave_id
+        lease.get("waveId") == wave_id
         and formal_chrome_e2e_runtime_heal_agent(str(lease.get("agentId", "")))
         for lease in state["leases"]
     )
@@ -162,7 +180,7 @@ def heal_open_wave_runtime_id(
     wave_id = wave["waveId"]
     wave["runtimeId"] = current_runtime_id
     for lease in active_leases(state):
-        if lease["waveId"] == wave_id:
+        if lease.get("waveId") == wave_id:
             lease["runtimeId"] = current_runtime_id
     return True
 
@@ -186,7 +204,7 @@ def restore_drifted_formal_e2e_wave(
     wave.pop("closedAt", None)
     changed = False
     for lease in state["leases"]:
-        if lease["waveId"] != wave_id or lease["status"] != "expired":
+        if lease.get("waveId") != wave_id or lease["status"] != "expired":
             continue
         lease["status"] = "active"
         lease["runtimeId"] = current_runtime_id
@@ -224,7 +242,9 @@ def close_wave_after_last_expired_lease(state: OrchestratorState) -> bool:
     if wave is None or wave["status"] != "open":
         return False
     wave_leases = [
-        lease for lease in state["leases"] if lease["waveId"] == wave["waveId"]
+        lease
+        for lease in state["leases"]
+        if lease.get("waveId") == wave["waveId"]
     ]
     if not wave_leases or any(lease["status"] == "active" for lease in wave_leases):
         return False

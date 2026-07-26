@@ -11125,6 +11125,10 @@
       "allowDomain": "始终允许此域名",
       "allowDomainDesc": "后续对该域名的请求将自动通过（仅当前会话）"
     },
+    "smartDenied": {
+      "title": "安全审查建议拒绝此操作",
+      "overrideOnce": "覆写一次"
+    },
     "batchCostTitle": "批量任务费用确认",
     "batchCostDescription": "智能体即将派发多个子任务。请确认预估费用后再继续。",
     "batchCostEstimated": "预估费用",

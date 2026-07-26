@@ -11034,6 +11034,10 @@
       "allowDomain": "始終允許此域名",
       "allowDomainDesc": "後續對該域名的請求將自動透過（僅當前會話）"
     },
+    "smartDenied": {
+      "title": "安全審查建議拒絕此操作",
+      "overrideOnce": "覆寫一次"
+    },
     "batchCostTitle": "批次任務費用確認",
     "batchCostDescription": "智慧體即將派發多個子任務。請確認預估費用後再繼續。",
     "batchCostEstimated": "預估費用",

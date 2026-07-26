@@ -9665,6 +9665,13 @@
     "batchTitle": "Batch Approval ({count} tools)",
     "description": "The agent wants to execute the following action(s). Review and decide: approve, edit parameters, or reject with feedback.",
     "subagentApprovalRequired": "Subagent Task Approval",
+    "deployApprovalTitle": "아티팩트 배포 확인",
+    "deployApprovalArtifact": "아티팩트",
+    "deployApprovalHint": "승인 시 이 아티팩트가 Vercel에 게시되어 공개 URL이 생성됩니다.",
+    "outboundDraftTitle": "채널 응답 초안",
+    "outboundDraftDescription": "AI가 전송 전 검토가 필요한 응답을 생성했습니다.",
+    "outboundDraftOriginal": "고객 메시지",
+    "outboundDraftReply": "AI 초안 응답",
     "skillGrowthPending": "Skill Growth Review",
     "viewChanges": "변경사항 보기",
     "hideChanges": "변경사항 숨기기",
@@ -9677,6 +9684,7 @@
     "parameters": "Parameters",
     "reason": "Reason",
     "executionIntent": "실행 의도",
+    "workspaceLabel": "워크스페이스",
     "expiresIn": "Expires in {seconds}s",
     "expired": "Expired",
     "expiredToast": "Approval timed out — action was automatically rejected",
@@ -9717,6 +9725,7 @@
     "handoverDialogTitle": "Waiting for You",
     "handoverDialogDescription": "The agent needs you to complete an action in the browser. Click \"Done\" when finished.",
     "resumeError": "Failed to resume execution. Please try again.",
+    "approvalExpired": "이 승인은 이미 시간 초과로 처리되었습니다. 추가 작업이 필요하지 않습니다.",
     "resolveError": "승인 제출에 실패했습니다. 다시 시도해 주세요.",
     "browserSession": {
       "title": "Browser Session Operation",
@@ -9727,6 +9736,12 @@
     },
     "allowAlwaysAfterEdit": "Also mark as always allow",
     "editValidationError": "Parameter format error: {fields}",
+    "guidance": {
+      "toggle": "에이전트에 가이드 추가",
+      "placeholder": "에이전트에 추가 컨텍스트나 지시사항을 제공합니다 (예: '프로덕션 API를 사용하세요', '이번 실행은 오류 검사 건너뛰기')...",
+      "hint": "이 가이드는 에이전트가 실행을 재개할 때 컨텍스트로 주입됩니다.",
+      "hasGuidance": "가이드 첨부됨"
+    },
     "allowAlwaysConfirm": {
       "title": "Confirm Always Allow?",
       "description": "This will automatically approve future matching operations without requiring approval again.",
@@ -9753,10 +9768,22 @@
       "browser": "Browser Operations",
       "default": "This Type"
     },
+    "spanRiskReasons": {
+      "safe": "안전 — 읽기 전용 명령, 자동 허용됨",
+      "empty_segment": "빈 세그먼트 — 명령이 감지되지 않음",
+      "redirect": "파일에 기록 — 대상 경로를 확인하세요",
+      "unknown_command": "인식되지 않은 명령 — 확인이 필요합니다",
+      "unknown_subcommand": "인식되지 않은 하위 명령 — 확인이 필요합니다",
+      "invalid_flags": "인식되지 않은 플래그 — 확인이 필요합니다"
+    },
     "domain": {
       "label": "Target Domain",
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
+    },
+    "smartDenied": {
+      "title": "보안 검토자가 거부를 권장합니다",
+      "overrideOnce": "한 번만 허용"
     },
     "batchCostTitle": "일괄 작업 비용 확인",
     "batchCostDescription": "에이전트가 여러 서브 에이전트를 생성하려고 합니다. 예상 비용을 확인한 후 진행하세요.",
@@ -9768,7 +9795,8 @@
     "batchCostTournament": "토너먼트 모드 (최우수 승리)",
     "highRiskDomAction": "고위험 브라우저 작업이 감지되었습니다",
     "targetElement": "대상 요소",
-    "action": "작업"
+    "action": "작업",
+    "jsExpression": "JavaScript 표현식"
   },
   "notifications": {
     "pairingPending": "New pairing request from {sender} on {channel}",

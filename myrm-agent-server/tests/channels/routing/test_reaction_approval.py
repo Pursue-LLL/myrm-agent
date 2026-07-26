@@ -27,6 +27,7 @@ import pytest
 
 from app.channels.routing.commands import (
     ApprovalDecision,
+    DenyWithReason,
     normalize_approval_emoji,
     parse_approval_command,
 )
@@ -253,6 +254,25 @@ class TestHandleApprovalContract:
         await host._handle_approval_command(msg, "allow_once")
         host._bus.publish_outbound.assert_awaited_once()
         host._gate.submit.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_deny_with_reason_payload_includes_guidance(self) -> None:
+        host, msg = self._setup()
+        deny = DenyWithReason(reason="use HTTPS instead")
+        await host._handle_approval_command(msg, deny)
+        resume = host._gate.submit.call_args[0][0].resume_value
+        decisions = resume["decisions"]
+        assert decisions[0]["type"] == "reject"
+        assert decisions[0]["guidance"] == "use HTTPS instead"
+        assert "Denied via slack" in decisions[0]["feedback"]
+
+    @pytest.mark.asyncio
+    async def test_deny_with_reason_status_includes_reason(self) -> None:
+        host, msg = self._setup()
+        deny = DenyWithReason(reason="too dangerous")
+        await host._handle_approval_command(msg, deny)
+        edited_text = host._bus.edit_channel_message.call_args[0][2]
+        assert "too dangerous" in edited_text
 
     @pytest.mark.asyncio
     async def test_approval_message_is_consumed_on_handle(self) -> None:

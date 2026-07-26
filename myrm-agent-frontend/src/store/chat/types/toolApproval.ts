@@ -55,6 +55,10 @@ export interface ToolApprovalRequest {
   plainExplanation?: { en: string; zh: string };
   /** LLM-provided execution intent from bash_code_execute_tool.reason */
   executionIntent?: string;
+  /** True when the LLM security reviewer recommended denial — user may override once */
+  smartDenied?: boolean;
+  /** LLM reviewer's reason for denial */
+  reviewerReason?: string;
 }
 export interface ToolCallInfo {
   callId: string;

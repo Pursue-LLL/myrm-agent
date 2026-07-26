@@ -11,6 +11,7 @@
 
 [POS]
 Dev test wave orchestrator core. Enforces immutable test waves for Chrome MCP E2E.
+所有 waveId 比较使用 .get() 防御性访问，支持 zombie lease 缺失字段。
 """
 
 from __future__ import annotations
@@ -335,9 +336,9 @@ def acquire_lease(
                 raise RuntimeError(
                     f"PARENT_LEASE_OWNER_MISMATCH: {parent_id} owner={parent['agentId']}"
                 )
-            if parent["waveId"] != wave["waveId"]:
+            if parent.get("waveId") != wave["waveId"]:
                 raise RuntimeError(
-                    f"PARENT_LEASE_WAVE_MISMATCH: {parent_id} wave={parent['waveId']}"
+                    f"PARENT_LEASE_WAVE_MISMATCH: {parent_id} wave={parent.get('waveId')}"
                 )
         active = active_leases(state)
         foreign_leases = [lease for lease in active if lease["agentId"] != holder]
@@ -439,7 +440,9 @@ def release_lease_and_close_wave_if_idle(
                     or lease.get("parentLeaseId") not in parent_ids
                 ):
                     continue
-                if lease["agentId"] != holder or lease["waveId"] != released["waveId"]:
+                if lease["agentId"] != holder or lease.get("waveId") != released.get(
+                    "waveId"
+                ):
                     raise RuntimeError(
                         "CHILD_LEASE_OWNERSHIP_MISMATCH: "
                         f"{lease['leaseId']} parent={lease.get('parentLeaseId')}"
@@ -457,7 +460,7 @@ def release_lease_and_close_wave_if_idle(
         if (
             wave is not None
             and wave["status"] == "open"
-            and wave["waveId"] == released["waveId"]
+            and wave["waveId"] == released.get("waveId")
             and not active_leases(state)
         ):
             closed = {**wave, "status": "closed", "closedAt": _iso(_utc_now())}

@@ -15,6 +15,7 @@ from app.channels.routing.command_registry import (
     CommandRegistry,
 )
 from app.channels.routing.commands import (
+    DenyWithReason,
     TopicCommand,
     handle_compact,
     handle_new_session,
@@ -267,6 +268,51 @@ class TestIsExplicitApprovalCommand:
 
     def test_numeric_not_explicit(self) -> None:
         assert is_explicit_approval_command("1") is False
+
+
+class TestDenyWithReason:
+    """Tests for /deny <reason> parsing returning DenyWithReason."""
+
+    def test_deny_with_reason_returns_dataclass(self) -> None:
+        result = parse_approval_command("/deny please use a safer approach")
+        assert isinstance(result, DenyWithReason)
+        assert result.reason == "please use a safer approach"
+
+    def test_deny_with_reason_case_insensitive(self) -> None:
+        result = parse_approval_command("/Deny too risky")
+        assert isinstance(result, DenyWithReason)
+        assert result.reason == "too risky"
+
+    def test_deny_with_reason_is_explicit(self) -> None:
+        assert is_explicit_approval_command("/deny please stop") is True
+
+    def test_deny_with_reason_whitespace(self) -> None:
+        result = parse_approval_command("  /deny  some reason  ")
+        assert isinstance(result, DenyWithReason)
+        assert result.reason == "some reason"
+        assert is_explicit_approval_command("  /deny  some reason  ") is True
+
+    def test_deny_without_reason_returns_literal(self) -> None:
+        assert parse_approval_command("/deny") == "deny"
+
+    def test_deny_whitespace_only_returns_literal(self) -> None:
+        assert parse_approval_command("/deny   ") == "deny"
+
+    def test_deny_reason_chinese(self) -> None:
+        result = parse_approval_command("/deny 请用更安全的方法")
+        assert isinstance(result, DenyWithReason)
+        assert result.reason == "请用更安全的方法"
+
+    def test_deny_reason_truncation(self) -> None:
+        long_reason = "x" * 500
+        result = parse_approval_command(f"/deny {long_reason}")
+        assert isinstance(result, DenyWithReason)
+        assert len(result.reason) == 280
+
+    def test_deny_reason_preserves_original_case(self) -> None:
+        result = parse_approval_command("/Deny Use HTTPS instead")
+        assert isinstance(result, DenyWithReason)
+        assert result.reason == "Use HTTPS instead"
 
 
 class TestParseTopicArgs:

@@ -57,8 +57,12 @@ async def test_analyze_url_success(mock_analyze_github_url):
         mock_client.return_value.__aenter__.return_value = mock_instance
         mock_instance.get = AsyncMock(
             side_effect=[
-                _make_response(200, "---\nname: skill1\ndescription: The first skill\n---\n"),
-                _make_response(200, "---\nname: skill2\ndescription: The second skill\n---\n"),
+                _make_response(
+                    200, "---\nname: skill1\ndescription: The first skill\n---\n"
+                ),
+                _make_response(
+                    200, "---\nname: skill2\ndescription: The second skill\n---\n"
+                ),
             ]
         )
         results = await service.analyze_url(url)

@@ -1,7 +1,7 @@
 """Router approval mixin: /stop, reaction/button approval, decision resume payloads.
 
 [INPUT]
-- channels.routing.commands::ApprovalDecision (POS: slash command argument parsing and handling.)
+- channels.routing.commands::ApprovalDecision, DenyWithReason (POS: slash command argument parsing and handling.)
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
 - channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
@@ -20,7 +20,7 @@ import dataclasses
 import logging
 
 from app.channels.i18n import get_text
-from app.channels.routing.commands import ApprovalDecision
+from app.channels.routing.commands import ApprovalDecision, DenyWithReason
 from app.channels.routing.router_host import RouterCommandsHost
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.types import InboundMessage, OutboundMessage
@@ -164,7 +164,7 @@ class RouterCommandsApprovalMixin:
     async def _handle_approval_command(
         self: RouterCommandsHost,
         msg: InboundMessage,
-        decision: ApprovalDecision | list[ApprovalDecision],
+        decision: ApprovalDecision | DenyWithReason | list[ApprovalDecision],
     ) -> None:
         """Resume the interrupted agent with the user's three-tier decision.
 
@@ -176,6 +176,7 @@ class RouterCommandsApprovalMixin:
           (harness `add_to_allowlist_if_needed` then persists into the user's
           allowlist; future identical tool invocations bypass ASK gate)
         - ``deny``         → ``{"type": "reject", "feedback": "..."}``
+        - ``DenyWithReason`` → ``{"type": "reject", ..., "guidance": "<reason>"}``
 
         Supports both single and batch decisions; LangGraph resumes the
         interrupted graph state via ``Command(resume=resume_value)``.
@@ -195,9 +196,13 @@ class RouterCommandsApprovalMixin:
             await self._bus.publish_outbound(reply)
             return
 
-        if isinstance(decision, str):
-            entry = self._build_decision_entry(decision, msg.channel)
+        if isinstance(decision, DenyWithReason):
+            entry = self._build_decision_entry("deny", msg.channel, reason=decision.reason)
             decisions: list[dict[str, object]] = [entry]
+            status_msg = self._status_for_single_decision(msg, "deny", reason=decision.reason)
+        elif isinstance(decision, str):
+            entry = self._build_decision_entry(decision, msg.channel)
+            decisions = [entry]
             status_msg = self._status_for_single_decision(msg, decision)
         else:
             decisions = [self._build_decision_entry(d, msg.channel, batch=True) for d in decision]
@@ -351,29 +356,49 @@ class RouterCommandsApprovalMixin:
             logger.info("Outbound draft %s rejected via channel button, discarded", record.id[:12])
 
     @staticmethod
-    def _build_decision_entry(decision: ApprovalDecision, channel: str, *, batch: bool = False) -> dict[str, object]:
+    def _build_decision_entry(
+        decision: ApprovalDecision,
+        channel: str,
+        *,
+        batch: bool = False,
+        reason: str | None = None,
+    ) -> dict[str, object]:
         """Translate the three-tier decision into the harness decision dict.
 
         The harness ``apply_approval_decisions`` reads ``allowAlways`` from
         ``decision.extensions`` (camelCase) to drive
         ``add_to_allowlist_if_needed``; mirror that contract exactly.
+
+        When *reason* is provided (from ``/deny <reason>``), it is passed as
+        ``guidance`` so the harness injects it as a HumanMessage for the agent
+        to course-correct.
         """
         if decision == "allow_always":
             return {"type": "approve", "extensions": {"allowAlways": True}}
         if decision == "allow_once":
             return {"type": "approve"}
         suffix = "batch command" if batch else "command"
-        return {
+        entry: dict[str, object] = {
             "type": "reject",
             "feedback": f"Denied via {channel} channel {suffix}",
         }
+        if reason:
+            entry["guidance"] = reason
+        return entry
 
     @staticmethod
-    def _status_for_single_decision(msg: InboundMessage, decision: ApprovalDecision) -> str:
+    def _status_for_single_decision(
+        msg: InboundMessage,
+        decision: ApprovalDecision,
+        *,
+        reason: str = "",
+    ) -> str:
         if decision == "allow_always":
             return get_text(msg, "approval_always_processing")
         if decision == "allow_once":
             return get_text(msg, "approval_processing")
+        if reason:
+            return get_text(msg, "approval_denial_with_reason_processing", reason=reason)
         return get_text(msg, "approval_denial_processing")
 
     @staticmethod

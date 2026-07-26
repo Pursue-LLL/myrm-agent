@@ -13,9 +13,16 @@ _wave_new_agent_id() {
 
 _wave_reap_stale_lease_state() {
   local wave="$1"
-  bash "${wave}" reap >/dev/null 2>&1 || true
-  local dev_dir
-  dev_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/scripts/dev"
+  local lib_dir
+  lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local dev_dir="${lib_dir}/.."
+  local wave_dir="${dev_dir}/wave_orchestrator"
+  if [[ -d "${wave_dir}" ]]; then
+    PYTHONPATH="${dev_dir}:${lib_dir}:${PYTHONPATH:-}" \
+      python3 -c "from wave_orchestrator.core import reap; reap()" >/dev/null 2>&1 || true
+  else
+    bash "${wave}" reap >/dev/null 2>&1 || true
+  fi
   if [[ -f "${dev_dir}/isolated_runtime.py" ]]; then
     python3 "${dev_dir}/isolated_runtime.py" prune >/dev/null 2>&1 || true
   fi

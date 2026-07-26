@@ -49,7 +49,9 @@
     "*.ts",
     "*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".next-isolated-e2e-parent-83432-83435-dd3bcf51/types/**/*.ts",
+    ".next-isolated-e2e-parent-83432-83435-dd3bcf51/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

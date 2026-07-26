@@ -106,18 +106,16 @@ async def run_desktop_approval_chrome_e2e(
                 progress(f"retry after: {last_error}")
                 reset_e2e_wall_budget_clock()
                 try:
-                    progress("retry reset: attach heal + mux recover + reopen chat page")
-                    await heal_chrome_attach_before_reopen()
+                    progress("retry reset: lightweight chat reset (no page reopen)")
                     await asyncio.to_thread(chat._client.recover_mux_transport)
-                    await asyncio.sleep(2.0)
-                    chat._page = await open_mcp_chat_page(chat._client)
-                    await chat.bootstrap(BASE_URL, navigate=True, timeout_sec=120.0)
-                    await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
+                    await asyncio.sleep(1.0)
                     progress("new chat + ensure surface")
                     chat._reset_shell_layout_wait_clock()
+                    await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)
+                    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
                     await chat.click_new_chat()
-                    await chat.ensure_chat_surface(BASE_URL)
-                    await chat.ensure_react_e2e_bridge(timeout_sec=120.0)
+                    await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)
+                    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
                 except (RuntimeError, TimeoutError, OSError) as reset_exc:
                     if is_retriable_page_transport(reset_exc):
                         progress(

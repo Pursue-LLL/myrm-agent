@@ -208,6 +208,7 @@ export interface ToolApprovalRequestStreamEvent extends BaseAgentEvent {
     reviewConfigs: Array<{
       allowedDecisions: Array<'approve' | 'reject' | 'edit'>;
       domainApproval?: boolean;
+      smartDenied?: boolean;
     }>;
     // Extensions (custom fields)
     extensions: {

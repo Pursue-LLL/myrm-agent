@@ -1,4 +1,24 @@
-"""Synchronous Chrome DevTools MCP mux client for formal UI E2E runners."""
+"""Synchronous Chrome DevTools MCP mux client for formal UI E2E runners.
+
+[INPUT]
+chrome_mcp_errors (POS: MCP 错误分类谓词)
+mcp_protocol (POS: JSON-RPC 解析与 tool 响应提取)
+mcp_page_lease_heartbeat (POS: page lease 心跳管理)
+cdp_chat_support (POS: E2E API/chat 消息 SSOT)
+dev_gate_contract (POS: Dev Gate v2 合约常量 SSOT)
+mux_load (POS: mux context / wave lease 负载探针)
+mux_upstream_admission (POS: mux cold attach 准入)
+
+[OUTPUT]
+ChromeMcpClient: 同步 MCP JSON-RPC 客户端（shim 进程管理、transport recovery、generation check、page lease）
+McpPage: MCP 页面句柄（targetId + client 引用）
+_TransportDeadError: transport 层统一异常（_read EOF / _write BrokenPipe / 进程退出）
+
+[POS]
+正式 pytest UI E2E 的 MCP JSON-RPC 通信层。管理 shim 子进程生命周期，
+提供 transport-level 容错（_TransportDeadError → recover）、generation-based 竞态防护、
+page lease 心跳，供 mcp_chat_ui / cdp_chat_* 调用。
+"""
 
 from __future__ import annotations
 

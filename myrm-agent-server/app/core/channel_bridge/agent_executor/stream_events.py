@@ -116,7 +116,21 @@ async def iter_channel_stream_progress(
                 timeout_action = (
                     "auto-approve" if timeout_behavior == "allow" else "auto-deny"
                 )
-                label = f"{tools_str} needs approval: {reason_str}\n⏱ Timeout: {timeout_secs}s ({timeout_action})"
+
+                review_configs = data.get("reviewConfigs", [])
+                has_smart_denied = (
+                    isinstance(review_configs, list)
+                    and any(
+                        isinstance(rc, dict) and rc.get("smartDenied") is True
+                        for rc in review_configs
+                    )
+                )
+                smart_prefix = (
+                    "⚠️ [Security reviewer recommends denial] "
+                    if has_smart_denied
+                    else ""
+                )
+                label = f"{smart_prefix}{tools_str} needs approval: {reason_str}\n⏱ Timeout: {timeout_secs}s ({timeout_action})"
 
                 is_batch = (
                     isinstance(action_requests, list) and len(action_requests) > 1

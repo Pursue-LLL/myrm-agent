@@ -99,17 +99,21 @@ E2E_SNAPSHOT_NUDGE_PROMPT = (
     "using its ref (like @d1 or @d2). Then reply DONE."
 )
 E2E_VISION_CORRECT_PROMPT = (
-    "Stop. Do NOT call desktop_vision_tool again. "
-    "Call desktop_snapshot_tool(scope='foreground') to get @drefs for the front app, "
+    "Stop. Call desktop_snapshot_tool(scope='foreground') to get @drefs for the front app, "
     "then call desktop_interact_tool(ref=@dref, action='click') to click one line in TextEdit. "
-    "Do not end the turn before desktop_interact_tool runs. Reply DONE."
+    "If snapshot still has no usable @dref, immediately call "
+    "desktop_vision_tool(action='left_click', coordinate=[640, 360]) to request desktop control approval, "
+    "then retry desktop_snapshot_tool(scope='foreground') and desktop_interact_tool. "
+    "Do not use bash or text-only explanations. Reply DONE after a desktop control tool call."
 )
 E2E_SNAPSHOT_RESEED_PROMPT = (
     "If desktop_snapshot_tool reports no active desktop or returns no @drefs, "
     "call desktop_vision_tool once to re-seed desktop context for TextEdit. "
     "Then call desktop_snapshot_tool(scope='foreground') and immediately call "
     "desktop_interact_tool(ref=@dref, action='click') on a TextEdit line. "
-    "Do not finish before desktop_interact_tool runs. Reply DONE."
+    "If @drefs are still missing, call desktop_vision_tool(action='left_click', coordinate=[640, 360]) "
+    "to force the approval gate, then retry snapshot + interact. "
+    "Do not finish before a desktop control tool call runs. Reply DONE."
 )
 
 
@@ -118,9 +122,12 @@ def build_desktop_interact_nudge(*, dref: str | None = None) -> str:
     if normalized.startswith("d") and len(normalized) > 1:
         return (
             f"MANDATORY: Call desktop_interact_tool(ref=@{normalized}, action='click') NOW. "
-            "Do not call desktop_snapshot_tool. Do not call desktop_vision_tool. "
-            "Do not explain limitations before the tool call. "
-            "After the tool call, reply DONE."
+            "If this @dref is unavailable or AX is empty, immediately call "
+            "desktop_vision_tool(action='left_click', coordinate=[640, 360]) "
+            "to request desktop control approval, then retry desktop_snapshot_tool(scope='foreground') "
+            f"and desktop_interact_tool(ref=@{normalized}, action='click'). "
+            "Do not use bash or text-only explanations before tool calls. "
+            "Reply DONE only after a desktop control tool call."
         )
     return E2E_NUDGE_PROMPT
 

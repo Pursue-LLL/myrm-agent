@@ -1,4 +1,20 @@
-"""Dev Gate v2 contract SSOT for Chrome MCP E2E orchestration (product path)."""
+"""Dev Gate v2 contract SSOT for Chrome MCP E2E orchestration (product path).
+
+[INPUT]
+(无外部模块依赖，仅 os/typing 标准库)
+
+[OUTPUT]
+TRANSIENT_MUX_ERROR_TOKENS: transport 层瞬态错误子串元组（含 "Chrome MCP transport closed"）
+BENIGN_CLEANUP_TOKENS: 清理阶段可忽略的错误子串元组
+PAGE_OWNERSHIP_ERROR_TOKENS: page ownership 错误子串元组
+E2E_UNIFIED_WAIT_SEC / MUX_* / LIVE_* 系列常量: 并行 cap、超时、pytest floor 等 SSOT
+chrome_e2e_skips_shared_*: 按 lane/shpoib 判断是否跳过共享资源排队
+
+[POS]
+Dev Gate v2 合约常量 SSOT。定义 Chrome MCP E2E 的错误分类、并行 cap、
+超时预算、lane pytest timeout 等配置常量，供 chrome_mcp_client / e2e_bootstrap
+/ test.sh 等消费。
+"""
 
 from __future__ import annotations
 

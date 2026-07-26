@@ -36,6 +36,10 @@ export interface ApprovalPayloadData {
   plan_items?: PlanItem[];
   total_items?: number;
   goal?: string;
+  /** Per-tool review configs from interrupt payload (includes smartDenied flag) */
+  reviewConfigs?: Array<{ smartDenied?: boolean }>;
+  /** Per-tool reviewer reasons from interrupt payload */
+  reviewerReasons?: string[];
 }
 
 export interface ApprovalPayload {

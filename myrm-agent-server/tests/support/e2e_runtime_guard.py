@@ -83,7 +83,9 @@ def _heartbeat_deferred_mux_admission() -> None:
     token = os.environ.get("MYRM_E2E_MUX_ADMISSION_TOKEN", "").strip()
     if not run_id or not token:
         return
-    admission_py = Path(__file__).resolve().parents[3] / "scripts/dev/lib/e2e_mux_admission.py"
+    admission_py = (
+        Path(__file__).resolve().parents[3] / "scripts/dev/lib/e2e_mux_admission.py"
+    )
     if not admission_py.is_file():
         return
     subprocess.run(
