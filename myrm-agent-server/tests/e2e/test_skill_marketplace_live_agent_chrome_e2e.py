@@ -1,6 +1,6 @@
 """Chrome LIVE_AGENT E2E: agent invokes skill_market_tool (external marketplace search).
 
-Verifies discover_capability vs skill_discovery boundary in real WebUI chat with a
+Verifies discover_capability vs skill_market boundary in real WebUI chat with a
 custom agent system prompt (legitimate config) and a natural user query (no injection).
 
 Formal run::

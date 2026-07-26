@@ -18,6 +18,7 @@ from tests.e2e.desktop_approval.constants import (
     E2E_NUDGE_PROMPT,
     E2E_SNAPSHOT_RESEED_PROMPT,
     E2E_VISION_CORRECT_PROMPT,
+    GATE_INTERACT_HANDOFF_SEC,
     GATE_IDLE_FAIL_FAST_SEC,
     GATE_IDLE_NUDGE_SEC,
     GATE_PENDING_GRACE_SEC,
@@ -31,7 +32,9 @@ from tests.e2e.desktop_approval.constants import (
 from tests.e2e.desktop_approval.textedit_fixture import (
     activate_chrome_foreground,
     activate_textedit_foreground,
+    ensure_textedit_ax_ready,
     preflight_textedit_foreground,
+    restart_textedit_fixture_process,
 )
 from tests.e2e.desktop_approval.trust_api import (
     fetch_desktop_tool_progress_from_api,
@@ -51,6 +54,25 @@ def _desktop_gate_satisfied(
 ) -> bool:
     _ = last_tool
     return ui_pending or server_pending > 0
+
+
+def interact_without_gate_handoff_elapsed(
+    *,
+    interact_seen_at: float | None,
+    server_pending: int,
+    ui_pending: bool,
+    now: float,
+    handoff_sec: float = GATE_INTERACT_HANDOFF_SEC,
+) -> bool:
+    if _desktop_gate_satisfied(
+        last_tool="",
+        server_pending=server_pending,
+        ui_pending=ui_pending,
+    ):
+        return False
+    if interact_seen_at is None:
+        return False
+    return (now - interact_seen_at) >= handoff_sec
 
 
 _PENDING_API_FAIL_ABORT_STREAK = 20
@@ -360,6 +382,7 @@ async def _fetch_first_desktop_dref(
     *,
     last_tool: str = "",
     chat_id: str = "",
+    fast_only: bool = False,
 ) -> str | None:
     normalized_chat_id = chat_id.strip()
     if last_tool.endswith("desktop_snapshot_tool"):
@@ -376,7 +399,8 @@ async def _fetch_first_desktop_dref(
             progress(f"dref from UI bridge: {normalized!r}")
             return normalized
     if normalized_chat_id:
-        for attempt in range(1, 4):
+        api_attempts = 1 if fast_only else 3
+        for attempt in range(1, api_attempts + 1):
             api_dref = await asyncio.to_thread(
                 fetch_first_desktop_dref_from_api,
                 normalized_chat_id,
@@ -386,14 +410,15 @@ async def _fetch_first_desktop_dref(
             if api_dref:
                 progress(
                     f"dref from API chat metadata: {api_dref!r} "
-                    f"(attempt {attempt}/3)"
+                    f"(attempt {attempt}/{api_attempts})"
                 )
                 return api_dref
-            if attempt < 3:
+            if attempt < api_attempts:
                 await asyncio.sleep(1.0)
     if last_tool.endswith("desktop_snapshot_tool"):
         await asyncio.to_thread(preflight_textedit_foreground)
-        for attempt in range(1, 3):
+        snapshot_attempts = 1 if fast_only else 2
+        for attempt in range(1, snapshot_attempts + 1):
             snapshot_dref = await asyncio.to_thread(
                 fetch_first_desktop_dref_from_snapshot_api,
                 chat_id=normalized_chat_id,
@@ -401,17 +426,44 @@ async def _fetch_first_desktop_dref(
             if snapshot_dref:
                 progress(
                     f"dref from snapshot API refs: {snapshot_dref!r} "
-                    f"(attempt {attempt}/2)"
+                    f"(attempt {attempt}/{snapshot_attempts})"
                 )
                 return snapshot_dref
-            if attempt < 2:
+            if attempt < snapshot_attempts:
                 await asyncio.sleep(1.0)
+        if fast_only:
+            progress("fast dref probe: skip local AX fallback and use synthetic dref")
+            return None
     if last_tool.endswith("desktop_snapshot_tool"):
         await asyncio.to_thread(preflight_textedit_foreground)
         local_dref = await asyncio.to_thread(
             fetch_first_desktop_dref_from_local_capture
         )
         if local_dref:
+            return local_dref
+        progress(
+            "no dref after snapshot probe; reseed TextEdit fixture then retry capture"
+        )
+        await asyncio.to_thread(restart_textedit_fixture_process)
+        ax_recovered = await asyncio.to_thread(ensure_textedit_ax_ready, attempts=3)
+        if not ax_recovered:
+            progress("textedit AX hard-recover failed after reseed")
+        for attempt in range(1, 3):
+            snapshot_dref = await asyncio.to_thread(
+                fetch_first_desktop_dref_from_snapshot_api,
+                chat_id=normalized_chat_id,
+            )
+            if snapshot_dref:
+                progress(
+                    f"dref from snapshot API after reseed: {snapshot_dref!r} "
+                    f"(attempt {attempt}/2)"
+                )
+                return snapshot_dref
+            if attempt < 2:
+                await asyncio.sleep(1.0)
+        local_dref = await asyncio.to_thread(fetch_first_desktop_dref_from_local_capture)
+        if local_dref:
+            progress(f"dref from local AX capture after reseed: {local_dref!r}")
             return local_dref
         progress("no dref from API/UI after desktop_snapshot_tool")
     return None
@@ -527,8 +579,19 @@ async def _send_interact_nudge(
             progress(f"dref prefetch surface repair skipped (non-fatal): {exc}")
         await asyncio.sleep(1.0)
         dref = await _fetch_first_desktop_dref(
-            chat, last_tool=last_tool, chat_id=normalized_chat_id
+            chat,
+            last_tool=last_tool,
+            chat_id=normalized_chat_id,
+            fast_only=True,
         )
+    if (
+        dref is None
+        and last_tool.endswith(("desktop_snapshot_tool", "desktop_vision_tool"))
+    ):
+        # Deterministic fallback: force interact call to trigger approval gate
+        # even when AX/snapshot refs are temporarily unavailable.
+        dref = "d1"
+        progress("fallback to synthetic dref='d1' for interact nudge")
     if dref:
         progress(f"nudge with concrete dref={dref!r}")
         nudge_prompt = build_desktop_interact_nudge(dref=dref)
@@ -756,6 +819,7 @@ async def wait_for_interact_or_approval(
     ui_pending = False
     idle_started: float | None = None
     snapshot_loop_started: float | None = None
+    interact_seen_at: float | None = None
     poll = 0
     api_fail_streak = [0]
     while asyncio.get_event_loop().time() < deadline:
@@ -772,15 +836,31 @@ async def wait_for_interact_or_approval(
             chat_id=chat_id,
             api_only=api_only,
         )
+        now = asyncio.get_event_loop().time()
         last_tool = str(tool_activity.get("lastTool") or "")
         server_pending = await _resolve_server_pending(api_fail_streak=api_fail_streak)
         ui_pending = bool(tool_activity.get("pending"))
+        if last_tool.endswith("desktop_interact_tool") and interact_seen_at is None:
+            interact_seen_at = now
         if _desktop_gate_satisfied(
             last_tool=last_tool,
             server_pending=server_pending,
             ui_pending=ui_pending,
         ):
             return tool_activity, last_tool, server_pending, ui_pending
+        if interact_without_gate_handoff_elapsed(
+            interact_seen_at=interact_seen_at,
+            server_pending=server_pending,
+            ui_pending=ui_pending,
+            now=now,
+        ):
+            progress(
+                "desktop_interact_tool observed without pending gate in wait loop "
+                f"for {GATE_INTERACT_HANDOFF_SEC:.0f}s — hand off to banner stage"
+            )
+            if isinstance(tool_activity, dict):
+                tool_activity = {**tool_activity, "interactSeen": True}
+            return tool_activity, last_tool, max(server_pending, 0), ui_pending
         stuck_sec = snapshot_loop_stuck_sec(
             last_tool=last_tool,
             server_pending=server_pending,
@@ -990,6 +1070,7 @@ async def ensure_interact_gate(
             chat,
             last_tool=last_tool,
             chat_id=chat_id,
+            fast_only=True,
         )
         if prefetched_dref:
             progress(
@@ -1200,6 +1281,38 @@ async def ensure_interact_gate(
                 tool_activity = probe if isinstance(probe, dict) else tool_activity
                 break
             await asyncio.sleep(1.0)
+    if interact_seen and not _desktop_gate_satisfied(
+        last_tool=last_tool,
+        server_pending=server_pending,
+        ui_pending=ui_pending,
+    ):
+        progress(
+            "interact_tool observed without pending gate — send rescue nudge "
+            "before banner stage"
+        )
+        try:
+            await _send_interact_nudge(
+                chat,
+                last_tool=last_tool,
+                chat_id=chat_id,
+                prefetched_dref=prefetched_dref,
+            )
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            if _is_hard_nudge_failure(exc):
+                raise
+            progress(f"rescue nudge skipped (non-fatal): {exc}")
+        heartbeat_e2e_lease()
+        if textedit_foreground:
+            await asyncio.to_thread(activate_textedit_foreground)
+        tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(45.0)
+        interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
+        if _desktop_gate_satisfied(
+            last_tool=last_tool,
+            server_pending=server_pending,
+            ui_pending=ui_pending,
+        ):
+            return tool_activity, last_tool, server_pending, ui_pending
+
     if interact_seen and not _desktop_gate_satisfied(
         last_tool=last_tool,
         server_pending=server_pending,

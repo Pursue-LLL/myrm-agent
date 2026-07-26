@@ -17,14 +17,17 @@ import { getTelegramCredentials, type TelegramCredentials } from '@/services/cha
 import MigrationWizardSection from '@/components/features/settings/sections/knowledge/MigrationWizardSection';
 import LocalCapabilitiesSetup from './LocalCapabilitiesSetup';
 import SmartRoutingStep from './SmartRoutingStep';
+import SmartGuardStep from './SmartGuardStep';
 import TelegramAssistantOnboardingStep from './TelegramAssistantOnboardingStep';
 import { Button } from '@/components/primitives/button';
+import { getConfigSyncManager } from '@/services/config';
+import type { SecurityConfigValue } from '@/services/config/types';
 
 interface OnboardingWizardProps {
   onComplete: () => void;
 }
 
-type Step = 'welcome' | 'migration' | 'capabilities' | 'routing' | 'telegram_assistant' | 'finishing';
+type Step = 'welcome' | 'migration' | 'capabilities' | 'routing' | 'smart_guard' | 'telegram_assistant' | 'finishing';
 
 const WELCOME_DURATION_MS = 2500;
 
@@ -60,6 +63,12 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     if (routingAlreadyEnabled) return false;
     return getEnabledModels().length >= 2;
   }, [routingAlreadyEnabled, getEnabledModels]);
+
+  const shouldShowSmartGuard = useCallback(() => {
+    if (getEnabledModels().length === 0) return false;
+    const secConfig = getConfigSyncManager().get('securityConfig') as SecurityConfigValue | null;
+    return !(secConfig?.autoReviewEnabled);
+  }, [getEnabledModels]);
 
   // We only run the async probes once on mount
   useEffect(() => {
@@ -107,6 +116,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         setStep('capabilities');
       } else if (shouldShowRouting()) {
         setStep('routing');
+      } else if (shouldShowSmartGuard()) {
+        setStep('smart_guard');
       } else if (!telegramConfigured) {
         setStep('telegram_assistant');
       } else {
@@ -114,7 +125,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initDone, isInitialized, step, shouldOfferMigrationStep, isLocalDeployment, hasEnabledProvider, searchConfigured, shouldShowRouting, telegramConfigured]);
+  }, [initDone, isInitialized, step, shouldOfferMigrationStep, isLocalDeployment, hasEnabledProvider, searchConfigured, shouldShowRouting, shouldShowSmartGuard, telegramConfigured]);
 
   const handleFinish = useCallback(async () => {
     setStep('finishing');
@@ -127,7 +138,23 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     setTimeout(onComplete, 400);
   }, [onComplete]);
 
-  const moveToTelegramStepOrFinish = useCallback(() => {
+  const moveToSmartGuardOrNext = useCallback(() => {
+    if (shouldShowSmartGuard()) {
+      setStep('smart_guard');
+      return;
+    }
+    if (!telegramConfigured) {
+      setStep('telegram_assistant');
+      return;
+    }
+    handleFinish();
+  }, [handleFinish, shouldShowSmartGuard, telegramConfigured]);
+
+  const handleRoutingCompleteOrSkip = useCallback(() => {
+    moveToSmartGuardOrNext();
+  }, [moveToSmartGuardOrNext]);
+
+  const handleSmartGuardCompleteOrSkip = useCallback(() => {
     if (!telegramConfigured) {
       setStep('telegram_assistant');
       return;
@@ -135,17 +162,13 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     handleFinish();
   }, [handleFinish, telegramConfigured]);
 
-  const handleRoutingCompleteOrSkip = useCallback(() => {
-    moveToTelegramStepOrFinish();
-  }, [moveToTelegramStepOrFinish]);
-
   const handleCapabilitiesComplete = useCallback(() => {
     if (shouldShowRouting()) {
       setStep('routing');
     } else {
-      moveToTelegramStepOrFinish();
+      moveToSmartGuardOrNext();
     }
-  }, [moveToTelegramStepOrFinish, shouldShowRouting]);
+  }, [moveToSmartGuardOrNext, shouldShowRouting]);
 
   const handleMigrationCompleteOrSkip = useCallback(() => {
     if (isLocalDeployment && (!hasEnabledProvider || !searchConfigured)) {
@@ -153,9 +176,9 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     } else if (shouldShowRouting()) {
       setStep('routing');
     } else {
-      moveToTelegramStepOrFinish();
+      moveToSmartGuardOrNext();
     }
-  }, [isLocalDeployment, hasEnabledProvider, moveToTelegramStepOrFinish, searchConfigured, shouldShowRouting]);
+  }, [isLocalDeployment, hasEnabledProvider, moveToSmartGuardOrNext, searchConfigured, shouldShowRouting]);
 
   if (step === 'welcome' || step === 'finishing') {
     return (
@@ -236,6 +259,18 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             </div>
             <div className="bg-card border rounded-xl p-6">
               <SmartRoutingStep onComplete={handleRoutingCompleteOrSkip} onSkip={handleRoutingCompleteOrSkip} />
+            </div>
+          </div>
+        )}
+
+        {step === 'smart_guard' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.smartGuard.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.smartGuard.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <SmartGuardStep onComplete={handleSmartGuardCompleteOrSkip} onSkip={handleSmartGuardCompleteOrSkip} />
             </div>
           </div>
         )}

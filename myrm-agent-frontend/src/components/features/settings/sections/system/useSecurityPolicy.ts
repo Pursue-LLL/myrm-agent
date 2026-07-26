@@ -290,16 +290,14 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
   const handleAutoReviewModelChange = useCallback(
     (selection: SingleModelSelection | null) => {
       setAutoReviewModel(selection);
-      if (!selection && autoReviewEnabled) {
-        setAutoReviewEnabled(false);
-        save({ autoReviewModelStr: null, autoReview: false });
-        toast.success(t('autoReview.disabledNoModel', { default: 'Smart Intent Guard disabled — no model selected.' }));
-        return;
-      }
       save({ autoReviewModelStr: selection ? `${selection.providerId}/${selection.model}` : null });
-      toast.success(t('autoReview.modelSaved', { default: 'Smart Intent Guard model saved' }));
+      toast.success(
+        selection
+          ? t('autoReview.modelSaved', { default: 'Smart Intent Guard model saved' })
+          : t('autoReview.modelCleared', { default: 'Reviewer model cleared — using default model as fallback.' }),
+      );
     },
-    [save, t, autoReviewEnabled],
+    [save, t],
   );
 
   const handleProfileSelect = useCallback(

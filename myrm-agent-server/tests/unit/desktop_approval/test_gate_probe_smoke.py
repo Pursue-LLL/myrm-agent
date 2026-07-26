@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from tests.e2e.desktop_approval.gate_probe import (
+    interact_without_gate_handoff_elapsed,
     require_approval_gate_triggered,
     snapshot_loop_stuck_sec,
 )
@@ -67,4 +68,63 @@ def test_snapshot_loop_stuck_sec_tracks_snapshot_without_gate() -> None:
             now=150.0,
         )
         is None
+    )
+
+
+def test_interact_without_gate_handoff_elapsed_requires_interact_seen() -> None:
+    assert (
+        interact_without_gate_handoff_elapsed(
+            interact_seen_at=None,
+            server_pending=0,
+            ui_pending=False,
+            now=50.0,
+            handoff_sec=10.0,
+        )
+        is False
+    )
+
+
+def test_interact_without_gate_handoff_elapsed_respects_pending_gate() -> None:
+    assert (
+        interact_without_gate_handoff_elapsed(
+            interact_seen_at=10.0,
+            server_pending=1,
+            ui_pending=False,
+            now=30.0,
+            handoff_sec=10.0,
+        )
+        is False
+    )
+    assert (
+        interact_without_gate_handoff_elapsed(
+            interact_seen_at=10.0,
+            server_pending=0,
+            ui_pending=True,
+            now=30.0,
+            handoff_sec=10.0,
+        )
+        is False
+    )
+
+
+def test_interact_without_gate_handoff_elapsed_after_threshold() -> None:
+    assert (
+        interact_without_gate_handoff_elapsed(
+            interact_seen_at=10.0,
+            server_pending=0,
+            ui_pending=False,
+            now=19.9,
+            handoff_sec=10.0,
+        )
+        is False
+    )
+    assert (
+        interact_without_gate_handoff_elapsed(
+            interact_seen_at=10.0,
+            server_pending=0,
+            ui_pending=False,
+            now=20.0,
+            handoff_sec=10.0,
+        )
+        is True
     )

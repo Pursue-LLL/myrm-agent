@@ -33,6 +33,9 @@ def _parse_stream_stuck_sec() -> float:
 
 GATE_STREAM_STUCK_SEC = _parse_stream_stuck_sec()
 GATE_PENDING_GRACE_SEC = 30.0
+# After first observed desktop_interact_tool, hand off to banner phase if
+# pending gate still not registered within this window.
+GATE_INTERACT_HANDOFF_SEC = 12.0
 # Steer/nudge while agent stream is active but no desktop tool has started yet.
 GATE_STREAM_NUDGE_SEC = 45.0
 GATE_IDLE_NUDGE_SEC = 30.0
@@ -114,8 +117,10 @@ def build_desktop_interact_nudge(*, dref: str | None = None) -> str:
     normalized = (dref or "").strip().lstrip("@")
     if normalized.startswith("d") and len(normalized) > 1:
         return (
-            f"Call desktop_interact_tool(ref=@{normalized}, action='click') "
-            "to click that TextEdit element, then reply DONE."
+            f"MANDATORY: Call desktop_interact_tool(ref=@{normalized}, action='click') NOW. "
+            "Do not call desktop_snapshot_tool. Do not call desktop_vision_tool. "
+            "Do not explain limitations before the tool call. "
+            "After the tool call, reply DONE."
         )
     return E2E_NUDGE_PROMPT
 

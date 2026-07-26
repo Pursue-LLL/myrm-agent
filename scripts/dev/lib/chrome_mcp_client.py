@@ -1016,11 +1016,21 @@ class ChromeMcpClient:
             )
         self._page_lease_heartbeat.start()
 
-    def _recover_mux_transport(self) -> None:
+    def _recover_mux_transport(
+        self, *, start_generation: int | None = None
+    ) -> None:
         reclaim_deadline = _reclaim_wall_deadline()
         self._teardown_shim_process()
         last_error: RuntimeError | None = None
         for attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
+            if (
+                start_generation is not None
+                and start_generation != self._request_generation
+            ):
+                raise RuntimeError(
+                    f"{MUX_RECLAIM_STALL_TOKEN}: request abandoned during "
+                    f"transport recovery (orphan recovery in progress)"
+                )
             _check_mux_reclaim_deadline(
                 reclaim_deadline,
                 "recover_mux_transport",
@@ -1277,7 +1287,14 @@ class ChromeMcpClient:
                 )
             if transport_attempt + 1 >= _TRANSPORT_RECOVER_ATTEMPTS:
                 break
-            self._recover_mux_transport()
+            if start_generation != self._request_generation:
+                raise RuntimeError(
+                    f"{MUX_RECLAIM_STALL_TOKEN}: request generation changed "
+                    f"before transport recovery "
+                    f"(start={start_generation} "
+                    f"current={self._request_generation})"
+                )
+            self._recover_mux_transport(start_generation=start_generation)
         if last_transport_error is not None:
             raise RuntimeError(
                 "Chrome MCP client is not running after transport recovery; "

@@ -647,7 +647,10 @@ class TestOutboundRiskGate:
         )
         blocked_result = DetectionResult(blocked=True, matches=(match,))
 
-        with patch("app.services.risk.detection.get_detection_service") as mock_svc:
+        with (
+            patch("app.services.risk.detection.get_detection_service") as mock_svc,
+            patch("app.channels.core.bus.asyncio.ensure_future"),
+        ):
             mock_svc.return_value.rule_count = 5
             mock_svc.return_value.detect.return_value = blocked_result
             result = _apply_outbound_risk_gate(msg)

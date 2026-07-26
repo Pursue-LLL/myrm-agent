@@ -78,6 +78,15 @@ vi.mock('../SmartRoutingStep', () => ({
   ),
 }));
 
+vi.mock('../SmartGuardStep', () => ({
+  default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
+    <div data-testid="smart-guard-step">
+      <button data-testid="guard-enable" onClick={onComplete}>Enable</button>
+      <button data-testid="guard-skip" onClick={onSkip}>Skip</button>
+    </div>
+  ),
+}));
+
 vi.mock('../TelegramAssistantOnboardingStep', () => ({
   default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
     <div data-testid="telegram-onboarding-step">
@@ -124,6 +133,16 @@ vi.mock('@/store/config/searchService', () => ({
     Array.isArray(configs) && configs.length > 0 ? configs[0] : null,
 }));
 
+const mockSecurityConfig = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }));
+
+vi.mock('@/services/config', () => ({
+  getConfigSyncManager: () => ({
+    get: (key: string) => key === 'securityConfig' ? mockSecurityConfig.value : null,
+  }),
+}));
+
+vi.mock('@/services/config/types', () => ({}));
+
 import OnboardingWizard from '../OnboardingWizard';
 
 describe('OnboardingWizard', () => {
@@ -135,6 +154,7 @@ describe('OnboardingWizard', () => {
     mockSearchConfigured.value = false;
     mockEnabledModels.value = [];
     mockRoutingEnabled.value = false;
+    mockSecurityConfig.value = null;
     mockDiscoverMigrationSources.mockImplementation(() => Promise.resolve({ sources: [] }));
     mockProbeLocalCapabilities.mockImplementation(() => Promise.resolve({ results: [], search: [] }));
     mockGetTelegramCredentials.mockImplementation(() =>
@@ -310,6 +330,7 @@ describe('OnboardingWizard', () => {
         { providerId: 'openai', model: 'gpt-4o' },
       ];
       mockRoutingEnabled.value = true;
+      mockSecurityConfig.value = { autoReviewEnabled: true };
 
       const onComplete = vi.fn();
       render(<OnboardingWizard onComplete={onComplete} />);
@@ -327,6 +348,7 @@ describe('OnboardingWizard', () => {
 
     it('skips routing step when less than 2 models', async () => {
       mockEnabledModels.value = [{ providerId: 'openai', model: 'gpt-4o' }];
+      mockSecurityConfig.value = { autoReviewEnabled: true };
 
       render(<OnboardingWizard onComplete={vi.fn()} />);
 
@@ -352,6 +374,7 @@ describe('OnboardingWizard', () => {
         { providerId: 'openai', model: 'gpt-4o-mini' },
         { providerId: 'openai', model: 'gpt-4o' },
       ];
+      mockSecurityConfig.value = { autoReviewEnabled: true };
 
       render(<OnboardingWizard onComplete={vi.fn()} />);
 
@@ -436,6 +459,139 @@ describe('OnboardingWizard', () => {
       });
 
       fireEvent.click(screen.getByTestId('telegram-setup-done'));
+
+      await waitFor(() => {
+        expect(mockCompleteOnboarding).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Smart Guard step', () => {
+    beforeEach(() => {
+      mockHasEnabledProvider.value = true;
+      mockSearchConfigured.value = true;
+      mockEnabledModels.value = [{ id: 'model-1', name: 'Test Model' }];
+      mockRoutingEnabled.value = true;
+      mockSecurityConfig.value = null;
+    });
+
+    it('shows smart_guard step when autoReviewEnabled is falsy', async () => {
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
+      });
+    });
+
+    it('skips smart_guard step when autoReviewEnabled is true', async () => {
+      mockSecurityConfig.value = { autoReviewEnabled: true };
+
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
+      });
+    });
+
+    it('skips smart_guard step when no enabled models', async () => {
+      mockEnabledModels.value = [];
+      mockHasEnabledProvider.value = false;
+
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capabilities-step')).toBeInTheDocument();
+      });
+    });
+
+    it('navigates from routing to smart_guard when enabled', async () => {
+      mockRoutingEnabled.value = false;
+      mockEnabledModels.value = [
+        { id: 'model-1', name: 'M1' },
+        { id: 'model-2', name: 'M2' },
+      ];
+
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('smart-routing-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('routing-enable'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
+      });
+    });
+
+    it('navigates from smart_guard enable to telegram step', async () => {
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('guard-enable'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
+      });
+    });
+
+    it('navigates from smart_guard skip to telegram step', async () => {
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('guard-skip'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
+      });
+    });
+
+    it('finishes directly from smart_guard when telegram is configured', async () => {
+      mockGetTelegramCredentials.mockImplementation(() =>
+        Promise.resolve({ botToken: 'token', botPolicy: 'mention_only' }),
+      );
+
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('guard-enable'));
 
       await waitFor(() => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
