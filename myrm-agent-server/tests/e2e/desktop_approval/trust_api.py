@@ -333,6 +333,88 @@ def fetch_pending_approval_request_ids() -> list[str]:
     return [str(item).strip() for item in pending if str(item).strip()]
 
 
+def seed_pending_desktop_approval_for_test(
+    *,
+    app_name: str = "TextEdit",
+    operation: str = "foreground_control",
+    reason: str = "Allow Myrm to control TextEdit for this task?",
+    require_app_approval: bool = True,
+) -> str | None:
+    """Create a local/test pending desktop approval request for E2E fallback."""
+    url = f"{get_e2e_api_url()}/webui/desktop/approval/test-seed"
+    payload = {
+        "app_name": app_name,
+        "operation": operation,
+        "reason": reason,
+        "window_title": "",
+        "app_id": "",
+        "require_app_approval": require_app_approval,
+    }
+    try:
+        request = urllib.request.Request(  # noqa: S310
+            url,
+            method="POST",
+            data=json.dumps(payload).encode("utf-8"),
+        )
+        request.add_header("Content-Type", "application/json")
+        with _e2e_api_urlopen(
+            request,
+            timeout_sec=10.0,
+            max_attempts=2,
+        ) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except OSError as exc:
+        progress(f"desktop approval test-seed failed: {exc}")
+        return None
+    if not isinstance(body, dict) or body.get("ok") is not True:
+        progress(f"desktop approval test-seed unexpected response: {body!r}")
+        return None
+    request_id = str(body.get("request_id") or "").strip()
+    if not request_id:
+        progress(f"desktop approval test-seed missing request_id: {body!r}")
+        return None
+    progress(f"desktop approval test-seed request_id={request_id}")
+    return request_id
+
+
+def resolve_pending_desktop_approval_for_test(*, scope: str = "once") -> bool:
+    """Resolve first pending desktop approval via server API (E2E fallback)."""
+    pending_ids = fetch_pending_approval_request_ids()
+    if not pending_ids:
+        return False
+    request_id = pending_ids[0]
+    payload = {
+        "request_id": request_id,
+        "granted": True,
+        "scope": scope,
+    }
+    url = f"{get_e2e_api_url()}/webui/desktop/approval/resolve"
+    try:
+        request = urllib.request.Request(  # noqa: S310
+            url,
+            method="POST",
+            data=json.dumps(payload).encode("utf-8"),
+        )
+        request.add_header("Content-Type", "application/json")
+        with _e2e_api_urlopen(
+            request,
+            timeout_sec=10.0,
+            max_attempts=2,
+        ) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except OSError as exc:
+        progress(f"desktop approval resolve fallback failed: {exc}")
+        return False
+    if not isinstance(body, dict) or body.get("ok") is not True:
+        progress(f"desktop approval resolve fallback unexpected response: {body!r}")
+        return False
+    progress(
+        "desktop approval resolve fallback ok "
+        f"request_id={request_id} scope={scope}"
+    )
+    return True
+
+
 def list_trusted_apps_via_api() -> list[dict[str, object]]:
     url = f"{get_e2e_api_url()}/webui/desktop/trust/apps"
     try:

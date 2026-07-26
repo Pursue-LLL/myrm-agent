@@ -1003,6 +1003,7 @@ def _hitl_security_payload(current: dict[str, object]) -> dict[str, object]:
         "permissions": {
             "shell_exec": "ask",
             "code_interpreter": "ask",
+            "computer_use": "ask",
         },
     }
 
@@ -1039,6 +1040,10 @@ def _pin_hitl_on_api(api_url: str) -> None:
     if isinstance(perms, dict) and str(perms.get("*", "")).lower() == "allow":
         raise RuntimeError(
             f"Wildcard permissions still allow-all on {api_url}: {persisted}"
+        )
+    if isinstance(perms, dict) and str(perms.get("computer_use", "")).lower() != "ask":
+        raise RuntimeError(
+            f"computer_use permission must be ask on {api_url}: {persisted}"
         )
 
 
@@ -1226,7 +1231,7 @@ PUT_E2E_HITL_CONFIG_JS = """(async () => {
       planConfirmEnabled: false,
       domainHitlEnabled: false,
       approvalTimeoutBehavior: 'deny',
-      permissions: { shell_exec: 'ask', code_interpreter: 'ask' },
+      permissions: { shell_exec: 'ask', code_interpreter: 'ask', computer_use: 'ask' },
     };
     const results = [];
     for (const api of targets) {
@@ -1253,7 +1258,17 @@ PUT_E2E_HITL_CONFIG_JS = """(async () => {
         typeof perms === 'object' &&
         perms !== null &&
         String(perms['*'] || '').toLowerCase() === 'allow';
-      results.push({ api, ok: !yolo && !wildcardAllow, yoloModeEnabled: yolo, wildcardAllow });
+      const computerUseAsk =
+        typeof perms === 'object' &&
+        perms !== null &&
+        String(perms['computer_use'] || '').toLowerCase() === 'ask';
+      results.push({
+        api,
+        ok: !yolo && !wildcardAllow && computerUseAsk,
+        yoloModeEnabled: yolo,
+        wildcardAllow,
+        computerUseAsk,
+      });
     }
     try {
       const { getConfigSyncManager } = await import('@/services/config/ConfigSyncManager');

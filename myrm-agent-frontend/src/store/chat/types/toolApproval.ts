@@ -57,6 +57,8 @@ export interface ToolApprovalRequest {
   executionIntent?: string;
   /** True when the LLM security reviewer recommended denial — user may override once */
   smartDenied?: boolean;
+  /** True when the approval involves high-risk operations — Always Allow is hidden */
+  hideAllowAlways?: boolean;
   /** LLM reviewer's reason for denial */
   reviewerReason?: string;
 }

@@ -30,6 +30,7 @@ interface EditModeViewProps {
   onConfirm: () => void;
   onCancel: () => void;
   isLoading: boolean;
+  hideAllowAlways?: boolean;
 }
 
 export default function EditModeView({
@@ -49,6 +50,7 @@ export default function EditModeView({
   onConfirm,
   onCancel,
   isLoading,
+  hideAllowAlways = false,
 }: EditModeViewProps) {
   const t = useTranslations('toolApproval');
   const effectiveShellCommand = useMemo(() => {
@@ -97,19 +99,20 @@ export default function EditModeView({
           ))
         )}
       </div>
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Checkbox
-            id={`allow-always-${requestId}`}
-            checked={allowAlwaysInEdit}
-            onCheckedChange={(checked) => setAllowAlwaysInEdit(!!checked)}
-          />
-          <Label htmlFor={`allow-always-${requestId}`} className="cursor-pointer text-amber-600 hover:text-amber-700">
-            {t('allowAlwaysAfterEdit')}
-          </Label>
-        </div>
+      {!hideAllowAlways && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Checkbox
+              id={`allow-always-${requestId}`}
+              checked={allowAlwaysInEdit}
+              onCheckedChange={(checked) => setAllowAlwaysInEdit(!!checked)}
+            />
+            <Label htmlFor={`allow-always-${requestId}`} className="cursor-pointer text-amber-600 hover:text-amber-700">
+              {t('allowAlwaysAfterEdit')}
+            </Label>
+          </div>
 
-        {allowAlwaysInEdit && (
+          {allowAlwaysInEdit && (
           <div className="ml-6 space-y-1">
             <Select
               value={allowAlwaysScopeInEdit}
@@ -148,6 +151,7 @@ export default function EditModeView({
           </div>
         )}
       </div>
+      )}
       <div className="flex gap-2">
         <Button size="sm" onClick={onConfirm} disabled={isLoading || patternConfirmBlocked}>
           {t('confirmEdit')}

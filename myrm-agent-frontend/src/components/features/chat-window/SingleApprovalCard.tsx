@@ -326,6 +326,7 @@ export default function SingleApprovalCard({
           setEditValidationErrors([]);
         }}
         isLoading={isLoading}
+        hideAllowAlways={request.hideAllowAlways}
       />
     );
   }
@@ -541,15 +542,17 @@ export default function SingleApprovalCard({
               <MessageSquareX className="mr-1 h-3.5 w-3.5" />
               {t('reject')}
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleAlwaysAllow}
-              disabled={isLoading || isExpired}
-              className="text-xs text-amber-600 hover:text-amber-700"
-            >
-              {t('allowAlways')}
-            </Button>
+            {!request.hideAllowAlways && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleAlwaysAllow}
+                disabled={isLoading || isExpired}
+                className="text-xs text-amber-600 hover:text-amber-700"
+              >
+                {t('allowAlways')}
+              </Button>
+            )}
             {request.domainApproval && request.domains && request.domains.length > 0 && (
               <Button
                 size="sm"

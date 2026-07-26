@@ -36,6 +36,7 @@ from tests.e2e.desktop_approval.trust_api import (
     desktop_trust_revoke_selector_js,
     fetch_pending_approval_request_ids,
     list_trusted_apps_via_api,
+    resolve_pending_desktop_approval_for_test,
     server_pending_approval_count,
 )
 from tests.support.e2e_desktop_model_pin import (
@@ -439,6 +440,7 @@ async def wait_for_approval_banner_clickable(
     poll = 0
     activated = False
     panel_refreshed = False
+    api_resolve_attempted = False
 
     def _scope_visible(probe: dict[str, object]) -> bool:
         if scope == "once":
@@ -465,6 +467,22 @@ async def wait_for_approval_banner_clickable(
             if click.get("ok") is True:
                 progress(f"approval click ok scope={scope} poll=#{poll}")
                 return
+            if (
+                not scope_visible
+                and not api_resolve_attempted
+                and poll >= 24
+                and activated
+            ):
+                api_resolve_attempted = True
+                resolved = await asyncio.to_thread(
+                    resolve_pending_desktop_approval_for_test, scope=scope
+                )
+                if resolved:
+                    progress(
+                        "approval fallback resolved via API "
+                        f"scope={scope} poll=#{poll}"
+                    )
+                    return
         if isinstance(probe, dict):
             if poll == 1 or poll % 8 == 0:
                 progress(

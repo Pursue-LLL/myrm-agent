@@ -226,6 +226,11 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     if (!configs || !Array.isArray(configs)) return false;
     return configs.some((c) => c?.smartDenied === true);
   }, [approval.payload?.reviewConfigs]);
+  const hasAnyHideAllowAlways = useMemo(() => {
+    const configs = approval.payload?.reviewConfigs;
+    if (!configs || !Array.isArray(configs)) return false;
+    return configs.some((c) => c?.hideAllowAlways === true);
+  }, [approval.payload?.reviewConfigs]);
   const smartDeniedReason = useMemo(() => {
     const reasons = approval.payload?.reviewerReasons;
     if (!reasons || !Array.isArray(reasons)) return undefined;
@@ -792,6 +797,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
           setAllowAlwaysScopeInEdit={setAllowAlwaysScopeInEdit}
           permissionTypeLabel={permissionTypeLabel}
           toolName={singleShellToolCall.name}
+          hideAllowAlways={hasAnyHideAllowAlways}
           shellCommand={editedShellCommand}
           requestId={approval.approval_id}
           onConfirm={handleConfirmShellEdit}
@@ -891,7 +897,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                 {t('edit')}
               </Button>
             )}
-            {isSubagentApproval && (
+            {isSubagentApproval && !hasAnyHideAllowAlways && (
               <Button
                 variant="ghost"
                 onClick={() => setShowAlwaysAllowConfirm(true)}

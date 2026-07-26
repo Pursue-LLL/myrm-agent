@@ -34,7 +34,7 @@ interface ApprovalExtensionsPayload {
 
 interface BuildToolApprovalRequestParams {
   action: ApprovalActionPayload;
-  reviewConfig?: { domainApproval?: boolean; smartDenied?: boolean };
+  reviewConfig?: { domainApproval?: boolean; smartDenied?: boolean; hideAllowAlways?: boolean };
   requestId: string;
   messageId: string;
   chatId: string;
@@ -98,6 +98,7 @@ export function buildToolApprovalRequest({
         ? action.execution_intent.trim()
         : undefined,
     smartDenied: reviewConfig?.smartDenied === true ? true : undefined,
+    hideAllowAlways: reviewConfig?.hideAllowAlways === true ? true : undefined,
     reviewerReason: action.reviewerReason,
   };
 }

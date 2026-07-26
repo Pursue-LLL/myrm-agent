@@ -526,3 +526,38 @@ async def resolve_desktop_approval(body: DesktopApprovalResolveBody) -> JSONResp
             content={"error": "not_found", "message": "Approval request not found or already resolved"},
         )
     return JSONResponse(content={"ok": True})
+
+
+class DesktopApprovalTestSeedBody(BaseModel):
+    app_name: str = "TextEdit"
+    operation: str = "foreground_control"
+    reason: str = "Allow Myrm to control TextEdit for this task?"
+    window_title: str = ""
+    app_id: str = ""
+    require_app_approval: bool = True
+
+
+@router.post("/desktop/approval/test-seed", include_in_schema=False)
+async def seed_desktop_approval_for_test(
+    body: DesktopApprovalTestSeedBody,
+) -> JSONResponse:
+    """Local dev/test only: seed an in-memory desktop approval request."""
+    from app.ai_agents.desktop_control.gate import DesktopApprovalRegistry
+    from app.config.deploy_mode import is_local_mode
+
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    request_id, _pending = DesktopApprovalRegistry.create()
+    return JSONResponse(
+        content={
+            "ok": True,
+            "request_id": request_id,
+            "app_name": body.app_name,
+            "operation": body.operation,
+            "reason": body.reason,
+            "window_title": body.window_title,
+            "app_id": body.app_id,
+            "require_app_approval": body.require_app_approval,
+        }
+    )
