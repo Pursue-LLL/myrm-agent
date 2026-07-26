@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import io
 import zipfile
+from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.api.migration.discovery import MigrationSourceManifestItemResponse
 from tests.support.minimal_app import build_minimal_app
 
 
@@ -130,3 +132,30 @@ async def test_upload_openclaw_data_detected(client: AsyncClient):
     assert len(sources) >= 1
     oc = next((s for s in sources if s["competitor"] == "openclaw"), None)
     assert oc is not None
+
+
+@pytest.mark.asyncio
+async def test_upload_downgrades_authoritative_when_manifest_incomplete(client: AsyncClient):
+    payload = _make_zip({"readme.txt": "nothing here"})
+    partial_manifest = [
+        MigrationSourceManifestItemResponse(
+            id="hermes",
+            display_name="Hermes",
+            import_source="hermes",
+            discover_modes=["local_scan"],
+            deep_link_enabled=True,
+        )
+    ]
+    with patch(
+        "app.api.migration.upload.build_source_manifest_response",
+        return_value=partial_manifest,
+    ):
+        resp = await client.post(
+            "/api/v1/migration/upload",
+            files={"file": ("empty.zip", payload, "application/zip")},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["source_manifest_authoritative"] is False
+    assert [item["id"] for item in data["source_manifest"]] == ["hermes"]

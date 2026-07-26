@@ -68,6 +68,7 @@ from app.services.memory.import_sessions import (
 from app.services.memory.operation_ledger import MemoryOperationLedgerService
 from app.services.migration.source_manifest import (
     migration_source_manifest_authoritative,
+    migration_source_manifest_authoritative_for_ids,
     migration_source_manifest_payload,
 )
 
@@ -434,13 +435,22 @@ class MemoryCommandCenterInsights:
         raw_diagnostic_run_id = latest_metadata.get("diagnostic_run_id")
         session_metrics = await MemoryImportSessionService(self._db).session_metrics()
         coverage = raw_coverage if raw_coverage in {"not_tracked", "partial", "complete"} else "not_tracked"
+        source_manifest_payload = migration_source_manifest_payload()
+        source_manifest = [
+            MemoryCommandMigrationSourceManifestItem.model_validate(item)
+            for item in source_manifest_payload
+        ]
+        source_manifest_authoritative = migration_source_manifest_authoritative_for_ids(
+            item["id"] for item in source_manifest_payload
+        )
+        if not source_manifest_authoritative and migration_source_manifest_authoritative():
+            logger.warning(
+                "Migration source manifest incomplete in command-center projection; authoritative flag downgraded",
+            )
         return MemoryCommandMigrationProvenance(
             supported_sources=memory_import_supported_sources(),
-            source_manifest=[
-                MemoryCommandMigrationSourceManifestItem.model_validate(item)
-                for item in migration_source_manifest_payload()
-            ],
-            source_manifest_authoritative=migration_source_manifest_authoritative(),
+            source_manifest=source_manifest,
+            source_manifest_authoritative=source_manifest_authoritative,
             tracked_imports=tracked,
             unmapped_items=unmapped,
             coverage_status=coverage,

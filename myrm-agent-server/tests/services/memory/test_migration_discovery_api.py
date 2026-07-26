@@ -12,6 +12,8 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.migration.discovery import MigrationSourceManifestItemResponse
+from app.services.migration.source_discovery import DiscoveryResult
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app("memory", "migration_discovery")
@@ -144,6 +146,33 @@ class TestDiscoveryEndpointLocalMode:
             assert "path" in f
             assert "kind" in f
             assert "size_bytes" in f
+
+    def test_discover_downgrades_authoritative_when_manifest_incomplete(self, client: TestClient) -> None:
+        partial_manifest = [
+            MigrationSourceManifestItemResponse(
+                id="hermes",
+                display_name="Hermes",
+                import_source="hermes",
+                discover_modes=["local_scan"],
+                deep_link_enabled=True,
+            )
+        ]
+        with (
+            patch(
+                "app.api.migration.discovery.build_source_manifest_response",
+                return_value=partial_manifest,
+            ),
+            patch(
+                "app.api.migration.discovery.discover_external_sources",
+                return_value=DiscoveryResult(sources=[], scan_path="/tmp"),
+            ),
+        ):
+            resp = client.get("/api/v1/migration/discover")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["source_manifest_authoritative"] is False
+        assert [item["id"] for item in data["source_manifest"]] == ["hermes"]
 
 
 class TestDiscoveryEndpointSaaSMode:

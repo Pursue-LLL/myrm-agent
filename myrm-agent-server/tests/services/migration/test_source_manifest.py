@@ -7,7 +7,9 @@ from app.services.migration.source_manifest import (
     migration_source_import_map,
     migration_source_local_scan_ids,
     migration_source_manifest_authoritative,
+    migration_source_manifest_authoritative_for_ids,
     migration_source_manifest_entries,
+    migration_source_manifest_ids,
     migration_source_manifest_payload,
 )
 from app.services.migration.source_payload_loader import supported_source_ids
@@ -42,3 +44,8 @@ def test_deep_link_ids_include_all_manifest_sources() -> None:
 
 def test_manifest_is_authoritative_for_frontend_consumers() -> None:
     assert migration_source_manifest_authoritative() is True
+
+
+def test_authoritative_guard_requires_full_manifest_id_coverage() -> None:
+    assert migration_source_manifest_authoritative_for_ids(migration_source_manifest_ids()) is True
+    assert migration_source_manifest_authoritative_for_ids({"hermes", "openclaw"}) is False

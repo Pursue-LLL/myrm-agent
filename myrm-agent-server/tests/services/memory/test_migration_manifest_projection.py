@@ -14,6 +14,7 @@ from app.services.memory.import_sessions import (
     DRY_RUN_STATUS_PENDING,
     DRY_RUN_STATUS_ROLLED_BACK,
 )
+from app.services.migration.source_manifest import migration_source_manifest_payload
 
 
 @pytest.mark.asyncio
@@ -60,3 +61,38 @@ async def test_build_migration_projects_source_manifest_and_authoritative_flag()
     }
     chatgpt_entry = next(item for item in migration.source_manifest if item.id == "chatgpt")
     assert chatgpt_entry.discover_modes == ["zip_upload"]
+
+
+@pytest.mark.asyncio
+async def test_build_migration_downgrades_authoritative_when_manifest_incomplete() -> None:
+    ledger = MagicMock()
+    ledger.migration_summary = AsyncMock(return_value=(0, 0, "not_tracked"))
+    ledger.latest_migration = AsyncMock(return_value=None)
+    insights = MemoryCommandCenterInsights(
+        db=MagicMock(),
+        memory_manager=AsyncMock(),
+        ledger=ledger,
+    )
+    partial_manifest = [migration_source_manifest_payload()[0]]
+
+    with (
+        patch(
+            "app.services.memory.command_center_insights.MemoryImportSessionService",
+        ) as mock_session_service,
+        patch(
+            "app.services.memory.command_center_insights.migration_source_manifest_payload",
+            return_value=partial_manifest,
+        ),
+    ):
+        mock_session_service.return_value.session_metrics = AsyncMock(
+            return_value={
+                DRY_RUN_STATUS_PENDING: 0,
+                DRY_RUN_STATUS_CONFIRMED: 0,
+                DRY_RUN_STATUS_EXPIRED: 0,
+                DRY_RUN_STATUS_ROLLED_BACK: 0,
+            }
+        )
+        migration = await insights.build_migration()
+
+    assert migration.source_manifest_authoritative is False
+    assert [item.id for item in migration.source_manifest] == ["hermes"]
