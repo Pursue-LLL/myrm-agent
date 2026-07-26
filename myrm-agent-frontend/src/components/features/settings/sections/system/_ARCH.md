@@ -64,6 +64,7 @@
 | `DomainAllowlistEditor.tsx` | 域名白名单编辑器 |
 | `DomainBlocklistEditor.tsx` | URL 域名 blocklist 编辑器（Settings 全局策略） |
 | `CommandDenylistEditor.tsx` | 命令禁止列表编辑器（fnmatch glob 模式，YOLO 不可绕过） |
+| `__tests__/useSecurityPolicy.test.ts` | useSecurityPolicy hook 单测（command denylist toast 反馈一致性） |
 | `PathPolicyEditor.tsx` | 路径策略编辑器 |
 | `RiskRulesSection.tsx` | 风控规则配置 |
 | `RiskRulesHitsPanel.tsx` | 风控规则命中记录 |
