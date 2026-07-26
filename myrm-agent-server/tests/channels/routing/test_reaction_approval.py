@@ -271,7 +271,7 @@ class TestHandleApprovalContract:
         host, msg = self._setup()
         deny = DenyWithReason(reason="too dangerous")
         await host._handle_approval_command(msg, deny)
-        edited_text = host._bus.edit_channel_message.call_args[0][2]
+        edited_text = host._bus.edit_channel_message.call_args[0][3]
         assert "too dangerous" in edited_text
 
     @pytest.mark.asyncio

@@ -1092,6 +1092,7 @@ async def ensure_interact_gate(
 ) -> tuple[dict[str, object], str, int, bool]:
     wall_clock = wall_started_at if wall_started_at is not None else time.monotonic()
     api_only = textedit_foreground
+    normalized_chat_id = chat_id.strip()
     tool_activity = await _wait_desktop_tool_activity_failfast(
         chat,
         timeout_sec=APPROVAL_WAIT_SEC,
@@ -1293,17 +1294,22 @@ async def ensure_interact_gate(
         ui_pending=ui_pending,
     ):
         grace_deadline = asyncio.get_event_loop().time() + GATE_PENDING_GRACE_SEC
+        grace_poll = 0
         progress(
             f"interact_tool observed without pending gate — grace wait "
             f"{GATE_PENDING_GRACE_SEC:.0f}s for approval to register"
         )
         while asyncio.get_event_loop().time() < grace_deadline:
+            grace_poll += 1
             assert_desktop_e2e_wall_clock(wall_clock, phase="interact_pending_grace")
             heartbeat_e2e_lease()
             server_pending = await _server_pending_count_fast()
-            probe = await probe_desktop_tool_progress(
-                chat, chat_id=chat_id, api_only=api_only
-            )
+            if normalized_chat_id:
+                probe = await _desktop_tool_progress_api_fast(normalized_chat_id)
+            else:
+                probe = await probe_desktop_tool_progress(
+                    chat, chat_id=chat_id, api_only=api_only
+                )
             ui_pending = (
                 bool(probe.get("pending")) if isinstance(probe, dict) else False
             )
@@ -1311,6 +1317,12 @@ async def ensure_interact_gate(
                 (probe.get("lastTool") if isinstance(probe, dict) else None)
                 or last_tool
             )
+            if grace_poll == 1 or grace_poll % 8 == 0:
+                progress(
+                    "interact pending grace poll "
+                    f"#{grace_poll} server_pending={server_pending} "
+                    f"ui_pending={ui_pending} lastTool={last_tool!r}"
+                )
             if _desktop_gate_satisfied(
                 last_tool=last_tool,
                 server_pending=server_pending,
