@@ -15,7 +15,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 
-from myrm_agent_harness.backends.skills.discovery_protocols import SkillInstallResult
+from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
 from myrm_agent_harness.backends.skills.versioning import VersionDelta, compare_versions
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ class SkillAutoUpdateChecker:
             if elapsed < CHECK_COOLDOWN_SECONDS:
                 return self._last_check
 
-        from app.core.skills.discovery_service import discovery_service
+        from app.core.skills.market_service import market_service
         from app.core.skills.store.service import skills_service
 
         installed = await skills_service.list_skills()
@@ -85,10 +85,10 @@ class SkillAutoUpdateChecker:
             self._last_check = result
             return result
 
-        from myrm_agent_harness.agent.skills.discovery.helpers import read_origin
-        from myrm_agent_harness.agent.skills.discovery.service import LOCAL_INSTALL_DIR
+        from myrm_agent_harness.agent.skills.market.helpers import read_origin
+        from myrm_agent_harness.agent.skills.market.service import LOCAL_INSTALL_DIR
 
-        non_prebuilt_sources = [s for s in discovery_service._sources if s.source_name != "prebuilt"]
+        non_prebuilt_sources = [s for s in market_service._sources if s.source_name != "prebuilt"]
         update_infos: list[SkillUpdateInfo] = []
 
         for skill in installed:
@@ -142,10 +142,10 @@ class SkillAutoUpdateChecker:
 
         Downloads the new version → quarantine → security scan → replace.
         """
-        from app.core.skills.discovery_service import discovery_service
+        from app.core.skills.market_service import market_service
 
         logger.debug("update_skill user=%s skill_id=%s", user_id, update_info.skill_id)
-        return await discovery_service.install(
+        return await market_service.install(
             skill_id=update_info.skill_id,
             source=update_info.source,
         )

@@ -9276,6 +9276,7 @@
     "capabilitiesLabel": "能力围栏",
     "capabilitiesDesc": "声明此タスク許可使用のツール能力，未選択は使用すべて能力",
     "capabilitiesAllHint": "未制限（使用すべて能力）",
+    "failClosedHint": "スケジュールタスクはデフォルトで危険な操作を拒否します。下の能力フェンスを設定するか、エージェントのセキュリティ設定で YOLO モードを有効にしてください。",
     "capabilitiesUpdated": "能力围栏済み更新規",
     "capabilitiesCleared": "能力围栏済みクリア",
     "toolsAllowedLabel": "組み込みツール範囲",

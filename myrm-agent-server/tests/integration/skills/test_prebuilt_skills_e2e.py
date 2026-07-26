@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
-from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 from myrm_agent_harness.toolkits.storage.paths import (
     get_skill_file_path,

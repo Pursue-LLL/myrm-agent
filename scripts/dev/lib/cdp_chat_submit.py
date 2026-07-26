@@ -140,7 +140,10 @@ class CdpChatSubmit(CdpChatInput):
                     return {{ ok: false, err: 'no-sendChatMessage' }};
                   }}
                   return Promise.resolve(
-                    bridge.sendChatMessage({msg_payload}, {{ baselineUserCount: {baseline_payload} }}),
+                    bridge.sendChatMessage({msg_payload}, {{
+                      baselineUserCount: {baseline_payload},
+                      waitForStreamCompletion: false,
+                    }}),
                   );
                 }})()""",
                 await_promise=True,

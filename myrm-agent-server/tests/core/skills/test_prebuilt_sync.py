@@ -192,7 +192,7 @@ async def test_sync_records_origin_hash(storage: LocalStorageBackend) -> None:
 @pytest.mark.asyncio
 async def test_sync_skips_user_modified_skill(storage: LocalStorageBackend) -> None:
     """If user modified a prebuilt skill, sync should preserve their version."""
-    from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+    from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
     from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
 
     await prebuilt_sync.sync_prebuilt_seeds(storage)
@@ -215,7 +215,7 @@ async def test_sync_marks_upstream_update_for_modified_skill(
     tmp_path: Path,
 ) -> None:
     """When upstream changes and user has modified, should mark has_upstream_update."""
-    from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+    from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
     from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
 
     await prebuilt_sync.sync_prebuilt_seeds(storage)
@@ -246,7 +246,7 @@ async def test_sync_updates_unmodified_skill_silently(
     storage: LocalStorageBackend,
 ) -> None:
     """When upstream changes but user hasn't modified, should silently update."""
-    from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+    from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
     from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
 
     await prebuilt_sync.sync_prebuilt_seeds(storage)
@@ -325,7 +325,7 @@ async def test_sync_copies_skill_bundle_scripts(storage: LocalStorageBackend) ->
 @pytest.mark.asyncio
 async def test_cleanup_stale_prebuilt_skills(storage: LocalStorageBackend) -> None:
     # 1. Manually write a mock stale skill metadata and SKILL.md directly to storage
-    from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+    from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
     from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
 
     stale_id = "obsolete-ghost-skill"
@@ -448,7 +448,7 @@ async def test_cleanup_handles_list_failure(storage: LocalStorageBackend) -> Non
 @pytest.mark.asyncio
 async def test_cleanup_handles_delete_failure(storage: LocalStorageBackend) -> None:
     """Cleanup should handle individual delete failures without crashing."""
-    from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+    from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
     from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
 
     stale_id = "stale-delete-fail-skill"
@@ -491,7 +491,7 @@ async def test_sync_upstream_update_for_unmodified_user(
     but source_hash != origin_hash (upstream changed since last sync).
     This triggers line 254-259: silent update.
     """
-    from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+    from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
     from myrm_agent_harness.api.skills import compute_content_hash
     from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
 

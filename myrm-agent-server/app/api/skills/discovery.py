@@ -3,7 +3,7 @@
 [INPUT]
 app.api.skills.discovery_schemas (POS: Request/response Pydantic models)
 app.api.skills.audit::_audit_skill_action (POS: Skill action audit logging)
-app.core.skills.discovery_service::SkillDiscoveryService (POS: Skill search/install orchestrator)
+app.core.skills.market_service::SkillMarketService (POS: Skill search/install orchestrator)
 app.core.skills.discovery_autoupdate::get_update_checker (POS: Update availability checker)
 
 [OUTPUT]
@@ -11,7 +11,7 @@ router: FastAPI router with skill search, install, preview, update, uninstall,
         URL analysis, and custom source management endpoints.
 
 [POS]
-Skill discovery API. Delegates to harness BaseSkillDiscoveryService for
+Skill discovery API. Delegates to harness BaseSkillMarketService for
 search/install/preview and to server-layer services for update checking
 and custom source management.
 """
@@ -20,7 +20,7 @@ import logging
 from typing import cast
 
 from fastapi import APIRouter, HTTPException, Query
-from myrm_agent_harness.agent.skills.discovery.service import BaseSkillDiscoveryService
+from myrm_agent_harness.agent.skills.market.service import BaseSkillMarketService
 
 from app.api.skills.audit import _audit_skill_action
 from app.api.skills.discovery_schemas import (
@@ -44,15 +44,15 @@ from app.api.skills.discovery_schemas import (
     UpdateCheckResponse,
 )
 from app.core.skills.discovery_autoupdate import get_update_checker
-from app.core.skills.discovery_service import SkillDiscoveryService, discovery_service
+from app.core.skills.market_service import SkillMarketService, market_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/discovery")
 
 
-def _discovery_framework(svc: SkillDiscoveryService) -> BaseSkillDiscoveryService:
-    return cast(BaseSkillDiscoveryService, svc._base)
+def _discovery_framework(svc: SkillMarketService) -> BaseSkillMarketService:
+    return cast(BaseSkillMarketService, svc._base)
 
 
 @router.get("/search", response_model=SkillSearchResponse)
@@ -65,7 +65,7 @@ async def search_skills(
     Searches across GitHub, skills.sh, and prebuilt skills.
     When q is empty, returns all available skills sorted by popularity.
     """
-    enriched = await discovery_service.search(q, limit)
+    enriched = await market_service.search(q, limit)
     return SkillSearchResponse(
         results=[
             SkillSearchResultResponse(
@@ -101,7 +101,7 @@ async def preview_skill(
     Downloads the skill content and runs a security scan without installing.
     """
     try:
-        preview = await _discovery_framework(discovery_service).preview(request.skill_id, request.source)
+        preview = await _discovery_framework(market_service).preview(request.skill_id, request.source)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -129,7 +129,7 @@ async def install_skill(
     request: SkillInstallRequest,
 ) -> SkillInstallResponse:
     """Install a skill from external source to local filesystem."""
-    result = await discovery_service.install(request.skill_id, request.source)
+    result = await market_service.install(request.skill_id, request.source)
     if result.success:
         _audit_skill_action("install", result.skill_id or request.skill_id, source=request.source)
     return SkillInstallResponse(
@@ -148,7 +148,7 @@ async def get_skill_detail(
     skill_id: str,
 ) -> SkillSearchResultResponse | None:
     """Get detailed information about a specific skill."""
-    result = await _discovery_framework(discovery_service).get_detail(skill_id, source)
+    result = await _discovery_framework(market_service).get_detail(skill_id, source)
     if not result:
         raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
     return SkillSearchResultResponse(
@@ -202,7 +202,7 @@ async def update_skill(
 
     Uses the quarantine install flow: download -> scan -> replace.
     """
-    from myrm_agent_harness.agent.skills.discovery.autoupdate import SkillUpdateInfo
+    from myrm_agent_harness.agent.skills.market.autoupdate import SkillUpdateInfo
 
     update_info = SkillUpdateInfo(
         skill_name=request.skill_name,
@@ -233,7 +233,7 @@ async def uninstall_skill(
     request: SkillUninstallRequest,
 ) -> SkillInstallResponse:
     """Uninstall a locally installed skill."""
-    result = await discovery_service.uninstall(request.skill_id)
+    result = await market_service.uninstall(request.skill_id)
     if result.success:
         _audit_skill_action("uninstall", request.skill_id)
     return SkillInstallResponse(
@@ -251,7 +251,7 @@ async def analyze_skill_url(
     request: SkillInstallFromUrlRequest,
 ) -> SkillAnalyzeUrlResponse:
     """Analyze a GitHub URL to find specific skill paths."""
-    raw_urls = await discovery_service.analyze_url(request.url)
+    raw_urls = await market_service.analyze_url(request.url)
     urls: list[SkillUrlInfo] = []
     for item in raw_urls:
         if not isinstance(item, dict):
@@ -272,7 +272,7 @@ async def install_skill_from_url(
     request: SkillInstallFromUrlRequest,
 ) -> SkillInstallResponse:
     """Install a skill directly from a GitHub URL."""
-    result = await discovery_service.install_from_url(request.url)
+    result = await market_service.install_from_url(request.url)
     if result.success:
         _audit_skill_action("install_from_url", result.skill_id or request.url, source="github")
     return SkillInstallResponse(
@@ -314,7 +314,7 @@ async def add_custom_source(
     request: CustomSourceRequest,
 ) -> CustomSourceProbeResponse:
     """Add a custom skill source after probing for reachability."""
-    from myrm_agent_harness.agent.skills.discovery.sources.wellknown import WellKnownSkillSource
+    from myrm_agent_harness.agent.skills.market.sources.wellknown import WellKnownSkillSource
 
     from app.core.skills.custom_source_config import add_custom_source as _add_source
 
@@ -332,7 +332,7 @@ async def add_custom_source(
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
 
-    discovery_service._base.register_source(source)
+    market_service._base.register_source(source)
 
     return CustomSourceProbeResponse(reachable=True, skill_count=skill_count, url=request.url)
 
@@ -352,6 +352,6 @@ async def remove_custom_source_endpoint(
 
     parsed = urlparse(url.rstrip("/"))
     source_name = f"well-known:{parsed.scheme}://{parsed.netloc}"
-    discovery_service._base.unregister_source(source_name)
+    market_service._base.unregister_source(source_name)
 
     return {"removed": True}

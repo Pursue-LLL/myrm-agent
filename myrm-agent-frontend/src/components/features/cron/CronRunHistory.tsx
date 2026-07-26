@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, CheckCircle2, Clock, Activity, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, Activity, Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/primitives/tabs';
@@ -193,6 +193,12 @@ export default function CronRunHistory({ job, onBack, onJobUpdated }: CronRunHis
           targetLabel={t('sharedContexts.targetLabel')}
           compact
         />
+      )}
+      {job.job_type === 'agent' && !job.required_capabilities?.length && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+          <ShieldAlert className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 dark:text-amber-400">{t('failClosedHint')}</p>
+        </div>
       )}
       {job.job_type === 'agent' && <CapabilityEditor job={job} onUpdated={handleEditorUpdated} />}
       {job.job_type === 'agent' && <AllowedRootsEditor job={job} onUpdated={handleEditorUpdated} />}

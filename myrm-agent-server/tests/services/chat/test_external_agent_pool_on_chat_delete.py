@@ -105,7 +105,7 @@ async def test_delete_chat_live_tears_down_registry_pool() -> None:
     mixin._runtime_pool_ephemeral = False
     mixin.agent_id = "general"
     mixin.force_delegate_agent = None
-    await mixin._do_setup_external_agents([], [], mount_delegate_tool=False)
+    await mixin._do_setup_external_agents([], mount_delegate_tool=False)
 
     registry = get_chat_runtime_pool_registry()
     assert chat_id in registry._entries  # type: ignore[attr-defined]

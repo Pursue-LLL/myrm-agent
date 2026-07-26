@@ -8,6 +8,7 @@ import { whenDatabaseReady } from '@/lib/platform-readiness';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { API_BASE_URL } from '@/lib/api';
 import useApprovalStore, { normalizeApprovalPayload, type ApprovalPayload } from '@/store/useApprovalStore';
+import useChatStore from '@/store/useChatStore';
 
 const STARTUP_DELAY_MS = 200;
 const STARTUP_RECOVERY_MAX_ATTEMPTS = 3;
@@ -89,6 +90,9 @@ export async function recoverPendingApprovals(): Promise<number> {
           continue;
         }
         store.openApproval(approval);
+        if (approval.chat_id) {
+          useChatStore.getState().setSessionStatus(approval.chat_id, 'awaiting_approval');
+        }
         existingIds.add(approval.approval_id);
         added += 1;
       }

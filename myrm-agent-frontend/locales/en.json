@@ -9357,6 +9357,7 @@
     "capabilitiesLabel": "Capability Fence",
     "capabilitiesDesc": "Declare which tool capabilities this task may use. Leave empty for all capabilities",
     "capabilitiesAllHint": "Unrestricted (all capabilities)",
+    "failClosedHint": "Scheduled tasks deny dangerous operations by default. Configure capability fence below or enable YOLO mode in agent security settings.",
     "capabilitiesUpdated": "Capability fence updated",
     "capabilitiesCleared": "Capability fence cleared",
     "toolsAllowedLabel": "Built-in Tools Scope",

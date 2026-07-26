@@ -23,7 +23,7 @@ import re
 import shutil
 from pathlib import Path
 
-from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE, SKILL_NAME_PATTERN
+from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE, SKILL_NAME_PATTERN
 from myrm_agent_harness.api.skills import SkillMetadataError, parse_skill_frontmatter
 from myrm_agent_harness.backends.skills.creation_protocols import (
     SkillDeleteResult,

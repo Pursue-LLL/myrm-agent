@@ -4,7 +4,7 @@ import pickle
 from pathlib import Path
 from typing import List
 
-from myrm_agent_harness.agent.skills.discovery.installers.batch_installer import (
+from myrm_agent_harness.agent.skills.market.installers.batch_installer import (
     HermesImportedSkill,
 )
 

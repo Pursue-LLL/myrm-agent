@@ -546,14 +546,6 @@ class AgentJobRunner:
             )
 
             security_config_raw = user_cfgs.security_config_dict or {}
-            if not security_config_raw.get("yolo_mode_enabled", False):
-                security_config_raw["yolo_mode_enabled"] = True
-                security_config_raw["yolo_mode_enabled_at"] = time.time()
-                security_config_raw["yolo_mode_timeout"] = None
-                logger.info(
-                    "Cron job %s: auto-enabled YOLO mode for unattended execution",
-                    job.id,
-                )
 
             agent_skill_ids: list[str] = []
             agent_subagent_ids: list[str] | None = None

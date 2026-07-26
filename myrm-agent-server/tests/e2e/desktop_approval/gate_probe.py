@@ -31,6 +31,7 @@ from tests.e2e.desktop_approval.constants import (
 from tests.e2e.desktop_approval.textedit_fixture import (
     activate_chrome_foreground,
     activate_textedit_foreground,
+    preflight_textedit_foreground,
 )
 from tests.e2e.desktop_approval.trust_api import (
     fetch_desktop_tool_progress_from_api,
@@ -67,6 +68,23 @@ def _empty_desktop_progress_probe() -> dict[str, object]:
         "lastTool": "",
         "completionStatus": "",
     }
+
+
+def _is_hard_nudge_failure(exc: BaseException) -> bool:
+    """Return True when nudge failure is unlikely to self-heal in current attempt."""
+    message = str(exc).lower()
+    return any(
+        token in message
+        for token in (
+            "follow-up native send wall timeout",
+            "stream still active after abort",
+            "chat shell not ready before deadline",
+            "request lock blocked",
+            "transport closed",
+            "not owned by this shim session",
+            "mux_reclaim_stall",
+        )
+    )
 
 
 async def _server_pending_count_fast() -> int:
@@ -305,7 +323,7 @@ async def _wait_stream_idle(
     chat: McpChatSession,
     *,
     chat_id: str = "",
-    timeout_sec: float = 45.0,
+    timeout_sec: float = 30.0,
 ) -> bool:
     deadline = asyncio.get_event_loop().time() + timeout_sec
     poll = 0
@@ -345,7 +363,7 @@ async def _fetch_first_desktop_dref(
 ) -> str | None:
     normalized_chat_id = chat_id.strip()
     if last_tool.endswith("desktop_snapshot_tool"):
-        await asyncio.to_thread(activate_textedit_foreground)
+        await asyncio.to_thread(preflight_textedit_foreground)
     else:
         await asyncio.to_thread(activate_chrome_foreground)
     probe = await chat.evaluate(
@@ -374,7 +392,7 @@ async def _fetch_first_desktop_dref(
             if attempt < 3:
                 await asyncio.sleep(1.0)
     if last_tool.endswith("desktop_snapshot_tool"):
-        await asyncio.to_thread(activate_textedit_foreground)
+        await asyncio.to_thread(preflight_textedit_foreground)
         for attempt in range(1, 3):
             snapshot_dref = await asyncio.to_thread(
                 fetch_first_desktop_dref_from_snapshot_api,
@@ -389,7 +407,7 @@ async def _fetch_first_desktop_dref(
             if attempt < 2:
                 await asyncio.sleep(1.0)
     if last_tool.endswith("desktop_snapshot_tool"):
-        await asyncio.to_thread(activate_textedit_foreground)
+        await asyncio.to_thread(preflight_textedit_foreground)
         local_dref = await asyncio.to_thread(
             fetch_first_desktop_dref_from_local_capture
         )
@@ -523,7 +541,10 @@ async def _send_interact_nudge(
     stream_active = await _agent_stream_active(chat, chat_id=chat_id)
     # steerStore is unreliable; vision/snapshot always abort+follow-up native send.
     force_follow_up = dref is not None
-    if last_tool.endswith(("desktop_snapshot_tool", "desktop_vision_tool")):
+    snapshot_or_vision = last_tool.endswith(
+        ("desktop_snapshot_tool", "desktop_vision_tool")
+    )
+    if snapshot_or_vision:
         use_follow_up = True
     else:
         use_follow_up = force_follow_up or (
@@ -533,13 +554,22 @@ async def _send_interact_nudge(
         if stream_active:
             progress("abort active stream before follow-up nudge")
             await _abort_stuck_ui_stream(chat)
-            stream_idle = await _wait_stream_idle(chat, chat_id=normalized_chat_id)
+            stream_idle = await _wait_stream_idle(
+                chat,
+                chat_id=normalized_chat_id,
+                timeout_sec=20.0,
+            )
             if not stream_idle:
-                raise TimeoutError(
-                    "stream still active after abort before follow-up nudge"
-                )
-            await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
-        elif force_follow_up:
+                if snapshot_or_vision:
+                    progress(
+                        "stream remained active after abort; continue follow-up send "
+                        "(snapshot/vision tolerance)"
+                    )
+                else:
+                    raise TimeoutError(
+                        "stream still active after abort before follow-up nudge"
+                    )
+        if stream_active or force_follow_up or snapshot_or_vision:
             await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
         reason = (
             "snapshot turn complete"
@@ -556,6 +586,7 @@ async def _send_interact_nudge(
                         nudge_prompt,
                         chat_id_hint=normalized_chat_id or None,
                         baseline_user_msgs_hint=baseline_user_msgs,
+                        wait_stream_started=False,
                     ),
                     timeout=60.0,
                 )
@@ -617,6 +648,7 @@ async def _send_interact_nudge(
                     nudge_prompt,
                     chat_id_hint=normalized_chat_id or None,
                     baseline_user_msgs_hint=baseline_user_msgs,
+                    wait_stream_started=False,
                 )
                 progress(
                     f"steer fallback follow-up send: "
@@ -1013,6 +1045,8 @@ async def ensure_interact_gate(
                 prefetched_dref=prefetched_dref,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
+            if _is_hard_nudge_failure(exc):
+                raise
             progress(f"vision nudge round {vision_round} skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
         if textedit_foreground:
@@ -1043,6 +1077,8 @@ async def ensure_interact_gate(
                 prefetched_dref=prefetched_dref,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
+            if _is_hard_nudge_failure(exc):
+                raise
             progress(f"immediate snapshot nudge skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
         if textedit_foreground:
@@ -1075,6 +1111,8 @@ async def ensure_interact_gate(
                 prefetched_dref=prefetched_dref,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
+            if _is_hard_nudge_failure(exc):
+                raise
             progress(f"snapshot nudge send skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
         if textedit_foreground:
@@ -1118,6 +1156,8 @@ async def ensure_interact_gate(
                 prefetched_dref=prefetched_dref,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
+            if _is_hard_nudge_failure(exc):
+                raise
             progress(f"nudge send skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
         post_nudge_wait = 30.0 if _is_snapshot_or_vision_loop(last_tool) else 60.0
@@ -1176,6 +1216,8 @@ async def ensure_interact_gate(
                 prefetched_dref=None,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
+            if _is_hard_nudge_failure(exc):
+                raise
             progress(f"snapshot reseed nudge skipped (non-fatal): {exc}")
         heartbeat_e2e_lease()
         if textedit_foreground:

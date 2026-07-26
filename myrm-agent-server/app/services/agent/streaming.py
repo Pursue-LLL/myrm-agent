@@ -381,6 +381,7 @@ async def ai_agent_service_stream(
 
         gateway = get_agent_gateway()
         takeover_live_assist_cache: TakeoverLiveAssistCache | None = None
+        _pending_attention = False
         async for event in gateway.execute_stream(
             raw_stream,
             agent_type="general",
@@ -408,6 +409,8 @@ async def ai_agent_service_stream(
 
             # Intercept APPROVAL_REQUIRED events to persist to DB
             event_type = getattr(event, "type", None) if not isinstance(event, dict) else event.get("type")
+            if event_type in ("approval_required", "tool_approval_request", "clarification_required"):
+                _pending_attention = True
             if event_type == "approval_required":
                 from app.services.approvals.registry import ApprovalRegistry
 
@@ -516,6 +519,12 @@ async def ai_agent_service_stream(
             agent_id=params.agent_id,
             extra_context=extra_context,
         )
+        if _pending_attention and params.chat_id:
+            from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+
+            WorkspaceMultiplexer.get().publish_session_status(
+                params.chat_id, "awaiting_approval", "general"
+            )
         recording_info = getattr(agent, "_session_recording_info", None)
         if recording_info:
             yield {

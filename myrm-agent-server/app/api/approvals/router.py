@@ -147,6 +147,11 @@ async def resolve_approval(
         except Exception as e:
             logger.error("Failed to resume agent: %s", e)
 
+    if record.chat_id:
+        from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+
+        WorkspaceMultiplexer.get().publish_session_status(record.chat_id, "idle", "")
+
     return ApprovalRecordResponse.from_orm(record)
 
 
@@ -193,6 +198,11 @@ async def batch_resolve_approvals(
                     )
                 except Exception as e:
                     logger.error("Failed to resume agent for %s: %s", record.id, e)
+
+            if record.chat_id:
+                from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+
+                WorkspaceMultiplexer.get().publish_session_status(record.chat_id, "idle", "")
         except Exception as e:
             logger.error("Failed to batch resolve approval %s: %s", approval_id, e)
 

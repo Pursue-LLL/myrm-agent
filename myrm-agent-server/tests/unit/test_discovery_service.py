@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.core.skills.discovery_service import SkillDiscoveryService
+from app.core.skills.market_service import SkillMarketService
 
 
 def _make_response(status_code: int, text: str = "") -> MagicMock:
@@ -16,7 +16,7 @@ def _make_response(status_code: int, text: str = "") -> MagicMock:
 @pytest.fixture
 def mock_analyze_github_url():
     with patch(
-        "app.core.skills.discovery_service.analyze_github_url",
+        "app.core.skills.market_service.analyze_github_url",
         new_callable=AsyncMock,
     ) as mock:
         yield mock
@@ -24,7 +24,7 @@ def mock_analyze_github_url():
 
 @pytest.mark.asyncio
 async def test_analyze_url_success(mock_analyze_github_url):
-    service = SkillDiscoveryService()
+    service = SkillMarketService()
 
     class MockRef:
         def __init__(self, owner, repo, ref, subdirectory):
@@ -76,7 +76,7 @@ async def test_analyze_url_success(mock_analyze_github_url):
 
 @pytest.mark.asyncio
 async def test_analyze_url_fallback(mock_analyze_github_url):
-    service = SkillDiscoveryService()
+    service = SkillMarketService()
 
     mock_analyze_github_url.side_effect = Exception("Rate limit")
 
@@ -88,7 +88,7 @@ async def test_analyze_url_fallback(mock_analyze_github_url):
 
 @pytest.mark.asyncio
 async def test_analyze_url_no_subdirectory(mock_analyze_github_url):
-    service = SkillDiscoveryService()
+    service = SkillMarketService()
 
     class MockRef:
         def __init__(self, owner, repo, ref, subdirectory):

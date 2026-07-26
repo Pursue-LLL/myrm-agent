@@ -14,13 +14,13 @@ import logging
 import mimetypes
 from datetime import datetime
 
-from myrm_agent_harness.agent.skills.discovery.sanitizer import (
+from myrm_agent_harness.agent.skills.market.sanitizer import (
     SKILL_MD_FILE as SKILL_MD_FILE,
 )
-from myrm_agent_harness.agent.skills.discovery.sanitizer import (
+from myrm_agent_harness.agent.skills.market.sanitizer import (
     SKILL_NAME_PATTERN as SKILL_NAME_PATTERN,
 )
-from myrm_agent_harness.agent.skills.discovery.sanitizer import (
+from myrm_agent_harness.agent.skills.market.sanitizer import (
     sanitize_skill_files,
 )
 from myrm_agent_harness.toolkits.storage.base import StorageProvider

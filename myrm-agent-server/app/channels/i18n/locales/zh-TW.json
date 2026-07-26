@@ -111,5 +111,6 @@
   "cooldown_hint_single": " 請等待{seconds}秒後重試。",
   "cooldown_hint_plural": " 請等待{seconds}秒後重試。",
   "stuck_task_timeout_user_message": "⏱ 任務在 {elapsed} 秒後無響應，已自動取消。請重新傳送訊息重試。",
-  "risk_outbound_blocked": "⚠️ 該回復觸發了內容安全策略，已被攔截。請聯絡管理員或換個方式提問。"
+  "risk_outbound_blocked": "⚠️ 該回復觸發了內容安全策略，已被攔截。請聯絡管理員或換個方式提問。",
+  "risk_inbound_blocked": "⚠️ 您的訊息觸發了內容安全策略，已被攔截。請移除敏感資訊後重試。"
 }

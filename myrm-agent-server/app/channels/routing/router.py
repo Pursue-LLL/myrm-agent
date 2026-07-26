@@ -909,6 +909,35 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             )
             exec_for_error = msg
 
+        if not is_resume and msg.content:
+            from app.services.risk.detection import get_detection_service
+
+            risk_service = get_detection_service()
+            if risk_service.rule_count > 0:
+                risk_result = risk_service.detect(msg.content)
+                if risk_result.blocked:
+                    locale = resolve_message_locale(msg)
+                    from app.channels.i18n import channel_t
+
+                    blocked_reply = OutboundMessage(
+                        channel=msg.channel,
+                        recipient_id=msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id,
+                        content=channel_t(locale, "risk_inbound_blocked"),
+                        user_id=msg.user_id or "",
+                        reply_to_id=msg.message_id,
+                    )
+                    await self._bus.publish_outbound(blocked_reply)
+                    logger.info(
+                        "Inbound risk gate blocked message on channel '%s' from '%s': rules=%s",
+                        msg.channel,
+                        msg.sender_id,
+                        [m.display_name for m in risk_result.matches],
+                    )
+                    asyncio.ensure_future(
+                        _record_inbound_risk_hits(risk_result.matches, msg)
+                    )
+                    return
+
         agent_route_resolved = self._registry.resolve(msg.content)
         if agent_route_resolved and agent_route_resolved.command_def.kind == CommandKind.AGENT_ROUTE:
             agent_id = agent_route_resolved.command_def.agent_id or agent_route_resolved.command_def.name
@@ -1002,3 +1031,27 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             if self._inbound_journal and journal_entry_id:
                 self._inbound_journal.acknowledge(journal_entry_id)
             self._gate.on_task_complete(msg)
+
+
+async def _record_inbound_risk_hits(
+    matches: tuple[object, ...], msg: InboundMessage
+) -> None:
+    """Fire-and-forget: persist risk hit records for inbound blocked messages."""
+    try:
+        import uuid
+
+        from app.platform_utils import get_session_factory
+        from app.services.risk.detection import get_detection_service
+
+        service = get_detection_service()
+        session_factory = get_session_factory()
+        async with session_factory() as db:
+            await service.record_hits(
+                db,
+                matches,  # type: ignore[arg-type]
+                trace_id=str(uuid.uuid4()),
+                session_id=msg.sender_id,
+            )
+            await db.commit()
+    except Exception:
+        logger.debug("Failed to record inbound risk hits (non-critical)", exc_info=True)

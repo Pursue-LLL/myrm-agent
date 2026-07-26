@@ -13,7 +13,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | `useInputHistory.ts` | 输入历史回溯（ArrowUp 空框触发、per-agent localStorage 隔离、ghost placeholder、弹窗键盘导航） |
 | `useInputFileUpload.ts` | 聊天输入文件上传（粘贴图片、拖拽文件、SHA-256 去重；支持 image/video/audio 分级大小校验） |
 | `useAgentEditor.ts` / `useAgentConfigPanel.ts` / `use-agent-config-panel/` | Agent 配置面板 |
-| `usePendingApprovalsRecovery.ts` | 启动/SSE 重连时从 `GET /approvals` 恢复全局 Drawer 队列（不含后台 growth draft，server 已过滤） |
+| `usePendingApprovalsRecovery.ts` | 启动/SSE 重连时从 `GET /approvals` 恢复全局 Drawer 队列（不含后台 growth draft，server 已过滤）；同步设置 per-chat `awaiting_approval` sessionStatus 激活侧边栏注意力指示 |
 | `useToolApprovalResolve.ts` / `useVisualApprovalSnapshot.ts` / `useVisualApprovalOsOverlay.ts` | 工具审批与可视化 HITL（OsOverlay 依赖 snapshot screen 元数据） |
 | `useVoiceSession.ts` / `useRealtimeVoice.ts` / `useGeminiLiveVoice.ts` / `useTTS.ts` | 语音会话与 TTS（useVoiceSession 含 PTT 屏幕上下文融合，支持 OpenAI Realtime WebRTC + Gemini Live WebSocket 双 Provider；useTTS API 模式在 503/422 时 toast 提示） |
 | `useVoicePttListener.ts` | Tauri 全局语音 PTT 快捷键事件桥接（IPC → DOM CustomEvent），含 PTT 屏幕上下文转发 |

@@ -23,7 +23,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 from myrm_agent_harness.agent.skills.optimization.types import SkillQualityScore, SkillVersion
 
 from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage

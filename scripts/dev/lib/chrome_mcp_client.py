@@ -340,8 +340,24 @@ class ChromeMcpClient:
 
     def close(self) -> None:
         errors: list[Exception] = []
+        if self._request_lock.locked():
+            _LOGGER.warning(
+                "Chrome MCP close detected held request lock; abandon in-flight requests first"
+            )
+            try:
+                self.abandon_inflight_requests()
+            except Exception as exc:  # pragma: no cover - best effort cleanup path
+                errors.append(exc)
         self._page_lease_heartbeat.stop()
-        for page in list(self._pages.values()):
+        pages_to_close = list(
+            {
+                page.page_id: page
+                for page in (
+                    list(self._pages.values()) + list(self._disconnected_pages.values())
+                )
+            }.values()
+        )
+        for page in pages_to_close:
             try:
                 self.close_page(page)
             except Exception as exc:

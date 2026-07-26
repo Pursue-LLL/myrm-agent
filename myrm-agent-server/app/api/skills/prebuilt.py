@@ -23,7 +23,7 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 from myrm_agent_harness.api.skills import (
     SkillMetadataError,
     compute_content_hash,

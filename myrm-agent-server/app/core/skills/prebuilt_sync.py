@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
+from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 from myrm_agent_harness.api.skills import (
     SkillMetadataError,
     compute_content_hash,

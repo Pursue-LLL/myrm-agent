@@ -130,7 +130,6 @@ app/api/skills/config.py
 app/api/skills/config_version.py
 app/api/skills/core.py
 app/api/skills/curator.py
-app/api/skills/discovery.py
 app/api/skills/drafts.py
 app/api/skills/evolution/__init__.py
 app/api/skills/evolution/helpers.py
@@ -138,6 +137,7 @@ app/api/skills/evolution/rejections.py
 app/api/skills/growth.py
 app/api/skills/instances.py
 app/api/skills/local.py
+app/api/skills/market.py
 app/api/skills/migrations.py
 app/api/skills/packaging.py
 app/api/skills/permissions.py
@@ -212,8 +212,9 @@ app/core/security/config_crypto.py
 app/core/skills/__init__.py
 app/core/skills/config_version.py
 app/core/skills/discovery_autoupdate.py
-app/core/skills/discovery_service.py
 app/core/skills/loader.py
+app/core/skills/market_autoupdate.py
+app/core/skills/market_service.py
 app/core/skills/models.py
 app/core/skills/packaging/__init__.py
 app/core/skills/permission_logger.py

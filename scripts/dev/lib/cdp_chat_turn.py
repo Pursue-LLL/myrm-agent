@@ -427,6 +427,7 @@ class CdpChatTurn(CdpChatSubmit):
         *,
         chat_id_hint: str | None = None,
         baseline_user_msgs_hint: int | None = None,
+        wait_stream_started: bool = True,
     ) -> dict[str, object]:
         """Desktop approval E2E: setInputMessage + nativeClick (matches v48 PASS path)."""
         chat_id = chat_id_hint
@@ -506,18 +507,24 @@ class CdpChatTurn(CdpChatSubmit):
                 submit = {**bridge_submit, "mode": "bridgeSendChatMessage"}
         if not submit.get("ok"):
             raise RuntimeError(f"fast desktop native submit failed: {submit}")
-        try:
-            started = await asyncio.wait_for(
-                self.wait_stream_started(
-                    prompt_for_wait,
-                    min_user_msgs=baseline_user_msgs + 1,
-                    chat_id_hint=chat_id,
-                ),
-                timeout=45.0,
-            )
-        except TimeoutError:
-            started = await self.main_state(prompt_for_wait)
-            started["streamProbe"] = "deferred_to_wait_turn_done"
+        if wait_stream_started:
+            try:
+                started = await asyncio.wait_for(
+                    self.wait_stream_started(
+                        prompt_for_wait,
+                        min_user_msgs=baseline_user_msgs + 1,
+                        chat_id_hint=chat_id,
+                    ),
+                    timeout=45.0,
+                )
+            except TimeoutError:
+                started = await self.main_state(prompt_for_wait)
+                started["streamProbe"] = "deferred_to_wait_turn_done"
+        else:
+            started = {
+                "streamProbe": "skipped_for_follow_up_nudge",
+                "userMsgs": baseline_user_msgs,
+            }
         if chat_id:
             started["chatId"] = chat_id
         return {

@@ -9269,6 +9269,7 @@
     "capabilitiesLabel": "能力圍欄",
     "capabilitiesDesc": "宣告此任務允許使用的工具能力，未選擇則使用全部能力",
     "capabilitiesAllHint": "未限制（使用全部能力）",
+    "failClosedHint": "定時任務預設拒絕危險操作。請在下方設定能力圍欄，或在智慧體安全設定中啟用 YOLO 模式。",
     "capabilitiesUpdated": "能力圍欄已更新",
     "capabilitiesCleared": "能力圍欄已清除",
     "toolsAllowedLabel": "內建工具範圍",

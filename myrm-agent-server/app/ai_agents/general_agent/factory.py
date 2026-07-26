@@ -522,7 +522,7 @@ async def build_general_agent(
 
     # 9. Call framework API
     from app.core.skills.creation.service import skill_creation_service
-    from app.core.skills.discovery_service import discovery_service
+    from app.core.skills.market_service import market_service
     from app.core.skills.state_manager_instance import get_state_manager
 
     trusted_ids: list[str] | None = None
@@ -751,7 +751,7 @@ async def build_general_agent(
         executor=executor,
         storage_backend=storage_backend,
         skill_backend=skill_backend,
-        discovery_backend=discovery_service,
+        market_backend=market_service,
         write_backend=skill_creation_service,
         secret_backend=secret_store if agent_wrapper.agent_id else None,
         memory_manager=memory_manager,

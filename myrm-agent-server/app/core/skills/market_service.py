@@ -1,6 +1,6 @@
-"""Business-layer Skill Discovery Service.
+"""Business-layer Skill Market Service.
 
-Wraps the framework-layer BaseSkillDiscoveryService to add:
+Wraps the framework-layer BaseSkillMarketService to add:
 - Integration with app.config.settings (e.g., GitHub token)
 - SSE ServerEventBus progress emission
 - Auto-enabling of skills in user_config
@@ -12,13 +12,13 @@ import logging
 from pathlib import Path
 from typing import cast
 
-from myrm_agent_harness.agent.skills.discovery.service import (
-    BaseSkillDiscoveryService,
+from myrm_agent_harness.agent.skills.market.service import (
+    BaseSkillMarketService,
     EnrichedSearchResult,
 )
-from myrm_agent_harness.agent.skills.discovery.sources.base import SkillSource
-from myrm_agent_harness.agent.skills.discovery.sources.github import GitHubRef, analyze_github_url
-from myrm_agent_harness.backends.skills.discovery_protocols import InstalledSkillInfo, SkillInstallResult
+from myrm_agent_harness.agent.skills.market.sources.base import SkillSource
+from myrm_agent_harness.agent.skills.market.sources.github import GitHubRef, analyze_github_url
+from myrm_agent_harness.backends.skills.market_protocols import InstalledSkillInfo, SkillInstallResult
 
 logger = logging.getLogger(__name__)
 
@@ -52,18 +52,18 @@ class _AppSkillStore:
         )
 
 
-class SkillDiscoveryService:
+class SkillMarketService:
     def __init__(self) -> None:
         from app.config.settings import settings
 
         github_token = settings.services.github_token.get_secret_value() or None
-        self._base = BaseSkillDiscoveryService(github_token=github_token, skill_store=_AppSkillStore())
+        self._base = BaseSkillMarketService(github_token=github_token, skill_store=_AppSkillStore())
         self._github_token = github_token
         self._register_custom_sources()
 
     def _register_custom_sources(self) -> None:
         """Load persisted custom sources and register them into the base service."""
-        from myrm_agent_harness.agent.skills.discovery.sources.wellknown import WellKnownSkillSource
+        from myrm_agent_harness.agent.skills.market.sources.wellknown import WellKnownSkillSource
 
         from app.core.skills.custom_source_config import load_custom_sources
 
@@ -231,4 +231,4 @@ class SkillDiscoveryService:
             logger.warning("Failed to disable local skill %s: %s", skill_id, e)
 
 
-discovery_service = SkillDiscoveryService()
+market_service = SkillMarketService()

@@ -29,4 +29,5 @@
 ## 模块依赖
 
 - `app.services.approvals.registry` — `ApprovalRegistry`
+- `app.services.agent.streaming_support.multiplexer` — `WorkspaceMultiplexer`（resolve 后发布 `idle` 清除侧边栏 `awaiting_approval` 状态）
 - `myrm_agent_harness.agent.types` — `Command`（渠道 resume 路径）
