@@ -6,7 +6,7 @@
 
 - Local/Tauri：`GET /discover` 扫描本地文件系统
 - Cloud/SaaS：`POST /upload` 接收用户上传的 ZIP，解压后复用同一套 probe 逻辑
-- 两个入口统一返回 `source_manifest`（server 下发迁移来源元数据 SSOT）
+- 两个入口统一返回 `source_manifest` + `source_manifest_authoritative`（server 下发迁移来源元数据 SSOT 及覆盖语义）
 
 Wizard 支持的 discover 来源封闭为 4 种：Hermes、OpenClaw、Claude Code、Codex。详见 [../../services/migration/_ARCH.md](../../services/migration/_ARCH.md) 支持范围策略。
 

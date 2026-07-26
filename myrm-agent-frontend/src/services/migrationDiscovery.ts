@@ -38,6 +38,7 @@ export interface DiscoveryResponse {
   scan_path: string;
   available: boolean;
   source_manifest?: MigrationSourceManifestItem[];
+  source_manifest_authoritative?: boolean;
 }
 
 const DISCOVERY_CACHE_TTL_MS = 60_000;
@@ -118,14 +119,22 @@ function resolveManifestEntry(sourceId: string): MigrationSourceManifestItem | n
 
 export function registerMigrationSourceManifest(
   entries: readonly MigrationSourceManifestItem[] | null | undefined,
+  options?: { authoritative?: boolean },
 ): void {
-  if (!entries || entries.length === 0) return;
+  const authoritative = options?.authoritative === true;
+  if (!entries || entries.length === 0) {
+    return;
+  }
   const byId = buildManifestById(entries);
-  if (Object.keys(byId).length === 0) return;
-  sourceManifestById = {
-    ...DEFAULT_MIGRATION_SOURCE_MANIFEST_BY_ID,
-    ...byId,
-  };
+  if (Object.keys(byId).length === 0) {
+    return;
+  }
+  sourceManifestById = authoritative
+    ? byId
+    : {
+        ...DEFAULT_MIGRATION_SOURCE_MANIFEST_BY_ID,
+        ...byId,
+      };
 }
 
 export async function discoverMigrationSources(force = false): Promise<DiscoveryResponse> {
@@ -135,7 +144,9 @@ export async function discoverMigrationSources(force = false): Promise<Discovery
   }
 
   const response = await apiRequest<DiscoveryResponse>('/migration/discover');
-  registerMigrationSourceManifest(response.source_manifest);
+  registerMigrationSourceManifest(response.source_manifest, {
+    authoritative: response.source_manifest_authoritative,
+  });
   discoveryCache = response;
   discoveryCachedAt = Date.now();
   return response;
@@ -166,7 +177,9 @@ export async function uploadMigrationZip(file: File): Promise<DiscoveryResponse>
     method: 'POST',
     body: form,
   });
-  registerMigrationSourceManifest(response.source_manifest);
+  registerMigrationSourceManifest(response.source_manifest, {
+    authoritative: response.source_manifest_authoritative,
+  });
   discoveryCache = response;
   discoveryCachedAt = Date.now();
   return response;

@@ -34,6 +34,7 @@ from app.api.migration.discovery import (
     build_source_manifest_response,
 )
 from app.services.migration.source_discovery import discover_external_sources
+from app.services.migration.source_manifest import migration_source_manifest_authoritative
 
 router = APIRouter(prefix="/migration", tags=["migration"])
 
@@ -130,6 +131,7 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
             scan_path="upload",
             available=True,
             source_manifest=build_source_manifest_response(),
+            source_manifest_authoritative=migration_source_manifest_authoritative(),
         )
 
     return DiscoveryResponse(
@@ -137,6 +139,7 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
         scan_path="upload",
         available=True,
         source_manifest=build_source_manifest_response(),
+        source_manifest_authoritative=migration_source_manifest_authoritative(),
     )
 
 
@@ -165,4 +168,5 @@ def _build_chatgpt_discovery(conversations_path: str) -> DiscoveryResponse:
         scan_path="upload",
         available=True,
         source_manifest=build_source_manifest_response(),
+        source_manifest_authoritative=migration_source_manifest_authoritative(),
     )

@@ -98,7 +98,9 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
         getMemoryCommandCenter(),
         getConsolidationLastSummary().catch(() => null),
       ]);
-      registerMigrationSourceManifest(snap.migration.source_manifest);
+      registerMigrationSourceManifest(snap.migration.source_manifest, {
+        authoritative: snap.migration.source_manifest_authoritative,
+      });
       setSnapshot(snap);
       setConsolidationSummary(consolSummary);
     } catch (err) {

@@ -6,6 +6,7 @@ from app.services.migration.source_manifest import (
     migration_source_deep_link_ids,
     migration_source_import_map,
     migration_source_local_scan_ids,
+    migration_source_manifest_authoritative,
     migration_source_manifest_entries,
     migration_source_manifest_payload,
 )
@@ -37,3 +38,7 @@ def test_manifest_payload_is_json_safe() -> None:
 
 def test_deep_link_ids_include_all_manifest_sources() -> None:
     assert migration_source_deep_link_ids() == {"hermes", "openclaw", "claude", "codex", "chatgpt"}
+
+
+def test_manifest_is_authoritative_for_frontend_consumers() -> None:
+    assert migration_source_manifest_authoritative() is True

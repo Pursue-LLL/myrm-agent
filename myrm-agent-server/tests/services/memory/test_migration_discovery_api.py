@@ -50,6 +50,7 @@ class TestDiscoveryEndpointLocalMode:
         assert data["available"] is True
         assert data["sources"] == []
         assert isinstance(data["source_manifest"], list)
+        assert data["source_manifest_authoritative"] is True
         assert {item["id"] for item in data["source_manifest"]} == {
             "hermes",
             "openclaw",
@@ -131,6 +132,7 @@ class TestDiscoveryEndpointLocalMode:
         assert "has_api_keys" in src
         assert "source_manifest" in data
         assert isinstance(data["source_manifest"], list)
+        assert data["source_manifest_authoritative"] is True
         manifest_item = data["source_manifest"][0]
         assert "id" in manifest_item
         assert "display_name" in manifest_item
@@ -159,3 +161,4 @@ class TestDiscoveryEndpointSaaSMode:
         assert data["available"] is False
         assert data["sources"] == []
         assert isinstance(data["source_manifest"], list)
+        assert data["source_manifest_authoritative"] is True

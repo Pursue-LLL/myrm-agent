@@ -102,6 +102,7 @@ myrm_agent_harness.agent.skills.discovery.sanitizer
 myrm_agent_harness.agent.skills.discovery.service
 myrm_agent_harness.agent.skills.discovery.sources.base
 myrm_agent_harness.agent.skills.discovery.sources.github
+myrm_agent_harness.agent.skills.discovery.sources.wellknown
 myrm_agent_harness.agent.skills.evolution
 myrm_agent_harness.agent.skills.evolution.core.engine
 myrm_agent_harness.agent.skills.evolution.core.types

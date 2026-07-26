@@ -158,55 +158,41 @@ async def _build_eval_manifest(
 
     configs = await load_user_configs()
 
-    # Resolve model info
     model_provider = "unknown"
     model_id = "unknown"
     budget_max_tokens = 4096
     thinking_effort = "default"
-
-    if profile_id:
-        from app.services.agent.profile_resolver import get_agent_profile_resolver
-
-        resolved = await get_agent_profile_resolver().resolve(profile_id)
-        if resolved and resolved.model:
-            parts = resolved.model.split("/", 1)
-            if len(parts) == 2:
-                model_provider, model_id = parts
-            else:
-                model_id = resolved.model
-        if resolved and resolved.engine_params:
-            thinking_effort = str(resolved.engine_params.get("thinking_effort", "default"))
-            budget_max_tokens = int(resolved.engine_params.get("max_tokens", budget_max_tokens))
-
-    if model_id == "unknown" and configs.model_cfg:
-        model_id = str(configs.model_cfg.get("model", "unknown"))
-        model_provider = str(configs.model_cfg.get("provider", "unknown"))
-
-    # Resolve enabled tools
     tool_policy: list[str] = []
+    prompt_fingerprint = "none"
+
     if profile_id:
         from app.services.agent.profile_resolver import get_agent_profile_resolver
 
         resolved = await get_agent_profile_resolver().resolve(profile_id)
         if resolved:
+            if resolved.model:
+                parts = resolved.model.split("/", 1)
+                if len(parts) == 2:
+                    model_provider, model_id = parts
+                else:
+                    model_id = resolved.model
+            if resolved.engine_params:
+                thinking_effort = str(resolved.engine_params.get("thinking_effort", "default"))
+                budget_max_tokens = int(resolved.engine_params.get("max_tokens", budget_max_tokens))
             tool_policy = list(resolved.enabled_builtin_tools)
+            if resolved.system_prompt:
+                prompt_fingerprint = hashlib.sha256(
+                    resolved.system_prompt.encode("utf-8")
+                ).hexdigest()
 
-    # Compute task_set_hash (SHA256 of the cases file content)
+    if model_id == "unknown" and configs.model_cfg:
+        model_id = str(configs.model_cfg.get("model", "unknown"))
+        model_provider = str(configs.model_cfg.get("provider", "unknown"))
+
     task_set_hash = "empty"
     if cases_path.exists():
         content = cases_path.read_bytes()
         task_set_hash = hashlib.sha256(content).hexdigest()
-
-    # Compute prompt_fingerprint (SHA256 of system prompt, privacy-safe)
-    prompt_fingerprint = "none"
-    if profile_id:
-        from app.services.agent.profile_resolver import get_agent_profile_resolver
-
-        resolved = await get_agent_profile_resolver().resolve(profile_id)
-        if resolved and resolved.system_prompt:
-            prompt_fingerprint = hashlib.sha256(
-                resolved.system_prompt.encode("utf-8")
-            ).hexdigest()
 
     return EvalManifest(
         model_provider=model_provider,

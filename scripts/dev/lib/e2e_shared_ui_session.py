@@ -37,6 +37,15 @@ RESET_GLOBALS_JS = """(() => {
   return { ok: true, phase: 'RESET_GLOBALS' };
 })()"""
 
+RESET_GLOBALS_KEEP_SEARCH_BLOCK_JS = """(() => {
+  window.__MYRM_E2E_DIRECT_SSE__ = false;
+  const bridge = window.__MYRM_E2E_CHAT__;
+  bridge?.abortActiveStream?.();
+  bridge?.releaseActiveStreamForApiResume?.();
+  bridge?.clearSseSnapshot?.();
+  return { ok: true, phase: 'RESET_GLOBALS', searchBlockPreserved: Boolean(window.__MYRM_E2E_BLOCK_SEARCH_SYNC__) };
+})()"""
+
 HYDRATE_PRIVATE_SEARCH_JS = """(async () => {
   delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
   const bridge = window.__MYRM_E2E_CHAT__;
@@ -150,13 +159,18 @@ async def apply_shared_ui_session_contract(
     if deadline is not None and time.monotonic() >= deadline:
         raise _session_error("E2E_SHARED_UI_SESSION", "budget exhausted before RESET_GLOBALS")
 
+    # R55: empty policy preserves __MYRM_E2E_BLOCK_SEARCH_SYNC__ across
+    # _after_new_chat_reset calls to avoid redundant 45s PUT+verify cycles.
+    reset_js = (
+        RESET_GLOBALS_KEEP_SEARCH_BLOCK_JS if policy == "empty" else RESET_GLOBALS_JS
+    )
     print(
         "E2E_SHARED_UI_SESSION_PROGRESS: phase=RESET_GLOBALS",
         file=sys.stderr,
         flush=True,
     )
     reset_raw = await chat.evaluate(
-        RESET_GLOBALS_JS,
+        reset_js,
         await_promise=False,
         recv_timeout=15.0,
     )
@@ -183,40 +197,54 @@ async def apply_shared_ui_session_contract(
         await ensure_bridge(timeout_sec=bridge_timeout)
 
     if policy == "empty":
+        # R55: if block flag survived from a prior empty-policy pass (same test),
+        # skip the expensive 45s PUT+verify and just confirm the flag.
+        search_block_preserved = (
+            isinstance(reset_raw, dict) and reset_raw.get("searchBlockPreserved") is True
+        )
+
         print(
-            "E2E_SHARED_UI_SESSION_PROGRESS: phase=SEARCH_POLICY empty",
+            f"E2E_SHARED_UI_SESSION_PROGRESS: phase=SEARCH_POLICY empty"
+            f"{' (block-preserved)' if search_block_preserved else ''}",
             file=sys.stderr,
             flush=True,
         )
-        search_budget = min(45.0, timeout_sec)
-        if deadline is not None:
-            search_budget = min(search_budget, max(0.0, deadline - time.monotonic()))
-        if search_budget <= 0:
-            raise _session_error("E2E_SHARED_UI_SESSION", "budget exhausted before SEARCH_POLICY")
+
         search_result: dict[str, object] = {
             "ok": True,
             "policy": "empty",
             "phase": "SEARCH_POLICY",
         }
-        try:
-            await asyncio.wait_for(
-                ensure_e2e_search_cleared_in_browser(
-                    chat,
-                    api_url=resolved_api,
-                    recv_timeout_sec=min(30.0, search_budget),
-                    max_attempts=2,
-                ),
-                timeout=search_budget,
-            )
-        except (TimeoutError, RuntimeError, OSError, urllib.error.URLError) as exc:
-            # Empty-policy fallback: always block browser-side sync even if API clear timed out.
-            print(
-                f"E2E_SHARED_UI_SESSION_WARN: empty search clear fallback block-only err={exc}",
-                file=sys.stderr,
-                flush=True,
-            )
-            search_result["fallback"] = "block_only"
-            search_result["clear_error"] = str(exc)
+
+        if search_block_preserved:
+            search_result["short_circuit"] = True
+        else:
+            search_budget = min(45.0, timeout_sec)
+            if deadline is not None:
+                search_budget = min(search_budget, max(0.0, deadline - time.monotonic()))
+            if search_budget <= 0:
+                raise _session_error(
+                    "E2E_SHARED_UI_SESSION", "budget exhausted before SEARCH_POLICY"
+                )
+            try:
+                await asyncio.wait_for(
+                    ensure_e2e_search_cleared_in_browser(
+                        chat,
+                        api_url=resolved_api,
+                        recv_timeout_sec=min(30.0, search_budget),
+                        max_attempts=2,
+                    ),
+                    timeout=search_budget,
+                )
+            except (TimeoutError, RuntimeError, OSError, urllib.error.URLError) as exc:
+                print(
+                    f"E2E_SHARED_UI_SESSION_WARN: empty search clear fallback block-only err={exc}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                search_result["fallback"] = "block_only"
+                search_result["clear_error"] = str(exc)
+
         block_raw = await chat.evaluate(
             SET_EMPTY_SEARCH_BLOCK_JS,
             await_promise=False,

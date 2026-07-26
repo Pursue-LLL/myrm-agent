@@ -2368,6 +2368,27 @@
           "skills_sh": "Community",
           "clawhub": "ClawHub",
           "lobehub": "LobeHub"
+        },
+        "customSources": {
+          "title": "Custom Sources",
+          "description": "Add .well-known/skills endpoints for private skill registries",
+          "addSource": "Add Source",
+          "urlPlaceholder": "https://skills.company.com",
+          "labelPlaceholder": "Label (optional)",
+          "adding": "Probing...",
+          "addSuccess": "Source added ({count} skills found)",
+          "addFailed": "Failed to add source",
+          "unreachable": "Source unreachable or invalid endpoint",
+          "removeConfirm": "Remove this source?",
+          "remove": "Remove",
+          "removing": "Removing...",
+          "removed": "Source removed",
+          "removeFailed": "Failed to remove source",
+          "healthy": "Online",
+          "unhealthy": "Offline",
+          "empty": "No custom sources configured",
+          "emptyDesc": "Add a .well-known/skills endpoint to discover private skills",
+          "alreadyExists": "Source already exists"
         }
       },
       "market": {
@@ -6952,7 +6973,24 @@
       "execution_failure": "Execution Failure",
       "segfault": "Segmentation Fault",
       "signal_terminated": "Signal Terminated",
-      "nonzero_exit": "Non-Zero Exit"
+      "nonzero_exit": "Non-Zero Exit",
+      "syntax": "Syntax Error",
+      "import": "Missing Module",
+      "unknown": "Unknown Error",
+      "hook_blocked": "Blocked by Rule",
+      "estop": "Emergency Stop",
+      "loop_guard": "Loop Limit",
+      "sandbox_boundary": "Boundary Limit",
+      "frequency_guard": "Rate Limited",
+      "steering": "Skipped",
+      "invalid_tool": "Invalid Tool",
+      "trust_attenuation": "Trust Reduced",
+      "pii_guard": "Privacy Protected",
+      "circuit_breaker": "Fuse Tripped",
+      "context_validation": "Input Invalid",
+      "post_hook_blocked": "Blocked After Run",
+      "tool_cancelled": "Cancelled",
+      "guardrail_blocked": "Safety Blocked"
     },
     "toolSemanticLabels": {
       "file_read_tool": "Reading files",

@@ -2368,6 +2368,27 @@
           "skills_sh": "社区",
           "clawhub": "ClawHub",
           "lobehub": "LobeHub"
+        },
+        "customSources": {
+          "title": "自定义源",
+          "description": "添加 .well-known/skills 端点来接入私有技能仓库",
+          "addSource": "添加源",
+          "urlPlaceholder": "https://skills.company.com",
+          "labelPlaceholder": "标签（可选）",
+          "adding": "探测中...",
+          "addSuccess": "源已添加（发现 {count} 个技能）",
+          "addFailed": "添加源失败",
+          "unreachable": "源不可达或端点无效",
+          "removeConfirm": "确定移除此源？",
+          "remove": "移除",
+          "removing": "移除中...",
+          "removed": "源已移除",
+          "removeFailed": "移除源失败",
+          "healthy": "在线",
+          "unhealthy": "离线",
+          "empty": "未配置自定义源",
+          "emptyDesc": "添加 .well-known/skills 端点来发现私有技能",
+          "alreadyExists": "源已存在"
         }
       },
       "market": {
@@ -6952,7 +6973,24 @@
       "execution_failure": "执行异常",
       "segfault": "段错误 (Segfault)",
       "signal_terminated": "被信号终止",
-      "nonzero_exit": "非零退出码"
+      "nonzero_exit": "非零退出码",
+      "syntax": "语法错误",
+      "import": "缺少依赖",
+      "unknown": "未知错误",
+      "hook_blocked": "规则拦截",
+      "estop": "紧急停止",
+      "loop_guard": "循环限制",
+      "sandbox_boundary": "边界限制",
+      "frequency_guard": "频率限制",
+      "steering": "已跳过",
+      "invalid_tool": "无效工具",
+      "trust_attenuation": "信任降级",
+      "pii_guard": "隐私保护",
+      "circuit_breaker": "熔断触发",
+      "context_validation": "输入无效",
+      "post_hook_blocked": "执行后拦截",
+      "tool_cancelled": "已取消",
+      "guardrail_blocked": "安全拦截"
     },
     "toolSemanticLabels": {
       "file_read_tool": "正在读取文件",

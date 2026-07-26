@@ -64,4 +64,28 @@ describe('migrationDiscovery source manifest helpers', () => {
     expect(resolveMigrationImportSource('chatgpt')).toBe('chatgpt');
     expect(canDeepLinkMigrationSource('chatgpt')).toBe(true);
   });
+
+  it('replaces defaults when server marks payload authoritative', () => {
+    registerMigrationSourceManifest(
+      [
+        {
+          id: 'gbrain',
+          display_name: 'GBrain',
+          import_source: 'gbrain',
+          discover_modes: [],
+          deep_link_enabled: false,
+        },
+      ],
+      { authoritative: true },
+    );
+    expect(resolveMigrationImportSource('chatgpt')).toBe('auto');
+    expect(canDeepLinkMigrationSource('chatgpt')).toBe(false);
+    expect(resolveMigrationImportSource('gbrain')).toBe('gbrain');
+  });
+
+  it('ignores empty authoritative payloads to avoid accidental wipe', () => {
+    registerMigrationSourceManifest([], { authoritative: true });
+    expect(resolveMigrationImportSource('chatgpt')).toBe('chatgpt');
+    expect(resolveMigrationImportSource('gbrain')).toBe('gbrain');
+  });
 });

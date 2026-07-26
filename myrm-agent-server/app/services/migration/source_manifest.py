@@ -15,10 +15,21 @@ Centralizes Wizard migration source metadata to avoid frontend/backend drift.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Final, Literal, TypedDict
 
 MigrationSourceDiscoverMode = Literal["local_scan", "zip_upload"]
 MigrationImportSource = Literal["hermes", "openclaw", "claude", "codex", "chatgpt"]
+MIGRATION_SOURCE_MANIFEST_AUTHORITATIVE: Final[bool] = True
+
+
+class MigrationSourceManifestPayloadItem(TypedDict):
+    """JSON-safe manifest item shared by API and command-center responses."""
+
+    id: str
+    display_name: str
+    import_source: MigrationImportSource
+    discover_modes: list[MigrationSourceDiscoverMode]
+    deep_link_enabled: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,7 +83,13 @@ def migration_source_manifest_entries() -> tuple[MigrationSourceManifestEntry, .
     return _MIGRATION_SOURCE_MANIFEST
 
 
-def migration_source_manifest_payload() -> list[dict[str, object]]:
+def migration_source_manifest_authoritative() -> bool:
+    """Return whether server payload should replace frontend local defaults."""
+
+    return MIGRATION_SOURCE_MANIFEST_AUTHORITATIVE
+
+
+def migration_source_manifest_payload() -> list[MigrationSourceManifestPayloadItem]:
     """Return JSON-safe manifest payload for API responses."""
 
     return [

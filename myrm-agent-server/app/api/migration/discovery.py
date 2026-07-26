@@ -25,7 +25,9 @@ from app.services.migration.source_discovery import (
     discover_external_sources,
 )
 from app.services.migration.source_manifest import (
-    migration_source_manifest_entries,
+    MigrationImportSource,
+    migration_source_manifest_authoritative,
+    migration_source_manifest_payload,
 )
 from app.services.migration.source_secrets_importer import import_external_source_secrets
 
@@ -51,7 +53,7 @@ class ExternalSourceResponse(BaseModel):
 class MigrationSourceManifestItemResponse(BaseModel):
     id: str
     display_name: str
-    import_source: str
+    import_source: MigrationImportSource
     discover_modes: list[Literal["local_scan", "zip_upload"]] = Field(default_factory=list)
     deep_link_enabled: bool = True
 
@@ -61,6 +63,7 @@ class DiscoveryResponse(BaseModel):
     scan_path: str = ""
     available: bool = True
     source_manifest: list[MigrationSourceManifestItemResponse] = Field(default_factory=list)
+    source_manifest_authoritative: bool = True
 
 
 def _to_response(source: ExternalSource) -> ExternalSourceResponse:
@@ -78,16 +81,7 @@ def _to_response(source: ExternalSource) -> ExternalSourceResponse:
 def build_source_manifest_response() -> list[MigrationSourceManifestItemResponse]:
     """Build the Wizard source manifest payload for frontend consumption."""
 
-    return [
-        MigrationSourceManifestItemResponse(
-            id=item.id,
-            display_name=item.display_name,
-            import_source=item.import_source,
-            discover_modes=list(item.discover_modes),
-            deep_link_enabled=item.deep_link_enabled,
-        )
-        for item in migration_source_manifest_entries()
-    ]
+    return [MigrationSourceManifestItemResponse.model_validate(item) for item in migration_source_manifest_payload()]
 
 
 class SecretsImportRequest(BaseModel):
@@ -132,6 +126,7 @@ async def discover_external_source_data() -> DiscoveryResponse:
             sources=[],
             available=False,
             source_manifest=build_source_manifest_response(),
+            source_manifest_authoritative=migration_source_manifest_authoritative(),
         )
 
     result = discover_external_sources()
@@ -140,4 +135,5 @@ async def discover_external_source_data() -> DiscoveryResponse:
         scan_path=result.scan_path,
         available=True,
         source_manifest=build_source_manifest_response(),
+        source_manifest_authoritative=migration_source_manifest_authoritative(),
     )

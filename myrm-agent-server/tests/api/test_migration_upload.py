@@ -77,6 +77,14 @@ async def test_upload_empty_zip_returns_empty_sources(client: AsyncClient):
     assert data["sources"] == []
     assert data["available"] is True
     assert data["scan_path"] == "upload"
+    assert data["source_manifest_authoritative"] is True
+    assert {item["id"] for item in data["source_manifest"]} == {
+        "hermes",
+        "openclaw",
+        "claude",
+        "codex",
+        "chatgpt",
+    }
 
 
 @pytest.mark.asyncio
@@ -93,6 +101,8 @@ async def test_upload_hermes_data_detected(client: AsyncClient):
     assert resp.status_code == 200
     data = resp.json()
     assert data["available"] is True
+    assert data["source_manifest_authoritative"] is True
+    assert isinstance(data["source_manifest"], list)
     sources = data["sources"]
     assert len(sources) >= 1
     hermes = next((s for s in sources if s["competitor"] == "hermes"), None)
@@ -114,6 +124,8 @@ async def test_upload_openclaw_data_detected(client: AsyncClient):
     )
     assert resp.status_code == 200
     data = resp.json()
+    assert data["source_manifest_authoritative"] is True
+    assert isinstance(data["source_manifest"], list)
     sources = data["sources"]
     assert len(sources) >= 1
     oc = next((s for s in sources if s["competitor"] == "openclaw"), None)

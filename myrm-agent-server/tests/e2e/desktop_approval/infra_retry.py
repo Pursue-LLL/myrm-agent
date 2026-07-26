@@ -47,9 +47,23 @@ def is_mux_new_page_retriable(exc: BaseException) -> bool:
 
 def is_retriable_page_transport(exc: BaseException) -> bool:
     """Mux timeout or detached CDP frame — orchestrator should recover + reopen page."""
-    if isinstance(exc, TimeoutError):
-        return True
     message = str(exc).lower()
+    if isinstance(exc, TimeoutError):
+        # Do not treat generic API/socket timeout as page transport. Only retry here
+        # when timeout text clearly points to CDP page open/nav/eval/reload paths.
+        return any(
+            token in message
+            for token in (
+                "new_page",
+                "navigate",
+                "reload",
+                "evaluate",
+                "detached frame",
+                "not owned by this shim session",
+                "no mcpage found for the given page",
+                "chrome mcp transport closed",
+            )
+        )
     if "detached frame" in message:
         return True
     if "not owned by this shim session" in message:

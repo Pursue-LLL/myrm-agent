@@ -1,6 +1,19 @@
-"""Skill discovery API endpoints
+"""Skill discovery API endpoints.
 
-Search and install skills from external sources.
+[INPUT]
+app.api.skills.discovery_schemas (POS: Request/response Pydantic models)
+app.api.skills.audit::_audit_skill_action (POS: Skill action audit logging)
+app.core.skills.discovery_service::SkillDiscoveryService (POS: Skill search/install orchestrator)
+app.core.skills.discovery_autoupdate::get_update_checker (POS: Update availability checker)
+
+[OUTPUT]
+router: FastAPI router with skill search, install, preview, update, uninstall,
+        URL analysis, and custom source management endpoints.
+
+[POS]
+Skill discovery API. Delegates to harness BaseSkillDiscoveryService for
+search/install/preview and to server-layer services for update checking
+and custom source management.
 """
 
 import logging
@@ -8,9 +21,28 @@ from typing import cast
 
 from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.agent.skills.discovery.service import BaseSkillDiscoveryService
-from pydantic import BaseModel
 
 from app.api.skills.audit import _audit_skill_action
+from app.api.skills.discovery_schemas import (
+    CustomSourceListResponse,
+    CustomSourceProbeResponse,
+    CustomSourceRequest,
+    CustomSourceResponse,
+    ScanFindingResponse,
+    SkillAnalyzeUrlResponse,
+    SkillInstallFromUrlRequest,
+    SkillInstallRequest,
+    SkillInstallResponse,
+    SkillPreviewRequest,
+    SkillPreviewResponse,
+    SkillSearchResponse,
+    SkillSearchResultResponse,
+    SkillUninstallRequest,
+    SkillUpdateInfoResponse,
+    SkillUpdateRequest,
+    SkillUrlInfo,
+    UpdateCheckResponse,
+)
 from app.core.skills.discovery_autoupdate import get_update_checker
 from app.core.skills.discovery_service import SkillDiscoveryService, discovery_service
 
@@ -23,122 +55,15 @@ def _discovery_framework(svc: SkillDiscoveryService) -> BaseSkillDiscoveryServic
     return cast(BaseSkillDiscoveryService, svc._base)
 
 
-class SkillSearchResultResponse(BaseModel):
-    """搜索结果"""
-
-    id: str
-    name: str
-    description: str
-    source: str
-    author: str
-    install_url: str
-    install_method: str
-    version: str = ""
-    stars: int = 0
-    downloads: int = 0
-    tags: list[str] = []
-    readme_url: str | None = None
-    subdirectory: str | None = None
-    installed_version: str = ""
-    upgrade_available: bool = False
-
-
-class SkillSearchResponse(BaseModel):
-    """搜索响应"""
-
-    results: list[SkillSearchResultResponse]
-    total: int
-    query: str
-
-
-class SkillInstallRequest(BaseModel):
-    """安装请求"""
-
-    skill_id: str
-    source: str
-
-
-class SkillInstallResponse(BaseModel):
-    """安装响应"""
-
-    success: bool
-    skill_name: str = ""
-    skill_id: str = ""
-    installed_path: str = ""
-    error: str = ""
-    error_code: str = ""
-
-
-class SkillUpdateInfoResponse(BaseModel):
-    """Update availability for one installed skill."""
-
-    skill_name: str
-    current_version: str
-    remote_version: str
-    source: str
-    skill_id: str
-    has_update: bool
-
-
-class UpdateCheckResponse(BaseModel):
-    """Batch update check response."""
-
-    has_updates: bool
-    updates: list[SkillUpdateInfoResponse]
-
-
-class SkillUpdateRequest(BaseModel):
-    """Request to update a specific skill."""
-
-    skill_name: str
-    skill_id: str
-    source: str
-
-
-class SkillUninstallRequest(BaseModel):
-    """卸载请求"""
-
-    skill_id: str
-
-
-class SkillPreviewRequest(BaseModel):
-    """预览请求"""
-
-    skill_id: str
-    source: str
-
-
-class ScanFindingResponse(BaseModel):
-    """安全扫描发现"""
-
-    threat_type: str
-    severity: int
-    description: str
-    line_number: int | None = None
-
-
-class SkillPreviewResponse(BaseModel):
-    """预览响应（含安全扫描结果）"""
-
-    skill_id: str
-    name: str
-    description: str
-    version: str
-    files: list[str]
-    scan_findings: list[ScanFindingResponse] = []
-    is_clean: bool = True
-
-
 @router.get("/search", response_model=SkillSearchResponse)
 async def search_skills(
     q: str = Query("", description="Search keywords (empty returns popular skills)"),
     limit: int = Query(30, ge=1, le=50, description="Max results"),
 ) -> SkillSearchResponse:
-    """Search skills from external sources
+    """Search skills from external sources.
 
     Searches across GitHub, skills.sh, and prebuilt skills.
     When q is empty, returns all available skills sorted by popularity.
-    When user_id is provided, marks results with upgrade availability.
     """
     enriched = await discovery_service.search(q, limit)
     return SkillSearchResponse(
@@ -171,10 +96,9 @@ async def search_skills(
 async def preview_skill(
     request: SkillPreviewRequest,
 ) -> SkillPreviewResponse:
-    """Preview a skill before installation
+    """Preview a skill before installation.
 
     Downloads the skill content and runs a security scan without installing.
-    Use this to show scan results to the user before confirming installation.
     """
     try:
         preview = await _discovery_framework(discovery_service).preview(request.skill_id, request.source)
@@ -223,7 +147,7 @@ async def get_skill_detail(
     source: str,
     skill_id: str,
 ) -> SkillSearchResultResponse | None:
-    """Get detailed information about a specific skill"""
+    """Get detailed information about a specific skill."""
     result = await _discovery_framework(discovery_service).get_detail(skill_id, source)
     if not result:
         raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
@@ -276,7 +200,7 @@ async def update_skill(
 ) -> SkillInstallResponse:
     """Update a specific skill to its latest version.
 
-    Uses the quarantine install flow: download → scan → replace.
+    Uses the quarantine install flow: download -> scan -> replace.
     """
     from myrm_agent_harness.agent.skills.discovery.autoupdate import SkillUpdateInfo
 
@@ -322,27 +246,6 @@ async def uninstall_skill(
     )
 
 
-class SkillInstallFromUrlRequest(BaseModel):
-    """URL 安装请求"""
-
-    url: str
-
-
-class SkillUrlInfo(BaseModel):
-    """解析出的 GitHub 技能信息"""
-
-    url: str
-    name: str
-    description: str = ""
-    is_installed: bool
-
-
-class SkillAnalyzeUrlResponse(BaseModel):
-    """URL 分析结果"""
-
-    urls: list[SkillUrlInfo]
-
-
 @router.post("/analyze-url", response_model=SkillAnalyzeUrlResponse)
 async def analyze_skill_url(
     request: SkillInstallFromUrlRequest,
@@ -380,3 +283,75 @@ async def install_skill_from_url(
         error=result.error,
         error_code=result.error_code,
     )
+
+
+# ---------------------------------------------------------------------------
+# Custom Source Management
+# ---------------------------------------------------------------------------
+
+
+@router.get("/sources", response_model=CustomSourceListResponse)
+async def list_custom_sources() -> CustomSourceListResponse:
+    """List all user-configured custom skill sources."""
+    from app.core.skills.custom_source_config import load_custom_sources
+
+    config = load_custom_sources()
+    return CustomSourceListResponse(
+        sources=[
+            CustomSourceResponse(
+                url=s.url,
+                source_type=s.source_type,
+                label=s.label,
+                healthy=s.healthy,
+            )
+            for s in config.sources
+        ]
+    )
+
+
+@router.post("/sources", response_model=CustomSourceProbeResponse)
+async def add_custom_source(
+    request: CustomSourceRequest,
+) -> CustomSourceProbeResponse:
+    """Add a custom skill source after probing for reachability."""
+    from myrm_agent_harness.agent.skills.discovery.sources.wellknown import WellKnownSkillSource
+
+    from app.core.skills.custom_source_config import add_custom_source as _add_source
+
+    if request.source_type != "well-known":
+        raise HTTPException(status_code=400, detail=f"Unsupported source type: {request.source_type}")
+
+    source = WellKnownSkillSource(request.url)
+    reachable, skill_count = await source.probe()
+
+    if not reachable:
+        raise HTTPException(status_code=422, detail=f"Cannot reach source: {request.url}")
+
+    try:
+        _add_source(request.url, request.source_type, request.label or request.url)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+    discovery_service._base.register_source(source)
+
+    return CustomSourceProbeResponse(reachable=True, skill_count=skill_count, url=request.url)
+
+
+@router.delete("/sources")
+async def remove_custom_source_endpoint(
+    url: str = Query(..., description="Source URL to remove"),
+) -> dict[str, bool]:
+    """Remove a custom skill source."""
+    from urllib.parse import urlparse
+
+    from app.core.skills.custom_source_config import remove_custom_source
+
+    removed = remove_custom_source(url)
+    if not removed:
+        raise HTTPException(status_code=404, detail=f"Source not found: {url}")
+
+    parsed = urlparse(url.rstrip("/"))
+    source_name = f"well-known:{parsed.scheme}://{parsed.netloc}"
+    discovery_service._base.unregister_source(source_name)
+
+    return {"removed": True}

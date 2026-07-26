@@ -26,6 +26,7 @@ import { useSkillDiscovery } from '@/hooks/useSkillDiscovery';
 import type { DiscoverySearchResult } from '@/services/skill';
 import ScanConfirmDialog from './ScanConfirmDialog';
 import SkillUrlImportDialog from './SkillUrlImportDialog';
+import SkillSourcesPanel from './SkillSourcesPanel';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -365,6 +366,11 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
         }}
         initialUrl={initialImportUrl}
       />
+
+      {/* Custom Sources Management */}
+      <div className="border-t pt-4 mt-4">
+        <SkillSourcesPanel />
+      </div>
     </div>
   );
 });

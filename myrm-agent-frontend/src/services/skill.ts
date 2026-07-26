@@ -708,3 +708,39 @@ export async function acceptPrebuiltUpstream(skillId: string): Promise<PrebuiltA
     method: 'POST',
   });
 }
+
+// --- Custom Skill Sources ---
+
+export interface CustomSource {
+  url: string;
+  source_type: string;
+  label: string;
+  healthy: boolean;
+}
+
+export interface CustomSourceListResponse {
+  sources: CustomSource[];
+}
+
+export interface CustomSourceProbeResponse {
+  reachable: boolean;
+  skill_count: number;
+  url: string;
+}
+
+export async function getCustomSources(): Promise<CustomSourceListResponse> {
+  return apiRequest<CustomSourceListResponse>(`${SKILLS_API_PREFIX}/discovery/sources`);
+}
+
+export async function addCustomSource(url: string, sourceType: string = 'well-known', label: string = ''): Promise<CustomSourceProbeResponse> {
+  return apiRequest<CustomSourceProbeResponse>(`${SKILLS_API_PREFIX}/discovery/sources`, {
+    method: 'POST',
+    body: JSON.stringify({ url, source_type: sourceType, label }),
+  });
+}
+
+export async function removeCustomSource(url: string): Promise<{ removed: boolean }> {
+  return apiRequest<{ removed: boolean }>(`${SKILLS_API_PREFIX}/discovery/sources?url=${encodeURIComponent(url)}`, {
+    method: 'DELETE',
+  });
+}

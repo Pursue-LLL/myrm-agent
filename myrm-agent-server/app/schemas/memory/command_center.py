@@ -357,12 +357,15 @@ class MemoryCommandPlaneSummary(BaseModel):
     sandbox_isolation: Literal["local_or_per_user_sandbox"]
 
 
+MemoryCommandMigrationImportSource = Literal["hermes", "openclaw", "claude", "codex", "chatgpt"]
+
+
 class MemoryCommandMigrationSourceManifestItem(BaseModel):
     """Server-declared migration source metadata for UI routing/rendering."""
 
     id: str
     display_name: str
-    import_source: str
+    import_source: MemoryCommandMigrationImportSource
     discover_modes: list[Literal["local_scan", "zip_upload"]] = Field(default_factory=list)
     deep_link_enabled: bool = True
 
@@ -372,6 +375,7 @@ class MemoryCommandMigrationProvenance(BaseModel):
 
     supported_sources: list[str]
     source_manifest: list[MemoryCommandMigrationSourceManifestItem] = Field(default_factory=list)
+    source_manifest_authoritative: bool = True
     tracked_imports: int = 0
     unmapped_items: int = 0
     coverage_status: Literal["not_tracked", "partial", "complete"] = "not_tracked"

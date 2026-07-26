@@ -85,7 +85,9 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
       try {
         if (force) invalidateDiscoveryCache();
         const result = await discoverMigrationSources(force);
-        registerMigrationSourceManifest(result.source_manifest);
+        registerMigrationSourceManifest(result.source_manifest, {
+          authoritative: result.source_manifest_authoritative,
+        });
         setDiscovery(result);
       } catch {
         toast.error(t('scanFailed'));
@@ -103,7 +105,9 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
       setUploading(true);
       try {
         const result = await uploadMigrationZip(file);
-        registerMigrationSourceManifest(result.source_manifest);
+        registerMigrationSourceManifest(result.source_manifest, {
+          authoritative: result.source_manifest_authoritative,
+        });
         setDiscovery(result);
         if (result.sources.length === 0) {
           toast.info(t('cloudUploadEmpty'));

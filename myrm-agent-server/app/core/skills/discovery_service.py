@@ -59,6 +59,22 @@ class SkillDiscoveryService:
         github_token = settings.services.github_token.get_secret_value() or None
         self._base = BaseSkillDiscoveryService(github_token=github_token, skill_store=_AppSkillStore())
         self._github_token = github_token
+        self._register_custom_sources()
+
+    def _register_custom_sources(self) -> None:
+        """Load persisted custom sources and register them into the base service."""
+        from myrm_agent_harness.agent.skills.discovery.sources.wellknown import WellKnownSkillSource
+
+        from app.core.skills.custom_source_config import load_custom_sources
+
+        config = load_custom_sources()
+        for entry in config.sources:
+            if entry.source_type == "well-known":
+                try:
+                    source = WellKnownSkillSource(entry.url)
+                    self._base.register_source(source)
+                except ValueError as e:
+                    logger.warning("Skipping invalid custom source %s: %s", entry.url, e)
 
     @property
     def _sources(self) -> list[SkillSource]:

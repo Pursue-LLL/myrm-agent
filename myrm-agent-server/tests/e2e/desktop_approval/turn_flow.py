@@ -511,9 +511,21 @@ def _wall_clock_start() -> float:
 
 async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
     """Navigate off about:blank and wait for hydrated shell before chat automation."""
-    progress(f"force chat shell ({label})")
-    await chat._navigate_to_chat_home(timeout_ms=120_000)
-    await chat.wait_shell_ready(timeout_sec=120.0, require_bridge=True)
+    attempts = 3
+    for attempt in range(1, attempts + 1):
+        heartbeat_e2e_lease()
+        progress(f"force chat shell ({label}) attempt {attempt}/{attempts}")
+        try:
+            await chat._navigate_to_chat_home(timeout_ms=90_000)
+            await chat.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
+            await chat.ensure_react_e2e_bridge(timeout_sec=45.0)
+            return
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            if attempt >= attempts:
+                raise
+            progress(f"force chat shell retry after: {exc}")
+            await chat.ensure_e2e_api_base_binding()
+            await asyncio.sleep(1.0)
 
 
 async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> str:
