@@ -63,6 +63,7 @@
 | `AllowlistSection.tsx` | Allow Always 持久记录管理（/security/allowlist；permission/tool/exact/pattern 粒度） |
 | `DomainAllowlistEditor.tsx` | 域名白名单编辑器 |
 | `DomainBlocklistEditor.tsx` | URL 域名 blocklist 编辑器（Settings 全局策略） |
+| `CommandDenylistEditor.tsx` | 命令禁止列表编辑器（fnmatch glob 模式，YOLO 不可绕过） |
 | `PathPolicyEditor.tsx` | 路径策略编辑器 |
 | `RiskRulesSection.tsx` | 风控规则配置 |
 | `RiskRulesHitsPanel.tsx` | 风控规则命中记录 |

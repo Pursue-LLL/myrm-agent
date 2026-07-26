@@ -1042,6 +1042,29 @@ def _pin_hitl_on_api(api_url: str) -> None:
         )
 
 
+_HITL_PIN_MAX_ATTEMPTS = 3
+_HITL_PIN_BACKOFF_SEC = 1.5
+
+
+def _pin_hitl_on_api_with_retry(api_url: str) -> None:
+    """Retry transient loopback timeouts while pinning HITL mode."""
+    last_error: OSError | None = None
+    for attempt in range(1, _HITL_PIN_MAX_ATTEMPTS + 1):
+        try:
+            _pin_hitl_on_api(api_url)
+            return
+        except OSError as exc:
+            last_error = exc
+            if attempt >= _HITL_PIN_MAX_ATTEMPTS:
+                break
+            time.sleep(_HITL_PIN_BACKOFF_SEC * attempt)
+    if last_error is not None:
+        raise RuntimeError(
+            f"Failed to pin HITL securityConfig on {api_url} after "
+            f"{_HITL_PIN_MAX_ATTEMPTS} attempts: {last_error}"
+        ) from last_error
+
+
 def ensure_e2e_onboarding_complete(*, api_url: str) -> None:
     """Mark onboarding complete on any SHPOIB private or shared API (bypasses http_json allowlist)."""
     _e2e_api_post_json(
@@ -1071,7 +1094,7 @@ def ensure_e2e_hitl_mode(*, api_url: str | None = None) -> None:
     if shared not in targets:
         targets.append(shared)
     for target in targets:
-        _pin_hitl_on_api(target)
+        _pin_hitl_on_api_with_retry(target)
 
 
 STREAM_API_BINDING_JS = """(() => {

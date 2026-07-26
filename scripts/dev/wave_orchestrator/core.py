@@ -66,8 +66,8 @@ class LeaseReleaseResult(TypedDict):
     waveClosed: bool
 
 
-DEFAULT_LEASE_TTL_SEC = 3600
-DEFAULT_HEARTBEAT_EXTEND_SEC = 3600
+DEFAULT_LEASE_TTL_SEC = 900
+DEFAULT_HEARTBEAT_EXTEND_SEC = 900
 
 
 def _import_runtime_probe():

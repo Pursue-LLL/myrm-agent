@@ -177,24 +177,19 @@ class SupervisorDaemon:
             logger.info("GC actions: %s", gc_action)
         self._maybe_auto_heal(probe)
 
+    def _ensure_wave_pythonpath(self) -> None:
+        scripts_dev = self.paths.dev_stack_sh.parent
+        for p in (str(scripts_dev), str(scripts_dev / "lib")):
+            if p not in sys.path:
+                sys.path.insert(0, p)
+
     def _reap_wave_leases(self) -> None:
-        wave_script = self.paths.dev_stack_sh.parent / "wave.sh"
-        if not wave_script.is_file():
-            return
+        self._ensure_wave_pythonpath()
         try:
-            result = subprocess.run(
-                ["bash", str(wave_script), "reap"],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                check=False,
-                env=self._dev_stack_env(),
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            logger.warning("Wave lease reaper failed to execute")
-            return
-        if result.returncode != 0:
-            logger.warning("Wave lease reaper failed: %s", result.stderr.strip())
+            from wave_orchestrator.core import reap
+            reap()
+        except Exception:
+            logger.warning("Wave lease reaper failed", exc_info=True)
 
     def _maybe_auto_heal(self, probe: StackProbe) -> None:
         now = time.monotonic()
@@ -278,25 +273,21 @@ class SupervisorDaemon:
             self._op_lock.release()
 
     def _wave_stack_write_allowed(self) -> bool:
-        wave_script = self.paths.dev_stack_sh.parent / "wave.sh"
-        if not wave_script.is_file():
-            return True
+        self._ensure_wave_pythonpath()
         try:
-            result = subprocess.run(
-                ["bash", str(wave_script), "check-stack-write"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
-                env=self._dev_stack_env(),
+            from wave_orchestrator.core import check_stack_write_gate
+            result = check_stack_write_gate()
+            if result["allowed"]:
+                return True
+            blockers = result.get("blockers", [])
+            logger.info(
+                "Wave stack-write gate denied mutation: %d active blockers",
+                len(blockers),
             )
-        except (OSError, subprocess.TimeoutExpired):
+            return False
+        except Exception:
             logger.warning("Wave stack-write gate unavailable; refusing stack mutation")
             return False
-        if result.returncode == 0:
-            return True
-        logger.info("Wave stack-write gate denied mutation: %s", result.stderr.strip())
-        return False
 
     def _monorepo_root(self) -> Path:
         return self.paths.agent_root.parent

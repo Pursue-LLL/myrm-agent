@@ -383,6 +383,7 @@ export interface SecurityConfigValue {
   pathPolicy?: PathPolicyConfig;
   networkAllowlist?: string[];
   networkBlocklist?: string[];
+  commandDenylist?: string[];
   domainHitlEnabled?: boolean;
   planConfirmEnabled?: boolean;
   yoloModeEnabled?: boolean;

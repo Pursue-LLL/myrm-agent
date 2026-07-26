@@ -114,13 +114,42 @@ def restart_textedit_fixture_process() -> None:
     """Hard-restart TextEdit when AX snapshots remain empty."""
     if platform.system() != "Darwin":
         return
-    subprocess.run(
-        ["osascript", "-e", 'tell application "TextEdit" to quit'],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
+    try:
+        quit_proc = subprocess.run(
+            ["osascript", "-e", 'tell application "TextEdit" to quit'],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if quit_proc.returncode != 0:
+            progress(
+                "textedit quit returned non-zero; force-kill fallback "
+                f"code={quit_proc.returncode}"
+            )
+            subprocess.run(
+                ["pkill", "-x", "TextEdit"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+    except subprocess.TimeoutExpired:
+        progress("textedit quit timed out after 10s; force-kill fallback")
+        subprocess.run(
+            ["pkill", "-x", "TextEdit"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        subprocess.run(
+            ["pkill", "-9", "-x", "TextEdit"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
     time.sleep(0.6)
     prepare_textedit_fixture()
 
@@ -264,6 +293,13 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
                 progress("textedit fixture ready (foreground + AX refs for @drefs)")
                 return
             last_detail = "ax-empty-after-rebuild"
+            # AX can be transiently unavailable on some hosts. Continue with
+            # vision/snapshot fallback path instead of hard-failing bootstrap.
+            progress(
+                "textedit marker ready but AX refs unavailable; "
+                "continue with vision fallback"
+            )
+            return
         else:
             last_detail = "marker-missing"
         progress(

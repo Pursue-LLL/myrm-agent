@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from typing import AsyncIterator, Iterator
 
-DEFAULT_WAIT_SEC = 900
+DEFAULT_WAIT_SEC = 300
 DEFAULT_POLL_SEC = 2
 
 # R68: nested navigate/reload bursts on one asyncio task must not re-enter flock.

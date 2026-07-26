@@ -22,6 +22,7 @@ import type { PermissionRuleConfig } from '@/services/config/types';
 import SettingsSection from '../SettingsSection';
 import { PathPolicyEditor } from './PathPolicyEditor';
 import { DomainAllowlistEditor } from './DomainAllowlistEditor';
+import { CommandDenylistEditor } from './CommandDenylistEditor';
 import { DomainBlocklistEditor } from './DomainBlocklistEditor';
 import AllowlistSection from './AllowlistSection';
 import NLPolicyGenerator from './NLPolicyGenerator';
@@ -60,6 +61,7 @@ const SecurityPolicySection = memo(() => {
             pathPolicy: policy.allowedRoots.length > 0 ? { allowedRoots: policy.allowedRoots } : undefined,
             networkAllowlist: policy.networkAllowlist,
             networkBlocklist: policy.networkBlocklist,
+            commandDenylist: policy.commandDenylist,
           }}
           onApply={policy.handleNLApply}
         />
@@ -221,6 +223,12 @@ const SecurityPolicySection = memo(() => {
         domains={policy.networkBlocklist}
         onAddDomain={policy.handleAddBlockedDomain}
         onRemoveDomain={policy.handleRemoveBlockedDomain}
+      />
+
+      <CommandDenylistEditor
+        patterns={policy.commandDenylist}
+        onAddPattern={policy.handleAddCommandPattern}
+        onRemovePattern={policy.handleRemoveCommandPattern}
       />
 
       <SettingsSection

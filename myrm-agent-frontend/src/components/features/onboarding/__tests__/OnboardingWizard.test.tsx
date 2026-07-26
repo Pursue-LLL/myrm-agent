@@ -404,6 +404,7 @@ describe('OnboardingWizard', () => {
         { providerId: 'openai', model: 'gpt-4o-mini' },
         { providerId: 'openai', model: 'gpt-4o' },
       ];
+      mockSecurityConfig.value = { autoReviewEnabled: true };
 
       render(<OnboardingWizard onComplete={vi.fn()} />);
 
@@ -470,9 +471,10 @@ describe('OnboardingWizard', () => {
     beforeEach(() => {
       mockHasEnabledProvider.value = true;
       mockSearchConfigured.value = true;
-      mockEnabledModels.value = [{ id: 'model-1', name: 'Test Model' }];
+      mockEnabledModels.value = [{ providerId: 'openai', model: 'gpt-4o' }];
       mockRoutingEnabled.value = true;
       mockSecurityConfig.value = null;
+      mockGetTelegramCredentials.mockImplementation(() => Promise.resolve(null));
     });
 
     it('shows smart_guard step when autoReviewEnabled is falsy', async () => {
@@ -512,15 +514,15 @@ describe('OnboardingWizard', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByTestId('capabilities-step')).toBeInTheDocument();
+        expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
       });
     });
 
     it('navigates from routing to smart_guard when enabled', async () => {
       mockRoutingEnabled.value = false;
       mockEnabledModels.value = [
-        { id: 'model-1', name: 'M1' },
-        { id: 'model-2', name: 'M2' },
+        { providerId: 'openai', model: 'gpt-4o' },
+        { providerId: 'openai', model: 'gpt-4o-mini' },
       ];
 
       render(<OnboardingWizard onComplete={vi.fn()} />);

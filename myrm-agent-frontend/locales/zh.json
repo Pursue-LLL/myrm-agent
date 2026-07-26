@@ -776,6 +776,8 @@
       "commandPatternPlaceholder": "例如 git push --force* 或 *DROP DATABASE*",
       "invalidCommandPattern": "命令模式格式无效。",
       "duplicateCommandPattern": "该模式已存在。",
+      "commandPatternAdded": "命令模式已添加。",
+      "commandPatternRemoved": "命令模式已移除。",
       "privacy": {
         "title": "PII 隐私保护",
         "description": "检测并处理对话中的个人身份信息（PII），支持自动脱敏和拦截敏感数据。",
@@ -5990,7 +5992,7 @@
     "searchNotConfiguredTooltip": "搜索服务未配置 — 点击前往设置",
     "workspaceDir": {
       "label": "工作目录",
-      "placeholder": "选择一个目录...",
+      "placeholder": "输入路径或在下方浏览...",
       "tooltip": "为此对话设置工作目录，Agent 将在该文件夹内操作",
       "change": "更改",
       "clear": "清除",
@@ -6000,7 +6002,9 @@
       "noSubdirs": "无子目录",
       "invalidPath": "无效路径",
       "updated": "工作目录已更新",
-      "cleared": "工作目录已清除"
+      "cleared": "工作目录已清除",
+      "recent": "最近使用",
+      "filter": "过滤目录..."
     },
     "enableBrowser": "开启浏览器自动化",
     "disableBrowser": "关闭浏览器自动化",

@@ -776,6 +776,8 @@
       "commandPatternPlaceholder": "e.g. git push --force* or *DROP DATABASE*",
       "invalidCommandPattern": "Invalid command pattern.",
       "duplicateCommandPattern": "Pattern already exists.",
+      "commandPatternAdded": "Command pattern added.",
+      "commandPatternRemoved": "Command pattern removed.",
       "privacy": {
         "title": "PII Privacy Protection",
         "description": "Detect and handle personally identifiable information (PII) in conversations. Supports automatic redaction and blocking of sensitive data.",
@@ -5991,7 +5993,7 @@
     "searchNotConfiguredTooltip": "Search service not configured — click to set up",
     "workspaceDir": {
       "label": "Working Directory",
-      "placeholder": "Select a directory...",
+      "placeholder": "Enter path or browse below...",
       "tooltip": "Set a working directory for this chat. Agent will operate within this folder.",
       "change": "Change",
       "clear": "Clear",
@@ -6001,7 +6003,9 @@
       "noSubdirs": "No subdirectories",
       "invalidPath": "Invalid path",
       "updated": "Working directory updated",
-      "cleared": "Working directory cleared"
+      "cleared": "Working directory cleared",
+      "recent": "Recent",
+      "filter": "Filter directories..."
     },
     "enableBrowser": "Enable Browser Automation",
     "disableBrowser": "Disable Browser Automation",

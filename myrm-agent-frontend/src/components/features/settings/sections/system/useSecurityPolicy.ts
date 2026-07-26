@@ -26,6 +26,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
   const [allowedRoots, setAllowedRoots] = useState<string[]>([]);
   const [networkAllowlist, setNetworkAllowlist] = useState<string[]>([]);
   const [networkBlocklist, setNetworkBlocklist] = useState<string[]>([]);
+  const [commandDenylist, setCommandDenylist] = useState<string[]>([]);
   const [domainHitlEnabled, setDomainHitlEnabled] = useState(true);
   const [planConfirmEnabled, setPlanConfirmEnabled] = useState(false);
   const [yoloModeEnabled, setYoloModeEnabled] = useState(false);
@@ -45,6 +46,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       setAllowedRoots(cached.pathPolicy?.allowedRoots ?? []);
       setNetworkAllowlist(cached.networkAllowlist ?? []);
       setNetworkBlocklist(cached.networkBlocklist ?? []);
+      setCommandDenylist(cached.commandDenylist ?? []);
       setDomainHitlEnabled(cached.domainHitlEnabled ?? false);
       setPlanConfirmEnabled(cached.planConfirmEnabled ?? false);
       setYoloModeEnabled(cached.yoloModeEnabled ?? false);
@@ -75,6 +77,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         behavior?: 'deny' | 'allow';
         domains?: string[];
         blockedDomains?: string[];
+        cmdDenylist?: string[];
         hitl?: boolean;
         planConfirm?: boolean;
         yoloMode?: boolean;
@@ -90,6 +93,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
           'pathPolicy' in overrides ? overrides.pathPolicy : allowedRoots.length > 0 ? { allowedRoots } : undefined,
         networkAllowlist: overrides.domains ?? networkAllowlist,
         networkBlocklist: overrides.blockedDomains ?? networkBlocklist,
+        commandDenylist: overrides.cmdDenylist ?? commandDenylist,
         domainHitlEnabled: overrides.hitl ?? domainHitlEnabled,
         planConfirmEnabled: overrides.planConfirm ?? planConfirmEnabled,
         yoloModeEnabled: overrides.yoloMode ?? yoloModeEnabled,
@@ -103,7 +107,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       };
       syncManager.set('securityConfig', value);
     },
-    [rules, timeout, timeoutBehavior, allowedRoots, networkAllowlist, networkBlocklist, domainHitlEnabled, planConfirmEnabled, yoloModeEnabled, autoReviewEnabled, autoReviewModel],
+    [rules, timeout, timeoutBehavior, allowedRoots, networkAllowlist, networkBlocklist, commandDenylist, domainHitlEnabled, planConfirmEnabled, yoloModeEnabled, autoReviewEnabled, autoReviewModel],
   );
 
   const savePathPolicy = useCallback(
@@ -246,6 +250,36 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     [networkBlocklist, save, t],
   );
 
+  const handleAddCommandPattern = useCallback(
+    (pattern: string) => {
+      const trimmed = pattern.trim();
+      if (!trimmed) return;
+      if (!trimmed.includes('*') && !trimmed.includes('?') && !trimmed.includes('[') && trimmed.length < 2) {
+        toast.error(t('invalidCommandPattern'));
+        return;
+      }
+      if (commandDenylist.includes(trimmed)) {
+        toast.error(t('duplicateCommandPattern'));
+        return;
+      }
+      const next = [...commandDenylist, trimmed];
+      setCommandDenylist(next);
+      save({ cmdDenylist: next });
+      toast.success(t('commandPatternAdded'));
+    },
+    [commandDenylist, save, t],
+  );
+
+  const handleRemoveCommandPattern = useCallback(
+    (idx: number) => {
+      const next = commandDenylist.filter((_, i) => i !== idx);
+      setCommandDenylist(next);
+      save({ cmdDenylist: next });
+      toast.success(t('commandPatternRemoved'));
+    },
+    [commandDenylist, save, t],
+  );
+
   const handleDomainHitlToggle = useCallback(
     (checked: boolean) => {
       setDomainHitlEnabled(checked);
@@ -325,6 +359,9 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       const nb = cfg.networkBlocklist as string[] | undefined;
       if (nb) setNetworkBlocklist(nb);
 
+      const cd = cfg.commandDenylist as string[] | undefined;
+      if (cd) setCommandDenylist(cd);
+
       const dh = cfg.domainHitlEnabled as boolean | undefined;
       if (dh !== undefined) setDomainHitlEnabled(dh);
 
@@ -344,6 +381,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         behavior: b,
         domains: na,
         blockedDomains: nb,
+        cmdDenylist: cd,
         hitl: dh,
         planConfirm: pc,
         yoloMode: ym,
@@ -367,6 +405,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
 
       const na = generated.networkAllowlist as string[] | undefined;
       const nb = generated.networkBlocklist as string[] | undefined;
+      const cd = generated.commandDenylist as string[] | undefined;
       const hitl = generated.domainHitlEnabled;
       const planConfirm = generated.planConfirmEnabled;
 
@@ -374,6 +413,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       if (newRoots) setAllowedRoots(newRoots);
       if (na) setNetworkAllowlist(na);
       if (nb) setNetworkBlocklist(nb);
+      if (cd) setCommandDenylist(cd);
       if (hitl !== undefined) setDomainHitlEnabled(Boolean(hitl));
       if (planConfirm !== undefined) setPlanConfirmEnabled(Boolean(planConfirm));
 
@@ -382,6 +422,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         pathPolicy: newRoots ? { allowedRoots: newRoots } : undefined,
         domains: na,
         blockedDomains: nb,
+        cmdDenylist: cd,
         hitl: hitl !== undefined ? Boolean(hitl) : undefined,
         planConfirm: planConfirm !== undefined ? Boolean(planConfirm) : undefined,
       });
@@ -396,6 +437,7 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     allowedRoots,
     networkAllowlist,
     networkBlocklist,
+    commandDenylist,
     domainHitlEnabled,
     planConfirmEnabled,
     yoloModeEnabled,
@@ -415,6 +457,8 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     handleRemoveDomain,
     handleAddBlockedDomain,
     handleRemoveBlockedDomain,
+    handleAddCommandPattern,
+    handleRemoveCommandPattern,
     handleDomainHitlToggle,
     handlePlanConfirmToggle,
     handleYoloModeToggle,

@@ -727,6 +727,15 @@
       "pathPlaceholder": "例如 ~/Documents 或 /tmp",
       "noAllowedRoots": "未配置額外路徑。智慧體只能訪問工作區目錄。",
       "pathPolicySaved": "路徑策略已儲存",
+      "commandDenylistTitle": "命令禁止清單",
+      "commandDenylistDesc": "符合這些模式的命令將對所有智慧體永久封鎖，即使在 YOLO 模式下也不例外。使用萬用字元語法。",
+      "noCommandDenylist": "未配置命令限制。",
+      "addCommandPattern": "新增",
+      "commandPatternPlaceholder": "例如 git push --force* 或 *DROP DATABASE*",
+      "invalidCommandPattern": "命令模式格式無效。",
+      "duplicateCommandPattern": "該模式已存在。",
+      "commandPatternAdded": "命令模式已新增。",
+      "commandPatternRemoved": "命令模式已移除。",
       "privacy": {
         "title": "PII 隱私保護",
         "description": "檢測並處理對話中的個人身份資訊（PII），支援自動脫敏和攔截敏感資料。",
@@ -5906,7 +5915,7 @@
     "searchNotConfiguredTooltip": "搜尋服務未配置 — 點選前往設定",
     "workspaceDir": {
       "label": "工作目錄",
-      "placeholder": "選擇一個目錄...",
+      "placeholder": "輸入路徑或在下方瀏覽...",
       "tooltip": "為此對話設定工作目錄，Agent 將在該資料夾內操作",
       "change": "更改",
       "clear": "清除",
@@ -5916,7 +5925,9 @@
       "noSubdirs": "無子目錄",
       "invalidPath": "無效路徑",
       "updated": "工作目錄已更新",
-      "cleared": "工作目錄已清除"
+      "cleared": "工作目錄已清除",
+      "recent": "最近使用",
+      "filter": "過濾目錄..."
     },
     "enableBrowser": "開啟瀏覽器自動化",
     "disableBrowser": "關閉瀏覽器自動化",

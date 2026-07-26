@@ -1318,8 +1318,9 @@ class ChromeMcpClient:
     ) -> None:
         if process.stdin is None:
             raise RuntimeError("Chrome MCP stdin is unavailable")
+        line = json.dumps(payload, separators=(",", ":")) + "\n"
         try:
-            process.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
+            process.stdin.write(line)
             process.stdin.flush()
         except (BrokenPipeError, ValueError) as exc:
             raise _TransportDeadError(

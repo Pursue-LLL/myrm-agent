@@ -44,6 +44,7 @@
 | `ExtensionDisconnectedBanner.tsx` | 组件/模块 | Extension 断开警告横幅（条件性：仅 browserSource=extension 且未连接时显示，可 dismiss，SSE 驱动） | ✅ |
 | `ExtensionTakeoverBanner.tsx` | 组件/模块 | 外部浏览器 HITL 横幅（harness `is_managed=false` → `uiMode=extension`：CDP/auto/extension 均 in-chat 引导本地 Chrome + Done/Skip；支持打开/复制签名远程接管链接；CAPTCHA auto_detect 时隐藏按钮） | ✅ |
 | `SessionTrashPanel.tsx` | 组件 | 软删除会话回收站面板（恢复/永久删除） | ✅ |
+| `WorkspaceDirPicker.tsx` | 组件 | 工作目录选择器 Popover：路径直接输入+Enter导航、子目录过滤（>8项）、最近使用 LRU 5（localStorage）、Tauri 桌面端原生 OS picker（`@tauri-apps/plugin-dialog`）；Web/Cloud 走 Popover+Input，后端 `GET /browse` 零改动 | ✅ |
 | `goals/` | 目录 | Goal 控制面与 DAG 可视化 | 见下表 |
 
 ## agent-config-panel/

@@ -59,8 +59,13 @@ Chrome MCP UI E2E 的 **Immutable Test Wave** 状态机。冻结 `runtimeId`、�
 ## 集成
 
 - `dev-stack.sh` `cmd_reset` / `_kill_frontend_supervisor` / `_repair_orphan_frontend` 调用 `check-stack-write`（`MYRM_WAVE_GATE_BYPASS=1` 仅测试）
+- `stack_supervisor/daemon.py` — watchdog 每 30s 直接 Python 调用 `wave_orchestrator.core.reap()` + `check_stack_write_gate()`（无 bash 子进程，避免 venv 路径/超时引起的静默失败）
 - `ifm/profile.yaml` browser-mcp — Agent 正式流程
 - [runtime_probe.py](../lib/runtime_probe.py) — `runtimeId` 探针；`core.probe_runtime_id()` 与 `e2e_bootstrap` / `e2e_runtime_guard` 同源；正式 `./myrm test` chrome E2E 会话期间 `reap_runtime_drift` 仅 heal 或 no-op，**永不** drift-invalidate 共享 immutable wave
+
+## Lease TTL 策略
+
+默认 `DEFAULT_LEASE_TTL_SEC = 900`（15min），heartbeat 延长同 900s。正常测试以 ~5min 间隔 heartbeat 保活；崩溃测试最迟 15min 过期（PID-based reaper 通常在 30s 内清理）。
 
 ## 依赖
 

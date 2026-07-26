@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+
 import pytest
 
 from tests.e2e.desktop_approval import textedit_fixture
@@ -48,6 +50,39 @@ def test_ensure_textedit_ax_ready_restarts_then_succeeds(
     assert len(restarted) == 1
 
 
+def test_restart_textedit_fixture_process_force_kills_on_quit_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
+    calls: list[tuple[str, ...]] = []
+    prepared: list[bool] = []
+
+    def _run(
+        args: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(tuple(args))
+        if args == ["osascript", "-e", 'tell application "TextEdit" to quit']:
+            raise subprocess.TimeoutExpired(args, timeout)
+        return subprocess.CompletedProcess(args, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(textedit_fixture.subprocess, "run", _run)
+    monkeypatch.setattr(
+        textedit_fixture, "prepare_textedit_fixture", lambda: prepared.append(True)
+    )
+    monkeypatch.setattr(textedit_fixture.time, "sleep", lambda _: None)
+
+    textedit_fixture.restart_textedit_fixture_process()
+
+    assert calls[0] == ("osascript", "-e", 'tell application "TextEdit" to quit')
+    assert ("pkill", "-x", "TextEdit") in calls
+    assert prepared == [True]
+
+
 @pytest.mark.asyncio
 async def test_ensure_textedit_fixture_ready_passes_when_marker_and_ax_ready(
     monkeypatch: pytest.MonkeyPatch,
@@ -77,7 +112,7 @@ async def test_ensure_textedit_fixture_ready_passes_when_marker_and_ax_ready(
 
 
 @pytest.mark.asyncio
-async def test_ensure_textedit_fixture_ready_fails_after_retry_exhausted(
+async def test_ensure_textedit_fixture_ready_allows_ax_fallback_when_marker_ready(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
@@ -100,6 +135,5 @@ async def test_ensure_textedit_fixture_ready_fails_after_retry_exhausted(
     monkeypatch.setattr(textedit_fixture.asyncio, "to_thread", _to_thread)
     monkeypatch.setattr(textedit_fixture.asyncio, "sleep", _sleep)
 
-    with pytest.raises(BaseException, match="TextEdit fixture not AX-ready"):
-        await textedit_fixture.ensure_textedit_fixture_ready(attempts=2)
-    assert len(restarts) == 1
+    await textedit_fixture.ensure_textedit_fixture_ready(attempts=2)
+    assert restarts == []

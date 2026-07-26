@@ -67,7 +67,7 @@ _capacity_lease_msg() {
 
 _wave_acquire_owned_lease_with_wait() {
   local wave="$1" prefix="$2" lane="$3" namespace="${4:-}"
-  local wait_sec="${MYRM_E2E_LEASE_WAIT_SEC:-900}"
+  local wait_sec="${MYRM_E2E_LEASE_WAIT_SEC:-300}"
   local poll_sec="${MYRM_E2E_LEASE_POLL_SEC:-15}"
   local started_at="$SECONDS"
   local lease_id lease_stderr lease_stderr_path elapsed

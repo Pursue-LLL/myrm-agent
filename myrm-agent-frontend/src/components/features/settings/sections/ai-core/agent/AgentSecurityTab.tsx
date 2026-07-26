@@ -28,6 +28,7 @@ interface SecurityOverridesData {
   approvalTimeoutSeconds: number | null;
   networkAllowlist: string[];
   networkBlocklist: string[];
+  commandDenylist: string[];
   domainHitlEnabled: boolean;
 }
 
@@ -37,6 +38,7 @@ const EMPTY_DATA: SecurityOverridesData = {
   approvalTimeoutSeconds: null,
   networkAllowlist: [],
   networkBlocklist: [],
+  commandDenylist: [],
   domainHitlEnabled: false,
 };
 
@@ -60,6 +62,7 @@ function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesD
 
   const allowlist = Array.isArray(raw.networkAllowlist) ? (raw.networkAllowlist as string[]) : [];
   const blocklist = Array.isArray(raw.networkBlocklist) ? (raw.networkBlocklist as string[]) : [];
+  const cmdDenylist = Array.isArray(raw.commandDenylist) ? (raw.commandDenylist as string[]) : [];
 
   const domainHitl = raw.domainHitlEnabled === true;
 
@@ -69,6 +72,7 @@ function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesD
     approvalTimeoutSeconds: timeout,
     networkAllowlist: allowlist,
     networkBlocklist: blocklist,
+    commandDenylist: cmdDenylist,
     domainHitlEnabled: domainHitl,
   };
 }
@@ -80,6 +84,7 @@ function serializeOverrides(data: SecurityOverridesData): Record<string, unknown
     data.approvalTimeoutSeconds !== null ||
     data.networkAllowlist.length > 0 ||
     data.networkBlocklist.length > 0 ||
+    data.commandDenylist.length > 0 ||
     data.domainHitlEnabled;
 
   if (!hasContent) return null;
@@ -90,6 +95,7 @@ function serializeOverrides(data: SecurityOverridesData): Record<string, unknown
   if (data.approvalTimeoutSeconds !== null) result.approvalTimeoutSeconds = data.approvalTimeoutSeconds;
   if (data.networkAllowlist.length > 0) result.networkAllowlist = data.networkAllowlist;
   if (data.networkBlocklist.length > 0) result.networkBlocklist = data.networkBlocklist;
+  if (data.commandDenylist.length > 0) result.commandDenylist = data.commandDenylist;
   if (data.domainHitlEnabled) result.domainHitlEnabled = true;
   return result;
 }
@@ -107,7 +113,9 @@ export function AgentSecurityTab({ value, onChange, agentId, saveVersion }: Agen
   const [newPath, setNewPath] = useState('');
   const [newDomain, setNewDomain] = useState('');
   const [newBlockedDomain, setNewBlockedDomain] = useState('');
+  const [newCommandPattern, setNewCommandPattern] = useState('');
   const [blocklistError, setBlocklistError] = useState<string | null>(null);
+  const [cmdDenylistError, setCmdDenylistError] = useState<string | null>(null);
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
 
@@ -197,6 +205,26 @@ export function AgentSecurityTab({ value, onChange, agentId, saveVersion }: Agen
       update({ networkBlocklist: data.networkBlocklist.filter((_, i) => i !== idx) });
     },
     [data.networkBlocklist, update],
+  );
+
+  const addCommandPattern = useCallback(() => {
+    const trimmed = newCommandPattern.trim();
+    if (!trimmed) return;
+    if (data.commandDenylist.includes(trimmed)) {
+      setCmdDenylistError(t('duplicateCommandPattern', { default: 'Pattern already exists.' }));
+      return;
+    }
+    setCmdDenylistError(null);
+    update({ commandDenylist: [...data.commandDenylist, trimmed] });
+    setNewCommandPattern('');
+  }, [newCommandPattern, data.commandDenylist, update, t]);
+
+  const removeCommandPattern = useCallback(
+    (idx: number) => {
+      setCmdDenylistError(null);
+      update({ commandDenylist: data.commandDenylist.filter((_, i) => i !== idx) });
+    },
+    [data.commandDenylist, update],
   );
 
   const handleFixNavigate = useCallback((targetId: string) => {
@@ -432,6 +460,73 @@ export function AgentSecurityTab({ value, onChange, agentId, saveVersion }: Agen
 
         {data.networkBlocklist.length === 0 && !blocklistError && (
           <p className="text-xs text-muted-foreground/70 italic">{t('noNetworkBlocklist')}</p>
+        )}
+      </div>
+
+      {/* Command Deny List */}
+      <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
+            <IconBan className="h-4 w-4 text-destructive" />
+            {t('commandDenylistTitle', { default: 'Command Deny List' })}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {t('commandDenylistDesc', {
+              default:
+                'Commands matching these patterns will be permanently blocked, even under YOLO mode. Uses glob syntax (e.g. git push --force*).',
+            })}
+          </p>
+        </div>
+
+        {data.commandDenylist.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {data.commandDenylist.map((pattern, idx) => (
+              <div
+                key={`${pattern}-${idx}`}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 border border-destructive/30"
+              >
+                <IconBan className="h-3 w-3 text-destructive shrink-0" />
+                <code className="text-xs text-destructive font-mono">{pattern}</code>
+                <button
+                  type="button"
+                  onClick={() => removeCommandPattern(idx)}
+                  className="text-destructive/60 hover:text-destructive transition-colors"
+                >
+                  <IconX className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            placeholder={t('commandPatternPlaceholder', { default: 'e.g. git push --force* or *DROP DATABASE*' })}
+            value={newCommandPattern}
+            onChange={(e) => {
+              setNewCommandPattern(e.target.value);
+              if (cmdDenylistError) setCmdDenylistError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addCommandPattern();
+              }
+            }}
+            className="flex-1 text-sm font-mono"
+          />
+          <Button variant="outline" size="sm" onClick={addCommandPattern} disabled={!newCommandPattern.trim()}>
+            <IconPlus className="h-4 w-4 mr-1" />
+            {t('addCommandPattern', { default: 'Add' })}
+          </Button>
+        </div>
+
+        {cmdDenylistError && <p className="text-xs text-destructive">{cmdDenylistError}</p>}
+
+        {data.commandDenylist.length === 0 && !cmdDenylistError && (
+          <p className="text-xs text-muted-foreground/70 italic">
+            {t('noCommandDenylist', { default: 'No command restrictions — uses global policy only.' })}
+          </p>
         )}
       </div>
 

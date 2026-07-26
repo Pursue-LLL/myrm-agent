@@ -64,9 +64,9 @@ MUX_COLD_ATTACH_TIMEOUT_MS: Final[int] = 30_000
 CDMCP_MUX_REQUEST_TIMEOUT_MS_DEFAULT: Final[int] = 180_000
 LEGACY_MUX_REQUEST_TIMEOUT_MS: Final[tuple[int, ...]] = (55_000, 65_000, 120_000)
 MUX_MAX_CONCURRENT_SESSIONS: Final[int] = 6
-E2E_MUX_ADMISSION_WAIT_SEC: Final[int] = 900
+E2E_MUX_ADMISSION_WAIT_SEC: Final[int] = 300
 E2E_MUX_ADMISSION_POLL_SEC: Final[int] = 15
-MUX_UPSTREAM_WAIT_SEC: Final[int] = 900
+MUX_UPSTREAM_WAIT_SEC: Final[int] = 300
 MUX_UPSTREAM_POLL_SEC: Final[int] = 15
 # Single LIVE chrome_e2e test wall-clock stall budget (fail-fast, not pytest floor).
 LIVE_SINGLE_TEST_WALL_CLOCK_SEC: Final[int] = 600
@@ -82,7 +82,7 @@ CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
     "chrome_e2e and not chrome_e2e_desktop and not chrome_e2e_browser_takeover_live"
 )
 # Unified E2E admission (UEA v3).
-E2E_UNIFIED_WAIT_SEC: Final[int] = 900
+E2E_UNIFIED_WAIT_SEC: Final[int] = 300
 LIVE_SHPOIB_MAX_CONCURRENT: Final[int] = 4
 LIVE_SHARED_HOT_MAX_CONCURRENT: Final[int] = 1
 E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (
@@ -111,7 +111,7 @@ BASE_TOOL_TIMEOUT_SEC: Final[float] = 180.0
 # --- Chrome E2E pytest-timeout SSOT (lane-aware; ≥ mux new_page retry window) ---
 
 # Shared-hot LIVE tests queue on :8080 agent-stream (e2e_runtime_guard default).
-LIVE_AGENT_STREAM_WAIT_SEC: Final[int] = 900
+LIVE_AGENT_STREAM_WAIT_SEC: Final[int] = 300
 # Desktop shared_hot queue cap aligns with monotonic wall budget (R39).
 LIVE_AGENT_STREAM_WAIT_DESKTOP_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 # Typical LIVE chrome_e2e body (bootstrap + stream + inline UI waits).

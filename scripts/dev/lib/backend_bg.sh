@@ -90,47 +90,23 @@ _start_backend_bg() {
         --identity-file "${identity_file}" \
         --expected-pid "${old_pid}" \
         --expected-runtime-id "${runtime_id}" >/dev/null; then
-        echo "ERROR: backend pid exists without matching process ownership: ${old_pid}" >&2
-        return 1
-      fi
-      _require_harness_editable_for_monorepo "${server_dir}"
-      local stack_epoch_lib stored_fp current_fp
-      stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
-      if [[ -f "${stack_epoch_lib}" ]]; then
-        # shellcheck source=stack-epoch.sh
-        source "${stack_epoch_lib}"
-        if [[ ! -f "$(_stack_epoch_file)" ]]; then
-          _bump_stack_epoch "${old_pid}" "${server_dir}" >/dev/null || true
-        fi
-        stored_fp="$(_read_stack_epoch_source_fingerprint)"
-        current_fp="$(_backend_source_fingerprint "${server_dir}")"
-        if [[ -n "${current_fp}" && ( -z "${stored_fp}" || "${stored_fp}" != "${current_fp}" ) ]]; then
-          local monorepo_root agent_root active_leases policy_py defer_reason
-          agent_root="$(cd "${server_dir}/.." && pwd)"
-          monorepo_root="$(cd "${agent_root}/.." && pwd)"
-          active_leases="$(_wave_active_lease_count "${monorepo_root}")"
-          if [[ "${active_leases}" != "0" ]]; then
-            policy_py="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py"
-            defer_reason="backend_source_drift"
-            if [[ -z "${stored_fp}" ]]; then
-              defer_reason="backend_source_fingerprint_missing"
-            fi
-            python3 "${policy_py}" record-pending \
-              --state-dir "${state_dir}" \
-              --reason "${defer_reason}" \
-              --server-dir "${server_dir}" >/dev/null 2>&1 || true
-            echo "CHROME_E2E_ATTACH: defer backend reload (${active_leases} active wave leases)" >&2
+        echo "STACK_WARN: stale PID ownership mismatch (pid=${old_pid}) — recycling state files" >&2
+        rm -f "${pid_file}" "${identity_file}"
+      else
+        if ! curl -sf --max-time 3 "${health_url}" >/dev/null 2>&1; then
+          local monorepo_root_heal agent_root_heal active_leases_heal
+          agent_root_heal="$(cd "${server_dir}/.." && pwd)"
+          monorepo_root_heal="$(cd "${agent_root_heal}/.." && pwd)"
+          active_leases_heal="$(_wave_active_lease_count "${monorepo_root_heal}")"
+          if [[ "${active_leases_heal}" != "0" ]]; then
+            echo "STACK_WARN: backend unresponsive (pid=${old_pid}) but ${active_leases_heal} active leases — defer kill" >&2
             echo "Backend already running (pid ${old_pid})"
             return 0
           fi
-          if [[ -z "${stored_fp}" ]]; then
-            echo "STACK_WARN: shared backend missing source_fingerprint — reloading pid=${old_pid}" >&2
-          else
-            echo "STACK_WARN: shared backend source drift detected — reloading pid=${old_pid}" >&2
-          fi
+          echo "STACK_HEAL: backend PID alive but not responding (pid=${old_pid}) — kill and restart" >&2
           kill -TERM "${old_pid}" 2>/dev/null || true
-          local wait_i
-          for wait_i in $(seq 1 20); do
+          local heal_i
+          for heal_i in $(seq 1 20); do
             kill -0 "${old_pid}" 2>/dev/null || break
             sleep 0.25
           done
@@ -139,12 +115,60 @@ _start_backend_bg() {
           fi
           rm -f "${pid_file}" "${identity_file}"
         else
-          echo "Backend already running (pid ${old_pid})"
-          return 0
+          _require_harness_editable_for_monorepo "${server_dir}"
+          local stack_epoch_lib stored_fp current_fp
+          stack_epoch_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack-epoch.sh"
+          if [[ -f "${stack_epoch_lib}" ]]; then
+            # shellcheck source=stack-epoch.sh
+            source "${stack_epoch_lib}"
+            if [[ ! -f "$(_stack_epoch_file)" ]]; then
+              _bump_stack_epoch "${old_pid}" "${server_dir}" >/dev/null || true
+            fi
+            stored_fp="$(_read_stack_epoch_source_fingerprint)"
+            current_fp="$(_backend_source_fingerprint "${server_dir}")"
+            if [[ -n "${current_fp}" && ( -z "${stored_fp}" || "${stored_fp}" != "${current_fp}" ) ]]; then
+              local monorepo_root agent_root active_leases policy_py defer_reason
+              agent_root="$(cd "${server_dir}/.." && pwd)"
+              monorepo_root="$(cd "${agent_root}/.." && pwd)"
+              active_leases="$(_wave_active_lease_count "${monorepo_root}")"
+              if [[ "${active_leases}" != "0" ]]; then
+                policy_py="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stack_mutation_policy.py"
+                defer_reason="backend_source_drift"
+                if [[ -z "${stored_fp}" ]]; then
+                  defer_reason="backend_source_fingerprint_missing"
+                fi
+                python3 "${policy_py}" record-pending \
+                  --state-dir "${state_dir}" \
+                  --reason "${defer_reason}" \
+                  --server-dir "${server_dir}" >/dev/null 2>&1 || true
+                echo "CHROME_E2E_ATTACH: defer backend reload (${active_leases} active wave leases)" >&2
+                echo "Backend already running (pid ${old_pid})"
+                return 0
+              fi
+              if [[ -z "${stored_fp}" ]]; then
+                echo "STACK_WARN: shared backend missing source_fingerprint — reloading pid=${old_pid}" >&2
+              else
+                echo "STACK_WARN: shared backend source drift detected — reloading pid=${old_pid}" >&2
+              fi
+              kill -TERM "${old_pid}" 2>/dev/null || true
+              local wait_i
+              for wait_i in $(seq 1 20); do
+                kill -0 "${old_pid}" 2>/dev/null || break
+                sleep 0.25
+              done
+              if kill -0 "${old_pid}" 2>/dev/null; then
+                kill -KILL "${old_pid}" 2>/dev/null || true
+              fi
+              rm -f "${pid_file}" "${identity_file}"
+            else
+              echo "Backend already running (pid ${old_pid})"
+              return 0
+            fi
+          else
+            echo "Backend already running (pid ${old_pid})"
+            return 0
+          fi
         fi
-      else
-        echo "Backend already running (pid ${old_pid})"
-        return 0
       fi
     fi
     rm -f "${pid_file}"

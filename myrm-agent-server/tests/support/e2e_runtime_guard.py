@@ -500,7 +500,7 @@ _LIVE_AGENT_STREAM_LOCK_PATH = (
     Path(os.environ.get("TMPDIR", "/tmp")) / "myrm-live-agent-stream.lock"
 )
 _LIVE_AGENT_STREAM_WAIT_SEC = float(
-    os.environ.get("MYRM_LIVE_AGENT_STREAM_WAIT_SEC", "900")
+    os.environ.get("MYRM_LIVE_AGENT_STREAM_WAIT_SEC", "300")
 )
 
 
