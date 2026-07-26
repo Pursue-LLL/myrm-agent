@@ -341,6 +341,10 @@ def _e2e_dev_lib_path() -> Path:
     return _SERVER_ROOT.parents[1] / "scripts" / "dev" / "lib"
 
 
+def _desktop_approval_forces_shared_hot(nodeid: str) -> bool:
+    return "tests/e2e/test_desktop_control_approval_chrome_e2e.py" in nodeid
+
+
 def _acquire_deferred_mux_admission() -> str:
     lib = _e2e_dev_lib_path()
     if str(lib) not in sys.path:
@@ -391,6 +395,8 @@ def _chrome_e2e_item_runtime(
     private_backend = (
         marker is not None and marker.kwargs.get("private_backend", True) is not False
     )
+    if _desktop_approval_forces_shared_hot(request.node.nodeid):
+        private_backend = False
     if (
         marker is None
         or not private_backend
@@ -491,6 +497,8 @@ def _require_live_e2e_lease(
     private_backend = (
         marker is not None and marker.kwargs.get("private_backend", True) is not False
     )
+    if _desktop_approval_forces_shared_hot(request.node.nodeid):
+        private_backend = False
     # Private per-item backends (e.g. cron live on :180xx) must not queue on shared :8080 stream lock.
     shpoib_session = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
     from dev_gate_contract import chrome_e2e_skips_shared_stream_lock

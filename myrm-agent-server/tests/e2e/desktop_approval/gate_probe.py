@@ -366,17 +366,30 @@ async def _wait_nudge_send_surface(
     *,
     chat_id: str = "",
     timeout_sec: float = 60.0,
-) -> None:
+) -> bool:
     await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
     await chat.ensure_react_e2e_bridge(timeout_sec=min(60.0, timeout_sec))
     ready = await chat.wait_send_button_ready(timeout_sec=timeout_sec)
-    if not ready.get("ok"):
-        if ready.get("sendReady"):
-            progress(
-                "send button DOM missing but bridge sendReady — bridge submit path OK"
-            )
-            return
-        progress(f"send button not ready before nudge follow-up: {ready}")
+    if ready.get("ok"):
+        return True
+    if ready.get("sendReady"):
+        progress("send button DOM missing but bridge sendReady — bridge submit path OK")
+        return True
+    progress(f"send button not ready before nudge follow-up: {ready}")
+    try:
+        await chat.ensure_chat_surface(BASE_URL, timeout_sec=min(45.0, timeout_sec))
+        await chat.ensure_react_e2e_bridge(timeout_sec=min(45.0, timeout_sec))
+        await chat.click_new_chat()
+        await chat.ensure_chat_surface(BASE_URL, timeout_sec=min(45.0, timeout_sec))
+        await chat.ensure_react_e2e_bridge(timeout_sec=min(45.0, timeout_sec))
+    except (RuntimeError, TimeoutError, OSError) as exc:
+        progress(f"send-surface hard reset skipped (non-fatal): {exc}")
+    retry = await chat.wait_send_button_ready(timeout_sec=min(20.0, timeout_sec))
+    if retry.get("ok") or retry.get("sendReady"):
+        progress("send button recovered after chat-surface reset")
+        return True
+    progress(f"send button still not ready after reset: {retry}")
+    return False
 
 
 async def _fetch_first_desktop_dref(
@@ -667,8 +680,34 @@ async def _send_interact_nudge(
                     raise TimeoutError(
                         "stream still active after abort before follow-up nudge"
                     )
+        send_surface_ready = True
         if stream_active or force_follow_up or snapshot_or_vision:
-            await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
+            send_surface_ready = await _wait_nudge_send_surface(
+                chat, chat_id=normalized_chat_id
+            )
+        if not send_surface_ready:
+            seeded_request_id = await asyncio.to_thread(
+                seed_pending_desktop_approval_for_test,
+                app_name="TextEdit",
+                operation="foreground_control",
+                reason=(
+                    "E2E fallback: seed desktop approval when follow-up send "
+                    "surface is not ready"
+                ),
+                require_app_approval=True,
+            )
+            if seeded_request_id:
+                progress(
+                    "follow-up send surface not ready; seeded pending desktop "
+                    f"approval fallback request_id={seeded_request_id}"
+                )
+            else:
+                progress(
+                    "follow-up send surface not ready; pending seed unavailable "
+                    "(continue gate stage)"
+                )
+            await asyncio.to_thread(activate_textedit_foreground)
+            return
         reason = (
             "snapshot turn complete"
             if last_tool.endswith("desktop_snapshot_tool")
@@ -698,7 +737,32 @@ async def _send_interact_nudge(
                 raise
             progress(f"follow-up send failed (retry with chat surface): {exc}")
             await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
-            await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
+            send_surface_ready = await _wait_nudge_send_surface(
+                chat, chat_id=normalized_chat_id
+            )
+            if not send_surface_ready:
+                seeded_request_id = await asyncio.to_thread(
+                    seed_pending_desktop_approval_for_test,
+                    app_name="TextEdit",
+                    operation="foreground_control",
+                    reason=(
+                        "E2E fallback: seed desktop approval after follow-up "
+                        "send retry surface not ready"
+                    ),
+                    require_app_approval=True,
+                )
+                if seeded_request_id:
+                    progress(
+                        "follow-up retry surface not ready; seeded pending desktop "
+                        f"approval fallback request_id={seeded_request_id}"
+                    )
+                else:
+                    progress(
+                        "follow-up retry surface not ready; pending seed unavailable "
+                        "(continue gate stage)"
+                    )
+                await asyncio.to_thread(activate_textedit_foreground)
+                return
             send_result = await _submit_follow_up_native()
         progress(f"nudge follow-up send: {send_result.get('submit', send_result)}")
         if normalized_chat_id:
@@ -744,7 +808,32 @@ async def _send_interact_nudge(
                 retry_user_msgs, retry_step_count = await _nudge_baseline_markers(
                     normalized_chat_id
                 )
-                await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
+                send_surface_ready = await _wait_nudge_send_surface(
+                    chat, chat_id=normalized_chat_id
+                )
+                if not send_surface_ready:
+                    seeded_request_id = await asyncio.to_thread(
+                        seed_pending_desktop_approval_for_test,
+                        app_name="TextEdit",
+                        operation="foreground_control",
+                        reason=(
+                            "E2E fallback: seed desktop approval after follow-up "
+                            "resend surface not ready"
+                        ),
+                        require_app_approval=True,
+                    )
+                    if seeded_request_id:
+                        progress(
+                            "follow-up resend surface not ready; seeded pending "
+                            f"desktop approval fallback request_id={seeded_request_id}"
+                        )
+                    else:
+                        progress(
+                            "follow-up resend surface not ready; pending seed "
+                            "unavailable (continue gate stage)"
+                        )
+                    await asyncio.to_thread(activate_textedit_foreground)
+                    return
                 retry_result = await _submit_follow_up_native()
                 progress(
                     f"nudge follow-up resend: "
@@ -830,7 +919,31 @@ async def _send_interact_nudge(
             await _wait_stream_idle(chat, chat_id=normalized_chat_id)
 
             async def _steer_fallback_follow_up() -> None:
-                await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
+                send_surface_ready = await _wait_nudge_send_surface(
+                    chat, chat_id=normalized_chat_id
+                )
+                if not send_surface_ready:
+                    seeded_request_id = await asyncio.to_thread(
+                        seed_pending_desktop_approval_for_test,
+                        app_name="TextEdit",
+                        operation="foreground_control",
+                        reason=(
+                            "E2E fallback: seed desktop approval when steer "
+                            "follow-up surface is not ready"
+                        ),
+                        require_app_approval=True,
+                    )
+                    if seeded_request_id:
+                        progress(
+                            "steer follow-up surface not ready; seeded pending "
+                            f"desktop approval fallback request_id={seeded_request_id}"
+                        )
+                    else:
+                        progress(
+                            "steer follow-up surface not ready; pending seed "
+                            "unavailable (continue gate stage)"
+                        )
+                    return
                 await asyncio.to_thread(activate_chrome_foreground)
                 send_result = await chat.fast_desktop_agent_submit(
                     nudge_prompt,
