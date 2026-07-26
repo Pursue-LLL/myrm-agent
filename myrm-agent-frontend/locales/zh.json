@@ -5503,7 +5503,19 @@
       "timeoutPlaceholder": "继承全局",
       "seconds": "秒",
       "healthScoreTitle": "安全健康评分",
-      "findingsCount": "条发现"
+      "findingsCount": "条发现",
+      "checkerPass": "通过",
+      "checkerIssues": "{count} 项问题",
+      "fixAction": "修复",
+      "configureAction": "配置",
+      "checkers": {
+        "tool_exposure": "工具暴露面",
+        "mcp_auth": "MCP 安全性",
+        "skill_aggregate": "技能可信度",
+        "subagent_risk": "子智能体风险",
+        "cron_risk": "定时任务风险",
+        "policy_gap": "策略覆盖度"
+      }
     },
     "secrets": {
       "tabTitle": "密钥管理",

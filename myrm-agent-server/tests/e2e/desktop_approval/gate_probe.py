@@ -281,7 +281,10 @@ async def _fetch_first_desktop_dref(
     chat_id: str = "",
 ) -> str | None:
     normalized_chat_id = chat_id.strip()
-    await asyncio.to_thread(activate_chrome_foreground)
+    if last_tool.endswith("desktop_snapshot_tool"):
+        await asyncio.to_thread(activate_textedit_foreground)
+    else:
+        await asyncio.to_thread(activate_chrome_foreground)
     probe = await chat.evaluate(
         """(() => window.__MYRM_E2E_CHAT__?.getFirstDesktopDref?.() ?? null)()""",
         await_promise=False,
@@ -292,7 +295,7 @@ async def _fetch_first_desktop_dref(
             progress(f"dref from UI bridge: {normalized!r}")
             return normalized
     if normalized_chat_id:
-        for attempt in range(1, 7):
+        for attempt in range(1, 4):
             api_dref = await asyncio.to_thread(
                 fetch_first_desktop_dref_from_api,
                 normalized_chat_id,
@@ -302,14 +305,14 @@ async def _fetch_first_desktop_dref(
             if api_dref:
                 progress(
                     f"dref from API chat metadata: {api_dref!r} "
-                    f"(attempt {attempt}/6)"
+                    f"(attempt {attempt}/3)"
                 )
                 return api_dref
-            if attempt < 6:
-                await asyncio.sleep(2.0)
+            if attempt < 3:
+                await asyncio.sleep(1.0)
     if last_tool.endswith("desktop_snapshot_tool"):
         await asyncio.to_thread(activate_textedit_foreground)
-        for attempt in range(1, 5):
+        for attempt in range(1, 3):
             snapshot_dref = await asyncio.to_thread(
                 fetch_first_desktop_dref_from_snapshot_api,
                 chat_id=normalized_chat_id,
@@ -317,12 +320,13 @@ async def _fetch_first_desktop_dref(
             if snapshot_dref:
                 progress(
                     f"dref from snapshot API refs: {snapshot_dref!r} "
-                    f"(attempt {attempt}/4)"
+                    f"(attempt {attempt}/2)"
                 )
                 return snapshot_dref
-            if attempt < 4:
-                await asyncio.sleep(1.5)
+            if attempt < 2:
+                await asyncio.sleep(1.0)
     if last_tool.endswith("desktop_snapshot_tool"):
+        await asyncio.to_thread(activate_textedit_foreground)
         local_dref = await asyncio.to_thread(
             fetch_first_desktop_dref_from_local_capture
         )
@@ -404,6 +408,7 @@ async def _wait_nudge_consumed(
         poll += 1
         heartbeat_e2e_lease()
         user_count = baseline_user_msgs
+        user_advanced = False
         try:
             user_count = await asyncio.to_thread(
                 chat_user_message_count,
@@ -411,12 +416,7 @@ async def _wait_nudge_consumed(
                 timeout_sec=_FAST_API_TIMEOUT_SEC,
                 max_attempts=_FAST_API_MAX_ATTEMPTS,
             )
-            if user_count > baseline_user_msgs:
-                progress(
-                    f"nudge consumed: user_msgs {baseline_user_msgs}->{user_count} "
-                    f"poll=#{poll}"
-                )
-                return True
+            user_advanced = user_count > baseline_user_msgs
         except OSError:
             pass
         api_progress = await asyncio.to_thread(
@@ -428,21 +428,22 @@ async def _wait_nudge_consumed(
         if isinstance(api_progress, dict):
             last_tool = str(api_progress.get("lastTool") or "")
             step_count = int(api_progress.get("stepCount") or 0)
-            if (
-                last_tool.endswith("desktop_interact_tool")
-                and step_count > baseline_step_count
-            ):
+            if last_tool.startswith("desktop_") and step_count > baseline_step_count:
                 progress(
-                    f"nudge consumed: interact stepCount {baseline_step_count}->{step_count} "
+                    f"nudge consumed: desktop stepCount {baseline_step_count}->{step_count} "
+                    f"lastTool={last_tool!r} "
                     f"poll=#{poll}"
                 )
                 return True
-            if (
-                bool(api_progress.get("isStreaming"))
-                and user_count > baseline_user_msgs
-            ):
+            if bool(api_progress.get("isStreaming")) and user_advanced:
                 progress(f"nudge consumed: streaming turn poll=#{poll}")
                 return True
+        if user_advanced and poll >= 3:
+            progress(
+                f"nudge user turn persisted without API step delta "
+                f"({baseline_user_msgs}->{user_count}) poll=#{poll}"
+            )
+            return True
         await asyncio.sleep(1.0)
     progress(f"nudge consume wait timed out after {timeout_sec:.0f}s")
     return False
@@ -465,7 +466,11 @@ async def _send_interact_nudge(
     )
     dref: str | None = prefetched_dref
     if dref is None and last_tool.endswith("desktop_snapshot_tool"):
-        await asyncio.sleep(2.0)
+        try:
+            await _ensure_nudge_chat_surface(chat, chat_id=normalized_chat_id)
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            progress(f"dref prefetch surface repair skipped (non-fatal): {exc}")
+        await asyncio.sleep(1.0)
         dref = await _fetch_first_desktop_dref(
             chat, last_tool=last_tool, chat_id=normalized_chat_id
         )
@@ -491,7 +496,11 @@ async def _send_interact_nudge(
         if stream_active:
             progress("abort active stream before follow-up nudge")
             await _abort_stuck_ui_stream(chat)
-            await _wait_stream_idle(chat, chat_id=normalized_chat_id)
+            stream_idle = await _wait_stream_idle(chat, chat_id=normalized_chat_id)
+            if not stream_idle:
+                raise TimeoutError(
+                    "stream still active after abort before follow-up nudge"
+                )
             await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
         elif force_follow_up:
             await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
@@ -511,10 +520,10 @@ async def _send_interact_nudge(
                         chat_id_hint=normalized_chat_id or None,
                         baseline_user_msgs_hint=baseline_user_msgs,
                     ),
-                    timeout=90.0,
+                    timeout=60.0,
                 )
             except asyncio.TimeoutError as exc:
-                raise TimeoutError("follow-up native send wall timeout after 90s") from exc
+                raise TimeoutError("follow-up native send wall timeout after 60s") from exc
 
         try:
             send_result = await _submit_follow_up_native()
@@ -527,11 +536,13 @@ async def _send_interact_nudge(
             send_result = await _submit_follow_up_native()
         progress(f"nudge follow-up send: {send_result.get('submit', send_result)}")
         if normalized_chat_id:
-            await _wait_nudge_consumed(
+            consumed = await _wait_nudge_consumed(
                 normalized_chat_id,
                 baseline_user_msgs=baseline_user_msgs,
                 baseline_step_count=baseline_step_count,
             )
+            if not consumed:
+                progress("follow-up nudge not consumed before timeout")
         await asyncio.to_thread(activate_textedit_foreground)
         return
     progress(

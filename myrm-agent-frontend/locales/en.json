@@ -5503,7 +5503,19 @@
       "timeoutPlaceholder": "Inherit",
       "seconds": "seconds",
       "healthScoreTitle": "Security Health Score",
-      "findingsCount": "findings"
+      "findingsCount": "findings",
+      "checkerPass": "Pass",
+      "checkerIssues": "{count} issues",
+      "fixAction": "Fix",
+      "configureAction": "Configure",
+      "checkers": {
+        "tool_exposure": "Tool Exposure",
+        "mcp_auth": "MCP Security",
+        "skill_aggregate": "Skill Trust",
+        "subagent_risk": "Subagent Risk",
+        "cron_risk": "Scheduled Task Risk",
+        "policy_gap": "Policy Coverage"
+      }
     },
     "secrets": {
       "tabTitle": "Secrets",
