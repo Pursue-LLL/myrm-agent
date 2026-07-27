@@ -29,7 +29,7 @@ def test_seed_migration_readiness_fixture_mcp_warning(client: TestClient) -> Non
             return_value=([fake_agent], 1),
         ),
         patch(
-            "app.services.memory.memory_manager.get_memory_manager",
+            "app.services.memory.manager_deps.get_memory_manager",
         ),
         patch(
             "app.api.memory.test_fixtures_migration_readiness.get_session_factory",

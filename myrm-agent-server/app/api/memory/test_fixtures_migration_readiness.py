@@ -37,7 +37,7 @@ async def seed_migration_readiness_fixture(variant: str = "mcp_warning") -> dict
     if normalized not in _VARIANTS:
         raise HTTPException(status_code=400, detail=f"Unsupported variant: {variant}")
 
-    from app.services.memory.memory_manager import get_memory_manager
+    from app.services.memory.manager_deps import get_memory_manager
 
     session_factory = get_session_factory()
     async with session_factory() as db:
