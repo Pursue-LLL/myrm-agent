@@ -42,6 +42,7 @@ from .schedulers import (
 )
 from .skills import shutdown_skill_optimization_listeners, start_skill_optimization_listeners
 from .system import (
+    auto_continue_interrupted_turns,
     init_allowlist_store,
     init_risk_rules,
     pause_orphaned_active_goals,
@@ -88,6 +89,7 @@ __all__ = [
     "stop_memory_guardian_scheduler",
     "shutdown_skill_optimization_listeners",
     "start_skill_optimization_listeners",
+    "auto_continue_interrupted_turns",
     "init_allowlist_store",
     "init_risk_rules",
     "pause_orphaned_active_goals",

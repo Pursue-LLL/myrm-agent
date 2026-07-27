@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { FolderKanban, Clock, FileText, ArrowRight } from 'lucide-react';
+import { FolderKanban, Clock, FileText, Brain, ArrowRight } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/primitives/card';
 import { cn } from '@/lib/utils/classnameUtils';
 import { listBoards } from '@/services/kanban';
@@ -62,6 +62,13 @@ const PROJECT_ENTRIES: ProjectEntry[] = [
     href: '/artifacts',
     titleKey: 'artifacts.title',
     descKey: 'artifacts.desc',
+  },
+  {
+    id: 'memorySpaces',
+    icon: Brain,
+    href: '/settings/memory',
+    titleKey: 'memorySpaces.title',
+    descKey: 'memorySpaces.desc',
   },
 ];
 

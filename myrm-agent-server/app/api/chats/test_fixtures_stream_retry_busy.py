@@ -31,7 +31,7 @@ from app.services.chat.chat_service import ChatService
 router = APIRouter()
 
 _BUSY_HOLD_EVENTS: dict[str, asyncio.Event] = {}
-_BUSY_QUERY_TEXT = "E2E stream retry contract busy fixture query"
+_BUSY_QUERY_TEXT = "E2E stream retry busy fixture ping message"
 
 
 async def _hold_busy_session(chat_id: str) -> None:

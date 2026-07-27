@@ -449,8 +449,11 @@ export interface MemoryCommandRepairActionResponse {
   run?: MemoryCommandDiagnosticRun | null;
 }
 
-export const getMemoryCommandCenter = async (): Promise<MemoryCommandCenterResponse> => {
-  return apiRequest<MemoryCommandCenterResponse>('/memory/command-center/');
+export const getMemoryCommandCenter = async (
+  projectId?: string | null,
+): Promise<MemoryCommandCenterResponse> => {
+  const params = projectId ? `?project_id=${encodeURIComponent(projectId)}` : '';
+  return apiRequest<MemoryCommandCenterResponse>(`/memory/command-center/${params}`);
 };
 
 export const runMemoryCommandAction = async (

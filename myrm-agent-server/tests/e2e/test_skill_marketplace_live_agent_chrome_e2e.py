@@ -16,6 +16,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import uuid
 from pathlib import Path
 
@@ -117,7 +118,11 @@ def _assistant_has_marketplace_result(
 ) -> tuple[bool, str, set[str]]:
     invoked: set[str] = set()
     last_assistant = ""
-    for msg in fetch_chat_messages(chat_id, api_url=api_url):
+    try:
+        messages = fetch_chat_messages(chat_id, api_url=api_url)
+    except (TimeoutError, urllib.error.URLError, OSError):
+        return False, last_assistant, invoked
+    for msg in messages:
         if not isinstance(msg, dict):
             continue
         blob = _message_blob(msg)
@@ -161,6 +166,7 @@ def _assistant_has_marketplace_result(
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(900)
 @pytest.mark.asyncio

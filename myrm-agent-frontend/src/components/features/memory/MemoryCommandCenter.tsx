@@ -13,11 +13,12 @@
  * 导入回滚预演强确认与 migration missing 状态的迁移向导跳转。
  */
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/hooks/useToast';
+import { getProjects, type Project } from '@/services/projects';
 import SessionAnalyticsDialog from '@/components/features/settings/sections/system/SessionAnalyticsDialog';
 import { ConnectWizardDialog } from './ConnectWizardDialog';
 import {
@@ -75,6 +76,7 @@ const isHealthStatus = (value: string): value is HealthStatus => HEALTH_STATUSES
 const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   const t = useTranslations('memory');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [snapshot, setSnapshot] = useState<MemoryCommandCenterResponse | null>(null);
   const [activeSection, setActiveSection] = useState<Section>('observe');
   const [loading, setLoading] = useState(false);
@@ -90,12 +92,29 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   const [healthExpanded, setHealthExpanded] = useState(false);
   const [consolidationSummary, setConsolidationSummary] = useState<ConsolidationLastSummary | null>(null);
 
+  const urlProjectId = searchParams.get('project') ?? null;
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const projectsLoaded = useRef(false);
+
+  useEffect(() => {
+    if (projectsLoaded.current) return;
+    projectsLoaded.current = true;
+    getProjects()
+      .then(setProjects)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setSelectedProjectId(urlProjectId);
+  }, [urlProjectId]);
+
   const loadSnapshot = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [snap, consolSummary] = await Promise.all([
-        getMemoryCommandCenter(),
+        getMemoryCommandCenter(selectedProjectId),
         getConsolidationLastSummary().catch(() => null),
       ]);
       registerMigrationSourceManifest(snap.migration.source_manifest, {
@@ -108,13 +127,14 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, selectedProjectId]);
 
   const archiveRestore = useMemoryArchiveRestoreActions({ setActionId, loadSnapshot });
   const { seedDemoData, isSeeding, rollbackDemoData, isRollingBack, hasDemoData } = useMemoryDemoSeed({
     setActionId,
     loadSnapshot,
   });
+
   useEffect(() => {
     void loadSnapshot();
   }, [loadSnapshot]);
@@ -384,6 +404,34 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
             </button>
           </div>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{t('commandCenter.description')}</p>
+          {projects.length > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <select
+                value={selectedProjectId ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value || null;
+                  setSelectedProjectId(value);
+                }}
+                className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">{t('commandCenter.allProjects')}</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              {selectedProjectId && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedProjectId(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t('commandCenter.clearFilter')}
+                </button>
+              )}
+            </div>
+          )}
           <p className="mt-1 text-xs text-muted-foreground/80">
             {t('commandCenter.lastUpdated', { time: generatedAt })}
           </p>

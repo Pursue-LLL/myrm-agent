@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { apiRequest, ApiError, getWsUrl } from '@/lib/api';
 import { getMobilePairToken } from '@/lib/mobileRemote';
+import { toast } from '@/lib/utils/toast';
 
 export type SpeechState = 'idle' | 'recording' | 'transcribing';
 export type SpeechMode = 'toggle' | 'push-to-talk';
@@ -77,6 +79,7 @@ export function useSpeechInput({
   enableSounds = false,
   keyterms,
 }: UseSpeechInputOptions) {
+  const tVoice = useTranslations('voice');
   const [state, setState] = useState<SpeechState>('idle');
   const [elapsed, setElapsed] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
@@ -222,6 +225,23 @@ export function useSpeechInput({
     [silenceThreshold, silenceTimeout, minDuration],
   );
 
+  const notifyLocalSttUnavailable = useCallback(() => {
+    toast.error(tVoice('localSttUnavailableTitle'), {
+      description: tVoice('localSttUnavailableDesc'),
+    });
+  }, [tVoice]);
+
+  const handleSttErrorMessage = useCallback(
+    (message: string) => {
+      if (message.includes('local-stt') || message.includes('Local STT is not installed')) {
+        notifyLocalSttUnavailable();
+        return;
+      }
+      onError?.(message);
+    },
+    [notifyLocalSttUnavailable, onError],
+  );
+
   // ── WebSocket streaming STT (Deepgram via backend proxy) ──
 
   const startStreamingSTT = useCallback(
@@ -284,7 +304,7 @@ export function useSpeechInput({
           } else if (data.type === 'info' && data.fallback === 'batch') {
             sttBackendRef.current = 'server';
           } else if (data.type === 'error') {
-            onError?.(data.message ?? 'STT error');
+            handleSttErrorMessage(data.message ?? 'STT error');
           }
         } catch {
           /* ignore malformed messages */
@@ -311,7 +331,7 @@ export function useSpeechInput({
         }
       };
     },
-    [keyterms, onTranscript, onInterimTranscript, onError, cleanup],
+    [keyterms, onTranscript, onInterimTranscript, handleSttErrorMessage, cleanup],
   );
 
   // ── Server-side STT (MediaRecorder → upload) ──
@@ -336,6 +356,8 @@ export function useSpeechInput({
         if (err instanceof ApiError && err.code === 400) {
           sttBackendRef.current = 'browser';
           onError?.('STT not configured, switching to browser speech recognition');
+        } else if (err instanceof ApiError && err.code === 503) {
+          notifyLocalSttUnavailable();
         } else {
           const msg = err instanceof Error ? err.message : 'Transcription failed';
           onError?.(msg);
@@ -344,7 +366,7 @@ export function useSpeechInput({
         setState('idle');
       }
     },
-    [onTranscript, onError],
+    [onTranscript, onError, notifyLocalSttUnavailable],
   );
 
   const startServerRecording = useCallback(

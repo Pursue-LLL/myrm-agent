@@ -3171,6 +3171,8 @@
     "smoothStreamEnabledDesc": "启用更自然的流式文字显示效果",
     "suggestWorkflowMode": "智能工作流建议",
     "suggestWorkflowModeDesc": "检测到复杂可拆分任务时，建议启用工作流模式以获得更好效果",
+    "autoContinueInterruptedTurns": "崩溃自动恢复",
+    "autoContinueInterruptedTurnsDesc": "服务器崩溃重启后自动恢复被中断的对话",
     "enterpriseTlsCompat": "企业网络兼容模式",
     "enterpriseTlsCompatDesc": "放宽严格的 TLS 证书校验，适配企业代理环境（Zscaler、Netskope 等）。仍保留证书链和主机名验证。",
     "publicIngressBaseUrl": "公网访问地址",
@@ -7299,6 +7301,8 @@
       "refreshing": "刷新中",
       "loadFailed": "记忆指挥中心加载失败",
       "lastUpdated": "更新时间 {time}",
+      "allProjects": "全部项目",
+      "clearFilter": "清除",
       "unknown": "未知",
       "totalMemories": "总记忆数",
       "pendingReview": "待审核",
@@ -8547,6 +8551,11 @@
     "artifacts": {
       "title": "工件库",
       "desc": "浏览和管理版本化工件与交付物"
+    },
+    "memorySpaces": {
+      "title": "记忆空间",
+      "desc": "查看绑定到此项目的共享记忆上下文",
+      "statLabel": "个空间"
     }
   },
   "artifacts": {

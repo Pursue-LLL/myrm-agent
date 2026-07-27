@@ -178,7 +178,8 @@ export interface ConfigState {
   // 工作流模式自动建议开关
   suggestWorkflowMode: boolean;
 
-  // 公网访问地址 (Public Ingress Base URL)
+  autoContinueInterruptedTurns: boolean;
+
   publicIngressBaseUrl?: string;
 
   // 媒体生成配置

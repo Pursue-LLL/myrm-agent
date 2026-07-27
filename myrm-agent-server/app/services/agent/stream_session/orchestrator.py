@@ -11,11 +11,18 @@
 Service-layer stream orchestration. HTTP route decorators remain in api/agents/general_agent/streaming.py.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
+from typing import TYPE_CHECKING
 
 from fastapi import Request
+
+if TYPE_CHECKING:
+    from app.ai_agents import GeneralAgentParams
+
 from fastapi.responses import JSONResponse, StreamingResponse
 from myrm_agent_harness.agent.middlewares.approval.scheduler import (
     ApprovalTimeoutScheduler,
@@ -31,13 +38,15 @@ from app.core.types import ModelConfig
 from app.services.agent.params import (
     AgentRequest,
     ArchiveRestoreRequestError,
-    ModelSelection,
     _resolve_model_config,
     convert_to_general_agent_params,
     prevalidate_archive_restore_actions,
 )
 from app.services.agent.runtime_context import prefer_direct_agent_stream
 from app.services.agent.steering_registry import SteeringRegistry
+from app.services.agent.stream_session.consensus_stream_setup import (
+    resolve_consensus_stream_models,
+)
 from app.services.agent.stream_session.chat_history_bootstrap import (
     persist_user_message_and_load_history,
     stream_text_content,
@@ -315,36 +324,9 @@ async def run_agent_stream(
         is_long_running_task = request.action_mode in ("deep_research", "agentic_search", "consensus")
         collector = StreamContentCollector(sibling_group_id=request.sibling_group_id, chat_id=request.chat_id)
 
-        consensus_config: dict[str, object] | None = None
-        consensus_ref_cfgs: list[object] | None = None
-        consensus_agg_cfg: object | None = None
-        if request.action_mode == "consensus":
-            ep = request.engine_params or {}
-            raw_consensus = ep.get("consensus")
-            if isinstance(raw_consensus, dict):
-                consensus_config = raw_consensus  # type: ignore[assignment]
-                try:
-                    from app.core.channel_bridge.config_loader import load_user_configs
-
-                    configs = await load_user_configs()
-                    pd = configs.providers_dict if configs else None
-                    ref_sels = raw_consensus.get("reference_model_selections", [])
-                    if isinstance(ref_sels, list):
-                        resolved: list[object] = []
-                        for sel in ref_sels:
-                            if isinstance(sel, dict):
-                                ms = ModelSelection(**sel)
-                                mc = await _resolve_model_config(ms, pd)
-                                if mc:
-                                    resolved.append(mc)
-                        if resolved:
-                            consensus_ref_cfgs = resolved
-                    agg_sel = raw_consensus.get("aggregator_model_selection")
-                    if isinstance(agg_sel, dict):
-                        ms = ModelSelection(**agg_sel)
-                        consensus_agg_cfg = await _resolve_model_config(ms, pd)
-                except Exception:
-                    logger.warning("Failed to resolve consensus model selections")
+        consensus_config, consensus_ref_cfgs, consensus_agg_cfg = await resolve_consensus_stream_models(
+            request,
+        )
 
         session = AgentStreamSession(
             request=request,
@@ -378,7 +360,43 @@ async def run_agent_stream(
             check_interval=0.5,
         )
 
+        # Write-ahead marker for crash auto-continue (best-effort, non-blocking)
+        if request.chat_id and request.resume_value is None and not is_long_running_task:
+            try:
+                await _write_interrupted_turn_marker(request, params)
+            except Exception as marker_exc:
+                logger.debug("Turn marker write skipped: %s", marker_exc)
+
         session_reservation.transfer_to_stream()
         return await launch_buffered_stream(session)
     finally:
         session_reservation.release()
+
+
+async def _write_interrupted_turn_marker(
+    request: AgentRequest,
+    params: GeneralAgentParams,
+) -> None:
+    """Persist a write-ahead marker so a crash leaves a recoverable trace."""
+    import uuid
+
+    from sqlalchemy import delete
+
+    from app.database.models.chat import InterruptedTurnMarker
+    from app.platform_utils import get_session_factory
+
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        await db.execute(
+            delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == request.chat_id)
+        )
+        marker = InterruptedTurnMarker(
+            id=str(uuid.uuid4()),
+            chat_id=request.chat_id,
+            user_message_id=request.message_id or "",
+            action_mode=request.action_mode or "fast",
+            agent_id=getattr(request, "agent_id", None),
+            serialized_params=params.model_dump(mode="json"),
+        )
+        db.add(marker)
+        await db.commit()

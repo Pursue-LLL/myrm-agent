@@ -222,9 +222,6 @@ async def compact_chat(
         return CompactResult(compacted=False, reason="concurrent_compaction_in_progress")
 
     async with lock:
-        from myrm_agent_harness.agent.context_management.strategies.summarizer import (
-            generate_structured_summary,
-        )
         from myrm_agent_harness.utils.token_estimation import (
             estimate_messages_tokens,
         )
@@ -247,14 +244,23 @@ async def compact_chat(
         existing_summary = _parse_existing_summary(chat.compacted_summary) if chat.compacted_summary else None
         llm = await _get_llm_for_user()
 
-        _, summary = await generate_structured_summary(
-            messages=lc_messages,
-            llm=llm,
-            user_id="sandbox",
-            chat_id=chat_id,
-            existing_summary=existing_summary,
-            focus_topic=focus_topic,
-        )
+        try:
+            _, summary = await _guarded_compact_summarize(
+                lc_messages=lc_messages,
+                llm=llm,
+                chat_id=chat_id,
+                existing_summary=existing_summary,
+                focus_topic=focus_topic,
+            )
+        except (asyncio.TimeoutError, Exception) as summarize_exc:
+            if isinstance(summarize_exc, asyncio.TimeoutError):
+                return CompactResult(
+                    compacted=False,
+                    original_tokens=original_tokens,
+                    message_count=len(db_messages),
+                    reason=f"timeout: {summarize_exc}",
+                )
+            raise
 
         summary_tokens = get_token_count(summary.to_json())
         tokens_saved = original_tokens - summary_tokens
@@ -386,7 +392,7 @@ async def _backup_context(
 
 
 async def _get_llm_for_user() -> BaseChatModel:
-    """Get LLM instance for user's configured model."""
+    """Get LLM instance for user's configured model (streaming enabled for progress tracking)."""
     from myrm_agent_harness.toolkits.llms import llm_manager
 
     from app.core.channel_bridge.config_loader import load_user_configs
@@ -395,7 +401,7 @@ async def _get_llm_for_user() -> BaseChatModel:
     model_cfg = configs.model_cfg
 
     llm: BaseChatModel = await llm_manager.get_llm_from_config(
-        model_cfg, streaming=False, api_keys=getattr(model_cfg, "api_keys", None)
+        model_cfg, streaming=True, api_keys=getattr(model_cfg, "api_keys", None)
     )
     return llm
 
@@ -445,3 +451,96 @@ async def get_archived_messages(chat_id: str) -> list[dict[str, object]]:
     except Exception as exc:
         logger.warning("Failed to retrieve archived messages for chat %s: %s", chat_id, exc)
         return []
+
+
+# ---------------------------------------------------------------------------
+# Progress-aware timeout guard for the /compact API path
+# ---------------------------------------------------------------------------
+
+_COMPACT_INACTIVITY_TIMEOUT_S = 90.0
+_COMPACT_TOTAL_CEILING_S = 600.0
+
+
+async def _guarded_compact_summarize(
+    lc_messages: list[BaseMessage],
+    llm: BaseChatModel,
+    chat_id: str,
+    existing_summary: StructuredSummary | None,
+    focus_topic: str,
+) -> tuple[list[BaseMessage], StructuredSummary]:
+    """Wrap generate_structured_summary with progress-aware timeout for the API path.
+
+    The /compact endpoint is NOT protected by Gateway's execution_timeout,
+    so this guard provides its own inactivity + ceiling timeout.
+    """
+    import time as _time
+
+    from myrm_agent_harness.agent.context_management.strategies.progress_timeout import (
+        InactivityTimeoutError,
+        ProgressClock,
+        TotalCeilingTimeoutError,
+    )
+    from myrm_agent_harness.agent.context_management.strategies.summarizer import (
+        generate_structured_summary,
+    )
+
+    tracker = ProgressClock()
+
+    async def _watchdog() -> None:
+        start = _time.monotonic()
+        check_interval = min(_COMPACT_INACTIVITY_TIMEOUT_S / 3, 10.0)
+        while True:
+            await asyncio.sleep(check_interval)
+            elapsed = _time.monotonic() - start
+            if elapsed >= _COMPACT_TOTAL_CEILING_S:
+                raise TotalCeilingTimeoutError(elapsed)
+            idle = tracker.seconds_since_last_touch
+            if idle >= _COMPACT_INACTIVITY_TIMEOUT_S:
+                raise InactivityTimeoutError(idle)
+
+    async def _summarize() -> tuple[list[BaseMessage], StructuredSummary]:
+        return await generate_structured_summary(
+            messages=lc_messages,
+            llm=llm,
+            chat_id=chat_id,
+            existing_summary=existing_summary,
+            focus_topic=focus_topic,
+            progress_tracker=tracker,
+        )
+
+    summarize_task = asyncio.ensure_future(_summarize())
+    watchdog_task = asyncio.ensure_future(_watchdog())
+
+    try:
+        done, pending = await asyncio.wait(
+            {summarize_task, watchdog_task},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+        for task in pending:
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+
+        for task in done:
+            exc = task.exception()
+            if exc is not None:
+                raise exc
+            if task is summarize_task:
+                return task.result()
+
+        raise RuntimeError("Unexpected: no task completed with result")
+    except (InactivityTimeoutError, TotalCeilingTimeoutError) as timeout_exc:
+        summarize_task.cancel()
+        try:
+            await summarize_task
+        except (asyncio.CancelledError, Exception):
+            pass
+        logger.warning(
+            "⏱️ [compact_chat] Progress-aware timeout (%s) for chat %s — aborting compaction",
+            timeout_exc,
+            chat_id,
+        )
+        raise

@@ -16,7 +16,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | `useAgentEditor.ts` / `useAgentConfigPanel.ts` / `use-agent-config-panel/` | Agent 配置面板 |
 | `usePendingApprovalsRecovery.ts` | 启动/SSE 重连时从 `GET /approvals` 恢复全局 Drawer 队列（不含后台 growth draft，server 已过滤）；同步设置 per-chat `awaiting_approval` sessionStatus 激活侧边栏注意力指示 |
 | `useToolApprovalResolve.ts` / `useVisualApprovalSnapshot.ts` / `useVisualApprovalOsOverlay.ts` | 工具审批与可视化 HITL（OsOverlay 依赖 snapshot screen 元数据） |
-| `useVoiceSession.ts` / `useRealtimeVoice.ts` / `useGeminiLiveVoice.ts` / `useTTS.ts` | 语音会话与 TTS（useVoiceSession 含 PTT 屏幕上下文融合，支持 OpenAI Realtime WebRTC + Gemini Live WebSocket 双 Provider；useTTS API 模式在 503/422 时 toast 提示） |
+| `useVoiceSession.ts` / `useRealtimeVoice.ts` / `useGeminiLiveVoice.ts` / `useTTS.ts` / `useSpeechInput.ts` | 语音会话（useVoiceSession PTT 屏幕上下文；OpenAI Realtime + Gemini Live）；useTTS / useSpeechInput 在 local STT 不可用（HTTP 503 或 WS error）时 toast，避免与 SpeechInputButton onError 重复 |
 | `useVoicePttListener.ts` | Tauri 全局语音 PTT 快捷键事件桥接（IPC → DOM CustomEvent），含 PTT 屏幕上下文转发 |
 | `useInlineInputListener.ts` | Tauri 全局 Inline Input 事件桥接（`inline-input-activated` → `openInline`），承接桌面快捷键截图输入入口 |
 | `useReferenceMention.ts` | `@` 引用 autocomplete Hook（`@` 触发检测 + debounced suggest API + 键盘导航 + 选择注入；支持 workspace/uploaded/generated/git/url/wiki/agent 引用类型） |

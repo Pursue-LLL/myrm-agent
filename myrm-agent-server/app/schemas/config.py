@@ -185,6 +185,9 @@ class PersonalSettingsConfigValue(BaseModel):
     suggestWorkflowMode: bool = _personal_settings_field(
         "preferences", default=False, description="智能建议工作流模式", group="advanced"
     )
+    autoContinueInterruptedTurns: bool = _personal_settings_field(
+        "preferences", default=True, description="Auto-resume interrupted turns after crash", group="advanced"
+    )
     enterpriseTlsCompat: bool = _personal_settings_field(
         "preferences",
         default=False,

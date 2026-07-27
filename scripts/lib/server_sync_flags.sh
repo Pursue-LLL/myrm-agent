@@ -9,3 +9,10 @@ SERVER_UV_SYNC_FLAGS=(
   --no-extra voice-tts
   --no-extra wechat-silk
 )
+
+# Same GPL/heavy exclusions without skipping matrix-e2ee (MYRM_HARNESS_SKIP_MATRIX_E2EE=0).
+SERVER_UV_SYNC_FLAGS_WITH_MATRIX_E2EE=(
+  --all-extras
+  --no-extra voice-tts
+  --no-extra wechat-silk
+)

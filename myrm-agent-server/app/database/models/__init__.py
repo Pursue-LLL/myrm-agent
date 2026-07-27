@@ -12,7 +12,7 @@ from .artifact import Artifact, ArtifactAuditLog, ArtifactVersion
 from .artifact_publication import ArtifactPublication
 from .base import Base
 from .channel import ChannelPairingModel
-from .chat import Chat, ConversationFork, Message, OfflineDurableTask
+from .chat import Chat, ConversationFork, InterruptedTurnMarker, Message, OfflineDurableTask
 from .commitment import CommitmentModel
 from .config import ConfigAuditLog, UserConfig
 from .cron import CronJobModel, CronRunModel, MonitorStateModel
@@ -79,6 +79,7 @@ __all__ = [
     "Message",
     "ConversationFork",
     "OfflineDurableTask",
+    "InterruptedTurnMarker",
     # Agent
     "Agent",
     "AgentSecret",

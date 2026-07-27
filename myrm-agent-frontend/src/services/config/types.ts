@@ -230,6 +230,7 @@ export interface PersonalSettingsConfigValue {
   enableEvalLab?: boolean;
   smoothStreamEnabled?: boolean;
   suggestWorkflowMode?: boolean;
+  autoContinueInterruptedTurns?: boolean;
   publicIngressBaseUrl?: string;
   enterpriseTlsCompat?: boolean;
 }
@@ -810,6 +811,7 @@ export const DEFAULT_PERSONAL_SETTINGS: PersonalSettingsConfigValue = {
   enableEvalLab: false,
   smoothStreamEnabled: true,
   suggestWorkflowMode: false,
+  autoContinueInterruptedTurns: true,
   publicIngressBaseUrl: '',
 };
 

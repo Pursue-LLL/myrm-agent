@@ -25,6 +25,7 @@ from myrm_agent_harness.utils.runtime.wakeup_registry import set_global_wakeup_h
 
 from app.config.settings import settings
 from app.lifecycle import (
+    auto_continue_interrupted_turns,
     cleanup_browser_threads,
     init_risk_rules,
     resume_durable_offline_tasks,
@@ -237,6 +238,7 @@ async def run_async_warmup() -> None:
             start_idle_task_listeners(),
             init_evolution_monitor_service(),
             resume_durable_offline_tasks(),
+            auto_continue_interrupted_turns(),
             cleanup_old_notifications(),
         ]
     )

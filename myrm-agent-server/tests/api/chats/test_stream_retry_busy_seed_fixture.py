@@ -18,6 +18,17 @@ def client() -> TestClient:
 
 
 @pytest.mark.integration
+@pytest.mark.asyncio
+async def test_busy_fixture_query_is_not_risk_blocked() -> None:
+    """Fixture query must not hit stream risk gate (e.g. avoid 'contract' keyword)."""
+    from app.api.chats.test_fixtures_stream_retry_busy import _BUSY_QUERY_TEXT
+    from app.services.agent.stream_session.risk_gate import check_stream_risk
+
+    blocked = await check_stream_risk(_BUSY_QUERY_TEXT, "e2estreamretryfixture")
+    assert blocked is None
+
+
+@pytest.mark.integration
 def test_seed_and_release_stream_retry_busy_fixture(client: TestClient) -> None:
     fake_agent = MagicMock()
     fake_agent.id = "agent-e2e-stream-retry"

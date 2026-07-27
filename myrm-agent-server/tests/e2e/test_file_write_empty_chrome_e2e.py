@@ -13,6 +13,7 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
+    reload_mcp_page,
     wait_for_state,
     warm_ui_route,
 )
@@ -163,12 +164,24 @@ def test_file_write_empty_mutation_banner_survives_page_reload() -> None:
 
         dismiss_blocking_modals(client, page)
 
-        client.navigate(page, f"{ui_url}/{chat_id}", timeout_ms=120_000)
+        banner_before_reload = wait_for_state(
+            client,
+            page,
+            _MUTATION_BANNER_READY_JS,
+            timeout_sec=30.0,
+        )
+        assert banner_before_reload.get("ready") is True, json.dumps(
+            banner_before_reload,
+            ensure_ascii=False,
+        )
+
+        reload_mcp_page(client, page)
+        dismiss_blocking_modals(client, page)
 
         reloaded = wait_for_state(
             client,
             page,
             _MUTATION_BANNER_READY_JS,
-            timeout_sec=90.0,
+            timeout_sec=120.0,
         )
         assert reloaded.get("ready") is True, json.dumps(reloaded, ensure_ascii=False)

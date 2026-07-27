@@ -49,12 +49,17 @@ router = APIRouter(prefix="/command-center")
 
 @router.get("", response_model=MemoryCommandCenterResponse)
 async def get_memory_command_center(
+    project_id: str | None = None,
     db: AsyncSession = Depends(get_db_session),
     memory_manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> MemoryCommandCenterResponse:
-    """Return the personalized memory command center snapshot."""
+    """Return the personalized memory command center snapshot.
 
-    return await MemoryCommandCenterService(db, memory_manager).build_snapshot()
+    Args:
+        project_id: Optional project ID to scope the snapshot to a single project's memory spaces.
+    """
+
+    return await MemoryCommandCenterService(db, memory_manager, project_id=project_id).build_snapshot()
 
 
 @router.get("/events", response_model=list[MemoryCommandTimelineEvent])

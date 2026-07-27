@@ -290,6 +290,13 @@ async def finalize_agent_stream_session(
             sibling_group_id=session.collector.sibling_group_id,
         )
 
+    # Clear crash auto-continue marker on normal completion (best-effort)
+    if session.request.chat_id:
+        try:
+            await _clear_interrupted_turn_marker(session.request.chat_id)
+        except Exception as marker_exc:
+            logger.debug("Turn marker cleanup skipped: %s", marker_exc)
+
     await record_migration_first_turn_outcome(
         request=session.request,
         had_fatal_error=session.had_fatal_error,
@@ -434,3 +441,18 @@ async def finalize_agent_stream_session(
         )
     else:
         session.collector.cleanup()
+
+
+async def _clear_interrupted_turn_marker(chat_id: str) -> None:
+    """Remove the write-ahead marker after a turn completes normally."""
+    from sqlalchemy import delete
+
+    from app.database.models.chat import InterruptedTurnMarker
+    from app.platform_utils import get_session_factory
+
+    factory = get_session_factory()
+    async with factory() as db:
+        await db.execute(
+            delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == chat_id)
+        )
+        await db.commit()

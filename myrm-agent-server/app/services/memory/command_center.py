@@ -75,13 +75,34 @@ ALL_MEMORY_TYPES: tuple[MemoryType, ...] = (
 class MemoryCommandCenterService:
     """Builds the single-user memory command center snapshot."""
 
-    def __init__(self, db: AsyncSession, memory_manager: MemoryManager) -> None:
+    def __init__(
+        self,
+        db: AsyncSession,
+        memory_manager: MemoryManager,
+        *,
+        project_id: str | None = None,
+    ) -> None:
         self._db = db
         self._memory_manager = memory_manager
+        self._project_id = project_id
+        self._project_context_ids: set[str] | None = None
         self._ledger = MemoryOperationLedgerService(db)
         self._import_ledger = MemoryImportLedgerService(db)
         self._insights = MemoryCommandCenterInsights(db, memory_manager, self._ledger)
         self._diagnostics = MemoryDiagnosticsService(db, memory_manager, ledger=self._ledger)
+
+    async def _resolve_project_context_ids(self) -> set[str] | None:
+        """Resolve SharedContext IDs bound to the given project, or None for global view."""
+        if self._project_id is None:
+            return None
+        if self._project_context_ids is not None:
+            return self._project_context_ids
+        from app.services.memory.shared_context import SharedContextService
+
+        svc = SharedContextService(self._db)
+        bindings = await svc.list_bindings_for_target(target_type="project", target_id=self._project_id)
+        self._project_context_ids = {b.context_id for b in bindings}
+        return self._project_context_ids
 
     async def build_snapshot(self) -> MemoryCommandCenterResponse:
         generated_at = datetime.now(UTC)
@@ -219,6 +240,8 @@ class MemoryCommandCenterService:
         return counts
 
     async def _build_spaces(self) -> list[MemoryCommandSpace]:
+        project_ctx_ids = await self._resolve_project_context_ids()
+
         spaces: list[MemoryCommandSpace] = [
             MemoryCommandSpace(
                 namespace=namespace,
@@ -227,10 +250,15 @@ class MemoryCommandCenterService:
                 active=True,
             )
             for namespace in self._memory_manager.namespaces
-        ]
+        ] if project_ctx_ids is None else []
 
         binding_counts = await self._shared_context_binding_counts()
-        result = await self._db.execute(select(SharedContextModel).order_by(desc(SharedContextModel.updated_at)).limit(20))
+
+        stmt = select(SharedContextModel).order_by(desc(SharedContextModel.updated_at)).limit(20)
+        if project_ctx_ids is not None:
+            stmt = stmt.where(SharedContextModel.id.in_(project_ctx_ids)) if project_ctx_ids else stmt.where(False)
+
+        result = await self._db.execute(stmt)
         for context in result.scalars().all():
             spaces.append(
                 MemoryCommandSpace(
@@ -246,31 +274,37 @@ class MemoryCommandCenterService:
 
     async def _build_governance(self) -> list[MemoryCommandGovernanceItem]:
         items: list[MemoryCommandGovernanceItem] = []
+        project_ctx_ids = await self._resolve_project_context_ids()
 
-        pending_result = await self._db.execute(
-            select(PendingMemory).where(PendingMemory.status == "pending").order_by(desc(PendingMemory.created_at)).limit(5)
-        )
-        for item in pending_result.scalars().all():
-            items.append(
-                MemoryCommandGovernanceItem(
-                    id=item.id,
-                    kind=MemoryOperationKind.PROPOSE.value,
-                    target_kind="pending_memory",
-                    title=item.memory_type,
-                    description=self._preview(item.content),
-                    severity="warning",
-                    status=item.status,
-                    created_at=item.created_at,
-                    available_actions=["approve", "reject", "edit"],
-                )
+        if project_ctx_ids is None:
+            pending_result = await self._db.execute(
+                select(PendingMemory).where(PendingMemory.status == "pending").order_by(desc(PendingMemory.created_at)).limit(5)
             )
+            for item in pending_result.scalars().all():
+                items.append(
+                    MemoryCommandGovernanceItem(
+                        id=item.id,
+                        kind=MemoryOperationKind.PROPOSE.value,
+                        target_kind="pending_memory",
+                        title=item.memory_type,
+                        description=self._preview(item.content),
+                        severity="warning",
+                        status=item.status,
+                        created_at=item.created_at,
+                        available_actions=["approve", "reject", "edit"],
+                    )
+                )
 
-        proposal_result = await self._db.execute(
+        proposal_stmt = (
             select(SharedContextWriteProposalModel)
             .where(SharedContextWriteProposalModel.status == "pending")
             .order_by(desc(SharedContextWriteProposalModel.created_at))
             .limit(5)
         )
+        if project_ctx_ids is not None:
+            proposal_stmt = proposal_stmt.where(SharedContextWriteProposalModel.context_id.in_(project_ctx_ids)) if project_ctx_ids else proposal_stmt.where(False)
+
+        proposal_result = await self._db.execute(proposal_stmt)
         for proposal in proposal_result.scalars().all():
             items.append(
                 MemoryCommandGovernanceItem(
@@ -380,30 +414,39 @@ class MemoryCommandCenterService:
         return health
 
     async def _build_timeline(self) -> list[MemoryCommandTimelineEvent]:
+        project_ctx_ids = await self._resolve_project_context_ids()
+
         ledger_events = await self._ledger.list_events(limit=96)
         if ledger_events:
-            return [self._ledger_event_to_timeline(row) for row in ledger_events]
+            timeline = [self._ledger_event_to_timeline(row) for row in ledger_events]
+            if project_ctx_ids is not None:
+                project_namespaces = {f"shared:{cid}" for cid in project_ctx_ids}
+                timeline = [e for e in timeline if e.namespace in project_namespaces]
+            return timeline
 
         events: list[MemoryCommandTimelineEvent] = []
 
-        pending_result = await self._db.execute(select(PendingMemory).order_by(desc(PendingMemory.created_at)).limit(6))
-        for item in pending_result.scalars().all():
-            events.append(
-                MemoryCommandTimelineEvent(
-                    id=f"pending:{item.id}",
-                    kind=MemoryOperationKind.PROPOSE.value,
-                    status=item.status,
-                    occurred_at=item.created_at,
-                    title=item.memory_type,
-                    description=self._preview(item.content),
-                    source="pending_memory",
-                    memory_type=item.memory_type,
+        if project_ctx_ids is None:
+            pending_result = await self._db.execute(select(PendingMemory).order_by(desc(PendingMemory.created_at)).limit(6))
+            for item in pending_result.scalars().all():
+                events.append(
+                    MemoryCommandTimelineEvent(
+                        id=f"pending:{item.id}",
+                        kind=MemoryOperationKind.PROPOSE.value,
+                        status=item.status,
+                        occurred_at=item.created_at,
+                        title=item.memory_type,
+                        description=self._preview(item.content),
+                        source="pending_memory",
+                        memory_type=item.memory_type,
+                    )
                 )
-            )
 
-        proposal_result = await self._db.execute(
-            select(SharedContextWriteProposalModel).order_by(desc(SharedContextWriteProposalModel.created_at)).limit(6)
-        )
+        proposal_stmt = select(SharedContextWriteProposalModel).order_by(desc(SharedContextWriteProposalModel.created_at)).limit(6)
+        if project_ctx_ids is not None:
+            proposal_stmt = proposal_stmt.where(SharedContextWriteProposalModel.context_id.in_(project_ctx_ids)) if project_ctx_ids else proposal_stmt.where(False)
+
+        proposal_result = await self._db.execute(proposal_stmt)
         for proposal in proposal_result.scalars().all():
             events.append(
                 MemoryCommandTimelineEvent(
@@ -419,7 +462,11 @@ class MemoryCommandCenterService:
                 )
             )
 
-        context_result = await self._db.execute(select(SharedContextModel).order_by(desc(SharedContextModel.updated_at)).limit(6))
+        context_stmt = select(SharedContextModel).order_by(desc(SharedContextModel.updated_at)).limit(6)
+        if project_ctx_ids is not None:
+            context_stmt = context_stmt.where(SharedContextModel.id.in_(project_ctx_ids)) if project_ctx_ids else context_stmt.where(False)
+
+        context_result = await self._db.execute(context_stmt)
         for context in context_result.scalars().all():
             events.append(
                 MemoryCommandTimelineEvent(
@@ -434,17 +481,18 @@ class MemoryCommandCenterService:
                 )
             )
 
-        events.append(
-            MemoryCommandTimelineEvent(
-                id=f"health:{datetime.now(UTC).isoformat()}",
-                kind=MemoryOperationKind.HEALTH_CHECK.value,
-                status=MemoryOperationStatus.SUCCESS.value,
-                occurred_at=datetime.now(UTC),
-                title="memory_health",
-                description="Current health score was computed for the visible memory spaces.",
-                source="memory_manager",
+        if project_ctx_ids is None:
+            events.append(
+                MemoryCommandTimelineEvent(
+                    id=f"health:{datetime.now(UTC).isoformat()}",
+                    kind=MemoryOperationKind.HEALTH_CHECK.value,
+                    status=MemoryOperationStatus.SUCCESS.value,
+                    occurred_at=datetime.now(UTC),
+                    title="memory_health",
+                    description="Current health score was computed for the visible memory spaces.",
+                    source="memory_manager",
+                )
             )
-        )
 
         events.sort(key=lambda item: item.occurred_at, reverse=True)
         return events[:10]

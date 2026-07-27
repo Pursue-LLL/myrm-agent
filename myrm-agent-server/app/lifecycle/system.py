@@ -4,6 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from app.database.models.chat import InterruptedTurnMarker
 
 logger = logging.getLogger(__name__)
 
@@ -197,6 +203,162 @@ async def resume_durable_offline_tasks() -> None:
 
     except Exception as e:
         logger.error(f"Failed to initialize durable offline tasks: {e}", exc_info=True)
+
+
+_AUTO_CONTINUE_FRESHNESS_MINUTES = 15
+_AUTO_CONTINUE_MAX_ATTEMPTS = 2
+
+
+async def auto_continue_interrupted_turns() -> None:
+    """Resume normal turns interrupted by a process crash.
+
+    Scans ``interrupted_turn_markers`` for entries within the freshness window.
+    For each qualifying marker, constructs a lightweight agent stream request
+    and dispatches it in the background. The marker is cleaned up by the
+    normal stream finalization path on success, or incremented and pruned
+    on repeated failure (crash-loop breaker).
+    """
+    try:
+        # Check user preference (default: enabled)
+        try:
+            from app.core.channel_bridge.config_loader import load_user_configs
+
+            configs = await load_user_configs()
+            if configs and configs.personal_settings_dict:
+                enabled = configs.personal_settings_dict.get("autoContinueInterruptedTurns", True)
+                if not enabled:
+                    logger.info("[Startup] Auto-continue disabled by user preference")
+                    return
+        except Exception:
+            pass  # Proceed with default (enabled) if config load fails
+
+        from datetime import UTC, datetime, timedelta
+
+        from sqlalchemy import delete, select
+
+        from app.database.models.chat import InterruptedTurnMarker
+        from app.platform_utils import get_session_factory
+
+        session_factory = get_session_factory()
+        cutoff = datetime.now(UTC) - timedelta(minutes=_AUTO_CONTINUE_FRESHNESS_MINUTES)
+
+        async with session_factory() as db:
+            await db.execute(
+                delete(InterruptedTurnMarker).where(
+                    (InterruptedTurnMarker.created_at < cutoff)
+                    | (InterruptedTurnMarker.attempt_count >= _AUTO_CONTINUE_MAX_ATTEMPTS)
+                )
+            )
+            await db.commit()
+
+            result = await db.execute(select(InterruptedTurnMarker))
+            markers = result.scalars().all()
+
+        if not markers:
+            return
+
+        logger.info("[Startup] Found %d interrupted turn(s) eligible for auto-continue", len(markers))
+
+        for marker in markers:
+            asyncio.create_task(_dispatch_auto_continue(marker, session_factory))
+
+    except Exception as e:
+        logger.error("[Startup] Auto-continue interrupted turns failed: %s", e, exc_info=True)
+
+
+async def _dispatch_auto_continue(
+    marker: "InterruptedTurnMarker",
+    session_factory: "async_sessionmaker[AsyncSession]",
+) -> None:
+    """Background worker: re-execute one interrupted turn and clean up."""
+    from sqlalchemy import delete, update
+
+    from app.database.models.chat import InterruptedTurnMarker
+
+    try:
+        # Increment attempt count first (crash-loop protection)
+        async with session_factory() as db:
+            await db.execute(
+                update(InterruptedTurnMarker)
+                .where(InterruptedTurnMarker.id == marker.id)
+                .values(attempt_count=marker.attempt_count + 1)
+            )
+            await db.commit()
+
+        if not marker.serialized_params:
+            logger.warning("Auto-continue skipped for chat %s: missing params", marker.chat_id)
+            return
+
+        from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
+
+        from app.ai_agents import GeneralAgentParams
+        from app.services.agent.streaming import ai_agent_service_stream
+
+        params = GeneralAgentParams.model_validate(marker.serialized_params)
+        params.message_id = f"auto_continue_{marker.id}"
+
+        if not params.model_cfg:
+            logger.warning("Auto-continue skipped for chat %s: missing model_cfg", marker.chat_id)
+            return
+
+        token = CancellationToken(request_id=params.message_id or marker.id)
+
+        logger.info("[Auto-continue] Resuming interrupted turn for chat: %s", marker.chat_id)
+
+        collected_parts: list[str] = []
+        stream = ai_agent_service_stream(params=params, cancel_token=token)
+        async for chunk in stream:
+            if isinstance(chunk, dict) and chunk.get("type") == "message":
+                data = chunk.get("data")
+                if isinstance(data, str):
+                    collected_parts.append(data)
+
+        if collected_parts and marker.chat_id:
+            from app.services.chat.chat_service import ChatService
+
+            await ChatService.persist_assistant_message_safe(
+                marker.chat_id,
+                "".join(collected_parts),
+                timezone=params.timezone,
+            )
+
+        logger.info("[Auto-continue] Completed for chat: %s", marker.chat_id)
+
+        # Notify user
+        from app.services.infra.system_notification import SystemNotificationService
+
+        await SystemNotificationService.create_notification(
+            title="Interrupted Turn Resumed",
+            message="A conversation was automatically resumed after a restart.",
+            type="success",
+            source="auto_continue",
+            meta_data={"chat_id": marker.chat_id, "action_url": f"/{marker.chat_id}"},
+        )
+
+    except Exception as e:
+        logger.error("[Auto-continue] Failed for chat %s: %s", marker.chat_id, e, exc_info=True)
+        try:
+            from app.services.infra.system_notification import SystemNotificationService
+
+            await SystemNotificationService.create_notification(
+                title="Turn Resume Failed",
+                message="Could not automatically resume an interrupted conversation. Please retry.",
+                type="error",
+                source="auto_continue",
+                meta_data={"chat_id": marker.chat_id, "action_url": f"/{marker.chat_id}"},
+            )
+        except Exception as notif_err:
+            logger.error("Failed to create auto-continue failure notification: %s", notif_err)
+    finally:
+        # Cleanup marker (stream_finalize may have already done this on success)
+        try:
+            async with session_factory() as db:
+                await db.execute(
+                    delete(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker.id)
+                )
+                await db.commit()
+        except Exception as cleanup_err:
+            logger.debug("Auto-continue marker cleanup: %s", cleanup_err)
 
 
 async def pause_orphaned_active_goals() -> None:

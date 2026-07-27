@@ -460,7 +460,7 @@ StreamCoordinator
 - `collect_issues()` 结构化诊断（kind/severity/message/fix）；缺 SDK 依赖为 ERROR + `uv sync --extra …`；WeChat 语音 SILK 解码缺 pilk 为 WARNING + `uv sync --extra wechat-silk`（不阻塞启用，Settings 可一键安装）
 - `POST /channels/manage/{name}/install-dependencies` 在 server venv 内 lazy-install（harness `runtime.lazy_deps`：`platform.discord` / `platform.feishu` / `platform.matrix` / `platform.wechat-silk`），成功后 **hot-register** 到 Gateway（无需重启进程）；响应 `registered: false` 表示 pip 成功但频道未上 bus（需配凭证或重启）
 - Edge TTS（`voice-tts` extra，GPL-3.0）通过 `uv sync --extra voice-tts` 安装；Desktop PyInstaller 打包 **排除** GPL extras（`voice-tts` / `wechat-silk`）；Settings → Voice 会提示可用性，`GET /health/info` 返回 `edge_tts_available`；Web 朗读 API 失败时前端 toast 提示
-- 本地 STT（`local-stt` extra）通过 `uv sync --extra local-stt` 安装 faster-whisper；`GET /health/info` 返回 `local_stt_available`；`POST /stt/transcribe` 与 WebSocket STT 在 local provider 未安装时返回 install hint（HTTP 503 / WS error JSON）
+- 本地 STT（`local-stt` extra）通过 `uv sync --extra local-stt` 安装 faster-whisper；`GET /health/info` 返回 `local_stt_available`；`POST /stt/transcribe` 与 WebSocket STT 在 local provider 未安装时返回 install hint（HTTP 503 / WS error JSON）；Web 聊天 `useSpeechInput` 503/WS 错误 toast（Settings 横幅 + 录音失败提示）
 - `GET /channels/manage/status` 对未进 bus 的 SDK 频道返回 `status: unavailable` + `DEPENDENCY` issue（`registry.probe_sdk_channel_issues`），Settings 可一键安装
 - `PATCH …/toggle` 启用前 **先** `ensure_channel_dependencies_ready`（仅 ERROR 级 SDK 依赖会阻塞/自动安装；WARNING 级可选能力依赖需用户在 Settings 手动安装）
 - 可选 extra：`channels-sdk`（discord-py + lark-oapi）、`matrix`、`matrix-e2ee`、`wechat-silk`（pilk，GPLv3 SILK→WAV）、`voice-tts`（edge-tts）、`local-stt`（faster-whisper）；官方 Docker 镜像 `--all-extras` 含上述 optional；Desktop 商业包不含 GPL extras

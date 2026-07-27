@@ -3171,6 +3171,8 @@
     "smoothStreamEnabledDesc": "Enable smoother streaming text display",
     "suggestWorkflowMode": "Smart Workflow Suggestions",
     "suggestWorkflowModeDesc": "Suggest enabling Workflow Mode when complex decomposable tasks are detected",
+    "autoContinueInterruptedTurns": "Auto-Resume After Crash",
+    "autoContinueInterruptedTurnsDesc": "Automatically resume interrupted conversations when the server restarts after a crash",
     "enterpriseTlsCompat": "Enterprise Network Compatibility",
     "enterpriseTlsCompatDesc": "Relax strict TLS certificate validation for corporate proxy environments (Zscaler, Netskope, etc.). Maintains certificate chain and hostname verification.",
     "publicIngressBaseUrl": "Public Ingress URL",
@@ -7296,6 +7298,8 @@
       "refreshing": "Refreshing",
       "loadFailed": "Failed to load memory command center",
       "lastUpdated": "Updated {time}",
+      "allProjects": "All projects",
+      "clearFilter": "Clear",
       "unknown": "Unknown",
       "totalMemories": "Total memories",
       "pendingReview": "Pending review",
@@ -8547,6 +8551,11 @@
     "artifacts": {
       "title": "Artifacts",
       "desc": "Browse and manage versioned artifacts and deliverables"
+    },
+    "memorySpaces": {
+      "title": "Memory Spaces",
+      "desc": "View shared memory contexts bound to this project",
+      "statLabel": "spaces"
     }
   },
   "artifacts": {

@@ -59,7 +59,9 @@
     ".next-isolated-e2e-parent-60956-76557-d69f6e2c/types/**/*.ts",
     ".next-isolated-e2e-parent-60956-76557-d69f6e2c/dev/types/**/*.ts",
     ".next-isolated-e2e-parent-48344-48361-6edb151c/types/**/*.ts",
-    ".next-isolated-e2e-parent-48344-48361-6edb151c/dev/types/**/*.ts"
+    ".next-isolated-e2e-parent-48344-48361-6edb151c/dev/types/**/*.ts",
+    ".next-isolated-e2e-parent-74396-74419-e2a564ff/types/**/*.ts",
+    ".next-isolated-e2e-parent-74396-74419-e2a564ff/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

@@ -13,7 +13,7 @@
 | `MemoryArchiveRestoreDialog.tsx` | 组件 | 记忆归档批量恢复确认对话框 | ✅ |
 | `MemoryCard.tsx` | 核心 | 单条记忆卡片（类型/icon/摘要/操作菜单） | ✅ |
 | `MemoryClearAllDialog.tsx` | 组件 | 清空全部记忆二次确认 | ✅ |
-| `MemoryCommandCenter.tsx` | 核心 | 记忆命令中心主布局入口；消费 migration manifest authoritative 语义并驱动向导深链 | ✅ |
+| `MemoryCommandCenter.tsx` | 核心 | 记忆命令中心主布局入口；消费 migration manifest authoritative 语义并驱动向导深链；支持通过 URL `?project=` 或下拉筛选器按项目过滤 SharedContext 记忆空间 | ✅ |
 | `MemoryCommandCenterAdvancedPanels.tsx` | 组件 | 高级面板：导入/导出/图谱/Doctor | ✅ |
 | `MemoryCommandCenterChrome.tsx` | 组件 | 命令中心顶栏、Tab 与搜索框 | ✅ |
 | `MemoryCommandCenterDoctorPanel.tsx` | 组件 | 记忆系统 Doctor 诊断面板 | ✅ |

@@ -69,20 +69,6 @@ def _post_agent_stream_snippet(
         return f"HTTP {exc.code}: {body}"
 
 
-def _chat_hydrated_state(chat_id: str) -> str:
-    chat_id_json = json.dumps(chat_id)
-    return f"""(() => {{
-  const bridge = window.__MYRM_E2E_CHAT__;
-  const snap = bridge?.turnSnapshot?.() ?? {{}};
-  return {{
-    ready: snap.chatId === {chat_id_json} && snap.userCount >= 1 && snap.isStreaming !== true,
-    chatId: snap.chatId ?? null,
-    userCount: snap.userCount ?? 0,
-    isStreaming: snap.isStreaming === true,
-  }};
-}})()"""
-
-
 def _user_count_probe(chat_id: str) -> str:
     chat_id_json = json.dumps(chat_id)
     return f"""(() => {{

@@ -38,6 +38,7 @@ __all__ = [
     "http_json",
     "open_mcp_page",
     "prepare_e2e_ui_session",
+    "reload_mcp_page",
     "wait_for_state",
     "warm_ui_route",
 ]
@@ -255,6 +256,18 @@ def _reapply_shpoib_runtime_after_reload(
             )
         time.sleep(2.0)
     raise RuntimeError(f"SHPOIB runtime rebind after reload failed: {last_observed}")
+
+
+def reload_mcp_page(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    timeout_ms: int = 60_000,
+) -> None:
+    """Full page reload with SHPOIB runtime rebind when private backend is active."""
+    client.reload(page, timeout_ms=timeout_ms)
+    if e2e_runtime_binding() is not None:
+        _reapply_shpoib_runtime_after_reload(client, page)
 
 
 @contextmanager

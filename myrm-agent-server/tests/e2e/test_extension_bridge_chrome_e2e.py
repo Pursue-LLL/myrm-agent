@@ -17,7 +17,8 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _EXTENSION_BRIDGE_STATE = """(() => {
-  const bodyText = document.body.innerText || '';
+  const root = document.querySelector('[data-section="extensionBridge"][data-active]');
+  const bodyText = root?.innerText || '';
   const fetchErrorVisible = /无法连接服务器|Unable to connect to the server/i.test(bodyText);
   const matrixLabels = ['URL 导航', '标签页发现', '调试器附加', '调试器分离',
     'URL Navigation', 'Tab Discovery', 'Debugger Attach', 'Debugger Detach'];
@@ -27,19 +28,23 @@ _EXTENSION_BRIDGE_STATE = """(() => {
   const wsMatch = bodyText.match(/ws:\\/\\/[^\\s]+\\/api\\/v1\\/ws\\/extension/i);
   return {
     ready:
-      !fetchErrorVisible &&
+      !!root &&
       location.pathname.includes('/settings/extensionBridge') &&
+      !fetchErrorVisible &&
       matrixHits.length >= 4 &&
       unavailableHits >= 4 &&
       /未连接|Not connected/i.test(bodyText) &&
-      /chrome:\\/\\/inspect\\/#remote-debugging/i.test(bodyText) &&
+      (/chrome:\\/\\/inspect\\/#remote-debugging/i.test(bodyText) ||
+        /remote-debugging/i.test(bodyText)) &&
       !!wsMatch,
+    hasActiveSection: !!root,
     fetchErrorVisible,
     matrixHits: matrixHits.length,
     unavailableHits,
     relayLine,
     wsUrl: wsMatch ? wsMatch[0] : '',
-    heading: document.querySelector('h2')?.textContent || '',
+    heading: root?.querySelector('h2')?.textContent || '',
+    pathname: location.pathname,
   };
 })()"""
 
@@ -67,6 +72,7 @@ def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
 
     with open_mcp_page(f"{ui_url}/settings/extensionBridge") as (client, page):
         dismiss_blocking_modals(client, page)
+        client.navigate(page, f"{ui_url}/settings/extensionBridge", timeout_ms=90_000)
         state = wait_for_state(
             client,
             page,
@@ -74,6 +80,7 @@ def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
             timeout_sec=90.0,
         )
         assert state.get("fetchErrorVisible") is not True, state
+        assert state.get("hasActiveSection") is True, state
         assert int(state.get("matrixHits") or 0) >= 4, state
         assert int(state.get("unavailableHits") or 0) >= 4, state
         ws_url = str(state.get("wsUrl") or "")

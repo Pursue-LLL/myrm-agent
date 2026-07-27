@@ -103,6 +103,7 @@ app/database/repositories/chat_repo.py
 app/database/repositories/conversation_recall/repo.py
 app/lifecycle/memory_guardian.py
 app/lifecycle/schedulers.py
+app/lifecycle/system.py
 app/platform_utils/sandbox/storage.py
 app/schemas/config.py
 app/schemas/control_plane.py
@@ -116,6 +117,7 @@ app/services/agent/marketplace/import_.py
 app/services/agent/marketplace/package_contract.py
 app/services/agent/params/converter.py
 app/services/agent/params/mention.py
+app/services/agent/stream_session/orchestrator.py
 app/services/agent/stream_session/stream_finalize.py
 app/services/agent/stream_session/stream_lane_factory.py
 app/services/agent/stream_session/stream_loop.py

@@ -143,3 +143,25 @@ class OfflineDurableTask(Base):
     action_mode: Mapped[str] = mapped_column(String(50), nullable=False)
     serialized_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class InterruptedTurnMarker(Base):
+    """Write-ahead marker for crash auto-continue.
+
+    Written before agent stream starts, cleared on normal completion.
+    Surviving markers after a process crash indicate interrupted turns
+    that can be automatically resumed on next startup.
+    """
+
+    __tablename__ = "interrupted_turn_markers"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    chat_id: Mapped[str] = mapped_column(
+        String(255), ForeignKey("chats.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    user_message_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    action_mode: Mapped[str] = mapped_column(String(50), nullable=False, default="fast")
+    agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    serialized_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

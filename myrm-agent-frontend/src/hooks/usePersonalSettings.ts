@@ -38,6 +38,7 @@ function selectPersonalSettings(state: ReturnType<typeof useConfigStore.getState
     enableEvalLab: state.enableEvalLab,
     smoothStreamEnabled: state.smoothStreamEnabled,
     suggestWorkflowMode: state.suggestWorkflowMode,
+    autoContinueInterruptedTurns: state.autoContinueInterruptedTurns,
     publicIngressBaseUrl: state.publicIngressBaseUrl,
   };
 }

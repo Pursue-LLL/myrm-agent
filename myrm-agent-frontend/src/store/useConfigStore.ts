@@ -96,6 +96,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
       enableEvalLab: DEFAULT_PERSONAL_SETTINGS.enableEvalLab ?? false,
       smoothStreamEnabled: DEFAULT_PERSONAL_SETTINGS.smoothStreamEnabled ?? true,
       suggestWorkflowMode: DEFAULT_PERSONAL_SETTINGS.suggestWorkflowMode ?? false,
+      autoContinueInterruptedTurns: DEFAULT_PERSONAL_SETTINGS.autoContinueInterruptedTurns ?? true,
       publicIngressBaseUrl: DEFAULT_PERSONAL_SETTINGS.publicIngressBaseUrl ?? '',
       searchServiceConfigs: DEFAULT_SEARCH_SERVICES.searchServiceConfigs,
       mcpConfigs: DEFAULT_MCP_SERVERS.mcpConfigs,
@@ -294,6 +295,11 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
       setSuggestWorkflowMode: (enable: boolean) => {
         set({ suggestWorkflowMode: enable });
         syncPersonalSettings({ suggestWorkflowMode: enable });
+      },
+
+      setAutoContinueInterruptedTurns: (enable: boolean) => {
+        set({ autoContinueInterruptedTurns: enable });
+        syncPersonalSettings({ autoContinueInterruptedTurns: enable });
       },
 
       setPublicIngressBaseUrl: (url) => {

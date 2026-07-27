@@ -176,5 +176,6 @@ daemon.py → subprocess.run(["bash", "wave.sh", "reap"]) → wave.sh → python
 1. **前端 service 层 REST 路径 SSOT = 相对 `/extension/...`**，禁止先 `getApiUrl()` 再交给 `apiRequest`
 2. **Settings Tab 三处登记**（`VALID_TABS` / `BASE_TABS` / `SettingsMenu` + i18n metadata）缺一即 404 或不可达
 3. **「无法连接服务器」横幅要先查 Network 实际 URL**，不要假设 backend down
+4. **Chrome E2E Settings 断言须 scoped 到 `[data-section][data-active]`** — SettingsLayout 缓存 hidden Tab，`document.body` / 首个 `h2` 会假阳性；CDP 已发现时 UI 显示 `cdpRiskHelp` 而非 `chrome://inspect/#...` 文案
 
 ---
