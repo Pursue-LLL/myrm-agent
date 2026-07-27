@@ -122,6 +122,31 @@ for table in doc.tables:
                         t_elem.set(qn("xml:space"), "preserve")
 ```
 
+For **empty cells** (no existing runs), create a new run and copy formatting from a neighboring cell to maintain visual consistency:
+
+```python
+from copy import deepcopy
+
+for table in doc.tables:
+    for row in table.rows:
+        for cell in row.cells:
+            for para in cell.paragraphs:
+                if not para.runs and cell_needs_filling(cell):
+                    new_run = para.add_run(fill_value)
+                    donor = find_donor_run(row)
+                    if donor is not None:
+                        new_run._element.insert(0, deepcopy(donor._element.find(qn("w:rPr"))))
+
+def find_donor_run(row):
+    """Find the first run with formatting in the same row."""
+    for c in row.cells:
+        for p in c.paragraphs:
+            for r in p.runs:
+                if r._element.find(qn("w:rPr")) is not None:
+                    return r
+    return None
+```
+
 #### Placeholder Cleanup Rules
 
 After filling, clean up residual placeholder artifacts:
