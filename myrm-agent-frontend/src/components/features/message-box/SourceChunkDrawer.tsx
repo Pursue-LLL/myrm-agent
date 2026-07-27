@@ -3,7 +3,7 @@
  *
  * [POS]
  * 当用户点击 KB 类型的 citation 标记时，以右侧 Sheet 展示原文 snippet。
- * 以分段渲染展示原文片段，使用户能快速验证 AI 引用来源的可信度。
+ * 以分段渲染展示原文片段与分层标签（L0/L1/L2），使用户能快速验证 AI 引用来源的可信度。
  */
 'use client';
 
@@ -11,6 +11,7 @@ import React, { useMemo } from 'react';
 import { BookOpen, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/primitives/sheet';
 import { useTranslations } from 'next-intl';
+import { WikiSourceLevel } from '@/store/chat/types';
 
 interface SourceChunkDrawerProps {
   open: boolean;
@@ -18,6 +19,7 @@ interface SourceChunkDrawerProps {
   title: string;
   section?: string;
   snippet: string;
+  level?: WikiSourceLevel;
 }
 
 function renderSnippetParagraphs(text: string, maxSegments: number = 3): React.ReactNode[] {
@@ -33,9 +35,15 @@ function renderSnippetParagraphs(text: string, maxSegments: number = 3): React.R
 }
 
 const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
-  ({ open, onOpenChange, title, section, snippet }) => {
+  ({ open, onOpenChange, title, section, snippet, level }) => {
     const t = useTranslations('MessageSources');
     const renderedSnippet = useMemo(() => renderSnippetParagraphs(snippet), [snippet]);
+    const levelLabel = useMemo(() => {
+      if (level === 'L0') return t('kb_level_l0');
+      if (level === 'L1') return t('kb_level_l1');
+      if (level === 'L2') return t('kb_level_l2');
+      return '';
+    }, [level, t]);
 
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -48,9 +56,14 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
                 </div>
                 <div className="min-w-0">
                   <SheetTitle className="text-base truncate">{title}</SheetTitle>
-                  {section && (
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">§ {section}</p>
-                  )}
+                  <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                    {section && <p className="text-xs text-muted-foreground truncate">§ {section}</p>}
+                    {levelLabel && (
+                      <span className="text-[10px] leading-4 px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                        {levelLabel}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <button

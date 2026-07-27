@@ -204,3 +204,95 @@ async def test_ensure_textedit_fixture_ready_skips_ax_rebuild_during_degraded_wi
     textedit_fixture._mark_textedit_ax_degraded("ax-empty-after-rebuild")
     await textedit_fixture.ensure_textedit_fixture_ready(attempts=1)
     assert ax_calls == []
+
+
+@pytest.mark.asyncio
+async def test_ensure_textedit_fixture_ready_clears_degraded_state_on_scope_change(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(textedit_fixture, "prepare_textedit_fixture", lambda: None)
+    monkeypatch.setattr(textedit_fixture, "textedit_fixture_ready", lambda: True)
+    ax_calls: list[int] = []
+
+    def _ensure_ax_ready(*, attempts: int = 3) -> bool:
+        ax_calls.append(attempts)
+        return True
+
+    monkeypatch.setattr(textedit_fixture, "ensure_textedit_ax_ready", _ensure_ax_ready)
+
+    async def _to_thread(func: object, *args: object, **kwargs: object) -> object:
+        return func(*args, **kwargs)  # type: ignore[misc]
+
+    async def _sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr(textedit_fixture.asyncio, "to_thread", _to_thread)
+    monkeypatch.setattr(textedit_fixture.asyncio, "sleep", _sleep)
+    monkeypatch.setattr(textedit_fixture.time, "monotonic", lambda: 1000.0)
+
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "case_a (call)")
+    textedit_fixture._mark_textedit_ax_degraded("ax-empty-after-rebuild")
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "case_b (call)")
+
+    await textedit_fixture.ensure_textedit_fixture_ready(attempts=1)
+    assert ax_calls == [2]
+
+
+@pytest.mark.asyncio
+async def test_ensure_textedit_fixture_ready_strict_mode_fails_when_degraded_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MYRM_DESKTOP_E2E_STRICT_FALLBACK_MODE", "1")
+    monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(textedit_fixture, "prepare_textedit_fixture", lambda: None)
+    monkeypatch.setattr(textedit_fixture, "textedit_fixture_ready", lambda: True)
+    ax_calls: list[bool] = []
+    monkeypatch.setattr(
+        textedit_fixture,
+        "ensure_textedit_ax_ready",
+        lambda **_: ax_calls.append(True),
+    )
+
+    async def _to_thread(func: object, *args: object, **kwargs: object) -> object:
+        return func(*args, **kwargs)  # type: ignore[misc]
+
+    async def _sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr(textedit_fixture.asyncio, "to_thread", _to_thread)
+    monkeypatch.setattr(textedit_fixture.asyncio, "sleep", _sleep)
+    monkeypatch.setattr(textedit_fixture.time, "monotonic", lambda: 1000.0)
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "strict_degraded (call)")
+    textedit_fixture._mark_textedit_ax_degraded("ax-empty-after-rebuild")
+    with pytest.raises(
+        pytest.fail.Exception,
+        match="strict fallback mode is enabled",
+    ):
+        await textedit_fixture.ensure_textedit_fixture_ready(attempts=1)
+    assert ax_calls == []
+
+
+@pytest.mark.asyncio
+async def test_ensure_textedit_fixture_ready_strict_mode_fails_when_ax_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MYRM_DESKTOP_E2E_STRICT_FALLBACK_MODE", "1")
+    monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(textedit_fixture, "prepare_textedit_fixture", lambda: None)
+    monkeypatch.setattr(textedit_fixture, "textedit_fixture_ready", lambda: True)
+    monkeypatch.setattr(textedit_fixture, "ensure_textedit_ax_ready", lambda **_: False)
+
+    async def _to_thread(func: object, *args: object, **kwargs: object) -> object:
+        return func(*args, **kwargs)  # type: ignore[misc]
+
+    async def _sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr(textedit_fixture.asyncio, "to_thread", _to_thread)
+    monkeypatch.setattr(textedit_fixture.asyncio, "sleep", _sleep)
+    with pytest.raises(
+        pytest.fail.Exception,
+        match="strict mode requires AX-ready fixture",
+    ):
+        await textedit_fixture.ensure_textedit_fixture_ready(attempts=1)

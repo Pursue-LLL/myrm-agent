@@ -49,9 +49,18 @@ class WikiQueryRequest(BaseModel):
     question: str = Field(..., min_length=1, description="Question to ask the wiki")
 
 
+class WikiSourceSnippet(BaseModel):
+    path: str
+    name: str
+    snippet: str = ""
+    section: str = ""
+    level: str = "L2"
+
+
 class WikiQueryResponse(BaseModel):
     answer: str
     related_articles: list[str] = Field(default_factory=list)
+    source_snippets: list[WikiSourceSnippet] = Field(default_factory=list)
 
 
 class WikiCompileResponse(BaseModel):
@@ -165,8 +174,22 @@ async def query_wiki(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
 ) -> WikiQueryResponse:
     try:
-        answer = await archiver.query_wiki(request.question)
-        return WikiQueryResponse(answer=answer, related_articles=[])
+        result = await archiver.query_wiki(request.question)
+        source_snippets = [
+            WikiSourceSnippet(
+                path=snippet.article_path,
+                name=snippet.article_name,
+                snippet=snippet.snippet,
+                section=snippet.section,
+                level=snippet.level,
+            )
+            for snippet in result.source_snippets
+        ]
+        return WikiQueryResponse(
+            answer=result.answer,
+            related_articles=result.related_articles,
+            source_snippets=source_snippets,
+        )
     except Exception as e:
         logger.error(f"Wiki query failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e

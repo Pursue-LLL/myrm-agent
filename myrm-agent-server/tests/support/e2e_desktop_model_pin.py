@@ -53,9 +53,53 @@ SYNC_PROVIDER_BRIDGE_JS = """(() => {
   );
 })()"""
 
+_TRANSIENT_PROVIDER_PIN_ERROR_TOKENS: tuple[str, ...] = (
+    "e2e-send-not-ready-after-provider-init",
+    "transport closed",
+    "transport unavailable",
+    "request lock",
+    "timeout",
+)
+
 
 def _expected_model_selection() -> dict[str, object]:
     return get_model_selection()
+
+
+def _is_transient_provider_pin_error(message: str) -> bool:
+    normalized = message.strip().lower()
+    if not normalized:
+        return False
+    return any(token in normalized for token in _TRANSIENT_PROVIDER_PIN_ERROR_TOKENS)
+
+
+async def _evaluate_bridge(
+    chat: McpChatSession,
+    script: str,
+    *,
+    await_promise: bool,
+    recv_timeout: float,
+) -> object:
+    wall_timeout = max(30.0, recv_timeout + 15.0)
+    try:
+        return await asyncio.wait_for(
+            chat.evaluate(  # type: ignore[attr-defined]
+                script,
+                await_promise=await_promise,
+                recv_timeout=recv_timeout,
+            ),
+            timeout=wall_timeout,
+        )
+    except asyncio.TimeoutError as exc:
+        raise RuntimeError(
+            "desktop model pin bridge evaluate wall-timeout "
+            f"({wall_timeout:.0f}s recv_timeout={recv_timeout:.0f}s)"
+        ) from exc
+
+
+async def _recover_provider_bridge(chat: McpChatSession) -> None:
+    await chat.ensure_chat_surface(get_e2e_ui_url(), timeout_sec=90.0)  # type: ignore[attr-defined]
+    await chat.ensure_react_e2e_bridge(timeout_sec=120.0)  # type: ignore[attr-defined]
 
 
 def expected_desktop_e2e_model() -> dict[str, str]:
@@ -104,11 +148,16 @@ def _assert_pinned_payload(pinned_raw: dict[str, object]) -> dict[str, object]:
     return pinned_raw
 
 
-async def fetch_ui_provider_debug(chat: McpChatSession) -> dict[str, object]:
-    raw = await chat.evaluate(  # type: ignore[attr-defined]
+async def fetch_ui_provider_debug(
+    chat: McpChatSession,
+    *,
+    recv_timeout: float = 30.0,
+) -> dict[str, object]:
+    raw = await _evaluate_bridge(
+        chat,
         DEBUG_PROVIDER_STATE_JS,
         await_promise=False,
-        recv_timeout=30.0,
+        recv_timeout=recv_timeout,
     )
     return raw if isinstance(raw, dict) else {}
 
@@ -125,7 +174,21 @@ async def ensure_desktop_basic_model_pinned_for_send(
     last_debug: dict[str, object] = {}
     last_raw: object = None
     for attempt in range(1, max_attempts + 1):
-        last_debug = await fetch_ui_provider_debug(chat)
+        try:
+            last_debug = await fetch_ui_provider_debug(chat)
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            err = str(exc)
+            if attempt < max_attempts and _is_transient_provider_pin_error(err):
+                try:
+                    await _recover_provider_bridge(chat)
+                except (RuntimeError, TimeoutError, OSError):
+                    pass
+                await asyncio.sleep(retry_sleep_sec)
+                continue
+            raise AssertionError(
+                "Desktop E2E provider debug probe failed before pin "
+                f"(attempt {attempt}/{max_attempts}): {err}"
+            ) from exc
         if ui_provider_debug_matches_expected(last_debug):
             return {
                 "ok": True,
@@ -134,15 +197,25 @@ async def ensure_desktop_basic_model_pinned_for_send(
                 "alreadyPinned": True,
             }
 
-        pinned_raw = await chat.evaluate(  # type: ignore[attr-defined]
-            PIN_BASIC_MODEL_JS,
-            await_promise=True,
-            recv_timeout=recv_timeout,
-        )
+        pin_eval_error = ""
+        try:
+            pinned_raw = await _evaluate_bridge(
+                chat,
+                PIN_BASIC_MODEL_JS,
+                await_promise=True,
+                recv_timeout=recv_timeout,
+            )
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            pin_eval_error = str(exc)
+            pinned_raw = {"ok": False, "err": pin_eval_error}
         last_raw = pinned_raw
         if isinstance(pinned_raw, dict) and pinned_raw.get("ok") is True:
             _assert_pinned_payload(pinned_raw)
-            last_debug = await fetch_ui_provider_debug(chat)
+            try:
+                last_debug = await fetch_ui_provider_debug(chat)
+            except (RuntimeError, TimeoutError, OSError) as exc:
+                pin_eval_error = str(exc)
+                last_debug = {}
             if ui_provider_debug_matches_expected(last_debug):
                 return {
                     "ok": True,
@@ -151,11 +224,17 @@ async def ensure_desktop_basic_model_pinned_for_send(
                     "pinned": pinned_raw,
                 }
 
-        sync_raw = await chat.evaluate(  # type: ignore[attr-defined]
-            SYNC_PROVIDER_BRIDGE_JS,
-            await_promise=True,
-            recv_timeout=60.0,
-        )
+        sync_eval_error = ""
+        try:
+            sync_raw = await _evaluate_bridge(
+                chat,
+                SYNC_PROVIDER_BRIDGE_JS,
+                await_promise=True,
+                recv_timeout=60.0,
+            )
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            sync_eval_error = str(exc)
+            sync_raw = {"ok": False, "err": sync_eval_error}
         if isinstance(sync_raw, dict):
             last_debug = sync_raw
             if ui_provider_debug_matches_expected(last_debug):
@@ -169,14 +248,24 @@ async def ensure_desktop_basic_model_pinned_for_send(
         err = ""
         if isinstance(pinned_raw, dict):
             err = str(pinned_raw.get("err") or "")
-        if attempt < max_attempts and (
+        if not err:
+            err = pin_eval_error or sync_eval_error
+        should_retry = (
             "e2e-base-model-unconfigured" in err
             or "e2e-base-model-unavailable" in err
             or err in {"no-bridge", "no-selection"}
+            or _is_transient_provider_pin_error(err)
+        )
+        if attempt < max_attempts and (
+            should_retry
         ):
-            if err in {"no-bridge", "no-selection"}:
-                await chat.ensure_chat_surface(get_e2e_ui_url(), timeout_sec=90.0)  # type: ignore[attr-defined]
-                await chat.ensure_react_e2e_bridge(timeout_sec=120.0)  # type: ignore[attr-defined]
+            if err in {"no-bridge", "no-selection"} or _is_transient_provider_pin_error(
+                err
+            ):
+                try:
+                    await _recover_provider_bridge(chat)
+                except (RuntimeError, TimeoutError, OSError):
+                    pass
             await asyncio.sleep(retry_sleep_sec)
             continue
 

@@ -7,6 +7,8 @@ import time
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    _reapply_shpoib_runtime_after_reload,
+    e2e_runtime_binding,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -115,6 +117,20 @@ def _seed_push_approval(api_url: str) -> dict[str, str]:
     }
 
 
+def _navigate_and_rebind(client, page, url: str) -> None:
+    """Navigate to a new URL and re-apply SHPOIB binding if active."""
+    client.navigate(page, url, timeout_ms=60_000)
+    if e2e_runtime_binding() is not None:
+        _reapply_shpoib_runtime_after_reload(client, page, timeout_sec=60.0)
+    else:
+        wait_for_state(
+            client,
+            page,
+            '(() => ({ ready: !!document.querySelector(\'[data-testid="app-layout"]\') }))()',
+            timeout_sec=30.0,
+        )
+
+
 def _ensure_clean_chat_surface(client, page) -> None:
     for _ in range(24):
         state_raw = client.evaluate(page, _NO_APPROVAL_DIALOG_STATE, timeout_sec=5.0)
@@ -151,7 +167,7 @@ def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
         assert baseline.get("ready") is True
         assert baseline.get("hasChatInput") is True
 
-        client.navigate(page, deeplink_url, timeout_ms=60_000)
+        _navigate_and_rebind(client, page, deeplink_url)
 
         opened = wait_for_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
         assert opened.get("ready") is True
@@ -214,7 +230,7 @@ def test_push_approval_deeplink_from_different_open_chat_tab() -> None:
 
     with open_mcp_page(decoy_url) as (client, page):
         _ensure_clean_chat_surface(client, page)
-        client.navigate(page, target_deeplink, timeout_ms=60_000)
+        _navigate_and_rebind(client, page, target_deeplink)
 
         opened = wait_for_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
         assert opened.get("ready") is True
@@ -255,7 +271,7 @@ def test_push_approval_deeplink_unknown_id_strips_query_without_drawer() -> None
 
     with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
         _ensure_clean_chat_surface(client, page)
-        client.navigate(page, bogus_deeplink, timeout_ms=60_000)
+        _navigate_and_rebind(client, page, bogus_deeplink)
 
         cleaned = wait_for_state(
             client, page, _QUERY_STRIPPED_NO_DIALOG, timeout_sec=90.0

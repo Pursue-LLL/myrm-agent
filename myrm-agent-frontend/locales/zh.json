@@ -8751,7 +8751,10 @@
     "knowledge_base": "知识库",
     "conversation_history": "会话历史",
     "source_excerpt": "原文摘录",
-    "no_snippet": "该来源暂无摘要内容。"
+    "no_snippet": "该来源暂无摘要内容。",
+    "kb_level_l0": "摘要",
+    "kb_level_l1": "概览",
+    "kb_level_l2": "细节"
   },
   "sources": {
     "title": "来源",

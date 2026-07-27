@@ -238,16 +238,25 @@ const useApprovalStore = create<ApprovalState>((set) => ({
   showDrawer: () => set((state) => (state.queue.length > 0 ? { isOpen: true } : state)),
 }));
 
-/** SSOT for browser takeover messageId: payload → assistant → approval queue → session. */
+/** SSOT for browser takeover messageId: payload → session → loading-assistant → any-assistant → approval queue. */
 export function resolveBrowserTakeoverMessageId(fallback?: string): string | undefined {
   const trimmed = fallback?.trim();
   if (trimmed) {
     return trimmed;
   }
   const chatState = useChatStore.getState();
-  const lastAssistant = [...chatState.messages]
-    .reverse()
-    .find((message) => message.role === 'assistant');
+  const sessionId = chatState.currentSessionMessageId?.trim();
+  if (sessionId) {
+    return sessionId;
+  }
+  const reversed = [...chatState.messages].reverse();
+  const loadingAssistant = reversed.find(
+    (message) => message.role === 'assistant' && message.loading,
+  );
+  if (loadingAssistant?.messageId?.trim()) {
+    return loadingAssistant.messageId.trim();
+  }
+  const lastAssistant = reversed.find((message) => message.role === 'assistant');
   if (lastAssistant?.messageId?.trim()) {
     return lastAssistant.messageId.trim();
   }
@@ -258,8 +267,7 @@ export function resolveBrowserTakeoverMessageId(fallback?: string): string | und
   if (fromApproval) {
     return fromApproval;
   }
-  const sessionId = chatState.currentSessionMessageId?.trim();
-  return sessionId || undefined;
+  return undefined;
 }
 
 export default useApprovalStore;

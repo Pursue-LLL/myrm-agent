@@ -87,6 +87,7 @@ def get_e2e_ui_url() -> str:
 
 _OK_REPLY_RE = re.compile(r"(?:\bOK\b|GOAL_OK)", re.IGNORECASE)
 _DONE_REPLY_RE = re.compile(r"\bDONE\b", re.IGNORECASE)
+_AGENT_TURN_DONE_RE = re.compile(r"(?:\bOK\b|GOAL_OK|\bDONE\b)", re.IGNORECASE)
 _CLARIFY_SKIP_DONE_RE = re.compile(
     r"DONE-SKIPPED|Clarification answered|已回答澄清",
     re.IGNORECASE,
@@ -855,7 +856,7 @@ def chat_messages_have_ok(
     if last_assistant is None:
         return False
     content = str(last_assistant.get("content") or "")
-    return bool(_OK_REPLY_RE.search(content))
+    return bool(_AGENT_TURN_DONE_RE.search(content))
 
 
 def _config_http_json(

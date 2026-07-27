@@ -18,7 +18,7 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 | — |
-| `memory_to_wiki.py` | 核心 | 记忆转 Wiki；支持 harness SessionNotes 与 legacy JSON | ✅ |
+| `memory_to_wiki.py` | 核心 | 记忆转 Wiki；支持 harness SessionNotes 与 legacy JSON；`query_wiki` 返回结构化 QueryResult（answer + related_articles + source_snippets） | ✅ |
 | `vault_resolver.py` | SSOT | 路径解析 + legacy 迁移 | ✅ |
 | `vault_service.py` | 生命周期 | 启动迁移、共享 archiver（cache key: llm + agent_id + manager） | ✅ |
 | `agent_scope.py` | 辅助 | chat_id → agent_id，供 ingest / archive 选 vault | ✅ |

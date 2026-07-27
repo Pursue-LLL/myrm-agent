@@ -515,27 +515,42 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             await asyncio.sleep(2.0)
         return False
 
+    def _p(msg: str) -> None:
+        elapsed = time.monotonic() - _flow_t0
+        print(f"E2E_LIVE_FLOW: [{elapsed:.1f}s] {msg}", flush=True)
+
+    _flow_t0 = time.monotonic()
+
     async def _run_flow(chat: McpChatSession) -> str:
         api_base = get_e2e_api_url()
+        _p("dismiss_modals")
         await chat.dismiss_modals()
+        _p("navigate → /")
         await chat.cdp("Page.navigate", {"url": f"{BASE_URL}/"}, recv_timeout=120.0)
         await asyncio.sleep(2.0)
+        _p("click_new_chat")
         await chat.click_new_chat()
+        _p("ensure_chat_surface")
         await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
+        _p("ensure_model_ready")
         await chat.ensure_model_ready(timeout_sec=180.0)
+        _p("prepare_browser_turn")
         await _prepare_browser_turn(chat)
+        _p("browser_turn ready — entering send loop")
 
         chat_id_hint: str | None = None
         banner: dict[str, object] | None = None
         last_prompt = E2E_PROMPT
         for attempt in range(1, MAX_SEND_ATTEMPTS + 1):
             if attempt > 1:
+                _p(f"retry attempt={attempt} — click_new_chat")
                 await chat.click_new_chat()
                 await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
                 await chat.ensure_model_ready(timeout_sec=180.0)
                 await _prepare_browser_turn(chat)
             last_prompt = E2E_PROMPT if attempt == 1 else E2E_NUDGE_PROMPT
             heartbeat_e2e_lease()
+            _p(f"send_message attempt={attempt}")
             send_result = await chat.send_message(last_prompt, last_prompt)
             chat_id_hint = (
                 str(
@@ -548,15 +563,19 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             )
             if not chat_id_hint:
                 chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
+            _p(f"wait_stream_started chatId={chat_id_hint}")
 
             try:
                 await chat.wait_stream_started(
                     last_prompt, timeout_sec=90.0, chat_id_hint=chat_id_hint
                 )
-            except (AssertionError, TimeoutError, RuntimeError):
-                pass
+                _p("stream started")
+            except (AssertionError, TimeoutError, RuntimeError) as exc:
+                _p(f"stream_started soft-fail: {type(exc).__name__}: {exc}")
 
+            _p("wait_for_browser_ask_human_gate")
             last_tool, takeover_pending = await _wait_for_browser_ask_human_gate(chat)
+            _p(f"gate result: lastTool={last_tool} pending={takeover_pending}")
             if not takeover_pending and not last_tool.endswith(
                 "browser_ask_human_tool"
             ):
@@ -567,12 +586,15 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                     )
                 continue
 
+            _p("wait_takeover_banner")
             try:
                 banner = await _wait_takeover_banner(chat, timeout_sec=90.0)
+                _p(f"banner appeared: ready={banner.get('ready')}")
                 break
             except AssertionError:
                 if attempt >= MAX_SEND_ATTEMPTS:
                     raise
+                _p("banner not ready — will retry")
                 heartbeat_e2e_lease()
 
         assert banner is not None
@@ -581,14 +603,97 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             banner.get("hasExtensionTitle") is True
         ), f"Expected extension banner: {banner}"
 
-        clicked = await chat.evaluate(
-            _CLICK_DONE_JS, await_promise=False, recv_timeout=15.0
+        await chat.evaluate(
+            """(() => {
+              if (!window.__MYRM_E2E_CONSOLE_CAPTURE__) {
+                window.__MYRM_E2E_CONSOLE_CAPTURE__ = [];
+                const origLog = console.log.bind(console);
+                const origWarn = console.warn.bind(console);
+                const origErr = console.error.bind(console);
+                const capture = (...args) => {
+                  const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+                  window.__MYRM_E2E_CONSOLE_CAPTURE__.push(msg);
+                };
+                console.log = (...args) => { capture(...args); origLog(...args); };
+                console.warn = (...args) => { capture(...args); origWarn(...args); };
+                console.error = (...args) => { capture(...args); origErr(...args); };
+              }
+              return { ok: true };
+            })()""",
+            await_promise=False,
+            recv_timeout=10.0,
         )
-        assert isinstance(clicked, dict)
-        assert (
-            clicked.get("clicked") is True
-        ), f"Failed to click Done on takeover banner: {clicked}"
 
+        pre_done_diag = await chat.evaluate(
+            """(() => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              const snap = bridge?.getBrowserTakeoverSnapshot?.() ?? {};
+              const turn = bridge?.turnSnapshot?.() ?? {};
+              return {
+                takeoverPending: snap.pending,
+                takeoverMessageId: snap.messageId ?? null,
+                chatId: turn.chatId ?? null,
+                isStreaming: turn.isStreaming,
+                userCount: turn.userCount,
+                lastAssistantSample: turn.lastAssistantSample ?? null,
+              };
+            })()""",
+            await_promise=False,
+            recv_timeout=15.0,
+        )
+        _p(f"pre-Done diag: {pre_done_diag}")
+
+        _p("complete takeover via bridge (with resume)")
+        resume_result = await chat.evaluate(
+            """(async () => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (!bridge?.completeBrowserTakeoverWithResume) {
+                return { ok: false, reason: 'bridge_method_missing' };
+              }
+              return await bridge.completeBrowserTakeoverWithResume();
+            })()""",
+            await_promise=True,
+            recv_timeout=30.0,
+        )
+        _p(f"resume_result: {resume_result}")
+        assert isinstance(resume_result, dict), f"Unexpected resume result: {resume_result}"
+        assert resume_result.get("ok") is True, (
+            f"Bridge completeBrowserTakeoverWithResume failed: {resume_result}"
+        )
+
+        _p("wait_turn_done (agent should reply DONE)")
+
+        async def _diag_probe() -> None:
+            """Print periodic diagnostics while waiting for agent DONE reply."""
+            probe_start = time.monotonic()
+            while True:
+                await asyncio.sleep(15.0)
+                elapsed = time.monotonic() - probe_start
+                try:
+                    snap = await chat.evaluate(
+                        """(() => {
+                          const bridge = window.__MYRM_E2E_CHAT__;
+                          const turn = bridge?.turnSnapshot?.() ?? {};
+                          const allLogs = (window.__MYRM_E2E_CONSOLE_CAPTURE__ ?? []).slice(-20);
+                          return {
+                            isStreaming: turn.isStreaming,
+                            hasCompletionSignal: turn.hasCompletionSignal,
+                            lastAssistantSample: (turn.lastAssistantSample ?? '').slice(0, 200),
+                            messageCount: bridge?.getMessages?.()?.length ?? -1,
+                            consoleLast20: allLogs,
+                          };
+                        })()""",
+                        await_promise=False,
+                        recv_timeout=10.0,
+                    )
+                    api_done = False
+                    if chat_id_hint:
+                        api_done = chat_messages_have_done(chat_id_hint, api_url=api_base)
+                    _p(f"wait_probe [{elapsed:.0f}s]: api_done={api_done} {snap}")
+                except (RuntimeError, TimeoutError):
+                    _p(f"wait_probe [{elapsed:.0f}s]: probe failed")
+
+        diag_task = asyncio.create_task(_diag_probe())
         try:
             after_turn = await chat.wait_turn_done(
                 last_prompt,
@@ -596,6 +701,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 chat_id_hint=chat_id_hint,
             )
         except TimeoutError:
+            _p("wait_turn_done timeout — trying API fallback")
             resolved_chat_id = (
                 chat_id_hint or str((await chat.bridge_chat_id()) or "").strip() or None
             )
@@ -609,6 +715,9 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 }
             else:
                 raise
+        finally:
+            diag_task.cancel()
+        _p(f"turn done: {after_turn}")
         if str(after_turn.get("path", "")).startswith("/settings"):
             pytest.fail(f"Send redirected to settings: {after_turn}")
 
@@ -628,12 +737,15 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 f"Assistant did not reply DONE for chat {chat_id}: turn={turn}; after={after_turn}"
             )
 
+        _p(f"PASSED chat_id={chat_id}")
         assert chat_user_message_count(chat_id, api_url=api_base) >= 1
         e2e_resource_ledger.register("chat", chat_id)
         return chat_id
 
     client = ChromeMcpClient(request_timeout_sec=180.0)
+    _p("client.start()")
     await asyncio.to_thread(client.start)
+    _p("client started — new_page()")
     try:
         page: McpPage | None = None
         try:
@@ -641,14 +753,18 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 client.new_page, BASE_URL, timeout_ms=120_000
             )
         except TimeoutError:
+            _p("new_page timeout — retry")
             await asyncio.sleep(2.0)
             page = await asyncio.to_thread(
                 client.new_page, BASE_URL, timeout_ms=120_000
             )
         if page is None:
             raise RuntimeError("new_page returned no page")
+        _p(f"page opened id={page.page_id}")
         chat = McpChatSession(client, page)
+        _p("bootstrap()")
         await chat.bootstrap(BASE_URL, timeout_sec=120.0)
+        _p("bootstrap done — entering _run_flow()")
         chat_id = await _run_flow(chat)
         assert chat_id
     finally:

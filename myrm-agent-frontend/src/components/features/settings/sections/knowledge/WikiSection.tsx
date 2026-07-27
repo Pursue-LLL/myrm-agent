@@ -13,9 +13,15 @@ import { IconBook, IconGlow, IconWrench, IconDatabase, IconExplore } from '@/com
 import { Textarea } from '@/components/primitives/textarea';
 import { apiRequest } from '@/lib/api';
 import { isTauri } from '@/lib/utils/clipboardUtils';
-import { wikiService, type ObsidianImportResultResponse } from '@/services/wikiService';
+import {
+  wikiService,
+  type ObsidianImportResultResponse,
+  type WikiSourceLevel,
+  type WikiSourceSnippet,
+} from '@/services/wikiService';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
+import SourceChunkDrawer from '@/components/features/message-box/SourceChunkDrawer';
 import { WikiConceptsList } from './WikiConceptsList';
 import { WikiPendingEdits } from './WikiPendingEdits';
 import { WikiQueuePanel } from './WikiQueuePanel';
@@ -29,18 +35,19 @@ interface WikiStats {
   legacy_migrated: boolean;
 }
 
-interface WikiQueryResponse {
-  question: string;
-  answer: string;
-  related_articles: string[];
-}
-
 function wikiScopedPath(path: string, agentId?: string | null): string {
   if (!agentId) {
     return path;
   }
   const joiner = path.includes('?') ? '&' : '?';
   return `${path}${joiner}agent_id=${encodeURIComponent(agentId)}`;
+}
+
+function normalizeWikiLevel(level: string | undefined): WikiSourceLevel | undefined {
+  if (level === 'L0' || level === 'L1' || level === 'L2') {
+    return level;
+  }
+  return undefined;
 }
 
 export function WikiSection() {
@@ -50,11 +57,20 @@ export function WikiSection() {
   const locale = useLocale();
   const agentScopeId = searchParams.get('agentId');
   const t = useTranslations('settings.wiki');
+  const tSources = useTranslations('MessageSources');
   const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState('');
   const [relatedArticles, setRelatedArticles] = useState<string[]>([]);
+  const [sourceSnippets, setSourceSnippets] = useState<WikiSourceSnippet[]>([]);
+  const [snippetDrawerState, setSnippetDrawerState] = useState<{
+    open: boolean;
+    title: string;
+    section?: string;
+    snippet: string;
+    level?: WikiSourceLevel;
+  }>({ open: false, title: '', snippet: '' });
   const [stats, setStats] = useState<WikiStats | null>(null);
   const [isQuerying, setIsQuerying] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
@@ -251,6 +267,9 @@ export function WikiSection() {
     wikiService.setAgentScope(agentScopeId);
     void loadPurpose();
     void loadStats();
+    setAnswer('');
+    setRelatedArticles([]);
+    setSourceSnippets([]);
     return () => wikiService.setAgentScope(undefined);
   }, [agentScopeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -306,15 +325,14 @@ export function WikiSection() {
     setIsQuerying(true);
     setAnswer('');
     setRelatedArticles([]);
+    setSourceSnippets([]);
 
     try {
-      const data = await apiRequest<WikiQueryResponse>(wikiScopedPath('/wiki/query', agentScopeId), {
-        method: 'POST',
-        body: JSON.stringify({ question: query }),
-      });
+      const data = await wikiService.queryWiki(query);
 
       setAnswer(data.answer);
       setRelatedArticles(data.related_articles || []);
+      setSourceSnippets(data.source_snippets || []);
       toast.success(t('success.queryComplete'));
     } catch (error) {
       console.error('Query failed:', error);
@@ -524,6 +542,57 @@ export function WikiSection() {
                   <div className="text-sm font-medium">{t('query.answer')}</div>
                   <div className="p-4 bg-muted rounded-lg whitespace-pre-wrap">{answer}</div>
 
+                  {sourceSnippets.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <div className="text-sm font-medium">{tSources('sources_title')}</div>
+                      <div className="space-y-2">
+                        {sourceSnippets.map((snippet, idx) => {
+                          const level = normalizeWikiLevel(snippet.level);
+                          const levelLabel = level
+                            ? level === 'L0'
+                              ? tSources('kb_level_l0')
+                              : level === 'L1'
+                                ? tSources('kb_level_l1')
+                                : tSources('kb_level_l2')
+                            : null;
+                          const cardTitle = snippet.name || snippet.path;
+                          return (
+                            <button
+                              key={`${snippet.path}-${idx}`}
+                              type="button"
+                              className="w-full text-left rounded-lg border border-border/60 bg-card px-3 py-2 hover:bg-muted transition-colors"
+                              onClick={() =>
+                                setSnippetDrawerState({
+                                  open: true,
+                                  title: cardTitle,
+                                  section: snippet.section || undefined,
+                                  snippet: snippet.snippet,
+                                  level,
+                                })
+                              }
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-sm font-medium truncate">{cardTitle}</span>
+                                {levelLabel && (
+                                  <span className="text-[10px] leading-4 px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                    {levelLabel}
+                                  </span>
+                                )}
+                              </div>
+                              {snippet.section && <div className="mt-1 text-xs text-muted-foreground">{snippet.section}</div>}
+                              {snippet.path && (
+                                <div className="mt-1 text-[11px] text-muted-foreground truncate font-mono">{snippet.path}</div>
+                              )}
+                              {snippet.snippet && (
+                                <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{snippet.snippet}</p>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {relatedArticles.length > 0 && (
                     <div className="mt-4">
                       <div className="text-sm font-medium mb-2">{t('query.relatedArticles')}</div>
@@ -540,6 +609,14 @@ export function WikiSection() {
               )}
             </CardContent>
           </Card>
+          <SourceChunkDrawer
+            open={snippetDrawerState.open}
+            onOpenChange={(open) => setSnippetDrawerState((prev) => ({ ...prev, open }))}
+            title={snippetDrawerState.title}
+            section={snippetDrawerState.section}
+            snippet={snippetDrawerState.snippet}
+            level={snippetDrawerState.level}
+          />
 
           {/* Wiki Actions */}
           <Card>

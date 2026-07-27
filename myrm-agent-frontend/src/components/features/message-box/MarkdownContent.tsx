@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { useSmoothStream } from '@/hooks/useSmoothStream';
 import useConfigStore from '@/store/useConfigStore';
 import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
 import remarkMath, { Options } from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
@@ -34,6 +35,7 @@ import { getChildrenAsText } from '@/lib/utils/reactUtils';
 import VaultArtifactCard from '../artifacts/VaultArtifactCard';
 import InlineDiffViewer from '../markdown-render-tools/InlineDiffViewer';
 import SourceChunkDrawer from './SourceChunkDrawer';
+import type { Source, WikiSourceLevel } from '@/store/chat/types';
 
 const INLINE_RENDER_LANGUAGES = new Set(['html', 'svg']);
 
@@ -47,6 +49,28 @@ const preprocessVaultLinks = (text: string) => {
   return text.replace(/vault:\/\/([a-f0-9A-F-]+)/gi, '<vault id="$1"></vault>');
 };
 
+function normalizeWikiLevel(level: Source['level']): WikiSourceLevel | undefined {
+  if (level === 'L0' || level === 'L1' || level === 'L2') {
+    return level;
+  }
+  return undefined;
+}
+
+type MarkdownCodeProps = React.HTMLAttributes<HTMLElement> & {
+  node?: {
+    position?: {
+      start?: { line?: number };
+      end?: { line?: number };
+    };
+  };
+  className?: string;
+  children?: React.ReactNode;
+};
+
+type CitationProps = {
+  [key: string]: string | undefined;
+};
+
 const MarkdownContent = React.memo(
   ({
     content,
@@ -55,7 +79,7 @@ const MarkdownContent = React.memo(
     isStreaming = false,
   }: {
     content: string;
-    sources: any;
+    sources: Source[];
     messageId: string;
     isStreaming?: boolean;
   }) => {
@@ -68,11 +92,15 @@ const MarkdownContent = React.memo(
       title: string;
       section?: string;
       snippet: string;
+      level?: WikiSourceLevel;
     }>({ open: false, title: '', snippet: '' });
 
-    const openKbDrawer = useCallback((title: string, section: string | undefined, snippet: string) => {
-      setDrawerState({ open: true, title, section, snippet });
-    }, []);
+    const openKbDrawer = useCallback(
+      (title: string, section: string | undefined, snippet: string, level?: WikiSourceLevel) => {
+        setDrawerState({ open: true, title, section, snippet, level });
+      },
+      [],
+    );
 
     // Strip citations so they don't render during streaming or static view
     const sanitizedContent = useMemo(() => content.replace(/<cite:[^>]+>/gi, ''), [content]);
@@ -130,7 +158,7 @@ const MarkdownContent = React.memo(
         thought: ThinkTagProcessor,
         antthinking: ThinkTagProcessor,
         reasoning: ThinkTagProcessor,
-        code: ({ node, className, children, ...props }: any) => {
+        code: ({ node, className, children, ...props }: MarkdownCodeProps) => {
           const match = /language-(\w+)/.exec(className || '');
           const language = match && match[1] ? match[1] : '';
           const value = getChildrenAsText(children);
@@ -152,7 +180,7 @@ const MarkdownContent = React.memo(
           }
 
           // 内联代码块
-          const isInlineCode = node.position.start.line === node.position.end.line;
+          const isInlineCode = node?.position?.start?.line === node?.position?.end?.line;
           if (isInlineCode) {
             return (
               <code
@@ -184,10 +212,10 @@ const MarkdownContent = React.memo(
           return <a href={href}>{children}</a>;
         },
         img: ({ src, alt }: { src?: string; alt?: string }) => <MarkdownImage src={src} alt={alt} />,
-        citation: (props: any) => {
+        citation: (props: CitationProps) => {
           const url = props['data-url'];
           const num = props['data-num'];
-          const sourceIndex = parseInt(props['data-source-index']);
+          const sourceIndex = Number.parseInt(props['data-source-index'] || '', 10);
 
           if (isNaN(sourceIndex) || !sources || sourceIndex >= sources.length) {
             return <>[{num}]</>;
@@ -197,9 +225,10 @@ const MarkdownContent = React.memo(
 
           if (source?.type === 'mcp') {
             const mcpTitle = source.skill_name || 'MCP Skill';
+            const mcpCalls = Array.isArray(source.calls) ? source.calls : [];
             const mcpDescription =
-              source.calls?.length > 0
-                ? source.calls
+              mcpCalls.length > 0
+                ? mcpCalls
                     .map((call: { tool_name: string; result_preview?: string }) => `${call.tool_name}: ${call.result_preview || ''}`)
                     .join('\n\n')
                 : '';
@@ -215,7 +244,7 @@ const MarkdownContent = React.memo(
               return (
                 <span
                   className="bg-secondary px-1 rounded ml-1 no-underline text-xs text-black/70 dark:text-white/70 relative hover:bg-amber-500/30 hover:text-amber-800 dark:hover:text-amber-300 transition-colors duration-200 cursor-pointer"
-                  onClick={() => openKbDrawer(kbTitle, source.section, kbSnippet)}
+                  onClick={() => openKbDrawer(kbTitle, source.section, kbSnippet, normalizeWikiLevel(source.level))}
                 >
                   {num}
                 </span>
@@ -269,11 +298,12 @@ const MarkdownContent = React.memo(
           title={drawerState.title}
           section={drawerState.section}
           snippet={drawerState.snippet}
+          level={drawerState.level}
         />
         <ReactMarkdown
           remarkPlugins={[[remarkMath, remarkMathOptions], remarkGfm, [remarkGitHubAlerts, { mode: 'component' }]]}
           rehypePlugins={[[rehypeKatex, katexConfig], rehypeRaw, [rehypeHeadingIds, { prefix: `toc-${_messageId}` }]]} // 将 AST 转换为最终的 HTML 结构
-          components={components}
+          components={components as Components}
           allowedElements={[
             // 允许渲染的元素
             // 基本文本和标题

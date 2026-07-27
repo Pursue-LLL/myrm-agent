@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory import MemoryManager
 
 from myrm_agent_harness.toolkits.wiki import (
+    QueryResult,
     SemanticSearchFn,
     WikiCompiler,
     WikiConfig,
@@ -283,7 +284,7 @@ class MemoryToWikiArchiver:
                 return idx
         return 0
 
-    async def query_wiki(self, question: str) -> str:
+    async def query_wiki(self, question: str) -> QueryResult:
         """
         Query user's wiki knowledge base.
 
@@ -291,10 +292,9 @@ class MemoryToWikiArchiver:
             question: Question to ask
 
         Returns:
-            Answer from wiki
+            Structured query result with related sources
         """
-        result = await self._query_engine.query(question)
-        return str(result.answer)
+        return await self._query_engine.query(question)
 
     async def maintain_wiki(self) -> None:
         """Run wiki maintenance (health checks + auto-repair)."""

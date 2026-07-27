@@ -231,6 +231,9 @@ async def _inject_takeover_live_assist_url(
     event_dict, event_data = event_pair
 
     if event_type == "browser_takeover_requested":
+        if message_id:
+            event_dict.setdefault("messageId", message_id)
+            event_data.setdefault("messageId", message_id)
         existing = _read_live_assist_url(event_data)
         is_managed = _is_managed_takeover(event_data, event_data)
         if is_managed:

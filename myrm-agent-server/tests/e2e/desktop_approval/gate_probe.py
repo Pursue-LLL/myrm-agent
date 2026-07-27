@@ -82,10 +82,12 @@ _PENDING_API_FAIL_ABORT_STREAK = 20
 _FAST_API_TIMEOUT_SEC = 4.0
 _FAST_API_MAX_ATTEMPTS = 1
 _FAST_API_WALL_TIMEOUT_SEC = _FAST_API_TIMEOUT_SEC + 1.0
+_STRICT_FALLBACK_MODE_ENV = "MYRM_DESKTOP_E2E_STRICT_FALLBACK_MODE"
 _MAX_SYNTHETIC_DREF_FALLBACK_ENV = "MYRM_DESKTOP_E2E_MAX_SYNTHETIC_DREF_FALLBACKS"
 _MAX_PENDING_SEED_FALLBACK_ENV = "MYRM_DESKTOP_E2E_MAX_PENDING_SEED_FALLBACKS"
 _DEFAULT_MAX_SYNTHETIC_DREF_FALLBACKS = 2
 _DEFAULT_MAX_PENDING_SEED_FALLBACKS = 3
+_NUDGE_CHAT_SURFACE_TIMEOUT_SEC = 75.0
 
 
 @dataclass(slots=True)
@@ -111,7 +113,22 @@ def _non_negative_env_int(name: str, default: int) -> int:
     return parsed
 
 
+def _strict_fallback_mode_enabled() -> bool:
+    raw = os.getenv(_STRICT_FALLBACK_MODE_ENV, "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
 def _build_fallback_budget() -> _DesktopFallbackBudget:
+    if _strict_fallback_mode_enabled():
+        budget = _DesktopFallbackBudget(
+            synthetic_dref_limit=0,
+            pending_seed_limit=0,
+        )
+        progress(
+            "desktop fallback strict mode active "
+            f"({_STRICT_FALLBACK_MODE_ENV}=1): synthetic_dref<=0 pending_seed<=0"
+        )
+        return budget
     synthetic_limit = _non_negative_env_int(
         _MAX_SYNTHETIC_DREF_FALLBACK_ENV,
         _DEFAULT_MAX_SYNTHETIC_DREF_FALLBACKS,
@@ -476,9 +493,28 @@ async def _wait_nudge_send_surface(
     chat_id: str = "",
     timeout_sec: float = 60.0,
 ) -> bool:
-    await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
+    surface_ready = await _ensure_nudge_chat_surface_guarded(
+        chat,
+        chat_id=chat_id,
+        timeout_sec=min(_NUDGE_CHAT_SURFACE_TIMEOUT_SEC, timeout_sec + 15.0),
+    )
+    if not surface_ready:
+        return False
     await chat.ensure_react_e2e_bridge(timeout_sec=min(60.0, timeout_sec))
-    ready = await chat.wait_send_button_ready(timeout_sec=timeout_sec)
+    try:
+        ready = await asyncio.wait_for(
+            chat.wait_send_button_ready(timeout_sec=timeout_sec),
+            timeout=min(90.0, timeout_sec + 15.0),
+        )
+    except asyncio.TimeoutError:
+        progress(
+            "wait_send_button_ready wall-timeout "
+            f"({timeout_sec:.0f}s budget)"
+        )
+        return False
+    except (RuntimeError, TimeoutError, OSError) as exc:
+        progress(f"wait_send_button_ready failed (non-fatal): {exc}")
+        return False
     if ready.get("ok"):
         return True
     if ready.get("sendReady"):
@@ -493,7 +529,17 @@ async def _wait_nudge_send_surface(
         await chat.ensure_react_e2e_bridge(timeout_sec=min(45.0, timeout_sec))
     except (RuntimeError, TimeoutError, OSError) as exc:
         progress(f"send-surface hard reset skipped (non-fatal): {exc}")
-    retry = await chat.wait_send_button_ready(timeout_sec=min(20.0, timeout_sec))
+    try:
+        retry = await asyncio.wait_for(
+            chat.wait_send_button_ready(timeout_sec=min(20.0, timeout_sec)),
+            timeout=min(45.0, timeout_sec + 15.0),
+        )
+    except asyncio.TimeoutError:
+        progress("wait_send_button_ready retry wall-timeout")
+        return False
+    except (RuntimeError, TimeoutError, OSError) as exc:
+        progress(f"wait_send_button_ready retry failed (non-fatal): {exc}")
+        return False
     if retry.get("ok") or retry.get("sendReady"):
         progress("send button recovered after chat-surface reset")
         return True
@@ -626,6 +672,29 @@ async def _ensure_nudge_chat_surface(
     await chat.ensure_react_e2e_bridge(timeout_sec=45.0)
 
 
+async def _ensure_nudge_chat_surface_guarded(
+    chat: McpChatSession,
+    *,
+    chat_id: str = "",
+    timeout_sec: float = _NUDGE_CHAT_SURFACE_TIMEOUT_SEC,
+) -> bool:
+    try:
+        await asyncio.wait_for(
+            _ensure_nudge_chat_surface(chat, chat_id=chat_id),
+            timeout=timeout_sec,
+        )
+        return True
+    except asyncio.TimeoutError:
+        progress(
+            "nudge chat surface bootstrap timed out "
+            f"after {timeout_sec:.0f}s chat_id={chat_id.strip() or '-'}"
+        )
+        return False
+    except (RuntimeError, TimeoutError, OSError) as exc:
+        progress(f"nudge chat surface bootstrap failed (non-fatal): {exc}")
+        return False
+
+
 async def _nudge_baseline_markers(chat_id: str) -> tuple[int, int]:
     normalized = chat_id.strip()
     if not normalized:
@@ -719,10 +788,13 @@ async def _send_interact_nudge(
     )
     dref: str | None = prefetched_dref
     if dref is None and last_tool.endswith("desktop_snapshot_tool"):
-        try:
-            await _ensure_nudge_chat_surface(chat, chat_id=normalized_chat_id)
-        except (RuntimeError, TimeoutError, OSError) as exc:
-            progress(f"dref prefetch surface repair skipped (non-fatal): {exc}")
+        surface_ready = await _ensure_nudge_chat_surface_guarded(
+            chat,
+            chat_id=normalized_chat_id,
+            timeout_sec=45.0,
+        )
+        if not surface_ready:
+            progress("dref prefetch surface repair skipped (non-fatal)")
         await asyncio.sleep(1.0)
         dref = await _fetch_first_desktop_dref(
             chat,
@@ -827,7 +899,7 @@ async def _send_interact_nudge(
         )
         progress(f"follow-up native send ({reason}, not steer)")
 
-        async def _submit_follow_up_native() -> dict[str, object]:
+        async def _submit_follow_up_native_once() -> dict[str, object]:
             try:
                 return await asyncio.wait_for(
                     chat.fast_desktop_agent_submit(
@@ -844,37 +916,67 @@ async def _send_interact_nudge(
                     "follow-up native send wall timeout after 60s"
                 ) from exc
 
-        try:
-            send_result = await _submit_follow_up_native()
-        except (RuntimeError, TimeoutError, OSError) as exc:
-            if "E2E_WALL_BUDGET_FAIL_FAST" in str(exc):
-                raise
-            progress(f"follow-up send failed (retry with chat surface): {exc}")
-            await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
-            send_surface_ready = await _wait_nudge_send_surface(
-                chat, chat_id=normalized_chat_id
-            )
-            if not send_surface_ready:
-                seeded_request_id = await _seed_pending_desktop_approval_with_budget(
-                    fallback_budget,
-                    reason=(
-                        "E2E fallback: seed desktop approval after follow-up "
-                        "send retry surface not ready"
-                    ),
+        async def _submit_follow_up_native_with_recover(
+            *,
+            stage_label: str,
+            seed_reason_prefix: str,
+        ) -> dict[str, object] | None:
+            try:
+                return await _submit_follow_up_native_once()
+            except (RuntimeError, TimeoutError, OSError) as exc:
+                if "E2E_WALL_BUDGET_FAIL_FAST" in str(exc):
+                    raise
+                progress(f"{stage_label} failed (recover + single retry): {exc}")
+                surface_repaired = await _ensure_nudge_chat_surface_guarded(
+                    chat,
+                    chat_id=chat_id,
                 )
-                if seeded_request_id:
-                    progress(
-                        "follow-up retry surface not ready; seeded pending desktop "
-                        f"approval fallback request_id={seeded_request_id}"
+                if not surface_repaired:
+                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                        fallback_budget,
+                        reason=f"{seed_reason_prefix} surface repair timeout",
                     )
-                else:
-                    progress(
-                        "follow-up retry surface not ready; pending seed unavailable "
-                        "(continue gate stage)"
+                    if seeded_request_id:
+                        progress(
+                            f"{stage_label} surface repair timed out; seeded pending "
+                            "desktop approval fallback "
+                            f"request_id={seeded_request_id}"
+                        )
+                    else:
+                        progress(
+                            f"{stage_label} surface repair timed out; pending seed "
+                            "unavailable (continue gate stage)"
+                        )
+                    return None
+                send_surface_ready_retry = await _wait_nudge_send_surface(
+                    chat, chat_id=normalized_chat_id
+                )
+                if not send_surface_ready_retry:
+                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                        fallback_budget,
+                        reason=f"{seed_reason_prefix} retry surface not ready",
                     )
-                await asyncio.to_thread(activate_textedit_foreground)
-                return
-            send_result = await _submit_follow_up_native()
+                    if seeded_request_id:
+                        progress(
+                            f"{stage_label} retry surface not ready; seeded pending "
+                            "desktop approval fallback "
+                            f"request_id={seeded_request_id}"
+                        )
+                    else:
+                        progress(
+                            f"{stage_label} retry surface not ready; pending seed "
+                            "unavailable (continue gate stage)"
+                        )
+                    return None
+                return await _submit_follow_up_native_once()
+
+        send_result = await _submit_follow_up_native_with_recover(
+            stage_label="follow-up send",
+            seed_reason_prefix="E2E fallback: seed desktop approval after follow-up send",
+        )
+        if send_result is None:
+            await asyncio.to_thread(activate_textedit_foreground)
+            return
         progress(f"nudge follow-up send: {send_result.get('submit', send_result)}")
         if normalized_chat_id:
             submit_user_count = _submit_turn_user_count(send_result)
@@ -939,7 +1041,15 @@ async def _send_interact_nudge(
                         )
                     await asyncio.to_thread(activate_textedit_foreground)
                     return
-                retry_result = await _submit_follow_up_native()
+                retry_result = await _submit_follow_up_native_with_recover(
+                    stage_label="follow-up resend",
+                    seed_reason_prefix=(
+                        "E2E fallback: seed desktop approval after follow-up resend"
+                    ),
+                )
+                if retry_result is None:
+                    await asyncio.to_thread(activate_textedit_foreground)
+                    return
                 progress(
                     f"nudge follow-up resend: "
                     f"{retry_result.get('submit', retry_result)}"
@@ -1000,7 +1110,29 @@ async def _send_interact_nudge(
         )
     except (RuntimeError, TimeoutError, OSError) as exc:
         progress(f"nudge fast-path failed (retry with chat surface): {exc}")
-        await _ensure_nudge_chat_surface(chat, chat_id=chat_id)
+        surface_repaired = await _ensure_nudge_chat_surface_guarded(
+            chat,
+            chat_id=chat_id,
+        )
+        if not surface_repaired:
+            seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                fallback_budget,
+                reason=(
+                    "E2E fallback: seed desktop approval when steer nudge "
+                    "surface repair timed out"
+                ),
+            )
+            if seeded_request_id:
+                progress(
+                    "steer nudge surface repair timed out; seeded pending desktop "
+                    f"approval fallback request_id={seeded_request_id}"
+                )
+            else:
+                progress(
+                    "steer nudge surface repair timed out; pending seed unavailable "
+                    "(continue gate stage)"
+                )
+            return
         send_result = await chat.submit_desktop_nudge(
             nudge_prompt,
             chat_id_hint=normalized_chat_id or None,
@@ -1307,6 +1439,7 @@ async def _wait_desktop_tool_activity_failfast(
                     "pending": True,
                     "serverPending": 1,
                     "seededPendingRequestId": seeded_request_id,
+                    "pendingSource": "seeded-fallback",
                 }
             progress(
                 "progress API wall-timeout streak fallback: seed unavailable, "
@@ -1317,10 +1450,16 @@ async def _wait_desktop_tool_activity_failfast(
                 "pending": True,
                 "serverPending": 1,
                 "syntheticPendingFallback": True,
+                "pendingSource": "synthetic-fallback",
             }
         server_pending = await _resolve_server_pending(api_fail_streak=api_fail_streak)
         if server_pending > 0:
-            return {**last, "pending": True, "serverPending": server_pending}
+            return {
+                **last,
+                "pending": True,
+                "serverPending": server_pending,
+                "pendingSource": "server",
+            }
         if isinstance(probe, dict):
             probe_last_tool = str(probe.get("lastTool") or "")
             if probe.get("pending") or probe_last_tool.startswith("desktop_"):
@@ -1417,6 +1556,7 @@ async def _wait_desktop_tool_activity_failfast(
                         "pending": True,
                         "serverPending": 1,
                         "seededPendingRequestId": seeded_request_id,
+                        "pendingSource": "seeded-fallback",
                     }
             elif now - idle_started >= idle_fail_sec:
                 hint = await _provider_readiness_hint()
@@ -1664,6 +1804,7 @@ async def ensure_interact_gate(
                     tool_activity = {
                         **tool_activity,
                         "seededPendingRequestId": seeded_request_id,
+                        "pendingSource": "seeded-fallback",
                     }
                 return tool_activity, last_tool, 1, ui_pending
         post_nudge_wait = 30.0 if _is_snapshot_or_vision_loop(last_tool) else 60.0
@@ -1755,6 +1896,7 @@ async def ensure_interact_gate(
                         **tool_activity,
                         "interactSeen": True,
                         "seededPendingRequestId": seeded_request_id,
+                        "pendingSource": "seeded-fallback",
                     }
                 return tool_activity, last_tool, 1, ui_pending
         heartbeat_e2e_lease()
@@ -1797,6 +1939,7 @@ async def ensure_interact_gate(
                 tool_activity = {
                     **tool_activity,
                     "seededPendingRequestId": seeded_request_id,
+                    "pendingSource": "seeded-fallback",
                 }
             return tool_activity, last_tool, 1, ui_pending
 

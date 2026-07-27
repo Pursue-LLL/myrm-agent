@@ -8670,7 +8670,10 @@
     "knowledge_base": "ナレッジベース",
     "conversation_history": "セッション履歴",
     "source_excerpt": "原文摘录",
-    "no_snippet": "该来源暂なし要約内容。"
+    "no_snippet": "该来源暂なし要約内容。",
+    "kb_level_l0": "要約",
+    "kb_level_l1": "概要",
+    "kb_level_l2": "詳細"
   },
   "sources": {
     "title": "来源",

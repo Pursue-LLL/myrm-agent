@@ -15,6 +15,22 @@ export interface Concept {
   content: string;
 }
 
+export type WikiSourceLevel = 'L0' | 'L1' | 'L2';
+
+export interface WikiSourceSnippet {
+  path: string;
+  name: string;
+  snippet: string;
+  section: string;
+  level: WikiSourceLevel;
+}
+
+export interface WikiQueryResponse {
+  answer: string;
+  related_articles: string[];
+  source_snippets: WikiSourceSnippet[];
+}
+
 export interface QueueStatus {
   stats: Record<string, number>;
   pending_items: Array<{
@@ -114,6 +130,13 @@ export const wikiService = {
     params.append('limit', limit.toString());
     params.append('offset', offset.toString());
     return apiRequest<ConceptListResponse>(wikiPath(`/wiki/concepts?${params.toString()}`));
+  },
+
+  queryWiki: async (question: string): Promise<WikiQueryResponse> => {
+    return apiRequest<WikiQueryResponse>(wikiPath('/wiki/query'), {
+      method: 'POST',
+      body: JSON.stringify({ question }),
+    });
   },
 
   getConcept: async (name: string): Promise<Concept> => {

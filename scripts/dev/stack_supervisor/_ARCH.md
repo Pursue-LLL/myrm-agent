@@ -26,7 +26,7 @@
 
 | cmd | 行为 |
 |-----|------|
-| `ensure` | 串行调用 `dev-stack.sh ensure`（`MYRM_SUPERVISOR_BYPASS=1`）；活跃 Wave lease 时拒绝 |
+| `ensure` | 串行调用 `dev-stack.sh ensure`（`MYRM_SUPERVISOR_BYPASS=1`）；活跃 Wave lease 时：backend 健康 → DEFERRED 直接返回，backend 宕机 → backend-only ensure |
 | `attach` | 委托 `dev-stack.sh attach`（无互斥） |
 | `reset` | 串行 `dev-stack.sh reset`；活跃 Wave lease 时拒绝；成功时清除「曾热」记忆，禁止 intentional-stop 后 auto-heal |
 | `status` | GC + `dev-stack.sh status` |
@@ -38,7 +38,7 @@
 ## 集成
 
 - `dev-stack.sh` **必须**委托 supervisor（无直跑 fallback）；RPC 失败 **exit 1**（`STACK_FAIL`）
-- supervisor 对 `reset` 和 watchdog auto-heal 的 **full ensure** 检查 Wave 写门禁；**wave pin 期间 shared API 宕机时 watchdog 改跑 `backend-only ensure`（不 reset frontend）**；**ensure RPC 冷启动恢复不受 pin 阻挡**
+- supervisor 对 `reset`、`ensure` 和 watchdog auto-heal 均检查 Wave 写门禁；**wave pin 期间 shared API 宕机时 watchdog 和 ensure 均改跑 `backend-only ensure`（不 reset frontend）**；backend 健康时 ensure 直接返回 DEFERRED
 - supervisor 子调用设 `MYRM_SUPERVISOR_BYPASS=1` 防递归
 - watchdog 直接 Python import `wave_orchestrator.core.reap()` 和 `check_stack_write_gate()`（无 subprocess/bash 中间层）
 - `./myrm stop` → `reset` 后 `stack-supervisor.sh stop`

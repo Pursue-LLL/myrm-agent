@@ -29,7 +29,9 @@ from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 __all__ = [
     "ChromeMcpClient",
     "McpPage",
+    "_reapply_shpoib_runtime_after_reload",
     "dismiss_blocking_modals",
+    "e2e_runtime_binding",
     "ensure_desktop_viewport",
     "get_e2e_api_url",
     "get_e2e_ui_url",

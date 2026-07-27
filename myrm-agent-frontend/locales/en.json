@@ -8751,7 +8751,10 @@
     "knowledge_base": "Knowledge Base",
     "conversation_history": "Conversation History",
     "source_excerpt": "Source Excerpt",
-    "no_snippet": "No excerpt available for this source."
+    "no_snippet": "No excerpt available for this source.",
+    "kb_level_l0": "Summary",
+    "kb_level_l1": "Overview",
+    "kb_level_l2": "Detail"
   },
   "sources": {
     "title": "Sources",

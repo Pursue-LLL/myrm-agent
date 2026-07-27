@@ -8,6 +8,7 @@
 
 // 外部引用来源类型
 export type SourceType = 'web_search' | 'web_fetch' | 'mcp' | 'conversation_history' | 'knowledge';
+export type WikiSourceLevel = 'L0' | 'L1' | 'L2';
 
 // MCP 调用记录
 export interface MCPCallRecord {
@@ -34,6 +35,8 @@ export interface Source {
   kb_name?: string;
   filename?: string;
   section?: string;
+  level?: WikiSourceLevel;
+  path?: string;
   // conversation_history 字段
   conversation_id?: string;
   message_id?: string;

@@ -20,6 +20,15 @@ from cdp_chat_support import (
 from e2e_wave_ledger import maybe_register_e2e_chat
 
 
+def _bridge_has_completion(bridge: dict[str, object]) -> bool:
+    """Unified completion signal check: hasCompletionSignal (SSOT) with hasOk/hasDone fallback."""
+    return bool(
+        bridge.get("hasCompletionSignal")
+        or bridge.get("hasOk")
+        or bridge.get("hasDone")
+    )
+
+
 class CdpChatTurn(CdpChatSubmit):
     async def main_state(
         self,
@@ -44,13 +53,13 @@ class CdpChatTurn(CdpChatSubmit):
               const assistantText = assistantNodes.map((el) => el.innerText || '').join('\\n');
               const sending = !!main?.querySelector('button[aria-label="Stop"]');
               const hasUserPrompt = userMsgs > 0 || text.includes({json.dumps(prompt)});
-              const okInAssistant = /(?:\bOK\b|GOAL_OK)/i.test(assistantText);
+              const okInAssistant = /(?:\bOK\b|GOAL_OK|\bDONE\b)/i.test(assistantText);
               const okInMain =
                 hasUserPrompt &&
                 (okInAssistant ||
-                  /(?:\bOK\b|GOAL_OK)/i.test(text) ||
-                  /^\\s*OK\\s*$/m.test(text) ||
-                  (text.includes('OK') && !sending));
+                  /(?:\bOK\b|GOAL_OK|\bDONE\b)/i.test(text) ||
+                  /^\\s*(?:OK|DONE)\\s*$/m.test(text) ||
+                  ((text.includes('OK') || text.includes('DONE')) && !sending));
               return {{
                 url: location.href,
                 path: location.pathname,
@@ -200,7 +209,7 @@ class CdpChatTurn(CdpChatSubmit):
                 if (
                     isinstance(bridge, dict)
                     and int(bridge.get("userCount") or 0) >= min_user_msgs
-                    and bridge.get("hasOk")
+                    and _bridge_has_completion(bridge)
                     and not bridge.get("isStreaming")
                 ):
                     return _finish(
@@ -221,7 +230,7 @@ class CdpChatTurn(CdpChatSubmit):
                 if (
                     chat_id
                     and int(bridge.get("userCount") or 0) >= min_user_msgs
-                    and bridge.get("hasOk")
+                    and _bridge_has_completion(bridge)
                     and not bridge.get("isStreaming")
                 ):
                     return _finish(
@@ -347,7 +356,7 @@ class CdpChatTurn(CdpChatSubmit):
             if (
                 isinstance(bridge, dict)
                 and not bridge.get("isStreaming")
-                and (bridge.get("hasOk") or int(bridge.get("userCount") or 0) >= 1)
+                and (_bridge_has_completion(bridge) or int(bridge.get("userCount") or 0) >= 1)
             ):
                 await self._clear_input_via_bridge()
                 probe = await self.send_state()

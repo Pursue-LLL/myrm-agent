@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain_core.messages import AIMessage
 from myrm_agent_harness.toolkits.wiki import WikiConfig
+from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
 
@@ -219,7 +220,7 @@ class TestFormatMemory:
 
 class TestQueryWiki:
     @pytest.mark.asyncio
-    async def test_query_returns_answer(self, archiver: MemoryToWikiArchiver, mock_llm: MagicMock) -> None:
+    async def test_query_returns_structured_result(self, archiver: MemoryToWikiArchiver, mock_llm: MagicMock) -> None:
         mock_llm.ainvoke.return_value = AIMessage(content="This is the answer.")
 
         archiver._structure.concepts_dir.mkdir(parents=True, exist_ok=True)
@@ -228,12 +229,16 @@ class TestQueryWiki:
         )
 
         result = await archiver.query_wiki("What is testing?")
-        assert isinstance(result, str)
+        assert isinstance(result, QueryResult)
+        assert isinstance(result.answer, str)
+        assert isinstance(result.related_articles, list)
 
     @pytest.mark.asyncio
     async def test_query_empty_wiki(self, archiver: MemoryToWikiArchiver) -> None:
         result = await archiver.query_wiki("anything")
-        assert "no relevant information" in result.lower() or isinstance(result, str)
+        assert isinstance(result, QueryResult)
+        assert "no relevant information" in result.answer.lower()
+        assert result.related_articles == []
 
 
 # ============================================================================

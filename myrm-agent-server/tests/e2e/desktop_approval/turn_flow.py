@@ -9,6 +9,7 @@ import platform
 import subprocess
 import time
 import urllib.error
+from typing import Awaitable, TypeVar
 
 import pytest
 from cdp_chat_support import (
@@ -47,6 +48,39 @@ from tests.support.e2e_desktop_model_pin import (
 )
 from tests.support.e2e_runtime_guard import heartbeat_e2e_lease
 
+_CHAT_ROUTE_PROBE_TIMEOUT_SEC = 20.0
+_CHAT_ROUTE_NAVIGATE_TIMEOUT_SEC = 45.0
+_CHAT_ROUTE_BRIDGE_TIMEOUT_SEC = 45.0
+_FORCE_CHAT_NAVIGATE_TIMEOUT_SEC = 50.0
+_FORCE_CHAT_SHELL_READY_TIMEOUT_SEC = 35.0
+_FORCE_CHAT_BRIDGE_TIMEOUT_SEC = 35.0
+
+_T = TypeVar("_T")
+
+
+async def _await_with_wall_timeout(
+    awaitable: Awaitable[_T], *, timeout_sec: float, label: str
+) -> _T:
+    try:
+        return await asyncio.wait_for(awaitable, timeout=timeout_sec)
+    except asyncio.TimeoutError as exc:
+        raise RuntimeError(f"{label} wall-timeout after {timeout_sec:.0f}s") from exc
+
+
+async def _probe_chat_route(chat: McpChatSession, target: str) -> dict[str, object]:
+    probe = await _await_with_wall_timeout(
+        chat.evaluate(
+            f"""(() => {{
+              const href = String(location.href || '');
+              return {{ href, onTarget: href.startsWith({target!r}) }};
+            }})()""",
+            await_promise=False,
+        ),
+        timeout_sec=_CHAT_ROUTE_PROBE_TIMEOUT_SEC,
+        label="chat route probe",
+    )
+    return probe if isinstance(probe, dict) else {"href": str(probe), "onTarget": False}
+
 
 def activate_chrome() -> None:
     if platform.system() != "Darwin":
@@ -68,24 +102,58 @@ def _chat_url(chat_id: str) -> str:
 
 async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
     target = _chat_url(chat_id)
-    probe = await chat.evaluate(
-        f"""(() => {{
-          const href = String(location.href || '');
-          return {{ href, onTarget: href.startsWith({target!r}) }};
-        }})()""",
-        await_promise=False,
-    )
-    if isinstance(probe, dict) and probe.get("onTarget"):
+    probe = await _probe_chat_route(chat, target)
+    if probe.get("onTarget"):
         return
     progress(f"restore chat route chat_id={chat_id}")
-    await asyncio.to_thread(
-        chat._client.navigate,
-        chat._page,
-        target,
-        timeout_ms=120_000,
+    await _await_with_wall_timeout(
+        asyncio.to_thread(
+            chat._client.navigate,
+            chat._page,
+            target,
+            timeout_ms=120_000,
+        ),
+        timeout_sec=_CHAT_ROUTE_NAVIGATE_TIMEOUT_SEC,
+        label="restore chat route navigate",
     )
-    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
-    await chat.ensure_chat_surface(BASE_URL)
+    await _await_with_wall_timeout(
+        chat.ensure_react_e2e_bridge(timeout_sec=90.0),
+        timeout_sec=_CHAT_ROUTE_BRIDGE_TIMEOUT_SEC,
+        label="restore chat route bridge",
+    )
+    await _await_with_wall_timeout(
+        chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0),
+        timeout_sec=_CHAT_ROUTE_BRIDGE_TIMEOUT_SEC,
+        label="restore chat route surface",
+    )
+    post_probe = await _probe_chat_route(chat, target)
+    if post_probe.get("onTarget"):
+        return
+    progress(
+        "chat route mismatch after surface restore; force chat route once more "
+        f"chat_id={chat_id}"
+    )
+    await _await_with_wall_timeout(
+        asyncio.to_thread(
+            chat._client.navigate,
+            chat._page,
+            target,
+            timeout_ms=120_000,
+        ),
+        timeout_sec=_CHAT_ROUTE_NAVIGATE_TIMEOUT_SEC,
+        label="force chat route navigate",
+    )
+    await _await_with_wall_timeout(
+        chat.ensure_react_e2e_bridge(timeout_sec=90.0),
+        timeout_sec=_CHAT_ROUTE_BRIDGE_TIMEOUT_SEC,
+        label="force chat route bridge",
+    )
+    final_probe = await _probe_chat_route(chat, target)
+    if not final_probe.get("onTarget"):
+        raise RuntimeError(
+            "restore chat route failed to reach target "
+            f"chat_id={chat_id} href={final_probe.get('href')!r}"
+        )
 
 
 async def resolve_chat_id(chat: McpChatSession, state: dict[str, object]) -> str | None:
@@ -287,6 +355,25 @@ async def complete_turn_after_approval(
         marker="DONE",
         timeout_sec=180.0,
     )
+    if (
+        not after_turn.get("matched")
+        and chat_id_hint
+        and int(after_turn.get("userCount") or 0) <= 0
+        and not str(after_turn.get("lastAssistantSample") or "").strip()
+    ):
+        progress(
+            "post-approval DONE wait got empty turn snapshot; "
+            "recover chat route and re-probe once"
+        )
+        await _ensure_chat_route(chat, chat_id_hint)
+        recovered_turn = await wait_stream_done_with_marker(
+            chat,
+            chat_id_hint=chat_id_hint,
+            marker="DONE",
+            timeout_sec=60.0,
+        )
+        if recovered_turn.get("matched"):
+            after_turn = recovered_turn
     if not after_turn.get("matched"):
         chat_id_probe = str(after_turn.get("chatId") or chat_id_hint or "").strip()
         api_done = False
@@ -575,15 +662,35 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
         heartbeat_e2e_lease()
         progress(f"force chat shell ({label}) attempt {attempt}/{attempts}")
         try:
-            await chat._navigate_to_chat_home(timeout_ms=90_000)
-            await chat.wait_shell_ready(timeout_sec=45.0, require_bridge=True)
-            await chat.ensure_react_e2e_bridge(timeout_sec=45.0)
+            await _await_with_wall_timeout(
+                chat._navigate_to_chat_home(timeout_ms=90_000),
+                timeout_sec=_FORCE_CHAT_NAVIGATE_TIMEOUT_SEC,
+                label="force chat shell navigate",
+            )
+            await _await_with_wall_timeout(
+                chat.wait_shell_ready(timeout_sec=45.0, require_bridge=True),
+                timeout_sec=_FORCE_CHAT_SHELL_READY_TIMEOUT_SEC,
+                label="force chat shell ready",
+            )
+            await _await_with_wall_timeout(
+                chat.ensure_react_e2e_bridge(timeout_sec=45.0),
+                timeout_sec=_FORCE_CHAT_BRIDGE_TIMEOUT_SEC,
+                label="force chat shell bridge",
+            )
             return
         except (RuntimeError, TimeoutError, OSError) as exc:
             if attempt >= attempts:
                 raise
             progress(f"force chat shell retry after: {exc}")
-            await chat.ensure_e2e_api_base_binding()
+            try:
+                await asyncio.to_thread(chat._client.recover_mux_transport)
+            except (RuntimeError, TimeoutError, OSError) as recover_exc:
+                progress(f"force chat shell recover skipped (non-fatal): {recover_exc}")
+            await _await_with_wall_timeout(
+                chat.ensure_e2e_api_base_binding(),
+                timeout_sec=20.0,
+                label="force chat shell API binding",
+            )
             await asyncio.sleep(1.0)
 
 

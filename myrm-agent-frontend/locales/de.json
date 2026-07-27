@@ -7479,7 +7479,10 @@
     "mcp_skill": "MCP Skill",
     "mcp_calls_count": "{count} calls",
     "view_more": "View {count} more sources",
-    "sources_title": "Sources"
+    "sources_title": "Sources",
+    "kb_level_l0": "Summary",
+    "kb_level_l1": "Overview",
+    "kb_level_l2": "Detail"
   },
   "sources": {
     "title": "Sources",

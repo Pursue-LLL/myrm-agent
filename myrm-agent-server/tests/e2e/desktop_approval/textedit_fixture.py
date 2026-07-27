@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import platform
 import subprocess
 import time
@@ -12,11 +13,31 @@ import pytest
 from tests.e2e.desktop_approval.constants import TEXTEDIT_FIXTURE_MARKER, progress
 
 _TEXTEDIT_AX_DEGRADED_TTL_SEC = 300.0
+_STRICT_FALLBACK_MODE_ENV = "MYRM_DESKTOP_E2E_STRICT_FALLBACK_MODE"
 _textedit_ax_degraded_until_monotonic = 0.0
 _textedit_ax_degraded_detail = ""
+_textedit_ax_degraded_scope_key = ""
+
+
+def _runtime_scope_key() -> str:
+    raw = os.getenv("PYTEST_CURRENT_TEST", "").strip()
+    if not raw:
+        return "global"
+    return raw.split(" (", 1)[0].strip() or "global"
+
+
+def _strict_fallback_mode_enabled() -> bool:
+    raw = os.getenv(_STRICT_FALLBACK_MODE_ENV, "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
 
 
 def _textedit_ax_degraded_snapshot() -> tuple[bool, str, int]:
+    if (
+        _textedit_ax_degraded_scope_key
+        and _textedit_ax_degraded_scope_key != _runtime_scope_key()
+    ):
+        _clear_textedit_ax_degraded()
+        return False, "", 0
     remaining = int(
         max(0.0, _textedit_ax_degraded_until_monotonic - time.monotonic())
     )
@@ -24,17 +45,21 @@ def _textedit_ax_degraded_snapshot() -> tuple[bool, str, int]:
 
 
 def _mark_textedit_ax_degraded(detail: str) -> None:
-    global _textedit_ax_degraded_until_monotonic, _textedit_ax_degraded_detail
+    global _textedit_ax_degraded_until_monotonic
+    global _textedit_ax_degraded_detail, _textedit_ax_degraded_scope_key
     _textedit_ax_degraded_until_monotonic = (
         time.monotonic() + _TEXTEDIT_AX_DEGRADED_TTL_SEC
     )
     _textedit_ax_degraded_detail = detail.strip() or "unknown"
+    _textedit_ax_degraded_scope_key = _runtime_scope_key()
 
 
 def _clear_textedit_ax_degraded() -> None:
-    global _textedit_ax_degraded_until_monotonic, _textedit_ax_degraded_detail
+    global _textedit_ax_degraded_until_monotonic
+    global _textedit_ax_degraded_detail, _textedit_ax_degraded_scope_key
     _textedit_ax_degraded_until_monotonic = 0.0
     _textedit_ax_degraded_detail = ""
+    _textedit_ax_degraded_scope_key = ""
 
 
 def _reset_textedit_fixture_runtime_state_for_tests() -> None:
@@ -340,6 +365,11 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
                 _textedit_ax_degraded_snapshot()
             )
             if degraded:
+                if _strict_fallback_mode_enabled():
+                    pytest.fail(
+                        "TextEdit AX degraded cooldown active while strict fallback mode is enabled "
+                        f"(remaining={degraded_remaining}s detail={degraded_detail})"
+                    )
                 progress(
                     "textedit AX degraded mode active; skip rebuild and continue "
                     "with vision fallback "
@@ -350,6 +380,11 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
             if ax_ready:
                 progress("textedit fixture ready (foreground + AX refs for @drefs)")
                 return
+            if _strict_fallback_mode_enabled():
+                pytest.fail(
+                    "TextEdit AX refs unavailable while strict fallback mode is enabled "
+                    "(strict mode requires AX-ready fixture before desktop flow)"
+                )
             last_detail = "ax-empty-after-rebuild"
             _mark_textedit_ax_degraded(last_detail)
             # AX can be transiently unavailable on some hosts. Continue with

@@ -92,9 +92,11 @@ def test_wiki_query_endpoint(client: TestClient) -> None:
         print("✅ Query result:")
         print(f"  - Answer: {data.get('answer', '')[:100]}...")
         print(f"  - Related articles: {len(data.get('related_articles', []))}")
+        print(f"  - Source snippets: {len(data.get('source_snippets', []))}")
 
         assert "answer" in data
         assert isinstance(data.get("related_articles", []), list)
+        assert isinstance(data.get("source_snippets", []), list)
     elif response.status_code == 401:
         print("⚠️ Authentication required (expected in production)")
     elif response.status_code == 403:

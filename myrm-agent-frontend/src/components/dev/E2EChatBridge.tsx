@@ -750,6 +750,7 @@ export default function E2EChatBridge() {
           isStreaming: Boolean(state.loading || state.abortController),
           hasOk: /\bOK\b/i.test(assistantText),
           hasDone: /\bDONE\b/i.test(assistantText),
+          hasCompletionSignal: /(?:\bOK\b|GOAL_OK|\bDONE\b)/i.test(assistantText),
           lastAssistantSample: assistantText.slice(0, 200),
           lastAssistantHasDoneSkipped: /DONE-SKIPPED/i.test(assistantText),
           clarificationAnswered: lastAssistant?.clarification?.answered === true,
@@ -1245,6 +1246,7 @@ export default function E2EChatBridge() {
           uiMode: state.uiMode,
           autoDetectCompletion: state.autoDetectCompletion,
           reason: state.reason,
+          messageId: state.messageId || null,
         };
       },
       recoverPendingBrowserTakeover: async () => {
@@ -1288,6 +1290,39 @@ export default function E2EChatBridge() {
         flushSync(() => {
           useBrowserTakeoverStore.getState().completeTakeover();
         });
+      },
+      completeBrowserTakeoverWithResume: async () => {
+        const snap = useBrowserTakeoverStore.getState();
+        if (!snap.pending) {
+          return { ok: false, reason: 'not_pending' };
+        }
+        const storeMessageId = snap.messageId;
+        flushSync(() => {
+          useBrowserTakeoverStore.getState().completeTakeover();
+        });
+        const { resolveBrowserTakeoverMessageId } = await import(
+          '@/store/useApprovalStore'
+        );
+        const resumeMessageId = resolveBrowserTakeoverMessageId(storeMessageId);
+        if (!resumeMessageId) {
+          return { ok: false, reason: 'no_resume_message_id', storeMessageId };
+        }
+        try {
+          await useChatStore
+            .getState()
+            .sendMessage('', resumeMessageId, undefined, {
+              action: 'completed',
+              message: '',
+            });
+          return { ok: true, resumeMessageId };
+        } catch (err) {
+          return {
+            ok: false,
+            reason: 'send_failed',
+            error: String(err),
+            resumeMessageId,
+          };
+        }
       },
     };
 

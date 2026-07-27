@@ -51,19 +51,41 @@ export function useBrowserTakeoverActions() {
     };
     completeTakeover();
     const resumeMessageId = resolveBrowserTakeoverMessageId(snapshot.messageId);
+    console.log('[TAKEOVER_DONE] resolveMessageId:', {
+      storeMessageId: snapshot.messageId,
+      resolvedResumeId: resumeMessageId,
+      currentSessionId: useChatStore.getState().currentSessionMessageId,
+      chatId: useChatStore.getState().chatId,
+    });
     if (!resumeMessageId) {
+      console.error(
+        '[TAKEOVER_DONE] No resumeMessageId after all fallbacks — agent resume will not fire.',
+        { storeMessageId: snapshot.messageId, chatId: useChatStore.getState().chatId },
+      );
+      toast.error(t('takeoverResumeFailed'));
+      useBrowserTakeoverStore.getState().requestTakeover({
+        reason: snapshot.reason,
+        messageId: snapshot.messageId,
+        ui_mode: snapshot.uiMode,
+        auto_detect_completion: snapshot.autoDetectCompletion,
+        screenshot_base64: snapshot.screenshotBase64,
+        url: snapshot.url,
+        live_assist_url: snapshot.liveAssistUrl,
+      });
       return;
     }
     try {
       const resumeData = await resumeVncSession(snapshot.uiMode);
+      console.log('[TAKEOVER_DONE] Calling sendMessage with resumeId:', resumeMessageId);
       await useChatStore
         .getState()
         .sendMessage('', resumeMessageId, undefined, { action: 'completed', message: '' });
+      console.log('[TAKEOVER_DONE] sendMessage completed');
       if (resumeData?.learned) {
         toast.success(t('takeoverLearned'), { duration: 3000 });
       }
     } catch (error) {
-      console.error('[TAKEOVER] Resume failed:', error);
+      console.error('[TAKEOVER_DONE] Resume failed:', error);
       useBrowserTakeoverStore.getState().requestTakeover({
         reason: snapshot.reason,
         messageId: snapshot.messageId,

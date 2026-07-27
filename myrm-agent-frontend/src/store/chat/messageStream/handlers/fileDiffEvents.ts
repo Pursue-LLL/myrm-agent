@@ -241,7 +241,12 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       url: eventPageUrl || undefined,
       screenshot_base64:
         typeof data.data.screenshot_base64 === 'string' ? data.data.screenshot_base64 : undefined,
-      messageId: typeof data.messageId === 'string' ? data.messageId : undefined,
+      messageId:
+        typeof data.messageId === 'string' && data.messageId.trim()
+          ? data.messageId
+          : typeof data.data.messageId === 'string' && (data.data.messageId as string).trim()
+            ? (data.data.messageId as string)
+            : undefined,
       is_managed: isManaged,
       auto_detect_completion: autoDetectCompletion,
       live_assist_url:

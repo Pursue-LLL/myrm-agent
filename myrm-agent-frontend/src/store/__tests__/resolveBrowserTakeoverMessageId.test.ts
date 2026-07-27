@@ -35,6 +35,47 @@ describe('resolveBrowserTakeoverMessageId', () => {
     expect(resolveBrowserTakeoverMessageId('')).toBe('assistant-msg-9');
   });
 
+  it('prefers currentSessionMessageId over lastAssistant messageId', () => {
+    useChatStore.setState({
+      messages: [
+        {
+          role: 'assistant',
+          messageId: 'assistant-msg-old',
+          content: '',
+          chatId: 'chat-1',
+          createdAt: new Date(),
+        },
+      ],
+      currentSessionMessageId: 'session-msg-active',
+    });
+
+    expect(resolveBrowserTakeoverMessageId(undefined)).toBe('session-msg-active');
+  });
+
+  it('prefers loading assistant over non-loading assistant', () => {
+    useChatStore.setState({
+      messages: [
+        {
+          role: 'assistant',
+          messageId: 'old-assistant',
+          content: 'done',
+          chatId: 'chat-1',
+          createdAt: new Date(),
+        },
+        {
+          role: 'assistant',
+          messageId: 'streaming-assistant',
+          content: '',
+          chatId: 'chat-1',
+          createdAt: new Date(),
+          loading: true,
+        },
+      ],
+    });
+
+    expect(resolveBrowserTakeoverMessageId(undefined)).toBe('streaming-assistant');
+  });
+
   it('falls back to pending browser_takeover approval payload messageId', () => {
     useApprovalStore.getState().openApproval({
       approval_id: 'appr-takeover-1',
