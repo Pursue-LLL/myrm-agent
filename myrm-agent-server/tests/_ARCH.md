@@ -66,8 +66,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `../scripts/dev/profile_test_memory.py` | 辅助 | 按 test 文件采样 peak RSS，定位高内存用例 |
 | `services/migration/_ARCH.md` | 模块 | 迁移业务层测试清单（四源 discover/load/e2e） |
 | `services/memory/test_import_readiness.py` | 模块 | 导入后 `readiness` 合同规则单测（ready/warning/critical + issue codes） |
-| `services/memory/test_import_sessions.py` | 模块 | 导入审查会话与回滚账本单测（含 post-import readiness metadata 持久化） |
+| `services/memory/test_import_sessions.py` | 模块 | 导入审查会话与回滚账本单测（含 post-import readiness metadata 与首轮执行结果锚点持久化） |
 | `services/agent/stream_session/` | 模块 | 流式会话链路测试（含 `memory_brief` 预计算、SSE 首包顺序、snapshot_id 追踪） |
+| `services/agent/stream_session/test_migration_readiness_anchor.py` | 模块 | migration readiness 首轮结果归类单测（success/failed/no_output） |
 | `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测 |
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |
 | `api/runs/test_router.py` | 模块 | Unified Runs Hub 聚合 API 单测（20 项：源合并、degraded、分页、timed_out） |

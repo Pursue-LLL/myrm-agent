@@ -8,6 +8,8 @@ import { decryptSseFrame, loadStoredE2EESession } from '@/lib/e2ee/client';
 import { createMultiplexReadableStream } from './multiplexChunkBridge';
 import { recoverPendingApprovals } from '@/hooks/usePendingApprovalsRecovery';
 import { connectionManager } from '@/services/ConnectionManager';
+import { resolveChatWikiEvidenceContext } from '@/services/wikiEvidenceContextCore';
+import { recordWikiQuerySubmitted } from '@/services/wikiEvidenceMetrics';
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 
@@ -176,8 +178,10 @@ export async function executeStreamWithRetry(
   recievedMessage: string,
   resumeValue?: unknown,
   archiveRestoreActions?: ArchiveRestoreAction[],
+  shouldRecordWikiQuerySuccess: boolean = false,
 ): Promise<void> {
   let lastError: Error | null = null;
+  let querySuccessRecorded = false;
 
   for (let attempt = 0; attempt <= RETRY_MAX_ATTEMPTS; attempt++) {
     if (attempt > 0 && lastError) {
@@ -235,6 +239,11 @@ export async function executeStreamWithRetry(
       }
 
       if (!res.body) throw new Error('No response body');
+      if (shouldRecordWikiQuerySuccess && resumeValue === undefined && !querySuccessRecorded) {
+        const context = resolveChatWikiEvidenceContext(state.messages, state.chatId);
+        recordWikiQuerySubmitted('chat', context.contextKey, context.turnDistance);
+        querySuccessRecorded = true;
+      }
 
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {

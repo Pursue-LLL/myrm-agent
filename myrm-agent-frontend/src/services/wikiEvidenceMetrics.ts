@@ -302,11 +302,6 @@ export function recordWikiQuerySubmitted(
   );
 }
 
-// Backward compatibility: historical API used recordWikiQuery as "query_submitted".
-export function recordWikiQuery(surface: WikiEvidenceSurface = 'settings', contextKey?: string): void {
-  recordWikiQuerySubmitted(surface, contextKey);
-}
-
 export function recordQualityOutcomeNegative(surface: WikiEvidenceSurface = 'chat', count: number = 1, contextKey?: string): void {
   if (count <= 0) {
     return;

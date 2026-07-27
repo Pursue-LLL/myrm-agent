@@ -109,13 +109,14 @@ def _resume_via_api(
                 re_interrupted = True
                 nested = event.get("data", {})
                 if isinstance(nested, dict):
-                    resume_msg_id = nested.get("messageId") or nested.get("data", {}).get("messageId")
+                    inner = nested.get("data")
+                    inner_mid = inner.get("messageId") if isinstance(inner, dict) else None
+                    resume_msg_id = nested.get("messageId") or inner_mid
                 print(
                     f"E2E_RESUME_SSE: agent re-interrupted ({event_type}), "
-                    f"resume_msg_id={resume_msg_id}",
+                    f"resume_msg_id={resume_msg_id} — draining remaining SSE",
                     flush=True,
                 )
-                break
             if not found_done and _SSE_DONE_RE.search(collected_text):
                 found_done = True
                 print(f"E2E_RESUME_SSE: DONE detected at L{line_count}", flush=True)
@@ -771,21 +772,38 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         assert resume_msg_id, f"No messageId for resume: {bridge_result}"
 
         MAX_RESUME_ROUNDS = 3
+        _RESUME_409_MAX_RETRIES = 3
+        _RESUME_SETTLE_SEC = 3.0
         current_msg_id = resume_msg_id
         done = False
+        resume_result: dict[str, object] = {}
         for resume_round in range(1, MAX_RESUME_ROUNDS + 1):
             _p(
                 f"resume via API round {resume_round}/{MAX_RESUME_ROUNDS}: "
                 f"chatId={resume_chat_id} msgId={current_msg_id}"
             )
             heartbeat_e2e_lease()
-            resume_result = await asyncio.to_thread(
-                _resume_via_api,
-                api_base=api_base,
-                chat_id=resume_chat_id,
-                message_id=current_msg_id,
-                timeout_sec=180.0,
-            )
+
+            result: dict[str, object] = {}
+            for retry_409 in range(_RESUME_409_MAX_RETRIES):
+                result = await asyncio.to_thread(
+                    _resume_via_api,
+                    api_base=api_base,
+                    chat_id=resume_chat_id,
+                    message_id=current_msg_id,
+                    timeout_sec=180.0,
+                )
+                err = str(result.get("error", ""))
+                if result.get("ok") or "409" not in err:
+                    break
+                backoff = 2.0 * (retry_409 + 1)
+                _p(
+                    f"resume round {resume_round} got 409 (retry {retry_409 + 1}/"
+                    f"{_RESUME_409_MAX_RETRIES}), backoff {backoff:.0f}s"
+                )
+                await asyncio.sleep(backoff)
+
+            resume_result = result
             _p(f"resume API result round {resume_round}: {resume_result}")
             assert isinstance(resume_result, dict) and resume_result.get("ok"), (
                 f"Backend resume API call failed round {resume_round}: {resume_result}"
@@ -799,8 +817,9 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                     current_msg_id = new_msg_id
                 _p(
                     f"agent re-interrupted (round {resume_round}), "
-                    f"next msgId={current_msg_id} — sending resume again"
+                    f"next msgId={current_msg_id} — settle {_RESUME_SETTLE_SEC}s"
                 )
+                await asyncio.sleep(_RESUME_SETTLE_SEC)
                 continue
             _p(f"SSE ended without DONE or re-interrupt (round {resume_round}) — fallback API poll")
             done = await _wait_api_done(

@@ -342,3 +342,53 @@ async def test_save_post_import_readiness_persists_session_and_provenance_metada
     assert provenance.metadata_json.get("readiness_status") == "warning"
     assert provenance.metadata_json.get("readiness_issue_count") == 1
     assert provenance.metadata_json.get("readiness_issue_codes") == ["mcp_servers_imported_disabled"]
+
+
+@pytest.mark.asyncio
+async def test_save_post_import_first_turn_outcome_persists_once(
+    db_session: AsyncSession,
+) -> None:
+    manager = _FakeMemoryManager()
+    service = MemoryImportSessionService(db_session)
+    payload = {"data": {"semantic": [{"content": "Track first turn outcome after migration.", "metadata": {}}]}}
+    dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(payload, "native_json")
+    confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+
+    await service.save_post_import_first_turn_outcome(
+        import_batch_id=confirm.import_batch_id,
+        readiness_status="warning",
+        outcome="success",
+        had_fatal_error=False,
+        chat_id="chat-1",
+        message_id="msg-1",
+    )
+    await service.save_post_import_first_turn_outcome(
+        import_batch_id=confirm.import_batch_id,
+        readiness_status="warning",
+        outcome="failed",
+        had_fatal_error=True,
+        chat_id="chat-2",
+        message_id="msg-2",
+    )
+
+    dry_run = await db_session.get(MemoryImportDryRunModel, dry_run_id)
+    assert dry_run is not None
+    assert isinstance(dry_run.metadata_json, dict)
+    first_turn = dry_run.metadata_json.get("post_import_first_turn")
+    assert isinstance(first_turn, dict)
+    assert first_turn.get("outcome") == "success"
+    assert first_turn.get("chat_id") == "chat-1"
+    assert first_turn.get("message_id") == "msg-1"
+
+    provenance = (
+        await db_session.execute(
+            select(MemoryMigrationProvenanceModel).order_by(MemoryMigrationProvenanceModel.started_at.desc())
+        )
+    ).scalars().first()
+    assert provenance is not None
+    assert isinstance(provenance.metadata_json, dict)
+    assert provenance.metadata_json.get("first_turn_outcome") == "success"
+    assert provenance.metadata_json.get("first_turn_readiness_status") == "warning"
+    assert provenance.metadata_json.get("first_turn_had_fatal_error") is False
+    assert provenance.metadata_json.get("first_turn_chat_id") == "chat-1"
+    assert provenance.metadata_json.get("first_turn_message_id") == "msg-1"

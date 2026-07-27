@@ -16,7 +16,12 @@
 const ALARM_NAME = "myrm-keepalive";
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_DELAY_MS = 30000;
-const EXTENSION_CAPABILITIES = Object.freeze(["navigate_url"]);
+const EXTENSION_CAPABILITIES = Object.freeze([
+  "navigate_url",
+  "list_tabs",
+  "attach_debugger",
+  "detach_debugger",
+]);
 
 let ws = null;
 let serverUrl = "";

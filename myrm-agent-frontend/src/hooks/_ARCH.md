@@ -10,7 +10,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 |-------------|------|
 | `useDiffParser.ts` | unified diff 解析（共用 cli-visualization / markdown-render-tools） |
 | `useMessageInput.ts` / `useMessageQueue.ts` / `useSmoothStream.ts` | 对话输入、队列、流式渲染 |
-| `useMessageInputWikiEvidenceCore.ts` | Chat 发送侧 Wiki 证据复问口径核心（`recordWikiQuery` context key 解析与上报） |
+| `useMessageInputWikiEvidenceCore.ts` | Chat 发送侧 Wiki 证据复问口径核心（context 回溯边界 + `turn_distance` 解析；`recordWikiQueryAttempt` / `recordWikiQuerySubmitted` 上报） |
 | `useInputHistory.ts` | 输入历史回溯（ArrowUp 空框触发、per-agent localStorage 隔离、ghost placeholder、弹窗键盘导航） |
 | `useInputFileUpload.ts` | 聊天输入文件上传（粘贴/拖拽所有文件类型、SHA-256 去重；支持 image/video/audio 分级大小校验+能力检测提示） |
 | `useAgentEditor.ts` / `useAgentConfigPanel.ts` / `use-agent-config-panel/` | Agent 配置面板 |

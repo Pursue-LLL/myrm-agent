@@ -147,10 +147,18 @@ class _ChatMessageMixin(_ChatServiceBase):
                     chat_id, message_id
                 )
                 if existing is not None:
+                    if existing.role == "user" and existing.content == content:
+                        logger.info(
+                            "Idempotent user retry detected for message_id=%s chat_id=%s; reusing existing row",
+                            message_id,
+                            chat_id,
+                        )
+                        return existing
                     logger.warning(
-                        "Duplicate user message_id=%s for chat_id=%s; allocating fresh id",
+                        "Duplicate user message_id=%s for chat_id=%s is not idempotent (existing_role=%s); allocating fresh id",
                         message_id,
                         chat_id,
+                        existing.role,
                     )
                     resolved_message_id = str(uuid4())
 

@@ -11,7 +11,7 @@ app.database.models.memory::MemoryImportDryRunModel (POS: 记忆域模型)
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 
 [OUTPUT]
-MemoryImportSessionService: creates bound dry-run sessions, confirms imports by dry-run id, records transaction ledgers, previews rollback, rolls back batches, stores post-import diagnostics/readiness contracts, and exposes cleanup metrics.
+MemoryImportSessionService: creates bound dry-run sessions, confirms imports by dry-run id, records transaction ledgers, previews rollback, rolls back batches, stores post-import diagnostics/readiness contracts and first-turn execution outcomes, and exposes cleanup metrics.
 
 [POS]
 单用户记忆导入审查会话服务。把外部记忆导入从客户端数据提交收口为服务端绑定、可审计、可诊断、可预演回滚的 dry-run -> confirm 流程。
@@ -20,6 +20,7 @@ MemoryImportSessionService: creates bound dry-run sessions, confirms imports by 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 from uuid import uuid4
 
 from myrm_agent_harness.toolkits.memory import (
@@ -469,6 +470,58 @@ class MemoryImportSessionService:
                     for item in readiness_issues
                     if isinstance(item, dict) and str(item.get("code", "")).strip()
                 ],
+            },
+        )
+        await self._db.commit()
+
+    async def save_post_import_first_turn_outcome(
+        self,
+        *,
+        import_batch_id: str,
+        readiness_status: Literal["ready", "warning", "critical"],
+        outcome: Literal["success", "failed", "no_output"],
+        had_fatal_error: bool,
+        chat_id: str | None,
+        message_id: str,
+    ) -> None:
+        """Attach first-turn execution outcome for migration readiness dual-anchor tracking."""
+
+        result = await self._db.execute(
+            select(MemoryImportDryRunModel)
+            .where(MemoryImportDryRunModel.import_batch_id == import_batch_id)
+            .order_by(desc(MemoryImportDryRunModel.confirmed_at))
+            .limit(1)
+        )
+        row = result.scalar_one_or_none()
+        if row is not None:
+            current_meta = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+            existing = current_meta.get("post_import_first_turn")
+            if isinstance(existing, dict) and isinstance(existing.get("outcome"), str):
+                return
+            recorded_at = datetime.now(UTC).isoformat()
+            row.metadata_json = {
+                **current_meta,
+                "post_import_first_turn": {
+                    "readiness_status": readiness_status,
+                    "outcome": outcome,
+                    "had_fatal_error": had_fatal_error,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "recorded_at": recorded_at,
+                },
+            }
+        else:
+            recorded_at = datetime.now(UTC).isoformat()
+
+        await self._ledger.update_migration_metadata_by_batch(
+            import_batch_id=import_batch_id,
+            metadata={
+                "first_turn_readiness_status": readiness_status,
+                "first_turn_outcome": outcome,
+                "first_turn_had_fatal_error": had_fatal_error,
+                "first_turn_chat_id": chat_id,
+                "first_turn_message_id": message_id,
+                "first_turn_recorded_at": recorded_at,
             },
         )
         await self._db.commit()

@@ -1,9 +1,9 @@
 ---
 name: office-document
 description: >-
-  Professional document generation workflow for Excel (.xlsx), PowerPoint (.pptx),
-  and Word (.docx). Produces business-grade documents with proper formatting,
-  formulas, charts, and consistent styling using openpyxl, python-pptx, and python-docx.
+  Professional document generation and editing workflow for Excel (.xlsx), PowerPoint (.pptx),
+  and Word (.docx). Creates new documents and safely edits existing files — preserving
+  formulas, formatting, and structure. Uses openpyxl, python-pptx, and python-docx.
 version: 1.0.0
 category: productivity
 tags:
@@ -58,6 +58,26 @@ When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 character
 ## Overview
 
 Business documents must be immediately usable — not "almost done, just needs formatting." This workflow ensures every generated document meets professional standards: correct formulas in Excel, clean layouts in PowerPoint, proper styling in Word.
+
+## Phase 0: Create vs. Modify Detection
+
+Before starting, determine if the task involves **creating a new document** or **modifying an existing one**:
+
+- **Create**: user asks to "make", "generate", "create", "write" a document → proceed to Phase 1.
+- **Modify**: user asks to "change", "update", "fix", "edit", "replace" content in an existing file → use the incremental edit workflow below.
+
+### Incremental Edit Workflow
+
+When modifying an existing Office document:
+
+1. **Read structure** — call `file_read_tool(paths=["<file>"], parse_mode="structure")` to get the JSON structural map (shape IDs, paragraph IDs, table locations, styles).
+2. **Locate target** — identify the exact element to modify by its stable ID (`shape_id` for PPTX, `para_id` for DOCX, cell coordinate for XLSX).
+3. **Write targeted patch** — use `bash_code_execute_tool` with python-pptx/python-docx/openpyxl to open the file and modify only the targeted element(s). Reference elements by their stable IDs.
+4. **Validate** — re-read the file to confirm the change took effect and no other content was damaged.
+
+**Why this matters:** Rewriting the entire file from scratch to change one slide title wastes tokens, risks losing formatting, and breaks any content the user did not ask to change. The structure map enables surgical edits.
+
+---
 
 ## Phase 1: Requirements
 
@@ -152,6 +172,77 @@ ws.add_chart(chart, "G2")
 - Freeze panes on header row: `ws.freeze_panes = "A2"`
 - Auto-filter on data tables: `ws.auto_filter.ref = ws.dimensions`
 - Set column widths for readability
+
+#### Editing Existing Excel Files
+
+When the user provides an existing `.xlsx` file to modify (fill data, update values), follow these rules **instead of** the "from scratch" conventions above. The existing file's conventions always take precedence.
+
+##### Step 1: Identify formula cells vs input cells
+
+Before writing any data, scan the workbook to understand its structure:
+
+```python
+from openpyxl import load_workbook
+
+wb = load_workbook('template.xlsx')
+
+formula_cells = set()
+for ws in wb.worksheets:
+    for row in ws.iter_rows():
+        for cell in row:
+            if isinstance(cell.value, str) and cell.value.startswith('='):
+                formula_cells.add(f"{ws.title}!{cell.coordinate}")
+```
+
+If the file uses color conventions (blue for inputs, black for formulas), respect them.
+If no color marks exist, treat any cell whose value starts with `=` as a formula cell — do not touch it.
+
+##### Step 2: Write only to input cells
+
+```python
+# CORRECT — write to a non-formula cell
+ws['B2'] = 5000000
+
+# WRONG — overwrites a SUM formula with a hardcoded number
+ws['B10'] = 10000000  # B10 was =SUM(B2:B9)
+```
+
+##### Step 3: Verify formula integrity after writing
+
+After all edits, audit the file to confirm no formulas were lost:
+
+```python
+post_edit_formulas = set()
+for ws in wb.worksheets:
+    for row in ws.iter_rows():
+        for cell in row:
+            if isinstance(cell.value, str) and cell.value.startswith('='):
+                post_edit_formulas.add(f"{ws.title}!{cell.coordinate}")
+
+lost = formula_cells - post_edit_formulas
+if lost:
+    raise RuntimeError(f"Formulas lost in cells: {lost}")
+
+wb.save('output.xlsx')
+```
+
+If formulas were lost, do **not** deliver the file. Investigate, fix, and retry.
+
+##### Forbidden operations on existing files
+
+- **Never** assign a plain value to a cell that contains a formula (`=` prefix)
+- **Never** use `insert_rows()` / `delete_rows()` / `insert_cols()` / `delete_cols()` within a range referenced by formulas — this silently shifts formula references
+- **Never** use `pandas.to_excel()` to overwrite a file that contains formulas — pandas destroys all formulas
+- **Never** call `wb.save()` after loading with `data_only=True` — this permanently replaces every formula with its last cached value
+
+##### openpyxl pitfalls for existing files
+
+| Pitfall | Consequence | Prevention |
+|---------|-------------|------------|
+| `load_workbook(data_only=True)` then `save()` | All formulas permanently replaced by cached values | Never save a `data_only=True` workbook |
+| Re-saving a file with external workbook links (`[1]Sheet!A1`) | Links lost, cells become `#NAME?` after recalc | Copy cached values from original before editing |
+| Writing to a `MergedCell` (non-anchor) | `AttributeError` or silent data loss | Only write to the top-left anchor of merged ranges |
+| Opening `.xlsm` without `keep_vba=True` | All macros stripped on save | Always pass `keep_vba=True` for macro-enabled files |
 
 ---
 

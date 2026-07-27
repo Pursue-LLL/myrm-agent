@@ -13,6 +13,7 @@
 [POS]
 Collect and aggregate minimal wiki evidence verification metrics:
 snippet expansion/deep verification/re-query/quick-bounce plus dwell metrics,
+query attempt/success semantics with turn-distance observability,
 and negative quality outcomes from user regeneration/undo behavior,
 with governance alert notifications when quality drops.
 """
@@ -73,6 +74,7 @@ class WikiEvidenceEventRequest(BaseModel):
         "evidence_surface",
         "snippet_open",
         "snippet_close",
+        "query_attempted",
         "query_submitted",
         "dropped_report",
         "quality_outcome_negative",
@@ -83,6 +85,7 @@ class WikiEvidenceEventRequest(BaseModel):
     count: int = Field(default=1, ge=1, le=200)
     dwell_ms: int | None = Field(default=None, ge=0, le=1_800_000)
     after_evidence: bool | None = None
+    turn_distance: int | None = Field(default=None, ge=0, le=500)
 
 
 class WikiEvidenceSummaryResponse(BaseModel):
@@ -99,6 +102,9 @@ class WikiEvidenceSummaryResponse(BaseModel):
     quick_bounce_rate: float
     quality_outcome_negative_count: int
     quality_outcome_negative_rate: float
+    query_attempt_count: int
+    query_success_count: int
+    query_success_rate: float
     query_count: int
     requery_count: int
     requery_rate: float
@@ -153,6 +159,8 @@ async def ingest_wiki_evidence_event(
             raise validation_error("count must be 1 for snippet_close")
         if payload.event_type != "query_submitted" and payload.after_evidence is not None:
             raise validation_error("after_evidence is only valid for query_submitted")
+        if payload.event_type not in {"query_attempted", "query_submitted"} and payload.turn_distance is not None:
+            raise validation_error("turn_distance is only valid for query_attempted/query_submitted")
         if payload.level is not None and payload.event_type != "snippet_open":
             raise validation_error("level is only valid for snippet_open")
         if payload.event_type == "dropped_report" and payload.dwell_ms is not None:
@@ -162,15 +170,20 @@ async def ingest_wiki_evidence_event(
         if payload.event_type == _QUALITY_OUTCOME_NEGATIVE_EVENT_TYPE and payload.dwell_ms is not None:
             raise validation_error("dwell_ms is invalid for quality_outcome_negative")
 
+        normalized_context_key = payload.context_key.strip() if payload.context_key and payload.context_key.strip() else None
+        event_meta_data: dict[str, int] | None = None
+        if payload.turn_distance is not None:
+            event_meta_data = {"turn_distance": payload.turn_distance}
+
         event = WikiEvidenceMetricEvent(
             event_type=payload.event_type,
             surface=payload.surface,
-            context_key=(payload.context_key.strip() if payload.context_key else None),
+            context_key=normalized_context_key,
             level=payload.level,
             count=payload.count,
             dwell_ms=payload.dwell_ms,
             after_evidence=payload.after_evidence,
-            meta_data=None,
+            meta_data=event_meta_data,
         )
         db.add(event)
         await db.commit()
@@ -226,6 +239,12 @@ async def get_wiki_evidence_summary(
             and_(
                 *base_filters,
                 WikiEvidenceMetricEvent.event_type == "query_submitted",
+            )
+        )
+        query_attempt_count_stmt = select(func.coalesce(func.sum(WikiEvidenceMetricEvent.count), 0)).where(
+            and_(
+                *base_filters,
+                WikiEvidenceMetricEvent.event_type == "query_attempted",
             )
         )
         requery_stmt = select(func.coalesce(func.sum(WikiEvidenceMetricEvent.count), 0)).where(
@@ -321,7 +340,9 @@ async def get_wiki_evidence_summary(
         snippet_open_count = int((await db.execute(snippet_open_stmt)).scalar() or 0)
         dropped_event_count = int((await db.execute(dropped_event_stmt)).scalar() or 0)
         quality_outcome_negative_count = int((await db.execute(quality_outcome_negative_stmt)).scalar() or 0)
-        query_count = int((await db.execute(query_count_stmt)).scalar() or 0)
+        query_success_count = int((await db.execute(query_count_stmt)).scalar() or 0)
+        query_attempt_count = int((await db.execute(query_attempt_count_stmt)).scalar() or 0)
+        query_count = query_success_count
         requery_count = int((await db.execute(requery_stmt)).scalar() or 0)
         deep_verification_count = int((await db.execute(deep_verification_stmt)).scalar() or 0)
         quick_bounce_count = int((await db.execute(quick_bounce_stmt)).scalar() or 0)
@@ -368,9 +389,12 @@ async def get_wiki_evidence_summary(
             quick_bounce_rate=_safe_rate(quick_bounce_count, snippet_open_count),
             quality_outcome_negative_count=quality_outcome_negative_count,
             quality_outcome_negative_rate=_safe_rate(quality_outcome_negative_count, outcome_rate_denominator),
+            query_attempt_count=query_attempt_count,
+            query_success_count=query_success_count,
+            query_success_rate=_safe_rate(query_success_count, query_attempt_count),
             query_count=query_count,
             requery_count=requery_count,
-            requery_rate=_safe_rate(requery_count, query_count),
+            requery_rate=_safe_rate(requery_count, query_success_count),
             verification_dwell_avg_ms=avg_dwell_ms,
             verification_dwell_sample_count=dwell_samples,
             snippet_open_by_surface=snippet_open_by_surface,

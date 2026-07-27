@@ -6,6 +6,7 @@ import { ResultStep, type TranslationFn } from '../MigrationWizardSteps';
 
 const mockPush = vi.fn();
 const mockQueueMigrationChatAgent = vi.fn();
+const mockQueueMigrationReadinessAnchor = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -13,6 +14,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/lib/migrationChatHandoff', () => ({
   queueMigrationChatAgent: (...args: unknown[]) => mockQueueMigrationChatAgent(...args),
+  queueMigrationReadinessAnchor: (...args: unknown[]) => mockQueueMigrationReadinessAnchor(...args),
 }));
 
 const t: TranslationFn = (key, values) => (values ? `${key}:${JSON.stringify(values)}` : key);
@@ -39,6 +41,7 @@ describe('ResultStep readiness gating', () => {
   beforeEach(() => {
     mockPush.mockReset();
     mockQueueMigrationChatAgent.mockReset();
+    mockQueueMigrationReadinessAnchor.mockReset();
   });
 
   it('blocks start chat when readiness is critical', () => {
@@ -66,6 +69,7 @@ describe('ResultStep readiness gating', () => {
     const button = screen.getByRole('button', { name: 'result.startChatBlocked' });
     expect(button).toBeDisabled();
     expect(screen.getByText('result.readinessResolveBeforeChat')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'result.readinessAction.configureProviders' })).toBeInTheDocument();
   });
 
   it('starts chat when readiness is ready', () => {
@@ -89,6 +93,36 @@ describe('ResultStep readiness gating', () => {
     fireEvent.click(button);
 
     expect(mockQueueMigrationChatAgent).toHaveBeenCalledWith('agent-123');
+    expect(mockQueueMigrationReadinessAnchor).toHaveBeenCalledWith({
+      importBatchId: 'memory-import-batch:test',
+      readinessStatus: 'ready',
+    });
     expect(mockPush).toHaveBeenCalledWith('/');
+  });
+
+  it('renders MCP issue quick-fix action', () => {
+    render(
+      <ResultStep
+        result={{
+          ...baseResult,
+          readiness: {
+            status: 'warning',
+            issues: [{ code: 'mcp_servers_imported_disabled', severity: 'warning', params: { count: 1 } }],
+          },
+        }}
+        skillSubmitResult={null}
+        skillSubmitFailed={false}
+        secretsImportMessage={null}
+        rollingBack={false}
+        onRollback={() => undefined}
+        onRetrySkillSubmit={() => undefined}
+        retryingSkills={false}
+        onDone={() => undefined}
+        t={t}
+      />,
+    );
+
+    const link = screen.getByRole('link', { name: 'result.readinessAction.configureMcp' });
+    expect(link).toHaveAttribute('href', '/settings/mcp');
   });
 });

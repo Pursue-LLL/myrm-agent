@@ -17,7 +17,7 @@ import {
   Upload,
 } from 'lucide-react';
 
-import { queueMigrationChatAgent } from '@/lib/migrationChatHandoff';
+import { queueMigrationChatAgent, queueMigrationReadinessAnchor } from '@/lib/migrationChatHandoff';
 import { exportMemoryArchive } from '@/services/memoryArchive';
 
 import { Button } from '@/components/primitives/button';
@@ -29,17 +29,20 @@ import type {
   MemoryImportConfirmResponse,
   MemoryImportCoverageItem,
   MemoryImportDryRunResponse,
-  MemoryImportReadinessIssue,
   MigrationLanePreviewItem,
   TokenEconomicsComparison,
 } from '@/services/memoryArchive';
 import type { SkillMigrationSubmitResponse } from '@/services/skillMigration';
+import {
+  formatReadinessIssue,
+  getReadinessIssueAction,
+  getImportReadinessStatus,
+  IMPORT_READINESS_STYLES,
+} from './MigrationWizardReadiness';
 
 export interface TranslationFn {
   (key: string, values?: Record<string, string | number>): string;
 }
-
-type ImportReadinessStatus = 'ready' | 'warning' | 'critical';
 
 const COVERAGE_LABEL_KEYS = new Set([
   'instruction_lane',
@@ -53,51 +56,6 @@ const COVERAGE_LABEL_KEYS = new Set([
   'agent_config_manual',
   'no_importable_data',
 ]);
-
-const IMPORT_READINESS_STYLES: Record<ImportReadinessStatus, string> = {
-  ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-  warning: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400',
-  critical: 'border-destructive/30 bg-destructive/10 text-destructive',
-};
-
-function getImportReadinessStatus(result: MemoryImportConfirmResponse): ImportReadinessStatus {
-  const status = result.readiness?.status;
-  if (status === 'ready' || status === 'warning' || status === 'critical') {
-    return status;
-  }
-  if (result.diagnostic_status === 'critical' || result.diagnostic_status === 'failed') {
-    return 'critical';
-  }
-  if (result.diagnostic_status === 'warning' || result.diagnostic_status === 'missing') {
-    return 'warning';
-  }
-  return 'ready';
-}
-
-function formatReadinessIssue(issue: MemoryImportReadinessIssue, t: TranslationFn): string {
-  switch (issue.code) {
-    case 'providers_not_configured':
-      return t('result.readinessIssue.providersNotConfigured');
-    case 'post_import_diagnostics_critical':
-      return t('result.readinessIssue.postImportDiagnosticsCritical', {
-        count: Number(issue.params.count ?? issue.params.failed_count ?? 0),
-      });
-    case 'post_import_diagnostics_warning':
-      return t('result.readinessIssue.postImportDiagnosticsWarning', {
-        count: Number(issue.params.count ?? issue.params.failed_count ?? 0),
-      });
-    case 'mcp_servers_imported_disabled':
-      return t('result.readinessIssue.mcpServersImportedDisabled', {
-        count: Number(issue.params.count ?? 0),
-      });
-    case 'workspace_rules_skipped':
-      return t('result.readinessIssue.workspaceRulesSkipped', {
-        count: Number(issue.params.count ?? 0),
-      });
-    default:
-      return t('result.readinessIssue.generic', { code: issue.code });
-  }
-}
 
 function CloudUploadZone({
   uploading,
@@ -785,6 +743,10 @@ export function ResultStep({
     if (!result.target_agent_id || readinessIsCritical) {
       return;
     }
+    queueMigrationReadinessAnchor({
+      importBatchId: result.import_batch_id,
+      readinessStatus,
+    });
     queueMigrationChatAgent(result.target_agent_id);
     router.push('/');
   };
@@ -833,9 +795,22 @@ export function ResultStep({
           <p className="mt-1 opacity-90">{t('result.readinessSummary')}</p>
           {readinessIssues.length > 0 && (
             <ul className="mt-2 space-y-1">
-              {readinessIssues.map((issue, index) => (
-                <li key={`${issue.code}-${index}`}>- {formatReadinessIssue(issue, t)}</li>
-              ))}
+              {readinessIssues.map((issue, index) => {
+                const action = getReadinessIssueAction(issue, t);
+                return (
+                  <li key={`${issue.code}-${index}`} className="flex items-start justify-between gap-3">
+                    <span className="text-left">- {formatReadinessIssue(issue, t)}</span>
+                    {action ? (
+                      <Link
+                        href={action.href}
+                        className="shrink-0 rounded-md border border-current/30 px-2 py-0.5 text-[11px] font-medium hover:opacity-85"
+                      >
+                        {action.label}
+                      </Link>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           )}
           {readinessIsCritical && <p className="mt-2 font-medium">{t('result.readinessResolveBeforeChat')}</p>}

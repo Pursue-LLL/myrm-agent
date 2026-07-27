@@ -606,6 +606,7 @@ const useChatStore = create<ChatState>()(
         resumeValue,
         archiveRestoreActions,
         agentConfigOverride,
+        shouldRecordWikiQuerySuccess,
       ) => {
         const state = get();
         set({ isConfigPanelExpanded: false, environmentAlerts: new Set<string>() });
@@ -631,6 +632,7 @@ const useChatStore = create<ChatState>()(
           resumeValue,
           archiveRestoreActions,
           agentConfigOverride,
+          shouldRecordWikiQuerySuccess,
         );
       },
 

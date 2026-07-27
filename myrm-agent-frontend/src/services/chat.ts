@@ -424,6 +424,11 @@ interface AgentConfigPayload {
   kanban_default_board_id?: string;
 }
 
+interface MigrationReadinessAnchorPayload {
+  import_batch_id: string;
+  readiness_status: 'ready' | 'warning' | 'critical';
+}
+
 export interface StreamRequestBody {
   query: string | object[];
   message_id: string;
@@ -436,6 +441,7 @@ export interface StreamRequestBody {
   timestamp?: number;
   locale?: string;
   agent_id?: string;
+  migration_readiness_anchor?: MigrationReadinessAnchorPayload;
   ephemeral_subagents?: Record<string, unknown>;
   user_instructions?: string;
   lite_model_selection?: ModelSelection;

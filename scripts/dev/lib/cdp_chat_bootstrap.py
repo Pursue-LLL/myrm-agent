@@ -215,6 +215,12 @@ class CdpChatBootstrap(CdpChatTransport):
                 await asyncio.sleep(2)
         else:
             await asyncio.sleep(2)
+        if os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1":
+            remaining_timeout = max(5.0, deadline - time.monotonic())
+            return await self._wait_shell_ready_inner(
+                timeout_sec=remaining_timeout,
+                require_bridge=False,
+            )
         probe_started = time.monotonic()
         if self._shell_layout_wait_started is None:
             self._shell_layout_wait_started = probe_started

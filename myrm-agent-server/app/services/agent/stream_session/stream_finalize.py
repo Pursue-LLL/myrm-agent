@@ -30,6 +30,9 @@ from app.services.agent.stream_session._memory_status_helpers import (
     build_memory_brief_status_payload,
     observe_memory_brief_status_payload,
 )
+from app.services.agent.stream_session.migration_readiness_anchor import (
+    record_migration_first_turn_outcome,
+)
 from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder, ClarificationTimeoutHolder
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.citation_persistence import (
@@ -262,6 +265,12 @@ async def finalize_agent_stream_session(
             timezone=session.request.timezone,
             sibling_group_id=session.collector.sibling_group_id,
         )
+
+    await record_migration_first_turn_outcome(
+        request=session.request,
+        had_fatal_error=session.had_fatal_error,
+        has_assistant_content=session.collector.has_content,
+    )
 
     if session.request.chat_id:
         extra = session.collector.extra_data

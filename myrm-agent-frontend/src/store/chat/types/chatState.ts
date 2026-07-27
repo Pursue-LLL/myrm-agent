@@ -231,6 +231,7 @@ export interface ChatState {
     resumeValue?: unknown,
     archiveRestoreActions?: ArchiveRestoreAction[],
     agentConfigOverride?: AgentConfig | null,
+    shouldRecordWikiQuerySuccess?: boolean,
   ) => Promise<void>;
   recoverHitlStream: (
     chatId: string,

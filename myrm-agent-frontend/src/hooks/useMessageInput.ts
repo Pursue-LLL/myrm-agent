@@ -23,22 +23,17 @@ import { useQuotaGuard } from '@/hooks/useQuotaGuard';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
-
 import { useMessageQueue } from '@/hooks/useMessageQueue';
 import { useInputFileUpload } from '@/hooks/useInputFileUpload';
 import { resolveArchiveRestoreActionsForMessage } from '@/store/chat/archiveRestoreActions';
-import { recordChatWikiQueryAttempt } from '@/hooks/useMessageInputWikiEvidenceCore';
+import { recordChatWikiQueryAttempt, recordChatWikiQuerySubmitted } from '@/hooks/useMessageInputWikiEvidenceCore';
 import { addInputHistory } from '@/hooks/useInputHistory';
-
 const MAX_DRAIN_RETRIES = 4;
-
 export const useMessageInput = () => {
   const t = useTranslations('chat');
-
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [detectedLink, setDetectedLink] = useState<{ text: string; position: number } | null>(null);
   const [dontRemindAgain, setDontRemindAgain] = useState(false);
-
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('dontRemindLinkDialog');
@@ -50,7 +45,6 @@ export const useMessageInput = () => {
   const [showCompactConfirm, setShowCompactConfirm] = useState(false);
   const [dontRemindCompact, setDontRemindCompact] = useState(false);
   const pendingCompactTopicRef = useRef<string | undefined>(undefined);
-
   const {
     chatId,
     sendMessage,
@@ -125,7 +119,7 @@ export const useMessageInput = () => {
     if (!nextMessage) return;
 
     setTimeout(() => {
-      sendMessage(nextMessage.text, undefined, undefined, undefined, nextMessage.archiveRestoreActions).catch(
+      sendMessage(nextMessage.text, undefined, undefined, undefined, nextMessage.archiveRestoreActions, undefined, true).catch(
         (error) => {
           if (error && error.name === 'AgentBusyError') {
             drainFailCountRef.current += 1;
@@ -236,6 +230,7 @@ export const useMessageInput = () => {
     const chatState = useChatStore.getState();
     recordChatWikiQueryAttempt(chatState.messages, chatState.chatId);
   }, []);
+
   /**
    * Steer 模式提交：中断当前任务的后续工具调用，立即转向新指令
    */
@@ -248,8 +243,11 @@ export const useMessageInput = () => {
 
     setInputMessage('');
     const success = await steerMessage(injectedText);
-    if (!success) {
-      sendMessage(injectedText, undefined).catch(() => {});
+    if (success) {
+      const chatState = useChatStore.getState();
+      recordChatWikiQuerySubmitted(chatState.messages, chatState.chatId);
+    } else {
+      sendMessage(injectedText, undefined, undefined, undefined, undefined, undefined, true).catch(() => {});
     }
   }, [
     _validateAndPrepare,
@@ -329,7 +327,7 @@ export const useMessageInput = () => {
     const archiveRestoreActions = resolveArchiveRestoreActionsForMessage(finalMessage, pendingArchiveRestoreActions);
     setPendingArchiveRestoreActions([]);
 
-    sendMessage(finalMessage, undefined, undefined, undefined, archiveRestoreActions).catch((error) => {
+    sendMessage(finalMessage, undefined, undefined, undefined, archiveRestoreActions, undefined, true).catch((error) => {
       if (error && error.name === 'AgentBusyError') {
         enqueue(finalMessage, files, archiveRestoreActions);
         toast.info(t('queue.added_with_position', { position: queue.length + 1 }));

@@ -52,6 +52,7 @@ def test_wiki_evidence_summary_accumulates_key_metrics(client: TestClient) -> No
         {"event_type": "evidence_surface", "surface": "settings", "context_key": "agent:default", "count": 4},
         {"event_type": "snippet_open", "surface": "settings", "context_key": "agent:default", "level": "L1"},
         {"event_type": "snippet_close", "surface": "settings", "context_key": "agent:default", "dwell_ms": 12000},
+        {"event_type": "query_attempted", "surface": "settings", "context_key": "agent:default", "turn_distance": 0},
         {"event_type": "query_submitted", "surface": "settings", "context_key": "agent:default", "after_evidence": True},
         {"event_type": "dropped_report", "surface": "settings", "context_key": "agent:default", "count": 2},
         {"event_type": "quality_outcome_negative", "surface": "settings", "context_key": "agent:default", "count": 1},
@@ -78,6 +79,13 @@ def test_wiki_evidence_summary_accumulates_key_metrics(client: TestClient) -> No
     before_query = int(before["query_count"])
     after_query = int(after["query_count"])
     assert after_query >= before_query + 1
+    before_attempt = int(before["query_attempt_count"])
+    after_attempt = int(after["query_attempt_count"])
+    assert after_attempt >= before_attempt + 1
+    before_success = int(before["query_success_count"])
+    after_success = int(after["query_success_count"])
+    assert after_success >= before_success + 1
+    assert float(after["query_success_rate"]) >= 0
 
     before_requery = int(before["requery_count"])
     after_requery = int(after["requery_count"])
@@ -134,6 +142,36 @@ def test_wiki_evidence_rejects_dwell_for_quality_outcome_negative(client: TestCl
     response = client.post(
         "/api/v1/statistics/wiki-evidence/events",
         json={"event_type": "quality_outcome_negative", "surface": "chat", "dwell_ms": 1000},
+        headers={"Authorization": "Bearer local"},
+    )
+    assert response.status_code == 400
+
+
+def test_wiki_evidence_accepts_turn_distance_for_query_events(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/statistics/wiki-evidence/events",
+        json={
+            "event_type": "query_submitted",
+            "surface": "chat",
+            "context_key": "chat:turn-distance",
+            "after_evidence": False,
+            "turn_distance": 2,
+        },
+        headers={"Authorization": "Bearer local"},
+    )
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+
+
+def test_wiki_evidence_rejects_turn_distance_for_non_query_events(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/statistics/wiki-evidence/events",
+        json={
+            "event_type": "snippet_open",
+            "surface": "chat",
+            "level": "L1",
+            "turn_distance": 1,
+        },
         headers={"Authorization": "Bearer local"},
     )
     assert response.status_code == 400

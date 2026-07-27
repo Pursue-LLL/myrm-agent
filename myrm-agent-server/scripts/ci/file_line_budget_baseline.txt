@@ -26,6 +26,7 @@ app/api/skills/drafts.py
 app/api/skills/migrations.py
 app/api/skills/permissions.py
 app/api/statistics/context_health.py
+app/api/statistics/wiki_evidence.py
 app/api/statistics/growth_dashboard.py
 app/api/statistics/router.py
 app/api/voice/agent_bridge.py
@@ -115,6 +116,7 @@ app/services/agent/marketplace/import_.py
 app/services/agent/marketplace/package_contract.py
 app/services/agent/params/converter.py
 app/services/agent/params/mention.py
+app/services/agent/stream_session/stream_finalize.py
 app/services/agent/stream_session/stream_lane_factory.py
 app/services/agent/stream_session/stream_loop.py
 app/services/agent/streaming.py

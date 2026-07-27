@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatActionsMethods, ChatActionsState } from '../messageRequest';
+import type { Message } from '@/store/chat/types';
 import { AgentBusyError, FatalNetworkError, consumeStream, executeStreamWithRetry } from '../streamConsumer';
 
 const mockParseSseEnvelope = vi.hoisted(() => vi.fn());
@@ -11,6 +12,11 @@ const mockRecoverPendingApprovals = vi.hoisted(() => vi.fn());
 const mockWaitUntilReady = vi.hoisted(() => vi.fn());
 const mockLoadMessages = vi.hoisted(() => vi.fn());
 const mockResolveE2eApiBase = vi.hoisted(() => vi.fn(() => null));
+const mockResolveChatWikiEvidenceContext = vi.hoisted(() => vi.fn());
+const mockRecordWikiQuerySubmitted = vi.hoisted(() => vi.fn());
+const mockDecryptSseFrame = vi.hoisted(() => vi.fn());
+const mockLoadStoredE2EESession = vi.hoisted(() => vi.fn(() => null));
+const mockCreateMultiplexReadableStream = vi.hoisted(() => vi.fn());
 const approvalState = vi.hoisted(() => ({
   queue: [] as unknown[],
 }));
@@ -27,6 +33,10 @@ vi.mock('../messageRequest', () => ({
   createMessageRequest: (...args: unknown[]) => mockCreateMessageRequest(...args),
   attachToChat: (...args: unknown[]) => mockAttachToChat(...args),
   attachForHitlRecovery: (...args: unknown[]) => mockAttachForHitlRecovery(...args),
+}));
+
+vi.mock('../multiplexChunkBridge', () => ({
+  createMultiplexReadableStream: (...args: unknown[]) => mockCreateMultiplexReadableStream(...args),
 }));
 
 vi.mock('../../useChatStore', () => ({
@@ -48,8 +58,8 @@ vi.mock('@/services/ConnectionManager', () => ({
 }));
 
 vi.mock('@/lib/e2ee/client', () => ({
-  decryptSseFrame: vi.fn(),
-  loadStoredE2EESession: vi.fn(() => null),
+  decryptSseFrame: (...args: unknown[]) => mockDecryptSseFrame(...args),
+  loadStoredE2EESession: (...args: unknown[]) => mockLoadStoredE2EESession(...args),
 }));
 
 vi.mock('@/lib/deploy-mode', async (importOriginal) => {
@@ -64,6 +74,14 @@ vi.mock('@/store/useToolApprovalStore', () => ({
   default: {
     getState: () => approvalState,
   },
+}));
+
+vi.mock('@/services/wikiEvidenceContextCore', () => ({
+  resolveChatWikiEvidenceContext: (...args: unknown[]) => mockResolveChatWikiEvidenceContext(...args),
+}));
+
+vi.mock('@/services/wikiEvidenceMetrics', () => ({
+  recordWikiQuerySubmitted: (...args: unknown[]) => mockRecordWikiQuerySubmitted(...args),
 }));
 
 const textEncoder = new TextEncoder();
@@ -121,6 +139,15 @@ function createInterruptedResponse(rawChunk: string): Response {
   });
 }
 
+function createChunkStream(raw: string): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(textEncoder.encode(raw));
+      controller.close();
+    },
+  });
+}
+
 describe('streamConsumer resilience paths', () => {
   beforeEach(() => {
     mockParseSseEnvelope.mockReset();
@@ -132,7 +159,15 @@ describe('streamConsumer resilience paths', () => {
     mockWaitUntilReady.mockReset();
     mockLoadMessages.mockReset();
     mockResolveE2eApiBase.mockReset();
+    mockResolveChatWikiEvidenceContext.mockReset();
+    mockRecordWikiQuerySubmitted.mockReset();
+    mockDecryptSseFrame.mockReset();
+    mockLoadStoredE2EESession.mockReset();
+    mockCreateMultiplexReadableStream.mockReset();
     mockResolveE2eApiBase.mockReturnValue(null);
+    mockResolveChatWikiEvidenceContext.mockReturnValue({ contextKey: 'chat:a-1', turnDistance: 0 });
+    mockLoadStoredE2EESession.mockReturnValue(null);
+    mockCreateMultiplexReadableStream.mockImplementation(() => createChunkStream(''));
     approvalState.queue = [];
     mockWaitUntilReady.mockResolvedValue({ ok: true });
     mockAttachForHitlRecovery.mockResolvedValue({
@@ -207,6 +242,42 @@ describe('streamConsumer resilience paths', () => {
     }
   });
 
+  it('records wiki query success exactly once on accepted stream response', async () => {
+    const state = createBaseState({
+      chatId: 'chat-success',
+      messages: [{ role: 'assistant', messageId: 'a-1', content: '', createdAt: new Date() } as Message],
+    });
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    approvalState.queue = [{}];
+    mockCreateMessageRequest.mockResolvedValueOnce(
+      createSseResponse('data: {"type":"message","messageId":"m-ok","data":"ok"}\n\n'),
+    );
+    mockParseSseEnvelope.mockReturnValue({ type: 'message', messageId: 'm-ok', data: 'ok' });
+    mockHandleMessageStream.mockResolvedValue({ added: true, recievedMessage: 'ok' });
+
+    await expect(
+      executeStreamWithRetry(
+        'hello',
+        'msg-success',
+        state,
+        actions,
+        null,
+        abortController,
+        false,
+        '',
+        undefined,
+        undefined,
+        true,
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(mockResolveChatWikiEvidenceContext).toHaveBeenCalledTimes(1);
+    expect(mockResolveChatWikiEvidenceContext).toHaveBeenCalledWith(state.messages, 'chat-success');
+    expect(mockRecordWikiQuerySubmitted).toHaveBeenCalledTimes(1);
+    expect(mockRecordWikiQuerySubmitted).toHaveBeenCalledWith('chat', 'chat:a-1', 0);
+  });
+
   it('attaches to running chat when stream is interrupted mid-read', async () => {
     const state = createBaseState({ chatId: 'chat-attach', actionMode: 'agent' });
     const actions = createActions(state);
@@ -248,6 +319,82 @@ describe('streamConsumer resilience paths', () => {
 
     expect(mockAttachToChat).toHaveBeenCalledTimes(1);
     expect(mockLoadMessages).toHaveBeenCalledWith('chat-load-fallback');
+  });
+
+  it('decrypts e2ee_frame chunks before parsing SSE payload', async () => {
+    const state = createBaseState({ loading: false });
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    const session = { sessionId: 'e2ee-session' };
+    mockLoadStoredE2EESession.mockReturnValue(session);
+    mockDecryptSseFrame.mockReturnValue('data: {"type":"message","messageId":"m-e2ee","data":"secure"}\n\n');
+    mockParseSseEnvelope.mockReturnValue({ type: 'message', messageId: 'm-e2ee', data: 'secure' });
+    mockHandleMessageStream.mockResolvedValue({ added: true, recievedMessage: 'secure' });
+
+    await expect(
+      consumeStream(
+        createSseResponse('event: e2ee_frame\ndata: encrypted-frame\n\n'),
+        'hello',
+        state,
+        actions,
+        abortController,
+        false,
+        '',
+      ),
+    ).resolves.toMatchObject({ stoppedEarly: false });
+
+    expect(mockDecryptSseFrame).toHaveBeenCalledWith(session, 'encrypted-frame');
+    expect(mockHandleMessageStream).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses accepted message_id from multiplex JSON handshake stream', async () => {
+    const state = createBaseState({ chatId: 'chat-multiplex', actionMode: 'agent' });
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    const requestMessageId = 'msg-multiplex-request';
+    const acceptedMessageId = 'msg-multiplex-accepted';
+    approvalState.queue = [{}];
+    mockResolveE2eApiBase.mockReturnValue('http://127.0.0.1:8080');
+    (window as Window & { __MYRM_E2E_DIRECT_SSE__?: boolean }).__MYRM_E2E_DIRECT_SSE__ = false;
+
+    mockCreateMultiplexReadableStream
+      .mockImplementationOnce(() => createChunkStream(''))
+      .mockImplementationOnce(() =>
+        createChunkStream('data: {"type":"message","messageId":"m-multiplex","data":"ok"}\n\n'),
+      );
+    mockCreateMessageRequest.mockResolvedValue(
+      new Response(JSON.stringify({ status: 'accepted', message_id: acceptedMessageId }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    mockParseSseEnvelope.mockReturnValue({ type: 'message', messageId: 'm-multiplex', data: 'ok' });
+    mockHandleMessageStream.mockResolvedValue({ added: true, recievedMessage: 'ok' });
+
+    await expect(
+      executeStreamWithRetry(
+        'hello',
+        requestMessageId,
+        state,
+        actions,
+        null,
+        abortController,
+        false,
+        '',
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(mockCreateMultiplexReadableStream).toHaveBeenNthCalledWith(
+      1,
+      requestMessageId,
+      abortController.signal,
+    );
+    expect(mockCreateMultiplexReadableStream).toHaveBeenNthCalledWith(
+      2,
+      acceptedMessageId,
+      abortController.signal,
+    );
+    expect(mockHandleMessageStream).toHaveBeenCalledTimes(1);
   });
 
   it('drops unknown SSE payload without calling message handler', async () => {

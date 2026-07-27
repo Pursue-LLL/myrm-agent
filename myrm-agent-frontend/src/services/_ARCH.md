@@ -41,7 +41,8 @@
 | `file.ts` | HTTP 上传、`UploadProgress`、PDF/文档内容提取（**非**本地选文件） |
 | `file-service/` | 平台 `FileService` 策略（Tauri FS vs Sandbox）；见 [_ARCH.md](file-service/_ARCH.md) |
 | `wikiService.ts` | `/wiki/*` 客户端：概念树/队列/导入/审批与 query；`queryWiki` 返回结构化 `source_snippets(level/path/section/snippet)` 供设置页与聊天证据链复用 |
-| `wikiEvidenceMetrics.ts` | `/statistics/wiki-evidence/*` 客户端：记录证据曝光/展开/核验停留/复问/负向结果事件（按 `context_key` 隔离复问口径，离线丢样聚合上报 `dropped_report`，`quality_outcome_negative` 用于答案负反馈锚点；chat 输入侧复问事件由 `useMessageInputWikiEvidenceCore.ts` 解析上下文并上报），并查询聚合摘要（expansion/deep verification/re-query/quick bounce/dwell/negative outcome）。 |
+| `wikiEvidenceContextCore.ts` | Wiki 证据 query 上下文解析核心（chat `context_key` 回溯边界 + `turn_distance` 计算），供输入 Hook 与流式发送链路复用统一口径 |
+| `wikiEvidenceMetrics.ts` | `/statistics/wiki-evidence/*` 客户端：记录证据曝光/展开/核验停留/query attempt+success/负向结果事件（按 `context_key` 隔离复问口径，query 事件携带 `turn_distance`；离线丢样聚合上报 `dropped_report`，`quality_outcome_negative` 用于答案负反馈锚点；chat 输入侧由 `useMessageInputWikiEvidenceCore.ts` 解析上下文并上报），并查询聚合摘要（expansion/deep verification/re-query/quick bounce/dwell/negative outcome + query success rate）。 |
 | `config/` | `ConfigSyncManager` + 适配器（local `TauriConfigAdapter` 处理 Next 代理 5xx 与离线队列；sandbox `SandboxConfigAdapter`） |
 
 ## 依赖

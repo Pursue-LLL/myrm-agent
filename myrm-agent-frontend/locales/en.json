@@ -8097,6 +8097,12 @@
           "workspaceRulesSkipped": "{count} workspace rule file(s) were skipped because they already existed.",
           "generic": "Readiness check requires attention: {code}"
         },
+        "readinessAction": {
+          "configureProviders": "Fix provider setup",
+          "openMemoryCenter": "Open memory diagnostics",
+          "configureMcp": "Review MCP settings",
+          "reviewMigrationRules": "Review migration rules"
+        },
         "rollbackIncludesInstructions": "Rollback restores memories and imported instructions",
         "startChat": "Chat with this agent",
         "startChatBlocked": "Resolve readiness issues first",

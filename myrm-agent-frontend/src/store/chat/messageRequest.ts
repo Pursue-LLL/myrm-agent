@@ -66,6 +66,7 @@ import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { hasUsableProviderAuth, normalizeApiUrl } from '@/store/config/providerTypes';
 import { normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
+import { clearMigrationReadinessAnchor, readMigrationReadinessAnchor } from '@/lib/migrationChatHandoff';
 import type { ChatState } from './types';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';
@@ -559,6 +560,7 @@ export const createMessageRequest = async (
     configStore.personalSettings?.reasoningDisplayMode ?? configStore.reasoningDisplayMode ?? 'collapsed';
 
   const kanbanDefaultBoardId = resolveKanbanDefaultBoardIdForRequest(currentBuiltinTools);
+  const migrationReadinessAnchor = readMigrationReadinessAnchor();
 
   const requestBody = {
     query,
@@ -584,6 +586,12 @@ export const createMessageRequest = async (
     ...(userLocale && { locale: userLocale }),
     reasoning_display_mode: reasoningDisplayMode,
     ...(effectiveAgentId && { agent_id: effectiveAgentId }),
+    ...(migrationReadinessAnchor && {
+      migration_readiness_anchor: {
+        import_batch_id: migrationReadinessAnchor.importBatchId,
+        readiness_status: migrationReadinessAnchor.readinessStatus,
+      },
+    }),
     ...(agentConfig?.ephemeralSubagents && { ephemeral_subagents: agentConfig.ephemeralSubagents }),
     ...(userInstructions && { user_instructions: userInstructions }),
     ...(liteModelSelection && { lite_model_selection: liteModelSelection }),
@@ -739,7 +747,11 @@ export const createMessageRequest = async (
     quoteState.clearQuote();
   }
 
-  return createAISearchStream(requestBody, abortController || undefined);
+  const response = await createAISearchStream(requestBody, abortController || undefined);
+  if (migrationReadinessAnchor) {
+    clearMigrationReadinessAnchor();
+  }
+  return response;
 };
 
 /**
@@ -802,6 +814,7 @@ export const sendMessage = async (
   resumeValue?: unknown,
   archiveRestoreActions?: ArchiveRestoreAction[],
   agentConfigOverride?: AgentConfig | null,
+  shouldRecordWikiQuerySuccess: boolean = false,
 ): Promise<void> => {
   const isHitlResume = resumeValue !== undefined;
 
@@ -973,6 +986,7 @@ export const sendMessage = async (
       recievedMessage,
       resumeValue,
       archiveRestoreActions,
+      shouldRecordWikiQuerySuccess,
     );
     useCompanionStore.getState().incrementConversation();
   } catch (error) {

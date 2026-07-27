@@ -8100,6 +8100,12 @@
           "workspaceRulesSkipped": "{count} 条工作区规则因已存在而跳过。",
           "generic": "就绪检查需要处理：{code}"
         },
+        "readinessAction": {
+          "configureProviders": "去配置模型服务商",
+          "openMemoryCenter": "查看记忆诊断",
+          "configureMcp": "检查 MCP 设置",
+          "reviewMigrationRules": "查看迁移规则"
+        },
         "rollbackIncludesInstructions": "回滚将同时恢复记忆与已导入的指令",
         "startChat": "用此智能体开始对话",
         "startChatBlocked": "先修复就绪问题",

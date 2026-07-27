@@ -169,12 +169,24 @@ class ArchiveRestoreActionRequest(BaseModel):
         populate_by_name = True
 
 
+class MigrationReadinessAnchorRequest(BaseModel):
+    """One-shot migration readiness anchor for first-turn outcome telemetry."""
+
+    import_batch_id: str = Field(..., min_length=1, max_length=80)
+    readiness_status: Literal["ready", "warning", "critical"]
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
 class AgentRequest(BaseModel):
     """Agent streaming request — backend resolves API keys from DB."""
 
     message_id: str
     chat_id: str | None = None
     agent_id: str | None = None
+    migration_readiness_anchor: MigrationReadinessAnchorRequest | None = None
     multiplexed: bool = False
     blueprint_id: str | None = None
     ephemeral_subagents: dict[str, object] | None = None

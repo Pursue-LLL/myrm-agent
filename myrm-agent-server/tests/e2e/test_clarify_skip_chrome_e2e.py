@@ -769,14 +769,18 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             chat = McpChatSession(client, page)
             try:
                 await asyncio.wait_for(
-                    chat.bootstrap(BASE_URL, timeout_sec=120.0),
+                    chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0),
                     timeout=bootstrap_timeout,
+                )
+                await asyncio.wait_for(
+                    chat.ensure_react_e2e_bridge(timeout_sec=60.0),
+                    timeout=min(70.0, bootstrap_timeout),
                 )
                 break
             except TimeoutError:
                 if attempt >= len(bootstrap_timeouts):
-                    pytest.skip(
-                        "Skip clarify chrome E2E in shared-hot mode: bootstrap transport "
+                    pytest.fail(
+                        "Clarify chrome E2E bootstrap timed out in shared-hot mode: "
                         f"timed out after {bootstrap_timeout:.0f}s"
                     )
             except RuntimeError as exc:
@@ -788,8 +792,8 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 )
                 if (not retryable) or attempt >= len(bootstrap_timeouts):
                     if retryable:
-                        pytest.skip(
-                            "Skip clarify chrome E2E in shared-hot mode: "
+                        pytest.fail(
+                            "Clarify chrome E2E bootstrap transport unstable in shared-hot mode: "
                             f"bootstrap transport unstable ({exc})"
                         )
                     raise

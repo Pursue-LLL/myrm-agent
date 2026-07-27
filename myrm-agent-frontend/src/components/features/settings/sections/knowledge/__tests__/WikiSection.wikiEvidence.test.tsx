@@ -7,7 +7,8 @@ const queryWikiMock = vi.fn();
 const setAgentScopeMock = vi.fn();
 const listAgentsMock = vi.fn();
 const apiRequestMock = vi.fn();
-const recordWikiQueryMock = vi.fn();
+const recordWikiQueryAttemptMock = vi.fn();
+const recordWikiQuerySubmittedMock = vi.fn();
 const recordEvidenceSurfaceMock = vi.fn();
 
 vi.mock('next-intl', () => ({
@@ -52,7 +53,8 @@ vi.mock('@/components/agent/builtin-agent-i18n', () => ({
 }));
 
 vi.mock('@/services/wikiEvidenceMetrics', () => ({
-  recordWikiQuery: (...args: unknown[]) => recordWikiQueryMock(...args),
+  recordWikiQueryAttempt: (...args: unknown[]) => recordWikiQueryAttemptMock(...args),
+  recordWikiQuerySubmitted: (...args: unknown[]) => recordWikiQuerySubmittedMock(...args),
   recordEvidenceSurface: (...args: unknown[]) => recordEvidenceSurfaceMock(...args),
 }));
 
@@ -173,7 +175,8 @@ describe('WikiSection evidence snippet flow', () => {
     setAgentScopeMock.mockReset();
     listAgentsMock.mockReset();
     apiRequestMock.mockReset();
-    recordWikiQueryMock.mockReset();
+    recordWikiQueryAttemptMock.mockReset();
+    recordWikiQuerySubmittedMock.mockReset();
     recordEvidenceSurfaceMock.mockReset();
 
     listAgentsMock.mockResolvedValue({ items: [] });
@@ -220,7 +223,8 @@ describe('WikiSection evidence snippet flow', () => {
     await waitFor(() => {
       expect(queryWikiMock).toHaveBeenCalledWith('where is policy?');
     });
-    expect(recordWikiQueryMock).toHaveBeenCalledWith('settings', 'agent:default');
+    expect(recordWikiQueryAttemptMock).toHaveBeenCalledWith('settings', 'agent:default');
+    expect(recordWikiQuerySubmittedMock).toHaveBeenCalledWith('settings', 'agent:default');
     expect(recordEvidenceSurfaceMock).toHaveBeenCalledWith('settings', 1, 'agent:default');
 
     const snippetCard = await screen.findByRole('button', { name: /team/ });

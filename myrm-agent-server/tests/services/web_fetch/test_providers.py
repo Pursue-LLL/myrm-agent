@@ -92,9 +92,9 @@ async def test_firecrawl_provider_success() -> None:
     assert result.title == "Page"
 
 
-def test_firecrawl_provider_requires_api_key() -> None:
-    with pytest.raises(ValueError, match="API key"):
-        FirecrawlEscalationProvider("  ")
+def test_firecrawl_provider_blank_key_treated_as_keyless() -> None:
+    provider = FirecrawlEscalationProvider("  ")
+    assert provider._api_key is None
 
 
 @pytest.mark.asyncio

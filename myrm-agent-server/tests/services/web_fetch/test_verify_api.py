@@ -90,8 +90,8 @@ async def test_resolve_firecrawl_verify_key_from_search_services() -> None:
 
 
 @pytest.mark.asyncio
-async def test_resolve_firecrawl_verify_key_missing_raises() -> None:
+async def test_resolve_firecrawl_verify_key_missing_returns_none() -> None:
     from app.api.integrations.web_fetch import _resolve_firecrawl_verify_key
 
-    with pytest.raises(HTTPException):
-        await _resolve_firecrawl_verify_key(None, False)
+    result = await _resolve_firecrawl_verify_key(None, False)
+    assert result is None
