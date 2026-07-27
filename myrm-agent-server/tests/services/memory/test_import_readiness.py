@@ -66,6 +66,21 @@ def test_build_import_readiness_does_not_block_without_api_keys() -> None:
     assert readiness.issues == []
 
 
+def test_build_import_readiness_populates_issue_settings_path() -> None:
+    readiness = build_import_readiness(
+        providers_configured=True,
+        source_has_api_keys=False,
+        diagnostic_status="ready",
+        diagnostic_failed_count=0,
+        mcp_config_count=2,
+        workspace_rules_skipped=0,
+    )
+
+    assert readiness.status == "warning"
+    assert len(readiness.issues) == 1
+    assert readiness.issues[0].settings_path == "/settings/mcp"
+
+
 def test_resolve_readiness_issue_action_maps_known_codes() -> None:
     from app.services.memory.operations.crud.import_readiness import resolve_readiness_issue_action
 

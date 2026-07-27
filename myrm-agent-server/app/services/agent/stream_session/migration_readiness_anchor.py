@@ -52,15 +52,28 @@ async def record_migration_first_turn_outcome(
     if not import_batch_id:
         return
 
-    readiness_status = live_readiness_status or anchor.readiness_status
+    readiness_status = live_readiness_status
     outcome = resolve_first_turn_outcome(
         had_fatal_error=had_fatal_error,
         has_assistant_content=has_assistant_content,
     )
     session_factory = get_session_factory()
     async with session_factory() as db:
+        service = MemoryImportSessionService(db)
+        if readiness_status is None:
+            try:
+                live_readiness = await service.resolve_live_import_readiness(import_batch_id)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to live-resolve migration readiness for first-turn outcome batch %s: %s",
+                    import_batch_id,
+                    exc,
+                )
+                return
+            readiness_status = live_readiness.status
+
         try:
-            await MemoryImportSessionService(db).save_post_import_first_turn_outcome(
+            await service.save_post_import_first_turn_outcome(
                 import_batch_id=import_batch_id,
                 readiness_status=readiness_status,
                 outcome=outcome,

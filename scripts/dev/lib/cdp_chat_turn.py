@@ -13,12 +13,12 @@ from cdp_chat_support import (
     PREPARE_AUTOMATION_SEND_JS,
     SELECT_FIRST_ENABLED_MODEL_JS,
     SELECT_MIMO_MODEL_JS,
+    WAIT_WORKSPACE_STREAM_JS,
     chat_id_from_path,
     chat_messages_have_ok,
     fetch_provider_readiness_snapshot,
 )
 from e2e_wave_ledger import maybe_register_e2e_chat
-from dev_gate_contract import SEND_TURN_OBSERVE_SEC
 from send_turn_contract import SendTurnError, SendTurnPhase, is_live_send_turn_profile
 
 
@@ -830,6 +830,29 @@ class CdpChatTurn(CdpChatSubmit):
                     f"E2E send not ready before submit: ready={ready} probe={send_probe} debug={debug}"
                 )
             fill = {"ok": True, "mode": "sendTurnContract", "inputLen": len(text)}
+            if is_live_send_turn_profile():
+                workspace_ready = await self.evaluate(
+                    WAIT_WORKSPACE_STREAM_JS,
+                    await_promise=True,
+                    recv_timeout=35.0,
+                )
+                if not isinstance(workspace_ready, dict) or not workspace_ready.get("ok"):
+                    raise RuntimeError(
+                        f"SendTurnContract workspace stream not ready: {workspace_ready!r}"
+                    )
+                send_rev = await self.evaluate(
+                    """(() => ({
+                      rev: window.__MYRM_E2E_SEND_TURN_REV__
+                        ?? window.__MYRM_E2E_CHAT__?.sendTurnRev?.()
+                        ?? 'unknown',
+                    }))()""",
+                    await_promise=False,
+                )
+                if isinstance(send_rev, dict):
+                    print(
+                        f"E2E_SEND_TURN: rev={send_rev.get('rev')}",
+                        flush=True,
+                    )
             try:
                 submit = await self.send_chat_message_atomic(
                     text,
@@ -849,24 +872,14 @@ class CdpChatTurn(CdpChatSubmit):
                     ) from exc
                 raise
             if not submit.get("ok"):
-                native_err = str(submit.get("err") or "")
-                if native_err in {"no-sendChatMessage", "target-closed-during-atomic"}:
-                    await self.evaluate(
-                        f"""(() => {{
-                          const bridge = window.__MYRM_E2E_CHAT__;
-                          bridge?.prepareAutomationSend?.();
-                          bridge?.setInputMessage?.({json.dumps(text)});
-                          return {{ ok: true }};
-                        }})()""",
-                        await_promise=False,
-                    )
-                    native = await self.submit_native_click()
-                    if native.get("ok"):
-                        submit = {**native, "mode": "nativeClickFallback"}
-                if not submit.get("ok"):
-                    raise RuntimeError(
-                        f"SendTurnContract submit failed: {submit} fill={fill}"
-                    )
+                raise RuntimeError(
+                    f"SendTurnContract submit failed: {submit} fill={fill}"
+                )
+            submit_mode = str(submit.get("mode") or "")
+            if submit_mode != "sendTurnSealed":
+                raise RuntimeError(
+                    f"SendTurnContract expected sendTurnSealed, got: {submit}"
+                )
             sealed_chat_id = str(
                 submit.get("chatId") or chat_id or (await self.bridge_chat_id()) or ""
             ).strip()
@@ -875,26 +888,15 @@ class CdpChatTurn(CdpChatSubmit):
                     f"SendTurnContract missing chatId after submit: {submit}"
                 )
             chat_id = sealed_chat_id
-            submit_mode = str(submit.get("mode") or "")
-            if submit.get("ok") and submit_mode == "sendTurnSealed":
-                debug = submit.get("debug")
-                started: dict[str, object] = {
-                    "chatId": chat_id,
-                    "sendTurnMode": submit_mode,
-                    "okViaSendTurn": True,
-                }
-                if isinstance(debug, dict):
-                    started["userMsgs"] = debug.get("userCount")
-                    started["sending"] = debug.get("streaming")
-                return {"fill": fill, "submit": submit, "started": started}
-            started = await self.wait_stream_started(
-                prompt_for_wait,
-                timeout_sec=float(SEND_TURN_OBSERVE_SEC),
-                min_user_msgs=baseline_user_msgs + 1,
-                chat_id_hint=chat_id,
-            )
-            started["chatId"] = chat_id
-            started["sendTurnMode"] = submit.get("mode")
+            debug = submit.get("debug")
+            started: dict[str, object] = {
+                "chatId": chat_id,
+                "sendTurnMode": submit_mode,
+                "okViaSendTurn": True,
+            }
+            if isinstance(debug, dict):
+                started["userMsgs"] = debug.get("userCount")
+                started["sending"] = debug.get("streaming")
             return {"fill": fill, "submit": submit, "started": started}
         finally:
             self._baseline_user_msgs = 0

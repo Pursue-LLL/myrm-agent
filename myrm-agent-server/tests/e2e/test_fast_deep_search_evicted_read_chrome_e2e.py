@@ -224,6 +224,41 @@ def _ensure_private_providers_configured(api_base: str) -> None:
     put_config_value("providers", merged, api_url=api_base)
 
 
+def _expected_fast_e2e_model(api_base: str) -> dict[str, str]:
+    """Return fastModeModel (or liteModel) primary configured for fast-mode E2E."""
+    providers = fetch_config_value("providers", api_url=api_base)
+    if not isinstance(providers, dict):
+        pytest.fail(f"providers config missing on {api_base}")
+    dmc = providers.get("defaultModelConfig")
+    if not isinstance(dmc, dict):
+        pytest.fail(f"defaultModelConfig missing on {api_base}")
+    fast_primary: dict[str, object] | None = None
+    fast_mode = dmc.get("fastModeModel")
+    if isinstance(fast_mode, dict):
+        primary = fast_mode.get("primary")
+        if isinstance(primary, dict):
+            fast_primary = primary
+    if fast_primary is None:
+        lite = dmc.get("liteModel")
+        if isinstance(lite, dict):
+            primary = lite.get("primary")
+            if isinstance(primary, dict):
+                fast_primary = primary
+    if (
+        not isinstance(fast_primary, dict)
+        or not fast_primary.get("providerId")
+        or not fast_primary.get("model")
+    ):
+        pytest.fail(
+            "fast/lite model primary not configured on "
+            f"{api_base}: {json.dumps(dmc, ensure_ascii=False)}"
+        )
+    return {
+        "providerId": str(fast_primary["providerId"]),
+        "model": str(fast_primary["model"]),
+    }
+
+
 def _api_deep_search_progress(chat_id: str, api_base: str) -> dict[str, object]:
     try:
         messages = fetch_chat_messages(chat_id, api_url=api_base)
@@ -406,10 +441,18 @@ async def _run_fast_evicted_read_live_e2e(
         assert (
             expected_api_origin in injected_api
         ), f"UI must stream to SHPOIB private API {api_base}, got {injected_api!r}"
-        model_used = str(prep.get("model") or prep.get("providerId") or "unknown")
-        assert (
-            "minimax" in model_used.lower() or "minimax-m" in model_used.lower()
-        ), f"Fast E2E must use lite/fast model (MiniMax), got {model_used!r}; prep={prep}"
+        expected_fast = _expected_fast_e2e_model(api_base)
+        prep_model = str(prep.get("model") or "")
+        prep_provider = str(prep.get("providerId") or "")
+        model_used = prep_model or prep_provider or "unknown"
+        assert prep_model == expected_fast["model"], (
+            f"Fast E2E must use configured fast/lite model {expected_fast['model']!r}, "
+            f"got model={prep_model!r} provider={prep_provider!r}; prep={prep}"
+        )
+        assert prep_provider == expected_fast["providerId"], (
+            f"Fast E2E provider mismatch: expected {expected_fast['providerId']!r}, "
+            f"got {prep_provider!r}; prep={prep}"
+        )
 
         workspace_ready = await chat.evaluate(
             WAIT_WORKSPACE_STREAM_JS,

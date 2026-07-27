@@ -6662,6 +6662,18 @@
         "title": "集成记忆",
         "description": "同步并索引已连接服务的数据"
       },
+      "extensionBridge": {
+        "title": "浏览器扩展",
+        "description": "连接浏览器扩展，使用真实登录态进行中继自动化"
+      },
+      "connect": {
+        "title": "外部智能体",
+        "description": "通过 MCP 配置文件连接外部 AI 智能体"
+      },
+      "hosting": {
+        "title": "托管目标",
+        "description": "配置工件发布目的地"
+      },
       "workspaceRules": {
         "title": "项目规则",
         "description": "查看工作区自动发现的项目级规则文件"

@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/lib/api::apiRequest, getApiUrl, getWsUrl (POS: 前端 API 接入层)
+ * - @/lib/api::apiRequest, getWsUrl (POS: 前端 API 接入层)
  * - @/lib/deploy-mode::getBackendBaseUrl (POS: 前端部署模式与基础地址解析层)
  *
  * [OUTPUT]
@@ -17,8 +17,8 @@
  * for the ExtensionBridgeSection Settings UI.
  */
 
-import { apiRequest, getApiUrl, getWsUrl } from '@/lib/api';
-import { getBackendBaseUrl } from '@/lib/deploy-mode';
+import { apiRequest, getWsUrl } from '@/lib/api';
+import { getBackendBaseUrl, isLoopbackDevHost } from '@/lib/deploy-mode';
 
 export interface ExtensionTab {
   tab_id: number;
@@ -69,40 +69,35 @@ export function getExtensionWebSocketUrl(): string {
     return backendBase.replace(/^http/, 'ws') + '/api/v1/ws/extension';
   }
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${window.location.hostname}:25808/api/v1/ws/extension`;
+  const port = isLoopbackDevHost() ? 8080 : 25808;
+  return `${proto}//${window.location.hostname}:${port}/api/v1/ws/extension`;
 }
 
 export async function getExtensionSetupHints(): Promise<ExtensionSetupHints> {
-  const res = await apiRequest(getApiUrl('/extension/setup-hints'));
-  return res.json();
+  return apiRequest<ExtensionSetupHints>('/extension/setup-hints');
 }
 
 export async function getExtensionStatus(): Promise<ExtensionStatus> {
-  const res = await apiRequest(getApiUrl('/extension/status'));
-  return res.json();
+  return apiRequest<ExtensionStatus>('/extension/status');
 }
 
 export async function getAuthorizedDomains(): Promise<{ authorized_domains: string[]; warnings: DomainPolicyWarning[] }> {
-  const res = await apiRequest(getApiUrl('/extension/domains'));
-  return res.json();
+  return apiRequest<{ authorized_domains: string[]; warnings: DomainPolicyWarning[] }>('/extension/domains');
 }
 
 export async function updateAuthorizedDomains(
   domains: string[],
 ): Promise<{ authorized_domains: string[]; warnings: DomainPolicyWarning[] }> {
-  const res = await apiRequest(getApiUrl('/extension/domains'), {
+  return apiRequest<{ authorized_domains: string[]; warnings: DomainPolicyWarning[] }>('/extension/domains', {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ domains }),
   });
-  return res.json();
 }
 
 export async function listExtensionTabs(): Promise<ExtensionTab[]> {
-  const res = await apiRequest(getApiUrl('/extension/tabs'));
-  return res.json();
+  return apiRequest<ExtensionTab[]>('/extension/tabs');
 }
 
 export async function disconnectExtension(): Promise<void> {
-  await apiRequest(getApiUrl('/extension/disconnect'), { method: 'POST' });
+  await apiRequest('/extension/disconnect', { method: 'POST' });
 }

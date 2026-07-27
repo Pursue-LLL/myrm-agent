@@ -6662,6 +6662,18 @@
         "title": "Integration Memory",
         "description": "Sync and index data from connected services"
       },
+      "extensionBridge": {
+        "title": "Browser Extension",
+        "description": "Connect your browser extension for authenticated relay automation"
+      },
+      "connect": {
+        "title": "External Agents",
+        "description": "Connect external AI agents via MCP profiles"
+      },
+      "hosting": {
+        "title": "Hosting Targets",
+        "description": "Configure artifact publishing destinations"
+      },
       "workspaceRules": {
         "title": "Workspace Rules",
         "description": "View auto-discovered project-level rule files"

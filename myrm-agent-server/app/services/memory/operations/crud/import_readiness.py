@@ -5,6 +5,7 @@ app.schemas.memory.archive::MemoryImportReadiness (POS: 记忆归档与导入共
 app.schemas.memory.archive::MemoryImportReadinessIssue (POS: 记忆归档与导入共享 Schema。api 与 services 层共用。)
 
 [OUTPUT]
+build_readiness_issue: build issue with settings_path populated.
 build_import_readiness: aggregate post-import facts into a readiness contract (status + issue codes).
 resolve_readiness_issue_action / pick_primary_readiness_issue / resolve_migration_readiness_gap_message: issue SSOT for stream preflight and settings deep links.
 
@@ -43,6 +44,23 @@ def resolve_readiness_issue_action(code: str) -> ReadinessIssueAction | None:
     if not normalized:
         return None
     return _READINESS_ISSUE_ACTIONS.get(normalized)
+
+
+def build_readiness_issue(
+    *,
+    code: str,
+    severity: Literal["warning", "critical"],
+    params: dict[str, str | int | float | bool] | None = None,
+) -> MemoryImportReadinessIssue:
+    """Build a readiness issue with server-side settings_path populated."""
+
+    action = resolve_readiness_issue_action(code)
+    return MemoryImportReadinessIssue(
+        code=code,
+        severity=severity,
+        params=params or {},
+        settings_path=action.settings_path if action is not None else None,
+    )
 
 
 def pick_primary_readiness_issue(
@@ -112,7 +130,7 @@ def build_import_readiness(
 
     if providers_configured is False and source_has_api_keys:
         issues.append(
-            MemoryImportReadinessIssue(
+            build_readiness_issue(
                 code="providers_not_configured",
                 severity="critical",
             )
@@ -120,7 +138,7 @@ def build_import_readiness(
 
     if diagnostic_status in {"critical", "failed"}:
         issues.append(
-            MemoryImportReadinessIssue(
+            build_readiness_issue(
                 code="post_import_diagnostics_critical",
                 severity="critical",
                 params={"failed_count": max(1, diagnostic_failed_count)},
@@ -128,7 +146,7 @@ def build_import_readiness(
         )
     elif diagnostic_status in {"warning", "missing"}:
         issues.append(
-            MemoryImportReadinessIssue(
+            build_readiness_issue(
                 code="post_import_diagnostics_warning",
                 severity="warning",
                 params={"failed_count": diagnostic_failed_count},
@@ -137,7 +155,7 @@ def build_import_readiness(
 
     if mcp_config_count > 0:
         issues.append(
-            MemoryImportReadinessIssue(
+            build_readiness_issue(
                 code="mcp_servers_imported_disabled",
                 severity="warning",
                 params={"count": mcp_config_count},
@@ -146,7 +164,7 @@ def build_import_readiness(
 
     if workspace_rules_skipped > 0:
         issues.append(
-            MemoryImportReadinessIssue(
+            build_readiness_issue(
                 code="workspace_rules_skipped",
                 severity="warning",
                 params={"count": workspace_rules_skipped},

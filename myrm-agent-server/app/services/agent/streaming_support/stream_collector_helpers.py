@@ -7,6 +7,7 @@
 - deep_merge_ui_data, is_memory_citation_tool, parse_tool_end_result
 - collect_kanban_task_created, collect_cron_job_result
 - collect_clarification_required, collect_plan_confirmation_status
+- collect_file_mutation_failures
 - string_keyed_dict, string_keyed_dicts
 
 [POS]
@@ -199,3 +200,32 @@ def collect_plan_confirmation_status(
         }
 
     return None
+
+
+def collect_file_mutation_failures(
+    target: list[dict[str, object]],
+    data: object,
+) -> None:
+    """Append normalized file mutation failures from a file_mutation_failed SSE payload."""
+    if not isinstance(data, dict):
+        return
+    files = data.get("files")
+    if not isinstance(files, list):
+        return
+    for item in files:
+        if not isinstance(item, dict):
+            continue
+        path = item.get("path")
+        tool = item.get("tool")
+        if not isinstance(path, str) or not path.strip():
+            continue
+        if not isinstance(tool, str) or not tool.strip():
+            continue
+        preview = item.get("error_preview")
+        target.append(
+            {
+                "path": path.strip(),
+                "tool": tool.strip(),
+                "error_preview": preview if isinstance(preview, str) else "",
+            }
+        )

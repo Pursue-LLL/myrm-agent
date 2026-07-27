@@ -71,29 +71,28 @@ export function getReadinessIssueAction(
   issue: MemoryImportReadinessIssue,
   t: MigrationWizardTranslationFn,
 ): ReadinessIssueAction | null {
-  switch (issue.code) {
+  const href = typeof issue.settings_path === 'string' ? issue.settings_path.trim() : '';
+  if (!href) {
+    return null;
+  }
+  return {
+    href,
+    label: resolveReadinessActionLabel(issue.code, t),
+  };
+}
+
+function resolveReadinessActionLabel(code: string, t: MigrationWizardTranslationFn): string {
+  switch (code) {
     case 'providers_not_configured':
-      return {
-        href: '/settings/models',
-        label: t('result.readinessAction.configureProviders'),
-      };
+      return t('result.readinessAction.configureProviders');
     case 'post_import_diagnostics_critical':
     case 'post_import_diagnostics_warning':
-      return {
-        href: '/settings/memory',
-        label: t('result.readinessAction.openMemoryCenter'),
-      };
+      return t('result.readinessAction.openMemoryCenter');
     case 'mcp_servers_imported_disabled':
-      return {
-        href: '/settings/mcp',
-        label: t('result.readinessAction.configureMcp'),
-      };
+      return t('result.readinessAction.configureMcp');
     case 'workspace_rules_skipped':
-      return {
-        href: '/settings/memory?sub=migration',
-        label: t('result.readinessAction.reviewMigrationRules'),
-      };
+      return t('result.readinessAction.reviewMigrationRules');
     default:
-      return null;
+      return t('result.readinessAction.openMemoryCenter');
   }
 }

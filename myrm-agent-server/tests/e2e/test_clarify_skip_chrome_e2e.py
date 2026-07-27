@@ -675,11 +675,13 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             if not chat_id_hint:
                 chat_id_hint = str((await chat.bridge_chat_id()) or "").strip()
 
+            submit_mode = str(send_result.get("submit", {}).get("mode") or "")
+            if submit_mode != "sendTurnSealed":
+                raise RuntimeError(
+                    f"SendTurnContract expected sendTurnSealed, got: {send_result}"
+                )
+
             heartbeat_e2e_lease()
-            stream_prompt = E2E_PROMPT if attempt == 0 else E2E_NUDGE_PROMPT
-            await chat.wait_stream_started(
-                stream_prompt, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
-            )
             try:
                 form_state = await _wait_clarify_ready(
                     chat,

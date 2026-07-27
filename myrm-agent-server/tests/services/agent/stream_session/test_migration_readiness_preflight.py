@@ -2,23 +2,28 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from app.schemas.memory.archive import MemoryImportReadiness, MemoryImportReadinessIssue
 from app.services.agent.params.models import MigrationReadinessAnchorRequest
 from app.services.agent.stream_session.entitlement_gap_preflight import (
     reset_capability_gap_emission_tracker,
 )
 from app.services.agent.stream_session.migration_readiness_preflight import (
-    build_migration_readiness_gap_sse_event,
     build_migration_readiness_gap_sse_event_from_readiness,
+    resolve_and_build_migration_readiness_gap_sse_event,
 )
 
 
-def test_migration_readiness_gap_none_without_anchor() -> None:
+def test_migration_readiness_gap_from_readiness_none_for_ready() -> None:
     reset_capability_gap_emission_tracker()
     assert (
-        build_migration_readiness_gap_sse_event(
+        build_migration_readiness_gap_sse_event_from_readiness(
             message_id="msg-1",
-            migration_readiness_anchor=None,
+            import_batch_id="batch-ready",
+            readiness=MemoryImportReadiness(status="ready", issues=[]),
             chat_id="chat-1",
             locale="en",
         )
@@ -26,27 +31,21 @@ def test_migration_readiness_gap_none_without_anchor() -> None:
     )
 
 
-def test_migration_readiness_gap_none_for_ready_anchor() -> None:
+def test_migration_readiness_gap_from_readiness_emits_for_warning() -> None:
     reset_capability_gap_emission_tracker()
-    event = build_migration_readiness_gap_sse_event(
+    event = build_migration_readiness_gap_sse_event_from_readiness(
         message_id="msg-1",
-        migration_readiness_anchor=MigrationReadinessAnchorRequest(
-            import_batch_id="batch-ready",
-            readiness_status="ready",
-        ),
-        chat_id="chat-1",
-        locale="en",
-    )
-    assert event is None
-
-
-def test_migration_readiness_gap_emits_for_warning_anchor() -> None:
-    reset_capability_gap_emission_tracker()
-    event = build_migration_readiness_gap_sse_event(
-        message_id="msg-1",
-        migration_readiness_anchor=MigrationReadinessAnchorRequest(
-            import_batch_id="batch-warning",
-            readiness_status="warning",
+        import_batch_id="batch-warning",
+        readiness=MemoryImportReadiness(
+            status="warning",
+            issues=[
+                MemoryImportReadinessIssue(
+                    code="workspace_rules_skipped",
+                    severity="warning",
+                    params={"count": 1},
+                    settings_path="/settings/memory?sub=migration",
+                )
+            ],
         ),
         chat_id="chat-1",
         locale="en",
@@ -57,13 +56,20 @@ def test_migration_readiness_gap_emits_for_warning_anchor() -> None:
     assert data.get("reason") == "migration_readiness_warning"
 
 
-def test_migration_readiness_gap_emits_for_critical_anchor() -> None:
+def test_migration_readiness_gap_from_readiness_emits_for_critical() -> None:
     reset_capability_gap_emission_tracker()
-    event = build_migration_readiness_gap_sse_event(
+    event = build_migration_readiness_gap_sse_event_from_readiness(
         message_id="msg-1",
-        migration_readiness_anchor=MigrationReadinessAnchorRequest(
-            import_batch_id="batch-critical",
-            readiness_status="critical",
+        import_batch_id="batch-critical",
+        readiness=MemoryImportReadiness(
+            status="critical",
+            issues=[
+                MemoryImportReadinessIssue(
+                    code="providers_not_configured",
+                    severity="critical",
+                    settings_path="/settings/models",
+                )
+            ],
         ),
         chat_id="chat-1",
         locale="en",
@@ -91,6 +97,7 @@ def test_migration_readiness_gap_from_readiness_uses_issue_settings_path() -> No
                     code="mcp_servers_imported_disabled",
                     severity="warning",
                     params={"count": 2},
+                    settings_path="/settings/mcp",
                 )
             ],
         ),
@@ -106,19 +113,27 @@ def test_migration_readiness_gap_from_readiness_uses_issue_settings_path() -> No
 
 def test_migration_readiness_gap_dedup_within_cooldown() -> None:
     reset_capability_gap_emission_tracker()
-    anchor = MigrationReadinessAnchorRequest(
-        import_batch_id="batch-dedup",
-        readiness_status="critical",
+    readiness = MemoryImportReadiness(
+        status="critical",
+        issues=[
+            MemoryImportReadinessIssue(
+                code="providers_not_configured",
+                severity="critical",
+                settings_path="/settings/models",
+            )
+        ],
     )
-    first = build_migration_readiness_gap_sse_event(
+    first = build_migration_readiness_gap_sse_event_from_readiness(
         message_id="msg-1",
-        migration_readiness_anchor=anchor,
+        import_batch_id="batch-dedup",
+        readiness=readiness,
         chat_id="chat-dedup",
         locale="zh",
     )
-    second = build_migration_readiness_gap_sse_event(
+    second = build_migration_readiness_gap_sse_event_from_readiness(
         message_id="msg-2",
-        migration_readiness_anchor=anchor,
+        import_batch_id="batch-dedup",
+        readiness=readiness,
         chat_id="chat-dedup",
         locale="zh",
     )
@@ -126,19 +141,63 @@ def test_migration_readiness_gap_dedup_within_cooldown() -> None:
     assert second is None
 
 
-def test_migration_readiness_gap_accepts_camel_case_anchor_dict() -> None:
-    """AgentRequest JSON may arrive as camelCase dict before pydantic normalization."""
+@pytest.mark.asyncio
+async def test_resolve_and_build_migration_readiness_gap_live_warning_mcp_path() -> None:
     reset_capability_gap_emission_tracker()
-    event = build_migration_readiness_gap_sse_event(
-        message_id="msg-1",
-        migration_readiness_anchor={
-            "importBatchId": "batch-resume",
-            "readinessStatus": "critical",
-        },
-        chat_id="chat-1",
-        locale="en",
+    readiness = MemoryImportReadiness(
+        status="warning",
+        issues=[
+            MemoryImportReadinessIssue(
+                code="mcp_servers_imported_disabled",
+                severity="warning",
+                params={"count": 2},
+                settings_path="/settings/mcp",
+            )
+        ],
     )
+    mock_db = AsyncMock()
+    mock_session_factory = MagicMock()
+    mock_session_factory.return_value.__aenter__.return_value = mock_db
+    mock_session_factory.return_value.__aexit__.return_value = None
+
+    with (
+        patch(
+            "app.services.agent.stream_session.migration_readiness_preflight.get_session_factory",
+            return_value=mock_session_factory,
+        ),
+        patch(
+            "app.services.agent.stream_session.migration_readiness_preflight.MemoryImportSessionService"
+        ) as mock_service_cls,
+    ):
+        mock_service = mock_service_cls.return_value
+        mock_service.resolve_live_import_readiness = AsyncMock(return_value=readiness)
+        event, status = await resolve_and_build_migration_readiness_gap_sse_event(
+            message_id="msg-live",
+            migration_readiness_anchor=MigrationReadinessAnchorRequest(
+                import_batch_id="batch-live-mcp",
+                readiness_status="ready",
+            ),
+            chat_id="chat-live",
+            locale="en",
+        )
+
+    assert status == "warning"
     assert event is not None
     data = event["data"]
     assert isinstance(data, dict)
-    assert data.get("import_batch_id") == "batch-resume"
+    assert data.get("settings_path") == "/settings/mcp"
+    assert data.get("reason") == "migration_readiness_warning"
+    mock_service.resolve_live_import_readiness.assert_awaited_once_with("batch-live-mcp")
+
+
+@pytest.mark.asyncio
+async def test_resolve_and_build_migration_readiness_gap_none_without_anchor() -> None:
+    reset_capability_gap_emission_tracker()
+    event, status = await resolve_and_build_migration_readiness_gap_sse_event(
+        message_id="msg-1",
+        migration_readiness_anchor=None,
+        chat_id="chat-1",
+        locale="en",
+    )
+    assert event is None
+    assert status is None

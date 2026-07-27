@@ -128,3 +128,47 @@ def test_file_write_empty_shows_mutation_warning_banner() -> None:
             timeout_sec=15.0,
         )
         assert expanded.get("ready") is True, json.dumps(expanded, ensure_ascii=False)
+
+
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.integration
+@pytest.mark.timeout(240)
+def test_file_write_empty_mutation_banner_survives_page_reload() -> None:
+    """Hydrate from DB: reload must still show FileMutationWarning from metadata."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    seeded = _seed_file_mutation_fixture(api_url)
+    chat_id = str(seeded["chat_id"])
+
+    prepare_e2e_ui_session(api_url)
+    warm_ui_route(f"/{chat_id}")
+    with open_mcp_page(f"{ui_url}/{chat_id}", timeout_ms=120_000) as (client, page):
+        message_ready = wait_for_state(
+            client,
+            page,
+            f"""(() => {{
+              const target = {json.dumps(_FIXTURE_ANSWER)};
+              const store = window.__myrmChatStore?.getState?.();
+              const msg = (store?.messages || []).find(
+                (item) => item.role === 'assistant' && (item.content || '').includes(target),
+              );
+              return {{ ready: !!msg }};
+            }})()""",
+            timeout_sec=90.0,
+        )
+        assert message_ready.get("ready") is True, json.dumps(
+            message_ready,
+            ensure_ascii=False,
+        )
+
+        dismiss_blocking_modals(client, page)
+
+        client.navigate(page, f"{ui_url}/{chat_id}", timeout_ms=120_000)
+
+        reloaded = wait_for_state(
+            client,
+            page,
+            _MUTATION_BANNER_READY_JS,
+            timeout_sec=90.0,
+        )
+        assert reloaded.get("ready") is True, json.dumps(reloaded, ensure_ascii=False)

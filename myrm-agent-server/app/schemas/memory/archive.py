@@ -257,6 +257,7 @@ class MemoryImportReadinessIssue(BaseModel):
     code: str
     severity: Literal["warning", "critical"]
     params: dict[str, MemoryImportReadinessIssueParam] = Field(default_factory=dict)
+    settings_path: str | None = None
 
 
 class MemoryImportReadiness(BaseModel):

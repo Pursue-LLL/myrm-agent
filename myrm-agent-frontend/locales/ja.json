@@ -6591,6 +6591,18 @@
         "title": "インテグレーションメモリ",
         "description": "同期しインデックス済み接続サービスのデータ"
       },
+      "extensionBridge": {
+        "title": "ブラウザ拡張機能",
+        "description": "ブラウザ拡張機能を接続し、認証済みセッションで中継自動化"
+      },
+      "connect": {
+        "title": "外部エージェント",
+        "description": "MCP プロファイル経由で外部 AI エージェントを接続"
+      },
+      "hosting": {
+        "title": "ホスティング先",
+        "description": "アーティファクト公開先を設定"
+      },
       "workspaceRules": {
         "title": "プロジェクトルール",
         "description": "表示ワークスペース自動发现のプロジェクト级ルールファイル"

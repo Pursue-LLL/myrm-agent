@@ -13,7 +13,7 @@
 | `MemorySection.tsx` | 核心 | 记忆浏览器与 CRUD；JSON 导入 confirm 后展示 readiness toast（非 ready 时 issue 文案 + 设置深链） |
 | `MigrationWizardSection.tsx` | 核心 | 四源迁移向导（scan → preview → result）；消费 server 下发 `source_manifest` + `source_manifest_authoritative`，支持 `?source=` 深链自动 preview | 
 | `MigrationWizardSteps.tsx` | 核心 | 向导步骤 UI（ScanStep / PreviewStep / ResultStep）；ResultStep mount 时 silent recheck + localStorage readiness anchor；Start Chat 再次 recheck，critical 阻断 handoff |
-| `MigrationWizardReadiness.ts` | 辅助 | 迁移结果页 readiness 状态映射、issue 文案与 settings 深链纯函数 |
+| `MigrationWizardReadiness.ts` | 辅助 | 迁移结果页 readiness 状态映射、issue 文案；深链 href 消费 API `issue.settings_path`，label 仍按 code i18n |
 | `MigrationPendingReviewSection.tsx` | 辅助 | 待审核迁移技能队列 |
 | `MemoryArchivalSection.tsx` | 辅助 | 归档导入/导出 |
 | `MemoryBackupSection.tsx` | 辅助 | 本地备份 |

@@ -6584,6 +6584,18 @@
         "title": "整合記憶",
         "description": "同步並索引已連線服務的資料"
       },
+      "extensionBridge": {
+        "title": "瀏覽器擴充套件",
+        "description": "連線瀏覽器擴充套件，使用真實登入態進行中繼自動化"
+      },
+      "connect": {
+        "title": "外部智慧體",
+        "description": "透過 MCP 設定檔連線外部 AI 智慧體"
+      },
+      "hosting": {
+        "title": "託管目標",
+        "description": "設定工件發佈目的地"
+      },
       "workspaceRules": {
         "title": "專案規則",
         "description": "檢視工作區自動發現的專案級規則檔案"

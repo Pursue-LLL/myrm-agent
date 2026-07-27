@@ -111,6 +111,22 @@ def _stop_on_web_search_config_gap(
     )
 
 
+def _stop_on_migration_readiness_gap(
+    event: dict[str, object],
+    _collected: list[dict[str, object]],
+) -> bool:
+    if event.get("type") != "capability_gap":
+        return False
+    payload_data = event.get("data")
+    if not isinstance(payload_data, dict):
+        return False
+    reason = payload_data.get("reason")
+    return (
+        payload_data.get("tool_id") == "migration_import"
+        and reason in {"migration_readiness_warning", "migration_readiness_critical"}
+    )
+
+
 _AGENT_STREAM_TEST_TIMEOUT = pytest.mark.timeout(420)
 
 
@@ -637,6 +653,104 @@ def test_agent_stream_emits_web_search_config_gap_sse(
     assert isinstance(payload_data, dict)
     assert payload_data.get("settings_path") == "/settings/search"
     assert payload_data.get("tool_group") == "web"
+
+
+@pytest.mark.integration
+@_AGENT_STREAM_TEST_TIMEOUT
+def test_agent_stream_emits_migration_readiness_gap_sse(client: TestClient) -> None:
+    """Preflight must live-resolve migration batch and emit MCP settings capability_gap."""
+    from app.platform_utils import get_session_factory
+    from app.services.agent.stream_session.entitlement_gap_preflight import (
+        reset_capability_gap_emission_tracker,
+    )
+    from app.services.memory.import_sessions import ImportReadinessRecheckFacts, MemoryImportSessionService
+    from tests.services.memory.test_import_sessions import _FakeMemoryManager
+
+    reset_capability_gap_emission_tracker()
+
+    async def _seed_import_batch_with_mcp_warning() -> str:
+        session_factory = get_session_factory()
+        async with session_factory() as db:
+            service = MemoryImportSessionService(db)
+            manager = _FakeMemoryManager()
+            payload = {
+                "data": {
+                    "semantic": [
+                        {"content": "Migration readiness integration seed.", "metadata": {}},
+                    ]
+                }
+            }
+            dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(
+                payload,
+                "native_json",
+            )
+            confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+            await service.save_post_import_diagnostic(
+                import_batch_id=confirm.import_batch_id,
+                diagnostic_run_id="diag-ready",
+                diagnostic_status="ready",
+                failed_count=0,
+            )
+            await service.save_post_import_readiness(
+                import_batch_id=confirm.import_batch_id,
+                readiness_status="warning",
+                readiness_issues=[
+                    {
+                        "code": "mcp_servers_imported_disabled",
+                        "severity": "warning",
+                        "params": {"count": 2},
+                        "settings_path": "/settings/mcp",
+                    }
+                ],
+                recheck_facts=ImportReadinessRecheckFacts(
+                    source_has_api_keys=False,
+                    diagnostic_status="ready",
+                    diagnostic_failed_count=0,
+                    mcp_config_count=2,
+                    workspace_rules_skipped=0,
+                ),
+            )
+            return confirm.import_batch_id
+
+    import_batch_id = asyncio.run(_seed_import_batch_with_mcp_warning())
+
+    chat_id = f"test_migration_readiness_gap_{uuid.uuid4().hex[:8]}"
+    payload: dict[str, object] = {
+        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
+        "chatId": chat_id,
+        "query": "Hello after migration import",
+        "actionMode": "agent",
+        "modelSelection": get_lite_model_selection(),
+        "agentConfig": {
+            "enabledBuiltinTools": ["memory"],
+        },
+        "migrationReadinessAnchor": {
+            "importBatchId": import_batch_id,
+            "readinessStatus": "warning",
+        },
+        "timezone": "UTC",
+    }
+    events = _collect_agent_stream(
+        client,
+        payload,
+        stop_when=_stop_on_migration_readiness_gap,
+    )
+    check_e2e_errors(events)
+
+    gaps = _gap_events(events, "capability_gap")
+    migration_gaps = [
+        event
+        for event in gaps
+        if isinstance(event.get("data"), dict)
+        and event["data"].get("tool_id") == "migration_import"
+        and event["data"].get("reason") == "migration_readiness_warning"
+    ]
+    assert migration_gaps, "expected stream preflight capability_gap SSE for migration MCP warning"
+    payload_data = migration_gaps[0]["data"]
+    assert isinstance(payload_data, dict)
+    assert payload_data.get("settings_path") == "/settings/mcp"
+    assert payload_data.get("tool_group") == "migration"
+    assert payload_data.get("import_batch_id") == import_batch_id
 
 
 @pytest.mark.integration

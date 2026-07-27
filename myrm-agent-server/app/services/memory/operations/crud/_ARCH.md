@@ -10,5 +10,5 @@
 | `list_write.py` | 核心 | 列表、创建、更新、删除、搜索、统计、评分 | ✅ |
 | `trash.py` | 核心 | 回收站列表、恢复、永久删除 | ✅ |
 | `import_archive.py` | 核心 | 导出（JSON + Markdown ZIP）、归档、导入、回滚；竞品 dry-run 四车道；confirm/recheck 均 live provider；confirm 返回 `readiness` 合同并持久化 `recheck_facts`；`POST /import/readiness-recheck` 用当前 provider 状态重算 readiness | ✅ |
-| `import_readiness.py` | 辅助 | 导入后运行就绪合同聚合（provider/diagnostic/MCP/rules → ready/warning/critical + issue codes）；issue→settings_path SSOT 与 gap 文案 | ✅ |
+| `import_readiness.py` | 辅助 | 导入后运行就绪合同聚合（provider/diagnostic/MCP/rules → ready/warning/critical + issue codes）；`build_readiness_issue` 填充 issue.settings_path；issue→settings_path SSOT 与 gap 文案 | ✅ |
 | `preferences.py` | 核心 | 偏好摘要与 pin/forget 管理 | ✅ |

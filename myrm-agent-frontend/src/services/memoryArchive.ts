@@ -309,6 +309,7 @@ export interface MemoryImportReadinessIssue {
   code: string;
   severity: 'warning' | 'critical';
   params: Record<string, string | number | boolean>;
+  settings_path?: string | null;
 }
 
 export interface MemoryImportReadiness {

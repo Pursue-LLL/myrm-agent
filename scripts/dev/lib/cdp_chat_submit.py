@@ -1,4 +1,4 @@
-"""Chat submit workflow with deterministic UI fallbacks."""
+"""Chat submit via SendTurnContract atomic evaluate (R72)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import sys
 import time
 
 from cdp_chat_input import CdpChatInput
-from cdp_chat_support import PREPARE_AUTOMATION_SEND_JS, get_e2e_api_url
+from cdp_chat_support import PREPARE_AUTOMATION_SEND_JS
 from dev_gate_contract import (
     SEND_TURN_EVAL_RECV_SEC,
     SEND_TURN_LOG_TOKEN,
@@ -42,15 +42,7 @@ class CdpChatSubmit(CdpChatInput):
                           bridge.submitAndObserveTurn(text, {{ baselineUserCount: baseline, profile }}),
                         );
                       }}
-                      if (typeof bridge?.sendChatMessage === 'function') {{
-                        return Promise.resolve(
-                          bridge.sendChatMessage(text, {{
-                            baselineUserCount: baseline,
-                            waitForStreamCompletion: true,
-                          }}),
-                        );
-                      }}
-                      return {{ ok: false, err: 'no-sendChatMessage' }};
+                      return {{ ok: false, err: 'no-submitAndObserveTurn', mode: 'sendTurnBridgeMissing' }};
                     }})()""",
                     await_promise=True,
                     recv_timeout=SEND_TURN_EVAL_RECV_SEC,
@@ -68,9 +60,17 @@ class CdpChatSubmit(CdpChatInput):
             if isinstance(debug, dict):
                 phase = str(debug.get("phase") or "SUBMIT")
                 chat_id = str(result.get("chatId") or "").strip()
+                detail = ""
+                if not result.get("ok"):
+                    detail = (
+                        f" apiUsers={debug.get('apiUsers')} "
+                        f"userCount={debug.get('userCount')} "
+                        f"streaming={debug.get('streaming')} "
+                        f"baseline={debug.get('baselineUsers')}"
+                    )
                 print(
                     f"{SEND_TURN_LOG_TOKEN}: phase={phase} ok={result.get('ok')} "
-                    f"mode={result.get('mode')} chatId={chat_id or '-'} profile={profile}",
+                    f"mode={result.get('mode')} chatId={chat_id or '-'} profile={profile}{detail}",
                     file=sys.stderr,
                     flush=True,
                 )
@@ -114,7 +114,7 @@ class CdpChatSubmit(CdpChatInput):
         return {"ok": False, "err": "send-button-not-ready", **last}
 
     async def submit_native_click(self) -> dict[str, object]:
-        """Click the send button when the E2E bridge sendChatMessage hook is unavailable."""
+        """Click `.message-send-btn` for desktop fast-native fallback paths."""
         ready = await self.wait_send_button_ready(timeout_sec=60.0)
         if not ready.get("ok"):
             return {"ok": False, "err": "no send button", "probe": ready}
@@ -142,20 +142,21 @@ class CdpChatSubmit(CdpChatInput):
         baseline_user_msgs: int = 0,
     ) -> dict[str, object]:
         await self.ensure_e2e_api_base_binding()
-        msg_payload = json.dumps(message_text) if message_text is not None else "null"
-        baseline_payload = int(baseline_user_msgs)
         baseline_payload = int(baseline_user_msgs)
         if message_text is not None:
+            payload = json.dumps(message_text)
+            baseline = int(baseline_payload)
+            profile = json.dumps(resolve_send_turn_profile())
             result = await self.evaluate(
                 f"""(() => {{
                   const bridge = window.__MYRM_E2E_CHAT__;
-                  if (!bridge?.sendChatMessage) {{
-                    return {{ ok: false, err: 'no-sendChatMessage' }};
+                  if (typeof bridge?.submitAndObserveTurn !== 'function') {{
+                    return {{ ok: false, err: 'no-submitAndObserveTurn', mode: 'sendTurnBridgeMissing' }};
                   }}
                   return Promise.resolve(
-                    bridge.sendChatMessage({msg_payload}, {{
-                      baselineUserCount: {baseline_payload},
-                      waitForStreamCompletion: false,
+                    bridge.submitAndObserveTurn({payload}, {{
+                      baselineUserCount: {baseline},
+                      profile: {profile},
                     }}),
                   );
                 }})()""",
@@ -218,233 +219,3 @@ class CdpChatSubmit(CdpChatInput):
             if await self._stream_started(started):
                 return dev_submit
         return dev_submit
-
-    async def submit(
-        self,
-        message_text: str | None = None,
-        *,
-        baseline_user_msgs: int = 0,
-    ) -> dict[str, object]:
-        e2e_api = get_e2e_api_url().strip()
-        if e2e_api:
-            await self.ensure_e2e_api_base_binding()
-            bridge_submit = await self._submit_via_dev_bridge(
-                message_text,
-                baseline_user_msgs=baseline_user_msgs,
-            )
-            started = await self._submit_started()
-            if (
-                isinstance(bridge_submit, dict)
-                and bridge_submit.get("ok")
-                and await self._stream_started(started)
-            ):
-                return bridge_submit
-            if isinstance(bridge_submit, dict):
-                return bridge_submit
-            return {
-                "ok": False,
-                "err": "dev-bridge-submit-failed",
-                "mode": "devBridgeRequired",
-            }
-
-        prefer_bridge = await self.evaluate(
-            """(() => ({
-              prefer: typeof window.__MYRM_E2E_API_BASE__ === 'string' && window.__MYRM_E2E_API_BASE__.trim().length > 0,
-            }))()""",
-            await_promise=False,
-        )
-        if isinstance(prefer_bridge, dict) and prefer_bridge.get("prefer"):
-            bridge_submit = await self._submit_via_dev_bridge(
-                message_text,
-                baseline_user_msgs=baseline_user_msgs,
-            )
-            started = await self._submit_started()
-            if (
-                isinstance(bridge_submit, dict)
-                and bridge_submit.get("ok")
-                and await self._stream_started(started)
-            ):
-                return bridge_submit
-            if isinstance(bridge_submit, dict):
-                return bridge_submit
-            return {
-                "ok": False,
-                "err": "dev-bridge-submit-failed",
-                "mode": "devBridgeRequired",
-            }
-
-        await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)
-        native = await self.evaluate(
-            """(() => {
-              const btn = document.querySelector('.message-send-btn');
-              if (!btn) return { ok: false, err: 'no send button' };
-              if (btn.disabled) return { ok: false, err: 'send disabled' };
-              btn.click();
-              return { ok: true, mode: 'nativeClick' };
-            })()""",
-            await_promise=False,
-        )
-        if isinstance(native, dict) and native.get("ok"):
-            started = await self._submit_started()
-            if await self._stream_started(started):
-                return native
-
-        bridge_submit = await self._submit_via_dev_bridge(
-            message_text,
-            baseline_user_msgs=baseline_user_msgs,
-        )
-        if isinstance(bridge_submit, dict) and bridge_submit.get("ok"):
-            started = await self._submit_started()
-            if await self._stream_started(started):
-                return bridge_submit
-
-        if isinstance(native, dict) and native.get("ok"):
-            await asyncio.sleep(1.5)
-            started = await self._submit_started()
-            if await self._stream_started(started):
-                return native
-
-        react_click = await self.evaluate(
-            """(() => {
-              const btn = document.querySelector('.message-send-btn');
-              if (!btn || btn.disabled) return { ok: false, err: 'send disabled or missing' };
-              const propsKey = Object.keys(btn).find((k) => k.startsWith('__reactProps$'));
-              if (propsKey && btn[propsKey]?.onClick) {
-                btn[propsKey].onClick({ preventDefault() {}, stopPropagation() {} });
-                return { ok: true, mode: 'react-onClick' };
-              }
-              const fiberKey = Object.keys(btn).find((k) => k.startsWith('__reactFiber$'));
-              if (fiberKey) {
-                let fiber = btn[fiberKey];
-                while (fiber) {
-                  const onClick = fiber.memoizedProps?.onClick;
-                  if (typeof onClick === 'function') {
-                    onClick({ preventDefault() {}, stopPropagation() {} });
-                    return { ok: true, mode: 'fiber-onClick' };
-                  }
-                  fiber = fiber.return;
-                }
-              }
-              return { ok: false, err: 'no react handler' };
-            })()""",
-            await_promise=False,
-        )
-        if isinstance(react_click, dict) and react_click.get("ok"):
-            await asyncio.sleep(1.0)
-            started = await self._submit_started()
-            if await self._stream_started(started):
-                return react_click
-
-        click = await self.evaluate(
-            """(() => {
-              const input = document.querySelector('[data-chat-input]');
-              const form = input?.closest('form');
-              if (form && typeof form.requestSubmit === 'function') {
-                form.requestSubmit();
-                return { ok: true, mode: 'requestSubmit' };
-              }
-              const btn =
-                document.querySelector('button[aria-label="发送"]') ||
-                document.querySelector('button[aria-label="Send"]') ||
-                document.querySelector('.message-send-btn');
-              if (!btn) return { ok: false, err: 'no send button' };
-              if (btn.disabled) return { ok: false, err: 'send disabled' };
-              btn.dispatchEvent(
-                new MouseEvent('click', { bubbles: true, cancelable: true, view: window }),
-              );
-              return { ok: true, mode: 'dispatchClick' };
-            })()""",
-            await_promise=False,
-        )
-        await asyncio.sleep(1.0)
-        started = await self._submit_started()
-        if await self._stream_started(started):
-            return click if isinstance(click, dict) else {"ok": True, "mode": "cleared"}
-
-        await self.cdp("DOM.enable")
-        doc = await self.cdp("DOM.getDocument")
-        root_id = doc.get("root", {}).get("nodeId")
-        query = await self.cdp(
-            "DOM.querySelector",
-            {"nodeId": root_id, "selector": ".message-send-btn:not([disabled])"},
-        )
-        node_id = query.get("nodeId")
-        if isinstance(node_id, int) and node_id > 0:
-            try:
-                box = await self.cdp("DOM.getBoxModel", {"nodeId": node_id})
-                content = (
-                    box.get("model", {}).get("content")
-                    if isinstance(box.get("model"), dict)
-                    else None
-                )
-                if isinstance(content, list) and len(content) >= 6:
-                    cx = (content[0] + content[2]) / 2
-                    cy = (content[1] + content[5]) / 2
-                    await self.cdp(
-                        "Input.dispatchMouseEvent",
-                        {
-                            "type": "mousePressed",
-                            "x": cx,
-                            "y": cy,
-                            "button": "left",
-                            "clickCount": 1,
-                        },
-                    )
-                    await self.cdp(
-                        "Input.dispatchMouseEvent",
-                        {
-                            "type": "mouseReleased",
-                            "x": cx,
-                            "y": cy,
-                            "button": "left",
-                            "clickCount": 1,
-                        },
-                    )
-                    await asyncio.sleep(1.5)
-                    started = await self._submit_started()
-                    if await self._stream_started(started):
-                        return {"ok": True, "mode": "cdpMouseSend"}
-            except RuntimeError:
-                pass
-
-        await self.cdp(
-            "Input.dispatchKeyEvent",
-            {
-                "type": "keyDown",
-                "key": "Enter",
-                "code": "Enter",
-                "windowsVirtualKeyCode": 13,
-            },
-        )
-        await self.cdp(
-            "Input.dispatchKeyEvent",
-            {
-                "type": "keyUp",
-                "key": "Enter",
-                "code": "Enter",
-                "windowsVirtualKeyCode": 13,
-            },
-        )
-        await asyncio.sleep(1.5)
-        started = await self._submit_started()
-        if await self._stream_started(started):
-            return {"ok": True, "mode": "enterKeyFallback"}
-
-        started = await self._submit_started()
-        if await self._stream_started(started):
-            return {"ok": True, "mode": "postBridgeProbe", "started": started}
-        bridge_result = await self.evaluate(
-            """(() => ({
-              lastSubmit: window.__MYRM_E2E_CHAT__?.lastSubmitResult ?? null,
-              debug: window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null,
-            }))()""",
-            await_promise=False,
-        )
-        exhausted: dict[str, object] = {
-            "ok": False,
-            "mode": "submitExhausted",
-            "started": started,
-        }
-        if isinstance(bridge_result, dict):
-            exhausted["bridge"] = bridge_result
-        return exhausted
