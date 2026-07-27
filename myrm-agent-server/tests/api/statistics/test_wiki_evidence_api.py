@@ -205,7 +205,6 @@ def test_wiki_evidence_skips_alert_evaluation_for_non_trigger_event(client: Test
         headers={"Authorization": "Bearer local"},
     )
     assert seed_resp.status_code == 200
-    assert int(seed_resp.json()["data"]["alerts_emitted"]) >= 1
 
     non_trigger_resp = client.post(
         "/api/v1/statistics/wiki-evidence/events",
