@@ -6,6 +6,8 @@ Prerequisites:
 
 Covers:
   - Voice Settings: no amber banner when edge_tts_available=true
+  - Voice Settings: no local STT banner when local_stt_available=true and provider=local
+  - Live health/info local_stt_available + GET /stt/status
   - Live TTS API success with channel ttsMode=off (Web read-aloud path)
   - Read-aloud browser fetch to /tts/synthesize via :3000 proxy (webTtsProvider=edge)
   - Parallel isolated tabs: voice banner + read-aloud fetch concurrently
@@ -74,7 +76,9 @@ _VOICE_PROBE_JS = """(() => {
     onVoiceRoute,
     onChannelsSettings,
     tabCount: tabs.length,
-    showBanner: /Edge TTS is not available|Edge TTS 不可用/i.test(text),
+    showEdgeBanner: /Edge TTS is not available|Edge TTS 不可用/i.test(text),
+    showLocalSttBanner: /Local Whisper STT is not available|本地 Whisper 语音识别不可用/i.test(text),
+    showLocalSttHint: /Free, no API key required|无需 API Key|Audio stays on your device|音频保留在/i.test(text),
     readyState: document.readyState,
     viewportWidth: window.innerWidth,
   };
@@ -118,6 +122,39 @@ def _ensure_voice_feature_enabled() -> None:
         "POST",
         f"{get_e2e_api_url()}/api/v1/features/voice_interaction/toggle",
         {"enabled": True},
+    )
+
+
+def _put_local_voice_config() -> None:
+    _http_json(
+        "PUT",
+        f"{get_e2e_api_url()}/api/v1/config/voice",
+        {
+            "deviceId": "web",
+            "value": {
+                "sttEnabled": True,
+                "ttsMode": "off",
+                "ttsProvider": "edge",
+                "ttsVoice": "",
+                "ttsSpeed": 1.0,
+                "ttsPitch": 0,
+                "sttProvider": "local",
+                "sttApiKey": "",
+                "sttModel": "whisper-1",
+                "sttLanguage": "",
+                "sttLocalModel": "base",
+                "sttLocalDevice": "auto",
+                "sttLocalComputeType": "auto",
+                "sttBaseUrl": "",
+                "ttsApiKey": "",
+                "ttsBaseUrl": "",
+                "ttsMaxLength": 4000,
+                "ttsSummaryEnabled": True,
+                "ttsSummaryThreshold": 1500,
+                "ttsSummaryModel": "",
+                "geminiLiveModel": "gemini-2.5-flash-preview-native-audio-dialog",
+            },
+        },
     )
 
 
@@ -168,6 +205,14 @@ def _seed_voice_and_personal_settings() -> None:
         f"{get_e2e_api_url()}/api/v1/config/personalSettings",
         {"deviceId": "web", "value": value},
     )
+
+
+def _local_stt_available() -> bool:
+    try:
+        info = _http_json("GET", f"{get_e2e_api_url()}/api/v1/health/info")
+    except Exception:
+        return False
+    return isinstance(info, dict) and info.get("local_stt_available") is True
 
 
 def _edge_tts_available() -> bool:
@@ -392,7 +437,7 @@ async def test_voice_settings_no_edge_banner_when_available(
         page = await cdp.wait_voice_settings()
 
     assert page.get("hasVoicePanel") is True, page
-    assert page.get("showBanner") is False, page
+    assert page.get("showEdgeBanner") is False, page
     assert page.get("onChannelsSettings") is True, page
 
 
@@ -499,7 +544,52 @@ async def test_edge_tts_parallel_tabs_isolated(_require_live_e2e_lease: None) ->
         await asyncio.to_thread(client.close)
 
     assert voice_result.get("hasVoicePanel") is True, voice_result
-    assert voice_result.get("showBanner") is False, voice_result
+    assert voice_result.get("showEdgeBanner") is False, voice_result
     assert read_result.get("error") is None, read_result
     assert read_result.get("status") == 200, read_result
     assert int(read_result.get("bytes", 0)) > 0, read_result
+
+
+@pytest.mark.integration
+@pytest.mark.timeout(60)
+def test_live_health_info_includes_local_stt() -> None:
+    _require_live_stack()
+    info = _http_json("GET", f"{get_e2e_api_url()}/api/v1/health/info")
+    assert isinstance(info, dict)
+    assert "local_stt_available" in info
+    assert isinstance(info["local_stt_available"], bool)
+
+
+@pytest.mark.integration
+@pytest.mark.timeout(60)
+def test_live_stt_status_reflects_local_install() -> None:
+    _require_live_stack()
+    status = _http_json("GET", f"{get_e2e_api_url()}/api/v1/stt/status")
+    assert isinstance(status, dict)
+    assert "available" in status
+    assert isinstance(status["available"], bool)
+    if _local_stt_available():
+        assert status["available"] is True
+
+
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+@pytest.mark.asyncio
+async def test_voice_settings_no_local_banner_when_available(
+    voice_chrome_page: tuple[ChromeMcpClient, McpPage],
+) -> None:
+    _require_live_stack()
+    if not _local_stt_available():
+        pytest.skip("local_stt_available=false — banner covered by TestClient 503")
+
+    _ensure_voice_feature_enabled()
+    _put_local_voice_config()
+
+    client, page = voice_chrome_page
+    async with _McpSession(client, page) as cdp:
+        page = await cdp.wait_voice_settings()
+
+    assert page.get("hasVoicePanel") is True, page
+    assert page.get("showLocalSttBanner") is False, page
+    assert page.get("onChannelsSettings") is True, page

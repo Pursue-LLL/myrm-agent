@@ -2,19 +2,20 @@
 
 ## 架构概述
 
-项目域仪表盘 UI：聚合 Kanban、Cron、Artifacts 等持久化工作流入口，展示轻量统计并导航至对应设置页或功能路由。页面壳在 `src/app/projects/page.tsx`，本目录仅承载仪表盘组件。
+项目域仪表盘 UI：聚合 Kanban、Cron、Artifacts、Memory Spaces 等持久化工作流入口，展示轻量统计并导航至对应设置页或功能路由。页面壳在 `src/app/projects/page.tsx`，本目录仅承载仪表盘组件。
 
 ## 文件清单
 
 | 文件 | 职责 | I/O/P |
 |------|------|-------|
-| `ProjectsDashboard.tsx` | 项目卡片网格：并行拉取看板/定时任务计数，跳转设置页或 `/artifacts` | ✅ |
+| `ProjectsDashboard.tsx` | 项目卡片网格：并行拉取看板/定时任务计数，跳转设置页、`/artifacts` 或 `/settings/memory` | ✅ |
 
 ## 依赖
 
 - `@/services/kanban` — `listBoards`
 - `@/services/cron` — `listCronJobs`
 - `next-intl` — `projects` namespace（`locales/*.json`）
+- `lucide-react` — `Brain` 图标
 
 ## 约束
 

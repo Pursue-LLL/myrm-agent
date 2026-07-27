@@ -396,7 +396,7 @@ async def _write_interrupted_turn_marker(
             user_message_id=request.message_id or "",
             action_mode=request.action_mode or "fast",
             agent_id=getattr(request, "agent_id", None),
-            serialized_params=params.model_dump(mode="json"),
+            serialized_params=params.model_dump(mode="json", exclude={"chat_history"}),
         )
         db.add(marker)
         await db.commit()

@@ -4,13 +4,14 @@
  * [INPUT]
  * @/services/memoryCommandCenter::getMemoryCommandCenter (POS: Frontend Personal Brain Command Center client)
  * @/services/memoryArchive::dryRunRollbackMemoryImport, exportMemoryArchive (POS: Frontend Memory Archive and import API client)
+ * @/services/projects::getProjects (POS: 项目管理 API 服务层)
  *
  * [OUTPUT]
- * MemoryCommandCenter: Personal Brain Command Center container with health dashboard, governance, diagnostics, archive export, rollback preview orchestration, and SSE-backed live memory stream.
+ * MemoryCommandCenter: Personal Brain Command Center container with health dashboard, governance, diagnostics, archive export, rollback preview orchestration, SSE-backed live memory stream, and project-scoped memory filtering.
  *
  * [POS]
  * 个人大脑指挥中心容器。按观察、理解、治理、验证分区展示记忆快照，编排治理动作、Memory Doctor 动作、
- * 导入回滚预演强确认与 migration missing 状态的迁移向导跳转。
+ * 导入回滚预演强确认、migration missing 状态的迁移向导跳转，支持按项目过滤 SharedContext 记忆空间。
  */
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -55,6 +56,7 @@ import { useMemoryDemoSeed } from './useMemoryDemoSeed';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import MemoryHealthDashboard from './MemoryHealthDashboard';
 import { canDeepLinkMigrationSource, registerMigrationSourceManifest } from '@/services/migrationDiscovery';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 
 const SECTIONS = ['observe', 'understand', 'act', 'verify'] as const;
 const HEALTH_STATUSES = ['healthy', 'degraded', 'critical', 'unknown'] as const;
@@ -109,23 +111,31 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
     setSelectedProjectId(urlProjectId);
   }, [urlProjectId]);
 
+  const abortRef = useRef<AbortController | null>(null);
+
   const loadSnapshot = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
       const [snap, consolSummary] = await Promise.all([
-        getMemoryCommandCenter(selectedProjectId),
+        getMemoryCommandCenter(selectedProjectId, { signal: controller.signal }),
         getConsolidationLastSummary().catch(() => null),
       ]);
+      if (controller.signal.aborted) return;
       registerMigrationSourceManifest(snap.migration.source_manifest, {
         authoritative: snap.migration.source_manifest_authoritative,
       });
       setSnapshot(snap);
       setConsolidationSummary(consolSummary);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : t('unknownError'));
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [t, selectedProjectId]);
 
@@ -137,6 +147,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
 
   useEffect(() => {
     void loadSnapshot();
+    return () => { abortRef.current?.abort(); };
   }, [loadSnapshot]);
 
   useEffect(() => {
@@ -406,21 +417,22 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{t('commandCenter.description')}</p>
           {projects.length > 0 && (
             <div className="mt-2 flex items-center gap-2">
-              <select
-                value={selectedProjectId ?? ''}
-                onChange={(e) => {
-                  const value = e.target.value || null;
-                  setSelectedProjectId(value);
-                }}
-                className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              <Select
+                value={selectedProjectId ?? '__all__'}
+                onValueChange={(v) => setSelectedProjectId(v === '__all__' ? null : v)}
               >
-                <option value="">{t('commandCenter.allProjects')}</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-8 w-auto min-w-[10rem] rounded-md text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-md">
+                  <SelectItem value="__all__">{t('commandCenter.allProjects')}</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {selectedProjectId && (
                 <button
                   type="button"

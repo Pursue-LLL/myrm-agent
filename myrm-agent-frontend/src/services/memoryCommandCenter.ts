@@ -451,9 +451,12 @@ export interface MemoryCommandRepairActionResponse {
 
 export const getMemoryCommandCenter = async (
   projectId?: string | null,
+  options?: { signal?: AbortSignal },
 ): Promise<MemoryCommandCenterResponse> => {
   const params = projectId ? `?project_id=${encodeURIComponent(projectId)}` : '';
-  return apiRequest<MemoryCommandCenterResponse>(`/memory/command-center/${params}`);
+  return apiRequest<MemoryCommandCenterResponse>(`/memory/command-center/${params}`, {
+    signal: options?.signal,
+  });
 };
 
 export const runMemoryCommandAction = async (

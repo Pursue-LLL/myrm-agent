@@ -4,12 +4,13 @@
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 app.database.models.memory::PendingMemory (POS: 记忆域模型)
 app.database.models.memory::SharedContextModel (POS: 记忆域模型)
+app.services.memory.shared_context::SharedContextService (POS: 共享上下文业务服务)
 
 [OUTPUT]
-MemoryCommandCenterService: builds the single-user memory command center snapshot.
+MemoryCommandCenterService: builds the single-user memory command center snapshot with optional project-scoped filtering.
 
 [POS]
-个人大脑指挥中心聚合服务。基于 MemoryManager、记忆治理 ORM 和部署设置生成设置页可观测快照。
+个人大脑指挥中心聚合服务。基于 MemoryManager、记忆治理 ORM 和部署设置生成设置页可观测快照，支持按项目过滤 SharedContext 记忆空间。
 """
 
 from __future__ import annotations
@@ -256,7 +257,10 @@ class MemoryCommandCenterService:
 
         stmt = select(SharedContextModel).order_by(desc(SharedContextModel.updated_at)).limit(20)
         if project_ctx_ids is not None:
-            stmt = stmt.where(SharedContextModel.id.in_(project_ctx_ids)) if project_ctx_ids else stmt.where(False)
+            if project_ctx_ids:
+                stmt = stmt.where(SharedContextModel.id.in_(project_ctx_ids))
+            else:
+                stmt = stmt.where(False)
 
         result = await self._db.execute(stmt)
         for context in result.scalars().all():
@@ -302,7 +306,12 @@ class MemoryCommandCenterService:
             .limit(5)
         )
         if project_ctx_ids is not None:
-            proposal_stmt = proposal_stmt.where(SharedContextWriteProposalModel.context_id.in_(project_ctx_ids)) if project_ctx_ids else proposal_stmt.where(False)
+            if project_ctx_ids:
+                proposal_stmt = proposal_stmt.where(
+                    SharedContextWriteProposalModel.context_id.in_(project_ctx_ids)
+                )
+            else:
+                proposal_stmt = proposal_stmt.where(False)
 
         proposal_result = await self._db.execute(proposal_stmt)
         for proposal in proposal_result.scalars().all():
@@ -442,9 +451,18 @@ class MemoryCommandCenterService:
                     )
                 )
 
-        proposal_stmt = select(SharedContextWriteProposalModel).order_by(desc(SharedContextWriteProposalModel.created_at)).limit(6)
+        proposal_stmt = (
+            select(SharedContextWriteProposalModel)
+            .order_by(desc(SharedContextWriteProposalModel.created_at))
+            .limit(6)
+        )
         if project_ctx_ids is not None:
-            proposal_stmt = proposal_stmt.where(SharedContextWriteProposalModel.context_id.in_(project_ctx_ids)) if project_ctx_ids else proposal_stmt.where(False)
+            if project_ctx_ids:
+                proposal_stmt = proposal_stmt.where(
+                    SharedContextWriteProposalModel.context_id.in_(project_ctx_ids)
+                )
+            else:
+                proposal_stmt = proposal_stmt.where(False)
 
         proposal_result = await self._db.execute(proposal_stmt)
         for proposal in proposal_result.scalars().all():
@@ -462,9 +480,16 @@ class MemoryCommandCenterService:
                 )
             )
 
-        context_stmt = select(SharedContextModel).order_by(desc(SharedContextModel.updated_at)).limit(6)
+        context_stmt = (
+            select(SharedContextModel)
+            .order_by(desc(SharedContextModel.updated_at))
+            .limit(6)
+        )
         if project_ctx_ids is not None:
-            context_stmt = context_stmt.where(SharedContextModel.id.in_(project_ctx_ids)) if project_ctx_ids else context_stmt.where(False)
+            if project_ctx_ids:
+                context_stmt = context_stmt.where(SharedContextModel.id.in_(project_ctx_ids))
+            else:
+                context_stmt = context_stmt.where(False)
 
         context_result = await self._db.execute(context_stmt)
         for context in context_result.scalars().all():

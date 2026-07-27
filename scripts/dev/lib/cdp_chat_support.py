@@ -812,6 +812,63 @@ def steer_chat_message(
     return {"ok": False, "err": "steer-api-rejected", "payload": payload}
 
 
+def chat_browser_gate_from_api(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+) -> dict[str, object]:
+    """REST mirror of E2E ``getBrowserToolProgress`` when MUX probes are degraded."""
+    normalized = chat_id.strip()
+    if not normalized:
+        return {"lastTool": "", "takeoverPending": False, "fromApi": True}
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
+    last_tool = ""
+    messages = fetch_chat_messages(normalized, api_url=resolved_api)
+    for msg in reversed(messages):
+        if not isinstance(msg, dict) or msg.get("role") != "assistant":
+            continue
+        steps = msg.get("progressSteps") or msg.get("progress_steps") or []
+        if not isinstance(steps, list):
+            continue
+        for step in reversed(steps):
+            if not isinstance(step, dict):
+                continue
+            tool_name = str(step.get("tool_name") or step.get("toolName") or "")
+            if tool_name.startswith("browser_"):
+                last_tool = tool_name
+                break
+        if last_tool:
+            break
+    takeover_pending = last_tool.endswith("browser_ask_human_tool")
+    if not takeover_pending:
+        try:
+            payload = _e2e_api_get_json(
+                f"{resolved_api}/api/v1/approvals?limit=50&offset=0",
+                timeout_sec=10.0,
+            )
+            records = payload.get("approvals") if isinstance(payload, dict) else None
+            if isinstance(records, list):
+                for raw in records:
+                    if not isinstance(raw, dict):
+                        continue
+                    if (
+                        raw.get("action_type") == "browser_takeover"
+                        and raw.get("status") == "PENDING"
+                        and str(raw.get("chat_id") or "") == normalized
+                    ):
+                        takeover_pending = True
+                        if not last_tool:
+                            last_tool = "browser_ask_human_tool"
+                        break
+        except Exception:
+            pass
+    return {
+        "lastTool": last_tool,
+        "takeoverPending": takeover_pending,
+        "fromApi": True,
+    }
+
+
 def chat_user_message_count(
     chat_id: str,
     *,

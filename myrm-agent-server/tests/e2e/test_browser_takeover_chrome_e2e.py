@@ -16,6 +16,7 @@ if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
 from cdp_chat_support import (  # noqa: E402
+    chat_browser_gate_from_api,
     chat_messages_have_done,
     deny_stale_browser_takeover_approvals,
     ensure_e2e_memory_disabled,
@@ -109,6 +110,33 @@ def _resume_via_api(
                     f"E2E_RESUME_SSE: message_end after {line_count} lines", flush=True
                 )
                 break
+            elif event_type == "error":
+                error_data = event.get("data", "")
+                status_code = event.get("status_code")
+                error_type_name = str(event.get("error_type", ""))
+                err_text = (
+                    error_data
+                    if isinstance(error_data, str)
+                    else json.dumps(error_data, ensure_ascii=False)
+                )
+                if status_code == 409 or error_type_name == "AgentBusyError":
+                    print(
+                        f"E2E_RESUME_SSE: AgentBusyError at L{line_count} — "
+                        f"{err_text[:120]}",
+                        flush=True,
+                    )
+                    resp.close()
+                    return {"ok": False, "error": f"HTTP 409: {err_text}"}
+                print(
+                    f"E2E_RESUME_SSE: error event at L{line_count} "
+                    f"({error_type_name}): {err_text[:120]}",
+                    flush=True,
+                )
+                resp.close()
+                return {
+                    "ok": False,
+                    "error": f"SSE error ({error_type_name}): {err_text}",
+                }
             elif event_type in ("approval_required", "browser_takeover_requested"):
                 re_interrupted = True
                 nested = event.get("data", {})
@@ -527,6 +555,8 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         probe = await _gate_probe_evaluate(
             chat, _BROWSER_TOOL_PROGRESS_JS, label="tool_progress"
         )
+        if probe is None:
+            return {"active": False, "muxStall": True}
         return probe if isinstance(probe, dict) else {"active": False}
 
     def _require_browser_gate_triggered(
@@ -567,9 +597,24 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             return "browser_ask_human_tool", True
         return None
 
+    async def _api_browser_gate_progress(
+        chat_id: str | None,
+        *,
+        api_url: str,
+    ) -> dict[str, object] | None:
+        if not chat_id:
+            return None
+        return await asyncio.to_thread(
+            chat_browser_gate_from_api,
+            chat_id,
+            api_url=api_url,
+        )
+
     async def _wait_for_browser_ask_human_gate(
         chat: McpChatSession,
         *,
+        chat_id: str | None = None,
+        api_url: str | None = None,
         timeout_sec: float = BROWSER_GATE_WAIT_SEC,
     ) -> tuple[str, bool]:
         deadline = time.monotonic() + timeout_sec
@@ -577,6 +622,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         last_recovery_at = [0.0]
         last_tool = ""
         takeover_pending = False
+        resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
             progress = await _probe_browser_tool_progress(chat)
@@ -584,6 +630,24 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             takeover_pending = progress.get("takeoverPending") is True
             if takeover_pending or last_tool.endswith("browser_ask_human_tool"):
                 return last_tool, takeover_pending
+
+            if progress.get("muxStall") is True:
+                api_progress = await _api_browser_gate_progress(
+                    chat_id,
+                    api_url=resolved_api,
+                )
+                if isinstance(api_progress, dict):
+                    api_tool = str(api_progress.get("lastTool") or "")
+                    api_pending = api_progress.get("takeoverPending") is True
+                    if api_pending or api_tool.endswith("browser_ask_human_tool"):
+                        print(
+                            f"E2E_GATE_API_FALLBACK: lastTool={api_tool!r} "
+                            f"pending={api_pending}",
+                            flush=True,
+                        )
+                        return api_tool or "browser_ask_human_tool", True
+                    if api_tool and not last_tool:
+                        last_tool = api_tool
 
             banner = await _gate_probe_evaluate(
                 chat, _BANNER_ASSERT_JS, label="gate_banner"
@@ -743,7 +807,11 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 f"disconnected={len(getattr(chat._client, '_disconnected_pages', {}))}"
             )
             _p("wait_for_browser_ask_human_gate")
-            last_tool, takeover_pending = await _wait_for_browser_ask_human_gate(chat)
+            last_tool, takeover_pending = await _wait_for_browser_ask_human_gate(
+                chat,
+                chat_id=chat_id_hint,
+                api_url=api_base,
+            )
             _p(f"gate result: lastTool={last_tool} pending={takeover_pending}")
             if not takeover_pending and not last_tool.endswith(
                 "browser_ask_human_tool"
@@ -821,11 +889,37 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         assert resume_msg_id, f"No messageId for resume: {bridge_result}"
 
         MAX_RESUME_ROUNDS = 3
-        _RESUME_409_MAX_RETRIES = 3
+        _RESUME_409_MAX_RETRIES = 5
         _RESUME_SETTLE_SEC = 3.0
+        _STREAM_SETTLE_TIMEOUT_SEC = 45.0
         current_msg_id = resume_msg_id
         done = False
         resume_result: dict[str, object] = {}
+
+        _p(
+            f"wait for UI stream settle (max {_STREAM_SETTLE_TIMEOUT_SEC:.0f}s) "
+            "before resume API"
+        )
+        stream_settle_deadline = time.monotonic() + _STREAM_SETTLE_TIMEOUT_SEC
+        while time.monotonic() < stream_settle_deadline:
+            stream_diag = await chat.evaluate(
+                """(() => {
+              const turn = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+              return {
+                isStreaming: Boolean(turn.isStreaming),
+                userCount: turn.userCount ?? 0,
+              };
+            })()""",
+                await_promise=False,
+                recv_timeout=15.0,
+            )
+            if isinstance(stream_diag, dict) and not stream_diag.get("isStreaming"):
+                _p(f"UI stream settled: {stream_diag}")
+                break
+            await asyncio.sleep(1.0)
+        else:
+            _p("UI stream still active after settle timeout — proceeding with resume")
+
         for resume_round in range(1, MAX_RESUME_ROUNDS + 1):
             _p(
                 f"resume via API round {resume_round}/{MAX_RESUME_ROUNDS}: "
@@ -877,7 +971,9 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 resume_chat_id, api_url=api_base, timeout_sec=60.0
             )
             _p(f"fallback api_done={done}")
-            break
+            if done:
+                break
+            await asyncio.sleep(_RESUME_SETTLE_SEC)
         assert done, (
             f"Agent did not reply DONE after {MAX_RESUME_ROUNDS} resume rounds "
             f"for chat {resume_chat_id}; last resume_result={resume_result}"

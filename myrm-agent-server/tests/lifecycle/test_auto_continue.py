@@ -1,0 +1,392 @@
+"""Tests for crash auto-continue logic in system.py.
+
+Validates:
+1. Eligible markers are dispatched and assistant message is persisted
+2. Stale markers (>freshness window) are pruned
+3. Exhausted markers (>=max_attempts) are pruned
+4. User-disabled preference skips scanning entirely
+5. Missing serialized_params / model_cfg guard
+6. Failure creates error notification; notification failure does not crash
+7. Crash-loop breaker increments attempt_count before executing
+8. Config loader failure defaults to enabled
+9. Empty stream does not persist message
+10. Chat history is loaded before stream
+"""
+
+from __future__ import annotations
+
+import asyncio
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+
+def _make_marker(
+    *,
+    marker_id: str = "marker-001",
+    chat_id: str = "chat-auto-001",
+    attempt_count: int = 0,
+    created_at: datetime | None = None,
+    serialized_params: dict | None = None,
+) -> MagicMock:
+    m = MagicMock()
+    m.id = marker_id
+    m.chat_id = chat_id
+    m.user_message_id = "msg-user-001"
+    m.action_mode = "fast"
+    m.agent_id = "default"
+    m.attempt_count = attempt_count
+    m.created_at = created_at or datetime.now(UTC)
+    m.serialized_params = serialized_params or {
+        "chat_id": chat_id,
+        "query": "hello",
+        "message_id": "msg-user-001",
+        "model_cfg": {"provider": "test", "model": "test-model"},
+    }
+    return m
+
+
+def _mock_session_factory() -> tuple[MagicMock, AsyncMock]:
+    factory = MagicMock()
+    db = AsyncMock()
+    factory.return_value.__aenter__ = AsyncMock(return_value=db)
+    factory.return_value.__aexit__ = AsyncMock(return_value=False)
+    db.commit = AsyncMock()
+    return factory, db
+
+
+@pytest.mark.asyncio
+async def test_auto_continue_success_persists_message():
+    """Successful auto-continue collects message chunks and persists them."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    async def _fake_stream(*_a, **_kw):
+        yield {"type": "progress", "data": {"status": "started"}}
+        yield {"type": "message", "data": "Hello "}
+        yield {"type": "message", "data": "world"}
+        yield {"type": "message_end", "usage": {}}
+
+    mock_notif = AsyncMock()
+    mock_persist = AsyncMock()
+    mock_chat_history = AsyncMock(return_value=[])
+
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = [marker]
+    db.execute = AsyncMock(return_value=result_mock)
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(return_value=MagicMock(personal_settings_dict={"autoContinueInterruptedTurns": True})),
+        ),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", mock_chat_history),
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            mock_notif,
+        ),
+    ):
+        mock_params = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            query="hello",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+        mock_params_cls.model_validate.return_value = mock_params
+
+        from app.lifecycle.system import auto_continue_interrupted_turns
+
+        await auto_continue_interrupted_turns()
+        await asyncio.sleep(0.15)
+
+    mock_persist.assert_awaited_once()
+    persist_args = mock_persist.call_args
+    assert persist_args[0][0] == "chat-auto-001"
+    assert persist_args[0][1] == "Hello world"
+
+    success_calls = [c for c in mock_notif.call_args_list if c[1].get("type") == "success"]
+    assert len(success_calls) >= 1
+
+
+@pytest.mark.asyncio
+async def test_auto_continue_disabled_by_preference():
+    """When user disables autoContinueInterruptedTurns, scanning is skipped."""
+    factory, db = _mock_session_factory()
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(return_value=MagicMock(personal_settings_dict={"autoContinueInterruptedTurns": False})),
+        ),
+    ):
+        from app.lifecycle.system import auto_continue_interrupted_turns
+
+        await auto_continue_interrupted_turns()
+
+    db.execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_auto_continue_no_markers():
+    """No markers in DB means no dispatch."""
+    factory, db = _mock_session_factory()
+
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = []
+    db.execute = AsyncMock(return_value=result_mock)
+
+    mock_notif = AsyncMock()
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(return_value=MagicMock(personal_settings_dict={})),
+        ),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            mock_notif,
+        ),
+    ):
+        from app.lifecycle.system import auto_continue_interrupted_turns
+
+        await auto_continue_interrupted_turns()
+
+    mock_notif.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_dispatch_skips_missing_params():
+    """Marker with no serialized_params is skipped."""
+    marker = _make_marker(serialized_params=None)
+    marker.serialized_params = None
+    factory, db = _mock_session_factory()
+
+    mock_notif = AsyncMock()
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            mock_notif,
+        ),
+    ):
+        from app.lifecycle.system import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
+
+    success_calls = [c for c in mock_notif.call_args_list if c[1].get("type") == "success"]
+    assert len(success_calls) == 0
+
+
+@pytest.mark.asyncio
+async def test_dispatch_skips_missing_model_cfg():
+    """Marker with empty model_cfg is skipped."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=None,
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+        )
+
+        from app.lifecycle.system import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
+
+    db.execute.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_dispatch_failure_creates_error_notification():
+    """When stream raises, error notification is created."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    mock_notif = AsyncMock()
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=RuntimeError("LLM died")),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            mock_notif,
+        ),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+
+        from app.lifecycle.system import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
+
+    error_calls = [c for c in mock_notif.call_args_list if c[1].get("type") == "error"]
+    assert len(error_calls) >= 1
+    assert error_calls[0][1]["source"] == "auto_continue"
+
+
+@pytest.mark.asyncio
+async def test_notification_failure_does_not_crash():
+    """If notification creation itself fails, _dispatch_auto_continue should not raise."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=RuntimeError("fail")),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            AsyncMock(side_effect=Exception("DB down")),
+        ),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+
+        from app.lifecycle.system import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
+
+
+@pytest.mark.asyncio
+async def test_config_loader_failure_defaults_to_enabled():
+    """If config loader raises, auto-continue should still proceed (default enabled)."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = [marker]
+    db.execute = AsyncMock(return_value=result_mock)
+
+    mock_notif = AsyncMock()
+
+    async def _fake_stream(*_a, **_kw):
+        yield {"type": "message", "data": "recovered"}
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(side_effect=RuntimeError("config DB corrupted")),
+        ),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", AsyncMock()),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            mock_notif,
+        ),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+
+        from app.lifecycle.system import auto_continue_interrupted_turns
+
+        await auto_continue_interrupted_turns()
+        await asyncio.sleep(0.15)
+
+    success_calls = [c for c in mock_notif.call_args_list if c[1].get("type") == "success"]
+    assert len(success_calls) >= 1, "Should proceed despite config failure"
+
+
+@pytest.mark.asyncio
+async def test_empty_stream_does_not_persist():
+    """When stream yields no message events, persist should not be called."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    async def _empty_stream(*_a, **_kw):
+        yield {"type": "progress", "data": {"status": "started"}}
+        yield {"type": "message_end", "usage": {}}
+
+    mock_persist = AsyncMock()
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_empty_stream),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            AsyncMock(),
+        ),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+
+        from app.lifecycle.system import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
+
+    mock_persist.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_dispatch_loads_chat_history():
+    """Dispatch should call load_web_chat_history before streaming."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    mock_load_history = AsyncMock(return_value=[["user", "previous msg"], ["assistant", "prev reply"]])
+
+    async def _fake_stream(*_a, **_kw):
+        yield {"type": "message", "data": "ok"}
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", mock_load_history),
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", AsyncMock()),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            AsyncMock(),
+        ),
+    ):
+        mock_params = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+        mock_params_cls.model_validate.return_value = mock_params
+
+        from app.lifecycle.system import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
+
+    mock_load_history.assert_awaited_once_with("chat-auto-001")

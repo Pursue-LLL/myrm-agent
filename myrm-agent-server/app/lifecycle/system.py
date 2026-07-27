@@ -293,6 +293,7 @@ async def _dispatch_auto_continue(
 
         from app.ai_agents import GeneralAgentParams
         from app.services.agent.streaming import ai_agent_service_stream
+        from app.services.chat.chat_service import ChatService
 
         params = GeneralAgentParams.model_validate(marker.serialized_params)
         params.message_id = f"auto_continue_{marker.id}"
@@ -300,6 +301,9 @@ async def _dispatch_auto_continue(
         if not params.model_cfg:
             logger.warning("Auto-continue skipped for chat %s: missing model_cfg", marker.chat_id)
             return
+
+        if marker.chat_id:
+            params.chat_history = await ChatService.load_web_chat_history(marker.chat_id)
 
         token = CancellationToken(request_id=params.message_id or marker.id)
 
@@ -314,8 +318,6 @@ async def _dispatch_auto_continue(
                     collected_parts.append(data)
 
         if collected_parts and marker.chat_id:
-            from app.services.chat.chat_service import ChatService
-
             await ChatService.persist_assistant_message_safe(
                 marker.chat_id,
                 "".join(collected_parts),
