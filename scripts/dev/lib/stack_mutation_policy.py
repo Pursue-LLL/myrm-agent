@@ -26,6 +26,9 @@ from pathlib import Path
 from typing import Final
 
 PENDING_DRIFT_FILENAME: Final[str] = "pending-stack-drift.json"
+_HARNESS_IMPORT_FAILED_TOKEN: Final[str] = (
+    "monorepo harness source present but myrm_agent_harness import failed"
+)
 
 
 class DriftHealAction(str, Enum):
@@ -109,6 +112,34 @@ def should_defer_supervisor_backend_heal(
     return False
 
 
+def _run_backend_only_ensure(*, dev_stack: Path, root: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash", str(dev_stack), "backend-only", "ensure"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+        cwd=str(root),
+        env=env,
+    )
+
+
+def _run_harness_install(*, root: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["./myrm", "harness", "install"],
+        capture_output=True,
+        text=True,
+        timeout=240,
+        check=False,
+        cwd=str(root),
+        env=env,
+    )
+
+
+def _command_failure_detail(proc: subprocess.CompletedProcess[str], fallback: str) -> str:
+    return (proc.stderr or proc.stdout or fallback).strip()[:500]
+
+
 @dataclass(frozen=True, slots=True)
 class PendingDriftApplyResult:
     action: str
@@ -142,20 +173,54 @@ def apply_pending_drift_if_idle(
         "MYRM_SUPERVISOR_BYPASS": "1",
     }
     try:
-        proc = subprocess.run(
-            ["bash", str(dev_stack), "backend-only", "ensure"],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            check=False,
-            cwd=str(root),
-            env=env,
-        )
+        proc = _run_backend_only_ensure(dev_stack=dev_stack, root=root, env=env)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return PendingDriftApplyResult("failed", str(exc))
     if proc.returncode != 0:
-        detail = (proc.stderr or proc.stdout or "backend-only ensure failed").strip()
-        return PendingDriftApplyResult("failed", detail[:500])
+        detail = _command_failure_detail(proc, "backend-only ensure failed")
+        if _HARNESS_IMPORT_FAILED_TOKEN in detail:
+            try:
+                install_proc = _run_harness_install(root=root, env=env)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                return PendingDriftApplyResult(
+                    "failed",
+                    f"auto harness install failed before retry: {exc}",
+                )
+            if install_proc.returncode != 0:
+                install_detail = _command_failure_detail(
+                    install_proc, "harness install failed"
+                )
+                return PendingDriftApplyResult(
+                    "failed",
+                    f"auto harness install failed before retry: {install_detail}",
+                )
+            try:
+                retry_proc = _run_backend_only_ensure(
+                    dev_stack=dev_stack,
+                    root=root,
+                    env=env,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                return PendingDriftApplyResult(
+                    "failed",
+                    f"backend-only ensure retry after harness install failed: {exc}",
+                )
+            if retry_proc.returncode != 0:
+                retry_detail = _command_failure_detail(
+                    retry_proc,
+                    "backend-only ensure retry failed",
+                )
+                return PendingDriftApplyResult(
+                    "failed",
+                    "backend-only ensure retry after harness install failed: "
+                    f"{retry_detail}",
+                )
+            clear_pending_drift(resolved_state)
+            return PendingDriftApplyResult(
+                "applied",
+                f"server_dir={resolved_server} auto_harness_install_retry=1",
+            )
+        return PendingDriftApplyResult("failed", detail)
     clear_pending_drift(resolved_state)
     return PendingDriftApplyResult(
         "applied",

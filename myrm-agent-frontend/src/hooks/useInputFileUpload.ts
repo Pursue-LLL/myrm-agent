@@ -8,7 +8,7 @@
  * - useInputFileUpload: exposes paste/drop upload handlers and upload state.
  *
  * [POS]
- * 聊天输入文件上传 Hook。负责粘贴图片、拖拽文件、SHA-256 去重和上传后附件状态转换。
+ * 聊天输入文件上传 Hook。负责粘贴/拖拽文件上传、SHA-256 去重和上传后附件状态转换。
  */
 
 import { useCallback, useState } from 'react';
@@ -91,60 +91,6 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
     [files, setFiles, setHideAttachList, tFiles],
   );
 
-  const canAcceptPastedImages = useCallback(() => {
-    const { defaultModelConfig, getModelInfo } = useProviderStore.getState();
-    const selection = defaultModelConfig?.baseModel?.primary;
-    if (!selection) return true;
-
-    const modelInfo = getModelInfo(selection.providerId, selection.model);
-    const fallbackSelection = defaultModelConfig?.visionFallbackModel;
-    const fallbackModelInfo = fallbackSelection
-      ? getModelInfo(fallbackSelection.providerId, fallbackSelection.model)
-      : null;
-    return Boolean(modelInfo?.supports_vision || fallbackModelInfo?.supports_vision);
-  }, []);
-
-  const handlePaste = useCallback(
-    async (e: React.ClipboardEvent) => {
-      if (actionMode === 'fast') return;
-
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      const imageItems: DataTransferItem[] = [];
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          imageItems.push(items[i]);
-        }
-      }
-      if (imageItems.length === 0) return;
-
-      if (!canAcceptPastedImages()) {
-        toast.warning(tFiles('modelNotSupportVision'));
-        return;
-      }
-
-      e.preventDefault();
-      setIsUploadingPaste(true);
-      try {
-        const imageFiles: globalThis.File[] = [];
-        for (const item of imageItems) {
-          const file = item.getAsFile();
-          if (file) {
-            imageFiles.push(file);
-          }
-        }
-        await uploadInputFiles(imageFiles);
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        toast.error(tFiles('uploadError'));
-      } finally {
-        setIsUploadingPaste(false);
-      }
-    },
-    [actionMode, canAcceptPastedImages, uploadInputFiles, tFiles],
-  );
-
   const handleDroppedFiles = useCallback(
     async (droppedFiles: globalThis.File[]) => {
       if (actionMode === 'fast') return;
@@ -198,6 +144,28 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
       }
     },
     [actionMode, uploadInputFiles, tFiles],
+  );
+
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent) => {
+      if (actionMode === 'fast') return;
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const pastedFiles: globalThis.File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].kind === 'file') {
+          const file = items[i].getAsFile();
+          if (file) pastedFiles.push(file);
+        }
+      }
+      if (pastedFiles.length === 0) return;
+
+      e.preventDefault();
+      await handleDroppedFiles(pastedFiles);
+    },
+    [actionMode, handleDroppedFiles],
   );
 
   return {

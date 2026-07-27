@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
+from dataclasses import dataclass
 
 from cdp_chat_support import (
     chat_user_message_count,
@@ -80,6 +82,113 @@ _PENDING_API_FAIL_ABORT_STREAK = 20
 _FAST_API_TIMEOUT_SEC = 4.0
 _FAST_API_MAX_ATTEMPTS = 1
 _FAST_API_WALL_TIMEOUT_SEC = _FAST_API_TIMEOUT_SEC + 1.0
+_MAX_SYNTHETIC_DREF_FALLBACK_ENV = "MYRM_DESKTOP_E2E_MAX_SYNTHETIC_DREF_FALLBACKS"
+_MAX_PENDING_SEED_FALLBACK_ENV = "MYRM_DESKTOP_E2E_MAX_PENDING_SEED_FALLBACKS"
+_DEFAULT_MAX_SYNTHETIC_DREF_FALLBACKS = 2
+_DEFAULT_MAX_PENDING_SEED_FALLBACKS = 3
+
+
+@dataclass(slots=True)
+class _DesktopFallbackBudget:
+    synthetic_dref_limit: int
+    pending_seed_limit: int
+    synthetic_dref_used: int = 0
+    pending_seed_used: int = 0
+
+
+def _non_negative_env_int(name: str, default: int) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        parsed = int(raw)
+    except ValueError:
+        progress(f"invalid {name}={raw!r}; fallback to default {default}")
+        return default
+    if parsed < 0:
+        progress(f"invalid {name}={raw!r}; fallback to default {default}")
+        return default
+    return parsed
+
+
+def _build_fallback_budget() -> _DesktopFallbackBudget:
+    synthetic_limit = _non_negative_env_int(
+        _MAX_SYNTHETIC_DREF_FALLBACK_ENV,
+        _DEFAULT_MAX_SYNTHETIC_DREF_FALLBACKS,
+    )
+    pending_limit = _non_negative_env_int(
+        _MAX_PENDING_SEED_FALLBACK_ENV,
+        _DEFAULT_MAX_PENDING_SEED_FALLBACKS,
+    )
+    budget = _DesktopFallbackBudget(
+        synthetic_dref_limit=synthetic_limit,
+        pending_seed_limit=pending_limit,
+    )
+    progress(
+        "desktop fallback budget configured "
+        f"synthetic_dref<={budget.synthetic_dref_limit} "
+        f"pending_seed<={budget.pending_seed_limit}"
+    )
+    return budget
+
+
+def _record_synthetic_dref_fallback(
+    budget: _DesktopFallbackBudget,
+    *,
+    reason: str,
+) -> None:
+    budget.synthetic_dref_used += 1
+    progress(
+        "synthetic dref fallback usage "
+        f"{budget.synthetic_dref_used}/{budget.synthetic_dref_limit} "
+        f"reason={reason}"
+    )
+    if budget.synthetic_dref_used > budget.synthetic_dref_limit:
+        raise AssertionError(
+            "synthetic dref fallback budget exceeded "
+            f"({budget.synthetic_dref_used}>{budget.synthetic_dref_limit})"
+        )
+
+
+def _record_pending_seed_fallback(
+    budget: _DesktopFallbackBudget,
+    *,
+    reason: str,
+    request_id: str,
+) -> None:
+    budget.pending_seed_used += 1
+    progress(
+        "pending-seed fallback usage "
+        f"{budget.pending_seed_used}/{budget.pending_seed_limit} "
+        f"request_id={request_id} reason={reason}"
+    )
+    if budget.pending_seed_used > budget.pending_seed_limit:
+        raise AssertionError(
+            "pending seed fallback budget exceeded "
+            f"({budget.pending_seed_used}>{budget.pending_seed_limit}) "
+            f"request_id={request_id}"
+        )
+
+
+async def _seed_pending_desktop_approval_with_budget(
+    budget: _DesktopFallbackBudget,
+    *,
+    reason: str,
+) -> str | None:
+    request_id = await asyncio.to_thread(
+        seed_pending_desktop_approval_for_test,
+        app_name="TextEdit",
+        operation="foreground_control",
+        reason=reason,
+        require_app_approval=True,
+    )
+    if request_id:
+        _record_pending_seed_fallback(
+            budget,
+            reason=reason,
+            request_id=request_id,
+        )
+    return request_id
 
 
 def _empty_desktop_progress_probe() -> dict[str, object]:
@@ -596,6 +705,7 @@ async def _send_interact_nudge(
     chat: McpChatSession,
     *,
     last_tool: str,
+    fallback_budget: _DesktopFallbackBudget,
     chat_id: str = "",
     prefetched_dref: str | None = None,
 ) -> None:
@@ -626,6 +736,10 @@ async def _send_interact_nudge(
         # Deterministic fallback: force interact call to trigger approval gate
         # even when AX/snapshot refs are temporarily unavailable.
         dref = "d1"
+        _record_synthetic_dref_fallback(
+            fallback_budget,
+            reason=f"last_tool={last_tool or 'unknown'}",
+        )
         progress("fallback to synthetic dref='d1' for interact nudge")
     if dref:
         progress(f"nudge with concrete dref={dref!r}")
@@ -687,15 +801,12 @@ async def _send_interact_nudge(
                 chat, chat_id=normalized_chat_id
             )
         if not send_surface_ready:
-            seeded_request_id = await asyncio.to_thread(
-                seed_pending_desktop_approval_for_test,
-                app_name="TextEdit",
-                operation="foreground_control",
+            seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                fallback_budget,
                 reason=(
                     "E2E fallback: seed desktop approval when follow-up send "
                     "surface is not ready"
                 ),
-                require_app_approval=True,
             )
             if seeded_request_id:
                 progress(
@@ -744,15 +855,12 @@ async def _send_interact_nudge(
                 chat, chat_id=normalized_chat_id
             )
             if not send_surface_ready:
-                seeded_request_id = await asyncio.to_thread(
-                    seed_pending_desktop_approval_for_test,
-                    app_name="TextEdit",
-                    operation="foreground_control",
+                seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                    fallback_budget,
                     reason=(
                         "E2E fallback: seed desktop approval after follow-up "
                         "send retry surface not ready"
                     ),
-                    require_app_approval=True,
                 )
                 if seeded_request_id:
                     progress(
@@ -783,15 +891,12 @@ async def _send_interact_nudge(
                     "follow-up submit accepted by userCount "
                     f"{baseline_user_msgs}->{submit_user_count}; continue gate wait"
                 )
-                seeded_request_id = await asyncio.to_thread(
-                    seed_pending_desktop_approval_for_test,
-                    app_name="TextEdit",
-                    operation="foreground_control",
+                seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                    fallback_budget,
                     reason=(
                         "E2E fallback: seed desktop approval when follow-up submit "
                         "advanced userCount without interact"
                     ),
-                    require_app_approval=True,
                 )
                 if seeded_request_id:
                     progress(
@@ -815,15 +920,12 @@ async def _send_interact_nudge(
                     chat, chat_id=normalized_chat_id
                 )
                 if not send_surface_ready:
-                    seeded_request_id = await asyncio.to_thread(
-                        seed_pending_desktop_approval_for_test,
-                        app_name="TextEdit",
-                        operation="foreground_control",
+                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                        fallback_budget,
                         reason=(
                             "E2E fallback: seed desktop approval after follow-up "
                             "resend surface not ready"
                         ),
-                        require_app_approval=True,
                     )
                     if seeded_request_id:
                         progress(
@@ -858,15 +960,12 @@ async def _send_interact_nudge(
                         "follow-up resend accepted by userCount "
                         f"{retry_user_msgs}->{retry_submit_user_count}; continue gate wait"
                     )
-                    seeded_request_id = await asyncio.to_thread(
-                        seed_pending_desktop_approval_for_test,
-                        app_name="TextEdit",
-                        operation="foreground_control",
+                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                        fallback_budget,
                         reason=(
                             "E2E fallback: seed desktop approval when follow-up resend "
                             "advanced userCount without interact"
                         ),
-                        require_app_approval=True,
                     )
                     if seeded_request_id:
                         progress(
@@ -876,12 +975,9 @@ async def _send_interact_nudge(
                         )
                     consumed = True
                 if not consumed:
-                    seeded_request_id = await asyncio.to_thread(
-                        seed_pending_desktop_approval_for_test,
-                        app_name="TextEdit",
-                        operation="foreground_control",
+                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                        fallback_budget,
                         reason="E2E fallback: seed desktop approval after nudge stall",
-                        require_app_approval=True,
                     )
                     if seeded_request_id:
                         progress(
@@ -926,15 +1022,12 @@ async def _send_interact_nudge(
                     chat, chat_id=normalized_chat_id
                 )
                 if not send_surface_ready:
-                    seeded_request_id = await asyncio.to_thread(
-                        seed_pending_desktop_approval_for_test,
-                        app_name="TextEdit",
-                        operation="foreground_control",
+                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                        fallback_budget,
                         reason=(
                             "E2E fallback: seed desktop approval when steer "
                             "follow-up surface is not ready"
                         ),
-                        require_app_approval=True,
                     )
                     if seeded_request_id:
                         progress(
@@ -1153,6 +1246,7 @@ async def _wait_desktop_tool_activity_failfast(
     chat: McpChatSession,
     *,
     timeout_sec: float,
+    fallback_budget: _DesktopFallbackBudget,
     idle_fail_sec: float = GATE_IDLE_FAIL_FAST_SEC,
     chat_id: str = "",
     api_only: bool = False,
@@ -1196,12 +1290,12 @@ async def _wait_desktop_tool_activity_failfast(
                 f"complete={last.get('completionStatus')}"
             )
         if progress_api_timeout_streak >= 6:
-            seeded_request_id = await asyncio.to_thread(
-                seed_pending_desktop_approval_for_test,
-                app_name="TextEdit",
-                operation="foreground_control",
-                reason="E2E fallback: seed desktop approval after progress API wall-timeout streak",
-                require_app_approval=True,
+            seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                fallback_budget,
+                reason=(
+                    "E2E fallback: seed desktop approval after progress API "
+                    "wall-timeout streak"
+                ),
             )
             if seeded_request_id:
                 progress(
@@ -1253,7 +1347,10 @@ async def _wait_desktop_tool_activity_failfast(
                 await _wait_stream_idle(chat, chat_id=chat_id, timeout_sec=15.0)
                 try:
                     await _send_interact_nudge(
-                        chat, last_tool=last_tool, chat_id=chat_id
+                        chat,
+                        last_tool=last_tool,
+                        chat_id=chat_id,
+                        fallback_budget=fallback_budget,
                     )
                 except (RuntimeError, TimeoutError, OSError) as exc:
                     progress(f"early stream nudge skipped (non-fatal): {exc}")
@@ -1291,7 +1388,10 @@ async def _wait_desktop_tool_activity_failfast(
                 )
                 try:
                     await _send_interact_nudge(
-                        chat, last_tool=last_tool, chat_id=chat_id
+                        chat,
+                        last_tool=last_tool,
+                        chat_id=chat_id,
+                        fallback_budget=fallback_budget,
                     )
                 except (RuntimeError, TimeoutError, OSError) as exc:
                     progress(f"early idle nudge skipped (non-fatal): {exc}")
@@ -1303,12 +1403,9 @@ async def _wait_desktop_tool_activity_failfast(
                 and now - idle_started >= GATE_IDLE_NUDGE_SEC
             ):
                 idle_seed_attempted = True
-                seeded_request_id = await asyncio.to_thread(
-                    seed_pending_desktop_approval_for_test,
-                    app_name="TextEdit",
-                    operation="foreground_control",
+                seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                    fallback_budget,
                     reason="E2E fallback: seed desktop approval after idle no-tool window",
-                    require_app_approval=True,
                 )
                 if seeded_request_id:
                     progress(
@@ -1348,12 +1445,14 @@ async def ensure_interact_gate(
     wall_clock = wall_started_at if wall_started_at is not None else time.monotonic()
     api_only = textedit_foreground
     normalized_chat_id = chat_id.strip()
+    fallback_budget = _build_fallback_budget()
     tool_activity = await _wait_desktop_tool_activity_failfast(
         chat,
         timeout_sec=APPROVAL_WAIT_SEC,
         chat_id=chat_id,
         api_only=api_only,
         wall_started_at=wall_clock,
+        fallback_budget=fallback_budget,
     )
     last_tool = str(tool_activity.get("lastTool") or "")
     prefetched_dref: str | None = None
@@ -1420,6 +1519,7 @@ async def ensure_interact_gate(
                 last_tool=last_tool,
                 chat_id=chat_id,
                 prefetched_dref=prefetched_dref,
+                fallback_budget=fallback_budget,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
             if _is_hard_nudge_failure(exc):
@@ -1452,6 +1552,7 @@ async def ensure_interact_gate(
                 last_tool=last_tool,
                 chat_id=chat_id,
                 prefetched_dref=prefetched_dref,
+                fallback_budget=fallback_budget,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
             if _is_hard_nudge_failure(exc):
@@ -1486,6 +1587,7 @@ async def ensure_interact_gate(
                 last_tool=last_tool,
                 chat_id=chat_id,
                 prefetched_dref=prefetched_dref,
+                fallback_budget=fallback_budget,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
             if _is_hard_nudge_failure(exc):
@@ -1533,6 +1635,7 @@ async def ensure_interact_gate(
                 last_tool=last_tool,
                 chat_id=chat_id,
                 prefetched_dref=prefetched_dref,
+                fallback_budget=fallback_budget,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
             if _is_hard_nudge_failure(exc):
@@ -1548,12 +1651,9 @@ async def ensure_interact_gate(
                 ui_pending=ui_pending,
             )
         ):
-            seeded_request_id = await asyncio.to_thread(
-                seed_pending_desktop_approval_for_test,
-                app_name="TextEdit",
-                operation="foreground_control",
+            seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                fallback_budget,
                 reason="E2E fallback: seed desktop approval during repeated vision loop",
-                require_app_approval=True,
             )
             if seeded_request_id:
                 progress(
@@ -1632,6 +1732,7 @@ async def ensure_interact_gate(
                 last_tool=last_tool,
                 chat_id=chat_id,
                 prefetched_dref=prefetched_dref,
+                fallback_budget=fallback_budget,
             )
         except (RuntimeError, TimeoutError, OSError) as exc:
             if _is_hard_nudge_failure(exc):
@@ -1640,12 +1741,9 @@ async def ensure_interact_gate(
         heartbeat_e2e_lease()
         server_pending = await _server_pending_count_fast()
         if server_pending <= 0 and not ui_pending:
-            seeded_request_id = await asyncio.to_thread(
-                seed_pending_desktop_approval_for_test,
-                app_name="TextEdit",
-                operation="foreground_control",
+            seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                fallback_budget,
                 reason="E2E fallback: seed desktop approval after pending-gate stall",
-                require_app_approval=True,
             )
             if seeded_request_id:
                 progress(
@@ -1686,12 +1784,9 @@ async def ensure_interact_gate(
         server_pending=server_pending,
         ui_pending=ui_pending,
     ):
-        seeded_request_id = await asyncio.to_thread(
-            seed_pending_desktop_approval_for_test,
-            app_name="TextEdit",
-            operation="foreground_control",
+        seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+            fallback_budget,
             reason="E2E fallback: seed desktop approval after vision/snapshot loop",
-            require_app_approval=True,
         )
         if seeded_request_id:
             progress(

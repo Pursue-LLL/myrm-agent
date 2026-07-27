@@ -5,6 +5,9 @@ from __future__ import annotations
 import pytest
 
 from tests.e2e.desktop_approval.gate_probe import (
+    _DesktopFallbackBudget,
+    _record_pending_seed_fallback,
+    _record_synthetic_dref_fallback,
     interact_without_gate_handoff_elapsed,
     require_approval_gate_triggered,
     snapshot_loop_stuck_sec,
@@ -128,3 +131,23 @@ def test_interact_without_gate_handoff_elapsed_after_threshold() -> None:
         )
         is True
     )
+
+
+def test_record_synthetic_dref_fallback_raises_when_budget_exceeded() -> None:
+    budget = _DesktopFallbackBudget(synthetic_dref_limit=0, pending_seed_limit=1)
+    with pytest.raises(AssertionError, match="synthetic dref fallback budget exceeded"):
+        _record_synthetic_dref_fallback(budget, reason="unit-test")
+
+
+def test_record_pending_seed_fallback_tracks_usage_within_budget() -> None:
+    budget = _DesktopFallbackBudget(synthetic_dref_limit=1, pending_seed_limit=2)
+    _record_pending_seed_fallback(budget, reason="unit-test", request_id="req-1")
+    _record_pending_seed_fallback(budget, reason="unit-test", request_id="req-2")
+    assert budget.pending_seed_used == 2
+
+
+def test_record_pending_seed_fallback_raises_when_budget_exceeded() -> None:
+    budget = _DesktopFallbackBudget(synthetic_dref_limit=1, pending_seed_limit=1)
+    _record_pending_seed_fallback(budget, reason="unit-test", request_id="req-1")
+    with pytest.raises(AssertionError, match="pending seed fallback budget exceeded"):
+        _record_pending_seed_fallback(budget, reason="unit-test", request_id="req-2")

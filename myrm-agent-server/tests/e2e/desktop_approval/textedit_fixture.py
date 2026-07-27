@@ -11,6 +11,35 @@ import pytest
 
 from tests.e2e.desktop_approval.constants import TEXTEDIT_FIXTURE_MARKER, progress
 
+_TEXTEDIT_AX_DEGRADED_TTL_SEC = 300.0
+_textedit_ax_degraded_until_monotonic = 0.0
+_textedit_ax_degraded_detail = ""
+
+
+def _textedit_ax_degraded_snapshot() -> tuple[bool, str, int]:
+    remaining = int(
+        max(0.0, _textedit_ax_degraded_until_monotonic - time.monotonic())
+    )
+    return remaining > 0, _textedit_ax_degraded_detail, remaining
+
+
+def _mark_textedit_ax_degraded(detail: str) -> None:
+    global _textedit_ax_degraded_until_monotonic, _textedit_ax_degraded_detail
+    _textedit_ax_degraded_until_monotonic = (
+        time.monotonic() + _TEXTEDIT_AX_DEGRADED_TTL_SEC
+    )
+    _textedit_ax_degraded_detail = detail.strip() or "unknown"
+
+
+def _clear_textedit_ax_degraded() -> None:
+    global _textedit_ax_degraded_until_monotonic, _textedit_ax_degraded_detail
+    _textedit_ax_degraded_until_monotonic = 0.0
+    _textedit_ax_degraded_detail = ""
+
+
+def _reset_textedit_fixture_runtime_state_for_tests() -> None:
+    _clear_textedit_ax_degraded()
+
 
 def _run_command_no_raise(
     args: list[str],
@@ -285,6 +314,7 @@ def ensure_textedit_ax_ready(*, attempts: int = 3) -> bool:
         ax_ready, detail = _probe_textedit_ax_ready()
         last_detail = detail
         if foreground_ok and ax_ready:
+            _clear_textedit_ax_degraded()
             progress(f"textedit AX probe ready ({detail})")
             return True
         progress(
@@ -306,11 +336,22 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
         await asyncio.to_thread(prepare_textedit_fixture)
         marker_ready = await asyncio.to_thread(textedit_fixture_ready)
         if marker_ready:
+            degraded, degraded_detail, degraded_remaining = (
+                _textedit_ax_degraded_snapshot()
+            )
+            if degraded:
+                progress(
+                    "textedit AX degraded mode active; skip rebuild and continue "
+                    "with vision fallback "
+                    f"(remaining={degraded_remaining}s detail={degraded_detail})"
+                )
+                return
             ax_ready = await asyncio.to_thread(ensure_textedit_ax_ready, attempts=2)
             if ax_ready:
                 progress("textedit fixture ready (foreground + AX refs for @drefs)")
                 return
             last_detail = "ax-empty-after-rebuild"
+            _mark_textedit_ax_degraded(last_detail)
             # AX can be transiently unavailable on some hosts. Continue with
             # vision/snapshot fallback path instead of hard-failing bootstrap.
             progress(

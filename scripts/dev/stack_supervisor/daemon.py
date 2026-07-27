@@ -427,6 +427,28 @@ class SupervisorDaemon:
                     self._last_stack_warm_at = None
                 return dev
             if command == "ensure":
+                if not self._wave_stack_write_allowed():
+                    probe = probe_stack(self.paths)
+                    if probe.api_http_ok:
+                        return RpcResponse(
+                            ok=True,
+                            exit_code=0,
+                            stdout="",
+                            stderr="STACK_ENSURE_DEFERRED: active wave leases, backend already healthy",
+                        )
+                    logger.info(
+                        "rpc ensure: wave pin active but backend down — backend-only ensure"
+                    )
+                    dev = self._run_dev_stack(
+                        "backend-only",
+                        timeout_sec=90.0,
+                        subcommand="ensure",
+                        env_overrides=env_overrides,
+                    )
+                    self._watchdog_once()
+                    if dev.ok:
+                        self._last_stack_warm_at = time.monotonic()
+                    return dev
                 ensure_wait = float(
                     (env_overrides or {}).get(
                         "MYRM_STACK_FRONTEND_WAIT_SEC",

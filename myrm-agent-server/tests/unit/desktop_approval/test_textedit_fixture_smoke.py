@@ -9,6 +9,11 @@ import pytest
 from tests.e2e.desktop_approval import textedit_fixture
 
 
+@pytest.fixture(autouse=True)
+def _reset_textedit_fixture_runtime_state() -> None:
+    textedit_fixture._reset_textedit_fixture_runtime_state_for_tests()
+
+
 def test_preflight_textedit_foreground_soft_fail_returns_false(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -170,3 +175,32 @@ async def test_ensure_textedit_fixture_ready_allows_ax_fallback_when_marker_read
 
     await textedit_fixture.ensure_textedit_fixture_ready(attempts=2)
     assert restarts == []
+
+
+@pytest.mark.asyncio
+async def test_ensure_textedit_fixture_ready_skips_ax_rebuild_during_degraded_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(textedit_fixture, "prepare_textedit_fixture", lambda: None)
+    monkeypatch.setattr(textedit_fixture, "textedit_fixture_ready", lambda: True)
+    ax_calls: list[bool] = []
+    monkeypatch.setattr(
+        textedit_fixture,
+        "ensure_textedit_ax_ready",
+        lambda **_: ax_calls.append(True),
+    )
+
+    async def _to_thread(func: object, *args: object, **kwargs: object) -> object:
+        return func(*args, **kwargs)  # type: ignore[misc]
+
+    async def _sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr(textedit_fixture.asyncio, "to_thread", _to_thread)
+    monkeypatch.setattr(textedit_fixture.asyncio, "sleep", _sleep)
+    monkeypatch.setattr(textedit_fixture.time, "monotonic", lambda: 1000.0)
+
+    textedit_fixture._mark_textedit_ax_degraded("ax-empty-after-rebuild")
+    await textedit_fixture.ensure_textedit_fixture_ready(attempts=1)
+    assert ax_calls == []

@@ -11,7 +11,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | `useDiffParser.ts` | unified diff 解析（共用 cli-visualization / markdown-render-tools） |
 | `useMessageInput.ts` / `useMessageQueue.ts` / `useSmoothStream.ts` | 对话输入、队列、流式渲染 |
 | `useInputHistory.ts` | 输入历史回溯（ArrowUp 空框触发、per-agent localStorage 隔离、ghost placeholder、弹窗键盘导航） |
-| `useInputFileUpload.ts` | 聊天输入文件上传（粘贴图片、拖拽文件、SHA-256 去重；支持 image/video/audio 分级大小校验） |
+| `useInputFileUpload.ts` | 聊天输入文件上传（粘贴/拖拽所有文件类型、SHA-256 去重；支持 image/video/audio 分级大小校验+能力检测提示） |
 | `useAgentEditor.ts` / `useAgentConfigPanel.ts` / `use-agent-config-panel/` | Agent 配置面板 |
 | `usePendingApprovalsRecovery.ts` | 启动/SSE 重连时从 `GET /approvals` 恢复全局 Drawer 队列（不含后台 growth draft，server 已过滤）；同步设置 per-chat `awaiting_approval` sessionStatus 激活侧边栏注意力指示 |
 | `useToolApprovalResolve.ts` / `useVisualApprovalSnapshot.ts` / `useVisualApprovalOsOverlay.ts` | 工具审批与可视化 HITL（OsOverlay 依赖 snapshot screen 元数据） |

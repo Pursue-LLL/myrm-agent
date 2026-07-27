@@ -12,9 +12,9 @@ Chrome MCP E2E helpers for Desktop Control approval (allow once / allow always �
 | `conftest.py` | Guard | Session fcntl lock — one desktop approval E2E pytest at a time | ✅ |
 | `constants.py` | Core | Timeouts (incl. `APPROVAL_CLICK_DEADLINE_SEC` SSOT with gate env), prompts, infra abort markers, `progress()` | ✅ |
 | `infra_retry.py` | Core | `heal_chrome_attach_before_reopen`（R46 attach SSOT）+ `open_mcp_chat_page`（about:blank→navigate → recover → direct :3000）；`is_retriable_page_transport` | ✅ |
-| `textedit_fixture.py` | Fixture | macOS TextEdit scroll target (foreground for AX @drefs during agent tools) | ✅ |
+| `textedit_fixture.py` | Fixture | macOS TextEdit scroll target (foreground for AX @drefs during agent tools)；AX 空树触发 degraded cooldown，避免重试链路重复高耗时重建 | ✅ |
 | `trust_api.py` | Core | HTTP helpers（统一走 `cdp_chat_support._e2e_api_urlopen` loopback 校验 + 重试）+ `fetch_pending_approval_request_ids` + safe revoke `data-testid` selector JS | ✅ |
-| `gate_probe.py` | Core | Desktop tool activity, idle fail-fast, TextEdit foreground during api_only wait, nudge routing；API poll `to_thread + wait_for` wall-timeout guard，防止 shared_hot 长阻塞 | ✅ |
+| `gate_probe.py` | Core | Desktop tool activity, idle fail-fast, TextEdit foreground during api_only wait, nudge routing；API poll `to_thread + wait_for` wall-timeout guard，防止 shared_hot 长阻塞；新增 fallback budget（synthetic dref / pending seed）超限 fail-fast，避免“fallback 假绿” | ✅ |
 | `turn_flow.py` | Core | navigate guard + E2E bridge openPanel/sync; scope-aware banner probe; DONE wait; Settings revoke | ✅ |
 | `runner.py` | Core | `run_desktop_approval_chrome_e2e` + retry 路径 attach heal → mux recover → reopen page | ✅ |
 
