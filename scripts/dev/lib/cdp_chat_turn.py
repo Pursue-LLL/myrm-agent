@@ -356,7 +356,10 @@ class CdpChatTurn(CdpChatSubmit):
             if (
                 isinstance(bridge, dict)
                 and not bridge.get("isStreaming")
-                and (_bridge_has_completion(bridge) or int(bridge.get("userCount") or 0) >= 1)
+                and (
+                    _bridge_has_completion(bridge)
+                    or int(bridge.get("userCount") or 0) >= 1
+                )
             ):
                 await self._clear_input_via_bridge()
                 probe = await self.send_state()
@@ -462,7 +465,9 @@ class CdpChatTurn(CdpChatSubmit):
         submit = await self.submit_native_click()
         recoverable_submit_errors = {"no send button", "send disabled"}
         submit_err = str(submit.get("err") or "")
-        submit_probe = submit.get("probe") if isinstance(submit.get("probe"), dict) else {}
+        submit_probe = (
+            submit.get("probe") if isinstance(submit.get("probe"), dict) else {}
+        )
         send_ready_no_button = bool(
             isinstance(submit_probe, dict)
             and submit_probe.get("sendReady")
@@ -491,7 +496,9 @@ class CdpChatTurn(CdpChatSubmit):
             await self.ensure_chat_surface(ui_base, timeout_sec=30.0)
             if chat_id:
                 try:
-                    await asyncio.wait_for(self._attach_chat_session(chat_id), timeout=30.0)
+                    await asyncio.wait_for(
+                        self._attach_chat_session(chat_id), timeout=30.0
+                    )
                 except TimeoutError:
                     pass
             await self.evaluate(PREPARE_AUTOMATION_SEND_JS, await_promise=False)

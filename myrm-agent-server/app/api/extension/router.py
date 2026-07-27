@@ -94,6 +94,7 @@ class ExtensionStatusResponse(BaseModel):
     """Extension connection status."""
 
     connected: bool = False
+    handshake_ready: bool = False
     extension_version: str = ""
     browser_name: str = ""
     authorized_domains: list[str] = Field(default_factory=list)
@@ -143,6 +144,7 @@ async def get_extension_status() -> ExtensionStatusResponse:
     status = await bridge.get_status()
     return ExtensionStatusResponse(
         connected=status.connected,
+        handshake_ready=status.handshake_ready,
         extension_version=status.extension_version,
         browser_name=status.browser_name,
         authorized_domains=status.authorized_domains,

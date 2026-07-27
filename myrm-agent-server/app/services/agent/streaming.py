@@ -112,7 +112,9 @@ def _clamp_takeover_context(value: object, max_chars: int) -> str:
     return trimmed[:max_chars]
 
 
-def _event_with_mutable_data(event: object) -> tuple[dict[str, object], dict[str, object]] | None:
+def _event_with_mutable_data(
+    event: object,
+) -> tuple[dict[str, object], dict[str, object]] | None:
     if isinstance(event, dict):
         data = event.get("data")
         if not isinstance(data, dict):
@@ -151,7 +153,9 @@ def _compose_takeover_live_assist_url(
         query["reason"] = reason
     if page_url:
         query["page"] = page_url
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+    return urlunsplit(
+        (parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment)
+    )
 
 
 async def _create_takeover_live_assist_url(
@@ -196,7 +200,9 @@ def _read_live_assist_url(payload: dict[str, object]) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
-def _is_managed_takeover(payload: dict[str, object], fallback: dict[str, object]) -> bool:
+def _is_managed_takeover(
+    payload: dict[str, object], fallback: dict[str, object]
+) -> bool:
     payload_flag = payload.get("is_managed")
     if isinstance(payload_flag, bool):
         return payload_flag
@@ -221,7 +227,11 @@ async def _inject_takeover_live_assist_url(
     message_id: str,
     cached: TakeoverLiveAssistCache | None,
 ) -> tuple[object, TakeoverLiveAssistCache | None]:
-    event_type = getattr(event, "type", None) if not isinstance(event, dict) else event.get("type")
+    event_type = (
+        getattr(event, "type", None)
+        if not isinstance(event, dict)
+        else event.get("type")
+    )
     if event_type not in {"browser_takeover_requested", "approval_required"}:
         return event, cached
 
@@ -265,7 +275,9 @@ async def _inject_takeover_live_assist_url(
         return event_dict, cached
 
     takeover_payload = event_data.get("payload")
-    takeover_data = takeover_payload if isinstance(takeover_payload, dict) else event_data
+    takeover_data = (
+        takeover_payload if isinstance(takeover_payload, dict) else event_data
+    )
     is_managed = _is_managed_takeover(takeover_data, event_data)
     if is_managed:
         return event_dict, cached
@@ -298,8 +310,6 @@ async def _inject_takeover_live_assist_url(
         event_data["payload"] = takeover_data
     event_data["live_assist_url"] = live_assist_url
     return event_dict, (cache_key, live_assist_url)
-
-
 
 
 async def ai_agent_service_stream(
@@ -396,7 +406,9 @@ async def ai_agent_service_stream(
             agent_id=params.agent_id,
         ):
             if cancel_token and cancel_token.is_cancelled:
-                logger.warning("Agent stream cancelled: message_id=%s", params.message_id)
+                logger.warning(
+                    "Agent stream cancelled: message_id=%s", params.message_id
+                )
                 break
 
             try:
@@ -411,30 +423,53 @@ async def ai_agent_service_stream(
                 logger.warning("Failed to inject takeover live assist URL: %s", ex)
 
             # Intercept APPROVAL_REQUIRED events to persist to DB
-            event_type = getattr(event, "type", None) if not isinstance(event, dict) else event.get("type")
-            if event_type in ("approval_required", "tool_approval_request", "clarification_required"):
+            event_type = (
+                getattr(event, "type", None)
+                if not isinstance(event, dict)
+                else event.get("type")
+            )
+            if event_type in (
+                "approval_required",
+                "tool_approval_request",
+                "clarification_required",
+            ):
                 _pending_attention = True
             if event_type == "approval_required":
                 from app.services.approvals.registry import ApprovalRegistry
 
-                approval_data = getattr(event, "data", {}) if not isinstance(event, dict) else event.get("data", {})
+                approval_data = (
+                    getattr(event, "data", {})
+                    if not isinstance(event, dict)
+                    else event.get("data", {})
+                )
                 if isinstance(approval_data, dict):
                     thread_id = params.chat_id or params.message_id
 
                     action_type = approval_data.get("action_type", "unknown")
 
                     try:
-                        from app.services.agent.approval_payload import extract_approval_registry_payload
+                        from app.services.agent.approval_payload import (
+                            extract_approval_registry_payload,
+                        )
 
-                        approval_payload = extract_approval_registry_payload(approval_data)
+                        approval_payload = extract_approval_registry_payload(
+                            approval_data
+                        )
                         if params.message_id:
-                            approval_payload = {**approval_payload, "messageId": params.message_id}
-                        timeout_seconds = approval_payload.get("approval_timeout_seconds")
+                            approval_payload = {
+                                **approval_payload,
+                                "messageId": params.message_id,
+                            }
+                        timeout_seconds = approval_payload.get(
+                            "approval_timeout_seconds"
+                        )
                         expires_at = None
                         if timeout_seconds:
                             from datetime import datetime, timedelta, timezone
 
-                            expires_at = datetime.now(timezone.utc) + timedelta(seconds=timeout_seconds)
+                            expires_at = datetime.now(timezone.utc) + timedelta(
+                                seconds=timeout_seconds
+                            )
 
                         record = await ApprovalRegistry.create_approval(
                             agent_id=params.agent_id or "default",
@@ -483,7 +518,9 @@ async def ai_agent_service_stream(
                     raw_event_type = getattr(event, "type", "")
                     payload = getattr(event, "data", {}) or {}
 
-                mascot_status = MascotStateMapper.map_event_to_mascot_state(raw_event_type, payload)
+                mascot_status = MascotStateMapper.map_event_to_mascot_state(
+                    raw_event_type, payload
+                )
 
                 if isinstance(event, dict):
                     event["mascot_status"] = mascot_status.value
@@ -500,9 +537,17 @@ async def ai_agent_service_stream(
 
             # Broadcast DAG state updates if present
             try:
-                event_type = getattr(event, "type", None) if not isinstance(event, dict) else event.get("type")
+                event_type = (
+                    getattr(event, "type", None)
+                    if not isinstance(event, dict)
+                    else event.get("type")
+                )
                 if event_type == "dag_state_update":
-                    (getattr(event, "data", {}) if not isinstance(event, dict) else event.get("data", {}))
+                    (
+                        getattr(event, "data", {})
+                        if not isinstance(event, dict)
+                        else event.get("data", {})
+                    )
                     # We yield it so the SSE connection can push it to the client
                     # The frontend should listen for this event type
             except Exception as ex:
@@ -523,7 +568,9 @@ async def ai_agent_service_stream(
             extra_context=extra_context,
         )
         if _pending_attention and params.chat_id:
-            from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+            from app.services.agent.streaming_support.multiplexer import (
+                WorkspaceMultiplexer,
+            )
 
             WorkspaceMultiplexer.get().publish_session_status(
                 params.chat_id, "awaiting_approval", "general"
@@ -592,6 +639,7 @@ async def ai_deep_research_service_stream(
 
     async def _wait_with_heartbeat(waiter: PhaseWaiter, phase: str) -> PhaseAnswer:
         """Wait for a PhaseWaiter while emitting SSE heartbeats."""
+
         async def _heartbeat() -> None:
             while not waiter.is_resolved:
                 await asyncio.sleep(_HEARTBEAT_INTERVAL)
@@ -638,7 +686,9 @@ async def ai_deep_research_service_stream(
         """Suspend the orchestrator so the user can review/edit the research plan."""
         plan_key = f"plan:{message_id}"
         waiter = PhaseWaiter.register(plan_key)
-        logger.info("[deep-research] Plan confirmation waiting: message_id=%s", message_id)
+        logger.info(
+            "[deep-research] Plan confirmation waiting: message_id=%s", message_id
+        )
 
         await event_queue.put(
             {
@@ -715,16 +765,24 @@ async def ai_deep_research_service_stream(
     try:
         gateway = get_agent_gateway()
         raw_session: object | None = context.get("session_id") if context else None
-        session_id_val: str | None = raw_session if isinstance(raw_session, str) else None
+        session_id_val: str | None = (
+            raw_session if isinstance(raw_session, str) else None
+        )
 
         # Determine agent_instance for deep research if possible
         # DeepResearchOrchestrator might not be a BaseAgent directly,
         # but if it exposes its main agent, we could pass it.
         # For now we pass None or orch if it inherits from BaseAgent.
-        agent_instance = orch if hasattr(orch, "subagent_manager") else getattr(orch, "_research_agent", None)
+        agent_instance = (
+            orch
+            if hasattr(orch, "subagent_manager")
+            else getattr(orch, "_research_agent", None)
+        )
 
         raw_agent_id: object | None = context.get("agent_id") if context else None
-        dr_agent_id: str | None = raw_agent_id if isinstance(raw_agent_id, str) else None
+        dr_agent_id: str | None = (
+            raw_agent_id if isinstance(raw_agent_id, str) else None
+        )
 
         async for event in gateway.execute_stream(
             _raw_stream(),
@@ -735,7 +793,9 @@ async def ai_deep_research_service_stream(
             agent_id=dr_agent_id,
         ):
             if cancel_token and cancel_token.is_cancelled:
-                logger.warning("Deep research stream cancelled: message_id=%s", message_id)
+                logger.warning(
+                    "Deep research stream cancelled: message_id=%s", message_id
+                )
                 break
             yield event
     finally:

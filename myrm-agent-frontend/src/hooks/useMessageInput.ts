@@ -5,6 +5,7 @@
  * - @/hooks/useInputFileUpload::useInputFileUpload (POS: 聊天输入文件上传 Hook)
  * - @/hooks/useMessageQueue::useMessageQueue (POS: 消息排队状态机)
  * - @/hooks/useMessageInputWikiEvidenceCore::recordChatWikiQueryAttempt (POS: Chat 输入链路的 Wiki 证据复问口径核心)
+ * - @/hooks/useMessageInputWikiEvidenceCore::queuePendingChatWikiQuerySuccess (POS: steer success 延迟确认注册)
  *
  * [OUTPUT]
  * - useMessageInput: exposes chat input state, upload handling and submit handlers.
@@ -26,7 +27,7 @@ import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilienc
 import { useMessageQueue } from '@/hooks/useMessageQueue';
 import { useInputFileUpload } from '@/hooks/useInputFileUpload';
 import { resolveArchiveRestoreActionsForMessage } from '@/store/chat/archiveRestoreActions';
-import { recordChatWikiQueryAttempt, recordChatWikiQuerySubmitted } from '@/hooks/useMessageInputWikiEvidenceCore';
+import { recordChatWikiQueryAttempt, queuePendingChatWikiQuerySuccess } from '@/hooks/useMessageInputWikiEvidenceCore';
 import { addInputHistory } from '@/hooks/useInputHistory';
 const MAX_DRAIN_RETRIES = 4;
 export const useMessageInput = () => {
@@ -245,7 +246,11 @@ export const useMessageInput = () => {
     const success = await steerMessage(injectedText);
     if (success) {
       const chatState = useChatStore.getState();
-      recordChatWikiQuerySubmitted(chatState.messages, chatState.chatId);
+      const currentSessionMessageId =
+        typeof chatState.getCurrentSessionMessageId === 'function'
+          ? chatState.getCurrentSessionMessageId()
+          : undefined;
+      queuePendingChatWikiQuerySuccess(chatState.messages, chatState.chatId, currentSessionMessageId);
     } else {
       sendMessage(injectedText, undefined, undefined, undefined, undefined, undefined, true).catch(() => {});
     }
@@ -258,6 +263,7 @@ export const useMessageInput = () => {
     sendMessage,
     _injectDirtyArtifacts,
     recordChatQueryMetric,
+    queuePendingChatWikiQuerySuccess,
   ]);
 
   /**

@@ -14,6 +14,7 @@ const mockLoadMessages = vi.hoisted(() => vi.fn());
 const mockResolveE2eApiBase = vi.hoisted(() => vi.fn(() => null));
 const mockResolveChatWikiEvidenceContext = vi.hoisted(() => vi.fn());
 const mockRecordWikiQuerySubmitted = vi.hoisted(() => vi.fn());
+const mockConsumePendingChatWikiQuerySuccess = vi.hoisted(() => vi.fn());
 const mockDecryptSseFrame = vi.hoisted(() => vi.fn());
 const mockLoadStoredE2EESession = vi.hoisted(() => vi.fn(() => null));
 const mockCreateMultiplexReadableStream = vi.hoisted(() => vi.fn());
@@ -82,6 +83,10 @@ vi.mock('@/services/wikiEvidenceContextCore', () => ({
 
 vi.mock('@/services/wikiEvidenceMetrics', () => ({
   recordWikiQuerySubmitted: (...args: unknown[]) => mockRecordWikiQuerySubmitted(...args),
+}));
+
+vi.mock('@/services/wikiEvidenceQuerySuccessPendingCore', () => ({
+  consumePendingChatWikiQuerySuccess: (...args: unknown[]) => mockConsumePendingChatWikiQuerySuccess(...args),
 }));
 
 const textEncoder = new TextEncoder();
@@ -161,11 +166,13 @@ describe('streamConsumer resilience paths', () => {
     mockResolveE2eApiBase.mockReset();
     mockResolveChatWikiEvidenceContext.mockReset();
     mockRecordWikiQuerySubmitted.mockReset();
+    mockConsumePendingChatWikiQuerySuccess.mockReset();
     mockDecryptSseFrame.mockReset();
     mockLoadStoredE2EESession.mockReset();
     mockCreateMultiplexReadableStream.mockReset();
     mockResolveE2eApiBase.mockReturnValue(null);
     mockResolveChatWikiEvidenceContext.mockReturnValue({ contextKey: 'chat:a-1', turnDistance: 0 });
+    mockConsumePendingChatWikiQuerySuccess.mockReturnValue(undefined);
     mockLoadStoredE2EESession.mockReturnValue(null);
     mockCreateMultiplexReadableStream.mockImplementation(() => createChunkStream(''));
     approvalState.queue = [];
@@ -276,6 +283,59 @@ describe('streamConsumer resilience paths', () => {
     expect(mockResolveChatWikiEvidenceContext).toHaveBeenCalledWith(state.messages, 'chat-success');
     expect(mockRecordWikiQuerySubmitted).toHaveBeenCalledTimes(1);
     expect(mockRecordWikiQuerySubmitted).toHaveBeenCalledWith('chat', 'chat:a-1', 0);
+  });
+
+  it('does not record wiki query success when no valid business frame arrives', async () => {
+    const state = createBaseState({
+      chatId: 'chat-no-frame',
+      messages: [{ role: 'assistant', messageId: 'a-1', content: '', createdAt: new Date() } as Message],
+    });
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    mockCreateMessageRequest.mockResolvedValueOnce(createSseResponse('data: not-json\n\n'));
+
+    await expect(
+      executeStreamWithRetry(
+        'hello',
+        'msg-no-frame',
+        state,
+        actions,
+        null,
+        abortController,
+        false,
+        '',
+        undefined,
+        undefined,
+        true,
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(mockResolveChatWikiEvidenceContext).not.toHaveBeenCalled();
+    expect(mockRecordWikiQuerySubmitted).not.toHaveBeenCalled();
+  });
+
+  it('records queued steer wiki query success on first matching business frame', async () => {
+    const state = createBaseState({ chatId: 'chat-steer-success' });
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    mockCreateMessageRequest.mockResolvedValueOnce(
+      createSseResponse('data: {"type":"message","messageId":"msg-steer","data":"ok"}\n\n'),
+    );
+    mockParseSseEnvelope.mockReturnValue({ type: 'message', messageId: 'msg-steer', data: 'ok' });
+    mockHandleMessageStream.mockResolvedValue({ added: true, recievedMessage: 'ok' });
+    mockConsumePendingChatWikiQuerySuccess.mockReturnValueOnce({
+      contextKey: 'chat:steer',
+      turnDistance: 2,
+    });
+
+    await expect(
+      executeStreamWithRetry('hello', 'msg-steer', state, actions, null, abortController, false, ''),
+    ).resolves.toBeUndefined();
+
+    expect(mockConsumePendingChatWikiQuerySuccess).toHaveBeenCalledWith('chat-steer-success', 'msg-steer');
+    expect(mockRecordWikiQuerySubmitted).toHaveBeenCalledTimes(1);
+    expect(mockRecordWikiQuerySubmitted).toHaveBeenCalledWith('chat', 'chat:steer', 2);
+    expect(mockResolveChatWikiEvidenceContext).not.toHaveBeenCalled();
   });
 
   it('attaches to running chat when stream is interrupted mid-read', async () => {

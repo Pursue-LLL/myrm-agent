@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Message } from '@/store/chat/types';
 import {
+  queuePendingChatWikiQuerySuccess,
   recordChatWikiQueryAttempt,
   recordChatWikiQuerySubmitted,
   resolveChatWikiEvidenceContext,
@@ -9,10 +10,15 @@ import {
 
 const recordWikiQueryAttemptMock = vi.fn();
 const recordWikiQuerySubmittedMock = vi.fn();
+const queuePendingChatWikiQuerySuccessMock = vi.fn();
 
 vi.mock('@/services/wikiEvidenceMetrics', () => ({
   recordWikiQueryAttempt: (...args: unknown[]) => recordWikiQueryAttemptMock(...args),
   recordWikiQuerySubmitted: (...args: unknown[]) => recordWikiQuerySubmittedMock(...args),
+}));
+
+vi.mock('@/services/wikiEvidenceQuerySuccessPendingCore', () => ({
+  queuePendingChatWikiQuerySuccess: (...args: unknown[]) => queuePendingChatWikiQuerySuccessMock(...args),
 }));
 
 function makeMessage(overrides: Partial<Message>): Message {
@@ -113,5 +119,20 @@ describe('useMessageInputWikiEvidenceCore', () => {
       contextKey: undefined,
       turnDistance: undefined,
     });
+  });
+
+  it('queues pending chat query success with resolved context', () => {
+    const messages: Message[] = [
+      makeMessage({ messageId: 'a-1', role: 'assistant', sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }] }),
+    ];
+
+    queuePendingChatWikiQuerySuccessMock.mockReset();
+    queuePendingChatWikiQuerySuccess(messages, 'chat-xyz', 'msg-live');
+
+    expect(queuePendingChatWikiQuerySuccessMock).toHaveBeenCalledWith(
+      'chat-xyz',
+      { contextKey: 'chat:a-1', turnDistance: 0 },
+      'msg-live',
+    );
   });
 });

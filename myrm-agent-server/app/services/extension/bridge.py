@@ -50,6 +50,7 @@ except ImportError:
     @dataclass
     class ExtensionStatus:
         connected: bool = False
+        handshake_ready: bool = False
         extension_version: str = ""
         browser_name: str = ""
         authorized_domains: list[str] = field(default_factory=list)
@@ -66,6 +67,12 @@ logger = logging.getLogger(__name__)
 
 _HEARTBEAT_INTERVAL = 15.0
 _HEARTBEAT_TIMEOUT = 30.0
+_ACTION_CAPABILITY_MAP: dict[str, str] = {
+    "navigate_url": "navigate_url",
+    "list_tabs": "list_tabs",
+    "attach_debugger": "attach_debugger",
+    "detach_debugger": "detach_debugger",
+}
 
 
 @dataclass(frozen=True)
@@ -110,6 +117,7 @@ class ExtensionBridgeService:
         self._receive_task: asyncio.Task[None] | None = None
         self._cdp_endpoint: str | None = None
         self._last_cdp_probe_monotonic = 0.0
+        self._direct_cdp_risk_notified = False
         self._lock = asyncio.Lock()
         self._playwright: Playwright | None = None
 
@@ -201,6 +209,24 @@ class ExtensionBridgeService:
                 "Please upgrade the browser extension and reconnect."
             )
 
+    def _require_action_capability(self, action: str) -> None:
+        """Enforce action-level capability contract for extension requests."""
+        capability = _ACTION_CAPABILITY_MAP.get(action)
+        if capability:
+            self._require_capability(capability)
+
+    def _warn_direct_cdp_risk_once(self, *, domain: str | None = None) -> None:
+        """Emit one runtime warning when privileged direct CDP is used."""
+        if self._direct_cdp_risk_notified:
+            return
+        scope = f" for domain '{domain}'" if domain else ""
+        logger.warning(
+            "Extension bridge: using direct local CDP endpoint%s. "
+            "This path has high privileges; keep the host trusted and do not expose remote-debugging ports.",
+            scope,
+        )
+        self._direct_cdp_risk_notified = True
+
     @staticmethod
     def analyze_domain_policy_warnings(domains: list[str]) -> list[DomainPolicyWarning]:
         """Return warnings for surprising but valid domain policy inputs."""
@@ -247,6 +273,7 @@ class ExtensionBridgeService:
                 "then use LaunchMode.CONNECT_OVER_CDP or AUTO (do not launch a second isolated Chrome)."
             )
 
+        self._warn_direct_cdp_risk_once()
         browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
         return BrowserInstance(
             browser=browser,
@@ -276,6 +303,7 @@ class ExtensionBridgeService:
                 "then use LaunchMode.CONNECT_OVER_CDP or AUTO (do not launch a second isolated Chrome)."
             )
 
+        self._warn_direct_cdp_risk_once(domain=domain)
         browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
         return BrowserInstance(
             browser=browser,
@@ -316,7 +344,6 @@ class ExtensionBridgeService:
             )
         if not self._connected or self._ws is None:
             raise ExtensionBridgeNotAvailable("Browser extension is not connected.")
-        self._require_capability("navigate_url")
 
         result = await self._send_request(
             "navigate_url",
@@ -341,6 +368,7 @@ class ExtensionBridgeService:
     async def get_status(self) -> ExtensionStatus:
         return ExtensionStatus(
             connected=self._connected,
+            handshake_ready=self._hello_received,
             extension_version=self._extension_version,
             browser_name=self._browser_name,
             authorized_domains=list(self._authorized_domains),
@@ -501,6 +529,7 @@ class ExtensionBridgeService:
         """Send a request to the extension and wait for response."""
         if not self._connected or not self._ws:
             raise ExtensionBridgeNotAvailable("Extension not connected")
+        self._require_action_capability(action)
 
         self._request_counter += 1
         req_id = f"req_{self._request_counter}"

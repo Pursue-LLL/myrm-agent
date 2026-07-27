@@ -33,7 +33,10 @@ from app.services.agent.stream_session._memory_status_helpers import (
 from app.services.agent.stream_session.migration_readiness_anchor import (
     record_migration_first_turn_outcome,
 )
-from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder, ClarificationTimeoutHolder
+from app.services.agent.stream_session.stream_loop import (
+    ApprovalTimeoutHolder,
+    ClarificationTimeoutHolder,
+)
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.citation_persistence import (
     merge_memory_citation_fallback,

@@ -30,6 +30,7 @@ export interface ExtensionTab {
 
 export interface ExtensionStatus {
   connected: boolean;
+  handshake_ready: boolean;
   extension_version: string;
   browser_name: string;
   authorized_domains: string[];

@@ -23,6 +23,7 @@ import {
 
 const EMPTY_STATUS: ExtensionStatus = {
   connected: false,
+  handshake_ready: false,
   extension_version: '',
   browser_name: '',
   authorized_domains: [],
@@ -36,6 +37,8 @@ const EMPTY_HINTS: ExtensionSetupHints = {
   cdp_endpoint_discovered: false,
 };
 
+const REQUIRED_RELAY_CAPABILITIES = ['navigate_url', 'list_tabs', 'attach_debugger', 'detach_debugger'] as const;
+
 const ExtensionBridgeSection = memo(() => {
   const t = useTranslations('settings');
   const wsUrl = useMemo(() => getExtensionWebSocketUrl(), []);
@@ -45,7 +48,48 @@ const ExtensionBridgeSection = memo(() => {
   const [fetchError, setFetchError] = useState(false);
   const [domainInput, setDomainInput] = useState('');
   const [saving, setSaving] = useState(false);
-  const hasNavigateRelay = status.capabilities.includes('navigate_url');
+  const capabilitySet = useMemo(() => new Set(status.capabilities), [status.capabilities]);
+  const relayCapabilityRows = useMemo(
+    () => [
+      {
+        key: 'navigate_url',
+        label: t('extension.relayCapabilityNavigateLabel'),
+      },
+      {
+        key: 'list_tabs',
+        label: t('extension.relayCapabilityListTabsLabel'),
+      },
+      {
+        key: 'attach_debugger',
+        label: t('extension.relayCapabilityAttachLabel'),
+      },
+      {
+        key: 'detach_debugger',
+        label: t('extension.relayCapabilityDetachLabel'),
+      },
+    ].map((cap) => ({ ...cap, available: capabilitySet.has(cap.key) })),
+    [capabilitySet, t],
+  );
+  const missingRelayCapabilityLabels = useMemo(
+    () => relayCapabilityRows.filter((cap) => !cap.available).map((cap) => cap.label),
+    [relayCapabilityRows],
+  );
+  const missingRelayCapabilities = useMemo(
+    () => REQUIRED_RELAY_CAPABILITIES.filter((cap) => !capabilitySet.has(cap)),
+    [capabilitySet],
+  );
+  const relayCapabilityStatus = useMemo(() => {
+    if (!status.connected) {
+      return t('extension.notConnected');
+    }
+    if (!status.handshake_ready) {
+      return t('extension.relayCapabilitySyncing');
+    }
+    if (missingRelayCapabilities.length === 0) {
+      return t('extension.relayCapabilityReady');
+    }
+    return t('extension.relayCapabilityUpgradeRequired');
+  }, [missingRelayCapabilities.length, status.connected, status.handshake_ready, t]);
 
   const fetchStatus = useCallback(async () => {
     let statusOk = false;
@@ -213,22 +257,39 @@ const ExtensionBridgeSection = memo(() => {
         </p>
         <p className="text-xs text-muted-foreground">
           {t('extension.relayCapabilityStatus')}:{' '}
-          <span className="text-foreground">
-            {status.connected
-              ? hasNavigateRelay
-                ? t('extension.relayCapabilityReady')
-                : t('extension.relayCapabilityUpgradeRequired')
-              : t('extension.notConnected')}
-          </span>
+          <span className="text-foreground">{relayCapabilityStatus}</span>
         </p>
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">{t('extension.relayCapabilityMatrixTitle')}</p>
+          <div className="grid gap-1 sm:grid-cols-2">
+            {relayCapabilityRows.map((cap) => (
+              <p key={cap.key} className="text-xs text-muted-foreground">
+                <span className="text-foreground">{cap.label}</span>
+                {' · '}
+                <span
+                  className={
+                    cap.available ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+                  }
+                >
+                  {cap.available ? t('extension.relayCapabilityAvailable') : t('extension.relayCapabilityUnavailable')}
+                </span>
+              </p>
+            ))}
+          </div>
+        </div>
         {setupHints.auth_token_required && !setupHints.auth_token_configured && (
           <p className="text-xs text-destructive">{t('extension.authTokenRequiredHelp')}</p>
         )}
-        {status.connected && !hasNavigateRelay && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">{t('extension.relayCapabilityHelp')}</p>
+        {status.connected && status.handshake_ready && missingRelayCapabilityLabels.length > 0 && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            {t('extension.relayCapabilityMissingListHelp', { missing: missingRelayCapabilityLabels.join(', ') })}
+          </p>
         )}
         {!setupHints.cdp_endpoint_discovered && (
           <p className="text-xs text-amber-600 dark:text-amber-400">{t('extension.cdpSetupHelp')}</p>
+        )}
+        {setupHints.cdp_endpoint_discovered && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">{t('extension.cdpRiskHelp')}</p>
         )}
       </div>
 

@@ -58,13 +58,15 @@ def _resume_via_api(
     if the stream ended without one.
     """
     url = f"{api_base.rstrip('/')}/api/v1/agents/agent-stream"
-    payload = json.dumps({
-        "message_id": message_id,
-        "chat_id": chat_id,
-        "action_mode": "agent",
-        "query": "",
-        "resume_value": {"action": action, "message": ""},
-    }).encode()
+    payload = json.dumps(
+        {
+            "message_id": message_id,
+            "chat_id": chat_id,
+            "action_mode": "agent",
+            "query": "",
+            "resume_value": {"action": action, "message": ""},
+        }
+    ).encode()
     req = urllib.request.Request(
         url,
         data=payload,
@@ -103,14 +105,18 @@ def _resume_via_api(
                 if isinstance(chunk, str):
                     collected_text += chunk
             elif event_type == "message_end":
-                print(f"E2E_RESUME_SSE: message_end after {line_count} lines", flush=True)
+                print(
+                    f"E2E_RESUME_SSE: message_end after {line_count} lines", flush=True
+                )
                 break
             elif event_type in ("approval_required", "browser_takeover_requested"):
                 re_interrupted = True
                 nested = event.get("data", {})
                 if isinstance(nested, dict):
                     inner = nested.get("data")
-                    inner_mid = inner.get("messageId") if isinstance(inner, dict) else None
+                    inner_mid = (
+                        inner.get("messageId") if isinstance(inner, dict) else None
+                    )
                     resume_msg_id = nested.get("messageId") or inner_mid
                 print(
                     f"E2E_RESUME_SSE: agent re-interrupted ({event_type}), "
@@ -144,6 +150,7 @@ def _resume_via_api(
             return {"ok": True, "done": True, "text_sample": collected_text[:200]}
         print(f"E2E_RESUME_API: {type(exc).__name__}: {exc}", flush=True)
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
 
 E2E_PROMPT = (
     "我在验证浏览器人工接管功能。请调用 browser_ask_human_tool 一次，"
@@ -757,10 +764,12 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             recv_timeout=15.0,
         )
         _p(f"bridge_result: {bridge_result}")
-        assert isinstance(bridge_result, dict), f"Unexpected bridge result: {bridge_result}"
-        assert bridge_result.get("ok") is True, (
-            f"Bridge completeBrowserTakeoverWithResume failed: {bridge_result}"
-        )
+        assert isinstance(
+            bridge_result, dict
+        ), f"Unexpected bridge result: {bridge_result}"
+        assert (
+            bridge_result.get("ok") is True
+        ), f"Bridge completeBrowserTakeoverWithResume failed: {bridge_result}"
 
         resume_chat_id = str(bridge_result.get("chatId") or chat_id_hint or "").strip()
         resume_msg_id = str(
@@ -805,9 +814,9 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
 
             resume_result = result
             _p(f"resume API result round {resume_round}: {resume_result}")
-            assert isinstance(resume_result, dict) and resume_result.get("ok"), (
-                f"Backend resume API call failed round {resume_round}: {resume_result}"
-            )
+            assert isinstance(resume_result, dict) and resume_result.get(
+                "ok"
+            ), f"Backend resume API call failed round {resume_round}: {resume_result}"
             done = resume_result.get("done", False)
             if done:
                 break
@@ -821,7 +830,9 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 )
                 await asyncio.sleep(_RESUME_SETTLE_SEC)
                 continue
-            _p(f"SSE ended without DONE or re-interrupt (round {resume_round}) — fallback API poll")
+            _p(
+                f"SSE ended without DONE or re-interrupt (round {resume_round}) — fallback API poll"
+            )
             done = await _wait_api_done(
                 resume_chat_id, api_url=api_base, timeout_sec=60.0
             )

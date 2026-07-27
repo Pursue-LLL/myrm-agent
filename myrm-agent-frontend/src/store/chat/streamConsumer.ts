@@ -1,7 +1,7 @@
 import { parseSseEnvelope } from './schema';
 import { handleMessageStream, StreamHandlerState, StreamHandlerActions } from './messageStreamHandler';
 import { ChatActionsState, ChatActionsMethods, createMessageRequest } from './messageRequest';
-import { type ArchiveRestoreAction, ModelSelection } from './types';
+import { type AgentStreamEvent, type ArchiveRestoreAction, ModelSelection } from './types';
 import { AdaptiveScheduler } from './adaptiveScheduler';
 import { isRetryableHttpStatus, FatalNetworkError } from '@/lib/utils/networkResilience';
 import { decryptSseFrame, loadStoredE2EESession } from '@/lib/e2ee/client';
@@ -10,6 +10,7 @@ import { recoverPendingApprovals } from '@/hooks/usePendingApprovalsRecovery';
 import { connectionManager } from '@/services/ConnectionManager';
 import { resolveChatWikiEvidenceContext } from '@/services/wikiEvidenceContextCore';
 import { recordWikiQuerySubmitted } from '@/services/wikiEvidenceMetrics';
+import { consumePendingChatWikiQuerySuccess } from '@/services/wikiEvidenceQuerySuccessPendingCore';
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 
@@ -167,6 +168,11 @@ function parseStructuredHttpErrorPayload(rawBody: string): StructuredHttpErrorPa
   }
 }
 
+function normalizeMessageId(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  return normalized && normalized.length > 0 ? normalized : undefined;
+}
+
 export async function executeStreamWithRetry(
   input: string,
   requestMessageId: string,
@@ -182,6 +188,28 @@ export async function executeStreamWithRetry(
 ): Promise<void> {
   let lastError: Error | null = null;
   let querySuccessRecorded = false;
+  let expectedQuerySuccessMessageId = normalizeMessageId(requestMessageId);
+  const onBusinessEvent = (event: AgentStreamEvent): void => {
+    const eventMessageId = normalizeMessageId(event.messageId);
+    const pendingSteerSuccess = consumePendingChatWikiQuerySuccess(state.chatId, eventMessageId);
+    if (pendingSteerSuccess) {
+      recordWikiQuerySubmitted('chat', pendingSteerSuccess.contextKey, pendingSteerSuccess.turnDistance);
+    }
+
+    if (!shouldRecordWikiQuerySuccess || resumeValue !== undefined || querySuccessRecorded) {
+      return;
+    }
+    if (expectedQuerySuccessMessageId && eventMessageId && eventMessageId !== expectedQuerySuccessMessageId) {
+      return;
+    }
+    if (expectedQuerySuccessMessageId && !eventMessageId) {
+      return;
+    }
+
+    const context = resolveChatWikiEvidenceContext(state.messages, state.chatId);
+    recordWikiQuerySubmitted('chat', context.contextKey, context.turnDistance);
+    querySuccessRecorded = true;
+  };
 
   for (let attempt = 0; attempt <= RETRY_MAX_ATTEMPTS; attempt++) {
     if (attempt > 0 && lastError) {
@@ -239,11 +267,6 @@ export async function executeStreamWithRetry(
       }
 
       if (!res.body) throw new Error('No response body');
-      if (shouldRecordWikiQuerySuccess && resumeValue === undefined && !querySuccessRecorded) {
-        const context = resolveChatWikiEvidenceContext(state.messages, state.chatId);
-        recordWikiQuerySubmitted('chat', context.contextKey, context.turnDistance);
-        querySuccessRecorded = true;
-      }
 
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
@@ -255,6 +278,7 @@ export async function executeStreamWithRetry(
           const accepted = (await res.clone().json()) as { message_id?: string };
           if (typeof accepted.message_id === 'string' && accepted.message_id.trim()) {
             streamMessageId = accepted.message_id.trim();
+            expectedQuerySuccessMessageId = streamMessageId;
           }
         } catch {
           // fall back to request-scoped id
@@ -267,16 +291,34 @@ export async function executeStreamWithRetry(
           headers: { 'Content-Type': 'text/event-stream' },
         });
 
-        await consumeStream(mockResponse, input, state, actions, abortController, added, recievedMessage);
+        await consumeStream(
+          mockResponse,
+          input,
+          state,
+          actions,
+          abortController,
+          added,
+          recievedMessage,
+          { onBusinessEvent },
+        );
       } else if (multiplexBridge) {
         // SHPOIB may downgrade multiplexed POST to direct SSE while still teeing chunks on /workspace/stream.
         void drainResponseBodyInBackground(res);
         const mockResponse = new Response(multiplexBridge, {
           headers: { 'Content-Type': 'text/event-stream' },
         });
-        await consumeStream(mockResponse, input, state, actions, abortController, added, recievedMessage);
+        await consumeStream(
+          mockResponse,
+          input,
+          state,
+          actions,
+          abortController,
+          added,
+          recievedMessage,
+          { onBusinessEvent },
+        );
       } else {
-        await consumeStream(res, input, state, actions, abortController, added, recievedMessage);
+        await consumeStream(res, input, state, actions, abortController, added, recievedMessage, { onBusinessEvent });
       }
       await tryE2eAttachForPendingApproval(state, actions, abortController);
       return;
@@ -343,6 +385,8 @@ export type ConsumeStreamOptions = {
   untilApprovalQueued?: boolean;
   /** Wall-clock cap in ms; only used with untilApprovalQueued. */
   maxWaitMs?: number;
+  /** Called for every validated SSE envelope before reducer handling. */
+  onBusinessEvent?: (event: AgentStreamEvent) => void;
 };
 
 export type ConsumeStreamResult = {
@@ -464,6 +508,11 @@ export async function consumeStream(
                 console.warn('Unknown or malformed SSE payload dropped');
                 startIndex = newlineIndex + 1;
                 continue;
+              }
+              try {
+                options?.onBusinessEvent?.(event);
+              } catch (eventError) {
+                console.warn('onBusinessEvent callback failed:', eventError);
               }
               ({ added, recievedMessage } = await handleMessageStream(
                 event,

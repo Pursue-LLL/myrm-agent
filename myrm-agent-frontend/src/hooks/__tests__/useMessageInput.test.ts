@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockValidateMessageQuota = vi.hoisted(() => vi.fn(async () => ({ allowed: true })));
 const mockRecordChatWikiQueryAttempt = vi.hoisted(() => vi.fn());
 const mockRecordChatWikiQuerySubmitted = vi.hoisted(() => vi.fn());
+const mockQueuePendingChatWikiQuerySuccess = vi.hoisted(() => vi.fn());
 const mockSendMessage = vi.hoisted(() => vi.fn(async () => undefined));
 const mockSteerMessage = vi.hoisted(() => vi.fn(async () => true));
 const mockEnqueue = vi.hoisted(() => vi.fn());
@@ -80,6 +81,7 @@ vi.mock('@/hooks/useInputHistory', () => ({
 vi.mock('@/hooks/useMessageInputWikiEvidenceCore', () => ({
   recordChatWikiQueryAttempt: (...args: unknown[]) => mockRecordChatWikiQueryAttempt(...args),
   recordChatWikiQuerySubmitted: (...args: unknown[]) => mockRecordChatWikiQuerySubmitted(...args),
+  queuePendingChatWikiQuerySuccess: (...args: unknown[]) => mockQueuePendingChatWikiQuerySuccess(...args),
 }));
 
 vi.mock('@/services/chat', () => ({
@@ -109,6 +111,7 @@ function buildChatState(overrides: Partial<Record<string, unknown>> = {}): Recor
     setHideAttachList: vi.fn(),
     stopMessage: vi.fn(),
     clearCurrentSessionMessageId: vi.fn(),
+    getCurrentSessionMessageId: vi.fn(() => 'msg-live'),
     inputMessage: 'hello world',
     setInputMessage: (value: string) => {
       chatStoreRef.state.inputMessage = value;
@@ -138,6 +141,7 @@ describe('useMessageInput submit telemetry integration', () => {
     mockSetInputMessage.mockClear();
     mockSetPendingArchiveRestoreActions.mockClear();
     mockClearDraft.mockClear();
+    mockQueuePendingChatWikiQuerySuccess.mockClear();
     chatStoreRef.state = buildChatState();
   });
 
@@ -194,7 +198,7 @@ describe('useMessageInput submit telemetry integration', () => {
     );
   });
 
-  it('records query success directly when steer succeeds', async () => {
+  it('queues pending query success when steer succeeds', async () => {
     mockSteerMessage.mockResolvedValueOnce(true);
     const { useMessageInput } = await import('@/hooks/useMessageInput');
     const { result } = renderHook(() => useMessageInput());
@@ -204,7 +208,9 @@ describe('useMessageInput submit telemetry integration', () => {
     });
 
     expect(mockRecordChatWikiQueryAttempt).toHaveBeenCalledTimes(1);
-    expect(mockRecordChatWikiQuerySubmitted).toHaveBeenCalledTimes(1);
+    expect(mockQueuePendingChatWikiQuerySuccess).toHaveBeenCalledTimes(1);
+    expect(mockQueuePendingChatWikiQuerySuccess).toHaveBeenCalledWith([], 'chat-test', 'msg-live');
+    expect(mockRecordChatWikiQuerySubmitted).not.toHaveBeenCalled();
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
 });

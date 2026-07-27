@@ -58,7 +58,9 @@ _HIDE_APPROVAL_DRAWER_JS = """(() => {
 })()"""
 
 
-def _resolve_approval_cleanup(api_url: str, approval_id: str, *, decision: str = "deny") -> None:
+def _resolve_approval_cleanup(
+    api_url: str, approval_id: str, *, decision: str = "deny"
+) -> None:
     """Best-effort resolve for test cleanup; tolerates 404 on private SHPOIB backends.
 
     Private backends use ephemeral data directories that may lose records
@@ -126,7 +128,7 @@ def _navigate_and_rebind(client, page, url: str) -> None:
         wait_for_state(
             client,
             page,
-            '(() => ({ ready: !!document.querySelector(\'[data-testid="app-layout"]\') }))()',
+            "(() => ({ ready: !!document.querySelector('[data-testid=\"app-layout\"]') }))()",
             timeout_sec=30.0,
         )
 

@@ -1050,9 +1050,7 @@ class ChromeMcpClient:
             )
         self._page_lease_heartbeat.start()
 
-    def _recover_mux_transport(
-        self, *, start_generation: int | None = None
-    ) -> None:
+    def _recover_mux_transport(self, *, start_generation: int | None = None) -> None:
         _LOGGER.warning(
             "RECOVER_MUX_TRANSPORT: gen=%s pages=%d disconnected=%d",
             start_generation,
@@ -1137,7 +1135,9 @@ class ChromeMcpClient:
                     _http_close_exact_target(old_target)
                 reopen_url = (old_page.url or "http://127.0.0.1:3000").strip()
                 runtime_binding = self._runtime_binding_source_for(reopen_url)
-                initial_url = "about:blank" if runtime_binding is not None else reopen_url
+                initial_url = (
+                    "about:blank" if runtime_binding is not None else reopen_url
+                )
                 arguments: dict[str, object] = {"url": initial_url, "timeout": 60_000}
                 if old_page.context_id is not None:
                     arguments["isolatedContext"] = old_page.context_id
