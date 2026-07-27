@@ -61,6 +61,7 @@ def _set_anchor_js(seed: dict[str, str]) -> str:
 
 def _send_and_collect_gap_js(prompt: str) -> str:
     prompt_json = json.dumps(prompt)
+    gap_pattern_json = json.dumps(_MIGRATION_GAP_TOAST_PATTERN)
     return f"""(async () => {{
       const bridge = window.__MYRM_E2E_CHAT__;
       if (!bridge) return {{ ok: false, err: 'no-bridge' }};
@@ -75,7 +76,7 @@ def _send_and_collect_gap_js(prompt: str) -> str:
         baselineUserCount: baseline,
         preserveActionMode: true,
       }});
-      const gapPattern = /{_MIGRATION_GAP_TOAST_PATTERN}/i;
+      const gapPattern = new RegExp({gap_pattern_json}, 'i');
       const deadline = Date.now() + 90000;
       let bestMigrationToast = 0;
       let bestSse = [];

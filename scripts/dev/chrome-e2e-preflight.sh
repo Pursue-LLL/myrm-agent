@@ -192,10 +192,7 @@ _heal_dead_shared_ui_port() {
 
 _private_backend_attach_path() {
   local shared_ui="${E2E_UI_BASE:-http://127.0.0.1:3000}"
-  if ! curl -sf --max-time 10 "${API_BASE}/api/v1/health" >/dev/null; then
-    fail "private backend not reachable at ${API_BASE}"
-  fi
-  ok "private backend ${API_BASE}"
+  ok "private backend attach deferred (SHPOIB bootstrap will bind private pool)"
   _wait_shared_ui_reachable "${shared_ui}"
   _maybe_seed_providers
   myrm_chrome_e2e_cdp_healthy || fail "Myrm E2E Chrome CDP not reachable — run: ./myrm ready --chrome"
@@ -235,14 +232,14 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
 ")"
   if [[ -n "${attach_errors}" ]]; then
     if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
-      # SHPOIB private pools: shared :3000 may flap under parallel chrome_e2e; wait once below.
+      # SHPOIB private pools: shared :8080 may flap under parallel chrome_e2e; UI wait happens below.
       private_attach_errors=""
       part=""
       IFS=','
       for part in ${attach_errors}; do
         part="${part#"${part%%[![:space:]]*}"}"
         part="${part%"${part##*[![:space:]]}"}"
-        [[ "${part}" == api=* ]] || continue
+        [[ "${part}" == api=* ]] && continue
         if [[ -n "${private_attach_errors}" ]]; then
           private_attach_errors+=", ${part}"
         else

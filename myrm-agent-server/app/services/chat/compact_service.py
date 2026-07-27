@@ -533,14 +533,15 @@ async def _guarded_compact_summarize(
 
         raise RuntimeError("Unexpected: no task completed with result")
     except (InactivityTimeoutError, TotalCeilingTimeoutError) as timeout_exc:
-        summarize_task.cancel()
-        try:
-            await summarize_task
-        except (asyncio.CancelledError, Exception):
-            pass
         logger.warning(
             "⏱️ [compact_chat] Progress-aware timeout (%s) for chat %s — aborting compaction",
             timeout_exc,
             chat_id,
         )
         raise
+    finally:
+        # Ensure tasks are cleaned up on ALL exit paths (including external CancelledError)
+        for task in (summarize_task, watchdog_task):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(summarize_task, watchdog_task, return_exceptions=True)

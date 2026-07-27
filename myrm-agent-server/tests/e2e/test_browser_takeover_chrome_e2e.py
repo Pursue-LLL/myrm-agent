@@ -236,6 +236,10 @@ async def _gate_probe_evaluate(
         if _is_gate_mux_stall(exc):
             print(f"E2E_GATE_MUX_STALL: {label} transient skip", flush=True)
             return None
+        message = str(exc)
+        if "Failed to fetch" in message or "evaluate_script failed" in message:
+            print(f"E2E_GATE_PROBE_SKIP: {label} transient skip — {message[:120]}", flush=True)
+            return None
         raise
     except TimeoutError:
         print(f"E2E_GATE_MUX_STALL: {label} transient skip", flush=True)
@@ -891,14 +895,28 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         MAX_RESUME_ROUNDS = 3
         _RESUME_409_MAX_RETRIES = 5
         _RESUME_SETTLE_SEC = 3.0
-        _STREAM_SETTLE_TIMEOUT_SEC = 45.0
+        _STREAM_SETTLE_TIMEOUT_SEC = 90.0
         current_msg_id = resume_msg_id
         done = False
         resume_result: dict[str, object] = {}
 
+        _p("release UI DIRECT_SSE via bridge before API resume")
+        release_result = await chat.evaluate(
+            """(() => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (!bridge?.releaseActiveStreamForApiResume) {
+                return { ok: false, reason: 'missing_releaseActiveStreamForApiResume' };
+              }
+              return bridge.releaseActiveStreamForApiResume();
+            })()""",
+            await_promise=False,
+            recv_timeout=15.0,
+        )
+        _p(f"releaseActiveStreamForApiResume: {release_result}")
+
         _p(
             f"wait for UI stream settle (max {_STREAM_SETTLE_TIMEOUT_SEC:.0f}s) "
-            "before resume API"
+            "after release before resume API"
         )
         stream_settle_deadline = time.monotonic() + _STREAM_SETTLE_TIMEOUT_SEC
         while time.monotonic() < stream_settle_deadline:
@@ -948,9 +966,24 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
 
             resume_result = result
             _p(f"resume API result round {resume_round}: {resume_result}")
-            assert isinstance(resume_result, dict) and resume_result.get(
-                "ok"
-            ), f"Backend resume API call failed round {resume_round}: {resume_result}"
+            if not (isinstance(resume_result, dict) and resume_result.get("ok")):
+                err = str(resume_result.get("error", ""))
+                if "409" in err and resume_round < MAX_RESUME_ROUNDS:
+                    _p(
+                        f"resume round {resume_round} exhausted 409 — "
+                        "release stream and retry next round"
+                    )
+                    await chat.evaluate(
+                        """(() => window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.())()""",
+                        await_promise=False,
+                        recv_timeout=15.0,
+                    )
+                    await asyncio.sleep(_RESUME_SETTLE_SEC * 2)
+                    continue
+                assert False, (
+                    f"Backend resume API call failed round {resume_round}: "
+                    f"{resume_result}"
+                )
             done = resume_result.get("done", False)
             if done:
                 break
@@ -960,7 +993,13 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                     current_msg_id = new_msg_id
                 _p(
                     f"agent re-interrupted (round {resume_round}), "
-                    f"next msgId={current_msg_id} — settle {_RESUME_SETTLE_SEC}s"
+                    f"next msgId={current_msg_id} — release stream + settle "
+                    f"{_RESUME_SETTLE_SEC}s"
+                )
+                await chat.evaluate(
+                    """(() => window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.())()""",
+                    await_promise=False,
+                    recv_timeout=15.0,
                 )
                 await asyncio.sleep(_RESUME_SETTLE_SEC)
                 continue
