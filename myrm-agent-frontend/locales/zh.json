@@ -123,7 +123,11 @@
     "goalActionSuccess_unwait": "目标已恢复",
     "stepProgress": "步骤进度",
     "cancel": "取消",
-    "save": "保存"
+    "save": "保存",
+    "deliverableBundle": "任务交付物",
+    "bundleDownloadAll": "全部下载",
+    "bundleDownloading": "下载中…",
+    "bundleDownloadFailed": "下载交付物失败"
   },
   "commands": {
     "palette": {
@@ -3866,7 +3870,15 @@
       "hideSessions": "隐藏会话",
       "sessionDrilldown": "模型会话下钻",
       "noModelSessions": "该模型在选定时间内无下钻会话",
-      "lastUsed": "最后活跃"
+      "lastUsed": "最后活跃",
+      "wikiEvidenceTitle": "知识证据质量",
+      "wikiEvidenceDescription": "衡量证据面板是否真正帮助用户完成答案核验",
+      "wikiDeepVerificationRate": "深度核验率",
+      "wikiSnippetExpansionRate": "证据展开率",
+      "wikiRequeryRate": "复问率",
+      "wikiVerificationDwell": "平均核验停留",
+      "wikiTelemetryDrops": "遥测丢样",
+      "wikiEvidenceWindow": "统计窗口：{days} 天；保留期：{retentionDays} 天"
     },
     "workingState": {
       "title": "工作记忆",

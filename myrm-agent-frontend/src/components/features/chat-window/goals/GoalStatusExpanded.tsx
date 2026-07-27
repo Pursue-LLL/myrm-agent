@@ -12,6 +12,7 @@ import { CheckCircleIcon, XCircleIcon, AlertIcon, BellIcon } from './goal-icons'
 import type { GoalState } from './goalStatusTypes';
 import { formatEta, formatBurnRate, getProgressColor } from './goalStatusUtils';
 import { notificationService } from '@/services/notification';
+import { TaskDeliverableBundle } from './TaskDeliverableBundle';
 
 interface GoalStatusExpandedProps {
   goal: GoalState;
@@ -231,6 +232,11 @@ export function GoalStatusExpanded({
             history={goal.acceptanceHistory}
             t={t}
           />
+        )}
+
+        {/* Task Deliverable Bundle */}
+        {isTerminal && goal.status === 'complete' && (
+          <TaskDeliverableBundle goal={goal} chatId={chatId} />
         )}
 
         {/* Subgoals */}

@@ -705,12 +705,14 @@ class ChromeMcpClient:
         resolved = self._resolve_page(page)
         function = f"async () => await (0, eval)({json.dumps(expression)})"
         effective_timeout = self._resolve_evaluate_timeout_sec(timeout_sec)
+        probe_mode = timeout_sec <= _EXPLICIT_SHORT_TOOL_TIMEOUT_CEILING_SEC
         for reload_attempt in range(3):
             try:
                 result = self.call_tool(
                     "evaluate_script",
                     {"pageId": resolved.page_id, "function": function},
                     timeout_sec=effective_timeout,
+                    is_probe=probe_mode,
                 )
                 return parse_evaluate_result(result)
             except RuntimeError as exc:
@@ -1040,6 +1042,8 @@ class ChromeMcpClient:
         self, *, start_generation: int | None = None
     ) -> None:
         reclaim_deadline = _reclaim_wall_deadline()
+        saved_pages = dict(self._disconnected_pages)
+        saved_pages.update(self._pages)
         self._teardown_shim_process()
         last_error: RuntimeError | None = None
         for attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
@@ -1059,7 +1063,7 @@ class ChromeMcpClient:
             try:
                 self._spawn_shim_process()
                 self._initialize_shim_session()
-                return
+                break
             except RuntimeError as exc:
                 last_error = exc
                 self._teardown_shim_process()
@@ -1070,13 +1074,85 @@ class ChromeMcpClient:
                             _remaining_reclaim_sec(reclaim_deadline),
                         )
                     )
-        if last_error is not None:
-            raise last_error
-        _check_mux_reclaim_deadline(
-            reclaim_deadline,
-            "recover_mux_transport",
-            started=reclaim_deadline - float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC),
-        )
+        else:
+            if last_error is not None:
+                raise last_error
+            _check_mux_reclaim_deadline(
+                reclaim_deadline,
+                "recover_mux_transport",
+                started=reclaim_deadline - float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC),
+            )
+            return
+        if not saved_pages:
+            return
+        self._rebuild_disconnected_pages(saved_pages, reclaim_deadline)
+
+    def _rebuild_disconnected_pages(
+        self,
+        saved_pages: dict[int, McpPage],
+        reclaim_deadline: float,
+    ) -> None:
+        """Best-effort rebuild of pages after transport recovery (shim restart).
+
+        The new shim has an empty ``ownedPageIds``; old browser tabs may still exist
+        but the daemon cleaned up their context ownership.  We open fresh tabs at
+        the same URLs, bind them to existing leases, and update ``_pages`` so that
+        callers transparently get a live page.
+        """
+        page_items = list(saved_pages.items())
+        for idx, (old_page_id, old_page) in enumerate(page_items):
+            remaining = _remaining_reclaim_sec(reclaim_deadline)
+            if remaining < 5.0:
+                _LOGGER.warning(
+                    "page rebuild budget exhausted; %d pages remain disconnected",
+                    len(page_items) - idx,
+                )
+                break
+            try:
+                old_target = old_page.target_id.strip()
+                if old_target:
+                    _http_close_exact_target(old_target)
+                reopen_url = (old_page.url or "http://127.0.0.1:3000").strip()
+                runtime_binding = self._runtime_binding_source_for(reopen_url)
+                initial_url = "about:blank" if runtime_binding is not None else reopen_url
+                arguments: dict[str, object] = {"url": initial_url, "timeout": 60_000}
+                if old_page.context_id is not None:
+                    arguments["isolatedContext"] = old_page.context_id
+                result = self._call_tool_direct(
+                    "new_page", arguments, timeout_sec=min(65.0, remaining)
+                )
+                page_id, target_id = parse_new_page(result)
+                rebuilt = McpPage(
+                    page_id=page_id,
+                    target_id=target_id,
+                    lease_id=old_page.lease_id,
+                    context_id=old_page.context_id,
+                    url=reopen_url,
+                )
+                self._heartbeat_lease(old_page.lease_id)
+                self._bind_page_lease(rebuilt)
+                self._pages[page_id] = rebuilt
+                self._disconnected_pages.pop(old_page_id, None)
+                self._page_lease_heartbeat.track(old_page.lease_id)
+                if runtime_binding is not None:
+                    self._bind_and_navigate_runtime_page(
+                        rebuilt,
+                        reopen_url,
+                        runtime_binding,
+                        timeout_ms=min(60_000, int(remaining * 1000)),
+                    )
+                _LOGGER.info(
+                    "rebuilt page %d→%d (url=%s) after transport recovery",
+                    old_page_id,
+                    page_id,
+                    reopen_url,
+                )
+            except Exception as exc:
+                _LOGGER.warning(
+                    "failed to rebuild page %d after transport recovery: %s",
+                    old_page_id,
+                    exc,
+                )
 
     def abandon_inflight_requests(self) -> None:
         """Invalidate orphaned mux I/O after asyncio cancelled a blocking evaluate thread."""
@@ -1107,7 +1183,16 @@ class ChromeMcpClient:
         arguments: dict[str, object],
         *,
         timeout_sec: float | None = None,
+        is_probe: bool = False,
     ) -> dict[str, object]:
+        """Execute one MCP tool call with automatic retry and transport recovery.
+
+        Args:
+            is_probe: When True, timeout/transient failures will NOT trigger
+                ``_recover_mux_transport`` (shim restart). Probes are short-lived
+                status polls whose failure should not destroy page ownership for
+                concurrent long-running operations.
+        """
         if name != "close_page":
             self._page_lease_heartbeat.raise_if_failed()
         if timeout_sec is not None:
@@ -1131,7 +1216,8 @@ class ChromeMcpClient:
                 last_error = exc
                 message = str(exc)
                 if MUX_RECLAIM_STALL_TOKEN in message:
-                    self._recover_mux_transport()
+                    if not is_probe:
+                        self._recover_mux_transport()
                     if attempt + 1 < max_attempts:
                         time.sleep(
                             _tool_retry_backoff_sec(name, attempt, transient=True)
@@ -1158,12 +1244,13 @@ class ChromeMcpClient:
                 timed_out = isinstance(exc, TimeoutError) or (
                     isinstance(exc, RuntimeError) and "timed out" in message.lower()
                 )
-                if (
-                    transient and not _is_page_ownership_error(message)
-                ) or stale_mux_page:
-                    self._recover_mux_transport()
-                elif timed_out and name in retry_tools and attempt >= 1:
-                    self._recover_mux_transport()
+                if not is_probe:
+                    if (
+                        transient and not _is_page_ownership_error(message)
+                    ) or stale_mux_page:
+                        self._recover_mux_transport()
+                    elif timed_out and name in retry_tools and attempt >= 1:
+                        self._recover_mux_transport()
                 can_retry = attempt + 1 < max_attempts and (
                     reclaimed is not None
                     or transient
@@ -1197,7 +1284,7 @@ class ChromeMcpClient:
                             _tool_retry_backoff_sec(name, attempt, transient=False)
                         )
                         continue
-                if _should_recover_mux_after_tool_error(
+                if not is_probe and _should_recover_mux_after_tool_error(
                     name, message, retry_tools=frozenset(retry_tools)
                 ):
                     last_error = RuntimeError(f"Chrome MCP {name} failed: {message}")

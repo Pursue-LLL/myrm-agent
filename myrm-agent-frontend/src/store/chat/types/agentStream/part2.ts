@@ -93,6 +93,7 @@ export interface GoalStatusPayload {
   acceptance_criteria?: { type: string; command?: string; criteria?: string }[];
   checkpoint_mode?: string;
   subgoals?: { text: string }[];
+  deliverables?: { id: string; filename: string }[];
   metadata?: {
     execution_summary?: {
       files_modified: string[];

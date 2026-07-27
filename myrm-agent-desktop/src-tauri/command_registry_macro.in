@@ -2,7 +2,7 @@
 // Used by:
 // - build.rs (AppManifest command allowlist)
 // - src/app/mod.rs (generate_handler registration)
-// - src/ipc_security.rs tests (policy coverage assertion)
+// - src/ipc_security/tests.rs (policy coverage assertion)
 macro_rules! tauri_command_registry {
     ($consumer:ident) => {
         $consumer! {

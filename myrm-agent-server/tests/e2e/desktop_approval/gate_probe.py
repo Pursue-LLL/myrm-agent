@@ -1392,6 +1392,7 @@ async def _wait_desktop_tool_activity_failfast(
     idle_nudge_sent = False
     idle_seed_attempted = False
     progress_api_timeout_streak = 0
+    progress_api_timeout_total = 0
     poll = 0
     api_fail_streak = [0]
     while asyncio.get_event_loop().time() < deadline:
@@ -1412,6 +1413,7 @@ async def _wait_desktop_tool_activity_failfast(
             last = probe
         if str(last.get("err") or "") == "api-progress-wall-timeout":
             progress_api_timeout_streak += 1
+            progress_api_timeout_total += 1
         else:
             progress_api_timeout_streak = 0
         if poll == 1 or poll % 15 == 0:
@@ -1421,18 +1423,27 @@ async def _wait_desktop_tool_activity_failfast(
                 f"apiLastTool={last.get('apiLastTool')} streaming={last.get('isStreaming')} "
                 f"complete={last.get('completionStatus')}"
             )
-        if progress_api_timeout_streak >= 6:
+        if (
+            progress_api_timeout_streak >= 6
+            or progress_api_timeout_total >= 12
+        ):
+            threshold_reason = (
+                "streak>=6"
+                if progress_api_timeout_streak >= 6
+                else "total>=12"
+            )
             seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                 fallback_budget,
                 reason=(
                     "E2E fallback: seed desktop approval after progress API "
-                    "wall-timeout streak"
+                    f"wall-timeout ({threshold_reason})"
                 ),
             )
             if seeded_request_id:
                 progress(
-                    "progress API wall-timeout streak seeded pending desktop approval "
-                    f"fallback request_id={seeded_request_id}"
+                    "progress API wall-timeout seeded pending desktop approval "
+                    f"fallback request_id={seeded_request_id} "
+                    f"(streak={progress_api_timeout_streak}, total={progress_api_timeout_total})"
                 )
                 return {
                     **last,
@@ -1442,8 +1453,9 @@ async def _wait_desktop_tool_activity_failfast(
                     "pendingSource": "seeded-fallback",
                 }
             progress(
-                "progress API wall-timeout streak fallback: seed unavailable, "
-                "handoff with synthetic pending state"
+                "progress API wall-timeout fallback: seed unavailable, "
+                "handoff with synthetic pending state "
+                f"(streak={progress_api_timeout_streak}, total={progress_api_timeout_total})"
             )
             return {
                 **last,

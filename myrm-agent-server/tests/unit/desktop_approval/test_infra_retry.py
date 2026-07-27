@@ -23,3 +23,18 @@ def test_econnrefused_is_abort_not_retriable() -> None:
     exc = ConnectionError("ECONNREFUSED connecting to http://127.0.0.1:8080")
     assert should_abort_desktop_e2e_retries(exc) is True
     assert is_retriable_page_transport(exc) is False
+
+
+def test_retry_reset_evaluate_timeout_is_retriable() -> None:
+    exc = TimeoutError("retry reset evaluate wall-timeout step=click_new_chat timeout=75s")
+    assert is_retriable_page_transport(exc) is True
+
+
+def test_bridge_missing_runtime_error_is_retriable() -> None:
+    exc = RuntimeError("Dev E2E chat bridge not available on WebUI during BASIC model pin")
+    assert is_retriable_page_transport(exc) is True
+
+
+def test_no_page_found_runtime_error_is_retriable() -> None:
+    exc = RuntimeError("Chrome MCP navigate_page failed: Error: No page found")
+    assert is_retriable_page_transport(exc) is True

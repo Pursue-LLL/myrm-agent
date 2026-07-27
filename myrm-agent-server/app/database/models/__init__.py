@@ -68,6 +68,7 @@ from .skill_optimization import (
 from .vault_credential import VaultCredential
 from .web_push_subscription import WebPushSubscription
 from .widget_kv import WidgetKVEntry
+from .wiki_evidence_metric import WikiEvidenceMetricEvent
 
 __all__ = [
     "Base",
@@ -167,4 +168,6 @@ __all__ = [
     "WidgetKVEntry",
     # Daily Wrap Cache
     "DailyWrapCache",
+    # Wiki Evidence Observability
+    "WikiEvidenceMetricEvent",
 ]

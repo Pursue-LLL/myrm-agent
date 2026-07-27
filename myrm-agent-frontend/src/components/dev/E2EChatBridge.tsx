@@ -1297,6 +1297,7 @@ export default function E2EChatBridge() {
           return { ok: false, reason: 'not_pending' };
         }
         const storeMessageId = snap.messageId;
+        const chatId = useChatStore.getState().chatId;
         flushSync(() => {
           useBrowserTakeoverStore.getState().completeTakeover();
         });
@@ -1304,25 +1305,12 @@ export default function E2EChatBridge() {
           '@/store/useApprovalStore'
         );
         const resumeMessageId = resolveBrowserTakeoverMessageId(storeMessageId);
-        if (!resumeMessageId) {
-          return { ok: false, reason: 'no_resume_message_id', storeMessageId };
-        }
-        try {
-          await useChatStore
-            .getState()
-            .sendMessage('', resumeMessageId, undefined, {
-              action: 'completed',
-              message: '',
-            });
-          return { ok: true, resumeMessageId };
-        } catch (err) {
-          return {
-            ok: false,
-            reason: 'send_failed',
-            error: String(err),
-            resumeMessageId,
-          };
-        }
+        return {
+          ok: true,
+          chatId: chatId ?? null,
+          resumeMessageId: resumeMessageId ?? null,
+          storeMessageId: storeMessageId ?? null,
+        };
       },
     };
 

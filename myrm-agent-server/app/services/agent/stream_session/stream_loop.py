@@ -424,7 +424,7 @@ async def iter_agent_stream_chunks(
                         if provider:
                             latest = await provider.get_latest_goal(session.request.chat_id)
                             if latest:
-                                chunk["goal_status"] = {
+                                goal_payload: dict[str, object] = {
                                     "goal_id": latest.goal_id,
                                     "objective": latest.objective,
                                     "ui_summary": latest.ui_summary,
@@ -446,6 +446,10 @@ async def iter_agent_stream_chunks(
                                         else None
                                     ),
                                 }
+                                deliverables = latest.metadata.get("deliverables")
+                                if deliverables:
+                                    goal_payload["deliverables"] = deliverables
+                                chunk["goal_status"] = goal_payload
                                 if latest.status.value == "budget_limited":
                                     # 1. Yield a message chunk to the chat
                                     warning_msg = "\n\n**预算已耗尽，任务自动暂停。**"

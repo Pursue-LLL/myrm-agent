@@ -183,10 +183,20 @@ class McpChatSession(CdpChatSession):
         self._reset_shell_layout_wait_clock()
         await asyncio.sleep(1.0)
         await self._inject_e2e_api_base()
-        try:
-            await self.wait_shell_ready(timeout_sec=60.0, require_bridge=True)
-        except TimeoutError:
-            pass
+        for heal_retry in range(2):
+            try:
+                await self.wait_shell_ready(timeout_sec=60.0, require_bridge=True)
+                return
+            except TimeoutError:
+                if heal_retry == 0:
+                    await asyncio.to_thread(
+                        self._client.navigate,
+                        self._page,
+                        f"{self._base_url.rstrip('/')}/",
+                        timeout_ms=60_000,
+                    )
+                    await asyncio.sleep(2.0)
+                    await self._inject_e2e_api_base()
 
     async def _heal_detached_page(self) -> None:
         await asyncio.to_thread(

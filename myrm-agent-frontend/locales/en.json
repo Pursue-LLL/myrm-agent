@@ -123,7 +123,11 @@
     "goalActionSuccess_unwait": "Goal resumed",
     "stepProgress": "Step Progress",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "deliverableBundle": "Task Deliverables",
+    "bundleDownloadAll": "Download All",
+    "bundleDownloading": "Downloading…",
+    "bundleDownloadFailed": "Failed to download deliverables"
   },
   "commands": {
     "palette": {
@@ -3825,7 +3829,15 @@
       "hideSessions": "Hide sessions",
       "sessionDrilldown": "Model Session Drilldown",
       "noModelSessions": "No sessions found for this model in the selected period",
-      "lastUsed": "Last Active"
+      "lastUsed": "Last Active",
+      "wikiEvidenceTitle": "Knowledge Evidence Quality",
+      "wikiEvidenceDescription": "Tracks whether evidence panels actually help users verify answers",
+      "wikiDeepVerificationRate": "Deep Verification Rate",
+      "wikiSnippetExpansionRate": "Snippet Expansion Rate",
+      "wikiRequeryRate": "Requery Rate",
+      "wikiVerificationDwell": "Avg Verification Dwell",
+      "wikiTelemetryDrops": "Telemetry Drops",
+      "wikiEvidenceWindow": "Window: {days} days; retention: {retentionDays} days"
     },
     "workingState": {
       "title": "Working Memory",

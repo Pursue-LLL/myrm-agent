@@ -396,3 +396,40 @@ def test_snapshot_live_e2e_processes_parses_ps(
     assert len(snapshot.active_tests) == 1
     assert snapshot.active_tests[0].pid == 2715
     assert "allow_session" in snapshot.active_tests[0].test_id
+
+
+def test_snapshot_live_e2e_processes_parses_marker_only_selector(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from tests.support.e2e_parallel_snapshot import snapshot_live_e2e_processes
+
+    stream_lock = tmp_path / "myrm-live-agent-stream.lock"
+    desktop_lock = tmp_path / "myrm-desktop-approval-e2e.lock"
+
+    ps_output = (
+        " 60813 S 01:15 "
+        "python run_pytest_safe.py python -m pytest -m chrome_e2e_browser_takeover_live "
+        "-x -s --timeout=7200 myrm-agent/myrm-agent-server/tests/e2e/\n"
+    )
+
+    def _fake_run(cmd: list[str], **kwargs: object) -> object:
+        assert cmd[:2] == ["ps", "-eo"]
+        return type("Result", (), {"returncode": 0, "stdout": ps_output})()
+
+    monkeypatch.setattr(
+        "tests.support.e2e_parallel_snapshot.subprocess.run",
+        _fake_run,
+    )
+    monkeypatch.setattr(
+        "tests.support.e2e_parallel_snapshot._pid_alive",
+        lambda pid: pid == 60813,
+    )
+
+    snapshot = snapshot_live_e2e_processes(
+        agent_stream_lock_path=stream_lock,
+        desktop_approval_lock_path=desktop_lock,
+    )
+    assert len(snapshot.active_tests) == 1
+    assert snapshot.active_tests[0].pid == 60813
+    assert snapshot.active_tests[0].test_id == "tests/e2e/ -m chrome_e2e_browser_takeover_live"

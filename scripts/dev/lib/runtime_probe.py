@@ -83,6 +83,16 @@ def _count_mux_daemons_from_ps(output: str) -> int:
     return count
 
 
+def _pid_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
 def _mux_daemon_count() -> int:
     try:
         proc = subprocess.run(
@@ -98,8 +108,60 @@ def _mux_daemon_count() -> int:
     return _count_mux_daemons_from_ps(proc.stdout)
 
 
+def _mux_socket_path() -> Path:
+    override = os.getenv("CDMCP_MUX_SOCKET", "").strip()
+    if override:
+        return Path(override)
+    tmp_root = Path(os.getenv("TMPDIR", "/tmp"))
+    getuid = getattr(os, "getuid", None)
+    uid = str(getuid()) if callable(getuid) else "0"
+    return tmp_root / f"mux-{uid}" / "cdmcp-mux.sock"
+
+
+def _owned_mux_socket_pids(socket_path: Path) -> set[int]:
+    if not socket_path.is_socket():
+        return set()
+    try:
+        proc = subprocess.run(
+            ["lsof", "-t", "--", str(socket_path)],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2.0,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return set()
+    pids: set[int] = set()
+    for line in proc.stdout.splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        try:
+            pid = int(text)
+        except ValueError:
+            continue
+        if _pid_alive(pid):
+            pids.add(pid)
+    return pids
+
+
+def _mux_owned_daemon_count() -> int:
+    pid_path = _mux_state_dir() / "daemon.pid"
+    if pid_path.is_file():
+        try:
+            pid = int(pid_path.read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            pid = 0
+        if _pid_alive(pid):
+            # daemon.pid is the ownership SSOT; stale extra FDs on the same
+            # socket must not downgrade attach readiness.
+            return 1
+    socket_pids = _owned_mux_socket_pids(_mux_socket_path())
+    return 1 if socket_pids else 0
+
+
 def _mux_status_snapshot() -> tuple[bool, int]:
-    if _mux_daemon_count() < 1:
+    if _mux_owned_daemon_count() < 1:
         return False, 0
     mux_bin = _resolve_mux_bin()
     if mux_bin is None:
@@ -147,7 +209,7 @@ def probe_runtime_context() -> RuntimeProbeContext:
     profile = _default_chrome_data_dir()
     upstream_ready, upstream_generation = _mux_status_snapshot()
     return {
-        "mux_daemon_count": _mux_daemon_count(),
+        "mux_daemon_count": _mux_owned_daemon_count(),
         "upstream_ready": upstream_ready,
         "upstream_generation": upstream_generation,
         "ws_stamp_matches": _mux_ws_stamp_matches(port),

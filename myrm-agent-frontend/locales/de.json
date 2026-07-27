@@ -2786,7 +2786,15 @@
       "hideSessions": "Hide sessions",
       "sessionDrilldown": "Model Session Drilldown",
       "noModelSessions": "No sessions found for this model in the selected period",
-      "lastUsed": "Last Active"
+      "lastUsed": "Last Active",
+      "wikiEvidenceTitle": "Wissensbelege-Qualität",
+      "wikiEvidenceDescription": "Zeigt, ob Belegansichten Nutzern wirklich bei der Verifikation helfen",
+      "wikiDeepVerificationRate": "Tiefe Verifikationsrate",
+      "wikiSnippetExpansionRate": "Snippet-Öffnungsrate",
+      "wikiRequeryRate": "Nachfragequote",
+      "wikiVerificationDwell": "Ø Verifikationsdauer",
+      "wikiTelemetryDrops": "Verlorene Telemetrie",
+      "wikiEvidenceWindow": "Fenster: {days} Tage; Aufbewahrung: {retentionDays} Tage"
     },
     "memoryGuardian": {
       "title": "Speicherzustand",
@@ -10809,7 +10817,11 @@
     "checkpointModeLabel": "Pause after each step",
     "loopOnPauseLabel": "Auto-restart on context overflow",
     "convergenceWindowLabel": "Convergence Window (turns)",
-    "convergenceWindowPlaceholder": "e.g. 3"
+    "convergenceWindowPlaceholder": "e.g. 3",
+    "deliverableBundle": "Task Deliverables",
+    "bundleDownloadAll": "Download All",
+    "bundleDownloading": "Downloading…",
+    "bundleDownloadFailed": "Failed to download deliverables"
   },
   "health": {
     "title": "System Doctor",

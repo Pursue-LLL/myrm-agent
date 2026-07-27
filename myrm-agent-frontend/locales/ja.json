@@ -123,7 +123,11 @@
     "goalActionSuccess_unwait": "ゴール済み復元",
     "stepProgress": "ステップ進捗",
     "cancel": "キャンセル",
-    "save": "保存"
+    "save": "保存",
+    "deliverableBundle": "タスク成果物",
+    "bundleDownloadAll": "一括ダウンロード",
+    "bundleDownloading": "ダウンロード中…",
+    "bundleDownloadFailed": "成果物のダウンロードに失敗しました"
   },
   "commands": {
     "palette": {
@@ -3768,7 +3772,15 @@
       "hideSessions": "非表示セッション",
       "sessionDrilldown": "モデルセッション下钻",
       "noModelSessions": "该モデルで选スケジュール间内なし下钻セッション",
-      "lastUsed": "最后アクティブ"
+      "lastUsed": "最后アクティブ",
+      "wikiEvidenceTitle": "ナレッジ証拠品質",
+      "wikiEvidenceDescription": "証拠パネルが回答検証に実際に役立っているかを追跡します",
+      "wikiDeepVerificationRate": "深度検証率",
+      "wikiSnippetExpansionRate": "証拠展開率",
+      "wikiRequeryRate": "再質問率",
+      "wikiVerificationDwell": "平均検証滞在時間",
+      "wikiTelemetryDrops": "テレメトリ欠損",
+      "wikiEvidenceWindow": "集計期間: {days}日; 保持期間: {retentionDays}日"
     },
     "workingState": {
       "title": "工作メモリ",

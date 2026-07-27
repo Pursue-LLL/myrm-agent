@@ -15,6 +15,13 @@ Sidecar **构建**入口（非运行时）。运行时进程管理在 src-tauri/
 
 Tauri Desktop Sidecar 构建入口：PyInstaller 打包 Python 后端 + Bun compile Agent Runner 为独立二进制。
 
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `build.py` | 核心 | Sidecar 构建总入口（后端 PyInstaller + Agent Runner compile） | ✅ |
+| `agent-runner/` | 核心 | Agent Runner TS 源码与 Bun 构建配置 | [agent-runner/_ARCH.md](agent-runner/_ARCH.md) |
+
 ## 使用方法
 
 ```bash

@@ -363,7 +363,12 @@ _mux_owned_pids() {
   if [[ -f "${MUX_PID_FILE}" ]]; then
     local pid
     pid="$(tr -d '[:space:]' <"${MUX_PID_FILE}")"
-    [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null && echo "${pid}"
+    if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
+      # daemon.pid is the ownership SSOT; stale extra FDs on the same socket
+      # must not be counted as additional owned daemons.
+      echo "${pid}"
+      return 0
+    fi
   fi
   if command -v lsof >/dev/null 2>&1 && [[ -S "${MUX_SOCKET}" ]]; then
     lsof -t -- "${MUX_SOCKET}" 2>/dev/null || true

@@ -7,11 +7,12 @@
  */
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { BookOpen, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/primitives/sheet';
 import { useTranslations } from 'next-intl';
 import { WikiSourceLevel } from '@/store/chat/types';
+import { recordSnippetClose, recordSnippetOpen, type WikiEvidenceSurface } from '@/services/wikiEvidenceMetrics';
 
 interface SourceChunkDrawerProps {
   open: boolean;
@@ -20,6 +21,8 @@ interface SourceChunkDrawerProps {
   section?: string;
   snippet: string;
   level?: WikiSourceLevel;
+  surface?: WikiEvidenceSurface;
+  contextKey?: string;
 }
 
 function renderSnippetParagraphs(text: string, maxSegments: number = 3): React.ReactNode[] {
@@ -35,9 +38,38 @@ function renderSnippetParagraphs(text: string, maxSegments: number = 3): React.R
 }
 
 const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
-  ({ open, onOpenChange, title, section, snippet, level }) => {
+  ({ open, onOpenChange, title, section, snippet, level, surface = 'chat', contextKey }) => {
     const t = useTranslations('MessageSources');
     const renderedSnippet = useMemo(() => renderSnippetParagraphs(snippet), [snippet]);
+    const openStartedAtRef = useRef<number | null>(null);
+    const wasOpenRef = useRef(false);
+
+    useEffect(() => {
+      if (open && !wasOpenRef.current) {
+        openStartedAtRef.current = Date.now();
+        recordSnippetOpen(surface, level, contextKey);
+      } else if (!open && wasOpenRef.current) {
+        const startedAt = openStartedAtRef.current;
+        const dwellMs = startedAt !== null ? Date.now() - startedAt : 0;
+        recordSnippetClose(surface, dwellMs, contextKey);
+        openStartedAtRef.current = null;
+      }
+      wasOpenRef.current = open;
+    }, [contextKey, level, open, surface]);
+
+    useEffect(() => {
+      return () => {
+        if (!wasOpenRef.current) {
+          return;
+        }
+        const startedAt = openStartedAtRef.current;
+        const dwellMs = startedAt !== null ? Date.now() - startedAt : 0;
+        recordSnippetClose(surface, dwellMs, contextKey);
+        wasOpenRef.current = false;
+        openStartedAtRef.current = null;
+      };
+    }, [contextKey, surface]);
+
     const levelLabel = useMemo(() => {
       if (level === 'L0') return t('kb_level_l0');
       if (level === 'L1') return t('kb_level_l1');

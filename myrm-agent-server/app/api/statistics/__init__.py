@@ -26,6 +26,7 @@ def build_statistics_router() -> APIRouter:
     from app.api.statistics.daily_wrap import router as daily_wrap_router
     from app.api.statistics.growth_dashboard import router as growth_dashboard_router
     from app.api.statistics.router import router as base_router
+    from app.api.statistics.wiki_evidence import router as wiki_evidence_router
 
     statistics_router = APIRouter()
     statistics_router.include_router(base_router)
@@ -33,6 +34,7 @@ def build_statistics_router() -> APIRouter:
     statistics_router.include_router(growth_dashboard_router)
     statistics_router.include_router(daily_journal_router)
     statistics_router.include_router(daily_wrap_router)
+    statistics_router.include_router(wiki_evidence_router)
     return statistics_router
 
 

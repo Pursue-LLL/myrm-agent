@@ -36,7 +36,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `../command_registry_macro.in` | ✅ 核心 | Tauri 命令注册单一清单（build allowlist / app handler / security tests 共用） | ✅ |
 | `app/` | ✅ 核心 | Tauri Builder、插件、setup、快捷键、托盘、优雅停机 | — |
 | `runtime/` | ✅ 核心 | Sidecar 运行时（见下表） | ✅ |
-| `ipc_security.rs` | ✅ 核心 | IPC sender gate（main/session 来源校验）、命令风险分级（reject/drop）、高敏操作短时票据 + 原生确认（多语言文案 + 主窗口 parent 绑定，防主窗注入静默执行），并内置确认执行自动化回归（通过/取消/超时/回传失败）与 `ipc-sensitive-confirmation` 运行时审计事件 | ✅ |
+| `ipc_security/` | ✅ 核心 | IPC sender gate（main/session 来源校验）、命令风险分级（reject/drop）、高敏操作短时票据 + 原生确认（多语言文案 + 主窗口 parent 绑定，防主窗注入静默执行），并内置确认执行自动化回归（通过/取消/超时/回传失败）与 `ipc-sensitive-confirmation` 运行时审计事件 | ✅ |
 | `runtime/python_backend.rs` | ✅ 核心 | Python 后端 Sidecar 启动/停止/健康检查 IPC；dev 用 venv，release 校验 sidecar 非空；冷启动最多 30s `/health` 轮询 | ✅ |
 | `runtime/watchdog.rs` | ✅ 核心 | 后端 Sidecar 健康监控与崩溃自动恢复（30s 周期检查、指数退避重启、循环崩溃保护） | ✅ |
 | `runtime/nextjs_frontend.rs` | ✅ 核心 | Next.js Standalone 前端进程（Tauri 启动时始终自启） | ✅ |
@@ -55,6 +55,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 |------|------|------|------|
 | **app** | `./app/` | Tauri Builder、setup、快捷键、托盘、优雅停机 | [app/_ARCH.md](app/_ARCH.md) |
 | **cli_agent_types** | `./cli_agent_types.rs` | CLI 可视化共享类型 | — |
+| **ipc_security** | `./ipc_security/` | IPC 安全边界（sender gate、票据、高敏确认） | [ipc_security/_ARCH.md](ipc_security/_ARCH.md) |
 | **runtime** | `./runtime/` | Sidecar 编排、Appshot、Setup Token | [runtime/_ARCH.md](runtime/_ARCH.md) |
 | **agent_runner_rpc** | `./agent_runner_rpc/` | Agent Runner JSON-RPC 进程管理 | [agent_runner_rpc/_ARCH.md](agent_runner_rpc/_ARCH.md) |
 | **sessions** | `./sessions/` | CLI 会话生命周期 | [sessions/_ARCH.md](sessions/_ARCH.md) |

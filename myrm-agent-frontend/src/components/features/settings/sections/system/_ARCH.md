@@ -75,7 +75,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `UsageStatisticsSection.tsx` | 用量统计主面板（时间范围/多维度） |
+| `UsageStatisticsSection.tsx` | 用量统计主面板（时间范围/多维度）；含 Wiki 证据治理卡片（deep verification/requery/dwell/dropped telemetry） |
 | `UsageStatisticsCharts.tsx` | 用量图表 barrel 导出 |
 | `UsageStatCard.tsx` | 统计卡片 |
 | `UsageCacheBreakTimeline.tsx` | 缓存击穿时间线 |

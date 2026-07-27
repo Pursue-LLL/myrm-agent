@@ -5,7 +5,7 @@
 
 ## 架构概述
 
-系统级基础设施服务。提供沙箱工作空间清理和系统休眠抑制。
+系统级基础设施服务。提供沙箱工作空间清理、系统休眠抑制与系统通知持久化。
 
 ---
 
@@ -15,6 +15,7 @@
 |------|------|------|
 | `sandbox_cleanup.py` | ✅ 核心 | 沙箱工作空间清理（存储桶 + Docker 容器会话目录） |
 | `sleep_inhibitor.py` | ✅ 核心 | 系统休眠抑制 — 任务运行期间阻止系统进入空闲休眠。引用计数、跨平台 (IOKit/systemd-inhibit/SetThreadExecutionState)、仅 local 模式激活。支持 `prevent_display_sleep` 参数控制显示器保持唤醒（CU 场景需要屏幕持续亮起） |
+| `system_notification.py` | ✅ 核心 | 系统通知持久化服务。支持独立会话写入，也支持复用调用方 `AsyncSession`（避免 SQLite 下嵌套会话锁冲突）。 |
 
 ---
 
@@ -28,3 +29,4 @@
 - `app/services/chat/`：删除聊天时调用沙箱清理
 - `app/ai_agents/general_agent/agent.py`：`process_stream` 中使用 `SleepInhibitor.hold()`
 - `app/services/locked_use/service.py`：`locked_use_session` 中使用 `SleepInhibitor.hold(prevent_display_sleep=True)`
+- `app/api/statistics/wiki_evidence.py`：治理告警写入系统通知

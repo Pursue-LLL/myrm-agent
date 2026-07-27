@@ -2786,7 +2786,15 @@
       "hideSessions": "Hide sessions",
       "sessionDrilldown": "Model Session Drilldown",
       "noModelSessions": "No sessions found for this model in the selected period",
-      "lastUsed": "Last Active"
+      "lastUsed": "Last Active",
+      "wikiEvidenceTitle": "지식 근거 품질",
+      "wikiEvidenceDescription": "근거 패널이 실제로 답변 검증에 도움이 되는지 추적합니다",
+      "wikiDeepVerificationRate": "심층 검증 비율",
+      "wikiSnippetExpansionRate": "근거 펼침 비율",
+      "wikiRequeryRate": "재질문 비율",
+      "wikiVerificationDwell": "평균 검증 체류 시간",
+      "wikiTelemetryDrops": "텔레메트리 유실",
+      "wikiEvidenceWindow": "집계 기간: {days}일; 보관 기간: {retentionDays}일"
     },
     "memoryGuardian": {
       "title": "메모리 건강",
@@ -10809,7 +10817,11 @@
     "checkpointModeLabel": "Pause after each step",
     "loopOnPauseLabel": "Auto-restart on context overflow",
     "convergenceWindowLabel": "Convergence Window (turns)",
-    "convergenceWindowPlaceholder": "e.g. 3"
+    "convergenceWindowPlaceholder": "e.g. 3",
+    "deliverableBundle": "작업 산출물",
+    "bundleDownloadAll": "전체 다운로드",
+    "bundleDownloading": "다운로드 중…",
+    "bundleDownloadFailed": "산출물 다운로드 실패"
   },
   "health": {
     "title": "System Doctor",

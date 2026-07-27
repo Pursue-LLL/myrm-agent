@@ -36,6 +36,7 @@ import VaultArtifactCard from '../artifacts/VaultArtifactCard';
 import InlineDiffViewer from '../markdown-render-tools/InlineDiffViewer';
 import SourceChunkDrawer from './SourceChunkDrawer';
 import type { Source, WikiSourceLevel } from '@/store/chat/types';
+import { recordEvidenceSurface } from '@/services/wikiEvidenceMetrics';
 
 const INLINE_RENDER_LANGUAGES = new Set(['html', 'svg']);
 
@@ -104,6 +105,10 @@ const MarkdownContent = React.memo(
 
     // Strip citations so they don't render during streaming or static view
     const sanitizedContent = useMemo(() => content.replace(/<cite:[^>]+>/gi, ''), [content]);
+    const hasKbEvidence = useMemo(
+      () => sources.some((source) => Boolean(source.kb_name) && Boolean(source.snippet || source.summary)),
+      [sources],
+    );
 
     // 平滑流式渲染逻辑
     const shouldUseSmoothStream = smoothStreamEnabled && isStreaming;
@@ -142,6 +147,13 @@ const MarkdownContent = React.memo(
         prevContentRef.current = '';
       }
     }, [_messageId, isStreaming, reset]);
+
+    useEffect(() => {
+      if (!hasKbEvidence) {
+        return;
+      }
+      recordEvidenceSurface('chat', 1, `chat:${_messageId}`);
+    }, [_messageId, hasKbEvidence]);
 
     const processedContent = useMemo(
       () => preprocessVaultLinks(preprocessContentMath(displayContent, isStreaming)),
@@ -299,6 +311,8 @@ const MarkdownContent = React.memo(
           section={drawerState.section}
           snippet={drawerState.snippet}
           level={drawerState.level}
+          surface="chat"
+          contextKey={`chat:${_messageId}`}
         />
         <ReactMarkdown
           remarkPlugins={[[remarkMath, remarkMathOptions], remarkGfm, [remarkGitHubAlerts, { mode: 'component' }]]}

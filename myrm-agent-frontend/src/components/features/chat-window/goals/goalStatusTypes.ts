@@ -50,6 +50,7 @@ export interface GoalState {
   acceptanceHistory?: AcceptanceHistoryEntry[];
   checkpointMode?: 'none' | 'per_todo';
   subgoals?: { text: string }[];
+  deliverables?: { id: string; filename: string }[];
   executionSummary?: {
     files_modified: string[];
     verifications: { cmd: string; passed: boolean }[];

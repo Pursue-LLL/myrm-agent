@@ -11,6 +11,9 @@ import {
   IconAlertCircle,
   IconChart,
   IconArrowRight,
+  IconExplore,
+  IconClock,
+  IconTarget,
 } from '@/components/features/icons/PremiumIcons';
 import SettingsSection from '../SettingsSection';
 import BudgetPolicySection from './BudgetPolicySection';
@@ -32,7 +35,7 @@ import {
   type GlobalActivityPatterns,
   type TopSession,
 } from '@/services/statistics';
-import { IconClock, IconTarget } from '@/components/features/icons/PremiumIcons';
+import { getWikiEvidenceSummary, type WikiEvidenceSummary } from '@/services/wikiEvidenceMetrics';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   StatCard,
@@ -53,6 +56,7 @@ function UsageStatisticsSection() {
   const [sessions, setSessions] = useState<SessionUsage[]>([]);
   const [activity, setActivity] = useState<GlobalActivityPatterns | null>(null);
   const [topSessions, setTopSessions] = useState<TopSession[]>([]);
+  const [wikiEvidence, setWikiEvidence] = useState<WikiEvidenceSummary | null>(null);
   const [topSessionMetric, setTopSessionMetric] = useState<'duration' | 'messages' | 'tokens' | 'tool_calls'>(
     'duration',
   );
@@ -65,18 +69,23 @@ function UsageStatisticsSection() {
     setLoading(true);
     setError(null);
     try {
-      const [statsData, dailyData, sessionData, activityData, topSessionsData] = await Promise.all([
+      const [statsData, dailyData, sessionData, activityData, topSessionsData, wikiEvidenceData] = await Promise.all([
         getUsageStatistics(),
         getDailyUsage(30),
         getSessionUsage(10),
         getGlobalActivityPatterns(timeRange),
         getTopSessions(topSessionMetric, 10, timeRange),
+        getWikiEvidenceSummary(timeRange).catch((error) => {
+          console.warn('[UsageStatistics] Failed to load wiki evidence summary:', error);
+          return null;
+        }),
       ]);
       setStats(statsData);
       setDaily(dailyData.daily);
       setSessions(sessionData.sessions);
       setActivity(activityData);
       setTopSessions(topSessionsData);
+      setWikiEvidence(wikiEvidenceData);
     } catch (e) {
       console.error('[UsageStatistics] Failed to load data:', e);
       setError(e instanceof Error ? e.message : 'Failed to load statistics');
@@ -198,6 +207,54 @@ function UsageStatisticsSection() {
           />
         </div>
       </SettingsSection>
+
+      {wikiEvidence && (
+        <SettingsSection title={t('wikiEvidenceTitle')} description={t('wikiEvidenceDescription')}>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <StatCard
+              icon={IconTarget}
+              label={t('wikiDeepVerificationRate')}
+              value={`${(wikiEvidence.deep_verification_rate * 100).toFixed(1)}%`}
+              subValue={wikiEvidence.deep_verification_count.toLocaleString()}
+              colorClass="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+            />
+            <StatCard
+              icon={IconExplore}
+              label={t('wikiSnippetExpansionRate')}
+              value={`${(wikiEvidence.snippet_expansion_rate * 100).toFixed(1)}%`}
+              subValue={wikiEvidence.snippet_open_count.toLocaleString()}
+              colorClass="bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
+            />
+            <StatCard
+              icon={IconArrowRight}
+              label={t('wikiRequeryRate')}
+              value={`${(wikiEvidence.requery_rate * 100).toFixed(1)}%`}
+              subValue={wikiEvidence.requery_count.toLocaleString()}
+              colorClass="bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400"
+            />
+            <StatCard
+              icon={IconClock}
+              label={t('wikiVerificationDwell')}
+              value={`${Math.round((wikiEvidence.verification_dwell_avg_ms || 0) / 1000)}s`}
+              subValue={wikiEvidence.verification_dwell_sample_count.toLocaleString()}
+              colorClass="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
+            />
+            <StatCard
+              icon={IconAlertCircle}
+              label={t('wikiTelemetryDrops')}
+              value={wikiEvidence.dropped_event_count.toLocaleString()}
+              colorClass={
+                wikiEvidence.dropped_event_count > 0
+                  ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
+                  : 'bg-muted text-muted-foreground'
+              }
+            />
+          </div>
+          <div className="mt-3 text-xs text-muted-foreground">
+            {t('wikiEvidenceWindow', { days: wikiEvidence.days, retentionDays: wikiEvidence.retention_days })}
+          </div>
+        </SettingsSection>
+      )}
 
       {/* Daily trend */}
       <SettingsSection title={t('trendsTitle')}>

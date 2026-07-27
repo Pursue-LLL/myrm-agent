@@ -301,6 +301,9 @@ async def test_wait_desktop_tool_activity_raises_when_pending_seed_budget_exceed
     async def _resolve_server_pending_stub(**_: object) -> int:
         return 0
 
+    async def _skip_completed_without_tools(*_: object, **__: object) -> None:
+        return None
+
     monkeypatch.setattr(
         "tests.e2e.desktop_approval.gate_probe._agent_stream_active",
         _agent_stream_active_stub,
@@ -309,6 +312,88 @@ async def test_wait_desktop_tool_activity_raises_when_pending_seed_budget_exceed
         "tests.e2e.desktop_approval.gate_probe._resolve_server_pending",
         _resolve_server_pending_stub,
     )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._fail_if_model_completed_without_desktop_tools",
+        _skip_completed_without_tools,
+    )
+    budget = _DesktopFallbackBudget(synthetic_dref_limit=1, pending_seed_limit=0)
+    with pytest.raises(AssertionError, match="pending seed fallback budget exceeded"):
+        await _wait_desktop_tool_activity_failfast(
+            chat=_DummyChat(),
+            timeout_sec=30.0,
+            fallback_budget=budget,
+            chat_id="chat-1",
+        )
+
+
+@pytest.mark.asyncio
+async def test_wait_desktop_tool_activity_raises_on_cumulative_api_timeout_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _sleep(_: float) -> None:
+        return None
+
+    async def _to_thread(func: object, *args: object, **kwargs: object) -> object:
+        return func(*args, **kwargs)  # type: ignore[misc]
+
+    calls = {"count": 0}
+
+    async def _probe(*_: object, **__: object) -> dict[str, object]:
+        calls["count"] += 1
+        timeout_err = "api-progress-wall-timeout" if calls["count"] % 2 == 1 else ""
+        return {
+            "active": False,
+            "pending": False,
+            "lastTool": "",
+            "apiLastTool": "",
+            "isStreaming": True,
+            "completionStatus": "",
+            "err": timeout_err,
+        }
+
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe.probe_desktop_tool_progress",
+        _probe,
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe.seed_pending_desktop_approval_for_test",
+        lambda **_: "seed-1",
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe.heartbeat_e2e_lease",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe.asyncio.sleep",
+        _sleep,
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe.asyncio.to_thread",
+        _to_thread,
+    )
+
+    async def _agent_stream_active_stub(*_: object, **__: object) -> bool:
+        return False
+
+    async def _resolve_server_pending_stub(**_: object) -> int:
+        return 0
+
+    async def _skip_completed_without_tools(*_: object, **__: object) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._agent_stream_active",
+        _agent_stream_active_stub,
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._resolve_server_pending",
+        _resolve_server_pending_stub,
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._fail_if_model_completed_without_desktop_tools",
+        _skip_completed_without_tools,
+    )
+
     budget = _DesktopFallbackBudget(synthetic_dref_limit=1, pending_seed_limit=0)
     with pytest.raises(AssertionError, match="pending seed fallback budget exceeded"):
         await _wait_desktop_tool_activity_failfast(

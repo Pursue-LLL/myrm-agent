@@ -21,14 +21,14 @@ dependencies = [
   # --- HTTP & I/O ---
   "httpx>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   # --- AI & LLM ---
-  "litellm>=1.92.0",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
+  "litellm>=1.93.0",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
   "langchain>=1.3.14",      # Agent 工具/链定义 (70+ 文件)
-  "langchain-core>=1.4.9", # 消息类型/BaseTool (70+ 文件)
+  "langchain-core>=1.5.1", # 消息类型/BaseTool (70+ 文件)
   # --- Agent 框架 (PyPI wheel + compiled-core 平台包；见 docker/read_harness_pypi_spec.py) ---
   "myrm-agent-harness[browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,compiled-core]==0.1.0rc5",
   "pyautogui>=0.9.54",  # computer_use desktop input (macOS/Linux); harness computer-use extra parity
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
-  "aiohttp>=3.14.1",           # Matrix channel + alert notifier HTTP client
+  "aiohttp>=3.14.3",           # Matrix channel + alert notifier HTTP client
   # --- 语音处理（本地 STT）---
   "faster-whisper>=1.2.1",     # CTranslate2 Whisper 推理引擎（本地 STT）
   # --- 图片处理 ---
@@ -37,7 +37,7 @@ dependencies = [
   "sqlalchemy>=2.0.51", # ORM 框架，SQLite (170+ 文件)
   # --- 工具库 ---
   "nanoid>=2.0.0", # 唯一 ID 生成 (9 文件)
-  "filelock>=3.30.2", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
+  "filelock>=3.32.0", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
   # --- 安全与展示 ---
   "keyring>=25.7.0",    # OS 原生密钥链 (macOS Keychain / Linux secret-service / Windows Credential Manager)
   "qrcode>=8.2",        # 二维码生成 (WebUI 模式)
@@ -52,7 +52,7 @@ dependencies = [
   "wakepy>=1.0.0",                      # 阻止系统休眠 (power/manager.py)
   "psutil>=7.2.2",                      # 系统监控 (server_lock + health + power)
   "fluent-runtime>=0.4.0",             # i18n Fluent 引擎 (channels/i18n/engine.py)
-  "websockets>=16.1",                   # WebSocket 通信 (11+ channels/voice)
+  "websockets>=16.1.1",                   # WebSocket 通信 (11+ channels/voice)
   "aioboto3>=15.5.0",                   # AWS S3 异步客户端 (备份 + sandbox/storage)
   "tenacity>=9.1.4", # Vercel deploy retries (vercel_client.py)
   "pywebpush>=2.3.0", # Web Push (VAPID) notifications (core/web_push/)
@@ -83,7 +83,7 @@ voice-tts = [
 # 沙箱执行运行时绘图栈：代码执行工具生成图表/数据分析所需，仅随镜像 (--all-extras) 安装；
 # 本地精简模式 (uv sync 不带 --all-extras) 不引入，保持零开销启动。配合 matplotlibrc 的 CJK 默认字体。
 data-viz = [
-  "matplotlib>=3.11.0", # 数据图表渲染（只读 rootfs 下经 MATPLOTLIBRC 加载 CJK 默认字体）
+  "matplotlib>=3.11.1", # 数据图表渲染（只读 rootfs 下经 MATPLOTLIBRC 加载 CJK 默认字体）
   "pandas>=2.2.3,<3.0",     # 表格/时间序列（2.x 稳定线，避开 yanked 的 3.0.4）
 ]
 
@@ -112,11 +112,11 @@ override-dependencies = [
 [dependency-groups]
 dev = [
   "pytest>=9.1.1",
-  "ruff>=0.15.22",
-  "pre-commit>=4.6.0",
+  "ruff>=0.16.0",
+  "pre-commit>=4.6.1",
   "pytest-asyncio>=1.4.0",
   "myrm-agent-harness[browser]", # 浏览器测试依赖
-  "langchain-openai>=1.3.5",     # LLM 集成测试依赖
+  "langchain-openai>=1.4.1",     # LLM 集成测试依赖
   "pytest-cov>=7.1.0",
   "pytest-benchmark>=5.2.3",
   "pytest-xdist>=3.8.0",         # 并行测试执行
@@ -129,7 +129,7 @@ dev = [
 # Sandbox 沙箱模式专属依赖（全部为延迟导入或 CLI 工具，本地模式不安装也不影响启动）
 sandbox = [
   # --- 系统监控 ---
-  "prometheus-fastapi-instrumentator>=8.0.2", # FastAPI Prometheus instrumentation (prometheus_setup.py)
+  "prometheus-fastapi-instrumentator>=8.1.0", # FastAPI Prometheus instrumentation (prometheus_setup.py)
   # --- ASGI 服务器 ---
   "granian>=2.7.9", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
 ]

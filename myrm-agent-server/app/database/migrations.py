@@ -522,6 +522,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE chats ADD COLUMN share_revoked_at TIMESTAMP",
     "ALTER TABLE kanban_tasks DROP COLUMN goal_id",
     "ALTER TABLE cron_jobs ADD COLUMN tools_allowed JSON",
+    "ALTER TABLE wiki_evidence_metric_events ADD COLUMN context_key VARCHAR(128)",
 ]
 
 # 创建索引的SQL语句列表
@@ -632,6 +633,7 @@ INDEX_STATEMENTS = [
     "ALTER TABLE kanban_tasks ADD COLUMN progress_note TEXT",
     # OpenAPI service configurations for zero-code REST API tool integration
     "ALTER TABLE agents ADD COLUMN openapi_services JSON",
+    "CREATE INDEX IF NOT EXISTS ix_wiki_evidence_metrics_context_created_at ON wiki_evidence_metric_events(context_key, created_at)",
     # Memory import transaction ledger
     """CREATE TABLE IF NOT EXISTS memory_import_batches (
         id VARCHAR(80) PRIMARY KEY,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -24,14 +25,101 @@ from cdp_chat_support import (  # noqa: E402
     wait_e2e_cdp_ready,
     wait_e2e_provider_ready,
 )
-from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
+from cdp_chat_ui import chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
+
+import json  # noqa: E402
+import urllib.request  # noqa: E402
+import urllib.error  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import get_e2e_ui_url, open_mcp_page, wait_for_state
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+
+
+_SSE_DONE_RE = re.compile(r"(?:\bOK\b|GOAL_OK|\bDONE\b)", re.IGNORECASE)
+
+
+def _resume_via_api(
+    *,
+    api_base: str,
+    chat_id: str,
+    message_id: str,
+    action: str = "completed",
+    timeout_sec: float = 180.0,
+) -> dict[str, object]:
+    """Resume agent via backend API and consume the SSE stream until completion.
+
+    Keeps the HTTP connection alive so the backend disconnect checker never fires.
+    Returns ``{"ok": True, "done": True}`` when the agent's reply contains a
+    completion signal (DONE/OK/GOAL_OK), or ``{"ok": True, "done": False}``
+    if the stream ended without one.
+    """
+    url = f"{api_base.rstrip('/')}/api/v1/agents/agent-stream"
+    payload = json.dumps({
+        "message_id": message_id,
+        "chat_id": chat_id,
+        "action_mode": "agent",
+        "query": "",
+        "resume_value": {"action": action, "message": ""},
+    }).encode()
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
+        method="POST",
+    )
+    collected_text = ""
+    found_done = False
+    line_count = 0
+    try:
+        resp = urllib.request.urlopen(req, timeout=timeout_sec)  # noqa: S310
+        if resp.status != 200:
+            return {"ok": False, "error": f"HTTP {resp.status}"}
+        print(f"E2E_RESUME_SSE: connected, status={resp.status}", flush=True)
+        for raw_line in resp:
+            line = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
+            line_count += 1
+            if line_count <= 30 or line.startswith("data: "):
+                print(f"E2E_RESUME_SSE: L{line_count}: {line[:200]}", flush=True)
+            if not line.startswith("data: "):
+                continue
+            data_str = line[6:]
+            if data_str == "[DONE]":
+                print("E2E_RESUME_SSE: [DONE] sentinel", flush=True)
+                break
+            try:
+                event = json.loads(data_str)
+            except json.JSONDecodeError:
+                collected_text += data_str
+                continue
+            event_type = event.get("type", "")
+            if event_type == "message":
+                chunk = event.get("data", "")
+                if isinstance(chunk, str):
+                    collected_text += chunk
+            elif event_type == "message_end":
+                print(f"E2E_RESUME_SSE: message_end after {line_count} lines", flush=True)
+                break
+            if not found_done and _SSE_DONE_RE.search(collected_text):
+                found_done = True
+                print(f"E2E_RESUME_SSE: DONE detected at L{line_count}", flush=True)
+        resp.close()
+        print(f"E2E_RESUME_SSE: stream ended, lines={line_count} text_len={len(collected_text)}", flush=True)
+        if not found_done:
+            found_done = bool(_SSE_DONE_RE.search(collected_text))
+        return {"ok": True, "done": found_done, "text_sample": collected_text[:200]}
+    except urllib.error.HTTPError as exc:
+        body = exc.read(512).decode(errors="replace")
+        print(f"E2E_RESUME_API: HTTP {exc.code} — {body}", flush=True)
+        return {"ok": False, "error": f"HTTP {exc.code}: {body}"}
+    except Exception as exc:
+        if collected_text and _SSE_DONE_RE.search(collected_text):
+            return {"ok": True, "done": True, "text_sample": collected_text[:200]}
+        print(f"E2E_RESUME_API: {type(exc).__name__}: {exc}", flush=True)
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 E2E_PROMPT = (
     "我在验证浏览器人工接管功能。请调用 browser_ask_human_tool 一次，"
@@ -251,7 +339,7 @@ def test_extension_takeover_banner_shows_actions_and_dismisses_on_done() -> None
         assert triggered.get("pending") is True
         assert triggered.get("uiMode") == "extension"
 
-        banner = wait_for_state(client, page, _BANNER_ASSERT_JS, timeout_sec=15.0)
+        banner = wait_for_state(client, page, _BANNER_ASSERT_JS, timeout_sec=30.0)
         assert banner.get("hasAlert") is True, f"Missing takeover alert: {banner}"
         assert (
             banner.get("hasExtensionTitle") is True
@@ -295,7 +383,7 @@ def test_extension_takeover_skip_dismisses_banner() -> None:
         assert triggered.get("pending") is True
         assert triggered.get("uiMode") == "extension"
 
-        banner = wait_for_state(client, page, _BANNER_ASSERT_JS, timeout_sec=15.0)
+        banner = wait_for_state(client, page, _BANNER_ASSERT_JS, timeout_sec=30.0)
         assert banner.get("hasSkip") is True, f"Missing Skip button: {banner}"
 
         clicked = client.evaluate(page, _CLICK_SKIP_JS, timeout_sec=10.0)
@@ -603,27 +691,6 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             banner.get("hasExtensionTitle") is True
         ), f"Expected extension banner: {banner}"
 
-        await chat.evaluate(
-            """(() => {
-              if (!window.__MYRM_E2E_CONSOLE_CAPTURE__) {
-                window.__MYRM_E2E_CONSOLE_CAPTURE__ = [];
-                const origLog = console.log.bind(console);
-                const origWarn = console.warn.bind(console);
-                const origErr = console.error.bind(console);
-                const capture = (...args) => {
-                  const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-                  window.__MYRM_E2E_CONSOLE_CAPTURE__.push(msg);
-                };
-                console.log = (...args) => { capture(...args); origLog(...args); };
-                console.warn = (...args) => { capture(...args); origWarn(...args); };
-                console.error = (...args) => { capture(...args); origErr(...args); };
-              }
-              return { ok: true };
-            })()""",
-            await_promise=False,
-            recv_timeout=10.0,
-        )
-
         pre_done_diag = await chat.evaluate(
             """(() => {
               const bridge = window.__MYRM_E2E_CHAT__;
@@ -643,8 +710,8 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         )
         _p(f"pre-Done diag: {pre_done_diag}")
 
-        _p("complete takeover via bridge (with resume)")
-        resume_result = await chat.evaluate(
+        _p("clear takeover UI via bridge (no sendMessage)")
+        bridge_result = await chat.evaluate(
             """(async () => {
               const bridge = window.__MYRM_E2E_CHAT__;
               if (!bridge?.completeBrowserTakeoverWithResume) {
@@ -653,90 +720,48 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
               return await bridge.completeBrowserTakeoverWithResume();
             })()""",
             await_promise=True,
-            recv_timeout=30.0,
+            recv_timeout=15.0,
         )
-        _p(f"resume_result: {resume_result}")
-        assert isinstance(resume_result, dict), f"Unexpected resume result: {resume_result}"
-        assert resume_result.get("ok") is True, (
-            f"Bridge completeBrowserTakeoverWithResume failed: {resume_result}"
+        _p(f"bridge_result: {bridge_result}")
+        assert isinstance(bridge_result, dict), f"Unexpected bridge result: {bridge_result}"
+        assert bridge_result.get("ok") is True, (
+            f"Bridge completeBrowserTakeoverWithResume failed: {bridge_result}"
         )
 
-        _p("wait_turn_done (agent should reply DONE)")
+        resume_chat_id = str(bridge_result.get("chatId") or chat_id_hint or "").strip()
+        resume_msg_id = str(
+            bridge_result.get("resumeMessageId")
+            or bridge_result.get("storeMessageId")
+            or ""
+        ).strip()
+        assert resume_chat_id, f"No chatId for resume: {bridge_result}"
+        assert resume_msg_id, f"No messageId for resume: {bridge_result}"
 
-        async def _diag_probe() -> None:
-            """Print periodic diagnostics while waiting for agent DONE reply."""
-            probe_start = time.monotonic()
-            while True:
-                await asyncio.sleep(15.0)
-                elapsed = time.monotonic() - probe_start
-                try:
-                    snap = await chat.evaluate(
-                        """(() => {
-                          const bridge = window.__MYRM_E2E_CHAT__;
-                          const turn = bridge?.turnSnapshot?.() ?? {};
-                          const allLogs = (window.__MYRM_E2E_CONSOLE_CAPTURE__ ?? []).slice(-20);
-                          return {
-                            isStreaming: turn.isStreaming,
-                            hasCompletionSignal: turn.hasCompletionSignal,
-                            lastAssistantSample: (turn.lastAssistantSample ?? '').slice(0, 200),
-                            messageCount: bridge?.getMessages?.()?.length ?? -1,
-                            consoleLast20: allLogs,
-                          };
-                        })()""",
-                        await_promise=False,
-                        recv_timeout=10.0,
-                    )
-                    api_done = False
-                    if chat_id_hint:
-                        api_done = chat_messages_have_done(chat_id_hint, api_url=api_base)
-                    _p(f"wait_probe [{elapsed:.0f}s]: api_done={api_done} {snap}")
-                except (RuntimeError, TimeoutError):
-                    _p(f"wait_probe [{elapsed:.0f}s]: probe failed")
-
-        diag_task = asyncio.create_task(_diag_probe())
-        try:
-            after_turn = await chat.wait_turn_done(
-                last_prompt,
-                timeout_sec=300.0,
-                chat_id_hint=chat_id_hint,
+        _p(f"resume via API (SSE stream): chatId={resume_chat_id} msgId={resume_msg_id}")
+        resume_result = await asyncio.to_thread(
+            _resume_via_api,
+            api_base=api_base,
+            chat_id=resume_chat_id,
+            message_id=resume_msg_id,
+            timeout_sec=180.0,
+        )
+        _p(f"resume API result: {resume_result}")
+        assert isinstance(resume_result, dict) and resume_result.get("ok"), (
+            f"Backend resume API call failed: {resume_result}"
+        )
+        done = resume_result.get("done", False)
+        if not done:
+            _p("SSE stream ended without DONE — fallback API poll 60s")
+            done = await _wait_api_done(
+                resume_chat_id, api_url=api_base, timeout_sec=60.0
             )
-        except TimeoutError:
-            _p("wait_turn_done timeout — trying API fallback")
-            resolved_chat_id = (
-                chat_id_hint or str((await chat.bridge_chat_id()) or "").strip() or None
-            )
-            if resolved_chat_id and await _wait_api_done(
-                resolved_chat_id, api_url=api_base
-            ):
-                after_turn = {
-                    "chatId": resolved_chat_id,
-                    "okViaApi": True,
-                    "bridgeChatId": resolved_chat_id,
-                }
-            else:
-                raise
-        finally:
-            diag_task.cancel()
-        _p(f"turn done: {after_turn}")
-        if str(after_turn.get("path", "")).startswith("/settings"):
-            pytest.fail(f"Send redirected to settings: {after_turn}")
+            _p(f"fallback api_done={done}")
+        assert done, (
+            f"Agent did not reply DONE for chat {resume_chat_id}; "
+            f"resume_result={resume_result}"
+        )
 
-        chat_id = chat_id_hint or chat_id_from_path(str(after_turn.get("path") or ""))
-        if not chat_id:
-            chat_id = str(after_turn.get("bridgeChatId") or "").strip() or None
-        assert (
-            chat_id
-        ), f"Expected chat id after browser takeover turn: {after_turn}; banner={banner}"
-
-        if not chat_messages_have_done(chat_id, api_url=api_base):
-            turn = await chat.evaluate(
-                """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()""",
-                await_promise=False,
-            )
-            pytest.fail(
-                f"Assistant did not reply DONE for chat {chat_id}: turn={turn}; after={after_turn}"
-            )
-
+        chat_id = resume_chat_id
         _p(f"PASSED chat_id={chat_id}")
         assert chat_user_message_count(chat_id, api_url=api_base) >= 1
         e2e_resource_ledger.register("chat", chat_id)

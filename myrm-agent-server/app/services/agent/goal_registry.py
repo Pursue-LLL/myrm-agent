@@ -109,6 +109,24 @@ async def _resolve_shared_context_ids_for_goal(session_id: str) -> list[str]:
     )
 
 
+async def _collect_session_deliverables(session_id: str) -> list[dict[str, str]]:
+    """Collect all artifacts produced in a chat session for goal deliverable aggregation."""
+    from sqlalchemy import select
+
+    from app.database.connection import get_session
+    from app.database.models.artifact import Artifact
+
+    async with get_session() as db:
+        stmt = (
+            select(Artifact.id, Artifact.name)
+            .where(Artifact.chat_id == session_id, Artifact.is_deleted.is_(False))
+            .order_by(Artifact.created_at.asc())
+        )
+        result = await db.execute(stmt)
+        rows = result.all()
+        return [{"id": row.id, "filename": row.name} for row in rows]
+
+
 class ServerGoalManager(GoalManager):
     """Server-side GoalManager that implements boundary methods like semantic evaluation."""
 
@@ -127,9 +145,16 @@ class ServerGoalManager(GoalManager):
         return goal
 
     async def _consolidate_decisions_on_completion(self, goal: "Goal") -> None:
-        """Architectural decision consolidation removed with planner sub-agent deletion."""
-        _ = goal
-        return
+        """Collect session deliverables when goal completes."""
+        if not self.session_id:
+            return
+        try:
+            deliverables = await _collect_session_deliverables(self.session_id)
+            if deliverables:
+                goal.metadata["deliverables"] = deliverables
+                await self._storage.save_goal(goal)
+        except Exception as exc:
+            logger.warning("Failed to collect deliverables for goal %s: %s", goal.goal_id, exc)
 
     async def evaluate_semantic(
         self, criteria: str, content: str, context_messages: list[object] | None = None

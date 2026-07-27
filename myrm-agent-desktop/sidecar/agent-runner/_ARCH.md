@@ -23,8 +23,10 @@ CLI Agent Runner Sidecar 源码：stdin/stdout JSON-RPC，桥接外部 CLI（Cla
 |------|------|------|-------|
 | `src/` | 核心 | JSON-RPC 实现 → [src/_ARCH.md](src/_ARCH.md) | — |
 | `package.json` | 配置 | Bun 依赖与 compile 脚本 | — |
+| `bun.lock` | 配置 | 依赖锁文件（保证 Agent Runner 构建可复现） | — |
 
 ## 依赖
 
 - Bun >= 1.1
 - 父构建入口：[../_ARCH.md](../_ARCH.md)
+- `node_modules/` 为本地安装产物，不作为职责文档条目维护

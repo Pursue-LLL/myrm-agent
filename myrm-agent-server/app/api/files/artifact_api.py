@@ -12,9 +12,11 @@ Provides REST endpoints for listing, retrieving, verifying artifacts; exposes pu
 """
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -242,3 +244,70 @@ async def verify_artifact_hash(
     except Exception as e:
         logger.error(f"Hash verification failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class BundleDownloadRequest(BaseModel):
+    artifact_ids: list[str]
+    chat_id: str
+
+
+@router.post("/download-bundle")
+async def download_artifact_bundle(
+    request: BundleDownloadRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Download multiple artifacts as a ZIP archive."""
+    import io
+    import zipfile
+
+    from fastapi.responses import StreamingResponse
+    from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
+
+    from app.api.dependencies import get_workspace_root
+
+    if not request.artifact_ids:
+        raise HTTPException(status_code=400, detail="No artifact IDs provided")
+
+    stmt = (
+        select(Artifact)
+        .options(selectinload(Artifact.versions))
+        .where(
+            Artifact.id.in_(request.artifact_ids),
+            Artifact.is_deleted.is_(False),
+        )
+    )
+    result = await db.execute(stmt)
+    artifacts = result.scalars().all()
+
+    if not artifacts:
+        raise HTTPException(status_code=404, detail="No artifacts found")
+
+    vault = ArtifactVault(str(get_workspace_root()))
+    buf = io.BytesIO()
+
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        used_names: set[str] = set()
+        for artifact in artifacts:
+            versions = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)
+            if not versions:
+                continue
+            latest = versions[0]
+            try:
+                obj_id = latest.vault_uri.removeprefix("vault://")
+                obj_path = vault.get_object_path(obj_id)
+                if obj_path.exists():
+                    name = artifact.name
+                    if name in used_names:
+                        stem, _, ext = name.rpartition(".")
+                        name = f"{stem}_{artifact.id[:6]}.{ext}" if ext else f"{name}_{artifact.id[:6]}"
+                    used_names.add(name)
+                    zf.write(obj_path, name)
+            except Exception as exc:
+                logger.warning("Failed to add artifact %s to bundle: %s", artifact.id, exc)
+
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=deliverables-{request.chat_id[:8]}.zip"},
+    )

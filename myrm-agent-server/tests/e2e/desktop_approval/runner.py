@@ -17,6 +17,7 @@ Top-level Chrome E2E entry for desktop trust flows; owns MCP client lifecycle an
 from __future__ import annotations
 
 import asyncio
+from typing import Awaitable
 
 import pytest
 from cdp_chat_support import (
@@ -73,6 +74,21 @@ async def run_desktop_approval_chrome_e2e(
         ensure_e2e_hitl_mode(api_url=get_e2e_api_url())
         await ensure_e2e_hitl_mode_in_browser(chat)
 
+        async def _retry_reset_step(
+            label: str,
+            awaitable: Awaitable[object],
+            *,
+            timeout_sec: float,
+        ) -> object:
+            try:
+                return await asyncio.wait_for(awaitable, timeout=timeout_sec)
+            except asyncio.TimeoutError as exc:
+                await asyncio.to_thread(chat._client.abandon_inflight_requests)
+                raise TimeoutError(
+                    "retry reset evaluate wall-timeout "
+                    f"step={label} timeout={timeout_sec:.0f}s"
+                ) from exc
+
         last_error: dict[str, object] | None = None
         attempts = max_send_attempts(scope)
         for attempt in range(1, attempts + 1):
@@ -107,15 +123,39 @@ async def run_desktop_approval_chrome_e2e(
                 reset_e2e_wall_budget_clock()
                 try:
                     progress("retry reset: lightweight chat reset (no page reopen)")
-                    await asyncio.to_thread(chat._client.recover_mux_transport)
+                    await _retry_reset_step(
+                        "recover_mux_transport",
+                        asyncio.to_thread(chat._client.recover_mux_transport),
+                        timeout_sec=40.0,
+                    )
                     await asyncio.sleep(1.0)
                     progress("new chat + ensure surface")
                     chat._reset_shell_layout_wait_clock()
-                    await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)
-                    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
-                    await chat.click_new_chat()
-                    await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)
-                    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+                    await _retry_reset_step(
+                        "ensure_chat_surface/pre",
+                        chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0),
+                        timeout_sec=75.0,
+                    )
+                    await _retry_reset_step(
+                        "ensure_react_e2e_bridge/pre",
+                        chat.ensure_react_e2e_bridge(timeout_sec=90.0),
+                        timeout_sec=75.0,
+                    )
+                    await _retry_reset_step(
+                        "click_new_chat",
+                        chat.click_new_chat(timeout_sec=75.0),
+                        timeout_sec=75.0,
+                    )
+                    await _retry_reset_step(
+                        "ensure_chat_surface/post",
+                        chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0),
+                        timeout_sec=75.0,
+                    )
+                    await _retry_reset_step(
+                        "ensure_react_e2e_bridge/post",
+                        chat.ensure_react_e2e_bridge(timeout_sec=90.0),
+                        timeout_sec=75.0,
+                    )
                 except (RuntimeError, TimeoutError, OSError) as reset_exc:
                     if is_retriable_page_transport(reset_exc):
                         progress(

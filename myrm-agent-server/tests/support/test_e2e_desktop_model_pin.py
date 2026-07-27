@@ -116,3 +116,29 @@ async def test_pin_for_send_retries_transient_provider_init_error(
     assert result["ok"] is True
     assert result["attempt"] == 2
     assert chat.recover_calls >= 2
+
+
+@pytest.mark.asyncio
+async def test_pin_for_send_escalates_bridge_missing_as_transport_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "tests.support.e2e_desktop_model_pin.expected_desktop_e2e_model",
+        lambda: {"providerId": "openai-like", "model": "agnes-2.0-flash"},
+    )
+    chat = _PinRetryChat(
+        [
+            {},
+            {"ok": False, "err": "no-bridge"},
+            {},
+            {},
+            {"ok": False, "err": "no-bridge"},
+            {},
+        ]
+    )
+    with pytest.raises(RuntimeError, match="Dev E2E chat bridge not available on WebUI"):
+        await ensure_desktop_basic_model_pinned_for_send(
+            chat,
+            max_attempts=2,
+            retry_sleep_sec=0.0,
+        )

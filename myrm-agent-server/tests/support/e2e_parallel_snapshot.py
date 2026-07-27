@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import subprocess
 from contextlib import suppress
 from dataclasses import asdict, dataclass
@@ -117,15 +118,36 @@ def _elapsed_to_seconds(raw: str) -> float:
 
 
 def _extract_test_id(command: str) -> str | None:
+    marker = None
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        argv = command.split()
+    for idx, token in enumerate(argv):
+        if token == "-m" and idx + 1 < len(argv):
+            candidate = argv[idx + 1]
+            if marker is None:
+                marker = candidate
+            if "chrome_e2e" in candidate:
+                marker = candidate
+                break
+    marker_suffix = f" -m {marker}" if marker else ""
+
     node_match = re.search(r"(tests/e2e/[^\s]+\.py(?:::([\w_]+))?)", command)
     if node_match is not None:
         path = node_match.group(1)
         if "::" in path:
             return path
-        marker_match = re.search(r"-m\s+(\S+)", command)
-        if marker_match is not None:
-            return f"{path} -m {marker_match.group(1)}"
+        if marker_suffix:
+            return f"{path}{marker_suffix}"
         return path
+    folder_match = re.search(r"tests/e2e/", command)
+    if folder_match is not None:
+        if marker_suffix:
+            return f"tests/e2e/{marker_suffix}"
+        return "tests/e2e/"
+    if marker is not None and "chrome_e2e" in marker:
+        return f"marker:{marker}"
     return None
 
 

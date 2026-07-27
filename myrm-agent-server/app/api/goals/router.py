@@ -202,6 +202,9 @@ async def get_goal_status(session_id: str) -> dict[str, object]:
     wait_reason = goal.metadata.get("wait_reason")
     if wait_reason:
         result["wait_reason"] = wait_reason
+    deliverables = goal.metadata.get("deliverables")
+    if deliverables:
+        result["deliverables"] = deliverables
     return {"goal": result}
 
 

@@ -66,6 +66,8 @@ def is_retriable_page_transport(exc: BaseException) -> bool:
         )
     if "detached frame" in message:
         return True
+    if "no page found" in message:
+        return True
     if "not owned by this shim session" in message:
         return True
     if "no mcpage found for the given page" in message:

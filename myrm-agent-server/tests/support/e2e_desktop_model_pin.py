@@ -250,16 +250,22 @@ async def ensure_desktop_basic_model_pinned_for_send(
             err = str(pinned_raw.get("err") or "")
         if not err:
             err = pin_eval_error or sync_eval_error
+        normalized_err = err.strip().lower()
+        bridge_missing = normalized_err == "no-bridge" or "no-bridge" in normalized_err
+        no_selection = (
+            normalized_err == "no-selection" or "no-selection" in normalized_err
+        )
         should_retry = (
             "e2e-base-model-unconfigured" in err
             or "e2e-base-model-unavailable" in err
-            or err in {"no-bridge", "no-selection"}
+            or bridge_missing
+            or no_selection
             or _is_transient_provider_pin_error(err)
         )
         if attempt < max_attempts and (
             should_retry
         ):
-            if err in {"no-bridge", "no-selection"} or _is_transient_provider_pin_error(
+            if bridge_missing or no_selection or _is_transient_provider_pin_error(
                 err
             ):
                 try:
@@ -268,6 +274,11 @@ async def ensure_desktop_basic_model_pinned_for_send(
                     pass
             await asyncio.sleep(retry_sleep_sec)
             continue
+        if bridge_missing or no_selection:
+            raise RuntimeError(
+                "Dev E2E chat bridge not available on WebUI during BASIC model pin "
+                f"(attempt {attempt}/{max_attempts}, err={err!r}, debug={last_debug!r})"
+            )
 
         ui = ui_selection_from_provider_debug(last_debug)
         raise AssertionError(

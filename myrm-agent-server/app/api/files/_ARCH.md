@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Files management API module | ✅ |
 | `evicted.py` | 模块 | UECD evicted-file read API (`GET /evicted` paginated line-range); harness `read_evicted_line_range`; default `limit=500`; path traversal checks; missing file → HTTP 404 + `{"expired": true}` | ✅ |
-| `artifact_api.py` | 模块 | List/retrieve/verify artifacts; exposes `publications[]` per artifact | ✅ |
+| `artifact_api.py` | 模块 | List/retrieve/verify artifacts; exposes `publications[]` per artifact; `POST /download-bundle` packages multiple artifacts into a single ZIP archive | ✅ |
 | `artifact_share_api.py` | 模块 | Lets GUI users share html/pdf/document artifacts without publication deploy | ✅ |
 | `browse.py` | 模块 | Workspace browse API; `/browse/search` uses harness `filesystem_suggest`. | ✅ |
 | `hosting_api.py` | 模块 | Multi-target artifact publish, hosting targets CRUD, publications | ✅ |

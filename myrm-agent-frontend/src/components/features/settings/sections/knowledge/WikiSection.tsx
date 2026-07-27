@@ -19,6 +19,7 @@ import {
   type WikiSourceLevel,
   type WikiSourceSnippet,
 } from '@/services/wikiService';
+import { recordEvidenceSurface, recordWikiQuery } from '@/services/wikiEvidenceMetrics';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import SourceChunkDrawer from '@/components/features/message-box/SourceChunkDrawer';
@@ -56,6 +57,7 @@ export function WikiSection() {
   const pathname = usePathname();
   const locale = useLocale();
   const agentScopeId = searchParams.get('agentId');
+  const evidenceContextKey = agentScopeId ? `agent:${agentScopeId}` : 'agent:default';
   const t = useTranslations('settings.wiki');
   const tSources = useTranslations('MessageSources');
   const [agents, setAgents] = useState<AgentListItem[]>([]);
@@ -322,6 +324,7 @@ export function WikiSection() {
       return;
     }
 
+    recordWikiQuery('settings', evidenceContextKey);
     setIsQuerying(true);
     setAnswer('');
     setRelatedArticles([]);
@@ -333,6 +336,7 @@ export function WikiSection() {
       setAnswer(data.answer);
       setRelatedArticles(data.related_articles || []);
       setSourceSnippets(data.source_snippets || []);
+      recordEvidenceSurface('settings', data.source_snippets?.length ?? 0, evidenceContextKey);
       toast.success(t('success.queryComplete'));
     } catch (error) {
       console.error('Query failed:', error);
@@ -616,6 +620,8 @@ export function WikiSection() {
             section={snippetDrawerState.section}
             snippet={snippetDrawerState.snippet}
             level={snippetDrawerState.level}
+            surface="settings"
+            contextKey={evidenceContextKey}
           />
 
           {/* Wiki Actions */}
