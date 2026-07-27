@@ -3,6 +3,7 @@
 [INPUT]
 - _base::_ChatServiceBase (POS: repository 协议和访问器)
 - conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
+- app.core.channel_bridge.model_resolver::enrich_model_context_window (POS: 模型真实上下文窗口enricher)
 
 [OUTPUT]
 - _ChatCompactionMixin: compaction summary 更新、后台 drain 调度与执行
@@ -127,9 +128,13 @@ class _ChatCompactionMixin(_ChatServiceBase):
 
                 model_cfg = resolve_model_config(providers_dict)
 
+            from app.core.channel_bridge.model_resolver import enrich_model_context_window
+
+            model_cfg = enrich_model_context_window(model_cfg, providers_dict)
+
             llm = await llm_manager.get_llm_from_config(model_cfg, api_keys=getattr(model_cfg, "api_keys", None))
 
-            context_config = ContextConfig(max_context_tokens=128000)
+            context_config = ContextConfig(max_context_tokens=model_cfg.max_context_tokens or 128000)
             _, summary = await generate_structured_summary(langchain_msgs, llm, chat_id, config=context_config)
 
             async with UnitOfWork() as uow:

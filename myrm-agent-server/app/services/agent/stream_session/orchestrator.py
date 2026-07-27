@@ -60,7 +60,9 @@ from app.services.agent.stream_session.stream_generator import (
     build_disconnect_checker,
     launch_buffered_stream,
 )
-from app.services.agent.stream_session.stream_lane_factory import archive_restore_error_response
+from app.services.agent.stream_session.stream_lane_factory import (
+    archive_restore_error_response,
+)
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
 logger = logging.getLogger(__name__)
@@ -70,7 +72,9 @@ _ACTION_MODE_FEATURE_GATE: dict[str, str] = {
     "consensus": "consensus",
 }
 
-_SEARCH_AGENT_IDS: frozenset[str] = frozenset({"builtin-fast-search", "builtin-deep-search"})
+_SEARCH_AGENT_IDS: frozenset[str] = frozenset(
+    {"builtin-fast-search", "builtin-deep-search"}
+)
 
 # Gateway hygiene limit: ~120K tokens (rough character-to-token ratio) to prevent OOM
 _GATEWAY_MAX_INPUT_CHARS: int = 360_000
@@ -105,14 +109,18 @@ async def run_agent_stream(
         if not get_features().enabled(gated_feature):
             return JSONResponse(
                 status_code=403,
-                content={"detail": f"{request.action_mode} is disabled via Feature Gate"},
+                content={
+                    "detail": f"{request.action_mode} is disabled via Feature Gate"
+                },
             )
 
     text_content = stream_text_content(request)
 
     # Gateway hygiene check: block massive malicious payloads before they hit the agent harness
     if len(text_content) > _GATEWAY_MAX_INPUT_CHARS:
-        logger.warning(f"Gateway rejected massive payload: length={len(text_content)} chars")
+        logger.warning(
+            f"Gateway rejected massive payload: length={len(text_content)} chars"
+        )
         return JSONResponse(
             status_code=400,
             content={
@@ -159,14 +167,18 @@ async def run_agent_stream(
                     )
 
                 if request.chat_id:
-                    if not ApprovalTimeoutScheduler.get().resolve_if_first(request.chat_id):
+                    if not ApprovalTimeoutScheduler.get().resolve_if_first(
+                        request.chat_id
+                    ):
                         logger.warning(
                             "Resume rejected (timeout already resolved): chat_id=%s",
                             request.chat_id,
                         )
                         return JSONResponse(
                             status_code=409,
-                            content={"detail": "This HITL request has already been resolved by timeout."},
+                            content={
+                                "detail": "This HITL request has already been resolved by timeout."
+                            },
                         )
 
                 logger.info(
@@ -174,20 +186,24 @@ async def run_agent_stream(
                     request.chat_id,
                     request.resume_value.get("decision"),
                 )
-                params, routing_tier, context_warnings, archive_restore_results = await convert_to_general_agent_params(
-                    request,
-                    chat_history,
-                    http_request=http_request,
+                params, routing_tier, context_warnings, archive_restore_results = (
+                    await convert_to_general_agent_params(
+                        request,
+                        chat_history,
+                        http_request=http_request,
+                    )
                 )
                 params.query = Command(resume=request.resume_value)
 
                 extra_context = {"hitl_session_active": True}
                 logger.info("HITL session marked active for cache preservation")
             else:
-                params, routing_tier, context_warnings, archive_restore_results = await convert_to_general_agent_params(
-                    request,
-                    chat_history,
-                    http_request=http_request,
+                params, routing_tier, context_warnings, archive_restore_results = (
+                    await convert_to_general_agent_params(
+                        request,
+                        chat_history,
+                        http_request=http_request,
+                    )
                 )
         except ArchiveRestoreRequestError as exc:
             return archive_restore_error_response(exc)
@@ -209,13 +225,17 @@ async def run_agent_stream(
         if request.action_mode == "deep_research" and not params.enable_web_search:
             return JSONResponse(
                 status_code=422,
-                content={"detail": "Search service not configured. Deep Research requires a configured search service."},
+                content={
+                    "detail": "Search service not configured. Deep Research requires a configured search service."
+                },
             )
 
         if request.agent_id in _SEARCH_AGENT_IDS and not params.enable_web_search:
             return JSONResponse(
                 status_code=422,
-                content={"detail": "Search service not configured. Please add a search service in Settings."},
+                content={
+                    "detail": "Search service not configured. Please add a search service in Settings."
+                },
             )
 
         cancel_token = CancellationToken(request_id=request.message_id)
@@ -252,8 +272,14 @@ async def run_agent_stream(
                 protected_paths = request.goal.protected_paths
                 active_goal = await goal_provider.get_active_goal(request.chat_id)
                 if not active_goal:
-                    checkpoint_mode_raw = getattr(request.goal, "checkpoint_mode", "none")
-                    checkpoint_mode = checkpoint_mode_raw if checkpoint_mode_raw in ("none", "per_todo") else "none"
+                    checkpoint_mode_raw = getattr(
+                        request.goal, "checkpoint_mode", "none"
+                    )
+                    checkpoint_mode = (
+                        checkpoint_mode_raw
+                        if checkpoint_mode_raw in ("none", "per_todo")
+                        else "none"
+                    )
                     from typing import cast
 
                     from myrm_agent_harness.agent.goals.types import CheckpointMode
@@ -275,7 +301,10 @@ async def run_agent_stream(
             extra_context = {}
         extra_context["goal_provider"] = goal_provider
 
-        from app.services.agent.runtime_context import build_agent_runtime_context, resolve_stream_execution_mode
+        from app.services.agent.runtime_context import (
+            build_agent_runtime_context,
+            resolve_stream_execution_mode,
+        )
 
         extra_context = await build_agent_runtime_context(
             execution_mode=resolve_stream_execution_mode(),
@@ -312,20 +341,34 @@ async def run_agent_stream(
                     extra_context["memory_brief_snapshot"] = snapshot
                     extra_context["memory_brief_status"] = {"state": "ready"}
             except asyncio.TimeoutError:
-                extra_context["memory_brief_status"] = {"state": "skipped", "reason": "timeout"}
+                extra_context["memory_brief_status"] = {
+                    "state": "skipped",
+                    "reason": "timeout",
+                }
                 logger.info(
                     "Memory brief preflight timeout (>%.0fms), skip preview.",
                     _MEMORY_BRIEF_TIMEOUT_SECONDS * 1000,
                 )
             except Exception as exc:
-                extra_context["memory_brief_status"] = {"state": "skipped", "reason": "error"}
+                extra_context["memory_brief_status"] = {
+                    "state": "skipped",
+                    "reason": "error",
+                }
                 logger.warning("Memory brief preflight skipped: %s", exc)
 
-        is_long_running_task = request.action_mode in ("deep_research", "agentic_search", "consensus")
-        collector = StreamContentCollector(sibling_group_id=request.sibling_group_id, chat_id=request.chat_id)
+        is_long_running_task = request.action_mode in (
+            "deep_research",
+            "agentic_search",
+            "consensus",
+        )
+        collector = StreamContentCollector(
+            sibling_group_id=request.sibling_group_id, chat_id=request.chat_id
+        )
 
-        consensus_config, consensus_ref_cfgs, consensus_agg_cfg = await resolve_consensus_stream_models(
-            request,
+        consensus_config, consensus_ref_cfgs, consensus_agg_cfg = (
+            await resolve_consensus_stream_models(
+                request,
+            )
         )
 
         session = AgentStreamSession(
@@ -352,7 +395,9 @@ async def run_agent_stream(
             consensus_config=consensus_config,
             consensus_ref_model_cfgs=consensus_ref_cfgs,
             consensus_agg_model_cfg=consensus_agg_cfg,
-            entitlement_preflight_text=text_content if request.resume_value is None else None,
+            entitlement_preflight_text=(
+                text_content if request.resume_value is None else None
+            ),
         )
         session.monitor = CancellationMonitor(
             token=cancel_token,
@@ -361,7 +406,11 @@ async def run_agent_stream(
         )
 
         # Write-ahead marker for crash auto-continue (best-effort, non-blocking)
-        if request.chat_id and request.resume_value is None and not is_long_running_task:
+        if (
+            request.chat_id
+            and request.resume_value is None
+            and not is_long_running_task
+        ):
             try:
                 await _write_interrupted_turn_marker(request, params)
             except Exception as marker_exc:
@@ -388,7 +437,9 @@ async def _write_interrupted_turn_marker(
     session_factory = get_session_factory()
     async with session_factory() as db:
         await db.execute(
-            delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == request.chat_id)
+            delete(InterruptedTurnMarker).where(
+                InterruptedTurnMarker.chat_id == request.chat_id
+            )
         )
         marker = InterruptedTurnMarker(
             id=str(uuid.uuid4()),

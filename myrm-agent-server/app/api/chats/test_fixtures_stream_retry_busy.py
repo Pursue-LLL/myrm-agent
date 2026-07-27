@@ -54,7 +54,9 @@ async def seed_stream_retry_busy_fixture() -> dict[str, str]:
     message_id = f"msg_{uuid4().hex[:12]}"
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(status_code=500, detail="No agents available for stream retry busy E2E seed")
+        raise HTTPException(
+            status_code=500, detail="No agents available for stream retry busy E2E seed"
+        )
     agent_id = agents[0].id
 
     await ChatService.create_or_update_chat(
@@ -77,7 +79,9 @@ async def seed_stream_retry_busy_fixture() -> dict[str, str]:
 
     gateway = get_agent_gateway()
     gateway.reserve_session(chat_id, active_message_id=message_id)
-    asyncio.create_task(_hold_busy_session(chat_id), name=f"stream-retry-busy-{chat_id}")
+    asyncio.create_task(
+        _hold_busy_session(chat_id), name=f"stream-retry-busy-{chat_id}"
+    )
 
     return {
         "chat_id": chat_id,

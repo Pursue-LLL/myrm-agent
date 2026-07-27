@@ -38,5 +38,7 @@ suggestion_prompts:
   - "帮我生成一份 Q2 销售数据的 Excel 报表，包含图表和同比分析公式。"
   - "Create a 10-slide PowerPoint deck summarizing our product roadmap for the board meeting."
   - "帮我制作一份项目总结的 Word 文档，包含目录、数据表格和结论。"
+  - "帮我把这份合同模板里的甲方、日期、金额等字段填写完成，保留原有格式。"
+  - "Fill in this Word template with the employee data, keeping all formatting intact."
 prebuilt_skill_ids:
   - "office-document"

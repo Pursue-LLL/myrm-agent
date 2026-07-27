@@ -27,10 +27,10 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加、分页查询、assistant 消息持久化、memory_search_tool 引用证据与 retrieval trace 分步事件写入记忆操作账本 + 用量同步 | ✅ |
 | `chat_history.py` | ✅ 核心 | `_ChatHistoryMixin`: Web/Channel 历史加载（含 compaction summary 注入）、FTS5 搜索 | ✅ |
 | `chat_turn.py` | ✅ 核心 | `_ChatTurnMixin`: 重试/撤销/重新生成、兄弟消息切换、LLM 标题生成 | ✅ |
-| `chat_compaction.py` | ✅ 核心 | `_ChatCompactionMixin`: compaction summary 更新、后台 drain 调度与 LLM 离线摘要 | ✅ |
+| `chat_compaction.py` | ✅ 核心 | `_ChatCompactionMixin`: compaction summary 更新、后台 drain 调度与 LLM 离线摘要（跟随真实模型窗口） | ✅ |
 | `chat_helpers.py` | ✅ 辅助 | 用于内部解耦的通用 DTO 和静态辅助函数（如消息过滤、Snippet清理）。 | ✅ |
 | `ui_artifact_patch.py` | ✅ 核心 | 跨轮次 `update_ui_data_tool`：`data_update` 深合并到宿主 assistant 消息的 `uiArtifacts` 并写回 DB | ✅ |
-| `compact_service.py` | ✅ 核心 | 无损上下文压缩（LLM 摘要 + 文件备份 + DB 持久化 + 进度感知超时 + 取消安全） | ✅ |
+| `compact_service.py` | ✅ 核心 | 无损上下文压缩（LLM 摘要 + 文件备份 + DB 持久化 + 进度感知超时 + 取消安全 + 真实模型窗口） | ✅ |
 | `conversation_search_service.py` | ✅ 核心 | Agent 历史会话召回服务；组合会话级 FTS5 索引、统一可见性策略、预计算摘要、semantic evidence hydration 与可选语义记忆结果。 | ✅ |
 | `conversation_recall_query.py` | ✅ 辅助 | Conversation Recall 查询规划；精确 FTS 优先，并在结果不足时提供无 LLM 的本地 OR/term 宽召回兜底。 | ✅ |
 | `conversation_recall_index_service.py` | ✅ 核心 | Conversation Recall 索引生命周期服务；统一回填、重建、增量追加、排除/恢复、删除、健康检查和管理列表。 | ✅ |

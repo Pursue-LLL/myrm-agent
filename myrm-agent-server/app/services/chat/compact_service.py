@@ -195,6 +195,9 @@ async def persist_compaction(
         except ValueError as exc:
             logger.warning("⚠️ [persist_compaction] %s", exc)
             await db.rollback()
+        except Exception as exc:
+            logger.exception("❌ [persist_compaction] Unexpected error for chat_id=%s: %s", chat_id, exc)
+            await db.rollback()
 
 
 async def compact_chat(
@@ -242,7 +245,7 @@ async def compact_chat(
         original_tokens = estimate_messages_tokens(lc_messages)
 
         existing_summary = _parse_existing_summary(chat.compacted_summary) if chat.compacted_summary else None
-        llm = await _get_llm_for_user()
+        llm, max_context_tokens = await _get_llm_for_user()
 
         try:
             _, summary = await _guarded_compact_summarize(
@@ -251,6 +254,7 @@ async def compact_chat(
                 chat_id=chat_id,
                 existing_summary=existing_summary,
                 focus_topic=focus_topic,
+                max_context_tokens=max_context_tokens,
             )
         except (asyncio.TimeoutError, Exception) as summarize_exc:
             if isinstance(summarize_exc, asyncio.TimeoutError):
@@ -391,8 +395,12 @@ async def _backup_context(
         return None
 
 
-async def _get_llm_for_user() -> BaseChatModel:
-    """Get LLM instance for user's configured model (streaming enabled for progress tracking)."""
+async def _get_llm_for_user() -> tuple[BaseChatModel, int]:
+    """Get LLM instance and real context window for user's configured model.
+
+    Returns:
+        Tuple of (llm, max_context_tokens).
+    """
     from myrm_agent_harness.toolkits.llms import llm_manager
 
     from app.core.channel_bridge.config_loader import load_user_configs
@@ -403,7 +411,7 @@ async def _get_llm_for_user() -> BaseChatModel:
     llm: BaseChatModel = await llm_manager.get_llm_from_config(
         model_cfg, streaming=True, api_keys=getattr(model_cfg, "api_keys", None)
     )
-    return llm
+    return llm, model_cfg.max_context_tokens or 128000
 
 
 async def get_archived_messages(chat_id: str) -> list[dict[str, object]]:
@@ -467,6 +475,7 @@ async def _guarded_compact_summarize(
     chat_id: str,
     existing_summary: StructuredSummary | None,
     focus_topic: str,
+    max_context_tokens: int = 128000,
 ) -> tuple[list[BaseMessage], StructuredSummary]:
     """Wrap generate_structured_summary with progress-aware timeout for the API path.
 
@@ -475,6 +484,7 @@ async def _guarded_compact_summarize(
     """
     import time as _time
 
+    from myrm_agent_harness.agent.context_management.infra.schemas import ContextConfig
     from myrm_agent_harness.agent.context_management.strategies.progress_timeout import (
         InactivityTimeoutError,
         ProgressClock,
@@ -485,6 +495,7 @@ async def _guarded_compact_summarize(
     )
 
     tracker = ProgressClock()
+    config = ContextConfig(max_context_tokens=max_context_tokens)
 
     async def _watchdog() -> None:
         start = _time.monotonic()
@@ -506,6 +517,7 @@ async def _guarded_compact_summarize(
             existing_summary=existing_summary,
             focus_topic=focus_topic,
             progress_tracker=tracker,
+            config=config,
         )
 
     summarize_task = asyncio.ensure_future(_summarize())

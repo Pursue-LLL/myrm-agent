@@ -77,6 +77,76 @@ When modifying an existing Office document:
 
 **Why this matters:** Rewriting the entire file from scratch to change one slide title wastes tokens, risks losing formatting, and breaks any content the user did not ask to change. The structure map enables surgical edits.
 
+### Template Form Fill Mode (Word)
+
+When modifying an existing `.docx` to **fill in data** (form fields, placeholders, table cells), use XML-level manipulation to preserve the original formatting. The standard `paragraph.text = "xxx"` assignment **destroys all formatting** (fonts, sizes, colors, bold/italic) — never use it for form filling.
+
+#### Detection
+
+Activate this mode when **all** conditions are met:
+
+1. An existing `.docx` file is provided (Phase 0 → Modify)
+2. The intent is to fill in data (keywords: 填写, fill, 填表, populate, template)
+3. The document has structured placeholders (e.g., `___`, `XXX`, `【】`, table cells to fill)
+
+#### XML-Level Write Technique
+
+Replace placeholder text at the `<w:t>` element level while preserving the `<w:rPr>` (run properties) and `<w:pPr>` (paragraph properties):
+
+```python
+from docx import Document
+from docx.oxml.ns import qn
+
+doc = Document("template.docx")
+
+for para in doc.paragraphs:
+    for run in para.runs:
+        if "___" in run.text or "XXX" in run.text:
+            t_elem = run._element.find(qn("w:t"))
+            if t_elem is not None:
+                t_elem.text = t_elem.text.replace("___", actual_value)
+                t_elem.set(qn("xml:space"), "preserve")
+```
+
+For table cell filling, iterate cells and apply the same technique:
+
+```python
+for table in doc.tables:
+    for row in table.rows:
+        for cell in row.cells:
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    t_elem = run._element.find(qn("w:t"))
+                    if t_elem is not None and is_placeholder(t_elem.text):
+                        t_elem.text = replacement_value
+                        t_elem.set(qn("xml:space"), "preserve")
+```
+
+#### Placeholder Cleanup Rules
+
+After filling, clean up residual placeholder artifacts:
+
+- Remove unfilled placeholder markers (`___`, `XXX`, `【待填写】`) — replace with empty string
+- Remove instruction text (e.g., `（此处填写公司名称）`) from the final output
+- Preserve intentional blanks in unfilled optional fields — leave as empty string, do not delete the paragraph
+
+#### Multi-File Form Fill Workflow
+
+When multiple documents need to be filled from the same data source:
+
+1. Parse all template files first to build a unified field map
+2. Resolve data mappings once (user data → placeholder names)
+3. Fill each file sequentially, reusing the same replacement map
+4. Validate all files in a single Phase 5 batch
+
+#### Forbidden in Form Fill Mode
+
+- `paragraph.text = "new text"` — destroys all run-level formatting
+- `cell.text = "new text"` — same issue for table cells
+- `paragraph.clear()` then `paragraph.add_run()` — loses original font/size/color settings
+- Deleting or reordering paragraphs — may break document structure
+- `doc.save()` to the same path without backup — always write to a new output path
+
 ---
 
 ## Phase 1: Requirements
@@ -531,7 +601,7 @@ This produces `page-01.png`, `page-02.png`, etc. — one PNG per slide/page. Wor
 
 ### Step 3: Visual inspection
 
-Examine each rendered PNG for these 5 defects:
+Examine each rendered PNG for these defects:
 
 | Defect | What to look for |
 |--------|------------------|
@@ -540,6 +610,9 @@ Examine each rendered PNG for these 5 defects:
 | **Low contrast** | Light text on light background or dark on dark |
 | **Excessive whitespace** | Large empty areas that waste slide/page real estate |
 | **Chart/table truncation** | Data labels, axis labels, or table rows cut off |
+| **Font substitution** | Filled text visually differs from template text (wrong font family, weight, or size) — indicates formatting was lost during write |
+| **Line spacing overflow** | Filled content pushes lines beyond the cell/frame boundary — reduce font size or truncate |
+| **Residual placeholders** | Unfilled `___`, `XXX`, or `【】` markers still visible in the rendered output |
 
 ### Step 4: Self-correct (max 3 rounds)
 

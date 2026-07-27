@@ -214,11 +214,15 @@ def chrome_e2e_pytest_safe_timeout_sec(
 
 
 def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
-    """Lane floor with marker-aware overrides under absolute 600s policy."""
+    """Lane floor with marker-aware overrides; SHPOIB admission runs inside pytest fixture."""
     if CHROME_E2E_DESKTOP_MARKER in joined_argv:
         return CHROME_E2E_DESKTOP_TIMEOUT_SECONDS
     floor = chrome_e2e_pytest_timeout_for_lane(lane)
-    return min(floor, LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
+    body_cap = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+    shpoib = os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
+    if shpoib and lane.strip().upper() == "LIVE_AGENT":
+        body_cap = E2E_ADMISSION_WALL_CLOCK_SEC + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+    return min(floor, body_cap)
 
 
 def chrome_e2e_skips_shared_approval_preflight(*, lane: str, shpoib: bool) -> bool:

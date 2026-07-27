@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TypedDict, cast
 from uuid import uuid4
 
@@ -157,7 +157,7 @@ class ChatRepository:
         stmt = stmt.values(
             compacted_summary=new_summary,
             compacted_before_id=new_before_id,
-            compacted_at=datetime.utcnow(),
+            compacted_at=datetime.now(UTC),
         )
 
         result = cast(CursorResult[tuple[object, ...]], await db.execute(stmt))

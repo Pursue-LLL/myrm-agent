@@ -72,11 +72,14 @@ def _send_and_collect_gap_js(prompt: str) -> str:
       if (typeof bridge.sendChatMessage !== 'function') {{
         return {{ ok: false, err: 'no-sendChatMessage' }};
       }}
-      const sendResult = await bridge.sendChatMessage({prompt_json}, {{
+      const gapPattern = new RegExp({gap_pattern_json}, 'i');
+      const sendPromise = bridge.sendChatMessage({prompt_json}, {{
         baselineUserCount: baseline,
         preserveActionMode: true,
-      }});
-      const gapPattern = new RegExp({gap_pattern_json}, 'i');
+      }}).then(
+        (value) => value,
+        (error) => ({{ ok: false, err: String(error) }}),
+      );
       const deadline = Date.now() + 90000;
       let bestMigrationToast = 0;
       let bestSse = [];
@@ -94,6 +97,10 @@ def _send_and_collect_gap_js(prompt: str) -> str:
           bestSse = sse;
         }}
         if (bestMigrationToast >= 1 || bestSse.includes('capability_gap')) {{
+          const sendResult = await Promise.race([
+            sendPromise,
+            new Promise((resolve) => setTimeout(() => resolve({{ ok: true, pending: true }}), 0)),
+          ]);
           return {{
             ok: true,
             sendResult,
@@ -103,6 +110,10 @@ def _send_and_collect_gap_js(prompt: str) -> str:
         }}
         await new Promise((resolve) => setTimeout(resolve, 400));
       }}
+      const sendResult = await Promise.race([
+        sendPromise,
+        new Promise((resolve) => setTimeout(() => resolve({{ ok: false, err: 'send-timeout' }}), 0)),
+      ]);
       return {{
         ok: false,
         err: 'migration-gap-timeout',
