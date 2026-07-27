@@ -73,6 +73,8 @@ def _resume_via_api(
     )
     collected_text = ""
     found_done = False
+    re_interrupted = False
+    resume_msg_id: str | None = None
     line_count = 0
     try:
         resp = urllib.request.urlopen(req, timeout=timeout_sec)  # noqa: S310
@@ -82,7 +84,7 @@ def _resume_via_api(
         for raw_line in resp:
             line = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
             line_count += 1
-            if line_count <= 30 or line.startswith("data: "):
+            if line_count <= 50 or line.startswith("data: "):
                 print(f"E2E_RESUME_SSE: L{line_count}: {line[:200]}", flush=True)
             if not line.startswith("data: "):
                 continue
@@ -103,14 +105,35 @@ def _resume_via_api(
             elif event_type == "message_end":
                 print(f"E2E_RESUME_SSE: message_end after {line_count} lines", flush=True)
                 break
+            elif event_type in ("approval_required", "browser_takeover_requested"):
+                re_interrupted = True
+                nested = event.get("data", {})
+                if isinstance(nested, dict):
+                    resume_msg_id = nested.get("messageId") or nested.get("data", {}).get("messageId")
+                print(
+                    f"E2E_RESUME_SSE: agent re-interrupted ({event_type}), "
+                    f"resume_msg_id={resume_msg_id}",
+                    flush=True,
+                )
+                break
             if not found_done and _SSE_DONE_RE.search(collected_text):
                 found_done = True
                 print(f"E2E_RESUME_SSE: DONE detected at L{line_count}", flush=True)
         resp.close()
-        print(f"E2E_RESUME_SSE: stream ended, lines={line_count} text_len={len(collected_text)}", flush=True)
+        print(
+            f"E2E_RESUME_SSE: stream ended, lines={line_count} "
+            f"text_len={len(collected_text)} re_interrupted={re_interrupted}",
+            flush=True,
+        )
         if not found_done:
             found_done = bool(_SSE_DONE_RE.search(collected_text))
-        return {"ok": True, "done": found_done, "text_sample": collected_text[:200]}
+        return {
+            "ok": True,
+            "done": found_done,
+            "re_interrupted": re_interrupted,
+            "resume_msg_id": resume_msg_id,
+            "text_sample": collected_text[:200],
+        }
     except urllib.error.HTTPError as exc:
         body = exc.read(512).decode(errors="replace")
         print(f"E2E_RESUME_API: HTTP {exc.code} — {body}", flush=True)
@@ -124,12 +147,14 @@ def _resume_via_api(
 E2E_PROMPT = (
     "我在验证浏览器人工接管功能。请调用 browser_ask_human_tool 一次，"
     "reason 为「请在 Chrome 完成操作后，在聊天横幅点击完成」。"
-    "完成后只回复 DONE。不要使用 browser_navigate_tool 或其他工具。"
+    "当工具返回后，只回复纯文本 DONE，不要再调用任何工具，"
+    "不要 take_snapshot，不要 screenshot，不要 browser_navigate，不要再次调用 browser_ask_human_tool。"
+    "只回复 DONE 一个词。"
 )
 
 E2E_NUDGE_PROMPT = (
     "请现在调用 browser_ask_human_tool，reason 为「请在 Chrome 完成操作后，在聊天横幅点击完成」。"
-    "我完成后请回复 DONE。"
+    "当工具返回后，只回复纯文本 DONE，不要再调用任何工具。只回复 DONE 一个词。"
 )
 
 _BROWSER_TOOL_PROGRESS_JS = (
@@ -737,28 +762,47 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         assert resume_chat_id, f"No chatId for resume: {bridge_result}"
         assert resume_msg_id, f"No messageId for resume: {bridge_result}"
 
-        _p(f"resume via API (SSE stream): chatId={resume_chat_id} msgId={resume_msg_id}")
-        resume_result = await asyncio.to_thread(
-            _resume_via_api,
-            api_base=api_base,
-            chat_id=resume_chat_id,
-            message_id=resume_msg_id,
-            timeout_sec=180.0,
-        )
-        _p(f"resume API result: {resume_result}")
-        assert isinstance(resume_result, dict) and resume_result.get("ok"), (
-            f"Backend resume API call failed: {resume_result}"
-        )
-        done = resume_result.get("done", False)
-        if not done:
-            _p("SSE stream ended without DONE — fallback API poll 60s")
+        MAX_RESUME_ROUNDS = 3
+        current_msg_id = resume_msg_id
+        done = False
+        for resume_round in range(1, MAX_RESUME_ROUNDS + 1):
+            _p(
+                f"resume via API round {resume_round}/{MAX_RESUME_ROUNDS}: "
+                f"chatId={resume_chat_id} msgId={current_msg_id}"
+            )
+            heartbeat_e2e_lease()
+            resume_result = await asyncio.to_thread(
+                _resume_via_api,
+                api_base=api_base,
+                chat_id=resume_chat_id,
+                message_id=current_msg_id,
+                timeout_sec=180.0,
+            )
+            _p(f"resume API result round {resume_round}: {resume_result}")
+            assert isinstance(resume_result, dict) and resume_result.get("ok"), (
+                f"Backend resume API call failed round {resume_round}: {resume_result}"
+            )
+            done = resume_result.get("done", False)
+            if done:
+                break
+            if resume_result.get("re_interrupted"):
+                new_msg_id = resume_result.get("resume_msg_id")
+                if new_msg_id:
+                    current_msg_id = new_msg_id
+                _p(
+                    f"agent re-interrupted (round {resume_round}), "
+                    f"next msgId={current_msg_id} — sending resume again"
+                )
+                continue
+            _p(f"SSE ended without DONE or re-interrupt (round {resume_round}) — fallback API poll")
             done = await _wait_api_done(
                 resume_chat_id, api_url=api_base, timeout_sec=60.0
             )
             _p(f"fallback api_done={done}")
+            break
         assert done, (
-            f"Agent did not reply DONE for chat {resume_chat_id}; "
-            f"resume_result={resume_result}"
+            f"Agent did not reply DONE after {MAX_RESUME_ROUNDS} resume rounds "
+            f"for chat {resume_chat_id}; last resume_result={resume_result}"
         )
 
         chat_id = resume_chat_id

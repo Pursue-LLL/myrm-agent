@@ -12,7 +12,7 @@ classifiers = [
 requires-python = ">=3.13,<3.14"  # Limit to 3.13 to avoid apscheduler dependency resolution issues on 3.14+
 dependencies = [
   # --- Web 框架 ---
-  "fastapi>=0.139.2",         # Web API 框架 (54 文件)
+  "fastapi>=0.140.0",         # Web API 框架 (54 文件)
   "uvicorn>=0.51.0",          # ASGI 服务器，本地单进程模式 (run.py)
   # --- 数据与配置 ---
   "pydantic>=2.13.4",          # 数据模型/Schema 校验 (48 文件)
@@ -84,7 +84,7 @@ voice-tts = [
 # 本地精简模式 (uv sync 不带 --all-extras) 不引入，保持零开销启动。配合 matplotlibrc 的 CJK 默认字体。
 data-viz = [
   "matplotlib>=3.11.1", # 数据图表渲染（只读 rootfs 下经 MATPLOTLIBRC 加载 CJK 默认字体）
-  "pandas>=2.2.3,<3.0",     # 表格/时间序列（2.x 稳定线，避开 yanked 的 3.0.4）
+  "pandas>=3.0.5",     # 表格/时间序列（2.x 稳定线，避开 yanked 的 3.0.4）
 ]
 
 [tool.uv]
@@ -96,7 +96,7 @@ environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"
 override-dependencies = [
   "click>=8.4.2",
   "patchright>=1.61.2",
-  "openai>=2.46.0",
+  "openai>=2.48.0",
   "aiohttp>=3.13.5",
   "opentelemetry-semantic-conventions>=0.61b0",
   "websockets>=16.0",

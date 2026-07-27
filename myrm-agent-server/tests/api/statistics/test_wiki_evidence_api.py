@@ -191,3 +191,31 @@ def test_wiki_evidence_emits_low_deep_verification_alert(client: TestClient) -> 
     after_keys = _list_wiki_alert_keys(client)
     assert len(after_keys) >= len(before_keys) + 1
     assert after_keys[0] == "wiki_evidence_low_deep_verification"
+
+
+def test_wiki_evidence_skips_alert_evaluation_for_non_trigger_event(client: TestClient) -> None:
+    seed_resp = client.post(
+        "/api/v1/statistics/wiki-evidence/events",
+        json={
+            "event_type": "dropped_report",
+            "surface": "chat",
+            "context_key": "chat:seed",
+            "count": wiki_evidence_module._ALERT_DROPPED_EVENT_THRESHOLD,
+        },
+        headers={"Authorization": "Bearer local"},
+    )
+    assert seed_resp.status_code == 200
+    assert int(seed_resp.json()["data"]["alerts_emitted"]) >= 1
+
+    non_trigger_resp = client.post(
+        "/api/v1/statistics/wiki-evidence/events",
+        json={
+            "event_type": "query_submitted",
+            "surface": "chat",
+            "context_key": "chat:seed",
+            "after_evidence": True,
+        },
+        headers={"Authorization": "Bearer local"},
+    )
+    assert non_trigger_resp.status_code == 200
+    assert int(non_trigger_resp.json()["data"]["alerts_emitted"]) == 0
