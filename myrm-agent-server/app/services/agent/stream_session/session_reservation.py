@@ -1,4 +1,14 @@
-"""Chat session gateway reservation for agent-stream orchestration."""
+"""Chat session gateway reservation for agent-stream orchestration.
+
+[INPUT]
+- app.services.agent.gateway::get_agent_gateway (POS: session reserve/release lifecycle)
+
+[OUTPUT]
+- ChatSessionReservation: reserve before persist, transfer to stream, release on early exit
+
+[POS]
+Orchestrator helper for idempotent agent-stream session locking without leaking gateway state.
+"""
 
 from __future__ import annotations
 

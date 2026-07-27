@@ -1,4 +1,18 @@
-"""Local-only stream retry busy Chrome E2E seed routes."""
+"""Local-only stream retry busy Chrome E2E seed routes.
+
+[INPUT]
+- app.config.deploy_mode::is_local_mode (POS: restrict seed endpoints to local/tauri)
+- app.services.agent.agent_service::AgentService (POS: pick agent for E2E seed chat)
+- app.services.agent.gateway::get_agent_gateway (POS: reserve/release session lock)
+- app.services.chat.chat_service::ChatService (POS: chat + user message persistence)
+
+[OUTPUT]
+- seed_stream_retry_busy_fixture: create chat, hold gateway session until release
+- release_stream_retry_busy_fixture: release held session for reconnect contract E2E
+
+[POS]
+Chats API local fixture for stream retry / AgentBusy Chrome E2E without live LLM.
+"""
 
 from __future__ import annotations
 
