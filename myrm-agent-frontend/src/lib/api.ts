@@ -318,6 +318,16 @@ async function assertLocalBackendReadyForRequest(): Promise<void> {
   if (typeof window === 'undefined' || !isLocalMode()) {
     return;
   }
+  const e2eBase = resolveE2eApiBase();
+  if (e2eBase) {
+    const runtimeReady = (
+      window as Window & { __MYRM_E2E_RUNTIME_READY__?: Promise<unknown> }
+    ).__MYRM_E2E_RUNTIME_READY__;
+    if (runtimeReady) {
+      await runtimeReady;
+    }
+    return;
+  }
   const ready = await ensureLocalBackendReady();
   if (!ready) {
     throw createBackendUnreachableError(await resolveBackendUnreachableMessage());

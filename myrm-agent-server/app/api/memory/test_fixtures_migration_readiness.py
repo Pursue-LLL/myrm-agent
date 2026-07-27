@@ -19,15 +19,59 @@ from fastapi import APIRouter, HTTPException
 from app.config.deploy_mode import is_local_mode
 from app.platform_utils import get_session_factory
 from app.services.agent.agent_service import AgentService
-from app.services.memory.import_sessions import ImportReadinessRecheckFacts, MemoryImportSessionService
+from app.services.memory.import_sessions import (
+    ImportReadinessRecheckFacts,
+    MemoryImportSessionService,
+)
 
 router = APIRouter()
 
 _VARIANTS = frozenset({"mcp_warning", "provider_critical"})
 
 
+class _SeedFixtureMemoryManager:
+    """Minimal in-process manager for E2E seed — no embedding/Qdrant required."""
+
+    def __init__(self) -> None:
+        self._memory_ids_by_type: dict[str, list[str]] = {}
+
+    async def import_memories(
+        self,
+        data: dict[str, list[dict[str, object]]],
+        *,
+        skip_duplicates: bool = True,
+    ) -> dict[str, int]:
+        _ = skip_duplicates
+        counts: dict[str, int] = {}
+        for memory_type, entries in data.items():
+            ids = [f"{memory_type}-{index}" for index, _entry in enumerate(entries)]
+            self._memory_ids_by_type[memory_type] = ids
+            counts[memory_type] = len(ids)
+        return counts
+
+    async def list_memory_refs_by_metadata(
+        self,
+        metadata_key: str,
+        metadata_value: str,
+    ) -> dict[str, list[dict[str, str]]]:
+        _ = metadata_key
+        return {
+            memory_type: [
+                {
+                    "id": memory_id,
+                    "import_item_id": f"{metadata_value}:{memory_type}:{index}",
+                }
+                for index, memory_id in enumerate(memory_ids)
+            ]
+            for memory_type, memory_ids in self._memory_ids_by_type.items()
+            if memory_ids
+        }
+
+
 @router.post("/test/seed-migration-readiness-fixture", include_in_schema=False)
-async def seed_migration_readiness_fixture(variant: str = "mcp_warning") -> dict[str, str]:
+async def seed_migration_readiness_fixture(
+    variant: str = "mcp_warning",
+) -> dict[str, str]:
     """Local dev/test only: seed post-import readiness batch for Chrome E2E."""
 
     if not is_local_mode():
@@ -37,17 +81,18 @@ async def seed_migration_readiness_fixture(variant: str = "mcp_warning") -> dict
     if normalized not in _VARIANTS:
         raise HTTPException(status_code=400, detail=f"Unsupported variant: {variant}")
 
-    from app.services.memory.manager_deps import get_memory_manager
-
     session_factory = get_session_factory()
     async with session_factory() as db:
         agents, _total = await AgentService.get_agent_list(page=1, page_size=1)
         if not agents:
-            raise HTTPException(status_code=503, detail="No agent available for migration readiness seed.")
+            raise HTTPException(
+                status_code=503,
+                detail="No agent available for migration readiness seed.",
+            )
         target_agent_id = str(agents[0].id)
 
         service = MemoryImportSessionService(db)
-        manager = get_memory_manager()
+        manager = _SeedFixtureMemoryManager()
         payload = {
             "data": {
                 "semantic": [
@@ -119,5 +164,7 @@ async def seed_migration_readiness_fixture(variant: str = "mcp_warning") -> dict
         "readiness_status": readiness_status,
         "variant": normalized,
         "chat_ui_path": f"/?agentId={target_agent_id}",
-        "settings_path": "/settings/mcp" if normalized == "mcp_warning" else "/settings/models",
+        "settings_path": (
+            "/settings/mcp" if normalized == "mcp_warning" else "/settings/models"
+        ),
     }

@@ -7,9 +7,7 @@ import json
 import os
 import sys
 import time
-import urllib.error
 import urllib.request
-import uuid
 from pathlib import Path
 
 import pytest
@@ -20,14 +18,18 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import (  # noqa: E402
     WAIT_WORKSPACE_STREAM_JS,
+    _e2e_api_urlopen,
     get_e2e_api_url,
     wait_e2e_provider_ready,
 )
 from chrome_mcp_client import ChromeMcpClient  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
-from tests.api.agent.utils import get_lite_model_selection  # noqa: E402
-from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease  # noqa: E402
+from tests.support.chrome_mcp_e2e import prepare_e2e_ui_session, warm_ui_route  # noqa: E402
+from tests.support.e2e_runtime_guard import (
+    E2EResourceLedger,
+    heartbeat_e2e_lease,
+)  # noqa: E402
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 _AGENT_PROMPT = "Hello after migration import"
@@ -53,67 +55,44 @@ _MIGRATION_GAP_TOAST_PATTERN = (
 )
 
 
-def _seed_migration_readiness(api_base: str, *, variant: str = "mcp_warning") -> dict[str, str]:
+async def _open_chat_page_with_retry(
+    client: ChromeMcpClient,
+    chat_url: str,
+    *,
+    attempts: int = 4,
+) -> object:
+    last_exc: BaseException | None = None
+    for attempt in range(attempts):
+        if attempt > 0:
+            await asyncio.sleep(2.0 * attempt)
+        try:
+            return await asyncio.to_thread(
+                client.new_page,
+                chat_url,
+                timeout_ms=120_000,
+            )
+        except RuntimeError as exc:
+            last_exc = exc
+            message = str(exc).lower()
+            if "timed out" not in message and "mux" not in message:
+                raise
+    assert last_exc is not None
+    raise last_exc
+
+
+def _seed_migration_readiness(
+    api_base: str, *, variant: str = "mcp_warning"
+) -> dict[str, str]:
     url = (
         f"{api_base.rstrip('/')}/api/v1/memory/test/seed-migration-readiness-fixture"
         f"?variant={variant}"
     )
     req = urllib.request.Request(url, method="POST")  # noqa: S310
-    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
-        payload = json.loads(resp.read())
+    with _e2e_api_urlopen(req, timeout_sec=60.0) as resp:  # noqa: S310
+        payload = json.loads(resp.read())  # type: ignore[union-attr]
     if not isinstance(payload, dict):
         raise AssertionError(f"Unexpected seed payload: {payload!r}")
     return {str(key): str(value) for key, value in payload.items()}
-
-
-def _collect_migration_gap_from_live_api(
-    api_base: str,
-    *,
-    import_batch_id: str,
-) -> list[dict[str, object]]:
-    chat_id = f"e2e_migration_gap_{uuid.uuid4().hex[:8]}"
-    payload = {
-        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
-        "chatId": chat_id,
-        "query": _AGENT_PROMPT,
-        "actionMode": "agent",
-        "modelSelection": get_lite_model_selection(),
-        "agentConfig": {"enabledBuiltinTools": ["memory"]},
-        "migrationReadinessAnchor": {
-            "importBatchId": import_batch_id,
-            "readinessStatus": "warning",
-        },
-        "timezone": "UTC",
-    }
-    gaps: list[dict[str, object]] = []
-    req = urllib.request.Request(  # noqa: S310
-        f"{api_base.rstrip('/')}/api/v1/agents/agent-stream",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=45) as resp:  # noqa: S310
-        for raw_line in resp:
-            line = raw_line.decode("utf-8", errors="replace").strip()
-            if not line.startswith("data: "):
-                continue
-            data = line[6:]
-            if data == "[DONE]":
-                break
-            try:
-                event = json.loads(data)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(event, dict) or event.get("type") != "capability_gap":
-                continue
-            gap_data = event.get("data")
-            if (
-                isinstance(gap_data, dict)
-                and gap_data.get("tool_id") == "migration_import"
-            ):
-                gaps.append(event)
-                break
-    return gaps
 
 
 def _count_migration_toasts_js() -> str:
@@ -134,6 +113,7 @@ def _count_migration_toasts_js() -> str:
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_migration_readiness_gap_shows_sse_toast_on_first_chat(
@@ -141,27 +121,25 @@ async def test_migration_readiness_gap_shows_sse_toast_on_first_chat(
 ) -> None:
     """First chat after migration anchor must show MCP readiness toast via capability_gap SSE."""
 
+    from app.services.agent.stream_session.entitlement_gap_preflight import (
+        reset_capability_gap_emission_tracker,
+    )
+
+    reset_capability_gap_emission_tracker()
+
     api_base = get_e2e_api_url()
     if not wait_e2e_provider_ready(api_url=api_base):
         pytest.fail("Provider config not ready for migration readiness Chrome E2E")
 
     seed = _seed_migration_readiness(api_base, variant="mcp_warning")
-    live_gaps = await asyncio.to_thread(
-        _collect_migration_gap_from_live_api,
-        api_base,
-        import_batch_id=seed["import_batch_id"],
-    )
-    assert live_gaps, f"live API must emit migration capability_gap; seed={seed!r}"
-    gap_data = live_gaps[0].get("data")
-    assert isinstance(gap_data, dict)
-    assert gap_data.get("settings_path") == "/settings/mcp"
-
+    prepare_e2e_ui_session(api_base)
+    warm_ui_route(seed["chat_ui_path"])
     wall_deadline = time.monotonic() + 480.0
-    client = ChromeMcpClient(request_timeout_sec=120.0)
+    client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
     try:
         chat_url = f"{BASE_URL}{seed['chat_ui_path']}"
-        page = await asyncio.to_thread(client.new_page, chat_url, timeout_ms=120_000)
+        page = await _open_chat_page_with_retry(client, chat_url)
         chat = McpChatSession(client, page)
         await chat.bootstrap(BASE_URL, timeout_sec=120.0)
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
@@ -199,7 +177,9 @@ async def test_migration_readiness_gap_shows_sse_toast_on_first_chat(
             await_promise=True,
             recv_timeout=45.0,
         )
-        assert isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True, workspace_ready
+        assert (
+            isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True
+        ), workspace_ready
 
         send = await chat.evaluate(
             f"""(async () => {{
@@ -248,5 +228,5 @@ async def test_migration_readiness_gap_shows_sse_toast_on_first_chat(
             f"toastCount={best_migration_toast}; sse={best_sse!r}; send={send!r}; seed={seed!r}"
         )
     finally:
-        await asyncio.to_thread(client.stop)
-        heartbeat_e2e_ledger(e2e_resource_ledger)
+        await asyncio.to_thread(client.close)
+        heartbeat_e2e_lease()

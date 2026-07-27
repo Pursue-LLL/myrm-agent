@@ -121,10 +121,10 @@ def _stop_on_migration_readiness_gap(
     if not isinstance(payload_data, dict):
         return False
     reason = payload_data.get("reason")
-    return (
-        payload_data.get("tool_id") == "migration_import"
-        and reason in {"migration_readiness_warning", "migration_readiness_critical"}
-    )
+    return payload_data.get("tool_id") == "migration_import" and reason in {
+        "migration_readiness_warning",
+        "migration_readiness_critical",
+    }
 
 
 _AGENT_STREAM_TEST_TIMEOUT = pytest.mark.timeout(420)
@@ -663,7 +663,10 @@ def test_agent_stream_emits_migration_readiness_gap_sse(client: TestClient) -> N
     from app.services.agent.stream_session.entitlement_gap_preflight import (
         reset_capability_gap_emission_tracker,
     )
-    from app.services.memory.import_sessions import ImportReadinessRecheckFacts, MemoryImportSessionService
+    from app.services.memory.import_sessions import (
+        ImportReadinessRecheckFacts,
+        MemoryImportSessionService,
+    )
     from tests.services.memory.test_import_sessions import _FakeMemoryManager
 
     reset_capability_gap_emission_tracker()
@@ -676,15 +679,22 @@ def test_agent_stream_emits_migration_readiness_gap_sse(client: TestClient) -> N
             payload = {
                 "data": {
                     "semantic": [
-                        {"content": "Migration readiness integration seed.", "metadata": {}},
+                        {
+                            "content": "Migration readiness integration seed.",
+                            "metadata": {},
+                        },
                     ]
                 }
             }
-            dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(
-                payload,
-                "native_json",
+            dry_run_id, _preview, _payload_hash, _expires_at = (
+                await service.create_dry_run(
+                    payload,
+                    "native_json",
+                )
             )
-            confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+            confirm = await service.confirm_import(
+                dry_run_id=dry_run_id, manager=manager
+            )
             await service.save_post_import_diagnostic(
                 import_batch_id=confirm.import_batch_id,
                 diagnostic_run_id="diag-ready",
@@ -745,7 +755,9 @@ def test_agent_stream_emits_migration_readiness_gap_sse(client: TestClient) -> N
         and event["data"].get("tool_id") == "migration_import"
         and event["data"].get("reason") == "migration_readiness_warning"
     ]
-    assert migration_gaps, "expected stream preflight capability_gap SSE for migration MCP warning"
+    assert (
+        migration_gaps
+    ), "expected stream preflight capability_gap SSE for migration MCP warning"
     payload_data = migration_gaps[0]["data"]
     assert isinstance(payload_data, dict)
     assert payload_data.get("settings_path") == "/settings/mcp"

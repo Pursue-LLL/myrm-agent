@@ -1,7 +1,12 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext", "WebWorker"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext",
+      "WebWorker"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -13,16 +18,25 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "types": ["node", "vitest/globals"],
+    "types": [
+      "node",
+      "vitest/globals"
+    ],
     "plugins": [
       {
         "name": "next"
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "#locales/*": ["./locales/*"],
-      "@shared/*": ["../shared/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "#locales/*": [
+        "./locales/*"
+      ],
+      "@shared/*": [
+        "../shared/*"
+      ]
     }
   },
   "include": [
@@ -35,7 +49,21 @@
     "*.ts",
     "*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".next-isolated-wfetch-e2e/types/**/*.ts",
+    ".next-isolated-wfetch-e2e/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_file_write_empty_mutation_banner_su-7080c431-45323-52f5214a/types/**/*.ts",
+    ".next-isolated-chrome-test_file_write_empty_mutation_banner_su-7080c431-45323-52f5214a/dev/types/**/*.ts",
+    ".next-isolated-e2e-parent-60956-61005-fabde7e8/types/**/*.ts",
+    ".next-isolated-e2e-parent-60956-61005-fabde7e8/dev/types/**/*.ts",
+    ".next-isolated-e2e-parent-60956-76557-d69f6e2c/types/**/*.ts",
+    ".next-isolated-e2e-parent-60956-76557-d69f6e2c/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", ".next", ".next-isolated-*", "dist", "build"]
+  "exclude": [
+    "node_modules",
+    ".next",
+    ".next-isolated-*",
+    "dist",
+    "build"
+  ]
 }

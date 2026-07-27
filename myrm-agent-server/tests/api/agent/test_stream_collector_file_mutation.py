@@ -41,7 +41,9 @@ def test_file_mutation_failed_ignores_invalid_payload() -> None:
         {
             "type": "file_mutation_failed",
             "data": {
-                "files": [{"path": "", "tool": "file_write_tool", "error_preview": "x"}],
+                "files": [
+                    {"path": "", "tool": "file_write_tool", "error_preview": "x"}
+                ],
             },
         }
     )

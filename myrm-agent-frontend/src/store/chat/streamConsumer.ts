@@ -18,13 +18,12 @@ function shouldUseMultiplexedAgentStream(): boolean {
   if (typeof window === 'undefined') {
     return true;
   }
-  // Private-backend Chrome E2E tees agent-stream chunks on /workspace/stream even when
-  // the HTTP response is direct SSE (SHPOIB prefer_direct_agent_stream).
-  if (resolveE2eApiBase()) {
-    return true;
-  }
   if (window.__MYRM_E2E_DIRECT_SSE__) {
     return false;
+  }
+  // Private-backend Chrome E2E tees agent-stream chunks on /workspace/stream when multiplex is active.
+  if (resolveE2eApiBase()) {
+    return true;
   }
   return true;
 }

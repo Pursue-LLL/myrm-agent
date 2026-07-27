@@ -138,6 +138,16 @@ async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> No
                         "First agent-stream never registered an active chat session"
                     )
 
+                persist_deadline = asyncio.get_running_loop().time() + 30.0
+                while asyncio.get_running_loop().time() < persist_deadline:
+                    if await _list_user_messages(chat_id):
+                        break
+                    await asyncio.sleep(0.05)
+                else:
+                    if not first_task.done():
+                        first_task.cancel()
+                    pytest.fail("First agent-stream never persisted the user message")
+
                 retry_events = await _collect_agent_stream_events(client, payload)
 
                 user_messages = await _list_user_messages(chat_id)

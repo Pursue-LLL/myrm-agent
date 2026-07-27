@@ -22,14 +22,14 @@ def test_seed_migration_readiness_fixture_mcp_warning(client: TestClient) -> Non
     fake_agent.id = "agent-e2e-migration"
 
     with (
-        patch("app.api.memory.test_fixtures_migration_readiness.is_local_mode", return_value=True),
+        patch(
+            "app.api.memory.test_fixtures_migration_readiness.is_local_mode",
+            return_value=True,
+        ),
         patch(
             "app.api.memory.test_fixtures_migration_readiness.AgentService.get_agent_list",
             new_callable=AsyncMock,
             return_value=([fake_agent], 1),
-        ),
-        patch(
-            "app.services.memory.manager_deps.get_memory_manager",
         ),
         patch(
             "app.api.memory.test_fixtures_migration_readiness.get_session_factory",
@@ -39,7 +39,9 @@ def test_seed_migration_readiness_fixture_mcp_warning(client: TestClient) -> Non
         ) as mock_service_cls,
     ):
         mock_service = mock_service_cls.return_value
-        mock_service.create_dry_run = AsyncMock(return_value=("dry-1", {}, "hash", "expires"))
+        mock_service.create_dry_run = AsyncMock(
+            return_value=("dry-1", {}, "hash", "expires")
+        )
         confirm = MagicMock()
         confirm.import_batch_id = "memory-import-batch:e2e"
         mock_service.confirm_import = AsyncMock(return_value=confirm)
@@ -63,7 +65,12 @@ def test_seed_migration_readiness_fixture_mcp_warning(client: TestClient) -> Non
     assert body["chat_ui_path"] == "/?agentId=agent-e2e-migration"
 
 
-def test_seed_migration_readiness_fixture_hidden_outside_local_mode(client: TestClient) -> None:
-    with patch("app.api.memory.test_fixtures_migration_readiness.is_local_mode", return_value=False):
+def test_seed_migration_readiness_fixture_hidden_outside_local_mode(
+    client: TestClient,
+) -> None:
+    with patch(
+        "app.api.memory.test_fixtures_migration_readiness.is_local_mode",
+        return_value=False,
+    ):
         resp = client.post("/api/v1/memory/test/seed-migration-readiness-fixture")
     assert resp.status_code == 404

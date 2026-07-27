@@ -836,7 +836,9 @@ class CdpChatTurn(CdpChatSubmit):
                     await_promise=True,
                     recv_timeout=35.0,
                 )
-                if not isinstance(workspace_ready, dict) or not workspace_ready.get("ok"):
+                if not isinstance(workspace_ready, dict) or not workspace_ready.get(
+                    "ok"
+                ):
                     raise RuntimeError(
                         f"SendTurnContract workspace stream not ready: {workspace_ready!r}"
                     )

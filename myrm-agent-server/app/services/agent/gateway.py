@@ -83,6 +83,7 @@ class ActiveSessionInfo:
     agent: "weakref.ReferenceType[BaseAgent] | None" = None
     current_message_id: str | None = None
     agent_id: str | None = None
+    reserved_only: bool = False
 
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {
@@ -378,6 +379,38 @@ class AgentGateway:
     # 长时目标（代码重构、大规模分析）禁用常规超时所用的上限
     GOAL_ACTIVE_TIMEOUT_SECONDS = 3600.0
 
+    def reserve_session(
+        self,
+        session_id: str,
+        *,
+        active_message_id: str | None = None,
+        agent_type: str = "general",
+        agent_id: str | None = None,
+    ) -> None:
+        """Claim a chat session before persist/stream setup.
+
+        Raises:
+            AgentDrainingError: Gateway is draining.
+            AgentBusyError: Session is already active.
+        """
+        if self._draining:
+            raise AgentDrainingError("Gateway is draining, not accepting new executions")
+        if session_id in self._active_sessions:
+            raise AgentBusyError(f"Session {session_id} is already active")
+        self._active_sessions.add(session_id)
+        self._session_info[session_id] = ActiveSessionInfo(
+            chat_id=session_id,
+            agent_type=agent_type,
+            current_message_id=active_message_id,
+            agent_id=agent_id,
+            reserved_only=True,
+        )
+
+    def release_session(self, session_id: str) -> None:
+        """Release a pre-reserved session that never reached execute_stream."""
+        self._active_sessions.discard(session_id)
+        self._session_info.pop(session_id, None)
+
     def _resolve_effective_timeout(
         self, *, goal_active: bool, fission_active: bool
     ) -> float:
@@ -433,15 +466,28 @@ class AgentGateway:
 
         if session_id:
             if session_id in self._active_sessions:
-                raise AgentBusyError(f"Session {session_id} is already active")
-            self._active_sessions.add(session_id)
-            self._session_info[session_id] = ActiveSessionInfo(
-                chat_id=session_id,
-                agent_type=agent_type,
-                agent=weakref.ref(agent_instance) if agent_instance else None,
-                current_message_id=active_message_id,
-                agent_id=agent_id,
-            )
+                existing = self._session_info.get(session_id)
+                if existing is None or not existing.reserved_only:
+                    raise AgentBusyError(f"Session {session_id} is already active")
+                self._session_info[session_id] = ActiveSessionInfo(
+                    chat_id=session_id,
+                    agent_type=agent_type,
+                    started_at=existing.started_at,
+                    agent=weakref.ref(agent_instance) if agent_instance else None,
+                    current_message_id=active_message_id or existing.current_message_id,
+                    agent_id=agent_id or existing.agent_id,
+                    reserved_only=False,
+                )
+            else:
+                self._active_sessions.add(session_id)
+                self._session_info[session_id] = ActiveSessionInfo(
+                    chat_id=session_id,
+                    agent_type=agent_type,
+                    agent=weakref.ref(agent_instance) if agent_instance else None,
+                    current_message_id=active_message_id,
+                    agent_id=agent_id,
+                    reserved_only=False,
+                )
 
         user_sem = self._get_user_sem("sandbox")
 

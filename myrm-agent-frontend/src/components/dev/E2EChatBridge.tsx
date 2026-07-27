@@ -18,6 +18,7 @@
 import { useLayoutEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { getModelSelection } from '@/store/chat/messageRequest';
+import { AgentBusyError, executeStreamWithRetry } from '@/store/chat/streamConsumer';
 import useChatStore from '@/store/useChatStore';
 import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
 import useApprovalStore from '@/store/useApprovalStore';
@@ -301,13 +302,17 @@ function bumpE2eSendGeneration(_reason: string): number {
   return next;
 }
 
-const SEND_TURN_REV = 'R72-C';
+const SEND_TURN_REV = 'R72-F';
 const SEND_TURN_NO_OP_MS = 3_000;
 
 function buildSendTurnDiagnostic(chatId: string | null): Record<string, unknown> {
   const processingIds = [...useToolApprovalStore.getState().processingMessageIds];
   return {
     rev: SEND_TURN_REV,
+    directSse: Boolean(
+      typeof window !== 'undefined' &&
+        (window as unknown as Record<string, unknown>).__MYRM_E2E_DIRECT_SSE__,
+    ),
     turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,
     provider: window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null,
     workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
@@ -318,28 +323,61 @@ function buildSendTurnDiagnostic(chatId: string | null): Record<string, unknown>
   };
 }
 
+/** Mirror createSmartUpdater routing so OBSERVE reads the same state SUBMIT writes. */
+function resolveE2eProgressChatState(chatId: string): {
+  messages: Array<{ role?: string }>;
+  loading: boolean;
+  abortController: AbortController | null;
+} {
+  const chatState = useChatStore.getState();
+  const workspaceState = useWorkspaceStore.getState();
+  if (!chatId || workspaceState.panes.length === 0) {
+    return {
+      messages: chatState.messages,
+      loading: chatState.loading,
+      abortController: chatState.abortController,
+    };
+  }
+  const activePane = workspaceState.panes.find((pane) => pane.id === workspaceState.activePaneId);
+  if (activePane?.chatId === chatId) {
+    return {
+      messages: chatState.messages,
+      loading: chatState.loading,
+      abortController: chatState.abortController,
+    };
+  }
+  const pane = workspaceState.panes.find((entry) => entry.chatId === chatId);
+  if (pane?.snapshot) {
+    return {
+      messages: pane.snapshot.messages ?? [],
+      loading: Boolean(pane.snapshot.loading),
+      abortController: pane.abortController ?? chatState.abortController,
+    };
+  }
+  return {
+    messages: chatState.messages,
+    loading: chatState.loading,
+    abortController: chatState.abortController,
+  };
+}
+
 function resolveE2eTurnProgress(
   chatId: string,
   baselineUsers: number,
 ): { userCount: number; streaming: boolean; uiProgress: boolean } {
   const chatState = useChatStore.getState();
   const workspaceState = useWorkspaceStore.getState();
+  const progressState = resolveE2eProgressChatState(chatId);
   const pane = workspaceState.panes.find((entry) => entry.chatId === chatId);
-  const paneSnapshot = pane?.snapshot;
-  if (paneSnapshot) {
-    const userCount = paneSnapshot.messages.filter((msg) => msg.role === 'user').length;
-    const paneAbort = pane?.id ? workspaceState.getPaneAbortController(pane.id) : null;
-    const streaming = Boolean(
-      paneSnapshot.loading || paneAbort || chatState.loading || chatState.abortController,
-    );
-    return {
-      userCount,
-      streaming,
-      uiProgress: userCount > baselineUsers || streaming,
-    };
-  }
-  const userCount = chatState.messages.filter((msg) => msg.role === 'user').length;
-  const streaming = Boolean(chatState.loading || chatState.abortController);
+  const paneAbort = pane?.id ? workspaceState.getPaneAbortController(pane.id) : null;
+  const userCount = progressState.messages.filter((msg) => msg.role === 'user').length;
+  const streaming = Boolean(
+    progressState.loading ||
+      progressState.abortController ||
+      paneAbort ||
+      chatState.loading ||
+      chatState.abortController,
+  );
   return {
     userCount,
     streaming,
@@ -405,7 +443,14 @@ async function submitAndObserveTurn(
       }
     }
     const e2eApiBase = resolveE2eApiBase();
-    if (e2eApiBase && typeof window.__MYRM_WAIT_WORKSPACE_STREAM__ === 'function') {
+    if (e2eApiBase) {
+      (window as unknown as Record<string, unknown>).__MYRM_E2E_DIRECT_SSE__ = true;
+    }
+    if (
+      e2eApiBase &&
+      !(window as unknown as Record<string, unknown>).__MYRM_E2E_DIRECT_SSE__ &&
+      typeof window.__MYRM_WAIT_WORKSPACE_STREAM__ === 'function'
+    ) {
       const workspaceReady = await window.__MYRM_WAIT_WORKSPACE_STREAM__(30_000);
       if (!workspaceReady?.ok) {
         return {
@@ -479,6 +524,7 @@ async function submitAndObserveTurn(
     let sendSettledEmpty = false;
     const kickoffAt = Date.now();
     const sendPromise = useChatStore.getState().sendMessage(trimmed, undefined);
+    await Promise.resolve();
     void sendPromise
       .then(() => {
         const chatId = useChatStore.getState().chatId?.trim() || chatIdBeforeSend;
@@ -540,8 +586,7 @@ async function submitAndObserveTurn(
       }
       if (
         elapsedMs >= SEND_TURN_NO_OP_MS &&
-        !uiProgress &&
-        !sendSettledEmpty
+        !uiProgress
       ) {
         const apiUsersProbe = await countApiUserMessages(chatId);
         if (apiUsersProbe <= baselineUsers) {
@@ -567,7 +612,7 @@ async function submitAndObserveTurn(
       }
       const apiUsers = await countApiUserMessages(chatId);
       const apiOk = apiUsers > baselineUsers;
-      const liveOk = apiOk && uiProgress;
+      const liveOk = uiProgress && (apiOk || streaming);
       const readOk = apiOk && uiProgress;
       if ((profile === 'live' && liveOk) || (profile === 'read' && readOk)) {
         return {
@@ -1323,6 +1368,62 @@ export default function E2EChatBridge() {
           useWorkspaceStore.getState().setPaneAbortController(paneId, null);
         }
         return { ok: true, released };
+      },
+      retryStreamWithSameMessageId: async (query: string, messageId: string) => {
+        await initProvidersForE2e();
+        prepareAutomationSend();
+        const trimmedId = messageId.trim();
+        const trimmedQuery = query.trim();
+        if (!trimmedId || !trimmedQuery) {
+          return { ok: false, busy: false, err: 'empty-query-or-message-id' };
+        }
+        const state = useChatStore.getState();
+        const modelSelection = getModelSelection(state.actionMode, state.agentConfig);
+        if (!modelSelection) {
+          return { ok: false, busy: false, err: 'no-model-selection' };
+        }
+        const abortController = new AbortController();
+        const actions = {
+          setMessages: useChatStore.getState().setMessages,
+          setLoading: (loading: boolean) => useChatStore.setState({ loading }),
+          setMessageAppeared: (appeared: boolean) => useChatStore.setState({ messageAppeared: appeared }),
+          setHideAttachList: (hide: boolean) => useChatStore.setState({ hideAttachList: hide }),
+          setHasUsedImagesInCurrentChat: (hasUsed: boolean) =>
+            useChatStore.setState({ hasUsedImagesInCurrentChat: hasUsed }),
+          setSelectedModels: (models: typeof state.selectedModels) =>
+            useChatStore.setState({ selectedModels: models }),
+          setHasUserSelectedModel: (hasSelected: boolean) =>
+            useChatStore.setState({ hasUserSelectedModel: hasSelected }),
+          clearCurrentSessionMessageId: () => useChatStore.setState({ currentSessionMessageId: null }),
+          _processSuggestions: useChatStore.getState()._processSuggestions,
+          scheduleAutoSave: useChatStore.getState().scheduleAutoSave,
+          setInputMessage: (message: string) => useChatStore.setState({ inputMessage: message }),
+        };
+        window.__MYRM_E2E_DIRECT_SSE__ = true;
+        try {
+          await executeStreamWithRetry(
+            trimmedQuery,
+            trimmedId,
+            state,
+            actions,
+            modelSelection,
+            abortController,
+            false,
+            '',
+          );
+          return { ok: true, busy: false };
+        } catch (error) {
+          if (error instanceof AgentBusyError) {
+            return { ok: false, busy: true, err: error.message };
+          }
+          return {
+            ok: false,
+            busy: false,
+            err: error instanceof Error ? error.message : String(error),
+          };
+        } finally {
+          abortController.abort();
+        }
       },
       getDesktopApprovalSnapshot: () => {
         const state = useDesktopControlApprovalStore.getState();

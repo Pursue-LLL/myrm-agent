@@ -54,7 +54,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_revert_files_chrome_e2e.py` | 模块 | RevertFiles Chrome MCP E2E（READ×5：modify undo+diff+confirm；empty toast；large_skip non-revertible toast；reload hydrate undo；session SessionRevertButton）；`prepare_e2e_ui_session` + `dismiss_blocking_modals` + async Sonner wait |
 | `e2e/test_channel_routing_general_only_chrome_e2e.py` | 模块 | Channel Settings 渠道路由 Chrome MCP E2E（READ×1 SHPOIB：Settings → Channel Routing；Agent 下拉 **0 Search**；General-only SSOT 签收） |
 | `e2e/test_allowlist_pattern_live_chrome_e2e.py` | 模块 | Allowlist pattern Chrome LIVE×1（`private_backend=True`：bash 审批→pattern allow-always→Settings 验证） |
-| `api/agent/test_agent_stream_retry_contract_e2e.py` | 模块 | agent-stream 重试契约：执行中同 `chat_id+message_id+content` 重试 → user turn 幂等 + SSE `AgentBusyError`(409)；mock Agent 挂起 active session |
+| `api/agent/test_agent_stream_retry_contract_e2e.py` | 模块 | agent-stream 重试契约：执行中同 `chat_id+message_id+content` 重试 → user turn 幂等 + SSE `AgentBusyError`(409)；mock Agent 挂起 active session；**early claim** 后须等 user persist 再 retry |
+| `api/agent/test_reconnect_integration.py` | 模块 | ASGI Last-Event-ID 重连 + early busy 第二 turn 不双写 user row（mock agent） |
+| `api/chats/test_stream_retry_busy_seed_fixture.py` | 模块 | stream-retry-busy seed/release HTTP 单测 |
+| `e2e/test_stream_retry_contract_chrome_e2e.py` | 模块 | Chrome READ×1 SHPOIB：seed busy fixture → `retryStreamWithSameMessageId` → SSE busy + userCount 不变 |
 | `api/agent/test_timestamp_integration.py` | 模块 | Web 消息 timestamp/sent_at 持久化 + `ensure_chat_and_append_user_message` 幂等（同 id+content 复用 / 不同 content 换 id）；内存 SQLite |
 | `api/agent/test_shpoib_hitl_attach_replay.py` | 模块 | SHPOIB HITL attach replay 集成（subscribe / multiplexed attach / hitl-probe / CORP；无 Chrome/LLM） |
 | `api/security/test_allowlist_api.py` | 模块 | Allowlist REST list/delete + pattern 粒度 round-trip |

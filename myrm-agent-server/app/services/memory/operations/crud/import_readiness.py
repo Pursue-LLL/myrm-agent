@@ -32,10 +32,18 @@ class ReadinessIssueAction:
 
 _READINESS_ISSUE_ACTIONS: dict[str, ReadinessIssueAction] = {
     "providers_not_configured": ReadinessIssueAction(settings_path="/settings/models"),
-    "post_import_diagnostics_critical": ReadinessIssueAction(settings_path="/settings/memory"),
-    "post_import_diagnostics_warning": ReadinessIssueAction(settings_path="/settings/memory"),
-    "mcp_servers_imported_disabled": ReadinessIssueAction(settings_path="/settings/mcp"),
-    "workspace_rules_skipped": ReadinessIssueAction(settings_path="/settings/memory?sub=migration"),
+    "post_import_diagnostics_critical": ReadinessIssueAction(
+        settings_path="/settings/memory"
+    ),
+    "post_import_diagnostics_warning": ReadinessIssueAction(
+        settings_path="/settings/memory"
+    ),
+    "mcp_servers_imported_disabled": ReadinessIssueAction(
+        settings_path="/settings/mcp"
+    ),
+    "workspace_rules_skipped": ReadinessIssueAction(
+        settings_path="/settings/memory?sub=migration"
+    ),
 }
 
 
@@ -92,7 +100,10 @@ def resolve_migration_readiness_gap_message(
             if is_zh
             else "MCP servers were imported but are not enabled yet. Open MCP Settings to enable them."
         )
-    if issue_code in {"post_import_diagnostics_critical", "post_import_diagnostics_warning"}:
+    if issue_code in {
+        "post_import_diagnostics_critical",
+        "post_import_diagnostics_warning",
+    }:
         return (
             "迁移后记忆诊断仍有问题，请前往记忆中心查看详情。"
             if is_zh

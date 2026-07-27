@@ -158,6 +158,31 @@ class TestGatewayBusy:
             pass
 
 
+class TestGatewayReserveSession:
+    @pytest.mark.asyncio
+    async def test_reserve_blocks_duplicate_before_execute(self) -> None:
+        gw = AgentGateway(_cfg())
+        gw.reserve_session("chat-a", active_message_id="msg-a")
+        with pytest.raises(AgentBusyError):
+            gw.reserve_session("chat-a", active_message_id="msg-b")
+        gw.release_session("chat-a")
+        assert "chat-a" not in gw._active_sessions
+
+    @pytest.mark.asyncio
+    async def test_pre_reserved_session_allows_execute_stream(self) -> None:
+        gw = AgentGateway(_cfg())
+        gw.reserve_session("chat-b", active_message_id="msg-b")
+
+        async def run():
+            async for _ in gw.execute_stream(
+                _dummy_stream(), agent_type="test", session_id="chat-b", active_message_id="msg-b"
+            ):
+                pass
+
+        await run()
+        assert "chat-b" not in gw._active_sessions
+
+
 class TestGatewayQueueTimeout:
     @pytest.mark.asyncio
     async def test_queue_timeout_cleans_session_info(self) -> None:

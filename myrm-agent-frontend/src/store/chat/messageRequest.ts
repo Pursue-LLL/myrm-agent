@@ -66,7 +66,7 @@ import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { hasUsableProviderAuth, normalizeApiUrl } from '@/store/config/providerTypes';
 import { normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
-import { clearMigrationReadinessAnchor, readMigrationReadinessAnchor } from '@/lib/migrationChatHandoff';
+import { clearMigrationReadinessAnchor, consumeMigrationReadinessAnchorForAgent, readMigrationReadinessAnchor } from '@/lib/migrationChatHandoff';
 import type { ChatState } from './types';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';
@@ -75,11 +75,11 @@ function shouldUseMultiplexedAgentStream(): boolean {
   if (typeof window === 'undefined') {
     return true;
   }
-  if (resolveE2eApiBase()) {
-    return true;
-  }
   if (window.__MYRM_E2E_DIRECT_SSE__) {
     return false;
+  }
+  if (resolveE2eApiBase()) {
+    return true;
   }
   return true;
 }
@@ -1035,6 +1035,9 @@ export const sendMessage = async (
         type: 'error',
         duration: isNetworkError ? 8000 : 3000,
       });
+      if (resolveE2eApiBase()) {
+        throw error;
+      }
     }
   } finally {
     const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);

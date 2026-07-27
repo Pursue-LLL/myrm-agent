@@ -154,13 +154,19 @@ def _parse_evicted_ref_payload(
         if storage_truncated is True:
             payload["storage_truncated"] = True
     event_tool = event.get("tool_name")
-    if isinstance(event_tool, str) and event_tool.strip() and "tool_name" not in payload:
+    if (
+        isinstance(event_tool, str)
+        and event_tool.strip()
+        and "tool_name" not in payload
+    ):
         payload["tool_name"] = event_tool.strip()
     ref = payload.get("evicted_ref")
     return payload if isinstance(ref, str) and ref else None
 
 
-def _attach_evicted_to_step(step: dict[str, object], payload: dict[str, object]) -> None:
+def _attach_evicted_to_step(
+    step: dict[str, object], payload: dict[str, object]
+) -> None:
     ref = payload.get("evicted_ref")
     if not isinstance(ref, str) or not ref:
         return
@@ -172,7 +178,11 @@ def _attach_evicted_to_step(step: dict[str, object], payload: dict[str, object])
     else:
         _ensure_evicted_stdout_preview(step)
     tool_call_id = payload.get("tool_call_id")
-    if isinstance(tool_call_id, str) and tool_call_id.strip() and not step.get("tool_call_id"):
+    if (
+        isinstance(tool_call_id, str)
+        and tool_call_id.strip()
+        and not step.get("tool_call_id")
+    ):
         step["tool_call_id"] = tool_call_id.strip()
     if not step.get("step_key"):
         step_tool = step.get("tool_name")
@@ -269,7 +279,9 @@ def _merge_tasks_step(
     return step
 
 
-def _step_accepts_pending_evicted(step: dict[str, object], payload: dict[str, object]) -> bool:
+def _step_accepts_pending_evicted(
+    step: dict[str, object], payload: dict[str, object]
+) -> bool:
     tool_call_id = payload.get("tool_call_id")
     if isinstance(tool_call_id, str) and tool_call_id.strip():
         return step.get("tool_call_id") == tool_call_id.strip()
@@ -750,7 +762,9 @@ class StreamContentCollector:
             return
         tool_hint = payload.get("tool_name")
         fallback: dict[str, object] = {
-            "tool_name": tool_hint if isinstance(tool_hint, str) else _BASH_EXECUTE_TOOL,
+            "tool_name": (
+                tool_hint if isinstance(tool_hint, str) else _BASH_EXECUTE_TOOL
+            ),
             "step_key": "bash_code_execute_tool_tool",
         }
         tool_call_id = payload.get("tool_call_id")

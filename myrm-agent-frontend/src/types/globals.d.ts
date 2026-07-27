@@ -148,6 +148,10 @@ interface Window {
     pinBasicModelForE2e?: () => Promise<{ providerId: string; model: string }>;
     /** CDP E2E: abort in-flight SSE so API agent-stream resume can proceed (no cancel API). */
     releaseActiveStreamForApiResume?: () => { ok: boolean; released: boolean };
+    retryStreamWithSameMessageId?: (
+      query: string,
+      messageId: string,
+    ) => Promise<{ ok: boolean; busy: boolean; err?: string }>;
     /** CDP E2E: resume active clarification with empty answer (Skip parity). */
     skipActiveClarificationForE2e?: () => { messageId: string };
     setBrowserSource?: (source: string) => void;

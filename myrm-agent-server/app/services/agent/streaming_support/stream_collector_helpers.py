@@ -33,6 +33,7 @@ def deep_merge_ui_data(
             merged[key] = value
     return merged
 
+
 _MEMORY_CITATION_TOOL_NAMES = frozenset(
     {"memory_search", "memory_search_tool", "memory_recall", "memory_recall_tool"}
 )  # legacy aliases retained for persisted message metadata
@@ -135,7 +136,9 @@ def collect_clarification_required(
 
     options = payload.get("options")
     if isinstance(options, list):
-        option_labels = [str(item) for item in options if isinstance(item, str) and item.strip()]
+        option_labels = [
+            str(item) for item in options if isinstance(item, str) and item.strip()
+        ]
         if option_labels:
             clarification["options"] = option_labels
 
@@ -165,7 +168,9 @@ def collect_plan_confirmation_status(
 
     if status == "waiting":
         raw_plan_items = data.get("plan_items")
-        plan_items = string_keyed_dicts(raw_plan_items if isinstance(raw_plan_items, list) else [])
+        plan_items = string_keyed_dicts(
+            raw_plan_items if isinstance(raw_plan_items, list) else []
+        )
         plan_text = data.get("plan")
         if isinstance(plan_text, str) and plan_text.strip():
             plan = plan_text.strip()

@@ -428,7 +428,9 @@ async def _run_fast_evicted_read_live_e2e(
         for prep_attempt in range(3):
             _ensure_private_search_configured(api_base)
             _ensure_private_providers_configured(api_base)
-            raw_prep = await chat.evaluate(prep_js, await_promise=True, recv_timeout=90.0)
+            raw_prep = await chat.evaluate(
+                prep_js, await_promise=True, recv_timeout=90.0
+            )
             if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
                 prep = raw_prep
                 break
@@ -466,9 +468,34 @@ async def _run_fast_evicted_read_live_e2e(
             f"{workspace_ready!r}; api={api_base}"
         )
 
-        kickoff = await chat.evaluate(
-            kickoff_js, await_promise=True, recv_timeout=120.0
-        )
+        kickoff: dict[str, object] | None = None
+        for kickoff_attempt in range(3):
+            kickoff = await chat.evaluate(
+                kickoff_js, await_promise=True, recv_timeout=120.0
+            )
+            if isinstance(kickoff, dict) and kickoff.get("ok") is True:
+                break
+            transient_kickoff = isinstance(kickoff, dict) and str(
+                kickoff.get("err") or ""
+            ) in (
+                "send-kickoff-no-progress",
+                "send-message-settled-without-progress",
+                "send-turn-observe-timeout",
+                "session-reset-during-submit",
+            )
+            if kickoff_attempt + 1 < 3 and transient_kickoff:
+                await chat.click_new_chat()
+                await chat.ensure_chat_surface(BASE_URL)
+                _ensure_private_search_configured(api_base)
+                _ensure_private_providers_configured(api_base)
+                raw_prep = await chat.evaluate(
+                    prep_js, await_promise=True, recv_timeout=90.0
+                )
+                if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
+                    prep = raw_prep
+                await asyncio.sleep(2.0 * (kickoff_attempt + 1))
+                continue
+            break
         assert isinstance(kickoff, dict) and kickoff.get("ok") is True, kickoff
         post_send_mode = await chat.evaluate(
             """(() => ({

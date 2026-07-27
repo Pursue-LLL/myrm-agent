@@ -142,7 +142,9 @@ def test_migration_readiness_gap_dedup_within_cooldown() -> None:
 
 
 @pytest.mark.asyncio
-async def test_resolve_and_build_migration_readiness_gap_live_warning_mcp_path() -> None:
+async def test_resolve_and_build_migration_readiness_gap_live_warning_mcp_path() -> (
+    None
+):
     reset_capability_gap_emission_tracker()
     readiness = MemoryImportReadiness(
         status="warning",
@@ -187,7 +189,9 @@ async def test_resolve_and_build_migration_readiness_gap_live_warning_mcp_path()
     assert isinstance(data, dict)
     assert data.get("settings_path") == "/settings/mcp"
     assert data.get("reason") == "migration_readiness_warning"
-    mock_service.resolve_live_import_readiness.assert_awaited_once_with("batch-live-mcp")
+    mock_service.resolve_live_import_readiness.assert_awaited_once_with(
+        "batch-live-mcp"
+    )
 
 
 @pytest.mark.asyncio

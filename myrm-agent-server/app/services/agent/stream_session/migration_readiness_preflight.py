@@ -78,7 +78,11 @@ def build_migration_readiness_gap_sse_event_from_readiness(
     primary_issue = pick_primary_readiness_issue(readiness.issues)
     issue_code = primary_issue.code if primary_issue is not None else None
     issue_action = resolve_readiness_issue_action(issue_code or "")
-    settings_path = issue_action.settings_path if issue_action is not None else _DEFAULT_MODELS_SETTINGS_PATH
+    settings_path = (
+        issue_action.settings_path
+        if issue_action is not None
+        else _DEFAULT_MODELS_SETTINGS_PATH
+    )
     display_message = resolve_migration_readiness_gap_message(
         status=readiness.status,
         issue_code=issue_code,
@@ -106,7 +110,9 @@ def build_migration_readiness_gap_sse_event_from_readiness(
 async def resolve_and_build_migration_readiness_gap_sse_event(
     *,
     message_id: str,
-    migration_readiness_anchor: MigrationReadinessAnchorRequest | dict[str, object] | None,
+    migration_readiness_anchor: (
+        MigrationReadinessAnchorRequest | dict[str, object] | None
+    ),
     chat_id: str | None,
     locale: str | None,
 ) -> tuple[dict[str, object] | None, ImportReadinessStatus | None]:
@@ -122,7 +128,9 @@ async def resolve_and_build_migration_readiness_gap_sse_event(
     session_factory = get_session_factory()
     async with session_factory() as db:
         try:
-            readiness = await MemoryImportSessionService(db).resolve_live_import_readiness(import_batch_id)
+            readiness = await MemoryImportSessionService(
+                db
+            ).resolve_live_import_readiness(import_batch_id)
         except Exception as exc:
             logger.warning(
                 "Failed to live-resolve migration readiness for batch %s: %s",
