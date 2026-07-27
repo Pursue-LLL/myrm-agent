@@ -15,6 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/myrm-chrome-e2e-lib.sh"
 
 AGENT_ROOT="${MYRM_AGENT_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+export MYRM_DEV_STACK="${AGENT_ROOT}/scripts/dev/dev-stack.sh"
 MONOREPO_ROOT="${MYRM_MONOREPO_ROOT:-$(cd "${AGENT_ROOT}/.." && pwd)}"
 STATE_DIR="${MYRM_DEV_STATE_DIR:-${HOME}/.local/state/myrm-dev}"
 FRONTEND_DIR="${AGENT_ROOT}/myrm-agent-frontend"
@@ -186,17 +187,7 @@ _wait_shared_ui_reachable() {
 }
 
 _heal_dead_shared_ui_port() {
-  if curl -sf --max-time 5 "http://127.0.0.1:${FRONTEND_PORT}/" >/dev/null 2>&1; then
-    return 0
-  fi
-  local stack="${AGENT_ROOT}/scripts/dev/dev-stack.sh"
-  [[ -f "${stack}" ]] || return 1
-  if lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
-    echo "CHROME_E2E_HEAL: STACK_UI_HALF_DEAD :${FRONTEND_PORT} listening but HTTP unreachable — frontend-only cold start" >&2
-  else
-    echo "CHROME_E2E_HEAL: shared UI port :${FRONTEND_PORT} dead — frontend-only cold start" >&2
-  fi
-  MYRM_SUPERVISOR_BYPASS=1 MYRM_E2E_SHPOIB="${MYRM_E2E_SHPOIB:-1}" bash "${stack}" frontend-only ensure || true
+  _heal_shared_ui_if_stale || true
 }
 
 _private_backend_attach_path() {
@@ -824,6 +815,7 @@ _print_e2e_health_json() {
 }
 
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+  _heal_shared_ui_if_stale || true
   if [[ "$(_frontend_client_hot_status)" != "yes" ]]; then
     fail "client_hot missing during attach — first Agent must finish ./myrm ready --chrome"
   fi

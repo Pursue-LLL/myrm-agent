@@ -12,6 +12,8 @@ fi
 FRONTEND_WARM_STREAK="${MYRM_FRONTEND_WARM_STREAK:-2}"
 FRONTEND_WARM_MAX_SEC="${MYRM_FRONTEND_WARM_MAX_SEC:-180}"
 FRONTEND_WARM_FAST_SEC="${MYRM_FRONTEND_WARM_FAST_SEC:-2}"
+MYRM_UI_HEAL_SLOW_SEC="${MYRM_UI_HEAL_SLOW_SEC:-5}"
+MYRM_UI_HEAL_PROBE_TIMEOUT_SEC="${MYRM_UI_HEAL_PROBE_TIMEOUT_SEC:-12}"
 
 # Frontend dev-server lock holder must be alive (warmth invalid if Turbopack process died).
 # Also sourced by chrome-e2e-preflight.sh without dev-stack.sh — must live here.
@@ -391,5 +393,38 @@ _warmup_frontend_compile() {
   done
 
   echo "STACK_FAIL: frontend shell_hot not reached within ${FRONTEND_WARM_MAX_SEC}s — check ${FRONTEND_LOG}" >&2
+  return 1
+}
+
+_frontend_root_probe_seconds() {
+  curl -sf --max-time "${MYRM_UI_HEAL_PROBE_TIMEOUT_SEC}" -o /dev/null -w "%{time_total}" "${APP_URL}/" 2>/dev/null || return 1
+}
+
+# Wave-safe heal: detect LISTEN-but-slow / stale warmth (black-screen class) and cold-start Next.
+_heal_shared_ui_if_stale() {
+  local stack="${MYRM_DEV_STACK:-}"
+  local timing="" reason=""
+  if ! _frontend_port_listening; then
+    reason="port_down"
+  elif timing="$(_frontend_root_probe_seconds)"; then
+    if awk -v t="${timing}" -v slow="${MYRM_UI_HEAL_SLOW_SEC}" 'BEGIN { exit (t <= slow ? 0 : 1) }'; then
+      return 0
+    fi
+    reason="slow_${timing}s"
+  else
+    reason="http_fail"
+  fi
+  [[ -n "${stack}" && -f "${stack}" ]] || {
+    echo "CHROME_E2E_HEAL_SKIP: shared UI stale (${reason}) but MYRM_DEV_STACK missing" >&2
+    return 1
+  }
+  echo "CHROME_E2E_HEAL: shared UI stale (${reason}) — frontend-only ensure" >&2
+  _frontend_clear_warmth
+  MYRM_SUPERVISOR_BYPASS=1 MYRM_E2E_SHPOIB="${MYRM_E2E_SHPOIB:-1}" bash "${stack}" frontend-only ensure || return 1
+  if timing="$(_frontend_root_probe_seconds)"; then
+    echo "CHROME_E2E_HEAL_OK: shared UI ${timing}s after frontend-only ensure" >&2
+    return 0
+  fi
+  echo "CHROME_E2E_HEAL_FAIL: shared UI still unhealthy after frontend-only ensure" >&2
   return 1
 }

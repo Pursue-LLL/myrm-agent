@@ -296,7 +296,7 @@ async def run_async_warmup() -> None:
         from myrm_agent_harness.toolkits.retriever.bm25 import preload_tokenizer
 
         async def _preload_tokenizer() -> None:
-            await preload_tokenizer(enable_english_enhancement=False)
+            await preload_tokenizer()
             logger.info("Tokenizer preloaded")
 
         warmup_tasks.append(_preload_tokenizer())

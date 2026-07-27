@@ -15,6 +15,7 @@ from tests.support.chrome_mcp_e2e import (
     open_mcp_page,
     prepare_e2e_ui_session,
     wait_for_state,
+    warm_ui_route,
 )
 
 
@@ -93,6 +94,22 @@ def _user_count_probe(chat_id: str) -> str:
 }})()"""
 
 
+def _attach_chat_probe(chat_id: str) -> str:
+    chat_id_json = json.dumps(chat_id)
+    return f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) {{
+    return {{ ok: false, err: 'no-bridge' }};
+  }}
+  await bridge.attachToChat({chat_id_json});
+  const snap = bridge.turnSnapshot?.() ?? {{}};
+  return {{
+    ok: snap.chatId === {chat_id_json} && snap.userCount >= 1 && snap.isStreaming !== true,
+    snap,
+  }};
+}})()"""
+
+
 _DISMISS_MIGRATION_JS = """(() => {
   try {
     sessionStorage.setItem('migration_discovery_dismissed', 'true');
@@ -116,17 +133,19 @@ def test_stream_retry_same_message_id_is_busy_without_duplicate_user_row() -> No
     message_id = seeded["message_id"]
     query = seeded["query"]
 
+    warm_ui_route(f"/{chat_id}")
+
     try:
         with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-            hydrated = wait_for_state(
-                client,
+            attached = client.evaluate(
                 page,
-                _chat_hydrated_state(chat_id),
+                _attach_chat_probe(chat_id),
                 timeout_sec=90.0,
             )
-            assert hydrated.get("ready") is True, hydrated
-            baseline_users = hydrated.get("userCount")
+            assert isinstance(attached, dict) and attached.get("ok") is True, attached
+            snap = attached.get("snap") if isinstance(attached.get("snap"), dict) else {}
+            baseline_users = snap.get("userCount")
             assert isinstance(baseline_users, int) and baseline_users >= 1
 
             busy_snippet = _post_agent_stream_snippet(
