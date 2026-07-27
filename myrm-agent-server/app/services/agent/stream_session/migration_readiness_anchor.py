@@ -41,6 +41,7 @@ async def record_migration_first_turn_outcome(
     request: AgentRequest,
     had_fatal_error: bool,
     has_assistant_content: bool,
+    live_readiness_status: Literal["ready", "warning", "critical"] | None = None,
 ) -> None:
     """Persist first-turn outcome for one-shot migration readiness anchor."""
 
@@ -51,6 +52,7 @@ async def record_migration_first_turn_outcome(
     if not import_batch_id:
         return
 
+    readiness_status = live_readiness_status or anchor.readiness_status
     outcome = resolve_first_turn_outcome(
         had_fatal_error=had_fatal_error,
         has_assistant_content=has_assistant_content,
@@ -60,7 +62,7 @@ async def record_migration_first_turn_outcome(
         try:
             await MemoryImportSessionService(db).save_post_import_first_turn_outcome(
                 import_batch_id=import_batch_id,
-                readiness_status=anchor.readiness_status,
+                readiness_status=readiness_status,
                 outcome=outcome,
                 had_fatal_error=had_fatal_error,
                 chat_id=request.chat_id,

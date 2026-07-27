@@ -283,6 +283,19 @@ class MemoryImportConfirmResponse(MemoryImportResponse):
     readiness: MemoryImportReadiness | None = None
 
 
+class MemoryImportReadinessRecheckRequest(BaseModel):
+    """Request to re-evaluate post-import execution readiness for a confirmed batch."""
+
+    import_batch_id: str = Field(..., description="Confirmed memory import batch id")
+
+
+class MemoryImportReadinessRecheckResponse(BaseModel):
+    """Fresh readiness contract after re-evaluating current runtime facts."""
+
+    import_batch_id: str
+    readiness: MemoryImportReadiness
+
+
 class MemoryImportRollbackPreviewResponse(BaseModel):
     """Content-safe rollback preview for a confirmed server-bound import."""
 

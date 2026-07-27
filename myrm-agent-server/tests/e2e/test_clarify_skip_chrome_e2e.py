@@ -19,6 +19,7 @@ from cdp_chat_support import (  # noqa: E402
     chat_messages_have_clarify_skip_done,
     ensure_e2e_yolo_mode,
     get_e2e_api_url,
+    is_hitl_already_resolved_by_timeout,
     resume_clarify_skip_via_api,
     wait_e2e_provider_ready,
 )
@@ -206,7 +207,6 @@ def _is_resume_retryable_transient_error(result: dict[str, object]) -> bool:
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
 @pytest.mark.integration
-@pytest.mark.timeout(900)
 @pytest.mark.asyncio
 async def test_clarify_skip_button_resumes_agent_in_real_chat(
     e2e_resource_ledger: E2EResourceLedger,
@@ -479,6 +479,8 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             if last.get("ok") is True:
                 return last
             error = last.get("error")
+            if is_hitl_already_resolved_by_timeout(last):
+                return last
             if isinstance(error, dict) and error.get("error_type") == "AgentBusyError":
                 heartbeat_e2e_lease()
                 await asyncio.sleep(pause)
@@ -505,11 +507,18 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         form_state: dict[str, object],
     ) -> tuple[dict[str, object], dict[str, object]]:
         """Primary UI bridge skip, then DOM skip, then API resume with stall retries."""
+        if remaining_wall_sec() < 120.0:
+            pytest.fail(
+                "Clarify skip budget exhausted before resume "
+                f"(remaining_wall={remaining_wall_sec():.0f}s)"
+            )
         resume_result: dict[str, object] = {"ok": False, "event_types": []}
         poll_budget = min(
             float(CLARIFY_SKIP_API_WAIT_SEC),
             max(60.0, remaining_wall_sec() - 90.0),
         )
+        form_visible = form_state.get("hasForm") is True
+        skip_button_visible = form_state.get("hasSkip") is True
 
         bridge = await chat.evaluate(
             _SKIP_VIA_BRIDGE_JS, await_promise=False, recv_timeout=15.0
@@ -558,23 +567,29 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
 
         # Skip flow may already finish asynchronously after stream release.
         await _release_ui_stream_for_api(chat)
-        try:
-            return (
-                await _wait_api_skip_done(
-                    chat_id=chat_id,
-                    api_base=api_base,
-                    timeout_sec=min(120.0, poll_budget),
-                ),
-                resume_result,
-            )
-        except AssertionError:
-            pass
+        if not (form_visible and not skip_button_visible):
+            try:
+                return (
+                    await _wait_api_skip_done(
+                        chat_id=chat_id,
+                        api_base=api_base,
+                        timeout_sec=min(120.0, poll_budget),
+                    ),
+                    resume_result,
+                )
+            except AssertionError:
+                pass
 
         resume_result = await _resume_clarify_skip_after_ui_release(
             chat,
             chat_id,
             api_base=api_base,
         )
+        if is_hitl_already_resolved_by_timeout(resume_result):
+            pytest.fail(
+                "Clarify HITL already resolved by timeout before skip completed "
+                f"(chat_id={chat_id!r}): {resume_result}"
+            )
         if resume_result.get("ok") is not True:
             try:
                 return (

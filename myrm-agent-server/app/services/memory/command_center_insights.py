@@ -433,6 +433,8 @@ class MemoryCommandCenterInsights:
         raw_batch_id = latest_metadata.get("import_batch_id")
         raw_diagnostic_status = latest_metadata.get("diagnostic_status")
         raw_diagnostic_run_id = latest_metadata.get("diagnostic_run_id")
+        raw_readiness_status = latest_metadata.get("readiness_status")
+        raw_first_turn_outcome = latest_metadata.get("first_turn_outcome")
         session_metrics = await MemoryImportSessionService(self._db).session_metrics()
         coverage = raw_coverage if raw_coverage in {"not_tracked", "partial", "complete"} else "not_tracked"
         source_manifest_payload = migration_source_manifest_payload()
@@ -459,6 +461,16 @@ class MemoryCommandCenterInsights:
             verification_recommended=tracked > 0 and raw_diagnostic_status != "ready",
             last_import_diagnostic_status=raw_diagnostic_status if isinstance(raw_diagnostic_status, str) else None,
             last_import_diagnostic_run_id=raw_diagnostic_run_id if isinstance(raw_diagnostic_run_id, str) else None,
+            last_import_readiness_status=(
+                raw_readiness_status
+                if raw_readiness_status in {"ready", "warning", "critical"}
+                else None
+            ),
+            last_import_first_turn_outcome=(
+                raw_first_turn_outcome
+                if raw_first_turn_outcome in {"success", "failed", "no_output"}
+                else None
+            ),
             cleanup_pending_sessions=session_metrics.get(DRY_RUN_STATUS_PENDING, 0),
             cleanup_confirmed_sessions=session_metrics.get(DRY_RUN_STATUS_CONFIRMED, 0),
             cleanup_expired_sessions=session_metrics.get(DRY_RUN_STATUS_EXPIRED, 0),

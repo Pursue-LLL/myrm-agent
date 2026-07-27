@@ -42,3 +42,4 @@ class AgentStreamSession:
     had_fatal_error: bool = field(default=False)
     disconnect_time: float | None = field(default=None)
     entitlement_preflight_text: str | None = field(default=None)
+    migration_live_readiness_status: Literal["ready", "warning", "critical"] | None = field(default=None)

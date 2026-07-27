@@ -11,6 +11,7 @@ from app.services.memory.operations.crud.import_archive import (
     export_rules_safe,
     import_memories,
     preview_rules_safe,
+    recheck_import_readiness,
     rollback_import_memories,
 )
 from app.services.memory.operations.crud.list_write import (
@@ -68,6 +69,7 @@ __all__ = [
     "import_memories",
     "dry_run_import_memories",
     "confirm_import_memories",
+    "recheck_import_readiness",
     "dry_run_rollback_import_memories",
     "rollback_import_memories",
     "get_taste_summary",

@@ -286,6 +286,201 @@ type E2eSubmitResult = {
   debug?: Record<string, unknown>;
 };
 
+type SendTurnProfile = 'live' | 'read';
+
+const E2E_SEND_GENERATION_KEY = '__MYRM_E2E_SEND_GENERATION__';
+
+function readE2eSendGeneration(): number {
+  const raw = (window as unknown as Record<string, unknown>)[E2E_SEND_GENERATION_KEY];
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
+}
+
+function bumpE2eSendGeneration(_reason: string): number {
+  const next = readE2eSendGeneration() + 1;
+  (window as unknown as Record<string, unknown>)[E2E_SEND_GENERATION_KEY] = next;
+  return next;
+}
+
+async function countApiUserMessages(chatId: string): Promise<number> {
+  const messagesUrl = `${getApiBaseUrl().replace(/\/+$/, '')}/chats/${encodeURIComponent(chatId)}/messages`;
+  try {
+    const resp = await fetch(messagesUrl, { cache: 'no-store' });
+    if (!resp.ok) {
+      return 0;
+    }
+    const payload = (await resp.json()) as {
+      data?: { messages?: Array<{ role?: string }> };
+    };
+    return payload.data?.messages?.filter((entry) => entry.role === 'user').length ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function submitAndObserveTurn(
+  message: string,
+  baselineUsers: number,
+  profile: SendTurnProfile,
+  preserveActionMode = false,
+): Promise<E2eSubmitResult> {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    return { ok: false, err: 'empty-message', mode: 'sendTurnEmpty' };
+  }
+  const startGen = readE2eSendGeneration();
+  try {
+    window.__MYRM_E2E_CHAT__?.abortActiveStream?.();
+    window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.();
+    const { actionMode: sendActionMode } = useChatStore.getState();
+    const shouldPreserveActionMode = shouldPreserveE2eActionMode(sendActionMode, preserveActionMode);
+    const sessionOpts = shouldPreserveActionMode ? { preserveActionMode: true } : undefined;
+    await window.__MYRM_E2E_CHAT__?.ensureChatSession?.(sessionOpts);
+    flushSync(() => {
+      useChatStore.getState().setInputMessage(trimmed);
+    });
+    const chatIdBeforeSend = useChatStore.getState().chatId?.trim() || '';
+    if (!chatIdBeforeSend) {
+      return { ok: false, err: 'no-chat-id', mode: 'sendTurnNoChatId' };
+    }
+    const { actionMode: currentActionMode } = useChatStore.getState();
+    if (currentActionMode === 'fast' || currentActionMode === 'deep_research') {
+      const configs = useConfigStore.getState().searchServiceConfigs;
+      if (!guardSearchServiceConfigured(configs)) {
+        return {
+          ok: false,
+          err: 'search-not-configured',
+          mode: 'sendTurnSearchGuard',
+          debug: {
+            actionMode: currentActionMode,
+            searchCount: configs.length,
+            enabledCount: configs.filter((item) => item.enabled).length,
+          },
+        };
+      }
+    }
+    if (!window.__MYRM_E2E_CHAT__?.isSendReady?.()) {
+      return {
+        ok: false,
+        err: 'send-not-ready',
+        mode: 'sendTurnNotReady',
+        debug: window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+      };
+    }
+    const staleRequestId = useChatStore.getState().currentSessionMessageId;
+    if (staleRequestId) {
+      useToolApprovalStore.getState().unmarkProcessing(staleRequestId);
+    }
+    useChatStore.getState().clearCurrentSessionMessageId();
+    const messagesLoadedDeadline = Date.now() + 30_000;
+    while (Date.now() < messagesLoadedDeadline) {
+      const loadedState = useChatStore.getState();
+      if (loadedState.isMessagesLoaded && !loadedState.loading) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    const sendReadyDeadline = Date.now() + 30_000;
+    while (Date.now() < sendReadyDeadline) {
+      const chatState = useChatStore.getState();
+      if (!chatState.loading && !chatState.abortController) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    const preSendState = useChatStore.getState();
+    if (preSendState.loading || preSendState.abortController) {
+      return {
+        ok: false,
+        err: 'chat-still-busy',
+        mode: 'sendTurnBusy',
+        debug: {
+          turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.(),
+          ...window.__MYRM_E2E_CHAT__?.debugProviderState?.(),
+        },
+      };
+    }
+    try {
+      await useChatStore.getState().sendMessage(trimmed, undefined);
+    } catch (error) {
+      return {
+        ok: false,
+        err: error instanceof Error ? error.message : String(error),
+        mode: 'sendTurnSubmitError',
+        chatId: chatIdBeforeSend,
+        debug: { phase: 'SUBMIT', sendGeneration: startGen },
+      };
+    }
+    const observeDeadline = Date.now() + 45_000;
+    while (Date.now() < observeDeadline) {
+      if (readE2eSendGeneration() !== startGen) {
+        return {
+          ok: false,
+          err: 'session-reset-during-submit',
+          mode: 'sendTurnGenerationMismatch',
+          chatId: chatIdBeforeSend,
+          debug: { phase: 'OBSERVE', sendGeneration: startGen, currentGeneration: readE2eSendGeneration() },
+        };
+      }
+      const chatState = useChatStore.getState();
+      const chatId = chatState.chatId?.trim() || '';
+      if (!chatId) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        continue;
+      }
+      const userCount = chatState.messages.filter((msg) => msg.role === 'user').length;
+      const streaming = Boolean(chatState.loading || chatState.abortController);
+      const apiUsers = await countApiUserMessages(chatId);
+      const apiOk = apiUsers > baselineUsers;
+      const uiProgress = userCount > baselineUsers || streaming;
+      const liveOk = apiOk && uiProgress;
+      const readOk = apiOk && (userCount > baselineUsers || streaming);
+      if ((profile === 'live' && liveOk) || (profile === 'read' && readOk)) {
+        return {
+          ok: true,
+          chatId,
+          mode: 'sendTurnSealed',
+          debug: {
+            phase: 'SEAL',
+            profile,
+            sendGeneration: startGen,
+            apiUsers,
+            userCount,
+            streaming,
+            baselineUsers,
+            chatIdBeforeSend: chatIdBeforeSend !== chatId ? chatIdBeforeSend : undefined,
+          },
+        };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    const finalState = useChatStore.getState();
+    const finalChatId = finalState.chatId?.trim() || chatIdBeforeSend;
+    const finalApiUsers = finalChatId ? await countApiUserMessages(finalChatId) : 0;
+    return {
+      ok: false,
+      err: 'send-turn-observe-timeout',
+      mode: 'sendTurnObserveTimeout',
+      chatId: finalChatId,
+      debug: {
+        phase: 'OBSERVE',
+        profile,
+        sendGeneration: startGen,
+        apiUsers: finalApiUsers,
+        userCount: finalState.messages.filter((msg) => msg.role === 'user').length,
+        streaming: Boolean(finalState.loading || finalState.abortController),
+        baselineUsers,
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      err: error instanceof Error ? error.message : String(error),
+      mode: 'sendTurnUnexpected',
+      debug: { phase: 'SUBMIT', sendGeneration: startGen },
+    };
+  }
+}
+
 async function executeE2eChatSend(
   message: string,
   baselineUsers: number,
@@ -599,6 +794,7 @@ export default function E2EChatBridge() {
         return useChatStore.getState().recoverHitlStream(id);
       },
       resetChat: () => {
+        bumpE2eSendGeneration('resetChat');
         flushSync(() => {
           const { actionMode } = useChatStore.getState();
           if (!shouldPreserveE2eActionMode(actionMode)) {
@@ -671,13 +867,45 @@ export default function E2EChatBridge() {
       },
       kickoffChatMessage: async (
         text: string,
-        opts?: { baselineUserCount?: number; preserveActionMode?: boolean },
+        opts?: {
+          baselineUserCount?: number;
+          preserveActionMode?: boolean;
+          profile?: SendTurnProfile;
+        },
       ): Promise<E2eSubmitResult> => {
         const baselineUsers =
           typeof opts?.baselineUserCount === 'number'
             ? opts.baselineUserCount
             : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
-        const result = await executeE2eChatSend(text, baselineUsers, false, opts?.preserveActionMode === true);
+        const profile = opts?.profile === 'read' ? 'read' : 'live';
+        const result = await submitAndObserveTurn(
+          text,
+          baselineUsers,
+          profile,
+          opts?.preserveActionMode === true,
+        );
+        window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
+        return result;
+      },
+      submitAndObserveTurn: async (
+        text: string,
+        opts?: {
+          baselineUserCount?: number;
+          preserveActionMode?: boolean;
+          profile?: SendTurnProfile;
+        },
+      ): Promise<E2eSubmitResult> => {
+        const baselineUsers =
+          typeof opts?.baselineUserCount === 'number'
+            ? opts.baselineUserCount
+            : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
+        const profile = opts?.profile === 'read' ? 'read' : 'live';
+        const result = await submitAndObserveTurn(
+          text,
+          baselineUsers,
+          profile,
+          opts?.preserveActionMode === true,
+        );
         window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
         return result;
       },

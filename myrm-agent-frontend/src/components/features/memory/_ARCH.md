@@ -17,7 +17,7 @@
 | `MemoryCommandCenterAdvancedPanels.tsx` | 组件 | 高级面板：导入/导出/图谱/Doctor | ✅ |
 | `MemoryCommandCenterChrome.tsx` | 组件 | 命令中心顶栏、Tab 与搜索框 | ✅ |
 | `MemoryCommandCenterDoctorPanel.tsx` | 组件 | 记忆系统 Doctor 诊断面板 | ✅ |
-| `MemoryCommandCenterPanels.tsx` | 组件 | 主内容区 Tab 面板编排（含 migration adapter readiness 可视化与 missing 状态迁移向导动作闭环） | ✅ |
+| `MemoryCommandCenterPanels.tsx` | 组件 | 主内容区 Tab 面板编排（含 migration 最近导入 batch 的执行就绪/首轮 outcome 展示、adapter readiness 可视化与 missing 状态迁移向导动作闭环） | ✅ |
 | `MemoryContextPanel.tsx` | 组件 | Shared Context 编辑与预览 | ✅ |
 | `MemoryCreateDialog.tsx` | 组件 | 手动创建记忆对话框 | ✅ |
 | `MemoryDetailSheet.tsx` | 组件 | 记忆详情 Sheet（全文/metadata/来源） | ✅ |

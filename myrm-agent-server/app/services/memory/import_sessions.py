@@ -11,7 +11,7 @@ app.database.models.memory::MemoryImportDryRunModel (POS: 记忆域模型)
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 
 [OUTPUT]
-MemoryImportSessionService: creates bound dry-run sessions, confirms imports by dry-run id, records transaction ledgers, previews rollback, rolls back batches, stores post-import diagnostics/readiness contracts and first-turn execution outcomes, and exposes cleanup metrics.
+MemoryImportSessionService: creates bound dry-run sessions, confirms imports by dry-run id, records transaction ledgers, previews rollback, rolls back batches, stores post-import diagnostics/readiness contracts and first-turn execution outcomes, loads readiness recheck facts for confirmed batches, and exposes cleanup metrics.
 
 [POS]
 单用户记忆导入审查会话服务。把外部记忆导入从客户端数据提交收口为服务端绑定、可审计、可诊断、可预演回滚的 dry-run -> confirm 流程。
@@ -19,6 +19,7 @@ MemoryImportSessionService: creates bound dry-run sessions, confirms imports by 
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import uuid4
@@ -34,6 +35,7 @@ from sqlalchemy import delete, desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.memory import MemoryImportBatchModel, MemoryImportDryRunModel
+from app.schemas.memory.archive import MemoryImportReadiness
 from app.services.memory.import_adapter_registry import import_source_label
 from app.services.memory.import_adapters import RequestedImportSource, build_memory_import_dry_run
 from app.services.memory.import_ledger import (
@@ -86,6 +88,52 @@ class MemoryImportSessionError(Exception):
     def __init__(self, message: str, *, status_code: int = 400) -> None:
         super().__init__(message)
         self.status_code = status_code
+
+
+@dataclass(frozen=True)
+class ImportReadinessRecheckFacts:
+    """Stored import-batch facts combined with live provider checks during recheck."""
+
+    source_has_api_keys: bool
+    diagnostic_status: str | None
+    diagnostic_failed_count: int
+    mcp_config_count: int
+    workspace_rules_skipped: int
+
+    def to_metadata_block(self) -> dict[str, object]:
+        return {
+            "source_has_api_keys": self.source_has_api_keys,
+            "diagnostic_status": self.diagnostic_status,
+            "diagnostic_failed_count": self.diagnostic_failed_count,
+            "mcp_config_count": self.mcp_config_count,
+            "workspace_rules_skipped": self.workspace_rules_skipped,
+        }
+
+    @classmethod
+    def from_metadata_block(cls, block: dict[str, object]) -> ImportReadinessRecheckFacts:
+        diagnostic_status_raw = block.get("diagnostic_status")
+        diagnostic_status = (
+            diagnostic_status_raw.strip()
+            if isinstance(diagnostic_status_raw, str) and diagnostic_status_raw.strip()
+            else None
+        )
+        return cls(
+            source_has_api_keys=block.get("source_has_api_keys") is True,
+            diagnostic_status=diagnostic_status,
+            diagnostic_failed_count=_coerce_non_negative_int(block.get("diagnostic_failed_count")),
+            mcp_config_count=_coerce_non_negative_int(block.get("mcp_config_count")),
+            workspace_rules_skipped=_coerce_non_negative_int(block.get("workspace_rules_skipped")),
+        )
+
+
+def _coerce_non_negative_int(value: object) -> int:
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return max(0, value)
+    if isinstance(value, float):
+        return max(0, int(value))
+    return 0
 
 
 class MemoryImportSessionService:
@@ -435,12 +483,98 @@ class MemoryImportSessionService:
         )
         await self._db.commit()
 
+    async def load_import_readiness_recheck_facts(
+        self,
+        import_batch_id: str,
+    ) -> ImportReadinessRecheckFacts:
+        """Load persisted batch facts required to rebuild the import readiness contract."""
+
+        normalized_batch_id = import_batch_id.strip()
+        if not normalized_batch_id:
+            raise MemoryImportSessionError("Import batch id is required.", status_code=400)
+
+        result = await self._db.execute(
+            select(MemoryImportDryRunModel)
+            .where(MemoryImportDryRunModel.import_batch_id == normalized_batch_id)
+            .order_by(desc(MemoryImportDryRunModel.confirmed_at))
+            .limit(1)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            raise MemoryImportSessionError("Import batch not found.", status_code=404)
+
+        meta = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+        recheck_facts_block = meta.get("recheck_facts")
+        if isinstance(recheck_facts_block, dict):
+            return ImportReadinessRecheckFacts.from_metadata_block(recheck_facts_block)
+
+        source_has_api_keys = meta.get("source_has_api_keys") is True
+
+        diagnostic_status: str | None = None
+        diagnostic_failed_count = 0
+        post_import_diagnostic = meta.get("post_import_diagnostic")
+        if isinstance(post_import_diagnostic, dict):
+            raw_status = post_import_diagnostic.get("status")
+            if isinstance(raw_status, str) and raw_status.strip():
+                diagnostic_status = raw_status.strip()
+            failed_raw = post_import_diagnostic.get("failed_count")
+            if isinstance(failed_raw, int):
+                diagnostic_failed_count = failed_raw
+
+        mcp_config_count = 0
+        workspace_rules_skipped = 0
+        post_import_readiness = meta.get("post_import_readiness")
+        if isinstance(post_import_readiness, dict):
+            issues_raw = post_import_readiness.get("issues")
+            if isinstance(issues_raw, list):
+                for item in issues_raw:
+                    if not isinstance(item, dict):
+                        continue
+                    code = str(item.get("code", "")).strip()
+                    params_raw = item.get("params")
+                    params = params_raw if isinstance(params_raw, dict) else {}
+                    count_raw = params.get("count", params.get("failed_count", 0))
+                    count = int(count_raw) if isinstance(count_raw, (int, float)) else 0
+                    if code == "mcp_servers_imported_disabled":
+                        mcp_config_count = count
+                    elif code == "workspace_rules_skipped":
+                        workspace_rules_skipped = count
+
+        return ImportReadinessRecheckFacts(
+            source_has_api_keys=source_has_api_keys,
+            diagnostic_status=diagnostic_status,
+            diagnostic_failed_count=diagnostic_failed_count,
+            mcp_config_count=mcp_config_count,
+            workspace_rules_skipped=workspace_rules_skipped,
+        )
+
+    async def resolve_live_import_readiness(
+        self,
+        import_batch_id: str,
+    ) -> MemoryImportReadiness:
+        """Rebuild post-import readiness using persisted batch facts and live provider state."""
+
+        from app.services.memory.operations.crud.import_readiness import build_import_readiness
+        from app.services.migration.source_secrets_importer import external_source_providers_configured
+
+        facts = await self.load_import_readiness_recheck_facts(import_batch_id)
+        providers_configured = await external_source_providers_configured()
+        return build_import_readiness(
+            providers_configured=providers_configured,
+            source_has_api_keys=facts.source_has_api_keys,
+            diagnostic_status=facts.diagnostic_status,
+            diagnostic_failed_count=facts.diagnostic_failed_count,
+            mcp_config_count=facts.mcp_config_count,
+            workspace_rules_skipped=facts.workspace_rules_skipped,
+        )
+
     async def save_post_import_readiness(
         self,
         *,
         import_batch_id: str,
         readiness_status: str,
         readiness_issues: list[dict[str, object]],
+        recheck_facts: ImportReadinessRecheckFacts | None = None,
     ) -> None:
         """Attach post-import execution readiness contract to review session metadata."""
 
@@ -452,7 +586,7 @@ class MemoryImportSessionService:
         )
         row = result.scalar_one_or_none()
         if row is not None:
-            row.metadata_json = {
+            metadata_patch: dict[str, object] = {
                 **(row.metadata_json or {}),
                 "post_import_readiness": {
                     "status": readiness_status,
@@ -460,6 +594,9 @@ class MemoryImportSessionService:
                     "completed_at": datetime.now(UTC).isoformat(),
                 },
             }
+            if recheck_facts is not None:
+                metadata_patch["recheck_facts"] = recheck_facts.to_metadata_block()
+            row.metadata_json = metadata_patch
         await self._ledger.update_migration_metadata_by_batch(
             import_batch_id=import_batch_id,
             metadata={

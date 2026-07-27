@@ -249,7 +249,7 @@ describe('streamConsumer resilience paths', () => {
     }
   });
 
-  it('records wiki query success exactly once on accepted stream response', async () => {
+  it('records wiki query success exactly once on first valid business frame', async () => {
     const state = createBaseState({
       chatId: 'chat-success',
       messages: [{ role: 'assistant', messageId: 'a-1', content: '', createdAt: new Date() } as Message],
@@ -258,9 +258,9 @@ describe('streamConsumer resilience paths', () => {
     const abortController = new AbortController();
     approvalState.queue = [{}];
     mockCreateMessageRequest.mockResolvedValueOnce(
-      createSseResponse('data: {"type":"message","messageId":"m-ok","data":"ok"}\n\n'),
+      createSseResponse('data: {"type":"message","messageId":"msg-success","data":"ok"}\n\n'),
     );
-    mockParseSseEnvelope.mockReturnValue({ type: 'message', messageId: 'm-ok', data: 'ok' });
+    mockParseSseEnvelope.mockReturnValue({ type: 'message', messageId: 'msg-success', data: 'ok' });
     mockHandleMessageStream.mockResolvedValue({ added: true, recievedMessage: 'ok' });
 
     await expect(

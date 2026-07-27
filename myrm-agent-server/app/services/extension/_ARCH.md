@@ -16,7 +16,9 @@
 - **Playwright 单例**：`_ensure_playwright()` 跨连接复用实例，`disconnect()` 时释放。
 - **域名授权**：`_match_domain()` 支持 `*.example.com` 匹配根域与子域；`connect_to_domain()` 与 `list_tabs()` 均经此过滤。
 - **导航一致性**：`navigate_to_url()` 以 URL 主机为准做授权校验，并拒绝 `domain` 参数与 URL 主机不一致的请求，避免授权绕过。
-- **能力握手门禁**：`hello` 带 `capabilities`；`navigate_to_url()` 强制要求 `navigate_url` 能力与已完成握手，缺失时直接返回升级错误。
+- **能力握手门禁**：`hello` 带 `capabilities`（`navigate_url` / `list_tabs` / `attach_debugger` / `detach_debugger`）；`_send_request()` 对映射动作执行 capability 校验，并要求已完成 hello 握手。
+- **握手可见性**：`ExtensionStatus.handshake_ready` 区分「WS 已连接」与「hello 已完成」，避免前端把同步窗口误判为能力缺失。
+- **直连 CDP 风险治理**：`connect()` / `connect_to_domain()` 使用本地 CDP endpoint 时仅记录一次 WARNING，提示高权限路径需可信主机且禁止暴露 remote-debugging 端口。
 - **策略告警**：`analyze_domain_policy_warnings()` 对 `*.example.com` 且未显式列出根域时返回结构化提示，避免无感放宽授权边界。
 - **CDP 探测缓存**：`has_direct_cdp_endpoint()` 对“未发现”结果做短 TTL 负缓存，避免前端轮询 setup-hints 时重复高频探测。
 - **认证**：WS 端点校验 `settings.extension_auth_token`（SecretStr）。

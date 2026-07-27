@@ -54,6 +54,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_revert_files_chrome_e2e.py` | 模块 | RevertFiles Chrome MCP E2E（READ×5：modify undo+diff+confirm；empty toast；large_skip non-revertible toast；reload hydrate undo；session SessionRevertButton）；`prepare_e2e_ui_session` + `dismiss_blocking_modals` + async Sonner wait |
 | `e2e/test_channel_routing_general_only_chrome_e2e.py` | 模块 | Channel Settings 渠道路由 Chrome MCP E2E（READ×1 SHPOIB：Settings → Channel Routing；Agent 下拉 **0 Search**；General-only SSOT 签收） |
 | `e2e/test_allowlist_pattern_live_chrome_e2e.py` | 模块 | Allowlist pattern Chrome LIVE×1（`private_backend=True`：bash 审批→pattern allow-always→Settings 验证） |
+| `api/agent/test_agent_stream_retry_contract_e2e.py` | 模块 | agent-stream 重试契约：执行中同 `chat_id+message_id+content` 重试 → user turn 幂等 + SSE `AgentBusyError`(409)；mock Agent 挂起 active session |
 | `api/agent/test_shpoib_hitl_attach_replay.py` | 模块 | SHPOIB HITL attach replay 集成（subscribe / multiplexed attach / hitl-probe / CORP；无 Chrome/LLM） |
 | `api/security/test_allowlist_api.py` | 模块 | Allowlist REST list/delete + pattern 粒度 round-trip |
 | `integration/test_kanban_attach_handler_integration.py` | 模块 | SQLite attach handler + orchestrator unblock tool invoke |
@@ -65,9 +66,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `../scripts/dev/run_tests_low_memory.sh` | 辅助 | 本地低内存 pytest 入口（`-n0`，可选 `PYTEST_XDIST_WORKERS=N`） |
 | `../scripts/dev/profile_test_memory.py` | 辅助 | 按 test 文件采样 peak RSS，定位高内存用例 |
 | `services/migration/_ARCH.md` | 模块 | 迁移业务层测试清单（四源 discover/load/e2e） |
+| `services/memory/test_import_sessions.py` | 模块 | import session lifecycle；readiness/first-turn 持久化；`recheck_facts` SSOT + readiness recheck facts fallback |
 | `services/memory/test_import_readiness.py` | 模块 | 导入后 `readiness` 合同规则单测（ready/warning/critical + issue codes） |
-| `services/memory/test_import_sessions.py` | 模块 | 导入审查会话与回滚账本单测（含 post-import readiness metadata 与首轮执行结果锚点持久化） |
-| `services/agent/stream_session/` | 模块 | 流式会话链路测试（含 `memory_brief` 预计算、SSE 首包顺序、snapshot_id 追踪） |
+| `services/agent/stream_session/test_migration_readiness_preflight.py` | 模块 | migration readiness critical anchor → capability_gap SSE 单测（dedup / settings_path） |
+| `api/memory/test_import_readiness_recheck_api.py` | 模块 | `POST /memory/import/readiness-recheck` HTTP 集成测（200/404） |
 | `services/agent/stream_session/test_migration_readiness_anchor.py` | 模块 | migration readiness 首轮结果归类单测（success/failed/no_output） |
 | `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测 |
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |

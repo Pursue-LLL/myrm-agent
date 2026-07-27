@@ -262,19 +262,27 @@ const ExtensionBridgeSection = memo(() => {
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground">{t('extension.relayCapabilityMatrixTitle')}</p>
           <div className="grid gap-1 sm:grid-cols-2">
-            {relayCapabilityRows.map((cap) => (
-              <p key={cap.key} className="text-xs text-muted-foreground">
-                <span className="text-foreground">{cap.label}</span>
-                {' · '}
-                <span
-                  className={
-                    cap.available ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-                  }
-                >
-                  {cap.available ? t('extension.relayCapabilityAvailable') : t('extension.relayCapabilityUnavailable')}
-                </span>
-              </p>
-            ))}
+            {relayCapabilityRows.map((cap) => {
+              const pendingHandshake = status.connected && !status.handshake_ready;
+              const statusLabel = pendingHandshake
+                ? t('extension.relayCapabilitySyncing')
+                : cap.available
+                  ? t('extension.relayCapabilityAvailable')
+                  : t('extension.relayCapabilityUnavailable');
+              const statusClass = pendingHandshake
+                ? 'text-muted-foreground'
+                : cap.available
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-amber-600 dark:text-amber-400';
+
+              return (
+                <p key={cap.key} className="text-xs text-muted-foreground">
+                  <span className="text-foreground">{cap.label}</span>
+                  {' · '}
+                  <span className={statusClass}>{statusLabel}</span>
+                </p>
+              );
+            })}
           </div>
         </div>
         {setupHints.auth_token_required && !setupHints.auth_token_configured && (

@@ -39,6 +39,7 @@ import {
   type MemoryImportDryRunResponse,
   type MemoryImportPendingSkill,
 } from '@/services/memoryArchive';
+import { clearMigrationReadinessAnchor } from '@/lib/migrationChatHandoff';
 import { submitSkillMigration, type SkillMigrationSubmitResponse } from '@/services/skillMigration';
 
 import useAgentStore from '@/store/useAgentStore';
@@ -288,6 +289,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
       } else {
         toast.success(t('rollbackSuccess'));
       }
+      clearMigrationReadinessAnchor();
       setStep('scan');
       setDryRunResult(null);
       setImportResult(null);
@@ -303,6 +305,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
   }, [importResult, handleScan, t]);
 
   const handleBackToScan = useCallback(() => {
+    clearMigrationReadinessAnchor();
     setStep('scan');
     setDryRunResult(null);
     setSelectedSource(null);

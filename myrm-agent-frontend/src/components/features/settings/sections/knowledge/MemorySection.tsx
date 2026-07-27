@@ -47,8 +47,14 @@ import MemoryTrashPanel from '@/components/features/memory/MemoryTrashPanel';
 import { MemoryImportReviewDialog } from '@/components/features/memory/MemoryImportReviewDialog';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { toast } from '@/hooks/useToast';
+import { toast as actionToast } from '@/lib/utils/toast';
 import { exportMemories, exportMemoriesMarkdown, updateMemoryStatus, getMemoryTags, type TagStatsItem } from '@/services/memory';
 import { confirmImportMemories, dryRunImportMemories, type MemoryImportDryRunResult } from '@/services/memoryArchive';
+import {
+  formatReadinessIssue,
+  getImportReadinessStatus,
+  getReadinessIssueAction,
+} from '@/components/features/settings/sections/knowledge/MigrationWizardReadiness';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import ShareRulesDialog from '@/components/features/memory/ShareRulesDialog';
 import WorkingStateCard from './WorkingStateCard';
@@ -69,6 +75,7 @@ const MEMORY_TABS: MemoryTab[] = ['pending', 'all', 'context', 'shared', 'recall
 const MemorySection = memo(() => {
   const t = useTranslations('memory');
   const tCommon = useTranslations('common');
+  const tMigrationWizard = useTranslations('settings.knowledge.migrationWizard');
   const searchParams = useSearchParams();
 
   const { user, isInitialized: authInitialized } = useAuthStore();
@@ -325,10 +332,39 @@ const MemorySection = memo(() => {
     setIsImporting(true);
     try {
       const result = await confirmImportMemories(importDryRunId, true);
-      toast({
-        title: t('importSuccess'),
-        description: t('importSuccessDesc', { count: result.total_imported }),
-      });
+      const readinessStatus = result.readiness ? getImportReadinessStatus(result) : 'ready';
+      if (result.readiness && readinessStatus !== 'ready') {
+        const primaryIssue = result.readiness.issues[0];
+        const issueText = primaryIssue
+          ? formatReadinessIssue(primaryIssue, tMigrationWizard)
+          : tMigrationWizard('result.readinessSummary');
+        const action = primaryIssue ? getReadinessIssueAction(primaryIssue, tMigrationWizard) : null;
+        if (action) {
+          actionToast.info(tMigrationWizard(`result.readinessStatus.${readinessStatus}`), {
+            description: issueText,
+            duration: 12000,
+            action: {
+              label: action.label,
+              onClick: () => {
+                if (typeof window !== 'undefined') {
+                  window.location.assign(action.href);
+                }
+              },
+            },
+          });
+        } else {
+          toast({
+            title: tMigrationWizard(`result.readinessStatus.${readinessStatus}`),
+            description: issueText,
+            variant: readinessStatus === 'critical' ? 'destructive' : 'default',
+          });
+        }
+      } else {
+        toast({
+          title: t('importSuccess'),
+          description: t('importSuccessDesc', { count: result.total_imported }),
+        });
+      }
       setShowImportReview(false);
       setImportDryRun(null);
       setImportDryRunId(null);
@@ -344,7 +380,7 @@ const MemorySection = memo(() => {
     } finally {
       setIsImporting(false);
     }
-  }, [fetchMemories, importDryRunId, t]);
+  }, [fetchMemories, importDryRunId, t, tMigrationWizard]);
 
   const handleImportReviewOpenChange = useCallback((open: boolean) => {
     setShowImportReview(open);

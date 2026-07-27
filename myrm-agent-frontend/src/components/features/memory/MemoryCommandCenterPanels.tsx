@@ -571,6 +571,24 @@ const MigrationPanel = ({
                   })}
                 </div>
               )}
+              {snapshot.migration.last_import_readiness_status && (
+                <div className="mt-1 truncate text-[11px] text-muted-foreground">
+                  {t('commandCenter.lastImportReadiness', {
+                    status: t(
+                      `commandCenter.readinessStatus.${snapshot.migration.last_import_readiness_status}`,
+                    ),
+                  })}
+                </div>
+              )}
+              {snapshot.migration.last_import_first_turn_outcome && (
+                <div className="mt-1 truncate text-[11px] text-muted-foreground">
+                  {t('commandCenter.lastImportFirstTurn', {
+                    outcome: t(
+                      `commandCenter.firstTurnOutcome.${snapshot.migration.last_import_first_turn_outcome}`,
+                    ),
+                  })}
+                </div>
+              )}
             </>
           )}
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">

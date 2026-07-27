@@ -931,14 +931,17 @@ class CdpChatBootstrap(CdpChatTransport):
         await self._maybe_apply_shared_ui_session_contract(deadline=deadline)
         if deadline is not None and time.monotonic() >= deadline:
             raise TimeoutError("Chat surface provider reset budget exhausted")
-        recv_cap = 45.0
+        recv_cap = _SHELL_PROBE_RECV_TIMEOUT_SEC
         if deadline is not None:
             remaining = max(0.0, deadline - time.monotonic())
             if remaining <= 0:
                 return
             recv_cap = max(
                 5.0,
-                min(45.0, shpoib_shell_wait_slice_cap(remaining)),
+                min(
+                    _SHELL_PROBE_RECV_TIMEOUT_SEC,
+                    shpoib_shell_wait_slice_cap(remaining),
+                ),
             )
         try:
             await self.evaluate(

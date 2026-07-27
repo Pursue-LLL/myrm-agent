@@ -29,7 +29,7 @@
 | `sessionRecordingEvents.ts` | 核心 | SESSION_RECORDING 视频回放元数据 | ✅ |
 | `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、降级/切换通知 | ✅ |
 | `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存；回填 `memory_brief_snapshot_id` + `memory_brief_status`；`flushPendingGapRetry` 于 loading 落盘后自动重发 | ✅ |
-| `gapEvents.ts` | 核心 | CAPABILITY_GAP / SKILL_GAP SSE → toast 开启并重发；`surface_unavailable` → info-only toast；`web_search` + `not_configured|unreachable` → `webSearchConfigGap` SSOT toast（agent 发送前不再重复 client guard） | ✅ |
+| `gapEvents.ts` | 核心 | CAPABILITY_GAP / SKILL_GAP SSE → toast 开启并重发；`surface_unavailable` → info-only toast；`web_search` + `not_configured|unreachable` → `webSearchConfigGap` SSOT toast；`migration_readiness_critical|warning` → issue-aware settings CTA toast | ✅ |
 | `renderUiSurfaceUnavailableMessage.ts` | 辅助 | `capability_gap` surface_unavailable fallback 文案（与 `agent.configPanel.renderUiWebOnlyHint` 同步） | ✅ |
 | `__tests__/gapEvents.test.ts` | 测试 | gap handler 回归（含 web_search config gap CTA、loading 延迟重发） | ✅ |
 | `__tests__/completionEvents.pendingGapRetry.test.ts` | 测试 | MESSAGE_END 后 flush pending gap | ✅ |

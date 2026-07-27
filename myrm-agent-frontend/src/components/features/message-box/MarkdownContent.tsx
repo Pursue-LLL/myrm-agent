@@ -55,6 +55,8 @@ const CITATION_MARKER_RE = /\u3010(\d+)\u3011/g;
  * so they are rendered by the existing citation component.
  * Only applied post-stream to avoid partial-marker artefacts.
  */
+const escapeHtmlAttr = (s: string): string => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 const preprocessCitationMarkers = (text: string, sources: Source[]): string => {
   if (sources.length === 0) return text;
   return text.replace(CITATION_MARKER_RE, (_match, numStr: string) => {
@@ -62,7 +64,8 @@ const preprocessCitationMarkers = (text: string, sources: Source[]): string => {
     const sourceIndex = sources.findIndex((s) => s.index === num);
     if (sourceIndex === -1) return `[${numStr}]`;
     const source = sources[sourceIndex];
-    return `<citation data-num="${numStr}" data-source-index="${sourceIndex}" data-url="${source?.url || ''}"></citation>`;
+    const safeUrl = escapeHtmlAttr(source?.url || '');
+    return `<citation data-num="${numStr}" data-source-index="${sourceIndex}" data-url="${safeUrl}"></citation>`;
   });
 };
 

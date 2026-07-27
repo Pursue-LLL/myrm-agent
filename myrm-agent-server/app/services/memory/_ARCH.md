@@ -38,7 +38,7 @@
 | `import_cursor.py` | 辅助 | Cursor 竞品导入解析器。解析 Cursor rules 和 settings 到原生记忆类型 | ✅ |
 | `import_codex.py` | 辅助 | Codex 竞品导入解析器。解析 Codex instructions 和 settings 到原生记忆类型 | ✅ |
 | `import_chatgpt.py` | 辅助 | ChatGPT 竞品导入解析器。解析 ChatGPT conversations.json 的 tree-based mapping 结构到 episodic 记忆类型 | ✅ |
-| `import_sessions.py` | 核心 | 记忆导入审查会话编排服务。持久化 dry-run 结果、payload hash、过期时间、normalized data 和 plan hash，确认时只接受 dry_run_id 并校验计划一致性，协调导入批次审计、迁移来源、关系型 item-level transaction ledger、崩溃安全回滚 journal、账本权威回滚预演、profile revision 冲突保护、回滚后完整性探针、导入后诊断结果回写、运行就绪合同（readiness status/issues）回写、首轮执行结果锚点（first-turn outcome）回写和保留窗口清理指标 | ✅ |
+| `import_sessions.py` | 核心 | 记忆导入审查会话编排服务。持久化 dry-run 结果、payload hash、过期时间、normalized data 和 plan hash，确认时只接受 dry_run_id 并校验计划一致性，协调导入批次审计、迁移来源、关系型 item-level transaction ledger、崩溃安全回滚 journal、账本权威回滚预演、profile revision 冲突保护、回滚后完整性探针、导入后诊断结果回写、运行就绪合同（readiness status/issues + **`recheck_facts` SSOT**）回写、**`resolve_live_import_readiness` live 重算**、首轮执行结果锚点（first-turn outcome）回写和保留窗口清理指标 | ✅ |
 | `import_session_data.py` | 辅助 | 记忆导入会话数据转换。负责 payload 指纹、纯导入计划、normalized data JSON 转换、导入 metadata 注入、transaction item 构建和 profile 导入前后 revision snapshot 采集 | ✅ |
 | `import_session_models.py` | 辅助 | 记忆导入会话 DTO。定义 confirm、rollback preview 和含 exact ref drilldown / integrity status 的 rollback result 服务层返回对象 | ✅ |
 | `import_ledger.py` | 核心 | 记忆导入批次/条目事务账本服务。维护 confirmed/rollback_in_progress/rolled_back/partial/rollback_failed 批次状态和 imported/skipped/rolled_back/conflict/missing/rollback_failed 条目状态，保存内容盲回滚事实、结构化 warning code、rollback health counter 和自动诊断摘要 | ✅ |

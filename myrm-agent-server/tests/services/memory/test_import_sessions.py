@@ -24,7 +24,12 @@ from app.services.memory.import_ledger import (
     IMPORT_ITEM_STATUS_ROLLED_BACK,
     MemoryImportLedgerService,
 )
-from app.services.memory.import_sessions import MemoryImportSessionError, MemoryImportSessionService
+from app.services.memory.import_sessions import (
+    ImportReadinessRecheckFacts,
+    MemoryImportSessionError,
+    MemoryImportSessionService,
+)
+from app.services.memory.operations.crud.import_readiness import build_import_readiness
 
 
 class _FakeMemoryManager:
@@ -345,6 +350,49 @@ async def test_save_post_import_readiness_persists_session_and_provenance_metada
 
 
 @pytest.mark.asyncio
+async def test_save_post_import_readiness_persists_recheck_facts_ssot(
+    db_session: AsyncSession,
+) -> None:
+    manager = _FakeMemoryManager()
+    service = MemoryImportSessionService(db_session)
+    payload = {"data": {"semantic": [{"content": "Persist recheck facts.", "metadata": {}}]}}
+    dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(payload, "native_json")
+    confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+
+    facts = ImportReadinessRecheckFacts(
+        source_has_api_keys=True,
+        diagnostic_status="ready",
+        diagnostic_failed_count=0,
+        mcp_config_count=3,
+        workspace_rules_skipped=1,
+    )
+    await service.save_post_import_readiness(
+        import_batch_id=confirm.import_batch_id,
+        readiness_status="warning",
+        readiness_issues=[],
+        recheck_facts=facts,
+    )
+    await service.save_post_import_readiness(
+        import_batch_id=confirm.import_batch_id,
+        readiness_status="ready",
+        readiness_issues=[],
+    )
+
+    dry_run = await db_session.get(MemoryImportDryRunModel, dry_run_id)
+    assert dry_run is not None
+    metadata = dry_run.metadata_json
+    assert isinstance(metadata, dict)
+    recheck_block = metadata.get("recheck_facts")
+    assert isinstance(recheck_block, dict)
+    assert recheck_block.get("mcp_config_count") == 3
+    assert recheck_block.get("workspace_rules_skipped") == 1
+
+    loaded = await service.load_import_readiness_recheck_facts(confirm.import_batch_id)
+    assert loaded.mcp_config_count == 3
+    assert loaded.workspace_rules_skipped == 1
+
+
+@pytest.mark.asyncio
 async def test_save_post_import_first_turn_outcome_persists_once(
     db_session: AsyncSession,
 ) -> None:
@@ -392,3 +440,127 @@ async def test_save_post_import_first_turn_outcome_persists_once(
     assert provenance.metadata_json.get("first_turn_had_fatal_error") is False
     assert provenance.metadata_json.get("first_turn_chat_id") == "chat-1"
     assert provenance.metadata_json.get("first_turn_message_id") == "msg-1"
+
+
+@pytest.mark.asyncio
+async def test_load_import_readiness_recheck_facts_prefers_recheck_facts_ssot(
+    db_session: AsyncSession,
+) -> None:
+    manager = _FakeMemoryManager()
+    service = MemoryImportSessionService(db_session)
+    payload = {"data": {"semantic": [{"content": "SSOT recheck facts.", "metadata": {}}]}}
+    dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(
+        payload,
+        "native_json",
+        session_metadata={"source_has_api_keys": False},
+    )
+    confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+    await service.save_post_import_readiness(
+        import_batch_id=confirm.import_batch_id,
+        readiness_status="warning",
+        readiness_issues=[
+            {
+                "code": "mcp_servers_imported_disabled",
+                "severity": "warning",
+                "params": {"count": 99},
+            }
+        ],
+        recheck_facts=ImportReadinessRecheckFacts(
+            source_has_api_keys=True,
+            diagnostic_status="ready",
+            diagnostic_failed_count=0,
+            mcp_config_count=2,
+            workspace_rules_skipped=1,
+        ),
+    )
+
+    facts = await service.load_import_readiness_recheck_facts(confirm.import_batch_id)
+
+    assert facts.source_has_api_keys is True
+    assert facts.diagnostic_status == "ready"
+    assert facts.mcp_config_count == 2
+    assert facts.workspace_rules_skipped == 1
+
+
+@pytest.mark.asyncio
+async def test_load_import_readiness_recheck_facts_from_session_metadata(
+    db_session: AsyncSession,
+) -> None:
+    manager = _FakeMemoryManager()
+    service = MemoryImportSessionService(db_session)
+    payload = {"data": {"semantic": [{"content": "Recheck facts.", "metadata": {}}]}}
+    dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(
+        payload,
+        "native_json",
+        session_metadata={"source_has_api_keys": True},
+    )
+    confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+    await service.save_post_import_diagnostic(
+        import_batch_id=confirm.import_batch_id,
+        diagnostic_run_id="diag-ready",
+        diagnostic_status="ready",
+        failed_count=0,
+    )
+    await service.save_post_import_readiness(
+        import_batch_id=confirm.import_batch_id,
+        readiness_status="critical",
+        readiness_issues=[
+            {
+                "code": "providers_not_configured",
+                "severity": "critical",
+                "params": {},
+            },
+            {
+                "code": "mcp_servers_imported_disabled",
+                "severity": "warning",
+                "params": {"count": 2},
+            },
+        ],
+    )
+
+    facts = await service.load_import_readiness_recheck_facts(confirm.import_batch_id)
+
+    assert facts.source_has_api_keys is True
+    assert facts.diagnostic_status == "ready"
+    assert facts.mcp_config_count == 2
+    assert facts.workspace_rules_skipped == 0
+
+
+@pytest.mark.asyncio
+async def test_recheck_import_readiness_uses_current_provider_state(
+    db_session: AsyncSession,
+) -> None:
+    manager = _FakeMemoryManager()
+    service = MemoryImportSessionService(db_session)
+    payload = {"data": {"semantic": [{"content": "Recheck endpoint.", "metadata": {}}]}}
+    dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(
+        payload,
+        "native_json",
+        session_metadata={"source_has_api_keys": True},
+    )
+    confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+    await service.save_post_import_diagnostic(
+        import_batch_id=confirm.import_batch_id,
+        diagnostic_run_id="diag-ready",
+        diagnostic_status="ready",
+        failed_count=0,
+    )
+    await service.save_post_import_readiness(
+        import_batch_id=confirm.import_batch_id,
+        readiness_status="critical",
+        readiness_issues=[{"code": "providers_not_configured", "severity": "critical", "params": {}}],
+    )
+
+    facts = await service.load_import_readiness_recheck_facts(confirm.import_batch_id)
+
+    readiness = build_import_readiness(
+        providers_configured=True,
+        source_has_api_keys=facts.source_has_api_keys,
+        diagnostic_status=facts.diagnostic_status,
+        diagnostic_failed_count=facts.diagnostic_failed_count,
+        mcp_config_count=facts.mcp_config_count,
+        workspace_rules_skipped=facts.workspace_rules_skipped,
+    )
+
+    assert readiness.status == "ready"
+    assert readiness.issues == []

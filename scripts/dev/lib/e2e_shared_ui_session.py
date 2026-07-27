@@ -33,6 +33,7 @@ _EMPTY_POLICY_STRONG_CLEAR_DONE: set[tuple[str, str]] = set()
 RESET_GLOBALS_JS = """(() => {
   delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
   window.__MYRM_E2E_DIRECT_SSE__ = false;
+  window.__MYRM_E2E_SEND_GENERATION__ = (window.__MYRM_E2E_SEND_GENERATION__ ?? 0) + 1;
   const bridge = window.__MYRM_E2E_CHAT__;
   bridge?.abortActiveStream?.();
   bridge?.releaseActiveStreamForApiResume?.();
@@ -42,6 +43,7 @@ RESET_GLOBALS_JS = """(() => {
 
 RESET_GLOBALS_KEEP_SEARCH_BLOCK_JS = """(() => {
   window.__MYRM_E2E_DIRECT_SSE__ = false;
+  window.__MYRM_E2E_SEND_GENERATION__ = (window.__MYRM_E2E_SEND_GENERATION__ ?? 0) + 1;
   const bridge = window.__MYRM_E2E_CHAT__;
   bridge?.abortActiveStream?.();
   bridge?.releaseActiveStreamForApiResume?.();
@@ -188,7 +190,9 @@ async def apply_shared_ui_session_contract(
         return {"ok": True, "skipped": True}
 
     if deadline is not None and time.monotonic() >= deadline:
-        raise _session_error("E2E_SHARED_UI_SESSION", "budget exhausted before RESET_GLOBALS")
+        raise _session_error(
+            "E2E_SHARED_UI_SESSION", "budget exhausted before RESET_GLOBALS"
+        )
 
     # R56: empty policy two-state contract:
     # 1) first pass per nodeid+api does strong clear;
@@ -217,7 +221,9 @@ async def apply_shared_ui_session_contract(
     if deadline is not None:
         bridge_timeout = min(bridge_timeout, max(0.0, deadline - time.monotonic()))
     if bridge_timeout <= 0:
-        raise _session_error("E2E_SHARED_UI_SESSION", "budget exhausted before BRIDGE_READY")
+        raise _session_error(
+            "E2E_SHARED_UI_SESSION", "budget exhausted before BRIDGE_READY"
+        )
 
     print(
         "E2E_SHARED_UI_SESSION_PROGRESS: phase=BRIDGE_READY",
@@ -236,7 +242,8 @@ async def apply_shared_ui_session_contract(
         # - block flag survives on the same page; or
         # - strong clear has completed once for this nodeid+api pair.
         search_block_preserved = (
-            isinstance(reset_raw, dict) and reset_raw.get("searchBlockPreserved") is True
+            isinstance(reset_raw, dict)
+            and reset_raw.get("searchBlockPreserved") is True
         )
         strong_clear_short_circuit = strong_clear_done and not search_block_preserved
 
@@ -272,7 +279,9 @@ async def apply_shared_ui_session_contract(
         else:
             search_budget = min(45.0, timeout_sec)
             if deadline is not None:
-                search_budget = min(search_budget, max(0.0, deadline - time.monotonic()))
+                search_budget = min(
+                    search_budget, max(0.0, deadline - time.monotonic())
+                )
             if search_budget <= 0:
                 raise _session_error(
                     "E2E_SHARED_UI_SESSION", "budget exhausted before SEARCH_POLICY"
@@ -313,7 +322,9 @@ async def apply_shared_ui_session_contract(
             await_promise=True,
             recv_timeout=45.0,
         )
-        search_result = search_raw if isinstance(search_raw, dict) else {"value": search_raw}
+        search_result = (
+            search_raw if isinstance(search_raw, dict) else {"value": search_raw}
+        )
         if search_result.get("ok") is not True:
             raise _session_error("E2E_SHARED_UI_SESSION_SEARCH", search_result)
 

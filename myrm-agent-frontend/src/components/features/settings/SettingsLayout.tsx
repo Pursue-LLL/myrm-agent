@@ -126,6 +126,7 @@ const BASE_TABS: SettingsTab[] = [
   'hosting',
   'integrationCatalog',
   'integrationMemory',
+  'extensionBridge',
   'connect',
   'workspaceRules',
   'developer',

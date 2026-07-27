@@ -560,7 +560,9 @@ export const createMessageRequest = async (
     configStore.personalSettings?.reasoningDisplayMode ?? configStore.reasoningDisplayMode ?? 'collapsed';
 
   const kanbanDefaultBoardId = resolveKanbanDefaultBoardIdForRequest(currentBuiltinTools);
-  const migrationReadinessAnchor = readMigrationReadinessAnchor();
+  const migrationReadinessAnchor = effectiveAgentId
+    ? consumeMigrationReadinessAnchorForAgent(effectiveAgentId)
+    : null;
 
   const requestBody = {
     query,
@@ -748,9 +750,6 @@ export const createMessageRequest = async (
   }
 
   const response = await createAISearchStream(requestBody, abortController || undefined);
-  if (migrationReadinessAnchor) {
-    clearMigrationReadinessAnchor();
-  }
   return response;
 };
 

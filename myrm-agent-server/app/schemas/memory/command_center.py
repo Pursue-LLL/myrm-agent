@@ -384,6 +384,8 @@ class MemoryCommandMigrationProvenance(BaseModel):
     verification_recommended: bool = False
     last_import_diagnostic_status: str | None = None
     last_import_diagnostic_run_id: str | None = None
+    last_import_readiness_status: Literal["ready", "warning", "critical"] | None = None
+    last_import_first_turn_outcome: Literal["success", "failed", "no_output"] | None = None
     cleanup_pending_sessions: int = 0
     cleanup_confirmed_sessions: int = 0
     cleanup_expired_sessions: int = 0

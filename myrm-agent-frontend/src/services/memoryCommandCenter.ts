@@ -289,6 +289,8 @@ export interface MemoryCommandMigrationProvenance {
   verification_recommended: boolean;
   last_import_diagnostic_status?: string | null;
   last_import_diagnostic_run_id?: string | null;
+  last_import_readiness_status?: 'ready' | 'warning' | 'critical' | null;
+  last_import_first_turn_outcome?: 'success' | 'failed' | 'no_output' | null;
   cleanup_pending_sessions: number;
   cleanup_confirmed_sessions: number;
   cleanup_expired_sessions: number;

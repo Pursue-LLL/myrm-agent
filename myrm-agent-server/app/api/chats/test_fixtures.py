@@ -48,6 +48,7 @@ from app.services.kanban import KanbanService
 from .test_fixtures_clarify_refresh import router as clarify_refresh_fixture_router
 from .test_fixtures_evicted import router as evicted_fixture_router
 from .test_fixtures_file_edit_batch import router as file_edit_batch_fixture_router
+from .test_fixtures_file_mutation import router as file_mutation_fixture_router
 
 router = APIRouter()
 
@@ -373,4 +374,5 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
 
 router.include_router(clarify_refresh_fixture_router)
 router.include_router(file_edit_batch_fixture_router)
+router.include_router(file_mutation_fixture_router)
 router.include_router(evicted_fixture_router)

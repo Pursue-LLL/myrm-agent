@@ -9,7 +9,7 @@
 - generate_cancellable_stream: 可取消的 SSE chunk 异步生成器
 
 [POS]
-Agent 流式 SSE chunk 编排：凭据注入、config/entitlement 双轨 gap 预检、Vision fallback，委托 loop/finalize。
+Agent 流式 SSE chunk 编排：凭据注入、config / migration readiness / entitlement 三轨 gap 预检、Vision fallback，委托 loop/finalize。
 """
 
 from __future__ import annotations
@@ -122,6 +122,9 @@ async def generate_cancellable_stream(
         from app.services.agent.stream_session.entitlement_gap_preflight import (
             build_web_search_config_gap_sse_event,
         )
+        from app.services.agent.stream_session.migration_readiness_preflight import (
+            resolve_and_build_migration_readiness_gap_sse_event,
+        )
 
         search_gap_event = build_web_search_config_gap_sse_event(
             message_id=session.params.message_id or "",
@@ -138,6 +141,18 @@ async def generate_cancellable_stream(
         if search_gap_event is not None:
             session.collector.feed_event(search_gap_event)
             yield SSEEnvelope.from_any(search_gap_event).to_sse_chunk()
+
+        migration_gap_event, migration_live_status = await resolve_and_build_migration_readiness_gap_sse_event(
+            message_id=session.params.message_id or "",
+            migration_readiness_anchor=session.request.migration_readiness_anchor,
+            chat_id=session.request.chat_id,
+            locale=getattr(session.params, "locale", None),
+        )
+        if migration_live_status is not None:
+            session.migration_live_readiness_status = migration_live_status
+        if migration_gap_event is not None:
+            session.collector.feed_event(migration_gap_event)
+            yield SSEEnvelope.from_any(migration_gap_event).to_sse_chunk()
 
     if session.entitlement_preflight_text:
         from app.ai_agents.general_agent.active_tool_groups import (

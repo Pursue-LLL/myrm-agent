@@ -18,6 +18,8 @@ from cdp_chat_support import (
     fetch_provider_readiness_snapshot,
 )
 from e2e_wave_ledger import maybe_register_e2e_chat
+from dev_gate_contract import SEND_TURN_OBSERVE_SEC
+from send_turn_contract import SendTurnError, SendTurnPhase, is_live_send_turn_profile
 
 
 def _bridge_has_completion(bridge: dict[str, object]) -> bool:
@@ -109,16 +111,25 @@ class CdpChatTurn(CdpChatSubmit):
                 hint=str(last.get("bridgeChatId") or "").strip() or None,
             )
             if chat_id:
+                bridge_id = str(last.get("bridgeChatId") or "").strip()
+                ui_progress = bool(
+                    last.get("sending")
+                    or int(last.get("userMsgs") or 0) >= min_user_msgs
+                )
                 try:
-                    if (
+                    api_ok = (
                         cdp_chat_support.chat_user_message_count(chat_id)
                         >= min_user_msgs
-                    ):
+                    )
+                except OSError:
+                    api_ok = False
+                if api_ok and bridge_id == chat_id:
+                    if is_live_send_turn_profile() and not ui_progress:
+                        pass
+                    else:
                         last["chatId"] = chat_id
                         last["okViaApi"] = True
                         return last
-                except OSError:
-                    pass
                 try:
                     if chat_messages_have_ok(chat_id, min_user_count=min_user_msgs):
                         return last
@@ -690,16 +701,10 @@ class CdpChatTurn(CdpChatSubmit):
             ):
                 break
             await asyncio.sleep(0.5)
-        try:
-            submit = await asyncio.wait_for(
-                self.send_chat_message_atomic(
-                    text,
-                    baseline_user_msgs=baseline_user_msgs,
-                ),
-                timeout=90.0,
-            )
-        except TimeoutError:
-            submit = {"ok": False, "err": "atomic-send-timeout"}
+        submit = await self.send_chat_message_atomic(
+            text,
+            baseline_user_msgs=baseline_user_msgs,
+        )
         if not submit.get("ok"):
             submit = await self.submit_native_click()
         if not submit.get("ok"):
@@ -749,7 +754,6 @@ class CdpChatTurn(CdpChatSubmit):
         await self.dismiss_modals()
         await self.wait_dev_bridge()
         await self.ensure_e2e_api_base_binding()
-        await self.ensure_chat_surface(ui_base)
         if chat_id_hint:
             on_chat_page = False
             try:
@@ -825,33 +829,28 @@ class CdpChatTurn(CdpChatSubmit):
                 raise RuntimeError(
                     f"E2E send not ready before submit: ready={ready} probe={send_probe} debug={debug}"
                 )
-            fill = {"ok": True, "mode": "atomicSendChatMessage", "inputLen": len(text)}
-            submit: dict[str, object]
+            fill = {"ok": True, "mode": "sendTurnContract", "inputLen": len(text)}
             try:
-                submit = await asyncio.wait_for(
-                    self.send_chat_message_atomic(
-                        text,
-                        baseline_user_msgs=baseline_user_msgs,
-                    ),
-                    timeout=45.0,
+                submit = await self.send_chat_message_atomic(
+                    text,
+                    baseline_user_msgs=baseline_user_msgs,
                 )
-            except asyncio.TimeoutError:
-                submit = {"ok": False, "err": "atomic-send-timeout"}
+            except SendTurnError as exc:
+                raise RuntimeError(
+                    f"SendTurnContract failed phase={exc.phase.value}: {exc}"
+                ) from exc
             except RuntimeError as exc:
                 if any(
                     token in str(exc)
                     for token in ("Target closed", "No page found", "detached Frame")
                 ):
-                    submit = {"ok": False, "err": "target-closed-during-atomic"}
-                else:
-                    raise
+                    raise RuntimeError(
+                        f"SendTurnContract transport error: {exc}"
+                    ) from exc
+                raise
             if not submit.get("ok"):
-                atomic_err = str(submit.get("err") or "")
-                if atomic_err in {
-                    "no-sendChatMessage",
-                    "atomic-send-timeout",
-                    "target-closed-during-atomic",
-                }:
+                native_err = str(submit.get("err") or "")
+                if native_err in {"no-sendChatMessage", "target-closed-during-atomic"}:
                     await self.evaluate(
                         f"""(() => {{
                           const bridge = window.__MYRM_E2E_CHAT__;
@@ -863,141 +862,39 @@ class CdpChatTurn(CdpChatSubmit):
                     )
                     native = await self.submit_native_click()
                     if native.get("ok"):
-                        submit = native
-                probe = await self.send_state()
-                if chat_id and not submit.get("ok"):
-                    try:
-                        if (
-                            cdp_chat_support.chat_user_message_count(chat_id)
-                            > baseline_user_msgs
-                        ):
-                            submit = {
-                                **submit,
-                                "ok": True,
-                                "mode": "apiConfirmedWithoutDom",
-                                "chatId": chat_id,
-                            }
-                    except OSError:
-                        pass
+                        submit = {**native, "mode": "nativeClickFallback"}
                 if not submit.get("ok"):
-                    if int(probe.get("inputLen") or 0) > 0:
-                        raise RuntimeError(f"UI submit failed: {submit} fill={fill}")
-                    bridge_block = submit.get("bridge")
-                    if isinstance(bridge_block, dict):
-                        last_submit = bridge_block.get("lastSubmit")
-                        if isinstance(last_submit, dict):
-                            debug = last_submit.get("debug")
-                            if isinstance(debug, dict):
-                                turn = debug.get("turn")
-                                if isinstance(turn, dict) and (
-                                    turn.get("isStreaming")
-                                    or int(turn.get("userCount") or 0)
-                                    > baseline_user_msgs
-                                ):
-                                    submit = {
-                                        **submit,
-                                        "ok": True,
-                                        "mode": "bridgeTurnStreaming",
-                                        "chatId": turn.get("chatId") or chat_id,
-                                    }
-                    if chat_id:
-                        try:
-                            if (
-                                cdp_chat_support.chat_user_message_count(chat_id)
-                                > baseline_user_msgs
-                            ):
-                                submit = {
-                                    **submit,
-                                    "ok": True,
-                                    "mode": "apiConfirmedWithoutDom",
-                                    "chatId": chat_id,
-                                }
-                        except OSError:
-                            pass
-                    if not submit.get("ok"):
-                        raise RuntimeError(
-                            f"UI submit failed without stream or API confirmation: {submit} fill={fill}"
-                        )
-            started: dict[str, object]
-            try:
-                started = await asyncio.wait_for(
-                    self.wait_stream_started(
-                        prompt_for_wait,
-                        min_user_msgs=baseline_user_msgs + 1,
-                        chat_id_hint=chat_id,
-                    ),
-                    timeout=45.0,
-                )
-            except TimeoutError:
-                started = await self.main_state(prompt_for_wait)
-                started["streamProbe"] = "deferred_to_wait_turn_done"
-            if not chat_id:
-                chat_id = await self.bridge_chat_id()
-            if chat_id:
-                started["chatId"] = chat_id
-            if chat_id:
-                api_deadline = time.monotonic() + 60.0
-                while time.monotonic() < api_deadline:
-                    try:
-                        if (
-                            cdp_chat_support.chat_user_message_count(chat_id)
-                            > baseline_user_msgs
-                        ):
-                            return {"fill": fill, "submit": submit, "started": started}
-                    except OSError:
-                        pass
-                    await asyncio.sleep(1.0)
-                bridge = await self._bridge_turn_snapshot()
-                if int(
-                    started.get("userMsgs") or 0
-                ) > baseline_user_msgs or started.get("sending"):
-                    return {"fill": fill, "submit": submit, "started": started}
-                if (
-                    isinstance(bridge, dict)
-                    and int(bridge.get("userCount") or 0) > baseline_user_msgs
-                ):
-                    return {"fill": fill, "submit": submit, "started": started}
-                submit_mode = str(submit.get("mode") or "")
-                if submit.get("ok") and submit_mode in {
-                    "kickoffStreaming",
-                    "bridgeTurnStreaming",
-                    "apiConfirmedWithoutDom",
-                }:
-                    return {"fill": fill, "submit": submit, "started": started}
-                if (
-                    isinstance(bridge, dict)
-                    and bridge.get("isStreaming")
-                    and int(bridge.get("userCount") or 0) >= max(baseline_user_msgs, 1)
-                ):
-                    return {"fill": fill, "submit": submit, "started": started}
-                raise RuntimeError(
-                    "API user message count did not increase after submit: "
-                    f"baseline={baseline_user_msgs} submit={submit} started={started} bridge={bridge}"
-                )
-            confirmed = False
-            if int(started.get("userMsgs") or 0) > baseline_user_msgs or started.get(
-                "sending"
-            ):
-                confirmed = True
-            if not confirmed and chat_id:
-                try:
-                    confirmed = (
-                        cdp_chat_support.chat_user_message_count(chat_id)
-                        > baseline_user_msgs
-                    )
-                except OSError:
-                    confirmed = False
-            if not confirmed:
-                bridge = await self._bridge_turn_snapshot()
-                if (
-                    isinstance(bridge, dict)
-                    and int(bridge.get("userCount") or 0) > baseline_user_msgs
-                ):
-                    confirmed = True
-                elif not confirmed:
                     raise RuntimeError(
-                        f"UI submit did not start stream: submit={submit} started={started} bridge={bridge}"
+                        f"SendTurnContract submit failed: {submit} fill={fill}"
                     )
+            sealed_chat_id = str(
+                submit.get("chatId") or chat_id or (await self.bridge_chat_id()) or ""
+            ).strip()
+            if not sealed_chat_id:
+                raise RuntimeError(
+                    f"SendTurnContract missing chatId after submit: {submit}"
+                )
+            chat_id = sealed_chat_id
+            submit_mode = str(submit.get("mode") or "")
+            if submit.get("ok") and submit_mode == "sendTurnSealed":
+                debug = submit.get("debug")
+                started: dict[str, object] = {
+                    "chatId": chat_id,
+                    "sendTurnMode": submit_mode,
+                    "okViaSendTurn": True,
+                }
+                if isinstance(debug, dict):
+                    started["userMsgs"] = debug.get("userCount")
+                    started["sending"] = debug.get("streaming")
+                return {"fill": fill, "submit": submit, "started": started}
+            started = await self.wait_stream_started(
+                prompt_for_wait,
+                timeout_sec=float(SEND_TURN_OBSERVE_SEC),
+                min_user_msgs=baseline_user_msgs + 1,
+                chat_id_hint=chat_id,
+            )
+            started["chatId"] = chat_id
+            started["sendTurnMode"] = submit.get("mode")
             return {"fill": fill, "submit": submit, "started": started}
         finally:
             self._baseline_user_msgs = 0

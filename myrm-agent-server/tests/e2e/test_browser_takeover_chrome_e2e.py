@@ -183,6 +183,37 @@ BROWSER_RECOVERY_DELAY_SEC = 12.0
 BROWSER_RECOVERY_MIN_INTERVAL_SEC = 20.0
 MAX_SEND_ATTEMPTS = 3
 
+
+def _is_gate_mux_stall(exc: BaseException) -> bool:
+    if isinstance(exc, TimeoutError):
+        return True
+    return "MUX_RECLAIM_STALL" in str(exc)
+
+
+async def _gate_probe_evaluate(
+    chat: McpChatSession,
+    expression: str,
+    *,
+    await_promise: bool = False,
+    label: str = "evaluate",
+) -> object | None:
+    """Probe-mode evaluate that tolerates transient MUX stalls during LLM streaming."""
+    try:
+        return await chat.evaluate(
+            expression,
+            await_promise=await_promise,
+            recv_timeout=15.0,
+        )
+    except RuntimeError as exc:
+        if _is_gate_mux_stall(exc):
+            print(f"E2E_GATE_MUX_STALL: {label} transient skip", flush=True)
+            return None
+        raise
+    except TimeoutError:
+        print(f"E2E_GATE_MUX_STALL: {label} transient skip", flush=True)
+        return None
+
+
 _ENABLE_YOLO_JS = """(() => {
   const key = 'securityConfig';
   const mgr = window.__MYRM_CONFIG_SYNC__?.get?.(key)
@@ -493,8 +524,8 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         pytest.fail("Backend not healthy before browser takeover LIVE Chrome E2E")
 
     async def _probe_browser_tool_progress(chat: McpChatSession) -> dict[str, object]:
-        probe = await chat.evaluate(
-            _BROWSER_TOOL_PROGRESS_JS, await_promise=False, recv_timeout=15.0
+        probe = await _gate_probe_evaluate(
+            chat, _BROWSER_TOOL_PROGRESS_JS, label="tool_progress"
         )
         return probe if isinstance(probe, dict) else {"active": False}
 
@@ -520,11 +551,14 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         if time.monotonic() - last_recovery_at[0] < BROWSER_RECOVERY_MIN_INTERVAL_SEC:
             return None
         last_recovery_at[0] = time.monotonic()
-        recover = await chat.evaluate(
+        recover = await _gate_probe_evaluate(
+            chat,
             _RECOVER_BROWSER_TAKEOVER_JS,
             await_promise=True,
-            recv_timeout=15.0,
+            label="recover_takeover",
         )
+        if recover is None:
+            return None
         if (
             isinstance(recover, dict)
             and recover.get("ok")
@@ -551,8 +585,8 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             if takeover_pending or last_tool.endswith("browser_ask_human_tool"):
                 return last_tool, takeover_pending
 
-            banner = await chat.evaluate(
-                _BANNER_ASSERT_JS, await_promise=False, recv_timeout=15.0
+            banner = await _gate_probe_evaluate(
+                chat, _BANNER_ASSERT_JS, label="gate_banner"
             )
             if isinstance(banner, dict) and (
                 banner.get("ready") is True or banner.get("storePending") is True
@@ -583,9 +617,12 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 await chat.ensure_e2e_api_base_binding()
                 await asyncio.sleep(2.0)
                 continue
-            raw = await chat.evaluate(
-                _BANNER_ASSERT_JS, await_promise=False, recv_timeout=15.0
+            raw = await _gate_probe_evaluate(
+                chat, _BANNER_ASSERT_JS, label="wait_banner"
             )
+            if raw is None:
+                await asyncio.sleep(1.0)
+                continue
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("backendUnreachable") is True:
                 await chat.ensure_e2e_api_base_binding()
@@ -599,9 +636,12 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 last_recovery_at=last_recovery_at,
             )
             if recovered is not None:
-                raw = await chat.evaluate(
-                    _BANNER_ASSERT_JS, await_promise=False, recv_timeout=15.0
+                raw = await _gate_probe_evaluate(
+                    chat, _BANNER_ASSERT_JS, label="banner_after_recovery"
                 )
+                if raw is None:
+                    await asyncio.sleep(1.0)
+                    continue
                 last = raw if isinstance(raw, dict) else {"value": raw}
                 if last.get("ready") is True:
                     return last
@@ -684,15 +724,15 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             )
             if not chat_id_hint:
                 chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
-            _p(f"wait_stream_started chatId={chat_id_hint}")
-
-            try:
-                await chat.wait_stream_started(
-                    last_prompt, timeout_sec=90.0, chat_id_hint=chat_id_hint
+            submit_mode = str(send_result.get("submit", {}).get("mode") or "")
+            _p(
+                f"send_message sealed chatId={chat_id_hint} "
+                f"submitMode={submit_mode}"
+            )
+            if submit_mode != "sendTurnSealed":
+                raise RuntimeError(
+                    f"SendTurnContract expected sendTurnSealed, got: {send_result}"
                 )
-                _p("stream started")
-            except (AssertionError, TimeoutError, RuntimeError) as exc:
-                _p(f"stream_started soft-fail: {type(exc).__name__}: {exc}")
 
             shim_proc = getattr(chat._client, "_process", None)
             shim_alive = shim_proc is not None and shim_proc.poll() is None

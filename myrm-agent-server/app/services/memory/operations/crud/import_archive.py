@@ -12,7 +12,7 @@ app.services.migration.memory_import_binding (POS: 迁移事实记忆的全局 n
 app.services.memory.operations.crud.import_readiness (POS: 记忆导入就绪合同构建层。负责把 provider、diagnostic、MCP 与规则跳过事实归并为可执行门禁状态。)
 
 [OUTPUT]
-memory CRUD handler functions、状态变更、偏好摘要、偏好管理、服务端绑定导入、Memory Archive、导入后诊断与运行就绪合同、回滚预演端点
+memory CRUD handler functions、状态变更、偏好摘要、偏好管理、服务端绑定导入、Memory Archive、导入后诊断与运行就绪合同、readiness-recheck、回滚预演端点
 
 [POS]
 记忆 API 操作层。提供标准记忆增删改查、偏好稳定性管理、单用户 archive 导出/校验，
@@ -40,6 +40,8 @@ from app.schemas.memory.archive import (
     MemoryImportDryRunRequest,
     MemoryImportDryRunResponse,
     MemoryImportReadiness,
+    MemoryImportReadinessRecheckRequest,
+    MemoryImportReadinessRecheckResponse,
     MemoryImportRequest,
     MemoryImportResponse,
     MemoryImportRollbackPreviewResponse,
@@ -55,10 +57,15 @@ from app.schemas.memory.crud import (
 from app.services.memory.archive import MemoryArchiveService
 from app.services.memory.command_center import MemoryCommandCenterService
 from app.services.memory.diagnostics import MemoryDiagnosticsService
-from app.services.memory.import_sessions import MemoryImportSessionError, MemoryImportSessionService
+from app.services.memory.import_sessions import (
+    ImportReadinessRecheckFacts,
+    MemoryImportSessionError,
+    MemoryImportSessionService,
+)
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _record_memory_event
 from app.services.memory.operations.crud.import_readiness import build_import_readiness
+from app.services.migration.source_secrets_importer import external_source_providers_configured
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +239,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
     lane_previews = []
     is_competitor = is_source_discovery_payload(body.payload)
     instruction_total_chars = 0
-    providers_configured = True
+    providers_configured = await external_source_providers_configured()
 
     if is_competitor:
         loaded_payload = load_source_payload(body.payload)
@@ -382,7 +389,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         instruction_preview_persona=instruction_preview_persona,
         instruction_preview_rule_names=instruction_preview_rule_names,
         instruction_total_chars=instruction_total_chars if is_competitor else 0,
-        providers_configured=providers_configured if is_competitor else True,
+        providers_configured=providers_configured,
         mcp_servers_preview=mcp_servers_preview if is_competitor else [],
     )
 
@@ -411,8 +418,6 @@ async def confirm_import_memories(
         try:
             session_service = MemoryImportSessionService(db)
             metadata = await session_service.get_pending_session_metadata(body.dry_run_id)
-            providers_configured_raw = metadata.get("providers_configured")
-            providers_configured = providers_configured_raw if isinstance(providers_configured_raw, bool) else None
             source_has_api_keys_raw = metadata.get("source_has_api_keys")
             source_has_api_keys = source_has_api_keys_raw is True
             mcp_imported_disabled_count = 0
@@ -530,6 +535,7 @@ async def confirm_import_memories(
                 except Exception as save_exc:
                     logger.warning("Post-import diagnostic failure state was not persisted: %s", save_exc)
             workspace_rules_skipped_count = instruction_result.workspace_rules_skipped if instruction_result else 0
+            providers_configured = await external_source_providers_configured()
             readiness = build_import_readiness(
                 providers_configured=providers_configured,
                 source_has_api_keys=source_has_api_keys,
@@ -543,6 +549,13 @@ async def confirm_import_memories(
                     import_batch_id=result.import_batch_id,
                     readiness_status=readiness.status,
                     readiness_issues=[issue.model_dump(mode="json") for issue in readiness.issues],
+                    recheck_facts=ImportReadinessRecheckFacts(
+                        source_has_api_keys=source_has_api_keys,
+                        diagnostic_status=result.diagnostic_status,
+                        diagnostic_failed_count=diagnostic_failed_count,
+                        mcp_config_count=mcp_imported_disabled_count,
+                        workspace_rules_skipped=workspace_rules_skipped_count,
+                    ),
                 )
             except Exception as readiness_exc:
                 logger.warning(
@@ -566,6 +579,41 @@ async def confirm_import_memories(
         global_instructions_updated=(instruction_result.global_instructions_updated if instruction_result else False),
         workspace_rules_written=(instruction_result.workspace_rules_written if instruction_result else 0),
         workspace_rules_skipped=(instruction_result.workspace_rules_skipped if instruction_result else 0),
+        readiness=readiness,
+    )
+
+
+async def recheck_import_readiness(
+    body: MemoryImportReadinessRecheckRequest,
+) -> MemoryImportReadinessRecheckResponse:
+    """Re-evaluate post-import execution readiness using current runtime facts."""
+
+    import_batch_id = body.import_batch_id.strip()
+    if not import_batch_id:
+        raise HTTPException(status_code=400, detail="Import batch id is required.")
+
+    async with get_session() as db:
+        session_service = MemoryImportSessionService(db)
+        try:
+            readiness = await session_service.resolve_live_import_readiness(import_batch_id)
+        except MemoryImportSessionError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+        try:
+            await session_service.save_post_import_readiness(
+                import_batch_id=import_batch_id,
+                readiness_status=readiness.status,
+                readiness_issues=[issue.model_dump(mode="json") for issue in readiness.issues],
+            )
+        except Exception as readiness_exc:
+            logger.warning(
+                "Post-import readiness recheck was not persisted for %s: %s",
+                import_batch_id,
+                readiness_exc,
+            )
+
+    return MemoryImportReadinessRecheckResponse(
+        import_batch_id=import_batch_id,
         readiness=readiness,
     )
 

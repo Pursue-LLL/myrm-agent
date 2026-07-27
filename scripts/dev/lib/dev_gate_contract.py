@@ -138,6 +138,13 @@ CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
 MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC: Final[int] = 120
 SHELL_PROBE_STALL_FAIL_FAST_SEC: Final[int] = 120
 MUX_RECLAIM_STALL_TOKEN: Final[str] = "MUX_RECLAIM_STALL"
+# R72 SendTurnContract: single evaluate budget (kickoff observe + API poll + margin).
+SEND_TURN_EVAL_RECV_SEC: Final[float] = 120.0
+SEND_TURN_PYTHON_WALL_SEC: Final[float] = 130.0
+SEND_TURN_OBSERVE_SEC: Final[int] = 45
+SEND_TURN_API_POLL_SEC: Final[int] = 60
+SEND_TURN_LOG_TOKEN: Final[str] = "E2E_SEND_TURN"
+SEND_TURN_GENERATION_WINDOW_KEY: Final[str] = "__MYRM_E2E_SEND_GENERATION__"
 # run_pytest_safe outer budget padding beyond pytest floor (bootstrap/MCP setup).
 PYTEST_SAFE_BOOTSTRAP_BUFFER_SEC: Final[int] = 120
 # Stream lock holder heartbeat file (waiters read holder identity while queueing).

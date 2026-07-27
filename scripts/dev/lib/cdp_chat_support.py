@@ -1593,9 +1593,27 @@ def resume_clarify_skip_via_api(
     }
 
 
+def is_hitl_already_resolved_by_timeout(result: dict[str, object]) -> bool:
+    """True when resume/skip hit terminal HITL timeout resolution (409, non-retryable)."""
+    error = result.get("error")
+    if not isinstance(error, dict):
+        return False
+    if error.get("error_type") != "AgentBusyError":
+        return False
+    fragments: list[str] = []
+    for key in ("error", "body", "detail"):
+        raw = error.get(key)
+        if raw is not None:
+            fragments.append(str(raw))
+    combined = " ".join(fragments).lower()
+    return "already been resolved by timeout" in combined or "resolved by timeout" in combined
+
+
 def clarify_skip_resume_should_retry(result: dict[str, object]) -> bool:
     """True when SSE ended early (e.g. UI stream still holds agent) and retry may succeed."""
     if result.get("ok") is True:
+        return False
+    if is_hitl_already_resolved_by_timeout(result):
         return False
     error = result.get("error")
     if isinstance(error, dict) and error.get("error_type") == "AgentBusyError":

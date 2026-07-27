@@ -74,6 +74,27 @@ async def _mark_pending_clarification_answered(chat_id: str) -> None:
         return
 
 
+def _collector_has_unanswered_clarification(session: AgentStreamSession) -> bool:
+    extra = session.collector.extra_data
+    if not isinstance(extra, dict):
+        return False
+    clarification = extra.get("clarification")
+    if not isinstance(clarification, dict):
+        return False
+    return clarification.get("answered") is False
+
+
+def _clarification_timeout_needed(
+    session: AgentStreamSession,
+    clarification: ClarificationTimeoutHolder,
+) -> bool:
+    if clarification.pending:
+        return True
+    if session.request.chat_id is None:
+        return False
+    return _collector_has_unanswered_clarification(session)
+
+
 async def yield_stream_exception_chunks(
     session: AgentStreamSession,
     exc: BaseException,
@@ -273,6 +294,7 @@ async def finalize_agent_stream_session(
         request=session.request,
         had_fatal_error=session.had_fatal_error,
         has_assistant_content=session.collector.has_content,
+        live_readiness_status=session.migration_live_readiness_status,
     )
 
     if session.request.chat_id:
@@ -290,14 +312,20 @@ async def finalize_agent_stream_session(
         if resume_completed or collector_clarification_answered:
             await _mark_pending_clarification_answered(session.request.chat_id)
 
-    if approval.value and session.request.chat_id:
+    clarification_sched_needed = _clarification_timeout_needed(session, clarification)
+
+    if (
+        approval.value
+        and session.request.chat_id
+        and not clarification_sched_needed
+    ):
         schedule_approval_timeout(
             chat_id=session.request.chat_id,
             timeout_info=approval.value,
             params=session.params,
         )
 
-    if clarification.pending and session.request.chat_id:
+    if clarification_sched_needed and session.request.chat_id:
         schedule_clarification_timeout(
             chat_id=session.request.chat_id,
             params=session.params,
@@ -395,8 +423,8 @@ async def finalize_agent_stream_session(
         )
 
     pending_hitl = bool(
-        approval.value
-        or clarification.pending
+        clarification_sched_needed
+        or (approval.value and not clarification_sched_needed)
         or session.collector.has_pending_hitl_replay()
     )
     if pending_hitl:

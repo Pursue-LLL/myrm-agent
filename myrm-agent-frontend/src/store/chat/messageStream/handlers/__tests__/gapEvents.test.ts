@@ -213,6 +213,42 @@ describe('gapEvents', () => {
     expect(typeof toastOptions.action?.onClick).toBe('function');
   });
 
+  it('shows settings CTA on migration_readiness_critical capability_gap', async () => {
+    await gapEvents(
+      createCtx(AgentEventType.CAPABILITY_GAP, {
+        tool_id: 'migration_import',
+        reason: 'migration_readiness_critical',
+        display_message: 'Configure model providers in Settings.',
+        settings_path: '/settings/models',
+      }),
+    );
+
+    expect(toastInfo).toHaveBeenCalledTimes(1);
+    expect(setPendingGapRetry).not.toHaveBeenCalled();
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as {
+      action?: { label?: string; onClick?: () => void };
+    };
+    expect(toastOptions.action?.label).toBe('Go to Settings');
+    expect(typeof toastOptions.action?.onClick).toBe('function');
+  });
+
+  it('shows settings CTA on migration_readiness_warning capability_gap', async () => {
+    await gapEvents(
+      createCtx(AgentEventType.CAPABILITY_GAP, {
+        tool_id: 'migration_import',
+        reason: 'migration_readiness_warning',
+        display_message: 'Enable imported MCP servers in Settings.',
+        settings_path: '/settings/mcp',
+      }),
+    );
+
+    expect(toastInfo).toHaveBeenCalledTimes(1);
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as {
+      action?: { label?: string; onClick?: () => void };
+    };
+    expect(toastOptions.action?.label).toBe('Go to Settings');
+  });
+
   it('shows local quick-enable CTA on web_search not_configured in local mode', async () => {
     isLocalModeMock.mockReturnValue(true);
     document.documentElement.lang = 'zh';

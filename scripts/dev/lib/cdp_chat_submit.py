@@ -4,10 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 import time
 
 from cdp_chat_input import CdpChatInput
 from cdp_chat_support import PREPARE_AUTOMATION_SEND_JS, get_e2e_api_url
+from dev_gate_contract import (
+    SEND_TURN_EVAL_RECV_SEC,
+    SEND_TURN_LOG_TOKEN,
+    SEND_TURN_PYTHON_WALL_SEC,
+)
+from send_turn_contract import SendTurnError, SendTurnPhase, resolve_send_turn_profile
 
 
 class CdpChatSubmit(CdpChatInput):
@@ -20,49 +27,55 @@ class CdpChatSubmit(CdpChatInput):
         await self.ensure_e2e_api_base_binding()
         payload = json.dumps(text)
         baseline = int(baseline_user_msgs)
-        result = await self.evaluate(
-            f"""(() => {{
-              const bridge = window.__MYRM_E2E_CHAT__;
-              const baseline = {baseline};
-              const text = {payload};
-              if (typeof bridge?.kickoffChatMessage === 'function') {{
-                return Promise.resolve(
-                  bridge.kickoffChatMessage(text, {{ baselineUserCount: baseline }}),
-                );
-              }}
-              if (typeof bridge?.sendChatMessage === 'function') {{
-                return Promise.resolve(
-                  bridge.sendChatMessage(text, {{
-                    baselineUserCount: baseline,
-                    waitForStreamCompletion: false,
-                  }}),
-                );
-              }}
-              if (typeof bridge?.setInputMessage === 'function' && typeof bridge?.handleSubmit === 'function') {{
-                bridge.setInputMessage(text);
-                bridge._submitBaselineUsers = baseline;
-                return Promise.resolve(bridge.handleSubmit()).then(() => {{
-                  const submit = bridge.lastSubmitResult;
-                  if (submit?.ok) {{
-                    return {{ ok: true, chatId: submit.chatId ?? null, mode: 'handleSubmitFallback' }};
-                  }}
-                  return {{
-                    ok: false,
-                    err: submit?.err || 'handleSubmit-fallback-failed',
-                    debug: submit?.debug ?? null,
-                  }};
-                }});
-              }}
-              return {{ ok: false, err: 'no-sendChatMessage' }};
-            }})()""",
-            await_promise=True,
-            recv_timeout=180.0,
-        )
-        return (
-            result
-            if isinstance(result, dict)
-            else {"ok": False, "err": "atomic-send-invalid"}
-        )
+        profile = resolve_send_turn_profile()
+        profile_json = json.dumps(profile)
+        try:
+            result = await asyncio.wait_for(
+                self.evaluate(
+                    f"""(() => {{
+                      const bridge = window.__MYRM_E2E_CHAT__;
+                      const baseline = {baseline};
+                      const text = {payload};
+                      const profile = {profile_json};
+                      if (typeof bridge?.submitAndObserveTurn === 'function') {{
+                        return Promise.resolve(
+                          bridge.submitAndObserveTurn(text, {{ baselineUserCount: baseline, profile }}),
+                        );
+                      }}
+                      if (typeof bridge?.sendChatMessage === 'function') {{
+                        return Promise.resolve(
+                          bridge.sendChatMessage(text, {{
+                            baselineUserCount: baseline,
+                            waitForStreamCompletion: true,
+                          }}),
+                        );
+                      }}
+                      return {{ ok: false, err: 'no-sendChatMessage' }};
+                    }})()""",
+                    await_promise=True,
+                    recv_timeout=SEND_TURN_EVAL_RECV_SEC,
+                ),
+                timeout=SEND_TURN_PYTHON_WALL_SEC,
+            )
+        except asyncio.TimeoutError as exc:
+            raise SendTurnError(
+                SendTurnPhase.SUBMIT,
+                "send-turn-evaluate-timeout",
+                detail={"baseline": baseline, "profile": profile},
+            ) from exc
+        if isinstance(result, dict):
+            debug = result.get("debug")
+            if isinstance(debug, dict):
+                phase = str(debug.get("phase") or "SUBMIT")
+                chat_id = str(result.get("chatId") or "").strip()
+                print(
+                    f"{SEND_TURN_LOG_TOKEN}: phase={phase} ok={result.get('ok')} "
+                    f"mode={result.get('mode')} chatId={chat_id or '-'} profile={profile}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            return result
+        return {"ok": False, "err": "atomic-send-invalid"}
 
     async def wait_send_button_ready(
         self,

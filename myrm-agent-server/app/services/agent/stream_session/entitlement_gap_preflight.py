@@ -10,6 +10,7 @@
 - resolve_surface_unavailable_display_message: localized surface-unavailable copy (SSE + IM)
 - resolve_web_search_config_gap_display_message: localized web_search config gap copy (IM fallback)
 - CapabilityGapEmissionTracker: per-chat cooldown dedup for gap toasts
+- get_capability_gap_emission_tracker: shared process-wide dedup tracker accessor
 - reset_capability_gap_emission_tracker: test-only tracker reset
 
 [POS]
@@ -113,6 +114,11 @@ _gap_emission_tracker = CapabilityGapEmissionTracker()
 def reset_capability_gap_emission_tracker() -> None:
     """Test helper — clear in-memory chat dedup state."""
     _gap_emission_tracker.reset()
+
+
+def get_capability_gap_emission_tracker() -> CapabilityGapEmissionTracker:
+    """Return the process-wide capability gap dedup tracker."""
+    return _gap_emission_tracker
 
 
 def _build_surface_unavailable_sse_event(

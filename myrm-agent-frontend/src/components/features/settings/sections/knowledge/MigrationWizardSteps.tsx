@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   ArrowRightLeft,
@@ -18,7 +19,7 @@ import {
 } from 'lucide-react';
 
 import { queueMigrationChatAgent, queueMigrationReadinessAnchor } from '@/lib/migrationChatHandoff';
-import { exportMemoryArchive } from '@/services/memoryArchive';
+import { exportMemoryArchive, recheckImportReadiness } from '@/services/memoryArchive';
 
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -29,6 +30,7 @@ import type {
   MemoryImportConfirmResponse,
   MemoryImportCoverageItem,
   MemoryImportDryRunResponse,
+  MemoryImportReadiness,
   MigrationLanePreviewItem,
   TokenEconomicsComparison,
 } from '@/services/memoryArchive';
@@ -735,20 +737,68 @@ export function ResultStep({
   t: TranslationFn;
 }) {
   const router = useRouter();
-  const readinessStatus = getImportReadinessStatus(result);
-  const readinessIssues = result.readiness?.issues ?? [];
+  const [readinessOverride, setReadinessOverride] = useState<MemoryImportReadiness | null>(null);
+  const [startingChat, setStartingChat] = useState(false);
+  const effectiveResult: MemoryImportConfirmResponse = readinessOverride
+    ? { ...result, readiness: readinessOverride }
+    : result;
+  const readinessStatus = getImportReadinessStatus(effectiveResult);
+  const readinessIssues = effectiveResult.readiness?.issues ?? [];
   const readinessIsCritical = readinessStatus === 'critical';
+  const resultAnchorQueuedRef = useRef(false);
 
-  const handleStartChat = () => {
-    if (!result.target_agent_id || readinessIsCritical) {
+  useEffect(() => {
+    if (resultAnchorQueuedRef.current || !result.target_agent_id) {
       return;
     }
-    queueMigrationReadinessAnchor({
-      importBatchId: result.import_batch_id,
-      readinessStatus,
-    });
-    queueMigrationChatAgent(result.target_agent_id);
-    router.push('/');
+    resultAnchorQueuedRef.current = true;
+
+    const queueFromStatus = (status: 'ready' | 'warning', batchId: string) => {
+      queueMigrationReadinessAnchor({
+        importBatchId: batchId,
+        readinessStatus: status,
+        targetAgentId: result.target_agent_id!,
+      });
+    };
+
+    void (async () => {
+      try {
+        const recheck = await recheckImportReadiness(result.import_batch_id);
+        setReadinessOverride(recheck.readiness);
+        if (recheck.readiness.status === 'ready' || recheck.readiness.status === 'warning') {
+          queueFromStatus(recheck.readiness.status, result.import_batch_id);
+        }
+      } catch {
+        if (readinessStatus === 'ready' || readinessStatus === 'warning') {
+          queueFromStatus(readinessStatus, result.import_batch_id);
+        }
+      }
+    })();
+  }, [readinessStatus, result.import_batch_id, result.target_agent_id]);
+
+  const handleStartChat = async () => {
+    if (!result.target_agent_id || startingChat) {
+      return;
+    }
+    setStartingChat(true);
+    try {
+      const recheck = await recheckImportReadiness(result.import_batch_id);
+      setReadinessOverride(recheck.readiness);
+      if (recheck.readiness.status === 'critical') {
+        return;
+      }
+      queueMigrationReadinessAnchor({
+        importBatchId: result.import_batch_id,
+        readinessStatus: recheck.readiness.status,
+        targetAgentId: result.target_agent_id,
+      });
+      queueMigrationChatAgent(result.target_agent_id);
+      router.push('/');
+    } catch {
+      toast.error(t('result.readinessRecheckFailed'));
+    } finally {
+      setStartingChat(false);
+    }
   };
 
   return (
@@ -833,8 +883,18 @@ export function ResultStep({
 
       <div className="flex flex-wrap justify-center gap-2">
         {result.target_agent_id && (
-          <Button size="sm" className="h-8 text-xs" onClick={handleStartChat} disabled={readinessIsCritical}>
-            {readinessIsCritical ? t('result.startChatBlocked') : t('result.startChat')}
+          <Button
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => void handleStartChat()}
+            disabled={startingChat}
+          >
+            {startingChat && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+            {startingChat
+              ? t('result.startChatChecking')
+              : readinessIsCritical
+                ? t('result.startChatRecheck')
+                : t('result.startChat')}
           </Button>
         )}
         {skillSubmitFailed && (

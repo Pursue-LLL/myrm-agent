@@ -55,6 +55,7 @@ async def test_finalize_schedules_clarification_timeout_when_pending() -> None:
 @pytest.mark.asyncio
 async def test_finalize_skips_clarification_timeout_when_not_pending() -> None:
     session = _make_session()
+    session.collector.extra_data = {}
 
     with (
         patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
@@ -77,3 +78,40 @@ async def test_finalize_skips_clarification_timeout_when_not_pending() -> None:
         )
 
     mock_schedule.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_finalize_schedules_clarification_when_collector_unanswered() -> None:
+    session = _make_session()
+    session.collector.extra_data = {
+        "clarification": {"answered": False, "title": "Pick stack"},
+    }
+
+    with (
+        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch(
+            "app.services.agent.stream_session.stream_finalize.schedule_clarification_timeout"
+        ) as mock_clarify_schedule,
+        patch(
+            "app.services.agent.stream_session.stream_finalize.schedule_approval_timeout"
+        ) as mock_approval_schedule,
+        patch(
+            "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
+        ),
+    ):
+        mock_ctx.reset = MagicMock()
+        await finalize_agent_stream_session(
+            session,
+            MagicMock(),
+            ApprovalTimeoutHolder(value={"seconds": 300}),
+            ClarificationTimeoutHolder(pending=False),
+        )
+
+    mock_clarify_schedule.assert_called_once_with(
+        chat_id="chat-clarify-1",
+        params=session.params,
+    )
+    mock_approval_schedule.assert_not_called()

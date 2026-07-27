@@ -56,6 +56,14 @@ interface Window {
         preserveActionMode?: boolean;
       },
     ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
+    kickoffChatMessage?: (
+      text: string,
+      opts?: { baselineUserCount?: number; preserveActionMode?: boolean; profile?: 'live' | 'read' },
+    ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
+    submitAndObserveTurn?: (
+      text: string,
+      opts?: { baselineUserCount?: number; preserveActionMode?: boolean; profile?: 'live' | 'read' },
+    ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
     handleSubmit: () => void | Promise<void>;
     getInputMessage: () => string;
     ensureProviders?: () => Promise<void>;

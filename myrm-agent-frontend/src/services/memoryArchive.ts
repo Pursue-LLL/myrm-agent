@@ -316,6 +316,11 @@ export interface MemoryImportReadiness {
   issues: MemoryImportReadinessIssue[];
 }
 
+export interface MemoryImportReadinessRecheckResponse {
+  import_batch_id: string;
+  readiness: MemoryImportReadiness;
+}
+
 export interface MemoryImportRollbackWarning {
   code: string;
   severity: 'info' | 'warning' | 'error';
@@ -544,6 +549,15 @@ export const confirmImportMemories = async (
   return apiRequest<MemoryImportConfirmResponse>('/memory/import/confirm', {
     method: 'POST',
     body: JSON.stringify({ dry_run_id: dryRunId, skip_duplicates: skipDuplicates }),
+  });
+};
+
+export const recheckImportReadiness = async (
+  importBatchId: string,
+): Promise<MemoryImportReadinessRecheckResponse> => {
+  return apiRequest<MemoryImportReadinessRecheckResponse>('/memory/import/readiness-recheck', {
+    method: 'POST',
+    body: JSON.stringify({ import_batch_id: importBatchId }),
   });
 };
 

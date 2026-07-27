@@ -10,10 +10,10 @@
 |------|------|------|
 | `MemoryCenterSection.tsx` | 容器 | 记忆 Tab 路由（explorer / backup / archival / follow-ups / migration） |
 | `FollowUpsPanel.tsx` | 核心 | 智能跟进列表（list / dismiss / snooze）；Vitest：`__tests__/FollowUpsPanel.test.tsx` |
-| `MemorySection.tsx` | 核心 | 记忆浏览器与 CRUD |
+| `MemorySection.tsx` | 核心 | 记忆浏览器与 CRUD；JSON 导入 confirm 后展示 readiness toast（非 ready 时 issue 文案 + 设置深链） |
 | `MigrationWizardSection.tsx` | 核心 | 四源迁移向导（scan → preview → result）；消费 server 下发 `source_manifest` + `source_manifest_authoritative`，支持 `?source=` 深链自动 preview | 
-| `MigrationWizardSteps.tsx` | 核心 | 向导步骤 UI（ScanStep / PreviewStep / ResultStep）；OpenClaw episodic 勾选仅当 scan 含 openclaw 源，且 preview API 对非 openclaw 强制 `include_episodic=false`；MCP 预览卡展示 `hostSerial`、remote transport 下可选 `keepaliveInterval`，并在迁移值被规则忽略（如 `stdio` 或低于 5 秒）时展示 `keepaliveIntervalIgnored` 解释提示；ResultStep 消费 confirm 返回的 `readiness` 合同，`critical` 状态下阻断「开始对话」并引导先修复配置，同时为每个 readiness issue 提供直达修复入口（providers/mcp/memory/migration）并在 start-chat 时写入一次性 readiness anchor 供首轮结果对账 |
-| `MigrationWizardReadiness.ts` | 辅助 | 迁移结果页 readiness 状态映射与 issue 文案格式化纯函数（server 合同→UI 门禁） |
+| `MigrationWizardSteps.tsx` | 核心 | 向导步骤 UI（ScanStep / PreviewStep / ResultStep）；ResultStep mount 时 silent recheck + localStorage readiness anchor；Start Chat 再次 recheck，critical 阻断 handoff |
+| `MigrationWizardReadiness.ts` | 辅助 | 迁移结果页 readiness 状态映射、issue 文案与 settings 深链纯函数 |
 | `MigrationPendingReviewSection.tsx` | 辅助 | 待审核迁移技能队列 |
 | `MemoryArchivalSection.tsx` | 辅助 | 归档导入/导出 |
 | `MemoryBackupSection.tsx` | 辅助 | 本地备份 |

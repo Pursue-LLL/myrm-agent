@@ -64,3 +64,24 @@ def test_build_import_readiness_does_not_block_without_api_keys() -> None:
 
     assert readiness.status == "ready"
     assert readiness.issues == []
+
+
+def test_resolve_readiness_issue_action_maps_known_codes() -> None:
+    from app.services.memory.operations.crud.import_readiness import resolve_readiness_issue_action
+
+    action = resolve_readiness_issue_action("mcp_servers_imported_disabled")
+    assert action is not None
+    assert action.settings_path == "/settings/mcp"
+
+
+def test_pick_primary_readiness_issue_prefers_critical() -> None:
+    from app.schemas.memory.archive import MemoryImportReadinessIssue
+    from app.services.memory.operations.crud.import_readiness import pick_primary_readiness_issue
+
+    issues = [
+        MemoryImportReadinessIssue(code="workspace_rules_skipped", severity="warning", params={"count": 1}),
+        MemoryImportReadinessIssue(code="providers_not_configured", severity="critical"),
+    ]
+    primary = pick_primary_readiness_issue(issues)
+    assert primary is not None
+    assert primary.code == "providers_not_configured"
