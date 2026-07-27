@@ -515,7 +515,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         recover = await chat.evaluate(
             _RECOVER_BROWSER_TAKEOVER_JS,
             await_promise=True,
-            recv_timeout=45.0,
+            recv_timeout=25.0,
         )
         if (
             isinstance(recover, dict)

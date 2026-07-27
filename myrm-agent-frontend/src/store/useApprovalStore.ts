@@ -36,8 +36,22 @@ export interface ApprovalPayloadData {
   plan_items?: PlanItem[];
   total_items?: number;
   goal?: string;
+  workspaceRoot?: string;
+  extensions?: { workspaceRoot?: string } | Record<string, unknown>;
+  task_count?: number;
+  estimated_cost_usd?: number;
+  remaining_budget_usd?: number;
+  cost_status?: string;
+  race?: boolean;
+  tournament?: boolean;
+  tasks?: Array<{ agent_type: string; objective: string }>;
+  draft_content?: string;
+  channel?: string;
+  recipient_id?: string;
+  topic_id?: string;
+  subagent_task_id?: string;
   /** Per-tool review configs from interrupt payload (includes smartDenied flag) */
-  reviewConfigs?: Array<{ smartDenied?: boolean }>;
+  reviewConfigs?: Array<{ smartDenied?: boolean; hideAllowAlways?: boolean }>;
   /** Per-tool reviewer reasons from interrupt payload */
   reviewerReasons?: string[];
 }
@@ -50,6 +64,7 @@ export interface ApprovalPayload {
   severity: string;
   reason?: string;
   payload?: ApprovalPayloadData;
+  subagent_task_id?: string;
   chat_id?: string;
   expires_at?: string;
 }
@@ -250,9 +265,7 @@ export function resolveBrowserTakeoverMessageId(fallback?: string): string | und
     return sessionId;
   }
   const reversed = [...chatState.messages].reverse();
-  const loadingAssistant = reversed.find(
-    (message) => message.role === 'assistant' && message.loading,
-  );
+  const loadingAssistant = reversed.find((message) => message.role === 'assistant' && message.loading);
   if (loadingAssistant?.messageId?.trim()) {
     return loadingAssistant.messageId.trim();
   }

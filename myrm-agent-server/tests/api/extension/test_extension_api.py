@@ -11,6 +11,7 @@ from myrm_agent_harness.toolkits.browser.pool.extension_bridge import (
     ExtensionBridgeNotAvailable,
     ExtensionTab,
 )
+from pydantic import SecretStr
 from starlette.websockets import WebSocketState
 
 from app.services.extension.bridge import ExtensionBridgeService, get_extension_bridge
@@ -134,8 +135,8 @@ class TestDomainMatching:
     def test_wildcard_deep_subdomain(self) -> None:
         assert ExtensionBridgeService._match_domain("a.b.google.com", ["*.google.com"]) is True
 
-    def test_wildcard_no_match_on_root(self) -> None:
-        assert ExtensionBridgeService._match_domain("google.com", ["*.google.com"]) is False
+    def test_wildcard_matches_root(self) -> None:
+        assert ExtensionBridgeService._match_domain("google.com", ["*.google.com"]) is True
 
     def test_case_insensitive_exact(self) -> None:
         assert ExtensionBridgeService._match_domain("GitHub.COM", ["github.com"]) is True
@@ -151,6 +152,19 @@ class TestDomainMatching:
         assert ExtensionBridgeService._match_domain("mail.google.com", patterns) is True
         assert ExtensionBridgeService._match_domain("example.org", patterns) is True
         assert ExtensionBridgeService._match_domain("evil.com", patterns) is False
+
+    def test_wildcard_warning_for_implicit_root(self) -> None:
+        warnings = ExtensionBridgeService.analyze_domain_policy_warnings(["*.google.com"])
+        assert len(warnings) == 1
+        assert warnings[0].code == "wildcard_includes_root"
+        assert warnings[0].pattern == "*.google.com"
+        assert warnings[0].root_domain == "google.com"
+
+    def test_wildcard_warning_suppressed_when_root_explicit(self) -> None:
+        warnings = ExtensionBridgeService.analyze_domain_policy_warnings(
+            ["*.google.com", "google.com"]
+        )
+        assert warnings == []
 
 
 class TestPlaywrightSingleton:
@@ -252,6 +266,26 @@ class TestConnectToDomainWildcard:
         with patch.object(bridge, "_request_debugger_attach", new_callable=AsyncMock) as mock_attach:
             mock_attach.return_value = 42
             result = await bridge.connect_to_domain("mail.google.com")
+
+        assert result.browser is mock_browser
+        assert result.is_managed is False
+
+    @pytest.mark.asyncio
+    async def test_wildcard_authorized_root_domain_passes(self) -> None:
+        bridge = ExtensionBridgeService()
+        bridge._connected = True
+        bridge._ws = MagicMock()
+        bridge._authorized_domains = ["*.google.com"]
+        bridge._cdp_endpoint = "ws://127.0.0.1:9222/devtools/browser/abc"
+
+        mock_pw = MagicMock()
+        mock_browser = MagicMock()
+        mock_pw.chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
+        bridge._playwright = mock_pw
+
+        with patch.object(bridge, "_request_debugger_attach", new_callable=AsyncMock) as mock_attach:
+            mock_attach.return_value = 42
+            result = await bridge.connect_to_domain("google.com")
 
         assert result.browser is mock_browser
         assert result.is_managed is False
@@ -533,3 +567,133 @@ class TestExtensionBridgeSingleton:
         bridge1 = get_extension_bridge()
         bridge2 = get_extension_bridge()
         assert bridge1 is bridge2
+
+
+class TestExtensionRouterGuards:
+    """Test extension WebSocket guardrails in API router."""
+
+    def test_origin_guard_accepts_extension_and_empty(self) -> None:
+        from app.api.extension.router import _is_allowed_extension_origin
+
+        assert _is_allowed_extension_origin("chrome-extension://abcdef") is True
+        assert _is_allowed_extension_origin("") is True
+        assert _is_allowed_extension_origin(None) is True
+
+    def test_origin_guard_rejects_web_origins(self) -> None:
+        from app.api.extension.router import _is_allowed_extension_origin
+
+        assert _is_allowed_extension_origin("https://evil.example.com") is False
+        assert _is_allowed_extension_origin("http://localhost:3000") is False
+
+    @pytest.mark.asyncio
+    async def test_extension_ws_rejects_forbidden_origin(self) -> None:
+        from app.api.extension.router import extension_ws
+
+        websocket = MagicMock()
+        websocket.headers = {"origin": "https://evil.example.com"}
+        websocket.close = AsyncMock()
+
+        await extension_ws(websocket, token="")
+
+        websocket.close.assert_awaited_once_with(code=4003, reason="Forbidden origin")
+
+    @pytest.mark.asyncio
+    async def test_extension_ws_requires_token_in_remote_mode(self) -> None:
+        from app.api.extension.router import extension_ws
+
+        websocket = MagicMock()
+        websocket.headers = {"origin": "chrome-extension://abcdef"}
+        websocket.close = AsyncMock()
+
+        with (
+            patch("app.config.deploy_mode.is_webui_remote_mode", return_value=True),
+            patch("app.config.settings.settings.extension_auth_token", new=SecretStr("")),
+        ):
+            await extension_ws(websocket, token="")
+
+        websocket.close.assert_awaited_once_with(
+            code=4002, reason="Extension auth token required in remote mode"
+        )
+
+    @pytest.mark.asyncio
+    async def test_extension_ws_accepts_valid_extension_origin_and_token(self) -> None:
+        from app.api.extension.router import extension_ws
+
+        websocket = MagicMock()
+        websocket.headers = {"origin": "chrome-extension://abcdef"}
+        websocket.close = AsyncMock()
+
+        bridge = MagicMock()
+        bridge.handle_ws_connection = AsyncMock()
+
+        with (
+            patch("app.config.deploy_mode.is_webui_remote_mode", return_value=False),
+            patch("app.config.settings.settings.extension_auth_token", new=SecretStr("")),
+            patch("app.api.extension.router.get_extension_bridge", return_value=bridge),
+        ):
+            await extension_ws(websocket, token="")
+
+        bridge.handle_ws_connection.assert_awaited_once_with(websocket)
+        websocket.close.assert_not_awaited()
+
+
+class TestExtensionRouterHints:
+    """Test extension setup hints API responses."""
+
+    @pytest.mark.asyncio
+    async def test_setup_hints_remote_requires_token(self) -> None:
+        from app.api.extension.router import get_extension_setup_hints
+
+        bridge = MagicMock()
+        bridge.has_direct_cdp_endpoint.return_value = False
+
+        with (
+            patch("app.api.extension.router.get_extension_bridge", return_value=bridge),
+            patch("app.config.deploy_mode.is_webui_remote_mode", return_value=True),
+            patch("app.config.settings.settings.extension_auth_token", new=SecretStr("")),
+        ):
+            hints = await get_extension_setup_hints()
+
+        assert hints.auth_token_configured is False
+        assert hints.auth_token_required is True
+        assert hints.cdp_endpoint_discovered is False
+        bridge.has_direct_cdp_endpoint.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_setup_hints_local_token_optional(self) -> None:
+        from app.api.extension.router import get_extension_setup_hints
+
+        bridge = MagicMock()
+        bridge.has_direct_cdp_endpoint.return_value = True
+
+        with (
+            patch("app.api.extension.router.get_extension_bridge", return_value=bridge),
+            patch("app.config.deploy_mode.is_webui_remote_mode", return_value=False),
+            patch("app.config.settings.settings.extension_auth_token", new=SecretStr("abc")),
+        ):
+            hints = await get_extension_setup_hints()
+
+        assert hints.auth_token_configured is True
+        assert hints.auth_token_required is False
+        assert hints.cdp_endpoint_discovered is True
+
+    @pytest.mark.asyncio
+    async def test_update_domains_returns_policy_warning(self) -> None:
+        from app.api.extension.router import DomainsUpdateRequest, update_authorized_domains
+
+        bridge = MagicMock()
+        bridge.set_authorized_domains = AsyncMock()
+        bridge.get_authorized_domains.return_value = ["*.example.com"]
+        bridge.analyze_domain_policy_warnings.return_value = (
+            ExtensionBridgeService.analyze_domain_policy_warnings(["*.example.com"])
+        )
+
+        with patch("app.api.extension.router.get_extension_bridge", return_value=bridge):
+            response = await update_authorized_domains(
+                DomainsUpdateRequest(domains=["*.example.com"])
+            )
+
+        assert response.authorized_domains == ["*.example.com"]
+        assert len(response.warnings) == 1
+        assert response.warnings[0].code == "wildcard_includes_root"
+        assert response.warnings[0].root_domain == "example.com"

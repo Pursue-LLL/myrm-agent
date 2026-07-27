@@ -1,7 +1,7 @@
 """
 [INPUT] models.base::Base (POS: ORM base model)
 [OUTPUT] WikiEvidenceMetricEvent: wiki evidence observability event model
-[POS] Stores evidence-surface/open/close/query events for ROI measurement.
+[POS] Stores evidence-surface/open/close/query/outcome events for ROI measurement.
 """
 
 from __future__ import annotations

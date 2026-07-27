@@ -9,9 +9,10 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 `router`、`ws_router` | — |
-| `router.py` | 核心 | `ws://…/api/v1/ws/extension`；REST `/extension/status|domains|tabs|disconnect|setup-hints` | ✅ |
+| `router.py` | 核心 | `ws://…/api/v1/ws/extension`（origin 守卫 + token 校验）；REST `/extension/status|domains|tabs|disconnect|setup-hints` | ✅ |
 
 ## 依赖
 
 - `app.services.extension.bridge::get_extension_bridge`
 - `app.config.settings` — `extension_auth_token`
+- `app.config.deploy_mode` — `is_webui_remote_mode`（remote 模式 token 强制）

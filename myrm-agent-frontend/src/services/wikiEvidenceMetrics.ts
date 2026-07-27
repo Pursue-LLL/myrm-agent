@@ -2,7 +2,13 @@ import { apiRequest } from '@/lib/api';
 import type { WikiSourceLevel } from '@/store/chat/types';
 
 export type WikiEvidenceSurface = 'chat' | 'settings';
-type WikiEvidenceEventType = 'evidence_surface' | 'snippet_open' | 'snippet_close' | 'query_submitted' | 'dropped_report';
+type WikiEvidenceEventType =
+  | 'evidence_surface'
+  | 'snippet_open'
+  | 'snippet_close'
+  | 'query_submitted'
+  | 'dropped_report'
+  | 'quality_outcome_negative';
 
 interface WikiEvidenceEventPayload {
   event_type: WikiEvidenceEventType;
@@ -26,6 +32,8 @@ export interface WikiEvidenceSummary {
   deep_verification_rate: number;
   quick_bounce_count: number;
   quick_bounce_rate: number;
+  quality_outcome_negative_count: number;
+  quality_outcome_negative_rate: number;
   query_count: number;
   requery_count: number;
   requery_rate: number;
@@ -33,6 +41,7 @@ export interface WikiEvidenceSummary {
   verification_dwell_sample_count: number;
   snippet_open_by_surface: Record<WikiEvidenceSurface, number>;
   snippet_open_by_level: Record<WikiSourceLevel, number>;
+  quality_outcome_negative_by_surface: Record<WikiEvidenceSurface, number>;
 }
 
 const MAX_EVENT_COUNT = 200;
@@ -253,6 +262,22 @@ export function recordWikiQuery(surface: WikiEvidenceSurface = 'settings', conte
       surface,
       context_key: normalizedContextKey,
       after_evidence: afterEvidence,
+    },
+    normalizedContextKey,
+  );
+}
+
+export function recordQualityOutcomeNegative(surface: WikiEvidenceSurface = 'chat', count: number = 1, contextKey?: string): void {
+  if (count <= 0) {
+    return;
+  }
+  const normalizedContextKey = normalizeContextKey(contextKey);
+  enqueueWikiEvidenceEvent(
+    {
+      event_type: 'quality_outcome_negative',
+      surface,
+      context_key: normalizedContextKey,
+      count: clampCount(count),
     },
     normalizedContextKey,
   );

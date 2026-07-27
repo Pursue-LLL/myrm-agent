@@ -30,7 +30,7 @@
 | `message_filter.py` | 域模块 | MessageFilterConfig, MessageFilterRule, MessageFilterAudit, MessageFilterConfigHistory | ✅ |
 | `widget_kv.py` | 域模块 | WidgetKVEntry（沙箱 widget iframe KV 持久化存储） | ✅ |
 | `daily_wrap.py` | 域模块 | DailyWrapCache（AI 生成的每日战报缓存） | ✅ |
-| `wiki_evidence_metric.py` | 域模块 | WikiEvidenceMetricEvent（证据链观测事件：surface/open/close/query/dropped，含 `context_key` 口径隔离与 retention 查询索引） | ✅ |
+| `wiki_evidence_metric.py` | 域模块 | WikiEvidenceMetricEvent（证据链观测事件：surface/open/close/query/dropped/quality_outcome_negative，含 `context_key` 口径隔离与 retention 查询索引） | ✅ |
 
 ## 模块依赖
 

@@ -11,7 +11,7 @@
 # - 运行时：Python 3.14 + Node.js 20 + Bun 1.3.11
 # - Python 包：pandas, numpy, matplotlib, openpyxl, python-docx, python-pptx 等 70+ 个
 # - npm 包：pptxgenjs, sharp, react 等 5 个全局包
-# - 系统工具：ripgrep, fd, git, sqlite, poppler 等 20+ 个
+# - 系统工具：ripgrep, fd, git, sqlite, poppler, libreoffice-headless 等 20+ 个
 # - 字体：Noto CJK（中日韩）+ Noto Color Emoji + Liberation（Latin）
 # - matplotlib：默认 sans-serif 指向 Noto CJK（中文图表不豆腐块），构建时 fail-fast 验证
 # - 健康检查：deep-health-check 脚本（验证关键依赖）
@@ -107,6 +107,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-cjk \
     fonts-noto-color-emoji \
     fonts-liberation \
+    # Office 文档转 PNG/PDF（Agent 视觉自检 + PDF 导出）
+    libreoffice-calc \
+    libreoffice-writer \
+    libreoffice-impress \
+    libreoffice-draw \
     # 版本控制
     git \
     && fc-cache -f \

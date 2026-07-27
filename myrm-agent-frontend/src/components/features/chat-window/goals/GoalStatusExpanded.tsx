@@ -320,7 +320,7 @@ function ObjectiveEditor({
 
 function SubgoalsSection({
   goal,
-  chatId,
+  chatId: _chatId,
   isTerminal,
   onAddSubgoal,
   onRemoveSubgoal,

@@ -5,10 +5,10 @@ import type { ComponentType } from 'react';
 
 type RechartsExport = keyof typeof import('recharts');
 
-function lazyRechartsComponent(name: RechartsExport): ComponentType<object> {
-  return dynamic(
-    () => import('recharts').then((mod) => mod[name] as ComponentType<object>),
-    { ssr: false }
+function lazyRechartsComponent(name: RechartsExport): ComponentType<Record<string, unknown>> {
+  return dynamic<Record<string, unknown>>(
+    () => import('recharts').then((mod) => mod[name] as ComponentType<Record<string, unknown>>),
+    { ssr: false },
   );
 }
 

@@ -86,8 +86,8 @@ describe('initializeChat navigation snapshot', () => {
   });
 
   it('restores agentConfig and model selection when switching back via sidebar snapshot', () => {
-    const agentConfig = { agentId: 'agent-1', name: 'Test Agent' } as AgentConfig;
-    const messages = [{ id: 'm1', role: 'user', content: 'hello' } as Message];
+    const agentConfig = { agentId: 'agent-1', name: 'Test Agent' } as unknown as AgentConfig;
+    const messages = [{ id: 'm1', role: 'user', content: 'hello' } as unknown as Message];
 
     saveChatNavigationSnapshot('chat-a', {
       messages,
@@ -102,7 +102,7 @@ describe('initializeChat navigation snapshot', () => {
     let currentState = {
       chatId: 'chat-b',
       messages: [] as Message[],
-    };
+    } as unknown as ChatState;
 
     const actions = {
       setMessages: (updater: (state: ChatState) => void) => {
@@ -113,11 +113,7 @@ describe('initializeChat navigation snapshot', () => {
       clearCurrentSessionMessageId: vi.fn(),
     };
 
-    initializeChat(
-      'chat-a',
-      { messages: currentState.messages, chatId: currentState.chatId },
-      actions as Parameters<typeof initializeChat>[2],
-    );
+    initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
 
     expect(currentState.chatId).toBe('chat-a');
     expect(currentState.agentConfig).toEqual(agentConfig);
@@ -129,7 +125,7 @@ describe('initializeChat navigation snapshot', () => {
 
   it('keeps isMessagesLoaded true during silent background refresh', async () => {
     saveChatNavigationSnapshot('chat-a', {
-      messages: [{ id: 'm1', role: 'user', content: 'cached' } as Message],
+      messages: [{ id: 'm1', role: 'user', content: 'cached' } as unknown as Message],
       isMessagesLoaded: true,
       loading: false,
     });
@@ -139,7 +135,7 @@ describe('initializeChat navigation snapshot', () => {
       messages: [] as Message[],
       isMessagesLoaded: false,
       loading: false,
-    };
+    } as unknown as ChatState;
 
     const actions = {
       setMessages: (updater: (state: ChatState) => void) => {
@@ -150,11 +146,7 @@ describe('initializeChat navigation snapshot', () => {
       clearCurrentSessionMessageId: vi.fn(),
     };
 
-    initializeChat(
-      'chat-a',
-      { messages: currentState.messages, chatId: currentState.chatId },
-      actions as Parameters<typeof initializeChat>[2],
-    );
+    initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
 
     expect(currentState.isMessagesLoaded).toBe(true);
 
@@ -167,7 +159,7 @@ describe('initializeChat navigation snapshot', () => {
 
   it('preserves actionMode during silent background refresh after snapshot restore', async () => {
     saveChatNavigationSnapshot('chat-a', {
-      messages: [{ id: 'm1', role: 'user', content: 'cached' } as Message],
+      messages: [{ id: 'm1', role: 'user', content: 'cached' } as unknown as Message],
       actionMode: 'deep_research',
       isMessagesLoaded: true,
       loading: false,
@@ -191,7 +183,7 @@ describe('initializeChat navigation snapshot', () => {
       actionMode: 'agent' as ChatState['actionMode'],
       isMessagesLoaded: false,
       loading: false,
-    };
+    } as unknown as ChatState;
 
     const actions = {
       setMessages: (updater: (state: ChatState) => void) => {
@@ -202,11 +194,7 @@ describe('initializeChat navigation snapshot', () => {
       clearCurrentSessionMessageId: vi.fn(),
     };
 
-    initializeChat(
-      'chat-a',
-      { messages: currentState.messages, chatId: currentState.chatId },
-      actions as Parameters<typeof initializeChat>[2],
-    );
+    initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
 
     expect(currentState.actionMode).toBe('deep_research');
 

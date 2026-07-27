@@ -2792,6 +2792,7 @@
       "wikiDeepVerificationRate": "Tiefe Verifikationsrate",
       "wikiSnippetExpansionRate": "Snippet-Öffnungsrate",
       "wikiRequeryRate": "Nachfragequote",
+      "wikiNegativeOutcomeRate": "Negative Ergebnisrate",
       "wikiVerificationDwell": "Ø Verifikationsdauer",
       "wikiTelemetryDrops": "Verlorene Telemetrie",
       "wikiEvidenceWindow": "Fenster: {days} Tage; Aufbewahrung: {retentionDays} Tage"

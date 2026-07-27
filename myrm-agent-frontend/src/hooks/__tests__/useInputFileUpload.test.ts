@@ -32,7 +32,9 @@ vi.mock('@/lib/utils/fileUtils', () => ({
   getFileExtension: vi.fn((name: string) => name.split('.').pop()?.toLowerCase() || ''),
 }));
 
-const mockGetModelInfo = vi.hoisted(() => vi.fn().mockReturnValue({ supports_vision: true, supports_video_input: true }));
+const mockGetModelInfo = vi.hoisted(() =>
+  vi.fn().mockReturnValue({ supports_vision: true, supports_video_input: true }),
+);
 vi.mock('@/store/useProviderStore', () => ({
   default: {
     getState: () => ({
@@ -46,6 +48,8 @@ vi.mock('@/store/useProviderStore', () => ({
 }));
 
 import { useInputFileUpload } from '../useInputFileUpload';
+
+type UploadParams = Parameters<typeof useInputFileUpload>[0];
 
 function createClipboardEvent(files: File[]): React.ClipboardEvent {
   const items: DataTransferItem[] = files.map((file) => ({
@@ -100,11 +104,11 @@ function createClipboardEventWithTextOnly(): React.ClipboardEvent {
 }
 
 describe('useInputFileUpload', () => {
-  const defaultParams = {
+  const defaultParams: UploadParams = {
     actionMode: 'normal' as const,
     files: [],
-    setFiles: vi.fn(),
-    setHideAttachList: vi.fn(),
+    setFiles: vi.fn<(files: UploadParams['files']) => void>(),
+    setHideAttachList: vi.fn<(hide: boolean) => void>(),
   };
 
   beforeEach(() => {
@@ -167,9 +171,7 @@ describe('useInputFileUpload', () => {
     });
 
     it('should skip paste handling in fast mode', async () => {
-      const { result } = renderHook(() =>
-        useInputFileUpload({ ...defaultParams, actionMode: 'fast' }),
-      );
+      const { result } = renderHook(() => useInputFileUpload({ ...defaultParams, actionMode: 'fast' }));
 
       const img = new File(['img'], 'test.png', { type: 'image/png' });
       const event = createClipboardEvent([img]);
@@ -309,15 +311,21 @@ describe('useInputFileUpload', () => {
 
   describe('uploadInputFiles - deduplication', () => {
     it('should deduplicate files by SHA-256 hash', async () => {
-      const existingFiles = [{ fileName: 'a.pdf', fileUrl: '/f/a.pdf', fileType: 'uploaded' as const, fileExtension: 'pdf', contentHash: 'hash-a.pdf' }];
+      const existingFiles = [
+        {
+          fileName: 'a.pdf',
+          fileUrl: '/f/a.pdf',
+          fileType: 'uploaded' as const,
+          fileExtension: 'pdf',
+          contentHash: 'hash-a.pdf',
+        },
+      ];
       mockUploadFiles.mockResolvedValue({
         uploaded_count: 1,
         files: [{ fileName: 'b.pdf', fileUrl: '/f/b.pdf' }],
       });
 
-      const { result } = renderHook(() =>
-        useInputFileUpload({ ...defaultParams, files: existingFiles }),
-      );
+      const { result } = renderHook(() => useInputFileUpload({ ...defaultParams, files: existingFiles }));
 
       const dupeFile = new File(['a'], 'a.pdf', { type: 'application/pdf' });
       const newFile = new File(['b'], 'b.pdf', { type: 'application/pdf' });
@@ -330,11 +338,17 @@ describe('useInputFileUpload', () => {
     });
 
     it('should show info toast when all files are duplicates', async () => {
-      const existingFiles = [{ fileName: 'a.pdf', fileUrl: '/f/a.pdf', fileType: 'uploaded' as const, fileExtension: 'pdf', contentHash: 'hash-a.pdf' }];
+      const existingFiles = [
+        {
+          fileName: 'a.pdf',
+          fileUrl: '/f/a.pdf',
+          fileType: 'uploaded' as const,
+          fileExtension: 'pdf',
+          contentHash: 'hash-a.pdf',
+        },
+      ];
 
-      const { result } = renderHook(() =>
-        useInputFileUpload({ ...defaultParams, files: existingFiles }),
-      );
+      const { result } = renderHook(() => useInputFileUpload({ ...defaultParams, files: existingFiles }));
 
       const dupeFile = new File(['a'], 'a.pdf', { type: 'application/pdf' });
 

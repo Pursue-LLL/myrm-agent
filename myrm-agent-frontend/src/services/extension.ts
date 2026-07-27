@@ -38,6 +38,14 @@ export interface ExtensionStatus {
 
 export interface ExtensionSetupHints {
   auth_token_configured: boolean;
+  auth_token_required: boolean;
+  cdp_endpoint_discovered: boolean;
+}
+
+export interface DomainPolicyWarning {
+  code: 'wildcard_includes_root';
+  pattern: string;
+  root_domain: string;
 }
 
 /**
@@ -72,12 +80,14 @@ export async function getExtensionStatus(): Promise<ExtensionStatus> {
   return res.json();
 }
 
-export async function getAuthorizedDomains(): Promise<{ authorized_domains: string[] }> {
+export async function getAuthorizedDomains(): Promise<{ authorized_domains: string[]; warnings: DomainPolicyWarning[] }> {
   const res = await apiRequest(getApiUrl('/extension/domains'));
   return res.json();
 }
 
-export async function updateAuthorizedDomains(domains: string[]): Promise<{ authorized_domains: string[] }> {
+export async function updateAuthorizedDomains(
+  domains: string[],
+): Promise<{ authorized_domains: string[]; warnings: DomainPolicyWarning[] }> {
   const res = await apiRequest(getApiUrl('/extension/domains'), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

@@ -248,6 +248,7 @@ async def test_browser_setup_injects_blocklist_from_agent_security_raw() -> None
     assert blocklist is not None
     assert not blocklist.is_empty
     assert blocklist.is_allowed("integration-closure.test")
+    assert captured.get("extension_bridge") is not None
     assert len(tools) == 1
 
 

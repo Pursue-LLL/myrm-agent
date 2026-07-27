@@ -12,8 +12,8 @@
 [POS]
 Business layer bridge connecting the browser extension (MV3 WebSocket) to the harness
 BrowserLauncher. Implements the ExtensionBridge Protocol defined in the harness layer.
-Handles: connection lifecycle, heartbeat, domain authorization, tab listing, and CDP
-command forwarding via WebSocket relay (chrome.debugger API in extension).
+Handles: connection lifecycle, heartbeat, domain authorization, tab listing, debugger
+attach orchestration, and browser connection via local CDP endpoint discovery.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ import asyncio
 import json
 import logging
 import time
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.browser.pool.browser_launcher import BrowserInstance
@@ -64,6 +65,15 @@ _HEARTBEAT_INTERVAL = 15.0
 _HEARTBEAT_TIMEOUT = 30.0
 
 
+@dataclass(frozen=True)
+class DomainPolicyWarning:
+    """Structured warning returned when domain policy has surprising semantics."""
+
+    code: str
+    pattern: str
+    root_domain: str
+
+
 def _broadcast_extension_status(connected: bool) -> None:
     """Publish extension connection status change via SSE event bus."""
     get_event_bus().publish(
@@ -94,6 +104,7 @@ class ExtensionBridgeService:
         self._heartbeat_task: asyncio.Task[None] | None = None
         self._receive_task: asyncio.Task[None] | None = None
         self._cdp_endpoint: str | None = None
+        self._last_cdp_probe_monotonic = 0.0
         self._lock = asyncio.Lock()
         self._playwright: Playwright | None = None
 
@@ -111,18 +122,24 @@ class ExtensionBridgeService:
     def _match_domain(domain: str, patterns: list[str]) -> bool:
         """Check if *domain* matches any pattern in *patterns*.
 
-        Supports wildcard prefixes: ``*.example.com`` matches ``sub.example.com``
-        and ``deep.sub.example.com`` but not ``example.com`` itself.
+        Supports wildcard prefixes: ``*.example.com`` matches ``example.com``,
+        ``sub.example.com``, and ``deep.sub.example.com``.
         """
-        from fnmatch import fnmatch
-
-        domain_lower = domain.lower()
+        domain_lower = domain.strip().lower().rstrip(".")
+        if not domain_lower:
+            return False
         for pattern in patterns:
-            p = pattern.lower()
+            p = pattern.strip().lower().rstrip(".")
+            if not p:
+                continue
             if p == domain_lower:
                 return True
-            if p.startswith("*.") and fnmatch(domain_lower, p):
-                return True
+            if p.startswith("*."):
+                suffix = p[2:]
+                if not suffix:
+                    continue
+                if domain_lower == suffix or domain_lower.endswith(f".{suffix}"):
+                    return True
         return False
 
     def _resolve_cdp_endpoint(self) -> str | None:
@@ -136,6 +153,52 @@ class ExtensionBridgeService:
             self._cdp_endpoint = discovered
             logger.info("Extension bridge: discovered main Chrome CDP at %s", discovered)
         return self._cdp_endpoint
+
+    def has_direct_cdp_endpoint(self, *, probe_ttl_s: float = 15.0) -> bool:
+        """Best-effort check for a local direct CDP endpoint with negative caching.
+
+        UI polls setup-hints frequently. Without a short TTL for negative probes, each poll
+        would trigger filesystem/network discovery work. This method keeps endpoint checks
+        responsive while avoiding excessive discovery churn when CDP is not configured.
+        """
+        if self._cdp_endpoint:
+            return True
+
+        now = time.monotonic()
+        if now - self._last_cdp_probe_monotonic < probe_ttl_s:
+            return False
+
+        self._last_cdp_probe_monotonic = now
+        return self._resolve_cdp_endpoint() is not None
+
+    @staticmethod
+    def analyze_domain_policy_warnings(domains: list[str]) -> list[DomainPolicyWarning]:
+        """Return warnings for surprising but valid domain policy inputs."""
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for raw in domains:
+            item = raw.strip().lower().rstrip(".")
+            if not item or item in seen:
+                continue
+            seen.add(item)
+            normalized.append(item)
+
+        normalized_set = set(normalized)
+        warnings: list[DomainPolicyWarning] = []
+        for pattern in normalized:
+            if not pattern.startswith("*."):
+                continue
+            root = pattern[2:]
+            if not root or root in normalized_set:
+                continue
+            warnings.append(
+                DomainPolicyWarning(
+                    code="wildcard_includes_root",
+                    pattern=pattern,
+                    root_domain=root,
+                )
+            )
+        return warnings
 
     async def connect(self, *, timeout: float = 10.0) -> BrowserInstance:
         if not self._connected or self._ws is None:

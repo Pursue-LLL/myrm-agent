@@ -19,13 +19,7 @@ import SettingsSection from '../SettingsSection';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Badge } from '@/components/primitives/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/primitives/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import {
   type AuditEvent,
   type AuditStatsResponse,
@@ -51,42 +45,45 @@ const EnterpriseAuditTab = memo(() => {
   const [hours, setHours] = useState<number>(24);
   const [filters, setFilters] = useState<AuditLogFilters>({ limit: 50 });
 
-  const loadData = useCallback(async (overrideFilters?: AuditLogFilters) => {
-    try {
-      setLoading(true);
-      const activeFilters = overrideFilters ?? filters;
-      const [statsData, logsData] = await Promise.all([
-        getAuditStats(hours),
-        queryAuditLogs(activeFilters),
-      ]);
-      setStats(statsData);
-      setEvents(logsData.events);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to load audit data');
-    } finally {
-      setLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hours]);
+  const loadData = useCallback(
+    async (overrideFilters?: AuditLogFilters) => {
+      try {
+        setLoading(true);
+        const activeFilters = overrideFilters ?? filters;
+        const [statsData, logsData] = await Promise.all([getAuditStats(hours), queryAuditLogs(activeFilters)]);
+        setStats(statsData);
+        setEvents(logsData.events);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Failed to load audit data');
+      } finally {
+        setLoading(false);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [hours],
+  );
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const handleExport = useCallback(async (format: 'csv' | 'json') => {
-    try {
-      const blob = await exportAuditLogs(format, filters);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `audit_logs.${format}`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success(t('exportSuccess'));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Export failed');
-    }
-  }, [filters, t]);
+  const handleExport = useCallback(
+    async (format: 'csv' | 'json') => {
+      try {
+        const blob = await exportAuditLogs(format, filters);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `audit_logs.${format}`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(t('exportSuccess'));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Export failed');
+      }
+    },
+    [filters, t],
+  );
 
   const handleFilterChange = useCallback((key: keyof AuditLogFilters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value || undefined }));
@@ -169,11 +166,29 @@ const EnterpriseAuditTab = memo(() => {
               <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={stats.time_series}>
-                    <XAxis dataKey="timestamp" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(11, 16)} />
+                    <XAxis
+                      dataKey="timestamp"
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v: string | number) => String(v).slice(11, 16)}
+                    />
                     <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip />
-                    <Area type="monotone" dataKey="success" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-                    <Area type="monotone" dataKey="failed" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.3} />
+                    <Area
+                      type="monotone"
+                      dataKey="success"
+                      stackId="1"
+                      stroke="#10b981"
+                      fill="#10b981"
+                      fillOpacity={0.3}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="failed"
+                      stackId="1"
+                      stroke="#ef4444"
+                      fill="#ef4444"
+                      fillOpacity={0.3}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -192,7 +207,9 @@ const EnterpriseAuditTab = memo(() => {
                         cx="50%"
                         cy="50%"
                         outerRadius={60}
-                        label={({ event_type, percent }) => `${event_type.replace(/_/g, ' ')} ${(percent * 100).toFixed(0)}%`}
+                        label={({ event_type, percent }: { event_type?: string; percent?: number }) =>
+                          `${String(event_type ?? '').replace(/_/g, ' ')} ${((percent ?? 0) * 100).toFixed(0)}%`
+                        }
                         labelLine={false}
                       >
                         {stats.event_distribution.slice(0, 8).map((_, i) => (
@@ -270,7 +287,9 @@ const EnterpriseAuditTab = memo(() => {
                   <Badge variant={ev.result === 'success' ? 'default' : 'destructive'} className="text-[10px]">
                     {ev.result}
                   </Badge>
-                  <span className="text-muted-foreground whitespace-nowrap">{new Date(ev.timestamp).toLocaleString()}</span>
+                  <span className="text-muted-foreground whitespace-nowrap">
+                    {new Date(ev.timestamp).toLocaleString()}
+                  </span>
                 </div>
               </div>
             ))}

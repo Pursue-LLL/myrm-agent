@@ -1,10 +1,10 @@
 /**
  * [INPUT]
  * ./part1, ./part2, ./part3 导出的事件接口 (POS: SSE 分片)
- * 
+ *
  * [OUTPUT]
  * AgentStreamEvent 联合类型。
- * 
+ *
  * [POS]
  * 全部 SSE 事件的 discriminated union。
  */
@@ -60,11 +60,13 @@ import type {
   SubagentCompletionStreamEvent,
   SubagentLogStreamEvent,
   SubagentProgressStreamEvent,
+  SubagentStaleStreamEvent,
   SubagentStartStreamEvent,
   SubagentStatusUpdateStreamEvent,
   TeammateMessageStreamEvent,
   ToolFallbackStreamEvent,
   ToolsSnapshotStreamEvent,
+  VerificationVerdictStreamEvent,
 } from './part2';
 import type {
   BrowserTakeoverCompletedStreamEvent,
@@ -127,6 +129,7 @@ export type AgentStreamEvent =
   | SubagentProgressStreamEvent
   | SubagentLogStreamEvent
   | SubagentCompletionStreamEvent
+  | SubagentStaleStreamEvent
   | SubagentStatusUpdateStreamEvent
   | TeammateMessageStreamEvent
   | FileDiffStreamEvent
@@ -144,4 +147,5 @@ export type AgentStreamEvent =
   | ToolFallbackStreamEvent
   | ContextReferenceWarningStreamEvent
   | GoalStatusStreamEvent
-  | FissionTopologyUpdateStreamEvent;
+  | FissionTopologyUpdateStreamEvent
+  | VerificationVerdictStreamEvent;

@@ -15,6 +15,7 @@ docker run --rm myrm/skill-sandbox:latest python -c "import pandas"
 - PR：单架构快速构建；main：amd64 + arm64
 - 轻量 healthcheck 60s；深度检查 5min（pandas/numpy/pdfplumber 等）
 - CJK：Noto CJK + `matplotlibrc`；`MPLCONFIGDIR` 指向可写 tmpfs
+- LibreOffice headless：`libreoffice-calc/writer/impress/draw`，支持 Office 文档转 PNG/PDF（Agent 视觉自检用）
 
 ## 文件清单
 

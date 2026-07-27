@@ -12,18 +12,18 @@ function makeSession(): E2EEClientSession {
   };
 }
 
-const mockEnsureMobileE2EE = vi.fn<[], Promise<E2EEClientSession | null>>();
-const mockLoadStoredE2EESession = vi.fn<[], E2EEClientSession | null>(() => null);
+const mockEnsureMobileE2EE = vi.fn<() => Promise<E2EEClientSession | null>>();
+const mockLoadStoredE2EESession = vi.fn<() => E2EEClientSession | null>(() => null);
 
 vi.mock('@/lib/mobileRemote', () => ({
-  ensureMobileE2EE: (...args: []) => mockEnsureMobileE2EE(...args),
+  ensureMobileE2EE: () => mockEnsureMobileE2EE(),
 }));
 
 vi.mock('@/lib/e2ee/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../client')>();
   return {
     ...actual,
-    loadStoredE2EESession: (...args: []) => mockLoadStoredE2EESession(...args),
+    loadStoredE2EESession: () => mockLoadStoredE2EESession(),
   };
 });
 
@@ -91,9 +91,7 @@ describe('useE2EEStatus', () => {
   it('sets error on E2EEHandshakeRequiredError', async () => {
     const { E2EEHandshakeRequiredError } = await import('../client');
     mockLoadStoredE2EESession.mockReturnValue(null);
-    mockEnsureMobileE2EE.mockRejectedValue(
-      new E2EEHandshakeRequiredError('handshake failed'),
-    );
+    mockEnsureMobileE2EE.mockRejectedValue(new E2EEHandshakeRequiredError('handshake failed'));
 
     const { useE2EEStatus } = await import('../useE2EEStatus');
     const { result } = renderHook(() => useE2EEStatus());

@@ -41,7 +41,7 @@
 | `file.ts` | HTTP 上传、`UploadProgress`、PDF/文档内容提取（**非**本地选文件） |
 | `file-service/` | 平台 `FileService` 策略（Tauri FS vs Sandbox）；见 [_ARCH.md](file-service/_ARCH.md) |
 | `wikiService.ts` | `/wiki/*` 客户端：概念树/队列/导入/审批与 query；`queryWiki` 返回结构化 `source_snippets(level/path/section/snippet)` 供设置页与聊天证据链复用 |
-| `wikiEvidenceMetrics.ts` | `/statistics/wiki-evidence/*` 客户端：记录证据曝光/展开/核验停留/复问事件（按 `context_key` 隔离复问口径，离线丢样聚合上报 `dropped_report`），并查询聚合摘要（expansion/deep verification/re-query/quick bounce/dwell）。 |
+| `wikiEvidenceMetrics.ts` | `/statistics/wiki-evidence/*` 客户端：记录证据曝光/展开/核验停留/复问/负向结果事件（按 `context_key` 隔离复问口径，离线丢样聚合上报 `dropped_report`，`quality_outcome_negative` 用于答案负反馈锚点），并查询聚合摘要（expansion/deep verification/re-query/quick bounce/dwell/negative outcome）。 |
 | `config/` | `ConfigSyncManager` + 适配器（local `TauriConfigAdapter` 处理 Next 代理 5xx 与离线队列；sandbox `SandboxConfigAdapter`） |
 
 ## 依赖

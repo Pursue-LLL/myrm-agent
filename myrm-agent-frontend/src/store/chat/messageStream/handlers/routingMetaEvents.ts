@@ -3,16 +3,22 @@
  * Chat SSE event handler slice (routingMetaEvents).
  */
 
-import type { StreamCtx, StreamTurn } from "../streamContext";
-import { done } from "../streamContext";
-import * as H from "./handlerDeps";
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import type { TokenUsage } from '../../types/tokens';
+import { done } from '../streamContext';
+import * as H from './handlerDeps';
 
 export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, added, actions } = ctx;
   if (data.type === H.AgentEventType.ROUTING_DECISION) {
-    const routingData = data.data;
-    const tier = routingData?.tier as 'simple' | 'standard' | 'reasoning' | 'complex' | undefined;
-    const modelTier = routingData?.model_tier as 'weak' | 'medium' | undefined;
+    const routingData = data.data as
+      | {
+          tier?: 'simple' | 'standard' | 'reasoning' | 'complex';
+          model_tier?: 'weak' | 'medium';
+        }
+      | undefined;
+    const tier = routingData?.tier;
+    const modelTier = routingData?.model_tier;
     if (tier || modelTier) {
       if (!added) {
         actions.setMessages((state) => {
@@ -76,7 +82,7 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
 
   if (data.type === H.AgentEventType.TOKEN_USAGE) {
     const tokenData = data.data as {
-      usage: import('./types').TokenUsage;
+      usage: TokenUsage;
       cost_usd?: number;
       model_name?: string;
     };
@@ -96,7 +102,6 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
 
     return done(ctx);
   }
-
 
   return null;
 }

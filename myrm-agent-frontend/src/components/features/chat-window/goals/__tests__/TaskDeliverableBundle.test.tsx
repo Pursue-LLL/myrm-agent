@@ -2,7 +2,7 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { GoalState } from '../goals/goalStatusTypes';
+import type { GoalState } from '../goalStatusTypes';
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
@@ -31,9 +31,7 @@ vi.mock('@/lib/api', () => ({
 
 vi.mock('@/components/features/artifacts/artifactUtils', () => ({
   getArtifactIcon: () => {
-    const Icon = ({ className }: { className?: string }) => (
-      <svg data-testid="artifact-icon" className={className} />
-    );
+    const Icon = ({ className }: { className?: string }) => <svg data-testid="artifact-icon" className={className} />;
     return Icon;
   },
 }));
@@ -69,24 +67,17 @@ describe('TaskDeliverableBundle', () => {
   });
 
   it('returns null when deliverables is empty or has < 2 items', () => {
-    const { container: c1 } = render(
-      <TaskDeliverableBundle goal={makeGoal({ deliverables: [] })} chatId="chat-1" />,
-    );
+    const { container: c1 } = render(<TaskDeliverableBundle goal={makeGoal({ deliverables: [] })} chatId="chat-1" />);
     expect(c1.firstChild).toBeNull();
 
     const { container: c2 } = render(
-      <TaskDeliverableBundle
-        goal={makeGoal({ deliverables: [{ id: '1', filename: 'a.txt' }] })}
-        chatId="chat-1"
-      />,
+      <TaskDeliverableBundle goal={makeGoal({ deliverables: [{ id: '1', filename: 'a.txt' }] })} chatId="chat-1" />,
     );
     expect(c2.firstChild).toBeNull();
   });
 
   it('returns null when goal is not complete', () => {
-    const { container } = render(
-      <TaskDeliverableBundle goal={makeGoal({ status: 'active' })} chatId="chat-1" />,
-    );
+    const { container } = render(<TaskDeliverableBundle goal={makeGoal({ status: 'active' })} chatId="chat-1" />);
     expect(container.firstChild).toBeNull();
   });
 

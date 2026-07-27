@@ -1,12 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext",
-      "WebWorker"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext", "WebWorker"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -18,25 +13,16 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "types": [
-      "node",
-      "vitest/globals"
-    ],
+    "types": ["node", "vitest/globals"],
     "plugins": [
       {
         "name": "next"
       }
     ],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "#locales/*": [
-        "./locales/*"
-      ],
-      "@shared/*": [
-        "../shared/*"
-      ]
+      "@/*": ["./src/*"],
+      "#locales/*": ["./locales/*"],
+      "@shared/*": ["../shared/*"]
     }
   },
   "include": [
@@ -49,17 +35,7 @@
     "*.ts",
     "*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    ".next-isolated-e2e-parent-83432-83435-dd3bcf51/types/**/*.ts",
-    ".next-isolated-e2e-parent-83432-83435-dd3bcf51/dev/types/**/*.ts",
-    ".next-isolated-e2e-parent-70345-70373-bfa82159/types/**/*.ts",
-    ".next-isolated-e2e-parent-70345-70373-bfa82159/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules",
-    ".next",
-    ".next-isolated-*",
-    "dist",
-    "build"
-  ]
+  "exclude": ["node_modules", ".next", ".next-isolated-*", "dist", "build"]
 }

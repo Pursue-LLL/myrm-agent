@@ -2792,6 +2792,7 @@
       "wikiDeepVerificationRate": "심층 검증 비율",
       "wikiSnippetExpansionRate": "근거 펼침 비율",
       "wikiRequeryRate": "재질문 비율",
+      "wikiNegativeOutcomeRate": "부정 결과 비율",
       "wikiVerificationDwell": "평균 검증 체류 시간",
       "wikiTelemetryDrops": "텔레메트리 유실",
       "wikiEvidenceWindow": "집계 기간: {days}일; 보관 기간: {retentionDays}일"

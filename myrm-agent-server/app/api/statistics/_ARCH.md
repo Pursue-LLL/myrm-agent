@@ -20,4 +20,4 @@
 | `router.py` | 路由 | Base statistics routes: usage, daily, sessions, activity, tool-stability, badges（含 activeGoals 计数）. | ✅ |
 | `session_analytics.py` | 模块 | 会话级分析 API。提供单个会话的详细统计（token、工具、事件时间线、任务指标）和执行追踪。 | ✅ |
 | `usage_aggregation.py` | 模块 | Coerce SQLAlchemy Row / tuple results into aggregate_usage inputs；聚合 token/cost/cache 指标并输出端到端 `streamTtft` 统计摘要（sampleCount/avg/p95，基于 `streamTtftMs` 样本，不依赖 usage 字段是否存在）。 | ✅ |
-| `wiki_evidence.py` | 模块 | Wiki 证据链观测 API：写入 evidence_surface/snippet_open/snippet_close/query_submitted/dropped_report 事件（支持 `context_key` 口径隔离），聚合输出 snippet expansion、deep verification、re-query、quick bounce、dwell 指标；内置 90 天 retention 周期清理；仅在 dropped/snippet 相关事件上触发治理告警评估，并通过系统通知+冷却去重（内存+DB）形成闭环。 | ✅ |
+| `wiki_evidence.py` | 模块 | Wiki 证据链观测 API：写入 evidence_surface/snippet_open/snippet_close/query_submitted/dropped_report/quality_outcome_negative 事件（支持 `context_key` 口径隔离；`quality_outcome_negative` 当前由含 KB 证据回答的 Regenerate/Undo 触发），聚合输出 snippet expansion、deep verification、re-query、quick bounce、dwell 与 negative outcome 指标；内置 90 天 retention 周期清理；在 dropped/snippet/outcome 触发事件上评估治理告警，并通过系统通知+冷却去重（内存+DB）形成闭环。 | ✅ |

@@ -54,6 +54,7 @@ def test_wiki_evidence_summary_accumulates_key_metrics(client: TestClient) -> No
         {"event_type": "snippet_close", "surface": "settings", "context_key": "agent:default", "dwell_ms": 12000},
         {"event_type": "query_submitted", "surface": "settings", "context_key": "agent:default", "after_evidence": True},
         {"event_type": "dropped_report", "surface": "settings", "context_key": "agent:default", "count": 2},
+        {"event_type": "quality_outcome_negative", "surface": "settings", "context_key": "agent:default", "count": 1},
     ]
     for event in events:
         response = client.post(
@@ -91,6 +92,8 @@ def test_wiki_evidence_summary_accumulates_key_metrics(client: TestClient) -> No
     assert float(after["deep_verification_rate"]) >= 0
     assert int(after["quick_bounce_count"]) >= int(before["quick_bounce_count"])
     assert float(after["quick_bounce_rate"]) >= 0
+    assert int(after["quality_outcome_negative_count"]) >= int(before["quality_outcome_negative_count"]) + 1
+    assert float(after["quality_outcome_negative_rate"]) >= 0
 
     by_surface = after["snippet_open_by_surface"]
     assert isinstance(by_surface, dict)
@@ -102,6 +105,11 @@ def test_wiki_evidence_summary_accumulates_key_metrics(client: TestClient) -> No
     assert "L0" in by_level
     assert "L1" in by_level
     assert "L2" in by_level
+
+    negative_by_surface = after["quality_outcome_negative_by_surface"]
+    assert isinstance(negative_by_surface, dict)
+    assert "settings" in negative_by_surface
+    assert "chat" in negative_by_surface
 
 
 def test_wiki_evidence_requires_dwell_for_snippet_close(client: TestClient) -> None:
@@ -117,6 +125,15 @@ def test_wiki_evidence_rejects_dwell_for_dropped_report(client: TestClient) -> N
     response = client.post(
         "/api/v1/statistics/wiki-evidence/events",
         json={"event_type": "dropped_report", "surface": "chat", "dwell_ms": 1000},
+        headers={"Authorization": "Bearer local"},
+    )
+    assert response.status_code == 400
+
+
+def test_wiki_evidence_rejects_dwell_for_quality_outcome_negative(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/statistics/wiki-evidence/events",
+        json={"event_type": "quality_outcome_negative", "surface": "chat", "dwell_ms": 1000},
         headers={"Authorization": "Bearer local"},
     )
     assert response.status_code == 400
@@ -191,6 +208,46 @@ def test_wiki_evidence_emits_low_deep_verification_alert(client: TestClient) -> 
     after_keys = _list_wiki_alert_keys(client)
     assert len(after_keys) >= len(before_keys) + 1
     assert after_keys[0] == "wiki_evidence_low_deep_verification"
+
+
+def test_wiki_evidence_emits_negative_outcome_rate_alert(client: TestClient) -> None:
+    before_keys = _list_wiki_alert_keys(client)
+    evidence_resp = client.post(
+        "/api/v1/statistics/wiki-evidence/events",
+        json={
+            "event_type": "evidence_surface",
+            "surface": "chat",
+            "context_key": "chat:quality-anchor",
+            "count": wiki_evidence_module._ALERT_NEGATIVE_OUTCOME_MIN_EVIDENCE_SURFACE_COUNT,
+        },
+        headers={"Authorization": "Bearer local"},
+    )
+    assert evidence_resp.status_code == 200
+    assert int(evidence_resp.json()["data"]["alerts_emitted"]) == 0
+
+    negative_count = max(
+        1,
+        int(
+            wiki_evidence_module._ALERT_NEGATIVE_OUTCOME_MIN_EVIDENCE_SURFACE_COUNT
+            * wiki_evidence_module._ALERT_NEGATIVE_OUTCOME_RATE_THRESHOLD
+        ),
+    )
+    outcome_resp = client.post(
+        "/api/v1/statistics/wiki-evidence/events",
+        json={
+            "event_type": "quality_outcome_negative",
+            "surface": "chat",
+            "context_key": "chat:quality-anchor",
+            "count": negative_count,
+        },
+        headers={"Authorization": "Bearer local"},
+    )
+    assert outcome_resp.status_code == 200
+    assert int(outcome_resp.json()["data"]["alerts_emitted"]) >= 1
+
+    after_keys = _list_wiki_alert_keys(client)
+    assert len(after_keys) >= len(before_keys) + 1
+    assert after_keys[0] == "wiki_evidence_negative_outcome_rate"
 
 
 def test_wiki_evidence_skips_alert_evaluation_for_non_trigger_event(client: TestClient) -> None:

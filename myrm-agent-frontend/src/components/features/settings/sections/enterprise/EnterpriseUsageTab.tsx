@@ -54,10 +54,7 @@ const EnterpriseUsageTab = memo(() => {
       setLoading(true);
       const org = await getMyOrg();
       setOrgId(org.id);
-      const [usageData, budgetData] = await Promise.all([
-        getOrgUsageSummary(org.id),
-        getOrgBudget(org.id),
-      ]);
+      const [usageData, budgetData] = await Promise.all([getOrgUsageSummary(org.id), getOrgBudget(org.id)]);
       setSummary(usageData);
       setBudget(budgetData);
     } catch (e) {
@@ -110,11 +107,15 @@ const EnterpriseUsageTab = memo(() => {
         }
         description={t('description')}
         action={
-          <Button size="sm" variant="outline" onClick={() => {
-            setBudgetInput(budget?.budget_wu_monthly != null ? String(budget.budget_wu_monthly) : '');
-            setThresholdInput(budget ? String(Math.round(budget.alert_threshold * 100)) : '80');
-            setShowBudgetDialog(true);
-          }}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setBudgetInput(budget?.budget_wu_monthly != null ? String(budget.budget_wu_monthly) : '');
+              setThresholdInput(budget ? String(Math.round(budget.alert_threshold * 100)) : '80');
+              setShowBudgetDialog(true);
+            }}
+          >
             <Settings2 className="h-3.5 w-3.5 mr-1" />
             {t('configureBudget')}
           </Button>
@@ -130,7 +131,8 @@ const EnterpriseUsageTab = memo(() => {
                   {summary.total_wu.toLocaleString()} WU
                   {summary.budget_wu_monthly != null && (
                     <span className="text-muted-foreground font-normal">
-                      {' '}/ {summary.budget_wu_monthly.toLocaleString()} WU
+                      {' '}
+                      / {summary.budget_wu_monthly.toLocaleString()} WU
                     </span>
                   )}
                 </span>
@@ -179,7 +181,9 @@ const EnterpriseUsageTab = memo(() => {
                         cx="50%"
                         cy="50%"
                         outerRadius={50}
-                        label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                        label={({ category, percent }: { category?: string; percent?: number }) =>
+                          `${String(category ?? '')} ${((percent ?? 0) * 100).toFixed(0)}%`
+                        }
                         labelLine={false}
                       >
                         {summary.by_category.map((_, i) => (

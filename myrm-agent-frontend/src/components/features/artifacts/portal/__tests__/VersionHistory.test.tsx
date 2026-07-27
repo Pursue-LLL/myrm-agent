@@ -84,12 +84,12 @@ const versions: ArtifactVersion[] = [
 ];
 
 describe('VersionHistory', () => {
-  let onSwitchVersion: ReturnType<typeof vi.fn>;
-  let onRollback: ReturnType<typeof vi.fn>;
+  let onSwitchVersion = vi.fn<(index: number) => void>();
+  let onRollback = vi.fn<(index: number) => void>();
 
   beforeEach(() => {
-    onSwitchVersion = vi.fn();
-    onRollback = vi.fn();
+    onSwitchVersion = vi.fn<(index: number) => void>();
+    onRollback = vi.fn<(index: number) => void>();
   });
 
   it('renders nothing when versions is empty', () => {

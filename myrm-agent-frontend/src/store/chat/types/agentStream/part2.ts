@@ -2,10 +2,10 @@
  * [INPUT]
  * ./part1::AgentEventType, BaseAgentEvent (POS: SSE 事件类型前半段)
  * ../contextMetrics::ContextBudget (POS: 成本与上下文预算指标类型)
- * 
+ *
  * [OUTPUT]
  * Goal/Subagent/Privacy/RateLimit 等 SSE 事件接口。
- * 
+ *
  * [POS]
  * SSE 事件类型中段。
  */
@@ -232,12 +232,7 @@ export interface ToolSnapshotItem {
 }
 
 export type SubagentMetadataValue =
-  | string
-  | number
-  | boolean
-  | null
-  | SubagentMetadataValue[]
-  | { [key: string]: SubagentMetadataValue };
+  string | number | boolean | null | SubagentMetadataValue[] | { [key: string]: SubagentMetadataValue };
 
 export interface ToolsSnapshotStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.TOOLS_SNAPSHOT;
@@ -273,6 +268,7 @@ export interface SubagentStartStreamEvent extends BaseAgentEvent {
     role?: string;
     control_scope?: string;
     budget?: Record<string, SubagentMetadataValue>;
+    effective_model?: string;
   };
 }
 
@@ -285,6 +281,7 @@ export interface SubagentProgressStreamEvent extends BaseAgentEvent {
     message?: string;
     progress?: number;
     current_tokens?: number;
+    token_usage?: TokenUsage;
     budget_tokens?: number;
     tool_count?: number;
     is_estimated?: boolean;
@@ -333,6 +330,32 @@ export interface SubagentStatusUpdateStreamEvent extends BaseAgentEvent {
     policy_reason?: string;
     policy_details?: string;
     budget?: Record<string, SubagentMetadataValue>;
+    effective_model?: string;
+    token_usage?: TokenUsage;
+  };
+}
+
+export interface SubagentStaleStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.SUBAGENT_STALE;
+  data?: {
+    task_id?: string;
+    agent_type?: string;
+    stale_duration_seconds?: number;
+    wasted_tokens?: number;
+  };
+}
+
+export interface VerificationVerdictStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.VERIFICATION_VERDICT;
+  data: {
+    passed: boolean;
+    summary: string;
+    confidence: string;
+    round: number;
+    max_rounds: number;
+    worker_type: string;
+    has_workspace_diff: boolean;
+    findings: Array<{ severity: string; description: string }>;
   };
 }
 

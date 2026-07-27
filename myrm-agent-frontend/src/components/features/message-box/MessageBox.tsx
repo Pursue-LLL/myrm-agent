@@ -46,6 +46,7 @@ import { useCLIAgentStore } from '@/store/useCLIAgentStore';
 import { CLIDiffViewer } from '@/components/features/cli-visualization/CLIDiffViewer';
 import { isTauriEnvironment } from '@/lib/tauri';
 import { ImageTaskCard, VideoTaskCard } from '@/components/features/task-card';
+import { recordQualityOutcomeNegative } from '@/services/wikiEvidenceMetrics';
 import { CronJobSystemCard } from './CronJobSystemCard';
 import { KanbanTaskCreatedCard, type KanbanTaskCreatedResult } from './KanbanTaskCreatedCard';
 import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';
@@ -183,6 +184,10 @@ const MessageBox = ({
   const t = useTranslations('chat');
   const tProgress = useTranslations('progressSteps');
   const tUiAction = useTranslations('interactiveUI.userAction');
+  const hasKbEvidenceOnCurrentMessage = useMemo(
+    () => message.sources?.some((source) => Boolean(source.kb_name) && Boolean(source.snippet || source.summary)) ?? false,
+    [message.sources],
+  );
 
   const uiActionMessageLabels: UIActionMessageLabels = useMemo(
     () => ({
@@ -297,6 +302,9 @@ const MessageBox = ({
           regenerateSiblingGroupId: result.sibling_group_id,
           regenerateInstruction: instruction,
         }));
+        if (hasKbEvidenceOnCurrentMessage) {
+          recordQualityOutcomeNegative('chat', 1, `chat:${message.messageId}`);
+        }
 
         const cleanQuery = stripDatetimeTag(result.query);
         await sendMessage(cleanQuery);
@@ -327,6 +335,9 @@ const MessageBox = ({
       const result = await undoLastTurn(chatId);
 
       if (result.success && result.deleted_count > 0) {
+        if (hasKbEvidenceOnCurrentMessage) {
+          recordQualityOutcomeNegative('chat', 1, `chat:${message.messageId}`);
+        }
         // 找到最后一条 user message 的位置，删除它及之后的所有消息
         let userMessageIndex = -1;
         for (let i = messageIndex - 1; i >= 0; i--) {

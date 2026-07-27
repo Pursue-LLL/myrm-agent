@@ -6,6 +6,7 @@ import {
   __resetWikiEvidenceMetricsForTest,
   getWikiEvidenceSummary,
   recordEvidenceSurface,
+  recordQualityOutcomeNegative,
   recordSnippetClose,
   recordSnippetOpen,
   recordWikiQuery,
@@ -87,6 +88,22 @@ describe('wikiEvidenceMetrics', () => {
     expect(droppedPayload.context_key).toBe('agent:test');
   });
 
+  it('posts negative quality outcome events for evidence answers', async () => {
+    recordQualityOutcomeNegative('chat', 2, 'chat:test-session');
+    await __flushWikiEvidenceMetricsForTest();
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/statistics/wiki-evidence/events', {
+      method: 'POST',
+      body: JSON.stringify({
+        event_type: 'quality_outcome_negative',
+        surface: 'chat',
+        context_key: 'chat:test-session',
+        count: 2,
+      }),
+      silent: true,
+    });
+  });
+
   it('fetches wiki evidence summary from statistics API', async () => {
     apiRequestMock.mockResolvedValueOnce({
       days: 30,
@@ -100,6 +117,8 @@ describe('wikiEvidenceMetrics', () => {
       deep_verification_rate: 0.5,
       quick_bounce_count: 0,
       quick_bounce_rate: 0,
+      quality_outcome_negative_count: 1,
+      quality_outcome_negative_rate: 0.25,
       query_count: 2,
       requery_count: 1,
       requery_rate: 0.5,
@@ -107,6 +126,7 @@ describe('wikiEvidenceMetrics', () => {
       verification_dwell_sample_count: 2,
       snippet_open_by_surface: { chat: 1, settings: 1 },
       snippet_open_by_level: { L0: 0, L1: 1, L2: 1 },
+      quality_outcome_negative_by_surface: { chat: 1, settings: 0 },
     });
 
     const result = await getWikiEvidenceSummary();

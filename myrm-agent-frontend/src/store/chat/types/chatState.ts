@@ -2,10 +2,10 @@
  * [INPUT]
  * ./messages::Message (POS: 持久化与渲染用的聊天消息实体)
  * ./sessionConfig::AgentConfig (POS: 会话级 Agent 与模式配置类型)
- * 
+ *
  * [OUTPUT]
  * ChatState 接口（Zustand 形状 + actions）。
- * 
+ *
  * [POS]
  * useChatStore 状态与操作方法契约。
  */
@@ -232,6 +232,9 @@ export interface ChatState {
     archiveRestoreActions?: ArchiveRestoreAction[],
     agentConfigOverride?: AgentConfig | null,
   ) => Promise<void>;
+  recoverHitlStream: (
+    chatId: string,
+  ) => Promise<{ ok: true; attached: boolean; queueLen: number; source: string } | { ok: false; err: string }>;
   // 初始化方法
   loadMessages: (chatId: string) => Promise<void>;
   loadOlderMessages: () => Promise<void>;

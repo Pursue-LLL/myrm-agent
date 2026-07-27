@@ -60,6 +60,16 @@ interface SessionReplayPlayerProps {
   trace: ExecutionTrace;
 }
 
+interface VisibleReplayState {
+  messages: Message[];
+  tools: TraceToolCall[];
+  llmCalls: TraceLLMCall[];
+  humanFeedback: TraceHumanFeedback[];
+  memoryEvents: TraceMemoryEvent[];
+  latestError: TraceError | null;
+  activeEvent: ReplayEvent | null;
+}
+
 const MARKER_COLORS: Record<ReplayEventMarker['kind'], string> = {
   tool: 'bg-amber-500',
   llm: 'bg-violet-500',
@@ -155,7 +165,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
   useEffect(() => {
     if (!isPlaying) {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
-      lastUpdateRef.current = undefined;
+      lastUpdateRef.current = null;
       return;
     }
 
@@ -181,7 +191,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
     };
   }, [isPlaying, playbackSpeed, endTime]);
 
-  const visibleState = useMemo(() => {
+  const visibleState = useMemo<VisibleReplayState>(() => {
     const visibleEvents = timeline.filter((e) => e.time <= currentTime);
     const activeMessages: Message[] = [];
     const activeTools = new Map<string, TraceToolCall>();

@@ -32,8 +32,12 @@ _ALERT_DROPPED_EVENT_THRESHOLD = 10
 _ALERT_DEEP_VERIFICATION_MIN_OPEN_COUNT = 10
 _ALERT_DEEP_VERIFICATION_MIN_DWELL_SAMPLES = 5
 _ALERT_DEEP_VERIFICATION_RATE_THRESHOLD = 0.2
+_ALERT_NEGATIVE_OUTCOME_MIN_EVIDENCE_SURFACE_COUNT = 20
+_ALERT_NEGATIVE_OUTCOME_RATE_THRESHOLD = 0.25
 _ALERT_ACTION_URL = "/settings/developer?sub=usage"
 _DEEP_VERIFICATION_THRESHOLD_MS = 8_000
+_QUALITY_OUTCOME_NEGATIVE_EVENT_TYPE = "quality_outcome_negative"
+_SURFACES = ("chat", "settings")
 
 _alert_emit_lock = asyncio.Lock()
 _last_alert_emitted_at_by_key: dict[str, float] = {}
@@ -74,6 +78,32 @@ async def _collect_governance_alert_candidates(
             WikiEvidenceMetricEvent.event_type == "snippet_open",
         )
     )
+    evidence_surface_by_surface_stmt = (
+        select(
+            WikiEvidenceMetricEvent.surface,
+            func.coalesce(func.sum(WikiEvidenceMetricEvent.count), 0),
+        )
+        .where(
+            and_(
+                *base_filters,
+                WikiEvidenceMetricEvent.event_type == "evidence_surface",
+            )
+        )
+        .group_by(WikiEvidenceMetricEvent.surface)
+    )
+    quality_outcome_negative_by_surface_stmt = (
+        select(
+            WikiEvidenceMetricEvent.surface,
+            func.coalesce(func.sum(WikiEvidenceMetricEvent.count), 0),
+        )
+        .where(
+            and_(
+                *base_filters,
+                WikiEvidenceMetricEvent.event_type == _QUALITY_OUTCOME_NEGATIVE_EVENT_TYPE,
+            )
+        )
+        .group_by(WikiEvidenceMetricEvent.surface)
+    )
     deep_verification_stmt = select(func.coalesce(func.sum(WikiEvidenceMetricEvent.count), 0)).where(
         and_(
             *base_filters,
@@ -95,6 +125,13 @@ async def _collect_governance_alert_candidates(
     deep_verification_count = int((await db.execute(deep_verification_stmt)).scalar() or 0)
     dwell_samples = int((await db.execute(dwell_samples_stmt)).scalar() or 0)
     deep_verification_rate = _safe_rate(deep_verification_count, snippet_open_count)
+    evidence_surface_by_surface: dict[str, int] = {surface: 0 for surface in _SURFACES}
+    for surface, count in (await db.execute(evidence_surface_by_surface_stmt)).all():
+        evidence_surface_by_surface[str(surface)] = int(count or 0)
+    quality_outcome_negative_by_surface: dict[str, int] = {surface: 0 for surface in _SURFACES}
+    for surface, count in (await db.execute(quality_outcome_negative_by_surface_stmt)).all():
+        quality_outcome_negative_by_surface[str(surface)] = int(count or 0)
+    quality_outcome_negative_count = int(sum(quality_outcome_negative_by_surface.values()))
 
     alerts: list[dict[str, object]] = []
     if dropped_event_count >= _ALERT_DROPPED_EVENT_THRESHOLD:
@@ -139,6 +176,52 @@ async def _collect_governance_alert_candidates(
                     "snippet_open_count": snippet_open_count,
                     "deep_verification_count": deep_verification_count,
                     "deep_verification_rate": deep_verification_rate,
+                    "action_url": _ALERT_ACTION_URL,
+                },
+            }
+        )
+
+    alert_surface = ""
+    alert_surface_evidence_count = 0
+    alert_surface_negative_count = 0
+    alert_surface_negative_rate = 0.0
+    for surface in _SURFACES:
+        evidence_count = int(evidence_surface_by_surface[surface])
+        negative_count = int(quality_outcome_negative_by_surface[surface])
+        negative_rate = _safe_rate(negative_count, evidence_count)
+        if (
+            evidence_count >= _ALERT_NEGATIVE_OUTCOME_MIN_EVIDENCE_SURFACE_COUNT
+            and negative_rate >= _ALERT_NEGATIVE_OUTCOME_RATE_THRESHOLD
+            and (
+                negative_rate > alert_surface_negative_rate
+                or (negative_rate == alert_surface_negative_rate and negative_count > alert_surface_negative_count)
+            )
+        ):
+            alert_surface = surface
+            alert_surface_evidence_count = evidence_count
+            alert_surface_negative_count = negative_count
+            alert_surface_negative_rate = negative_rate
+
+    if alert_surface:
+        alerts.append(
+            {
+                "alert_key": "wiki_evidence_negative_outcome_rate",
+                "title": "Knowledge Evidence Outcome Quality Is Degrading",
+                "message": (
+                    f"Wiki evidence negative outcome rate reached {alert_surface_negative_rate * 100:.1f}% "
+                    f"on {alert_surface} surface (negative={alert_surface_negative_count}, "
+                    f"evidence_surface={alert_surface_evidence_count}) "
+                    f"over the last {_ALERT_WINDOW_DAYS} days."
+                ),
+                "type": "warning",
+                "meta_data": {
+                    "kind": "wiki_evidence_governance_alert",
+                    "alert_key": "wiki_evidence_negative_outcome_rate",
+                    "window_days": _ALERT_WINDOW_DAYS,
+                    "surface": alert_surface,
+                    "quality_outcome_negative_count": quality_outcome_negative_count,
+                    "quality_outcome_negative_rate": alert_surface_negative_rate,
+                    "evidence_surface_count": alert_surface_evidence_count,
                     "action_url": _ALERT_ACTION_URL,
                 },
             }

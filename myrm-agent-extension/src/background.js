@@ -200,11 +200,6 @@ async function executeAction(action, payload) {
       return { success: true };
     }
 
-    case "send_cdp": {
-      const { tabId, method, params } = payload;
-      return await sendCdpCommand(tabId, method, params);
-    }
-
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -383,13 +378,6 @@ function cleanupBackgroundTabs() {
       }
     }
   });
-}
-
-async function sendCdpCommand(tabId, method, params) {
-  if (!attachedTabs.has(tabId)) {
-    throw new Error(`Debugger not attached to tab ${tabId}`);
-  }
-  return await chrome.debugger.sendCommand({ tabId }, method, params || {});
 }
 
 // --- Chrome Debugger Events ---

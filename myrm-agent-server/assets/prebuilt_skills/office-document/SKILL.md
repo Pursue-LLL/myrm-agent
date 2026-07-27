@@ -21,7 +21,7 @@ contract:
     - "Phase 2: Environment — ensure required Python packages are installed"
     - "Phase 3: Generate — create the document following format-specific conventions"
     - "Phase 4: Validate — verify the output file opens correctly and content is complete"
-    - "Phase 5: Visual Preview — render to PNG via soffice, inspect for layout issues, self-correct up to 3 rounds (cloud sandbox only; skipped if soffice unavailable)"
+    - "Phase 5: Visual Preview — render to PDF via soffice then rasterize to PNG via pdftoppm, inspect for layout issues, self-correct up to 3 rounds (cloud sandbox only; skipped if soffice unavailable)"
   potential_traps:
     - description: "Hardcoding computed values in Excel instead of using formulas"
       mitigation: "Every derived cell MUST be an Excel formula; only raw inputs may be hardcoded values"
@@ -43,7 +43,7 @@ contract:
       is_required: true
     - step_id: visual_quality
       description: "Visual rendering check — no text overflow, element overlap, or contrast issues"
-      validation_method: "Convert to PNG via soffice headless, inspect screenshots for layout defects"
+      validation_method: "Convert to PDF via soffice headless, rasterize to PNG via pdftoppm, inspect screenshots for layout defects"
       is_required: false
   success_criteria: "Professional document that is immediately usable without manual formatting fixes"
   estimated_duration_seconds: 900
@@ -305,12 +305,15 @@ If the command fails, **skip Phase 5 entirely** — the document is still valid 
 
 ### Step 2: Render to PNG
 
+Convert via PDF first (soffice direct PNG export only captures the first page/slide), then rasterize with `pdftoppm` (poppler-utils):
+
 ```bash
 mkdir -p /tmp/office_preview
-soffice --headless --convert-to png --outdir /tmp/office_preview ./output/report.pptx
+soffice --headless --convert-to pdf --outdir /tmp/office_preview ./output/report.pptx
+pdftoppm -png -r 200 /tmp/office_preview/report.pdf /tmp/office_preview/page
 ```
 
-For multi-page documents (PPTX slides, DOCX pages), this produces one PNG per page/slide.
+This produces `page-01.png`, `page-02.png`, etc. — one PNG per slide/page. Works identically for DOCX, PPTX, and XLSX.
 
 ### Step 3: Visual inspection
 

@@ -31,17 +31,14 @@ import useWorkspaceStore from '@/store/useWorkspaceStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
-import type { ActionMode, AgentConfig, BuiltinToolId } from '@/store/chat/types';
+import type { ActionMode, AgentConfig, BuiltinToolId, GoalStatusPayload } from '@/store/chat/types';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
 import { fetchWithTimeout } from '@/lib/api';
 import { getApiBaseUrl, resolveE2eApiBase as resolveInjectedE2eApiBase } from '@/lib/deploy-mode';
 import { markPlatformUnreachable } from '@/lib/platform-readiness';
 import { isModelAvailable } from '@/lib/model-binding';
-import {
-  shouldPreserveE2eActionMode,
-  shouldRunPrepareAutomationSend,
-} from '@/components/dev/e2eChatBridgeSendPolicy';
+import { shouldPreserveE2eActionMode, shouldRunPrepareAutomationSend } from '@/components/dev/e2eChatBridgeSendPolicy';
 import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 
 function isLocalDevHost(): boolean {
@@ -69,10 +66,7 @@ function isE2eProviderSendReady(actionMode: ActionMode, agentConfig: AgentConfig
   return getModelSelection(actionMode, agentConfig) !== null;
 }
 
-async function waitE2eProviderSendReady(
-  deadlineMs: number,
-  preserveActionMode = false,
-): Promise<void> {
+async function waitE2eProviderSendReady(deadlineMs: number, preserveActionMode = false): Promise<void> {
   while (Date.now() < deadlineMs) {
     if (!preserveActionMode) {
       prepareAutomationSend();
@@ -111,9 +105,7 @@ function extractSearchServiceConfigs(body: unknown): SearchServiceConfigItem[] {
   }
   const record = body as { value?: { searchServiceConfigs?: unknown }; searchServiceConfigs?: unknown };
   const root =
-    record.value && typeof record.value === 'object'
-      ? record.value
-      : (record as { searchServiceConfigs?: unknown });
+    record.value && typeof record.value === 'object' ? record.value : (record as { searchServiceConfigs?: unknown });
   const configs = root.searchServiceConfigs;
   return Array.isArray(configs) ? (configs as SearchServiceConfigItem[]) : [];
 }
@@ -144,8 +136,7 @@ async function hydrateSearchServicesFromE2eApi(): Promise<{ ok: boolean; err?: s
   if (!e2eApiBase) {
     return { ok: false, err: 'no-e2e-api-base' };
   }
-  const blockSearchSync =
-    typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
+  const blockSearchSync = typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
   const deadline = Date.now() + 15_000;
   let configs: SearchServiceConfigItem[] = [];
   while (Date.now() < deadline) {
@@ -180,10 +171,12 @@ async function hydrateLiteModelFromConfigApi(): Promise<void> {
   if (!litePrimary?.providerId || !litePrimary?.model) {
     throw new Error('e2e-lite-model-unconfigured');
   }
+  const providerId = litePrimary.providerId;
+  const model = litePrimary.model;
   flushSync(() => {
     useProviderStore.getState().setLiteModel({
-      providerId: litePrimary.providerId,
-      model: litePrimary.model,
+      providerId,
+      model,
     });
   });
 }
@@ -194,10 +187,12 @@ async function hydrateBaseModelFromConfigApi(): Promise<void> {
   if (!basePrimary?.providerId || !basePrimary?.model) {
     throw new Error('e2e-base-model-unconfigured');
   }
+  const providerId = basePrimary.providerId;
+  const model = basePrimary.model;
   flushSync(() => {
     useProviderStore.getState().setBaseModel({
-      providerId: basePrimary.providerId,
-      model: basePrimary.model,
+      providerId,
+      model,
     });
   });
 }
@@ -239,11 +234,9 @@ async function initProvidersForE2e(opts?: E2eChatSessionOpts): Promise<void> {
     markPlatformUnreachable();
     markLocalBackendUnreachable();
     const normalizedApi = e2eApiBase.replace(/\/+$/, '');
-    const workspaceStatus =
-      typeof window !== 'undefined' ? window.__MYRM_WORKSPACE_STREAM_STATUS__?.() : undefined;
+    const workspaceStatus = typeof window !== 'undefined' ? window.__MYRM_WORKSPACE_STREAM_STATUS__?.() : undefined;
     const workspaceConnected =
-      workspaceStatus?.connected === true &&
-      (workspaceStatus.origin ?? '').replace(/\/+$/, '') === normalizedApi;
+      workspaceStatus?.connected === true && (workspaceStatus.origin ?? '').replace(/\/+$/, '') === normalizedApi;
 
     const deadline = Date.now() + 120_000;
     let ready = false;
@@ -269,10 +262,7 @@ async function initProvidersForE2e(opts?: E2eChatSessionOpts): Promise<void> {
       throw new Error('e2e-private-backend-not-ready');
     }
     await useProviderStore.getState().retryInit();
-    if (
-      typeof window !== 'undefined' &&
-      window.__MYRM_E2E_BLOCK_SEARCH_SYNC__
-    ) {
+    if (typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__) {
       clearSearchServicesForE2e();
     } else {
       await hydrateSearchServicesFromE2eApi();
@@ -310,10 +300,7 @@ async function executeE2eChatSend(
     window.__MYRM_E2E_CHAT__?.abortActiveStream?.();
     window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.();
     const { actionMode: sendActionMode } = useChatStore.getState();
-    const shouldPreserveActionMode = shouldPreserveE2eActionMode(
-      sendActionMode,
-      preserveActionMode,
-    );
+    const shouldPreserveActionMode = shouldPreserveE2eActionMode(sendActionMode, preserveActionMode);
     const sessionOpts = shouldPreserveActionMode ? { preserveActionMode: true } : undefined;
     await window.__MYRM_E2E_CHAT__?.ensureChatSession?.(sessionOpts);
     flushSync(() => {
@@ -377,22 +364,21 @@ async function executeE2eChatSend(
       };
     }
     if (!waitForStreamCompletion) {
-      void useChatStore.getState().sendMessage(trimmed, undefined).catch((error) => {
-        window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
-          ok: false,
-          err: error instanceof Error ? error.message : String(error),
-          mode: 'kickoffBackgroundError',
-        };
-      });
+      void useChatStore
+        .getState()
+        .sendMessage(trimmed, undefined)
+        .catch((error) => {
+          window.__MYRM_E2E_CHAT__!.lastSubmitResult = {
+            ok: false,
+            err: error instanceof Error ? error.message : String(error),
+            mode: 'kickoffBackgroundError',
+          };
+        });
       const kickoffDeadline = Date.now() + 45_000;
       while (Date.now() < kickoffDeadline) {
         const chatState = useChatStore.getState();
         const userCount = chatState.messages.filter((msg) => msg.role === 'user').length;
-        if (
-          chatState.loading
-          || chatState.abortController
-          || userCount > baselineUsers
-        ) {
+        if (chatState.loading || chatState.abortController || userCount > baselineUsers) {
           const chatId = chatState.chatId?.trim() || '';
           return {
             ok: true,
@@ -438,8 +424,7 @@ async function executeE2eChatSend(
             const payload = (await resp.json()) as {
               data?: { messages?: Array<{ role?: string }> };
             };
-            const users =
-              payload.data?.messages?.filter((entry) => entry.role === 'user').length ?? 0;
+            const users = payload.data?.messages?.filter((entry) => entry.role === 'user').length ?? 0;
             if (users > baselineUsers) {
               return { ok: true, chatId, mode: 'apiConfirmed' };
             }
@@ -487,21 +472,18 @@ export default function E2EChatBridge() {
     const sseEvents: Array<{ type: string; messageId: string | null }> = [];
     let sseCaptureMessageId: string | null = null;
     let sseCaptureLocked = false;
-    (window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string, messageId?: string | null) => void }).__MYRM_E2E_RECORD_SSE__ = (
-      type: string,
-      messageId?: string | null,
-    ) => {
+    (
+      window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string, messageId?: string | null) => void }
+    ).__MYRM_E2E_RECORD_SSE__ = (type: string, messageId?: string | null) => {
       if (sseCaptureLocked) {
-        const normalizedId =
-          typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
+        const normalizedId = typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
         if (type !== 'capability_gap' || !normalizedId) {
           return;
         }
         sseCaptureMessageId = normalizedId;
         sseCaptureLocked = false;
       }
-      const normalizedId =
-        typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
+      const normalizedId = typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
       if (sseCaptureMessageId && normalizedId !== sseCaptureMessageId) {
         return;
       }
@@ -581,8 +563,7 @@ export default function E2EChatBridge() {
         flushSync(() => {
           const state = useChatStore.getState();
           const needsForcedReload =
-            state.chatId === id &&
-            (state.notFound || state.loadError || !state.isMessagesLoaded || state.loading);
+            state.chatId === id && (state.notFound || state.loadError || !state.isMessagesLoaded || state.loading);
           if (needsForcedReload) {
             useChatStore.setState({
               chatId: '',
@@ -597,13 +578,7 @@ export default function E2EChatBridge() {
         const deadline = Date.now() + 60_000;
         while (Date.now() < deadline) {
           const state = useChatStore.getState();
-          if (
-            state.chatId === id &&
-            state.isMessagesLoaded &&
-            !state.notFound &&
-            !state.loadError &&
-            !state.loading
-          ) {
+          if (state.chatId === id && state.isMessagesLoaded && !state.notFound && !state.loadError && !state.loading) {
             return;
           }
           await new Promise((resolve) => setTimeout(resolve, 200));
@@ -656,10 +631,7 @@ export default function E2EChatBridge() {
         const steerBtn = buttons.find((btn) => {
           const label = String(btn.getAttribute('aria-label') || '').toLowerCase();
           return (
-            label.includes('steer')
-            || label.includes('guidance')
-            || label.includes('转向')
-            || label.includes('指导')
+            label.includes('steer') || label.includes('guidance') || label.includes('转向') || label.includes('指导')
           );
         }) as HTMLButtonElement | undefined;
         if (steerBtn && !steerBtn.disabled) {
@@ -705,12 +677,7 @@ export default function E2EChatBridge() {
           typeof opts?.baselineUserCount === 'number'
             ? opts.baselineUserCount
             : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
-        const result = await executeE2eChatSend(
-          text,
-          baselineUsers,
-          false,
-          opts?.preserveActionMode === true,
-        );
+        const result = await executeE2eChatSend(text, baselineUsers, false, opts?.preserveActionMode === true);
         window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
         return result;
       },
@@ -766,9 +733,7 @@ export default function E2EChatBridge() {
         if (!filterId) {
           return sseEvents.map((entry) => entry.type);
         }
-        return sseEvents
-          .filter((entry) => entry.messageId === filterId)
-          .map((entry) => entry.type);
+        return sseEvents.filter((entry) => entry.messageId === filterId).map((entry) => entry.type);
       },
       clearSseSnapshot: () => {
         sseEvents.length = 0;
@@ -777,8 +742,7 @@ export default function E2EChatBridge() {
       },
       allocateStreamMessageId: () => useChatStore.getState().allocateNewSessionMessageId(),
       setSseCaptureMessageId: (messageId: string | null | undefined) => {
-        sseCaptureMessageId =
-          typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
+        sseCaptureMessageId = typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
         sseCaptureLocked = false;
       },
       setGoalMode: (enabled: boolean) => {
@@ -820,7 +784,7 @@ export default function E2EChatBridge() {
           return { ok: false, err: 'no-goal' };
         }
         const { normalizeGoalState } = await import('@/store/chat/messageStream/streamHelpers');
-        useGoalStore.getState().setActiveGoal(normalizeGoalState(data.goal));
+        useGoalStore.getState().setActiveGoal(normalizeGoalState(data.goal as unknown as GoalStatusPayload));
         return {
           ok: true,
           status: String(data.goal.status ?? ''),
@@ -880,9 +844,10 @@ export default function E2EChatBridge() {
           typeof data === 'object' && data !== null && !Array.isArray(data)
             ? (data as Record<string, unknown>).meta_data
             : undefined;
-        const kind = typeof meta === 'object' && meta !== null && !Array.isArray(meta)
-          ? (meta as Record<string, unknown>).kind
-          : undefined;
+        const kind =
+          typeof meta === 'object' && meta !== null && !Array.isArray(meta)
+            ? (meta as Record<string, unknown>).kind
+            : undefined;
         const chatId =
           typeof meta === 'object' && meta !== null && !Array.isArray(meta)
             ? (meta as Record<string, unknown>).chat_id
@@ -912,9 +877,10 @@ export default function E2EChatBridge() {
           reason: snap?.reason ?? null,
         };
       },
-      setCurrentBuiltinTools: (tools: BuiltinToolId[]) => {
+      setCurrentBuiltinTools: (tools: string[]) => {
+        const nextTools = tools as BuiltinToolId[];
         flushSync(() => {
-          useChatStore.getState().setCurrentBuiltinTools([...tools]);
+          useChatStore.getState().setCurrentBuiltinTools([...nextTools]);
         });
       },
       getCurrentBuiltinTools: () => [...useChatStore.getState().currentBuiltinTools],
@@ -923,9 +889,7 @@ export default function E2EChatBridge() {
           useChatStore.getState().actionMode,
           Boolean(opts?.preserveActionMode),
         );
-        await initProvidersForE2e(
-          preserveActionMode ? { preserveActionMode: true } : undefined,
-        );
+        await initProvidersForE2e(preserveActionMode ? { preserveActionMode: true } : undefined);
         if (shouldRunPrepareAutomationSend(preserveActionMode)) {
           prepareAutomationSend();
         }
@@ -940,9 +904,7 @@ export default function E2EChatBridge() {
           throw new Error('e2e-lite-model-unconfigured');
         }
         if (!isModelAvailable(litePrimary, providers)) {
-          throw new Error(
-            `e2e-lite-model-unavailable:${litePrimary.providerId}/${litePrimary.model}`,
-          );
+          throw new Error(`e2e-lite-model-unavailable:${litePrimary.providerId}/${litePrimary.model}`);
         }
         const selection = {
           providerId: litePrimary.providerId,
@@ -961,6 +923,7 @@ export default function E2EChatBridge() {
             selectedSkillIds: [],
             selectedMcpNames: [],
             systemPrompt: '',
+            useGlobalInstruction: true,
           });
         });
         return selection;
@@ -981,9 +944,7 @@ export default function E2EChatBridge() {
           throw new Error('e2e-base-model-unconfigured');
         }
         if (!isModelAvailable(basePrimary, providers)) {
-          throw new Error(
-            `e2e-base-model-unavailable:${basePrimary.providerId}/${basePrimary.model}`,
-          );
+          throw new Error(`e2e-base-model-unavailable:${basePrimary.providerId}/${basePrimary.model}`);
         }
         const selection = {
           providerId: basePrimary.providerId,
@@ -1002,6 +963,7 @@ export default function E2EChatBridge() {
             selectedSkillIds: [],
             selectedMcpNames: [],
             systemPrompt: '',
+            useGlobalInstruction: true,
           });
         });
         return selection;
@@ -1010,12 +972,7 @@ export default function E2EChatBridge() {
         const state = useChatStore.getState();
         const pending = [...state.messages]
           .reverse()
-          .find(
-            (message) =>
-              message.role === 'assistant' &&
-              message.clarification &&
-              !message.clarification.answered,
-          );
+          .find((message) => message.role === 'assistant' && message.clarification && !message.clarification.answered);
         if (!pending?.messageId) {
           throw new Error('e2e-no-active-clarification');
         }
@@ -1035,6 +992,7 @@ export default function E2EChatBridge() {
             selectedSkillIds: [],
             selectedMcpNames: [],
             systemPrompt: '',
+            useGlobalInstruction: true,
           });
         });
       },
@@ -1071,9 +1029,7 @@ export default function E2EChatBridge() {
         const metaSteps = Array.isArray(lastAssistant?.metadata?.progressSteps)
           ? lastAssistant.metadata.progressSteps
           : [];
-        const steps = lastAssistant?.progressSteps?.length
-          ? lastAssistant.progressSteps
-          : metaSteps;
+        const steps = lastAssistant?.progressSteps?.length ? lastAssistant.progressSteps : metaSteps;
         const toolNames = steps.map((step) => String(step.tool_name ?? ''));
         const evictedRefs = steps
           .map((step) => step.evicted_file_ref)
@@ -1098,12 +1054,8 @@ export default function E2EChatBridge() {
         const metaSteps = Array.isArray(lastAssistant?.metadata?.progressSteps)
           ? lastAssistant.metadata.progressSteps
           : [];
-        const steps = lastAssistant?.progressSteps?.length
-          ? lastAssistant.progressSteps
-          : metaSteps;
-        const desktopSteps = steps.filter((step) =>
-          String(step.tool_name ?? '').startsWith('desktop_'),
-        );
+        const steps = lastAssistant?.progressSteps?.length ? lastAssistant.progressSteps : metaSteps;
+        const desktopSteps = steps.filter((step) => String(step.tool_name ?? '').startsWith('desktop_'));
         const completionStatus = String(lastAssistant?.metadata?.completionStatus ?? '');
         const isComplete = completionStatus === 'complete';
         const isStreaming = !isComplete && Boolean(chat.loading || chat.abortController);
@@ -1117,9 +1069,7 @@ export default function E2EChatBridge() {
         };
       },
       getFirstDesktopDref: () => {
-        const pickDref = (
-          refs: Record<string, { role?: string; name?: string }> | undefined,
-        ): string | null => {
+        const pickDref = (refs: Record<string, { role?: string; name?: string }> | undefined): string | null => {
           if (!refs || typeof refs !== 'object') {
             return null;
           }
@@ -1127,11 +1077,7 @@ export default function E2EChatBridge() {
           for (const [refId, info] of Object.entries(refs)) {
             const role = String(info?.role ?? '').toLowerCase();
             const normalized = refId.trim().replace(/^@/, '');
-            if (
-              preferredRoles.has(role) &&
-              normalized.startsWith('d') &&
-              normalized.length > 1
-            ) {
+            if (preferredRoles.has(role) && normalized.startsWith('d') && normalized.length > 1) {
               return normalized;
             }
           }
@@ -1160,8 +1106,7 @@ export default function E2EChatBridge() {
       releaseActiveStreamForApiResume: () => {
         const chatState = useChatStore.getState();
         const paneId = useWorkspaceStore.getState().panes.find((pane) => pane.chatId === chatState.chatId)?.id;
-        const paneAbort =
-          paneId != null ? useWorkspaceStore.getState().getPaneAbortController(paneId) : null;
+        const paneAbort = paneId != null ? useWorkspaceStore.getState().getPaneAbortController(paneId) : null;
         const controller = paneAbort ?? chatState.abortController;
         let released = false;
         if (controller && !controller.signal.aborted) {
@@ -1255,9 +1200,9 @@ export default function E2EChatBridge() {
         const approvals = await fetchPendingApprovals();
         const matching = approvals.filter(
           (approval) =>
-            approval.action_type === 'browser_takeover'
-            && approval.status === 'PENDING'
-            && (!chatId || approval.chat_id === chatId),
+            approval.action_type === 'browser_takeover' &&
+            approval.status === 'PENDING' &&
+            (!chatId || approval.chat_id === chatId),
         );
         for (const approval of matching) {
           useApprovalStore.getState().openApproval(approval);
@@ -1275,9 +1220,7 @@ export default function E2EChatBridge() {
         const assistants = messages.filter((message) => message.role === 'assistant');
         const lastAssistant = assistants[assistants.length - 1];
         const steps = lastAssistant?.progressSteps ?? [];
-        const browserSteps = steps.filter((step) =>
-          String(step.tool_name ?? '').startsWith('browser_'),
-        );
+        const browserSteps = steps.filter((step) => String(step.tool_name ?? '').startsWith('browser_'));
         return {
           active: browserSteps.length > 0,
           takeoverPending: takeover.pending,
@@ -1301,9 +1244,7 @@ export default function E2EChatBridge() {
         flushSync(() => {
           useBrowserTakeoverStore.getState().completeTakeover();
         });
-        const { resolveBrowserTakeoverMessageId } = await import(
-          '@/store/useApprovalStore'
-        );
+        const { resolveBrowserTakeoverMessageId } = await import('@/store/useApprovalStore');
         const resumeMessageId = resolveBrowserTakeoverMessageId(storeMessageId);
         return {
           ok: true,
@@ -1312,12 +1253,12 @@ export default function E2EChatBridge() {
           storeMessageId: storeMessageId ?? null,
         };
       },
-    };
+    } as NonNullable<Window['__MYRM_E2E_CHAT__']>;
 
     window.__MYRM_E2E_SUBAGENT__ = {
       hydrate: (rows) => {
         flushSync(() => {
-          useSubagentStore.getState().setNodes(rows as SubagentNode[]);
+          useSubagentStore.getState().setNodes(rows as unknown as SubagentNode[]);
         });
       },
       nodeCount: () => Object.keys(useSubagentStore.getState().nodes).length,

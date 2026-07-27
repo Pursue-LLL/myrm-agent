@@ -856,7 +856,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             from app.services.extension.bridge import get_extension_bridge
 
-            ext_bridge = get_extension_bridge() if not is_local_mode() else None
+            # Keep extension mode usable across local/tauri/sandbox.
+            # Connection health is still validated by the bridge at runtime.
+            ext_bridge = get_extension_bridge()
 
             browser_session = BrowserSession(
                 pool,

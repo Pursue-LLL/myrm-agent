@@ -16,6 +16,7 @@ import {
   getExtensionWebSocketUrl,
   updateAuthorizedDomains,
   disconnectExtension,
+  type ExtensionSetupHints,
   type ExtensionStatus,
   type ExtensionTab,
 } from '@/services/extension';
@@ -28,13 +29,19 @@ const EMPTY_STATUS: ExtensionStatus = {
   available_tabs: [],
 };
 
+const EMPTY_HINTS: ExtensionSetupHints = {
+  auth_token_configured: false,
+  auth_token_required: false,
+  cdp_endpoint_discovered: false,
+};
+
 const ExtensionBridgeSection = memo(() => {
   const t = useTranslations('settings');
   const wsUrl = useMemo(() => getExtensionWebSocketUrl(), []);
   const [status, setStatus] = useState<ExtensionStatus>(EMPTY_STATUS);
+  const [setupHints, setSetupHints] = useState<ExtensionSetupHints>(EMPTY_HINTS);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
-  const [authTokenConfigured, setAuthTokenConfigured] = useState(false);
   const [domainInput, setDomainInput] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -51,10 +58,10 @@ const ExtensionBridgeSection = memo(() => {
     }
     try {
       const hints = await getExtensionSetupHints();
-      setAuthTokenConfigured(hints.auth_token_configured);
+      setSetupHints(hints);
     } catch {
       if (!statusOk) {
-        setAuthTokenConfigured(false);
+        setSetupHints(EMPTY_HINTS);
       }
     } finally {
       setLoading(false);
@@ -83,6 +90,17 @@ const ExtensionBridgeSection = memo(() => {
     try {
       const result = await updateAuthorizedDomains(domains);
       setStatus((prev) => ({ ...prev, authorized_domains: result.authorized_domains }));
+      const wildcardWarning = result.warnings.find((w) => w.code === 'wildcard_includes_root');
+      if (wildcardWarning) {
+        toast({
+          title: t('extension.wildcardWarningTitle'),
+          description: t('extension.wildcardIncludesRoot', {
+            pattern: wildcardWarning.pattern,
+            root: wildcardWarning.root_domain,
+          }),
+          variant: 'default',
+        });
+      }
       setFetchError(false);
       setDomainInput('');
       toast({ title: t('extension.domainAdded'), variant: 'default' });
@@ -99,6 +117,17 @@ const ExtensionBridgeSection = memo(() => {
     try {
       const result = await updateAuthorizedDomains(domains);
       setStatus((prev) => ({ ...prev, authorized_domains: result.authorized_domains }));
+      const wildcardWarning = result.warnings.find((w) => w.code === 'wildcard_includes_root');
+      if (wildcardWarning) {
+        toast({
+          title: t('extension.wildcardWarningTitle'),
+          description: t('extension.wildcardIncludesRoot', {
+            pattern: wildcardWarning.pattern,
+            root: wildcardWarning.root_domain,
+          }),
+          variant: 'default',
+        });
+      }
       setFetchError(false);
     } catch {
       toast({ title: t('extension.saveFailed'), variant: 'destructive' });
@@ -165,11 +194,27 @@ const ExtensionBridgeSection = memo(() => {
         <p className="text-xs text-muted-foreground">
           {t('extension.authTokenStatus')}:{' '}
           <span className="text-foreground">
-            {authTokenConfigured
+            {setupHints.auth_token_configured
               ? t('extension.authTokenConfigured')
-              : t('extension.authTokenOptional')}
+              : setupHints.auth_token_required
+                ? t('extension.authTokenRequiredMissing')
+                : t('extension.authTokenOptional')}
           </span>
         </p>
+        <p className="text-xs text-muted-foreground">
+          {t('extension.cdpStatus')}:{' '}
+          <span className="text-foreground">
+            {setupHints.cdp_endpoint_discovered
+              ? t('extension.cdpDetected')
+              : t('extension.cdpNotDetected')}
+          </span>
+        </p>
+        {setupHints.auth_token_required && !setupHints.auth_token_configured && (
+          <p className="text-xs text-destructive">{t('extension.authTokenRequiredHelp')}</p>
+        )}
+        {!setupHints.cdp_endpoint_discovered && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">{t('extension.cdpSetupHelp')}</p>
+        )}
       </div>
 
       {/* Connection Status */}

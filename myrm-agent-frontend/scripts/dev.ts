@@ -63,9 +63,40 @@ function ensureDevEnvLocal(): void {
 const args = process.argv.slice(2);
 const clean = args.includes('--clean');
 const nextDistDir = process.env.MYRM_NEXT_DIST_DIR?.trim() || '.next';
+const STALE_ISOLATED_NEXT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 ensureLocaleNamespaces();
 ensureDevEnvLocal();
+
+function pruneStaleIsolatedNextDirs(): void {
+  const activeDistName = path.basename(nextDistDir);
+  const now = Date.now();
+  let removed = 0;
+  for (const entry of fs.readdirSync(process.cwd(), { withFileTypes: true })) {
+    if (!entry.isDirectory() || !entry.name.startsWith('.next-isolated-')) {
+      continue;
+    }
+    if (entry.name === activeDistName) {
+      continue;
+    }
+    const target = path.join(process.cwd(), entry.name);
+    try {
+      const ageMs = now - fs.statSync(target).mtimeMs;
+      if (ageMs < STALE_ISOLATED_NEXT_MAX_AGE_MS) {
+        continue;
+      }
+      fs.rmSync(target, { recursive: true, force: true });
+      removed += 1;
+    } catch {
+      // ignore single-dir failures
+    }
+  }
+  if (removed > 0) {
+    console.log(`🧹 Pruned ${removed} stale .next-isolated-* director(ies) older than 24h.`);
+  }
+}
+
+pruneStaleIsolatedNextDirs();
 
 if (clean) {
   console.log(`🧹 Cleaning ${nextDistDir} directory...`);

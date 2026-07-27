@@ -1098,6 +1098,10 @@ class ChromeMcpClient:
         but the daemon cleaned up their context ownership.  We open fresh tabs at
         the same URLs, bind them to existing leases, and update ``_pages`` so that
         callers transparently get a live page.
+
+        If runtime binding verification fails (e.g. new page routed to wrong
+        parallel test runtime), the page is immediately closed and the old page
+        remains in ``_disconnected_pages`` so callers get a clear error.
         """
         page_items = list(saved_pages.items())
         for idx, (old_page_id, old_page) in enumerate(page_items):
@@ -1108,6 +1112,7 @@ class ChromeMcpClient:
                     len(page_items) - idx,
                 )
                 break
+            new_page_id: int | None = None
             try:
                 old_target = old_page.target_id.strip()
                 if old_target:
@@ -1122,6 +1127,7 @@ class ChromeMcpClient:
                     "new_page", arguments, timeout_sec=min(65.0, remaining)
                 )
                 page_id, target_id = parse_new_page(result)
+                new_page_id = page_id
                 rebuilt = McpPage(
                     page_id=page_id,
                     target_id=target_id,
@@ -1131,9 +1137,6 @@ class ChromeMcpClient:
                 )
                 self._heartbeat_lease(old_page.lease_id)
                 self._bind_page_lease(rebuilt)
-                self._pages[page_id] = rebuilt
-                self._disconnected_pages.pop(old_page_id, None)
-                self._page_lease_heartbeat.track(old_page.lease_id)
                 if runtime_binding is not None:
                     self._bind_and_navigate_runtime_page(
                         rebuilt,
@@ -1141,6 +1144,9 @@ class ChromeMcpClient:
                         runtime_binding,
                         timeout_ms=min(60_000, int(remaining * 1000)),
                     )
+                self._pages[page_id] = rebuilt
+                self._disconnected_pages.pop(old_page_id, None)
+                self._page_lease_heartbeat.track(old_page.lease_id)
                 _LOGGER.info(
                     "rebuilt page %d→%d (url=%s) after transport recovery",
                     old_page_id,
@@ -1153,6 +1159,16 @@ class ChromeMcpClient:
                     old_page_id,
                     exc,
                 )
+                if new_page_id is not None:
+                    self._pages.pop(new_page_id, None)
+                    try:
+                        self._call_tool_direct(
+                            "close_page",
+                            {"pageId": new_page_id},
+                            timeout_sec=10.0,
+                        )
+                    except Exception:
+                        pass
 
     def abandon_inflight_requests(self) -> None:
         """Invalidate orphaned mux I/O after asyncio cancelled a blocking evaluate thread."""
@@ -1362,10 +1378,12 @@ class ChromeMcpClient:
         params: dict[str, object],
         *,
         timeout_sec: float | None = None,
+        skip_recovery: bool = False,
     ) -> dict[str, object]:
         start_generation = self._request_generation
         last_transport_error: _TransportDeadError | None = None
-        for transport_attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
+        max_attempts = _TRANSPORT_RECOVER_ATTEMPTS
+        for transport_attempt in range(max_attempts):
             try:
                 held_lock = self._acquire_request_lock()
                 try:
@@ -1389,10 +1407,10 @@ class ChromeMcpClient:
                     "Chrome MCP transport dead during %s (attempt %s/%s): %s",
                     method,
                     transport_attempt + 1,
-                    _TRANSPORT_RECOVER_ATTEMPTS,
+                    max_attempts,
                     exc,
                 )
-            if transport_attempt + 1 >= _TRANSPORT_RECOVER_ATTEMPTS:
+            if transport_attempt + 1 >= max_attempts:
                 break
             if start_generation != self._request_generation:
                 raise RuntimeError(

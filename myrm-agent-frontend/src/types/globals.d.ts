@@ -28,13 +28,15 @@ interface Window {
     uiOrigin: string;
   }>;
   /** Rejects before any routed API fetch when the page is bound to the wrong Backend. */
-  __MYRM_E2E_RUNTIME_READY__?: Promise<Readonly<{
-    version: 1;
-    runId: string;
-    runtimeId: string;
-    apiBase: string;
-    uiOrigin: string;
-  }>>;
+  __MYRM_E2E_RUNTIME_READY__?: Promise<
+    Readonly<{
+      version: 1;
+      runId: string;
+      runtimeId: string;
+      apiBase: string;
+      uiOrigin: string;
+    }>
+  >;
   __TAURI_INTERNALS__?: unknown;
   /** Dev E2E: last DESKTOP_VIEW_UPDATE refs (survives TOOL_END inspector re-fetch). */
   __MYRM_E2E_DESKTOP_REFS__?: {
@@ -60,11 +62,16 @@ interface Window {
     prepareAutomationSend?: () => void;
     ensureChatSession?: (opts?: { preserveActionMode?: boolean }) => Promise<void>;
     attachToChat?: (chatId: string) => Promise<void>;
+    recoverHitlStream?: (
+      chatId: string,
+    ) => Promise<{ ok: boolean; err?: string; attached?: boolean; queueLen?: number; source?: string }>;
     resetChat?: () => void;
     isSendReady?: () => boolean;
     isProvidersInitialized?: () => boolean;
     debugProviderState?: () => Record<string, unknown>;
     clearStreamRequestMessageId?: () => void;
+    submitSteerNudge?: (message: string) => Promise<{ ok: boolean; mode?: string; err?: string; detail?: unknown }>;
+    abortActiveStream?: () => void;
     /** CDP E2E: API-confirmed user message count before submit. */
     _submitBaselineUsers?: number;
     turnSnapshot: () => {
@@ -75,7 +82,13 @@ interface Window {
       hasDone: boolean;
       lastAssistantSample: string;
     };
-    lastSubmitResult?: { ok: boolean; err?: string; chatId?: string | null; debug?: Record<string, unknown> };
+    lastSubmitResult?: {
+      ok: boolean;
+      err?: string;
+      chatId?: string | null;
+      mode?: string;
+      debug?: Record<string, unknown>;
+    };
     setGoalMode: (enabled: boolean) => void;
     setGoalBudgetTokens: (tokens: number | null) => void;
     setGoalConvergenceWindow?: (window: number | null) => void;
@@ -113,9 +126,7 @@ interface Window {
     setCurrentBuiltinTools?: (tools: string[]) => void;
     getCurrentBuiltinTools?: () => string[];
     /** CDP E2E: pin agent chat to defaultModelConfig.liteModel (matches API get_lite_model_selection). */
-    pinLiteModelForE2e?: (opts?: {
-      preserveActionMode?: boolean;
-    }) => Promise<{ providerId: string; model: string }>;
+    pinLiteModelForE2e?: (opts?: { preserveActionMode?: boolean }) => Promise<{ providerId: string; model: string }>;
     /** CDP E2E SHPOIB: mirror private-backend searchServices into useConfigStore. */
     syncSearchServicesFromE2eApi?: () => Promise<{ ok: boolean; err?: string; count?: number }>;
     /** CDP E2E gap: force empty searchServices in FE store (no :8080 fallback). */
@@ -134,8 +145,8 @@ interface Window {
     setBrowserSource?: (source: string) => void;
     getBrowserSource?: () => string | null | undefined;
     ensureComputerUseReady?: () => void;
-    getActionMode?: () => string;
-    setActionMode?: (mode: string) => void;
+    getActionMode?: () => 'fast' | 'agent' | 'deep_research' | 'consensus' | 'claude_code';
+    setActionMode?: (mode: 'fast' | 'agent' | 'deep_research' | 'consensus' | 'claude_code') => void;
     getBrowserToolProgress?: () => {
       active: boolean;
       takeoverPending: boolean;
@@ -188,6 +199,7 @@ interface Window {
   /** Dev-only bridge for subagent dashboard Chrome E2E hydration. */
   __MYRM_E2E_SUBAGENT__?: {
     hydrate: (rows: Array<Record<string, unknown>>) => void;
+    nodeCount: () => number;
     refresh: () => void | Promise<void>;
   };
 }

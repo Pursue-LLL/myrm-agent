@@ -210,7 +210,7 @@ function UsageStatisticsSection() {
 
       {wikiEvidence && (
         <SettingsSection title={t('wikiEvidenceTitle')} description={t('wikiEvidenceDescription')}>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <StatCard
               icon={IconTarget}
               label={t('wikiDeepVerificationRate')}
@@ -231,6 +231,17 @@ function UsageStatisticsSection() {
               value={`${(wikiEvidence.requery_rate * 100).toFixed(1)}%`}
               subValue={wikiEvidence.requery_count.toLocaleString()}
               colorClass="bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400"
+            />
+            <StatCard
+              icon={IconAlertCircle}
+              label={t('wikiNegativeOutcomeRate')}
+              value={`${(wikiEvidence.quality_outcome_negative_rate * 100).toFixed(1)}%`}
+              subValue={wikiEvidence.quality_outcome_negative_count.toLocaleString()}
+              colorClass={
+                wikiEvidence.quality_outcome_negative_count > 0
+                  ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
+                  : 'bg-muted text-muted-foreground'
+              }
             />
             <StatCard
               icon={IconClock}
