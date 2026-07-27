@@ -10,7 +10,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.database.models import Base
-from app.database.models.memory import MemoryImportBatchModel, MemoryImportItemModel
+from app.database.models.memory import (
+    MemoryImportBatchModel,
+    MemoryImportDryRunModel,
+    MemoryImportItemModel,
+    MemoryMigrationProvenanceModel,
+)
 from app.services.memory.import_ledger import (
     IMPORT_BATCH_STATUS_PARTIAL,
     IMPORT_BATCH_STATUS_ROLLED_BACK,
@@ -294,3 +299,46 @@ async def test_rollback_import_resumes_target_in_progress_batch(
     batch = await db_session.get(MemoryImportBatchModel, confirm.import_batch_id)
     assert batch is not None
     assert batch.status == IMPORT_BATCH_STATUS_ROLLED_BACK
+
+
+@pytest.mark.asyncio
+async def test_save_post_import_readiness_persists_session_and_provenance_metadata(
+    db_session: AsyncSession,
+) -> None:
+    manager = _FakeMemoryManager()
+    service = MemoryImportSessionService(db_session)
+    payload = {"data": {"semantic": [{"content": "Persist readiness contract state.", "metadata": {}}]}}
+    dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(payload, "native_json")
+    confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+
+    readiness_issues = [
+        {
+            "code": "mcp_servers_imported_disabled",
+            "severity": "warning",
+            "params": {"count": 2},
+        }
+    ]
+    await service.save_post_import_readiness(
+        import_batch_id=confirm.import_batch_id,
+        readiness_status="warning",
+        readiness_issues=readiness_issues,
+    )
+
+    dry_run = await db_session.get(MemoryImportDryRunModel, dry_run_id)
+    assert dry_run is not None
+    assert isinstance(dry_run.metadata_json, dict)
+    post_import_readiness = dry_run.metadata_json.get("post_import_readiness")
+    assert isinstance(post_import_readiness, dict)
+    assert post_import_readiness.get("status") == "warning"
+    assert post_import_readiness.get("issues") == readiness_issues
+
+    provenance = (
+        await db_session.execute(
+            select(MemoryMigrationProvenanceModel).order_by(MemoryMigrationProvenanceModel.started_at.desc())
+        )
+    ).scalars().first()
+    assert provenance is not None
+    assert isinstance(provenance.metadata_json, dict)
+    assert provenance.metadata_json.get("readiness_status") == "warning"
+    assert provenance.metadata_json.get("readiness_issue_count") == 1
+    assert provenance.metadata_json.get("readiness_issue_codes") == ["mcp_servers_imported_disabled"]

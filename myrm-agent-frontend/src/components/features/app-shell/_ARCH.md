@@ -40,6 +40,7 @@
 | `key-value-editor.tsx` | 辅助 | 动态 key-value 对编辑列表 | ✅ |
 | `lazy-mermaid.tsx` | 辅助 | Mermaid 动态 import 懒加载包装 | ✅ |
 | `lazy-monaco-editor.tsx` | 辅助 | Monaco 动态 import 懒加载包装 | ✅ |
+| `lazy-recharts.tsx` | 辅助 | Recharts 图表组件动态 import 包装（SSR 关闭，统一懒加载入口） | ✅ |
 | `login-prompt.tsx` | 组件 | 未登录态全局登录引导条 | ✅ |
 | `model-picker-popover.tsx` | 组件 | 模型选择弹出面板：Provider 分组列表 + 搜索过滤 + 3 层 Slot（Primary/Fallback/Safety）+ Context Window Badge + 参考成本 Badge + 能力图标 | ✅ |
 

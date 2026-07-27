@@ -19,7 +19,7 @@ import {
   type WikiSourceLevel,
   type WikiSourceSnippet,
 } from '@/services/wikiService';
-import { recordEvidenceSurface, recordWikiQuery } from '@/services/wikiEvidenceMetrics';
+import { recordEvidenceSurface, recordWikiQueryAttempt, recordWikiQuerySubmitted } from '@/services/wikiEvidenceMetrics';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import SourceChunkDrawer from '@/components/features/message-box/SourceChunkDrawer';
@@ -324,7 +324,7 @@ export function WikiSection() {
       return;
     }
 
-    recordWikiQuery('settings', evidenceContextKey);
+    recordWikiQueryAttempt('settings', evidenceContextKey);
     setIsQuerying(true);
     setAnswer('');
     setRelatedArticles([]);
@@ -336,6 +336,7 @@ export function WikiSection() {
       setAnswer(data.answer);
       setRelatedArticles(data.related_articles || []);
       setSourceSnippets(data.source_snippets || []);
+      recordWikiQuerySubmitted('settings', evidenceContextKey);
       recordEvidenceSurface('settings', data.source_snippets?.length ?? 0, evidenceContextKey);
       toast.success(t('success.queryComplete'));
     } catch (error) {

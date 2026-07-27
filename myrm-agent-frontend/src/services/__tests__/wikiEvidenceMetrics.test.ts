@@ -9,7 +9,8 @@ import {
   recordQualityOutcomeNegative,
   recordSnippetClose,
   recordSnippetOpen,
-  recordWikiQuery,
+  recordWikiQueryAttempt,
+  recordWikiQuerySubmitted,
 } from '@/services/wikiEvidenceMetrics';
 
 vi.mock('@/lib/api', () => ({
@@ -47,23 +48,29 @@ describe('wikiEvidenceMetrics', () => {
     });
   });
 
-  it('marks only first query after evidence interaction as requery', async () => {
+  it('marks only first successful query after evidence interaction as requery', async () => {
     recordSnippetOpen('chat', 'L1');
     vi.advanceTimersByTime(2500);
     recordSnippetClose('chat', 2500);
 
-    recordWikiQuery('settings');
-    recordWikiQuery('settings');
+    recordWikiQueryAttempt('settings');
+    recordWikiQuerySubmitted('settings');
+    recordWikiQuerySubmitted('settings');
     await __flushWikiEvidenceMetricsForTest();
 
-    const firstQueryCall = apiRequestMock.mock.calls[2];
-    const secondQueryCall = apiRequestMock.mock.calls[3];
+    const attemptCall = apiRequestMock.mock.calls[2];
+    const firstQueryCall = apiRequestMock.mock.calls[3];
+    const secondQueryCall = apiRequestMock.mock.calls[4];
+    expect(attemptCall).toBeDefined();
     expect(firstQueryCall).toBeDefined();
     expect(secondQueryCall).toBeDefined();
 
+    const attemptPayload = JSON.parse(String(attemptCall?.[1]?.body));
     const firstPayload = JSON.parse(String(firstQueryCall?.[1]?.body));
     const secondPayload = JSON.parse(String(secondQueryCall?.[1]?.body));
 
+    expect(attemptPayload.event_type).toBe('query_attempted');
+    expect(attemptPayload.after_evidence).toBeUndefined();
     expect(firstPayload.after_evidence).toBe(true);
     expect(secondPayload.after_evidence).toBe(false);
   });
@@ -74,7 +81,7 @@ describe('wikiEvidenceMetrics', () => {
 
     recordSnippetOpen('chat', 'L1', 'agent:test');
     await __flushWikiEvidenceMetricsForTest();
-    recordWikiQuery('chat', 'agent:test');
+    recordWikiQuerySubmitted('chat', 'agent:test');
     await __flushWikiEvidenceMetricsForTest();
 
     const queryPayload = JSON.parse(String(apiRequestMock.mock.calls[1]?.[1]?.body));
@@ -86,6 +93,26 @@ describe('wikiEvidenceMetrics', () => {
     expect(droppedPayload.surface).toBe('chat');
     expect(droppedPayload.count).toBe(1);
     expect(droppedPayload.context_key).toBe('agent:test');
+  });
+
+  it('records turn_distance for query attempt and success events', async () => {
+    recordWikiQueryAttempt('chat', 'chat:ctx', 2.9);
+    recordWikiQuerySubmitted('chat', 'chat:ctx', 3.2);
+    await __flushWikiEvidenceMetricsForTest();
+
+    const attemptPayload = JSON.parse(String(apiRequestMock.mock.calls[0]?.[1]?.body));
+    const successPayload = JSON.parse(String(apiRequestMock.mock.calls[1]?.[1]?.body));
+
+    expect(attemptPayload).toMatchObject({
+      event_type: 'query_attempted',
+      turn_distance: 2,
+      context_key: 'chat:ctx',
+    });
+    expect(successPayload).toMatchObject({
+      event_type: 'query_submitted',
+      turn_distance: 3,
+      context_key: 'chat:ctx',
+    });
   });
 
   it('posts negative quality outcome events for evidence answers', async () => {
@@ -119,6 +146,9 @@ describe('wikiEvidenceMetrics', () => {
       quick_bounce_rate: 0,
       quality_outcome_negative_count: 1,
       quality_outcome_negative_rate: 0.25,
+      query_attempt_count: 3,
+      query_success_count: 2,
+      query_success_rate: 0.6667,
       query_count: 2,
       requery_count: 1,
       requery_rate: 0.5,

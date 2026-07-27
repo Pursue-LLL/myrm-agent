@@ -9,9 +9,10 @@ app.schemas.memory.archive::*Import* / *Archive* (POS: 记忆归档与导入 API
 app.services.migration.source_payload_split (POS: 竞品 payload 指令/记忆车道拆分)
 app.services.migration.instruction_writer (POS: 竞品指令车道写入 Agent 与全局设置)
 app.services.migration.memory_import_binding (POS: 迁移事实记忆的全局 namespace 绑定)
+app.services.memory.operations.crud.import_readiness (POS: 记忆导入就绪合同构建层。负责把 provider、diagnostic、MCP 与规则跳过事实归并为可执行门禁状态。)
 
 [OUTPUT]
-memory CRUD handler functions、状态变更、偏好摘要、偏好管理、服务端绑定导入、Memory Archive、导入后诊断和回滚预演端点
+memory CRUD handler functions、状态变更、偏好摘要、偏好管理、服务端绑定导入、Memory Archive、导入后诊断与运行就绪合同、回滚预演端点
 
 [POS]
 记忆 API 操作层。提供标准记忆增删改查、偏好稳定性管理、单用户 archive 导出/校验，
@@ -38,6 +39,7 @@ from app.schemas.memory.archive import (
     MemoryImportConfirmResponse,
     MemoryImportDryRunRequest,
     MemoryImportDryRunResponse,
+    MemoryImportReadiness,
     MemoryImportRequest,
     MemoryImportResponse,
     MemoryImportRollbackPreviewResponse,
@@ -56,6 +58,7 @@ from app.services.memory.diagnostics import MemoryDiagnosticsService
 from app.services.memory.import_sessions import MemoryImportSessionError, MemoryImportSessionService
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _record_memory_event
+from app.services.memory.operations.crud.import_readiness import build_import_readiness
 
 logger = logging.getLogger(__name__)
 
@@ -281,6 +284,8 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
             if agents_defaults.get("model") is not None:
                 model_migration_payload["openclaw_agents_defaults"] = agents_defaults
 
+        source_has_api_keys = has_api_keys(loaded_payload)
+        providers_configured = await external_source_providers_configured()
         session_metadata = {
             "migration_options": {
                 "target_agent_id": migration_opts.target_agent_id,
@@ -288,6 +293,8 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
                 "include_episodic": migration_opts.include_episodic,
                 "apply_global_instructions": migration_opts.apply_global_instructions,
             },
+            "source_has_api_keys": source_has_api_keys,
+            "providers_configured": providers_configured,
             "instruction_plan": {
                 "competitor": instruction_plan.competitor,
                 "agent_persona": instruction_plan.agent_persona,
@@ -301,13 +308,12 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         if model_migration_payload:
             session_metadata["model_migration"] = model_migration_payload
         instruction_total_chars = instruction_char_total(instruction_plan)
-        providers_configured = await external_source_providers_configured()
         lane_previews = build_lane_previews(
             instruction=instruction_plan,
             memory_mapped=0,
             memory_status="pending",
             skill_count=len(pending_skills),
-            has_api_keys=has_api_keys(loaded_payload),
+            has_api_keys=source_has_api_keys,
             providers_ready=providers_configured,
             include_episodic=migration_opts.include_episodic,
         )
@@ -400,10 +406,18 @@ async def confirm_import_memories(
     )
 
     instruction_result = None
+    readiness: MemoryImportReadiness | None = None
     async with get_session() as db:
         try:
             session_service = MemoryImportSessionService(db)
             metadata = await session_service.get_pending_session_metadata(body.dry_run_id)
+            providers_configured_raw = metadata.get("providers_configured")
+            providers_configured = providers_configured_raw if isinstance(providers_configured_raw, bool) else None
+            source_has_api_keys_raw = metadata.get("source_has_api_keys")
+            source_has_api_keys = source_has_api_keys_raw is True
+            mcp_imported_disabled_count = 0
+            raw_instruction_plan = metadata.get("instruction_plan")
+            diagnostic_failed_count = 0
 
             manager = await create_global_import_memory_manager()
             result = await session_service.confirm_import(
@@ -412,8 +426,8 @@ async def confirm_import_memories(
                 skip_duplicates=body.skip_duplicates,
             )
 
-            if body.apply_instructions and isinstance(metadata.get("instruction_plan"), dict):
-                raw_plan = metadata["instruction_plan"]
+            if body.apply_instructions and isinstance(raw_instruction_plan, dict):
+                raw_plan = raw_instruction_plan
                 raw_opts = metadata.get("migration_options")
                 opts = MigrationWizardOptions(
                     target_agent_id=(
@@ -466,7 +480,7 @@ async def confirm_import_memories(
 
                 if mcp_configs_to_write:
                     try:
-                        await _write_migrated_mcp_configs(mcp_configs_to_write)
+                        mcp_imported_disabled_count = await _write_migrated_mcp_configs(mcp_configs_to_write)
                     except Exception as mcp_exc:
                         logger.warning("MCP config migration write failed (non-fatal): %s", mcp_exc)
 
@@ -501,9 +515,11 @@ async def confirm_import_memories(
                 )
                 result.diagnostic_status = diagnostic_run.status
                 result.diagnostic_run_id = diagnostic_run.id
+                diagnostic_failed_count = diagnostic_run.failed_count
             except Exception as exc:
                 logger.warning("Post-import diagnostics failed for %s: %s", result.import_batch_id, exc)
                 result.diagnostic_status = "failed"
+                diagnostic_failed_count = 1
                 try:
                     await session_service.save_post_import_diagnostic(
                         import_batch_id=result.import_batch_id,
@@ -513,6 +529,27 @@ async def confirm_import_memories(
                     )
                 except Exception as save_exc:
                     logger.warning("Post-import diagnostic failure state was not persisted: %s", save_exc)
+            workspace_rules_skipped_count = instruction_result.workspace_rules_skipped if instruction_result else 0
+            readiness = build_import_readiness(
+                providers_configured=providers_configured,
+                source_has_api_keys=source_has_api_keys,
+                diagnostic_status=result.diagnostic_status,
+                diagnostic_failed_count=diagnostic_failed_count,
+                mcp_config_count=mcp_imported_disabled_count,
+                workspace_rules_skipped=workspace_rules_skipped_count,
+            )
+            try:
+                await session_service.save_post_import_readiness(
+                    import_batch_id=result.import_batch_id,
+                    readiness_status=readiness.status,
+                    readiness_issues=[issue.model_dump(mode="json") for issue in readiness.issues],
+                )
+            except Exception as readiness_exc:
+                logger.warning(
+                    "Post-import readiness state was not persisted for %s: %s",
+                    result.import_batch_id,
+                    readiness_exc,
+                )
         except MemoryImportSessionError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     return MemoryImportConfirmResponse(
@@ -529,6 +566,7 @@ async def confirm_import_memories(
         global_instructions_updated=(instruction_result.global_instructions_updated if instruction_result else False),
         workspace_rules_written=(instruction_result.workspace_rules_written if instruction_result else 0),
         workspace_rules_skipped=(instruction_result.workspace_rules_skipped if instruction_result else 0),
+        readiness=readiness,
     )
 
 
@@ -620,8 +658,8 @@ async def rollback_import_memories(
     )
 
 
-async def _write_migrated_mcp_configs(mcp_configs: list[dict[str, object]]) -> None:
-    """Append migrated MCP configs to the mcpServers UserConfig entry (all disabled)."""
+async def _write_migrated_mcp_configs(mcp_configs: list[dict[str, object]]) -> int:
+    """Append migrated MCP configs to mcpServers and return newly inserted count."""
 
     from app.services.config.service import config_service
 
@@ -632,6 +670,7 @@ async def _write_migrated_mcp_configs(mcp_configs: list[dict[str, object]]) -> N
 
     existing_names = {str(cfg.get("name", "")) for cfg in existing if isinstance(cfg, dict)}
 
+    inserted_count = 0
     for cfg in mcp_configs:
         name = str(cfg.get("name", "")).strip()
         if not name or name in existing_names:
@@ -639,8 +678,10 @@ async def _write_migrated_mcp_configs(mcp_configs: list[dict[str, object]]) -> N
         entry = {**cfg, "enabled": False}
         existing.append(entry)
         existing_names.add(name)
+        inserted_count += 1
 
     await config_service.set("mcpServers", existing)
+    return inserted_count
 
 
 async def _apply_model_migration(model_data: dict[str, object]) -> None:

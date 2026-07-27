@@ -16,7 +16,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/feature_flags.py` | 辅助 | `seed_voice_interaction_flags()`，供 `tests/api/voice`、`tests/api/stt` conftest autouse |
 | `support/verify_api_base.py` | 辅助 | Live 集成测 verify-api 私池 base SSOT（`resolve_verify_api_base()`；epoch 匹配 + `--ensure-backend` seed） |
 | `support/bash_compressor_e2e.py` | 辅助 | bash compressor live/API E2E 共享 helper（模型 probe、workspace 压缩回放） |
-| `support/e2e_wall_progress.py` | 辅助 | Chrome E2E 墙钟 progress token（R39 touch/reset）；`reset_chrome_e2e_body_clocks` 在 SHPOIB bootstrap 后重设 body 600s + pytest-timeout（R48 · 日志 `E2E_BODY_CLOCK_RESET`） |
+| `support/e2e_wall_progress.py` | 辅助 | Chrome E2E 墙钟 progress token（R57：仅 touch，不再重置 body 计时） |
 | `../scripts/dev/lib/e2e_shared_ui_session.py` | 辅助 | R51-v2 Shared UI Session Contract（marker `e2e_search_policy` · conftest env · bootstrap/`click_new_chat` 四阶段 reset） |
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
 | `support/evicted_drawer_selectors.py` | 辅助 | UECD Drawer Chrome E2E 共享选择器/探针 SSOT（`data-testid` 定位 + `/files/evicted` 分页参数断言） |
@@ -65,6 +65,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `../scripts/dev/run_tests_low_memory.sh` | 辅助 | 本地低内存 pytest 入口（`-n0`，可选 `PYTEST_XDIST_WORKERS=N`） |
 | `../scripts/dev/profile_test_memory.py` | 辅助 | 按 test 文件采样 peak RSS，定位高内存用例 |
 | `services/migration/_ARCH.md` | 模块 | 迁移业务层测试清单（四源 discover/load/e2e） |
+| `services/memory/test_import_readiness.py` | 模块 | 导入后 `readiness` 合同规则单测（ready/warning/critical + issue codes） |
+| `services/memory/test_import_sessions.py` | 模块 | 导入审查会话与回滚账本单测（含 post-import readiness metadata 持久化） |
 | `services/agent/stream_session/` | 模块 | 流式会话链路测试（含 `memory_brief` 预计算、SSE 首包顺序、snapshot_id 追踪） |
 | `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测 |
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |

@@ -29,6 +29,7 @@ import type {
   MemoryImportConfirmResponse,
   MemoryImportCoverageItem,
   MemoryImportDryRunResponse,
+  MemoryImportReadinessIssue,
   MigrationLanePreviewItem,
   TokenEconomicsComparison,
 } from '@/services/memoryArchive';
@@ -37,6 +38,8 @@ import type { SkillMigrationSubmitResponse } from '@/services/skillMigration';
 export interface TranslationFn {
   (key: string, values?: Record<string, string | number>): string;
 }
+
+type ImportReadinessStatus = 'ready' | 'warning' | 'critical';
 
 const COVERAGE_LABEL_KEYS = new Set([
   'instruction_lane',
@@ -50,6 +53,51 @@ const COVERAGE_LABEL_KEYS = new Set([
   'agent_config_manual',
   'no_importable_data',
 ]);
+
+const IMPORT_READINESS_STYLES: Record<ImportReadinessStatus, string> = {
+  ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  warning: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+  critical: 'border-destructive/30 bg-destructive/10 text-destructive',
+};
+
+function getImportReadinessStatus(result: MemoryImportConfirmResponse): ImportReadinessStatus {
+  const status = result.readiness?.status;
+  if (status === 'ready' || status === 'warning' || status === 'critical') {
+    return status;
+  }
+  if (result.diagnostic_status === 'critical' || result.diagnostic_status === 'failed') {
+    return 'critical';
+  }
+  if (result.diagnostic_status === 'warning' || result.diagnostic_status === 'missing') {
+    return 'warning';
+  }
+  return 'ready';
+}
+
+function formatReadinessIssue(issue: MemoryImportReadinessIssue, t: TranslationFn): string {
+  switch (issue.code) {
+    case 'providers_not_configured':
+      return t('result.readinessIssue.providersNotConfigured');
+    case 'post_import_diagnostics_critical':
+      return t('result.readinessIssue.postImportDiagnosticsCritical', {
+        count: Number(issue.params.count ?? issue.params.failed_count ?? 0),
+      });
+    case 'post_import_diagnostics_warning':
+      return t('result.readinessIssue.postImportDiagnosticsWarning', {
+        count: Number(issue.params.count ?? issue.params.failed_count ?? 0),
+      });
+    case 'mcp_servers_imported_disabled':
+      return t('result.readinessIssue.mcpServersImportedDisabled', {
+        count: Number(issue.params.count ?? 0),
+      });
+    case 'workspace_rules_skipped':
+      return t('result.readinessIssue.workspaceRulesSkipped', {
+        count: Number(issue.params.count ?? 0),
+      });
+    default:
+      return t('result.readinessIssue.generic', { code: issue.code });
+  }
+}
 
 function CloudUploadZone({
   uploading,
@@ -729,9 +777,12 @@ export function ResultStep({
   t: TranslationFn;
 }) {
   const router = useRouter();
+  const readinessStatus = getImportReadinessStatus(result);
+  const readinessIssues = result.readiness?.issues ?? [];
+  const readinessIsCritical = readinessStatus === 'critical';
 
   const handleStartChat = () => {
-    if (!result.target_agent_id) {
+    if (!result.target_agent_id || readinessIsCritical) {
       return;
     }
     queueMigrationChatAgent(result.target_agent_id);
@@ -772,6 +823,23 @@ export function ResultStep({
             {t('result.workspaceRulesSkipped', { count: result.workspace_rules_skipped ?? 0 })}
           </p>
         )}
+        <div
+          className={cn(
+            'rounded-xl border px-4 py-3 text-left text-xs',
+            IMPORT_READINESS_STYLES[readinessStatus],
+          )}
+        >
+          <p className="font-medium">{t(`result.readinessStatus.${readinessStatus}`)}</p>
+          <p className="mt-1 opacity-90">{t('result.readinessSummary')}</p>
+          {readinessIssues.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {readinessIssues.map((issue, index) => (
+                <li key={`${issue.code}-${index}`}>- {formatReadinessIssue(issue, t)}</li>
+              ))}
+            </ul>
+          )}
+          {readinessIsCritical && <p className="mt-2 font-medium">{t('result.readinessResolveBeforeChat')}</p>}
+        </div>
       </div>
 
       <div className="flex flex-wrap justify-center gap-4 text-[11px] text-muted-foreground/50">
@@ -790,8 +858,8 @@ export function ResultStep({
 
       <div className="flex flex-wrap justify-center gap-2">
         {result.target_agent_id && (
-          <Button size="sm" className="h-8 text-xs" onClick={handleStartChat}>
-            {t('result.startChat')}
+          <Button size="sm" className="h-8 text-xs" onClick={handleStartChat} disabled={readinessIsCritical}>
+            {readinessIsCritical ? t('result.startChatBlocked') : t('result.startChat')}
           </Button>
         )}
         {skillSubmitFailed && (

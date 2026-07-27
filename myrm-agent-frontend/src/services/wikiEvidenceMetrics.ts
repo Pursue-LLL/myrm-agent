@@ -6,6 +6,7 @@ type WikiEvidenceEventType =
   | 'evidence_surface'
   | 'snippet_open'
   | 'snippet_close'
+  | 'query_attempted'
   | 'query_submitted'
   | 'dropped_report'
   | 'quality_outcome_negative';
@@ -18,6 +19,7 @@ interface WikiEvidenceEventPayload {
   count?: number;
   dwell_ms?: number;
   after_evidence?: boolean;
+  turn_distance?: number;
 }
 
 export interface WikiEvidenceSummary {
@@ -34,6 +36,9 @@ export interface WikiEvidenceSummary {
   quick_bounce_rate: number;
   quality_outcome_negative_count: number;
   quality_outcome_negative_rate: number;
+  query_attempt_count: number;
+  query_success_count: number;
+  query_success_rate: number;
   query_count: number;
   requery_count: number;
   requery_rate: number;
@@ -46,6 +51,7 @@ export interface WikiEvidenceSummary {
 
 const MAX_EVENT_COUNT = 200;
 const MAX_DWELL_MS = 1_800_000; // 30m
+const MAX_TURN_DISTANCE = 500;
 const REQUERY_WINDOW_MS = 10 * 60 * 1000;
 const MAX_PENDING_DROPPED_EVENTS = 1_000;
 const DEFAULT_CONTEXT_KEY = 'global';
@@ -144,6 +150,13 @@ function clampCount(count: number): number {
 function clampDwellMs(dwellMs: number): number {
   if (!Number.isFinite(dwellMs)) return 0;
   return Math.max(0, Math.min(MAX_DWELL_MS, Math.floor(dwellMs)));
+}
+
+function clampTurnDistance(turnDistance: number | undefined): number | undefined {
+  if (turnDistance === undefined || !Number.isFinite(turnDistance)) {
+    return undefined;
+  }
+  return Math.max(0, Math.min(MAX_TURN_DISTANCE, Math.floor(turnDistance)));
 }
 
 function totalPendingDroppedEvents(): number {
@@ -253,7 +266,28 @@ export function recordSnippetClose(surface: WikiEvidenceSurface, dwellMs: number
   );
 }
 
-export function recordWikiQuery(surface: WikiEvidenceSurface = 'settings', contextKey?: string): void {
+export function recordWikiQueryAttempt(
+  surface: WikiEvidenceSurface = 'settings',
+  contextKey?: string,
+  turnDistance?: number,
+): void {
+  const normalizedContextKey = normalizeContextKey(contextKey);
+  enqueueWikiEvidenceEvent(
+    {
+      event_type: 'query_attempted',
+      surface,
+      context_key: normalizedContextKey,
+      turn_distance: clampTurnDistance(turnDistance),
+    },
+    normalizedContextKey,
+  );
+}
+
+export function recordWikiQuerySubmitted(
+  surface: WikiEvidenceSurface = 'settings',
+  contextKey?: string,
+  turnDistance?: number,
+): void {
   const normalizedContextKey = normalizeContextKey(contextKey);
   const afterEvidence = consumeRequeryWindow(normalizedContextKey);
   enqueueWikiEvidenceEvent(
@@ -262,9 +296,15 @@ export function recordWikiQuery(surface: WikiEvidenceSurface = 'settings', conte
       surface,
       context_key: normalizedContextKey,
       after_evidence: afterEvidence,
+      turn_distance: clampTurnDistance(turnDistance),
     },
     normalizedContextKey,
   );
+}
+
+// Backward compatibility: historical API used recordWikiQuery as "query_submitted".
+export function recordWikiQuery(surface: WikiEvidenceSurface = 'settings', contextKey?: string): void {
+  recordWikiQuerySubmitted(surface, contextKey);
 }
 
 export function recordQualityOutcomeNegative(surface: WikiEvidenceSurface = 'chat', count: number = 1, contextKey?: string): void {

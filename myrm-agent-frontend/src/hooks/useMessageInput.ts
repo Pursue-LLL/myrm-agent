@@ -4,6 +4,7 @@
  * - @/store/chat/archiveRestoreActions::resolveArchiveRestoreActionsForMessage (POS: Typed archive restore action utility layer. Keeps parsing, normalization and send-time matching outside the chat stream reducer and input hook.)
  * - @/hooks/useInputFileUpload::useInputFileUpload (POS: 聊天输入文件上传 Hook)
  * - @/hooks/useMessageQueue::useMessageQueue (POS: 消息排队状态机)
+ * - @/hooks/useMessageInputWikiEvidenceCore::recordChatWikiQueryAttempt (POS: Chat 输入链路的 Wiki 证据复问口径核心)
  *
  * [OUTPUT]
  * - useMessageInput: exposes chat input state, upload handling and submit handlers.
@@ -26,6 +27,7 @@ import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilienc
 import { useMessageQueue } from '@/hooks/useMessageQueue';
 import { useInputFileUpload } from '@/hooks/useInputFileUpload';
 import { resolveArchiveRestoreActionsForMessage } from '@/store/chat/archiveRestoreActions';
+import { recordChatWikiQueryAttempt } from '@/hooks/useMessageInputWikiEvidenceCore';
 import { addInputHistory } from '@/hooks/useInputHistory';
 
 const MAX_DRAIN_RETRIES = 4;
@@ -230,13 +232,17 @@ export const useMessageInput = () => {
     return injectedMessage;
   }, []);
 
+  const recordChatQueryMetric = useCallback(() => {
+    const chatState = useChatStore.getState();
+    recordChatWikiQueryAttempt(chatState.messages, chatState.chatId);
+  }, []);
   /**
    * Steer 模式提交：中断当前任务的后续工具调用，立即转向新指令
    */
   const handleSteerSubmit = useCallback(async () => {
     if (!(await _validateAndPrepare())) return;
     clearDraft();
-
+    recordChatQueryMetric();
     const steerText = inputMessage.trim();
     const injectedText = _injectDirtyArtifacts(steerText);
 
@@ -253,6 +259,7 @@ export const useMessageInput = () => {
     steerMessage,
     sendMessage,
     _injectDirtyArtifacts,
+    recordChatQueryMetric,
   ]);
 
   /**
@@ -261,7 +268,7 @@ export const useMessageInput = () => {
   const handleQueueSubmit = useCallback(async () => {
     if (!(await _validateAndPrepare())) return;
     clearDraft();
-
+    recordChatQueryMetric();
     const queueText = inputMessage.trim();
     const injectedText = _injectDirtyArtifacts(queueText);
     const archiveRestoreActions = resolveArchiveRestoreActionsForMessage(injectedText, pendingArchiveRestoreActions);
@@ -281,6 +288,7 @@ export const useMessageInput = () => {
     t,
     _injectDirtyArtifacts,
     pendingArchiveRestoreActions,
+    recordChatQueryMetric,
   ]);
 
   const handleSubmit = useCallback(async () => {
@@ -315,6 +323,7 @@ export const useMessageInput = () => {
     clearDraft();
     addInputHistory(inputMessage, useChatStore.getState().agentConfig?.id);
     setHideAttachList(true);
+    recordChatQueryMetric();
 
     const finalMessage = _injectDirtyArtifacts(inputMessage);
     const archiveRestoreActions = resolveArchiveRestoreActionsForMessage(finalMessage, pendingArchiveRestoreActions);
@@ -348,6 +357,7 @@ export const useMessageInput = () => {
     enqueue,
     files,
     _injectDirtyArtifacts,
+    recordChatQueryMetric,
   ]);
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {

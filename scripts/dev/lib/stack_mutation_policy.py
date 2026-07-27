@@ -112,7 +112,9 @@ def should_defer_supervisor_backend_heal(
     return False
 
 
-def _run_backend_only_ensure(*, dev_stack: Path, root: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+def _run_backend_only_ensure(
+    *, dev_stack: Path, root: Path, env: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", str(dev_stack), "backend-only", "ensure"],
         capture_output=True,
@@ -124,7 +126,9 @@ def _run_backend_only_ensure(*, dev_stack: Path, root: Path, env: dict[str, str]
     )
 
 
-def _run_harness_install(*, root: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+def _run_harness_install(
+    *, root: Path, env: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["./myrm", "harness", "install"],
         capture_output=True,
@@ -136,7 +140,9 @@ def _run_harness_install(*, root: Path, env: dict[str, str]) -> subprocess.Compl
     )
 
 
-def _command_failure_detail(proc: subprocess.CompletedProcess[str], fallback: str) -> str:
+def _command_failure_detail(
+    proc: subprocess.CompletedProcess[str], fallback: str
+) -> str:
     return (proc.stderr or proc.stdout or fallback).strip()[:500]
 
 

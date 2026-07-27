@@ -6,10 +6,6 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import pytest
 
 ENV_PROGRESS_AT = "MYRM_E2E_WALL_PROGRESS_AT_MONOTONIC"
 _PROGRESS_BASENAME = "myrm-e2e-wall-progress.json"
@@ -24,43 +20,6 @@ def touch_e2e_wall_progress() -> None:
     os.environ[ENV_PROGRESS_AT] = str(stamp)
     path = wall_progress_path()
     path.write_text(json.dumps({"atMonotonic": stamp}), encoding="utf-8")
-
-
-def reset_e2e_wall_budget_clock() -> None:
-    """Reset monotonic wall budget at each desktop approval retry attempt."""
-    stamp = time.monotonic()
-    os.environ["MYRM_E2E_WALL_STARTED_MONOTONIC"] = str(stamp)
-    os.environ[ENV_PROGRESS_AT] = str(stamp)
-    wall_progress_path().write_text(
-        json.dumps({"atMonotonic": stamp}),
-        encoding="utf-8",
-    )
-
-
-def reset_chrome_e2e_body_clocks(*, timeout_sec: int, item: pytest.Item) -> None:
-    """SHPOIB/bootstrap complete — fresh body wall + pytest-timeout budgets."""
-    reset_e2e_wall_budget_clock()
-    try:
-        import pytest_timeout
-
-        pytest_timeout.pytest_timeout_cancel_timer(item)
-        cfg = item.config
-        settings = pytest_timeout.Settings(
-            int(timeout_sec),
-            getattr(cfg, "_env_timeout_method", pytest_timeout.DEFAULT_METHOD),
-            getattr(cfg, "_env_timeout_func_only", False),
-            getattr(cfg, "_env_timeout_disable_debugger_detection", False),
-        )
-        pytest_timeout.pytest_timeout_set_timer(item, settings)
-    except ImportError:
-        pass
-    except Exception as exc:
-        print(f"E2E_BODY_CLOCK_RESET_WARN: {exc}", flush=True)
-    print(
-        f"E2E_BODY_CLOCK_RESET: timeout={int(timeout_sec)}s "
-        "(SHPOIB/bootstrap excluded from body budget)",
-        flush=True,
-    )
 
 
 def read_wall_progress_monotonic() -> float | None:

@@ -643,16 +643,16 @@ async def wait_for_approval_banner_clickable(
 
 
 def _wall_clock_start() -> float:
-    from tests.support.e2e_wall_progress import reset_e2e_wall_budget_clock
-
-    reset_e2e_wall_budget_clock()
     raw = os.environ.get("MYRM_E2E_WALL_STARTED_MONOTONIC", "").strip()
     if raw:
         try:
             return float(raw)
         except ValueError:
             pass
-    return time.monotonic()
+    started = time.monotonic()
+    os.environ["MYRM_E2E_WALL_STARTED_MONOTONIC"] = str(started)
+    os.environ["MYRM_E2E_WALL_PROGRESS_AT_MONOTONIC"] = str(started)
+    return started
 
 
 async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:

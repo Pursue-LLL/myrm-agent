@@ -10,7 +10,7 @@
  * - listExtensionTabs: List available tabs from extension
  * - disconnectExtension: Manually disconnect extension
  * - getExtensionWebSocketUrl: Absolute WS URL for extension popup (all deploy modes)
- * - getExtensionSetupHints: Whether EXTENSION_AUTH_TOKEN is configured
+ * - getExtensionSetupHints: Non-secret setup hints (token required/configured + CDP discoverability)
  *
  * [POS]
  * Browser extension bridge API service. Provides data-fetching and URL utilities
@@ -33,6 +33,7 @@ export interface ExtensionStatus {
   extension_version: string;
   browser_name: string;
   authorized_domains: string[];
+  capabilities: string[];
   available_tabs: ExtensionTab[];
 }
 

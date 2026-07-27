@@ -33,7 +33,6 @@ _DEV_LIB = _SERVER_ROOT.parent / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))
 from dev_gate_contract import (  # noqa: E402
-    CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER,
     LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
     chrome_e2e_pytest_timeout_floor,
 )
@@ -199,8 +198,6 @@ def _chrome_e2e_lane_timeout_sec(item: pytest.Item) -> int | None:
         return None
     lane = str(marker.kwargs.get("lane", "LIVE_AGENT"))
     floor = chrome_e2e_pytest_timeout_floor(lane, _chrome_e2e_marker_joined_argv(item))
-    if item.get_closest_marker(CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER) is not None:
-        return floor
     return min(floor, LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
 
 
@@ -515,12 +512,6 @@ def _require_live_e2e_lease(
         else nullcontext()
     )
     with stream_guard:
-        from tests.support.e2e_wall_progress import reset_chrome_e2e_body_clocks
-
-        reset_chrome_e2e_body_clocks(
-            timeout_sec=LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
-            item=request.node,
-        )
         from e2e_shared_ui_session import E2E_SEARCH_POLICY_ENV, prime_search_policy_env
 
         prime_search_policy_env(request.node)

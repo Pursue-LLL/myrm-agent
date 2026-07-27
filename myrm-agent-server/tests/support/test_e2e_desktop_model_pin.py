@@ -104,7 +104,10 @@ async def test_pin_for_send_retries_transient_provider_init_error(
             RuntimeError("e2e-send-not-ready-after-provider-init"),
             {},
             {},
-            {"ok": True, "pinned": {"providerId": "openai-like", "model": "agnes-2.0-flash"}},
+            {
+                "ok": True,
+                "pinned": {"providerId": "openai-like", "model": "agnes-2.0-flash"},
+            },
             {"selection": {"providerId": "openai-like", "model": "agnes-2.0-flash"}},
         ]
     )
@@ -136,7 +139,9 @@ async def test_pin_for_send_escalates_bridge_missing_as_transport_error(
             {},
         ]
     )
-    with pytest.raises(RuntimeError, match="Dev E2E chat bridge not available on WebUI"):
+    with pytest.raises(
+        RuntimeError, match="Dev E2E chat bridge not available on WebUI"
+    ):
         await ensure_desktop_basic_model_pinned_for_send(
             chat,
             max_attempts=2,

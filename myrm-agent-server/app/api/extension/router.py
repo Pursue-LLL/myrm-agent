@@ -98,6 +98,7 @@ class ExtensionStatusResponse(BaseModel):
     browser_name: str = ""
     authorized_domains: list[str] = Field(default_factory=list)
     available_tabs: list[ExtensionTabResponse] = Field(default_factory=list)
+    capabilities: list[str] = Field(default_factory=list)
 
 
 class DomainsUpdateRequest(BaseModel):
@@ -145,6 +146,7 @@ async def get_extension_status() -> ExtensionStatusResponse:
         extension_version=status.extension_version,
         browser_name=status.browser_name,
         authorized_domains=status.authorized_domains,
+        capabilities=status.capabilities,
         available_tabs=[
             ExtensionTabResponse(
                 tab_id=t.tab_id,

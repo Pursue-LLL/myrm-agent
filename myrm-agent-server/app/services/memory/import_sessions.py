@@ -11,7 +11,7 @@ app.database.models.memory::MemoryImportDryRunModel (POS: 记忆域模型)
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
 
 [OUTPUT]
-MemoryImportSessionService: creates bound dry-run sessions, confirms imports by dry-run id, records transaction ledgers, previews rollback, rolls back batches, stores post-import diagnostics, and exposes cleanup metrics.
+MemoryImportSessionService: creates bound dry-run sessions, confirms imports by dry-run id, records transaction ledgers, previews rollback, rolls back batches, stores post-import diagnostics/readiness contracts, and exposes cleanup metrics.
 
 [POS]
 单用户记忆导入审查会话服务。把外部记忆导入从客户端数据提交收口为服务端绑定、可审计、可诊断、可预演回滚的 dry-run -> confirm 流程。
@@ -430,6 +430,45 @@ class MemoryImportSessionService:
                 "diagnostic_run_id": diagnostic_run_id,
                 "diagnostic_status": diagnostic_status,
                 "diagnostic_failed_count": failed_count,
+            },
+        )
+        await self._db.commit()
+
+    async def save_post_import_readiness(
+        self,
+        *,
+        import_batch_id: str,
+        readiness_status: str,
+        readiness_issues: list[dict[str, object]],
+    ) -> None:
+        """Attach post-import execution readiness contract to review session metadata."""
+
+        result = await self._db.execute(
+            select(MemoryImportDryRunModel)
+            .where(MemoryImportDryRunModel.import_batch_id == import_batch_id)
+            .order_by(desc(MemoryImportDryRunModel.confirmed_at))
+            .limit(1)
+        )
+        row = result.scalar_one_or_none()
+        if row is not None:
+            row.metadata_json = {
+                **(row.metadata_json or {}),
+                "post_import_readiness": {
+                    "status": readiness_status,
+                    "issues": readiness_issues,
+                    "completed_at": datetime.now(UTC).isoformat(),
+                },
+            }
+        await self._ledger.update_migration_metadata_by_batch(
+            import_batch_id=import_batch_id,
+            metadata={
+                "readiness_status": readiness_status,
+                "readiness_issue_count": len(readiness_issues),
+                "readiness_issue_codes": [
+                    str(item.get("code", ""))
+                    for item in readiness_issues
+                    if isinstance(item, dict) and str(item.get("code", "")).strip()
+                ],
             },
         )
         await self._db.commit()

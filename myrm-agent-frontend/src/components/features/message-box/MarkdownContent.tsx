@@ -45,9 +45,25 @@ const remarkMathOptions: Options = {
 };
 
 const preprocessVaultLinks = (text: string) => {
-  // Convert plain text vault://<uuid> to <vault id="<uuid>"></vault>
-  // We use a regex that matches UUIDs (with hyphens) after vault://
   return text.replace(/vault:\/\/([a-f0-9A-F-]+)/gi, '<vault id="$1"></vault>');
+};
+
+const CITATION_MARKER_RE = /\u3010(\d+)\u3011/g;
+
+/**
+ * Convert 【N】 citation markers into <citation> tags
+ * so they are rendered by the existing citation component.
+ * Only applied post-stream to avoid partial-marker artefacts.
+ */
+const preprocessCitationMarkers = (text: string, sources: Source[]): string => {
+  if (sources.length === 0) return text;
+  return text.replace(CITATION_MARKER_RE, (_match, numStr: string) => {
+    const num = parseInt(numStr, 10);
+    const sourceIndex = sources.findIndex((s) => s.index === num);
+    if (sourceIndex === -1) return `[${numStr}]`;
+    const source = sources[sourceIndex];
+    return `<citation data-num="${numStr}" data-source-index="${sourceIndex}" data-url="${source?.url || ''}"></citation>`;
+  });
 };
 
 function normalizeWikiLevel(level: Source['level']): WikiSourceLevel | undefined {
@@ -155,10 +171,13 @@ const MarkdownContent = React.memo(
       recordEvidenceSurface('chat', 1, `chat:${_messageId}`);
     }, [_messageId, hasKbEvidence]);
 
-    const processedContent = useMemo(
-      () => preprocessVaultLinks(preprocessContentMath(displayContent, isStreaming)),
-      [displayContent, isStreaming],
-    );
+    const processedContent = useMemo(() => {
+      let text = preprocessContentMath(displayContent, isStreaming);
+      if (!isStreaming) {
+        text = preprocessCitationMarkers(text, sources);
+      }
+      return preprocessVaultLinks(text);
+    }, [displayContent, isStreaming, sources]);
     const components = useMemo(
       () => ({
         vault: ({ id }: { id?: string }) => {

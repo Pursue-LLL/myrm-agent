@@ -432,4 +432,7 @@ def test_snapshot_live_e2e_processes_parses_marker_only_selector(
     )
     assert len(snapshot.active_tests) == 1
     assert snapshot.active_tests[0].pid == 60813
-    assert snapshot.active_tests[0].test_id == "tests/e2e/ -m chrome_e2e_browser_takeover_live"
+    assert (
+        snapshot.active_tests[0].test_id
+        == "tests/e2e/ -m chrome_e2e_browser_takeover_live"
+    )

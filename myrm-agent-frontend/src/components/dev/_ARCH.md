@@ -8,7 +8,7 @@ localhost 开发专用桥接组件，**非终端用户功能**。供 MCP chrome-
 
 | 文件 | 职责 |
 |------|------|
-| `E2EChatBridge.tsx` | 挂载 `window.__MYRM_E2E_CHAT__`（sendMessage、Goal、`pinLiteModelForE2e` / `pinBasicModelForE2e`、`waitE2eProviderSendReady` 以 `getModelSelection` 为 SSOT（lite/base 均可）；`pinBasicModelForE2e` 强制 agent mode 避免 empty-policy 下 fast/deep send-disabled、`releaseActiveStreamForApiResume` 等）；`AppLayout` 仅 local dev host |
+| `E2EChatBridge.tsx` | 挂载 `window.__MYRM_E2E_CHAT__` / `window.__MYRM_E2E_SUBAGENT__`（send/kickoff、`submitSteerNudge`、Goal 操作、`pinLiteModelForE2e` / `pinBasicModelForE2e`、`waitE2eProviderSendReady` 以 `getModelSelection` 为 SSOT（lite/base 均可）、`recoverHitlStream`、`releaseActiveStreamForApiResume`、Browser takeover 与 subagent dashboard hydration）；`AppLayout` 仅 local dev host |
 
 ## 依赖
 

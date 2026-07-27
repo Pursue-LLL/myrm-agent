@@ -507,10 +507,7 @@ async def _wait_nudge_send_surface(
             timeout=min(90.0, timeout_sec + 15.0),
         )
     except asyncio.TimeoutError:
-        progress(
-            "wait_send_button_ready wall-timeout "
-            f"({timeout_sec:.0f}s budget)"
-        )
+        progress("wait_send_button_ready wall-timeout " f"({timeout_sec:.0f}s budget)")
         return False
     except (RuntimeError, TimeoutError, OSError) as exc:
         progress(f"wait_send_button_ready failed (non-fatal): {exc}")
@@ -932,9 +929,11 @@ async def _send_interact_nudge(
                     chat_id=chat_id,
                 )
                 if not surface_repaired:
-                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
-                        fallback_budget,
-                        reason=f"{seed_reason_prefix} surface repair timeout",
+                    seeded_request_id = (
+                        await _seed_pending_desktop_approval_with_budget(
+                            fallback_budget,
+                            reason=f"{seed_reason_prefix} surface repair timeout",
+                        )
                     )
                     if seeded_request_id:
                         progress(
@@ -952,9 +951,11 @@ async def _send_interact_nudge(
                     chat, chat_id=normalized_chat_id
                 )
                 if not send_surface_ready_retry:
-                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
-                        fallback_budget,
-                        reason=f"{seed_reason_prefix} retry surface not ready",
+                    seeded_request_id = (
+                        await _seed_pending_desktop_approval_with_budget(
+                            fallback_budget,
+                            reason=f"{seed_reason_prefix} retry surface not ready",
+                        )
                     )
                     if seeded_request_id:
                         progress(
@@ -1022,12 +1023,14 @@ async def _send_interact_nudge(
                     chat, chat_id=normalized_chat_id
                 )
                 if not send_surface_ready:
-                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
-                        fallback_budget,
-                        reason=(
-                            "E2E fallback: seed desktop approval after follow-up "
-                            "resend surface not ready"
-                        ),
+                    seeded_request_id = (
+                        await _seed_pending_desktop_approval_with_budget(
+                            fallback_budget,
+                            reason=(
+                                "E2E fallback: seed desktop approval after follow-up "
+                                "resend surface not ready"
+                            ),
+                        )
                     )
                     if seeded_request_id:
                         progress(
@@ -1154,12 +1157,14 @@ async def _send_interact_nudge(
                     chat, chat_id=normalized_chat_id
                 )
                 if not send_surface_ready:
-                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
-                        fallback_budget,
-                        reason=(
-                            "E2E fallback: seed desktop approval when steer "
-                            "follow-up surface is not ready"
-                        ),
+                    seeded_request_id = (
+                        await _seed_pending_desktop_approval_with_budget(
+                            fallback_budget,
+                            reason=(
+                                "E2E fallback: seed desktop approval when steer "
+                                "follow-up surface is not ready"
+                            ),
+                        )
                     )
                     if seeded_request_id:
                         progress(
@@ -1423,14 +1428,9 @@ async def _wait_desktop_tool_activity_failfast(
                 f"apiLastTool={last.get('apiLastTool')} streaming={last.get('isStreaming')} "
                 f"complete={last.get('completionStatus')}"
             )
-        if (
-            progress_api_timeout_streak >= 6
-            or progress_api_timeout_total >= 12
-        ):
+        if progress_api_timeout_streak >= 6 or progress_api_timeout_total >= 12:
             threshold_reason = (
-                "streak>=6"
-                if progress_api_timeout_streak >= 6
-                else "total>=12"
+                "streak>=6" if progress_api_timeout_streak >= 6 else "total>=12"
             )
             seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                 fallback_budget,

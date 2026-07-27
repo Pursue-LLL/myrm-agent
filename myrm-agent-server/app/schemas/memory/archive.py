@@ -5,7 +5,7 @@ app.schemas.memory.crud::MEMORY_EXPORT_VERSION (POS: 记忆 CRUD 共享 Schema)
 myrm_agent_harness.toolkits.memory::* (POS: framework archive and import DTOs)
 
 [OUTPUT]
-Archive and server-bound import request-response models.
+Archive and server-bound import request-response models, including post-import readiness contract.
 
 [POS]
 记忆归档与导入共享 Schema。api 与 services 层共用。
@@ -29,6 +29,9 @@ from myrm_agent_harness.toolkits.memory import (
 from pydantic import BaseModel, Field
 
 from app.schemas.memory.crud import MEMORY_EXPORT_VERSION
+
+
+MemoryImportReadinessIssueParam = str | int | float | bool
 
 
 class MemoryImportRequest(BaseModel):
@@ -248,6 +251,21 @@ class MemoryImportResponse(BaseModel):
     total_imported: int
 
 
+class MemoryImportReadinessIssue(BaseModel):
+    """Structured post-import readiness issue for migration UX gating."""
+
+    code: str
+    severity: Literal["warning", "critical"]
+    params: dict[str, MemoryImportReadinessIssueParam] = Field(default_factory=dict)
+
+
+class MemoryImportReadiness(BaseModel):
+    """Execution readiness contract after import confirmation."""
+
+    status: Literal["ready", "warning", "critical"]
+    issues: list[MemoryImportReadinessIssue] = Field(default_factory=list)
+
+
 class MemoryImportConfirmResponse(MemoryImportResponse):
     """Response for a server-bound memory import confirmation."""
 
@@ -262,6 +280,7 @@ class MemoryImportConfirmResponse(MemoryImportResponse):
     global_instructions_updated: bool = False
     workspace_rules_written: int = 0
     workspace_rules_skipped: int = 0
+    readiness: MemoryImportReadiness | None = None
 
 
 class MemoryImportRollbackPreviewResponse(BaseModel):

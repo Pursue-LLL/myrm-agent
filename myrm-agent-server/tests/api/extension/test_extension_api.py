@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -33,6 +34,7 @@ class TestExtensionBridgeService:
         assert status.extension_version == ""
         assert status.authorized_domains == []
         assert status.available_tabs == []
+        assert status.capabilities == []
 
     @pytest.mark.asyncio
     async def test_set_authorized_domains(self) -> None:
@@ -300,6 +302,84 @@ class TestConnectToDomainWildcard:
             await bridge.connect_to_domain("mail.google.com")
 
 
+class TestNavigateToUrl:
+    """Test navigate_to_url extension flow (no direct CDP requirement)."""
+
+    @pytest.mark.asyncio
+    async def test_navigate_to_url_success(self) -> None:
+        bridge = ExtensionBridgeService()
+        bridge._connected = True
+        bridge._ws = MagicMock()
+        bridge._hello_received = True
+        bridge._capabilities = {"navigate_url"}
+        bridge._authorized_domains = ["*.corp.local"]
+        bridge._send_request = AsyncMock(
+            return_value={
+                "tabId": 42,
+                "url": "http://portal.corp.local/dashboard",
+                "title": "Dashboard",
+                "domain": "portal.corp.local",
+                "active": False,
+            }
+        )
+
+        tab = await bridge.navigate_to_url(
+            "http://portal.corp.local/dashboard",
+            domain="portal.corp.local",
+        )
+
+        assert tab.tab_id == 42
+        assert tab.domain == "portal.corp.local"
+        assert tab.title == "Dashboard"
+
+    @pytest.mark.asyncio
+    async def test_navigate_to_url_requires_extension_capability(self) -> None:
+        bridge = ExtensionBridgeService()
+        bridge._connected = True
+        bridge._ws = MagicMock()
+        bridge._hello_received = True
+        bridge._capabilities = set()
+        bridge._authorized_domains = ["*.corp.local"]
+
+        with pytest.raises(ExtensionBridgeNotAvailable, match="missing required capability"):
+            await bridge.navigate_to_url("http://portal.corp.local/dashboard")
+
+    @pytest.mark.asyncio
+    async def test_navigate_to_url_requires_hello_handshake(self) -> None:
+        bridge = ExtensionBridgeService()
+        bridge._connected = True
+        bridge._ws = MagicMock()
+        bridge._hello_received = False
+        bridge._capabilities = {"navigate_url"}
+        bridge._authorized_domains = ["*.corp.local"]
+
+        with pytest.raises(ExtensionBridgeNotAvailable, match="handshake is not completed"):
+            await bridge.navigate_to_url("http://portal.corp.local/dashboard")
+
+    @pytest.mark.asyncio
+    async def test_navigate_to_url_rejects_unauthorized_domain(self) -> None:
+        bridge = ExtensionBridgeService()
+        bridge._connected = True
+        bridge._ws = MagicMock()
+        bridge._authorized_domains = ["*.corp.local"]
+
+        with pytest.raises(ExtensionBridgeNotAvailable, match="not authorized"):
+            await bridge.navigate_to_url("http://evil.local/internal")
+
+    @pytest.mark.asyncio
+    async def test_navigate_to_url_rejects_domain_url_mismatch(self) -> None:
+        bridge = ExtensionBridgeService()
+        bridge._connected = True
+        bridge._ws = MagicMock()
+        bridge._authorized_domains = ["*.corp.local"]
+
+        with pytest.raises(ExtensionBridgeNotAvailable, match="does not match navigation target"):
+            await bridge.navigate_to_url(
+                "http://portal.corp.local/dashboard",
+                domain="evil.local",
+            )
+
+
 class TestSendRequest:
     """Test _send_request timeout and error handling."""
 
@@ -370,7 +450,14 @@ class TestReceiveLoop:
         bridge = ExtensionBridgeService()
         mock_ws = MagicMock()
         msgs = [
-            json.dumps({"type": "hello", "version": "1.2.0", "browser": "Chrome"}),
+            json.dumps(
+                {
+                    "type": "hello",
+                    "version": "1.2.0",
+                    "browser": "Chrome",
+                    "capabilities": ["navigate_url", "list_tabs"],
+                }
+            ),
         ]
         call_count = 0
 
@@ -389,6 +476,8 @@ class TestReceiveLoop:
 
         assert bridge._extension_version == "1.2.0"
         assert bridge._browser_name == "Chrome"
+        assert bridge._hello_received is True
+        assert bridge._capabilities == {"navigate_url", "list_tabs"}
 
     @pytest.mark.asyncio
     async def test_tabs_update_message(self) -> None:
@@ -697,3 +786,29 @@ class TestExtensionRouterHints:
         assert len(response.warnings) == 1
         assert response.warnings[0].code == "wildcard_includes_root"
         assert response.warnings[0].root_domain == "example.com"
+
+
+class TestExtensionRouterStatus:
+    """Test extension status response shape."""
+
+    @pytest.mark.asyncio
+    async def test_status_includes_capabilities(self) -> None:
+        from app.api.extension.router import get_extension_status
+
+        bridge = MagicMock()
+        bridge.get_status = AsyncMock(
+            return_value=SimpleNamespace(
+                connected=True,
+                extension_version="1.2.3",
+                browser_name="Chrome",
+                authorized_domains=["corp.local"],
+                capabilities=["navigate_url"],
+                available_tabs=[],
+            )
+        )
+
+        with patch("app.api.extension.router.get_extension_bridge", return_value=bridge):
+            status = await get_extension_status()
+
+        assert status.connected is True
+        assert status.capabilities == ["navigate_url"]

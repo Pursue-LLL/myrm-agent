@@ -44,7 +44,6 @@ from tests.e2e.desktop_approval.trust_api import (
 )
 from tests.e2e.desktop_approval.turn_flow import run_approval_attempt
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
-from tests.support.e2e_wall_progress import reset_e2e_wall_budget_clock
 
 
 async def run_desktop_approval_chrome_e2e(
@@ -92,7 +91,6 @@ async def run_desktop_approval_chrome_e2e(
         last_error: dict[str, object] | None = None
         attempts = max_send_attempts(scope)
         for attempt in range(1, attempts + 1):
-            reset_e2e_wall_budget_clock()
             heartbeat_e2e_lease()
             progress(f"{label} attempt {attempt}/{attempts}")
             ensure_e2e_hitl_mode(api_url=get_e2e_api_url())
@@ -120,7 +118,6 @@ async def run_desktop_approval_chrome_e2e(
                 if attempt >= attempts:
                     break
                 progress(f"retry after: {last_error}")
-                reset_e2e_wall_budget_clock()
                 try:
                     progress("retry reset: lightweight chat reset (no page reopen)")
                     await _retry_reset_step(

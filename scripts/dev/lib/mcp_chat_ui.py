@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import time
+
+_LOGGER = logging.getLogger(__name__)
 
 from cdp_chat_support import (
     PAGE_PROBE_JS,
@@ -123,6 +126,14 @@ class McpChatSession(CdpChatSession):
             )
             if pending:
                 mux_attempts += 1
+                _LOGGER.warning(
+                    "MUX_EVALUATE_ORPHAN: recv_timeout=%.1f attempt_timeout=%.1f "
+                    "mux_attempts=%d/%d — triggering _reset_mux_after_orphan",
+                    recv_timeout,
+                    attempt_timeout,
+                    mux_attempts,
+                    max_mux_attempts,
+                )
                 if mux_attempts < max_mux_attempts:
                     await _reset_mux_after_orphan()
                     await asyncio.sleep(0.75 * mux_attempts)
@@ -140,6 +151,12 @@ class McpChatSession(CdpChatSession):
                     and MUX_RECLAIM_STALL_TOKEN in message
                 ):
                     mux_attempts += 1
+                    _LOGGER.warning(
+                        "MUX_EVALUATE_STALL_RESET: mux_attempts=%d/%d err=%s",
+                        mux_attempts,
+                        max_mux_attempts,
+                        message[:200],
+                    )
                     await _reset_mux_after_orphan()
                     await asyncio.sleep(0.75 * mux_attempts)
                     continue
@@ -148,6 +165,12 @@ class McpChatSession(CdpChatSession):
                     or "not running after transport recovery" in message.lower()
                 ):
                     mux_attempts += 1
+                    _LOGGER.warning(
+                        "MUX_EVALUATE_TRANSPORT_RESET: mux_attempts=%d/%d err=%s",
+                        mux_attempts,
+                        max_mux_attempts,
+                        message[:200],
+                    )
                     await _reset_mux_after_orphan()
                     await asyncio.sleep(0.75 * mux_attempts)
                     continue

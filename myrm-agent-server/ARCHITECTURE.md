@@ -163,7 +163,7 @@
 
 - **扩展包**：`myrm-agent-extension/`（Chrome/Edge MV3）— WebSocket 客户端 + `chrome.debugger` CDP 代理，使用用户真实浏览器会话。
 - **Server API**：`app/api/extension/` — `ws://…/api/v1/ws/extension` 持久连接（`chrome-extension://` origin 守卫；remote 模式强制 token）；REST `/api/v1/extension/status|domains|tabs|disconnect|setup-hints`。
-- **服务层**：`app/services/extension/bridge.py` — 连接生命周期、域名授权（`*.example.com` 匹配根域+子域）、浏览器连接；实现 harness `ExtensionBridge` Protocol。
+- **服务层**：`app/services/extension/bridge.py` — 连接生命周期、`hello.capabilities` 握手门禁、域名授权（`*.example.com` 匹配根域+子域）、私网 `navigate_url` relay 与浏览器连接；实现 harness `ExtensionBridge` Protocol。
 - **认证**：`settings.extension_auth_token`（SecretStr）；WS 查询参数 `token` 校验，remote 模式未配置 token 时拒绝连接。
 - **前端**：Settings → `extensionBridge`（`ExtensionBridgeSection.tsx` 含 WS URL 复制与 Token 配置状态）；API 客户端 `src/services/extension.ts`。
 

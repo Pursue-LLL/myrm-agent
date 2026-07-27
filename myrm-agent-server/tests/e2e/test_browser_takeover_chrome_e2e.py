@@ -515,7 +515,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         recover = await chat.evaluate(
             _RECOVER_BROWSER_TAKEOVER_JS,
             await_promise=True,
-            recv_timeout=25.0,
+            recv_timeout=15.0,
         )
         if (
             isinstance(recover, dict)
@@ -576,7 +576,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 await asyncio.sleep(2.0)
                 continue
             raw = await chat.evaluate(
-                _BANNER_ASSERT_JS, await_promise=False, recv_timeout=30.0
+                _BANNER_ASSERT_JS, await_promise=False, recv_timeout=15.0
             )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("backendUnreachable") is True:
@@ -592,7 +592,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             )
             if recovered is not None:
                 raw = await chat.evaluate(
-                    _BANNER_ASSERT_JS, await_promise=False, recv_timeout=30.0
+                    _BANNER_ASSERT_JS, await_promise=False, recv_timeout=15.0
                 )
                 last = raw if isinstance(raw, dict) else {"value": raw}
                 if last.get("ready") is True:
@@ -686,6 +686,14 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             except (AssertionError, TimeoutError, RuntimeError) as exc:
                 _p(f"stream_started soft-fail: {type(exc).__name__}: {exc}")
 
+            shim_proc = getattr(chat._client, "_process", None)
+            shim_alive = shim_proc is not None and shim_proc.poll() is None
+            shim_pid = shim_proc.pid if shim_proc else None
+            _p(
+                f"pre-gate shim diagnostic: pid={shim_pid} alive={shim_alive} "
+                f"pages={len(getattr(chat._client, '_pages', {}))} "
+                f"disconnected={len(getattr(chat._client, '_disconnected_pages', {}))}"
+            )
             _p("wait_for_browser_ask_human_gate")
             last_tool, takeover_pending = await _wait_for_browser_ask_human_gate(chat)
             _p(f"gate result: lastTool={last_tool} pending={takeover_pending}")

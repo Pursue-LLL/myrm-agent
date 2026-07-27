@@ -50,9 +50,12 @@ except ImportError:
     @dataclass
     class ExtensionStatus:
         connected: bool = False
+        extension_version: str = ""
+        browser_name: str = ""
         authorized_domains: list[str] = field(default_factory=list)
-        tabs: list[ExtensionTab] = field(default_factory=list)
-        version: str = ""
+        available_tabs: list[ExtensionTab] = field(default_factory=list)
+        last_heartbeat_at: float = 0.0
+        capabilities: list[str] = field(default_factory=list)
 
 if TYPE_CHECKING:
     from patchright.async_api import Playwright
@@ -96,6 +99,8 @@ class ExtensionBridgeService:
         self._connected = False
         self._extension_version = ""
         self._browser_name = ""
+        self._hello_received = False
+        self._capabilities: set[str] = set()
         self._authorized_domains: list[str] = []
         self._tabs: list[ExtensionTab] = []
         self._last_heartbeat: float = 0.0
@@ -170,6 +175,31 @@ class ExtensionBridgeService:
 
         self._last_cdp_probe_monotonic = now
         return self._resolve_cdp_endpoint() is not None
+
+    @staticmethod
+    def _normalize_capabilities(raw: object) -> set[str]:
+        """Normalize extension capability payload to a lowercase token set."""
+        if not isinstance(raw, list):
+            return set()
+        normalized: set[str] = set()
+        for item in raw:
+            if isinstance(item, str):
+                cap = item.strip().lower()
+                if cap:
+                    normalized.add(cap)
+        return normalized
+
+    def _require_capability(self, capability: str) -> None:
+        """Ensure extension handshake completed and capability is available."""
+        if not self._hello_received:
+            raise ExtensionBridgeNotAvailable(
+                "Extension handshake is not completed yet. Reconnect extension and retry."
+            )
+        if capability not in self._capabilities:
+            raise ExtensionBridgeNotAvailable(
+                f"Extension missing required capability '{capability}'. "
+                "Please upgrade the browser extension and reconnect."
+            )
 
     @staticmethod
     def analyze_domain_policy_warnings(domains: list[str]) -> list[DomainPolicyWarning]:
@@ -254,6 +284,60 @@ class ExtensionBridgeService:
             _pid=None,
         )
 
+    async def navigate_to_url(
+        self,
+        url: str,
+        *,
+        domain: str | None = None,
+        background: bool = True,
+        timeout: float = 20.0,
+    ) -> ExtensionTab:
+        """Navigate a tab through extension APIs without direct local CDP dependency."""
+        from urllib.parse import urlparse
+
+        target_domain = (urlparse(url).hostname or "").strip().lower().rstrip(".")
+        if not target_domain:
+            raise ExtensionBridgeNotAvailable(f"Cannot navigate '{url}': unable to resolve target domain")
+
+        requested_domain = (domain or "").strip().lower().rstrip(".")
+        if (
+            requested_domain
+            and requested_domain != target_domain
+            and not self._match_domain(target_domain, [requested_domain])
+        ):
+            raise ExtensionBridgeNotAvailable(
+                f"Domain '{requested_domain}' does not match navigation target '{target_domain}'."
+            )
+
+        if not self._match_domain(target_domain, self._authorized_domains):
+            raise ExtensionBridgeNotAvailable(
+                f"Domain '{target_domain}' is not authorized. "
+                f"Authorized domains: {self._authorized_domains}"
+            )
+        if not self._connected or self._ws is None:
+            raise ExtensionBridgeNotAvailable("Browser extension is not connected.")
+        self._require_capability("navigate_url")
+
+        result = await self._send_request(
+            "navigate_url",
+            {"url": url, "domain": target_domain, "background": background},
+            timeout=timeout,
+        )
+        if not isinstance(result, dict):
+            raise ExtensionBridgeNotAvailable("Extension returned invalid navigate_url response")
+
+        tab_id_raw = result.get("tabId") or result.get("id")
+        if tab_id_raw is None:
+            raise ExtensionBridgeNotAvailable("Extension navigate_url did not return tab ID")
+
+        return ExtensionTab(
+            tab_id=int(tab_id_raw),
+            url=str(result.get("url") or url),
+            title=str(result.get("title") or ""),
+            domain=str(result.get("domain") or target_domain),
+            active=bool(result.get("active", False)),
+        )
+
     async def get_status(self) -> ExtensionStatus:
         return ExtensionStatus(
             connected=self._connected,
@@ -262,6 +346,7 @@ class ExtensionBridgeService:
             authorized_domains=list(self._authorized_domains),
             available_tabs=list(self._tabs),
             last_heartbeat_at=self._last_heartbeat,
+            capabilities=sorted(self._capabilities),
         )
 
     def is_connected(self) -> bool:
@@ -291,6 +376,8 @@ class ExtensionBridgeService:
             self._playwright = None
         self._connected = False
         self._ws = None
+        self._hello_received = False
+        self._capabilities.clear()
         self._tabs = []
         logger.info("Extension bridge disconnected")
         _broadcast_extension_status(False)
@@ -306,6 +393,8 @@ class ExtensionBridgeService:
                 await self.disconnect()
             self._ws = ws
             self._connected = True
+            self._hello_received = False
+            self._capabilities.clear()
             self._last_heartbeat = time.monotonic()
 
         logger.info("Extension bridge connected")
@@ -321,6 +410,8 @@ class ExtensionBridgeService:
         finally:
             self._connected = False
             self._ws = None
+            self._hello_received = False
+            self._capabilities.clear()
             for fut in self._pending_requests.values():
                 if not fut.done():
                     fut.set_exception(ExtensionBridgeNotAvailable("Connection lost"))
@@ -343,10 +434,13 @@ class ExtensionBridgeService:
                 elif msg_type == "hello":
                     self._extension_version = msg.get("version", "")
                     self._browser_name = msg.get("browser", "")
+                    self._capabilities = self._normalize_capabilities(msg.get("capabilities"))
+                    self._hello_received = True
                     logger.info(
-                        "Extension hello: %s on %s",
+                        "Extension hello: %s on %s (capabilities=%s)",
                         self._extension_version,
                         self._browser_name,
+                        sorted(self._capabilities),
                     )
 
                 elif msg_type == "tabs_update":

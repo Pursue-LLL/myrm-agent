@@ -960,6 +960,8 @@ class ChromeMcpClient:
         return updated
 
     def _teardown_shim_process(self) -> None:
+        import traceback as _tb
+
         process = self._process
         self._process = None
         if self._pages:
@@ -967,6 +969,16 @@ class ChromeMcpClient:
         self._pages.clear()
         if process is None:
             return
+        pid = process.pid
+        rc = process.poll()
+        caller = "".join(_tb.format_stack()[-4:-1])
+        _LOGGER.warning(
+            "SHIM_TEARDOWN: pid=%s rc=%s pages_saved=%d caller:\n%s",
+            pid,
+            rc,
+            len(self._disconnected_pages),
+            caller,
+        )
         try:
             if process.stdin is not None:
                 process.stdin.close()
@@ -1041,6 +1053,12 @@ class ChromeMcpClient:
     def _recover_mux_transport(
         self, *, start_generation: int | None = None
     ) -> None:
+        _LOGGER.warning(
+            "RECOVER_MUX_TRANSPORT: gen=%s pages=%d disconnected=%d",
+            start_generation,
+            len(self._pages),
+            len(self._disconnected_pages),
+        )
         reclaim_deadline = _reclaim_wall_deadline()
         saved_pages = dict(self._disconnected_pages)
         saved_pages.update(self._pages)
@@ -1172,6 +1190,11 @@ class ChromeMcpClient:
 
     def abandon_inflight_requests(self) -> None:
         """Invalidate orphaned mux I/O after asyncio cancelled a blocking evaluate thread."""
+        _LOGGER.warning(
+            "ABANDON_INFLIGHT: gen=%d→%d",
+            self._request_generation,
+            self._request_generation + 1,
+        )
         self._request_generation += 1
         self._page_lease_heartbeat.stop()
         self._reclaim_in_progress = False
@@ -1378,7 +1401,6 @@ class ChromeMcpClient:
         params: dict[str, object],
         *,
         timeout_sec: float | None = None,
-        skip_recovery: bool = False,
     ) -> dict[str, object]:
         start_generation = self._request_generation
         last_transport_error: _TransportDeadError | None = None
@@ -1466,8 +1488,16 @@ class ChromeMcpClient:
             )
         line = process.stdout.readline()
         if not line:
+            rc = process.poll()
+            _LOGGER.warning(
+                "SHIM_EOF: pid=%s poll_rc=%s stderr_tail=%s",
+                process.pid,
+                rc,
+                list(self._stderr_lines)[-5:],
+            )
             raise _TransportDeadError(
-                f"Chrome MCP transport closed; stderr={list(self._stderr_lines)[-5:]}"
+                f"Chrome MCP transport closed; pid={process.pid} rc={rc} "
+                f"stderr={list(self._stderr_lines)[-5:]}"
             )
         payload = json.loads(line)
         if not isinstance(payload, dict):

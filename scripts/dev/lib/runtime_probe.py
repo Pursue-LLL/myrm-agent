@@ -183,7 +183,9 @@ def _mux_status_snapshot() -> tuple[bool, int]:
     if not isinstance(payload, dict):
         return False, 0
     generation = payload.get("upstreamGeneration")
-    return bool(payload.get("upstreamReady")), generation if isinstance(generation, int) else 0
+    return bool(payload.get("upstreamReady")), (
+        generation if isinstance(generation, int) else 0
+    )
 
 
 def _mux_upstream_ready() -> bool:
@@ -291,7 +293,9 @@ def read_current_runtime_id() -> str:
 def run_drift_check(expected: str) -> int:
     expected_id = expected.strip()
     if not expected_id:
-        print("RUNTIME_DRIFT_FAIL: --expect requires non-empty runtimeId", file=sys.stderr)
+        print(
+            "RUNTIME_DRIFT_FAIL: --expect requires non-empty runtimeId", file=sys.stderr
+        )
         return 1
     current = read_current_runtime_id()
     if runtime_ids_equal(current, expected_id):

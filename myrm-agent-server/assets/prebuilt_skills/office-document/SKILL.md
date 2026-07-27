@@ -68,6 +68,9 @@ Before writing any code, clarify:
 3. **Structure** — How many sheets/slides/sections? What layout?
 4. **Styling** — Corporate colors? Logo? Specific fonts?
 5. **Output path** — Where to save the file?
+6. **Scenario detection** — Check if the request matches a specialized scenario:
+   - **Chinese official documents (公文):** keywords like 通知, 请示, 函, 批复, 纪要, 报告, 决定, 意见, 命令 → apply GB/T 9704 formatting
+   - **Academic papers (学术论文):** keywords like 论文, 毕业论文, 学位论文, 课程论文 → apply academic formatting
 
 If not specified, use sensible defaults: professional blue theme, sans-serif fonts, clean layout.
 
@@ -274,6 +277,126 @@ table.rows[0].cells[2].text = 'Q2'
 for cell in table.rows[0].cells:
     cell.paragraphs[0].runs[0].font.bold = True
 ```
+
+#### Chinese Official Documents (公文/政务文档)
+
+When the user's request involves official government documents — keywords: 公文, 通知, 请示, 函, 批复, 纪要, 报告, 决定, 意见, 命令 — apply these formatting rules **instead of** the default Calibri/11pt standards:
+
+| Element | Font | Size | Notes |
+|---------|------|------|-------|
+| Title (标题) | 小标宋体 | 22pt (二号) | Centered, bold |
+| Body (正文) | 仿宋_GB2312 | 16pt (三号) | Justified |
+| Document number (发文字号) | 仿宋_GB2312 | 16pt (三号) | Centered |
+| Headings (一级标题) | 黑体 | 16pt (三号) | — |
+| Subheadings (二级标题) | 楷体_GB2312 | 16pt (三号) | — |
+
+**Font fallback chain:** 仿宋_GB2312 → FangSong → SimSun (system resolves at open time)
+
+**Layout (GB/T 9704-2012):**
+- Line spacing: 28pt fixed (固定值 28 磅)
+- Page margins: top 3.7cm, bottom 3.5cm, left 2.8cm, right 2.6cm
+- Page size: A4
+
+**Structure template:**
+
+```
+[发文机关标志 — 红色、居中、二号小标宋]
+————————————————————（红色分隔线）
+[发文字号]                              [签发人（上行文）]
+[标题 — 二号小标宋、居中]
+[主送机关：]
+[正文 — 三号仿宋、28磅固定行距]
+[署名（发文机关）]                    [成文日期]
+```
+
+```python
+from docx import Document
+from docx.shared import Pt, Cm, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
+
+doc = Document()
+
+# Page setup (GB/T 9704-2012)
+section = doc.sections[0]
+section.top_margin = Cm(3.7)
+section.bottom_margin = Cm(3.5)
+section.left_margin = Cm(2.8)
+section.right_margin = Cm(2.6)
+
+# Normal style — FangSong_GB2312, 16pt, 28pt fixed line spacing
+style = doc.styles['Normal']
+style.font.name = '仿宋_GB2312'
+style.font.size = Pt(16)
+style.element.rPr.rFonts.set(qn('w:eastAsia'), '仿宋_GB2312')
+style.paragraph_format.line_spacing = Pt(28)
+style.paragraph_format.line_spacing_rule = 4  # EXACTLY
+
+# Title
+title_para = doc.add_paragraph()
+title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+run = title_para.add_run('关于XX的通知')
+run.font.name = '小标宋体'
+run.element.rPr.rFonts.set(qn('w:eastAsia'), '小标宋体')
+run.font.size = Pt(22)
+run.font.bold = True
+```
+
+**Forbidden in official documents:**
+- Calibri, Arial, Times New Roman, or any Latin-only font for body text
+- Single/1.5x/double line spacing (must be 28pt fixed)
+- 1-inch margins (must follow GB/T 9704)
+
+---
+
+#### Academic Papers (学术论文)
+
+When the user's request involves academic papers — keywords: 论文, 毕业论文, 学术报告, 学位论文, 课程论文 — apply these formatting rules:
+
+| Element | Font | Size | Notes |
+|---------|------|------|-------|
+| Title | 黑体 | 16pt (小二号) | Centered, bold |
+| Body | 宋体 / Times New Roman | 12pt (小四号) | Justified |
+| Headings (一级) | 黑体 | 14pt (四号) | Bold |
+| Headings (二级) | 黑体 | 12pt (小四号) | Bold |
+| Abstract label | 黑体 | 12pt | Centered |
+| Abstract content | 楷体 | 12pt | — |
+
+**Layout:**
+- Line spacing: 1.5x (多倍行距 1.5)
+- Page margins: top 2.54cm, bottom 2.54cm, left 3.17cm, right 3.17cm
+- Page size: A4
+
+**Structure:**
+1. Title (标题)
+2. Author & affiliation (作者、单位)
+3. Abstract (摘要) + Keywords (关键词)
+4. Body sections (正文各章节)
+5. References (参考文献)
+6. Acknowledgments (致谢)
+
+```python
+from docx import Document
+from docx.shared import Pt, Cm
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+from docx.oxml.ns import qn
+
+doc = Document()
+
+section = doc.sections[0]
+section.top_margin = Cm(2.54)
+section.bottom_margin = Cm(2.54)
+section.left_margin = Cm(3.17)
+section.right_margin = Cm(3.17)
+
+style = doc.styles['Normal']
+style.font.name = 'Times New Roman'
+style.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+style.font.size = Pt(12)
+style.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+```
+
+---
 
 ## Phase 4: Validate
 

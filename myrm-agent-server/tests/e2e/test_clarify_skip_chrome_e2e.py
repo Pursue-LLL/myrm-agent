@@ -205,7 +205,6 @@ def _is_resume_retryable_transient_error(result: dict[str, object]) -> bool:
 
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
-@pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
 @pytest.mark.timeout(900)
 @pytest.mark.asyncio
@@ -217,11 +216,6 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         pytest.fail(
             "Provider config not ready for live clarify Chrome E2E — run via ./myrm test -m chrome_e2e "
             "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",
-        )
-    if os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1":
-        pytest.skip(
-            "Skip clarify Chrome shared-hot bootstrap in SHPOIB mode; "
-            "clarify skip semantics are covered by API E2E."
         )
     # Clarify skip assertions do not depend on shared search-service policy hydration.
     os.environ.pop("MYRM_E2E_SEARCH_POLICY", None)
@@ -489,7 +483,10 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 heartbeat_e2e_lease()
                 await asyncio.sleep(pause)
                 continue
-            if _is_resume_retryable_transient_error(last) and attempt + 1 < max_attempts:
+            if (
+                _is_resume_retryable_transient_error(last)
+                and attempt + 1 < max_attempts
+            ):
                 heartbeat_e2e_lease()
                 await asyncio.sleep(pause)
                 continue

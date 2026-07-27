@@ -203,11 +203,9 @@ def chrome_e2e_pytest_safe_timeout_sec(
 
 
 def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
-    """Lane floor with marker-aware overrides for long-running phases."""
+    """Lane floor with marker-aware overrides under absolute 600s policy."""
     if CHROME_E2E_DESKTOP_MARKER in joined_argv:
         return CHROME_E2E_DESKTOP_TIMEOUT_SECONDS
-    if CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER in joined_argv:
-        return CHROME_E2E_MATRIX_TIMEOUT_SECONDS
     floor = chrome_e2e_pytest_timeout_for_lane(lane)
     return min(floor, LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
 

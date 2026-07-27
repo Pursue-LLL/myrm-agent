@@ -22,7 +22,7 @@
 | `archiveSecurityErrorCore.ts` | 批量导入 `archive_security.*` 错误码解析与 i18n key 映射纯函数，供技能导入 UI 稳定消费 |
 | `skill-growth.ts` | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit |
 | `skill-optimization.ts` | `/skill-optimization/*` 质量历史、版本列表/对比/回滚、Shadow A/B 启动；另封装 `/batch-optimization/tasks/{id}/cancel` 与 `rollback` |
-| `memory*.ts` / `memoryArchive.ts` | 记忆、Shared Context、导入 dry-run、Memory Guardian `safe/force` 触发 + 策略配置 + `overview` 单接口（health/policy/alerts+digest，携带客户端时区头）+ 守卫不可用告警阈值契约 |
+| `memory*.ts` / `memoryArchive.ts` | 记忆、Shared Context、导入 dry-run/confirm（含 post-import readiness 合同）、Memory Guardian `safe/force` 触发 + 策略配置 + `overview` 单接口（health/policy/alerts+digest，携带客户端时区头）+ 守卫不可用告警阈值契约 |
 | `migrationDiscovery.ts` | Local/Tauri 外部助手数据自动发现（Hermes / OpenClaw / Claude Code / Codex）+ server 下发 `source_manifest`（display/import/deep-link）与 `source_manifest_authoritative` 覆盖语义消费 |
 | `onboarding.ts` | Onboarding readiness/complete + Telegram assistant 一键接入编排接口 `/config/onboarding/telegram-assistant/apply` |
 | `google-workspace-oauth.ts` | `/integrations/google-workspace/oauth/*`：config/start/poll/status/disconnect；Tauri 用 shell.open |
@@ -41,7 +41,7 @@
 | `file.ts` | HTTP 上传、`UploadProgress`、PDF/文档内容提取（**非**本地选文件） |
 | `file-service/` | 平台 `FileService` 策略（Tauri FS vs Sandbox）；见 [_ARCH.md](file-service/_ARCH.md) |
 | `wikiService.ts` | `/wiki/*` 客户端：概念树/队列/导入/审批与 query；`queryWiki` 返回结构化 `source_snippets(level/path/section/snippet)` 供设置页与聊天证据链复用 |
-| `wikiEvidenceMetrics.ts` | `/statistics/wiki-evidence/*` 客户端：记录证据曝光/展开/核验停留/复问/负向结果事件（按 `context_key` 隔离复问口径，离线丢样聚合上报 `dropped_report`，`quality_outcome_negative` 用于答案负反馈锚点），并查询聚合摘要（expansion/deep verification/re-query/quick bounce/dwell/negative outcome）。 |
+| `wikiEvidenceMetrics.ts` | `/statistics/wiki-evidence/*` 客户端：记录证据曝光/展开/核验停留/复问/负向结果事件（按 `context_key` 隔离复问口径，离线丢样聚合上报 `dropped_report`，`quality_outcome_negative` 用于答案负反馈锚点；chat 输入侧复问事件由 `useMessageInputWikiEvidenceCore.ts` 解析上下文并上报），并查询聚合摘要（expansion/deep verification/re-query/quick bounce/dwell/negative outcome）。 |
 | `config/` | `ConfigSyncManager` + 适配器（local `TauriConfigAdapter` 处理 Next 代理 5xx 与离线队列；sandbox `SandboxConfigAdapter`） |
 
 ## 依赖

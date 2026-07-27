@@ -302,6 +302,18 @@ export interface MemoryImportConfirmResponse extends MemoryImportResponse {
   global_instructions_updated?: boolean;
   workspace_rules_written?: number;
   workspace_rules_skipped?: number;
+  readiness?: MemoryImportReadiness | null;
+}
+
+export interface MemoryImportReadinessIssue {
+  code: string;
+  severity: 'warning' | 'critical';
+  params: Record<string, string | number | boolean>;
+}
+
+export interface MemoryImportReadiness {
+  status: 'ready' | 'warning' | 'critical';
+  issues: MemoryImportReadinessIssue[];
 }
 
 export interface MemoryImportRollbackWarning {

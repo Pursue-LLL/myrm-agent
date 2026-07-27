@@ -16,6 +16,7 @@
 const ALARM_NAME = "myrm-keepalive";
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_DELAY_MS = 30000;
+const EXTENSION_CAPABILITIES = Object.freeze(["navigate_url"]);
 
 let ws = null;
 let serverUrl = "";
@@ -84,6 +85,7 @@ function connect() {
       type: "hello",
       version: chrome.runtime.getManifest().version,
       browser: navigator.userAgent.includes("Edg/") ? "Edge" : "Chrome",
+      capabilities: EXTENSION_CAPABILITIES,
     }));
 
     sendTabsUpdate();
@@ -194,6 +196,62 @@ async function executeAction(action, payload) {
       return await attachDebugger(tab.id);
     }
 
+    case "navigate_url": {
+      const { url, domain, tabId, background = true } = payload;
+      if (!url || typeof url !== "string") {
+        throw new Error("navigate_url requires a valid url");
+      }
+
+      const targetDomain = extractDomain(url).toLowerCase();
+      const requestedDomain = (domain || "").toLowerCase();
+      if (!targetDomain || !isDomainAuthorized(targetDomain)) {
+        throw new Error(`Domain ${targetDomain || "(empty)"} is not authorized`);
+      }
+      if (
+        requestedDomain &&
+        requestedDomain !== targetDomain &&
+        !matchDomain(targetDomain, requestedDomain)
+      ) {
+        throw new Error(
+          `Requested domain ${requestedDomain} does not match navigation target ${targetDomain}`,
+        );
+      }
+      const lookupDomain = requestedDomain || targetDomain;
+
+      let targetTabId = null;
+      if (Number.isInteger(tabId) && tabId > 0) {
+        const tab = await chrome.tabs.get(tabId);
+        if (!isTabAuthorized(tab)) {
+          throw new Error(`Tab ${tabId} is not authorized`);
+        }
+        targetTabId = tabId;
+      } else if (background) {
+        targetTabId = await getOrCreateBackgroundTab(url);
+      } else {
+        const tab = await findTabForDomain(lookupDomain);
+        if (!tab) {
+          throw new Error(`No tab found for authorized domain: ${lookupDomain}`);
+        }
+        targetTabId = tab.id;
+      }
+
+      await attachDebugger(targetTabId);
+      const updated = await chrome.tabs.update(targetTabId, {
+        url,
+        active: !background,
+      });
+      const loaded = await waitForTabLoad(targetTabId, 20000);
+      const finalTab = loaded || updated;
+
+      return {
+        tabId: targetTabId,
+        url: finalTab?.url || url,
+        title: finalTab?.title || "",
+        domain: extractDomain(finalTab?.url || url),
+        active: Boolean(finalTab?.active),
+      };
+    }
+
     case "detach_debugger": {
       const { tabId } = payload;
       await detachDebugger(tabId);
@@ -232,9 +290,44 @@ async function findTabForDomain(domain) {
   return authorized.find((tab) => tab.active) || authorized[0] || null;
 }
 
+async function waitForTabLoad(tabId, timeoutMs = 20000) {
+  return await new Promise((resolve) => {
+    let done = false;
+    const finish = (tab) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      resolve(tab || null);
+    };
+
+    const onUpdated = (updatedTabId, changeInfo, tab) => {
+      if (updatedTabId !== tabId) return;
+      if (changeInfo.status === "complete") {
+        finish(tab);
+      }
+    };
+
+    const timer = setTimeout(async () => {
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        finish(tab);
+      } catch {
+        finish(null);
+      }
+    }, timeoutMs);
+
+    chrome.tabs.onUpdated.addListener(onUpdated);
+  });
+}
+
 function isTabAuthorized(tab) {
   if (!tab.url) return false;
   const domain = extractDomain(tab.url);
+  return isDomainAuthorized(domain);
+}
+
+function isDomainAuthorized(domain) {
   return authorizedDomains.some((pattern) => matchDomain(domain, pattern));
 }
 
@@ -471,6 +564,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       serverUrl,
       authorizedDomains,
       attachedTabs: Array.from(attachedTabs.keys()),
+      capabilities: Array.from(EXTENSION_CAPABILITIES),
     });
     return true;
   }

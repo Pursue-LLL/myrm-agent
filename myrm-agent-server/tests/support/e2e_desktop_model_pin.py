@@ -262,12 +262,8 @@ async def ensure_desktop_basic_model_pinned_for_send(
             or no_selection
             or _is_transient_provider_pin_error(err)
         )
-        if attempt < max_attempts and (
-            should_retry
-        ):
-            if bridge_missing or no_selection or _is_transient_provider_pin_error(
-                err
-            ):
+        if attempt < max_attempts and (should_retry):
+            if bridge_missing or no_selection or _is_transient_provider_pin_error(err):
                 try:
                     await _recover_provider_bridge(chat)
                 except (RuntimeError, TimeoutError, OSError):

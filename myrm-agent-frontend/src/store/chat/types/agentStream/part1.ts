@@ -90,6 +90,7 @@ export const AgentEventType = {
   VERIFICATION_VERDICT: 'verification_verdict',
   CAPABILITY_GAP: 'capability_gap',
   SKILL_GAP: 'skill_gap',
+  CITATION_MAP: 'citation_map',
 } as const;
 
 export interface BaseAgentEvent {

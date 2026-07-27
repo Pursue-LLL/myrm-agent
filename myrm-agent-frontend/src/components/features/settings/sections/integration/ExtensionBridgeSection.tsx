@@ -26,6 +26,7 @@ const EMPTY_STATUS: ExtensionStatus = {
   extension_version: '',
   browser_name: '',
   authorized_domains: [],
+  capabilities: [],
   available_tabs: [],
 };
 
@@ -44,6 +45,7 @@ const ExtensionBridgeSection = memo(() => {
   const [fetchError, setFetchError] = useState(false);
   const [domainInput, setDomainInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const hasNavigateRelay = status.capabilities.includes('navigate_url');
 
   const fetchStatus = useCallback(async () => {
     let statusOk = false;
@@ -209,8 +211,21 @@ const ExtensionBridgeSection = memo(() => {
               : t('extension.cdpNotDetected')}
           </span>
         </p>
+        <p className="text-xs text-muted-foreground">
+          {t('extension.relayCapabilityStatus')}:{' '}
+          <span className="text-foreground">
+            {status.connected
+              ? hasNavigateRelay
+                ? t('extension.relayCapabilityReady')
+                : t('extension.relayCapabilityUpgradeRequired')
+              : t('extension.notConnected')}
+          </span>
+        </p>
         {setupHints.auth_token_required && !setupHints.auth_token_configured && (
           <p className="text-xs text-destructive">{t('extension.authTokenRequiredHelp')}</p>
+        )}
+        {status.connected && !hasNavigateRelay && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">{t('extension.relayCapabilityHelp')}</p>
         )}
         {!setupHints.cdp_endpoint_discovered && (
           <p className="text-xs text-amber-600 dark:text-amber-400">{t('extension.cdpSetupHelp')}</p>
