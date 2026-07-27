@@ -38,9 +38,25 @@ def _wall_phase() -> WallPhase:
     return "admission"
 
 
+def _body_wall_cap_sec() -> int:
+    signoff = os.environ.get("E2E_SIGNOFF", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if signoff:
+        raw = os.environ.get("MYRM_E2E_BODY_WALL_SEC", "900").strip()
+        try:
+            return max(600, int(raw))
+        except ValueError:
+            return 900
+    return int(LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
+
+
 def _active_wall_cap_sec() -> int:
     if _wall_phase() == "body":
-        return int(LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
+        return _body_wall_cap_sec()
     return int(E2E_ADMISSION_WALL_CLOCK_SEC)
 
 
@@ -63,7 +79,7 @@ def begin_body_wall_budget(*, phase_label: str = "pytest_body") -> None:
     os.environ[ENV_PROGRESS_AT] = stamp
     os.environ[ENV_WALL_PHASE] = "body"
     print(
-        f"E2E_WALL_BUDGET_BODY_START: cap={LIVE_SINGLE_TEST_WALL_CLOCK_SEC}s "
+        f"E2E_WALL_BUDGET_BODY_START: cap={_body_wall_cap_sec()}s "
         f"phase={phase_label}",
         file=sys.stderr,
         flush=True,

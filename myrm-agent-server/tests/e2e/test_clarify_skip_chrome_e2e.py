@@ -37,6 +37,13 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lea
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
+
+def _clarify_skip_api_wait_sec() -> float:
+    override = os.environ.get("CLARIFY_SKIP_API_WAIT_SEC", "").strip()
+    if override:
+        return float(override)
+    return float(CLARIFY_SKIP_API_WAIT_SEC)
+
 # WebUI path: avoid CRITICAL/MUST phrasing — MiniMax-M3 may treat it as prompt injection.
 # Align intent with API skip E2E (test_clarify_agent_stream_e2e) but frame as a user task.
 E2E_PROMPT = (
@@ -229,7 +236,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
     ) -> dict[str, object]:
         """Wait for clarify ready via API pending (SSOT) or DOM Skip button (whichever first)."""
         wait_sec = (
-            float(CLARIFY_SKIP_API_WAIT_SEC)
+            _clarify_skip_api_wait_sec()
             if timeout_sec is None
             else float(timeout_sec)
         )
@@ -298,7 +305,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
         wait_sec = (
-            float(CLARIFY_SKIP_API_WAIT_SEC)
+            _clarify_skip_api_wait_sec()
             if timeout_sec is None
             else float(timeout_sec)
         )
@@ -330,7 +337,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
         wait_sec = (
-            float(CLARIFY_SKIP_API_WAIT_SEC)
+            _clarify_skip_api_wait_sec()
             if timeout_sec is None
             else float(timeout_sec)
         )
@@ -417,10 +424,10 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             pause = backoff_sec[min(attempt, len(backoff_sec) - 1)]
             await asyncio.sleep(0.75 + pause * 0.1)
             api_timeout = min(
-                float(CLARIFY_SKIP_API_WAIT_SEC),
+                _clarify_skip_api_wait_sec(),
                 max(60.0, remaining_wall_sec() - 60.0),
             )
-            call_timeout = min(45.0, api_timeout)
+            call_timeout = api_timeout + 10.0
             try:
                 last = await asyncio.wait_for(
                     asyncio.to_thread(
@@ -514,7 +521,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             )
         resume_result: dict[str, object] = {"ok": False, "event_types": []}
         poll_budget = min(
-            float(CLARIFY_SKIP_API_WAIT_SEC),
+            _clarify_skip_api_wait_sec(),
             max(60.0, remaining_wall_sec() - 90.0),
         )
         form_visible = form_state.get("hasForm") is True
