@@ -21,6 +21,7 @@ contract:
     - "Phase 2: Environment — ensure required Python packages are installed"
     - "Phase 3: Generate — create the document following format-specific conventions"
     - "Phase 4: Validate — verify the output file opens correctly and content is complete"
+    - "Phase 5: Visual Preview — render to PNG via soffice, inspect for layout issues, self-correct up to 3 rounds (cloud sandbox only; skipped if soffice unavailable)"
   potential_traps:
     - description: "Hardcoding computed values in Excel instead of using formulas"
       mitigation: "Every derived cell MUST be an Excel formula; only raw inputs may be hardcoded values"
@@ -40,6 +41,10 @@ contract:
       description: "All requested content sections are present in the document"
       validation_method: "Read back key sheets/slides/sections and verify against requirements"
       is_required: true
+    - step_id: visual_quality
+      description: "Visual rendering check — no text overflow, element overlap, or contrast issues"
+      validation_method: "Convert to PNG via soffice headless, inspect screenshots for layout defects"
+      is_required: false
   success_criteria: "Professional document that is immediately usable without manual formatting fixes"
   estimated_duration_seconds: 900
 ---
@@ -188,6 +193,42 @@ for para in tf.paragraphs:
 - Add slide numbers
 - Sans-serif fonts (Calibri, Arial, or system default)
 
+#### Native Objects Discipline
+
+Charts and tables in PPTX MUST be native PowerPoint objects — never screenshots or text-box imitations:
+
+```python
+from pptx.chart.data import CategoryChartData
+from pptx.enum.chart import XL_CHART_TYPE
+from pptx.util import Inches
+
+chart_data = CategoryChartData()
+chart_data.categories = ['Q1', 'Q2', 'Q3', 'Q4']
+chart_data.add_series('Revenue', (120, 135, 148, 162))
+
+chart_frame = slide.shapes.add_chart(
+    XL_CHART_TYPE.COLUMN_CLUSTERED,
+    Inches(1), Inches(2), Inches(8), Inches(4.5),
+    chart_data,
+)
+```
+
+Tables MUST use `slide.shapes.add_table()`, never TextBox arrangements:
+
+```python
+rows, cols = 4, 3
+table_shape = slide.shapes.add_table(rows, cols, Inches(1), Inches(2), Inches(8), Inches(3))
+table = table_shape.table
+table.cell(0, 0).text = "Metric"
+table.cell(0, 1).text = "Target"
+table.cell(0, 2).text = "Actual"
+```
+
+**Forbidden anti-patterns:**
+- Embedding matplotlib/PIL screenshots as chart images (not editable)
+- Arranging TextBoxes to simulate table layout (cannot add/remove rows)
+- Using placeholder images instead of actual data-bound charts
+
 ---
 
 ### Word (.docx) — python-docx
@@ -248,3 +289,52 @@ filepath = "./output/report.xlsx"
 size = os.path.getsize(filepath)
 print(f"Created: {filepath} ({size:,} bytes)")
 ```
+
+## Phase 5: Visual Preview & Self-Correction
+
+After Phase 4 passes, render the document to PNG and visually inspect the output.
+This phase only runs when `soffice` is available (cloud sandbox). If unavailable, skip and deliver the Phase 4 result.
+
+### Step 1: Environment check
+
+```bash
+which soffice
+```
+
+If the command fails, **skip Phase 5 entirely** — the document is still valid from Phase 4.
+
+### Step 2: Render to PNG
+
+```bash
+mkdir -p /tmp/office_preview
+soffice --headless --convert-to png --outdir /tmp/office_preview ./output/report.pptx
+```
+
+For multi-page documents (PPTX slides, DOCX pages), this produces one PNG per page/slide.
+
+### Step 3: Visual inspection
+
+Examine each rendered PNG for these 5 defects:
+
+| Defect | What to look for |
+|--------|------------------|
+| **Text overflow** | Text cut off at shape/cell boundaries |
+| **Element overlap** | Shapes, charts, or text boxes obscuring each other |
+| **Low contrast** | Light text on light background or dark on dark |
+| **Excessive whitespace** | Large empty areas that waste slide/page real estate |
+| **Chart/table truncation** | Data labels, axis labels, or table rows cut off |
+
+### Step 4: Self-correct (max 3 rounds)
+
+If defects are found:
+
+1. Identify the root cause in the generation code (e.g., font size too large, shape position overlapping)
+2. Fix the generation code
+3. Re-generate the document
+4. Re-render and re-inspect
+
+After 3 rounds, deliver the best result regardless.
+
+### Step 5: Deliver
+
+Deliver the final document file and attach the preview PNG(s) so the user can see the visual result directly in chat.
