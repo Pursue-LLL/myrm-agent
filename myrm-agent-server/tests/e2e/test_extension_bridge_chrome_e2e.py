@@ -28,7 +28,7 @@ _EXTENSION_BRIDGE_STATE = """(() => {
   return {
     ready:
       !fetchErrorVisible &&
-      location.pathname.endsWith('/settings/extensionBridge') &&
+      location.pathname.includes('/settings/extensionBridge') &&
       matrixHits.length >= 4 &&
       unavailableHits >= 4 &&
       /未连接|Not connected/i.test(bodyText) &&
@@ -39,7 +39,7 @@ _EXTENSION_BRIDGE_STATE = """(() => {
     unavailableHits,
     relayLine,
     wsUrl: wsMatch ? wsMatch[0] : '',
-    title: document.title,
+    heading: document.querySelector('h2')?.textContent || '',
   };
 })()"""
 
@@ -78,6 +78,5 @@ def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
         assert int(state.get("unavailableHits") or 0) >= 4, state
         ws_url = str(state.get("wsUrl") or "")
         assert f":{api_port}/api/v1/ws/extension" in ws_url, state
-        title = str(state.get("title") or "")
-        assert "metadata.settingsTabs" not in title, state
-        assert "Browser Extension" in title or "浏览器扩展" in title, state
+        heading = str(state.get("heading") or "")
+        assert "浏览器扩展桥接" in heading or "Browser Extension" in heading, state

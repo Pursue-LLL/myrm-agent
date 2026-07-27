@@ -8,6 +8,9 @@ import logging
 from fastapi import APIRouter
 
 from app.api.memory.follow_ups import router as follow_ups_router
+from app.api.memory.test_fixtures_migration_readiness import (
+    router as migration_readiness_fixture_router,
+)
 from app.api.memory.operations import (
     archival,
     backup,
@@ -42,3 +45,4 @@ router.include_router(backup_remote.router, tags=["memory-backup-remote"])
 router.include_router(archival.router, tags=["memory-archival"])
 router.include_router(reindex.router, tags=["memory-reindex"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
+router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
