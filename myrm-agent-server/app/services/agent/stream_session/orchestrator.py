@@ -32,13 +32,16 @@ from app.services.agent.params import (
     AgentRequest,
     ArchiveRestoreRequestError,
     ModelSelection,
-    _extract_text_from_query,
     _resolve_model_config,
     convert_to_general_agent_params,
     prevalidate_archive_restore_actions,
 )
 from app.services.agent.runtime_context import prefer_direct_agent_stream
 from app.services.agent.steering_registry import SteeringRegistry
+from app.services.agent.stream_session.chat_history_bootstrap import (
+    persist_user_message_and_load_history,
+    stream_text_content,
+)
 from app.services.agent.stream_session.reconnect import try_stream_reconnect
 from app.services.agent.stream_session.risk_gate import check_stream_risk
 from app.services.agent.stream_session.session_reservation import ChatSessionReservation
@@ -96,7 +99,7 @@ async def run_agent_stream(
                 content={"detail": f"{request.action_mode} is disabled via Feature Gate"},
             )
 
-    text_content = _extract_text_from_query(request.query) if request.resume_value is None else ""
+    text_content = stream_text_content(request)
 
     # Gateway hygiene check: block massive malicious payloads before they hit the agent harness
     if len(text_content) > _GATEWAY_MAX_INPUT_CHARS:
@@ -126,49 +129,10 @@ async def run_agent_stream(
         if busy_error is not None:
             return agent_busy_streaming_response(request.message_id)
 
-        chat_history: list[list[str | dict[str, object]]] = []
-        if request.chat_id:
-            from app.platform_utils import get_session_factory
-            from app.services.chat.chat_service import ChatService
-
-            session_factory = get_session_factory()
-            async with session_factory() as db:
-                is_regenerate = request.sibling_group_id is not None
-                if request.resume_value is None and not is_regenerate:
-                    from datetime import datetime
-                    from datetime import timezone as tz_module
-
-                    if request.timestamp is not None:
-                        sent_at_utc = datetime.fromtimestamp(request.timestamp, tz=tz_module.utc)
-                    else:
-                        sent_at_utc = datetime.now(tz=tz_module.utc)
-
-                    sent_timezone = request.timezone or "UTC"
-
-                    extra_data_val = None
-                    if request.resume_value is None and isinstance(request.query, list):
-                        extra_data_val = {"original_query": request.query}
-
-                    msg = await ChatService.ensure_chat_and_append_user_message(
-                        chat_id=request.chat_id,
-                        content=text_content,
-                        sent_at=sent_at_utc,
-                        sent_timezone=sent_timezone,
-                        message_id=request.message_id,
-                        action_mode=request.action_mode,
-                        agent_id=request.agent_id or "default",
-                        ephemeral_subagents=request.ephemeral_subagents,
-                        extra_data=extra_data_val,
-                        is_incognito=request.incognito_mode,
-                    )
-                    chat_history = await ChatService.load_web_chat_history(
-                        request.chat_id,
-                        exclude_message_id=msg.id,
-                        api_key=None,
-                    )
-                else:
-                    chat_history = await ChatService.load_web_chat_history(request.chat_id, api_key=None)
-                await db.commit()
+        chat_history = await persist_user_message_and_load_history(
+            request,
+            text_content=text_content,
+        )
 
         extra_context: dict[str, object] | None = None
         try:
