@@ -10993,6 +10993,8 @@
     "ttsProvider": "TTS Provider",
     "edgeTtsUnavailableTitle": "Edge TTS is not available",
     "edgeTtsUnavailableDesc": "This server does not have Edge TTS enabled. Switch to another provider, or ask your administrator to enable voice support.",
+    "localSttUnavailableTitle": "Local Whisper STT is not available",
+    "localSttUnavailableDesc": "Ask your administrator to install the local-stt component on the server (uv sync --extra local-stt), or switch to a cloud STT provider.",
     "ttsPlaybackFailedTitle": "Read-aloud failed",
     "ttsPlaybackFailedDesc": "Speech synthesis did not produce audio. Check your voice settings or try another provider.",
     "ttsApiKey": "API Key",

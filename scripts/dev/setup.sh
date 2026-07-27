@@ -12,6 +12,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck source=../lib/resolve_agent_root.sh
 source "${REPO_ROOT}/scripts/lib/resolve_agent_root.sh"
+# shellcheck source=../lib/server_sync_flags.sh
+source "${REPO_ROOT}/scripts/lib/server_sync_flags.sh"
 resolve_agent_paths "${REPO_ROOT}"
 
 if ! command -v uv >/dev/null 2>&1; then
@@ -44,7 +46,7 @@ if harness_installer="$(_resolve_monorepo_harness_installer "${REPO_ROOT}")"; th
   bash "${harness_installer}"
 else
   echo "📦 Server: uv sync (PyPI harness)..."
-  uv sync --all-extras
+  uv sync "${SERVER_UV_SYNC_FLAGS[@]}"
 fi
 
 echo "🌐 Installing browser runtime (patchright)..."

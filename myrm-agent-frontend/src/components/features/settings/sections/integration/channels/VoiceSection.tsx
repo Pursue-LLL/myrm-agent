@@ -124,6 +124,7 @@ const VoiceSection = memo(() => {
   const [form, setForm] = useState<VoiceFormState>(DEFAULT_STATE);
   const [loading, setLoading] = useState(true);
   const [edgeTtsAvailable, setEdgeTtsAvailable] = useState<boolean | null>(null);
+  const [localSttAvailable, setLocalSttAvailable] = useState<boolean | null>(null);
   const [voiceMode, setVoiceMode] = useState('audio_only');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -131,9 +132,15 @@ const VoiceSection = memo(() => {
     loadVoiceConfig()
       .then(setForm)
       .finally(() => setLoading(false));
-    apiRequest<{ edge_tts_available?: boolean }>('/health/info')
-      .then((info) => setEdgeTtsAvailable(info.edge_tts_available === true))
-      .catch(() => setEdgeTtsAvailable(null));
+    apiRequest<{ edge_tts_available?: boolean; local_stt_available?: boolean }>('/health/info')
+      .then((info) => {
+        setEdgeTtsAvailable(info.edge_tts_available === true);
+        setLocalSttAvailable(info.local_stt_available === true);
+      })
+      .catch(() => {
+        setEdgeTtsAvailable(null);
+        setLocalSttAvailable(null);
+      });
     setVoiceMode(localStorage.getItem('voiceSessionMode') || 'audio_only');
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -184,6 +191,7 @@ const VoiceSection = memo(() => {
   const needsSttApiKey = !isLocalStt;
   const needsTtsApiKey = form.ttsProvider !== 'edge';
   const showEdgeTtsWarning = form.ttsProvider === 'edge' && edgeTtsAvailable === false;
+  const showLocalSttWarning = isLocalStt && localSttAvailable === false;
 
   return (
     <div className="space-y-6" data-testid="voice-settings-panel">
@@ -192,6 +200,13 @@ const VoiceSection = memo(() => {
         <h2 className="text-base font-semibold">{t('sectionTitle')}</h2>
       </div>
       <p className="text-sm text-muted-foreground">{t('sectionDesc')}</p>
+
+      {showLocalSttWarning && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+          <p className="font-medium">{t('localSttUnavailableTitle')}</p>
+          <p className="mt-1 text-xs opacity-90">{t('localSttUnavailableDesc')}</p>
+        </div>
+      )}
 
       {showEdgeTtsWarning && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
@@ -225,7 +240,9 @@ const VoiceSection = memo(() => {
                 </Select>
               </FieldRow>
 
-              {isLocalStt && <p className="text-xs text-emerald-600 dark:text-emerald-400">{t('sttLocalHint')}</p>}
+              {isLocalStt && localSttAvailable !== false && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">{t('sttLocalHint')}</p>
+              )}
 
               {isLocalStt && (
                 <>

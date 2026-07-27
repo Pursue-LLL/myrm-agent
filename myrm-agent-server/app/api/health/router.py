@@ -186,7 +186,7 @@ async def system_info() -> dict[str, object]:
             - qdrant: 向量数据库模式（embedded）
             - embedding: 嵌入模型服务（builtin/custom/cloud）
             - reranker: 重排序模型服务（builtin/custom/cloud）
-            - local_stt_available: 本地语音识别组件是否就绪
+            - local_stt_available: 本地语音识别组件是否就绪（local-stt extra）
             - edge_tts_available: Edge TTS 可选组件是否就绪（voice-tts extra）
     """
     from app.config.deploy_mode import (

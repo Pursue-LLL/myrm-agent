@@ -485,6 +485,9 @@ def _require_live_e2e_lease(
             )
     except RuntimeError as exc:
         pytest.fail(str(exc))
+    from e2e_wall_budget import begin_body_wall_budget
+
+    begin_body_wall_budget(phase_label=request.node.name)
     reap_chrome_e2e_session_hygiene()
     namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
     os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace

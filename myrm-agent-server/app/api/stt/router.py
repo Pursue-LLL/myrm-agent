@@ -2,6 +2,8 @@
 
 Provides a transcription endpoint for the web frontend.
 Reuses the existing stt.py engine and user VoiceConfig.
+
+Local STT requests return 503 when the optional local-stt extra is not installed.
 """
 
 from __future__ import annotations
@@ -9,15 +11,12 @@ from __future__ import annotations
 import logging
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from app.api.dependencies import get_deploy_identity, verify_voice_enabled
-
-if TYPE_CHECKING:
-    from app.channels.types import VoiceConfig
+from app.channels.types import VoiceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +61,15 @@ class LocalSTTStatus(BaseModel):
     config: dict[str, str] | None = Field(None, description="Current model configuration")
 
 
+def _ensure_local_stt_if_needed(voice_config: VoiceConfig) -> None:
+    """Reject local STT requests when the optional local-stt extra is not installed."""
+    from app.channels.voice.stt import local_stt_unavailable_detail
+
+    detail = local_stt_unavailable_detail(voice_config)
+    if detail:
+        raise HTTPException(status_code=503, detail=detail)
+
+
 @router.get("/status", response_model=LocalSTTStatus)
 async def stt_status() -> LocalSTTStatus:
     """Check local STT availability and model status."""
@@ -94,6 +102,8 @@ async def transcribe_audio(
     voice_config = await _load_user_voice_config("sandbox")
     if not voice_config or not voice_config.stt_enabled:
         raise HTTPException(status_code=400, detail="STT is not enabled. Configure it in Settings > Voice.")
+
+    _ensure_local_stt_if_needed(voice_config)
 
     suffix = _EXT_MAP.get(content_type, ".webm")
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:

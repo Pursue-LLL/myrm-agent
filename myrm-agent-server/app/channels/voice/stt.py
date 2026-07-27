@@ -1,7 +1,7 @@
 """Speech-to-Text transcription for inbound voice messages.
 
 Supports multiple providers with automatic fallback:
-  1. Local Whisper (faster-whisper, free, no API key, privacy-first)
+  1. Local Whisper (faster-whisper, optional local-stt extra, free, no API key, privacy-first)
   2. OpenAI Whisper (whisper-1, gpt-4o-mini-transcribe)
   3. Groq (whisper-large-v3) — OpenAI-compatible endpoint
   4. Deepgram (nova-3)
@@ -18,6 +18,7 @@ Fallback strategy (mirrors TTS Edge-TTS fallback design):
 - transcribe(): Audio file -> STTResult (text + language + duration)
 - is_local_available(): Check if faster-whisper is installed
 - get_local_status(): Check model download status
+- local_stt_unavailable_detail(): Install hint when local provider is configured but deps missing
 
 [POS]
 Inbound speech-to-text. Called by Router when InboundMessage contains AUDIO attachment.
@@ -37,6 +38,9 @@ import httpx
 from app.channels.types import STTResult, VoiceConfig
 
 logger = logging.getLogger(__name__)
+
+_LOCAL_STT_INSTALL_HINT = "uv sync --extra local-stt"
+LOCAL_STT_INSTALL_HINT = _LOCAL_STT_INSTALL_HINT
 
 _OPENAI_TRANSCRIPTION_URL = "https://api.openai.com/v1/audio/transcriptions"
 _GROQ_TRANSCRIPTION_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
@@ -124,7 +128,12 @@ class _LocalWhisperManager:
             ):
                 return self._model
 
-            from faster_whisper import WhisperModel
+            try:
+                from faster_whisper import WhisperModel
+            except ImportError as exc:
+                raise ImportError(
+                    f"faster-whisper is not installed. Install: {_LOCAL_STT_INSTALL_HINT}"
+                ) from exc
 
             loop = asyncio.get_running_loop()
             model = await loop.run_in_executor(
@@ -169,6 +178,15 @@ def is_local_available() -> bool:
         return True
     except ImportError:
         return False
+
+
+def local_stt_unavailable_detail(voice_config: VoiceConfig) -> str | None:
+    """Return install hint when local STT is selected but faster-whisper is missing."""
+    if voice_config.stt_provider.lower() != "local":
+        return None
+    if is_local_available():
+        return None
+    return f"Local STT is not installed. Install with: {LOCAL_STT_INSTALL_HINT}"
 
 
 def get_local_status() -> dict[str, object]:

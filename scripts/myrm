@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # shellcheck source=lib/resolve_agent_root.sh
 source "${SCRIPT_DIR}/lib/resolve_agent_root.sh"
+# shellcheck source=lib/server_sync_flags.sh
+source "${SCRIPT_DIR}/lib/server_sync_flags.sh"
 # shellcheck source=lib/start_server.sh
 source "${SCRIPT_DIR}/lib/start_server.sh"
 # shellcheck source=lib/cn_mirrors.sh
@@ -121,7 +123,7 @@ case "$COMMAND" in
     update)
         apply_cn_mirrors_if_needed
         git pull --ff-only || { echo -e "${RED}git pull failed${NC}"; exit 1; }
-        (cd "$SERVER_DIR" && uv sync --all-extras) || { echo -e "${RED}Backend sync failed${NC}"; exit 1; }
+        (cd "$SERVER_DIR" && uv sync "${SERVER_UV_SYNC_FLAGS[@]}") || { echo -e "${RED}Backend sync failed${NC}"; exit 1; }
         (cd "$SERVER_DIR" && uv run patchright install chromium 2>/dev/null || true)
         (cd "$FRONTEND_DIR" && bun install && bun run build) || { echo -e "${RED}Frontend build failed${NC}"; exit 1; }
         echo -e "${GREEN}Update complete.${NC}"

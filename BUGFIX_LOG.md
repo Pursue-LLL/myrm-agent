@@ -133,3 +133,48 @@ daemon.py → subprocess.run(["bash", "wave.sh", "reap"]) → wave.sh → python
 1. **分布式默认值是维护灾难** — 单一 SSOT 必须贯穿所有调用链
 2. **改常量后必须全局 grep** — `rg ":-900" "== 900" "default.*900"` 类搜索是必须步骤
 3. **bash 脚本中的 `${VAR:-default}` 是隐性 SSOT 违规** — 应通过 Python 一行代码从合约文件读取
+
+---
+
+## BUG-AGENT-2026-07-27-001: Extension Bridge Settings 双 API 前缀 404 + Tab 路由遗漏
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-07-27 |
+| 修复日期 | 2026-07-27 |
+| 严重程度 | P1（Settings 扩展页不可用 + 误导性「无法连接服务器」） |
+| 影响范围 | `myrm-agent-frontend/src/services/extension.ts`、`app/settings/[tab]/page.tsx`、`SettingsLayout.tsx`、`locales/*/metadata.settingsTabs` |
+| 出现次数 | 1 |
+
+### 现象
+
+1. `/settings/extensionBridge` 直接访问 **404**
+2. 从菜单进入扩展页时顶部红色横幅 **「无法连接服务器」**，但 `curl /api/v1/extension/status` 返回 200
+3. Chrome MCP E2E / 手动 MCP 验证 UI 矩阵不可见
+
+### 根因
+
+1. **双 API 前缀**：`extension.ts` 调用 `apiRequest(getApiUrl('/extension/status'))`；`apiRequest` → `fetchWithTimeout` 内部再次 `getApiUrl()` → 实际请求 **`/api/v1/api/v1/extension/status`（404）**
+2. **Tab SSOT 遗漏**：`extensionBridge` / `connect` 等在 `SettingsMenu` + `SECTION_COMPONENTS` 已登记，但 `page.tsx` `VALID_TABS` 与 `SettingsLayout.tsx` `BASE_TABS` 缺失 → App Router `notFound()`
+3. **metadata 缺失**：`metadata.settingsTabs.extensionBridge` 未写入 locales → 页面 title 回退异常
+
+### 修复
+
+1. `extension.ts`：REST 改为 `apiRequest<T>('/extension/...')`（与 `kanban.ts` 一致）；移除多余 `.json()`；`getExtensionWebSocketUrl()` loopback dev 回退端口 **8080**（`isLoopbackDevHost()`）
+2. `page.tsx` / `SettingsLayout.tsx`：补齐 `extensionBridge`、`connect` 等 Tab
+3. `locales/{en,zh,zh-TW,ja}.json`：补齐 `metadata.settingsTabs`
+
+### 验证
+
+- 浏览器 fetch `/api/v1/extension/status` = 200；双前缀路径 = 404（修复前）
+- MCP：`fetchError: false`、WS `ws://127.0.0.1:8080/api/v1/ws/extension`、4 行能力矩阵可见
+- 单元：`tests/api/extension/test_extension_api.py` **96 passed**
+- Chrome E2E：`tests/e2e/test_extension_bridge_chrome_e2e.py`（READ lane）
+
+### 踩坑经验
+
+1. **前端 service 层 REST 路径 SSOT = 相对 `/extension/...`**，禁止先 `getApiUrl()` 再交给 `apiRequest`
+2. **Settings Tab 三处登记**（`VALID_TABS` / `BASE_TABS` / `SettingsMenu` + i18n metadata）缺一即 404 或不可达
+3. **「无法连接服务器」横幅要先查 Network 实际 URL**，不要假设 backend down
+
+---

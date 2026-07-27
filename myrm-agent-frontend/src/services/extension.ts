@@ -13,8 +13,9 @@
  * - getExtensionSetupHints: Non-secret setup hints (token required/configured + CDP discoverability)
  *
  * [POS]
- * Browser extension bridge API service. Provides data-fetching and URL utilities
- * for the ExtensionBridgeSection Settings UI.
+ * Browser extension bridge API service. REST paths are **relative** (`/extension/...`) for
+ * apiRequest — never wrap with getApiUrl() (double /api/v1 prefix → 404). Loopback dev WS
+ * fallback uses port 8080 via isLoopbackDevHost().
  */
 
 import { apiRequest, getWsUrl } from '@/lib/api';

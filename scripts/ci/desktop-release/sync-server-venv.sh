@@ -3,9 +3,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+# shellcheck source=../../lib/server_sync_flags.sh
+source "${ROOT}/scripts/lib/server_sync_flags.sh"
 cd "$ROOT/myrm-agent-server"
 
-sync_flags=(--all-extras --no-group dev --no-extra matrix-e2ee)
+# Exclude matrix-e2ee (crypto weight) and GPL optional extras from desktop/commercial bundles.
+sync_flags=("${SERVER_UV_SYNC_FLAGS[@]}" --no-group dev)
 if [[ "${GITHUB_ACTIONS:-}" == "true" && "${MYRM_HARNESS_INSTALL_MODE:-}" == "pypi" ]]; then
   # uv.lock may pin Tsinghua mirror wheel URLs; GHA runners must use PyPI.org (mirror 403 on harness).
   echo "[sync-server-venv] CI pypi mode: resolve from https://pypi.org/simple"

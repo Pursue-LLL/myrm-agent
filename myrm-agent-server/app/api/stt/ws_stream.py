@@ -61,6 +61,14 @@ async def stt_stream(ws: WebSocket) -> None:
         await _close_ws(ws, _WS_CLOSE_ERROR, "STT not configured")
         return
 
+    from app.channels.voice.stt import local_stt_unavailable_detail
+
+    unavailable_detail = local_stt_unavailable_detail(voice_config)
+    if unavailable_detail:
+        await _send_json(ws, {"type": "error", "message": unavailable_detail})
+        await _close_ws(ws, _WS_CLOSE_ERROR, "Local STT unavailable")
+        return
+
     provider = voice_config.stt_provider.lower()
 
     if provider in _STREAMING_PROVIDERS:

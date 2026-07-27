@@ -28,7 +28,8 @@ if ((Test-Path $HarnessSrc) -and (Test-Path $HarnessInstaller)) {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 } else {
     Write-Host "Server: uv sync (PyPI harness)..."
-    uv sync --all-extras
+    # Match scripts/lib/server_sync_flags.sh (PowerShell has no shared source; keep in sync manually).
+    uv sync --all-extras --no-extra matrix-e2ee --no-extra voice-tts --no-extra wechat-silk
 }
 
 Write-Host "Installing browser runtime (patchright)..."

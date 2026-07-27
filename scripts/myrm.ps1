@@ -158,7 +158,8 @@ switch ($Command) {
         git pull --ff-only
         if ($LASTEXITCODE -ne 0) { Write-Error "git pull failed"; exit 1 }
         Set-Location $ServerDir
-        uv sync --all-extras
+        # Match scripts/lib/server_sync_flags.sh
+        uv sync --all-extras --no-extra matrix-e2ee --no-extra voice-tts --no-extra wechat-silk
         if ($LASTEXITCODE -ne 0) { Write-Error "Backend sync failed"; exit 1 }
         uv run patchright install chromium 2>$null
         Set-Location $FrontendDir

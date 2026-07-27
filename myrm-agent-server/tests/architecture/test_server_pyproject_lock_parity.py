@@ -17,6 +17,9 @@ _LOCK_PATH = _SERVER_ROOT / "uv.lock"
 _FORBIDDEN_MAIN_DEPS = (
     "camoufox",
     "pilk",
+    "faster-whisper",
+    "pyautogui",
+    "edge-tts",
 )
 
 _FORBIDDEN_REQUIRES_DIST = (
@@ -111,6 +114,14 @@ def test_lock_harness_editable_monorepo_path() -> None:
         pytest.skip("lock already pinned to registry; PyPI network check may have been unreachable")
     assert 'editable = "../../myrm-agent-harness"' in text
     assert 'editable = "../myrm-agent-harness"' not in text
+
+
+@pytest.mark.architecture
+def test_lock_includes_local_stt_extra_markers() -> None:
+    """Local Whisper STT optional extra must be present in lock metadata."""
+    block = _lock_requires_dist_block()
+    assert "extra == 'local-stt'" in block or 'extra == "local-stt"' in block
+    assert "faster-whisper" in block
 
 
 @pytest.mark.architecture

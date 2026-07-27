@@ -10,6 +10,7 @@
 |------|------|
 | `resolve_agent_root.sh` | 解析嵌套 monorepo 与独立 clone 下的 `myrm-agent` 根路径 |
 | `start_server.sh` | 启动 FastAPI 后端（env、端口、venv python） |
+| `server_sync_flags.sh` | OSS dev setup 与 Desktop release 共用的 `uv sync` flags（排除 GPL/heavy optional extras） |
 
 ## 依赖
 

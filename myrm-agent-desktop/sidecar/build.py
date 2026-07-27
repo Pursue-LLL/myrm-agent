@@ -120,6 +120,10 @@ def _install_editable_harness() -> None:
             "dev",
             "--no-extra",
             "matrix-e2ee",
+            "--no-extra",
+            "voice-tts",
+            "--no-extra",
+            "wechat-silk",
         ],
         cwd=SERVER_ROOT,
         check=True,
@@ -130,7 +134,7 @@ def _install_editable_harness() -> None:
             "pip",
             "install",
             "-e",
-            f"{HARNESS_ROOT}[file-parsers,web,fastapi,retrieval,qdrant,image-processing,browser]",
+            f"{HARNESS_ROOT}[file-parsers,web,fastapi,retrieval,qdrant,image-processing,browser,computer-use]",
         ],
         cwd=SERVER_ROOT,
         check=True,
@@ -157,6 +161,10 @@ def ensure_production_harness_wheels() -> None:
         "dev",
         "--no-extra",
         "matrix-e2ee",
+        "--no-extra",
+        "voice-tts",
+        "--no-extra",
+        "wechat-silk",
     ]
     subprocess.run(sync_args, cwd=SERVER_ROOT, check=True)
 

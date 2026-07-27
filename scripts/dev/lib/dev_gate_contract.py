@@ -99,6 +99,8 @@ CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
 )
 # Unified E2E admission (UEA v3).
 E2E_UNIFIED_WAIT_SEC: Final[int] = 300
+# R58: lease/mux/SHPOIB bootstrap queue budget (separate from 600s body wall clock).
+E2E_ADMISSION_WALL_CLOCK_SEC: Final[int] = 900
 LIVE_SHPOIB_MAX_CONCURRENT: Final[int] = 4
 LIVE_SHARED_HOT_MAX_CONCURRENT: Final[int] = 1
 E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (
@@ -176,14 +178,16 @@ def chrome_e2e_pytest_safe_queue_buffer_sec(
     *,
     shpoib: bool | None = None,
 ) -> int:
-    """Queue wait excluded from R42 body wall clock but counted by run_pytest_safe."""
-    if lane.strip().upper() != "LIVE_AGENT":
-        return 0
+    """Queue/admission wait excluded from R58 body wall clock but counted by run_pytest_safe."""
     resolved_shpoib = (
         shpoib
         if shpoib is not None
         else os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
     )
+    if resolved_shpoib:
+        return E2E_ADMISSION_WALL_CLOCK_SEC
+    if lane.strip().upper() != "LIVE_AGENT":
+        return 0
     buffer = E2E_UNIFIED_WAIT_SEC
     if not chrome_e2e_skips_shared_stream_lock(lane=lane, shpoib=resolved_shpoib):
         buffer += live_agent_stream_wait_sec(joined_argv)
