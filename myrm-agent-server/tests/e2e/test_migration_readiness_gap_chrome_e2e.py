@@ -32,24 +32,6 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lea
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 _AGENT_PROMPT = "Hello after migration import"
 
-_SET_MIGRATION_ANCHOR_JS = """(seed) => {
-  const key = 'myrm:migration-readiness-anchor';
-  localStorage.setItem(
-    key,
-    JSON.stringify({
-      importBatchId: seed.import_batch_id,
-      readinessStatus: seed.readiness_status,
-      targetAgentId: seed.target_agent_id,
-      queuedAt: new Date().toISOString(),
-    }),
-  );
-  return {
-    ok: true,
-    key,
-    raw: localStorage.getItem(key),
-  };
-}"""
-
 _WAIT_CHAT_IDLE_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge) return { ok: false, err: 'no-bridge' };
@@ -184,11 +166,24 @@ async def test_migration_readiness_gap_shows_sse_toast_on_first_chat(
         await chat.bootstrap(BASE_URL, timeout_sec=120.0)
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
 
+        seed_json = json.dumps(seed)
         anchor_set = await chat.evaluate(
-            _SET_MIGRATION_ANCHOR_JS,
+            f"""(() => {{
+              const seed = {seed_json};
+              const key = 'myrm:migration-readiness-anchor';
+              localStorage.setItem(
+                key,
+                JSON.stringify({{
+                  importBatchId: seed.import_batch_id,
+                  readinessStatus: seed.readiness_status,
+                  targetAgentId: seed.target_agent_id,
+                  queuedAt: new Date().toISOString(),
+                }}),
+              );
+              return {{ ok: true, key, raw: localStorage.getItem(key) }};
+            }})()""",
             await_promise=False,
             recv_timeout=15.0,
-            arg=seed,
         )
         assert isinstance(anchor_set, dict) and anchor_set.get("ok") is True, anchor_set
 
@@ -207,23 +202,23 @@ async def test_migration_readiness_gap_shows_sse_toast_on_first_chat(
         assert isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True, workspace_ready
 
         send = await chat.evaluate(
-            """(async (prompt) => {
+            f"""(async () => {{
+              const prompt = {json.dumps(_AGENT_PROMPT)};
               const bridge = window.__MYRM_E2E_CHAT__;
-              if (!bridge) return { ok: false, err: 'no-bridge' };
+              if (!bridge) return {{ ok: false, err: 'no-bridge' }};
               bridge.clearSseSnapshot?.();
               const baseline = bridge.turnSnapshot?.().userCount ?? 0;
-              if (typeof bridge.sendChatMessage !== 'function') {
-                return { ok: false, err: 'no-sendChatMessage' };
-              }
-              const result = await bridge.sendChatMessage(prompt, {
+              if (typeof bridge.sendChatMessage !== 'function') {{
+                return {{ ok: false, err: 'no-sendChatMessage' }};
+              }}
+              const result = await bridge.sendChatMessage(prompt, {{
                 baselineUserCount: baseline,
                 preserveActionMode: true,
-              });
-              return { ok: !!result?.ok, result };
-            })""",
+              }});
+              return {{ ok: !!result?.ok, result }};
+            }})()""",
             await_promise=True,
             recv_timeout=120.0,
-            arg=_AGENT_PROMPT,
         )
         assert isinstance(send, dict), send
 
