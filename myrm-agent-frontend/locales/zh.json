@@ -5249,7 +5249,9 @@
         "render_ui": "交互式 UI",
         "planning": "多步进度",
         "structured_clarify": "结构化澄清",
-        "external_cli": "外部 CLI"
+        "external_cli": "外部 CLI",
+        "skill_market": "技能市场",
+        "skill_evolution": "技能进化"
       },
       "builtinToolDescs": {
         "web_search": "搜索互联网获取实时信息",

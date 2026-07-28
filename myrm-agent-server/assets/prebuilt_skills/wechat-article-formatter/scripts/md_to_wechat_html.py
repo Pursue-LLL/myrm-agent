@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert Markdown to WeChat Official Account compatible HTML with inline CSS."""
+"""Convert Markdown to WeChat Official Account styled HTML (preview document + draft-ready body content)."""
 
 from __future__ import annotations
 

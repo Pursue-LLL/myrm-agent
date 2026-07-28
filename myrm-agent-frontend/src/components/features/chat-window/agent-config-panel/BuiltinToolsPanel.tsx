@@ -19,6 +19,8 @@ import {
   Clock,
   ClipboardList,
   Terminal,
+  Store,
+  Sparkles,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Label } from '@/components/primitives/label';
@@ -68,6 +70,8 @@ const BUILTIN_TOOL_ICONS: Record<BuiltinToolId, React.ReactNode> = {
   planning: <ListTodo size={14} />,
   structured_clarify: <ClipboardList size={14} />,
   external_cli: <Terminal size={14} />,
+  skill_market: <Store size={14} />,
+  skill_evolution: <Sparkles size={14} />,
 };
 
 export const BuiltinToolsPanel = ({

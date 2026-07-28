@@ -51,6 +51,52 @@ async def test_create_draft_uploads_images_and_calls_draft_add(html_with_local_i
     assert draft_payload["articles"][0]["thumb_media_id"] == "thumb_media_123"
 
 
+def test_build_draft_content_uses_body_with_embedded_style() -> None:
+    processed = (
+        "<!DOCTYPE html><html><head><style>h1 { color: red; }</style></head>"
+        "<body><h1>Title</h1><p>Hello world</p></body></html>"
+    )
+    content = _build_draft_content(processed)
+    assert "<!DOCTYPE" not in content
+    assert "<html" not in content
+    assert "<head" not in content
+    assert "<style>h1 { color: red; }</style>" in content
+    assert "<h1>Title</h1>" in content
+    assert _extract_digest("<h1>Title</h1><p>Hello world</p>") == "Title Hello world"
+
+
+@pytest.mark.asyncio
+async def test_create_draft_content_excludes_document_wrapper(tmp_path: Path) -> None:
+    image = tmp_path / "cover.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+    html_path = tmp_path / "styled.wechat.html"
+    html_path.write_text(
+        "<!DOCTYPE html><html><head><style>body { font-family: serif; }</style></head>"
+        '<body><p>Article body</p><img src="cover.png" alt="cover"></body></html>',
+        encoding="utf-8",
+    )
+    client = AsyncMock(spec=WeChatOfficialApiClient)
+    client.post_multipart = AsyncMock(
+        side_effect=[
+            {"url": "https://mmbiz.qpic.cn/content-img"},
+            {"media_id": "thumb_media_123"},
+        ]
+    )
+    client.post_json = AsyncMock(return_value={"media_id": "draft_media_456"})
+
+    service = WeChatDraftService(client)
+    await service.create_draft_from_html_file(html_path, title="Styled Article")
+
+    draft_payload = client.post_json.await_args.args[1]
+    content = str(draft_payload["articles"][0]["content"])
+    digest = str(draft_payload["articles"][0]["digest"])
+    assert "<!DOCTYPE" not in content
+    assert "<html" not in content
+    assert "<style>body { font-family: serif; }</style>" in content
+    assert "Article body" in content
+    assert "font-family" not in digest
+
+
 @pytest.mark.asyncio
 async def test_create_draft_requires_cover_when_no_images(tmp_path: Path) -> None:
     html_path = tmp_path / "plain.html"

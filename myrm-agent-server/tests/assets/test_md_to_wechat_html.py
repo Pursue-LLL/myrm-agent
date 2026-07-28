@@ -60,7 +60,7 @@ def test_md_to_wechat_html_golden_tables_lists_and_code(tmp_path: Path) -> None:
     assert html.count("<li>") >= 2
     assert "<ul>" in html
     assert "print('wechat')" in html or "print(&#x27;wechat&#x27;)" in html or "&#39;wechat&#39;" in html
-    assert "<pre>" in html
+    assert "<code>" in html
     assert 'style="color:' in html or 'class="highlight"' in html
 
 

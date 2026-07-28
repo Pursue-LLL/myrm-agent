@@ -106,4 +106,6 @@ def _with_meta_mount(
         enable_planning=flags["enable_planning"],
         enable_structured_clarify=flags["enable_structured_clarify"],
         enable_external_cli=flags["enable_external_cli"],
+        enable_skill_market=flags["enable_skill_market"],
+        enable_skill_evolution=flags["enable_skill_evolution"],
     )

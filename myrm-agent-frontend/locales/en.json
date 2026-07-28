@@ -5249,7 +5249,9 @@
         "render_ui": "Interactive UI",
         "planning": "Multi-Step Progress",
         "structured_clarify": "Structured Clarify",
-        "external_cli": "External CLI"
+        "external_cli": "External CLI",
+        "skill_market": "Skill Market",
+        "skill_evolution": "Skill Evolution"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -5268,7 +5270,9 @@
         "render_ui": "Fill forms and view tables or charts directly in chat",
         "planning": "Main-agent todo list for multi-step tasks — updates the progress tree in chat (no sub-agent planner)",
         "structured_clarify": "Ask structured clarification forms when user intent is ambiguous — pauses the agent until you respond",
-        "external_cli": "Let the agent delegate coding tasks to external CLI agents (Claude Code, Codex, Gemini CLI) via delegate_to_agent"
+        "external_cli": "Let the agent delegate coding tasks to external CLI agents (Claude Code, Codex, Gemini CLI) via delegate_to_agent",
+        "skill_market": "Search and install skills from external marketplaces in chat via skill_market_tool",
+        "skill_evolution": "Create and edit skills in chat via skill_manage_tool (/learn always mounts this tool)"
       },
       "renderUiWebOnlyHint": "Inline interactive UI renders only in Web Chat and the desktop app. Telegram, scheduled tasks, and other channels cannot display inline forms or charts.",
       "wikiScopeHint": "Documents stay in this agent's private knowledge base and won't mix with other agents.",
