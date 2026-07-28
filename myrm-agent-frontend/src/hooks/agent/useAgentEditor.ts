@@ -26,6 +26,7 @@ import {
   AgentUpdate,
   AgentCreate,
   OpenAPIServiceConfig,
+  invalidateAgentReadiness,
   type WorkspacePolicy,
 } from '@/services/agent';
 import { DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
@@ -533,6 +534,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
 
       setHasChanges(false);
       setSaveVersion((v) => v + 1);
+
+      if (agent?.id) {
+        invalidateAgentReadiness(agent.id).catch(() => {});
+      }
     } catch (error) {
       toast({
         title: t('agent.operationFailed'),

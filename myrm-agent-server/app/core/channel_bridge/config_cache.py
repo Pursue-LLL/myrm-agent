@@ -55,11 +55,19 @@ def invalidate_user_configs_cache() -> None:
 
     Call this when config_service.set() or config_service.delete() succeeds
     to ensure load_user_configs() returns fresh data.
+    Also cascades to agent readiness cache since readiness depends on user configs.
     """
     from app.core.infra.ingress import invalidate_public_ingress_cache
 
     _config_cache.pop("sandbox", None)
     invalidate_public_ingress_cache()
+
+    try:
+        from app.services.agent.readiness import get_readiness_resolver
+
+        get_readiness_resolver().invalidate_all()
+    except Exception:
+        pass
 
 
 __all__ = [

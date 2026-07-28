@@ -26,6 +26,8 @@ from dev_gate_contract import (
 )
 
 MUX_SESSION_RECOVERY_BUDGET_SEC: float = 120.0
+MUX_SESSION_RECOVERY_BUDGET_MAX_SEC: float = 300.0
+MUX_SESSION_RECOVERY_BUDGET_PER_PEER_SEC: float = 30.0
 MUX_RECOVERY_LOCK_WAIT_SEC: float = 90.0
 MUX_RECOVERY_LOCK_BASE_SEC: float = 15.0
 MUX_RECOVERY_LOCK_PER_ACTIVE_SEC: float = 20.0
@@ -48,11 +50,23 @@ def session_key() -> str:
     return f"pid-{os.getpid()}"
 
 
+def session_recovery_budget_cap() -> float:
+    """Scale mux recovery budget under parallel wave/mux peers (R100)."""
+    peers = parallel_mux_peer_count()
+    if peers <= 3:
+        return MUX_SESSION_RECOVERY_BUDGET_SEC
+    scaled = MUX_SESSION_RECOVERY_BUDGET_SEC + (
+        (peers - 3) * MUX_SESSION_RECOVERY_BUDGET_PER_PEER_SEC
+    )
+    return min(MUX_SESSION_RECOVERY_BUDGET_MAX_SEC, scaled)
+
+
 def recovery_budget_remaining() -> float:
     key = session_key()
+    cap = session_recovery_budget_cap()
     with _session_lock:
         spent = _session_recovery_spent.get(key, 0.0)
-    return max(0.0, MUX_SESSION_RECOVERY_BUDGET_SEC - spent)
+    return max(0.0, cap - spent)
 
 
 def parallel_active_test_count() -> int:
@@ -111,9 +125,10 @@ def assert_mux_daemons_single(*, phase: str) -> None:
 def _reserve_recovery_budget(*, phase: str) -> float:
     remaining = recovery_budget_remaining()
     if remaining <= 0.0:
+        cap = session_recovery_budget_cap()
         raise RuntimeError(
             f"{MUX_TRANSPORT_EXHAUSTED_TOKEN}: session recovery budget "
-            f"{int(MUX_SESSION_RECOVERY_BUDGET_SEC)}s exhausted at phase={phase}"
+            f"{int(cap)}s exhausted at phase={phase}"
         )
     return min(remaining, float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC))
 
