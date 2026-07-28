@@ -13,6 +13,7 @@ from cdp_chat_support import (
 )
 from mcp_chat_ui import McpChatSession
 from e2e_lease_heartbeat import heartbeat_e2e_lease
+from dev_gate_contract import GATE_MUX_STALL_FAIL_FAST_SEC
 
 E2E_PROMPT = (
     "我在验证浏览器人工接管功能。请调用 browser_ask_human_tool 一次，"
@@ -218,6 +219,7 @@ async def wait_for_browser_ask_human_gate(
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     last_api_poll_at = 0.0
     mux_degraded = False
+    mux_stall_started: float | None = None
     while time.monotonic() < deadline:
         heartbeat_e2e_lease()
         now = time.monotonic()
@@ -240,15 +242,28 @@ async def wait_for_browser_ask_human_gate(
                     )
                     return api_tool or "browser_ask_human_tool", True, True
         progress = await probe_browser_tool_progress(chat)
+        last_tool = str(progress.get("lastTool") or last_tool)
+        takeover_pending = progress.get("takeoverPending") is True
         if progress.get("muxStall") is True:
             mux_degraded = True
-        last_tool = str(progress.get("lastTool") or "")
-        takeover_pending = progress.get("takeoverPending") is True
+            if mux_stall_started is None:
+                mux_stall_started = now
+            elif (
+                now - mux_stall_started >= GATE_MUX_STALL_FAIL_FAST_SEC
+                and not takeover_pending
+                and not last_tool.endswith("browser_ask_human_tool")
+            ):
+                raise TimeoutError(
+                    f"E2E_GATE_MUX_STALL_FAIL_FAST after "
+                    f"{int(now - mux_stall_started)}s "
+                    f"(cap={GATE_MUX_STALL_FAIL_FAST_SEC}s, api_degraded={mux_degraded})"
+                )
+        else:
+            mux_stall_started = None
         if takeover_pending or last_tool.endswith("browser_ask_human_tool"):
             return last_tool, takeover_pending, False
 
         if progress.get("muxStall") is True:
-            mux_degraded = True
             api_progress = await api_browser_gate_progress(
                 chat_id,
                 api_url=resolved_api,

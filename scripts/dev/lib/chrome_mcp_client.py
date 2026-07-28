@@ -112,6 +112,24 @@ def _is_mux_parallel_fail_fast_message(message: str) -> bool:
     )
 
 
+def _parallel_mux_peer_count() -> int:
+    """Active parallel mux/wave peers for cross-session teardown guard (R69/TRSM)."""
+    snapshot = snapshot_mux_load(force=True)
+    wave_leases = max(0, snapshot.wave_leases)
+    mux_contexts = max(0, snapshot.mux_contexts)
+    daemon_count = 1
+    try:
+        from runtime_probe import mux_owned_daemon_count
+
+        daemon_count = max(1, int(mux_owned_daemon_count()))
+    except (ImportError, OSError, TypeError, ValueError):
+        pass
+    return max(wave_leases, mux_contexts, daemon_count)
+
+
+def _shim_process_alive(client: "ChromeMcpClient") -> bool:
+    process = client._process
+    return process is not None and process.poll() is None
 
 def _reclaim_wall_deadline() -> float:
     return time.monotonic() + float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC)
@@ -145,20 +163,28 @@ _LOGGER = logging.getLogger(__name__)
 def _resolve_request_lock_acquire_sec() -> float:
     """Scale per-session mux request lock wait with parallel E2E load (R76).
 
-    ``transport_supervisor.recovery_lock_wait_sec`` already scales the global
-    recovery mutex; the per-client lock must not fail-fast at 5s while a peer
-    recover holds the session lock during orphan rebuild.
+    ``transport_supervisor.recovery_lock_wait_sec`` scales on active pytest count;
+    ``_parallel_mux_peer_count`` scales on concurrent mux sessions (Run#20:
+    active_tests=1 but peers=5 → 35s wait was insufficient). Stream lock holder
+    (shared_hot desktop) uses full parallel cap — sole authorized shared_hot consumer.
     """
+    scaled = _REQUEST_LOCK_ACQUIRE_SEC
     try:
         from transport_supervisor import recovery_lock_wait_sec
 
-        scaled = recovery_lock_wait_sec()
-        return min(
-            max(_REQUEST_LOCK_ACQUIRE_SEC, scaled),
-            _REQUEST_LOCK_ACQUIRE_PARALLEL_CAP_SEC,
-        )
+        scaled = max(scaled, recovery_lock_wait_sec())
     except ImportError:
-        return _REQUEST_LOCK_ACQUIRE_SEC
+        pass
+    peer_count = _parallel_mux_peer_count()
+    if peer_count > 1:
+        peer_scaled = _REQUEST_LOCK_ACQUIRE_SEC + (peer_count - 1) * 15.0
+        scaled = max(scaled, peer_scaled)
+    if os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip() == "1":
+        return _REQUEST_LOCK_ACQUIRE_PARALLEL_CAP_SEC
+    return min(
+        max(_REQUEST_LOCK_ACQUIRE_SEC, scaled),
+        _REQUEST_LOCK_ACQUIRE_PARALLEL_CAP_SEC,
+    )
 
 
 class _TransportDeadError(RuntimeError):
@@ -360,6 +386,17 @@ class ChromeMcpClient:
             snapshot = probe
         self._mux_load_cache = snapshot
         return snapshot
+
+    def _resolve_trsm_mode(self) -> "TransportRecoveryMode":
+        from transport_recovery_core import (
+            TransportRecoveryMode,
+            resolve_transport_recovery_mode,
+        )
+
+        return resolve_transport_recovery_mode(
+            parallel_peers=_parallel_mux_peer_count(),
+            shim_alive=_shim_process_alive(self),
+        )
 
     def _default_page_timeout_ms(self) -> int:
         load = self._mux_load_snapshot()
@@ -691,7 +728,12 @@ class ChromeMcpClient:
             )
             mcp_closed = True
         except (RuntimeError, TimeoutError) as exc:
-            errors.append(f"close_page: {exc}")
+            if is_context_reset_error(exc):
+                _LOGGER.warning(
+                    "close_page skipped after mux context reset; using HTTP close fallback"
+                )
+            else:
+                errors.append(f"close_page: {exc}")
         if not mcp_closed and page.target_id.strip():
             if _http_close_exact_target(page.target_id):
                 errors = [item for item in errors if not item.startswith("close_page:")]
@@ -777,6 +819,48 @@ class ChromeMcpClient:
                 "Chrome MCP ensure_primary_page_after_recovery: new_page returned None"
             )
         return fresh
+
+    def _maybe_refresh_tool_page_arguments(
+        self, arguments: dict[str, object]
+    ) -> dict[str, object]:
+        if "pageId" not in arguments:
+            return arguments
+        primary = self.primary_owned_page()
+        if primary is None:
+            return arguments
+        refreshed = dict(arguments)
+        refreshed["pageId"] = primary.page_id
+        return refreshed
+
+    def _heal_after_context_reset(self) -> None:
+        """R96-MUX: rebuild owned pages via new_page after mux context reset."""
+        from transport_recovery_core import TransportRecoveryMode
+
+        saved_pages = self._collapse_pages_for_recovery(
+            {**self._disconnected_pages, **self._pages}
+        )
+        if not saved_pages:
+            return
+        _LOGGER.warning(
+            "R96_MUX_CONTEXT_RESET_HEAL: rebuilding %d owned page(s) via new_page",
+            len(saved_pages),
+        )
+        self._pages.clear()
+        for page in saved_pages.values():
+            self._disconnected_pages[page.page_id] = page
+        reclaim_deadline = _reclaim_wall_deadline()
+        trsm_mode = self._resolve_trsm_mode()
+        if trsm_mode == TransportRecoveryMode.PARALLEL_PAGE_RECLAIM:
+            self._reclaim_pages_parallel_safe(saved_pages, reclaim_deadline)
+        if not self._pages:
+            self._rebuild_disconnected_pages(saved_pages, reclaim_deadline)
+        try:
+            from e2e_runtime_cell import bump_cell_mux_generation, current_cell_id
+
+            if current_cell_id():
+                bump_cell_mux_generation()
+        except ImportError:
+            pass
 
     def reclaim_owned_page(self, page: McpPage) -> McpPage:
         """Reopen one mux-owned page after ownership loss and return the live page."""
@@ -1166,6 +1250,23 @@ class ChromeMcpClient:
             saved_pages = self._collapse_pages_for_recovery(
                 {**self._disconnected_pages, **self._pages}
             )
+            from transport_recovery_core import (
+                TRSM_MODE_TOKEN,
+                TransportRecoveryMode,
+            )
+
+            trsm_mode = self._resolve_trsm_mode()
+            peer_count = _parallel_mux_peer_count()
+            _LOGGER.warning(
+                "%s=%s parallel_mux_peers=%d pages=%d",
+                TRSM_MODE_TOKEN,
+                trsm_mode.value,
+                peer_count,
+                len(saved_pages),
+            )
+            if trsm_mode == TransportRecoveryMode.PARALLEL_PAGE_RECLAIM:
+                self._reclaim_pages_parallel_safe(saved_pages, reclaim_deadline)
+                return
             self._teardown_shim_process()
             last_error: RuntimeError | None = None
             for attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
@@ -1297,6 +1398,51 @@ class ChromeMcpClient:
                     except Exception:
                         pass
 
+    def _reclaim_pages_parallel_safe(
+        self,
+        saved_pages: dict[int, McpPage],
+        reclaim_deadline: float,
+    ) -> None:
+        """R69-C: page-level reclaim when global shim teardown would harm peer sessions."""
+        if not saved_pages:
+            return
+        peer_count = _parallel_mux_peer_count()
+        for old_page_id, old_page in saved_pages.items():
+            remaining = _remaining_reclaim_sec(reclaim_deadline)
+            if remaining < 5.0:
+                _LOGGER.warning(
+                    "RECOVER_MUX_PARALLEL_RECLAIM: budget exhausted; page %d skipped",
+                    old_page_id,
+                )
+                break
+            try:
+                reclaimed = self.reclaim_owned_page(old_page)
+                self._pages[reclaimed.page_id] = reclaimed
+                self._disconnected_pages.pop(old_page_id, None)
+                _LOGGER.info(
+                    "RECOVER_MUX_PARALLEL_RECLAIM: page %d→%d peers=%d",
+                    old_page_id,
+                    reclaimed.page_id,
+                    peer_count,
+                )
+            except Exception as exc:
+                _LOGGER.warning(
+                    "RECOVER_MUX_PARALLEL_RECLAIM: page %d failed: %s",
+                    old_page_id,
+                    exc,
+                )
+                try:
+                    self._rebuild_disconnected_pages(
+                        {old_page_id: old_page},
+                        reclaim_deadline,
+                    )
+                except Exception as rebuild_exc:
+                    _LOGGER.warning(
+                        "RECOVER_MUX_PARALLEL_REBUILD: page %d failed: %s",
+                        old_page_id,
+                        rebuild_exc,
+                    )
+
     def abandon_inflight_requests(self) -> None:
         """Invalidate orphaned mux I/O after asyncio cancelled a blocking evaluate thread."""
         _LOGGER.warning(
@@ -1314,7 +1460,18 @@ class ChromeMcpClient:
             pass
         self._page_lease_heartbeat.stop()
         self._reclaim_in_progress = False
-        self._teardown_shim_process()
+        from transport_recovery_core import TRSM_MODE_TOKEN, should_skip_global_teardown
+
+        trsm_mode = self._resolve_trsm_mode()
+        if should_skip_global_teardown(trsm_mode):
+            _LOGGER.warning(
+                "ABANDON_INFLIGHT_SKIPPED_TEARDOWN: %s=%s parallel_mux_peers=%d",
+                TRSM_MODE_TOKEN,
+                trsm_mode.value,
+                _parallel_mux_peer_count(),
+            )
+        else:
+            self._teardown_shim_process()
         # Orphan to_thread may still hold the old lock in select(); replace so recover
         # on the event loop thread cannot deadlock (R49-R50).
         self._request_lock = threading.RLock()
@@ -1372,6 +1529,19 @@ class ChromeMcpClient:
                 message = str(exc)
                 if _is_mux_parallel_fail_fast_message(message):
                     raise
+                if (
+                    not is_probe
+                    and is_context_reset_error(exc)
+                    and attempt + 1 < max_attempts
+                ):
+                    self._heal_after_context_reset()
+                    tool_arguments = self._maybe_refresh_tool_page_arguments(
+                        tool_arguments
+                    )
+                    time.sleep(
+                        _tool_retry_backoff_sec(name, attempt, transient=True)
+                    )
+                    continue
                 reclaimed = None
                 if not getattr(self, "_reclaim_in_progress", False):
                     reclaimed = self._maybe_reclaim_page_arguments(
@@ -1385,6 +1555,16 @@ class ChromeMcpClient:
                             _tool_retry_backoff_sec(name, attempt, transient=False)
                         )
                         continue
+                if (
+                    not is_probe
+                    and _is_page_ownership_error(message)
+                    and attempt + 1 < max_attempts
+                ):
+                    self._recover_mux_transport()
+                    time.sleep(
+                        _tool_retry_backoff_sec(name, attempt, transient=True)
+                    )
+                    continue
                 transient = isinstance(exc, RuntimeError) and _is_transient_mux_error(
                     message
                 )
@@ -1419,6 +1599,19 @@ class ChromeMcpClient:
                 )
             if result.get("isError") is True:
                 message = text_content(result)
+                if (
+                    not is_probe
+                    and is_context_reset_error(RuntimeError(message))
+                    and attempt + 1 < max_attempts
+                ):
+                    self._heal_after_context_reset()
+                    tool_arguments = self._maybe_refresh_tool_page_arguments(
+                        tool_arguments
+                    )
+                    time.sleep(
+                        _tool_retry_backoff_sec(name, attempt, transient=True)
+                    )
+                    continue
                 reclaimed = None
                 if not getattr(self, "_reclaim_in_progress", False):
                     reclaimed = self._maybe_reclaim_page_arguments(
@@ -1432,6 +1625,12 @@ class ChromeMcpClient:
                             _tool_retry_backoff_sec(name, attempt, transient=False)
                         )
                         continue
+                if _is_page_ownership_error(message) and attempt + 1 < max_attempts:
+                    self._recover_mux_transport()
+                    time.sleep(
+                        _tool_retry_backoff_sec(name, attempt, transient=True)
+                    )
+                    continue
                 if not is_probe and _should_recover_mux_after_tool_error(
                     name, message, retry_tools=frozenset(retry_tools)
                 ):
@@ -1783,11 +1982,13 @@ class ChromeMcpClient:
             try:
                 self._wave_command("lease", "unbind-browser", page.lease_id)
             except (RuntimeError, TimeoutError) as exc:
-                errors.append(f"unbind: {exc}")
+                if not _is_benign_cleanup_error(str(exc)):
+                    errors.append(f"unbind: {exc}")
         try:
             self._release_lease(page.lease_id, close_wave_if_idle=False)
         except (RuntimeError, TimeoutError) as exc:
-            errors.append(f"release: {exc}")
+            if not _is_benign_cleanup_error(str(exc)):
+                errors.append(f"release: {exc}")
         if errors:
             raise RuntimeError("; ".join(errors))
 

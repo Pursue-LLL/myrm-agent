@@ -21,6 +21,8 @@ def is_gate_mux_stall(exc: BaseException) -> bool:
             "No page found",
             "Chrome MCP transport closed",
             "Chrome MCP tools/call response timed out",
+            "Chrome MCP context reset",
+            "call new_page before",
         )
     )
 

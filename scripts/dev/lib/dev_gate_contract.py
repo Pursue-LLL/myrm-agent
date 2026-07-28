@@ -91,8 +91,8 @@ MUX_UPSTREAM_WAIT_SEC: Final[int] = 300
 MUX_UPSTREAM_POLL_SEC: Final[int] = 15
 # Single LIVE chrome_e2e test wall-clock stall budget (fail-fast, not pytest floor).
 LIVE_SINGLE_TEST_WALL_CLOCK_SEC: Final[int] = 600
-# LIVE_AGENT body phase aligns with @pytest.mark.timeout(900) on chrome_e2e LIVE tests.
-LIVE_AGENT_BODY_WALL_CLOCK_SEC: Final[int] = 900
+# LIVE_AGENT body phase aligns with @pytest.mark.timeout(600) on chrome_e2e LIVE tests.
+LIVE_AGENT_BODY_WALL_CLOCK_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 # R62: signoff four-phase budgets (ADMIT/BOOTSTRAP independent from BODY 600s).
 E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC: Final[int] = 300
 E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV: Final[int] = 180
@@ -192,7 +192,13 @@ BASE_TOOL_TIMEOUT_SEC: Final[float] = 180.0
 LIVE_AGENT_STREAM_WAIT_SEC: Final[int] = 300
 # Desktop shared_hot queue cap aligns with monotonic wall budget (R39).
 LIVE_AGENT_STREAM_WAIT_DESKTOP_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
-# pytest-timeout floor body segment — SSOT with LIVE_AGENT_BODY_WALL_CLOCK_SEC (R73-D).
+# pytest-timeout cap for a single LIVE pytest item (bootstrap + body + teardown; ADMIT is pre-pytest).
+LIVE_AGENT_PYTEST_WALL_CAP_SEC: Final[int] = (
+    E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
+    + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+    + E2E_TEARDOWN_WALL_CLOCK_SEC
+)
+# pytest-timeout floor body segment — SSOT with LIVE_AGENT_BODY_WALL_CLOCK_SEC (R73-D / R96-R62).
 LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = LIVE_AGENT_BODY_WALL_CLOCK_SEC
 # SHPOIB clarify skip API poll under parallel load (API-first path).
 CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
@@ -213,6 +219,8 @@ SIGNOFF_CLARIFY_API_SEAL_SKIP: Final[str] = (
 # R47: hard wall for mux page reopen/reclaim (nested call_tool must not burn 600s).
 MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC: Final[int] = 120
 SHELL_PROBE_STALL_FAIL_FAST_SEC: Final[int] = 120
+# R96-MUX: browser takeover gate — consecutive MUX stall without API gate progress.
+GATE_MUX_STALL_FAIL_FAST_SEC: Final[int] = 120
 E2E_SHELL_SKELETON_STALL_TOKEN: Final[str] = "E2E_SHELL_SKELETON_STALL"
 MUX_RECLAIM_STALL_TOKEN: Final[str] = "MUX_RECLAIM_STALL"
 # R69: refuse global mux shim teardown when other wave leases/contexts are active.
@@ -311,13 +319,11 @@ def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
         return SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC
     if CHROME_E2E_DESKTOP_MARKER in joined_argv:
         return CHROME_E2E_DESKTOP_TIMEOUT_SECONDS
-    if CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER in joined_argv:
-        return CHROME_E2E_BROWSER_TAKEOVER_PYTEST_TIMEOUT_SEC
     floor = chrome_e2e_pytest_timeout_for_lane(lane)
     body_cap = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
     shpoib = os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
     if shpoib and lane.strip().upper() == "LIVE_AGENT":
-        body_cap = E2E_ADMISSION_WALL_CLOCK_SEC + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+        body_cap = LIVE_AGENT_PYTEST_WALL_CAP_SEC
     return min(floor, body_cap)
 
 
