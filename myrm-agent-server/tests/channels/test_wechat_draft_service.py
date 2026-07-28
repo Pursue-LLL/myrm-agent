@@ -54,15 +54,16 @@ async def test_create_draft_uploads_images_and_calls_draft_add(html_with_local_i
 def test_build_draft_content_uses_body_with_embedded_style() -> None:
     processed = (
         "<!DOCTYPE html><html><head><style>h1 { color: red; }</style></head>"
-        "<body><h1>Title</h1><p>Hello world</p></body></html>"
+        '<body><h2 style="border-left: 4px solid #07c160;">Title</h2><p>Hello world</p></body></html>'
     )
     content = _build_draft_content(processed)
     assert "<!DOCTYPE" not in content
     assert "<html" not in content
     assert "<head" not in content
     assert "<style>h1 { color: red; }</style>" in content
-    assert "<h1>Title</h1>" in content
-    assert _extract_digest("<h1>Title</h1><p>Hello world</p>") == "Title Hello world"
+    assert 'border-left: 4px solid #07c160' in content
+    assert "<h2" in content
+    assert _extract_digest("<h2>Title</h2><p>Hello world</p>") == "Title Hello world"
 
 
 @pytest.mark.asyncio

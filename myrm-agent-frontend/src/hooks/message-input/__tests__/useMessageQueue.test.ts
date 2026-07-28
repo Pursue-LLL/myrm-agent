@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { useMessageQueue } from '../message-input/useMessageQueue';
+import { useMessageQueue } from '../useMessageQueue';
 
 describe('useMessageQueue', () => {
   beforeEach(() => {

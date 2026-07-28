@@ -28,35 +28,35 @@ describe('useTabBadge', () => {
   });
 
   it('does not prefix title when idle', async () => {
-    const { useTabBadge } = await import('../shell/useTabBadge');
+    const { useTabBadge } = await import('../useTabBadge');
     renderHook(() => useTabBadge());
     expect(document.title).toBe('Myrm');
   });
 
   it('prefixes [*] when busy', async () => {
     mockLivenessState = 'busy';
-    const { useTabBadge } = await import('../shell/useTabBadge');
+    const { useTabBadge } = await import('../useTabBadge');
     renderHook(() => useTabBadge());
     expect(document.title).toBe('[*] Myrm');
   });
 
   it('prefixes [!] when degraded', async () => {
     mockLivenessState = 'degraded';
-    const { useTabBadge } = await import('../shell/useTabBadge');
+    const { useTabBadge } = await import('../useTabBadge');
     renderHook(() => useTabBadge());
     expect(document.title).toBe('[!] Myrm');
   });
 
   it('prefixes [↓] when draining', async () => {
     mockLivenessState = 'draining';
-    const { useTabBadge } = await import('../shell/useTabBadge');
+    const { useTabBadge } = await import('../useTabBadge');
     renderHook(() => useTabBadge());
     expect(document.title).toBe('[↓] Myrm');
   });
 
   it('prefixes [×] when offline', async () => {
     mockLivenessState = 'offline';
-    const { useTabBadge } = await import('../shell/useTabBadge');
+    const { useTabBadge } = await import('../useTabBadge');
     renderHook(() => useTabBadge());
     expect(document.title).toBe('[×] Myrm');
   });

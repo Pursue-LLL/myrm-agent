@@ -1,4 +1,4 @@
-"""Integration: discover_capability gap hints + SSE wiring (agent-stream + direct tool path)."""
+"""Integration: stream preflight gap SSE + discover no-gap behavior + dispatcher wiring."""
 
 from __future__ import annotations
 
@@ -149,10 +149,10 @@ def _gap_events(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_discover_miss_emits_capability_gap_block_and_sse(
+async def test_discover_miss_returns_not_found_without_gap_block_or_sse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Deterministic: miss query → XML gap block + async custom event dispatch."""
+    """Discover miss must not emit entitlement gap blocks or custom events."""
     registry = ToolRegistry()
     registry.register(
         _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
@@ -160,7 +160,6 @@ async def test_discover_miss_emits_capability_gap_block_and_sse(
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
-        active_tool_groups=frozenset({"web", "memory", "file_ops", "shell"}),
     )
     assert discover is not None
 
@@ -177,21 +176,17 @@ async def test_discover_miss_emits_capability_gap_block_and_sse(
     gap_query = "zzz_gap_browser_selenium_website_7742"
     result = await discover.ainvoke({"query": gap_query})
     assert "No capabilities found" in result
-    assert "<CapabilityGap>" in result
-    assert any(name == "capability_gap" for name, _ in captured)
-    cap_payload = next(
-        payload for name, payload in captured if name == "capability_gap"
-    )
-    assert isinstance(cap_payload, dict)
-    assert cap_payload.get("tool_id") == "browser"
+    assert "<CapabilityGap>" not in result
+    assert "<SkillGap>" not in result
+    assert not any(name in {"capability_gap", "skill_gap"} for name, _ in captured)
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_discover_miss_does_not_emit_render_ui_gap_when_group_enabled(
+async def test_discover_miss_no_gap_when_render_ui_group_enabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """When render_ui is in active_tool_groups, miss must not emit false capability_gap."""
+    """Discover miss must stay gap-free regardless of active tool groups."""
     registry = ToolRegistry()
     registry.register(
         _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
@@ -223,10 +218,10 @@ async def test_discover_miss_does_not_emit_render_ui_gap_when_group_enabled(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_discover_miss_emits_render_ui_gap_when_group_disabled(
+async def test_discover_miss_no_gap_when_render_ui_group_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """When render_ui is NOT in active_tool_groups, miss must emit capability_gap."""
+    """Discover no longer emits render_ui entitlement gaps on miss."""
     registry = ToolRegistry()
     registry.register(
         _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
@@ -250,29 +245,23 @@ async def test_discover_miss_emits_render_ui_gap_when_group_disabled(
 
     result = await discover.ainvoke({"query": "please render ui interactive form"})
     assert "No capabilities found" in result
-    assert "<CapabilityGap>" in result
-    assert any(name == "capability_gap" for name, _ in captured)
-    cap_payload = next(
-        payload for name, payload in captured if name == "capability_gap"
-    )
-    assert isinstance(cap_payload, dict)
-    assert cap_payload.get("tool_id") == "render_ui"
+    assert "<CapabilityGap>" not in result
+    assert not any(name == "capability_gap" for name, _ in captured)
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("query", "expected_tool_id"),
+    "query",
     [
-        ("generate video from this script", "video_generation"),
-        ("create multi-step plan for migration", "planning"),
-        ("search my personal wiki notes", "wiki"),
+        "generate video from this script",
+        "create multi-step plan for migration",
+        "search my personal wiki notes",
     ],
 )
-async def test_discover_miss_emits_capability_gap_for_disabled_groups(
+async def test_discover_miss_no_capability_gap_for_disabled_groups(
     monkeypatch: pytest.MonkeyPatch,
     query: str,
-    expected_tool_id: str,
 ) -> None:
     registry = ToolRegistry()
     registry.register(
@@ -297,12 +286,8 @@ async def test_discover_miss_emits_capability_gap_for_disabled_groups(
 
     result = await discover.ainvoke({"query": query})
     assert "No capabilities found" in result
-    assert "<CapabilityGap>" in result
-    cap_payload = next(
-        payload for name, payload in captured if name == "capability_gap"
-    )
-    assert isinstance(cap_payload, dict)
-    assert cap_payload.get("tool_id") == expected_tool_id
+    assert "<CapabilityGap>" not in result
+    assert not any(name == "capability_gap" for name, _ in captured)
 
 
 @pytest.mark.integration
@@ -342,10 +327,10 @@ async def test_discover_miss_no_gap_for_file_ops_intent_without_file_group(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_discover_miss_emits_skill_gap_block_and_sse(
+async def test_discover_miss_no_skill_gap_block_or_sse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Deterministic: unbound skill in query → SkillGap block + skill_gap SSE."""
+    """Discover miss must not emit SkillGap blocks or skill_gap SSE."""
     registry = ToolRegistry()
     registry.register(
         _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
@@ -370,11 +355,8 @@ async def test_discover_miss_emits_skill_gap_block_and_sse(
 
     result = await discover.ainvoke({"query": "run github_pr_skill workflow now"})
     assert "No capabilities found" in result
-    assert "<SkillGap>" in result
-    assert any(name == "skill_gap" for name, _ in captured)
-    skill_payload = next(payload for name, payload in captured if name == "skill_gap")
-    assert isinstance(skill_payload, dict)
-    assert skill_payload.get("skill_id") == "github_pr_skill"
+    assert "<SkillGap>" not in result
+    assert not any(name == "skill_gap" for name, _ in captured)
 
 
 @pytest.mark.integration
@@ -475,10 +457,10 @@ async def test_stream_dispatcher_forwards_capability_gap_custom_event() -> None:
 
 @pytest.mark.e2e
 @_AGENT_STREAM_TEST_TIMEOUT
-def test_agent_stream_discover_miss_emits_capability_gap_sse(
+def test_agent_stream_discover_miss_does_not_emit_capability_gap_sse(
     client: TestClient,
 ) -> None:
-    """Real agent-stream: discover on browser query must emit capability_gap SSE."""
+    """Real agent-stream: discover miss must not emit discover-driven capability_gap SSE."""
     gap_query = "zzz_gap_browser_selenium_website_7742"
     chat_id = f"test_cap_gap_{uuid.uuid4().hex[:8]}"
     create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
@@ -511,26 +493,22 @@ def test_agent_stream_discover_miss_emits_capability_gap_sse(
     invoked = _invoked_tool_names(events)
     if "skill_search_tool" not in invoked:
         pytest.skip(
-            "model did not invoke skill_search_tool; deterministic gap wiring covered elsewhere"
+            "model did not invoke skill_search_tool; deterministic no-gap wiring covered elsewhere"
         )
 
     gaps = _gap_events(events, "capability_gap")
     blob = json.dumps(events, ensure_ascii=False)
-    assert (
-        gaps or "<CapabilityGap>" in blob
-    ), "expected capability_gap SSE or CapabilityGap block when discover misses for browser query"
-    if gaps:
-        payload_data = gaps[0].get("data")
-        assert isinstance(payload_data, dict)
-        assert payload_data.get("tool_id") == "browser"
+    assert not gaps and "<CapabilityGap>" not in blob, (
+        "discover miss must not emit capability_gap SSE or CapabilityGap blocks"
+    )
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_discover_miss_emits_web_search_gap_when_web_group_disabled(
+async def test_discover_miss_no_web_search_gap_when_web_group_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """When web group is absent from active_tool_groups, web_search query must emit gap."""
+    """Discover miss must not emit web_search entitlement gaps."""
     registry = ToolRegistry()
     registry.register(
         _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
@@ -554,12 +532,8 @@ async def test_discover_miss_emits_web_search_gap_when_web_group_disabled(
 
     result = await discover.ainvoke({"query": "search the web for apple news today"})
     assert "No capabilities found" in result
-    assert "<CapabilityGap>" in result
-    cap_payload = next(
-        payload for name, payload in captured if name == "capability_gap"
-    )
-    assert isinstance(cap_payload, dict)
-    assert cap_payload.get("tool_id") == "web_search"
+    assert "<CapabilityGap>" not in result
+    assert not any(name == "capability_gap" for name, _ in captured)
 
 
 @pytest.mark.integration
@@ -892,10 +866,10 @@ def test_agent_stream_tools_snapshot_includes_builtin_tool_id(
 
 @pytest.mark.e2e
 @_AGENT_STREAM_TEST_TIMEOUT
-def test_agent_stream_discover_miss_emits_cron_capability_gap_sse(
+def test_agent_stream_discover_miss_does_not_emit_cron_capability_gap_sse(
     client: TestClient,
 ) -> None:
-    """Real agent-stream: discover on cron query must emit capability_gap when cron disabled."""
+    """Real agent-stream: discover miss must not emit cron capability_gap SSE."""
     gap_query = "schedule daily reminder cron job at 9am every morning"
     chat_id = f"test_cron_cap_gap_{uuid.uuid4().hex[:8]}"
     create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
@@ -923,15 +897,11 @@ def test_agent_stream_discover_miss_emits_cron_capability_gap_sse(
     invoked = _invoked_tool_names(events)
     if "skill_search_tool" not in invoked:
         pytest.skip(
-            "model did not invoke skill_search_tool; deterministic cron gap covered in harness unit tests"
+            "model did not invoke skill_search_tool; deterministic no-gap wiring covered in harness unit tests"
         )
 
     gaps = _gap_events(events, "capability_gap")
     blob = json.dumps(events, ensure_ascii=False)
-    assert (
-        gaps or "<CapabilityGap>" in blob or "cron" in blob.lower()
-    ), "expected capability_gap SSE or CapabilityGap block for cron miss query"
-    if gaps:
-        payload_data = gaps[0].get("data")
-        assert isinstance(payload_data, dict)
-        assert payload_data.get("tool_id") == "cron"
+    assert not gaps and "<CapabilityGap>" not in blob, (
+        "discover miss must not emit cron capability_gap SSE or CapabilityGap blocks"
+    )

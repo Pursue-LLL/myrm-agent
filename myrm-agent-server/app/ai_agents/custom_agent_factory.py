@@ -221,6 +221,15 @@ def _apply_subagent_memory_search_rebind(
     )
 
 
+def _subagent_write_backend(config: SubagentConfig) -> object | None:
+    """Mount skill_manage_tool when the subagent allowlist includes it."""
+    if "skill_manage_tool" not in config.tools:
+        return None
+    from app.core.skills.creation.service import skill_creation_service
+
+    return skill_creation_service
+
+
 class CustomAgentFactory:
     """AgentFactory implementation that creates SkillAgent from DB profile.
 
@@ -448,6 +457,7 @@ class CustomAgentFactory:
             executor=cast("BaseAgent", parent_agent).executor,
             storage_backend=storage_backend,
             skill_backend=self._cached_skill_backend,
+            write_backend=_subagent_write_backend(config),
             memory_manager=memory_manager,
             tools=all_tools,
             collect_artifacts=False,
@@ -554,6 +564,7 @@ class EphemeralAgentFactory:
             executor=getattr(parent_agent, "executor", None),
             storage_backend=get_storage_provider(),
             skill_backend=None,
+            write_backend=_subagent_write_backend(config),
             memory_manager=None,
             tools=all_tools,
             collect_artifacts=False,

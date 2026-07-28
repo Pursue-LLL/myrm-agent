@@ -101,6 +101,12 @@ _NEW_PAGE_TOOL_RETRY_ATTEMPTS = NEW_PAGE_TOOL_RETRY_ATTEMPTS
 _PAGE_LEASE_TTL_SEC = int(os.environ.get("MYRM_PAGE_LEASE_TTL_SEC", "600"))
 
 
+def _is_mux_parallel_fail_fast_message(message: str) -> bool:
+    from transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
+
+    return MUX_RECLAIM_STALL_TOKEN in message or MUX_TRANSPORT_EXHAUSTED_TOKEN in message
+
+
 def _reclaim_wall_deadline() -> float:
     return time.monotonic() + float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC)
 
@@ -1309,14 +1315,7 @@ class ChromeMcpClient:
             except (TimeoutError, RuntimeError) as exc:
                 last_error = exc
                 message = str(exc)
-                if MUX_RECLAIM_STALL_TOKEN in message:
-                    if not is_probe:
-                        self._recover_mux_transport()
-                    if attempt + 1 < max_attempts:
-                        time.sleep(
-                            _tool_retry_backoff_sec(name, attempt, transient=True)
-                        )
-                        continue
+                if _is_mux_parallel_fail_fast_message(message):
                     raise
                 reclaimed = None
                 if not getattr(self, "_reclaim_in_progress", False):

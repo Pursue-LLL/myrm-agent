@@ -1,7 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { usePushSubscription } from '../pwa/usePushSubscription';
+import { usePushSubscription } from '../usePushSubscription';
 
 vi.mock('@/services/web-push', () => ({
   fetchVapidPublicKey: vi.fn().mockResolvedValue('test-vapid-key'),

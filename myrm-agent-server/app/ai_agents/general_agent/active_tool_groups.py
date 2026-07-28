@@ -7,7 +7,7 @@
 - derive_active_tool_groups: list of TOOL_GROUP_MAP keys for Gap SSOT + skill filtering
 - derive_active_tool_groups_from_params: frozenset adapter for GeneralAgentParams gap preflight
 - ACTIVE_TOOL_GROUP_KEYS: stable key tuple for architecture tests
-- Catalog parity: test_active_tool_groups asserts gap registry keys match TOGGLABLE_BUILTIN_TOOL_IDS (baseline excluded)
+- Catalog parity: test_active_tool_groups asserts gap registry keys match TOGGLABLE minus skill_market/skill_evolution (no substring gap preflight for those toggles).
 
 [POS]
 Server SSOT mapping user entitlement → harness ``active_tool_groups`` passed to

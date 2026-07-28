@@ -47,7 +47,7 @@ vi.mock('@/store/useProviderStore', () => ({
   },
 }));
 
-import { useInputFileUpload } from '../message-input/useInputFileUpload';
+import { useInputFileUpload } from '../useInputFileUpload';
 
 type UploadParams = Parameters<typeof useInputFileUpload>[0];
 

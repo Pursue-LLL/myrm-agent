@@ -24,7 +24,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | `stream_lane_factory.py` | 核心 | Dynamic Workflow / Deep Research / Fast Lane / Consensus SSE 工厂；DR 完成回调经 `resolve_wiki_vault_path(agent_id)` 写 raw + 编译入队 | ✅ |
 | `reconnect.py` | 辅助 | Last-Event-ID SSE 重连 | ✅ |
 | `risk_gate.py` | 辅助 | 流式输入 risk 拦截 | ✅ |
-| `entitlement_gap_preflight.py` | 辅助 | 用户消息 entitlement gap 预检 → 早期 capability_gap SSE（不改 Turn1 工具绑定）；render_ui 已开但渠道不可挂载时发射 `reason=surface_unavailable` + `display_message`（Web toast / IM ProgressUpdate）；profile 开启 web_search 但 runtime 搜索不可用时发射 `reason=not_configured|unreachable` + `settings_path=/settings/search`；`resolve_web_search_config_gap_display_message` 供 IM fallback | ✅ |
+| `entitlement_gap_preflight.py` | 辅助 | Stream 早期 factual gap SSE（不改 Turn1 工具绑定）：render_ui profile ON 但渠道不可挂载 → `reason=surface_unavailable` + `display_message`；web_search profile ON 但 runtime 不可用 → `reason=not_configured|unreachable` + `settings_path=/settings/search`；substring enable-and-resend entitlement toasts removed | ✅ |
 
 ## 依赖关系
 

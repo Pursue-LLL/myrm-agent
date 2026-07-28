@@ -11,6 +11,7 @@ import { Label } from '@/components/primitives/label';
 import { apiRequest, getApiUrl, getStorageUrl } from '@/lib/api';
 import { pushWeChatOfficialDraft } from '@/services/channels';
 import { useWechatCoverSuggest } from './useWechatCoverSuggest';
+import { extractFirstLocalImageSrc } from './wechatDraftCoverUtils';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { toast } from 'sonner';
@@ -489,6 +490,29 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
       setWechatDraftTitle(defaultWechatDraftTitle);
     }
   }, [wechatDraftOpen, wechatDraftTitle, defaultWechatDraftTitle]);
+
+  useEffect(() => {
+    if (!wechatDraftOpen || wechatDraftCoverPath.trim()) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const html = await fetchInlineContent();
+      if (cancelled || !html) {
+        return;
+      }
+      const suggestedCover = extractFirstLocalImageSrc(html);
+      if (suggestedCover) {
+        setWechatDraftCoverPath((prev) => (prev.trim() ? prev : suggestedCover));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [wechatDraftOpen, wechatDraftCoverPath, fetchInlineContent]);
 
   const handleSelectWechatCoverSuggestion = useCallback(
     (relativePath: string) => {

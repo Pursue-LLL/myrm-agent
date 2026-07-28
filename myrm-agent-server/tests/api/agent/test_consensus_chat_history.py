@@ -30,6 +30,7 @@ def _collect_consensus_stream(
     client: TestClient,
     query: str,
     chat_history: list[dict[str, str]] | None = None,
+    engine_params: dict[str, object] | None = None,
 ) -> tuple[str, list[dict[str, object]]]:
     """Send a consensus request and collect SSE events."""
     model_selection = get_model_selection()
@@ -45,6 +46,8 @@ def _collect_consensus_stream(
 
     if chat_history:
         request_payload["chat_history"] = chat_history
+    if engine_params:
+        request_payload["engine_params"] = engine_params
 
     collected: list[dict[str, object]] = []
     message_chunks: list[str] = []
@@ -182,6 +185,31 @@ class TestConsensusWithChatHistory:
         active_event = next(e for e in status_events if e.get("step_key") == "consensus_active")
         active_data = active_event.get("data", {})
         assert "reference_models" in active_data, "consensus_active should contain reference_models"
+
+    def test_consensus_with_reasoning_effort(self, client: TestClient):
+        """reasoning_effort flows through consensus without API errors.
+
+        Non-reasoning models silently ignore it via litellm.drop_params;
+        the test validates no crash and normal output.
+        """
+        _enable_consensus_feature()
+
+        answer, events = _collect_consensus_stream(
+            client,
+            "1+1等于几",
+            engine_params={
+                "consensus": {
+                    "enabled": True,
+                    "reference_reasoning_effort": "low",
+                    "aggregator_reasoning_effort": "high",
+                },
+            },
+        )
+        assert len(events) > 0, "Should have events"
+        check_e2e_errors(events)
+
+        has_output = any(e.get("type") in ("message", "message_end") for e in events)
+        assert has_output, "Should produce output with reasoning_effort set"
 
     def test_consensus_feature_gate_blocks_when_disabled(self, client: TestClient):
         """Consensus is correctly blocked when feature gate is disabled."""

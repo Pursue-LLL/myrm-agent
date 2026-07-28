@@ -54,6 +54,6 @@ If the skill assets path differs in the sandbox, locate the script under `assets
 
 ## Output quality
 
-- Headings use green accent styling suitable for 公众号 readers.
-- Code blocks use Pygments via `codehilite` with inline token colors (`noclasses`) for WeChat draft compatibility; preview CSS stays in `<head><style>`.
+- Headings, paragraphs, blockquotes, code blocks, tables, and images use **inline `style=` attributes** on block tags for WeChat draft/mp rendering; preview CSS is generated from the same style map in `<head><style>`.
+- Code blocks use Pygments via `codehilite` with inline token colors (`noclasses`) for WeChat draft compatibility.
 - Keep the source `.md` as SSOT; HTML is a derived artifact only.

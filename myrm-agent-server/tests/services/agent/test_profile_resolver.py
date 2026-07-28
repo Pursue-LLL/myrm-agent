@@ -846,6 +846,8 @@ class TestResolveBuiltinToolFlags:
             "enable_planning",
             "enable_structured_clarify",
             "enable_external_cli",
+            "enable_skill_market",
+            "enable_skill_evolution",
         }
 
     def test_legacy_llm_map_tool_id_is_ignored(self):

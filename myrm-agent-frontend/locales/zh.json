@@ -5270,7 +5270,9 @@
         "render_ui": "在对话里直接填写表单、查看表格与图表",
         "planning": "主 Agent 多步 todo 清单 — 在对话中更新进度树（无 Planner 子 Agent）",
         "structured_clarify": "意图不明确时弹出结构化澄清表单 — Agent 暂停直至你回复",
-        "external_cli": "允许 Agent 通过 delegate_to_agent 将编码任务委派给外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）"
+        "external_cli": "允许 Agent 通过 delegate_to_agent 将编码任务委派给外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）",
+        "skill_market": "在对话中通过 skill_market_tool 搜索并安装外部技能市场技能",
+        "skill_evolution": "在对话中通过 skill_manage_tool 创建与编辑技能（/learn 命令会强制挂载该工具）"
       },
       "renderUiWebOnlyHint": "交互式 UI 仅在 Web 对话与桌面客户端内渲染；Telegram、定时任务等渠道无法显示内联表单或图表。",
       "wikiScopeHint": "资料保存在该智能体独立知识库中，不会与其他智能体混用。",
@@ -8788,7 +8790,7 @@
       "titlePlaceholder": "输入草稿标题",
       "coverLabel": "封面图（可选）",
       "coverPlaceholder": "封面图的工作区路径",
-      "coverHint": "输入关键字搜索工作区图片，或在 HTML 中没有本地图片时手动填写路径。",
+      "coverHint": "打开面板会自动填入文章内首张本地图片路径。可修改、搜索工作区图片；若 HTML 无本地图则需手动填写。",
       "coverSuggestLoading": "正在搜索工作区图片…",
       "coverSuggestEmpty": "未找到匹配的图片文件",
       "confirm": "推送到草稿箱",

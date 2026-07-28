@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from app.services.agent.stream_session.stream_lane_factory import _cfg_int_or_none, _inject_wu_consumed
+from app.services.agent.stream_session.stream_lane_factory import (
+    _cfg_int_or_none,
+    _cfg_str_or_none,
+    _inject_wu_consumed,
+)
 
 
 class TestCfgIntOrNone:
@@ -39,6 +43,31 @@ class TestCfgIntOrNone:
 
     def test_boundary_one(self):
         assert _cfg_int_or_none({"k": 1}, "k") == 1
+
+
+class TestCfgStrOrNone:
+    """_cfg_str_or_none must return non-empty string or None."""
+
+    def test_valid_string(self):
+        assert _cfg_str_or_none({"k": "low"}, "k") == "low"
+
+    def test_empty_string_returns_none(self):
+        assert _cfg_str_or_none({"k": ""}, "k") is None
+
+    def test_missing_key_returns_none(self):
+        assert _cfg_str_or_none({}, "k") is None
+
+    def test_none_value_returns_none(self):
+        assert _cfg_str_or_none({"k": None}, "k") is None
+
+    def test_numeric_value_returns_none(self):
+        assert _cfg_str_or_none({"k": 42}, "k") is None
+
+    def test_whitespace_string_returns_as_is(self):
+        assert _cfg_str_or_none({"k": "  "}, "k") == "  "
+
+    def test_bool_value_returns_none(self):
+        assert _cfg_str_or_none({"k": True}, "k") is None
 
 
 class TestInjectWuConsumed:

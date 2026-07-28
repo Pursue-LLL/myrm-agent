@@ -56,7 +56,7 @@ describe('useAppshotListener', () => {
   });
 
   async function mountHook() {
-    const mod = await import('../tauri/useAppshotListener');
+    const mod = await import('../useAppshotListener');
     return renderHook(() => mod.useAppshotListener());
   }
 

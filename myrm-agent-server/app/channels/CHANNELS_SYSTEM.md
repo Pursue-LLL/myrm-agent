@@ -464,7 +464,7 @@ StreamCoordinator
 - `GET /channels/manage/status` 对未进 bus 的 SDK 频道返回 `status: unavailable` + `DEPENDENCY` issue（`registry.probe_sdk_channel_issues`），Settings 可一键安装
 - `PATCH …/toggle` 启用前 **先** `ensure_channel_dependencies_ready`（仅 ERROR 级 SDK 依赖会阻塞/自动安装；WARNING 级可选能力依赖需用户在 Settings 手动安装）
 - 可选 extra：`channels-sdk`（discord-py + lark-oapi）、`matrix`、`matrix-e2ee`、`wechat-silk`（pilk，GPLv3 SILK→WAV）、`voice-tts`（edge-tts）、`local-stt`（faster-whisper）；官方 Docker 镜像 `--all-extras` 含上述 optional；Desktop 商业包不含 GPL extras
-- **WeChat Official 草稿（HITL）**：`POST /channels/manage/wechat-official/draft`（`htmlPath` + `title` + 可选 `coverPath` → WebUI workspace 图片 suggest + 手动路径 → `relative_to` 路径校验 + workspace 未知 fail-closed → inline 图先于 thumb + **draft content 为 body 片段并内嵌 style** → uploadimg + draft/add）；Settings 含 IP 白名单指引；凭证键 `wechatOfficialCredentials`；与 personal `wechat` iLink 独立；Agent 不持 draft tool
+- **WeChat Official 草稿（HITL）**：`POST /channels/manage/wechat-official/draft`（`htmlPath` + `title` + 可选 `coverPath` → WebUI 文内首图自动预填 + workspace 图片 suggest + 手动路径 → `relative_to` 路径校验 + workspace 未知 fail-closed → formatter 块级 inline style（SSOT 生成 head CSS + img/h2 等）+ inline 图先于 thumb + **draft content 为 body 片段并内嵌 style** → uploadimg + draft/add）；Settings 含 IP 白名单指引；凭证键 `wechatOfficialCredentials`；与 personal `wechat` iLink 独立；Agent 不持 draft tool
 
 ---
 

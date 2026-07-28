@@ -9,7 +9,40 @@ import re
 import sys
 from pathlib import Path
 
-_WECHAT_CSS = """
+_BLOCK_INLINE_STYLES: dict[str, str] = {
+    "h1": (
+        "font-size: 22px; font-weight: 700; line-height: 1.4; margin: 28px 0 16px; "
+        "color: #1a1a1a; text-align: center;"
+    ),
+    "h2": (
+        "font-size: 18px; font-weight: 700; line-height: 1.4; margin: 24px 0 12px; "
+        "color: #1a1a1a; border-left: 4px solid #07c160; padding-left: 12px;"
+    ),
+    "h3": (
+        "font-size: 16px; font-weight: 600; line-height: 1.4; margin: 18px 0 8px; "
+        "color: #2a2a2a;"
+    ),
+    "p": "margin: 12px 0; text-align: justify;",
+    "blockquote": (
+        "margin: 16px 0; padding: 10px 14px; background: #f6f6f6; "
+        "border-left: 4px solid #d9d9d9; color: #666;"
+    ),
+    "pre": (
+        "background: #282c34; color: #abb2bf; padding: 14px; border-radius: 8px; "
+        "overflow-x: auto; margin: 16px 0; line-height: 1.5;"
+    ),
+    "table": "width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;",
+    "th": (
+        "border: 1px solid #e5e5e5; padding: 8px 12px; text-align: left; "
+        "background: #f7f7f7; font-weight: 600; color: #1a1a1a;"
+    ),
+    "td": "border: 1px solid #e5e5e5; padding: 8px 12px; text-align: left;",
+    "img": (
+        "max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 6px;"
+    ),
+}
+
+_WECHAT_BASE_CSS = """
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -18,53 +51,12 @@ body {
   color: #3f3f3f;
   word-wrap: break-word;
 }
-h1 {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.4;
-  margin: 28px 0 16px;
-  color: #1a1a1a;
-  text-align: center;
-}
-h2 {
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.4;
-  margin: 24px 0 12px;
-  color: #1a1a1a;
-  border-left: 4px solid #07c160;
-  padding-left: 12px;
-}
-h3 {
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.4;
-  margin: 18px 0 8px;
-  color: #2a2a2a;
-}
-p { margin: 12px 0; text-align: justify; }
-blockquote {
-  margin: 16px 0;
-  padding: 10px 14px;
-  background: #f6f6f6;
-  border-left: 4px solid #d9d9d9;
-  color: #666;
-}
 code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   background: #f5f5f5;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 14px;
-}
-pre {
-  background: #282c34;
-  color: #abb2bf;
-  padding: 14px;
-  border-radius: 8px;
-  overflow-x: auto;
-  margin: 16px 0;
-  line-height: 1.5;
 }
 pre code { background: transparent; color: inherit; padding: 0; }
 .highlight {
@@ -89,31 +81,53 @@ pre code { background: transparent; color: inherit; padding: 0; }
 .highlight .nb { color: #e06c75; }
 ul, ol { margin: 12px 0; padding-left: 24px; }
 li { margin: 6px 0; }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 16px 0;
-  font-size: 14px;
-}
-th, td {
-  border: 1px solid #e5e5e5;
-  padding: 8px 12px;
-  text-align: left;
-}
-th { background: #f7f7f7; font-weight: 600; color: #1a1a1a; }
 tr:nth-child(even) td { background: #fafafa; }
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  margin: 16px auto;
-  border-radius: 6px;
-}
 a { color: #576b95; text-decoration: none; border-bottom: 1px solid rgba(87, 107, 149, 0.35); }
 hr { border: none; border-top: 1px solid #e5e5e5; margin: 24px 0; }
 strong { font-weight: 700; color: #1a1a1a; }
 em { font-style: italic; color: #555; }
 """.strip()
+
+
+def _css_rules_from_block_inline_styles() -> str:
+    return "\n".join(f"{tag} {{ {style} }}" for tag, style in _BLOCK_INLINE_STYLES.items())
+
+
+def _build_wechat_css() -> str:
+    return f"{_WECHAT_BASE_CSS}\n{_css_rules_from_block_inline_styles()}"
+
+
+_WECHAT_CSS = _build_wechat_css()
+
+
+def _merge_style_attr(existing: str, block_style: str) -> str:
+    trimmed = existing.strip().rstrip(";")
+    if not trimmed:
+        return block_style
+    return f"{trimmed}; {block_style}"
+
+
+def _inject_block_inline_styles(html: str) -> str:
+    for tag, block_style in _BLOCK_INLINE_STYLES.items():
+        pattern = re.compile(rf"<{tag}\b(?P<attrs>[^>]*)>", re.IGNORECASE)
+
+        def repl(match: re.Match[str], *, style: str = block_style, tag_name: str = tag) -> str:
+            attrs = match.group("attrs") or ""
+            style_match = re.search(r'\bstyle=(["\'])(.*?)\1', attrs, re.IGNORECASE)
+            if style_match:
+                merged = _merge_style_attr(style_match.group(2), style)
+                new_attrs = (
+                    f'{attrs[: style_match.start()]}style="{merged}"{attrs[style_match.end() :]}'
+                )
+            else:
+                if attrs:
+                    new_attrs = f'{attrs} style="{style}"'
+                else:
+                    new_attrs = f' style="{style}"'
+            return f"<{tag_name}{new_attrs}>"
+
+        html = pattern.sub(repl, html)
+    return html
 
 
 def _ensure_markdown() -> bool:
@@ -222,6 +236,7 @@ def convert_markdown_to_wechat_html(source: Path, output: Path) -> None:
     else:
         body = _convert_basic(text)
 
+    body = _inject_block_inline_styles(body)
     body = _rewrite_relative_images(body, source.parent)
     doc = (
         "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n"

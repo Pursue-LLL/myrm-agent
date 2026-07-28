@@ -29,7 +29,7 @@ describe('useAppUpdate (non-Tauri)', () => {
   });
 
   it('should return idle phase in non-Tauri environment', async () => {
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate());
 
     expect(result.current.phase).toBe('idle');
@@ -40,7 +40,7 @@ describe('useAppUpdate (non-Tauri)', () => {
   });
 
   it('should expose check, install, reset functions', async () => {
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate());
 
     expect(typeof result.current.check).toBe('function');
@@ -49,7 +49,7 @@ describe('useAppUpdate (non-Tauri)', () => {
   });
 
   it('check() should be a no-op in non-Tauri environment', async () => {
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate());
 
     await act(async () => {
@@ -60,7 +60,7 @@ describe('useAppUpdate (non-Tauri)', () => {
   });
 
   it('install() should be a no-op when no pending update', async () => {
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate());
 
     await act(async () => {
@@ -71,7 +71,7 @@ describe('useAppUpdate (non-Tauri)', () => {
   });
 
   it('reset() should remain idle when already idle', async () => {
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate());
 
     act(() => {
@@ -85,7 +85,7 @@ describe('useAppUpdate (non-Tauri)', () => {
   });
 
   it('should export useAppUpdate function', async () => {
-    const mod = await import('../tauri/useAppUpdate');
+    const mod = await import('../useAppUpdate');
     expect(mod.useAppUpdate).toBeDefined();
   });
 });
@@ -110,7 +110,7 @@ describe('useAppUpdate (Tauri mock)', () => {
   it('should transition to up_to_date when no update available', async () => {
     mockCheck.mockResolvedValue(null);
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate({ autoCheck: false }));
 
     expect(result.current.phase).toBe('idle');
@@ -133,7 +133,7 @@ describe('useAppUpdate (Tauri mock)', () => {
     };
     mockCheck.mockResolvedValue(mockUpdate);
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate({ autoCheck: false, autoDownload: false }));
 
     await act(async () => {
@@ -151,7 +151,7 @@ describe('useAppUpdate (Tauri mock)', () => {
   it('should handle check error gracefully', async () => {
     mockCheck.mockRejectedValue(new Error('Network error'));
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate({ autoCheck: false }));
 
     await act(async () => {
@@ -165,7 +165,7 @@ describe('useAppUpdate (Tauri mock)', () => {
   it('should auto-check after initial delay', async () => {
     mockCheck.mockResolvedValue(null);
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     renderHook(() => useAppUpdate({ autoCheck: true, initialCheckDelayMs: 2000, recheckIntervalMs: 0 }));
 
     expect(mockCheck).not.toHaveBeenCalled();
@@ -194,7 +194,7 @@ describe('useAppUpdate (Tauri mock)', () => {
     };
     mockCheck.mockResolvedValue(mockUpdate);
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate({ autoCheck: false, autoDownload: true }));
 
     await act(async () => {
@@ -224,7 +224,7 @@ describe('useAppUpdate (Tauri mock)', () => {
     };
     mockCheck.mockResolvedValue(mockUpdate);
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate({ autoCheck: false, autoDownload: true }));
 
     await act(async () => {
@@ -242,7 +242,7 @@ describe('useAppUpdate (Tauri mock)', () => {
   it('should reset from error back to idle', async () => {
     mockCheck.mockRejectedValue(new Error('Test error'));
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate({ autoCheck: false }));
 
     await act(async () => {
@@ -276,7 +276,7 @@ describe('useAppUpdate (Tauri mock)', () => {
     };
     mockCheck.mockResolvedValue(mockUpdate);
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate({ autoCheck: false, autoDownload: true }));
 
     await act(async () => {
@@ -312,7 +312,7 @@ describe('useAppUpdate (Tauri mock)', () => {
     };
     mockCheck.mockResolvedValue(mockUpdate);
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate({ autoCheck: false, autoDownload: false }));
 
     await act(async () => {
@@ -341,7 +341,7 @@ describe('useAppUpdate (Tauri mock)', () => {
     };
     mockCheck.mockResolvedValue(mockUpdate);
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate({ autoCheck: false, autoDownload: false }));
 
     await act(async () => {
@@ -359,7 +359,7 @@ describe('useAppUpdate (Tauri mock)', () => {
   it('should recheck on interval', async () => {
     mockCheck.mockResolvedValue(null);
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     renderHook(() => useAppUpdate({ autoCheck: true, initialCheckDelayMs: 100, recheckIntervalMs: 5000 }));
 
     await act(async () => {
@@ -383,7 +383,7 @@ describe('useAppUpdate (Tauri mock)', () => {
     };
     mockCheck.mockResolvedValue(mockUpdate);
 
-    const { useAppUpdate } = await import('../tauri/useAppUpdate');
+    const { useAppUpdate } = await import('../useAppUpdate');
     const { result } = renderHook(() => useAppUpdate({ autoCheck: false, autoDownload: false }));
 
     await act(async () => {

@@ -4150,7 +4150,9 @@
         "render_ui": "Interaktive UI",
         "planning": "Mehrschritt-Fortschritt",
         "structured_clarify": "Strukturierte Klärung",
-        "external_cli": "Externe CLI"
+        "external_cli": "Externe CLI",
+        "skill_market": "Skill-Markt",
+        "skill_evolution": "Skill-Evolution"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4169,7 +4171,9 @@
         "render_ui": "Formulare, Tabellen und Diagramme direkt im Chat ausfüllen und nutzen",
         "planning": "Todo-Liste des Haupt-Agenten für Mehrschritt-Aufgaben — aktualisiert den Fortschrittsbaum im Chat (ohne Planner-Subagent)",
         "structured_clarify": "Bei unklarer Absicht strukturierte Klärungsformulare anzeigen — Agent pausiert bis zur Antwort",
-        "external_cli": "Coding-Aufgaben an externe CLI-Agenten (Claude Code, Codex, Gemini CLI) über delegate_to_agent delegieren"
+        "external_cli": "Coding-Aufgaben an externe CLI-Agenten (Claude Code, Codex, Gemini CLI) über delegate_to_agent delegieren",
+        "skill_market": "Externe Skill-Marktplätze im Chat über skill_market_tool suchen und installieren",
+        "skill_evolution": "Skills im Chat über skill_manage_tool erstellen und bearbeiten (/learn mountet dieses Tool immer)"
       },
       "renderUiWebOnlyHint": "Interaktive UI wird nur im Web-Chat und in der Desktop-App gerendert. Telegram, geplante Aufgaben und andere Kanäle können keine Inline-Formulare oder Diagramme anzeigen.",
       "externalCliSetupHint": "Zwei Schritte: (1) CLI-Backend unter Einstellungen → Entwickler → Externe Agenten hinzufügen; (2) Schalter aktiv lassen, damit dieser Agent Coding-Aufgaben an eine externe CLI delegiert.",

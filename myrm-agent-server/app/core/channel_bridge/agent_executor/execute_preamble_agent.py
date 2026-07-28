@@ -151,6 +151,7 @@ async def build_channel_execution_agent(
     set_current_chat_id(chat_id)
     set_current_agent_id(resolved_agent_id or "default")
 
+    from app.core.channel_bridge.learn_handler import is_learn_skill_authoring_prompt
     from app.core.channel_bridge.executor_helpers import extract_external_agents
     from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
@@ -213,6 +214,7 @@ async def build_channel_execution_agent(
         external_agents_config=extract_external_agents(configs.external_agents_dict),
         code_execution_allow_network=_extract_code_exec_network(memory_settings),
         notify_targets=(resolved_profile.notify_targets if resolved_profile else ()),
+        force_skill_manage=is_learn_skill_authoring_prompt(query),
     )
 
     approval_peer = msg.chat_id or msg.sender_id

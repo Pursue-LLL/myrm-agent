@@ -580,6 +580,72 @@ async def test_ephemeral_agent_factory_keeps_parent_tool_without_memory_group(mo
     assert captured_tools == []
 
 
+def test_subagent_write_backend_none_without_skill_manage_tool() -> None:
+    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import _subagent_write_backend
+
+    config = SubagentConfig(display_name="Researcher", system_prompt="You research.")
+    assert _subagent_write_backend(config) is None
+
+
+def test_subagent_write_backend_present_when_skill_manage_allowed() -> None:
+    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import _subagent_write_backend
+
+    config = SubagentConfig(
+        display_name="Author",
+        system_prompt="You write skills.",
+        tools=["skill_manage_tool"],
+    )
+    assert _subagent_write_backend(config) is not None
+
+
+@pytest.mark.asyncio
+async def test_ephemeral_agent_factory_passes_write_backend_for_skill_manage_tool(
+    monkeypatch,
+) -> None:
+    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
+    from app.ai_agents.custom_agent_factory import EphemeralAgentFactory
+
+    captured_kwargs: dict[str, object] = {}
+
+    async def fake_create_skill_agent(**kwargs: object) -> SimpleNamespace:
+        captured_kwargs.update(kwargs)
+        return SimpleNamespace()
+
+    import myrm_agent_harness.api as api_module
+
+    monkeypatch.setattr(api_module, "create_skill_agent", fake_create_skill_agent)
+
+    factory = EphemeralAgentFactory(
+        agent_id="skill-author",
+        metadata={"enabled_builtin_tools": ["web_search"]},
+    )
+    parent = SimpleNamespace(
+        llm=SimpleNamespace(),
+        executor=SimpleNamespace(),
+        memory_manager=None,
+    )
+    config = SubagentConfig(
+        display_name="Author",
+        system_prompt="You write skills.",
+        tools=["skill_manage_tool"],
+    )
+
+    await factory.build(
+        config,
+        [],
+        "Create a reusable skill from this workflow",
+        parent,
+        current_depth=1,
+    )
+
+    assert captured_kwargs.get("write_backend") is not None
+
+
 @pytest.mark.asyncio
 async def test_custom_agent_factory_build_rebinds_memory_search_tool(monkeypatch) -> None:
     from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig

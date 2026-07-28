@@ -35,7 +35,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/voice/test_voice_memory_acl_api_integration.py` | 模块 | Voice memory ACL HTTP 集成（realtime/gemini token enum + tool-exec flags，ACL 路径 unmocked） |
 | `e2e/test_background_tasks_panel_chrome_e2e.py` | 模块 | Background Tasks Panel Chrome MCP E2E（READ×5 SHPOIB：打开 Panel、failed/running seed、UI cancel、`vault_log` drawer、`success` finish toast；`data-testid=background-task-cancel` / `background-task-view-vault-log`） |
 | `e2e/test_background_shell_live_agent_chrome_e2e.py` | 模块 | Background shell LIVE×1 SHPOIB（`lane=LIVE_AGENT`，默认 `private_backend=True`）：自然语言 user turn + `bash_code_execute_tool` stream（HITL 时 `decisions[]` approve resume）；5× stream retry + REST 20s probe + 3× chat retry；`finally` teardown cancel |
-| `e2e/test_skill_marketplace_live_agent_chrome_e2e.py` | 模块 | Skill marketplace LIVE×1：`test_live_agent_skill_marketplace_search_in_real_ui` — 自定义 Agent（`/?agentId=`）+ 自然语言用户消息 → 真实 WebUI 须呈现外部市场搜索结果；禁止注入式 `E2E_* MUST call` prompt（mimo 安全拒绝）；3× chat retry |
+| `e2e/test_skill_marketplace_live_agent_chrome_e2e.py` | 模块 | Skill marketplace LIVE×1：Agent profile 须开启 `skill_market` + system_prompt 引导；自然语言用户消息 → 真实 WebUI 须呈现外部市场搜索结果；3× chat retry |
 | `api/agent/test_memory_conversation_search_e2e.py` | 模块 | Memory + sessions opt-in API 集成（真实 LLM agent-stream；8 场景：opt-in/incognito/memory-off/多轮/passphrase） |
 | `ai_agents/test_custom_agent_factory.py` | 模块 | Custom/Ephemeral 子 Agent `memory_search_tool` rebind + factory build 路径（38 项；`--cov-fail-under=90` on factory） |
 | `ai_agents/test_conversation_search_opt_in_integration.py` | 模块 | conversation-search opt-in 与 tool_setup 绑定集成 |

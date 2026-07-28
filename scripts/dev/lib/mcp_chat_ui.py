@@ -43,6 +43,15 @@ def is_target_closed_error(exc: BaseException) -> bool:
     return any(token in message for token in _TARGET_CLOSED_TOKENS)
 
 
+def is_mux_parallel_fail_fast(exc: BaseException) -> bool:
+    """Parallel mux lock contention — retry would amplify 90s stalls across sessions."""
+    from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
+    from transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
+
+    message = str(exc)
+    return MUX_RECLAIM_STALL_TOKEN in message or MUX_TRANSPORT_EXHAUSTED_TOKEN in message
+
+
 def is_mux_page_heal_error(exc: BaseException) -> bool:
     return is_page_ownership_error(exc) or is_context_reset_error(exc)
 
@@ -160,21 +169,9 @@ class McpChatSession(CdpChatSession):
             try:
                 return eval_task.result()
             except RuntimeError as exc:
+                if is_mux_parallel_fail_fast(exc):
+                    raise
                 message = str(exc)
-                if (
-                    mux_attempts < max_mux_attempts
-                    and MUX_RECLAIM_STALL_TOKEN in message
-                ):
-                    mux_attempts += 1
-                    _LOGGER.warning(
-                        "MUX_EVALUATE_STALL_RESET: mux_attempts=%d/%d err=%s",
-                        mux_attempts,
-                        max_mux_attempts,
-                        message[:200],
-                    )
-                    await _reset_mux_after_orphan()
-                    await asyncio.sleep(0.75 * mux_attempts)
-                    continue
                 if mux_attempts < max_mux_attempts and (
                     "transport unavailable" in message.lower()
                     or "not running after transport recovery" in message.lower()

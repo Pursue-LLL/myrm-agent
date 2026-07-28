@@ -24,6 +24,6 @@ Harness `get_meta_tools(enable_file_tools, enable_shell_tools)` remains the fact
 | File | Role |
 | --- | --- |
 | `surfaces.py` | `ExecutionSurface` enum |
-| `resolver.py` | `resolve_agent_mount`, `apply_ptc_meta_mount` |
+| `resolver.py` | `resolve_agent_mount`, `apply_ptc_meta_mount` — preserves profile flags including `enable_skill_market` / `enable_skill_evolution` |
 
 Persist catalog ID `code_execute` remains in `builtin_tool_ids.AGENT_BASELINE_BUILTIN_TOOLS`; runtime flag is `enable_shell_tools`.

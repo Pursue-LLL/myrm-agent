@@ -89,7 +89,7 @@ def _create_marketplace_agent(api_url: str) -> str:
         "system_prompt": _AGENT_SYSTEM_PROMPT,
         "mcp_ids": [],
         "skill_ids": [],
-        "enabled_builtin_tools": ["web_search", "memory"],
+        "enabled_builtin_tools": ["web_search", "memory", "skill_market"],
     }
     created = http_json("POST", f"{api_url}/api/v1/user-agents", payload)
     assert isinstance(created, dict)

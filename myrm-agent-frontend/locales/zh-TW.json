@@ -5184,7 +5184,9 @@
         "render_ui": "互動式 UI",
         "planning": "多步進度",
         "structured_clarify": "結構化澄清",
-        "external_cli": "外部 CLI"
+        "external_cli": "外部 CLI",
+        "skill_market": "技能市場",
+        "skill_evolution": "技能進化"
       },
       "builtinToolDescs": {
         "web_search": "搜尋網際網路獲取實時資訊",
@@ -5203,7 +5205,9 @@
         "render_ui": "在對話裡直接填寫表單、檢視錶格與圖表",
         "planning": "主 Agent 多步 todo 清單 — 在對話中更新進度樹（無 Planner 子 Agent）",
         "structured_clarify": "意圖不明確時彈出結構化澄清表單 — Agent 暫停直至你回覆",
-        "external_cli": "允許 Agent 透過 delegate_to_agent 將編碼任務委派給外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）"
+        "external_cli": "允許 Agent 透過 delegate_to_agent 將編碼任務委派給外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）",
+        "skill_market": "在對話中透過 skill_market_tool 搜尋並安裝外部技能市場技能",
+        "skill_evolution": "在對話中透過 skill_manage_tool 建立與編輯技能（/learn 命令會強制掛載此工具）"
       },
       "renderUiWebOnlyHint": "互動式 UI 僅在 Web 對話與桌面客戶端內渲染；Telegram、定時任務等渠道無法顯示內聯表單或圖表。",
       "wikiScopeHint": "資料儲存在該智慧體獨立知識庫中，不會與其他智慧體混用。",

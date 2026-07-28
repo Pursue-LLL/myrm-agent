@@ -5190,7 +5190,9 @@
         "render_ui": "交互式 UI",
         "planning": "多步進捗",
         "structured_clarify": "構造化クリアリフィケーション",
-        "external_cli": "外部 CLI"
+        "external_cli": "外部 CLI",
+        "skill_market": "スキルマーケット",
+        "skill_evolution": "スキル進化"
       },
       "builtinToolDescs": {
         "web_search": "検索互联网获取实时信息",
@@ -5209,7 +5211,9 @@
         "render_ui": "チャット内でフォーム入力・表・グラフをその場で操作",
         "planning": "メイン Agent の多段階 todo — チャット内で進捗ツリーを更新規（Planner サブ Agent なし）",
         "structured_clarify": "意図がない明確なときに構造化フォームで確認 — 返信まで Agent を一時停止",
-        "external_cli": "delegate_to_agent 経由で外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）にコーディングタスクを委任"
+        "external_cli": "delegate_to_agent 経由で外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）にコーディングタスクを委任",
+        "skill_market": "skill_market_tool で外部スキルマーケットを検索・インストール",
+        "skill_evolution": "skill_manage_tool でチャット内からスキルを作成・編集（/learn は常にこのツールをマウント）"
       },
       "renderUiWebOnlyHint": "インライン UI は Web チャットとデスクトップアプリでのみ表示されます。Telegram、スケジュールタスク、その他のチャネルではインラインフォームやチャートを表示できません。",
       "wikiScopeHint": "资料保存で该エージェント独立ナレッジベース中，ない会とその他エージェント混使用。",

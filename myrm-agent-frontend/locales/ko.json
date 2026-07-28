@@ -4150,7 +4150,9 @@
         "render_ui": "대화형 UI",
         "planning": "다단계 진행",
         "structured_clarify": "구조화 명확화",
-        "external_cli": "외부 CLI"
+        "external_cli": "외부 CLI",
+        "skill_market": "스킬 마켓",
+        "skill_evolution": "스킬 진화"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4169,7 +4171,9 @@
         "render_ui": "채팅에서 양식 작성·표·차트를 바로 확인하고 조작",
         "planning": "메인 Agent 다단계 todo — 채팅에서 진행 트리 업데이트 (Planner 서브 Agent 없음)",
         "structured_clarify": "의도가 불명확할 때 구조화 양식으로 확인 — 응답할 때까지 Agent 일시 정지",
-        "external_cli": "delegate_to_agent로 외부 CLI Agent(Claude Code, Codex, Gemini CLI 등)에 코딩 작업 위임"
+        "external_cli": "delegate_to_agent로 외부 CLI Agent(Claude Code, Codex, Gemini CLI 등)에 코딩 작업 위임",
+        "skill_market": "skill_market_tool로 외부 스킬 마켓 검색 및 설치",
+        "skill_evolution": "skill_manage_tool로 채팅에서 스킬 생성·편집(/learn은 항상 이 도구 마운트)"
       },
       "renderUiWebOnlyHint": "인라인 UI는 Web 채팅과 데스크톱 앱에서만 렌더링됩니다. Telegram, 예약 작업 및 기타 채널에서는 인라인 양식이나 차트를 표시할 수 없습니다.",
       "externalCliSetupHint": "두 단계: (1) 설정 → 개발자 → 외부 Agent에서 CLI 백엔드 추가; (2) 이 스위치를 켜 두어 이 Agent가 코딩 작업을 외부 CLI에 위임하도록 합니다.",

@@ -8790,7 +8790,7 @@
       "titlePlaceholder": "Enter draft title",
       "coverLabel": "Cover image (optional)",
       "coverPlaceholder": "Workspace path to cover image",
-      "coverHint": "Type to search workspace images, or enter a path manually when the article has no local images in the HTML.",
+      "coverHint": "Opening the panel auto-fills the first local image from the article. Edit the path, search workspace images, or leave empty when the server can pick a cover from HTML.",
       "coverSuggestLoading": "Searching workspace images...",
       "coverSuggestEmpty": "No matching image files in workspace",
       "confirm": "Push to draft box",

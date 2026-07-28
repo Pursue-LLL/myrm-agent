@@ -4,7 +4,7 @@
 - myrm_agent_harness.agent.meta_tools.discover_capability.capability_gap::detect_capability_gap (POS: entitlement gap detection SSOT)
 
 [OUTPUT]
-- build_entitlement_gap_sse_event: optional early SSE dict for disabled builtin tools
+- build_entitlement_gap_sse_event: surface-unavailable capability_gap only (substring enable-and-resend removed)
 - build_web_search_config_gap_sse_event: SSE when web_search profile on but API missing/unreachable
 - build_surface_unavailable_dedup_key: stable tracker key for IM/Web surface-unavailable toasts
 - resolve_surface_unavailable_display_message: localized surface-unavailable copy (SSE + IM)
@@ -241,8 +241,8 @@ def build_entitlement_gap_sse_event(
     client_surface: str | None = None,
     locale: str | None = None,
 ) -> dict[str, object] | None:
-    """Build a capability_gap SSE payload when preflight detects a missing builtin tool."""
-    surface_event = _build_surface_unavailable_sse_event(
+    """Build a capability_gap SSE payload for surface-unavailable preflight only."""
+    return _build_surface_unavailable_sse_event(
         message_id=message_id,
         user_text=user_text,
         active_tool_groups=active_tool_groups,
@@ -251,17 +251,3 @@ def build_entitlement_gap_sse_event(
         client_surface=client_surface,
         locale=locale,
     )
-    if surface_event is not None:
-        return surface_event
-
-    hit = detect_capability_gap(user_text, active_tool_groups)
-    if hit is None:
-        return None
-    if not _gap_emission_tracker.should_emit(chat_id, hit.tool_id):
-        return None
-    _gap_emission_tracker.mark_emitted(chat_id, hit.tool_id)
-    return {
-        "type": "capability_gap",
-        "messageId": message_id,
-        "data": {"tool_id": hit.tool_id, "tool_group": hit.tool_group},
-    }

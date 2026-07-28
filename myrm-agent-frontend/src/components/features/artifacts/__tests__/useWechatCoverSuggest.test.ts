@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCoverImageSuggestion } from './useWechatCoverSuggest';
+import { isCoverImageSuggestion } from '../useWechatCoverSuggest';
 import type { ReferenceSuggestion } from '@/services/chat';
 
 function makeSuggestion(overrides: Partial<ReferenceSuggestion>): ReferenceSuggestion {

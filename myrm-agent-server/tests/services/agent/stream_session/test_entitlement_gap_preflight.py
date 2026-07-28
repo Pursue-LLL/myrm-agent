@@ -56,19 +56,15 @@ def test_derive_active_tool_groups_from_params_maps_media_fields() -> None:
     assert "image_generation" in groups
 
 
-def test_build_entitlement_gap_sse_event_render_ui_form_query() -> None:
+def test_build_entitlement_gap_sse_event_render_ui_form_query_no_substring_gap() -> None:
+    """Substring entitlement gaps removed — disabled render_ui no longer emits preflight SSE."""
     event = build_entitlement_gap_sse_event(
         message_id="msg-1",
         user_text="帮我填表准备 staging 部署配置",
         active_tool_groups=derive_active_tool_groups_from_params(_params()),
         chat_id="chat-1",
     )
-    assert event is not None
-    assert event["type"] == "capability_gap"
-    data = event["data"]
-    assert isinstance(data, dict)
-    assert data["tool_id"] == "render_ui"
-    assert data["tool_group"] == "render_ui"
+    assert event is None
 
 
 def test_build_entitlement_gap_sse_event_none_when_group_enabled_on_web_chat() -> None:
@@ -127,18 +123,20 @@ def test_build_entitlement_gap_sse_event_surface_unavailable_dedup() -> None:
 
 
 def test_build_entitlement_gap_sse_event_dedup_within_cooldown() -> None:
-    groups = derive_active_tool_groups_from_params(_params())
+    groups = derive_active_tool_groups_from_params(_params(enable_render_ui=True))
     first = build_entitlement_gap_sse_event(
         message_id="msg-3",
         user_text="帮我填表",
         active_tool_groups=groups,
         chat_id="chat-dedup",
+        channel_name="telegram",
     )
     second = build_entitlement_gap_sse_event(
         message_id="msg-4",
         user_text="再帮我填表",
         active_tool_groups=groups,
         chat_id="chat-dedup",
+        channel_name="telegram",
     )
     assert first is not None
     assert second is None
@@ -166,18 +164,20 @@ def test_build_entitlement_gap_sse_event_re_emits_after_cooldown(
     monkeypatch.setattr(preflight, "_GAP_TOAST_COOLDOWN_SECONDS", 1.0)
     preflight._gap_emission_tracker = CapabilityGapEmissionTracker(cooldown_seconds=1.0)
 
-    groups = derive_active_tool_groups_from_params(_params())
+    groups = derive_active_tool_groups_from_params(_params(enable_render_ui=True))
     first = build_entitlement_gap_sse_event(
         message_id="msg-5",
         user_text="帮我填表",
         active_tool_groups=groups,
         chat_id="chat-cooldown-emit",
+        channel_name="telegram",
     )
     second = build_entitlement_gap_sse_event(
         message_id="msg-6",
         user_text="帮我填表",
         active_tool_groups=groups,
         chat_id="chat-cooldown-emit",
+        channel_name="telegram",
     )
     assert first is not None
     assert second is None
@@ -188,6 +188,7 @@ def test_build_entitlement_gap_sse_event_re_emits_after_cooldown(
         user_text="帮我填表",
         active_tool_groups=groups,
         chat_id="chat-cooldown-emit",
+        channel_name="telegram",
     )
     assert third is not None
 

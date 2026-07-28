@@ -116,53 +116,19 @@ describe('gapEvents', () => {
     toastSuccess.mockClear();
   });
 
-  it('stores pending retry on capability_gap', async () => {
-    await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'render_ui' }));
-
-    expect(setPendingGapRetry).toHaveBeenCalledWith({
-      kind: 'capability',
-      text: '帮我填表准备 staging 部署配置',
-      toolId: 'render_ui',
-    });
+  it('ignores bare capability_gap without factual reason (enable-and-resend removed)', async () => {
+    const result = await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'render_ui' }));
+    expect(result).toBeNull();
+    expect(toastInfo).not.toHaveBeenCalled();
+    expect(setPendingGapRetry).not.toHaveBeenCalled();
   });
 
-  it('enables builtin tool and resends last user message on capability_gap toast action', async () => {
-    await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'render_ui' }));
-
-    expect(toastInfo).toHaveBeenCalledTimes(1);
-    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: { onClick?: () => Promise<void> } };
-    await toastOptions.action?.onClick?.();
-    expect(setCurrentBuiltinTools).toHaveBeenCalledWith(['web_search', 'memory', 'render_ui']);
-    expect(sendMessage).toHaveBeenCalledWith(
-      '帮我填表准备 staging 部署配置',
-      expect.any(String),
-    );
-    expect(toastSuccess).toHaveBeenCalledWith('Enabled and resent your request.');
-  });
-
-  it('defers resend while loading and shows deferred toast', async () => {
-    mockLoading = true;
-    await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'render_ui' }));
-
-    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: { onClick?: () => Promise<void> } };
-    await toastOptions.action?.onClick?.();
-
-    expect(setCurrentBuiltinTools).toHaveBeenCalledWith(['web_search', 'memory', 'render_ui']);
-    expect(sendMessage).not.toHaveBeenCalled();
-    expect(toastSuccess).toHaveBeenCalledWith('Enabled. Will resend after this turn finishes.');
-  });
-
-  it('shows cron scheduled-task label on capability_gap toast', async () => {
+  it('ignores cron capability_gap without factual reason', async () => {
     document.documentElement.lang = 'zh';
-    await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'cron' }));
-
-    expect(toastInfo).toHaveBeenCalledTimes(1);
-    const toastMessage = toastInfo.mock.calls[0]?.[0] as string;
-    expect(toastMessage).toContain('定时任务');
-    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: { label?: string; onClick?: () => Promise<void> } };
-    expect(toastOptions.action?.label).toBe('开启并重发');
-    await toastOptions.action?.onClick?.();
-    expect(setCurrentBuiltinTools).toHaveBeenCalledWith(['web_search', 'memory', 'cron']);
+    const result = await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'cron' }));
+    expect(result).toBeNull();
+    expect(toastInfo).not.toHaveBeenCalled();
+    expect(setPendingGapRetry).not.toHaveBeenCalled();
   });
 
   it('shows info-only toast on surface_unavailable capability_gap', async () => {
@@ -277,24 +243,10 @@ describe('gapEvents', () => {
     expect(setPendingGapRetry).not.toHaveBeenCalled();
   });
 
-  it('binds skill and resends last user message on skill_gap toast action', async () => {
-    await gapEvents(createCtx(AgentEventType.SKILL_GAP, { skill_id: 'github_pr_skill' }));
-
-    expect(setPendingGapRetry).toHaveBeenCalledWith({
-      kind: 'skill',
-      text: '帮我填表准备 staging 部署配置',
-      skillId: 'github_pr_skill',
-    });
-    expect(toastInfo).toHaveBeenCalledTimes(1);
-    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: { onClick?: () => Promise<void> } };
-    await toastOptions.action?.onClick?.();
-    expect(updateAgentConfig).toHaveBeenCalledWith({
-      selectedSkillIds: ['bound_skill', 'github_pr_skill'],
-    });
-    expect(sendMessage).toHaveBeenCalledWith(
-      '帮我填表准备 staging 部署配置',
-      expect.any(String),
-    );
-    expect(toastSuccess).toHaveBeenCalledWith('Skill bound and resent your request.');
+  it('ignores skill_gap events (bind-and-resend removed)', async () => {
+    const result = await gapEvents(createCtx(AgentEventType.SKILL_GAP, { skill_id: 'github_pr_skill' }));
+    expect(result).toBeNull();
+    expect(setPendingGapRetry).not.toHaveBeenCalled();
+    expect(toastInfo).not.toHaveBeenCalled();
   });
 });

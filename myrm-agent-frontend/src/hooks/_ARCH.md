@@ -28,8 +28,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 
 | 位置 | 说明 |
 |------|------|
-| `__tests__/` | 25 个 hook 单元测试（中央目录；与域内 `__tests__/` 并存） |
-| `<domain>/__tests__/` | **增量规范**：新 hook 测试写域内（先例：`tasks/`、`globalEvents/`、`agent/config-panel/`） |
+| `<domain>/__tests__/` | hook 单元测试与实现同域共置（colocated） |
 
 政策 SSOT：根 [_ARCH.md](../../_ARCH.md)「测试」表（默认 colocated）。
 

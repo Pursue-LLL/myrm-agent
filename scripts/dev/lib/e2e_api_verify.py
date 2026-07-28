@@ -567,6 +567,32 @@ def _format_cap_headroom_human(
     )
 
 
+def _format_queue_human(
+    *,
+    active_leases: int,
+    mux_fields: dict[str, object],
+    active_test_count: int,
+) -> str | None:
+    headroom = _cap_headroom_fields(
+        active_leases=active_leases,
+        mux_fields=mux_fields,
+        active_test_count=active_test_count,
+    )
+    if not headroom["parallelQueueExpected"]:
+        return None
+    shpoib_max = int(headroom["shpoibMaxConcurrent"])
+    return (
+        "E2E_QUEUE_HUMAN: cap full "
+        f"(wave_leases={active_leases} shpoib_max={shpoib_max} "
+        f"active_tests={active_test_count}). "
+        "New ./myrm test runs AUTO-QUEUE in ADMIT (≤900s). "
+        "NEVER stop/kill other pytest. "
+        "Progress on stderr: E2E capacity [E2E_LEASE_WAIT] / "
+        "E2E_SHPOIB_BOOTSTRAP_PROGRESS every 30s. "
+        "Do NOT pipe './myrm test' to tail|head — hides progress."
+    )
+
+
 def _context_to_dict(
     ctx: E2eApiContext,
     *,
@@ -656,6 +682,13 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         )
         + "\n"
     )
+    queue_human = _format_queue_human(
+        active_leases=ctx.active_leases,
+        mux_fields=mux_fields,
+        active_test_count=active_test_count,
+    )
+    if queue_human is not None:
+        sys.stdout.write(f"{queue_human}\n")
     for line in parallel_lines:
         sys.stdout.write(f"{line}\n")
     sys.stdout.write(
