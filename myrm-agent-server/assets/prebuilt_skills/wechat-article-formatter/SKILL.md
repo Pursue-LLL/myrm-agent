@@ -25,6 +25,10 @@ contract:
 
 Convert workspace Markdown into WeChat Official Account HTML. The output is meant for **preview in WebUI** and **manual push to the WeChat draft box** (HITL).
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Workflow
 
 1. **Read** the user's Markdown file with `file_read_tool`.
