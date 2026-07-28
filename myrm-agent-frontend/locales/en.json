@@ -2071,7 +2071,15 @@
         "vaultReady": "Vault ready",
         "vaultNotReady": "Vault initializing",
         "legacyMigrated": "Legacy vault merged",
-        "legacyPending": "Legacy data migration pending"
+        "legacyPending": "Legacy data migration pending",
+        "cognitiveIndex": "Knowledge catalog",
+        "cognitiveLog": "Activity log",
+        "cognitiveHot": "Recent context",
+        "cognitiveReady": "Ready",
+        "cognitivePending": "Not built yet",
+        "cognitiveLogEntries": "{count, plural, =0 {No entries yet} one {# entry} other {# entries}}",
+        "cognitiveHotUpdated": "Updated {time}",
+        "cognitiveHotEmpty": "Not refreshed yet"
       },
       "query": {
         "title": "Query Wiki",
@@ -4841,6 +4849,11 @@
       "tooltipLine1": "Configure capabilities or use saved agents",
       "tooltipLine2": "Unleash your creativity to build powerful AI agents!",
       "welcomeMessage": "Configure capabilities for your intelligent agent or use saved agents. Unleash your creativity to build powerful AI agents!"
+    },
+    "readiness": {
+      "warning": "Some configurations need attention",
+      "blocked": "Agent cannot run — fix required",
+      "ready": "Ready"
     },
     "list": "Agent List",
     "create": "Create Agent",

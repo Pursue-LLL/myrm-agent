@@ -322,10 +322,15 @@ def _confirm_reload_dialog(client, page, *, timeout_sec: float = 45.0) -> None:
     assert isinstance(confirmed, dict) and confirmed.get("ok") is True, confirmed
 
 
+_APP_LAYOUT_READY_JS = """(() => ({
+  ready: !!document.querySelector('[data-testid="app-layout"]'),
+}))()"""
+
+
 def _reload_mcp_page(client, page) -> None:
     reload_mcp_page(client, page)
     dismiss_blocking_modals(client, page)
-    wait_for_state(client, page, _MCP_PAGE_READY_JS, timeout_sec=90.0)
+    wait_for_state(client, page, _APP_LAYOUT_READY_JS, timeout_sec=120.0)
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)

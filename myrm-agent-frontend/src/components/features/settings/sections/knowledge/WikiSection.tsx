@@ -34,6 +34,23 @@ interface WikiStats {
   wiki_path: string;
   vault_ready: boolean;
   legacy_migrated: boolean;
+  cognitive_index_ready: boolean;
+  cognitive_log_entries: number;
+  cognitive_hot_updated_at: string | null;
+}
+
+function formatCognitiveUpdatedAt(iso: string | null | undefined, locale: string): string {
+  if (!iso) {
+    return '';
+  }
+  const parsed = Date.parse(iso);
+  if (Number.isNaN(parsed)) {
+    return iso;
+  }
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(parsed);
 }
 
 function wikiScopedPath(path: string, agentId?: string | null): string {
@@ -515,6 +532,36 @@ export function WikiSection() {
                       </span>
                     )}
                   </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                      <div className="text-xs text-muted-foreground">{t('stats.cognitiveIndex')}</div>
+                      <div
+                        className={
+                          stats.cognitive_index_ready
+                            ? 'mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-400'
+                            : 'mt-1 text-sm font-medium text-amber-700 dark:text-amber-400'
+                        }
+                      >
+                        {stats.cognitive_index_ready ? t('stats.cognitiveReady') : t('stats.cognitivePending')}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                      <div className="text-xs text-muted-foreground">{t('stats.cognitiveLog')}</div>
+                      <div className="mt-1 text-sm font-medium text-foreground">
+                        {t('stats.cognitiveLogEntries', { count: stats.cognitive_log_entries ?? 0 })}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                      <div className="text-xs text-muted-foreground">{t('stats.cognitiveHot')}</div>
+                      <div className="mt-1 text-sm font-medium text-foreground">
+                        {stats.cognitive_hot_updated_at
+                          ? t('stats.cognitiveHotUpdated', {
+                              time: formatCognitiveUpdatedAt(stats.cognitive_hot_updated_at, locale),
+                            })
+                          : t('stats.cognitiveHotEmpty')}
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-muted rounded-lg">
                     <div className="text-3xl font-bold">{stats.total_concepts}</div>
@@ -653,7 +700,7 @@ export function WikiSection() {
               </CardTitle>
               <CardDescription>{t('actions.description')}</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col sm:flex-row gap-4">
+            <CardContent className="flex flex-col sm:flex-row sm:flex-wrap gap-4">
               <Button onClick={handleCompile} disabled={isCompiling} className="flex-1">
                 <IconGlow className="w-4 h-4 mr-2" />
                 {isCompiling ? t('compiling') : t('actions.compile')}

@@ -3,6 +3,7 @@
 Prerequisites:
   ./myrm ready --chrome
   Wave READ lease recommended when parallel agents are active.
+  Run one test at a time: path::test_name (whole-file batch denied by E2E_FILE_BATCH_DENIED).
 
 Covers:
   - Voice Settings: no amber banner when edge_tts_available=true
@@ -117,10 +118,14 @@ def _server_reachable() -> bool:
 
 
 def _require_live_stack() -> None:
-    if not _server_reachable():
-        pytest.fail(
-            "Live E2E API not reachable — run via ./myrm test -m e2e after ./myrm ready --chrome"
-        )
+    deadline = time.monotonic() + 120.0
+    while time.monotonic() < deadline:
+        if _server_reachable():
+            return
+        time.sleep(2.0)
+    pytest.fail(
+        "Live E2E API not reachable — run via ./myrm test -m e2e after ./myrm ready --chrome"
+    )
 
 
 def _ensure_voice_feature_enabled() -> None:

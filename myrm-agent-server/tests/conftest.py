@@ -493,9 +493,7 @@ def _require_live_e2e_lease(
                 chrome_attach=os.environ.get("MYRM_CHROME_E2E_ATTACH", "").strip()
                 == "1",
                 shared_hot=os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() == "1",
-                stream_lock_held=os.environ.get(
-                    "MYRM_E2E_STREAM_LOCK_HELD", ""
-                ).strip()
+                stream_lock_held=os.environ.get("MYRM_E2E_STREAM_LOCK_HELD", "").strip()
                 == "1",
                 api_only=os.environ.get("MYRM_E2E_API_ONLY", "").strip() == "1"
                 or os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_POOL", "").strip() == "1",
@@ -585,7 +583,9 @@ def e2e_resource_ledger(request: pytest.FixtureRequest) -> E2EResourceLedger:
 
 
 @pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) -> Iterator[None]:
+def pytest_runtest_makereport(
+    item: pytest.Item, call: pytest.CallInfo[None]
+) -> Iterator[None]:
     outcome = yield
     rep = outcome.get_result()
     if call.when != "call" or not _is_formal_chrome_e2e(item):

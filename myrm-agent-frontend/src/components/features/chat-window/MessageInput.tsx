@@ -31,6 +31,7 @@ import WorkflowModeToggle from '../message-input-actions/WorkflowModeToggle';
 import BaseModelSelector from '../message-input-actions/BaseModelSelector';
 import ContextUsageIndicator from '../message-box/ContextUsageIndicator';
 import LivenessIndicator from './LivenessIndicator';
+import ReadinessBadge from '../message-input-actions/ReadinessBadge';
 import BudgetBadge from './BudgetBadge';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
 import SessionSpendSurface from '@/components/billing/SessionSpendSurface';
@@ -494,6 +495,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                   <WorkUnitBalanceBar compact className="shrink-0" />
                   <SessionSpendSurface className="shrink-0" />
                   <ContextUsageIndicator />
+                  <ReadinessBadge />
                   <LivenessIndicator />
                   <div className="hidden sm:flex items-center gap-1">
                     <EnvironmentShield />

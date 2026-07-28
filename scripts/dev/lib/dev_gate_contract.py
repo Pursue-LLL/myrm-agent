@@ -104,8 +104,14 @@ E2E_BOOTSTRAP_SHELL_MIN_SEC: Final[float] = 60.0
 E2E_TEARDOWN_WALL_CLOCK_SEC: Final[int] = 30
 # Legacy alias: BODY budget for signoff quality gate (not queue+bootstrap merged).
 SIGNOFF_LEG_MTB_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
-# R62: pytest body ceiling equals full BODY phase (bootstrap is separate).
-SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+# R81: pytest-timeout spans ADMIT+BOOTSTRAP fixtures + BODY (func_only=False); must not
+# kill during SHPOIB capacity wait under parallel chrome_e2e. Quality gate still uses
+# ceil(startup+junit_time) ≤600s for BODY-only elapsed.
+SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC: Final[int] = (
+    E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+    + E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
+    + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+)
 SIGNOFF_DEDUPE_WAIT_SEC: Final[int] = 60
 SIGNOFF_HUNG_BLOCKER_ELAPSED_SEC: Final[int] = SIGNOFF_LEG_MTB_SEC
 _SIGNOFF_TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on"})
@@ -228,7 +234,9 @@ GATE_MUX_STALL_FAIL_FAST_SEC: Final[int] = 120
 E2E_SHELL_SKELETON_STALL_TOKEN: Final[str] = "E2E_SHELL_SKELETON_STALL"
 MUX_RECLAIM_STALL_TOKEN: Final[str] = "MUX_RECLAIM_STALL"
 # R69: refuse global mux shim teardown when other wave leases/contexts are active.
-MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN: Final[str] = "E2E_MUX_CROSS_SESSION_RECOVER_DENIED"
+MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN: Final[str] = (
+    "E2E_MUX_CROSS_SESSION_RECOVER_DENIED"
+)
 # R72 SendTurnContract: single evaluate budget (kickoff observe + API poll + margin).
 SEND_TURN_EVAL_RECV_SEC: Final[float] = 120.0
 SEND_TURN_PYTHON_WALL_SEC: Final[float] = 130.0
@@ -364,7 +372,7 @@ def _normalize_pytest_timeout_value(raw: str, *, floor: int, ceiling: bool) -> s
         return raw
     value = int(raw)
     if ceiling:
-        return str(min(value, floor))
+        return str(min(value, SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC))
     if value < floor:
         return str(floor)
     return raw

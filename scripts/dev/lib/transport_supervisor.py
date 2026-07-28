@@ -69,8 +69,30 @@ def parallel_active_test_count() -> int:
     return 1
 
 
+def parallel_mux_peer_count() -> int:
+    """Wave/mux peer load for recovery lock scaling (align with chrome_mcp_client TRSM)."""
+    wave_leases = 0
+    mux_contexts = 0
+    try:
+        from mux_load import snapshot_mux_load
+
+        snapshot = snapshot_mux_load(force=True)
+        wave_leases = max(0, snapshot.wave_leases)
+        mux_contexts = max(0, snapshot.mux_contexts)
+    except ImportError:
+        pass
+    daemon_count = 1
+    try:
+        from runtime_probe import mux_owned_daemon_count
+
+        daemon_count = max(1, int(mux_owned_daemon_count()))
+    except (ImportError, OSError, TypeError, ValueError):
+        pass
+    return max(wave_leases, mux_contexts, daemon_count, parallel_active_test_count())
+
+
 def recovery_lock_wait_sec() -> float:
-    active = parallel_active_test_count()
+    active = parallel_mux_peer_count()
     scaled = MUX_RECOVERY_LOCK_BASE_SEC + active * MUX_RECOVERY_LOCK_PER_ACTIVE_SEC
     return min(MUX_RECOVERY_LOCK_WAIT_SEC, scaled)
 
@@ -117,6 +139,7 @@ def mux_recovery_scope(*, phase: str) -> Iterator[float]:
         raise RuntimeError(
             f"{MUX_RECLAIM_STALL_TOKEN}: mux recovery lock timeout after "
             f"{lock_wait_sec:.0f}s active_tests={parallel_active_test_count()} "
+            f"mux_peers={parallel_mux_peer_count()} "
             f"phase={phase}"
         )
     recovery_started = time.monotonic()

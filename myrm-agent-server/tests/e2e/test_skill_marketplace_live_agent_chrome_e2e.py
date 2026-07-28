@@ -361,7 +361,10 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
                 return
             except AssertionError as exc:
                 last_error = str(exc)
-                if "skill_market_tool" in last_error or "Marketplace search" in last_error:
+                if (
+                    "skill_market_tool" in last_error
+                    or "Marketplace search" in last_error
+                ):
                     raise
                 if attempt >= _MAX_CHAT_ATTEMPTS - 1:
                     raise

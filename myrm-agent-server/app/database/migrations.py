@@ -529,6 +529,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE chats ADD COLUMN share_revoked_at TIMESTAMP",
     "ALTER TABLE kanban_tasks DROP COLUMN goal_id",
     "ALTER TABLE cron_jobs ADD COLUMN tools_allowed JSON",
+    "ALTER TABLE cron_jobs ADD COLUMN acceptance_criteria JSON",
     "ALTER TABLE wiki_evidence_metric_events ADD COLUMN context_key VARCHAR(128)",
     CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL,
 ]

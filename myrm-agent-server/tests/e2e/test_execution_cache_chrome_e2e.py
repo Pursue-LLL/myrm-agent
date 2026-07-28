@@ -89,7 +89,9 @@ async def test_chrome_ui_same_chat_two_ok_messages(
 
         await chat.wait_input_empty(chat_id_hint=chat_id)
         heartbeat_e2e_lease()
-        await chat.send_message(E2E_PROMPT, E2E_PROMPT, chat_id_hint=chat_id, base_url=BASE_URL)
+        await chat.send_message(
+            E2E_PROMPT, E2E_PROMPT, chat_id_hint=chat_id, base_url=BASE_URL
+        )
         after_second = await chat.wait_turn_done(
             E2E_PROMPT,
             chat_id_hint=chat_id,
@@ -97,9 +99,9 @@ async def test_chrome_ui_same_chat_two_ok_messages(
             timeout_sec=TURN_WAIT_SEC,
         )
         chat_id_second = await _resolve_chat_id(chat, after_second)
-        assert chat_id_second == chat_id, (
-            f"Second turn changed chat id: {chat_id} -> {chat_id_second}"
-        )
+        assert (
+            chat_id_second == chat_id
+        ), f"Second turn changed chat id: {chat_id} -> {chat_id_second}"
         assert chat_user_message_count(chat_id) >= 2, (
             f"Expected two user messages in chat {chat_id}: "
             f"{after_first} -> {after_second}"
@@ -130,5 +132,9 @@ async def test_chrome_ui_same_chat_two_ok_messages(
         await asyncio.to_thread(client.close)
 
     created, reused = count_execution_cache_in_log(since_offset=log_offset)
-    assert created == 1, f"expected execution_cache_created x1 in backend log (got {created})"
-    assert reused >= 1, f"expected execution_cache_reuse >=1 in backend log (got {reused})"
+    assert (
+        created == 1
+    ), f"expected execution_cache_created x1 in backend log (got {created})"
+    assert (
+        reused >= 1
+    ), f"expected execution_cache_reuse >=1 in backend log (got {reused})"

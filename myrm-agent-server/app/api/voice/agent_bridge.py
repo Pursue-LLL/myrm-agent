@@ -64,6 +64,12 @@ _FALLBACK_EN = "Sorry, something went wrong. Please try again"
 _APPROVAL_HINT_ZH = "这个操作需要您在屏幕上确认"
 _APPROVAL_HINT_EN = "This action requires your confirmation on screen"
 
+_SPEECH_INTERRUPTED_NOTE = (
+    "[Note: the user interrupted your previous spoken reply before it finished. "
+    "Do not repeat what you already said; continue naturally or address their new input.]"
+)
+_INTERRUPT_TTL_S = 120.0
+
 
 @dataclass(slots=True)
 class _TranscriptEntry:
@@ -86,6 +92,7 @@ class VoiceAgentBridge:
     _current_turn: str | None = field(default=None, repr=False)
     _transcript: list[_TranscriptEntry] = field(default_factory=list, repr=False)
     _tts_cancel_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
+    _speech_interrupted_at: float | None = field(default=None, repr=False)
 
     async def handle_stt_final(self, text: str) -> None:
         """Process finalized STT text: cancel prior turn, invoke Agent, TTS."""
@@ -98,6 +105,9 @@ class VoiceAgentBridge:
         self._cancel_token = cancel_token
         self._tts_cancel_event.clear()
 
+        interrupted_prefix = self._take_speech_interrupted()
+        effective_query = f"{interrupted_prefix}{text}" if interrupted_prefix else text
+
         self._transcript.append(_TranscriptEntry(role="user", text=text))
         if len(self._transcript) > _MAX_TRANSCRIPT_HISTORY:
             self._transcript = self._transcript[-_MAX_TRANSCRIPT_HISTORY:]
@@ -109,7 +119,7 @@ class VoiceAgentBridge:
         outcome = "ok"
 
         try:
-            params = await self._build_agent_params(text)
+            params = await self._build_agent_params(effective_query)
             t_params = time.monotonic()
             if params is None:
                 outcome = "params_failed"
@@ -160,8 +170,17 @@ class VoiceAgentBridge:
             )
 
     def cancel_tts(self) -> None:
-        """Signal TTS cancellation (barge-in)."""
+        """Signal TTS cancellation (barge-in) and mark interrupted latch."""
         self._tts_cancel_event.set()
+        self._speech_interrupted_at = time.monotonic()
+
+    def _take_speech_interrupted(self) -> str:
+        """Consume the interrupted latch if within TTL; return note prefix or empty."""
+        at = self._speech_interrupted_at
+        self._speech_interrupted_at = None
+        if at is not None and (time.monotonic() - at) < _INTERRUPT_TTL_S:
+            return _SPEECH_INTERRUPTED_NOTE + "\n"
+        return ""
 
     def _cancel_current_turn(self) -> None:
         """Cancel any in-progress Agent execution."""

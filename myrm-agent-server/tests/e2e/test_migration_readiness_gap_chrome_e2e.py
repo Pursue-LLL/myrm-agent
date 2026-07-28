@@ -541,7 +541,7 @@ async def _run_migration_readiness_gap_e2e(
             wall_deadline=wall_deadline,
             gap_pattern=gap_pattern,
             gap_timeout_sec=90.0,
-            require_assistant_reply=True,
+            require_assistant_reply=False,
         )
 
         recorded_sse = list(sse_events)

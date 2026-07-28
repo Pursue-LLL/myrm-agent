@@ -151,9 +151,13 @@ class TestAdaptObsidianFile:
         assert dest is not None
         assert dest.exists()
         text = dest.read_text()
-        assert "Tags: python, web" in text
+        assert text.startswith("---")
+        assert "type: source" in text
+        assert "tags:" in text
         assert "# Hello" in text
+        assert "Tags:" not in text
         assert meta["tags"] == ["python", "web"]
+        assert meta["type"] == "source"
         assert imgs == 0
 
     def test_skips_canvas_file(self, tmp_path: Path) -> None:
@@ -191,7 +195,7 @@ class TestAdaptObsidianFile:
         assert dest is not None
         assert "sub/deep/note.md" in str(dest)
 
-    def test_aliases_prepended(self, tmp_path: Path) -> None:
+    def test_aliases_preserved_in_frontmatter(self, tmp_path: Path) -> None:
         vault = tmp_path / "vault"
         vault.mkdir()
         note = vault / "note.md"
@@ -202,7 +206,9 @@ class TestAdaptObsidianFile:
         dest, meta, _ = adapt_obsidian_file(note, vault, raw, assets)
         assert dest is not None
         text = dest.read_text()
-        assert "Aliases: alias1, alias2" in text
+        assert "aliases:" in text
+        assert "Aliases:" not in text
+        assert meta["aliases"] == ["alias1", "alias2"]
 
 
 # ---------------------------------------------------------------------------
@@ -338,8 +344,11 @@ class TestAdaptFullPipeline:
         note1 = raw / "note1.md"
         assert note1.exists()
         text = note1.read_text()
-        assert "Tags: python, web" in text
-        assert "Aliases: n1" in text
+        assert "type: source" in text
+        assert "tags:" in text
+        assert "aliases:" in text
+        assert "Tags:" not in text
+        assert "Aliases:" not in text
 
     def test_empty_vault(self, tmp_path: Path) -> None:
         vault = tmp_path / "empty_vault"

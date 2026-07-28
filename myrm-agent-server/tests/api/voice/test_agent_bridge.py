@@ -154,6 +154,12 @@ class TestVoiceAgentBridgeCancelTts:
         bridge.cancel_tts()
         assert bridge._tts_cancel_event.is_set()
 
+    def test_cancel_tts_sets_interrupted_latch(self) -> None:
+        bridge = _make_bridge()
+        assert bridge._speech_interrupted_at is None
+        bridge.cancel_tts()
+        assert bridge._speech_interrupted_at is not None
+
     def test_cancel_current_turn(self) -> None:
         bridge = _make_bridge()
         from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
@@ -168,6 +174,59 @@ class TestVoiceAgentBridgeCancelTts:
         assert bridge._current_turn is None
         assert bridge._cancel_token is None
         assert bridge._tts_cancel_event.is_set()
+
+
+class TestSpeechInterruptedLatch:
+    """Tests for the speech-interrupted latch (R16)."""
+
+    def test_take_returns_note_when_latch_fresh(self) -> None:
+        import time
+
+        from app.api.voice.agent_bridge import _SPEECH_INTERRUPTED_NOTE
+
+        bridge = _make_bridge()
+        bridge._speech_interrupted_at = time.monotonic()
+
+        result = bridge._take_speech_interrupted()
+        assert result == _SPEECH_INTERRUPTED_NOTE + "\n"
+        assert bridge._speech_interrupted_at is None
+
+    def test_take_returns_empty_when_no_latch(self) -> None:
+        bridge = _make_bridge()
+        result = bridge._take_speech_interrupted()
+        assert result == ""
+
+    def test_take_returns_empty_when_latch_expired(self) -> None:
+        import time
+
+        bridge = _make_bridge()
+        bridge._speech_interrupted_at = time.monotonic() - 200.0
+
+        result = bridge._take_speech_interrupted()
+        assert result == ""
+        assert bridge._speech_interrupted_at is None
+
+    def test_take_is_one_shot(self) -> None:
+        """Latch is consumed on first take; second take returns empty."""
+        import time
+
+        bridge = _make_bridge()
+        bridge._speech_interrupted_at = time.monotonic()
+
+        first = bridge._take_speech_interrupted()
+        second = bridge._take_speech_interrupted()
+        assert first != ""
+        assert second == ""
+
+    def test_cancel_tts_then_take(self) -> None:
+        """Integration: cancel_tts sets latch, _take_speech_interrupted consumes it."""
+        from app.api.voice.agent_bridge import _SPEECH_INTERRUPTED_NOTE
+
+        bridge = _make_bridge()
+        bridge.cancel_tts()
+
+        result = bridge._take_speech_interrupted()
+        assert _SPEECH_INTERRUPTED_NOTE in result
 
 
 class TestVoiceAgentBridgeHandleSttFinal:

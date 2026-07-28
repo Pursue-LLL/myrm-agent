@@ -49,7 +49,7 @@ _EXTENSION_BRIDGE_STATE = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(lane="READ")
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:

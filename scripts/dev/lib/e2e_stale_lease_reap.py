@@ -22,14 +22,34 @@ import sys
 import time
 from pathlib import Path
 
-from e2e_live_chrome_pytest_scan import LiveChromeE2ERow, list_live_chrome_e2e_pytest_rows
+from e2e_live_chrome_pytest_scan import (
+    LiveChromeE2ERow,
+    list_live_chrome_e2e_pytest_rows,
+)
 
 
 def _monorepo_root() -> Path:
     return Path(__file__).resolve().parents[4]
 
 
+def _process_has_signoff_env(pid: int) -> bool:
+    try:
+        proc = subprocess.run(
+            ["ps", "eww", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return False
+    if proc.returncode != 0:
+        return False
+    return "E2E_SIGNOFF=1" in proc.stdout
+
+
 def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
+    if _process_has_signoff_env(row.pid):
+        return None
     root = _monorepo_root()
     sys.path.insert(0, str(root / "myrm-agent" / "scripts" / "dev" / "lib"))
     from dev_gate_contract import (  # noqa: PLC0415
@@ -46,8 +66,12 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
     snapshot = resolve_session_snapshot(pid=row.pid, test_id=row.test_id)
     if snapshot is not None:
         body_elapsed = body_elapsed_from_snapshot(snapshot)
-        if body_elapsed is not None and body_elapsed >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
-            return f"body_elapsed={int(body_elapsed)}s>={LIVE_SINGLE_TEST_WALL_CLOCK_SEC}s"
+        if body_elapsed is not None and body_elapsed >= float(
+            LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+        ):
+            return (
+                f"body_elapsed={int(body_elapsed)}s>={LIVE_SINGLE_TEST_WALL_CLOCK_SEC}s"
+            )
         stale = progress_stale_sec(snapshot)
         if (
             body_elapsed is not None

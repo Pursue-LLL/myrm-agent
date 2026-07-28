@@ -45,7 +45,7 @@ export function WikiPendingEdits() {
       loadPending();
     } catch (error) {
       console.error('Failed to approve:', error);
-      if (error instanceof ApiError && error.status === 422) {
+      if (error instanceof ApiError && error.code === 422) {
         toast.error(t('errors.approveTypeRequired'));
         return;
       }

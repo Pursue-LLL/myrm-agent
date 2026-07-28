@@ -735,3 +735,37 @@ export async function instantiateTemplate(templateId: string): Promise<Agent> {
     silent: true,
   });
 }
+
+// --- Agent Readiness (Dry-Run) ---
+
+export type ReadinessLevel = 'ready' | 'warning' | 'blocked';
+
+export interface AgentReadinessItem {
+  dimension: string;
+  level: ReadinessLevel;
+  reason: string;
+  next_action: string;
+  settings_path: string;
+}
+
+export interface AgentReadinessReport {
+  overall_level: ReadinessLevel;
+  items: AgentReadinessItem[];
+  agent_id: string;
+  checked_at: number;
+}
+
+export async function getAgentReadiness(agentId: string): Promise<AgentReadinessReport> {
+  const res = await apiRequest<{ data: AgentReadinessReport }>(`/user-agents/${agentId}/readiness`, {
+    method: 'GET',
+    silent: true,
+  });
+  return res.data;
+}
+
+export async function invalidateAgentReadiness(agentId: string): Promise<void> {
+  await apiRequest(`/user-agents/${agentId}/readiness/invalidate`, {
+    method: 'POST',
+    silent: true,
+  });
+}

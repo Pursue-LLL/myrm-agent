@@ -414,7 +414,10 @@ def resolve_e2e_api_context(
     resolved_state = state_dir or _default_state_dir()
     shared = shared_api_base()
     workspace_fp = workspace_backend_fingerprint()
-    from e2e_lease_liveness import load_wave_snapshot, wave_lease_counts  # noqa: PLC0415
+    from e2e_lease_liveness import (
+        load_wave_snapshot,
+        wave_lease_counts,
+    )  # noqa: PLC0415
 
     wave_snapshot = load_wave_snapshot()
     lease_counts = wave_lease_counts(wave_snapshot)
@@ -575,7 +578,9 @@ def _cap_headroom_fields(
         if isinstance(lease_counts, WaveLeaseCounts)
         else WaveLeaseCounts(
             total=int(getattr(lease_counts, "total", lease_counts)),
-            live_agent_shpoib=int(getattr(lease_counts, "live_agent_shpoib", lease_counts)),
+            live_agent_shpoib=int(
+                getattr(lease_counts, "live_agent_shpoib", lease_counts)
+            ),
             live_agent_shared_hot=0,
             read_page=0,
         )
@@ -722,15 +727,12 @@ def _format_agent_decision_human(
         f"NEXT_ACTION={next_action}",
         f"AGENT_NEVER_SAY={AGENT_NEVER_SAY}",
     ]
-    batch_rows = [
-        row for row in active_tests if row.get("batch_mode") is True
-    ]
+    batch_rows = [row for row in active_tests if row.get("batch_mode") is True]
     if batch_rows:
         lines.append(
             "E2E_FILE_BATCH_CONTEXT: "
             + "; ".join(
-                f"pid={row.get('pid')} test={row.get('test_id')}"
-                for row in batch_rows
+                f"pid={row.get('pid')} test={row.get('test_id')}" for row in batch_rows
             )
             + " (process_elapsed≠single-test BODY; prefer path::test_name)"
         )

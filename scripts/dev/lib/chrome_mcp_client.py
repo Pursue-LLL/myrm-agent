@@ -131,6 +131,7 @@ def _shim_process_alive(client: "ChromeMcpClient") -> bool:
     process = client._process
     return process is not None and process.poll() is None
 
+
 def _reclaim_wall_deadline() -> float:
     return time.monotonic() + float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC)
 
@@ -1538,9 +1539,7 @@ class ChromeMcpClient:
                     tool_arguments = self._maybe_refresh_tool_page_arguments(
                         tool_arguments
                     )
-                    time.sleep(
-                        _tool_retry_backoff_sec(name, attempt, transient=True)
-                    )
+                    time.sleep(_tool_retry_backoff_sec(name, attempt, transient=True))
                     continue
                 reclaimed = None
                 if not getattr(self, "_reclaim_in_progress", False):
@@ -1561,9 +1560,7 @@ class ChromeMcpClient:
                     and attempt + 1 < max_attempts
                 ):
                     self._recover_mux_transport()
-                    time.sleep(
-                        _tool_retry_backoff_sec(name, attempt, transient=True)
-                    )
+                    time.sleep(_tool_retry_backoff_sec(name, attempt, transient=True))
                     continue
                 transient = isinstance(exc, RuntimeError) and _is_transient_mux_error(
                     message
@@ -1608,9 +1605,7 @@ class ChromeMcpClient:
                     tool_arguments = self._maybe_refresh_tool_page_arguments(
                         tool_arguments
                     )
-                    time.sleep(
-                        _tool_retry_backoff_sec(name, attempt, transient=True)
-                    )
+                    time.sleep(_tool_retry_backoff_sec(name, attempt, transient=True))
                     continue
                 reclaimed = None
                 if not getattr(self, "_reclaim_in_progress", False):
@@ -1627,9 +1622,7 @@ class ChromeMcpClient:
                         continue
                 if _is_page_ownership_error(message) and attempt + 1 < max_attempts:
                     self._recover_mux_transport()
-                    time.sleep(
-                        _tool_retry_backoff_sec(name, attempt, transient=True)
-                    )
+                    time.sleep(_tool_retry_backoff_sec(name, attempt, transient=True))
                     continue
                 if not is_probe and _should_recover_mux_after_tool_error(
                     name, message, retry_tools=frozenset(retry_tools)

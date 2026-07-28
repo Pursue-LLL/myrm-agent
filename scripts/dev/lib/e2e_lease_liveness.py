@@ -70,7 +70,9 @@ def _live_agent_bucket(namespace: str) -> str:
 def wave_lease_counts(snapshot: dict[str, object]) -> WaveLeaseCounts:
     raw_leases = snapshot.get("activeLeases")
     if not isinstance(raw_leases, list):
-        return WaveLeaseCounts(total=0, live_agent_shpoib=0, live_agent_shared_hot=0, read_page=0)
+        return WaveLeaseCounts(
+            total=0, live_agent_shpoib=0, live_agent_shared_hot=0, read_page=0
+        )
     live_shpoib = 0
     live_shared_hot = 0
     read_page = 0
@@ -193,7 +195,9 @@ def build_lease_liveness(
         if expires is not None:
             ttl_remaining = max(0, int((expires - now).total_seconds()))
         parent = item.get("parentLeaseId")
-        parent_text = str(parent).strip() if isinstance(parent, str) and parent.strip() else None
+        parent_text = (
+            str(parent).strip() if isinstance(parent, str) and parent.strip() else None
+        )
         linked = owner_to_test.get(owner_pid) if owner_pid is not None else None
         rows.append(
             LeaseLivenessRow(

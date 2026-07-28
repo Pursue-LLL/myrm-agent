@@ -74,7 +74,9 @@ def _pid_alive(pid: int) -> bool:
     return True
 
 
-def _load_all_session_snapshots(*, live_only: bool = True) -> tuple[tuple[int, dict[str, object]], ...]:
+def _load_all_session_snapshots(
+    *, live_only: bool = True
+) -> tuple[tuple[int, dict[str, object]], ...]:
     directory = session_snapshot_dir()
     if not directory.is_dir():
         return ()

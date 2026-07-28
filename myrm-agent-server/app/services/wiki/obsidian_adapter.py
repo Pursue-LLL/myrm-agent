@@ -1,11 +1,13 @@
 """Obsidian Vault adapter for Wiki import.
 
 [INPUT]
-myrm_agent_harness.toolkits.wiki.core.structure::WikiFileStructure (POS: Wiki file layout and scanning)
+myrm_agent_harness.agent.meta_tools.file_ops.utils.markdown_frontmatter::parse_frontmatter (POS: YAML FM parse SSOT)
+myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::infer_type_for_import, serialize_frontmatter (POS: wiki page type gate SSOT)
 
 [OUTPUT]
-- adapt_obsidian_file: Transforms Obsidian-specific syntax before Wiki ingestion.
-- parse_frontmatter: imported from harness markdown_frontmatter SSOT.
+- adapt_obsidian_file: Transforms Obsidian-specific syntax and writes raw notes with valid frontmatter `type`.
+- rewrite_image_embeds: Rewrites Obsidian image embeds to standard Markdown.
+- parse_frontmatter: Re-exported harness SSOT parser for tests and callers.
 
 [POS]
 Business-layer adapter that pre-processes Obsidian Vault files for compatibility with the
@@ -105,22 +107,6 @@ def adapt_obsidian_file(
 
     metadata, body = parse_frontmatter(content)
     body, images_copied = rewrite_image_embeds(body, source_file, vault_root, assets_dest)
-
-    if metadata.get("tags"):
-        tags = metadata["tags"]
-        if isinstance(tags, list):
-            tag_line = "Tags: " + ", ".join(str(t) for t in tags)
-        else:
-            tag_line = f"Tags: {tags}"
-        body = f"{tag_line}\n\n{body}"
-
-    if metadata.get("aliases"):
-        aliases = metadata["aliases"]
-        if isinstance(aliases, list):
-            alias_line = "Aliases: " + ", ".join(str(a) for a in aliases)
-        else:
-            alias_line = f"Aliases: {aliases}"
-        body = f"{alias_line}\n\n{body}"
 
     rel_path = source_file.relative_to(vault_root)
     dest_path = raw_dest_dir / rel_path

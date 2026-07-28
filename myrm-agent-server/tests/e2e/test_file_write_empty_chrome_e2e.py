@@ -89,6 +89,7 @@ def _empty_write_target_path(workspace_seed: dict[str, object], filename: str) -
     workspace_dir = Path(str(workspace_seed["file_path"])).parent
     return workspace_dir / filename
 
+
 _PIN_LITE_MODEL_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.pinLiteModelForE2e) {
@@ -329,7 +330,9 @@ def _create_empty_write_live_agent(api_url: str) -> str:
     return agent_id
 
 
-def _empty_write_failure_in_messages(chat_id: str, *, api_url: str) -> tuple[bool, bool]:
+def _empty_write_failure_in_messages(
+    chat_id: str, *, api_url: str
+) -> tuple[bool, bool]:
     tool_invoked = False
     has_mutation_failure = False
     for msg in fetch_chat_messages(
@@ -643,14 +646,14 @@ async def test_file_write_empty_live_agent_webui(
                 BASE_URL,
                 timeout_sec=_bounded_wait_sec(45.0, reserve_sec=45.0),
             )
-        result = await _wait_turn_done(
-            chat, resolved_chat_id, target_file=target_file
-        )
+        result = await _wait_turn_done(chat, resolved_chat_id, target_file=target_file)
         invoked, has_failure = _empty_write_failure_in_messages(
             resolved_chat_id, api_url=api_base
         )
         write_calls = _file_write_tool_call_count(resolved_chat_id, api_url=api_base)
-        assert invoked, f"{_FILE_WRITE_TOOL} not found in persisted messages; result={result}"
+        assert (
+            invoked
+        ), f"{_FILE_WRITE_TOOL} not found in persisted messages; result={result}"
         assert has_failure or (
             result.get("source") == "api+disk" and result.get("disk_clean") is True
         ), f"fileMutationFailures missing; result={result}"

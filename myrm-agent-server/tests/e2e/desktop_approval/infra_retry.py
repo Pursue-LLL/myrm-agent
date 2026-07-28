@@ -17,6 +17,7 @@ Mux/page-open retry layer for desktop approval Chrome E2E; orchestrator-owned he
 from __future__ import annotations
 
 import asyncio
+import os
 
 from chrome_mcp_client import ChromeMcpClient, McpPage
 
@@ -89,13 +90,21 @@ async def heal_chrome_attach_before_reopen() -> None:
     await asyncio.to_thread(assert_chrome_attach_health)
 
 
+def _resolve_open_nav_wall_timeout_sec() -> float:
+    """R81: signoff desktop leg queues on mux cold attach under parallel chrome_e2e."""
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        return 120.0
+    return 70.0
+
+
 async def open_mcp_chat_page(client: ChromeMcpClient) -> McpPage:
     """Open chat UI; prefer about:blank (no runtime binding), then recover, then direct :3000."""
     last_exc: BaseException | None = None
-    new_page_wall_timeout_sec = 70.0
-    navigate_wall_timeout_sec = 70.0
+    open_nav_wall = _resolve_open_nav_wall_timeout_sec()
+    new_page_wall_timeout_sec = open_nav_wall
+    navigate_wall_timeout_sec = open_nav_wall
     eval_wall_timeout_sec = 45.0
-    reload_wall_timeout_sec = 70.0
+    reload_wall_timeout_sec = open_nav_wall
 
     async def _call_with_wall_timeout(
         label: str,

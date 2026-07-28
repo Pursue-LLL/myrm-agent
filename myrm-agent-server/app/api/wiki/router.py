@@ -32,6 +32,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.memory import MemoryManager
+from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
+    WikiCognitiveMapService,
+    WikiMapEvent,
+    WikiMapEventType,
+)
 from pydantic import BaseModel, Field
 
 from app.api.dependencies import get_optional_llm_for_user
@@ -41,6 +46,29 @@ from app.services.wiki import MemoryToWikiArchiver
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["wiki"])
+
+
+def _refresh_wiki_cognitive_map(
+    archiver: MemoryToWikiArchiver,
+    event_type: WikiMapEventType,
+    summary: str,
+    details: dict[str, object] | None = None,
+) -> None:
+    """Rebuild OKF index/log/hot after a wiki lifecycle event."""
+    pending_stats = archiver._pending_mgr.get_stats()
+    queue_stats = archiver._queue.get_stats()
+    WikiCognitiveMapService(
+        archiver._structure,
+        get_pending_count=lambda: int(pending_stats.get("pending", 0)),
+        get_queue_pending=lambda: int(queue_stats.get("pending", 0)),
+    ).refresh(
+        WikiMapEvent(
+            event_type=event_type,
+            summary=summary,
+            details=details or {},
+        )
+    )
+
 
 # --- Request/Response Models ---
 
@@ -84,6 +112,9 @@ class WikiStatsResponse(BaseModel):
     wiki_path: str
     vault_ready: bool
     legacy_migrated: bool
+    cognitive_index_ready: bool = False
+    cognitive_log_entries: int = 0
+    cognitive_hot_updated_at: str | None = None
 
 
 class GraphNodeItem(BaseModel):
@@ -251,6 +282,12 @@ async def get_wiki_stats(
 
         concepts = archiver._structure.list_concepts()
         raw_files = archiver._structure.list_raw_files()
+        from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
+            count_log_entries,
+            hot_updated_at_iso,
+        )
+
+        index_path = archiver._structure.get_index_file_path()
         return WikiStatsResponse(
             total_concepts=len(concepts),
             total_articles=len(concepts),
@@ -258,6 +295,9 @@ async def get_wiki_stats(
             wiki_path=str(archiver.get_wiki_path()),
             vault_ready=is_vault_ready(agent_id),
             legacy_migrated=is_legacy_migration_complete(),
+            cognitive_index_ready=index_path.exists(),
+            cognitive_log_entries=count_log_entries(archiver._structure),
+            cognitive_hot_updated_at=hot_updated_at_iso(archiver._structure),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -494,14 +534,13 @@ async def get_pending_edits(archiver: Annotated[MemoryToWikiArchiver, Depends(_g
 async def approve_pending_edit(
     edit_id: int,
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    request: ApprovePendingEditRequest | None = None,
+    request: ApprovePendingEditRequest = ApprovePendingEditRequest(),
 ) -> OperationResult:
     """Approve a pending edit and merge it to the wiki."""
     from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import FrontmatterValidationError
 
-    modified_content = request.modified_content if request is not None else None
     try:
-        success = await archiver._pending_mgr.approve_edit(edit_id, modified_content)
+        success = await archiver._pending_mgr.approve_edit(edit_id, request.modified_content)
     except FrontmatterValidationError as exc:
         raise HTTPException(
             status_code=422,
@@ -513,6 +552,12 @@ async def approve_pending_edit(
         ) from exc
     if not success:
         raise HTTPException(status_code=400, detail="Edit not found or already processed")
+    _refresh_wiki_cognitive_map(
+        archiver,
+        WikiMapEventType.PENDING_APPROVE,
+        f"Approved pending edit {edit_id}",
+        {"edit_id": edit_id},
+    )
     return OperationResult(success=True, message=f"Approved edit {edit_id}")
 
 
@@ -538,6 +583,17 @@ async def repair_wiki_frontmatter_types(
     message = f"Repaired {result.files_repaired} of {result.files_scanned} scanned files"
     if result.errors:
         message = f"{message}; {len(result.errors)} errors"
+    if result.files_repaired > 0:
+        _refresh_wiki_cognitive_map(
+            archiver,
+            WikiMapEventType.REPAIR_TYPES,
+            message,
+            {
+                "files_scanned": result.files_scanned,
+                "files_repaired": result.files_repaired,
+                "files_skipped": result.files_skipped,
+            },
+        )
     return RepairTypesResponse(
         success=len(result.errors) == 0,
         files_scanned=result.files_scanned,
@@ -824,6 +880,13 @@ async def import_folder(
             archiver._queue.add_batch(enqueued_paths)
             if request.auto_compile:
                 archiver._compiler.start_background_worker()
+            else:
+                _refresh_wiki_cognitive_map(
+                    archiver,
+                    WikiMapEventType.IMPORT,
+                    f"Imported {len(enqueued_paths)} file(s) without auto-compile",
+                    {"files_enqueued": len(enqueued_paths)},
+                )
 
         return ImportResultResponse(
             success=True,
@@ -901,6 +964,13 @@ async def import_zip(
                 archiver._queue.add_batch(enqueued_paths)
                 if auto_compile:
                     archiver._compiler.start_background_worker()
+                else:
+                    _refresh_wiki_cognitive_map(
+                        archiver,
+                        WikiMapEventType.IMPORT,
+                        f"Imported {len(enqueued_paths)} file(s) from ZIP without auto-compile",
+                        {"files_enqueued": len(enqueued_paths)},
+                    )
 
             return ImportResultResponse(
                 success=True,
@@ -961,6 +1031,13 @@ def _process_obsidian_vault(
         archiver._queue.add_batch(enqueued_paths)
         if auto_compile:
             archiver._compiler.start_background_worker()
+        else:
+            _refresh_wiki_cognitive_map(
+                archiver,
+                WikiMapEventType.IMPORT,
+                f"Imported {len(enqueued_paths)} Obsidian note(s) without auto-compile",
+                {"files_enqueued": len(enqueued_paths), "source": source_label or "obsidian"},
+            )
 
     suffix = f" from {source_label}" if source_label else ""
     return ObsidianImportResultResponse(
