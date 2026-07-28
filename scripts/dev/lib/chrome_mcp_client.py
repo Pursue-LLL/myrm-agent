@@ -131,8 +131,28 @@ def _check_mux_reclaim_deadline(deadline: float, phase: str, *, started: float) 
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _TRANSPORT_RECOVER_ATTEMPTS = 3
 _REQUEST_LOCK_ACQUIRE_SEC = 5.0
+_REQUEST_LOCK_ACQUIRE_PARALLEL_CAP_SEC = 90.0
 _EXPLICIT_SHORT_TOOL_TIMEOUT_CEILING_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
+
+
+def _resolve_request_lock_acquire_sec() -> float:
+    """Scale per-session mux request lock wait with parallel E2E load (R76).
+
+    ``transport_supervisor.recovery_lock_wait_sec`` already scales the global
+    recovery mutex; the per-client lock must not fail-fast at 5s while a peer
+    recover holds the session lock during orphan rebuild.
+    """
+    try:
+        from transport_supervisor import recovery_lock_wait_sec
+
+        scaled = recovery_lock_wait_sec()
+        return min(
+            max(_REQUEST_LOCK_ACQUIRE_SEC, scaled),
+            _REQUEST_LOCK_ACQUIRE_PARALLEL_CAP_SEC,
+        )
+    except ImportError:
+        return _REQUEST_LOCK_ACQUIRE_SEC
 
 
 class _TransportDeadError(RuntimeError):
@@ -207,7 +227,7 @@ class ChromeMcpClient:
         self._request_timeout_sec = request_timeout_sec
         self._process: subprocess.Popen[str] | None = None
         self._request_id = 0
-        self._request_generation = 0
+        self._request_generation = self._initial_mux_generation()
         self._request_lock = threading.Lock()
         self._stderr_lines: deque[str] = deque(maxlen=100)
         self._stderr_thread: threading.Thread | None = None
@@ -229,6 +249,18 @@ class ChromeMcpClient:
         self._reclaim_in_progress = False
         self._mux_eval_executor: object | None = None
         self._mux_reset_executor: object | None = None
+
+    @staticmethod
+    def _initial_mux_generation() -> int:
+        """Bind client generation to runtime cell ledger when SHPOIB slot is active."""
+        try:
+            from e2e_runtime_cell import current_cell_id, read_cell_mux_generation
+
+            if current_cell_id():
+                return max(0, read_cell_mux_generation())
+        except ImportError:
+            pass
+        return 0
 
     def mux_eval_executor(self) -> object:
         """Dedicated pool for mux evaluate — avoids default asyncio pool exhaustion."""
@@ -262,10 +294,9 @@ class ChromeMcpClient:
     def _acquire_request_lock(
         self, *, timeout_sec: float | None = None
     ) -> threading.Lock:
-        wait_sec = (
-            float(timeout_sec) if timeout_sec is not None else _REQUEST_LOCK_ACQUIRE_SEC
-        )
-        wait_sec = max(0.1, min(wait_sec, _REQUEST_LOCK_ACQUIRE_SEC))
+        max_wait_sec = _resolve_request_lock_acquire_sec()
+        wait_sec = float(timeout_sec) if timeout_sec is not None else max_wait_sec
+        wait_sec = max(0.1, min(wait_sec, max_wait_sec))
         lock = self._request_lock
         if not lock.acquire(timeout=wait_sec):
             raise RuntimeError(
@@ -1257,6 +1288,13 @@ class ChromeMcpClient:
             self._request_generation + 1,
         )
         self._request_generation += 1
+        try:
+            from e2e_runtime_cell import current_cell_id, persist_cell_mux_generation
+
+            if current_cell_id():
+                persist_cell_mux_generation(self._request_generation)
+        except ImportError:
+            pass
         self._page_lease_heartbeat.stop()
         self._reclaim_in_progress = False
         self._teardown_shim_process()
