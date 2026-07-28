@@ -69,7 +69,28 @@ _smp_run_backend_crash_ensure() {
   MYRM_WAVE_GATE_BYPASS=1 bash "${dev_stack}" backend-only ensure >/dev/null 2>&1
 }
 
-_smp_attach_backend_crash_heal() {
+_smp_backend_heal_flock_file() {
+  echo "$(_smp_state_dir)/chrome-e2e-backend-heal.flock"
+}
+
+# R46.2: serialize backend-only ensure across parallel chrome_e2e admit/heal paths.
+# Without this, concurrent crash heals fight dev-stack ensure.lock and SIGTERM each other.
+_smp_with_backend_heal_flock() {
+  local wait_sec="${1:-180}"
+  shift
+  local flock_file
+  flock_file="$(_smp_backend_heal_flock_file)"
+  mkdir -p "$(dirname "${flock_file}")"
+  (
+    flock -w "${wait_sec}" 200 || {
+      echo "CHROME_E2E_ATTACH_HEAL: backend heal flock timeout after ${wait_sec}s" >&2
+      exit 1
+    }
+    "$@"
+  ) 200>"${flock_file}"
+}
+
+_smp_attach_backend_crash_heal_inner() {
   local monorepo_root="${1:?}" dev_stack="${2:?}"
   local stack_epoch_lib active_leases attempt backoff_sec
   stack_epoch_lib="$(dirname "${dev_stack}")/lib/stack-epoch.sh"
@@ -98,6 +119,20 @@ _smp_attach_backend_crash_heal() {
   done
   echo "CHROME_E2E_FAIL: attach backend crash heal failed after 3 attempts (api still down)" >&2
   return 1
+}
+
+_smp_attach_backend_crash_heal() {
+  local monorepo_root="${1:?}" dev_stack="${2:?}"
+  local wait_sec="${MYRM_E2E_CRASH_HEAL_FLOCK_WAIT_SEC:-180}"
+  local policy_py flock_file
+  policy_py="$(_smp_policy_py "$(dirname "${BASH_SOURCE[0]}")")"
+  flock_file="$(_smp_backend_heal_flock_file)"
+  # R99: fcntl.flock via Python SSOT — macOS has no GNU flock(1).
+  python3 "${policy_py}" attach-crash-heal \
+    --monorepo-root "${monorepo_root}" \
+    --dev-stack "${dev_stack}" \
+    --lock-file "${flock_file}" \
+    --wait-sec "${wait_sec}"
 }
 
 _smp_attach_backend_drift_heal() {

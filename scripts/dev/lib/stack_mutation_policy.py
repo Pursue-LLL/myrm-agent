@@ -15,10 +15,16 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import subprocess
 import sys
+import time
+import urllib.error
+import urllib.request
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -234,6 +240,117 @@ def apply_pending_drift_if_idle(
     )
 
 
+def shared_api_http_ok() -> bool:
+    try:
+        urllib.request.urlopen(
+            "http://127.0.0.1:8080/api/v1/health",
+            timeout=5,
+        )
+        return True
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
+
+
+@contextmanager
+def backend_heal_file_lock(lock_file: Path, wait_sec: float) -> Iterator[None]:
+    """fcntl.flock SSOT — macOS lacks GNU flock(1)."""
+    lock_file.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(lock_file), os.O_RDWR | os.O_CREAT, 0o644)
+    deadline = time.monotonic() + wait_sec
+    acquired = False
+    try:
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(
+                        f"backend heal flock timeout after {wait_sec}s"
+                    ) from None
+                time.sleep(0.25)
+        yield
+    finally:
+        if acquired:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+
+
+def attach_backend_crash_heal_inner(
+    *, monorepo_root: Path, dev_stack: Path
+) -> int:
+    active_leases = wave_active_lease_count(monorepo_root)
+    if shared_api_http_ok():
+        return 0
+    print(
+        "CHROME_E2E_ATTACH_HEAL: shared api down — crash heal starting "
+        f"({active_leases} active leases)",
+        file=sys.stderr,
+        flush=True,
+    )
+    env = {**os.environ, "MYRM_WAVE_GATE_BYPASS": "1"}
+    for attempt, backoff_sec in enumerate((0, 5, 10), start=1):
+        if backoff_sec > 0:
+            time.sleep(backoff_sec)
+        print(
+            "CHROME_E2E_ATTACH_HEAL: crash heal attempt "
+            f"{attempt}/3 ({active_leases} active leases)",
+            file=sys.stderr,
+            flush=True,
+        )
+        proc = _run_backend_only_ensure(
+            dev_stack=dev_stack,
+            root=monorepo_root,
+            env=env,
+        )
+        if proc.returncode == 0 and shared_api_http_ok():
+            print(
+                "CHROME_E2E_ATTACH_HEAL: shared api restored after crash heal "
+                f"(attempt {attempt})",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 0
+        print(
+            "CHROME_E2E_ATTACH_HEAL: crash heal attempt "
+            f"{attempt}/3 failed (api still down)",
+            file=sys.stderr,
+            flush=True,
+        )
+    print(
+        "CHROME_E2E_FAIL: attach backend crash heal failed after 3 attempts "
+        "(api still down)",
+        file=sys.stderr,
+        flush=True,
+    )
+    return 1
+
+
+def attach_backend_crash_heal(
+    *,
+    monorepo_root: Path,
+    dev_stack: Path,
+    lock_file: Path,
+    wait_sec: float,
+) -> int:
+    if shared_api_http_ok():
+        return 0
+    try:
+        with backend_heal_file_lock(lock_file, wait_sec):
+            return attach_backend_crash_heal_inner(
+                monorepo_root=monorepo_root,
+                dev_stack=dev_stack,
+            )
+    except TimeoutError:
+        print(
+            f"CHROME_E2E_ATTACH_HEAL: backend heal flock timeout after {wait_sec}s",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 1
+
+
 def wave_active_lease_count(monorepo_root: Path) -> int:
     wave_bin = monorepo_root / "scripts" / "dev" / "wave.sh"
     if not wave_bin.is_file():
@@ -312,6 +429,15 @@ def _cmd_session_safe_timeout(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_attach_crash_heal(args: argparse.Namespace) -> int:
+    return attach_backend_crash_heal(
+        monorepo_root=Path(args.monorepo_root),
+        dev_stack=Path(args.dev_stack),
+        lock_file=Path(args.lock_file),
+        wait_sec=float(args.wait_sec),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -340,6 +466,13 @@ def main(argv: list[str] | None = None) -> int:
     safe.add_argument("--item-count", required=True)
     safe.add_argument("--joined-argv", default="")
     safe.set_defaults(handler=_cmd_session_safe_timeout)
+
+    crash = sub.add_parser("attach-crash-heal")
+    crash.add_argument("--monorepo-root", required=True)
+    crash.add_argument("--dev-stack", required=True)
+    crash.add_argument("--lock-file", required=True)
+    crash.add_argument("--wait-sec", type=float, default=180.0)
+    crash.set_defaults(handler=_cmd_attach_crash_heal)
 
     parsed = parser.parse_args(argv)
     handler = getattr(parsed, "handler", None)
