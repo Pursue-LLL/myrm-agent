@@ -113,9 +113,6 @@ CHROME_E2E_DESKTOP_TIMEOUT_SECONDS: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 CHROME_E2E_STRESS_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_DESKTOP_MARKER: Final[str] = "chrome_e2e_desktop"
 CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER: Final[str] = "chrome_e2e_browser_takeover_live"
-CHROME_E2E_BROWSER_TAKEOVER_PYTEST_TIMEOUT_SEC: Final[int] = (
-    LIVE_SINGLE_TEST_WALL_CLOCK_SEC + 60
-)
 CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
     "chrome_e2e and not chrome_e2e_desktop and not chrome_e2e_browser_takeover_live"
 )
@@ -218,6 +215,8 @@ MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC: Final[int] = 120
 SHELL_PROBE_STALL_FAIL_FAST_SEC: Final[int] = 120
 E2E_SHELL_SKELETON_STALL_TOKEN: Final[str] = "E2E_SHELL_SKELETON_STALL"
 MUX_RECLAIM_STALL_TOKEN: Final[str] = "MUX_RECLAIM_STALL"
+# R69: refuse global mux shim teardown when other wave leases/contexts are active.
+MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN: Final[str] = "E2E_MUX_CROSS_SESSION_RECOVER_DENIED"
 # R72 SendTurnContract: single evaluate budget (kickoff observe + API poll + margin).
 SEND_TURN_EVAL_RECV_SEC: Final[float] = 120.0
 SEND_TURN_PYTHON_WALL_SEC: Final[float] = 130.0
@@ -248,6 +247,9 @@ LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC: Final[int] = (
     + LIVE_AGENT_BODY_BUFFER_SEC
     + MAX_PAGE_TIMEOUT_MS // 1000
     + 90
+)
+CHROME_E2E_BROWSER_TAKEOVER_PYTEST_TIMEOUT_SEC: Final[int] = (
+    LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC
 )
 
 
