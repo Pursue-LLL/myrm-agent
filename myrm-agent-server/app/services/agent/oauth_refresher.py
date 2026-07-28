@@ -118,10 +118,13 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                     "refresh_oauth_token: Token for '%s' was already refreshed by a parallel task. Skipping HTTP POST.",
                     issuer,
                 )
+                from app.services.agent.session_credential_assembler import XAI_ISSUER
+
+                scope = str(cred_val.get("base_url", "")) if issuer == XAI_ISSUER else str(cred_val.get("scope", ""))
                 return EphemeralUserCredential(
                     issuer=issuer,
                     token=str(cred_val.get("token", "")),
-                    scope=str(cred_val.get("scope", "")),
+                    scope=scope,
                     user_id=str(cred_val.get("user_id", "")),
                     expires_at=expires_at,
                     refresh_callback=lambda: refresh_oauth_token(issuer),
@@ -194,10 +197,16 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                             "refresh_oauth_token: successfully refreshed and saved token for '%s'",
                             issuer,
                         )
+                        from app.services.agent.session_credential_assembler import XAI_ISSUER
+
+                        refresh_scope = (
+                            str(updated_cred.get("base_url", "")) if issuer == XAI_ISSUER
+                            else str(updated_cred.get("scope", ""))
+                        )
                         return EphemeralUserCredential(
                             issuer=issuer,
                             token=new_token,
-                            scope=str(updated_cred.get("scope", "")),
+                            scope=refresh_scope,
                             user_id=str(updated_cred.get("user_id", "")),
                             expires_at=updated_cred.get("expires_at"),
                             refresh_callback=lambda: refresh_oauth_token(issuer),

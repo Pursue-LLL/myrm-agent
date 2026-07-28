@@ -8,11 +8,11 @@ from app.channels.providers.imessage import IMessageChannel
 from app.channels.types import ChannelStatus
 
 
-def _server_info_response(private_api: bool = True) -> Response:
+def _server_info_response(private_api: bool = True, helper_connected: bool = True) -> Response:
     """Create a mock BlueBubbles server/info response."""
     import json
 
-    body = json.dumps({"status": 200, "data": {"private_api": private_api}}).encode()
+    body = json.dumps({"status": 200, "data": {"private_api": private_api, "helper_connected": helper_connected}}).encode()
     return Response(200, content=body, request=Request("GET", "http://localhost:1234/api/v1/server/info"))
 
 
@@ -76,6 +76,7 @@ async def test_imessage_start_failure_raises_error(imessage_channel):
 @pytest.mark.asyncio
 async def test_start_typing_with_private_api(imessage_channel):
     imessage_channel._private_api_available = True
+    imessage_channel._helper_connected = True
     with patch.object(imessage_channel._http, "post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = Response(200, request=Request("POST", "http://x"))
         await imessage_channel.start_typing("iMessage;-;+15551234567")
@@ -95,6 +96,7 @@ async def test_start_typing_without_private_api(imessage_channel):
 @pytest.mark.asyncio
 async def test_stop_typing_with_private_api(imessage_channel):
     imessage_channel._private_api_available = True
+    imessage_channel._helper_connected = True
     with patch.object(imessage_channel._http, "request", new_callable=AsyncMock) as mock_req:
         mock_req.return_value = Response(200, request=Request("DELETE", "http://x"))
         await imessage_channel.stop_typing("iMessage;-;+15551234567")
@@ -116,6 +118,7 @@ async def test_stop_typing_without_private_api(imessage_channel):
 async def test_typing_graceful_on_failure(imessage_channel):
     """Typing failures should not propagate exceptions."""
     imessage_channel._private_api_available = True
+    imessage_channel._helper_connected = True
     with patch.object(imessage_channel._http, "post", new_callable=AsyncMock) as mock_post:
         mock_post.side_effect = Exception("Network error")
         await imessage_channel.start_typing("iMessage;-;+15551234567")
@@ -124,17 +127,29 @@ async def test_typing_graceful_on_failure(imessage_channel):
 @pytest.mark.asyncio
 async def test_private_api_detection_true(imessage_channel):
     with patch.object(imessage_channel._http, "get", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = _server_info_response(private_api=True)
+        mock_get.return_value = _server_info_response(private_api=True, helper_connected=True)
         await imessage_channel.start()
         assert imessage_channel._private_api_available is True
+        assert imessage_channel._helper_connected is True
 
 
 @pytest.mark.asyncio
 async def test_private_api_detection_false(imessage_channel):
     with patch.object(imessage_channel._http, "get", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = _server_info_response(private_api=False)
+        mock_get.return_value = _server_info_response(private_api=False, helper_connected=False)
         await imessage_channel.start()
         assert imessage_channel._private_api_available is False
+        assert imessage_channel._helper_connected is False
+
+
+@pytest.mark.asyncio
+async def test_typing_skipped_when_helper_disconnected(imessage_channel):
+    """Private API calls should not fire when helper is disconnected."""
+    imessage_channel._private_api_available = True
+    imessage_channel._helper_connected = False
+    with patch.object(imessage_channel._http, "post", new_callable=AsyncMock) as mock_post:
+        await imessage_channel.start_typing("iMessage;-;+15551234567")
+        mock_post.assert_not_called()
 
 
 @pytest.mark.asyncio

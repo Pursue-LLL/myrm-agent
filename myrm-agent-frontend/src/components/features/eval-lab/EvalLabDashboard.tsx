@@ -116,6 +116,7 @@ export default function EvalLabDashboard() {
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
   const [datasets, setDatasets] = useState<any[]>([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>('default');
+  const [benchmarkMode, setBenchmarkMode] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newDatasetName, setNewDatasetName] = useState('new_dataset');
   const createInputRef = useRef<HTMLInputElement>(null);
@@ -293,6 +294,7 @@ export default function EvalLabDashboard() {
         body: JSON.stringify({
           profile_id: selectedProfileId || null,
           dataset_id: selectedDatasetId,
+          benchmark_mode: benchmarkMode,
         }),
       });
       const data = await res.json();
@@ -423,6 +425,17 @@ export default function EvalLabDashboard() {
               </option>
             ))}
           </select>
+
+          <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={benchmarkMode}
+              onChange={(e) => setBenchmarkMode(e.target.checked)}
+              disabled={running}
+              className="rounded border-border text-primary focus:ring-primary"
+            />
+            {t('benchmarkMode')}
+          </label>
 
           <button
             onClick={handleRun}

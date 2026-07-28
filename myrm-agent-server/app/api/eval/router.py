@@ -112,6 +112,7 @@ async def capture_case(chat_id: str, dataset_id: str | None = None) -> dict[str,
 class RunEvalRequest(BaseModel):
     profile_id: str | None = None
     dataset_id: str | None = None
+    benchmark_mode: bool = False
 
 
 @router.post("/run")
@@ -127,7 +128,13 @@ async def run_evaluation(
 
     profile_id = request.profile_id if request else None
     dataset_id = request.dataset_id if request else None
-    background_tasks.add_task(run_eval_suite_background, dataset_id=dataset_id, profile_id=profile_id)
+    benchmark_mode = request.benchmark_mode if request else False
+    background_tasks.add_task(
+        run_eval_suite_background,
+        dataset_id=dataset_id,
+        profile_id=profile_id,
+        benchmark_mode=benchmark_mode,
+    )
     return {"status": "started"}
 
 

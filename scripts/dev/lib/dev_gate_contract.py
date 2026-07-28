@@ -239,6 +239,10 @@ MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC: Final[int] = 120
 MUX_PAGE_RECLAIM_HARD_TIMEOUT_SIGNOFF_SEC: Final[int] = (
     E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
 )
+# R85: desktop new_page/navigate wall must cover mux cold-attach queue (≤ADMIT 300s) + page ops.
+SIGNOFF_DESKTOP_OPEN_NAV_WALL_TIMEOUT_SEC: Final[int] = (
+    E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC + 120
+)
 SHELL_PROBE_STALL_FAIL_FAST_SEC: Final[int] = 120
 # R96-MUX: browser takeover gate — consecutive MUX stall without API gate progress.
 GATE_MUX_STALL_FAIL_FAST_SEC: Final[int] = 120

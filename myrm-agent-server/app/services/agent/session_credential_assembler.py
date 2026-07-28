@@ -41,11 +41,17 @@ async def _oauth_credentials_from_dict(
         if not isinstance(cred_val, dict) or "token" not in cred_val:
             continue
         issuer_str = str(issuer)
+        # xAI convention: EphemeralUserCredential.scope carries base_url
+        # (consistent with _xai_provider_credentials which sets scope=base_url)
+        if issuer_str == XAI_ISSUER:
+            scope = str(cred_val.get("base_url", ""))
+        else:
+            scope = str(cred_val.get("scope", ""))
         credentials.append(
             EphemeralUserCredential(
                 issuer=issuer_str,
                 token=str(cred_val["token"]),
-                scope=str(cred_val.get("scope", "")),
+                scope=scope,
                 user_id=str(cred_val.get("user_id", "")),
                 expires_at=cred_val.get("expires_at"),  # type: ignore[arg-type]
                 refresh_callback=lambda i=issuer_str: refresh_oauth_token(i),

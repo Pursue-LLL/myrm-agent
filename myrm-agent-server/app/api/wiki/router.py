@@ -205,6 +205,7 @@ class RepairPublicationResponse(BaseModel):
     files_scanned: int
     files_repaired: int
     files_skipped: int
+    files_skipped_intentional_drafts: int = 0
     reindexed: int
     message: str
 
@@ -430,28 +431,29 @@ async def move_wiki_node(
         engine = LinkRefactorEngine(concepts_dir)
         updated_count = engine.refactor_links(old_path, new_path)
 
-        # Update indexer
+        from myrm_agent_harness.toolkits.wiki.pipeline.publication import (
+            ConceptPathMapping,
+            reindex_concepts_after_move,
+        )
+
+        mappings: list[ConceptPathMapping] = []
         if old_path.is_file():
-            await archiver._query_engine._indexer.delete(safe_source)
-            content = new_path.read_text(encoding="utf-8")
-            await archiver._query_engine._indexer.upsert(safe_target, content)
-            archiver._query_engine._indexer.extract_and_upsert_edges(safe_target, content)
+            mappings.append(ConceptPathMapping(old_concept=safe_source, new_concept=safe_target))
         else:
-            # If it's a directory, we need to update indexer for all files inside
             for md_file in new_path.rglob("*.md"):
                 rel_new = md_file.relative_to(concepts_dir)
                 concept_new = str(rel_new.with_suffix("")).replace("\\", "/")
-
-                # Calculate old concept name
                 rel_to_new_dir = md_file.relative_to(new_path)
                 old_md_file = old_path / rel_to_new_dir
                 rel_old = old_md_file.relative_to(concepts_dir)
                 concept_old = str(rel_old.with_suffix("")).replace("\\", "/")
+                mappings.append(ConceptPathMapping(old_concept=concept_old, new_concept=concept_new))
 
-                await archiver._query_engine._indexer.delete(concept_old)
-                content = md_file.read_text(encoding="utf-8")
-                await archiver._query_engine._indexer.upsert(concept_new, content)
-                archiver._query_engine._indexer.extract_and_upsert_edges(concept_new, content)
+        await reindex_concepts_after_move(
+            archiver._structure,
+            archiver._query_engine._indexer,
+            mappings,
+        )
 
         return OperationResult(success=True, message=f"Moved successfully. Updated {updated_count} files.")
     except Exception as e:
@@ -567,6 +569,7 @@ async def approve_pending_edit(
 ) -> OperationResult:
     """Approve a pending edit and merge it to the wiki."""
     from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import FrontmatterValidationError
+    from myrm_agent_harness.toolkits.wiki.pipeline.publication import StalePendingApprovalError
 
     try:
         success = await archiver._pending_mgr.approve_edit(edit_id, request.modified_content)
@@ -577,6 +580,14 @@ async def approve_pending_edit(
                 "code": "invalid_frontmatter",
                 "message": "Page metadata is incomplete. Add a valid page type before approving.",
                 "errors": list(exc.errors),
+            },
+        ) from exc
+    except StalePendingApprovalError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "stale_pending",
+                "message": str(exc),
             },
         ) from exc
     if not success:
@@ -636,7 +647,7 @@ async def repair_wiki_frontmatter_types(
 async def repair_wiki_publication(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
 ) -> RepairPublicationResponse:
-    """Grandfather concept pages to publish_status=published and reindex searchable entries."""
+    """Grandfather missing publish_status; preserve intentional draft/blocked pages and reindex."""
     from myrm_agent_harness.toolkits.wiki.pipeline.publication import repair_publication_status
 
     result = await repair_publication_status(archiver._structure, archiver._query_engine._indexer)
@@ -644,6 +655,10 @@ async def repair_wiki_publication(
         f"Repaired {result.files_repaired} of {result.files_scanned} scanned files; "
         f"reindexed {result.reindexed}"
     )
+    if result.files_skipped_intentional_drafts > 0:
+        message = (
+            f"{message}; skipped {result.files_skipped_intentional_drafts} intentional draft pages"
+        )
     if result.errors:
         message = f"{message}; {len(result.errors)} errors"
     if result.files_repaired > 0 or result.reindexed > 0:
@@ -655,6 +670,7 @@ async def repair_wiki_publication(
                 "files_scanned": result.files_scanned,
                 "files_repaired": result.files_repaired,
                 "files_skipped": result.files_skipped,
+                "files_skipped_intentional_drafts": result.files_skipped_intentional_drafts,
                 "reindexed": result.reindexed,
             },
         )
@@ -663,6 +679,7 @@ async def repair_wiki_publication(
         files_scanned=result.files_scanned,
         files_repaired=result.files_repaired,
         files_skipped=result.files_skipped,
+        files_skipped_intentional_drafts=result.files_skipped_intentional_drafts,
         reindexed=result.reindexed,
         message=message,
     )

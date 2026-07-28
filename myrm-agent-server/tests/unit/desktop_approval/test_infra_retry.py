@@ -49,4 +49,4 @@ def test_signoff_open_nav_wall_timeout_extended(
     monkeypatch.delenv("E2E_SIGNOFF", raising=False)
     assert _resolve_open_nav_wall_timeout_sec() == 70.0
     monkeypatch.setenv("E2E_SIGNOFF", "1")
-    assert _resolve_open_nav_wall_timeout_sec() == 180.0
+    assert _resolve_open_nav_wall_timeout_sec() == 420.0

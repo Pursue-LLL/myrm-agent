@@ -70,6 +70,26 @@ export interface RepairTypesResponse {
   message: string;
 }
 
+export interface WikiCompileResponse {
+  concepts_count: number;
+  articles_generated: number;
+  backlinks_created: number;
+  duration_ms: number;
+  articles_pending: number;
+  articles_published: number;
+  articles_blocked: number;
+}
+
+export interface RepairPublicationResponse {
+  success: boolean;
+  files_scanned: number;
+  files_repaired: number;
+  files_skipped: number;
+  files_skipped_intentional_drafts?: number;
+  reindexed: number;
+  message: string;
+}
+
 export interface ConceptListResponse {
   concepts: string[];
   total: number;
@@ -266,6 +286,18 @@ export const wikiService = {
 
   repairPageTypes: async (): Promise<RepairTypesResponse> => {
     return apiRequest<RepairTypesResponse>(wikiPath('/wiki/repair-types'), {
+      method: 'POST',
+    });
+  },
+
+  compileWiki: async (): Promise<WikiCompileResponse> => {
+    return apiRequest<WikiCompileResponse>(wikiPath('/wiki/compile'), {
+      method: 'POST',
+    });
+  },
+
+  repairPublication: async (): Promise<RepairPublicationResponse> => {
+    return apiRequest<RepairPublicationResponse>(wikiPath('/wiki/repair-publication'), {
       method: 'POST',
     });
   },

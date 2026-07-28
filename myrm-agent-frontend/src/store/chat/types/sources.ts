@@ -21,7 +21,6 @@ export interface Source {
   index: number; // 引用编号（从1开始）
   type: SourceType; // 来源类型
   source_key?: string; // 稳定去重键
-  is_degraded?: boolean; // true when results may be based on model knowledge rather than sourced data
   // web_search 和 web_fetch 共有字段
   url?: string; // 终态可点击 URL（harness citation_resolver 归一化后）
   redirect_url?: string; // 搜索提供商 redirect 链原始 URL（与 url 不同时存在）

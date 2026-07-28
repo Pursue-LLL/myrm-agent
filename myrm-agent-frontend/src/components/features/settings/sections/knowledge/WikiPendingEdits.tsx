@@ -45,9 +45,15 @@ export function WikiPendingEdits() {
       loadPending();
     } catch (error) {
       console.error('Failed to approve:', error);
-      if (error instanceof ApiError && error.code === 422) {
-        toast.error(t('errors.approveTypeRequired'));
-        return;
+      if (error instanceof ApiError) {
+        if (error.businessCode === 'stale_pending') {
+          toast.error(t('errors.approveStaleSources'));
+          return;
+        }
+        if (error.code === 422 && error.businessCode === 'invalid_frontmatter') {
+          toast.error(t('errors.approveTypeRequired'));
+          return;
+        }
       }
       toast.error(t('errors.approveFailed'));
     }

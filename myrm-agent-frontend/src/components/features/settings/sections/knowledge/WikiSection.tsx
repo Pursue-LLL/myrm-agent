@@ -95,6 +95,7 @@ export function WikiSection() {
   const [isCompiling, setIsCompiling] = useState(false);
   const [isMaintaining, setIsMaintaining] = useState(false);
   const [isRepairingTypes, setIsRepairingTypes] = useState(false);
+  const [isRepairingPublication, setIsRepairingPublication] = useState(false);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [purpose, setPurpose] = useState('');
   const [purposeDraft, setPurposeDraft] = useState('');
@@ -368,8 +369,17 @@ export function WikiSection() {
   const handleCompile = async () => {
     setIsCompiling(true);
     try {
-      await apiRequest(wikiScopedPath('/wiki/compile', agentScopeId), { method: 'POST' });
-      toast.success(t('success.compileComplete'));
+      const result = await wikiService.compileWiki();
+      toast.success(
+        t('success.compileSummary', {
+          published: result.articles_published,
+          pending: result.articles_pending,
+          blocked: result.articles_blocked,
+        }),
+      );
+      if (result.articles_pending > 0) {
+        setActiveTab('pendingEdits');
+      }
       await loadStats();
     } catch (error) {
       console.error('Compile failed:', error);
@@ -408,6 +418,36 @@ export function WikiSection() {
       toast.error(t('errors.repairTypesFailed'));
     } finally {
       setIsRepairingTypes(false);
+    }
+  };
+
+  const handleRepairPublication = async () => {
+    setIsRepairingPublication(true);
+    try {
+      const result = await wikiService.repairPublication();
+      if (result.success) {
+        const skippedDrafts = result.files_skipped_intentional_drafts ?? 0;
+        toast.success(
+          skippedDrafts > 0
+            ? t('success.repairPublicationCompleteWithSkips', {
+                repaired: result.files_repaired,
+                reindexed: result.reindexed,
+                skippedDrafts,
+              })
+            : t('success.repairPublicationComplete', {
+                repaired: result.files_repaired,
+                reindexed: result.reindexed,
+              }),
+        );
+      } else {
+        toast.warning(result.message);
+      }
+      await loadStats();
+    } catch (error) {
+      console.error('Repair publication failed:', error);
+      toast.error(t('errors.repairPublicationFailed'));
+    } finally {
+      setIsRepairingPublication(false);
     }
   };
 
@@ -717,6 +757,15 @@ export function WikiSection() {
               >
                 <IconWrench className="w-4 h-4 mr-2" />
                 {isRepairingTypes ? t('repairingTypes') : t('actions.repairPageTypes')}
+              </Button>
+              <Button
+                onClick={handleRepairPublication}
+                disabled={isRepairingPublication}
+                variant="outline"
+                className="flex-1"
+              >
+                <IconWrench className="w-4 h-4 mr-2" />
+                {isRepairingPublication ? t('repairingPublication') : t('actions.repairPublication')}
               </Button>
             </CardContent>
           </Card>

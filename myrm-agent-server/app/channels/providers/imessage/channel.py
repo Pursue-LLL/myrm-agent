@@ -91,6 +91,7 @@ class IMessageChannel(BaseChannel):
         self._webhook_url = webhook_url.strip() if webhook_url else ""
         self._http = httpx.AsyncClient()
         self._private_api_available = False
+        self._helper_connected = False
 
     # ── Lifecycle ─────────────────────────────────────────────────────
 
@@ -172,18 +173,19 @@ class IMessageChannel(BaseChannel):
             return False
 
     def _detect_private_api(self, resp: httpx.Response) -> None:
-        """Extract private_api availability from BlueBubbles server/info response."""
+        """Extract private_api and helper availability from BlueBubbles server/info."""
         try:
             body = resp.json()
             data = body.get("data", {})
             if isinstance(data, dict):
                 self._private_api_available = bool(data.get("private_api"))
+                self._helper_connected = bool(data.get("helper_connected"))
         except Exception:
             pass
 
     async def _mark_read(self, chat_guid: str) -> None:
-        """Send a read receipt for the chat (requires Private API)."""
-        if not self._private_api_available or not chat_guid:
+        """Send a read receipt for the chat (requires Private API + helper)."""
+        if not self._private_api_available or not self._helper_connected or not chat_guid:
             return
         try:
             await self._http.post(
@@ -205,7 +207,7 @@ class IMessageChannel(BaseChannel):
     # ── Typing Indicator ──────────────────────────────────────────────
 
     async def start_typing(self, chat_id: str) -> None:
-        if not self._private_api_available:
+        if not self._private_api_available or not self._helper_connected:
             return
         try:
             await self._http.post(
@@ -217,7 +219,7 @@ class IMessageChannel(BaseChannel):
             logger.debug("iMessage start_typing failed for %s: %s", chat_id[:20], exc)
 
     async def stop_typing(self, chat_id: str) -> None:
-        if not self._private_api_available:
+        if not self._private_api_available or not self._helper_connected:
             return
         try:
             await self._http.request(
@@ -290,7 +292,7 @@ class IMessageChannel(BaseChannel):
             "tempGuid": f"temp-{uuid.uuid4()}",
             "message": text,
         }
-        if reply_to and self._private_api_available:
+        if reply_to and self._private_api_available and self._helper_connected:
             payload["method"] = "private-api"
             payload["selectedMessageGuid"] = reply_to
             payload["partIndex"] = 0

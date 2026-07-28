@@ -19,7 +19,6 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.eval.protocols import AgentResponse
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -39,15 +38,19 @@ from app.core.channel_bridge.config_parsers import (
 
 logger = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    pass
 
 
 class LocalEvalExecutor:
     """Executes Agent eval cases using the Server's Agent configuration."""
 
-    def __init__(self, profile_id: str | None = None) -> None:
+    def __init__(
+        self,
+        profile_id: str | None = None,
+        *,
+        benchmark_mode: bool = False,
+    ) -> None:
         self.profile_id = profile_id
+        self.benchmark_mode = benchmark_mode
         self._sandbox_executors: dict[str, CodeExecutor] = {}
         self._session_id: str | None = None
 
@@ -163,19 +166,33 @@ class LocalEvalExecutor:
                         mcp_tool_selections=resolved.mcp_tool_selections or None,
                     )
 
-        memory_shared_context_ids: list[str] = []
-        try:
-            from app.services.memory.shared_context import resolve_shared_context_ids
+        if self.benchmark_mode:
+            user_instructions = ""
+            enabled_builtin_tools = []
+            agent_skill_ids = []
+            agent_subagent_ids = None
+            mcp_configs = None
+            agent_engine_params = {
+                "enable_replan": False,
+                "enable_context_compression": False,
+            }
 
-            memory_shared_context_ids = await resolve_shared_context_ids(
-                agent_id=self.profile_id,
-                channel_id="eval",
-                conversation_id=chat_id,
-            )
-        except Exception as e:
-            logger.warning(
-                "Failed to resolve shared memory contexts for eval run: %s", e
-            )
+        memory_shared_context_ids: list[str] = []
+        if not self.benchmark_mode:
+            try:
+                from app.services.memory.shared_context import (
+                    resolve_shared_context_ids,
+                )
+
+                memory_shared_context_ids = await resolve_shared_context_ids(
+                    agent_id=self.profile_id,
+                    channel_id="eval",
+                    conversation_id=chat_id,
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to resolve shared memory contexts for eval run: %s", e
+                )
 
         from myrm_agent_harness.toolkits.retriever.embedding.factory import (
             EmbeddingConfig,
@@ -227,7 +244,8 @@ class LocalEvalExecutor:
             embedding_config=embedding_cfg,
             reranker_config=reranker_cfg,
             channel_name="eval",
-            enable_web_search=configs.search_is_user_configured
+            enable_web_search=not self.benchmark_mode
+            and configs.search_is_user_configured
             and await verify_search_service_available(configs.search_cfg),
             enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
             **resolve_agent_mount(

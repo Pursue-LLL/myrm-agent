@@ -24,7 +24,8 @@
 | `MemoryGuardianDigestPanel.tsx` | 辅助 | Memory Guardian 晨间摘要子面板（维护产出、运行次数与健康变化），并区分夜间静默窗口与 rolling 24h 聚合语义 |
 | `MemoryMonitorCard.tsx` | 辅助 | 记忆健康监控 |
 | `WorkingStateCard.tsx` | 辅助 | Working Memory 状态卡片。展示/编辑/清除跨会话工作记忆 |
-| `WikiSection.tsx` | 容器 | Wiki 子 Tab；路由 `/settings/wiki`；可选 query `agentId` 切换 per-agent vault 统计与操作；Overview stats 展示知识目录/活动日志/近期上下文就绪状态（`/wiki/stats` cognitive 字段）；Query 卡片展示 `source_snippets` 并支持 `SourceChunkDrawer`；按 `contextKey(agent:<id>)` 记录 query 复问与证据曝光埋点。 | ✅ |
+| `WikiSection.tsx` | 容器 | Wiki 子 Tab；Compile/Repair toast（Repair 成功时若保留 draft 显示 skippedDrafts）；Pending tab 自动跳转 | ✅ |
+| `WikiPendingEdits.tsx` | 核心 | HITL 待审核队列；approve 区分 `stale_pending` / `invalid_frontmatter` toast | ✅ |
 | `wiki/` | 子模块 | Wiki 概念树与编辑（见 [wiki/_ARCH.md](wiki/_ARCH.md)） |
 
 ## 依赖

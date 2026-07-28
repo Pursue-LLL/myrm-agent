@@ -20,9 +20,11 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+import threading
 import time
 import urllib.request
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -34,7 +36,9 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from tests.support.chrome_mcp_e2e import warm_ui_route  # noqa: E402
+from tests.support.chrome_mcp_e2e import open_mcp_page, wait_for_state, warm_ui_route  # noqa: E402
+from tests.support.e2e_runtime_guard import heartbeat_e2e_lease  # noqa: E402
+from tests.support.e2e_wall_progress import touch_e2e_wall_progress, write_e2e_session_snapshot  # noqa: E402
 
 
 def _voice_settings_url() -> str:
@@ -87,6 +91,13 @@ _VOICE_PROBE_JS = """(() => {
     showLocalSttHint: /Free, no API key required|无需 API Key|Audio stays on your device|音频保留在/i.test(text),
     readyState: document.readyState,
     viewportWidth: window.innerWidth,
+    ready: !!(
+      document.querySelector('[data-testid="app-layout"]')
+      && hasVoicePanel
+      && skeletons < 6
+      && onChannelsSettings
+      && (document.readyState === 'complete' || document.readyState === 'interactive')
+    ),
   };
 })()"""
 
@@ -405,7 +416,7 @@ class _McpSession:
 
     async def wait_voice_settings(self) -> dict[str, object]:
         voice_url = _voice_settings_url()
-        warm_ui_route("/settings/channels?sub=voice")
+        warm_ui_route("/settings/channels?sub=voice", timeout_sec=90.0)
         await self.dismiss_migration()
         await self.navigate(voice_url)
         await self.wait_app_layout(timeout_sec=120.0)
@@ -420,10 +431,13 @@ class _McpSession:
                 raise
             ready = state if isinstance(state, dict) else {"probeError": state}
             if (
-                ready.get("hasLayout")
-                and ready.get("readyState") in ("complete", "interactive")
-                and int(ready.get("skeletons", 99)) < 6
-                and ready.get("hasVoicePanel")
+                ready.get("ready") is True
+                or (
+                    ready.get("hasLayout")
+                    and ready.get("readyState") in ("complete", "interactive")
+                    and int(ready.get("skeletons", 99)) < 6
+                    and ready.get("hasVoicePanel")
+                )
             ):
                 return ready
             if ready.get("onChannelsSettings") and not ready.get("hasVoicePanel"):
@@ -437,6 +451,60 @@ async def _probe_voice_banner(
 ) -> dict[str, object]:
     async with _McpSession(client, page) as cdp:
         return await cdp.wait_voice_settings()
+
+
+def _probe_voice_settings_sync(
+    client: ChromeMcpClient, page: McpPage
+) -> dict[str, object]:
+    """Sync voice settings probe — matches voice_memory_acl open_mcp_page pattern."""
+    heartbeat_e2e_lease()
+    write_e2e_session_snapshot(current_node="voice_settings_dismiss_migration", phase="body")
+    client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+    heartbeat_e2e_lease()
+    write_e2e_session_snapshot(current_node="voice_settings_navigate", phase="body")
+    client.navigate(page, _voice_settings_url(), timeout_ms=90_000)
+    heartbeat_e2e_lease()
+    write_e2e_session_snapshot(current_node="voice_settings_wait_panel", phase="body")
+    return wait_for_state(client, page, _VOICE_PROBE_JS, timeout_sec=90.0)
+
+
+@contextmanager
+def _voice_e2e_progress_loop(*, current_node: str) -> Iterator[None]:
+    """Keep lease + wall progress fresh while mux new_page may block (anti hung-reap)."""
+    stop = threading.Event()
+
+    def _loop() -> None:
+        while not stop.wait(15.0):
+            heartbeat_e2e_lease()
+            touch_e2e_wall_progress(current_node=current_node)
+
+    worker = threading.Thread(target=_loop, name="voice-e2e-progress", daemon=True)
+    worker.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        worker.join(timeout=2.0)
+
+
+def _chrome_probe_voice_settings_with_retry(*, progress_node: str) -> dict[str, object]:
+    warm_ui_route("/settings/channels?sub=voice", timeout_sec=90.0)
+    ui_base = get_e2e_ui_url()
+    last_exc: BaseException | None = None
+    for attempt in range(4):
+        node = f"{progress_node}:open_mcp:{attempt}"
+        with _voice_e2e_progress_loop(current_node=node):
+            heartbeat_e2e_lease()
+            touch_e2e_wall_progress(current_node=node)
+            try:
+                with open_mcp_page(ui_base, timeout_ms=60_000) as (client, page):
+                    return _probe_voice_settings_sync(client, page)
+            except BaseException as exc:
+                last_exc = exc
+                touch_e2e_wall_progress(current_node=f"{node}:retry")
+                time.sleep(min(5 * (attempt + 1), 15))
+    assert last_exc is not None
+    raise last_exc
 
 
 async def _probe_read_aloud_fetch(
@@ -481,23 +549,24 @@ async def _probe_read_aloud_fetch(
     return last
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
-@pytest.mark.timeout(300)
-@pytest.mark.asyncio
-async def test_voice_settings_no_edge_banner_when_available(
+@pytest.mark.timeout(240)
+def test_voice_settings_no_edge_banner_when_available(
     require_edge_tts_available: None,
-    voice_chrome_page: tuple[ChromeMcpClient, McpPage],
 ) -> None:
     _ensure_voice_feature_enabled()
+    write_e2e_session_snapshot(
+        current_node="test_voice_settings_no_edge_banner_when_available",
+        phase="body",
+    )
+    state = _chrome_probe_voice_settings_with_retry(
+        progress_node="test_voice_settings_no_edge_banner_when_available",
+    )
 
-    client, page = voice_chrome_page
-    async with _McpSession(client, page) as cdp:
-        page = await cdp.wait_voice_settings()
-
-    assert page.get("hasVoicePanel") is True, page
-    assert page.get("showEdgeBanner") is False, page
-    assert page.get("onChannelsSettings") is True, page
+    assert state.get("hasVoicePanel") is True, state
+    assert state.get("showEdgeBanner") is False, state
+    assert state.get("onChannelsSettings") is True, state
 
 
 @pytest.mark.integration
@@ -521,7 +590,7 @@ def test_live_tts_synthesize_after_voice_config() -> None:
     assert body[:3] == b"ID3" or (body[0] == 0xFF and (body[1] & 0xE0) == 0xE0)
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 @pytest.mark.asyncio
@@ -627,21 +696,22 @@ def test_live_stt_status_reflects_local_install() -> None:
         assert status["available"] is True
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+@pytest.mark.chrome_e2e(lane="READ", private_backend=False)
 @pytest.mark.integration
-@pytest.mark.timeout(300)
-@pytest.mark.asyncio
-async def test_voice_settings_no_local_banner_when_available(
+@pytest.mark.timeout(240)
+def test_voice_settings_no_local_banner_when_available(
     require_local_stt_available: None,
-    voice_chrome_page: tuple[ChromeMcpClient, McpPage],
 ) -> None:
     _ensure_voice_feature_enabled()
     _put_local_voice_config()
+    write_e2e_session_snapshot(
+        current_node="test_voice_settings_no_local_banner_when_available",
+        phase="body",
+    )
+    state = _chrome_probe_voice_settings_with_retry(
+        progress_node="test_voice_settings_no_local_banner_when_available",
+    )
 
-    client, page = voice_chrome_page
-    async with _McpSession(client, page) as cdp:
-        page = await cdp.wait_voice_settings()
-
-    assert page.get("hasVoicePanel") is True, page
-    assert page.get("showLocalSttBanner") is False, page
-    assert page.get("onChannelsSettings") is True, page
+    assert state.get("hasVoicePanel") is True, state
+    assert state.get("showLocalSttBanner") is False, state
+    assert state.get("onChannelsSettings") is True, state

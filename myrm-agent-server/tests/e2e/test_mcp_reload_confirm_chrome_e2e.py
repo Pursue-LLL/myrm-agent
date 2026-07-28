@@ -316,7 +316,9 @@ def _wait_for_server_present(name: str, timeout_sec: float = 20.0) -> None:
 
 
 def _confirm_reload_dialog(client, page, *, timeout_sec: float = 45.0) -> None:
-    dialog = wait_for_state(client, page, _RELOAD_DIALOG_STATE_JS, timeout_sec=timeout_sec)
+    dialog = wait_for_state(
+        client, page, _RELOAD_DIALOG_STATE_JS, timeout_sec=timeout_sec
+    )
     assert dialog.get("ready") is True, json.dumps(dialog, ensure_ascii=False)
     confirmed = client.evaluate(page, _CLICK_DIALOG_CONFIRM_JS, timeout_sec=10.0)
     assert isinstance(confirmed, dict) and confirmed.get("ok") is True, confirmed
@@ -384,7 +386,9 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         assert _probe_enabled_in_api() is True, "cancel must not persist disable"
 
         toggled_again = client.evaluate(page, _TOGGLE_PROBE_SWITCH_JS, timeout_sec=15.0)
-        assert isinstance(toggled_again, dict) and toggled_again.get("ok") is True, toggled_again
+        assert (
+            isinstance(toggled_again, dict) and toggled_again.get("ok") is True
+        ), toggled_again
         _confirm_reload_dialog(client, page)
         deadline = time.monotonic() + 20.0
         while time.monotonic() < deadline and _probe_enabled_in_api():
@@ -394,27 +398,47 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         # --- Path 2: delete ---
         _seed_probe_mcp_server()
         _reload_mcp_page(client, page)
-        ready_delete = wait_for_state(client, page, _MCP_PAGE_HAS_PROBE_JS, timeout_sec=90.0)
-        assert ready_delete.get("ready") is True, json.dumps(ready_delete, ensure_ascii=False)
+        ready_delete = wait_for_state(
+            client, page, _MCP_PAGE_HAS_PROBE_JS, timeout_sec=90.0
+        )
+        assert ready_delete.get("ready") is True, json.dumps(
+            ready_delete, ensure_ascii=False
+        )
 
         clicked_delete = client.evaluate(page, _CLICK_PROBE_DELETE_JS, timeout_sec=15.0)
-        assert isinstance(clicked_delete, dict) and clicked_delete.get("ok") is True, clicked_delete
-        delete_dialog = wait_for_state(client, page, _DELETE_DIALOG_STATE_JS, timeout_sec=20.0)
-        assert delete_dialog.get("ready") is True, json.dumps(delete_dialog, ensure_ascii=False)
-        confirmed_delete = client.evaluate(page, _CLICK_DELETE_CONFIRM_JS, timeout_sec=10.0)
-        assert isinstance(confirmed_delete, dict) and confirmed_delete.get("ok") is True, confirmed_delete
+        assert (
+            isinstance(clicked_delete, dict) and clicked_delete.get("ok") is True
+        ), clicked_delete
+        delete_dialog = wait_for_state(
+            client, page, _DELETE_DIALOG_STATE_JS, timeout_sec=20.0
+        )
+        assert delete_dialog.get("ready") is True, json.dumps(
+            delete_dialog, ensure_ascii=False
+        )
+        confirmed_delete = client.evaluate(
+            page, _CLICK_DELETE_CONFIRM_JS, timeout_sec=10.0
+        )
+        assert (
+            isinstance(confirmed_delete, dict) and confirmed_delete.get("ok") is True
+        ), confirmed_delete
         _confirm_reload_dialog(client, page)
         _wait_for_server_absent(_PROBE_SERVER_NAME)
 
         # --- Path 3: import JSON ---
         _seed_empty_mcp_configs()
         _reload_mcp_page(client, page)
-        ready_import = wait_for_state(client, page, _MCP_PAGE_READY_JS, timeout_sec=90.0)
-        assert ready_import.get("ready") is True, json.dumps(ready_import, ensure_ascii=False)
+        ready_import = wait_for_state(
+            client, page, _MCP_PAGE_READY_JS, timeout_sec=90.0
+        )
+        assert ready_import.get("ready") is True, json.dumps(
+            ready_import, ensure_ascii=False
+        )
 
         opened = client.evaluate(page, _CLICK_IMPORT_JSON_BUTTON_JS, timeout_sec=15.0)
         assert isinstance(opened, dict) and opened.get("ok") is True, opened
-        filled = client.evaluate(page, _set_import_textarea_js(import_payload), timeout_sec=15.0)
+        filled = client.evaluate(
+            page, _set_import_textarea_js(import_payload), timeout_sec=15.0
+        )
         assert isinstance(filled, dict) and filled.get("ok") is True, filled
         submitted = client.evaluate(page, _CLICK_IMPORT_SUBMIT_JS, timeout_sec=15.0)
         assert isinstance(submitted, dict) and submitted.get("ok") is True, submitted
@@ -427,7 +451,9 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         ready_add = wait_for_state(client, page, _MCP_PAGE_READY_JS, timeout_sec=90.0)
         assert ready_add.get("ready") is True, json.dumps(ready_add, ensure_ascii=False)
 
-        opened_add = client.evaluate(page, _CLICK_ADD_SERVICE_BUTTON_JS, timeout_sec=15.0)
+        opened_add = client.evaluate(
+            page, _CLICK_ADD_SERVICE_BUTTON_JS, timeout_sec=15.0
+        )
         assert isinstance(opened_add, dict) and opened_add.get("ok") is True, opened_add
         for label_pattern, value in (
             ("Service Name|服务名称|Dienstname|서비스 이름", _ADD_SERVER_NAME),
@@ -448,5 +474,7 @@ def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
         assert isinstance(saved, dict) and saved.get("ok") is True, saved
         _confirm_reload_dialog(client, page, timeout_sec=90.0)
         _wait_for_server_present(_ADD_SERVER_NAME)
-        ui_ready = wait_for_state(client, page, _MCP_PAGE_HAS_ADD_PROBE_JS, timeout_sec=60.0)
+        ui_ready = wait_for_state(
+            client, page, _MCP_PAGE_HAS_ADD_PROBE_JS, timeout_sec=60.0
+        )
         assert ui_ready.get("ready") is True, json.dumps(ui_ready, ensure_ascii=False)

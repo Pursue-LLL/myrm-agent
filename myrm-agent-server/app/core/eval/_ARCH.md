@@ -17,7 +17,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `executor.py` | 实现了 `LocalEvalExecutor`，适配 Harness 的 `AgentExecutor` 协议。始终以 `unattended_mode=True` 运行（跳过 ask_question_tool 工具注册 + 注入无人值守系统提示词），防止自动化评测被 HITL 交互阻塞。支持接收 `profile_id` 动态覆盖 Agent 属性（含 `ResolvedAgentProfile` 的 builtin tools、`auto_restore_domains`、`memory_decay_profile`），并解析 profile/eval/chat 绑定的 Shared Context 注入记忆运行时。捕获 Agent stream 的 TOKEN_USAGE 事件，填充 AgentResponse.token_usage 供报告使用。包含评测工作空间的物理防污染隔离，为每个并发执行的用例动态分配沙箱内的专属独立路径 (`.myrm/eval_workspaces/`) 彻底杜绝测试资源文件竞态冲突。 |
+| `executor.py` | 实现了 `LocalEvalExecutor`，适配 Harness 的 `AgentExecutor` 协议。始终以 `unattended_mode=True` 运行（跳过 ask_question_tool 工具注册 + 注入无人值守系统提示词），防止自动化评测被 HITL 交互阻塞。支持接收 `profile_id` 动态覆盖 Agent 属性（含 `ResolvedAgentProfile` 的 builtin tools、`auto_restore_domains`、`memory_decay_profile`），并解析 profile/eval/chat 绑定的 Shared Context 注入记忆运行时。支持 `benchmark_mode` 基准模式：清空 system prompt、禁用扩展工具/技能/MCP/子 Agent/共享记忆/Web 搜索，关闭 replan，确保公平基准对比。捕获 Agent stream 的 TOKEN_USAGE 事件，填充 AgentResponse.token_usage 供报告使用。包含评测工作空间的物理防污染隔离，为每个并发执行的用例动态分配沙箱内的专属独立路径 (`.myrm/eval_workspaces/`) 彻底杜绝测试资源文件竞态冲突。 |
 | `service.py` | 评估服务层，提供 `run_eval_suite_background` 异步调度器，以及任务安全熔断 (`abort_eval`)、A/B历史报告读写、数据集隔离管理(`dataset_id`)、支持兼容多轮与单轮用例 (`run_multi_turn`)、SSE进度流生成。包含 `AdaptiveEvalManager` 以根据前台活动智能让出算力。 |
 | `capture.py` | 从主聊天界面“一键淬炼”为评测用例 (GUI Flywheel)。基于真实对话记录，抽取 `messages` 和完整的结构化 Tool Arguments 并生成标准 `EvalCase` 测试集，可绑定指定的 `dataset_id`，打通日常开发测试与评估的闭环飞轮。 |
 

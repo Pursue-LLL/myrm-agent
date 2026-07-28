@@ -26,11 +26,21 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
+from collections.abc import Callable
+from typing import TypeVar
+
+from e2e_orchestrator import touch_wall_progress  # noqa: E402
+from dev_gate_contract import (  # noqa: E402
+    LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC,
+    MUX_RECLAIM_STALL_TOKEN,
+)
 from cdp_chat_support import (
     fetch_chat_messages,
     get_e2e_api_url,
     wait_e2e_provider_ready,
 )  # noqa: E402
+from mux_upstream_admission import read_mux_cold_attach_status  # noqa: E402
+from transport_supervisor import mux_upstream_wait_cap  # noqa: E402
 from cdp_chat_ui import chat_id_from_path  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
@@ -42,7 +52,53 @@ BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
 _MARKETPLACE_TOOL = "skill_market_tool"
 _DISCOVER_TOOL = "skill_search_tool"
-_MAX_CHAT_ATTEMPTS = 3
+_MAX_CHAT_ATTEMPTS = 2
+_PAGE_TIMEOUT_MS = 120_000
+_HEARTBEAT_POLL_SEC = 10.0
+
+T = TypeVar("T")
+
+
+async def _await_thread_with_heartbeat(
+    fn: Callable[[], T],
+    *,
+    progress_node: str,
+) -> T:
+    """Run blocking MCP work without tripping hung-reap progress_stale (90s)."""
+    loop = asyncio.get_running_loop()
+    future = loop.run_in_executor(None, fn)
+    while True:
+        heartbeat_e2e_lease()
+        touch_wall_progress(current_node=progress_node)
+        try:
+            return await asyncio.wait_for(asyncio.shield(future), timeout=_HEARTBEAT_POLL_SEC)
+        except TimeoutError:
+            continue
+
+
+async def _wait_mux_hand_probe_allowed(*, budget_sec: float) -> None:
+    deadline = time.monotonic() + budget_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        heartbeat_e2e_lease()
+        touch_wall_progress(current_node="skill_market_live_mux_queue")
+        last = read_mux_cold_attach_status()
+        if last.get("handProbeAllowed") is True:
+            return
+        await asyncio.sleep(2.0)
+    raise RuntimeError(
+        f"MUX cold attach saturated after {budget_sec:.0f}s: active={last.get('active')!r} "
+        f"maxSlots={last.get('maxSlots')!r}"
+    )
+
+
+def _retryable_new_page_error(exc: BaseException) -> bool:
+    message = str(exc)
+    return (
+        "new_page" in message
+        or MUX_RECLAIM_STALL_TOKEN in message
+        or "MUX cold attach saturated" in message
+    )
 
 _USER_QUERY = (
     "我想从外部技能市场找一个跟 GitHub 工作流相关的技能。"
@@ -203,7 +259,7 @@ def _assistant_has_marketplace_result(
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(LIVE_CHROME_E2E_PYTEST_TIMEOUT_SEC)
 @pytest.mark.asyncio
 async def test_live_agent_skill_marketplace_search_in_real_ui(
     e2e_resource_ledger: E2EResourceLedger,
@@ -226,8 +282,9 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
+            touch_wall_progress(current_node="skill_market_live_turn_wait")
             raw = await chat.evaluate(
-                _AGENT_READY_JS, await_promise=False, recv_timeout=20.0
+                _AGENT_READY_JS, await_promise=False, recv_timeout=15.0
             )
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
@@ -239,12 +296,13 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
         chat: McpChatSession,
         chat_id: str,
         *,
-        timeout_sec: float = 420.0,
+        timeout_sec: float = 300.0,
     ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last_api = ("", set[str]())
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
+            touch_wall_progress(current_node="skill_market_live_turn_wait")
             ok, assistant, invoked = _assistant_has_marketplace_result(
                 chat_id, api_url=api_base
             )
@@ -257,7 +315,7 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
                 }
 
             tool_raw = await chat.evaluate(
-                _TURN_TOOL_INVOKED_JS, await_promise=False, recv_timeout=20.0
+                _TURN_TOOL_INVOKED_JS, await_promise=False, recv_timeout=15.0
             )
             tool_ui = tool_raw if isinstance(tool_raw, dict) else {"value": tool_raw}
             if tool_ui.get("invoked") is True:
@@ -271,7 +329,7 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
                 }
 
             raw = await chat.evaluate(
-                _TURN_DONE_JS, await_promise=False, recv_timeout=20.0
+                _TURN_DONE_JS, await_promise=False, recv_timeout=15.0
             )
             ui = raw if isinstance(raw, dict) else {"value": raw}
             if (
@@ -322,7 +380,7 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
         ), f"Expected chat id after stream start: started={started}; send={send_result}"
 
         await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=90.0)
-        result = await _wait_turn_done(chat, chat_id, timeout_sec=420.0)
+        result = await _wait_turn_done(chat, chat_id, timeout_sec=300.0)
 
         invoked = set(result.get("invoked") or [])
         assert _MARKETPLACE_TOOL in invoked, (
@@ -335,8 +393,10 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
         return chat_id
 
     last_error = ""
-    client = ChromeMcpClient(request_timeout_sec=120.0)
-    await asyncio.to_thread(client.start)
+    client = ChromeMcpClient(
+        request_timeout_sec=max(120.0, _PAGE_TIMEOUT_MS / 1000.0 + 15.0),
+    )
+    await _await_thread_with_heartbeat(client.start, progress_node="skill_market_live_client_start")
     try:
         for attempt in range(_MAX_CHAT_ATTEMPTS):
             try:
@@ -344,12 +404,19 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
                 agent_url = f"{ui_base}/?agentId={agent_id}"
                 for page_attempt in range(3):
                     try:
-                        page = await asyncio.to_thread(
-                            client.new_page, agent_url, timeout_ms=120_000
+                        await _wait_mux_hand_probe_allowed(
+                            budget_sec=float(mux_upstream_wait_cap()),
+                        )
+                        page = await _await_thread_with_heartbeat(
+                            lambda: client.new_page(
+                                agent_url,
+                                timeout_ms=_PAGE_TIMEOUT_MS,
+                            ),
+                            progress_node="skill_market_live_new_page",
                         )
                         break
                     except (TimeoutError, RuntimeError) as exc:
-                        if page_attempt >= 2 or "new_page" not in str(exc):
+                        if page_attempt >= 2 or not _retryable_new_page_error(exc):
                             raise
                         await asyncio.sleep(2.0 * (page_attempt + 1))
                 if page is None:
@@ -371,4 +438,4 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
                 await asyncio.sleep(2.0)
         raise AssertionError(last_error or "marketplace live chrome e2e failed")
     finally:
-        await asyncio.to_thread(client.close)
+        await _await_thread_with_heartbeat(client.close, progress_node="skill_market_live_client_close")

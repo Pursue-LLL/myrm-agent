@@ -2062,6 +2062,7 @@
       "compiling": "编译中...",
       "maintaining": "维护中...",
       "repairingTypes": "修复中...",
+      "repairingPublication": "修复发布状态中...",
       "stats": {
         "title": "Wiki 统计",
         "description": "知识库概览",
@@ -2096,7 +2097,8 @@
         "query": "查询",
         "compile": "编译 Wiki",
         "maintain": "维护 Wiki",
-        "repairPageTypes": "修复页面类型"
+        "repairPageTypes": "修复页面类型",
+        "repairPublication": "修复发布状态"
       },
       "purpose": {
         "title": "知识方向",
@@ -2110,8 +2112,11 @@
       "success": {
         "queryComplete": "查询完成",
         "compileComplete": "Wiki 编译完成",
+        "compileSummary": "编译完成：{published} 篇已发布，{pending} 篇待审核，{blocked} 篇未生成。待审核内容请在「待审草稿」标签查看。",
         "maintainComplete": "Wiki 维护完成",
         "repairTypesComplete": "已修复 {count} 篇笔记的页面类型",
+        "repairPublicationComplete": "已修复 {repaired} 篇笔记的发布状态，重新索引 {reindexed} 篇",
+        "repairPublicationCompleteWithSkips": "已修复 {repaired} 篇，重新索引 {reindexed} 篇，保留 {skippedDrafts} 篇草稿未发布",
         "approveComplete": "草稿已批准",
         "rejectComplete": "草稿已拒绝",
         "purposeSaved": "知识方向已保存"
@@ -2123,11 +2128,13 @@
         "compileFailed": "编译 Wiki 失败",
         "maintainFailed": "维护 Wiki 失败",
         "repairTypesFailed": "修复页面类型失败",
+        "repairPublicationFailed": "修复发布状态失败",
         "loadStatsFailed": "加载统计数据失败",
         "loadConceptsFailed": "加载词条失败",
         "loadPendingFailed": "加载审核队列失败",
         "approveFailed": "批准草稿失败",
         "approveTypeRequired": "批准前请在笔记开头添加有效的页面类型",
+        "approveStaleSources": "源文件已更新，请先重新编译 Wiki 后再批准",
         "rejectFailed": "拒绝草稿失败",
         "importFailed": "文档导入失败"
       },
@@ -12318,6 +12325,7 @@
     "saveCasesSuccess": "评测用例保存成功",
     "saveFailed": "保存失败",
     "saveFirst": "请先保存未保存的更改",
+    "benchmarkMode": "基准模式",
     "evalStarted": "评测任务已启动",
     "evalStartFailed": "启动评测任务失败",
     "abortSent": "已发送停止指令，正在安全退出...",

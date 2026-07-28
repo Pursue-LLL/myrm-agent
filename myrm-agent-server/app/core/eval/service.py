@@ -186,8 +186,12 @@ async def _build_eval_manifest(
                 ).hexdigest()
 
     if model_id == "unknown" and configs.model_cfg:
-        model_id = str(configs.model_cfg.get("model", "unknown"))
-        model_provider = str(configs.model_cfg.get("provider", "unknown"))
+        model_id = str(getattr(configs.model_cfg, "model", "unknown"))
+        raw_model = model_id
+        parts = raw_model.split("/", 1)
+        if len(parts) == 2:
+            model_provider, model_id = parts
+
 
     task_set_hash = "empty"
     if cases_path.exists():
@@ -210,7 +214,11 @@ async def _build_eval_manifest(
 
 
 async def run_eval_suite_background(
-    dataset_id: str | None = None, reports_dir: Path | None = None, profile_id: str | None = None
+    dataset_id: str | None = None,
+    reports_dir: Path | None = None,
+    profile_id: str | None = None,
+    *,
+    benchmark_mode: bool = False,
 ) -> None:
     """Run the evaluation suite in the background, updating global state."""
     global _eval_state
@@ -230,7 +238,9 @@ async def run_eval_suite_background(
     )
 
     try:
-        await run_eval_suite(dataset_id, reports_dir, profile_id)
+        await run_eval_suite(
+            dataset_id, reports_dir, profile_id, benchmark_mode=benchmark_mode
+        )
     except Exception as exc:
         logger.exception("Evaluation suite failed")
         _eval_state["error"] = str(exc)
@@ -239,7 +249,11 @@ async def run_eval_suite_background(
 
 
 async def run_eval_suite(
-    dataset_id: str | None = None, reports_dir: Path | None = None, profile_id: str | None = None
+    dataset_id: str | None = None,
+    reports_dir: Path | None = None,
+    profile_id: str | None = None,
+    *,
+    benchmark_mode: bool = False,
 ) -> dict[str, object]:
     """Run the standard evaluation suite for a user.
 
@@ -247,6 +261,8 @@ async def run_eval_suite(
         dataset_id: ID of the dataset to evaluate against.
         reports_dir: Directory where the evaluation report should be saved.
         profile_id: Optional ID of a specific Agent Profile to evaluate.
+        benchmark_mode: When True, strips all user-specific configuration
+            to produce a clean, fair baseline for harness-level benchmarks.
 
     Returns:
         A summary dictionary of the evaluation results.
@@ -285,7 +301,9 @@ async def run_eval_suite(
         prev = int(cur) if isinstance(cur, int) else 0
         _eval_state["completed"] = prev + 1
 
-    executor = LocalEvalExecutor(profile_id=profile_id)
+    executor = LocalEvalExecutor(
+        profile_id=profile_id, benchmark_mode=benchmark_mode
+    )
     adaptive_manager = AdaptiveEvalManager(max_concurrency=3, idle_wait_seconds=3.0)
     runner = EvalRunner(executor, max_concurrency=3, on_case_complete=_on_case_complete, yielding_strategy=adaptive_manager)
 

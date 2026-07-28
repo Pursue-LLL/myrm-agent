@@ -55,9 +55,18 @@ export const evalService = {
   /**
    * Start the evaluation suite for the current user
    */
-  async runEvaluation(): Promise<{ status: string }> {
+  async runEvaluation(options?: {
+    profileId?: string | null;
+    datasetId?: string | null;
+    benchmarkMode?: boolean;
+  }): Promise<{ status: string }> {
     return apiRequest('/eval/run', {
       method: 'POST',
+      body: JSON.stringify({
+        profile_id: options?.profileId ?? null,
+        dataset_id: options?.datasetId ?? null,
+        benchmark_mode: options?.benchmarkMode ?? false,
+      }),
     });
   },
 

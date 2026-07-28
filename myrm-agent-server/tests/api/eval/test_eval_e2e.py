@@ -1,12 +1,18 @@
-"""End-to-end tests for the Eval API using in-process TestClient (no external server)."""
+"""End-to-end tests for the Eval API using in-process TestClient (no external server).
+
+TestClient runs against an in-process FastAPI app with an empty SQLite DB,
+so ``load_user_configs`` has no persisted provider rows.  We patch it to
+return a ``UserConfigs`` built from ``.env.test`` environment variables,
+matching the real data path without requiring a pre-seeded database.
+"""
 
 import os
 import time
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-# Writable data dirs and metrics (must be set before importing app)
 _test_root = "/tmp/myrm_test"
 if not os.environ.get("MYRM_DATA_DIR"):
     os.environ["MYRM_DATA_DIR"] = _test_root
@@ -15,9 +21,35 @@ if not os.environ.get("MYRM_DLQ_DIR"):
 os.environ.setdefault("METRICS_ENABLED", "true")
 
 
+def _build_user_configs_from_env():
+    """Build a ``UserConfigs`` from ``.env.test`` env vars (BASIC_*)."""
+    from app.core.channel_bridge.config_loader import UserConfigs
+    from app.core.types import ModelConfig
+
+    api_key = os.environ.get("BASIC_API_KEY", "")
+    base_url = os.environ.get("BASIC_BASE_URL")
+    model = os.environ.get("BASIC_MODEL", "openai-like/test")
+
+    model_cfg = ModelConfig(
+        model=model,
+        api_key=api_key,
+        base_url=base_url,
+    )
+
+    return UserConfigs(
+        model_cfg=model_cfg,
+        search_cfg=None,
+        search_is_user_configured=False,
+        retrieval_dict={},
+        personal_settings_dict={},
+        mcp_dict={},
+        providers_dict={},
+    )
+
+
 @pytest.mark.e2e
 def test_eval_api_e2e() -> None:
-    """Exercise the full eval API lifecycle: cases → run (background) → status → reports → metrics."""
+    """Exercise the full eval API lifecycle: cases -> run -> status -> reports -> metrics."""
     if not os.environ.get("BASIC_API_KEY") and not os.environ.get("OPENAI_API_KEY"):
         pytest.skip("E2E test requires API key")
 
@@ -33,13 +65,15 @@ def test_eval_api_e2e() -> None:
     from app.ai_agents.agents import GeneralAgentParams
     from app.config.settings import settings
     from tests.support.minimal_app import build_minimal_app
+
     fastapi_app = build_minimal_app(preset="eval")
     agent_types_mod.EmbeddingConfig = EmbeddingConfig
     agent_types_mod.RerankerConfig = RerankerConfig
     GeneralAgentParams.model_rebuild()
 
-    # Single-turn case, no tool assertions to avoid name drift across agent versions
     cases_content = '{"message": "Reply with a single short sentence only.", "expected_tools": []}\n'
+
+    mock_configs = _build_user_configs_from_env()
 
     with TestClient(fastapi_app) as client:
         p = f"{settings.api_prefix.rstrip('/')}/eval"
@@ -53,22 +87,31 @@ def test_eval_api_e2e() -> None:
         assert response.json()["status"] == "success"
         assert response.json()["content"] == cases_content
 
-        response = client.post(f"{p}/run")
-        assert response.status_code == 200
-        assert response.json()["status"] in ("started", "already_running")
+        with (
+            patch(
+                "app.core.eval.executor.load_user_configs",
+                return_value=mock_configs,
+            ),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                return_value=mock_configs,
+            ),
+        ):
+            response = client.post(f"{p}/run")
+            assert response.status_code == 200
+            assert response.json()["status"] in ("started", "already_running")
 
-        # Poll until the background task finishes
-        max_retries = 60
-        status_data: dict = {}
-        for _ in range(max_retries):
-            r = client.get(f"{p}/status")
-            assert r.status_code == 200, r.text
-            status_data = r.json()
-            if not status_data.get("is_running", True):
-                break
-            time.sleep(2)
-        else:
-            pytest.fail("Evaluation did not complete within timeout")
+            max_retries = 60
+            status_data: dict = {}
+            for _ in range(max_retries):
+                r = client.get(f"{p}/status")
+                assert r.status_code == 200, r.text
+                status_data = r.json()
+                if not status_data.get("is_running", True):
+                    break
+                time.sleep(2)
+            else:
+                pytest.fail("Evaluation did not complete within timeout")
 
         assert status_data.get("error") is None
         assert status_data.get("total") == 1
@@ -89,9 +132,6 @@ def test_eval_api_e2e() -> None:
         assert metrics_data["status"] == "success"
         assert metrics_data.get("metrics", {}).get("total_cases") == 1
 
-        # Root /metrics is only present when setup_monitoring succeeds; TestClient
-        # can hit "Cannot add middleware after an application has started" on repeat
-        # imports, in which case we still validated eval above.
         prom = client.get("/metrics", follow_redirects=True)
         if prom.status_code == 200:
             assert "python_gc_objects_collected_total" in prom.text

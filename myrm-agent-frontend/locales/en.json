@@ -2062,6 +2062,7 @@
       "compiling": "Compiling...",
       "maintaining": "Maintaining...",
       "repairingTypes": "Repairing...",
+      "repairingPublication": "Repairing publication...",
       "stats": {
         "title": "Wiki Statistics",
         "description": "Overview of your knowledge base",
@@ -2096,7 +2097,8 @@
         "query": "Query",
         "compile": "Compile Wiki",
         "maintain": "Maintain Wiki",
-        "repairPageTypes": "Repair Page Types"
+        "repairPageTypes": "Repair Page Types",
+        "repairPublication": "Repair Publication Status"
       },
       "purpose": {
         "title": "Knowledge Direction",
@@ -2110,8 +2112,11 @@
       "success": {
         "queryComplete": "Query completed successfully",
         "compileComplete": "Wiki compiled successfully",
+        "compileSummary": "Compile complete: {published} published, {pending} pending review, {blocked} not generated. Review pending drafts in the Pending Edits tab.",
         "maintainComplete": "Wiki maintenance completed",
         "repairTypesComplete": "Repaired page types on {count} notes",
+        "repairPublicationComplete": "Repaired publication status on {repaired} notes, reindexed {reindexed}",
+        "repairPublicationCompleteWithSkips": "Repaired {repaired} notes, reindexed {reindexed}, preserved {skippedDrafts} draft pages",
         "approveComplete": "Edit approved successfully",
         "rejectComplete": "Edit rejected successfully",
         "purposeSaved": "Knowledge direction saved"
@@ -2123,11 +2128,13 @@
         "compileFailed": "Failed to compile wiki",
         "maintainFailed": "Failed to maintain wiki",
         "repairTypesFailed": "Failed to repair page types",
+        "repairPublicationFailed": "Failed to repair publication status",
         "loadStatsFailed": "Failed to load wiki statistics",
         "loadConceptsFailed": "Failed to load concepts",
         "loadPendingFailed": "Failed to load pending edits",
         "approveFailed": "Failed to approve edit",
         "approveTypeRequired": "Add a valid page type in the note header before approving",
+        "approveStaleSources": "Source files changed — recompile Wiki before approving this draft",
         "rejectFailed": "Failed to reject edit",
         "importFailed": "Failed to import documents"
       },

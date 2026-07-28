@@ -1769,6 +1769,9 @@ def _collect_agent_stream_events(
     error_event: dict[str, object] | None = None
     deadline = time.monotonic() + timeout_sec
     idle_timeout_sec = min(45.0, max(15.0, timeout_sec / 3.0))
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        # Signoff clarify/API legs: parallel wave load can stall SSE >30s between tokens.
+        idle_timeout_sec = min(90.0, max(45.0, timeout_sec / 2.0))
     last_event_at = time.monotonic()
     connect_timeout_sec = min(30.0, max(5.0, timeout_sec / 3.0))
     clarification_seen = False

@@ -40,6 +40,67 @@ def test_eval_router_coverage(client: TestClient):
         res6 = client.post("/api/v1/eval/run")
         assert res6.json()["status"] == "already_running"
 
+    # --- benchmark_mode integration: HTTP → router → background task ---
+    with (
+        patch("app.api.eval.router.get_eval_status", return_value={"is_running": False}),
+        patch("app.api.eval.router.run_eval_suite_background") as mock_bg,
+    ):
+        res_bm = client.post(
+            "/api/v1/eval/run",
+            json={"benchmark_mode": True},
+        )
+        assert res_bm.status_code == 200
+        assert res_bm.json()["status"] == "started"
+        _, call_kwargs = mock_bg.call_args
+        assert call_kwargs["benchmark_mode"] is True
+        assert call_kwargs["profile_id"] is None
+        assert call_kwargs["dataset_id"] is None
+
+    with (
+        patch("app.api.eval.router.get_eval_status", return_value={"is_running": False}),
+        patch("app.api.eval.router.run_eval_suite_background") as mock_bg2,
+    ):
+        res_default = client.post("/api/v1/eval/run", json={})
+        assert res_default.json()["status"] == "started"
+        _, call_kwargs2 = mock_bg2.call_args
+        assert call_kwargs2["benchmark_mode"] is False
+
+    with (
+        patch("app.api.eval.router.get_eval_status", return_value={"is_running": False}),
+        patch("app.api.eval.router.run_eval_suite_background") as mock_bg3,
+    ):
+        res_combined = client.post(
+            "/api/v1/eval/run",
+            json={
+                "benchmark_mode": True,
+                "profile_id": "agent_abc",
+                "dataset_id": "ds_001",
+            },
+        )
+        assert res_combined.json()["status"] == "started"
+        _, call_kwargs3 = mock_bg3.call_args
+        assert call_kwargs3["benchmark_mode"] is True
+        assert call_kwargs3["profile_id"] == "agent_abc"
+        assert call_kwargs3["dataset_id"] == "ds_001"
+
+    # Edge: no request body → benchmark_mode defaults to False
+    with (
+        patch("app.api.eval.router.get_eval_status", return_value={"is_running": False}),
+        patch("app.api.eval.router.run_eval_suite_background") as mock_bg4,
+    ):
+        res_no_body = client.post("/api/v1/eval/run")
+        assert res_no_body.status_code == 200
+        assert res_no_body.json()["status"] == "started"
+        _, call_kwargs4 = mock_bg4.call_args
+        assert call_kwargs4["benchmark_mode"] is False
+
+    # Edge: already_running even when benchmark_mode=true
+    with patch("app.api.eval.router.get_eval_status", return_value={"is_running": True}):
+        res_busy = client.post(
+            "/api/v1/eval/run", json={"benchmark_mode": True}
+        )
+        assert res_busy.json()["status"] == "already_running"
+
     # Test reports api
     with patch("app.api.eval.router.get_latest_report_summary", return_value=None):
         res7 = client.get("/api/v1/eval/reports/latest")
