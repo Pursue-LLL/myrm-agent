@@ -466,7 +466,7 @@ class ChromeMcpClient:
         )
         for page in pages_to_close:
             try:
-                self.close_page(page)
+                self.close_page(page, ignore_errors=True)
             except Exception as exc:
                 errors.append(exc)
         process = self._process
