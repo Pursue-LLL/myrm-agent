@@ -12,7 +12,7 @@
 | `WorkspaceFileBrowser.tsx` | 核心 | 沙箱文件树浏览器 |
 | `WorkspaceFileOps.tsx` | 组件 | 上传/删除/重命名等文件操作 |
 | `WorkspaceFilePreview.tsx` | 组件 | 选中文件内联预览 |
-| `useWorkspaceFiles.ts` | Hook | 文件树加载与选中状态 |
+| `useWorkspaceFiles.ts` | Hook | 三部署 agent vault 文件树；register watch + SSE auto refresh（经 useGlobalEvents） |
 
 ## 依赖
 

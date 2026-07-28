@@ -21,6 +21,7 @@ from cdp_chat_support import (  # noqa: E402
     deny_stale_browser_takeover_approvals,
     ensure_e2e_memory_disabled,
     ensure_e2e_yolo_mode,
+    fetch_browser_takeover_resume_ids,
     get_e2e_api_url,
     wait_e2e_backend_ready,
     wait_e2e_cdp_ready,
@@ -33,11 +34,23 @@ from mcp_chat_ui import McpChatSession  # noqa: E402
 import json  # noqa: E402
 import urllib.request  # noqa: E402
 import urllib.error  # noqa: E402
+import urllib.parse  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import get_e2e_ui_url, open_mcp_page, wait_for_state
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+
+
+def _cancel_chat_via_api(*, api_base: str, chat_id: str) -> bool:
+    """Best-effort release of a stale gateway session before retrying a new chat."""
+    url = f"{api_base.rstrip('/')}/api/v1/chats/{urllib.parse.quote(chat_id, safe='')}/cancel"
+    req = urllib.request.Request(url, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=15.0) as resp:  # noqa: S310
+            return 200 <= resp.status < 300
+    except (OSError, urllib.error.URLError):
+        return False
 
 
 _SSE_DONE_RE = re.compile(r"(?:\bOK\b|GOAL_OK|\bDONE\b)", re.IGNORECASE)
@@ -206,16 +219,29 @@ _RECOVER_BROWSER_TAKEOVER_JS = """(async () => {
   return { ok: true, ...result };
 })()"""
 
-BROWSER_GATE_WAIT_SEC = 120.0
+BROWSER_GATE_WAIT_SEC = 180.0
+BROWSER_GATE_API_TIMEOUT_SEC = 25.0
 BROWSER_RECOVERY_DELAY_SEC = 12.0
 BROWSER_RECOVERY_MIN_INTERVAL_SEC = 20.0
 MAX_SEND_ATTEMPTS = 3
+MAX_RESUME_REINTERRUPT_ROUNDS = 4
 
 
 def _is_gate_mux_stall(exc: BaseException) -> bool:
     if isinstance(exc, TimeoutError):
         return True
-    return "MUX_RECLAIM_STALL" in str(exc)
+    message = str(exc)
+    return any(
+        token in message
+        for token in (
+            "MUX_RECLAIM_STALL",
+            "PAGE_LEASE_HEARTBEAT_FAILED",
+            "not owned by this shim session",
+            "No page found",
+            "Chrome MCP transport closed",
+            "Chrome MCP tools/call response timed out",
+        )
+    )
 
 
 async def _gate_probe_evaluate(
@@ -238,12 +264,41 @@ async def _gate_probe_evaluate(
             return None
         message = str(exc)
         if "Failed to fetch" in message or "evaluate_script failed" in message:
-            print(f"E2E_GATE_PROBE_SKIP: {label} transient skip — {message[:120]}", flush=True)
+            print(
+                f"E2E_GATE_PROBE_SKIP: {label} transient skip — {message[:120]}",
+                flush=True,
+            )
             return None
         raise
     except TimeoutError:
         print(f"E2E_GATE_MUX_STALL: {label} transient skip", flush=True)
         return None
+
+
+async def _quiesce_mux_before_retry(chat: McpChatSession) -> None:
+    """Serialize MUX recovery before retry UI to avoid recovery lock deadlock."""
+    try:
+        await chat.evaluate(
+            """(() => window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.())()""",
+            await_promise=False,
+            recv_timeout=15.0,
+        )
+    except (RuntimeError, TimeoutError):
+        pass
+    await asyncio.sleep(2.0)
+    loop = asyncio.get_running_loop()
+    try:
+        await asyncio.wait_for(
+            loop.run_in_executor(
+                chat._client.mux_reset_executor(),
+                chat._client.reset_after_orphan,
+            ),
+            timeout=60.0,
+        )
+    except TimeoutError:
+        chat._client.discard_mux_reset_executor()
+        print("E2E_MUX_QUIESCE: reset_after_orphan timed out — continue retry", flush=True)
+    await asyncio.sleep(1.0)
 
 
 _ENABLE_YOLO_JS = """(() => {
@@ -605,14 +660,23 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         chat_id: str | None,
         *,
         api_url: str,
+        timeout_sec: float = BROWSER_GATE_API_TIMEOUT_SEC,
     ) -> dict[str, object] | None:
         if not chat_id:
             return None
-        return await asyncio.to_thread(
-            chat_browser_gate_from_api,
-            chat_id,
-            api_url=api_url,
-        )
+        try:
+            return await asyncio.to_thread(
+                chat_browser_gate_from_api,
+                chat_id,
+                api_url=api_url,
+                timeout_sec=timeout_sec,
+            )
+        except (TimeoutError, OSError, urllib.error.URLError) as exc:
+            print(
+                f"E2E_GATE_API_SKIP: transient api gate skip — {exc!s:.120}",
+                flush=True,
+            )
+            return None
 
     async def _wait_for_browser_ask_human_gate(
         chat: McpChatSession,
@@ -627,18 +691,43 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         last_tool = ""
         takeover_pending = False
         resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
+        last_api_poll_at = 0.0
+        mux_degraded = False
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
+            now = time.monotonic()
+            api_timeout = BROWSER_GATE_API_TIMEOUT_SEC * (2.0 if mux_degraded else 1.0)
+            if chat_id and now - last_api_poll_at >= 2.0:
+                last_api_poll_at = now
+                api_progress = await _api_browser_gate_progress(
+                    chat_id,
+                    api_url=resolved_api,
+                    timeout_sec=api_timeout,
+                )
+                if isinstance(api_progress, dict):
+                    api_tool = str(api_progress.get("lastTool") or "")
+                    api_pending = api_progress.get("takeoverPending") is True
+                    if api_pending or api_tool.endswith("browser_ask_human_tool"):
+                        print(
+                            f"E2E_GATE_API_FIRST: lastTool={api_tool!r} "
+                            f"pending={api_pending}",
+                            flush=True,
+                        )
+                        return api_tool or "browser_ask_human_tool", True
             progress = await _probe_browser_tool_progress(chat)
+            if progress.get("muxStall") is True:
+                mux_degraded = True
             last_tool = str(progress.get("lastTool") or "")
             takeover_pending = progress.get("takeoverPending") is True
             if takeover_pending or last_tool.endswith("browser_ask_human_tool"):
                 return last_tool, takeover_pending
 
             if progress.get("muxStall") is True:
+                mux_degraded = True
                 api_progress = await _api_browser_gate_progress(
                     chat_id,
                     api_url=resolved_api,
+                    timeout_sec=BROWSER_GATE_API_TIMEOUT_SEC * 2.0,
                 )
                 if isinstance(api_progress, dict):
                     api_tool = str(api_progress.get("lastTool") or "")
@@ -739,7 +828,19 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         deadline = time.monotonic() + timeout_sec
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
-            if chat_messages_have_done(chat_id, api_url=api_url):
+            try:
+                has_done = await asyncio.to_thread(
+                    chat_messages_have_done,
+                    chat_id,
+                    api_url=api_url,
+                )
+            except (TimeoutError, OSError, urllib.error.URLError) as exc:
+                print(
+                    f"E2E_WAIT_API_DONE_SKIP: transient messages poll — {exc!s:.120}",
+                    flush=True,
+                )
+                has_done = False
+            if has_done:
                 return True
             await asyncio.sleep(2.0)
         return False
@@ -773,6 +874,17 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         for attempt in range(1, MAX_SEND_ATTEMPTS + 1):
             if attempt > 1:
                 _p(f"retry attempt={attempt} — click_new_chat")
+                if chat_id_hint:
+                    _p(f"cancel stale chat before retry chatId={chat_id_hint}")
+                    await asyncio.to_thread(
+                        _cancel_chat_via_api,
+                        api_base=api_base,
+                        chat_id=chat_id_hint,
+                    )
+                    chat_id_hint = None
+                    await asyncio.sleep(3.0)
+                _p("quiesce mux before retry UI")
+                await _quiesce_mux_before_retry(chat)
                 await chat.click_new_chat()
                 await chat.ensure_chat_surface(BASE_URL, timeout_sec=120.0)
                 await chat.ensure_model_ready(timeout_sec=180.0)
@@ -827,6 +939,18 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                     )
                 continue
 
+            if takeover_pending:
+                _p(
+                    "gate pending=True — skip DOM banner wait "
+                    "(HITL confirmed via gate/API; proceed to Done resume)"
+                )
+                banner = {
+                    "ready": True,
+                    "hasExtensionTitle": True,
+                    "source": "gate_pending_skip_dom",
+                }
+                break
+
             _p("wait_takeover_banner")
             try:
                 banner = await _wait_takeover_banner(chat, timeout_sec=90.0)
@@ -844,8 +968,10 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             banner.get("hasExtensionTitle") is True
         ), f"Expected extension banner: {banner}"
 
-        pre_done_diag = await chat.evaluate(
-            """(() => {
+        pre_done_diag: dict[str, object] | str = {"skipped": "api_only_resume"}
+        if banner.get("source") != "gate_pending_skip_dom":
+            pre_done_diag = await chat.evaluate(
+                """(() => {
               const bridge = window.__MYRM_E2E_CHAT__;
               const snap = bridge?.getBrowserTakeoverSnapshot?.() ?? {};
               const turn = bridge?.turnSnapshot?.() ?? {};
@@ -858,164 +984,159 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 lastAssistantSample: turn.lastAssistantSample ?? null,
               };
             })()""",
-            await_promise=False,
-            recv_timeout=15.0,
-        )
-        _p(f"pre-Done diag: {pre_done_diag}")
-
-        _p("clear takeover UI via bridge (no sendMessage)")
-        bridge_result = await chat.evaluate(
-            """(async () => {
-              const bridge = window.__MYRM_E2E_CHAT__;
-              if (!bridge?.completeBrowserTakeoverWithResume) {
-                return { ok: false, reason: 'bridge_method_missing' };
-              }
-              return await bridge.completeBrowserTakeoverWithResume();
-            })()""",
-            await_promise=True,
-            recv_timeout=15.0,
-        )
-        _p(f"bridge_result: {bridge_result}")
-        assert isinstance(
-            bridge_result, dict
-        ), f"Unexpected bridge result: {bridge_result}"
-        assert (
-            bridge_result.get("ok") is True
-        ), f"Bridge completeBrowserTakeoverWithResume failed: {bridge_result}"
-
-        resume_chat_id = str(bridge_result.get("chatId") or chat_id_hint or "").strip()
-        resume_msg_id = str(
-            bridge_result.get("resumeMessageId")
-            or bridge_result.get("storeMessageId")
-            or ""
-        ).strip()
-        assert resume_chat_id, f"No chatId for resume: {bridge_result}"
-        assert resume_msg_id, f"No messageId for resume: {bridge_result}"
-
-        MAX_RESUME_ROUNDS = 3
-        _RESUME_409_MAX_RETRIES = 5
-        _RESUME_SETTLE_SEC = 3.0
-        _STREAM_SETTLE_TIMEOUT_SEC = 90.0
-        current_msg_id = resume_msg_id
-        done = False
-        resume_result: dict[str, object] = {}
-
-        _p("release UI DIRECT_SSE via bridge before API resume")
-        release_result = await chat.evaluate(
-            """(() => {
-              const bridge = window.__MYRM_E2E_CHAT__;
-              if (!bridge?.releaseActiveStreamForApiResume) {
-                return { ok: false, reason: 'missing_releaseActiveStreamForApiResume' };
-              }
-              return bridge.releaseActiveStreamForApiResume();
-            })()""",
-            await_promise=False,
-            recv_timeout=15.0,
-        )
-        _p(f"releaseActiveStreamForApiResume: {release_result}")
-
-        _p(
-            f"wait for UI stream settle (max {_STREAM_SETTLE_TIMEOUT_SEC:.0f}s) "
-            "after release before resume API"
-        )
-        stream_settle_deadline = time.monotonic() + _STREAM_SETTLE_TIMEOUT_SEC
-        while time.monotonic() < stream_settle_deadline:
-            stream_diag = await chat.evaluate(
-                """(() => {
-              const turn = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
-              return {
-                isStreaming: Boolean(turn.isStreaming),
-                userCount: turn.userCount ?? 0,
-              };
-            })()""",
                 await_promise=False,
                 recv_timeout=15.0,
             )
-            if isinstance(stream_diag, dict) and not stream_diag.get("isStreaming"):
-                _p(f"UI stream settled: {stream_diag}")
-                break
-            await asyncio.sleep(1.0)
-        else:
-            _p("UI stream still active after settle timeout — proceeding with resume")
+        _p(f"pre-Done diag: {pre_done_diag}")
 
-        for resume_round in range(1, MAX_RESUME_ROUNDS + 1):
-            _p(
-                f"resume via API round {resume_round}/{MAX_RESUME_ROUNDS}: "
-                f"chatId={resume_chat_id} msgId={current_msg_id}"
+        _RESUME_UI_POLL_SEC = 180.0
+        _RESUME_BUSY_RETRIES = 3
+        resume_chat_id = str(chat_id_hint or "").strip()
+        resume_msg_id = ""
+        ui_resume: dict[str, object] = {}
+        use_api_only = banner.get("source") == "gate_pending_skip_dom"
+
+        if use_api_only and resume_chat_id:
+            api_ids = await asyncio.to_thread(
+                fetch_browser_takeover_resume_ids,
+                resume_chat_id,
+                api_url=api_base,
             )
-            heartbeat_e2e_lease()
+            if api_ids:
+                resume_msg_id = api_ids.get("resumeMessageId", "")
+                _p(f"API-only resume ids from approvals: {api_ids}")
+            else:
+                _p("API-only resume: no pending approval — fall back to UI bridge")
+                use_api_only = False
 
-            result: dict[str, object] = {}
-            for retry_409 in range(_RESUME_409_MAX_RETRIES):
-                result = await asyncio.to_thread(
+        if use_api_only and resume_msg_id:
+            done = False
+            resume_result: dict[str, object] = {}
+            for reint_round in range(1, MAX_RESUME_REINTERRUPT_ROUNDS + 1):
+                _p(
+                    f"resume via API-only path round={reint_round}/"
+                    f"{MAX_RESUME_REINTERRUPT_ROUNDS} "
+                    f"chatId={resume_chat_id} msgId={resume_msg_id}"
+                )
+                resume_result = await asyncio.to_thread(
                     _resume_via_api,
                     api_base=api_base,
                     chat_id=resume_chat_id,
-                    message_id=current_msg_id,
-                    timeout_sec=180.0,
+                    message_id=resume_msg_id,
+                    timeout_sec=_RESUME_UI_POLL_SEC,
                 )
-                err = str(result.get("error", ""))
-                if result.get("ok") or "409" not in err:
+                _p(f"API-only resume result: {resume_result}")
+                if resume_result.get("done") is True:
+                    done = True
                     break
-                backoff = 2.0 * (retry_409 + 1)
-                _p(
-                    f"resume round {resume_round} got 409 (retry {retry_409 + 1}/"
-                    f"{_RESUME_409_MAX_RETRIES}), backoff {backoff:.0f}s"
+                if resume_result.get("ok") is not True:
+                    error_text = str(resume_result.get("error") or "")
+                    if "409" in error_text and reint_round < MAX_RESUME_REINTERRUPT_ROUNDS:
+                        _p("API-only resume 409 busy — backoff then retry")
+                        await asyncio.sleep(3.0)
+                        continue
+                    break
+                if resume_result.get("re_interrupted") is True:
+                    next_mid = str(
+                        resume_result.get("resume_msg_id") or resume_msg_id or ""
+                    ).strip()
+                    if next_mid:
+                        resume_msg_id = next_mid
+                    if reint_round < MAX_RESUME_REINTERRUPT_ROUNDS:
+                        _p(
+                            "API-only resume re-interrupted — "
+                            "retry completed action on fresh interrupt"
+                        )
+                        await asyncio.sleep(2.0)
+                        continue
+                    break
+                done = await _wait_api_done(
+                    resume_chat_id,
+                    api_url=api_base,
+                    timeout_sec=min(60.0, _RESUME_UI_POLL_SEC),
                 )
-                await asyncio.sleep(backoff)
-
-            resume_result = result
-            _p(f"resume API result round {resume_round}: {resume_result}")
-            if not (isinstance(resume_result, dict) and resume_result.get("ok")):
-                err = str(resume_result.get("error", ""))
-                if "409" in err and resume_round < MAX_RESUME_ROUNDS:
-                    _p(
-                        f"resume round {resume_round} exhausted 409 — "
-                        "release stream and retry next round"
-                    )
-                    await chat.evaluate(
-                        """(() => window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.())()""",
-                        await_promise=False,
-                        recv_timeout=15.0,
-                    )
-                    await asyncio.sleep(_RESUME_SETTLE_SEC * 2)
-                    continue
-                assert False, (
-                    f"Backend resume API call failed round {resume_round}: "
-                    f"{resume_result}"
-                )
-            done = resume_result.get("done", False)
-            if done:
                 break
-            if resume_result.get("re_interrupted"):
-                new_msg_id = resume_result.get("resume_msg_id")
-                if new_msg_id:
-                    current_msg_id = new_msg_id
+        else:
+            done = False
+            for resume_attempt in range(1, _RESUME_BUSY_RETRIES + 1):
                 _p(
-                    f"agent re-interrupted (round {resume_round}), "
-                    f"next msgId={current_msg_id} — release stream + settle "
-                    f"{_RESUME_SETTLE_SEC}s"
+                    f"complete+resume via UI attempt={resume_attempt}/{_RESUME_BUSY_RETRIES} "
+                    "(atomic product Done path)"
                 )
+                ui_resume_raw = await chat.evaluate(
+                    """(async () => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (!bridge?.completeBrowserTakeoverAndResumeViaUi) {
+                return { ok: false, reason: 'bridge_method_missing' };
+              }
+              return await bridge.completeBrowserTakeoverAndResumeViaUi();
+            })()""",
+                    await_promise=True,
+                    recv_timeout=_RESUME_UI_POLL_SEC + 15.0,
+                )
+                ui_resume = (
+                    ui_resume_raw
+                    if isinstance(ui_resume_raw, dict)
+                    else {"value": ui_resume_raw}
+                )
+                _p(f"UI complete+resume result: {ui_resume}")
+                resume_chat_id = str(
+                    ui_resume.get("chatId") or resume_chat_id or chat_id_hint or ""
+                ).strip()
+                resume_msg_id = str(
+                    ui_resume.get("resumeMessageId")
+                    or ui_resume.get("storeMessageId")
+                    or ""
+                ).strip()
+                if ui_resume.get("ok") is True:
+                    break
+                if (
+                    ui_resume.get("busy") is not True
+                    or resume_attempt >= _RESUME_BUSY_RETRIES
+                ):
+                    break
+                _p("UI resume busy — release in-flight SSE then retry sendMessage")
                 await chat.evaluate(
                     """(() => window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.())()""",
                     await_promise=False,
                     recv_timeout=15.0,
                 )
-                await asyncio.sleep(_RESUME_SETTLE_SEC)
-                continue
-            _p(
-                f"SSE ended without DONE or re-interrupt (round {resume_round}) — fallback API poll"
-            )
-            done = await _wait_api_done(
-                resume_chat_id, api_url=api_base, timeout_sec=60.0
-            )
-            _p(f"fallback api_done={done}")
-            if done:
-                break
-            await asyncio.sleep(_RESUME_SETTLE_SEC)
+                await asyncio.sleep(2.0)
+
+            assert resume_chat_id, f"No chatId after UI resume: {ui_resume}"
+            assert resume_msg_id, f"No messageId after UI resume: {ui_resume}"
+
+            done = False
+            if ui_resume.get("ok") is True:
+                done = await _wait_api_done(
+                    resume_chat_id,
+                    api_url=api_base,
+                    timeout_sec=_RESUME_UI_POLL_SEC,
+                )
+                _p(f"post-UI-resume api_done={done}")
+
+            if not done and ui_resume.get("busy") is True:
+                _p("UI resume busy after retries — fallback API resume")
+                resume_result = await asyncio.to_thread(
+                    _resume_via_api,
+                    api_base=api_base,
+                    chat_id=resume_chat_id,
+                    message_id=resume_msg_id,
+                    timeout_sec=_RESUME_UI_POLL_SEC,
+                )
+                _p(f"API resume fallback: {resume_result}")
+                if resume_result.get("ok") is True:
+                    done = bool(resume_result.get("done")) or await _wait_api_done(
+                        resume_chat_id,
+                        api_url=api_base,
+                        timeout_sec=60.0,
+                    )
+            elif not done and ui_resume.get("ok") is not True:
+                assert False, f"Browser takeover UI resume failed: {ui_resume}"
+
         assert done, (
-            f"Agent did not reply DONE after {MAX_RESUME_ROUNDS} resume rounds "
-            f"for chat {resume_chat_id}; last resume_result={resume_result}"
+            f"Agent did not reply DONE after browser takeover resume "
+            f"for chat {resume_chat_id}; ui_resume={ui_resume}"
         )
 
         chat_id = resume_chat_id

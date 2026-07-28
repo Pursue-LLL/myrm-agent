@@ -266,6 +266,32 @@ export function getBackendBaseUrl(): string {
   return normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_BACKEND_BASE_URL, FALLBACK_BACKEND_BASE_URL);
 }
 
+/**
+ * OpenAI-compatible Agent API base URL for external clients (Cursor, OpenAI SDK).
+ * `/v1` is served by the backend directly — not proxied through Next `/api/v1`.
+ */
+export function getAgentApiBaseUrl(): string {
+  const e2eBase = resolveE2eApiBase();
+  if (e2eBase) {
+    return `${e2eBase}/v1`;
+  }
+  if (isTauriRuntime()) {
+    const backendBase = getBackendBaseUrl();
+    if (backendBase) {
+      return `${backendBase}/v1`;
+    }
+    return `http://127.0.0.1:${getTauriBackendPort()}/v1`;
+  }
+  if (isLocalMode()) {
+    return `${FALLBACK_BACKEND_BASE_URL}/v1`;
+  }
+  const backendBase = normalizeConfiguredBaseUrl(
+    process.env.NEXT_PUBLIC_BACKEND_BASE_URL,
+    FALLBACK_BACKEND_BASE_URL,
+  );
+  return `${backendBase}/v1`;
+}
+
 /** Documentation site base URL (Mintlify). */
 export function getDocsUrl(path: string = '/'): string {
   const base = normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_DOCS_URL, 'https://docs.myrm.ai');

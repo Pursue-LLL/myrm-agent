@@ -7,9 +7,8 @@ import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { toast } from '@/hooks/useToast';
-import { BACKEND_BASE_URL } from '@/lib/api';
+import { getAgentApiBaseUrl } from '@/lib/deploy-mode';
 import SettingsSection from '../SettingsSection';
-import ProxySettingsCard from '../system/ProxySettingsCard';
 import {
   createApiKey,
   listApiKeys,
@@ -118,7 +117,7 @@ const OpenAIApiSection = memo(() => {
     expired: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20',
   };
 
-  const apiEndpoint = `${BACKEND_BASE_URL}/v1`;
+  const apiEndpoint = getAgentApiBaseUrl();
 
   return (
     <div className="space-y-6">
@@ -326,8 +325,6 @@ for chunk in response:
         variant="destructive"
       />
 
-      {/* LLM Passthrough Proxy */}
-      <ProxySettingsCard />
     </div>
   );
 });

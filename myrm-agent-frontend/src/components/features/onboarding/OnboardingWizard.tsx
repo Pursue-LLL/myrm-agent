@@ -19,6 +19,7 @@ import LocalCapabilitiesSetup from './LocalCapabilitiesSetup';
 import SmartRoutingStep from './SmartRoutingStep';
 import SmartGuardStep from './SmartGuardStep';
 import TelegramAssistantOnboardingStep from './TelegramAssistantOnboardingStep';
+import SyncFolderOnboardingStep from './SyncFolderOnboardingStep';
 import { Button } from '@/components/primitives/button';
 import { getConfigSyncManager } from '@/services/config';
 import type { SecurityConfigValue } from '@/services/config/types';
@@ -27,7 +28,7 @@ interface OnboardingWizardProps {
   onComplete: () => void;
 }
 
-type Step = 'welcome' | 'migration' | 'capabilities' | 'routing' | 'smart_guard' | 'telegram_assistant' | 'finishing';
+type Step = 'welcome' | 'migration' | 'capabilities' | 'sync_folder' | 'routing' | 'smart_guard' | 'telegram_assistant' | 'finishing';
 
 const WELCOME_DURATION_MS = 2500;
 
@@ -114,6 +115,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         setStep('migration');
       } else if (isLocalDeployment && (!hasEnabledProvider || !searchConfigured)) {
         setStep('capabilities');
+      } else if (isLocalDeployment) {
+        setStep('sync_folder');
       } else if (shouldShowRouting()) {
         setStep('routing');
       } else if (shouldShowSmartGuard()) {
@@ -163,6 +166,18 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   }, [handleFinish, telegramConfigured]);
 
   const handleCapabilitiesComplete = useCallback(() => {
+    if (isLocalDeployment) {
+      setStep('sync_folder');
+      return;
+    }
+    if (shouldShowRouting()) {
+      setStep('routing');
+    } else {
+      moveToSmartGuardOrNext();
+    }
+  }, [isLocalDeployment, moveToSmartGuardOrNext, shouldShowRouting]);
+
+  const handleSyncFolderCompleteOrSkip = useCallback(() => {
     if (shouldShowRouting()) {
       setStep('routing');
     } else {
@@ -173,6 +188,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const handleMigrationCompleteOrSkip = useCallback(() => {
     if (isLocalDeployment && (!hasEnabledProvider || !searchConfigured)) {
       setStep('capabilities');
+    } else if (isLocalDeployment) {
+      setStep('sync_folder');
     } else if (shouldShowRouting()) {
       setStep('routing');
     } else {
@@ -247,6 +264,21 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             </div>
             <div className="bg-card border rounded-xl p-6">
               <LocalCapabilitiesSetup probeResult={probe} onComplete={handleCapabilitiesComplete} />
+            </div>
+          </div>
+        )}
+
+        {step === 'sync_folder' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.syncFolder.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.syncFolder.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <SyncFolderOnboardingStep
+                onComplete={handleSyncFolderCompleteOrSkip}
+                onSkip={handleSyncFolderCompleteOrSkip}
+              />
             </div>
           </div>
         )}

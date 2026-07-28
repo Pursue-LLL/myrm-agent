@@ -8,7 +8,7 @@
 - run_agent_stream: full orchestration returning StreamingResponse | JSONResponse
 
 [POS]
-Service-layer stream orchestration. HTTP route decorators remain in api/agents/general_agent/streaming.py.
+Service-layer stream orchestration. **Session mutex (`ChatSessionReservation`) before user persist**; busy → SSE AgentBusyError via stream_busy. HTTP route decorators remain in api/agents/general_agent/streaming.py.
 """
 
 from __future__ import annotations

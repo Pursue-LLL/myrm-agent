@@ -26,6 +26,7 @@
 | `agent/` | ✅ 核心 | Agent 相关服务（CRUD、流式执行、搜索、进化引擎） | [_ARCH.md](agent/_ARCH.md) |
 | `chat/` | ✅ 核心 | 聊天服务（会话管理、消息处理、压缩、对话召回） | [_ARCH.md](chat/_ARCH.md) |
 | `project/` | ✅ 核心 | 项目管理服务（CRUD + 会话归属移动/批量移动） | [_ARCH.md](project/_ARCH.md) |
+| `workspace/` | ✅ 辅助 | Project vault 目录变更检测（watchdog→SSE） | [_ARCH.md](workspace/_ARCH.md) |
 | `auth/` | ✅ 核心 | 认证服务（OAuth、本地认证） | [_ARCH.md](auth/_ARCH.md) |
 | `config/` | ✅ 核心 | 配置管理服务（CRUD、加密、迁移、健康监控、首次配置） | [_ARCH.md](config/_ARCH.md) |
 | `memory/` | ✅ 核心 | 记忆业务服务（备份/恢复、Shared Context 共享上下文治理） | [_ARCH.md](memory/_ARCH.md) |

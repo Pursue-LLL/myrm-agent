@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from myrm_agent_harness.utils import get_local_ip
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from app.api.webui.auth_routes import router as webui_auth_router
 from app.api.webui.vnc_routes import router as vnc_router
 from app.config.settings import settings
+from app.services.webui.og_metadata import fetch_og_metadata
 from app.services.webui.qrcode import generate_qrcode_image
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webui", tags=["webui"])
 router.include_router(webui_auth_router)
 router.include_router(vnc_router)
+
+
+@router.get("/og-metadata")
+async def get_og_metadata(url: str = Query(..., description="URL to fetch OG metadata for")) -> JSONResponse:
+    """Proxy-fetch Open Graph metadata for a URL (solves CORS for WebUI embeds)."""
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
+    metadata = await fetch_og_metadata(url)
+    return JSONResponse(content=metadata, headers={"Cache-Control": "public, max-age=3600"})
 
 
 @router.get("/qrcode.png")

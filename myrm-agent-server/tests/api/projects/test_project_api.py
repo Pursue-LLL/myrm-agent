@@ -300,6 +300,25 @@ async def test_update_workspace_path_clear(async_client: httpx.AsyncClient) -> N
 
 
 @pytest.mark.asyncio
+async def test_update_workspace_path_tilde_expanded(async_client: httpx.AsyncClient, tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    vault = tmp_path / "obsidian-vault"
+    vault.mkdir()
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "WS Tilde"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"workspace_path": "~/obsidian-vault"})
+    assert resp.status_code == 200
+    assert resp.json()["data"]["project"]["workspacePath"] == str(vault.resolve())
+
+
+@pytest.mark.asyncio
+async def test_create_project_has_no_default_workspace(async_client: httpx.AsyncClient) -> None:
+    resp = await async_client.post(f"{PREFIX}/", json={"name": "No Default WS"})
+    assert resp.status_code == 200
+    assert resp.json()["data"]["project"]["workspacePath"] in ("", None)
+
+
+@pytest.mark.asyncio
 async def test_update_workspace_path_traversal_rejected(async_client: httpx.AsyncClient) -> None:
     create_resp = await async_client.post(f"{PREFIX}/", json={"name": "WS Traverse"})
     project_id = create_resp.json()["data"]["project"]["id"]

@@ -3212,19 +3212,6 @@
         "http_webhook": "패키징된 Artifact를 CI 또는 커스텀 엔드포인트로 POST. 자격 증명 저장 불필요."
       }
     },
-    "proxy": {
-      "title": "LLM Passthrough Proxy",
-      "description": "Use MyrmAgent as an OpenAI-compatible API proxy. External tools (Aider, Cline, Codex, Continue) can connect directly and use your configured model providers.",
-      "passthroughEndpoint": "Proxy Endpoint",
-      "passthroughEndpointDesc": "External tools connect to this address to call your LLM models directly (bypassing the Agent engine):",
-      "toolConfigTitle": "Tool Configuration Examples",
-      "openAuth": "Open Authentication Mode",
-      "openAuthDesc": "When enabled, any non-empty Bearer token is accepted (no registered API key required). Suitable for local development.",
-      "openAuthWarning": "Security notice: In open auth mode, anyone with your endpoint URL can make API calls. Only use this in trusted network environments.",
-      "visionBridge": "비전 브리지",
-      "visionBridgeDesc": "대상 모델이 비전을 지원하지 않을 때 이미지를 자동으로 텍스트 설명으로 변환합니다.",
-      "saveFailed": "Failed to save proxy settings"
-    },
     "workspaceRules": {
       "title": "Workspace Rules",
       "description": "Project-level rule files automatically discovered from your workspace (AGENTS.md, CLAUDE.md, .cursorrules, .myrm/rules/*.md, .cursor/rules/*.mdc)",
@@ -5783,6 +5770,12 @@
     "memory_manage_tool_tool_error": "Memory management failed",
     "cron_manage_tool_tool": "Managing scheduled tasks",
     "cron_manage_tool_tool_error": "Scheduled task operation failed",
+    "mcp_tool_search_tool": "사용 가능한 도구 검색 중",
+    "mcp_tool_search_tool_error": "도구 검색 실패",
+    "mcp_tool_describe_tool": "도구 세부정보 로드 중",
+    "mcp_tool_describe_tool_error": "도구 세부정보 로드 실패",
+    "mcp_tool_call_tool": "도구 호출 중",
+    "mcp_tool_call_tool_error": "도구 호출 실패",
     "file_read_tool": "Reading files",
     "file_read_tool_error": "Read files failed",
     "file_write_tool": "Writing file",
@@ -5855,7 +5848,10 @@
       "skill_select_tool": "Selecting skill",
       "render_ui_tool": "Rendering UI",
       "answer_user_tool": "Generating answer",
-      "request_answer_user_tool": "Preparing response"
+      "request_answer_user_tool": "Preparing response",
+      "mcp_tool_search": "도구 검색 중",
+      "mcp_tool_describe": "도구 스키마 로드 중",
+      "mcp_tool_call": "도구 호출 중"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",

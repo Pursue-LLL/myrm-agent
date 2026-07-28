@@ -37,6 +37,8 @@ import InlineDiffViewer from '../markdown-render-tools/InlineDiffViewer';
 import SourceChunkDrawer from './SourceChunkDrawer';
 import type { Source, WikiSourceLevel } from '@/store/chat/types';
 import { recordEvidenceSurface } from '@/services/wikiEvidenceMetrics';
+import { detectEmbed, UrlEmbed } from '@/components/features/embeds';
+import { OgCard } from '@/components/features/embeds/OgCard';
 
 const INLINE_RENDER_LANGUAGES = new Set(['html', 'svg']);
 
@@ -232,6 +234,41 @@ const MarkdownContent = React.memo(
         a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
           const isExternal = href && /^https?:\/\//.test(href);
           if (isExternal) {
+            const embedDescriptor = !isStreaming ? detectEmbed(href) : null;
+            if (embedDescriptor) {
+              return (
+                <span className="block">
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline decoration-primary/30 hover:decoration-primary transition-colors"
+                  >
+                    {children}
+                  </a>
+                  <UrlEmbed descriptor={embedDescriptor} />
+                </span>
+              );
+            }
+
+            const childText = typeof children === 'string' ? children : '';
+            const isBareLinkInParagraph = childText === href || childText === href.replace(/^https?:\/\//, '');
+            if (!isStreaming && isBareLinkInParagraph) {
+              return (
+                <span className="block">
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline decoration-primary/30 hover:decoration-primary transition-colors"
+                  >
+                    {children}
+                  </a>
+                  <OgCard url={href} />
+                </span>
+              );
+            }
+
             return (
               <a
                 href={href}

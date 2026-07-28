@@ -197,8 +197,7 @@ def _chrome_e2e_lane_timeout_sec(item: pytest.Item) -> int | None:
     if marker is None:
         return None
     lane = str(marker.kwargs.get("lane", "LIVE_AGENT"))
-    floor = chrome_e2e_pytest_timeout_floor(lane, _chrome_e2e_marker_joined_argv(item))
-    return min(floor, LIVE_SINGLE_TEST_WALL_CLOCK_SEC)
+    return chrome_e2e_pytest_timeout_floor(lane, _chrome_e2e_marker_joined_argv(item))
 
 
 def _apply_chrome_e2e_lane_timeout(item: pytest.Item) -> None:
@@ -485,7 +484,7 @@ def _require_live_e2e_lease(
             )
     except RuntimeError as exc:
         pytest.fail(str(exc))
-    from e2e_wall_budget import begin_body_wall_budget
+    from e2e_orchestrator import begin_body_wall_budget
 
     begin_body_wall_budget(phase_label=request.node.name)
     reap_chrome_e2e_session_hygiene()

@@ -205,6 +205,11 @@ def _mux_ws_stamp_matches(cdp_port: int) -> bool:
     return stored == chrome["web_socket_url"]
 
 
+def mux_owned_daemon_count() -> int:
+    """Return owned mux daemon count (0 or 1) for runtime fail-closed gates."""
+    return _mux_owned_daemon_count()
+
+
 def probe_runtime_context() -> RuntimeProbeContext:
     port = _resolve_e2e_port()
     frontend = _default_frontend_dir()

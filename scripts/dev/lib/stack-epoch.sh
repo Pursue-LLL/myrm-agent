@@ -19,7 +19,7 @@ _harness_fingerprint() {
 import pathlib
 try:
     import myrm_agent_harness
-    from myrm_agent_harness._distribution import get_distribution_mode
+    from myrm_agent_harness.distribution.probe import get_distribution_mode
     pkg = pathlib.Path(myrm_agent_harness.__file__).resolve().parent
     print(f'{get_distribution_mode().value}:{pkg}')
 except Exception:

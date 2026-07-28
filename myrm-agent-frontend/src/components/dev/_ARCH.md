@@ -8,7 +8,7 @@ localhost 开发专用桥接组件，**非终端用户功能**。供 MCP chrome-
 
 | 文件 | 职责 |
 |------|------|
-| `E2EChatBridge.tsx` | 挂载 `window.__MYRM_E2E_CHAT__` … `releaseActiveStreamForApiResume`、`retryStreamWithSameMessageId`（同 `requestMessageId` 走 `executeStreamWithRetry` + `__MYRM_E2E_DIRECT_SSE__`）、Browser takeover 与 subagent dashboard hydration）；`AppLayout` 仅 local dev host |
+| `E2EChatBridge.tsx` | 挂载 `window.__MYRM_E2E_CHAT__` … `releaseActiveStreamForApiResume`、`retryStreamWithSameMessageId`（同 `requestMessageId` → `executeStreamWithRetry`；E2E 设 `__MYRM_E2E_DIRECT_SSE__` 跳过 multiplex；Chrome retry contract E2E 断言 `{busy:true}`）；Browser takeover 与 subagent dashboard hydration；`AppLayout` 仅 local dev host |
 
 ## 依赖
 

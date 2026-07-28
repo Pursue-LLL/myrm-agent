@@ -22,7 +22,7 @@ from app.startup.uvicorn_runner import start_with_uvicorn
 init_environment()
 
 # Fail closed when production harness wheels are incomplete (passes in editable dev)
-from myrm_agent_harness._distribution import (  # noqa: E402
+from myrm_agent_harness.distribution.probe import (  # noqa: E402
     DistributionMode,
     assert_distribution_ready,
     get_distribution_mode,

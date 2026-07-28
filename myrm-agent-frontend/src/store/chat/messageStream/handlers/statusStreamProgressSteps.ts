@@ -60,6 +60,12 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
   const archiveRestoreActions = H.buildArchiveRestoreActions(archiveRestoreBlock);
   let displayKey =
     stepKey === 'model_failover' && data.error_kind ? `model_failover_${data.error_kind}` : stepKey;
+  if (stepKey === 'context_compaction' && data.data?.phase) {
+    const phase = data.data.phase as string;
+    if (phase !== 'active') {
+      displayKey = `context_compaction_${phase}`;
+    }
+  }
   if (stepKey === 'workflow_stage') {
     const stageData = data.data as Record<string, unknown> | undefined;
     const category =
@@ -71,25 +77,27 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
   const itemText =
     (stepKey === 'model_failover' || stepKey === 'safety_fallback_active') && data.fallback_model
       ? data.fallback_model
-      : (stepKey === 'memory_archived' || stepKey === 'context_pruned') && data.tokens_saved
-        ? `(Tokens saved: ${data.tokens_saved})`
-        : stepKey === 'archive_checkpoint' && data.tool_name
-          ? `(${data.tool_name})`
-          : stepKey === 'media_stripped' && data.stripped_count
-            ? `(${data.stripped_count})`
-            : stepKey === 'transient_retry' && data.attempt
-              ? `(${data.attempt}/15)`
-              : stepKey === 'consensus_active' && data.data?.reference_models
-                ? `(${(data.data.reference_models as string[]).join(', ')})`
-                : stepKey === 'consensus_reference_done' && data.data?.model
-                  ? `${data.data.model} (${data.data.success ? '✓' : '✗'} ${typeof data.data.elapsed === 'number' ? `${data.data.elapsed.toFixed(1)}s` : ''})`
-                  : (stepKey === 'workflow_init' ||
-                        stepKey === 'workflow_planning' ||
-                        stepKey === 'workflow_execution' ||
-                        stepKey === 'workflow_stage') &&
-                      typeof data.data?.message === 'string'
-                    ? data.data.message
-                    : '';
+      : stepKey === 'context_compaction' && data.data?.phase
+        ? _formatCompactionItemText(data.data as Record<string, unknown>)
+        : (stepKey === 'memory_archived' || stepKey === 'context_pruned') && data.tokens_saved
+          ? `(Tokens saved: ${data.tokens_saved})`
+          : stepKey === 'archive_checkpoint' && data.tool_name
+            ? `(${data.tool_name})`
+            : stepKey === 'media_stripped' && data.stripped_count
+              ? `(${data.stripped_count})`
+              : stepKey === 'transient_retry' && data.attempt
+                ? `(${data.attempt}/15)`
+                : stepKey === 'consensus_active' && data.data?.reference_models
+                  ? `(${(data.data.reference_models as string[]).join(', ')})`
+                  : stepKey === 'consensus_reference_done' && data.data?.model
+                    ? `${data.data.model} (${data.data.success ? '✓' : '✗'} ${typeof data.data.elapsed === 'number' ? `${data.data.elapsed.toFixed(1)}s` : ''})`
+                    : (stepKey === 'workflow_init' ||
+                          stepKey === 'workflow_planning' ||
+                          stepKey === 'workflow_execution' ||
+                          stepKey === 'workflow_stage') &&
+                        typeof data.data?.message === 'string'
+                      ? data.data.message
+                      : '';
   actions.setMessages((state) => {
     let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
     if (messageIndex === -1 && (isMediaAnalysis || isArchiveRestoreStatus)) {
@@ -111,11 +119,16 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       if (!state.messages[messageIndex].progressSteps) {
         state.messages[messageIndex].progressSteps = [];
       }
+      const compactionPhase = stepKey === 'context_compaction' ? (data.data as Record<string, unknown> | undefined)?.phase : undefined;
       const progressStep: H.ProgressItem = {
         step_key: displayKey,
         items: data.items ?? (itemText ? [{ text: itemText }] : []),
         tool_name: stepKey === 'archive_checkpoint' ? undefined : (data.tool_name ?? undefined),
-        status: data.status,
+        status: compactionPhase === 'timeout' || compactionPhase === 'circuit_open'
+          ? 'warning'
+          : compactionPhase === 'completed'
+            ? 'complete'
+            : data.status,
       };
       if (stepKey === 'workflow_stage') {
         const sd = data.data as Record<string, unknown> | undefined;
@@ -169,12 +182,16 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       }
       if (
         stepKey === 'archive_restore_blocked' ||
+        stepKey === 'context_compaction' ||
         stepKey === 'loop_guard_warn' ||
         stepKey === 'loop_guard_break' ||
         stepKey === 'workflow_stage'
       ) {
         const existingStep = state.messages[messageIndex].progressSteps!.find(
-          (step) => step.step_key === displayKey,
+          (step) =>
+            stepKey === 'context_compaction'
+              ? step.step_key?.startsWith('context_compaction')
+              : step.step_key === displayKey,
         );
         if (existingStep) {
           Object.assign(existingStep, progressStep);
@@ -225,5 +242,26 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         : 'Warning: Large content was intelligently truncated to fit within context limits.';
     const { toast } = await import('@/lib/utils/toast');
     toast.warning(msg, { duration: 8000 });
+  }
+}
+
+function _formatCompactionItemText(data: Record<string, unknown>): string {
+  const phase = data.phase as string;
+  const elapsedS = typeof data.elapsed_s === 'number' ? data.elapsed_s : 0;
+  const tokensSaved = typeof data.tokens_saved === 'number' ? data.tokens_saved : 0;
+
+  switch (phase) {
+    case 'active':
+      return `(${elapsedS}s)`;
+    case 'timeout':
+      return `(${elapsedS}s)`;
+    case 'circuit_open':
+      return '';
+    case 'fallback':
+      return '';
+    case 'completed':
+      return tokensSaved > 0 ? `(Tokens saved: ${tokensSaved})` : '';
+    default:
+      return '';
   }
 }

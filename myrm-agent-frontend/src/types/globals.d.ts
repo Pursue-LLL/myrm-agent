@@ -148,6 +148,24 @@ interface Window {
     pinBasicModelForE2e?: () => Promise<{ providerId: string; model: string }>;
     /** CDP E2E: abort in-flight SSE so API agent-stream resume can proceed (no cancel API). */
     releaseActiveStreamForApiResume?: () => { ok: boolean; released: boolean };
+    completeBrowserTakeoverAndResumeViaUi?: () => Promise<{
+      ok: boolean;
+      busy?: boolean;
+      err?: string;
+      reason?: string;
+      chatId?: string | null;
+      resumeMessageId?: string | null;
+      storeMessageId?: string | null;
+    }>;
+    resumeBrowserTakeoverViaUi?: (
+      resumeMessageId: string,
+    ) => Promise<{
+      ok: boolean;
+      busy?: boolean;
+      err?: string;
+      chatId?: string | null;
+      resumeMessageId?: string;
+    }>;
     retryStreamWithSameMessageId?: (
       query: string,
       messageId: string,

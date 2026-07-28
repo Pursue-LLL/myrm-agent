@@ -40,7 +40,7 @@ _require_harness_editable_for_monorepo() {
     cd "${server_dir}" && "${py}" -c "
 import pathlib
 import myrm_agent_harness
-from myrm_agent_harness._distribution import get_distribution_mode
+from myrm_agent_harness.distribution.probe import get_distribution_mode
 from myrm_agent_harness.agent.artifacts.ui_registry import bind_run_message_id  # noqa: F401
 pkg = pathlib.Path(myrm_agent_harness.__file__).resolve().parent
 print(get_distribution_mode().value)
@@ -197,10 +197,12 @@ _start_backend_bg() {
   cd "${server_dir}"
   # Dev log is append-only; truncate on fresh start to avoid unbounded growth.
   : >"${log_file}"
+  # Record $! against the Python backend, not a nohup wrapper (macOS ps shows "(nohup)").
   if command -v setsid >/dev/null 2>&1; then
-    setsid nohup "${py}" run.py >>"${log_file}" 2>&1 &
+    setsid "${py}" run.py >>"${log_file}" 2>&1 &
   else
-    nohup "${py}" run.py >>"${log_file}" 2>&1 &
+    "${py}" run.py >>"${log_file}" 2>&1 &
+    disown -h $! 2>/dev/null || true
   fi
   local new_pid
   new_pid=$!

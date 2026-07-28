@@ -62,6 +62,7 @@ import { ReferenceMentionPopover } from './ReferenceMentionPopover';
 import ClarificationInput from '../message-box/ClarificationInput';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import useChatStore from '@/store/useChatStore';
+import { useProjectStore } from '@/store/useProjectStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { QuoteCard } from './QuoteCard';
 import { useInputHistory } from '@/hooks/useInputHistory';
@@ -117,6 +118,10 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
   const chatT = useTranslations('chat');
   const messages = useChatStore((s) => s.messages);
   const chatId = useChatStore((s) => s.chatId);
+  const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
+  const projects = useProjectStore((s) => s.projects);
+  const projectsLoaded = useProjectStore((s) => s.loaded);
+  const fetchProjects = useProjectStore((s) => s.fetchProjects);
   const agentConfig = useChatStore((s) => s.agentConfig);
   const mentionReferences = useChatStore((s) => s.mentionReferences);
   const removeMentionReference = useChatStore((s) => s.removeMentionReference);
@@ -127,6 +132,21 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
   );
   const isComposerClarifyMode = pendingClarification !== null;
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
+
+  React.useEffect(() => {
+    if (!projectsLoaded) {
+      void fetchProjects();
+    }
+  }, [fetchProjects, projectsLoaded]);
+
+  const hideChatWorkspacePicker = React.useMemo(() => {
+    if (!chatId) return false;
+    const chatItem = chatHistoryItems.find((item) => item.id === chatId);
+    const projectId = chatItem?.projectId;
+    if (!projectId) return false;
+    const project = projects.find((item) => item.id === projectId);
+    return Boolean(project?.workspacePath?.trim());
+  }, [chatHistoryItems, chatId, projects]);
 
   const [isMobileSheetOpen, setIsMobileSheetOpen] = React.useState(false);
   const [isExpanded, setIsExpanded] = React.useState(false);
@@ -454,7 +474,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                   <AgentIndicator />
                   <SessionSkillsToggle />
                   <ToolsPanel />
-                  <WorkspaceDirPicker />
+                  {!hideChatWorkspacePicker && <WorkspaceDirPicker />}
                   <button
                     type="button"
                     onClick={() => setIsExpanded((prev) => !prev)}

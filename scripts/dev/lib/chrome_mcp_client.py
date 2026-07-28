@@ -497,6 +497,9 @@ class ChromeMcpClient:
         timeout_ms: int | None = None,
         isolated_context: str | None = None,
     ) -> McpPage:
+        from transport_supervisor import assert_mux_daemons_single
+
+        assert_mux_daemons_single(phase="new_page")
         resolved_timeout_ms = (
             timeout_ms if timeout_ms is not None else self._default_page_timeout_ms()
         )
@@ -1051,6 +1054,14 @@ class ChromeMcpClient:
         self._page_lease_heartbeat.start()
 
     def _recover_mux_transport(self, *, start_generation: int | None = None) -> None:
+        from transport_supervisor import mux_recovery_scope
+
+        with mux_recovery_scope(phase="recover_mux_transport"):
+            self._recover_mux_transport_inner(start_generation=start_generation)
+
+    def _recover_mux_transport_inner(
+        self, *, start_generation: int | None = None
+    ) -> None:
         _LOGGER.warning(
             "RECOVER_MUX_TRANSPORT: gen=%s pages=%d disconnected=%d",
             start_generation,

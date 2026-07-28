@@ -32,6 +32,7 @@ router = APIRouter()
 
 _BUSY_HOLD_EVENTS: dict[str, asyncio.Event] = {}
 _BUSY_QUERY_TEXT = "E2E stream retry busy fixture ping message"
+# Must not contain risk-gate keywords (e.g. contract/quote/invoice) — see BUGFIX_LOG BUG-AGENT-2026-07-27-002.
 
 
 async def _hold_busy_session(chat_id: str) -> None:

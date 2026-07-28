@@ -179,3 +179,143 @@ daemon.py → subprocess.run(["bash", "wave.sh", "reap"]) → wave.sh → python
 4. **Chrome E2E Settings 断言须 scoped 到 `[data-section][data-active]`** — SettingsLayout 缓存 hidden Tab，`document.body` / 首个 `h2` 会假阳性；CDP 已发现时 UI 显示 `cdpRiskHelp` 而非 `chrome://inspect/#...` 文案
 
 ---
+
+## BUG-AGENT-2026-07-27-002: Stream-Retry E2E Fixture 文案触发 Risk Gate（误报 busy 失败）
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-07-27 |
+| 修复日期 | 2026-07-27 |
+| 严重程度 | P2（测试假红，非生产逻辑 bug） |
+| 影响范围 | `app/api/chats/test_fixtures_stream_retry_busy.py`, Chrome READ E2E |
+| 出现次数 | 1 |
+| 关联 roadmap | `temp-docs/repair/AGENT_STREAM_RETRY_IDEMPOTENCY_PERFECT_CLOSURE_ROADMAP.md` |
+
+### 现象
+
+Chrome READ E2E `test_stream_retry_contract_chrome_e2e` 在 busy 断言阶段收到 `risk_blocked`（`contract_quote_keywords`），而非 `AgentBusyError`。
+
+### 根因
+
+Fixture 查询 `_BUSY_QUERY_TEXT` 含英文 **「contract」**，命中 [`risk_gate.py`](myrm-agent/myrm-agent-server/app/services/agent/stream_session/risk_gate.py) / [`constants.py` rule `contract_quote_keywords`](myrm-agent/myrm-agent-server/app/services/risk/constants.py)。Risk 检查在 orchestrator **reserve 之前**，故 retry POST 从未到达 busy 路径。
+
+### 修复
+
+1. `_BUSY_QUERY_TEXT` → `"E2E stream retry busy fixture ping message"`（无 risk 关键词）
+2. 新增 `test_busy_fixture_query_is_not_risk_blocked` 回归锁
+
+### 验证
+
+- `./myrm test -m chrome_e2e …/test_stream_retry_contract_chrome_e2e.py` 绿（多轮）
+
+### 踩坑经验
+
+1. **E2E fixture 文案必须对照 risk 规则表** — 含 contract/quote/invoice 等词会假失败
+2. **测试失败要区分 risk_blocked vs AgentBusyError** — SSE `type` 不同
+
+---
+
+## BUG-AGENT-2026-07-27-003: 前端未识别 SSE AgentBusyError → 弱网重试不 requeue（跨层契约断裂）
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-07-27 |
+| 修复日期 | 2026-07-27 |
+| 严重程度 | **P0（生产行为错误）** |
+| 影响范围 | `myrm-agent-frontend/src/store/chat/streamConsumer.ts`, `useMessageInput.ts` requeue 链 |
+| 出现次数 | **2**（① 宣称 PERFECT CLOSURE 时未发现；② 深度审计本轮发现） |
+| 反复修复 | 同一类问题：测试/mock 与生产响应形态不一致，导致「API 绿 ≠ FE 绿」 |
+
+### 现象
+
+同 `message_id` 活跃重试时，后端正确返回 busy SSE，但用户输入**不会**进入 message queue；UI 仅显示 assistant error step。
+
+### 根因
+
+1. 后端 [`stream_busy.py`](myrm-agent/myrm-agent-server/app/services/agent/stream_session/stream_busy.py)：`StreamingResponse` **HTTP 200** + SSE `{type:error, error_type:AgentBusyError, status_code:409}`
+2. 前端 `executeStreamWithRetry` 仅在 **`res.status === 409`** 时 throw `AgentBusyError`
+3. SSE busy 进入 `agentControlEvents` 作普通 ERROR 渲染，**不 throw**
+4. Vitest 仅 mock HTTP 409，**未覆盖**生产 SSE 路径
+
+### 修复
+
+1. `streamConsumer.ts`：`isAgentBusySseEvent()` — 在 `handleMessageStream` **之前** throw `AgentBusyError`
+2. inner catch 对 `AgentBusyError` re-throw
+3. Vitest：`HTTP 200 + SSE error_type AgentBusyError` 用例
+
+### 验证
+
+- Vitest streamConsumer 14/14 + resumeApprovalStream 1/1
+- Chrome E2E UI `retryStreamWithSameMessageId` → `{busy:true}`
+
+### 踩坑经验
+
+1. **busy 契约 = SSE envelope，不是 HTTP status code** — 文档/测试必须写清
+2. **API integration 绿 ≠ 跨层绿** — 必须 trace FE consumeStream 全分支
+3. **Vitest mock 必须镜像生产** — mock 409 会掩盖 200+SSE 真实形态
+4. **为何反复出现**：多次签收基于 API/Chrome API POST 断言，未审计 FE throw→requeue 链
+
+---
+
+## BUG-AGENT-2026-07-27-004: Multiplex 路径 drain POST body 丢弃 AgentBusyError SSE
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-07-27 |
+| 修复日期 | 2026-07-27 |
+| 严重程度 | **P1（生产默认路径）** |
+| 影响范围 | `streamConsumer.ts` multiplex 分支 |
+| 出现次数 | 1（与 BUG-003 同轮深度审计发现） |
+| 关联 | BUG-003（direct SSE 已修，multiplex 仍漏） |
+
+### 现象
+
+生产默认 `shouldUseMultiplexedAgentStream() === true` 时，busy 重试可能被静默丢弃，用户既不 requeue 也不见明确 busy 信号。
+
+### 根因
+
+1. Multiplex **成功**：POST 返回 **JSON accepted**（[`stream_pump.py:145-147`](myrm-agent/myrm-agent-server/app/services/agent/stream_session/stream_pump.py)）
+2. Busy **early terminal**：POST 返回 **text/event-stream**（未 launch pump）
+3. 旧逻辑：`multiplexBridge` 存在时 **一律** `drainResponseBodyInBackground(res)` + 读 workspace bridge → busy SSE 被 drain 丢弃
+
+### 修复
+
+Multiplex 分支：若 POST `content-type` 含 `text/event-stream` → **直接 `consumeStream(res)`**；仅 JSON/非 SSE 才 drain+bridge。
+
+### 验证
+
+- Vitest：`throws AgentBusyError on multiplex POST when body is direct SSE busy envelope`
+- 14/14 streamConsumer passed
+
+### 踩坑经验
+
+1. **Multiplex 有两种 POST 响应形态** — JSON vs SSE；分支必须按 content-type 分流
+2. **E2E 设 `__MYRM_E2E_DIRECT_SSE__` 会绕过 multiplex** — UI 测绿不等于 multiplex 生产绿；需 Vitest 补位
+
+---
+
+## BUG-AGENT-2026-07-28-005: HITL resume / plan confirm 未检测 SSE AgentBusyError
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-07-28 |
+| 修复日期 | 2026-07-28 |
+| 严重程度 | **P2（低频 HITL 双点）** |
+| 影响范围 | `resumeApprovalStream.ts`、`chat.ts` `resumePlanConfirmStream` |
+| 关联 | BUG-003（同 SSE envelope 形态） |
+
+### 现象
+
+活跃 session 下 HITL resume POST 返回 HTTP 200 + SSE `{error_type:AgentBusyError}` 时，resume 路径仅检查 HTTP 409，busy 被吞掉或仅打 log。
+
+### 修复
+
+1. 导出 `isAgentBusySseEvent` from `streamConsumer.ts`
+2. `resumeApprovalStream` / `resumePlanConfirmStream` 在 `handleMessageStream` 前检测并 throw `AgentBusyError`
+3. Vitest：`resumeApprovalStream.test.ts`
+
+### 验证
+
+- Vitest resumeApprovalStream 1/1 + streamConsumer 14/14
+
+---

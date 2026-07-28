@@ -1,3 +1,16 @@
+/**
+ * [INPUT]
+ * ./schema::parseSseEnvelope (POS: SSE JSON 校验)
+ * ./messageStreamHandler::handleMessageStream (POS: SSE 事件 reducer)
+ * ./messageRequest::createMessageRequest (POS: agent-stream POST)
+ * ./multiplexChunkBridge::createMultiplexReadableStream (POS: workspace multiplex 桥)
+ *
+ * [OUTPUT]
+ * executeStreamWithRetry / consumeStream: SSE 消费、网络重试、AgentBusyError fail-fast、multiplex 分流
+ *
+ * [POS]
+ * Chat agent-stream 前端消费 SSOT。busy 检测：HTTP 409 或 SSE error_type=AgentBusyError；multiplex 下 early-terminal SSE 直读 POST。
+ */
 import { parseSseEnvelope } from './schema';
 import { handleMessageStream, StreamHandlerState, StreamHandlerActions } from './messageStreamHandler';
 import { ChatActionsState, ChatActionsMethods, createMessageRequest } from './messageRequest';
@@ -119,6 +132,17 @@ export class AgentBusyError extends Error {
     super(message);
     this.name = 'AgentBusyError';
   }
+}
+
+/** Backend agent-stream busy uses HTTP 200 + SSE error (status_code 409 in payload). */
+export function isAgentBusySseEvent(event: { type: string } & Record<string, unknown>): boolean {
+  if (event.type !== 'error') {
+    return false;
+  }
+  if (event.error_type === 'AgentBusyError') {
+    return true;
+  }
+  return event.status_code === 409;
 }
 
 export class StreamInterruptedError extends Error {
@@ -301,21 +325,35 @@ export async function executeStreamWithRetry(
           { onBusinessEvent },
         );
       } else if (multiplexBridge) {
-        // SHPOIB may downgrade multiplexed POST to direct SSE while still teeing chunks on /workspace/stream.
-        void drainResponseBodyInBackground(res);
-        const mockResponse = new Response(multiplexBridge, {
-          headers: { 'Content-Type': 'text/event-stream' },
-        });
-        await consumeStream(
-          mockResponse,
-          input,
-          state,
-          actions,
-          abortController,
-          added,
-          recievedMessage,
-          { onBusinessEvent },
-        );
+        // Multiplex success returns JSON accepted; text/event-stream on POST is an early
+        // terminal response (AgentBusyError, risk_blocked, etc.) — must not drain it.
+        if (contentType.includes('text/event-stream')) {
+          await consumeStream(
+            res,
+            input,
+            state,
+            actions,
+            abortController,
+            added,
+            recievedMessage,
+            { onBusinessEvent },
+          );
+        } else {
+          void drainResponseBodyInBackground(res);
+          const mockResponse = new Response(multiplexBridge, {
+            headers: { 'Content-Type': 'text/event-stream' },
+          });
+          await consumeStream(
+            mockResponse,
+            input,
+            state,
+            actions,
+            abortController,
+            added,
+            recievedMessage,
+            { onBusinessEvent },
+          );
+        }
       } else {
         await consumeStream(res, input, state, actions, abortController, added, recievedMessage, { onBusinessEvent });
       }
@@ -508,6 +546,11 @@ export async function consumeStream(
                 startIndex = newlineIndex + 1;
                 continue;
               }
+              if (isAgentBusySseEvent(event as { type: string } & Record<string, unknown>)) {
+                throw new AgentBusyError(
+                  'Agent is busy processing another request for this session.',
+                );
+              }
               try {
                 options?.onBusinessEvent?.(event);
               } catch (eventError) {
@@ -531,6 +574,9 @@ export async function consumeStream(
                 break;
               }
             } catch (err) {
+              if (err instanceof AgentBusyError) {
+                throw err;
+              }
               console.warn('Invalid JSON skipped:', err);
             }
           }

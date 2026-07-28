@@ -36,6 +36,7 @@ from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 def _voice_settings_url() -> str:
     return f"{get_e2e_ui_url()}/settings/channels?sub=voice"
 
+
 _DISMISS_MIGRATION_JS = """(() => {
   sessionStorage.setItem('migration_discovery_dismissed', 'true');
   sessionStorage.setItem('competitor_migration_dismissed', 'true');
@@ -93,7 +94,9 @@ _LAYOUT_PROBE_JS = """(() => ({
 
 def _http_json(method: str, url: str, body: dict[str, object] | None = None) -> object:
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method)  # noqa: S310 - loopback only
+    req = urllib.request.Request(
+        url, data=data, method=method
+    )  # noqa: S310 - loopback only
     if data is not None:
         req.add_header("Content-Type", "application/json")
     with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - loopback only
@@ -114,7 +117,9 @@ def _server_reachable() -> bool:
 
 def _require_live_stack() -> None:
     if not _server_reachable():
-        pytest.fail("Live E2E API not reachable — run via ./myrm test -m e2e after ./myrm ready --chrome")
+        pytest.fail(
+            "Live E2E API not reachable — run via ./myrm test -m e2e after ./myrm ready --chrome"
+        )
 
 
 def _ensure_voice_feature_enabled() -> None:
@@ -322,7 +327,9 @@ class _McpSession:
         )
 
     async def navigate(self, url: str) -> None:
-        await asyncio.to_thread(self._client.navigate, self._page, url, timeout_ms=15_000)
+        await asyncio.to_thread(
+            self._client.navigate, self._page, url, timeout_ms=15_000
+        )
         await asyncio.sleep(2)
 
     async def dismiss_migration(self) -> None:
@@ -335,9 +342,16 @@ class _McpSession:
         while time.monotonic() < deadline:
             state = await self.eval(_LAYOUT_PROBE_JS, await_promise=False)
             last = state if isinstance(state, dict) else {"probeError": state}
-            if last.get("hasLayout") and last.get("readyState") in ("complete", "interactive"):
+            if last.get("hasLayout") and last.get("readyState") in (
+                "complete",
+                "interactive",
+            ):
                 return last
-            if not reloaded and not last.get("hasLayout") and last.get("readyState") in ("complete", "interactive"):
+            if (
+                not reloaded
+                and not last.get("hasLayout")
+                and last.get("readyState") in ("complete", "interactive")
+            ):
                 reloaded = True
                 await self.eval("location.reload(); 'reload'", await_promise=False)
                 await asyncio.sleep(3)
@@ -376,7 +390,9 @@ class _McpSession:
         raise AssertionError(f"Voice settings page not ready: {ready}")
 
 
-async def _probe_voice_banner(client: ChromeMcpClient, page: McpPage) -> dict[str, object]:
+async def _probe_voice_banner(
+    client: ChromeMcpClient, page: McpPage
+) -> dict[str, object]:
     async with _McpSession(client, page) as cdp:
         return await cdp.wait_voice_settings()
 
@@ -411,7 +427,11 @@ async def _probe_read_aloud_fetch(
         for _ in range(5):
             result = await cdp.eval(probe_js)
             last = result if isinstance(result, dict) else {"probeError": result}
-            if last.get("error") is None and last.get("status") == 200 and int(last.get("bytes", 0)) > 0:
+            if (
+                last.get("error") is None
+                and last.get("status") == 200
+                and int(last.get("bytes", 0)) > 0
+            ):
                 return last
             await asyncio.sleep(2.0)
     if not isinstance(last, dict):

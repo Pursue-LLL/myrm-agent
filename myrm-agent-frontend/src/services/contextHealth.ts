@@ -26,6 +26,8 @@ export interface CompactionHealth {
   integrity_skipped: number;
   summary_persisted: boolean;
   last_compacted_at: string | null;
+  avg_elapsed_ms: number;
+  last_elapsed_ms: number;
 }
 
 export interface PruningHealth {

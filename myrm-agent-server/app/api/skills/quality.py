@@ -129,12 +129,14 @@ async def get_global_trends(
     interval_hours: int = 24,
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, object]:
-    """Get global quality trends over time."""
+    """Get global quality trends over time, with evolution event markers."""
     from datetime import datetime, timedelta
 
     from sqlalchemy import func, select
 
+    from app.database.models.skill import ExperienceLedgerEvent
     from app.database.models.skill_optimization.skill_quality_history import SkillQualityHistory
+    from app.services.skills.experience_ledger import SKILL_GROWTH_POSITIVE_EVENT_TYPES
 
     start_time = datetime.now() - timedelta(days=time_range_days)
     time_bucket = func.strftime("%Y-%m-%d", SkillQualityHistory.recorded_at).label("time_bucket")
@@ -154,6 +156,30 @@ async def get_global_trends(
     result = await db.execute(query)
     rows = result.all()
 
+    evolution_query = (
+        select(
+            func.strftime("%Y-%m-%d", ExperienceLedgerEvent.created_at).label("date"),
+            ExperienceLedgerEvent.metrics_snapshot,
+            ExperienceLedgerEvent.artifact_refs,
+        )
+        .where(
+            ExperienceLedgerEvent.event_type.in_(SKILL_GROWTH_POSITIVE_EVENT_TYPES),
+            ExperienceLedgerEvent.created_at >= start_time,
+        )
+        .order_by(ExperienceLedgerEvent.created_at)
+    )
+    evo_result = await db.execute(evolution_query)
+    evo_rows = evo_result.all()
+
+    evolution_events = [
+        {
+            "date": row.date,
+            "skill_name": (row.artifact_refs or {}).get("skill_name", ""),
+            "before_score": (row.metrics_snapshot or {}).get("before_quality_score"),
+        }
+        for row in evo_rows
+    ]
+
     return {
         "data_points": [
             {
@@ -165,6 +191,7 @@ async def get_global_trends(
             }
             for row in rows
         ],
+        "evolution_events": evolution_events,
         "time_range_days": time_range_days,
         "interval_hours": interval_hours,
     }
@@ -176,12 +203,14 @@ async def get_skill_trends(
     time_range_days: int = 30,
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, object]:
-    """Get quality trends for a specific skill."""
+    """Get quality trends for a specific skill, with evolution event markers."""
     from datetime import datetime, timedelta
 
     from sqlalchemy import func, select
 
+    from app.database.models.skill import ExperienceLedgerEvent
     from app.database.models.skill_optimization.skill_quality_history import SkillQualityHistory
+    from app.services.skills.experience_ledger import SKILL_GROWTH_POSITIVE_EVENT_TYPES
 
     start_time = datetime.now() - timedelta(days=time_range_days)
     time_bucket = func.strftime("%Y-%m-%d", SkillQualityHistory.recorded_at).label("time_bucket")
@@ -200,6 +229,29 @@ async def get_skill_trends(
     result = await db.execute(query)
     rows = result.all()
 
+    evolution_query = (
+        select(
+            func.strftime("%Y-%m-%d", ExperienceLedgerEvent.created_at).label("date"),
+            ExperienceLedgerEvent.metrics_snapshot,
+        )
+        .where(
+            ExperienceLedgerEvent.event_type.in_(SKILL_GROWTH_POSITIVE_EVENT_TYPES),
+            ExperienceLedgerEvent.created_at >= start_time,
+            func.json_extract(ExperienceLedgerEvent.artifact_refs, "$.skill_id") == skill_id,
+        )
+        .order_by(ExperienceLedgerEvent.created_at)
+    )
+    evo_result = await db.execute(evolution_query)
+    evo_rows = evo_result.all()
+
+    evolution_events = [
+        {
+            "date": row.date,
+            "before_score": (row.metrics_snapshot or {}).get("before_quality_score"),
+        }
+        for row in evo_rows
+    ]
+
     return {
         "skill_id": skill_id,
         "data_points": [
@@ -211,5 +263,6 @@ async def get_skill_trends(
             }
             for row in rows
         ],
+        "evolution_events": evolution_events,
         "time_range_days": time_range_days,
     }

@@ -168,19 +168,17 @@ def test_real_context_compression_preserves_focus_chain(client: TestClient) -> N
         f"Final answer should reference asyncio.Event from earlier turns. Got: {final_answer[:300]}"
     )
 
-    # Verify that proactive reset/summarize triggered the UI notification
-    archived_event_found = False
+    # Verify that compression triggered the UI notification (context_compaction completed)
+    compaction_event_found = False
     for event in all_events:
         if event.get("type") in ["status", "agent_status"]:
-            # After flattening, step_key can be at the top level of the event or inside data
-            if event.get("step_key") == "memory_archived":
-                archived_event_found = True
-                break
+            step_key = event.get("step_key")
             data = event.get("data", {})
-            if isinstance(data, dict) and data.get("step_key") == "memory_archived":
-                archived_event_found = True
+            nested_step_key = data.get("step_key") if isinstance(data, dict) else None
+            if step_key == "context_compaction" or nested_step_key == "context_compaction":
+                compaction_event_found = True
                 break
-    assert archived_event_found, "The memory_archived event was not emitted during compression!"
+    assert compaction_event_found, "The context_compaction event was not emitted during compression!"
 
 
 def test_real_context_compression_preserves_failed_tool_chain(client: TestClient) -> None:

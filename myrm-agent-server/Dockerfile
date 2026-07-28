@@ -85,7 +85,7 @@ RUN chmod +x /app/entrypoint.sh
 COPY myrm-agent-server/docker/sandbox/matplotlibrc /opt/mpl-config/matplotlibrc
 COPY shared /shared
 
-RUN /app/.venv/bin/python -m myrm_agent_harness._verify_distribution --matplotlib-cjk \
+RUN /app/.venv/bin/python -m myrm_agent_harness.distribution.verify --matplotlib-cjk \
     && rm -rf /tmp/_mpl_verify.png /tmp/matplotlib
 
 WORKDIR /app

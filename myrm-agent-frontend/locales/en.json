@@ -277,7 +277,7 @@
       "channels": "Channels",
       "channelRouting": "Channel Routing",
       "voice": "Voice",
-      "openaiApi": "API Access",
+      "openaiApi": "Agent API",
       "hosting": "Hosting Targets",
       "integrationCatalog": "Service Catalog",
       "integrationMemory": "Integration Memory",
@@ -477,8 +477,8 @@
       "removeError": "Failed to remove integration tree."
     },
     "openaiApi": {
-      "title": "API Access",
-      "description": "Manage API keys for OpenAI-compatible endpoint access. Use these keys with any OpenAI SDK or tool to interact with your agents.",
+      "title": "Agent API",
+      "description": "Manage API keys for the OpenAI-compatible Agent endpoint. Use any OpenAI SDK to run Myrm agents with memory, tools, and skills.",
       "createKey": "Create API Key",
       "keyName": "Key Name",
       "keyNamePlaceholder": "e.g. My Integration",
@@ -506,7 +506,7 @@
       "endpoint": "API Endpoint",
       "endpointDesc": "Use this base URL with any OpenAI-compatible client:",
       "docsTitle": "Quick Start",
-      "docsDesc": "Use your API key with the OpenAI SDK or any compatible client.",
+      "docsDesc": "Use your API key with the OpenAI SDK or any compatible client. The model field selects an agent (use \"default\" for the primary agent).",
       "createdAt": "Created"
     },
     "hosting": {
@@ -560,45 +560,6 @@
         "cloudflare_pages": "Static sites on Cloudflare's global network. Requires account ID and API token.",
         "netlify": "Deploy to Netlify. Token required; site ID optional for existing sites.",
         "http_webhook": "POST a packaged artifact to your CI or custom endpoint. No vault credentials required."
-      }
-    },
-    "proxy": {
-      "title": "LLM Passthrough Proxy",
-      "description": "Use MyrmAgent as an OpenAI-compatible API proxy. External tools (Aider, Cline, Codex, Continue) can connect directly and use your configured model providers.",
-      "passthroughEndpoint": "Proxy Endpoint",
-      "passthroughEndpointDesc": "External tools connect to this address to call your LLM models directly (bypassing the Agent engine):",
-      "toolConfigTitle": "Tool Configuration Examples",
-      "openAuth": "Open Authentication Mode",
-      "openAuthDesc": "When enabled, any non-empty Bearer token is accepted (no registered API key required). Suitable for local development.",
-      "openAuthWarning": "Security notice: In open auth mode, anyone with your endpoint URL can make API calls. Only use this in trusted network environments.",
-      "visionBridge": "Vision Bridge",
-      "visionBridgeDesc": "Automatically describe images when the target model doesn't support vision. Uses your configured vision fallback model to convert images to text descriptions.",
-      "saveFailed": "Failed to save proxy settings",
-      "combo": {
-        "title": "Multi-Provider Routing",
-        "description": "Configure a failover chain across your providers. When one provider's keys are exhausted, requests automatically route to the next.",
-        "addTarget": "Add Provider",
-        "noTargets": "No routing chain configured — requests use single-provider mode.",
-        "strategy": "Routing Strategy",
-        "strategyPriority": "Priority (ordered failover)",
-        "strategyCostOptimized": "Cost Optimized (cheapest first)",
-        "strategyRoundRobin": "Round Robin (even distribution)",
-        "strategyRandom": "Random",
-        "strategyLkgp": "Last Known Good (sticky)",
-        "strategyContextRelay": "Context Relay (cache-aware)",
-        "strategyHeadroom": "Headroom (most quota remaining)",
-        "maxRetries": "Max cross-provider retries",
-        "enabled": "Active",
-        "provider": "Provider",
-        "model": "Model",
-        "saved": "Routing chain saved"
-      },
-      "cliConfig": {
-        "title": "External Tool Setup",
-        "description": "One-click configuration for popular AI coding tools.",
-        "copy": "Copy",
-        "copied": "Configuration copied to clipboard",
-        "selectTool": "Select a tool to see its configuration"
       }
     },
     "workspaceRules": {
@@ -2298,6 +2259,7 @@
         "rollbackFailed": "Rollback failed, please try again",
         "cancel": "Cancel",
         "fetchError": "Failed to fetch skill history",
+        "qualityBefore": "Before",
         "status": {
           "approved": "Applied",
           "rolled_back": "Rolled Back",
@@ -2991,6 +2953,14 @@
     "optimizationMode": "Optimization Mode",
     "apiKeys": "API Keys",
     "appearance": "Theme",
+    "linkEmbeds": "Link Embeds",
+    "linkEmbedsMode": "Inline Embeds",
+    "linkEmbedsDesc": "Show rich previews for YouTube, X, Spotify and other links in conversations",
+    "linkEmbedsAsk": "Ask before loading (recommended)",
+    "linkEmbedsAlways": "Always load embeds",
+    "linkEmbedsOff": "Never load embeds (plain links)",
+    "linkEmbedsAllowed": "Allowed providers",
+    "linkEmbedsClear": "Clear all",
     "modelName": "Model Name",
     "noModelsAvailable": "No models available",
     "invalidProvider": "Invalid provider, please check backend logs",
@@ -4075,6 +4045,8 @@
           "dedup": "Dedup Gain / 去重收益",
           "integrity": "Integrity Skips / 完整性跳过",
           "persisted": "Persisted / 已落盘摘要",
+          "avgElapsed": "Avg Duration / 平均耗时",
+          "lastElapsed": "Last Duration / 上次耗时",
           "lastCompacted": "Last Compacted / 最近压缩"
         },
         "pruning": {
@@ -6653,8 +6625,8 @@
         "description": "Configure speech-to-text and text-to-speech for voice messages"
       },
       "openaiApi": {
-        "title": "API Access",
-        "description": "Manage API keys for OpenAI-compatible endpoint access"
+        "title": "Agent API",
+        "description": "Manage API keys for the OpenAI-compatible Agent endpoint"
       },
       "integrationCatalog": {
         "title": "Service Catalog",
@@ -6942,6 +6914,11 @@
     "model_failover_context_overflow": "Context too long, switched to backup model",
     "safety_fallback_active": "Safety filter triggered, isolated fallback active",
     "context_compaction": "Compressing context",
+    "context_compaction_active": "Compressing context",
+    "context_compaction_timeout": "Compression timed out, using fallback",
+    "context_compaction_circuit_open": "Compression unavailable, using fallback",
+    "context_compaction_fallback": "Compression degraded, using fast fallback",
+    "context_compaction_completed": "Context compressed successfully",
     "memory_archived": "Agent archived early history to maintain extreme focus",
     "context_pruned": "Pruned expired cached context",
     "archive_checkpoint": "Stored archive summary for later recall",
@@ -7029,6 +7006,12 @@
     "memory_manage_tool_tool_error": "Memory management failed",
     "cron_manage_tool_tool": "Managing scheduled tasks",
     "cron_manage_tool_tool_error": "Scheduled task operation failed",
+    "mcp_tool_search_tool": "Searching available tools",
+    "mcp_tool_search_tool_error": "Tool search failed",
+    "mcp_tool_describe_tool": "Loading tool details",
+    "mcp_tool_describe_tool_error": "Failed to load tool details",
+    "mcp_tool_call_tool": "Calling tool",
+    "mcp_tool_call_tool_error": "Tool call failed",
     "file_read_tool": "Reading files",
     "file_read_tool_error": "Read files failed",
     "file_write_tool": "Writing file",
@@ -7107,7 +7090,10 @@
       "render_ui_tool": "Rendering UI",
       "update_ui_data_tool": "Updating UI data",
       "answer_user_tool": "Generating answer",
-      "request_answer_user_tool": "Preparing response"
+      "request_answer_user_tool": "Preparing response",
+      "mcp_tool_search": "Searching tools",
+      "mcp_tool_describe": "Loading tool schema",
+      "mcp_tool_call": "Calling tool"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",
@@ -12590,7 +12576,16 @@
       "migrationCloudDescription": "Upload an export package to migrate memories and workspace preferences into your cloud sandbox.",
       "skipStep": "Skip",
       "capabilitiesTitle": "Configure AI Engine",
-      "capabilitiesDescription": "Connect local models and web search for an out-of-the-box AI experience.",
+      "capabilitiesDescription": "Connect local models and web search for an out-of-the-box AI experience. Configure the Agent API under Settings → Agent API for external tool integration.",
+      "syncFolder": {
+        "pageTitle": "Link your notes folder",
+        "pageDescription": "Optional: point the assistant at Obsidian, Typora, or any synced documents folder.",
+        "hint": "Files stay on your device. The assistant edits them in place—no import into a separate database.",
+        "chooseFolder": "Choose folder",
+        "preparing": "Preparing…",
+        "skip": "Skip for now",
+        "defaultProjectName": "My Files"
+      },
       "noLocalModel": "No local models detected. You can configure an API Key manually in Settings later.",
       "configureLater": "Configure Later",
       "searchReady": "Ready",
@@ -13120,6 +13115,8 @@
         "dedup": "Dedup Gain",
         "integrity": "Integrity Skips",
         "persisted": "Persisted",
+        "avgElapsed": "Avg Duration",
+        "lastElapsed": "Last Duration",
         "lastCompacted": "Last Compacted"
       },
       "pruning": {
@@ -13409,7 +13406,24 @@
     "workspaceUpdated": "Workspace updated",
     "workspaceCleared": "Workspace cleared",
     "moveSuccess": "Moved {count, plural, one {# chat} other {# chats}} successfully",
-    "moveFailed": "Failed to move chats"
+    "moveFailed": "Failed to move chats",
+    "workspaceMount": {
+      "title": "Link folder",
+      "emptyHint": "Pick a notes or documents folder. The assistant reads and writes files there directly.",
+      "chooseFolder": "Choose folder",
+      "clear": "Unlink",
+      "close": "Close",
+      "updated": "Folder linked",
+      "cleared": "Folder unlinked",
+      "invalidPath": "Could not link this folder",
+      "pickFolderTitle": "Choose folder for {name}",
+      "pathPlaceholder": "Enter path…",
+      "selectThis": "Use this folder",
+      "browseTrigger": "Browse folders",
+      "recent": "Recent",
+      "filter": "Filter…",
+      "noSubdirs": "No subfolders"
+    }
   },
   "milestone": {
     "title": "Milestones",

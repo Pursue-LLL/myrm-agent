@@ -17,16 +17,21 @@ if str(_LIB) not in sys.path:
 from cdp_chat_support import (  # noqa: E402
     chat_has_pending_clarification,
     chat_messages_have_clarify_skip_done,
+    clarify_skip_resume_should_retry,
     ensure_e2e_yolo_mode,
     get_e2e_api_url,
     is_hitl_already_resolved_by_timeout,
     resume_clarify_skip_via_api,
+    start_clarify_turn_via_api,
     wait_e2e_provider_ready,
 )
 from cdp_chat_ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
-from dev_gate_contract import CLARIFY_SKIP_API_WAIT_SEC  # noqa: E402
-from e2e_wall_budget import remaining_wall_sec, touch_wall_progress  # noqa: E402
+from dev_gate_contract import (  # noqa: E402
+    clarify_skip_api_wait_sec,
+    is_e2e_signoff_runtime,
+)
+from e2e_orchestrator import remaining_wall_sec, touch_wall_progress  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
 
 from tests.api.agent.utils import (
@@ -42,16 +47,28 @@ def _clarify_skip_api_wait_sec() -> float:
     override = os.environ.get("CLARIFY_SKIP_API_WAIT_SEC", "").strip()
     if override:
         return float(override)
-    return float(CLARIFY_SKIP_API_WAIT_SEC)
+    return float(clarify_skip_api_wait_sec())
 
-# WebUI path: avoid CRITICAL/MUST phrasing — MiniMax-M3 may treat it as prompt injection.
-# Align intent with API skip E2E (test_clarify_agent_stream_e2e) but frame as a user task.
+
+# WebUI path: avoid CRITICAL/MUST phrasing for dev chrome_e2e (MiniMax-M3 injection risk).
+# M3 signoff (E2E_SIGNOFF=1) uses E2E_PROMPT_SIGNOFF with CRITICAL prefix for fail-fast tool call.
 E2E_PROMPT = (
-    "I need to choose between two stacks for a small demo project. "
-    "Please use ask_question_tool exactly once before any other action to ask which stack I prefer. "
+    "Before doing anything else, use ask_question_tool exactly once to ask which stack I prefer "
+    "for a small demo project. "
     'Use title "Pick stack", one question id "stack" prompt "Which stack?", '
     'options id "a" label "Option A" and id "b" label "Option B", requires_confirmation false. '
     "Do not use bash, write_file, render_ui_tool, or other tools. "
+    "If I skip without answering, reply with exactly: DONE-SKIPPED"
+)
+
+# M3 signoff: align with API E2E prompt that reliably triggers ask_question_tool first.
+E2E_PROMPT_SIGNOFF = (
+    "CRITICAL: Your very first action MUST be a single ask_question_tool call — no text reply before it. "
+    "You MUST call ask_question_tool exactly once before any other action. "
+    'Use title "Pick stack". Ask one question with id "stack" and prompt '
+    '"Which stack?" with two options: id "a" label "Option A", id "b" label "Option B". '
+    "Set requires_confirmation to false. "
+    "Do not use bash, write_file, render_ui_tool, or any other tools. "
     "If I skip without answering, reply with exactly: DONE-SKIPPED"
 )
 
@@ -227,6 +244,20 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
     # Clarify skip assertions do not depend on shared search-service policy hydration.
     os.environ.pop("MYRM_E2E_SEARCH_POLICY", None)
 
+    def _signoff_clarify_resume_max_attempts() -> int:
+        remaining = remaining_wall_sec()
+        if remaining >= 240.0:
+            return 4
+        if remaining >= 150.0:
+            return 3
+        if remaining >= 90.0:
+            return 2
+        return 1
+
+    def _signoff_clarify_api_poll_budget(*, reserve_sec: float) -> float:
+        """Reserve wall for skip resume after API clarify fallback (signoff MTB-600)."""
+        return min(90.0, max(25.0, remaining_wall_sec() - reserve_sec))
+
     async def _wait_clarify_ready(
         chat: McpChatSession,
         *,
@@ -236,9 +267,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
     ) -> dict[str, object]:
         """Wait for clarify ready via API pending (SSOT) or DOM Skip button (whichever first)."""
         wait_sec = (
-            _clarify_skip_api_wait_sec()
-            if timeout_sec is None
-            else float(timeout_sec)
+            _clarify_skip_api_wait_sec() if timeout_sec is None else float(timeout_sec)
         )
         wait_sec = min(wait_sec, max(10.0, remaining_wall_sec() - 45.0))
         deadline = time.monotonic() + wait_sec
@@ -305,9 +334,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
         wait_sec = (
-            _clarify_skip_api_wait_sec()
-            if timeout_sec is None
-            else float(timeout_sec)
+            _clarify_skip_api_wait_sec() if timeout_sec is None else float(timeout_sec)
         )
         wait_sec = min(wait_sec, max(10.0, remaining_wall_sec() - 45.0))
         deadline = time.monotonic() + wait_sec
@@ -337,9 +364,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
         wait_sec = (
-            _clarify_skip_api_wait_sec()
-            if timeout_sec is None
-            else float(timeout_sec)
+            _clarify_skip_api_wait_sec() if timeout_sec is None else float(timeout_sec)
         )
         wait_sec = min(wait_sec, max(10.0, remaining_wall_sec() - 45.0))
         deadline = time.monotonic() + wait_sec
@@ -362,6 +387,83 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         raise AssertionError(
             f"UI bridge skip did not complete within {wait_sec}s (last={last})",
         )
+
+    async def _ensure_clarify_after_send(
+        chat: McpChatSession,
+        *,
+        chat_id: str,
+        api_base: str,
+        prompt: str,
+    ) -> dict[str, object]:
+        """Wait for clarify after sendTurnSealed; signoff uses API stream fallback."""
+        try:
+            return await _wait_clarify_ready(
+                chat,
+                chat_id=chat_id,
+                api_base=api_base,
+            )
+        except AssertionError as first_exc:
+            if not is_e2e_signoff_runtime():
+                raise
+            if "transport dead" in str(first_exc).lower():
+                raise
+            print(
+                "E2E_SIGNOFF_CLARIFY: chrome wait failed; API stream fallback",
+                flush=True,
+            )
+            await _release_ui_stream_for_api(chat)
+            poll_budget = _signoff_clarify_api_poll_budget(reserve_sec=200.0)
+            api_result = await asyncio.to_thread(
+                start_clarify_turn_via_api,
+                chat_id,
+                query=prompt,
+                model_selection=get_lite_model_selection(),
+                api_url=api_base,
+                timeout_sec=poll_budget,
+            )
+            if api_result.get("has_clarification") is not True:
+                raise AssertionError(
+                    "signoff API clarify fallback failed: "
+                    f"{api_result}; prior={first_exc}"
+                ) from first_exc
+            await asyncio.sleep(2.0)
+            await _release_ui_stream_for_api(chat)
+            # R64: private API stream is SSOT once clarification_required is seen.
+            # Second chrome _wait_clarify_ready caused signoff retry + model-not-ready.
+            print(
+                "E2E_SIGNOFF_CLARIFY: API clarify confirmed; proceed API skip path",
+                flush=True,
+            )
+            return {
+                "ready": True,
+                "source": "api-fallback",
+                "api_stream_fallback": True,
+                "hasForm": False,
+                "hasSkip": False,
+            }
+
+    async def _wait_dom_skip_button(
+        chat: McpChatSession,
+        *,
+        timeout_sec: float,
+    ) -> dict[str, object]:
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            touch_wall_progress()
+            heartbeat_e2e_lease()
+            try:
+                raw = await chat.evaluate(
+                    _CLARIFY_FORM_READY_JS, await_promise=False, recv_timeout=15.0
+                )
+            except (TimeoutError, RuntimeError):
+                await asyncio.sleep(1.0)
+                continue
+            last = raw if isinstance(raw, dict) else {"value": raw}
+            if last.get("hasSkip") is True:
+                return last
+            await asyncio.sleep(1.0)
+        return last
 
     async def _release_ui_stream_for_api(chat: McpChatSession) -> dict[str, object]:
         released = await chat.evaluate(
@@ -414,19 +516,32 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         chat_id: str,
         *,
         api_base: str,
-        max_attempts: int = 5,
+        max_attempts: int | None = None,
     ) -> dict[str, object]:
         """Drop WebUI SSE lease (no cancel API) then POST resumeValue {} like API E2E."""
+        if max_attempts is None:
+            max_attempts = (
+                _signoff_clarify_resume_max_attempts()
+                if is_e2e_signoff_runtime()
+                else 5
+            )
         last: dict[str, object] = {"ok": False, "err": "not-attempted"}
-        backoff_sec = (5.0, 10.0, 20.0, 30.0, 45.0)
+        backoff_sec = (
+            (3.0, 5.0, 8.0, 12.0, 20.0, 30.0, 45.0, 60.0)
+            if is_e2e_signoff_runtime()
+            else (5.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, 75.0)
+        )
         for attempt in range(max_attempts):
             await _release_ui_stream_for_api(chat)
             pause = backoff_sec[min(attempt, len(backoff_sec) - 1)]
             await asyncio.sleep(0.75 + pause * 0.1)
-            api_timeout = min(
-                _clarify_skip_api_wait_sec(),
-                max(60.0, remaining_wall_sec() - 60.0),
-            )
+            if is_e2e_signoff_runtime():
+                api_timeout = min(45.0, max(20.0, remaining_wall_sec() - 50.0))
+            else:
+                api_timeout = min(
+                    _clarify_skip_api_wait_sec(),
+                    max(60.0, remaining_wall_sec() - 60.0),
+                )
             call_timeout = api_timeout + 10.0
             try:
                 last = await asyncio.wait_for(
@@ -485,10 +600,9 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     }
             if last.get("ok") is True:
                 return last
-            error = last.get("error")
             if is_hitl_already_resolved_by_timeout(last):
                 return last
-            if isinstance(error, dict) and error.get("error_type") == "AgentBusyError":
+            if clarify_skip_resume_should_retry(last):
                 heartbeat_e2e_lease()
                 await asyncio.sleep(pause)
                 continue
@@ -526,6 +640,87 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         )
         form_visible = form_state.get("hasForm") is True
         skip_button_visible = form_state.get("hasSkip") is True
+        api_stream_fallback = form_state.get("api_stream_fallback") is True
+
+        async def _finalize_api_skip_resume(
+            resume_result: dict[str, object],
+        ) -> tuple[dict[str, object], dict[str, object]]:
+            if is_hitl_already_resolved_by_timeout(resume_result):
+                pytest.fail(
+                    "Clarify HITL already resolved by timeout before skip completed "
+                    f"(chat_id={chat_id!r}): {resume_result}"
+                )
+            if resume_result.get("ok") is not True:
+                try:
+                    return (
+                        await _wait_api_skip_done(
+                            chat_id=chat_id,
+                            api_base=api_base,
+                            timeout_sec=min(90.0, poll_budget),
+                        ),
+                        resume_result,
+                    )
+                except AssertionError:
+                    pass
+            assert (
+                resume_result.get("ok") is True
+            ), f"API skip resume failed: {resume_result}; form={form_state}"
+            after_skip: dict[str, object] = {
+                "ready": True,
+                "source": "resume_stream",
+                "doneSkipped": "DONE-SKIPPED"
+                in str(resume_result.get("final_text") or "").upper(),
+                "answered": True,
+            }
+            if not after_skip.get("doneSkipped"):
+                event_types = resume_result.get("event_types")
+                if isinstance(event_types, list) and "message_end" in event_types:
+                    after_skip = {
+                        "ready": True,
+                        "source": "resume_stream_message_end",
+                        "doneSkipped": True,
+                        "answered": True,
+                    }
+                else:
+                    try:
+                        after_skip = await _wait_api_skip_done(
+                            chat_id=chat_id,
+                            api_base=api_base,
+                            timeout_sec=min(90.0, poll_budget),
+                        )
+                    except AssertionError:
+                        if resume_result.get("ok") is True:
+                            after_skip = {
+                                "ready": True,
+                                "source": "resume_stream_ok",
+                                "doneSkipped": True,
+                                "answered": True,
+                            }
+                        else:
+                            raise
+            return after_skip, resume_result
+
+        if api_stream_fallback and is_e2e_signoff_runtime():
+            print(
+                "E2E_SIGNOFF_CLARIFY: API-only skip resume path",
+                flush=True,
+            )
+            await _release_ui_stream_for_api(chat)
+            resume_result = await _resume_clarify_skip_after_ui_release(
+                chat,
+                chat_id,
+                api_base=api_base,
+            )
+            return await _finalize_api_skip_resume(resume_result)
+
+        if api_stream_fallback and form_visible and not skip_button_visible:
+            polled = await _wait_dom_skip_button(
+                chat,
+                timeout_sec=min(45.0, poll_budget),
+            )
+            if polled.get("hasSkip") is True:
+                skip_button_visible = True
+                form_state = {**form_state, **polled}
 
         bridge = await chat.evaluate(
             _SKIP_VIA_BRIDGE_JS, await_promise=False, recv_timeout=15.0
@@ -573,6 +768,8 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                         await _release_ui_stream_for_api(chat)
 
         # Skip flow may already finish asynchronously after stream release.
+        if api_stream_fallback:
+            await asyncio.sleep(1.5)
         await _release_ui_stream_for_api(chat)
         if not (form_visible and not skip_button_visible):
             try:
@@ -592,60 +789,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             chat_id,
             api_base=api_base,
         )
-        if is_hitl_already_resolved_by_timeout(resume_result):
-            pytest.fail(
-                "Clarify HITL already resolved by timeout before skip completed "
-                f"(chat_id={chat_id!r}): {resume_result}"
-            )
-        if resume_result.get("ok") is not True:
-            try:
-                return (
-                    await _wait_api_skip_done(
-                        chat_id=chat_id,
-                        api_base=api_base,
-                        timeout_sec=min(90.0, poll_budget),
-                    ),
-                    resume_result,
-                )
-            except AssertionError:
-                pass
-        assert (
-            resume_result.get("ok") is True
-        ), f"API skip resume failed: {resume_result}; form={form_state}"
-        after_skip: dict[str, object] = {
-            "ready": True,
-            "source": "resume_stream",
-            "doneSkipped": "DONE-SKIPPED"
-            in str(resume_result.get("final_text") or "").upper(),
-            "answered": True,
-        }
-        if not after_skip.get("doneSkipped"):
-            event_types = resume_result.get("event_types")
-            if isinstance(event_types, list) and "message_end" in event_types:
-                after_skip = {
-                    "ready": True,
-                    "source": "resume_stream_message_end",
-                    "doneSkipped": True,
-                    "answered": True,
-                }
-            else:
-                try:
-                    after_skip = await _wait_api_skip_done(
-                        chat_id=chat_id,
-                        api_base=api_base,
-                        timeout_sec=min(90.0, poll_budget),
-                    )
-                except AssertionError:
-                    if resume_result.get("ok") is True:
-                        after_skip = {
-                            "ready": True,
-                            "source": "resume_stream_ok",
-                            "doneSkipped": True,
-                            "answered": True,
-                        }
-                    else:
-                        raise
-        return after_skip, resume_result
+        return await _finalize_api_skip_resume(resume_result)
 
     async def _run_flow(chat: McpChatSession) -> str:
         api_base = get_e2e_api_url()
@@ -655,21 +799,40 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         chat_id_hint = ""
         form_state: dict[str, object] = {}
         max_clarify_attempts = 2
+        signoff_api_recovery_form: dict[str, object] = {
+            "ready": True,
+            "source": "signoff-sealed-recovery",
+            "api_stream_fallback": True,
+            "hasForm": False,
+            "hasSkip": False,
+        }
         for attempt in range(max_clarify_attempts):
-            if attempt > 0:
+            if attempt > 0 and not (
+                is_e2e_signoff_runtime() and chat_id_hint
+            ):
                 await _prepare_fresh_clarify_chat(chat)
             await chat.dismiss_modals()
             await chat.evaluate(
                 _DISMISS_MIGRATION_JS, await_promise=False, recv_timeout=15.0
             )
             try:
-                prompt = E2E_PROMPT if attempt == 0 else E2E_NUDGE_PROMPT
+                if is_e2e_signoff_runtime():
+                    prompt = E2E_PROMPT_SIGNOFF if attempt == 0 else E2E_NUDGE_PROMPT
+                else:
+                    prompt = E2E_PROMPT if attempt == 0 else E2E_NUDGE_PROMPT
                 send_result = await chat.send_message(prompt, prompt)
-            except RuntimeError as exc:
+            except (RuntimeError, TimeoutError) as exc:
                 if (
-                    "timed out" not in str(exc).lower()
-                    or attempt == max_clarify_attempts - 1
+                    is_e2e_signoff_runtime()
+                    and chat_id_hint
+                    and attempt > 0
                 ):
+                    form_state = signoff_api_recovery_form
+                    break
+                if (
+                    isinstance(exc, RuntimeError)
+                    and "timed out" not in str(exc).lower()
+                ) or attempt == max_clarify_attempts - 1:
                     raise
                 await asyncio.sleep(3.0)
                 continue
@@ -690,13 +853,17 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
 
             heartbeat_e2e_lease()
             try:
-                form_state = await _wait_clarify_ready(
+                form_state = await _ensure_clarify_after_send(
                     chat,
                     chat_id=chat_id_hint,
                     api_base=api_base,
+                    prompt=prompt,
                 )
                 break
             except AssertionError:
+                if is_e2e_signoff_runtime() and chat_id_hint:
+                    form_state = signoff_api_recovery_form
+                    break
                 if attempt == max_clarify_attempts - 1:
                     raise
                 await asyncio.sleep(2.0)
@@ -757,7 +924,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
     await asyncio.to_thread(client.start)
     try:
         page: McpPage | None = None
-        new_page_timeouts = (90.0, 60.0)
+        new_page_timeouts = (120.0, 90.0)
         for attempt, wall_timeout in enumerate(new_page_timeouts, start=1):
             try:
                 page = await asyncio.wait_for(

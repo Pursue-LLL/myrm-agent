@@ -414,10 +414,16 @@ async def browse_content(
     if workspace and workspace.strip():
         workspace_resolved = os.path.realpath(os.path.expanduser(workspace.strip()))
     elif chat_id and chat_id.strip():
+        from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+
         meta = await ChatService.get_chat_metadata(chat_id.strip())
         if meta is None:
             raise validation_error("Unknown chat_id")
-        ws = meta.workspace_dir or await ChatService.ensure_default_workspace_dir(chat_id.strip())
+        ws = await resolve_effective_chat_workspace(
+            meta,
+            jit_fallback=True,
+            persist_jit=False,
+        )
         if not ws:
             raise validation_error("Could not resolve workspace for chat")
         workspace_resolved = os.path.realpath(os.path.expanduser(ws.strip()))

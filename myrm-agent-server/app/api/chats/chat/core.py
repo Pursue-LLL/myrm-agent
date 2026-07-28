@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.utils.errors import internal_error, not_found_error, validation_error
+from app.core.utils.errors import conflict_error, internal_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.dto import (
@@ -138,9 +138,13 @@ async def get_chat(
         if not chat:
             raise not_found_error("Chat session")
 
-        workspace_dir = chat.workspace_dir
-        if not workspace_dir:
-            workspace_dir = await ChatService.ensure_default_workspace_dir(chat_id)
+        from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+
+        workspace_dir = await resolve_effective_chat_workspace(
+            chat,
+            jit_fallback=True,
+            persist_jit=True,
+        )
 
         chat_detail = ChatDetail(
             id=chat.id,
@@ -313,6 +317,15 @@ async def update_chat_workspace_dir(
         chat = await ChatService.get_chat_metadata(chat_id)
         if not chat:
             raise not_found_error("Chat session")
+
+        if chat.project_id:
+            from app.services.project.project_service import ProjectService
+
+            project = await ProjectService.get_project(chat.project_id)
+            if project and project.workspace_path:
+                raise conflict_error(
+                    "Chat workspace is managed by the bound project; update the project workspace instead"
+                )
 
         workspace_dir = body.workspace_dir
         if workspace_dir is not None:

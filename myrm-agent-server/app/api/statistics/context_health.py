@@ -67,6 +67,8 @@ class CompactionHealth:
     integrity_skipped: int
     summary_persisted: bool
     last_compacted_at: str | None
+    avg_elapsed_ms: int
+    last_elapsed_ms: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -197,6 +199,9 @@ def _build_compaction_health(
     else:
         status = "healthy"
 
+    avg_elapsed_ms = _to_non_negative_int(task_metrics.get("avg_compression_elapsed_ms"))
+    last_elapsed_ms = _to_non_negative_int(task_metrics.get("last_compression_elapsed_ms"))
+
     return CompactionHealth(
         status=status,
         active=active,
@@ -210,6 +215,8 @@ def _build_compaction_health(
         integrity_skipped=integrity_skipped,
         summary_persisted=chat_compaction.summary_persisted,
         last_compacted_at=chat_compaction.last_compacted_at,
+        avg_elapsed_ms=avg_elapsed_ms,
+        last_elapsed_ms=last_elapsed_ms,
     )
 
 

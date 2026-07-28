@@ -588,6 +588,15 @@ def _context_to_dict(
     payload.update(resolved_mux)
     payload["parallelSnapshot"] = resolved_parallel
     payload["capHeadroom"] = headroom
+    try:
+        from e2e_orchestrator import orchestrator_snapshot  # noqa: PLC0415
+
+        lifecycle = orchestrator_snapshot()
+        payload["sessionLifecycle"] = lifecycle
+        payload["phase"] = lifecycle.get("phase")
+        payload["budgets_remaining"] = lifecycle.get("budgets_remaining")
+    except Exception:
+        pass
     if payload.get("muxColdAttachSaturated") is True:
         payload["agent_rule"] = (
             f"{ctx.agent_rule} "
@@ -658,6 +667,13 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         parallel_snapshot=parallel_snapshot,
         mux_fields=mux_fields,
     )
+    lifecycle = enriched.get("sessionLifecycle")
+    if isinstance(lifecycle, dict):
+        sys.stdout.write(
+            "E2E_SESSION_LIFECYCLE="
+            f"profile={lifecycle.get('profile')} phase={lifecycle.get('phase')} "
+            f"remaining={lifecycle.get('remaining_sec')}s\n"
+        )
     sys.stdout.write(f"AGENT_RULE={enriched['agent_rule']}\n")
     return 0
 

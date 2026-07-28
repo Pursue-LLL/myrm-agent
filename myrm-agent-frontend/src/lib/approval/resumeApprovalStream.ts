@@ -11,6 +11,7 @@ import {
   getFallbackLiteModelSelection,
 } from '@/store/chat/messageRequest';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
+import { AgentBusyError, isAgentBusySseEvent } from '@/store/chat/streamConsumer';
 
 /**
  * [INPUT] ToolApprovalRequest anchor + resume decisions payload
@@ -110,6 +111,9 @@ export async function resumeApprovalStream(
     for (const line of lines) {
       try {
         const json = JSON.parse(line.replace(/^data:\s*/, ''));
+        if (isAgentBusySseEvent(json as { type: string } & Record<string, unknown>)) {
+          throw new AgentBusyError('Agent is busy processing another request for this session.');
+        }
         const result = await handleMessageStream(json, '', sources, added, recievedMessage, streamState, {
           setMessages: setMessagesAdapter,
           setMessageAppeared: chatState.setMessageAppeared || (() => {}),
@@ -120,6 +124,9 @@ export async function resumeApprovalStream(
         added = result.added;
         recievedMessage = result.recievedMessage;
       } catch (error) {
+        if (error instanceof AgentBusyError) {
+          throw error;
+        }
         console.error('[APPROVAL] Stream parse error:', error);
       }
     }

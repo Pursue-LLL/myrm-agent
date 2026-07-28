@@ -21,7 +21,6 @@ app/api/health/router.py
 app/api/integrations/llms.py
 app/api/integrations/mcp.py
 app/api/kanban/schemas.py
-app/api/openai_compat/passthrough.py
 app/api/skills/drafts.py
 app/api/skills/migrations.py
 app/api/skills/permissions.py

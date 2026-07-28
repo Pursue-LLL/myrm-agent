@@ -53,6 +53,15 @@ def get_e2e_api_url() -> str:
     )
 
 
+def create_e2e_chat_via_api(chat_id: str, *, api_url: str | None = None) -> None:
+    """Create a chat session on the active E2E API base (signoff clarify API leg)."""
+    resolved = resolve_e2e_api_base(api_url or get_e2e_api_url())
+    if not resolved:
+        raise RuntimeError("E2E_API_BASE missing for create_e2e_chat_via_api")
+    url = f"{resolved.rstrip('/')}/api/v1/chats/"
+    _e2e_api_post_json(url, {"chat_id": chat_id}, timeout_sec=15.0)
+
+
 def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
     """Extend shell hydration budget for parallel SHPOIB chrome_e2e on shared :3000."""
     if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
@@ -816,6 +825,7 @@ def chat_browser_gate_from_api(
     chat_id: str,
     *,
     api_url: str | None = None,
+    timeout_sec: float = 15.0,
 ) -> dict[str, object]:
     """REST mirror of E2E ``getBrowserToolProgress`` when MUX probes are degraded."""
     normalized = chat_id.strip()
@@ -823,7 +833,9 @@ def chat_browser_gate_from_api(
         return {"lastTool": "", "takeoverPending": False, "fromApi": True}
     resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
     last_tool = ""
-    messages = fetch_chat_messages(normalized, api_url=resolved_api)
+    messages = fetch_chat_messages(
+        normalized, api_url=resolved_api, timeout_sec=timeout_sec
+    )
     for msg in reversed(messages):
         if not isinstance(msg, dict) or msg.get("role") != "assistant":
             continue
@@ -867,6 +879,108 @@ def chat_browser_gate_from_api(
         "takeoverPending": takeover_pending,
         "fromApi": True,
     }
+
+
+def fetch_pending_browser_takeover_resume(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+) -> dict[str, str] | None:
+    """Return chat/message ids for a pending browser_takeover approval (REST-only)."""
+    normalized = chat_id.strip()
+    if not normalized:
+        return None
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
+    try:
+        payload = _e2e_api_get_json(
+            f"{resolved_api}/api/v1/approvals?limit=50&offset=0",
+            timeout_sec=15.0,
+        )
+    except Exception:
+        return None
+    records = payload.get("approvals") if isinstance(payload, dict) else None
+    if not isinstance(records, list):
+        return None
+    for raw in records:
+        if not isinstance(raw, dict):
+            continue
+        if (
+            raw.get("action_type") != "browser_takeover"
+            or raw.get("status") != "PENDING"
+            or str(raw.get("chat_id") or "") != normalized
+        ):
+            continue
+        nested = raw.get("payload")
+        message_id = ""
+        if isinstance(nested, dict):
+            message_id = str(
+                nested.get("messageId") or nested.get("message_id") or ""
+            ).strip()
+        if not message_id:
+            message_id = str(raw.get("message_id") or "").strip()
+        if message_id:
+            return {"chatId": normalized, "resumeMessageId": message_id}
+    return None
+
+
+def _resume_message_id_from_chat_messages(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+) -> str | None:
+    """Resolve HITL resume messageId from persisted chat messages (yolo / no approval row)."""
+    normalized = chat_id.strip()
+    if not normalized:
+        return None
+    messages = fetch_chat_messages(normalized, api_url=api_url)
+    for msg in reversed(messages):
+        if not isinstance(msg, dict) or msg.get("role") != "assistant":
+            continue
+        steps: object = msg.get("progressSteps") or msg.get("progress_steps")
+        if not isinstance(steps, list):
+            meta = msg.get("metadata")
+            if isinstance(meta, dict):
+                steps = meta.get("progressSteps") or meta.get("progress_steps")
+        has_takeover = False
+        if isinstance(steps, list):
+            for step in reversed(steps):
+                if not isinstance(step, dict):
+                    continue
+                tool_name = str(step.get("tool_name") or step.get("toolName") or "")
+                if not tool_name.endswith("browser_ask_human_tool"):
+                    continue
+                has_takeover = True
+                step_mid = str(
+                    step.get("messageId") or step.get("message_id") or ""
+                ).strip()
+                if step_mid:
+                    return step_mid
+                break
+        if has_takeover or msg.get("loading") is True:
+            message_id = str(
+                msg.get("messageId") or msg.get("message_id") or msg.get("id") or ""
+            ).strip()
+            if message_id:
+                return message_id
+    return None
+
+
+def fetch_browser_takeover_resume_ids(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+) -> dict[str, str] | None:
+    """Return chat/message ids for browser takeover resume (approvals → chat messages)."""
+    normalized = chat_id.strip()
+    if not normalized:
+        return None
+    ids = fetch_pending_browser_takeover_resume(normalized, api_url=api_url)
+    if ids:
+        return ids
+    message_id = _resume_message_id_from_chat_messages(normalized, api_url=api_url)
+    if message_id:
+        return {"chatId": normalized, "resumeMessageId": message_id}
+    return None
 
 
 def chat_user_message_count(
@@ -1024,7 +1138,22 @@ def shared_hot_e2e_api_base() -> str:
 
 def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
     """Enable YOLO mode for live Chrome agent E2E (skips tool approval gate)."""
-    current = fetch_config_value("securityConfig", api_url=api_url)
+    last_exc: BaseException | None = None
+    current: dict[str, object] = {}
+    for attempt in range(5):
+        try:
+            current = fetch_config_value("securityConfig", api_url=api_url)
+            last_exc = None
+            break
+        except (TimeoutError, urllib.error.URLError, OSError) as exc:
+            last_exc = exc
+            if attempt >= 4:
+                raise RuntimeError(
+                    f"SHPOIB config fetch failed after 5 attempts: {exc}"
+                ) from exc
+            time.sleep(2.0 * (attempt + 1))
+    if last_exc is not None:
+        raise RuntimeError(f"SHPOIB config fetch failed: {last_exc}") from last_exc
     now = int(time.time())
     merged: dict[str, object] = {
         **current,
@@ -1037,6 +1166,8 @@ def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
         "domainHitlEnabled": False,
         "autoReviewEnabled": False,
         "planConfirmEnabled": False,
+        "approvalTimeoutSeconds": 900,
+        "approval_timeout_seconds": 900,
     }
     put_config_value("securityConfig", merged, api_url=api_url)
     persisted = fetch_config_value("securityConfig", api_url=api_url)
@@ -1520,26 +1651,15 @@ def _sse_message_text(events: list[dict[str, object]]) -> str:
     return "".join(chunks)
 
 
-def resume_clarify_skip_via_api(
-    chat_id: str,
+def _collect_agent_stream_events(
+    payload: dict[str, object],
     *,
-    model_selection: dict[str, object],
     api_url: str | None = None,
     timeout_sec: float = 180.0,
-    query: str = "",
+    stop_on_clarification: bool = False,
 ) -> dict[str, object]:
-    """POST agent-stream with resumeValue {} (Skip parity) on the private E2E backend."""
+    """POST agent-stream and collect SSE until deadline, idle, or terminal event."""
     resolved = (api_url or get_e2e_api_url()).rstrip("/")
-    payload: dict[str, object] = {
-        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
-        "chatId": chat_id,
-        "query": str(query),
-        "modelSelection": model_selection,
-        "actionMode": "agent",
-        "enableMemory": False,
-        "agentConfig": {"enabledBuiltinTools": ["structured_clarify"]},
-        "resumeValue": {},
-    }
     req = urllib.request.Request(  # noqa: S310
         f"{resolved}/api/v1/agents/agent-stream",
         data=json.dumps(payload).encode("utf-8"),
@@ -1552,28 +1672,30 @@ def resume_clarify_skip_via_api(
     idle_timeout_sec = min(45.0, max(15.0, timeout_sec / 3.0))
     last_event_at = time.monotonic()
     connect_timeout_sec = min(30.0, max(5.0, timeout_sec / 3.0))
+    clarification_seen = False
+    post_clarify_deadline: float | None = None
     try:
         with _e2e_api_urlopen(req, timeout_sec=connect_timeout_sec) as resp:
             status = getattr(resp, "status", 200)
             if status != 200:
                 body = resp.read().decode("utf-8", errors="replace")
                 return {
-                    "ok": False,
-                    "status": status,
-                    "body": body[:500],
                     "events": events,
-                    "event_types": [],
-                    "final_text": "",
-                    "error": None,
+                    "error": {
+                        "type": "error",
+                        "error_type": "AgentStreamHttpError",
+                        "status": status,
+                        "body": body[:500],
+                    },
                 }
             while time.monotonic() < deadline:
                 now = time.monotonic()
                 if now - last_event_at >= idle_timeout_sec:
                     error_event = {
                         "type": "error",
-                        "error_type": "ResumeStreamIdleTimeout",
+                        "error_type": "AgentStreamIdleTimeout",
                         "error": (
-                            "clarify resume stream idle timeout "
+                            "agent-stream idle timeout "
                             f"after {idle_timeout_sec:.0f}s without SSE data"
                         ),
                     }
@@ -1605,6 +1727,25 @@ def resume_clarify_skip_via_api(
                 if data.get("type") == "error":
                     error_event = data
                     break
+                if (
+                    stop_on_clarification
+                    and data.get("type") == "clarification_required"
+                ):
+                    clarification_seen = True
+                    post_clarify_deadline = time.monotonic() + min(
+                        15.0,
+                        max(5.0, timeout_sec / 6.0),
+                    )
+                    continue
+                if stop_on_clarification and clarification_seen:
+                    if raw == "[DONE]" or data.get("type") == "message_end":
+                        break
+                    if (
+                        post_clarify_deadline is not None
+                        and time.monotonic() >= post_clarify_deadline
+                    ):
+                        break
+                    continue
     except urllib.error.HTTPError as exc:
         try:
             body = exc.read().decode("utf-8", errors="replace")
@@ -1613,7 +1754,7 @@ def resume_clarify_skip_via_api(
         error_event = {
             "type": "error",
             "error_type": (
-                "AgentBusyError" if exc.code in {409, 423} else "ResumeApiHttpError"
+                "AgentBusyError" if exc.code in {409, 423} else "AgentStreamHttpError"
             ),
             "status": exc.code,
             "error": f"HTTP Error {exc.code}: {exc.reason}",
@@ -1622,13 +1763,101 @@ def resume_clarify_skip_via_api(
     except (TimeoutError, urllib.error.URLError, OSError) as exc:
         error_event = {
             "type": "error",
-            "error_type": "ResumeApiConnectTimeout",
+            "error_type": "AgentStreamConnectTimeout",
             "error": str(exc),
         }
 
+    return {
+        "events": events,
+        "error": error_event,
+    }
+
+
+def start_clarify_turn_via_api(
+    chat_id: str,
+    *,
+    query: str,
+    model_selection: dict[str, object],
+    api_url: str | None = None,
+    timeout_sec: float = 120.0,
+) -> dict[str, object]:
+    """POST agent-stream until clarification_required (signoff chrome send fallback)."""
+    payload: dict[str, object] = {
+        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
+        "chatId": chat_id,
+        "query": str(query),
+        "modelSelection": model_selection,
+        "actionMode": "agent",
+        "enableMemory": False,
+        "agentConfig": {"enabledBuiltinTools": ["structured_clarify"]},
+    }
+    collected = _collect_agent_stream_events(
+        payload,
+        api_url=api_url,
+        timeout_sec=timeout_sec,
+        stop_on_clarification=True,
+    )
+    events = collected.get("events")
+    error_event = collected.get("error")
+    if not isinstance(events, list):
+        events = []
+    has_clarification = any(
+        isinstance(event, dict) and event.get("type") == "clarification_required"
+        for event in events
+    )
+    event_types = sorted(
+        {
+            str(event.get("type"))
+            for event in events
+            if isinstance(event, dict) and event.get("type") is not None
+        }
+    )
+    return {
+        "ok": error_event is None and has_clarification,
+        "has_clarification": has_clarification,
+        "events": events,
+        "event_types": event_types,
+        "error": error_event,
+    }
+
+
+def resume_clarify_skip_via_api(
+    chat_id: str,
+    *,
+    model_selection: dict[str, object],
+    api_url: str | None = None,
+    timeout_sec: float = 180.0,
+    query: str = "",
+) -> dict[str, object]:
+    """POST agent-stream with resumeValue {} (Skip parity) on the private E2E backend."""
+    payload: dict[str, object] = {
+        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
+        "chatId": chat_id,
+        "query": str(query),
+        "modelSelection": model_selection,
+        "actionMode": "agent",
+        "enableMemory": False,
+        "agentConfig": {"enabledBuiltinTools": ["structured_clarify"]},
+        "resumeValue": {},
+    }
+    collected = _collect_agent_stream_events(
+        payload,
+        api_url=api_url,
+        timeout_sec=timeout_sec,
+        stop_on_clarification=False,
+    )
+    events = collected.get("events")
+    error_event = collected.get("error")
+    if not isinstance(events, list):
+        events = []
+
     final_text = _sse_message_text(events)
     event_types = sorted(
-        {str(event.get("type")) for event in events if event.get("type") is not None}
+        {
+            str(event.get("type"))
+            for event in events
+            if isinstance(event, dict) and event.get("type") is not None
+        }
     )
     ok = (
         error_event is None
@@ -1663,7 +1892,10 @@ def is_hitl_already_resolved_by_timeout(result: dict[str, object]) -> bool:
         if raw is not None:
             fragments.append(str(raw))
     combined = " ".join(fragments).lower()
-    return "already been resolved by timeout" in combined or "resolved by timeout" in combined
+    return (
+        "already been resolved by timeout" in combined
+        or "resolved by timeout" in combined
+    )
 
 
 def clarify_skip_resume_should_retry(result: dict[str, object]) -> bool:
@@ -1675,11 +1907,25 @@ def clarify_skip_resume_should_retry(result: dict[str, object]) -> bool:
     error = result.get("error")
     if isinstance(error, dict) and error.get("error_type") == "AgentBusyError":
         return True
+    events = result.get("events")
+    if isinstance(events, list):
+        for event in events:
+            if not isinstance(event, dict):
+                continue
+            if event.get("error_type") == "AgentBusyError":
+                return True
+            if (
+                event.get("type") == "error"
+                and event.get("error_type") == "AgentBusyError"
+            ):
+                return True
     event_types = result.get("event_types")
     if not isinstance(event_types, list):
         return False
     normalized = {str(item) for item in event_types}
     if normalized == {"progress"}:
+        return True
+    if normalized == {"error"}:
         return True
     return False
 

@@ -546,19 +546,6 @@
         "http_webhook": "將打包後的 Artifact POST 到你的 CI 或自定義端點，無需憑證庫。"
       }
     },
-    "proxy": {
-      "title": "LLM 直通代理",
-      "description": "將 MyrmAgent 用作 OpenAI 相容 API 代理。外部工具（Aider、Cline、Codex、Continue）可直接連線，使用你配置的模型服務。",
-      "passthroughEndpoint": "代理端點",
-      "passthroughEndpointDesc": "外部工具連線此地址，即可直接呼叫你配置的 LLM 模型（無需經過 Agent 引擎）：",
-      "toolConfigTitle": "工具配置示例",
-      "openAuth": "開放認證模式",
-      "openAuthDesc": "啟用後，任意非空 Bearer Token 即可訪問（無需資料庫註冊的 API Key）。適合本地開發環境。",
-      "openAuthWarning": "安全提示：開放認證模式下，任何知道你端點地址的人都可以呼叫 API。請僅在可信網路環境中使用。",
-      "visionBridge": "視覺橋接",
-      "visionBridgeDesc": "當目標模型不支援視覺時，自動將圖片轉為文字描述。使用你配置的視覺回退模型進行圖像理解。",
-      "saveFailed": "儲存代理設定失敗"
-    },
     "workspaceRules": {
       "title": "專案規則",
       "description": "從工作區自動發現的專案級規則檔案（AGENTS.md, CLAUDE.md, .cursorrules, .myrm/rules/*.md, .cursor/rules/*.mdc）",
@@ -6949,6 +6936,12 @@
     "memory_manage_tool_tool_error": "記憶管理失敗",
     "cron_manage_tool_tool": "管理定時任務",
     "cron_manage_tool_tool_error": "定時任務操作失敗",
+    "mcp_tool_search_tool": "搜尋可用工具",
+    "mcp_tool_search_tool_error": "工具搜尋失敗",
+    "mcp_tool_describe_tool": "載入工具詳情",
+    "mcp_tool_describe_tool_error": "載入工具詳情失敗",
+    "mcp_tool_call_tool": "呼叫工具",
+    "mcp_tool_call_tool_error": "工具呼叫失敗",
     "file_read_tool": "讀取檔案",
     "file_read_tool_error": "讀取檔案失敗",
     "file_write_tool": "寫入檔案",
@@ -7027,7 +7020,10 @@
       "render_ui_tool": "正在渲染介面",
       "update_ui_data_tool": "正在更新介面資料",
       "answer_user_tool": "正在生成回答",
-      "request_answer_user_tool": "正在準備回覆"
+      "request_answer_user_tool": "正在準備回覆",
+      "mcp_tool_search": "搜尋工具",
+      "mcp_tool_describe": "載入工具參數",
+      "mcp_tool_call": "呼叫工具"
     },
     "categoryStageLabels": {
       "thinking": "思考中",

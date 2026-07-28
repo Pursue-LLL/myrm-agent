@@ -2,52 +2,186 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import os
+import sys
+import time
+import uuid
+from pathlib import Path
 
 import pytest
 
-from tests.support.chrome_mcp_e2e import (
-    dismiss_blocking_modals,
+_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_LIB) not in sys.path:
+    sys.path.insert(0, str(_LIB))
+
+from cdp_chat_support import (  # noqa: E402
+    WAIT_WORKSPACE_STREAM_JS,
     get_e2e_api_url,
+    wait_e2e_provider_ready,
+)
+from chrome_mcp_client import ChromeMcpClient  # noqa: E402
+from mcp_chat_ui import McpChatSession  # noqa: E402
+
+from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
-    http_json,
-    open_mcp_page,
     prepare_e2e_ui_session,
-    wait_for_state,
     warm_ui_route,
 )
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_e2e_lease
 
 _AGENT_PROMPT = "Hello after migration import"
-
-_BRIDGE_READY_JS = """(() => ({
-  ready:
-    !!document.querySelector('[data-testid="app-layout"]') &&
-    !!window.__MYRM_E2E_CHAT__ &&
-    typeof window.__MYRM_E2E_CHAT__.sendChatMessage === 'function',
-}))()"""
+_E2E_GAP_TEST_WALL_SEC = 480.0
 
 _MIGRATION_GAP_TOAST_PATTERN = (
-    r"MCP servers were imported|MCP 已导入|migration follow-ups|待完成项|/settings/mcp"
+    r"MCP servers were imported|MCP 已导入|Open MCP Settings|"
+    r"migration follow-ups|待完成项|not enabled yet|/settings/mcp"
 )
+
+_WAIT_CHAT_IDLE_JS = """(async () => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge) return { ok: false, err: 'no-bridge' };
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const snap = bridge.turnSnapshot?.() ?? {};
+    if (!snap.isStreaming) {
+      return { ok: true, turn: snap };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  return { ok: false, err: 'chat-still-streaming', turn: bridge.turnSnapshot?.() ?? null };
+})()"""
+
+
+def _ensure_shared_ui_base() -> None:
+    if os.environ.get("MYRM_E2E_ISOLATED", "").strip() == "1":
+        return
+    ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000").strip()
+    if ui_base != "http://127.0.0.1:3000":
+        os.environ["E2E_UI_BASE"] = "http://127.0.0.1:3000"
+
+
+def _httpx_retry_delay_seconds(response: object | None, attempt: int) -> float:
+    import httpx
+
+    if isinstance(response, httpx.Response):
+        retry_after = response.headers.get("Retry-After")
+        if retry_after is not None:
+            try:
+                return min(60.0, max(2.0, float(retry_after)))
+            except ValueError:
+                pass
+    return min(12.0, 2.0 * (attempt + 1))
 
 
 def _seed_migration_readiness(*, variant: str = "mcp_warning") -> dict[str, str]:
+    import httpx
+
     api_base = get_e2e_api_url()
-    payload = http_json(
-        "POST",
-        f"{api_base}/api/v1/memory/test/seed-migration-readiness-fixture?variant={variant}",
+    url = (
+        f"{api_base.rstrip('/')}/api/v1/memory/test/seed-migration-readiness-fixture"
+        f"?variant={variant}"
     )
-    assert isinstance(payload, dict)
-    return {str(key): str(value) for key, value in payload.items()}
+    last_error: BaseException | None = None
+    last_response: httpx.Response | None = None
+    for attempt in range(12):
+        try:
+            response = httpx.post(
+                url,
+                timeout=httpx.Timeout(25.0, connect=10.0),
+            )
+            last_response = response
+            if response.status_code == 503:
+                last_error = httpx.HTTPStatusError(
+                    f"503 seed on {url}",
+                    request=response.request,
+                    response=response,
+                )
+                time.sleep(_httpx_retry_delay_seconds(response, attempt))
+                continue
+            response.raise_for_status()
+            payload = response.json()
+            assert isinstance(payload, dict)
+            return {str(key): str(value) for key, value in payload.items()}
+        except (httpx.HTTPError, TimeoutError, AssertionError) as exc:
+            last_error = exc
+            time.sleep(_httpx_retry_delay_seconds(last_response, attempt))
+    raise AssertionError(
+        f"seed-migration-readiness-fixture failed after retries on {url}; last_error={last_error!r}"
+    ) from last_error
+
+
+
+def _prepare_migration_chat_js(seed: dict[str, str]) -> str:
+    seed_json = json.dumps(seed)
+    return f"""(async () => {{
+      const seed = {seed_json};
+      const bridge = window.__MYRM_E2E_CHAT__;
+      const chat = window.__myrmChatStore?.getState?.();
+      if (!bridge || !chat) return {{ ok: false, err: 'no-bridge-or-store' }};
+      bridge.abortActiveStream?.();
+      bridge.releaseActiveStreamForApiResume?.();
+      window.__MYRM_E2E_DIRECT_SSE__ = false;
+      if (typeof bridge.ensureProviders === 'function') {{
+        await bridge.ensureProviders();
+      }}
+      const apiBase = String(
+        window.__MYRM_E2E_API_BASE__ || window.__MYRM_E2E_RUNTIME__?.apiBase || '',
+      ).replace(/\\/+$/, '');
+      if (!apiBase) return {{ ok: false, err: 'no-api-base' }};
+      const agentResp = await fetch(
+        `${{apiBase}}/api/v1/user-agents/${{encodeURIComponent(seed.target_agent_id)}}`,
+        {{ cache: 'no-store' }},
+      );
+      if (!agentResp.ok) {{
+        return {{ ok: false, err: 'agent-fetch-failed', status: agentResp.status, apiBase }};
+      }}
+      const agentPayload = await agentResp.json();
+      const agent = agentPayload?.data ?? agentPayload;
+      if (!agent?.id) return {{ ok: false, err: 'agent-payload-invalid', apiBase }};
+      chat.setActionMode('agent');
+      chat.setAgentConfig({{
+        selectedSkillIds: agent.skill_ids || [],
+        skillConfigs: agent.skill_configs || {{}},
+        selectedMcpNames: agent.mcp_ids || [],
+        systemPrompt: agent.system_prompt || '',
+        useGlobalInstruction: true,
+        autoRestoreDomains: agent.auto_restore_domains || [],
+        agentId: agent.id,
+        agentName: agent.name,
+        agentDescription: agent.description || '',
+        avatarUrl: agent.avatar_url,
+        suggestionPrompts: agent.suggestion_prompts || undefined,
+        memoryDecayProfile: agent.memory_decay_profile || 'normal',
+        browserSource: agent.browser_source || undefined,
+      }});
+      if (typeof bridge.ensureChatSession === 'function') {{
+        await bridge.ensureChatSession({{ preserveActionMode: true }});
+      }}
+      if (typeof bridge.pinBasicModelForE2e === 'function') {{
+        await bridge.pinBasicModelForE2e();
+      }} else if (typeof bridge.pinLiteModelForE2e === 'function') {{
+        await bridge.pinLiteModelForE2e({{ preserveActionMode: true }});
+      }}
+      const state = window.__myrmChatStore?.getState?.();
+      return {{
+        ok: state?.actionMode === 'agent'
+          && state?.agentConfig?.agentId === seed.target_agent_id
+          && !!bridge.isSendReady?.(),
+        agentId: state?.agentConfig?.agentId ?? null,
+        apiBase,
+        sendReady: !!bridge.isSendReady?.(),
+      }};
+    }})()"""
 
 
 def _set_anchor_js(seed: dict[str, str]) -> str:
     seed_json = json.dumps(seed)
     return f"""(() => {{
       const seed = {seed_json};
-      const key = 'myrm:migration-readiness-anchor';
       localStorage.setItem(
-        key,
+        'myrm:migration-readiness-anchor',
         JSON.stringify({{
           importBatchId: seed.import_batch_id,
           readinessStatus: seed.readiness_status,
@@ -55,113 +189,303 @@ def _set_anchor_js(seed: dict[str, str]) -> str:
           queuedAt: new Date().toISOString(),
         }}),
       );
-      return {{ ok: true, key, raw: localStorage.getItem(key) }};
+      return {{ ok: true }};
     }})()"""
 
 
-def _send_and_collect_gap_js(prompt: str) -> str:
-    prompt_json = json.dumps(prompt)
+def _pre_send_assert_js(seed: dict[str, str], expected_api: str) -> str:
+    seed_json = json.dumps(seed)
+    expected_json = json.dumps(expected_api.rstrip("/"))
+    return f"""(() => {{
+      const seed = {seed_json};
+      const expectedApi = {expected_json};
+      const state = window.__myrmChatStore?.getState?.();
+      let anchor = null;
+      try {{
+        const raw = localStorage.getItem('myrm:migration-readiness-anchor');
+        anchor = raw ? JSON.parse(raw) : null;
+      }} catch {{
+        anchor = null;
+      }}
+      const apiBase = String(
+        window.__MYRM_E2E_API_BASE__ || window.__MYRM_E2E_RUNTIME__?.apiBase || '',
+      ).replace(/\\/+$/, '');
+      const agentId = state?.agentConfig?.agentId?.trim() || '';
+      const ok =
+        apiBase === expectedApi &&
+        agentId === seed.target_agent_id &&
+        anchor?.targetAgentId === seed.target_agent_id &&
+        anchor?.importBatchId === seed.import_batch_id &&
+        state?.actionMode === 'agent' &&
+        !!window.__MYRM_E2E_CHAT__?.isSendReady?.();
+      return {{ ok, apiBase, expectedApi, agentId, anchor, actionMode: state?.actionMode }};
+    }})()"""
+
+
+def _gap_poll_snapshot_js(message_id: str | None) -> str:
+    filter_json = json.dumps(message_id)
     gap_pattern_json = json.dumps(_MIGRATION_GAP_TOAST_PATTERN)
-    return f"""(async () => {{
-      const bridge = window.__MYRM_E2E_CHAT__;
-      if (!bridge) return {{ ok: false, err: 'no-bridge' }};
-      bridge.abortActiveStream?.();
-      bridge.releaseActiveStreamForApiResume?.();
-      bridge.clearSseSnapshot?.();
-      const baseline = bridge.turnSnapshot?.().userCount ?? 0;
-      if (typeof bridge.sendChatMessage !== 'function') {{
-        return {{ ok: false, err: 'no-sendChatMessage' }};
-      }}
+    return f"""(() => {{
       const gapPattern = new RegExp({gap_pattern_json}, 'i');
-      const sendPromise = bridge.sendChatMessage({prompt_json}, {{
-        baselineUserCount: baseline,
-        preserveActionMode: true,
-      }}).then(
-        (value) => value,
-        (error) => ({{ ok: false, err: String(error) }}),
+      const toastNodes = Array.from(
+        document.querySelectorAll('[data-sonner-toast], [data-sonner-toaster] [data-sonner-toast]'),
       );
-      const deadline = Date.now() + 90000;
-      let bestMigrationToast = 0;
-      let bestSse = [];
-      while (Date.now() < deadline) {{
-        const toastNodes = Array.from(
-          document.querySelectorAll('[data-sonner-toast], [data-sonner-toaster] [data-sonner-toast]'),
-        );
-        const texts = toastNodes.map((node) => (node.textContent || '').trim()).filter(Boolean);
-        bestMigrationToast = Math.max(
-          bestMigrationToast,
-          texts.filter((t) => gapPattern.test(t)).length,
-        );
-        const sse = bridge.sseSnapshot?.() ?? [];
-        if (Array.isArray(sse)) {{
-          bestSse = sse;
-        }}
-        if (bestMigrationToast >= 1 || bestSse.includes('capability_gap')) {{
-          const sendResult = await Promise.race([
-            sendPromise,
-            new Promise((resolve) => setTimeout(() => resolve({{ ok: true, pending: true }}), 0)),
-          ]);
-          return {{
-            ok: true,
-            sendResult,
-            migrationToastCount: bestMigrationToast,
-            sseEvents: bestSse,
-          }};
-        }}
-        await new Promise((resolve) => setTimeout(resolve, 400));
+      const texts = toastNodes.map((node) => (node.textContent || '').trim()).filter(Boolean);
+      let streamMessageId = {filter_json};
+      if (!streamMessageId) {{
+        const probe = window.__MYRM_E2E_CHAT__?.debugProviderState?.()?.streamRequestMessageId;
+        if (typeof probe === 'string' && probe.trim()) streamMessageId = probe.trim();
       }}
-      const sendResult = await Promise.race([
-        sendPromise,
-        new Promise((resolve) => setTimeout(() => resolve({{ ok: false, err: 'send-timeout' }}), 0)),
-      ]);
+      const muxMessageId = window.__MYRM_MULTIPLEX_STATS__?.()?.lastMessageId ?? null;
+      const allSseEvents = window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [];
+      let sseEvents = streamMessageId
+        ? (window.__MYRM_E2E_CHAT__?.sseSnapshot?.(streamMessageId) ?? [])
+        : allSseEvents;
+      if (!sseEvents.includes('capability_gap') && typeof muxMessageId === 'string' && muxMessageId.trim()) {{
+        const muxSse = window.__MYRM_E2E_CHAT__?.sseSnapshot?.(muxMessageId.trim()) ?? [];
+        if (muxSse.includes('capability_gap')) {{
+          sseEvents = muxSse;
+          streamMessageId = muxMessageId.trim();
+        }}
+      }}
+      if (!sseEvents.includes('capability_gap') && allSseEvents.includes('capability_gap')) {{
+        sseEvents = allSseEvents;
+      }}
+      if (streamMessageId) {{
+        window.__MYRM_E2E_CHAT__?.setSseCaptureMessageId?.(streamMessageId);
+      }}
       return {{
-        ok: false,
-        err: 'migration-gap-timeout',
-        sendResult,
-        migrationToastCount: bestMigrationToast,
-        sseEvents: bestSse,
+        toast: {{
+          count: toastNodes.length,
+          migrationCount: texts.filter((t) => gapPattern.test(t)).length,
+          texts,
+        }},
+        sseEvents,
+        allSseEvents,
+        streamMessageId: streamMessageId ?? null,
       }};
     }})()"""
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
+def _assert_gap_wall_budget(wall_deadline: float) -> None:
+    if time.monotonic() > wall_deadline:
+        pytest.fail(
+            f"migration gap E2E exceeded {_E2E_GAP_TEST_WALL_SEC}s body wall budget"
+        )
+
+
+async def _evaluate_gap_snapshot(
+    chat: McpChatSession,
+    *,
+    message_id: str | None,
+    wall_deadline: float,
+) -> dict[str, object]:
+    _assert_gap_wall_budget(wall_deadline)
+    js = _gap_poll_snapshot_js(message_id)
+    raw = await chat.evaluate(js, await_promise=False, recv_timeout=12.0)
+    return raw if isinstance(raw, dict) else {"value": raw}
+
+
+async def _send_and_collect_migration_gap(
+    chat: McpChatSession,
+    *,
+    api_base: str,
+    seed: dict[str, str],
+    wall_deadline: float,
+    timeout_sec: float = 45.0,
+) -> tuple[dict[str, object], list[str], dict[str, object], dict[str, object]]:
+    _assert_gap_wall_budget(wall_deadline)
+    await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
+
+    idle = await chat.evaluate(_WAIT_CHAT_IDLE_JS, await_promise=True, recv_timeout=25.0)
+    assert isinstance(idle, dict) and idle.get("ok") is True, idle
+
+    pre_send = await chat.evaluate(
+        _pre_send_assert_js(seed, api_base),
+        await_promise=False,
+        recv_timeout=15.0,
+    )
+    assert isinstance(pre_send, dict) and pre_send.get("ok") is True, pre_send
+
+    await chat.evaluate(
+        "() => { window.__MYRM_E2E_CHAT__?.clearSseSnapshot?.(); return { ok: true }; }",
+        await_promise=False,
+        recv_timeout=10.0,
+    )
+
+    send_task = asyncio.create_task(
+        chat.send_chat_message_atomic(_AGENT_PROMPT, baseline_user_msgs=0),
+    )
+
+    deadline = time.monotonic() + timeout_sec
+    best_toast: dict[str, object] = {"migrationCount": 0}
+    best_sse: list[str] = []
+    stream_message_id: str | None = None
+
+    while time.monotonic() < deadline:
+        _assert_gap_wall_budget(wall_deadline)
+        heartbeat_e2e_lease()
+        snapshot = await _evaluate_gap_snapshot(
+            chat,
+            message_id=stream_message_id,
+            wall_deadline=wall_deadline,
+        )
+        if isinstance(snapshot.get("streamMessageId"), str) and snapshot["streamMessageId"].strip():
+            stream_message_id = snapshot["streamMessageId"].strip()
+        toast_state = (
+            snapshot.get("toast") if isinstance(snapshot.get("toast"), dict) else {}
+        )
+        sse_events = (
+            snapshot.get("sseEvents") if isinstance(snapshot.get("sseEvents"), list) else []
+        )
+        best_toast = toast_state
+        best_sse = [str(item) for item in sse_events]
+        if "capability_gap" in best_sse:
+            break
+        if int(toast_state.get("migrationCount") or 0) >= 1:
+            break
+        await asyncio.sleep(0.4)
+
+    if "capability_gap" in best_sse or int(best_toast.get("migrationCount") or 0) >= 1:
+        try:
+            await chat.evaluate(
+                "() => { window.__MYRM_E2E_CHAT__?.abortActiveStream?.(); return { ok: true }; }",
+                await_promise=False,
+                recv_timeout=8.0,
+            )
+        except RuntimeError:
+            pass
+
+    if send_task.done():
+        raw_send = send_task.result()
+        send_result = raw_send if isinstance(raw_send, dict) else {"value": raw_send}
+    else:
+        await chat.evaluate(
+            "() => { window.__MYRM_E2E_CHAT__?.abortActiveStream?.(); return { ok: true }; }",
+            await_promise=False,
+            recv_timeout=12.0,
+        )
+        raw_send = await send_task
+        send_result = raw_send if isinstance(raw_send, dict) else {"value": raw_send}
+
+    diag_raw = await chat.evaluate(
+        f"""(() => ({{
+          sse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.({json.dumps(stream_message_id)}) ?? [],
+          allSse: window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [],
+          directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
+          apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
+          turn: window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null,
+        }}))()""",
+        await_promise=False,
+        recv_timeout=12.0,
+    )
+    diag = diag_raw if isinstance(diag_raw, dict) else {"value": diag_raw}
+    return best_toast, best_sse, send_result, diag
+
+
+@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
+@pytest.mark.asyncio
 @pytest.mark.timeout(600)
-def test_migration_readiness_gap_shows_sse_toast_on_first_chat() -> None:
+async def test_migration_readiness_gap_shows_sse_toast_on_first_chat(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
     """First chat after migration anchor must show MCP readiness toast via capability_gap SSE."""
 
     from app.services.agent.stream_session.entitlement_gap_preflight import (
         reset_capability_gap_emission_tracker,
     )
 
+    _ensure_shared_ui_base()
     reset_capability_gap_emission_tracker()
 
     api_base = get_e2e_api_url()
+    if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=120.0):
+        pytest.fail(f"E2E provider not ready on {api_base}")
+
     seed = _seed_migration_readiness(variant="mcp_warning")
+    assert seed.get("readiness_status") == "warning", (
+        f"seed fixture must report warning readiness; seed={seed!r}"
+    )
+    await asyncio.sleep(1.0)
+
     prepare_e2e_ui_session(api_base)
     warm_ui_route(seed["chat_ui_path"])
 
     ui_url = get_e2e_ui_url()
     chat_url = f"{ui_url}{seed['chat_ui_path']}"
+    wall_deadline = time.monotonic() + _E2E_GAP_TEST_WALL_SEC
 
-    with open_mcp_page(chat_url, request_timeout_sec=180.0) as (client, page):
-        dismiss_blocking_modals(client, page)
-        wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=120.0)
+    client = ChromeMcpClient(request_timeout_sec=180.0)
+    await asyncio.to_thread(client.start)
+    try:
+        page = await asyncio.to_thread(client.new_page, chat_url, timeout_ms=120_000)
+        chat = McpChatSession(client, page)
+        await chat.bootstrap(chat_url, timeout_sec=120.0)
 
-        anchor_set = client.evaluate(page, _set_anchor_js(seed), timeout_sec=15.0)
+        prepared = await chat.evaluate(
+            _prepare_migration_chat_js(seed),
+            await_promise=True,
+            recv_timeout=120.0,
+        )
+        assert isinstance(prepared, dict) and prepared.get("ok") is True, prepared
+
+        anchor_set = await chat.evaluate(
+            _set_anchor_js(seed),
+            await_promise=False,
+            recv_timeout=10.0,
+        )
         assert isinstance(anchor_set, dict) and anchor_set.get("ok") is True, anchor_set
 
-        result = client.evaluate(
-            page,
-            _send_and_collect_gap_js(_AGENT_PROMPT),
-            timeout_sec=150.0,
+        binding = await chat.evaluate(
+            """(() => ({
+              apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
+              runtimeApi: window.__MYRM_E2E_RUNTIME__?.apiBase ?? null,
+              directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
+            }))()""",
+            await_promise=False,
+            recv_timeout=10.0,
         )
-        assert isinstance(result, dict), result
-        migration_toast = int(result.get("migrationToastCount") or 0)
-        sse_events = result.get("sseEvents")
-        best_sse = list(sse_events) if isinstance(sse_events, list) else []
-        assert result.get("ok") is True, result
-        assert migration_toast >= 1 or "capability_gap" in best_sse, (
-            f"expected migration readiness toast or capability_gap SSE; result={result!r}; seed={seed!r}"
+        assert isinstance(binding, dict), binding
+        bound_api = str(binding.get("apiBase") or binding.get("runtimeApi") or "").rstrip("/")
+        assert bound_api == api_base.rstrip("/"), (
+            f"SHPOIB API binding mismatch: expected {api_base}, got {binding!r}"
         )
+
+        workspace_ready = await chat.evaluate(
+            WAIT_WORKSPACE_STREAM_JS,
+            await_promise=True,
+            recv_timeout=45.0,
+        )
+        assert isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True, (
+            f"workspace stream not ready: {workspace_ready!r}; api={api_base}"
+        )
+
+        toast_state, sse_events, send_result, diag = await _send_and_collect_migration_gap(
+            chat,
+            api_base=api_base,
+            seed=seed,
+            wall_deadline=wall_deadline,
+            timeout_sec=90.0,
+        )
+
+        recorded_sse = list(sse_events)
+        if "capability_gap" not in recorded_sse:
+            all_sse = diag.get("allSse")
+            if isinstance(all_sse, list):
+                recorded_sse = [str(item) for item in all_sse]
+
+        migration_toast = int(toast_state.get("migrationCount") or 0)
+        if migration_toast < 1 and "capability_gap" not in recorded_sse:
+            pytest.fail(
+                "expected migration readiness toast or capability_gap SSE in browser; "
+                f"send={send_result!r}; sse={recorded_sse!r}; toast={toast_state!r}; "
+                f"diag={diag!r}; seed={seed!r}"
+            )
+
+        chat_id = str(send_result.get("chatId") or "").strip()
+        if chat_id:
+            e2e_resource_ledger.register("chat", chat_id)
+    finally:
+        await asyncio.to_thread(client.close)

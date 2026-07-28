@@ -3,7 +3,6 @@
 [INPUT]
 - app.api.openai_compat.types::ChatCompletionRequest (POS: OpenAI request schema)
 - app.api.openai_compat.auth::verify_api_key (POS: Bearer token auth)
-- app.api.openai_compat.passthrough (POS: LLM passthrough for non-Agent models)
 - app.services.agent.streaming::ai_agent_service_stream (POS: Agent stream engine)
 - app.services.agent.params::convert_to_general_agent_params (POS: Param builder)
 
@@ -11,10 +10,8 @@
 - chat_completions: POST /v1/chat/completions (streaming + non-streaming)
 
 [POS]
-Core implementation. Routes requests to either Agent execution (when model matches
-an agent ID) or LLM passthrough (when model matches a user-configured LLM). This
-dual-mode design lets external tools (Aider, Cline, Codex) use MyrmAgent as an
-OpenAI-compatible API proxy.
+Agent-only OpenAI-compatible API. External tools call this endpoint to run Myrm
+agents (memory, tools, skills) — not raw LLM passthrough.
 """
 
 from __future__ import annotations
@@ -69,7 +66,6 @@ def _extract_query(request: ChatCompletionRequest) -> str:
     last_msg = request.messages[-1]
     if isinstance(last_msg.content, str):
         return last_msg.content
-    # Multi-part content: concatenate text parts
     parts = []
     for part in last_msg.content:
         if isinstance(part, dict) and part.get("type") == "text":
@@ -88,11 +84,7 @@ def _extract_system_instruction(request: ChatCompletionRequest) -> str | None:
 async def _build_agent_params(
     request: ChatCompletionRequest,
 ) -> "GeneralAgentParams":
-    """Build GeneralAgentParams from an OpenAI-compatible request.
-
-    Resolves agent_id from model field, loads user config, and
-    assembles parameters for the Agent execution engine.
-    """
+    """Build GeneralAgentParams from an OpenAI-compatible request."""
     from app.services.agent.params import convert_to_general_agent_params
     from app.services.agent.params.models import AgentRequest
 
@@ -115,11 +107,42 @@ async def _build_agent_params(
     chat_history = _build_chat_history(request)
     params, _, _, _archive_restore_results = await convert_to_general_agent_params(agent_request, chat_history)
 
-    # Apply temperature override if specified
     if request.temperature is not None and params.model_cfg:
         params.model_cfg = params.model_cfg.model_copy(update={"temperature": request.temperature})
 
     return params
+
+
+def _normalize_agent_event(event: object) -> dict[str, object] | None:
+    """Normalize harness/gateway stream events to a plain dict."""
+    if isinstance(event, dict):
+        return event
+    if hasattr(event, "model_dump"):
+        dumped = event.model_dump()
+        return dumped if isinstance(dumped, dict) else None
+    if hasattr(event, "to_dict"):
+        dumped = event.to_dict()
+        return dumped if isinstance(dumped, dict) else None
+    return None
+
+
+def _extract_assistant_text(event: dict[str, object]) -> str:
+    """Extract assistant-visible text from Agent SSE events."""
+    event_type = event.get("type", "")
+    if event_type == "message_chunk":
+        content = event.get("content", "")
+        return content if isinstance(content, str) else str(content) if content else ""
+    if event_type != "message":
+        return ""
+    data = event.get("data", "")
+    if isinstance(data, str):
+        return data
+    if isinstance(data, dict):
+        for key in ("content", "text"):
+            val = data.get(key)
+            if isinstance(val, str) and val:
+                return val
+    return ""
 
 
 async def _stream_response(
@@ -131,7 +154,6 @@ async def _stream_response(
     created = int(time.time())
     model_name = request.model
 
-    # Send initial role chunk
     first_chunk = ChatCompletionChunk(
         id=completion_id,
         created=created,
@@ -140,32 +162,31 @@ async def _stream_response(
     )
     yield f"data: {first_chunk.model_dump_json()}\n\n"
 
-    total_content = ""
     async for event in ai_agent_service_stream(params):
-        if isinstance(event, dict):
-            event_type = event.get("type", "")
+        normalized = _normalize_agent_event(event)
+        if normalized is None:
+            continue
 
-            if event_type == "message_chunk":
-                content = event.get("content", "")
-                if content:
-                    total_content += content
-                    chunk = ChatCompletionChunk(
-                        id=completion_id,
-                        created=created,
-                        model=model_name,
-                        choices=[StreamChoice(delta=DeltaMessage(content=content), finish_reason=None)],
-                    )
-                    yield f"data: {chunk.model_dump_json()}\n\n"
-
-            elif event_type == "message_end":
-                finish_chunk = ChatCompletionChunk(
+        event_type = normalized.get("type", "")
+        if event_type in ("message", "message_chunk"):
+            content = _extract_assistant_text(normalized)
+            if content:
+                chunk = ChatCompletionChunk(
                     id=completion_id,
                     created=created,
                     model=model_name,
-                    choices=[StreamChoice(delta=DeltaMessage(), finish_reason="stop")],
+                    choices=[StreamChoice(delta=DeltaMessage(content=content), finish_reason=None)],
                 )
-                yield f"data: {finish_chunk.model_dump_json()}\n\n"
-                break
+                yield f"data: {chunk.model_dump_json()}\n\n"
+        elif event_type == "message_end":
+            finish_chunk = ChatCompletionChunk(
+                id=completion_id,
+                created=created,
+                model=model_name,
+                choices=[StreamChoice(delta=DeltaMessage(), finish_reason="stop")],
+            )
+            yield f"data: {finish_chunk.model_dump_json()}\n\n"
+            break
 
     yield "data: [DONE]\n\n"
 
@@ -175,31 +196,7 @@ async def chat_completions(
     request: ChatCompletionRequest,
     _key_prefix: str = Depends(verify_api_key),
 ) -> ChatCompletionResponse | StreamingResponse:
-    """OpenAI-compatible chat completions endpoint.
-
-    Routes to either Agent execution or LLM passthrough based on model field:
-    - Agent IDs (or "default") → Agent execution engine
-    - LLM model names (e.g. "claude-3.5-sonnet") → direct litellm forwarding
-    """
-    from app.api.openai_compat.passthrough import (
-        is_passthrough_model,
-        passthrough_completion,
-        passthrough_stream,
-    )
-
-    if await is_passthrough_model(request.model):
-        if request.stream:
-            return StreamingResponse(
-                passthrough_stream(request),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive",
-                    "X-Accel-Buffering": "no",
-                },
-            )
-        return await passthrough_completion(request)
-
+    """OpenAI-compatible chat completions endpoint (Agent execution only)."""
     if request.stream:
         return StreamingResponse(
             _stream_response(request),
@@ -211,20 +208,22 @@ async def chat_completions(
             },
         )
 
-    # Non-streaming Agent path: collect full response
     params = await _build_agent_params(request)
 
     full_content = ""
     usage_data: dict[str, object] = {}
 
     async for event in ai_agent_service_stream(params):
-        if isinstance(event, dict):
-            event_type = event.get("type", "")
-            if event_type == "message_chunk":
-                full_content += event.get("content", "")
-            elif event_type == "message_end":
-                usage_data = event.get("usage", {})
-                break
+        normalized = _normalize_agent_event(event)
+        if normalized is None:
+            continue
+
+        event_type = normalized.get("type", "")
+        if event_type in ("message", "message_chunk"):
+            full_content += _extract_assistant_text(normalized)
+        elif event_type == "message_end":
+            usage_data = normalized.get("usage", {})
+            break
 
     usage = UsageInfo(
         prompt_tokens=int(usage_data.get("prompt_tokens", 0)) if isinstance(usage_data, dict) else 0,

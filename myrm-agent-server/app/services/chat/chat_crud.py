@@ -72,31 +72,24 @@ class _ChatCrudMixin(_ChatServiceBase):
 
     @staticmethod
     async def ensure_default_workspace_dir(chat_id: str) -> str | None:
-        """Bind ``chat_{chat_id}`` sandbox path when ``workspace_dir`` is unset.
+        """Resolve SSOT workspace for a chat (project bind > chat dir > JIT sandbox).
 
-        Used by GET chat metadata so the frontend can open Active Working Memory
-        previews even if the agent round-trip did not persist ``workspace_dir`` yet.
+        Persists JIT sandbox path when created so legacy callers stay in sync with GET chat.
         """
+        from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if chat is None:
+            return None
         try:
-            from pathlib import Path
-
-            from myrm_agent_harness.toolkits.code_execution import (
-                create_workspace_service,
+            return await resolve_effective_chat_workspace(
+                chat,
+                jit_fallback=True,
+                persist_jit=True,
             )
-
-            from app.config.settings import get_settings
-
-            session_id = f"chat_{chat_id}"
-            workspace_svc = create_workspace_service(
-                root_dir=Path(get_settings().database.harness_dir),
-            )
-            workspace = await workspace_svc.get_or_create(session_id=session_id)
-            resolved = workspace_svc.get_workspace_absolute_path(workspace)
-            await _ChatCrudMixin.update_chat_fields(chat_id, {"workspace_dir": resolved})
-            return resolved
         except Exception as exc:
             logger.warning(
-                "Failed to JIT-bind default workspace for chat %s: %s",
+                "Failed to resolve default workspace for chat %s: %s",
                 chat_id,
                 exc,
             )

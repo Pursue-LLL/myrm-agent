@@ -13,12 +13,12 @@
  * - ChatSidebarContent: 聊天侧边栏内容组件
  *   - 聊天历史列表
  *   - CLI 工作区文件树（Tauri 环境，ACP 模式）
- *   - Web 工作区文件浏览器（Web/SaaS，主 Agent 模式）
+ *   - Agent vault 文件浏览器（Local Web / Tauri / Cloud，主 Agent 模式）
  *
  * [POS]
  * 侧边栏聊天内容区域。显示搜索、新建对话按钮、聊天历史列表。
- * 在 Tauri+ACP 模式下使用 CLIWorkspaceTree，在 Web/SaaS+主Agent
- * 模式下使用 WorkspaceFileBrowser 显示 Chat/Files Tab 切换。
+ * Tauri+ACP 使用 CLIWorkspaceTree；主 Agent 有 workspaceDir 时优先
+ * WorkspaceFileBrowser（含 P1 SSE 自动刷新），与 CLI 轨可并存 Tab 切换。
  */
 
 import { memo, useState, useCallback, useEffect, Suspense } from 'react';
@@ -184,7 +184,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
       setWebWorkspaceDir(workspaceDir);
     }, [chatId, actionMode, workspaceDir]);
 
-    const showWebWorkspace = !isTauriEnvironment() && actionMode === 'agent' && !!webWorkspaceDir;
+    const showWebWorkspace = actionMode === 'agent' && !!webWorkspaceDir;
     const showTabs = showCliWorkspace || showWebWorkspace;
 
     const [activeView, setActiveView] = useState<'chat' | 'workspace'>('chat');
@@ -372,7 +372,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
                 activeView === 'workspace' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50',
               )}
             >
-              {showCliWorkspace ? t('sidebar.workspace') : t('sidebar.files')}
+              {showWebWorkspace ? t('sidebar.files') : showCliWorkspace ? t('sidebar.workspace') : t('sidebar.files')}
             </button>
           </div>
         )}
@@ -389,17 +389,6 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
               />
               <TrashButton />
             </>
-          ) : showCliWorkspace ? (
-            <Suspense fallback={sidebarPanelLoading}>
-              <CLIWorkspaceTree
-                workspacePath={cliWorkingDirectory!}
-                files={cliFiles}
-                loading={cliFilesLoading}
-                onRefresh={cliRefresh}
-                onFileClick={handleCliFileClick}
-                onFileRightClick={handleCliFileRightClick}
-              />
-            </Suspense>
           ) : showWebWorkspace && webWorkspaceDir ? (
             <Suspense fallback={sidebarPanelLoading}>
               <WorkspaceFileBrowser
@@ -410,6 +399,17 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
                 truncated={webFilesTruncated}
                 onRefresh={webRefresh}
                 onFileClick={handleWebFileClick}
+              />
+            </Suspense>
+          ) : showCliWorkspace ? (
+            <Suspense fallback={sidebarPanelLoading}>
+              <CLIWorkspaceTree
+                workspacePath={cliWorkingDirectory!}
+                files={cliFiles}
+                loading={cliFilesLoading}
+                onRefresh={cliRefresh}
+                onFileClick={handleCliFileClick}
+                onFileRightClick={handleCliFileRightClick}
               />
             </Suspense>
           ) : actionMode === 'agent' && !webWorkspaceDir ? (

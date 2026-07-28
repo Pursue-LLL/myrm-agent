@@ -178,7 +178,9 @@ class McpChatSession(CdpChatSession):
                     heal_attempts += 1
                     await self._heal_detached_page()
                     continue
-                if heal_attempts < max_heal_attempts and is_mux_page_heal_error(exc):
+                if heal_attempts < max_heal_attempts and (
+                    is_mux_page_heal_error(exc) or is_target_closed_error(exc)
+                ):
                     heal_attempts += 1
                     await self._heal_reclaimed_page()
                     continue
@@ -198,10 +200,40 @@ class McpChatSession(CdpChatSession):
             pass
 
     async def _heal_reclaimed_page(self) -> None:
-        reopened = await asyncio.to_thread(
-            self._client.reclaim_owned_page,
-            self._page,
-        )
+        async def _try_reclaim() -> McpPage:
+            return await asyncio.to_thread(
+                self._client.reclaim_owned_page,
+                self._page,
+            )
+
+        try:
+            reopened = await _try_reclaim()
+        except RuntimeError as exc:
+            if not is_page_ownership_error(exc):
+                raise
+            _LOGGER.warning(
+                "MUX_HEAL_OWNERSHIP_RESET: reclaim failed (%s) — reset_after_orphan",
+                str(exc)[:200],
+            )
+            await asyncio.to_thread(self._client.reset_after_orphan)
+            try:
+                reopened = await _try_reclaim()
+            except RuntimeError as exc2:
+                if not is_page_ownership_error(exc2):
+                    raise
+                _LOGGER.warning(
+                    "MUX_HEAL_NEW_PAGE: reclaim still failed — opening fresh page"
+                )
+                fresh = await asyncio.to_thread(
+                    self._client.new_page,
+                    f"{self._base_url.rstrip('/')}/",
+                    120_000,
+                )
+                if fresh is None:
+                    raise RuntimeError(
+                        "new_page returned no page after ownership heal"
+                    ) from exc2
+                reopened = fresh
         self._page = reopened
         self._reset_shell_layout_wait_clock()
         await asyncio.sleep(1.0)

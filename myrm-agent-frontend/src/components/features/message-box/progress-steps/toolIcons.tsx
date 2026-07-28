@@ -229,6 +229,9 @@ export const TOOL_CATEGORY_MAP: Record<string, ToolCategory> = {
 
   // 工具调用类
   mcp_tool: 'tool',
+  mcp_tool_search: 'search',
+  mcp_tool_describe: 'tool',
+  mcp_tool_call: 'tool',
 };
 
 // 系统步骤 -> 类别映射

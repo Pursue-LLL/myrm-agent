@@ -6,7 +6,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `orchestrator.py` | 核心 | 流式会话主编排：持久化用户消息、参数转换、Goal/Steering 注册、装配 `AgentStreamSession`；Memory Brief 预检结果写入 `memory_brief_status`（ready/skipped）；普通回合（非长任务、非 resume）在 stream launch 前写入 `InterruptedTurnMarker`（crash auto-continue write-ahead marker） | ✅ |
+| `orchestrator.py` | 核心 | 流式会话主编排：**`ChatSessionReservation.try_reserve` 在 persist 前**（零 TOCTOU）；busy → `agent_busy_streaming_response`；成功路径 `transfer_to_stream` + `launch_buffered_stream`；`finally` release 预占 | ✅ |
 | `stream_session_types.py` | 核心 | `AgentStreamSession` 数据类与断连宽限常量；承载流式会话起点时钟与端到端 TTFT 采样值（`stream_started_at_monotonic` / `stream_ttft_ms`） | ✅ |
 | `stream_disconnect.py` | 核心 | PWA 断连宽限与 Offline Durable Guardian 注册 | ✅ |
 | `memory_brief.py` | 核心 | 发送后首 token 前的记忆简报预计算（同源 snapshot + 预览 payload） | ✅ |
@@ -17,7 +17,9 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | `stream_finalize.py` | 核心 | 流错误处理与会话 teardown；回合正常结束后清除 `InterruptedTurnMarker`（crash auto-continue write-ahead marker）；致命异常（MyrmLLMError/AgentExecutionTimeout/Resume fail/通用 Exception）设置 `session.had_fatal_error`；`asyncio.CancelledError` 分支调 `kill_session_jobs(chat_id)` 覆盖 SSE 硬断;持久化阶段总是尝试读取 harness memory telemetry 并写入 `memoryBriefSnapshotId`/`memoryBriefStatus`（含 `injection` 语义），并持久化端到端 TTFT（`streamTtftMs`）；当缺少预检状态但 runtime injection 存在时持久化 `skipped + source=runtime_fallback + injection`，`memoryBudget` 保持独立于 citations 持久化；persist 前调用 `merge_memory_citation_fallback` 回填 `citedMemoryIds`；citations 去重保持首见顺序确保首屏与刷新后展示一致；归一化后的 `memoryBriefStatus` 额外以 `phase=persist` 进入 server→control-plane 聚合遥测队列（批量上报）；若请求携带 migration readiness anchor，则在 finalize 记录首轮执行结果（success/failed/no_output）回写导入账本用于 readiness↔首轮成功率对账；finalize 末尾 fire-and-forget 触发 `trigger_skill_evolution`（普通对话按 tool_steps 门控，DW 直接传 collector content）；跨轮次 `data_update` 调用 `ui_artifact_patch.patch_ui_artifact_data_updates` 写回宿主消息；GA LangGraph resume 成功或 DR `status clarify/resolved` 后倒序扫描 assistant 行，将最新未答 `extra_data.clarification.answered=true` 写回 DB（与 ui_artifact_patch 同模式，不用 API message_id）；pending clarification 或 collector `clarification.answered=false` 时注册 900s no_answer auto-resume（有未答 clarify 时不挂 approval 300s） | ✅ |
 | `migration_readiness_anchor.py` | 辅助 | 迁移 readiness 双锚记录助手：消费 `migration_readiness_anchor`（import_batch_id），按 stream finalize 信号归类首轮结果（success/failed/no_output）；preflight 未写入 live 状态时 finalize 再 live-resolve 一次，永不用 anchor 快照作 truth | ✅ |
 | `migration_readiness_preflight.py` | 辅助 | 迁移 readiness 软门禁：anchor 携带 batch_id 时 live-resolve readiness，在 stream 早期对 warning/critical 发射 issue-aware `capability_gap`（含 settings_path）；生产仅 async `resolve_and_build_*`；不阻断执行、不改 Turn1 工具绑定 | ✅ |
-| `stream_pump.py` | 核心 | 将 chunk 泵入 `GlobalStreamRegistry` buffer 并返回 `StreamingResponse`；离线长任务完成/失败时创建 SystemNotification（`stream_had_error` chunk 检测 + `session.had_fatal_error` 语义标志双保险分流 success/error 类型） | ✅ |
+| `stream_pump.py` | 核心 | 将 chunk 泵入 `GlobalStreamRegistry` buffer；**multiplexed 成功 → JSON accepted**；非 multiplex → `StreamingResponse`；离线长任务 SystemNotification | ✅ |
+| `session_reservation.py` | 辅助 | `ChatSessionReservation`：orchestrator persist 前 gateway 预占/early exit release/transfer 至 execute_stream | ✅ |
+| `stream_busy.py` | 辅助 | `agent_busy_streaming_response`：HTTP 200 + SSE `{type:error, error_type:AgentBusyError, status_code:409}` SSOT | ✅ |
 | `stream_generator.py` | 门面 | 对外 re-export：`AgentStreamSession`、`build_disconnect_checker`、`generate_cancellable_stream`、`launch_buffered_stream` | ✅ |
 | `stream_lane_factory.py` | 核心 | Dynamic Workflow / Deep Research / Fast Lane / Consensus SSE 工厂；DR 完成回调经 `resolve_wiki_vault_path(agent_id)` 写 raw + 编译入队 | ✅ |
 | `reconnect.py` | 辅助 | Last-Event-ID SSE 重连 | ✅ |

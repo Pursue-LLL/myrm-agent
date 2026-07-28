@@ -224,6 +224,7 @@ def restart_textedit_fixture_process() -> None:
         _force_kill_textedit_process(include_sigkill=False)
     time.sleep(0.6)
     prepare_textedit_fixture()
+    time.sleep(1.5)
 
 
 def hide_textedit_fixture() -> None:
@@ -348,7 +349,7 @@ def ensure_textedit_ax_ready(*, attempts: int = 3) -> bool:
         )
         if attempt < attempts:
             restart_textedit_fixture_process()
-            time.sleep(0.6)
+            time.sleep(1.0)
     progress(f"textedit AX probe exhausted: {last_detail}")
     return False
 
@@ -376,7 +377,7 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
                     f"(remaining={degraded_remaining}s detail={degraded_detail})"
                 )
                 return
-            ax_ready = await asyncio.to_thread(ensure_textedit_ax_ready, attempts=2)
+            ax_ready = await asyncio.to_thread(ensure_textedit_ax_ready, attempts=4)
             if ax_ready:
                 progress("textedit fixture ready (foreground + AX refs for @drefs)")
                 return

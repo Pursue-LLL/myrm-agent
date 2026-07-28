@@ -20,7 +20,9 @@ from tests.support.chrome_mcp_e2e import (
 
 
 def _seed_stream_retry_busy_fixture(api_url: str) -> dict[str, str]:
-    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-stream-retry-busy-fixture")
+    seeded = http_json(
+        "POST", f"{api_url}/api/v1/chats/test/seed-stream-retry-busy-fixture"
+    )
     assert isinstance(seeded, dict)
     chat_id = str(seeded.get("chat_id") or "")
     message_id = str(seeded.get("message_id") or "")
@@ -80,6 +82,18 @@ def _user_count_probe(chat_id: str) -> str:
 }})()"""
 
 
+def _retry_stream_ui_probe(query: str, message_id: str) -> str:
+    query_json = json.dumps(query)
+    message_id_json = json.dumps(message_id)
+    return f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.retryStreamWithSameMessageId) {{
+    return {{ ok: false, busy: false, err: 'no-bridge' }};
+  }}
+  return await bridge.retryStreamWithSameMessageId({query_json}, {message_id_json});
+}})()"""
+
+
 def _attach_chat_probe(chat_id: str) -> str:
     chat_id_json = json.dumps(chat_id)
     return f"""(async () => {{
@@ -130,7 +144,9 @@ def test_stream_retry_same_message_id_is_busy_without_duplicate_user_row() -> No
                 timeout_sec=90.0,
             )
             assert isinstance(attached, dict) and attached.get("ok") is True, attached
-            snap = attached.get("snap") if isinstance(attached.get("snap"), dict) else {}
+            snap = (
+                attached.get("snap") if isinstance(attached.get("snap"), dict) else {}
+            )
             baseline_users = snap.get("userCount")
             assert isinstance(baseline_users, int) and baseline_users >= 1
 
@@ -141,6 +157,15 @@ def test_stream_retry_same_message_id_is_busy_without_duplicate_user_row() -> No
                 query=query,
             )
             assert "AgentBusyError" in busy_snippet, busy_snippet[:500]
+
+            ui_retry = client.evaluate(
+                page,
+                _retry_stream_ui_probe(query, message_id),
+                timeout_sec=90.0,
+            )
+            assert isinstance(ui_retry, dict), ui_retry
+            assert ui_retry.get("busy") is True, ui_retry
+            assert ui_retry.get("ok") is not True, ui_retry
 
             after = wait_for_state(
                 client,

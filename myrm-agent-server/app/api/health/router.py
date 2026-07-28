@@ -341,7 +341,11 @@ async def list_browser_orphans() -> dict[str, object]:
     return {
         "count": len(orphans),
         "orphans": orphans,
-        "message": (f"Found {len(orphans)} orphan automation process(es)" if orphans else "No orphan processes found"),
+        "message": (
+            f"Found {len(orphans)} orphan automation process(es)"
+            if orphans
+            else "No orphan processes found"
+        ),
     }
 
 
@@ -387,7 +391,9 @@ async def cleanup_browser_orphans(
             "failed": result.get("failed", []),
         }
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to process orphans: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Failed to process orphans: {exc}"
+        ) from exc
 
 
 @router.post("/browser/test-cloud-connection")
@@ -408,7 +414,10 @@ async def test_cloud_browser_connection() -> dict[str, object]:
 
     record = await config_service.get("browserCloudProvider")
     if not record:
-        return {"status": "not_configured", "message": "No cloud browser provider configured"}
+        return {
+            "status": "not_configured",
+            "message": "No cloud browser provider configured",
+        }
 
     config = BrowserCloudProviderConfigValue.model_validate(record.value)
     if not config.enabled:
@@ -416,7 +425,10 @@ async def test_cloud_browser_connection() -> dict[str, object]:
 
     endpoint = config.resolve_ws_endpoint()
     if not endpoint:
-        return {"status": "invalid", "message": "Cannot resolve WebSocket endpoint (missing credential?)"}
+        return {
+            "status": "invalid",
+            "message": "Cannot resolve WebSocket endpoint (missing credential?)",
+        }
 
     try:
         import websockets
@@ -447,7 +459,10 @@ async def test_cloud_browser_connection() -> dict[str, object]:
                             "message": f"Successfully connected to {config.provider} ({latency_ms}ms)",
                         }
         except ImportError:
-            return {"status": "error", "message": "No WebSocket library available (install websockets or aiohttp)"}
+            return {
+                "status": "error",
+                "message": "No WebSocket library available (install websockets or aiohttp)",
+            }
         except Exception as exc:
             return {"status": "failed", "provider": config.provider, "error": str(exc)}
     except Exception as exc:
@@ -485,7 +500,9 @@ async def test_browser_proxy_connection() -> dict[str, object]:
     proxy_url = config.proxies[0]
     try:
         start = _time.perf_counter()
-        async with httpx.AsyncClient(proxy=proxy_url, timeout=10.0, verify=False) as client:  # noqa: S501
+        async with httpx.AsyncClient(
+            proxy=proxy_url, timeout=10.0, verify=False
+        ) as client:  # noqa: S501
             resp = await client.get("https://httpbin.org/ip")
             latency_ms = round((_time.perf_counter() - start) * 1000)
             if resp.status_code == 200:
@@ -515,7 +532,9 @@ async def system_doctor() -> dict[str, object]:
     聚合底层 Harness 框架与 Server 业务层的健康检查报告，
     返回给前端的“系统状态大屏”呈现。
     """
-    from myrm_agent_harness.observability.diagnostics.protocols import redact_health_report
+    from myrm_agent_harness.observability.diagnostics.protocols import (
+        redact_health_report,
+    )
 
     from app.core.infra.health.health_alert_policy import publish_health_alerts
     from app.core.infra.health.health_presenter import present_health_report
@@ -545,7 +564,9 @@ async def system_doctor() -> dict[str, object]:
     }
 
 
-@router.post("/repair-actions/{action_id}/execute", response_model=RepairActionExecuteResult)
+@router.post(
+    "/repair-actions/{action_id}/execute", response_model=RepairActionExecuteResult
+)
 async def execute_health_repair_action(
     action_id: RepairActionId,
     request: RepairActionExecuteRequest,
@@ -595,14 +616,19 @@ async def reset_database() -> dict[str, str]:
         return {"status": "success", "message": "Database has been reset successfully."}
     except Exception as e:
         logger.error("Failed to reset database: %s", e)
-        raise HTTPException(status_code=500, detail=f"Failed to reset database: {e}") from e
-
+        raise HTTPException(
+            status_code=500, detail=f"Failed to reset database: {e}"
+        ) from e
 
 
 @router.get("/resources")
 async def resource_health_check(
-    auto_recover: bool = Query(False, description="Automatically recover unhealthy resources"),
-    force_recovery: bool = Query(False, description="Allow dangerous recovery actions (SQLite WAL deletion)"),
+    auto_recover: bool = Query(
+        False, description="Automatically recover unhealthy resources"
+    ),
+    force_recovery: bool = Query(
+        False, description="Allow dangerous recovery actions (SQLite WAL deletion)"
+    ),
 ) -> dict[str, object]:
     """Resource-level health check (Qdrant, SQLite, Browser).
 
@@ -632,7 +658,11 @@ async def resource_health_check(
                 "status": check_result.status.value if check_result else "unknown",
                 "message": check_result.message if check_result else "No check result",
                 "details": check_result.details if check_result else None,
-                "checked_at": (check_result.checked_at.isoformat() if check_result and check_result.checked_at else None),
+                "checked_at": (
+                    check_result.checked_at.isoformat()
+                    if check_result and check_result.checked_at
+                    else None
+                ),
             }
 
             if recovery_result:
@@ -641,7 +671,11 @@ async def resource_health_check(
                     "message": recovery_result.message,
                     "actions_taken": recovery_result.actions_taken,
                     "details": recovery_result.details,
-                    "recovered_at": (recovery_result.recovered_at.isoformat() if recovery_result.recovered_at else None),
+                    "recovered_at": (
+                        recovery_result.recovered_at.isoformat()
+                        if recovery_result.recovered_at
+                        else None
+                    ),
                 }
 
             formatted_results.append(item)
@@ -655,4 +689,6 @@ async def resource_health_check(
 
     except Exception as exc:
         logger.error("Resource health check failed: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Resource health check failed: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Resource health check failed: {exc}"
+        ) from exc

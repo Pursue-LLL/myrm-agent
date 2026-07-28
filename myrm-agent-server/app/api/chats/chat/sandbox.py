@@ -70,16 +70,13 @@ async def _resolve_chat_base_dir(chat_id: str) -> tuple[str | None, str | None]:
     if not chat:
         return None, None
 
-    sandbox_base = chat.sandbox_base_dir
+    from app.services.chat.effective_workspace import resolve_effective_chat_workspace
 
-    if chat.project_id:
-        from app.services.project.project_service import ProjectService
-
-        project = await ProjectService.get_project(chat.project_id)
-        if project and project.workspace_path:
-            return project.workspace_path, sandbox_base
-
-    return chat.workspace_dir, sandbox_base
+    effective_dir = await resolve_effective_chat_workspace(
+        chat,
+        jit_fallback=False,
+    )
+    return effective_dir, chat.sandbox_base_dir
 
 
 @router.post("/{chat_id}/sandbox/enable")

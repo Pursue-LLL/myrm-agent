@@ -11,6 +11,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -25,9 +26,16 @@ interface TrendDataPoint {
   execution_count: number;
 }
 
+interface EvolutionEvent {
+  date: string;
+  skill_name?: string;
+  before_score?: number | null;
+}
+
 interface TrendsData {
   skill_id?: string;
   data_points: TrendDataPoint[];
+  evolution_events?: EvolutionEvent[];
   time_range_days: number;
   interval_hours?: number;
 }
@@ -187,6 +195,28 @@ export function SkillQualityTrendChart({
                   name={t('tokenEfficiency') || 'Token效率'}
                 />
               )}
+              {trendsData?.evolution_events?.map((event, idx) => {
+                const dateLabel = new Date(event.date).toLocaleDateString('zh-CN', {
+                  month: 'short',
+                  day: 'numeric',
+                });
+                return (
+                  <ReferenceLine
+                    key={`evo-${idx}`}
+                    x={dateLabel}
+                    stroke="hsl(var(--primary))"
+                    strokeDasharray="4 2"
+                    strokeOpacity={0.6}
+                    label={{
+                      value: 'E',
+                      position: 'top',
+                      fill: 'hsl(var(--primary))',
+                      fontSize: 10,
+                      fontWeight: 600,
+                    }}
+                  />
+                );
+              })}
             </LineChart>
           </ResponsiveContainer>
         )}

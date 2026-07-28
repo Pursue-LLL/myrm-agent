@@ -124,9 +124,10 @@ class CdpChatTurn(CdpChatSubmit):
                 except OSError:
                     api_ok = False
                 if api_ok and bridge_id == chat_id:
-                    if is_live_send_turn_profile() and not ui_progress:
-                        pass
-                    else:
+                    if (
+                        not is_live_send_turn_profile()
+                        and ui_progress
+                    ):
                         last["chatId"] = chat_id
                         last["okViaApi"] = True
                         return last
@@ -179,6 +180,8 @@ class CdpChatTurn(CdpChatSubmit):
         *,
         min_user_msgs: int,
     ) -> dict[str, object] | None:
+        if is_live_send_turn_profile():
+            return None
         try:
             if not chat_messages_have_ok(chat_id, min_user_count=min_user_msgs):
                 return None
@@ -203,6 +206,11 @@ class CdpChatTurn(CdpChatSubmit):
         last: dict[str, object] = {}
 
         def _finish(chat_id: str, payload: dict[str, object]) -> dict[str, object]:
+            if is_live_send_turn_profile() and bool(payload.get("okViaApi")):
+                raise SendTurnError(
+                    SendTurnPhase.OBSERVE,
+                    "okViaApi completion forbidden in LIVE profile",
+                )
             payload["chatId"] = chat_id
             payload["okViaApi"] = payload.get("okViaApi", True)
             maybe_register_e2e_chat(chat_id)

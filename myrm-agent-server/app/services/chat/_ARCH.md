@@ -39,6 +39,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `share_token.py` | ✅ 辅助 | 对话分享 HMAC+TTL 无状态签名 token 创建与验证 | ✅ |
 | `share_renderer.py` | ✅ 辅助 | 对话分享只读 HTML 页面 SSR 渲染（markdown-it-py Markdown 渲染 + Agent 身份卡片 + 消息历史 + OG metadata + Dark Mode + XSS 防护） | ✅ |
 | `sandbox_worktree.py` | ✅ 辅助 | Git worktree 生命周期管理：create/cleanup/merge/status，供 converter.py 和 sandbox API 共用 | ✅ |
+| `effective_workspace.py` | ✅ 核心 | SSOT：`resolve_effective_chat_workspace` — project.workspace_path > chat.workspace_dir > JIT sandbox；供 GET chat、converter、sandbox API、files suggest/browse、fork、`ensure_default_workspace_dir` 共用 | ✅ |
 
 ---
 

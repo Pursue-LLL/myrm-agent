@@ -42,10 +42,10 @@ def test_r43_caps_high_desktop_timeout_mark_to_600() -> None:
     assert int(timeout_marker.args[0]) == 600
 
 
-def test_r43_caps_takeover_live_timeout_mark_to_600() -> None:
+def test_r43_caps_takeover_live_timeout_mark_to_lane_floor() -> None:
     item = _TimeoutCapItem()
     item.own_markers.append(pytest.mark.chrome_e2e_browser_takeover_live)
     _apply_chrome_e2e_lane_timeout(item)
     timeout_marker = item.get_closest_marker("timeout")
     assert timeout_marker is not None
-    assert int(timeout_marker.args[0]) == 600
+    assert int(timeout_marker.args[0]) == 1110

@@ -525,3 +525,34 @@ def test_build_context_health_includes_archive_summary_metrics() -> None:
     assert health.pruning.archive_summary_skipped_count == 1
     assert health.pruning.archive_summary_skipped_reasons == {"store_unavailable": 1}
     assert health.pruning.active is True
+
+
+def test_compaction_health_includes_elapsed_ms() -> None:
+    task_metrics = {
+        "compression_count": 2,
+        "total_tokens_saved": 4_000,
+        "net_tokens_saved": 3_500,
+        "compression_efficiency": 0.3,
+        "refetch_count": 0,
+        "refetch_ratio": 0.0,
+        "compression_events": [],
+        "avg_compression_elapsed_ms": 2500,
+        "last_compression_elapsed_ms": 1800,
+    }
+    health = build_context_health(
+        message_stats={"calls": 1, "inputTokens": 1000, "cachedTokens": 0, "cacheHitRate": 0.0},
+        task_metrics=task_metrics,
+        chat_compaction=build_chat_compaction_snapshot(compacted_at=None, compacted_tokens_saved=None),
+    )
+    assert health.compaction.avg_elapsed_ms == 2500
+    assert health.compaction.last_elapsed_ms == 1800
+
+
+def test_compaction_health_elapsed_ms_defaults_to_zero() -> None:
+    health = build_context_health(
+        message_stats={"calls": 0, "inputTokens": 0, "cachedTokens": 0, "cacheHitRate": 0.0},
+        task_metrics={},
+        chat_compaction=build_chat_compaction_snapshot(compacted_at=None, compacted_tokens_saved=None),
+    )
+    assert health.compaction.avg_elapsed_ms == 0
+    assert health.compaction.last_elapsed_ms == 0

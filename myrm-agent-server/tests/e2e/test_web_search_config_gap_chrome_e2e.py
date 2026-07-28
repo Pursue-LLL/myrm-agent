@@ -350,12 +350,6 @@ async def _send_and_collect_gap_while_streaming(
     await asyncio.to_thread(_assert_search_cleared, api_base)
     await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
 
-    live_gaps = await asyncio.to_thread(_collect_gap_from_live_api, api_base)
-    assert live_gaps, (
-        f"private API must emit capability_gap preflight when searchServices empty; "
-        f"api={api_base}"
-    )
-
     idle = await chat.evaluate(
         _WAIT_CHAT_IDLE_JS,
         await_promise=True,
@@ -498,7 +492,6 @@ async def _send_and_collect_gap_while_streaming(
         recv_timeout=15.0,
     )
     diag = diag_raw if isinstance(diag_raw, dict) else {"value": diag_raw}
-    diag["apiPreflightGaps"] = live_gaps
     diag_sse = diag.get("sse") if isinstance(diag.get("sse"), list) else []
     diag_all_sse = diag.get("allSse") if isinstance(diag.get("allSse"), list) else []
     if "capability_gap" not in best_sse and "capability_gap" in diag_sse:
@@ -507,48 +500,6 @@ async def _send_and_collect_gap_while_streaming(
         best_sse = list(diag_all_sse)
     best_toast = {**best_toast, "peakCount": peak_toast_count}
     return best_toast, best_sse, send_result, diag
-
-
-def _collect_gap_from_live_api(api_base: str) -> list[dict[str, object]]:
-    import urllib.error
-    import urllib.request
-    import uuid
-
-    from tests.api.agent.utils import get_lite_model_selection
-
-    chat_id = f"e2e_probe_{uuid.uuid4().hex[:8]}"
-    payload = {
-        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
-        "chatId": chat_id,
-        "query": AGENT_PROMPT,
-        "actionMode": "agent",
-        "modelSelection": get_lite_model_selection(),
-        "agentConfig": {"enabledBuiltinTools": ["web_search", "memory"]},
-        "timezone": "UTC",
-    }
-    gaps: list[dict[str, object]] = []
-    req = urllib.request.Request(  # noqa: S310
-        f"{api_base.rstrip('/')}/api/v1/agents/agent-stream",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
-        for raw_line in resp:
-            line = raw_line.decode("utf-8", errors="replace").strip()
-            if not line.startswith("data: "):
-                continue
-            data = line[6:]
-            if data == "[DONE]":
-                break
-            try:
-                event = json.loads(data)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(event, dict) and event.get("type") == "capability_gap":
-                gaps.append(event)
-                break
-    return gaps
 
 
 def _assert_search_cleared(api_base: str) -> None:
@@ -654,16 +605,11 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
                 )
 
             if "capability_gap" not in recorded_sse:
-                preflight_gaps = diag.get("apiPreflightGaps")
-                if isinstance(preflight_gaps, list) and preflight_gaps:
-                    recorded_sse = ["capability_gap"]
-                else:
-                    api_gaps = await asyncio.to_thread(_collect_gap_from_live_api, api_base)
-                    assert api_gaps, (
-                        "expected capability_gap in UI sseSnapshot or live API stream; "
-                        f"send={send!r}; sse={recorded_sse!r}; diag={diag!r}"
-                    )
-                    recorded_sse = ["capability_gap"]
+                pytest.fail(
+                    "expected capability_gap in browser sseSnapshot (Dual-Plane: "
+                    "API gap covered by integration tests); "
+                    f"send={send!r}; sse={recorded_sse!r}; diag={diag!r}"
+                )
 
             assert (
                 "capability_gap" in recorded_sse

@@ -203,6 +203,75 @@ describe('streamConsumer resilience paths', () => {
     expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
   });
 
+  it('throws AgentBusyError on HTTP 200 SSE error_type AgentBusyError (production path)', async () => {
+    const state = createBaseState();
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    const busyEvent = {
+      type: 'error',
+      error_type: 'AgentBusyError',
+      status_code: 409,
+      messageId: 'msg-busy-sse',
+      data: 'Agent is busy processing another request for this session.',
+    };
+    mockCreateMessageRequest.mockResolvedValue(
+      createSseResponse(`data: ${JSON.stringify(busyEvent)}\n\n`),
+    );
+    mockParseSseEnvelope.mockReturnValue(busyEvent);
+
+    await expect(
+      executeStreamWithRetry(
+        'hello',
+        'msg-busy-sse',
+        state,
+        actions,
+        null,
+        abortController,
+        false,
+        '',
+      ),
+    ).rejects.toBeInstanceOf(AgentBusyError);
+
+    expect(mockHandleMessageStream).not.toHaveBeenCalled();
+    expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws AgentBusyError on multiplex POST when body is direct SSE busy envelope', async () => {
+    const state = createBaseState({ chatId: 'chat-multiplex-busy', actionMode: 'agent' });
+    const actions = createActions(state);
+    const abortController = new AbortController();
+    const busyEvent = {
+      type: 'error',
+      error_type: 'AgentBusyError',
+      status_code: 409,
+      messageId: 'msg-multiplex-busy',
+      data: 'Agent is busy processing another request for this session.',
+    };
+    (window as Window & { __MYRM_E2E_DIRECT_SSE__?: boolean }).__MYRM_E2E_DIRECT_SSE__ = false;
+    mockResolveE2eApiBase.mockReturnValue(null);
+    mockCreateMultiplexReadableStream.mockReturnValue(createChunkStream(''));
+    mockCreateMessageRequest.mockResolvedValue(
+      createSseResponse(`data: ${JSON.stringify(busyEvent)}\n\n`),
+    );
+    mockParseSseEnvelope.mockReturnValue(busyEvent);
+
+    await expect(
+      executeStreamWithRetry(
+        'hello',
+        'msg-multiplex-busy',
+        state,
+        actions,
+        null,
+        abortController,
+        false,
+        '',
+      ),
+    ).rejects.toBeInstanceOf(AgentBusyError);
+
+    expect(mockHandleMessageStream).not.toHaveBeenCalled();
+    expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
+  });
+
   it('throws FatalNetworkError for non-retryable HTTP status', async () => {
     const state = createBaseState();
     const actions = createActions(state);

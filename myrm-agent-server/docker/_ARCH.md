@@ -33,7 +33,7 @@ Runtime 阶段 `COPY shared /shared`，供 [providers.py](../app/services/agent/
 docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:local .
 ```
 
-Builder：`uv sync --frozen --all-extras`（含 `compiled-core`；`pyproject.toml` 设 `prerelease=allow` 与 `index-url=pypi.org`）。PyPI 未发布时 CI 失败（无 silent fallback）。Runtime：`python -m myrm_agent_harness._verify_distribution --matplotlib-cjk`（公开 Dockerfile 不依赖 console script  shim）。
+Builder：`uv sync --frozen --all-extras`（含 `compiled-core`；`pyproject.toml` 设 `prerelease=allow` 与 `index-url=pypi.org`）。PyPI 未发布时 CI 失败（无 silent fallback）。Runtime：`python -m myrm_agent_harness.distribution.verify --matplotlib-cjk`（公开 Dockerfile 不依赖 console script  shim）。
 
 Lock 约束：`tests/architecture/test_uv_lock_harness_registry.py` 要求 `uv.lock` 使用 PyPI registry pin。
 

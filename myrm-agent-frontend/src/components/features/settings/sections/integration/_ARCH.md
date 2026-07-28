@@ -13,7 +13,7 @@
 | `CredentialsSection.tsx` | 凭证管理（re-export → `credentials/CredentialsSection`） |
 | `credentials/` | Vault / 文件 / OAuth 凭证子模块 · [credentials/_ARCH.md](credentials/_ARCH.md) |
 | `ExternalAgentsConfig.tsx` / `ExternalAgentAuthControls.tsx` | 外部 Agent 连接配置 |
-| `OpenAIApiSection.tsx` | OpenAI 兼容 API 设置 |
+| `OpenAIApiSection.tsx` | Agent API 设置（OpenAI 兼容端点，仅 Agent 执行） |
 | `CommunicationSection.tsx` | 渠道 Tab 容器（聚合 `channels/`） |
 | `integrations/` | Integration Catalog、连接对话框、记忆绑定 |
 | `channels/` | 各 IM 渠道配置卡片与路由 | [channels/_ARCH.md](channels/_ARCH.md) |

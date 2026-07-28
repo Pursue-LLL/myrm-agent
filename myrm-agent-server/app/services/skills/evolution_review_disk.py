@@ -1,8 +1,10 @@
 """
 [INPUT]
 - app.services.skills.evolution_review_types::EvolutionApprovalPayload
+- app.adapters.skill_optimization.quality_repo::QualityRepository (POS: 质量数据 CRUD)
 [OUTPUT]
 - Description/content apply orchestration, shadow apply, approval apply pipeline
+- _fetch_before_quality_score: 进化前质量分数获取
 [POS]
 Evolution 落盘编排（description / shadow / approval 成功路径）。
 """
@@ -179,6 +181,21 @@ async def apply_content_shadow(payload: EvolutionApprovalPayload) -> None:
     await start_shadow_ab_test(storage, payload.skill_id, payload.evolved_content)
 
 
+async def _fetch_before_quality_score(skill_id: str) -> float | None:
+    """Retrieve the latest quality score before evolution is applied."""
+    from app.database.connection import get_session
+    from app.adapters.skill_optimization.quality_repo import QualityRepository
+
+    try:
+        async with get_session() as db:
+            repo = QualityRepository(db)
+            latest = await repo.get_latest_quality(skill_id)
+            return latest.overall_score if latest else None
+    except Exception as exc:
+        logger.debug("Could not fetch before_quality_score for %s: %s", skill_id, exc)
+        return None
+
+
 async def apply_approval_record(
     record: ApprovalRecord,
     *,
@@ -188,6 +205,8 @@ async def apply_approval_record(
     payload = approval_payload(record)
     if payload is None:
         raise EvolutionApplyError("Evolution approval payload is invalid.")
+
+    before_quality_score = await _fetch_before_quality_score(payload.skill_id)
 
     try:
         await apply_to_disk_and_store(payload, agent_id=record.agent_id, apply_mode=apply_mode)
@@ -207,6 +226,14 @@ async def apply_approval_record(
         payload=payload,
         resolved_at=datetime.now(timezone.utc),
     )
+
+    metrics: dict[str, object] = {
+        "confidence": payload.confidence,
+        "test_passed": payload.test_passed,
+    }
+    if before_quality_score is not None:
+        metrics["before_quality_score"] = before_quality_score
+
     await record_experience_event(
         ExperienceLedgerWrite(
             event_type=ExperienceEventType.EVOLUTION_APPROVED,
@@ -219,10 +246,7 @@ async def apply_approval_record(
                 "skill_id": payload.skill_id,
                 "skill_name": payload.skill_name,
             },
-            metrics_snapshot={
-                "confidence": payload.confidence,
-                "test_passed": payload.test_passed,
-            },
+            metrics_snapshot=metrics,
             detail={
                 "evolution_type": payload.evolution_type,
                 "skill_path": payload.skill_path,

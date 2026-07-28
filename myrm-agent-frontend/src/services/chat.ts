@@ -218,6 +218,21 @@ export const browseWorkspaceFiles = async (path: string, depth: number = 2): Pro
   return apiRequest(`/files/browse/files?${params}`);
 };
 
+/** Register server-side workspace directory watch for SSE auto-refresh. */
+export const registerWorkspaceWatch = async (workspace: string): Promise<{ workspace: string }> => {
+  return apiRequest('/files/browse/watch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workspace }),
+  });
+};
+
+/** Release server-side workspace directory watch registration. */
+export const unregisterWorkspaceWatch = async (workspace: string): Promise<{ workspace: string }> => {
+  const params = new URLSearchParams({ workspace });
+  return apiRequest(`/files/browse/watch?${params}`, { method: 'DELETE' });
+};
+
 /**
  * Get workspace file content URL for preview or download
  */
@@ -856,6 +871,7 @@ export const resumePlanConfirmStream = async (
     throw new Error(`Plan confirm resume failed: HTTP ${response.status}`);
   }
 
+  const { AgentBusyError, isAgentBusySseEvent } = await import('@/store/chat/streamConsumer');
   const { handleMessageStream } = await import('@/store/chat/messageStreamHandler');
   const { AdaptiveScheduler } = await import('@/store/chat/adaptiveScheduler');
   const reader = response.body?.getReader();
@@ -886,6 +902,9 @@ export const resumePlanConfirmStream = async (
     for (const line of lines) {
       try {
         const json = JSON.parse(line.replace(/^data:\s*/, ''));
+        if (isAgentBusySseEvent(json as { type: string } & Record<string, unknown>)) {
+          throw new AgentBusyError('Agent is busy processing another request for this session.');
+        }
         const result = await handleMessageStream(json, '', sources, added, recievedMessage, streamState, {
           setMessages: setMessagesAdapter,
           setMessageAppeared: chatState.setMessageAppeared || (() => {}),
@@ -896,6 +915,9 @@ export const resumePlanConfirmStream = async (
         added = result.added;
         recievedMessage = result.recievedMessage;
       } catch (error) {
+        if (error instanceof AgentBusyError) {
+          throw error;
+        }
         console.error('[PLAN_CONFIRM] Stream parse error:', error);
       }
     }

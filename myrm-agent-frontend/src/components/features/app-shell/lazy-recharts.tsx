@@ -27,6 +27,7 @@ export const PolarAngleAxis = lazyRechartsComponent('PolarAngleAxis');
 export const PolarGrid = lazyRechartsComponent('PolarGrid');
 export const Radar = lazyRechartsComponent('Radar');
 export const RadarChart = lazyRechartsComponent('RadarChart');
+export const ReferenceLine = lazyRechartsComponent('ReferenceLine');
 export const ResponsiveContainer = lazyRechartsComponent('ResponsiveContainer');
 export const Tooltip = lazyRechartsComponent('Tooltip');
 export const XAxis = lazyRechartsComponent('XAxis');

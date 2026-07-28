@@ -167,10 +167,16 @@ async def suggest_references(
 
 
 async def _resolve_workspace(chat_id: str) -> str | None:
+    from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+
     chat = await ChatService.get_chat_metadata(chat_id.strip())
     if chat is None:
         raise validation_error("Unknown chat_id")
-    workspace = chat.workspace_dir or await ChatService.ensure_default_workspace_dir(chat_id.strip())
+    workspace = await resolve_effective_chat_workspace(
+        chat,
+        jit_fallback=True,
+        persist_jit=False,
+    )
     if not workspace:
         return None
     resolved = os.path.realpath(os.path.expanduser(workspace))

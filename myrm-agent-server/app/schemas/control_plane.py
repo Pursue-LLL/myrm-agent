@@ -65,6 +65,7 @@ class ContextCompressionEventSnapshot(BaseModel):
     backoff_sample_count: int = 0
     backoff_bad_signal_count: int = 0
     backoff_recovery_sample_count: int = 0
+    elapsed_ms: int = 0
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, object]) -> "ContextCompressionEventSnapshot":
@@ -95,6 +96,7 @@ class ContextCompressionEventSnapshot(BaseModel):
             backoff_sample_count=_to_int(raw.get("backoff_sample_count")),
             backoff_bad_signal_count=_to_int(raw.get("backoff_bad_signal_count")),
             backoff_recovery_sample_count=_to_int(raw.get("backoff_recovery_sample_count")),
+            elapsed_ms=_to_int(raw.get("elapsed_ms")),
         )
 
 
@@ -309,6 +311,8 @@ class ContextCompactionSnapshot(BaseModel):
     pruning_net_tokens_saved: int = 0
     refetch_events: list[ContextRefetchEventSnapshot] = Field(default_factory=list)
     task_duration_seconds: float = 0.0
+    avg_compression_elapsed_ms: int = 0
+    last_compression_elapsed_ms: int = 0
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, object]) -> "ContextCompactionSnapshot":
@@ -381,6 +385,8 @@ class ContextCompactionSnapshot(BaseModel):
             pruning_net_tokens_saved=_to_signed_int(raw.get("pruning_net_tokens_saved")),
             refetch_events=refetch_events,
             task_duration_seconds=_to_float(raw.get("task_duration_seconds")),
+            avg_compression_elapsed_ms=_to_int(raw.get("avg_compression_elapsed_ms")),
+            last_compression_elapsed_ms=_to_int(raw.get("last_compression_elapsed_ms")),
         )
 
 

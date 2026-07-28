@@ -9,6 +9,9 @@ BENIGN_CLEANUP_TOKENS: 清理阶段可忽略的错误子串元组
 PAGE_OWNERSHIP_ERROR_TOKENS: page ownership 错误子串元组
 E2E_UNIFIED_WAIT_SEC / MUX_* / LIVE_* 系列常量: 并行 cap、超时、pytest floor 等 SSOT
 chrome_e2e_skips_shared_*: 按 lane/shpoib 判断是否跳过共享资源排队
+is_e2e_signoff_runtime / resolve_e2e_wall_profile / E2E_SIGNOFF_* phase budgets: R62 four-phase lifecycle SSOT
+SIGNOFF_PYTEST_SAFE_BUFFER_SEC / clarify_skip_api_wait_sec: signoff outer kill · pytest body 600s · clarify wait 90s
+apply_chrome_e2e_pytest_timeout_args: dev floor 或 signoff ceiling 模式
 
 [POS]
 Dev Gate v2 合约常量 SSOT。定义 Chrome MCP E2E 的错误分类、并行 cap、
@@ -19,7 +22,9 @@ Dev Gate v2 合约常量 SSOT。定义 Chrome MCP E2E 的错误分类、并行 c
 from __future__ import annotations
 
 import os
-from typing import Final
+from typing import Final, Literal
+
+E2eWallProfile = Literal["dev", "signoff"]
 
 CONTRACT_VERSION: Final[str] = "2"
 
@@ -86,6 +91,18 @@ MUX_UPSTREAM_WAIT_SEC: Final[int] = 300
 MUX_UPSTREAM_POLL_SEC: Final[int] = 15
 # Single LIVE chrome_e2e test wall-clock stall budget (fail-fast, not pytest floor).
 LIVE_SINGLE_TEST_WALL_CLOCK_SEC: Final[int] = 600
+# R62: signoff four-phase budgets (ADMIT/BOOTSTRAP independent from BODY 600s).
+E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC: Final[int] = 300
+E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV: Final[int] = 180
+E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF: Final[int] = 120
+E2E_TEARDOWN_WALL_CLOCK_SEC: Final[int] = 30
+# Legacy alias: BODY budget for signoff quality gate (not queue+bootstrap merged).
+SIGNOFF_LEG_MTB_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+# R62: pytest body ceiling equals full BODY phase (bootstrap is separate).
+SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+SIGNOFF_DEDUPE_WAIT_SEC: Final[int] = 60
+SIGNOFF_HUNG_BLOCKER_ELAPSED_SEC: Final[int] = SIGNOFF_LEG_MTB_SEC
+_SIGNOFF_TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on"})
 # Holder / progress stale detection while queueing on shared_hot stream.
 STALL_PROGRESS_SEC: Final[int] = 90
 CHROME_E2E_MATRIX_TIMEOUT_SECONDS: Final[int] = 7200
@@ -109,6 +126,47 @@ E2E_RUNTIME_HEAL_AGENT_PREFIXES: Final[tuple[str, ...]] = (
     "goal-focus-",
     "execution-cache-",
 )
+
+
+def is_e2e_signoff_runtime() -> bool:
+    """True when M3 signoff thin shell exported E2E_SIGNOFF=1."""
+    return os.environ.get("E2E_SIGNOFF", "").strip().lower() in _SIGNOFF_TRUTHY
+
+
+def is_e2e_signoff_clarify_api_runtime() -> bool:
+    """True when signoff clarify leg runs API-only contract (R66, no chrome bootstrap)."""
+    return (
+        is_e2e_signoff_runtime()
+        and os.environ.get("MYRM_E2E_SIGNOFF_CLARIFY_API", "").strip().lower()
+        in _SIGNOFF_TRUTHY
+    )
+
+
+def signoff_clarify_backend_ready_wait_sec() -> int:
+    """SHPOIB provider_ready poll cap for signoff clarify API leg."""
+    if is_e2e_signoff_clarify_api_runtime():
+        return SIGNOFF_CLARIFY_BACKEND_READY_WAIT_SEC
+    override = os.environ.get("MYRM_E2E_BACKEND_READY_WAIT_SEC", "").strip()
+    if override.isdigit() and int(override) > 0:
+        return int(override)
+    return 180
+
+
+def chrome_e2e_skips_signoff_private_preflight() -> bool:
+    """Signoff clarify API-only still runs api-only preflight seed (no Chrome/mux)."""
+    return False
+
+
+def resolve_e2e_wall_profile() -> E2eWallProfile:
+    """Return dev or signoff lifecycle profile (both use four-phase budgets)."""
+    return "signoff" if is_e2e_signoff_runtime() else "dev"
+
+
+def clarify_skip_api_wait_sec() -> int:
+    """Clarify form/API pending wait budget; signoff uses shorter fail-fast window."""
+    if is_e2e_signoff_runtime():
+        return SIGNOFF_CLARIFY_SKIP_API_WAIT_SEC
+    return CLARIFY_SKIP_API_WAIT_SEC
 
 
 def formal_chrome_e2e_runtime_heal_agent(agent_id: str) -> bool:
@@ -136,6 +194,20 @@ LIVE_AGENT_STREAM_WAIT_DESKTOP_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = 600
 # SHPOIB clarify skip API poll under parallel load (API-first path).
 CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
+# M3 signoff: fail-fast clarify wait (LLM flake should not burn full BODY 600s).
+SIGNOFF_CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 90
+# R66/R67: signoff clarify SHPOIB bootstrap wait (BOOTSTRAP phase; warm pool uses 120s).
+SIGNOFF_CLARIFY_BACKEND_READY_WAIT_SEC: Final[int] = (
+    E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
+)
+# R66: signoff clarify SHPOIB cold bootstrap quality gate (BODY startup+junit excluded).
+SIGNOFF_CLARIFY_STARTUP_QUALITY_MAX_SEC: Final[int] = 90
+SIGNOFF_CLARIFY_API_SEAL_CLARIFY: Final[str] = (
+    "E2E_SIGNOFF_CLARIFY_API_SEAL: clarify_confirmed"
+)
+SIGNOFF_CLARIFY_API_SEAL_SKIP: Final[str] = (
+    "E2E_SIGNOFF_CLARIFY_API_SEAL: skip_resume_ok"
+)
 # R47: hard wall for mux page reopen/reclaim (nested call_tool must not burn 600s).
 MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC: Final[int] = 120
 SHELL_PROBE_STALL_FAIL_FAST_SEC: Final[int] = 120
@@ -149,6 +221,14 @@ SEND_TURN_LOG_TOKEN: Final[str] = "E2E_SEND_TURN"
 SEND_TURN_GENERATION_WINDOW_KEY: Final[str] = "__MYRM_E2E_SEND_GENERATION__"
 # run_pytest_safe outer budget padding beyond pytest floor (bootstrap/MCP setup).
 PYTEST_SAFE_BOOTSTRAP_BUFFER_SEC: Final[int] = 120
+# M3 signoff: outer kill aligned with R62 four-phase signoff budgets.
+SIGNOFF_PYTEST_SAFE_BUFFER_SEC: Final[int] = 60
+SIGNOFF_OUTER_KILL_SEC: Final[int] = (
+    E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+    + E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
+    + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+    + SIGNOFF_PYTEST_SAFE_BUFFER_SEC
+)
 # Stream lock holder heartbeat file (waiters read holder identity while queueing).
 LIVE_AGENT_STREAM_HOLDER_INFO_BASENAME: Final[str] = (
     "myrm-live-agent-stream.holder.json"
@@ -179,6 +259,8 @@ def chrome_e2e_pytest_safe_queue_buffer_sec(
     shpoib: bool | None = None,
 ) -> int:
     """Queue/admission wait excluded from R58 body wall clock but counted by run_pytest_safe."""
+    if resolve_e2e_wall_profile() == "signoff":
+        return E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
     resolved_shpoib = (
         shpoib
         if shpoib is not None
@@ -200,6 +282,8 @@ def chrome_e2e_pytest_safe_timeout_sec(
     joined_argv: str = "",
 ) -> int:
     """Hard timeout for run_pytest_safe wrapper across a chrome_e2e session."""
+    if resolve_e2e_wall_profile() == "signoff":
+        return SIGNOFF_OUTER_KILL_SEC
     per_item = chrome_e2e_pytest_timeout_floor(lane, joined_argv)
     normalized_count = max(1, int(item_count))
     raw = per_item * normalized_count
@@ -215,8 +299,15 @@ def chrome_e2e_pytest_safe_timeout_sec(
 
 def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
     """Lane floor with marker-aware overrides; SHPOIB admission runs inside pytest fixture."""
+    if resolve_e2e_wall_profile() == "signoff":
+        return SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC
     if CHROME_E2E_DESKTOP_MARKER in joined_argv:
         return CHROME_E2E_DESKTOP_TIMEOUT_SECONDS
+    if CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER in joined_argv:
+        return min(
+            chrome_e2e_pytest_timeout_for_lane(lane),
+            E2E_ADMISSION_WALL_CLOCK_SEC + LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
+        )
     floor = chrome_e2e_pytest_timeout_for_lane(lane)
     body_cap = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
     shpoib = os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
@@ -252,29 +343,40 @@ def live_agent_stream_wait_sec(joined_argv: str) -> int:
     return LIVE_AGENT_STREAM_WAIT_SEC
 
 
+def _normalize_pytest_timeout_value(raw: str, *, floor: int, ceiling: bool) -> str:
+    if not raw.isdigit():
+        return raw
+    value = int(raw)
+    if ceiling:
+        return str(min(value, floor))
+    if value < floor:
+        return str(floor)
+    return raw
+
+
 def apply_chrome_e2e_pytest_timeout_args(
     floor: int,
     args: tuple[str, ...],
 ) -> tuple[str, ...]:
-    """Ensure pytest CLI args include --timeout at least ``floor`` seconds."""
+    """Ensure pytest CLI --timeout respects dev floor or signoff ceiling."""
+    ceiling_mode = resolve_e2e_wall_profile() == "signoff"
     out: list[str] = []
     found = False
     next_is_timeout = False
     for arg in args:
         if next_is_timeout:
             next_is_timeout = False
-            if arg.isdigit() and int(arg) < floor:
-                out.append(str(floor))
-            else:
-                out.append(arg)
+            out.append(
+                _normalize_pytest_timeout_value(arg, floor=floor, ceiling=ceiling_mode)
+            )
             found = True
             continue
         if arg.startswith("--timeout="):
             value = arg.split("=", 1)[1]
-            if value.isdigit() and int(value) < floor:
-                out.append(f"--timeout={floor}")
-            else:
-                out.append(arg)
+            normalized = _normalize_pytest_timeout_value(
+                value, floor=floor, ceiling=ceiling_mode
+            )
+            out.append(f"--timeout={normalized}")
             found = True
         elif arg == "--timeout":
             next_is_timeout = True

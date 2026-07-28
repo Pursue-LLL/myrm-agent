@@ -23,6 +23,10 @@ import { useTheme } from 'next-themes';
 import { LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import { apiRequest } from '@/lib/api';
 
+interface QualityDelta {
+  before_score: number | null;
+}
+
 interface EvolutionRecord {
   id: string;
   skill_id: string;
@@ -36,6 +40,7 @@ interface EvolutionRecord {
   status: 'approved' | 'rejected' | 'rolled_back';
   created_at: string;
   resolved_at: string | null;
+  quality_delta?: QualityDelta;
 }
 
 export function SkillHistoryPanel({ className }: { className?: string }) {
@@ -158,6 +163,15 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
                       >
                         {t(`status.${record.status}`)}
                       </Badge>
+                      {record.quality_delta?.before_score != null && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] py-0 h-4 px-1.5 font-mono bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                          title={t('qualityBefore')}
+                        >
+                          {t('qualityBefore')}: {(record.quality_delta.before_score * 100).toFixed(0)}%
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-1 mb-1">{record.reason}</p>
                     <div className="flex items-center gap-3 text-[10px] text-muted-foreground/70">

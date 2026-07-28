@@ -20,7 +20,7 @@
 | `resumeDrawerApprovalStream.ts` | Drawer 在 HTTP resolve **之前** 触发 agent-stream resume（与主路径同机制） |
 | `buildToolApprovalRequest.ts` | SSE/WS actionRequest → ToolApprovalRequest（含 commandSpans/risks/workspaceRoot/executionIntent） |
 | `shellCommandDisplay.ts` | shell 识别、span/risk、`deriveCommandPattern` 预览（镜像 harness SSOT；vitest parity 向量） |
-| `resumeApprovalStream.ts` | 通过 SSE resume 恢复执行 |
+| `resumeApprovalStream.ts` | 通过 SSE resume 恢复执行；复用 `isAgentBusySseEvent` 对 HTTP 200 + SSE busy fail-fast |
 | `approvalAlertService.ts` | 空闲审批通知：窗口不活跃时发送系统级通知（Tauri/Browser Notification + Tab 标题闪烁 + requestUserAttention） |
 
 ## 依赖

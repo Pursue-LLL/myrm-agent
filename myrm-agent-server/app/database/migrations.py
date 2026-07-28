@@ -10,6 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 logger = logging.getLogger(__name__)
 
+# Legacy auto-generated project workspace paths pointed at non-existent sandbox dirs.
+# Users must re-bind via Mount Wizard after this one-time cleanup.
+CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL = (
+    "UPDATE projects SET workspace_path = NULL "
+    "WHERE workspace_path LIKE '/persistent/workspace/project_%'"
+)
+
 # 数据库迁移语句（按顺序执行）
 # 已完成的迁移会被清理，新迁移添加到此列表
 MIGRATION_STATEMENTS: list[str] = [
@@ -523,6 +530,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE kanban_tasks DROP COLUMN goal_id",
     "ALTER TABLE cron_jobs ADD COLUMN tools_allowed JSON",
     "ALTER TABLE wiki_evidence_metric_events ADD COLUMN context_key VARCHAR(128)",
+    CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL,
 ]
 
 # 创建索引的SQL语句列表

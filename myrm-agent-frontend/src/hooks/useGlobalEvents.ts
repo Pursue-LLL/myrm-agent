@@ -3,8 +3,9 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { toast } from '@/lib/utils/toast';
-import { API_BASE_URL, fetchWithTimeout } from '@/lib/api';
+import { toast as appToast } from '@/lib/utils/toast';
+import { fetchWithTimeout } from '@/lib/api';
+import { getNotificationStreamUrl } from '@/lib/deploy-mode';
 import { normalizeApprovalPayload } from '@/store/useApprovalStore';
 import useConfigStore from '@/store/useConfigStore';
 import { notificationService } from '@/services/notification';
@@ -61,20 +62,30 @@ export function useGlobalEvents(): void {
   const debouncedRefetches = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
-    if (!enabled) {
-      sourceRef.current?.close();
-      sourceRef.current = null;
-      return;
-    }
-
     const bc = new BroadcastChannel(BC_CHANNEL);
     let disposed = false;
     let reconciling = false;
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
     let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
 
+    const pushToast = {
+      info: (...args: Parameters<typeof appToast.info>) => {
+        if (enabled) appToast.info(...args);
+      },
+      success: (...args: Parameters<typeof appToast.success>) => {
+        if (enabled) appToast.success(...args);
+      },
+      warning: (...args: Parameters<typeof appToast.warning>) => {
+        if (enabled) appToast.warning(...args);
+      },
+      error: (...args: Parameters<typeof appToast.error>) => {
+        if (enabled) appToast.error(...args);
+      },
+      dismiss: appToast.dismiss.bind(appToast),
+    };
+
     function notifyIfLeader(title: string, body?: string, onClick?: () => void) {
-      if (isLeaderRef.current) {
+      if (isLeaderRef.current && enabled) {
         notificationService.notify(title, { body, fallbackToToast: false, onClick });
       }
     }
@@ -88,14 +99,14 @@ export function useGlobalEvents(): void {
         const displayName = payload.data.display_name ? String(payload.data.display_name) : '';
         const sender = displayName || senderId;
         const toastId = `pairing-pending-${channel}-${senderId}`;
-        toast.info(t('pairingPending', { channel, sender }), {
+        pushToast.info(t('pairingPending', { channel, sender }), {
           id: toastId,
           duration: 30_000,
           dismissible: true,
           action: {
             label: t('goToApproval'),
             onClick: () => {
-              toast.dismiss(toastId);
+              pushToast.dismiss(toastId);
               router.push('/settings/channels');
             },
           },
@@ -106,7 +117,7 @@ export function useGlobalEvents(): void {
           ? payload.data.missing_items.map((item) => String(item))
           : undefined;
         const itemsText = missingItems?.join(', ') || 'LLM provider';
-        toast.warning(t('configHealthWarning', { items: itemsText }), {
+        pushToast.warning(t('configHealthWarning', { items: itemsText }), {
           duration: 10_000,
           dismissible: true,
           action: {
@@ -143,7 +154,7 @@ export function useGlobalEvents(): void {
             mod.default.getState().openApproval(normalizedApproval);
           });
         };
-        toast.info(t('approvalRequired', { actionType }), {
+        pushToast.info(t('approvalRequired', { actionType }), {
           duration: 8_000,
           dismissible: true,
           action: {
@@ -167,7 +178,7 @@ export function useGlobalEvents(): void {
         window.dispatchEvent(new CustomEvent('approval_resolved', { detail: payload.data }));
       } else if (payload.type === 'new_skill_draft') {
         const name = String(payload.data.name ?? '');
-        toast.info(t('newSkillDraft', { name }), {
+        pushToast.info(t('newSkillDraft', { name }), {
           duration: 8_000,
           dismissible: true,
           action: {
@@ -189,7 +200,7 @@ export function useGlobalEvents(): void {
         const status = String(payload.data.status ?? '');
 
         if (status === 'AUTO_APPLIED') {
-          toast.success(t('skillGrowthAutoApplied', { name }), {
+          pushToast.success(t('skillGrowthAutoApplied', { name }), {
             duration: 8_000,
             dismissible: true,
             action: {
@@ -198,7 +209,7 @@ export function useGlobalEvents(): void {
             },
           });
         } else if (status === 'FAILED_SCAN') {
-          toast.error(t('skillGrowthFailedScan', { name }), {
+          pushToast.error(t('skillGrowthFailedScan', { name }), {
             duration: 10_000,
             dismissible: true,
             action: {
@@ -207,7 +218,7 @@ export function useGlobalEvents(): void {
             },
           });
         } else if (status === 'BLOCKED_LOCKED') {
-          toast.warning(t('skillGrowthBlockedLocked', { name }), {
+          pushToast.warning(t('skillGrowthBlockedLocked', { name }), {
             duration: 10_000,
             dismissible: true,
             action: {
@@ -238,13 +249,13 @@ export function useGlobalEvents(): void {
           try {
             const res = await fetch(`/api/v1/evolution/history/${evolutionId}/rollback`, { method: 'POST' });
             if (!res.ok) throw new Error('Rollback failed');
-            toast.success(t('rollbackSuccess', { name: skillName }));
+            pushToast.success(t('rollbackSuccess', { name: skillName }));
           } catch {
-            toast.error(t('rollbackFailed', { name: skillName }));
+            pushToast.error(t('rollbackFailed', { name: skillName }));
           }
         };
 
-        toast.success(
+        pushToast.success(
           evolutionType === 'new'
             ? t('skillEvolvedNew', { name: skillName })
             : t('skillEvolvedPatch', { name: skillName }),
@@ -294,9 +305,9 @@ export function useGlobalEvents(): void {
                   body: JSON.stringify({ subsumed_ids: subsumedIds }),
                 });
                 if (!res.ok) throw new Error('Undo failed');
-                toast.success(t('undoConsolidationSuccess') || '已恢复被降维擦除的记忆');
+                pushToast.success(t('undoConsolidationSuccess') || '已恢复被降维擦除的记忆');
               } catch {
-                toast.error(t('undoConsolidationFailed') || '恢复记忆失败，请稍后重试');
+                pushToast.error(t('undoConsolidationFailed') || '恢复记忆失败，请稍后重试');
               }
             },
           };
@@ -315,7 +326,7 @@ export function useGlobalEvents(): void {
         // Only show global toast if it's not a snapshot_created event
         // (snapshot_created is handled specifically by ChatWindow with a custom icon)
         if (meta.type !== 'snapshot_created') {
-          toast.success(title, {
+          pushToast.success(title, {
             description: message,
             duration: 10_000,
             dismissible: true,
@@ -331,14 +342,14 @@ export function useGlobalEvents(): void {
       } else if (payload.type === 'mcp_auth_required') {
         const serverName = String(payload.data.server_name ?? 'MCP');
         const toastId = `mcp-auth-${serverName}`;
-        toast.warning(t('mcpAuthRequired', { server: serverName }), {
+        pushToast.warning(t('mcpAuthRequired', { server: serverName }), {
           id: toastId,
           duration: 30_000,
           dismissible: true,
           action: {
             label: t('reauthorize'),
             onClick: () => {
-              toast.dismiss(toastId);
+              pushToast.dismiss(toastId);
               router.push('/settings/extensions');
             },
           },
@@ -348,14 +359,14 @@ export function useGlobalEvents(): void {
         const issuer = String(payload.data.issuer ?? 'OAuth');
         const reason = String(payload.data.reason ?? '');
         const toastId = `oauth-reauth-${issuer}`;
-        toast.warning(t('oauthReauthRequired', { issuer, reason }), {
+        pushToast.warning(t('oauthReauthRequired', { issuer, reason }), {
           id: toastId,
           duration: 30_000,
           dismissible: true,
           action: {
             label: t('reauthorize'),
             onClick: () => {
-              toast.dismiss(toastId);
+              pushToast.dismiss(toastId);
               router.push('/settings/integrationCatalog');
             },
           },
@@ -363,6 +374,8 @@ export function useGlobalEvents(): void {
         notifyIfLeader(t('oauthReauthRequired', { issuer, reason }));
       } else if (PASSTHROUGH_EVENTS.has(payload.type)) {
         window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
+      } else if (payload.type === 'workspace_file_changed') {
+        window.dispatchEvent(new CustomEvent('workspace-file-changed', { detail: payload.data }));
       } else if (payload.type === 'async_agent_stream_chunk') {
         window.dispatchEvent(
           new CustomEvent('async-agent-stream-chunk', {
@@ -379,7 +392,7 @@ export function useGlobalEvents(): void {
         const title = `${component} Failed`;
 
         if (status === 'fail') {
-          toast.error(t('healthAlertFail', { component, layer }) || title, {
+          pushToast.error(t('healthAlertFail', { component, layer }) || title, {
             description: `${message}${fixSuggestion ? `\nTip: ${fixSuggestion}` : ''}`,
             duration: 15_000,
             dismissible: true,
@@ -405,7 +418,7 @@ export function useGlobalEvents(): void {
             useBudgetExceededStore.getState().show(Math.round(required), Math.round(limit));
             void mutateSwr((key) => Array.isArray(key) && key[0] === 'cp-entitlements');
           } else {
-            toast.error(t('budgetExceeded') || 'Budget exceeded', {
+            pushToast.error(t('budgetExceeded') || 'Budget exceeded', {
               description: `${dimension} — $${remaining.toFixed(4)} remaining`,
               duration: 15_000,
               dismissible: true,
@@ -416,14 +429,14 @@ export function useGlobalEvents(): void {
             );
           }
         } else if (budgetStatus === 'finalization') {
-          toast.warning(t('budgetFinalization') || 'Budget nearly exhausted — finalizing', {
+          pushToast.warning(t('budgetFinalization') || 'Budget nearly exhausted — finalizing', {
             description: `${dimension} — $${remaining.toFixed(4)} remaining`,
             duration: 12_000,
             dismissible: true,
           });
         } else {
           const ecoActive = payload.data.eco_mode === true;
-          toast.warning(t('budgetWarning') || `Budget ${pct.toFixed(0)}% used`, {
+          pushToast.warning(t('budgetWarning') || `Budget ${pct.toFixed(0)}% used`, {
             description: ecoActive
               ? `${dimension} — $${remaining.toFixed(4)} remaining\n${t('ecoModeActive') || 'Eco mode: compressing context to save tokens'}`
               : `${dimension} — $${remaining.toFixed(4)} remaining`,
@@ -455,9 +468,9 @@ export function useGlobalEvents(): void {
                 : t('kanbanTaskFailed');
           const desc = kDetail ? kDetail.slice(0, 200) : undefined;
           if (resolved === 'completed') {
-            toast.success(`${statusLabel}: ${kTitle}`, { description: desc, duration: 8_000, dismissible: true });
+            pushToast.success(`${statusLabel}: ${kTitle}`, { description: desc, duration: 8_000, dismissible: true });
           } else {
-            toast.warning(`${statusLabel}: ${kTitle}`, { description: desc, duration: 10_000, dismissible: true });
+            pushToast.warning(`${statusLabel}: ${kTitle}`, { description: desc, duration: 10_000, dismissible: true });
           }
           notifyIfLeader(`${statusLabel}: ${kTitle}`, desc);
         }
@@ -478,9 +491,9 @@ export function useGlobalEvents(): void {
                   ? t('goalNeedsReview') || 'Goal Needs Review'
                   : t('goalTerminal') || 'Goal Finished';
         if (status === 'complete') {
-          toast.success(statusLabel, { description: objective, duration: 8_000, dismissible: true });
+          pushToast.success(statusLabel, { description: objective, duration: 8_000, dismissible: true });
         } else {
-          toast.warning(statusLabel, { description: objective, duration: 10_000, dismissible: true });
+          pushToast.warning(statusLabel, { description: objective, duration: 10_000, dismissible: true });
         }
         const navigateToGoal = sessionId ? () => router.push(`/chat/${sessionId}`) : undefined;
         notifyIfLeader(statusLabel, objective, navigateToGoal);
@@ -489,7 +502,7 @@ export function useGlobalEvents(): void {
         const objective = String(payload.data.objective ?? '').slice(0, 100);
         const dqSessionId = String(payload.data.session_id ?? '');
         const label = t('goalDequeued') || 'Next goal started';
-        toast.info(label, { description: objective, duration: 6_000, dismissible: true });
+        pushToast.info(label, { description: objective, duration: 6_000, dismissible: true });
         const navigateToDequeued = dqSessionId ? () => router.push(`/chat/${dqSessionId}`) : undefined;
         notifyIfLeader(label, objective, navigateToDequeued);
         if (dqSessionId) {
@@ -511,7 +524,7 @@ export function useGlobalEvents(): void {
             useSubagentStore.getState().markStale(taskId, staleDuration, wastedTokens);
           });
         }
-        toast.warning(t('subagentStale') || `Subagent stalled: ${agentType}`, {
+        pushToast.warning(t('subagentStale') || `Subagent stalled: ${agentType}`, {
           description: `${t('noProgressFor') || 'No progress for'} ${durationMin}min · ${wastedTokens.toLocaleString()} tokens`,
           duration: 15_000,
           dismissible: true,
@@ -521,7 +534,7 @@ export function useGlobalEvents(): void {
           `${durationMin}min · ${wastedTokens.toLocaleString()} tokens`,
         );
       } else if (payload.type === 'subagent_rebind_required') {
-        toast.info(t('subagentRebindRequired'), {
+        pushToast.info(t('subagentRebindRequired'), {
           duration: 10_000,
         });
       } else if (payload.type === 'agent_config_updated') {
@@ -529,9 +542,9 @@ export function useGlobalEvents(): void {
         const action = String(payload.data.action ?? 'updated');
         if (agentId && (action === 'updated' || action === 'rollback' || action === 'force_push')) {
           if (action === 'rollback') {
-            toast.success(t('rollbackSuccess') || 'Successfully rolled back agent profile.');
+            pushToast.success(t('rollbackSuccess') || 'Successfully rolled back agent profile.');
           } else if (action === 'force_push') {
-            toast.info(t('forcePushReceived'), {
+            pushToast.info(t('forcePushReceived'), {
               description: t('forcePushRollbackHint'),
               duration: 10_000,
               dismissible: true,

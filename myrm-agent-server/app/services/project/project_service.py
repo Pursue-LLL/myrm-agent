@@ -38,7 +38,7 @@ def _project_to_dict(p: Project) -> dict[str, object]:
         "description": p.description,
         "color": p.color,
         "sortOrder": p.sort_order,
-        "workspacePath": p.workspace_path,
+        "workspacePath": p.workspace_path or "",
         "goalSummary": p.goal_summary,
         "createdAt": p.created_at.isoformat() if p.created_at else None,
         "updatedAt": p.updated_at.isoformat() if p.updated_at else None,
@@ -71,7 +71,6 @@ class ProjectService:
             count = count_result.scalar_one()
 
             project_id = uuid4().hex[:12]
-            workspace_path = f"/persistent/workspace/project_{project_id}"
 
             project = Project(
                 id=project_id,
@@ -79,7 +78,7 @@ class ProjectService:
                 description=description.strip(),
                 color=color or PROJECT_COLORS[count % len(PROJECT_COLORS)],
                 sort_order=count,
-                workspace_path=workspace_path,
+                workspace_path=None,
             )
             db.add(project)
 
@@ -116,7 +115,16 @@ class ProjectService:
             if color is not None:
                 project.color = color
             if workspace_path is not None:
-                project.workspace_path = workspace_path
+                from app.services.project.workspace_path_resolve import (
+                    WorkspacePathValidationError,
+                    normalize_project_workspace_path,
+                )
+
+                try:
+                    normalized = normalize_project_workspace_path(workspace_path)
+                except WorkspacePathValidationError as exc:
+                    raise ValueError(str(exc)) from exc
+                project.workspace_path = normalized or None
             if description is not None:
                 project.description = description.strip()
             if goal_summary is not None:

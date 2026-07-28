@@ -128,6 +128,79 @@ async def test_completions_streaming(client: AsyncClient, api_key: str):
 
 
 @pytest.mark.asyncio
+async def test_completions_non_streaming_agent_message_event(client: AsyncClient, api_key: str):
+    """Non-streaming should collect text from Agent `message` events (production format)."""
+    with (
+        patch(
+            "app.api.openai_compat.completions.ai_agent_service_stream",
+            new=_mock_agent_stream_message_events,
+        ),
+        patch(
+            "app.api.openai_compat.completions._build_agent_params",
+            new_callable=AsyncMock,
+            return_value=_make_mock_params(),
+        ),
+    ):
+        resp = await client.post(
+            "/v1/chat/completions",
+            json={
+                "model": "default",
+                "messages": [{"role": "user", "content": "Hello"}],
+                "stream": False,
+            },
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["choices"][0]["message"]["content"] == "Hello world!"
+
+
+async def _mock_agent_stream_message_events(*args, **kwargs) -> AsyncIterable[dict[str, object]]:
+    """Simulate production Agent stream events (`message` + `data`)."""
+    yield {"type": "message", "data": "Hello"}
+    yield {"type": "message", "data": " world!"}
+    yield {"type": "message_end", "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}}
+
+
+@pytest.mark.asyncio
+async def test_completions_streaming_agent_message_event(client: AsyncClient, api_key: str):
+    """Streaming should emit content chunks from Agent `message` events."""
+
+    async def mock_stream_iter(*a, **kw):
+        yield {"type": "message", "data": "Hi"}
+        yield {"type": "message", "data": " there"}
+        yield {"type": "message_end", "usage": {}}
+
+    with (
+        patch(
+            "app.api.openai_compat.completions.ai_agent_service_stream",
+            new=mock_stream_iter,
+        ),
+        patch(
+            "app.api.openai_compat.completions._build_agent_params",
+            new_callable=AsyncMock,
+            return_value=_make_mock_params(),
+        ),
+    ):
+        resp = await client.post(
+            "/v1/chat/completions",
+            json={
+                "model": "default",
+                "messages": [{"role": "user", "content": "Hi"}],
+                "stream": True,
+            },
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+
+    assert resp.status_code == 200
+    lines = resp.text.strip().split("\n\n")
+    chunks = [json.loads(line[6:]) for line in lines if line.startswith("data: ") and line != "data: [DONE]"]
+    content_chunks = [c for c in chunks if c["choices"][0]["delta"].get("content")]
+    assert "".join(c["choices"][0]["delta"]["content"] for c in content_chunks) == "Hi there"
+
+
+@pytest.mark.asyncio
 async def test_completions_unauthorized(client: AsyncClient):
     """Missing auth should return 401."""
     resp = await client.post(

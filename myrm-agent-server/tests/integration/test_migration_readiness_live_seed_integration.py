@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 
 import httpx
 import pytest
@@ -10,6 +11,8 @@ import pytest
 from tests.support.verify_api_base import resolve_verify_api_base
 
 _LIVE_SEED_POST_TIMEOUT_SEC = 60.0
+_DB_BUSY_RETRY_ATTEMPTS = 5
+_DB_BUSY_RETRY_DELAY_SEC = 2.0
 
 
 def _live_api_reachable(api_base: str) -> bool:
@@ -27,7 +30,22 @@ def _post_seed_loopback(api_base: str, *, variant: str) -> dict[str, object]:
     )
     if not url.startswith("http://127.0.0.1:"):
         raise ValueError(f"Live integration only permits loopback API URLs: {url}")
-    resp = httpx.post(url, timeout=_LIVE_SEED_POST_TIMEOUT_SEC)
+    resp: httpx.Response | None = None
+    for attempt in range(_DB_BUSY_RETRY_ATTEMPTS):
+        resp = httpx.post(url, timeout=_LIVE_SEED_POST_TIMEOUT_SEC)
+        if resp.status_code == 503:
+            retry_after = resp.headers.get("Retry-After")
+            delay = _DB_BUSY_RETRY_DELAY_SEC
+            if retry_after is not None:
+                try:
+                    delay = max(delay, float(retry_after))
+                except ValueError:
+                    pass
+            if attempt + 1 < _DB_BUSY_RETRY_ATTEMPTS:
+                time.sleep(delay)
+                continue
+        break
+    assert resp is not None
     if resp.status_code == 404:
         pytest.skip(
             "Live server missing seed route — stack pinned by wave; "

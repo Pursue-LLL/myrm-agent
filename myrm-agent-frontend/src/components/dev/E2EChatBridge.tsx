@@ -1158,7 +1158,10 @@ export default function E2EChatBridge() {
           useProviderStore.getState().setFastModeModel(selection);
           const chat = useChatStore.getState();
           if (chat.agentConfig) {
-            chat.updateAgentConfig({ modelSelection: selection });
+            chat.updateAgentConfig({
+              modelSelection: selection,
+              enabledBuiltinTools: [...chat.currentBuiltinTools],
+            });
             return;
           }
           chat.setAgentConfig({
@@ -1198,7 +1201,10 @@ export default function E2EChatBridge() {
           useProviderStore.getState().setFastModeModel(selection);
           const chat = useChatStore.getState();
           if (chat.agentConfig) {
-            chat.updateAgentConfig({ modelSelection: selection });
+            chat.updateAgentConfig({
+              modelSelection: selection,
+              enabledBuiltinTools: [...chat.currentBuiltinTools],
+            });
             return;
           }
           chat.setAgentConfig({
@@ -1552,6 +1558,89 @@ export default function E2EChatBridge() {
           resumeMessageId: resumeMessageId ?? null,
           storeMessageId: storeMessageId ?? null,
         };
+      },
+      /** Product Done path: clear takeover store then resume via sendMessage (atomic). */
+      completeBrowserTakeoverAndResumeViaUi: async () => {
+        const snap = useBrowserTakeoverStore.getState();
+        if (!snap.pending) {
+          return { ok: false, reason: 'not_pending' };
+        }
+        const storeMessageId = snap.messageId;
+        const chatIdBefore = useChatStore.getState().chatId;
+        flushSync(() => {
+          useBrowserTakeoverStore.getState().completeTakeover();
+        });
+        const { resolveBrowserTakeoverMessageId } = await import('@/store/useApprovalStore');
+        const resumeMessageId = resolveBrowserTakeoverMessageId(storeMessageId);
+        if (!resumeMessageId) {
+          return {
+            ok: false,
+            busy: false,
+            err: 'missing-resume-message-id',
+            chatId: chatIdBefore ?? null,
+            storeMessageId: storeMessageId ?? null,
+          };
+        }
+        try {
+          await useChatStore.getState().sendMessage('', resumeMessageId, undefined, {
+            action: 'completed',
+            message: '',
+          });
+          return {
+            ok: true,
+            busy: false,
+            chatId: useChatStore.getState().chatId ?? chatIdBefore ?? null,
+            resumeMessageId,
+            storeMessageId: storeMessageId ?? null,
+          };
+        } catch (error) {
+          if (error instanceof AgentBusyError) {
+            return {
+              ok: false,
+              busy: true,
+              err: error.message,
+              chatId: chatIdBefore ?? null,
+              resumeMessageId,
+              storeMessageId: storeMessageId ?? null,
+            };
+          }
+          return {
+            ok: false,
+            busy: false,
+            err: error instanceof Error ? error.message : String(error),
+            chatId: chatIdBefore ?? null,
+            resumeMessageId,
+            storeMessageId: storeMessageId ?? null,
+          };
+        }
+      },
+      /** Resume an already-cleared takeover (legacy split-path helper). */
+      resumeBrowserTakeoverViaUi: async (resumeMessageId: string) => {
+        const trimmedId = resumeMessageId.trim();
+        if (!trimmedId) {
+          return { ok: false, busy: false, err: 'empty-resume-message-id' };
+        }
+        try {
+          await useChatStore.getState().sendMessage('', trimmedId, undefined, {
+            action: 'completed',
+            message: '',
+          });
+          return {
+            ok: true,
+            busy: false,
+            chatId: useChatStore.getState().chatId ?? null,
+            resumeMessageId: trimmedId,
+          };
+        } catch (error) {
+          if (error instanceof AgentBusyError) {
+            return { ok: false, busy: true, err: error.message };
+          }
+          return {
+            ok: false,
+            busy: false,
+            err: error instanceof Error ? error.message : String(error),
+          };
+        }
       },
     } as NonNullable<Window['__MYRM_E2E_CHAT__']>;
 

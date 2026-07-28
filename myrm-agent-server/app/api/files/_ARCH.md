@@ -12,7 +12,8 @@
 | `evicted.py` | 模块 | UECD evicted-file read API (`GET /evicted` paginated line-range); harness `read_evicted_line_range`; default `limit=500`; path traversal checks; missing file → HTTP 404 + `{"expired": true}` | ✅ |
 | `artifact_api.py` | 模块 | List/retrieve/verify artifacts; exposes `publications[]` per artifact; `POST /download-bundle` packages multiple artifacts into a single ZIP archive | ✅ |
 | `artifact_share_api.py` | 模块 | Lets GUI users share html/pdf/document artifacts without publication deploy | ✅ |
-| `browse.py` | 模块 | Workspace browse API; `/browse/search` uses harness `filesystem_suggest`. | ✅ |
+| `browse.py` | 模块 | Workspace browse API; `chat_id` 分支经 `effective_workspace` SSOT；`/browse/search` uses harness `filesystem_suggest`. | ✅ |
+| `browse_watch.py` | 模块 | POST/DELETE `/browse/watch` — refcounted vault watch → `WORKSPACE_FILE_CHANGED` SSE. | ✅ |
 | `hosting_api.py` | 模块 | Multi-target artifact publish, hosting targets CRUD, publications | ✅ |
 | `document_extract.py` | 模块 | Document content extraction API. | ✅ |
 | `local_actions.py` | 模块 | Local-only file action endpoints. | ✅ |
@@ -20,7 +21,7 @@
 | `revert.py` | 模块 | File revert & review API — exposes `revertible`/`skip_reason` on changes; hydrate/cleanup via `revert_hydrate`; Agent notify via `revert_agent_notify`. | ✅ |
 | `router.py` | 路由 | Files API router | ✅ |
 | `storage.py` | 模块 | 文件管理 API | ✅ |
-| `suggest.py` | 模块 | `@` reference suggestion API — workspace/uploaded/generated/wiki via harness `filesystem_suggest` + `WikiStructure`. | ✅ |
+| `suggest.py` | 模块 | `@` reference suggestion API — workspace via `effective_workspace` SSOT; uploaded/generated/wiki via harness + services. | ✅ |
 | `upload.py` | 模块 | 文件上传 API | ✅ |
 | `vault_api.py` | 模块 | Retrieve the raw binary/text content of a vault object. | ✅ |
 | `vault_proxy.py` | 模块 | Vault secure artifact proxy router. | ✅ |

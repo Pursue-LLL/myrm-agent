@@ -67,8 +67,6 @@ export type ConfigKey =
   | 'googlechatCredentials'
   | 'budget_policy'
   | 'backupSync'
-  | 'proxySettings'
-  | 'comboConfig'
   | 'securityDashboardSettings'
   | 'browserCloudProvider'
   | 'browserProxy'
@@ -101,8 +99,6 @@ export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
   'googlechatCredentials',
   'budget_policy',
   'backupSync',
-  'proxySettings',
-  'comboConfig',
   'securityDashboardSettings',
   'browserCloudProvider',
   'browserProxy',
@@ -428,49 +424,6 @@ export interface BackupSyncConfigValue {
   };
 }
 
-/**
- * LLM proxy passthrough settings.
- */
-export interface ProxyAuthMode {
-  allow_any_key: boolean;
-}
-
-export interface ProxySettingsConfigValue {
-  enabled: boolean;
-  auth: ProxyAuthMode;
-  visionBridgeEnabled?: boolean;
-}
-
-/**
- * Combo routing — multi-provider failover chain for LLM passthrough.
- * Mirrors the harness-layer Pydantic models (combo_types.py).
- */
-export type ComboRoutingStrategy =
-  | 'priority'
-  | 'cost_optimized'
-  | 'round_robin'
-  | 'random'
-  | 'lkgp'
-  | 'context_relay'
-  | 'headroom';
-
-export interface ComboTargetValue {
-  provider_id: string;
-  model: string;
-  priority: number;
-  weight: number;
-  max_requests_per_minute: number | null;
-  enabled: boolean;
-}
-
-export interface ComboConfigValue {
-  name: string;
-  targets: ComboTargetValue[];
-  strategy: ComboRoutingStrategy;
-  max_retries: number;
-  retry_on_status: number[];
-}
-
 export interface SecurityDashboardSettingsConfigValue {
   monitoredGithubRepos: string[];
 }
@@ -536,8 +489,6 @@ export interface ConfigValueMap {
   externalAgents: ExternalAgentsConfigValue;
   budget_policy: BudgetPolicyConfigValue;
   backupSync: BackupSyncConfigValue;
-  proxySettings: ProxySettingsConfigValue;
-  comboConfig: ComboConfigValue;
   securityDashboardSettings: SecurityDashboardSettingsConfigValue;
   browserCloudProvider: BrowserCloudProviderConfigValue;
   browserProxy: BrowserProxyConfigValue;

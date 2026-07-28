@@ -277,7 +277,7 @@
       "channels": "消息通道",
       "channelRouting": "渠道路由",
       "voice": "语音",
-      "openaiApi": "API 访问",
+      "openaiApi": "智能体 API",
       "hosting": "托管目标",
       "integrationCatalog": "服务目录",
       "integrationMemory": "集成记忆",
@@ -477,8 +477,8 @@
       "removeError": "删除集成数据树失败。"
     },
     "openaiApi": {
-      "title": "API 访问",
-      "description": "管理 OpenAI 兼容端点的 API 密钥。使用这些密钥通过任意 OpenAI SDK 或工具与你的智能体交互。",
+      "title": "智能体 API",
+      "description": "管理 OpenAI 兼容的智能体端点 API 密钥。通过任意 OpenAI SDK 调用 Myrm 智能体（含记忆、工具、技能）。",
       "createKey": "创建 API 密钥",
       "keyName": "密钥名称",
       "keyNamePlaceholder": "例如：我的集成",
@@ -506,7 +506,7 @@
       "endpoint": "API 端点",
       "endpointDesc": "将此 Base URL 用于任何 OpenAI 兼容客户端：",
       "docsTitle": "快速开始",
-      "docsDesc": "使用你的 API 密钥配合 OpenAI SDK 或任何兼容客户端。",
+      "docsDesc": "使用 API 密钥配合 OpenAI SDK 或任意兼容客户端。model 字段选择智能体（\"default\" 表示默认智能体）。",
       "createdAt": "创建时间"
     },
     "hosting": {
@@ -560,45 +560,6 @@
         "cloudflare_pages": "Cloudflare 全球网络静态站点。需 Account ID 与 API Token。",
         "netlify": "部署到 Netlify。需 Access Token；已有站点可填 Site ID。",
         "http_webhook": "将打包后的 Artifact POST 到你的 CI 或自定义端点，无需凭证库。"
-      }
-    },
-    "proxy": {
-      "title": "LLM 直通代理",
-      "description": "将 MyrmAgent 用作 OpenAI 兼容 API 代理。外部工具（Aider、Cline、Codex、Continue）可直接连接，使用你配置的模型服务。",
-      "passthroughEndpoint": "代理端点",
-      "passthroughEndpointDesc": "外部工具连接此地址，即可直接调用你配置的 LLM 模型（无需经过 Agent 引擎）：",
-      "toolConfigTitle": "工具配置示例",
-      "openAuth": "开放认证模式",
-      "openAuthDesc": "启用后，任意非空 Bearer Token 即可访问（无需数据库注册的 API Key）。适合本地开发环境。",
-      "openAuthWarning": "安全提示：开放认证模式下，任何知道你端点地址的人都可以调用 API。请仅在可信网络环境中使用。",
-      "visionBridge": "视觉桥接",
-      "visionBridgeDesc": "当目标模型不支持视觉时，自动将图片转为文字描述。使用你配置的视觉回退模型进行图像理解。",
-      "saveFailed": "保存代理设置失败",
-      "combo": {
-        "title": "多服务商路由",
-        "description": "配置跨服务商的降级链。当一个服务商的密钥耗尽时，请求自动路由到下一个。",
-        "addTarget": "添加服务商",
-        "noTargets": "未配置路由链 — 请求使用单服务商模式。",
-        "strategy": "路由策略",
-        "strategyPriority": "优先级（按顺序降级）",
-        "strategyCostOptimized": "成本优化（优先低成本）",
-        "strategyRoundRobin": "轮询（均匀分配）",
-        "strategyRandom": "随机",
-        "strategyLkgp": "最近成功（粘性）",
-        "strategyContextRelay": "上下文接力（缓存感知）",
-        "strategyHeadroom": "余量优先（剩余配额最多）",
-        "maxRetries": "跨服务商最大重试次数",
-        "enabled": "启用",
-        "provider": "服务商",
-        "model": "模型",
-        "saved": "路由链已保存"
-      },
-      "cliConfig": {
-        "title": "外部工具配置",
-        "description": "为主流 AI 编码工具一键生成配置。",
-        "copy": "复制",
-        "copied": "配置已复制到剪贴板",
-        "selectTool": "选择一个工具查看其配置"
       }
     },
     "workspaceRules": {
@@ -2298,6 +2259,7 @@
         "rollbackFailed": "撤销失败，请重试",
         "cancel": "取消",
         "fetchError": "获取技能历史失败",
+        "qualityBefore": "进化前",
         "status": {
           "approved": "已生效",
           "rolled_back": "已撤销",
@@ -2991,6 +2953,14 @@
     "optimizationMode": "优化模式",
     "apiKeys": "API 密钥",
     "appearance": "主题",
+    "linkEmbeds": "链接嵌入",
+    "linkEmbedsMode": "内联嵌入预览",
+    "linkEmbedsDesc": "在对话中显示 YouTube、X、Spotify 等链接的富预览",
+    "linkEmbedsAsk": "加载前询问（推荐）",
+    "linkEmbedsAlways": "始终加载嵌入",
+    "linkEmbedsOff": "不加载嵌入（纯链接）",
+    "linkEmbedsAllowed": "已允许的服务",
+    "linkEmbedsClear": "清除全部",
     "modelName": "模型名称",
     "noModelsAvailable": "没有可用的模型",
     "invalidProvider": "无效的提供商，请检查后端日志",
@@ -4116,6 +4086,8 @@
           "dedup": "去重收益 / Dedup Gain",
           "integrity": "完整性跳过 / Integrity Skips",
           "persisted": "已落盘摘要 / Persisted",
+          "avgElapsed": "平均耗时 / Avg Duration",
+          "lastElapsed": "上次耗时 / Last Duration",
           "lastCompacted": "最近压缩 / Last Compacted"
         },
         "pruning": {
@@ -6653,8 +6625,8 @@
         "description": "配置消息通道中的语音转文字和文字转语音"
       },
       "openaiApi": {
-        "title": "API 访问",
-        "description": "管理 OpenAI 兼容端点的 API 密钥"
+        "title": "智能体 API",
+        "description": "管理 OpenAI 兼容的智能体端点 API 密钥"
       },
       "integrationCatalog": {
         "title": "服务目录",
@@ -6942,6 +6914,11 @@
     "model_failover_context_overflow": "上下文过长，已切换到备用模型",
     "safety_fallback_active": "内容风控拦截，已隔离重试（单次降级接管）",
     "context_compaction": "正在压缩上下文",
+    "context_compaction_active": "正在压缩上下文",
+    "context_compaction_timeout": "压缩超时，已切换快速回退",
+    "context_compaction_circuit_open": "压缩暂不可用，已切换快速回退",
+    "context_compaction_fallback": "压缩降级，使用快速回退",
+    "context_compaction_completed": "上下文压缩完成",
     "memory_archived": "Agent 归档了早期历史，保持极致专注",
     "context_pruned": "已清理过期缓存上下文",
     "archive_checkpoint": "已保存归档摘要，便于后续召回",
@@ -7029,6 +7006,12 @@
     "memory_manage_tool_tool_error": "记忆管理失败",
     "cron_manage_tool_tool": "管理定时任务",
     "cron_manage_tool_tool_error": "定时任务操作失败",
+    "mcp_tool_search_tool": "搜索可用工具",
+    "mcp_tool_search_tool_error": "工具搜索失败",
+    "mcp_tool_describe_tool": "加载工具详情",
+    "mcp_tool_describe_tool_error": "加载工具详情失败",
+    "mcp_tool_call_tool": "调用工具",
+    "mcp_tool_call_tool_error": "工具调用失败",
     "file_read_tool": "读取文件",
     "file_read_tool_error": "读取文件失败",
     "file_write_tool": "写入文件",
@@ -7107,7 +7090,10 @@
       "render_ui_tool": "正在渲染界面",
       "update_ui_data_tool": "正在更新界面数据",
       "answer_user_tool": "正在生成回答",
-      "request_answer_user_tool": "正在准备回复"
+      "request_answer_user_tool": "正在准备回复",
+      "mcp_tool_search": "搜索工具",
+      "mcp_tool_describe": "加载工具参数",
+      "mcp_tool_call": "调用工具"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
@@ -12561,7 +12547,16 @@
       "migrationCloudDescription": "上传导出包，将记忆与工作区偏好迁移到你的云端沙箱。",
       "skipStep": "跳过此步",
       "capabilitiesTitle": "配置 AI 引擎",
-      "capabilitiesDescription": "连接本地大模型与联网搜索，实现开箱即用的 AI 体验。",
+      "capabilitiesDescription": "连接本地大模型与联网搜索，实现开箱即用的 AI 体验。外部工具集成请前往设置 → 智能体 API 配置 Agent API。",
+      "syncFolder": {
+        "pageTitle": "关联笔记文件夹",
+        "pageDescription": "可选：将助手指向 Obsidian、Typora 或任意同步文档目录。",
+        "hint": "文件始终留在你的设备上，助手直接原地编辑，无需导入专用数据库。",
+        "chooseFolder": "选择文件夹",
+        "preparing": "准备中…",
+        "skip": "暂时跳过",
+        "defaultProjectName": "我的文件"
+      },
       "noLocalModel": "未检测到本地大模型，您可以稍后在设置中手动配置 API Key。",
       "configureLater": "稍后配置",
       "searchReady": "已就绪",
@@ -12970,7 +12965,24 @@
     "workspaceUpdated": "工作目录已更新",
     "workspaceCleared": "工作目录已清除",
     "moveSuccess": "已成功移动 {count} 个会话",
-    "moveFailed": "移动会话失败"
+    "moveFailed": "移动会话失败",
+    "workspaceMount": {
+      "title": "关联文件夹",
+      "emptyHint": "选择笔记或文档目录，助手将直接读写其中的文件。",
+      "chooseFolder": "选择文件夹",
+      "clear": "取消关联",
+      "close": "关闭",
+      "updated": "文件夹已关联",
+      "cleared": "已取消关联",
+      "invalidPath": "无法关联该文件夹",
+      "pickFolderTitle": "为 {name} 选择文件夹",
+      "pathPlaceholder": "输入路径…",
+      "selectThis": "使用此文件夹",
+      "browseTrigger": "浏览文件夹",
+      "recent": "最近使用",
+      "filter": "筛选…",
+      "noSubdirs": "没有子文件夹"
+    }
   },
   "milestone": {
     "title": "里程碑",
@@ -13231,6 +13243,8 @@
         "dedup": "Dedup Gain",
         "integrity": "Integrity Skips",
         "persisted": "Persisted",
+        "avgElapsed": "Avg Duration",
+        "lastElapsed": "Last Duration",
         "lastCompacted": "Last Compacted"
       },
       "pruning": {

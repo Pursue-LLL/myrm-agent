@@ -222,6 +222,16 @@ _ensure_stack_epoch_file() {
   _bump_stack_epoch "${backend_pid}" "${SERVER_DIR}" >/dev/null || true
 }
 
+# 0. API-only SHPOIB (signoff clarify pool / cron LIVE): seed private API only — never probe shared :3000.
+if [[ "${MYRM_E2E_API_ONLY:-}" == "1" && "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
+  curl -sf --max-time 10 "${API_BASE}/api/v1/health" >/dev/null \
+    || fail "private backend not reachable at ${API_BASE}"
+  _maybe_seed_providers
+  ok "private backend api-only ${API_BASE}"
+  echo "CHROME_E2E_READY ui=${UI_BASE} api=${API_BASE} api_only=1"
+  exit 0
+fi
+
 # 1. Dev servers (Next.js cold compile can exceed 3s)
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
   attach_errors="$("${PREFLIGHT_PY}" -c "

@@ -773,16 +773,16 @@ async def convert_to_general_agent_params(
                         str(name) for name in chat.session_loaded_skill_names if name
                     ]
 
-                if chat.project_id:
-                    from app.services.project.project_service import ProjectService
+                from app.services.chat.effective_workspace import (
+                    resolve_effective_chat_workspace,
+                )
 
-                    project = await ProjectService.get_project(chat.project_id)
-                    if project and project.workspace_path:
-                        chat_workspace_dir = project.workspace_path
-                        db_had_workspace = True
-
-                if not chat_workspace_dir and chat.workspace_dir:
-                    chat_workspace_dir = chat.workspace_dir
+                resolved_workspace = await resolve_effective_chat_workspace(
+                    chat,
+                    jit_fallback=False,
+                )
+                if resolved_workspace:
+                    chat_workspace_dir = resolved_workspace
                     db_had_workspace = True
         except Exception as e:
             logger.warning(f"Failed to load chat metadata for {request.chat_id}: {e}")

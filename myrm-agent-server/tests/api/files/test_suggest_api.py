@@ -34,7 +34,12 @@ def workspace(tmp_path):
 @pytest.fixture(autouse=True)
 def chat_workspace(monkeypatch, workspace: str):
     async def get_chat_metadata(chat_id: str):
-        return SimpleNamespace(workspace_dir=workspace)
+        return SimpleNamespace(
+            id=chat_id,
+            workspace_dir=workspace,
+            project_id=None,
+            agent_id=None,
+        )
 
     async def ensure_default_workspace_dir(chat_id: str):
         return workspace

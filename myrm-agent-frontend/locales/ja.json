@@ -552,19 +552,6 @@
         "http_webhook": "パッケージ済み Artifact を CI やカスタムエンドポイントへ POST。認証情報庫はない要。"
       }
     },
-    "proxy": {
-      "title": "LLM 直通プロキシ",
-      "description": "が MyrmAgent 使用作 OpenAI 兼容 API プロキシ。外部ツール（Aider、Cline、Codex、Continue）可直接接続，使用あなた設定のモデルサービス。",
-      "passthroughEndpoint": "プロキシエンドポイント",
-      "passthroughEndpointDesc": "外部ツール接続此アドレス，即可直接调使用あなた設定の LLM モデル（なしが必須经した Agent 引擎）：",
-      "toolConfigTitle": "ツール設定サンプル",
-      "openAuth": "开放认证模式",
-      "openAuthDesc": "有効后，任意非空 Bearer Token 即可アクセス（なしが必須データ库登録の API Key）。适合本に开发環境。",
-      "openAuthWarning": "セキュリティヒント：开放认证模式下，いかなる知道あなたエンドポイントアドレスの人都できます调使用 API。してくださいのみで可信网络環境中使用。",
-      "visionBridge": "ビジョンブリッジ",
-      "visionBridgeDesc": "ターゲットモデルがビジョンをサポートしていない場合、画像を自動的にテキスト説明に変換します。",
-      "saveFailed": "保存プロキシ設定失敗"
-    },
     "workspaceRules": {
       "title": "プロジェクトルール",
       "description": "からワークスペース自動发现のプロジェクト级ルールファイル（AGENTS.md, CLAUDE.md, .cursorrules, .myrm/rules/*.md, .cursor/rules/*.mdc）",
@@ -6956,6 +6943,12 @@
     "memory_manage_tool_tool_error": "メモリ管理失敗",
     "cron_manage_tool_tool": "管理スケジュールタスク",
     "cron_manage_tool_tool_error": "スケジュールタスク操作に失敗しました",
+    "mcp_tool_search_tool": "利用可能なツールを検索中",
+    "mcp_tool_search_tool_error": "ツール検索に失敗しました",
+    "mcp_tool_describe_tool": "ツール詳細を読込中",
+    "mcp_tool_describe_tool_error": "ツール詳細の読込に失敗しました",
+    "mcp_tool_call_tool": "ツールを呼出中",
+    "mcp_tool_call_tool_error": "ツール呼出に失敗しました",
     "file_read_tool": "読み取り取ファイル",
     "file_read_tool_error": "読み取り取ファイル失敗",
     "file_write_tool": "書き込み入ファイル",
@@ -7034,7 +7027,10 @@
       "render_ui_tool": "中渲染界面",
       "update_ui_data_tool": "中更新規界面データ",
       "answer_user_tool": "中生成回答",
-      "request_answer_user_tool": "中准备返信"
+      "request_answer_user_tool": "中准备返信",
+      "mcp_tool_search": "ツール検索中",
+      "mcp_tool_describe": "ツールスキーマ読込中",
+      "mcp_tool_call": "ツール呼出中"
     },
     "categoryStageLabels": {
       "thinking": "思考中",

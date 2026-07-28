@@ -168,11 +168,22 @@ class ConversationForkManager:
         else:
             new_title = new_title.strip()[:255]
 
-        # Resolve workspace for fork: if parent has active sandbox, reset to original repo root
-        # to prevent child from sharing parent's sandbox worktree (file conflict risk).
-        fork_workspace_dir = (
-            parent_chat.sandbox_base_dir if parent_chat.sandbox_base_dir else parent_chat.workspace_dir
-        )
+        # Resolve workspace for fork: sandbox resets to repo root; otherwise SSOT project bind.
+        if parent_chat.sandbox_base_dir:
+            fork_workspace_dir = parent_chat.sandbox_base_dir
+        else:
+            from app.services.chat.chat_service import ChatService
+            from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+
+            parent_dto = await ChatService.get_chat_metadata(parent_chat_id)
+            fork_workspace_dir = (
+                await resolve_effective_chat_workspace(
+                    parent_dto,
+                    jit_fallback=False,
+                )
+                if parent_dto is not None
+                else None
+            )
 
         new_chat = Chat(
             id=new_chat_id,

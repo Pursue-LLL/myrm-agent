@@ -45,7 +45,6 @@ ConfigKey = Literal[
     "budget_policy",
     "companion_config",
     "backupSync",
-    "proxySettings",
     "securityDashboardSettings",
     "browserCloudProvider",
     "browserProxy",
@@ -197,28 +196,6 @@ class PersonalSettingsConfigValue(BaseModel):
     publicIngressBaseUrl: str = _personal_settings_field("system", default="", description="公网 Ingress 地址")
 
 
-class ProxyAuthMode(BaseModel):
-    """Proxy authentication mode."""
-
-    allow_any_key: bool = Field(
-        default=False,
-        description="When True, any non-empty Bearer token is accepted (Hermes-style open proxy). "
-        "When False, only database-registered API keys are accepted.",
-    )
-
-
-class ProxySettingsConfigValue(BaseModel):
-    """LLM passthrough proxy settings."""
-
-    enabled: bool = Field(default=False, description="Enable the LLM passthrough proxy")
-    auth: ProxyAuthMode = Field(default_factory=ProxyAuthMode, description="Authentication mode")
-    visionBridgeEnabled: bool = Field(
-        default=False,
-        description="When True, image-bearing requests to non-vision models are "
-        "automatically converted to text descriptions via VisionFallbackEngine",
-    )
-
-
 class SecurityDashboardSettingsConfigValue(BaseModel):
     """GitHub repos monitored on the Security Center dashboard (Dependabot PR supplement)."""
 
@@ -324,7 +301,6 @@ class WebFetchEscalationConfigValue(BaseModel):
 OMNI_CONFIG_MODELS: dict[str, type[BaseModel]] = {
     "searchServices": SearchServicesConfigValue,
     "personalSettings": PersonalSettingsConfigValue,
-    "proxySettings": ProxySettingsConfigValue,
     "securityDashboardSettings": SecurityDashboardSettingsConfigValue,
     "browserCloudProvider": BrowserCloudProviderConfigValue,
     "browserProxy": BrowserProxyConfigValue,

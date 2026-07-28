@@ -20,6 +20,7 @@ dependencies = [
   "PyYAML>=6.0.3",             # YAML 解析配置 (配置迁移)
   # --- HTTP & I/O ---
   "httpx>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
+  "watchdog>=6.0.0", # Workspace vault file change detection (file_watch_service.py)
   # --- AI & LLM ---
   "litellm>=1.93.0",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
   "langchain>=1.3.14",      # Agent 工具/链定义 (70+ 文件)

@@ -2105,6 +2105,7 @@ dependencies = [
     { name = "uvicorn" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "wakepy" },
+    { name = "watchdog" },
     { name = "websockets" },
 ]
 
@@ -2195,6 +2196,7 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.51.0" },
     { name = "uvloop", marker = "sys_platform != 'win32'", specifier = ">=0.22.1" },
     { name = "wakepy", specifier = ">=1.0.0" },
+    { name = "watchdog", specifier = ">=6.0.0" },
     { name = "websockets", specifier = ">=16.1.1" },
 ]
 provides-extras = ["channels-sdk", "matrix", "matrix-e2ee", "wechat-silk", "voice-tts", "local-stt", "data-viz"]
