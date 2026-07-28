@@ -24,7 +24,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
 | `e2e/test_migration_readiness_gap_chrome_e2e.py` | 模块 | migration post-import MCP readiness toast（LIVE×1 SHPOIB） |
-| `e2e/test_mcp_reload_confirm_chrome_e2e.py` | 模块 | MCP Settings reload 确认弹窗 Chrome E2E（READ×1 SHPOIB：API seed → disable toggle → cancel/confirm → `GET /config/mcpServers` 断言） |
+| `e2e/test_mcp_reload_confirm_chrome_e2e.py` | 模块 | MCP Settings reload 确认 Chrome E2E（READ×1 SHPOIB 单会话：toggle cancel/confirm · delete · import JSON · add/save → `GET /config/mcpServers` 断言） |
 | `e2e/test_kanban_chrome_e2e.py` | 模块 | Kanban Chrome MCP E2E（READ×4：看板渲染 + source_chat 深链过滤 + Drawer 附件 + Chat 成功卡片→看板） |
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
 | `e2e/test_clarify_refresh_chrome_e2e.py` | 模块 | Clarify refresh Chrome MCP E2E（READ×4 SHPOIB：`seed-clarify-refresh-fixture` pending/answered/regenerate_sibling/structured_form → F5 hydrate 断言 composer 态） |
@@ -135,7 +135,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - **web_search 未配置 gap 单测/集成**：`test_entitlement_gap_preflight.py`（`build_web_search_config_gap_sse_event` unit）；`test_stream_chunks_web_search_preflight.py`（config gap 独立于 entitlement preflight text / resume 边界）；`tests/api/agent/test_capability_gap_integration.py::test_agent_stream_emits_web_search_config_gap_sse`（agent-stream preflight SSE：`reason=not_configured` + `settings_path=/settings/search`）；`tests/api/agent/test_capability_gap_integration.py::test_migration_readiness_live_resolve_emits_gap_after_db_seed`（live DB seed + resolve migration readiness → `tool_id=migration_import` + `settings_path=/settings/mcp`）；`tests/core/channel_bridge/test_stream_events.py`（IM web_search gap + empty display_message fallback）；frontend `gapEvents.test.ts` + `webSearchConfigGap.test.ts`（`not_configured|unreachable` → i18n CTA / local 一键启用）
 - **web_search config-gap Chrome E2E**：`tests/e2e/test_web_search_config_gap_chrome_e2e.py`（LIVE×1 browser send+poll toast + READ×1 fast client guard；Dual-Plane：禁止 body 内 httpx agent-stream；`__MYRM_E2E_DIRECT_SSE__=false`；CI static：`scripts/dev/tests/test_gap_toast_e2e_contract_static.py`）
 - **migration readiness gap Chrome E2E**：`tests/e2e/test_migration_readiness_gap_chrome_e2e.py`（LIVE×1 SHPOIB：seed `mcp_warning` → anchor → first send toast/SSE；Verification：`test_capability_gap_integration.py::test_migration_readiness_live_resolve_emits_gap_after_db_seed`；见 `CHROME_MCP_E2E.md` §Gap Toast）
-- **MCP reload confirm Chrome E2E**：`tests/e2e/test_mcp_reload_confirm_chrome_e2e.py`（READ×1 SHPOIB：`/settings/mcp` disable toggle → `MCPReloadConfirmDialog` cancel/confirm；见 `CHROME_MCP_E2E.md` §MCP reload confirm）
+- **MCP reload confirm Chrome E2E**：`tests/e2e/test_mcp_reload_confirm_chrome_e2e.py`（READ×1 SHPOIB 单会话：toggle · delete · import · add/save → `MCPReloadConfirmDialog`；见 `CHROME_MCP_E2E.md` §MCP reload confirm）
 - **A2UI 跨轮 DB patch 单测**：`tests/services/chat/test_ui_artifact_patch.py`（双 turn seed → `patch_ui_artifact_data_by_surface_id` → GET messages 断言 merged binding；collector 跨轮队列；finalize 接线）
 - `tests/integration/test_render_ui_sse_wiring.py`：render_ui 确定性集成（20 场景：run_bind、fail-closed、data_update、collector 链、幂等）
 - `tests/integration/test_ui_artifact_cross_turn_db_integration.py`：跨轮 `data_update` collector 队列 → 真实 SQLite patch → GET messages 断言 merged binding（无 mock 持久化路径）

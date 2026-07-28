@@ -4,12 +4,23 @@ from __future__ import annotations
 
 import json
 import os
-import re
-import shlex
-import subprocess
+import sys
 from contextlib import suppress
 from dataclasses import asdict, dataclass
 from pathlib import Path
+
+_DEV_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_DEV_LIB) not in sys.path:
+    sys.path.insert(0, str(_DEV_LIB))
+
+from e2e_live_chrome_pytest_scan import (  # noqa: E402
+    extract_chrome_e2e_test_id as _extract_test_id,
+    list_live_chrome_e2e_pytest_rows,
+)
+from e2e_session_snapshot import (  # noqa: E402
+    body_elapsed_from_snapshot,
+    resolve_session_snapshot,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,102 +138,40 @@ def _is_batch_file_invocation(test_id: str) -> bool:
     return " -m " in test_id and "chrome_e2e" in test_id
 
 
-def _session_fields_for_pid(pid: int) -> tuple[str | None, str | None, float | None]:
-    try:
-        from tests.support.e2e_wall_progress import (  # noqa: PLC0415
-            body_elapsed_sec_from_snapshot,
-            read_e2e_session_snapshot,
-        )
-    except ImportError:
-        return None, None, None
-    snapshot = read_e2e_session_snapshot(pid)
+def _session_fields_for_pid(
+    pid: int,
+    *,
+    test_id: str | None = None,
+) -> tuple[str | None, str | None, float | None]:
+    snapshot = resolve_session_snapshot(pid=pid, test_id=test_id)
     if snapshot is None:
         return None, None, None
     current_node = str(snapshot.get("currentNode") or "").strip() or None
     wall_phase = str(snapshot.get("phase") or "").strip().lower() or None
-    body_elapsed = body_elapsed_sec_from_snapshot(snapshot)
+    body_elapsed = body_elapsed_from_snapshot(snapshot)
     return current_node, wall_phase, body_elapsed
 
 
-def _extract_test_id(command: str) -> str | None:
-    marker = None
-    try:
-        argv = shlex.split(command)
-    except ValueError:
-        argv = command.split()
-    for idx, token in enumerate(argv):
-        if token == "-m" and idx + 1 < len(argv):
-            candidate = argv[idx + 1]
-            if marker is None:
-                marker = candidate
-            if "chrome_e2e" in candidate:
-                marker = candidate
-                break
-    marker_suffix = f" -m {marker}" if marker else ""
-
-    node_match = re.search(r"(tests/e2e/[^\s]+\.py(?:::([\w_]+))?)", command)
-    if node_match is not None:
-        path = node_match.group(1)
-        if "::" in path:
-            return path
-        if marker_suffix:
-            return f"{path}{marker_suffix}"
-        return path
-    folder_match = re.search(r"tests/e2e/", command)
-    if folder_match is not None:
-        if marker_suffix:
-            return f"tests/e2e/{marker_suffix}"
-        return "tests/e2e/"
-    if marker is not None and "chrome_e2e" in marker:
-        return f"marker:{marker}"
-    return None
-
-
 def _list_active_pytest_chrome_e2e() -> tuple[E2EActiveTest, ...]:
-    proc = subprocess.run(
-        ["ps", "-eo", "pid=,stat=,etime=,command="],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode != 0:
-        return ()
     rows: list[E2EActiveTest] = []
-    seen_tests: set[str] = set()
-    for line in proc.stdout.splitlines():
-        stripped = line.strip()
-        if not stripped or " -m pytest" not in stripped:
-            continue
-        if "tests/e2e/" not in stripped and "chrome_e2e" not in stripped:
-            continue
-        parts = stripped.split(maxsplit=3)
-        if len(parts) < 4:
-            continue
-        pid_str, state, elapsed, command = parts
-        test_id = _extract_test_id(command)
-        if test_id is None or test_id in seen_tests:
-            continue
-        try:
-            pid = int(pid_str)
-        except ValueError:
-            continue
-        if not _pid_alive(pid):
-            continue
-        seen_tests.add(test_id)
-        current_node, wall_phase, body_elapsed = _session_fields_for_pid(pid)
+    for row in list_live_chrome_e2e_pytest_rows():
+        current_node, wall_phase, body_elapsed = _session_fields_for_pid(
+            row.pid,
+            test_id=row.test_id,
+        )
         rows.append(
             E2EActiveTest(
-                pid=pid,
-                test_id=test_id,
-                elapsed_sec=_elapsed_to_seconds(elapsed),
-                state=state,
+                pid=row.pid,
+                test_id=row.test_id,
+                elapsed_sec=row.elapsed_sec,
+                state=row.state,
                 current_node=current_node,
                 wall_phase=wall_phase,
                 body_elapsed_sec=body_elapsed,
-                batch_mode=_is_batch_file_invocation(test_id),
+                batch_mode=_is_batch_file_invocation(row.test_id),
             )
         )
-    return tuple(sorted(rows, key=lambda row: row.test_id))
+    return tuple(rows)
 
 
 def snapshot_live_e2e_processes(

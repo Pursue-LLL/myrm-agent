@@ -26,6 +26,10 @@ from pathlib import Path
 from myrm_agent_harness.agent.meta_tools.file_ops.utils.markdown_frontmatter import (
     parse_frontmatter,
 )
+from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
+    infer_type_for_import,
+    serialize_frontmatter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +125,16 @@ def adapt_obsidian_file(
     rel_path = source_file.relative_to(vault_root)
     dest_path = raw_dest_dir / rel_path
     dest_path.parent.mkdir(parents=True, exist_ok=True)
-    dest_path.write_text(body, encoding="utf-8")
+
+    page_type = infer_type_for_import(rel_path, metadata, is_raw_import=True)
+    metadata["type"] = page_type.value
+    if "sources" not in metadata:
+        metadata["sources"] = [str(rel_path).replace("\\", "/")]
+    if "provenance" not in metadata:
+        metadata["provenance"] = "obsidian_import"
+
+    final_content = serialize_frontmatter(metadata) + body.lstrip("\n")
+    dest_path.write_text(final_content, encoding="utf-8")
 
     return dest_path, metadata, images_copied
 
@@ -176,6 +189,12 @@ def _adapt_canvas_file(
     rel_path = source_file.relative_to(vault_root).with_suffix(".md")
     dest_path = raw_dest_dir / rel_path
     dest_path.parent.mkdir(parents=True, exist_ok=True)
-    dest_path.write_text(body, encoding="utf-8")
+
+    page_type = infer_type_for_import(rel_path, metadata, is_raw_import=True)
+    metadata["type"] = page_type.value
+    metadata["sources"] = [str(rel_path).replace("\\", "/")]
+    metadata["provenance"] = "obsidian_canvas_import"
+    final_content = serialize_frontmatter(metadata) + body.lstrip("\n")
+    dest_path.write_text(final_content, encoding="utf-8")
 
     return dest_path, metadata, 0

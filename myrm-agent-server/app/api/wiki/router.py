@@ -154,6 +154,18 @@ class OperationResult(BaseModel):
     message: str
 
 
+class ApprovePendingEditRequest(BaseModel):
+    modified_content: str | None = None
+
+
+class RepairTypesResponse(BaseModel):
+    success: bool
+    files_scanned: int
+    files_repaired: int
+    files_skipped: int
+    message: str
+
+
 async def _get_wiki_archiver(
     llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
     manager: Annotated[MemoryManager | None, Depends(get_optional_memory_manager)],
@@ -480,10 +492,25 @@ async def get_pending_edits(archiver: Annotated[MemoryToWikiArchiver, Depends(_g
 
 @router.post("/pending/{edit_id}/approve", response_model=OperationResult)
 async def approve_pending_edit(
-    edit_id: int, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
+    edit_id: int,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    request: ApprovePendingEditRequest | None = None,
 ) -> OperationResult:
     """Approve a pending edit and merge it to the wiki."""
-    success = await archiver._pending_mgr.approve_edit(edit_id)
+    from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import FrontmatterValidationError
+
+    modified_content = request.modified_content if request is not None else None
+    try:
+        success = await archiver._pending_mgr.approve_edit(edit_id, modified_content)
+    except FrontmatterValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "invalid_frontmatter",
+                "message": "Page metadata is incomplete. Add a valid page type before approving.",
+                "errors": list(exc.errors),
+            },
+        ) from exc
     if not success:
         raise HTTPException(status_code=400, detail="Edit not found or already processed")
     return OperationResult(success=True, message=f"Approved edit {edit_id}")
@@ -498,6 +525,26 @@ async def reject_pending_edit(
     if not success:
         raise HTTPException(status_code=400, detail="Edit not found or already processed")
     return OperationResult(success=True, message=f"Rejected edit {edit_id}")
+
+
+@router.post("/repair-types", response_model=RepairTypesResponse)
+async def repair_wiki_frontmatter_types(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+) -> RepairTypesResponse:
+    """Repair missing or invalid frontmatter `type` across concept and raw markdown files."""
+    from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import repair_missing_types
+
+    result = repair_missing_types(archiver._structure)
+    message = f"Repaired {result.files_repaired} of {result.files_scanned} scanned files"
+    if result.errors:
+        message = f"{message}; {len(result.errors)} errors"
+    return RepairTypesResponse(
+        success=len(result.errors) == 0,
+        files_scanned=result.files_scanned,
+        files_repaired=result.files_repaired,
+        files_skipped=result.files_skipped,
+        message=message,
+    )
 
 
 # --- Purpose Endpoint ---

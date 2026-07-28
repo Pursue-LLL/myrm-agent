@@ -77,6 +77,7 @@ export function WikiSection() {
   const [isQuerying, setIsQuerying] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const [isMaintaining, setIsMaintaining] = useState(false);
+  const [isRepairingTypes, setIsRepairingTypes] = useState(false);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [purpose, setPurpose] = useState('');
   const [purposeDraft, setPurposeDraft] = useState('');
@@ -375,6 +376,24 @@ export function WikiSection() {
     }
   };
 
+  const handleRepairPageTypes = async () => {
+    setIsRepairingTypes(true);
+    try {
+      const result = await wikiService.repairPageTypes();
+      if (result.success) {
+        toast.success(t('success.repairTypesComplete', { count: result.files_repaired }));
+      } else {
+        toast.warning(result.message);
+      }
+      await loadStats();
+    } catch (error) {
+      console.error('Repair page types failed:', error);
+      toast.error(t('errors.repairTypesFailed'));
+    } finally {
+      setIsRepairingTypes(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -642,6 +661,15 @@ export function WikiSection() {
               <Button onClick={handleMaintain} disabled={isMaintaining} variant="outline" className="flex-1">
                 <IconWrench className="w-4 h-4 mr-2" />
                 {isMaintaining ? t('maintaining') : t('actions.maintain')}
+              </Button>
+              <Button
+                onClick={handleRepairPageTypes}
+                disabled={isRepairingTypes}
+                variant="outline"
+                className="flex-1"
+              >
+                <IconWrench className="w-4 h-4 mr-2" />
+                {isRepairingTypes ? t('repairingTypes') : t('actions.repairPageTypes')}
               </Button>
             </CardContent>
           </Card>

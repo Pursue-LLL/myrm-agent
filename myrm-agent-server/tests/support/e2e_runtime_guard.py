@@ -58,6 +58,12 @@ def _wave_script() -> Path:
 def reap_chrome_e2e_session_hygiene() -> None:
     """Extend parent lease and reap stale page leases between formal chrome_e2e items."""
     heartbeat_e2e_lease()
+    try:
+        from e2e_session_snapshot import prune_stale_session_snapshots
+
+        prune_stale_session_snapshots()
+    except ImportError:
+        pass
     wave_script = _wave_script()
     subprocess.run(
         ["bash", str(wave_script), "reap"],

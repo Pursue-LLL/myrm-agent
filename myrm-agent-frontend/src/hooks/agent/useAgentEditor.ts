@@ -137,6 +137,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   // 可发现性
   const [allowDiscovery, setAllowDiscovery] = useState<boolean>(true);
   const [cronPostRunVerify, setCronPostRunVerify] = useState<boolean>(false);
+  const [busyInputMode, setBusyInputMode] = useState<'redirect' | 'steer' | 'queue'>('redirect');
 
   // 对话框状态
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -180,6 +181,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     notifyTargets: [] as import('@/services/agent').NotifyTarget[],
     allowDiscovery: true,
     cronPostRunVerify: false,
+    busyInputMode: 'redirect' as 'redirect' | 'steer' | 'queue',
   });
 
   // 检测变更
@@ -221,6 +223,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       notifyChanged ||
       allowDiscovery !== originalData.allowDiscovery ||
       cronPostRunVerify !== originalData.cronPostRunVerify ||
+      busyInputMode !== originalData.busyInputMode ||
       maxIterations !== originalData.maxIterations ||
       !arraysEqual(suggestionPrompts, originalData.suggestionPrompts);
     setHasChanges(changed);
@@ -251,6 +254,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     notifyTargets,
     allowDiscovery,
     cronPostRunVerify,
+    busyInputMode,
     originalData,
   ]);
 
@@ -313,6 +317,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setWorkspacePolicy(data.workspace_policy || 'INHERIT_REQUESTER');
       setAllowDiscovery(data.allow_discovery ?? true);
       setCronPostRunVerify(data.cron_post_run_verify ?? false);
+      setBusyInputMode(data.busy_input_mode || 'redirect');
       setMemoryDecayProfile(data.memory_decay_profile || 'normal');
       setEngineParams(data.engine_params ?? null);
       setOpenapiServices((data.openapi_services as OpenAPIServiceConfig[]) || []);
@@ -339,6 +344,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         promptMode: data.prompt_mode || 'full',
         allowDiscovery: data.allow_discovery ?? true,
         cronPostRunVerify: data.cron_post_run_verify ?? false,
+        busyInputMode: data.busy_input_mode || 'redirect',
         maxIterations: data.max_iterations ?? null,
         workspacePolicy: data.workspace_policy || 'INHERIT_REQUESTER',
         memoryDecayProfile: data.memory_decay_profile || 'normal',
@@ -432,6 +438,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           personality_style: personalityStyle,
           allow_discovery: allowDiscovery,
           cron_post_run_verify: cronPostRunVerify,
+          busy_input_mode: busyInputMode,
           subagent_ids: selectedSubagentIds.length > 0 ? selectedSubagentIds : undefined,
           max_iterations: maxIterations,
           workspace_policy: workspacePolicy,
@@ -468,6 +475,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           personality_style: personalityStyle,
           allow_discovery: allowDiscovery,
           cron_post_run_verify: cronPostRunVerify,
+          busy_input_mode: busyInputMode,
           subagent_ids: selectedSubagentIds.length > 0 ? selectedSubagentIds : [],
           max_iterations: maxIterations,
           workspace_policy: workspacePolicy,
@@ -507,6 +515,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           personalityStyle,
           allowDiscovery,
           cronPostRunVerify,
+          busyInputMode,
           promptMode,
           maxIterations,
           memoryDecayProfile,
@@ -559,6 +568,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     notifyTargets,
     allowDiscovery,
     cronPostRunVerify,
+    busyInputMode,
     workspacePolicy,
     sessionPolicy,
     mcpToolSelections,
@@ -683,6 +693,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     setAllowDiscovery,
     cronPostRunVerify,
     setCronPostRunVerify,
+    busyInputMode,
+    setBusyInputMode,
     // 迭代次数
     maxIterations,
     setMaxIterations,

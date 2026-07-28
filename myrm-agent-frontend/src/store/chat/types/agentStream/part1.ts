@@ -64,6 +64,7 @@ export const AgentEventType = {
   ITERATION_LIMIT_REACHED: 'iteration_limit_reached',
   CONTEXT_OVERFLOW_RESET: 'context_overflow_reset',
   STEERING: 'steering',
+  REDIRECTED: 'redirected',
   TOOL_FALLBACK: 'tool_fallback',
   CONTEXT_REFERENCE_WARNING: 'context_reference_warning',
   CAPTCHA_DETECTED: 'captcha_detected',
@@ -258,6 +259,11 @@ export interface ClarificationRequiredStreamEvent extends BaseAgentEvent {
 export interface SteeringStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.STEERING;
   data?: { count?: number; messages?: string[] } | string;
+}
+
+export interface RedirectedStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.REDIRECTED;
+  data?: string;
 }
 
 export interface ToolStartStreamEvent extends BaseAgentEvent {

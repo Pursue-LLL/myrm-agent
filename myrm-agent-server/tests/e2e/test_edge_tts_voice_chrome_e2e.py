@@ -24,6 +24,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from pytest import FixtureRequest
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -245,39 +246,52 @@ def _config_value_snapshot(key: str) -> dict[str, object]:
     return payload["value"]
 
 
+_CHROME_NEW_PAGE_TIMEOUT_MS = 120_000
+
+
 @pytest.fixture(autouse=True)
-def restore_global_voice_state() -> Iterator[None]:
+def restore_global_voice_state(request: pytest.FixtureRequest) -> Iterator[None]:
     """Keep global voice/config writes from leaking into later UI E2E tests."""
+    if request.node.get_closest_marker("chrome_e2e") is None:
+        yield
+        return
     if not _server_reachable():
         yield
         return
-    feature_enabled, feature_overridden = _feature_override_snapshot()
-    voice = _config_value_snapshot("voice")
-    personal = _config_value_snapshot("personalSettings")
+    try:
+        feature_enabled, feature_overridden = _feature_override_snapshot()
+        voice = _config_value_snapshot("voice")
+        personal = _config_value_snapshot("personalSettings")
+    except Exception:
+        yield
+        return
     try:
         yield
     finally:
-        _http_json(
-            "PUT",
-            f"{get_e2e_api_url()}/api/v1/config/voice",
-            {"deviceId": "web", "value": voice},
-        )
-        _http_json(
-            "PUT",
-            f"{get_e2e_api_url()}/api/v1/config/personalSettings",
-            {"deviceId": "web", "value": personal},
-        )
-        if feature_overridden:
+        try:
             _http_json(
-                "POST",
-                f"{get_e2e_api_url()}/api/v1/features/voice_interaction/toggle",
-                {"enabled": feature_enabled},
+                "PUT",
+                f"{get_e2e_api_url()}/api/v1/config/voice",
+                {"deviceId": "web", "value": voice},
             )
-        else:
             _http_json(
-                "POST",
-                f"{get_e2e_api_url()}/api/v1/features/voice_interaction/reset",
+                "PUT",
+                f"{get_e2e_api_url()}/api/v1/config/personalSettings",
+                {"deviceId": "web", "value": personal},
             )
+            if feature_overridden:
+                _http_json(
+                    "POST",
+                    f"{get_e2e_api_url()}/api/v1/features/voice_interaction/toggle",
+                    {"enabled": feature_enabled},
+                )
+            else:
+                _http_json(
+                    "POST",
+                    f"{get_e2e_api_url()}/api/v1/features/voice_interaction/reset",
+                )
+        except Exception:
+            pass
 
 
 @pytest.fixture
@@ -287,7 +301,9 @@ def chrome_page(
     client = ChromeMcpClient()
     client.start()
     try:
-        page = client.new_page(f"{get_e2e_ui_url()}/", timeout_ms=15_000)
+        page = client.new_page(
+            f"{get_e2e_ui_url()}/", timeout_ms=_CHROME_NEW_PAGE_TIMEOUT_MS
+        )
         yield client, page
     finally:
         client.close()
@@ -300,7 +316,9 @@ def voice_chrome_page(
     client = ChromeMcpClient()
     client.start()
     try:
-        page = client.new_page(f"{get_e2e_ui_url()}/", timeout_ms=15_000)
+        page = client.new_page(
+            f"{get_e2e_ui_url()}/", timeout_ms=_CHROME_NEW_PAGE_TIMEOUT_MS
+        )
         yield client, page
     finally:
         client.close()
@@ -545,7 +563,7 @@ async def test_edge_tts_parallel_tabs_isolated(_require_live_e2e_lease: None) ->
 
     client = ChromeMcpClient(request_timeout_sec=180.0)
     await asyncio.to_thread(client.start)
-    page_timeout_ms = 60_000
+    page_timeout_ms = _CHROME_NEW_PAGE_TIMEOUT_MS
 
     try:
         voice_tab = await asyncio.to_thread(

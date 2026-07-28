@@ -20,6 +20,7 @@ import {
   ListPlus,
   Maximize2,
   Minimize2,
+  CornerDownLeft,
 } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import AttachList from '../message-input-actions/AttachList';
@@ -175,6 +176,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     handlePaste,
     handleSubmit,
     handleSteerSubmit,
+    handleRedirectSubmit,
     handleQueueSubmit,
     handleInputChange,
     handleDroppedFiles,
@@ -510,12 +512,12 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                       <>
                         <button
                           type="button"
-                          onClick={handleQueueSubmit}
-                          className="bg-accent text-white hover:bg-accent/80 transition duration-100 rounded-full p-2"
-                          aria-label={chatT('queue.sendLater')}
-                          title={chatT('queue.sendLaterTooltip')}
+                          onClick={handleRedirectSubmit}
+                          className="bg-primary text-primary-foreground hover:bg-primary/80 transition duration-100 rounded-full p-2"
+                          aria-label={chatT('redirect.send')}
+                          title={chatT('redirect.tooltip')}
                         >
-                          <ListPlus size={17} />
+                          <CornerDownLeft size={17} />
                         </button>
                         <button
                           type="button"
@@ -525,6 +527,15 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                           title={chatT('steer.tooltip')}
                         >
                           <Navigation size={17} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleQueueSubmit}
+                          className="bg-accent/60 text-white hover:bg-accent/80 transition duration-100 rounded-full p-2"
+                          aria-label={chatT('queue.sendLater')}
+                          title={chatT('queue.sendLaterTooltip')}
+                        >
+                          <ListPlus size={17} />
                         </button>
                       </>
                     )}

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/primitives/badge';
 import { IconCheckCircle, IconCheck, IconX, IconClock, IconEdit } from '@/components/features/icons/PremiumIcons';
 import { wikiService, PendingEdit } from '@/services/wikiService';
+import { ApiError } from '@/lib/api';
 
 export function WikiPendingEdits() {
   const t = useTranslations('settings.wiki');
@@ -44,6 +45,10 @@ export function WikiPendingEdits() {
       loadPending();
     } catch (error) {
       console.error('Failed to approve:', error);
+      if (error instanceof ApiError && error.status === 422) {
+        toast.error(t('errors.approveTypeRequired'));
+        return;
+      }
       toast.error(t('errors.approveFailed'));
     }
   };

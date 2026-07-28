@@ -62,6 +62,14 @@ export interface OperationResult {
   message: string;
 }
 
+export interface RepairTypesResponse {
+  success: boolean;
+  files_scanned: number;
+  files_repaired: number;
+  files_skipped: number;
+  message: string;
+}
+
 export interface ConceptListResponse {
   concepts: string[];
   total: number;
@@ -253,6 +261,12 @@ export const wikiService = {
     return apiRequest<ObsidianImportResultResponse>(wikiPath(`/wiki/import/obsidian-zip?${params.toString()}`), {
       method: 'POST',
       body: formData,
+    });
+  },
+
+  repairPageTypes: async (): Promise<RepairTypesResponse> => {
+    return apiRequest<RepairTypesResponse>(wikiPath('/wiki/repair-types'), {
+      method: 'POST',
     });
   },
 };

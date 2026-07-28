@@ -587,11 +587,16 @@ async def _run_migration_readiness_gap_e2e(
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.timeout(600)
-async def test_migration_readiness_gap_shows_sse_toast_on_first_chat(
+async def test_migration_readiness_gap_chrome_e2e_warning_and_critical_batch(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    """First chat after migration anchor: MCP warning toast via capability_gap SSE (UX plane)."""
+    """Single SHPOIB lease: mcp_warning + diagnostic_critical gap toasts (UX plane)."""
 
+    from app.services.agent.stream_session.entitlement_gap_preflight import (
+        reset_capability_gap_emission_tracker,
+    )
+
+    reset_capability_gap_emission_tracker()
     await _run_migration_readiness_gap_e2e(
         variant="mcp_warning",
         expected_readiness="warning",
@@ -599,17 +604,7 @@ async def test_migration_readiness_gap_shows_sse_toast_on_first_chat(
         e2e_resource_ledger=e2e_resource_ledger,
     )
 
-
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
-@pytest.mark.e2e_search_policy("empty")
-@pytest.mark.integration
-@pytest.mark.asyncio
-@pytest.mark.timeout(600)
-async def test_migration_readiness_critical_gap_shows_toast_and_llm_replies(
-    e2e_resource_ledger: E2EResourceLedger,
-) -> None:
-    """Direct chat with diagnostic-critical anchor: critical gap toast (UX plane)."""
-
+    reset_capability_gap_emission_tracker()
     await _run_migration_readiness_gap_e2e(
         variant="diagnostic_critical",
         expected_readiness="critical",

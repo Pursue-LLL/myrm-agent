@@ -50,6 +50,7 @@ export const useMessageInput = () => {
     chatId,
     sendMessage,
     steerMessage,
+    redirectMessage,
     actionMode,
     setActionMode,
     files,
@@ -64,11 +65,13 @@ export const useMessageInput = () => {
     setPendingArchiveRestoreActions,
     loadMessages,
     loading,
+    agentConfig,
   } = useChatStore(
     useShallow((state) => ({
       chatId: state.chatId,
       sendMessage: state.sendMessage,
       steerMessage: state.steerMessage,
+      redirectMessage: state.redirectMessage,
       actionMode: state.actionMode,
       setActionMode: state.setActionMode,
       files: state.files,
@@ -83,6 +86,7 @@ export const useMessageInput = () => {
       setPendingArchiveRestoreActions: state.setPendingArchiveRestoreActions,
       loadMessages: state.loadMessages,
       loading: state.loading,
+      agentConfig: state.agentConfig,
     })),
   );
 
@@ -267,6 +271,40 @@ export const useMessageInput = () => {
   ]);
 
   /**
+   * Redirect 模式提交：立即中断模型生成，保留 partial 输出，注入纠偏指令
+   */
+  const handleRedirectSubmit = useCallback(async () => {
+    if (!(await _validateAndPrepare())) return;
+    clearDraft();
+    recordChatQueryMetric();
+    const redirectText = inputMessage.trim();
+    const injectedText = _injectDirtyArtifacts(redirectText);
+
+    setInputMessage('');
+    const success = await redirectMessage(injectedText);
+    if (success) {
+      const chatState = useChatStore.getState();
+      const currentSessionMessageId =
+        typeof chatState.getCurrentSessionMessageId === 'function'
+          ? chatState.getCurrentSessionMessageId()
+          : undefined;
+      queuePendingChatWikiQuerySuccess(chatState.messages, chatState.chatId, currentSessionMessageId);
+    } else {
+      await handleSteerSubmit();
+    }
+  }, [
+    _validateAndPrepare,
+    clearDraft,
+    inputMessage,
+    setInputMessage,
+    redirectMessage,
+    handleSteerSubmit,
+    _injectDirtyArtifacts,
+    recordChatQueryMetric,
+    queuePendingChatWikiQuerySuccess,
+  ]);
+
+  /**
    * Queue 模式提交：不干扰当前任务，等完成后自动发送
    */
   const handleQueueSubmit = useCallback(async () => {
@@ -320,7 +358,18 @@ export const useMessageInput = () => {
     }
 
     if (loading) {
-      await handleQueueSubmit();
+      const mode = agentConfig?.busyInputMode ?? 'redirect';
+      switch (mode) {
+        case 'redirect':
+          await handleRedirectSubmit();
+          break;
+        case 'steer':
+          await handleSteerSubmit();
+          break;
+        case 'queue':
+          await handleQueueSubmit();
+          break;
+      }
       return;
     }
 
@@ -351,6 +400,9 @@ export const useMessageInput = () => {
     setInputMessage,
     _validateAndPrepare,
     handleQueueSubmit,
+    handleSteerSubmit,
+    handleRedirectSubmit,
+    agentConfig,
     sendMessage,
     pendingArchiveRestoreActions,
     setPendingArchiveRestoreActions,
@@ -491,6 +543,7 @@ export const useMessageInput = () => {
     handleDroppedFiles,
     handleSubmit,
     handleSteerSubmit,
+    handleRedirectSubmit,
     handleQueueSubmit,
     handleInputChange,
     handleAddAtSymbol,

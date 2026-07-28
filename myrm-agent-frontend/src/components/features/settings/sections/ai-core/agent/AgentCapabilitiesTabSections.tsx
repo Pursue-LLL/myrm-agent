@@ -368,3 +368,37 @@ function RoutingModelSlot({
 export { ConsensusSection } from './AgentCapabilitiesConsensusSection';
 export { SessionPolicySection } from './AgentCapabilitiesSessionSection';
 export { DeliveryAssuranceSection } from './AgentCapabilitiesDeliverySection';
+
+const BUSY_INPUT_OPTIONS: { value: 'redirect' | 'steer' | 'queue'; labelKey: string }[] = [
+  { value: 'redirect', labelKey: 'agent.busyInputRedirect' },
+  { value: 'steer', labelKey: 'agent.busyInputSteer' },
+  { value: 'queue', labelKey: 'agent.busyInputQueue' },
+];
+
+export function BusyInputModeSection({ editor, t }: SectionProps) {
+  return (
+    <div className="rounded-xl bg-card/60 border border-border/50 p-4">
+      <div className="mb-3">
+        <h4 className="text-sm font-medium text-foreground">{t('agent.busyInputMode')}</h4>
+        <p className="text-xs text-muted-foreground mt-0.5">{t('agent.busyInputModeDesc')}</p>
+      </div>
+      <div className="flex gap-2">
+        {BUSY_INPUT_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => editor.setBusyInputMode(opt.value)}
+            className={cn(
+              'flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors border',
+              editor.busyInputMode === opt.value
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border/50 bg-secondary/30 text-muted-foreground hover:bg-secondary/60',
+            )}
+          >
+            {t(opt.labelKey)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

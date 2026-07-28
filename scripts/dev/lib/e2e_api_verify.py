@@ -678,12 +678,19 @@ def _compute_next_action(
     active_tests: list[dict[str, object]],
     mux_fields: dict[str, object],
 ) -> str:
-    from dev_gate_contract import LIVE_SINGLE_TEST_WALL_CLOCK_SEC  # noqa: PLC0415
+    from dev_gate_contract import (  # noqa: PLC0415
+        LIVE_AGENT_PYTEST_WALL_CAP_SEC,
+        LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
+    )
 
     for row in active_tests:
         body_elapsed = row.get("body_elapsed_sec")
         if isinstance(body_elapsed, (int, float)):
             if float(body_elapsed) >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
+                return "FAIL_FAST"
+        process_elapsed = row.get("elapsed_sec")
+        if isinstance(process_elapsed, (int, float)):
+            if float(process_elapsed) >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC):
                 return "FAIL_FAST"
     if headroom.get("parallelQueueExpected") is True:
         return "QUEUE"

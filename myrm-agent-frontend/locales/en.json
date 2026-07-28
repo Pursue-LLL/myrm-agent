@@ -2061,6 +2061,7 @@
       "querying": "Querying...",
       "compiling": "Compiling...",
       "maintaining": "Maintaining...",
+      "repairingTypes": "Repairing...",
       "stats": {
         "title": "Wiki Statistics",
         "description": "Overview of your knowledge base",
@@ -2086,7 +2087,8 @@
         "refresh": "Refresh",
         "query": "Query",
         "compile": "Compile Wiki",
-        "maintain": "Maintain Wiki"
+        "maintain": "Maintain Wiki",
+        "repairPageTypes": "Repair Page Types"
       },
       "purpose": {
         "title": "Knowledge Direction",
@@ -2101,6 +2103,7 @@
         "queryComplete": "Query completed successfully",
         "compileComplete": "Wiki compiled successfully",
         "maintainComplete": "Wiki maintenance completed",
+        "repairTypesComplete": "Repaired page types on {count} notes",
         "approveComplete": "Edit approved successfully",
         "rejectComplete": "Edit rejected successfully",
         "purposeSaved": "Knowledge direction saved"
@@ -2111,10 +2114,12 @@
         "queryFailed": "Failed to query wiki",
         "compileFailed": "Failed to compile wiki",
         "maintainFailed": "Failed to maintain wiki",
+        "repairTypesFailed": "Failed to repair page types",
         "loadStatsFailed": "Failed to load wiki statistics",
         "loadConceptsFailed": "Failed to load concepts",
         "loadPendingFailed": "Failed to load pending edits",
         "approveFailed": "Failed to approve edit",
+        "approveTypeRequired": "Add a valid page type in the note header before approving",
         "rejectFailed": "Failed to reject edit",
         "importFailed": "Failed to import documents"
       },
@@ -5057,6 +5062,11 @@
     "cronPostRunVerify": "Scheduled Task Verification",
     "cronPostRunVerifyDesc": "After unattended cron runs that changed files or executed commands, run an independent delivery review (does not retry the task).",
     "cronPostRunVerifyHint": "Task success and delivery review are separate. A failed review adds a warning to the run record and does not rerun the task. When file or command changes are detected, the built-in delivery reviewer runs automatically.",
+    "busyInputMode": "Busy Input Behavior",
+    "busyInputModeDesc": "Default action when you send a message while the agent is working.",
+    "busyInputRedirect": "Redirect",
+    "busyInputSteer": "Steer",
+    "busyInputQueue": "Queue",
     "sessionPolicyMode": "Reset Mode",
     "sessionPolicyPersistent": "Persistent",
     "sessionPolicyPersistentDesc": "One session per peer forever",
@@ -6171,6 +6181,10 @@
       "placeholder": "Type to guide agent...",
       "send": "Send guidance",
       "tooltip": "Send guidance to the running agent"
+    },
+    "redirect": {
+      "send": "Redirect now",
+      "tooltip": "Interrupt current generation and redirect the agent"
     },
     "input": {
       "placeholder": "Type a message...",

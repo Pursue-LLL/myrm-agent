@@ -428,6 +428,25 @@ const useChatStore = create<ChatState>()(
           return false;
         }
       },
+      redirectMessage: async (message: string) => {
+        const { chatId } = get();
+        if (!chatId) return false;
+        try {
+          const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
+          if (isMobileRemoteSurface()) {
+            await mobileRemotePost(`/api/v1/agents/chats/${chatId}/redirect`, { message });
+            return true;
+          }
+          const res = await fetchWithTimeout(`/agents/chats/${chatId}/redirect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message }),
+          });
+          return res.ok;
+        } catch {
+          return false;
+        }
+      },
 
       // 当前会话messageId管理
       getCurrentSessionMessageId: () => {

@@ -93,6 +93,29 @@ async def steer_agent(
     return error_response(message="No active agent for this chat", code=404)
 
 
+@router.post("/chats/{chat_id}/redirect")
+@limiter.limit(settings.rate_limit.chat)
+async def redirect_agent(
+    chat_id: str,
+    body: SteerRequest,
+    http_request: Request,
+) -> JSONResponse:
+    from app.core.utils.response_utils import error_response, success_response
+    from app.remote_access.mobile_gate import require_mobile_pair_chat_access
+
+    require_mobile_pair_chat_access(http_request, chat_id)
+    if not body.message.strip():
+        return error_response(message="Redirect message cannot be empty", code=400)
+
+    success = SteeringRegistry.redirect(chat_id, body.message)
+
+    if success:
+        logger.info("User redirected agent: chat_id=%s", chat_id)
+        return success_response(data={"redirected": True, "chat_id": chat_id})
+
+    return error_response(message="No active agent for this chat", code=404)
+
+
 @router.post("/chats/{chat_id}/cancel")
 @limiter.limit(settings.rate_limit.chat)
 async def cancel_active_chat_agent(

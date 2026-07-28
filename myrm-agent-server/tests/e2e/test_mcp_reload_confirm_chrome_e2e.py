@@ -15,6 +15,7 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
+    reload_mcp_page,
     wait_for_state,
     warm_ui_route,
 )
@@ -34,13 +35,6 @@ _MCP_PAGE_HAS_PROBE_JS = """(() => {
   const hasHeading = /MCP 服务配置|MCP Service/i.test(text);
   const hasProbe = text.includes('e2e-reload-probe');
   return { ready: hasHeading && hasProbe, sample: text.slice(0, 400) };
-})()"""
-
-_MCP_PAGE_HAS_IMPORT_PROBE_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const hasHeading = /MCP 服务配置|MCP Service/i.test(text);
-  const hasImport = text.includes('e2e-import-probe');
-  return { ready: hasHeading && hasImport, sample: text.slice(0, 400) };
 })()"""
 
 _MCP_PAGE_HAS_ADD_PROBE_JS = """(() => {
@@ -328,89 +322,20 @@ def _confirm_reload_dialog(client, page, *, timeout_sec: float = 45.0) -> None:
     assert isinstance(confirmed, dict) and confirmed.get("ok") is True, confirmed
 
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
-@pytest.mark.integration
-@pytest.mark.timeout(240)
-def test_mcp_reload_confirm_dialog_cancel_and_confirm_on_disable_toggle() -> None:
-    """Disable toggle → reload dialog; cancel preserves config; confirm persists."""
-    api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
-    prepare_e2e_ui_session(api_url)
-    _seed_probe_mcp_server()
-    assert _probe_enabled_in_api() is True
-
-    warm_ui_route("/settings/mcp")
-    with open_mcp_page(f"{ui_url}/settings/mcp", timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page)
-        ready = wait_for_state(client, page, _MCP_PAGE_HAS_PROBE_JS, timeout_sec=90.0)
-        assert ready.get("ready") is True, json.dumps(ready, ensure_ascii=False)
-
-        toggled = client.evaluate(page, _TOGGLE_PROBE_SWITCH_JS, timeout_sec=15.0)
-        assert isinstance(toggled, dict) and toggled.get("ok") is True, toggled
-
-        dialog = wait_for_state(client, page, _RELOAD_DIALOG_STATE_JS, timeout_sec=30.0)
-        assert dialog.get("ready") is True, json.dumps(dialog, ensure_ascii=False)
-
-        cancelled = client.evaluate(page, _CLICK_DIALOG_CANCEL_JS, timeout_sec=10.0)
-        assert isinstance(cancelled, dict) and cancelled.get("ok") is True, cancelled
-        time.sleep(0.8)
-        assert _probe_enabled_in_api() is True, "cancel must not persist disable"
-
-        toggled_again = client.evaluate(page, _TOGGLE_PROBE_SWITCH_JS, timeout_sec=15.0)
-        assert isinstance(toggled_again, dict) and toggled_again.get("ok") is True, toggled_again
-
-        _confirm_reload_dialog(client, page)
-
-        deadline = time.monotonic() + 20.0
-        disabled = False
-        while time.monotonic() < deadline:
-            if not _probe_enabled_in_api():
-                disabled = True
-                break
-            time.sleep(0.4)
-        assert disabled is True, "confirm must persist disabled MCP server"
+def _reload_mcp_page(client, page) -> None:
+    reload_mcp_page(client, page)
+    dismiss_blocking_modals(client, page)
+    wait_for_state(client, page, _MCP_PAGE_READY_JS, timeout_sec=90.0)
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
-@pytest.mark.timeout(240)
-def test_mcp_reload_confirm_dialog_on_delete() -> None:
-    """Delete row → delete confirm → reload confirm → server removed from API."""
+@pytest.mark.timeout(600)
+def test_mcp_reload_confirm_dialog_all_paths_single_session() -> None:
+    """Single SHPOIB session: toggle cancel/confirm, delete, import, add/save."""
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
-    _seed_probe_mcp_server()
-    assert _server_exists_in_api(_PROBE_SERVER_NAME)
-
-    warm_ui_route("/settings/mcp")
-    with open_mcp_page(f"{ui_url}/settings/mcp", timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page)
-        ready = wait_for_state(client, page, _MCP_PAGE_HAS_PROBE_JS, timeout_sec=90.0)
-        assert ready.get("ready") is True, json.dumps(ready, ensure_ascii=False)
-
-        clicked_delete = client.evaluate(page, _CLICK_PROBE_DELETE_JS, timeout_sec=15.0)
-        assert isinstance(clicked_delete, dict) and clicked_delete.get("ok") is True, clicked_delete
-
-        delete_dialog = wait_for_state(client, page, _DELETE_DIALOG_STATE_JS, timeout_sec=20.0)
-        assert delete_dialog.get("ready") is True, json.dumps(delete_dialog, ensure_ascii=False)
-
-        confirmed_delete = client.evaluate(page, _CLICK_DELETE_CONFIRM_JS, timeout_sec=10.0)
-        assert isinstance(confirmed_delete, dict) and confirmed_delete.get("ok") is True, confirmed_delete
-
-        _confirm_reload_dialog(client, page)
-        _wait_for_server_absent(_PROBE_SERVER_NAME)
-
-
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
-@pytest.mark.integration
-@pytest.mark.timeout(240)
-def test_mcp_reload_confirm_dialog_on_import_json() -> None:
-    """Import JSON → reload confirm → imported server present in API."""
-    api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
-    prepare_e2e_ui_session(api_url)
-    _seed_empty_mcp_configs()
-    assert not _server_exists_in_api(_IMPORT_SERVER_NAME)
 
     import_payload = json.dumps(
         {
@@ -426,65 +351,87 @@ def test_mcp_reload_confirm_dialog_on_import_json() -> None:
 
     warm_ui_route("/settings/mcp")
     with open_mcp_page(f"{ui_url}/settings/mcp", timeout_ms=120_000) as (client, page):
+        # --- Path 1: disable toggle cancel + confirm ---
+        _seed_probe_mcp_server()
+        assert _probe_enabled_in_api() is True
+        _reload_mcp_page(client, page)
         dismiss_blocking_modals(client, page)
-        ready = wait_for_state(client, page, _MCP_PAGE_READY_JS, timeout_sec=90.0)
+        ready = wait_for_state(client, page, _MCP_PAGE_HAS_PROBE_JS, timeout_sec=90.0)
         assert ready.get("ready") is True, json.dumps(ready, ensure_ascii=False)
+
+        toggled = client.evaluate(page, _TOGGLE_PROBE_SWITCH_JS, timeout_sec=15.0)
+        assert isinstance(toggled, dict) and toggled.get("ok") is True, toggled
+        dialog = wait_for_state(client, page, _RELOAD_DIALOG_STATE_JS, timeout_sec=30.0)
+        assert dialog.get("ready") is True, json.dumps(dialog, ensure_ascii=False)
+        cancelled = client.evaluate(page, _CLICK_DIALOG_CANCEL_JS, timeout_sec=10.0)
+        assert isinstance(cancelled, dict) and cancelled.get("ok") is True, cancelled
+        time.sleep(0.8)
+        assert _probe_enabled_in_api() is True, "cancel must not persist disable"
+
+        toggled_again = client.evaluate(page, _TOGGLE_PROBE_SWITCH_JS, timeout_sec=15.0)
+        assert isinstance(toggled_again, dict) and toggled_again.get("ok") is True, toggled_again
+        _confirm_reload_dialog(client, page)
+        deadline = time.monotonic() + 20.0
+        while time.monotonic() < deadline and _probe_enabled_in_api():
+            time.sleep(0.4)
+        assert not _probe_enabled_in_api(), "confirm must persist disabled MCP server"
+
+        # --- Path 2: delete ---
+        _seed_probe_mcp_server()
+        _reload_mcp_page(client, page)
+        ready_delete = wait_for_state(client, page, _MCP_PAGE_HAS_PROBE_JS, timeout_sec=90.0)
+        assert ready_delete.get("ready") is True, json.dumps(ready_delete, ensure_ascii=False)
+
+        clicked_delete = client.evaluate(page, _CLICK_PROBE_DELETE_JS, timeout_sec=15.0)
+        assert isinstance(clicked_delete, dict) and clicked_delete.get("ok") is True, clicked_delete
+        delete_dialog = wait_for_state(client, page, _DELETE_DIALOG_STATE_JS, timeout_sec=20.0)
+        assert delete_dialog.get("ready") is True, json.dumps(delete_dialog, ensure_ascii=False)
+        confirmed_delete = client.evaluate(page, _CLICK_DELETE_CONFIRM_JS, timeout_sec=10.0)
+        assert isinstance(confirmed_delete, dict) and confirmed_delete.get("ok") is True, confirmed_delete
+        _confirm_reload_dialog(client, page)
+        _wait_for_server_absent(_PROBE_SERVER_NAME)
+
+        # --- Path 3: import JSON ---
+        _seed_empty_mcp_configs()
+        _reload_mcp_page(client, page)
+        ready_import = wait_for_state(client, page, _MCP_PAGE_READY_JS, timeout_sec=90.0)
+        assert ready_import.get("ready") is True, json.dumps(ready_import, ensure_ascii=False)
 
         opened = client.evaluate(page, _CLICK_IMPORT_JSON_BUTTON_JS, timeout_sec=15.0)
         assert isinstance(opened, dict) and opened.get("ok") is True, opened
-
-        filled = client.evaluate(
-            page,
-            _set_import_textarea_js(import_payload),
-            timeout_sec=15.0,
-        )
+        filled = client.evaluate(page, _set_import_textarea_js(import_payload), timeout_sec=15.0)
         assert isinstance(filled, dict) and filled.get("ok") is True, filled
-
         submitted = client.evaluate(page, _CLICK_IMPORT_SUBMIT_JS, timeout_sec=15.0)
         assert isinstance(submitted, dict) and submitted.get("ok") is True, submitted
-
         _confirm_reload_dialog(client, page, timeout_sec=90.0)
         _wait_for_server_present(_IMPORT_SERVER_NAME)
 
+        # --- Path 4: add/save form ---
+        _seed_empty_mcp_configs()
+        _reload_mcp_page(client, page)
+        ready_add = wait_for_state(client, page, _MCP_PAGE_READY_JS, timeout_sec=90.0)
+        assert ready_add.get("ready") is True, json.dumps(ready_add, ensure_ascii=False)
 
-@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
-@pytest.mark.integration
-@pytest.mark.timeout(300)
-def test_mcp_reload_confirm_dialog_on_add_and_save() -> None:
-    """Add Service form save → reload confirm → new server present in API."""
-    api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
-    prepare_e2e_ui_session(api_url)
-    _seed_empty_mcp_configs()
-    assert not _server_exists_in_api(_ADD_SERVER_NAME)
-
-    warm_ui_route("/settings/mcp")
-    with open_mcp_page(f"{ui_url}/settings/mcp", timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page)
-        ready = wait_for_state(client, page, _MCP_PAGE_READY_JS, timeout_sec=90.0)
-        assert ready.get("ready") is True, json.dumps(ready, ensure_ascii=False)
-
-        opened = client.evaluate(page, _CLICK_ADD_SERVICE_BUTTON_JS, timeout_sec=15.0)
-        assert isinstance(opened, dict) and opened.get("ok") is True, opened
-
+        opened_add = client.evaluate(page, _CLICK_ADD_SERVICE_BUTTON_JS, timeout_sec=15.0)
+        assert isinstance(opened_add, dict) and opened_add.get("ok") is True, opened_add
         for label_pattern, value in (
             ("Service Name|服务名称|Dienstname|서비스 이름", _ADD_SERVER_NAME),
             ("Command|命令|Befehl|명령", sys.executable),
             ("Arguments|参数|Argumente|인수", "-c\npass"),
             ("Description|描述|Beschreibung|설명", "E2E add probe server"),
         ):
-            filled = client.evaluate(
+            filled_field = client.evaluate(
                 page,
                 _fill_input_by_label_js(label_pattern, value),
                 timeout_sec=15.0,
             )
-            assert isinstance(filled, dict) and filled.get("ok") is True, (label_pattern, filled)
-
+            assert isinstance(filled_field, dict) and filled_field.get("ok") is True, (
+                label_pattern,
+                filled_field,
+            )
         saved = client.evaluate(page, _CLICK_SAVE_CONFIG_JS, timeout_sec=15.0)
         assert isinstance(saved, dict) and saved.get("ok") is True, saved
-
         _confirm_reload_dialog(client, page, timeout_sec=90.0)
         _wait_for_server_present(_ADD_SERVER_NAME)
-
         ui_ready = wait_for_state(client, page, _MCP_PAGE_HAS_ADD_PROBE_JS, timeout_sec=60.0)
         assert ui_ready.get("ready") is True, json.dumps(ui_ready, ensure_ascii=False)

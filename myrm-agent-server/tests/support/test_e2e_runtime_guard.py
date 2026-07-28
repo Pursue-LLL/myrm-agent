@@ -379,8 +379,12 @@ def test_snapshot_live_e2e_processes_parses_ps(
         return type("Result", (), {"returncode": 0, "stdout": ps_output})()
 
     monkeypatch.setattr(
-        "tests.support.e2e_parallel_snapshot.subprocess.run",
+        "e2e_live_chrome_pytest_scan.subprocess.run",
         _fake_run,
+    )
+    monkeypatch.setattr(
+        "e2e_live_chrome_pytest_scan._pid_alive",
+        lambda pid: pid in {2715, 99999},
     )
     monkeypatch.setattr(
         "tests.support.e2e_parallel_snapshot._pid_alive",
@@ -418,11 +422,11 @@ def test_snapshot_live_e2e_processes_parses_marker_only_selector(
         return type("Result", (), {"returncode": 0, "stdout": ps_output})()
 
     monkeypatch.setattr(
-        "tests.support.e2e_parallel_snapshot.subprocess.run",
+        "e2e_live_chrome_pytest_scan.subprocess.run",
         _fake_run,
     )
     monkeypatch.setattr(
-        "tests.support.e2e_parallel_snapshot._pid_alive",
+        "e2e_live_chrome_pytest_scan._pid_alive",
         lambda pid: pid == 60813,
     )
 

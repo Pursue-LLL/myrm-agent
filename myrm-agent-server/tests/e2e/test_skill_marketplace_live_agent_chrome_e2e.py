@@ -46,12 +46,14 @@ _MAX_CHAT_ATTEMPTS = 3
 
 _USER_QUERY = (
     "我想从外部技能市场找一个跟 GitHub 工作流相关的技能。"
-    "请先搜索，再把搜到的第一个技能名称简要告诉我。"
+    "你必须先调用 skill_market_tool（action=search）搜索，禁止凭记忆回答。"
+    "搜索完成后，把搜到的第一个技能名称简要告诉我。"
 )
 
 _AGENT_SYSTEM_PROMPT = (
     "You help users find and install skills from external marketplaces (GitHub, skills.sh, community catalogs). "
-    f"When the user asks to search external markets, use {_MARKETPLACE_TOOL} with action=search. "
+    f"When the user asks to search external markets, you MUST call {_MARKETPLACE_TOOL} with action=search "
+    "before writing any answer. Never answer from memory or guess skill names. "
     f"Use {_DISCOVER_TOOL} only for skills already bound to this agent, not for external marketplace search. "
     "Present search results clearly with skill names."
 )
@@ -64,6 +66,25 @@ _AGENT_READY_JS = """(() => {
     selection: debug.selection ?? null,
   };
 })()"""
+
+_TURN_TOOL_INVOKED_JS = f"""(() => {{
+  const chat = window.__myrmChatStore?.getState?.() ?? {{}};
+  const assistants = (chat.messages || []).filter((m) => m.role === 'assistant');
+  const last = assistants[assistants.length - 1];
+  if (!last) {{
+    return {{ invoked: false, toolNames: [] }};
+  }}
+  const metaSteps = Array.isArray(last.metadata?.progressSteps)
+    ? last.metadata.progressSteps
+    : [];
+  const steps = last.progressSteps?.length ? last.progressSteps : metaSteps;
+  const toolNames = steps.map((s) => String(s.tool_name ?? ''));
+  return {{
+    invoked: toolNames.includes('{_MARKETPLACE_TOOL}'),
+    toolNames,
+    isStreaming: Boolean(chat.loading || chat.abortController),
+  }};
+}})()"""
 
 _TURN_DONE_JS = """(() => {
   const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
@@ -110,6 +131,12 @@ def _message_blob(msg: dict[str, object]) -> str:
             parts.append(json.dumps(metadata, ensure_ascii=False))
         except TypeError:
             parts.append(str(metadata))
+    progress = msg.get("progressSteps")
+    if progress is not None:
+        try:
+            parts.append(json.dumps(progress, ensure_ascii=False))
+        except TypeError:
+            parts.append(str(progress))
     return "\n".join(parts)
 
 
@@ -130,6 +157,14 @@ def _assistant_has_marketplace_result(
             invoked.add(_MARKETPLACE_TOOL)
         if _DISCOVER_TOOL in blob:
             invoked.add(_DISCOVER_TOOL)
+        for step in msg.get("progressSteps") or []:
+            if not isinstance(step, dict):
+                continue
+            tool_name = str(step.get("tool_name") or step.get("toolName") or "")
+            if tool_name == _MARKETPLACE_TOOL:
+                invoked.add(_MARKETPLACE_TOOL)
+            if tool_name == _DISCOVER_TOOL:
+                invoked.add(_DISCOVER_TOOL)
         if msg.get("role") == "assistant":
             last_assistant = str(msg.get("content") or "")
 
@@ -214,11 +249,25 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
                 chat_id, api_url=api_base
             )
             last_api = (assistant, invoked)
-            if ok:
+            if _MARKETPLACE_TOOL in invoked:
                 return {
                     "source": "api",
                     "assistant": assistant[:800],
                     "invoked": sorted(invoked),
+                }
+
+            tool_raw = await chat.evaluate(
+                _TURN_TOOL_INVOKED_JS, await_promise=False, recv_timeout=20.0
+            )
+            tool_ui = tool_raw if isinstance(tool_raw, dict) else {"value": tool_raw}
+            if tool_ui.get("invoked") is True:
+                ui_invoked = set(last_api[1])
+                ui_invoked.add(_MARKETPLACE_TOOL)
+                return {
+                    "source": "ui-store",
+                    "assistant": last_api[0][:800],
+                    "invoked": sorted(ui_invoked),
+                    "toolNames": tool_ui.get("toolNames"),
                 }
 
             raw = await chat.evaluate(
@@ -229,6 +278,7 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
                 ui.get("hasAssistantText") is True
                 and ui.get("hasSkillResult") is True
                 and ui.get("isStreaming") is False
+                and _MARKETPLACE_TOOL in last_api[1]
             ):
                 return {
                     "source": "ui",
@@ -275,12 +325,11 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
         result = await _wait_turn_done(chat, chat_id, timeout_sec=420.0)
 
         invoked = set(result.get("invoked") or [])
-        if _MARKETPLACE_TOOL not in invoked and result.get("source") == "api":
-            pytest.skip(
-                f"model completed with marketplace-like answer but persisted metadata lacked "
-                f"{_MARKETPLACE_TOOL}; invoked={sorted(invoked)!r}; "
-                "harness wiring covered in integration tests",
-            )
+        assert _MARKETPLACE_TOOL in invoked, (
+            f"Expected {_MARKETPLACE_TOOL} in persisted chat metadata; "
+            f"invoked={sorted(invoked)!r}; source={result.get('source')!r}; "
+            f"assistant={str(result.get('assistant') or '')[:400]!r}"
+        )
 
         e2e_resource_ledger.register("chat", chat_id)
         return chat_id
@@ -312,6 +361,8 @@ async def test_live_agent_skill_marketplace_search_in_real_ui(
                 return
             except AssertionError as exc:
                 last_error = str(exc)
+                if "skill_market_tool" in last_error or "Marketplace search" in last_error:
+                    raise
                 if attempt >= _MAX_CHAT_ATTEMPTS - 1:
                     raise
                 await asyncio.sleep(2.0)

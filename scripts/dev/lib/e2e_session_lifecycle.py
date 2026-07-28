@@ -117,8 +117,68 @@ def wall_started_monotonic() -> float | None:
         return None
 
 
-def touch_wall_progress() -> None:
+def touch_wall_progress(*, current_node: str | None = None) -> None:
     os.environ[ENV_PROGRESS_AT] = str(time.monotonic())
+    try:
+        from e2e_session_snapshot import touch_session_progress
+
+        touch_session_progress(current_node=current_node)
+    except ImportError:
+        pass
+
+
+def _read_progress_at_monotonic() -> float | None:
+    raw = os.environ.get(ENV_PROGRESS_AT, "").strip()
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+def assert_body_progress_not_stale(phase_label: str) -> None:
+    """Fail-fast when BODY phase has no progress token refresh within STALL_PROGRESS_SEC."""
+    if current_phase() != "body":
+        return
+    from dev_gate_contract import STALL_PROGRESS_SEC
+
+    progress_at = _read_progress_at_monotonic()
+    elapsed = elapsed_wall_sec()
+    if progress_at is None:
+        return
+    stale = time.monotonic() - progress_at
+    if elapsed >= 30.0 and stale >= float(STALL_PROGRESS_SEC):
+        print(
+            f"E2E_BODY_PROGRESS_STALL: stale={int(stale)}s "
+            f"cap={STALL_PROGRESS_SEC}s elapsed={int(elapsed)}s "
+            f"phase={phase_label} wall_phase=body",
+            file=sys.stderr,
+            flush=True,
+        )
+        raise TimeoutError(
+            f"E2E_BODY_PROGRESS_STALL after {int(stale)}s without progress "
+            f"(phase={phase_label})"
+        )
+
+
+def assert_phase_budget(phase_label: str) -> None:
+    assert_body_progress_not_stale(phase_label)
+    wall_cap = phase_cap_sec()
+    elapsed = elapsed_wall_sec()
+    phase = current_phase()
+    if elapsed >= float(wall_cap):
+        print(
+            f"E2E_WALL_BUDGET_FAIL_FAST: elapsed={int(elapsed)}s "
+            f"cap={wall_cap}s remaining=0s phase={phase_label} wall_phase={phase}",
+            file=sys.stderr,
+            flush=True,
+        )
+        raise TimeoutError(
+            f"E2E_WALL_BUDGET_FAIL_FAST after {int(elapsed)}s "
+            f"(phase={phase_label}, wall_phase={phase})"
+        )
+    touch_wall_progress(current_node=phase_label)
 
 
 def elapsed_wall_sec() -> float:
@@ -201,24 +261,6 @@ def begin_body_wall_budget(*, phase_label: str = "pytest_body") -> None:
 
 def begin_teardown_phase(*, phase_label: str = "teardown") -> None:
     transition_to_phase("teardown", label=phase_label)
-
-
-def assert_phase_budget(phase_label: str) -> None:
-    wall_cap = phase_cap_sec()
-    elapsed = elapsed_wall_sec()
-    phase = current_phase()
-    if elapsed >= float(wall_cap):
-        print(
-            f"E2E_WALL_BUDGET_FAIL_FAST: elapsed={int(elapsed)}s "
-            f"cap={wall_cap}s remaining=0s phase={phase_label} wall_phase={phase}",
-            file=sys.stderr,
-            flush=True,
-        )
-        raise TimeoutError(
-            f"E2E_WALL_BUDGET_FAIL_FAST after {int(elapsed)}s "
-            f"(phase={phase_label}, wall_phase={phase})"
-        )
-    touch_wall_progress()
 
 
 def stream_wait_cap_sec(configured_wait: int) -> int:

@@ -16,6 +16,8 @@ import type { BuiltinToolId } from './builtinTools';
 // 操作模式类型
 export type ActionMode = 'fast' | 'agent' | 'deep_research' | 'consensus' | 'claude_code';
 
+export type BusyInputMode = 'redirect' | 'steer' | 'queue';
+
 // 快速搜索深度类型
 export type SearchDepth = 'normal' | 'deep';
 
@@ -59,6 +61,7 @@ export interface AgentConfig {
   mcpToolSelections?: Record<string, string[]>;
   commandBindings?: { command_name: string; skill_ids: string[]; description?: string; instruction?: string }[];
   routingConfig?: RoutingConfig | null;
+  busyInputMode?: BusyInputMode;
 }
 
 // 已选模型配置

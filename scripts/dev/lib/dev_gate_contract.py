@@ -22,6 +22,7 @@ Dev Gate v2 合约常量 SSOT。定义 Chrome MCP E2E 的错误分类、并行 c
 from __future__ import annotations
 
 import os
+import re
 from typing import Final, Literal
 
 E2eWallProfile = Literal["dev", "signoff"]
@@ -367,6 +368,36 @@ def _normalize_pytest_timeout_value(raw: str, *, floor: int, ceiling: bool) -> s
     if value < floor:
         return str(floor)
     return raw
+
+
+_CHROME_E2E_PYTEST_FILE = re.compile(r"(^|[/\\])test_[^/\\]*_chrome_e2e\.py(::|$)")
+
+
+def pytest_argv_needs_live_chrome_e2e(
+    argv: tuple[str, ...],
+    *,
+    run_e2e_tests: bool = False,
+) -> bool:
+    """True when ./myrm test argv selects formal chrome_e2e (marker or *_chrome_e2e.py).
+
+    Must not match unit-test node ids or -k filters that merely contain the substring
+    ``chrome_e2e`` (R99 gate tests live under scripts/dev/tests/).
+    """
+    next_is_marker = False
+    for arg in argv:
+        if next_is_marker:
+            next_is_marker = False
+            if "chrome_e2e" in arg:
+                return True
+            continue
+        if arg in {"-m", "--markers"}:
+            next_is_marker = True
+            continue
+        if _CHROME_E2E_PYTEST_FILE.search(arg):
+            return True
+    if run_e2e_tests:
+        return any(_CHROME_E2E_PYTEST_FILE.search(arg) for arg in argv)
+    return False
 
 
 def apply_chrome_e2e_pytest_timeout_args(

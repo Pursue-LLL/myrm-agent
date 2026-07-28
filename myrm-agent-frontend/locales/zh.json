@@ -2061,6 +2061,7 @@
       "querying": "查询中...",
       "compiling": "编译中...",
       "maintaining": "维护中...",
+      "repairingTypes": "修复中...",
       "stats": {
         "title": "Wiki 统计",
         "description": "知识库概览",
@@ -2086,7 +2087,8 @@
         "refresh": "刷新",
         "query": "查询",
         "compile": "编译 Wiki",
-        "maintain": "维护 Wiki"
+        "maintain": "维护 Wiki",
+        "repairPageTypes": "修复页面类型"
       },
       "purpose": {
         "title": "知识方向",
@@ -2101,6 +2103,7 @@
         "queryComplete": "查询完成",
         "compileComplete": "Wiki 编译完成",
         "maintainComplete": "Wiki 维护完成",
+        "repairTypesComplete": "已修复 {count} 篇笔记的页面类型",
         "approveComplete": "草稿已批准",
         "rejectComplete": "草稿已拒绝",
         "purposeSaved": "知识方向已保存"
@@ -2111,10 +2114,12 @@
         "queryFailed": "查询 Wiki 失败",
         "compileFailed": "编译 Wiki 失败",
         "maintainFailed": "维护 Wiki 失败",
+        "repairTypesFailed": "修复页面类型失败",
         "loadStatsFailed": "加载统计数据失败",
         "loadConceptsFailed": "加载词条失败",
         "loadPendingFailed": "加载审核队列失败",
         "approveFailed": "批准草稿失败",
+        "approveTypeRequired": "批准前请在笔记开头添加有效的页面类型",
         "rejectFailed": "拒绝草稿失败",
         "importFailed": "文档导入失败"
       },
@@ -5060,6 +5065,11 @@
     "cronPostRunVerify": "定时任务交付复核",
     "cronPostRunVerifyDesc": "无人值守 Cron 在写入文件或执行命令后，追加独立交付审查（不会重跑任务）。",
     "cronPostRunVerifyHint": "任务成功与交付复核相互独立。复核未通过时仅在运行记录中追加警告，不会重跑任务。检测到文件或命令变更时会自动进行交付复核。",
+    "busyInputMode": "忙时输入行为",
+    "busyInputModeDesc": "Agent 工作时按回车发送消息的默认动作。",
+    "busyInputRedirect": "纠偏中断",
+    "busyInputSteer": "纠偏等待",
+    "busyInputQueue": "排队等候",
     "sessionPolicyMode": "重置模式",
     "sessionPolicyPersistent": "持久化",
     "sessionPolicyPersistentDesc": "每个对话方永久保持一个会话",
@@ -6170,6 +6180,10 @@
       "placeholder": "输入引导消息...",
       "send": "发送引导",
       "tooltip": "向正在运行的 Agent 发送引导消息"
+    },
+    "redirect": {
+      "send": "立即纠偏",
+      "tooltip": "中断当前生成并纠正 Agent 方向"
     },
     "input": {
       "placeholder": "输入消息...",

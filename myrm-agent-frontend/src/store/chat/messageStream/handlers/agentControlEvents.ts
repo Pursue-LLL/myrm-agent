@@ -139,6 +139,23 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     return done(ctx);
   }
 
+  if (data.type === H.AgentEventType.REDIRECTED) {
+    actions.setMessages((state) => {
+      const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+      if (messageIndex !== -1) {
+        if (!state.messages[messageIndex].progressSteps) {
+          state.messages[messageIndex].progressSteps = [];
+        }
+        state.messages[messageIndex].progressSteps!.push({
+          step_key: 'redirected',
+          items: [{ text: 'Redirected by user correction' }],
+          status: 'success' as const,
+        });
+      }
+    });
+    return done(ctx);
+  }
+
   if (data.type === H.AgentEventType.ITERATION_LIMIT_REACHED) {
     const limitData = data.data as { limit?: number; nodes_completed?: number } | undefined;
     const limit = limitData?.limit ?? '?';

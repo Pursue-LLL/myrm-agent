@@ -62,6 +62,24 @@ class SteeringRegistry:
         return False
 
     @classmethod
+    def redirect(cls, chat_id: str, message: str) -> bool:
+        """Interrupt current generation and inject a correction message.
+
+        Unlike steer (waits for current generation/tool to finish),
+        redirect immediately breaks the astream loop and preserves partial output.
+
+        Returns:
+            True if the token was found and redirect triggered, False otherwise.
+        """
+        with cls._lock:
+            token = cls._tokens.get(chat_id)
+        if token:
+            token.redirect(message)
+            logger.info("Redirect triggered: chat_id=%s", chat_id)
+            return True
+        return False
+
+    @classmethod
     def has_active(cls, chat_id: str) -> bool:
         """Check if a chat session has an active steering token."""
         with cls._lock:

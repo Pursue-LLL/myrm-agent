@@ -512,9 +512,9 @@ def _require_live_e2e_lease(
         from e2e_orchestrator import begin_body_wall_budget
 
         begin_body_wall_budget(phase_label=request.node.name)
-        from tests.support.e2e_wall_progress import write_e2e_session_snapshot
+        from e2e_session_snapshot import write_session_snapshot
 
-        write_e2e_session_snapshot(
+        write_session_snapshot(
             current_node=request.node.nodeid,
             phase="body",
         )

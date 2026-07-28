@@ -19,6 +19,7 @@ import {
   ConsensusSection,
   SessionPolicySection,
   DeliveryAssuranceSection,
+  BusyInputModeSection,
 } from './AgentCapabilitiesTabSections';
 import type { ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import type {
@@ -52,6 +53,8 @@ export interface AgentCapabilitiesTabProps {
     setSessionPolicy: (val: AgentSessionPolicy | null) => void;
     cronPostRunVerify: boolean;
     setCronPostRunVerify: (val: boolean) => void;
+    busyInputMode: 'redirect' | 'steer' | 'queue';
+    setBusyInputMode: (val: 'redirect' | 'steer' | 'queue') => void;
     selectedSkillDetails: Skill[];
     selectedMcpDetails: MCPServiceConfig[];
     systemPrompt: string;
@@ -103,6 +106,8 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
       />
 
       <DeliveryAssuranceSection editor={editor} t={t} />
+
+      <BusyInputModeSection editor={editor} t={t} />
 
       <SessionPolicySection editor={editor} t={t} />
 
