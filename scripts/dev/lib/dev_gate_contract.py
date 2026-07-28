@@ -195,8 +195,8 @@ BASE_TOOL_TIMEOUT_SEC: Final[float] = 180.0
 LIVE_AGENT_STREAM_WAIT_SEC: Final[int] = 300
 # Desktop shared_hot queue cap aligns with monotonic wall budget (R39).
 LIVE_AGENT_STREAM_WAIT_DESKTOP_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
-# Typical LIVE chrome_e2e body (bootstrap + stream + inline UI waits).
-LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = 600
+# pytest-timeout floor body segment — SSOT with LIVE_AGENT_BODY_WALL_CLOCK_SEC (R73-D).
+LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = LIVE_AGENT_BODY_WALL_CLOCK_SEC
 # SHPOIB clarify skip API poll under parallel load (API-first path).
 CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
 # M3 signoff: fail-fast clarify wait (LLM flake should not burn full BODY 600s).
@@ -216,6 +216,7 @@ SIGNOFF_CLARIFY_API_SEAL_SKIP: Final[str] = (
 # R47: hard wall for mux page reopen/reclaim (nested call_tool must not burn 600s).
 MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC: Final[int] = 120
 SHELL_PROBE_STALL_FAIL_FAST_SEC: Final[int] = 120
+E2E_SHELL_SKELETON_STALL_TOKEN: Final[str] = "E2E_SHELL_SKELETON_STALL"
 MUX_RECLAIM_STALL_TOKEN: Final[str] = "MUX_RECLAIM_STALL"
 # R72 SendTurnContract: single evaluate budget (kickoff observe + API poll + margin).
 SEND_TURN_EVAL_RECV_SEC: Final[float] = 120.0

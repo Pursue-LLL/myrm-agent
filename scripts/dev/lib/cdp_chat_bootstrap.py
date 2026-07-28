@@ -57,6 +57,9 @@ class CdpChatBootstrap(CdpChatTransport):
     _bootstrap_started_monotonic: float | None = None
     # Session SSOT: hydrate re-entry must not reset shell-layout stall clock (R51).
     _shell_layout_wait_started: float | None = None
+    # R73-A: session-level stall clock — never reset on mux recover retry.
+    _shell_session_started: float | None = None
+    _shell_skeleton_since: float | None = None
     _shell_hydrate_depth: int = 0
 
     def _mark_bootstrap_started(self) -> None:
@@ -64,9 +67,43 @@ class CdpChatBootstrap(CdpChatTransport):
             self._bootstrap_started_monotonic = time.monotonic()
 
     def _reset_shell_layout_wait_clock(self) -> None:
-        """Fresh shell-layout stall budget after page reopen or bootstrap retry."""
+        """Fresh shell-layout poll budget after page reopen (not session stall clock)."""
         self._shell_layout_wait_started = None
         self._last_shell_probe_log_sec = -1
+
+    def _ensure_shell_session_started(self) -> float:
+        if self._shell_session_started is None:
+            self._shell_session_started = time.monotonic()
+        return self._shell_session_started
+
+    def _check_skeleton_stall(
+        self, probe: dict[str, object], *, phase: str
+    ) -> None:
+        """Fail-fast when UI stays skeleton/blank without progress (R73-A)."""
+        from dev_gate_contract import (
+            E2E_SHELL_SKELETON_STALL_TOKEN,
+            SHELL_PROBE_STALL_FAIL_FAST_SEC,
+        )
+
+        skeleton = bool(probe.get("skeleton"))
+        blank_shell = not probe.get("hasInput") and not _shell_probe_ready(probe)
+        if not skeleton and not blank_shell:
+            self._shell_skeleton_since = None
+            return
+
+        now = time.monotonic()
+        if self._shell_skeleton_since is None:
+            self._shell_skeleton_since = now
+        skeleton_elapsed = now - self._shell_skeleton_since
+        session_elapsed = now - self._ensure_shell_session_started()
+        cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
+        if skeleton_elapsed >= cap or session_elapsed >= cap:
+            raise RuntimeError(
+                f"{E2E_SHELL_SKELETON_STALL_TOKEN}: phase={phase} "
+                f"skeleton_elapsed={skeleton_elapsed:.1f}s "
+                f"session_elapsed={session_elapsed:.1f}s cap={int(cap)}s "
+                f"probe={probe}"
+            )
 
     def _check_shell_layout_stall_cap(self) -> None:
         from dev_gate_contract import (
@@ -77,8 +114,9 @@ class CdpChatBootstrap(CdpChatTransport):
         if started is None:
             return
         elapsed = time.monotonic() - started
+        session_elapsed = time.monotonic() - self._ensure_shell_session_started()
         stall_cap = _shell_probe_stall_cap_sec()
-        if elapsed >= stall_cap:
+        if elapsed >= stall_cap or session_elapsed >= stall_cap:
             raise RuntimeError(
                 f"{MUX_RECLAIM_STALL_TOKEN}: wait_shell_layout stalled "
                 f"{elapsed:.1f}s (cap={int(stall_cap)}s); recover mux and retry"
@@ -256,6 +294,9 @@ class CdpChatBootstrap(CdpChatTransport):
             else:
                 last = {"probeError": probe}
         await self._maybe_apply_shared_ui_session_contract(deadline=deadline)
+        from e2e_session_lifecycle import complete_bootstrap_phase
+
+        complete_bootstrap_phase(phase_label="post_cdp_bootstrap")
         return last
 
     async def _maybe_apply_shared_ui_session_contract(
@@ -324,7 +365,6 @@ class CdpChatBootstrap(CdpChatTransport):
                 if MUX_RECLAIM_STALL_TOKEN not in str(exc) or attempt >= 1:
                     raise
                 await self._recover_shell_probe_mux(0)
-                self._reset_shell_layout_wait_clock()
                 client = getattr(self, "_client", None)
                 abandon = getattr(client, "abandon_inflight_requests", None)
                 if callable(abandon):
@@ -504,6 +544,7 @@ class CdpChatBootstrap(CdpChatTransport):
                         f"cap={int(stall_cap)}s)"
                     )
             last = state if isinstance(state, dict) else {"probeError": state}
+            self._check_skeleton_stall(last, phase="wait_shell_layout")
             if (
                 last.get("probeError") == "evaluate_timeout"
                 and polls >= 25
@@ -909,6 +950,7 @@ class CdpChatBootstrap(CdpChatTransport):
             except (RuntimeError, TimeoutError):
                 probe = {"probeError": "evaluate_failed"}
             last = probe if isinstance(probe, dict) else {"probeError": probe}
+            self._check_skeleton_stall(last, phase="ensure_chat_surface")
             path = str(last.get("path") or "")
             if path in ("blank", "", "about:blank") or not last.get("hasLayout"):
                 await self._hydrate_chat_home_surface(ui_base, deadline=deadline)

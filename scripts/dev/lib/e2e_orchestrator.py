@@ -103,4 +103,10 @@ def holder_progress_stale(holder_progress_at: float | None) -> bool:
 def orchestrator_snapshot() -> dict[str, object]:
     lifecycle = budgets_remaining()
     lifecycle["mux_recovery_remaining_sec"] = recovery_budget_remaining()
+    try:
+        from e2e_runtime_cell import runtime_cell_snapshot
+
+        lifecycle["runtime_cell"] = runtime_cell_snapshot()
+    except ImportError:
+        lifecycle["runtime_cell"] = {"cellId": None, "runId": None, "pid": None}
     return lifecycle

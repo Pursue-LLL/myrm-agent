@@ -63,10 +63,16 @@ def create_e2e_chat_via_api(chat_id: str, *, api_url: str | None = None) -> None
 
 
 def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
-    """Extend shell hydration budget for parallel SHPOIB chrome_e2e on shared :3000."""
+    """Shell hydration budget for parallel SHPOIB chrome_e2e on shared :3000.
+
+    R73-A: cap at bootstrap wall (180s dev) — never 420s outer deadline that
+    defeats SHELL_PROBE_STALL_FAIL_FAST_SEC skeleton fail-fast.
+    """
     if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
         return timeout_sec
-    base_floor = max(timeout_sec, 180.0)
+    from dev_gate_contract import E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
+
+    base_floor = max(timeout_sec, 120.0)
     active_leases = 0
     try:
         from stack_mutation_policy import wave_active_lease_count
@@ -75,8 +81,26 @@ def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
         active_leases = wave_active_lease_count(monorepo_root)
     except Exception:
         active_leases = 0
-    scaled = max(base_floor, 180.0 + active_leases * 45.0)
-    return min(scaled, 420.0)
+    scaled = max(base_floor, 120.0 + active_leases * 15.0)
+    return min(scaled, float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV))
+
+
+def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
+    """Extend desktop signoff force-chat wall timeouts under parallel wave load."""
+    if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
+        return base_sec
+    active_leases = 0
+    try:
+        from stack_mutation_policy import wave_active_lease_count
+
+        monorepo_root = Path(__file__).resolve().parents[4]
+        active_leases = wave_active_lease_count(monorepo_root)
+    except Exception:
+        active_leases = 0
+    if active_leases < 2:
+        return base_sec
+    scaled = base_sec + active_leases * 12.0
+    return min(scaled, 120.0)
 
 
 def shpoib_shell_wait_slice_cap(remaining_sec: float) -> float:

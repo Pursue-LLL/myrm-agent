@@ -48,4 +48,4 @@ def test_r43_caps_takeover_live_timeout_mark_to_lane_floor() -> None:
     _apply_chrome_e2e_lane_timeout(item)
     timeout_marker = item.get_closest_marker("timeout")
     assert timeout_marker is not None
-    assert int(timeout_marker.args[0]) == 1110
+    assert int(timeout_marker.args[0]) == 660

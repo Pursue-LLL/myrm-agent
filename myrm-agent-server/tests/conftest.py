@@ -459,6 +459,17 @@ def _require_live_e2e_lease(
         reap_chrome_e2e_session_hygiene,
     )
 
+    runtime_cell_id: str | None = None
+    _release_runtime_cell = None
+    try:
+        from e2e_runtime_cell import allocate_runtime_cell, release_runtime_cell
+
+        runtime_cell = allocate_runtime_cell()
+        runtime_cell_id = runtime_cell.cell_id
+        _release_runtime_cell = release_runtime_cell
+    except ImportError:
+        pass
+
     reap_chrome_e2e_session_hygiene()
     lease = require_e2e_runtime_lease()
 
@@ -523,6 +534,8 @@ def _require_live_e2e_lease(
                 reap_chrome_e2e_session_hygiene()
         finally:
             os.environ.pop(E2E_SEARCH_POLICY_ENV, None)
+            if runtime_cell_id and _release_runtime_cell is not None:
+                _release_runtime_cell(runtime_cell_id)
     assert_e2e_runtime_unchanged(lease)
 
 

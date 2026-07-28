@@ -47,6 +47,17 @@ def shared_ui_hydrate_slot() -> Iterator[None]:
         yield
         return
 
+    cell_id = os.environ.get("MYRM_E2E_CELL_ID", "").strip()
+    if cell_id:
+        from e2e_runtime_cell import cell_ui_hydrate_slot
+
+        wait_sec = int(
+            os.environ.get("MYRM_E2E_SHARED_UI_HYDRATE_WAIT_SEC", str(DEFAULT_WAIT_SEC))
+        )
+        with cell_ui_hydrate_slot(wait_sec=wait_sec):
+            yield
+        return
+
     wait_sec = int(
         os.environ.get("MYRM_E2E_SHARED_UI_HYDRATE_WAIT_SEC", str(DEFAULT_WAIT_SEC))
     )

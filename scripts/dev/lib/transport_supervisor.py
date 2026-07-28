@@ -36,6 +36,9 @@ _session_lock = threading.Lock()
 
 
 def session_key() -> str:
+    cell_id = os.environ.get("MYRM_E2E_CELL_ID", "").strip()
+    if cell_id:
+        return cell_id
     for name in ("MYRM_E2E_RUN_ID", "MYRM_E2E_AGENT_ID", "MYRM_WAVE_AGENT_ID"):
         raw = os.environ.get(name, "").strip()
         if raw:
