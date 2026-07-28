@@ -537,16 +537,32 @@ async def test_file_write_empty_live_agent_webui(
                 and target_file is not None
                 and not target_file.exists()
                 and invoked_since is not None
-                and time.monotonic() - invoked_since >= 45.0
+                and time.monotonic() - invoked_since >= 60.0
             ):
                 write_calls = _file_write_tool_call_count(chat_id, api_url=api_base)
                 if write_calls == 1:
-                    return {
-                        "source": "api+disk",
-                        "invoked": True,
-                        "has_failure": False,
-                        "disk_clean": True,
-                    }
+                    # Empty writes can land on disk after tool invoke; settle before api+disk.
+                    await asyncio.sleep(5.0)
+                    touch_wall_progress()
+                    if target_file.exists():
+                        last_progress_at = time.monotonic()
+                        continue
+                    _, settled_failure = _empty_write_failure_in_messages(
+                        chat_id, api_url=api_base
+                    )
+                    if settled_failure:
+                        return {
+                            "source": "api",
+                            "invoked": True,
+                            "has_failure": True,
+                        }
+                    if not target_file.exists():
+                        return {
+                            "source": "api+disk",
+                            "invoked": True,
+                            "has_failure": False,
+                            "disk_clean": True,
+                        }
 
             raw = await chat.evaluate(
                 """(() => {
