@@ -24,7 +24,7 @@
 
 import React, { useRef, useState, useCallback, useEffect, type DragEvent, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Upload, FolderPlus, Pencil, Move, Trash2 } from 'lucide-react';
+import { Upload, FolderPlus, Pencil, Move, Trash2, FolderOpen } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -50,13 +50,21 @@ interface ContextMenuProps {
   onRename: (node: FileEntry) => void;
   onDelete: (node: FileEntry) => void;
   onMove: (node: FileEntry) => void;
+  onOrganize?: (node: FileEntry) => void;
 }
 
 // ---------------------------------------------------------------------------
 // Context menu
 // ---------------------------------------------------------------------------
 
-export const ContextMenu: React.FC<ContextMenuProps> = ({ state, onClose, onRename, onDelete, onMove }) => {
+export const ContextMenu: React.FC<ContextMenuProps> = ({
+  state,
+  onClose,
+  onRename,
+  onDelete,
+  onMove,
+  onOrganize,
+}) => {
   const t = useTranslations('workspace');
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: state.x, y: state.y });
@@ -84,6 +92,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ state, onClose, onRena
   }, [state.x, state.y]);
 
   const items = [
+    ...(state.node.type === 'directory' && onOrganize
+      ? [{ icon: FolderOpen, label: t('organizeFolder'), action: () => onOrganize(state.node) }]
+      : []),
     { icon: Pencil, label: t('rename'), action: () => onRename(state.node) },
     { icon: Move, label: t('move'), action: () => onMove(state.node) },
     { icon: Trash2, label: t('delete'), action: () => onDelete(state.node), danger: true },

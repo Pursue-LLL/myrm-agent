@@ -53,7 +53,7 @@ TOGGLABLE_BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "structured_clarify",
     "external_cli",
     "skill_market",
-    "skill_evolution",
+    "skill_manage",
 )
 """IDs shown in BuiltinToolsPanel; excludes AGENT_BASELINE_BUILTIN_TOOLS."""
 
@@ -76,6 +76,11 @@ LEGACY_REJECTED_BUILTIN_TOOL_IDS: frozenset[str] = frozenset(
         "web_crawl",
     }
 )
+
+RENAMED_BUILTIN_TOOL_ID_ALIASES: dict[str, str] = {
+    "skill_evolution": "skill_manage",
+}
+"""Read/write-path migration for renamed profile toggle IDs."""
 
 BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
     {"id": "web_search", "desc": "Search the web for real-time information"},
@@ -107,8 +112,8 @@ BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
         "desc": "Search and install skills from external marketplaces via skill_market_tool",
     },
     {
-        "id": "skill_evolution",
-        "desc": "Create and edit skills in chat via skill_manage_tool",
+        "id": "skill_manage",
+        "desc": "Create, edit, and delete skills in chat; optional post-turn skill draft proposals",
     },
 )
 
@@ -117,14 +122,19 @@ class InvalidBuiltinToolIdsError(ValueError):
     """Raised when enabled_builtin_tools contains unknown or legacy IDs."""
 
 
+def apply_builtin_tool_id_aliases(tool_id: str) -> str:
+    """Map retired toggle IDs to canonical IDs (silent migration)."""
+    return RENAMED_BUILTIN_TOOL_ID_ALIASES.get(tool_id, tool_id)
+
+
 def strip_legacy_builtin_tool_ids(tools: Sequence[str]) -> list[str]:
     """Drop legacy IDs when loading persisted profiles (silent read-path migration)."""
-    return [
-        tool_id
-        for raw in tools
-        if (tool_id := str(raw).strip())
-        and tool_id not in LEGACY_REJECTED_BUILTIN_TOOL_IDS
-    ]
+    result: list[str] = []
+    for raw in tools:
+        tool_id = apply_builtin_tool_id_aliases(str(raw).strip())
+        if tool_id and tool_id not in LEGACY_REJECTED_BUILTIN_TOOL_IDS:
+            result.append(tool_id)
+    return result
 
 
 def strip_deploy_incompatible_builtin_tools(tools: Sequence[str]) -> list[str]:
@@ -154,7 +164,7 @@ def normalize_enabled_builtin_tools(tools: Sequence[str]) -> list[str]:
     legacy: list[str] = []
 
     for raw in tools:
-        tool_id = str(raw).strip()
+        tool_id = apply_builtin_tool_id_aliases(str(raw).strip())
         if not tool_id:
             continue
         if tool_id in AGENT_BASELINE_BUILTIN_TOOLS:

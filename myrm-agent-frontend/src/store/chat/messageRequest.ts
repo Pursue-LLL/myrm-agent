@@ -66,7 +66,13 @@ import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { hasUsableProviderAuth, normalizeApiUrl } from '@/store/config/providerTypes';
 import { normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
-import { clearMigrationReadinessAnchor, consumeMigrationReadinessAnchorForAgent, readMigrationReadinessAnchor } from '@/lib/migrationChatHandoff';
+import {
+  clearMigrationReadinessAnchor,
+  consumeMigrationBoundProjectId,
+  consumeMigrationReadinessAnchorForAgent,
+  peekMigrationBoundProjectId,
+  readMigrationReadinessAnchor,
+} from '@/lib/migrationChatHandoff';
 import type { ChatState } from './types';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';
@@ -563,6 +569,7 @@ export const createMessageRequest = async (
   const migrationReadinessAnchor = effectiveAgentId
     ? consumeMigrationReadinessAnchorForAgent(effectiveAgentId)
     : null;
+  const migrationBoundProjectId = peekMigrationBoundProjectId();
 
   const requestBody = {
     query,
@@ -594,6 +601,7 @@ export const createMessageRequest = async (
         readiness_status: migrationReadinessAnchor.readinessStatus,
       },
     }),
+    ...(migrationBoundProjectId && { migration_bound_project_id: migrationBoundProjectId }),
     ...(agentConfig?.ephemeralSubagents && { ephemeral_subagents: agentConfig.ephemeralSubagents }),
     ...(userInstructions && { user_instructions: userInstructions }),
     ...(liteModelSelection && { lite_model_selection: liteModelSelection }),

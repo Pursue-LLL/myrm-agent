@@ -65,13 +65,13 @@ class TestResolveAgentMount:
         assert mounted["enable_file_ops"] is True
         assert mounted["enable_shell_tools"] is True
 
-    def test_web_chat_preserves_skill_market_and_evolution_flags(self) -> None:
+    def test_web_chat_preserves_skill_market_and_manage_flags(self) -> None:
         mounted = resolve_agent_mount(
             ExecutionSurface.WEB_CHAT,
-            resolve_builtin_tool_flags(["skill_market", "skill_evolution"]),
+            resolve_builtin_tool_flags(["skill_market", "skill_manage"]),
         )
         assert mounted["enable_skill_market"] is True
-        assert mounted["enable_skill_evolution"] is True
+        assert mounted["enable_skill_manage"] is True
 
     def test_cron_restricted_returns_profile_flags_unchanged(self) -> None:
         base = resolve_builtin_tool_flags(["web_search"])

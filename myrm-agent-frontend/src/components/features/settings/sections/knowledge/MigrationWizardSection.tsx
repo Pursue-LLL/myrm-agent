@@ -39,7 +39,7 @@ import {
   type MemoryImportDryRunResponse,
   type MemoryImportPendingSkill,
 } from '@/services/memoryArchive';
-import { clearMigrationReadinessAnchor } from '@/lib/migrationChatHandoff';
+import { clearMigrationReadinessAnchor, queueMigrationWorkspaceBindCandidates, type MigrationWorkspaceBindCandidate } from '@/lib/migrationChatHandoff';
 import { submitSkillMigration, type SkillMigrationSubmitResponse } from '@/services/skillMigration';
 
 import useAgentStore from '@/store/useAgentStore';
@@ -50,9 +50,10 @@ type WizardStep = 'scan' | 'preview' | 'result';
 
 interface MigrationWizardSectionProps {
   onMigrationComplete?: () => void;
+  vaultBindHandoffMode?: 'settings' | 'onboarding';
 }
 
-const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSectionProps) => {
+const MigrationWizardSection = memo(({ onMigrationComplete, vaultBindHandoffMode = 'settings' }: MigrationWizardSectionProps) => {
   const t = useTranslations('memory.migrationWizard');
   const searchParams = useSearchParams();
   const deepLinkSourceId = searchParams.get('source')?.trim().toLowerCase() ?? '';
@@ -79,6 +80,13 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
   const [secretsImportMessage, setSecretsImportMessage] = useState<string | null>(null);
   const [rollingBack, setRollingBack] = useState(false);
   const [retryingSkills, setRetryingSkills] = useState(false);
+  const [workspaceBindCandidates, setWorkspaceBindCandidates] = useState<MigrationWorkspaceBindCandidate[]>([]);
+
+  const persistWorkspaceBindCandidates = useCallback((raw: MigrationWorkspaceBindCandidate[] | undefined) => {
+    const normalized = raw ?? [];
+    setWorkspaceBindCandidates(normalized);
+    queueMigrationWorkspaceBindCandidates(normalized);
+  }, []);
 
   const handleScan = useCallback(
     async (force = false) => {
@@ -150,6 +158,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
           },
         );
         setDryRunResult(result);
+        persistWorkspaceBindCandidates(result.workspace_bind_candidates);
         setStep('preview');
         return true;
       } catch {
@@ -159,7 +168,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
         setPreviewing(false);
       }
     },
-    [includeEpisodic, targetAgentId, t],
+    [includeEpisodic, persistWorkspaceBindCandidates, targetAgentId, t],
   );
 
   useEffect(() => {
@@ -220,6 +229,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
     try {
       const result = await confirmImportMemories(dryRunResult.dry_run_id);
       setImportResult(result);
+      persistWorkspaceBindCandidates(result.workspace_bind_candidates ?? workspaceBindCandidates);
 
       const pendingSkills: MemoryImportPendingSkill[] = dryRunResult.pending_skills ?? [];
       if (pendingSkills.length > 0) {
@@ -256,7 +266,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
     } finally {
       setImporting(false);
     }
-  }, [dryRunResult, selectedSource, importSecrets, targetAgentId, onMigrationComplete, submitPendingSkills, t]);
+  }, [dryRunResult, importSecrets, onMigrationComplete, persistWorkspaceBindCandidates, selectedSource, submitPendingSkills, t, targetAgentId, workspaceBindCandidates]);
 
   const handleRetrySkillSubmit = useCallback(async () => {
     if (!dryRunResult || !importResult) return;
@@ -358,6 +368,8 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
           onRetrySkillSubmit={handleRetrySkillSubmit}
           retryingSkills={retryingSkills}
           onDone={handleBackToScan}
+          vaultBindHandoffMode={vaultBindHandoffMode}
+          workspaceBindCandidates={workspaceBindCandidates}
           t={t}
         />
       )}

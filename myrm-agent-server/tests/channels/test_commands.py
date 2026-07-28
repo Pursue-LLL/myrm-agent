@@ -786,7 +786,7 @@ class TestHandleTopicCommand:
         await handle_topic_command(msg, cmd, bus, topic_resolver=topic_resolver)
 
         topic_resolver.bind_topic.assert_called_once_with(
-            "test", "c1", None, agent_id="support-agent"
+            channel="test", chat_id="c1", thread_id=None, agent_id="support-agent"
         )
         reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
         assert "channel" in reply.content.lower()

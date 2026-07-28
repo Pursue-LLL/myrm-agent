@@ -9,7 +9,7 @@
 
 [POS]
 Dev Gate layer — unified ADMIT → BOOTSTRAP → BODY → TEARDOWN lifecycle.
-BODY budget: dev LIVE_AGENT 900s; READ and signoff 600s. Queue/bootstrap never consume BODY budget.
+BODY budget: dev LIVE_AGENT 600s (R96-R62); READ and signoff 600s. Queue/bootstrap never consume BODY budget.
 """
 
 from __future__ import annotations
@@ -163,9 +163,25 @@ def export_session_env(*, phase: SessionPhase = "admit") -> dict[str, str]:
     }
 
 
+def _reset_phase_mux_recovery_budget(*, phase_label: str) -> None:
+    """Fresh mux recovery ledger per lifecycle phase (R73-F TPC M1)."""
+    try:
+        from transport_supervisor import reset_session_recovery_budget
+
+        reset_session_recovery_budget()
+        print(
+            f"E2E_MUX_BUDGET_RESET: phase={phase_label}",
+            file=sys.stderr,
+            flush=True,
+        )
+    except ImportError:
+        pass
+
+
 def begin_bootstrap_phase(*, phase_label: str = "bootstrap") -> None:
     """Enter bootstrap phase with a fresh wall clock (even if body already started)."""
     transition_to_phase("bootstrap", label=phase_label)
+    _reset_phase_mux_recovery_budget(phase_label=phase_label)
 
 
 def complete_bootstrap_phase(*, phase_label: str = "pytest_body") -> None:
@@ -175,6 +191,7 @@ def complete_bootstrap_phase(*, phase_label: str = "pytest_body") -> None:
 
 def begin_body_wall_budget(*, phase_label: str = "pytest_body") -> None:
     transition_to_phase("body", label=phase_label)
+    _reset_phase_mux_recovery_budget(phase_label=phase_label)
     print(
         f"E2E_WALL_BUDGET_BODY_START: cap={phase_cap_sec('body')}s phase={phase_label}",
         file=sys.stderr,

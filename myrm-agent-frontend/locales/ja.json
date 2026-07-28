@@ -3650,6 +3650,9 @@
     "mcpScanAckTitle": "高リスク MCP 設定",
     "mcpScanAckDesc": "セキュリティスキャンで「{name}」中发现 {count} 项高リスク質問，確認后続行。",
     "mcpScanAckConfirm": "私済み解リスクし続行",
+    "mcpReloadConfirmTitle": "MCP ツールを再読み込みしますか？",
+    "mcpReloadConfirmDesc": "MCP 設定を保存すると Agent のツール一覧が更新されます。新しい会話ですぐ反映されます。進行中の会話は新しいスレッドを開始するまでプロンプトキャッシュの効率が下がる場合があります。",
+    "mcpReloadConfirmAction": "保存して適用",
     "mcpThreat": {
       "prompt_injection": "検出までプロンプト注入内容（テスト图上書きシステム指令）",
       "name_injection": "名前中含む注入式内容（URL または指令文本）",
@@ -5192,7 +5195,7 @@
         "structured_clarify": "構造化クリアリフィケーション",
         "external_cli": "外部 CLI",
         "skill_market": "スキルマーケット",
-        "skill_evolution": "スキル進化"
+        "skill_manage": "スキル管理"
       },
       "builtinToolDescs": {
         "web_search": "検索互联网获取实时信息",
@@ -5212,8 +5215,8 @@
         "planning": "メイン Agent の多段階 todo — チャット内で進捗ツリーを更新規（Planner サブ Agent なし）",
         "structured_clarify": "意図がない明確なときに構造化フォームで確認 — 返信まで Agent を一時停止",
         "external_cli": "delegate_to_agent 経由で外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）にコーディングタスクを委任",
-        "skill_market": "skill_market_tool で外部スキルマーケットを検索・インストール",
-        "skill_evolution": "skill_manage_tool でチャット内からスキルを作成・編集（/learn は常にこのツールをマウント）"
+        "skill_market": "チャット内で外部スキルマーケットを検索・インストール",
+        "skill_manage": "エージェントがチャット内でスキルの作成・編集・削除を行えます。有効時はタスク後にレビュー用のスキル草案が提案される場合があります。/learn は常にこの機能を有効にします。"
       },
       "renderUiWebOnlyHint": "インライン UI は Web チャットとデスクトップアプリでのみ表示されます。Telegram、スケジュールタスク、その他のチャネルではインラインフォームやチャートを表示できません。",
       "wikiScopeHint": "资料保存で该エージェント独立ナレッジベース中，ない会とその他エージェント混使用。",
@@ -6947,12 +6950,6 @@
     "memory_manage_tool_tool_error": "メモリ管理失敗",
     "cron_manage_tool_tool": "管理スケジュールタスク",
     "cron_manage_tool_tool_error": "スケジュールタスク操作に失敗しました",
-    "mcp_tool_search_tool": "利用可能なツールを検索中",
-    "mcp_tool_search_tool_error": "ツール検索に失敗しました",
-    "mcp_tool_describe_tool": "ツール詳細を読込中",
-    "mcp_tool_describe_tool_error": "ツール詳細の読込に失敗しました",
-    "mcp_tool_call_tool": "ツールを呼出中",
-    "mcp_tool_call_tool_error": "ツール呼出に失敗しました",
     "file_read_tool": "読み取り取ファイル",
     "file_read_tool_error": "読み取り取ファイル失敗",
     "file_write_tool": "書き込み入ファイル",
@@ -7031,10 +7028,7 @@
       "render_ui_tool": "中渲染界面",
       "update_ui_data_tool": "中更新規界面データ",
       "answer_user_tool": "中生成回答",
-      "request_answer_user_tool": "中准备返信",
-      "mcp_tool_search": "ツール検索中",
-      "mcp_tool_describe": "ツールスキーマ読込中",
-      "mcp_tool_call": "ツール呼出中"
+      "request_answer_user_tool": "中准备返信"
     },
     "categoryStageLabels": {
       "thinking": "思考中",

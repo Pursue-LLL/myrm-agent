@@ -127,7 +127,7 @@ async def run_desktop_approval_chrome_e2e(
                     )
                     await asyncio.sleep(1.0)
                     progress("new chat + ensure surface")
-                    chat._reset_shell_layout_wait_clock()
+                    chat._reset_shell_session_clock()
                     await _retry_reset_step(
                         "ensure_chat_surface/pre",
                         chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0),

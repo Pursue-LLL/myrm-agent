@@ -128,7 +128,7 @@ class GeneralAgentParams(BaseAgentParams):
     enable_planning: bool = False
     enable_external_cli: bool = False
     enable_skill_market: bool = False
-    enable_skill_evolution: bool = False
+    enable_skill_manage: bool = False
     force_skill_manage: bool = False
     kanban_tool_mode: str = "orchestrator"
     kanban_default_board_id: str | None = None
@@ -297,7 +297,7 @@ class AgentFactory:
             enable_planning=params.enable_planning,
             enable_external_cli=params.enable_external_cli,
             enable_skill_market=params.enable_skill_market,
-            enable_skill_evolution=params.enable_skill_evolution,
+            enable_skill_manage=params.enable_skill_manage,
             force_skill_manage=params.force_skill_manage,
             kanban_tool_mode=params.kanban_tool_mode,
             kanban_default_board_id=params.kanban_default_board_id,

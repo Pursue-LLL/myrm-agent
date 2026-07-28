@@ -11,6 +11,7 @@
  * [POS]
  * Chat agent-stream 前端消费 SSOT。busy 检测：HTTP 409 或 SSE error_type=AgentBusyError；multiplex 下 early-terminal SSE 直读 POST。
  */
+import { consumeMigrationBoundProjectId, syncChatSidebarProjectId } from '@/lib/migrationChatHandoff';
 import { parseSseEnvelope } from './schema';
 import { handleMessageStream, StreamHandlerState, StreamHandlerActions } from './messageStreamHandler';
 import { ChatActionsState, ChatActionsMethods, createMessageRequest } from './messageRequest';
@@ -26,6 +27,13 @@ import { recordWikiQuerySubmitted } from '@/services/wikiEvidenceMetrics';
 import { consumePendingChatWikiQuerySuccess } from '@/services/wikiEvidenceQuerySuccessPendingCore';
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
+
+function finalizeMigrationBoundProjectHandoff(chatId: string | undefined): void {
+  const boundProjectId = consumeMigrationBoundProjectId();
+  if (boundProjectId && chatId?.trim()) {
+    syncChatSidebarProjectId(chatId.trim(), boundProjectId);
+  }
+}
 
 function shouldUseMultiplexedAgentStream(): boolean {
   if (typeof window === 'undefined') {
@@ -288,6 +296,8 @@ export async function executeStreamWithRetry(
 
         throw new Error(`[TransientHTTP] ${res.status}: ${errorText}`);
       }
+
+      finalizeMigrationBoundProjectHandoff(state.chatId);
 
       if (!res.body) throw new Error('No response body');
 

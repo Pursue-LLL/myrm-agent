@@ -13,7 +13,9 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `ArtifactPortal.tsx` | 核心 | Artifact 预览入口容器；支持 overlay/side-by-side 双布局模式；协调加载、手势、快捷键与 Diff 截断 UX |
-| `ArtifactCard.tsx` | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染；Globe 发布；HTML 工件 HITL「推送到公众号草稿」（标题 + 封面 workspace 图片 suggest / 文内首图自动预填 / 手动路径） |
+| `ArtifactCard.tsx` | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染；Globe 发布；HTML 工件 HITL「推送到公众号草稿」；`*.organize-plan.json` HITL 整理计划审阅/执行/回滚 |
+| `OrganizePlanPanel.tsx` | 核心 | workspace organize HITL：校验 dry-run、应用移动、回滚上一 job；Apply/Rollback 后 dispatch workspace-file-changed；Turn Undo 区分 hint；partial rollback 告警 |
+| `organizePlanUtils.ts` | 辅助 | organize-plan.json 解析/编辑/序列化 |
 | `useWechatCoverSuggest.ts` | 辅助 | 公众号草稿封面：`GET /files/suggest` debounce + 图片扩展名过滤 |
 | `wechatDraftCoverUtils.ts` | 辅助 | 从 artifact HTML 解析首张本地 `<img>` 供草稿封面预填 |
 | `PublishModal.tsx` | 核心 | 多 target 发布；target 下拉 + `/publish` + WS + Settings 深链 |
@@ -33,6 +35,7 @@
 | `__tests__/largeFileInlinePreview.test.ts` | 测试 | large-file inline preview 文案与阈值回归守卫 |
 | `__tests__/useWechatCoverSuggest.test.ts` | 测试 | 封面 suggest 图片扩展名过滤 |
 | `__tests__/wechatDraftCoverUtils.test.ts` | 测试 | 文内首图 `src` 解析（本地路径 / 跳过远程） |
+| `__tests__/organizePlanUtils.test.ts` | 测试 | organize-plan 文件名检测与 JSON 编辑工具 |
 
 ---
 

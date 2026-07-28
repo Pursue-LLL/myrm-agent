@@ -26,7 +26,7 @@ from app.services.memory.import_sessions import (
 
 router = APIRouter()
 
-_VARIANTS = frozenset({"mcp_warning", "provider_critical"})
+_VARIANTS = frozenset({"mcp_warning", "provider_critical", "diagnostic_critical"})
 
 
 class _SeedFixtureMemoryManager:
@@ -136,6 +136,33 @@ async def seed_migration_readiness_fixture(
                 ),
             )
             readiness_status = "critical"
+        elif normalized == "diagnostic_critical":
+            await service.save_post_import_diagnostic(
+                import_batch_id=confirm.import_batch_id,
+                diagnostic_run_id="diag-critical",
+                diagnostic_status="critical",
+                failed_count=2,
+            )
+            await service.save_post_import_readiness(
+                import_batch_id=confirm.import_batch_id,
+                readiness_status="critical",
+                readiness_issues=[
+                    {
+                        "code": "post_import_diagnostics_critical",
+                        "severity": "critical",
+                        "params": {"failed_count": 2},
+                        "settings_path": "/settings/memory",
+                    }
+                ],
+                recheck_facts=ImportReadinessRecheckFacts(
+                    source_has_api_keys=False,
+                    diagnostic_status="critical",
+                    diagnostic_failed_count=2,
+                    mcp_config_count=0,
+                    workspace_rules_skipped=0,
+                ),
+            )
+            readiness_status = "critical"
         else:
             await service.save_post_import_readiness(
                 import_batch_id=confirm.import_batch_id,
@@ -165,6 +192,10 @@ async def seed_migration_readiness_fixture(
         "variant": normalized,
         "chat_ui_path": f"/?agentId={target_agent_id}",
         "settings_path": (
-            "/settings/mcp" if normalized == "mcp_warning" else "/settings/models"
+            "/settings/mcp"
+            if normalized == "mcp_warning"
+            else "/settings/memory"
+            if normalized == "diagnostic_critical"
+            else "/settings/models"
         ),
     }

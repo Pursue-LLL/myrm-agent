@@ -91,3 +91,12 @@ class TestMigrationReadinessLiveSeedIntegration:
         seed = _post_seed_loopback(api_base, variant="provider_critical")
         assert str(seed.get("readiness_status")) == "critical"
         assert str(seed.get("settings_path")) == "/settings/models"
+
+    def test_live_migration_readiness_seed_diagnostic_critical(self) -> None:
+        api_base = resolve_verify_api_base()
+        if not _live_api_reachable(api_base):
+            pytest.skip(f"Live API not reachable at {api_base}")
+
+        seed = _post_seed_loopback(api_base, variant="diagnostic_critical")
+        assert str(seed.get("readiness_status")) == "critical"
+        assert str(seed.get("settings_path")) == "/settings/memory"

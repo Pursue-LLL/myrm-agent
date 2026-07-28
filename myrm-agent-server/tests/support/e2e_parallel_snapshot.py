@@ -24,6 +24,10 @@ class E2EActiveTest:
     test_id: str
     elapsed_sec: float
     state: str
+    current_node: str | None = None
+    wall_phase: str | None = None
+    body_elapsed_sec: float | None = None
+    batch_mode: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,6 +121,29 @@ def _elapsed_to_seconds(raw: str) -> float:
     return 0.0
 
 
+def _is_batch_file_invocation(test_id: str) -> bool:
+    if "::" in test_id:
+        return False
+    return " -m " in test_id and "chrome_e2e" in test_id
+
+
+def _session_fields_for_pid(pid: int) -> tuple[str | None, str | None, float | None]:
+    try:
+        from tests.support.e2e_wall_progress import (  # noqa: PLC0415
+            body_elapsed_sec_from_snapshot,
+            read_e2e_session_snapshot,
+        )
+    except ImportError:
+        return None, None, None
+    snapshot = read_e2e_session_snapshot(pid)
+    if snapshot is None:
+        return None, None, None
+    current_node = str(snapshot.get("currentNode") or "").strip() or None
+    wall_phase = str(snapshot.get("phase") or "").strip().lower() or None
+    body_elapsed = body_elapsed_sec_from_snapshot(snapshot)
+    return current_node, wall_phase, body_elapsed
+
+
 def _extract_test_id(command: str) -> str | None:
     marker = None
     try:
@@ -182,12 +209,17 @@ def _list_active_pytest_chrome_e2e() -> tuple[E2EActiveTest, ...]:
         if not _pid_alive(pid):
             continue
         seen_tests.add(test_id)
+        current_node, wall_phase, body_elapsed = _session_fields_for_pid(pid)
         rows.append(
             E2EActiveTest(
                 pid=pid,
                 test_id=test_id,
                 elapsed_sec=_elapsed_to_seconds(elapsed),
                 state=state,
+                current_node=current_node,
+                wall_phase=wall_phase,
+                body_elapsed_sec=body_elapsed,
+                batch_mode=_is_batch_file_invocation(test_id),
             )
         )
     return tuple(sorted(rows, key=lambda row: row.test_id))
@@ -229,11 +261,20 @@ def format_parallel_snapshot_human(snapshot: E2EParallelSnapshot) -> list[str]:
     lines: list[str] = []
     if snapshot.active_tests:
         for row in snapshot.active_tests:
-            lines.append(
+            detail = (
                 "E2E_PARALLEL_ACTIVE: "
-                f"pid={row.pid} state={row.state} elapsed={row.elapsed_sec:.0f}s "
+                f"pid={row.pid} state={row.state} process_elapsed={row.elapsed_sec:.0f}s "
                 f"test={row.test_id}"
             )
+            if row.current_node:
+                detail += f" current_node={row.current_node}"
+            if row.wall_phase:
+                detail += f" wall_phase={row.wall_phase}"
+            if row.body_elapsed_sec is not None:
+                detail += f" body_elapsed={row.body_elapsed_sec:.0f}s"
+            if row.batch_mode:
+                detail += " batch_mode=yes"
+            lines.append(detail)
     else:
         lines.append("E2E_PARALLEL_ACTIVE: none")
     lines.append(

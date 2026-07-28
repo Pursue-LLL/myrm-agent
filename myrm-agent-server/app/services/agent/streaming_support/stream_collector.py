@@ -12,7 +12,8 @@ JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 StreamContentCollector: collects assistant content and message extra_data, including memory citation refs,
 retrieval traces, end-to-end stream TTFT (`streamTtftMs`), kanban_tasks_created, cron_job_result,
 HITL clarification (`clarification`), deep-research plan confirmation (`planConfirmation`),
-file mutation failures (`fileMutationFailures`), and reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`).
+file mutation failures (`fileMutationFailures`), council phase progress (`councilPhases`),
+and reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`).
 
 [POS]
 Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata.
@@ -349,6 +350,7 @@ class StreamContentCollector:
         self._kanban_tasks_created: list[dict[str, object]] = []
         self._cron_job_result: dict[str, object] | None = None
         self._file_mutation_failures: list[dict[str, object]] = []
+        self._council_phases: list[dict[str, object]] = []
         self._pending_evicted: dict[str, object] | None = None
         self._sibling_group_id: str | None = sibling_group_id
         self._chat_id: str | None = chat_id
@@ -554,6 +556,10 @@ class StreamContentCollector:
             self._sources.extend(string_keyed_dicts(data))
         elif event_type == "file_mutation_failed":
             collect_file_mutation_failures(self._file_mutation_failures, data)
+        elif event_type == "council_phase" and isinstance(data, dict):
+            phase_entry = string_keyed_dict(data)
+            if phase_entry is not None:
+                self._council_phases.append(phase_entry)
         elif event_type == "tasks_steps":
             step = _merge_tasks_step(self._progress_steps, event, data)
             if self._pending_evicted and _step_accepts_pending_evicted(
@@ -832,6 +838,8 @@ class StreamContentCollector:
             result["cron_job_result"] = self._cron_job_result
         if self._file_mutation_failures:
             result["fileMutationFailures"] = list(self._file_mutation_failures)
+        if self._council_phases:
+            result["councilPhases"] = list(self._council_phases)
         if self.reasoning:
             result["reasoning"] = self.reasoning
             if self._reasoning_truncated:

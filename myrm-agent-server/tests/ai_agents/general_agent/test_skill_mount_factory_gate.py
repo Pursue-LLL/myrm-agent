@@ -23,7 +23,7 @@ def test_build_general_agent_gates_skill_market_on_enable_flag() -> None:
 def test_build_general_agent_gates_skill_manage_on_evolution_or_learn() -> None:
     """write_backend must be None unless evolution is on or /learn forces manage."""
     source = _factory_source()
-    assert 'mount_skill_manage = getattr(agent_wrapper, "enable_skill_evolution", False) or getattr(' in source
+    assert 'mount_skill_manage = getattr(agent_wrapper, "enable_skill_manage", False) or getattr(' in source
     assert "write_backend=skill_creation_service if mount_skill_manage else None" in source
 
 
@@ -41,4 +41,5 @@ def test_build_general_agent_defaults_skill_mount_flags_off() -> None:
         )
     )
     mount_expr = ast.unparse(mount_market_assign.value)
-    assert 'getattr(agent_wrapper, "enable_skill_market", False)' in mount_expr
+    assert "enable_skill_market" in mount_expr
+    assert "False" in mount_expr

@@ -39,6 +39,7 @@ from app.schemas.memory.archive import (
     MemoryImportConfirmResponse,
     MemoryImportDryRunRequest,
     MemoryImportDryRunResponse,
+    WorkspaceBindCandidate,
     MemoryImportReadiness,
     MemoryImportReadinessRecheckRequest,
     MemoryImportReadinessRecheckResponse,
@@ -240,6 +241,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
     is_competitor = is_source_discovery_payload(body.payload)
     instruction_total_chars = 0
     providers_configured = await external_source_providers_configured()
+    workspace_bind_candidates: list[WorkspaceBindCandidate] = []
 
     if is_competitor:
         loaded_payload = load_source_payload(body.payload)
@@ -314,6 +316,22 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         }
         if model_migration_payload:
             session_metadata["model_migration"] = model_migration_payload
+        from app.services.migration.workspace_bind_candidates import (
+            candidates_to_metadata,
+            discover_workspace_bind_candidates,
+        )
+
+        bind_candidates = discover_workspace_bind_candidates(loaded_payload)
+        workspace_bind_candidates = [
+            WorkspaceBindCandidate(
+                path=item.path,
+                label=item.label,
+                has_obsidian_config=item.has_obsidian_config,
+                markdown_file_count=item.markdown_file_count,
+            )
+            for item in bind_candidates
+        ]
+        session_metadata["workspace_bind_candidates"] = candidates_to_metadata(bind_candidates)
         instruction_total_chars = instruction_char_total(instruction_plan)
         lane_previews = build_lane_previews(
             instruction=instruction_plan,
@@ -391,6 +409,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         instruction_total_chars=instruction_total_chars if is_competitor else 0,
         providers_configured=providers_configured,
         mcp_servers_preview=mcp_servers_preview if is_competitor else [],
+        workspace_bind_candidates=workspace_bind_candidates,
     )
 
 
@@ -414,10 +433,22 @@ async def confirm_import_memories(
 
     instruction_result = None
     readiness: MemoryImportReadiness | None = None
+    workspace_bind_candidates: list[WorkspaceBindCandidate] = []
     async with get_session() as db:
         try:
             session_service = MemoryImportSessionService(db)
             metadata = await session_service.get_pending_session_metadata(body.dry_run_id)
+            from app.services.migration.workspace_bind_candidates import candidates_from_metadata
+
+            workspace_bind_candidates = [
+                WorkspaceBindCandidate(
+                    path=item.path,
+                    label=item.label,
+                    has_obsidian_config=item.has_obsidian_config,
+                    markdown_file_count=item.markdown_file_count,
+                )
+                for item in candidates_from_metadata(metadata.get("workspace_bind_candidates"))
+            ]
             source_has_api_keys_raw = metadata.get("source_has_api_keys")
             source_has_api_keys = source_has_api_keys_raw is True
             mcp_imported_disabled_count = 0
@@ -580,6 +611,7 @@ async def confirm_import_memories(
         workspace_rules_written=(instruction_result.workspace_rules_written if instruction_result else 0),
         workspace_rules_skipped=(instruction_result.workspace_rules_skipped if instruction_result else 0),
         readiness=readiness,
+        workspace_bind_candidates=workspace_bind_candidates,
     )
 
 

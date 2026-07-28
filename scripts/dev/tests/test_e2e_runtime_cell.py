@@ -16,6 +16,8 @@ from e2e_runtime_cell import (  # noqa: E402
     allocate_runtime_cell,
     cell_hydrate_lock_path,
     current_cell_id,
+    persist_cell_mux_generation,
+    read_cell_mux_generation,
     release_runtime_cell,
     runtime_cell_snapshot,
 )
@@ -55,3 +57,19 @@ def test_runtime_cell_snapshot() -> None:
     assert snapshot["cellId"] == cell.cell_id
     assert snapshot["runId"] == "run-e"
     assert snapshot["pid"] == os.getpid()
+    assert snapshot["muxGeneration"] == 1
+    assert snapshot["liveCellCount"] >= 1
+
+
+def test_cell_mux_generation_persists_and_client_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+    cell = allocate_runtime_cell(run_id="run-mux")
+    assert read_cell_mux_generation(cell.cell_id) == 1
+    persist_cell_mux_generation(4, cell_id=cell.cell_id)
+    assert read_cell_mux_generation(cell.cell_id) == 4
+    from chrome_mcp_client import ChromeMcpClient  # noqa: WPS433
+
+    client = ChromeMcpClient(request_timeout_sec=1.0)
+    assert client._request_generation == 4
+    client.abandon_inflight_requests()
+    assert client._request_generation == 5
+    assert read_cell_mux_generation(cell.cell_id) == 5

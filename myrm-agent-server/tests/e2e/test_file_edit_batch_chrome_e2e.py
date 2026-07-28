@@ -208,7 +208,7 @@ def test_file_edit_batch_read_ui_diff_card() -> None:
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=True)
 @pytest.mark.integration
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_file_edit_batch_live_agent_webui(
     e2e_resource_ledger: E2EResourceLedger,

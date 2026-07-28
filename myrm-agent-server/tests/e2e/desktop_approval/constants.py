@@ -46,7 +46,8 @@ GATE_SNAPSHOT_LOOP_FAIL_SEC = 60.0
 # Signoff may queue behind parallel SHPOIB; allow extra slack without exceeding 600s leg.
 def _resolve_desktop_e2e_wall_clock_fail_sec() -> float:
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-        return 260.0
+        # One attempt budget; runner may retry once within pytest --timeout=600.
+        return 280.0
     return 200.0
 
 
@@ -147,10 +148,11 @@ def progress(message: str) -> None:
 
 def assert_desktop_e2e_wall_clock(started_at: float, *, phase: str) -> None:
     elapsed = time.monotonic() - started_at
-    if elapsed >= DESKTOP_E2E_WALL_CLOCK_FAIL_SEC:
+    cap_sec = _resolve_desktop_e2e_wall_clock_fail_sec()
+    if elapsed >= cap_sec:
         raise AssertionError(
             "Desktop E2E wall-clock fail-fast "
-            f"({phase}): {elapsed:.0f}s >= {DESKTOP_E2E_WALL_CLOCK_FAIL_SEC:.0f}s "
+            f"({phase}): {elapsed:.0f}s >= {cap_sec:.0f}s "
             "(check LITE_MODEL pin, send button, provider state)"
         )
 

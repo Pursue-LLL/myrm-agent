@@ -12,6 +12,8 @@ import { apiRequest, getApiUrl, getStorageUrl } from '@/lib/api';
 import { pushWeChatOfficialDraft } from '@/services/channels';
 import { useWechatCoverSuggest } from './useWechatCoverSuggest';
 import { extractFirstLocalImageSrc } from './wechatDraftCoverUtils';
+import { OrganizePlanPanel } from './OrganizePlanPanel';
+import { isOrganizePlanArtifact } from './organizePlanUtils';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { toast } from 'sonner';
@@ -110,7 +112,12 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const [wechatDraftTitle, setWechatDraftTitle] = useState('');
   const [wechatDraftCoverPath, setWechatDraftCoverPath] = useState('');
   const [wechatDraftLoading, setWechatDraftLoading] = useState(false);
+  const isOrganizePlan = isOrganizePlanArtifact(artifact.filename);
+  const [organizePlanOpen, setOrganizePlanOpen] = useState(false);
+  const [organizePlanContent, setOrganizePlanContent] = useState<string | null>(null);
+  const [organizePlanLoading, setOrganizePlanLoading] = useState(false);
   const chatId = useChatStore((state) => state.chatId);
+  const workspaceDir = useChatStore((state) => state.workspaceDir);
   const {
     suggestions: wechatCoverSuggestions,
     panelOpen: wechatCoverSuggestOpen,
@@ -521,6 +528,23 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     [],
   );
 
+  useEffect(() => {
+    if (!organizePlanOpen || organizePlanContent) {
+      return;
+    }
+    let cancelled = false;
+    setOrganizePlanLoading(true);
+    void fetchInlineContent().then((content) => {
+      if (!cancelled) {
+        setOrganizePlanContent(content);
+        setOrganizePlanLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [organizePlanOpen, organizePlanContent, fetchInlineContent]);
+
   const handlePushWeChatDraft = useCallback(async () => {
     const htmlPath = artifactState.file_path;
     if (!htmlPath) {
@@ -714,6 +738,23 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               title={t('wechatDraft.openPanel')}
             >
               <Send className="w-4 h-4" />
+            </Button>
+          )}
+          {isOrganizePlan && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'h-8 w-8',
+                organizePlanOpen ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOrganizePlanOpen((prev) => !prev);
+              }}
+              title={t('organizePlan.openPanel')}
+            >
+              <FolderOpen className="w-4 h-4" />
             </Button>
           )}
           {canIngestToWiki && (
@@ -988,6 +1029,27 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
           >
             {wechatDraftLoading ? t('wechatDraft.pushing') : t('wechatDraft.confirm')}
           </Button>
+        </div>
+      )}
+
+      {isOrganizePlan && organizePlanOpen && (
+        <div
+          className="mx-3 mb-3 rounded-lg border border-border/60 bg-muted/20 p-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {organizePlanLoading && !organizePlanContent ? (
+            <div className="flex items-center justify-center py-6">
+              <div className="animate-spin w-5 h-5 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+            </div>
+          ) : organizePlanContent ? (
+            <OrganizePlanPanel
+              workspace={workspaceDir ?? ''}
+              planContent={organizePlanContent}
+              onPlanChange={setOrganizePlanContent}
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground">{t('organizePlan.invalidPlan')}</p>
+          )}
         </div>
       )}
     </div>

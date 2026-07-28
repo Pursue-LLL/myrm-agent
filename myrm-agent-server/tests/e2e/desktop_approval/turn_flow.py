@@ -643,17 +643,9 @@ async def wait_for_approval_banner_clickable(
     )
 
 
-def _wall_clock_start() -> float:
-    raw = os.environ.get("MYRM_E2E_WALL_STARTED_MONOTONIC", "").strip()
-    if raw:
-        try:
-            return float(raw)
-        except ValueError:
-            pass
-    started = time.monotonic()
-    os.environ["MYRM_E2E_WALL_STARTED_MONOTONIC"] = str(started)
-    os.environ["MYRM_E2E_WALL_PROGRESS_AT_MONOTONIC"] = str(started)
-    return started
+def _approval_attempt_wall_clock_start() -> float:
+    """Per-attempt BODY wall clock — do not reuse lifecycle MYRM_E2E_WALL_STARTED_MONOTONIC."""
+    return time.monotonic()
 
 
 async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
@@ -705,14 +697,19 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
 
 
 async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> str:
-    wall_started_at = _wall_clock_start()
+    chat._reset_shell_session_clock()
+    wall_started_at = _approval_attempt_wall_clock_start()
     await _force_chat_shell(chat, label="pre-attempt")
     progress("new chat + ensure surface")
     reset_result = await chat.click_new_chat(timeout_sec=75.0)
     progress(f"new chat reset result: {reset_result}")
     await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)
     await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
-    await ensure_textedit_fixture_ready()
+    # R78: new_chat leaves Chrome frontmost; seed TextEdit AX before strict probe.
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        await asyncio.to_thread(preflight_textedit_foreground, attempts=8, fail_hard=False)
+    signoff_mode = os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+    await ensure_textedit_fixture_ready(attempts=8 if signoff_mode else 5)
 
     progress("enable computer_use")
     await asyncio.to_thread(activate_chrome)

@@ -51,6 +51,9 @@ from app.services.agent.stream_session.chat_history_bootstrap import (
     persist_user_message_and_load_history,
     stream_text_content,
 )
+from app.services.agent.stream_session.migration_bound_project import (
+    apply_migration_bound_project,
+)
 from app.services.agent.stream_session.reconnect import try_stream_reconnect
 from app.services.agent.stream_session.risk_gate import check_stream_risk
 from app.services.agent.stream_session.session_reservation import ChatSessionReservation
@@ -150,6 +153,8 @@ async def run_agent_stream(
             request,
             text_content=text_content,
         )
+
+        await apply_migration_bound_project(request)
 
         extra_context: dict[str, object] | None = None
         try:

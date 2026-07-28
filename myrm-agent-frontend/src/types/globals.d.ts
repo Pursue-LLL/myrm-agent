@@ -156,15 +156,6 @@ interface Window {
       storeMessageId?: string | null;
       resumeStarted?: boolean;
     }>;
-    resumeBrowserTakeoverViaUi?: (
-      resumeMessageId: string,
-    ) => Promise<{
-      ok: boolean;
-      busy?: boolean;
-      err?: string;
-      chatId?: string | null;
-      resumeMessageId?: string;
-    }>;
     retryStreamWithSameMessageId?: (
       query: string,
       messageId: string,

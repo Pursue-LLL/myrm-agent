@@ -71,7 +71,7 @@ const BUILTIN_TOOL_ICONS: Record<BuiltinToolId, React.ReactNode> = {
   structured_clarify: <ClipboardList size={14} />,
   external_cli: <Terminal size={14} />,
   skill_market: <Store size={14} />,
-  skill_evolution: <Sparkles size={14} />,
+  skill_manage: <Sparkles size={14} />,
 };
 
 export const BuiltinToolsPanel = ({

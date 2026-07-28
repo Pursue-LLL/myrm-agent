@@ -151,7 +151,10 @@ async def build_channel_execution_agent(
     set_current_chat_id(chat_id)
     set_current_agent_id(resolved_agent_id or "default")
 
-    from app.core.channel_bridge.learn_handler import is_learn_skill_authoring_prompt
+    from app.core.channel_bridge.learn_handler import (
+        apply_learn_skill_manage_permission_overlay,
+        is_learn_skill_authoring_prompt,
+    )
     from app.core.channel_bridge.executor_helpers import extract_external_agents
     from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
@@ -197,8 +200,9 @@ async def build_channel_execution_agent(
             memory_settings.get("enableMemoryAutoExtraction")
         ),
         enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
-        security_config_raw=build_security_config(
-            configs.security_config_dict, msg.metadata
+        security_config_raw=apply_learn_skill_manage_permission_overlay(
+            build_security_config(configs.security_config_dict, msg.metadata),
+            query=query,
         ),
         agent_security_raw=agent_security_raw,
         memory_policy=(resolved_profile.memory_policy if resolved_profile else None),

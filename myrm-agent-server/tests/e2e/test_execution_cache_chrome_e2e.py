@@ -62,7 +62,7 @@ async def _resolve_chat_id(
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_chrome_ui_same_chat_two_ok_messages(
     e2e_resource_ledger: E2EResourceLedger,

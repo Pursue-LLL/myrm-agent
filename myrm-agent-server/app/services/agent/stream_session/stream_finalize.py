@@ -367,6 +367,7 @@ async def finalize_agent_stream_session(
         session.collector.has_content
         and session.request.chat_id
         and not session.cancel_token.is_cancelled
+        and session.params.enable_skill_manage
     ):
         try:
             from app.services.agent.evolution.engine import trigger_skill_evolution

@@ -8,9 +8,13 @@ import platform
 import subprocess
 import time
 
-import pytest
-
 from tests.e2e.desktop_approval.constants import TEXTEDIT_FIXTURE_MARKER, progress
+
+
+def _pytest_fail(message: str) -> None:
+    import pytest
+
+    pytest.fail(message)
 
 _TEXTEDIT_AX_DEGRADED_TTL_SEC = 300.0
 _STRICT_FALLBACK_MODE_ENV = "MYRM_DESKTOP_E2E_STRICT_FALLBACK_MODE"
@@ -324,7 +328,7 @@ def preflight_textedit_foreground(
         )
     if not fail_hard:
         return False
-    pytest.fail(
+    _pytest_fail(
         "TextEdit not frontmost after preflight — desktop_snapshot will miss @drefs "
         "and the model may fall back to desktop_vision_tool"
     )
@@ -358,6 +362,8 @@ def ensure_textedit_ax_ready(*, attempts: int = 3) -> bool:
 async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
     if platform.system() != "Darwin":
         return
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        attempts = max(attempts, 8)
     last_detail = "unknown"
     for attempt in range(1, attempts + 1):
         await asyncio.to_thread(prepare_textedit_fixture)
@@ -368,7 +374,7 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
             )
             if degraded:
                 if _strict_fallback_mode_enabled():
-                    pytest.fail(
+                    _pytest_fail(
                         "TextEdit AX degraded cooldown active while strict fallback mode is enabled "
                         f"(remaining={degraded_remaining}s detail={degraded_detail})"
                     )
@@ -383,7 +389,7 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
                 progress("textedit fixture ready (foreground + AX refs for @drefs)")
                 return
             if _strict_fallback_mode_enabled():
-                pytest.fail(
+                _pytest_fail(
                     "TextEdit AX refs unavailable while strict fallback mode is enabled "
                     "(strict mode requires AX-ready fixture before desktop flow)"
                 )
@@ -403,9 +409,16 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
             f"reason={last_detail}"
         )
         if attempt < attempts:
-            await asyncio.to_thread(restart_textedit_fixture_process)
-            await asyncio.sleep(0.6)
-    pytest.fail(
+            if (
+                os.environ.get("E2E_SIGNOFF", "").strip() == "1"
+                and attempt <= 4
+            ):
+                await asyncio.to_thread(activate_textedit_foreground)
+                await asyncio.sleep(1.5)
+            else:
+                await asyncio.to_thread(restart_textedit_fixture_process)
+                await asyncio.sleep(0.6)
+    _pytest_fail(
         "TextEdit fixture not AX-ready after retries "
         f"(last_reason={last_detail}) — verify Accessibility permission and retry"
     )

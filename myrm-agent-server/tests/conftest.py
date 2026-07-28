@@ -45,12 +45,20 @@ _E2E_TEST_ROOT = _TESTS_ROOT / "e2e"
 _LIFECYCLE_TEST_ROOT = _TESTS_ROOT / "lifecycle"
 
 
-def _is_formal_chrome_e2e(request: pytest.FixtureRequest) -> bool:
-    if request.node.get_closest_marker("chrome_e2e") is not None:
-        return True
-    if request.node.get_closest_marker("e2e") is None:
+def _is_formal_chrome_e2e(item_or_request: pytest.Item | pytest.FixtureRequest) -> bool:
+    if isinstance(item_or_request, pytest.Item):
+        node = item_or_request
+    elif hasattr(item_or_request, "node"):
+        node = item_or_request.node
+    else:
         return False
-    return Path(request.fspath).resolve().is_relative_to(_E2E_TEST_ROOT)
+    if not isinstance(node, pytest.Item):
+        return False
+    if node.get_closest_marker("chrome_e2e") is not None:
+        return True
+    if node.get_closest_marker("e2e") is None:
+        return False
+    return Path(node.fspath).resolve().is_relative_to(_E2E_TEST_ROOT)
 
 
 def _prepend_monorepo_pythonpath() -> None:
@@ -504,7 +512,16 @@ def _require_live_e2e_lease(
         from e2e_orchestrator import begin_body_wall_budget
 
         begin_body_wall_budget(phase_label=request.node.name)
+        from tests.support.e2e_wall_progress import write_e2e_session_snapshot
+
+        write_e2e_session_snapshot(
+            current_node=request.node.nodeid,
+            phase="body",
+        )
         reap_chrome_e2e_session_hygiene()
+        from e2e_signoff_trace import begin_signoff_trace
+
+        begin_signoff_trace(nodeid=request.node.nodeid)
         namespace = f"pytest-{request.node.name}-{uuid.uuid4().hex}"
         os.environ["MYRM_E2E_LEDGER_NAMESPACE"] = namespace
         from tests.support.e2e_runtime_guard import live_agent_stream_lock
@@ -565,6 +582,25 @@ def e2e_resource_ledger(request: pytest.FixtureRequest) -> E2EResourceLedger:
         namespace=namespace,
         ephemeral_runtime=os.environ.get("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1",
     )
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) -> Iterator[None]:
+    outcome = yield
+    rep = outcome.get_result()
+    if call.when != "call" or not _is_formal_chrome_e2e(item):
+        return
+    dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
+    if str(dev_infra) not in sys.path:
+        sys.path.insert(0, str(dev_infra))
+    from e2e_signoff_trace import end_signoff_trace
+
+    if rep.passed:
+        end_signoff_trace(outcome="PASSED")
+    elif rep.failed:
+        end_signoff_trace(outcome="FAILED")
+    elif rep.skipped:
+        end_signoff_trace(outcome="SKIPPED")
 
 
 @pytest.hookimpl(hookwrapper=True)

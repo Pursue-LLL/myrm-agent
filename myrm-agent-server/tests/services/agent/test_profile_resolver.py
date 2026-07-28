@@ -744,6 +744,8 @@ class TestResolveBuiltinToolFlags:
             "planning",
             "structured_clarify",
             "external_cli",
+            "skill_market",
+            "skill_manage",
         )
         flags = resolve_builtin_tool_flags(tools, allow_answer_tool=True)
         assert flags["enable_evicted_read"] is False
@@ -847,7 +849,7 @@ class TestResolveBuiltinToolFlags:
             "enable_structured_clarify",
             "enable_external_cli",
             "enable_skill_market",
-            "enable_skill_evolution",
+            "enable_skill_manage",
         }
 
     def test_legacy_llm_map_tool_id_is_ignored(self):

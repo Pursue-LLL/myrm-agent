@@ -359,6 +359,17 @@ export interface VerificationVerdictStreamEvent extends BaseAgentEvent {
   };
 }
 
+export interface CouncilPhaseStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.COUNCIL_PHASE;
+  data: {
+    phase: 'independent' | 'cross_review' | 'synthesis';
+    round: number;
+    max_rounds: number;
+    expert_count: number;
+    detail?: string;
+  };
+}
+
 export interface TeammateMessageStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.TEAMMATE_MESSAGE;
   data?: {

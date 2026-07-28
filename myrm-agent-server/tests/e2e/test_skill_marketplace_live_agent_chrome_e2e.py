@@ -168,7 +168,7 @@ def _assistant_has_marketplace_result(
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_live_agent_skill_marketplace_search_in_real_ui(
     e2e_resource_ledger: E2EResourceLedger,

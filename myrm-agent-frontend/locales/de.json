@@ -3401,6 +3401,9 @@
     "mcpScanAckTitle": "High-risk MCP configuration",
     "mcpScanAckDesc": "Security scan found {count} high-risk issue(s) for \"{name}\". Acknowledge to continue.",
     "mcpScanAckConfirm": "Acknowledge and continue",
+    "mcpReloadConfirmTitle": "MCP-Tools neu laden?",
+    "mcpReloadConfirmDesc": "Das Speichern von MCP-Änderungen aktualisiert die Agent-Toolliste. Neue Unterhaltungen übernehmen dies sofort; laufende Chats können an Prompt-Cache-Effizienz verlieren, bis Sie einen neuen Thread starten.",
+    "mcpReloadConfirmAction": "Speichern und anwenden",
     "memoryBackup": {
       "title": "Memory Backup",
       "description": "Backup and restore your memory data for data safety.",
@@ -4152,7 +4155,7 @@
         "structured_clarify": "Strukturierte Klärung",
         "external_cli": "Externe CLI",
         "skill_market": "Skill-Markt",
-        "skill_evolution": "Skill-Evolution"
+        "skill_manage": "Skill-Verwaltung"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4172,8 +4175,8 @@
         "planning": "Todo-Liste des Haupt-Agenten für Mehrschritt-Aufgaben — aktualisiert den Fortschrittsbaum im Chat (ohne Planner-Subagent)",
         "structured_clarify": "Bei unklarer Absicht strukturierte Klärungsformulare anzeigen — Agent pausiert bis zur Antwort",
         "external_cli": "Coding-Aufgaben an externe CLI-Agenten (Claude Code, Codex, Gemini CLI) über delegate_to_agent delegieren",
-        "skill_market": "Externe Skill-Marktplätze im Chat über skill_market_tool suchen und installieren",
-        "skill_evolution": "Skills im Chat über skill_manage_tool erstellen und bearbeiten (/learn mountet dieses Tool immer)"
+        "skill_market": "Externe Skill-Marktplätze im Chat suchen und installieren",
+        "skill_manage": "Dem Agent erlauben, Skills im Chat zu erstellen, zu bearbeiten und zu löschen. Bei Aktivierung können nach Aufgaben Skill-Entwürfe zur Prüfung vorgeschlagen werden. /learn aktiviert diese Funktion immer."
       },
       "renderUiWebOnlyHint": "Interaktive UI wird nur im Web-Chat und in der Desktop-App gerendert. Telegram, geplante Aufgaben und andere Kanäle können keine Inline-Formulare oder Diagramme anzeigen.",
       "externalCliSetupHint": "Zwei Schritte: (1) CLI-Backend unter Einstellungen → Entwickler → Externe Agenten hinzufügen; (2) Schalter aktiv lassen, damit dieser Agent Coding-Aufgaben an eine externe CLI delegiert.",
@@ -5774,12 +5777,6 @@
     "memory_manage_tool_tool_error": "Memory management failed",
     "cron_manage_tool_tool": "Managing scheduled tasks",
     "cron_manage_tool_tool_error": "Scheduled task operation failed",
-    "mcp_tool_search_tool": "Verfügbare Werkzeuge suchen",
-    "mcp_tool_search_tool_error": "Werkzeugsuche fehlgeschlagen",
-    "mcp_tool_describe_tool": "Werkzeugdetails laden",
-    "mcp_tool_describe_tool_error": "Laden der Werkzeugdetails fehlgeschlagen",
-    "mcp_tool_call_tool": "Werkzeug aufrufen",
-    "mcp_tool_call_tool_error": "Werkzeugaufruf fehlgeschlagen",
     "file_read_tool": "Reading files",
     "file_read_tool_error": "Read files failed",
     "file_write_tool": "Writing file",
@@ -5852,10 +5849,7 @@
       "skill_select_tool": "Selecting skill",
       "render_ui_tool": "Rendering UI",
       "answer_user_tool": "Generating answer",
-      "request_answer_user_tool": "Preparing response",
-      "mcp_tool_search": "Werkzeuge suchen",
-      "mcp_tool_describe": "Werkzeugschema laden",
-      "mcp_tool_call": "Werkzeug aufrufen"
+      "request_answer_user_tool": "Preparing response"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",

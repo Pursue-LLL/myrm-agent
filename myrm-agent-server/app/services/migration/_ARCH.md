@@ -48,6 +48,7 @@
 | `instruction_rollback.py` | 辅助 | 与 memory import batch 绑定的指令车道回滚 | ✅ |
 | `skill_binding.py` | 辅助 | 技能审核通过后绑定 Agent profile | ✅ |
 | `mcp_config_converter.py` | 核心 | 竞品 MCP 配置 → MCPMigrationItem → config dict / preview；无状态转换器；并发策略映射（`supports_parallel_*` ↔ `hostSerial`）；transport 别名收敛（`http` → `streamable_http`）；可选保活间隔映射（`keepalive*` → `keepaliveInterval`；仅 remote transport 生效，`stdio` 或低于 5 秒时标记 `keepaliveIntervalIgnored` 供前端解释） | ✅ |
+| `workspace_bind_candidates.py` | 辅助 | OpenClaw migration → project workspace bind 候选路径 + Obsidian/md fingerprint；dry-run/confirm 响应与 session metadata SSOT | ✅ |
 
 ## 模块依赖
 

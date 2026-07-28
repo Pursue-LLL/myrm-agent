@@ -62,8 +62,8 @@ def test_default_tools_match_frontend_contract() -> None:
         "memory",
         "structured_clarify",
     )
-    assert len(BUILTIN_TOOL_ID_SET) == 17
-    assert len(BUILTIN_TOOL_IDS) == 15
+    assert len(BUILTIN_TOOL_ID_SET) == 19
+    assert len(BUILTIN_TOOL_IDS) == 17
 
 
 def test_normalize_strips_agent_baseline_ids() -> None:
@@ -86,6 +86,17 @@ def test_strip_legacy_task_tracking_on_read_path() -> None:
     assert normalize_enabled_builtin_tools(
         strip_legacy_builtin_tool_ids(["web_search", "task_tracking"])
     ) == ["web_search"]
+
+
+def test_normalize_migrates_renamed_skill_evolution_to_skill_manage() -> None:
+    from app.services.agent.builtin_tool_ids import (
+        normalize_enabled_builtin_tools,
+        strip_legacy_builtin_tool_ids,
+    )
+
+    assert normalize_enabled_builtin_tools(
+        strip_legacy_builtin_tool_ids(["web_search", "skill_evolution"])
+    ) == ["web_search", "skill_manage"]
 
 
 def test_strip_deploy_incompatible_removes_computer_use_when_unsupported() -> None:

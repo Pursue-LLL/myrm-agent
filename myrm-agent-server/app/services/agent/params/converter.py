@@ -916,6 +916,15 @@ async def convert_to_general_agent_params(
         except Exception as e:
             logger.warning("Failed to inject mentioned agents directive: %s", e)
 
+    from app.core.channel_bridge.learn_handler import (
+        apply_learn_skill_manage_permission_overlay,
+    )
+
+    security_config_dict = apply_learn_skill_manage_permission_overlay(
+        security_config_dict,
+        query=final_query,
+    )
+
     declared_caps = set()
     if security_config_dict and isinstance(
         security_config_dict.get("capabilities"), list
@@ -1060,14 +1069,6 @@ async def convert_to_general_agent_params(
 
 def _is_learn_skill_authoring_query(query: object) -> bool:
     """Detect /learn channel rewrites that require skill_manage_tool."""
-    from app.core.channel_bridge.learn_handler import is_learn_skill_authoring_prompt
+    from app.core.channel_bridge.learn_handler import learn_authoring_prompt_text
 
-    if isinstance(query, str):
-        return is_learn_skill_authoring_prompt(query)
-    if isinstance(query, list):
-        parts: list[str] = []
-        for block in query:
-            if isinstance(block, dict) and block.get("type") == "text":
-                parts.append(str(block.get("text", "")))
-        return is_learn_skill_authoring_prompt("\n".join(parts))
-    return False
+    return learn_authoring_prompt_text(query) is not None

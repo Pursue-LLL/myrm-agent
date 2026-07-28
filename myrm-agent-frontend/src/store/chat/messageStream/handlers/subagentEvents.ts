@@ -288,6 +288,45 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     return done(ctx);
   }
 
+  if (data.type === H.AgentEventType.COUNCIL_PHASE) {
+    const cp = data.data as {
+      phase: string;
+      round: number;
+      max_rounds: number;
+      expert_count: number;
+      detail?: string;
+    };
+
+    actions.setMessages((state) => {
+      const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+      if (messageIndex !== -1) {
+        if (!state.messages[messageIndex].progressSteps) {
+          state.messages[messageIndex].progressSteps = [];
+        }
+
+        const phaseLabels: Record<string, string> = {
+          independent: 'Independent Analysis',
+          cross_review: 'Cross-Review',
+          synthesis: 'Chair Synthesis',
+        };
+        const phaseLabel = phaseLabels[cp.phase] ?? cp.phase;
+        const headerText = `Council: ${phaseLabel} (${cp.round}/${cp.max_rounds}) · ${cp.expert_count} experts`;
+
+        const items: Array<{ text: string }> = [{ text: headerText }];
+        if (cp.detail) {
+          items.push({ text: cp.detail });
+        }
+
+        state.messages[messageIndex].progressSteps!.push({
+          step_key: 'council_phase',
+          tool_name: 'council',
+          items,
+        });
+      }
+    });
+    return done(ctx);
+  }
+
   if (data.type === H.AgentEventType.TEAMMATE_MESSAGE) {
     const chatId = H.useChatStore.getState().chatId;
     const payload = data.data as Record<string, string | number> | undefined;

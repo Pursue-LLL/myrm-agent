@@ -65,6 +65,44 @@ def is_learn_skill_authoring_prompt(content: str) -> bool:
     return stripped.startswith(LEARN_PROMPT_PREFIX) and "skill_manage_tool" in stripped
 
 
+def learn_authoring_prompt_text(query: object) -> str | None:
+    """Return the learn prompt text when *query* is a /learn authoring turn."""
+    if isinstance(query, str):
+        return query if is_learn_skill_authoring_prompt(query) else None
+    if isinstance(query, list):
+        parts: list[str] = []
+        for block in query:
+            if isinstance(block, dict) and block.get("type") == "text":
+                parts.append(str(block.get("text", "")))
+        joined = "\n".join(parts)
+        return joined if is_learn_skill_authoring_prompt(joined) else None
+    return None
+
+
+def apply_learn_skill_manage_permission_overlay(
+    security_config: dict[str, object] | None,
+    *,
+    query: object,
+) -> dict[str, object] | None:
+    """Elevate ``skill_manage`` to ASK for /learn turns that mount ``skill_manage_tool``.
+
+    ``force_skill_manage`` mounts the write backend even when session presets such as
+    ``explore`` deny ``skill_manage``. Align permissions for this turn only.
+    """
+    if learn_authoring_prompt_text(query) is None:
+        return security_config
+    merged = dict(security_config) if security_config else {}
+    raw_permissions = merged.get("permissions")
+    permissions: dict[str, object] = (
+        {str(key): value for key, value in raw_permissions.items()}
+        if isinstance(raw_permissions, dict)
+        else {}
+    )
+    permissions["skill_manage"] = "ask"
+    merged["permissions"] = permissions
+    return merged
+
+
 def _detect_input_type(user_args: str) -> _InputType:
     """Detect whether the user input is a URL, file path, or free-text."""
     stripped = user_args.strip()

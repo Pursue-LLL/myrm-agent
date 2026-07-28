@@ -444,7 +444,11 @@ async function submitAndObserveTurn(
     }
     const e2eApiBase = resolveE2eApiBase();
     if (e2eApiBase) {
-      (window as unknown as Record<string, unknown>).__MYRM_E2E_DIRECT_SSE__ = true;
+      const win = window as unknown as Record<string, unknown>;
+      // Dual-Plane gap chrome_e2e tests pin false before send to capture SSE via mux.
+      if (win.__MYRM_E2E_DIRECT_SSE__ !== false) {
+        win.__MYRM_E2E_DIRECT_SSE__ = true;
+      }
     }
     if (
       e2eApiBase &&
@@ -1405,7 +1409,12 @@ export default function E2EChatBridge() {
           scheduleAutoSave: useChatStore.getState().scheduleAutoSave,
           setInputMessage: (message: string) => useChatStore.setState({ inputMessage: message }),
         };
-        window.__MYRM_E2E_DIRECT_SSE__ = true;
+        {
+          const win = window as unknown as Record<string, unknown>;
+          if (win.__MYRM_E2E_DIRECT_SSE__ !== false) {
+            win.__MYRM_E2E_DIRECT_SSE__ = true;
+          }
+        }
         try {
           await executeStreamWithRetry(
             trimmedQuery,
@@ -1572,34 +1581,6 @@ export default function E2EChatBridge() {
           storeMessageId: storeMessageId ?? null,
           resumeStarted,
         };
-      },
-      /** Resume an already-cleared takeover (legacy split-path helper). */
-      resumeBrowserTakeoverViaUi: async (resumeMessageId: string) => {
-        const trimmedId = resumeMessageId.trim();
-        if (!trimmedId) {
-          return { ok: false, busy: false, err: 'empty-resume-message-id' };
-        }
-        try {
-          await useChatStore.getState().sendMessage('', trimmedId, undefined, {
-            action: 'completed',
-            message: '',
-          });
-          return {
-            ok: true,
-            busy: false,
-            chatId: useChatStore.getState().chatId ?? null,
-            resumeMessageId: trimmedId,
-          };
-        } catch (error) {
-          if (error instanceof AgentBusyError) {
-            return { ok: false, busy: true, err: error.message };
-          }
-          return {
-            ok: false,
-            busy: false,
-            err: error instanceof Error ? error.message : String(error),
-          };
-        }
       },
     } as NonNullable<Window['__MYRM_E2E_CHAT__']>;
 

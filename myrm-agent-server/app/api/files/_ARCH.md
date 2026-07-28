@@ -26,3 +26,4 @@
 | `vault_api.py` | 模块 | Retrieve the raw binary/text content of a vault object. | ✅ |
 | `vault_proxy.py` | 模块 | Vault secure artifact proxy router. | ✅ |
 | `workspace_ops.py` | 模块 | Workspace file write operations API. | ✅ |
+| `organize.py` | 模块 | Workspace organize HITL API — apply/rollback（含 `jobStatus`）/ latest-job | ✅ |

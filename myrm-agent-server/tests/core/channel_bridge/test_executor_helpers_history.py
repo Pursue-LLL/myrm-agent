@@ -44,6 +44,8 @@ async def test_persist_and_load_history_commits_chat() -> None:
         mock_get_session.return_value.__aexit__.return_value = False
         mock_chat = MagicMock()
         mock_chat.id = "chat-1"
+        mock_chat.project_id = None
+        mock_chat.workspace_dir = None
         mock_get_chat.return_value = mock_chat
 
         chat_id, history = await persist_and_load_history(
@@ -90,6 +92,8 @@ async def test_load_history_without_persist_returns_history() -> None:
     mock_session = AsyncMock()
     mock_chat = MagicMock()
     mock_chat.id = "chat-9"
+    mock_chat.project_id = None
+    mock_chat.workspace_dir = None
 
     with (
         patch("app.database.connection.get_session") as mock_get_session,

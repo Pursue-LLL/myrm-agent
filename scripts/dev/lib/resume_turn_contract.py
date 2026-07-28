@@ -29,6 +29,34 @@ RESUME_REINTERRUPT_MAX_ROUNDS: int = 4
 # Backoff after AgentBusyError 409 before retry.
 RESUME_BUSY_BACKOFF_SEC: float = 3.0
 
+# Parallel-aware API fetch timeout floor when active chrome_e2e ≥ 2.
+RESUME_PARALLEL_API_FETCH_TIMEOUT_SEC: float = 30.0
+RESUME_DEFAULT_API_FETCH_TIMEOUT_SEC: float = 15.0
+
+# Progress diagnostics during DONE poll (parallel stall visibility).
+RESUME_DONE_POLL_PROGRESS_INTERVAL_SEC: float = 30.0
+
+
+def parallel_active_test_count() -> int:
+    try:
+        from transport_supervisor import parallel_active_test_count as _count
+
+        return _count()
+    except ImportError:
+        return 1
+
+
+def resolve_stream_converge_poll_timeout_sec() -> float:
+    """Scale poll-only STREAM_CONVERGE with parallel chrome_e2e load (R95 SSOT)."""
+    active = max(1, parallel_active_test_count())
+    return RESUME_STREAM_CONVERGE_TIMEOUT_SEC * (1 + active)
+
+
+def resolve_done_poll_fetch_timeout_sec() -> float:
+    if parallel_active_test_count() >= 2:
+        return RESUME_PARALLEL_API_FETCH_TIMEOUT_SEC
+    return RESUME_DEFAULT_API_FETCH_TIMEOUT_SEC
+
 
 class ResumeTurnPhase(str, Enum):
     UI_ACK = "UI_ACK"

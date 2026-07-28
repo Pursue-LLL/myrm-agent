@@ -127,6 +127,17 @@ def _stop_on_migration_readiness_gap(
     }
 
 
+def _message_text_from_stream_events(events: list[dict[str, object]]) -> str:
+    chunks: list[str] = []
+    for event in events:
+        if event.get("type") != "message":
+            continue
+        data = event.get("data")
+        if isinstance(data, str) and data:
+            chunks.append(data)
+    return "".join(chunks)
+
+
 _AGENT_STREAM_TEST_TIMEOUT = pytest.mark.timeout(420)
 
 
@@ -194,9 +205,6 @@ async def test_discover_miss_no_gap_when_render_ui_group_enabled(
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
-        active_tool_groups=frozenset(
-            {"web", "memory", "file_ops", "shell", "render_ui"},
-        ),
     )
     assert discover is not None
 
@@ -229,7 +237,6 @@ async def test_discover_miss_no_gap_when_render_ui_group_disabled(
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
-        active_tool_groups=frozenset({"web", "memory", "file_ops", "shell"}),
     )
     assert discover is not None
 
@@ -270,7 +277,6 @@ async def test_discover_miss_no_capability_gap_for_disabled_groups(
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
-        active_tool_groups=frozenset({"web", "memory", "file_ops", "shell"}),
     )
     assert discover is not None
 
@@ -303,7 +309,6 @@ async def test_discover_miss_no_gap_for_file_ops_intent_without_file_group(
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
-        active_tool_groups=frozenset({"web", "memory", "answer_tool"}),
     )
     assert discover is not None
 
@@ -338,8 +343,6 @@ async def test_discover_miss_no_skill_gap_block_or_sse(
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
-        bound_skill_names=frozenset(),
-        library_skill_names=frozenset({"github_pr_skill"}),
     )
     assert discover is not None
 
@@ -516,7 +519,6 @@ async def test_discover_miss_no_web_search_gap_when_web_group_disabled(
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
-        active_tool_groups=frozenset({"memory", "file_ops", "shell"}),
     )
     assert discover is not None
 
@@ -537,39 +539,48 @@ async def test_discover_miss_no_web_search_gap_when_web_group_disabled(
 
 
 @pytest.mark.integration
-@_AGENT_STREAM_TEST_TIMEOUT
-def test_agent_stream_preflight_emits_render_ui_gap_sse(client: TestClient) -> None:
-    """User message preflight must emit capability_gap before agent needs discover."""
+def test_web_render_ui_form_query_preflight_no_gap_unit_parity() -> None:
+    """Parity guard: web_chat + render_ui ON must not emit preflight gap (see unit SSOT)."""
+    from types import SimpleNamespace
+
+    from app.ai_agents.general_agent.active_tool_groups import (
+        derive_active_tool_groups_from_params,
+    )
     from app.services.agent.stream_session.entitlement_gap_preflight import (
+        build_entitlement_gap_sse_event,
         reset_capability_gap_emission_tracker,
     )
 
     reset_capability_gap_emission_tracker()
-    chat_id = f"test_preflight_render_ui_{uuid.uuid4().hex[:8]}"
-    payload: dict[str, object] = {
-        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
-        "chatId": chat_id,
-        "query": "帮我填表准备 staging 部署配置",
-        "actionMode": "agent",
-        "modelSelection": get_lite_model_selection(),
-        "agentConfig": {
-            "enabledBuiltinTools": ["web_search", "memory", "structured_clarify"],
-        },
-        "timezone": "UTC",
-    }
-    events = _collect_agent_stream(
-        client,
-        payload,
-        stop_when=_stop_on_render_ui_capability_gap,
+    params = SimpleNamespace(
+        enable_web_search=True,
+        enable_browser=False,
+        enable_file_ops=True,
+        enable_shell_tools=True,
+        enable_computer_use=False,
+        enable_memory=True,
+        incognito_mode=False,
+        enable_conversation_search=False,
+        enable_kanban=False,
+        enable_wiki=False,
+        enable_answer_tool=False,
+        enable_render_ui=True,
+        enable_structured_clarify=False,
+        enable_cron_eager=False,
+        enable_planning=False,
+        image_generation=None,
+        video_generation=None,
+        tts=None,
     )
-    check_e2e_errors(events)
-
-    gaps = _gap_events(events, "capability_gap")
-    assert gaps, "expected stream preflight capability_gap SSE for render_ui form query"
-    payload_data = gaps[0].get("data")
-    assert isinstance(payload_data, dict)
-    assert payload_data.get("tool_id") == "render_ui"
-    assert payload_data.get("tool_group") == "render_ui"
+    event = build_entitlement_gap_sse_event(
+        message_id="msg-web-parity",
+        user_text="帮我填表准备 staging 部署配置",
+        active_tool_groups=derive_active_tool_groups_from_params(params),
+        chat_id="chat-web-parity",
+        channel_name="web_chat",
+        client_surface="web",
+    )
+    assert event is None
 
 
 @pytest.mark.integration
@@ -630,12 +641,18 @@ def test_agent_stream_emits_web_search_config_gap_sse(
 
 
 @pytest.mark.integration
-@_AGENT_STREAM_TEST_TIMEOUT
-def test_agent_stream_emits_migration_readiness_gap_sse(client: TestClient) -> None:
-    """Preflight must live-resolve migration batch and emit MCP settings capability_gap."""
+@pytest.mark.asyncio
+async def test_migration_readiness_live_resolve_emits_gap_after_db_seed() -> None:
+    """Live DB seed + resolve_and_build must emit MCP warning gap (no full agent-stream)."""
+    from unittest.mock import AsyncMock, patch
+
     from app.platform_utils import get_session_factory
+    from app.services.agent.params.models import MigrationReadinessAnchorRequest
     from app.services.agent.stream_session.entitlement_gap_preflight import (
         reset_capability_gap_emission_tracker,
+    )
+    from app.services.agent.stream_session.migration_readiness_preflight import (
+        resolve_and_build_migration_readiness_gap_sse_event,
     )
     from app.services.memory.import_sessions import (
         ImportReadinessRecheckFacts,
@@ -645,64 +662,151 @@ def test_agent_stream_emits_migration_readiness_gap_sse(client: TestClient) -> N
 
     reset_capability_gap_emission_tracker()
 
-    async def _seed_import_batch_with_mcp_warning() -> str:
-        session_factory = get_session_factory()
-        async with session_factory() as db:
-            service = MemoryImportSessionService(db)
-            manager = _FakeMemoryManager()
-            payload = {
-                "data": {
-                    "semantic": [
-                        {
-                            "content": "Migration readiness integration seed.",
-                            "metadata": {},
-                        },
-                    ]
-                }
-            }
-            dry_run_id, _preview, _payload_hash, _expires_at = (
-                await service.create_dry_run(
-                    payload,
-                    "native_json",
-                )
-            )
-            confirm = await service.confirm_import(
-                dry_run_id=dry_run_id, manager=manager
-            )
-            await service.save_post_import_diagnostic(
-                import_batch_id=confirm.import_batch_id,
-                diagnostic_run_id="diag-ready",
-                diagnostic_status="ready",
-                failed_count=0,
-            )
-            await service.save_post_import_readiness(
-                import_batch_id=confirm.import_batch_id,
-                readiness_status="warning",
-                readiness_issues=[
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        service = MemoryImportSessionService(db)
+        manager = _FakeMemoryManager()
+        payload = {
+            "data": {
+                "semantic": [
                     {
-                        "code": "mcp_servers_imported_disabled",
-                        "severity": "warning",
-                        "params": {"count": 2},
-                        "settings_path": "/settings/mcp",
-                    }
-                ],
-                recheck_facts=ImportReadinessRecheckFacts(
-                    source_has_api_keys=False,
-                    diagnostic_status="ready",
-                    diagnostic_failed_count=0,
-                    mcp_config_count=2,
-                    workspace_rules_skipped=0,
-                ),
-            )
-            return confirm.import_batch_id
+                        "content": "Migration readiness integration seed.",
+                        "metadata": {},
+                    },
+                ]
+            }
+        }
+        dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(
+            payload,
+            "native_json",
+        )
+        confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+        await service.save_post_import_diagnostic(
+            import_batch_id=confirm.import_batch_id,
+            diagnostic_run_id="diag-ready",
+            diagnostic_status="ready",
+            failed_count=0,
+        )
+        await service.save_post_import_readiness(
+            import_batch_id=confirm.import_batch_id,
+            readiness_status="warning",
+            readiness_issues=[
+                {
+                    "code": "mcp_servers_imported_disabled",
+                    "severity": "warning",
+                    "params": {"count": 2},
+                    "settings_path": "/settings/mcp",
+                }
+            ],
+            recheck_facts=ImportReadinessRecheckFacts(
+                source_has_api_keys=False,
+                diagnostic_status="ready",
+                diagnostic_failed_count=0,
+                mcp_config_count=2,
+                workspace_rules_skipped=0,
+            ),
+        )
+        import_batch_id = confirm.import_batch_id
 
-    import_batch_id = asyncio.run(_seed_import_batch_with_mcp_warning())
+    with patch(
+        "app.services.migration.source_secrets_importer.external_source_providers_configured",
+        new=AsyncMock(return_value=False),
+    ):
+        event, status = await resolve_and_build_migration_readiness_gap_sse_event(
+            message_id="msg-migration-parity",
+            migration_readiness_anchor=MigrationReadinessAnchorRequest(
+                import_batch_id=import_batch_id,
+                readiness_status="warning",
+            ),
+            chat_id="chat-migration-parity",
+            locale="en",
+        )
 
-    chat_id = f"test_migration_readiness_gap_{uuid.uuid4().hex[:8]}"
+    assert status == "warning"
+    assert event is not None
+    data = event.get("data")
+    assert isinstance(data, dict)
+    assert data.get("tool_id") == "migration_import"
+    assert data.get("reason") == "migration_readiness_warning"
+    assert data.get("settings_path") == "/settings/mcp"
+    assert data.get("import_batch_id") == import_batch_id
+
+
+async def _seed_migration_readiness_batch_for_stream() -> str:
+    from app.platform_utils import get_session_factory
+    from app.services.memory.import_sessions import (
+        ImportReadinessRecheckFacts,
+        MemoryImportSessionService,
+    )
+    from tests.services.memory.test_import_sessions import _FakeMemoryManager
+
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        service = MemoryImportSessionService(db)
+        manager = _FakeMemoryManager()
+        payload = {
+            "data": {
+                "semantic": [
+                    {
+                        "content": "Migration readiness agent-stream integration seed.",
+                        "metadata": {},
+                    },
+                ]
+            }
+        }
+        dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(
+            payload,
+            "native_json",
+        )
+        confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+        await service.save_post_import_diagnostic(
+            import_batch_id=confirm.import_batch_id,
+            diagnostic_run_id="diag-ready",
+            diagnostic_status="ready",
+            failed_count=0,
+        )
+        await service.save_post_import_readiness(
+            import_batch_id=confirm.import_batch_id,
+            readiness_status="warning",
+            readiness_issues=[
+                {
+                    "code": "mcp_servers_imported_disabled",
+                    "severity": "warning",
+                    "params": {"count": 2},
+                    "settings_path": "/settings/mcp",
+                }
+            ],
+            recheck_facts=ImportReadinessRecheckFacts(
+                source_has_api_keys=False,
+                diagnostic_status="ready",
+                diagnostic_failed_count=0,
+                mcp_config_count=2,
+                workspace_rules_skipped=0,
+            ),
+        )
+        return confirm.import_batch_id
+
+
+@pytest.mark.integration
+@_AGENT_STREAM_TEST_TIMEOUT
+def test_agent_stream_migration_readiness_gap_does_not_block_assistant(
+    client: TestClient,
+) -> None:
+    """Soft gate: migration preflight gap SSE must not block assistant message output."""
+    from unittest.mock import AsyncMock, patch
+
+    from app.services.agent.stream_session.entitlement_gap_preflight import (
+        reset_capability_gap_emission_tracker,
+    )
+
+    reset_capability_gap_emission_tracker()
+    import_batch_id = asyncio.run(_seed_migration_readiness_batch_for_stream())
+
+    chat_id = f"test_migration_soft_gate_{uuid.uuid4().hex[:8]}"
     payload: dict[str, object] = {
         "messageId": f"msg_{uuid.uuid4().hex[:8]}",
         "chatId": chat_id,
-        "query": "Hello after migration import",
+        "query": "Reply with one short greeting sentence only.",
         "actionMode": "agent",
         "modelSelection": get_lite_model_selection(),
         "agentConfig": {
@@ -714,29 +818,29 @@ def test_agent_stream_emits_migration_readiness_gap_sse(client: TestClient) -> N
         },
         "timezone": "UTC",
     }
-    events = _collect_agent_stream(
-        client,
-        payload,
-        stop_when=_stop_on_migration_readiness_gap,
-    )
-    check_e2e_errors(events)
 
-    gaps = _gap_events(events, "capability_gap")
+    with patch(
+        "app.services.migration.source_secrets_importer.external_source_providers_configured",
+        new=AsyncMock(return_value=False),
+    ):
+        events = _collect_agent_stream(client, payload)
+
+    check_e2e_errors(events)
     migration_gaps = [
         event
-        for event in gaps
+        for event in _gap_events(events, "capability_gap")
         if isinstance(event.get("data"), dict)
         and event["data"].get("tool_id") == "migration_import"
         and event["data"].get("reason") == "migration_readiness_warning"
     ]
-    assert (
-        migration_gaps
-    ), "expected stream preflight capability_gap SSE for migration MCP warning"
-    payload_data = migration_gaps[0]["data"]
-    assert isinstance(payload_data, dict)
-    assert payload_data.get("settings_path") == "/settings/mcp"
-    assert payload_data.get("tool_group") == "migration"
-    assert payload_data.get("import_batch_id") == import_batch_id
+    assert migration_gaps, (
+        "expected migration readiness capability_gap SSE before agent execution"
+    )
+    assistant_text = _message_text_from_stream_events(events).strip()
+    assert len(assistant_text) > 5, (
+        "soft gate must not block assistant output; "
+        f"event_types={sorted({e.get('type') for e in events})}"
+    )
 
 
 @pytest.mark.integration

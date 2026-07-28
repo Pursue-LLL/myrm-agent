@@ -167,4 +167,21 @@ _ALL_FEATURES: list[FeatureSpec] = [
             ),
         ),
     ),
+    FeatureSpec(
+        id="cognitive_collaboration",
+        key="cognitive_collaboration",
+        stage=FeatureStage.EXPERIMENTAL,
+        default_enabled=False,
+        description="Enable council cross-review and alternatives multi-solution delegation modes",
+        experimental_info=ExperimentalInfo(
+            name="Cognitive Collaboration",
+            description=(
+                "Unlock two advanced delegation modes: "
+                "Council (multi-expert cross-review with chair synthesis) and "
+                "Alternatives (parallel multi-solution generation for user comparison). "
+                "Token usage scales with the number of experts."
+            ),
+            announcement="NEW: Council & Alternatives delegation modes are now available.",
+        ),
+    ),
 ]

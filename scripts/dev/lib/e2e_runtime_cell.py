@@ -18,6 +18,7 @@ Shared read-only: Chrome :9333 + Frontend :3000 HMR.
 from __future__ import annotations
 
 import fcntl
+import json
 import os
 import sys
 import time
@@ -28,6 +29,8 @@ from pathlib import Path
 from typing import Iterator
 
 _CELL_ENV = "MYRM_E2E_CELL_ID"
+_CELL_META_FILE = "cell-meta.json"
+_MUX_GEN_FILE = "mux-generation.json"
 _HYDRATE_WAIT_DEFAULT_SEC = 300
 _HYDRATE_POLL_DEFAULT_SEC = 2
 
@@ -59,6 +62,103 @@ def cell_hydrate_lock_path(cell_id: str) -> Path:
     return _cells_root() / safe / "ui-hydrate.lock"
 
 
+def _cell_dir(cell_id: str) -> Path:
+    return _cells_root() / cell_id.replace("/", "_")
+
+
+def cell_mux_generation_path(cell_id: str) -> Path:
+    return _cell_dir(cell_id) / _MUX_GEN_FILE
+
+
+def read_cell_mux_generation(cell_id: str | None = None) -> int:
+    resolved = (cell_id or current_cell_id()).strip()
+    if not resolved:
+        return 0
+    path = cell_mux_generation_path(resolved)
+    if not path.is_file():
+        return 0
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return 0
+    generation = payload.get("generation")
+    if isinstance(generation, int):
+        return generation
+    if isinstance(generation, float):
+        return int(generation)
+    return 0
+
+
+def persist_cell_mux_generation(generation: int, *, cell_id: str | None = None) -> int:
+    resolved = (cell_id or current_cell_id()).strip()
+    if not resolved:
+        return generation
+    path = cell_mux_generation_path(resolved)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(
+        json.dumps({"generation": generation, "updatedAt": time.time()}),
+        encoding="utf-8",
+    )
+    tmp.replace(path)
+    return generation
+
+
+def ensure_cell_mux_generation(cell_id: str) -> int:
+    """Initialize per-cell mux generation ledger (R73-F TPC M2)."""
+    existing = read_cell_mux_generation(cell_id)
+    if existing > 0:
+        return existing
+    return persist_cell_mux_generation(1, cell_id=cell_id)
+
+
+def bump_cell_mux_generation(*, cell_id: str | None = None) -> int:
+    resolved = (cell_id or current_cell_id()).strip()
+    if not resolved:
+        return 0
+    next_gen = read_cell_mux_generation(resolved) + 1
+    persist_cell_mux_generation(next_gen, cell_id=resolved)
+    print(
+        f"E2E_CELL_MUX_GEN_BUMP: cell={resolved} generation={next_gen}",
+        file=sys.stderr,
+        flush=True,
+    )
+    return next_gen
+
+
+def _pid_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def count_live_runtime_cells() -> int:
+    root = _cells_root()
+    if not root.is_dir():
+        return 0
+    live = 0
+    for cell_path in root.iterdir():
+        if not cell_path.is_dir():
+            continue
+        meta_path = cell_path / _CELL_META_FILE
+        if not meta_path.is_file():
+            continue
+        try:
+            payload = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        pid = payload.get("pid")
+        if isinstance(pid, int) and _pid_alive(pid):
+            live += 1
+    return live
+
+
 def _resolve_run_id(explicit: str | None) -> str:
     if explicit and explicit.strip():
         return explicit.strip()
@@ -77,8 +177,19 @@ def allocate_runtime_cell(*, run_id: str | None = None) -> RuntimeCell:
         return RuntimeCell(cell_id=existing, run_id=resolved_run, pid=os.getpid())
     cell_id = f"cell-{uuid.uuid4().hex[:12]}"
     resolved_run = _resolve_run_id(run_id)
-    root = _cells_root() / cell_id.replace("/", "_")
+    root = _cell_dir(cell_id)
     root.mkdir(parents=True, exist_ok=True)
+    meta = {
+        "cellId": cell_id,
+        "runId": resolved_run,
+        "pid": os.getpid(),
+        "acquiredAt": time.time(),
+    }
+    (root / _CELL_META_FILE).write_text(
+        json.dumps(meta, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    ensure_cell_mux_generation(cell_id)
     os.environ[_CELL_ENV] = cell_id
     if not os.environ.get("MYRM_E2E_RUN_ID", "").strip():
         os.environ["MYRM_E2E_RUN_ID"] = resolved_run
@@ -108,6 +219,8 @@ def runtime_cell_snapshot() -> dict[str, object]:
         "cellId": cell_id or None,
         "runId": os.environ.get("MYRM_E2E_RUN_ID", "").strip() or None,
         "pid": os.getpid(),
+        "muxGeneration": read_cell_mux_generation(cell_id) if cell_id else None,
+        "liveCellCount": count_live_runtime_cells(),
     }
 
 

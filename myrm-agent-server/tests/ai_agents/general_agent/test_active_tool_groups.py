@@ -162,7 +162,7 @@ def test_builtin_tool_id_to_group_keys_match_togglable_catalog() -> None:
 
     from app.services.agent.builtin_tool_ids import TOGGLABLE_BUILTIN_TOOL_IDS
 
-    gap_excluded = frozenset({"skill_market", "skill_evolution"})
+    gap_excluded = frozenset({"skill_market", "skill_manage"})
 
     registry_ids = {entry.tool_id for entry in CAPABILITY_GAP_REGISTRY}
     assert registry_ids == set(BUILTIN_TOOL_ID_TO_GROUP)

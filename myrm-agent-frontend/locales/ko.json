@@ -3401,6 +3401,9 @@
     "mcpScanAckTitle": "High-risk MCP configuration",
     "mcpScanAckDesc": "Security scan found {count} high-risk issue(s) for \"{name}\". Acknowledge to continue.",
     "mcpScanAckConfirm": "Acknowledge and continue",
+    "mcpReloadConfirmTitle": "MCP 도구를 다시 로드할까요?",
+    "mcpReloadConfirmDesc": "MCP 변경 사항을 저장하면 Agent 도구 목록이 업데이트됩니다. 새 대화에는 즉시 반영됩니다. 진행 중인 대화는 새 스레드를 시작할 때까지 프롬프트 캐시 효율이 떨어질 수 있습니다.",
+    "mcpReloadConfirmAction": "저장 및 적용",
     "memoryBackup": {
       "title": "Memory Backup",
       "description": "Backup and restore your memory data for data safety.",
@@ -4152,7 +4155,7 @@
         "structured_clarify": "구조화 명확화",
         "external_cli": "외부 CLI",
         "skill_market": "스킬 마켓",
-        "skill_evolution": "스킬 진화"
+        "skill_manage": "스킬 관리"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4172,8 +4175,8 @@
         "planning": "메인 Agent 다단계 todo — 채팅에서 진행 트리 업데이트 (Planner 서브 Agent 없음)",
         "structured_clarify": "의도가 불명확할 때 구조화 양식으로 확인 — 응답할 때까지 Agent 일시 정지",
         "external_cli": "delegate_to_agent로 외부 CLI Agent(Claude Code, Codex, Gemini CLI 등)에 코딩 작업 위임",
-        "skill_market": "skill_market_tool로 외부 스킬 마켓 검색 및 설치",
-        "skill_evolution": "skill_manage_tool로 채팅에서 스킬 생성·편집(/learn은 항상 이 도구 마운트)"
+        "skill_market": "채팅에서 외부 스킬 마켓 검색 및 설치",
+        "skill_manage": "에이전트가 채팅에서 스킬을 생성·수정·삭제할 수 있습니다. 켜면 작업 후 검토용 스킬 초안이 제안될 수 있습니다. /learn은 항상 이 기능을 활성화합니다."
       },
       "renderUiWebOnlyHint": "인라인 UI는 Web 채팅과 데스크톱 앱에서만 렌더링됩니다. Telegram, 예약 작업 및 기타 채널에서는 인라인 양식이나 차트를 표시할 수 없습니다.",
       "externalCliSetupHint": "두 단계: (1) 설정 → 개발자 → 외부 Agent에서 CLI 백엔드 추가; (2) 이 스위치를 켜 두어 이 Agent가 코딩 작업을 외부 CLI에 위임하도록 합니다.",
@@ -5774,12 +5777,6 @@
     "memory_manage_tool_tool_error": "Memory management failed",
     "cron_manage_tool_tool": "Managing scheduled tasks",
     "cron_manage_tool_tool_error": "Scheduled task operation failed",
-    "mcp_tool_search_tool": "사용 가능한 도구 검색 중",
-    "mcp_tool_search_tool_error": "도구 검색 실패",
-    "mcp_tool_describe_tool": "도구 세부정보 로드 중",
-    "mcp_tool_describe_tool_error": "도구 세부정보 로드 실패",
-    "mcp_tool_call_tool": "도구 호출 중",
-    "mcp_tool_call_tool_error": "도구 호출 실패",
     "file_read_tool": "Reading files",
     "file_read_tool_error": "Read files failed",
     "file_write_tool": "Writing file",
@@ -5852,10 +5849,7 @@
       "skill_select_tool": "Selecting skill",
       "render_ui_tool": "Rendering UI",
       "answer_user_tool": "Generating answer",
-      "request_answer_user_tool": "Preparing response",
-      "mcp_tool_search": "도구 검색 중",
-      "mcp_tool_describe": "도구 스키마 로드 중",
-      "mcp_tool_call": "도구 호출 중"
+      "request_answer_user_tool": "Preparing response"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",

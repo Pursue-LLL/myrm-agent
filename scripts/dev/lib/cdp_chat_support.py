@@ -11,6 +11,7 @@ import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
+from typing import Callable
 from urllib.parse import urlsplit
 
 _E2E_RUNTIME_BINDING_PREFIX = "myrm-e2e-v1:"
@@ -1646,9 +1647,17 @@ def deny_stale_browser_takeover_approvals(*, api_url: str | None = None) -> int:
 
 
 def chat_messages_have_done(
-    chat_id: str, *, min_user_count: int = 1, api_url: str | None = None
+    chat_id: str,
+    *,
+    min_user_count: int = 1,
+    api_url: str | None = None,
+    timeout_sec: float = 15.0,
 ) -> bool:
-    messages = fetch_chat_messages(chat_id, api_url=api_url)
+    messages = fetch_chat_messages(
+        chat_id,
+        api_url=api_url,
+        timeout_sec=timeout_sec,
+    )
     user_count = sum(
         1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
     )
@@ -1662,6 +1671,65 @@ def chat_messages_have_done(
         return False
     content = str(last_assistant.get("content") or "")
     return bool(_DONE_REPLY_RE.search(content))
+
+
+def wait_chat_messages_done(
+    chat_id: str,
+    *,
+    api_url: str | None = None,
+    timeout_sec: float = 120.0,
+    fetch_timeout_sec: float = 15.0,
+    progress_interval_sec: float = 30.0,
+    on_tick: Callable[[], None] | None = None,
+) -> bool:
+    """Poll chat REST until assistant DONE or timeout (STREAM_CONVERGE SSOT)."""
+    deadline = time.monotonic() + timeout_sec
+    last_progress_at = time.monotonic()
+    while time.monotonic() < deadline:
+        if on_tick is not None:
+            on_tick()
+        try:
+            if chat_messages_have_done(
+                chat_id,
+                api_url=api_url,
+                timeout_sec=fetch_timeout_sec,
+            ):
+                return True
+        except (TimeoutError, OSError, urllib.error.URLError) as exc:
+            print(
+                f"E2E_WAIT_API_DONE_SKIP: transient messages poll — {exc!s:.120}",
+                flush=True,
+            )
+        now = time.monotonic()
+        if now - last_progress_at >= progress_interval_sec:
+            try:
+                messages = fetch_chat_messages(
+                    chat_id,
+                    api_url=api_url,
+                    timeout_sec=fetch_timeout_sec,
+                )
+                assistant_tail = next(
+                    (
+                        str(msg.get("content") or "")[:80]
+                        for msg in reversed(messages)
+                        if isinstance(msg, dict) and msg.get("role") == "assistant"
+                    ),
+                    "",
+                )
+                print(
+                    f"E2E_WAIT_API_DONE_PROGRESS: chatId={chat_id} "
+                    f"messages={len(messages)} assistant_tail={assistant_tail!r} "
+                    f"remaining={int(deadline - now)}s",
+                    flush=True,
+                )
+            except (TimeoutError, OSError, urllib.error.URLError) as exc:
+                print(
+                    f"E2E_WAIT_API_DONE_PROGRESS_SKIP: {exc!s:.120}",
+                    flush=True,
+                )
+            last_progress_at = now
+        time.sleep(2.0)
+    return False
 
 
 def _sse_message_text(events: list[dict[str, object]]) -> str:

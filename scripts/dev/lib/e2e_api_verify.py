@@ -37,7 +37,6 @@ from stack_mutation_policy import (
     decide_drift_heal,
     pending_drift_exists,
     read_pending_drift,
-    wave_active_lease_count,
 )
 
 SHARED_DEFAULT_PORT: Final[int] = 8080
@@ -46,6 +45,9 @@ PRIVATE_PORT_SCAN_END: Final[int] = 18120
 HEALTH_PATHS: Final[tuple[str, ...]] = ("/api/v1/health", "/health")
 HEALTH_PROBE_TIMEOUT_SEC: Final[float] = 2.0
 PORT_SCAN_PROBE_TIMEOUT_SEC: Final[float] = 0.5
+AGENT_NEVER_SAY: Final[str] = (
+    "停其他pytest|只跑一个E2E|kill其他pytest|先清wave|停止并行测试|kill wave"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -412,12 +414,16 @@ def resolve_e2e_api_context(
     resolved_state = state_dir or _default_state_dir()
     shared = shared_api_base()
     workspace_fp = workspace_backend_fingerprint()
+    from e2e_lease_liveness import load_wave_snapshot, wave_lease_counts  # noqa: PLC0415
 
-    if pending_drift_exists(resolved_state) and wave_active_lease_count(root) == 0:
+    wave_snapshot = load_wave_snapshot()
+    lease_counts = wave_lease_counts(wave_snapshot)
+    active_leases = lease_counts.total
+
+    if pending_drift_exists(resolved_state) and active_leases == 0:
         apply_pending_drift_if_idle(monorepo_root=root, state_dir=resolved_state)
 
     drift_pending = pending_drift_exists(resolved_state)
-    active_leases = wave_active_lease_count(root)
     drift_action = decide_drift_heal(
         active_leases=active_leases,
         drift_pending=drift_pending,
@@ -517,73 +523,145 @@ def _load_parallel_runtime_snapshot() -> tuple[dict[str, object], list[str]]:
             sys.path.remove(support_text)
 
 
+def _lock_holder_active(
+    parallel_snapshot: dict[str, object] | None,
+    key: str,
+) -> bool:
+    if parallel_snapshot is None:
+        return False
+    holder = parallel_snapshot.get(key)
+    if not isinstance(holder, dict):
+        return False
+    pid = holder.get("pid")
+    return isinstance(pid, int) and pid > 0
+
+
+def _compute_queue_state(
+    *,
+    live_agent_shpoib_count: int,
+    mux_fields: dict[str, object],
+    parallel_snapshot: dict[str, object] | None,
+) -> tuple[bool, list[str]]:
+    from dev_gate_contract import LIVE_SHPOIB_MAX_CONCURRENT  # noqa: PLC0415
+
+    reasons: list[str] = []
+    if bool(mux_fields.get("muxColdAttachSaturated", False)):
+        reasons.append("mux_cold_attach")
+    if live_agent_shpoib_count >= LIVE_SHPOIB_MAX_CONCURRENT:
+        reasons.append("wave_cap")
+    if _lock_holder_active(parallel_snapshot, "agent_stream_lock"):
+        reasons.append("shared_hot_stream_lock")
+    if _lock_holder_active(parallel_snapshot, "desktop_approval_lock"):
+        reasons.append("desktop_approval_lock")
+    return len(reasons) > 0, reasons
+
+
 def _cap_headroom_fields(
     *,
-    active_leases: int,
+    lease_counts: object,
     mux_fields: dict[str, object],
     active_test_count: int,
+    parallel_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
     from dev_gate_contract import (  # noqa: PLC0415
         LIVE_SHARED_HOT_MAX_CONCURRENT,
         LIVE_SHPOIB_MAX_CONCURRENT,
         MUX_COLD_ATTACH_SLOTS,
     )
+    from e2e_lease_liveness import WaveLeaseCounts  # noqa: PLC0415
 
+    counts = (
+        lease_counts
+        if isinstance(lease_counts, WaveLeaseCounts)
+        else WaveLeaseCounts(
+            total=int(getattr(lease_counts, "total", lease_counts)),
+            live_agent_shpoib=int(getattr(lease_counts, "live_agent_shpoib", lease_counts)),
+            live_agent_shared_hot=0,
+            read_page=0,
+        )
+    )
     mux_active = int(mux_fields.get("muxColdAttachActive", 0))
     mux_max = int(mux_fields.get("muxColdAttachMax", MUX_COLD_ATTACH_SLOTS))
-    mux_saturated = bool(mux_fields.get("muxColdAttachSaturated", False))
+    queue_expected, queue_reasons = _compute_queue_state(
+        live_agent_shpoib_count=counts.live_agent_shpoib,
+        mux_fields=mux_fields,
+        parallel_snapshot=parallel_snapshot,
+    )
     return {
-        "waveLeasesActive": active_leases,
+        "waveLeasesActive": counts.total,
+        "liveAgentShpoibLeases": counts.live_agent_shpoib,
+        "liveAgentSharedHotLeases": counts.live_agent_shared_hot,
+        "readPageLeases": counts.read_page,
         "shpoibMaxConcurrent": LIVE_SHPOIB_MAX_CONCURRENT,
         "sharedHotMaxConcurrent": LIVE_SHARED_HOT_MAX_CONCURRENT,
         "muxColdAttachRemaining": max(0, mux_max - mux_active),
         "activeTestCount": active_test_count,
-        "parallelQueueExpected": mux_saturated or active_leases >= LIVE_SHPOIB_MAX_CONCURRENT,
+        "parallelQueueExpected": queue_expected,
+        "queueReasons": queue_reasons,
     }
 
 
 def _format_cap_headroom_human(
     *,
-    active_leases: int,
+    lease_counts: object,
     mux_fields: dict[str, object],
     active_test_count: int,
+    parallel_snapshot: dict[str, object] | None = None,
 ) -> str:
     headroom = _cap_headroom_fields(
-        active_leases=active_leases,
+        lease_counts=lease_counts,
         mux_fields=mux_fields,
         active_test_count=active_test_count,
+        parallel_snapshot=parallel_snapshot,
     )
     mux_active = int(mux_fields.get("muxColdAttachActive", 0))
     mux_max = int(mux_fields.get("muxColdAttachMax", 0))
     saturated = "yes" if mux_fields.get("muxColdAttachSaturated") else "no"
     queue = "yes" if headroom["parallelQueueExpected"] else "no"
+    reasons = headroom.get("queueReasons", [])
+    reason_note = ""
+    if isinstance(reasons, list) and reasons:
+        reason_note = f" queue_reasons={','.join(str(item) for item in reasons)}"
     return (
         "E2E_CAP_HEADROOM: "
-        f"wave_leases={active_leases} shpoib_max={headroom['shpoibMaxConcurrent']} "
+        f"live_agent_shpoib={headroom['liveAgentShpoibLeases']}/{headroom['shpoibMaxConcurrent']} "
+        f"read_page_leases={headroom['readPageLeases']} "
+        f"wave_leases_total={headroom['waveLeasesActive']} "
         f"shared_hot_max={headroom['sharedHotMaxConcurrent']} "
         f"mux_cold_attach={mux_active}/{mux_max} saturated={saturated} "
-        f"active_tests={active_test_count} queue_expected={queue} "
+        f"active_tests={active_test_count} queue_expected={queue}{reason_note} "
         "(do not stop other pytest)"
     )
 
 
 def _format_queue_human(
     *,
-    active_leases: int,
+    lease_counts: object,
     mux_fields: dict[str, object],
     active_test_count: int,
+    parallel_snapshot: dict[str, object] | None = None,
 ) -> str | None:
     headroom = _cap_headroom_fields(
-        active_leases=active_leases,
+        lease_counts=lease_counts,
         mux_fields=mux_fields,
         active_test_count=active_test_count,
+        parallel_snapshot=parallel_snapshot,
     )
     if not headroom["parallelQueueExpected"]:
         return None
     shpoib_max = int(headroom["shpoibMaxConcurrent"])
+    reasons = headroom.get("queueReasons", [])
+    reason_str = (
+        ",".join(str(item) for item in reasons)
+        if isinstance(reasons, list) and reasons
+        else "unknown"
+    )
     return (
-        "E2E_QUEUE_HUMAN: cap full "
-        f"(wave_leases={active_leases} shpoib_max={shpoib_max} "
+        "E2E_QUEUE_HUMAN: "
+        f"reason={reason_str} "
+        f"(live_agent_shpoib={headroom['liveAgentShpoibLeases']}/{shpoib_max} "
+        f"read_page_leases={headroom['readPageLeases']} "
+        f"wave_leases_total={headroom['waveLeasesActive']} "
         f"active_tests={active_test_count}). "
         "New ./myrm test runs AUTO-QUEUE in ADMIT (≤900s). "
         "NEVER stop/kill other pytest. "
@@ -593,20 +671,109 @@ def _format_queue_human(
     )
 
 
+def _compute_next_action(
+    ctx: E2eApiContext,
+    *,
+    headroom: dict[str, object],
+    active_tests: list[dict[str, object]],
+    mux_fields: dict[str, object],
+) -> str:
+    from dev_gate_contract import LIVE_SINGLE_TEST_WALL_CLOCK_SEC  # noqa: PLC0415
+
+    for row in active_tests:
+        body_elapsed = row.get("body_elapsed_sec")
+        if isinstance(body_elapsed, (int, float)):
+            if float(body_elapsed) >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
+                return "FAIL_FAST"
+    if headroom.get("parallelQueueExpected") is True:
+        return "QUEUE"
+    if ctx.blocked and not ctx.epoch_match:
+        return "SHPOIB_OR_VERIFY_API"
+    if mux_fields.get("muxColdAttachSaturated") is True:
+        return "QUEUE"
+    if ctx.drift_pending and ctx.active_leases == 0:
+        return "RESTART_WHEN_IDLE"
+    if active_tests:
+        return "PARALLEL_OK"
+    return "READY"
+
+
+def _format_agent_decision_human(
+    *,
+    ctx: E2eApiContext,
+    headroom: dict[str, object],
+    active_tests: list[dict[str, object]],
+    mux_fields: dict[str, object],
+) -> list[str]:
+    next_action = _compute_next_action(
+        ctx,
+        headroom=headroom,
+        active_tests=active_tests,
+        mux_fields=mux_fields,
+    )
+    lines = [
+        f"NEXT_ACTION={next_action}",
+        f"AGENT_NEVER_SAY={AGENT_NEVER_SAY}",
+    ]
+    batch_rows = [
+        row for row in active_tests if row.get("batch_mode") is True
+    ]
+    if batch_rows:
+        lines.append(
+            "E2E_FILE_BATCH_CONTEXT: "
+            + "; ".join(
+                f"pid={row.get('pid')} test={row.get('test_id')}"
+                for row in batch_rows
+            )
+            + " (process_elapsed≠single-test BODY; prefer path::test_name)"
+        )
+    for row in active_tests:
+        current_node = row.get("current_node")
+        body_elapsed = row.get("body_elapsed_sec")
+        if not current_node and body_elapsed is None:
+            continue
+        pid = row.get("pid")
+        parts = [f"pid={pid}"]
+        if current_node:
+            parts.append(f"current_node={current_node}")
+        if isinstance(body_elapsed, (int, float)):
+            parts.append(f"body_elapsed={float(body_elapsed):.0f}s")
+        lines.append(f"E2E_TEST_PROGRESS: {' '.join(str(p) for p in parts)}")
+    return lines
+
+
 def _context_to_dict(
     ctx: E2eApiContext,
     *,
     parallel_snapshot: dict[str, object] | None = None,
     mux_fields: dict[str, object] | None = None,
+    wave_snapshot: dict[str, object] | None = None,
 ) -> dict[str, object]:
+    from e2e_lease_liveness import (  # noqa: PLC0415
+        build_lease_liveness,
+        lease_liveness_to_dict,
+        load_wave_snapshot,
+        wave_lease_counts,
+    )
+
     resolved_mux = mux_fields or _mux_context_fields()
     resolved_parallel = parallel_snapshot
     if resolved_parallel is None:
         resolved_parallel, _ = _load_parallel_runtime_snapshot()
+    resolved_wave = wave_snapshot or load_wave_snapshot()
+    counts = wave_lease_counts(resolved_wave)
+    active_tests_raw = resolved_parallel.get("active_tests")
+    active_tests = (
+        [item for item in active_tests_raw if isinstance(item, dict)]
+        if isinstance(active_tests_raw, list)
+        else []
+    )
+    liveness_rows = build_lease_liveness(resolved_wave, active_tests=active_tests)
     headroom = _cap_headroom_fields(
-        active_leases=ctx.active_leases,
+        lease_counts=counts,
         mux_fields=resolved_mux,
         active_test_count=int(resolved_parallel.get("active_test_count", 0)),
+        parallel_snapshot=resolved_parallel,
     )
     payload = asdict(ctx)
     payload["candidates"] = [_candidate_to_dict(item) for item in ctx.candidates]
@@ -614,6 +781,7 @@ def _context_to_dict(
     payload.update(resolved_mux)
     payload["parallelSnapshot"] = resolved_parallel
     payload["capHeadroom"] = headroom
+    payload["leaseLiveness"] = lease_liveness_to_dict(liveness_rows)
     try:
         from e2e_orchestrator import orchestrator_snapshot  # noqa: PLC0415
 
@@ -636,6 +804,38 @@ def _context_to_dict(
             f"PARALLEL_E2E_ACTIVE={active_count}: use active_tests[] from e2e-context; "
             "do not pgrep; do not stop other pytest."
         )
+    if headroom.get("parallelQueueExpected") is True:
+        reasons = headroom.get("queueReasons", [])
+        reason_str = (
+            ",".join(str(item) for item in reasons)
+            if isinstance(reasons, list) and reasons
+            else "unknown"
+        )
+        payload["agent_rule"] = (
+            f"{payload.get('agent_rule', ctx.agent_rule)} "
+            f"QUEUE_EXPECTED=yes reasons={reason_str}: read E2E_QUEUE_HUMAN; "
+            "auto ADMIT queue ≤900s; do not stop/kill other pytest; "
+            "do not pipe ./myrm test to tail|head."
+        )
+    stale_leases = [
+        row
+        for row in liveness_rows
+        if row.owner_pid is not None and not row.owner_alive
+    ]
+    if stale_leases:
+        payload["agent_rule"] = (
+            f"{payload.get('agent_rule', ctx.agent_rule)} "
+            "STALE_LEASE_SUSPECT: owner test.sh dead but lease active; "
+            "./myrm wave reap; do NOT ask user to kill pytest."
+        )
+    next_action = _compute_next_action(
+        ctx,
+        headroom=headroom,
+        active_tests=active_tests,
+        mux_fields=resolved_mux,
+    )
+    payload["next_action"] = next_action
+    payload["agent_never_say"] = AGENT_NEVER_SAY
     return payload
 
 
@@ -646,14 +846,23 @@ def _cmd_context_json(_args: argparse.Namespace) -> int:
 
 
 def _cmd_context_human(_args: argparse.Namespace) -> int:
+    from e2e_lease_liveness import (  # noqa: PLC0415
+        build_lease_liveness,
+        format_lease_liveness_human,
+        load_wave_snapshot,
+        wave_lease_counts,
+    )
+
     ctx = resolve_e2e_api_context()
+    wave_snapshot = load_wave_snapshot()
+    counts = wave_lease_counts(wave_snapshot)
     drift_note = "yes" if ctx.drift_pending else "no"
     match_note = "yes" if ctx.epoch_match else "no"
     sys.stdout.write(
         "E2E_VERIFY_API="
         f"{ctx.verify_api_base} "
         f"(shared={ctx.shared_api_base} drift_pending={drift_note} "
-        f"epoch_match={match_note} leases={ctx.active_leases} source={ctx.source} "
+        f"epoch_match={match_note} wave_leases_total={ctx.active_leases} source={ctx.source} "
         f"blocked={'yes' if ctx.blocked else 'no'})\n"
     )
     sys.stdout.write(f"WORKSPACE_FINGERPRINT={ctx.workspace_fingerprint}\n")
@@ -668,6 +877,12 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     mux_fields = _mux_context_fields()
     parallel_snapshot, parallel_lines = _load_parallel_runtime_snapshot()
     active_test_count = int(parallel_snapshot.get("active_test_count", 0))
+    active_tests_raw = parallel_snapshot.get("active_tests")
+    active_tests = (
+        [item for item in active_tests_raw if isinstance(item, dict)]
+        if isinstance(active_tests_raw, list)
+        else []
+    )
     sys.stdout.write(
         "MUX_COLD_ATTACH="
         f"{mux_fields['muxColdAttachActive']}/{mux_fields['muxColdAttachMax']} "
@@ -676,20 +891,38 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
     )
     sys.stdout.write(
         _format_cap_headroom_human(
-            active_leases=ctx.active_leases,
+            lease_counts=counts,
             mux_fields=mux_fields,
             active_test_count=active_test_count,
+            parallel_snapshot=parallel_snapshot,
         )
         + "\n"
     )
     queue_human = _format_queue_human(
-        active_leases=ctx.active_leases,
+        lease_counts=counts,
         mux_fields=mux_fields,
         active_test_count=active_test_count,
+        parallel_snapshot=parallel_snapshot,
     )
     if queue_human is not None:
         sys.stdout.write(f"{queue_human}\n")
+    liveness_rows = build_lease_liveness(wave_snapshot, active_tests=active_tests)
+    for line in format_lease_liveness_human(liveness_rows):
+        sys.stdout.write(f"{line}\n")
     for line in parallel_lines:
+        sys.stdout.write(f"{line}\n")
+    headroom = _cap_headroom_fields(
+        lease_counts=counts,
+        mux_fields=mux_fields,
+        active_test_count=active_test_count,
+        parallel_snapshot=parallel_snapshot,
+    )
+    for line in _format_agent_decision_human(
+        ctx=ctx,
+        headroom=headroom,
+        active_tests=active_tests,
+        mux_fields=mux_fields,
+    ):
         sys.stdout.write(f"{line}\n")
     sys.stdout.write(
         "E2E_PARALLEL_SNAPSHOT_JSON="
@@ -699,6 +932,7 @@ def _cmd_context_human(_args: argparse.Namespace) -> int:
         ctx,
         parallel_snapshot=parallel_snapshot,
         mux_fields=mux_fields,
+        wave_snapshot=wave_snapshot,
     )
     lifecycle = enriched.get("sessionLifecycle")
     if isinstance(lifecycle, dict):
@@ -747,7 +981,7 @@ def _cmd_verify_api(args: argparse.Namespace) -> int:
     sys.stderr.write(
         f"MYRM_VERIFY_API: {method} {url} "
         f"(shared={ctx.shared_api_base} drift_pending={ctx.drift_pending} "
-        f"epoch_match={ctx.epoch_match} leases={ctx.active_leases} source={ctx.source})\n"
+        f"epoch_match={ctx.epoch_match} wave_leases_total={ctx.active_leases} source={ctx.source})\n"
     )
     curl_cmd: list[str] = [
         "curl",

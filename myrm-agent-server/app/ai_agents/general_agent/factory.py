@@ -754,7 +754,7 @@ async def build_general_agent(
     )
 
     mount_skill_market = getattr(agent_wrapper, "enable_skill_market", False)
-    mount_skill_manage = getattr(agent_wrapper, "enable_skill_evolution", False) or getattr(
+    mount_skill_manage = getattr(agent_wrapper, "enable_skill_manage", False) or getattr(
         agent_wrapper, "force_skill_manage", False
     )
 

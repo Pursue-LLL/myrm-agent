@@ -12,6 +12,7 @@ import { parseMCPConfigsFromJSON } from '@/lib/utils/mcpConfigParser';
 import { buildLastScanSummary, gateMcpConfigBatch } from '@/hooks/settings/useMcpSecurityGate';
 import { getMcpFindingDescription } from '@/lib/utils/mcpScanFindingText';
 import { MCPScanAckDialog } from './mcp/MCPScanAckDialog';
+import { MCPReloadConfirmDialog } from './mcp/MCPReloadConfirmDialog';
 
 interface MCPConfigFormProps {
   currentConfigs: MCPServiceConfig[];
@@ -62,12 +63,6 @@ const MCPConfigForm = ({ currentConfigs, onSave }: MCPConfigFormProps) => {
         addedCount++;
       }
 
-      mcpConfig.setConfigs(newConfigs);
-      onSave(newConfigs);
-      mcpConfig.setShowImportModal(false);
-      setImportJsonText('');
-      setPendingImportAck(null);
-
       const parts: string[] = [t('mcpImportSuccessDesc', { count: addedCount })];
       if (meta.skippedCount > 0) parts.push(t('mcpImportSkipped', { count: meta.skippedCount }));
       if (meta.skippedUnsupportedCount > 0) {
@@ -75,12 +70,19 @@ const MCPConfigForm = ({ currentConfigs, onSave }: MCPConfigFormProps) => {
       }
       if (disabledCount > 0) parts.push(t('mcpImportDisabledNoDesc', { count: disabledCount }));
 
-      toast({
-        title: t('mcpImportSuccess'),
-        description: parts.join(' · '),
+      mcpConfig.persistConfigs(newConfigs, {
+        onComplete: () => {
+          mcpConfig.setShowImportModal(false);
+          setImportJsonText('');
+          setPendingImportAck(null);
+        },
+        toast: {
+          title: t('mcpImportSuccess'),
+          description: parts.join(' · '),
+        },
       });
     },
-    [mcpConfig, onSave, t, toast],
+    [mcpConfig, t],
   );
 
   const handleConfirmImportAck = useCallback(async () => {
@@ -255,6 +257,12 @@ const MCPConfigForm = ({ currentConfigs, onSave }: MCPConfigFormProps) => {
         findings={pendingImportAck?.ackFindings ?? []}
         onConfirm={handleConfirmImportAck}
         onCancel={() => setPendingImportAck(null)}
+      />
+
+      <MCPReloadConfirmDialog
+        open={!!mcpConfig.pendingReloadConfirm}
+        onConfirm={mcpConfig.handleConfirmReload}
+        onCancel={mcpConfig.handleCancelReload}
       />
 
       {/* 删除确认对话框 */}

@@ -88,6 +88,7 @@ export const AgentEventType = {
   RISK_BLOCKED: 'risk_blocked',
   CORRECTION_LEARNED: 'correction_learned',
   VERIFICATION_VERDICT: 'verification_verdict',
+  COUNCIL_PHASE: 'council_phase',
   CAPABILITY_GAP: 'capability_gap',
   SKILL_GAP: 'skill_gap',
   CITATION_MAP: 'citation_map',

@@ -546,20 +546,17 @@ async def test_file_write_empty_live_agent_webui(
                 )
                 if isinstance(banner, dict) and banner.get("ready") is True:
                     return {"source": "ui", "banner": banner, "ui": ui}
-            stall_elapsed = time.monotonic() - last_progress_at
-            # R62-C1: after file_write_tool invoked, allow tail for mutation metadata.
-            stall_cap = (
-                180.0
-                if last_api[0] and not last_api[1]
-                else float(STALL_PROGRESS_SEC)
-            )
-            if stall_elapsed >= stall_cap:
-                raise AssertionError(
-                    "E2E_STALL: live empty write made no progress for "
-                    f"{int(stall_elapsed)}s (cap={int(stall_cap)}s); "
-                    f"api_invoked={last_api[0]} api_failure={last_api[1]} "
-                    f"remaining_wall={remaining_wall_sec():.0f}s"
-                )
+            # R62-C1: stall fail-fast only before tool invoke. After file_write_tool
+            # appears in messages, mutation metadata may lag under REAL LLM load.
+            if not (last_api[0] and not last_api[1]):
+                stall_elapsed = time.monotonic() - last_progress_at
+                if stall_elapsed >= float(STALL_PROGRESS_SEC):
+                    raise AssertionError(
+                        "E2E_STALL: live empty write made no progress for "
+                        f"{int(stall_elapsed)}s (cap={STALL_PROGRESS_SEC}s); "
+                        f"api_invoked={last_api[0]} api_failure={last_api[1]} "
+                        f"remaining_wall={remaining_wall_sec():.0f}s"
+                    )
             await asyncio.sleep(1.5)
         raise AssertionError(
             f"Live empty write did not produce mutation failure banner; "

@@ -33,6 +33,7 @@ def _make_session(
     session.cancel_token.is_cancelled = is_cancelled
     session.params = MagicMock()
     session.params.message_id = "msg-test"
+    session.params.enable_skill_manage = True
     session.params.model_cfg = MagicMock()
     session.params.locale = "en"
     session.collector = MagicMock()
@@ -110,6 +111,51 @@ async def test_evolution_triggered_when_tools_used() -> None:
         conversation_text=None,
         agent_id=session.request.agent_id,
     )
+
+
+@pytest.mark.asyncio
+async def test_evolution_not_triggered_when_profile_disabled() -> None:
+    """Background evolution must not run when skill_manage profile toggle is off."""
+    session = _make_session(tool_steps=5)
+    session.params.enable_skill_manage = False
+
+    with (
+        patch(
+            "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.CancellationRegistry"
+        ),
+        patch(
+            "app.services.agent.stream_session.stream_finalize.SteeringRegistry"
+        ),
+        patch("app.services.agent.goal_registry.GoalRegistry"),
+        patch(
+            "myrm_agent_harness.agent.security.user_credentials_ctx"
+        ) as mock_ctx,
+        patch(
+            "myrm_agent_harness.agent.context_management.tracking.task_metrics.get_task_metrics",
+            return_value=None,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "myrm_agent_harness.api.hooks.get_memory_manager",
+            return_value=None,
+        ),
+        patch(
+            "app.services.agent.evolution.engine.trigger_skill_evolution"
+        ) as mock_trigger,
+    ):
+        mock_ctx.reset = MagicMock()
+        await finalize_agent_stream_session(session, MagicMock(), _make_approval(), _make_clarification())
+
+    mock_trigger.assert_not_called()
 
 
 @pytest.mark.asyncio

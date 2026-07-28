@@ -187,6 +187,11 @@ class AgentRequest(BaseModel):
     chat_id: str | None = None
     agent_id: str | None = None
     migration_readiness_anchor: MigrationReadinessAnchorRequest | None = None
+    migration_bound_project_id: str | None = Field(
+        default=None,
+        max_length=255,
+        description="One-shot post-migration project bind applied after chat persist, before workspace resolve.",
+    )
     multiplexed: bool = False
     blueprint_id: str | None = None
     ephemeral_subagents: dict[str, object] | None = None

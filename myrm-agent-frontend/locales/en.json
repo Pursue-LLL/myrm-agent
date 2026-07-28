@@ -3692,6 +3692,9 @@
     "mcpScanAckTitle": "High-risk MCP configuration",
     "mcpScanAckDesc": "Security scan found {count} high-risk issue(s) for \"{name}\". Acknowledge to continue.",
     "mcpScanAckConfirm": "Acknowledge and continue",
+    "mcpReloadConfirmTitle": "Reload MCP tools?",
+    "mcpReloadConfirmDesc": "Saving MCP changes updates the agent tool list. New conversations pick this up immediately; ongoing chats may lose prompt-cache efficiency until you start a fresh thread.",
+    "mcpReloadConfirmAction": "Save and apply",
     "mcpThreat": {
       "prompt_injection": "Prompt injection content detected (attempt to override system instructions)",
       "name_injection": "Identifier contains injection-like content (URL or instruction text)",
@@ -4802,6 +4805,8 @@
     "moveConfirm": "Move",
     "moveSuccess": "Moved successfully",
     "moveFailed": "Move failed",
+    "organizeFolder": "AI organize folder",
+    "organizePrompt": "Organize files under \"{path}\" using workspace-auto-organizer skill. Write an organize-plan.json for my review.",
     "delete": "Delete",
     "deleteConfirmTitle": "Confirm Delete",
     "deleteConfirmDesc": "Are you sure you want to delete {type} \"{name}\"? This action cannot be undone.",
@@ -5251,7 +5256,7 @@
         "structured_clarify": "Structured Clarify",
         "external_cli": "External CLI",
         "skill_market": "Skill Market",
-        "skill_evolution": "Skill Evolution"
+        "skill_manage": "Skill Management"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -5271,8 +5276,8 @@
         "planning": "Main-agent todo list for multi-step tasks — updates the progress tree in chat (no sub-agent planner)",
         "structured_clarify": "Ask structured clarification forms when user intent is ambiguous — pauses the agent until you respond",
         "external_cli": "Let the agent delegate coding tasks to external CLI agents (Claude Code, Codex, Gemini CLI) via delegate_to_agent",
-        "skill_market": "Search and install skills from external marketplaces in chat via skill_market_tool",
-        "skill_evolution": "Create and edit skills in chat via skill_manage_tool (/learn always mounts this tool)"
+        "skill_market": "Search and install skills from external marketplaces in chat",
+        "skill_manage": "Let the agent create, edit, and delete skills in chat. When enabled, skill drafts may be proposed after tasks for your review. /learn always enables this capability."
       },
       "renderUiWebOnlyHint": "Inline interactive UI renders only in Web Chat and the desktop app. Telegram, scheduled tasks, and other channels cannot display inline forms or charts.",
       "wikiScopeHint": "Documents stay in this agent's private knowledge base and won't mix with other agents.",
@@ -7025,12 +7030,6 @@
     "memory_manage_tool_tool_error": "Memory management failed",
     "cron_manage_tool_tool": "Managing scheduled tasks",
     "cron_manage_tool_tool_error": "Scheduled task operation failed",
-    "mcp_tool_search_tool": "Searching available tools",
-    "mcp_tool_search_tool_error": "Tool search failed",
-    "mcp_tool_describe_tool": "Loading tool details",
-    "mcp_tool_describe_tool_error": "Failed to load tool details",
-    "mcp_tool_call_tool": "Calling tool",
-    "mcp_tool_call_tool_error": "Tool call failed",
     "file_read_tool": "Reading files",
     "file_read_tool_error": "Read files failed",
     "file_write_tool": "Writing file",
@@ -7109,10 +7108,7 @@
       "render_ui_tool": "Rendering UI",
       "update_ui_data_tool": "Updating UI data",
       "answer_user_tool": "Generating answer",
-      "request_answer_user_tool": "Preparing response",
-      "mcp_tool_search": "Searching tools",
-      "mcp_tool_describe": "Loading tool schema",
-      "mcp_tool_call": "Calling tool"
+      "request_answer_user_tool": "Preparing response"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",
@@ -8122,6 +8118,18 @@
         "workspaceRulesSkipped": "{count} rule file(s) already existed and were skipped",
         "readinessSummary": "Runtime readiness check after import",
         "readinessResolveBeforeChat": "Resolve critical readiness issues before starting chat.",
+        "vaultBind": {
+          "title": "Link your notes folder",
+          "description": "Optional: connect a local folder so the assistant reads and edits your files in place. Wiki import copies notes into a separate library — use this for your live vault or synced folder.",
+          "chooseFolder": "Choose folder",
+          "preparing": "Preparing…",
+          "skip": "Skip for now",
+          "linkedSuccess": "Folder linked. Your next chat will use this workspace.",
+          "defaultProjectName": "My Files",
+          "candidateGeneric": "Folder detected from your previous assistant setup.",
+          "candidateMarkdown": "{count} Markdown note(s) detected in this folder.",
+          "candidateObsidian": "Obsidian vault detected · {count} Markdown note(s)."
+        },
         "readinessStatus": {
           "ready": "Ready to run",
           "warning": "Ready with warnings",
@@ -8799,6 +8807,28 @@
       "failed": "Failed to push draft",
       "credentialsMissing": "Configure WeChat Official Account credentials in Settings first",
       "pathMissing": "Local file path required to push draft"
+    },
+    "organizePlan": {
+      "openPanel": "Review organize plan",
+      "hint": "Scope: {scope} · {count} moves",
+      "colFrom": "From",
+      "colTo": "To",
+      "colReason": "Reason",
+      "removeRow": "Remove",
+      "preview": "Validate",
+      "apply": "Apply moves",
+      "rollback": "Rollback last job",
+      "previewOk": "Plan validated ({count} moves)",
+      "applyOk": "Applied {count} moves. Use Rollback if needed.",
+      "rollbackOk": "Rolled back {count} moves",
+      "rollbackPartial": "Partial rollback ({count} moves restored). Some files may still be in new locations — check the file tree.",
+      "undoHint": "File moves use Organize Rollback above, not chat Turn Undo.",
+      "validateFailed": "Plan validation failed",
+      "applyFailed": "Failed to apply plan",
+      "rollbackFailed": "Rollback failed",
+      "noJob": "No rollbackable job",
+      "workspaceMissing": "Workspace path unavailable",
+      "invalidPlan": "Invalid organize plan JSON"
     },
     "sideBySide": "Side by Side",
     "overlay": "Overlay",

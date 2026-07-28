@@ -28,6 +28,7 @@
 | `test_lane_previews.py` | 辅助 | 四车道 preview DTO |
 | `test_instruction_rollback.py` | 辅助 | 指令车道回滚 |
 | `test_skill_binding.py` | 辅助 | 技能审核后 agent 绑定 |
+| `test_workspace_bind_candidates.py` | 辅助 | OpenClaw migration workspace bind 候选路径 + fingerprint |
 
 ---
 

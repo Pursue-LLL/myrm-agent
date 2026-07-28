@@ -150,7 +150,7 @@ _attach_fast_path() {
     fi
     if [[ "${waited}" -ge "${wait_sec}" ]]; then
       echo "${health}" >&2
-      fail "parallel attach health snapshot did not recover within ${wait_sec}s — first Agent must run: ./myrm ready --chrome"
+      fail "parallel attach health snapshot did not recover within ${wait_sec}s — wait for shared hot recovery or stream-lock holder client_hot; do not stop other pytest; solo warmup: ./myrm ready --chrome"
     fi
     if [[ "${waited}" -eq 0 || $((waited % 10)) -eq 0 ]]; then
       echo "CHROME_E2E_WAIT: shared hot pool is recovering; read-only attach ${waited}/${wait_sec}s" >&2
@@ -741,16 +741,18 @@ _ensure_mux_daemon() {
 }
 
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+  # R73-B: mux-only must exit before attach crash/drift heal (parallel signoff stack heal).
+  if [[ "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" == "1" ]]; then
+    _heal_mux_request_timeout_drift
+    ok "mux heal-only complete (attach mode, timeout=${MUX_REQUEST_TIMEOUT_MS}ms)"
+    exit 0
+  fi
   if [[ -f "${SCRIPT_DIR}/dev-stack.sh" ]]; then
     _smp_attach_backend_crash_heal "${MONOREPO_ROOT}" "${SCRIPT_DIR}/dev-stack.sh"
     _smp_apply_pending_drift_if_idle "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh"
     _smp_attach_backend_drift_heal "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh"
   fi
   _heal_mux_request_timeout_drift
-  if [[ "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" == "1" ]]; then
-    ok "mux heal-only complete (attach mode, timeout=${MUX_REQUEST_TIMEOUT_MS}ms)"
-    exit 0
-  fi
   if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then
     _private_backend_attach_path
     exit 0

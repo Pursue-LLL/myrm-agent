@@ -3,10 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   clearMigrationReadinessAnchor,
+  consumeMigrationBoundProjectId,
   consumeMigrationReadinessAnchor,
   consumeMigrationReadinessAnchorForAgent,
+  peekMigrationBoundProjectId,
+  queueMigrationBoundProjectId,
+  queueMigrationWorkspaceBindCandidates,
   queueMigrationReadinessAnchor,
   readMigrationReadinessAnchor,
+  readMigrationWorkspaceBindCandidates,
 } from '../migrationChatHandoff';
 
 const ANCHOR_KEY = 'myrm:migration-readiness-anchor';
@@ -109,5 +114,47 @@ describe('migrationChatHandoff readiness anchor', () => {
     expect(readMigrationReadinessAnchor()).toBeNull();
     clearMigrationReadinessAnchor();
     expect(localStorage.getItem(ANCHOR_KEY)).toBeNull();
+  });
+});
+
+describe('migrationChatHandoff workspace bind handoff', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it('queues and consumes bound project id once', () => {
+    queueMigrationBoundProjectId('project-42');
+    expect(peekMigrationBoundProjectId()).toBe('project-42');
+    expect(consumeMigrationBoundProjectId()).toBe('project-42');
+    expect(consumeMigrationBoundProjectId()).toBeNull();
+    expect(peekMigrationBoundProjectId()).toBeNull();
+  });
+
+  it('keeps bound project id in storage until explicitly consumed', () => {
+    queueMigrationBoundProjectId('project-retry');
+    expect(peekMigrationBoundProjectId()).toBe('project-retry');
+    expect(peekMigrationBoundProjectId()).toBe('project-retry');
+    expect(consumeMigrationBoundProjectId()).toBe('project-retry');
+    expect(peekMigrationBoundProjectId()).toBeNull();
+  });
+
+  it('stores workspace bind candidates for onboarding sync step', () => {
+    queueMigrationWorkspaceBindCandidates([
+      {
+        path: '/tmp/vault',
+        label: 'OpenClaw workspace',
+        has_obsidian_config: true,
+        markdown_file_count: 12,
+      },
+    ]);
+    expect(readMigrationWorkspaceBindCandidates()).toEqual([
+      {
+        path: '/tmp/vault',
+        label: 'OpenClaw workspace',
+        has_obsidian_config: true,
+        markdown_file_count: 12,
+      },
+    ]);
   });
 });

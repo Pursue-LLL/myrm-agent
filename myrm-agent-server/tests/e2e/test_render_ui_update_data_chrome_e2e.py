@@ -154,7 +154,7 @@ async def _wait_db_ui_status(
 
 @pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
     e2e_resource_ledger: E2EResourceLedger,

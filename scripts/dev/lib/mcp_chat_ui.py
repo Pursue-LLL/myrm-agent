@@ -44,12 +44,19 @@ def is_target_closed_error(exc: BaseException) -> bool:
 
 
 def is_mux_parallel_fail_fast(exc: BaseException) -> bool:
-    """Parallel mux lock contention — retry would amplify 90s stalls across sessions."""
-    from dev_gate_contract import MUX_RECLAIM_STALL_TOKEN
+    """Parallel mux lock contention — retry would amplify stalls across sessions."""
+    from dev_gate_contract import (
+        MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN,
+        MUX_RECLAIM_STALL_TOKEN,
+    )
     from transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
 
     message = str(exc)
-    return MUX_RECLAIM_STALL_TOKEN in message or MUX_TRANSPORT_EXHAUSTED_TOKEN in message
+    return (
+        MUX_RECLAIM_STALL_TOKEN in message
+        or MUX_TRANSPORT_EXHAUSTED_TOKEN in message
+        or MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN in message
+    )
 
 
 def is_mux_page_heal_error(exc: BaseException) -> bool:

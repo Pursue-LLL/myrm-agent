@@ -27,6 +27,8 @@ from dev_gate_contract import (
 
 MUX_SESSION_RECOVERY_BUDGET_SEC: float = 120.0
 MUX_RECOVERY_LOCK_WAIT_SEC: float = 90.0
+MUX_RECOVERY_LOCK_BASE_SEC: float = 15.0
+MUX_RECOVERY_LOCK_PER_ACTIVE_SEC: float = 20.0
 MUX_TRANSPORT_EXHAUSTED_TOKEN: str = "E2E_MUX_TRANSPORT_EXHAUSTED"
 MUX_DAEMONS_FAIL_CLOSED_TOKEN: str = "E2E_MUX_DAEMONS_FAIL_CLOSED"
 
@@ -51,6 +53,26 @@ def recovery_budget_remaining() -> float:
     with _session_lock:
         spent = _session_recovery_spent.get(key, 0.0)
     return max(0.0, MUX_SESSION_RECOVERY_BUDGET_SEC - spent)
+
+
+def parallel_active_test_count() -> int:
+    """Best-effort parallel chrome_e2e count for recovery mutex scaling (R73-F TPC M3)."""
+    raw = os.environ.get("MYRM_E2E_PARALLEL_ACTIVE_COUNT", "").strip()
+    if raw.isdigit():
+        return max(1, int(raw))
+    try:
+        from e2e_runtime_cell import count_live_runtime_cells
+
+        return max(1, count_live_runtime_cells())
+    except ImportError:
+        pass
+    return 1
+
+
+def recovery_lock_wait_sec() -> float:
+    active = parallel_active_test_count()
+    scaled = MUX_RECOVERY_LOCK_BASE_SEC + active * MUX_RECOVERY_LOCK_PER_ACTIVE_SEC
+    return min(MUX_RECOVERY_LOCK_WAIT_SEC, scaled)
 
 
 def assert_mux_daemons_single(*, phase: str) -> None:
@@ -89,18 +111,19 @@ def mux_recovery_scope(*, phase: str) -> Iterator[float]:
     """Serialize mux transport recovery globally; enforce session budget."""
     assert_mux_daemons_single(phase=phase)
     allowed_sec = _reserve_recovery_budget(phase=phase)
-    started = time.monotonic()
-    lock_wait_sec = min(MUX_RECOVERY_LOCK_WAIT_SEC, allowed_sec)
+    lock_wait_sec = recovery_lock_wait_sec()
     acquired = _GLOBAL_RECOVERY_LOCK.acquire(timeout=lock_wait_sec)
     if not acquired:
         raise RuntimeError(
             f"{MUX_RECLAIM_STALL_TOKEN}: mux recovery lock timeout after "
-            f"{lock_wait_sec:.0f}s phase={phase}"
+            f"{lock_wait_sec:.0f}s active_tests={parallel_active_test_count()} "
+            f"phase={phase}"
         )
+    recovery_started = time.monotonic()
     try:
         yield allowed_sec
     finally:
-        _record_recovery_elapsed(time.monotonic() - started)
+        _record_recovery_elapsed(time.monotonic() - recovery_started)
         _GLOBAL_RECOVERY_LOCK.release()
 
 

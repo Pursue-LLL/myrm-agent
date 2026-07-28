@@ -38,6 +38,12 @@ export interface PendingToggleAcknowledgement {
   scanResult: MCPScanResult;
 }
 
+export interface PendingReloadConfirmation {
+  configs: MCPServiceConfig[];
+  onComplete?: () => void;
+  toast?: { title: string; description?: string };
+}
+
 export interface UseMCPConfigReturn {
   configs: MCPServiceConfig[];
   setConfigs: (configs: MCPServiceConfig[]) => void;
@@ -71,6 +77,7 @@ export interface UseMCPConfigReturn {
   pendingDescriptionChoice: PendingDescriptionChoice | null;
   pendingRiskAck: PendingRiskAcknowledgement | null;
   pendingToggleAck: PendingToggleAcknowledgement | null;
+  pendingReloadConfirm: PendingReloadConfirmation | null;
 
   mcpStatus: Record<string, { available: boolean; pending?: boolean; latency?: number }>;
   mcpOptions: MCPOptionsResponse | null;
@@ -88,6 +95,9 @@ export interface UseMCPConfigReturn {
   handleCancelRiskAck: () => void;
   handleConfirmToggleAck: () => Promise<void>;
   handleCancelToggleAck: () => void;
+  handleConfirmReload: () => void;
+  handleCancelReload: () => void;
+  persistConfigs: (configs: MCPServiceConfig[], meta?: Omit<PendingReloadConfirmation, 'configs'>) => void;
   handleToggleConfig: (index: number) => void;
   handleDeleteConfig: (index: number) => void;
   handleDeleteCancel: () => void;
@@ -138,6 +148,7 @@ export function useMCPConfig(
   const [pendingDescriptionChoice, setPendingDescriptionChoice] = useState<PendingDescriptionChoice | null>(null);
   const [pendingRiskAck, setPendingRiskAck] = useState<PendingRiskAcknowledgement | null>(null);
   const [pendingToggleAck, setPendingToggleAck] = useState<PendingToggleAcknowledgement | null>(null);
+  const [pendingReloadConfirm, setPendingReloadConfirm] = useState<PendingReloadConfirmation | null>(null);
   const liveScanRequestRef = useRef(0);
 
   // MCP服务验证状态（三态：pending → available / unavailable）
@@ -313,6 +324,49 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
     setPendingDescriptionChoice(null);
     setPendingRiskAck(null);
     setPendingToggleAck(null);
+    setPendingReloadConfirm(null);
+  }, []);
+
+  const configsEqual = useCallback((a: MCPServiceConfig[], b: MCPServiceConfig[]) => {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }, []);
+
+  const finalizePersist = useCallback(
+    (
+      newConfigs: MCPServiceConfig[],
+      meta?: Omit<PendingReloadConfirmation, 'configs'>,
+    ) => {
+      setConfigs(newConfigs);
+      onSave(newConfigs);
+      if (meta?.toast) {
+        toast(meta.toast);
+      }
+      meta?.onComplete?.();
+    },
+    [onSave, toast],
+  );
+
+  const persistConfigs = useCallback(
+    (newConfigs: MCPServiceConfig[], meta?: Omit<PendingReloadConfirmation, 'configs'>) => {
+      const baseline = currentConfigs || [];
+      if (configsEqual(newConfigs, baseline)) {
+        finalizePersist(newConfigs, meta);
+        return;
+      }
+      setPendingReloadConfirm({ configs: newConfigs, ...meta });
+    },
+    [configsEqual, currentConfigs, finalizePersist],
+  );
+
+  const handleConfirmReload = useCallback(() => {
+    if (!pendingReloadConfirm) return;
+    const { configs: newConfigs, onComplete, toast: toastMeta } = pendingReloadConfirm;
+    setPendingReloadConfirm(null);
+    finalizePersist(newConfigs, { onComplete, toast: toastMeta });
+  }, [pendingReloadConfirm, finalizePersist]);
+
+  const handleCancelReload = useCallback(() => {
+    setPendingReloadConfirm(null);
   }, []);
 
   const buildFinalFormData = useCallback((): MCPServiceConfig | null => {
@@ -468,15 +522,15 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
       } else {
         newConfigs.push(withSummary);
       }
-      setConfigs(newConfigs);
-      onSave(newConfigs);
-      toast({
-        title: editingIndex !== null ? t('mcpUpdateSuccess') : t('mcpAddSuccess'),
-        description: t('mcpSaveSuccessDesc'),
+      persistConfigs(newConfigs, {
+        onComplete: resetForm,
+        toast: {
+          title: editingIndex !== null ? t('mcpUpdateSuccess') : t('mcpAddSuccess'),
+          description: t('mcpSaveSuccessDesc'),
+        },
       });
-      resetForm();
     },
-    [configs, editingIndex, onSave, t, toast, resetForm],
+    [configs, editingIndex, persistConfigs, t, resetForm],
   );
 
   const finalizeSave = useCallback(
@@ -591,10 +645,9 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
         enabled: !newConfigs[index].enabled,
         lastScanSummary: scanResult ? buildLastScanSummary(scanResult) : newConfigs[index].lastScanSummary,
       };
-      setConfigs(newConfigs);
-      onSave(newConfigs);
+      persistConfigs(newConfigs);
     },
-    [configs, onSave],
+    [configs, persistConfigs],
   );
 
   const handleToggleConfig = useCallback(
@@ -706,16 +759,15 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
       }
 
       const newConfigs = configs.filter((_, i) => i !== index);
-      setConfigs(newConfigs);
-      onSave(newConfigs);
       setDeleteConfirmIndex(null);
-
-      toast({
-        title: t('mcpDeleteSuccess'),
-        description: t('mcpDeleteSuccessDesc'),
+      persistConfigs(newConfigs, {
+        toast: {
+          title: t('mcpDeleteSuccess'),
+          description: t('mcpDeleteSuccessDesc'),
+        },
       });
     },
-    [configs, onSave, t, toast],
+    [configs, persistConfigs, t],
   );
 
   // 取消删除
@@ -750,6 +802,7 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
     pendingDescriptionChoice,
     pendingRiskAck,
     pendingToggleAck,
+    pendingReloadConfirm,
     mcpStatus,
     mcpOptions,
     validateForm,
@@ -763,6 +816,9 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
     handleCancelRiskAck,
     handleConfirmToggleAck,
     handleCancelToggleAck,
+    handleConfirmReload,
+    handleCancelReload,
+    persistConfigs,
     handleToggleConfig,
     handleDeleteConfig,
     handleDeleteCancel,

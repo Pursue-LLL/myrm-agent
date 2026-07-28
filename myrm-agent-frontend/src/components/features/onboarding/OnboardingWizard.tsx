@@ -246,7 +246,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
               </p>
             </div>
             <div className="bg-card border rounded-xl p-6">
-              <MigrationWizardSection onMigrationComplete={handleMigrationCompleteOrSkip} />
+              <MigrationWizardSection onMigrationComplete={handleMigrationCompleteOrSkip} vaultBindHandoffMode="onboarding" />
             </div>
             <div className="flex justify-center mt-6">
               <Button variant="ghost" onClick={handleMigrationCompleteOrSkip}>

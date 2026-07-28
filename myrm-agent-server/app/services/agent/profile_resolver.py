@@ -57,7 +57,7 @@ class BuiltinToolFlags(TypedDict):
     enable_structured_clarify: bool
     enable_external_cli: bool
     enable_skill_market: bool
-    enable_skill_evolution: bool
+    enable_skill_manage: bool
 
 
 def resolve_builtin_tool_flags(
@@ -105,7 +105,7 @@ def resolve_builtin_tool_flags(
             "external_cli" in effective_tools and deploy_supports_external_cli
         ),
         enable_skill_market="skill_market" in effective_tools,
-        enable_skill_evolution="skill_evolution" in effective_tools,
+        enable_skill_manage="skill_manage" in effective_tools,
     )
 
 

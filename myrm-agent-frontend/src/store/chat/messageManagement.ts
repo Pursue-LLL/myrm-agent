@@ -32,6 +32,7 @@ import {
   saveChatNavigationSnapshot,
 } from '@/store/chat/chatNavigationSnapshotCache';
 import { useProjectStore } from '@/store/useProjectStore';
+import { consumeMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
 import { moveChatToProject } from '@/services/projects';
 import { abortCurrentUpload } from '@/services/uploadController';
 
@@ -428,13 +429,26 @@ function _updateSidebar(
   const now = new Date();
   const existing = chatHistoryItems.findIndex((item) => item.id === chatId);
 
+  const resolveProjectIdForSidebar = (): string | null => {
+    const boundProjectId = consumeMigrationBoundProjectId();
+    if (boundProjectId) {
+      return boundProjectId;
+    }
+    const filter = useProjectStore.getState().activeFilter;
+    return typeof filter === 'string' ? filter : null;
+  };
+
   const projectId =
     existing === -1
-      ? (() => {
-          const filter = useProjectStore.getState().activeFilter;
-          return typeof filter === 'string' ? filter : null;
-        })()
-      : (chatHistoryItems[existing]?.projectId ?? null);
+      ? resolveProjectIdForSidebar()
+      : (() => {
+          const boundProjectId = consumeMigrationBoundProjectId();
+          if (boundProjectId) {
+            moveChatToProject(chatId, boundProjectId).catch(() => {});
+            return boundProjectId;
+          }
+          return chatHistoryItems[existing]?.projectId ?? null;
+        })();
 
   const newItem: ChatHistoryItem = {
     id: chatId,

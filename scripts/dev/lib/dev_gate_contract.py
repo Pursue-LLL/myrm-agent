@@ -97,6 +97,9 @@ LIVE_AGENT_BODY_WALL_CLOCK_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC: Final[int] = 300
 E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV: Final[int] = 180
 E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF: Final[int] = 120
+# R73-B: minimum bridge-hydrate + shared UI session reserve inside bootstrap wall.
+E2E_BOOTSTRAP_BRIDGE_HYDRATE_RESERVE_SEC: Final[float] = 90.0
+E2E_BOOTSTRAP_SHELL_MIN_SEC: Final[float] = 60.0
 E2E_TEARDOWN_WALL_CLOCK_SEC: Final[int] = 30
 # Legacy alias: BODY budget for signoff quality gate (not queue+bootstrap merged).
 SIGNOFF_LEG_MTB_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC

@@ -200,6 +200,15 @@ class TokenEconomicsComparison(BaseModel):
     savings_percent: float = Field(description="Percentage of tokens saved (0–100)")
 
 
+class WorkspaceBindCandidate(BaseModel):
+    """Suggested host path for post-migration project workspace bind."""
+
+    path: str
+    label: str
+    has_obsidian_config: bool = False
+    markdown_file_count: int = 0
+
+
 class MemoryImportDryRunResponse(BaseModel):
     """Content-safe memory import preview bound to a server-side review session."""
 
@@ -230,6 +239,10 @@ class MemoryImportDryRunResponse(BaseModel):
     mcp_servers_preview: list[dict[str, object]] = Field(
         default_factory=list,
         description="Converted MCP server previews detected from competitor config",
+    )
+    workspace_bind_candidates: list[WorkspaceBindCandidate] = Field(
+        default_factory=list,
+        description="Suggested project workspace paths after competitor import (Local/Tauri)",
     )
 
 
@@ -312,6 +325,7 @@ class MemoryImportConfirmResponse(MemoryImportResponse):
     workspace_rules_written: int = 0
     workspace_rules_skipped: int = 0
     readiness: MemoryImportReadiness | None = None
+    workspace_bind_candidates: list[WorkspaceBindCandidate] = Field(default_factory=list)
 
 
 class MemoryImportReadinessRecheckRequest(BaseModel):

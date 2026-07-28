@@ -17,7 +17,7 @@
 | `SmartRoutingStep.tsx` | Smart Routing 引导步骤：自动检测已配置模型并分类为 lite/standard/reasoning 三档，展示预估节省比例，一键启用或跳过 |
 | `SmartGuardStep.tsx` | Smart Intent Guard 引导步骤：默认启用 + 轻量模型智能预选（优先 mini/flash/haiku 等低成本模型），通过 ConfigSyncManager 写入 securityConfig |
 | `TelegramAssistantOnboardingStep.tsx` | Telegram 助手一键接入步骤 |
-| `SyncFolderOnboardingStep.tsx` | Local 可选步骤：Project 同步目录 Mount Wizard（跳过时不创建空项目） |
+| `SyncFolderOnboardingStep.tsx` | Local 可选步骤：复用 `MigrationVaultBindPanel`；消费 migration workspace bind 候选预填；bind 后 handoff projectId |
 
 ## 依赖
 

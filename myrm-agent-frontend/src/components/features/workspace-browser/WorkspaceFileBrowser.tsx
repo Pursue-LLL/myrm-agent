@@ -24,6 +24,7 @@ import React, { memo, useState, useCallback } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { ChevronRight, RefreshCw, FolderOpen, AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
 import { CLIFileIcon } from '@/components/features/cli-visualization/CLIFileIcon';
 import type { FileEntry } from '@/services/chat';
@@ -238,6 +239,17 @@ export const WorkspaceFileBrowser: React.FC<WorkspaceFileBrowserProps> = memo(
       });
     }, []);
 
+    const handleOrganize = useCallback(
+      (file: FileEntry) => {
+        const relativePath = file.path.startsWith(workspacePath)
+          ? file.path.slice(workspacePath.length).replace(/^\//, '') || '.'
+          : file.name;
+        useChatStore.getState().setInputMessage(t('organizePrompt', { path: relativePath }));
+        toast.success(t('organizeFolder'));
+      },
+      [workspacePath, t],
+    );
+
     const handleMention = useCallback(
       (file: FileEntry) => {
         const relativePath = file.path.startsWith(workspacePath)
@@ -346,6 +358,7 @@ export const WorkspaceFileBrowser: React.FC<WorkspaceFileBrowserProps> = memo(
               onRename={(node) => ops.setRenamingPath(node.path)}
               onDelete={(node) => ops.setDeletingNode(node)}
               onMove={(node) => ops.setMovingNode(node)}
+              onOrganize={handleOrganize}
             />
           )}
         </AnimatePresence>

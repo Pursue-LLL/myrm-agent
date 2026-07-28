@@ -41,6 +41,9 @@ import {
   getImportReadinessStatus,
   IMPORT_READINESS_STYLES,
 } from './MigrationWizardReadiness';
+import MigrationVaultBindPanel from './MigrationVaultBindPanel';
+import type { MigrationWorkspaceBindCandidate } from '@/lib/migrationChatHandoff';
+import { isLocalMode } from '@/lib/deploy-mode';
 
 export interface TranslationFn {
   (key: string, values?: Record<string, string | number>): string;
@@ -723,6 +726,8 @@ export function ResultStep({
   onRetrySkillSubmit,
   retryingSkills,
   onDone,
+  vaultBindHandoffMode = 'settings',
+  workspaceBindCandidates = [],
   t,
 }: {
   result: MemoryImportConfirmResponse;
@@ -734,6 +739,8 @@ export function ResultStep({
   onRetrySkillSubmit: () => void;
   retryingSkills: boolean;
   onDone: () => void;
+  vaultBindHandoffMode?: 'settings' | 'onboarding';
+  workspaceBindCandidates?: MigrationWorkspaceBindCandidate[];
   t: TranslationFn;
 }) {
   const router = useRouter();
@@ -746,6 +753,7 @@ export function ResultStep({
   const readinessIssues = effectiveResult.readiness?.issues ?? [];
   const readinessIsCritical = readinessStatus === 'critical';
   const resultAnchorQueuedRef = useRef(false);
+  const showSettingsVaultBind = vaultBindHandoffMode === 'settings' && isLocalMode();
 
   useEffect(() => {
     if (resultAnchorQueuedRef.current || !result.target_agent_id) {
@@ -866,6 +874,10 @@ export function ResultStep({
           {readinessIsCritical && <p className="mt-2 font-medium">{t('result.readinessResolveBeforeChat')}</p>}
         </div>
       </div>
+
+      {showSettingsVaultBind && (
+        <MigrationVaultBindPanel candidates={workspaceBindCandidates} className="mx-auto max-w-xl w-full" />
+      )}
 
       <div className="flex flex-wrap justify-center gap-4 text-[11px] text-muted-foreground/50">
         <span>

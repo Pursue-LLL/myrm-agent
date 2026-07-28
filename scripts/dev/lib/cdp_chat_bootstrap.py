@@ -30,13 +30,44 @@ def _parallel_shpoib_shell_timeout(timeout_sec: float) -> float:
     return shpoib_parallel_shell_timeout_sec(timeout_sec)
 
 
+def split_bootstrap_deadlines(
+    timeout_sec: float,
+    *,
+    now: float | None = None,
+) -> tuple[float, float]:
+    """Return ``(shell_deadline, bridge_deadline)`` with bridge hydrate reserve.
+
+    Parallel SHPOIB scales the outer bootstrap wall for shell mux contention but
+    must not consume the shared UI session contract budget (RESET_GLOBALS…).
+    """
+    from dev_gate_contract import (
+        E2E_BOOTSTRAP_BRIDGE_HYDRATE_RESERVE_SEC,
+        E2E_BOOTSTRAP_SHELL_MIN_SEC,
+    )
+
+    start = time.monotonic() if now is None else now
+    total_deadline = start + timeout_sec
+    reserve = float(E2E_BOOTSTRAP_BRIDGE_HYDRATE_RESERVE_SEC)
+    shell_budget = max(float(E2E_BOOTSTRAP_SHELL_MIN_SEC), timeout_sec - reserve)
+    shell_deadline = start + shell_budget
+    return shell_deadline, total_deadline
+
+
 def _shell_probe_stall_cap_sec() -> float:
     from dev_gate_contract import SHELL_PROBE_STALL_FAIL_FAST_SEC
 
     cap = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
     # Shared-hot desktop chrome_e2e can require longer mux reclaim/hydration.
     if os.environ.get("MYRM_E2E_SHARED_HOT", "").strip() == "1":
-        return max(cap, 180.0)
+        cap = max(cap, 180.0)
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
+        cap = max(cap, 180.0)
+        try:
+            from chrome_mcp_client import _parallel_mux_peer_count
+
+            cap = min(cap + _parallel_mux_peer_count() * 12.0, 240.0)
+        except Exception:
+            pass
     return cap
 
 
@@ -50,6 +81,20 @@ def _shell_probe_ready(probe: dict[str, object]) -> bool:
         and probe.get("clientHydrated")
         and probe.get("hasLayout")
     )
+
+
+def _blank_chat_shell_probe(probe: dict[str, object]) -> bool:
+    """True when shared :3000 tab lost chat shell under parallel UI hydrate."""
+    if probe.get("skeleton"):
+        return False
+    if probe.get("hasInput") or probe.get("hasBridge"):
+        return False
+    path = str(probe.get("path") or "/").strip() or "/"
+    return path == "/"
+
+
+def _bootstrap_shell_heal_polls(poll: int) -> bool:
+    return poll in {1, 8, 20, 35, 50, 65}
 
 
 class CdpChatBootstrap(CdpChatTransport):
@@ -70,6 +115,12 @@ class CdpChatBootstrap(CdpChatTransport):
         """Fresh shell-layout poll budget after page reopen (not session stall clock)."""
         self._shell_layout_wait_started = None
         self._last_shell_probe_log_sec = -1
+
+    def _reset_shell_session_clock(self) -> None:
+        """Fresh shell stall budget for a new approval attempt or post-retry heal."""
+        self._shell_session_started = None
+        self._shell_skeleton_since = None
+        self._reset_shell_layout_wait_clock()
 
     def _ensure_shell_session_started(self) -> float:
         if self._shell_session_started is None:
@@ -209,15 +260,17 @@ class CdpChatBootstrap(CdpChatTransport):
         begin_bootstrap_phase(phase_label="cdp_bootstrap")
         await asyncio.to_thread(provider_readiness_gate_sync)
         timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
-        deadline = time.monotonic() + timeout_sec
+        shell_deadline, bridge_deadline = split_bootstrap_deadlines(timeout_sec)
         self._reset_shell_layout_wait_clock()
         self._mark_bootstrap_started()
         last = await self._bootstrap_shell_ready_phase(
             base_url,
-            deadline=deadline,
+            deadline=shell_deadline,
             navigate=navigate,
         )
-        return await self._bootstrap_bridge_hydrate_phase(last, deadline=deadline)
+        return await self._bootstrap_bridge_hydrate_phase(
+            last, deadline=bridge_deadline
+        )
 
     async def _bootstrap_shell_ready_phase(
         self,
@@ -321,13 +374,15 @@ class CdpChatBootstrap(CdpChatTransport):
     ) -> dict[str, object]:
         """Legacy single-phase bootstrap (tests); prefer ``bootstrap``."""
         timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
-        deadline = time.monotonic() + timeout_sec
+        shell_deadline, bridge_deadline = split_bootstrap_deadlines(timeout_sec)
         last = await self._bootstrap_shell_ready_phase(
             base_url,
-            deadline=deadline,
+            deadline=shell_deadline,
             navigate=navigate,
         )
-        return await self._bootstrap_bridge_hydrate_phase(last, deadline=deadline)
+        return await self._bootstrap_bridge_hydrate_phase(
+            last, deadline=bridge_deadline
+        )
 
     async def wait_shell_ready(
         self,
@@ -656,7 +711,9 @@ class CdpChatBootstrap(CdpChatTransport):
     ) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
+        polls = 0
         while time.monotonic() < deadline:
+            polls += 1
             try:
                 state = await self.evaluate(
                     PAGE_PROBE_JS,
@@ -727,6 +784,30 @@ class CdpChatBootstrap(CdpChatTransport):
                             stable = 0
                         await asyncio.sleep(0.3)
                 return last
+            if (
+                isinstance(last, dict)
+                and _blank_chat_shell_probe(last)
+                and _bootstrap_shell_heal_polls(polls)
+            ):
+                heal = getattr(self, "_heal_empty_chat_shell_for_bridge", None)
+                if callable(heal):
+                    import sys
+
+                    try:
+                        from transport_supervisor import parallel_active_test_count
+
+                        active = parallel_active_test_count()
+                    except ImportError:
+                        active = 1
+                    print(
+                        "E2E_BOOTSTRAP_SHELL_HEAL: "
+                        f"poll={polls} path={last.get('path')!r} "
+                        f"parallel_active={active}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    await heal()
+                    continue
             await asyncio.sleep(0.5)
         raise TimeoutError(f"Chat shell not ready within {timeout_sec:.0f}s: {last}")
 

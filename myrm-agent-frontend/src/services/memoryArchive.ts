@@ -288,6 +288,14 @@ export interface MemoryImportDryRunResponse {
   instruction_total_chars?: number;
   providers_configured?: boolean;
   mcp_servers_preview?: MCPServerPreviewItem[];
+  workspace_bind_candidates?: MigrationWorkspaceBindCandidate[];
+}
+
+export interface MigrationWorkspaceBindCandidate {
+  path: string;
+  label: string;
+  has_obsidian_config: boolean;
+  markdown_file_count: number;
 }
 
 export interface MemoryImportConfirmResponse extends MemoryImportResponse {
@@ -303,6 +311,7 @@ export interface MemoryImportConfirmResponse extends MemoryImportResponse {
   workspace_rules_written?: number;
   workspace_rules_skipped?: number;
   readiness?: MemoryImportReadiness | null;
+  workspace_bind_candidates?: MigrationWorkspaceBindCandidate[];
 }
 
 export interface MemoryImportReadinessIssue {

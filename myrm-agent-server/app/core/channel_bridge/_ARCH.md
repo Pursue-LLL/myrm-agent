@@ -38,7 +38,7 @@ Channel 系统的业务适配层。基于 `app.channels` 的渠道框架协议�
 | `route_registry.py` | ✅ 辅助 | ChannelRouteRegistry 运行时持有者（startup 写入、routes management 读取） | ✅ |
 | `locale_provider.py` | ✅ 核心 | UserConfigLocaleProvider：LocaleProvider 协议实现，从 `personalSettings.locale` 解析用户语言偏好并注入渠道 slash 命令 i18n | ✅ |
 | `goal_handler.py` | ✅ 核心 | ChannelGoalCommandHandler：/goal 与 /subgoal 业务处理器，全部静态回复走 harness channel i18n catalog | ✅ |
-| `learn_handler.py` | ✅ 核心 | ChannelLearnCommandHandler：/learn 命令处理器，构建 learn prompt（含输入类型自动检测、SKILL.md 编写标准、skill_manage_tool save 指令）注入消息内容，空参数时 fallback 为从当前对话提炼技能，Agent 执行后自动落盘为可复用技能 | ✅ |
+| `learn_handler.py` | ✅ 核心 | ChannelLearnCommandHandler：/learn 命令处理器，构建 learn prompt（含输入类型自动检测、SKILL.md 编写标准、skill_manage_tool save 指令）注入消息内容，空参数时 fallback 为从当前对话提炼技能；`apply_learn_skill_manage_permission_overlay` 在 explore 等 preset 仍 deny 时将本 turn 的 `skill_manage` 升为 ASK，与 `force_skill_manage` mount 对齐 | ✅ |
 | `kanban_command_handler.py` | ✅ 核心 | ChannelKanbanCommandHandler：KanbanCommandHandler 协议的业务层实现。处理 /kanban (/kb) 斜杠命令的 10 个子命令（list/show/create/comment/edit/complete/block/unblock/archive/stats），调用 KanbanService 完成操作并格式化 Markdown 响应 | ✅ |
 | `turn_handler.py` | ✅ 核心 | ChannelRetryHandler / ChannelUndoHandler：`/retry`/`/undo` + RevertService + restore_inbox 通知；`RevertMessagesOutcome` 含 `not_revertible_count` 供 IM FTL 诚实警告 | ✅ |
 | `compact_handler.py` | ✅ 核心 | ChannelCompactHandler：CompactHandler 协议的业务层实现，处理 /compact 命令的会话压缩 | ✅ |
