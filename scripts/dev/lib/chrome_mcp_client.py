@@ -688,6 +688,46 @@ class ChromeMcpClient:
             return next(iter(self._disconnected_pages.values()))
         return None
 
+    @staticmethod
+    def _collapse_pages_for_recovery(
+        saved_pages: dict[int, McpPage],
+    ) -> dict[int, McpPage]:
+        """Keep one page for mux recovery — parallel orphan cycles accumulate stale ids."""
+        if len(saved_pages) <= 1:
+            return saved_pages
+        by_lease: dict[str, McpPage] = {}
+        for page in saved_pages.values():
+            lease_key = page.lease_id.strip() or f"page-{page.page_id}"
+            current = by_lease.get(lease_key)
+            if current is None or page.page_id > current.page_id:
+                by_lease[lease_key] = page
+        if len(by_lease) == 1:
+            only = next(iter(by_lease.values()))
+            return {only.page_id: only}
+        newest = max(by_lease.values(), key=lambda candidate: candidate.page_id)
+        return {newest.page_id: newest}
+
+    def primary_owned_page(self) -> McpPage | None:
+        if not self._pages:
+            return None
+        return max(self._pages.values(), key=lambda page: page.page_id)
+
+    def ensure_primary_page_after_recovery(
+        self,
+        *,
+        fallback_url: str,
+        timeout_ms: int = 120_000,
+    ) -> McpPage:
+        existing = self.primary_owned_page()
+        if existing is not None:
+            return existing
+        fresh = self.new_page(fallback_url, timeout_ms)
+        if fresh is None:
+            raise RuntimeError(
+                "Chrome MCP ensure_primary_page_after_recovery: new_page returned None"
+            )
+        return fresh
+
     def reclaim_owned_page(self, page: McpPage) -> McpPage:
         """Reopen one mux-owned page after ownership loss and return the live page."""
         resolved = self._lookup_page_for_reclaim(page.page_id) or page
@@ -1069,8 +1109,9 @@ class ChromeMcpClient:
             len(self._disconnected_pages),
         )
         reclaim_deadline = _reclaim_wall_deadline()
-        saved_pages = dict(self._disconnected_pages)
-        saved_pages.update(self._pages)
+        saved_pages = self._collapse_pages_for_recovery(
+            {**self._disconnected_pages, **self._pages}
+        )
         self._teardown_shim_process()
         last_error: RuntimeError | None = None
         for attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
@@ -1113,6 +1154,30 @@ class ChromeMcpClient:
         if not saved_pages:
             return
         self._rebuild_disconnected_pages(saved_pages, reclaim_deadline)
+        if self._pages:
+            return
+        fallback_url = next(
+            (page.url for page in saved_pages.values() if (page.url or "").strip()),
+            "http://127.0.0.1:3000",
+        ).strip() or "http://127.0.0.1:3000"
+        remaining = _remaining_reclaim_sec(reclaim_deadline)
+        if remaining < 5.0:
+            return
+        try:
+            fresh = self.new_page(fallback_url, min(int(remaining * 1000), 120_000))
+        except Exception as exc:
+            _LOGGER.warning(
+                "fresh primary page after failed rebuild: %s",
+                exc,
+            )
+            return
+        if fresh is not None:
+            self._pages[fresh.page_id] = fresh
+            _LOGGER.info(
+                "opened fresh primary page %d after rebuild miss (url=%s)",
+                fresh.page_id,
+                fallback_url,
+            )
 
     def _rebuild_disconnected_pages(
         self,
@@ -1188,6 +1253,7 @@ class ChromeMcpClient:
                     old_page_id,
                     exc,
                 )
+                self._disconnected_pages.pop(old_page_id, None)
                 if new_page_id is not None:
                     self._pages.pop(new_page_id, None)
                     try:

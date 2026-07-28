@@ -62,6 +62,17 @@ class McpChatSession(CdpChatSession):
         self._page = page
         self._base_url = _default_e2e_ui_base()
 
+    async def _sync_page_after_mux_reset(self) -> None:
+        ui_home = f"{self._base_url.rstrip('/')}/"
+
+        def _resolve() -> McpPage:
+            return self._client.ensure_primary_page_after_recovery(
+                fallback_url=ui_home,
+            )
+
+        self._page = await asyncio.to_thread(_resolve)
+        self._reset_shell_layout_wait_clock()
+
     async def evaluate(
         self,
         expression: str,
@@ -82,7 +93,6 @@ class McpChatSession(CdpChatSession):
 
         reclaim_budget = float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC) + 15.0
         if recv_timeout <= 15.0:
-            # Shell probe polls must not inherit full reclaim wall (R50).
             reclaim_budget = 20.0
         elif recv_timeout <= 30.0:
             reclaim_budget = 35.0
@@ -107,6 +117,7 @@ class McpChatSession(CdpChatSession):
                 raise RuntimeError(
                     f"{MUX_RECLAIM_STALL_TOKEN}: reset_after_orphan timed out after 45s"
                 ) from exc
+            await self._sync_page_after_mux_reset()
 
         while time.monotonic() < wall_deadline:
             remaining = wall_deadline - time.monotonic()
@@ -125,6 +136,7 @@ class McpChatSession(CdpChatSession):
                 timeout=attempt_timeout,
             )
             if pending:
+                eval_task.cancel()
                 mux_attempts += 1
                 _LOGGER.warning(
                     "MUX_EVALUATE_ORPHAN: recv_timeout=%.1f attempt_timeout=%.1f "
@@ -216,6 +228,7 @@ class McpChatSession(CdpChatSession):
                 str(exc)[:200],
             )
             await asyncio.to_thread(self._client.reset_after_orphan)
+            await self._sync_page_after_mux_reset()
             try:
                 reopened = await _try_reclaim()
             except RuntimeError as exc2:
