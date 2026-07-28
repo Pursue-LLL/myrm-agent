@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import uuid
 from pathlib import Path
 
@@ -314,7 +315,12 @@ def _create_empty_write_live_agent(api_url: str) -> str:
 def _empty_write_failure_in_messages(chat_id: str, *, api_url: str) -> tuple[bool, bool]:
     tool_invoked = False
     has_mutation_failure = False
-    for msg in fetch_chat_messages(chat_id, api_url=api_url):
+    for msg in fetch_chat_messages(
+        chat_id,
+        api_url=api_url,
+        timeout_sec=30.0,
+        max_attempts=5,
+    ):
         if not isinstance(msg, dict):
             continue
         blob = json.dumps(msg, ensure_ascii=False, default=str)
@@ -400,9 +406,18 @@ async def test_file_write_empty_live_agent_webui(
         last_api = (False, False)
         while time.monotonic() < deadline:
             heartbeat_e2e_lease()
-            invoked, has_failure = _empty_write_failure_in_messages(
-                chat_id, api_url=api_base
-            )
+            try:
+                invoked, has_failure = _empty_write_failure_in_messages(
+                    chat_id, api_url=api_base
+                )
+            except (TimeoutError, OSError, urllib.error.URLError) as exc:
+                last_api = (False, False)
+                if time.monotonic() + 5.0 >= deadline:
+                    raise AssertionError(
+                        f"Live empty write API poll timed out under parallel load: {exc}"
+                    ) from exc
+                await asyncio.sleep(2.0)
+                continue
             last_api = (invoked, has_failure)
             if invoked and has_failure:
                 banner = await chat.evaluate(
