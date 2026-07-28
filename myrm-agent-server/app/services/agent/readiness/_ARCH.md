@@ -8,14 +8,14 @@ Per-agent configuration readiness resolver — proactive dry-run before Agent ex
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | `__init__.py` | Package | Re-exports ReadinessLevel, AgentReadinessItem, AgentReadinessReport, resolve_agent_readiness, get_readiness_resolver | — |
-| `resolver.py` | Core | 6-dimension readiness checker (model/mcp/skills/tools/search/deployment); concurrent MCP probe with 2s global timeout; TTL-cached singleton | ✅ |
+| `resolver.py` | Core | 6-dimension readiness checker (model/mcp/skills/tools/search/deployment); static config checks; TTL-cached singleton | ✅ |
 
 ## Architecture
 
 - **No harness dependency**: All checks are business-layer logic (profile_resolver, config_readiness, MCP service)
 - **Reuses existing checkers**: ProviderConfigChecker for model dimension
 - **Three-tier levels**: ready / warning / blocked
-- **MCP probe**: Concurrent with asyncio.gather + 2s global timeout; unreachable → warning (not blocked)
+- **MCP check**: Static config match — compares agent's mcp_ids against user's configured MCP servers
 - **Cache**: 5min TTL, invalidated on Settings save via frontend
 - **API**: `GET /api/user-agents/{agent_id}/readiness` — consumed by Composer Badge + Settings Agent page
 

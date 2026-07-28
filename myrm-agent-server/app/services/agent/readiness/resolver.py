@@ -18,8 +18,8 @@ ready / warning / blocked levels and settings deep-link paths.
 
 [POS]
 Business-layer per-agent readiness checking. Answers "is this agent ready to
-execute?" before the user sends a message. Pure static checks + optional
-MCP connectivity probe (concurrent, 2s global timeout).
+execute?" before the user sends a message. Pure static config checks against
+resolved agent profile and user config (zero LLM calls, zero network probes).
 """
 
 from __future__ import annotations
@@ -32,7 +32,6 @@ from enum import Enum
 from typing import Sequence
 
 from app.services.agent.profile_resolver import (
-    AgentProfileResolver,
     ResolvedAgentProfile,
     get_agent_profile_resolver,
 )
