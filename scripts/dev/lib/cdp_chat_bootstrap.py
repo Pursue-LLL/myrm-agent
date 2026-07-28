@@ -86,9 +86,9 @@ class CdpChatBootstrap(CdpChatTransport):
 
     def _check_bootstrap_stall_fail_fast(self, *, phase: str) -> None:
         try:
-            from e2e_wall_budget import assert_wall_budget
+            from e2e_orchestrator import assert_wall_budget
 
-            assert_wall_budget(phase=phase)
+            assert_wall_budget(phase)
             return
         except ImportError:
             pass
@@ -163,6 +163,13 @@ class CdpChatBootstrap(CdpChatTransport):
         timeout_sec: float = 180.0,
         navigate: bool = False,
     ) -> dict[str, object]:
+        from e2e_session_lifecycle import (  # noqa: PLC0415
+            begin_bootstrap_phase,
+            provider_readiness_gate_sync,
+        )
+
+        begin_bootstrap_phase(phase_label="cdp_bootstrap")
+        await asyncio.to_thread(provider_readiness_gate_sync)
         timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
         deadline = time.monotonic() + timeout_sec
         self._reset_shell_layout_wait_clock()
