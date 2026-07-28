@@ -27,6 +27,12 @@ from cdp_chat_support import (  # noqa: E402
     wait_e2e_cdp_ready,
     wait_e2e_provider_ready,
 )
+from cdp_chat_resume import execute_resume_turn_stream_converge  # noqa: E402
+from resume_turn_contract import (  # noqa: E402
+    RESUME_BUSY_BACKOFF_SEC,
+    RESUME_STREAM_CONVERGE_TIMEOUT_SEC,
+    RESUME_UI_ACK_EVALUATE_TIMEOUT_SEC,
+)
 from cdp_chat_ui import chat_user_message_count  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
 from mcp_chat_ui import McpChatSession  # noqa: E402
@@ -44,12 +50,35 @@ BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
 def _cancel_chat_via_api(*, api_base: str, chat_id: str) -> bool:
     """Best-effort release of a stale gateway session before retrying a new chat."""
-    url = f"{api_base.rstrip('/')}/api/v1/chats/{urllib.parse.quote(chat_id, safe='')}/cancel"
+    url = (
+        f"{api_base.rstrip('/')}/api/v1/agents/chats/"
+        f"{urllib.parse.quote(chat_id, safe='')}/cancel"
+    )
     req = urllib.request.Request(url, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=15.0) as resp:  # noqa: S310
             return 200 <= resp.status < 300
+    except urllib.error.HTTPError as exc:
+        # No active agent means session mutex is already free.
+        if exc.code == 404:
+            return True
+        return False
     except (OSError, urllib.error.URLError):
+        return False
+
+
+def _reset_hitl_runtime_via_api(*, api_base: str) -> bool:
+    url = f"{api_base.rstrip('/')}/api/v1/security/allowlist/test/reset-hitl-runtime"
+    req = urllib.request.Request(  # noqa: S310
+        url,
+        data=b"{}",
+        method="POST",
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15.0) as resp:  # noqa: S310
+            return 200 <= resp.status < 300
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError):
         return False
 
 
@@ -122,6 +151,9 @@ def _resume_via_api(
                 print(
                     f"E2E_RESUME_SSE: message_end after {line_count} lines", flush=True
                 )
+                completion_status = str(event.get("completion_status") or "").strip()
+                if completion_status == "complete":
+                    found_done = True
                 break
             elif event_type == "error":
                 error_data = event.get("data", "")
@@ -224,8 +256,6 @@ BROWSER_GATE_API_TIMEOUT_SEC = 25.0
 BROWSER_RECOVERY_DELAY_SEC = 12.0
 BROWSER_RECOVERY_MIN_INTERVAL_SEC = 20.0
 MAX_SEND_ATTEMPTS = 3
-MAX_RESUME_REINTERRUPT_ROUNDS = 4
-
 
 def _is_gate_mux_stall(exc: BaseException) -> bool:
     if isinstance(exc, TimeoutError):
@@ -277,6 +307,7 @@ async def _gate_probe_evaluate(
 
 async def _quiesce_mux_before_retry(chat: McpChatSession) -> None:
     """Serialize MUX recovery before retry UI to avoid recovery lock deadlock."""
+    _reset_mux_recovery_budget_for_phase(phase="quiesce_before_retry")
     try:
         await chat.evaluate(
             """(() => window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.())()""",
@@ -299,6 +330,45 @@ async def _quiesce_mux_before_retry(chat: McpChatSession) -> None:
         chat._client.discard_mux_reset_executor()
         print("E2E_MUX_QUIESCE: reset_after_orphan timed out — continue retry", flush=True)
     await asyncio.sleep(1.0)
+
+
+async def _wait_ui_stream_idle(
+    chat: McpChatSession, *, timeout_sec: float = 45.0
+) -> bool:
+    """Wait until sendTurn UI stream releases loading/abortController before API resume."""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        raw = await _gate_probe_evaluate(
+            chat,
+            """(() => {
+              const turn = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+              return {
+                isStreaming: Boolean(turn.isStreaming),
+                chatId: turn.chatId ?? null,
+              };
+            })()""",
+            label="wait_ui_stream_idle",
+        )
+        if isinstance(raw, dict) and raw.get("isStreaming") is not True:
+            print(
+                f"E2E_UI_STREAM_IDLE: chatId={raw.get('chatId')!r}",
+                flush=True,
+            )
+            return True
+        await asyncio.sleep(1.0)
+    print("E2E_UI_STREAM_IDLE: timeout — proceed STREAM_CONVERGE anyway", flush=True)
+    return False
+
+
+def _reset_mux_recovery_budget_for_phase(*, phase: str) -> None:
+    """Isolate MUX recovery spend per send/retry phase under parallel load."""
+    try:
+        from transport_supervisor import reset_session_recovery_budget
+
+        reset_session_recovery_budget()
+        print(f"E2E_MUX_BUDGET_RESET: phase={phase}", flush=True)
+    except ImportError:
+        pass
 
 
 _ENABLE_YOLO_JS = """(() => {
@@ -684,7 +754,8 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         chat_id: str | None = None,
         api_url: str | None = None,
         timeout_sec: float = BROWSER_GATE_WAIT_SEC,
-    ) -> tuple[str, bool]:
+    ) -> tuple[str, bool, bool]:
+        """Return (lastTool, takeoverPending, api_hitl_confirmed)."""
         deadline = time.monotonic() + timeout_sec
         gate_started = time.monotonic()
         last_recovery_at = [0.0]
@@ -713,14 +784,14 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                             f"pending={api_pending}",
                             flush=True,
                         )
-                        return api_tool or "browser_ask_human_tool", True
+                        return api_tool or "browser_ask_human_tool", True, True
             progress = await _probe_browser_tool_progress(chat)
             if progress.get("muxStall") is True:
                 mux_degraded = True
             last_tool = str(progress.get("lastTool") or "")
             takeover_pending = progress.get("takeoverPending") is True
             if takeover_pending or last_tool.endswith("browser_ask_human_tool"):
-                return last_tool, takeover_pending
+                return last_tool, takeover_pending, False
 
             if progress.get("muxStall") is True:
                 mux_degraded = True
@@ -738,7 +809,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                             f"pending={api_pending}",
                             flush=True,
                         )
-                        return api_tool or "browser_ask_human_tool", True
+                        return api_tool or "browser_ask_human_tool", True, True
                     if api_tool and not last_tool:
                         last_tool = api_tool
 
@@ -748,7 +819,7 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             if isinstance(banner, dict) and (
                 banner.get("ready") is True or banner.get("storePending") is True
             ):
-                return last_tool or "browser_ask_human_tool", True
+                return last_tool or "browser_ask_human_tool", True, False
 
             recovered = await _maybe_recover_browser_takeover(
                 chat,
@@ -756,10 +827,11 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 last_recovery_at=last_recovery_at,
             )
             if recovered is not None:
-                return recovered
+                tool, pending = recovered
+                return tool, pending, False
 
             await asyncio.sleep(1.0)
-        return last_tool, takeover_pending
+        return last_tool, takeover_pending, False
 
     async def _wait_takeover_banner(
         chat: McpChatSession, *, timeout_sec: float = 90.0
@@ -868,11 +940,26 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
         await _prepare_browser_turn(chat)
         _p("browser_turn ready — entering send loop")
 
+        if not wait_e2e_backend_ready(api_url=api_base, timeout_sec=30.0):
+            _p("private backend not ready — rebind SHPOIB")
+            await chat.ensure_e2e_api_base_binding()
+            if not wait_e2e_backend_ready(api_url=api_base, timeout_sec=30.0):
+                pytest.fail(
+                    f"SHPOIB private backend not ready before send loop: {api_base}"
+                )
+
         chat_id_hint: str | None = None
         banner: dict[str, object] | None = None
         last_prompt = E2E_PROMPT
+        hitl_api_confirmed = False
         for attempt in range(1, MAX_SEND_ATTEMPTS + 1):
             if attempt > 1:
+                if hitl_api_confirmed:
+                    _p(
+                        "E2E_GATE_ONCE: API confirmed HITL — skip send retry "
+                        f"(attempt={attempt})"
+                    )
+                    break
                 _p(f"retry attempt={attempt} — click_new_chat")
                 if chat_id_hint:
                     _p(f"cancel stale chat before retry chatId={chat_id_hint}")
@@ -891,6 +978,9 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 await _prepare_browser_turn(chat)
             last_prompt = E2E_PROMPT if attempt == 1 else E2E_NUDGE_PROMPT
             heartbeat_e2e_lease()
+            _reset_mux_recovery_budget_for_phase(phase=f"send_attempt_{attempt}")
+            if not wait_e2e_backend_ready(api_url=api_base, timeout_sec=10.0):
+                await chat.ensure_e2e_api_base_binding()
             _p(f"send_message attempt={attempt}")
             send_result = await chat.send_message(last_prompt, last_prompt)
             chat_id_hint = (
@@ -923,12 +1013,19 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                 f"disconnected={len(getattr(chat._client, '_disconnected_pages', {}))}"
             )
             _p("wait_for_browser_ask_human_gate")
-            last_tool, takeover_pending = await _wait_for_browser_ask_human_gate(
-                chat,
-                chat_id=chat_id_hint,
-                api_url=api_base,
+            last_tool, takeover_pending, api_hitl = (
+                await _wait_for_browser_ask_human_gate(
+                    chat,
+                    chat_id=chat_id_hint,
+                    api_url=api_base,
+                )
             )
-            _p(f"gate result: lastTool={last_tool} pending={takeover_pending}")
+            if api_hitl:
+                hitl_api_confirmed = True
+            _p(
+                f"gate result: lastTool={last_tool} pending={takeover_pending} "
+                f"api_hitl={api_hitl} locked={hitl_api_confirmed}"
+            )
             if not takeover_pending and not last_tool.endswith(
                 "browser_ask_human_tool"
             ):
@@ -939,10 +1036,11 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
                     )
                 continue
 
-            if takeover_pending:
+            if takeover_pending or api_hitl:
                 _p(
-                    "gate pending=True — skip DOM banner wait "
-                    "(HITL confirmed via gate/API; proceed to Done resume)"
+                    "gate HITL confirmed — skip DOM banner wait "
+                    f"(pending={takeover_pending} api_hitl={api_hitl} "
+                    f"lastTool={last_tool!r}; proceed to Done resume)"
                 )
                 banner = {
                     "ready": True,
@@ -989,154 +1087,125 @@ async def test_live_agent_browser_ask_human_shows_extension_banner_and_completes
             )
         _p(f"pre-Done diag: {pre_done_diag}")
 
-        _RESUME_UI_POLL_SEC = 180.0
-        _RESUME_BUSY_RETRIES = 3
         resume_chat_id = str(chat_id_hint or "").strip()
         resume_msg_id = ""
-        ui_resume: dict[str, object] = {}
-        use_api_only = banner.get("source") == "gate_pending_skip_dom"
+        if isinstance(pre_done_diag, dict):
+            diag_chat = str(pre_done_diag.get("chatId") or "").strip()
+            diag_mid = str(pre_done_diag.get("takeoverMessageId") or "").strip()
+            if diag_chat:
+                resume_chat_id = diag_chat
+            if diag_mid:
+                resume_msg_id = diag_mid
 
-        if use_api_only and resume_chat_id:
+        async def _release_ui_sse() -> None:
+            _p("ResumeTurnContract: release in-flight UI SSE before API resume")
+            try:
+                await chat.evaluate(
+                    """(() => window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.())()""",
+                    await_promise=False,
+                    recv_timeout=15.0,
+                )
+            except (RuntimeError, TimeoutError):
+                pass
+            await asyncio.sleep(1.5)
+
+        _p("ResumeTurnContract UI_ACK via completeBrowserTakeoverWithResume")
+        try:
+            ui_ack_raw = await chat.evaluate(
+                """(async () => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (!bridge?.completeBrowserTakeoverWithResume) {
+                return { ok: false, reason: 'bridge_method_missing' };
+              }
+              return await bridge.completeBrowserTakeoverWithResume();
+            })()""",
+                await_promise=True,
+                recv_timeout=RESUME_UI_ACK_EVALUATE_TIMEOUT_SEC,
+            )
+        except TimeoutError:
+            _p("ResumeTurnContract UI_ACK MUX timeout — quiesce then STREAM_CONVERGE")
+            await _quiesce_mux_before_retry(chat)
+            ui_ack_raw = {"ok": False, "reason": "mux_timeout"}
+
+        ui_ack = ui_ack_raw if isinstance(ui_ack_raw, dict) else {"value": ui_ack_raw}
+        _p(f"ResumeTurnContract UI_ACK result: {ui_ack}")
+        resume_chat_id = str(
+            ui_ack.get("chatId") or resume_chat_id or chat_id_hint or ""
+        ).strip()
+        resume_msg_id = str(
+            ui_ack.get("resumeMessageId")
+            or ui_ack.get("storeMessageId")
+            or resume_msg_id
+            or ""
+        ).strip()
+
+        if not resume_msg_id and resume_chat_id:
             api_ids = await asyncio.to_thread(
                 fetch_browser_takeover_resume_ids,
                 resume_chat_id,
                 api_url=api_base,
             )
             if api_ids:
-                resume_msg_id = api_ids.get("resumeMessageId", "")
-                _p(f"API-only resume ids from approvals: {api_ids}")
-            else:
-                _p("API-only resume: no pending approval — fall back to UI bridge")
-                use_api_only = False
+                resume_msg_id = str(api_ids.get("resumeMessageId") or "").strip()
+                _p(f"ResumeTurnContract approval ids fallback: {api_ids}")
 
-        if use_api_only and resume_msg_id:
-            done = False
-            resume_result: dict[str, object] = {}
-            for reint_round in range(1, MAX_RESUME_REINTERRUPT_ROUNDS + 1):
-                _p(
-                    f"resume via API-only path round={reint_round}/"
-                    f"{MAX_RESUME_REINTERRUPT_ROUNDS} "
-                    f"chatId={resume_chat_id} msgId={resume_msg_id}"
-                )
-                resume_result = await asyncio.to_thread(
-                    _resume_via_api,
-                    api_base=api_base,
-                    chat_id=resume_chat_id,
-                    message_id=resume_msg_id,
-                    timeout_sec=_RESUME_UI_POLL_SEC,
-                )
-                _p(f"API-only resume result: {resume_result}")
-                if resume_result.get("done") is True:
-                    done = True
-                    break
-                if resume_result.get("ok") is not True:
-                    error_text = str(resume_result.get("error") or "")
-                    if "409" in error_text and reint_round < MAX_RESUME_REINTERRUPT_ROUNDS:
-                        _p("API-only resume 409 busy — backoff then retry")
-                        await asyncio.sleep(3.0)
-                        continue
-                    break
-                if resume_result.get("re_interrupted") is True:
-                    next_mid = str(
-                        resume_result.get("resume_msg_id") or resume_msg_id or ""
-                    ).strip()
-                    if next_mid:
-                        resume_msg_id = next_mid
-                    if reint_round < MAX_RESUME_REINTERRUPT_ROUNDS:
-                        _p(
-                            "API-only resume re-interrupted — "
-                            "retry completed action on fresh interrupt"
-                        )
-                        await asyncio.sleep(2.0)
-                        continue
-                    break
-                done = await _wait_api_done(
-                    resume_chat_id,
-                    api_url=api_base,
-                    timeout_sec=min(60.0, _RESUME_UI_POLL_SEC),
-                )
-                break
+        assert resume_chat_id, f"No chatId after UI_ACK: {ui_ack}"
+        assert resume_msg_id, f"No messageId after UI_ACK: {ui_ack}"
+
+        if ui_ack.get("ok") is not True:
+            _p(
+                f"ResumeTurnContract UI_ACK not ok ({ui_ack}) — "
+                "proceed STREAM_CONVERGE with resolved msgId"
+            )
+
+        ui_resume_started = ui_ack.get("resumeStarted") is True or (
+            ui_ack.get("ok") is True and bool(resume_msg_id)
+        )
+        if ui_resume_started:
+            _p(
+                "ResumeTurnContract UI resume fire-and-forget started — "
+                "STREAM_CONVERGE poll only (no API resume / no SSE release)"
+            )
+            await asyncio.sleep(2.0)
+            done = await _wait_api_done(
+                resume_chat_id,
+                api_url=api_base,
+                timeout_sec=RESUME_STREAM_CONVERGE_TIMEOUT_SEC * 2,
+            )
         else:
-            done = False
-            for resume_attempt in range(1, _RESUME_BUSY_RETRIES + 1):
-                _p(
-                    f"complete+resume via UI attempt={resume_attempt}/{_RESUME_BUSY_RETRIES} "
-                    "(atomic product Done path)"
-                )
-                ui_resume_raw = await chat.evaluate(
-                    """(async () => {
-              const bridge = window.__MYRM_E2E_CHAT__;
-              if (!bridge?.completeBrowserTakeoverAndResumeViaUi) {
-                return { ok: false, reason: 'bridge_method_missing' };
-              }
-              return await bridge.completeBrowserTakeoverAndResumeViaUi();
-            })()""",
-                    await_promise=True,
-                    recv_timeout=_RESUME_UI_POLL_SEC + 15.0,
-                )
-                ui_resume = (
-                    ui_resume_raw
-                    if isinstance(ui_resume_raw, dict)
-                    else {"value": ui_resume_raw}
-                )
-                _p(f"UI complete+resume result: {ui_resume}")
-                resume_chat_id = str(
-                    ui_resume.get("chatId") or resume_chat_id or chat_id_hint or ""
-                ).strip()
-                resume_msg_id = str(
-                    ui_resume.get("resumeMessageId")
-                    or ui_resume.get("storeMessageId")
-                    or ""
-                ).strip()
-                if ui_resume.get("ok") is True:
-                    break
-                if (
-                    ui_resume.get("busy") is not True
-                    or resume_attempt >= _RESUME_BUSY_RETRIES
-                ):
-                    break
-                _p("UI resume busy — release in-flight SSE then retry sendMessage")
-                await chat.evaluate(
-                    """(() => window.__MYRM_E2E_CHAT__?.releaseActiveStreamForApiResume?.())()""",
-                    await_promise=False,
-                    recv_timeout=15.0,
-                )
-                await asyncio.sleep(2.0)
+            _p(
+                "ResumeTurnContract UI resume not started — "
+                "fallback API STREAM_CONVERGE after SSE release"
+            )
+            await _release_ui_sse()
+            await _quiesce_mux_before_retry(chat)
+            await _wait_ui_stream_idle(chat, timeout_sec=45.0)
+            await asyncio.sleep(3.0)
 
-            assert resume_chat_id, f"No chatId after UI resume: {ui_resume}"
-            assert resume_msg_id, f"No messageId after UI resume: {ui_resume}"
-
-            done = False
-            if ui_resume.get("ok") is True:
-                done = await _wait_api_done(
-                    resume_chat_id,
-                    api_url=api_base,
-                    timeout_sec=_RESUME_UI_POLL_SEC,
-                )
-                _p(f"post-UI-resume api_done={done}")
-
-            if not done and ui_resume.get("busy") is True:
-                _p("UI resume busy after retries — fallback API resume")
-                resume_result = await asyncio.to_thread(
-                    _resume_via_api,
+            async def _on_session_busy() -> None:
+                _p("ResumeTurnContract 409 busy — release SSE + reset HITL runtime")
+                await _release_ui_sse()
+                await asyncio.to_thread(
+                    _reset_hitl_runtime_via_api,
                     api_base=api_base,
-                    chat_id=resume_chat_id,
-                    message_id=resume_msg_id,
-                    timeout_sec=_RESUME_UI_POLL_SEC,
                 )
-                _p(f"API resume fallback: {resume_result}")
-                if resume_result.get("ok") is True:
-                    done = bool(resume_result.get("done")) or await _wait_api_done(
-                        resume_chat_id,
-                        api_url=api_base,
-                        timeout_sec=60.0,
-                    )
-            elif not done and ui_resume.get("ok") is not True:
-                assert False, f"Browser takeover UI resume failed: {ui_resume}"
+                await asyncio.sleep(RESUME_BUSY_BACKOFF_SEC)
+
+            done = await execute_resume_turn_stream_converge(
+                api_base=api_base,
+                chat_id=resume_chat_id,
+                message_id=resume_msg_id,
+                resume_via_api=_resume_via_api,
+                wait_api_done=_wait_api_done,
+                release_ui_sse=_release_ui_sse,
+                on_session_busy=_on_session_busy,
+                log=_p,
+            )
+        _p(f"ResumeTurnContract STREAM_CONVERGE done={done}")
 
         assert done, (
             f"Agent did not reply DONE after browser takeover resume "
-            f"for chat {resume_chat_id}; ui_resume={ui_resume}"
+            f"for chat {resume_chat_id}; ui_ack={ui_ack}"
         )
 
         chat_id = resume_chat_id
