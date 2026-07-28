@@ -66,6 +66,9 @@ class McpChatSession(CdpChatSession):
         ui_home = f"{self._base_url.rstrip('/')}/"
 
         def _resolve() -> McpPage:
+            existing = self._client.primary_owned_page()
+            if existing is not None:
+                return existing
             return self._client.ensure_primary_page_after_recovery(
                 fallback_url=ui_home,
             )
@@ -110,12 +113,12 @@ class McpChatSession(CdpChatSession):
                         self._client.mux_reset_executor(),
                         self._client.reset_after_orphan,
                     ),
-                    timeout=45.0,
+                    timeout=90.0,
                 )
             except TimeoutError as exc:
                 self._client.discard_mux_reset_executor()
                 raise RuntimeError(
-                    f"{MUX_RECLAIM_STALL_TOKEN}: reset_after_orphan timed out after 45s"
+                    f"{MUX_RECLAIM_STALL_TOKEN}: reset_after_orphan timed out after 90s"
                 ) from exc
             await self._sync_page_after_mux_reset()
 

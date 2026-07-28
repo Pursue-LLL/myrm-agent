@@ -1156,28 +1156,6 @@ class ChromeMcpClient:
         self._rebuild_disconnected_pages(saved_pages, reclaim_deadline)
         if self._pages:
             return
-        fallback_url = next(
-            (page.url for page in saved_pages.values() if (page.url or "").strip()),
-            "http://127.0.0.1:3000",
-        ).strip() or "http://127.0.0.1:3000"
-        remaining = _remaining_reclaim_sec(reclaim_deadline)
-        if remaining < 5.0:
-            return
-        try:
-            fresh = self.new_page(fallback_url, min(int(remaining * 1000), 120_000))
-        except Exception as exc:
-            _LOGGER.warning(
-                "fresh primary page after failed rebuild: %s",
-                exc,
-            )
-            return
-        if fresh is not None:
-            self._pages[fresh.page_id] = fresh
-            _LOGGER.info(
-                "opened fresh primary page %d after rebuild miss (url=%s)",
-                fresh.page_id,
-                fallback_url,
-            )
 
     def _rebuild_disconnected_pages(
         self,
