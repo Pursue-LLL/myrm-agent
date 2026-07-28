@@ -91,6 +91,8 @@ MUX_UPSTREAM_WAIT_SEC: Final[int] = 300
 MUX_UPSTREAM_POLL_SEC: Final[int] = 15
 # Single LIVE chrome_e2e test wall-clock stall budget (fail-fast, not pytest floor).
 LIVE_SINGLE_TEST_WALL_CLOCK_SEC: Final[int] = 600
+# LIVE_AGENT body phase aligns with @pytest.mark.timeout(900) on chrome_e2e LIVE tests.
+LIVE_AGENT_BODY_WALL_CLOCK_SEC: Final[int] = 900
 # R62: signoff four-phase budgets (ADMIT/BOOTSTRAP independent from BODY 600s).
 E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC: Final[int] = 300
 E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV: Final[int] = 180
@@ -111,6 +113,9 @@ CHROME_E2E_DESKTOP_TIMEOUT_SECONDS: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
 CHROME_E2E_STRESS_TIMEOUT_SECONDS: Final[int] = 7200
 CHROME_E2E_DESKTOP_MARKER: Final[str] = "chrome_e2e_desktop"
 CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER: Final[str] = "chrome_e2e_browser_takeover_live"
+CHROME_E2E_BROWSER_TAKEOVER_PYTEST_TIMEOUT_SEC: Final[int] = (
+    LIVE_SINGLE_TEST_WALL_CLOCK_SEC + 60
+)
 CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
     "chrome_e2e and not chrome_e2e_desktop and not chrome_e2e_browser_takeover_live"
 )
@@ -304,10 +309,7 @@ def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
     if CHROME_E2E_DESKTOP_MARKER in joined_argv:
         return CHROME_E2E_DESKTOP_TIMEOUT_SECONDS
     if CHROME_E2E_BROWSER_TAKEOVER_LIVE_MARKER in joined_argv:
-        return min(
-            chrome_e2e_pytest_timeout_for_lane(lane),
-            E2E_ADMISSION_WALL_CLOCK_SEC + LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
-        )
+        return CHROME_E2E_BROWSER_TAKEOVER_PYTEST_TIMEOUT_SEC
     floor = chrome_e2e_pytest_timeout_for_lane(lane)
     body_cap = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
     shpoib = os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"

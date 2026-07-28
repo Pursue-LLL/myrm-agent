@@ -26,6 +26,7 @@ from dev_gate_contract import (
     E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF,
     E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC,
     E2E_TEARDOWN_WALL_CLOCK_SEC,
+    LIVE_AGENT_BODY_WALL_CLOCK_SEC,
     LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
     is_e2e_signoff_runtime,
 )
@@ -75,6 +76,10 @@ def resolve_lifecycle_profile() -> LifecycleProfile:
 
 def resolve_budget_policy() -> BudgetPolicy:
     profile = resolve_lifecycle_profile()
+    lane = os.environ.get("MYRM_E2E_LANE", "").strip().upper()
+    body_sec = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+    if profile == "dev" and lane == "LIVE_AGENT":
+        body_sec = LIVE_AGENT_BODY_WALL_CLOCK_SEC
     if profile == "signoff":
         return BudgetPolicy(
             profile=profile,
@@ -87,7 +92,7 @@ def resolve_budget_policy() -> BudgetPolicy:
         profile=profile,
         admit_sec=E2E_ADMISSION_WALL_CLOCK_SEC,
         bootstrap_sec=E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV,
-        body_sec=LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
+        body_sec=body_sec,
         teardown_sec=E2E_TEARDOWN_WALL_CLOCK_SEC,
     )
 
@@ -162,10 +167,13 @@ def export_session_env(*, phase: SessionPhase = "admit") -> dict[str, str]:
 
 
 def begin_bootstrap_phase(*, phase_label: str = "bootstrap") -> None:
-    if current_phase() == "body":
-        touch_wall_progress()
-        return
+    """Enter bootstrap phase with a fresh wall clock (even if body already started)."""
     transition_to_phase("bootstrap", label=phase_label)
+
+
+def complete_bootstrap_phase(*, phase_label: str = "pytest_body") -> None:
+    """Re-enter body phase with a fresh wall clock after cdp bootstrap finishes."""
+    begin_body_wall_budget(phase_label=phase_label)
 
 
 def begin_body_wall_budget(*, phase_label: str = "pytest_body") -> None:

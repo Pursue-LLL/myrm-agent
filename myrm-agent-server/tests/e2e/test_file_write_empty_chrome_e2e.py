@@ -54,7 +54,7 @@ _LIVE_USER_PROMPT = (
     "Reply EMPTY_WRITE_DONE after the tool returns."
 )
 _FILE_WRITE_TOOL = "file_write_tool"
-_MAX_CHAT_ATTEMPTS = 2
+_MAX_CHAT_ATTEMPTS = 1
 
 
 def _seed_live_workspace(api_url: str, chat_id: str) -> dict[str, object]:
