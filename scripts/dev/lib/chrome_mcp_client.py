@@ -112,22 +112,6 @@ def _is_mux_parallel_fail_fast_message(message: str) -> bool:
     )
 
 
-def _parallel_mux_peer_count() -> int:
-    try:
-        load = snapshot_mux_load(force=True)
-    except Exception:
-        return 0
-    return max(0, load.mux_contexts, load.wave_leases)
-
-
-def _assert_safe_global_mux_teardown(*, phase: str) -> None:
-    peer_count = _parallel_mux_peer_count()
-    if peer_count > 1:
-        raise RuntimeError(
-            f"{MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN}: refusing global shim "
-            f"teardown during {phase} with parallel_mux_peers={peer_count}"
-        )
-
 
 def _reclaim_wall_deadline() -> float:
     return time.monotonic() + float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC)
@@ -1182,7 +1166,6 @@ class ChromeMcpClient:
             saved_pages = self._collapse_pages_for_recovery(
                 {**self._disconnected_pages, **self._pages}
             )
-            _assert_safe_global_mux_teardown(phase="recover_mux_transport")
             self._teardown_shim_process()
             last_error: RuntimeError | None = None
             for attempt in range(_TRANSPORT_RECOVER_ATTEMPTS):
@@ -1331,7 +1314,6 @@ class ChromeMcpClient:
             pass
         self._page_lease_heartbeat.stop()
         self._reclaim_in_progress = False
-        _assert_safe_global_mux_teardown(phase="abandon_inflight")
         self._teardown_shim_process()
         # Orphan to_thread may still hold the old lock in select(); replace so recover
         # on the event loop thread cannot deadlock (R49-R50).
