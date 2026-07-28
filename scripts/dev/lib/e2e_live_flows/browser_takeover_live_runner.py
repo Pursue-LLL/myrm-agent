@@ -8,7 +8,7 @@ import os
 from chrome_mcp_client import ChromeMcpClient, McpPage
 from e2e_live_flows._flow_base import FlowLogger
 from mcp_chat_ui import McpChatSession
-from tests.support.e2e_runtime_guard import E2EResourceLedger
+from e2e_resource_ledger import E2EResourceLedger
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
