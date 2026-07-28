@@ -350,7 +350,12 @@ def chrome_e2e_pytest_timeout_floor(lane: str, joined_argv: str) -> int:
     body_cap = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
     shpoib = os.environ.get("E2E_PROFILE_SHPOIB", "").strip() == "1"
     if shpoib and lane.strip().upper() == "LIVE_AGENT":
-        body_cap = LIVE_AGENT_PYTEST_WALL_CAP_SEC
+        try:
+            from transport_supervisor import live_agent_pytest_wall_cap_sec
+
+            body_cap = live_agent_pytest_wall_cap_sec()
+        except ImportError:
+            body_cap = LIVE_AGENT_PYTEST_WALL_CAP_SEC
     return min(floor, body_cap)
 
 

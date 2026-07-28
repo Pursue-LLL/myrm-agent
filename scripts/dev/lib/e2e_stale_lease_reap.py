@@ -57,6 +57,7 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
         LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
         STALL_PROGRESS_SEC,
     )
+    from transport_supervisor import live_agent_pytest_wall_cap_sec  # noqa: PLC0415
     from e2e_session_snapshot import (  # noqa: PLC0415
         body_elapsed_from_snapshot,
         progress_stale_sec,
@@ -80,10 +81,10 @@ def _hung_reason_for_row(row: LiveChromeE2ERow) -> str | None:
             and stale >= float(STALL_PROGRESS_SEC)
         ):
             return f"progress_stale={int(stale)}s>={STALL_PROGRESS_SEC}s"
-    if row.elapsed_sec >= float(LIVE_AGENT_PYTEST_WALL_CAP_SEC):
+    if row.elapsed_sec >= float(live_agent_pytest_wall_cap_sec()):
         return (
             f"process_elapsed={int(row.elapsed_sec)}s>="
-            f"{LIVE_AGENT_PYTEST_WALL_CAP_SEC}s"
+            f"{live_agent_pytest_wall_cap_sec()}s"
         )
     return None
 

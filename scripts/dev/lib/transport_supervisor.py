@@ -90,6 +90,20 @@ def bootstrap_wall_cap_sec() -> int:
     return int(min(MUX_BOOTSTRAP_WALL_MAX_SEC, scaled))
 
 
+def live_agent_pytest_wall_cap_sec() -> int:
+    """pytest-timeout outer cap: scaled bootstrap + body + teardown (R103)."""
+    from dev_gate_contract import (  # noqa: PLC0415
+        E2E_TEARDOWN_WALL_CLOCK_SEC,
+        LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
+    )
+
+    return (
+        bootstrap_wall_cap_sec()
+        + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
+        + E2E_TEARDOWN_WALL_CLOCK_SEC
+    )
+
+
 def recovery_budget_remaining() -> float:
     key = session_key()
     cap = session_recovery_budget_cap()
