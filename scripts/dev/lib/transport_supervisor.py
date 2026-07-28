@@ -32,6 +32,9 @@ MUX_SESSION_RECOVERY_BUDGET_PER_PEER_SEC: float = 30.0
 MUX_UPSTREAM_WAIT_BASE_SEC: float = float(MUX_UPSTREAM_WAIT_SEC)
 MUX_UPSTREAM_WAIT_MAX_SEC: float = 600.0
 MUX_UPSTREAM_WAIT_PER_PEER_SEC: float = 45.0
+MUX_BOOTSTRAP_WALL_BASE_SEC: float = 180.0
+MUX_BOOTSTRAP_WALL_MAX_SEC: float = 420.0
+MUX_BOOTSTRAP_WALL_PER_PEER_SEC: float = 45.0
 MUX_RECOVERY_LOCK_WAIT_SEC: float = 90.0
 MUX_RECOVERY_LOCK_BASE_SEC: float = 15.0
 MUX_RECOVERY_LOCK_PER_ACTIVE_SEC: float = 20.0
@@ -74,6 +77,17 @@ def mux_upstream_wait_cap() -> int:
         (peers - 3) * MUX_UPSTREAM_WAIT_PER_PEER_SEC
     )
     return int(min(MUX_UPSTREAM_WAIT_MAX_SEC, scaled))
+
+
+def bootstrap_wall_cap_sec() -> int:
+    """Scale SHPOIB bootstrap wall under parallel wave/mux peers (R102)."""
+    peers = parallel_mux_peer_count()
+    if peers <= 3:
+        return int(MUX_BOOTSTRAP_WALL_BASE_SEC)
+    scaled = MUX_BOOTSTRAP_WALL_BASE_SEC + (
+        (peers - 3) * MUX_BOOTSTRAP_WALL_PER_PEER_SEC
+    )
+    return int(min(MUX_BOOTSTRAP_WALL_MAX_SEC, scaled))
 
 
 def recovery_budget_remaining() -> float:

@@ -77,6 +77,14 @@ def resolve_budget_policy() -> BudgetPolicy:
     body_sec = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
     if profile == "dev" and lane == "LIVE_AGENT":
         body_sec = LIVE_AGENT_BODY_WALL_CLOCK_SEC
+    bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
+    if profile == "dev":
+        try:
+            from transport_supervisor import bootstrap_wall_cap_sec
+
+            bootstrap_sec = bootstrap_wall_cap_sec()
+        except ImportError:
+            bootstrap_sec = E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
     if profile == "signoff":
         return BudgetPolicy(
             profile=profile,
@@ -88,7 +96,7 @@ def resolve_budget_policy() -> BudgetPolicy:
     return BudgetPolicy(
         profile=profile,
         admit_sec=E2E_ADMISSION_WALL_CLOCK_SEC,
-        bootstrap_sec=E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV,
+        bootstrap_sec=bootstrap_sec,
         body_sec=body_sec,
         teardown_sec=E2E_TEARDOWN_WALL_CLOCK_SEC,
     )

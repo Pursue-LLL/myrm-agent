@@ -60,7 +60,8 @@ def create_e2e_chat_via_api(chat_id: str, *, api_url: str | None = None) -> None
     if not resolved:
         raise RuntimeError("E2E_API_BASE missing for create_e2e_chat_via_api")
     url = f"{resolved.rstrip('/')}/api/v1/chats/"
-    _e2e_api_post_json(url, {"chat_id": chat_id}, timeout_sec=15.0)
+    timeout_sec = signoff_parallel_force_chat_timeout_sec(15.0)
+    _e2e_api_post_json(url, {"chat_id": chat_id}, timeout_sec=timeout_sec)
 
 
 def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
@@ -71,8 +72,14 @@ def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
     """
     if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
         return timeout_sec
-    from dev_gate_contract import E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
+    try:
+        from transport_supervisor import bootstrap_wall_cap_sec
 
+        bootstrap_cap = float(bootstrap_wall_cap_sec())
+    except ImportError:
+        from dev_gate_contract import E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV
+
+        bootstrap_cap = float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
     base_floor = max(timeout_sec, 120.0)
     active_leases = 0
     try:
@@ -83,7 +90,7 @@ def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
     except Exception:
         active_leases = 0
     scaled = max(base_floor, 120.0 + active_leases * 15.0)
-    return min(scaled, float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV))
+    return min(scaled, bootstrap_cap)
 
 
 def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
