@@ -272,6 +272,13 @@ class ChromeMcpClient:
         self._mux_eval_executor: object | None = None
         self._mux_reset_executor: object | None = None
 
+    def _request_lock_is_held(self) -> bool:
+        acquired = self._request_lock.acquire(blocking=False)
+        if acquired:
+            self._request_lock.release()
+            return False
+        return True
+
     @staticmethod
     def _initial_mux_generation() -> int:
         """Bind client generation to runtime cell ledger when SHPOIB slot is active."""
@@ -419,7 +426,7 @@ class ChromeMcpClient:
 
     def close(self) -> None:
         errors: list[Exception] = []
-        if self._request_lock.locked():
+        if self._request_lock_is_held():
             _LOGGER.warning(
                 "Chrome MCP close detected held request lock; abandon in-flight requests first"
             )
