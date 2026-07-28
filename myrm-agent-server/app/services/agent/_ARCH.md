@@ -42,6 +42,7 @@ Design notes:
 | `builtin_specs/` | ✅ 核心 | 预置智能体规格数据（types + core/search/extended/vertical 分段） | [_ARCH.md](builtin_specs/_ARCH.md) |
 | `marketplace/` | ✅ 核心 | Agent Marketplace 导入/导出与包契约 SSOT | [_ARCH.md](marketplace/_ARCH.md) |
 | `params/` | ✅ 核心 | HTTP 请求 → `GeneralAgentParams` 转换层 | [_ARCH.md](params/_ARCH.md) |
+| `readiness/` | ✅ 核心 | Per-agent 配置就绪预检（6 维度 ready/warning/blocked + Settings deep link） | [_ARCH.md](readiness/_ARCH.md) |
 | `stream_session/` | ✅ 核心 | General Agent SSE 流式会话编排 | [_ARCH.md](stream_session/_ARCH.md) |
 | `streaming_support/` | ✅ 核心 | SSE 格式化、Failover、内容收集、Multiplexer | [_ARCH.md](streaming_support/_ARCH.md) |
 

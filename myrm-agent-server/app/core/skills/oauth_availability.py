@@ -1,10 +1,12 @@
 """Integration skill availability gates for prebuilt skills (Catalog + Agent runtime).
 
 [INPUT]
-- app.services.integrations.oauth_store::is_oauth_issuer_connected
-- app.core.channel_bridge.config_loader::load_user_configs
-- app.services.agent.platform_config::resolve_xai_search_config
-- app.core.skills.store.user_config::UserSkillConfigManager
+- app.services.integrations.oauth_store::is_oauth_issuer_connected (POS: OAuth credential persistence)
+- app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader with TTL cache)
+- app.services.agent.platform_config::resolve_xai_search_config (POS: xAI provider key resolver)
+- app.core.skills.store.user_config::UserSkillConfigManager (POS: per-skill env/config persistence)
+- app.database.connection::get_session (POS: async DB session factory)
+- app.services.agent.session_credential_assembler::XAI_ISSUER (POS: canonical issuer key for xAI)
 
 [OUTPUT]
 - INTEGRATION_SKILL_ISSUERS: OAuth-gated prebuilt skills
@@ -48,7 +50,10 @@ XURL_SKILL_ID = "xurl"
 GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE = (
     "Connect Google Workspace in Settings → Integrations → Credentials"
 )
-X_LIVE_SEARCH_UNAVAILABLE = "Add an xAI provider in Settings → Models & Providers"
+X_LIVE_SEARCH_UNAVAILABLE = (
+    "Add an xAI provider in Settings → Models & Providers, "
+    "or connect your SuperGrok token in Settings → Integrations → Credentials"
+)
 NOTION_ENV_UNAVAILABLE = "Configure NOTION_API_KEY in skill environment settings"
 LINEAR_ENV_UNAVAILABLE = "Configure LINEAR_API_KEY in skill environment settings"
 IMAP_SMTP_EMAIL_ENV_UNAVAILABLE = "Configure email credentials in Settings → Skills → Environment"
@@ -112,7 +117,17 @@ async def _is_xai_provider_configured() -> bool:
     from app.services.agent.platform_config import resolve_xai_search_config
 
     configs = await load_user_configs()
-    return resolve_xai_search_config(configs.providers_dict) is not None
+    if resolve_xai_search_config(configs.providers_dict) is not None:
+        return True
+
+    from app.database.connection import get_session
+    from app.services.agent.session_credential_assembler import XAI_ISSUER
+
+    try:
+        async with get_session() as db:
+            return await is_oauth_issuer_connected(db, XAI_ISSUER)
+    except Exception:
+        return False
 
 
 def _are_skill_bins_available(skill_id: str) -> bool:

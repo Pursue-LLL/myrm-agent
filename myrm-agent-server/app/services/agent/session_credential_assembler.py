@@ -116,11 +116,21 @@ async def assemble_session_credentials(
     providers_dict: dict[str, object] | None = None,
     channel: str | None = None,
 ) -> tuple[EphemeralUserCredential, ...]:
-    """Build merged session credentials for user_credentials_ctx injection."""
+    """Build merged session credentials for user_credentials_ctx injection.
+
+    xAI credential priority: OAuth token (from SuperGrok login) takes precedence
+    over API Key (from WebUI providers). If both exist, only the OAuth credential
+    is included for the xAI issuer to avoid duplicate entries.
+    """
     credentials: list[EphemeralUserCredential] = []
     try:
-        credentials.extend(await _oauth_credentials_from_dict(oauth_credentials_dict))
-        credentials.extend(_xai_provider_credentials(providers_dict))
+        oauth_creds = await _oauth_credentials_from_dict(oauth_credentials_dict)
+        credentials.extend(oauth_creds)
+
+        has_xai_oauth = any(c.issuer == XAI_ISSUER for c in oauth_creds)
+        if not has_xai_oauth:
+            credentials.extend(_xai_provider_credentials(providers_dict))
+
         if channel:
             credentials.extend(await _channel_token_credentials(channel))
     except Exception as exc:

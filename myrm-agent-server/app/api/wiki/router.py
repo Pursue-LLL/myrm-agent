@@ -96,6 +96,9 @@ class WikiCompileResponse(BaseModel):
     articles_generated: int
     backlinks_created: int
     duration_ms: int
+    articles_pending: int = 0
+    articles_published: int = 0
+    articles_blocked: int = 0
 
 
 class WikiMaintenanceResponse(BaseModel):
@@ -197,6 +200,15 @@ class RepairTypesResponse(BaseModel):
     message: str
 
 
+class RepairPublicationResponse(BaseModel):
+    success: bool
+    files_scanned: int
+    files_repaired: int
+    files_skipped: int
+    reindexed: int
+    message: str
+
+
 async def _get_wiki_archiver(
     llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
     manager: Annotated[MemoryManager | None, Depends(get_optional_memory_manager)],
@@ -249,6 +261,9 @@ async def compile_wiki(
             articles_generated=result.articles_generated,
             backlinks_created=result.backlinks_created,
             duration_ms=result.duration_ms,
+            articles_pending=result.articles_pending,
+            articles_published=result.articles_published,
+            articles_blocked=result.articles_blocked,
         )
     except Exception as e:
         logger.error(f"Wiki compilation failed: {e}")
@@ -470,12 +485,26 @@ async def update_concept(
     name: str, request: ConceptUpdateRequest, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
 ) -> OperationResult:
     """Update or create a concept file manually."""
-    path = archiver._structure.get_concept_file_path(name)
+    from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import FrontmatterValidationError
+    from myrm_agent_harness.toolkits.wiki.pipeline.publication import publish_concept_article
+
     try:
-        path.write_text(request.content, encoding="utf-8")
-        await archiver._query_engine._indexer.upsert(name, request.content)
-        archiver._query_engine._indexer.extract_and_upsert_edges(name, request.content)
+        await publish_concept_article(
+            archiver._structure,
+            archiver._query_engine._indexer,
+            name,
+            request.content,
+        )
         return OperationResult(success=True, message=f"Concept {name} updated")
+    except FrontmatterValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "invalid_frontmatter",
+                "message": "Page metadata is incomplete. Add a valid page type before publishing.",
+                "errors": list(exc.errors),
+            },
+        ) from exc
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -599,6 +628,42 @@ async def repair_wiki_frontmatter_types(
         files_scanned=result.files_scanned,
         files_repaired=result.files_repaired,
         files_skipped=result.files_skipped,
+        message=message,
+    )
+
+
+@router.post("/repair-publication", response_model=RepairPublicationResponse)
+async def repair_wiki_publication(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+) -> RepairPublicationResponse:
+    """Grandfather concept pages to publish_status=published and reindex searchable entries."""
+    from myrm_agent_harness.toolkits.wiki.pipeline.publication import repair_publication_status
+
+    result = await repair_publication_status(archiver._structure, archiver._query_engine._indexer)
+    message = (
+        f"Repaired {result.files_repaired} of {result.files_scanned} scanned files; "
+        f"reindexed {result.reindexed}"
+    )
+    if result.errors:
+        message = f"{message}; {len(result.errors)} errors"
+    if result.files_repaired > 0 or result.reindexed > 0:
+        _refresh_wiki_cognitive_map(
+            archiver,
+            WikiMapEventType.REPAIR_TYPES,
+            message,
+            {
+                "files_scanned": result.files_scanned,
+                "files_repaired": result.files_repaired,
+                "files_skipped": result.files_skipped,
+                "reindexed": result.reindexed,
+            },
+        )
+    return RepairPublicationResponse(
+        success=len(result.errors) == 0,
+        files_scanned=result.files_scanned,
+        files_repaired=result.files_repaired,
+        files_skipped=result.files_skipped,
+        reindexed=result.reindexed,
         message=message,
     )
 

@@ -80,7 +80,7 @@ from cdp_chat_support import (
 from dev_gate_contract import (
     LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC,
     MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN,
-    MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
+    mux_page_reclaim_hard_timeout_sec,
     MUX_RECLAIM_STALL_TOKEN,
     NEW_PAGE_TOOL_RETRY_ATTEMPTS,
     TOOL_RETRY_ATTEMPTS,
@@ -133,7 +133,7 @@ def _shim_process_alive(client: "ChromeMcpClient") -> bool:
 
 
 def _reclaim_wall_deadline() -> float:
-    return time.monotonic() + float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC)
+    return time.monotonic() + float(mux_page_reclaim_hard_timeout_sec())
 
 
 def _remaining_reclaim_sec(deadline: float) -> float:
@@ -142,9 +142,10 @@ def _remaining_reclaim_sec(deadline: float) -> float:
 
 def _raise_mux_reclaim_stall(phase: str, *, started: float) -> None:
     elapsed = time.monotonic() - started
+    reclaim_cap = mux_page_reclaim_hard_timeout_sec()
     raise RuntimeError(
         f"{MUX_RECLAIM_STALL_TOKEN}: {phase} blocked for {elapsed:.1f}s "
-        f"(cap={MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC}s); recover mux and retry"
+        f"(cap={reclaim_cap}s); recover mux and retry"
     )
 
 
@@ -1282,7 +1283,7 @@ class ChromeMcpClient:
                 _check_mux_reclaim_deadline(
                     reclaim_deadline,
                     "recover_mux_transport",
-                    started=reclaim_deadline - float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC),
+                    started=reclaim_deadline - float(mux_page_reclaim_hard_timeout_sec()),
                 )
                 try:
                     self._spawn_shim_process()
@@ -1304,7 +1305,7 @@ class ChromeMcpClient:
                 _check_mux_reclaim_deadline(
                     reclaim_deadline,
                     "recover_mux_transport",
-                    started=reclaim_deadline - float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC),
+                    started=reclaim_deadline - float(mux_page_reclaim_hard_timeout_sec()),
                 )
                 return
             if not saved_pages:

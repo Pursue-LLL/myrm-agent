@@ -11,6 +11,7 @@
 | `useAgentResources.ts` | 资源选择解析 |
 | `useAgentName.ts` | agent_id → 显示名 |
 | `useCLIAgent.ts` | 外部 CLI agent |
+| `useAgentReadiness.ts` | Per-agent readiness SWR hook (5min polling) |
 | `useSkillDiscovery.ts` | 技能发现 |
 | `config-panel/` | 配置变更检测与 save handler | [_ARCH.md](config-panel/_ARCH.md) |
 

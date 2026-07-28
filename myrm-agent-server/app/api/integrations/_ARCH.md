@@ -20,6 +20,7 @@
 | `mcp_oauth.py` | 模块 | MCP OAuth 2.0 + PKCE authorization flow API. | ✅ |
 | `model_specs.py` | 模块 | Settings Hardware Cookbook 使用的 Ollama 模型规格数据源。 | ✅ |
 | `oauth.py` | 模块 | OAuth 凭证管理 API。提供个人 SaaS 集成凭证的加密存储、查询和撤销，支持断开时可选清除同步数据。 | ✅ |
+| `xai_oauth.py` | 模块 | xAI OAuth device-code flow；SuperGrok 订阅授权；复用 oauth_store 持久化 | ✅ |
 | `retrieval.py` | 模块 | Retrieval Service Configuration Validation API | ✅ |
 | `router.py` | 路由 | Integrations API router | ✅ |
 | `search.py` | 模块 | 搜索引擎验证请求模型 | ✅ |

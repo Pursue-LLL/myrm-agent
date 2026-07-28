@@ -328,9 +328,19 @@ _APP_LAYOUT_READY_JS = """(() => ({
 
 
 def _reload_mcp_page(client, page) -> None:
-    reload_mcp_page(client, page)
-    dismiss_blocking_modals(client, page)
-    wait_for_state(client, page, _APP_LAYOUT_READY_JS, timeout_sec=120.0)
+    last: dict[str, object] = {}
+    for attempt in range(3):
+        reload_mcp_page(client, page)
+        dismiss_blocking_modals(client, page)
+        try:
+            wait_for_state(client, page, _APP_LAYOUT_READY_JS, timeout_sec=120.0)
+            return
+        except AssertionError as exc:
+            if attempt >= 2:
+                raise
+            last = {"attempt": attempt + 1, "error": str(exc)}
+            time.sleep(2.0 * (attempt + 1))
+    raise AssertionError(f"MCP page reload did not recover: {last}")
 
 
 @pytest.mark.chrome_e2e(lane="READ", private_backend=True)

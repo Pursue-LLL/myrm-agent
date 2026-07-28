@@ -10,6 +10,7 @@
 |------|------|------|-------|
 | `ActiveWorkingMemoryPanel.tsx` | 组件 | 当前会话 working memory 预览 Popover | ✅ |
 | `AgentIndicator.tsx` | 组件 | 输入区当前 Agent 头像/名称指示 | ✅ |
+| `ReadinessBadge.tsx` | 组件 | Per-agent readiness dot (amber/red) + tooltip with deep-link to Settings | ✅ |
 | `AgentToolsToggle.tsx` | 组件 | Agent 工具开关快捷切换 | ✅ |
 | `AttachButton.tsx` | 组件 | 文件附件按钮：Tauri 走原生对话框 / Web 走 `<input type="file">`；支持 image/video/audio/doc/text；含模型能力检查、SHA-256 去重、视频 100MB / 音频 25MB 大小校验 | ✅ |
 | `AttachList.tsx` | 组件 | 附件预览列表：ImageThumbnail（含 Lightbox + ImageEditor 标注，失败 toast）/ VideoThumbnail / FilePill | ✅ |

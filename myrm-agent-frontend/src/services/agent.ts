@@ -756,11 +756,10 @@ export interface AgentReadinessReport {
 }
 
 export async function getAgentReadiness(agentId: string): Promise<AgentReadinessReport> {
-  const res = await apiRequest<{ data: AgentReadinessReport }>(`/user-agents/${agentId}/readiness`, {
+  return apiRequest<AgentReadinessReport>(`/user-agents/${agentId}/readiness`, {
     method: 'GET',
     silent: true,
   });
-  return res.data;
 }
 
 export async function invalidateAgentReadiness(agentId: string): Promise<void> {

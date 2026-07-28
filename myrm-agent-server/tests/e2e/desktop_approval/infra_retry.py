@@ -91,9 +91,9 @@ async def heal_chrome_attach_before_reopen() -> None:
 
 
 def _resolve_open_nav_wall_timeout_sec() -> float:
-    """R81: signoff desktop leg queues on mux cold attach under parallel chrome_e2e."""
+    """R81/R83: signoff desktop leg queues on mux cold attach under parallel chrome_e2e."""
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-        return 120.0
+        return 180.0
     return 70.0
 
 

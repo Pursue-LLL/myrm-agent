@@ -4,6 +4,7 @@ Prerequisites:
   ./myrm ready --chrome
   Wave READ lease recommended when parallel agents are active.
   Run one test at a time: path::test_name (whole-file batch denied by E2E_FILE_BATCH_DENIED).
+  Chrome UI tests also need: ./myrm test -m chrome_e2e path::test_name
 
 Covers:
   - Voice Settings: no amber banner when edge_tts_available=true
@@ -33,6 +34,7 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat_support import get_e2e_api_url, get_e2e_ui_url  # noqa: E402
 from chrome_mcp_client import ChromeMcpClient, McpPage  # noqa: E402
+from tests.support.chrome_mcp_e2e import warm_ui_route  # noqa: E402
 
 
 def _voice_settings_url() -> str:
@@ -51,7 +53,8 @@ _VOICE_PROBE_JS = """(() => {
   } catch {
     // ignore
   }
-  const text = document.body.innerText || '';
+  const body = document.body;
+  const text = body ? (body.innerText || '') : '';
   const skeletons = document.querySelectorAll('[class*="skeleton" i], .animate-pulse').length;
   const hasVoicePanel = !!document.querySelector('[data-testid="voice-settings-panel"]');
   const onChannelsSettings = location.pathname.includes('/settings/channels');
@@ -254,6 +257,22 @@ def _config_value_snapshot(key: str) -> dict[str, object]:
 _CHROME_NEW_PAGE_TIMEOUT_MS = 120_000
 
 
+@pytest.fixture
+def require_edge_tts_available() -> None:
+    """Skip before Chrome spin-up when SHPOIB private runtime lacks voice-tts extra."""
+    _require_live_stack()
+    if not _edge_tts_available():
+        pytest.skip("edge_tts_available=false — covered by TestClient / unit tests")
+
+
+@pytest.fixture
+def require_local_stt_available() -> None:
+    """Skip before Chrome spin-up when local-stt extra is not installed."""
+    _require_live_stack()
+    if not _local_stt_available():
+        pytest.skip("local_stt_available=false — covered by TestClient 503")
+
+
 @pytest.fixture(autouse=True)
 def restore_global_voice_state(request: pytest.FixtureRequest) -> Iterator[None]:
     """Keep global voice/config writes from leaking into later UI E2E tests."""
@@ -273,6 +292,8 @@ def restore_global_voice_state(request: pytest.FixtureRequest) -> Iterator[None]
     try:
         yield
     finally:
+        if not _server_reachable():
+            return
         try:
             _http_json(
                 "PUT",
@@ -295,7 +316,7 @@ def restore_global_voice_state(request: pytest.FixtureRequest) -> Iterator[None]
                     "POST",
                     f"{get_e2e_api_url()}/api/v1/features/voice_interaction/reset",
                 )
-        except Exception:
+        except BaseException:
             pass
 
 
@@ -383,18 +404,20 @@ class _McpSession:
         raise AssertionError(f"App layout not ready within {timeout_sec:.0f}s: {last}")
 
     async def wait_voice_settings(self) -> dict[str, object]:
-        await self.dismiss_migration()
-        await self.navigate(f"{get_e2e_ui_url()}/")
-        await self.wait_app_layout()
         voice_url = _voice_settings_url()
-        await self.eval(
-            f"window.location.href = {json.dumps(voice_url)}; 'voice-nav'",
-            await_promise=False,
-        )
-        await asyncio.sleep(3)
+        warm_ui_route("/settings/channels?sub=voice")
+        await self.dismiss_migration()
+        await self.navigate(voice_url)
+        await self.wait_app_layout(timeout_sec=120.0)
         ready: dict[str, object] = {}
         for _ in range(90):
-            state = await self.eval(_VOICE_PROBE_JS, await_promise=False)
+            try:
+                state = await self.eval(_VOICE_PROBE_JS, await_promise=False)
+            except RuntimeError as exc:
+                if "innerText" in str(exc) or "null" in str(exc).lower():
+                    await asyncio.sleep(1)
+                    continue
+                raise
             ready = state if isinstance(state, dict) else {"probeError": state}
             if (
                 ready.get("hasLayout")
@@ -404,11 +427,7 @@ class _McpSession:
             ):
                 return ready
             if ready.get("onChannelsSettings") and not ready.get("hasVoicePanel"):
-                await self.eval(
-                    f"window.location.href = {json.dumps(voice_url)}; 'voice-retry'",
-                    await_promise=False,
-                )
-                await asyncio.sleep(2)
+                await self.navigate(voice_url)
             await asyncio.sleep(1)
         raise AssertionError(f"Voice settings page not ready: {ready}")
 
@@ -462,17 +481,14 @@ async def _probe_read_aloud_fetch(
     return last
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 @pytest.mark.asyncio
 async def test_voice_settings_no_edge_banner_when_available(
+    require_edge_tts_available: None,
     voice_chrome_page: tuple[ChromeMcpClient, McpPage],
 ) -> None:
-    _require_live_stack()
-    if not _edge_tts_available():
-        pytest.skip("edge_tts_available=false — banner covered by TestClient 503")
-
     _ensure_voice_feature_enabled()
 
     client, page = voice_chrome_page
@@ -484,7 +500,6 @@ async def test_voice_settings_no_edge_banner_when_available(
     assert page.get("onChannelsSettings") is True, page
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_live_tts_synthesize_after_voice_config() -> None:
@@ -506,18 +521,15 @@ def test_live_tts_synthesize_after_voice_config() -> None:
     assert body[:3] == b"ID3" or (body[0] == 0xFF and (body[1] & 0xE0) == 0xE0)
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 @pytest.mark.asyncio
 async def test_read_aloud_edge_api_from_browser_context(
+    require_edge_tts_available: None,
     chrome_page: tuple[ChromeMcpClient, McpPage],
 ) -> None:
     """Browser same-origin fetch to /tts/synthesize (ReadAloud API path via Next proxy)."""
-    _require_live_stack()
-    if not _edge_tts_available():
-        pytest.skip("edge_tts_available=false")
-
     _seed_voice_and_personal_settings()
 
     client, page = chrome_page
@@ -615,17 +627,14 @@ def test_live_stt_status_reflects_local_install() -> None:
         assert status["available"] is True
 
 
-@pytest.mark.chrome_e2e(lane="LIVE_AGENT")
+@pytest.mark.chrome_e2e(lane="READ", private_backend=True)
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 @pytest.mark.asyncio
 async def test_voice_settings_no_local_banner_when_available(
+    require_local_stt_available: None,
     voice_chrome_page: tuple[ChromeMcpClient, McpPage],
 ) -> None:
-    _require_live_stack()
-    if not _local_stt_available():
-        pytest.skip("local_stt_available=false — banner covered by TestClient 503")
-
     _ensure_voice_feature_enabled()
     _put_local_voice_config()
 

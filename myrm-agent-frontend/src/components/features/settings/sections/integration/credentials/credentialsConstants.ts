@@ -7,7 +7,7 @@ export type OauthIntegration = {
   desc: string;
   descZh: string;
   category: string;
-  oauthFlow?: 'google_workspace';
+  oauthFlow?: 'google_workspace' | 'xai_device_code';
 };
 
 export type OauthCredentialRecord = {
@@ -26,6 +26,14 @@ export const SUPPORTED_INTEGRATIONS: OauthIntegration[] = [
     descZh: '通过 OAuth 连接 Google 日历、Gmail 与云端硬盘',
     category: 'productivity',
     oauthFlow: 'google_workspace' as const,
+  },
+  {
+    id: 'xai',
+    name: 'xAI / SuperGrok',
+    desc: 'Use your SuperGrok subscription for X (Twitter) search, image, and video generation',
+    descZh: '使用 SuperGrok 订阅进行 X (Twitter) 搜索、图片和视频生成',
+    category: 'productivity',
+    oauthFlow: 'xai_device_code' as const,
   },
   {
     id: 'feishu',

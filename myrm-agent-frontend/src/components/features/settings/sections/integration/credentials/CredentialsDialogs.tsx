@@ -34,6 +34,7 @@ type CredentialsDialogsProps = Pick<
   | 'handleDisconnectOauth'
   | 'handleGoogleWorkspaceConnect'
   | 'handleSaveVaultCredential'
+  | 'handleXaiOAuthConnect'
   | 'providerTreeCount'
   | 'scopeInput'
   | 'setClearSyncedMemory'
@@ -55,6 +56,9 @@ type CredentialsDialogsProps = Pick<
   | 'vaultModalOpen'
   | 'vaultPassword'
   | 'vaultTotp'
+  | 'xaiOauthPolling'
+  | 'xaiUserCode'
+  | 'xaiVerificationUrl'
 >;
 
 export function CredentialsDialogs({
@@ -73,6 +77,7 @@ export function CredentialsDialogs({
   handleDisconnectOauth,
   handleGoogleWorkspaceConnect,
   handleSaveVaultCredential,
+  handleXaiOAuthConnect,
   providerTreeCount,
   scopeInput,
   setClearSyncedMemory,
@@ -94,6 +99,9 @@ export function CredentialsDialogs({
   vaultModalOpen,
   vaultPassword,
   vaultTotp,
+  xaiOauthPolling,
+  xaiUserCode,
+  xaiVerificationUrl,
 }: CredentialsDialogsProps) {
   const t = useTranslations('settings.credentials');
   const locale = useLocale();
@@ -290,6 +298,37 @@ export function CredentialsDialogs({
                     <p className="text-xs text-muted-foreground">{t('googleOauthPolling')}</p>
                   )}
                 </>
+              ) : connectModalTarget.oauthFlow === 'xai_device_code' ? (
+                <>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {locale === 'zh'
+                      ? '点击下方按钮，在浏览器中授权你的 SuperGrok 账号。授权后将自动连接。'
+                      : 'Click the button below to authorize your SuperGrok account in the browser. It will connect automatically once authorized.'}
+                  </p>
+                  {xaiOauthPolling && xaiUserCode && (
+                    <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-2">
+                      <p className="text-sm font-medium text-foreground">
+                        {locale === 'zh' ? '验证码：' : 'Code: '}
+                        <span className="font-mono text-lg tracking-widest text-primary">{xaiUserCode}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {locale === 'zh'
+                          ? '请在浏览器中输入此验证码完成授权...'
+                          : 'Enter this code in the browser to complete authorization...'}
+                      </p>
+                      {xaiVerificationUrl && (
+                        <a
+                          href={xaiVerificationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary underline"
+                        >
+                          {locale === 'zh' ? '重新打开授权页面' : 'Open authorization page again'}
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </>
               ) : (
                 <>
                   <div className="space-y-2">
@@ -341,6 +380,15 @@ export function CredentialsDialogs({
                   disabled={googleOauthPolling || googleOauthConfigured === false}
                 >
                   {googleOauthPolling ? t('googleOauthPolling') : t('googleOauthConnectBtn')}
+                </Button>
+              ) : connectModalTarget.oauthFlow === 'xai_device_code' ? (
+                <Button
+                  onClick={() => void handleXaiOAuthConnect()}
+                  disabled={xaiOauthPolling}
+                >
+                  {xaiOauthPolling
+                    ? (locale === 'zh' ? '等待授权...' : 'Waiting...')
+                    : (locale === 'zh' ? '授权 SuperGrok' : 'Authorize SuperGrok')}
                 </Button>
               ) : (
                 <Button onClick={() => void handleConnectOauth()}>{t('saveBtn')}</Button>

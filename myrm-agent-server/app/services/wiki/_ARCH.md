@@ -3,7 +3,7 @@
 
 ## 架构概述
 
-Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁移、compaction 后 SessionNotes 后台归档。
+Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁移、compaction 后 SessionNotes 后台归档。REST `/api/wiki/stats` 经 router 委托 harness 刷新后返回 **cognitive map** 字段（`cognitive_index_ready` / `cognitive_log_entries` / `cognitive_hot_updated_at`）。
 
 ## Vault SSOT
 

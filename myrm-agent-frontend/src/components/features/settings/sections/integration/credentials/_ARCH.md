@@ -24,5 +24,6 @@
 
 - `@/services/credentials`
 - `@/services/google-workspace-oauth`
+- `@/services/xai-oauth`
 - `@/services/integrationMemory`
 - 父模块 [integration/_ARCH.md](../_ARCH.md)

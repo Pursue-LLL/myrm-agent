@@ -12,6 +12,11 @@ import {
   pollGoogleWorkspaceOAuthState,
   startGoogleWorkspaceOAuth,
 } from '@/services/google-workspace-oauth';
+import {
+  disconnectXaiOAuth,
+  pollXaiOAuth,
+  startXaiOAuth,
+} from '@/services/xai-oauth';
 import { apiRequest } from '@/lib/api';
 import {
   OAUTH_POLL_INTERVAL_MS,
@@ -38,9 +43,15 @@ export function useCredentialsOAuth() {
   const [googleWorkspaceWriteEnabled, setGoogleWorkspaceWriteEnabled] = useState(false);
   const googlePollRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [xaiOauthPolling, setXaiOauthPolling] = useState(false);
+  const [xaiUserCode, setXaiUserCode] = useState('');
+  const [xaiVerificationUrl, setXaiVerificationUrl] = useState('');
+  const xaiPollRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     return () => {
       if (googlePollRef.current) clearInterval(googlePollRef.current);
+      if (xaiPollRef.current) clearInterval(xaiPollRef.current);
     };
   }, []);
 
@@ -97,6 +108,8 @@ export function useCredentialsOAuth() {
       const params = clearSyncedMemory ? '?clear_synced_memory=true' : '';
       if (disconnectConfirmTarget.oauthFlow === 'google_workspace') {
         await disconnectGoogleWorkspaceOAuth();
+      } else if (disconnectConfirmTarget.oauthFlow === 'xai_device_code') {
+        await disconnectXaiOAuth();
       } else {
         await apiRequest(`/integrations/oauth/${disconnectConfirmTarget.id}${params}`, {
           method: 'DELETE',
@@ -178,6 +191,59 @@ export function useCredentialsOAuth() {
     }
   }, [fetchOauthCreds, t]);
 
+  const handleXaiOAuthConnect = useCallback(async () => {
+    setXaiOauthPolling(true);
+    try {
+      const startRes = await startXaiOAuth();
+      setXaiUserCode(startRes.user_code);
+      setXaiVerificationUrl(startRes.verification_uri_complete || startRes.verification_uri);
+
+      window.open(startRes.verification_uri_complete || startRes.verification_uri, '_blank');
+
+      if (xaiPollRef.current) clearInterval(xaiPollRef.current);
+      const pollStartedAt = Date.now();
+      const interval = Math.max((startRes.interval || 5) * 1000, OAUTH_POLL_INTERVAL_MS);
+
+      xaiPollRef.current = setInterval(async () => {
+        if (Date.now() - pollStartedAt > OAUTH_POLL_TIMEOUT_MS) {
+          if (xaiPollRef.current) clearInterval(xaiPollRef.current);
+          setXaiOauthPolling(false);
+          setXaiUserCode('');
+          toast({ title: t('xaiOauthTimeout', { defaultValue: 'Authorization timed out' }), variant: 'destructive' });
+          return;
+        }
+        try {
+          const pollRes = await pollXaiOAuth(startRes.user_code);
+          if (pollRes.status === 'success') {
+            if (xaiPollRef.current) clearInterval(xaiPollRef.current);
+            setXaiOauthPolling(false);
+            setXaiUserCode('');
+            setConnectModalTarget(null);
+            toast({ title: t('connectSuccess', { name: 'xAI / SuperGrok' }) });
+            fetchOauthCreds();
+          } else if (pollRes.status === 'expired' || pollRes.status === 'denied') {
+            if (xaiPollRef.current) clearInterval(xaiPollRef.current);
+            setXaiOauthPolling(false);
+            setXaiUserCode('');
+            toast({
+              title: t('connectError', { name: 'xAI / SuperGrok' }),
+              variant: 'destructive',
+            });
+          }
+        } catch {
+          // ignore polling errors
+        }
+      }, interval);
+    } catch (error) {
+      setXaiOauthPolling(false);
+      toast({
+        title: t('connectError', { name: 'xAI / SuperGrok' }),
+        description: String(error),
+        variant: 'destructive',
+      });
+    }
+  }, [fetchOauthCreds, t]);
+
   const openConnectModal = useCallback(async (plat: OauthIntegration) => {
     setConnectModalTarget(plat);
     setTokenInput('');
@@ -207,7 +273,10 @@ export function useCredentialsOAuth() {
 
   const closeConnectModal = useCallback(() => {
     if (googlePollRef.current) clearInterval(googlePollRef.current);
+    if (xaiPollRef.current) clearInterval(xaiPollRef.current);
     setGoogleOauthPolling(false);
+    setXaiOauthPolling(false);
+    setXaiUserCode('');
     setConnectModalTarget(null);
     setTokenInput('');
     setUserIdInput('');
@@ -226,6 +295,7 @@ export function useCredentialsOAuth() {
     handleConnectOauth,
     handleDisconnectOauth,
     handleGoogleWorkspaceConnect,
+    handleXaiOAuthConnect,
     isOauthLoading,
     oauthCreds,
     openConnectModal,
@@ -239,5 +309,8 @@ export function useCredentialsOAuth() {
     setUserIdInput,
     tokenInput,
     userIdInput,
+    xaiOauthPolling,
+    xaiUserCode,
+    xaiVerificationUrl,
   };
 }

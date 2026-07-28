@@ -126,9 +126,7 @@ def _check_mcp(
     configured_ids: set[str] = set()
     if mcp_dict:
         for cfg in extract_mcp_configs(mcp_dict):
-            name = getattr(cfg, "name", None) or getattr(cfg, "id", None)
-            if name:
-                configured_ids.add(str(name))
+            configured_ids.add(cfg.name)
 
     missing = [mid for mid in profile.mcp_ids if mid not in configured_ids]
     items: list[AgentReadinessItem] = []

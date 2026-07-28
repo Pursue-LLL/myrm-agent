@@ -255,7 +255,8 @@ class XSearchProvider:
                 ))
 
             has_filters = bool(allowed or excluded or from_date.strip() or to_date.strip())
-            if has_filters and not merged:
+            is_degraded = has_filters and not merged
+            if is_degraded:
                 answer += (
                     "\n\nNote: No matching posts found for the specified filters. "
                     "This answer may be based on general knowledge rather than actual X posts."
@@ -266,6 +267,7 @@ class XSearchProvider:
                 link=f"https://x.com/search?q={query}",
                 snippet=answer,
                 citations=merged,
+                is_degraded=is_degraded,
             )
 
         except httpx.HTTPStatusError as e:

@@ -442,6 +442,22 @@ async def _transcribe_deepgram(
 _XAI_STT_URL = "https://api.x.ai/v1/stt"
 
 
+def _resolve_xai_stt_api_key(config: VoiceConfig) -> str:
+    """Resolve xAI STT API key: explicit config first, then OAuth token fallback."""
+    if config.stt_api_key:
+        return config.stt_api_key
+    try:
+        from myrm_agent_harness.agent.security import user_credentials_ctx
+        from app.services.agent.session_credential_assembler import XAI_ISSUER
+
+        for cred in user_credentials_ctx.get():
+            if cred.issuer == XAI_ISSUER and cred.token.strip():
+                return cred.token
+    except Exception:
+        pass
+    return config.stt_api_key
+
+
 async def _transcribe_xai(
     audio_path: Path | None,
     config: VoiceConfig,
@@ -452,6 +468,7 @@ async def _transcribe_xai(
     Supports Inverse Text Normalization and diarization.
     Non-OpenAI-compatible API — requires dedicated implementation.
     """
+    api_key = _resolve_xai_stt_api_key(config)
     base_url = (config.stt_base_url.rstrip("/") if config.stt_base_url else _XAI_STT_URL.rsplit("/", 1)[0])
     url = f"{base_url}/stt"
 
@@ -465,7 +482,7 @@ async def _transcribe_xai(
             files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
             resp = await client.post(
                 url,
-                headers={"Authorization": f"Bearer {config.stt_api_key}"},
+                headers={"Authorization": f"Bearer {api_key}"},
                 files=files,
                 data=data,
             )
@@ -475,7 +492,7 @@ async def _transcribe_xai(
                 files = {"file": (audio_path.name, f, _guess_mime(audio_path))}
                 resp = await client.post(
                     url,
-                    headers={"Authorization": f"Bearer {config.stt_api_key}"},
+                    headers={"Authorization": f"Bearer {api_key}"},
                     files=files,
                     data=data,
                 )

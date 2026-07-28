@@ -58,8 +58,9 @@ def create_x_live_search_tool() -> BaseTool:
         if config is None:
             return {
                 "content": (
-                    "xAI API key not configured. Add an xAI provider in Settings → Models & Providers, "
-                    "then enable the x-live-search skill on this agent."
+                    "xAI credentials not configured. Add an xAI provider in "
+                    "Settings → Models & Providers, or connect your SuperGrok token in "
+                    "Settings → Integrations → Credentials."
                 ),
                 "metadata": {"error": True, "query": query},
             }
@@ -92,6 +93,7 @@ def create_x_live_search_tool() -> BaseTool:
                 "source": "x_search",
                 "citations": [{"url": c.url, "title": c.title} for c in result.citations],
                 "total_citations": len(result.citations),
+                "is_degraded": result.is_degraded,
             },
         }
 

@@ -174,6 +174,13 @@ def resolve_e2e_wall_profile() -> E2eWallProfile:
     return "signoff" if is_e2e_signoff_runtime() else "dev"
 
 
+def mux_page_reclaim_hard_timeout_sec() -> int:
+    """Mux page reopen/reclaim hard wall; signoff allows parallel mux bind_lease wait."""
+    if is_e2e_signoff_runtime():
+        return MUX_PAGE_RECLAIM_HARD_TIMEOUT_SIGNOFF_SEC
+    return MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC
+
+
 def clarify_skip_api_wait_sec() -> int:
     """Clarify form/API pending wait budget; signoff uses shorter fail-fast window."""
     if is_e2e_signoff_runtime():
@@ -228,6 +235,10 @@ SIGNOFF_CLARIFY_API_SEAL_SKIP: Final[str] = (
 )
 # R47: hard wall for mux page reopen/reclaim (nested call_tool must not burn 600s).
 MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC: Final[int] = 120
+# R83: signoff desktop under parallel chrome_e2e may block on bind_lease >120s.
+MUX_PAGE_RECLAIM_HARD_TIMEOUT_SIGNOFF_SEC: Final[int] = (
+    E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
+)
 SHELL_PROBE_STALL_FAIL_FAST_SEC: Final[int] = 120
 # R96-MUX: browser takeover gate — consecutive MUX stall without API gate progress.
 GATE_MUX_STALL_FAIL_FAST_SEC: Final[int] = 120
